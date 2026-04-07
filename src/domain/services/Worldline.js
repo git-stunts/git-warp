@@ -355,13 +355,13 @@ export default class Worldline {
    */
   async observer(nameOrConfig, config = undefined) {
     if (typeof nameOrConfig === 'string') {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- return through defineProperty delegation; type is declared in @returns
+       
       return await this._graph.observer(nameOrConfig, config, {
         source: /** @type {WorldlineSource} */ (this._source.toDTO()),
       });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- return through defineProperty delegation; type is declared in @returns
+     
     return await this._graph.observer(nameOrConfig, {
       source: /** @type {WorldlineSource} */ (this._source.toDTO()),
     });

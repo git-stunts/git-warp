@@ -338,7 +338,7 @@ export default class Observer {
       ? WorldlineSelector.from(options.source).clone()
       : new LiveSelector();
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- return through defineProperty delegation; type is declared in @returns
+     
     return await graph.observer(/** @type {string} */ (this._name), config, { source: /** @type {import('../../../../index.js').WorldlineSource} */ (nextSource.toDTO()) });
   }
 
