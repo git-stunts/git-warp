@@ -56,7 +56,7 @@
   - no message parsing for behaviorally significant branching
   - no ambient time or ambient entropy in domain code
   - no fake shape trust or cast-cosplay
-- End each substantial slice with a journal-style progress report that states what moved, what is still ugly, and what comes next.
+- End each substantial slice with a funny progress report that explains what mess we got ourselves into, what mess we got ourselves out of, and what comes next. Battle report style is optional.
 
 ## Repo Context
 
