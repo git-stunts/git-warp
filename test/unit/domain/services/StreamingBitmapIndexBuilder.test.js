@@ -73,6 +73,26 @@ describe('StreamingBitmapIndexBuilder', () => {
       const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
       expect(builder.maxMemoryBytes).toBe(50 * 1024 * 1024);
     });
+
+    it('accepts custom codec and crypto dependencies', () => {
+      const codec = {
+        encode: vi.fn((value) => new TextEncoder().encode(JSON.stringify(value))),
+        decode: vi.fn((buffer) => JSON.parse(new TextDecoder().decode(buffer))),
+      };
+      const crypto = {
+        hashBytes: vi.fn(async () => 'digest'),
+        hashString: vi.fn(async () => 'digest'),
+      };
+
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
+        storage: mockStorage,
+        codec,
+        crypto,
+      }));
+
+      expect(builder._codec).toBe(codec);
+      expect(builder._crypto).toBe(crypto);
+    });
   });
 
   describe('registerNode', () => {
@@ -164,6 +184,41 @@ describe('StreamingBitmapIndexBuilder', () => {
       expect(treeEntries.some((/** @type {any} */ e) => e.includes('shards_fwd_'))).toBe(true);
       expect(treeEntries.some((/** @type {any} */ e) => e.includes('shards_rev_'))).toBe(true);
     });
+
+    it('writes sorted frontier metadata when a frontier is provided', async () => {
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
+
+      await builder.addEdge('aa1111', 'bb2222');
+      await builder.finalize({
+        frontier: new Map([
+          ['writer-b', 'bbbb'],
+          ['writer-a', 'aaaa'],
+        ]),
+      });
+
+      const treeEntries = /** @type {string[]} */ (mockStorage.writeTree.mock.calls[0])[0];
+      const frontierJsonEntry = treeEntries.find((entry) => entry.includes('\tfrontier.json'));
+      const frontierCborEntry = treeEntries.find((entry) => entry.includes('\tfrontier.cbor'));
+
+      expect(frontierJsonEntry).toBeDefined();
+      expect(frontierCborEntry).toBeDefined();
+
+      const oidMatch = frontierJsonEntry?.match(/blob ([^\s]+)/);
+      const frontierJson = JSON.parse(
+        /** @type {{content: string}} */ (
+          writtenBlobs.find((blob) => blob.oid === oidMatch?.[1])
+        ).content
+      );
+
+      expect(frontierJson).toEqual({
+        version: 1,
+        writerCount: 2,
+        frontier: {
+          'writer-a': 'aaaa',
+          'writer-b': 'bbbb',
+        },
+      });
+    });
   });
 
   describe('getMemoryStats', () => {
@@ -239,6 +294,57 @@ describe('StreamingBitmapIndexBuilder', () => {
       // Verify all nodes are in the meta shards
       const metaBlobs = writtenBlobs.filter((/** @type {any} */ b) => b.oid.includes('blob-'));
       expect(metaBlobs.length).toBeGreaterThan(0);
+    });
+
+    it('rejects invalid chunk JSON during merge loading', async () => {
+      const storage = {
+        ...mockStorage,
+        readBlob: vi.fn().mockResolvedValue(new TextEncoder().encode('not-json')),
+      };
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage }));
+
+      await expect(builder._loadAndValidateChunk('bad-oid')).rejects.toThrow('Failed to parse shard JSON');
+    });
+
+    it('rejects chunk version mismatches during merge loading', async () => {
+      const envelope = {
+        ...createMockEnvelope({ aa0001: 'ZmFrZQ==' }),
+        version: SHARD_VERSION + 1,
+      };
+      const storage = {
+        ...mockStorage,
+        readBlob: vi.fn().mockResolvedValue(new TextEncoder().encode(JSON.stringify(envelope))),
+      };
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage }));
+
+      await expect(builder._loadAndValidateChunk('bad-version')).rejects.toThrow('Shard version mismatch');
+    });
+
+    it('rejects chunk checksum mismatches during merge loading', async () => {
+      const envelope = {
+        ...createMockEnvelope({ aa0001: 'ZmFrZQ==' }),
+        checksum: 'not-the-real-checksum',
+      };
+      const storage = {
+        ...mockStorage,
+        readBlob: vi.fn().mockResolvedValue(new TextEncoder().encode(JSON.stringify(envelope))),
+      };
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage }));
+
+      await expect(builder._loadAndValidateChunk('bad-checksum')).rejects.toThrow('Shard checksum mismatch');
+    });
+
+    it('wraps invalid bitmap payloads during chunk merge', () => {
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
+
+      expect(() =>
+        builder._mergeDeserializedBitmap({
+          merged: {},
+          sha: 'aa0001',
+          base64Bitmap: 'not-a-valid-bitmap',
+          oid: 'bad-bitmap-oid',
+        })
+      ).toThrow('Failed to deserialize bitmap');
     });
   });
 });

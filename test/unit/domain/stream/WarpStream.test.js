@@ -405,4 +405,10 @@ describe('Sink', () => {
     const result = await sink.consume(asyncOf('x', 'y'));
     expect(result).toEqual(['x', 'y']);
   });
+
+  it('consume() rejects nullish sources', async () => {
+    const sink = new ArraySink();
+    await expect(sink.consume(/** @type {AsyncIterable<unknown>} */ (undefined)))
+      .rejects.toThrow('Sink.consume() requires a source');
+  });
 });

@@ -5,11 +5,13 @@ import {
   decodeEdgeKey,
   encodePropKey,
   decodePropKey,
+  EDGE_PROP_PREFIX,
   applyOpV2,
   join,
   applyFast,
   applyWithReceipt,
   joinStates,
+  OP_STRATEGIES,
   reduceV5 as _reduceV5,
   cloneStateV5,
 } from '../../../../src/domain/services/JoinReducer.js';
@@ -202,7 +204,7 @@ describe('JoinReducer', () => {
       });
     });
 
-    describe('PropSet', () => {
+  describe('PropSet', () => {
       it('sets property value using LWW', () => {
         const state = createEmptyStateV5();
         const eventId = createEventId(1, 'writer1', 'abcd1234', 0);
@@ -241,6 +243,20 @@ describe('JoinReducer', () => {
 
         const propKey = encodePropKey('x', 'name');
         expect(lwwValue(state.prop.get(propKey))).toEqual(value1);
+      });
+
+      it('rejects unnormalized legacy edge-property PropSet on the canonical apply path', () => {
+        const state = createEmptyStateV5();
+        const eventId = createEventId(1, 'writer1', 'abcd1234', 0);
+
+        expect(() =>
+          applyOpV2(state, {
+            type: 'PropSet',
+            node: `${EDGE_PROP_PREFIX}a\0b\0rel`,
+            key: 'weight',
+            value: createInlineValue(5),
+          }, eventId)
+        ).toThrow('Unnormalized legacy edge-property PropSet reached canonical apply path');
       });
     });
   });
@@ -575,6 +591,30 @@ describe('JoinReducer', () => {
       expect(orsetContains(cloned.nodeAlive, 'x')).toBe(true);
       expect(orsetContains(cloned.nodeAlive, 'y')).toBe(true);
     });
+
+    it('normalizes plain state-like objects through the structural fallback', () => {
+      const state = createEmptyStateV5();
+      const dot = createDot('A', 1);
+      applyOpV2(state, createNodeAddV2('x', dot), createEventId(1, 'A', 'aaaa1234', 0));
+      applyOpV2(state, createEdgeAddV2('x', 'y', 'rel', createDot('A', 2)), createEventId(2, 'A', 'bbbb1234', 0));
+      applyOpV2(state, createPropSetV2('x', 'name', createInlineValue('Alice')), createEventId(3, 'A', 'cccc1234', 0));
+
+      const plainState = {
+        nodeAlive: state.nodeAlive,
+        edgeAlive: state.edgeAlive,
+        prop: state.prop,
+        observedFrontier: state.observedFrontier,
+        edgeBirthEvent: state.edgeBirthEvent,
+      };
+
+      const cloned = cloneStateV5(/** @type {any} */ (plainState));
+      applyOpV2(cloned, createNodeAddV2('z', createDot('B', 1)), createEventId(4, 'B', 'dddd1234', 0));
+
+      expect(orsetContains(cloned.nodeAlive, 'x')).toBe(true);
+      expect(orsetContains(cloned.nodeAlive, 'z')).toBe(true);
+      expect(orsetContains(state.nodeAlive, 'z')).toBe(false);
+      expect(cloned.prop.get(encodePropKey('x', 'name'))?.value).toEqual(createInlineValue('Alice'));
+    });
   });
 
   describe('reduceV5', () => {
@@ -776,6 +816,123 @@ describe('JoinReducer', () => {
       expect(result.receipt.ops[0]?.result).toBe('applied');
       expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
       expect(state.observedFrontier.get('w1')).toBe(1);
+    });
+
+    it('applyFast skips undefined ops while still applying later entries', () => {
+      const state = createEmptyStateV5();
+      const patch = createPatchV2({
+        writer: 'w1',
+        lamport: 1,
+        ops: [
+          /** @type {any} */ (undefined),
+          createNodeAddV2('n1', createDot('w1', 1)),
+        ],
+        context: createVersionVector(),
+      });
+
+      applyFast(state, patch, 'fa51aa00ee12');
+
+      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
+      expect(state.observedFrontier.get('w1')).toBe(1);
+    });
+
+    it('applyWithReceipt skips undefined ops while recording later known ops', () => {
+      const state = createEmptyStateV5();
+      const patch = createPatchV2({
+        writer: 'w1',
+        lamport: 1,
+        ops: [
+          /** @type {any} */ (undefined),
+          createNodeAddV2('n1', createDot('w1', 1)),
+        ],
+        context: createVersionVector(),
+      });
+
+      const result = applyWithReceipt(state, patch, 'bece1111ee23');
+
+      expect(result.receipt.ops).toHaveLength(1);
+      expect(result.receipt.ops[0]?.op).toBe('NodeAdd');
+      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
+    });
+
+    it('raw PropSet strategy exposes outcome, snapshot, and diff accumulation', () => {
+      const strategy = OP_STRATEGIES.get('PropSet');
+      if (!strategy) {
+        throw new Error('expected PropSet strategy');
+      }
+      const state = createEmptyStateV5();
+      const op = {
+        type: 'PropSet',
+        node: 'n1',
+        key: 'name',
+        value: createInlineValue('Alice'),
+      };
+      const eventId = createEventId(1, 'w1', 'abcd1234', 0);
+      const diff = {
+        nodesAdded: [],
+        nodesRemoved: [],
+        edgesAdded: [],
+        edgesRemoved: [],
+        propsChanged: [],
+      };
+
+      const before = strategy.snapshot(state, op);
+      const outcome = strategy.outcome(state, op, eventId);
+      strategy.mutate(state, op, eventId);
+      strategy.accumulate(diff, state, op, before);
+
+      expect(outcome.result).toBe('applied');
+      expect(diff.propsChanged).toEqual([
+        { nodeId: 'n1', key: 'name', value: createInlineValue('Alice'), prevValue: undefined },
+      ]);
+    });
+
+    it('remove strategies tolerate snapshots without alive-before sets', () => {
+      const state = createEmptyStateV5();
+      const nodeRemoveStrategy = OP_STRATEGIES.get('NodeRemove');
+      const edgeRemoveStrategy = OP_STRATEGIES.get('EdgeRemove');
+      if (!nodeRemoveStrategy || !edgeRemoveStrategy) {
+        throw new Error('expected remove strategies');
+      }
+      const diff = {
+        nodesAdded: [],
+        nodesRemoved: [],
+        edgesAdded: [],
+        edgesRemoved: [],
+        propsChanged: [],
+      };
+
+      expect(() =>
+        nodeRemoveStrategy.accumulate(diff, state, { type: 'NodeRemove', observedDots: new Set() }, {})
+      ).not.toThrow();
+      expect(() =>
+        edgeRemoveStrategy.accumulate(diff, state, { type: 'EdgeRemove', observedDots: new Set() }, {})
+      ).not.toThrow();
+      expect(diff.nodesRemoved).toEqual([]);
+      expect(diff.edgesRemoved).toEqual([]);
+    });
+
+    it('applyWithReceipt skips strategy outcomes whose receipt name is no longer valid', () => {
+      const state = createEmptyStateV5();
+      const strategy = OP_STRATEGIES.get('BlobValue');
+      if (!strategy) {
+        throw new Error('expected BlobValue strategy');
+      }
+      const originalReceiptName = strategy.receiptName;
+
+      try {
+        strategy.receiptName = 'FutureBlobValue';
+        const result = applyWithReceipt(state, createPatchV2({
+          writer: 'w1',
+          lamport: 1,
+          ops: [{ type: 'BlobValue', oid: 'blob-1' }],
+          context: createVersionVector(),
+        }), 'bece1111ee24');
+
+        expect(result.receipt.ops).toEqual([]);
+      } finally {
+        strategy.receiptName = originalReceiptName;
+      }
     });
 
     it('applyFast handles undefined context gracefully', () => {

@@ -49,6 +49,15 @@ describe('BitmapNeighborProvider', () => {
     ]);
   });
 
+  it('returns single merged edge unchanged when both-direction DAG result has one edge', async () => {
+    mockReader.getChildren.mockResolvedValue(['sha2']);
+    mockReader.getParents.mockResolvedValue([]);
+
+    const result = await provider.getNeighbors('sha0', 'both');
+
+    expect(result).toEqual([{ neighborId: 'sha2', label: '' }]);
+  });
+
   it('returns empty when labels filter has no empty string', async () => {
     mockReader.getChildren.mockResolvedValue(['sha1']);
     const result = await provider.getNeighbors('sha0', 'out', { labels: new Set(['manages']) });
@@ -99,5 +108,81 @@ describe('BitmapNeighborProvider', () => {
     await expect(empty.hasNode('node:a')).rejects.toThrow(
       'BitmapNeighborProvider requires either indexReader or logicalIndex',
     );
+  });
+
+  describe('logical index mode', () => {
+    /** @type {*} */
+    let logicalIndex;
+    /** @type {*} */
+    let logicalProvider;
+
+    beforeEach(() => {
+      logicalIndex = {
+        isAlive: vi.fn().mockReturnValue(true),
+        getLabelRegistry: vi.fn().mockReturnValue(new Map([
+          ['knows', 1],
+          ['likes', 2],
+        ])),
+        getEdges: vi.fn().mockImplementation((nodeId, direction, labelIds) => {
+          if (direction === 'out') {
+            return [
+              { neighborId: 'n2', label: 'likes' },
+              { neighborId: 'n1', label: 'knows' },
+            ];
+          }
+          if (direction === 'in') {
+            return [
+              { neighborId: 'n1', label: 'knows' },
+              { neighborId: 'n3', label: 'likes' },
+            ];
+          }
+          return [];
+        }),
+      };
+      logicalProvider = new BitmapNeighborProvider({ logicalIndex: /** @type {*} */ (logicalIndex) });
+    });
+
+    it('uses logical isAlive for hasNode', async () => {
+      logicalIndex.isAlive.mockReturnValueOnce(false);
+
+      await expect(logicalProvider.hasNode('node:a')).resolves.toBe(false);
+      expect(logicalIndex.isAlive).toHaveBeenCalledWith('node:a');
+    });
+
+    it('returns sorted logical out edges without a label filter', async () => {
+      const result = await logicalProvider.getNeighbors('node:a', 'out');
+
+      expect(result).toEqual([
+        { neighborId: 'n1', label: 'knows' },
+        { neighborId: 'n2', label: 'likes' },
+      ]);
+      expect(logicalIndex.getEdges).toHaveBeenCalledWith('node:a', 'out', undefined);
+    });
+
+    it('returns deduplicated sorted edges for logical both-direction queries', async () => {
+      const result = await logicalProvider.getNeighbors('node:a', 'both');
+
+      expect(result).toEqual([
+        { neighborId: 'n1', label: 'knows' },
+        { neighborId: 'n2', label: 'likes' },
+        { neighborId: 'n3', label: 'likes' },
+      ]);
+      expect(logicalIndex.getEdges).toHaveBeenCalledWith('node:a', 'out', undefined);
+      expect(logicalIndex.getEdges).toHaveBeenCalledWith('node:a', 'in', undefined);
+    });
+
+    it('resolves label names to numeric IDs before querying the logical index', async () => {
+      await logicalProvider.getNeighbors('node:a', 'out', { labels: new Set(['likes', 'knows']) });
+
+      expect(logicalIndex.getLabelRegistry).toHaveBeenCalled();
+      expect(logicalIndex.getEdges).toHaveBeenCalledWith('node:a', 'out', [2, 1]);
+    });
+
+    it('returns empty when logical label filters resolve to no known label IDs', async () => {
+      const result = await logicalProvider.getNeighbors('node:a', 'out', { labels: new Set(['unknown']) });
+
+      expect(result).toEqual([]);
+      expect(logicalIndex.getEdges).not.toHaveBeenCalled();
+    });
   });
 });

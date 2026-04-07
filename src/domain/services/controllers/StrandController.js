@@ -152,7 +152,7 @@ export default class StrandController {
   /**
    * Lists all pending intents queued on a strand.
    * @param {string} strandId
-   * @returns {Promise<Array<{ intentId: string, enqueuedAt: string, patch: import('../../types/WarpTypesV2.js').PatchV2, reads: string[], writes: string[], contentBlobOids: string[] }>>}
+   * @returns {Promise<ReadonlyArray<{ intentId: string, enqueuedAt: string, patch: import('../../types/WarpTypesV2.js').PatchV2, reads: string[], writes: string[], contentBlobOids: string[] }>>}
    */
   async listStrandIntents(strandId) {
     return await this._strandService.listIntents(strandId);

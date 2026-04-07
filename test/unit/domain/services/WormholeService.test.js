@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   createWormhole,
   composeWormholes,
@@ -8,6 +8,13 @@ import {
 } from '../../../../src/domain/services/WormholeService.js';
 import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.js';
 import WormholeError from '../../../../src/domain/errors/WormholeError.js';
+import EncryptionError from '../../../../src/domain/errors/EncryptionError.js';
+import PersistenceError from '../../../../src/domain/errors/PersistenceError.js';
+import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
+import {
+  encodePatchMessage,
+  encodeCheckpointMessage,
+} from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import {
   reduceV5 as _reduceV5,
   encodeEdgeKey,
@@ -225,6 +232,163 @@ describe('WormholeService', () => {
         toSha: /** @type {any} */ (undefined),
       })).rejects.toThrow(WormholeError);
     });
+
+    it('throws E_WORMHOLE_NOT_PATCH when the commit is not a patch commit', async () => {
+      const sha = generateOid(4000);
+      const persistence = {
+        nodeExists: vi.fn(async (candidate) => candidate === sha),
+        getNodeInfo: vi.fn(async () => ({
+          message: encodeCheckpointMessage({
+            graph: 'test-graph',
+            stateHash: 'a'.repeat(64),
+            frontierOid: generateOid(4001),
+            indexOid: generateOid(4002),
+            schema: 2,
+          }),
+          parents: [],
+        })),
+        readBlob: vi.fn(),
+      };
+
+      await expect(createWormhole({
+        persistence: /** @type {any} */ (persistence),
+        graphName: 'test-graph',
+        fromSha: sha,
+        toSha: sha,
+      })).rejects.toMatchObject({
+        code: 'E_WORMHOLE_NOT_PATCH',
+        context: { sha, kind: 'checkpoint' },
+      });
+    });
+
+    it('throws E_WORMHOLE_INVALID_RANGE when a patch belongs to another graph', async () => {
+      const sha = generateOid(5000);
+      const patchOid = generateOid(5001);
+      const patch = createPatchV2({
+        writer: 'alice',
+        lamport: 1,
+        ops: [createNodeAddV2('node-a', createDot('alice', 1))],
+      });
+      const persistence = {
+        nodeExists: vi.fn(async (candidate) => candidate === sha),
+        getNodeInfo: vi.fn(async () => ({
+          message: encodePatchMessage({
+            graph: 'other-graph',
+            writer: 'alice',
+            lamport: 1,
+            patchOid,
+          }),
+          parents: [],
+        })),
+        readBlob: vi.fn(async () => defaultCodec.encode(patch)),
+      };
+
+      await expect(createWormhole({
+        persistence: /** @type {any} */ (persistence),
+        graphName: 'test-graph',
+        fromSha: sha,
+        toSha: sha,
+      })).rejects.toMatchObject({
+        code: 'E_WORMHOLE_INVALID_RANGE',
+        context: { sha, expectedGraph: 'test-graph', actualGraph: 'other-graph' },
+      });
+    });
+
+    it('throws EncryptionError for encrypted patches without patchBlobStorage', async () => {
+      const sha = generateOid(6000);
+      const patchOid = generateOid(6001);
+      const readBlob = vi.fn();
+      const persistence = {
+        nodeExists: vi.fn(async (candidate) => candidate === sha),
+        getNodeInfo: vi.fn(async () => ({
+          message: encodePatchMessage({
+            graph: 'test-graph',
+            writer: 'alice',
+            lamport: 1,
+            patchOid,
+            encrypted: true,
+          }),
+          parents: [],
+        })),
+        readBlob,
+      };
+
+      await expect(createWormhole({
+        persistence: /** @type {any} */ (persistence),
+        graphName: 'test-graph',
+        fromSha: sha,
+        toSha: sha,
+      })).rejects.toBeInstanceOf(EncryptionError);
+      expect(readBlob).not.toHaveBeenCalled();
+    });
+
+    it('loads encrypted patches from patchBlobStorage when provided', async () => {
+      const sha = generateOid(7000);
+      const patchOid = generateOid(7001);
+      const patch = createPatchV2({
+        writer: 'alice',
+        lamport: 1,
+        ops: [createNodeAddV2('node-a', createDot('alice', 1))],
+      });
+      const patchBlobStorage = {
+        retrieve: vi.fn(async (oid) => {
+          expect(oid).toBe(patchOid);
+          return defaultCodec.encode(patch);
+        }),
+      };
+      const readBlob = vi.fn();
+      const persistence = {
+        nodeExists: vi.fn(async (candidate) => candidate === sha),
+        getNodeInfo: vi.fn(async () => ({
+          message: encodePatchMessage({
+            graph: 'test-graph',
+            writer: 'alice',
+            lamport: 1,
+            patchOid,
+            encrypted: true,
+          }),
+          parents: [],
+        })),
+        readBlob,
+      };
+
+      const wormhole = await createWormhole({
+        persistence: /** @type {any} */ (persistence),
+        graphName: 'test-graph',
+        fromSha: sha,
+        toSha: sha,
+        patchBlobStorage: /** @type {any} */ (patchBlobStorage),
+      });
+
+      expect(wormhole.patchCount).toBe(1);
+      expect(patchBlobStorage.retrieve).toHaveBeenCalledTimes(1);
+      expect(readBlob).not.toHaveBeenCalled();
+    });
+
+    it('throws PersistenceError when the patch blob is missing', async () => {
+      const sha = generateOid(8000);
+      const patchOid = generateOid(8001);
+      const persistence = {
+        nodeExists: vi.fn(async (candidate) => candidate === sha),
+        getNodeInfo: vi.fn(async () => ({
+          message: encodePatchMessage({
+            graph: 'test-graph',
+            writer: 'alice',
+            lamport: 1,
+            patchOid,
+          }),
+          parents: [],
+        })),
+        readBlob: vi.fn(async () => null),
+      };
+
+      await expect(createWormhole({
+        persistence: /** @type {any} */ (persistence),
+        graphName: 'test-graph',
+        fromSha: sha,
+        toSha: sha,
+      })).rejects.toBeInstanceOf(PersistenceError);
+    });
   });
 
   describe('replayWormhole', () => {
@@ -404,6 +568,38 @@ describe('WormholeService', () => {
       });
     });
 
+    it('throws E_WORMHOLE_INVALID_RANGE when persistence proves wormholes are not consecutive', async () => {
+      const wormhole1 = {
+        fromSha: generateOid(9000),
+        toSha: generateOid(9001),
+        writerId: 'alice',
+        patchCount: 1,
+        payload: new ProvenancePayload([]),
+      };
+      const wormhole2 = {
+        fromSha: generateOid(9002),
+        toSha: generateOid(9003),
+        writerId: 'alice',
+        patchCount: 1,
+        payload: new ProvenancePayload([]),
+      };
+      const persistence = {
+        getNodeInfo: vi.fn(async () => ({ parents: [generateOid(9999)] })),
+      };
+
+      await expect(composeWormholes(
+        /** @type {any} */ (wormhole1),
+        /** @type {any} */ (wormhole2),
+        { persistence: /** @type {any} */ (persistence) },
+      )).rejects.toMatchObject({
+        code: 'E_WORMHOLE_INVALID_RANGE',
+        context: {
+          firstToSha: wormhole1.toSha,
+          secondFromSha: wormhole2.fromSha,
+        },
+      });
+    });
+
     it('composition is associative (monoid property)', async () => {
       const patches = [];
       for (let i = 1; i <= 6; i++) {
@@ -558,6 +754,16 @@ describe('WormholeService', () => {
         patchCount: 'two',
         payload: { version: 1, patches: [] },
       })).toThrow('patchCount must be a non-negative number');
+    });
+
+    it('throws when fromSha is not a string', () => {
+      expect(() => deserializeWormhole({
+        fromSha: 123,
+        toSha: 'def456',
+        writerId: 'alice',
+        patchCount: 1,
+        payload: { version: 1, patches: [] },
+      })).toThrow("fromSha' must be a string");
     });
   });
 

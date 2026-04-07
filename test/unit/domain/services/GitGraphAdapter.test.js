@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.js';
 
 describe('GitGraphAdapter', () => {
+  describe('constructor', () => {
+    it('requires plumbing', () => {
+      expect(() => new GitGraphAdapter({ plumbing: null }))
+        .toThrow(/plumbing is required/);
+    });
+  });
+
   describe('readBlob()', () => {
     /** @type {any} */
     let mockPlumbing;
@@ -178,6 +185,19 @@ describe('GitGraphAdapter', () => {
 
       await expect(adapter.getNodeInfo('abc123'))
         .rejects.toThrow(/Invalid commit format/);
+    });
+
+    it('wraps missing-object errors as PersistenceError', async () => {
+      const sha = 'abc123def456789012345678901234567890abcd';
+      const err = /** @type {any} */ (new Error(`fatal: bad object ${sha}`));
+      err.details = { code: 128, stderr: `fatal: bad object ${sha}` };
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      await expect(adapter.getNodeInfo(sha))
+        .rejects.toMatchObject({
+          code: 'E_MISSING_OBJECT',
+          message: `Missing Git object: ${sha}`,
+        });
     });
   });
 
@@ -469,6 +489,18 @@ describe('GitGraphAdapter', () => {
 
       expect(count).toBe(123);
     });
+
+    it('wraps missing refs as PersistenceError', async () => {
+      const err = /** @type {any} */ (new Error('fatal: bad revision refs/warp/missing'));
+      err.details = { code: 128, stderr: 'fatal: bad revision refs/warp/missing' };
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      await expect(adapter.countNodes('refs/warp/missing'))
+        .rejects.toMatchObject({
+          code: 'E_REF_NOT_FOUND',
+          message: 'Ref not found: refs/warp/missing',
+        });
+    });
   });
 
   describe('configGet()', () => {
@@ -551,6 +583,14 @@ describe('GitGraphAdapter', () => {
       await adapter.configGet('simple.key');
 
       expect(mockPlumbing.execute).toHaveBeenCalledTimes(3);
+    });
+
+    it('rethrows unexpected git errors', async () => {
+      const err = new Error('permission denied');
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      await expect(adapter.configGet('warp.writerId.events'))
+        .rejects.toBe(err);
     });
   });
 

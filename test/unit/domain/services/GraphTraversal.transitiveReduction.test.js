@@ -93,6 +93,34 @@ describe('GraphTraversal.transitiveReduction()', () => {
     });
   });
 
+  describe('deeper-than-grandchild redundancy', () => {
+    it('removes a direct edge rediscovered deeper in the forward BFS', async () => {
+      const fixture = makeFixture({
+        nodes: ['A', 'B', 'C', 'D', 'E'],
+        edges: [
+          { from: 'A', to: 'B' },
+          { from: 'A', to: 'C' },
+          { from: 'A', to: 'E' },
+          { from: 'B', to: 'D' },
+          { from: 'C', to: 'D' },
+          { from: 'D', to: 'E' },
+        ],
+      });
+      const provider = makeAdjacencyProvider(fixture);
+      const engine = new GraphTraversal({ provider });
+      const { edges, removed } = await engine.transitiveReduction({ start: 'A' });
+
+      expect(removed).toBe(1);
+      expect(edges).toEqual([
+        { from: 'A', to: 'B', label: '' },
+        { from: 'A', to: 'C', label: '' },
+        { from: 'B', to: 'D', label: '' },
+        { from: 'C', to: 'D', label: '' },
+        { from: 'D', to: 'E', label: '' },
+      ]);
+    });
+  });
+
   describe('preserves labels', () => {
     it('edge labels survive reduction', async () => {
       const fixture = makeFixture({
@@ -111,6 +139,30 @@ describe('GraphTraversal.transitiveReduction()', () => {
       expect(edges).toEqual([
         { from: 'A', to: 'B', label: 'manages' },
         { from: 'B', to: 'C', label: 'owns' },
+      ]);
+    });
+
+    it('sorts reduced edges by from, then to, then label', async () => {
+      const fixture = makeFixture({
+        nodes: ['A', 'B', 'C', 'D'],
+        edges: [
+          { from: 'B', to: 'D', label: 'omega' },
+          { from: 'A', to: 'C', label: 'gamma' },
+          { from: 'A', to: 'B', label: 'alpha' },
+          { from: 'A', to: 'B', label: 'zeta' },
+          { from: 'A', to: 'B', label: 'alpha' },
+        ],
+      });
+      const provider = makeAdjacencyProvider(fixture);
+      const engine = new GraphTraversal({ provider });
+      const { edges } = await engine.transitiveReduction({ start: 'A' });
+
+      expect(edges).toEqual([
+        { from: 'A', to: 'B', label: 'alpha' },
+        { from: 'A', to: 'B', label: 'alpha' },
+        { from: 'A', to: 'B', label: 'zeta' },
+        { from: 'A', to: 'C', label: 'gamma' },
+        { from: 'B', to: 'D', label: 'omega' },
       ]);
     });
   });
