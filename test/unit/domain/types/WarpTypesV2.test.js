@@ -439,11 +439,10 @@ describe('WarpTypesV2', () => {
 
   describe('Op class instanceof', () => {
     it('all factory-created ops are instanceof Op', () => {
-      const dot = new Dot('w', 1);
       const ops = [
-        createNodeAddV2('n1', dot),
+        createNodeAddV2('n1', new Dot('w', 1)),
         createNodeRemoveV2('n1', []),
-        createEdgeAddV2('n1', 'n2', 'r', dot),
+        createEdgeAddV2('n1', 'n2', 'r', new Dot('w', 2)),
         createEdgeRemoveV2('n1', 'n2', 'r', []),
         createPropSetV2('n1', 'k', 'v'),
       ];

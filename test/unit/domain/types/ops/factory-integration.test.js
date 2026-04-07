@@ -12,7 +12,6 @@ import EdgeRemove from '../../../../../src/domain/types/ops/EdgeRemove.js';
 import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.js';
 import EdgePropSet from '../../../../../src/domain/types/ops/EdgePropSet.js';
 import PropSetClass from '../../../../../src/domain/types/ops/PropSet.js';
-import BlobValue from '../../../../../src/domain/types/ops/BlobValue.js';
 import {
   createNodeAddV2,
   createNodeRemoveV2,
@@ -122,10 +121,11 @@ describe('OpNormalizer returns Op class instances', () => {
     const canonical = normalizeRawOp(raw);
 
     expect(canonical).toBeInstanceOf(NodePropSet);
-    expect(canonical.type).toBe('NodePropSet');
-    expect(canonical.node).toBe('user:alice');
-    expect(canonical.key).toBe('name');
-    expect(canonical.value).toBe('Alice');
+    const nodeProp = /** @type {NodePropSet} */ (canonical);
+    expect(nodeProp.type).toBe('NodePropSet');
+    expect(nodeProp.node).toBe('user:alice');
+    expect(nodeProp.key).toBe('name');
+    expect(nodeProp.value).toBe('Alice');
   });
 
   it('normalizeRawOp converts PropSet (edge) to EdgePropSet instance', () => {
