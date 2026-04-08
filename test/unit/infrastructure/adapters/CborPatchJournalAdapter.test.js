@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
-import { createPatchV2 } from '../../../../src/domain/types/WarpTypesV2.ts';
+import PatchV2 from '../../../../src/domain/types/PatchV2.ts';
+
+/** @param {Record<string, unknown>} opts */
+function createPatchV2(opts) { return new PatchV2(/** @type {any} */ (opts)); }
 import PatchJournalPort from '../../../../src/ports/PatchJournalPort.ts';
 
 /**

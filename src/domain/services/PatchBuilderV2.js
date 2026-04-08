@@ -14,15 +14,13 @@
 import nullLogger from '../utils/nullLogger.ts';
 import { vvSerialize } from '../crdt/VersionVector.js';
 import { orsetGetDots, orsetContains, orsetElements } from '../crdt/ORSet.js';
-import {
-  createNodeAddV2,
-  createNodeRemoveV2,
-  createEdgeAddV2,
-  createEdgeRemoveV2,
-  createNodePropSetV2,
-  createEdgePropSetV2,
-  createPatchV2,
-} from '../types/WarpTypesV2.ts';
+import NodeAdd from '../types/ops/NodeAdd.ts';
+import NodeRemove from '../types/ops/NodeRemove.ts';
+import EdgeAdd from '../types/ops/EdgeAdd.ts';
+import EdgeRemove from '../types/ops/EdgeRemove.ts';
+import NodePropSet from '../types/ops/NodePropSet.ts';
+import EdgePropSet from '../types/ops/EdgePropSet.ts';
+import PatchV2 from '../types/PatchV2.ts';
 import {
   encodeEdgeKey,
   FIELD_SEPARATOR,
@@ -164,7 +162,7 @@ export class PatchBuilderV2 {
   /**
    * Creates a new PatchBuilderV2.
    *
-   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal?: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/PatchV2.ts').default, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal?: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} options
    */
   constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, targetRefPath, onCommitSuccess = null, onDeleteWithData = 'warn', patchJournal, logger, blobStorage }) {
     /** @type {import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default} */
@@ -202,10 +200,10 @@ export class PatchBuilderV2 {
     /** @type {string|null} */
     this._expectedParentSha = expectedParentSha;
 
-    /** @type {((result: {patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string}) => void | Promise<void>)|null} */
+    /** @type {((result: {patch: import('../types/PatchV2.ts').default, sha: string}) => void | Promise<void>)|null} */
     this._onCommitSuccess = onCommitSuccess;
 
-    /** @type {import('../types/WarpTypesV2.ts').OpV2[]} */
+    /** @type {import('../types/ops/unions.ts').OpV2[]} */
     this._ops = [];
 
     /** @type {Set<string>} Node IDs added in this patch (for attachContent validation) */
@@ -325,7 +323,7 @@ export class PatchBuilderV2 {
     this._assertNotCommitted();
     _assertNoReservedBytes(nodeId, 'nodeId');
     const dot = this._vv.increment(this._writerId);
-    this._ops.push(createNodeAddV2(nodeId, dot));
+    this._ops.push(new NodeAdd(nodeId, dot));
     this._nodesAdded.add(nodeId);
     // Provenance: NodeAdd writes the node
     this._writes.add(nodeId);
@@ -373,7 +371,7 @@ export class PatchBuilderV2 {
         const to = /** @type {string} */ (parts[1]);
         const label = /** @type {string} */ (parts[2]);
         const edgeDots = [...orsetGetDots(state.edgeAlive, edgeKey)];
-        this._ops.push(createEdgeRemoveV2(from, to, label, edgeDots));
+        this._ops.push(new EdgeRemove({ from, to, label, observedDots: edgeDots }));
         // Provenance: cascade-generated EdgeRemove reads the edge key (to observe its dots)
         this._observedOperands.add(edgeKey);
       }
@@ -415,7 +413,7 @@ export class PatchBuilderV2 {
       );
     }
     const observedDots = [...orsetGetDots(state.nodeAlive, nodeId)];
-    this._ops.push(createNodeRemoveV2(nodeId, observedDots));
+    this._ops.push(new NodeRemove(nodeId, observedDots));
     // Provenance: NodeRemove reads the node (to observe its dots)
     this._observedOperands.add(nodeId);
     return this;
@@ -453,7 +451,7 @@ export class PatchBuilderV2 {
     _assertNoReservedBytes(to, 'to node ID');
     _assertNoReservedBytes(label, 'edge label');
     const dot = this._vv.increment(this._writerId);
-    this._ops.push(createEdgeAddV2(from, to, label, dot));
+    this._ops.push(new EdgeAdd({ from, to, label, dot }));
     const edgeKey = encodeEdgeKey(from, to, label);
     this._edgesAdded.add(edgeKey);
     // Provenance: EdgeAdd reads both endpoint nodes, writes the edge key
@@ -500,7 +498,7 @@ export class PatchBuilderV2 {
       );
     }
     const observedDots = [...orsetGetDots(state.edgeAlive, edgeKey)];
-    this._ops.push(createEdgeRemoveV2(from, to, label, observedDots));
+    this._ops.push(new EdgeRemove({ from, to, label, observedDots }));
     // Provenance: EdgeRemove reads the edge key (to observe its dots)
     this._observedOperands.add(edgeKey);
     return this;
@@ -591,7 +589,7 @@ export class PatchBuilderV2 {
     _assertNoReservedBytes(nodeId, 'nodeId');
     _assertNoReservedBytes(key, 'property key');
     // Canonical NodePropSet — lowered to raw PropSet at commit time
-    this._ops.push(createNodePropSetV2(nodeId, key, value));
+    this._ops.push(new NodePropSet(nodeId, key, value));
     // Provenance: NodePropSet reads the node (implicit existence check) and writes the node
     this._observedOperands.add(nodeId);
     this._writes.add(nodeId);
@@ -644,7 +642,7 @@ export class PatchBuilderV2 {
     const ek = this._assertEdgeExists(from, to, label);
 
     // Canonical EdgePropSet — lowered to legacy raw PropSet at commit time
-    this._ops.push(createEdgePropSetV2(from, to, label, key, value));
+    this._ops.push(new EdgePropSet({ from, to, label, key, value }));
     this._hasEdgeProps = true;
     // Provenance: EdgePropSet reads the edge (implicit existence check) and writes the edge
     this._observedOperands.add(ek);
@@ -850,7 +848,7 @@ export class PatchBuilderV2 {
    * Note: This method is primarily for testing and inspection. For normal
    * usage, prefer `commit()` which builds and persists the patch atomically.
    *
-   * @returns {import('../types/WarpTypesV2.ts').PatchV2} The constructed patch object containing:
+   * @returns {import('../types/PatchV2.ts').default} The constructed patch object containing:
    *   - `schema`: Version number (2 for node/edge ops, 3 if edge properties present)
    *   - `writer`: Writer ID string
    *   - `lamport`: Lamport timestamp for ordering
@@ -860,8 +858,8 @@ export class PatchBuilderV2 {
   build() {
     const schema = this._hasEdgeProps ? 3 : 2;
     // Lower canonical ops to raw form for the persisted patch
-    const rawOps = /** @type {import('../types/WarpTypesV2.ts').RawOpV2[]} */ (this._ops.map(lowerCanonicalOp));
-    return createPatchV2({
+    const rawOps = /** @type {import('../types/ops/unions.ts').RawOpV2[]} */ (this._ops.map(lowerCanonicalOp));
+    return new PatchV2({
       schema,
       writer: this._writerId,
       lamport: this._lamport,
@@ -983,8 +981,8 @@ export class PatchBuilderV2 {
       // The dots themselves are independent of patch lamport (they use VV counters).
       const schema = this._hasEdgeProps ? 3 : 2;
       // Lower canonical ops to raw form for the persisted patch
-      const rawOps = /** @type {import('../types/WarpTypesV2.ts').RawOpV2[]} */ (this._ops.map(lowerCanonicalOp));
-      const patch = createPatchV2({
+      const rawOps = /** @type {import('../types/ops/unions.ts').RawOpV2[]} */ (this._ops.map(lowerCanonicalOp));
+      const patch = new PatchV2({
         schema,
         writer: this._writerId,
         lamport,
@@ -1057,7 +1055,7 @@ export class PatchBuilderV2 {
    * Useful for inspection and testing. Modifying the returned array
    * will affect the builder's state.
    *
-   * @returns {import('../types/WarpTypesV2.ts').OpV2[]} Array of operations, each being one of:
+   * @returns {import('../types/ops/unions.ts').OpV2[]} Array of operations, each being one of:
    *   - `NodeAdd`: `{ type: 'NodeAdd', id, dot }`
    *   - `NodeRemove`: `{ type: 'NodeRemove', id, observed }`
    *   - `EdgeAdd`: `{ type: 'EdgeAdd', from, to, label, dot }`

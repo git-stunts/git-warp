@@ -171,13 +171,13 @@ async function _tryCheckpointStart(loadCheckpoint, allPatches, since) {
 }
 
 /**
- * @typedef {{ state: import('./JoinReducer.js').WarpStateV5, allPatches: Array<{patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string}>, startIdx: number, since: number, nodeId: string, predicate: (snapshot: {id: string, exists: boolean, props: Record<string, unknown>}) => boolean }} ReplayParams
+ * @typedef {{ state: import('./JoinReducer.js').WarpStateV5, allPatches: Array<{patch: import('../types/PatchV2.ts').default, sha: string}>, startIdx: number, since: number, nodeId: string, predicate: (snapshot: {id: string, exists: boolean, props: Record<string, unknown>}) => boolean }} ReplayParams
  */
 
 /**
  * Extracts the lamport timestamp from a patch safely.
  *
- * @param {import('../types/WarpTypesV2.ts').PatchV2} patch - The patch
+ * @param {import('../types/PatchV2.ts').default} patch - The patch
  * @returns {number} The lamport value
  * @private
  */
@@ -247,10 +247,10 @@ export class TemporalQuery {
   /**
    * Creates a TemporalQuery with patch-loading and optional checkpoint functions.
    *
-   * @param {{ loadAllPatches: () => Promise<Array<{patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string}>>, loadCheckpoint?: () => Promise<{state: import('./JoinReducer.js').WarpStateV5, maxLamport: number}|null> }} options
+   * @param {{ loadAllPatches: () => Promise<Array<{patch: import('../types/PatchV2.ts').default, sha: string}>>, loadCheckpoint?: () => Promise<{state: import('./JoinReducer.js').WarpStateV5, maxLamport: number}|null> }} options
    */
   constructor({ loadAllPatches, loadCheckpoint }) {
-    /** @type {() => Promise<Array<{patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string}>>} */
+    /** @type {() => Promise<Array<{patch: import('../types/PatchV2.ts').default, sha: string}>>} */
     this._loadAllPatches = loadAllPatches;
     /** @type {(() => Promise<{state: import('./JoinReducer.js').WarpStateV5, maxLamport: number}|null>)|null} */
     this._loadCheckpoint = loadCheckpoint || null;

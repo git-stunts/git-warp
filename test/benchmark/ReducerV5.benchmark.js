@@ -10,16 +10,16 @@
 
 import { describe, it, expect } from 'vitest';
 import { reduceV5 as _reduceV5 } from '../../src/domain/services/JoinReducer.js';
-import {
-  createPatchV2 as _createPatchV2,
-  createNodeAddV2 as _createNodeAddV2,
-  createEdgeAddV2 as _createEdgeAddV2,
-  createPropSetV2,
-} from '../../src/domain/types/WarpTypesV2.ts';
+import PatchV2 from '../../src/domain/types/PatchV2.ts';
+import NodeAdd from '../../src/domain/types/ops/NodeAdd.ts';
+import EdgeAdd from '../../src/domain/types/ops/EdgeAdd.ts';
+import PropSet from '../../src/domain/types/ops/PropSet.ts';
 
-/** @type {any} */ const createPatchV2 = _createPatchV2;
-/** @type {any} */ const createNodeAddV2 = _createNodeAddV2;
-/** @type {any} */ const createEdgeAddV2 = _createEdgeAddV2;
+/** @type {any} */ const createPatchV2 = (/** @type {any} */ opts) => new PatchV2(opts);
+/** @type {any} */ const createNodeAddV2 = (/** @type {string} */ node, /** @type {any} */ dot) => new NodeAdd(node, dot);
+/** @type {any} */ const createEdgeAddV2 = (/** @type {string} */ from, /** @type {string} */ to, /** @type {string} */ label, /** @type {any} */ dot) => new EdgeAdd({ from, to, label, dot });
+/** @param {string} node @param {string} key @param {unknown} value */
+function createPropSetV2(node, key, value) { return new PropSet(node, key, value); }
 
 /** @type {any} */
 const reduceV5 = _reduceV5;

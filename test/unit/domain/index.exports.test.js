@@ -320,7 +320,7 @@ describe('index.js exports', () => {
       expect(op).toEqual({ type: 'PropSet', node: 'user:alice', key: 'name', value: { type: 'inline', value: 'Alice' } });
     });
 
-    // Note: createPatch (schema:1) has been removed - use createPatchV2 from WarpTypesV2
+    // Note: createPatch (schema:1) has been removed - use PatchV2 constructor directly
 
     it('exports createInlineValue', () => {
       expect(createInlineValue).toBeDefined();
@@ -379,7 +379,7 @@ describe('index.js exports', () => {
       expect(WarpApp).toBeDefined();
       expect(WarpCore).toBeDefined();
       expect(createNodeAdd).toBeDefined();
-      // Note: createPatch (schema:1) removed - use createPatchV2 from WarpTypesV2
+      // Note: createPatch (schema:1) removed - use PatchV2 constructor directly
     });
   });
 });

@@ -75,7 +75,7 @@ export class Writer {
   /**
    * Creates a new Writer instance.
    *
-   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string}) => void | Promise<void>, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/PatchV2.ts').default, sha: string}) => void | Promise<void>, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} options
    */
   constructor({ persistence, graphName, writerId, versionVector, getCurrentState, onCommitSuccess, onDeleteWithData = 'warn', patchJournal, logger, blobStorage }) {
     validateWriterId(writerId);
@@ -94,7 +94,7 @@ export class Writer {
 
   /**
    * Assigns all Writer instance fields from the validated constructor options.
-   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string}) => void | Promise<void>, onDeleteWithData: 'reject'|'cascade'|'warn', patchJournal: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} opts
+   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/PatchV2.ts').default, sha: string}) => void | Promise<void>, onDeleteWithData: 'reject'|'cascade'|'warn', patchJournal: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} opts
    * @private
    */
   _initFields(opts) {
@@ -108,7 +108,7 @@ export class Writer {
     this._versionVector = opts.versionVector;
     /** @type {() => import('../services/JoinReducer.js').WarpStateV5 | null} */
     this._getCurrentState = opts.getCurrentState;
-    /** @type {((result: {patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string}) => void | Promise<void>)|undefined} */
+    /** @type {((result: {patch: import('../types/PatchV2.ts').default, sha: string}) => void | Promise<void>)|undefined} */
     this._onCommitSuccess = opts.onCommitSuccess;
     /** @type {'reject'|'cascade'|'warn'} */
     this._onDeleteWithData = opts.onDeleteWithData;

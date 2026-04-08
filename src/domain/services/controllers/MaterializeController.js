@@ -276,7 +276,7 @@ async function tryReadCoordinateCache(host, frontier, ceiling, t0) {
  * @param {MaterializeHost} host
  * @param {Map<string, string>} frontier
  * @param {number|null} ceiling
- * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string }>>}
+ * @returns {Promise<Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>>}
  */
 async function collectPatchesForFrontier(host, frontier, ceiling) {
   const allPatches = [];
@@ -955,7 +955,7 @@ export default class MaterializeController {
      * @param {string} writerId - Writer identifier (unused, required by interface)
      * @param {string|null} fromSha - Starting SHA (exclusive) or null for full chain
      * @param {string} toSha - Ending SHA (inclusive)
-     * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string }>>}
+     * @returns {Promise<Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>>}
      */
     const patchLoader = async (writerId, fromSha, toSha) => {
       void writerId;

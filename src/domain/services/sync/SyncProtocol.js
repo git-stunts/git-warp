@@ -49,7 +49,7 @@ import VersionVector from '../../crdt/VersionVector.js';
  * A decoded patch object after CBOR deserialization.
  * @typedef {Object} DecodedPatch
  * @property {Object | Map<string, number>} [context] - VersionVector (Map after normalization, plain object before)
- * @property {import('../../types/WarpTypesV2.ts').OpV2[]} ops - Ordered array of operations
+ * @property {import('../../types/ops/unions.ts').OpV2[]} ops - Ordered array of operations
  * @property {string} [writer] - Writer ID
  * @property {number} [lamport] - Lamport timestamp
  * @property {number} [schema] - Schema version

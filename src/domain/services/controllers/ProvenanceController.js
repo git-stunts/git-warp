@@ -13,7 +13,7 @@ import { ProvenancePayload } from '../provenance/ProvenancePayload.js';
 import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';
 
 /** @import { WarpStateV5 } from '../JoinReducer.js' */
-/** @import { PatchV2 } from '../../types/WarpTypesV2.ts' */
+/** @import { default as PatchV2 } from '../../types/PatchV2.ts' */
 
 /**
  * The host interface that ProvenanceController depends on.

@@ -8,7 +8,7 @@
 import type { PatchBuilderV2 } from '../services/PatchBuilderV2.js';
 import type { Writer } from './Writer.js';
 import type { WarpStateV5 } from '../services/JoinReducer.js';
-import type { PatchV2 } from '../types/WarpTypesV2.js';
+import type PatchV2 from '../types/PatchV2.js';
 import type { StateDiffResult } from '../services/StateDiff.js';
 import type { TickReceipt } from '../types/TickReceipt.js';
 

@@ -284,7 +284,7 @@ export class PatchSession {
   /**
    * Builds the PatchV2 object without committing.
    *
-   * @returns {import('../types/WarpTypesV2.ts').PatchV2} The constructed patch
+   * @returns {import('../types/PatchV2.ts').default} The constructed patch
    */
   build() {
     return this._builder.build();

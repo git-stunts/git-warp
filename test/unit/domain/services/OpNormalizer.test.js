@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeRawOp, lowerCanonicalOp } from '../../../../src/domain/services/OpNormalizer.js';
-import { createPropSetV2, createNodePropSetV2, createEdgePropSetV2 } from '../../../../src/domain/types/WarpTypesV2.ts';
+import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
+import NodePropSet from '../../../../src/domain/types/ops/NodePropSet.ts';
+import EdgePropSet from '../../../../src/domain/types/ops/EdgePropSet.ts';
+
+/** @param {string} node @param {string} key @param {unknown} value */
+function createPropSetV2(node, key, value) { return new PropSet(node, key, value); }
+/** @param {string} node @param {string} key @param {unknown} value */
+function createNodePropSetV2(node, key, value) { return new NodePropSet(node, key, value); }
+/** @param {string} from @param {string} to @param {string} label @param {string} key @param {unknown} value */
+function createEdgePropSetV2(from, to, label, key, value) { return new EdgePropSet({ from, to, label, key, value }); }
 import { encodePropKey, encodeEdgePropKey, encodeLegacyEdgePropNode, EDGE_PROP_PREFIX } from '../../../../src/domain/services/KeyCodec.js';
 
 // ============================================================================

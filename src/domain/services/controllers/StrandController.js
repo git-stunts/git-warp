@@ -99,7 +99,7 @@ export default class StrandController {
    * Retrieves all patch entries belonging to a strand.
    * @param {string} strandId
    * @param {{ ceiling?: number|null }} [options]
-   * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string }>>}
+   * @returns {Promise<Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>>}
    */
   async getStrandPatches(strandId, options) {
     return await this._strandService.getPatchEntries(strandId, options);
@@ -143,7 +143,7 @@ export default class StrandController {
    * Queues a speculative intent on a strand without committing it.
    * @param {string} strandId
    * @param {(p: import('../PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>} build
-   * @returns {Promise<{ intentId: string, enqueuedAt: string, patch: import('../../types/WarpTypesV2.ts').PatchV2, reads: string[], writes: string[], contentBlobOids: string[] }>}
+   * @returns {Promise<{ intentId: string, enqueuedAt: string, patch: import('../../types/PatchV2.ts').default, reads: string[], writes: string[], contentBlobOids: string[] }>}
    */
   async queueStrandIntent(strandId, build) {
     return await this._strandService.queueIntent(strandId, build);
@@ -152,7 +152,7 @@ export default class StrandController {
   /**
    * Lists all pending intents queued on a strand.
    * @param {string} strandId
-   * @returns {Promise<ReadonlyArray<{ intentId: string, enqueuedAt: string, patch: import('../../types/WarpTypesV2.ts').PatchV2, reads: string[], writes: string[], contentBlobOids: string[] }>>}
+   * @returns {Promise<ReadonlyArray<{ intentId: string, enqueuedAt: string, patch: import('../../types/PatchV2.ts').default, reads: string[], writes: string[], contentBlobOids: string[] }>>}
    */
   async listStrandIntents(strandId) {
     return await this._strandService.listIntents(strandId);

@@ -290,7 +290,6 @@ export default tseslint.config(
       "src/domain/services/PatchBuilderV2.js",
       "src/domain/warp/PatchSession.js",
       "src/domain/utils/EventId.ts",
-      "src/domain/types/WarpTypesV2.ts",
       "src/domain/types/WorldlineSelector.ts",
       "src/visualization/renderers/ascii/graph.js",
       "src/domain/services/KeyCodec.js",

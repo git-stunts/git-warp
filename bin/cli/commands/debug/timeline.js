@@ -24,7 +24,7 @@ function isNonEmptyString(value) {
 /** @typedef {import('../../types.js').CliOptions} CliOptions */
 /** @typedef {import('../../types.js').WarpGraphInstance} WarpGraphInstance */
 /** @typedef {import('../../types.js').CursorBlob} CursorBlob */
-/** @typedef {{patch: import('../../../../src/domain/types/WarpTypesV2.ts').PatchV2, sha: string}} PatchEntry */
+/** @typedef {{patch: import('../../../../src/domain/types/PatchV2.ts').default, sha: string}} PatchEntry */
 
 export const DEBUG_TOPIC = Object.freeze({
   name: 'timeline',
@@ -126,7 +126,7 @@ async function loadEntityTimeline({ graph, entityId }) {
   const patches = await Promise.all(
     shas.map(async (sha) => ({
       sha,
-      patch: /** @type {import('../../../../src/domain/types/WarpTypesV2.ts').PatchV2} */ (await graph.loadPatchBySha(sha)),
+      patch: /** @type {import('../../../../src/domain/types/PatchV2.ts').default} */ (await graph.loadPatchBySha(sha)),
     })),
   );
   return /** @type {PatchEntry[]} */ (patches);
@@ -172,7 +172,7 @@ async function loadStrandEntityEntries({ graph, strandId, entityId, lamportCeili
   return /** @type {PatchEntry[]} */ (await Promise.all(
     shas.map(async (sha) => ({
       sha,
-      patch: /** @type {import('../../../../src/domain/types/WarpTypesV2.ts').PatchV2} */ (await graph.loadPatchBySha(sha)),
+      patch: /** @type {import('../../../../src/domain/types/PatchV2.ts').default} */ (await graph.loadPatchBySha(sha)),
     })),
   ));
 }

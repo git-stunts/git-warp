@@ -12,15 +12,20 @@ import EdgeRemove from '../../../../../src/domain/types/ops/EdgeRemove.ts';
 import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.ts';
 import EdgePropSet from '../../../../../src/domain/types/ops/EdgePropSet.ts';
 import PropSetClass from '../../../../../src/domain/types/ops/PropSet.ts';
-import {
-  createNodeAddV2,
-  createNodeRemoveV2,
-  createEdgeAddV2,
-  createEdgeRemoveV2,
-  createPropSetV2,
-  createNodePropSetV2,
-  createEdgePropSetV2,
-} from '../../../../../src/domain/types/WarpTypesV2.ts';
+/** @param {string} node @param {import('../../../../../src/domain/crdt/Dot.js').Dot} dot */
+function createNodeAddV2(node, dot) { return new NodeAdd(node, dot); }
+/** @param {string} node @param {string[]} observedDots */
+function createNodeRemoveV2(node, observedDots) { return new NodeRemove(node, observedDots); }
+/** @param {string} from @param {string} to @param {string} label @param {import('../../../../../src/domain/crdt/Dot.js').Dot} dot */
+function createEdgeAddV2(from, to, label, dot) { return new EdgeAdd({ from, to, label, dot }); }
+/** @param {string} from @param {string} to @param {string} label @param {string[]} observedDots */
+function createEdgeRemoveV2(from, to, label, observedDots) { return new EdgeRemove({ from, to, label, observedDots }); }
+/** @param {string} node @param {string} key @param {unknown} value */
+function createPropSetV2(node, key, value) { return new PropSetClass(node, key, value); }
+/** @param {string} node @param {string} key @param {unknown} value */
+function createNodePropSetV2(node, key, value) { return new NodePropSet(node, key, value); }
+/** @param {string} from @param {string} to @param {string} label @param {string} key @param {unknown} value */
+function createEdgePropSetV2(from, to, label, key, value) { return new EdgePropSet({ from, to, label, key, value }); }
 import { normalizeRawOp, lowerCanonicalOp } from '../../../../../src/domain/services/OpNormalizer.js';
 
 describe('WarpTypesV2 factory functions produce Op class instances', () => {

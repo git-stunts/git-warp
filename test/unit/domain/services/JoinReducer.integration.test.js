@@ -124,13 +124,20 @@ import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCrypt
 // Migration service
 import { migrateV4toV5 } from '../../../../src/domain/services/MigrationService.js';
 
-// v2 patch/op types
-import {
-  createPatchV2,
-  createNodeAddV2,
-  createEdgeAddV2,
-  createPropSetV2,
-} from '../../../../src/domain/types/WarpTypesV2.ts';
+// v2 patch/op types — direct class imports after WarpTypesV2.ts deletion
+import PatchV2 from '../../../../src/domain/types/PatchV2.ts';
+import NodeAddClass from '../../../../src/domain/types/ops/NodeAdd.ts';
+import EdgeAddClass from '../../../../src/domain/types/ops/EdgeAdd.ts';
+import PropSetClass from '../../../../src/domain/types/ops/PropSet.ts';
+
+/** @param {Record<string, unknown>} opts */
+function createPatchV2(opts) { return new PatchV2(/** @type {any} */ (opts)); }
+/** @param {string} node @param {any} dot */
+function createNodeAddV2(node, dot) { return new NodeAddClass(node, dot); }
+/** @param {string} from @param {string} to @param {string} label @param {any} dot */
+function createEdgeAddV2(from, to, label, dot) { return new EdgeAddClass({ from, to, label, dot }); }
+/** @param {string} node @param {string} key @param {unknown} value */
+function createPropSetV2(node, key, value) { return new PropSetClass(node, key, value); }
 
 // v1 op types (for migration tests) — inlined after WarpTypes.ts deletion
 /** @param {string} node */

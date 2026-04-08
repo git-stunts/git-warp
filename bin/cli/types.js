@@ -37,14 +37,14 @@
  * @property {() => Promise<import('../../index.js').StrandDescriptor[]>} listStrands
  * @property {(strandId: string) => Promise<boolean>} dropStrand
  * @property {(strandId: string, options?: {receipts?: boolean, ceiling?: number|null}) => Promise<import('../../src/domain/services/JoinReducer.js').WarpStateV5|{state: import('../../src/domain/services/JoinReducer.js').WarpStateV5, receipts: import('../../src/domain/types/TickReceipt.ts').TickReceipt[]}>} materializeStrand
- * @property {(strandId: string, options?: {ceiling?: number|null}) => Promise<Array<{patch: import('../../src/domain/types/WarpTypesV2.ts').PatchV2, sha: string}>>} getStrandPatches
+ * @property {(strandId: string, options?: {ceiling?: number|null}) => Promise<Array<{patch: import('../../src/domain/types/PatchV2.ts').default, sha: string}>>} getStrandPatches
  * @property {(strandId: string, entityId: string, options?: {ceiling?: number|null}) => Promise<string[]>} patchesForStrand
  * @property {(strandId: string, options?: {against?: 'base'|'live'|{kind: 'strand', strandId: string}, ceiling?: number|null, againstCeiling?: number|null, targetId?: string|null}) => Promise<import('../../index.js').CoordinateComparisonV1>} compareStrand
  * @property {(strandId: string, options?: {into?: 'base'|'live'|{kind: 'strand', strandId: string}, ceiling?: number|null, intoCeiling?: number|null}) => Promise<import('../../index.js').CoordinateTransferPlanV1>} planStrandTransfer
  * @property {(options: {left: import('../../index.js').CoordinateComparisonSelectorV1, right: import('../../index.js').CoordinateComparisonSelectorV1, targetId?: string|null}) => Promise<import('../../index.js').CoordinateComparisonV1>} compareCoordinates
  * @property {(options: {source: import('../../index.js').CoordinateTransferPlanSelectorV1, target: import('../../index.js').CoordinateTransferPlanSelectorV1}) => Promise<import('../../index.js').CoordinateTransferPlanV1>} planCoordinateTransfer
  * @property {() => Promise<{ticks: number[], maxTick: number, perWriter: Map<string, WriterTickInfo>}>} discoverTicks
- * @property {(sha: string) => Promise<import('../../src/domain/types/WarpTypesV2.ts').PatchV2>} loadPatchBySha
+ * @property {(sha: string) => Promise<import('../../src/domain/types/PatchV2.ts').default>} loadPatchBySha
  * @property {(cache: import('../../src/ports/SeekCachePort.js').default) => void} setSeekCache
  * @property {{clear: () => Promise<void>} | null} seekCache
  * @property {number} [_seekCeiling]

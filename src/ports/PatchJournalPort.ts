@@ -1,4 +1,4 @@
-import type { PatchV2 } from '../domain/types/WarpTypesV2.ts';
+import type PatchV2 from '../domain/types/PatchV2.ts';
 import type WarpStream from '../domain/stream/WarpStream.js';
 import type PatchEntry from '../domain/artifacts/PatchEntry.js';
 

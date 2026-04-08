@@ -11,7 +11,7 @@
  */
 
 import type VersionVector from '../crdt/VersionVector.js';
-import type { OpV2 } from './WarpTypesV2.ts';
+import type { OpV2 } from './ops/unions.ts';
 
 /**
  * Returns the array if non-empty, otherwise undefined.

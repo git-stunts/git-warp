@@ -51,7 +51,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
   /**
    * Encodes a PatchV2 to CBOR and persists it as a blob.
    *
-   * @param {import('../../domain/types/WarpTypesV2.ts').PatchV2} patch
+   * @param {import('../../domain/types/PatchV2.ts').default} patch
    * @returns {Promise<string>} The blob OID
    */
   async writePatch(patch) {
@@ -67,7 +67,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
    *
    * @param {string} patchOid
    * @param {{ encrypted?: boolean }} [options]
-   * @returns {Promise<import('../../domain/types/WarpTypesV2.ts').PatchV2>}
+   * @returns {Promise<import('../../domain/types/PatchV2.ts').default>}
    */
   async readPatch(patchOid, { encrypted = false } = {}) {
     /** @type {Uint8Array} */
@@ -81,7 +81,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     } else {
       bytes = await this._blobPort.readBlob(patchOid);
     }
-    return /** @type {import('../../domain/types/WarpTypesV2.ts').PatchV2} */ (
+    return /** @type {import('../../domain/types/PatchV2.ts').default} */ (
       this._codec.decode(bytes)
     );
   }
@@ -166,8 +166,8 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
 /**
  * Normalizes a decoded patch (converts context from plain object to Map).
  *
- * @param {import('../../domain/types/WarpTypesV2.ts').PatchV2} patch
- * @returns {import('../../domain/types/WarpTypesV2.ts').PatchV2}
+ * @param {import('../../domain/types/PatchV2.ts').default} patch
+ * @returns {import('../../domain/types/PatchV2.ts').default}
  */
 function _normalizePatch(patch) {
   if (patch.context !== null && patch.context !== undefined && !(patch.context instanceof Map)) {

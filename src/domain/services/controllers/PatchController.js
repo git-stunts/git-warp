@@ -63,7 +63,7 @@ export default class PatchController {
       getCurrentState: /** Returns the cached CRDT state. @returns {import('../JoinReducer.js').WarpStateV5|null} */ () => h._cachedState,
       expectedParentSha: parentSha,
       onDeleteWithData: h._onDeleteWithData,
-      onCommitSuccess: /** Post-commit callback. @param {{patch?: import('../../types/WarpTypesV2.ts').PatchV2, sha?: string}} opts */ (opts) => this._onPatchCommitted(h._writerId, opts),
+      onCommitSuccess: /** Post-commit callback. @param {{patch?: import('../../types/PatchV2.ts').default, sha?: string}} opts */ (opts) => this._onPatchCommitted(h._writerId, opts),
       ...(h._patchJournal !== null && h._patchJournal !== undefined ? { patchJournal: /** @type {import('../../../ports/PatchJournalPort.ts').default} */ (h._patchJournal) } : {}),
       ...(h._logger !== null && h._logger !== undefined ? { logger: h._logger } : {}),
       ...(h._blobStorage !== null && h._blobStorage !== undefined ? { blobStorage: h._blobStorage } : {}),
@@ -151,7 +151,7 @@ export default class PatchController {
    *
    * @param {string} tipSha
    * @param {string|null} [stopAtSha=null]
-   * @returns {Promise<Array<{patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string}>>}
+   * @returns {Promise<Array<{patch: import('../../types/PatchV2.ts').default, sha: string}>>}
    */
   async _loadPatchChainFromSha(tipSha, stopAtSha = null) {
     if (typeof tipSha !== 'string' || tipSha.length === 0) {
@@ -176,7 +176,7 @@ export default class PatchController {
       if (journal === null || journal === undefined) {
         // Legacy fallback: read the patch blob directly and decode with the codec
         const raw = await h._persistence.readBlob(patchMeta.patchOid);
-        const decoded = /** @type {import('../../types/WarpTypesV2.ts').PatchV2} */ (h._codec.decode(raw));
+        const decoded = /** @type {import('../../types/PatchV2.ts').default} */ (h._codec.decode(raw));
         patches.push({ patch: decoded, sha: currentSha });
         if (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0) {
           currentSha = nodeInfo.parents[0] ?? '';
@@ -185,7 +185,7 @@ export default class PatchController {
         }
         continue;
       }
-      const decoded = /** @type {import('../../types/WarpTypesV2.ts').PatchV2} */ (
+      const decoded = /** @type {import('../../types/PatchV2.ts').default} */ (
         await journal.readPatch(patchMeta.patchOid, { encrypted: patchMeta.encrypted })
       );
 
@@ -206,7 +206,7 @@ export default class PatchController {
    *
    * @param {string} writerId
    * @param {string|null} [stopAtSha=null]
-   * @returns {Promise<Array<{patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string}>>}
+   * @returns {Promise<Array<{patch: import('../../types/PatchV2.ts').default, sha: string}>>}
    */
   async _loadWriterPatches(writerId, stopAtSha = null) {
     const writerRef = buildWriterRef(this._host._graphName, writerId);
@@ -224,7 +224,7 @@ export default class PatchController {
    *
    * @param {string} writerId
    * @param {string|null} [stopAtSha=null]
-   * @returns {Promise<Array<{patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string}>>}
+   * @returns {Promise<Array<{patch: import('../../types/PatchV2.ts').default, sha: string}>>}
    */
   async getWriterPatches(writerId, stopAtSha = null) {
     return await this._loadWriterPatches(writerId, stopAtSha);
@@ -235,7 +235,7 @@ export default class PatchController {
    * provenance index, frontier, and audit service.
    *
    * @param {string} writerId
-   * @param {{patch?: import('../../types/WarpTypesV2.ts').PatchV2, sha?: string}} [opts]
+   * @param {{patch?: import('../../types/PatchV2.ts').default, sha?: string}} [opts]
    * @returns {Promise<void>}
    */
   async _onPatchCommitted(writerId, { patch: committed, sha } = {}) {
@@ -314,7 +314,7 @@ export default class PatchController {
       versionVector: h._versionVector,
       getCurrentState: /** Returns the cached CRDT state. @returns {import('../JoinReducer.js').WarpStateV5|null} */ () => h._cachedState,
       onDeleteWithData: h._onDeleteWithData,
-      onCommitSuccess: /** Post-commit callback. @type {(result: {patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string}) => void} */ ((opts) => this._onPatchCommitted(resolvedWriterId, opts)),
+      onCommitSuccess: /** Post-commit callback. @type {(result: {patch: import('../../types/PatchV2.ts').default, sha: string}) => void} */ ((opts) => this._onPatchCommitted(resolvedWriterId, opts)),
       patchJournal: /** @type {import('../../../ports/PatchJournalPort.ts').default} */ (h._patchJournal),
     };
     if (h._logger !== null && h._logger !== undefined) { writerOpts.logger = h._logger; }

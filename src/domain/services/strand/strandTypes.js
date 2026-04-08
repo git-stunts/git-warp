@@ -8,7 +8,7 @@
  * @module domain/services/strand/strandTypes
  */
 
-/** @import { PatchV2 } from '../../types/WarpTypesV2.ts' */
+/** @import { default as PatchV2 } from '../../types/PatchV2.ts' */
 /** @import { parseStrandBlob as parseStrandBlobFn } from '../../utils/parseStrandBlob.ts' */
 
 /**
