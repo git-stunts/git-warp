@@ -12,9 +12,9 @@ import StrandError from '../../errors/StrandError.ts';
 import {
   validateWriterId,
   buildStrandsPrefix,
-} from '../../utils/RefLayout.js';
-import { generateWriterId } from '../../utils/WriterId.js';
-import { computeChecksum } from '../../utils/checksumUtils.js';
+} from '../../utils/RefLayout.ts';
+import { generateWriterId } from '../../utils/WriterId.ts';
+import { computeChecksum } from '../../utils/checksumUtils.ts';
 import { createImmutableValue, createImmutableWarpStateV5 } from '../ImmutableSnapshot.js';
 import StrandDescriptorStore from './StrandDescriptorStore.js';
 import StrandMaterializer from './StrandMaterializer.js';

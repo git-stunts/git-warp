@@ -19,7 +19,7 @@
  * @see Paper III, Section 4 -- Boundary Transition Records
  */
 
-import defaultCodec from '../../utils/defaultCodec.js';
+import defaultCodec from '../../utils/defaultCodec.ts';
 import CryptoError from '../../errors/CryptoError.ts';
 import { ProvenancePayload } from './ProvenancePayload.js';
 import { serializeFullStateV5, deserializeFullStateV5, computeStateHashV5 } from '../state/StateSerializerV5.js';

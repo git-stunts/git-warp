@@ -7,7 +7,7 @@
  * @module domain/services/strand/ConflictAnalyzerService
  */
 
-import { canonicalStringify } from '../../utils/canonicalStringify.js';
+import { canonicalStringify } from '../../utils/canonicalStringify.ts';
 import ConflictAnalysis from '../../types/conflict/ConflictAnalysis.ts';
 import ConflictAnalysisRequest from './ConflictAnalysisRequest.js';
 import {

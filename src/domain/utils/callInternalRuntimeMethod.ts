@@ -5,50 +5,36 @@
  * This keeps `WarpCore` free to reject old public `Strand*` calls while
  * still letting the substrate internals route through the underlying runtime
  * implementation.
- *
- * @param {object} target
- * @param {string} methodName
- * @param {...unknown} args
- * @returns {Promise<unknown>}
  */
-export async function callInternalRuntimeMethod(target, methodName, ...args) {
+export async function callInternalRuntimeMethod(target: object, methodName: string, ...args: unknown[]): Promise<unknown> {
   const candidate = resolveCandidate(target, methodName);
 
   if (typeof candidate !== 'function') {
     throw new TypeError(`missing internal runtime method: ${methodName}`);
   }
 
-  /** @type {unknown} */
-  const result = await candidate.call(target, ...args);
+  const result: unknown = await candidate.call(target, ...args);
   return result;
 }
 
 /**
  * Safely retrieves Object.getPrototypeOf as a typed record or null.
- *
- * @param {object|null} obj
- * @returns {Record<string, unknown>|null}
  */
-function safeProto(obj) {
+function safeProto(obj: object | null): Record<string, unknown> | null {
   if (obj === null || obj === undefined) {
     return null;
   }
-  /** @type {unknown} */
-  const raw = Object.getPrototypeOf(obj);
+  const raw: unknown = Object.getPrototypeOf(obj);
   if (raw === null || raw === undefined) {
     return null;
   }
-  return /** @type {Record<string, unknown>} */ (raw);
+  return raw as Record<string, unknown>;
 }
 
 /**
  * Checks whether a prototype record owns the given method name.
- *
- * @param {Record<string, unknown>|null} proto
- * @param {string} name
- * @returns {boolean}
  */
-function protoOwns(proto, name) {
+function protoOwns(proto: Record<string, unknown> | null, name: string): boolean {
   return proto !== null && Object.prototype.hasOwnProperty.call(proto, name);
 }
 
@@ -57,18 +43,14 @@ function protoOwns(proto, name) {
  *
  * If the immediate prototype owns `methodName` AND the grandparent also owns it,
  * the grandparent version is preferred (skipping a facade shim).
- *
- * @param {object} target
- * @param {string} methodName
- * @returns {unknown}
  */
-function resolveCandidate(target, methodName) {
-  const targetRecord = /** @type {Record<string, unknown>} */ (target);
+function resolveCandidate(target: object, methodName: string): unknown {
+  const targetRecord = target as Record<string, unknown>;
   const proto = safeProto(target);
-  const grandparent = proto !== null ? safeProto(/** @type {object} */ (proto)) : null;
+  const grandparent = proto !== null ? safeProto(proto as object) : null;
 
   if (protoOwns(proto, methodName) && protoOwns(grandparent, methodName)) {
-    return /** @type {Record<string, unknown>} */ (grandparent)[methodName];
+    return grandparent![methodName];
   }
   return targetRecord[methodName];
 }

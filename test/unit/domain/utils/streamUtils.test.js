@@ -3,7 +3,7 @@ import {
   collectAsyncIterable,
   isStreamingInput,
   normalizeToAsyncIterable,
-} from '../../../../src/domain/utils/streamUtils.js';
+} from '../../../../src/domain/utils/streamUtils.ts';
 
 const OriginalReadableStream = globalThis.ReadableStream;
 

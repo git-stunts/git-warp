@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ForkController from '../../../../../src/domain/services/controllers/ForkController.js';
 import ForkError from '../../../../../src/domain/errors/ForkError.ts';
 import { CHECKPOINT_SCHEMA_STANDARD, CHECKPOINT_SCHEMA_V5_INTERMEDIATE } from '../../../../../src/domain/services/state/CheckpointService.js';
-import { buildWriterRef, buildWritersPrefix } from '../../../../../src/domain/utils/RefLayout.js';
+import { buildWriterRef, buildWritersPrefix } from '../../../../../src/domain/utils/RefLayout.ts';
 
 // ---------------------------------------------------------------------------
 // WormholeService mock
@@ -22,7 +22,7 @@ vi.mock('../../../../../src/domain/WarpRuntime.js', () => ({
 // ---------------------------------------------------------------------------
 // WriterId mock
 // ---------------------------------------------------------------------------
-vi.mock('../../../../../src/domain/utils/WriterId.js', () => ({
+vi.mock('../../../../../src/domain/utils/WriterId.ts', () => ({
   generateWriterId: vi.fn(() => 'generated-writer-id'),
 }));
 

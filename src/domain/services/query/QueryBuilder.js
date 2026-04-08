@@ -5,7 +5,7 @@
  */
 
 import QueryError from '../../errors/QueryError.ts';
-import { matchGlob } from '../../utils/matchGlob.js';
+import { matchGlob } from '../../utils/matchGlob.ts';
 
 const DEFAULT_PATTERN = '*';
 

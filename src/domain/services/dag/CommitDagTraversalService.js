@@ -8,7 +8,7 @@
  * @module domain/services/dag/CommitDagTraversalService
  */
 
-import nullLogger from '../../utils/nullLogger.js';
+import nullLogger from '../../utils/nullLogger.ts';
 import DagTraversal from './DagTraversal.js';
 import DagPathFinding from './DagPathFinding.js';
 import DagTopology from './DagTopology.js';

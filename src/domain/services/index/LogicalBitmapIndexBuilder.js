@@ -14,8 +14,8 @@
  * @module domain/services/index/LogicalBitmapIndexBuilder
  */
 
-import computeShardKey from '../../utils/shardKey.js';
-import { getRoaringBitmap32 } from '../../utils/roaring.js';
+import computeShardKey from '../../utils/shardKey.ts';
+import { getRoaringBitmap32 } from '../../utils/roaring.ts';
 import { ShardIdOverflowError } from '../../errors/index.ts';
 import { MetaShard, EdgeShard, LabelShard, ReceiptShard } from '../../artifacts/IndexShard.js';
 
@@ -36,7 +36,7 @@ export default class LogicalBitmapIndexBuilder {
     /** Per-shard next local ID counters. @type {Map<string, number>} */
     this._shardNextLocal = new Map();
 
-    /** Alive bitmap per shard. @type {Map<string, import('../../utils/roaring.js').RoaringBitmapSubset>} */
+    /** Alive bitmap per shard. @type {Map<string, import('../../utils/roaring.ts').RoaringBitmapSubset>} */
     this._aliveBitmaps = new Map();
 
     /** Label → labelId (append-only). @type {Map<string, number>} */
@@ -48,11 +48,11 @@ export default class LogicalBitmapIndexBuilder {
     /**
      * Forward edge bitmaps.
      * Key: `${shardKey}:all:${globalId}` or `${shardKey}:${labelId}:${globalId}`
-     * @type {Map<string, import('../../utils/roaring.js').RoaringBitmapSubset>}
+     * @type {Map<string, import('../../utils/roaring.ts').RoaringBitmapSubset>}
      */
     this._fwdBitmaps = new Map();
 
-    /** Reverse edge bitmaps. Same key scheme as _fwdBitmaps. @type {Map<string, import('../../utils/roaring.js').RoaringBitmapSubset>} */
+    /** Reverse edge bitmaps. Same key scheme as _fwdBitmaps. @type {Map<string, import('../../utils/roaring.ts').RoaringBitmapSubset>} */
     this._revBitmaps = new Map();
 
     /** Per-shard node list for O(shard) serialize. @type {Map<string, Array<[string, number]>>} */
@@ -264,7 +264,7 @@ export default class LogicalBitmapIndexBuilder {
    * Yields EdgeShard instances for a direction without encoding.
    *
    * @param {'fwd'|'rev'} direction
-   * @param {Map<string, import('../../utils/roaring.js').RoaringBitmapSubset>} bitmaps
+   * @param {Map<string, import('../../utils/roaring.ts').RoaringBitmapSubset>} bitmaps
    * @returns {Generator<EdgeShard>}
    * @private
    */
@@ -297,7 +297,7 @@ export default class LogicalBitmapIndexBuilder {
   /**
    * Adds a target ID to a Roaring bitmap in the given store, creating it if needed.
    *
-   * @param {Map<string, import('../../utils/roaring.js').RoaringBitmapSubset>} store
+   * @param {Map<string, import('../../utils/roaring.ts').RoaringBitmapSubset>} store
    * @param {{ shardKey: string, bucket: string, owner: number, target: number }} opts
    * @private
    */

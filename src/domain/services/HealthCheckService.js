@@ -1,5 +1,5 @@
-import nullLogger from '../utils/nullLogger.js';
-import CachedValue from '../utils/CachedValue.js';
+import nullLogger from '../utils/nullLogger.ts';
+import CachedValue from '../utils/CachedValue.ts';
 
 /**
  * Default TTL for health check cache in milliseconds.

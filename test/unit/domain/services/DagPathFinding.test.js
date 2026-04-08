@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DagPathFinding from '../../../../src/domain/services/dag/DagPathFinding.js';
 import TraversalError from '../../../../src/domain/errors/TraversalError.ts';
-import MinHeap from '../../../../src/domain/utils/MinHeap.js';
+import MinHeap from '../../../../src/domain/utils/MinHeap.ts';
 
 function createIndexReader({ children = {}, parents = {} } = {}) {
   return {

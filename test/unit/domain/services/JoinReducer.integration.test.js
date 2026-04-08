@@ -30,7 +30,7 @@ import {
 const reduceV5 = (patches, initialState) => _reduceV5(patches, initialState);
 
 // v4 reducer helpers (local test helpers for migration tests)
-import { compareEventIds, createEventId } from '../../../../src/domain/utils/EventId.js';
+import { compareEventIds, createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet, lwwMax } from '../../../../src/domain/crdt/LWW.js';
 
 /**

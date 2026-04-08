@@ -13,7 +13,7 @@
  * @module domain/services/codec/CheckpointMessageCodec
  */
 
-import { validateGraphName } from '../../utils/RefLayout.js';
+import { validateGraphName } from '../../utils/RefLayout.ts';
 import { isV5CheckpointSchema } from '../state/CheckpointService.js';
 import {
   getCodec,

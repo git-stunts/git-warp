@@ -1,10 +1,10 @@
-import defaultCodec from '../../utils/defaultCodec.js';
-import defaultCrypto from '../../utils/defaultCrypto.js';
-import { computeChecksum } from '../../utils/checksumUtils.js';
-import { getRoaringBitmap32, getNativeRoaringAvailable } from '../../utils/roaring.js';
-import { canonicalStringify } from '../../utils/canonicalStringify.js';
-import { SHARD_VERSION } from '../../utils/shardVersion.js';
-import { textEncode, base64Encode } from '../../utils/bytes.js';
+import defaultCodec from '../../utils/defaultCodec.ts';
+import defaultCrypto from '../../utils/defaultCrypto.ts';
+import { computeChecksum } from '../../utils/checksumUtils.ts';
+import { getRoaringBitmap32, getNativeRoaringAvailable } from '../../utils/roaring.ts';
+import { canonicalStringify } from '../../utils/canonicalStringify.ts';
+import { SHARD_VERSION } from '../../utils/shardVersion.ts';
+import { textEncode, base64Encode } from '../../utils/bytes.ts';
 
 // Re-export for backwards compatibility
 export { SHARD_VERSION };
@@ -69,7 +69,7 @@ function serializeFrontierToTree(frontier, tree, codec) {
  *
  * **Performance Note**: Uses Roaring Bitmaps for compression. Native bindings
  * provide best performance. Use `getNativeRoaringAvailable()` from
- * `src/domain/utils/roaring.js` if runtime capability checks are needed.
+ * `src/domain/utils/roaring.ts` if runtime capability checks are needed.
  *
  * @example
  * import BitmapIndexBuilder from './BitmapIndexBuilder.js';
@@ -96,7 +96,7 @@ export default class BitmapIndexBuilder {
     this.shaToId = new Map();
     /** @type {string[]} */
     this.idToSha = [];
-    /** @type {Map<string, import('../../utils/roaring.js').RoaringBitmapSubset>} */
+    /** @type {Map<string, import('../../utils/roaring.ts').RoaringBitmapSubset>} */
     this.bitmaps = new Map();
   }
 
@@ -235,6 +235,6 @@ export default class BitmapIndexBuilder {
       const RoaringBitmap32 = ensureRoaringBitmap32();
       this.bitmaps.set(key, new RoaringBitmap32());
     }
-    /** @type {import('../../utils/roaring.js').RoaringBitmapSubset} */ (this.bitmaps.get(key)).add(id);
+    /** @type {import('../../utils/roaring.ts').RoaringBitmapSubset} */ (this.bitmaps.get(key)).add(id);
   }
 }

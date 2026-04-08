@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 /**
- * @returns {Promise<typeof import('../../../../src/domain/utils/roaring.js')>}
+ * @returns {Promise<typeof import('../../../../src/domain/utils/roaring.ts')>}
  */
 async function importFreshRoaring() {
-  return import('../../../../src/domain/utils/roaring.js');
+  return import('../../../../src/domain/utils/roaring.ts');
 }
 
 /**
@@ -65,7 +65,7 @@ describe('initRoaring', () => {
     const { initRoaring, getRoaringBitmap32 } = roaringMod;
 
     const innerBitmap = createMethodBitmap(false);
-    const wrappedMod = /** @type {import('../../../../src/domain/utils/roaring.js').RoaringModule} */ (
+    const wrappedMod = /** @type {import('../../../../src/domain/utils/roaring.ts').RoaringModule} */ (
       /** @type {unknown} */ ({
         default: { RoaringBitmap32: innerBitmap },
         RoaringBitmap32: undefined,
@@ -153,7 +153,7 @@ describe('getNativeRoaringAvailable', () => {
 
   it('returns false when the loaded module is malformed', async () => {
     const roaringMod = await importFreshRoaring();
-    await roaringMod.initRoaring(/** @type {import('../../../../src/domain/utils/roaring.js').RoaringModule} */ (
+    await roaringMod.initRoaring(/** @type {import('../../../../src/domain/utils/roaring.ts').RoaringModule} */ (
       /** @type {unknown} */ ({})
     ));
 

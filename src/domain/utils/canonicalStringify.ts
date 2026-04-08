@@ -8,37 +8,26 @@
  * - Object properties with undefined/function/symbol values are omitted
  *
  * Throws TypeError on circular references rather than stack-overflowing.
- *
- * @param {unknown} value - Any JSON-serializable value
- * @returns {string} Canonical JSON string with sorted keys
  */
-export function canonicalStringify(value) {
+export function canonicalStringify(value: unknown): string {
   return _canonicalStringify(value, new WeakSet());
 }
 
-/** @type {string} */
-const NULL_LITERAL = 'null';
+const NULL_LITERAL: string = 'null';
 
 /**
  * Checks if a value should be serialized as null (undefined, function, or symbol).
- *
- * @param {unknown} val - The value to check
- * @returns {boolean} True if the value should be represented as null
- * @private
  */
-function _isNullish(val) {
+function _isNullish(val: unknown): boolean {
   return val === undefined || typeof val === 'function' || typeof val === 'symbol';
 }
 
 /**
  * Asserts that a reference object has not been visited (cycle detection).
  *
- * @param {object} ref - The reference object to check
- * @param {WeakSet<object>} seen - Set of already-visited objects
  * @throws {TypeError} If a circular reference is detected
- * @private
  */
-function _assertNoCycle(ref, seen) {
+function _assertNoCycle(ref: object, seen: WeakSet<object>): void {
   if (seen.has(ref)) {
     throw new TypeError('Circular reference detected in canonicalStringify');
   }
@@ -46,13 +35,8 @@ function _assertNoCycle(ref, seen) {
 
 /**
  * Stringifies an array value with cycle detection.
- *
- * @param {unknown[]} arr - The array to stringify
- * @param {WeakSet<object>} seen - Cycle-detection set
- * @returns {string} JSON array string
- * @private
  */
-function _stringifyArray(arr, seen) {
+function _stringifyArray(arr: unknown[], seen: WeakSet<object>): string {
   _assertNoCycle(arr, seen);
   seen.add(arr);
   try {
@@ -65,17 +49,12 @@ function _stringifyArray(arr, seen) {
 
 /**
  * Stringifies a plain object value with sorted keys and cycle detection.
- *
- * @param {object} ref - The object to stringify
- * @param {WeakSet<object>} seen - Cycle-detection set
- * @returns {string} JSON object string with sorted keys
- * @private
  */
-function _stringifyObject(ref, seen) {
+function _stringifyObject(ref: object, seen: WeakSet<object>): string {
   _assertNoCycle(ref, seen);
   seen.add(ref);
   try {
-    const obj = /** @type {Record<string, unknown>} */ (ref);
+    const obj = ref as Record<string, unknown>;
     const keys = Object.keys(obj).filter((k) => !_isNullish(obj[k])).sort();
     const pairs = keys.map((k) => `${JSON.stringify(k)}:${_canonicalStringify(obj[k], seen)}`);
     return `{${pairs.join(',')}}`;
@@ -86,13 +65,8 @@ function _stringifyObject(ref, seen) {
 
 /**
  * Internal recursive helper with cycle detection.
- *
- * @param {unknown} value - Any JSON-serializable value
- * @param {WeakSet<object>} seen - Set of already-visited objects for cycle detection
- * @returns {string} Canonical JSON string with sorted keys
- * @private
  */
-function _canonicalStringify(value, seen) {
+function _canonicalStringify(value: unknown, seen: WeakSet<object>): string {
   if (value === undefined || value === null) {
     return NULL_LITERAL;
   }

@@ -5,9 +5,9 @@ import {
   buildStrandRef,
   buildStrandOverlayRef,
   validateWriterId,
-} from '../../utils/RefLayout.js';
-import { parseStrandBlob } from '../../utils/parseStrandBlob.js';
-import { textEncode } from '../../utils/bytes.js';
+} from '../../utils/RefLayout.ts';
+import { parseStrandBlob } from '../../utils/parseStrandBlob.ts';
+import { textEncode } from '../../utils/bytes.ts';
 import {
   compareStrings,
   normalizeOptionalString,

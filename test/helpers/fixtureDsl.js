@@ -14,7 +14,7 @@ import BitmapNeighborProvider from '../../src/domain/services/index/BitmapNeighb
 import MaterializedViewService from '../../src/domain/services/MaterializedViewService.js';
 import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../src/domain/crdt/Dot.js';
-import { createEventId } from '../../src/domain/utils/EventId.js';
+import { createEventId } from '../../src/domain/utils/EventId.ts';
 
 /**
  * Normalizes a thrown value into an object with `.name` and `.message` for

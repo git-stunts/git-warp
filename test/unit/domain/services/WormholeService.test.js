@@ -10,7 +10,7 @@ import ProvenancePayload from '../../../../src/domain/services/provenance/Proven
 import WormholeError from '../../../../src/domain/errors/WormholeError.ts';
 import EncryptionError from '../../../../src/domain/errors/EncryptionError.ts';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
+import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 import {
   encodePatchMessage,
   encodeCheckpointMessage,

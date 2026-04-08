@@ -12,7 +12,7 @@
 import { orsetAdd, orsetRemove, orsetJoin, orsetContains, orsetClone } from '../crdt/ORSet.js';
 import VersionVector from '../crdt/VersionVector.js';
 import { lwwSet, lwwMax } from '../crdt/LWW.js';
-import { createEventId, compareEventIds } from '../utils/EventId.js';
+import { createEventId, compareEventIds } from '../utils/EventId.ts';
 import { createTickReceipt, OP_TYPES } from '../types/TickReceipt.ts';
 import { encodeDot } from '../crdt/Dot.js';
 import { encodeEdgeKey, decodeEdgeKey, encodePropKey, encodeEdgePropKey, EDGE_PROP_PREFIX } from './KeyCodec.js';
@@ -91,7 +91,7 @@ export function createEmptyStateV5() {
  *
  * @param {WarpStateV5} state - The state to mutate. Modified in place.
  * @param {OpLike} op - The operation to apply
- * @param {import('../utils/EventId.js').EventId} eventId - Event ID for causality tracking
+ * @param {import('../utils/EventId.ts').EventId} eventId - Event ID for causality tracking
  * @returns {void}
  */
 /**
@@ -255,7 +255,7 @@ export class OpApplied extends OpOutcomeResult {
 
 /** The operation was overridden by a concurrent write with a higher EventId. */
 export class OpSuperseded extends OpOutcomeResult {
-  /** @type {import('../utils/EventId.js').EventId} The winning EventId */
+  /** @type {import('../utils/EventId.ts').EventId} The winning EventId */
   winner;
 
   /** @type {string} Human-readable explanation */
@@ -263,7 +263,7 @@ export class OpSuperseded extends OpOutcomeResult {
 
   /** Creates an OpSuperseded.
    * @param {string} target
-   * @param {import('../utils/EventId.js').EventId} winner
+   * @param {import('../utils/EventId.ts').EventId} winner
    */
   constructor(target, winner) {
     super(target, 'superseded');
@@ -285,8 +285,8 @@ export class OpRedundant extends OpOutcomeResult {
 /**
  * @typedef {Object} OpStrategy
  * @property {string} receiptName - The TickReceipt-compatible operation type name (e.g. 'NodeTombstone' for NodeRemove)
- * @property {(state: WarpStateV5, op: OpLike, eventId: import('../utils/EventId.js').EventId) => void} mutate
- * @property {(state: WarpStateV5, op: OpLike, eventId: import('../utils/EventId.js').EventId) => OpOutcomeResult} outcome
+ * @property {(state: WarpStateV5, op: OpLike, eventId: import('../utils/EventId.ts').EventId) => void} mutate
+ * @property {(state: WarpStateV5, op: OpLike, eventId: import('../utils/EventId.ts').EventId) => OpOutcomeResult} outcome
  * @property {(state: WarpStateV5, op: OpLike) => SnapshotBeforeOp} snapshot
  * @property {(diff: import('../types/PatchDiff.ts').PatchDiff, state: WarpStateV5, op: OpLike, before: SnapshotBeforeOp) => void} accumulate
  * @property {(op: OpLikeRecord) => void} validate
@@ -387,7 +387,7 @@ const edgeRemoveStrategy = {
  * Shared mutate logic for node property ops (NodePropSet and legacy PropSet).
  * @param {WarpStateV5} state
  * @param {string} propKey
- * @param {import('../utils/EventId.js').EventId} eventId
+ * @param {import('../utils/EventId.ts').EventId} eventId
  * @param {unknown} value
  */
 function mutateProp(state, propKey, eventId, value) {
@@ -535,7 +535,7 @@ for (const [type, strategy] of OP_STRATEGIES) {
  *
  * @param {WarpStateV5} state - The mutable CRDT state to update
  * @param {{type: string, node?: string, dot?: import('../crdt/Dot.js').Dot, observedDots?: string[], from?: string, to?: string, label?: string, key?: string, value?: unknown, oid?: string}} op - The operation to apply
- * @param {import('../utils/EventId.js').EventId} eventId - The event ID for LWW ordering
+ * @param {import('../utils/EventId.ts').EventId} eventId - The event ID for LWW ordering
  */
 export function applyOpV2(state, op, eventId) {
   if (op === null || op === undefined || typeof op.type !== 'string') {
@@ -685,7 +685,7 @@ function edgeRemoveOutcome(orset, op) {
  *
  * @param {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} propMap - The properties map keyed by encoded prop keys
  * @param {string} key - Pre-encoded property key (node or edge)
- * @param {import('../utils/EventId.js').EventId} eventId - The event ID for this operation, used for LWW comparison
+ * @param {import('../utils/EventId.ts').EventId} eventId - The event ID for this operation, used for LWW comparison
  * @returns {OpOutcomeResult}
  *          Outcome with encoded prop key as target; includes reason when superseded
  */
@@ -712,7 +712,7 @@ function propOutcomeForKey(propMap, key, eventId) {
  *
  * @param {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} propMap
  * @param {{node: string, key: string}} op - The PropSet or NodePropSet operation
- * @param {import('../utils/EventId.js').EventId} eventId
+ * @param {import('../utils/EventId.ts').EventId} eventId
  * @returns {OpOutcomeResult}
  */
 function propSetOutcome(propMap, op, eventId) {
@@ -724,7 +724,7 @@ function propSetOutcome(propMap, op, eventId) {
  *
  * @param {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} propMap
  * @param {{from: string, to: string, label: string, key: string}} op - The EdgePropSet operation
- * @param {import('../utils/EventId.js').EventId} eventId
+ * @param {import('../utils/EventId.ts').EventId} eventId
  * @returns {OpOutcomeResult}
  */
 function edgePropSetOutcome(propMap, op, eventId) {
@@ -1054,9 +1054,9 @@ function mergeProps(a, b) {
  *
  * This is a pure function that does not mutate its inputs.
  *
- * @param {Map<string, import('../utils/EventId.js').EventId>|null|undefined} a - First edge birth event map
- * @param {Map<string, import('../utils/EventId.js').EventId>|null|undefined} b - Second edge birth event map
- * @returns {Map<string, import('../utils/EventId.js').EventId>} New map containing merged edge birth events
+ * @param {Map<string, import('../utils/EventId.ts').EventId>|null|undefined} a - First edge birth event map
+ * @param {Map<string, import('../utils/EventId.ts').EventId>|null|undefined} b - Second edge birth event map
+ * @returns {Map<string, import('../utils/EventId.ts').EventId>} New map containing merged edge birth events
  */
 function mergeEdgeBirthEvent(a, b) {
   const result = new Map(a || []);
@@ -1153,6 +1153,6 @@ export function cloneStateV5(state) {
     edgeAlive: orsetClone(/** @type {import('../crdt/ORSet.js').default} */ (s['edgeAlive'])),
     prop: new Map(/** @type {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} */ (s['prop'])),
     observedFrontier: /** @type {import('../crdt/VersionVector.js').default} */ (s['observedFrontier']).clone(),
-    edgeBirthEvent: new Map(/** @type {Map<string, import('../utils/EventId.js').EventId>} */ (s['edgeBirthEvent'] ?? [])),
+    edgeBirthEvent: new Map(/** @type {Map<string, import('../utils/EventId.ts').EventId>} */ (s['edgeBirthEvent'] ?? [])),
   });
 }

@@ -7,7 +7,7 @@ import {
   concatBytes,
   textEncode,
   textDecode,
-} from '../../../../src/domain/utils/bytes.js';
+} from '../../../../src/domain/utils/bytes.ts';
 
 describe('bytes utilities', () => {
   describe('hexEncode', () => {

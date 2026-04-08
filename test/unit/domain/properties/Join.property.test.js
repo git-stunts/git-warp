@@ -22,7 +22,7 @@ import { createORSet, orsetAdd, orsetRemove, orsetSerialize } from '../../../../
 import { createVersionVector, vvSerialize } from '../../../../src/domain/crdt/VersionVector.js';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.js';
-import { createEventId } from '../../../../src/domain/utils/EventId.js';
+import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 
 // ============================================================================
 // Arbitraries for generating random states and patches

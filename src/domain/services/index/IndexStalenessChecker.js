@@ -3,7 +3,7 @@
  * frontier metadata stored at build time against current writer refs.
  */
 
-import defaultCodec from '../../utils/defaultCodec.js';
+import defaultCodec from '../../utils/defaultCodec.ts';
 import IndexError from '../../errors/IndexError.ts';
 
 /**

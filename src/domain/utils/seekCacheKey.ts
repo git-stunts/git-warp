@@ -10,7 +10,7 @@
  * @module domain/utils/seekCacheKey
  */
 
-import defaultCrypto from './defaultCrypto.js';
+import defaultCrypto from './defaultCrypto.ts';
 
 const KEY_VERSION = 'v1';
 
@@ -20,12 +20,8 @@ const KEY_VERSION = 'v1';
  *
  * This function is intentionally async — WebCrypto's `digest()` is async-only,
  * and `defaultCrypto.hash()` uses it. Both call sites are already async.
- *
- * @param {number} ceiling - Lamport ceiling tick
- * @param {Map<string, string>} frontier - Map of writerId → tip SHA
- * @returns {Promise<string>} Cache key, e.g. `v1:t42-a1b2c3d4...` (32+ hex chars in hash)
  */
-export async function buildSeekCacheKey(ceiling, frontier) {
+export async function buildSeekCacheKey(ceiling: number, frontier: Map<string, string>): Promise<string> {
   const sorted = [...frontier.entries()].sort((a, b) =>
     a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0
   );

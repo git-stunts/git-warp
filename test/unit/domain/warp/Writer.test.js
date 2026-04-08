@@ -8,7 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Writer, WriterError } from '../../../../src/domain/warp/Writer.js';
 import { PatchSession } from '../../../../src/domain/warp/PatchSession.js';
-import { buildWriterRef, validateWriterId } from '../../../../src/domain/utils/RefLayout.js';
+import { buildWriterRef, validateWriterId } from '../../../../src/domain/utils/RefLayout.ts';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createORSet, orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';

@@ -36,11 +36,11 @@
  * @module domain/services/query/GraphTraversal
  */
 
-import nullLogger from '../../utils/nullLogger.js';
+import nullLogger from '../../utils/nullLogger.ts';
 import TraversalError from '../../errors/TraversalError.ts';
-import MinHeap from '../../utils/MinHeap.js';
-import LRUCache from '../../utils/LRUCache.js';
-import { checkAborted } from '../../utils/cancellation.js';
+import MinHeap from '../../utils/MinHeap.ts';
+import LRUCache from '../../utils/LRUCache.ts';
+import { checkAborted } from '../../utils/cancellation.ts';
 
 
 /** @import { Direction, NeighborEdge, NeighborOptions, default as NeighborProviderPort } from '../../../ports/NeighborProviderPort.js' */

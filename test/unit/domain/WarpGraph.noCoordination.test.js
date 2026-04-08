@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import fc from 'fast-check';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
-import { buildWriterRef } from '../../../src/domain/utils/RefLayout.js';
+import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
 async function assertLinearWriterChain(/** @type {any} */ persistence, /** @type {any} */ graphName, /** @type {any} */ writerId) {

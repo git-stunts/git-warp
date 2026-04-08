@@ -68,14 +68,14 @@ import {
 } from './src/domain/errors/index.ts';
 import WriterError from './src/domain/errors/WriterError.ts';
 import BlobStoragePort from './src/ports/BlobStoragePort.js';
-import InMemoryBlobStorageAdapter from './src/domain/utils/defaultBlobStorage.js';
+import InMemoryBlobStorageAdapter from './src/domain/utils/defaultBlobStorage.ts';
 import CryptoPort from './src/ports/CryptoPort.js';
 import HttpServerPort from './src/ports/HttpServerPort.js';
 import NodeCryptoAdapter from './src/infrastructure/adapters/NodeCryptoAdapter.js';
 import WebCryptoAdapter from './src/infrastructure/adapters/WebCryptoAdapter.js';
 import BunHttpAdapter from './src/infrastructure/adapters/BunHttpAdapter.js';
 import DenoHttpAdapter from './src/infrastructure/adapters/DenoHttpAdapter.js';
-import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellation.js';
+import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellation.ts';
 
 // Multi-writer graph support (WARP)
 import WarpCore from './src/domain/WarpCore.js';

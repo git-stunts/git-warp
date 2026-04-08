@@ -12,7 +12,7 @@
  * @see B1 -- Signed sync ingress
  */
 
-import nullLogger from '../../utils/nullLogger.js';
+import nullLogger from '../../utils/nullLogger.ts';
 
 /**
  * @typedef {'enforce'|'log-only'|'off'} TrustMode

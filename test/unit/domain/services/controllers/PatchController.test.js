@@ -62,7 +62,7 @@ const { resolveWriterIdMock } = vi.hoisted(() => ({
   resolveWriterIdMock: vi.fn(),
 }));
 
-vi.mock('../../../../../src/domain/utils/WriterId.js', () => ({
+vi.mock('../../../../../src/domain/utils/WriterId.ts', () => ({
   resolveWriterId: resolveWriterIdMock,
 }));
 

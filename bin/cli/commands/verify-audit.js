@@ -1,5 +1,5 @@
 import { AuditVerifierService } from '../../../src/domain/services/audit/AuditVerifierService.js';
-import defaultCodec from '../../../src/domain/utils/defaultCodec.js';
+import defaultCodec from '../../../src/domain/utils/defaultCodec.ts';
 import { EXIT_CODES, parseCommandArgs, getEnvVar } from '../infrastructure.js';
 import { verifyAuditSchema } from '../schemas.js';
 import { createPersistence, resolveGraphName } from '../shared.js';

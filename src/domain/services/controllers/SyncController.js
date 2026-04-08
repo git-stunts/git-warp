@@ -19,9 +19,9 @@ import {
   syncNeeded as syncNeededImpl,
 } from '../sync/SyncProtocol.js';
 import { retry, timeout, RetryExhaustedError, TimeoutError } from '@git-stunts/alfred';
-import { checkAborted } from '../../utils/cancellation.js';
+import { checkAborted } from '../../utils/cancellation.ts';
 import { createFrontier, updateFrontier } from '../Frontier.js';
-import { buildWriterRef } from '../../utils/RefLayout.js';
+import { buildWriterRef } from '../../utils/RefLayout.ts';
 import { collectGCMetrics } from '../GCMetrics.js';
 import HttpSyncServer from '../sync/HttpSyncServer.js';
 import { signSyncRequest, canonicalizePath } from '../sync/SyncAuthService.js';

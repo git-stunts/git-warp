@@ -1,6 +1,6 @@
 import GraphNode from '../entities/GraphNode.js';
-import { checkAborted } from '../utils/cancellation.js';
-import { concatBytes, textEncode, textDecode } from '../utils/bytes.js';
+import { checkAborted } from '../utils/cancellation.ts';
+import { concatBytes, textEncode, textDecode } from '../utils/bytes.ts';
 
 /**
  * Parses a parent-SHAs line into an array.

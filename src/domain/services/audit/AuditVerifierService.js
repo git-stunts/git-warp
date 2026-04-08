@@ -18,14 +18,14 @@
 
 /** @typedef {import('./AuditReceiptService.js').AuditReceipt} AuditReceipt */
 
-import { buildAuditPrefix, buildAuditRef } from '../../utils/RefLayout.js';
+import { buildAuditPrefix, buildAuditRef } from '../../utils/RefLayout.ts';
 import { decodeAuditMessage } from '../codec/AuditMessageCodec.js';
 import { computeSignaturePayload } from '../../trust/TrustCanonical.js';
 import { TrustRecordService } from '../../trust/TrustRecordService.js';
 import { buildState } from '../../trust/TrustStateBuilder.js';
 import { evaluateWriters } from '../../trust/TrustEvaluator.js';
 import { TRUST_REASON_CODES } from '../../trust/reasonCodes.js';
-import defaultTrustCrypto from '../../utils/defaultTrustCrypto.js';
+import defaultTrustCrypto from '../../utils/defaultTrustCrypto.ts';
 
 // ============================================================================
 // Constants

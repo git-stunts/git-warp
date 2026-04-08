@@ -9,8 +9,8 @@
  */
 
 import { recordIdPayload, signaturePayload } from './canonical.js';
-import defaultCrypto from '../utils/defaultCrypto.js';
-import { textEncode } from '../utils/bytes.js';
+import defaultCrypto from '../utils/defaultCrypto.ts';
+import { textEncode } from '../utils/bytes.ts';
 
 /**
  * Computes the record ID (SHA-256 hex digest) for a trust record.

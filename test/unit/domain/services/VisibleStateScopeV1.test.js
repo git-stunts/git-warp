@@ -5,7 +5,7 @@ import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { encodeDot } from '../../../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.js';
-import { createEventId } from '../../../../src/domain/utils/EventId.js';
+import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { encodeEdgeKey, encodeEdgePropKey, encodePropKey } from '../../../../src/domain/services/KeyCodec.js';
 import { createStateReaderV5 } from '../../../../src/domain/services/state/StateReaderV5.js';
 import {

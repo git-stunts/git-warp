@@ -10,8 +10,8 @@
 
 import QueryBuilder from './query/QueryBuilder.js';
 import LogicalTraversal from './query/LogicalTraversal.js';
-import { toInternalStrandShape } from '../utils/strandPublicShape.js';
-import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js';
+import { toInternalStrandShape } from '../utils/strandPublicShape.ts';
+import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.ts';
 import WorldlineSelector from '../types/WorldlineSelector.ts';
 import LiveSelector from '../types/LiveSelector.ts';
 import CoordinateSelector from '../types/CoordinateSelector.ts';

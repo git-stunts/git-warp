@@ -4,10 +4,10 @@ import LogicalIndexReader from '../../../../src/domain/services/index/LogicalInd
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
 import { createEmptyStateV5, applyOpV2, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { createEventId } from '../../../../src/domain/utils/EventId.js';
+import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { orsetGetDots, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
-import computeShardKey from '../../../../src/domain/utils/shardKey.js';
+import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
+import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 import { ShardIdOverflowError } from '../../../../src/domain/errors/index.ts';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

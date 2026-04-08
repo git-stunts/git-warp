@@ -270,7 +270,7 @@ function _serializePropsArray(propMap) {
 /**
  * Serializes the edgeBirthEvent Map.
  *
- * @param {Map<string, import('../../domain/utils/EventId.js').EventId> | undefined} edgeBirthEvent
+ * @param {Map<string, import('../../domain/utils/EventId.ts').EventId> | undefined} edgeBirthEvent
  * @returns {Array<[string, {lamport: number, writerId: string, patchSha: string, opIndex: number}]>}
  */
 function _serializeEdgeBirthArray(edgeBirthEvent) {
@@ -311,10 +311,10 @@ function _deserializeProps(propArray) {
  * Deserializes edge birth events.
  *
  * @param {Record<string, unknown>} obj
- * @returns {Map<string, import('../../domain/utils/EventId.js').EventId>}
+ * @returns {Map<string, import('../../domain/utils/EventId.ts').EventId>}
  */
 function _deserializeEdgeBirthEvent(obj) {
-  /** @type {Map<string, import('../../domain/utils/EventId.js').EventId>} */
+  /** @type {Map<string, import('../../domain/utils/EventId.ts').EventId>} */
   const result = new Map();
   const birthData = obj['edgeBirthEvent'] ?? obj['edgeBirthLamport'];
   if (!Array.isArray(birthData)) { return result; }

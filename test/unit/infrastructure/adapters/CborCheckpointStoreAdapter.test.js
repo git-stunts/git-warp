@@ -5,7 +5,7 @@ import CheckpointStorePort from '../../../../src/ports/CheckpointStorePort.js';
 import { createORSet, orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { createEventId } from '../../../../src/domain/utils/EventId.js';
+import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import WarpStateV5 from '../../../../src/domain/services/state/WarpStateV5.js';
 import MockBlobPort from '../../../helpers/MockBlobPort.js';
 

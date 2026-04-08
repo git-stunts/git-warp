@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import defaultClock from '../../../../src/domain/utils/defaultClock.js';
+import defaultClock from '../../../../src/domain/utils/defaultClock.ts';
 
 describe('defaultClock', () => {
   describe('now', () => {

@@ -8,7 +8,7 @@
  * @module domain/services/codec/AnchorMessageCodec
  */
 
-import { validateGraphName } from '../../utils/RefLayout.js';
+import { validateGraphName } from '../../utils/RefLayout.ts';
 import {
   getCodec,
   MESSAGE_TITLES,

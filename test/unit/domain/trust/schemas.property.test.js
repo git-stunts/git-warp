@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { canonicalStringify } from '../../../../src/domain/utils/canonicalStringify.js';
+import { canonicalStringify } from '../../../../src/domain/utils/canonicalStringify.ts';
 import { TrustRecordSchema } from '../../../../src/domain/trust/schemas.js';
 
 const HEX_CHARS = /** @type {const} */ ([

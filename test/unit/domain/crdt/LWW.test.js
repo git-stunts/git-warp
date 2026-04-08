@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { lwwSet, lwwMax as _lwwMax, lwwValue } from '../../../../src/domain/crdt/LWW.js';
-import { createEventId } from '../../../../src/domain/utils/EventId.js';
+import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 
 /** @type {any} */
 const lwwMax = _lwwMax;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import toBytes from '../../../../src/domain/utils/toBytes.js';
+import toBytes from '../../../../src/domain/utils/toBytes.ts';
 
 describe('toBytes', () => {
   it('returns Uint8Array unchanged', () => {

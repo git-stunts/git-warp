@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
+import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 
 describe('defaultCodec', () => {
   it('sorts map keys and nested object keys deterministically', () => {

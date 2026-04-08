@@ -1,11 +1,11 @@
 import WarpRuntime from './WarpRuntime.js';
-import { callInternalRuntimeMethod } from './utils/callInternalRuntimeMethod.js';
-import { toInternalStrandShape, toPublicStrandShape } from './utils/strandPublicShape.js';
+import { callInternalRuntimeMethod } from './utils/callInternalRuntimeMethod.ts';
+import { toInternalStrandShape, toPublicStrandShape } from './utils/strandPublicShape.ts';
 import {
   buildCoordinateComparisonFact,
   buildCoordinateTransferPlanFact,
 } from './services/CoordinateFactExport.js';
-import { computeChecksum } from './utils/checksumUtils.js';
+import { computeChecksum } from './utils/checksumUtils.ts';
 
 
 /** @import { CoordinateComparisonSelectorV1, CoordinateComparisonV1, CoordinateTransferPlanSelectorV1, CoordinateTransferPlanV1, CryptoPort, StrandBraidOptions, StrandCreateOptions, StrandDescriptor, StrandIntentDescriptor, StrandTickRecord, VisibleStateScopeV1 } from '../../index.js' */

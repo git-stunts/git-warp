@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
 import { AuditReceiptService } from '../../../../src/domain/services/audit/AuditReceiptService.js';
 import { AuditVerifierService } from '../../../../src/domain/services/audit/AuditVerifierService.js';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
+import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 import { encodeAuditMessage } from '../../../../src/domain/services/codec/AuditMessageCodec.js';
 import { TrustRecordService } from '../../../../src/domain/trust/TrustRecordService.js';
 import {

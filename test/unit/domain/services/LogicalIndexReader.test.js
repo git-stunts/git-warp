@@ -10,8 +10,8 @@ import {
 } from '../../../helpers/fixtureDsl.js';
 import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { createEventId } from '../../../../src/domain/utils/EventId.js';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
+import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

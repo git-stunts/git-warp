@@ -15,7 +15,7 @@
 
 import { orsetElements, orsetContains } from '../crdt/ORSet.js';
 import { decodeEdgeKey, decodePropKey, isEdgePropKey } from './KeyCodec.js';
-import { matchGlob } from '../utils/matchGlob.js';
+import { matchGlob } from '../utils/matchGlob.ts';
 
 /** @typedef {import('./JoinReducer.js').WarpStateV5} WarpStateV5 */
 

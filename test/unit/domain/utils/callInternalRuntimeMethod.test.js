@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { callInternalRuntimeMethod } from '../../../../src/domain/utils/callInternalRuntimeMethod.js';
+import { callInternalRuntimeMethod } from '../../../../src/domain/utils/callInternalRuntimeMethod.ts';
 
 describe('callInternalRuntimeMethod', () => {
   it('uses the grandparent implementation when a facade shim shadows the name', async () => {

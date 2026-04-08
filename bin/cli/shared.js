@@ -4,7 +4,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import readline from 'node:readline';
 import { execFileSync } from 'node:child_process';
-import { textEncode } from '../../src/domain/utils/bytes.js';
+import { textEncode } from '../../src/domain/utils/bytes.ts';
 // @ts-expect-error — no type declarations for @git-stunts/plumbing
 import _GitPlumbing, { ShellRunnerFactory as _ShellRunnerFactory } from '@git-stunts/plumbing';
 
@@ -21,10 +21,10 @@ import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter
 import {
   REF_PREFIX,
   buildCursorActiveRef,
-} from '../../src/domain/utils/RefLayout.js';
+} from '../../src/domain/utils/RefLayout.ts';
 import CasSeekCacheAdapter from '../../src/infrastructure/adapters/CasSeekCacheAdapter.js';
 import { HookInstaller } from '../../src/domain/services/HookInstaller.js';
-import { parseCursorBlob } from '../../src/domain/utils/parseCursorBlob.js';
+import { parseCursorBlob } from '../../src/domain/utils/parseCursorBlob.ts';
 import { usageError, notFoundError } from './infrastructure.js';
 
 /** @typedef {import('./types.js').Persistence} Persistence */

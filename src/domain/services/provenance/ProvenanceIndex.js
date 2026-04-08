@@ -1,4 +1,4 @@
-import defaultCodec from '../../utils/defaultCodec.js';
+import defaultCodec from '../../utils/defaultCodec.ts';
 
 /**
  * ProvenanceIndex - Node-to-Patch SHA Index

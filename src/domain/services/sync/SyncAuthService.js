@@ -9,11 +9,11 @@
  * @module domain/services/sync/SyncAuthService
  */
 
-import LRUCache from '../../utils/LRUCache.js';
-import defaultCrypto from '../../utils/defaultCrypto.js';
-import nullLogger from '../../utils/nullLogger.js';
-import { validateWriterId } from '../../utils/RefLayout.js';
-import { hexEncode, hexDecode } from '../../utils/bytes.js';
+import LRUCache from '../../utils/LRUCache.ts';
+import defaultCrypto from '../../utils/defaultCrypto.ts';
+import nullLogger from '../../utils/nullLogger.ts';
+import { validateWriterId } from '../../utils/RefLayout.ts';
+import { hexEncode, hexDecode } from '../../utils/bytes.ts';
 
 const SIG_VERSION = '1';
 const SIG_PREFIX = 'warp-v1';

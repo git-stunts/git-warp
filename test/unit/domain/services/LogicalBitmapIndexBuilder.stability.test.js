@@ -3,7 +3,7 @@ import LogicalBitmapIndexBuilder from '../../../../src/domain/services/index/Log
 import { ShardIdOverflowError } from '../../../../src/domain/errors/index.ts';
 import { MetaShard, LabelShard } from '../../../../src/domain/artifacts/IndexShard.js';
 import { F12_STABLE_IDS } from '../../../helpers/fixtureDsl.js';
-import computeShardKey from '../../../../src/domain/utils/shardKey.js';
+import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 
 describe('LogicalBitmapIndexBuilder ID stability (F12)', () => {
   it('existing node IDs are preserved across rebuild', () => {

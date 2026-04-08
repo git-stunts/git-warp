@@ -7,7 +7,7 @@
  * @module domain/services/index/PropertyIndexBuilder
  */
 
-import computeShardKey from '../../utils/shardKey.js';
+import computeShardKey from '../../utils/shardKey.ts';
 import { PropertyShard } from '../../artifacts/IndexShard.js';
 
 /**

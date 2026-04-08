@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canonicalStringify } from '../../../../src/domain/utils/canonicalStringify.js';
+import { canonicalStringify } from '../../../../src/domain/utils/canonicalStringify.ts';
 
 describe('canonicalStringify', () => {
   describe('primitives', () => {

@@ -1,5 +1,5 @@
 import WarpCore from './WarpCore.js';
-import { callInternalRuntimeMethod } from './utils/callInternalRuntimeMethod.js';
+import { callInternalRuntimeMethod } from './utils/callInternalRuntimeMethod.ts';
 
 /**
  * Curated product-facing WARP surface.

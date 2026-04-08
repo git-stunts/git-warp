@@ -13,7 +13,7 @@ import {
   buildCheckpointRef,
   buildCoverageRef,
   buildAuditPrefix,
-} from '../../../../src/domain/utils/RefLayout.js';
+} from '../../../../src/domain/utils/RefLayout.ts';
 import { createHookInstaller } from '../../shared.js';
 import { CODES } from './codes.js';
 

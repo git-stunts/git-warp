@@ -9,8 +9,8 @@
 
 import ForkError from '../../errors/ForkError.ts';
 import { CHECKPOINT_SCHEMA_STANDARD, CHECKPOINT_SCHEMA_V5_INTERMEDIATE } from '../state/CheckpointService.js';
-import { validateGraphName, validateWriterId, buildWriterRef, buildWritersPrefix } from '../../utils/RefLayout.js';
-import { generateWriterId } from '../../utils/WriterId.js';
+import { validateGraphName, validateWriterId, buildWriterRef, buildWritersPrefix } from '../../utils/RefLayout.ts';
+import { generateWriterId } from '../../utils/WriterId.ts';
 import { createWormhole as createWormholeImpl } from '../WormholeService.js';
 
 

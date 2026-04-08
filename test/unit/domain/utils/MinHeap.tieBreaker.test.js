@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import MinHeap from '../../../../src/domain/utils/MinHeap.js';
+import MinHeap from '../../../../src/domain/utils/MinHeap.ts';
 
 describe('MinHeap tie-breaking', () => {
   it('breaks ties using tieBreaker comparator', () => {

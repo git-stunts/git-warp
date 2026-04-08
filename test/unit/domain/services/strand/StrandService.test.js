@@ -8,7 +8,7 @@ import StrandService, {
   STRAND_COUNTERFACTUAL_REASON,
 } from '../../../../../src/domain/services/strand/StrandService.js';
 import StrandError from '../../../../../src/domain/errors/StrandError.ts';
-import { textEncode, textDecode } from '../../../../../src/domain/utils/bytes.js';
+import { textEncode, textDecode } from '../../../../../src/domain/utils/bytes.ts';
 import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReducer.js';
 
 /** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.js' */

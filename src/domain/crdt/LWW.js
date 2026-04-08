@@ -1,4 +1,4 @@
-import { compareEventIds } from '../utils/EventId.js';
+import { compareEventIds } from '../utils/EventId.ts';
 
 /**
  * @fileoverview LWW Register - Last-Write-Wins with Total Ordering
@@ -73,7 +73,7 @@ import { compareEventIds } from '../utils/EventId.js';
  * @template T
  */
 export class LWWRegister {
-  /** @type {import('../utils/EventId.js').EventId} */
+  /** @type {import('../utils/EventId.ts').EventId} */
   eventId;
 
   /** @type {T} */
@@ -81,7 +81,7 @@ export class LWWRegister {
 
   /**
    * Creates an LWW register.
-   * @param {import('../utils/EventId.js').EventId} eventId
+   * @param {import('../utils/EventId.ts').EventId} eventId
    * @param {T} value
    */
   constructor(eventId, value) {
@@ -94,7 +94,7 @@ export class LWWRegister {
 /**
  * Creates an LWW register with the given EventId and value.
  * @template T
- * @param {import('../utils/EventId.js').EventId} eventId
+ * @param {import('../utils/EventId.ts').EventId} eventId
  * @param {T} value
  * @returns {LWWRegister<T>}
  */

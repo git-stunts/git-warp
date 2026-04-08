@@ -4,6 +4,12 @@
  * @module parseCursorBlob
  */
 
+interface CursorBlob {
+  readonly tick: number;
+  readonly mode?: string;
+  readonly [key: string]: unknown;
+}
+
 /**
  * Parses and validates a cursor blob (Uint8Array) into a cursor object.
  *
@@ -11,11 +17,6 @@
  * minimum a finite numeric `tick` field.  Any additional fields (e.g. `mode`,
  * `name`) are preserved in the returned object.
  *
- * @param {Uint8Array} buf - Raw blob contents (UTF-8 encoded JSON)
- * @param {string} label - Human-readable label used in error messages
- *   (e.g. `"active cursor"`, `"saved cursor 'foo'"`)
- * @returns {{ tick: number, mode?: string, [key: string]: unknown }}
- *   The validated cursor object.  `tick` is guaranteed to be a finite number.
  * @throws {Error} If `buf` is not valid JSON
  * @throws {Error} If the parsed value is not a plain JSON object (e.g. array,
  *   null, or primitive)
@@ -31,9 +32,8 @@
  * // Throws: "Corrupted active cursor: blob is not valid JSON"
  * parseCursorBlob(new TextEncoder().encode('not json'), 'active cursor');
  */
-export function parseCursorBlob(buf, label) {
-  /** @type {unknown} */
-  let raw;
+export function parseCursorBlob(buf: Uint8Array, label: string): CursorBlob {
+  let raw: unknown;
   try {
     raw = JSON.parse(new TextDecoder().decode(buf));
   } catch {
@@ -43,17 +43,13 @@ export function parseCursorBlob(buf, label) {
   assertPlainObject(raw, label);
   assertFiniteTick(raw, label);
 
-  return raw;
+  return raw as CursorBlob;
 }
 
 /**
  * Asserts that the parsed value is a non-null, non-array object.
- *
- * @param {unknown} val - Parsed JSON value
- * @param {string} label - Label for error messages
- * @returns {asserts val is Record<string, unknown>}
  */
-function assertPlainObject(val, label) {
+function assertPlainObject(val: unknown, label: string): asserts val is Record<string, unknown> {
   if (val === null || typeof val !== 'object' || Array.isArray(val)) {
     throw new Error(`Corrupted ${label}: expected a JSON object`);
   }
@@ -61,12 +57,8 @@ function assertPlainObject(val, label) {
 
 /**
  * Asserts that the object has a finite numeric `tick` field.
- *
- * @param {Record<string, unknown>} obj - The cursor object
- * @param {string} label - Label for error messages
- * @returns {asserts obj is { tick: number, [key: string]: unknown }}
  */
-function assertFiniteTick(obj, label) {
+function assertFiniteTick(obj: Record<string, unknown>, label: string): asserts obj is { tick: number; [key: string]: unknown } {
   const { tick } = obj;
   if (typeof tick !== 'number' || !Number.isFinite(tick)) {
     throw new Error(`Corrupted ${label}: missing or invalid numeric tick`);

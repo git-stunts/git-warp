@@ -21,7 +21,7 @@ import { makeLogicalBitmapProvider, makeFixture } from '../helpers/fixtureDsl.js
 import { runBenchmark, logEnvironment, randomHex } from './benchmarkUtils.js';
 import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../src/domain/crdt/Dot.js';
-import { createEventId } from '../../src/domain/utils/EventId.js';
+import { createEventId } from '../../src/domain/utils/EventId.ts';
 
 const WARMUP = 1;
 const RUNS = 3;

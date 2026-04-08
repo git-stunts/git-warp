@@ -330,10 +330,10 @@ function collectScopedProps(state, scopedNodeIds, scopedEdgeKeys) {
  *
  * @param {WarpStateV5} state
  * @param {Set<string>} scopedEdgeKeys
- * @returns {Map<string, import('../utils/EventId.js').EventId>}
+ * @returns {Map<string, import('../utils/EventId.ts').EventId>}
  */
 function collectScopedEdgeBirthEvents(state, scopedEdgeKeys) {
-  /** @type {Map<string, import('../utils/EventId.js').EventId>} */
+  /** @type {Map<string, import('../utils/EventId.ts').EventId>} */
   const scopedEdgeBirthEvent = new Map();
   for (const [edgeKey, eventId] of state.edgeBirthEvent.entries()) {
     if (scopedEdgeKeys.has(edgeKey)) {

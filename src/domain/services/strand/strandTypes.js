@@ -9,7 +9,7 @@
  */
 
 /** @import { PatchV2 } from '../../types/WarpTypesV2.ts' */
-/** @import { parseStrandBlob as parseStrandBlobFn } from '../../utils/parseStrandBlob.js' */
+/** @import { parseStrandBlob as parseStrandBlobFn } from '../../utils/parseStrandBlob.ts' */
 
 /**
  * @typedef {ReturnType<typeof parseStrandBlobFn>} ParsedStrandBlob

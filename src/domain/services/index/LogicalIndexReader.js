@@ -8,14 +8,14 @@
  * @module domain/services/index/LogicalIndexReader
  */
 
-import defaultCodec from '../../utils/defaultCodec.js';
-import computeShardKey from '../../utils/shardKey.js';
-import toBytes from '../../utils/toBytes.js';
-import { getRoaringBitmap32 } from '../../utils/roaring.js';
+import defaultCodec from '../../utils/defaultCodec.ts';
+import computeShardKey from '../../utils/shardKey.ts';
+import toBytes from '../../utils/toBytes.ts';
+import { getRoaringBitmap32 } from '../../utils/roaring.ts';
 import { MetaShard, EdgeShard, LabelShard } from '../../artifacts/IndexShard.js';
 
 /** @typedef {import('./BitmapNeighborProvider.js').LogicalIndex} LogicalIndex */
-/** @typedef {import('../../utils/roaring.js').RoaringBitmapSubset} Bitmap */
+/** @typedef {import('../../utils/roaring.ts').RoaringBitmapSubset} Bitmap */
 
 /**
  * Expands a bitmap into neighbor entries, pushing into `out`.

@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import LogicalBitmapIndexBuilder from '../../../../src/domain/services/index/LogicalBitmapIndexBuilder.js';
 import { MetaShard, EdgeShard, LabelShard, ReceiptShard } from '../../../../src/domain/artifacts/IndexShard.js';
-import { getRoaringBitmap32 } from '../../../../src/domain/utils/roaring.js';
+import { getRoaringBitmap32 } from '../../../../src/domain/utils/roaring.ts';
 import { F7_MULTILABEL_SAME_NEIGHBOR, F10_PROTO_POLLUTION } from '../../../helpers/fixtureDsl.js';
-import computeShardKey from '../../../../src/domain/utils/shardKey.js';
+import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 
 /**
  * Helper: build an index from a fixture.

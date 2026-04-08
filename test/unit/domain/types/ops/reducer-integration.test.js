@@ -30,7 +30,7 @@ import {
   isKnownCanonicalOp,
   OP_STRATEGIES,
 } from '../../../../../src/domain/services/JoinReducer.js';
-import { createEventId } from '../../../../../src/domain/utils/EventId.js';
+import { createEventId } from '../../../../../src/domain/utils/EventId.ts';
 import { orsetContains } from '../../../../../src/domain/crdt/ORSet.js';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.js';
 

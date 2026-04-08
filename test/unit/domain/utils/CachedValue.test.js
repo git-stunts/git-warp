@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import CachedValue_ from '../../../../src/domain/utils/CachedValue.js';
+import CachedValue_ from '../../../../src/domain/utils/CachedValue.ts';
 
 /** @type {any} */
 const CachedValue = CachedValue_;

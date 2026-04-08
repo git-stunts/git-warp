@@ -6,9 +6,9 @@
  * @module domain/services/index/PropertyIndexReader
  */
 
-import defaultCodec from '../../utils/defaultCodec.js';
-import computeShardKey from '../../utils/shardKey.js';
-import LRUCache from '../../utils/LRUCache.js';
+import defaultCodec from '../../utils/defaultCodec.ts';
+import computeShardKey from '../../utils/shardKey.ts';
+import LRUCache from '../../utils/LRUCache.ts';
 
 /**
  * Creates a prototype-less record for safe property storage.

@@ -36,7 +36,7 @@
  * @see Frontier - Frontier manipulation utilities
  */
 
-import nullLogger from '../../utils/nullLogger.js';
+import nullLogger from '../../utils/nullLogger.ts';
 import { decodePatchMessage, assertOpsCompatible, SCHEMA_V3 } from '../codec/WarpMessageCodec.js';
 import { join, cloneStateV5, isKnownRawOp } from '../JoinReducer.js';
 import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';

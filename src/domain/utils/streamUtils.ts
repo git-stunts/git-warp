@@ -11,23 +11,17 @@ const _encoder = new TextEncoder();
 
 /**
  * Returns true when the value is an async iterable (has Symbol.asyncIterator).
- *
- * @param {unknown} value
- * @returns {value is AsyncIterable<Uint8Array>}
  */
-function isAsyncIterable(value) {
+function isAsyncIterable(value: unknown): value is AsyncIterable<Uint8Array> {
   return value !== null
     && typeof value === 'object'
-    && Symbol.asyncIterator in /** @type {object} */ (value);
+    && Symbol.asyncIterator in value;
 }
 
 /**
  * Returns true when the value is a ReadableStream (Web Streams API).
- *
- * @param {unknown} value
- * @returns {value is ReadableStream<Uint8Array>}
  */
-function isReadableStream(value) {
+function isReadableStream(value: unknown): value is ReadableStream<Uint8Array> {
   return typeof ReadableStream !== 'undefined'
     && value instanceof ReadableStream;
 }
@@ -35,11 +29,8 @@ function isReadableStream(value) {
 /**
  * Returns true when the content is a streaming input type
  * (AsyncIterable or ReadableStream) rather than a buffered value.
- *
- * @param {unknown} content
- * @returns {boolean}
  */
-export function isStreamingInput(content) {
+export function isStreamingInput(content: unknown): boolean {
   // Buffered types are never streaming, even if a polyfill adds Symbol.asyncIterator
   if (content instanceof Uint8Array || typeof content === 'string') {
     return false;
@@ -55,11 +46,8 @@ export function isStreamingInput(content) {
  * - `ReadableStream<Uint8Array>` — adapted via async iteration protocol
  * - `Uint8Array` — wrapped as single-element async iterable
  * - `string` — encoded to UTF-8, wrapped as single-element async iterable
- *
- * @param {AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string} content
- * @returns {AsyncIterable<Uint8Array>}
  */
-export function normalizeToAsyncIterable(content) {
+export function normalizeToAsyncIterable(content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string): AsyncIterable<Uint8Array> {
   if (isAsyncIterable(content)) {
     return content;
   }
@@ -68,7 +56,7 @@ export function normalizeToAsyncIterable(content) {
     // ReadableStream implements Symbol.asyncIterator in modern runtimes.
     // For those that don't, use getReader() manually.
     if (Symbol.asyncIterator in content) {
-      return /** @type {AsyncIterable<Uint8Array>} */ (content);
+      return content as AsyncIterable<Uint8Array>;
     }
     return readableStreamToAsyncIterable(content);
   }
@@ -82,16 +70,13 @@ export function normalizeToAsyncIterable(content) {
 
 /**
  * Wraps a single Uint8Array as an async iterable yielding one chunk.
- *
- * @param {Uint8Array} value
- * @returns {AsyncIterable<Uint8Array>}
  */
-function singleValueAsyncIterable(value) {
+function singleValueAsyncIterable(value: Uint8Array): AsyncIterable<Uint8Array> {
   return {
     [Symbol.asyncIterator]() {
       let done = false;
       return {
-        next() {
+        next(): Promise<IteratorResult<Uint8Array>> {
           if (done) {
             return Promise.resolve({ value: undefined, done: true });
           }
@@ -105,16 +90,13 @@ function singleValueAsyncIterable(value) {
 
 /**
  * Adapts a ReadableStream to an async iterable via getReader().
- *
- * @param {ReadableStream<Uint8Array>} stream
- * @returns {AsyncIterable<Uint8Array>}
  */
-function readableStreamToAsyncIterable(stream) {
+function readableStreamToAsyncIterable(stream: ReadableStream<Uint8Array>): AsyncIterable<Uint8Array> {
   return {
     [Symbol.asyncIterator]() {
       const reader = stream.getReader();
       return {
-        async next() {
+        async next(): Promise<IteratorResult<Uint8Array>> {
           const { value, done } = await reader.read();
           if (done) {
             reader.releaseLock();
@@ -122,7 +104,7 @@ function readableStreamToAsyncIterable(stream) {
           }
           return { value, done: false };
         },
-        return() {
+        return(): Promise<IteratorResult<Uint8Array>> {
           reader.releaseLock();
           return Promise.resolve({ value: undefined, done: true });
         },
@@ -133,19 +115,16 @@ function readableStreamToAsyncIterable(stream) {
 
 /**
  * Collects an async iterable into a single Uint8Array.
- *
- * @param {AsyncIterable<Uint8Array>} source
- * @returns {Promise<Uint8Array>}
  */
-export async function collectAsyncIterable(source) {
-  const chunks = [];
+export async function collectAsyncIterable(source: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
+  const chunks: Uint8Array[] = [];
   let totalLength = 0;
   for await (const chunk of source) {
     chunks.push(chunk);
     totalLength += chunk.byteLength;
   }
   if (chunks.length === 1) {
-    return /** @type {Uint8Array} */ (chunks[0]);
+    return chunks[0]!;
   }
   const result = new Uint8Array(totalLength);
   let offset = 0;

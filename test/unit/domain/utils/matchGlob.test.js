@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { matchGlob } from '../../../../src/domain/utils/matchGlob.js';
+import { matchGlob } from '../../../../src/domain/utils/matchGlob.ts';
 
 describe('matchGlob', () => {
   it('matches wildcard and literal patterns', () => {

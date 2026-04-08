@@ -250,7 +250,7 @@ describe('CheckpointService edge cases', () => {
     it('throws for wrong version string', () => {
       // Encode a CBOR object with an unexpected version
       const defaultCodecImport = import(
-        '../../../../src/domain/utils/defaultCodec.js'
+        '../../../../src/domain/utils/defaultCodec.ts'
       );
       return defaultCodecImport.then(({ default: codec }) => {
         const buf = codec.encode({ version: 'full-v99', nodeAlive: {} });

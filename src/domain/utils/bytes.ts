@@ -11,21 +11,17 @@
 const _encoder = new TextEncoder();
 const _decoder = new TextDecoder();
 
-/** @type {readonly string[]} */
-const HEX_TABLE = Object.freeze(
+const HEX_TABLE: readonly string[] = Object.freeze(
   Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, '0'))
 );
 
 /**
  * Encodes a Uint8Array to a lowercase hex string.
- *
- * @param {Uint8Array} bytes
- * @returns {string} Lowercase hex string
  */
-export function hexEncode(bytes) {
+export function hexEncode(bytes: Uint8Array): string {
   let hex = '';
   for (let i = 0; i < bytes.length; i++) {
-    hex += HEX_TABLE[/** @type {number} */ (bytes[i])];
+    hex += HEX_TABLE[bytes[i]!];
   }
   return hex;
 }
@@ -33,33 +29,26 @@ export function hexEncode(bytes) {
 /**
  * Lookup table mapping character codes to hex values.
  * Codes outside the hex range map to 0xff (invalid sentinel).
- * @type {Readonly<Uint8Array>}
  */
-const HEX_VAL = (() => {
+const HEX_VAL: Readonly<Uint8Array> = (() => {
   const t = new Uint8Array(128).fill(0xff);
   for (let i = 0; i < 10; i++) { t[0x30 + i] = i; }
-  for (let i = 0; i < 6; i++) { t[0x41 + i] = 10 + i; t[0x61 + i] = 10 + i; }
+  for (let i = 0; i < 6; i++) { t[0x61 + i] = 10 + i; t[0x41 + i] = 10 + i; }
   return t;
 })();
 
 /**
  * Returns the numeric value of a hex character code, or -1 if invalid.
- *
- * @param {number} cc - Character code
- * @returns {number} 0–15 or -1
  */
-function hexCharValue(cc) {
+function hexCharValue(cc: number): number {
   const v = cc < 128 ? HEX_VAL[cc] ?? 0xff : 0xff;
   return v === 0xff ? -1 : v;
 }
 
 /**
  * Decodes a hex string to a Uint8Array.
- *
- * @param {string} hex - Even-length hex string
- * @returns {Uint8Array}
  */
-export function hexDecode(hex) {
+export function hexDecode(hex: string): Uint8Array {
   assertEvenHexLength(hex);
   const len = hex.length >>> 1;
   const bytes = new Uint8Array(len);
@@ -76,9 +65,8 @@ export function hexDecode(hex) {
 
 /**
  * Asserts that a hex string has even length.
- * @param {string} hex
  */
-function assertEvenHexLength(hex) {
+function assertEvenHexLength(hex: string): void {
   if (hex.length % 2 !== 0) {
     throw new RangeError(`Invalid hex string (odd length ${hex.length}): ${hex.length > 20 ? `${hex.slice(0, 20)}…` : hex}`);
   }
@@ -86,10 +74,8 @@ function assertEvenHexLength(hex) {
 
 /**
  * Formats an error message for invalid hex strings.
- * @param {string} hex
- * @returns {string}
  */
-function hexErrorMessage(hex) {
+function hexErrorMessage(hex: string): string {
   return `Invalid hex string (length ${hex.length}): ${hex.length > 20 ? `${hex.slice(0, 20)}…` : hex}`;
 }
 
@@ -105,32 +91,29 @@ for (let i = 0; i < B64_CHARS.length; i++) {
  *
  * Uses a direct table-based implementation that avoids intermediate binary
  * strings, preventing memory spikes on large buffers.
- *
- * @param {Uint8Array} bytes
- * @returns {string} Base64-encoded string
  */
-export function base64Encode(bytes) {
+export function base64Encode(bytes: Uint8Array): string {
   let result = '';
   const len = bytes.length;
   const remainder = len % 3;
   const mainLen = len - remainder;
 
   for (let i = 0; i < mainLen; i += 3) {
-    const b0 = /** @type {number} */ (bytes[i]);
-    const b1 = /** @type {number} */ (bytes[i + 1]);
-    const b2 = /** @type {number} */ (bytes[i + 2]);
+    const b0 = bytes[i]!;
+    const b1 = bytes[i + 1]!;
+    const b2 = bytes[i + 2]!;
     const n = (b0 << 16) | (b1 << 8) | b2;
-    result += /** @type {string} */ (B64_CHARS[(n >>> 18) & 0x3f])
-            + /** @type {string} */ (B64_CHARS[(n >>> 12) & 0x3f])
-            + /** @type {string} */ (B64_CHARS[(n >>> 6) & 0x3f])
-            + /** @type {string} */ (B64_CHARS[n & 0x3f]);
+    result += B64_CHARS[(n >>> 18) & 0x3f]
+            + B64_CHARS[(n >>> 12) & 0x3f]
+            + B64_CHARS[(n >>> 6) & 0x3f]
+            + B64_CHARS[n & 0x3f];
   }
 
   if (remainder === 1) {
-    const n = /** @type {number} */ (bytes[mainLen]);
+    const n = bytes[mainLen]!;
     result += `${B64_CHARS[(n >>> 2) & 0x3f]}${B64_CHARS[(n << 4) & 0x3f]}==`;
   } else if (remainder === 2) {
-    const n = (/** @type {number} */ (bytes[mainLen]) << 8) | /** @type {number} */ (bytes[mainLen + 1]);
+    const n = (bytes[mainLen]! << 8) | bytes[mainLen + 1]!;
     result += `${B64_CHARS[(n >>> 10) & 0x3f]}${B64_CHARS[(n >>> 4) & 0x3f]}${B64_CHARS[(n << 2) & 0x3f]}=`;
   }
 
@@ -140,11 +123,10 @@ export function base64Encode(bytes) {
 /**
  * Validates a base64 string's character set and length.
  *
- * @param {string} b64 - Base64-encoded string to validate
  * @throws {RangeError} If the string contains invalid characters or has an
  *   impossible length (length % 4 === 1 can never represent whole bytes).
  */
-function validateBase64(b64) {
+function validateBase64(b64: string): void {
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(b64)) {
     throw new RangeError(`Invalid base64 string: ${b64.length > 20 ? `${b64.slice(0, 20)}…` : b64}`);
   }
@@ -160,11 +142,8 @@ function validateBase64(b64) {
  *
  * Uses a direct table-based implementation that avoids intermediate binary
  * strings, preventing memory spikes on large buffers.
- *
- * @param {string} b64 - Base64-encoded string
- * @returns {Uint8Array}
  */
-export function base64Decode(b64) {
+export function base64Decode(b64: string): Uint8Array {
   validateBase64(b64);
   const len = stripPaddingLength(b64);
   return decodeBase64Bytes(b64, len);
@@ -172,10 +151,8 @@ export function base64Decode(b64) {
 
 /**
  * Returns the effective length of a base64 string after stripping '=' padding.
- * @param {string} b64
- * @returns {number}
  */
-function stripPaddingLength(b64) {
+function stripPaddingLength(b64: string): number {
   let len = b64.length;
   if (b64[len - 1] === '=') { len--; }
   if (b64[len - 1] === '=') { len--; }
@@ -184,22 +161,15 @@ function stripPaddingLength(b64) {
 
 /**
  * Looks up a base64 character value at the given index, returning 0 for out-of-range.
- * @param {string} b64
- * @param {number} idx
- * @param {number} len
- * @returns {number}
  */
-function b64At(b64, idx, len) {
+function b64At(b64: string, idx: number, len: number): number {
   return idx < len ? B64_LOOKUP[b64.charCodeAt(idx)] ?? 0 : 0;
 }
 
 /**
  * Decodes base64 characters into bytes using the lookup table.
- * @param {string} b64 - Base64 string
- * @param {number} len - Effective length (padding stripped)
- * @returns {Uint8Array}
  */
-function decodeBase64Bytes(b64, len) {
+function decodeBase64Bytes(b64: string, len: number): Uint8Array {
   const outLen = (len * 3) >>> 2;
   const bytes = new Uint8Array(outLen);
   let j = 0;
@@ -220,19 +190,16 @@ function decodeBase64Bytes(b64, len) {
 
 /**
  * Concatenates multiple Uint8Arrays into a single Uint8Array.
- *
- * @param {...Uint8Array} arrays
- * @returns {Uint8Array}
  */
-export function concatBytes(...arrays) {
+export function concatBytes(...arrays: Uint8Array[]): Uint8Array {
   let totalLength = 0;
   for (let i = 0; i < arrays.length; i++) {
-    totalLength += /** @type {Uint8Array} */ (arrays[i]).length;
+    totalLength += arrays[i]!.length;
   }
   const result = new Uint8Array(totalLength);
   let offset = 0;
   for (let i = 0; i < arrays.length; i++) {
-    const arr = /** @type {Uint8Array} */ (arrays[i]);
+    const arr = arrays[i]!;
     result.set(arr, offset);
     offset += arr.length;
   }
@@ -241,20 +208,14 @@ export function concatBytes(...arrays) {
 
 /**
  * Encodes a string to UTF-8 bytes.
- *
- * @param {string} str
- * @returns {Uint8Array}
  */
-export function textEncode(str) {
+export function textEncode(str: string): Uint8Array {
   return _encoder.encode(str);
 }
 
 /**
  * Decodes UTF-8 bytes to a string.
- *
- * @param {Uint8Array} bytes
- * @returns {string}
  */
-export function textDecode(bytes) {
+export function textDecode(bytes: Uint8Array): string {
   return _decoder.decode(bytes);
 }

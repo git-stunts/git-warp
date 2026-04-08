@@ -7,7 +7,7 @@
  * @module domain/services/index/LogicalIndexBuildService
  */
 
-import nullLogger from '../../utils/nullLogger.js';
+import nullLogger from '../../utils/nullLogger.ts';
 import LogicalBitmapIndexBuilder from './LogicalBitmapIndexBuilder.js';
 import PropertyIndexBuilder from './PropertyIndexBuilder.js';
 import { orsetElements } from '../../crdt/ORSet.js';

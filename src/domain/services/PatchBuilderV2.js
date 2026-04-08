@@ -11,7 +11,7 @@
  * @see WARP v5 Spec
  */
 
-import nullLogger from '../utils/nullLogger.js';
+import nullLogger from '../utils/nullLogger.ts';
 import { vvSerialize } from '../crdt/VersionVector.js';
 import { orsetGetDots, orsetContains, orsetElements } from '../crdt/ORSet.js';
 import {
@@ -34,10 +34,10 @@ import {
 } from './KeyCodec.js';
 import { lowerCanonicalOp } from './OpNormalizer.js';
 import { encodePatchMessage, decodePatchMessage, detectMessageKind } from './codec/WarpMessageCodec.js';
-import { buildWriterRef } from '../utils/RefLayout.js';
+import { buildWriterRef } from '../utils/RefLayout.ts';
 import WriterError from '../errors/WriterError.ts';
-import { isStreamingInput, normalizeToAsyncIterable } from '../utils/streamUtils.js';
-import { canonicalStringify } from '../utils/canonicalStringify.js';
+import { isStreamingInput, normalizeToAsyncIterable } from '../utils/streamUtils.ts';
+import { canonicalStringify } from '../utils/canonicalStringify.ts';
 import PatchError from '../errors/PatchError.ts';
 import PersistenceError from '../errors/PersistenceError.ts';
 

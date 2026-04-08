@@ -31,7 +31,7 @@ export default class WarpStateV5 {
 
   /**
    * EdgeKey → EventId of most recent EdgeAdd (for clean-slate prop visibility).
-   * @type {Map<string, import('../../utils/EventId.js').EventId>}
+   * @type {Map<string, import('../../utils/EventId.ts').EventId>}
    */
   edgeBirthEvent;
 
@@ -43,7 +43,7 @@ export default class WarpStateV5 {
    *   edgeAlive: import('../../crdt/ORSet.js').default,
    *   prop: Map<string, import('../../crdt/LWW.js').LWWRegister<unknown>>,
    *   observedFrontier: import('../../crdt/VersionVector.js').default,
-   *   edgeBirthEvent?: Map<string, import('../../utils/EventId.js').EventId>
+   *   edgeBirthEvent?: Map<string, import('../../utils/EventId.ts').EventId>
    * }} fields
    */
   constructor({ nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthEvent }) {
@@ -51,7 +51,7 @@ export default class WarpStateV5 {
     this.edgeAlive = edgeAlive;
     this.prop = prop;
     this.observedFrontier = observedFrontier;
-    this.edgeBirthEvent = edgeBirthEvent ?? /** @type {Map<string, import('../../utils/EventId.js').EventId>} */ (new Map());
+    this.edgeBirthEvent = edgeBirthEvent ?? /** @type {Map<string, import('../../utils/EventId.ts').EventId>} */ (new Map());
   }
 
   /**

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseCursorBlob } from '../../../src/domain/utils/parseCursorBlob.js';
+import { parseCursorBlob } from '../../../src/domain/utils/parseCursorBlob.ts';
 
 describe('parseCursorBlob', () => {
   /** @param {string} str */

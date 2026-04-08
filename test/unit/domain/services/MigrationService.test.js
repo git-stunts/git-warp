@@ -7,7 +7,7 @@ import {
 } from '../../../../src/domain/services/JoinReducer.js';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
-import { compareEventIds, createEventId } from '../../../../src/domain/utils/EventId.js';
+import { compareEventIds, createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet as lwwSetImported, lwwMax as lwwMaxImported } from '../../../../src/domain/crdt/LWW.js';
 
 // Re-export lwwSet/lwwMax for use in tests

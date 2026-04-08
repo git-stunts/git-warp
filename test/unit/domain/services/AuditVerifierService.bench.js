@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
 import { AuditReceiptService } from '../../../../src/domain/services/audit/AuditReceiptService.js';
 import { AuditVerifierService } from '../../../../src/domain/services/audit/AuditVerifierService.js';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
+import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 
 const testCrypto = {
   /** @param {string} algorithm @param {string|Buffer|Uint8Array} data */

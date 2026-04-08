@@ -17,7 +17,7 @@ import {
 } from '../../../../src/domain/services/JoinReducer.js';
 import { orsetContains, orsetElements, orsetGetDots } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { createEventId } from '../../../../src/domain/utils/EventId.js';
+import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { decodeEdgeKey } from '../../../../src/domain/services/KeyCodec.js';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';

@@ -1,5 +1,5 @@
-import defaultCodec from '../../utils/defaultCodec.js';
-import defaultCrypto from '../../utils/defaultCrypto.js';
+import defaultCodec from '../../utils/defaultCodec.ts';
+import defaultCrypto from '../../utils/defaultCrypto.ts';
 import { orsetContains, orsetElements } from '../../crdt/ORSet.js';
 import { decodeEdgeKey, decodePropKey } from '../KeyCodec.js';
 

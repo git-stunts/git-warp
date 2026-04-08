@@ -1,14 +1,14 @@
 import { IndexError, ShardLoadError, ShardCorruptionError, ShardValidationError } from '../../errors/index.ts';
-import defaultCrypto from '../../utils/defaultCrypto.js';
-import nullLogger from '../../utils/nullLogger.js';
-import LRUCache from '../../utils/LRUCache.js';
-import { getRoaringBitmap32 } from '../../utils/roaring.js';
-import { canonicalStringify } from '../../utils/canonicalStringify.js';
-import { isValidShardOid } from '../../utils/validateShardOid.js';
-import { base64Decode } from '../../utils/bytes.js';
+import defaultCrypto from '../../utils/defaultCrypto.ts';
+import nullLogger from '../../utils/nullLogger.ts';
+import LRUCache from '../../utils/LRUCache.ts';
+import { getRoaringBitmap32 } from '../../utils/roaring.ts';
+import { canonicalStringify } from '../../utils/canonicalStringify.ts';
+import { isValidShardOid } from '../../utils/validateShardOid.ts';
+import { base64Decode } from '../../utils/bytes.ts';
 
 
-/** @import { RoaringBitmapSubset as BitmapShard } from '../../utils/roaring.js' */
+/** @import { RoaringBitmapSubset as BitmapShard } from '../../utils/roaring.ts' */
 /** @typedef {import('../../../ports/IndexStoragePort.js').default} IndexStoragePort */
 /** @typedef {import('../../types/WarpPersistence.ts').IndexStorage} IndexStorage */
 
@@ -436,7 +436,7 @@ export default class BitmapIndexReader {
    * Handles validation/corruption errors based on strict mode.
    * @param {ShardCorruptionError|ShardValidationError} err - The error to handle
    * @param {{ path: string, oid: string, format: string }} context - Error context
-   * @returns {Record<string, string | number> | import('../../utils/roaring.js').RoaringBitmapSubset} Empty shard (non-strict mode only)
+   * @returns {Record<string, string | number> | import('../../utils/roaring.ts').RoaringBitmapSubset} Empty shard (non-strict mode only)
    * @throws {ShardCorruptionError|ShardValidationError} In strict mode
    * @private
    */
@@ -549,7 +549,7 @@ export default class BitmapIndexReader {
    * Returns handled result for validation/corruption errors, null otherwise.
    * @param {unknown} err - The error to handle
    * @param {{ path: string, oid: string, format: string }} context - Error context
-   * @returns {Record<string, string | number> | import('../../utils/roaring.js').RoaringBitmapSubset | null} Handled result or null if error should be re-thrown
+   * @returns {Record<string, string | number> | import('../../utils/roaring.ts').RoaringBitmapSubset | null} Handled result or null if error should be re-thrown
    * @private
    */
   _tryHandleShardError(err, context) {
@@ -569,7 +569,7 @@ export default class BitmapIndexReader {
    *
    * @param {string} path - Shard path
    * @param {string} format - 'json' or 'bitmap'
-   * @returns {Promise<Record<string, string | number> | import('../../utils/roaring.js').RoaringBitmapSubset>}
+   * @returns {Promise<Record<string, string | number> | import('../../utils/roaring.ts').RoaringBitmapSubset>}
    * @throws {ShardLoadError} When storage.readBlob fails
    * @throws {ShardCorruptionError} When shard format is invalid (strict mode only)
    * @throws {ShardValidationError} When version or checksum validation fails (strict mode only)

@@ -14,8 +14,8 @@
  * @see WARP Writer Spec v1
  */
 
-import nullLogger from '../utils/nullLogger.js';
-import { validateWriterId, buildWriterRef } from '../utils/RefLayout.js';
+import nullLogger from '../utils/nullLogger.ts';
+import { validateWriterId, buildWriterRef } from '../utils/RefLayout.ts';
 import { PatchSession } from './PatchSession.js';
 import { PatchBuilderV2 } from '../services/PatchBuilderV2.js';
 import { decodePatchMessage, detectMessageKind } from '../services/codec/WarpMessageCodec.js';

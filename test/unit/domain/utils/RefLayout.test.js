@@ -14,7 +14,7 @@ import {
   parseWriterIdFromRef as _parseWriterIdFromRef,
   validateGraphName as _validateGraphName,
   validateWriterId as _validateWriterId,
-} from '../../../../src/domain/utils/RefLayout.js';
+} from '../../../../src/domain/utils/RefLayout.ts';
 
 /** @type {any} */
 const parseWriterIdFromRef = _parseWriterIdFromRef;

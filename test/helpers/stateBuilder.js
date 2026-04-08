@@ -2,7 +2,7 @@ import { vi } from 'vitest';
 import { createDot, encodeDot } from '../../src/domain/crdt/Dot.js';
 import { orsetGetDots } from '../../src/domain/crdt/ORSet.js';
 import { applyOpV2, createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';
-import { createEventId } from '../../src/domain/utils/EventId.js';
+import { createEventId } from '../../src/domain/utils/EventId.ts';
 
 /**
  * @typedef {import('../../src/domain/services/JoinReducer.js').WarpStateV5} WarpStateV5
@@ -63,7 +63,7 @@ export class StateBuilder {
 
   /**
    * @param {BuilderEventOptions} [options]
-   * @returns {{ dot: import('../../src/domain/crdt/Dot.js').Dot, eventId: import('../../src/domain/utils/EventId.js').EventId }}
+   * @returns {{ dot: import('../../src/domain/crdt/Dot.js').Dot, eventId: import('../../src/domain/utils/EventId.ts').EventId }}
    */
   _createMutationContext(options = {}) {
     const writerId = options.writerId || 'w1';

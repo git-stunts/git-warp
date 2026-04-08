@@ -8,7 +8,7 @@
  * @see docs/specs/TRUST_V1_CRYPTO.md Section 6
  */
 
-import { canonicalStringify } from '../utils/canonicalStringify.js';
+import { canonicalStringify } from '../utils/canonicalStringify.ts';
 
 // ── Domain separation prefixes ──────────────────────────────────────────
 

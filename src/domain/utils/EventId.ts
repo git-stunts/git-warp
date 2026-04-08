@@ -5,27 +5,27 @@ const HEX_OID_REGEX = /^[0-9a-f]{4,64}$/;
  * EventId — total ordering identity for CRDT operations (WARP spec Section 7).
  */
 export class EventId {
-  /** @type {number} Monotonic counter (positive integer) */
-  lamport;
+  /** Monotonic counter (positive integer) */
+  readonly lamport: number;
 
-  /** @type {string} Writer identifier (non-empty string) */
-  writerId;
+  /** Writer identifier (non-empty string) */
+  readonly writerId: string;
 
-  /** @type {string} Patch commit SHA (hex OID, 4-64 chars) */
-  patchSha;
+  /** Patch commit SHA (hex OID, 4-64 chars) */
+  readonly patchSha: string;
 
-  /** @type {number} Operation index within patch (non-negative integer) */
-  opIndex;
+  /** Operation index within patch (non-negative integer) */
+  readonly opIndex: number;
 
   /**
    * Creates a validated EventId.
    *
-   * @param {number} lamport - Must be positive integer (> 0)
-   * @param {string} writerId - Must be non-empty string
-   * @param {string} patchSha - Must be valid hex OID (4-64 chars)
-   * @param {number} opIndex - Must be non-negative integer (>= 0)
+   * @param lamport - Must be positive integer (> 0)
+   * @param writerId - Must be non-empty string
+   * @param patchSha - Must be valid hex OID (4-64 chars)
+   * @param opIndex - Must be non-negative integer (>= 0)
    */
-  constructor(lamport, writerId, patchSha, opIndex) {
+  constructor(lamport: number, writerId: string, patchSha: string, opIndex: number) {
     if (!Number.isInteger(lamport) || lamport <= 0) {
       throw new Error('lamport must be a positive integer');
     }
@@ -49,14 +49,8 @@ export class EventId {
 
 /**
  * Creates a validated EventId.
- *
- * @param {number} lamport
- * @param {string} writerId
- * @param {string} patchSha
- * @param {number} opIndex
- * @returns {EventId}
  */
-export function createEventId(lamport, writerId, patchSha, opIndex) {
+export function createEventId(lamport: number, writerId: string, patchSha: string, opIndex: number): EventId {
   return new EventId(lamport, writerId, patchSha, opIndex);
 }
 
@@ -66,12 +60,8 @@ export function createEventId(lamport, writerId, patchSha, opIndex) {
  *
  * SHA tiebreaker uses lexicographic string comparison. This is arbitrary but
  * deterministic — the specific order doesn't matter as long as all writers agree.
- *
- * @param {EventId} a
- * @param {EventId} b
- * @returns {number} -1 if a < b, 0 if equal, 1 if a > b
  */
-export function compareEventIds(a, b) {
+export function compareEventIds(a: EventId, b: EventId): number {
   // 1. Compare lamport numerically
   if (a.lamport !== b.lamport) {
     return a.lamport < b.lamport ? -1 : 1;
@@ -97,11 +87,7 @@ export function compareEventIds(a, b) {
 
 /**
  * Checks if EventId a is greater than EventId b.
- *
- * @param {EventId} a
- * @param {EventId} b
- * @returns {boolean}
  */
-export function isGreater(a, b) {
+export function isGreater(a: EventId, b: EventId): boolean {
   return compareEventIds(a, b) > 0;
 }

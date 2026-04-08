@@ -33,7 +33,7 @@ export default class OpRecord {
    *   receiptResult: 'applied'|'superseded'|'redundant',
    *   receiptReason?: string,
    *   effectDigest: string,
-   *   eventId: import('../../utils/EventId.js').EventId,
+   *   eventId: import('../../utils/EventId.ts').EventId,
    *   context: Map<string, number>,
    *   patchOrder: number
    * }} fields - Operation record fields.

@@ -1,5 +1,5 @@
 import WarpError from '../errors/WarpError.ts';
-import { checkAborted } from '../utils/cancellation.js';
+import { checkAborted } from '../utils/cancellation.ts';
 
 /**
  * Validates that a source is a valid iterable.

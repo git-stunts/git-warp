@@ -12,7 +12,7 @@ import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetAdd, orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
 import VersionVector, { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
-import { createEventId } from '../../../../src/domain/utils/EventId.js';
+import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers

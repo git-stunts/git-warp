@@ -12,7 +12,7 @@
  * @see WARP Spec Section 10 (Checkpoints)
  */
 
-import defaultCodec from '../../utils/defaultCodec.js';
+import defaultCodec from '../../utils/defaultCodec.ts';
 import { orsetSerialize, orsetDeserialize } from '../../crdt/ORSet.js';
 import VersionVector, { vvSerialize } from '../../crdt/VersionVector.js';
 import { decodeDot } from '../../crdt/Dot.js';
@@ -74,7 +74,7 @@ function serializePropsArray(propMap) {
 
 /**
  * Serializes the edgeBirthEvent Map into a sorted array.
- * @param {Map<string, import('../../utils/EventId.js').EventId>|undefined} edgeBirthEvent
+ * @param {Map<string, import('../../utils/EventId.ts').EventId>|undefined} edgeBirthEvent
  * @returns {Array<[string, {lamport: number, writerId: string, patchSha: string, opIndex: number}]>}
  */
 function serializeEdgeBirthArray(edgeBirthEvent) {
@@ -114,7 +114,7 @@ export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
     edgeAlive: orsetDeserialize(obj['edgeAlive'] ?? {}),
     prop: deserializeProps(/** @type {[string, unknown][]} */ (obj['prop'])),
     observedFrontier: VersionVector.from(/** @type {{[x: string]: number}} */ (obj['observedFrontier'] ?? {})),
-    edgeBirthEvent: /** @type {Map<string, import('../../utils/EventId.js').EventId>} */ (deserializeEdgeBirthEvent(obj)),
+    edgeBirthEvent: /** @type {Map<string, import('../../utils/EventId.ts').EventId>} */ (deserializeEdgeBirthEvent(obj)),
   });
 }
 
@@ -214,10 +214,10 @@ function deserializeProps(propArray) {
 /**
  * Deserializes edge birth event data, supporting both legacy and current formats.
  * @param {Record<string, unknown>} obj - The decoded checkpoint object
- * @returns {Map<string, import('../../utils/EventId.js').EventId>}
+ * @returns {Map<string, import('../../utils/EventId.ts').EventId>}
  */
 function deserializeEdgeBirthEvent(obj) {
-  /** @type {Map<string, import('../../utils/EventId.js').EventId>} */
+  /** @type {Map<string, import('../../utils/EventId.ts').EventId>} */
   const edgeBirthEvent = new Map();
   const birthData = obj['edgeBirthEvent'] ?? obj['edgeBirthLamport'];
   if (!Array.isArray(birthData)) {
@@ -233,7 +233,7 @@ function deserializeEdgeBirthEvent(obj) {
  * Converts a single birth event entry from its serialized form.
  * Supports both legacy (bare lamport number) and current (object) formats.
  * @param {unknown} val - The serialized birth event value
- * @returns {import('../../utils/EventId.js').EventId}
+ * @returns {import('../../utils/EventId.ts').EventId}
  */
 function deserializeSingleBirthEvent(val) {
   if (typeof val === 'number') {

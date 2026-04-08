@@ -14,7 +14,7 @@ import LogicalTraversal from './LogicalTraversal.js';
 import { createStateReaderV5 } from '../state/StateReaderV5.js';
 import { orsetContains, orsetElements } from '../../crdt/ORSet.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
-import { matchGlob } from '../../utils/matchGlob.js';
+import { matchGlob } from '../../utils/matchGlob.ts';
 
 
 import WorldlineSelector from '../../types/WorldlineSelector.ts';

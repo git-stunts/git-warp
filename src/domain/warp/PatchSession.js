@@ -10,7 +10,7 @@
  */
 
 import WriterError from '../errors/WriterError.ts';
-import { buildWriterRef } from '../utils/RefLayout.js';
+import { buildWriterRef } from '../utils/RefLayout.ts';
 
 /** @type {string} */
 const NONE_DISPLAY = '(none)';

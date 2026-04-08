@@ -4,8 +4,8 @@ import IncrementalIndexUpdater from '../../../../src/domain/services/index/Incre
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
 import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { createEventId } from '../../../../src/domain/utils/EventId.js';
-import computeShardKey from '../../../../src/domain/utils/shardKey.js';
+import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 
 /**
  * @returns {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5}

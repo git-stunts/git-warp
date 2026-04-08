@@ -7,8 +7,8 @@
  * @module domain/services/dag/DagTraversal
  */
 
-import nullLogger from '../../utils/nullLogger.js';
-import { checkAborted } from '../../utils/cancellation.js';
+import nullLogger from '../../utils/nullLogger.ts';
+import { checkAborted } from '../../utils/cancellation.ts';
 
 /**
  * @typedef {'forward' | 'reverse'} TraversalDirection

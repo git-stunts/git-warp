@@ -1,4 +1,4 @@
-import { canonicalStringify } from '../utils/canonicalStringify.js';
+import { canonicalStringify } from '../utils/canonicalStringify.ts';
 
 /**
  * Returns true if the value is null or undefined.

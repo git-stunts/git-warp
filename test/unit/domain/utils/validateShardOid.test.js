@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isValidShardOid } from '../../../../src/domain/utils/validateShardOid.js';
+import { isValidShardOid } from '../../../../src/domain/utils/validateShardOid.ts';
 
 describe('isValidShardOid', () => {
   it('accepts valid 40-char hex OID', () => {

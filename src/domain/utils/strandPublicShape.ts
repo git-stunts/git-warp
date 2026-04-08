@@ -1,21 +1,21 @@
-const TO_PUBLIC_KEY = new Map([
+const TO_PUBLIC_KEY: Map<string, string> = new Map([
   ['strand', 'strand'],
   ['strandId', 'strandId'],
   ['braidedStrandIds', 'braidedStrandIds'],
 ]);
 
-const TO_INTERNAL_KEY = new Map([
+const TO_INTERNAL_KEY: Map<string, string> = new Map([
   ['strand', 'strand'],
   ['strandId', 'strandId'],
   ['braidedStrandIds', 'braidedStrandIds'],
 ]);
 
-const TO_PUBLIC_KIND = new Map([
+const TO_PUBLIC_KIND: Map<string, string> = new Map([
   ['strand', 'strand'],
   ['strand_base', 'strand_base'],
 ]);
 
-const TO_INTERNAL_KIND = new Map([
+const TO_INTERNAL_KIND: Map<string, string> = new Map([
   ['strand', 'strand'],
   ['strand_base', 'strand_base'],
 ]);
@@ -23,10 +23,8 @@ const TO_INTERNAL_KIND = new Map([
 /**
  * Returns true if a value is a primitive, null, or a non-plain-object type that
  * should not be recursively transformed.
- * @param {unknown} value
- * @returns {boolean}
  */
-function isNonTransformable(value) {
+function isNonTransformable(value: unknown): boolean {
   if (value === null || value === undefined || typeof value !== 'object') {
     return true;
   }
@@ -35,10 +33,8 @@ function isNonTransformable(value) {
 
 /**
  * Returns true if an object is a known non-plain-object type.
- * @param {object} value
- * @returns {boolean}
  */
-function isKnownNonPlainObject(value) {
+function isKnownNonPlainObject(value: object): boolean {
   return (
     value instanceof Map ||
     value instanceof Set ||
@@ -50,12 +46,8 @@ function isKnownNonPlainObject(value) {
 
 /**
  * Replaces a kind/coordinateKind string value using the provided mapping.
- * @param {string} key
- * @param {unknown} entry
- * @param {Map<string, string>} kindMap
- * @returns {unknown}
  */
-function maybeTransformKindEntry(key, entry, kindMap) {
+function maybeTransformKindEntry(key: string, entry: unknown, kindMap: Map<string, string>): unknown {
   if ((key === 'kind' || key === 'coordinateKind') && typeof entry === 'string') {
     return kindMap.get(entry) ?? entry;
   }
@@ -64,24 +56,19 @@ function maybeTransformKindEntry(key, entry, kindMap) {
 
 /**
  * Recursively transforms object keys and kind values using the provided mappings.
- * @param {unknown} value
- * @param {Map<string, string>} keyMap
- * @param {Map<string, string>} kindMap
- * @returns {unknown}
  */
-function transform(value, keyMap, kindMap) {
+function transform(value: unknown, keyMap: Map<string, string>, kindMap: Map<string, string>): unknown {
   if (Array.isArray(value)) {
-    return value.map((entry) => transform(entry, keyMap, kindMap));
+    return value.map((entry: unknown) => transform(entry, keyMap, kindMap));
   }
 
   if (isNonTransformable(value)) {
     return value;
   }
 
-  /** @type {Record<string, unknown>} */
-  const output = {};
+  const output: Record<string, unknown> = {};
 
-  for (const [rawKey, rawEntry] of Object.entries(/** @type {Record<string, unknown>} */ (value))) {
+  for (const [rawKey, rawEntry] of Object.entries(value as Record<string, unknown>)) {
     const key = keyMap.get(rawKey) ?? rawKey;
     const entry = maybeTransformKindEntry(key, transform(rawEntry, keyMap, kindMap), kindMap);
     output[key] = entry;
@@ -93,23 +80,15 @@ function transform(value, keyMap, kindMap) {
 /**
  * Converts a public strand-shaped object into the internal strand-shaped
  * equivalent. Intended for API inputs only.
- *
- * @template T
- * @param {T} value
- * @returns {T}
  */
-export function toInternalStrandShape(value) {
-  return /** @type {T} */ (transform(value, TO_INTERNAL_KEY, TO_INTERNAL_KIND));
+export function toInternalStrandShape<T>(value: T): T {
+  return transform(value, TO_INTERNAL_KEY, TO_INTERNAL_KIND) as T;
 }
 
 /**
  * Converts an internal strand-shaped object into the public strand-shaped
  * equivalent. Intended for API outputs only.
- *
- * @template T
- * @param {T} value
- * @returns {T}
  */
-export function toPublicStrandShape(value) {
-  return /** @type {T} */ (transform(value, TO_PUBLIC_KEY, TO_PUBLIC_KIND));
+export function toPublicStrandShape<T>(value: T): T {
+  return transform(value, TO_PUBLIC_KEY, TO_PUBLIC_KIND) as T;
 }

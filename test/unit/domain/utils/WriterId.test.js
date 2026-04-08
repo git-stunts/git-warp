@@ -1,7 +1,7 @@
 /**
  * Tests for WriterId SPEC (CRDT-safe identity).
  *
- * @see src/domain/utils/WriterId.js
+ * @see src/domain/utils/WriterId.ts
  */
 
 import { describe, it, expect } from 'vitest';
@@ -10,13 +10,13 @@ import {
   validateWriterIdCanonical as _validateWriterIdCanonical,
   resolveWriterId,
   WriterIdError,
-} from '../../../../src/domain/utils/WriterId.js';
+} from '../../../../src/domain/utils/WriterId.ts';
 
 /** @type {any} */
 const generateWriterId = _generateWriterId;
 /** @type {any} */
 const validateWriterIdCanonical = _validateWriterIdCanonical;
-import { validateWriterId } from '../../../../src/domain/utils/RefLayout.js';
+import { validateWriterId } from '../../../../src/domain/utils/RefLayout.ts';
 
 /**
  * Creates a seeded deterministic random bytes generator for testing.

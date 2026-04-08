@@ -4,24 +4,20 @@
  * @module parseStrandBlob
  */
 
-import { textDecode } from './bytes.js';
+import { textDecode } from './bytes.ts';
 import StrandError from '../errors/StrandError.ts';
 
 /**
  * Checks whether a value is a non-null, non-array plain object.
- * @param {unknown} value - The value to test
- * @returns {value is Record<string, unknown>}
  */
-function isPlainObject(value) {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 /**
  * Checks whether a value is a plain object whose values are all strings.
- * @param {unknown} value - The value to test
- * @returns {value is Record<string, string>}
  */
-function isStringRecord(value) {
+function isStringRecord(value: unknown): value is Record<string, string> {
   if (!isPlainObject(value)) {
     return false;
   }
@@ -30,11 +26,8 @@ function isStringRecord(value) {
 
 /**
  * Throws a StrandError if the condition is false.
- * @param {boolean} condition - The condition to assert
- * @param {string} message - Error message when condition fails
- * @returns {void}
  */
-function invariant(condition, message) {
+function invariant(condition: boolean, message: string): asserts condition {
   if (!condition) {
     throw new StrandError(message, { code: 'E_STRAND_CORRUPT' });
   }
@@ -42,21 +35,15 @@ function invariant(condition, message) {
 
 /**
  * Validates that a string field is present and non-empty.
- * @param {unknown} value - The value to validate
- * @param {string} message - Error message on failure
- * @returns {void}
  */
-function assertNonEmptyString(value, message) {
+function assertNonEmptyString(value: unknown, message: string): void {
   invariant(typeof value === 'string' && value.length > 0, message);
 }
 
 /**
  * Validates that a field is null, undefined, or a string.
- * @param {unknown} value - The value to validate
- * @param {string} message - Error message on failure
- * @returns {void}
  */
-function validateNullableString(value, message) {
+function validateNullableString(value: unknown, message: string): void {
   invariant(
     value === null || value === undefined || typeof value === 'string',
     message,
@@ -65,11 +52,8 @@ function validateNullableString(value, message) {
 
 /**
  * Validates that a value is a non-negative integer.
- * @param {unknown} value - The value to validate
- * @param {string} message - Error message on failure
- * @returns {void}
  */
-function validateNonNegativeInteger(value, message) {
+function validateNonNegativeInteger(value: unknown, message: string): void {
   invariant(
     typeof value === 'number' && Number.isInteger(value) && value >= 0,
     message,
@@ -78,24 +62,18 @@ function validateNonNegativeInteger(value, message) {
 
 /**
  * Validates that a value is an array of strings.
- * @param {unknown} value - The value to validate
- * @param {string} message - Error message on failure
- * @returns {void}
  */
-function validateStringArray(value, message) {
+function validateStringArray(value: unknown, message: string): void {
   invariant(
-    Array.isArray(value) && value.every((entry) => typeof entry === 'string'),
+    Array.isArray(value) && value.every((entry: unknown) => typeof entry === 'string'),
     message,
   );
 }
 
 /**
  * Validates the top-level identity and timestamp fields of a strand descriptor.
- * @param {Record<string, unknown>} obj - The parsed descriptor object
- * @param {string} label - Human-readable label for error messages
- * @returns {void}
  */
-function validateTopLevelFields(obj, label) {
+function validateTopLevelFields(obj: Record<string, unknown>, label: string): void {
   invariant(obj['schemaVersion'] === 1, `Corrupted ${label}: unsupported schemaVersion`);
   assertNonEmptyString(obj['strandId'], `Corrupted ${label}: missing strandId`);
   assertNonEmptyString(obj['graphName'], `Corrupted ${label}: missing graphName`);
@@ -107,24 +85,17 @@ function validateTopLevelFields(obj, label) {
 
 /**
  * Validates the lease sub-object of a strand descriptor.
- * @param {Record<string, unknown>} obj - The parsed descriptor object
- * @param {string} label - Human-readable label for error messages
- * @returns {void}
  */
-function validateLease(obj, label) {
-  invariant(isPlainObject(obj['lease']), `Corrupted ${label}: missing lease object`);
+function validateLease(obj: Record<string, unknown>, label: string): void {
   const { lease: rawLease } = obj;
-  const lease = /** @type {Record<string, unknown>} */ (rawLease);
-  validateNullableString(lease['expiresAt'], `Corrupted ${label}: lease.expiresAt must be string|null`);
+  invariant(isPlainObject(rawLease), `Corrupted ${label}: missing lease object`);
+  validateNullableString(rawLease['expiresAt'], `Corrupted ${label}: lease.expiresAt must be string|null`);
 }
 
 /**
  * Validates the coordinate version and frontier fields of a base observation.
- * @param {Record<string, unknown>} baseObservation - The base observation object
- * @param {string} label - Human-readable label for error messages
- * @returns {void}
  */
-function validateBaseObservationFields(baseObservation, label) {
+function validateBaseObservationFields(baseObservation: Record<string, unknown>, label: string): void {
   assertNonEmptyString(
     baseObservation['coordinateVersion'],
     `Corrupted ${label}: missing baseObservation.coordinateVersion`,
@@ -141,14 +112,10 @@ function validateBaseObservationFields(baseObservation, label) {
 
 /**
  * Validates the baseObservation sub-object of a strand descriptor.
- * @param {Record<string, unknown>} obj - The parsed descriptor object
- * @param {string} label - Human-readable label for error messages
- * @returns {void}
  */
-function validateBaseObservation(obj, label) {
-  invariant(isPlainObject(obj['baseObservation']), `Corrupted ${label}: missing baseObservation object`);
-  const { baseObservation: rawBaseObs } = obj;
-  const baseObservation = /** @type {Record<string, unknown>} */ (rawBaseObs);
+function validateBaseObservation(obj: Record<string, unknown>, label: string): void {
+  const { baseObservation } = obj;
+  invariant(isPlainObject(baseObservation), `Corrupted ${label}: missing baseObservation object`);
   validateBaseObservationFields(baseObservation, label);
 
   const { lamportCeiling } = baseObservation;
@@ -162,14 +129,10 @@ function validateBaseObservation(obj, label) {
 
 /**
  * Validates the overlay sub-object of a strand descriptor.
- * @param {Record<string, unknown>} obj - The parsed descriptor object
- * @param {string} label - Human-readable label for error messages
- * @returns {void}
  */
-function validateOverlay(obj, label) {
-  invariant(isPlainObject(obj['overlay']), `Corrupted ${label}: missing overlay object`);
-  const { overlay: rawOverlay } = obj;
-  const overlay = /** @type {Record<string, unknown>} */ (rawOverlay);
+function validateOverlay(obj: Record<string, unknown>, label: string): void {
+  const { overlay } = obj;
+  invariant(isPlainObject(overlay), `Corrupted ${label}: missing overlay object`);
   assertNonEmptyString(overlay['overlayId'], `Corrupted ${label}: missing overlay.overlayId`);
   assertNonEmptyString(overlay['kind'], `Corrupted ${label}: missing overlay.kind`);
   validateNullableString(overlay['headPatchSha'], `Corrupted ${label}: overlay.headPatchSha must be string|null`);
@@ -182,24 +145,19 @@ function validateOverlay(obj, label) {
 
 /**
  * Validates the materialization sub-object of a strand descriptor.
- * @param {Record<string, unknown>} obj - The parsed descriptor object
- * @param {string} label - Human-readable label for error messages
- * @returns {void}
  */
-function validateMaterialization(obj, label) {
+function validateMaterialization(obj: Record<string, unknown>, label: string): void {
+  const { materialization } = obj;
   invariant(
-    isPlainObject(obj['materialization']) && obj['materialization']['cacheAuthority'] === 'derived',
+    isPlainObject(materialization) && materialization['cacheAuthority'] === 'derived',
     `Corrupted ${label}: invalid materialization metadata`,
   );
 }
 
 /**
  * Validates a single read overlay entry within the braid sub-object.
- * @param {Record<string, unknown>} overlay - The overlay entry to validate
- * @param {string} label - Human-readable label for error messages
- * @returns {void}
  */
-function validateBraidOverlayEntry(overlay, label) {
+function validateBraidOverlayEntry(overlay: Record<string, unknown>, label: string): void {
   assertNonEmptyString(overlay['strandId'], `Corrupted ${label}: braid.readOverlays[].strandId must be a string`);
   assertNonEmptyString(overlay['overlayId'], `Corrupted ${label}: braid.readOverlays[].overlayId must be a string`);
   assertNonEmptyString(overlay['kind'], `Corrupted ${label}: braid.readOverlays[].kind must be a string`);
@@ -209,35 +167,28 @@ function validateBraidOverlayEntry(overlay, label) {
 
 /**
  * Validates the optional braid sub-object of a strand descriptor.
- * @param {Record<string, unknown>} obj - The parsed descriptor object
- * @param {string} label - Human-readable label for error messages
- * @returns {void}
  */
-function validateBraid(obj, label) {
+function validateBraid(obj: Record<string, unknown>, label: string): void {
   if (obj['braid'] === undefined) {
     return;
   }
-  invariant(isPlainObject(obj['braid']), `Corrupted ${label}: braid must be an object when provided`);
-  const { braid: rawBraid } = obj;
-  const braid = /** @type {Record<string, unknown>} */ (rawBraid);
+  const { braid } = obj;
+  invariant(isPlainObject(braid), `Corrupted ${label}: braid must be an object when provided`);
   const { readOverlays } = braid;
   invariant(
     Array.isArray(readOverlays),
     `Corrupted ${label}: braid.readOverlays must be an array when braid is present`,
   );
-  for (const rawOverlay of /** @type {unknown[]} */ (readOverlays)) {
+  for (const rawOverlay of readOverlays) {
     invariant(isPlainObject(rawOverlay), `Corrupted ${label}: braid.readOverlays entries must be objects`);
-    validateBraidOverlayEntry(/** @type {Record<string, unknown>} */ (rawOverlay), label);
+    validateBraidOverlayEntry(rawOverlay, label);
   }
 }
 
 /**
  * Validates a single intent entry within the intent queue.
- * @param {Record<string, unknown>} intent - The intent entry to validate
- * @param {string} label - Human-readable label for error messages
- * @returns {void}
  */
-function validateIntentEntry(intent, label) {
+function validateIntentEntry(intent: Record<string, unknown>, label: string): void {
   assertNonEmptyString(intent['intentId'], `Corrupted ${label}: intentQueue.intents[].intentId must be a string`);
   assertNonEmptyString(intent['enqueuedAt'], `Corrupted ${label}: intentQueue.intents[].enqueuedAt must be a string`);
   invariant(isPlainObject(intent['patch']), `Corrupted ${label}: intentQueue.intents[].patch must be an object`);
@@ -254,36 +205,31 @@ function validateIntentEntry(intent, label) {
 
 /**
  * Validates the optional intentQueue sub-object of a strand descriptor.
- * @param {Record<string, unknown>} obj - The parsed descriptor object
- * @param {string} label - Human-readable label for error messages
- * @returns {void}
  */
-function validateIntentQueue(obj, label) {
+function validateIntentQueue(obj: Record<string, unknown>, label: string): void {
   if (obj['intentQueue'] === undefined) {
     return;
   }
-  invariant(isPlainObject(obj['intentQueue']), `Corrupted ${label}: intentQueue must be an object when provided`);
-  const queue = /** @type {Record<string, unknown>} */ (obj['intentQueue']);
+  const { intentQueue: queue } = obj;
+  invariant(isPlainObject(queue), `Corrupted ${label}: intentQueue must be an object when provided`);
   invariant(
     typeof queue['nextIntentSeq'] === 'number' &&
       Number.isInteger(queue['nextIntentSeq']) &&
       queue['nextIntentSeq'] > 0,
     `Corrupted ${label}: intentQueue.nextIntentSeq must be a positive integer`,
   );
-  invariant(Array.isArray(queue['intents']), `Corrupted ${label}: intentQueue.intents must be an array`);
-  for (const rawIntent of /** @type {unknown[]} */ (queue['intents'])) {
+  const { intents } = queue;
+  invariant(Array.isArray(intents), `Corrupted ${label}: intentQueue.intents must be an array`);
+  for (const rawIntent of intents) {
     invariant(isPlainObject(rawIntent), `Corrupted ${label}: intentQueue.intents entries must be objects`);
-    validateIntentEntry(/** @type {Record<string, unknown>} */ (rawIntent), label);
+    validateIntentEntry(rawIntent, label);
   }
 }
 
 /**
  * Validates a single rejected counterfactual entry within a tick.
- * @param {Record<string, unknown>} rejected - The rejected entry to validate
- * @param {string} label - Human-readable label for error messages
- * @returns {void}
  */
-function validateRejectedCounterfactual(rejected, label) {
+function validateRejectedCounterfactual(rejected: Record<string, unknown>, label: string): void {
   assertNonEmptyString(rejected['intentId'], `Corrupted ${label}: evolution.lastTick.rejected[].intentId must be a string`);
   assertNonEmptyString(rejected['reason'], `Corrupted ${label}: evolution.lastTick.rejected[].reason must be a string`);
   validateStringArray(rejected['conflictsWith'], `Corrupted ${label}: evolution.lastTick.rejected[].conflictsWith must be a string array`);
@@ -293,11 +239,8 @@ function validateRejectedCounterfactual(rejected, label) {
 
 /**
  * Validates the lastTick sub-object fields for scalar and array properties.
- * @param {Record<string, unknown>} lastTick - The lastTick object to validate
- * @param {string} label - Human-readable label for error messages
- * @returns {void}
  */
-function validateLastTickFields(lastTick, label) {
+function validateLastTickFields(lastTick: Record<string, unknown>, label: string): void {
   assertNonEmptyString(lastTick['tickId'], `Corrupted ${label}: evolution.lastTick.tickId must be a string`);
   validateNonNegativeInteger(lastTick['tickIndex'], `Corrupted ${label}: evolution.lastTick.tickIndex must be a non-negative integer`);
   assertNonEmptyString(lastTick['createdAt'], `Corrupted ${label}: evolution.lastTick.createdAt must be a string`);
@@ -310,38 +253,71 @@ function validateLastTickFields(lastTick, label) {
 
 /**
  * Validates the lastTick sub-object of an evolution block.
- * @param {Record<string, unknown>} lastTick - The lastTick object to validate
- * @param {string} label - Human-readable label for error messages
- * @returns {void}
  */
-function validateLastTick(lastTick, label) {
+function validateLastTick(lastTick: Record<string, unknown>, label: string): void {
   validateLastTickFields(lastTick, label);
-  invariant(Array.isArray(lastTick['rejected']), `Corrupted ${label}: evolution.lastTick.rejected must be an array`);
-  for (const rawRejected of /** @type {unknown[]} */ (lastTick['rejected'])) {
+  const { rejected } = lastTick;
+  invariant(Array.isArray(rejected), `Corrupted ${label}: evolution.lastTick.rejected must be an array`);
+  for (const rawRejected of rejected) {
     invariant(isPlainObject(rawRejected), `Corrupted ${label}: evolution.lastTick.rejected entries must be objects`);
-    validateRejectedCounterfactual(/** @type {Record<string, unknown>} */ (rawRejected), label);
+    validateRejectedCounterfactual(rawRejected, label);
   }
 }
 
 /**
  * Validates the optional evolution sub-object of a strand descriptor.
- * @param {Record<string, unknown>} obj - The parsed descriptor object
- * @param {string} label - Human-readable label for error messages
- * @returns {void}
  */
-function validateEvolution(obj, label) {
+function validateEvolution(obj: Record<string, unknown>, label: string): void {
   if (obj['evolution'] === undefined) {
     return;
   }
-  invariant(isPlainObject(obj['evolution']), `Corrupted ${label}: evolution must be an object when provided`);
-  const { evolution: rawEvolution } = obj;
-  const evolution = /** @type {Record<string, unknown>} */ (rawEvolution);
+  const { evolution } = obj;
+  invariant(isPlainObject(evolution), `Corrupted ${label}: evolution must be an object when provided`);
   validateNonNegativeInteger(evolution['tickCount'], `Corrupted ${label}: evolution.tickCount must be a non-negative integer`);
-  if (evolution['lastTick'] === undefined || evolution['lastTick'] === null) {
+  const { lastTick } = evolution;
+  if (lastTick === undefined || lastTick === null) {
     return;
   }
-  invariant(isPlainObject(evolution['lastTick']), `Corrupted ${label}: evolution.lastTick must be an object when provided`);
-  validateLastTick(/** @type {Record<string, unknown>} */ (evolution['lastTick']), label);
+  invariant(isPlainObject(lastTick), `Corrupted ${label}: evolution.lastTick must be an object when provided`);
+  validateLastTick(lastTick, label);
+}
+
+/** Return type of parseStrandBlob — the validated v1 strand descriptor. */
+export interface StrandDescriptor {
+  readonly schemaVersion: number;
+  readonly strandId: string;
+  readonly graphName: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly owner: string | null;
+  readonly scope: string | null;
+  readonly lease: { readonly expiresAt: string | null };
+  readonly baseObservation: {
+    readonly coordinateVersion: string;
+    readonly frontier: Record<string, string>;
+    readonly frontierDigest: string;
+    readonly lamportCeiling: number | null;
+  };
+  readonly overlay: {
+    readonly overlayId: string;
+    readonly kind: string;
+    readonly headPatchSha: string | null;
+    readonly patchCount: number;
+    readonly writable?: boolean;
+  };
+  readonly braid?: {
+    readonly readOverlays: ReadonlyArray<{
+      readonly strandId: string;
+      readonly overlayId: string;
+      readonly kind: string;
+      readonly headPatchSha: string | null;
+      readonly patchCount: number;
+    }>;
+  };
+  readonly materialization: {
+    readonly cacheAuthority: 'derived';
+  };
+  readonly [key: string]: unknown;
 }
 
 /**
@@ -349,49 +325,9 @@ function validateEvolution(obj, label) {
  *
  * The blob must contain UTF-8 JSON for the v1 descriptor shape. Unknown fields
  * are preserved, but the core identity and coordinate fields must be valid.
- *
- * @param {Uint8Array} buf - Raw blob bytes to parse
- * @param {string} label - Human-readable label for error messages
- * @returns {{
- *   schemaVersion: number,
- *   strandId: string,
- *   graphName: string,
- *   createdAt: string,
- *   updatedAt: string,
- *   owner: string|null,
- *   scope: string|null,
- *   lease: { expiresAt: string|null },
- *   baseObservation: {
- *     coordinateVersion: string,
- *     frontier: Record<string, string>,
- *     frontierDigest: string,
- *     lamportCeiling: number|null
- *   },
- *   overlay: {
- *     overlayId: string,
- *     kind: string,
- *     headPatchSha: string|null,
- *     patchCount: number,
- *     writable?: boolean
- *   },
- *   braid?: {
- *     readOverlays: Array<{
- *       strandId: string,
- *       overlayId: string,
- *       kind: string,
- *       headPatchSha: string|null,
- *       patchCount: number
- *     }>
- *   },
- *   materialization: {
- *     cacheAuthority: 'derived'
- *   },
- *   [key: string]: unknown
- * }}
  */
-export function parseStrandBlob(buf, label) {
-  /** @type {unknown} */
-  let obj;
+export function parseStrandBlob(buf: Uint8Array, label: string): StrandDescriptor {
+  let obj: unknown;
   try {
     obj = JSON.parse(textDecode(buf));
   } catch {
@@ -411,5 +347,5 @@ export function parseStrandBlob(buf, label) {
   validateEvolution(obj, label);
   validateMaterialization(obj, label);
 
-  return /** @type {ReturnType<typeof parseStrandBlob>} */ (obj);
+  return obj as StrandDescriptor;
 }

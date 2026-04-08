@@ -9,8 +9,8 @@
  */
 
 import BlobStoragePort from '../../ports/BlobStoragePort.js';
-import { hexEncode } from './bytes.js';
-import { collectAsyncIterable } from './streamUtils.js';
+import { hexEncode } from './bytes.ts';
+import { collectAsyncIterable } from './streamUtils.ts';
 
 const _encoder = new TextEncoder();
 
@@ -18,13 +18,10 @@ const _encoder = new TextEncoder();
  * Simple content-addressed hash using Web Crypto SHA-256.
  * Falls back to a synchronous FNV-1a for environments without
  * crypto.subtle (plain HTTP in Docker, etc.).
- *
- * @param {Uint8Array} bytes
- * @returns {Promise<string>} hex digest
  */
-async function contentHash(bytes) {
+async function contentHash(bytes: Uint8Array): Promise<string> {
   if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.subtle !== undefined && globalThis.crypto.subtle !== null) {
-    const buf = /** @type {ArrayBuffer} */ (bytes.buffer).slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    const buf = (bytes.buffer as ArrayBuffer).slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
     const digest = await globalThis.crypto.subtle.digest('SHA-256', buf);
     return hexEncode(new Uint8Array(digest));
   }
@@ -34,7 +31,7 @@ async function contentHash(bytes) {
   let h1 = 0x811c9dc5;
   let h2 = 0xcbf29ce4;
   for (let i = 0; i < bytes.length; i++) {
-    const b = /** @type {number} */ (bytes[i]);
+    const b = bytes[i]!;
     h1 ^= b;
     h1 = Math.imul(h1, 0x01000193);
     h2 ^= b;
@@ -44,24 +41,26 @@ async function contentHash(bytes) {
     + (h2 >>> 0).toString(16).padStart(8, '0');
 }
 
+interface StorageOptions {
+  slug?: string;
+  mime?: string | null;
+  size?: number | null;
+}
+
 /**
  * In-memory content-addressed blob storage for browser and test environments.
  */
 export default class InMemoryBlobStorageAdapter extends BlobStoragePort {
+  private readonly _store: Map<string, Uint8Array>;
+
   /** Creates an empty in-memory blob store. */
   constructor() {
     super();
-    /** @type {Map<string, Uint8Array>} */
     this._store = new Map();
   }
 
-  /**
-   * @override
-   * @param {Uint8Array|string} content
-   * @param {{ slug?: string, mime?: string|null, size?: number|null }} [_options]
-   * @returns {Promise<string>}
-   */
-  async store(content, _options) {
+  /** @override */
+  async store(content: Uint8Array | string, _options?: StorageOptions): Promise<string> {
     const bytes = typeof content === 'string'
       ? _encoder.encode(content)
       : content;
@@ -70,12 +69,8 @@ export default class InMemoryBlobStorageAdapter extends BlobStoragePort {
     return oid;
   }
 
-  /**
-   * @override
-   * @param {string} oid
-   * @returns {Promise<Uint8Array>}
-   */
-  retrieve(oid) {
+  /** @override */
+  retrieve(oid: string): Promise<Uint8Array> {
     const bytes = this._store.get(oid);
     if (!bytes) {
       return Promise.reject(new Error(`InMemoryBlobStorageAdapter: unknown OID '${oid}'`));
@@ -83,33 +78,24 @@ export default class InMemoryBlobStorageAdapter extends BlobStoragePort {
     return Promise.resolve(bytes);
   }
 
-  /**
-   * @override
-   * @param {AsyncIterable<Uint8Array>} source
-   * @param {{ slug?: string, mime?: string|null, size?: number|null }} [_options]
-   * @returns {Promise<string>}
-   */
-  async storeStream(source, _options) {
+  /** @override */
+  async storeStream(source: AsyncIterable<Uint8Array>, _options?: StorageOptions): Promise<string> {
     const bytes = await collectAsyncIterable(source);
     return await this.store(bytes);
   }
 
-  /**
-   * @override
-   * @param {string} oid
-   * @returns {AsyncIterable<Uint8Array>}
-   */
-  retrieveStream(oid) {
+  /** @override */
+  retrieveStream(oid: string): AsyncIterable<Uint8Array> {
     const bytes = this._store.get(oid);
     if (!bytes) {
       throw new Error(`InMemoryBlobStorageAdapter: unknown OID '${oid}'`);
     }
     const chunk = bytes;
-    return /** @type {AsyncIterable<Uint8Array>} */ ({
-      [Symbol.asyncIterator]() {
+    return {
+      [Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
         let done = false;
         return {
-          next() {
+          next(): Promise<IteratorResult<Uint8Array>> {
             if (done) {
               return Promise.resolve({ value: undefined, done: true });
             }
@@ -118,6 +104,6 @@ export default class InMemoryBlobStorageAdapter extends BlobStoragePort {
           },
         };
       },
-    });
+    };
   }
 }

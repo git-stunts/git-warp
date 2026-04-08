@@ -10,7 +10,7 @@ import {
   encodePropKey,
   encodeEdgePropKey,
 } from '../../../../src/domain/services/JoinReducer.js';
-import { createEventId } from '../../../../src/domain/utils/EventId.js';
+import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 
 // ---------------------------------------------------------------------------

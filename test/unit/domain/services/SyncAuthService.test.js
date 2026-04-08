@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import defaultCrypto from '../../../../src/domain/utils/defaultCrypto.js';
+import defaultCrypto from '../../../../src/domain/utils/defaultCrypto.ts';
 import SyncAuthService, {
   signSyncRequest,
   canonicalizePath,

@@ -13,7 +13,7 @@ import {
 } from '../../../../src/domain/services/JoinReducer.js';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
-import { createEventId } from '../../../../src/domain/utils/EventId.js';
+import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.js';

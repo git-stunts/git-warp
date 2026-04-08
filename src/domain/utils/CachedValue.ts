@@ -4,9 +4,6 @@
  * Caches the result of an expensive operation and reuses it until
  * the configured TTL expires. Supports manual invalidation.
  *
- * @class CachedValue
- * @template T
- *
  * @example
  * const cache = new CachedValue({
  *   clock,
@@ -24,46 +21,51 @@
  * cache.invalidate();
  * const value3 = await cache.get(); // Fresh value
  */
-class CachedValue {
+
+import type ClockPort from '../../ports/ClockPort.js';
+
+interface CachedValueOptions<T> {
+  readonly clock: ClockPort;
+  readonly ttlMs: number;
+  readonly compute: () => T | Promise<T>;
+}
+
+class CachedValue<T> {
+  private readonly _clock: ClockPort;
+  private readonly _ttlMs: number;
+  private readonly _compute: () => T | Promise<T>;
+  private _value: T | null;
+  private _inflight: Promise<T> | null;
+  private _generation: number;
+  private _cachedAt: number;
+  private _cachedAtIso: string | null;
+
   /**
    * Creates a CachedValue instance.
    *
-   * @param {{ clock: import('../../ports/ClockPort.js').default, ttlMs: number, compute: () => T | Promise<T> }} options
    * @throws {Error} If ttlMs is not a positive number
    */
-  constructor({ clock, ttlMs, compute }) {
+  constructor({ clock, ttlMs, compute }: CachedValueOptions<T>) {
     if (typeof ttlMs !== 'number' || ttlMs <= 0) {
       throw new Error('CachedValue ttlMs must be a positive number');
     }
     if (typeof compute !== 'function') {
       throw new Error('CachedValue compute must be a function');
     }
-    /** @type {import('../../ports/ClockPort.js').default} */
     this._clock = clock;
-    /** @type {number} */
     this._ttlMs = ttlMs;
-    /** @type {() => T | Promise<T>} */
     this._compute = compute;
-    /** @type {T|null} */
     this._value = null;
-    /** @type {Promise<T>|null} */
     this._inflight = null;
-    /** @type {number} */
     this._generation = 0;
-    /** @type {number} */
     this._cachedAt = 0;
-    /** @type {string|null} */
     this._cachedAtIso = null;
   }
 
-  /**
-   * Gets the cached value, computing it if stale or not present.
-   *
-   * @returns {Promise<T>} The cached or freshly computed value
-   */
-  async get() {
+  /** Gets the cached value, computing it if stale or not present. */
+  async get(): Promise<T> {
     if (this._isValid()) {
-      return /** @type {T} */ (this._value);
+      return this._value!;
     }
     if (this._inflight) {
       return await this._inflight;
@@ -74,11 +76,8 @@ class CachedValue {
 
   /**
    * Runs the compute function and caches the result if the generation is still current.
-   * @param {number} generation - The generation at the time compute was initiated
-   * @returns {Promise<T>}
-   * @private
    */
-  async _computeAndCache(generation) {
+  private async _computeAndCache(generation: number): Promise<T> {
     try {
       const value = await this._compute();
       if (generation === this._generation) {
@@ -96,12 +95,8 @@ class CachedValue {
     }
   }
 
-  /**
-   * Gets the cached value with metadata about when it was cached.
-   *
-   * @returns {Promise<{value: T, cachedAt: string|null, fromCache: boolean}>}
-   */
-  async getWithMetadata() {
+  /** Gets the cached value with metadata about when it was cached. */
+  async getWithMetadata(): Promise<{ value: T; cachedAt: string | null; fromCache: boolean }> {
     const wasValid = this._isValid();
     const value = await this.get();
 
@@ -112,10 +107,8 @@ class CachedValue {
     };
   }
 
-  /**
-   * Invalidates the cached value, forcing recomputation on next get().
-   */
-  invalidate() {
+  /** Invalidates the cached value, forcing recomputation on next get(). */
+  invalidate(): void {
     this._generation += 1;
     this._value = null;
     this._inflight = null;
@@ -123,13 +116,8 @@ class CachedValue {
     this._cachedAtIso = null;
   }
 
-  /**
-   * Checks if the cached value is still valid.
-   *
-   * @returns {boolean} True if the cache is valid
-   * @private
-   */
-  _isValid() {
+  /** Checks if the cached value is still valid. */
+  private _isValid(): boolean {
     if (this._value === null) {
       return false;
     }
@@ -139,19 +127,13 @@ class CachedValue {
   /**
    * Gets the ISO timestamp of when the value was cached.
    * Returns null if no value is cached.
-   *
-   * @returns {string|null}
    */
-  get cachedAt() {
+  get cachedAt(): string | null {
     return this._cachedAtIso;
   }
 
-  /**
-   * Checks if a value is currently cached (regardless of validity).
-   *
-   * @returns {boolean}
-   */
-  get hasValue() {
+  /** Checks if a value is currently cached (regardless of validity). */
+  get hasValue(): boolean {
     return this._value !== null;
   }
 }

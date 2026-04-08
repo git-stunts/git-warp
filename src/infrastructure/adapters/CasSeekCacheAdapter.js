@@ -27,11 +27,11 @@
  */
 
 import SeekCachePort from '../../ports/SeekCachePort.js';
-import { buildSeekCacheRef } from '../../domain/utils/RefLayout.js';
+import { buildSeekCacheRef } from '../../domain/utils/RefLayout.ts';
 import { createLazyCas } from './lazyCasInit.js';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.js';
 import CacheError from '../../domain/errors/CacheError.ts';
-import { textEncode, textDecode, concatBytes } from '../../domain/utils/bytes.js';
+import { textEncode, textDecode, concatBytes } from '../../domain/utils/bytes.ts';
 import { Readable } from 'node:stream';
 
 const DEFAULT_MAX_ENTRIES = 200;

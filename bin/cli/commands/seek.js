@@ -1,11 +1,11 @@
 import { diffStates } from '../../../src/domain/services/state/StateDiff.js';
-import { textEncode } from '../../../src/domain/utils/bytes.js';
+import { textEncode } from '../../../src/domain/utils/bytes.ts';
 import {
   buildCursorActiveRef,
   buildCursorSavedRef,
   buildCursorSavedPrefix,
-} from '../../../src/domain/utils/RefLayout.js';
-import { parseCursorBlob } from '../../../src/domain/utils/parseCursorBlob.js';
+} from '../../../src/domain/utils/RefLayout.ts';
+import { parseCursorBlob } from '../../../src/domain/utils/parseCursorBlob.ts';
 import {
   buildTickReceipt,
   computeFrontierHash,

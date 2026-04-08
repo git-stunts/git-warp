@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { canonicalStringify } from '../../../../src/domain/utils/canonicalStringify.js';
+import { canonicalStringify } from '../../../../src/domain/utils/canonicalStringify.ts';
 
 describe('canonicalStringify property checks', () => {
   it('is idempotent after JSON round-trip', () => {

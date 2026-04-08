@@ -1,5 +1,5 @@
 import { orsetContains } from '../../crdt/ORSet.js';
-import { compareEventIds } from '../../utils/EventId.js';
+import { compareEventIds } from '../../utils/EventId.ts';
 import {
   CONTENT_MIME_PROPERTY_KEY,
   CONTENT_PROPERTY_KEY,
@@ -42,8 +42,8 @@ import { projectStateV5 } from './StateSerializerV5.js';
  * treat `_content.mime` / `_content.size` as current when they were written in
  * the same patch as the live `_content` reference.
  *
- * @param {import('../../utils/EventId.js').EventId|null|undefined} contentEventId
- * @param {import('../../utils/EventId.js').EventId|null|undefined} candidateEventId
+ * @param {import('../../utils/EventId.ts').EventId|null|undefined} contentEventId
+ * @param {import('../../utils/EventId.ts').EventId|null|undefined} candidateEventId
  * @returns {boolean}
  */
 function isSameAttachmentLineage(contentEventId, candidateEventId) {
@@ -59,9 +59,9 @@ function isSameAttachmentLineage(contentEventId, candidateEventId) {
 /**
  * Filters an edge-property register against the edge birth event.
  *
- * @param {{ eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|undefined} register
- * @param {import('../../utils/EventId.js').EventId|undefined} birthEvent
- * @returns {{ eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null}
+ * @param {{ eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|undefined} register
+ * @param {import('../../utils/EventId.ts').EventId|undefined} birthEvent
+ * @returns {{ eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null}
  */
 function visibleEdgeRegister(register, birthEvent) {
   if (!register) {
@@ -88,7 +88,7 @@ function edgeKeyFromRef(edge) {
  *
  * @param {import('../JoinReducer.js').WarpStateV5} state
  * @param {string} nodeId
- * @returns {{ contentRegister: { eventId: import('../../utils/EventId.js').EventId|null, value: string }, mimeRegister: { eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null }|null}
+ * @returns {{ contentRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: string }, mimeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null }|null}
  */
 function getNodeContentRegisters(state, nodeId) {
   if (!orsetContains(state.nodeAlive, nodeId)) {
@@ -99,7 +99,7 @@ function getNodeContentRegisters(state, nodeId) {
     return null;
   }
   return {
-    contentRegister: /** @type {{ eventId: import('../../utils/EventId.js').EventId|null, value: string }} */ (contentRegister),
+    contentRegister: /** @type {{ eventId: import('../../utils/EventId.ts').EventId|null, value: string }} */ (contentRegister),
     mimeRegister: state.prop.get(encodePropKey(nodeId, CONTENT_MIME_PROPERTY_KEY)) || null,
     sizeRegister: state.prop.get(encodePropKey(nodeId, CONTENT_SIZE_PROPERTY_KEY)) || null,
   };
@@ -110,7 +110,7 @@ function getNodeContentRegisters(state, nodeId) {
  *
  * @param {import('../JoinReducer.js').WarpStateV5} state
  * @param {VisibleEdgeRef} edge
- * @returns {{ contentRegister: { eventId: import('../../utils/EventId.js').EventId|null, value: string }, mimeRegister: { eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null }|null}
+ * @returns {{ contentRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: string }, mimeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null }|null}
  */
 function getEdgeContentRegisters(state, edge) {
   const edgeKey = edgeKeyFromRef(edge);
@@ -126,7 +126,7 @@ function getEdgeContentRegisters(state, edge) {
    * Reads an edge property register filtered by the edge birth event.
    *
    * @param {string} propKey - the property key to look up
-   * @returns {{ eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null} the register or null
+   * @returns {{ eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null} the register or null
    */
   function getRegister(propKey) {
     return visibleEdgeRegister(
@@ -140,7 +140,7 @@ function getEdgeContentRegisters(state, edge) {
   }
 
   return {
-    contentRegister: /** @type {{ eventId: import('../../utils/EventId.js').EventId|null, value: string }} */ (contentRegister),
+    contentRegister: /** @type {{ eventId: import('../../utils/EventId.ts').EventId|null, value: string }} */ (contentRegister),
     mimeRegister: getRegister(CONTENT_MIME_PROPERTY_KEY),
     sizeRegister: getRegister(CONTENT_SIZE_PROPERTY_KEY),
   };
@@ -149,8 +149,8 @@ function getEdgeContentRegisters(state, edge) {
 /**
  * Reads the value of an attachment sibling if it shares the same lineage.
  *
- * @param {import('../../utils/EventId.js').EventId|null|undefined} contentEventId - event ID of the content register
- * @param {{ eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null|undefined} register - the sibling register
+ * @param {import('../../utils/EventId.ts').EventId|null|undefined} contentEventId - event ID of the content register
+ * @param {{ eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null|undefined} register - the sibling register
  * @returns {unknown} the sibling value, or null if lineage mismatch
  */
 function readAttachmentSiblingValue(contentEventId, register) {
@@ -183,9 +183,9 @@ function coerceSize(value) {
 /**
  * Extracts structured content metadata from attachment sibling properties.
  *
- * @param {{ eventId: import('../../utils/EventId.js').EventId|null, value: string }} contentRegister
- * @param {{ eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null} mimeRegister
- * @param {{ eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null} sizeRegister
+ * @param {{ eventId: import('../../utils/EventId.ts').EventId|null, value: string }} contentRegister
+ * @param {{ eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null} mimeRegister
+ * @param {{ eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null} sizeRegister
  * @returns {ContentMeta}
  */
 function extractContentMeta(contentRegister, mimeRegister, sizeRegister) {

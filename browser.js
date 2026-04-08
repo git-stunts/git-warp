@@ -54,4 +54,4 @@ export {
 } from './src/domain/errors/index.ts';
 
 // Utilities
-export { generateWriterId } from './src/domain/utils/WriterId.js';
+export { generateWriterId } from './src/domain/utils/WriterId.ts';

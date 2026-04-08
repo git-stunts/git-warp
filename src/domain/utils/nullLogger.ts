@@ -7,13 +7,14 @@
  * @module domain/utils/nullLogger
  */
 
-/** @type {import('../../ports/LoggerPort.js').default} */
-const nullLogger = {
-  debug() {},
-  info() {},
-  warn() {},
-  error() {},
-  child() {
+import type LoggerPort from '../../ports/LoggerPort.js';
+
+const nullLogger: LoggerPort = {
+  debug(): void {},
+  info(): void {},
+  warn(): void {},
+  error(): void {},
+  child(): LoggerPort {
     return nullLogger;
   },
 };

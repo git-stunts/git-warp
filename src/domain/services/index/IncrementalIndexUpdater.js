@@ -15,10 +15,10 @@
  * @module domain/services/index/IncrementalIndexUpdater
  */
 
-import defaultCodec from '../../utils/defaultCodec.js';
-import computeShardKey from '../../utils/shardKey.js';
-import toBytes from '../../utils/toBytes.js';
-import { getRoaringBitmap32 } from '../../utils/roaring.js';
+import defaultCodec from '../../utils/defaultCodec.ts';
+import computeShardKey from '../../utils/shardKey.ts';
+import toBytes from '../../utils/toBytes.ts';
+import { getRoaringBitmap32 } from '../../utils/roaring.ts';
 import { orsetContains, orsetElements } from '../../crdt/ORSet.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
 import { ShardIdOverflowError } from '../../errors/index.ts';
@@ -54,7 +54,7 @@ function mergeIntoNullProto(source) {
  * @typedef {Object} MetaShard
  * @property {Array<[string, number]>} nodeToGlobal
  * @property {number} nextLocalId
- * @property {import('../../utils/roaring.js').RoaringBitmapSubset} aliveBitmap
+ * @property {import('../../utils/roaring.ts').RoaringBitmapSubset} aliveBitmap
  * @property {Map<number, string>} globalToNode - Reverse lookup: globalId → nodeId (O(1))
  * @property {Map<string, number>} nodeToGlobalMap - Forward lookup: nodeId → globalId (O(1))
  */
@@ -937,7 +937,7 @@ export default class IncrementalIndexUpdater {
    * @param {EdgeShardData} data
    * @param {string} bucket
    * @param {string} ownerStr
-   * @returns {import('../../utils/roaring.js').RoaringBitmapSubset}
+   * @returns {import('../../utils/roaring.ts').RoaringBitmapSubset}
    * @private
    */
   _deserializeBitmap(data, bucket, ownerStr) {

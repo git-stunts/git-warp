@@ -12,7 +12,7 @@ import {
   applyOpV2,
   reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.js';
-import { createEventId } from '../../../../src/domain/utils/EventId.js';
+import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetContains, orsetElements } from '../../../../src/domain/crdt/ORSet.js';
 import PatchError from '../../../../src/domain/errors/PatchError.ts';

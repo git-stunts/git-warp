@@ -19,11 +19,11 @@ import { orsetContains, orsetElements } from '../../crdt/ORSet.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
 import { computeStateHashV5 } from '../state/StateSerializerV5.js';
 import { serializeFullStateV5, deserializeFullStateV5 } from '../state/CheckpointSerializerV5.js';
-import { buildSeekCacheKey } from '../../utils/seekCacheKey.js';
+import { buildSeekCacheKey } from '../../utils/seekCacheKey.ts';
 import { createFrontier, updateFrontier } from '../Frontier.js';
 import BitmapNeighborProvider from '../index/BitmapNeighborProvider.js';
 import { QueryError } from '../../warp/_internal.js';
-import { buildWriterRef } from '../../utils/RefLayout.js';
+import { buildWriterRef } from '../../utils/RefLayout.ts';
 
 /**
  * @typedef {import('../../WarpRuntime.js').default} MaterializeHost

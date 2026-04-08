@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import computeShardKey from '../../../../src/domain/utils/shardKey.js';
+import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 import { F11_SHARDKEY_VECTORS } from '../../../helpers/fixtureDsl.js';
 
 describe('computeShardKey', () => {

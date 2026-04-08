@@ -2,7 +2,7 @@ import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 
 import { describe, it, expect } from 'vitest';
 
-import defaultTrustCrypto from '../../../../src/domain/utils/defaultTrustCrypto.js';
+import defaultTrustCrypto from '../../../../src/domain/utils/defaultTrustCrypto.ts';
 
 const ED25519_SPKI_PREFIX_LENGTH = 12;
 

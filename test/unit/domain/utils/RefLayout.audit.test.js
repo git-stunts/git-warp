@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildAuditRef } from '../../../../src/domain/utils/RefLayout.js';
+import { buildAuditRef } from '../../../../src/domain/utils/RefLayout.ts';
 
 describe('buildAuditRef', () => {
   it('builds correct audit ref path', () => {

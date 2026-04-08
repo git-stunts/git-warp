@@ -23,8 +23,8 @@ import {
 import { compareVisibleStateV5 } from '../VisibleStateComparisonV5.js';
 import { planVisibleStateTransferV5 } from '../VisibleStateTransferPlannerV5.js';
 import StrandService from '../strand/StrandService.js';
-import { computeChecksum } from '../../utils/checksumUtils.js';
-import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod.js';
+import { computeChecksum } from '../../utils/checksumUtils.ts';
+import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod.ts';
 
 
 /** @import { default as ComparisonHost } from '../../WarpRuntime.js' */

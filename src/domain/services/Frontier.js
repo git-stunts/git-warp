@@ -1,4 +1,4 @@
-import defaultCodec from '../utils/defaultCodec.js';
+import defaultCodec from '../utils/defaultCodec.ts';
 
 /**
  * Frontier: Map of writerId -> lastSeenPatchSha

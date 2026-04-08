@@ -8,16 +8,16 @@
  * @see WARP Spec Section 11
  */
 
-import { validateGraphName, validateWriterId } from './utils/RefLayout.js';
+import { validateGraphName, validateWriterId } from './utils/RefLayout.ts';
 import VersionVector from './crdt/VersionVector.js';
 import { DEFAULT_GC_POLICY } from './services/GCPolicy.js';
 import { AuditReceiptService } from './services/audit/AuditReceiptService.js';
 import { TemporalQuery } from './services/TemporalQuery.js';
-import defaultCodec from './utils/defaultCodec.js';
-import defaultCrypto from './utils/defaultCrypto.js';
-import defaultClock from './utils/defaultClock.js';
+import defaultCodec from './utils/defaultCodec.ts';
+import defaultCrypto from './utils/defaultCrypto.ts';
+import defaultClock from './utils/defaultClock.ts';
 import LogicalTraversal from './services/query/LogicalTraversal.js';
-import LRUCache from './utils/LRUCache.js';
+import LRUCache from './utils/LRUCache.ts';
 import SyncController from './services/controllers/SyncController.js';
 import StrandController from './services/controllers/StrandController.js';
 import ComparisonController from './services/controllers/ComparisonController.js';
@@ -31,7 +31,7 @@ import SyncTrustGate from './services/sync/SyncTrustGate.js';
 import { AuditVerifierService } from './services/audit/AuditVerifierService.js';
 import MaterializedViewService from './services/MaterializedViewService.js';
 import StateHashService from './services/state/StateHashService.js';
-import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.js';
+import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.ts';
 // checkpoint.methods.js replaced by CheckpointController (imported above)
 // patch.methods.js replaced by PatchController (imported above)
 // materialize.methods.js + materializeAdvanced.methods.js replaced by MaterializeController
@@ -252,7 +252,7 @@ export default class WarpRuntime {
     /** @type {MaterializedGraph|null} */
     this._materializedGraph = null;
 
-    /** @type {import('./utils/LRUCache.js').default<string, {outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>}>|null} */
+    /** @type {import('./utils/LRUCache.ts').default<string, {outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>}>|null} */
     this._adjacencyCache = adjacencyCacheSize > 0 ? new LRUCache(adjacencyCacheSize) : null;
 
     /** @type {Map<string, string>|null} */

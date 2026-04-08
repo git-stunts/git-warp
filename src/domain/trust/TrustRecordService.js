@@ -9,7 +9,7 @@
  * @see docs/specs/TRUST_V1_CRYPTO.md Section 7
  */
 
-import { buildTrustRecordRef } from '../utils/RefLayout.js';
+import { buildTrustRecordRef } from '../utils/RefLayout.ts';
 import { TrustRecordSchema } from './schemas.js';
 import { verifyRecordId } from './TrustCanonical.js';
 import PersistenceError from '../errors/PersistenceError.ts';

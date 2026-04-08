@@ -23,39 +23,27 @@
 // Constants
 // -----------------------------------------------------------------------------
 
-/**
- * The prefix for all warp refs.
- * @type {string}
- */
-export const REF_PREFIX = 'refs/warp';
+/** The prefix for all warp refs. */
+export const REF_PREFIX: string = 'refs/warp';
 
-/**
- * Maximum length for a writer ID.
- * @type {number}
- */
-export const MAX_WRITER_ID_LENGTH = 64;
+/** Maximum length for a writer ID. */
+export const MAX_WRITER_ID_LENGTH: number = 64;
 
 /**
  * Regex pattern for valid writer IDs.
  * ASCII ref-safe characters: [A-Za-z0-9._-], 1-64 chars
- * @type {RegExp}
  */
-const WRITER_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
+const WRITER_ID_PATTERN: RegExp = /^[A-Za-z0-9._-]+$/;
 
-/**
- * Pattern to detect path traversal sequences.
- * @type {RegExp}
- */
-const PATH_TRAVERSAL_PATTERN = /\.\./;
+/** Pattern to detect path traversal sequences. */
+const PATH_TRAVERSAL_PATTERN: RegExp = /\.\./;
 
 /**
  * Ref-layout keywords that must not appear as any `/`-delimited segment
  * of a graph name. Using one of these would create an ambiguous ref path
  * (e.g. `refs/warp/writers/writers/alice`).
- *
- * @type {Set<string>}
  */
-export const RESERVED_GRAPH_NAME_SEGMENTS = new Set([
+export const RESERVED_GRAPH_NAME_SEGMENTS: Set<string> = new Set([
   'writers',
   'checkpoints',
   'coverage',
@@ -82,10 +70,8 @@ export const RESERVED_GRAPH_NAME_SEGMENTS = new Set([
  * - Null bytes (`\0`)
  * - Empty strings
  *
- * @param {string} name - The graph name to validate
  * @throws {Error} If the name is not a string, is empty, or contains
  *   forbidden characters (`..`, `;`, space, `\0`)
- * @returns {void}
  *
  * @example
  * validateGraphName('events');    // OK
@@ -93,7 +79,7 @@ export const RESERVED_GRAPH_NAME_SEGMENTS = new Set([
  * validateGraphName('../etc');    // throws — path traversal
  * validateGraphName('my graph');  // throws — contains space
  */
-export function validateGraphName(name) {
+export function validateGraphName(name: string): void {
   if (typeof name !== 'string') {
     throw new Error(`Invalid graph name: expected string, got ${typeof name}`);
   }
@@ -106,11 +92,8 @@ export function validateGraphName(name) {
 
 /**
  * Throws if the graph name contains any forbidden character sequences.
- *
- * @param {string} name
- * @throws {Error} If the name contains path traversal, semicolons, spaces, or null bytes
  */
-function rejectForbiddenGraphChars(name) {
+function rejectForbiddenGraphChars(name: string): void {
   if (PATH_TRAVERSAL_PATTERN.test(name)) {
     throw new Error(`Invalid graph name: contains path traversal sequence '..': ${name}`);
   }
@@ -127,11 +110,8 @@ function rejectForbiddenGraphChars(name) {
 
 /**
  * Throws if any slash-delimited segment of the name is a reserved ref-layout keyword.
- *
- * @param {string} name
- * @throws {Error} If a segment matches a reserved keyword
  */
-function rejectReservedSegments(name) {
+function rejectReservedSegments(name: string): void {
   const segments = name.split('/');
   for (const seg of segments) {
     if (RESERVED_GRAPH_NAME_SEGMENTS.has(seg)) {
@@ -150,10 +130,8 @@ function rejectReservedSegments(name) {
  * - Be 1-64 characters long
  * - Not contain `/`, `..`, whitespace, or NUL
  *
- * @param {string} id - The writer ID to validate
  * @throws {Error} If the ID is not a string, is empty, exceeds 64 characters,
  *   or contains forbidden characters (`/`, `..`, whitespace, NUL, non-ASCII)
- * @returns {void}
  *
  * @example
  * validateWriterId('node-1');        // OK
@@ -161,7 +139,7 @@ function rejectReservedSegments(name) {
  * validateWriterId('x'.repeat(65));  // throws — exceeds max length
  * validateWriterId('has space');     // throws — contains whitespace
  */
-export function validateWriterId(id) {
+export function validateWriterId(id: string): void {
   if (typeof id !== 'string') {
     throw new Error(`Invalid writer ID: expected string, got ${typeof id}`);
   }
@@ -178,11 +156,8 @@ export function validateWriterId(id) {
 
 /**
  * Throws if the writer ID contains forbidden characters or fails the ref-safe pattern.
- *
- * @param {string} id
- * @throws {Error} If the ID contains path traversal, slashes, null bytes, whitespace, or non-ASCII chars
  */
-function rejectForbiddenWriterChars(id) {
+function rejectForbiddenWriterChars(id: string): void {
   if (PATH_TRAVERSAL_PATTERN.test(id)) {
     throw new Error(`Invalid writer ID: contains path traversal sequence '..': ${id}`);
   }
@@ -194,11 +169,8 @@ function rejectForbiddenWriterChars(id) {
 
 /**
  * Throws if the writer ID contains null bytes, whitespace, or non-ASCII ref-unsafe chars.
- *
- * @param {string} id
- * @throws {Error} On null bytes, whitespace, or characters outside [A-Za-z0-9._-]
  */
-function rejectControlAndNonAscii(id) {
+function rejectControlAndNonAscii(id: string): void {
   if (id.includes('\0')) {
     throw new Error(`Invalid writer ID: contains null byte: ${id}`);
   }
@@ -217,16 +189,11 @@ function rejectControlAndNonAscii(id) {
 /**
  * Builds a writer ref path for the given graph and writer ID.
  *
- * @param {string} graphName - The name of the graph
- * @param {string} writerId - The writer's unique identifier
- * @returns {string} The full ref path, e.g. `refs/warp/<graphName>/writers/<writerId>`
- * @throws {Error} If graphName or writerId is invalid
- *
  * @example
  * buildWriterRef('events', 'node-1');
  * // => 'refs/warp/events/writers/node-1'
  */
-export function buildWriterRef(graphName, writerId) {
+export function buildWriterRef(graphName: string, writerId: string): string {
   validateGraphName(graphName);
   validateWriterId(writerId);
   return `${REF_PREFIX}/${graphName}/writers/${writerId}`;
@@ -235,15 +202,11 @@ export function buildWriterRef(graphName, writerId) {
 /**
  * Builds the checkpoint head ref path for the given graph.
  *
- * @param {string} graphName - The name of the graph
- * @returns {string} The full ref path, e.g. `refs/warp/<graphName>/checkpoints/head`
- * @throws {Error} If graphName is invalid
- *
  * @example
  * buildCheckpointRef('events');
  * // => 'refs/warp/events/checkpoints/head'
  */
-export function buildCheckpointRef(graphName) {
+export function buildCheckpointRef(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/checkpoints/head`;
 }
@@ -251,15 +214,11 @@ export function buildCheckpointRef(graphName) {
 /**
  * Builds the coverage head ref path for the given graph.
  *
- * @param {string} graphName - The name of the graph
- * @returns {string} The full ref path, e.g. `refs/warp/<graphName>/coverage/head`
- * @throws {Error} If graphName is invalid
- *
  * @example
  * buildCoverageRef('events');
  * // => 'refs/warp/events/coverage/head'
  */
-export function buildCoverageRef(graphName) {
+export function buildCoverageRef(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/coverage/head`;
 }
@@ -269,16 +228,11 @@ export function buildCoverageRef(graphName) {
  * Useful for listing all writer refs under a graph
  * (e.g. via `git for-each-ref`).
  *
- * @param {string} graphName - The name of the graph
- * @returns {string} The writers prefix path (with trailing slash),
- *   e.g. `refs/warp/<graphName>/writers/`
- * @throws {Error} If graphName is invalid
- *
  * @example
  * buildWritersPrefix('events');
  * // => 'refs/warp/events/writers/'
  */
-export function buildWritersPrefix(graphName) {
+export function buildWritersPrefix(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/writers/`;
 }
@@ -290,15 +244,11 @@ export function buildWritersPrefix(graphName) {
  * position used by `git warp seek`. It points to a commit SHA representing
  * the materialization frontier the user has seeked to.
  *
- * @param {string} graphName - The name of the graph
- * @returns {string} The full ref path, e.g. `refs/warp/<graphName>/cursor/active`
- * @throws {Error} If graphName is invalid
- *
  * @example
  * buildCursorActiveRef('events');
  * // => 'refs/warp/events/cursor/active'
  */
-export function buildCursorActiveRef(graphName) {
+export function buildCursorActiveRef(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/cursor/active`;
 }
@@ -313,16 +263,11 @@ export function buildCursorActiveRef(graphName) {
  * The cursor name is validated with the same rules as a writer ID
  * (ASCII ref-safe: `[A-Za-z0-9._-]`, 1-64 characters).
  *
- * @param {string} graphName - The name of the graph
- * @param {string} name - The cursor bookmark name (validated like a writer ID)
- * @returns {string} The full ref path, e.g. `refs/warp/<graphName>/cursor/saved/<name>`
- * @throws {Error} If graphName or name is invalid
- *
  * @example
  * buildCursorSavedRef('events', 'before-tui');
  * // => 'refs/warp/events/cursor/saved/before-tui'
  */
-export function buildCursorSavedRef(graphName, name) {
+export function buildCursorSavedRef(graphName: string, name: string): string {
   validateGraphName(graphName);
   validateWriterId(name);
   return `${REF_PREFIX}/${graphName}/cursor/saved/${name}`;
@@ -333,16 +278,11 @@ export function buildCursorSavedRef(graphName, name) {
  * Useful for listing all saved cursor bookmarks under a graph
  * (e.g. via `git for-each-ref`).
  *
- * @param {string} graphName - The name of the graph
- * @returns {string} The saved cursor prefix path (with trailing slash),
- *   e.g. `refs/warp/<graphName>/cursor/saved/`
- * @throws {Error} If graphName is invalid
- *
  * @example
  * buildCursorSavedPrefix('events');
  * // => 'refs/warp/events/cursor/saved/'
  */
-export function buildCursorSavedPrefix(graphName) {
+export function buildCursorSavedPrefix(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/cursor/saved/`;
 }
@@ -352,24 +292,15 @@ export function buildCursorSavedPrefix(graphName) {
  *
  * Strand ids use the same ref-safe validation as writer ids because they
  * appear as the final ref path segment.
- *
- * @param {string} graphName
- * @param {string} strandId
- * @returns {string}
  */
-export function buildStrandRef(graphName, strandId) {
+export function buildStrandRef(graphName: string, strandId: string): string {
   validateGraphName(graphName);
   validateWriterId(strandId);
   return `${REF_PREFIX}/${graphName}/strands/${strandId}`;
 }
 
-/**
- * Builds the strand prefix path for the given graph.
- *
- * @param {string} graphName
- * @returns {string}
- */
-export function buildStrandsPrefix(graphName) {
+/** Builds the strand prefix path for the given graph. */
+export function buildStrandsPrefix(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/strands/`;
 }
@@ -380,12 +311,8 @@ export function buildStrandsPrefix(graphName) {
  * Overlay refs keep the patch-log head for a strand separate from the
  * descriptor ref itself, allowing the descriptor to remain a single ref while
  * the overlay history advances independently.
- *
- * @param {string} graphName
- * @param {string} strandId
- * @returns {string}
  */
-export function buildStrandOverlayRef(graphName, strandId) {
+export function buildStrandOverlayRef(graphName: string, strandId: string): string {
   validateGraphName(graphName);
   validateWriterId(strandId);
   return `${REF_PREFIX}/${graphName}/strand-overlays/${strandId}`;
@@ -397,13 +324,8 @@ export function buildStrandOverlayRef(graphName, strandId) {
  * The ref points at the pinned head SHA for the support overlay at braid time,
  * keeping the support patch chain reachable even if the source strand is
  * later dropped or continues independently.
- *
- * @param {string} graphName
- * @param {string} strandId
- * @param {string} braidedStrandId
- * @returns {string}
  */
-export function buildStrandBraidRef(graphName, strandId, braidedStrandId) {
+export function buildStrandBraidRef(graphName: string, strandId: string, braidedStrandId: string): string {
   validateGraphName(graphName);
   validateWriterId(strandId);
   validateWriterId(braidedStrandId);
@@ -413,12 +335,8 @@ export function buildStrandBraidRef(graphName, strandId, braidedStrandId) {
 /**
  * Builds the braid-ref prefix path for all support overlays pinned inside one
  * target strand.
- *
- * @param {string} graphName
- * @param {string} strandId
- * @returns {string}
  */
-export function buildStrandBraidsPrefix(graphName, strandId) {
+export function buildStrandBraidsPrefix(graphName: string, strandId: string): string {
   validateGraphName(graphName);
   validateWriterId(strandId);
   return `${REF_PREFIX}/${graphName}/strand-braids/${strandId}/`;
@@ -430,16 +348,11 @@ export function buildStrandBraidsPrefix(graphName, strandId) {
  * Audit refs track the latest audit commit for each writer, forming
  * an independent chain of tamper-evident receipts per writer.
  *
- * @param {string} graphName - The name of the graph
- * @param {string} writerId - The writer's unique identifier
- * @returns {string} The full ref path, e.g. `refs/warp/<graphName>/audit/<writerId>`
- * @throws {Error} If graphName or writerId is invalid
- *
  * @example
  * buildAuditRef('events', 'alice');
  * // => 'refs/warp/events/audit/alice'
  */
-export function buildAuditRef(graphName, writerId) {
+export function buildAuditRef(graphName: string, writerId: string): string {
   validateGraphName(graphName);
   validateWriterId(writerId);
   return `${REF_PREFIX}/${graphName}/audit/${writerId}`;
@@ -448,15 +361,11 @@ export function buildAuditRef(graphName, writerId) {
 /**
  * Builds the audit ref prefix for listing all audit writers of a graph.
  *
- * @param {string} graphName - The name of the graph
- * @returns {string} The ref prefix, e.g. `refs/warp/<graphName>/audit/`
- * @throws {Error} If graphName is invalid
- *
  * @example
  * buildAuditPrefix('events');
  * // => 'refs/warp/events/audit/'
  */
-export function buildAuditPrefix(graphName) {
+export function buildAuditPrefix(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/audit/`;
 }
@@ -467,15 +376,11 @@ export function buildAuditPrefix(graphName) {
  * The seek cache ref points to a blob containing a JSON index of
  * cached materialization states, keyed by (ceiling, frontier) tuples.
  *
- * @param {string} graphName - The name of the graph
- * @returns {string} The full ref path, e.g. `refs/warp/<graphName>/seek-cache`
- * @throws {Error} If graphName is invalid
- *
  * @example
  * buildSeekCacheRef('events');
  * // => 'refs/warp/events/seek-cache'
  */
-export function buildSeekCacheRef(graphName) {
+export function buildSeekCacheRef(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/seek-cache`;
 }
@@ -487,15 +392,11 @@ export function buildSeekCacheRef(graphName) {
  * chain — an append-only sequence of signed trust records (key adds,
  * key revokes, writer bindings).
  *
- * @param {string} graphName - The name of the graph
- * @returns {string} The full ref path, e.g. `refs/warp/<graphName>/trust/records`
- * @throws {Error} If graphName is invalid
- *
  * @example
  * buildTrustRecordRef('events');
  * // => 'refs/warp/events/trust/records'
  */
-export function buildTrustRecordRef(graphName) {
+export function buildTrustRecordRef(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/trust/records`;
 }
@@ -511,9 +412,6 @@ export function buildTrustRecordRef(graphName) {
  * need to distinguish "not a writer ref" from "malformed ref" should validate
  * the ref format separately before calling this method.
  *
- * @param {string} refPath - The full ref path
- * @returns {string|null} The writer ID, or null if the path is not a valid writer ref
- *
  * @example
  * parseWriterIdFromRef('refs/warp/events/writers/alice');
  * // => 'alice'
@@ -521,7 +419,7 @@ export function buildTrustRecordRef(graphName) {
  * parseWriterIdFromRef('refs/heads/main');
  * // => null
  */
-export function parseWriterIdFromRef(refPath) {
+export function parseWriterIdFromRef(refPath: string): string | null {
   if (typeof refPath !== 'string') {
     return null;
   }
@@ -535,11 +433,8 @@ export function parseWriterIdFromRef(refPath) {
 /**
  * Splits a ref path into its segment parts after stripping the warp prefix.
  * Returns null if the ref is not under refs/warp/ or has too few segments.
- *
- * @param {string} refPath
- * @returns {string[]|null}
  */
-function splitWarpRefParts(refPath) {
+function splitWarpRefParts(refPath: string): string[] | null {
   const prefix = `${REF_PREFIX}/`;
   if (!refPath.startsWith(prefix)) {
     return null;
@@ -554,11 +449,8 @@ function splitWarpRefParts(refPath) {
 /**
  * Extracts and validates the writer ID from parsed ref parts.
  * Expects the pattern [...graphSegments, 'writers', writerId].
- *
- * @param {string[]} parts
- * @returns {string|null}
  */
-function extractValidWriterId(parts) {
+function extractValidWriterId(parts: string[]): string | null {
   const writersIndex = parts.indexOf('writers');
   if (writersIndex < 1 || writersIndex !== parts.length - 2) {
     return null;

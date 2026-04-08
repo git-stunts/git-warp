@@ -10,10 +10,10 @@
 import { PatchBuilderV2 } from '../PatchBuilderV2.js';
 import { joinStates, applyWithDiff, applyWithReceipt } from '../JoinReducer.js';
 import { orsetElements } from '../../crdt/ORSet.js';
-import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../../utils/RefLayout.js';
+import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../../utils/RefLayout.ts';
 import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';
 import { Writer } from '../../warp/Writer.js';
-import { resolveWriterId } from '../../utils/WriterId.js';
+import { resolveWriterId } from '../../utils/WriterId.ts';
 import EncryptionError from '../../errors/EncryptionError.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
 import { QueryError, E_NO_STATE_MSG, E_STALE_STATE_MSG } from '../../warp/_internal.js';

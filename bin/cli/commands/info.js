@@ -5,7 +5,7 @@ import {
   buildCoverageRef,
   buildWritersPrefix,
   parseWriterIdFromRef,
-} from '../../../src/domain/utils/RefLayout.js';
+} from '../../../src/domain/utils/RefLayout.ts';
 import { notFoundError } from '../infrastructure.js';
 import { createPersistence, listGraphNames, readActiveCursor, readCheckpointDate } from '../shared.js';
 

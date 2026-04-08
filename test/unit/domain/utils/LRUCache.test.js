@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import LRUCache_ from '../../../../src/domain/utils/LRUCache.js';
+import LRUCache_ from '../../../../src/domain/utils/LRUCache.ts';
 
 /** @type {any} */
 const LRUCache = LRUCache_;

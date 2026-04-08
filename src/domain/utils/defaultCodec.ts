@@ -3,7 +3,7 @@
  *
  * Provides canonical CBOR encoding/decoding using cbor-x directly,
  * avoiding concrete adapter imports from the infrastructure layer.
- * This follows the same pattern as defaultClock.js.
+ * This follows the same pattern as defaultClock.ts.
  *
  * Keys are recursively sorted before encoding for deterministic output,
  * which is critical for content-addressed storage (Git SHA matching).
@@ -12,6 +12,7 @@
  */
 
 import { Encoder, decode as cborDecode } from 'cbor-x';
+import type CodecPort from '../../ports/CodecPort.js';
 
 const encoder = new Encoder({
   useRecords: false,
@@ -20,10 +21,8 @@ const encoder = new Encoder({
 
 /**
  * Recursively sorts object keys for deterministic CBOR encoding.
- * @param {unknown} value - The value to sort keys of
- * @returns {unknown} The value with sorted keys
  */
-function sortKeys(value) {
+function sortKeys(value: unknown): unknown {
   if (value === null || value === undefined || typeof value !== 'object') {
     return value;
   }
@@ -32,64 +31,52 @@ function sortKeys(value) {
 
 /**
  * Sorts keys in an Array, Map, or plain object container.
- * @param {object} value - A non-null object value
- * @returns {unknown} The value with sorted keys
  */
-function sortContainer(value) {
+function sortContainer(value: object): unknown {
   if (Array.isArray(value)) { return value.map(sortKeys); }
   if (value instanceof Map) { return sortMapKeys(value); }
-  return sortObjectKeys(/** @type {Record<string, unknown>} */ (value));
+  return sortObjectKeys(value as Record<string, unknown>);
 }
 
 /**
  * Sorts keys of a Map and recursively sorts nested values.
- * @param {Map<string, unknown>} map
- * @returns {Record<string, unknown>}
  */
-function sortMapKeys(map) {
-  /** @type {Record<string, unknown>} */
-  const sorted = {};
+function sortMapKeys(map: Map<string, unknown>): Record<string, unknown> {
+  const sorted: Record<string, unknown> = {};
   for (const key of Array.from(map.keys()).sort()) {
     sorted[String(key)] = sortKeys(map.get(key));
   }
   return sorted;
 }
 
-/** @type {ReadonlyArray<Function>} */
-const CBOR_NATIVE = [Uint8Array, Date, RegExp, Set];
+const CBOR_NATIVE: ReadonlyArray<Function> = [Uint8Array, Date, RegExp, Set];
 
 /**
  * Returns true if the value is a built-in type with its own CBOR encoding.
- * @param {object} value
- * @returns {boolean}
  */
-function isCborNative(value) {
+function isCborNative(value: object): boolean {
   return CBOR_NATIVE.some((T) => value instanceof T);
 }
 
 /**
  * Sorts keys of any object and recursively sorts nested values.
  * Skips built-in types that have their own CBOR representation.
- * @param {Record<string, unknown>} obj
- * @returns {Record<string, unknown>}
  */
-function sortObjectKeys(obj) {
+function sortObjectKeys(obj: Record<string, unknown>): Record<string, unknown> {
   if (isCborNative(obj)) { return obj; }
-  /** @type {Record<string, unknown>} */
-  const sorted = {};
+  const sorted: Record<string, unknown> = {};
   for (const key of Object.keys(obj).sort()) {
     sorted[key] = sortKeys(obj[key]);
   }
   return sorted;
 }
 
-/** @type {import('../../ports/CodecPort.js').default} */
-const defaultCodec = {
-  encode(data) {
+const defaultCodec: CodecPort = {
+  encode(data: unknown): Uint8Array {
     return encoder.encode(sortKeys(data));
   },
-  decode(buffer) {
-    return /** @type {unknown} */ (cborDecode(buffer));
+  decode(buffer: Uint8Array): unknown {
+    return cborDecode(buffer) as unknown;
   },
 };
 

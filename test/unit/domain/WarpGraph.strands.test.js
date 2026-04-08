@@ -10,7 +10,7 @@ import {
 import { createStateReaderV5 } from '../../../src/domain/services/state/StateReaderV5.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
-import { buildStrandBraidRef, buildStrandOverlayRef } from '../../../src/domain/utils/RefLayout.js';
+import { buildStrandBraidRef, buildStrandOverlayRef } from '../../../src/domain/utils/RefLayout.ts';
 
 /** @typedef {any} WarpCoreRuntime */
 
@@ -114,7 +114,7 @@ async function simulatePatchCommit(persistence, {
 }) {
   const { encode } = await import('../../../src/infrastructure/codecs/CborCodec.js');
   const { encodePatchMessage } = await import('../../../src/domain/services/codec/WarpMessageCodec.js');
-  const { buildWriterRef } = await import('../../../src/domain/utils/RefLayout.js');
+  const { buildWriterRef } = await import('../../../src/domain/utils/RefLayout.ts');
 
   const patch = {
     schema: 2,

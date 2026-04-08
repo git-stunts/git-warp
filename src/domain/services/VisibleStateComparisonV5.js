@@ -1,4 +1,4 @@
-import { canonicalStringify } from '../utils/canonicalStringify.js';
+import { canonicalStringify } from '../utils/canonicalStringify.ts';
 import { createStateReaderV5 } from './state/StateReaderV5.js';
 
 

@@ -5,7 +5,7 @@ async function importWithoutNodeCrypto() {
   vi.doMock('node:crypto', () => {
     throw new Error('node:crypto unavailable');
   });
-  return await import('../../../../src/domain/utils/defaultCrypto.js');
+  return await import('../../../../src/domain/utils/defaultCrypto.ts');
 }
 
 afterEach(() => {

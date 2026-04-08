@@ -8,7 +8,7 @@
  */
 
 import { diffStates, isEmptyDiff } from '../state/StateDiff.js';
-import { matchGlob } from '../../utils/matchGlob.js';
+import { matchGlob } from '../../utils/matchGlob.ts';
 
 /** @import { WarpStateV5 } from '../JoinReducer.js' */
 /** @import { StateDiffResult, EdgeChange, PropSet, PropRemoved } from '../state/StateDiff.js' */

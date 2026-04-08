@@ -3,7 +3,7 @@ import {
   CONTENT_PROPERTY_KEY,
   CONTENT_SIZE_PROPERTY_KEY,
 } from './KeyCodec.js';
-import { canonicalStringify } from '../utils/canonicalStringify.js';
+import { canonicalStringify } from '../utils/canonicalStringify.ts';
 
 
 /** @import { ContentMeta, VisibleStateReaderV5, VisibleStateTransferOperationV1, VisibleStateTransferPlanSummaryV1 } from '../../../index.js' */

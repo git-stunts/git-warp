@@ -1,10 +1,10 @@
-import defaultCodec from '../../utils/defaultCodec.js';
+import defaultCodec from '../../utils/defaultCodec.ts';
 import BitmapIndexBuilder from './BitmapIndexBuilder.js';
 import BitmapIndexReader from './BitmapIndexReader.js';
 import StreamingBitmapIndexBuilder from './StreamingBitmapIndexBuilder.js';
 import { loadIndexFrontier, checkStaleness } from './IndexStalenessChecker.js';
-import nullLogger from '../../utils/nullLogger.js';
-import { checkAborted } from '../../utils/cancellation.js';
+import nullLogger from '../../utils/nullLogger.ts';
+import { checkAborted } from '../../utils/cancellation.ts';
 
 /**
  * Service for building and loading the bitmap index from the graph.

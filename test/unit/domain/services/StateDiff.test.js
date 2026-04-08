@@ -11,7 +11,7 @@ import {
 } from '../../../../src/domain/services/JoinReducer.js';
 import { encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { createEventId } from '../../../../src/domain/utils/EventId.js';
+import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.js';
 
 // Helper to create a node add operation

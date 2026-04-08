@@ -7,10 +7,10 @@
  * @module domain/services/dag/DagPathFinding
  */
 
-import nullLogger from '../../utils/nullLogger.js';
+import nullLogger from '../../utils/nullLogger.ts';
 import TraversalError from '../../errors/TraversalError.ts';
-import MinHeap from '../../utils/MinHeap.js';
-import { checkAborted } from '../../utils/cancellation.js';
+import MinHeap from '../../utils/MinHeap.ts';
+import { checkAborted } from '../../utils/cancellation.ts';
 
 /**
  * Default limits for path-finding operations.
@@ -455,7 +455,7 @@ export default class DagPathFinding {
   /**
    * Expands the forward frontier by one node in bidirectional A*.
    *
-   * @param {{ fwdHeap: import('../../utils/MinHeap.js').default<string>, fwdVisited: Set<string>, fwdGScore: Map<string, number>, fwdPrevious: Map<string, string>, bwdVisited: Set<string>, bwdGScore: Map<string, number>, weightProvider: (from: string, to: string) => number|Promise<number>, forwardHeuristic: (sha: string, target: string) => number, to: string, mu: number, meetingPoint: string|null }} state - Forward expansion state
+   * @param {{ fwdHeap: import('../../utils/MinHeap.ts').default<string>, fwdVisited: Set<string>, fwdGScore: Map<string, number>, fwdPrevious: Map<string, string>, bwdVisited: Set<string>, bwdGScore: Map<string, number>, weightProvider: (from: string, to: string) => number|Promise<number>, forwardHeuristic: (sha: string, target: string) => number, to: string, mu: number, meetingPoint: string|null }} state - Forward expansion state
    * @returns {Promise<{explored: number, mu: number, meetingPoint: string|null}>}
    * @private
    */
@@ -517,7 +517,7 @@ export default class DagPathFinding {
   /**
    * Expands the backward frontier by one node in bidirectional A*.
    *
-   * @param {{ bwdHeap: import('../../utils/MinHeap.js').default<string>, bwdVisited: Set<string>, bwdGScore: Map<string, number>, bwdNext: Map<string, string>, fwdVisited: Set<string>, fwdGScore: Map<string, number>, weightProvider: (from: string, to: string) => number|Promise<number>, backwardHeuristic: (sha: string, target: string) => number, from: string, mu: number, meetingPoint: string|null }} state - Backward expansion state
+   * @param {{ bwdHeap: import('../../utils/MinHeap.ts').default<string>, bwdVisited: Set<string>, bwdGScore: Map<string, number>, bwdNext: Map<string, string>, fwdVisited: Set<string>, fwdGScore: Map<string, number>, weightProvider: (from: string, to: string) => number|Promise<number>, backwardHeuristic: (sha: string, target: string) => number, from: string, mu: number, meetingPoint: string|null }} state - Backward expansion state
    * @returns {Promise<{explored: number, mu: number, meetingPoint: string|null}>}
    * @private
    */

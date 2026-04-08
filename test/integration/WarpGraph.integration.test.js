@@ -9,7 +9,7 @@ import WarpRuntime from '../../src/domain/WarpRuntime.js';
 import { computeStateHashV5, nodeVisibleV5, edgeVisibleV5 } from '../../src/domain/services/state/StateSerializerV5.js';
 import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.js';
-import { buildWriterRef } from '../../src/domain/utils/RefLayout.js';
+import { buildWriterRef } from '../../src/domain/utils/RefLayout.ts';
 
 describe('WarpRuntime Integration', () => {
   /** @type {any} */

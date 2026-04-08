@@ -1,15 +1,15 @@
-import defaultCodec from '../../utils/defaultCodec.js';
-import defaultCrypto from '../../utils/defaultCrypto.js';
-import { computeChecksum } from '../../utils/checksumUtils.js';
+import defaultCodec from '../../utils/defaultCodec.ts';
+import defaultCrypto from '../../utils/defaultCrypto.ts';
+import { computeChecksum } from '../../utils/checksumUtils.ts';
 import ShardCorruptionError from '../../errors/ShardCorruptionError.ts';
 import ShardValidationError from '../../errors/ShardValidationError.ts';
 import IndexError from '../../errors/IndexError.ts';
-import nullLogger from '../../utils/nullLogger.js';
-import { checkAborted } from '../../utils/cancellation.js';
-import { getRoaringBitmap32 } from '../../utils/roaring.js';
-import { canonicalStringify } from '../../utils/canonicalStringify.js';
-import { SHARD_VERSION } from '../../utils/shardVersion.js';
-import { textEncode, base64Encode, base64Decode } from '../../utils/bytes.js';
+import nullLogger from '../../utils/nullLogger.ts';
+import { checkAborted } from '../../utils/cancellation.ts';
+import { getRoaringBitmap32 } from '../../utils/roaring.ts';
+import { canonicalStringify } from '../../utils/canonicalStringify.ts';
+import { SHARD_VERSION } from '../../utils/shardVersion.ts';
+import { textEncode, base64Encode, base64Decode } from '../../utils/bytes.ts';
 
 /** @typedef {import('../../types/WarpPersistence.ts').IndexStorage} IndexStorage */
 
@@ -151,7 +151,7 @@ async function validateShardEnvelope(envelope, oid, crypto) {
 /**
  * Serializes merged bitmaps into SHA→base64 string entries.
  *
- * @param {Record<string, import('../../utils/roaring.js').RoaringBitmapSubset>} merged - Merged bitmaps by SHA
+ * @param {Record<string, import('../../utils/roaring.ts').RoaringBitmapSubset>} merged - Merged bitmaps by SHA
  * @returns {Record<string, string>} SHA→base64Bitmap mappings
  */
 function serializeMergedBitmaps(merged) {
@@ -244,7 +244,7 @@ export default class StreamingBitmapIndexBuilder {
   /** @type {string[]} */
   idToSha = [];
 
-  /** @type {Map<string, import('../../utils/roaring.js').RoaringBitmapSubset>} */
+  /** @type {Map<string, import('../../utils/roaring.ts').RoaringBitmapSubset>} */
   bitmaps = new Map();
 
   /** @type {number} */
@@ -691,7 +691,7 @@ export default class StreamingBitmapIndexBuilder {
       this.estimatedBitmapBytes += BITMAP_BASE_OVERHEAD;
     }
 
-    const bitmap = /** @type {import('../../utils/roaring.js').RoaringBitmapSubset} */ (this.bitmaps.get(key));
+    const bitmap = /** @type {import('../../utils/roaring.ts').RoaringBitmapSubset} */ (this.bitmaps.get(key));
     const sizeBefore = bitmap.size;
     bitmap.add(id);
     const sizeAfter = bitmap.size;
@@ -734,7 +734,7 @@ export default class StreamingBitmapIndexBuilder {
    * is stored directly. If a bitmap already exists, the new bitmap is ORed into
    * it using `orInPlace` to combine edge sets.
    *
-   * @param {{ merged: Record<string, import('../../utils/roaring.js').RoaringBitmapSubset>, sha: string, base64Bitmap: string, oid: string }} opts - Options object
+   * @param {{ merged: Record<string, import('../../utils/roaring.ts').RoaringBitmapSubset>, sha: string, base64Bitmap: string, oid: string }} opts - Options object
    * @throws {ShardCorruptionError} If the bitmap cannot be deserialized from base64.
    *   Error context includes: oid, reason ('invalid_bitmap'), originalError
    * @private
@@ -798,12 +798,12 @@ export default class StreamingBitmapIndexBuilder {
    *
    * @param {string[]} oids - Git blob OIDs of chunks to merge
    * @param {AbortSignal} [signal] - Optional abort signal
-   * @returns {Promise<Record<string, import('../../utils/roaring.js').RoaringBitmapSubset>>} Merged bitmaps by SHA
+   * @returns {Promise<Record<string, import('../../utils/roaring.ts').RoaringBitmapSubset>>} Merged bitmaps by SHA
    * @async
    * @private
    */
   async _loadAndMergeAllChunks(oids, signal) {
-    /** @type {Record<string, import('../../utils/roaring.js').RoaringBitmapSubset>} */
+    /** @type {Record<string, import('../../utils/roaring.ts').RoaringBitmapSubset>} */
     const merged = {};
     for (const oid of oids) {
       checkAborted(signal, 'mergeChunks');

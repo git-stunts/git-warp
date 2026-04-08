@@ -20,7 +20,7 @@ import {
   CONTENT_MIME_PROPERTY_KEY,
   CONTENT_SIZE_PROPERTY_KEY,
 } from '../KeyCodec.js';
-import { compareEventIds } from '../../utils/EventId.js';
+import { compareEventIds } from '../../utils/EventId.ts';
 import { cloneStateV5 } from '../JoinReducer.js';
 import { createImmutableWarpStateV5 } from '../ImmutableSnapshot.js';
 import QueryBuilder from '../query/QueryBuilder.js';
@@ -28,8 +28,8 @@ import Observer from '../query/Observer.js';
 import Worldline from '../Worldline.js';
 import { computeTranslationCost } from '../TranslationCost.js';
 import { computeStateHashV5 } from '../state/StateSerializerV5.js';
-import { toInternalStrandShape } from '../../utils/strandPublicShape.js';
-import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod.js';
+import { toInternalStrandShape } from '../../utils/strandPublicShape.ts';
+import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod.ts';
 import WorldlineSelector from '../../types/WorldlineSelector.ts';
 import LiveSelector from '../../types/LiveSelector.ts';
 import CoordinateSelector from '../../types/CoordinateSelector.ts';
@@ -569,8 +569,8 @@ async function translationCost(configA, configB) {
  * same patch as the live `_content` reference. This prevents stale metadata
  * from surviving a later manual `_content` rewrite.
  *
- * @param {import('../../utils/EventId.js').EventId|null|undefined} contentEventId
- * @param {import('../../utils/EventId.js').EventId|null|undefined} candidateEventId
+ * @param {import('../../utils/EventId.ts').EventId|null|undefined} contentEventId
+ * @param {import('../../utils/EventId.ts').EventId|null|undefined} candidateEventId
  * @returns {boolean}
  */
 function isSameAttachmentLineage(contentEventId, candidateEventId) {
@@ -586,9 +586,9 @@ function isSameAttachmentLineage(contentEventId, candidateEventId) {
 /**
  * Filters an edge-property register against the edge birth event.
  *
- * @param {{ eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|undefined} register
- * @param {import('../../utils/EventId.js').EventId|undefined} birthEvent
- * @returns {{ eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null}
+ * @param {{ eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|undefined} register
+ * @param {import('../../utils/EventId.ts').EventId|undefined} birthEvent
+ * @returns {{ eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null}
  */
 function visibleEdgeRegister(register, birthEvent) {
   if (!register) {
@@ -605,7 +605,7 @@ function visibleEdgeRegister(register, birthEvent) {
  *
  * @param {import('../state/WarpStateV5.js').default} state
  * @param {string} nodeId
- * @returns {{ contentRegister: { eventId: import('../../utils/EventId.js').EventId|null, value: string }, mimeRegister: { eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null }|null}
+ * @returns {{ contentRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: string }, mimeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null }|null}
  */
 function getNodeContentRegisters(state, nodeId) {
   if (!orsetContains(state.nodeAlive, nodeId)) {
@@ -616,7 +616,7 @@ function getNodeContentRegisters(state, nodeId) {
     return null;
   }
   return {
-    contentRegister: /** @type {{ eventId: import('../../utils/EventId.js').EventId|null, value: string }} */ (contentRegister),
+    contentRegister: /** @type {{ eventId: import('../../utils/EventId.ts').EventId|null, value: string }} */ (contentRegister),
     mimeRegister: state.prop.get(encodePropKey(nodeId, CONTENT_MIME_PROPERTY_KEY)) || null,
     sizeRegister: state.prop.get(encodePropKey(nodeId, CONTENT_SIZE_PROPERTY_KEY)) || null,
   };
@@ -629,7 +629,7 @@ function getNodeContentRegisters(state, nodeId) {
  * @param {string} from
  * @param {string} to
  * @param {string} label
- * @returns {{ contentRegister: { eventId: import('../../utils/EventId.js').EventId|null, value: string }, mimeRegister: { eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null }|null}
+ * @returns {{ contentRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: string }, mimeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null }|null}
  */
 function getEdgeContentRegisters(state, from, to, label) {
   const edgeKey = encodeEdgeKey(from, to, label);
@@ -648,7 +648,7 @@ function getEdgeContentRegisters(state, from, to, label) {
     return null;
   }
   return {
-    contentRegister: /** @type {{ eventId: import('../../utils/EventId.js').EventId|null, value: string }} */ (contentRegister),
+    contentRegister: /** @type {{ eventId: import('../../utils/EventId.ts').EventId|null, value: string }} */ (contentRegister),
     mimeRegister: visibleEdgeRegister(
       state.prop.get(encodeEdgePropKey(from, to, label, CONTENT_MIME_PROPERTY_KEY)),
       birthEvent,
@@ -668,9 +668,9 @@ function getEdgeContentRegisters(state, from, to, label) {
  * return as null until the content is re-attached through the metadata-aware
  * APIs.
  *
- * @param {{ eventId: import('../../utils/EventId.js').EventId|null, value: string }} contentRegister
- * @param {{ eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null} mimeRegister
- * @param {{ eventId: import('../../utils/EventId.js').EventId|null, value: unknown }|null} sizeRegister
+ * @param {{ eventId: import('../../utils/EventId.ts').EventId|null, value: string }} contentRegister
+ * @param {{ eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null} mimeRegister
+ * @param {{ eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null} sizeRegister
  * @returns {{ oid: string, mime: string|null, size: number|null }|null}
  */
 function extractContentMeta(contentRegister, mimeRegister, sizeRegister) {

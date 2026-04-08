@@ -7,7 +7,7 @@
  * @module cli/commands/doctor
  */
 
-import { buildWritersPrefix } from '../../../../src/domain/utils/RefLayout.js';
+import { buildWritersPrefix } from '../../../../src/domain/utils/RefLayout.ts';
 import { parseCommandArgs } from '../../infrastructure.js';
 import { doctorSchema } from '../../schemas.js';
 import { createPersistence, resolveGraphName } from '../../shared.js';

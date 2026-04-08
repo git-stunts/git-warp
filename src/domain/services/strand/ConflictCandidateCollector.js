@@ -8,7 +8,7 @@
  */
 
 import { normalizeRawOp, OP_STRATEGIES } from '../JoinReducer.js';
-import { createEventId } from '../../utils/EventId.js';
+import { createEventId } from '../../utils/EventId.ts';
 import { decodeEdgeKey } from '../KeyCodec.js';
 import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
 import ConflictResolution from '../../types/conflict/ConflictResolution.ts';

@@ -8,7 +8,7 @@
  * @module domain/services/codec/PatchMessageCodec
  */
 
-import { validateGraphName, validateWriterId } from '../../utils/RefLayout.js';
+import { validateGraphName, validateWriterId } from '../../utils/RefLayout.ts';
 import {
   getCodec,
   MESSAGE_TITLES,

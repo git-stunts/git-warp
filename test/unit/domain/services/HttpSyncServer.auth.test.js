@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.js';
-import defaultCrypto from '../../../../src/domain/utils/defaultCrypto.js';
+import defaultCrypto from '../../../../src/domain/utils/defaultCrypto.ts';
 import { signSyncRequest } from '../../../../src/domain/services/sync/SyncAuthService.js';
 
 const SECRET = 'test-secret';

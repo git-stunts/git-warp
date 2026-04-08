@@ -1,24 +1,17 @@
-/** @type {Map<string, RegExp>} Module-level cache for compiled glob regexes. */
-const globRegexCache = new Map();
+/** Module-level cache for compiled glob regexes. */
+const globRegexCache: Map<string, RegExp> = new Map();
 
 /**
  * Escapes special regex characters in a string so it can be used as a literal match.
- *
- * @param {string} value - The string to escape
- * @returns {string} The escaped string safe for use in a RegExp
- * @private
  */
-function escapeRegex(value) {
+function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
  * Returns a cached RegExp for the given glob pattern, compiling it if needed.
- *
- * @param {string} pattern - A glob pattern containing at least one `*`
- * @returns {RegExp} Compiled regex for the pattern
  */
-function getGlobRegex(pattern) {
+function getGlobRegex(pattern: string): RegExp {
   let regex = globRegexCache.get(pattern);
   if (!regex) {
     regex = new RegExp(`^${escapeRegex(pattern).replace(/\\\*/g, '.*')}$`);
@@ -41,12 +34,8 @@ function getGlobRegex(pattern) {
  * - Wildcard `*` anywhere in the pattern, matching zero or more characters
  * - Literal match when pattern contains no wildcards
  * - Array of patterns: returns true if ANY pattern matches (OR semantics)
- *
- * @param {string|string[]} pattern - The glob pattern(s) to match against
- * @param {string} str - The string to test
- * @returns {boolean} True if the string matches any of the patterns
  */
-export function matchGlob(pattern, str) {
+export function matchGlob(pattern: string | string[], str: string): boolean {
   if (Array.isArray(pattern)) {
     return pattern.some((p) => matchGlob(p, str));
   }

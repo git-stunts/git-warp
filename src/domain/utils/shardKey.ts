@@ -4,14 +4,11 @@ const encoder = new TextEncoder();
 
 /**
  * FNV-1a 32-bit over raw bytes (Uint8Array).
- *
- * @param {Uint8Array} bytes
- * @returns {number} Unsigned 32-bit hash
  */
-function fnv1aBytes(bytes) {
+function fnv1aBytes(bytes: Uint8Array): number {
   let hash = 0x811c9dc5;
   for (let i = 0; i < bytes.length; i++) {
-    hash ^= /** @type {number} */ (bytes[i]);
+    hash ^= bytes[i]!;
     hash = Math.imul(hash, 0x01000193);
   }
   return hash >>> 0;
@@ -24,11 +21,8 @@ function fnv1aBytes(bytes) {
  * For all other strings, computes FNV-1a hash over UTF-8 bytes and takes the low byte.
  *
  * Returns '00' for null, undefined, or non-string inputs (graceful fallback).
- *
- * @param {string} id - Node ID or SHA
- * @returns {string} 2-character lowercase hex shard key (e.g. 'ab', '0f')
  */
-export default function computeShardKey(id) {
+export default function computeShardKey(id: string): string {
   if (id === null || id === undefined || typeof id !== 'string') {
     return '00';
   }

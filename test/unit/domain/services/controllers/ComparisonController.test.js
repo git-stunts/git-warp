@@ -74,7 +74,7 @@ const { computeChecksumMock } = vi.hoisted(() => ({
   computeChecksumMock: vi.fn(async () => 'checksum-abc123'),
 }));
 
-vi.mock('../../../../../src/domain/utils/checksumUtils.js', () => ({
+vi.mock('../../../../../src/domain/utils/checksumUtils.ts', () => ({
   computeChecksum: computeChecksumMock,
 }));
 
@@ -82,7 +82,7 @@ const { callInternalRuntimeMethodMock } = vi.hoisted(() => ({
   callInternalRuntimeMethodMock: vi.fn(),
 }));
 
-vi.mock('../../../../../src/domain/utils/callInternalRuntimeMethod.js', () => ({
+vi.mock('../../../../../src/domain/utils/callInternalRuntimeMethod.ts', () => ({
   callInternalRuntimeMethod: callInternalRuntimeMethodMock,
 }));
 

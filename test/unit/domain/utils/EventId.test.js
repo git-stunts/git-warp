@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createEventId as _createEventId, compareEventIds, isGreater } from '../../../../src/domain/utils/EventId.js';
+import { createEventId as _createEventId, compareEventIds, isGreater } from '../../../../src/domain/utils/EventId.ts';
 
 /** @type {any} */
 const createEventId = _createEventId;
