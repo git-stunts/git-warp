@@ -47,7 +47,7 @@ function createEdgePropSetV2(from, to, label, propKey, value) {
 }
 
 /** @param {any} params */
-function createPatchV2({ writer, lamport, ops, context }) {
+function createPatch({ writer, lamport, ops, context }) {
   return {
     schema: 2,
     writer,
@@ -127,12 +127,12 @@ describe('JoinReducer — edge property LWW', () => {
   // =========================================================================
   describe('golden path — higher lamport wins', () => {
     it('writer B (lamport 2) beats writer A (lamport 1)', () => {
-      const patchA = createPatchV2({
+      const patchA = createPatch({
         writer: 'A',
         lamport: 1,
         ops: [createEdgePropSetV2('x', 'y', 'rel', 'weight', createInlineValue(10))],
       });
-      const patchB = createPatchV2({
+      const patchB = createPatch({
         writer: 'B',
         lamport: 2,
         ops: [createEdgePropSetV2('x', 'y', 'rel', 'weight', createInlineValue(42))],
@@ -147,12 +147,12 @@ describe('JoinReducer — edge property LWW', () => {
     });
 
     it('result is the same regardless of patch application order', () => {
-      const patchA = createPatchV2({
+      const patchA = createPatch({
         writer: 'A',
         lamport: 1,
         ops: [createEdgePropSetV2('x', 'y', 'rel', 'weight', createInlineValue(10))],
       });
-      const patchB = createPatchV2({
+      const patchB = createPatch({
         writer: 'B',
         lamport: 2,
         ops: [createEdgePropSetV2('x', 'y', 'rel', 'weight', createInlineValue(42))],
@@ -177,12 +177,12 @@ describe('JoinReducer — edge property LWW', () => {
   // =========================================================================
   describe('writerId tiebreak — same lamport', () => {
     it('writer B wins over writer A when lamport is equal', () => {
-      const patchA = createPatchV2({
+      const patchA = createPatch({
         writer: 'A',
         lamport: 5,
         ops: [createEdgePropSetV2('x', 'y', 'rel', 'weight', createInlineValue('from-A'))],
       });
-      const patchB = createPatchV2({
+      const patchB = createPatch({
         writer: 'B',
         lamport: 5,
         ops: [createEdgePropSetV2('x', 'y', 'rel', 'weight', createInlineValue('from-B'))],
@@ -207,12 +207,12 @@ describe('JoinReducer — edge property LWW', () => {
     });
 
     it('writer "zara" wins over writer "alice"', () => {
-      const patchAlice = createPatchV2({
+      const patchAlice = createPatch({
         writer: 'alice',
         lamport: 3,
         ops: [createEdgePropSetV2('n1', 'n2', 'link', 'color', createInlineValue('red'))],
       });
-      const patchZara = createPatchV2({
+      const patchZara = createPatch({
         writer: 'zara',
         lamport: 3,
         ops: [createEdgePropSetV2('n1', 'n2', 'link', 'color', createInlineValue('blue'))],
@@ -233,12 +233,12 @@ describe('JoinReducer — edge property LWW', () => {
   describe('patchSha tiebreak — same lamport and writerId', () => {
     it('higher SHA wins when lamport and writerId are equal', () => {
       // Same writer, same lamport, different SHAs
-      const patchLow = createPatchV2({
+      const patchLow = createPatch({
         writer: 'W',
         lamport: 7,
         ops: [createEdgePropSetV2('a', 'b', 'edge', 'k', createInlineValue('low-sha'))],
       });
-      const patchHigh = createPatchV2({
+      const patchHigh = createPatch({
         writer: 'W',
         lamport: 7,
         ops: [createEdgePropSetV2('a', 'b', 'edge', 'k', createInlineValue('high-sha'))],
@@ -270,7 +270,7 @@ describe('JoinReducer — edge property LWW', () => {
     it('later operation in the same patch wins for same edge prop key', () => {
       // Two PropSet ops on the same edge prop in one patch.
       // opIndex 1 > opIndex 0 so the second write wins.
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'W',
         lamport: 1,
         ops: [
@@ -292,7 +292,7 @@ describe('JoinReducer — edge property LWW', () => {
     it('all permutations of 4 patches yield identical state', () => {
       const patches = [
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'W1',
             lamport: 1,
             ops: [createEdgePropSetV2('x', 'y', 'rel', 'score', createInlineValue(100))],
@@ -300,7 +300,7 @@ describe('JoinReducer — edge property LWW', () => {
           sha: 'aaaa1111',
         },
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'W2',
             lamport: 3,
             ops: [createEdgePropSetV2('x', 'y', 'rel', 'score', createInlineValue(200))],
@@ -308,7 +308,7 @@ describe('JoinReducer — edge property LWW', () => {
           sha: 'bbbb2222',
         },
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'W3',
             lamport: 2,
             ops: [createEdgePropSetV2('x', 'y', 'rel', 'score', createInlineValue(300))],
@@ -316,7 +316,7 @@ describe('JoinReducer — edge property LWW', () => {
           sha: 'cccc3333',
         },
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'W4',
             lamport: 3,
             ops: [createEdgePropSetV2('x', 'y', 'rel', 'score', createInlineValue(400))],
@@ -355,7 +355,7 @@ describe('JoinReducer — edge property LWW', () => {
     it('10 random shuffles of 6 concurrent writers all converge', () => {
       const writers = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot'];
       const patches = writers.map((w, i) => ({
-        patch: createPatchV2({
+        patch: createPatch({
           writer: w,
           lamport: 5,
           ops: [createEdgePropSetV2('src', 'dst', 'link', 'tag', createInlineValue(w))],
@@ -396,7 +396,7 @@ describe('JoinReducer — edge property LWW', () => {
     it('edge prop and node prop on same logical key name do not collide', () => {
       // Node "x" has a prop "weight" AND edge x->y:rel has a prop "weight".
       // These must live in separate map keys.
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'W',
         lamport: 1,
         ops: [
@@ -418,7 +418,7 @@ describe('JoinReducer — edge property LWW', () => {
       // Writer B sets node prop at lamport 2 and edge prop at lamport 1
       // Node prop: B wins (higher lamport)
       // Edge prop: B wins (same lamport, 'B' > 'A')
-      const patchA = createPatchV2({
+      const patchA = createPatch({
         writer: 'A',
         lamport: 1,
         ops: [
@@ -426,7 +426,7 @@ describe('JoinReducer — edge property LWW', () => {
           createEdgePropSetV2('n', 'm', 'link', 'label', createInlineValue('A-edge')),
         ],
       });
-      const patchB = createPatchV2({
+      const patchB = createPatch({
         writer: 'B',
         lamport: 2,
         ops: [
@@ -434,7 +434,7 @@ describe('JoinReducer — edge property LWW', () => {
         ],
       });
       // A separate patch from C that only touches edge prop at lamport 1
-      const patchC = createPatchV2({
+      const patchC = createPatch({
         writer: 'C',
         lamport: 1,
         ops: [
@@ -457,7 +457,7 @@ describe('JoinReducer — edge property LWW', () => {
     });
 
     it('multiple edge properties on same edge resolve independently', () => {
-      const patchA = createPatchV2({
+      const patchA = createPatch({
         writer: 'A',
         lamport: 2,
         ops: [
@@ -465,7 +465,7 @@ describe('JoinReducer — edge property LWW', () => {
           createEdgePropSetV2('u', 'v', 'rel', 'weight', createInlineValue(10)),
         ],
       });
-      const patchB = createPatchV2({
+      const patchB = createPatch({
         writer: 'B',
         lamport: 1,
         ops: [
@@ -486,7 +486,7 @@ describe('JoinReducer — edge property LWW', () => {
 
     it('different edges have independent property namespaces', () => {
       // Edge x->y:follows and edge y->z:follows both have a "since" prop
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'W',
         lamport: 1,
         ops: [
@@ -506,7 +506,7 @@ describe('JoinReducer — edge property LWW', () => {
     });
 
     it('same endpoints with different labels have independent properties', () => {
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'W',
         lamport: 1,
         ops: [
@@ -529,17 +529,17 @@ describe('JoinReducer — edge property LWW', () => {
   // =========================================================================
   describe('same writer overwrites edge prop across multiple patches', () => {
     it('latest lamport from same writer wins', () => {
-      const patch1 = createPatchV2({
+      const patch1 = createPatch({
         writer: 'W',
         lamport: 1,
         ops: [createEdgePropSetV2('a', 'b', 'rel', 'status', createInlineValue('draft'))],
       });
-      const patch2 = createPatchV2({
+      const patch2 = createPatch({
         writer: 'W',
         lamport: 2,
         ops: [createEdgePropSetV2('a', 'b', 'rel', 'status', createInlineValue('review'))],
       });
-      const patch3 = createPatchV2({
+      const patch3 = createPatch({
         writer: 'W',
         lamport: 3,
         ops: [createEdgePropSetV2('a', 'b', 'rel', 'status', createInlineValue('published'))],
@@ -558,7 +558,7 @@ describe('JoinReducer — edge property LWW', () => {
     });
 
     it('multiple overwrites within a single patch — last op wins via opIndex', () => {
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'W',
         lamport: 1,
         ops: [
@@ -639,7 +639,7 @@ describe('JoinReducer — edge property LWW', () => {
     it('edge property persists in prop map even after edge is removed', () => {
       // This matches the design: prop map is independent of edge liveness
       // (same as node props surviving node removal).
-      const patchAdd = createPatchV2({
+      const patchAdd = createPatch({
         writer: 'W',
         lamport: 1,
         ops: [
@@ -647,7 +647,7 @@ describe('JoinReducer — edge property LWW', () => {
           createEdgePropSetV2('a', 'b', 'rel', 'weight', createInlineValue(42)),
         ],
       });
-      const patchRemove = createPatchV2({
+      const patchRemove = createPatch({
         writer: 'W',
         lamport: 2,
         ops: [
@@ -669,7 +669,7 @@ describe('JoinReducer — edge property LWW', () => {
     });
 
     it('setting edge prop does not create the edge in OR-Set', () => {
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'W',
         lamport: 1,
         ops: [
@@ -738,7 +738,7 @@ describe('JoinReducer — edge property LWW', () => {
   // =========================================================================
   describe('edge props with various value types', () => {
     it('supports object values in edge props', () => {
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'W',
         lamport: 1,
         ops: [
@@ -760,7 +760,7 @@ describe('JoinReducer — edge property LWW', () => {
     });
 
     it('supports null values', () => {
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'W',
         lamport: 1,
         ops: [createEdgePropSetV2('a', 'b', 'rel', 'optional', createInlineValue(null))],
@@ -772,7 +772,7 @@ describe('JoinReducer — edge property LWW', () => {
     });
 
     it('supports boolean values', () => {
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'W',
         lamport: 1,
         ops: [createEdgePropSetV2('a', 'b', 'rel', 'active', createInlineValue(true))],

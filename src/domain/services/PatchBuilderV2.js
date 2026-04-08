@@ -20,7 +20,7 @@ import EdgeAdd from '../types/ops/EdgeAdd.ts';
 import EdgeRemove from '../types/ops/EdgeRemove.ts';
 import NodePropSet from '../types/ops/NodePropSet.ts';
 import EdgePropSet from '../types/ops/EdgePropSet.ts';
-import PatchV2 from '../types/PatchV2.ts';
+import Patch from '../types/Patch.ts';
 import {
   encodeEdgeKey,
   FIELD_SEPARATOR,
@@ -162,7 +162,7 @@ export class PatchBuilderV2 {
   /**
    * Creates a new PatchBuilderV2.
    *
-   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/PatchV2.ts').default, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal?: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/Patch.ts').default, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal?: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} options
    */
   constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, targetRefPath, onCommitSuccess = null, onDeleteWithData = 'warn', patchJournal, logger, blobStorage }) {
     /** @type {import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default} */
@@ -200,7 +200,7 @@ export class PatchBuilderV2 {
     /** @type {string|null} */
     this._expectedParentSha = expectedParentSha;
 
-    /** @type {((result: {patch: import('../types/PatchV2.ts').default, sha: string}) => void | Promise<void>)|null} */
+    /** @type {((result: {patch: import('../types/Patch.ts').default, sha: string}) => void | Promise<void>)|null} */
     this._onCommitSuccess = onCommitSuccess;
 
     /** @type {import('../types/ops/unions.ts').OpV2[]} */
@@ -838,7 +838,7 @@ export class PatchBuilderV2 {
   }
 
   /**
-   * Builds the PatchV2 object without committing.
+   * Builds the Patch object without committing.
    *
    * This method constructs the patch structure from all queued operations.
    * The patch includes the schema version (2 or 3 depending on whether edge
@@ -848,7 +848,7 @@ export class PatchBuilderV2 {
    * Note: This method is primarily for testing and inspection. For normal
    * usage, prefer `commit()` which builds and persists the patch atomically.
    *
-   * @returns {import('../types/PatchV2.ts').default} The constructed patch object containing:
+   * @returns {import('../types/Patch.ts').default} The constructed patch object containing:
    *   - `schema`: Version number (2 for node/edge ops, 3 if edge properties present)
    *   - `writer`: Writer ID string
    *   - `lamport`: Lamport timestamp for ordering
@@ -859,7 +859,7 @@ export class PatchBuilderV2 {
     const schema = this._hasEdgeProps ? 3 : 2;
     // Lower canonical ops to raw form for the persisted patch
     const rawOps = /** @type {import('../types/ops/unions.ts').RawOpV2[]} */ (this._ops.map(lowerCanonicalOp));
-    return new PatchV2({
+    return new Patch({
       schema,
       writer: this._writerId,
       lamport: this._lamport,
@@ -878,7 +878,7 @@ export class PatchBuilderV2 {
    * 2. Validates the patch is non-empty
    * 3. Checks for concurrent modifications (compare-and-swap on writer ref)
    * 4. Calculates the next lamport timestamp from the parent commit
-   * 5. Builds the PatchV2 structure with the resolved lamport
+   * 5. Builds the Patch structure with the resolved lamport
    * 6. Encodes the patch as CBOR and writes it as a Git blob
    * 7. Creates a Git tree containing the patch blob
    * 8. Creates a commit with proper trailers linking to the parent
@@ -975,14 +975,14 @@ export class PatchBuilderV2 {
         // (already incorporates _maxObservedLamport), matching _nextLamport() behavior.
       }
 
-      // 5. Build PatchV2 structure with correct lamport
+      // 5. Build Patch structure with correct lamport
       // Note: Dots were assigned using constructor lamport, but commit lamport may differ.
       // For now, we use the calculated lamport for the patch metadata.
       // The dots themselves are independent of patch lamport (they use VV counters).
       const schema = this._hasEdgeProps ? 3 : 2;
       // Lower canonical ops to raw form for the persisted patch
       const rawOps = /** @type {import('../types/ops/unions.ts').RawOpV2[]} */ (this._ops.map(lowerCanonicalOp));
-      const patch = new PatchV2({
+      const patch = new Patch({
         schema,
         writer: this._writerId,
         lamport,

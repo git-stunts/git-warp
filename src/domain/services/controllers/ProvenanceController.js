@@ -13,7 +13,7 @@ import { ProvenancePayload } from '../provenance/ProvenancePayload.js';
 import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';
 
 /** @import { WarpStateV5 } from '../JoinReducer.js' */
-/** @import { default as PatchV2 } from '../../types/PatchV2.ts' */
+/** @import { default as Patch } from '../../types/Patch.ts' */
 
 /**
  * The host interface that ProvenanceController depends on.
@@ -131,7 +131,7 @@ export default class ProvenanceController {
    * Computes the backward causal cone for a node via BFS over the provenance index.
    *
    * @param {string} nodeId
-   * @returns {Promise<Map<string, PatchV2>>}
+   * @returns {Promise<Map<string, Patch>>}
    */
   async _computeBackwardCone(nodeId) {
     const host = this._host;
@@ -140,7 +140,7 @@ export default class ProvenanceController {
         code: 'E_NO_STATE',
       });
     }
-    /** @type {Map<string, PatchV2>} */
+    /** @type {Map<string, Patch>} */
     const cone = new Map();
     /** @type {Set<string>} */
     const visited = new Set();
@@ -180,7 +180,7 @@ export default class ProvenanceController {
    * Loads a single patch by its SHA (public API for CLI/debug tooling).
    *
    * @param {string} sha
-   * @returns {Promise<PatchV2>}
+   * @returns {Promise<Patch>}
    */
   async loadPatchBySha(sha) {
     return await this._loadPatchBySha(sha);
@@ -190,7 +190,7 @@ export default class ProvenanceController {
    * Loads a single patch by its SHA.
    *
    * @param {string} sha
-   * @returns {Promise<PatchV2>}
+   * @returns {Promise<Patch>}
    */
   async _loadPatchBySha(sha) {
     const host = this._host;
@@ -203,14 +203,14 @@ export default class ProvenanceController {
 
     const patchMeta = decodePatchMessage(nodeInfo.message);
     const patchBuffer = await host._readPatchBlob(patchMeta);
-    return /** @type {PatchV2} */ (host._codec.decode(patchBuffer));
+    return /** @type {Patch} */ (host._codec.decode(patchBuffer));
   }
 
   /**
    * Loads multiple patches by their SHAs.
    *
    * @param {string[]} shas
-   * @returns {Promise<Array<{patch: PatchV2, sha: string}>>}
+   * @returns {Promise<Array<{patch: Patch, sha: string}>>}
    */
   async _loadPatchesBySha(shas) {
     const entries = [];
@@ -224,8 +224,8 @@ export default class ProvenanceController {
   /**
    * Sorts patches in causal order for deterministic replay.
    *
-   * @param {Array<{patch: PatchV2, sha: string}>} patches
-   * @returns {Array<{patch: PatchV2, sha: string}>}
+   * @param {Array<{patch: Patch, sha: string}>} patches
+   * @returns {Array<{patch: Patch, sha: string}>}
    */
   _sortPatchesCausally(patches) {
     return [...patches].sort((a, b) => {

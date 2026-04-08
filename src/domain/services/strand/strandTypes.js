@@ -8,7 +8,7 @@
  * @module domain/services/strand/strandTypes
  */
 
-/** @import { default as PatchV2 } from '../../types/PatchV2.ts' */
+/** @import { default as Patch } from '../../types/Patch.ts' */
 /** @import { parseStrandBlob as parseStrandBlobFn } from '../../utils/parseStrandBlob.ts' */
 
 /**
@@ -29,7 +29,7 @@
  * @typedef {{
  *   intentId: string,
  *   enqueuedAt: string,
- *   patch: PatchV2,
+ *   patch: Patch,
  *   reads: string[],
  *   writes: string[],
  *   contentBlobOids: string[]

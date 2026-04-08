@@ -7,7 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { Dot } from '../../../../../src/domain/crdt/Dot.js';
-import PatchV2 from '../../../../../src/domain/types/PatchV2.ts';
+import Patch from '../../../../../src/domain/types/Patch.ts';
 import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
 import NodeRemove from '../../../../../src/domain/types/ops/NodeRemove.ts';
 import EdgeAdd from '../../../../../src/domain/types/ops/EdgeAdd.ts';
@@ -115,7 +115,7 @@ describe('Op class instances through JoinReducer', () => {
   describe('applyFast with class instances', () => {
     it('applies a patch of class-instance ops', () => {
       const state = createEmptyStateV5();
-      const patch = new PatchV2({
+      const patch = new Patch({
         writer: 'alice',
         lamport: 1,
         context: VersionVector.empty(),
@@ -139,7 +139,7 @@ describe('Op class instances through JoinReducer', () => {
   describe('applyWithReceipt with class instances', () => {
     it('produces a receipt from class-instance ops', () => {
       const state = createEmptyStateV5();
-      const patch = new PatchV2({
+      const patch = new Patch({
         writer: 'alice',
         lamport: 1,
         context: VersionVector.empty(),
@@ -163,7 +163,7 @@ describe('Op class instances through JoinReducer', () => {
   describe('applyWithDiff with class instances', () => {
     it('produces a diff from class-instance ops', () => {
       const state = createEmptyStateV5();
-      const patch = new PatchV2({
+      const patch = new Patch({
         writer: 'alice',
         lamport: 1,
         context: VersionVector.empty(),

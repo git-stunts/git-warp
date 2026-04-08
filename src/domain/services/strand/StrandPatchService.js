@@ -8,11 +8,11 @@ import {
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
 /** @import VersionVector from '../../crdt/VersionVector.js' */
-/** @import { default as PatchV2 } from '../../types/PatchV2.ts' */
+/** @import { default as Patch } from '../../types/Patch.ts' */
 /** @import { TickReceipt } from '../../types/TickReceipt.ts' */
 /** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */
 /**
- * @typedef {{ patch: PatchV2, sha: string }} CommittedPatchResult
+ * @typedef {{ patch: Patch, sha: string }} CommittedPatchResult
  */
 /**
  * @typedef {(result: CommittedPatchResult) => Promise<void>} PatchCommitSuccessHandler
@@ -42,7 +42,7 @@ export default class StrandPatchService {
    *   ) => Promise<{
    *     state: import('../JoinReducer.js').WarpStateV5,
    *     receipts?: TickReceipt[],
-   *     allPatches: Array<{ patch: PatchV2, sha: string }>
+   *     allPatches: Array<{ patch: Patch, sha: string }>
    *   }>,
    *   writeDescriptor: (descriptor: StrandDescriptor) => Promise<void>,
    *   buildOverlayRef: (strandId: string) => string,
@@ -111,7 +111,7 @@ export default class StrandPatchService {
    * @returns {Promise<{
    *   intentId: string,
    *   enqueuedAt: string,
-   *   patch: PatchV2,
+   *   patch: Patch,
    *   reads: string[],
    *   writes: string[],
    *   contentBlobOids: string[]
@@ -133,7 +133,7 @@ export default class StrandPatchService {
    * Update the strand descriptor and graph caches after a successful overlay commit.
    *
    * @param {StrandDescriptor} descriptor
-   * @param {{ patch: PatchV2, sha: string }} result
+   * @param {{ patch: Patch, sha: string }} result
    * @returns {Promise<void>}
    */
   async syncOverlayDescriptor(descriptor, { patch, sha }) {
@@ -166,11 +166,11 @@ export default class StrandPatchService {
    *   strandId: string,
    *   overlayId: string,
    *   parentSha: string|null,
-   *   patch: PatchV2,
+   *   patch: Patch,
    *   contentBlobOids: string[],
    *   lamport: number
    * }} params
-   * @returns {Promise<{ sha: string, patch: PatchV2 }>}
+   * @returns {Promise<{ sha: string, patch: Patch }>}
    */
   async commitQueuedPatch({ strandId, overlayId, parentSha, patch, contentBlobOids, lamport }) {
     const committedPatch = {
@@ -274,7 +274,7 @@ export default class StrandPatchService {
    * @private
    * @param {StrandDescriptor} descriptor
    * @param {import('../JoinReducer.js').WarpStateV5} state
-   * @param {Array<{ patch: PatchV2, sha: string }>} allPatches
+   * @param {Array<{ patch: Patch, sha: string }>} allPatches
    * @returns {PatchBuilderV2}
    */
   _buildQueuedIntentBuilder(descriptor, state, allPatches) {
@@ -302,7 +302,7 @@ export default class StrandPatchService {
    * @returns {{
    *   intentId: string,
    *   enqueuedAt: string,
-   *   patch: PatchV2,
+   *   patch: Patch,
    *   reads: string[],
    *   writes: string[],
    *   contentBlobOids: string[]
@@ -329,7 +329,7 @@ export default class StrandPatchService {
    * Persist one committed patch payload using the patch journal or legacy blob fallback.
    *
    * @private
-   * @param {PatchV2} committedPatch
+   * @param {Patch} committedPatch
    * @param {string} overlayId
    * @returns {Promise<string>}
    */
@@ -414,7 +414,7 @@ export default class StrandPatchService {
    * @private
    * @param {StrandDescriptor} descriptor
    * @param {import('../JoinReducer.js').WarpStateV5} state
-   * @param {Array<{ patch: PatchV2, sha: string }>} allPatches
+   * @param {Array<{ patch: Patch, sha: string }>} allPatches
    * @returns {ConstructorParameters<typeof PatchBuilderV2>[0]}
    */
   _buildOverlayPatchBuilderOptions(descriptor, state, allPatches) {

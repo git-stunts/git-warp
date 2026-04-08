@@ -7,7 +7,7 @@ import {
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
 /** @import { PatchBuilderV2 } from '../PatchBuilderV2.js' */
-/** @import { default as PatchV2 } from '../../types/PatchV2.ts' */
+/** @import { default as Patch } from '../../types/Patch.ts' */
 /** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */
 /** @typedef {import('./strandTypes.js').StrandIntentQueue} StrandIntentQueue */
 /** @typedef {import('./strandTypes.js').StrandQueuedIntent} StrandQueuedIntent */
@@ -25,7 +25,7 @@ import {
  * @typedef {{
  *   intentId: string,
  *   enqueuedAt: string,
- *   patch: PatchV2,
+ *   patch: Patch,
  *   reads: string[],
  *   writes: string[],
  *   contentBlobOids: string[],
@@ -73,14 +73,14 @@ export default class StrandIntentService {
    *     strandId: string,
    *     overlayId: string,
    *     parentSha: string|null,
-   *     patch: PatchV2,
+   *     patch: Patch,
    *     contentBlobOids: string[],
    *     lamport: number
-   *   }) => Promise<{ sha: string, patch: PatchV2 }>,
+   *   }) => Promise<{ sha: string, patch: Patch }>,
    *   collectPatchEntries: (
    *     descriptor: StrandDescriptor,
    *     options: { ceiling: number|null }
-   *   ) => Promise<Array<{ patch: PatchV2, sha: string }>>,
+   *   ) => Promise<Array<{ patch: Patch, sha: string }>>,
    *   buildTickId: (strandId: string, sequence: number) => string,
  * }} options
  */

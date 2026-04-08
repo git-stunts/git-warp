@@ -470,13 +470,13 @@ export function createPropSetV2(node, key, value) {
  * @returns {any} Complete V2 patch object
  *
  * @example
- * createPatchV2({
+ * createPatch({
  *   writer: 'alice',
  *   lamport: 1,
  *   ops: [createNodeAddV2('user:alice', createDot('alice', 1))],
  * })
  */
-export function createPatchV2({ writer, lamport, ops, context }) {
+export function createPatch({ writer, lamport, ops, context }) {
   return {
     schema: 2,
     writer,
@@ -499,7 +499,7 @@ export function createPatchV2({ writer, lamport, ops, context }) {
 export function createSamplePatches() {
   return {
     patchA: {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'A',
         lamport: 1,
         ops: [createNodeAddV2('node-a', createDot('A', 1))],
@@ -507,7 +507,7 @@ export function createSamplePatches() {
       sha: generateOidFromNumber(0xaaaa1111),
     },
     patchB: {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'B',
         lamport: 2,
         ops: [createNodeAddV2('node-b', createDot('B', 1))],
@@ -515,7 +515,7 @@ export function createSamplePatches() {
       sha: generateOidFromNumber(0xbbbb2222),
     },
     patchC: {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'C',
         lamport: 3,
         ops: [

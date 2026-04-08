@@ -125,13 +125,13 @@ import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCrypt
 import { migrateV4toV5 } from '../../../../src/domain/services/MigrationService.js';
 
 // v2 patch/op types — direct class imports after WarpTypesV2.ts deletion
-import PatchV2 from '../../../../src/domain/types/PatchV2.ts';
+import Patch from '../../../../src/domain/types/Patch.ts';
 import NodeAddClass from '../../../../src/domain/types/ops/NodeAdd.ts';
 import EdgeAddClass from '../../../../src/domain/types/ops/EdgeAdd.ts';
 import PropSetClass from '../../../../src/domain/types/ops/PropSet.ts';
 
 /** @param {Record<string, unknown>} opts */
-function createPatchV2(opts) { return new PatchV2(/** @type {any} */ (opts)); }
+function createPatch(opts) { return new Patch(/** @type {any} */ (opts)); }
 /** @param {string} node @param {any} dot */
 function createNodeAddV2(node, dot) { return new NodeAddClass(node, dot); }
 /** @param {string} from @param {string} to @param {string} label @param {any} dot */
@@ -153,8 +153,7 @@ function createInlineValue(value) { return { type: 'inline', value }; }
 
 /**
  * Creates a PatchV1 (schema:1) for migration testing.
- * NOTE: This is a test-only helper. Schema:1 is deprecated and
- * createPatch is no longer exported from WarpTypes.js.
+ * NOTE: This is a test-only helper. Schema:1 is deprecated.
  * @param {Object} options - Patch options
  * @param {string} options.writer - Writer ID
  * @param {number} options.lamport - Lamport timestamp
@@ -162,7 +161,7 @@ function createInlineValue(value) { return { type: 'inline', value }; }
  * @param {string} [options.baseCheckpoint] - Optional base checkpoint OID
  * @returns {any} PatchV1 object
  */
-function createPatch({ writer, lamport, ops, baseCheckpoint }) {
+function createPatchV1({ writer, lamport, ops, baseCheckpoint }) {
   /** @type {any} */
   const patch = {
     schema: 1,
@@ -262,7 +261,7 @@ function generatePatches(n, options = {}) {
       }
     }
 
-    const patch = createPatchV2({
+    const patch = createPatch({
       writer,
       lamport,
       context: /** @type {any} */ (createVersionVector()),
@@ -307,7 +306,7 @@ function generateV2Patches(n) {
     }
 
     patches.push({
-      patch: createPatchV2({
+      patch: createPatch({
         writer,
         lamport,
         context: /** @type {any} */ (createVersionVector()),
@@ -381,7 +380,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
 
   it('produces identical state for 3 patches in all 6 permutations', async () => {
     const patchA = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'A',
         lamport: 1,
         context: /** @type {any} */ (createVersionVector()),
@@ -391,7 +390,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
     };
 
     const patchB = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'B',
         lamport: 2,
         context: /** @type {any} */ (createVersionVector()),
@@ -401,7 +400,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
     };
 
     const patchC = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'C',
         lamport: 3,
         context: /** @type {any} */ (createVersionVector()),
@@ -450,7 +449,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
     // Build v4 graph with adds/removes
     const v4Patches = [
       {
-        patch: createPatch({
+        patch: createPatchV1({
           writer: 'alice',
           lamport: 1,
           ops: [
@@ -461,7 +460,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
         sha: 'aaaa1111',
       },
       {
-        patch: createPatch({
+        patch: createPatchV1({
           writer: 'bob',
           lamport: 2,
           ops: [
@@ -473,7 +472,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
         sha: 'bbbb2222',
       },
       {
-        patch: createPatch({
+        patch: createPatchV1({
           writer: 'alice',
           lamport: 3,
           ops: [
@@ -505,7 +504,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
     // Add v5 patches and verify order-independence
     const v5Patches = [
       {
-        patch: createPatchV2({
+        patch: createPatch({
           writer: 'charlie',
           lamport: 10,
           context: /** @type {any} */ (createVersionVector()),
@@ -517,7 +516,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
         sha: 'dddd4444',
       },
       {
-        patch: createPatchV2({
+        patch: createPatch({
           writer: 'charlie',
           lamport: 11,
           context: /** @type {any} */ (createVersionVector()),
@@ -538,7 +537,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
   it('migration preserves props for visible nodes only', () => {
     const v4Patches = [
       {
-        patch: createPatch({
+        patch: createPatchV1({
           writer: 'W',
           lamport: 1,
           ops: [
@@ -551,7 +550,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
         sha: 'aaaa1111',
       },
       {
-        patch: createPatch({
+        patch: createPatchV1({
           writer: 'W',
           lamport: 2,
           ops: [createNodeTombstone('deleted')],
@@ -576,7 +575,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
   it('complex migration: add-remove-add cycle preserves final state', () => {
     const v4Patches = [
       {
-        patch: createPatch({
+        patch: createPatchV1({
           writer: 'W',
           lamport: 1,
           ops: [createNodeAdd('cycle-node')],
@@ -584,7 +583,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
         sha: 'aaa11111',
       },
       {
-        patch: createPatch({
+        patch: createPatchV1({
           writer: 'W',
           lamport: 2,
           ops: [createNodeTombstone('cycle-node')],
@@ -592,7 +591,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
         sha: 'aaa22222',
       },
       {
-        patch: createPatch({
+        patch: createPatchV1({
           writer: 'W',
           lamport: 3,
           ops: [
@@ -624,7 +623,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
   it('concurrent add + remove with empty observedDots => add wins', async () => {
     // Writer A: add node X with dot a1
     const patchA = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'A',
         lamport: 1,
         context: /** @type {any} */ (createVersionVector()),
@@ -635,7 +634,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
 
     // Writer B: remove node X with observedDots = [] (B didn't see A's add)
     const patchB = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'B',
         lamport: 1,
         context: /** @type {any} */ (createVersionVector()),
@@ -659,7 +658,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
   it('remove only removes observed dots - concurrent add survives', () => {
     // Writer A adds node X with dot A:1
     const patchA = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'A',
         lamport: 1,
         context: /** @type {any} */ (createVersionVector()),
@@ -670,7 +669,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
 
     // Writer B adds node X with dot B:1 (concurrent)
     const patchB = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'B',
         lamport: 1,
         context: /** @type {any} */ (createVersionVector()),
@@ -681,7 +680,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
 
     // Writer C removes X, but only observed A's dot
     const patchC = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'C',
         lamport: 2,
         context: /** @type {any} */ (createVersionVector()),
@@ -714,7 +713,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
   it('full remove succeeds when all dots are observed', () => {
     // Writer A adds node X with dot A:1
     const patchA = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'A',
         lamport: 1,
         context: /** @type {any} */ (createVersionVector()),
@@ -725,7 +724,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
 
     // Writer B observes A's add and removes X
     const patchB = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'B',
         lamport: 2,
         context: /** @type {any} */ (createVersionVector()),
@@ -744,7 +743,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
     // Create nodes first
     const nodePatches = [
       {
-        patch: createPatchV2({
+        patch: createPatch({
           writer: 'setup',
           lamport: 1,
           context: /** @type {any} */ (createVersionVector()),
@@ -759,7 +758,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
 
     // Writer A adds edge with dot A:1
     const patchA = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'A',
         lamport: 10,
         context: /** @type {any} */ (createVersionVector()),
@@ -770,7 +769,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
 
     // Writer B removes edge but didn't observe A's add
     const patchB = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'B',
         lamport: 10,
         context: /** @type {any} */ (createVersionVector()),
@@ -815,7 +814,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
   it('compaction removes only tombstoned dots within VV', () => {
     // Create state with known structure
     const patchA = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'A',
         lamport: 1,
         context: /** @type {any} */ (createVersionVector()),
@@ -825,7 +824,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     };
 
     const patchB = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'A',
         lamport: 2,
         context: /** @type {any} */ (createVersionVector()),
@@ -854,7 +853,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
   it('compaction preserves live dots even when <= VV', () => {
     // Add a node, don't remove it
     const patch = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'A',
         lamport: 1,
         context: /** @type {any} */ (createVersionVector()),
@@ -915,7 +914,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     // Create initial state S with some baseline data
     const basePatches = [
       {
-        patch: createPatchV2({
+        patch: createPatch({
           writer: 'base',
           lamport: 1,
           context: /** @type {any} */ (createVersionVector()),
@@ -938,7 +937,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
 
     // Patch P1 - applied to S1
     const patchP1 = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'alice',
         lamport: 10,
         context: /** @type {any} */ (createVersionVector()),
@@ -953,7 +952,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
 
     // Patch P2 - applied to S2
     const patchP2 = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'bob',
         lamport: 10,
         context: /** @type {any} */ (createVersionVector()),
@@ -1000,7 +999,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     // State S - common ancestor
     const basePatches = [
       {
-        patch: createPatchV2({
+        patch: createPatch({
           writer: 'base',
           lamport: 1,
           context: /** @type {any} */ (createVersionVector()),
@@ -1019,7 +1018,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
 
     // P1 and P2 both modify the same property (conflict scenario)
     const patchP1 = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'alice',
         lamport: 5,
         context: /** @type {any} */ (createVersionVector()),
@@ -1029,7 +1028,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     };
 
     const patchP2 = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'bob',
         lamport: 7, // Higher lamport - Bob wins
         context: /** @type {any} */ (createVersionVector()),
@@ -1057,7 +1056,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     // State S with a node that will be concurrently modified
     const basePatches = [
       {
-        patch: createPatchV2({
+        patch: createPatch({
           writer: 'base',
           lamport: 1,
           context: /** @type {any} */ (createVersionVector()),
@@ -1073,7 +1072,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
 
     // P1: Alice removes the contested node (observed the base dot)
     const patchP1 = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'alice',
         lamport: 10,
         context: /** @type {any} */ (createVersionVector()),
@@ -1084,7 +1083,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
 
     // P2: Bob adds more data to the contested node (concurrent add)
     const patchP2 = {
-      patch: createPatchV2({
+      patch: createPatch({
         writer: 'bob',
         lamport: 10,
         context: /** @type {any} */ (createVersionVector()),
@@ -1200,7 +1199,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
       }
 
       patches.push({
-        patch: createPatchV2({
+        patch: createPatch({
           writer,
           lamport,
           context: /** @type {any} */ (createVersionVector()),
@@ -1256,7 +1255,7 @@ describe('Additional WARP v5 Integration Tests', () => {
   describe('Props with LWW semantics', () => {
     it('concurrent prop sets resolve by EventId (lamport, writer, sha, index)', async () => {
       const patchA = {
-        patch: createPatchV2({
+        patch: createPatch({
           writer: 'A',
           lamport: 1,
           context: /** @type {any} */ (createVersionVector()),
@@ -1269,7 +1268,7 @@ describe('Additional WARP v5 Integration Tests', () => {
       };
 
       const patchB = {
-        patch: createPatchV2({
+        patch: createPatch({
           writer: 'B',
           lamport: 2, // Higher lamport wins
           context: /** @type {any} */ (createVersionVector()),
@@ -1293,7 +1292,7 @@ describe('Additional WARP v5 Integration Tests', () => {
 
     it('same lamport: writer ID is tiebreaker', () => {
       const patchA = {
-        patch: createPatchV2({
+        patch: createPatch({
           writer: 'A',
           lamport: 5,
           context: /** @type {any} */ (createVersionVector()),
@@ -1306,7 +1305,7 @@ describe('Additional WARP v5 Integration Tests', () => {
       };
 
       const patchB = {
-        patch: createPatchV2({
+        patch: createPatch({
           writer: 'B',
           lamport: 5, // Same lamport
           context: /** @type {any} */ (createVersionVector()),
@@ -1327,7 +1326,7 @@ describe('Additional WARP v5 Integration Tests', () => {
     it('edge becomes invisible when endpoint is removed', () => {
       const patches = [
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'W',
             lamport: 1,
             context: /** @type {any} */ (createVersionVector()),
@@ -1340,7 +1339,7 @@ describe('Additional WARP v5 Integration Tests', () => {
           sha: 'aaa11111',
         },
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'W',
             lamport: 2,
             context: /** @type {any} */ (createVersionVector()),
@@ -1377,7 +1376,7 @@ describe('Additional WARP v5 Integration Tests', () => {
 
       const patches = [
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'A',
             lamport: 1,
             context: /** @type {any} */ (ctx1),
@@ -1386,7 +1385,7 @@ describe('Additional WARP v5 Integration Tests', () => {
           sha: 'aaaa1111',
         },
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'B',
             lamport: 2,
             context: /** @type {any} */ (ctx2),

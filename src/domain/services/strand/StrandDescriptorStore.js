@@ -628,11 +628,11 @@ export default class StrandDescriptorStore {
    *
    * @private
    * @param {Record<string, unknown>} candidate
-   * @returns {{ patch: import('../../types/PatchV2.ts').default, intentId: string, enqueuedAt: string }|null}
+   * @returns {{ patch: import('../../types/Patch.ts').default, intentId: string, enqueuedAt: string }|null}
    */
   _resolveQueuedIntentIdentity(candidate) {
     const { patch: rawPatch } = candidate;
-    const patch = /** @type {import('../../types/PatchV2.ts').default|undefined} */ (rawPatch);
+    const patch = /** @type {import('../../types/Patch.ts').default|undefined} */ (rawPatch);
     const intentId = normalizeRequiredString(candidate, 'intentId', 'intentId');
     const enqueuedAt = normalizeRequiredString(candidate, 'enqueuedAt', 'enqueuedAt');
     if (patch === undefined || intentId.length === 0 || enqueuedAt.length === 0) {

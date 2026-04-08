@@ -1,5 +1,5 @@
 /**
- * Tests that WarpTypesV2 factory functions produce Op class instances
+ * Tests that Op class constructor produce Op class instances
  * and that OpNormalizer returns class instances.
  */
 import { describe, it, expect } from 'vitest';
@@ -28,7 +28,7 @@ function createNodePropSetV2(node, key, value) { return new NodePropSet(node, ke
 function createEdgePropSetV2(from, to, label, key, value) { return new EdgePropSet({ from, to, label, key, value }); }
 import { normalizeRawOp, lowerCanonicalOp } from '../../../../../src/domain/services/OpNormalizer.js';
 
-describe('WarpTypesV2 factory functions produce Op class instances', () => {
+describe('Op class constructor produce Op class instances', () => {
   it('createNodeAddV2 returns a NodeAdd instance', () => {
     const dot = new Dot('alice', 1);
     const op = createNodeAddV2('user:alice', dot);

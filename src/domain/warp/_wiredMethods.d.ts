@@ -8,7 +8,7 @@
 import type { PatchBuilderV2 } from '../services/PatchBuilderV2.js';
 import type { Writer } from './Writer.js';
 import type { WarpStateV5 } from '../services/JoinReducer.js';
-import type PatchV2 from '../types/PatchV2.js';
+import type Patch from '../types/Patch.js';
 import type { StateDiffResult } from '../services/StateDiff.js';
 import type { TickReceipt } from '../types/TickReceipt.js';
 
@@ -297,7 +297,7 @@ interface StrandReadOverlayDescriptor {
 interface StrandIntentDescriptor {
   intentId: string;
   enqueuedAt: string;
-  patch: PatchV2;
+  patch: Patch;
   reads: string[];
   writes: string[];
   contentBlobOids: string[];
@@ -575,11 +575,11 @@ declare module '../WarpRuntime.js' {
     // ── provenance.methods.js ─────────────────────────────────────────────
     patchesFor(entityId: string): Promise<string[]>;
     materializeSlice(nodeId: string, options?: { receipts?: boolean }): Promise<{ state: WarpStateV5; patchCount: number; receipts?: TickReceipt[] }>;
-    _computeBackwardCone(nodeId: string): Promise<Map<string, PatchV2>>;
-    loadPatchBySha(sha: string): Promise<PatchV2>;
-    _loadPatchBySha(sha: string): Promise<PatchV2>;
-    _loadPatchesBySha(shas: string[]): Promise<Array<{ patch: PatchV2; sha: string }>>;
-    _sortPatchesCausally(patches: Array<{ patch: PatchV2; sha: string }>): Array<{ patch: PatchV2; sha: string }>;
+    _computeBackwardCone(nodeId: string): Promise<Map<string, Patch>>;
+    loadPatchBySha(sha: string): Promise<Patch>;
+    _loadPatchBySha(sha: string): Promise<Patch>;
+    _loadPatchesBySha(shas: string[]): Promise<Array<{ patch: Patch; sha: string }>>;
+    _sortPatchesCausally(patches: Array<{ patch: Patch; sha: string }>): Array<{ patch: Patch; sha: string }>;
     analyzeConflicts(options?: {
       at?: { lamportCeiling?: number | null };
       strandId?: string;
@@ -621,7 +621,7 @@ declare module '../WarpRuntime.js' {
     createCheckpoint(): Promise<string>;
     syncCoverage(): Promise<void>;
     _loadLatestCheckpoint(): Promise<CheckpointData | null>;
-    _loadPatchesSince(checkpoint: CheckpointData): Promise<Array<{ patch: PatchV2; sha: string }>>;
+    _loadPatchesSince(checkpoint: CheckpointData): Promise<Array<{ patch: Patch; sha: string }>>;
     _validateMigrationBoundary(): Promise<void>;
     _hasSchema1Patches(): Promise<boolean>;
     _maybeRunGC(state: WarpStateV5): void;
@@ -634,10 +634,10 @@ declare module '../WarpRuntime.js' {
     patch(build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
     patchMany(...builds: Array<(p: PatchBuilderV2) => void | Promise<void>>): Promise<string[]>;
     _nextLamport(): Promise<{ lamport: number; parentSha: string | null }>;
-    _loadPatchChainFromSha(tipSha: string, stopAtSha?: string | null): Promise<Array<{ patch: PatchV2; sha: string }>>;
-    _loadWriterPatches(writerId: string, stopAtSha?: string | null): Promise<Array<{ patch: PatchV2; sha: string }>>;
-    getWriterPatches(writerId: string, stopAtSha?: string | null): Promise<Array<{ patch: PatchV2; sha: string }>>;
-    _onPatchCommitted(writerId: string, opts?: { patch?: PatchV2; sha?: string }): Promise<void>;
+    _loadPatchChainFromSha(tipSha: string, stopAtSha?: string | null): Promise<Array<{ patch: Patch; sha: string }>>;
+    _loadWriterPatches(writerId: string, stopAtSha?: string | null): Promise<Array<{ patch: Patch; sha: string }>>;
+    getWriterPatches(writerId: string, stopAtSha?: string | null): Promise<Array<{ patch: Patch; sha: string }>>;
+    _onPatchCommitted(writerId: string, opts?: { patch?: Patch; sha?: string }): Promise<void>;
     writer(writerId?: string): Promise<Writer>;
     _ensureFreshState(): Promise<void>;
     discoverWriters(): Promise<string[]>;
@@ -673,7 +673,7 @@ declare module '../WarpRuntime.js' {
     dropStrand(strandId: string): Promise<boolean>;
     materializeStrand(strandId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
     materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
-    getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: PatchV2; sha: string }>>;
+    getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: Patch; sha: string }>>;
     patchesForStrand(strandId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
     createStrandPatch(strandId: string): Promise<PatchBuilderV2>;
     patchStrand(strandId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;

@@ -63,7 +63,7 @@ async function loadPatchShas(graph, { strandId, entityId, lamportCeiling }) {
  * @returns {Promise<Array<Record<string, unknown>>>}
  */
 async function loadAndSortEntries(graph, shas) {
-  /** @type {Array<{patch: import('../../../../src/domain/types/PatchV2.ts').default, sha: string}>} */
+  /** @type {Array<{patch: import('../../../../src/domain/types/Patch.ts').default, sha: string}>} */
   const loadedEntries = await Promise.all(
     shas.map(async (sha) => ({
       sha,

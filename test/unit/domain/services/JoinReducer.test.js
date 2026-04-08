@@ -52,7 +52,7 @@ function createPropSetV2(node, key, value) {
 }
 
 /** @param {any} params */
-function createPatchV2({ writer, lamport, ops, context }) {
+function createPatch({ writer, lamport, ops, context }) {
   return {
     schema: 2,
     writer,
@@ -265,7 +265,7 @@ describe('JoinReducer', () => {
   describe('order independence - patches applied in any order produce same state', () => {
     it('join([A, B]) equals join([B, A])', () => {
       // Writer A: NodeAdd("x")
-      const patchA = createPatchV2({
+      const patchA = createPatch({
         writer: 'A',
         lamport: 1,
         ops: [createNodeAddV2('x', createDot('A', 1))],
@@ -273,7 +273,7 @@ describe('JoinReducer', () => {
       const shaA = 'aaaa1234';
 
       // Writer B: NodeAdd("y")
-      const patchB = createPatchV2({
+      const patchB = createPatch({
         writer: 'B',
         lamport: 1,
         ops: [createNodeAddV2('y', createDot('B', 1))],
@@ -300,7 +300,7 @@ describe('JoinReducer', () => {
     it('produces identical state for complex graph regardless of patch order', () => {
       const patches = [
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'w1',
             lamport: 1,
             ops: [createNodeAddV2('a', createDot('w1', 1))],
@@ -308,7 +308,7 @@ describe('JoinReducer', () => {
           sha: 'aaa11111',
         },
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'w2',
             lamport: 1,
             ops: [createNodeAddV2('b', createDot('w2', 1))],
@@ -316,7 +316,7 @@ describe('JoinReducer', () => {
           sha: 'bbb22222',
         },
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'w3',
             lamport: 2,
             ops: [createEdgeAddV2('a', 'b', 'link', createDot('w3', 1))],
@@ -346,14 +346,14 @@ describe('JoinReducer', () => {
   describe('concurrent add + remove with empty observedDots = add wins', () => {
     it('concurrent add wins when remove has no observed dots', () => {
       // Writer A adds node x with dot A:1
-      const patchA = createPatchV2({
+      const patchA = createPatch({
         writer: 'A',
         lamport: 1,
         ops: [createNodeAddV2('x', createDot('A', 1))],
       });
 
       // Writer B tries to remove x but hasn't observed any dots (empty set)
-      const patchB = createPatchV2({
+      const patchB = createPatch({
         writer: 'B',
         lamport: 1,
         ops: [createNodeRemoveV2(new Set())],
@@ -377,21 +377,21 @@ describe('JoinReducer', () => {
 
     it('concurrent add and remove: remove only removes observed dots', () => {
       // Writer A adds node x with dot A:1
-      const patchA = createPatchV2({
+      const patchA = createPatch({
         writer: 'A',
         lamport: 1,
         ops: [createNodeAddV2('x', createDot('A', 1))],
       });
 
       // Writer B also adds node x with dot B:1
-      const patchB = createPatchV2({
+      const patchB = createPatch({
         writer: 'B',
         lamport: 1,
         ops: [createNodeAddV2('x', createDot('B', 1))],
       });
 
       // Writer C removes x but only observed A's dot
-      const patchC = createPatchV2({
+      const patchC = createPatch({
         writer: 'C',
         lamport: 2,
         ops: [createNodeRemoveV2(new Set(['A:1']))],
@@ -415,13 +415,13 @@ describe('JoinReducer', () => {
 
   describe('Props use LWW with EventId', () => {
     it('same property set by two writers, higher lamport wins', () => {
-      const patchA = createPatchV2({
+      const patchA = createPatch({
         writer: 'A',
         lamport: 1,
         ops: [createPropSetV2('x', 'name', createInlineValue('A-value'))],
       });
 
-      const patchB = createPatchV2({
+      const patchB = createPatch({
         writer: 'B',
         lamport: 2,
         ops: [createPropSetV2('x', 'name', createInlineValue('B-value'))],
@@ -437,13 +437,13 @@ describe('JoinReducer', () => {
     });
 
     it('with same lamport, writerId is used as tiebreaker', () => {
-      const patchA = createPatchV2({
+      const patchA = createPatch({
         writer: 'A',
         lamport: 1,
         ops: [createPropSetV2('x', 'name', createInlineValue('A-value'))],
       });
 
-      const patchB = createPatchV2({
+      const patchB = createPatch({
         writer: 'B',
         lamport: 1,
         ops: [createPropSetV2('x', 'name', createInlineValue('B-value'))],
@@ -462,7 +462,7 @@ describe('JoinReducer', () => {
     it('property LWW is independent of node ORSet operations', () => {
       // Add node, set property, then remove node
       // Property should retain its LWW value
-      const patchA = createPatchV2({
+      const patchA = createPatch({
         writer: 'A',
         lamport: 1,
         ops: [
@@ -471,7 +471,7 @@ describe('JoinReducer', () => {
         ],
       });
 
-      const patchB = createPatchV2({
+      const patchB = createPatch({
         writer: 'A',
         lamport: 2,
         ops: [createNodeRemoveV2(new Set(['A:1']))],
@@ -629,7 +629,7 @@ describe('JoinReducer', () => {
 
     it('applies patches with initial state', () => {
       // Create initial state
-      const initialPatch = createPatchV2({
+      const initialPatch = createPatch({
         writer: 'init',
         lamport: 1,
         ops: [createNodeAddV2('existing', createDot('init', 1))],
@@ -637,7 +637,7 @@ describe('JoinReducer', () => {
       const initialState = reduceV5([{ patch: initialPatch, sha: 'aaaa1234' }]);
 
       // Apply new patch on top
-      const newPatch = createPatchV2({
+      const newPatch = createPatch({
         writer: 'new',
         lamport: 2,
         ops: [createNodeAddV2('new', createDot('new', 1))],
@@ -651,14 +651,14 @@ describe('JoinReducer', () => {
     });
 
     it('does not mutate initial state', () => {
-      const initialPatch = createPatchV2({
+      const initialPatch = createPatch({
         writer: 'init',
         lamport: 1,
         ops: [createNodeAddV2('x', createDot('init', 1))],
       });
       const initialState = reduceV5([{ patch: initialPatch, sha: 'aaaa1234' }]);
 
-      const newPatch = createPatchV2({
+      const newPatch = createPatch({
         writer: 'new',
         lamport: 2,
         ops: [createNodeAddV2('y', createDot('new', 1))],
@@ -680,7 +680,7 @@ describe('JoinReducer', () => {
       context.set('A', 5);
       context.set('B', 3);
 
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'C',
         lamport: 1,
         ops: [createNodeAddV2('x', createDot('C', 1))],
@@ -703,7 +703,7 @@ describe('JoinReducer', () => {
       context.set('B', 8); // higher than existing
       context.set('C', 3); // new writer
 
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'D',
         lamport: 1,
         ops: [createNodeAddV2('x', createDot('D', 1))],
@@ -724,7 +724,7 @@ describe('JoinReducer', () => {
       context.set('A', 5);
       context.set('B', 3);
 
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'C',
         lamport: 1,
         ops: [createNodeAddV2('x', createDot('C', 1))],
@@ -741,7 +741,7 @@ describe('JoinReducer', () => {
     it('observedFrontier advances with each patch from the same writer', () => {
       const state = createEmptyStateV5();
 
-      join(state, createPatchV2({
+      join(state, createPatch({
         writer: 'A', lamport: 1,
         ops: [createNodeAddV2('n1', createDot('A', 1))],
         context: createVersionVector(),
@@ -751,7 +751,7 @@ describe('JoinReducer', () => {
 
       const ctx2 = createVersionVector();
       ctx2.set('A', 1);
-      join(state, createPatchV2({
+      join(state, createPatch({
         writer: 'A', lamport: 2,
         ops: [createNodeAddV2('n2', createDot('A', 2))],
         context: ctx2,
@@ -766,7 +766,7 @@ describe('JoinReducer', () => {
       const context = createVersionVector();
       context.set('A', 5);
 
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'C',
         lamport: 1,
         ops: [createNodeAddV2('x', createDot('C', 1))],
@@ -787,7 +787,7 @@ describe('JoinReducer', () => {
     it('applyFast applies ops and updates frontier', () => {
       const state = createEmptyStateV5();
       const dot = createDot('w1', 1);
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'w1',
         lamport: 1,
         ops: [createNodeAddV2('n1', dot)],
@@ -802,7 +802,7 @@ describe('JoinReducer', () => {
     it('applyWithReceipt returns state and receipt', () => {
       const state = createEmptyStateV5();
       const dot = createDot('w1', 1);
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'w1',
         lamport: 1,
         ops: [createNodeAddV2('n1', dot)],
@@ -821,7 +821,7 @@ describe('JoinReducer', () => {
 
     it('applyFast skips undefined ops while still applying later entries', () => {
       const state = createEmptyStateV5();
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'w1',
         lamport: 1,
         ops: [
@@ -839,7 +839,7 @@ describe('JoinReducer', () => {
 
     it('applyWithReceipt skips undefined ops while recording later known ops', () => {
       const state = createEmptyStateV5();
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'w1',
         lamport: 1,
         ops: [
@@ -923,7 +923,7 @@ describe('JoinReducer', () => {
 
       try {
         strategy.receiptName = 'FutureBlobValue';
-        const result = applyWithReceipt(state, createPatchV2({
+        const result = applyWithReceipt(state, createPatch({
           writer: 'w1',
           lamport: 1,
           ops: [{ type: 'BlobValue', oid: 'blob-1' }],
@@ -971,7 +971,7 @@ describe('JoinReducer', () => {
     it('join dispatches to applyFast when collectReceipts is false', () => {
       const state = createEmptyStateV5();
       const dot = createDot('w1', 1);
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'w1',
         lamport: 1,
         ops: [createNodeAddV2('n1', dot)],
@@ -986,7 +986,7 @@ describe('JoinReducer', () => {
     it('join dispatches to applyWithReceipt when collectReceipts is true', () => {
       const state = createEmptyStateV5();
       const dot = createDot('w1', 1);
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'w1',
         lamport: 1,
         ops: [createNodeAddV2('n1', dot)],

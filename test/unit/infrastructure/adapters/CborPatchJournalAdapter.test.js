@@ -1,26 +1,26 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
-import PatchV2 from '../../../../src/domain/types/PatchV2.ts';
+import Patch from '../../../../src/domain/types/Patch.ts';
 
 /** @param {Record<string, unknown>} opts */
-function createPatchV2(opts) { return new PatchV2(/** @type {any} */ (opts)); }
+function createPatch(opts) { return new Patch(/** @type {any} */ (opts)); }
 import PatchJournalPort from '../../../../src/ports/PatchJournalPort.ts';
 
 /**
- * Golden fixture: a known PatchV2 encoded with the canonical CBOR codec.
+ * Golden fixture: a known Patch encoded with the canonical CBOR codec.
  * If this test breaks, the wire format changed — investigate before fixing.
  *
  * Note: ops use tuple form `['alice', 1]` for dot — this is the wire format
  * that CBOR (de)serializes. The domain typedef uses Dot class, but the codec
  * boundary handles the tuple ↔ Dot mapping.
  */
-const GOLDEN_PATCH = createPatchV2({
+const GOLDEN_PATCH = createPatch({
   schema: 2,
   writer: 'alice',
   lamport: 1,
   context: { alice: 0 },
-  ops: /** @type {import('../../../../src/domain/types/WarpTypesV2.ts').OpV2[]} */ ([
+  ops: /** @type {import('../../../../src/domain/types/ops/unions.ts').OpV2[]} */ ([
     { type: 'NodeAdd', id: 'user:alice', dot: ['alice', 1] },
     { type: 'PropSet', node: 'user:alice', key: 'name', value: 'Alice' },
   ]),
@@ -60,7 +60,7 @@ describe('CborPatchJournalAdapter', () => {
     expect(oid.length).toBeGreaterThan(0);
   });
 
-  it('readPatch returns the same PatchV2 object', async () => {
+  it('readPatch returns the same Patch object', async () => {
     const codec = new CborCodec();
     const blobPort = createMemoryBlobPort();
     const adapter = new CborPatchJournalAdapter({ codec, blobPort });

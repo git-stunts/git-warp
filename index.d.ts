@@ -1708,13 +1708,13 @@ export interface ContentMeta {
 }
 
 // ============================================================================
-// PatchV2 & PatchBuilderV2
+// Patch & PatchBuilderV2
 // ============================================================================
 
 /**
  * WARP V5 patch object (schema 2 or 3).
  */
-export interface PatchV2 {
+export interface Patch {
   /** Schema version (2 for node/edge ops, 3 if edge properties present) */
   schema: 2 | 3;
   /** Writer ID */
@@ -1730,6 +1730,9 @@ export interface PatchV2 {
   /** Node/edge IDs written by this patch (provenance tracking) */
   writes?: string[] | undefined;
 }
+
+/** @deprecated Use Patch instead. */
+export type PatchV2 = Patch;
 
 /**
  * Fluent builder for creating WARP v5 patches with OR-Set semantics.
@@ -1759,8 +1762,8 @@ export class PatchBuilderV2 {
   attachEdgeContent(from: string, to: string, label: string, content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilderV2>;
   /** Clears content from an edge (sets _content metadata registers to null). */
   clearEdgeContent(from: string, to: string, label: string): PatchBuilderV2;
-  /** Builds the PatchV2 object without committing. */
-  build(): PatchV2;
+  /** Builds the Patch object without committing. */
+  build(): Patch;
   /** Commits one atomic WARP patch under `refs/warp/...` and returns the patch commit SHA. */
   commit(): Promise<string>;
   /** Number of operations in this patch. */
@@ -1797,8 +1800,8 @@ export class PatchSession {
   attachEdgeContent(from: string, to: string, label: string, content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<this>;
   /** Clears content from an edge (sets _content metadata registers to null). */
   clearEdgeContent(from: string, to: string, label: string): this;
-  /** Builds the PatchV2 object without committing. */
-  build(): PatchV2;
+  /** Builds the Patch object without committing. */
+  build(): Patch;
   /** Commits one atomic WARP patch with CAS protection. */
   commit(): Promise<string>;
   /** Number of operations in this patch. */
@@ -2089,7 +2092,7 @@ declare class WarpCoreBase {
   getWriterPatches(
     writerId: string,
     stopAtSha?: string | null
-  ): Promise<Array<{ patch: PatchV2; sha: string }>>;
+  ): Promise<Array<{ patch: Patch; sha: string }>>;
 
   /**
    * Inspection API: enumerates all visible nodes in the current materialized state.
@@ -2427,7 +2430,7 @@ declare class WarpCoreBase {
   materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
 
   /** Returns the causal patch entries visible inside a strand. */
-  getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: PatchV2; sha: string }>>;
+  getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: Patch; sha: string }>>;
 
   /** Returns the visible patch SHAs that touched one entity inside a strand. */
   patchesForStrand(strandId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
@@ -3047,7 +3050,7 @@ export interface StrandReadOverlayDescriptor {
 export interface StrandIntentDescriptor {
   intentId: string;
   enqueuedAt: string;
-  patch: PatchV2;
+  patch: Patch;
   reads: string[];
   writes: string[];
   contentBlobOids: string[];
@@ -3225,7 +3228,7 @@ export function migrateV4toV5(v4State: {
  */
 export interface PatchEntry {
   /** The decoded patch object */
-  patch: PatchV2;
+  patch: Patch;
   /** The Git SHA of the patch commit */
   sha: string;
 }

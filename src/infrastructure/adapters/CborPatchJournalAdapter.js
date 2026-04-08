@@ -10,8 +10,8 @@ import VersionVector from '../../domain/crdt/VersionVector.js';
 /**
  * CBOR-backed implementation of PatchJournalPort.
  *
- * Owns the codec and raw blob persistence. Domain services pass PatchV2
- * objects in and get PatchV2 objects back — no bytes leak across the
+ * Owns the codec and raw blob persistence. Domain services pass Patch
+ * objects in and get Patch objects back — no bytes leak across the
  * port boundary.
  *
  * Supports both plain Git blob storage (BlobPort) and encrypted external
@@ -49,9 +49,9 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
   }
 
   /**
-   * Encodes a PatchV2 to CBOR and persists it as a blob.
+   * Encodes a Patch to CBOR and persists it as a blob.
    *
-   * @param {import('../../domain/types/PatchV2.ts').default} patch
+   * @param {import('../../domain/types/Patch.ts').default} patch
    * @returns {Promise<string>} The blob OID
    */
   async writePatch(patch) {
@@ -63,11 +63,11 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
   }
 
   /**
-   * Reads a blob by OID and decodes the CBOR bytes to a PatchV2.
+   * Reads a blob by OID and decodes the CBOR bytes to a Patch.
    *
    * @param {string} patchOid
    * @param {{ encrypted?: boolean }} [options]
-   * @returns {Promise<import('../../domain/types/PatchV2.ts').default>}
+   * @returns {Promise<import('../../domain/types/Patch.ts').default>}
    */
   async readPatch(patchOid, { encrypted = false } = {}) {
     /** @type {Uint8Array} */
@@ -81,7 +81,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     } else {
       bytes = await this._blobPort.readBlob(patchOid);
     }
-    return /** @type {import('../../domain/types/PatchV2.ts').default} */ (
+    return /** @type {import('../../domain/types/Patch.ts').default} */ (
       this._codec.decode(bytes)
     );
   }
@@ -166,8 +166,8 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
 /**
  * Normalizes a decoded patch (converts context from plain object to Map).
  *
- * @param {import('../../domain/types/PatchV2.ts').default} patch
- * @returns {import('../../domain/types/PatchV2.ts').default}
+ * @param {import('../../domain/types/Patch.ts').default} patch
+ * @returns {import('../../domain/types/Patch.ts').default}
  */
 function _normalizePatch(patch) {
   if (patch.context !== null && patch.context !== undefined && !(patch.context instanceof Map)) {

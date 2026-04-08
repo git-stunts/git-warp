@@ -26,7 +26,7 @@ class PatchFrame {
    * Creates a PatchFrame from a raw patch entry.
    *
    * @param {{
-   *   patch: PatchV2,
+   *   patch: Patch,
    *   sha: string,
    *   patchOrder: number,
    *   context: Map<string, number>,

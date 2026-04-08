@@ -28,7 +28,7 @@ import {
   createNodeAddV2,
   createEdgeAddV2,
   createPropSetV2,
-  createPatchV2,
+  createPatch,
   generateOidFromNumber as generateOid,
   createPopulatedMockPersistence as createMockPersistence,
   createDot,
@@ -38,7 +38,7 @@ import {
 describe('WormholeService', () => {
   describe('createWormhole', () => {
     it('creates a wormhole from a single patch', async () => {
-      const patch1 = createPatchV2({
+      const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
         ops: [createNodeAddV2('node-a', createDot('alice', 1))],
@@ -67,17 +67,17 @@ describe('WormholeService', () => {
     });
 
     it('creates a wormhole from multiple consecutive patches', async () => {
-      const patch1 = createPatchV2({
+      const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
         ops: [createNodeAddV2('node-a', createDot('alice', 1))],
       });
-      const patch2 = createPatchV2({
+      const patch2 = createPatch({
         writer: 'alice',
         lamport: 2,
         ops: [createNodeAddV2('node-b', createDot('alice', 2))],
       });
-      const patch3 = createPatchV2({
+      const patch3 = createPatch({
         writer: 'alice',
         lamport: 3,
         ops: [
@@ -126,7 +126,7 @@ describe('WormholeService', () => {
     });
 
     it('throws E_WORMHOLE_SHA_NOT_FOUND for missing toSha', async () => {
-      const patch1 = createPatchV2({
+      const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
         ops: [createNodeAddV2('node-a', createDot('alice', 1))],
@@ -152,12 +152,12 @@ describe('WormholeService', () => {
     });
 
     it('throws E_WORMHOLE_INVALID_RANGE when fromSha is not ancestor of toSha', async () => {
-      const patch1 = createPatchV2({
+      const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
         ops: [createNodeAddV2('node-a', createDot('alice', 1))],
       });
-      const patch2 = createPatchV2({
+      const patch2 = createPatch({
         writer: 'alice',
         lamport: 2,
         ops: [createNodeAddV2('node-b', createDot('alice', 2))],
@@ -184,12 +184,12 @@ describe('WormholeService', () => {
     });
 
     it('throws E_WORMHOLE_MULTI_WRITER when patches span multiple writers', async () => {
-      const patch1 = createPatchV2({
+      const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
         ops: [createNodeAddV2('node-a', createDot('alice', 1))],
       });
-      const patch2 = createPatchV2({
+      const patch2 = createPatch({
         writer: 'bob',
         lamport: 2,
         ops: [createNodeAddV2('node-b', createDot('bob', 1))],
@@ -264,7 +264,7 @@ describe('WormholeService', () => {
     it('throws E_WORMHOLE_INVALID_RANGE when a patch belongs to another graph', async () => {
       const sha = generateOid(5000);
       const patchOid = generateOid(5001);
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'alice',
         lamport: 1,
         ops: [createNodeAddV2('node-a', createDot('alice', 1))],
@@ -325,7 +325,7 @@ describe('WormholeService', () => {
     it('loads encrypted patches from patchBlobStorage when provided', async () => {
       const sha = generateOid(7000);
       const patchOid = generateOid(7001);
-      const patch = createPatchV2({
+      const patch = createPatch({
         writer: 'alice',
         lamport: 1,
         ops: [createNodeAddV2('node-a', createDot('alice', 1))],
@@ -393,17 +393,17 @@ describe('WormholeService', () => {
 
   describe('replayWormhole', () => {
     it('replays a wormhole to produce correct state', async () => {
-      const patch1 = createPatchV2({
+      const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
         ops: [createNodeAddV2('node-a', createDot('alice', 1))],
       });
-      const patch2 = createPatchV2({
+      const patch2 = createPatch({
         writer: 'alice',
         lamport: 2,
         ops: [createNodeAddV2('node-b', createDot('alice', 2))],
       });
-      const patch3 = createPatchV2({
+      const patch3 = createPatch({
         writer: 'alice',
         lamport: 3,
         ops: [
@@ -445,7 +445,7 @@ describe('WormholeService', () => {
       // Create initial state with a pre-existing node using valid hex SHA
       const initialSha = generateOid(99999);
       const initialPatches = [{
-        patch: createPatchV2({
+        patch: createPatch({
           writer: 'bob',
           lamport: 1,
           ops: [createNodeAddV2('initial-node', createDot('bob', 1))],
@@ -455,7 +455,7 @@ describe('WormholeService', () => {
       const initialState = reduceV5(initialPatches);
 
       // Create wormhole patches
-      const patch1 = createPatchV2({
+      const patch1 = createPatch({
         writer: 'alice',
         lamport: 2,
         ops: [createNodeAddV2('node-a', createDot('alice', 1))],
@@ -483,22 +483,22 @@ describe('WormholeService', () => {
 
   describe('composeWormholes', () => {
     it('composes two consecutive wormholes', async () => {
-      const patch1 = createPatchV2({
+      const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
         ops: [createNodeAddV2('node-a', createDot('alice', 1))],
       });
-      const patch2 = createPatchV2({
+      const patch2 = createPatch({
         writer: 'alice',
         lamport: 2,
         ops: [createNodeAddV2('node-b', createDot('alice', 2))],
       });
-      const patch3 = createPatchV2({
+      const patch3 = createPatch({
         writer: 'alice',
         lamport: 3,
         ops: [createNodeAddV2('node-c', createDot('alice', 3))],
       });
-      const patch4 = createPatchV2({
+      const patch4 = createPatch({
         writer: 'alice',
         lamport: 4,
         ops: [createNodeAddV2('node-d', createDot('alice', 4))],
@@ -603,7 +603,7 @@ describe('WormholeService', () => {
     it('composition is associative (monoid property)', async () => {
       const patches = [];
       for (let i = 1; i <= 6; i++) {
-        patches.push(createPatchV2({
+        patches.push(createPatch({
           writer: 'alice',
           lamport: i,
           ops: [createNodeAddV2(`node-${i}`, createDot('alice', i))],
@@ -665,12 +665,12 @@ describe('WormholeService', () => {
 
   describe('serialization', () => {
     it('roundtrips correctly', async () => {
-      const patch1 = createPatchV2({
+      const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
         ops: [createNodeAddV2('node-a', createDot('alice', 1))],
       });
-      const patch2 = createPatchV2({
+      const patch2 = createPatch({
         writer: 'alice',
         lamport: 2,
         ops: [
@@ -772,7 +772,7 @@ describe('WormholeService', () => {
       // Create 10 patches
       const patches = [];
       for (let i = 1; i <= 10; i++) {
-        patches.push(createPatchV2({
+        patches.push(createPatch({
           writer: 'alice',
           lamport: i,
           ops: [
@@ -832,7 +832,7 @@ describe('WormholeService', () => {
       // Create 20 patches
       const patches = [];
       for (let i = 1; i <= 20; i++) {
-        patches.push(createPatchV2({
+        patches.push(createPatch({
           writer: 'alice',
           lamport: i,
           ops: [createNodeAddV2(`node-${i}`, createDot('alice', i))],
@@ -905,7 +905,7 @@ describe('WormholeService', () => {
 
   describe('edge cases', () => {
     it('handles wormhole of single patch at start of chain', async () => {
-      const patch1 = createPatchV2({
+      const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
         ops: [createNodeAddV2('root', createDot('alice', 1))],
@@ -929,7 +929,7 @@ describe('WormholeService', () => {
     });
 
     it('handles wormhole with complex operations', async () => {
-      const patch1 = createPatchV2({
+      const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
         ops: [

@@ -10,7 +10,7 @@ import {
   createNodeRemoveV2,
   createEdgeAddV2,
   createPropSetV2,
-  createPatchV2,
+  createPatch,
   createSamplePatches,
   createDot,
   createInlineValue,
@@ -583,7 +583,7 @@ describe('ProvenancePayload', () => {
       const patches = [];
       for (let i = 0; i < 20; i++) {
         patches.push({
-          patch: createPatchV2({
+          patch: createPatch({
             writer: `writer-${i % 5}`,
             lamport: i + 1,
             ops: [createNodeAddV2(`node-${i}`, createDot(`writer-${i % 5}`, i + 1))],
@@ -619,7 +619,7 @@ describe('ProvenancePayload', () => {
       // Create a sequence of patches with various operations
       const patches = [
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'W1',
             lamport: 1,
             ops: [createNodeAddV2('x', createDot('W1', 1))],
@@ -627,7 +627,7 @@ describe('ProvenancePayload', () => {
           sha: 'abcd0001',
         },
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'W2',
             lamport: 2,
             ops: [createNodeAddV2('y', createDot('W2', 1))],
@@ -635,7 +635,7 @@ describe('ProvenancePayload', () => {
           sha: 'abcd0002',
         },
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'W1',
             lamport: 3,
             ops: [
@@ -646,7 +646,7 @@ describe('ProvenancePayload', () => {
           sha: 'abcd0003',
         },
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'W2',
             lamport: 4,
             ops: [createPropSetV2('y', 'val', createInlineValue(200))],
@@ -696,7 +696,7 @@ describe('ProvenancePayload', () => {
       // Simulate concurrent patches from multiple writers
       const patches = [
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'A',
             lamport: 1,
             ops: [
@@ -707,7 +707,7 @@ describe('ProvenancePayload', () => {
           sha: 'aaaa1111',
         },
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'B',
             lamport: 1,
             ops: [
@@ -718,7 +718,7 @@ describe('ProvenancePayload', () => {
           sha: 'bbbb2222',
         },
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'C',
             lamport: 2,
             ops: [createPropSetV2('shared', 'author', createInlineValue('C'))],
@@ -746,7 +746,7 @@ describe('ProvenancePayload', () => {
     it('handles add-remove-readd cycle correctly', () => {
       const patches = [
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'W',
             lamport: 1,
             ops: [createNodeAddV2('cycle', createDot('W', 1))],
@@ -754,7 +754,7 @@ describe('ProvenancePayload', () => {
           sha: 'abcd0001',
         },
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'W',
             lamport: 2,
             ops: [createNodeRemoveV2(/** @type {any} */ (new Set(['W:1'])))],
@@ -762,7 +762,7 @@ describe('ProvenancePayload', () => {
           sha: 'abcd0002',
         },
         {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'W',
             lamport: 3,
             ops: [createNodeAddV2('cycle', createDot('W', 2))],

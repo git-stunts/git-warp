@@ -4,13 +4,13 @@ import { createEmptyStateV5, join as joinPatch } from '../../../../src/domain/se
 import {
   createNodeAddV2,
   createPropSetV2,
-  createPatchV2,
+  createPatch,
   createDot,
   createInlineValue,
 } from '../../../helpers/warpGraphTestUtils.js';
 
 /**
- * @typedef {import('../../../../src/domain/types/WarpTypesV2.ts').PatchV2} TestPatch
+ * @typedef {import('../../../../src/domain/types/Patch.ts').default} TestPatch
  */
 
 /**
@@ -41,7 +41,7 @@ function createNodeWithPropPatch({
   }
   ops.push(createPropSetV2(nodeId, propKey, createInlineValue(propValue)));
   return {
-    patch: createPatchV2({ writer, lamport, ops }),
+    patch: createPatch({ writer, lamport, ops }),
     sha,
   };
 }
@@ -60,7 +60,7 @@ function createNodeWithPropPatch({
  */
 function createPropOnlyPatch({ nodeId, writer, lamport, propKey, propValue, sha }) {
   return {
-    patch: createPatchV2({
+    patch: createPatch({
       writer,
       lamport,
       ops: [createPropSetV2(nodeId, propKey, createInlineValue(propValue))],

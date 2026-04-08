@@ -3,7 +3,7 @@ import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
 import { isNonEmptyString, maxPatchLamport } from './strandShared.js';
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
-/** @import { default as PatchV2 } from '../../types/PatchV2.ts' */
+/** @import { default as Patch } from '../../types/Patch.ts' */
 /** @import { TickReceipt } from '../../types/TickReceipt.ts' */
 /** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */
 
@@ -21,10 +21,10 @@ export default class StrandMaterializer {
    * Collect all base-observation patches from the pinned frontier writers.
    *
    * @param {StrandDescriptor} descriptor
-   * @returns {Promise<Array<{ patch: PatchV2, sha: string }>>}
+   * @returns {Promise<Array<{ patch: Patch, sha: string }>>}
    */
   async collectBasePatches(descriptor) {
-    /** @type {Array<{ patch: PatchV2, sha: string }>} */
+    /** @type {Array<{ patch: Patch, sha: string }>} */
     const allPatches = [];
     for (const tipSha of this._sortedFrontierTipShas(descriptor)) {
       const writerPatches = await this._graph._loadPatchChainFromSha(tipSha);
@@ -37,7 +37,7 @@ export default class StrandMaterializer {
    * Collect patches from the strand's own writable overlay chain.
    *
    * @param {StrandDescriptor} descriptor
-   * @returns {Promise<Array<{ patch: PatchV2, sha: string }>>}
+   * @returns {Promise<Array<{ patch: Patch, sha: string }>>}
    */
   async collectOverlayPatches(descriptor) {
     if (descriptor.overlay.headPatchSha === null || descriptor.overlay.headPatchSha === undefined) {
@@ -50,10 +50,10 @@ export default class StrandMaterializer {
    * Collect patches from all braided read-only overlay chains.
    *
    * @param {StrandDescriptor} descriptor
-   * @returns {Promise<Array<{ patch: PatchV2, sha: string }>>}
+   * @returns {Promise<Array<{ patch: Patch, sha: string }>>}
    */
   async collectBraidedOverlayPatches(descriptor) {
-    /** @type {Array<{ patch: PatchV2, sha: string }>} */
+    /** @type {Array<{ patch: Patch, sha: string }>} */
     const allPatches = [];
     for (const headPatchSha of this._braidedOverlayHeadShas(descriptor)) {
       const overlayPatches = await this._graph._loadPatchChainFromSha(headPatchSha);
@@ -67,13 +67,13 @@ export default class StrandMaterializer {
    *
    * @param {StrandDescriptor} descriptor
    * @param {{ ceiling: number|null }} options
-   * @returns {Promise<Array<{ patch: PatchV2, sha: string }>>}
+   * @returns {Promise<Array<{ patch: Patch, sha: string }>>}
    */
   async collectPatchEntries(descriptor, { ceiling }) {
     const basePatches = await this.collectBasePatches(descriptor);
     const braidedOverlayPatches = await this.collectBraidedOverlayPatches(descriptor);
     const overlayPatches = await this.collectOverlayPatches(descriptor);
-    /** @type {Map<string, { patch: PatchV2, sha: string }>} */
+    /** @type {Map<string, { patch: Patch, sha: string }>} */
     const deduped = new Map();
     for (const entry of basePatches.concat(braidedOverlayPatches, overlayPatches)) {
       if (!deduped.has(entry.sha)) {
@@ -95,7 +95,7 @@ export default class StrandMaterializer {
    * @returns {Promise<{
    *   state: import('../JoinReducer.js').WarpStateV5,
    *   receipts: TickReceipt[],
-   *   allPatches: Array<{ patch: PatchV2, sha: string }>
+   *   allPatches: Array<{ patch: Patch, sha: string }>
    * }>}
    */
   async materializeDescriptor(descriptor, { collectReceipts, ceiling }) {
@@ -128,8 +128,8 @@ export default class StrandMaterializer {
    * Append only base patches visible under the descriptor Lamport ceiling.
    *
    * @private
-   * @param {Array<{ patch: PatchV2, sha: string }>} target
-   * @param {Array<{ patch: PatchV2, sha: string }>} writerPatches
+   * @param {Array<{ patch: Patch, sha: string }>} target
+   * @param {Array<{ patch: Patch, sha: string }>} writerPatches
    * @param {number|null} lamportCeiling
    * @returns {void}
    */
@@ -161,7 +161,7 @@ export default class StrandMaterializer {
    * Reduce collected strand patches into materialized state and optional receipts.
    *
    * @private
-   * @param {Array<{ patch: PatchV2, sha: string }>} allPatches
+   * @param {Array<{ patch: Patch, sha: string }>} allPatches
    * @param {boolean} collectReceipts
    * @returns {{ state: import('../JoinReducer.js').WarpStateV5, receipts: TickReceipt[] }}
    */
@@ -191,7 +191,7 @@ export default class StrandMaterializer {
    * Refresh graph-side materialization caches after replaying strand patches.
    *
    * @private
-   * @param {Array<{ patch: PatchV2, sha: string }>} allPatches
+   * @param {Array<{ patch: Patch, sha: string }>} allPatches
    * @param {import('../JoinReducer.js').WarpStateV5} state
    * @returns {void}
    */

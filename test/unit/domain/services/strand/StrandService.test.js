@@ -16,7 +16,7 @@ import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReduc
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').StrandDescriptor} StrandDescriptor */
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').StrandQueuedIntent} StrandQueuedIntent */
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').StrandTickRecord} StrandTickRecord */
-/** @typedef {import('../../../../../src/domain/types/WarpTypesV2.ts').PatchV2} PatchV2 */
+/** @typedef {import('../../../../../src/domain/types/Patch.ts').default} Patch */
 
 // ── Deterministic OID generator ───────────────────────────────────────────────
 
@@ -50,7 +50,7 @@ const OVERLAY_KIND = /** @type {'patch-log'} */ (STRAND_OVERLAY_KIND);
 /**
  * @typedef {{
  *   _normalizeQueuedIntentEntry(rawEntry: unknown): StrandQueuedIntent[],
- *   _resolveQueuedIntentIdentity(candidate: Record<string, unknown>): { patch: PatchV2, intentId: string, enqueuedAt: string }|null,
+ *   _resolveQueuedIntentIdentity(candidate: Record<string, unknown>): { patch: Patch, intentId: string, enqueuedAt: string }|null,
  *   _normalizeQueuedIntents(value: unknown): StrandQueuedIntent[],
  *   _normalizeRejectedCounterfactuals(value: unknown): Array<{ intentId: string, reason: string, conflictsWith: string[], reads: string[], writes: string[] }>,
  *   _matchesHydratedDescriptor(
@@ -66,7 +66,7 @@ const OVERLAY_KIND = /** @type {'patch-log'} */ (STRAND_OVERLAY_KIND);
  *   _freezeQueuedIntent(
  *     descriptor: StrandDescriptor,
  *     intentQueue: StrandDescriptor['intentQueue'],
- *     builder: { build(): PatchV2, _contentBlobs: unknown[] }
+ *     builder: { build(): Patch, _contentBlobs: unknown[] }
  *   ): StrandQueuedIntent
  * }} PatchServicePrivate
  */
@@ -81,23 +81,23 @@ const OVERLAY_KIND = /** @type {'patch-log'} */ (STRAND_OVERLAY_KIND);
  *   _collectPatchEntries(
  *     descriptor: StrandDescriptor,
  *     options: { ceiling: number|null }
- *   ): Promise<Array<{ patch: PatchV2, sha: string }>>,
+ *   ): Promise<Array<{ patch: Patch, sha: string }>>,
  *   _materializeDescriptor(
  *     descriptor: StrandDescriptor,
  *     options: { collectReceipts: boolean, ceiling: number|null }
  *   ): Promise<{
  *     state: import('../../../../../src/domain/services/JoinReducer.js').WarpStateV5,
  *     receipts: import('../../../../../src/domain/types/TickReceipt.ts').TickReceipt[],
- *     allPatches: Array<{ patch: PatchV2, sha: string }>
+ *     allPatches: Array<{ patch: Patch, sha: string }>
  *   }>,
  *   _commitQueuedPatch(params: {
  *     strandId: string,
  *     overlayId: string,
  *     parentSha: string|null,
- *     patch: PatchV2,
+ *     patch: Patch,
  *     contentBlobOids: string[],
  *     lamport: number
- *   }): Promise<{ sha: string, patch: PatchV2 }>
+ *   }): Promise<{ sha: string, patch: Patch }>
  * }} StrandServicePrivate
  */
 
@@ -156,7 +156,7 @@ function requireStrandError(err) {
 }
 
 /**
- * Build a Dot object in the schema expected by PatchV2 ops.
+ * Build a Dot object in the schema expected by Patch ops.
  *
  * @param {string} writerId
  * @param {number} counter
@@ -167,12 +167,12 @@ function makeDot(writerId, counter) {
 }
 
 /**
- * Build a canonical NodeAdd op for PatchV2 fixtures.
+ * Build a canonical NodeAdd op for Patch fixtures.
  *
  * @param {string} nodeId
  * @param {string} writerId
  * @param {number} counter
- * @returns {PatchV2['ops'][number]}
+ * @returns {Patch['ops'][number]}
  */
 function makeNodeAddOp(nodeId, writerId, counter) {
   return {
@@ -183,10 +183,10 @@ function makeNodeAddOp(nodeId, writerId, counter) {
 }
 
 /**
- * Build a minimal PatchV2 for tests.
+ * Build a minimal Patch for tests.
  *
- * @param {Partial<PatchV2>} [overrides]
- * @returns {PatchV2}
+ * @param {Partial<Patch>} [overrides]
+ * @returns {Patch}
  */
 function makePatch(overrides = {}) {
   return {
@@ -290,7 +290,7 @@ function storeDescriptor(descriptor) {
  *   _cachedFrontier: Map<string, string>|null,
  *   _provenanceIndex: unknown,
  *   _provenanceDegraded: boolean,
- *   _patchJournal: { writePatch(patch: PatchV2): Promise<string> }|null,
+ *   _patchJournal: { writePatch(patch: Patch): Promise<string> }|null,
  *   _logger: { info: ReturnType<typeof vi.fn>, warn: ReturnType<typeof vi.fn>, error: ReturnType<typeof vi.fn> }|null,
  *   _blobStorage: unknown,
  *   _patchBlobStorage: { store(data: Uint8Array, options: { slug: string }): Promise<string> }|null,
@@ -345,7 +345,7 @@ function createMockGraph() {
     _cachedFrontier: /** @type {Map<string, string>|null} */ (null),
     _provenanceIndex: null,
     _provenanceDegraded: true,
-    _patchJournal: /** @type {{ writePatch(patch: PatchV2): Promise<string> }|null} */ (null),
+    _patchJournal: /** @type {{ writePatch(patch: Patch): Promise<string> }|null} */ (null),
     _logger: /** @type {{ info: ReturnType<typeof vi.fn>, warn: ReturnType<typeof vi.fn>, error: ReturnType<typeof vi.fn> }|null} */ (null),
     _blobStorage: null,
     _patchBlobStorage: /** @type {{ store(data: Uint8Array, options: { slug: string }): Promise<string> }|null} */ (null),
@@ -533,7 +533,7 @@ describe('StrandService', () => {
         desc,
         { nextIntentSeq: 1, intents: [] },
         {
-          build: () => /** @type {PatchV2} */ (/** @type {unknown} */ ({
+          build: () => /** @type {Patch} */ (/** @type {unknown} */ ({
             ...makePatch({
               ops: [makeNodeAddOp('node:test', 'alpha', 1)],
             }),
@@ -557,7 +557,7 @@ describe('StrandService', () => {
         desc,
         { nextIntentSeq: 1, intents: [] },
         {
-          build: () => /** @type {PatchV2} */ (/** @type {unknown} */ ({
+          build: () => /** @type {Patch} */ (/** @type {unknown} */ ({
             ...makePatch({
               ops: [makeNodeAddOp('node:test', 'alpha', 1)],
             }),
@@ -577,7 +577,7 @@ describe('StrandService', () => {
         desc,
         { nextIntentSeq: 1, intents: [] },
         {
-          build: () => /** @type {PatchV2} */ (/** @type {unknown} */ (makePatch({
+          build: () => /** @type {Patch} */ (/** @type {unknown} */ (makePatch({
             ops: [makeNodeAddOp('node:test', 'alpha', 1)],
             reads: ['   '],
             writes: [],

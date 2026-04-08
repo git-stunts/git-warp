@@ -1,13 +1,13 @@
 /**
- * PatchV2 — the atomic unit of the WARP protocol.
+ * Patch — the atomic unit of the WARP protocol.
  *
  * A batch of ordered operations from a single writer, carrying causal
  * context (version vector) and a Lamport timestamp for ordering.
  *
- * Fields are public because JoinReducer, PatchBuilderV2, and codec
+ * Fields are public because JoinReducer, PatchBuilder, and codec
  * boundaries access them structurally.
  *
- * @module domain/types/PatchV2
+ * @module domain/types/Patch
  */
 
 import type VersionVector from '../crdt/VersionVector.js';
@@ -23,7 +23,7 @@ function _nonEmpty(arr: string[] | undefined): string[] | undefined {
 /**
  * A batch of ordered operations from a single writer.
  */
-export default class PatchV2 {
+export default class Patch {
   /**
    * Schema version (2 for node-only, 3 for edge properties).
    */
@@ -65,7 +65,7 @@ export default class PatchV2 {
   writes: string[] | undefined;
 
   /**
-   * Creates a PatchV2.
+   * Creates a Patch.
    */
   constructor({ schema = 2, writer, lamport, context, ops, reads, writes }: {
     schema?: 2 | 3;

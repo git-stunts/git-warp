@@ -463,7 +463,7 @@ function opAffectsScope(op, scope) {
 /**
  * Tests whether a patch contains at least one op that affects the scope.
  *
- * @param {import('../types/PatchV2.ts').default} patch
+ * @param {import('../types/Patch.ts').default} patch
  * @param {VisibleStateScopeV1|null|undefined} scope
  * @returns {boolean}
  */
@@ -478,9 +478,9 @@ function patchAffectsScope(patch, scope) {
 /**
  * Filters patch entries down to patches with at least one in-scope op.
  *
- * @param {Array<{ patch: import('../types/PatchV2.ts').default, sha: string }>} entries
+ * @param {Array<{ patch: import('../types/Patch.ts').default, sha: string }>} entries
  * @param {VisibleStateScopeV1|null|undefined} scope
- * @returns {Array<{ patch: import('../types/PatchV2.ts').default, sha: string }>}
+ * @returns {Array<{ patch: import('../types/Patch.ts').default, sha: string }>}
  */
 export function scopePatchEntriesV1(entries, scope) {
   if (scope === null || scope === undefined) {

@@ -29,7 +29,7 @@ const crypto = new NodeCryptoAdapter();
 
 import {
   createNodeAddV2,
-  createPatchV2,
+  createPatch,
   createSamplePatches,
   createDot,
   createInlineValue,
@@ -460,7 +460,7 @@ describe('BoundaryTransitionRecord', () => {
       const patches = [];
       for (let i = 0; i < 100; i++) {
         patches.push({
-          patch: createPatchV2({
+          patch: createPatch({
             writer: `writer-${i % 10}`,
             lamport: i + 1,
             ops: [createNodeAddV2(`node-${i}`, createDot(`writer-${i % 10}`, i + 1))],

@@ -140,13 +140,13 @@ function createEdgeTombstone(from, to, label) { return { type: 'EdgeTombstone', 
 function createPropSet(node, key, value) { return { type: 'PropSet', node, key, value }; }
 /** @param {unknown} value */
 function createInlineValue(value) { return { type: 'inline', value }; }
-import PatchV2 from '../../../../src/domain/types/PatchV2.ts';
+import Patch from '../../../../src/domain/types/Patch.ts';
 import NodeAddClass from '../../../../src/domain/types/ops/NodeAdd.ts';
 import EdgeAddClass from '../../../../src/domain/types/ops/EdgeAdd.ts';
 import PropSetClass from '../../../../src/domain/types/ops/PropSet.ts';
 
 /** @param {Record<string, unknown>} opts */
-function createPatchV2(opts) { return new PatchV2(/** @type {any} */ (opts)); }
+function createPatch(opts) { return new Patch(/** @type {any} */ (opts)); }
 /** @param {string} node @param {any} dot */
 function createNodeAddV2(node, dot) { return new NodeAddClass(node, dot); }
 /** @param {string} from @param {string} to @param {string} label @param {any} dot */
@@ -168,7 +168,7 @@ const crypto = new NodeCryptoAdapter();
  * @param {string} [options.baseCheckpoint] - Optional base checkpoint OID
  * @returns {any} PatchV1 object
  */
-function createPatch({ writer, lamport, ops, baseCheckpoint }) {
+function createPatchV1({ writer, lamport, ops, baseCheckpoint }) {
   /** @type {any} */
   const patch = {
     schema: 1,
@@ -306,7 +306,7 @@ describe('MigrationService', () => {
         // Use reducer to create a realistic v4 state with delete-resurrect cycle
         const patches = [
           {
-            patch: createPatch({
+            patch: createPatchV1({
               writer: 'W',
               lamport: 1,
               ops: [createNodeAdd('node-x')],
@@ -314,7 +314,7 @@ describe('MigrationService', () => {
             sha: 'aaa11111',
           },
           {
-            patch: createPatch({
+            patch: createPatchV1({
               writer: 'W',
               lamport: 2,
               ops: [createNodeTombstone('node-x')],
@@ -322,7 +322,7 @@ describe('MigrationService', () => {
             sha: 'bbb22222',
           },
           {
-            patch: createPatch({
+            patch: createPatchV1({
               writer: 'W',
               lamport: 3,
               ops: [createNodeAdd('node-x')],
@@ -485,7 +485,7 @@ describe('MigrationService', () => {
         // Build a realistic v4 state via the reducer
         const patches = [
           {
-            patch: createPatch({
+            patch: createPatchV1({
               writer: 'alice',
               lamport: 1,
               ops: [
@@ -496,7 +496,7 @@ describe('MigrationService', () => {
             sha: 'aaaa1111',
           },
           {
-            patch: createPatch({
+            patch: createPatchV1({
               writer: 'bob',
               lamport: 2,
               ops: [
@@ -508,7 +508,7 @@ describe('MigrationService', () => {
             sha: 'bbbb2222',
           },
           {
-            patch: createPatch({
+            patch: createPatchV1({
               writer: 'alice',
               lamport: 3,
               ops: [
@@ -556,7 +556,7 @@ describe('MigrationService', () => {
       it('handles mixed visible and tombstoned entities correctly', () => {
         const patches = [
           {
-            patch: createPatch({
+            patch: createPatchV1({
               writer: 'W',
               lamport: 1,
               ops: [
@@ -570,7 +570,7 @@ describe('MigrationService', () => {
             sha: 'aaaa1111',
           },
           {
-            patch: createPatch({
+            patch: createPatchV1({
               writer: 'W',
               lamport: 2,
               ops: [
@@ -649,7 +649,7 @@ describe('MigrationService', () => {
         // Step 1: Build v4 graph state via v1 patches (LWW-based)
         const v4Patches = [
           {
-            patch: createPatch({
+            patch: createPatchV1({
               writer: 'alice',
               lamport: 1,
               ops: [
@@ -660,7 +660,7 @@ describe('MigrationService', () => {
             sha: 'aaaa1111',
           },
           {
-            patch: createPatch({
+            patch: createPatchV1({
               writer: 'bob',
               lamport: 2,
               ops: [
@@ -692,7 +692,7 @@ describe('MigrationService', () => {
         // Step 3: Apply v5 patches (OR-Set based) AFTER migration
         const v5Patches = [
           {
-            patch: createPatchV2({
+            patch: createPatch({
               writer: 'charlie',
               lamport: 10,
               context: /** @type {any} */ (createVersionVector()),
@@ -704,7 +704,7 @@ describe('MigrationService', () => {
             sha: 'cccc3333',
           },
           {
-            patch: createPatchV2({
+            patch: createPatch({
               writer: 'charlie',
               lamport: 11,
               context: /** @type {any} */ (createVersionVector()),
@@ -745,7 +745,7 @@ describe('MigrationService', () => {
         // Build v4 state
         const v4Patches = [
           {
-            patch: createPatch({
+            patch: createPatchV1({
               writer: 'W',
               lamport: 1,
               ops: [createNodeAdd('existing-node')],
@@ -759,7 +759,7 @@ describe('MigrationService', () => {
 
         // Multiple v5 patches
         const v5PatchA = {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'A',
             lamport: 10,
             context: /** @type {any} */ (createVersionVector()),
@@ -769,7 +769,7 @@ describe('MigrationService', () => {
         };
 
         const v5PatchB = {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'B',
             lamport: 11,
             context: /** @type {any} */ (createVersionVector()),
@@ -779,7 +779,7 @@ describe('MigrationService', () => {
         };
 
         const v5PatchC = {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'C',
             lamport: 12,
             context: /** @type {any} */ (createVersionVector()),
@@ -829,7 +829,7 @@ describe('MigrationService', () => {
       it('reduceV5 only processes v2 patches (v1 patches should go through migration first)', () => {
         // Create a v1 patch (schema:1, LWW operations)
         const v1Patch = {
-          patch: createPatch({
+          patch: createPatchV1({
             writer: 'alice',
             lamport: 1,
             ops: [createNodeAdd('node-from-v1')],
@@ -839,7 +839,7 @@ describe('MigrationService', () => {
 
         // Create a v2 patch (schema:2, OR-Set operations with dots)
         const v2Patch = {
-          patch: createPatchV2({
+          patch: createPatch({
             writer: 'bob',
             lamport: 2,
             context: /** @type {any} */ (createVersionVector()),
@@ -862,7 +862,7 @@ describe('MigrationService', () => {
         // Build a v4 graph with multiple v1 patches
         const v1Patches = [
           {
-            patch: createPatch({
+            patch: createPatchV1({
               writer: 'W',
               lamport: 1,
               ops: [
@@ -874,7 +874,7 @@ describe('MigrationService', () => {
             sha: 'aaaa1111',
           },
           {
-            patch: createPatch({
+            patch: createPatchV1({
               writer: 'W',
               lamport: 2,
               ops: [createNodeTombstone('n2')],
@@ -898,7 +898,7 @@ describe('MigrationService', () => {
         // v2 patches can now add new data
         const v2Patches = [
           {
-            patch: createPatchV2({
+            patch: createPatch({
               writer: 'V5-writer',
               lamport: 10,
               context: /** @type {any} */ (createVersionVector()),
@@ -938,14 +938,14 @@ describe('MigrationService', () => {
         // v2 ops: NodeAdd(with dot), NodeRemove(with observedDots), etc.
 
         // A v1 patch's NodeAdd has no 'dot' field
-        const v1Patch = createPatch({
+        const v1Patch = createPatchV1({
           writer: 'W',
           lamport: 1,
           ops: [createNodeAdd('test-node')],
         });
 
         // A v2 patch's NodeAdd HAS a 'dot' field
-        const v2Patch = createPatchV2({
+        const v2Patch = createPatch({
           writer: 'W',
           lamport: 1,
           context: /** @type {any} */ (createVersionVector()),

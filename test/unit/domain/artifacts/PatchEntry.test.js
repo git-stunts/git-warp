@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import PatchEntry from '../../../../src/domain/artifacts/PatchEntry.js';
 import ProvenanceEntry from '../../../../src/domain/artifacts/ProvenanceEntry.js';
-import PatchV2 from '../../../../src/domain/types/PatchV2.ts';
+import Patch from '../../../../src/domain/types/Patch.ts';
 
-/** @returns {PatchV2} */
+/** @returns {Patch} */
 function minimalPatch() {
-  return new PatchV2({ schema: 2, writer: 'w1', lamport: 1, context: {}, ops: [] });
+  return new Patch({ schema: 2, writer: 'w1', lamport: 1, context: {}, ops: [] });
 }
 
 describe('PatchEntry', () => {

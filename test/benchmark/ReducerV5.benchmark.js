@@ -10,12 +10,12 @@
 
 import { describe, it, expect } from 'vitest';
 import { reduceV5 as _reduceV5 } from '../../src/domain/services/JoinReducer.js';
-import PatchV2 from '../../src/domain/types/PatchV2.ts';
+import Patch from '../../src/domain/types/Patch.ts';
 import NodeAdd from '../../src/domain/types/ops/NodeAdd.ts';
 import EdgeAdd from '../../src/domain/types/ops/EdgeAdd.ts';
 import PropSet from '../../src/domain/types/ops/PropSet.ts';
 
-/** @type {any} */ const createPatchV2 = (/** @type {any} */ opts) => new PatchV2(opts);
+/** @type {any} */ const createPatch = (/** @type {any} */ opts) => new Patch(opts);
 /** @type {any} */ const createNodeAddV2 = (/** @type {string} */ node, /** @type {any} */ dot) => new NodeAdd(node, dot);
 /** @type {any} */ const createEdgeAddV2 = (/** @type {string} */ from, /** @type {string} */ to, /** @type {string} */ label, /** @type {any} */ dot) => new EdgeAdd({ from, to, label, dot });
 /** @param {string} node @param {string} key @param {unknown} value */
@@ -162,7 +162,7 @@ function generateV5Patches(patchCount, options = {}) {
     }
 
     patches.push({
-      patch: createPatchV2({
+      patch: createPatch({
         writer,
         lamport,
         context,

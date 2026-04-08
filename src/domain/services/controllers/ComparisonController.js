@@ -210,12 +210,12 @@ class ResolvedComparisonSide {
   /** @type {WarpStateV5} Materialized state */
   state;
 
-  /** @type {Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>} */
+  /** @type {Array<{ patch: import('../../types/Patch.ts').default, sha: string }>} */
   patchEntries;
 
   /**
    * Creates a ResolvedComparisonSide.
-   * @param {{ requested: Record<string, unknown>, state: WarpStateV5, patchEntries: Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>, resolved: Record<string, unknown> }} fields
+   * @param {{ requested: Record<string, unknown>, state: WarpStateV5, patchEntries: Array<{ patch: import('../../types/Patch.ts').default, sha: string }>, resolved: Record<string, unknown> }} fields
    */
   constructor({ requested, state, patchEntries, resolved }) {
     this.requested = requested;
@@ -410,7 +410,7 @@ function updateWriterHighestPatch(byWriter, writerId, patchInfo) {
 /**
  * Extracts the highest patch SHA per writer from a set of patch entries.
  *
- * @param {Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>} entries
+ * @param {Array<{ patch: import('../../types/Patch.ts').default, sha: string }>} entries
  * @returns {Record<string, string>}
  */
 function patchFrontierFromEntries(entries) {
@@ -432,7 +432,7 @@ function patchFrontierFromEntries(entries) {
 /**
  * Extracts the highest lamport timestamp per writer from patch entries.
  *
- * @param {Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>} entries
+ * @param {Array<{ patch: import('../../types/Patch.ts').default, sha: string }>} entries
  * @returns {Record<string, number>}
  */
 function lamportFrontierFromEntries(entries) {
@@ -481,7 +481,7 @@ function buildCoordinateRequest(frontierRecord, ceiling) {
 /**
  * Checks if a patch touches a specific entity ID in its reads or writes.
  *
- * @param {import('../../types/PatchV2.ts').default} patch
+ * @param {import('../../types/Patch.ts').default} patch
  * @param {string} entityId
  * @returns {boolean}
  */
@@ -494,7 +494,7 @@ function patchTouchesEntity(patch, entityId) {
 /**
  * Returns a unique sorted list of patch SHAs from entries.
  *
- * @param {Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>} entries
+ * @param {Array<{ patch: import('../../types/Patch.ts').default, sha: string }>} entries
  * @returns {string[]}
  */
 function uniqueSortedPatchShas(entries) {
@@ -505,7 +505,7 @@ function uniqueSortedPatchShas(entries) {
 /**
  * Returns a unique sorted list of patch SHAs that touched a target ID.
  *
- * @param {Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>} entries
+ * @param {Array<{ patch: import('../../types/Patch.ts').default, sha: string }>} entries
  * @param {string} targetId
  * @returns {string[]}
  */
@@ -547,8 +547,8 @@ function summarizeVisibleState(reader, patchCount) {
 /**
  * Computes target-specific patch divergence.
  *
- * @param {Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>} leftEntries
- * @param {Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>} rightEntries
+ * @param {Array<{ patch: import('../../types/Patch.ts').default, sha: string }>} leftEntries
+ * @param {Array<{ patch: import('../../types/Patch.ts').default, sha: string }>} rightEntries
  * @param {string} targetId
  * @returns {Record<string, unknown>}
  * @private
@@ -577,8 +577,8 @@ function buildTargetDivergence(leftEntries, rightEntries, targetId) {
 /**
  * Computes visible patch divergence between two sides.
  *
- * @param {Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>} leftEntries
- * @param {Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>} rightEntries
+ * @param {Array<{ patch: import('../../types/Patch.ts').default, sha: string }>} leftEntries
+ * @param {Array<{ patch: import('../../types/Patch.ts').default, sha: string }>} rightEntries
  * @param {string|null} targetId
  * @returns {Record<string, unknown>}
  */
@@ -610,7 +610,7 @@ function buildPatchDivergenceImpl(leftEntries, rightEntries, targetId) {
  *
  * @param {import('../../WarpRuntime.js').default} graph
  * @param {{ tipSha: string, ceiling: number|null }} params
- * @returns {Promise<Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>>}
+ * @returns {Promise<Array<{ patch: import('../../types/Patch.ts').default, sha: string }>>}
  * @private
  */
 async function collectWriterEntries(graph, { tipSha, ceiling }) {
@@ -631,7 +631,7 @@ async function collectWriterEntries(graph, { tipSha, ceiling }) {
  * @param {import('../../WarpRuntime.js').default} graph
  * @param {Record<string, string>} frontierRecord
  * @param {number|null} ceiling
- * @returns {Promise<Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>>}
+ * @returns {Promise<Array<{ patch: import('../../types/Patch.ts').default, sha: string }>>}
  */
 async function collectPatchEntriesForFrontier(graph, frontierRecord, ceiling) {
   const frontier = frontierRecordToMap(frontierRecord);
@@ -783,7 +783,7 @@ async function computeStateHashForGraph(graph, state) {
  * @param {{
  *   requested: Record<string, unknown>,
  *   state: WarpStateV5,
- *   patchEntries: Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>,
+ *   patchEntries: Array<{ patch: import('../../types/Patch.ts').default, sha: string }>,
  *   coordinateKind: 'frontier'|'strand'|'strand_base',
  *   lamportCeiling: number|null,
  *   strand?: Record<string, unknown>
@@ -1163,8 +1163,8 @@ export default class ComparisonController {
 
   /**
    * Builds a deterministic patch divergence analysis between two sets of patch entries.
-   * @param {Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>} leftEntries
-   * @param {Array<{ patch: import('../../types/PatchV2.ts').default, sha: string }>} rightEntries
+   * @param {Array<{ patch: import('../../types/Patch.ts').default, sha: string }>} leftEntries
+   * @param {Array<{ patch: import('../../types/Patch.ts').default, sha: string }>} rightEntries
    * @param {string|null} [targetId]
    * @returns {Record<string, unknown>}
    */

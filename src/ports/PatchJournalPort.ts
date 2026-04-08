@@ -1,11 +1,11 @@
-import type PatchV2 from '../domain/types/PatchV2.ts';
+import type Patch from '../domain/types/Patch.ts';
 import type WarpStream from '../domain/stream/WarpStream.js';
 import type PatchEntry from '../domain/artifacts/PatchEntry.js';
 
 /**
  * Port for patch journal persistence.
  *
- * Domain-facing port that speaks PatchV2 domain objects. No bytes cross
+ * Domain-facing port that speaks Patch domain objects. No bytes cross
  * this boundary. The adapter implementation owns the codec and talks to
  * the raw Git ports (BlobPort, BlobStoragePort) internally.
  *
@@ -23,10 +23,10 @@ export interface ReadPatchOptions {
 /** Port for patch journal persistence. */
 export default abstract class PatchJournalPort {
   /** Persists a patch and returns its storage OID. */
-  abstract writePatch(_patch: PatchV2): Promise<string>;
+  abstract writePatch(_patch: Patch): Promise<string>;
 
   /** Reads a patch by its storage OID. */
-  abstract readPatch(_patchOid: string, _options?: ReadPatchOptions): Promise<PatchV2>;
+  abstract readPatch(_patchOid: string, _options?: ReadPatchOptions): Promise<Patch>;
 
   /**
    * Whether this journal uses external blob storage.

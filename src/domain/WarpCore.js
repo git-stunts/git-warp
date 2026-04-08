@@ -290,7 +290,7 @@ export default class WarpCore {
    * @returns {Promise<unknown>}
    */
   async getStrandPatches(strandId, options) {
-    return await /** @type {Promise<Array<{ patch: import('./types/PatchV2.ts').default, sha: string }>>} */ (
+    return await /** @type {Promise<Array<{ patch: import('./types/Patch.ts').default, sha: string }>>} */ (
       /** @type {unknown} */ (WarpRuntime.prototype.getStrandPatches.call(this, strandId, options))
     );
   }

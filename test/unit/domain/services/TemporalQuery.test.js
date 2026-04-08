@@ -3,7 +3,7 @@ import { TemporalQuery } from '../../../../src/domain/services/TemporalQuery.js'
 import {
   createNodeAddV2,
   createPropSetV2,
-  createPatchV2,
+  createPatch,
   createDot,
   createInlineValue,
 } from '../../../helpers/warpGraphTestUtils.js';
@@ -48,7 +48,7 @@ function createNodeWithPropPatch({
   }
   ops.push(createPropSetV2(nodeId, propKey, createInlineValue(propValue)));
   return {
-    patch: createPatchV2({ writer, lamport, ops }),
+    patch: createPatch({ writer, lamport, ops }),
     sha,
   };
 }
@@ -58,7 +58,7 @@ function createNodeWithPropPatch({
  */
 function createPropOnlyPatch({ nodeId = /** @type {any} */ (undefined), writer = /** @type {any} */ (undefined), lamport = /** @type {any} */ (undefined), propKey = /** @type {any} */ (undefined), propValue = /** @type {any} */ (undefined), sha = /** @type {any} */ (undefined) }) {
   return {
-    patch: createPatchV2({
+    patch: createPatch({
       writer,
       lamport,
       ops: [createPropSetV2(nodeId, propKey, createInlineValue(propValue))],

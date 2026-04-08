@@ -21,7 +21,7 @@ import WarpApp, {
   Observer,
   PatchBuilderV2,
   PatchSession,
-  PatchV2,
+  Patch,
   Writer,
   ProvenancePayload,
   ProvenanceIndex,
@@ -263,7 +263,7 @@ const _typeCoverageTuple: [
 const pb: PatchBuilderV2 = await graph.createPatch();
 const _chain: PatchBuilderV2 = pb.addNode('n1').addEdge('n1', 'n2', 'knows').setProperty('n1', 'name', 'Alice');
 const _edgeProp: PatchBuilderV2 = pb.setEdgeProperty('n1', 'n2', 'knows', 'weight', 0.5);
-const patch: PatchV2 = pb.build();
+const patch: Patch = pb.build();
 const _sha: string = await pb.commit();
 const _opCount: number = pb.opCount;
 
@@ -420,7 +420,7 @@ const wGraphName: string = w.graphName;
 const ps: PatchSession = await w.beginPatch();
 const ps2: PatchSession = ps.addNode('x').removeNode('y').addEdge('a', 'b', 'c').removeEdge('a', 'b', 'c');
 const ps3: PatchSession = ps.setProperty('x', 'k', 'v').setEdgeProperty('a', 'b', 'c', 'k', 'v');
-const psPatch: PatchV2 = ps.build();
+const psPatch: Patch = ps.build();
 const psSha: string = await ps.commit();
 const psOpCount: number = ps.opCount;
 const psAttach: PatchSession = await ps.attachContent('x', 'content', { mime: 'text/plain', size: 7 });
@@ -449,8 +449,8 @@ await server.close();
 
 // ---- discoverWriters / getWriterPatches ----
 const writers: string[] = await graph.discoverWriters();
-const writerPatches: Array<{ patch: PatchV2; sha: string }> = await graph.getWriterPatches('w1');
-const writerPatchesStopped: Array<{ patch: PatchV2; sha: string }> = await graph.getWriterPatches('w1', 'abc123');
+const writerPatches: Array<{ patch: Patch; sha: string }> = await graph.getWriterPatches('w1');
+const writerPatchesStopped: Array<{ patch: Patch; sha: string }> = await graph.getWriterPatches('w1', 'abc123');
 
 // ---- createCheckpoint ----
 const cpSha: string = await graph.createCheckpoint();

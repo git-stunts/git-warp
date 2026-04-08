@@ -107,7 +107,7 @@ describe('OpNormalizer', () => {
     it('A1-T03: lowers EdgePropSet to raw PropSet with legacy node encoding', () => {
       const canonical = createEdgePropSetV2('alice', 'bob', 'follows', 'weight', 0.9);
 
-      const raw = /** @type {import('../../../../src/domain/types/WarpTypesV2.ts').OpV2PropSet} */ (lowerCanonicalOp(canonical));
+      const raw = /** @type {import('../../../../src/domain/types/ops/PropSet.ts').default} */ (lowerCanonicalOp(canonical));
 
       expect(raw.type).toBe('PropSet');
       expect(raw.node).toBe('\x01alice\0bob\0follows');

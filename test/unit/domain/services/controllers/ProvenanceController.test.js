@@ -74,7 +74,7 @@ function createHost(overrides = {}) {
   };
 }
 
-/** @returns {import('../../../../../src/domain/types/WarpTypesV2.ts').PatchV2} */
+/** @returns {import('../../../../../src/domain/types/Patch.ts').default} */
 function makePatch({ writer = 'w1', lamport = 1, ops = [], reads } = {}) {
   const patch = { writer, lamport, ops };
   if (reads !== undefined) {

@@ -11,7 +11,7 @@ import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 /** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.js' */
 /** @typedef {import('../../../../../src/domain/services/JoinReducer.js').WarpStateV5} WarpStateV5 */
 /** @typedef {import('../../../../../src/domain/types/TickReceipt.ts').TickReceipt} TickReceipt */
-/** @typedef {import('../../../../../src/domain/types/WarpTypesV2.ts').PatchV2} PatchV2 */
+/** @typedef {import('../../../../../src/domain/types/Patch.ts').default} Patch */
 
 /**
  * @typedef {{
@@ -92,10 +92,10 @@ function emptyState() {
 }
 
 /**
- * Build a canonical PatchV2 test fixture.
+ * Build a canonical Patch test fixture.
  *
- * @param {Partial<PatchV2>} [overrides]
- * @returns {PatchV2}
+ * @param {Partial<Patch>} [overrides]
+ * @returns {Patch}
  */
 function makePatch(overrides = {}) {
   return {
@@ -136,7 +136,7 @@ function requireStateWithReceipts(result) {
  * Creates a fake patch entry for use in mock return values.
  *
  * @param {{ lamport?: number, sha?: string, writer?: string, reads?: string[], writes?: string[] }} [opts]
- * @returns {{ patch: PatchV2, sha: string }}
+ * @returns {{ patch: Patch, sha: string }}
  */
 function fakePatchEntry(opts = {}) {
   return {

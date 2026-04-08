@@ -184,7 +184,7 @@ export default class CheckpointController {
    * Loads patches since a checkpoint for incremental materialization.
    *
    * @param {{state: import('../JoinReducer.js').WarpStateV5, frontier: Map<string, string>, stateHash: string, schema: number}} checkpoint
-   * @returns {Promise<Array<{patch: import('../../types/PatchV2.ts').default, sha: string}>>}
+   * @returns {Promise<Array<{patch: import('../../types/Patch.ts').default, sha: string}>>}
    */
   async _loadPatchesSince(checkpoint) {
     const h = this._host;
