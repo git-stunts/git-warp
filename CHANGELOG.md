@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **V2 naming purge** — `PatchV2` renamed to `Patch`, `PatchBuilderV2` renamed to `PatchBuilder`. Old names preserved as deprecated type aliases in `index.d.ts` for backward compatibility. No wire format changes.
+- **WarpTypes.ts deleted** — v1 factory functions (`createNodeAdd`, `createInlineValue`, etc.) inlined into `index.js` and test helpers. Zero source consumers remain.
+- **WarpTypesV2.ts deleted** — factory functions replaced with direct class constructors throughout. Union types (`OpV2`, `RawOpV2`, `CanonicalOpV2`) moved to `src/domain/types/ops/unions.ts`.
+- **Artifact file splits** — `CheckpointArtifact.js` subclasses (`StateArtifact`, `FrontierArtifact`, `AppliedVVArtifact`) and `IndexShard.js` subclasses (`MetaShard`, `EdgeShard`, `LabelShard`, `PropertyShard`, `ReceiptShard`) now have individual files for one-class-per-file discoverability. Barrel re-exports preserved for backward compatibility.
+
 ### Added
 
-- **Op type class hierarchy** — 8 operation types (`NodeAdd`, `NodeRemove`, `EdgeAdd`, `EdgeRemove`, `NodePropSet`, `EdgePropSet`, `PropSet`, `BlobValue`) promoted from `@typedef` plain objects to frozen classes with constructor validation and `instanceof` dispatch. Base `Op` class provides shared runtime identity. Factory functions in `WarpTypesV2.js` now delegate to class constructors. 97 new tests across 4 test files.
+- **Op type class hierarchy** — 8 operation types (`NodeAdd`, `NodeRemove`, `EdgeAdd`, `EdgeRemove`, `NodePropSet`, `EdgePropSet`, `PropSet`, `BlobValue`) promoted from `@typedef` plain objects to frozen classes with constructor validation and `instanceof` dispatch. Base `Op` class provides shared runtime identity. 97 new tests across 4 test files.
 - **Auto-materialize on remove** — `createPatch()` now auto-materializes when `autoMaterialize` is true, `_cachedState` is null, and existing patches exist. Users no longer need to call `materialize()` explicitly before patches that include `removeNode`/`removeEdge`.
 
 ### Fixed
