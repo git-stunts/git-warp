@@ -18,6 +18,9 @@ export default tseslint.config(
       "examples/html/assets/**",
       "scripts/**",
       ".claude/**",
+      "test/type-check/**",
+      "test/runtime/**",
+      "**/*.d.ts",
     ],
   },
 
@@ -30,13 +33,18 @@ export default tseslint.config(
 
   // ── Source + CLI: typed linting (the nuclear option) ────────────────────────
   {
-    files: ["src/**/*.js", "bin/**/*.js"],
+    files: ["src/**/*.js", "src/**/*.ts", "bin/**/*.js", "bin/**/*.ts"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
       parser: tseslint.parser,
       parserOptions: {
-        projectService: true,
+        projectService: {
+          allowDefaultProject: [
+            "src/domain/entities/GraphNode.js",
+            "src/visualization/index.js",
+          ],
+        },
         tsconfigRootDir: __dirname,
       },
       globals: {
@@ -227,6 +235,23 @@ export default tseslint.config(
     },
   },
 
+  // ── TypeScript source: re-enable no-unsafe-* (works in real .ts) ───────────
+  {
+    files: ["src/**/*.ts", "bin/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
+      "@typescript-eslint/no-unsafe-call": "error",
+      "@typescript-eslint/strict-boolean-expressions": "error",
+
+      // JSDoc rules not needed in .ts — types are in the syntax
+      "jsdoc/require-jsdoc": "off",
+      "jsdoc/require-description": "off",
+      "jsdoc/valid-types": "off",
+    },
+  },
+
   // ── Relaxed complexity for algorithm-heavy modules ─────────────────────────
   {
     files: [
@@ -326,7 +351,7 @@ export default tseslint.config(
 
   // ── Port contracts: async is the interface, not the implementation ──────────
   {
-    files: ["src/ports/**/*.js"],
+    files: ["src/ports/**/*.js", "src/ports/**/*.ts"],
     rules: {
       "@typescript-eslint/require-await": "off",
     },
@@ -334,7 +359,7 @@ export default tseslint.config(
 
   // ── Domain purity: ban Buffer — use Uint8Array + helpers from domain/utils/bytes.js ──
   {
-    files: ["src/domain/**/*.js"],
+    files: ["src/domain/**/*.js", "src/domain/**/*.ts"],
     rules: {
       "no-restricted-globals": ["error",
         { "name": "Buffer", "message": "Use Uint8Array + helpers from domain/utils/bytes.js. Buffer is confined to infrastructure adapters." },
@@ -359,7 +384,7 @@ export default tseslint.config(
   // All external state (time, randomness, I/O scheduling) must flow
   // through injected ports, never accessed directly.
   {
-    files: ["src/domain/**/*.js"],
+    files: ["src/domain/**/*.js", "src/domain/**/*.ts"],
     rules: {
       "no-restricted-syntax": ["error",
         // ── Wall clock ──
@@ -400,7 +425,7 @@ export default tseslint.config(
 
   // ── JoinReducer: the algorithm from hell ───────────────────────────────────
   {
-    files: ["src/domain/services/JoinReducer.js"],
+    files: ["src/domain/services/JoinReducer.js", "src/domain/services/JoinReducer.ts"],
     rules: {
       "complexity": ["error", 35],
       "max-lines-per-function": ["error", 200],
@@ -412,7 +437,7 @@ export default tseslint.config(
 
   // ── Test files: keep strict but relax structure rules ──────────────────────
   {
-    files: ["test/**/*.js", "test/**/*.test.js"],
+    files: ["test/**/*.js", "test/**/*.ts", "test/**/*.test.js", "test/**/*.test.ts"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",

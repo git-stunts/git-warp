@@ -32,18 +32,19 @@
 
 ## Engineering Doctrine
 
-- Read `docs/SYSTEMS_STYLE_JAVASCRIPT.md` before making design-level changes.
+- Read `docs/SYSTEMS_STYLE_TYPESCRIPT.md` (SSTS) before making design-level changes.
 - Prefer one file per class, type, or object. If a file accumulates peer concepts, split it.
 - Runtime truth wins. If something has invariants, identity, or behavior, it should exist as a runtime-backed type.
 - Validate at boundaries and constructors. Constructors establish invariants and do no I/O.
 - Prefer `instanceof` dispatch over tag switching.
-- No `any`. Use `unknown` only at raw boundaries and eliminate it immediately.
+- No `any`. No `unknown` outside parser functions. No `as` assertions. No `enum`.
+- `interface` is for ports only. Domain concepts are classes.
 - No boolean trap parameters. Use named option objects or separate methods.
 - No magic strings or numbers when a named constant should exist.
 - Hexagonal architecture is mandatory. `src/domain/` does not import host APIs or Node-specific globals.
 - Wall clock is banned from `src/domain/`. Time must enter through a port or parameter.
 - Domain bytes are `Uint8Array`; `Buffer` stays in infrastructure adapters.
-- Public APIs should be heavily JSDoc'd. If a public surface changes, update its JSDoc in the same slice.
+- Max file size: 500 LOC (source), 800 LOC (test), 300 LOC (bin/scripts).
 - No sludge. Do not leave helper corridors, fake shape trust, or transitional duplication behind at the end of a slice.
 
 ## Refactor Gates
