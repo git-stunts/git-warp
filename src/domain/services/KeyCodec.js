@@ -46,15 +46,6 @@ export const CONTENT_SIZE_PROPERTY_KEY = '_content.size';
  */
 export const EFFECT_NODE_PREFIX = '@warp/effect:';
 
-/** Property key for the effect kind on an effect entity. @const {string} */
-export const EFFECT_PROP_KIND = 'kind';
-
-/** Property key for the writer ID on an effect entity. @const {string} */
-export const EFFECT_PROP_WRITER = 'writer';
-
-/** Property key for the serialized payload on an effect entity. @const {string} */
-export const EFFECT_PROP_PAYLOAD = 'payload';
-
 /**
  * Encodes an edge key to a string for Map storage.
  *

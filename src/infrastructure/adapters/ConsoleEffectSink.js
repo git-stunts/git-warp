@@ -19,7 +19,7 @@ import {
  */
 
 /** Default sink ID for ConsoleEffectSink. */
-export const CONSOLE_SINK_ID = 'console';
+const CONSOLE_SINK_ID = 'console';
 
 /**
  * Creates a suppressed observation when the lens blocks external delivery.

@@ -37,15 +37,12 @@ export const OUTCOME_DELIVERED = 'delivered';
 export const OUTCOME_SUPPRESSED = 'suppressed';
 /** @type {'failed'} */
 export const OUTCOME_FAILED = 'failed';
-/** @type {'skipped'} */
-export const OUTCOME_SKIPPED = 'skipped';
-
 /** @type {'live'} */
-export const MODE_LIVE = 'live';
+const MODE_LIVE = 'live';
 /** @type {'replay'} */
-export const MODE_REPLAY = 'replay';
+const MODE_REPLAY = 'replay';
 /** @type {'inspect'} */
-export const MODE_INSPECT = 'inspect';
+const MODE_INSPECT = 'inspect';
 
 const modeSet = new Set(DELIVERY_MODES);
 const outcomeSet = new Set(DELIVERY_OUTCOMES);

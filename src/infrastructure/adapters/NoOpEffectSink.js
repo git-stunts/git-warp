@@ -19,7 +19,7 @@ import {
  */
 
 /** Default sink ID for NoOpEffectSink. */
-export const NOOP_SINK_ID = 'noop';
+const NOOP_SINK_ID = 'noop';
 
 export class NoOpEffectSink extends EffectSinkPort {
   /**

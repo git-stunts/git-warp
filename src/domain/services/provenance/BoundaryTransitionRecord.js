@@ -170,7 +170,7 @@ export class BTR {
 /**
  * VerificationResult — outcome of BTR HMAC/replay verification.
  */
-export class VerificationResult {
+class VerificationResult {
   /** @type {boolean} */
   valid;
 

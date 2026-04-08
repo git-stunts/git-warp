@@ -28,7 +28,7 @@ import { join } from 'node:path';
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024; // 10 MiB
 
 /** Default sink ID for ChunkEffectSink. */
-export const CHUNK_SINK_ID = 'chunk';
+const CHUNK_SINK_ID = 'chunk';
 
 /** Filename prefix for chunk NDJSON files. */
 const CHUNK_FILE_PREFIX = 'effects-';
