@@ -1,3 +1,4 @@
+import { OP_SCOPE_BOTH } from './OpScope.ts';
 /**
  * NodeRemove — removes a node by tombstoning observed dots.
  *
@@ -21,7 +22,7 @@ export default class NodeRemove extends Op {
    * Creates a NodeRemove operation.
    */
   constructor(node: string, observedDots: string[]) {
-    super('NodeRemove');
+    super('NodeRemove', OP_SCOPE_BOTH);
     assertNonEmptyString(node, 'NodeRemove', 'node');
     assertNoReservedBytes(node, 'NodeRemove', 'node');
     assertArray(observedDots, 'NodeRemove', 'observedDots');

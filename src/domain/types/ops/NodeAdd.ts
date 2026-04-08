@@ -1,3 +1,5 @@
+import PatchError from '../../errors/PatchError.ts';
+import { OP_SCOPE_BOTH } from './OpScope.ts';
 /**
  * NodeAdd — adds a node to the graph with a causal dot.
  *
@@ -22,11 +24,11 @@ export default class NodeAdd extends Op {
    * Creates a NodeAdd operation.
    */
   constructor(node: string, dot: Dot) {
-    super('NodeAdd');
+    super('NodeAdd', OP_SCOPE_BOTH);
     assertNonEmptyString(node, 'NodeAdd', 'node');
     assertNoReservedBytes(node, 'NodeAdd', 'node');
     if (!(dot instanceof Dot)) {
-      throw new Error('NodeAdd requires dot to be a Dot instance');
+      throw new PatchError('NodeAdd requires dot to be a Dot instance');
     }
     this.node = node;
     this.dot = dot;

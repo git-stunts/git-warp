@@ -1,3 +1,4 @@
+import { OP_SCOPE_CANONICAL } from './OpScope.ts';
 /**
  * NodePropSet — canonical node property operation (internal only).
  *
@@ -25,7 +26,7 @@ export default class NodePropSet extends Op {
    * Creates a NodePropSet operation.
    */
   constructor(node: string, key: string, value: unknown) {
-    super('NodePropSet');
+    super('NodePropSet', OP_SCOPE_CANONICAL);
     assertNonEmptyString(node, 'NodePropSet', 'node');
     assertNonEmptyString(key, 'NodePropSet', 'key');
     assertNoReservedBytes(node, 'NodePropSet', 'node');

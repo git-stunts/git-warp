@@ -1,3 +1,4 @@
+import { OP_SCOPE_BOTH } from './OpScope.ts';
 /**
  * EdgeRemove — removes an edge by tombstoning observed dots.
  *
@@ -27,7 +28,7 @@ export default class EdgeRemove extends Op {
    * Creates an EdgeRemove operation.
    */
   constructor({ from, to, label, observedDots }: { from: string; to: string; label: string; observedDots: string[] }) {
-    super('EdgeRemove');
+    super('EdgeRemove', OP_SCOPE_BOTH);
     assertNonEmptyString(from, 'EdgeRemove', 'from');
     assertNonEmptyString(to, 'EdgeRemove', 'to');
     assertNonEmptyString(label, 'EdgeRemove', 'label');

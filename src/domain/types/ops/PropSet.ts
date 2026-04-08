@@ -1,3 +1,4 @@
+import { OP_SCOPE_RAW } from './OpScope.ts';
 /**
  * PropSet — raw/wire-format property operation.
  *
@@ -29,7 +30,7 @@ export default class PropSet extends Op {
    * Creates a PropSet operation (raw wire format).
    */
   constructor(node: string, key: string, value: unknown) {
-    super('PropSet');
+    super('PropSet', OP_SCOPE_RAW);
     assertNonEmptyString(node, 'PropSet', 'node');
     assertNonEmptyString(key, 'PropSet', 'key');
     assertNoReservedBytes(key, 'PropSet', 'key');

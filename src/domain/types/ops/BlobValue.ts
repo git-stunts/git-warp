@@ -1,3 +1,4 @@
+import { OP_SCOPE_BOTH } from './OpScope.ts';
 /**
  * BlobValue — reference to an external blob in the Git object store.
  *
@@ -22,7 +23,7 @@ export default class BlobValue extends Op {
    * Creates a BlobValue operation.
    */
   constructor(node: string, oid: string) {
-    super('BlobValue');
+    super('BlobValue', OP_SCOPE_BOTH);
     assertNonEmptyString(node, 'BlobValue', 'node');
     assertNonEmptyString(oid, 'BlobValue', 'oid');
     assertNoReservedBytes(node, 'BlobValue', 'node');

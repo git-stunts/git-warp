@@ -22,7 +22,7 @@ describe('OpNormalizer', () => {
 
       const canonical = normalizeRawOp(raw);
 
-      expect(canonical).toEqual({
+      expect(canonical).toMatchObject({
         type: 'EdgePropSet',
         from: 'alice',
         to: 'bob',
@@ -44,7 +44,7 @@ describe('OpNormalizer', () => {
       const canonical = normalizeRawOp(raw);
 
       expect(canonical.type).toBe('NodePropSet');
-      expect(canonical).toEqual({
+      expect(canonical).toMatchObject({
         type: 'NodePropSet',
         node: 'alice',
         key: 'color',
@@ -111,7 +111,7 @@ describe('OpNormalizer', () => {
 
       const raw = lowerCanonicalOp(canonical);
 
-      expect(raw).toEqual({
+      expect(raw).toMatchObject({
         type: 'PropSet',
         node: 'alice',
         key: 'color',

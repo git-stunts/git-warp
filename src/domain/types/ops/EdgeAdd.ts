@@ -1,3 +1,5 @@
+import PatchError from '../../errors/PatchError.ts';
+import { OP_SCOPE_BOTH } from './OpScope.ts';
 /**
  * EdgeAdd — adds a directed edge to the graph with a causal dot.
  *
@@ -28,7 +30,7 @@ export default class EdgeAdd extends Op {
    * Creates an EdgeAdd operation.
    */
   constructor({ from, to, label, dot }: { from: string; to: string; label: string; dot: Dot }) {
-    super('EdgeAdd');
+    super('EdgeAdd', OP_SCOPE_BOTH);
     assertNonEmptyString(from, 'EdgeAdd', 'from');
     assertNonEmptyString(to, 'EdgeAdd', 'to');
     assertNonEmptyString(label, 'EdgeAdd', 'label');
@@ -36,7 +38,7 @@ export default class EdgeAdd extends Op {
     assertNoReservedBytes(to, 'EdgeAdd', 'to');
     assertNoReservedBytes(label, 'EdgeAdd', 'label');
     if (!(dot instanceof Dot)) {
-      throw new Error('EdgeAdd requires dot to be a Dot instance');
+      throw new PatchError('EdgeAdd requires dot to be a Dot instance');
     }
     this.from = from;
     this.to = to;

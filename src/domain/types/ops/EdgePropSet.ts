@@ -1,3 +1,4 @@
+import { OP_SCOPE_CANONICAL } from './OpScope.ts';
 /**
  * EdgePropSet — canonical edge property operation (internal only).
  *
@@ -31,7 +32,7 @@ export default class EdgePropSet extends Op {
    * Creates an EdgePropSet operation.
    */
   constructor({ from, to, label, key, value }: { from: string; to: string; label: string; key: string; value: unknown }) {
-    super('EdgePropSet');
+    super('EdgePropSet', OP_SCOPE_CANONICAL);
     assertNonEmptyString(from, 'EdgePropSet', 'from');
     assertNonEmptyString(to, 'EdgePropSet', 'to');
     assertNonEmptyString(label, 'EdgePropSet', 'label');
