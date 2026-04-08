@@ -18,3 +18,6 @@ Streaming port methods:
 - IndexStorePort.scanShards() → WarpStream<IndexShard>
 
 See cycle 0008 design doc.
+
+---
+**Graveyarded:** 2026-04-08 — completed, shipped before v17.0.0.

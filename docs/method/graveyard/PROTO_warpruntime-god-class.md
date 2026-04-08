@@ -20,3 +20,6 @@ PatchController, CheckpointController, MaterializeController. Extracted from the
 
 - **Phase 5 (kernel tightening)**: The 3 kernel controllers still reach into `this._host` for 20+ fields. These field accesses could be narrowed to explicit constructor-injected capabilities. Lower priority — the organizational win is already delivered.
 - The SyncController (extracted in M10 era) predates the defineProperty delegation pattern — could be unified but is not blocking.
+
+---
+**Graveyarded:** 2026-04-08 — completed, shipped before v17.0.0.

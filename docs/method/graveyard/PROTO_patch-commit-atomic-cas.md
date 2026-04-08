@@ -28,3 +28,6 @@ was told the commit succeeded.
 - `TrustRecordService` already has the closest in-repo model for CAS
   plus retry; use that shape instead of inventing a second conflict
   policy.
+
+---
+**Graveyarded:** 2026-04-08 — CAS logic exists in PatchBuilderV2, RefPort, CasBlobAdapter.

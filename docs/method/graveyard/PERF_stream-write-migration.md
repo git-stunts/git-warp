@@ -17,3 +17,6 @@ scanRange() for unbounded reads. CheckpointStorePort gets surgery
 Encode → blobWrite → treeAssemble stays in infrastructure.
 
 See cycle 0008 design doc.
+
+---
+**Graveyarded:** 2026-04-08 — completed, shipped before v17.0.0.

@@ -10,3 +10,6 @@
 
 - Source: P1b priority tier (TSC Zero Campaign Drift Audit)
 - High priority
+
+---
+**Graveyarded:** 2026-04-08 — completed, shipped before v17.0.0.

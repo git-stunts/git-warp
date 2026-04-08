@@ -23,3 +23,6 @@ Still needed:
   constructors
 - Remove all `assertX(unknown)` guard functions — same
 - Replace `Record<string, unknown>` options bags with typed classes
+
+---
+**Graveyarded:** 2026-04-08 — completed, shipped before v17.0.0.
