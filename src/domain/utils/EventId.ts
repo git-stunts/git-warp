@@ -1,3 +1,5 @@
+import PatchError from '../errors/PatchError.ts';
+
 // Regex for validating hex OID (4-64 hex characters)
 const HEX_OID_REGEX = /^[0-9a-f]{4,64}$/;
 
@@ -27,16 +29,16 @@ export class EventId {
    */
   constructor(lamport: number, writerId: string, patchSha: string, opIndex: number) {
     if (!Number.isInteger(lamport) || lamport <= 0) {
-      throw new Error('lamport must be a positive integer');
+      throw new PatchError('lamport must be a positive integer');
     }
     if (typeof writerId !== 'string' || writerId.length === 0) {
-      throw new Error('writerId must be a non-empty string');
+      throw new PatchError('writerId must be a non-empty string');
     }
     if (typeof patchSha !== 'string' || !HEX_OID_REGEX.test(patchSha)) {
-      throw new Error('patchSha must be a hex string of 4-64 characters');
+      throw new PatchError('patchSha must be a hex string of 4-64 characters');
     }
     if (!Number.isInteger(opIndex) || opIndex < 0) {
-      throw new Error('opIndex must be a non-negative integer');
+      throw new PatchError('opIndex must be a non-negative integer');
     }
 
     this.lamport = lamport;

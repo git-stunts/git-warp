@@ -1,3 +1,5 @@
+import WarpError from '../errors/WarpError.ts';
+
 /**
  * Calls an inherited internal WarpRuntime method even when a public facade
  * prototype shadows the same legacy name with a removal shim.
@@ -10,7 +12,7 @@ export async function callInternalRuntimeMethod(target: object, methodName: stri
   const candidate = resolveCandidate(target, methodName);
 
   if (typeof candidate !== 'function') {
-    throw new TypeError(`missing internal runtime method: ${methodName}`);
+    throw new WarpError(`missing internal runtime method: ${methodName}`, 'E_NOT_IMPLEMENTED');
   }
 
   const result: unknown = await candidate.call(target, ...args);

@@ -22,6 +22,7 @@
  * const value3 = await cache.get(); // Fresh value
  */
 
+import WarpError from '../errors/WarpError.ts';
 import type ClockPort from '../../ports/ClockPort.ts';
 
 interface CachedValueOptions<T> {
@@ -47,10 +48,10 @@ class CachedValue<T> {
    */
   constructor({ clock, ttlMs, compute }: CachedValueOptions<T>) {
     if (typeof ttlMs !== 'number' || ttlMs <= 0) {
-      throw new Error('CachedValue ttlMs must be a positive number');
+      throw new WarpError('CachedValue ttlMs must be a positive number', 'E_INVALID_ARG');
     }
     if (typeof compute !== 'function') {
-      throw new Error('CachedValue compute must be a function');
+      throw new WarpError('CachedValue compute must be a function', 'E_INVALID_ARG');
     }
     this._clock = clock;
     this._ttlMs = ttlMs;

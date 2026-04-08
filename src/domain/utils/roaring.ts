@@ -1,3 +1,5 @@
+import WarpError from '../errors/WarpError.ts';
+
 /**
  * Lazy-loading wrapper for the roaring-wasm/roaring native bitmap library.
  *
@@ -80,7 +82,7 @@ let nativeAvailability: boolean | typeof NOT_CHECKED | null = NOT_CHECKED;
 function loadRoaring(): RoaringModule {
   if (!roaringModule) {
     const cause = initError instanceof Error ? ` Caused by: ${initError.message}` : '';
-    throw new Error(`Roaring module not loaded. Call initRoaring() first or ensure top-level await import completed.${cause}`);
+    throw new WarpError(`Roaring module not loaded. Call initRoaring() first or ensure top-level await import completed.${cause}`, 'E_ROARING_NOT_LOADED');
   }
   return roaringModule;
 }

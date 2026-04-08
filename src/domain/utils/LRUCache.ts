@@ -1,3 +1,5 @@
+import WarpError from '../errors/WarpError.ts';
+
 /**
  * A simple LRU (Least Recently Used) cache implementation.
  *
@@ -15,7 +17,7 @@ class LRUCache<K, V> {
    */
   constructor(maxSize: number) {
     if (!Number.isInteger(maxSize) || maxSize < 1) {
-      throw new Error('LRUCache maxSize must be a positive integer');
+      throw new WarpError('LRUCache maxSize must be a positive integer', 'E_INVALID_ARG');
     }
     this.maxSize = maxSize;
     this._cache = new Map();

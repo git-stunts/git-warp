@@ -1,3 +1,5 @@
+import WarpError from '../errors/WarpError.ts';
+
 /**
  * Ref layout constants and helpers for WARP (Write-Ahead Reference Protocol).
  *
@@ -81,10 +83,10 @@ export const RESERVED_GRAPH_NAME_SEGMENTS: Set<string> = new Set([
  */
 export function validateGraphName(name: string): void {
   if (typeof name !== 'string') {
-    throw new Error(`Invalid graph name: expected string, got ${typeof name}`);
+    throw new WarpError(`Invalid graph name: expected string, got ${typeof name}`, 'E_INVALID_GRAPH_NAME');
   }
   if (name.length === 0) {
-    throw new Error('Invalid graph name: cannot be empty');
+    throw new WarpError('Invalid graph name: cannot be empty', 'E_INVALID_GRAPH_NAME');
   }
   rejectForbiddenGraphChars(name);
   rejectReservedSegments(name);
@@ -95,16 +97,16 @@ export function validateGraphName(name: string): void {
  */
 function rejectForbiddenGraphChars(name: string): void {
   if (PATH_TRAVERSAL_PATTERN.test(name)) {
-    throw new Error(`Invalid graph name: contains path traversal sequence '..': ${name}`);
+    throw new WarpError(`Invalid graph name: contains path traversal sequence '..': ${name}`, 'E_INVALID_GRAPH_NAME');
   }
   if (name.includes(';')) {
-    throw new Error(`Invalid graph name: contains semicolon: ${name}`);
+    throw new WarpError(`Invalid graph name: contains semicolon: ${name}`, 'E_INVALID_GRAPH_NAME');
   }
   if (name.includes(' ')) {
-    throw new Error(`Invalid graph name: contains space: ${name}`);
+    throw new WarpError(`Invalid graph name: contains space: ${name}`, 'E_INVALID_GRAPH_NAME');
   }
   if (name.includes('\0')) {
-    throw new Error(`Invalid graph name: contains null byte: ${name}`);
+    throw new WarpError(`Invalid graph name: contains null byte: ${name}`, 'E_INVALID_GRAPH_NAME');
   }
 }
 
@@ -115,8 +117,9 @@ function rejectReservedSegments(name: string): void {
   const segments = name.split('/');
   for (const seg of segments) {
     if (RESERVED_GRAPH_NAME_SEGMENTS.has(seg)) {
-      throw new Error(
-        `Invalid graph name: segment '${seg}' is a reserved ref-layout keyword: ${name}`
+      throw new WarpError(
+        `Invalid graph name: segment '${seg}' is a reserved ref-layout keyword: ${name}`,
+        'E_INVALID_GRAPH_NAME',
       );
     }
   }
@@ -141,14 +144,15 @@ function rejectReservedSegments(name: string): void {
  */
 export function validateWriterId(id: string): void {
   if (typeof id !== 'string') {
-    throw new Error(`Invalid writer ID: expected string, got ${typeof id}`);
+    throw new WarpError(`Invalid writer ID: expected string, got ${typeof id}`, 'E_INVALID_WRITER_ID');
   }
   if (id.length === 0) {
-    throw new Error('Invalid writer ID: cannot be empty');
+    throw new WarpError('Invalid writer ID: cannot be empty', 'E_INVALID_WRITER_ID');
   }
   if (id.length > MAX_WRITER_ID_LENGTH) {
-    throw new Error(
-      `Invalid writer ID: exceeds maximum length of ${MAX_WRITER_ID_LENGTH} characters: ${id.length}`
+    throw new WarpError(
+      `Invalid writer ID: exceeds maximum length of ${MAX_WRITER_ID_LENGTH} characters: ${id.length}`,
+      'E_INVALID_WRITER_ID',
     );
   }
   rejectForbiddenWriterChars(id);
@@ -159,10 +163,10 @@ export function validateWriterId(id: string): void {
  */
 function rejectForbiddenWriterChars(id: string): void {
   if (PATH_TRAVERSAL_PATTERN.test(id)) {
-    throw new Error(`Invalid writer ID: contains path traversal sequence '..': ${id}`);
+    throw new WarpError(`Invalid writer ID: contains path traversal sequence '..': ${id}`, 'E_INVALID_WRITER_ID');
   }
   if (id.includes('/')) {
-    throw new Error(`Invalid writer ID: contains forward slash: ${id}`);
+    throw new WarpError(`Invalid writer ID: contains forward slash: ${id}`, 'E_INVALID_WRITER_ID');
   }
   rejectControlAndNonAscii(id);
 }
@@ -172,13 +176,13 @@ function rejectForbiddenWriterChars(id: string): void {
  */
 function rejectControlAndNonAscii(id: string): void {
   if (id.includes('\0')) {
-    throw new Error(`Invalid writer ID: contains null byte: ${id}`);
+    throw new WarpError(`Invalid writer ID: contains null byte: ${id}`, 'E_INVALID_WRITER_ID');
   }
   if (/\s/.test(id)) {
-    throw new Error(`Invalid writer ID: contains whitespace: ${id}`);
+    throw new WarpError(`Invalid writer ID: contains whitespace: ${id}`, 'E_INVALID_WRITER_ID');
   }
   if (!WRITER_ID_PATTERN.test(id)) {
-    throw new Error(`Invalid writer ID: contains invalid characters (only [A-Za-z0-9._-] allowed): ${id}`);
+    throw new WarpError(`Invalid writer ID: contains invalid characters (only [A-Za-z0-9._-] allowed): ${id}`, 'E_INVALID_WRITER_ID');
   }
 }
 

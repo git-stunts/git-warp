@@ -8,6 +8,7 @@
  * @module domain/utils/defaultTrustCrypto
  */
 
+import TrustError from '../errors/TrustError.ts';
 import { base64Decode, base64Encode, concatBytes, hexEncode, hexDecode } from './bytes.ts';
 
 let _createHash: typeof import('node:crypto').createHash | null = null;
@@ -39,11 +40,12 @@ interface VerifySignatureParams {
 function decodePublicKey(publicKeyBase64: string): Uint8Array {
   const raw = base64Decode(publicKeyBase64);
   if (base64Encode(raw) !== publicKeyBase64) {
-    throw new Error('Malformed base64 in public key');
+    throw new TrustError('Malformed base64 in public key', { code: 'E_TRUST_INVALID_KEY' });
   }
   if (raw.length !== ED25519_PUBLIC_KEY_LENGTH) {
-    throw new Error(
+    throw new TrustError(
       `Ed25519 public key must be ${ED25519_PUBLIC_KEY_LENGTH} bytes, got ${raw.length}`,
+      { code: 'E_TRUST_INVALID_KEY' },
     );
   }
   return raw;
@@ -54,10 +56,10 @@ function decodePublicKey(publicKeyBase64: string): Uint8Array {
  */
 function verifySignature({ algorithm, publicKeyBase64, signatureBase64, payload }: VerifySignatureParams): boolean {
   if (!_createPublicKey || !_verify) {
-    throw new Error('No trust crypto available. Inject trust crypto explicitly.');
+    throw new TrustError('No trust crypto available. Inject trust crypto explicitly.');
   }
   if (algorithm !== 'ed25519') {
-    throw new Error(`Unsupported algorithm: ${algorithm}`);
+    throw new TrustError(`Unsupported algorithm: ${algorithm}`, { code: 'E_TRUST_UNSUPPORTED_ALGORITHM' });
   }
 
   const raw = decodePublicKey(publicKeyBase64);
@@ -72,7 +74,7 @@ function verifySignature({ algorithm, publicKeyBase64, signatureBase64, payload 
  */
 function computeKeyFingerprint(publicKeyBase64: string): string {
   if (!_createHash) {
-    throw new Error('No trust crypto available. Inject trust crypto explicitly.');
+    throw new TrustError('No trust crypto available. Inject trust crypto explicitly.');
   }
   const raw = decodePublicKey(publicKeyBase64);
   return `ed25519:${hexEncode(_createHash('sha256').update(raw).digest())}`;

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import { canonicalStringify } from '../../../../src/domain/utils/canonicalStringify.ts';
 
 describe('canonicalStringify', () => {
@@ -117,14 +118,14 @@ describe('canonicalStringify', () => {
       /** @type {Record<string, unknown>} */
       const obj = { a: 1 };
       obj['self'] = obj;
-      expect(() => canonicalStringify(obj)).toThrow(TypeError);
+      expect(() => canonicalStringify(obj)).toThrow(WarpError);
     });
 
     it('throws on circular array references', () => {
       /** @type {unknown[]} */
       const arr = [1, 2];
       arr.push(arr);
-      expect(() => canonicalStringify(arr)).toThrow(TypeError);
+      expect(() => canonicalStringify(arr)).toThrow(WarpError);
     });
 
     it('allows shared (non-circular) object references', () => {

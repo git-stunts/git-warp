@@ -14,6 +14,7 @@
  */
 
 import type { Hash, Hmac } from 'node:crypto';
+import CryptoError from '../errors/CryptoError.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 
 let _createHash: ((algorithm: string) => Hash) | null = null;
@@ -35,7 +36,7 @@ try {
  */
 function hashSync(algorithm: string, data: Uint8Array | string): string {
   if (_createHash === null) {
-    throw new Error('No crypto available. Inject a CryptoPort explicitly.');
+    throw new CryptoError('No crypto available. Inject a CryptoPort explicitly.');
   }
   return _createHash(algorithm).update(data).digest('hex');
 }
@@ -45,7 +46,7 @@ function hashSync(algorithm: string, data: Uint8Array | string): string {
  */
 function hmacSync(algorithm: string, key: Uint8Array | string, data: Uint8Array | string): Uint8Array {
   if (_createHmac === null) {
-    throw new Error('No crypto available. Inject a CryptoPort explicitly.');
+    throw new CryptoError('No crypto available. Inject a CryptoPort explicitly.');
   }
   const result = _createHmac(algorithm, key).update(data).digest();
   return new Uint8Array(result);
@@ -65,7 +66,7 @@ const defaultCrypto: CryptoPort = {
    */
   timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
     if (_timingSafeEqual === null) {
-      throw new Error('No crypto available. Inject a CryptoPort explicitly.');
+      throw new CryptoError('No crypto available. Inject a CryptoPort explicitly.');
     }
     return _timingSafeEqual(a, b);
   },

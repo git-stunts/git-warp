@@ -1,3 +1,5 @@
+import WarpError from '../errors/WarpError.ts';
+
 /**
  * Recursively stringifies a value with sorted object keys for deterministic output.
  * Used for computing checksums that must match across builders and readers.
@@ -29,7 +31,7 @@ function _isNullish(val: unknown): boolean {
  */
 function _assertNoCycle(ref: object, seen: WeakSet<object>): void {
   if (seen.has(ref)) {
-    throw new TypeError('Circular reference detected in canonicalStringify');
+    throw new WarpError('Circular reference detected in canonicalStringify', 'E_CIRCULAR_REFERENCE');
   }
 }
 

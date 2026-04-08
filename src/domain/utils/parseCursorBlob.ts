@@ -4,6 +4,8 @@
  * @module parseCursorBlob
  */
 
+import PersistenceError from '../errors/PersistenceError.ts';
+
 interface CursorBlob {
   readonly tick: number;
   readonly mode?: string;
@@ -37,7 +39,7 @@ export function parseCursorBlob(buf: Uint8Array, label: string): CursorBlob {
   try {
     raw = JSON.parse(new TextDecoder().decode(buf));
   } catch {
-    throw new Error(`Corrupted ${label}: blob is not valid JSON`);
+    throw new PersistenceError(`Corrupted ${label}: blob is not valid JSON`, 'E_MISSING_OBJECT');
   }
 
   assertPlainObject(raw, label);
@@ -51,7 +53,7 @@ export function parseCursorBlob(buf: Uint8Array, label: string): CursorBlob {
  */
 function assertPlainObject(val: unknown, label: string): asserts val is Record<string, unknown> {
   if (val === null || typeof val !== 'object' || Array.isArray(val)) {
-    throw new Error(`Corrupted ${label}: expected a JSON object`);
+    throw new PersistenceError(`Corrupted ${label}: expected a JSON object`, 'E_MISSING_OBJECT');
   }
 }
 
@@ -61,6 +63,6 @@ function assertPlainObject(val: unknown, label: string): asserts val is Record<s
 function assertFiniteTick(obj: Record<string, unknown>, label: string): asserts obj is { tick: number; [key: string]: unknown } {
   const { tick } = obj;
   if (typeof tick !== 'number' || !Number.isFinite(tick)) {
-    throw new Error(`Corrupted ${label}: missing or invalid numeric tick`);
+    throw new PersistenceError(`Corrupted ${label}: missing or invalid numeric tick`, 'E_MISSING_OBJECT');
   }
 }
