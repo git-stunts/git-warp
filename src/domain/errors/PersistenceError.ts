@@ -1,4 +1,9 @@
-import WarpError from './WarpError.js';
+import WarpError from './WarpError.ts';
+
+interface PersistenceErrorOptions {
+  readonly cause?: Error;
+  readonly context?: Record<string, unknown>;
+}
 
 /**
  * Typed error codes for persistence adapter boundary failures.
@@ -13,13 +18,6 @@ import WarpError from './WarpError.js';
  * | `E_MISSING_OBJECT` | Stored object (commit, blob, tree) does not exist |
  * | `E_REF_NOT_FOUND` | Ref does not resolve to any object |
  * | `E_REF_IO` | Ref update/delete failed (lock contention, permission, etc.) |
- *
- * @class PersistenceError
- * @extends WarpError
- *
- * @property {string} name - Always 'PersistenceError' for instanceof checks
- * @property {string} code - Machine-readable error code for programmatic handling
- * @property {Record<string, unknown>} context - Serializable context object with error details
  */
 export default class PersistenceError extends WarpError {
   /** Stored object (commit, blob, tree) does not exist. */
@@ -31,13 +29,9 @@ export default class PersistenceError extends WarpError {
   /** Ref update/delete failed (lock contention, permission, etc.). */
   static E_REF_IO = 'E_REF_IO';
 
-  /**
-   * Constructs a PersistenceError with a code and optional cause/context.
-   * @param {string} message - Human-readable error message
-   * @param {string} code - One of the E_* constants
-   * @param {{ cause?: Error, context?: Record<string, unknown> }} [options={}]
-   */
-  constructor(message, code, options = {}) {
+  declare cause: Error | undefined;
+
+  constructor(message: string, code: string, options: PersistenceErrorOptions = {}) {
     super(message, code, options.context ? { context: options.context } : {});
     if (options.cause) {
       this.cause = options.cause;

@@ -1,0 +1,19 @@
+/** Custom error classes for domain operations. */
+
+export { default as AuditError } from './AuditError.ts';
+export { default as EncryptionError } from './EncryptionError.ts';
+export { default as ForkError } from './ForkError.ts';
+export { default as IndexError } from './IndexError.ts';
+export { default as OperationAbortedError } from './OperationAbortedError.ts';
+export { default as PatchError } from './PatchError.ts';
+export { default as QueryError } from './QueryError.ts';
+export { default as SyncError } from './SyncError.ts';
+export { default as ShardCorruptionError } from './ShardCorruptionError.ts';
+export { default as ShardIdOverflowError } from './ShardIdOverflowError.ts';
+export { default as ShardLoadError } from './ShardLoadError.ts';
+export { default as ShardValidationError } from './ShardValidationError.ts';
+export { default as StorageError } from './StorageError.ts';
+export { default as SchemaUnsupportedError } from './SchemaUnsupportedError.ts';
+export { default as TraversalError } from './TraversalError.ts';
+export { default as StrandError } from './StrandError.ts';
+export { default as WormholeError } from './WormholeError.ts';

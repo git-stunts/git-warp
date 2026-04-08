@@ -1,11 +1,7 @@
-import WarpError from './WarpError.js';
+import WarpError, { type WarpErrorOptions } from './WarpError.ts';
 
 /**
  * Error class for query builder and graph query operations.
- *
- * QueryError is thrown when a query operation fails due to invalid input,
- * missing state, or constraint violations. It provides structured error
- * information via error codes and context objects for programmatic handling.
  *
  * ## Error Codes
  *
@@ -24,21 +20,9 @@ import WarpError from './WarpError.js';
  * | `E_QUERY_AGGREGATE_TYPE` | Invalid type passed to `aggregate()` |
  * | `E_QUERY_AGGREGATE_TERMINAL` | Method called after aggregate() which is terminal |
  * | `QUERY_ERROR` | Generic/default query error |
- *
- * @class QueryError
- * @extends WarpError
- *
- * @property {string} name - Always 'QueryError' for instanceof checks
- * @property {string} code - Machine-readable error code for programmatic handling
- * @property {Record<string, unknown>} context - Serializable context object with error details
  */
 export default class QueryError extends WarpError {
-  /**
-   * Constructs a QueryError with optional code and context overrides.
-   * @param {string} message
-   * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
-   */
-  constructor(message, options = {}) {
+  constructor(message: string, options: WarpErrorOptions = {}) {
     super(message, 'QUERY_ERROR', options);
   }
 }

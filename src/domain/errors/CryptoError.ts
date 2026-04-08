@@ -1,4 +1,4 @@
-import WarpError from './WarpError.js';
+import WarpError, { type WarpErrorOptions } from './WarpError.ts';
 
 /**
  * Error class for cryptographic adapter and operation failures.
@@ -9,18 +9,9 @@ import WarpError from './WarpError.js';
  * |------|-------------|
  * | `E_CRYPTO_UNSUPPORTED_ALGORITHM` | Requested digest/HMAC algorithm is not supported |
  * | `E_CRYPTO_INVALID_DATA` | Input data cannot be converted into bytes for crypto APIs |
- *
- * @class CryptoError
- * @extends WarpError
  */
 export default class CryptoError extends WarpError {
-  /**
-   * Constructs a CryptoError with an optional machine-readable code and context.
-   *
-   * @param {string} message - Human-readable error message
-   * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
-   */
-  constructor(message, options = {}) {
+  constructor(message: string, options: WarpErrorOptions = {}) {
     super(message, 'E_CRYPTO_INVALID_DATA', options);
   }
 }

@@ -1,4 +1,4 @@
-import WarpError from './WarpError.js';
+import WarpError from './WarpError.ts';
 
 /**
  * Error class for Writer operations.
@@ -17,26 +17,17 @@ import WarpError from './WarpError.js';
  * | `PERSIST_WRITE_FAILED` | Git persistence operation failed |
  * | `NO_BLOB_STORAGE` | Content attachment attempted without blob storage |
  * | `WRITER_ERROR` | Generic/default writer error |
- *
- * @class WriterError
- * @extends WarpError
- *
- * @property {string} name - Always 'WriterError'
- * @property {string} code - Machine-readable error code
- * @property {Error} [cause] - Original error that caused this error
  */
 export default class WriterError extends WarpError {
+  declare cause: Error | undefined;
+
   /**
    * Note: constructor parameter order differs from other WarpError subclasses
    * (code, message vs message, code). This is intentional to match the most
    * common call sites in PatchSession and PatchBuilderV2 where the error code
    * is the primary discriminator.
-   *
-   * @param {string} code - Error code
-   * @param {string} message - Human-readable error message
-   * @param {Error} [cause] - Original error that caused this error
    */
-  constructor(code, message, cause) {
+  constructor(code: string, message: string, cause?: Error) {
     super(message, 'WRITER_ERROR', { code });
     if (cause !== undefined) {
       this.cause = cause;

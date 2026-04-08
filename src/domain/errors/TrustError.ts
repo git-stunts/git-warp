@@ -1,4 +1,4 @@
-import WarpError from './WarpError.js';
+import WarpError, { type WarpErrorOptions } from './WarpError.ts';
 
 /**
  * Error class for trust operations.
@@ -12,22 +12,9 @@ import WarpError from './WarpError.js';
  * | `E_TRUST_CAS_CONFLICT` | Concurrent append advanced the trust chain; caller must rebuild + re-sign |
  * | `E_TRUST_CAS_EXHAUSTED` | CAS retry budget exhausted (transient failures) |
  * | `TRUST_ERROR` | Generic/default trust error |
- *
- * @class TrustError
- * @extends WarpError
- *
- * @property {string} name - Always 'TrustError' for instanceof checks
- * @property {string} code - Machine-readable error code for programmatic handling
- * @property {Record<string, unknown>} context - Serializable context object with error details
  */
 export default class TrustError extends WarpError {
-  /**
-   * Constructs a TrustError with the default code TRUST_ERROR.
-   *
-   * @param {string} message
-   * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
-   */
-  constructor(message, options = {}) {
+  constructor(message: string, options: WarpErrorOptions = {}) {
     super(message, 'TRUST_ERROR', options);
   }
 }

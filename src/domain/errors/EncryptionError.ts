@@ -1,4 +1,4 @@
-import WarpError from './WarpError.js';
+import WarpError, { type WarpErrorOptions } from './WarpError.ts';
 
 /**
  * Error thrown when a patch requires decryption but no patchBlobStorage
@@ -9,17 +9,9 @@ import WarpError from './WarpError.js';
  * | Code | Description |
  * |------|-------------|
  * | `E_ENCRYPTED_PATCH` | Patch is encrypted but no decryption key is available |
- *
- * @class EncryptionError
- * @extends WarpError
  */
 export default class EncryptionError extends WarpError {
-  /**
-   * Creates an EncryptionError indicating a patch requires decryption.
-   * @param {string} message
-   * @param {{ context?: Record<string, unknown> }} [options={}]
-   */
-  constructor(message, options = {}) {
+  constructor(message: string, options: WarpErrorOptions = {}) {
     super(message, 'E_ENCRYPTED_PATCH', options);
   }
 }

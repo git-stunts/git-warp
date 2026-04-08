@@ -1,4 +1,4 @@
-import WarpError from './WarpError.js';
+import WarpError, { type WarpErrorOptions } from './WarpError.ts';
 
 /**
  * Error class for graph fork operations.
@@ -15,22 +15,9 @@ import WarpError from './WarpError.js';
  * | `E_FORK_WRITER_ID_INVALID` | The fork writer ID is invalid |
  * | `E_FORK_ALREADY_EXISTS` | A graph with the fork name already exists |
  * | `FORK_ERROR` | Generic/default fork error |
- *
- * @class ForkError
- * @extends WarpError
- *
- * @property {string} name - Always 'ForkError' for instanceof checks
- * @property {string} code - Machine-readable error code for programmatic handling
- * @property {Record<string, unknown>} context - Serializable context object with error details
  */
 export default class ForkError extends WarpError {
-  /**
-   * Constructs a ForkError with the default code FORK_ERROR.
-   *
-   * @param {string} message
-   * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
-   */
-  constructor(message, options = {}) {
+  constructor(message: string, options: WarpErrorOptions = {}) {
     super(message, 'FORK_ERROR', options);
   }
 }

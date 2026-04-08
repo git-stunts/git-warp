@@ -1,4 +1,4 @@
-import WarpError from './WarpError.js';
+import WarpError, { type WarpErrorOptions } from './WarpError.ts';
 
 /**
  * Error class for strand descriptor and materialization operations.
@@ -15,17 +15,9 @@ import WarpError from './WarpError.js';
  * | `E_STRAND_MISSING_OBJECT` | The strand ref points at a missing blob |
  * | `E_STRAND_COORDINATE_INVALID` | The strand base observation coordinate is invalid |
  * | `STRAND_ERROR` | Generic/default strand error |
- *
- * @class StrandError
- * @extends WarpError
  */
 export default class StrandError extends WarpError {
-  /**
-   * Creates a StrandError with an optional error code and context.
-   * @param {string} message
-   * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
-   */
-  constructor(message, options = {}) {
+  constructor(message: string, options: WarpErrorOptions = {}) {
     super(message, 'STRAND_ERROR', options);
   }
 }

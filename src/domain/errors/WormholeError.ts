@@ -1,4 +1,4 @@
-import WarpError from './WarpError.js';
+import WarpError, { type WarpErrorOptions } from './WarpError.ts';
 
 /**
  * Error class for wormhole compression operations.
@@ -13,21 +13,9 @@ import WarpError from './WarpError.js';
  * | `E_WORMHOLE_EMPTY_RANGE` | No patches found in the specified range |
  * | `E_WORMHOLE_NOT_PATCH` | A commit in the range is not a patch commit |
  * | `WORMHOLE_ERROR` | Generic/default wormhole error |
- *
- * @class WormholeError
- * @extends WarpError
- *
- * @property {string} name - Always 'WormholeError' for instanceof checks
- * @property {string} code - Machine-readable error code for programmatic handling
- * @property {Record<string, unknown>} context - Serializable context object with error details
  */
 export default class WormholeError extends WarpError {
-  /**
-   * Constructs a WormholeError with an optional error code and debugging context.
-   * @param {string} message
-   * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
-   */
-  constructor(message, options = {}) {
+  constructor(message: string, options: WarpErrorOptions = {}) {
     super(message, 'WORMHOLE_ERROR', options);
   }
 }

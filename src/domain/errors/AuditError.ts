@@ -1,4 +1,4 @@
-import WarpError from './WarpError.js';
+import WarpError, { type WarpErrorOptions } from './WarpError.ts';
 
 /**
  * Error class for audit receipt validation and persistence failures.
@@ -12,13 +12,6 @@ import WarpError from './WarpError.js';
  * | `E_AUDIT_DEGRADED` | Audit service degraded after exhausting retries |
  * | `E_AUDIT_CHAIN_GAP` | Audit chain has a gap (missing commit in ancestry) |
  * | `E_AUDIT_WRITER_MISMATCH` | TickReceipt writer does not match the service's writerId |
- *
- * @class AuditError
- * @extends WarpError
- *
- * @property {string} name - Always 'AuditError' for instanceof checks
- * @property {string} code - Machine-readable error code for programmatic handling
- * @property {Record<string, unknown>} context - Serializable context object with error details
  */
 export default class AuditError extends WarpError {
   /** Receipt field validation failed. */
@@ -36,12 +29,7 @@ export default class AuditError extends WarpError {
   /** TickReceipt writer does not match the service's writerId. */
   static E_AUDIT_WRITER_MISMATCH = 'E_AUDIT_WRITER_MISMATCH';
 
-  /**
-   * Creates an AuditError with the given message and error code.
-   * @param {string} message - Human-readable error description
-   * @param {{ code?: string, context?: Record<string, unknown> }} [options={}] - Error options
-   */
-  constructor(message, options = {}) {
+  constructor(message: string, options: WarpErrorOptions = {}) {
     super(message, options.code ?? 'E_AUDIT_INVALID', options);
   }
 }
