@@ -7,7 +7,7 @@
  * @abstract
  * @see GraphPersistencePort - Composite port implementing all five focused ports
  */
-import WarpError from '../domain/errors/WarpError.js';
+import WarpError from '../domain/errors/WarpError.ts';
 
 export default class BlobPort {
   /**

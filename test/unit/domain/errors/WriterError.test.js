@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import WriterError from '../../../../src/domain/errors/WriterError.js';
-import WarpError from '../../../../src/domain/errors/WarpError.js';
+import WriterError from '../../../../src/domain/errors/WriterError.ts';
+import WarpError from '../../../../src/domain/errors/WarpError.ts';
 
 describe('WriterError', () => {
   it('extends WarpError', () => {

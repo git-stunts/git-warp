@@ -13,7 +13,7 @@
  */
 
 import { createHash, createPublicKey, verify } from 'node:crypto';
-import TrustError from '../../domain/errors/TrustError.js';
+import TrustError from '../../domain/errors/TrustError.ts';
 
 /** Algorithms supported by this module. */
 export const SUPPORTED_ALGORITHMS = new Set(['ed25519']);

@@ -8,9 +8,9 @@
  */
 
 // ── Error constructors ──────────────────────────────────────────────────────
-export { default as QueryError } from '../errors/QueryError.js';
-export { default as ForkError } from '../errors/ForkError.js';
-export { default as StrandError } from '../errors/StrandError.js';
+export { default as QueryError } from '../errors/QueryError.ts';
+export { default as ForkError } from '../errors/ForkError.ts';
+export { default as StrandError } from '../errors/StrandError.ts';
 
 /**
  * Extended WarpRuntime type that includes mixin methods wired at runtime.

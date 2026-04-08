@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import SyncController from '../../../../../src/domain/services/controllers/SyncController.js';
-import SyncError from '../../../../../src/domain/errors/SyncError.js';
-import OperationAbortedError from '../../../../../src/domain/errors/OperationAbortedError.js';
+import SyncError from '../../../../../src/domain/errors/SyncError.ts';
+import OperationAbortedError from '../../../../../src/domain/errors/OperationAbortedError.ts';
 import SyncTrustGate from '../../../../../src/domain/services/sync/SyncTrustGate.js';
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────

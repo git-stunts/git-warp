@@ -22,9 +22,9 @@
 
 import defaultCodec from '../utils/defaultCodec.js';
 import ProvenancePayload from './provenance/ProvenancePayload.js';
-import WormholeError from '../errors/WormholeError.js';
-import EncryptionError from '../errors/EncryptionError.js';
-import PersistenceError from '../errors/PersistenceError.js';
+import WormholeError from '../errors/WormholeError.ts';
+import EncryptionError from '../errors/EncryptionError.ts';
+import PersistenceError from '../errors/PersistenceError.ts';
 import { detectMessageKind, decodePatchMessage } from './codec/WarpMessageCodec.js';
 
 /**

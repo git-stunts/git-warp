@@ -6,7 +6,7 @@ import { orsetAdd } from '../../../../../src/domain/crdt/ORSet.js';
 import { ProvenanceIndex } from '../../../../../src/domain/services/provenance/ProvenanceIndex.js';
 import { encodeEdgeKey } from '../../../../../src/domain/services/KeyCodec.js';
 import { encodePatchMessage } from '../../../../../src/domain/services/codec/WarpMessageCodec.js';
-import QueryError from '../../../../../src/domain/errors/QueryError.js';
+import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 
 /** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.js' */
 /** @typedef {import('../../../../../src/domain/services/JoinReducer.js').WarpStateV5} WarpStateV5 */

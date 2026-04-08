@@ -8,7 +8,7 @@
  * @module infrastructure/adapters/adapterValidation
  */
 
-import AdapterValidationError from '../../domain/errors/AdapterValidationError.js';
+import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 
 /** @type {RegExp} Pattern for valid hex OIDs (4–64 hex characters). */
 const VALID_OID_PATTERN = /^[0-9a-fA-F]{4,64}$/;

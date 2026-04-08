@@ -35,11 +35,11 @@ import {
 import { lowerCanonicalOp } from './OpNormalizer.js';
 import { encodePatchMessage, decodePatchMessage, detectMessageKind } from './codec/WarpMessageCodec.js';
 import { buildWriterRef } from '../utils/RefLayout.js';
-import WriterError from '../errors/WriterError.js';
+import WriterError from '../errors/WriterError.ts';
 import { isStreamingInput, normalizeToAsyncIterable } from '../utils/streamUtils.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
-import PatchError from '../errors/PatchError.js';
-import PersistenceError from '../errors/PersistenceError.js';
+import PatchError from '../errors/PatchError.ts';
+import PersistenceError from '../errors/PersistenceError.ts';
 
 /**
  * Inspects materialized state for edges and properties attached to a node.

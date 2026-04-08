@@ -8,7 +8,7 @@ import {
 } from '../../domain/artifacts/IndexShard.js';
 
 /** @typedef {import('../../domain/artifacts/IndexShard.js').IndexShard} IndexShard */
-import WarpError from '../../domain/errors/WarpError.js';
+import WarpError from '../../domain/errors/WarpError.ts';
 
 /**
  * Stream transform that maps IndexShard instances to [path, bytes] entries.

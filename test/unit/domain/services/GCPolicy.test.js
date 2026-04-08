@@ -4,7 +4,7 @@ import {
   shouldRunGC,
   executeGC,
 } from '../../../../src/domain/services/GCPolicy.js';
-import WarpError from '../../../../src/domain/errors/WarpError.js';
+import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import {
   collectGCMetrics,
   countLiveDots,

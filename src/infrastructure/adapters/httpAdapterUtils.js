@@ -8,7 +8,7 @@
  * @private
  */
 
-import WarpError from '../../domain/errors/WarpError.js';
+import WarpError from '../../domain/errors/WarpError.ts';
 
 /**
  * Error thrown when a request body exceeds the size limit.

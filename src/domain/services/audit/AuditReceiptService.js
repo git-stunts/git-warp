@@ -10,7 +10,7 @@
  * @see docs/specs/AUDIT_RECEIPT.md
  */
 
-import AuditError from '../../errors/AuditError.js';
+import AuditError from '../../errors/AuditError.ts';
 import { buildAuditRef } from '../../utils/RefLayout.js';
 import { encodeAuditMessage } from '../codec/AuditMessageCodec.js';
 

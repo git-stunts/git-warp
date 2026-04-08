@@ -5,7 +5,7 @@
 import { orsetCompact } from '../crdt/ORSet.js';
 import VersionVector from '../crdt/VersionVector.js';
 import { collectGCMetrics } from './GCMetrics.js';
-import WarpError from '../errors/WarpError.js';
+import WarpError from '../errors/WarpError.ts';
 
 /**
  * @typedef {Object} GCPolicy

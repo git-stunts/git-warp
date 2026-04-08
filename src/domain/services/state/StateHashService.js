@@ -1,5 +1,5 @@
 import { projectStateV5 } from './StateSerializerV5.js';
-import WarpError from '../../errors/WarpError.js';
+import WarpError from '../../errors/WarpError.ts';
 
 /**
  * Computes canonical state hashes for verification, comparison,

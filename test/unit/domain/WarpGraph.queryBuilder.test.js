@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encodePropKey } from '../../../src/domain/services/JoinReducer.js';
-import QueryError from '../../../src/domain/errors/QueryError.js';
+import QueryError from '../../../src/domain/errors/QueryError.ts';
 import { addNodeToState, addEdgeToState, setupGraphState } from '../../helpers/warpGraphTestUtils.js';
 
 function addProp(/** @type {any} */ state, /** @type {any} */ nodeId, /** @type {any} */ key, /** @type {any} */ value) {

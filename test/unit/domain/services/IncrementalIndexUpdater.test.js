@@ -8,7 +8,7 @@ import { createEventId } from '../../../../src/domain/utils/EventId.js';
 import { orsetGetDots, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
 import computeShardKey from '../../../../src/domain/utils/shardKey.js';
-import { ShardIdOverflowError } from '../../../../src/domain/errors/index.js';
+import { ShardIdOverflowError } from '../../../../src/domain/errors/index.ts';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 

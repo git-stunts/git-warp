@@ -1,4 +1,4 @@
-import WarpError from '../domain/errors/WarpError.js';
+import WarpError from '../domain/errors/WarpError.ts';
 
 /** @type {string} */
 const E_NOT_IMPLEMENTED = 'E_NOT_IMPLEMENTED';

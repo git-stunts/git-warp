@@ -1,4 +1,4 @@
-import QueryError from '../errors/QueryError.js';
+import QueryError from '../errors/QueryError.ts';
 import { createORSet, orsetContains } from '../crdt/ORSet.js';
 import WarpStateV5 from './state/WarpStateV5.js';
 import { normalizeRawOp } from './OpNormalizer.js';

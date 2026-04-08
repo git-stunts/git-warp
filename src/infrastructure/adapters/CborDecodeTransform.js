@@ -1,5 +1,5 @@
 import Transform from '../../domain/stream/Transform.js';
-import WarpError from '../../domain/errors/WarpError.js';
+import WarpError from '../../domain/errors/WarpError.ts';
 
 /**
  * Stream transform that CBOR-decodes the value component of [path, bytes] entries.

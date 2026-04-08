@@ -37,7 +37,7 @@
  */
 
 import nullLogger from '../../utils/nullLogger.js';
-import TraversalError from '../../errors/TraversalError.js';
+import TraversalError from '../../errors/TraversalError.ts';
 import MinHeap from '../../utils/MinHeap.js';
 import LRUCache from '../../utils/LRUCache.js';
 import { checkAborted } from '../../utils/cancellation.js';

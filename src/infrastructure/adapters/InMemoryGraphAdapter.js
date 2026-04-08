@@ -16,8 +16,8 @@
  */
 
 import GraphPersistencePort from '../../ports/GraphPersistencePort.js';
-import PersistenceError from '../../domain/errors/PersistenceError.js';
-import WarpError from '../../domain/errors/WarpError.js';
+import PersistenceError from '../../domain/errors/PersistenceError.ts';
+import WarpError from '../../domain/errors/WarpError.ts';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.js';
 
 // ── Browser-safe byte helpers ────────────────────────────────────────

@@ -188,8 +188,8 @@ async function resolveObserverSnapshot(graph, options) {
  *
  * @param {string} nodeId - The node ID to check
  * @returns {Promise<boolean>} True if the node exists in the materialized state
- * @throws {import('../../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
- * @throws {import('../../errors/QueryError.js').default} If cached state is dirty (code: `E_STALE_STATE`)
+ * @throws {import('../../errors/QueryError.ts').default} If no cached state exists (code: `E_NO_STATE`)
+ * @throws {import('../../errors/QueryError.ts').default} If cached state is dirty (code: `E_STALE_STATE`)
  * @this {QueryController}
  */
 async function hasNode(nodeId) {
@@ -203,7 +203,7 @@ async function hasNode(nodeId) {
  *
  * @param {string} nodeId - The node ID to get properties for
  * @returns {Promise<Record<string, unknown>|null>} Object of property key → value, or null if node doesn't exist
- * @throws {import('../../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @throws {import('../../errors/QueryError.ts').default} If no cached state exists (code: `E_NO_STATE`)
  * @this {QueryController}
  */
 async function getNodeProps(nodeId) {
@@ -248,7 +248,7 @@ async function getNodeProps(nodeId) {
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
  * @returns {Promise<Record<string, unknown>|null>} Object of property key → value, or null if edge doesn't exist
- * @throws {import('../../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @throws {import('../../errors/QueryError.ts').default} If no cached state exists (code: `E_NO_STATE`)
  * @this {QueryController}
  */
 async function getEdgeProps(from, to, label) {
@@ -303,7 +303,7 @@ function tagDirection(edges, dir) {
  * @param {'outgoing' | 'incoming' | 'both'} [direction='both'] - Edge direction to follow
  * @param {string} [edgeLabel] - Optional edge label filter
  * @returns {Promise<Array<{nodeId: string, label: string, direction: 'outgoing' | 'incoming'}>>} Array of neighbor info
- * @throws {import('../../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @throws {import('../../errors/QueryError.ts').default} If no cached state exists (code: `E_NO_STATE`)
  * @this {QueryController}
  */
 async function neighbors(nodeId, direction = 'both', edgeLabel = undefined) {
@@ -400,7 +400,7 @@ async function getStateSnapshot() {
  * Gets all visible nodes in the materialized state.
  *
  * @returns {Promise<string[]>} Array of node IDs
- * @throws {import('../../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @throws {import('../../errors/QueryError.ts').default} If no cached state exists (code: `E_NO_STATE`)
  * @this {QueryController}
  */
 async function getNodes() {
@@ -413,7 +413,7 @@ async function getNodes() {
  * Gets all visible edges in the materialized state.
  *
  * @returns {Promise<Array<{from: string, to: string, label: string, props: Record<string, unknown>}>>} Array of edge info
- * @throws {import('../../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @throws {import('../../errors/QueryError.ts').default} If no cached state exists (code: `E_NO_STATE`)
  * @this {QueryController}
  */
 async function getEdges() {
@@ -460,7 +460,7 @@ async function getEdges() {
  * Returns the number of property entries in the materialized state.
  *
  * @returns {Promise<number>} Number of property entries
- * @throws {import('../../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @throws {import('../../errors/QueryError.ts').default} If no cached state exists (code: `E_NO_STATE`)
  * @this {QueryController}
  */
 async function getPropertyCount() {
@@ -696,7 +696,7 @@ function extractContentMeta(contentRegister, mimeRegister, sizeRegister) {
  *
  * @param {string} nodeId - The node ID to check
  * @returns {Promise<string|null>} Hex blob OID or null
- * @throws {import('../../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @throws {import('../../errors/QueryError.ts').default} If no cached state exists (code: `E_NO_STATE`)
  * @this {QueryController}
  */
 async function getContentOid(nodeId) {
@@ -711,7 +711,7 @@ async function getContentOid(nodeId) {
  *
  * @param {string} nodeId - The node ID to check
  * @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} Content metadata or null
- * @throws {import('../../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @throws {import('../../errors/QueryError.ts').default} If no cached state exists (code: `E_NO_STATE`)
  * @this {QueryController}
  */
 async function getContentMeta(nodeId) {
@@ -731,7 +731,7 @@ async function getContentMeta(nodeId) {
  *
  * @param {string} nodeId - The node ID to get content for
  * @returns {Promise<Uint8Array|null>} Content bytes or null
- * @throws {import('../../errors/PersistenceError.js').default} If the referenced
+ * @throws {import('../../errors/PersistenceError.ts').default} If the referenced
  *   blob OID is not in the object store (code: `E_MISSING_OBJECT`), such as
  *   after repository corruption, aggressive GC, or a partial clone missing the
  *   blob object.
@@ -758,7 +758,7 @@ async function getContent(nodeId) {
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
  * @returns {Promise<string|null>} Hex blob OID or null
- * @throws {import('../../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @throws {import('../../errors/QueryError.ts').default} If no cached state exists (code: `E_NO_STATE`)
  * @this {QueryController}
  */
 async function getEdgeContentOid(from, to, label) {
@@ -775,7 +775,7 @@ async function getEdgeContentOid(from, to, label) {
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
  * @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} Content metadata or null
- * @throws {import('../../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @throws {import('../../errors/QueryError.ts').default} If no cached state exists (code: `E_NO_STATE`)
  * @this {QueryController}
  */
 async function getEdgeContentMeta(from, to, label) {
@@ -797,7 +797,7 @@ async function getEdgeContentMeta(from, to, label) {
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
  * @returns {Promise<Uint8Array|null>} Content bytes or null
- * @throws {import('../../errors/PersistenceError.js').default} If the referenced
+ * @throws {import('../../errors/PersistenceError.ts').default} If the referenced
  *   blob OID is not in the object store (code: `E_MISSING_OBJECT`), such as
  *   after repository corruption, aggressive GC, or a partial clone missing the
  *   blob object.

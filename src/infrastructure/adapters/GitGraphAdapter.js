@@ -44,8 +44,8 @@
  */
 
 import { retry } from '@git-stunts/alfred';
-import AdapterValidationError from '../../domain/errors/AdapterValidationError.js';
-import PersistenceError from '../../domain/errors/PersistenceError.js';
+import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
+import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.js';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.js';
 

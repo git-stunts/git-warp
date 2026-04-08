@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import BlobStoragePort from '../../../src/ports/BlobStoragePort.js';
-import EncryptionError from '../../../src/domain/errors/EncryptionError.js';
+import EncryptionError from '../../../src/domain/errors/EncryptionError.ts';
 import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.js';
 
 // ---------------------------------------------------------------------------

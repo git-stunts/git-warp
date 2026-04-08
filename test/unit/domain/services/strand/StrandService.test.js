@@ -7,7 +7,7 @@ import StrandService, {
   STRAND_TICK_ID_WIDTH,
   STRAND_COUNTERFACTUAL_REASON,
 } from '../../../../../src/domain/services/strand/StrandService.js';
-import StrandError from '../../../../../src/domain/errors/StrandError.js';
+import StrandError from '../../../../../src/domain/errors/StrandError.ts';
 import { textEncode, textDecode } from '../../../../../src/domain/utils/bytes.js';
 import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReducer.js';
 

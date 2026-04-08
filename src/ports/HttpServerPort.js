@@ -20,7 +20,7 @@
  * @property {() => { address: string, port: number, family: string } | null} address
  */
 
-import WarpError from '../domain/errors/WarpError.js';
+import WarpError from '../domain/errors/WarpError.ts';
 
 /**
  * Port for HTTP server creation.

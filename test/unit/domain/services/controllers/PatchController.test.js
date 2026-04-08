@@ -14,8 +14,8 @@ import WarpStateV5 from '../../../../../src/domain/services/state/WarpStateV5.js
 import { createORSet, orsetAdd } from '../../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../../src/domain/crdt/Dot.js';
 import { QueryError } from '../../../../../src/domain/warp/_internal.js';
-import EncryptionError from '../../../../../src/domain/errors/EncryptionError.js';
-import PersistenceError from '../../../../../src/domain/errors/PersistenceError.js';
+import EncryptionError from '../../../../../src/domain/errors/EncryptionError.ts';
+import PersistenceError from '../../../../../src/domain/errors/PersistenceError.ts';
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
 

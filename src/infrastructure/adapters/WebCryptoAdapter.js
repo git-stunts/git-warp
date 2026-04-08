@@ -1,5 +1,5 @@
 import CryptoPort from '../../ports/CryptoPort.js';
-import WarpError from '../../domain/errors/WarpError.js';
+import WarpError from '../../domain/errors/WarpError.ts';
 
 /**
  * Map of common algorithm names to Web Crypto API algorithm identifiers.

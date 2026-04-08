@@ -8,7 +8,7 @@
  * @abstract
  */
 
-import WarpError from '../domain/errors/WarpError.js';
+import WarpError from '../domain/errors/WarpError.ts';
 
 /** @typedef {'out' | 'in' | 'both'} Direction */
 /** @typedef {{ labels?: Set<string> }} NeighborOptions */

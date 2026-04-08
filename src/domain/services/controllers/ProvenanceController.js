@@ -7,7 +7,7 @@
  * @module domain/services/controllers/ProvenanceController
  */
 
-import QueryError from '../../errors/QueryError.js';
+import QueryError from '../../errors/QueryError.ts';
 import { createEmptyStateV5, reduceV5 } from '../JoinReducer.js';
 import { ProvenancePayload } from '../provenance/ProvenancePayload.js';
 import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';

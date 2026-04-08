@@ -4,7 +4,7 @@ import { createEmptyStateV5, encodeEdgeKey, encodeEdgePropKey } from '../../../s
 import { orsetAdd } from '../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
-import PersistenceError from '../../../src/domain/errors/PersistenceError.js';
+import PersistenceError from '../../../src/domain/errors/PersistenceError.ts';
 
 function setupGraphState(/** @type {any} */ graph, /** @type {any} */ seedFn) {
   const state = createEmptyStateV5();

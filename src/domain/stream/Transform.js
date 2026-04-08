@@ -1,4 +1,4 @@
-import WarpError from '../errors/WarpError.js';
+import WarpError from '../errors/WarpError.ts';
 
 /**
  * Base class for stream transforms.

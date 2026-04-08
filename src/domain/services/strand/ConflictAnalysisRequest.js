@@ -7,7 +7,7 @@
  * @module domain/services/strand/ConflictAnalysisRequest
  */
 
-import QueryError from '../../errors/QueryError.js';
+import QueryError from '../../errors/QueryError.ts';
 
 const VALID_KINDS = new Set(['supersession', 'eventual_override', 'redundancy']);
 const VALID_EVIDENCE_LEVELS = new Set(['summary', 'standard', 'full']);

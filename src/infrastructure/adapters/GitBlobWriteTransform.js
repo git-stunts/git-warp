@@ -1,5 +1,5 @@
 import Transform from '../../domain/stream/Transform.js';
-import WarpError from '../../domain/errors/WarpError.js';
+import WarpError from '../../domain/errors/WarpError.ts';
 
 /**
  * Stream transform that writes the bytes component of [path, bytes] entries

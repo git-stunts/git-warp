@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import TrustError_ from '../../../../src/domain/errors/TrustError.js';
+import TrustError_ from '../../../../src/domain/errors/TrustError.ts';
 
 /** @type {any} */
 const TrustError = TrustError_;

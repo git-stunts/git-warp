@@ -5,7 +5,7 @@
  */
 
 import { textDecode } from './bytes.js';
-import StrandError from '../errors/StrandError.js';
+import StrandError from '../errors/StrandError.ts';
 
 /**
  * Checks whether a value is a non-null, non-array plain object.

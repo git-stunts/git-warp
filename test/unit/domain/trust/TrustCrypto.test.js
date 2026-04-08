@@ -5,7 +5,7 @@ import {
   computeKeyFingerprint,
   SUPPORTED_ALGORITHMS,
 } from '../../../../src/infrastructure/adapters/TrustCryptoAdapter.js';
-import TrustError from '../../../../src/domain/errors/TrustError.js';
+import TrustError from '../../../../src/domain/errors/TrustError.ts';
 
 /** @type {string} */
 let publicKeyBase64;

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import WriterError from '../../../../src/domain/errors/WriterError.js';
+import WriterError from '../../../../src/domain/errors/WriterError.ts';
 import { PatchSession } from '../../../../src/domain/warp/PatchSession.js';
 
 function createSession() {

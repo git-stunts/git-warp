@@ -9,7 +9,7 @@
  * @see WARP Writer Spec v1
  */
 
-import WriterError from '../errors/WriterError.js';
+import WriterError from '../errors/WriterError.ts';
 import { buildWriterRef } from '../utils/RefLayout.js';
 
 /** @type {string} */

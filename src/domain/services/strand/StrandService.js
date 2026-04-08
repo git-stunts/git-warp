@@ -8,7 +8,7 @@
  * @module domain/services/strand/StrandService
  */
 
-import StrandError from '../../errors/StrandError.js';
+import StrandError from '../../errors/StrandError.ts';
 import {
   validateWriterId,
   buildStrandsPrefix,

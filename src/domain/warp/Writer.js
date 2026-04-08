@@ -19,10 +19,10 @@ import { validateWriterId, buildWriterRef } from '../utils/RefLayout.js';
 import { PatchSession } from './PatchSession.js';
 import { PatchBuilderV2 } from '../services/PatchBuilderV2.js';
 import { decodePatchMessage, detectMessageKind } from '../services/codec/WarpMessageCodec.js';
-import WriterError from '../errors/WriterError.js';
+import WriterError from '../errors/WriterError.ts';
 
 // Re-export for backward compatibility — consumers importing from Writer.js
-// should migrate to importing from '../errors/WriterError.js' directly.
+// should migrate to importing from '../errors/WriterError.ts' directly.
 export { WriterError };
 
 /**

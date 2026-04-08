@@ -7,7 +7,7 @@
  * @module domain/services/controllers/ForkController
  */
 
-import ForkError from '../../errors/ForkError.js';
+import ForkError from '../../errors/ForkError.ts';
 import { CHECKPOINT_SCHEMA_STANDARD, CHECKPOINT_SCHEMA_V5_INTERMEDIATE } from '../state/CheckpointService.js';
 import { validateGraphName, validateWriterId, buildWriterRef, buildWritersPrefix } from '../../utils/RefLayout.js';
 import { generateWriterId } from '../../utils/WriterId.js';

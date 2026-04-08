@@ -9,7 +9,7 @@
  * the materialized logical graph (node/edge OR-Sets), not the Git DAG.
  */
 
-import TraversalError from '../../errors/TraversalError.js';
+import TraversalError from '../../errors/TraversalError.ts';
 import GraphTraversal from './GraphTraversal.js';
 import AdjacencyNeighborProvider from './AdjacencyNeighborProvider.js';
 import { orsetElements } from '../../crdt/ORSet.js';

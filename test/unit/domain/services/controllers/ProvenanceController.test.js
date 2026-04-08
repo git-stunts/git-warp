@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ProvenanceController from '../../../../../src/domain/services/controllers/ProvenanceController.js';
-import QueryError from '../../../../../src/domain/errors/QueryError.js';
+import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 
 // ── Mock WarpMessageCodec ───────────────────────────────────────────────
 

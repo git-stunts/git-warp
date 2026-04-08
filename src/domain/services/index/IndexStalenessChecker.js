@@ -4,7 +4,7 @@
  */
 
 import defaultCodec from '../../utils/defaultCodec.js';
-import IndexError from '../../errors/IndexError.js';
+import IndexError from '../../errors/IndexError.ts';
 
 /**
  * Checks whether a value is a non-null object.

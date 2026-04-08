@@ -15,7 +15,7 @@ import {
 import { createEventId } from '../../../../src/domain/utils/EventId.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetContains, orsetElements } from '../../../../src/domain/crdt/ORSet.js';
-import PatchError from '../../../../src/domain/errors/PatchError.js';
+import PatchError from '../../../../src/domain/errors/PatchError.ts';
 
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;

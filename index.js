@@ -65,8 +65,8 @@ import {
   SyncError,
   StrandError,
   WormholeError,
-} from './src/domain/errors/index.js';
-import WriterError from './src/domain/errors/WriterError.js';
+} from './src/domain/errors/index.ts';
+import WriterError from './src/domain/errors/WriterError.ts';
 import BlobStoragePort from './src/ports/BlobStoragePort.js';
 import InMemoryBlobStorageAdapter from './src/domain/utils/defaultBlobStorage.js';
 import CryptoPort from './src/ports/CryptoPort.js';

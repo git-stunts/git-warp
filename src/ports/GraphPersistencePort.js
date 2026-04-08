@@ -1,4 +1,4 @@
-import WarpError from '../domain/errors/WarpError.js';
+import WarpError from '../domain/errors/WarpError.ts';
 import CommitPort from './CommitPort.js';
 import BlobPort from './BlobPort.js';
 import TreePort from './TreePort.js';

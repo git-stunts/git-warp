@@ -39,9 +39,9 @@
 import nullLogger from '../../utils/nullLogger.js';
 import { decodePatchMessage, assertOpsCompatible, SCHEMA_V3 } from '../codec/WarpMessageCodec.js';
 import { join, cloneStateV5, isKnownRawOp } from '../JoinReducer.js';
-import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.js';
-import SyncError from '../../errors/SyncError.js';
-import PersistenceError from '../../errors/PersistenceError.js';
+import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
+import SyncError from '../../errors/SyncError.ts';
+import PersistenceError from '../../errors/PersistenceError.ts';
 import { cloneFrontier, updateFrontier } from '../Frontier.js';
 import VersionVector from '../../crdt/VersionVector.js';
 

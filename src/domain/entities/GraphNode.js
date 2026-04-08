@@ -7,7 +7,7 @@
  * Git commit pointing to the empty tree.
  */
 
-import WarpError from '../errors/WarpError.js';
+import WarpError from '../errors/WarpError.ts';
 
 /** @type {string} */
 const E_INVALID_SHA = 'E_INVALID_SHA';

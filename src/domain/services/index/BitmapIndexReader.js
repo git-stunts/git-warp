@@ -1,4 +1,4 @@
-import { IndexError, ShardLoadError, ShardCorruptionError, ShardValidationError } from '../../errors/index.js';
+import { IndexError, ShardLoadError, ShardCorruptionError, ShardValidationError } from '../../errors/index.ts';
 import defaultCrypto from '../../utils/defaultCrypto.js';
 import nullLogger from '../../utils/nullLogger.js';
 import LRUCache from '../../utils/LRUCache.js';

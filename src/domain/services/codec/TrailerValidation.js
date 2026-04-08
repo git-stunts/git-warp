@@ -10,7 +10,7 @@
  */
 
 import { TRAILER_KEYS } from './MessageCodecInternal.js';
-import MessageCodecError from '../../errors/MessageCodecError.js';
+import MessageCodecError from '../../errors/MessageCodecError.ts';
 
 /** @type {unknown} */
 const _rawKeys = TRAILER_KEYS;

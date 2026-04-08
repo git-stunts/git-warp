@@ -1,4 +1,4 @@
-import WarpError from '../domain/errors/WarpError.js';
+import WarpError from '../domain/errors/WarpError.ts';
 
 /**
  * Port interface for content blob storage operations.

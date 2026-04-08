@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createHash } from 'crypto';
 import BitmapIndexReader from '../../../../src/domain/services/index/BitmapIndexReader.js';
 import BitmapIndexBuilder from '../../../../src/domain/services/index/BitmapIndexBuilder.js';
-import { ShardLoadError, ShardCorruptionError, ShardValidationError } from '../../../../src/domain/errors/index.js';
+import { ShardLoadError, ShardCorruptionError, ShardValidationError } from '../../../../src/domain/errors/index.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 const crypto = new NodeCryptoAdapter();
@@ -130,7 +130,7 @@ describe('BitmapIndexReader', () => {
         strictReader.setup({ 'meta_ab.json': 'bad!' });
         expect.fail('should have thrown');
       } catch (err) {
-        const e = /** @type {import('../../../../src/domain/errors/ShardCorruptionError.js').default} */ (err);
+        const e = /** @type {import('../../../../src/domain/errors/ShardCorruptionError.ts').default} */ (err);
         expect(e).toBeInstanceOf(ShardCorruptionError);
         expect(e.shardPath).toBe('meta_ab.json');
         expect(e.oid).toBe('bad!');

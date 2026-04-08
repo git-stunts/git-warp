@@ -4,7 +4,7 @@
  * Supports deterministic, multi-hop traversal over the logical graph.
  */
 
-import QueryError from '../../errors/QueryError.js';
+import QueryError from '../../errors/QueryError.ts';
 import { matchGlob } from '../../utils/matchGlob.js';
 
 const DEFAULT_PATTERN = '*';

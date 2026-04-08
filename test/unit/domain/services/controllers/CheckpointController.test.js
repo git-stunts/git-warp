@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CheckpointController from '../../../../../src/domain/services/controllers/CheckpointController.js';
 import { QueryError } from '../../../../../src/domain/warp/_internal.js';
-import SchemaUnsupportedError from '../../../../../src/domain/errors/SchemaUnsupportedError.js';
+import SchemaUnsupportedError from '../../../../../src/domain/errors/SchemaUnsupportedError.ts';
 
 /* ------------------------------------------------------------------ */
 /*  vi.mock — static module stubs                                     */

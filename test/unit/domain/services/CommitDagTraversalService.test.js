@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CommitDagTraversalService from '../../../../src/domain/services/dag/CommitDagTraversalService.js';
-import TraversalError from '../../../../src/domain/errors/TraversalError.js';
+import TraversalError from '../../../../src/domain/errors/TraversalError.ts';
 
 /**
  * Creates a mock index reader with a diamond DAG:

@@ -12,7 +12,7 @@
  */
 
 import { EDGE_PROP_PREFIX } from '../KeyCodec.js';
-import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.js';
+import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 import { getCodec, TRAILER_KEYS } from './MessageCodecInternal.js';
 
 // -----------------------------------------------------------------------------

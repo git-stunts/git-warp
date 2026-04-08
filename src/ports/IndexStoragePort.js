@@ -15,7 +15,7 @@
 import BlobPort from './BlobPort.js';
 import TreePort from './TreePort.js';
 import RefPort from './RefPort.js';
-import WarpError from '../domain/errors/WarpError.js';
+import WarpError from '../domain/errors/WarpError.ts';
 
 class IndexStoragePort {}
 

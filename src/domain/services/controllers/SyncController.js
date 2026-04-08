@@ -8,8 +8,8 @@
  * @module domain/services/controllers/SyncController
  */
 
-import SyncError from '../../errors/SyncError.js';
-import OperationAbortedError from '../../errors/OperationAbortedError.js';
+import SyncError from '../../errors/SyncError.ts';
+import OperationAbortedError from '../../errors/OperationAbortedError.ts';
 import { QueryError, E_NO_STATE_MSG } from '../../warp/_internal.js';
 import { validateSyncResponse } from '../sync/SyncPayloadSchema.js';
 import {
@@ -351,7 +351,7 @@ export default class SyncController {
    *
    * @param {import('../sync/SyncProtocol.js').SyncResponse} response - The sync response
    * @returns {{state: import('../JoinReducer.js').WarpStateV5, frontier: Map<string, string>, applied: number}} Result with updated state and frontier
-   * @throws {import('../../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+   * @throws {import('../../errors/QueryError.ts').default} If no cached state exists (code: `E_NO_STATE`)
    */
   /**
    * Applies a sync response to the local graph state.
@@ -365,7 +365,7 @@ export default class SyncController {
    *
    * @param {import('../sync/SyncProtocol.js').SyncResponse} response - The sync response
   * @returns {Promise<{state: import('../JoinReducer.js').WarpStateV5, frontier: Map<string, string>, applied: number, trustVerdict?: string, writersApplied?: string[], skippedWriters: Array<{writerId: string, reason: string, localSha: string, remoteSha: string|null}>}>} Result with updated state and frontier
-   * @throws {import('../../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+   * @throws {import('../../errors/QueryError.ts').default} If no cached state exists (code: `E_NO_STATE`)
    * @throws {SyncError} If trust gate rejects untrusted writers (code: `E_SYNC_UNTRUSTED_WRITER`)
    */
   async applySyncResponse(response) {

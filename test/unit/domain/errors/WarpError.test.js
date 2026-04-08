@@ -1,20 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import WarpError from '../../../../src/domain/errors/WarpError.js';
-import IndexError from '../../../../src/domain/errors/IndexError.js';
-import TraversalError from '../../../../src/domain/errors/TraversalError.js';
-import QueryError from '../../../../src/domain/errors/QueryError.js';
-import SyncError from '../../../../src/domain/errors/SyncError.js';
-import ForkError from '../../../../src/domain/errors/ForkError.js';
-import WormholeError from '../../../../src/domain/errors/WormholeError.js';
-import SchemaUnsupportedError from '../../../../src/domain/errors/SchemaUnsupportedError.js';
-import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.js';
-import ShardCorruptionError from '../../../../src/domain/errors/ShardCorruptionError.js';
-import ShardLoadError from '../../../../src/domain/errors/ShardLoadError.js';
-import ShardValidationError from '../../../../src/domain/errors/ShardValidationError.js';
-import StorageError from '../../../../src/domain/errors/StorageError.js';
-import EmptyMessageError from '../../../../src/domain/errors/EmptyMessageError.js';
-import TrustError from '../../../../src/domain/errors/TrustError.js';
-import WriterError from '../../../../src/domain/errors/WriterError.js';
+import WarpError from '../../../../src/domain/errors/WarpError.ts';
+import IndexError from '../../../../src/domain/errors/IndexError.ts';
+import TraversalError from '../../../../src/domain/errors/TraversalError.ts';
+import QueryError from '../../../../src/domain/errors/QueryError.ts';
+import SyncError from '../../../../src/domain/errors/SyncError.ts';
+import ForkError from '../../../../src/domain/errors/ForkError.ts';
+import WormholeError from '../../../../src/domain/errors/WormholeError.ts';
+import SchemaUnsupportedError from '../../../../src/domain/errors/SchemaUnsupportedError.ts';
+import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.ts';
+import ShardCorruptionError from '../../../../src/domain/errors/ShardCorruptionError.ts';
+import ShardLoadError from '../../../../src/domain/errors/ShardLoadError.ts';
+import ShardValidationError from '../../../../src/domain/errors/ShardValidationError.ts';
+import StorageError from '../../../../src/domain/errors/StorageError.ts';
+import EmptyMessageError from '../../../../src/domain/errors/EmptyMessageError.ts';
+import TrustError from '../../../../src/domain/errors/TrustError.ts';
+import WriterError from '../../../../src/domain/errors/WriterError.ts';
 
 describe('WarpError base class', () => {
   it('sets name from constructor', () => {

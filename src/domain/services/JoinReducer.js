@@ -18,7 +18,7 @@ import { encodeDot } from '../crdt/Dot.js';
 import { encodeEdgeKey, decodeEdgeKey, encodePropKey, encodeEdgePropKey, EDGE_PROP_PREFIX } from './KeyCodec.js';
 import { normalizeRawOp } from './OpNormalizer.js';
 import { createEmptyDiff, mergeDiffs } from '../types/PatchDiff.js';
-import PatchError from '../errors/PatchError.js';
+import PatchError from '../errors/PatchError.ts';
 import WarpStateV5 from './state/WarpStateV5.js';
 
 export { default as WarpStateV5 } from './state/WarpStateV5.js';

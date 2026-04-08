@@ -8,7 +8,7 @@
  * @module domain/services/controllers/ComparisonController
  */
 
-import QueryError from '../../errors/QueryError.js';
+import QueryError from '../../errors/QueryError.ts';
 import {
   buildCoordinateComparisonFact,
   buildCoordinateTransferPlanFact,

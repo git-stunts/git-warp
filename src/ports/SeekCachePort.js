@@ -10,7 +10,7 @@
  *
  * @abstract
  */
-import WarpError from '../domain/errors/WarpError.js';
+import WarpError from '../domain/errors/WarpError.ts';
 
 export default class SeekCachePort {
   /**

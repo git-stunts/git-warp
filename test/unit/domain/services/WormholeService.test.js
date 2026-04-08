@@ -7,9 +7,9 @@ import {
   deserializeWormhole,
 } from '../../../../src/domain/services/WormholeService.js';
 import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.js';
-import WormholeError from '../../../../src/domain/errors/WormholeError.js';
-import EncryptionError from '../../../../src/domain/errors/EncryptionError.js';
-import PersistenceError from '../../../../src/domain/errors/PersistenceError.js';
+import WormholeError from '../../../../src/domain/errors/WormholeError.ts';
+import EncryptionError from '../../../../src/domain/errors/EncryptionError.ts';
+import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
 import {
   encodePatchMessage,

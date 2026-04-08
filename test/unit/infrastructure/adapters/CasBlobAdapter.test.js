@@ -36,7 +36,7 @@ const { default: BlobStoragePort } = await import(
   '../../../../src/ports/BlobStoragePort.js'
 );
 const { default: PersistenceError } = await import(
-  '../../../../src/domain/errors/PersistenceError.js'
+  '../../../../src/domain/errors/PersistenceError.ts'
 );
 
 // ---------------------------------------------------------------------------

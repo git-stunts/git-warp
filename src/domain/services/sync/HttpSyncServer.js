@@ -10,7 +10,7 @@
 
 import { z } from 'zod';
 import SyncAuthService from './SyncAuthService.js';
-import SyncError from '../../errors/SyncError.js';
+import SyncError from '../../errors/SyncError.ts';
 import { validateSyncRequest } from './SyncPayloadSchema.js';
 
 const DEFAULT_MAX_REQUEST_BYTES = 4 * 1024 * 1024;

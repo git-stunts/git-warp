@@ -7,8 +7,8 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TrustRecordService } from '../../../../src/domain/trust/TrustRecordService.js';
-import PersistenceError from '../../../../src/domain/errors/PersistenceError.js';
-import TrustError from '../../../../src/domain/errors/TrustError.js';
+import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
+import TrustError from '../../../../src/domain/errors/TrustError.ts';
 import { createJsonCodec, createTrustRecordPersistence } from '../../../helpers/trustTestUtils.js';
 import {
   KEY_ADD_1,

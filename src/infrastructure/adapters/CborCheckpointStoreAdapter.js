@@ -1,5 +1,5 @@
 import CheckpointStorePort from '../../ports/CheckpointStorePort.js';
-import WarpError from '../../domain/errors/WarpError.js';
+import WarpError from '../../domain/errors/WarpError.ts';
 import { orsetSerialize, orsetDeserialize } from '../../domain/crdt/ORSet.js';
 import VersionVector, { vvSerialize } from '../../domain/crdt/VersionVector.js';
 import { createEmptyStateV5 } from '../../domain/services/JoinReducer.js';

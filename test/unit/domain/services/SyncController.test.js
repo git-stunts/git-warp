@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import SyncController from '../../../../src/domain/services/controllers/SyncController.js';
-import SyncError from '../../../../src/domain/errors/SyncError.js';
-import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.js';
+import SyncError from '../../../../src/domain/errors/SyncError.ts';
+import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.ts';
 
 const { timeoutMock, retryMock, httpSyncServerMock } = vi.hoisted(() => {
   const timeoutMock = vi.fn(async (/** @type {number} */ _ms, /** @type {Function} */ fn) => {

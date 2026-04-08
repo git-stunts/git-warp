@@ -12,8 +12,8 @@
 import { buildTrustRecordRef } from '../utils/RefLayout.js';
 import { TrustRecordSchema } from './schemas.js';
 import { verifyRecordId } from './TrustCanonical.js';
-import PersistenceError from '../errors/PersistenceError.js';
-import TrustError from '../errors/TrustError.js';
+import PersistenceError from '../errors/PersistenceError.ts';
+import TrustError from '../errors/TrustError.ts';
 
 /**
  * Maximum CAS attempts for _persistRecord before giving up.

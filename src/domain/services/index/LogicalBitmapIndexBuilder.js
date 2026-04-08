@@ -16,7 +16,7 @@
 
 import computeShardKey from '../../utils/shardKey.js';
 import { getRoaringBitmap32 } from '../../utils/roaring.js';
-import { ShardIdOverflowError } from '../../errors/index.js';
+import { ShardIdOverflowError } from '../../errors/index.ts';
 import { MetaShard, EdgeShard, LabelShard, ReceiptShard } from '../../artifacts/IndexShard.js';
 
 /** Maximum local IDs per shard (2^24). */

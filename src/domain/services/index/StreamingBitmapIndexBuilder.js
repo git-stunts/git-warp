@@ -1,9 +1,9 @@
 import defaultCodec from '../../utils/defaultCodec.js';
 import defaultCrypto from '../../utils/defaultCrypto.js';
 import { computeChecksum } from '../../utils/checksumUtils.js';
-import ShardCorruptionError from '../../errors/ShardCorruptionError.js';
-import ShardValidationError from '../../errors/ShardValidationError.js';
-import IndexError from '../../errors/IndexError.js';
+import ShardCorruptionError from '../../errors/ShardCorruptionError.ts';
+import ShardValidationError from '../../errors/ShardValidationError.ts';
+import IndexError from '../../errors/IndexError.ts';
 import nullLogger from '../../utils/nullLogger.js';
 import { checkAborted } from '../../utils/cancellation.js';
 import { getRoaringBitmap32 } from '../../utils/roaring.js';

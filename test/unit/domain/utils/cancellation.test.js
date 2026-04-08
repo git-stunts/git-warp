@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.js';
+import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.ts';
 import { checkAborted as _checkAborted, createTimeoutSignal } from '../../../../src/domain/utils/cancellation.js';
 
 /** @type {any} */

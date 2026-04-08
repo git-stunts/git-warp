@@ -1,4 +1,4 @@
-import StrandError from '../../errors/StrandError.js';
+import StrandError from '../../errors/StrandError.ts';
 import {
   buildStrandBraidRef,
   buildStrandBraidsPrefix,

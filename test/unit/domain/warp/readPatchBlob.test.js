@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import PatchController from '../../../../src/domain/services/controllers/PatchController.js';
-import PersistenceError from '../../../../src/domain/errors/PersistenceError.js';
+import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
 
 /**
  * Builds a PatchController with a minimal mock host.

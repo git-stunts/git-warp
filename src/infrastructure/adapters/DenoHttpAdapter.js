@@ -1,5 +1,5 @@
 import HttpServerPort from '../../ports/HttpServerPort.js';
-import WarpError from '../../domain/errors/WarpError.js';
+import WarpError from '../../domain/errors/WarpError.ts';
 import {
   noopLogger,
   toPortRequest,

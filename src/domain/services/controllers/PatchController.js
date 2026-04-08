@@ -14,8 +14,8 @@ import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../../
 import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';
 import { Writer } from '../../warp/Writer.js';
 import { resolveWriterId } from '../../utils/WriterId.js';
-import EncryptionError from '../../errors/EncryptionError.js';
-import PersistenceError from '../../errors/PersistenceError.js';
+import EncryptionError from '../../errors/EncryptionError.ts';
+import PersistenceError from '../../errors/PersistenceError.ts';
 import { QueryError, E_NO_STATE_MSG, E_STALE_STATE_MSG } from '../../warp/_internal.js';
 
 /**

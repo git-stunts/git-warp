@@ -1,10 +1,10 @@
 import PatchJournalPort from '../../ports/PatchJournalPort.js';
-import WarpError from '../../domain/errors/WarpError.js';
+import WarpError from '../../domain/errors/WarpError.ts';
 import WarpStream from '../../domain/stream/WarpStream.js';
 import PatchEntry from '../../domain/artifacts/PatchEntry.js';
 import { decodePatchMessage, detectMessageKind } from '../../domain/services/codec/WarpMessageCodec.js';
-import SyncError from '../../domain/errors/SyncError.js';
-import EncryptionError from '../../domain/errors/EncryptionError.js';
+import SyncError from '../../domain/errors/SyncError.ts';
+import EncryptionError from '../../domain/errors/EncryptionError.ts';
 import VersionVector from '../../domain/crdt/VersionVector.js';
 
 /**

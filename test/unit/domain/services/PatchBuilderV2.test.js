@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { PatchBuilderV2 } from '../../../../src/domain/services/PatchBuilderV2.js';
-import PatchError from '../../../../src/domain/errors/PatchError.js';
+import PatchError from '../../../../src/domain/errors/PatchError.ts';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createORSet, orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';

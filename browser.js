@@ -43,7 +43,7 @@ export { default as WebCryptoAdapter } from './src/infrastructure/adapters/WebCr
 export { createVersionVector } from './src/domain/crdt/VersionVector.js';
 
 // Errors
-export { default as WarpError } from './src/domain/errors/WarpError.js';
+export { default as WarpError } from './src/domain/errors/WarpError.ts';
 export {
   EncryptionError,
   ForkError,
@@ -51,7 +51,7 @@ export {
   StorageError,
   TraversalError,
   SyncError,
-} from './src/domain/errors/index.js';
+} from './src/domain/errors/index.ts';
 
 // Utilities
 export { generateWriterId } from './src/domain/utils/WriterId.js';

@@ -13,7 +13,7 @@
  */
 
 import BlobStoragePort from '../../ports/BlobStoragePort.js';
-import PersistenceError from '../../domain/errors/PersistenceError.js';
+import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import { createLazyCas } from './lazyCasInit.js';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.js';
 import { Readable } from 'node:stream';

@@ -1,7 +1,7 @@
 import HttpServerPort from '../../ports/HttpServerPort.js';
 import { MAX_BODY_BYTES, noopLogger } from './httpAdapterUtils.js';
 import { createServer } from 'node:http';
-import WarpError from '../../domain/errors/WarpError.js';
+import WarpError from '../../domain/errors/WarpError.ts';
 
 /**
  * Error thrown when the request body exceeds the size limit.

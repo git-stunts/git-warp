@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
-import ForkError from '../../../src/domain/errors/ForkError.js';
+import ForkError from '../../../src/domain/errors/ForkError.ts';
 import {
   createMockPersistence,
   createMockPatch,

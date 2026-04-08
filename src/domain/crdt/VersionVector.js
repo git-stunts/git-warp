@@ -1,5 +1,5 @@
 import { Dot } from './Dot.js';
-import CrdtError from '../errors/CrdtError.js';
+import CrdtError from '../errors/CrdtError.ts';
 
 /**
  * @fileoverview VersionVector - Causality Tracking via Join-Semilattice

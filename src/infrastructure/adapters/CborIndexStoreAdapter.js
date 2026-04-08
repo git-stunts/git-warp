@@ -1,5 +1,5 @@
 import IndexStorePort from '../../ports/IndexStorePort.js';
-import WarpError from '../../domain/errors/WarpError.js';
+import WarpError from '../../domain/errors/WarpError.ts';
 import WarpStream from '../../domain/stream/WarpStream.js';
 import {
   MetaShard,

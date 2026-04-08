@@ -3,7 +3,7 @@ import { ConflictAnalyzerService,
   CONFLICT_ANALYSIS_VERSION,
 } from '../../../../../src/domain/services/strand/ConflictAnalyzerService.js';
 import * as JoinReducer from '../../../../../src/domain/services/JoinReducer.js';
-import QueryError from '../../../../../src/domain/errors/QueryError.js';
+import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import { textEncode } from '../../../../../src/domain/utils/bytes.js';
 import { createHash } from 'node:crypto';
 import StrandService from '../../../../../src/domain/services/strand/StrandService.js';

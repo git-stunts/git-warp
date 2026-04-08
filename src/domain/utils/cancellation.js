@@ -4,7 +4,7 @@
  * @module domain/utils/cancellation
  */
 
-import OperationAbortedError from '../errors/OperationAbortedError.js';
+import OperationAbortedError from '../errors/OperationAbortedError.ts';
 
 /**
  * Resolves an optional operation name to a non-empty string.

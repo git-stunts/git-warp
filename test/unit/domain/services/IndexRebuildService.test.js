@@ -139,7 +139,7 @@ describe('IndexRebuildService', () => {
       const reader = await service.load('tree-oid');
 
       // Import error type
-      const { ShardValidationError } = await import('../../../../src/domain/errors/index.js');
+      const { ShardValidationError } = await import('../../../../src/domain/errors/index.ts');
 
       await expect(reader.lookupId('ab123456')).rejects.toThrow(ShardValidationError);
     });
@@ -152,7 +152,7 @@ describe('IndexRebuildService', () => {
 
       const reader = await service.load('tree-oid');
 
-      const { ShardCorruptionError } = await import('../../../../src/domain/errors/index.js');
+      const { ShardCorruptionError } = await import('../../../../src/domain/errors/index.ts');
 
       await expect(reader.lookupId('ab123456')).rejects.toThrow(ShardCorruptionError);
     });

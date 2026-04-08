@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import ForkError_ from '../../../../src/domain/errors/ForkError.js';
+import ForkError_ from '../../../../src/domain/errors/ForkError.ts';
 
 /** @type {any} */
 const ForkError = ForkError_;

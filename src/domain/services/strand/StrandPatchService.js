@@ -1,4 +1,4 @@
-import StrandError from '../../errors/StrandError.js';
+import StrandError from '../../errors/StrandError.ts';
 import { PatchBuilderV2 } from '../PatchBuilderV2.js';
 import { encodePatchMessage } from '../codec/WarpMessageCodec.js';
 import {

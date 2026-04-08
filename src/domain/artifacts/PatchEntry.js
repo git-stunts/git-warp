@@ -1,4 +1,4 @@
-import WarpError from '../errors/WarpError.js';
+import WarpError from '../errors/WarpError.ts';
 
 /**
  * A patch entry from a patch scan stream.

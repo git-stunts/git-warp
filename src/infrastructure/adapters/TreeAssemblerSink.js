@@ -1,5 +1,5 @@
 import Sink from '../../domain/stream/Sink.js';
-import WarpError from '../../domain/errors/WarpError.js';
+import WarpError from '../../domain/errors/WarpError.ts';
 
 /**
  * Stream sink that accumulates [path, oid] entries and assembles them

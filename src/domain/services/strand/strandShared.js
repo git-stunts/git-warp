@@ -1,4 +1,4 @@
-import StrandError from '../../errors/StrandError.js';
+import StrandError from '../../errors/StrandError.ts';
 
 export const STRAND_INTENT_ID_WIDTH = 4;
 export const STRAND_TICK_ID_WIDTH = 4;

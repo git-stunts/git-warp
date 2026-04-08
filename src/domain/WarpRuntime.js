@@ -80,7 +80,7 @@ async function resolveIndexStore(indexStore, deps) {
   return new CborIndexStoreAdapter(deps);
 }
 
-import WarpError from './errors/WarpError.js';
+import WarpError from './errors/WarpError.ts';
 
 /**
  * Constructs an EffectPipeline from an array of sinks and an optional externalization lens.
