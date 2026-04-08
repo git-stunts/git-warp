@@ -75,15 +75,18 @@ function validateSuppressExternal(value: unknown): void {
 }
 
 /**
- * Validates a delivery outcome value.
+ * Validates and narrows a delivery outcome value.
  */
-export function validateOutcome(value: unknown): void {
-  if (typeof value !== 'string' || !outcomeSet.has(value)) {
+export function validateOutcome(value: string): DeliveryOutcome {
+  if (!outcomeSet.has(value)) {
     throw new WarpError(
       `outcome must be one of: ${DELIVERY_OUTCOMES.join(', ')}`,
       'E_VALIDATION',
     );
   }
+  // Runtime-proven: outcomeSet.has(value) guarantees value is a DeliveryOutcome.
+  // TypeScript's Set.has() doesn't narrow, so we cast after the guard.
+  return value as DeliveryOutcome;
 }
 
 // ============================================================================

@@ -53,13 +53,13 @@ export class DeliveryObservation {
   }) {
     requireNonEmptyString(emissionId, 'emissionId');
     requireNonEmptyString(sinkId, 'sinkId');
-    validateOutcome(outcome);
+    const validatedOutcome = validateOutcome(outcome);
     validateTimestamp(timestamp);
     validateLens(lens);
 
     this.emissionId = emissionId;
     this.sinkId = sinkId;
-    this.outcome = outcome as DeliveryOutcome;
+    this.outcome = validatedOutcome;
     this.timestamp = timestamp;
     this.lens = freezeLens(lens);
     if (reason !== undefined) {
@@ -76,45 +76,35 @@ export class DeliveryObservation {
 /**
  * Asserts that a value is a non-empty string, throwing if it is not.
  */
-function requireNonEmptyString(value: unknown, name: string): void {
-  if (typeof value !== 'string' || value.length === 0) {
+function requireNonEmptyString(value: string, name: string): void {
+  if (value.length === 0) {
     throw new WarpError(`${name} must be a non-empty string`, 'E_VALIDATION');
   }
 }
 
 /**
- * Asserts that a value is a non-negative finite number suitable for a wall-clock timestamp.
+ * Asserts that a timestamp is a non-negative finite number.
  */
-function validateTimestamp(value: unknown): void {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+function validateTimestamp(value: number): void {
+  if (!Number.isFinite(value) || value < 0) {
     throw new WarpError('timestamp must be a non-negative finite number', 'E_VALIDATION');
   }
 }
 
 /**
- * Asserts that a lens is a valid ExternalizationPolicy shape with a recognized mode and boolean suppressExternal.
+ * Validates a lens has a recognized mode and boolean suppressExternal.
  */
-function validateLens(lens: unknown): void {
+function validateLens(lens: { mode: string; suppressExternal: boolean }): void {
   if (lens === null || lens === undefined || typeof lens !== 'object') {
     throw new WarpError('lens must be an object', 'E_VALIDATION');
   }
-  const l = lens as Record<string, unknown>;
-  validateLensFields(l);
-}
-
-/**
- * Validates the individual fields of a lens object after the object guard has passed.
- */
-function validateLensFields(l: Record<string, unknown>): void {
-  const modeKey = 'mode';
-  const suppressKey = 'suppressExternal';
-  if (typeof l[modeKey] !== 'string' || !modeSet.has(l[modeKey])) {
+  if (!modeSet.has(lens.mode)) {
     throw new WarpError(
       `lens.mode must be one of: ${DELIVERY_MODES.join(', ')}`,
       'E_VALIDATION',
     );
   }
-  if (typeof l[suppressKey] !== 'boolean') {
+  if (typeof lens.suppressExternal !== 'boolean') {
     throw new WarpError('lens.suppressExternal must be a boolean', 'E_VALIDATION');
   }
 }
@@ -157,12 +147,11 @@ export function createDeliveryObservation({ emissionId, sinkId, outcome, reason,
 /**
  * JSON.stringify replacer that sorts object keys alphabetically for deterministic output.
  */
-function sortedReplacer(_key: string, value: unknown): unknown {
+function sortedReplacer(_key: string, value: Record<string, number | string | boolean | null> | string | number | boolean | null): Record<string, number | string | boolean | null> | string | number | boolean | null {
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-    const sorted: { [x: string]: unknown } = {};
-    const obj = value as { [x: string]: unknown };
-    for (const k of Object.keys(obj).sort()) {
-      sorted[k] = obj[k];
+    const sorted: Record<string, number | string | boolean | null> = {};
+    for (const k of Object.keys(value).sort()) {
+      sorted[k] = value[k];
     }
     return sorted;
   }

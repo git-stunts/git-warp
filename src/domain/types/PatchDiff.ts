@@ -55,6 +55,7 @@ export class PatchDiff {
     this.edgesAdded = edgesAdded;
     this.edgesRemoved = edgesRemoved;
     this.propsChanged = propsChanged;
+    Object.freeze(this);
   }
 
   /**
