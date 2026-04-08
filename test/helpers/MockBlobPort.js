@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import BlobPort from '../../src/ports/BlobPort.js';
+import BlobPort from '../../src/ports/BlobPort.ts';
 
 /**
  * In-memory BlobPort for tests.
@@ -8,28 +8,29 @@ import BlobPort from '../../src/ports/BlobPort.js';
  * Methods are Vitest spies so callers can assert on calls.
  */
 export default class MockBlobPort extends BlobPort {
-  constructor() {
-    super();
-    /** @type {Map<string, Uint8Array>} */
-    this.store = new Map();
-    /** @type {number} */
-    this._counter = 0;
+  /** @type {Map<string, Uint8Array>} */
+  store = new Map();
 
-    // Bind spy wrappers so vitest assertions work
-    const self = this;
+  /** @type {number} */
+  _counter = 0;
 
-    /** @type {import('vitest').Mock} */
-    this.writeBlob = vi.fn(async (/** @type {Uint8Array} */ content) => {
-      const oid = `blob_${String(self._counter++).padStart(40, '0')}`;
-      self.store.set(oid, content);
-      return oid;
-    });
+  /**
+   * @param {Uint8Array | string} content
+   * @returns {Promise<string>}
+   */
+  writeBlob = vi.fn(async (content) => {
+    const oid = `blob_${String(this._counter++).padStart(40, '0')}`;
+    this.store.set(oid, content);
+    return oid;
+  });
 
-    /** @type {import('vitest').Mock} */
-    this.readBlob = vi.fn(async (/** @type {string} */ oid) => {
-      const data = self.store.get(oid);
-      if (!data) { throw new Error(`Blob not found: ${oid}`); }
-      return data;
-    });
-  }
+  /**
+   * @param {string} oid
+   * @returns {Promise<Uint8Array>}
+   */
+  readBlob = vi.fn(async (oid) => {
+    const data = this.store.get(oid);
+    if (!data) { throw new Error(`Blob not found: ${oid}`); }
+    return data;
+  });
 }

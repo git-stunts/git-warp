@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ChunkEffectSink } from '../../../../src/infrastructure/adapters/ChunkEffectSink.js';
 import { createEffectEmission } from '../../../../src/domain/types/EffectEmission.ts';
 import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/types/ExternalizationPolicy.ts';
-import EffectSinkPort from '../../../../src/ports/EffectSinkPort.js';
+import EffectSinkPort from '../../../../src/ports/EffectSinkPort.ts';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

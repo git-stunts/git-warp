@@ -44,12 +44,12 @@ import SyncTrustGate from '../sync/SyncTrustGate.js';
  * @property {number} _patchesSinceGC
  * @property {string} _graphName
  * @property {CorePersistence} _persistence
- * @property {import('../../../ports/ClockPort.js').default} _clock
- * @property {import('../../../ports/CodecPort.js').default} _codec
- * @property {import('../../../ports/CryptoPort.js').default} _crypto
- * @property {import('../../../ports/LoggerPort.js').default|null} _logger
- * @property {import('../../../ports/PatchJournalPort.js').default|null} [_patchJournal]
- * @property {import('../../../ports/BlobStoragePort.js').default|null} [_patchBlobStorage]
+ * @property {import('../../../ports/ClockPort.ts').default} _clock
+ * @property {import('../../../ports/CodecPort.ts').default} _codec
+ * @property {import('../../../ports/CryptoPort.ts').default} _crypto
+ * @property {import('../../../ports/LoggerPort.ts').default|null} _logger
+ * @property {import('../../../ports/PatchJournalPort.ts').default|null} [_patchJournal]
+ * @property {import('../../../ports/BlobStoragePort.ts').default|null} [_patchBlobStorage]
  * @property {number} _patchesSinceCheckpoint
  * @property {(op: string, t0: number, opts?: {metrics?: string, error?: Error}) => void} _logTiming
  * @property {(options?: Record<string, unknown>) => Promise<unknown>} materialize
@@ -162,7 +162,7 @@ function resolveSyncTrustGate(host, defaultGate, options) {
 /**
  * Builds auth headers for an outgoing sync request if auth is configured.
  *
- * @param {{ auth: ({ secret: string, keyId?: string }|undefined), bodyStr: string, targetUrl: URL, crypto: import('../../../ports/CryptoPort.js').default }} params
+ * @param {{ auth: ({ secret: string, keyId?: string }|undefined), bodyStr: string, targetUrl: URL, crypto: import('../../../ports/CryptoPort.ts').default }} params
  * @returns {Promise<Record<string, string>>}
  */
 async function buildSyncAuthHeaders({ auth, bodyStr, targetUrl, crypto }) {
@@ -647,12 +647,12 @@ export default class SyncController {
   /**
    * Starts a built-in sync server for this graph.
    *
-   * @param {{ port: number, host?: string, path?: string, maxRequestBytes?: number, httpPort: import('../../../ports/HttpServerPort.js').default, auth?: { keys: Record<string, string>, mode?: 'enforce'|'log-only' } }} options
+   * @param {{ port: number, host?: string, path?: string, maxRequestBytes?: number, httpPort: import('../../../ports/HttpServerPort.ts').default, auth?: { keys: Record<string, string>, mode?: 'enforce'|'log-only' } }} options
    * @returns {Promise<{close: () => Promise<void>, url: string}>} Server handle
    * @throws {Error} If port is not a number
    * @throws {Error} If httpPort adapter is not provided
    */
-  async serve({ port, host = '127.0.0.1', path = '/sync', maxRequestBytes = DEFAULT_SYNC_SERVER_MAX_BYTES, httpPort, auth } = /** @type {{ port: number, httpPort: import('../../../ports/HttpServerPort.js').default }} */ ({})) {
+  async serve({ port, host = '127.0.0.1', path = '/sync', maxRequestBytes = DEFAULT_SYNC_SERVER_MAX_BYTES, httpPort, auth } = /** @type {{ port: number, httpPort: import('../../../ports/HttpServerPort.ts').default }} */ ({})) {
     if (typeof port !== 'number') {
       throw new SyncError('serve() requires a numeric port', {
         code: 'E_SYNC_SERVE',

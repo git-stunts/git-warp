@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import LoggerPort from '../../ports/LoggerPort.js';
+import LoggerPort from '../../ports/LoggerPort.ts';
 
 /**
  * Log levels in order of severity.

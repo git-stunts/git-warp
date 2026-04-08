@@ -1,4 +1,4 @@
-import HttpServerPort from '../../ports/HttpServerPort.js';
+import HttpServerPort from '../../ports/HttpServerPort.ts';
 import { MAX_BODY_BYTES, noopLogger } from './httpAdapterUtils.js';
 import { createServer } from 'node:http';
 import WarpError from '../../domain/errors/WarpError.ts';
@@ -62,10 +62,10 @@ function stringOrDefault(value, fallback) {
  * Builds an HttpRequest from a Node.js IncomingMessage and body buffer.
  * @param {import('node:http').IncomingMessage} req - Node.js HTTP request
  * @param {Buffer} body - Request body
- * @returns {import('../../ports/HttpServerPort.js').HttpRequest} The constructed request
+ * @returns {import('../../ports/HttpServerPort.ts').HttpRequest} The constructed request
  */
 function buildHttpRequest(req, body) {
-  return /** @type {import('../../ports/HttpServerPort.js').HttpRequest} */ ({
+  return /** @type {import('../../ports/HttpServerPort.ts').HttpRequest} */ ({
     method: stringOrDefault(req.method, 'GET'),
     url: stringOrDefault(req.url, '/'),
     headers: /** @type {Record<string, string>} */ (req.headers),
@@ -94,7 +94,7 @@ function handleDispatchError(err, res, logger) {
 
 /**
  * Sends the handler response back through the Node.js ServerResponse.
- * @param {import('../../ports/HttpServerPort.js').HttpResponse} response - Handler response
+ * @param {import('../../ports/HttpServerPort.ts').HttpResponse} response - Handler response
  * @param {import('node:http').ServerResponse} res - Node.js HTTP response
  */
 function sendResponse(response, res) {
@@ -108,7 +108,7 @@ function sendResponse(response, res) {
  * a 500 response if the handler throws.
  * @param {import('node:http').IncomingMessage} req - Node.js HTTP request
  * @param {import('node:http').ServerResponse} res - Node.js HTTP response
- * @param {{ handler: (request: import('../../ports/HttpServerPort.js').HttpRequest) => Promise<import('../../ports/HttpServerPort.js').HttpResponse>, logger: { error: (...args: unknown[]) => void } }} options - Dispatch options
+ * @param {{ handler: (request: import('../../ports/HttpServerPort.ts').HttpRequest) => Promise<import('../../ports/HttpServerPort.ts').HttpResponse>, logger: { error: (...args: unknown[]) => void } }} options - Dispatch options
  */
 async function dispatch(req, res, { handler, logger }) {
   try {
@@ -141,8 +141,8 @@ export default class NodeHttpAdapter extends HttpServerPort {
 
   /**
    * Creates a Node.js HTTP server bound to the given request handler.
-   * @param {(request: import('../../ports/HttpServerPort.js').HttpRequest) => Promise<import('../../ports/HttpServerPort.js').HttpResponse>} requestHandler - Async handler for incoming requests
-   * @returns {import('../../ports/HttpServerPort.js').HttpServerHandle} Server handle with listen/close/address
+   * @param {(request: import('../../ports/HttpServerPort.ts').HttpRequest) => Promise<import('../../ports/HttpServerPort.ts').HttpResponse>} requestHandler - Async handler for incoming requests
+   * @returns {import('../../ports/HttpServerPort.ts').HttpServerHandle} Server handle with listen/close/address
    */
   createServer(requestHandler) {
     const server = buildNodeServer(requestHandler, this._logger);
@@ -152,7 +152,7 @@ export default class NodeHttpAdapter extends HttpServerPort {
 
 /**
  * Creates a Node.js HTTP server that dispatches requests through the handler.
- * @param {(request: import('../../ports/HttpServerPort.js').HttpRequest) => Promise<import('../../ports/HttpServerPort.js').HttpResponse>} requestHandler - Async request handler
+ * @param {(request: import('../../ports/HttpServerPort.ts').HttpRequest) => Promise<import('../../ports/HttpServerPort.ts').HttpResponse>} requestHandler - Async request handler
  * @param {{ error: (...args: unknown[]) => void }} logger - Logger for unhandled errors
  * @returns {import('node:http').Server} Node.js HTTP server
  */
@@ -168,7 +168,7 @@ function buildNodeServer(requestHandler, logger) {
 /**
  * Wraps a Node.js HTTP server in the HttpServerHandle interface.
  * @param {import('node:http').Server} server - Node.js HTTP server
- * @returns {import('../../ports/HttpServerPort.js').HttpServerHandle} Server handle
+ * @returns {import('../../ports/HttpServerPort.ts').HttpServerHandle} Server handle
  */
 function createServerHandle(server) {
   return {

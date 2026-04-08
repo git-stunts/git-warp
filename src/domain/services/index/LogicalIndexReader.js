@@ -46,7 +46,7 @@ function resolveAllLabels(byOwner, ctx) {
   if (!entries) {
     return [];
   }
-  /** @type {import('../../../ports/NeighborProviderPort.js').NeighborEdge[]} */
+  /** @type {import('../../../ports/NeighborProviderPort.ts').NeighborEdge[]} */
   const out = [];
   for (const { labelId, bitmap } of entries) {
     expandBitmap(bitmap, i2l.get(labelId) ?? '', { g2n, out });
@@ -163,7 +163,7 @@ function checkAlive(n2g, alive, nodeId) {
  * @returns {Array<{neighborId: string, label: string}>}
  */
 function resolveFilteredEdges(store, ctx) {
-  /** @type {import('../../../ports/NeighborProviderPort.js').NeighborEdge[]} */
+  /** @type {import('../../../ports/NeighborProviderPort.ts').NeighborEdge[]} */
   const out = [];
   for (const labelId of ctx.filterLabelIds) {
     const bitmap = store.get(`${ctx.dir}:${labelId}:${ctx.gid}`);
@@ -258,12 +258,12 @@ export default class LogicalIndexReader {
    * Constructs a LogicalIndexReader with an optional CBOR codec override
    * and/or an IndexStorePort for codec-free reads.
    *
-   * @param {{ codec?: import('../../../ports/CodecPort.js').default, indexStore?: import('../../../ports/IndexStorePort.js').default }} [options] - Reader options
+   * @param {{ codec?: import('../../../ports/CodecPort.ts').default, indexStore?: import('../../../ports/IndexStorePort.ts').default }} [options] - Reader options
    */
   constructor(options = undefined) {
     const { codec, indexStore } = options || {};
     this._codec = codec || defaultCodec;
-    /** @type {import('../../../ports/IndexStorePort.js').default|null} */
+    /** @type {import('../../../ports/IndexStorePort.ts').default|null} */
     this._indexStore = indexStore || null;
 
     /** @type {Map<string, number>} */

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import BunHttpAdapter from '../../../../src/infrastructure/adapters/BunHttpAdapter.js';
-import HttpServerPort from '../../../../src/ports/HttpServerPort.js';
+import HttpServerPort from '../../../../src/ports/HttpServerPort.ts';
 
 /**
  * Creates a mock Bun.serve() that captures its options and returns

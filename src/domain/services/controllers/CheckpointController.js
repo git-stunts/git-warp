@@ -86,8 +86,8 @@ export default class CheckpointController {
 
       /** @type {CorePersistence} */
       const persistence = h._persistence;
-      /** @type {import('../../../ports/CheckpointStorePort.js').default|null} */
-      const checkpointStore = /** @type {import('../../../ports/CheckpointStorePort.js').default|null} */ (h._checkpointStore);
+      /** @type {import('../../../ports/CheckpointStorePort.ts').default|null} */
+      const checkpointStore = /** @type {import('../../../ports/CheckpointStorePort.ts').default|null} */ (h._checkpointStore);
       const stateHashService = /** @type {import('../state/StateHashService.js').default|null} */ (h._stateHashService);
       const checkpointSha = await createCheckpointCommit({
         persistence,
@@ -163,8 +163,8 @@ export default class CheckpointController {
     }
 
     try {
-      /** @type {import('../../../ports/CheckpointStorePort.js').default|null} */
-      const checkpointStore = /** @type {import('../../../ports/CheckpointStorePort.js').default|null} */ (h._checkpointStore);
+      /** @type {import('../../../ports/CheckpointStorePort.ts').default|null} */
+      const checkpointStore = /** @type {import('../../../ports/CheckpointStorePort.ts').default|null} */ (h._checkpointStore);
       return await loadCheckpoint(h._persistence, checkpointSha, { codec: h._codec, ...(checkpointStore ? { checkpointStore } : {}) });
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';

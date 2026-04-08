@@ -14,7 +14,7 @@
  */
 
 import type { Hash, Hmac } from 'node:crypto';
-import type CryptoPort from '../../ports/CryptoPort.js';
+import type CryptoPort from '../../ports/CryptoPort.ts';
 
 let _createHash: ((algorithm: string) => Hash) | null = null;
 let _createHmac: ((algorithm: string, key: Uint8Array | string) => Hmac) | null = null;

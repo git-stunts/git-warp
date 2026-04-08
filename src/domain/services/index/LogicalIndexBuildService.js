@@ -20,7 +20,7 @@ export default class LogicalIndexBuildService {
   /**
    * Creates a LogicalIndexBuildService with optional logger.
    *
-   * @param {{ logger?: import('../../../ports/LoggerPort.js').default }} [options]
+   * @param {{ logger?: import('../../../ports/LoggerPort.ts').default }} [options]
    */
   constructor(options = undefined) {
     const { logger } = options || {};

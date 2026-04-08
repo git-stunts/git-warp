@@ -577,7 +577,7 @@ export function makeNodeWeightFn(weights, defaultWeight = 1) {
  *
  * @param {Object} params
  * @param {GraphFixture} [params.fixture]
- * @param {Array<{name: string, provider: import('../../src/ports/NeighborProviderPort.js').default}>} params.providers
+ * @param {Array<{name: string, provider: import('../../src/ports/NeighborProviderPort.ts').default}>} params.providers
  * @param {(engine: import('../../src/domain/services/query/GraphTraversal.js').default) => Promise<unknown>} params.run
  * @param {(result: unknown) => void} params.assert
  */

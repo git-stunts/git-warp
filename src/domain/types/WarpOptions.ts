@@ -3,9 +3,9 @@
  * @module domain/types/WarpOptions
  */
 
-import type HttpServerPort from '../../ports/HttpServerPort.js';
-import type CryptoPort from '../../ports/CryptoPort.js';
-import type LoggerPort from '../../ports/LoggerPort.js';
+import type HttpServerPort from '../../ports/HttpServerPort.ts';
+import type CryptoPort from '../../ports/CryptoPort.ts';
+import type LoggerPort from '../../ports/LoggerPort.ts';
 
 export type ServeOptions = {
   port: number;

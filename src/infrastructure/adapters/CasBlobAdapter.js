@@ -12,7 +12,7 @@
  * @module infrastructure/adapters/CasBlobAdapter
  */
 
-import BlobStoragePort from '../../ports/BlobStoragePort.js';
+import BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import { createLazyCas } from './lazyCasInit.js';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.js';
@@ -102,7 +102,7 @@ export default class CasBlobAdapter extends BlobStoragePort {
   /**
    * Creates a CasBlobAdapter backed by git-cas.
    *
-   * @param {{ plumbing: unknown, persistence: BlobPersistence, encryptionKey?: Uint8Array, logger?: import('../../ports/LoggerPort.js').default }} options
+   * @param {{ plumbing: unknown, persistence: BlobPersistence, encryptionKey?: Uint8Array, logger?: import('../../ports/LoggerPort.ts').default }} options
    */
   constructor({ plumbing, persistence, encryptionKey, logger }) {
     super();

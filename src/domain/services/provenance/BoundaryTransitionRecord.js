@@ -76,11 +76,11 @@ function parseHexPairs(hex) {
  * Builds a deps object including only defined values.
  * Avoids explicit `undefined` in optional properties under exactOptionalPropertyTypes.
  *
- * @param {{ crypto?: import('../../../ports/CryptoPort.js').default|null|undefined, codec?: import('../../../ports/CodecPort.js').default|null|undefined }} parts
- * @returns {{ crypto?: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }}
+ * @param {{ crypto?: import('../../../ports/CryptoPort.ts').default|null|undefined, codec?: import('../../../ports/CodecPort.ts').default|null|undefined }} parts
+ * @returns {{ crypto?: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }}
  */
 function buildDeps(parts) {
-  /** @type {{ crypto?: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} */
+  /** @type {{ crypto?: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} */
   const deps = {};
   if (parts.crypto !== undefined && parts.crypto !== null) { deps.crypto = parts.crypto; }
   if (parts.codec !== undefined && parts.codec !== null) { deps.codec = parts.codec; }
@@ -105,7 +105,7 @@ const BTR_VERSION = 1;
  *
  * @param {{ version: number, h_in: string, h_out: string, U_0: Uint8Array, P: Array<unknown>, t: string }} fields - BTR fields to authenticate
  * @param {string|Uint8Array} key - HMAC key
- * @param {{ crypto: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} deps - Dependencies
+ * @param {{ crypto: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} deps - Dependencies
  * @returns {Promise<string>} Hex-encoded HMAC tag
  * @private
  */
@@ -219,7 +219,7 @@ class VerificationResult {
  *
  * @param {import('../JoinReducer.js').WarpStateV5} initialState - The input state U_0
  * @param {ProvenancePayload} payload - The provenance payload P
- * @param {{ key: string|Uint8Array, timestamp?: string, crypto: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} options - BTR creation options
+ * @param {{ key: string|Uint8Array, timestamp?: string, crypto: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} options - BTR creation options
  * @returns {Promise<BTR>} The created BTR
  * @throws {TypeError} If payload is not a ProvenancePayload
  */
@@ -236,14 +236,14 @@ export async function createBTR(initialState, payload, options) {
   const deps = buildDeps({ crypto, codec });
   const codecDeps = buildDeps({ codec });
 
-  const h_in = await computeStateHashV5(initialState, /** @type {{ crypto: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} */ (deps));
+  const h_in = await computeStateHashV5(initialState, /** @type {{ crypto: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} */ (deps));
   const U_0 = serializeFullStateV5(initialState, codecDeps);
   const finalState = payload.replay(initialState);
-  const h_out = await computeStateHashV5(finalState, /** @type {{ crypto: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} */ (deps));
+  const h_out = await computeStateHashV5(finalState, /** @type {{ crypto: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} */ (deps));
   const P = payload.toJSON();
 
   const fields = { version: BTR_VERSION, h_in, h_out, U_0, P, t: timestamp };
-  const kappa = await computeHmac(fields, key, /** @type {{ crypto: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} */ (deps));
+  const kappa = await computeHmac(fields, key, /** @type {{ crypto: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} */ (deps));
 
   return new BTR({ ...fields, kappa });
 }
@@ -328,7 +328,7 @@ function findMissingField(rec) {
  *
  * @param {BTR} btr - The BTR to verify
  * @param {string|Uint8Array} key - HMAC key
- * @param {{ crypto: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} deps - Dependencies
+ * @param {{ crypto: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} deps - Dependencies
  * @returns {Promise<boolean>} True if the HMAC tag matches
  * @private
  */
@@ -341,7 +341,7 @@ async function verifyHmac(btr, key, { crypto, codec }) {
     P: btr.P,
     t: btr.t,
   };
-  const expectedKappa = await computeHmac(fields, key, /** @type {{ crypto: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} */ (buildDeps({ crypto, codec })));
+  const expectedKappa = await computeHmac(fields, key, /** @type {{ crypto: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} */ (buildDeps({ crypto, codec })));
 
   // Convert hex strings to byte arrays for timing-safe comparison
   const actualBuf = hexToUint8Array(btr.kappa);
@@ -359,7 +359,7 @@ async function verifyHmac(btr, key, { crypto, codec }) {
  * Verifies replay produces expected h_out.
  *
  * @param {BTR} btr - The BTR to verify
- * @param {{ crypto?: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} [deps] - Dependencies
+ * @param {{ crypto?: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} [deps] - Dependencies
  * @returns {Promise<string|null>} Error message if replay mismatch, null if valid
  * @private
  */
@@ -387,7 +387,7 @@ async function verifyReplayHash(btr, deps = {}) {
  *
  * @param {BTR} btr - The BTR to verify
  * @param {string|Uint8Array} key - HMAC key
- * @param {{ verifyReplay?: boolean, crypto?: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} [options] - Verification options
+ * @param {{ verifyReplay?: boolean, crypto?: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} [options] - Verification options
  * @returns {Promise<VerificationResult>} Verification result with valid flag and optional reason
  */
 export async function verifyBTR(btr, key, options = {}) {
@@ -396,7 +396,7 @@ export async function verifyBTR(btr, key, options = {}) {
     return new VerificationResult(false, structureError);
   }
 
-  const hmacDeps = /** @type {{ crypto: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} */ (buildDeps({ crypto: options.crypto, codec: options.codec }));
+  const hmacDeps = /** @type {{ crypto: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} */ (buildDeps({ crypto: options.crypto, codec: options.codec }));
   const hmacResult = await verifyHmacSafe(btr, key, hmacDeps);
   if (hmacResult !== null) {
     return hmacResult;
@@ -409,7 +409,7 @@ export async function verifyBTR(btr, key, options = {}) {
  * Optionally verifies replay produces the expected h_out.
  *
  * @param {BTR} btr
- * @param {{ verifyReplay?: boolean, crypto?: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} options
+ * @param {{ verifyReplay?: boolean, crypto?: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} options
  * @returns {Promise<VerificationResult>}
  */
 async function verifyReplayIfRequested(btr, options) {
@@ -427,7 +427,7 @@ async function verifyReplayIfRequested(btr, options) {
  * Wraps verifyHmac with error handling, returning a failure result or null on success.
  * @param {BTR} btr
  * @param {string|Uint8Array} key
- * @param {{ crypto: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} deps
+ * @param {{ crypto: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} deps
  * @returns {Promise<VerificationResult|null>} Failure result, or null if HMAC is valid
  */
 async function verifyHmacSafe(btr, key, deps) {
@@ -454,7 +454,7 @@ async function verifyHmacSafe(btr, key, deps) {
  * encoding (U_0, P), replay uniquely determines the interior worldline.
  *
  * @param {BTR} btr - The BTR to replay
- * @param {{ crypto?: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} deps - Dependencies
+ * @param {{ crypto?: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} deps - Dependencies
  * @returns {Promise<{ state: import('../JoinReducer.js').WarpStateV5, h_out: string }>}
  *   The final state and its hash
  * @throws {Error} If replay fails
@@ -473,7 +473,7 @@ export async function replayBTR(btr, deps = {}) {
   const finalState = payload.replay(initialState);
 
   // Compute h_out
-  const allDeps = /** @type {{ crypto: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} */ (buildDeps({ crypto, codec }));
+  const allDeps = /** @type {{ crypto: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} */ (buildDeps({ crypto, codec }));
   const h_out = await computeStateHashV5(finalState, allDeps);
 
   return { state: finalState, h_out };
@@ -490,7 +490,7 @@ export async function replayBTR(btr, deps = {}) {
  * the correct h_out hash.
  *
  * @param {Uint8Array} U_0 - Serialized full state
- * @param {{ codec?: import('../../../ports/CodecPort.js').default }} deps
+ * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} deps
  * @returns {import('../JoinReducer.js').WarpStateV5} The deserialized state
  * @private
  */
@@ -505,7 +505,7 @@ function deserializeInitialState(U_0, deps = {}) {
  * enabling byte-for-byte comparison of BTRs.
  *
  * @param {BTR} btr - The BTR to serialize
- * @param {{ codec?: import('../../../ports/CodecPort.js').default }} [options]
+ * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options]
  * @returns {Uint8Array} CBOR-encoded BTR
  */
 export function serializeBTR(btr, { codec } = {}) {
@@ -525,7 +525,7 @@ export function serializeBTR(btr, { codec } = {}) {
  * Deserializes a BTR from CBOR bytes.
  *
  * @param {Uint8Array} bytes - CBOR-encoded BTR
- * @param {{ codec?: import('../../../ports/CodecPort.js').default }} [options]
+ * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options]
  * @returns {BTR} The deserialized BTR
  * @throws {Error} If the bytes are not valid CBOR or missing required fields
  */

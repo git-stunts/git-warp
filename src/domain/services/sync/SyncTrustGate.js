@@ -33,8 +33,8 @@ const PASS = () => ({ allowed: true, untrustedWriters: [], verdict: 'pass' });
 
 /**
  * Resolves SyncTrustGate constructor options with defaults.
- * @param {{ trustEvaluator?: {evaluateWriters: (writerIds: string[]) => Promise<{trusted: Set<string>}>}, trustMode?: TrustMode, logger?: import('../../../ports/LoggerPort.js').default }|undefined} options
- * @returns {{ evaluator: {evaluateWriters: (writerIds: string[]) => Promise<{trusted: Set<string>}>}|null, mode: TrustMode, logger: import('../../../ports/LoggerPort.js').default }}
+ * @param {{ trustEvaluator?: {evaluateWriters: (writerIds: string[]) => Promise<{trusted: Set<string>}>}, trustMode?: TrustMode, logger?: import('../../../ports/LoggerPort.ts').default }|undefined} options
+ * @returns {{ evaluator: {evaluateWriters: (writerIds: string[]) => Promise<{trusted: Set<string>}>}|null, mode: TrustMode, logger: import('../../../ports/LoggerPort.ts').default }}
  */
 function resolveGateOptions(options) {
   const resolved = options || {};
@@ -51,7 +51,7 @@ function resolveGateOptions(options) {
 export default class SyncTrustGate {
   /**
    * Creates a SyncTrustGate with optional trust evaluator, mode, and logger.
-   * @param {{ trustEvaluator?: {evaluateWriters: (writerIds: string[]) => Promise<{trusted: Set<string>}>}, trustMode?: TrustMode, logger?: import('../../../ports/LoggerPort.js').default }} [options]
+   * @param {{ trustEvaluator?: {evaluateWriters: (writerIds: string[]) => Promise<{trusted: Set<string>}>}, trustMode?: TrustMode, logger?: import('../../../ports/LoggerPort.ts').default }} [options]
    */
   constructor(options = undefined) {
     const { evaluator, mode, logger } = resolveGateOptions(options);

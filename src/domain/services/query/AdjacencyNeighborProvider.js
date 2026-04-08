@@ -8,7 +8,7 @@
  * @module domain/services/query/AdjacencyNeighborProvider
  */
 
-import NeighborProviderPort from '../../../ports/NeighborProviderPort.js';
+import NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
 
 /**
  * Comparator for (neighborId, label) sorting.
@@ -117,9 +117,9 @@ export default class AdjacencyNeighborProvider extends NeighborProviderPort {
   /**
    * Returns neighbor edges for a node in the given direction, optionally filtered by label.
    * @param {string} nodeId
-   * @param {import('../../../ports/NeighborProviderPort.js').Direction} direction
-   * @param {import('../../../ports/NeighborProviderPort.js').NeighborOptions} [options]
-   * @returns {Promise<import('../../../ports/NeighborProviderPort.js').NeighborEdge[]>}
+   * @param {import('../../../ports/NeighborProviderPort.ts').Direction} direction
+   * @param {import('../../../ports/NeighborProviderPort.ts').NeighborOptions} [options]
+   * @returns {Promise<import('../../../ports/NeighborProviderPort.ts').NeighborEdge[]>}
    */
   getNeighbors(nodeId, direction, options) {
     const labels = options?.labels;
@@ -141,7 +141,7 @@ export default class AdjacencyNeighborProvider extends NeighborProviderPort {
   /**
    * Synchronously resolves neighbor edges for a node.
    * @param {string} nodeId - Node to look up
-   * @param {import('../../../ports/NeighborProviderPort.js').Direction} direction - Edge direction
+   * @param {import('../../../ports/NeighborProviderPort.ts').Direction} direction - Edge direction
    * @param {Set<string>|undefined} labels - Optional label filter
    * @returns {Array<{neighborId: string, label: string}>}
    * @private

@@ -9,7 +9,7 @@
  * @see docs/design/layer-boundary.md
  */
 
-import EffectSinkPort from '../../ports/EffectSinkPort.js';
+import EffectSinkPort from '../../ports/EffectSinkPort.ts';
 
 /**
  * @typedef {import('../types/EffectEmission.ts').EffectEmission} EffectEmission

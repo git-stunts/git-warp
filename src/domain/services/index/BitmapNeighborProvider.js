@@ -10,7 +10,7 @@
  * @module domain/services/index/BitmapNeighborProvider
  */
 
-import NeighborProviderPort from '../../../ports/NeighborProviderPort.js';
+import NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
 
 /** @typedef {import('./BitmapIndexReader.js').default} BitmapIndexReader */
 
@@ -88,9 +88,9 @@ export default class BitmapNeighborProvider extends NeighborProviderPort {
    * Returns neighbor edges for the given node, delegating to the active index.
    *
    * @param {string} nodeId
-   * @param {import('../../../ports/NeighborProviderPort.js').Direction} direction
-   * @param {import('../../../ports/NeighborProviderPort.js').NeighborOptions} [options]
-   * @returns {Promise<import('../../../ports/NeighborProviderPort.js').NeighborEdge[]>}
+   * @param {import('../../../ports/NeighborProviderPort.ts').Direction} direction
+   * @param {import('../../../ports/NeighborProviderPort.ts').NeighborOptions} [options]
+   * @returns {Promise<import('../../../ports/NeighborProviderPort.ts').NeighborEdge[]>}
    */
   async getNeighbors(nodeId, direction, options) {
     this._assertReady();
@@ -135,7 +135,7 @@ export default class BitmapNeighborProvider extends NeighborProviderPort {
    * @param {BitmapIndexReader} reader - The DAG index reader
    * @param {string} nodeId - The node to query
    * @param {'out' | 'in'} dir - Direction to query
-   * @returns {Promise<import('../../../ports/NeighborProviderPort.js').NeighborEdge[]>}
+   * @returns {Promise<import('../../../ports/NeighborProviderPort.ts').NeighborEdge[]>}
    * @private
    */
   async _getDagSingleDirection(reader, nodeId, dir) {
@@ -148,7 +148,7 @@ export default class BitmapNeighborProvider extends NeighborProviderPort {
   /**
    * Checks whether DAG label filtering excludes all results.
    *
-   * @param {import('../../../ports/NeighborProviderPort.js').NeighborOptions} [options]
+   * @param {import('../../../ports/NeighborProviderPort.ts').NeighborOptions} [options]
    * @returns {boolean} True if the empty-string label is filtered out
    * @private
    */
@@ -160,9 +160,9 @@ export default class BitmapNeighborProvider extends NeighborProviderPort {
    * Returns neighbors via the commit DAG bitmap index.
    *
    * @param {string} nodeId
-   * @param {import('../../../ports/NeighborProviderPort.js').Direction} direction
-   * @param {import('../../../ports/NeighborProviderPort.js').NeighborOptions} [options]
-   * @returns {Promise<import('../../../ports/NeighborProviderPort.js').NeighborEdge[]>}
+   * @param {import('../../../ports/NeighborProviderPort.ts').Direction} direction
+   * @param {import('../../../ports/NeighborProviderPort.ts').NeighborOptions} [options]
+   * @returns {Promise<import('../../../ports/NeighborProviderPort.ts').NeighborEdge[]>}
    * @private
    */
   async _getDagNeighbors(nodeId, direction, options) {
@@ -181,7 +181,7 @@ export default class BitmapNeighborProvider extends NeighborProviderPort {
    *
    * @param {BitmapIndexReader} reader - The DAG index reader
    * @param {string} nodeId - The node to query
-   * @returns {Promise<import('../../../ports/NeighborProviderPort.js').NeighborEdge[]>}
+   * @returns {Promise<import('../../../ports/NeighborProviderPort.ts').NeighborEdge[]>}
    * @private
    */
   async _getDagBothDirections(reader, nodeId) {
@@ -221,9 +221,9 @@ export default class BitmapNeighborProvider extends NeighborProviderPort {
    * Returns neighbors via the CBOR-based logical bitmap index.
    *
    * @param {string} nodeId
-   * @param {import('../../../ports/NeighborProviderPort.js').Direction} direction
-   * @param {import('../../../ports/NeighborProviderPort.js').NeighborOptions} [options]
-   * @returns {import('../../../ports/NeighborProviderPort.js').NeighborEdge[]}
+   * @param {import('../../../ports/NeighborProviderPort.ts').Direction} direction
+   * @param {import('../../../ports/NeighborProviderPort.ts').NeighborOptions} [options]
+   * @returns {import('../../../ports/NeighborProviderPort.ts').NeighborEdge[]}
    * @private
    */
   _getLogicalNeighbors(nodeId, direction, options) {

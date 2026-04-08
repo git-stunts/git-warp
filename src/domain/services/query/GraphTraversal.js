@@ -43,7 +43,7 @@ import LRUCache from '../../utils/LRUCache.ts';
 import { checkAborted } from '../../utils/cancellation.ts';
 
 
-/** @import { Direction, NeighborEdge, NeighborOptions, default as NeighborProviderPort } from '../../../ports/NeighborProviderPort.js' */
+/** @import { Direction, NeighborEdge, NeighborOptions, default as NeighborProviderPort } from '../../../ports/NeighborProviderPort.ts' */
 /**
  * @typedef {Object} TraversalStats
  * @property {number} nodesVisited
@@ -123,7 +123,7 @@ function computeTopoHasCycle({
 export default class GraphTraversal {
   /**
    * Creates a new traversal engine bound to the given neighbor provider.
-   * @param {{ provider: NeighborProviderPort, logger?: import('../../../ports/LoggerPort.js').default, neighborCacheSize?: number }} params
+   * @param {{ provider: NeighborProviderPort, logger?: import('../../../ports/LoggerPort.ts').default, neighborCacheSize?: number }} params
    */
   constructor({ provider, logger = nullLogger, neighborCacheSize = 256 }) {
     this._provider = provider;

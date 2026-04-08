@@ -33,7 +33,7 @@ const { default: CasBlobAdapter } = await import(
   '../../../../src/infrastructure/adapters/CasBlobAdapter.js'
 );
 const { default: BlobStoragePort } = await import(
-  '../../../../src/ports/BlobStoragePort.js'
+  '../../../../src/ports/BlobStoragePort.ts'
 );
 const { default: PersistenceError } = await import(
   '../../../../src/domain/errors/PersistenceError.ts'

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import NodeHttpAdapter from '../../../../src/infrastructure/adapters/NodeHttpAdapter.js';
-import HttpServerPort from '../../../../src/ports/HttpServerPort.js';
+import HttpServerPort from '../../../../src/ports/HttpServerPort.ts';
 
 describe('NodeHttpAdapter error paths', () => {
   /** @type {any[]} */

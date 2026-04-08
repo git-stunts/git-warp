@@ -1,4 +1,4 @@
-import PatchJournalPort from '../../ports/PatchJournalPort.js';
+import PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import WarpStream from '../../domain/stream/WarpStream.js';
 import PatchEntry from '../../domain/artifacts/PatchEntry.js';
@@ -27,7 +27,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
    *   codec: { encode(value: unknown): Uint8Array, decode(bytes: Uint8Array): unknown },
    *   blobPort: { readBlob(oid: string): Promise<Uint8Array>, writeBlob(content: Uint8Array | string): Promise<string> },
    *   commitPort?: { getNodeInfo(sha: string): Promise<{sha: string, message: string, author: string, date: string, parents: string[]}> },
-   *   patchBlobStorage?: import('../../ports/BlobStoragePort.js').default | null,
+   *   patchBlobStorage?: import('../../ports/BlobStoragePort.ts').default | null,
    * }} options
    */
   constructor({ codec, blobPort, commitPort, patchBlobStorage }) {
@@ -44,7 +44,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     this._blobPort = blobPort;
     /** @type {{ getNodeInfo(sha: string): Promise<{sha: string, message: string, author: string, date: string, parents: string[]}> } | null} */
     this._commitPort = commitPort ?? null;
-    /** @type {import('../../ports/BlobStoragePort.js').default | null} */
+    /** @type {import('../../ports/BlobStoragePort.ts').default | null} */
     this._patchBlobStorage = patchBlobStorage ?? null;
   }
 

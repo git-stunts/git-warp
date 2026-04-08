@@ -39,7 +39,7 @@ export default class DagTraversal {
   /**
    * Creates a new DagTraversal service.
    *
-   * @param {{ indexReader: import('../index/BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.js').default }} options
+   * @param {{ indexReader: import('../index/BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.ts').default }} options
    */
   constructor({ indexReader, logger = nullLogger }) {
     if (indexReader === null || indexReader === undefined) {

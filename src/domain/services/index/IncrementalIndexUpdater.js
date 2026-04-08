@@ -68,7 +68,7 @@ export default class IncrementalIndexUpdater {
   /**
    * Create an incremental index updater.
    *
-   * @param {{ codec?: import('../../../ports/CodecPort.js').default }} [options]
+   * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options]
    */
   constructor(options = undefined) {
     const { codec } = options || {};

@@ -175,7 +175,7 @@ describe('PropertyIndex', () => {
       oids[path] = oid;
     }
 
-    const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.js').default} */ ({
+    const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.ts').default} */ ({
       decodeShard: async (/** @type {string} */ oid) => decodedByOid.get(oid),
     });
 

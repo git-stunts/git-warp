@@ -8,7 +8,7 @@
  * @module domain/utils/defaultBlobStorage
  */
 
-import BlobStoragePort from '../../ports/BlobStoragePort.js';
+import BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import { hexEncode } from './bytes.ts';
 import { collectAsyncIterable } from './streamUtils.ts';
 

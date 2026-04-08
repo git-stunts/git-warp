@@ -322,7 +322,7 @@ async function openDetachedReadGraph(graph) {
   if (graph._logger !== undefined && graph._logger !== null) { opts.logger = graph._logger; }
   if (graph._crypto !== undefined && graph._crypto !== null) { opts.crypto = graph._crypto; }
   if (graph._codec !== undefined && graph._codec !== null) { opts.codec = graph._codec; }
-  if (graph._patchJournal !== undefined && graph._patchJournal !== null) { opts.patchJournal = /** @type {import('../../../ports/PatchJournalPort.js').default} */ (graph._patchJournal); }
+  if (graph._patchJournal !== undefined && graph._patchJournal !== null) { opts.patchJournal = /** @type {import('../../../ports/PatchJournalPort.ts').default} */ (graph._patchJournal); }
   if (graph._seekCache !== undefined && graph._seekCache !== null) { opts.seekCache = graph._seekCache; }
   if (graph._blobStorage !== undefined && graph._blobStorage !== null) { opts.blobStorage = graph._blobStorage; }
   if (graph._patchBlobStorage !== undefined && graph._patchBlobStorage !== null) { opts.patchBlobStorage = graph._patchBlobStorage; }

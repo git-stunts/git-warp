@@ -36,7 +36,7 @@ import WarpStateV5 from './WarpStateV5.js';
  * }
  *
  * @param {import('../JoinReducer.js').WarpStateV5} state
- * @param {{ codec?: import('../../../ports/CodecPort.js').default }} [options]
+ * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options]
  * @returns {Uint8Array} CBOR-encoded full state
  */
 export function serializeFullStateV5(state, { codec } = {}) {
@@ -93,7 +93,7 @@ function serializeEdgeBirthArray(edgeBirthEvent) {
  * Deserializes full V5 state. Used for resume.
  *
  * @param {Uint8Array} buffer - CBOR-encoded full state
- * @param {{ codec?: import('../../../ports/CodecPort.js').default }} [options]
+ * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options]
  * @returns {import('../JoinReducer.js').WarpStateV5}
  */
 export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
@@ -165,7 +165,7 @@ export function computeAppliedVV(state) {
  * Serializes appliedVV to CBOR format.
  *
  * @param {VersionVector} vv
- * @param {{ codec?: import('../../../ports/CodecPort.js').default }} [options]
+ * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options]
  * @returns {Uint8Array} CBOR-encoded version vector
  */
 export function serializeAppliedVV(vv, { codec } = {}) {
@@ -178,7 +178,7 @@ export function serializeAppliedVV(vv, { codec } = {}) {
  * Deserializes appliedVV from CBOR format.
  *
  * @param {Uint8Array} buffer - CBOR-encoded version vector
- * @param {{ codec?: import('../../../ports/CodecPort.js').default }} [options]
+ * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options]
  * @returns {VersionVector}
  */
 export function deserializeAppliedVV(buffer, { codec } = {}) {

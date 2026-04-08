@@ -1,24 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import IndexStorePort from '../../../src/ports/IndexStorePort.js';
+import IndexStorePort from '../../../src/ports/IndexStorePort.ts';
 
 describe('IndexStorePort', () => {
-  it('throws on direct call to writeShards()', async () => {
-    const port = new IndexStorePort();
-    await expect(port.writeShards(/** @type {any} */ ({}))).rejects.toThrow('not implemented');
+  it('abstract methods are not callable on base prototype', () => {
+    expect(IndexStorePort.prototype.writeShards).toBeUndefined();
+    expect(IndexStorePort.prototype.scanShards).toBeUndefined();
+    expect(IndexStorePort.prototype.readShardOids).toBeUndefined();
+    expect(IndexStorePort.prototype.decodeShard).toBeUndefined();
   });
 
-  it('throws on direct call to scanShards()', () => {
-    const port = new IndexStorePort();
-    expect(() => port.scanShards('tree-oid')).toThrow('not implemented');
-  });
-
-  it('throws on direct call to readShardOids()', async () => {
-    const port = new IndexStorePort();
-    await expect(port.readShardOids('tree-oid')).rejects.toThrow('not implemented');
-  });
-
-  it('throws on direct call to decodeShard()', async () => {
-    const port = new IndexStorePort();
-    await expect(port.decodeShard('blob-oid')).rejects.toThrow('not implemented');
+  it('concrete subclass satisfies the contract', async () => {
+    class TestStore extends IndexStorePort {
+      async writeShards() { return 'tree-oid'; }
+      scanShards() { return /** @type {any} */ (null); }
+      async readShardOids() { return { 'shard.cbor': 'blob-oid' }; }
+      async decodeShard() { return {}; }
+    }
+    const store = new TestStore();
+    expect(store).toBeInstanceOf(IndexStorePort);
+    expect(await store.writeShards(/** @type {any} */ (null))).toBe('tree-oid');
   });
 });

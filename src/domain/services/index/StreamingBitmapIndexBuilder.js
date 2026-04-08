@@ -70,9 +70,9 @@ const BITMAP_BASE_OVERHEAD = 64;
 /**
  * Validates constructor options for StreamingBitmapIndexBuilder.
  *
- * @param {import('../../../ports/IndexStoragePort.js').default} storage
+ * @param {import('../../../ports/IndexStoragePort.ts').default} storage
  * @param {number} maxMemoryBytes
- * @returns {import('../../../ports/IndexStoragePort.js').default} The validated storage adapter
+ * @returns {import('../../../ports/IndexStoragePort.ts').default} The validated storage adapter
  */
 function validateBuilderOptions(storage, maxMemoryBytes) {
   if (storage === null || storage === undefined) {
@@ -87,7 +87,7 @@ function validateBuilderOptions(storage, maxMemoryBytes) {
       context: { field: 'maxMemoryBytes', value: maxMemoryBytes },
     });
   }
-  return /** @type {import('../../../ports/IndexStoragePort.js').default} */ (storage);
+  return /** @type {import('../../../ports/IndexStoragePort.ts').default} */ (storage);
 }
 
 /**
@@ -124,7 +124,7 @@ function parseShardEnvelope(buffer, oid) {
  *
  * @param {ShardEnvelope} envelope - Parsed shard envelope
  * @param {string} oid - Git blob OID for error context
- * @param {import('../../../ports/CryptoPort.js').default} crypto - Crypto adapter for checksum
+ * @param {import('../../../ports/CryptoPort.ts').default} crypto - Crypto adapter for checksum
  * @returns {Promise<void>}
  * @throws {ShardValidationError} If version does not match SHARD_VERSION
  * @throws {ShardCorruptionError} If checksum does not match
@@ -185,7 +185,7 @@ function serializeMergedShard(envelope) {
  * Initializes all mutable fields on a StreamingBitmapIndexBuilder instance.
  *
  * @param {StreamingBitmapIndexBuilder} self - Builder instance to initialize
- * @param {{ validatedStorage: import('../../../ports/IndexStoragePort.js').default, maxMemoryBytes: number, onFlush?: (stats: {flushedBytes: number, totalFlushedBytes: number, flushCount: number}) => void, logger: import('../../../ports/LoggerPort.js').default, crypto?: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} opts - Validated options
+ * @param {{ validatedStorage: import('../../../ports/IndexStoragePort.ts').default, maxMemoryBytes: number, onFlush?: (stats: {flushedBytes: number, totalFlushedBytes: number, flushCount: number}) => void, logger: import('../../../ports/LoggerPort.ts').default, crypto?: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} opts - Validated options
  */
 function initBuilderFields(self, { validatedStorage, maxMemoryBytes, onFlush, logger, crypto, codec }) {
   self._crypto = crypto ?? defaultCrypto;
@@ -207,7 +207,7 @@ function initBuilderFields(self, { validatedStorage, maxMemoryBytes, onFlush, lo
 /**
  * Builds the options object for initBuilderFields, omitting undefined optional fields.
  *
- * @param {{ validatedStorage: import('../../../ports/IndexStoragePort.js').default, maxMemoryBytes: number, onFlush: ((stats: {flushedBytes: number, totalFlushedBytes: number, flushCount: number}) => void)|undefined, logger: import('../../../ports/LoggerPort.js').default, crypto: import('../../../ports/CryptoPort.js').default|undefined, codec: import('../../../ports/CodecPort.js').default|undefined }} raw
+ * @param {{ validatedStorage: import('../../../ports/IndexStoragePort.ts').default, maxMemoryBytes: number, onFlush: ((stats: {flushedBytes: number, totalFlushedBytes: number, flushCount: number}) => void)|undefined, logger: import('../../../ports/LoggerPort.ts').default, crypto: import('../../../ports/CryptoPort.ts').default|undefined, codec: import('../../../ports/CodecPort.ts').default|undefined }} raw
  * @returns {Parameters<typeof initBuilderFields>[1]}
  */
 function buildInitOpts(raw) {
@@ -220,11 +220,11 @@ function buildInitOpts(raw) {
 }
 
 export default class StreamingBitmapIndexBuilder {
-  /** @type {import('../../../ports/CryptoPort.js').default} */
-  _crypto = /** @type {import('../../../ports/CryptoPort.js').default} */ (/** @type {unknown} */ (undefined));
+  /** @type {import('../../../ports/CryptoPort.ts').default} */
+  _crypto = /** @type {import('../../../ports/CryptoPort.ts').default} */ (/** @type {unknown} */ (undefined));
 
-  /** @type {import('../../../ports/CodecPort.js').default} */
-  _codec = /** @type {import('../../../ports/CodecPort.js').default} */ (/** @type {unknown} */ (undefined));
+  /** @type {import('../../../ports/CodecPort.ts').default} */
+  _codec = /** @type {import('../../../ports/CodecPort.ts').default} */ (/** @type {unknown} */ (undefined));
 
   /** @type {IndexStorage} */
   storage = /** @type {IndexStorage} */ (/** @type {unknown} */ (undefined));
@@ -235,8 +235,8 @@ export default class StreamingBitmapIndexBuilder {
   /** @type {((stats: {flushedBytes: number, totalFlushedBytes: number, flushCount: number}) => void)|undefined} */
   onFlush;
 
-  /** @type {import('../../../ports/LoggerPort.js').default} */
-  logger = /** @type {import('../../../ports/LoggerPort.js').default} */ (/** @type {unknown} */ (undefined));
+  /** @type {import('../../../ports/LoggerPort.ts').default} */
+  logger = /** @type {import('../../../ports/LoggerPort.ts').default} */ (/** @type {unknown} */ (undefined));
 
   /** @type {Map<string, number>} */
   shaToId = new Map();
@@ -265,7 +265,7 @@ export default class StreamingBitmapIndexBuilder {
   /**
    * Creates a new StreamingBitmapIndexBuilder instance.
    *
-   * @param {{ storage: import('../../../ports/IndexStoragePort.js').default, maxMemoryBytes?: number, onFlush?: (stats: {flushedBytes: number, totalFlushedBytes: number, flushCount: number}) => void, logger?: import('../../../ports/LoggerPort.js').default, crypto?: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} options - Configuration options
+   * @param {{ storage: import('../../../ports/IndexStoragePort.ts').default, maxMemoryBytes?: number, onFlush?: (stats: {flushedBytes: number, totalFlushedBytes: number, flushCount: number}) => void, logger?: import('../../../ports/LoggerPort.ts').default, crypto?: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} options - Configuration options
    */
   constructor({ storage, maxMemoryBytes = DEFAULT_MAX_MEMORY_BYTES, onFlush, logger = nullLogger, crypto, codec }) {
     const validatedStorage = validateBuilderOptions(storage, maxMemoryBytes);

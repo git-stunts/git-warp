@@ -34,7 +34,7 @@ const MAX_CAS_ATTEMPTS = 3;
 export class TrustRecordService {
   /**
    * Manages the append-only chain of signed trust records.
-   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, codec: import('../../ports/CodecPort.js').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, codec: import('../../ports/CodecPort.ts').default }} options
    */
   constructor({ persistence, codec }) {
     this._persistence = persistence;

@@ -10,7 +10,7 @@
  */
 
 /**
- * @typedef {import('../../ports/LoggerPort.js').default} LoggerPort
+ * @typedef {import('../../ports/LoggerPort.ts').default} LoggerPort
  */
 
 export default class LoggerObservabilityBridge {

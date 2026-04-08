@@ -7,7 +7,7 @@
  * @module domain/utils/nullLogger
  */
 
-import type LoggerPort from '../../ports/LoggerPort.js';
+import type LoggerPort from '../../ports/LoggerPort.ts';
 
 const nullLogger: LoggerPort = {
   debug(): void {},

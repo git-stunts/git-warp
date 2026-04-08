@@ -26,7 +26,7 @@
  * @typedef {{ readRef: (ref: string) => Promise<string|null>, readBlob: (oid: string) => Promise<Uint8Array>, writeBlob: (data: Uint8Array) => Promise<string>, updateRef: (ref: string, oid: string) => Promise<void>, deleteRef: (ref: string) => Promise<void> }} CachePersistence
  */
 
-import SeekCachePort from '../../ports/SeekCachePort.js';
+import SeekCachePort from '../../ports/SeekCachePort.ts';
 import { buildSeekCacheRef } from '../../domain/utils/RefLayout.ts';
 import { createLazyCas } from './lazyCasInit.js';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.js';
@@ -88,7 +88,7 @@ function _parseIndexBlob(buf) {
 export default class CasSeekCacheAdapter extends SeekCachePort {
   /**
    * Creates a new CAS-backed seek cache adapter.
-   * @param {{ persistence: CachePersistence, plumbing: unknown, graphName: string, maxEntries?: number, encryptionKey?: Uint8Array, logger?: import('../../ports/LoggerPort.js').default }} options
+   * @param {{ persistence: CachePersistence, plumbing: unknown, graphName: string, maxEntries?: number, encryptionKey?: Uint8Array, logger?: import('../../ports/LoggerPort.ts').default }} options
    */
   constructor({ persistence, plumbing, graphName, maxEntries, encryptionKey, logger }) {
     super();
@@ -101,7 +101,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
     this._ref = buildSeekCacheRef(graphName);
     /** @type {Uint8Array|undefined} */
     this._encryptionKey = encryptionKey;
-    /** @type {import('../../ports/LoggerPort.js').default|undefined} */
+    /** @type {import('../../ports/LoggerPort.ts').default|undefined} */
     this._logger = logger;
     this._getCas = createLazyCas(() => this._initCas());
   }

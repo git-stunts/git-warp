@@ -39,11 +39,11 @@ import BitmapIndexReader from './src/domain/services/index/BitmapIndexReader.js'
 import IndexRebuildService from './src/domain/services/index/IndexRebuildService.js';
 import HealthCheckService, { HealthStatus } from './src/domain/services/HealthCheckService.js';
 import CommitDagTraversalService from './src/domain/services/dag/CommitDagTraversalService.js';
-import GraphPersistencePort from './src/ports/GraphPersistencePort.js';
-import IndexStoragePort from './src/ports/IndexStoragePort.js';
-import LoggerPort from './src/ports/LoggerPort.js';
-import ClockPort from './src/ports/ClockPort.js';
-import SeekCachePort from './src/ports/SeekCachePort.js';
+import GraphPersistencePort from './src/ports/GraphPersistencePort.ts';
+import IndexStoragePort from './src/ports/IndexStoragePort.ts';
+import LoggerPort from './src/ports/LoggerPort.ts';
+import ClockPort from './src/ports/ClockPort.ts';
+import SeekCachePort from './src/ports/SeekCachePort.ts';
 import InMemoryGraphAdapter from './src/infrastructure/adapters/InMemoryGraphAdapter.js';
 import NoOpLogger from './src/infrastructure/adapters/NoOpLogger.js';
 import ConsoleLogger, { LogLevel } from './src/infrastructure/adapters/ConsoleLogger.js';
@@ -67,10 +67,10 @@ import {
   WormholeError,
 } from './src/domain/errors/index.ts';
 import WriterError from './src/domain/errors/WriterError.ts';
-import BlobStoragePort from './src/ports/BlobStoragePort.js';
+import BlobStoragePort from './src/ports/BlobStoragePort.ts';
 import InMemoryBlobStorageAdapter from './src/domain/utils/defaultBlobStorage.ts';
-import CryptoPort from './src/ports/CryptoPort.js';
-import HttpServerPort from './src/ports/HttpServerPort.js';
+import CryptoPort from './src/ports/CryptoPort.ts';
+import HttpServerPort from './src/ports/HttpServerPort.ts';
 import NodeCryptoAdapter from './src/infrastructure/adapters/NodeCryptoAdapter.js';
 import WebCryptoAdapter from './src/infrastructure/adapters/WebCryptoAdapter.js';
 import BunHttpAdapter from './src/infrastructure/adapters/BunHttpAdapter.js';
@@ -134,7 +134,7 @@ import {
 } from './src/domain/services/WormholeService.js';
 
 import BisectService from './src/domain/services/BisectService.js';
-import EffectSinkPort from './src/ports/EffectSinkPort.js';
+import EffectSinkPort from './src/ports/EffectSinkPort.ts';
 import { MultiplexSink } from './src/domain/services/MultiplexSink.js';
 import { EffectPipeline } from './src/domain/services/EffectPipeline.js';
 import {

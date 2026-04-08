@@ -96,7 +96,7 @@ async function openDetachedObserverGraph(graph) {
     ...(graph._blobStorage ? { blobStorage: graph._blobStorage } : {}),
     ...(graph._patchBlobStorage ? { patchBlobStorage: graph._patchBlobStorage } : {}),
     ...(graph._trustConfig !== undefined && graph._trustConfig !== null ? { trust: graph._trustConfig } : {}),
-    ...(graph._patchJournal !== undefined && graph._patchJournal !== null ? { patchJournal: /** @type {import('../../../ports/PatchJournalPort.js').default} */ (graph._patchJournal) } : {}),
+    ...(graph._patchJournal !== undefined && graph._patchJournal !== null ? { patchJournal: /** @type {import('../../../ports/PatchJournalPort.ts').default} */ (graph._patchJournal) } : {}),
     ...(graph._checkpointStore !== undefined && graph._checkpointStore !== null ? { checkpointStore: graph._checkpointStore } : {}),
     ...(graph._indexStore !== undefined && graph._indexStore !== null ? { indexStore: graph._indexStore } : {}),
   });
@@ -327,10 +327,10 @@ async function neighbors(nodeId, direction = 'both', edgeLabel = undefined) {
 /**
  * Indexed neighbor lookup using BitmapNeighborProvider.
  *
- * @param {import('../../../ports/NeighborProviderPort.js').default} provider
+ * @param {import('../../../ports/NeighborProviderPort.ts').default} provider
  * @param {string} nodeId
  * @param {'outgoing' | 'incoming' | 'both'} direction
- * @param {import('../../../ports/NeighborProviderPort.js').NeighborOptions} [opts]
+ * @param {import('../../../ports/NeighborProviderPort.ts').NeighborOptions} [opts]
  * @returns {Promise<Array<{nodeId: string, label: string, direction: 'outgoing' | 'incoming'}>>}
  */
 async function _indexedNeighbors(provider, nodeId, direction, opts) {

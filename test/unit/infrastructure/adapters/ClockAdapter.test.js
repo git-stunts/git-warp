@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import ClockAdapter from '../../../../src/infrastructure/adapters/ClockAdapter.js';
-import ClockPort from '../../../../src/ports/ClockPort.js';
+import ClockPort from '../../../../src/ports/ClockPort.ts';
 
 describe('ClockAdapter', () => {
   describe('constructor', () => {

@@ -49,7 +49,7 @@ const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
  * InMemoryBlobStorageAdapter for browser/test paths.
  *
  * @param {unknown} persistence
- * @returns {Promise<import('../ports/BlobStoragePort.js').default>}
+ * @returns {Promise<import('../ports/BlobStoragePort.ts').default>}
  */
 async function autoConstructBlobStorage(persistence) {
   const p = /** @type {{ plumbing?: unknown }} */ (persistence);
@@ -66,9 +66,9 @@ async function autoConstructBlobStorage(persistence) {
  * Resolves an IndexStorePort: uses the provided instance if present,
  * otherwise auto-constructs a CborIndexStoreAdapter.
  *
- * @param {import('../ports/IndexStorePort.js').default|undefined|null} indexStore
- * @param {{ codec: import('../ports/CodecPort.js').default, blobPort: { readBlob(oid: string): Promise<Uint8Array>, writeBlob(content: Uint8Array | string): Promise<string> }, treePort: { readTreeOids(treeOid: string): Promise<Record<string, string>>, writeTree(entries: string[]): Promise<string> } }} deps
- * @returns {Promise<import('../ports/IndexStorePort.js').default>}
+ * @param {import('../ports/IndexStorePort.ts').default|undefined|null} indexStore
+ * @param {{ codec: import('../ports/CodecPort.ts').default, blobPort: { readBlob(oid: string): Promise<Uint8Array>, writeBlob(content: Uint8Array | string): Promise<string> }, treePort: { readTreeOids(treeOid: string): Promise<Record<string, string>>, writeTree(entries: string[]): Promise<string> } }} deps
+ * @returns {Promise<import('../ports/IndexStorePort.ts').default>}
  */
 async function resolveIndexStore(indexStore, deps) {
   if (indexStore !== undefined && indexStore !== null) {
@@ -85,9 +85,9 @@ import WarpError from './errors/WarpError.ts';
 /**
  * Constructs an EffectPipeline from an array of sinks and an optional externalization lens.
  *
- * @param {Array<import('../ports/EffectSinkPort.js').default>} sinks - Effect sinks to multiplex
+ * @param {Array<import('../ports/EffectSinkPort.ts').default>} sinks - Effect sinks to multiplex
  * @param {import('./types/ExternalizationPolicy.ts').ExternalizationPolicy|undefined} lens - Optional externalization lens
- * @param {import('../ports/ClockPort.js').default} clock - Clock for the pipeline
+ * @param {import('../ports/ClockPort.ts').default} clock - Clock for the pipeline
  * @returns {Promise<import('./services/EffectPipeline.js').EffectPipeline>} Constructed pipeline
  */
 async function buildEffectPipeline(sinks, lens, clock) {
@@ -173,7 +173,7 @@ export default class WarpRuntime {
   /**
    * Constructs a WarpRuntime instance with injected dependencies and configuration.
    * @private
-   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../ports/BlobStoragePort.js').default, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, patchJournal: import('../ports/PatchJournalPort.js').default, checkpointStore: import('../ports/CheckpointStorePort.js').default, indexStore: import('../ports/IndexStorePort.js').default, viewService: import('./services/MaterializedViewService.js').default, stateHashService?: StateHashService, auditService?: AuditReceiptService, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline }} options
+   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.ts').default, clock?: import('../ports/ClockPort.ts').default, crypto?: import('../ports/CryptoPort.ts').default, codec?: import('../ports/CodecPort.ts').default, seekCache?: import('../ports/SeekCachePort.ts').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.ts').default, patchBlobStorage?: import('../ports/BlobStoragePort.ts').default, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, patchJournal: import('../ports/PatchJournalPort.ts').default, checkpointStore: import('../ports/CheckpointStorePort.ts').default, indexStore: import('../ports/IndexStorePort.ts').default, viewService: import('./services/MaterializedViewService.js').default, stateHashService?: StateHashService, auditService?: AuditReceiptService, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline }} options
    */
   // TODO(OG): split constructor responsibilities; legacy hotspot kept explicit until the API redesign cycle.
   // eslint-disable-next-line max-lines-per-function, complexity
@@ -258,16 +258,16 @@ export default class WarpRuntime {
     /** @type {Map<string, string>|null} */
     this._lastFrontier = null;
 
-    /** @type {import('../ports/LoggerPort.js').default|null} */
+    /** @type {import('../ports/LoggerPort.ts').default|null} */
     this._logger = logger || null;
 
-    /** @type {import('../ports/ClockPort.js').default} */
+    /** @type {import('../ports/ClockPort.ts').default} */
     this._clock = clock || defaultClock;
 
-    /** @type {import('../ports/CryptoPort.js').default} */
+    /** @type {import('../ports/CryptoPort.ts').default} */
     this._crypto = crypto || defaultCrypto;
 
-    /** @type {import('../ports/CodecPort.js').default} */
+    /** @type {import('../ports/CodecPort.ts').default} */
     this._codec = codec || defaultCodec;
 
     /** @type {'reject'|'cascade'|'warn'} */
@@ -294,13 +294,13 @@ export default class WarpRuntime {
     /** @type {Map<string, string>|null} */
     this._cachedFrontier = null;
 
-    /** @type {import('../ports/SeekCachePort.js').default|null} */
+    /** @type {import('../ports/SeekCachePort.ts').default|null} */
     this._seekCache = seekCache || null;
 
-    /** @type {import('../ports/BlobStoragePort.js').default|null} */
+    /** @type {import('../ports/BlobStoragePort.ts').default|null} */
     this._blobStorage = blobStorage || null;
 
-    /** @type {import('../ports/BlobStoragePort.js').default|null} */
+    /** @type {import('../ports/BlobStoragePort.ts').default|null} */
     this._patchBlobStorage = patchBlobStorage || null;
 
     /** @type {boolean} */
@@ -381,13 +381,13 @@ export default class WarpRuntime {
     /** @type {import('./services/EffectPipeline.js').EffectPipeline|null} */
     this._effectPipeline = effectPipeline || null;
 
-    /** @type {import('../ports/PatchJournalPort.js').default} */
+    /** @type {import('../ports/PatchJournalPort.ts').default} */
     this._patchJournal = patchJournal;
 
-    /** @type {import('../ports/CheckpointStorePort.js').default} */
+    /** @type {import('../ports/CheckpointStorePort.ts').default} */
     this._checkpointStore = checkpointStore;
 
-    /** @type {import('../ports/IndexStorePort.js').default} */
+    /** @type {import('../ports/IndexStorePort.ts').default} */
     this._indexStore = indexStore;
 
     /** @type {StateHashService|null} */
@@ -399,7 +399,7 @@ export default class WarpRuntime {
 
   /**
    * Returns the attached seek cache, or null if none is set.
-   * @returns {import('../ports/SeekCachePort.js').default|null}
+   * @returns {import('../ports/SeekCachePort.ts').default|null}
    */
   get seekCache() {
     return this._seekCache;
@@ -411,7 +411,7 @@ export default class WarpRuntime {
    * Useful when the cache adapter cannot be created until after the
    * graph is opened (e.g. the CLI wires it based on flags).
    *
-   * @param {import('../ports/SeekCachePort.js').default} cache - SeekCachePort implementation
+   * @param {import('../ports/SeekCachePort.ts').default} cache - SeekCachePort implementation
    */
   setSeekCache(cache) {
     this._seekCache = cache;
@@ -439,10 +439,10 @@ export default class WarpRuntime {
    */
   _emitTimingMessage(op, { elapsed, metrics, error }) {
     if (error) {
-      /** @type {import('../ports/LoggerPort.js').default} */ (this._logger).info(`[warp] ${op} failed in ${elapsed}ms`, { error: error.message });
+      /** @type {import('../ports/LoggerPort.ts').default} */ (this._logger).info(`[warp] ${op} failed in ${elapsed}ms`, { error: error.message });
     } else {
       const suffix = (typeof metrics === 'string' && metrics.length > 0) ? ` (${metrics})` : '';
-      /** @type {import('../ports/LoggerPort.js').default} */ (this._logger).info(`[warp] ${op} completed in ${elapsed}ms${suffix}`);
+      /** @type {import('../ports/LoggerPort.ts').default} */ (this._logger).info(`[warp] ${op} completed in ${elapsed}ms${suffix}`);
     }
   }
 
@@ -513,7 +513,7 @@ export default class WarpRuntime {
   /**
    * Opens a multi-writer graph.
    *
-   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../ports/BlobStoragePort.js').default, patchJournal?: import('../ports/PatchJournalPort.js').default | null, checkpointStore?: import('../ports/CheckpointStorePort.js').default | null, indexStore?: import('../ports/IndexStorePort.js').default | null, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline, effectSinks?: Array<import('../ports/EffectSinkPort.js').default>, externalizationPolicy?: import('./types/ExternalizationPolicy.ts').ExternalizationPolicy }} options
+   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.ts').default, clock?: import('../ports/ClockPort.ts').default, crypto?: import('../ports/CryptoPort.ts').default, codec?: import('../ports/CodecPort.ts').default, seekCache?: import('../ports/SeekCachePort.ts').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.ts').default, patchBlobStorage?: import('../ports/BlobStoragePort.ts').default, patchJournal?: import('../ports/PatchJournalPort.ts').default | null, checkpointStore?: import('../ports/CheckpointStorePort.ts').default | null, indexStore?: import('../ports/IndexStorePort.ts').default | null, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline, effectSinks?: Array<import('../ports/EffectSinkPort.ts').default>, externalizationPolicy?: import('./types/ExternalizationPolicy.ts').ExternalizationPolicy }} options
    * @returns {Promise<WarpRuntime>} The opened graph instance
    * @throws {WarpError} If graphName, writerId, checkpointPolicy, or onDeleteWithData is invalid
    *
@@ -583,7 +583,7 @@ export default class WarpRuntime {
     const treePort = requireTreePort(persistence);
 
     // PatchJournal
-    /** @type {import('../ports/PatchJournalPort.js').default} */
+    /** @type {import('../ports/PatchJournalPort.ts').default} */
     let resolvedPatchJournal;
     if (patchJournal !== undefined && patchJournal !== null) {
       resolvedPatchJournal = patchJournal;
@@ -600,7 +600,7 @@ export default class WarpRuntime {
     }
 
     // CheckpointStore
-    /** @type {import('../ports/CheckpointStorePort.js').default} */
+    /** @type {import('../ports/CheckpointStorePort.ts').default} */
     let resolvedCheckpointStore;
     if (checkpointStore !== undefined && checkpointStore !== null) {
       resolvedCheckpointStore = checkpointStore;

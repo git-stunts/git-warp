@@ -1,19 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import RefPort from '../../../src/ports/RefPort.js';
+import RefPort from '../../../src/ports/RefPort.ts';
 
 describe('RefPort', () => {
-  it('throws on direct call to updateRef()', async () => {
-    const port = new RefPort();
-    await expect(port.updateRef('refs/heads/main', 'abc123')).rejects.toThrow('not implemented');
+  it('abstract methods are not callable on base prototype', () => {
+    expect(RefPort.prototype.updateRef).toBeUndefined();
+    expect(RefPort.prototype.readRef).toBeUndefined();
+    expect(RefPort.prototype.deleteRef).toBeUndefined();
+    expect(RefPort.prototype.listRefs).toBeUndefined();
+    expect(RefPort.prototype.compareAndSwapRef).toBeUndefined();
   });
 
-  it('throws on direct call to readRef()', async () => {
-    const port = new RefPort();
-    await expect(port.readRef('refs/heads/main')).rejects.toThrow('not implemented');
-  });
-
-  it('throws on direct call to deleteRef()', async () => {
-    const port = new RefPort();
-    await expect(port.deleteRef('refs/heads/main')).rejects.toThrow('not implemented');
+  it('concrete subclass satisfies the contract', async () => {
+    class TestRef extends RefPort {
+      async updateRef() { /* no-op */ }
+      async readRef() { return 'abc123'; }
+      async deleteRef() { /* no-op */ }
+      async listRefs() { return ['refs/heads/main']; }
+      async compareAndSwapRef() { /* no-op */ }
+    }
+    const ref = new TestRef();
+    expect(ref).toBeInstanceOf(RefPort);
+    expect(await ref.readRef('refs/heads/main')).toBe('abc123');
   });
 });

@@ -56,7 +56,7 @@ function validateWarpState(state) {
 export default class WarpStateIndexBuilder {
   /**
    * Creates a new WarpStateIndexBuilder.
-   * @param {{ crypto?: import('../../../ports/CryptoPort.js').default }} [options] - Configuration
+   * @param {{ crypto?: import('../../../ports/CryptoPort.ts').default }} [options] - Configuration
    */
   constructor(options = undefined) {
     const { crypto } = options || {};
@@ -151,7 +151,7 @@ export default class WarpStateIndexBuilder {
  * Convenience function to build and serialize a WARP state index.
  *
  * @param {import('../JoinReducer.js').WarpStateV5} state - The materialized state
- * @param {{ crypto?: import('../../../ports/CryptoPort.js').default }} [options] - Configuration
+ * @param {{ crypto?: import('../../../ports/CryptoPort.ts').default }} [options] - Configuration
  * @returns {Promise<{tree: Record<string, Uint8Array>, stats: {nodes: number, edges: number}}>} Serialized index and stats
  *
  * @example

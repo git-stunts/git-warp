@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import NoOpLogger from '../../../../src/infrastructure/adapters/NoOpLogger.js';
-import LoggerPort from '../../../../src/ports/LoggerPort.js';
+import LoggerPort from '../../../../src/ports/LoggerPort.ts';
 
 describe('NoOpLogger', () => {
   describe('constructor', () => {

@@ -1,38 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import LoggerPort from '../../../src/ports/LoggerPort.js';
+import LoggerPort from '../../../src/ports/LoggerPort.ts';
 
 describe('LoggerPort', () => {
-  describe('abstract methods', () => {
-    it('debug throws Not implemented', () => {
-      const port = new LoggerPort();
-      expect(() => port.debug('test')).toThrow('Not implemented');
-    });
-
-    it('info throws Not implemented', () => {
-      const port = new LoggerPort();
-      expect(() => port.info('test')).toThrow('Not implemented');
-    });
-
-    it('warn throws Not implemented', () => {
-      const port = new LoggerPort();
-      expect(() => port.warn('test')).toThrow('Not implemented');
-    });
-
-    it('error throws Not implemented', () => {
-      const port = new LoggerPort();
-      expect(() => port.error('test')).toThrow('Not implemented');
-    });
-
-    it('child throws Not implemented', () => {
-      const port = new LoggerPort();
-      expect(() => port.child({})).toThrow('Not implemented');
-    });
+  it('abstract methods are not callable on base prototype', () => {
+    expect(LoggerPort.prototype.debug).toBeUndefined();
+    expect(LoggerPort.prototype.info).toBeUndefined();
+    expect(LoggerPort.prototype.warn).toBeUndefined();
+    expect(LoggerPort.prototype.error).toBeUndefined();
+    expect(LoggerPort.prototype.child).toBeUndefined();
   });
 
-  describe('contract', () => {
-    it('can be instantiated', () => {
-      const port = new LoggerPort();
-      expect(port).toBeInstanceOf(LoggerPort);
-    });
+  it('concrete subclass satisfies the contract', () => {
+    class TestLogger extends LoggerPort {
+      debug() { /* no-op */ }
+      info() { /* no-op */ }
+      warn() { /* no-op */ }
+      error() { /* no-op */ }
+      child() { return new TestLogger(); }
+    }
+    const logger = new TestLogger();
+    expect(logger).toBeInstanceOf(LoggerPort);
+    expect(logger.child({})).toBeInstanceOf(LoggerPort);
   });
 });

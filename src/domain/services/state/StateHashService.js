@@ -17,8 +17,8 @@ export default class StateHashService {
    * Creates a StateHashService.
    *
    * @param {{
-   *   codec: import('../../../ports/CodecPort.js').default,
-   *   crypto: import('../../../ports/CryptoPort.js').default,
+   *   codec: import('../../../ports/CodecPort.ts').default,
+   *   crypto: import('../../../ports/CryptoPort.ts').default,
    * }} deps
    */
   constructor({ codec, crypto }) {
@@ -28,9 +28,9 @@ export default class StateHashService {
     if (crypto === undefined || crypto === null) {
       throw new WarpError('StateHashService requires a crypto adapter', 'E_MISSING_DEPENDENCY');
     }
-    /** @type {import('../../../ports/CodecPort.js').default} */
+    /** @type {import('../../../ports/CodecPort.ts').default} */
     this._codec = codec;
-    /** @type {import('../../../ports/CryptoPort.js').default} */
+    /** @type {import('../../../ports/CryptoPort.ts').default} */
     this._crypto = crypto;
   }
 

@@ -317,7 +317,7 @@ describe('LogicalIndexReader', () => {
         decodedByOid.set(oid, defaultCodec.decode(buf));
       }
 
-      const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.js').default} */ (/** @type {unknown} */ ({
+      const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.ts').default} */ (/** @type {unknown} */ ({
         decodeShard: vi.fn((oid) => Promise.resolve(decodedByOid.get(oid))),
       }));
 
@@ -348,7 +348,7 @@ describe('LogicalIndexReader', () => {
       const buildService = new LogicalIndexBuildService();
       const { shards } = buildService.buildShards(state);
 
-      const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.js').default} */ (/** @type {unknown} */ ({
+      const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.ts').default} */ (/** @type {unknown} */ ({
         scanShards: vi.fn(() => WarpStream.from(shards)),
       }));
 

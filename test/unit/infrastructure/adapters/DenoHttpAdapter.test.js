@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import HttpServerPort from '../../../../src/ports/HttpServerPort.js';
+import HttpServerPort from '../../../../src/ports/HttpServerPort.ts';
 
 /**
  * Creates a mock Deno.serve() that captures the handler and options,

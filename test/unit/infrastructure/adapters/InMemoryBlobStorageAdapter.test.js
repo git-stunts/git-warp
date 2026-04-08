@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import InMemoryBlobStorageAdapter from '../../../../src/domain/utils/defaultBlobStorage.ts';
-import BlobStoragePort from '../../../../src/ports/BlobStoragePort.js';
+import BlobStoragePort from '../../../../src/ports/BlobStoragePort.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -1,27 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import BlobStoragePort from '../../../src/ports/BlobStoragePort.js';
+import BlobStoragePort from '../../../src/ports/BlobStoragePort.ts';
 
 describe('BlobStoragePort', () => {
-  it('store() throws not implemented', async () => {
-    const port = new BlobStoragePort();
-    await expect(port.store(new Uint8Array())).rejects.toThrow('not implemented');
+  it('abstract methods are not callable on base prototype', () => {
+    expect(BlobStoragePort.prototype.store).toBeUndefined();
+    expect(BlobStoragePort.prototype.retrieve).toBeUndefined();
+    expect(BlobStoragePort.prototype.storeStream).toBeUndefined();
+    expect(BlobStoragePort.prototype.retrieveStream).toBeUndefined();
   });
 
-  it('retrieve() throws not implemented', async () => {
-    const port = new BlobStoragePort();
-    await expect(port.retrieve('oid')).rejects.toThrow('not implemented');
-  });
-
-  it('storeStream() throws not implemented', async () => {
-    const port = new BlobStoragePort();
-    async function* source() {
-      yield new Uint8Array([1, 2, 3]);
+  it('concrete subclass satisfies the contract', async () => {
+    class TestStorage extends BlobStoragePort {
+      async store() { return 'oid'; }
+      async retrieve() { return new Uint8Array([1]); }
+      async storeStream() { return 'stream-oid'; }
+      async *retrieveStream() { yield new Uint8Array([2]); }
     }
-    await expect(port.storeStream(source())).rejects.toThrow('not implemented');
-  });
-
-  it('retrieveStream() throws not implemented', () => {
-    const port = new BlobStoragePort();
-    expect(() => port.retrieveStream('oid')).toThrow('not implemented');
+    const s = new TestStorage();
+    expect(s).toBeInstanceOf(BlobStoragePort);
+    expect(await s.store(new Uint8Array())).toBe('oid');
+    expect(await s.retrieve('x')).toEqual(new Uint8Array([1]));
   });
 });

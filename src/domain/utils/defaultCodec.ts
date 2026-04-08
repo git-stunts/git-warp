@@ -12,7 +12,7 @@
  */
 
 import { Encoder, decode as cborDecode } from 'cbor-x';
-import type CodecPort from '../../ports/CodecPort.js';
+import type CodecPort from '../../ports/CodecPort.ts';
 
 const encoder = new Encoder({
   useRecords: false,

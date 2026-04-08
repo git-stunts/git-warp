@@ -1,4 +1,4 @@
-import CheckpointStorePort from '../../ports/CheckpointStorePort.js';
+import CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import { orsetSerialize, orsetDeserialize } from '../../domain/crdt/ORSet.js';
 import VersionVector, { vvSerialize } from '../../domain/crdt/VersionVector.js';
@@ -42,8 +42,8 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
    * Persists a complete checkpoint: encodes and writes all artifacts
    * as blobs, returns the OIDs for tree assembly.
    *
-   * @param {import('../../ports/CheckpointStorePort.js').CheckpointRecord} record
-   * @returns {Promise<import('../../ports/CheckpointStorePort.js').CheckpointWriteResult>}
+   * @param {import('../../ports/CheckpointStorePort.ts').CheckpointRecord} record
+   * @returns {Promise<import('../../ports/CheckpointStorePort.ts').CheckpointWriteResult>}
    */
   async writeCheckpoint(record) {
     // Encode all artifacts in parallel
@@ -80,7 +80,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
    * Reads checkpoint artifacts from a tree of OIDs.
    *
    * @param {Record<string, string>} treeOids - Map of path → blob OID
-   * @returns {Promise<import('../../ports/CheckpointStorePort.js').CheckpointData>}
+   * @returns {Promise<import('../../ports/CheckpointStorePort.ts').CheckpointData>}
    */
   async readCheckpoint(treeOids) {
     const stateOid = treeOids['state.cbor'];

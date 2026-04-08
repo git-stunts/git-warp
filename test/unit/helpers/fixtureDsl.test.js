@@ -61,7 +61,7 @@ describe('fixtureDsl helpers', () => {
       edges: [],
     });
 
-    /** @type {Array<{name: string, provider: import('../../../src/ports/NeighborProviderPort.js').default}>} */
+    /** @type {Array<{name: string, provider: import('../../../src/ports/NeighborProviderPort.ts').default}>} */
     const providers = [
       {
         name: 'returns',

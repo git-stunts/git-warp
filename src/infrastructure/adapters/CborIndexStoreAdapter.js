@@ -1,4 +1,4 @@
-import IndexStorePort from '../../ports/IndexStorePort.js';
+import IndexStorePort from '../../ports/IndexStorePort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import WarpStream from '../../domain/stream/WarpStream.js';
 import {

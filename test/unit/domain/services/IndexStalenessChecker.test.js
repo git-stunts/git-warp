@@ -36,7 +36,7 @@ describe('loadIndexFrontier', () => {
 
   it('with indexStore → decodes CBOR frontier via port', async () => {
     const envelope = { version: 1, writerCount: 2, frontier: { alice: 'sha-a', bob: 'sha-b' } };
-    const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.js').default} */ (/** @type {unknown} */ ({
+    const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.ts').default} */ (/** @type {unknown} */ ({
       decodeShard: vi.fn().mockResolvedValue(envelope),
     }));
     const shardOids = { 'frontier.cbor': 'cbor-oid' };

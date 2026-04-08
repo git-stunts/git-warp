@@ -26,13 +26,13 @@ const authSchema = z.object({
     (obj) => Object.keys(obj).length > 0,
     'auth.keys must not be empty',
   ),
-  crypto: /** @type {z.ZodType<import('../../../ports/CryptoPort.js').default>} */ (z.custom((v) => v === undefined || (typeof v === 'object' && v !== null))).optional(),
-  logger: /** @type {z.ZodType<import('../../../ports/LoggerPort.js').default>} */ (z.custom((v) => v === undefined || (typeof v === 'object' && v !== null))).optional(),
+  crypto: /** @type {z.ZodType<import('../../../ports/CryptoPort.ts').default>} */ (z.custom((v) => v === undefined || (typeof v === 'object' && v !== null))).optional(),
+  logger: /** @type {z.ZodType<import('../../../ports/LoggerPort.ts').default>} */ (z.custom((v) => v === undefined || (typeof v === 'object' && v !== null))).optional(),
   wallClockMs: /** @type {z.ZodType<() => number>} */ (z.custom((v) => v === undefined || typeof v === 'function')).optional(),
 }).strict();
 
 const optionsSchema = z.object({
-  httpPort: /** @type {z.ZodType<import('../../../ports/HttpServerPort.js').default>} */ (z.custom(
+  httpPort: /** @type {z.ZodType<import('../../../ports/HttpServerPort.ts').default>} */ (z.custom(
     (v) => v !== null && v !== undefined && typeof v === 'object',
     'httpPort must be a non-null object',
   )),
@@ -266,11 +266,11 @@ function initAuth(auth, allowedWriters) {
  * Builds the SyncAuthService config, filtering out undefined optional fields.
  * @param {z.infer<typeof authSchema>} auth
  * @param {string[]} [allowedWriters]
- * @returns {{ keys: Record<string, string>, mode?: 'enforce' | 'log-only', crypto?: import('../../../ports/CryptoPort.js').default, logger?: import('../../../ports/LoggerPort.js').default, wallClockMs?: () => number, allowedWriters?: string[] }}
+ * @returns {{ keys: Record<string, string>, mode?: 'enforce' | 'log-only', crypto?: import('../../../ports/CryptoPort.ts').default, logger?: import('../../../ports/LoggerPort.ts').default, wallClockMs?: () => number, allowedWriters?: string[] }}
  * @private
  */
 function buildAuthConfig(auth, allowedWriters) {
-  /** @type {{ keys: Record<string, string>, mode?: 'enforce' | 'log-only', crypto?: import('../../../ports/CryptoPort.js').default, logger?: import('../../../ports/LoggerPort.js').default, wallClockMs?: () => number, allowedWriters?: string[] }} */
+  /** @type {{ keys: Record<string, string>, mode?: 'enforce' | 'log-only', crypto?: import('../../../ports/CryptoPort.ts').default, logger?: import('../../../ports/LoggerPort.ts').default, wallClockMs?: () => number, allowedWriters?: string[] }} */
   const cfg = { keys: auth.keys, mode: auth.mode };
   if (auth.crypto !== undefined) { cfg.crypto = auth.crypto; }
   if (auth.logger !== undefined) { cfg.logger = auth.logger; }
@@ -282,7 +282,7 @@ function buildAuthConfig(auth, allowedWriters) {
 /**
  * Waits for the HTTP server to begin listening.
  *
- * @param {import('../../../ports/HttpServerPort.js').HttpServerHandle} server
+ * @param {import('../../../ports/HttpServerPort.ts').HttpServerHandle} server
  * @param {number} port
  * @param {string} host
  * @returns {Promise<void>}
@@ -347,7 +347,7 @@ export default class HttpSyncServer {
   /**
    * Creates an HttpSyncServer with validated options.
    *
-   * @param {{ httpPort: import('../../../ports/HttpServerPort.js').default, graph: { processSyncRequest: (req: import('./SyncProtocol.js').SyncRequest) => Promise<unknown> }, path?: string, host?: string, maxRequestBytes?: number, auth?: { keys: Record<string, string>, mode?: 'enforce'|'log-only', crypto?: import('../../../ports/CryptoPort.js').default, logger?: import('../../../ports/LoggerPort.js').default, wallClockMs?: () => number }, allowedWriters?: string[] }} options
+   * @param {{ httpPort: import('../../../ports/HttpServerPort.ts').default, graph: { processSyncRequest: (req: import('./SyncProtocol.js').SyncRequest) => Promise<unknown> }, path?: string, host?: string, maxRequestBytes?: number, auth?: { keys: Record<string, string>, mode?: 'enforce'|'log-only', crypto?: import('../../../ports/CryptoPort.ts').default, logger?: import('../../../ports/LoggerPort.ts').default, wallClockMs?: () => number }, allowedWriters?: string[] }} options
    */
   constructor(options) {
     /** @type {z.infer<typeof optionsSchema>} */
@@ -442,8 +442,8 @@ export default class HttpSyncServer {
   /**
    * Handles an incoming HTTP request through the sync pipeline.
    *
-   * @param {import('../../../ports/HttpServerPort.js').HttpRequest} request
-   * @returns {Promise<import('../../../ports/HttpServerPort.js').HttpResponse>}
+   * @param {import('../../../ports/HttpServerPort.ts').HttpRequest} request
+   * @returns {Promise<import('../../../ports/HttpServerPort.ts').HttpResponse>}
    * @private
    */
   async _handleRequest(request) {
@@ -521,7 +521,7 @@ export default class HttpSyncServer {
     }
 
     const server = this._httpPort.createServer(
-      (/** @type {import('../../../ports/HttpServerPort.js').HttpRequest} */ request) =>
+      (/** @type {import('../../../ports/HttpServerPort.ts').HttpRequest} */ request) =>
         this._handleRequest(request),
     );
     this._server = server;

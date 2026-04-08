@@ -860,12 +860,12 @@ describe('GraphTraversal stats', () => {
   });
 
   it('uses collision-safe label cache keys when labels contain commas', async () => {
-    /** @type {import('../../../../src/ports/NeighborProviderPort.js').default} */
+    /** @type {import('../../../../src/ports/NeighborProviderPort.ts').default} */
     const provider = {
       async getNeighbors(
         /** @type {string} */ _nodeId,
         /** @type {'out'|'in'|'both'} */ _direction,
-        /** @type {import('../../../../src/ports/NeighborProviderPort.js').NeighborOptions|undefined} */ options,
+        /** @type {import('../../../../src/ports/NeighborProviderPort.ts').NeighborOptions|undefined} */ options,
       ) {
         const labels = options?.labels ?? new Set();
         const hasAB = labels.has('a,b') && labels.has('c');

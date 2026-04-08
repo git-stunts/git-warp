@@ -50,7 +50,7 @@ export function buildCanonicalPayload({ keyId, method, path, timestamp, nonce, c
  * Signs an outgoing sync request.
  *
  * @param {{ method: string, path: string, contentType: string, body: Uint8Array, secret: string, keyId: string }} params
- * @param {{ crypto?: import('../../../ports/CryptoPort.js').default }} [deps]
+ * @param {{ crypto?: import('../../../ports/CryptoPort.ts').default }} [deps]
  * @returns {Promise<Record<string, string>>} Auth headers
  */
 export async function signSyncRequest({ method, path, contentType, body, secret, keyId }, { crypto } = {}) {
@@ -170,7 +170,7 @@ export default class SyncAuthService {
   /**
    * Creates a new SyncAuthService for HMAC-based request verification.
    *
-   * @param {{ keys: Record<string, string>, mode?: 'enforce'|'log-only', nonceCapacity?: number, maxClockSkewMs?: number, crypto?: import('../../../ports/CryptoPort.js').default, logger?: import('../../../ports/LoggerPort.js').default, wallClockMs?: () => number, allowedWriters?: string[] }} options - service configuration
+   * @param {{ keys: Record<string, string>, mode?: 'enforce'|'log-only', nonceCapacity?: number, maxClockSkewMs?: number, crypto?: import('../../../ports/CryptoPort.ts').default, logger?: import('../../../ports/LoggerPort.ts').default, wallClockMs?: () => number, allowedWriters?: string[] }} options - service configuration
    */
   constructor({ keys, mode = 'enforce', nonceCapacity, maxClockSkewMs, crypto, logger, wallClockMs, allowedWriters } = /** @type {{ keys: Record<string, string> }} */ ({})) {
     _validateKeys(keys);

@@ -13,14 +13,14 @@ export class CborEncodeTransform extends Transform {
   /**
    * Creates a CborEncodeTransform.
    *
-   * @param {import('../../ports/CodecPort.js').default} codec
+   * @param {import('../../ports/CodecPort.ts').default} codec
    */
   constructor(codec) {
     super();
     if (codec === null || codec === undefined) {
       throw new WarpError('CborEncodeTransform requires a codec', 'E_INVALID_DEPENDENCY');
     }
-    /** @type {import('../../ports/CodecPort.js').default} */
+    /** @type {import('../../ports/CodecPort.ts').default} */
     this._codec = codec;
   }
 

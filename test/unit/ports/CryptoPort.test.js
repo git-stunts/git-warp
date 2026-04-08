@@ -1,22 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import CryptoPort from '../../../src/ports/CryptoPort.js';
+import CryptoPort from '../../../src/ports/CryptoPort.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 import WebCryptoAdapter from '../../../src/infrastructure/adapters/WebCryptoAdapter.js';
 
 describe('CryptoPort', () => {
-  it('throws on direct call to hash()', async () => {
-    const port = new CryptoPort();
-    await expect(port.hash('sha256', 'data')).rejects.toThrow('not implemented');
-  });
-
-  it('throws on direct call to hmac()', async () => {
-    const port = new CryptoPort();
-    await expect(port.hmac('sha256', 'key', 'data')).rejects.toThrow('not implemented');
-  });
-
-  it('throws on direct call to timingSafeEqual()', () => {
-    const port = new CryptoPort();
-    expect(() => port.timingSafeEqual(Buffer.from('a'), Buffer.from('b'))).toThrow('not implemented');
+  it('abstract methods are not callable on base prototype', () => {
+    expect(CryptoPort.prototype.hash).toBeUndefined();
+    expect(CryptoPort.prototype.hmac).toBeUndefined();
+    expect(CryptoPort.prototype.timingSafeEqual).toBeUndefined();
   });
 });
 

@@ -279,7 +279,7 @@ export class AuditVerifierService {
   /**
    * Creates a new AuditVerifierService.
    *
-   * @param {{ persistence: import('../../../ports/CommitPort.js').default & import('../../../ports/RefPort.js').default & import('../../../ports/BlobPort.js').default & import('../../../ports/TreePort.js').default, codec: import('../../../ports/CodecPort.js').default, logger?: import('../../../ports/LoggerPort.js').default, trustCrypto?: { verifySignature: (params: { algorithm: string, publicKeyBase64: string, signatureBase64: string, payload: Uint8Array }) => boolean, computeKeyFingerprint: (publicKeyBase64: string) => string } }} options
+   * @param {{ persistence: import('../../../ports/CommitPort.ts').default & import('../../../ports/RefPort.ts').default & import('../../../ports/BlobPort.ts').default & import('../../../ports/TreePort.ts').default, codec: import('../../../ports/CodecPort.ts').default, logger?: import('../../../ports/LoggerPort.ts').default, trustCrypto?: { verifySignature: (params: { algorithm: string, publicKeyBase64: string, signatureBase64: string, payload: Uint8Array }) => boolean, computeKeyFingerprint: (publicKeyBase64: string) => string } }} options
    */
   constructor({ persistence, codec, logger, trustCrypto }) {
     this._persistence = persistence;

@@ -15,7 +15,7 @@
  * @module infrastructure/adapters/InMemoryGraphAdapter
  */
 
-import GraphPersistencePort from '../../ports/GraphPersistencePort.js';
+import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.js';

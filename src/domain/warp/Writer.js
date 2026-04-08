@@ -75,7 +75,7 @@ export class Writer {
   /**
    * Creates a new Writer instance.
    *
-   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string}) => void | Promise<void>, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal: import('../../ports/PatchJournalPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string}) => void | Promise<void>, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} options
    */
   constructor({ persistence, graphName, writerId, versionVector, getCurrentState, onCommitSuccess, onDeleteWithData = 'warn', patchJournal, logger, blobStorage }) {
     validateWriterId(writerId);
@@ -94,11 +94,11 @@ export class Writer {
 
   /**
    * Assigns all Writer instance fields from the validated constructor options.
-   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string}) => void | Promise<void>, onDeleteWithData: 'reject'|'cascade'|'warn', patchJournal: import('../../ports/PatchJournalPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default }} opts
+   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string}) => void | Promise<void>, onDeleteWithData: 'reject'|'cascade'|'warn', patchJournal: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} opts
    * @private
    */
   _initFields(opts) {
-    /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */
+    /** @type {import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default} */
     this._persistence = opts.persistence;
     /** @type {string} */
     this._graphName = opts.graphName;
@@ -112,11 +112,11 @@ export class Writer {
     this._onCommitSuccess = opts.onCommitSuccess;
     /** @type {'reject'|'cascade'|'warn'} */
     this._onDeleteWithData = opts.onDeleteWithData;
-    /** @type {import('../../ports/PatchJournalPort.js').default} */
+    /** @type {import('../../ports/PatchJournalPort.ts').default} */
     this._patchJournal = opts.patchJournal;
-    /** @type {import('../../ports/LoggerPort.js').default} */
+    /** @type {import('../../ports/LoggerPort.ts').default} */
     this._logger = opts.logger ?? nullLogger;
-    /** @type {import('../../ports/BlobStoragePort.js').default|null} */
+    /** @type {import('../../ports/BlobStoragePort.ts').default|null} */
     this._blobStorage = opts.blobStorage ?? null;
     /** @type {boolean} */
     this._commitInProgress = false;
@@ -145,7 +145,7 @@ export class Writer {
    */
   async head() {
     const writerRef = buildWriterRef(/** @type {string} */ (this._graphName), /** @type {string} */ (this._writerId));
-    return await /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */ (this._persistence).readRef(writerRef);
+    return await /** @type {import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default} */ (this._persistence).readRef(writerRef);
   }
 
   /**
@@ -164,7 +164,7 @@ export class Writer {
    * await patch.commit();
    */
   async beginPatch() {
-    const persistence = /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */ (this._persistence);
+    const persistence = /** @type {import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default} */ (this._persistence);
     const graphName = /** @type {string} */ (this._graphName);
     const writerId = /** @type {string} */ (this._writerId);
     const writerRef = buildWriterRef(graphName, writerId);
@@ -179,7 +179,7 @@ export class Writer {
 
   /**
    * Constructs PatchBuilderV2 options from Writer state.
-   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, lamport: number, expectedParentSha: string|null }} core
+   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, lamport: number, expectedParentSha: string|null }} core
    * @returns {ConstructorParameters<typeof PatchBuilderV2>[0]}
    * @private
    */
@@ -205,7 +205,7 @@ export class Writer {
     if (headSha === null || headSha === undefined) {
       return 1;
     }
-    const commitMessage = await /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */ (this._persistence).showNode(headSha);
+    const commitMessage = await /** @type {import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default} */ (this._persistence).showNode(headSha);
     if (detectMessageKind(commitMessage) !== 'patch') {
       return 1;
     }

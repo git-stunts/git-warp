@@ -1,14 +1,13 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import HttpServerPort_ from '../../../src/ports/HttpServerPort.js';
+import HttpServerPort_ from '../../../src/ports/HttpServerPort.ts';
 import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.js';
 
 /** @type {any} */
 const HttpServerPort = HttpServerPort_;
 
 describe('HttpServerPort', () => {
-  it('throws on direct call to createServer()', () => {
-    const port = new HttpServerPort();
-    expect(() => port.createServer(() => {})).toThrow('not implemented');
+  it('abstract methods are not callable on base prototype', () => {
+    expect(HttpServerPort.prototype.createServer).toBeUndefined();
   });
 });
 

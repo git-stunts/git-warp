@@ -1,24 +1,31 @@
 import { describe, it, expect } from 'vitest';
-import PatchJournalPort from '../../../src/ports/PatchJournalPort.js';
+import PatchJournalPort from '../../../src/ports/PatchJournalPort.ts';
 
 describe('PatchJournalPort', () => {
-  it('throws on direct call to writePatch()', async () => {
-    const port = new PatchJournalPort();
-    await expect(port.writePatch(/** @type {any} */ ({}))).rejects.toThrow('not implemented');
-  });
-
-  it('throws on direct call to readPatch()', async () => {
-    const port = new PatchJournalPort();
-    await expect(port.readPatch('abc123')).rejects.toThrow('not implemented');
+  it('abstract methods are not callable on base prototype', () => {
+    expect(PatchJournalPort.prototype.writePatch).toBeUndefined();
+    expect(PatchJournalPort.prototype.readPatch).toBeUndefined();
+    expect(PatchJournalPort.prototype.scanPatchRange).toBeUndefined();
   });
 
   it('defaults usesExternalStorage to false', () => {
-    const port = new PatchJournalPort();
-    expect(port.usesExternalStorage).toBe(false);
+    class TestJournal extends PatchJournalPort {
+      async writePatch() { return 'oid'; }
+      async readPatch() { return /** @type {any} */ ({}); }
+      scanPatchRange() { return /** @type {any} */ (null); }
+    }
+    const journal = new TestJournal();
+    expect(journal.usesExternalStorage).toBe(false);
   });
 
-  it('throws on direct call to scanPatchRange()', () => {
-    const port = new PatchJournalPort();
-    expect(() => port.scanPatchRange('alice', null, 'head-sha')).toThrow('not implemented');
+  it('concrete subclass satisfies the contract', async () => {
+    class TestJournal extends PatchJournalPort {
+      async writePatch() { return 'oid'; }
+      async readPatch() { return /** @type {any} */ ({}); }
+      scanPatchRange() { return /** @type {any} */ (null); }
+    }
+    const journal = new TestJournal();
+    expect(journal).toBeInstanceOf(PatchJournalPort);
+    expect(await journal.writePatch(/** @type {any} */ ({}))).toBe('oid');
   });
 });

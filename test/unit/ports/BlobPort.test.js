@@ -1,14 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import BlobPort from '../../../src/ports/BlobPort.js';
+import BlobPort from '../../../src/ports/BlobPort.ts';
 
 describe('BlobPort', () => {
-  it('throws on direct call to writeBlob()', async () => {
-    const port = new BlobPort();
-    await expect(port.writeBlob('content')).rejects.toThrow('not implemented');
+  it('abstract methods are not callable on base prototype', () => {
+    expect(BlobPort.prototype.writeBlob).toBeUndefined();
+    expect(BlobPort.prototype.readBlob).toBeUndefined();
   });
 
-  it('throws on direct call to readBlob()', async () => {
-    const port = new BlobPort();
-    await expect(port.readBlob('abc123')).rejects.toThrow('not implemented');
+  it('concrete subclass satisfies the contract', async () => {
+    class TestBlob extends BlobPort {
+      async writeBlob() { return 'oid'; }
+      async readBlob() { return new Uint8Array([1]); }
+    }
+    const blob = new TestBlob();
+    expect(blob).toBeInstanceOf(BlobPort);
+    expect(await blob.writeBlob(new Uint8Array())).toBe('oid');
+    expect(await blob.readBlob('x')).toEqual(new Uint8Array([1]));
   });
 });

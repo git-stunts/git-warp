@@ -37,9 +37,9 @@ export default class DagPathFinding {
   /**
    * Creates a new DagPathFinding service.
    *
-   * @param {{ indexReader: import('../index/BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.js').default }} options
+   * @param {{ indexReader: import('../index/BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.ts').default }} options
    */
-  constructor(/** @type {{ indexReader: import('../index/BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.js').default }} */ { indexReader, logger = nullLogger }) {
+  constructor(/** @type {{ indexReader: import('../index/BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.ts').default }} */ { indexReader, logger = nullLogger }) {
     if (indexReader === undefined || indexReader === null) {
       throw new Error('DagPathFinding requires an indexReader');
     }

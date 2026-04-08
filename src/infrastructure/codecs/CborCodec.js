@@ -55,7 +55,7 @@
  */
 
 import { Encoder, decode as cborDecode } from 'cbor-x';
-import CodecPort from '../../ports/CodecPort.js';
+import CodecPort from '../../ports/CodecPort.ts';
 
 /**
  * Pre-configured cbor-x encoder instance.

@@ -164,11 +164,11 @@ export class PatchBuilderV2 {
   /**
    * Creates a new PatchBuilderV2.
    *
-   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal?: import('../../ports/PatchJournalPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal?: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} options
    */
   constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, targetRefPath, onCommitSuccess = null, onDeleteWithData = 'warn', patchJournal, logger, blobStorage }) {
-    /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */
-    this._persistence = /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */ (persistence);
+    /** @type {import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default} */
+    this._persistence = /** @type {import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default} */ (persistence);
 
     /** @type {string} */
     this._graphName = graphName;
@@ -217,10 +217,10 @@ export class PatchBuilderV2 {
     /** @type {'reject'|'cascade'|'warn'} */
     this._onDeleteWithData = onDeleteWithData;
 
-    /** @type {import('../../ports/PatchJournalPort.js').default|null} */
+    /** @type {import('../../ports/PatchJournalPort.ts').default|null} */
     this._patchJournal = patchJournal || null;
 
-    /** @type {import('../../ports/LoggerPort.js').default} */
+    /** @type {import('../../ports/LoggerPort.ts').default} */
     this._logger = logger || nullLogger;
 
     /**
@@ -230,7 +230,7 @@ export class PatchBuilderV2 {
      */
     this._contentBlobs = [];
 
-    /** @type {import('../../ports/BlobStoragePort.js').default|null} */
+    /** @type {import('../../ports/BlobStoragePort.ts').default|null} */
     this._blobStorage = blobStorage || null;
 
     /**

@@ -32,7 +32,7 @@ export default class DagTopology {
   /**
    * Creates a new DagTopology service.
    *
-   * @param {{ indexReader: import('../index/BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.js').default, traversal?: import('./DagTraversal.js').default }} options
+   * @param {{ indexReader: import('../index/BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.ts').default, traversal?: import('./DagTraversal.js').default }} options
    */
   constructor({ indexReader, logger = nullLogger, traversal }) {
     if (indexReader === null || indexReader === undefined) {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CborCheckpointStoreAdapter } from '../../../../src/infrastructure/adapters/CborCheckpointStoreAdapter.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
-import CheckpointStorePort from '../../../../src/ports/CheckpointStorePort.js';
+import CheckpointStorePort from '../../../../src/ports/CheckpointStorePort.ts';
 import { createORSet, orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';

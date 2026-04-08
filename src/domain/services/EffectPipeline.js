@@ -17,7 +17,7 @@ import { createEffectEmission } from '../types/EffectEmission.ts';
  * @typedef {import('../types/EffectEmission.ts').EffectEmission} EffectEmission
  * @typedef {import('../types/ExternalizationPolicy.ts').ExternalizationPolicy} ExternalizationPolicy
  * @typedef {import('../types/DeliveryObservation.ts').DeliveryObservation} DeliveryObservation
- * @typedef {import('../../ports/EffectSinkPort.js').default} EffectSinkPort
+ * @typedef {import('../../ports/EffectSinkPort.ts').default} EffectSinkPort
  */
 
 /** Prefix for auto-generated emission IDs. */

@@ -6,7 +6,7 @@
  * @module ConsoleEffectSink
  */
 
-import EffectSinkPort from '../../ports/EffectSinkPort.js';
+import EffectSinkPort from '../../ports/EffectSinkPort.ts';
 import { createDeliveryObservation } from '../../domain/types/DeliveryObservation.ts';
 import {
   OUTCOME_DELIVERED,

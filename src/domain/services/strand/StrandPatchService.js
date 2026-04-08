@@ -334,7 +334,7 @@ export default class StrandPatchService {
    * @returns {Promise<string>}
    */
   async _writeCommittedPatchBlob(committedPatch, overlayId) {
-    /** @type {import('../../../ports/PatchJournalPort.js').default | null | undefined} */
+    /** @type {import('../../../ports/PatchJournalPort.ts').default | null | undefined} */
     const journal = this._graph._patchJournal;
     if (journal !== undefined && journal !== null) {
       return await journal.writePatch(committedPatch);

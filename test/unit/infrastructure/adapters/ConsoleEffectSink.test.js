@@ -6,7 +6,7 @@ import {
   REPLAY_LENS,
   INSPECT_LENS,
 } from '../../../../src/domain/types/ExternalizationPolicy.ts';
-import EffectSinkPort from '../../../../src/ports/EffectSinkPort.js';
+import EffectSinkPort from '../../../../src/ports/EffectSinkPort.ts';
 
 /** @returns {import('../../../../src/domain/types/EffectEmission.ts').EffectEmission} */
 function makeEmission(id = 'em-1', kind = 'test') {

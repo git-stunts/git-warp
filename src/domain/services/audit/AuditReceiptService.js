@@ -68,7 +68,7 @@ const textEncoder = new TextEncoder();
  * Computes the domain-separated SHA-256 opsDigest per spec Section 5.3.
  *
  * @param {ReadonlyArray<Readonly<import('../../types/TickReceipt.ts').OpOutcome>>} ops
- * @param {import('../../../ports/CryptoPort.js').default} crypto - Crypto adapter
+ * @param {import('../../../ports/CryptoPort.ts').default} crypto - Crypto adapter
  * @returns {Promise<string>} Lowercase hex SHA-256 digest
  */
 export async function computeOpsDigest(ops, crypto) {
@@ -238,7 +238,7 @@ export function buildReceiptRecord(fields) {
 export class AuditReceiptService {
   /**
    * Constructs an AuditReceiptService for the given writer audit chain.
-   * @param {{ persistence: import('../../../ports/RefPort.js').default & import('../../../ports/BlobPort.js').default & import('../../../ports/TreePort.js').default & import('../../../ports/CommitPort.js').default, graphName: string, writerId: string, codec: import('../../../ports/CodecPort.js').default, crypto: import('../../../ports/CryptoPort.js').default, logger?: import('../../../ports/LoggerPort.js').default }} options
+   * @param {{ persistence: import('../../../ports/RefPort.ts').default & import('../../../ports/BlobPort.ts').default & import('../../../ports/TreePort.ts').default & import('../../../ports/CommitPort.ts').default, graphName: string, writerId: string, codec: import('../../../ports/CodecPort.ts').default, crypto: import('../../../ports/CryptoPort.ts').default, logger?: import('../../../ports/LoggerPort.ts').default }} options
    */
   constructor({ persistence, graphName, writerId, codec, crypto, logger }) {
     this._persistence = persistence;

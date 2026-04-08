@@ -1,23 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import ClockPort from '../../../src/ports/ClockPort.js';
+import ClockPort from '../../../src/ports/ClockPort.ts';
 
 describe('ClockPort', () => {
-  describe('abstract methods', () => {
-    it('now() throws Not implemented', () => {
-      const port = new ClockPort();
-      expect(() => port.now()).toThrow('Not implemented');
-    });
-
-    it('timestamp() throws Not implemented', () => {
-      const port = new ClockPort();
-      expect(() => port.timestamp()).toThrow('Not implemented');
-    });
+  it('abstract methods are not callable on base prototype', () => {
+    expect(ClockPort.prototype.now).toBeUndefined();
+    expect(ClockPort.prototype.timestamp).toBeUndefined();
   });
 
-  describe('contract', () => {
-    it('can be instantiated', () => {
-      const port = new ClockPort();
-      expect(port).toBeInstanceOf(ClockPort);
-    });
+  it('concrete subclass satisfies the contract', () => {
+    class TestClock extends ClockPort {
+      now() { return 42; }
+      timestamp() { return '2026-01-01T00:00:00.000Z'; }
+    }
+    const clock = new TestClock();
+    expect(clock).toBeInstanceOf(ClockPort);
+    expect(clock.now()).toBe(42);
+    expect(clock.timestamp()).toBe('2026-01-01T00:00:00.000Z');
   });
 });

@@ -1,5 +1,5 @@
 import { performance as nodePerformance } from 'node:perf_hooks';
-import ClockPort from '../../ports/ClockPort.js';
+import ClockPort from '../../ports/ClockPort.ts';
 
 /**
  * Unified clock adapter supporting both Node.js and global performance APIs.

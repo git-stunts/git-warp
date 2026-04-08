@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import { createPatchV2 } from '../../../../src/domain/types/WarpTypesV2.ts';
-import PatchJournalPort from '../../../../src/ports/PatchJournalPort.js';
+import PatchJournalPort from '../../../../src/ports/PatchJournalPort.ts';
 
 /**
  * Golden fixture: a known PatchV2 encoded with the canonical CBOR codec.
@@ -29,7 +29,7 @@ const GOLDEN_HEX =
   'b9000767636f6e74657874b9000165616c69636500676c616d706f727401636f707382b9000363646f748265616c696365016269646a757365723a616c6963656474797065674e6f6465416464b90004636b6579646e616d65646e6f64656a757365723a616c69636564747970656750726f705365746576616c756565416c696365657265616473f766736368656d61026677726974657265616c69636566777269746573816a757365723a616c696365';
 
 import MockBlobPort from '../../../helpers/MockBlobPort.js';
-import BlobStoragePort from '../../../../src/ports/BlobStoragePort.js';
+import BlobStoragePort from '../../../../src/ports/BlobStoragePort.ts';
 
 /**
  * Creates an in-memory BlobPort backed by MockBlobPort.

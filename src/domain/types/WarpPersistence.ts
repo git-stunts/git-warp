@@ -13,10 +13,10 @@
  * @module domain/types/WarpPersistence
  */
 
-import type CommitPort from '../../ports/CommitPort.js';
-import type BlobPort from '../../ports/BlobPort.js';
-import type TreePort from '../../ports/TreePort.js';
-import type RefPort from '../../ports/RefPort.js';
+import type CommitPort from '../../ports/CommitPort.ts';
+import type BlobPort from '../../ports/BlobPort.ts';
+import type TreePort from '../../ports/TreePort.ts';
+import type RefPort from '../../ports/RefPort.ts';
 
 /**
  * Standard four-port persistence intersection — commit + blob + tree + ref.

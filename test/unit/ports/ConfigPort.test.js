@@ -1,14 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import ConfigPort from '../../../src/ports/ConfigPort.js';
+import ConfigPort from '../../../src/ports/ConfigPort.ts';
 
 describe('ConfigPort', () => {
-  it('throws on direct call to configGet()', async () => {
-    const port = new ConfigPort();
-    await expect(port.configGet('warp.writerId')).rejects.toThrow('not implemented');
+  it('abstract methods are not callable on base prototype', () => {
+    expect(ConfigPort.prototype.configGet).toBeUndefined();
+    expect(ConfigPort.prototype.configSet).toBeUndefined();
   });
 
-  it('throws on direct call to configSet()', async () => {
-    const port = new ConfigPort();
-    await expect(port.configSet('warp.writerId', 'alice')).rejects.toThrow('not implemented');
+  it('concrete subclass satisfies the contract', async () => {
+    class TestConfig extends ConfigPort {
+      async configGet() { return 'value'; }
+      async configSet() { /* no-op */ }
+    }
+    const cfg = new TestConfig();
+    expect(cfg).toBeInstanceOf(ConfigPort);
+    expect(await cfg.configGet('key')).toBe('value');
   });
 });

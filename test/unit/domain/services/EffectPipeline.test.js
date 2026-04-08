@@ -6,7 +6,7 @@ import {
   REPLAY_LENS,
   INSPECT_LENS,
 } from '../../../../src/domain/types/ExternalizationPolicy.ts';
-import EffectSinkPort from '../../../../src/ports/EffectSinkPort.js';
+import EffectSinkPort from '../../../../src/ports/EffectSinkPort.ts';
 import { createDeliveryObservation } from '../../../../src/domain/types/DeliveryObservation.ts';
 
 class RecordingSink extends EffectSinkPort {

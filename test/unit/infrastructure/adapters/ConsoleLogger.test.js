@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import ConsoleLogger, { LogLevel } from '../../../../src/infrastructure/adapters/ConsoleLogger.js';
-import LoggerPort from '../../../../src/ports/LoggerPort.js';
+import LoggerPort from '../../../../src/ports/LoggerPort.ts';
 
 describe('ConsoleLogger', () => {
   /** @type {any} */

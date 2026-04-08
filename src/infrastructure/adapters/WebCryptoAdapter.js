@@ -1,4 +1,4 @@
-import CryptoPort from '../../ports/CryptoPort.js';
+import CryptoPort from '../../ports/CryptoPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 
 /**

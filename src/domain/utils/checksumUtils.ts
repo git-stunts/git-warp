@@ -8,7 +8,7 @@
  */
 
 import { canonicalStringify } from './canonicalStringify.ts';
-import type CryptoPort from '../../ports/CryptoPort.js';
+import type CryptoPort from '../../ports/CryptoPort.ts';
 
 /**
  * Computes a SHA-256 checksum of the given data.

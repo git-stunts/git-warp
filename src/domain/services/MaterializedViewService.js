@@ -69,7 +69,7 @@ const PROPS_PREFIX = 'props_';
  * Creates a PropertyIndexReader backed by an in-memory tree map.
  *
  * @param {Record<string, Uint8Array>} tree
- * @param {import('../../ports/CodecPort.js').default} codec
+ * @param {import('../../ports/CodecPort.ts').default} codec
  * @returns {PropertyIndexReader}
  */
 function buildInMemoryPropertyReader(tree, codec) {
@@ -291,13 +291,13 @@ export default class MaterializedViewService {
   /**
    * Creates a MaterializedViewService with optional codec, logger, and indexStore.
    *
-   * @param {{ codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, indexStore?: import('../../ports/IndexStorePort.js').default }} [options]
+   * @param {{ codec?: import('../../ports/CodecPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, indexStore?: import('../../ports/IndexStorePort.ts').default }} [options]
    */
   constructor(options = undefined) {
     const { codec, logger, indexStore } = options || {};
     this._codec = codec || defaultCodec;
     this._logger = logger || nullLogger;
-    /** @type {import('../../ports/IndexStorePort.js').default|null} */
+    /** @type {import('../../ports/IndexStorePort.ts').default|null} */
     this._indexStore = indexStore || null;
   }
 
@@ -382,7 +382,7 @@ export default class MaterializedViewService {
     const logicalIndex = reader.toLogicalIndex();
 
     const propertyReader = new PropertyIndexReader({
-      storage: /** @type {import('../../ports/IndexStoragePort.js').default} */ (storage),
+      storage: /** @type {import('../../ports/IndexStoragePort.ts').default} */ (storage),
       codec: this._codec,
       ...(this._indexStore ? { indexStore: this._indexStore } : {}),
     });

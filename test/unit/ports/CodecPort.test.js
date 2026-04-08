@@ -1,18 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import CodecPort from '../../../src/ports/CodecPort.js';
+import CodecPort from '../../../src/ports/CodecPort.ts';
 import { CborCodec } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encode, decode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.js';
 
 describe('CodecPort', () => {
-  it('throws on direct call to encode()', () => {
-    const port = new CodecPort();
-    expect(() => port.encode({ key: 'value' })).toThrow('not implemented');
-  });
-
-  it('throws on direct call to decode()', () => {
-    const port = new CodecPort();
-    expect(() => port.decode(Buffer.from([]))).toThrow('not implemented');
+  it('abstract methods are not callable on base prototype', () => {
+    expect(CodecPort.prototype.encode).toBeUndefined();
+    expect(CodecPort.prototype.decode).toBeUndefined();
   });
 });
 

@@ -38,7 +38,7 @@ const { default: CasSeekCacheAdapter } = await import(
   '../../../../src/infrastructure/adapters/CasSeekCacheAdapter.js'
 );
 const { default: SeekCachePort } = await import(
-  '../../../../src/ports/SeekCachePort.js'
+  '../../../../src/ports/SeekCachePort.ts'
 );
 
 // ---------------------------------------------------------------------------

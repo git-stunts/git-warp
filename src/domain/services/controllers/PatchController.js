@@ -64,7 +64,7 @@ export default class PatchController {
       expectedParentSha: parentSha,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: /** Post-commit callback. @param {{patch?: import('../../types/WarpTypesV2.ts').PatchV2, sha?: string}} opts */ (opts) => this._onPatchCommitted(h._writerId, opts),
-      ...(h._patchJournal !== null && h._patchJournal !== undefined ? { patchJournal: /** @type {import('../../../ports/PatchJournalPort.js').default} */ (h._patchJournal) } : {}),
+      ...(h._patchJournal !== null && h._patchJournal !== undefined ? { patchJournal: /** @type {import('../../../ports/PatchJournalPort.ts').default} */ (h._patchJournal) } : {}),
       ...(h._logger !== null && h._logger !== undefined ? { logger: h._logger } : {}),
       ...(h._blobStorage !== null && h._blobStorage !== undefined ? { blobStorage: h._blobStorage } : {}),
     });
@@ -171,8 +171,8 @@ export default class PatchController {
       }
 
       const patchMeta = decodePatchMessage(message);
-      /** @type {import('../../../ports/PatchJournalPort.js').default | null | undefined} */
-      const journal = /** @type {import('../../../ports/PatchJournalPort.js').default | null | undefined} */ (h._patchJournal);
+      /** @type {import('../../../ports/PatchJournalPort.ts').default | null | undefined} */
+      const journal = /** @type {import('../../../ports/PatchJournalPort.ts').default | null | undefined} */ (h._patchJournal);
       if (journal === null || journal === undefined) {
         // Legacy fallback: read the patch blob directly and decode with the codec
         const raw = await h._persistence.readBlob(patchMeta.patchOid);
@@ -292,8 +292,8 @@ export default class PatchController {
    */
   async writer(writerId) {
     const h = this._host;
-    /** @type {import('../../../ports/ConfigPort.js').default} */
-    const config = /** @type {import('../../../ports/ConfigPort.js').default} */ (/** @type {unknown} */ (h._persistence));
+    /** @type {import('../../../ports/ConfigPort.ts').default} */
+    const config = /** @type {import('../../../ports/ConfigPort.ts').default} */ (/** @type {unknown} */ (h._persistence));
     const configGet = /** Reads a git config key. @param {string} key @returns {Promise<string|null>} */ async (key) => await config.configGet(key);
     const configSet = /** Writes a git config key. @param {string} key @param {string} value @returns {Promise<void>} */ async (key, value) => await config.configSet(key, value);
 
@@ -315,7 +315,7 @@ export default class PatchController {
       getCurrentState: /** Returns the cached CRDT state. @returns {import('../JoinReducer.js').WarpStateV5|null} */ () => h._cachedState,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: /** Post-commit callback. @type {(result: {patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string}) => void} */ ((opts) => this._onPatchCommitted(resolvedWriterId, opts)),
-      patchJournal: /** @type {import('../../../ports/PatchJournalPort.js').default} */ (h._patchJournal),
+      patchJournal: /** @type {import('../../../ports/PatchJournalPort.ts').default} */ (h._patchJournal),
     };
     if (h._logger !== null && h._logger !== undefined) { writerOpts.logger = h._logger; }
     if (h._blobStorage !== null && h._blobStorage !== undefined) { writerOpts.blobStorage = h._blobStorage; }

@@ -1,4 +1,4 @@
-import LoggerPort from '../../ports/LoggerPort.js';
+import LoggerPort from '../../ports/LoggerPort.ts';
 
 /**
  * No-operation logger adapter.

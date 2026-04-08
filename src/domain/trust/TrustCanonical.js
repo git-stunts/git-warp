@@ -16,7 +16,7 @@ import { textEncode } from '../utils/bytes.ts';
  * Computes the record ID (SHA-256 hex digest) for a trust record.
  *
  * @param {Record<string, unknown>} record - Full trust record
- * @param {{ crypto?: import('../../ports/CryptoPort.js').default }} [deps] - Optional dependency injection
+ * @param {{ crypto?: import('../../ports/CryptoPort.ts').default }} [deps] - Optional dependency injection
  * @returns {Promise<string>} 64-character lowercase hex string
  */
 export async function computeRecordId(record, { crypto } = {}) {
@@ -38,7 +38,7 @@ export function computeSignaturePayload(record) {
  * Verifies that a record's recordId matches its content.
  *
  * @param {Record<string, unknown>} record - Trust record with `recordId` field
- * @param {{ crypto?: import('../../ports/CryptoPort.js').default }} [deps] - Optional dependency injection
+ * @param {{ crypto?: import('../../ports/CryptoPort.ts').default }} [deps] - Optional dependency injection
  * @returns {Promise<boolean>} true if recordId matches computed value
  */
 export async function verifyRecordId(record, { crypto } = {}) {

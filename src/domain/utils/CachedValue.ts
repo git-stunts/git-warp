@@ -22,7 +22,7 @@
  * const value3 = await cache.get(); // Fresh value
  */
 
-import type ClockPort from '../../ports/ClockPort.js';
+import type ClockPort from '../../ports/ClockPort.ts';
 
 interface CachedValueOptions<T> {
   readonly clock: ClockPort;

@@ -7,7 +7,7 @@
  * @module domain/utils/defaultClock
  */
 
-import type ClockPort from '../../ports/ClockPort.js';
+import type ClockPort from '../../ports/ClockPort.ts';
 
 const defaultClock: ClockPort = {
   now(): number {

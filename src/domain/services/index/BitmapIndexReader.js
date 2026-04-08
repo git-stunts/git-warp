@@ -9,7 +9,7 @@ import { base64Decode } from '../../utils/bytes.ts';
 
 
 /** @import { RoaringBitmapSubset as BitmapShard } from '../../utils/roaring.ts' */
-/** @typedef {import('../../../ports/IndexStoragePort.js').default} IndexStoragePort */
+/** @typedef {import('../../../ports/IndexStoragePort.ts').default} IndexStoragePort */
 /** @typedef {import('../../types/WarpPersistence.ts').IndexStorage} IndexStorage */
 
 
@@ -65,7 +65,7 @@ function createEmptyBitmapShard() {
  *
  * @param {Record<string, unknown>} data - The data object to checksum
  * @param {number} version - Shard version (1 uses JSON.stringify, 2+ uses canonicalStringify)
- * @param {import('../../../ports/CryptoPort.js').default} crypto - CryptoPort instance
+ * @param {import('../../../ports/CryptoPort.ts').default} crypto - CryptoPort instance
  * @returns {Promise<string>} Hex-encoded SHA-256 hash
  */
 const computeChecksum = async (data, version, crypto) => {
@@ -116,7 +116,7 @@ const computeChecksum = async (data, version, crypto) => {
 export default class BitmapIndexReader {
   /**
    * Creates a BitmapIndexReader instance.
-   * @param {{ storage: IndexStoragePort, strict?: boolean, logger?: import('../../../ports/LoggerPort.js').default, maxCachedShards?: number, crypto?: import('../../../ports/CryptoPort.js').default }} options
+   * @param {{ storage: IndexStoragePort, strict?: boolean, logger?: import('../../../ports/LoggerPort.ts').default, maxCachedShards?: number, crypto?: import('../../../ports/CryptoPort.ts').default }} options
    */
   constructor({ storage, strict = true, logger = nullLogger, maxCachedShards = DEFAULT_MAX_CACHED_SHARDS, crypto }) {
     BitmapIndexReader._assertStorage(storage);
@@ -124,7 +124,7 @@ export default class BitmapIndexReader {
     this.strict = strict;
     this.logger = logger;
     this.maxCachedShards = maxCachedShards;
-    /** @type {import('../../../ports/CryptoPort.js').default} */
+    /** @type {import('../../../ports/CryptoPort.ts').default} */
     this._crypto = crypto ?? defaultCrypto;
     /** @type {Map<string, string>} */
     this.shardOids = new Map();

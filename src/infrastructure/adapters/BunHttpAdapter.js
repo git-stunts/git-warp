@@ -1,4 +1,4 @@
-import HttpServerPort from '../../ports/HttpServerPort.js';
+import HttpServerPort from '../../ports/HttpServerPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import {
   noopLogger,
@@ -29,7 +29,7 @@ function toResponse(portResponse) {
  * Creates the Bun fetch handler that bridges between Request/Response
  * and the HttpServerPort plain-object contract.
  *
- * @param {(request: import('../../ports/HttpServerPort.js').HttpRequest) => Promise<import('../../ports/HttpServerPort.js').HttpResponse>} requestHandler - Port-style async handler
+ * @param {(request: import('../../ports/HttpServerPort.ts').HttpRequest) => Promise<import('../../ports/HttpServerPort.ts').HttpResponse>} requestHandler - Port-style async handler
  * @param {{ error: (...args: unknown[]) => void }} logger
  * @returns {(request: Request) => Promise<Response>}
  */
@@ -213,8 +213,8 @@ export default class BunHttpAdapter extends HttpServerPort {
   /**
    * Creates an HTTP server handle backed by Bun.serve().
    *
-   * @param {(request: import('../../ports/HttpServerPort.js').HttpRequest) => Promise<import('../../ports/HttpServerPort.js').HttpResponse>} requestHandler
-   * @returns {import('../../ports/HttpServerPort.js').HttpServerHandle}
+   * @param {(request: import('../../ports/HttpServerPort.ts').HttpRequest) => Promise<import('../../ports/HttpServerPort.ts').HttpResponse>} requestHandler
+   * @returns {import('../../ports/HttpServerPort.ts').HttpServerHandle}
    */
   createServer(requestHandler) {
     const fetchHandler = createFetchHandler(requestHandler, this._logger);

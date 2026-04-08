@@ -39,11 +39,11 @@ export default class IndexRebuildService {
   /**
    * Creates an IndexRebuildService instance.
    *
-   * @param {{ graphService: { iterateNodes: (opts: { ref: string, limit: number }) => AsyncIterable<{ sha: string, parents: string[] }> }, storage: import('../../../ports/IndexStoragePort.js').default, logger?: import('../../../ports/LoggerPort.js').default, codec?: import('../../../ports/CodecPort.js').default, crypto?: import('../../../ports/CryptoPort.js').default }} options - Configuration options
+   * @param {{ graphService: { iterateNodes: (opts: { ref: string, limit: number }) => AsyncIterable<{ sha: string, parents: string[] }> }, storage: import('../../../ports/IndexStoragePort.ts').default, logger?: import('../../../ports/LoggerPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default, crypto?: import('../../../ports/CryptoPort.ts').default }} options - Configuration options
    * @throws {Error} If graphService is not provided
    * @throws {Error} If storage adapter is not provided
    */
-  constructor({ graphService, storage, logger = nullLogger, codec, crypto } = /** @type {{ graphService: { iterateNodes: (opts: { ref: string, limit: number }) => AsyncIterable<{ sha: string, parents: string[] }> }, storage: import('../../../ports/IndexStoragePort.js').default }} */ ({})) {
+  constructor({ graphService, storage, logger = nullLogger, codec, crypto } = /** @type {{ graphService: { iterateNodes: (opts: { ref: string, limit: number }) => AsyncIterable<{ sha: string, parents: string[] }> }, storage: import('../../../ports/IndexStoragePort.ts').default }} */ ({})) {
     if (graphService === undefined || graphService === null) {
       throw new Error('IndexRebuildService requires a graphService');
     }
@@ -53,9 +53,9 @@ export default class IndexRebuildService {
     this.graphService = graphService;
     this.storage = storage;
     this.logger = logger;
-    /** @type {import('../../../ports/CodecPort.js').default|undefined} */
+    /** @type {import('../../../ports/CodecPort.ts').default|undefined} */
     this._codec = codec || defaultCodec;
-    /** @type {import('../../../ports/CryptoPort.js').default|undefined} */
+    /** @type {import('../../../ports/CryptoPort.ts').default|undefined} */
     this._crypto = crypto;
   }
 
@@ -283,10 +283,10 @@ export default class IndexRebuildService {
     const treeStructure = await builder.serialize(frontier ? { frontier } : {});
     const flatEntries = [];
     for (const [path, buffer] of Object.entries(treeStructure)) {
-      const oid = await /** @type {import('../../../ports/BlobPort.js').default} */ (/** @type {unknown} */ (this.storage)).writeBlob(buffer);
+      const oid = await /** @type {import('../../../ports/BlobPort.ts').default} */ (/** @type {unknown} */ (this.storage)).writeBlob(buffer);
       flatEntries.push(`100644 blob ${oid}\t${path}`);
     }
-    return await /** @type {import('../../../ports/TreePort.js').default} */ (/** @type {unknown} */ (this.storage)).writeTree(flatEntries);
+    return await /** @type {import('../../../ports/TreePort.ts').default} */ (/** @type {unknown} */ (this.storage)).writeTree(flatEntries);
   }
 
   /**
@@ -356,12 +356,12 @@ export default class IndexRebuildService {
 
     // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
     const startTime = performance.now();
-    const shardOids = await /** @type {import('../../../ports/TreePort.js').default} */ (/** @type {unknown} */ (this.storage)).readTreeOids(treeOid);
+    const shardOids = await /** @type {import('../../../ports/TreePort.ts').default} */ (/** @type {unknown} */ (this.storage)).readTreeOids(treeOid);
     const shardCount = Object.keys(shardOids).length;
 
     // Staleness check
     if (currentFrontier) {
-      const indexFrontier = await loadIndexFrontier(shardOids, /** @type {import('../../../ports/IndexStoragePort.js').default & import('../../../ports/BlobPort.js').default} */ (this.storage), this._codec ? { codec: this._codec } : {});
+      const indexFrontier = await loadIndexFrontier(shardOids, /** @type {import('../../../ports/IndexStoragePort.ts').default & import('../../../ports/BlobPort.ts').default} */ (this.storage), this._codec ? { codec: this._codec } : {});
       if (indexFrontier) {
         const result = checkStaleness(indexFrontier, currentFrontier);
         if (result.stale) {

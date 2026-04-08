@@ -1,39 +1,35 @@
 import { describe, it, expect } from 'vitest';
-import CommitPort from '../../../src/ports/CommitPort.js';
+import CommitPort from '../../../src/ports/CommitPort.ts';
 
 describe('CommitPort', () => {
-  it('throws on direct call to commitNode()', async () => {
-    const port = new CommitPort();
-    await expect(port.commitNode({ message: 'test' })).rejects.toThrow('not implemented');
+  const abstractMethods = [
+    'commitNode', 'showNode', 'getNodeInfo', 'logNodes',
+    'logNodesStream', 'countNodes', 'commitNodeWithTree',
+    'nodeExists', 'getCommitTree', 'ping',
+  ];
+
+  it('abstract methods are not callable on base prototype', () => {
+    for (const method of abstractMethods) {
+      expect(CommitPort.prototype[method]).toBeUndefined();
+    }
   });
 
-  it('throws on direct call to showNode()', async () => {
-    const port = new CommitPort();
-    await expect(port.showNode('abc123')).rejects.toThrow('not implemented');
-  });
-
-  it('throws on direct call to getNodeInfo()', async () => {
-    const port = new CommitPort();
-    await expect(port.getNodeInfo('abc123')).rejects.toThrow('not implemented');
-  });
-
-  it('throws on direct call to logNodes()', async () => {
-    const port = new CommitPort();
-    await expect(port.logNodes({ ref: 'HEAD' })).rejects.toThrow('not implemented');
-  });
-
-  it('throws on direct call to logNodesStream()', async () => {
-    const port = new CommitPort();
-    await expect(port.logNodesStream({ ref: 'HEAD' })).rejects.toThrow('not implemented');
-  });
-
-  it('throws on direct call to countNodes()', async () => {
-    const port = new CommitPort();
-    await expect(port.countNodes('HEAD')).rejects.toThrow('not implemented');
-  });
-
-  it('throws on direct call to ping()', async () => {
-    const port = new CommitPort();
-    await expect(port.ping()).rejects.toThrow('not implemented');
+  it('concrete subclass satisfies the contract', async () => {
+    class TestCommit extends CommitPort {
+      async commitNode() { return 'sha'; }
+      async showNode() { return 'msg'; }
+      async getNodeInfo() { return { sha: 'a', message: 'm', author: 'x', date: 'd', parents: [] }; }
+      async logNodes() { return 'log'; }
+      async logNodesStream() { return /** @type {any} */ (null); }
+      async countNodes() { return 5; }
+      async commitNodeWithTree() { return 'sha2'; }
+      async nodeExists() { return true; }
+      async getCommitTree() { return 'tree-oid'; }
+      async ping() { return { ok: true, latencyMs: 1 }; }
+    }
+    const c = new TestCommit();
+    expect(c).toBeInstanceOf(CommitPort);
+    expect(await c.commitNode({ message: 'test' })).toBe('sha');
+    expect(await c.ping()).toEqual({ ok: true, latencyMs: 1 });
   });
 });

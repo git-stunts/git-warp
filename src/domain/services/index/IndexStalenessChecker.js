@@ -47,8 +47,8 @@ function validateEnvelope(envelope, label) {
  * Loads the frontier from an index tree's shard OIDs.
  *
  * @param {Record<string, string>} shardOids - Map of path → blob OID from readTreeOids
- * @param {import('../../../ports/IndexStoragePort.js').default & import('../../../ports/BlobPort.js').default} storage - Storage adapter
- * @param {{ codec?: import('../../../ports/CodecPort.js').default, indexStore?: import('../../../ports/IndexStorePort.js').default }} [options]
+ * @param {import('../../../ports/IndexStoragePort.ts').default & import('../../../ports/BlobPort.ts').default} storage - Storage adapter
+ * @param {{ codec?: import('../../../ports/CodecPort.ts').default, indexStore?: import('../../../ports/IndexStorePort.ts').default }} [options]
  * @returns {Promise<Map<string, string>|null>} Frontier map, or null if not present (legacy index)
  */
 export async function loadIndexFrontier(shardOids, storage, { codec, indexStore } = {}) {
@@ -61,13 +61,13 @@ export async function loadIndexFrontier(shardOids, storage, { codec, indexStore 
 /**
  * Builds the dependency bag for loadCborFrontier.
  *
- * @param {import('../../../ports/BlobPort.js').default} storage
- * @param {import('../../../ports/CodecPort.js').default} [codec]
- * @param {import('../../../ports/IndexStorePort.js').default} [indexStore]
- * @returns {{ storage: import('../../../ports/BlobPort.js').default, codec: import('../../../ports/CodecPort.js').default, indexStore?: import('../../../ports/IndexStorePort.js').default }}
+ * @param {import('../../../ports/BlobPort.ts').default} storage
+ * @param {import('../../../ports/CodecPort.ts').default} [codec]
+ * @param {import('../../../ports/IndexStorePort.ts').default} [indexStore]
+ * @returns {{ storage: import('../../../ports/BlobPort.ts').default, codec: import('../../../ports/CodecPort.ts').default, indexStore?: import('../../../ports/IndexStorePort.ts').default }}
  */
 function buildCborDeps(storage, codec, indexStore) {
-  /** @type {{ storage: import('../../../ports/BlobPort.js').default, codec: import('../../../ports/CodecPort.js').default, indexStore?: import('../../../ports/IndexStorePort.js').default }} */
+  /** @type {{ storage: import('../../../ports/BlobPort.ts').default, codec: import('../../../ports/CodecPort.ts').default, indexStore?: import('../../../ports/IndexStorePort.ts').default }} */
   const deps = { storage, codec: codec ?? defaultCodec };
   if (indexStore) {
     deps.indexStore = indexStore;
@@ -83,7 +83,7 @@ function buildCborDeps(storage, codec, indexStore) {
  * back to raw storage + codec.
  *
  * @param {Record<string, string>} shardOids
- * @param {{ storage: import('../../../ports/BlobPort.js').default, codec: import('../../../ports/CodecPort.js').default, indexStore?: import('../../../ports/IndexStorePort.js').default }} deps
+ * @param {{ storage: import('../../../ports/BlobPort.ts').default, codec: import('../../../ports/CodecPort.ts').default, indexStore?: import('../../../ports/IndexStorePort.ts').default }} deps
  * @returns {Promise<Map<string, string>|null>}
  */
 async function loadCborFrontier(shardOids, { storage, codec, indexStore }) {
@@ -107,7 +107,7 @@ async function loadCborFrontier(shardOids, { storage, codec, indexStore }) {
  * Attempts to load frontier from a JSON blob.
  *
  * @param {Record<string, string>} shardOids
- * @param {import('../../../ports/BlobPort.js').default} storage
+ * @param {import('../../../ports/BlobPort.ts').default} storage
  * @returns {Promise<Map<string, string>|null>}
  */
 async function loadJsonFrontier(shardOids, storage) {

@@ -32,7 +32,7 @@ const ensureRoaringBitmap32 = () => {
 /**
  * Wraps data in a version/checksum envelope.
  * @param {Record<string, unknown>} data - The data to wrap
- * @param {import('../../../ports/CryptoPort.js').default} crypto - CryptoPort instance
+ * @param {import('../../../ports/CryptoPort.ts').default} crypto - CryptoPort instance
  * @returns {Promise<{version: number, checksum: string, data: Record<string, unknown>}>} Envelope with version, checksum, and data
  */
 const wrapShard = async (data, crypto) => ({
@@ -45,7 +45,7 @@ const wrapShard = async (data, crypto) => ({
  * Serializes a frontier Map into CBOR and JSON blobs in the given tree.
  * @param {Map<string, string>} frontier - Writer→tip SHA map
  * @param {Record<string, Uint8Array>} tree - Target tree to add entries to
- * @param {import('../../../ports/CodecPort.js').default} codec - Codec for CBOR serialization
+ * @param {import('../../../ports/CodecPort.ts').default} codec - Codec for CBOR serialization
  */
 function serializeFrontierToTree(frontier, tree, codec) {
   /** @type {Record<string, string|undefined>} */
@@ -84,13 +84,13 @@ export default class BitmapIndexBuilder {
    * - Forward edge bitmaps (parent → children)
    * - Reverse edge bitmaps (child → parents)
    *
-   * @param {{ crypto?: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} [options] - Configuration options
+   * @param {{ crypto?: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} [options] - Configuration options
    */
   constructor(options = undefined) {
     const { crypto, codec } = options ?? {};
-    /** @type {import('../../../ports/CryptoPort.js').default} */
+    /** @type {import('../../../ports/CryptoPort.ts').default} */
     this._crypto = crypto || defaultCrypto;
-    /** @type {import('../../../ports/CodecPort.js').default} */
+    /** @type {import('../../../ports/CodecPort.ts').default} */
     this._codec = codec || defaultCodec;
     /** @type {Map<string, number>} */
     this.shaToId = new Map();
