@@ -7,6 +7,8 @@
  * @module domain/types/conflict/ConflictTarget
  */
 
+import WarpError from '../../errors/WarpError.ts';
+
 type TargetKind = 'node' | 'edge' | 'node_property' | 'edge_property';
 
 type ConflictTargetSelector = {
@@ -27,7 +29,7 @@ const SELECTOR_FIELDS = Object.freeze(['entityId', 'propertyKey', 'from', 'to', 
  */
 function validateTargetKind(kind: unknown): void {
   if (!VALID_TARGET_KINDS.has(kind as string)) {
-    throw new TypeError(`ConflictTarget: targetKind must be one of ${[...VALID_TARGET_KINDS].join(', ')}`);
+    throw new WarpError(`ConflictTarget: targetKind must be one of ${[...VALID_TARGET_KINDS].join(', ')}`, 'E_VALIDATION');
   }
 }
 
@@ -49,7 +51,7 @@ function selectorFieldsMatch(target: ConflictTarget, selector: ConflictTargetSel
  */
 function requireNonEmptyString(value: unknown, name: string): string {
   if (typeof value !== 'string' || value.length === 0) {
-    throw new TypeError(`ConflictTarget: ${name} must be a non-empty string`);
+    throw new WarpError(`ConflictTarget: ${name} must be a non-empty string`, 'E_VALIDATION');
   }
   return value;
 }
@@ -62,7 +64,7 @@ function optionalString(value: unknown, name: string): string | undefined {
     return undefined;
   }
   if (typeof value !== 'string' || value.length === 0) {
-    throw new TypeError(`ConflictTarget: ${name} must be a non-empty string when provided`);
+    throw new WarpError(`ConflictTarget: ${name} must be a non-empty string when provided`, 'E_VALIDATION');
   }
   return value;
 }

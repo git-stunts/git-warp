@@ -4,6 +4,7 @@
  * @module domain/types/conflict/ConflictWinner
  */
 
+import WarpError from '../../errors/WarpError.ts';
 import ConflictAnchor from './ConflictAnchor.ts';
 import { requireNonEmptyString } from './validation.ts';
 
@@ -26,7 +27,7 @@ export default class ConflictWinner {
     effectDigest: string;
   }) {
     if (!(anchor instanceof ConflictAnchor)) {
-      throw new TypeError(`${CTX}: anchor must be a ConflictAnchor instance`);
+      throw new WarpError(`${CTX}: anchor must be a ConflictAnchor instance`, 'E_VALIDATION');
     }
     this.anchor = anchor;
     this.effectDigest = requireNonEmptyString(effectDigest, 'effectDigest', CTX);

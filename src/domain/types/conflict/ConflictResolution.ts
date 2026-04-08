@@ -4,6 +4,7 @@
  * @module domain/types/conflict/ConflictResolution
  */
 
+import WarpError from '../../errors/WarpError.ts';
 import { requireNonEmptyString, requireEnum } from './validation.ts';
 
 const CTX = 'ConflictResolution';
@@ -17,7 +18,7 @@ type Comparator = { type: string; winnerEventId?: Readonly<Record<string, unknow
  */
 function validateBasis(basis: Basis): void {
   if (basis === null || basis === undefined || typeof basis !== 'object') {
-    throw new TypeError(`${CTX}: basis must be an object with a code property`);
+    throw new WarpError(`${CTX}: basis must be an object with a code property`, 'E_VALIDATION');
   }
   requireNonEmptyString(basis.code, 'basis.code', CTX);
 }

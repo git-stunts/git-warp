@@ -8,6 +8,8 @@
  * @module domain/types/conflict/ConflictAnchor
  */
 
+import WarpError from '../../errors/WarpError.ts';
+
 const VALID_SHA_RE = /^[0-9a-f]{4,64}$/;
 
 /**
@@ -15,7 +17,7 @@ const VALID_SHA_RE = /^[0-9a-f]{4,64}$/;
  */
 function requireNonEmptyString(value: unknown, name: string): string {
   if (typeof value !== 'string' || value.length === 0) {
-    throw new TypeError(`ConflictAnchor: ${name} must be a non-empty string`);
+    throw new WarpError(`ConflictAnchor: ${name} must be a non-empty string`, 'E_VALIDATION');
   }
   return value;
 }
@@ -25,7 +27,7 @@ function requireNonEmptyString(value: unknown, name: string): string {
  */
 function requireNonNegativeInt(value: unknown, name: string): number {
   if (!Number.isInteger(value) || (value as number) < 0) {
-    throw new TypeError(`ConflictAnchor: ${name} must be a non-negative integer`);
+    throw new WarpError(`ConflictAnchor: ${name} must be a non-negative integer`, 'E_VALIDATION');
   }
   return value as number;
 }
@@ -38,7 +40,7 @@ function optionalSha(value: unknown, name: string): string | undefined {
     return undefined;
   }
   if (typeof value !== 'string' || !VALID_SHA_RE.test(value)) {
-    throw new TypeError(`ConflictAnchor: ${name} must be a hex SHA string (4-64 chars) when provided`);
+    throw new WarpError(`ConflictAnchor: ${name} must be a hex SHA string (4-64 chars) when provided`, 'E_VALIDATION');
   }
   return value;
 }

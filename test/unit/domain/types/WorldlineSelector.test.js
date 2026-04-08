@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import QueryError from '../../../../src/domain/errors/QueryError.ts';
 import WorldlineSelector from '../../../../src/domain/types/WorldlineSelector.ts';
 import LiveSelector from '../../../../src/domain/types/LiveSelector.ts';
 import CoordinateSelector from '../../../../src/domain/types/CoordinateSelector.ts';
@@ -34,15 +35,15 @@ describe('LiveSelector', () => {
   });
 
   it('rejects negative ceiling', () => {
-    expect(() => new LiveSelector(-1)).toThrow(TypeError);
+    expect(() => new LiveSelector(-1)).toThrow(QueryError);
   });
 
   it('rejects non-integer ceiling', () => {
-    expect(() => new LiveSelector(3.14)).toThrow(TypeError);
+    expect(() => new LiveSelector(3.14)).toThrow(QueryError);
   });
 
   it('rejects string ceiling', () => {
-    expect(() => new LiveSelector(/** @type {any} */ ('42'))).toThrow(TypeError);
+    expect(() => new LiveSelector(/** @type {any} */ ('42'))).toThrow(QueryError);
   });
 
   it('is frozen', () => {
@@ -122,15 +123,15 @@ describe('CoordinateSelector', () => {
   });
 
   it('rejects null frontier', () => {
-    expect(() => new CoordinateSelector(/** @type {any} */ (null))).toThrow(TypeError);
+    expect(() => new CoordinateSelector(/** @type {any} */ (null))).toThrow(QueryError);
   });
 
   it('rejects non-object frontier', () => {
-    expect(() => new CoordinateSelector(/** @type {any} */ ('bad'))).toThrow(TypeError);
+    expect(() => new CoordinateSelector(/** @type {any} */ ('bad'))).toThrow(QueryError);
   });
 
   it('rejects negative ceiling', () => {
-    expect(() => new CoordinateSelector(new Map(), -1)).toThrow(TypeError);
+    expect(() => new CoordinateSelector(new Map(), -1)).toThrow(QueryError);
   });
 
   it('is frozen', () => {
@@ -207,19 +208,19 @@ describe('StrandSelector', () => {
   });
 
   it('rejects empty strandId', () => {
-    expect(() => new StrandSelector('')).toThrow(TypeError);
+    expect(() => new StrandSelector('')).toThrow(QueryError);
   });
 
   it('rejects non-string strandId', () => {
-    expect(() => new StrandSelector(/** @type {any} */ (123))).toThrow(TypeError);
+    expect(() => new StrandSelector(/** @type {any} */ (123))).toThrow(QueryError);
   });
 
   it('rejects null strandId', () => {
-    expect(() => new StrandSelector(/** @type {any} */ (null))).toThrow(TypeError);
+    expect(() => new StrandSelector(/** @type {any} */ (null))).toThrow(QueryError);
   });
 
   it('rejects negative ceiling', () => {
-    expect(() => new StrandSelector('strand-abc', -1)).toThrow(TypeError);
+    expect(() => new StrandSelector('strand-abc', -1)).toThrow(QueryError);
   });
 
   it('is frozen', () => {
@@ -312,7 +313,7 @@ describe('WorldlineSelector.from()', () => {
   });
 
   it('throws on coordinate without frontier', () => {
-    expect(() => WorldlineSelector.from({ kind: 'coordinate' })).toThrow(TypeError);
+    expect(() => WorldlineSelector.from({ kind: 'coordinate' })).toThrow(QueryError);
   });
 
   it('returns frozen selector as-is without mutation', () => {
@@ -325,7 +326,7 @@ describe('WorldlineSelector.from()', () => {
   });
 
   it('throws on unknown kind', () => {
-    expect(() => WorldlineSelector.from({ kind: 'bogus' })).toThrow(TypeError);
+    expect(() => WorldlineSelector.from({ kind: 'bogus' })).toThrow(QueryError);
   });
 });
 

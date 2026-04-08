@@ -10,6 +10,8 @@
  * @see docs/design/effect-emission-v1.md
  */
 
+import WarpError from '../errors/WarpError.ts';
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -56,8 +58,9 @@ const outcomeSet = new Set(DELIVERY_OUTCOMES);
  */
 function validateMode(mode: unknown): void {
   if (typeof mode !== 'string' || !modeSet.has(mode)) {
-    throw new Error(
+    throw new WarpError(
       `mode must be one of: ${DELIVERY_MODES.join(', ')}`,
+      'E_VALIDATION',
     );
   }
 }
@@ -67,7 +70,7 @@ function validateMode(mode: unknown): void {
  */
 function validateSuppressExternal(value: unknown): void {
   if (typeof value !== 'boolean') {
-    throw new Error('suppressExternal must be a boolean');
+    throw new WarpError('suppressExternal must be a boolean', 'E_VALIDATION');
   }
 }
 
@@ -76,8 +79,9 @@ function validateSuppressExternal(value: unknown): void {
  */
 export function validateOutcome(value: unknown): void {
   if (typeof value !== 'string' || !outcomeSet.has(value)) {
-    throw new Error(
+    throw new WarpError(
       `outcome must be one of: ${DELIVERY_OUTCOMES.join(', ')}`,
+      'E_VALIDATION',
     );
   }
 }
@@ -91,7 +95,7 @@ export function validateOutcome(value: unknown): void {
  */
 export function createExternalizationPolicy(params: { mode: string; suppressExternal: boolean }): Readonly<ExternalizationPolicy> {
   if (params === null || params === undefined || typeof params !== 'object') {
-    throw new Error('ExternalizationPolicy params must be an object');
+    throw new WarpError('ExternalizationPolicy params must be an object', 'E_VALIDATION');
   }
   validateMode(params.mode);
   validateSuppressExternal(params.suppressExternal);

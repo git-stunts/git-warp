@@ -10,6 +10,7 @@
  * @see docs/design/layer-boundary.md
  */
 
+import WarpError from '../errors/WarpError.ts';
 import { validateOutcome, DELIVERY_MODES, type ExternalizationPolicy, type DeliveryOutcome } from './ExternalizationPolicy.ts';
 
 const modeSet = new Set(DELIVERY_MODES);
@@ -77,7 +78,7 @@ export class DeliveryObservation {
  */
 function requireNonEmptyString(value: unknown, name: string): void {
   if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`${name} must be a non-empty string`);
+    throw new WarpError(`${name} must be a non-empty string`, 'E_VALIDATION');
   }
 }
 
@@ -86,7 +87,7 @@ function requireNonEmptyString(value: unknown, name: string): void {
  */
 function validateTimestamp(value: unknown): void {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    throw new Error('timestamp must be a non-negative finite number');
+    throw new WarpError('timestamp must be a non-negative finite number', 'E_VALIDATION');
   }
 }
 
@@ -95,7 +96,7 @@ function validateTimestamp(value: unknown): void {
  */
 function validateLens(lens: unknown): void {
   if (lens === null || lens === undefined || typeof lens !== 'object') {
-    throw new Error('lens must be an object');
+    throw new WarpError('lens must be an object', 'E_VALIDATION');
   }
   const l = lens as Record<string, unknown>;
   validateLensFields(l);
@@ -108,12 +109,13 @@ function validateLensFields(l: Record<string, unknown>): void {
   const modeKey = 'mode';
   const suppressKey = 'suppressExternal';
   if (typeof l[modeKey] !== 'string' || !modeSet.has(l[modeKey])) {
-    throw new Error(
+    throw new WarpError(
       `lens.mode must be one of: ${DELIVERY_MODES.join(', ')}`,
+      'E_VALIDATION',
     );
   }
   if (typeof l[suppressKey] !== 'boolean') {
-    throw new Error('lens.suppressExternal must be a boolean');
+    throw new WarpError('lens.suppressExternal must be a boolean', 'E_VALIDATION');
   }
 }
 

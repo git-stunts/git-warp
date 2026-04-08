@@ -9,6 +9,8 @@
  * @module domain/types/WorldlineSelector
  */
 
+import QueryError from '../errors/QueryError.ts';
+
 type WorldlineSelectorCtor = new (...args: never[]) => WorldlineSelector;
 
 /**
@@ -19,7 +21,7 @@ function validateCeiling(ceiling: number | null | undefined): number | null {
     return null;
   }
   if (typeof ceiling !== 'number' || !Number.isInteger(ceiling) || ceiling < 0) {
-    throw new TypeError(`ceiling must be null or a non-negative integer, got ${typeof ceiling === 'number' ? ceiling : typeof ceiling}`);
+    throw new QueryError(`ceiling must be null or a non-negative integer, got ${typeof ceiling === 'number' ? ceiling : typeof ceiling}`, { code: 'E_SELECTOR_INVALID' });
   }
   return ceiling;
 }
@@ -41,14 +43,14 @@ class WorldlineSelector {
    * Deep-clone this selector.
    */
   clone(): WorldlineSelector {
-    throw new Error('WorldlineSelector.clone() is abstract');
+    throw new QueryError('WorldlineSelector.clone() is abstract', { code: 'E_SELECTOR_ABSTRACT' });
   }
 
   /**
    * Convert this selector to a plain DTO matching the WorldlineSource shape.
    */
   toDTO(): { kind: string; [key: string]: unknown } {
-    throw new Error('WorldlineSelector.toDTO() is abstract');
+    throw new QueryError('WorldlineSelector.toDTO() is abstract', { code: 'E_SELECTOR_ABSTRACT' });
   }
 
   /**
@@ -56,7 +58,7 @@ class WorldlineSelector {
    */
   static _register(kind: string, ctor: WorldlineSelectorCtor): void {
     if (Object.isFrozen(registry)) {
-      throw new Error('WorldlineSelector registry is frozen — cannot register after first use');
+      throw new QueryError('WorldlineSelector registry is frozen — cannot register after first use', { code: 'E_SELECTOR_REGISTRY_FROZEN' });
     }
     registry[kind] = ctor;
   }
@@ -92,7 +94,7 @@ function fromPlainObject(raw: { kind: string; [key: string]: unknown } | null | 
   const value = raw ?? { kind: 'live' };
   const { kind } = value;
   if (!(kind in registry)) {
-    throw new TypeError(`unknown worldline selector kind: ${String(kind)}`);
+    throw new QueryError(`unknown worldline selector kind: ${String(kind)}`, { code: 'E_SELECTOR_INVALID' });
   }
   const Ctor = registry[kind]!;
   if (kind === 'live') {

@@ -4,6 +4,7 @@
  * @module domain/types/CoordinateSelector
  */
 
+import QueryError from '../errors/QueryError.ts';
 import WorldlineSelector, { validateCeiling } from './WorldlineSelector.ts';
 
 /**
@@ -26,7 +27,7 @@ class CoordinateSelector extends WorldlineSelector {
     super();
 
     if (frontier === null || frontier === undefined || typeof frontier !== 'object') {
-      throw new TypeError('frontier must be a Map or plain object');
+      throw new QueryError('frontier must be a Map or plain object', { code: 'E_SELECTOR_INVALID' });
     }
 
     this.#frontier = frontier instanceof Map

@@ -4,6 +4,7 @@
  * @module domain/types/conflict/ConflictTrace
  */
 
+import WarpError from '../../errors/WarpError.ts';
 import ConflictAnchor from './ConflictAnchor.ts';
 import type ConflictTarget from './ConflictTarget.ts';
 import type ConflictWinner from './ConflictWinner.ts';
@@ -30,7 +31,7 @@ function freezeEvidence(evidence: {
   receiptRefs: Array<Record<string, unknown>>;
 }): Readonly<EvidencePayload> {
   if (evidence === null || evidence === undefined || typeof evidence !== 'object') {
-    throw new TypeError(`${CTX}: evidence must be an object`);
+    throw new WarpError(`${CTX}: evidence must be an object`, 'E_VALIDATION');
   }
   requireEnum(evidence.level, VALID_EVIDENCE_LEVELS, { name: 'evidence.level', context: CTX });
   return Object.freeze({

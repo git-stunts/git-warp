@@ -4,12 +4,14 @@
  * @module domain/types/conflict/validation
  */
 
+import WarpError from '../../errors/WarpError.ts';
+
 /**
  * Validates that a value is a non-empty string.
  */
 export function requireNonEmptyString(value: unknown, name: string, context: string): string {
   if (typeof value !== 'string' || value.length === 0) {
-    throw new TypeError(`${context}: ${name} must be a non-empty string`);
+    throw new WarpError(`${context}: ${name} must be a non-empty string`, 'E_VALIDATION');
   }
   return value;
 }
@@ -19,7 +21,7 @@ export function requireNonEmptyString(value: unknown, name: string, context: str
  */
 export function requireNonNegativeInt(value: unknown, name: string, context: string): number {
   if (!Number.isInteger(value) || (value as number) < 0) {
-    throw new TypeError(`${context}: ${name} must be a non-negative integer`);
+    throw new WarpError(`${context}: ${name} must be a non-negative integer`, 'E_VALIDATION');
   }
   return value as number;
 }
@@ -29,7 +31,7 @@ export function requireNonNegativeInt(value: unknown, name: string, context: str
  */
 export function requireBoolean(value: unknown, name: string, context: string): boolean {
   if (typeof value !== 'boolean') {
-    throw new TypeError(`${context}: ${name} must be a boolean`);
+    throw new WarpError(`${context}: ${name} must be a boolean`, 'E_VALIDATION');
   }
   return value;
 }
@@ -39,7 +41,7 @@ export function requireBoolean(value: unknown, name: string, context: string): b
  */
 export function requireEnum(value: unknown, allowed: Set<string>, { name, context }: { name: string; context: string }): string {
   if (!allowed.has(value as string)) {
-    throw new TypeError(`${context}: ${name} must be one of ${[...allowed].join(', ')}`);
+    throw new WarpError(`${context}: ${name} must be one of ${[...allowed].join(', ')}`, 'E_VALIDATION');
   }
   return value as string;
 }

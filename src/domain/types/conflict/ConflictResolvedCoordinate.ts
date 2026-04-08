@@ -4,6 +4,7 @@
  * @module domain/types/conflict/ConflictResolvedCoordinate
  */
 
+import WarpError from '../../errors/WarpError.ts';
 import { requireNonEmptyString, requireEnum } from './validation.ts';
 
 const CTX = 'ConflictResolvedCoordinate';
@@ -23,7 +24,7 @@ type StrandData = Record<string, unknown> & {
  */
 function freezeFrontier(frontier: Record<string, string>): Readonly<Record<string, string>> {
   if (frontier === null || frontier === undefined || typeof frontier !== 'object') {
-    throw new TypeError(`${CTX}: frontier must be an object`);
+    throw new WarpError(`${CTX}: frontier must be an object`, 'E_VALIDATION');
   }
   return Object.freeze({ ...frontier });
 }
@@ -33,7 +34,7 @@ function freezeFrontier(frontier: Record<string, string>): Readonly<Record<strin
  */
 function freezeScanBudget(budget: { maxPatches: number | null }): Readonly<{ maxPatches: number | null }> {
   if (budget === null || budget === undefined || typeof budget !== 'object') {
-    throw new TypeError(`${CTX}: scanBudgetApplied must be an object`);
+    throw new WarpError(`${CTX}: scanBudgetApplied must be an object`, 'E_VALIDATION');
   }
   return Object.freeze({ maxPatches: budget.maxPatches });
 }

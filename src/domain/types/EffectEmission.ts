@@ -12,6 +12,7 @@
  * @see docs/design/layer-boundary.md
  */
 
+import WarpError from '../errors/WarpError.ts';
 import { DELIVERY_MODES, DELIVERY_OUTCOMES } from './ExternalizationPolicy.ts';
 
 // Re-export constants for convenience (tests import from here too)
@@ -87,7 +88,7 @@ export class EffectEmission {
  */
 function requireNonEmptyString(value: unknown, name: string): void {
   if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`${name} must be a non-empty string`);
+    throw new WarpError(`${name} must be a non-empty string`, 'E_VALIDATION');
   }
 }
 
@@ -96,7 +97,7 @@ function requireNonEmptyString(value: unknown, name: string): void {
  */
 function validateTimestamp(value: unknown): void {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    throw new Error('timestamp must be a non-negative finite number');
+    throw new WarpError('timestamp must be a non-negative finite number', 'E_VALIDATION');
   }
 }
 
@@ -105,7 +106,7 @@ function validateTimestamp(value: unknown): void {
  */
 function validateCoordinate(value: unknown): void {
   if (value === null || value === undefined || typeof value !== 'object') {
-    throw new Error('coordinate must be an object');
+    throw new WarpError('coordinate must be an object', 'E_VALIDATION');
   }
 }
 

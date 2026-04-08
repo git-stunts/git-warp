@@ -11,6 +11,8 @@
  * @see Paper II, Section 5 — Tick receipts: event posets recording accepted/rejected matches
  */
 
+import WarpError from '../errors/WarpError.ts';
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -59,7 +61,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
  */
 function validateOp(op: unknown, index: number): void {
   if (!isObject(op)) {
-    throw new Error(`ops[${index}] must be an object`);
+    throw new WarpError(`ops[${index}] must be an object`, 'E_VALIDATION');
   }
 
   const entry = op;
@@ -68,7 +70,7 @@ function validateOp(op: unknown, index: number): void {
   validateOpResult(entry['result'], index);
 
   if (entry['reason'] !== undefined && typeof entry['reason'] !== 'string') {
-    throw new Error(`ops[${index}].reason must be a string or undefined`);
+    throw new WarpError(`ops[${index}].reason must be a string or undefined`, 'E_VALIDATION');
   }
 }
 
@@ -86,7 +88,7 @@ function validateOp(op: unknown, index: number): void {
  */
 function validateOpType(value: unknown, i: number): void {
   if (typeof value !== 'string' || !opTypeSet.has(value)) {
-    throw new Error(`ops[${i}].op must be one of: ${OP_TYPES.join(', ')}`);
+    throw new WarpError(`ops[${i}].op must be one of: ${OP_TYPES.join(', ')}`, 'E_VALIDATION');
   }
 }
 
@@ -105,7 +107,7 @@ function validateOpType(value: unknown, i: number): void {
  */
 function validateOpTarget(value: unknown, i: number): void {
   if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`ops[${i}].target must be a non-empty string`);
+    throw new WarpError(`ops[${i}].target must be a non-empty string`, 'E_VALIDATION');
   }
 }
 
@@ -126,7 +128,7 @@ function validateOpTarget(value: unknown, i: number): void {
  */
 function validateOpResult(value: unknown, i: number): void {
   if (typeof value !== 'string' || !resultTypeSet.has(value)) {
-    throw new Error(`ops[${i}].result must be one of: ${RESULT_TYPES.join(', ')}`);
+    throw new WarpError(`ops[${i}].result must be one of: ${RESULT_TYPES.join(', ')}`, 'E_VALIDATION');
   }
 }
 
@@ -190,7 +192,7 @@ export function createTickReceipt({ patchSha, writer, lamport, ops }: { patchSha
  */
 function assertNonEmptyString(value: unknown, name: string): void {
   if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`${name} must be a non-empty string`);
+    throw new WarpError(`${name} must be a non-empty string`, 'E_VALIDATION');
   }
 }
 
@@ -199,7 +201,7 @@ function assertNonEmptyString(value: unknown, name: string): void {
  */
 function assertNonNegativeInt(value: unknown): void {
   if (!Number.isInteger(value) || (value as number) < 0) {
-    throw new Error('lamport must be a non-negative integer');
+    throw new WarpError('lamport must be a non-negative integer', 'E_VALIDATION');
   }
 }
 
@@ -208,7 +210,7 @@ function assertNonNegativeInt(value: unknown): void {
  */
 function assertOpsArray(ops: unknown): void {
   if (!Array.isArray(ops)) {
-    throw new Error('ops must be an array');
+    throw new WarpError('ops must be an array', 'E_VALIDATION');
   }
   for (let i = 0; i < ops.length; i++) {
     validateOp(ops[i], i);

@@ -4,6 +4,7 @@
  * @module domain/types/StrandSelector
  */
 
+import QueryError from '../errors/QueryError.ts';
 import WorldlineSelector, { validateCeiling } from './WorldlineSelector.ts';
 
 /**
@@ -26,7 +27,7 @@ class StrandSelector extends WorldlineSelector {
     super();
 
     if (typeof strandId !== 'string' || strandId.length === 0) {
-      throw new TypeError('strandId must be a non-empty string');
+      throw new QueryError('strandId must be a non-empty string', { code: 'E_SELECTOR_INVALID' });
     }
 
     this.strandId = strandId;
