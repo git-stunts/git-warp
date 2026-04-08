@@ -6,7 +6,7 @@ import {
 } from './strandShared.js';
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
-/** @import { PatchBuilderV2 } from '../PatchBuilderV2.js' */
+/** @import { PatchBuilder } from '../PatchBuilder.js' */
 /** @import { default as Patch } from '../../types/Patch.ts' */
 /** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */
 /** @typedef {import('./strandTypes.js').StrandIntentQueue} StrandIntentQueue */
@@ -65,7 +65,7 @@ export default class StrandIntentService {
    * @param {{
    *   graph: WarpRuntime,
    *   loadStrandOrThrow: (strandId: string) => Promise<StrandDescriptor>,
-   *   buildQueuedIntent: (descriptor: StrandDescriptor, build: (p: PatchBuilderV2) => void | Promise<void>) => Promise<StrandQueuedIntent>,
+   *   buildQueuedIntent: (descriptor: StrandDescriptor, build: (p: PatchBuilder) => void | Promise<void>) => Promise<StrandQueuedIntent>,
    *   normalizeIntentQueue: (value: unknown) => StrandIntentQueue,
    *   normalizeEvolution: (value: unknown) => StrandDescriptor['evolution'],
    *   writeDescriptor: (descriptor: StrandDescriptor) => Promise<void>,
@@ -111,7 +111,7 @@ export default class StrandIntentService {
    * Enqueue a new intent onto the strand's intent queue for deferred tick processing.
    *
    * @param {string} strandId
-   * @param {(p: PatchBuilderV2) => void | Promise<void>} build
+   * @param {(p: PatchBuilder) => void | Promise<void>} build
    * @returns {Promise<StrandQueuedIntent>}
    */
   async queueIntent(strandId, build) {

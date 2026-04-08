@@ -24,8 +24,8 @@ const { patchBuilderMock } = vi.hoisted(() => {
   return { patchBuilderMock };
 });
 
-vi.mock('../../../../../src/domain/services/PatchBuilderV2.js', () => ({
-  PatchBuilderV2: patchBuilderMock,
+vi.mock('../../../../../src/domain/services/PatchBuilder.js', () => ({
+  PatchBuilder: patchBuilderMock,
 }));
 
 const { joinStatesMock, applyWithDiffMock, applyWithReceiptMock } = vi.hoisted(() => ({
@@ -163,7 +163,7 @@ describe('PatchController', () => {
   // ────────────────────────────────────────────────────────────────────────
 
   describe('createPatch()', () => {
-    it('returns a PatchBuilderV2 for a brand-new writer (no parent)', async () => {
+    it('returns a PatchBuilder for a brand-new writer (no parent)', async () => {
       const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host._persistence);
       persistence.readRef.mockResolvedValue(null);
 
@@ -194,7 +194,7 @@ describe('PatchController', () => {
 
       await ctrl.createPatch();
 
-      // PatchBuilderV2 should receive lamport = max(5, 0) + 1 = 6
+      // PatchBuilder should receive lamport = max(5, 0) + 1 = 6
       const constructorArgs = patchBuilderMock.mock.calls[0][0];
       expect(constructorArgs.lamport).toBe(6);
       expect(constructorArgs.expectedParentSha).toBe('abc123');
@@ -313,7 +313,7 @@ describe('PatchController', () => {
       await expect(ctrl.createPatch()).rejects.toThrow(/Failed to parse lamport/);
     });
 
-    it('passes optional deps to PatchBuilderV2 when available', async () => {
+    it('passes optional deps to PatchBuilder when available', async () => {
       const journal = { readPatch: vi.fn(), writePatch: vi.fn() };
       const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
       const blobStorage = { store: vi.fn(), retrieve: vi.fn() };
@@ -336,7 +336,7 @@ describe('PatchController', () => {
       expect(args.blobStorage).toBe(blobStorage);
     });
 
-    it('omits optional deps from PatchBuilderV2 when null', async () => {
+    it('omits optional deps from PatchBuilder when null', async () => {
       host._patchJournal = null;
       host._logger = null;
       host._blobStorage = null;

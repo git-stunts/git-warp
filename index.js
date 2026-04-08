@@ -163,7 +163,7 @@ import {
 import { NoOpEffectSink } from './src/infrastructure/adapters/NoOpEffectSink.js';
 import { ConsoleEffectSink } from './src/infrastructure/adapters/ConsoleEffectSink.js';
 import { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.js';
-import { PatchBuilderV2 } from './src/domain/services/PatchBuilderV2.js';
+import { PatchBuilder } from './src/domain/services/PatchBuilder.js';
 import { PatchSession } from './src/domain/warp/PatchSession.js';
 import { Writer } from './src/domain/warp/Writer.js';
 import { ProvenanceIndex } from './src/domain/services/provenance/ProvenanceIndex.js';
@@ -254,7 +254,7 @@ export {
   StrandSelector,
   QueryBuilder,
   Observer,
-  PatchBuilderV2,
+  PatchBuilder,
   PatchSession,
   Writer,
   ProvenanceIndex,

@@ -1,22 +1,22 @@
 /**
- * PatchBuilderV2 snapshot tests (C4).
+ * PatchBuilder snapshot tests (C4).
  *
  * Verifies that _getSnapshotState() captures state lazily on first call
  * and reuses it for subsequent operations, preventing TOCTOU races.
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { PatchBuilderV2 } from '../../../../src/domain/services/PatchBuilderV2.js';
+import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createStateBuilder } from '../../../helpers/stateBuilder.js';
 
 /**
  * Creates a builder with a controllable getCurrentState mock.
  * @param {Function} getCurrentState
- * @returns {PatchBuilderV2}
+ * @returns {PatchBuilder}
  */
 function makeBuilder(getCurrentState) {
-  return new PatchBuilderV2(/** @type {any} */ ({
+  return new PatchBuilder(/** @type {any} */ ({
     writerId: 'w1',
     lamport: 1,
     versionVector: createVersionVector(),
@@ -24,7 +24,7 @@ function makeBuilder(getCurrentState) {
   }));
 }
 
-describe('PatchBuilderV2 snapshot (C4)', () => {
+describe('PatchBuilder snapshot (C4)', () => {
   it('calls getCurrentState exactly once on first snapshot access', () => {
     const state = createStateBuilder().node('node:a', { counter: 1 }).build();
     const spy = vi.fn(() => state);

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { PatchBuilderV2 } from '../../../../src/domain/services/PatchBuilderV2.js';
+import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createORSet, orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
@@ -64,14 +64,14 @@ function createPatchJournal(persistence) {
   });
 }
 
-describe('PatchBuilderV2 content attachment', () => {
+describe('PatchBuilder content attachment', () => {
   describe('attachContent()', () => {
     it('writes blob and sets content reference metadata properties', async () => {
       const state = createMockState();
       orsetAdd(state.nodeAlive, 'node:1', createDot('w1', 1));
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage({ storeOid: 'abc123' });
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         graphName: 'g',
         writerId: 'w1',
@@ -111,7 +111,7 @@ describe('PatchBuilderV2 content attachment', () => {
       orsetAdd(state.nodeAlive, 'node:1', createDot('w1', 1));
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage({ storeOid: 'abc123' });
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         graphName: 'g',
         writerId: 'w1',
@@ -142,7 +142,7 @@ describe('PatchBuilderV2 content attachment', () => {
       orsetAdd(state.nodeAlive, 'node:1', createDot('w1', 1));
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage({ storeOid: 'abc123' });
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         graphName: 'g',
         writerId: 'w1',
@@ -162,7 +162,7 @@ describe('PatchBuilderV2 content attachment', () => {
       orsetAdd(state.nodeAlive, 'node:1', createDot('w1', 1));
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage();
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         graphName: 'g',
         writerId: 'w1',
@@ -182,7 +182,7 @@ describe('PatchBuilderV2 content attachment', () => {
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage();
       blobStorage.store = vi.fn().mockRejectedValue(new Error('disk full'));
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         graphName: 'g',
         writerId: 'w1',
@@ -197,7 +197,7 @@ describe('PatchBuilderV2 content attachment', () => {
 
     it('does not write blobs for unknown nodes', async () => {
       const persistence = createMockPersistence();
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         writerId: 'w1',
         lamport: 1,
@@ -216,7 +216,7 @@ describe('PatchBuilderV2 content attachment', () => {
       orsetAdd(state.nodeAlive, 'node:1', createDot('w1', 1));
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage();
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         graphName: 'g',
         writerId: 'w1',
@@ -238,7 +238,7 @@ describe('PatchBuilderV2 content attachment', () => {
       const state = createMockState();
       orsetAdd(state.nodeAlive, 'node:1', createDot('w1', 1));
       const persistence = createMockPersistence();
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         writerId: 'w1',
         lamport: 1,
@@ -275,7 +275,7 @@ describe('PatchBuilderV2 content attachment', () => {
 
     it('rejects unknown nodes without writing a blob', () => {
       const persistence = createMockPersistence();
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         writerId: 'w1',
         lamport: 1,
@@ -298,7 +298,7 @@ describe('PatchBuilderV2 content attachment', () => {
 
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage({ storeOid: 'def456' });
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         graphName: 'g',
         writerId: 'w1',
@@ -338,7 +338,7 @@ describe('PatchBuilderV2 content attachment', () => {
 
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage({ storeOid: 'def456' });
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         graphName: 'g',
         writerId: 'w1',
@@ -359,7 +359,7 @@ describe('PatchBuilderV2 content attachment', () => {
 
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage();
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         graphName: 'g',
         writerId: 'w1',
@@ -377,7 +377,7 @@ describe('PatchBuilderV2 content attachment', () => {
       const persistence = createMockPersistence({
         writeBlob: vi.fn().mockResolvedValue('def456'),
       });
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         writerId: 'w1',
         lamport: 1,
@@ -399,7 +399,7 @@ describe('PatchBuilderV2 content attachment', () => {
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
       orsetAdd(state.edgeAlive, edgeKey, createDot('w1', 1));
       const persistence = createMockPersistence();
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         writerId: 'w1',
         lamport: 1,
@@ -434,7 +434,7 @@ describe('PatchBuilderV2 content attachment', () => {
 
     it('rejects unknown edges without writing a blob', () => {
       const persistence = createMockPersistence();
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         writerId: 'w1',
         lamport: 1,
@@ -460,7 +460,7 @@ describe('PatchBuilderV2 content attachment', () => {
         return Promise.resolve(`blob${callCount}`);
       });
       const persistence = createMockPersistence();
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         graphName: 'g',
         writerId: 'w1',
@@ -488,7 +488,7 @@ describe('PatchBuilderV2 content attachment', () => {
         storeStream: vi.fn().mockResolvedValue('cas-stream-oid'),
         retrieveStream: vi.fn(),
       };
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence: createMockPersistence(),
         graphName: 'g',
         writerId: 'w1',
@@ -526,7 +526,7 @@ describe('PatchBuilderV2 content attachment', () => {
         storeStream: vi.fn().mockResolvedValue('cas-rs-oid'),
         retrieveStream: vi.fn(),
       };
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence: createMockPersistence(),
         graphName: 'g',
         writerId: 'w1',
@@ -559,7 +559,7 @@ describe('PatchBuilderV2 content attachment', () => {
         storeStream: vi.fn().mockResolvedValue('cas-edge-stream-oid'),
         retrieveStream: vi.fn(),
       };
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence: createMockPersistence(),
         graphName: 'g',
         writerId: 'w1',
@@ -590,7 +590,7 @@ describe('PatchBuilderV2 content attachment', () => {
         retrieve: vi.fn(),
       };
       const persistence = createMockPersistence();
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         graphName: 'g',
         writerId: 'w1',
@@ -621,7 +621,7 @@ describe('PatchBuilderV2 content attachment', () => {
       const state = createMockState();
       orsetAdd(state.nodeAlive, 'node:1', createDot('w1', 1));
       const persistence = createMockPersistence();
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         writerId: 'w1',
         lamport: 1,
@@ -643,7 +643,7 @@ describe('PatchBuilderV2 content attachment', () => {
       const state = createMockState();
       orsetAdd(state.nodeAlive, 'node:1', createDot('w1', 1));
       const persistence = createMockPersistence();
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         writerId: 'w1',
         lamport: 1,
@@ -669,7 +669,7 @@ describe('PatchBuilderV2 content attachment', () => {
         retrieve: vi.fn(),
       };
       const persistence = createMockPersistence();
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         graphName: 'g',
         writerId: 'w1',
@@ -699,7 +699,7 @@ describe('PatchBuilderV2 content attachment', () => {
         writeBlob: vi.fn().mockResolvedValue(patchBlobOid), // commit() CBOR blob only
         writeTree: vi.fn().mockResolvedValue('c'.repeat(40)),
       });
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         patchJournal: createPatchJournal(persistence),
         graphName: 'g',
@@ -724,7 +724,7 @@ describe('PatchBuilderV2 content attachment', () => {
 
     it('creates single-entry tree when no content blobs', async () => {
       const persistence = createMockPersistence();
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         patchJournal: createPatchJournal(persistence),
         graphName: 'g',
@@ -756,7 +756,7 @@ describe('PatchBuilderV2 content attachment', () => {
         writeBlob: vi.fn().mockResolvedValue(patchBlob), // CBOR blob only
         writeTree: vi.fn().mockResolvedValue('4'.repeat(40)),
       });
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         patchJournal: createPatchJournal(persistence),
         graphName: 'g',
@@ -788,7 +788,7 @@ describe('PatchBuilderV2 content attachment', () => {
         writeBlob: vi.fn().mockResolvedValue(patchBlob), // CBOR blob only
         writeTree: vi.fn().mockResolvedValue('c'.repeat(40)),
       });
-      const builder = new PatchBuilderV2(/** @type {any} */ ({
+      const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
         patchJournal: createPatchJournal(persistence),
         graphName: 'g',

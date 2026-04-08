@@ -109,7 +109,7 @@ describe('JoinReducer — edge property LWW', () => {
 
     it('encodePropKey(edgeNode, key) equals encodeEdgePropKey(from, to, label, key)', () => {
       // This is the critical identity: JoinReducer builds the map key via
-      // encodePropKey(op.node, op.key) and PatchBuilderV2 sets op.node to
+      // encodePropKey(op.node, op.key) and PatchBuilder sets op.node to
       // '\x01from\0to\0label'. The resulting key must match encodeEdgePropKey.
       const from = 'a';
       const to = 'b';

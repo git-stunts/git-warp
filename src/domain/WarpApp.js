@@ -73,7 +73,7 @@ export default class WarpApp {
 
   /**
    * Creates a new uncommitted patch builder for this writer.
-   * @returns {Promise<import('./services/PatchBuilderV2.js').PatchBuilderV2>}
+   * @returns {Promise<import('./services/PatchBuilder.js').PatchBuilder>}
    */
   async createPatch() {
     return await this._runtime().createPatch();
@@ -81,7 +81,7 @@ export default class WarpApp {
 
   /**
    * Builds and commits a single patch in one call.
-   * @param {(patch: import('./services/PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>} build
+   * @param {(patch: import('./services/PatchBuilder.js').PatchBuilder) => void | Promise<void>} build
    * @returns {Promise<string>}
    */
   async patch(build) {
@@ -90,7 +90,7 @@ export default class WarpApp {
 
   /**
    * Builds and commits multiple patches sequentially, returning their SHAs.
-   * @param {...((patch: import('./services/PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>)} builds
+   * @param {...((patch: import('./services/PatchBuilder.js').PatchBuilder) => void | Promise<void>)} builds
    * @returns {Promise<string[]>}
    */
   async patchMany(...builds) {
@@ -282,7 +282,7 @@ export default class WarpApp {
   /**
    * Builds and commits a single patch to a strand.
    * @param {string} strandId
-   * @param {(patch: import('./services/PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>} build
+   * @param {(patch: import('./services/PatchBuilder.js').PatchBuilder) => void | Promise<void>} build
    * @returns {Promise<string>}
    */
   async patchStrand(strandId, build) {
@@ -292,7 +292,7 @@ export default class WarpApp {
   /**
    * Queues a deferred intent on a strand for later application.
    * @param {string} strandId
-   * @param {(patch: import('./services/PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>} build
+   * @param {(patch: import('./services/PatchBuilder.js').PatchBuilder) => void | Promise<void>} build
    * @returns {ReturnType<WarpCore['queueStrandIntent']>}
    */
   async queueStrandIntent(strandId, build) {

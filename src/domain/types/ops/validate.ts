@@ -2,8 +2,8 @@ import PatchError from '../../errors/PatchError.ts';
 /**
  * Shared validation helpers for Op constructors.
  *
- * Mirrors PatchBuilderV2._assertNoReservedBytes for consistency —
- * ops constructed outside PatchBuilderV2 (CBOR decode, tests, direct
+ * Mirrors PatchBuilder._assertNoReservedBytes for consistency —
+ * ops constructed outside PatchBuilder (CBOR decode, tests, direct
  * construction) get the same validation.
  *
  * @module domain/types/ops/validate
@@ -31,7 +31,7 @@ export function assertNonEmptyString(value: unknown, opName: string, field: stri
  * - NUL (\x00) — edge key field separator
  * - \x01 prefix — reserved for edge property encoding on the wire
  *
- * Matches PatchBuilderV2._assertNoReservedBytes.
+ * Matches PatchBuilder._assertNoReservedBytes.
  */
 export function assertNoReservedBytes(value: string, opName: string, field: string): void {
   if (value.includes(FIELD_SEPARATOR)) {

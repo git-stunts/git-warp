@@ -287,7 +287,7 @@ export default tseslint.config(
       "src/domain/services/sync/SyncProtocol.js",
       "src/domain/services/query/LogicalTraversal.js",
       "src/domain/services/state/StateSerializerV5.js",
-      "src/domain/services/PatchBuilderV2.js",
+      "src/domain/services/PatchBuilder.js",
       "src/domain/warp/PatchSession.js",
       "src/domain/utils/EventId.ts",
       "src/domain/types/WorldlineSelector.ts",

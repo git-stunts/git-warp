@@ -1708,7 +1708,7 @@ export interface ContentMeta {
 }
 
 // ============================================================================
-// Patch & PatchBuilderV2
+// Patch & PatchBuilder
 // ============================================================================
 
 /**
@@ -1741,27 +1741,27 @@ export type PatchV2 = Patch;
  * commit() to persist one atomic WARP patch under `refs/warp/...`.
  * This does not touch the caller's normal Git worktree.
  */
-export class PatchBuilderV2 {
+export class PatchBuilder {
   /** Adds a node to the graph. */
-  addNode(nodeId: string): PatchBuilderV2;
+  addNode(nodeId: string): PatchBuilder;
   /** Removes a node from the graph. */
-  removeNode(nodeId: string): PatchBuilderV2;
+  removeNode(nodeId: string): PatchBuilder;
   /** Adds an edge between two nodes. */
-  addEdge(from: string, to: string, label: string): PatchBuilderV2;
+  addEdge(from: string, to: string, label: string): PatchBuilder;
   /** Removes an edge between two nodes. */
-  removeEdge(from: string, to: string, label: string): PatchBuilderV2;
+  removeEdge(from: string, to: string, label: string): PatchBuilder;
   /** Sets a property on a node. */
-  setProperty(nodeId: string, key: string, value: unknown): PatchBuilderV2;
+  setProperty(nodeId: string, key: string, value: unknown): PatchBuilder;
   /** Sets a property on an edge. */
-  setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): PatchBuilderV2;
+  setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): PatchBuilder;
   /** Attaches content to a node (writes blob + sets _content property). */
-  attachContent(nodeId: string, content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilderV2>;
+  attachContent(nodeId: string, content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilder>;
   /** Clears content from a node (sets _content metadata registers to null). */
-  clearContent(nodeId: string): PatchBuilderV2;
+  clearContent(nodeId: string): PatchBuilder;
   /** Attaches content to an edge (writes blob + sets _content edge property). */
-  attachEdgeContent(from: string, to: string, label: string, content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilderV2>;
+  attachEdgeContent(from: string, to: string, label: string, content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilder>;
   /** Clears content from an edge (sets _content metadata registers to null). */
-  clearEdgeContent(from: string, to: string, label: string): PatchBuilderV2;
+  clearEdgeContent(from: string, to: string, label: string): PatchBuilder;
   /** Builds the Patch object without committing. */
   build(): Patch;
   /** Commits one atomic WARP patch under `refs/warp/...` and returns the patch commit SHA. */
@@ -1770,6 +1770,9 @@ export class PatchBuilderV2 {
   readonly opCount: number;
 }
 
+/** @deprecated Use PatchBuilder instead. */
+export type PatchBuilderV2 = PatchBuilder;
+
 // ============================================================================
 // Writer & PatchSession
 // ============================================================================
@@ -1777,7 +1780,7 @@ export class PatchBuilderV2 {
 /**
  * Fluent patch session for building and committing graph mutations.
  *
- * Created by Writer.beginPatch(). Wraps a PatchBuilderV2 with CAS protection.
+ * Created by Writer.beginPatch(). Wraps a PatchBuilder with CAS protection.
  */
 export class PatchSession {
   /** Adds a node to the graph. */
@@ -2061,21 +2064,21 @@ declare class WarpCoreBase {
 
 
   /**
-   * Creates a new PatchBuilderV2 for adding operations.
+   * Creates a new PatchBuilder for adding operations.
    */
-  createPatch(): Promise<PatchBuilderV2>;
+  createPatch(): Promise<PatchBuilder>;
 
   /**
    * Convenience wrapper: creates a patch, runs the callback, and commits.
    *
-   * The callback receives a PatchBuilderV2 and may be synchronous or
+   * The callback receives a PatchBuilder and may be synchronous or
    * asynchronous. The commit happens only after the callback resolves.
    * If the callback throws or rejects, no commit is attempted.
    *
    * Not reentrant: calling `graph.patch()` inside a callback throws.
    * Use `createPatch()` directly for nested or concurrent patches.
    */
-  patch(build: (patch: PatchBuilderV2) => void | Promise<void>): Promise<string>;
+  patch(build: (patch: PatchBuilder) => void | Promise<void>): Promise<string>;
 
   /**
    * Applies multiple patches sequentially. Each callback sees the state
@@ -2083,7 +2086,7 @@ declare class WarpCoreBase {
    * @since 13.0.0
    */
   patchMany(
-    ...builds: Array<(patch: PatchBuilderV2) => void | Promise<void>>
+    ...builds: Array<(patch: PatchBuilder) => void | Promise<void>>
   ): Promise<string[]>;
 
   /**
@@ -2436,13 +2439,13 @@ declare class WarpCoreBase {
   patchesForStrand(strandId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
 
   /** Creates a patch builder that writes into a strand's overlay patch-log. */
-  createStrandPatch(strandId: string): Promise<PatchBuilderV2>;
+  createStrandPatch(strandId: string): Promise<PatchBuilder>;
 
   /** Convenience wrapper that creates and commits a strand overlay patch. */
-  patchStrand(strandId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
+  patchStrand(strandId: string, build: (p: PatchBuilder) => void | Promise<void>): Promise<string>;
 
   /** Queues a patch-shaped intent against a strand without advancing its overlay. */
-  queueStrandIntent(strandId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<StrandIntentDescriptor>;
+  queueStrandIntent(strandId: string, build: (p: PatchBuilder) => void | Promise<void>): Promise<StrandIntentDescriptor>;
 
   /** Lists the currently queued intents for one strand. */
   listStrandIntents(strandId: string): Promise<StrandIntentDescriptor[]>;
@@ -2611,7 +2614,7 @@ export declare class WarpApp {
   /** Gets or creates a Writer, optionally resolving from git config. */
   writer(writerId?: Parameters<WarpCore['writer']>[0]): ReturnType<WarpCore['writer']>;
 
-  /** Creates a new PatchBuilderV2 for adding operations. */
+  /** Creates a new PatchBuilder for adding operations. */
   createPatch(): ReturnType<WarpCore['createPatch']>;
 
   /**

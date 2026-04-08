@@ -7,7 +7,7 @@
  * @module domain/services/controllers/PatchController
  */
 
-import { PatchBuilderV2 } from '../PatchBuilderV2.js';
+import { PatchBuilder } from '../PatchBuilder.js';
 import { joinStates, applyWithDiff, applyWithReceipt } from '../JoinReducer.js';
 import { orsetElements } from '../../crdt/ORSet.js';
 import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../../utils/RefLayout.ts';
@@ -36,9 +36,9 @@ export default class PatchController {
   }
 
   /**
-   * Creates a new PatchBuilderV2 for this graph.
+   * Creates a new PatchBuilder for this graph.
    *
-   * @returns {Promise<PatchBuilderV2>}
+   * @returns {Promise<PatchBuilder>}
    */
   async createPatch() {
     const h = this._host;
@@ -54,7 +54,7 @@ export default class PatchController {
       await h.materialize();
     }
 
-    return new PatchBuilderV2({
+    return new PatchBuilder({
       persistence: h._persistence,
       graphName: h._graphName,
       writerId: h._writerId,
@@ -73,7 +73,7 @@ export default class PatchController {
   /**
    * Convenience wrapper: creates a patch, runs the callback, and commits.
    *
-   * @param {(p: PatchBuilderV2) => void | Promise<void>} build
+   * @param {(p: PatchBuilder) => void | Promise<void>} build
    * @returns {Promise<string>}
    */
   async patch(build) {
@@ -96,7 +96,7 @@ export default class PatchController {
   /**
    * Applies multiple patches sequentially.
    *
-   * @param {...((p: PatchBuilderV2) => void | Promise<void>)} builds
+   * @param {...((p: PatchBuilder) => void | Promise<void>)} builds
    * @returns {Promise<string[]>}
    */
   async patchMany(...builds) {

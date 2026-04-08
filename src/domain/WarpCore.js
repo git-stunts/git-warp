@@ -311,7 +311,7 @@ export default class WarpCore {
    * Creates a patch builder that writes into a strand's overlay patch-log.
    *
    * @param {string} strandId
-   * @returns {Promise<import('./services/PatchBuilderV2.js').PatchBuilderV2>}
+   * @returns {Promise<import('./services/PatchBuilder.js').PatchBuilder>}
    */
   async createStrandPatch(strandId) {
     return await WarpRuntime.prototype.createStrandPatch.call(this, strandId);
@@ -321,7 +321,7 @@ export default class WarpCore {
    * Convenience wrapper that creates and commits a strand overlay patch.
    *
    * @param {string} strandId
-   * @param {(patch: import('./services/PatchBuilderV2.js').PatchBuilderV2) => void|Promise<void>} build
+   * @param {(patch: import('./services/PatchBuilder.js').PatchBuilder) => void|Promise<void>} build
    * @returns {Promise<string>}
    */
   async patchStrand(strandId, build) {
@@ -332,7 +332,7 @@ export default class WarpCore {
    * Queues a patch-shaped intent against a strand without advancing its overlay.
    *
    * @param {string} strandId
-   * @param {(patch: import('./services/PatchBuilderV2.js').PatchBuilderV2) => void|Promise<void>} build
+   * @param {(patch: import('./services/PatchBuilder.js').PatchBuilder) => void|Promise<void>} build
    * @returns {Promise<StrandIntentDescriptor>}
    */
   async queueStrandIntent(strandId, build) {

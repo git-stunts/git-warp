@@ -63,7 +63,7 @@ export default abstract class CommitPort {
 
   /**
    * Creates a commit pointing to a specified tree (not the empty tree).
-   * Used by CheckpointService and PatchBuilderV2 for tree-backed commits.
+   * Used by CheckpointService and PatchBuilder for tree-backed commits.
    */
   abstract commitNodeWithTree(_options: CommitNodeWithTreeOptions): Promise<string>;
 

@@ -8,7 +8,7 @@ import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
  * the same eager re-materialize as the low-level createPatch() API.
  *
  * The Writer and PatchSession are higher-level APIs that delegate to
- * PatchBuilderV2. The onCommitSuccess callback wired in WarpRuntime.writer()
+ * PatchBuilder. The onCommitSuccess callback wired in WarpRuntime.writer()
  * must trigger eager state update so that queries after a writer commit
  * reflect the new state immediately.
  */
@@ -24,7 +24,7 @@ const FAKE_COMMIT_SHA_2 = 'd'.repeat(40);
  * Writer flow hits readRef 3 times for a first commit:
  *   1. Writer.beginPatch() reads ref to get expectedOldHead
  *   2. PatchSession.commit() reads ref for CAS pre-check
- *   3. PatchBuilderV2.commit() reads ref for its own CAS check
+ *   3. PatchBuilder.commit() reads ref for its own CAS check
  * All return null for a first commit.
  */
 function mockWriterFirstCommit(/** @type {any} */ persistence) {

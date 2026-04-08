@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { PatchBuilderV2 } from '../../../../src/domain/services/PatchBuilderV2.js';
+import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.js';
 import { WriterError } from '../../../../src/domain/warp/Writer.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
@@ -36,7 +36,7 @@ function createPatchJournal(persistence) {
   });
 }
 
-describe('PatchBuilderV2 CAS conflict detection', () => {
+describe('PatchBuilder CAS conflict detection', () => {
   // ---------------------------------------------------------------
   // CAS conflict: ref advanced between createPatch and commit
   // ---------------------------------------------------------------
@@ -50,7 +50,7 @@ describe('PatchBuilderV2 CAS conflict detection', () => {
         readRef: vi.fn().mockResolvedValue(advancedSha),
       });
 
-      const builder = new PatchBuilderV2({
+      const builder = new PatchBuilder({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer1',
@@ -65,7 +65,7 @@ describe('PatchBuilderV2 CAS conflict detection', () => {
       await expect(builder.commit()).rejects.toThrow(WriterError);
       await expect(
         // Re-create builder since the first commit consumed the rejection
-        new PatchBuilderV2({
+        new PatchBuilder({
           persistence,
           graphName: 'test-graph',
           writerId: 'writer1',
@@ -87,7 +87,7 @@ describe('PatchBuilderV2 CAS conflict detection', () => {
         readRef: vi.fn().mockResolvedValue(advancedSha),
       });
 
-      const builder = new PatchBuilderV2({
+      const builder = new PatchBuilder({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer1',
@@ -117,7 +117,7 @@ describe('PatchBuilderV2 CAS conflict detection', () => {
         readRef: vi.fn().mockResolvedValue(advancedSha),
       });
 
-      const builder = new PatchBuilderV2({
+      const builder = new PatchBuilder({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer1',
@@ -141,7 +141,7 @@ describe('PatchBuilderV2 CAS conflict detection', () => {
         readRef: vi.fn().mockResolvedValue(advancedSha),
       });
 
-      const builder = new PatchBuilderV2({
+      const builder = new PatchBuilder({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer1',
@@ -172,7 +172,7 @@ describe('PatchBuilderV2 CAS conflict detection', () => {
         readRef: vi.fn().mockResolvedValue(null),
       });
 
-      const builder = new PatchBuilderV2({
+      const builder = new PatchBuilder({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer1',
@@ -205,7 +205,7 @@ describe('PatchBuilderV2 CAS conflict detection', () => {
         readRef: vi.fn().mockResolvedValue(null),
       });
 
-      const builder = new PatchBuilderV2({
+      const builder = new PatchBuilder({
         persistence,
         patchJournal: createPatchJournal(persistence),
         graphName: 'test-graph',
@@ -235,7 +235,7 @@ describe('PatchBuilderV2 CAS conflict detection', () => {
         ),
       });
 
-      const builder = new PatchBuilderV2({
+      const builder = new PatchBuilder({
         persistence,
         patchJournal: createPatchJournal(persistence),
         graphName: 'test-graph',

@@ -119,9 +119,9 @@ export default class StrandController {
   // ── Strand patching ─────────────────────────────────────────────────────
 
   /**
-   * Creates a PatchBuilderV2 scoped to a strand for manual patch construction.
+   * Creates a PatchBuilder scoped to a strand for manual patch construction.
    * @param {string} strandId
-   * @returns {Promise<import('../PatchBuilderV2.js').PatchBuilderV2>}
+   * @returns {Promise<import('../PatchBuilder.js').PatchBuilder>}
    */
   async createStrandPatch(strandId) {
     return await this._strandService.createPatchBuilder(strandId);
@@ -130,7 +130,7 @@ export default class StrandController {
   /**
    * Applies a patch to a strand using a builder callback and commits it.
    * @param {string} strandId
-   * @param {(p: import('../PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>} build
+   * @param {(p: import('../PatchBuilder.js').PatchBuilder) => void | Promise<void>} build
    * @returns {Promise<string>}
    */
   async patchStrand(strandId, build) {
@@ -142,7 +142,7 @@ export default class StrandController {
   /**
    * Queues a speculative intent on a strand without committing it.
    * @param {string} strandId
-   * @param {(p: import('../PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>} build
+   * @param {(p: import('../PatchBuilder.js').PatchBuilder) => void | Promise<void>} build
    * @returns {Promise<{ intentId: string, enqueuedAt: string, patch: import('../../types/Patch.ts').default, reads: string[], writes: string[], contentBlobOids: string[] }>}
    */
   async queueStrandIntent(strandId, build) {

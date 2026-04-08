@@ -16,7 +16,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const srcDir = join(__dirname, '..', '..', 'src');
 
 // Task 0.5 (Schema:1 Extermination) is complete:
-// - PatchBuilder.js, Reducer.js, StateSerializer.js have been deleted
+// - Reducer.js, StateSerializer.js have been deleted
+// - PatchBuilder.js is the v2 builder (renamed from PatchBuilderV2.js)
 // - No schema:1 artifacts are exported from index.js
 const SCHEMA1_EXTERMINATION_COMPLETE = true;
 
@@ -28,10 +29,6 @@ const ENGINE_DELETION_COMPLETE = true;
 describe('V7 Contract Guards', () => {
   describe('Schema:1 files must not exist', () => {
     const schema1Files = [
-      {
-        path: 'domain/services/PatchBuilder.js',
-        reason: 'Schema:1 patch builder (no dots, no OR-Set)',
-      },
       {
         path: 'domain/services/Reducer.js',
         reason: 'Schema:1 LWW reducer (tombstones, not OR-Set)',
@@ -86,9 +83,9 @@ describe('V7 Contract Guards', () => {
   describe('Schema:1 must not be exported', () => {
     const exportTestFn = SCHEMA1_EXTERMINATION_COMPLETE ? it : it.skip;
 
-    exportTestFn('should not export PatchBuilder (schema:1)', async () => {
+    exportTestFn('should export PatchBuilder (schema:2, renamed from PatchBuilderV2)', async () => {
       const indexModule = /** @type {any} */ (await import('../../index.js'));
-      expect(indexModule.PatchBuilder).toBeUndefined();
+      expect(indexModule.PatchBuilder).toBeDefined();
     });
 
     exportTestFn('should not export Reducer (schema:1)', async () => {
@@ -112,7 +109,7 @@ describe('V7 Contract Guards', () => {
   describe('V7 required components must exist', () => {
     const requiredFiles = [
       {
-        path: 'domain/services/PatchBuilderV2.js',
+        path: 'domain/services/PatchBuilder.js',
         reason: 'Schema:2 patch builder with dots and OR-Set',
       },
       {

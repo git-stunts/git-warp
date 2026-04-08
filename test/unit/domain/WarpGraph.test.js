@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
-import { PatchBuilderV2 } from '../../../src/domain/services/PatchBuilderV2.js';
+import { PatchBuilder } from '../../../src/domain/services/PatchBuilder.js';
 import { AuditVerifierService } from '../../../src/domain/services/audit/AuditVerifierService.js';
 import { NoOpEffectSink } from '../../../src/infrastructure/adapters/NoOpEffectSink.js';
 
@@ -285,7 +285,7 @@ describe('WarpRuntime', () => {
   });
 
   describe('createPatch', () => {
-    it('returns a PatchBuilderV2 instance for schema:2 (default)', async () => {
+    it('returns a PatchBuilder instance for schema:2 (default)', async () => {
       const persistence = createMockPersistence();
       const graph = await WarpRuntime.open({
         persistence,
@@ -295,10 +295,10 @@ describe('WarpRuntime', () => {
 
       const patchBuilder = await graph.createPatch();
 
-      expect(patchBuilder).toBeInstanceOf(PatchBuilderV2);
+      expect(patchBuilder).toBeInstanceOf(PatchBuilder);
     });
 
-    it('creates a PatchBuilderV2 with correct configuration', async () => {
+    it('creates a PatchBuilder with correct configuration', async () => {
       const persistence = createMockPersistence();
       const graph = await WarpRuntime.open(/** @type {any} */ ({
         persistence,
@@ -1084,7 +1084,7 @@ eg-schema: 2`;
 
   describe('schema version selection (WARP v5)', () => {
     describe('createPatch with schema selection', () => {
-      it('schema 2 (default) uses PatchBuilderV2', async () => {
+      it('schema 2 (default) uses PatchBuilder', async () => {
         const persistence = createMockPersistence();
         const graph = await WarpRuntime.open({
           persistence,
@@ -1094,10 +1094,10 @@ eg-schema: 2`;
 
         const patchBuilder = await graph.createPatch();
 
-        expect(patchBuilder).toBeInstanceOf(PatchBuilderV2);
+        expect(patchBuilder).toBeInstanceOf(PatchBuilder);
       });
 
-      it('schema 2 (explicit) uses PatchBuilderV2', async () => {
+      it('schema 2 (explicit) uses PatchBuilder', async () => {
         const persistence = createMockPersistence();
         // No writers, no checkpoint - fresh graph
         persistence.listRefs.mockResolvedValue([]);
@@ -1112,7 +1112,7 @@ eg-schema: 2`;
 
         const patchBuilder = await graph.createPatch();
 
-        expect(patchBuilder).toBeInstanceOf(PatchBuilderV2);
+        expect(patchBuilder).toBeInstanceOf(PatchBuilder);
       });
     });
 

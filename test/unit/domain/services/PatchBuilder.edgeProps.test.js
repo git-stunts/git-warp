@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PatchBuilderV2 } from '../../../../src/domain/services/PatchBuilderV2.js';
+import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import {
   encodePropKey,
@@ -8,10 +8,10 @@ import {
 } from '../../../../src/domain/services/JoinReducer.js';
 
 /**
- * Helper — creates a minimal PatchBuilderV2 for unit tests (no persistence needed).
+ * Helper — creates a minimal PatchBuilder for unit tests (no persistence needed).
  */
 function makeBuilder(opts = /** @type {any} */ ({})) {
-  return new PatchBuilderV2(/** @type {any} */ ({
+  return new PatchBuilder(/** @type {any} */ ({
     writerId: opts.writerId ?? 'w1',
     lamport: opts.lamport ?? 1,
     versionVector: opts.versionVector ?? createVersionVector(),
@@ -19,7 +19,7 @@ function makeBuilder(opts = /** @type {any} */ ({})) {
   }));
 }
 
-describe('PatchBuilderV2.setEdgeProperty', () => {
+describe('PatchBuilder.setEdgeProperty', () => {
   // ---------------------------------------------------------------
   // Golden path
   // ---------------------------------------------------------------

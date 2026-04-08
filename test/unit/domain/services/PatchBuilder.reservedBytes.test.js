@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PatchBuilderV2 } from '../../../../src/domain/services/PatchBuilderV2.js';
+import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 
 /**
@@ -7,7 +7,7 @@ import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.j
  */
 
 function makeBuilder(opts = /** @type {any} */ ({})) {
-  return new PatchBuilderV2(/** @type {any} */ ({
+  return new PatchBuilder(/** @type {any} */ ({
     writerId: opts.writerId ?? 'w1',
     lamport: opts.lamport ?? 1,
     versionVector: opts.versionVector ?? createVersionVector(),
@@ -15,7 +15,7 @@ function makeBuilder(opts = /** @type {any} */ ({})) {
   }));
 }
 
-describe('PatchBuilderV2 — reserved-byte validation (ADR 1-T12)', () => {
+describe('PatchBuilder — reserved-byte validation (ADR 1-T12)', () => {
   // ----- addNode -----
   describe('addNode', () => {
     it('rejects node ID containing \\0', () => {

@@ -17,7 +17,7 @@
 import nullLogger from '../utils/nullLogger.ts';
 import { validateWriterId, buildWriterRef } from '../utils/RefLayout.ts';
 import { PatchSession } from './PatchSession.js';
-import { PatchBuilderV2 } from '../services/PatchBuilderV2.js';
+import { PatchBuilder } from '../services/PatchBuilder.js';
 import { decodePatchMessage, detectMessageKind } from '../services/codec/WarpMessageCodec.js';
 import WriterError from '../errors/WriterError.ts';
 
@@ -43,7 +43,7 @@ function _assertValidLamport(lamport, commitSha) {
 
 /**
  * @type {ReadonlyArray<[string, string]>}
- * Maps private Writer fields to PatchBuilderV2 option keys.
+ * Maps private Writer fields to PatchBuilder option keys.
  */
 const _WRITER_OPTIONAL_KEYS = /** @type {const} */ ([
   ['_patchJournal', 'patchJournal'],
@@ -53,7 +53,7 @@ const _WRITER_OPTIONAL_KEYS = /** @type {const} */ ([
 ]);
 
 /**
- * Copies optional Writer fields to PatchBuilderV2 options.
+ * Copies optional Writer fields to PatchBuilder options.
  * @param {Record<string, unknown>} writer
  * @param {Record<string, unknown>} opts
  */
@@ -172,19 +172,19 @@ export class Writer {
     const lamport = await this._resolveNextLamport(expectedOldHead);
 
     const builderOpts = this._buildPatchOpts({ persistence, graphName, writerId, lamport, expectedParentSha: expectedOldHead });
-    const builder = new PatchBuilderV2(builderOpts);
+    const builder = new PatchBuilder(builderOpts);
 
     return new PatchSession({ builder, persistence, graphName, writerId, expectedOldHead });
   }
 
   /**
-   * Constructs PatchBuilderV2 options from Writer state.
+   * Constructs PatchBuilder options from Writer state.
    * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, lamport: number, expectedParentSha: string|null }} core
-   * @returns {ConstructorParameters<typeof PatchBuilderV2>[0]}
+   * @returns {ConstructorParameters<typeof PatchBuilder>[0]}
    * @private
    */
   _buildPatchOpts(core) {
-    /** @type {ConstructorParameters<typeof PatchBuilderV2>[0]} */
+    /** @type {ConstructorParameters<typeof PatchBuilder>[0]} */
     const opts = {
       ...core,
       versionVector: /** @type {import('../crdt/VersionVector.js').default} */ (this._versionVector).clone(),

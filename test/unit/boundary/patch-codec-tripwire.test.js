@@ -21,7 +21,7 @@ const ROOT = resolve(__dirname, '..', '..', '..');
  * Add files here as each artifact family is migrated.
  */
 const PATCH_FILES = [
-  'src/domain/services/PatchBuilderV2.js',
+  'src/domain/services/PatchBuilder.js',
   'src/domain/services/sync/SyncProtocol.js',
   'src/domain/warp/Writer.js',
 ];

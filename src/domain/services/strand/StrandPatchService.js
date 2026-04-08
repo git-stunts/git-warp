@@ -1,5 +1,5 @@
 import StrandError from '../../errors/StrandError.ts';
-import { PatchBuilderV2 } from '../PatchBuilderV2.js';
+import { PatchBuilder } from '../PatchBuilder.js';
 import { encodePatchMessage } from '../codec/WarpMessageCodec.js';
 import {
   maxPatchLamport,
@@ -72,7 +72,7 @@ export default class StrandPatchService {
    * Create a fluent patch builder wired to the strand's overlay ref.
    *
    * @param {string} strandId
-   * @returns {Promise<PatchBuilderV2>}
+   * @returns {Promise<PatchBuilder>}
    */
   async createPatchBuilder(strandId) {
     const descriptor = await this._loadStrandOrThrow(strandId);
@@ -83,7 +83,7 @@ export default class StrandPatchService {
    * Build and commit a patch within a reentrancy guard.
    *
    * @param {string} strandId
-   * @param {(p: PatchBuilderV2) => void | Promise<void>} build
+   * @param {(p: PatchBuilder) => void | Promise<void>} build
    * @returns {Promise<string>}
    */
   async patch(strandId, build) {
@@ -107,7 +107,7 @@ export default class StrandPatchService {
    * Build a queued intent from a descriptor and user-supplied build callback.
    *
    * @param {StrandDescriptor} descriptor
-   * @param {(p: PatchBuilderV2) => void | Promise<void>} build
+   * @param {(p: PatchBuilder) => void | Promise<void>} build
    * @returns {Promise<{
    *   intentId: string,
    *   enqueuedAt: string,
@@ -201,7 +201,7 @@ export default class StrandPatchService {
    *
    * @private
    * @param {StrandDescriptor} descriptor
-   * @returns {Promise<PatchBuilderV2>}
+   * @returns {Promise<PatchBuilder>}
    */
   async _createPatchBuilderForDescriptor(descriptor) {
     this._assertWritableDescriptor(descriptor);
@@ -209,15 +209,15 @@ export default class StrandPatchService {
       collectReceipts: false,
       ceiling: null,
     });
-    return new PatchBuilderV2(this._buildOverlayPatchBuilderOptions(descriptor, state, allPatches));
+    return new PatchBuilder(this._buildOverlayPatchBuilderOptions(descriptor, state, allPatches));
   }
 
   /**
-   * Assemble one PatchBuilderV2 options object for overlay commit or intent construction.
+   * Assemble one PatchBuilder options object for overlay commit or intent construction.
    *
    * @private
    * @param {PatchBuilderOptionsParams} params
-   * @returns {ConstructorParameters<typeof PatchBuilderV2>[0]}
+   * @returns {ConstructorParameters<typeof PatchBuilder>[0]}
    */
   _buildPatchBuilderOptions({
     descriptor,
@@ -246,7 +246,7 @@ export default class StrandPatchService {
       pbOpts['onCommitSuccess'] = onCommitSuccess;
     }
     this._attachOptionalPatchBuilderDeps(pbOpts);
-    return /** @type {ConstructorParameters<typeof PatchBuilderV2>[0]} */ (pbOpts);
+    return /** @type {ConstructorParameters<typeof PatchBuilder>[0]} */ (pbOpts);
   }
 
   /**
@@ -275,10 +275,10 @@ export default class StrandPatchService {
    * @param {StrandDescriptor} descriptor
    * @param {import('../JoinReducer.js').WarpStateV5} state
    * @param {Array<{ patch: Patch, sha: string }>} allPatches
-   * @returns {PatchBuilderV2}
+   * @returns {PatchBuilder}
    */
   _buildQueuedIntentBuilder(descriptor, state, allPatches) {
-    return new PatchBuilderV2(this._buildPatchBuilderOptions({
+    return new PatchBuilder(this._buildPatchBuilderOptions({
       descriptor,
       lamport: maxPatchLamport(allPatches) + 1,
       versionVector: state.observedFrontier,
@@ -298,7 +298,7 @@ export default class StrandPatchService {
    * @private
    * @param {StrandDescriptor} descriptor
    * @param {StrandDescriptor['intentQueue']} intentQueue
-   * @param {PatchBuilderV2} builder
+   * @param {PatchBuilder} builder
    * @returns {{
    *   intentId: string,
    *   enqueuedAt: string,
@@ -396,7 +396,7 @@ export default class StrandPatchService {
   }
 
   /**
-   * Attach optional graph-owned PatchBuilderV2 collaborators when available.
+   * Attach optional graph-owned PatchBuilder collaborators when available.
    *
    * @private
    * @param {Record<string, unknown>} pbOpts
@@ -415,7 +415,7 @@ export default class StrandPatchService {
    * @param {StrandDescriptor} descriptor
    * @param {import('../JoinReducer.js').WarpStateV5} state
    * @param {Array<{ patch: Patch, sha: string }>} allPatches
-   * @returns {ConstructorParameters<typeof PatchBuilderV2>[0]}
+   * @returns {ConstructorParameters<typeof PatchBuilder>[0]}
    */
   _buildOverlayPatchBuilderOptions(descriptor, state, allPatches) {
     const overlayRef = this._buildOverlayRef(descriptor.strandId);
@@ -444,7 +444,7 @@ export default class StrandPatchService {
   }
 
   /**
-   * Attach the optional patch journal to one PatchBuilderV2 options bag when present.
+   * Attach the optional patch journal to one PatchBuilder options bag when present.
    *
    * @private
    * @param {Record<string, unknown>} pbOpts
@@ -457,7 +457,7 @@ export default class StrandPatchService {
   }
 
   /**
-   * Attach the optional logger to one PatchBuilderV2 options bag when present.
+   * Attach the optional logger to one PatchBuilder options bag when present.
    *
    * @private
    * @param {Record<string, unknown>} pbOpts
@@ -470,7 +470,7 @@ export default class StrandPatchService {
   }
 
   /**
-   * Attach the optional blob storage to one PatchBuilderV2 options bag when present.
+   * Attach the optional blob storage to one PatchBuilder options bag when present.
    *
    * @private
    * @param {Record<string, unknown>} pbOpts

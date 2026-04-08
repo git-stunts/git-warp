@@ -19,7 +19,7 @@ import WarpApp, {
   HttpServerPort,
   QueryBuilder,
   Observer,
-  PatchBuilderV2,
+  PatchBuilder,
   PatchSession,
   Patch,
   Writer,
@@ -259,16 +259,16 @@ const _typeCoverageTuple: [
   verifyBTROptions,
 ];
 
-// ---- createPatch -> PatchBuilderV2 ----
-const pb: PatchBuilderV2 = await graph.createPatch();
-const _chain: PatchBuilderV2 = pb.addNode('n1').addEdge('n1', 'n2', 'knows').setProperty('n1', 'name', 'Alice');
-const _edgeProp: PatchBuilderV2 = pb.setEdgeProperty('n1', 'n2', 'knows', 'weight', 0.5);
+// ---- createPatch -> PatchBuilder ----
+const pb: PatchBuilder = await graph.createPatch();
+const _chain: PatchBuilder = pb.addNode('n1').addEdge('n1', 'n2', 'knows').setProperty('n1', 'name', 'Alice');
+const _edgeProp: PatchBuilder = pb.setEdgeProperty('n1', 'n2', 'knows', 'weight', 0.5);
 const patch: Patch = pb.build();
 const _sha: string = await pb.commit();
 const _opCount: number = pb.opCount;
 
 // ---- patch() convenience ----
-const sha2: string = await graph.patch((p: PatchBuilderV2) => {
+const sha2: string = await graph.patch((p: PatchBuilder) => {
   p.addNode('n3');
 });
 
@@ -381,8 +381,8 @@ const edgeContentMeta: ContentMeta | null =
   await graph.getEdgeContentMeta('n1', 'n2', 'knows');
 const edgeContentBuf: Uint8Array | null = await graph.getEdgeContent('n1', 'n2', 'knows');
 const contentOptions: ContentAttachmentOptions = { mime: 'text/plain', size: 5 };
-const _attachResult: PatchBuilderV2 = await pb.attachContent('n1', 'hello', contentOptions);
-const _attachEdgeResult: PatchBuilderV2 = await pb.attachEdgeContent('n1', 'n2', 'knows', new TextEncoder().encode('data'));
+const _attachResult: PatchBuilder = await pb.attachContent('n1', 'hello', contentOptions);
+const _attachEdgeResult: PatchBuilder = await pb.attachEdgeContent('n1', 'n2', 'knows', new TextEncoder().encode('data'));
 const _contentKey: '_content' = CONTENT_PROPERTY_KEY;
 
 // ---- query builder ----
@@ -659,7 +659,7 @@ const bad1: string = await graph.materialize();
 // @ts-expect-error -- hasNode requires string, not number
 const bad2: boolean = await graph.hasNode(42);
 
-// @ts-expect-error -- patch callback receives PatchBuilderV2, not string
+// @ts-expect-error -- patch callback receives PatchBuilder, not string
 await graph.patch((p: string) => {});
 
 // @ts-expect-error -- getEdgeProps requires 3 string args

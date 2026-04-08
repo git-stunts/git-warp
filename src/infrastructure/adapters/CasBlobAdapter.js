@@ -154,7 +154,7 @@ export default class CasBlobAdapter extends BlobStoragePort {
     const source = Readable.from([buf]);
 
     // `mime` and `size` are accepted on the public store() contract because
-    // PatchBuilderV2 forwards higher-level attachment metadata here. This CAS
+    // PatchBuilder forwards higher-level attachment metadata here. This CAS
     // adapter persists that metadata via sibling CRDT properties instead of
     // encoding it into the git-cas manifest, so only slug/encryption are used.
     /** @type {{ source: *, slug: string, filename: string, encryptionKey?: Uint8Array }} */

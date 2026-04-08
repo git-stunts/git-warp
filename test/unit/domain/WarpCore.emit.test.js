@@ -18,7 +18,7 @@ async function openCore(extra = {}) {
   });
 }
 
-describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
+describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
   // -----------------------------------------------------------------------
   // Core: emitEffect writes a graph node inside a patch
   // -----------------------------------------------------------------------

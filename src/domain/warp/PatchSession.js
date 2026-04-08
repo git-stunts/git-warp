@@ -98,10 +98,10 @@ export class PatchSession {
   /**
    * Creates a new PatchSession.
    *
-   * @param {{ builder: import('../services/PatchBuilderV2.js').PatchBuilderV2, persistence: import('../../ports/RefPort.ts').default, graphName: string, writerId: string, expectedOldHead: string|null }} options
+   * @param {{ builder: import('../services/PatchBuilder.js').PatchBuilder, persistence: import('../../ports/RefPort.ts').default, graphName: string, writerId: string, expectedOldHead: string|null }} options
    */
   constructor({ builder, persistence, graphName, writerId, expectedOldHead }) {
-    /** @type {import('../services/PatchBuilderV2.js').PatchBuilderV2} */
+    /** @type {import('../services/PatchBuilder.js').PatchBuilder} */
     this._builder = builder;
 
     /** @type {import('../../ports/RefPort.ts').default} */

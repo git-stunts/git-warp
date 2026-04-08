@@ -453,14 +453,14 @@ describe('Writer (WARP schema:2)', () => {
       // Sequence of readRef calls:
       // 1. p1 beginPatch -> oldHead
       // 2. p2 beginPatch -> oldHead
-      // 3. p1 commit PatchBuilderV2 CAS check -> oldHead
+      // 3. p1 commit PatchBuilder CAS check -> oldHead
       // 4. (updateRef happens, ref is now newSha1)
-      // 5. p2 commit PatchBuilderV2 CAS check -> newSha1 (fails here)
+      // 5. p2 commit PatchBuilder CAS check -> newSha1 (fails here)
       persistence.readRef
         .mockResolvedValueOnce(oldHead)  // p1 beginPatch
         .mockResolvedValueOnce(oldHead)  // p2 beginPatch
-        .mockResolvedValueOnce(oldHead)  // p1 commit PatchBuilderV2
-        .mockResolvedValueOnce(newSha1); // p2 commit PatchBuilderV2 (fails)
+        .mockResolvedValueOnce(oldHead)  // p1 commit PatchBuilder
+        .mockResolvedValueOnce(newSha1); // p2 commit PatchBuilder (fails)
 
       persistence.writeBlob.mockResolvedValue('d'.repeat(40));
       persistence.writeTree.mockResolvedValue('e'.repeat(40));

@@ -1,5 +1,5 @@
 /**
- * PatchBuilderV2 - Fluent API for building WARP v5 (schema:2) patches.
+ * PatchBuilder - Fluent API for building WARP v5 (schema:2) patches.
  *
  * Key differences from PatchBuilder:
  * 1. Maintains a VersionVector per writer
@@ -7,7 +7,7 @@
  * 3. Reads current state to populate observedDots for removes
  * 4. Includes context VersionVector in patch
  *
- * @module domain/services/PatchBuilderV2
+ * @module domain/services/PatchBuilder
  * @see WARP v5 Spec
  */
 
@@ -158,9 +158,9 @@ function normalizeContentMetadata(content, metadata) {
 /**
  * Fluent builder for creating WARP v5 patches with dots and observed-remove semantics.
  */
-export class PatchBuilderV2 {
+export class PatchBuilder {
   /**
-   * Creates a new PatchBuilderV2.
+   * Creates a new PatchBuilder.
    *
    * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/Patch.ts').default, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal?: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} options
    */
@@ -307,7 +307,7 @@ export class PatchBuilderV2 {
    *
    * @param {string} nodeId - The node ID to add. Should be unique within the graph.
    *   Convention: use namespaced IDs like `'user:alice'` or `'doc:123'`.
-   * @returns {PatchBuilderV2} This builder instance for method chaining
+   * @returns {PatchBuilder} This builder instance for method chaining
    *
    * @example
    * builder.addNode('user:alice');
@@ -344,7 +344,7 @@ export class PatchBuilderV2 {
    * - `'warn'` (default): Logs a warning but allows the deletion, leaving orphaned data
    *
    * @param {string} nodeId - The node ID to remove
-   * @returns {PatchBuilderV2} This builder instance for method chaining
+   * @returns {PatchBuilder} This builder instance for method chaining
    * @throws {Error} When `onDeleteWithData` is `'reject'` and the node has attached
    *   edges or properties. Error message includes counts of attached data.
    *
@@ -434,7 +434,7 @@ export class PatchBuilderV2 {
    * @param {string} from - Source node ID (edge origin)
    * @param {string} to - Target node ID (edge destination)
    * @param {string} label - Edge label/type describing the relationship
-   * @returns {PatchBuilderV2} This builder instance for method chaining
+   * @returns {PatchBuilder} This builder instance for method chaining
    *
    * @example
    * builder.addEdge('user:alice', 'user:bob', 'follows');
@@ -475,7 +475,7 @@ export class PatchBuilderV2 {
    * @param {string} from - Source node ID (edge origin)
    * @param {string} to - Target node ID (edge destination)
    * @param {string} label - Edge label/type describing the relationship
-   * @returns {PatchBuilderV2} This builder instance for method chaining
+   * @returns {PatchBuilder} This builder instance for method chaining
    *
    * @example
    * builder.removeEdge('user:alice', 'user:bob', 'follows');
@@ -521,7 +521,7 @@ export class PatchBuilderV2 {
    * @param {unknown} value - Property value. Must be JSON-serializable (strings,
    *   numbers, booleans, arrays, plain objects, or null). Use `null` to
    *   effectively delete a property (LWW semantics).
-   * @returns {PatchBuilderV2} This builder instance for method chaining
+   * @returns {PatchBuilder} This builder instance for method chaining
    *
    * @example
    * builder.setProperty('user:alice', 'name', 'Alice');
@@ -582,7 +582,7 @@ export class PatchBuilderV2 {
    * @param {string} nodeId - Target node ID
    * @param {string} key - Property key
    * @param {unknown} value - Property value
-   * @returns {PatchBuilderV2} This builder for chaining
+   * @returns {PatchBuilder} This builder for chaining
    */
   setProperty(nodeId, key, value) {
     this._assertNotCommitted();
@@ -618,7 +618,7 @@ export class PatchBuilderV2 {
    * @param {unknown} value - Property value. Must be JSON-serializable (strings,
    *   numbers, booleans, arrays, plain objects, or null). Use `null` to
    *   effectively delete a property (LWW semantics).
-   * @returns {PatchBuilderV2} This builder instance for method chaining
+   * @returns {PatchBuilder} This builder instance for method chaining
    * @throws {Error} When the edge `(from, to, label)` does not exist in
    *   either this patch or the current materialized state. Message format:
    *   `"Cannot set property on unknown edge (from -> to [label]): add the edge first"`
@@ -668,7 +668,7 @@ export class PatchBuilderV2 {
    * @param {string} nodeId - The node ID to attach content to
    * @param {AsyncIterable<Uint8Array>|ReadableStream<Uint8Array>|Uint8Array|string} content - The content to attach
    * @param {{ mime?: string|null, size?: number|null }} [metadata] - Optional metadata hint
-   * @returns {Promise<PatchBuilderV2>} This builder instance for method chaining
+   * @returns {Promise<PatchBuilder>} This builder instance for method chaining
    */
   async attachContent(nodeId, content, metadata = undefined) {
     this._assertNotCommitted();
@@ -713,7 +713,7 @@ export class PatchBuilderV2 {
    * manually.
    *
    * @param {string} nodeId - The node ID to clear content from
-   * @returns {PatchBuilderV2} This builder instance for method chaining
+   * @returns {PatchBuilder} This builder instance for method chaining
    */
   clearContent(nodeId) {
     this._assertNotCommitted();
@@ -738,7 +738,7 @@ export class PatchBuilderV2 {
    * @param {string} label - Edge label
    * @param {AsyncIterable<Uint8Array>|ReadableStream<Uint8Array>|Uint8Array|string} content - The content to attach
    * @param {{ mime?: string|null, size?: number|null }} [metadata] - Optional metadata hint
-   * @returns {Promise<PatchBuilderV2>} This builder instance for method chaining
+   * @returns {Promise<PatchBuilder>} This builder instance for method chaining
    */
   async attachEdgeContent(from, to, label, content, metadata = undefined) {
     this._assertNotCommitted();
@@ -787,7 +787,7 @@ export class PatchBuilderV2 {
    * @param {string} from - Source node ID
    * @param {string} to - Target node ID
    * @param {string} label - Edge label
-   * @returns {PatchBuilderV2} This builder instance for method chaining
+   * @returns {PatchBuilder} This builder instance for method chaining
    */
   clearEdgeContent(from, to, label) {
     this._assertNotCommitted();

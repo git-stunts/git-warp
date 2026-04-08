@@ -1165,7 +1165,7 @@ describe('StrandService', () => {
       }
     });
 
-    it('returns a PatchBuilderV2 for writable strands', async () => {
+    it('returns a PatchBuilder for writable strands', async () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
 

@@ -81,7 +81,7 @@ function createMockPersistence() {
 
 /**
  * Simulates creating a patch commit in the mock persistence,
- * mimicking what PatchBuilderV2.commit() does.
+ * mimicking what PatchBuilder.commit() does.
  *
  * Returns the commit SHA.
  */

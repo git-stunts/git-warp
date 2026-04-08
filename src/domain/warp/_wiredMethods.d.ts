@@ -5,7 +5,7 @@
  * via defineProperty delegation. This declaration file makes them visible to tsc.
  */
 
-import type { PatchBuilderV2 } from '../services/PatchBuilderV2.js';
+import type { PatchBuilder } from '../services/PatchBuilder.js';
 import type { Writer } from './Writer.js';
 import type { WarpStateV5 } from '../services/JoinReducer.js';
 import type Patch from '../types/Patch.js';
@@ -630,9 +630,9 @@ declare module '../WarpRuntime.js' {
     getGCMetrics(): GCMetrics | null;
 
     // ── PatchController ──────────────────────────────────────────────────
-    createPatch(): Promise<PatchBuilderV2>;
-    patch(build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
-    patchMany(...builds: Array<(p: PatchBuilderV2) => void | Promise<void>>): Promise<string[]>;
+    createPatch(): Promise<PatchBuilder>;
+    patch(build: (p: PatchBuilder) => void | Promise<void>): Promise<string>;
+    patchMany(...builds: Array<(p: PatchBuilder) => void | Promise<void>>): Promise<string[]>;
     _nextLamport(): Promise<{ lamport: number; parentSha: string | null }>;
     _loadPatchChainFromSha(tipSha: string, stopAtSha?: string | null): Promise<Array<{ patch: Patch; sha: string }>>;
     _loadWriterPatches(writerId: string, stopAtSha?: string | null): Promise<Array<{ patch: Patch; sha: string }>>;
@@ -675,9 +675,9 @@ declare module '../WarpRuntime.js' {
     materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
     getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: Patch; sha: string }>>;
     patchesForStrand(strandId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
-    createStrandPatch(strandId: string): Promise<PatchBuilderV2>;
-    patchStrand(strandId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
-    queueStrandIntent(strandId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<StrandIntentDescriptor>;
+    createStrandPatch(strandId: string): Promise<PatchBuilder>;
+    patchStrand(strandId: string, build: (p: PatchBuilder) => void | Promise<void>): Promise<string>;
+    queueStrandIntent(strandId: string, build: (p: PatchBuilder) => void | Promise<void>): Promise<StrandIntentDescriptor>;
     listStrandIntents(strandId: string): Promise<StrandIntentDescriptor[]>;
     tickStrand(strandId: string): Promise<StrandTickRecord>;
     compareStrand(strandId: string, options?: {

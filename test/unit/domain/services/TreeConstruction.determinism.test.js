@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { createRng } from '../../../helpers/seededRng.js';
-import { PatchBuilderV2 } from '../../../../src/domain/services/PatchBuilderV2.js';
+import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
 import { createV5 } from '../../../../src/domain/services/state/CheckpointService.js';
@@ -44,7 +44,7 @@ async function createPatchTreeOid(contentIds, shuffleSeed) {
     clock: FIXED_CLOCK,
   });
 
-  const builder = new PatchBuilderV2(/** @type {any} */ ({
+  const builder = new PatchBuilder(/** @type {any} */ ({
     persistence,
     patchJournal: new CborPatchJournalAdapter({
       codec: new CborCodec(),
@@ -176,7 +176,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
 }
 
 describe('tree construction determinism (B99)', () => {
-  it('PatchBuilderV2 tree OID is stable across content-blob order permutations', async () => {
+  it('PatchBuilder tree OID is stable across content-blob order permutations', async () => {
     await fc.assert(
       fc.asyncProperty(contentIdsArb, fc.integer(), async (contentIds, shuffleSeed) => {
         const baselineTreeOid = await createPatchTreeOid(contentIds, null);

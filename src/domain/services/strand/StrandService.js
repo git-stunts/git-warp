@@ -34,7 +34,7 @@ export {
 
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
-/** @import { PatchBuilderV2 } from '../PatchBuilderV2.js' */
+/** @import { PatchBuilder } from '../PatchBuilder.js' */
 /** @typedef {import('./strandTypes.js').ParsedStrandBlob} ParsedStrandBlob */
 /** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */
 /** @typedef {import('./strandTypes.js').StrandIntentQueue} StrandIntentQueue */
@@ -487,7 +487,7 @@ export default class StrandService {
        * Build one queued intent through the current patch seam.
        *
        * @param {StrandDescriptor} descriptor
-       * @param {(p: PatchBuilderV2) => void | Promise<void>} build
+       * @param {(p: PatchBuilder) => void | Promise<void>} build
        * @returns {Promise<StrandQueuedIntent>}
        */
       buildQueuedIntent: async (descriptor, build) => await this._buildQueuedIntent(descriptor, build),
@@ -707,7 +707,7 @@ export default class StrandService {
    * Create a fluent patch builder wired to the strand's overlay ref.
    *
    * @param {string} strandId
-   * @returns {Promise<PatchBuilderV2>}
+   * @returns {Promise<PatchBuilder>}
    */
   async createPatchBuilder(strandId) {
     return await this._patchService.createPatchBuilder(strandId);
@@ -717,7 +717,7 @@ export default class StrandService {
    * Build and commit a patch within a reentrancy guard.
    *
    * @param {string} strandId
-   * @param {(p: PatchBuilderV2) => void | Promise<void>} build
+   * @param {(p: PatchBuilder) => void | Promise<void>} build
    * @returns {Promise<string>}
    */
   async patch(strandId, build) {
@@ -728,7 +728,7 @@ export default class StrandService {
    * Enqueue a new intent onto the strand's intent queue for deferred tick processing.
    *
    * @param {string} strandId
-   * @param {(p: PatchBuilderV2) => void | Promise<void>} build
+   * @param {(p: PatchBuilder) => void | Promise<void>} build
    * @returns {Promise<{
    *   intentId: string,
    *   enqueuedAt: string,
@@ -784,7 +784,7 @@ export default class StrandService {
    *
    * @private
    * @param {StrandDescriptor} descriptor
-   * @param {(p: PatchBuilderV2) => void | Promise<void>} build
+   * @param {(p: PatchBuilder) => void | Promise<void>} build
    * @returns {Promise<{
    *   intentId: string,
    *   enqueuedAt: string,

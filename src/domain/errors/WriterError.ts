@@ -4,7 +4,7 @@ import WarpError from './WarpError.ts';
  * Error class for Writer operations.
  *
  * Preserves the existing (code, message, cause) positional constructor
- * signature used throughout PatchSession and PatchBuilderV2, while
+ * signature used throughout PatchSession and PatchBuilder, while
  * inheriting from WarpError for unified error hierarchy.
  *
  * ## Error Codes
@@ -24,7 +24,7 @@ export default class WriterError extends WarpError {
   /**
    * Note: constructor parameter order differs from other WarpError subclasses
    * (code, message vs message, code). This is intentional to match the most
-   * common call sites in PatchSession and PatchBuilderV2 where the error code
+   * common call sites in PatchSession and PatchBuilder where the error code
    * is the primary discriminator.
    */
   constructor(code: string, message: string, cause?: Error) {
