@@ -81,3 +81,6 @@ The API shape tells the caller: you can't slurp this.
 
 P5 codec dissolution → stream architecture design (2026-04-04).
 Formalized as TRAVERSAL-TRUTH invariant.
+
+---
+**Graveyarded:** 2026-04-08 — completed, shipped before v17.0.0.

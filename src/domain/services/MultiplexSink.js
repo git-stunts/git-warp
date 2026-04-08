@@ -18,7 +18,7 @@ import EffectSinkPort from '../../ports/EffectSinkPort.js';
  */
 
 /** Default sink ID for MultiplexSink. */
-export const MULTIPLEX_SINK_ID = 'multiplex';
+const MULTIPLEX_SINK_ID = 'multiplex';
 
 export class MultiplexSink extends EffectSinkPort {
   /**

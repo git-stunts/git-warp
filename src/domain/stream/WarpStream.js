@@ -60,7 +60,7 @@ export default class WarpStream {
    */
   static from(iterable, options) {
     if (iterable instanceof WarpStream) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- instanceof narrows; cast is correct
+       
       return /** @type {WarpStream<V>} */ (iterable);
     }
     // Wrap sync iterables as async

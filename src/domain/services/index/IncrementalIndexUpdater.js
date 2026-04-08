@@ -34,7 +34,7 @@ const MAX_LOCAL_ID = 1 << 24;
  */
 function createNullProto() {
   // Object.create(null) returns `any`; isolate it behind a typed return.
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+   
   return Object.create(null);
 }
 

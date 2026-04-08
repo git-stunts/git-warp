@@ -23,8 +23,8 @@ function requireObject(value, label) {
   }
 }
 
-export const COORDINATE_COMPARISON_FACT_EXPORT_VERSION = 'coordinate-comparison-fact/v1';
-export const COORDINATE_TRANSFER_PLAN_FACT_EXPORT_VERSION = 'coordinate-transfer-plan-fact/v1';
+const COORDINATE_COMPARISON_FACT_EXPORT_VERSION = 'coordinate-comparison-fact/v1';
+const COORDINATE_TRANSFER_PLAN_FACT_EXPORT_VERSION = 'coordinate-transfer-plan-fact/v1';
 
 /**
  * @typedef {{
@@ -162,7 +162,7 @@ function serializeSingleTransferOp(op) {
  * @param {VisibleStateTransferOperationV1[]} ops
  * @returns {VisibleStateTransferOperationFactV1[]}
  */
-export function serializeTransferOpsForFact(ops) {
+function serializeTransferOpsForFact(ops) {
   if (!Array.isArray(ops)) {
     throw new TypeError('ops must be an array');
   }

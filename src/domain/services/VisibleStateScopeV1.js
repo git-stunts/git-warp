@@ -233,7 +233,7 @@ export function nodeIdInVisibleStateScope(nodeId, scope) {
  * @param {VisibleStateScopeV1|null|undefined} scope
  * @returns {boolean}
  */
-export function edgeInVisibleStateScope(edge, scope) {
+function edgeInVisibleStateScope(edge, scope) {
   return nodeIdInVisibleStateScope(edge.from, scope) && nodeIdInVisibleStateScope(edge.to, scope);
 }
 

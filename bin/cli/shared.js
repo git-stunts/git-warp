@@ -222,7 +222,7 @@ export function createHookInstaller() {
  * @param {string} key - Git config key (or '--git-dir' for the .git directory)
  * @returns {string|null} Config value, or null if not set
  */
-export function execGitConfigValue(repoPath, key) {
+function execGitConfigValue(repoPath, key) {
   try {
     if (key === '--git-dir') {
       return execFileSync('git', ['-C', repoPath, 'rev-parse', '--git-dir'], {

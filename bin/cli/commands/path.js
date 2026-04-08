@@ -122,7 +122,6 @@ async function attachRenderedSvg(payload, view, graphName) {
 async function runPathTraversal(ctx, pathOptions) {
   const { graph, graphName, view } = ctx;
   /** @type {PathResult} */
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment -- traverse.shortestPath is typed as Function in WarpGraphInstance
   const result = await graph.traverse.shortestPath(
     pathOptions.from,
     pathOptions.to,

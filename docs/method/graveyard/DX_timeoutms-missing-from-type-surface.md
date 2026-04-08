@@ -14,3 +14,6 @@ integration.
 
 Fix: either add `timeoutMs?: number` to the open options type, or
 remove the runtime support if it's not a public option.
+
+---
+**Graveyarded:** 2026-04-08 — false positive. timeoutMs belongs on syncWith() (where it already exists), not on open(). Broader failure-mode policy filed as cool-idea DX_alfred-resilience-policy.

@@ -141,7 +141,7 @@ export async function getStrandPatchEntriesForDebug(graph, strandId, lamportCeil
  *   }
  * }}
  */
-export function summarizeStrandContextForDebug(strand) {
+function summarizeStrandContextForDebug(strand) {
   return {
     strandId: strand.strandId,
     baseLamportCeiling: strand.baseObservation.lamportCeiling,
@@ -217,7 +217,7 @@ function addIfNonEmptyString(ids, value) {
  * @param {DebugOpLike[]|undefined} ops - Raw patch operations
  * @returns {string[]} Sorted unique identifiers
  */
-export function collectTouchedIds(ops) {
+function collectTouchedIds(ops) {
   if (!Array.isArray(ops) || ops.length === 0) {
     return [];
   }

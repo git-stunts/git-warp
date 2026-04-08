@@ -36,12 +36,6 @@ export const DEFAULT_LIMITS = Object.freeze({
 
 // ── Schema Version ──────────────────────────────────────────────────────────
 
-/**
- * Current sync protocol schema version.
- * Responses with unknown versions are rejected.
- */
-export const SYNC_SCHEMA_VERSION = 1;
-
 // ── Shared Primitives ───────────────────────────────────────────────────────
 
 /**
@@ -171,7 +165,7 @@ export function createSyncRequestSchema(limits = DEFAULT_LIMITS) {
 }
 
 /** Default SyncRequest schema with default limits */
-export const SyncRequestSchema = createSyncRequestSchema();
+const SyncRequestSchema = createSyncRequestSchema();
 
 // ── Sync Response Schema ────────────────────────────────────────────────────
 
@@ -189,7 +183,7 @@ export function createSyncResponseSchema(limits = DEFAULT_LIMITS) {
 }
 
 /** Default SyncResponse schema with default limits */
-export const SyncResponseSchema = createSyncResponseSchema();
+const SyncResponseSchema = createSyncResponseSchema();
 
 // ── Validation Helpers ──────────────────────────────────────────────────────
 

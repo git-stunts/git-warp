@@ -3,7 +3,7 @@ import { createStateReaderV5 } from './state/StateReaderV5.js';
 
 
 /** @import { VisibleNodeViewV5, VisibleStateComparisonV5, VisibleStateNeighborV5, VisibleStateReaderV5 } from '../../../index.js' */
-export const VISIBLE_STATE_COMPARISON_VERSION = 'visible-state-compare/v1';
+const VISIBLE_STATE_COMPARISON_VERSION = 'visible-state-compare/v1';
 
 /**
 

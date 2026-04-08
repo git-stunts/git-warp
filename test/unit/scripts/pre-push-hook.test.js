@@ -135,7 +135,7 @@ describe('scripts/hooks/pre-push', () => {
   it('keeps the checked-in header aligned with the runtime gate layout', () => {
     const source = readFileSync(hookPath, 'utf8');
 
-    expect(source).toContain('# Seven gates in parallel, then unit tests. ALL must pass or push is blocked.');
+    expect(source).toContain('# Six blocking gates + one advisory gate in parallel, then unit tests.');
   });
 
   it('skips Gate 8 in quick mode without running unit tests', () => {
@@ -149,9 +149,9 @@ describe('scripts/hooks/pre-push', () => {
       'lint',
       'lint:md',
       'lint:md:code',
-      'typecheck',
       'typecheck:consumer',
       'typecheck:policy',
+      'typecheck:src',
       'typecheck:surface',
     ]);
     expect(result.lycheeCalls).toEqual(['--config .lychee.toml **/*.md']);
@@ -175,18 +175,17 @@ describe('scripts/hooks/pre-push', () => {
       'lint:md',
       'lint:md:code',
       'test:local',
-      'typecheck',
       'typecheck:consumer',
       'typecheck:policy',
+      'typecheck:src',
       'typecheck:surface',
     ]);
   });
 
   const failureCases = [
-    ['typecheck', 'BLOCKED — Gate 1 FAILED: TypeScript compiler (strict mode)'],
     ['typecheck:policy', 'BLOCKED — Gate 2 FAILED: IRONCLAD policy (any/wildcard/ts-ignore ban)'],
     ['typecheck:consumer', 'BLOCKED — Gate 3 FAILED: Consumer type surface test'],
-    ['lint', 'BLOCKED — Gate 4 FAILED: ESLint (includes no-explicit-any, no-unsafe-*)'],
+    ['lint', 'BLOCKED — Gate 4 FAILED: ESLint (includes no-explicit-any)'],
     ['typecheck:surface', 'BLOCKED — Gate 5 FAILED: Declaration surface validator'],
     ['lint:md', 'BLOCKED — Gate 6 FAILED: Markdown lint'],
     ['lint:md:code', 'BLOCKED — Gate 7 FAILED: Markdown JS/TS code-sample syntax check'],

@@ -392,17 +392,6 @@ export function buildStrandOverlayRef(graphName, strandId) {
 }
 
 /**
- * Builds the strand overlay prefix path for the given graph.
- *
- * @param {string} graphName
- * @returns {string}
- */
-export function buildStrandOverlaysPrefix(graphName) {
-  validateGraphName(graphName);
-  return `${REF_PREFIX}/${graphName}/strand-overlays/`;
-}
-
-/**
  * Builds a pinned braid ref for one support overlay inside a target strand.
  *
  * The ref points at the pinned head SHA for the support overlay at braid time,
