@@ -132,14 +132,17 @@ import {
   createPropSetV2,
 } from '../../../../src/domain/types/WarpTypesV2.ts';
 
-// v1 op types (for migration tests)
-import {
-  createNodeAdd,
-  createNodeTombstone,
-  createEdgeAdd,
-  createPropSet,
-  createInlineValue,
-} from '../../../../src/domain/types/WarpTypes.ts';
+// v1 op types (for migration tests) — inlined after WarpTypes.ts deletion
+/** @param {string} node */
+function createNodeAdd(node) { return { type: 'NodeAdd', node }; }
+/** @param {string} node */
+function createNodeTombstone(node) { return { type: 'NodeTombstone', node }; }
+/** @param {string} from @param {string} to @param {string} label */
+function createEdgeAdd(from, to, label) { return { type: 'EdgeAdd', from, to, label }; }
+/** @param {string} node @param {string} key @param {unknown} value */
+function createPropSet(node, key, value) { return { type: 'PropSet', node, key, value }; }
+/** @param {unknown} value */
+function createInlineValue(value) { return { type: 'inline', value }; }
 
 /**
  * Creates a PatchV1 (schema:1) for migration testing.

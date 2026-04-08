@@ -80,16 +80,23 @@ import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellati
 // Multi-writer graph support (WARP)
 import WarpCore from './src/domain/WarpCore.js';
 import WarpApp from './src/domain/WarpApp.js';
-import {
-  createNodeAdd,
-  createNodeTombstone,
-  createEdgeAdd,
-  createEdgeTombstone,
-  createPropSet,
-  createInlineValue,
-  createBlobValue,
-  createEventId,
-} from './src/domain/types/WarpTypes.ts';
+// V1 op factories — inlined after WarpTypes.ts deletion (deprecated, kept for backward compat)
+/** @param {string} node */
+function createNodeAdd(node) { return { type: 'NodeAdd', node }; }
+/** @param {string} node */
+function createNodeTombstone(node) { return { type: 'NodeTombstone', node }; }
+/** @param {string} from @param {string} to @param {string} label */
+function createEdgeAdd(from, to, label) { return { type: 'EdgeAdd', from, to, label }; }
+/** @param {string} from @param {string} to @param {string} label */
+function createEdgeTombstone(from, to, label) { return { type: 'EdgeTombstone', from, to, label }; }
+/** @param {string} node @param {string} key @param {{ type: 'inline', value: unknown } | { type: 'blob', oid: string }} value */
+function createPropSet(node, key, value) { return { type: 'PropSet', node, key, value }; }
+/** @param {unknown} value */
+function createInlineValue(value) { return { type: 'inline', value }; }
+/** @param {string} oid */
+function createBlobValue(oid) { return { type: 'blob', oid }; }
+/** @param {{ lamport: number, writerId: string, patchSha: string, opIndex: number }} fields */
+function createEventId({ lamport, writerId, patchSha, opIndex }) { return { lamport, writerId, patchSha, opIndex }; }
 import { migrateV4toV5 } from './src/domain/services/MigrationService.js';
 import QueryBuilder from './src/domain/services/query/QueryBuilder.js';
 import Observer from './src/domain/services/query/Observer.js';

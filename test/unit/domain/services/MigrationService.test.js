@@ -127,14 +127,19 @@ import { orsetContains, orsetElements } from '../../../../src/domain/crdt/ORSet.
 import { lwwSet, lwwValue } from '../../../../src/domain/crdt/LWW.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
-import {
-  createNodeAdd,
-  createNodeTombstone,
-  createEdgeAdd,
-  createEdgeTombstone,
-  createPropSet,
-  createInlineValue,
-} from '../../../../src/domain/types/WarpTypes.ts';
+// v1 op types (for migration tests) — inlined after WarpTypes.ts deletion
+/** @param {string} node */
+function createNodeAdd(node) { return { type: 'NodeAdd', node }; }
+/** @param {string} node */
+function createNodeTombstone(node) { return { type: 'NodeTombstone', node }; }
+/** @param {string} from @param {string} to @param {string} label */
+function createEdgeAdd(from, to, label) { return { type: 'EdgeAdd', from, to, label }; }
+/** @param {string} from @param {string} to @param {string} label */
+function createEdgeTombstone(from, to, label) { return { type: 'EdgeTombstone', from, to, label }; }
+/** @param {string} node @param {string} key @param {unknown} value */
+function createPropSet(node, key, value) { return { type: 'PropSet', node, key, value }; }
+/** @param {unknown} value */
+function createInlineValue(value) { return { type: 'inline', value }; }
 import {
   createPatchV2,
   createNodeAddV2,

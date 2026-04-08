@@ -23,7 +23,8 @@ import {
 
 /** @type {any} */
 const reduceV5 = _reduceV5;
-import { createInlineValue } from '../../src/domain/types/WarpTypes.ts';
+/** @param {unknown} value */
+function createInlineValue(value) { return { type: 'inline', value }; }
 import { createDot, encodeDot } from '../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../src/domain/crdt/VersionVector.js';
 import { orsetElements } from '../../src/domain/crdt/ORSet.js';
