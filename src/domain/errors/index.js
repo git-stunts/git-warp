@@ -5,10 +5,7 @@
  */
 
 export { default as AuditError } from './AuditError.js';
-export { default as EmptyMessageError } from './EmptyMessageError.js';
 export { default as EncryptionError } from './EncryptionError.js';
-export { default as PersistenceError } from './PersistenceError.js';
-export { default as WarpError } from './WarpError.js';
 export { default as ForkError } from './ForkError.js';
 export { default as IndexError } from './IndexError.js';
 export { default as OperationAbortedError } from './OperationAbortedError.js';
@@ -22,12 +19,5 @@ export { default as ShardValidationError } from './ShardValidationError.js';
 export { default as StorageError } from './StorageError.js';
 export { default as SchemaUnsupportedError } from './SchemaUnsupportedError.js';
 export { default as TraversalError } from './TraversalError.js';
-export { default as TrustError } from './TrustError.js';
 export { default as StrandError } from './StrandError.js';
-export { default as WriterError } from './WriterError.js';
 export { default as WormholeError } from './WormholeError.js';
-export { default as AdapterValidationError } from './AdapterValidationError.js';
-export { default as CacheError } from './CacheError.js';
-export { default as CrdtError } from './CrdtError.js';
-export { default as CryptoError } from './CryptoError.js';
-export { default as MessageCodecError } from './MessageCodecError.js';
