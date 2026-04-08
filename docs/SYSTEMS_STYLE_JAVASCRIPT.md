@@ -423,6 +423,25 @@ engine.compactPreservingTombstones(log);
 - `any` is banned. `unknown` at raw edges only, eliminated immediately.
 - Type-only constructs must not create a false sense of safety that the runtime does not back up.
 
+**Disabled type-aware lint rules:**
+
+The `@typescript-eslint/no-unsafe-*` family (`no-unsafe-assignment`,
+`no-unsafe-member-access`, `no-unsafe-return`, `no-unsafe-call`) is
+**disabled project-wide**. `strict-boolean-expressions` is relaxed to
+allow `any` in conditionals.
+
+These rules produce false positives in JSDoc-annotated JavaScript —
+tsc loses type information across module boundaries and flags every
+cross-module call as unsafe. In a codebase where safety comes from
+runtime-backed classes with constructor validation, `instanceof`
+dispatch, and `Object.freeze`, the rules add noise without catching
+bugs. They also incentivize `@type` cast annotations that paper over
+tsc's limitations rather than fixing real problems.
+
+What we keep: `no-explicit-any` (banning `any` in authored annotations),
+`switch-exhaustiveness-check`, `only-throw-error`,
+`no-unnecessary-type-assertion`, and all non-type-aware rules.
+
 ### The Anti-Shape-Soup Doctrine
 
 Most bad JavaScript infrastructure stems from weak modeling. The discipline is:

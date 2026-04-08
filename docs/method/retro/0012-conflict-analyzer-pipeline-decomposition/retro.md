@@ -1,6 +1,6 @@
 # Cycle 0012 Retro — ConflictAnalyzer Pipeline Decomposition
 
-**Status:** IN PROGRESS (phases 1–5 complete, phase 6 remains)
+**Status:** COMPLETE
 
 ## What ground was taken
 
@@ -36,6 +36,15 @@ Moved constructor-shaped functions onto owning types:
 - `ConflictResolution.fromCandidate()`
 - `ConflictAnalysisRequest.matchesTrace()`
 
+### Phase 6: Facade cleanup + project-wide dead export sweep
+Removed ~43 dead exports across the codebase: 4 dead re-exports and a
+duplicate constant from ConflictAnalyzerService, 10 unused re-exports
+from the errors barrel (27 → 17), and 29 de-exported or deleted symbols
+across 14 other source files. Last stale `no-unsafe-*` eslint-disable
+directive removed from `bin/cli/commands/path.js`. Recorded the
+`no-unsafe-*` decision in `SYSTEMS_STYLE_JAVASCRIPT.md` as standing
+policy.
+
 ### The `no-unsafe-*` decision
 
 **Disabled `@typescript-eslint/no-unsafe-assignment`, `no-unsafe-member-access`,
@@ -66,21 +75,20 @@ still allowed; it's just not king.
 
 | Metric | Before | After |
 |--------|--------|-------|
-| ConflictAnalyzerService.js | 2282 LOC | 151 LOC |
+| ConflictAnalyzerService.js | 2282 LOC | 110 LOC |
 | Phantom typedefs in analyzer | 15 | 0 |
 | Runtime-backed domain classes | 0 | 11 |
 | Pipeline modules | 1 | 6 |
 | Lint errors in src/ | 40 | 0 |
-| Test count | 6484 | 6759 |
+| Test count | 6484 | 6756 |
 | Coverage on new code | — | 100% |
 
 ## What remains contested
 
-- Phase 6 (facade cleanup) not yet done — the analyzer orchestrator is already
-  thin at 151 lines, but a final pass may find remaining dead code or
-  opportunities to simplify the pipeline wiring.
 - The 2000+ `@type` cast annotations across the broader `src/` are now
   optional noise. They can be pruned incrementally in future cycles.
+- The pipeline modules all receive the service instance as a god-context
+  (`service._hash()`, `service._graph`). Filed as ASAP backlog item.
 
 ## Sludge report
 
@@ -111,8 +119,6 @@ wrong about the code it was checking.
 
 ## What comes next
 
-- Phase 6 facade cleanup (ConflictAnalyzerService is already 151 lines —
-  may not need a dedicated pass)
-- Consider pruning `@type` casts in files touched by future cycles
-- Record the `no-unsafe-*` decision in `SYSTEMS_STYLE_JAVASCRIPT.md`
-  as standing policy
+- Prune `@type` casts incrementally in files touched by future cycles
+- Extract `service._hash()` / `service._graph` god-context into an
+  explicit pipeline context object (ASAP backlog item filed)
