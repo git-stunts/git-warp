@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeRawOp, lowerCanonicalOp } from '../../../../src/domain/services/OpNormalizer.js';
-import { createPropSetV2, createNodePropSetV2, createEdgePropSetV2 } from '../../../../src/domain/types/WarpTypesV2.js';
+import { createPropSetV2, createNodePropSetV2, createEdgePropSetV2 } from '../../../../src/domain/types/WarpTypesV2.ts';
 import { encodePropKey, encodeEdgePropKey, encodeLegacyEdgePropNode, EDGE_PROP_PREFIX } from '../../../../src/domain/services/KeyCodec.js';
 
 // ============================================================================
@@ -98,7 +98,7 @@ describe('OpNormalizer', () => {
     it('A1-T03: lowers EdgePropSet to raw PropSet with legacy node encoding', () => {
       const canonical = createEdgePropSetV2('alice', 'bob', 'follows', 'weight', 0.9);
 
-      const raw = /** @type {import('../../../../src/domain/types/WarpTypesV2.js').OpV2PropSet} */ (lowerCanonicalOp(canonical));
+      const raw = /** @type {import('../../../../src/domain/types/WarpTypesV2.ts').OpV2PropSet} */ (lowerCanonicalOp(canonical));
 
       expect(raw.type).toBe('PropSet');
       expect(raw.node).toBe('\x01alice\0bob\0follows');

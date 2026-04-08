@@ -4,14 +4,14 @@
  */
 import { describe, it, expect } from 'vitest';
 import { Dot } from '../../../../../src/domain/crdt/Dot.js';
-import Op from '../../../../../src/domain/types/ops/Op.js';
-import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.js';
-import NodeRemove from '../../../../../src/domain/types/ops/NodeRemove.js';
-import EdgeAdd from '../../../../../src/domain/types/ops/EdgeAdd.js';
-import EdgeRemove from '../../../../../src/domain/types/ops/EdgeRemove.js';
-import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.js';
-import EdgePropSet from '../../../../../src/domain/types/ops/EdgePropSet.js';
-import PropSetClass from '../../../../../src/domain/types/ops/PropSet.js';
+import Op from '../../../../../src/domain/types/ops/Op.ts';
+import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
+import NodeRemove from '../../../../../src/domain/types/ops/NodeRemove.ts';
+import EdgeAdd from '../../../../../src/domain/types/ops/EdgeAdd.ts';
+import EdgeRemove from '../../../../../src/domain/types/ops/EdgeRemove.ts';
+import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.ts';
+import EdgePropSet from '../../../../../src/domain/types/ops/EdgePropSet.ts';
+import PropSetClass from '../../../../../src/domain/types/ops/PropSet.ts';
 import {
   createNodeAddV2,
   createNodeRemoveV2,
@@ -20,7 +20,7 @@ import {
   createPropSetV2,
   createNodePropSetV2,
   createEdgePropSetV2,
-} from '../../../../../src/domain/types/WarpTypesV2.js';
+} from '../../../../../src/domain/types/WarpTypesV2.ts';
 import { normalizeRawOp, lowerCanonicalOp } from '../../../../../src/domain/services/OpNormalizer.js';
 
 describe('WarpTypesV2 factory functions produce Op class instances', () => {

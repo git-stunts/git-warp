@@ -11,7 +11,7 @@ import { canonicalStringify } from '../../utils/canonicalStringify.js';
 import { SHARD_VERSION } from '../../utils/shardVersion.js';
 import { textEncode, base64Encode, base64Decode } from '../../utils/bytes.js';
 
-/** @typedef {import('../../types/WarpPersistence.js').IndexStorage} IndexStorage */
+/** @typedef {import('../../types/WarpPersistence.ts').IndexStorage} IndexStorage */
 
 // Re-export for backwards compatibility
 export { SHARD_VERSION };

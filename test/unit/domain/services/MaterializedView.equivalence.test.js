@@ -23,7 +23,7 @@ import { decodeEdgeKey } from '../../../../src/domain/services/KeyCodec.js';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
 import BitmapNeighborProvider from '../../../../src/domain/services/index/BitmapNeighborProvider.js';
 import AdjacencyNeighborProvider from '../../../../src/domain/services/query/AdjacencyNeighborProvider.js';
-import { createEmptyDiff } from '../../../../src/domain/types/PatchDiff.js';
+import { createEmptyDiff } from '../../../../src/domain/types/PatchDiff.ts';
 import { createRng } from '../../../helpers/seededRng.js';
 
 // ── Constants ───────────────────────────────────────────────────────────────

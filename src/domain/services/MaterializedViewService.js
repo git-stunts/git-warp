@@ -394,7 +394,7 @@ export default class MaterializedViewService {
   /**
    * Applies a PatchDiff incrementally to an existing index tree.
    *
-   * @param {{ existingTree: Record<string, Uint8Array>, diff: import('../types/PatchDiff.js').PatchDiff, state: import('./JoinReducer.js').WarpStateV5 }} params
+   * @param {{ existingTree: Record<string, Uint8Array>, diff: import('../types/PatchDiff.ts').PatchDiff, state: import('./JoinReducer.js').WarpStateV5 }} params
    * @returns {BuildResult}
    */
   applyDiff({ existingTree, diff, state }) {

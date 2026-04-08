@@ -10,8 +10,8 @@ import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 
 /** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.js' */
 /** @typedef {import('../../../../../src/domain/services/JoinReducer.js').WarpStateV5} WarpStateV5 */
-/** @typedef {import('../../../../../src/domain/types/TickReceipt.js').TickReceipt} TickReceipt */
-/** @typedef {import('../../../../../src/domain/types/WarpTypesV2.js').PatchV2} PatchV2 */
+/** @typedef {import('../../../../../src/domain/types/TickReceipt.ts').TickReceipt} TickReceipt */
+/** @typedef {import('../../../../../src/domain/types/WarpTypesV2.ts').PatchV2} PatchV2 */
 
 /**
  * @typedef {{

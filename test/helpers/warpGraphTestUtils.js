@@ -19,7 +19,7 @@ import { createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/Joi
 import { orsetAdd } from '../../src/domain/crdt/ORSet.js';
 import { createVersionVector } from '../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../src/domain/crdt/Dot.js';
-import { createInlineValue } from '../../src/domain/types/WarpTypes.js';
+import { createInlineValue } from '../../src/domain/types/WarpTypes.ts';
 
 // ============================================================================
 // OID and Hash Generators
@@ -701,5 +701,5 @@ export function setupGraphState(graph, seedFn) {
 // Re-export commonly used CRDT helpers so tests can import from one place
 export { createDot } from '../../src/domain/crdt/Dot.js';
 export { createVersionVector } from '../../src/domain/crdt/VersionVector.js';
-export { createInlineValue } from '../../src/domain/types/WarpTypes.js';
+export { createInlineValue } from '../../src/domain/types/WarpTypes.ts';
 export { createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';

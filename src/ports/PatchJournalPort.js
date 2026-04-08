@@ -18,7 +18,7 @@ export default class PatchJournalPort {
   /**
    * Persists a patch and returns its storage OID.
    *
-   * @param {import('../domain/types/WarpTypesV2.js').PatchV2} _patch - The patch to persist
+   * @param {import('../domain/types/WarpTypesV2.ts').PatchV2} _patch - The patch to persist
    * @returns {Promise<string>} The storage OID (opaque handle — domain doesn't care it's a Git blob SHA)
    * @throws {Error} If not implemented by a concrete adapter
    */
@@ -31,7 +31,7 @@ export default class PatchJournalPort {
    *
    * @param {string} _patchOid - The storage OID returned by writePatch
    * @param {{ encrypted?: boolean }} [_options] - Read options
-   * @returns {Promise<import('../domain/types/WarpTypesV2.js').PatchV2>} The decoded patch
+   * @returns {Promise<import('../domain/types/WarpTypesV2.ts').PatchV2>} The decoded patch
    * @throws {Error} If not implemented by a concrete adapter
    * @throws {Error} If the patch blob is not found
    */

@@ -10,7 +10,7 @@ export default class PatchEntry {
   /**
    * Creates a PatchEntry.
    *
-   * @param {{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }} fields
+   * @param {{ patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string }} fields
    */
   constructor({ patch, sha }) {
     if (patch === null || patch === undefined) {
@@ -19,7 +19,7 @@ export default class PatchEntry {
     if (typeof sha !== 'string' || sha.length === 0) {
       throw new WarpError('PatchEntry requires a non-empty sha', 'E_INVALID_ENTRY');
     }
-    /** @type {import('../types/WarpTypesV2.js').PatchV2} */
+    /** @type {import('../types/WarpTypesV2.ts').PatchV2} */
     this.patch = patch;
     /** @type {string} */
     this.sha = sha;

@@ -10,10 +10,10 @@
 import { normalizeRawOp, OP_STRATEGIES } from '../JoinReducer.js';
 import { createEventId } from '../../utils/EventId.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
-import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.js';
-import ConflictResolution from '../../types/conflict/ConflictResolution.js';
-import ConflictTarget from '../../types/conflict/ConflictTarget.js';
-import { compareStrings } from '../../types/conflict/validation.js';
+import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
+import ConflictResolution from '../../types/conflict/ConflictResolution.ts';
+import ConflictTarget from '../../types/conflict/ConflictTarget.ts';
+import { compareStrings } from '../../types/conflict/validation.ts';
 import ConflictCandidate from './ConflictCandidate.js';
 import OpRecord from './OpRecord.js';
 
@@ -390,7 +390,7 @@ async function buildOpRecord(service, { frame, opIndex, receiptOpIndex, canonOp,
  * @param {{
  *   frame: import('./ConflictFrameLoader.js').PatchFrame,
  *   opIndex: number, receiptOpIndex: number,
- *   receipt: import('../../types/TickReceipt.js').TickReceipt,
+ *   receipt: import('../../types/TickReceipt.ts').TickReceipt,
  *   diagnostics: ConflictDiagnostic[]
  * }} options
  * @returns {Promise<{ record: OpRecord|null, nextReceiptOpIndex: number }|null>}

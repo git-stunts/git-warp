@@ -12,9 +12,9 @@ import QueryBuilder from './query/QueryBuilder.js';
 import LogicalTraversal from './query/LogicalTraversal.js';
 import { toInternalStrandShape } from '../utils/strandPublicShape.js';
 import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js';
-import WorldlineSelector from '../types/WorldlineSelector.js';
-import LiveSelector from '../types/LiveSelector.js';
-import CoordinateSelector from '../types/CoordinateSelector.js';
+import WorldlineSelector from '../types/WorldlineSelector.ts';
+import LiveSelector from '../types/LiveSelector.ts';
+import CoordinateSelector from '../types/CoordinateSelector.ts';
 
 
 /** @import { ObserverConfig, WorldlineOptions, WorldlineSource } from '../../../index.js' */
@@ -22,7 +22,7 @@ import CoordinateSelector from '../types/CoordinateSelector.js';
 /**
 
 
- * @typedef {import('./JoinReducer.js').WarpStateV5 | { state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[] }} MaterializedSourceResult
+ * @typedef {import('./JoinReducer.js').WarpStateV5 | { state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.ts').TickReceipt[] }} MaterializedSourceResult
  * @typedef {{
  *   _materializeGraph: () => Promise<{
  *     state: unknown,
@@ -39,7 +39,7 @@ import CoordinateSelector from '../types/CoordinateSelector.js';
  * Converts a raw source descriptor to a WorldlineSelector and clones it.
  *
  * @param {WorldlineSelector|WorldlineSource|{ kind: string, [key: string]: unknown }|undefined|null} source
- * @returns {import('../types/WorldlineSelector.js').default}
+ * @returns {import('../types/WorldlineSelector.ts').default}
  */
 function toSelector(source) {
   return WorldlineSelector.from(/** @type {WorldlineSelector|{ kind: string, [key: string]: unknown }|null|undefined} */ (source)).clone();
@@ -113,7 +113,7 @@ function orUndefined(value) {
  * @param {WarpRuntime} graph
  * @param {{ kind: 'live', ceiling?: number|null }} source
  * @param {boolean} collectReceipts
- * @returns {Promise<import('./JoinReducer.js').WarpStateV5 | { state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[] }>}
+ * @returns {Promise<import('./JoinReducer.js').WarpStateV5 | { state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.ts').TickReceipt[] }>}
  */
 async function materializeLiveSource(graph, source, collectReceipts) {
   if (collectReceipts) {
@@ -133,7 +133,7 @@ async function materializeLiveSource(graph, source, collectReceipts) {
  * @param {WarpRuntime} graph
  * @param {{ kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null }} source
  * @param {boolean} collectReceipts
- * @returns {Promise<import('./JoinReducer.js').WarpStateV5 | { state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[] }>}
+ * @returns {Promise<import('./JoinReducer.js').WarpStateV5 | { state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.ts').TickReceipt[] }>}
  */
 async function materializeCoordinateSource(graph, source, collectReceipts) {
   if (collectReceipts) {
@@ -184,9 +184,9 @@ async function materializeStrandSource(graph, source, collectReceipts) {
  * Dispatches materialization to the handler for the source's kind.
  *
  * @param {WarpRuntime} graph
- * @param {import('../types/WorldlineSelector.js').default} source
+ * @param {import('../types/WorldlineSelector.ts').default} source
  * @param {boolean} collectReceipts
- * @returns {Promise<import('./JoinReducer.js').WarpStateV5 | { state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[] }>}
+ * @returns {Promise<import('./JoinReducer.js').WarpStateV5 | { state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.ts').TickReceipt[] }>}
  */
 async function materializeSource(graph, source, collectReceipts) {
   if (source instanceof LiveSelector) {
@@ -207,13 +207,13 @@ export default class Worldline {
   /**
    * Creates a Worldline pinned to the given graph and source descriptor.
    *
-   * @param {{ graph: WarpRuntime, source?: import('../types/WorldlineSelector.js').default }} options
+   * @param {{ graph: WarpRuntime, source?: import('../types/WorldlineSelector.ts').default }} options
    */
   constructor({ graph, source }) {
     /** @type {WarpRuntime} */
     this._graph = graph;
 
-    /** @type {import('../types/WorldlineSelector.js').default} */
+    /** @type {import('../types/WorldlineSelector.ts').default} */
     this._source = toSelector(source);
 
     /** @type {Promise<import('./query/Observer.js').default>|null} */
@@ -258,7 +258,7 @@ export default class Worldline {
    * Materializes the pinned worldline source into a detached snapshot.
    *
    * @param {{ receipts?: false } | { receipts: true }} [options]
-   * @returns {Promise<import('./JoinReducer.js').WarpStateV5 | { state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[] }>}
+   * @returns {Promise<import('./JoinReducer.js').WarpStateV5 | { state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.ts').TickReceipt[] }>}
    */
   async materialize(options = undefined) {
     const detached = await openDetachedReadGraph(this._graph);

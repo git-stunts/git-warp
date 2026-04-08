@@ -64,7 +64,7 @@ async function verifyShaExists(persistence, sha, paramName) {
 /**
  * Processes a single commit in the wormhole chain.
  * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default, sha: string, graphName: string, expectedWriter: string|null, codec?: import('../../ports/CodecPort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} opts - Options
- * @returns {Promise<{patch: import('../types/WarpTypesV2.js').PatchV2, sha: string, writerId: string, parentSha: string|null}>}
+ * @returns {Promise<{patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string, writerId: string, parentSha: string|null}>}
  * @throws {WormholeError} On validation errors
  * @throws {EncryptionError} If the patch is encrypted but no patchBlobStorage is provided
  * @private
@@ -117,7 +117,7 @@ async function processCommit({ persistence, sha, graphName, expectedWriter, code
       { context: { oid: patchMeta.patchOid } },
     );
   }
-  const patch = /** @type {import('../types/WarpTypesV2.js').PatchV2} */ (codec.decode(patchBuffer));
+  const patch = /** @type {import('../types/WarpTypesV2.ts').PatchV2} */ (codec.decode(patchBuffer));
 
   return {
     patch,
@@ -184,7 +184,7 @@ export async function createWormhole({ persistence, graphName, fromSha, toSha, c
  * validating each commit along the way.
  *
  * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default, graphName: string, fromSha: string, toSha: string, codec?: import('../../ports/CodecPort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} options
- * @returns {Promise<Array<{patch: import('../types/WarpTypesV2.js').PatchV2, sha: string, writerId: string}>>} Patches in newest-first order
+ * @returns {Promise<Array<{patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string, writerId: string}>>} Patches in newest-first order
  * @throws {WormholeError} If fromSha is not an ancestor of toSha or range is empty
  * @private
  */

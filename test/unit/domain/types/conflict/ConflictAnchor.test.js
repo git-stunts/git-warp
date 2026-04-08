@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import ConflictAnchor from '../../../../../src/domain/types/conflict/ConflictAnchor.js';
+import ConflictAnchor from '../../../../../src/domain/types/conflict/ConflictAnchor.ts';
 
 describe('ConflictAnchor', () => {
   const VALID = {

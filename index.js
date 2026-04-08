@@ -89,15 +89,15 @@ import {
   createInlineValue,
   createBlobValue,
   createEventId,
-} from './src/domain/types/WarpTypes.js';
+} from './src/domain/types/WarpTypes.ts';
 import { migrateV4toV5 } from './src/domain/services/MigrationService.js';
 import QueryBuilder from './src/domain/services/query/QueryBuilder.js';
 import Observer from './src/domain/services/query/Observer.js';
 import Worldline from './src/domain/services/Worldline.js';
-import WorldlineSelector from './src/domain/types/WorldlineSelector.js';
-import LiveSelector from './src/domain/types/LiveSelector.js';
-import CoordinateSelector from './src/domain/types/CoordinateSelector.js';
-import StrandSelector from './src/domain/types/StrandSelector.js';
+import WorldlineSelector from './src/domain/types/WorldlineSelector.ts';
+import LiveSelector from './src/domain/types/LiveSelector.ts';
+import CoordinateSelector from './src/domain/types/CoordinateSelector.ts';
+import StrandSelector from './src/domain/types/StrandSelector.ts';
 import { computeTranslationCost } from './src/domain/services/TranslationCost.js';
 import {
   encodeEdgePropKey,
@@ -110,7 +110,7 @@ import {
   canonicalJson as tickReceiptCanonicalJson,
   OP_TYPES as TICK_RECEIPT_OP_TYPES,
   RESULT_TYPES as TICK_RECEIPT_RESULT_TYPES,
-} from './src/domain/types/TickReceipt.js';
+} from './src/domain/types/TickReceipt.ts';
 
 // Provenance payload (HOLOGRAM)
 import ProvenancePayload from './src/domain/services/provenance/ProvenancePayload.js';
@@ -142,17 +142,17 @@ import {
   canonicalEmissionJson,
   DELIVERY_MODES,
   DELIVERY_OUTCOMES,
-} from './src/domain/types/EffectEmission.js';
+} from './src/domain/types/EffectEmission.ts';
 import {
   createDeliveryObservation,
   canonicalObservationJson,
-} from './src/domain/types/DeliveryObservation.js';
+} from './src/domain/types/DeliveryObservation.ts';
 import {
   createExternalizationPolicy,
   LIVE_LENS,
   REPLAY_LENS,
   INSPECT_LENS,
-} from './src/domain/types/ExternalizationPolicy.js';
+} from './src/domain/types/ExternalizationPolicy.ts';
 import { NoOpEffectSink } from './src/infrastructure/adapters/NoOpEffectSink.js';
 import { ConsoleEffectSink } from './src/infrastructure/adapters/ConsoleEffectSink.js';
 import { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.js';

@@ -37,7 +37,7 @@ import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.js';
 // materialize.methods.js + materializeAdvanced.methods.js replaced by MaterializeController
 import MaterializeController from './services/controllers/MaterializeController.js';
 
-/** @typedef {import('./types/WarpPersistence.js').CorePersistence} CorePersistence */
+/** @typedef {import('./types/WarpPersistence.ts').CorePersistence} CorePersistence */
 
 const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
 
@@ -86,7 +86,7 @@ import WarpError from './errors/WarpError.ts';
  * Constructs an EffectPipeline from an array of sinks and an optional externalization lens.
  *
  * @param {Array<import('../ports/EffectSinkPort.js').default>} sinks - Effect sinks to multiplex
- * @param {import('./types/ExternalizationPolicy.js').ExternalizationPolicy|undefined} lens - Optional externalization lens
+ * @param {import('./types/ExternalizationPolicy.ts').ExternalizationPolicy|undefined} lens - Optional externalization lens
  * @param {import('../ports/ClockPort.js').default} clock - Clock for the pipeline
  * @returns {Promise<import('./services/EffectPipeline.js').EffectPipeline>} Constructed pipeline
  */
@@ -101,13 +101,13 @@ async function buildEffectPipeline(sinks, lens, clock) {
   for (const sink of sinks) {
     mux.addSink(sink);
   }
-  /** @type {import('./types/ExternalizationPolicy.js').ExternalizationPolicy} */
+  /** @type {import('./types/ExternalizationPolicy.ts').ExternalizationPolicy} */
   let resolvedLens;
   if (lens !== null && lens !== undefined) {
     resolvedLens = lens;
   } else {
-    const mod = /** @type {{ LIVE_LENS: import('./types/ExternalizationPolicy.js').ExternalizationPolicy }} */ (
-      /** @type {unknown} */ (await import('./types/ExternalizationPolicy.js'))
+    const mod = /** @type {{ LIVE_LENS: import('./types/ExternalizationPolicy.ts').ExternalizationPolicy }} */ (
+      /** @type {unknown} */ (await import('./types/ExternalizationPolicy.ts'))
     );
     resolvedLens = mod.LIVE_LENS;
   }
@@ -513,7 +513,7 @@ export default class WarpRuntime {
   /**
    * Opens a multi-writer graph.
    *
-   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../ports/BlobStoragePort.js').default, patchJournal?: import('../ports/PatchJournalPort.js').default | null, checkpointStore?: import('../ports/CheckpointStorePort.js').default | null, indexStore?: import('../ports/IndexStorePort.js').default | null, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline, effectSinks?: Array<import('../ports/EffectSinkPort.js').default>, externalizationPolicy?: import('./types/ExternalizationPolicy.js').ExternalizationPolicy }} options
+   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../ports/BlobStoragePort.js').default, patchJournal?: import('../ports/PatchJournalPort.js').default | null, checkpointStore?: import('../ports/CheckpointStorePort.js').default | null, indexStore?: import('../ports/IndexStorePort.js').default | null, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline, effectSinks?: Array<import('../ports/EffectSinkPort.js').default>, externalizationPolicy?: import('./types/ExternalizationPolicy.ts').ExternalizationPolicy }} options
    * @returns {Promise<WarpRuntime>} The opened graph instance
    * @throws {WarpError} If graphName, writerId, checkpointPolicy, or onDeleteWithData is invalid
    *

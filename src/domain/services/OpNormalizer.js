@@ -17,7 +17,7 @@
  * @module domain/services/OpNormalizer
  */
 
-import { createNodePropSetV2, createEdgePropSetV2, createPropSetV2 } from '../types/WarpTypesV2.js';
+import { createNodePropSetV2, createEdgePropSetV2, createPropSetV2 } from '../types/WarpTypesV2.ts';
 import { isLegacyEdgePropNode, decodeLegacyEdgePropNode, encodeLegacyEdgePropNode } from './KeyCodec.js';
 
 /**
@@ -27,14 +27,14 @@ import { isLegacyEdgePropNode, decodeLegacyEdgePropNode, encodeLegacyEdgePropNod
  * - Raw `PropSet` without prefix → canonical `NodePropSet`
  * - All other op types pass through unchanged.
  *
- * @param {import('../types/WarpTypesV2.js').RawOpV2 | {type: string}} rawOp
- * @returns {import('../types/WarpTypesV2.js').CanonicalOpV2 | {type: string}}
+ * @param {import('../types/WarpTypesV2.ts').RawOpV2 | {type: string}} rawOp
+ * @returns {import('../types/WarpTypesV2.ts').CanonicalOpV2 | {type: string}}
  */
 export function normalizeRawOp(rawOp) {
   if (!isPropSetOp(rawOp)) {
     return rawOp;
   }
-  const op = /** @type {import('../types/WarpTypesV2.js').OpV2PropSet} */ (rawOp);
+  const op = /** @type {import('../types/WarpTypesV2.ts').OpV2PropSet} */ (rawOp);
   if (isLegacyEdgePropNode(op.node)) {
     const { from, to, label } = decodeLegacyEdgePropNode(op.node);
     return createEdgePropSetV2(from, to, label, op.key, op.value);
@@ -67,17 +67,17 @@ function isPropSetOp(rawOp) {
  * A future graph capability cutover (ADR 2) may allow emitting raw
  * `EdgePropSet` directly.
  *
- * @param {import('../types/WarpTypesV2.js').CanonicalOpV2 | {type: string}} canonicalOp
- * @returns {import('../types/WarpTypesV2.js').RawOpV2 | {type: string}}
+ * @param {import('../types/WarpTypesV2.ts').CanonicalOpV2 | {type: string}} canonicalOp
+ * @returns {import('../types/WarpTypesV2.ts').RawOpV2 | {type: string}}
  */
 export function lowerCanonicalOp(canonicalOp) {
   switch (canonicalOp.type) {
     case 'NodePropSet': {
-      const op = /** @type {import('../types/WarpTypesV2.js').OpV2NodePropSet} */ (canonicalOp);
+      const op = /** @type {import('../types/WarpTypesV2.ts').OpV2NodePropSet} */ (canonicalOp);
       return createPropSetV2(op.node, op.key, op.value);
     }
     case 'EdgePropSet': {
-      const op = /** @type {import('../types/WarpTypesV2.js').OpV2EdgePropSet} */ (canonicalOp);
+      const op = /** @type {import('../types/WarpTypesV2.ts').OpV2EdgePropSet} */ (canonicalOp);
       return createPropSetV2(
         encodeLegacyEdgePropNode(op.from, op.to, op.label),
         op.key,

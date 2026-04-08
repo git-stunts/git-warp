@@ -4,7 +4,7 @@ import {
   LIVE_LENS,
   REPLAY_LENS,
   INSPECT_LENS,
-} from '../../../../src/domain/types/ExternalizationPolicy.js';
+} from '../../../../src/domain/types/ExternalizationPolicy.ts';
 
 /** @type {any} */
 const create = createExternalizationPolicy;

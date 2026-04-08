@@ -25,10 +25,10 @@ import { buildWriterRef } from '../../utils/RefLayout.js';
 import { collectGCMetrics } from '../GCMetrics.js';
 import HttpSyncServer from '../sync/HttpSyncServer.js';
 import { signSyncRequest, canonicalizePath } from '../sync/SyncAuthService.js';
-import { isError } from '../../types/WarpErrors.js';
+import { isError } from '../../types/WarpErrors.ts';
 import SyncTrustGate from '../sync/SyncTrustGate.js';
 
-/** @typedef {import('../../types/WarpPersistence.js').CorePersistence} CorePersistence */
+/** @typedef {import('../../types/WarpPersistence.ts').CorePersistence} CorePersistence */
 
 /**
  * The host interface that SyncController depends on.

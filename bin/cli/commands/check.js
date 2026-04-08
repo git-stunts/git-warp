@@ -16,7 +16,7 @@ import { openGraph, applyCursorCeiling, emitCursorWarning, readCheckpointDate, c
  */
 async function getHealth(persistence) {
   const clock = ClockAdapter.global();
-  const corePersistence = /** @type {import('../../../src/domain/types/WarpPersistence.js').CorePersistence} */ (/** @type {unknown} */ (persistence));
+  const corePersistence = /** @type {import('../../../src/domain/types/WarpPersistence.ts').CorePersistence} */ (/** @type {unknown} */ (persistence));
   const healthService = new HealthCheckService({ persistence: corePersistence, clock });
   return await healthService.getHealth();
 }

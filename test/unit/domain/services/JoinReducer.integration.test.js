@@ -130,7 +130,7 @@ import {
   createNodeAddV2,
   createEdgeAddV2,
   createPropSetV2,
-} from '../../../../src/domain/types/WarpTypesV2.js';
+} from '../../../../src/domain/types/WarpTypesV2.ts';
 
 // v1 op types (for migration tests)
 import {
@@ -139,7 +139,7 @@ import {
   createEdgeAdd,
   createPropSet,
   createInlineValue,
-} from '../../../../src/domain/types/WarpTypes.js';
+} from '../../../../src/domain/types/WarpTypes.ts';
 
 /**
  * Creates a PatchV1 (schema:1) for migration testing.

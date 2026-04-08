@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import ConflictAnalysis from '../../../../../src/domain/types/conflict/ConflictAnalysis.js';
-import ConflictResolvedCoordinate from '../../../../../src/domain/types/conflict/ConflictResolvedCoordinate.js';
-import ConflictDiagnostic from '../../../../../src/domain/types/conflict/ConflictDiagnostic.js';
+import ConflictAnalysis from '../../../../../src/domain/types/conflict/ConflictAnalysis.ts';
+import ConflictResolvedCoordinate from '../../../../../src/domain/types/conflict/ConflictResolvedCoordinate.ts';
+import ConflictDiagnostic from '../../../../../src/domain/types/conflict/ConflictDiagnostic.ts';
 
 describe('ConflictAnalysis', () => {
   const coord = new ConflictResolvedCoordinate({

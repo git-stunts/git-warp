@@ -7,7 +7,7 @@ import {
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
 /** @import { PatchBuilderV2 } from '../PatchBuilderV2.js' */
-/** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
+/** @import { PatchV2 } from '../../types/WarpTypesV2.ts' */
 /** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */
 /** @typedef {import('./strandTypes.js').StrandIntentQueue} StrandIntentQueue */
 /** @typedef {import('./strandTypes.js').StrandQueuedIntent} StrandQueuedIntent */

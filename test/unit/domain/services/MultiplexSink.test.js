@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { MultiplexSink } from '../../../../src/domain/services/MultiplexSink.js';
-import { createEffectEmission } from '../../../../src/domain/types/EffectEmission.js';
-import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/types/ExternalizationPolicy.js';
+import { createEffectEmission } from '../../../../src/domain/types/EffectEmission.ts';
+import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/types/ExternalizationPolicy.ts';
 import EffectSinkPort from '../../../../src/ports/EffectSinkPort.js';
 
-/** @returns {import('../../../../src/domain/types/EffectEmission.js').EffectEmission} */
+/** @returns {import('../../../../src/domain/types/EffectEmission.ts').EffectEmission} */
 function makeEmission(id = 'em-1') {
   return createEffectEmission({
     id,
@@ -33,7 +33,7 @@ class StubSink extends EffectSinkPort {
   async deliver(emission, lens) {
     this.calls.push({ emission, lens });
     const { createDeliveryObservation } = await import(
-      '../../../../src/domain/types/DeliveryObservation.js'
+      '../../../../src/domain/types/DeliveryObservation.ts'
     );
     return createDeliveryObservation({
       emissionId: /** @type {any} */ (emission).id,
@@ -53,7 +53,7 @@ class FailingSink extends EffectSinkPort {
   /** @param {unknown} emission @param {unknown} lens */
   async deliver(emission, lens) {
     const { createDeliveryObservation } = await import(
-      '../../../../src/domain/types/DeliveryObservation.js'
+      '../../../../src/domain/types/DeliveryObservation.ts'
     );
     return createDeliveryObservation({
       emissionId: /** @type {any} */ (emission).id,

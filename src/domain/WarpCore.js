@@ -107,7 +107,7 @@ export default class WarpCore {
   /**
    * Returns all effect emissions from the pipeline, or an empty array.
    *
-   * @returns {ReadonlyArray<import('./types/EffectEmission.js').EffectEmission>}
+   * @returns {ReadonlyArray<import('./types/EffectEmission.ts').EffectEmission>}
    */
   get effectEmissions() {
     const p = this._asRuntime()._effectPipeline;
@@ -117,7 +117,7 @@ export default class WarpCore {
   /**
    * Returns all delivery observations from the pipeline, or an empty array.
    *
-   * @returns {ReadonlyArray<import('./types/DeliveryObservation.js').DeliveryObservation>}
+   * @returns {ReadonlyArray<import('./types/DeliveryObservation.ts').DeliveryObservation>}
    */
   get deliveryObservations() {
     const p = this._asRuntime()._effectPipeline;
@@ -127,7 +127,7 @@ export default class WarpCore {
   /**
    * Returns the current externalization policy, or null if no pipeline is configured.
    *
-   * @returns {import('./types/ExternalizationPolicy.js').ExternalizationPolicy|null}
+   * @returns {import('./types/ExternalizationPolicy.ts').ExternalizationPolicy|null}
    */
   get externalizationPolicy() {
     const p = this._asRuntime()._effectPipeline;
@@ -137,7 +137,7 @@ export default class WarpCore {
   /**
    * Updates the externalization policy on the attached pipeline.
    *
-   * @param {import('./types/ExternalizationPolicy.js').ExternalizationPolicy} newLens
+   * @param {import('./types/ExternalizationPolicy.ts').ExternalizationPolicy} newLens
    */
   set externalizationPolicy(newLens) {
     const p = this._asRuntime()._effectPipeline;
@@ -268,10 +268,10 @@ export default class WarpCore {
    *
    * @param {string} strandId
    * @param {{ receipts?: boolean, ceiling?: number|null }} [options]
-   * @returns {Promise<import('./services/JoinReducer.js').WarpStateV5|{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.js').TickReceipt[]}>}
+   * @returns {Promise<import('./services/JoinReducer.js').WarpStateV5|{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.ts').TickReceipt[]}>}
    */
   async materializeStrand(strandId, options) {
-    return await /** @type {Promise<import('./services/JoinReducer.js').WarpStateV5|{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.js').TickReceipt[]}>} */ (
+    return await /** @type {Promise<import('./services/JoinReducer.js').WarpStateV5|{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.ts').TickReceipt[]}>} */ (
       /** @type {unknown} */ (
         WarpRuntime.prototype.materializeStrand.call(
           this,
@@ -290,7 +290,7 @@ export default class WarpCore {
    * @returns {Promise<unknown>}
    */
   async getStrandPatches(strandId, options) {
-    return await /** @type {Promise<Array<{ patch: import('./types/WarpTypesV2.js').PatchV2, sha: string }>>} */ (
+    return await /** @type {Promise<Array<{ patch: import('./types/WarpTypesV2.ts').PatchV2, sha: string }>>} */ (
       /** @type {unknown} */ (WarpRuntime.prototype.getStrandPatches.call(this, strandId, options))
     );
   }

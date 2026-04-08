@@ -13,7 +13,7 @@ import { createPersistence, listGraphNames, readActiveCursor, emitCursorWarning 
  */
 async function materializeOneGraph({ persistence, graphName, writerId, ceiling }) {
   const graph = await WarpRuntime.open({
-    persistence: /** @type {import('../../../src/domain/types/WarpPersistence.js').CorePersistence} */ (/** @type {unknown} */ (persistence)),
+    persistence: /** @type {import('../../../src/domain/types/WarpPersistence.ts').CorePersistence} */ (/** @type {unknown} */ (persistence)),
     graphName,
     writerId,
     crypto: new WebCryptoAdapter(),

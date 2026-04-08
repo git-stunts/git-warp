@@ -8,8 +8,8 @@ import {
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
 /** @import VersionVector from '../../crdt/VersionVector.js' */
-/** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
-/** @import { TickReceipt } from '../../types/TickReceipt.js' */
+/** @import { PatchV2 } from '../../types/WarpTypesV2.ts' */
+/** @import { TickReceipt } from '../../types/TickReceipt.ts' */
 /** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */
 /**
  * @typedef {{ patch: PatchV2, sha: string }} CommittedPatchResult

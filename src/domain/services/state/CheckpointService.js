@@ -532,7 +532,7 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec, checkp
  * Only supports schema:2 checkpoints. Schema:1 checkpoints will cause
  * loadCheckpoint to throw an error.
  *
- * @param {{ persistence: import('../../../ports/CommitPort.js').default & import('../../../ports/BlobPort.js').default & import('../../../ports/TreePort.js').default, graphName: string, checkpointSha: string, targetFrontier: import('../Frontier.js').Frontier, patchLoader: (writerId: string, fromSha: string|null, toSha: string) => Promise<Array<{patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string}>>, codec?: import('../../../ports/CodecPort.js').default }} options - Materialization options
+ * @param {{ persistence: import('../../../ports/CommitPort.js').default & import('../../../ports/BlobPort.js').default & import('../../../ports/TreePort.js').default, graphName: string, checkpointSha: string, targetFrontier: import('../Frontier.js').Frontier, patchLoader: (writerId: string, fromSha: string|null, toSha: string) => Promise<Array<{patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string}>>, codec?: import('../../../ports/CodecPort.js').default }} options - Materialization options
  * @returns {Promise<import('../JoinReducer.js').WarpStateV5>} The materialized V5 state at targetFrontier
  * @throws {Error} If checkpoint is schema:1 (migration required)
  * @throws {Error} If checkpoint is missing required blobs (state.cbor, frontier.cbor)

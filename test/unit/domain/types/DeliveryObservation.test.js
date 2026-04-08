@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createDeliveryObservation,
   canonicalObservationJson,
-} from '../../../../src/domain/types/DeliveryObservation.js';
+} from '../../../../src/domain/types/DeliveryObservation.ts';
 
 /** @type {any} */
 const create = createDeliveryObservation;

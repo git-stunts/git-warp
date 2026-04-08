@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assertNonEmptyString, assertNoReservedBytes, assertArray } from '../../../../../src/domain/types/ops/validate.js';
+import { assertNonEmptyString, assertNoReservedBytes, assertArray } from '../../../../../src/domain/types/ops/validate.ts';
 
 describe('assertNonEmptyString', () => {
   it('accepts a non-empty string', () => {

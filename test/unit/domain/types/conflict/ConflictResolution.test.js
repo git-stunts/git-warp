@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import ConflictResolution from '../../../../../src/domain/types/conflict/ConflictResolution.js';
+import ConflictResolution from '../../../../../src/domain/types/conflict/ConflictResolution.ts';
 
 describe('ConflictResolution', () => {
   const VALID = {

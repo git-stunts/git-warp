@@ -13,11 +13,11 @@ import { orsetAdd, orsetRemove, orsetJoin, orsetContains, orsetClone } from '../
 import VersionVector from '../crdt/VersionVector.js';
 import { lwwSet, lwwMax } from '../crdt/LWW.js';
 import { createEventId, compareEventIds } from '../utils/EventId.js';
-import { createTickReceipt, OP_TYPES } from '../types/TickReceipt.js';
+import { createTickReceipt, OP_TYPES } from '../types/TickReceipt.ts';
 import { encodeDot } from '../crdt/Dot.js';
 import { encodeEdgeKey, decodeEdgeKey, encodePropKey, encodeEdgePropKey, EDGE_PROP_PREFIX } from './KeyCodec.js';
 import { normalizeRawOp } from './OpNormalizer.js';
-import { createEmptyDiff, mergeDiffs } from '../types/PatchDiff.js';
+import { createEmptyDiff, mergeDiffs } from '../types/PatchDiff.ts';
 import PatchError from '../errors/PatchError.ts';
 import WarpStateV5 from './state/WarpStateV5.js';
 
@@ -288,7 +288,7 @@ export class OpRedundant extends OpOutcomeResult {
  * @property {(state: WarpStateV5, op: OpLike, eventId: import('../utils/EventId.js').EventId) => void} mutate
  * @property {(state: WarpStateV5, op: OpLike, eventId: import('../utils/EventId.js').EventId) => OpOutcomeResult} outcome
  * @property {(state: WarpStateV5, op: OpLike) => SnapshotBeforeOp} snapshot
- * @property {(diff: import('../types/PatchDiff.js').PatchDiff, state: WarpStateV5, op: OpLike, before: SnapshotBeforeOp) => void} accumulate
+ * @property {(diff: import('../types/PatchDiff.ts').PatchDiff, state: WarpStateV5, op: OpLike, before: SnapshotBeforeOp) => void} accumulate
  * @property {(op: OpLikeRecord) => void} validate
  */
 
@@ -408,7 +408,7 @@ function snapshotProp(state, propKey) {
 
 /**
  * Shared diff accumulator for property ops.
- * @param {import('../types/PatchDiff.js').PatchDiff} diff
+ * @param {import('../types/PatchDiff.ts').PatchDiff} diff
  * @param {WarpStateV5} state
  * @param {string} nodeId
  * @param {string} key
@@ -848,7 +848,7 @@ function aliveElementsForDots(orset, observedDots) {
 /**
  * Records removal only for elements that were alive before AND dead after.
  *
- * @param {import('../types/PatchDiff.js').PatchDiff} diff
+ * @param {import('../types/PatchDiff.ts').PatchDiff} diff
  * @param {WarpStateV5} state
  * @param {SnapshotBeforeOp} before
  */
@@ -864,7 +864,7 @@ function collectNodeRemovals(diff, state, before) {
 /**
  * Records removal only for edges that were alive before AND dead after.
  *
- * @param {import('../types/PatchDiff.js').PatchDiff} diff
+ * @param {import('../types/PatchDiff.ts').PatchDiff} diff
  * @param {WarpStateV5} state
  * @param {SnapshotBeforeOp} before
  */
@@ -887,7 +887,7 @@ function collectEdgeRemovals(diff, state, before) {
  * @param {WarpStateV5} state - The state to mutate in place
  * @param {PatchLike} patch - The patch to apply
  * @param {string} patchSha - Git SHA of the patch commit
- * @returns {{state: WarpStateV5, diff: import('../types/PatchDiff.js').PatchDiff}}
+ * @returns {{state: WarpStateV5, diff: import('../types/PatchDiff.ts').PatchDiff}}
  */
 export function applyWithDiff(state, patch, patchSha) {
   const diff = createEmptyDiff();
@@ -915,10 +915,10 @@ export function applyWithDiff(state, patch, patchSha) {
  * @param {WarpStateV5} state - The state to mutate in place
  * @param {PatchLike} patch - The patch to apply
  * @param {string} patchSha - Git SHA of the patch commit
- * @returns {{state: WarpStateV5, receipt: import('../types/TickReceipt.js').TickReceipt}}
+ * @returns {{state: WarpStateV5, receipt: import('../types/TickReceipt.ts').TickReceipt}}
  */
 export function applyWithReceipt(state, patch, patchSha) {
-  /** @type {import('../types/TickReceipt.js').OpOutcome[]} */
+  /** @type {import('../types/TickReceipt.ts').OpOutcome[]} */
   const opResults = [];
   for (let i = 0; i < patch.ops.length; i++) {
     const rawOp = patch.ops[i];
@@ -940,7 +940,7 @@ export function applyWithReceipt(state, patch, patchSha) {
     if (!VALID_RECEIPT_OPS.has(receiptOp)) {
       continue;
     }
-    /** @type {import('../types/TickReceipt.js').OpOutcome} */
+    /** @type {import('../types/TickReceipt.ts').OpOutcome} */
     const entry = { op: receiptOp, target: outcome.target, result: /** @type {'applied'|'superseded'|'redundant'} */ (outcome.result) };
     if (outcome instanceof OpSuperseded && outcome.reason.length > 0) {
       entry.reason = outcome.reason;
@@ -979,7 +979,7 @@ export function applyWithReceipt(state, patch, patchSha) {
  * @param {PatchLike} patch - The patch to apply
  * @param {string} patchSha - The Git SHA of the patch commit (used for EventId creation)
  * @param {boolean} [collectReceipts=false] - When true, computes and returns receipt data
- * @returns {WarpStateV5|{state: WarpStateV5, receipt: import('../types/TickReceipt.js').TickReceipt}}
+ * @returns {WarpStateV5|{state: WarpStateV5, receipt: import('../types/TickReceipt.ts').TickReceipt}}
  *          Returns mutated state directly when collectReceipts is false;
  *          returns {state, receipt} object when collectReceipts is true
  */
@@ -1088,7 +1088,7 @@ function mergeEdgeBirthEvent(a, b) {
  * @param {Array<{patch: PatchLike, sha: string}>} patches - Array of patch objects with their Git SHAs
  * @param {WarpStateV5} [initialState] - Optional starting state (for incremental materialization from checkpoint)
  * @param {{receipts?: boolean, trackDiff?: boolean}} [options] - Optional configuration
- * @returns {WarpStateV5|{state: WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}|{state: WarpStateV5, diff: import('../types/PatchDiff.js').PatchDiff}}
+ * @returns {WarpStateV5|{state: WarpStateV5, receipts: import('../types/TickReceipt.ts').TickReceipt[]}|{state: WarpStateV5, diff: import('../types/PatchDiff.ts').PatchDiff}}
  *          Returns state directly when no options;
  *          returns {state, receipts} when receipts is true;
  *          returns {state, diff} when trackDiff is true

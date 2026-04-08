@@ -30,10 +30,10 @@ import { computeTranslationCost } from '../TranslationCost.js';
 import { computeStateHashV5 } from '../state/StateSerializerV5.js';
 import { toInternalStrandShape } from '../../utils/strandPublicShape.js';
 import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod.js';
-import WorldlineSelector from '../../types/WorldlineSelector.js';
-import LiveSelector from '../../types/LiveSelector.js';
-import CoordinateSelector from '../../types/CoordinateSelector.js';
-import StrandSelector from '../../types/StrandSelector.js';
+import WorldlineSelector from '../../types/WorldlineSelector.ts';
+import LiveSelector from '../../types/LiveSelector.ts';
+import CoordinateSelector from '../../types/CoordinateSelector.ts';
+import StrandSelector from '../../types/StrandSelector.ts';
 
 /**
  * The host interface that QueryController depends on.

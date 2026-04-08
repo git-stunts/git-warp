@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import ConflictAnchor from '../../../../../src/domain/types/conflict/ConflictAnchor.js';
-import ConflictWinner from '../../../../../src/domain/types/conflict/ConflictWinner.js';
+import ConflictAnchor from '../../../../../src/domain/types/conflict/ConflictAnchor.ts';
+import ConflictWinner from '../../../../../src/domain/types/conflict/ConflictWinner.ts';
 
 describe('ConflictWinner', () => {
   const anchor = new ConflictAnchor({ patchSha: 'abcd', writerId: 'w1', lamport: 1, opIndex: 0 });

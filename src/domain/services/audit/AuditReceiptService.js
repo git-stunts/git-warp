@@ -54,7 +54,7 @@ export function sortedReplacer(_key, value) {
  * Produces canonical JSON string of an ops array per spec Section 5.2.
  * Exported for testing.
  *
- * @param {ReadonlyArray<Readonly<import('../../types/TickReceipt.js').OpOutcome>>} ops
+ * @param {ReadonlyArray<Readonly<import('../../types/TickReceipt.ts').OpOutcome>>} ops
  * @returns {string}
  */
 export function canonicalOpsJson(ops) {
@@ -67,7 +67,7 @@ const textEncoder = new TextEncoder();
 /**
  * Computes the domain-separated SHA-256 opsDigest per spec Section 5.3.
  *
- * @param {ReadonlyArray<Readonly<import('../../types/TickReceipt.js').OpOutcome>>} ops
+ * @param {ReadonlyArray<Readonly<import('../../types/TickReceipt.ts').OpOutcome>>} ops
  * @param {import('../../../ports/CryptoPort.js').default} crypto - Crypto adapter
  * @returns {Promise<string>} Lowercase hex SHA-256 digest
  */
@@ -301,7 +301,7 @@ export class AuditReceiptService {
    * has a gap. This is acceptable by design in M3 — gaps are detected
    * by M4 verification coverage rules (receipt count vs data commit count).
    *
-   * @param {import('../../types/TickReceipt.js').TickReceipt} tickReceipt
+   * @param {import('../../types/TickReceipt.ts').TickReceipt} tickReceipt
    * @returns {Promise<string|null>} The audit commit SHA, or null on failure
    */
   async commit(tickReceipt) {
@@ -342,7 +342,7 @@ export class AuditReceiptService {
 
   /**
    * Inner commit logic. Throws on failure (caught by `commit()`).
-   * @param {import('../../types/TickReceipt.js').TickReceipt} tickReceipt
+   * @param {import('../../types/TickReceipt.ts').TickReceipt} tickReceipt
    * @returns {Promise<string>}
    * @private
    */
@@ -462,7 +462,7 @@ export class AuditReceiptService {
   /**
    * Retry-once after CAS conflict. Reads fresh tip, rebuilds receipt, retries.
    * @param {string} _failedCommitSha - The commit that failed CAS (unused, for logging)
-   * @param {import('../../types/TickReceipt.js').TickReceipt} tickReceipt
+   * @param {import('../../types/TickReceipt.ts').TickReceipt} tickReceipt
    * @returns {Promise<string>}
    * @private
    */

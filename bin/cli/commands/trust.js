@@ -71,7 +71,7 @@ export default async function handleTrust({ options, args }) {
   const { persistence } = await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.graph);
   const verifier = new AuditVerifierService({
-    persistence: /** @type {import('../../../src/domain/types/WarpPersistence.js').CorePersistence} */ (/** @type {unknown} */ (persistence)),
+    persistence: /** @type {import('../../../src/domain/types/WarpPersistence.ts').CorePersistence} */ (/** @type {unknown} */ (persistence)),
     codec: defaultCodec,
   });
 

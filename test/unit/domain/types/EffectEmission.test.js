@@ -4,7 +4,7 @@ import {
   canonicalEmissionJson,
   DELIVERY_MODES,
   DELIVERY_OUTCOMES,
-} from '../../../../src/domain/types/EffectEmission.js';
+} from '../../../../src/domain/types/EffectEmission.ts';
 
 /** @type {any} */
 const create = createEffectEmission;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import ConflictTarget from '../../../../../src/domain/types/conflict/ConflictTarget.js';
+import ConflictTarget from '../../../../../src/domain/types/conflict/ConflictTarget.ts';
 
 describe('ConflictTarget', () => {
   const NODE_TARGET = {

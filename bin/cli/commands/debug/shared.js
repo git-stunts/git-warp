@@ -111,16 +111,16 @@ async function materializeGraphForDebug(debugGraph, opts) {
  * @param {WarpGraphInstance} graph - Open graph instance
  * @param {string} strandId - Strand identifier to fetch patches for
  * @param {number|null} lamportCeiling - Maximum lamport tick to include, or null for all
- * @returns {Promise<Array<{patch: import('../../../../src/domain/types/WarpTypesV2.js').PatchV2, sha: string}>>}
+ * @returns {Promise<Array<{patch: import('../../../../src/domain/types/WarpTypesV2.ts').PatchV2, sha: string}>>}
  */
 export async function getStrandPatchEntriesForDebug(graph, strandId, lamportCeiling) {
   const debugGraph = /** @type {WarpCoreRuntime} */ (/** @type {unknown} */ (graph));
   if (lamportCeiling === null) {
-    return /** @type {Array<{patch: import('../../../../src/domain/types/WarpTypesV2.js').PatchV2, sha: string}>} */ (
+    return /** @type {Array<{patch: import('../../../../src/domain/types/WarpTypesV2.ts').PatchV2, sha: string}>} */ (
       await debugGraph.getStrandPatches(strandId)
     );
   }
-  return /** @type {Array<{patch: import('../../../../src/domain/types/WarpTypesV2.js').PatchV2, sha: string}>} */ (
+  return /** @type {Array<{patch: import('../../../../src/domain/types/WarpTypesV2.ts').PatchV2, sha: string}>} */ (
     await debugGraph.getStrandPatches(strandId, { ceiling: lamportCeiling })
   );
 }

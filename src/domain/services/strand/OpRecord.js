@@ -7,8 +7,8 @@
  * @module domain/services/strand/OpRecord
  */
 
-import ConflictTarget from '../../types/conflict/ConflictTarget.js';
-import { requireNonEmptyString, requireEnum, requireNonNegativeInt } from '../../types/conflict/validation.js';
+import ConflictTarget from '../../types/conflict/ConflictTarget.ts';
+import { requireNonEmptyString, requireEnum, requireNonNegativeInt } from '../../types/conflict/validation.ts';
 
 const CTX = 'OpRecord';
 const VALID_RESULTS = new Set(['applied', 'superseded', 'redundant']);

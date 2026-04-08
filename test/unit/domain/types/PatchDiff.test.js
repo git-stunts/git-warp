@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createEmptyDiff, mergeDiffs } from '../../../../src/domain/types/PatchDiff.js';
+import { createEmptyDiff, mergeDiffs } from '../../../../src/domain/types/PatchDiff.ts';
 
 describe('PatchDiff', () => {
   describe('createEmptyDiff', () => {

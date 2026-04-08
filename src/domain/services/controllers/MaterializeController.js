@@ -27,12 +27,12 @@ import { buildWriterRef } from '../../utils/RefLayout.js';
 
 /**
  * @typedef {import('../../WarpRuntime.js').default} MaterializeHost
- * @typedef {import('../../types/WarpPersistence.js').CorePersistence} CorePersistence
+ * @typedef {import('../../types/WarpPersistence.ts').CorePersistence} CorePersistence
  */
 
 /** @import { WarpStateV5 } from '../JoinReducer.js' */
-/** @import { TickReceipt } from '../../types/TickReceipt.js' */
-/** @import { PatchDiff } from '../../types/PatchDiff.js' */
+/** @import { TickReceipt } from '../../types/TickReceipt.ts' */
+/** @import { PatchDiff } from '../../types/PatchDiff.ts' */
 
 // ── Standalone helper functions ─────────────────────────────────────────────
 
@@ -276,7 +276,7 @@ async function tryReadCoordinateCache(host, frontier, ceiling, t0) {
  * @param {MaterializeHost} host
  * @param {Map<string, string>} frontier
  * @param {number|null} ceiling
- * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>>}
+ * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string }>>}
  */
 async function collectPatchesForFrontier(host, frontier, ceiling) {
   const allPatches = [];
@@ -955,7 +955,7 @@ export default class MaterializeController {
      * @param {string} writerId - Writer identifier (unused, required by interface)
      * @param {string|null} fromSha - Starting SHA (exclusive) or null for full chain
      * @param {string} toSha - Ending SHA (inclusive)
-     * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>>}
+     * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string }>>}
      */
     const patchLoader = async (writerId, fromSha, toSha) => {
       void writerId;

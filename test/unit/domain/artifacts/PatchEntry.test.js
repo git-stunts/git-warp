@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import PatchEntry from '../../../../src/domain/artifacts/PatchEntry.js';
 import ProvenanceEntry from '../../../../src/domain/artifacts/ProvenanceEntry.js';
-import { PatchV2 } from '../../../../src/domain/types/WarpTypesV2.js';
+import { PatchV2 } from '../../../../src/domain/types/WarpTypesV2.ts';
 
 /** @returns {PatchV2} */
 function minimalPatch() {

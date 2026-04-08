@@ -10,7 +10,7 @@ import { base64Decode } from '../../utils/bytes.js';
 
 /** @import { RoaringBitmapSubset as BitmapShard } from '../../utils/roaring.js' */
 /** @typedef {import('../../../ports/IndexStoragePort.js').default} IndexStoragePort */
-/** @typedef {import('../../types/WarpPersistence.js').IndexStorage} IndexStorage */
+/** @typedef {import('../../types/WarpPersistence.ts').IndexStorage} IndexStorage */
 
 
 /** @typedef {Record<string, string | number>} JsonShard */

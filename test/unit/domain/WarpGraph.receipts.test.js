@@ -420,7 +420,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
   describe('zero-cost invariant', () => {
     it('createTickReceipt is never called when receipts disabled', async () => {
       // Spy on the createTickReceipt import
-      const tickReceiptModule = await import('../../../src/domain/types/TickReceipt.js');
+      const tickReceiptModule = await import('../../../src/domain/types/TickReceipt.ts');
       const spy = vi.spyOn(tickReceiptModule, 'createTickReceipt');
 
       await simulatePatchCommit(persistence, {

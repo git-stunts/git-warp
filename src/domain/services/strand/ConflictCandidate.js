@@ -4,10 +4,10 @@
  * @module domain/services/strand/ConflictCandidate
  */
 
-import ConflictTarget from '../../types/conflict/ConflictTarget.js';
-import ConflictResolution from '../../types/conflict/ConflictResolution.js';
+import ConflictTarget from '../../types/conflict/ConflictTarget.ts';
+import ConflictResolution from '../../types/conflict/ConflictResolution.ts';
 import OpRecord from './OpRecord.js';
-import { requireEnum } from '../../types/conflict/validation.js';
+import { requireEnum } from '../../types/conflict/validation.ts';
 
 const CTX = 'ConflictCandidate';
 const VALID_KINDS = new Set(['supersession', 'eventual_override', 'redundancy']);

@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { NoOpEffectSink } from '../../../../src/infrastructure/adapters/NoOpEffectSink.js';
-import { createEffectEmission } from '../../../../src/domain/types/EffectEmission.js';
-import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/types/ExternalizationPolicy.js';
+import { createEffectEmission } from '../../../../src/domain/types/EffectEmission.ts';
+import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/types/ExternalizationPolicy.ts';
 import EffectSinkPort from '../../../../src/ports/EffectSinkPort.js';
 
-/** @returns {import('../../../../src/domain/types/EffectEmission.js').EffectEmission} */
+/** @returns {import('../../../../src/domain/types/EffectEmission.ts').EffectEmission} */
 function makeEmission(id = 'em-1') {
   return createEffectEmission({
     id,

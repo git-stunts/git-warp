@@ -20,7 +20,7 @@ import { cloneStateV5 } from '../JoinReducer.js';
 
 /**
  * @typedef {import('../../WarpRuntime.js').default} CheckpointHost
- * @typedef {import('../../types/WarpPersistence.js').CorePersistence} CorePersistence
+ * @typedef {import('../../types/WarpPersistence.ts').CorePersistence} CorePersistence
  */
 
 export default class CheckpointController {
@@ -184,7 +184,7 @@ export default class CheckpointController {
    * Loads patches since a checkpoint for incremental materialization.
    *
    * @param {{state: import('../JoinReducer.js').WarpStateV5, frontier: Map<string, string>, stateHash: string, schema: number}} checkpoint
-   * @returns {Promise<Array<{patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string}>>}
+   * @returns {Promise<Array<{patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string}>>}
    */
   async _loadPatchesSince(checkpoint) {
     const h = this._host;

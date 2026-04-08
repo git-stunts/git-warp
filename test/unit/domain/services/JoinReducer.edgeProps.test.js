@@ -18,7 +18,7 @@ import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
-import { createInlineValue } from '../../../../src/domain/types/WarpTypes.js';
+import { createInlineValue } from '../../../../src/domain/types/WarpTypes.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers — mirror the patterns in JoinReducer.test.js

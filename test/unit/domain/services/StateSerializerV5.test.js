@@ -19,7 +19,7 @@ import { createEventId } from '../../../../src/domain/utils/EventId.js';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.js';
 import { orsetAdd, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { createInlineValue } from '../../../../src/domain/types/WarpTypes.js';
+import { createInlineValue } from '../../../../src/domain/types/WarpTypes.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 import {
   CONTENT_MIME_PROPERTY_KEY,

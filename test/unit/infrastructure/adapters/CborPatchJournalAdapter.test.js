@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
-import { createPatchV2 } from '../../../../src/domain/types/WarpTypesV2.js';
+import { createPatchV2 } from '../../../../src/domain/types/WarpTypesV2.ts';
 import PatchJournalPort from '../../../../src/ports/PatchJournalPort.js';
 
 /**
@@ -17,7 +17,7 @@ const GOLDEN_PATCH = createPatchV2({
   writer: 'alice',
   lamport: 1,
   context: { alice: 0 },
-  ops: /** @type {import('../../../../src/domain/types/WarpTypesV2.js').OpV2[]} */ ([
+  ops: /** @type {import('../../../../src/domain/types/WarpTypesV2.ts').OpV2[]} */ ([
     { type: 'NodeAdd', id: 'user:alice', dot: ['alice', 1] },
     { type: 'PropSet', node: 'user:alice', key: 'name', value: 'Alice' },
   ]),

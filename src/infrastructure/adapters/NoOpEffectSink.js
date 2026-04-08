@@ -7,15 +7,15 @@
  */
 
 import EffectSinkPort from '../../ports/EffectSinkPort.js';
-import { createDeliveryObservation } from '../../domain/types/DeliveryObservation.js';
+import { createDeliveryObservation } from '../../domain/types/DeliveryObservation.ts';
 import {
   OUTCOME_DELIVERED,
   OUTCOME_SUPPRESSED,
-} from '../../domain/types/ExternalizationPolicy.js';
+} from '../../domain/types/ExternalizationPolicy.ts';
 
 /**
- * @typedef {import('../../domain/types/EffectEmission.js').EffectEmission} EffectEmission
- * @typedef {import('../../domain/types/ExternalizationPolicy.js').ExternalizationPolicy} ExternalizationPolicy
+ * @typedef {import('../../domain/types/EffectEmission.ts').EffectEmission} EffectEmission
+ * @typedef {import('../../domain/types/ExternalizationPolicy.ts').ExternalizationPolicy} ExternalizationPolicy
  */
 
 /** Default sink ID for NoOpEffectSink. */
@@ -46,7 +46,7 @@ export class NoOpEffectSink extends EffectSinkPort {
    *
    * @param {EffectEmission} emission
    * @param {ExternalizationPolicy} lens
-   * @returns {Promise<import('../../domain/types/DeliveryObservation.js').DeliveryObservation>}
+   * @returns {Promise<import('../../domain/types/DeliveryObservation.ts').DeliveryObservation>}
    */
   deliver(emission, lens) {
     if (lens.suppressExternal) {

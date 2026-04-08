@@ -3,7 +3,7 @@ import {
   requireNonEmptyString, requireNonNegativeInt, requireBoolean,
   requireEnum, optionalString, optionalEnum,
   freezeOptionalObject, freezeStringArray, compareStrings,
-} from '../../../../../src/domain/types/conflict/validation.js';
+} from '../../../../../src/domain/types/conflict/validation.ts';
 
 describe('conflict validation utilities', () => {
   describe('requireNonEmptyString', () => {

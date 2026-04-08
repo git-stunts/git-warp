@@ -8,7 +8,7 @@ import {
   createInlineValue,
   createBlobValue,
   createEventId,
-} from '../../../../src/domain/types/WarpTypes.js';
+} from '../../../../src/domain/types/WarpTypes.ts';
 
 describe('WarpTypes', () => {
   describe('Value Reference Factory Functions', () => {

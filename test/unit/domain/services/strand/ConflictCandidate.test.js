@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import ConflictCandidate from '../../../../../src/domain/services/strand/ConflictCandidate.js';
-import ConflictTarget from '../../../../../src/domain/types/conflict/ConflictTarget.js';
-import ConflictResolution from '../../../../../src/domain/types/conflict/ConflictResolution.js';
+import ConflictTarget from '../../../../../src/domain/types/conflict/ConflictTarget.ts';
+import ConflictResolution from '../../../../../src/domain/types/conflict/ConflictResolution.ts';
 import OpRecord from '../../../../../src/domain/services/strand/OpRecord.js';
 
 function makeTarget() {

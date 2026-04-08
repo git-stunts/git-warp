@@ -4,7 +4,7 @@ import {
   hasErrorCode,
   hasMessage,
   isError,
-} from '../../../../src/domain/types/WarpErrors.js';
+} from '../../../../src/domain/types/WarpErrors.ts';
 
 describe('WarpErrors', () => {
   describe('isError', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import ConflictDiagnostic from '../../../../../src/domain/types/conflict/ConflictDiagnostic.js';
+import ConflictDiagnostic from '../../../../../src/domain/types/conflict/ConflictDiagnostic.ts';
 
 describe('ConflictDiagnostic', () => {
   it('creates a frozen diagnostic', () => {

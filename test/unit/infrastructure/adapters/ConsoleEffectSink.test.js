@@ -1,14 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ConsoleEffectSink } from '../../../../src/infrastructure/adapters/ConsoleEffectSink.js';
-import { createEffectEmission } from '../../../../src/domain/types/EffectEmission.js';
+import { createEffectEmission } from '../../../../src/domain/types/EffectEmission.ts';
 import {
   LIVE_LENS,
   REPLAY_LENS,
   INSPECT_LENS,
-} from '../../../../src/domain/types/ExternalizationPolicy.js';
+} from '../../../../src/domain/types/ExternalizationPolicy.ts';
 import EffectSinkPort from '../../../../src/ports/EffectSinkPort.js';
 
-/** @returns {import('../../../../src/domain/types/EffectEmission.js').EffectEmission} */
+/** @returns {import('../../../../src/domain/types/EffectEmission.ts').EffectEmission} */
 function makeEmission(id = 'em-1', kind = 'test') {
   return createEffectEmission({
     id,

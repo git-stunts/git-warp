@@ -4,11 +4,11 @@
  * @module domain/services/strand/ConflictTraceAssembler
  */
 
-import ConflictAnchor from '../../types/conflict/ConflictAnchor.js';
-import ConflictParticipant from '../../types/conflict/ConflictParticipant.js';
-import ConflictTrace from '../../types/conflict/ConflictTrace.js';
-import ConflictWinner from '../../types/conflict/ConflictWinner.js';
-import { compareStrings } from '../../types/conflict/validation.js';
+import ConflictAnchor from '../../types/conflict/ConflictAnchor.ts';
+import ConflictParticipant from '../../types/conflict/ConflictParticipant.ts';
+import ConflictTrace from '../../types/conflict/ConflictTrace.ts';
+import ConflictWinner from '../../types/conflict/ConflictWinner.ts';
+import { compareStrings } from '../../types/conflict/validation.ts';
 import { inferCausalRelation } from './ConflictCandidateCollector.js';
 import {
   CONFLICT_ANALYSIS_VERSION,
@@ -217,7 +217,7 @@ export function filterTraces(traces, request) {
 /**
  * Extracts sorted diagnostic codes for inclusion in hashes.
  *
- * @param {import('../../types/conflict/ConflictDiagnostic.js').default[]} diagnostics
+ * @param {import('../../types/conflict/ConflictDiagnostic.ts').default[]} diagnostics
  * @returns {string[]}
  */
 function diagnosticCodes(diagnostics) {
@@ -232,7 +232,7 @@ function diagnosticCodes(diagnostics) {
  *   resolvedCoordinate: unknown,
  *   request: import('./ConflictAnalysisRequest.js').default,
  *   truncated: boolean,
- *   diagnostics: import('../../types/conflict/ConflictDiagnostic.js').default[],
+ *   diagnostics: import('../../types/conflict/ConflictDiagnostic.ts').default[],
  *   traces: ConflictTrace[]
  * }} options
  * @returns {Promise<string>}

@@ -8,7 +8,7 @@
  */
 
 import { canonicalStringify } from '../../utils/canonicalStringify.js';
-import ConflictAnalysis from '../../types/conflict/ConflictAnalysis.js';
+import ConflictAnalysis from '../../types/conflict/ConflictAnalysis.ts';
 import ConflictAnalysisRequest from './ConflictAnalysisRequest.js';
 import {
   resolveAnalysisContext,

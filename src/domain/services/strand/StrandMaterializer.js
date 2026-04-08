@@ -3,8 +3,8 @@ import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
 import { isNonEmptyString, maxPatchLamport } from './strandShared.js';
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
-/** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
-/** @import { TickReceipt } from '../../types/TickReceipt.js' */
+/** @import { PatchV2 } from '../../types/WarpTypesV2.ts' */
+/** @import { TickReceipt } from '../../types/TickReceipt.ts' */
 /** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */
 
 export default class StrandMaterializer {

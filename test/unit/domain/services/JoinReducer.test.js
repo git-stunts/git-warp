@@ -22,7 +22,7 @@ import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetContains, orsetGetDots } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
 import VersionVector, { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
-import { createInlineValue } from '../../../../src/domain/types/WarpTypes.js';
+import { createInlineValue } from '../../../../src/domain/types/WarpTypes.ts';
 
 // Helper functions to create V2 operations
 /** @param {string} node @param {any} dot */

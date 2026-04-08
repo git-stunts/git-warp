@@ -288,13 +288,13 @@ function freezePublicState(state) {
  * Deep-freeze both materialized state and tick receipts for safe public consumption.
  *
  * @param {import('../JoinReducer.js').WarpStateV5} state
- * @param {import('../../types/TickReceipt.js').TickReceipt[]} receipts
- * @returns {{ state: import('../JoinReducer.js').WarpStateV5, receipts: import('../../types/TickReceipt.js').TickReceipt[] }}
+ * @param {import('../../types/TickReceipt.ts').TickReceipt[]} receipts
+ * @returns {{ state: import('../JoinReducer.js').WarpStateV5, receipts: import('../../types/TickReceipt.ts').TickReceipt[] }}
  */
 function freezePublicStateWithReceipts(state, receipts) {
   return Object.freeze({
     state: freezePublicState(state),
-    receipts: /** @type {import('../../types/TickReceipt.js').TickReceipt[]} */ (createImmutableValue(receipts)),
+    receipts: /** @type {import('../../types/TickReceipt.ts').TickReceipt[]} */ (createImmutableValue(receipts)),
   });
 }
 
@@ -333,7 +333,7 @@ async function openDetachedReadGraph(graph) {
 /**
  * Return true if a patch references the given entity in its reads or writes.
  *
- * @param {import('../../types/WarpTypesV2.js').PatchV2} patch
+ * @param {import('../../types/WarpTypesV2.ts').PatchV2} patch
  * @param {string} entityId
  * @returns {boolean}
  */
@@ -439,8 +439,8 @@ export default class StrandService {
        * @param {{ collectReceipts: boolean, ceiling: number|null }} options
        * @returns {Promise<{
        *   state: import('../JoinReducer.js').WarpStateV5,
-       *   receipts: import('../../types/TickReceipt.js').TickReceipt[],
-       *   allPatches: Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>
+       *   receipts: import('../../types/TickReceipt.ts').TickReceipt[],
+       *   allPatches: Array<{ patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string }>
        * }>}
        */
       materializeDescriptor: async (descriptor, options) => await this._materializeDescriptor(descriptor, options),
@@ -519,11 +519,11 @@ export default class StrandService {
        *   strandId: string,
        *   overlayId: string,
        *   parentSha: string|null,
-       *   patch: import('../../types/WarpTypesV2.js').PatchV2,
+       *   patch: import('../../types/WarpTypesV2.ts').PatchV2,
        *   contentBlobOids: string[],
        *   lamport: number
        * }} params
-       * @returns {Promise<{ sha: string, patch: import('../../types/WarpTypesV2.js').PatchV2 }>}
+       * @returns {Promise<{ sha: string, patch: import('../../types/WarpTypesV2.ts').PatchV2 }>}
        */
       commitQueuedPatch: async (params) => await this._commitQueuedPatch(params),
       /**
@@ -531,7 +531,7 @@ export default class StrandService {
        *
        * @param {StrandDescriptor} descriptor
        * @param {{ ceiling: number|null }} options
-       * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>>}
+       * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string }>>}
        */
       collectPatchEntries: async (descriptor, options) => await this._collectPatchEntries(descriptor, options),
       /**
@@ -686,7 +686,7 @@ export default class StrandService {
    *
    * @param {string} strandId
    * @param {{ receipts?: boolean, ceiling?: number|null }} [options]
-   * @returns {Promise<import('../JoinReducer.js').WarpStateV5|{state: import('../JoinReducer.js').WarpStateV5, receipts: import('../../types/TickReceipt.js').TickReceipt[]}>}
+   * @returns {Promise<import('../JoinReducer.js').WarpStateV5|{state: import('../JoinReducer.js').WarpStateV5, receipts: import('../../types/TickReceipt.ts').TickReceipt[]}>}
    */
   async materialize(strandId, options = {}) {
     const detached = await openDetachedReadGraph(this._graph);
@@ -732,7 +732,7 @@ export default class StrandService {
    * @returns {Promise<{
    *   intentId: string,
    *   enqueuedAt: string,
-   *   patch: import('../../types/WarpTypesV2.js').PatchV2,
+   *   patch: import('../../types/WarpTypesV2.ts').PatchV2,
    *   reads: string[],
    *   writes: string[],
    *   contentBlobOids: string[]
@@ -788,7 +788,7 @@ export default class StrandService {
    * @returns {Promise<{
    *   intentId: string,
    *   enqueuedAt: string,
-   *   patch: import('../../types/WarpTypesV2.js').PatchV2,
+   *   patch: import('../../types/WarpTypesV2.ts').PatchV2,
    *   reads: string[],
    *   writes: string[],
    *   contentBlobOids: string[]
@@ -803,7 +803,7 @@ export default class StrandService {
    *
    * @param {string} strandId
    * @param {StrandReadOptions} [options]
-   * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>>}
+   * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string }>>}
    */
   async getPatchEntries(strandId, options = {}) {
     const descriptor = await this.getOrThrow(strandId);
@@ -939,7 +939,7 @@ export default class StrandService {
    * @private
    * @param {StrandDescriptor} descriptor
    * @param {{ ceiling: number|null }} options
-   * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>>}
+   * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string }>>}
    */
   async _collectPatchEntries(descriptor, { ceiling }) {
     return await this._materializer.collectPatchEntries(descriptor, { ceiling });
@@ -953,8 +953,8 @@ export default class StrandService {
    * @param {{ collectReceipts: boolean, ceiling: number|null }} options
    * @returns {Promise<{
    *   state: import('../JoinReducer.js').WarpStateV5,
-   *   receipts: import('../../types/TickReceipt.js').TickReceipt[],
-   *   allPatches: Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>
+   *   receipts: import('../../types/TickReceipt.ts').TickReceipt[],
+   *   allPatches: Array<{ patch: import('../../types/WarpTypesV2.ts').PatchV2, sha: string }>
    * }>}
    */
   async _materializeDescriptor(descriptor, { collectReceipts, ceiling }) {
@@ -972,11 +972,11 @@ export default class StrandService {
    *   strandId: string,
    *   overlayId: string,
    *   parentSha: string|null,
-   *   patch: import('../../types/WarpTypesV2.js').PatchV2,
+   *   patch: import('../../types/WarpTypesV2.ts').PatchV2,
    *   contentBlobOids: string[],
    *   lamport: number
    * }} params
-   * @returns {Promise<{ sha: string, patch: import('../../types/WarpTypesV2.js').PatchV2 }>}
+   * @returns {Promise<{ sha: string, patch: import('../../types/WarpTypesV2.ts').PatchV2 }>}
    */
   async _commitQueuedPatch({ strandId, overlayId, parentSha, patch, contentBlobOids, lamport }) {
     return await this._patchService.commitQueuedPatch({

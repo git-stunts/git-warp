@@ -10,7 +10,7 @@ import {
 } from '../../../helpers/warpGraphTestUtils.js';
 
 /**
- * @typedef {import('../../../../src/domain/types/WarpTypesV2.js').PatchV2} TestPatch
+ * @typedef {import('../../../../src/domain/types/WarpTypesV2.ts').PatchV2} TestPatch
  */
 
 /**

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { OP_TYPES, RESULT_TYPES } from '../../../../src/domain/types/TickReceipt.js';
+import { OP_TYPES, RESULT_TYPES } from '../../../../src/domain/types/TickReceipt.ts';
 import { EXIT_CODES, parseCommandArgs } from '../../infrastructure.js';
 
 import {
@@ -14,8 +14,8 @@ import {
 } from './shared.js';
 
 /** @typedef {import('../../types.js').CliOptions} CliOptions */
-/** @typedef {import('../../../../src/domain/types/TickReceipt.js').TickReceipt} TickReceipt */
-/** @typedef {import('../../../../src/domain/types/TickReceipt.js').OpOutcome} OpOutcome */
+/** @typedef {import('../../../../src/domain/types/TickReceipt.ts').TickReceipt} TickReceipt */
+/** @typedef {import('../../../../src/domain/types/TickReceipt.ts').OpOutcome} OpOutcome */
 
 export const DEBUG_TOPIC = Object.freeze({
   name: 'receipts',

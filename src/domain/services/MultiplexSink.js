@@ -12,9 +12,9 @@
 import EffectSinkPort from '../../ports/EffectSinkPort.js';
 
 /**
- * @typedef {import('../types/EffectEmission.js').EffectEmission} EffectEmission
- * @typedef {import('../types/ExternalizationPolicy.js').ExternalizationPolicy} ExternalizationPolicy
- * @typedef {import('../types/DeliveryObservation.js').DeliveryObservation} DeliveryObservation
+ * @typedef {import('../types/EffectEmission.ts').EffectEmission} EffectEmission
+ * @typedef {import('../types/ExternalizationPolicy.ts').ExternalizationPolicy} ExternalizationPolicy
+ * @typedef {import('../types/DeliveryObservation.ts').DeliveryObservation} DeliveryObservation
  */
 
 /** Default sink ID for MultiplexSink. */

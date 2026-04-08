@@ -4,7 +4,7 @@ import {
   canonicalJson,
   OP_TYPES,
   RESULT_TYPES,
-} from '../../../../src/domain/types/TickReceipt.js';
+} from '../../../../src/domain/types/TickReceipt.ts';
 
 /** @type {any} */
 const createTickReceipt = _createTickReceipt;

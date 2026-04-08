@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import OpRecord from '../../../../../src/domain/services/strand/OpRecord.js';
-import ConflictTarget from '../../../../../src/domain/types/conflict/ConflictTarget.js';
+import ConflictTarget from '../../../../../src/domain/types/conflict/ConflictTarget.ts';
 
 function makeTarget() {
   return new ConflictTarget({ targetKind: 'node', targetDigest: 'td1', entityId: 'n1' });

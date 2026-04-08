@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import ConflictResolvedCoordinate from '../../../../../src/domain/types/conflict/ConflictResolvedCoordinate.js';
+import ConflictResolvedCoordinate from '../../../../../src/domain/types/conflict/ConflictResolvedCoordinate.ts';
 
 describe('ConflictResolvedCoordinate', () => {
   const VALID = {

@@ -16,7 +16,7 @@ import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReduc
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').StrandDescriptor} StrandDescriptor */
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').StrandQueuedIntent} StrandQueuedIntent */
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').StrandTickRecord} StrandTickRecord */
-/** @typedef {import('../../../../../src/domain/types/WarpTypesV2.js').PatchV2} PatchV2 */
+/** @typedef {import('../../../../../src/domain/types/WarpTypesV2.ts').PatchV2} PatchV2 */
 
 // ── Deterministic OID generator ───────────────────────────────────────────────
 
@@ -87,7 +87,7 @@ const OVERLAY_KIND = /** @type {'patch-log'} */ (STRAND_OVERLAY_KIND);
  *     options: { collectReceipts: boolean, ceiling: number|null }
  *   ): Promise<{
  *     state: import('../../../../../src/domain/services/JoinReducer.js').WarpStateV5,
- *     receipts: import('../../../../../src/domain/types/TickReceipt.js').TickReceipt[],
+ *     receipts: import('../../../../../src/domain/types/TickReceipt.ts').TickReceipt[],
  *     allPatches: Array<{ patch: PatchV2, sha: string }>
  *   }>,
  *   _commitQueuedPatch(params: {

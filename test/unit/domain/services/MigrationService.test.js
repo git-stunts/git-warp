@@ -134,13 +134,13 @@ import {
   createEdgeTombstone,
   createPropSet,
   createInlineValue,
-} from '../../../../src/domain/types/WarpTypes.js';
+} from '../../../../src/domain/types/WarpTypes.ts';
 import {
   createPatchV2,
   createNodeAddV2,
   createEdgeAddV2,
   createPropSetV2,
-} from '../../../../src/domain/types/WarpTypesV2.js';
+} from '../../../../src/domain/types/WarpTypesV2.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 const crypto = new NodeCryptoAdapter();

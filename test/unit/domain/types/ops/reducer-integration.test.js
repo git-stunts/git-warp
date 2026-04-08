@@ -15,11 +15,11 @@ import {
   createPropSetV2,
   createNodePropSetV2,
   createEdgePropSetV2,
-} from '../../../../../src/domain/types/WarpTypesV2.js';
-import { PatchV2 } from '../../../../../src/domain/types/WarpTypesV2.js';
-import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.js';
-import EdgeAdd from '../../../../../src/domain/types/ops/EdgeAdd.js';
-import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.js';
+} from '../../../../../src/domain/types/WarpTypesV2.ts';
+import { PatchV2 } from '../../../../../src/domain/types/WarpTypesV2.ts';
+import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
+import EdgeAdd from '../../../../../src/domain/types/ops/EdgeAdd.ts';
+import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.ts';
 import {
   createEmptyStateV5,
   applyOpV2,

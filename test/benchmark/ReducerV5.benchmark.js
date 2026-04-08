@@ -15,7 +15,7 @@ import {
   createNodeAddV2 as _createNodeAddV2,
   createEdgeAddV2 as _createEdgeAddV2,
   createPropSetV2,
-} from '../../src/domain/types/WarpTypesV2.js';
+} from '../../src/domain/types/WarpTypesV2.ts';
 
 /** @type {any} */ const createPatchV2 = _createPatchV2;
 /** @type {any} */ const createNodeAddV2 = _createNodeAddV2;
@@ -23,7 +23,7 @@ import {
 
 /** @type {any} */
 const reduceV5 = _reduceV5;
-import { createInlineValue } from '../../src/domain/types/WarpTypes.js';
+import { createInlineValue } from '../../src/domain/types/WarpTypes.ts';
 import { createDot, encodeDot } from '../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../src/domain/crdt/VersionVector.js';
 import { orsetElements } from '../../src/domain/crdt/ORSet.js';

@@ -48,7 +48,7 @@ function internalError(id, err) {
 export async function checkRepoAccessible(ctx) {
   try {
     const clock = ClockAdapter.global();
-    const svc = new HealthCheckService({ persistence: /** @type {import('../../../../src/domain/types/WarpPersistence.js').CorePersistence} */ (/** @type {unknown} */ (ctx.persistence)), clock });
+    const svc = new HealthCheckService({ persistence: /** @type {import('../../../../src/domain/types/WarpPersistence.ts').CorePersistence} */ (/** @type {unknown} */ (ctx.persistence)), clock });
     const health = await svc.getHealth();
     if (health.components.repository.status === 'unhealthy') {
       return {

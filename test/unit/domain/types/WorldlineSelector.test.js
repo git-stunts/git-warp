@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import WorldlineSelector from '../../../../src/domain/types/WorldlineSelector.js';
-import LiveSelector from '../../../../src/domain/types/LiveSelector.js';
-import CoordinateSelector from '../../../../src/domain/types/CoordinateSelector.js';
-import StrandSelector from '../../../../src/domain/types/StrandSelector.js';
+import WorldlineSelector from '../../../../src/domain/types/WorldlineSelector.ts';
+import LiveSelector from '../../../../src/domain/types/LiveSelector.ts';
+import CoordinateSelector from '../../../../src/domain/types/CoordinateSelector.ts';
+import StrandSelector from '../../../../src/domain/types/StrandSelector.ts';
 
 // ─── LiveSelector ────────────────────────────────────────────────────────────
 

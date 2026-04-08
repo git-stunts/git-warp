@@ -17,8 +17,8 @@ import { decodeEdgeKey } from '../KeyCodec.js';
 import { matchGlob } from '../../utils/matchGlob.js';
 
 
-import WorldlineSelector from '../../types/WorldlineSelector.js';
-import LiveSelector from '../../types/LiveSelector.js';
+import WorldlineSelector from '../../types/WorldlineSelector.ts';
+import LiveSelector from '../../types/LiveSelector.ts';
 
 /**
  * Converts a raw source to a WorldlineSelector, or returns null.
@@ -252,7 +252,7 @@ export default class Observer {
    * Initializes the backing graph, snapshot, and source state.
    * @param {import('../../WarpRuntime.js').default|undefined} graph
    * @param {{ state: import('../JoinReducer.js').WarpStateV5, stateHash: string }|undefined} snapshot
-   * @param {import('../../types/WorldlineSelector.js').default|import('../../../../index.js').WorldlineSource|undefined} source
+   * @param {import('../../types/WorldlineSelector.ts').default|import('../../../../index.js').WorldlineSource|undefined} source
    * @private
    */
   _initBacking(graph, snapshot, source) {

@@ -455,7 +455,7 @@ function opAffectsScope(op, scope) {
   }
 
   const normalized = /** @type {Record<string, unknown>} */ (
-    normalizeRawOp(/** @type {import('../types/WarpTypesV2.js').RawOpV2 | { type: string }} */ (op))
+    normalizeRawOp(/** @type {import('../types/WarpTypesV2.ts').RawOpV2 | { type: string }} */ (op))
   );
   return normalizedOpAffectsScope(normalized, scope);
 }
@@ -463,7 +463,7 @@ function opAffectsScope(op, scope) {
 /**
  * Tests whether a patch contains at least one op that affects the scope.
  *
- * @param {import('../types/WarpTypesV2.js').PatchV2} patch
+ * @param {import('../types/WarpTypesV2.ts').PatchV2} patch
  * @param {VisibleStateScopeV1|null|undefined} scope
  * @returns {boolean}
  */
@@ -478,9 +478,9 @@ function patchAffectsScope(patch, scope) {
 /**
  * Filters patch entries down to patches with at least one in-scope op.
  *
- * @param {Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>} entries
+ * @param {Array<{ patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string }>} entries
  * @param {VisibleStateScopeV1|null|undefined} scope
- * @returns {Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>}
+ * @returns {Array<{ patch: import('../types/WarpTypesV2.ts').PatchV2, sha: string }>}
  */
 export function scopePatchEntriesV1(entries, scope) {
   if (scope === null || scope === undefined) {

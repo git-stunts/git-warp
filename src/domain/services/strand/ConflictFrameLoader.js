@@ -8,10 +8,10 @@
  */
 
 import VersionVector from '../../crdt/VersionVector.js';
-import ConflictAnchor from '../../types/conflict/ConflictAnchor.js';
-import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.js';
-import ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.js';
-import { compareStrings } from '../../types/conflict/validation.js';
+import ConflictAnchor from '../../types/conflict/ConflictAnchor.ts';
+import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
+import ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.ts';
+import { compareStrings } from '../../types/conflict/validation.ts';
 import { reduceV5 } from '../JoinReducer.js';
 import StrandService from './StrandService.js';
 

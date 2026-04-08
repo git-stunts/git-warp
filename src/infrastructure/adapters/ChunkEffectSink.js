@@ -12,17 +12,17 @@
  */
 
 import EffectSinkPort from '../../ports/EffectSinkPort.js';
-import { createDeliveryObservation } from '../../domain/types/DeliveryObservation.js';
+import { createDeliveryObservation } from '../../domain/types/DeliveryObservation.ts';
 import {
   OUTCOME_DELIVERED,
   OUTCOME_FAILED,
-} from '../../domain/types/ExternalizationPolicy.js';
+} from '../../domain/types/ExternalizationPolicy.ts';
 import { appendFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 /**
- * @typedef {import('../../domain/types/EffectEmission.js').EffectEmission} EffectEmission
- * @typedef {import('../../domain/types/ExternalizationPolicy.js').ExternalizationPolicy} ExternalizationPolicy
+ * @typedef {import('../../domain/types/EffectEmission.ts').EffectEmission} EffectEmission
+ * @typedef {import('../../domain/types/ExternalizationPolicy.ts').ExternalizationPolicy} ExternalizationPolicy
  */
 
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024; // 10 MiB
@@ -100,7 +100,7 @@ export class ChunkEffectSink extends EffectSinkPort {
    *
    * @param {EffectEmission} emission
    * @param {ExternalizationPolicy} lens
-   * @returns {Promise<import('../../domain/types/DeliveryObservation.js').DeliveryObservation>}
+   * @returns {Promise<import('../../domain/types/DeliveryObservation.ts').DeliveryObservation>}
    */
   async deliver(emission, lens) {
     try {

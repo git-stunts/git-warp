@@ -28,9 +28,9 @@ export default class EffectSinkPort {
   /**
    * Delivers an effect emission under the given delivery lens. Subclasses must override this method.
    *
-   * @param {import('../domain/types/EffectEmission.js').EffectEmission} _emission
-   * @param {import('../domain/types/ExternalizationPolicy.js').ExternalizationPolicy} _lens
-   * @returns {Promise<import('../domain/types/DeliveryObservation.js').DeliveryObservation | import('../domain/types/DeliveryObservation.js').DeliveryObservation[]>}
+   * @param {import('../domain/types/EffectEmission.ts').EffectEmission} _emission
+   * @param {import('../domain/types/ExternalizationPolicy.ts').ExternalizationPolicy} _lens
+   * @returns {Promise<import('../domain/types/DeliveryObservation.ts').DeliveryObservation | import('../domain/types/DeliveryObservation.ts').DeliveryObservation[]>}
    * @abstract
    */
   async deliver(_emission, _lens) {
