@@ -106,7 +106,7 @@ async function tryNativeImport(errors: Error[]): Promise<RoaringModule | null> {
   try {
     return await import('roaring') as RoaringModule;
   } catch (err) {
-    errors.push(err instanceof Error ? err : new Error(String(err)));
+    errors.push(err instanceof Error ? err : new WarpError(String(err), 'E_ROARING_LOAD'));
     return null;
   }
 }
@@ -122,7 +122,7 @@ async function tryCjsRequire(errors: Error[]): Promise<RoaringModule | null> {
     const mod = req('roaring') as RoaringModule;
     return mod;
   } catch (err) {
-    errors.push(err instanceof Error ? err : new Error(String(err)));
+    errors.push(err instanceof Error ? err : new WarpError(String(err), 'E_ROARING_LOAD'));
     return null;
   }
 }
@@ -138,7 +138,7 @@ async function tryWasmFallback(errors: Error[]): Promise<RoaringModule | null> {
     }
     return adaptWasmApi(wasmMod as RoaringModule);
   } catch (err) {
-    errors.push(err instanceof Error ? err : new Error(String(err)));
+    errors.push(err instanceof Error ? err : new WarpError(String(err), 'E_ROARING_LOAD'));
     return null;
   }
 }

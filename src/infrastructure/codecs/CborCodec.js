@@ -56,6 +56,7 @@
 
 import { Encoder, decode as cborDecode } from 'cbor-x';
 import CodecPort from '../../ports/CodecPort.ts';
+import MessageCodecError from '../../domain/errors/MessageCodecError.ts';
 
 /**
  * Pre-configured cbor-x encoder instance.
@@ -126,14 +127,17 @@ function sortPlainObject(obj) {
  *
  * @param {Map<string, unknown>} map - The Map instance to convert
  * @returns {Record<string, unknown>} A plain object with sorted keys
- * @throws {TypeError} If any Map key is not a string
+ * @throws {MessageCodecError} If any Map key is not a string
  * @private
  */
 function sortMapToObject(map) {
   const keys = Array.from(map.keys());
   for (const key of keys) {
     if (typeof key !== 'string') {
-      throw new TypeError(`Map keys must be strings for CBOR encoding, got ${typeof key}`);
+      throw new MessageCodecError(
+        `Map keys must be strings for CBOR encoding, got ${typeof key}`,
+        { code: 'E_CBOR_MAP_KEY_TYPE', context: { actual: typeof key } },
+      );
     }
   }
   /** @type {Record<string, unknown>} */

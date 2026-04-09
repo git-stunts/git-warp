@@ -10,6 +10,7 @@
  */
 
 import VersionVector from '../crdt/VersionVector.ts';
+import WarpError from '../errors/WarpError.ts';
 
 /** @typedef {import('./JoinReducer.ts').WarpStateV5} WarpStateV5 */
 
@@ -17,13 +18,17 @@ const MAP_MUTATORS = new Set(['set', 'delete', 'clear']);
 const SET_MUTATORS = new Set(['add', 'delete', 'clear']);
 
 /**
- * Build a TypeError for attempts to mutate a read-only collection snapshot.
+ * Build a domain error for attempts to mutate a read-only collection snapshot.
  * @param {'Map'|'Set'} kind
  * @param {string} method
- * @returns {TypeError}
+ * @returns {WarpError}
  */
 function createReadonlyMutationError(kind, method) {
-  return new TypeError(`${kind} snapshot is read-only; ${method}() is not allowed`);
+  return new WarpError(
+    `${kind} snapshot is read-only; ${method}() is not allowed`,
+    'E_IMMUTABLE_SNAPSHOT_MUTATION',
+    { context: { kind, method } },
+  );
 }
 
 /**

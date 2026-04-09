@@ -14,6 +14,7 @@ import { TrustRecordSchema } from './schemas.js';
 import { verifyRecordId } from './TrustCanonical.js';
 import PersistenceError from '../errors/PersistenceError.ts';
 import TrustError from '../errors/TrustError.ts';
+import WarpError from '../errors/WarpError.ts';
 
 /**
  * Maximum CAS attempts for _persistRecord before giving up.
@@ -161,7 +162,7 @@ export class TrustRecordService {
     } catch (err) {
       return {
         ok: false,
-        error: err instanceof Error ? err : new Error(String(err)),
+        error: err instanceof Error ? err : new WarpError(String(err), 'E_TRUST_RECORD_UNKNOWN'),
       };
     }
   }
