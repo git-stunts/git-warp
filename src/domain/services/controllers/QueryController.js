@@ -33,6 +33,7 @@ import WorldlineSelector from '../../types/WorldlineSelector.ts';
 import LiveSelector from '../../types/LiveSelector.ts';
 import CoordinateSelector from '../../types/CoordinateSelector.ts';
 import StrandSelector from '../../types/StrandSelector.ts';
+import QueryError from '../../errors/QueryError.ts';
 
 /**
  * The host interface that QueryController depends on.
@@ -177,7 +178,10 @@ async function resolveObserverSnapshot(graph, options) {
     return await snapshotReturnedState(detached, state);
   }
 
-  throw new Error(`unknown observer source kind: ${source.constructor.name}`);
+  throw new QueryError(`unknown observer source kind: ${source.constructor.name}`, {
+    code: 'E_OBSERVER_SOURCE_UNKNOWN',
+    context: { sourceKind: source.constructor.name },
+  });
 }
 
 /**
@@ -534,7 +538,9 @@ async function observer(nameOrConfig, configOrOptions = undefined, maybeOptions 
   /** Validates that a match value is a non-empty string or non-empty string array. @param {unknown} m - Match value to validate @returns {boolean} True if valid */
   const isValidMatch = (m) => typeof m === 'string' || (Array.isArray(m) && m.length > 0 && m.every(/** Checks that an element is a string. @param {unknown} i - Array element @returns {boolean} True if string */ i => typeof i === 'string'));
   if (!config || !isValidMatch(config.match)) {
-    throw new Error('observer config.match must be a non-empty string or non-empty array of strings');
+    throw new QueryError('observer config.match must be a non-empty string or non-empty array of strings', {
+      code: 'E_OBSERVER_MATCH_TYPE',
+    });
   }
   const snapshot = await resolveObserverSnapshot(this._host, options);
   return new Observer({

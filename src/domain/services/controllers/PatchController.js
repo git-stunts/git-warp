@@ -15,6 +15,7 @@ import { Writer } from '../../warp/Writer.ts';
 import { resolveWriterId } from '../../utils/WriterId.ts';
 import EncryptionError from '../../errors/EncryptionError.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
+import PatchError from '../../errors/PatchError.ts';
 import { QueryError, E_NO_STATE_MSG, E_STALE_STATE_MSG } from '../../warp/_internal.ts';
 
 /**
@@ -78,8 +79,9 @@ export default class PatchController {
   async patch(build) {
     const h = this._host;
     if (h._patchInProgress) {
-      throw new Error(
+      throw new PatchError(
         'graph.patch() is not reentrant. Use createPatch() for nested or concurrent patches.',
+        { code: 'E_PATCH_REENTRANT' },
       );
     }
     h._patchInProgress = true;
@@ -130,10 +132,13 @@ export default class PatchController {
           const patchInfo = decodePatchMessage(commitMessage);
           ownTick = patchInfo.lamport;
         } catch (err) {
-          throw new Error(
+          throw new PatchError(
             `Failed to parse lamport from writer ref ${writerRef}: ` +
             `commit ${currentRefSha} has invalid patch message format`,
-            { cause: err },
+            {
+              code: 'E_PATCH_LAMPORT_PARSE',
+              context: { writerRef, currentRefSha, cause: err instanceof Error ? err.message : String(err) },
+            },
           );
         }
       }
@@ -466,7 +471,7 @@ export default class PatchController {
     }
 
     if (otherState === null || otherState === undefined || !('nodeAlive' in otherState) || !('edgeAlive' in otherState)) {
-      throw new Error('Invalid state: must be a valid WarpStateV5 object');
+      throw new QueryError('Invalid state: must be a valid WarpStateV5 object', { code: 'E_INVALID_STATE' });
     }
 
     const beforeNodes = h._cachedState.nodeAlive.elements().length;

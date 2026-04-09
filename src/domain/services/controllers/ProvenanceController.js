@@ -198,7 +198,10 @@ export default class ProvenanceController {
     const kind = detectMessageKind(nodeInfo.message);
 
     if (kind !== 'patch') {
-      throw new Error(`Commit ${sha} is not a patch`);
+      throw new QueryError(`Commit ${sha} is not a patch`, {
+        code: 'E_COMMIT_NOT_PATCH',
+        context: { sha, kind },
+      });
     }
 
     const patchMeta = decodePatchMessage(nodeInfo.message);

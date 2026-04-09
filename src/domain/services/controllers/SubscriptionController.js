@@ -9,6 +9,7 @@
 
 import { diffStates, isEmptyDiff } from '../state/StateDiff.js';
 import { matchGlob } from '../../utils/matchGlob.ts';
+import WarpError from '../../errors/WarpError.ts';
 
 /** @import { WarpStateV5 } from '../JoinReducer.ts' */
 /** @import { StateDiffResult, EdgeChange, PropSet, PropRemoved } from '../state/StateDiff.js' */
@@ -57,7 +58,7 @@ export default class SubscriptionController {
    */
   subscribe({ onChange, onError, replay = false }) {
     if (typeof onChange !== 'function') {
-      throw new Error('onChange must be a function');
+      throw new WarpError('onChange must be a function', 'E_SUBSCRIBE_INVALID_CALLBACK');
     }
 
     const host = this._host;
@@ -112,14 +113,17 @@ export default class SubscriptionController {
     /** Checks whether a pattern is a non-empty string or array of strings. @param {string|string[]} p @returns {boolean} */
     const isValidPattern = (p) => typeof p === 'string' || (Array.isArray(p) && p.length > 0 && p.every(i => typeof i === 'string'));
     if (!isValidPattern(pattern)) {
-      throw new Error('pattern must be a non-empty string or non-empty array of strings');
+      throw new WarpError(
+        'pattern must be a non-empty string or non-empty array of strings',
+        'E_WATCH_INVALID_PATTERN',
+      );
     }
     if (typeof onChange !== 'function') {
-      throw new Error('onChange must be a function');
+      throw new WarpError('onChange must be a function', 'E_WATCH_INVALID_CALLBACK');
     }
     if (poll !== undefined) {
       if (typeof poll !== 'number' || !Number.isFinite(poll) || poll < 1000) {
-        throw new Error('poll must be a finite number >= 1000');
+        throw new WarpError('poll must be a finite number >= 1000', 'E_WATCH_INVALID_POLL');
       }
     }
 
