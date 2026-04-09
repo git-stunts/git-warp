@@ -107,7 +107,8 @@
     "typecheck:consumer": "tsc --noEmit -p test/type-check/tsconfig.json",
     "typecheck:policy": "node scripts/ts-policy-check.js",
     "typecheck:surface": "node scripts/check-dts-surface.js",
-    "status:touched": "node scripts/touched-files-status.js"
+    "status:touched": "node scripts/touched-files-status.js",
+    "scorecard:agent": "node scripts/agent-scorecard.js"
   },
   "dependencies": {
     "@git-stunts/alfred": "^0.4.0",
