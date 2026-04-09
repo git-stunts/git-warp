@@ -4,7 +4,10 @@ import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/J
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';
-import { MetaShard, LabelShard, PropertyShard, ReceiptShard } from '../../../../src/domain/artifacts/IndexShard.js';
+import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.js';
+import { LabelShard } from '../../../../src/domain/artifacts/LabelShard.js';
+import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.js';
+import { ReceiptShard } from '../../../../src/domain/artifacts/ReceiptShard.js';
 
 /**
  * Helper: builds a WarpStateV5 from a simple fixture definition.

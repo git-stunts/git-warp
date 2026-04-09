@@ -14,7 +14,7 @@ import { orsetElements } from '../../crdt/ORSet.js';
 import { decodeEdgeKey, decodePropKey, isEdgePropKey } from '../KeyCodec.js';
 import { nodeVisibleV5, edgeVisibleV5 } from '../state/StateSerializerV5.js';
 import WarpStream from '../../stream/WarpStream.js';
-import { ReceiptShard } from '../../artifacts/IndexShard.js';
+import { ReceiptShard } from '../../artifacts/ReceiptShard.js';
 
 export default class LogicalIndexBuildService {
   /**

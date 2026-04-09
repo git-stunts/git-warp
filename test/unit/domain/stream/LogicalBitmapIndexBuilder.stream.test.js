@@ -7,7 +7,11 @@ import LogicalBitmapIndexBuilder from '../../../../src/domain/services/index/Log
 import WarpStream from '../../../../src/domain/stream/WarpStream.js';
 import { IndexShardEncodeTransform } from '../../../../src/infrastructure/adapters/IndexShardEncodeTransform.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
-import { MetaShard, EdgeShard, LabelShard, ReceiptShard, IndexShard } from '../../../../src/domain/artifacts/IndexShard.js';
+import { IndexShard } from '../../../../src/domain/artifacts/IndexShard.js';
+import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.js';
+import { EdgeShard } from '../../../../src/domain/artifacts/EdgeShard.js';
+import { LabelShard } from '../../../../src/domain/artifacts/LabelShard.js';
+import { ReceiptShard } from '../../../../src/domain/artifacts/ReceiptShard.js';
 
 /**
  * Builds a small index with nodes and edges for testing.

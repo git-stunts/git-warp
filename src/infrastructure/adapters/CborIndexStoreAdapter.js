@@ -1,13 +1,11 @@
 import IndexStorePort from '../../ports/IndexStorePort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import WarpStream from '../../domain/stream/WarpStream.js';
-import {
-  MetaShard,
-  EdgeShard,
-  LabelShard,
-  PropertyShard,
-  ReceiptShard,
-} from '../../domain/artifacts/IndexShard.js';
+import { MetaShard } from '../../domain/artifacts/MetaShard.js';
+import { EdgeShard } from '../../domain/artifacts/EdgeShard.js';
+import { LabelShard } from '../../domain/artifacts/LabelShard.js';
+import { PropertyShard } from '../../domain/artifacts/PropertyShard.js';
+import { ReceiptShard } from '../../domain/artifacts/ReceiptShard.js';
 import { IndexShardEncodeTransform } from './IndexShardEncodeTransform.js';
 import { GitBlobWriteTransform } from './GitBlobWriteTransform.js';
 import { TreeAssemblerSink } from './TreeAssemblerSink.js';

@@ -12,7 +12,9 @@ import defaultCodec from '../../utils/defaultCodec.ts';
 import computeShardKey from '../../utils/shardKey.ts';
 import toBytes from '../../utils/toBytes.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
-import { MetaShard, EdgeShard, LabelShard } from '../../artifacts/IndexShard.js';
+import { MetaShard } from '../../artifacts/MetaShard.js';
+import { EdgeShard } from '../../artifacts/EdgeShard.js';
+import { LabelShard } from '../../artifacts/LabelShard.js';
 
 /** @typedef {import('./BitmapNeighborProvider.js').LogicalIndex} LogicalIndex */
 /** @typedef {import('../../utils/roaring.ts').RoaringBitmapSubset} Bitmap */

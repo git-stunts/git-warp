@@ -3,7 +3,9 @@ import LogicalIndexBuildService from '../../../../src/domain/services/index/Logi
 import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { MetaShard, LabelShard, EdgeShard } from '../../../../src/domain/artifacts/IndexShard.js';
+import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.js';
+import { LabelShard } from '../../../../src/domain/artifacts/LabelShard.js';
+import { EdgeShard } from '../../../../src/domain/artifacts/EdgeShard.js';
 
 /**
  * Helper: builds a WarpStateV5 from nodes and edges, applying ops in the

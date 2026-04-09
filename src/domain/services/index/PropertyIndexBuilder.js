@@ -8,7 +8,7 @@
  */
 
 import computeShardKey from '../../utils/shardKey.ts';
-import { PropertyShard } from '../../artifacts/IndexShard.js';
+import { PropertyShard } from '../../artifacts/PropertyShard.js';
 
 /**
  * Creates a null-prototype object typed as Record<string, unknown>.

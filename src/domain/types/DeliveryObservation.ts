@@ -92,12 +92,19 @@ function validateTimestamp(value: number): void {
 }
 
 /**
- * Validates a lens has a recognized mode and boolean suppressExternal.
+ * Asserts that a lens is a non-null object.
  */
-function validateLens(lens: { mode: string; suppressExternal: boolean }): void {
+function requireLensObject(lens: { mode: string; suppressExternal: boolean }): void {
   if (lens === null || lens === undefined || typeof lens !== 'object') {
     throw new WarpError('lens must be an object', 'E_VALIDATION');
   }
+}
+
+/**
+ * Validates a lens has a recognized mode and boolean suppressExternal.
+ */
+function validateLens(lens: { mode: string; suppressExternal: boolean }): void {
+  requireLensObject(lens);
   if (!modeSet.has(lens.mode)) {
     throw new WarpError(
       `lens.mode must be one of: ${DELIVERY_MODES.join(', ')}`,

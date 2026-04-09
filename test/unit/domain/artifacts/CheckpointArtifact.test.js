@@ -1,10 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import {
-  CheckpointArtifact,
-  StateArtifact,
-  FrontierArtifact,
-  AppliedVVArtifact,
-} from '../../../../src/domain/artifacts/CheckpointArtifact.js';
+import { CheckpointArtifact } from '../../../../src/domain/artifacts/CheckpointArtifact.js';
+import { StateArtifact } from '../../../../src/domain/artifacts/StateArtifact.js';
+import { FrontierArtifact } from '../../../../src/domain/artifacts/FrontierArtifact.js';
+import { AppliedVVArtifact } from '../../../../src/domain/artifacts/AppliedVVArtifact.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
 

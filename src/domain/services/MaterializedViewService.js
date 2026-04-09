@@ -20,13 +20,11 @@ import PropertyIndexReader from './index/PropertyIndexReader.js';
 import IncrementalIndexUpdater from './index/IncrementalIndexUpdater.js';
 import { orsetElements, orsetContains } from '../crdt/ORSet.js';
 import { decodeEdgeKey } from './KeyCodec.js';
-import {
-  MetaShard,
-  EdgeShard,
-  LabelShard,
-  PropertyShard,
-  ReceiptShard,
-} from '../artifacts/IndexShard.js';
+import { MetaShard } from '../artifacts/MetaShard.js';
+import { EdgeShard } from '../artifacts/EdgeShard.js';
+import { LabelShard } from '../artifacts/LabelShard.js';
+import { PropertyShard } from '../artifacts/PropertyShard.js';
+import { ReceiptShard } from '../artifacts/ReceiptShard.js';
 
 /** Prefix for property shard paths in the index tree. */
 const PROPS_PREFIX = 'props_';

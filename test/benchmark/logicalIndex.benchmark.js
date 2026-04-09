@@ -15,7 +15,7 @@ import { describe, it, expect } from 'vitest';
 import LogicalIndexBuildService from '../../src/domain/services/index/LogicalIndexBuildService.js';
 import PropertyIndexBuilder from '../../src/domain/services/index/PropertyIndexBuilder.js';
 import PropertyIndexReader from '../../src/domain/services/index/PropertyIndexReader.js';
-import { PropertyShard } from '../../src/domain/artifacts/IndexShard.js';
+import { PropertyShard } from '../../src/domain/artifacts/PropertyShard.js';
 import { CborCodec } from '../../src/infrastructure/codecs/CborCodec.js';
 import { makeLogicalBitmapProvider, makeFixture } from '../helpers/fixtureDsl.js';
 import { runBenchmark, logEnvironment, randomHex } from './benchmarkUtils.js';

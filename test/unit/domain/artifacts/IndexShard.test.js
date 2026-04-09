@@ -1,12 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import {
-  IndexShard,
-  MetaShard,
-  EdgeShard,
-  LabelShard,
-  PropertyShard,
-  ReceiptShard,
-} from '../../../../src/domain/artifacts/IndexShard.js';
+import { IndexShard } from '../../../../src/domain/artifacts/IndexShard.js';
+import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.js';
+import { EdgeShard } from '../../../../src/domain/artifacts/EdgeShard.js';
+import { LabelShard } from '../../../../src/domain/artifacts/LabelShard.js';
+import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.js';
+import { ReceiptShard } from '../../../../src/domain/artifacts/ReceiptShard.js';
 
 describe('IndexShard family', () => {
   describe('MetaShard', () => {
