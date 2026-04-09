@@ -18,9 +18,9 @@ import { encodeEdgeKey, decodeEdgeKey, encodePropKey, encodeEdgePropKey, EDGE_PR
 import { normalizeRawOp } from './OpNormalizer.ts';
 import { createEmptyDiff, mergeDiffs } from '../types/PatchDiff.ts';
 import PatchError from '../errors/PatchError.ts';
-import WarpStateV5 from './state/WarpStateV5.js';
+import WarpStateV5 from './state/WarpStateV5.ts';
 
-export { default as WarpStateV5 } from './state/WarpStateV5.js';
+export { default as WarpStateV5 } from './state/WarpStateV5.ts';
 
 // Re-export key codec functions for backward compatibility
 export {
@@ -33,7 +33,7 @@ export {
 // Re-export op normalization for consumers that operate on raw patches
 export { normalizeRawOp, lowerCanonicalOp } from './OpNormalizer.ts';
 
-// WarpStateV5 class imported from ./WarpStateV5.js (re-exported above)
+// WarpStateV5 class imported from ./WarpStateV5.ts (re-exported above)
 
 /**
  * @typedef {Object} OpLike

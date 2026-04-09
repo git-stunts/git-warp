@@ -85,7 +85,7 @@ function callMaterializeCoordinate(ctrl, options) {
 /**
  * Creates a minimal WarpStateV5-shaped empty state for test assertions.
  *
- * @returns {import('../../../../../src/domain/services/state/WarpStateV5.js').default}
+ * @returns {import('../../../../../src/domain/services/state/WarpStateV5.ts').default}
  */
 function emptyState() {
   return createEmptyStateV5();

@@ -11,7 +11,7 @@
 
 import VersionVector from '../crdt/VersionVector.ts';
 import WarpError from '../errors/WarpError.ts';
-import type WarpStateV5 from './state/WarpStateV5.js';
+import type WarpStateV5 from './state/WarpStateV5.ts';
 import GCMetrics from './GCMetrics.ts';
 import GCExecuteResult from './GCExecuteResult.ts';
 

@@ -9,7 +9,7 @@
  * @module domain/services/GCMetrics
  */
 
-import type WarpStateV5 from './state/WarpStateV5.js';
+import type WarpStateV5 from './state/WarpStateV5.ts';
 
 /**
  * Immutable snapshot of GC-relevant counters for a materialized state.

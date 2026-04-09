@@ -3,7 +3,7 @@ import WarpError from '../../domain/errors/WarpError.ts';
 import ORSet from '../../domain/crdt/ORSet.ts';
 import VersionVector from '../../domain/crdt/VersionVector.ts';
 import { createEmptyStateV5 } from '../../domain/services/JoinReducer.js';
-import WarpStateV5 from '../../domain/services/state/WarpStateV5.js';
+import WarpStateV5 from '../../domain/services/state/WarpStateV5.ts';
 import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceIndex.js';
 
 /**

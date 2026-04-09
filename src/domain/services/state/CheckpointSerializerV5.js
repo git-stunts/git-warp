@@ -17,7 +17,7 @@ import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { decodeDot } from '../../crdt/Dot.ts';
 import { createEmptyStateV5 } from '../JoinReducer.js';
-import WarpStateV5 from './WarpStateV5.js';
+import WarpStateV5 from './WarpStateV5.ts';
 
 // ============================================================================
 // Full State Serialization (for Checkpoints)

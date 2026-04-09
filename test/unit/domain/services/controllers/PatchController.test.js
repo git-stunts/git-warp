@@ -9,7 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PatchController from '../../../../../src/domain/services/controllers/PatchController.js';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
-import WarpStateV5 from '../../../../../src/domain/services/state/WarpStateV5.js';
+import WarpStateV5 from '../../../../../src/domain/services/state/WarpStateV5.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import { createDot } from '../../../../../src/domain/crdt/Dot.ts';
 import { QueryError } from '../../../../../src/domain/warp/_internal.ts';

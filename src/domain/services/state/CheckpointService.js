@@ -25,7 +25,7 @@ import ORSet from '../../crdt/ORSet.ts';
 import { createDot } from '../../crdt/Dot.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { cloneStateV5, reduceV5 } from '../JoinReducer.js';
-import WarpStateV5 from './WarpStateV5.js';
+import WarpStateV5 from './WarpStateV5.ts';
 import { encodeEdgeKey, encodePropKey, CONTENT_PROPERTY_KEY, decodePropKey, isEdgePropKey, decodeEdgePropKey } from '../KeyCodec.js';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
 

@@ -14,7 +14,7 @@ import {
   scopeMaterializedStateV5,
   scopePatchEntriesV1,
 } from '../../../../src/domain/services/VisibleStateScopeV1.js';
-import WarpStateV5 from '../../../../src/domain/services/state/WarpStateV5.js';
+import WarpStateV5 from '../../../../src/domain/services/state/WarpStateV5.ts';
 
 function buildScopedFixtureState() {
   const nodeAlive = ORSet.empty();

@@ -6,7 +6,7 @@ import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import WarpStateV5 from '../../../../src/domain/services/state/WarpStateV5.js';
+import WarpStateV5 from '../../../../src/domain/services/state/WarpStateV5.ts';
 import MockBlobPort from '../../../helpers/MockBlobPort.js';
 
 /**

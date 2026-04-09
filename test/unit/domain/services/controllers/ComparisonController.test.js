@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ComparisonController from '../../../../../src/domain/services/controllers/ComparisonController.js';
-import WarpStateV5 from '../../../../../src/domain/services/state/WarpStateV5.js';
+import WarpStateV5 from '../../../../../src/domain/services/state/WarpStateV5.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';

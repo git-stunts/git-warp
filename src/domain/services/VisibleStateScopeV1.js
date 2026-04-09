@@ -1,6 +1,6 @@
 import QueryError from '../errors/QueryError.ts';
 import ORSet from '../crdt/ORSet.ts';
-import WarpStateV5 from './state/WarpStateV5.js';
+import WarpStateV5 from './state/WarpStateV5.ts';
 import { normalizeRawOp } from './OpNormalizer.ts';
 import {
   decodeEdgeKey,

@@ -5,6 +5,7 @@ import SchemaUnsupportedError from '../../../../../src/domain/errors/SchemaUnsup
 import GCPolicy from '../../../../../src/domain/services/GCPolicy.ts';
 import GCExecuteResult from '../../../../../src/domain/services/GCExecuteResult.ts';
 import WarpError from '../../../../../src/domain/errors/WarpError.ts';
+import WarpStateV5 from '../../../../../src/domain/services/state/WarpStateV5.ts';
 
 /**
  * Builds a GCPolicy where every threshold is infinite EXCEPT the tombstone
@@ -103,9 +104,9 @@ vi.mock('../../../../../src/domain/services/Frontier.js', () => ({
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 
-/** Minimal WarpStateV5 stub. */
+/** Minimal WarpStateV5 stub (real class instance). */
 function stubState() {
-  return { nodeAlive: new Map(), edgeAlive: new Map(), prop: new Map(), observedFrontier: new Map() };
+  return WarpStateV5.empty();
 }
 
 /** Minimal GC result stub. */
