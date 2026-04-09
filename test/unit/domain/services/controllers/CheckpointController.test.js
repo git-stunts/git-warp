@@ -2,6 +2,28 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CheckpointController from '../../../../../src/domain/services/controllers/CheckpointController.js';
 import { QueryError } from '../../../../../src/domain/warp/_internal.ts';
 import SchemaUnsupportedError from '../../../../../src/domain/errors/SchemaUnsupportedError.ts';
+import GCPolicy from '../../../../../src/domain/services/GCPolicy.ts';
+import GCExecuteResult from '../../../../../src/domain/services/GCExecuteResult.ts';
+import WarpError from '../../../../../src/domain/errors/WarpError.ts';
+
+/**
+ * Builds a GCPolicy where every threshold is infinite EXCEPT the tombstone
+ * ratio threshold, which the caller chooses. `0` → any non-zero ratio
+ * trips GC. `1` → no ratio can trip it.
+ */
+function policyWithTombstoneThreshold(ratio, { enabled }) {
+  return new GCPolicy({
+    enabled,
+    tombstoneRatioThreshold: ratio,
+    entryCountThreshold: Number.MAX_SAFE_INTEGER,
+    minPatchesSinceCompaction: Number.MAX_SAFE_INTEGER,
+    maxTimeSinceCompaction: Number.MAX_SAFE_INTEGER,
+    compactOnCheckpoint: true,
+  });
+}
+
+const permissivePolicy = (enabled = false) => policyWithTombstoneThreshold(1, { enabled });
+const strictPolicy = (enabled = true) => policyWithTombstoneThreshold(0, { enabled });
 
 /* ------------------------------------------------------------------ */
 /*  vi.mock — static module stubs                                     */
@@ -14,7 +36,6 @@ const {
   decodePatchMessageMock,
   detectMessageKindMock,
   encodeAnchorMessageMock,
-  shouldRunGCMock,
   executeGCMock,
   collectGCMetricsMock,
   computeAppliedVVMock,
@@ -29,7 +50,6 @@ const {
   decodePatchMessageMock: vi.fn(),
   detectMessageKindMock: vi.fn(),
   encodeAnchorMessageMock: vi.fn(),
-  shouldRunGCMock: vi.fn(),
   executeGCMock: vi.fn(),
   collectGCMetricsMock: vi.fn(),
   computeAppliedVVMock: vi.fn(),
@@ -51,9 +71,8 @@ vi.mock('../../../../../src/domain/services/codec/WarpMessageCodec.js', () => ({
   encodeAnchorMessage: encodeAnchorMessageMock,
 }));
 
-vi.mock('../../../../../src/domain/services/GCPolicy.js', () => ({
-  shouldRunGC: shouldRunGCMock,
-  executeGC: executeGCMock,
+vi.mock('../../../../../src/domain/services/executeGC.ts', () => ({
+  default: executeGCMock,
 }));
 
 vi.mock('../../../../../src/domain/services/GCMetrics.ts', () => ({
@@ -85,7 +104,7 @@ function stubState() {
 
 /** Minimal GC result stub. */
 function stubGCResult() {
-  return { nodesCompacted: 1, edgesCompacted: 2, tombstonesRemoved: 3, durationMs: 4 };
+  return new GCExecuteResult({ nodesCompacted: 1, edgesCompacted: 2, tombstonesRemoved: 3, durationMs: 4 });
 }
 
 /**
@@ -115,7 +134,7 @@ function createMockHost(overrides = {}) {
     _codec: { decode: vi.fn() },
     _crypto: {},
     _logger: null,
-    _gcPolicy: { enabled: false },
+    _gcPolicy: permissivePolicy(false),
     _patchesSinceGC: 0,
     _lastGCTime: 0,
     _lastFrontier: null,
@@ -451,7 +470,7 @@ describe('CheckpointController', () => {
 
     it('returns {ran: false} when thresholds not met', () => {
       host._cachedState = stubState();
-      shouldRunGCMock.mockReturnValue({ shouldRun: false, reasons: [] });
+      host._gcPolicy = permissivePolicy(true);
 
       const result = ctrl.maybeRunGC();
 
@@ -460,14 +479,18 @@ describe('CheckpointController', () => {
 
     it('runs GC when thresholds are met', () => {
       host._cachedState = stubState();
-      shouldRunGCMock.mockReturnValue({ shouldRun: true, reasons: ['tombstone ratio high'] });
+      host._gcPolicy = strictPolicy(true);
+      collectGCMetricsMock.mockReturnValue({
+        nodeLiveDots: 10, edgeLiveDots: 5, totalTombstones: 2, tombstoneRatio: 0.1,
+        nodeEntries: 10, edgeEntries: 5, totalEntries: 15,
+      });
       executeGCMock.mockReturnValue(stubGCResult());
 
       const result = ctrl.maybeRunGC();
 
       expect(result.ran).toBe(true);
       expect(result.result).toEqual(stubGCResult());
-      expect(result.reasons).toEqual(['tombstone ratio high']);
+      expect(result.reasons[0]).toContain('Tombstone ratio');
     });
   });
 
@@ -505,10 +528,16 @@ describe('CheckpointController', () => {
   /* ================================================================ */
 
   describe('_maybeRunGC', () => {
+    beforeEach(() => {
+      collectGCMetricsMock.mockReturnValue({
+        nodeLiveDots: 10, edgeLiveDots: 5, totalTombstones: 2, tombstoneRatio: 0.1,
+        nodeEntries: 10, edgeEntries: 5, totalEntries: 15,
+      });
+    });
+
     it('runs GC when enabled and thresholds met', () => {
-      host._gcPolicy = { enabled: true };
+      host._gcPolicy = strictPolicy(true);
       host._cachedState = null;
-      shouldRunGCMock.mockReturnValue({ shouldRun: true, reasons: ['ratio'] });
 
       const state = stubState();
       ctrl._maybeRunGC(state);
@@ -520,20 +549,19 @@ describe('CheckpointController', () => {
     it('logs warning when GC disabled but thresholds met', () => {
       const warnFn = vi.fn();
       host._logger = { warn: warnFn, info: vi.fn() };
-      host._gcPolicy = { enabled: false };
-      shouldRunGCMock.mockReturnValue({ shouldRun: true, reasons: ['ratio'] });
+      host._gcPolicy = strictPolicy(false);
 
       ctrl._maybeRunGC(stubState());
 
       expect(executeGCMock).not.toHaveBeenCalled();
       expect(warnFn).toHaveBeenCalledWith(
         expect.stringContaining('auto-GC is disabled'),
-        expect.objectContaining({ reasons: ['ratio'] }),
+        expect.objectContaining({ reasons: expect.arrayContaining([expect.stringContaining('Tombstone ratio')]) }),
       );
     });
 
     it('does nothing when thresholds not met', () => {
-      shouldRunGCMock.mockReturnValue({ shouldRun: false, reasons: [] });
+      host._gcPolicy = permissivePolicy(true);
 
       ctrl._maybeRunGC(stubState());
 
@@ -543,9 +571,8 @@ describe('CheckpointController', () => {
     it('discards GC result when frontier changes during compaction', () => {
       const warnFn = vi.fn();
       host._logger = { warn: warnFn, info: vi.fn() };
-      host._gcPolicy = { enabled: true };
+      host._gcPolicy = strictPolicy(true);
       host._lastFrontier = new Map([['alice', 'sha-1']]);
-      shouldRunGCMock.mockReturnValue({ shouldRun: true, reasons: ['ratio'] });
       frontierFingerprintMock
         .mockReturnValueOnce('fp-before')
         .mockReturnValueOnce('fp-after');
@@ -561,7 +588,9 @@ describe('CheckpointController', () => {
     });
 
     it('swallows exceptions to never break materialize', () => {
-      shouldRunGCMock.mockImplementation(() => { throw new Error('kaboom'); });
+      collectGCMetricsMock.mockImplementation(() => {
+        throw new WarpError('kaboom', 'E_GC_TEST');
+      });
 
       expect(() => ctrl._maybeRunGC(stubState())).not.toThrow();
     });

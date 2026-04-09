@@ -1,46 +1,41 @@
 import { describe, it, expect } from 'vitest';
-import {
-  DEFAULT_GC_POLICY,
-  shouldRunGC,
-  executeGC,
-} from '../../../../src/domain/services/GCPolicy.js';
+import GCPolicy from '../../../../src/domain/services/GCPolicy.ts';
+import executeGC from '../../../../src/domain/services/executeGC.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import GCMetrics from '../../../../src/domain/services/GCMetrics.ts';
 import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 
 describe('GCPolicy', () => {
-  describe('DEFAULT_GC_POLICY', () => {
+  describe('GCPolicy.DEFAULT', () => {
     it('has expected default values', () => {
-      expect(DEFAULT_GC_POLICY.tombstoneRatioThreshold).toBe(0.3);
-      expect(DEFAULT_GC_POLICY.entryCountThreshold).toBe(50000);
-      expect(DEFAULT_GC_POLICY.minPatchesSinceCompaction).toBe(1000);
-      expect(DEFAULT_GC_POLICY.maxTimeSinceCompaction).toBe(86400000);
-      expect(DEFAULT_GC_POLICY.compactOnCheckpoint).toBe(true);
+      expect(GCPolicy.DEFAULT.tombstoneRatioThreshold).toBe(0.3);
+      expect(GCPolicy.DEFAULT.entryCountThreshold).toBe(50000);
+      expect(GCPolicy.DEFAULT.minPatchesSinceCompaction).toBe(1000);
+      expect(GCPolicy.DEFAULT.maxTimeSinceCompaction).toBe(86400000);
+      expect(GCPolicy.DEFAULT.compactOnCheckpoint).toBe(true);
+      expect(GCPolicy.DEFAULT.enabled).toBe(false);
     });
   });
 
-  describe('shouldRunGC', () => {
-    /** @type {any} */
-    const policy = {
+  describe('policy.evaluate()', () => {
+    const policy = new GCPolicy({
+      enabled: true,
       tombstoneRatioThreshold: 0.3,
       entryCountThreshold: 1000,
       minPatchesSinceCompaction: 100,
       maxTimeSinceCompaction: 3600000, // 1 hour
       compactOnCheckpoint: true,
-    };
+    });
 
     it('triggers on tombstone ratio exceeding threshold', () => {
-      const metrics = {
+      const result = policy.evaluate({
         tombstoneRatio: 0.4, // 40% > 30%
         totalEntries: 500,
         patchesSinceCompaction: 50,
         timeSinceCompaction: 1000,
-      };
-
-      const result = shouldRunGC(metrics, policy);
+      });
 
       expect(result.shouldRun).toBe(true);
       expect(result.reasons).toHaveLength(1);
@@ -49,14 +44,12 @@ describe('GCPolicy', () => {
     });
 
     it('triggers on entry count exceeding threshold', () => {
-      const metrics = {
+      const result = policy.evaluate({
         tombstoneRatio: 0.1,
         totalEntries: 1500, // > 1000
         patchesSinceCompaction: 50,
         timeSinceCompaction: 1000,
-      };
-
-      const result = shouldRunGC(metrics, policy);
+      });
 
       expect(result.shouldRun).toBe(true);
       expect(result.reasons).toHaveLength(1);
@@ -65,14 +58,12 @@ describe('GCPolicy', () => {
     });
 
     it('triggers on patches since compaction exceeding minimum', () => {
-      const metrics = {
+      const result = policy.evaluate({
         tombstoneRatio: 0.1,
         totalEntries: 500,
         patchesSinceCompaction: 150, // > 100
         timeSinceCompaction: 1000,
-      };
-
-      const result = shouldRunGC(metrics, policy);
+      });
 
       expect(result.shouldRun).toBe(true);
       expect(result.reasons).toHaveLength(1);
@@ -81,14 +72,12 @@ describe('GCPolicy', () => {
     });
 
     it('triggers on time since compaction exceeding maximum', () => {
-      const metrics = {
+      const result = policy.evaluate({
         tombstoneRatio: 0.1,
         totalEntries: 500,
         patchesSinceCompaction: 50,
         timeSinceCompaction: 4000000, // > 3600000
-      };
-
-      const result = shouldRunGC(metrics, policy);
+      });
 
       expect(result.shouldRun).toBe(true);
       expect(result.reasons).toHaveLength(1);
@@ -96,28 +85,24 @@ describe('GCPolicy', () => {
     });
 
     it('returns false when under all thresholds', () => {
-      const metrics = {
+      const result = policy.evaluate({
         tombstoneRatio: 0.1,
         totalEntries: 500,
         patchesSinceCompaction: 50,
         timeSinceCompaction: 1000,
-      };
-
-      const result = shouldRunGC(metrics, policy);
+      });
 
       expect(result.shouldRun).toBe(false);
       expect(result.reasons).toHaveLength(0);
     });
 
     it('returns multiple reasons when multiple thresholds exceeded', () => {
-      const metrics = {
+      const result = policy.evaluate({
         tombstoneRatio: 0.5,
         totalEntries: 2000,
         patchesSinceCompaction: 200,
         timeSinceCompaction: 5000000,
-      };
-
-      const result = shouldRunGC(metrics, policy);
+      });
 
       expect(result.shouldRun).toBe(true);
       expect(result.reasons).toHaveLength(4);
@@ -169,26 +154,19 @@ describe('GCPolicy', () => {
     it('preserves live dots even if <= appliedVV', () => {
       const state = createEmptyStateV5();
 
-      // Add nodes with dots
       const dot1 = createDot('A', 1);
       const dot2 = createDot('A', 2);
 
       state.nodeAlive.add('node1', dot1);
       state.nodeAlive.add('node2', dot2);
 
-      // Don't tombstone anything - both are live
-
-      // Create VV that includes both dots
       const appliedVV = VersionVector.empty();
       appliedVV.set('A', 5);
 
       const result = executeGC(state, appliedVV);
 
-      // Nothing should be removed because nothing is tombstoned
       expect(result.nodesCompacted).toBe(0);
       expect(result.tombstonesRemoved).toBe(0);
-
-      // Both nodes should still be alive
       expect(state.nodeAlive.contains('node1')).toBe(true);
       expect(state.nodeAlive.contains('node2')).toBe(true);
     });
@@ -196,17 +174,14 @@ describe('GCPolicy', () => {
     it('returns accurate stats for edges', () => {
       const state = createEmptyStateV5();
 
-      // Add edges
       const dot1 = createDot('A', 1);
       const dot2 = createDot('A', 2);
 
       state.edgeAlive.add('edge1', dot1);
       state.edgeAlive.add('edge2', dot2);
 
-      // Tombstone edge1
       state.edgeAlive.remove(new Set([encodeDot(dot1)]));
 
-      // VV includes A:1
       const appliedVV = VersionVector.empty();
       appliedVV.set('A', 1);
 
@@ -218,15 +193,21 @@ describe('GCPolicy', () => {
       expect(result.durationMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('throws E_GC_INVALID_VV when appliedVV is not a Map', () => {
+    it('throws E_GC_INVALID_VV when appliedVV is not a VersionVector', () => {
       const state = createEmptyStateV5();
 
-      for (const bad of [{}, null, undefined]) {
-        expect(() => executeGC(state, /** @type {any} */ (bad))).toThrow(WarpError);
+      /** @type {unknown[]} */
+      const bads = [{}, null, undefined];
+      for (const bad of bads) {
+        /** @type {VersionVector} */
+        const badVV = /** @type {VersionVector} */ (bad);
+        expect(() => executeGC(state, badVV)).toThrow(WarpError);
         try {
-          executeGC(state, /** @type {any} */ (bad));
-        } catch (/** @type {any} */ err) {
-          expect(err.code).toBe('E_GC_INVALID_VV');
+          executeGC(state, badVV);
+        } catch (err) {
+          if (err instanceof WarpError) {
+            expect(err.code).toBe('E_GC_INVALID_VV');
+          }
         }
       }
     });
@@ -234,18 +215,15 @@ describe('GCPolicy', () => {
     it('compacts both nodes and edges in one call', () => {
       const state = createEmptyStateV5();
 
-      // Add nodes and edges
       const dot1 = createDot('A', 1);
       const dot2 = createDot('A', 2);
 
       state.nodeAlive.add('node1', dot1);
       state.edgeAlive.add('edge1', dot2);
 
-      // Tombstone both
       state.nodeAlive.remove(new Set([encodeDot(dot1)]));
       state.edgeAlive.remove(new Set([encodeDot(dot2)]));
 
-      // VV includes both
       const appliedVV = VersionVector.empty();
       appliedVV.set('A', 5);
 
@@ -264,7 +242,7 @@ describe('GCMetrics', () => {
       const state = createEmptyStateV5();
 
       state.nodeAlive.add('node1', createDot('A', 1));
-      state.nodeAlive.add('node1', createDot('B', 1)); // Same node, different dot
+      state.nodeAlive.add('node1', createDot('B', 1));
       state.nodeAlive.add('node2', createDot('A', 2));
 
       expect(state.nodeAlive.countEntries()).toBe(3);
@@ -288,7 +266,6 @@ describe('GCMetrics', () => {
       state.nodeAlive.add('node2', dot2);
       state.nodeAlive.add('node3', dot3);
 
-      // Tombstone one
       state.nodeAlive.remove(new Set([encodeDot(dot2)]));
 
       expect(state.nodeAlive.countLiveDots()).toBe(2);
@@ -305,18 +282,16 @@ describe('GCMetrics', () => {
       state.nodeAlive.add('node1', dot1);
       state.nodeAlive.add('node2', dot2);
 
-      // Tombstone one
       state.nodeAlive.remove(new Set([encodeDot(dot1)]));
 
       expect(state.nodeAlive.countTombstones()).toBe(1);
     });
   });
 
-  describe('collectGCMetrics', () => {
+  describe('GCMetrics.fromState', () => {
     it('calculates correct tombstone ratio', () => {
       const state = createEmptyStateV5();
 
-      // Add 4 nodes
       const dots = [
         createDot('A', 1),
         createDot('A', 2),
@@ -328,8 +303,7 @@ describe('GCMetrics', () => {
         state.nodeAlive.add(`node${i}`, dot);
       });
 
-      // Tombstone 1 of them (25% ratio)
-      state.nodeAlive.remove(new Set([encodeDot(/** @type {import('../../../../src/domain/crdt/Dot.js').Dot} */ (dots[0]))]));
+      state.nodeAlive.remove(new Set([encodeDot(dots[0])]));
 
       const metrics = GCMetrics.fromState(state);
 
@@ -339,7 +313,6 @@ describe('GCMetrics', () => {
       expect(metrics.totalEntries).toBe(4);
       expect(metrics.totalLiveDots).toBe(3);
       expect(metrics.totalTombstones).toBe(1);
-      // ratio = 1 / (1 + 3) = 0.25
       expect(metrics.tombstoneRatio).toBe(0.25);
     });
 
@@ -356,7 +329,6 @@ describe('GCMetrics', () => {
     it('handles mixed nodes and edges', () => {
       const state = createEmptyStateV5();
 
-      // Add 2 nodes, 2 edges
       const nodeDot1 = createDot('A', 1);
       const nodeDot2 = createDot('A', 2);
       const edgeDot1 = createDot('B', 1);
@@ -367,7 +339,6 @@ describe('GCMetrics', () => {
       state.edgeAlive.add('edge1', edgeDot1);
       state.edgeAlive.add('edge2', edgeDot2);
 
-      // Tombstone 1 node, 1 edge
       state.nodeAlive.remove(new Set([encodeDot(nodeDot1)]));
       state.edgeAlive.remove(new Set([encodeDot(edgeDot1)]));
 
@@ -385,7 +356,6 @@ describe('GCMetrics', () => {
       expect(metrics.edgeTombstones).toBe(1);
       expect(metrics.totalTombstones).toBe(2);
 
-      // ratio = 2 / (2 + 2) = 0.5
       expect(metrics.tombstoneRatio).toBe(0.5);
     });
   });

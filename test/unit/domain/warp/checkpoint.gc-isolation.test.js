@@ -13,7 +13,7 @@ import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
-import * as GCPolicy from '../../../../src/domain/services/GCPolicy.js';
+import GCPolicy from '../../../../src/domain/services/GCPolicy.ts';
 
 /**
  * Creates a minimal WarpRuntime-like host for testing GC methods.
@@ -38,10 +38,7 @@ function createMockHost(overrides = {}) {
     _stateDirty: false,
     _patchesSinceGC: 2000,
     _lastGCTime: 0,
-    _gcPolicy: {
-      ...GCPolicy.DEFAULT_GC_POLICY,
-      enabled: true,
-    },
+    _gcPolicy: new GCPolicy({ ...GCPolicy.DEFAULT, enabled: true }),
     _clock: { now: () => performance.now() },
     _logger: {
       debug: vi.fn(),
@@ -105,14 +102,14 @@ describe('B63 — GC snapshot isolation', () => {
       const host = createMockHost({
         _patchesSinceGC: 0,
         _lastGCTime: performance.now(),
-        _gcPolicy: {
-          ...GCPolicy.DEFAULT_GC_POLICY,
+        _gcPolicy: new GCPolicy({
+          ...GCPolicy.DEFAULT,
           enabled: true,
           tombstoneRatioThreshold: 0.99,
           entryCountThreshold: 999999,
           minPatchesSinceCompaction: 99999,
           maxTimeSinceCompaction: 999999999,
-        },
+        }),
       });
       const originalState = host._cachedState;
 

@@ -10,7 +10,7 @@
 
 import { validateGraphName, validateWriterId } from './utils/RefLayout.ts';
 import VersionVector from './crdt/VersionVector.ts';
-import { DEFAULT_GC_POLICY } from './services/GCPolicy.js';
+import GCPolicy from './services/GCPolicy.ts';
 import { AuditReceiptService } from './services/audit/AuditReceiptService.js';
 import { TemporalQuery } from './services/TemporalQuery.js';
 import defaultCodec from './utils/defaultCodec.ts';
@@ -222,8 +222,8 @@ export default class WarpRuntime {
     /** @type {boolean} */
     this._stateDirty = false;
 
-    /** @type {import('./services/GCPolicy.js').GCPolicy} */
-    this._gcPolicy = { ...DEFAULT_GC_POLICY, ...gcPolicy };
+    /** @type {GCPolicy} */
+    this._gcPolicy = new GCPolicy({ ...GCPolicy.DEFAULT, ...gcPolicy });
 
     /** @type {number} */
     this._lastGCTime = 0;

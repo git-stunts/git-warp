@@ -1,0 +1,108 @@
+/**
+ * GCPolicy — garbage collection thresholds for WARP V5.
+ *
+ * Instances are immutable value objects. `evaluate()` checks a set of
+ * runtime metrics against the thresholds and returns a frozen
+ * `GCShouldRunResult` naming every threshold that was exceeded.
+ *
+ * @module domain/services/GCPolicy
+ */
+
+import GCShouldRunResult from './GCShouldRunResult.ts';
+
+/**
+ * Runtime measurements supplied to `evaluate()`. This is a parameter
+ * bag — a value object named `GCInputMetrics` would be overkill for a
+ * single evaluation boundary with four numeric fields.
+ */
+export type GCPolicyInput = {
+  readonly tombstoneRatio: number;
+  readonly totalEntries: number;
+  readonly patchesSinceCompaction: number;
+  readonly timeSinceCompaction: number;
+};
+
+const DEFAULT_TOMBSTONE_RATIO_THRESHOLD = 0.3;
+const DEFAULT_ENTRY_COUNT_THRESHOLD = 50_000;
+const DEFAULT_MIN_PATCHES_SINCE_COMPACTION = 1_000;
+const DEFAULT_MAX_TIME_SINCE_COMPACTION_MS = 86_400_000; // 24 hours
+
+export default class GCPolicy {
+  /** When false, automatic GC is disabled even if thresholds are met. */
+  readonly enabled: boolean;
+
+  /** Tombstone ratio (0..1) that triggers GC. */
+  readonly tombstoneRatioThreshold: number;
+
+  /** Total entry count that triggers GC. */
+  readonly entryCountThreshold: number;
+
+  /** Minimum patches between GCs. */
+  readonly minPatchesSinceCompaction: number;
+
+  /** Maximum time (ms) between GCs. */
+  readonly maxTimeSinceCompaction: number;
+
+  /** Whether to auto-compact on checkpoint. */
+  readonly compactOnCheckpoint: boolean;
+
+  constructor(fields: {
+    readonly enabled: boolean;
+    readonly tombstoneRatioThreshold: number;
+    readonly entryCountThreshold: number;
+    readonly minPatchesSinceCompaction: number;
+    readonly maxTimeSinceCompaction: number;
+    readonly compactOnCheckpoint: boolean;
+  }) {
+    this.enabled = fields.enabled;
+    this.tombstoneRatioThreshold = fields.tombstoneRatioThreshold;
+    this.entryCountThreshold = fields.entryCountThreshold;
+    this.minPatchesSinceCompaction = fields.minPatchesSinceCompaction;
+    this.maxTimeSinceCompaction = fields.maxTimeSinceCompaction;
+    this.compactOnCheckpoint = fields.compactOnCheckpoint;
+    Object.freeze(this);
+  }
+
+  /** Default policy — conservative, GC disabled by default (opt-in). */
+  static readonly DEFAULT: GCPolicy = new GCPolicy({
+    enabled: false,
+    tombstoneRatioThreshold: DEFAULT_TOMBSTONE_RATIO_THRESHOLD,
+    entryCountThreshold: DEFAULT_ENTRY_COUNT_THRESHOLD,
+    minPatchesSinceCompaction: DEFAULT_MIN_PATCHES_SINCE_COMPACTION,
+    maxTimeSinceCompaction: DEFAULT_MAX_TIME_SINCE_COMPACTION_MS,
+    compactOnCheckpoint: true,
+  });
+
+  /**
+   * Evaluates runtime metrics against this policy's thresholds.
+   * Returns a `GCShouldRunResult` naming every threshold exceeded;
+   * `shouldRun` is true iff any threshold tripped.
+   */
+  evaluate(input: GCPolicyInput): GCShouldRunResult {
+    const reasons: string[] = [];
+    if (input.tombstoneRatio > this.tombstoneRatioThreshold) {
+      reasons.push(
+        `Tombstone ratio ${(input.tombstoneRatio * 100).toFixed(1)}% ` +
+        `exceeds threshold ${(this.tombstoneRatioThreshold * 100).toFixed(1)}%`,
+      );
+    }
+    if (input.totalEntries > this.entryCountThreshold) {
+      reasons.push(
+        `Entry count ${input.totalEntries} exceeds threshold ${this.entryCountThreshold}`,
+      );
+    }
+    if (input.patchesSinceCompaction > this.minPatchesSinceCompaction) {
+      reasons.push(
+        `Patches since compaction ${input.patchesSinceCompaction} ` +
+        `exceeds minimum ${this.minPatchesSinceCompaction}`,
+      );
+    }
+    if (input.timeSinceCompaction > this.maxTimeSinceCompaction) {
+      reasons.push(
+        `Time since compaction ${input.timeSinceCompaction}ms ` +
+        `exceeds maximum ${this.maxTimeSinceCompaction}ms`,
+      );
+    }
+    return new GCShouldRunResult(reasons);
+  }
+}

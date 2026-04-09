@@ -13,8 +13,10 @@ import { buildWriterRef, buildCheckpointRef, buildCoverageRef } from '../../util
 import { createFrontier, updateFrontier, frontierFingerprint } from '../Frontier.js';
 import { loadCheckpoint, create as createCheckpointCommit, isV5CheckpointSchema } from '../state/CheckpointService.js';
 import { decodePatchMessage, detectMessageKind, encodeAnchorMessage } from '../codec/WarpMessageCodec.js';
-import { shouldRunGC, executeGC } from '../GCPolicy.js';
+import executeGC from '../executeGC.ts';
 import GCMetrics from '../GCMetrics.ts';
+
+/** @typedef {import('../GCPolicy.ts').default} GCPolicy */
 import { computeAppliedVV } from '../state/CheckpointSerializerV5.js';
 import { cloneStateV5 } from '../JoinReducer.js';
 
@@ -272,19 +274,20 @@ export default class CheckpointController {
     const h = this._host;
     try {
       const metrics = GCMetrics.fromState(state);
-      /** @type {import('../GCPolicy.js').GCInputMetrics} */
-      const inputMetrics = {
-        ...metrics,
+      /** @type {GCPolicy} */
+      const policy = h._gcPolicy;
+      const { shouldRun, reasons } = policy.evaluate({
+        tombstoneRatio: metrics.tombstoneRatio,
+        totalEntries: metrics.totalEntries,
         patchesSinceCompaction: h._patchesSinceGC,
         timeSinceCompaction: h._lastGCTime > 0 ? h._clock.now() - h._lastGCTime : 0,
-      };
-      const { shouldRun, reasons } = shouldRunGC(inputMetrics, /** @type {import('../GCPolicy.js').GCPolicy} */ (h._gcPolicy));
+      });
 
       if (!shouldRun) {
         return;
       }
 
-      if (/** @type {import('../GCPolicy.js').GCPolicy} */ (h._gcPolicy).enabled) {
+      if (policy.enabled) {
         const preGcFingerprint = h._lastFrontier
           ? frontierFingerprint(h._lastFrontier)
           : null;
@@ -329,7 +332,7 @@ export default class CheckpointController {
   /**
    * Checks if GC should run and runs it if thresholds are exceeded.
    *
-   * @returns {{ran: boolean, result: import('../GCPolicy.js').GCExecuteResult|null, reasons: string[]}}
+   * @returns {{ran: boolean, result: import('../GCExecuteResult.ts').default|null, reasons: string[]}}
    */
   maybeRunGC() {
     const h = this._host;
@@ -338,14 +341,14 @@ export default class CheckpointController {
     }
 
     const rawMetrics = GCMetrics.fromState(h._cachedState);
-    /** @type {import('../GCPolicy.js').GCInputMetrics} */
-    const metrics = {
-      ...rawMetrics,
+    /** @type {GCPolicy} */
+    const policy = h._gcPolicy;
+    const { shouldRun, reasons } = policy.evaluate({
+      tombstoneRatio: rawMetrics.tombstoneRatio,
+      totalEntries: rawMetrics.totalEntries,
       patchesSinceCompaction: h._patchesSinceGC,
       timeSinceCompaction: h._lastGCTime > 0 ? h._clock.now() - h._lastGCTime : 0,
-    };
-
-    const { shouldRun, reasons } = shouldRunGC(metrics, /** @type {import('../GCPolicy.js').GCPolicy} */ (h._gcPolicy));
+    });
 
     if (!shouldRun) {
       return { ran: false, result: null, reasons: [] };
