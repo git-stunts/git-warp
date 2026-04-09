@@ -19,8 +19,20 @@ import { normalizeRawOp } from './OpNormalizer.ts';
 import { createEmptyDiff, mergeDiffs } from '../types/PatchDiff.ts';
 import PatchError from '../errors/PatchError.ts';
 import WarpStateV5 from './state/WarpStateV5.ts';
+import OpOutcomeResult from '../types/ops/OpOutcomeResult.ts';
+import OpApplied from '../types/ops/OpApplied.ts';
+import OpSuperseded from '../types/ops/OpSuperseded.ts';
+import OpRedundant from '../types/ops/OpRedundant.ts';
 
 export { default as WarpStateV5 } from './state/WarpStateV5.ts';
+
+// OpOutcomeResult and its subclasses live in src/domain/types/ops/.
+// Re-exported for consumers that still import them from JoinReducer;
+// re-exports disappear in the thin-core JoinReducer step.
+export { default as OpOutcomeResult } from '../types/ops/OpOutcomeResult.ts';
+export { default as OpApplied } from '../types/ops/OpApplied.ts';
+export { default as OpSuperseded } from '../types/ops/OpSuperseded.ts';
+export { default as OpRedundant } from '../types/ops/OpRedundant.ts';
 
 // Re-export key codec functions for backward compatibility
 export {
@@ -220,66 +232,9 @@ function requireDot(op) {
 // OpStrategy Registry — structural coupling of all apply paths
 // ============================================================================
 
-/**
- * OpOutcomeResult — base class for CRDT operation outcomes.
- * Subclasses carry outcome-specific data instead of fragile reason strings.
- */
-export class OpOutcomeResult {
-  /** @type {string} The entity ID or key affected */
-  target;
-
-  /** @type {'applied'|'superseded'|'redundant'} */
-  result;
-
-  /**
-   * Creates an OpOutcomeResult.
-   * @param {string} target
-   * @param {'applied'|'superseded'|'redundant'} result
-   */
-  constructor(target, result) {
-    this.target = target;
-    this.result = result;
-  }
-}
-
-/** The operation was applied to the state. */
-export class OpApplied extends OpOutcomeResult {
-  /** Creates an OpApplied.
-   * @param {string} target
-   */
-  constructor(target) {
-    super(target, 'applied');
-  }
-}
-
-/** The operation was overridden by a concurrent write with a higher EventId. */
-export class OpSuperseded extends OpOutcomeResult {
-  /** @type {import('../utils/EventId.ts').EventId} The winning EventId */
-  winner;
-
-  /** @type {string} Human-readable explanation */
-  reason;
-
-  /** Creates an OpSuperseded.
-   * @param {string} target
-   * @param {import('../utils/EventId.ts').EventId} winner
-   */
-  constructor(target, winner) {
-    super(target, 'superseded');
-    this.winner = winner;
-    this.reason = `LWW: writer ${winner.writerId} at lamport ${winner.lamport} wins`;
-  }
-}
-
-/** The operation had no effect (already present in state). */
-export class OpRedundant extends OpOutcomeResult {
-  /** Creates an OpRedundant.
-   * @param {string} target
-   */
-  constructor(target) {
-    super(target, 'redundant');
-  }
-}
+// Outcome classes extracted to src/domain/types/ops/ (OpOutcomeResult,
+// OpApplied, OpSuperseded, OpRedundant). Re-exported at the top of this
+// file. Internal code imports the concrete classes directly.
 
 /**
  * @typedef {Object} OpStrategy
