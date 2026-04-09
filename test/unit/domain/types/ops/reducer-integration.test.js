@@ -39,7 +39,7 @@ import {
   isKnownRawOp,
   isKnownCanonicalOp,
   OP_STRATEGIES,
-} from '../../../../../src/domain/services/JoinReducer.js';
+} from '../../../../../src/domain/services/JoinReducer.ts';
 import { createEventId } from '../../../../../src/domain/utils/EventId.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';

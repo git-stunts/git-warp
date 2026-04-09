@@ -20,7 +20,7 @@ import {
   CONTENT_SIZE_PROPERTY_KEY,
 } from '../KeyCodec.js';
 import { compareEventIds } from '../../utils/EventId.ts';
-import { cloneStateV5 } from '../JoinReducer.js';
+import { cloneStateV5 } from '../JoinReducer.ts';
 import { createImmutableWarpStateV5 } from '../ImmutableSnapshot.js';
 import QueryBuilder from '../query/QueryBuilder.js';
 import Observer from '../query/Observer.js';

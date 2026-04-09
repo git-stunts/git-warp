@@ -9,7 +9,7 @@ import StrandService, {
 } from '../../../../../src/domain/services/strand/StrandService.js';
 import StrandError from '../../../../../src/domain/errors/StrandError.ts';
 import { textEncode, textDecode } from '../../../../../src/domain/utils/bytes.ts';
-import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReducer.ts';
 
 /** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.js' */
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').ParsedStrandBlob} ParsedStrandBlob */
@@ -86,7 +86,7 @@ const OVERLAY_KIND = /** @type {'patch-log'} */ (STRAND_OVERLAY_KIND);
  *     descriptor: StrandDescriptor,
  *     options: { collectReceipts: boolean, ceiling: number|null }
  *   ): Promise<{
- *     state: import('../../../../../src/domain/services/JoinReducer.js').WarpStateV5,
+ *     state: import('../../../../../src/domain/services/JoinReducer.ts').WarpStateV5,
  *     receipts: import('../../../../../src/domain/types/TickReceipt.ts').TickReceipt[],
  *     allPatches: Array<{ patch: Patch, sha: string }>
  *   }>,
@@ -281,7 +281,7 @@ function storeDescriptor(descriptor) {
  *   },
  *   _crypto: { hash: ReturnType<typeof vi.fn> },
  *   _clock: { timestamp: ReturnType<typeof vi.fn> },
- *   _cachedState: import('../../../../../src/domain/services/JoinReducer.js').WarpStateV5|null,
+ *   _cachedState: import('../../../../../src/domain/services/JoinReducer.ts').WarpStateV5|null,
  *   _patchInProgress: boolean,
  *   _maxObservedLamport: number,
  *   _stateDirty: boolean,

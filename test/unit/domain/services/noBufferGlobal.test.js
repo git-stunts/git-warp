@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
 import IncrementalIndexUpdater from '../../../../src/domain/services/index/IncrementalIndexUpdater.js';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
-import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 
 /**
- * @returns {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5}
+ * @returns {import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5}
  */
 function buildState() {
   const state = createEmptyStateV5();

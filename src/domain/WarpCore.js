@@ -268,10 +268,10 @@ export default class WarpCore {
    *
    * @param {string} strandId
    * @param {{ receipts?: boolean, ceiling?: number|null }} [options]
-   * @returns {Promise<import('./services/JoinReducer.js').WarpStateV5|{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.ts').TickReceipt[]}>}
+   * @returns {Promise<import('./services/JoinReducer.ts').WarpStateV5|{state: import('./services/JoinReducer.ts').WarpStateV5, receipts: import('./types/TickReceipt.ts').TickReceipt[]}>}
    */
   async materializeStrand(strandId, options) {
-    return await /** @type {Promise<import('./services/JoinReducer.js').WarpStateV5|{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.ts').TickReceipt[]}>} */ (
+    return await /** @type {Promise<import('./services/JoinReducer.ts').WarpStateV5|{state: import('./services/JoinReducer.ts').WarpStateV5, receipts: import('./types/TickReceipt.ts').TickReceipt[]}>} */ (
       /** @type {unknown} */ (
         WarpRuntime.prototype.materializeStrand.call(
           this,

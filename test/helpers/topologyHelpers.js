@@ -8,7 +8,7 @@
  * @module test/helpers/topologyHelpers
  */
 
-import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../src/domain/utils/EventId.ts';
 
@@ -20,7 +20,7 @@ import { createEventId } from '../../src/domain/utils/EventId.ts';
  * All edges use the label "edge".
  *
  * @param {number} n - Number of nodes (must be >= 2)
- * @returns {import('../../src/domain/services/JoinReducer.js').WarpStateV5}
+ * @returns {import('../../src/domain/services/JoinReducer.ts').WarpStateV5}
  */
 export function createCircular(n) {
   if (!Number.isInteger(n) || n < 2) {
@@ -70,7 +70,7 @@ export function createCircular(n) {
  * Nodes: A, B, C, D
  * Edges: A->B, A->C, B->D, C->D (all with label "edge")
  *
- * @returns {import('../../src/domain/services/JoinReducer.js').WarpStateV5}
+ * @returns {import('../../src/domain/services/JoinReducer.ts').WarpStateV5}
  */
 export function createDiamond() {
   const state = createEmptyStateV5();

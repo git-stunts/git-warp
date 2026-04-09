@@ -1,11 +1,11 @@
 import { vi } from 'vitest';
 import { createDot, encodeDot } from '../../src/domain/crdt/Dot.ts';
 import ORSet from '../../src/domain/crdt/ORSet.ts';
-import { applyOpV2, createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';
+import { applyOpV2, createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import { createEventId } from '../../src/domain/utils/EventId.ts';
 
 /**
- * @typedef {import('../../src/domain/services/JoinReducer.js').WarpStateV5} WarpStateV5
+ * @typedef {import('../../src/domain/services/JoinReducer.ts').WarpStateV5} WarpStateV5
  */
 
 /**

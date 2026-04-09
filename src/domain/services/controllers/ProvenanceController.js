@@ -8,11 +8,11 @@
  */
 
 import QueryError from '../../errors/QueryError.ts';
-import { createEmptyStateV5, reduceV5 } from '../JoinReducer.js';
+import { createEmptyStateV5, reduceV5 } from '../JoinReducer.ts';
 import { ProvenancePayload } from '../provenance/ProvenancePayload.js';
 import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';
 
-/** @import { WarpStateV5 } from '../JoinReducer.js' */
+/** @import { WarpStateV5 } from '../JoinReducer.ts' */
 /** @import { default as Patch } from '../../types/Patch.ts' */
 
 /**

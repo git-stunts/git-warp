@@ -6,7 +6,7 @@ import {
   SCHEMA_V3,
 } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import SchemaUnsupportedError from '../../../../src/domain/errors/SchemaUnsupportedError.ts';
-import { EDGE_PROP_PREFIX } from '../../../../src/domain/services/JoinReducer.js';
+import { EDGE_PROP_PREFIX } from '../../../../src/domain/services/JoinReducer.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers — minimal op factories

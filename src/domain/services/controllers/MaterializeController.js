@@ -9,7 +9,7 @@
  * @module domain/services/controllers/MaterializeController
  */
 
-import { reduceV5, createEmptyStateV5, cloneStateV5 } from '../JoinReducer.js';
+import { reduceV5, createEmptyStateV5, cloneStateV5 } from '../JoinReducer.ts';
 import { isV5CheckpointSchema, materializeIncremental } from '../state/CheckpointService.js';
 import { createImmutableValue, createImmutableWarpStateV5 } from '../ImmutableSnapshot.js';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
@@ -29,7 +29,7 @@ import { buildWriterRef } from '../../utils/RefLayout.ts';
  * @typedef {import('../../types/WarpPersistence.ts').CorePersistence} CorePersistence
  */
 
-/** @import { WarpStateV5 } from '../JoinReducer.js' */
+/** @import { WarpStateV5 } from '../JoinReducer.ts' */
 /** @import { TickReceipt } from '../../types/TickReceipt.ts' */
 /** @import { PatchDiff } from '../../types/PatchDiff.ts' */
 

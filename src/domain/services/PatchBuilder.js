@@ -45,7 +45,7 @@ import PersistenceError from '../errors/PersistenceError.ts';
  * When a node has connected edges or properties, the builder can reject,
  * warn, or cascade delete based on the `onDeleteWithData` policy.
  *
- * @param {import('./JoinReducer.js').WarpStateV5} state - Materialized state to inspect
+ * @param {import('./JoinReducer.ts').WarpStateV5} state - Materialized state to inspect
  * @param {string} nodeId - Node ID to check for attached data
  * @returns {{ edges: string[], props: string[], hasData: boolean }} Object containing:
  *   - `edges`: Array of encoded edge keys (`from\0to\0label`) connected to this node
@@ -161,7 +161,7 @@ export class PatchBuilder {
   /**
    * Creates a new PatchBuilder.
    *
-   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.ts').default, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/Patch.ts').default, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal?: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.ts').default, getCurrentState: () => import('./JoinReducer.ts').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/Patch.ts').default, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal?: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} options
    */
   constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, targetRefPath, onCommitSuccess = null, onDeleteWithData = 'warn', patchJournal, logger, blobStorage }) {
     /** @type {import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default} */
@@ -184,7 +184,7 @@ export class PatchBuilder {
     /** @type {import('../crdt/VersionVector.ts').default} */
     this._vv = versionVector.clone(); // Clone to track local increments
 
-    /** @type {() => import('./JoinReducer.js').WarpStateV5 | null} */
+    /** @type {() => import('./JoinReducer.ts').WarpStateV5 | null} */
     this._getCurrentState = getCurrentState;
 
     /**
@@ -192,9 +192,9 @@ export class PatchBuilder {
      * Lazily populated on first call to _getSnapshotState().
      * Prevents TOCTOU races where concurrent writes change state
      * between remove operations in the same patch.
-     * @type {import('./JoinReducer.js').WarpStateV5|null}
+     * @type {import('./JoinReducer.ts').WarpStateV5|null}
      */
-    this._snapshotState = /** @type {import('./JoinReducer.js').WarpStateV5|null} */ (/** @type {unknown} */ (undefined)); // undefined = not yet captured
+    this._snapshotState = /** @type {import('./JoinReducer.ts').WarpStateV5|null} */ (/** @type {unknown} */ (undefined)); // undefined = not yet captured
 
     /** @type {string|null} */
     this._expectedParentSha = expectedParentSha;
@@ -277,7 +277,7 @@ export class PatchBuilder {
    * state snapshot, preventing TOCTOU races where concurrent writers
    * change state between operations.
    *
-   * @returns {import('./JoinReducer.js').WarpStateV5|null}
+   * @returns {import('./JoinReducer.ts').WarpStateV5|null}
    * @private
    */
   _getSnapshotState() {

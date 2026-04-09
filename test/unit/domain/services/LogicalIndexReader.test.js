@@ -8,7 +8,7 @@ import {
   F7_MULTILABEL_SAME_NEIGHBOR,
   F10_PROTO_POLLUTION,
 } from '../../../helpers/fixtureDsl.js';
-import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';

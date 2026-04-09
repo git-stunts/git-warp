@@ -12,7 +12,7 @@ import ConflictAnchor from '../../types/conflict/ConflictAnchor.ts';
 import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
 import ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.ts';
 import { compareStrings } from '../../types/conflict/validation.ts';
-import { reduceV5 } from '../JoinReducer.js';
+import { reduceV5 } from '../JoinReducer.ts';
 import StrandService from './StrandService.js';
 
 

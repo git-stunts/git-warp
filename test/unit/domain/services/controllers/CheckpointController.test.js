@@ -90,7 +90,7 @@ vi.mock('../../../../../src/domain/services/state/CheckpointSerializerV5.js', ()
   computeAppliedVV: computeAppliedVVMock,
 }));
 
-vi.mock('../../../../../src/domain/services/JoinReducer.js', () => ({
+vi.mock('../../../../../src/domain/services/JoinReducer.ts', () => ({
   cloneStateV5: cloneStateV5Mock,
 }));
 

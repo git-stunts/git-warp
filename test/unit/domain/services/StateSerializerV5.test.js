@@ -14,7 +14,7 @@ import {
   createEmptyStateV5,
   encodeEdgeKey,
   encodePropKey,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';

@@ -4,7 +4,7 @@ import {
   applyOpV2,
   encodePropKey,
   encodeEdgePropKey,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 import OpValidator from '../../../../src/domain/services/OpValidator.ts';
 const { RAW_KNOWN_OPS, CANONICAL_KNOWN_OPS } = OpValidator;
 const isKnownRawOp = OpValidator.isKnownRaw.bind(OpValidator);

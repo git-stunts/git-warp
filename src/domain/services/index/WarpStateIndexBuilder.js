@@ -70,7 +70,7 @@ export default class WarpStateIndexBuilder {
    * bitmaps for each node. Only includes edges where both endpoints are
    * visible (exist in nodeAlive).
    *
-   * @param {import('../JoinReducer.js').WarpStateV5} state - The materialized state
+   * @param {import('../JoinReducer.ts').WarpStateV5} state - The materialized state
    * @returns {{builder: BitmapIndexBuilder, stats: {nodes: number, edges: number}}} The populated builder and stats
    * @throws {Error} If state is null or missing nodeAlive/edgeAlive fields
    *
@@ -95,7 +95,7 @@ export default class WarpStateIndexBuilder {
   /**
    * Registers all visible nodes from the state's nodeAlive OR-Set.
    *
-   * @param {import('../JoinReducer.js').WarpStateV5} state
+   * @param {import('../JoinReducer.ts').WarpStateV5} state
    * @returns {number} Number of nodes registered
    * @private
    */
@@ -111,7 +111,7 @@ export default class WarpStateIndexBuilder {
   /**
    * Indexes edges where both endpoints are visible in nodeAlive.
    *
-   * @param {import('../JoinReducer.js').WarpStateV5} state
+   * @param {import('../JoinReducer.ts').WarpStateV5} state
    * @returns {number} Number of edges indexed
    * @private
    */
@@ -149,7 +149,7 @@ export default class WarpStateIndexBuilder {
 /**
  * Convenience function to build and serialize a WARP state index.
  *
- * @param {import('../JoinReducer.js').WarpStateV5} state - The materialized state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state - The materialized state
  * @param {{ crypto?: import('../../../ports/CryptoPort.ts').default }} [options] - Configuration
  * @returns {Promise<{tree: Record<string, Uint8Array>, stats: {nodes: number, edges: number}}>} Serialized index and stats
  *

@@ -19,7 +19,7 @@ import {
   encodePropKey,
   cloneStateV5,
   joinStates,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 
 /**
  * Typed wrapper for reduceV5 that returns WarpStateV5 (no receipts in these tests).

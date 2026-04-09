@@ -12,7 +12,7 @@ import { deepStrictEqual } from 'node:assert/strict';
 import AdjacencyNeighborProvider from '../../src/domain/services/query/AdjacencyNeighborProvider.js';
 import BitmapNeighborProvider from '../../src/domain/services/index/BitmapNeighborProvider.js';
 import MaterializedViewService from '../../src/domain/services/MaterializedViewService.js';
-import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../src/domain/utils/EventId.ts';
 
@@ -669,7 +669,7 @@ export function makeLogicalBitmapProvider(fixture) {
 /**
  * Converts a fixture to WarpStateV5.
  * @param {GraphFixture} fixture
- * @returns {import('../../src/domain/services/JoinReducer.js').WarpStateV5}
+ * @returns {import('../../src/domain/services/JoinReducer.ts').WarpStateV5}
  */
 export function fixtureToState(fixture) {
   const state = createEmptyStateV5();

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
-import { encodeEdgePropKey } from '../../../src/domain/services/JoinReducer.js';
+import { encodeEdgePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import { createStateBuilder } from '../../helpers/stateBuilder.js';
 
 // =============================================================================

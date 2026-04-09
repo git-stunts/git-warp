@@ -15,7 +15,7 @@ import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.j
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
 import { encode } from '../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../src/domain/services/codec/WarpMessageCodec.js';
-import { createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
 import { createDot } from '../../src/domain/crdt/Dot.ts';
@@ -703,4 +703,4 @@ export function setupGraphState(graph, seedFn) {
 export { createDot } from '../../src/domain/crdt/Dot.ts';
 export { default as VersionVector } from '../../src/domain/crdt/VersionVector.ts';
 export { createInlineValue };
-export { createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';
+export { createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';

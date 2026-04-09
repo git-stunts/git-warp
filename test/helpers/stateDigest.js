@@ -17,7 +17,7 @@ const codec = { encode, decode: (/** @type {Buffer} */ b) => b };
 /**
  * Computes a deterministic hex digest of a WarpStateV5 state.
  *
- * @param {import('../../src/domain/services/JoinReducer.js').WarpStateV5} state
+ * @param {import('../../src/domain/services/JoinReducer.ts').WarpStateV5} state
  * @returns {Promise<string>} Hex SHA-256 digest
  */
 export async function stateDigest(state) {

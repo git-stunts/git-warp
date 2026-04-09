@@ -4,7 +4,7 @@ import PatchError from '../../../../src/domain/errors/PatchError.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
-import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
+import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 import { decodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { decode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';

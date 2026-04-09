@@ -6,7 +6,7 @@ import { NoOpEffectSink } from '../../../src/infrastructure/adapters/NoOpEffectS
 
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
-import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../../src/domain/crdt/Dot.ts';
 import { serializeFullStateV5, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializerV5.js';
 import { serializeFrontier } from '../../../src/domain/services/Frontier.js';

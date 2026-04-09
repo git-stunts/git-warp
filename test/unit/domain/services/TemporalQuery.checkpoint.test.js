@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { TemporalQuery } from '../../../../src/domain/services/TemporalQuery.js';
-import { createEmptyStateV5, join as joinPatch } from '../../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5, join as joinPatch } from '../../../../src/domain/services/JoinReducer.ts';
 import {
   createNodeAddV2,
   createPropSetV2,
@@ -73,7 +73,7 @@ function createPropOnlyPatch({ nodeId, writer, lamport, propKey, propValue, sha 
  * Builds a checkpoint state by replaying patches through JoinReducer.
  *
  * @param {Array<{patch: TestPatch, sha: string}>} patches - Patches to replay
- * @returns {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5}
+ * @returns {import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5}
  */
 function buildStateFromPatches(patches) {
   const state = createEmptyStateV5();

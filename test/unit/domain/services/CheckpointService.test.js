@@ -9,7 +9,7 @@ import {
   serializeAppliedVV,
   deserializeAppliedVV,
 } from '../../../../src/domain/services/state/CheckpointSerializerV5.js';
-import { createEmptyStateV5, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.ts';
 import { encodeCheckpointMessage, decodeCheckpointMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';

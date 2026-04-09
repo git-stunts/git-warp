@@ -14,7 +14,7 @@ import {
   OP_STRATEGIES,
   reduceV5 as _reduceV5,
   cloneStateV5,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
@@ -776,7 +776,7 @@ describe('JoinReducer', () => {
       const result = join(state, patch, 'aaaa1234', true);
 
       expect('state' in result).toBe(true);
-      const { state: s, receipt } = /** @type {{state: import('../../../../src/domain/services/JoinReducer.js').WarpStateV5, receipt: *}} */ (result);
+      const { state: s, receipt } = /** @type {{state: import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5, receipt: *}} */ (result);
       expect(s.observedFrontier.get('A')).toBe(5);
       expect(s.observedFrontier.get('C')).toBe(1);
       expect(receipt).toBeDefined();

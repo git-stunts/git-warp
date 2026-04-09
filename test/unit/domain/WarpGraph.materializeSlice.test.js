@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
-import { encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.js';
+import { encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import { lwwValue } from '../../../src/domain/crdt/LWW.ts';
 import {

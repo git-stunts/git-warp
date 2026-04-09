@@ -33,7 +33,7 @@ const { joinStatesMock, applyWithDiffMock, applyWithReceiptMock } = vi.hoisted((
   applyWithReceiptMock: vi.fn(),
 }));
 
-vi.mock('../../../../../src/domain/services/JoinReducer.js', async (importOriginal) => {
+vi.mock('../../../../../src/domain/services/JoinReducer.ts', async (importOriginal) => {
   const original = /** @type {Record<string, unknown>} */ (await importOriginal());
   return {
     ...original,
@@ -1000,13 +1000,13 @@ describe('PatchController', () => {
     it('throws when otherState is null', () => {
       host._cachedState = WarpStateV5.empty();
 
-      expect(() => ctrl.join(/** @type {import('../../../../../src/domain/services/JoinReducer.js').WarpStateV5} */ (/** @type {unknown} */ (null)))).toThrow(/Invalid state/);
+      expect(() => ctrl.join(/** @type {import('../../../../../src/domain/services/JoinReducer.ts').WarpStateV5} */ (/** @type {unknown} */ (null)))).toThrow(/Invalid state/);
     });
 
     it('throws when otherState is missing required fields', () => {
       host._cachedState = WarpStateV5.empty();
 
-      expect(() => ctrl.join(/** @type {import('../../../../../src/domain/services/JoinReducer.js').WarpStateV5} */ (/** @type {unknown} */ ({ prop: new Map() })))).toThrow(/Invalid state/);
+      expect(() => ctrl.join(/** @type {import('../../../../../src/domain/services/JoinReducer.ts').WarpStateV5} */ (/** @type {unknown} */ ({ prop: new Map() })))).toThrow(/Invalid state/);
     });
 
     it('merges states and returns receipt with change counts', () => {

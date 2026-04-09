@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { reduceV5 as _reduceV5 } from '../../src/domain/services/JoinReducer.js';
+import { reduceV5 as _reduceV5 } from '../../src/domain/services/JoinReducer.ts';
 import Patch from '../../src/domain/types/Patch.ts';
 import NodeAdd from '../../src/domain/types/ops/NodeAdd.ts';
 import EdgeAdd from '../../src/domain/types/ops/EdgeAdd.ts';

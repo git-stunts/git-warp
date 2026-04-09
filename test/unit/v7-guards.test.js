@@ -113,7 +113,7 @@ describe('V7 Contract Guards', () => {
         reason: 'Schema:2 patch builder with dots and OR-Set',
       },
       {
-        path: 'domain/services/JoinReducer.js',
+        path: 'domain/services/JoinReducer.ts',
         reason: 'Schema:2 OR-Set reducer',
       },
       {

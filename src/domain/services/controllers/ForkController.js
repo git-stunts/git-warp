@@ -262,7 +262,7 @@ export default class ForkController {
    *
    * @param {string} writerId
    * @param {string} incomingSha
-   * @param {{state: import('../JoinReducer.js').WarpStateV5, frontier: Map<string, string>, stateHash: string, schema: number}} checkpoint
+   * @param {{state: import('../JoinReducer.ts').WarpStateV5, frontier: Map<string, string>, stateHash: string, schema: number}} checkpoint
    * @returns {Promise<void>}
    */
   async _validatePatchAgainstCheckpoint(writerId, incomingSha, checkpoint) {

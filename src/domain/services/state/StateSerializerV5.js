@@ -21,7 +21,7 @@ import { decodeEdgeKey, decodePropKey } from '../KeyCodec.js';
 
 /**
  * Checks if a node is visible (present in the ORSet).
- * @param {import('../JoinReducer.js').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state
  * @param {string} nodeId
  * @returns {boolean}
  */
@@ -32,7 +32,7 @@ export function nodeVisibleV5(state, nodeId) {
 /**
  * Checks if an edge is visible.
  * Edge is visible if: edge is in ORSet AND both endpoints are visible.
- * @param {import('../JoinReducer.js').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state
  * @param {string} edgeKey - Encoded edge key
  * @returns {boolean}
  */
@@ -47,7 +47,7 @@ export function edgeVisibleV5(state, edgeKey) {
 /**
  * Checks if a property is visible.
  * Property is visible if: node is visible AND prop exists.
- * @param {import('../JoinReducer.js').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state
  * @param {string} propKey - Encoded prop key
  * @returns {boolean}
  */
@@ -72,7 +72,7 @@ export function propVisibleV5(state, propKey) {
  *
  * Same canonical ordering as v4 for visible projection.
  *
- * @param {import('../JoinReducer.js').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state
  * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options]
  * @returns {Uint8Array}
  */
@@ -93,7 +93,7 @@ export function serializeStateV5(state, { codec } = {}) {
  * This helper is public so higher layers can inspect materialized strand
  * or coordinate state without depending on OR-Set internals.
  *
- * @param {import('../JoinReducer.js').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state
  * @returns {{nodes: string[], edges: Array<{from: string, to: string, label: string}>, props: Array<{node: string, key: string, value: unknown}>}}
  */
 export function projectStateV5(state) {
@@ -141,7 +141,7 @@ export function projectStateV5(state) {
 
 /**
  * Computes SHA-256 hash of canonical state bytes.
- * @param {import('../JoinReducer.js').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state
  * @param {StateHashOptions} [options] - Options
  * @returns {Promise<string>} Hex-encoded SHA-256 hash
  */

@@ -187,8 +187,8 @@ function setAdded(before, after) {
 
 /**
  * Computes node and edge diffs between two states.
- * @param {import('../JoinReducer.js').WarpStateV5 | null} before
- * @param {import('../JoinReducer.js').WarpStateV5} after
+ * @param {import('../JoinReducer.ts').WarpStateV5 | null} before
+ * @param {import('../JoinReducer.ts').WarpStateV5} after
  * @returns {{nodesAdded: string[], nodesRemoved: string[], edgesAdded: EdgeChange[], edgesRemoved: EdgeChange[]}}
  */
 function diffNodesAndEdges(before, after) {
@@ -224,8 +224,8 @@ function diffNodesAndEdges(before, after) {
 
 /**
  * Computes property diffs between two states.
- * @param {import('../JoinReducer.js').WarpStateV5 | null} before
- * @param {import('../JoinReducer.js').WarpStateV5} after
+ * @param {import('../JoinReducer.ts').WarpStateV5 | null} before
+ * @param {import('../JoinReducer.ts').WarpStateV5} after
  * @returns {{propsSet: PropSet[], propsRemoved: PropRemoved[]}}
  */
 function diffProps(before, after) {
@@ -307,8 +307,8 @@ function classifyPropUpdate({ key, nodeId, propKey, beforeReg, afterReg }) {
 /**
  * Computes a deterministic diff between two materialized states.
  *
- * @param {import('../JoinReducer.js').WarpStateV5 | null} before - Previous state (null for initial)
- * @param {import('../JoinReducer.js').WarpStateV5} after - Current state
+ * @param {import('../JoinReducer.ts').WarpStateV5 | null} before - Previous state (null for initial)
+ * @param {import('../JoinReducer.ts').WarpStateV5} after - Current state
  * @returns {StateDiffResult} The diff between states
  */
 export function diffStates(before, after) {

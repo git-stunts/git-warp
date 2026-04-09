@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import SyncController from '../../../../src/domain/services/controllers/SyncController.js';
 import SyncTrustGate from '../../../../src/domain/services/sync/SyncTrustGate.js';
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
-import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.ts';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
 
 vi.mock('../../../../src/domain/services/sync/SyncProtocol.js', async (importOriginal) => {

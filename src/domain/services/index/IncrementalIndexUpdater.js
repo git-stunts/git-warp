@@ -86,7 +86,7 @@ export default class IncrementalIndexUpdater {
   /**
    * Computes only the dirty shards from a PatchDiff.
    *
-   * @param {{ diff: import('../../types/PatchDiff.ts').PatchDiff, state: import('../JoinReducer.js').WarpStateV5, loadShard: (path: string) => Uint8Array|undefined }} params
+   * @param {{ diff: import('../../types/PatchDiff.ts').PatchDiff, state: import('../JoinReducer.ts').WarpStateV5, loadShard: (path: string) => Uint8Array|undefined }} params
    * @returns {Record<string, Uint8Array>} dirty shard buffers (path -> Uint8Array)
    */
   computeDirtyShards({ diff, state, loadShard }) {
@@ -855,7 +855,7 @@ export default class IncrementalIndexUpdater {
    *
    * For cached maps, applies diff edge transitions to keep membership current.
    *
-   * @param {import('../JoinReducer.js').WarpStateV5} state
+   * @param {import('../JoinReducer.ts').WarpStateV5} state
    * @param {import('../../types/PatchDiff.ts').PatchDiff} diff
    * @returns {Map<string, Set<string>>}
    * @private

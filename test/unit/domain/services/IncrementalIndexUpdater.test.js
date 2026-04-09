@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import IncrementalIndexUpdater from '../../../../src/domain/services/index/IncrementalIndexUpdater.js';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
-import { createEmptyStateV5, applyOpV2, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5, applyOpV2, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
@@ -43,7 +43,7 @@ function buildState({ nodes, edges, props }) {
   return state;
 }
 
-/** @param {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} state */
+/** @param {import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5} state */
 function buildTree(state) {
   return new MaterializedViewService().build(state).tree;
 }

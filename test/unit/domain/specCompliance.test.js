@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { computeStateHashV5 } from '../../../src/domain/services/state/StateSerializerV5.js';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
-import { createEmptyStateV5, join as joinState } from '../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5, join as joinState } from '../../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../../src/domain/crdt/Dot.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 import { encode, decode } from '../../../src/infrastructure/codecs/CborCodec.js';

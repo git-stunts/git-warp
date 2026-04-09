@@ -5,7 +5,7 @@ import {
   encodePropKey,
   applyWithDiff,
   reduceV5 as _reduceV5,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';

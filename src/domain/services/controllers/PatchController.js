@@ -8,7 +8,7 @@
  */
 
 import { PatchBuilder } from '../PatchBuilder.js';
-import { joinStates, applyWithDiff, applyWithReceipt } from '../JoinReducer.js';
+import { joinStates, applyWithDiff, applyWithReceipt } from '../JoinReducer.ts';
 import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../../utils/RefLayout.ts';
 import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';
 import { Writer } from '../../warp/Writer.ts';
@@ -59,7 +59,7 @@ export default class PatchController {
       writerId: h._writerId,
       lamport,
       versionVector: h._versionVector,
-      getCurrentState: /** Returns the cached CRDT state. @returns {import('../JoinReducer.js').WarpStateV5|null} */ () => h._cachedState,
+      getCurrentState: /** Returns the cached CRDT state. @returns {import('../JoinReducer.ts').WarpStateV5|null} */ () => h._cachedState,
       expectedParentSha: parentSha,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: /** Post-commit callback. @param {{patch?: import('../../types/Patch.ts').default, sha?: string}} opts */ (opts) => this._onPatchCommitted(h._writerId, opts),
@@ -311,7 +311,7 @@ export default class PatchController {
       graphName: h._graphName,
       writerId: resolvedWriterId,
       versionVector: h._versionVector,
-      getCurrentState: /** Returns the cached CRDT state. @returns {import('../JoinReducer.js').WarpStateV5|null} */ () => h._cachedState,
+      getCurrentState: /** Returns the cached CRDT state. @returns {import('../JoinReducer.ts').WarpStateV5|null} */ () => h._cachedState,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: /** Post-commit callback. @type {(result: {patch: import('../../types/Patch.ts').default, sha: string}) => void} */ ((opts) => this._onPatchCommitted(resolvedWriterId, opts)),
       patchJournal: /** @type {import('../../../ports/PatchJournalPort.ts').default} */ (h._patchJournal),
@@ -456,8 +456,8 @@ export default class PatchController {
   /**
    * Joins an external WarpStateV5 into the cached state using CRDT merge.
    *
-   * @param {import('../JoinReducer.js').WarpStateV5} otherState
-   * @returns {{state: import('../JoinReducer.js').WarpStateV5, receipt: {nodesAdded: number, nodesRemoved: number, edgesAdded: number, edgesRemoved: number, propsChanged: number, frontierMerged: boolean}}}
+   * @param {import('../JoinReducer.ts').WarpStateV5} otherState
+   * @returns {{state: import('../JoinReducer.ts').WarpStateV5, receipt: {nodesAdded: number, nodesRemoved: number, edgesAdded: number, edgesRemoved: number, propsChanged: number, frontierMerged: boolean}}}
    */
   join(otherState) {
     const h = this._host;

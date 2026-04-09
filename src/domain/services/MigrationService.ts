@@ -2,7 +2,7 @@
  * Creates a v5 checkpoint from v4 visible projection.
  * This is the migration boundary.
  */
-import { createEmptyStateV5 } from './JoinReducer.js';
+import { createEmptyStateV5 } from './JoinReducer.ts';
 import VersionVector from '../crdt/VersionVector.ts';
 import type WarpStateV5 from './state/WarpStateV5.ts';
 import type { LWWRegister } from '../crdt/LWW.ts';

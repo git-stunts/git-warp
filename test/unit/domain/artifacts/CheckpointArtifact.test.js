@@ -4,7 +4,7 @@ import { StateArtifact } from '../../../../src/domain/artifacts/StateArtifact.ts
 import { FrontierArtifact } from '../../../../src/domain/artifacts/FrontierArtifact.ts';
 import { AppliedVVArtifact } from '../../../../src/domain/artifacts/AppliedVVArtifact.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.ts';
 
 describe('CheckpointArtifact family', () => {
   describe('StateArtifact', () => {

@@ -7,7 +7,7 @@ import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.js';
 import WarpRuntime from '../../src/domain/WarpRuntime.js';
 import { computeStateHashV5, nodeVisibleV5, edgeVisibleV5 } from '../../src/domain/services/state/StateSerializerV5.js';
-import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';
+import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 import { buildWriterRef } from '../../src/domain/utils/RefLayout.ts';
 

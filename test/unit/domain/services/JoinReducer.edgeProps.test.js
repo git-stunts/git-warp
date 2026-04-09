@@ -10,7 +10,7 @@ import {
   applyOpV2,
   joinStates,
   reduceV5 as _reduceV5,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';

@@ -3,7 +3,7 @@ import GCPolicy from '../../../../src/domain/services/GCPolicy.ts';
 import executeGC from '../../../../src/domain/services/executeGC.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import GCMetrics from '../../../../src/domain/services/GCMetrics.ts';
-import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.ts';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 

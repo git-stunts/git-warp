@@ -1,6 +1,6 @@
 import WarpError from '../errors/WarpError.ts';
 import { CheckpointArtifact } from './CheckpointArtifact.ts';
-import type { WarpStateV5 } from '../services/JoinReducer.js';
+import type { WarpStateV5 } from '../services/JoinReducer.ts';
 
 /** Carries the full CRDT state for checkpoint recovery. */
 export class StateArtifact extends CheckpointArtifact {

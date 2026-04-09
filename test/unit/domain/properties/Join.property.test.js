@@ -5,7 +5,7 @@ import {
   createEmptyStateV5,
   joinStates as _joinStates,
   reduceV5 as _reduceV5,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 import { computeStateHashV5 as _computeStateHashV5 } from '../../../../src/domain/services/state/StateSerializerV5.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
@@ -20,6 +20,7 @@ const crypto = new NodeCryptoAdapter();
 const PROPERTY_TEST_SEED = 42;
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import WarpStateV5 from '../../../../src/domain/services/state/WarpStateV5.ts';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
@@ -136,14 +137,14 @@ const propMapArb = fc.array(
 });
 
 /**
- * Generates a random WarpStateV5
+ * Generates a random WarpStateV5 (real class instance).
  */
 const stateArb = fc.record({
   nodeAlive: generateORSet(nodeIdArb, dotArb),
   edgeAlive: generateORSet(edgeKeyArb, dotArb),
   prop: propMapArb,
   observedFrontier: versionVectorArb,
-});
+}).map((fields) => new WarpStateV5(fields));
 
 // ============================================================================
 // State Equality Helper

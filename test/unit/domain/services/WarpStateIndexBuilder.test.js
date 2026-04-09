@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 import WarpStateIndexBuilder, { buildWarpStateIndex } from '../../../../src/domain/services/index/WarpStateIndexBuilder.js';
-import { createEmptyStateV5, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 

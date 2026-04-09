@@ -2,7 +2,7 @@ import CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import ORSet from '../../domain/crdt/ORSet.ts';
 import VersionVector from '../../domain/crdt/VersionVector.ts';
-import { createEmptyStateV5 } from '../../domain/services/JoinReducer.js';
+import { createEmptyStateV5 } from '../../domain/services/JoinReducer.ts';
 import WarpStateV5 from '../../domain/services/state/WarpStateV5.ts';
 import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceIndex.js';
 
@@ -149,7 +149,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
   /**
    * Encodes full V5 state to CBOR bytes.
    *
-   * @param {import('../../domain/services/JoinReducer.js').WarpStateV5} state
+   * @param {import('../../domain/services/JoinReducer.ts').WarpStateV5} state
    * @returns {Uint8Array}
    */
   _encodeFullState(state) {
@@ -194,7 +194,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
    * Decodes CBOR bytes to full V5 state.
    *
    * @param {Uint8Array} buffer
-   * @returns {import('../../domain/services/JoinReducer.js').WarpStateV5}
+   * @returns {import('../../domain/services/JoinReducer.ts').WarpStateV5}
    */
   _decodeFullState(buffer) {
     if (buffer === null || buffer === undefined) {

@@ -38,7 +38,7 @@ import SyncTrustGate from '../sync/SyncTrustGate.js';
  * in unit tests.
  *
  * @typedef {Object} SyncHost
- * @property {import('../JoinReducer.js').WarpStateV5|null} _cachedState
+ * @property {import('../JoinReducer.ts').WarpStateV5|null} _cachedState
  * @property {Map<string, string>|null} _lastFrontier
  * @property {boolean} _stateDirty
  * @property {number} _patchesSinceGC
@@ -53,7 +53,7 @@ import SyncTrustGate from '../sync/SyncTrustGate.js';
  * @property {number} _patchesSinceCheckpoint
  * @property {(op: string, t0: number, opts?: {metrics?: string, error?: Error}) => void} _logTiming
  * @property {(options?: Record<string, unknown>) => Promise<unknown>} materialize
- * @property {(state: import('../JoinReducer.js').WarpStateV5) => Promise<unknown>} _setMaterializedState
+ * @property {(state: import('../JoinReducer.ts').WarpStateV5) => Promise<unknown>} _setMaterializedState
  * @property {() => Promise<string[]>} discoverWriters
  * @property {((trust: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }|undefined|null) => SyncTrustGate|null)} [_createSyncTrustGate]
  */
@@ -350,7 +350,7 @@ export default class SyncController {
    * **Requires a cached state.**
    *
    * @param {import('../sync/SyncProtocol.js').SyncResponse} response - The sync response
-   * @returns {{state: import('../JoinReducer.js').WarpStateV5, frontier: Map<string, string>, applied: number}} Result with updated state and frontier
+   * @returns {{state: import('../JoinReducer.ts').WarpStateV5, frontier: Map<string, string>, applied: number}} Result with updated state and frontier
    * @throws {import('../../errors/QueryError.ts').default} If no cached state exists (code: `E_NO_STATE`)
    */
   /**
@@ -364,7 +364,7 @@ export default class SyncController {
    * **Requires a cached state.**
    *
    * @param {import('../sync/SyncProtocol.js').SyncResponse} response - The sync response
-  * @returns {Promise<{state: import('../JoinReducer.js').WarpStateV5, frontier: Map<string, string>, applied: number, trustVerdict?: string, writersApplied?: string[], skippedWriters: Array<{writerId: string, reason: string, localSha: string, remoteSha: string|null}>}>} Result with updated state and frontier
+  * @returns {Promise<{state: import('../JoinReducer.ts').WarpStateV5, frontier: Map<string, string>, applied: number, trustVerdict?: string, writersApplied?: string[], skippedWriters: Array<{writerId: string, reason: string, localSha: string, remoteSha: string|null}>}>} Result with updated state and frontier
    * @throws {import('../../errors/QueryError.ts').default} If no cached state exists (code: `E_NO_STATE`)
    * @throws {SyncError} If trust gate rejects untrusted writers (code: `E_SYNC_UNTRUSTED_WRITER`)
    */
@@ -378,7 +378,7 @@ export default class SyncController {
    *
    * @param {import('../sync/SyncProtocol.js').SyncResponse} response
    * @param {SyncTrustGate|null} trustGate
-   * @returns {Promise<{state: import('../JoinReducer.js').WarpStateV5, frontier: Map<string, string>, applied: number, trustVerdict?: string, writersApplied?: string[], skippedWriters: Array<{writerId: string, reason: string, localSha: string, remoteSha: string|null}>}>}
+   * @returns {Promise<{state: import('../JoinReducer.ts').WarpStateV5, frontier: Map<string, string>, applied: number, trustVerdict?: string, writersApplied?: string[], skippedWriters: Array<{writerId: string, reason: string, localSha: string, remoteSha: string|null}>}>}
    * @private
    */
   async _applySyncResponseWithGate(response, trustGate) {
@@ -410,7 +410,7 @@ export default class SyncController {
     }
 
     const currentFrontier = this._host._lastFrontier || createFrontier();
-    const result = /** @type {{state: import('../JoinReducer.js').WarpStateV5, frontier: Map<string, string>, applied: number}} */ (applySyncResponseImpl(response, this._host._cachedState, currentFrontier));
+    const result = /** @type {{state: import('../JoinReducer.ts').WarpStateV5, frontier: Map<string, string>, applied: number}} */ (applySyncResponseImpl(response, this._host._cachedState, currentFrontier));
 
     // Route through canonical state-install path (B105 / C1 fix).
     // _setMaterializedState sets _cachedState, clears _stateDirty, computes
@@ -446,7 +446,7 @@ export default class SyncController {
    *
    * @param {string|import('../../WarpRuntime.js').default} remote - URL or peer graph instance
    * @param {{ path?: string, retries?: number, baseDelayMs?: number, maxDelayMs?: number, timeoutMs?: number, signal?: AbortSignal, onStatus?: (event: {type: string, attempt: number, durationMs?: number, status?: number, error?: Error}) => void, materialize?: boolean, auth?: { secret: string, keyId?: string }, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null } }} [options]
-   * @returns {Promise<{applied: number, attempts: number, skippedWriters: Array<{writerId: string, reason: string, localSha: string, remoteSha: string|null}>, state?: import('../JoinReducer.js').WarpStateV5}>}
+   * @returns {Promise<{applied: number, attempts: number, skippedWriters: Array<{writerId: string, reason: string, localSha: string, remoteSha: string|null}>, state?: import('../JoinReducer.ts').WarpStateV5}>}
    */
   async syncWith(remote, options = {}) {
     const t0 = this._host._clock.now();
@@ -618,7 +618,7 @@ export default class SyncController {
 
       if (materializeAfterSync) {
         if (!this._host._cachedState) { await this._host.materialize(); }
-        return { ...syncResult, state: /** @type {import('../JoinReducer.js').WarpStateV5} */ (this._host._cachedState) };
+        return { ...syncResult, state: /** @type {import('../JoinReducer.ts').WarpStateV5} */ (this._host._cachedState) };
       }
       return syncResult;
     } catch (err) {

@@ -7,7 +7,7 @@
  * @module domain/services/strand/ConflictCandidateCollector
  */
 
-import { normalizeRawOp, OP_STRATEGIES } from '../JoinReducer.js';
+import { normalizeRawOp, OP_STRATEGIES } from '../JoinReducer.ts';
 import { createEventId } from '../../utils/EventId.ts';
 import { decodeEdgeKey } from '../KeyCodec.js';
 import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';

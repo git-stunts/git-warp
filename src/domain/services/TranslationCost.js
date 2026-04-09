@@ -16,7 +16,7 @@
 import { decodeEdgeKey, decodePropKey, isEdgePropKey } from './KeyCodec.js';
 import { matchGlob } from '../utils/matchGlob.ts';
 
-/** @typedef {import('./JoinReducer.js').WarpStateV5} WarpStateV5 */
+/** @typedef {import('./JoinReducer.ts').WarpStateV5} WarpStateV5 */
 
 /**
  * Computes the set of property keys visible under an observer config.

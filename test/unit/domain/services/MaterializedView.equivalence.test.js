@@ -14,7 +14,7 @@ import {
   applyWithDiff,
   applyOpV2,
   reduceV5,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
@@ -150,7 +150,7 @@ function generatePatches(seed) {
  * Builds adjacency maps from CRDT state for AdjacencyNeighborProvider.
  * Only includes edges where both endpoints are alive (matches edgeVisibleV5).
  */
-/** @param {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} state */
+/** @param {import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5} state */
 function buildAdjacency(state) {
   const outgoing = new Map();
   const incoming = new Map();
@@ -177,7 +177,7 @@ function buildAdjacency(state) {
 /**
  * Collects LWW-winning properties for a node from state.
  */
-/** @param {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} state @param {string} nodeId @returns {Record<string, unknown>} */
+/** @param {import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5} state @param {string} nodeId @returns {Record<string, unknown>} */
 function getPropsFromState(state, nodeId) {
   /** @type {Record<string, unknown>} */ const props = {};
   const prefix = nodeId + '\0';
@@ -229,7 +229,7 @@ describe('MaterializedView equivalence', () => {
       const service = new MaterializedViewService();
 
       // ── Full rebuild ──────────────────────────────────────────────
-      const fullState = /** @type {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} */ (reduceV5(patches));
+      const fullState = /** @type {import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5} */ (reduceV5(patches));
       const fullBuild = service.build(fullState);
       const fullBitmapProvider = new BitmapNeighborProvider({
         logicalIndex: fullBuild.logicalIndex,
@@ -273,7 +273,7 @@ describe('MaterializedView equivalence', () => {
       const service = new MaterializedViewService();
 
       // ── Full rebuild ──────────────────────────────────────────────
-      const fullState = /** @type {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} */ (reduceV5(patches));
+      const fullState = /** @type {import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5} */ (reduceV5(patches));
       const fullBuild = service.build(fullState);
       const fullBitmapProvider = new BitmapNeighborProvider({
         logicalIndex: fullBuild.logicalIndex,
@@ -399,7 +399,7 @@ describe('MaterializedView equivalence', () => {
       },
     ];
 
-    const fullState = /** @type {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} */ (reduceV5(patches));
+    const fullState = /** @type {import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5} */ (reduceV5(patches));
     const build = service.build(fullState);
 
     // Object.prototype must be untouched

@@ -11,7 +11,7 @@ import {
 import {
   createEmptyStateV5,
   reduceV5 as _reduceV5,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
 import { createFrontier } from '../../../../src/domain/services/Frontier.js';

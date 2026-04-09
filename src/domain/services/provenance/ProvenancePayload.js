@@ -16,7 +16,7 @@
  * @module domain/services/provenance/ProvenancePayload
  */
 
-import { reduceV5, createEmptyStateV5, cloneStateV5 } from '../JoinReducer.js';
+import { reduceV5, createEmptyStateV5, cloneStateV5 } from '../JoinReducer.ts';
 
 /**
  * A single patch entry in the provenance payload.
@@ -159,9 +159,9 @@ class ProvenancePayload {
    * - Nodes/edges use OR-Set (add-wins)
    * - Properties use LWW (Last-Write-Wins)
    *
-   * @param {import('../JoinReducer.js').WarpStateV5} [initialState] - The initial
+   * @param {import('../JoinReducer.ts').WarpStateV5} [initialState] - The initial
    *   state U_0 to replay from. If omitted, starts from empty state.
-   * @returns {import('../JoinReducer.js').WarpStateV5} The final materialized state
+   * @returns {import('../JoinReducer.ts').WarpStateV5} The final materialized state
    */
   replay(initialState) {
     // Handle empty payload - return clone of initial or fresh empty state
@@ -172,7 +172,7 @@ class ProvenancePayload {
     // Use JoinReducer's reduceV5 for deterministic materialization.
     // Note: reduceV5 returns { state, receipts } when options.receipts is truthy,
     // but returns bare WarpStateV5 when no options passed (as here).
-    return /** @type {import('../JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ ([...this.#patches]), initialState));
+    return /** @type {import('../JoinReducer.ts').WarpStateV5} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ ([...this.#patches]), initialState));
   }
 
   /**

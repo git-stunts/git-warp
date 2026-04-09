@@ -4,7 +4,7 @@ import {
   encodeEdgeKey,
   encodeEdgePropKey,
   encodePropKey,
-} from '../../../src/domain/services/JoinReducer.js';
+} from '../../../src/domain/services/JoinReducer.ts';
 import { createStateBuilder } from '../../helpers/stateBuilder.js';
 
 describe('StateBuilder', () => {

@@ -30,7 +30,7 @@ import {
   createEmptyStateV5,
   encodeEdgeKey as encodeEdgeKeyV5,
   encodePropKey as encodePropKeyV5,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 import {
   encodeCheckpointMessage,
   decodeCheckpointMessage,

@@ -289,8 +289,8 @@ export async function composeWormholes(first, second, options = {}) {
  * individually. The replay uses CRDT merge semantics as defined in JoinReducer.
  *
  * @param {WormholeEdge} wormhole - The wormhole to replay
- * @param {import('./JoinReducer.js').WarpStateV5} [initialState] - Optional initial state
- * @returns {import('./JoinReducer.js').WarpStateV5} The materialized state
+ * @param {import('./JoinReducer.ts').WarpStateV5} [initialState] - Optional initial state
+ * @returns {import('./JoinReducer.ts').WarpStateV5} The materialized state
  */
 export function replayWormhole(wormhole, initialState) {
   return wormhole.payload.replay(initialState);

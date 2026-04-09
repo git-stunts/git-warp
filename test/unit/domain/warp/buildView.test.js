@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import MaterializeController from '../../../../src/domain/services/controllers/MaterializeController.js';
-import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.ts';
 
 describe('_buildView', () => {
   it('logs warning when index build fails (H7)', () => {

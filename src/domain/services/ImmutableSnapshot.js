@@ -11,7 +11,7 @@
 
 import VersionVector from '../crdt/VersionVector.ts';
 
-/** @typedef {import('./JoinReducer.js').WarpStateV5} WarpStateV5 */
+/** @typedef {import('./JoinReducer.ts').WarpStateV5} WarpStateV5 */
 
 const MAP_MUTATORS = new Set(['set', 'delete', 'clear']);
 const SET_MUTATORS = new Set(['add', 'delete', 'clear']);

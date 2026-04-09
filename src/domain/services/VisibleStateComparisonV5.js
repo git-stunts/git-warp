@@ -8,7 +8,7 @@ const VISIBLE_STATE_COMPARISON_VERSION = 'visible-state-compare/v1';
 /**
 
 
- * @typedef {import('./JoinReducer.js').WarpStateV5} WarpStateV5
+ * @typedef {import('./JoinReducer.ts').WarpStateV5} WarpStateV5
  */
 
 /**

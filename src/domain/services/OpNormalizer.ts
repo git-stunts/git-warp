@@ -9,7 +9,7 @@
  *
  * **Current normalization location:** Normalization is performed at the
  * reducer entry points (`applyFast`, `applyWithReceipt`, `applyWithDiff`
- * in JoinReducer.js), not at the CBOR decode boundary as originally
+ * in JoinReducer.ts), not at the CBOR decode boundary as originally
  * planned in ADR 1. This is a pragmatic deviation — the reducer calls
  * `normalizeRawOp()` on each op before dispatch. Lowering happens in
  * `PatchBuilder.build()`/`commit()` via `lowerCanonicalOp()`.

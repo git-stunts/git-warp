@@ -12,7 +12,7 @@ import {
 } from '../../../../src/domain/services/sync/SyncProtocol.js';
 import {
   createEmptyStateV5,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
 // createDot reserved for future test expansion
 // import { createDot } from '../../../../src/domain/crdt/Dot.ts';

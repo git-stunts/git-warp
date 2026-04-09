@@ -16,7 +16,7 @@ import {
   reduceV5 as _reduceV5,
   CANONICAL_KNOWN_OPS,
   OP_STRATEGIES,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
@@ -64,9 +64,9 @@ function blobValue(oid) {
  * Creates a patch object compatible with PatchLike.
  * @param {string} writer
  * @param {number} lamport
- * @param {import('../../../../src/domain/services/JoinReducer.js').OpLike[]} ops
+ * @param {import('../../../../src/domain/services/JoinReducer.ts').OpLike[]} ops
  * @param {Record<string, number>} [context]
- * @returns {import('../../../../src/domain/services/JoinReducer.js').PatchLike}
+ * @returns {import('../../../../src/domain/services/JoinReducer.ts').PatchLike}
  */
 function makePatch(writer, lamport, ops, context = {}) {
   return { writer, lamport, ops, context };
@@ -75,8 +75,8 @@ function makePatch(writer, lamport, ops, context = {}) {
 /**
  * Deep-compares two WarpStateV5 objects for structural equality.
  * Checks all five fields: nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthEvent.
- * @param {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} a
- * @param {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} b
+ * @param {import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5} a
+ * @param {import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5} b
  * @param {string} [label]
  */
 function assertStatesEqual(a, b, label = '') {

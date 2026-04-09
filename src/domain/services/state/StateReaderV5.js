@@ -85,7 +85,7 @@ function edgeKeyFromRef(edge) {
 /**
  * Looks up the current node attachment registers directly from materialized state.
  *
- * @param {import('../JoinReducer.js').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state
  * @param {string} nodeId
  * @returns {{ contentRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: string }, mimeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null }|null}
  */
@@ -107,7 +107,7 @@ function getNodeContentRegisters(state, nodeId) {
 /**
  * Looks up the current edge attachment registers directly from materialized state.
  *
- * @param {import('../JoinReducer.js').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state
  * @param {VisibleEdgeRef} edge
  * @returns {{ contentRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: string }, mimeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null }|null}
  */
@@ -281,7 +281,7 @@ function createNeighborIndex(nodeIds, edges) {
 /**
  * Populates node and edge property indexes from materialized state registers.
  *
- * @param {import('../JoinReducer.js').WarpStateV5} state - the materialized state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state - the materialized state
  * @param {{ visibleNodeIds: Set<string>, nodePropsById: Map<string, Record<string, unknown>>, edgePropsByKey: Map<string, Record<string, unknown>> }} indexes - the indexes to populate
  * @returns {void}
  */
@@ -325,7 +325,7 @@ function createVisibleEdges(edges, edgePropsByKey) {
 /**
  * Builds a content metadata index for all visible nodes.
  *
- * @param {import('../JoinReducer.js').WarpStateV5} state - the materialized state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state - the materialized state
  * @param {string[]} nodeIds - the visible node IDs
  * @returns {Map<string, ContentMeta|null>} node content metadata index
  */
@@ -346,7 +346,7 @@ function createNodeContentMetaIndex(state, nodeIds) {
 /**
  * Builds a content metadata index for all visible edges.
  *
- * @param {import('../JoinReducer.js').WarpStateV5} state - the materialized state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state - the materialized state
  * @param {VisibleEdgeRef[]} edges - the visible edge references
  * @returns {Map<string, ContentMeta|null>} edge content metadata index
  */
@@ -559,7 +559,7 @@ function buildReaderApi(context) {
 /**
  * Builds the full reader context from materialized state, including all indexes.
  *
- * @param {import('../JoinReducer.js').WarpStateV5} state - the materialized state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state - the materialized state
  * @returns {StateReaderContext} the reader context
  */
 function buildReaderContext(state) {
@@ -590,7 +590,7 @@ function buildReaderContext(state) {
  * The reader exposes stable node/edge/property helpers and an entity-local
  * node inspection view without leaking OR-Set internals to higher layers.
  *
- * @param {import('../JoinReducer.js').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state
  * @returns {import('../../../../index.js').VisibleStateReaderV5}
  */
 export function createStateReaderV5(state) {

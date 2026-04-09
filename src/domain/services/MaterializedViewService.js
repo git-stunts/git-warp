@@ -159,7 +159,7 @@ function sampleNodes(allNodes, sampleRate, seed) {
 /**
  * Builds adjacency maps from state for ground-truth verification.
  *
- * @param {import('./JoinReducer.js').WarpStateV5} state
+ * @param {import('./JoinReducer.ts').WarpStateV5} state
  * @returns {{ outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>> }}
  */
 function buildGroundTruthAdjacency(state) {
@@ -301,7 +301,7 @@ export default class MaterializedViewService {
   /**
    * Builds a complete MaterializedView from WarpStateV5.
    *
-   * @param {import('./JoinReducer.js').WarpStateV5} state
+   * @param {import('./JoinReducer.ts').WarpStateV5} state
    * @returns {BuildResult}
    */
   build(state) {
@@ -391,7 +391,7 @@ export default class MaterializedViewService {
   /**
    * Applies a PatchDiff incrementally to an existing index tree.
    *
-   * @param {{ existingTree: Record<string, Uint8Array>, diff: import('../types/PatchDiff.ts').PatchDiff, state: import('./JoinReducer.js').WarpStateV5 }} params
+   * @param {{ existingTree: Record<string, Uint8Array>, diff: import('../types/PatchDiff.ts').PatchDiff, state: import('./JoinReducer.ts').WarpStateV5 }} params
    * @returns {BuildResult}
    */
   applyDiff({ existingTree, diff, state }) {
@@ -426,7 +426,7 @@ export default class MaterializedViewService {
    * Verifies index integrity by sampling alive nodes and comparing
    * bitmap neighbor queries against adjacency-based ground truth.
    *
-   * @param {{ state: import('./JoinReducer.js').WarpStateV5, logicalIndex: LogicalIndex, options?: { seed?: number, sampleRate?: number } }} params
+   * @param {{ state: import('./JoinReducer.ts').WarpStateV5, logicalIndex: LogicalIndex, options?: { seed?: number, sampleRate?: number } }} params
    * @returns {VerifyResult}
    */
   verifyIndex({ state, logicalIndex, options = {} }) {

@@ -11,7 +11,7 @@ import {
   createEmptyStateV5,
   applyOpV2,
   reduceV5 as _reduceV5,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';

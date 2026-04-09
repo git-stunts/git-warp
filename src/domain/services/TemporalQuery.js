@@ -26,7 +26,7 @@
  * @see Paper IV - Echo and the WARP Core (CTL* temporal logic on histories)
  */
 
-import { createEmptyStateV5, cloneStateV5, join as joinPatch } from './JoinReducer.js';
+import { createEmptyStateV5, cloneStateV5, join as joinPatch } from './JoinReducer.ts';
 import { decodePropKey } from './KeyCodec.js';
 
 /**
@@ -79,7 +79,7 @@ function unwrapValue(value) {
  * If the node does not exist in the state, `exists` is false and
  * `props` is an empty object.
  *
- * @param {import('./JoinReducer.js').WarpStateV5} state - Current state
+ * @param {import('./JoinReducer.ts').WarpStateV5} state - Current state
  * @param {string} nodeId - Node ID to extract
  * @returns {{ id: string, exists: boolean, props: Record<string, unknown> }}
  */
@@ -104,7 +104,7 @@ function extractNodeSnapshot(state, nodeId) {
 /**
  * Evaluates checkpoint boundary semantics for `always()`.
  *
- * @param {{ state: import('./JoinReducer.js').WarpStateV5, nodeId: string, predicate: (snapshot: {id: string, exists: boolean, props: Record<string, unknown>}) => boolean, checkpointMaxLamport: number|null, since: number }} params
+ * @param {{ state: import('./JoinReducer.ts').WarpStateV5, nodeId: string, predicate: (snapshot: {id: string, exists: boolean, props: Record<string, unknown>}) => boolean, checkpointMaxLamport: number|null, since: number }} params
  * @returns {{ nodeEverExisted: boolean, shouldReturn: boolean, returnValue: boolean }}
  * @private
  */
@@ -131,7 +131,7 @@ function evaluateAlwaysCheckpointBoundary({
 /**
  * Evaluates checkpoint boundary semantics for `eventually()`.
  *
- * @param {{ state: import('./JoinReducer.js').WarpStateV5, nodeId: string, predicate: (snapshot: {id: string, exists: boolean, props: Record<string, unknown>}) => boolean, checkpointMaxLamport: number|null, since: number }} params
+ * @param {{ state: import('./JoinReducer.ts').WarpStateV5, nodeId: string, predicate: (snapshot: {id: string, exists: boolean, props: Record<string, unknown>}) => boolean, checkpointMaxLamport: number|null, since: number }} params
  * @returns {boolean}
  * @private
  */
@@ -152,14 +152,14 @@ function evaluateEventuallyCheckpointBoundary({
 /**
  * Attempts to resume from a checkpoint for temporal replay.
  *
- * @param {() => Promise<{state: import('./JoinReducer.js').WarpStateV5, maxLamport: number}|null>} loadCheckpoint
+ * @param {() => Promise<{state: import('./JoinReducer.ts').WarpStateV5, maxLamport: number}|null>} loadCheckpoint
  * @param {Array<{patch: {lamport: number}, sha: string}>} allPatches
  * @param {number} since
- * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, startIdx: number, checkpointMaxLamport: number|null}>}
+ * @returns {Promise<{state: import('./JoinReducer.ts').WarpStateV5, startIdx: number, checkpointMaxLamport: number|null}>}
  * @private
  */
 async function _tryCheckpointStart(loadCheckpoint, allPatches, since) {
-  const ck = /** @type {{ state: import('./JoinReducer.js').WarpStateV5, maxLamport: number } | null} */ (await loadCheckpoint());
+  const ck = /** @type {{ state: import('./JoinReducer.ts').WarpStateV5, maxLamport: number } | null} */ (await loadCheckpoint());
   const usable = ck !== null && ck.maxLamport <= since;
   if (!usable) {
     return { state: createEmptyStateV5(), startIdx: 0, checkpointMaxLamport: null };
@@ -170,7 +170,7 @@ async function _tryCheckpointStart(loadCheckpoint, allPatches, since) {
 }
 
 /**
- * @typedef {{ state: import('./JoinReducer.js').WarpStateV5, allPatches: Array<{patch: import('../types/Patch.ts').default, sha: string}>, startIdx: number, since: number, nodeId: string, predicate: (snapshot: {id: string, exists: boolean, props: Record<string, unknown>}) => boolean }} ReplayParams
+ * @typedef {{ state: import('./JoinReducer.ts').WarpStateV5, allPatches: Array<{patch: import('../types/Patch.ts').default, sha: string}>, startIdx: number, since: number, nodeId: string, predicate: (snapshot: {id: string, exists: boolean, props: Record<string, unknown>}) => boolean }} ReplayParams
  */
 
 /**
@@ -246,12 +246,12 @@ export class TemporalQuery {
   /**
    * Creates a TemporalQuery with patch-loading and optional checkpoint functions.
    *
-   * @param {{ loadAllPatches: () => Promise<Array<{patch: import('../types/Patch.ts').default, sha: string}>>, loadCheckpoint?: () => Promise<{state: import('./JoinReducer.js').WarpStateV5, maxLamport: number}|null> }} options
+   * @param {{ loadAllPatches: () => Promise<Array<{patch: import('../types/Patch.ts').default, sha: string}>>, loadCheckpoint?: () => Promise<{state: import('./JoinReducer.ts').WarpStateV5, maxLamport: number}|null> }} options
    */
   constructor({ loadAllPatches, loadCheckpoint }) {
     /** @type {() => Promise<Array<{patch: import('../types/Patch.ts').default, sha: string}>>} */
     this._loadAllPatches = loadAllPatches;
-    /** @type {(() => Promise<{state: import('./JoinReducer.js').WarpStateV5, maxLamport: number}|null>)|null} */
+    /** @type {(() => Promise<{state: import('./JoinReducer.ts').WarpStateV5, maxLamport: number}|null>)|null} */
     this._loadCheckpoint = loadCheckpoint || null;
   }
 
@@ -346,7 +346,7 @@ export class TemporalQuery {
    *
    * @param {Array<{patch: {lamport: number}, sha: string}>} allPatches
    * @param {number} since - Minimum Lamport tick
-   * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, startIdx: number, checkpointMaxLamport: number|null}>}
+   * @returns {Promise<{state: import('./JoinReducer.ts').WarpStateV5, startIdx: number, checkpointMaxLamport: number|null}>}
    * @private
    */
   async _resolveStart(allPatches, since) {

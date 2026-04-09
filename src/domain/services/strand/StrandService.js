@@ -277,8 +277,8 @@ function buildStrandDescriptor({ graphName, now, frontierRecord, frontierDigest,
 /**
  * Deep-freeze materialized state for safe public consumption.
  *
- * @param {import('../JoinReducer.js').WarpStateV5} state
- * @returns {import('../JoinReducer.js').WarpStateV5}
+ * @param {import('../JoinReducer.ts').WarpStateV5} state
+ * @returns {import('../JoinReducer.ts').WarpStateV5}
  */
 function freezePublicState(state) {
   return createImmutableWarpStateV5(state);
@@ -287,9 +287,9 @@ function freezePublicState(state) {
 /**
  * Deep-freeze both materialized state and tick receipts for safe public consumption.
  *
- * @param {import('../JoinReducer.js').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state
  * @param {import('../../types/TickReceipt.ts').TickReceipt[]} receipts
- * @returns {{ state: import('../JoinReducer.js').WarpStateV5, receipts: import('../../types/TickReceipt.ts').TickReceipt[] }}
+ * @returns {{ state: import('../JoinReducer.ts').WarpStateV5, receipts: import('../../types/TickReceipt.ts').TickReceipt[] }}
  */
 function freezePublicStateWithReceipts(state, receipts) {
   return Object.freeze({
@@ -438,7 +438,7 @@ export default class StrandService {
        * @param {StrandDescriptor} descriptor
        * @param {{ collectReceipts: boolean, ceiling: number|null }} options
        * @returns {Promise<{
-       *   state: import('../JoinReducer.js').WarpStateV5,
+       *   state: import('../JoinReducer.ts').WarpStateV5,
        *   receipts: import('../../types/TickReceipt.ts').TickReceipt[],
        *   allPatches: Array<{ patch: import('../../types/Patch.ts').default, sha: string }>
        * }>}
@@ -686,7 +686,7 @@ export default class StrandService {
    *
    * @param {string} strandId
    * @param {{ receipts?: boolean, ceiling?: number|null }} [options]
-   * @returns {Promise<import('../JoinReducer.js').WarpStateV5|{state: import('../JoinReducer.js').WarpStateV5, receipts: import('../../types/TickReceipt.ts').TickReceipt[]}>}
+   * @returns {Promise<import('../JoinReducer.ts').WarpStateV5|{state: import('../JoinReducer.ts').WarpStateV5, receipts: import('../../types/TickReceipt.ts').TickReceipt[]}>}
    */
   async materialize(strandId, options = {}) {
     const detached = await openDetachedReadGraph(this._graph);
@@ -952,7 +952,7 @@ export default class StrandService {
    * @param {StrandDescriptor} descriptor
    * @param {{ collectReceipts: boolean, ceiling: number|null }} options
    * @returns {Promise<{
-   *   state: import('../JoinReducer.js').WarpStateV5,
+   *   state: import('../JoinReducer.ts').WarpStateV5,
    *   receipts: import('../../types/TickReceipt.ts').TickReceipt[],
    *   allPatches: Array<{ patch: import('../../types/Patch.ts').default, sha: string }>
    * }>}

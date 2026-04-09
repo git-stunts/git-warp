@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
-import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.ts';

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.js';
-import { reduceV5 as _reduceV5, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.js';
+import { reduceV5 as _reduceV5, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';

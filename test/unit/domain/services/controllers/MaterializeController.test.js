@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import MaterializeController from '../../../../../src/domain/services/controllers/MaterializeController.js';
-import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReducer.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import { ProvenanceIndex } from '../../../../../src/domain/services/provenance/ProvenanceIndex.js';
@@ -9,7 +9,7 @@ import { encodePatchMessage } from '../../../../../src/domain/services/codec/War
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 
 /** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.js' */
-/** @typedef {import('../../../../../src/domain/services/JoinReducer.js').WarpStateV5} WarpStateV5 */
+/** @typedef {import('../../../../../src/domain/services/JoinReducer.ts').WarpStateV5} WarpStateV5 */
 /** @typedef {import('../../../../../src/domain/types/TickReceipt.ts').TickReceipt} TickReceipt */
 /** @typedef {import('../../../../../src/domain/types/Patch.ts').default} Patch */
 

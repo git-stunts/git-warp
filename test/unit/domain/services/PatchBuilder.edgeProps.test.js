@@ -5,7 +5,7 @@ import {
   encodePropKey,
   encodeEdgePropKey,
   EDGE_PROP_PREFIX,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 
 /**
  * Helper — creates a minimal PatchBuilder for unit tests (no persistence needed).

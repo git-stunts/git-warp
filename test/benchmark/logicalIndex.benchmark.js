@@ -19,7 +19,7 @@ import { PropertyShard } from '../../src/domain/artifacts/PropertyShard.ts';
 import { CborCodec } from '../../src/infrastructure/codecs/CborCodec.js';
 import { makeLogicalBitmapProvider, makeFixture } from '../helpers/fixtureDsl.js';
 import { runBenchmark, logEnvironment, randomHex } from './benchmarkUtils.js';
-import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../src/domain/utils/EventId.ts';
 

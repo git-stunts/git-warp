@@ -18,7 +18,7 @@ import GCMetrics from '../GCMetrics.ts';
 
 /** @typedef {import('../GCPolicy.ts').default} GCPolicy */
 import { computeAppliedVV } from '../state/CheckpointSerializerV5.js';
-import { cloneStateV5 } from '../JoinReducer.js';
+import { cloneStateV5 } from '../JoinReducer.ts';
 
 /**
  * @typedef {import('../../WarpRuntime.js').default} CheckpointHost
@@ -62,10 +62,10 @@ export default class CheckpointController {
 
       const prevCheckpointing = h._checkpointing;
       h._checkpointing = true;
-      /** @type {import('../JoinReducer.js').WarpStateV5} */
+      /** @type {import('../JoinReducer.ts').WarpStateV5} */
       let state;
       try {
-        state = /** @type {import('../JoinReducer.js').WarpStateV5} */ ((h._cachedState && !h._stateDirty)
+        state = /** @type {import('../JoinReducer.ts').WarpStateV5} */ ((h._cachedState && !h._stateDirty)
           ? h._cachedState
           : await h.materialize());
       } finally {
@@ -153,7 +153,7 @@ export default class CheckpointController {
   /**
    * Loads the latest checkpoint for this graph.
    *
-   * @returns {Promise<{state: import('../JoinReducer.js').WarpStateV5, frontier: Map<string, string>, stateHash: string, schema: number, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, indexShardOids?: Record<string, string>|null}|null>}
+   * @returns {Promise<{state: import('../JoinReducer.ts').WarpStateV5, frontier: Map<string, string>, stateHash: string, schema: number, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, indexShardOids?: Record<string, string>|null}|null>}
    */
   async _loadLatestCheckpoint() {
     const h = this._host;
@@ -185,7 +185,7 @@ export default class CheckpointController {
   /**
    * Loads patches since a checkpoint for incremental materialization.
    *
-   * @param {{state: import('../JoinReducer.js').WarpStateV5, frontier: Map<string, string>, stateHash: string, schema: number}} checkpoint
+   * @param {{state: import('../JoinReducer.ts').WarpStateV5, frontier: Map<string, string>, stateHash: string, schema: number}} checkpoint
    * @returns {Promise<Array<{patch: import('../../types/Patch.ts').default, sha: string}>>}
    */
   async _loadPatchesSince(checkpoint) {
@@ -268,7 +268,7 @@ export default class CheckpointController {
   /**
    * Post-materialize GC check. Warn by default; execute only when enabled.
    *
-   * @param {import('../JoinReducer.js').WarpStateV5} state
+   * @param {import('../JoinReducer.ts').WarpStateV5} state
    */
   _maybeRunGC(state) {
     const h = this._host;

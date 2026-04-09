@@ -16,7 +16,7 @@ import defaultCodec from '../../utils/defaultCodec.ts';
 import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { decodeDot } from '../../crdt/Dot.ts';
-import { createEmptyStateV5 } from '../JoinReducer.js';
+import { createEmptyStateV5 } from '../JoinReducer.ts';
 import WarpStateV5 from './WarpStateV5.ts';
 
 // ============================================================================
@@ -35,7 +35,7 @@ import WarpStateV5 from './WarpStateV5.ts';
  *   observedFrontier: { writerId: counter, ... }
  * }
  *
- * @param {import('../JoinReducer.js').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state
  * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options]
  * @returns {Uint8Array} CBOR-encoded full state
  */
@@ -94,7 +94,7 @@ function serializeEdgeBirthArray(edgeBirthEvent) {
  *
  * @param {Uint8Array} buffer - CBOR-encoded full state
  * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options]
- * @returns {import('../JoinReducer.js').WarpStateV5}
+ * @returns {import('../JoinReducer.ts').WarpStateV5}
  */
 export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
   const codec = codecOpt ?? defaultCodec;
@@ -130,7 +130,7 @@ export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
  * CRITICAL: This scans ALL dots, including those that may be tombstoned.
  * The appliedVV represents what operations have been applied, not what is visible.
  *
- * @param {import('../JoinReducer.js').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpStateV5} state
  * @returns {VersionVector}
  */
 export function computeAppliedVV(state) {

@@ -29,7 +29,7 @@ import type RefPort from '../../ports/RefPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
-import type { WarpStateV5 } from '../services/JoinReducer.js';
+import type { WarpStateV5 } from '../services/JoinReducer.ts';
 
 // Re-export for backward compatibility — consumers importing from Writer.ts
 // should migrate to importing from '../errors/WriterError.ts' directly.

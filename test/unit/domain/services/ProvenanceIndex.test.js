@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import ProvenanceIndex from '../../../../src/domain/services/provenance/ProvenanceIndex.js';
-import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
+import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 
 describe('ProvenanceIndex', () => {
   describe('constructor', () => {

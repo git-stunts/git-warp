@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
-import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.js';
+import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import { createDot } from '../../../src/domain/crdt/Dot.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
@@ -706,7 +706,7 @@ describe('WarpRuntime coverage gaps', () => {
       expect(policy.entryCountThreshold).toBe(50000);
     });
 
-    it('returns a defensive copy (mutations do not affect the graph)', async () => {
+    it('returns an immutable policy (mutations do not affect the graph)', async () => {
       const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
@@ -714,14 +714,16 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      /** @type {any} */
       const policy1 = graph.gcPolicy;
-      policy1.enabled = true;
-      policy1.tombstoneRatioThreshold = 0.99;
 
-      /** @type {any} */
+      // GCPolicy instances are Object.frozen in the constructor, so
+      // any attempt to mutate the returned instance throws under
+      // strict mode (which modules run in by default).
+      expect(() => {
+        /** @type {any} */ (policy1).enabled = true;
+      }).toThrow(TypeError);
+
       const policy2 = graph.gcPolicy;
-
       expect(policy2.enabled).toBe(false);
       expect(policy2.tombstoneRatioThreshold).toBe(0.3);
     });

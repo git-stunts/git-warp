@@ -37,7 +37,7 @@ const { ProvenancePayload } = await import(
 
 // ── Mock JoinReducer ────────────────────────────────────────────────────
 
-vi.mock('../../../../../src/domain/services/JoinReducer.js', () => ({
+vi.mock('../../../../../src/domain/services/JoinReducer.ts', () => ({
   createEmptyStateV5: vi.fn(() => ({
     nodeAlive: new Map(),
     edgeAlive: new Map(),
@@ -47,7 +47,7 @@ vi.mock('../../../../../src/domain/services/JoinReducer.js', () => ({
 }));
 
 const { createEmptyStateV5, reduceV5 } = await import(
-  '../../../../../src/domain/services/JoinReducer.js'
+  '../../../../../src/domain/services/JoinReducer.ts'
 );
 
 // ── Host factory ────────────────────────────────────────────────────────

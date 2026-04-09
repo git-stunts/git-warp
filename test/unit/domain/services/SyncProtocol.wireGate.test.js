@@ -4,7 +4,7 @@ import {
 } from '../../../../src/domain/services/sync/SyncProtocol.js';
 import {
   createEmptyStateV5,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 import { createFrontier } from '../../../../src/domain/services/Frontier.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';

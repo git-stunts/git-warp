@@ -4,7 +4,7 @@ import {
   reduceV5 as _reduceV5,
   encodeEdgeKey as encodeEdgeKeyV5,
   encodePropKey as encodePropKeyV5,
-} from '../../../../src/domain/services/JoinReducer.js';
+} from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
 import { compareEventIds, createEventId } from '../../../../src/domain/utils/EventId.ts';
