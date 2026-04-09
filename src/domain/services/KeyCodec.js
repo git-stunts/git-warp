@@ -8,6 +8,8 @@
  * @module domain/services/KeyCodec
  */
 
+import WarpError from '../errors/WarpError.ts';
+
 /** Field separator used in all encoded keys. */
 export const FIELD_SEPARATOR = '\0';
 
@@ -143,19 +145,29 @@ export function isLegacyEdgePropNode(node) {
  * Decodes a legacy edge-property `node` field back to its components.
  * @param {string} node - The `node` field (must start with \x01)
  * @returns {{from: string, to: string, label: string}}
- * @throws {Error} If the node field is not a valid legacy edge-property encoding
+ * @throws {WarpError} If the node field is not a valid legacy edge-property encoding
  */
 export function decodeLegacyEdgePropNode(node) {
   if (!isLegacyEdgePropNode(node)) {
-    throw new Error('Invalid legacy edge-property node: missing \\x01 prefix');
+    throw new WarpError(
+      'Invalid legacy edge-property node: missing \\x01 prefix',
+      'E_KEYCODEC_LEGACY_NO_PREFIX',
+    );
   }
   const parts = node.slice(1).split('\0');
   if (parts.length !== 3) {
-    throw new Error(`Invalid legacy edge-property node: expected 3 segments, got ${parts.length}`);
+    throw new WarpError(
+      `Invalid legacy edge-property node: expected 3 segments, got ${parts.length}`,
+      'E_KEYCODEC_LEGACY_BAD_SEGMENTS',
+      { context: { got: parts.length } },
+    );
   }
   const [from, to, label] = parts;
   if (from === undefined || from.length === 0 || to === undefined || to.length === 0 || label === undefined || label.length === 0) {
-    throw new Error('Invalid legacy edge-property node: empty segment in decoded parts');
+    throw new WarpError(
+      'Invalid legacy edge-property node: empty segment in decoded parts',
+      'E_KEYCODEC_LEGACY_EMPTY_SEGMENT',
+    );
   }
   return { from, to, label };
 }
@@ -173,16 +185,23 @@ export function isEdgePropKey(key) {
  * Decodes an edge property key string.
  * @param {string} encoded - Encoded edge property key (must start with \x01)
  * @returns {{from: string, to: string, label: string, propKey: string}}
- * @throws {Error} If the encoded key is missing the edge property prefix
- * @throws {Error} If the encoded key does not contain exactly 4 segments
+ * @throws {WarpError} If the encoded key is missing the edge property prefix
+ * @throws {WarpError} If the encoded key does not contain exactly 4 segments
  */
 export function decodeEdgePropKey(encoded) {
   if (!isEdgePropKey(encoded)) {
-    throw new Error('Invalid edge property key: missing prefix');
+    throw new WarpError(
+      'Invalid edge property key: missing prefix',
+      'E_KEYCODEC_EDGE_PROP_NO_PREFIX',
+    );
   }
   const parts = encoded.slice(1).split('\0');
   if (parts.length !== 4) {
-    throw new Error('Invalid edge property key: expected 4 segments');
+    throw new WarpError(
+      'Invalid edge property key: expected 4 segments',
+      'E_KEYCODEC_EDGE_PROP_BAD_SEGMENTS',
+      { context: { got: parts.length } },
+    );
   }
   return { from: parts[0] ?? '', to: parts[1] ?? '', label: parts[2] ?? '', propKey: parts[3] ?? '' };
 }

@@ -86,17 +86,26 @@ function findAttachedData(state, nodeId) {
  *
  * @param {string} value - Identifier to validate
  * @param {string} label - Human-readable label for error messages
- * @throws {Error} If the identifier contains reserved bytes
+ * @throws {PatchError} If the identifier contains reserved bytes
  */
 function _assertNoReservedBytes(value, label) {
   if (typeof value !== 'string') {
-    throw new Error(`${label} must be a string, got ${typeof value}`);
+    throw new PatchError(
+      `${label} must be a string, got ${typeof value}`,
+      { code: 'E_PATCH_IDENTIFIER_TYPE', context: { label, actual: typeof value } },
+    );
   }
   if (value.includes(FIELD_SEPARATOR)) {
-    throw new Error(`${label} must not contain null bytes (\\0): ${JSON.stringify(value)}`);
+    throw new PatchError(
+      `${label} must not contain null bytes (\\0): ${JSON.stringify(value)}`,
+      { code: 'E_PATCH_IDENTIFIER_NULL_BYTE', context: { label } },
+    );
   }
   if (value.length > 0 && value[0] === EDGE_PROP_PREFIX) {
-    throw new Error(`${label} must not start with reserved prefix \\x01: ${JSON.stringify(value)}`);
+    throw new PatchError(
+      `${label} must not start with reserved prefix \\x01: ${JSON.stringify(value)}`,
+      { code: 'E_PATCH_IDENTIFIER_RESERVED_PREFIX', context: { label } },
+    );
   }
 }
 
@@ -127,24 +136,36 @@ function byteSizeOfContent(content) {
  */
 function normalizeContentMetadata(content, metadata) {
   if (metadata !== undefined && (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata))) {
-    throw new Error('content metadata must be an object when provided');
+    throw new PatchError(
+      'content metadata must be an object when provided',
+      { code: 'E_PATCH_CONTENT_METADATA_TYPE' },
+    );
   }
 
   const actualSize = byteSizeOfContent(content);
   const providedSize = metadata?.size;
   if (providedSize !== undefined && providedSize !== null) {
     if (!Number.isInteger(providedSize) || providedSize < 0) {
-      throw new Error('content metadata size must be a non-negative integer');
+      throw new PatchError(
+        'content metadata size must be a non-negative integer',
+        { code: 'E_PATCH_CONTENT_SIZE_TYPE', context: { providedSize } },
+      );
     }
     if (providedSize !== actualSize) {
-      throw new Error(`content metadata size ${providedSize} does not match actual byte size ${actualSize}`);
+      throw new PatchError(
+        `content metadata size ${providedSize} does not match actual byte size ${actualSize}`,
+        { code: 'E_PATCH_CONTENT_SIZE_MISMATCH', context: { providedSize, actualSize } },
+      );
     }
   }
 
   const providedMime = metadata?.mime;
   if (providedMime !== undefined && providedMime !== null) {
     if (typeof providedMime !== 'string' || providedMime.trim() === '') {
-      throw new Error('content metadata mime must be a non-empty string when provided');
+      throw new PatchError(
+        'content metadata mime must be a non-empty string when provided',
+        { code: 'E_PATCH_CONTENT_MIME_TYPE' },
+      );
     }
   }
 
@@ -293,7 +314,10 @@ export class PatchBuilder {
    */
   _assertNotCommitted() {
     if (this._committed || this._committing) {
-      throw new Error('PatchBuilder already committed — create a new builder');
+      throw new PatchError(
+        'PatchBuilder already committed — create a new builder',
+        { code: 'E_PATCH_ALREADY_COMMITTED' },
+      );
     }
   }
 
@@ -390,9 +414,10 @@ export class PatchBuilder {
         const summary = details.join(' and ');
 
         if (this._onDeleteWithData === 'reject') {
-          throw new Error(
+          throw new PatchError(
             `Cannot delete node '${nodeId}': node has attached data (${summary}). ` +
-            `Remove edges and properties first, or set onDeleteWithData to 'cascade'.`
+            `Remove edges and properties first, or set onDeleteWithData to 'cascade'.`,
+            { code: 'E_PATCH_DELETE_WITH_DATA', context: { nodeId, edges: edges.length, props: props.length } },
           );
         }
 
@@ -813,7 +838,10 @@ export class PatchBuilder {
     }
     const state = this._getSnapshotState();
     if (!state || !state.nodeAlive.contains(nodeId)) {
-      throw new Error(`Cannot attach content to unknown node '${nodeId}': add the node first`);
+      throw new PatchError(
+        `Cannot attach content to unknown node '${nodeId}': add the node first`,
+        { code: 'E_PATCH_CONTENT_UNKNOWN_NODE', context: { nodeId } },
+      );
     }
   }
 
@@ -830,7 +858,10 @@ export class PatchBuilder {
     if (!this._edgesAdded.has(ek)) {
       const state = this._getSnapshotState();
       if (!state || !state.edgeAlive.contains(ek)) {
-        throw new Error(`Cannot set property on unknown edge (${from} → ${to} [${label}]): add the edge first`);
+        throw new PatchError(
+          `Cannot set property on unknown edge (${from} → ${to} [${label}]): add the edge first`,
+          { code: 'E_PATCH_EDGE_PROP_UNKNOWN_EDGE', context: { from, to, label } },
+        );
       }
     }
     return ek;
@@ -923,7 +954,10 @@ export class PatchBuilder {
     try {
       // 2. Reject empty patches
       if (this._ops.length === 0) {
-        throw new Error('Cannot commit empty patch: no operations added');
+        throw new PatchError(
+          'Cannot commit empty patch: no operations added',
+          { code: 'E_PATCH_EMPTY' },
+        );
       }
 
       // 3. Race detection: check if writer ref has advanced since builder creation
@@ -962,10 +996,13 @@ export class PatchBuilder {
           try {
             patchInfo = decodePatchMessage(commitMessage);
           } catch (err) {
-            throw new Error(
+            throw new PatchError(
               `Failed to parse lamport from writer ref ${writerRef}: ` +
               `commit ${currentRefSha} has invalid patch message format`,
-              { cause: err }
+              {
+                code: 'E_PATCH_LAMPORT_PARSE',
+                context: { writerRef, currentRefSha, cause: err instanceof Error ? err.message : String(err) },
+              },
             );
           }
           lamport = Math.max(this._lamport, patchInfo.lamport + 1);
