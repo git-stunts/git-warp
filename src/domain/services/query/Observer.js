@@ -14,6 +14,7 @@ import LogicalTraversal from './LogicalTraversal.js';
 import { createStateReaderV5 } from '../state/StateReaderV5.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
 import { matchGlob } from '../../utils/matchGlob.ts';
+import QueryError from '../../errors/QueryError.ts';
 
 
 import WorldlineSelector from '../../types/WorldlineSelector.ts';
@@ -301,7 +302,10 @@ export default class Observer {
    */
   _requireGraph() {
     if (!this._graph) {
-      throw new Error('Observer has no live backing graph');
+      throw new QueryError(
+        'Observer has no live backing graph',
+        { code: 'E_OBSERVER_NO_GRAPH' },
+      );
     }
     return this._graph;
   }

@@ -9,6 +9,7 @@
  */
 
 import NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
+import QueryError from '../../errors/QueryError.ts';
 
 /**
  * Comparator for (neighborId, label) sorting.
@@ -104,7 +105,10 @@ export default class AdjacencyNeighborProvider extends NeighborProviderPort {
   constructor({ outgoing, incoming, aliveNodes }) {
     super();
     if (aliveNodes === undefined || aliveNodes === null) {
-      throw new Error('AdjacencyNeighborProvider: aliveNodes is required');
+      throw new QueryError(
+        'AdjacencyNeighborProvider: aliveNodes is required',
+        { code: 'E_ADJACENCY_NO_ALIVE_NODES' },
+      );
     }
     /** @type {Map<string, Array<{neighborId: string, label: string}>>} */
     this._outgoing = sortAdjacencyMap(outgoing);

@@ -9,6 +9,7 @@
 
 import nullLogger from '../../utils/nullLogger.ts';
 import { checkAborted } from '../../utils/cancellation.ts';
+import WarpError from '../../errors/WarpError.ts';
 
 /**
  * @typedef {'forward' | 'reverse'} TraversalDirection
@@ -43,7 +44,10 @@ export default class DagTraversal {
    */
   constructor({ indexReader, logger = nullLogger }) {
     if (indexReader === null || indexReader === undefined) {
-      throw new Error('DagTraversal requires an indexReader');
+      throw new WarpError(
+        'DagTraversal requires an indexReader',
+        'E_DAG_TRAVERSAL_NO_INDEX',
+      );
     }
     this._indexReader = indexReader;
     this._logger = logger;

@@ -41,7 +41,10 @@ export default class DagPathFinding {
    */
   constructor(/** @type {{ indexReader: import('../index/BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.ts').default }} */ { indexReader, logger = nullLogger }) {
     if (indexReader === undefined || indexReader === null) {
-      throw new Error('DagPathFinding requires an indexReader');
+      throw new TraversalError(
+        'DagPathFinding requires an indexReader',
+        { code: 'E_DAG_PATHFINDING_NO_INDEX' },
+      );
     }
     this._indexReader = indexReader;
     this._logger = logger;

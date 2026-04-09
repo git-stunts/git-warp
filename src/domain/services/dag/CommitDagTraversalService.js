@@ -12,6 +12,7 @@ import nullLogger from '../../utils/nullLogger.ts';
 import DagTraversal from './DagTraversal.js';
 import DagPathFinding from './DagPathFinding.js';
 import DagTopology from './DagTopology.js';
+import TraversalError from '../../errors/TraversalError.ts';
 
 /**
  * Facade for commit DAG traversal, path-finding, and topology operations.
@@ -39,7 +40,10 @@ export default class CommitDagTraversalService {
    */
   constructor({ indexReader, logger = nullLogger }) {
     if (indexReader === null || indexReader === undefined) {
-      throw new Error('CommitDagTraversalService requires an indexReader');
+      throw new TraversalError(
+        'CommitDagTraversalService requires an indexReader',
+        { code: 'E_DAG_TRAVERSAL_NO_INDEX' },
+      );
     }
 
     this._traversal = new DagTraversal({ indexReader, logger });
