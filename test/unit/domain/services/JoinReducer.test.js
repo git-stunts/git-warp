@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createEmptyState,
   encodeEdgeKey,
+  encodeEdgePropKey,
   decodeEdgeKey,
   encodePropKey,
   decodePropKey,
@@ -143,6 +144,20 @@ describe('JoinReducer', () => {
         const dots = state.nodeAlive.getDots('x');
         expect(dots.size).toBe(2);
       });
+
+      it('hydrates a decoded NodeAdd POJO before applying it', () => {
+        const state = createEmptyState();
+        const eventId = createEventId(1, 'writer1', 'abcd1234', 0);
+
+        applyOpV2(state, {
+          type: 'NodeAdd',
+          node: 'x',
+          dot: { writerId: 'writer1', counter: 1 },
+        }, eventId);
+
+        expect(state.nodeAlive.contains('x')).toBe(true);
+        expect(state.nodeAlive.getDots('x')).toEqual(new Set(['writer1:1']));
+      });
     });
 
     describe('NodeRemove', () => {
@@ -246,18 +261,20 @@ describe('JoinReducer', () => {
         expect(lwwValue(state.prop.get(propKey))).toEqual(value1);
       });
 
-      it('rejects unnormalized legacy edge-property PropSet on the canonical apply path', () => {
+      it('normalizes legacy edge-property PropSet before the canonical apply path', () => {
         const state = createEmptyState();
         const eventId = createEventId(1, 'writer1', 'abcd1234', 0);
+        const value = createInlineValue(5);
 
-        expect(() =>
-          applyOpV2(state, {
-            type: 'PropSet',
-            node: `${EDGE_PROP_PREFIX}a\0b\0rel`,
-            key: 'weight',
-            value: createInlineValue(5),
-          }, eventId)
-        ).toThrow('Unnormalized legacy edge-property PropSet reached canonical apply path');
+        applyOpV2(state, {
+          type: 'PropSet',
+          node: `${EDGE_PROP_PREFIX}a\0b\0rel`,
+          key: 'weight',
+          value,
+        }, eventId);
+
+        const propKey = encodeEdgePropKey('a', 'b', 'rel', 'weight');
+        expect(lwwValue(state.prop.get(propKey))).toEqual(value);
       });
     });
   });

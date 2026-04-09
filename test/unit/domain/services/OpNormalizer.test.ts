@@ -74,6 +74,23 @@ describe('OpNormalizer', () => {
       const op = new BlobValue('x', 'abc123');
       expect(normalizeRawOp(op)).toBe(op);
     });
+
+    it('hydrates a decoded NodeAdd object into a runtime NodeAdd with Dot', () => {
+      const raw = {
+        type: 'NodeAdd',
+        node: 'x',
+        dot: { writerId: 'w', counter: 1 },
+      };
+
+      const canonical = normalizeRawOp(raw);
+
+      expect(canonical).toBeInstanceOf(NodeAdd);
+      if (canonical.type === 'NodeAdd') {
+        expect(canonical.dot).toBeInstanceOf(Dot);
+        expect(canonical.dot.writerId).toBe('w');
+        expect(canonical.dot.counter).toBe(1);
+      }
+    });
   });
 
   describe('lowerCanonicalOp', () => {

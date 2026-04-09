@@ -19,10 +19,19 @@
  * @module domain/services/OpValidator
  */
 
+import { Dot } from '../crdt/Dot.ts';
 import PatchError from '../errors/PatchError.ts';
 
-/** A minimal shape used inside the validator for field-assertion errors. */
-type TaggedFields = { readonly type: string; readonly [key: string]: unknown };
+/** A minimal tagged op shape accepted by the validator entrypoints. */
+type TaggedOp = { readonly type: string };
+
+/**
+ * Reads an arbitrary field from a tagged op without requiring callers
+ * to provide an index-signature type.
+ */
+function readField(op: TaggedOp, field: string): unknown {
+  return Reflect.get(op, field);
+}
 
 export default class OpValidator {
   /**
@@ -52,8 +61,11 @@ export default class OpValidator {
     if (op === null || op === undefined || typeof op !== 'object') {
       return false;
     }
-    const typed = op as { readonly type?: unknown };
-    return typeof typed.type === 'string' && OpValidator.RAW_KNOWN_OPS.has(typed.type);
+    if (!('type' in op)) {
+      return false;
+    }
+    const { type } = op;
+    return typeof type === 'string' && OpValidator.RAW_KNOWN_OPS.has(type);
   }
 
   /**
@@ -64,16 +76,20 @@ export default class OpValidator {
     if (op === null || op === undefined || typeof op !== 'object') {
       return false;
     }
-    const typed = op as { readonly type?: unknown };
-    return typeof typed.type === 'string' && OpValidator.CANONICAL_KNOWN_OPS.has(typed.type);
+    if (!('type' in op)) {
+      return false;
+    }
+    const { type } = op;
+    return typeof type === 'string' && OpValidator.CANONICAL_KNOWN_OPS.has(type);
   }
 
   /** Asserts that `op[field]` is a string. */
-  static assertString(op: TaggedFields, field: string): void {
-    if (typeof op[field] !== 'string') {
+  static assertString(op: TaggedOp, field: string): void {
+    const value = readField(op, field);
+    if (typeof value !== 'string') {
       throw new PatchError(
-        `${op.type} op requires '${field}' to be a string, got ${typeof op[field]}`,
-        { context: { opType: op.type, field, actual: typeof op[field] } },
+        `${op.type} op requires '${field}' to be a string, got ${typeof value}`,
+        { context: { opType: op.type, field, actual: typeof value } },
       );
     }
   }
@@ -82,13 +98,13 @@ export default class OpValidator {
    * Asserts that `op[field]` is iterable (Array, Set, or anything
    * providing `Symbol.iterator`).
    */
-  static assertIterable(op: TaggedFields, field: string): void {
-    const val = op[field];
+  static assertIterable(op: TaggedOp, field: string): void {
+    const val = readField(op, field);
     if (
       val === null ||
       val === undefined ||
       typeof val !== 'object' ||
-      typeof (val as { [Symbol.iterator]?: unknown })[Symbol.iterator] !== 'function'
+      typeof Reflect.get(val, Symbol.iterator) !== 'function'
     ) {
       throw new PatchError(
         `${op.type} op requires '${field}' to be iterable, got ${typeof val}`,
@@ -98,30 +114,15 @@ export default class OpValidator {
   }
 
   /**
-   * Asserts that `op.dot` is an object with `writerId: string` and
-   * `counter: number`. (Does not require a full `Dot` class instance —
-   * the reducer still accepts POJOs for backward compatibility with
-   * decoded wire patches.)
+   * Asserts that `op.dot` is a real `Dot` instance.
+   * Reducer entrypoints hydrate raw decoded POJOs before strategy validation.
    */
-  static assertDot(op: TaggedFields): void {
-    const { dot } = op;
-    if (dot === null || dot === undefined || typeof dot !== 'object') {
+  static assertDot(op: TaggedOp): void {
+    const dot = readField(op, 'dot');
+    if (!(dot instanceof Dot)) {
       throw new PatchError(
-        `${op.type} op requires 'dot' to be an object, got ${typeof dot}`,
+        `${op.type} op requires 'dot' to be a Dot instance`,
         { context: { opType: op.type, field: 'dot', actual: typeof dot } },
-      );
-    }
-    const d = dot as { readonly writerId?: unknown; readonly counter?: unknown };
-    if (typeof d.writerId !== 'string') {
-      throw new PatchError(
-        `${op.type} op requires 'dot.writerId' to be a string, got ${typeof d.writerId}`,
-        { context: { opType: op.type, field: 'dot.writerId', actual: typeof d.writerId } },
-      );
-    }
-    if (typeof d.counter !== 'number') {
-      throw new PatchError(
-        `${op.type} op requires 'dot.counter' to be a number, got ${typeof d.counter}`,
-        { context: { opType: op.type, field: 'dot.counter', actual: typeof d.counter } },
       );
     }
   }

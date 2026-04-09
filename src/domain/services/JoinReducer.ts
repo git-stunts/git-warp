@@ -13,7 +13,7 @@
  *   - OpValidator            → ./OpValidator.ts
  *   - DiffCalculator         → ./DiffCalculator.ts
  *   - ReceiptBuilder         → ./ReceiptBuilder.ts
- *   - OpStrategy hierarchy   → ./OpStrategies.ts
+ *   - OpStrategy base / registry → ./OpStrategy.ts + ./OpStrategies.ts
  *   - WarpState class      → ./state/WarpState.ts (state factory
  *     concerns live as methods on the class)
  *
@@ -29,7 +29,8 @@ import WarpState from './state/WarpState.ts';
 import OpSuperseded from '../types/ops/OpSuperseded.ts';
 import OpValidator from './OpValidator.ts';
 import ReceiptBuilder from './ReceiptBuilder.ts';
-import { OP_STRATEGIES, type OpLike } from './OpStrategies.ts';
+import type { OpLike } from './OpLike.ts';
+import { OP_STRATEGIES } from './OpStrategies.ts';
 
 // -------------------------------------------------------------------
 // Re-exports kept during the incremental split. Consumers will migrate
@@ -42,6 +43,7 @@ export { default as OpApplied } from '../types/ops/OpApplied.ts';
 export { default as OpSuperseded } from '../types/ops/OpSuperseded.ts';
 export { default as OpRedundant } from '../types/ops/OpRedundant.ts';
 export { OP_STRATEGIES } from './OpStrategies.ts';
+export type { OpLike } from './OpLike.ts';
 export {
   encodeEdgeKey, decodeEdgeKey,
   encodePropKey, decodePropKey,
@@ -116,17 +118,27 @@ export function joinStates(a: WarpState, b: WarpState): WarpState {
  * compatibility.
  */
 export function applyOpV2(state: WarpState, op: OpLike, eventId: EventId): void {
-  if (op === null || op === undefined || typeof op.type !== 'string') {
-    const actual = op === null || op === undefined ? String(op) : typeof (op as { type: unknown }).type;
+  if (op === null || op === undefined || typeof op !== 'object') {
     throw new PatchError(
-      `Invalid op: expected object with string 'type', got ${actual}`,
-      { context: { actual } },
+      `Invalid op: expected object with string 'type', got ${String(op)}`,
+      { context: { actual: String(op) } },
     );
   }
-  const strategy = OP_STRATEGIES.get(op.type);
+  const type = Reflect.get(op, 'type');
+  if (typeof type !== 'string') {
+    throw new PatchError(
+      `Invalid op: expected object with string 'type', got ${typeof type}`,
+      { context: { actual: typeof type } },
+    );
+  }
+  if (!OpValidator.isKnownRaw(op) && !OpValidator.isKnownCanonical(op)) {
+    return;
+  }
+  const canonOp = normalizeRawOp(op);
+  const strategy = OP_STRATEGIES.get(canonOp.type);
   if (!strategy) { return; }
-  strategy.validate(op as { readonly type: string; readonly [key: string]: unknown });
-  strategy.mutate(state, op, eventId);
+  strategy.validate(canonOp);
+  strategy.mutate(state, canonOp, eventId);
 }
 
 /** Applies a patch to state without receipt or diff collection. */
@@ -134,10 +146,11 @@ export function applyFast(state: WarpState, patch: PatchLike, patchSha: string):
   for (let i = 0; i < patch.ops.length; i++) {
     const op = patch.ops[i];
     if (op === undefined) { continue; }
+    if (!OpValidator.isKnownRaw(op) && !OpValidator.isKnownCanonical(op)) { continue; }
     const canonOp = normalizeRawOp(op);
     const strategy = OP_STRATEGIES.get(canonOp.type);
     if (!strategy) { continue; }
-    strategy.validate(canonOp as { readonly type: string; readonly [key: string]: unknown });
+    strategy.validate(canonOp);
     const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
     strategy.mutate(state, canonOp, eventId);
   }
@@ -158,10 +171,11 @@ export function applyWithDiff(
   for (let i = 0; i < patch.ops.length; i++) {
     const rawOp = patch.ops[i];
     if (rawOp === undefined) { continue; }
+    if (!OpValidator.isKnownRaw(rawOp) && !OpValidator.isKnownCanonical(rawOp)) { continue; }
     const canonOp = normalizeRawOp(rawOp);
     const strategy = OP_STRATEGIES.get(canonOp.type);
     if (!strategy) { continue; }
-    strategy.validate(canonOp as { readonly type: string; readonly [key: string]: unknown });
+    strategy.validate(canonOp);
     const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
     const before = strategy.snapshot(state, canonOp);
     strategy.mutate(state, canonOp, eventId);
@@ -185,10 +199,11 @@ export function applyWithReceipt(
   for (let i = 0; i < patch.ops.length; i++) {
     const rawOp = patch.ops[i];
     if (rawOp === undefined) { continue; }
+    if (!OpValidator.isKnownRaw(rawOp) && !OpValidator.isKnownCanonical(rawOp)) { continue; }
     const canonOp = normalizeRawOp(rawOp);
     const strategy = OP_STRATEGIES.get(canonOp.type);
     if (!strategy) { continue; }
-    strategy.validate(canonOp as { readonly type: string; readonly [key: string]: unknown });
+    strategy.validate(canonOp);
     const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
 
     // Determine outcome BEFORE applying the op (state is pre-op).
