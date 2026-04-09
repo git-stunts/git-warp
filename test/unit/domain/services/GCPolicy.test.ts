@@ -196,14 +196,20 @@ describe('GCPolicy', () => {
     it('throws E_GC_INVALID_VV when appliedVV is not a VersionVector', () => {
       const state = createEmptyStateV5();
 
-      /** @type {unknown[]} */
-      const bads = [{}, null, undefined];
+      // This test exists precisely to verify the runtime guard that
+      // catches non-VersionVector input. We intentionally invoke
+      // executeGC with values the compiler would reject, and rely on
+      // `@ts-expect-error` to assert the violation is intentional and
+      // well-understood.
+      const bads: readonly unknown[] = [{}, null, undefined];
       for (const bad of bads) {
-        /** @type {VersionVector} */
-        const badVV = /** @type {VersionVector} */ (bad);
-        expect(() => executeGC(state, badVV)).toThrow(WarpError);
+        expect(() => {
+          // @ts-expect-error — runtime guard test: deliberately passes non-VersionVector
+          executeGC(state, bad);
+        }).toThrow(WarpError);
         try {
-          executeGC(state, badVV);
+          // @ts-expect-error — runtime guard test: deliberately passes non-VersionVector
+          executeGC(state, bad);
         } catch (err) {
           if (err instanceof WarpError) {
             expect(err.code).toBe('E_GC_INVALID_VV');
@@ -292,8 +298,9 @@ describe('GCMetrics', () => {
     it('calculates correct tombstone ratio', () => {
       const state = createEmptyStateV5();
 
+      const dot0 = createDot('A', 1);
       const dots = [
-        createDot('A', 1),
+        dot0,
         createDot('A', 2),
         createDot('A', 3),
         createDot('A', 4),
@@ -303,7 +310,7 @@ describe('GCMetrics', () => {
         state.nodeAlive.add(`node${i}`, dot);
       });
 
-      state.nodeAlive.remove(new Set([encodeDot(dots[0])]));
+      state.nodeAlive.remove(new Set([encodeDot(dot0)]));
 
       const metrics = GCMetrics.fromState(state);
 

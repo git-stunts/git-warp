@@ -22,6 +22,20 @@ export type GCPolicyInput = {
   readonly timeSinceCompaction: number;
 };
 
+/**
+ * Partial configuration accepted at the API boundary
+ * (`WarpRuntime.open({ gcPolicy })`). Any fields the caller omits are
+ * filled from `GCPolicy.DEFAULT`.
+ */
+export type GCPolicyConfig = {
+  readonly enabled?: boolean;
+  readonly tombstoneRatioThreshold?: number;
+  readonly entryCountThreshold?: number;
+  readonly minPatchesSinceCompaction?: number;
+  readonly maxTimeSinceCompaction?: number;
+  readonly compactOnCheckpoint?: boolean;
+};
+
 const DEFAULT_TOMBSTONE_RATIO_THRESHOLD = 0.3;
 const DEFAULT_ENTRY_COUNT_THRESHOLD = 50_000;
 const DEFAULT_MIN_PATCHES_SINCE_COMPACTION = 1_000;

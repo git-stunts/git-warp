@@ -173,7 +173,7 @@ export default class WarpRuntime {
   /**
    * Constructs a WarpRuntime instance with injected dependencies and configuration.
    * @private
-   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.ts').default, clock?: import('../ports/ClockPort.ts').default, crypto?: import('../ports/CryptoPort.ts').default, codec?: import('../ports/CodecPort.ts').default, seekCache?: import('../ports/SeekCachePort.ts').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.ts').default, patchBlobStorage?: import('../ports/BlobStoragePort.ts').default, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, patchJournal: import('../ports/PatchJournalPort.ts').default, checkpointStore: import('../ports/CheckpointStorePort.ts').default, indexStore: import('../ports/IndexStorePort.ts').default, viewService: import('./services/MaterializedViewService.js').default, stateHashService?: StateHashService, auditService?: AuditReceiptService, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline }} options
+   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: import('./services/GCPolicy.ts').GCPolicyConfig | import('./services/GCPolicy.ts').default, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.ts').default, clock?: import('../ports/ClockPort.ts').default, crypto?: import('../ports/CryptoPort.ts').default, codec?: import('../ports/CodecPort.ts').default, seekCache?: import('../ports/SeekCachePort.ts').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.ts').default, patchBlobStorage?: import('../ports/BlobStoragePort.ts').default, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, patchJournal: import('../ports/PatchJournalPort.ts').default, checkpointStore: import('../ports/CheckpointStorePort.ts').default, indexStore: import('../ports/IndexStorePort.ts').default, viewService: import('./services/MaterializedViewService.js').default, stateHashService?: StateHashService, auditService?: AuditReceiptService, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline }} options
    */
   // TODO(OG): split constructor responsibilities; legacy hotspot kept explicit until the API redesign cycle.
   // eslint-disable-next-line max-lines-per-function, complexity
@@ -513,7 +513,7 @@ export default class WarpRuntime {
   /**
    * Opens a multi-writer graph.
    *
-   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.ts').default, clock?: import('../ports/ClockPort.ts').default, crypto?: import('../ports/CryptoPort.ts').default, codec?: import('../ports/CodecPort.ts').default, seekCache?: import('../ports/SeekCachePort.ts').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.ts').default, patchBlobStorage?: import('../ports/BlobStoragePort.ts').default, patchJournal?: import('../ports/PatchJournalPort.ts').default | null, checkpointStore?: import('../ports/CheckpointStorePort.ts').default | null, indexStore?: import('../ports/IndexStorePort.ts').default | null, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline, effectSinks?: Array<import('../ports/EffectSinkPort.ts').default>, externalizationPolicy?: import('./types/ExternalizationPolicy.ts').ExternalizationPolicy }} options
+   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: import('./services/GCPolicy.ts').GCPolicyConfig | import('./services/GCPolicy.ts').default, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.ts').default, clock?: import('../ports/ClockPort.ts').default, crypto?: import('../ports/CryptoPort.ts').default, codec?: import('../ports/CodecPort.ts').default, seekCache?: import('../ports/SeekCachePort.ts').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.ts').default, patchBlobStorage?: import('../ports/BlobStoragePort.ts').default, patchJournal?: import('../ports/PatchJournalPort.ts').default | null, checkpointStore?: import('../ports/CheckpointStorePort.ts').default | null, indexStore?: import('../ports/IndexStorePort.ts').default | null, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline, effectSinks?: Array<import('../ports/EffectSinkPort.ts').default>, externalizationPolicy?: import('./types/ExternalizationPolicy.ts').ExternalizationPolicy }} options
    * @returns {Promise<WarpRuntime>} The opened graph instance
    * @throws {WarpError} If graphName, writerId, checkpointPolicy, or onDeleteWithData is invalid
    *
@@ -725,10 +725,10 @@ export default class WarpRuntime {
   /**
    * Gets the current GC policy.
    *
-   * @returns {import('./services/GCPolicy.js').GCPolicy} The GC policy configuration
+   * @returns {GCPolicy} The GC policy configuration
    */
   get gcPolicy() {
-    return { ...this._gcPolicy };
+    return this._gcPolicy;
   }
 
   /**

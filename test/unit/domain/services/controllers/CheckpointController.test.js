@@ -10,6 +10,10 @@ import WarpError from '../../../../../src/domain/errors/WarpError.ts';
  * Builds a GCPolicy where every threshold is infinite EXCEPT the tombstone
  * ratio threshold, which the caller chooses. `0` → any non-zero ratio
  * trips GC. `1` → no ratio can trip it.
+ *
+ * @param {number} ratio
+ * @param {{ enabled: boolean }} opts
+ * @returns {GCPolicy}
  */
 function policyWithTombstoneThreshold(ratio, { enabled }) {
   return new GCPolicy({
@@ -22,7 +26,9 @@ function policyWithTombstoneThreshold(ratio, { enabled }) {
   });
 }
 
+/** @param {boolean} [enabled] */
 const permissivePolicy = (enabled = false) => policyWithTombstoneThreshold(1, { enabled });
+/** @param {boolean} [enabled] */
 const strictPolicy = (enabled = true) => policyWithTombstoneThreshold(0, { enabled });
 
 /* ------------------------------------------------------------------ */
