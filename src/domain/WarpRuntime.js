@@ -91,8 +91,8 @@ import WarpError from './errors/WarpError.ts';
  * @returns {Promise<import('./services/EffectPipeline.js').EffectPipeline>} Constructed pipeline
  */
 async function buildEffectPipeline(sinks, lens, clock) {
-  const multMod = /** @type {{ MultiplexSink: typeof import('./services/MultiplexSink.js').MultiplexSink }} */ (
-    /** @type {unknown} */ (await import('./services/MultiplexSink.js'))
+  const multMod = /** @type {{ MultiplexSink: typeof import('./services/MultiplexSink.ts').MultiplexSink }} */ (
+    /** @type {unknown} */ (await import('./services/MultiplexSink.ts'))
   );
   const effMod = /** @type {{ EffectPipeline: typeof import('./services/EffectPipeline.js').EffectPipeline }} */ (
     /** @type {unknown} */ (await import('./services/EffectPipeline.js'))

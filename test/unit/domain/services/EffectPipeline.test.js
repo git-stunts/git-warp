@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { EffectPipeline } from '../../../../src/domain/services/EffectPipeline.js';
-import { MultiplexSink } from '../../../../src/domain/services/MultiplexSink.js';
+import { MultiplexSink } from '../../../../src/domain/services/MultiplexSink.ts';
 import {
   LIVE_LENS,
   REPLAY_LENS,

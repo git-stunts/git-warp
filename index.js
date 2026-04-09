@@ -142,7 +142,7 @@ import {
 
 import BisectService from './src/domain/services/BisectService.js';
 import EffectSinkPort from './src/ports/EffectSinkPort.ts';
-import { MultiplexSink } from './src/domain/services/MultiplexSink.js';
+import { MultiplexSink } from './src/domain/services/MultiplexSink.ts';
 import { EffectPipeline } from './src/domain/services/EffectPipeline.js';
 import {
   createEffectEmission,
