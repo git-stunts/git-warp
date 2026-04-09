@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeRawOp, lowerCanonicalOp } from '../../../../src/domain/services/OpNormalizer.ts';
+import {
+  normalizeRawOp,
+  lowerCanonicalOp,
+  hydrateDecodedOp,
+  hydrateKnownDecodedOp,
+} from '../../../../src/domain/services/OpNormalizer.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 import NodePropSet from '../../../../src/domain/types/ops/NodePropSet.ts';
 import EdgePropSet from '../../../../src/domain/types/ops/EdgePropSet.ts';
@@ -9,6 +14,7 @@ import NodeRemove from '../../../../src/domain/types/ops/NodeRemove.ts';
 import EdgeRemove from '../../../../src/domain/types/ops/EdgeRemove.ts';
 import BlobValue from '../../../../src/domain/types/ops/BlobValue.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import PatchError from '../../../../src/domain/errors/PatchError.ts';
 import { encodePropKey, encodeEdgePropKey, encodeLegacyEdgePropNode, EDGE_PROP_PREFIX } from '../../../../src/domain/services/KeyCodec.js';
 
 // ============================================================================
@@ -90,6 +96,75 @@ describe('OpNormalizer', () => {
         expect(canonical.dot.writerId).toBe('w');
         expect(canonical.dot.counter).toBe(1);
       }
+    });
+
+    it('rejects decoded NodeAdd objects with missing or invalid dot identity', () => {
+      expect(() => normalizeRawOp({
+        type: 'NodeAdd',
+        node: 'x',
+        dot: { counter: 1 },
+      })).toThrow("NodeAdd op requires 'dot.writerId' to be a string");
+
+      expect(() => normalizeRawOp({
+        type: 'NodeAdd',
+        node: 'x',
+        dot: { writerId: 'w', counter: 1.5 },
+      })).toThrow("NodeAdd op requires 'dot.counter' to be an integer");
+    });
+
+    it('hydrates complete property ops and preserves incomplete compatibility shapes', () => {
+      const hydratedNode = hydrateDecodedOp({
+        type: 'NodePropSet',
+        node: 'user:alice',
+        key: 'role',
+        value: 'admin',
+      });
+      const hydratedEdge = hydrateDecodedOp({
+        type: 'EdgePropSet',
+        from: 'user:alice',
+        to: 'user:bob',
+        label: 'friend',
+        key: 'since',
+        value: 2026,
+      });
+      const incompleteNode = {
+        type: 'NodePropSet',
+        key: 'role',
+        value: 'admin',
+      };
+      const incompleteEdge = {
+        type: 'EdgePropSet',
+        from: 'user:alice',
+        key: 'since',
+        value: 2026,
+      };
+
+      expect(hydratedNode).toBeInstanceOf(NodePropSet);
+      expect(hydratedEdge).toBeInstanceOf(EdgePropSet);
+      expect(hydrateDecodedOp(incompleteNode)).toBe(incompleteNode);
+      expect(hydrateDecodedOp(incompleteEdge)).toBe(incompleteEdge);
+    });
+
+    it('preserves incomplete remove/blob compatibility shapes', () => {
+      const incompleteNodeRemove = { type: 'NodeRemove', observedDots: ['w:1'] };
+      const incompleteEdgeRemove = { type: 'EdgeRemove', from: 'a', observedDots: ['w:1'] };
+      const incompleteBlobValue = { type: 'BlobValue', node: 'x' };
+
+      expect(hydrateDecodedOp(incompleteNodeRemove)).toBe(incompleteNodeRemove);
+      expect(hydrateDecodedOp(incompleteEdgeRemove)).toBe(incompleteEdgeRemove);
+      expect(hydrateDecodedOp(incompleteBlobValue)).toBe(incompleteBlobValue);
+    });
+
+    it('rejects decoded dots without counters', () => {
+      expect(() => normalizeRawOp({
+        type: 'NodeAdd',
+        node: 'x',
+        dot: { writerId: 'w' },
+      })).toThrow("NodeAdd op requires 'dot.counter' to be an integer, got undefined");
+    });
+
+    it('rejects unknown types at the strict decode boundary', () => {
+      expect(() => hydrateKnownDecodedOp({ type: 'TotallyBogus' })).toThrow(PatchError);
     });
   });
 

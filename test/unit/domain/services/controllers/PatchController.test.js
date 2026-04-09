@@ -780,6 +780,48 @@ describe('PatchController', () => {
       expect(persistence.readBlob).toHaveBeenCalledWith('blob-oid');
       expect(codec.decode).toHaveBeenCalledWith(rawBytes);
     });
+
+    it('continues legacy fallback decoding across parent commits', async () => {
+      host._patchJournal = null;
+      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host._persistence);
+      persistence.readRef.mockResolvedValue('sha-2');
+      persistence.getNodeInfo
+        .mockResolvedValueOnce({ message: 'msg2', parents: ['sha-1'] })
+        .mockResolvedValueOnce({ message: 'msg1', parents: [] });
+
+      detectMessageKindMock.mockReturnValue('patch');
+      decodePatchMessageMock
+        .mockReturnValueOnce({ lamport: 2, patchOid: 'blob-oid-2' })
+        .mockReturnValueOnce({ lamport: 1, patchOid: 'blob-oid-1' });
+
+      const blob2 = new Uint8Array([2]);
+      const blob1 = new Uint8Array([1]);
+      persistence.readBlob
+        .mockResolvedValueOnce(blob2)
+        .mockResolvedValueOnce(blob1);
+
+      const codec = /** @type {{ decode: import('vitest').Mock }} */ (host._codec);
+      codec.decode
+        .mockReturnValueOnce({
+          writer: 'alice',
+          lamport: 2,
+          context: { alice: 1 },
+          ops: [{ type: 'NodeAdd', id: 'n2', dot: ['alice', 2] }],
+        })
+        .mockReturnValueOnce({
+          writer: 'alice',
+          lamport: 1,
+          context: { alice: 0 },
+          ops: [{ type: 'NodeAdd', id: 'n1', dot: ['alice', 1] }],
+        });
+
+      const result = await ctrl._loadWriterPatches('alice');
+
+      expect(result).toHaveLength(2);
+      expect(result.map((entry) => entry.sha)).toEqual(['sha-1', 'sha-2']);
+      expect(persistence.readBlob).toHaveBeenNthCalledWith(1, 'blob-oid-2');
+      expect(persistence.readBlob).toHaveBeenNthCalledWith(2, 'blob-oid-1');
+    });
   });
 
   // ────────────────────────────────────────────────────────────────────────
@@ -994,6 +1036,26 @@ describe('PatchController', () => {
       expect(aliceInfo?.tipSha).toBeNull();
       expect(aliceInfo?.ticks).toEqual([]);
     });
+
+    it('stops walking a writer when it hits a non-patch commit', async () => {
+      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host._persistence);
+      persistence.listRefs.mockResolvedValue([
+        'refs/warp/test-graph/writers/alice',
+      ]);
+      persistence.readRef.mockResolvedValue('sha-stop');
+      persistence.getNodeInfo.mockResolvedValue({ message: 'checkpoint-msg', parents: ['older-sha'] });
+
+      detectMessageKindMock.mockReturnValue('checkpoint');
+
+      const result = await ctrl.discoverTicks();
+
+      expect(result.ticks).toEqual([]);
+      expect(result.maxTick).toBe(0);
+      expect(result.perWriter.get('alice')).toEqual(
+        expect.objectContaining({ ticks: [], tipSha: 'sha-stop' }),
+      );
+      expect(decodePatchMessageMock).not.toHaveBeenCalled();
+    });
   });
 
   // ────────────────────────────────────────────────────────────────────────
@@ -1042,6 +1104,25 @@ describe('PatchController', () => {
       expect(receipt.nodesAdded).toBe(1);
       expect(receipt.frontierMerged).toBe(true);
       expect(joinStatesMock).toHaveBeenCalledWith(localState, remoteState);
+    });
+
+    it('counts property additions and value changes in the join receipt', () => {
+      const localState = createStateWithNode('n1');
+      localState.prop.set('n1:name', { value: 'Alice' });
+      host._cachedState = localState;
+      host._versionVector = localState.observedFrontier.clone();
+
+      const remoteState = WarpState.empty();
+      const merged = WarpState.empty();
+      merged.nodeAlive.add('n1', createDot('alice', 1));
+      merged.prop.set('n1:name', { value: 'Bob' });
+      merged.prop.set('n1:title', { value: 'Engineer' });
+      merged.observedFrontier.increment('alice');
+      joinStatesMock.mockReturnValue(merged);
+
+      const { receipt } = ctrl.join(remoteState);
+
+      expect(receipt.propsChanged).toBe(2);
     });
 
     it('invalidates caches after join', () => {
@@ -1106,6 +1187,29 @@ describe('PatchController', () => {
         }),
       );
       expect(w).toBeDefined();
+    });
+
+    it('wires writer callbacks back to the controller host state', async () => {
+      resolveWriterIdMock.mockResolvedValue('resolved-alice');
+      const journal = { readPatch: vi.fn(), writePatch: vi.fn() };
+      host._patchJournal = journal;
+      host._cachedState = createStateWithNode('n1');
+      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host._persistence);
+      persistence.readRef.mockResolvedValue(null);
+      const onPatchCommitted = vi.spyOn(ctrl, '_onPatchCommitted')
+        .mockImplementation(() => undefined);
+
+      const writer = /** @type {any} */ (await ctrl.writer('alice'));
+      const currentState = writer._getCurrentState();
+
+      expect(currentState).toBe(host._cachedState);
+
+      await writer._onCommitSuccess({ patch: { lamport: 1, ops: [] }, sha: 'sha-1' });
+
+      expect(onPatchCommitted).toHaveBeenCalledWith('resolved-alice', {
+        patch: { lamport: 1, ops: [] },
+        sha: 'sha-1',
+      });
     });
 
     it('throws when patchJournal is not configured', async () => {

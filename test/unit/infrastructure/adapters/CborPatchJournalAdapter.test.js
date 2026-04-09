@@ -279,5 +279,21 @@ describe('CborPatchJournalAdapter', () => {
 
       await expect(adapter.scanPatchRange('alice', 'sha-root', 'sha-1').collect()).rejects.toBeInstanceOf(SyncError);
     });
+
+    it('stops scanning when a non-patch commit is encountered', async () => {
+      const codec = new CborCodec();
+      const blobPort = createMemoryBlobPort();
+      const commitPort = {
+        getNodeInfo: vi.fn().mockResolvedValue({
+          message: 'checkpoint message',
+          parents: ['sha-parent'],
+        }),
+      };
+      const adapter = new CborPatchJournalAdapter({ codec, blobPort, commitPort });
+
+      const entries = await adapter.scanPatchRange('alice', null, 'sha-stop').collect();
+
+      expect(entries).toEqual([]);
+    });
   });
 });

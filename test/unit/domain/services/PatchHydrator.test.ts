@@ -134,12 +134,24 @@ describe('PatchHydrator', () => {
     })).toThrow("Decoded patch requires string 'writer'");
   });
 
+  it('rejects non-object patch roots', () => {
+    expect(() => hydrateDecodedPatch('not-a-patch')).toThrow('Decoded patch root must be an object');
+  });
+
   it('rejects non-integer lamports', () => {
     expect(() => hydrateDecodedPatch({
       writer: 'alice',
       lamport: 1.5,
       ops: [],
     })).toThrow("Decoded patch requires integer 'lamport'");
+  });
+
+  it('rejects non-array ops fields', () => {
+    expect(() => hydrateDecodedPatch({
+      writer: 'alice',
+      lamport: 1,
+      ops: 'nope',
+    })).toThrow("Decoded patch field 'ops' must be an array");
   });
 
   it('rejects invalid string array fields', () => {
@@ -183,5 +195,29 @@ describe('PatchHydrator', () => {
       lamport: 1,
       ops: [{ type: 'EdgeAdd', from: 'a', to: 'b', label: 'x', dot: { writerId: 'alice' } }],
     })).toThrow('EdgeAdd dot requires integer counter/seq');
+  });
+
+  it('rejects missing dot writer aliases', () => {
+    expect(() => hydrateDecodedPatch({
+      writer: 'alice',
+      lamport: 1,
+      ops: [{ type: 'NodeAdd', node: 'user:alice', dot: { counter: 1 } }],
+    })).toThrow('NodeAdd dot requires writerId/writer');
+  });
+
+  it('rejects ops without a string type discriminator', () => {
+    expect(() => hydrateDecodedPatch({
+      writer: 'alice',
+      lamport: 1,
+      ops: [{ node: 'user:alice' }],
+    })).toThrow("Decoded op requires string 'type'");
+  });
+
+  it('rejects malformed observedDots after decode normalization', () => {
+    expect(() => hydrateDecodedPatch({
+      writer: 'alice',
+      lamport: 1,
+      ops: [{ type: 'NodeRemove', node: 'user:alice', observedDots: [7] }],
+    })).toThrow("NodeRemove op requires 'observedDots' to be iterable");
   });
 });

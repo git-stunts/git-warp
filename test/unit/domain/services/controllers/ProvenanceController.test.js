@@ -335,6 +335,24 @@ describe('ProvenanceController — _computeBackwardCone', () => {
     expect(host._provenanceIndex.patchesFor).toHaveBeenCalledTimes(2);
   });
 
+  it('skips duplicate queued entities once one copy is already visited', async () => {
+    const patchX = makePatch({ writer: 'w1', lamport: 1, reads: ['node:y', 'node:y'] });
+    const patchY = makePatch({ writer: 'w2', lamport: 2 });
+
+    host._provenanceIndex.patchesFor
+      .mockReturnValueOnce(['sha-x'])
+      .mockReturnValueOnce(['sha-y']);
+
+    host._codec.decode
+      .mockReturnValueOnce(patchX)
+      .mockReturnValueOnce(patchY);
+
+    const cone = await ctrl._computeBackwardCone('node:x');
+
+    expect(cone.size).toBe(2);
+    expect(host._provenanceIndex.patchesFor).toHaveBeenCalledTimes(2);
+  });
+
   it('deduplicates patches shared across entities', async () => {
     // Both node:x and node:y reference the same patch sha
     const sharedPatch = makePatch({ writer: 'w1', lamport: 1, reads: ['node:y'] });
@@ -425,6 +443,23 @@ describe('ProvenanceController — loadPatchBySha', () => {
     await expect(ctrl.loadPatchBySha('abc123')).rejects.toThrow(
       /Commit abc123 is not a patch/,
     );
+  });
+
+  it('_loadPatchesBySha preserves input order', async () => {
+    const patchA = makePatch({ writer: 'w1', lamport: 1 });
+    const patchB = makePatch({ writer: 'w2', lamport: 2 });
+    const loadPatchBySha = vi.spyOn(ctrl, '_loadPatchBySha')
+      .mockResolvedValueOnce(patchA)
+      .mockResolvedValueOnce(patchB);
+
+    const entries = await ctrl._loadPatchesBySha(['sha-a', 'sha-b']);
+
+    expect(entries).toEqual([
+      { patch: patchA, sha: 'sha-a' },
+      { patch: patchB, sha: 'sha-b' },
+    ]);
+    expect(loadPatchBySha).toHaveBeenNthCalledWith(1, 'sha-a');
+    expect(loadPatchBySha).toHaveBeenNthCalledWith(2, 'sha-b');
   });
 });
 
