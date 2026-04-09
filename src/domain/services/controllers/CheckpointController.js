@@ -14,7 +14,7 @@ import { createFrontier, updateFrontier, frontierFingerprint } from '../Frontier
 import { loadCheckpoint, create as createCheckpointCommit, isV5CheckpointSchema } from '../state/CheckpointService.js';
 import { decodePatchMessage, detectMessageKind, encodeAnchorMessage } from '../codec/WarpMessageCodec.js';
 import { shouldRunGC, executeGC } from '../GCPolicy.js';
-import { collectGCMetrics } from '../GCMetrics.js';
+import GCMetrics from '../GCMetrics.ts';
 import { computeAppliedVV } from '../state/CheckpointSerializerV5.js';
 import { cloneStateV5 } from '../JoinReducer.js';
 
@@ -271,7 +271,7 @@ export default class CheckpointController {
   _maybeRunGC(state) {
     const h = this._host;
     try {
-      const metrics = collectGCMetrics(state);
+      const metrics = GCMetrics.fromState(state);
       /** @type {import('../GCPolicy.js').GCInputMetrics} */
       const inputMetrics = {
         ...metrics,
@@ -337,7 +337,7 @@ export default class CheckpointController {
       return { ran: false, result: null, reasons: [] };
     }
 
-    const rawMetrics = collectGCMetrics(h._cachedState);
+    const rawMetrics = GCMetrics.fromState(h._cachedState);
     /** @type {import('../GCPolicy.js').GCInputMetrics} */
     const metrics = {
       ...rawMetrics,
@@ -418,7 +418,7 @@ export default class CheckpointController {
       return null;
     }
 
-    const rawMetrics = collectGCMetrics(h._cachedState);
+    const rawMetrics = GCMetrics.fromState(h._cachedState);
     return {
       nodeCount: rawMetrics.nodeLiveDots,
       edgeCount: rawMetrics.edgeLiveDots,

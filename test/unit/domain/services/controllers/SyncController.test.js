@@ -3,6 +3,7 @@ import SyncController from '../../../../../src/domain/services/controllers/SyncC
 import SyncError from '../../../../../src/domain/errors/SyncError.ts';
 import OperationAbortedError from '../../../../../src/domain/errors/OperationAbortedError.ts';
 import SyncTrustGate from '../../../../../src/domain/services/sync/SyncTrustGate.js';
+import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────
 
@@ -120,8 +121,8 @@ function createMockHost(overrides = {}) {
 function fakeState() {
   return {
     observedFrontier: new Map(),
-    nodeAlive: { entries: new Map(), tombstones: new Set() },
-    edgeAlive: { entries: new Map(), tombstones: new Set() },
+    nodeAlive: ORSet.empty(),
+    edgeAlive: ORSet.empty(),
     prop: new Map(),
   };
 }

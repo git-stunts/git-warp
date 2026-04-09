@@ -22,7 +22,7 @@ import { retry, timeout, RetryExhaustedError, TimeoutError } from '@git-stunts/a
 import { checkAborted } from '../../utils/cancellation.ts';
 import { createFrontier, updateFrontier } from '../Frontier.js';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
-import { collectGCMetrics } from '../GCMetrics.js';
+import GCMetrics from '../GCMetrics.ts';
 import HttpSyncServer from '../sync/HttpSyncServer.js';
 import { signSyncRequest, canonicalizePath } from '../sync/SyncAuthService.js';
 import { isError } from '../../types/WarpErrors.ts';
@@ -289,7 +289,7 @@ export default class SyncController {
     // tombstoneRatio
     let tombstoneRatio = 0;
     if (this._host._cachedState) {
-      const metrics = collectGCMetrics(this._host._cachedState);
+      const metrics = GCMetrics.fromState(this._host._cachedState);
       tombstoneRatio = metrics.tombstoneRatio;
     }
 

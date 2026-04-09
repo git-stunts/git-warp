@@ -5,12 +5,7 @@ import {
   executeGC,
 } from '../../../../src/domain/services/GCPolicy.js';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
-import {
-  collectGCMetrics,
-  countLiveDots,
-  countEntries,
-  countTombstones,
-} from '../../../../src/domain/services/GCMetrics.js';
+import GCMetrics from '../../../../src/domain/services/GCMetrics.ts';
 import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
@@ -272,12 +267,12 @@ describe('GCMetrics', () => {
       state.nodeAlive.add('node1', createDot('B', 1)); // Same node, different dot
       state.nodeAlive.add('node2', createDot('A', 2));
 
-      expect(countEntries(state.nodeAlive)).toBe(3);
+      expect(state.nodeAlive.countEntries()).toBe(3);
     });
 
     it('returns 0 for empty ORSet', () => {
       const state = createEmptyStateV5();
-      expect(countEntries(state.nodeAlive)).toBe(0);
+      expect(state.nodeAlive.countEntries()).toBe(0);
     });
   });
 
@@ -296,7 +291,7 @@ describe('GCMetrics', () => {
       // Tombstone one
       state.nodeAlive.remove(new Set([encodeDot(dot2)]));
 
-      expect(countLiveDots(state.nodeAlive)).toBe(2);
+      expect(state.nodeAlive.countLiveDots()).toBe(2);
     });
   });
 
@@ -313,7 +308,7 @@ describe('GCMetrics', () => {
       // Tombstone one
       state.nodeAlive.remove(new Set([encodeDot(dot1)]));
 
-      expect(countTombstones(state.nodeAlive)).toBe(1);
+      expect(state.nodeAlive.countTombstones()).toBe(1);
     });
   });
 
@@ -336,7 +331,7 @@ describe('GCMetrics', () => {
       // Tombstone 1 of them (25% ratio)
       state.nodeAlive.remove(new Set([encodeDot(/** @type {import('../../../../src/domain/crdt/Dot.js').Dot} */ (dots[0]))]));
 
-      const metrics = collectGCMetrics(state);
+      const metrics = GCMetrics.fromState(state);
 
       expect(metrics.nodeEntries).toBe(4);
       expect(metrics.nodeLiveDots).toBe(3);
@@ -350,7 +345,7 @@ describe('GCMetrics', () => {
 
     it('returns 0 ratio for empty state', () => {
       const state = createEmptyStateV5();
-      const metrics = collectGCMetrics(state);
+      const metrics = GCMetrics.fromState(state);
 
       expect(metrics.tombstoneRatio).toBe(0);
       expect(metrics.totalEntries).toBe(0);
@@ -376,7 +371,7 @@ describe('GCMetrics', () => {
       state.nodeAlive.remove(new Set([encodeDot(nodeDot1)]));
       state.edgeAlive.remove(new Set([encodeDot(edgeDot1)]));
 
-      const metrics = collectGCMetrics(state);
+      const metrics = GCMetrics.fromState(state);
 
       expect(metrics.nodeEntries).toBe(2);
       expect(metrics.edgeEntries).toBe(2);

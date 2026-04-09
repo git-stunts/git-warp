@@ -56,8 +56,8 @@ vi.mock('../../../../../src/domain/services/GCPolicy.js', () => ({
   executeGC: executeGCMock,
 }));
 
-vi.mock('../../../../../src/domain/services/GCMetrics.js', () => ({
-  collectGCMetrics: collectGCMetricsMock,
+vi.mock('../../../../../src/domain/services/GCMetrics.ts', () => ({
+  default: { fromState: collectGCMetricsMock },
 }));
 
 vi.mock('../../../../../src/domain/services/state/CheckpointSerializerV5.js', () => ({

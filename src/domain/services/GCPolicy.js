@@ -3,7 +3,7 @@
  */
 
 import VersionVector from '../crdt/VersionVector.ts';
-import { collectGCMetrics } from './GCMetrics.js';
+import GCMetrics from './GCMetrics.ts';
 import WarpError from '../errors/WarpError.ts';
 
 /**
@@ -125,9 +125,9 @@ export function executeGC(state, appliedVV) {
 
   // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
   const startTime = performance.now();
-  const beforeMetrics = collectGCMetrics(state);
+  const beforeMetrics = GCMetrics.fromState(state);
   compactORSets(state, appliedVV);
-  const afterMetrics = collectGCMetrics(state);
+  const afterMetrics = GCMetrics.fromState(state);
 
   return {
     nodesCompacted: beforeMetrics.nodeEntries - afterMetrics.nodeEntries,

@@ -172,6 +172,50 @@ export default class ORSet {
   }
 
   /**
+   * Counts the total number of dot entries across all elements
+   * (tombstoned and live alike).
+   */
+  countEntries(): number {
+    let count = 0;
+    for (const dots of this.entries.values()) {
+      count += dots.size;
+    }
+    return count;
+  }
+
+  /**
+   * Counts live (non-tombstoned) dots across all elements.
+   */
+  countLiveDots(): number {
+    let count = 0;
+    for (const dots of this.entries.values()) {
+      for (const dot of dots) {
+        if (!this.tombstones.has(dot)) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  /**
+   * Counts tombstones that reference entry dots. Only counts tombstones
+   * that actually correspond to dots in `entries` — floating tombstones
+   * (for dots the replica has never observed as live) are ignored.
+   */
+  countTombstones(): number {
+    let count = 0;
+    for (const dots of this.entries.values()) {
+      for (const dot of dots) {
+        if (this.tombstones.has(dot)) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  /**
    * Returns the non-tombstoned dots for an element.
    */
   getDots(element: string): Set<string> {
