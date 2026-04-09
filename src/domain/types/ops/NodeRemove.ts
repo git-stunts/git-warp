@@ -11,7 +11,7 @@ import { assertNonEmptyString, assertNoReservedBytes, assertArray } from './vali
 /**
  * Removes a node from the graph's OR-Set by tombstoning observed dots.
  */
-export default class NodeRemove extends Op {
+export default class NodeRemove extends Op<'NodeRemove'> {
   /** Node ID to remove */
   readonly node: string;
 

@@ -11,7 +11,7 @@ import { assertNonEmptyString, assertNoReservedBytes, assertArray } from './vali
 /**
  * Removes a directed edge from the graph's OR-Set by tombstoning observed dots.
  */
-export default class EdgeRemove extends Op {
+export default class EdgeRemove extends Op<'EdgeRemove'> {
   /** Source node ID */
   readonly from: string;
 

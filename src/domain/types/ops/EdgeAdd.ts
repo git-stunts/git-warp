@@ -13,7 +13,7 @@ import { assertNonEmptyString, assertNoReservedBytes } from './validate.ts';
 /**
  * Adds a directed edge to the graph's OR-Set with a unique dot.
  */
-export default class EdgeAdd extends Op {
+export default class EdgeAdd extends Op<'EdgeAdd'> {
   /** Source node ID */
   readonly from: string;
 

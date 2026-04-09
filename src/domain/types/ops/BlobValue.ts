@@ -12,7 +12,7 @@ import { assertNonEmptyString, assertNoReservedBytes } from './validate.ts';
  * References an external blob attached to a node.
  * No state effect in the reducer — recorded for provenance tracking.
  */
-export default class BlobValue extends Op {
+export default class BlobValue extends Op<'BlobValue'> {
   /** Node ID the blob is attached to */
   readonly node: string;
 

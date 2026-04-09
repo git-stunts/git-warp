@@ -126,11 +126,12 @@ describe('OpNormalizer returns Op class instances', () => {
     const canonical = normalizeRawOp(raw);
 
     expect(canonical).toBeInstanceOf(NodePropSet);
-    const nodeProp = /** @type {NodePropSet} */ (canonical);
-    expect(nodeProp.type).toBe('NodePropSet');
-    expect(nodeProp.node).toBe('user:alice');
-    expect(nodeProp.key).toBe('name');
-    expect(nodeProp.value).toBe('Alice');
+    expect(canonical.type).toBe('NodePropSet');
+    if (canonical.type === 'NodePropSet') {
+      expect(canonical.node).toBe('user:alice');
+      expect(canonical.key).toBe('name');
+      expect(canonical.value).toBe('Alice');
+    }
   });
 
   it('normalizeRawOp converts PropSet (edge) to EdgePropSet instance', () => {
@@ -139,11 +140,13 @@ describe('OpNormalizer returns Op class instances', () => {
 
     expect(canonical).toBeInstanceOf(EdgePropSet);
     expect(canonical.type).toBe('EdgePropSet');
-    expect(canonical.from).toBe('n1');
-    expect(canonical.to).toBe('n2');
-    expect(canonical.label).toBe('rel');
-    expect(canonical.key).toBe('weight');
-    expect(canonical.value).toBe(42);
+    if (canonical.type === 'EdgePropSet') {
+      expect(canonical.from).toBe('n1');
+      expect(canonical.to).toBe('n2');
+      expect(canonical.label).toBe('rel');
+      expect(canonical.key).toBe('weight');
+      expect(canonical.value).toBe(42);
+    }
   });
 
   it('lowerCanonicalOp converts NodePropSet to PropSet instance', () => {
@@ -152,9 +155,11 @@ describe('OpNormalizer returns Op class instances', () => {
 
     expect(raw).toBeInstanceOf(PropSetClass);
     expect(raw.type).toBe('PropSet');
-    expect(raw.node).toBe('user:alice');
-    expect(raw.key).toBe('name');
-    expect(raw.value).toBe('Alice');
+    if (raw.type === 'PropSet') {
+      expect(raw.node).toBe('user:alice');
+      expect(raw.key).toBe('name');
+      expect(raw.value).toBe('Alice');
+    }
   });
 
   it('lowerCanonicalOp converts EdgePropSet to PropSet instance', () => {
@@ -163,9 +168,11 @@ describe('OpNormalizer returns Op class instances', () => {
 
     expect(raw).toBeInstanceOf(PropSetClass);
     expect(raw.type).toBe('PropSet');
-    expect(raw.node).toContain('\x01');
-    expect(raw.key).toBe('weight');
-    expect(raw.value).toBe(42);
+    if (raw.type === 'PropSet') {
+      expect(raw.node).toContain('\x01');
+      expect(raw.key).toBe('weight');
+      expect(raw.value).toBe(42);
+    }
   });
 
   it('lowerCanonicalOp passes NodeAdd through as-is', () => {
@@ -184,9 +191,11 @@ describe('OpNormalizer returns Op class instances', () => {
 
     expect(lowered).toBeInstanceOf(PropSetClass);
     expect(lowered.type).toBe('PropSet');
-    expect(lowered.node).toBe('user:alice');
-    expect(lowered.key).toBe('name');
-    expect(lowered.value).toBe('Alice');
+    if (lowered.type === 'PropSet') {
+      expect(lowered.node).toBe('user:alice');
+      expect(lowered.key).toBe('name');
+      expect(lowered.value).toBe('Alice');
+    }
   });
 
   it('round-trip: edge PropSet → normalize → lower → PropSet with same encoding', () => {
@@ -196,8 +205,10 @@ describe('OpNormalizer returns Op class instances', () => {
 
     expect(lowered).toBeInstanceOf(PropSetClass);
     expect(lowered.type).toBe('PropSet');
-    expect(lowered.node).toBe(original.node);
-    expect(lowered.key).toBe('weight');
-    expect(lowered.value).toBe(42);
+    if (lowered.type === 'PropSet') {
+      expect(lowered.node).toBe(original.node);
+      expect(lowered.key).toBe('weight');
+      expect(lowered.value).toBe(42);
+    }
   });
 });

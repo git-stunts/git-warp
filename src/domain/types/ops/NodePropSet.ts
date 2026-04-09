@@ -12,7 +12,7 @@ import { assertNonEmptyString, assertNoReservedBytes } from './validate.ts';
  * Sets a property on a node using LWW semantics.
  * Canonical form — never persisted directly (lowered to PropSet on wire).
  */
-export default class NodePropSet extends Op {
+export default class NodePropSet extends Op<'NodePropSet'> {
   /** Node ID */
   readonly node: string;
 

@@ -16,7 +16,7 @@ import { assertNonEmptyString, assertNoReservedBytes } from './validate.ts';
  * Sets a property on a node (raw wire format).
  * The `node` field may carry a \x01-prefixed edge identity for edge props.
  */
-export default class PropSet extends Op {
+export default class PropSet extends Op<'PropSet'> {
   /** Node ID (may contain \x01 prefix for edge props) */
   readonly node: string;
 

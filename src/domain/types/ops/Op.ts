@@ -10,16 +10,24 @@
 
 import PatchError from '../../errors/PatchError.ts';
 
-/** Abstract base for WARP graph operations. */
-export default class Op {
+/**
+ * Abstract base for WARP graph operations.
+ *
+ * `T` is the literal op-type discriminator — each concrete subclass
+ * extends `Op<'TheirName'>` so that `instance.type` is the narrow
+ * literal `'TheirName'`, not the generic `string`. This makes the
+ * op unions discriminated unions, so `rawOp.type === 'PropSet'`
+ * properly narrows to `PropSet` at the type level.
+ */
+export default class Op<T extends string = string> {
   /** Operation type discriminator (matches wire format). */
-  readonly type: string;
+  readonly type: T;
 
   /** Bit flags indicating raw, canonical, or both. See OpScope.ts. */
   readonly scope: number;
 
   /** Creates an Op. Not instantiable directly — use a concrete subclass. */
-  constructor(type: string, scope: number) {
+  constructor(type: T, scope: number) {
     if (new.target === Op) {
       throw new PatchError('Op is abstract — use a concrete subclass (NodeAdd, EdgeAdd, etc.)', {
         code: 'E_OP_ABSTRACT',

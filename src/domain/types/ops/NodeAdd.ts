@@ -13,7 +13,7 @@ import { assertNonEmptyString, assertNoReservedBytes } from './validate.ts';
 /**
  * Adds a node to the graph's OR-Set with a unique dot.
  */
-export default class NodeAdd extends Op {
+export default class NodeAdd extends Op<'NodeAdd'> {
   /** Node ID to add */
   readonly node: string;
 
