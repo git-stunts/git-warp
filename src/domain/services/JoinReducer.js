@@ -9,12 +9,11 @@
  * }
  */
 
-import { orsetAdd, orsetRemove, orsetJoin, orsetContains, orsetClone } from '../crdt/ORSet.js';
-import VersionVector from '../crdt/VersionVector.js';
-import { lwwSet, lwwMax } from '../crdt/LWW.js';
+import VersionVector from '../crdt/VersionVector.ts';
+import { lwwSet, lwwMax } from '../crdt/LWW.ts';
 import { createEventId, compareEventIds } from '../utils/EventId.ts';
 import { createTickReceipt, OP_TYPES } from '../types/TickReceipt.ts';
-import { encodeDot } from '../crdt/Dot.js';
+import { encodeDot } from '../crdt/Dot.ts';
 import { encodeEdgeKey, decodeEdgeKey, encodePropKey, encodeEdgePropKey, EDGE_PROP_PREFIX } from './KeyCodec.js';
 import { normalizeRawOp } from './OpNormalizer.js';
 import { createEmptyDiff, mergeDiffs } from '../types/PatchDiff.ts';
@@ -40,7 +39,7 @@ export { normalizeRawOp, lowerCanonicalOp } from './OpNormalizer.js';
  * @typedef {Object} OpLike
  * @property {string} type - Operation type discriminator
  * @property {string} [node] - Node ID (for NodeAdd, NodeRemove, PropSet)
- * @property {import('../crdt/Dot.js').Dot} [dot] - Dot identifier (for NodeAdd, EdgeAdd)
+ * @property {import('../crdt/Dot.ts').Dot} [dot] - Dot identifier (for NodeAdd, EdgeAdd)
  * @property {ReadonlyArray<string>|string[]} [observedDots] - Encoded dots to remove (for NodeRemove, EdgeRemove)
  * @property {string} [from] - Source node ID (for EdgeAdd, EdgeRemove)
  * @property {string} [to] - Target node ID (for EdgeAdd, EdgeRemove)
@@ -55,7 +54,7 @@ export { normalizeRawOp, lowerCanonicalOp } from './OpNormalizer.js';
  * @property {string} writer - Writer ID who created this patch
  * @property {number} lamport - Lamport timestamp of this patch
  * @property {OpLike[]} ops - Ordered array of operations
- * @property {import('../crdt/VersionVector.js').default|Map<string, number>|Record<string, number>} context - Version vector context
+ * @property {import('../crdt/VersionVector.ts').default|Map<string, number>|Record<string, number>} context - Version vector context
  */
 
 /**
@@ -297,16 +296,16 @@ const nodeAddStrategy = {
   receiptName: 'NodeAdd',
   validate(op) { requireString(op, 'node'); requireDot(op); },
   mutate(state, op) {
-    orsetAdd(state.nodeAlive, /** @type {string} */ (op.node), /** @type {import('../crdt/Dot.js').Dot} */ (op.dot));
+    state.nodeAlive.add(/** @type {string} */ (op.node), /** @type {import('../crdt/Dot.ts').Dot} */ (op.dot));
   },
   outcome(state, op) {
-    return nodeAddOutcome(state.nodeAlive, /** @type {{node: string, dot: import('../crdt/Dot.js').Dot}} */ (op));
+    return nodeAddOutcome(state.nodeAlive, /** @type {{node: string, dot: import('../crdt/Dot.ts').Dot}} */ (op));
   },
   snapshot(state, op) {
-    return { nodeWasAlive: orsetContains(state.nodeAlive, /** @type {string} */ (op.node)) };
+    return { nodeWasAlive: state.nodeAlive.contains(/** @type {string} */ (op.node)) };
   },
   accumulate(diff, state, op, before) {
-    if (before.nodeWasAlive !== true && orsetContains(state.nodeAlive, /** @type {string} */ (op.node))) {
+    if (before.nodeWasAlive !== true && state.nodeAlive.contains(/** @type {string} */ (op.node))) {
       diff.nodesAdded.push(/** @type {string} */ (op.node));
     }
   },
@@ -317,7 +316,7 @@ const nodeRemoveStrategy = {
   receiptName: 'NodeTombstone',
   validate(op) { requireIterable(op, 'observedDots'); },
   mutate(state, op) {
-    orsetRemove(state.nodeAlive, /** @type {Set<string>} */ (/** @type {unknown} */ (op.observedDots)));
+    state.nodeAlive.remove(/** @type {Set<string>} */ (/** @type {unknown} */ (op.observedDots)));
   },
   outcome(state, op) {
     return nodeRemoveOutcome(state.nodeAlive, /** @type {{node?: string, observedDots: string[]}} */ (op));
@@ -339,7 +338,7 @@ const edgeAddStrategy = {
   validate(op) { requireString(op, 'from'); requireString(op, 'to'); requireString(op, 'label'); requireDot(op); },
   mutate(state, op, eventId) {
     const edgeKey = encodeEdgeKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label));
-    orsetAdd(state.edgeAlive, edgeKey, /** @type {import('../crdt/Dot.js').Dot} */ (op.dot));
+    state.edgeAlive.add(edgeKey, /** @type {import('../crdt/Dot.ts').Dot} */ (op.dot));
     if (state.edgeBirthEvent !== null && state.edgeBirthEvent !== undefined) {
       const prev = state.edgeBirthEvent.get(edgeKey);
       if (prev === undefined || compareEventIds(eventId, prev) > 0) {
@@ -349,14 +348,14 @@ const edgeAddStrategy = {
   },
   outcome(state, op) {
     const edgeKey = encodeEdgeKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label));
-    return edgeAddOutcome(state.edgeAlive, /** @type {{from: string, to: string, label: string, dot: import('../crdt/Dot.js').Dot}} */ (op), edgeKey);
+    return edgeAddOutcome(state.edgeAlive, /** @type {{from: string, to: string, label: string, dot: import('../crdt/Dot.ts').Dot}} */ (op), edgeKey);
   },
   snapshot(state, op) {
     const ek = encodeEdgeKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label));
-    return { edgeWasAlive: orsetContains(state.edgeAlive, ek), edgeKey: ek };
+    return { edgeWasAlive: state.edgeAlive.contains(ek), edgeKey: ek };
   },
   accumulate(diff, state, op, before) {
-    if (before.edgeWasAlive !== true && orsetContains(state.edgeAlive, /** @type {string} */ (before.edgeKey))) {
+    if (before.edgeWasAlive !== true && state.edgeAlive.contains(/** @type {string} */ (before.edgeKey))) {
       diff.edgesAdded.push({ from: /** @type {string} */ (op.from), to: /** @type {string} */ (op.to), label: /** @type {string} */ (op.label) });
     }
   },
@@ -367,7 +366,7 @@ const edgeRemoveStrategy = {
   receiptName: 'EdgeTombstone',
   validate(op) { requireIterable(op, 'observedDots'); },
   mutate(state, op) {
-    orsetRemove(state.edgeAlive, /** @type {Set<string>} */ (/** @type {unknown} */ (op.observedDots)));
+    state.edgeAlive.remove(/** @type {Set<string>} */ (/** @type {unknown} */ (op.observedDots)));
   },
   outcome(state, op) {
     return edgeRemoveOutcome(state.edgeAlive, /** @type {{from?: string, to?: string, label?: string, observedDots: string[]}} */ (op));
@@ -392,7 +391,7 @@ const edgeRemoveStrategy = {
  */
 function mutateProp(state, propKey, eventId, value) {
   const current = state.prop.get(propKey);
-  state.prop.set(propKey, /** @type {import('../crdt/LWW.js').LWWRegister<unknown>} */ (lwwMax(current, lwwSet(eventId, value))));
+  state.prop.set(propKey, /** @type {import('../crdt/LWW.ts').LWWRegister<unknown>} */ (lwwMax(current, lwwSet(eventId, value))));
 }
 
 /**
@@ -534,7 +533,7 @@ for (const [type, strategy] of OP_STRATEGIES) {
  * Applies a single V2 operation to the given CRDT state.
  *
  * @param {WarpStateV5} state - The mutable CRDT state to update
- * @param {{type: string, node?: string, dot?: import('../crdt/Dot.js').Dot, observedDots?: string[], from?: string, to?: string, label?: string, key?: string, value?: unknown, oid?: string}} op - The operation to apply
+ * @param {{type: string, node?: string, dot?: import('../crdt/Dot.ts').Dot, observedDots?: string[], from?: string, to?: string, label?: string, key?: string, value?: unknown, oid?: string}} op - The operation to apply
  * @param {import('../utils/EventId.ts').EventId} eventId - The event ID for LWW ordering
  */
 export function applyOpV2(state, op, eventId) {
@@ -564,8 +563,8 @@ const VALID_RECEIPT_OPS = new Set(OP_TYPES);
  * Checks if the node's dot already exists in the OR-Set to determine whether
  * this add operation is effective or redundant (idempotent re-delivery).
  *
- * @param {import('../crdt/ORSet.js').default} orset - The node OR-Set containing alive nodes
- * @param {{node: string, dot: import('../crdt/Dot.js').Dot}} op - The NodeAdd operation
+ * @param {import('../crdt/ORSet.ts').default} orset - The node OR-Set containing alive nodes
+ * @param {{node: string, dot: import('../crdt/Dot.ts').Dot}} op - The NodeAdd operation
  * @returns {OpApplied|OpRedundant} Outcome with node ID as target
  */
 function nodeAddOutcome(orset, op) {
@@ -585,7 +584,7 @@ function nodeAddOutcome(orset, op) {
  * This implements OR-Set remove semantics where removes only affect dots that were
  * observed at the time the remove was issued.
  *
- * @param {import('../crdt/ORSet.js').default} orset - The node OR-Set containing alive nodes
+ * @param {import('../crdt/ORSet.ts').default} orset - The node OR-Set containing alive nodes
  * @param {{node?: string, observedDots: string[] | Set<string>}} op - The NodeRemove operation
  * @returns {OpApplied|OpRedundant} Outcome with node ID (or '*') as target
  */
@@ -615,8 +614,8 @@ function nodeRemoveOutcome(orset, op) {
  * this add operation is effective or redundant (idempotent re-delivery).
  * Unlike nodes, edges are keyed by the composite (from, to, label) tuple.
  *
- * @param {import('../crdt/ORSet.js').default} orset - The edge OR-Set containing alive edges
- * @param {{from: string, to: string, label: string, dot: import('../crdt/Dot.js').Dot}} op - The EdgeAdd operation
+ * @param {import('../crdt/ORSet.ts').default} orset - The edge OR-Set containing alive edges
+ * @param {{from: string, to: string, label: string, dot: import('../crdt/Dot.ts').Dot}} op - The EdgeAdd operation
  * @param {string} edgeKey - Pre-encoded edge key (from\0to\0label format)
  * @returns {OpApplied|OpRedundant} Outcome with encoded edge key as target
  */
@@ -640,7 +639,7 @@ function edgeAddOutcome(orset, op, edgeKey) {
  * The target is computed from the operation's (from, to, label) fields if available,
  * otherwise falls back to '*' for wildcard/unknown targets.
  *
- * @param {import('../crdt/ORSet.js').default} orset - The edge OR-Set containing alive edges
+ * @param {import('../crdt/ORSet.ts').default} orset - The edge OR-Set containing alive edges
  * @param {{from?: string, to?: string, label?: string, observedDots: string[] | Set<string>}} op - The EdgeRemove operation
  * @returns {OpApplied|OpRedundant} Outcome with encoded edge key (or '*') as target
  */
@@ -683,7 +682,7 @@ function edgeRemoveOutcome(orset, op) {
  * - `superseded`: An existing value with higher EventId wins
  * - `redundant`: Exact same write (identical EventId)
  *
- * @param {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} propMap - The properties map keyed by encoded prop keys
+ * @param {Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>>} propMap - The properties map keyed by encoded prop keys
  * @param {string} key - Pre-encoded property key (node or edge)
  * @param {import('../utils/EventId.ts').EventId} eventId - The event ID for this operation, used for LWW comparison
  * @returns {OpOutcomeResult}
@@ -710,7 +709,7 @@ function propOutcomeForKey(propMap, key, eventId) {
 /**
  * Determines the receipt outcome for a PropSet/NodePropSet operation.
  *
- * @param {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} propMap
+ * @param {Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>>} propMap
  * @param {{node: string, key: string}} op - The PropSet or NodePropSet operation
  * @param {import('../utils/EventId.ts').EventId} eventId
  * @returns {OpOutcomeResult}
@@ -722,7 +721,7 @@ function propSetOutcome(propMap, op, eventId) {
 /**
  * Determines the receipt outcome for an EdgePropSet operation.
  *
- * @param {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} propMap
+ * @param {Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>>} propMap
  * @param {{from: string, to: string, label: string, key: string}} op - The EdgePropSet operation
  * @param {import('../utils/EventId.ts').EventId} eventId
  * @returns {OpOutcomeResult}
@@ -733,7 +732,7 @@ function edgePropSetOutcome(propMap, op, eventId) {
 
 /**
  * Folds a patch's own dot into the observed frontier.
- * @param {import('../crdt/VersionVector.js').default} frontier
+ * @param {import('../crdt/VersionVector.ts').default} frontier
  * @param {string} writer
  * @param {number} lamport
  */
@@ -786,7 +785,7 @@ export function applyFast(state, patch, patchSha) {
  * Only includes mappings for dots that appear in the given targetDots set,
  * allowing early termination once all target dots are accounted for.
  *
- * @param {import('../crdt/ORSet.js').default} orset
+ * @param {import('../crdt/ORSet.ts').default} orset
  * @param {Set<string>} targetDots - The dots we care about
  * @returns {Map<string, string>} dot → elementId
  */
@@ -814,7 +813,7 @@ function buildDotToElement(orset, targetDots) {
  * OR-Set. Complexity: O(total_dots_in_orset) for index build (with early exit)
  * + O(|targetDots|) for lookups, vs the previous O(N * |targetDots|) full scan.
  *
- * @param {import('../crdt/ORSet.js').default} orset
+ * @param {import('../crdt/ORSet.ts').default} orset
  * @param {Set<string>} observedDots
  * @returns {Set<string>} element IDs that were alive and own at least one observed dot
  */
@@ -824,7 +823,7 @@ function aliveElementsForDots(orset, observedDots) {
   const dotToElement = buildDotToElement(orset, observedDots);
   for (const d of observedDots) {
     const element = dotToElement.get(d);
-    if (element !== undefined && !result.has(element) && orsetContains(orset, element)) {
+    if (element !== undefined && !result.has(element) && orset.contains(element)) {
       result.add(element);
     }
   }
@@ -855,7 +854,7 @@ function aliveElementsForDots(orset, observedDots) {
 function collectNodeRemovals(diff, state, before) {
   if (!before.aliveBeforeNodes) { return; }
   for (const element of before.aliveBeforeNodes) {
-    if (!orsetContains(state.nodeAlive, element)) {
+    if (!state.nodeAlive.contains(element)) {
       diff.nodesRemoved.push(element);
     }
   }
@@ -871,7 +870,7 @@ function collectNodeRemovals(diff, state, before) {
 function collectEdgeRemovals(diff, state, before) {
   if (!before.aliveBeforeEdges) { return; }
   for (const edgeKey of before.aliveBeforeEdges) {
-    if (!orsetContains(state.edgeAlive, edgeKey)) {
+    if (!state.edgeAlive.contains(edgeKey)) {
       diff.edgesRemoved.push(decodeEdgeKey(edgeKey));
     }
   }
@@ -1008,8 +1007,8 @@ export function join(state, patch, patchSha, collectReceipts) {
  */
 export function joinStates(a, b) {
   return new WarpStateV5({
-    nodeAlive: orsetJoin(a.nodeAlive, b.nodeAlive),
-    edgeAlive: orsetJoin(a.edgeAlive, b.edgeAlive),
+    nodeAlive: a.nodeAlive.join(b.nodeAlive),
+    edgeAlive: a.edgeAlive.join(b.edgeAlive),
     prop: mergeProps(a.prop, b.prop),
     observedFrontier: a.observedFrontier.merge(b.observedFrontier),
     edgeBirthEvent: mergeEdgeBirthEvent(a.edgeBirthEvent, b.edgeBirthEvent),
@@ -1025,16 +1024,16 @@ export function joinStates(a, b) {
  *
  * This is a pure function that does not mutate its inputs.
  *
- * @param {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} a - First property map
- * @param {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} b - Second property map
- * @returns {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} New map containing merged properties
+ * @param {Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>>} a - First property map
+ * @param {Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>>} b - Second property map
+ * @returns {Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>>} New map containing merged properties
  */
 function mergeProps(a, b) {
   const result = new Map(a);
 
   for (const [key, regB] of b) {
     const regA = result.get(key);
-    result.set(key, /** @type {import('../crdt/LWW.js').LWWRegister<unknown>} */ (lwwMax(regA, regB)));
+    result.set(key, /** @type {import('../crdt/LWW.ts').LWWRegister<unknown>} */ (lwwMax(regA, regB)));
   }
 
   return result;
@@ -1134,7 +1133,7 @@ export function reduceV5(patches, initialState, options) {
  * - Creating a branch point for speculative execution
  * - Ensuring immutability when passing state across API boundaries
  *
- * **Implementation Note**: OR-Sets are cloned via `orsetClone()` which
+ * **Implementation Note**: OR-Sets are cloned via `.clone()` which
  * directly copies entries and tombstones without merge logic overhead.
  *
  * @param {WarpStateV5} state - The state to clone
@@ -1149,10 +1148,10 @@ export function cloneStateV5(state) {
   // state as plain objects.
   const s = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (state));
   return new WarpStateV5({
-    nodeAlive: orsetClone(/** @type {import('../crdt/ORSet.js').default} */ (s['nodeAlive'])),
-    edgeAlive: orsetClone(/** @type {import('../crdt/ORSet.js').default} */ (s['edgeAlive'])),
-    prop: new Map(/** @type {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} */ (s['prop'])),
-    observedFrontier: /** @type {import('../crdt/VersionVector.js').default} */ (s['observedFrontier']).clone(),
+    nodeAlive: /** @type {import('../crdt/ORSet.ts').default} */ (s['nodeAlive']).clone(),
+    edgeAlive: /** @type {import('../crdt/ORSet.ts').default} */ (s['edgeAlive']).clone(),
+    prop: new Map(/** @type {Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>>} */ (s['prop'])),
+    observedFrontier: /** @type {import('../crdt/VersionVector.ts').default} */ (s['observedFrontier']).clone(),
     edgeBirthEvent: new Map(/** @type {Map<string, import('../utils/EventId.ts').EventId>} */ (s['edgeBirthEvent'] ?? [])),
   });
 }

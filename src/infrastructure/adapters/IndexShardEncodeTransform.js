@@ -1,11 +1,11 @@
-import Transform from '../../domain/stream/Transform.js';
-import { MetaShard } from '../../domain/artifacts/MetaShard.js';
-import { EdgeShard } from '../../domain/artifacts/EdgeShard.js';
-import { LabelShard } from '../../domain/artifacts/LabelShard.js';
-import { PropertyShard } from '../../domain/artifacts/PropertyShard.js';
-import { ReceiptShard } from '../../domain/artifacts/ReceiptShard.js';
+import Transform from '../../domain/stream/Transform.ts';
+import { MetaShard } from '../../domain/artifacts/MetaShard.ts';
+import { EdgeShard } from '../../domain/artifacts/EdgeShard.ts';
+import { LabelShard } from '../../domain/artifacts/LabelShard.ts';
+import { PropertyShard } from '../../domain/artifacts/PropertyShard.ts';
+import { ReceiptShard } from '../../domain/artifacts/ReceiptShard.ts';
 
-/** @typedef {import('../../domain/artifacts/IndexShard.js').IndexShard} IndexShard */
+/** @typedef {import('../../domain/artifacts/IndexShard.ts').IndexShard} IndexShard */
 import WarpError from '../../domain/errors/WarpError.ts';
 
 /**

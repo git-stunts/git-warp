@@ -1,19 +1,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createEmptyStateV5, encodeEdgeKey } from '../../../src/domain/services/JoinReducer.js';
-import { orsetAdd } from '../../../src/domain/crdt/ORSet.js';
-import { createDot } from '../../../src/domain/crdt/Dot.js';
+import ORSet from '../../../src/domain/crdt/ORSet.ts';
+import { createDot } from '../../../src/domain/crdt/Dot.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 const crypto = new NodeCryptoAdapter();
 
 function addNode(/** @type {any} */ state, /** @type {any} */ nodeId, /** @type {any} */ counter) {
-  orsetAdd(state.nodeAlive, nodeId, createDot('w1', counter));
+  state.nodeAlive.add(nodeId, createDot('w1', counter));
 }
 
 function addEdge(/** @type {any} */ state, /** @type {any} */ from, /** @type {any} */ to, /** @type {any} */ label, /** @type {any} */ counter) {
   const edgeKey = encodeEdgeKey(from, to, label);
-  orsetAdd(state.edgeAlive, edgeKey, createDot('w1', counter));
+  state.edgeAlive.add(edgeKey, createDot('w1', counter));
 }
 
 function createSeededState() {

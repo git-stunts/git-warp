@@ -3,8 +3,8 @@ import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
 import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.js';
-import { createORSet, orsetAdd } from '../../../src/domain/crdt/ORSet.js';
-import { createDot } from '../../../src/domain/crdt/Dot.js';
+import ORSet from '../../../src/domain/crdt/ORSet.ts';
+import { createDot } from '../../../src/domain/crdt/Dot.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 const crypto = new NodeCryptoAdapter();
@@ -189,7 +189,7 @@ describe('WarpRuntime coverage gaps', () => {
 
       /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
 
-      expect(() => graph.join(/** @type {any} */ ({ edgeAlive: createORSet() }))).toThrow('Invalid state');
+      expect(() => graph.join(/** @type {any} */ ({ edgeAlive: ORSet.empty() }))).toThrow('Invalid state');
     });
 
     it('throws when otherState is missing edgeAlive', async () => {
@@ -202,7 +202,7 @@ describe('WarpRuntime coverage gaps', () => {
 
       /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
 
-      expect(() => graph.join(/** @type {any} */ ({ nodeAlive: createORSet() }))).toThrow('Invalid state');
+      expect(() => graph.join(/** @type {any} */ ({ nodeAlive: ORSet.empty() }))).toThrow('Invalid state');
     });
 
     it('merges two empty states and returns zero-change receipt', async () => {
@@ -239,7 +239,7 @@ describe('WarpRuntime coverage gaps', () => {
 
       const otherState = createEmptyStateV5();
       const dot = createDot('writer-2', 1);
-      orsetAdd(otherState.nodeAlive, 'user:alice', dot);
+      otherState.nodeAlive.add('user:alice', dot);
 
       const { receipt } = graph.join(otherState);
 
@@ -262,7 +262,7 @@ describe('WarpRuntime coverage gaps', () => {
 
       const otherState = createEmptyStateV5();
       const dot = createDot('writer-2', 1);
-      orsetAdd(otherState.nodeAlive, 'user:alice', dot);
+      otherState.nodeAlive.add('user:alice', dot);
 
       graph.join(otherState);
 
@@ -287,7 +287,7 @@ describe('WarpRuntime coverage gaps', () => {
 
       const otherState = createEmptyStateV5();
       const dot = createDot('writer-2', 1);
-      orsetAdd(otherState.nodeAlive, 'user:alice', dot);
+      otherState.nodeAlive.add('user:alice', dot);
 
       graph.join(otherState);
 
@@ -306,19 +306,19 @@ describe('WarpRuntime coverage gaps', () => {
       const baseState = createEmptyStateV5();
       const dotA = createDot('writer-1', 1);
       const dotB = createDot('writer-1', 2);
-      orsetAdd(baseState.nodeAlive, 'user:alice', dotA);
-      orsetAdd(baseState.nodeAlive, 'user:bob', dotB);
+      baseState.nodeAlive.add('user:alice', dotA);
+      baseState.nodeAlive.add('user:bob', dotB);
       const edgeDot = createDot('writer-1', 3);
-      orsetAdd(baseState.edgeAlive, 'user:alice\0user:bob\0knows', edgeDot);
+      baseState.edgeAlive.add('user:alice\0user:bob\0knows', edgeDot);
       /** @type {any} */ (graph)._cachedState = baseState;
       /** @type {any} */ (graph)._stateDirty = false;
 
       const otherState = createEmptyStateV5();
       const dotC = createDot('writer-2', 1);
-      orsetAdd(otherState.nodeAlive, 'user:alice', dotC);
-      orsetAdd(otherState.nodeAlive, 'user:bob', dotC);
+      otherState.nodeAlive.add('user:alice', dotC);
+      otherState.nodeAlive.add('user:bob', dotC);
       const edgeDot2 = createDot('writer-2', 2);
-      orsetAdd(otherState.edgeAlive, 'user:alice\0user:bob\0knows', edgeDot2);
+      otherState.edgeAlive.add('user:alice\0user:bob\0knows', edgeDot2);
 
       graph.join(otherState);
 
@@ -589,7 +589,7 @@ describe('WarpRuntime coverage gaps', () => {
       // Set up state with a node that has a dot (so metrics show entries)
       const state = createEmptyStateV5();
       const dot = createDot('writer-1', 1);
-      orsetAdd(state.nodeAlive, 'user:alice', dot);
+      state.nodeAlive.add('user:alice', dot);
       /** @type {any} */ (graph)._cachedState = state;
 
       // Force high patchesSinceGC and time since GC to trigger thresholds
@@ -629,7 +629,7 @@ describe('WarpRuntime coverage gaps', () => {
 
       const state = createEmptyStateV5();
       const dot = createDot('writer-1', 1);
-      orsetAdd(state.nodeAlive, 'user:alice', dot);
+      state.nodeAlive.add('user:alice', dot);
       /** @type {any} */ (graph)._cachedState = state;
 
       /** @type {any} */

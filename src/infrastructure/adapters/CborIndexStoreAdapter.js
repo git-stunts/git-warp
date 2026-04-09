@@ -1,11 +1,11 @@
 import IndexStorePort from '../../ports/IndexStorePort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
-import WarpStream from '../../domain/stream/WarpStream.js';
-import { MetaShard } from '../../domain/artifacts/MetaShard.js';
-import { EdgeShard } from '../../domain/artifacts/EdgeShard.js';
-import { LabelShard } from '../../domain/artifacts/LabelShard.js';
-import { PropertyShard } from '../../domain/artifacts/PropertyShard.js';
-import { ReceiptShard } from '../../domain/artifacts/ReceiptShard.js';
+import WarpStream from '../../domain/stream/WarpStream.ts';
+import { MetaShard } from '../../domain/artifacts/MetaShard.ts';
+import { EdgeShard } from '../../domain/artifacts/EdgeShard.ts';
+import { LabelShard } from '../../domain/artifacts/LabelShard.ts';
+import { PropertyShard } from '../../domain/artifacts/PropertyShard.ts';
+import { ReceiptShard } from '../../domain/artifacts/ReceiptShard.ts';
 import { IndexShardEncodeTransform } from './IndexShardEncodeTransform.js';
 import { GitBlobWriteTransform } from './GitBlobWriteTransform.js';
 import { TreeAssemblerSink } from './TreeAssemblerSink.js';
@@ -86,7 +86,7 @@ function classifyReceipt(_match, data) {
   });
 }
 
-/** @type {ReadonlyArray<{ pattern: RegExp, classify: (match: RegExpMatchArray, data: unknown) => import('../../domain/artifacts/IndexShard.js').IndexShard }>} */
+/** @type {ReadonlyArray<{ pattern: RegExp, classify: (match: RegExpMatchArray, data: unknown) => import('../../domain/artifacts/IndexShard.ts').IndexShard }>} */
 const SHARD_CLASSIFIERS = Object.freeze([
   { pattern: /^meta_([0-9a-f]+)\.cbor$/, classify: classifyMeta },
   { pattern: /^(fwd|rev)_([0-9a-f]+)\.cbor$/, classify: classifyEdge },
@@ -140,7 +140,7 @@ export class CborIndexStoreAdapter extends IndexStorePort {
    * Composes the existing infrastructure pipeline:
    * IndexShardEncodeTransform → GitBlobWriteTransform → TreeAssemblerSink
    *
-   * @param {import('../../domain/stream/WarpStream.js').default<import('../../domain/artifacts/IndexShard.js').IndexShard>} shardStream
+   * @param {import('../../domain/stream/WarpStream.ts').default<import('../../domain/artifacts/IndexShard.ts').IndexShard>} shardStream
    * @returns {Promise<string>} The Git tree OID
    */
   async writeShards(shardStream) {
@@ -158,7 +158,7 @@ export class CborIndexStoreAdapter extends IndexStorePort {
    * path pattern.
    *
    * @param {string} treeOid - The index tree OID
-   * @returns {import('../../domain/stream/WarpStream.js').default<import('../../domain/artifacts/IndexShard.js').IndexShard>}
+   * @returns {import('../../domain/stream/WarpStream.ts').default<import('../../domain/artifacts/IndexShard.ts').IndexShard>}
    */
   scanShards(treeOid) {
     const adapter = this;
@@ -209,7 +209,7 @@ export class CborIndexStoreAdapter extends IndexStorePort {
  * (e.g., frontier.cbor, frontier.json).
  *
  * @param {string} path - Git tree path (e.g., "meta_a0.cbor")
- * @returns {((data: unknown) => import('../../domain/artifacts/IndexShard.js').IndexShard) | null}
+ * @returns {((data: unknown) => import('../../domain/artifacts/IndexShard.ts').IndexShard) | null}
  */
 function tryClassifyPath(path) {
   for (const { pattern, classify } of SHARD_CLASSIFIERS) {

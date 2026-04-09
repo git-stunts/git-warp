@@ -12,10 +12,10 @@ import {
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.js';
-import { orsetAdd, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { lwwSet } from '../../../../src/domain/crdt/LWW.js';
+import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 
 /**
  * Helper to create a mock EventId for testing.
@@ -33,14 +33,14 @@ function buildStateV5({ nodes = /** @type {any[]} */ ([]), edges = /** @type {an
   // Add nodes with their dots
   for (const { nodeId, writerId, counter } of nodes) {
     const dot = createDot(writerId, counter);
-    orsetAdd(state.nodeAlive, nodeId, dot);
+    state.nodeAlive.add(nodeId, dot);
   }
 
   // Add edges with their dots
   for (const { from, to, label, writerId, counter } of edges) {
     const dot = createDot(writerId, counter);
     const edgeKey = encodeEdgeKey(from, to, label);
-    orsetAdd(state.edgeAlive, edgeKey, dot);
+    state.edgeAlive.add(edgeKey, dot);
   }
 
   // Add props with LWW registers
@@ -394,9 +394,9 @@ describe('CheckpointSerializerV5', () => {
       const state = createEmptyStateV5();
 
       // Add multiple dots to the same node (simulating concurrent adds)
-      orsetAdd(state.nodeAlive, 'shared', createDot('alice', 1));
-      orsetAdd(state.nodeAlive, 'shared', createDot('bob', 3));
-      orsetAdd(state.nodeAlive, 'shared', createDot('alice', 7));
+      state.nodeAlive.add('shared', createDot('alice', 1));
+      state.nodeAlive.add('shared', createDot('bob', 3));
+      state.nodeAlive.add('shared', createDot('alice', 7));
 
       const vv = computeAppliedVV(state);
 
@@ -508,10 +508,10 @@ describe('CheckpointSerializerV5', () => {
 
       // Add a node
       const addDot = createDot('alice', 1);
-      orsetAdd(state.nodeAlive, 'temp', addDot);
+      state.nodeAlive.add('temp', addDot);
 
       // Remove the node (add to tombstones)
-      orsetRemove(state.nodeAlive, new Set([encodeDot(addDot)]));
+      state.nodeAlive.remove(new Set([encodeDot(addDot)]));
 
       // Serialize and restore
       const buffer = serializeFullStateV5(state);

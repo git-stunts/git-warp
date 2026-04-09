@@ -12,7 +12,6 @@
 import QueryBuilder from './QueryBuilder.js';
 import LogicalTraversal from './LogicalTraversal.js';
 import { createStateReaderV5 } from '../state/StateReaderV5.js';
-import { orsetContains, orsetElements } from '../../crdt/ORSet.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
 import { matchGlob } from '../../utils/matchGlob.ts';
 
@@ -109,8 +108,8 @@ function sortNeighbors(list) {
  * @returns {boolean}
  */
 function isVisibleEdge(ctx, from, to) {
-  return orsetContains(ctx.state.nodeAlive, from) &&
-    orsetContains(ctx.state.nodeAlive, to) &&
+  return ctx.state.nodeAlive.contains(from) &&
+    ctx.state.nodeAlive.contains(to) &&
     matchGlob(ctx.pattern, from) &&
     matchGlob(ctx.pattern, to);
 }
@@ -138,7 +137,7 @@ function buildAdjacencyFromEdges(state, pattern) {
   const incoming = /** @type {Map<string, NeighborEntry[]>} */ (new Map());
   const ctx = { state, pattern };
 
-  for (const edgeKey of orsetElements(state.edgeAlive)) {
+  for (const edgeKey of state.edgeAlive.elements()) {
     const { from, to, label } = decodeEdgeKey(edgeKey);
 
     if (!isVisibleEdge(ctx, from, to)) {
@@ -377,7 +376,7 @@ export default class Observer {
     let adjacency;
 
     if (materialized.provider) {
-      const visibleNodes = orsetElements(state.nodeAlive)
+      const visibleNodes = state.nodeAlive.elements()
         .filter((id) => matchGlob(/** @type {string|string[]} */ (this._matchPattern), id));
       adjacency = await buildAdjacencyViaProvider(materialized.provider, visibleNodes);
     } else {

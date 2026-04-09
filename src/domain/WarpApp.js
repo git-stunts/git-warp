@@ -64,7 +64,7 @@ export default class WarpApp {
 
   /**
    * Obtains a Writer handle for appending patches to this graph.
-   * @returns {Promise<import('./warp/Writer.js').Writer>}
+   * @returns {Promise<import('./warp/Writer.ts').Writer>}
    * @param {string} [writerId]
    */
   async writer(writerId) {

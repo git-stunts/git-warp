@@ -1,13 +1,7 @@
 import { describe, it } from 'vitest';
 import fc from 'fast-check';
-import {
-  createORSet,
-  orsetAdd,
-  orsetRemove,
-  orsetJoin,
-  orsetSerialize,
-} from '../../../../src/domain/crdt/ORSet.js';
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 
 // ============================================================================
 // Arbitraries for generating random ORSets
@@ -46,15 +40,15 @@ const operationArb = fc.oneof(
  * Generates a random ORSet by applying a sequence of operations
  */
 const orsetArb = fc.array(operationArb, { minLength: 0, maxLength: 10 }).map((ops) => {
-  const set = createORSet();
+  const set = ORSet.empty();
 
   for (const op of ops) {
     if (op.type === 'add') {
-      orsetAdd(set, op.element, op.dot);
+      set.add(op.element, op.dot);
     } else {
       // For remove, add the dot first then remove it (simulating observed remove)
-      orsetAdd(set, op.element, op.dot);
-      orsetRemove(set, new Set([encodeDot(op.dot)]));
+      set.add(op.element, op.dot);
+      set.remove(new Set([encodeDot(op.dot)]));
     }
   }
 
@@ -70,7 +64,7 @@ const orsetArb = fc.array(operationArb, { minLength: 0, maxLength: 10 }).map((op
  */
 /** @param {any} a @param {any} b */
 function orsetEqual(a, b) {
-  return JSON.stringify(orsetSerialize(a)) === JSON.stringify(orsetSerialize(b));
+  return JSON.stringify(a.serialize()) === JSON.stringify(b.serialize());
 }
 
 // ============================================================================
@@ -82,8 +76,8 @@ describe('ORSet property tests', () => {
     it('join is commutative: join(a, b) === join(b, a)', () => {
       fc.assert(
         fc.property(orsetArb, orsetArb, (a, b) => {
-          const ab = orsetJoin(a, b);
-          const ba = orsetJoin(b, a);
+          const ab = a.join(b);
+          const ba = b.join(a);
           return orsetEqual(ab, ba);
         }),
         { numRuns: 100 }
@@ -93,8 +87,8 @@ describe('ORSet property tests', () => {
     it('join is associative: join(join(a, b), c) === join(a, join(b, c))', () => {
       fc.assert(
         fc.property(orsetArb, orsetArb, orsetArb, (a, b, c) => {
-          const ab_c = orsetJoin(orsetJoin(a, b), c);
-          const a_bc = orsetJoin(a, orsetJoin(b, c));
+          const ab_c = a.join(b).join(c);
+          const a_bc = a.join(b.join(c));
           return orsetEqual(ab_c, a_bc);
         }),
         { numRuns: 100 }
@@ -104,7 +98,7 @@ describe('ORSet property tests', () => {
     it('join is idempotent: join(a, a) === a', () => {
       fc.assert(
         fc.property(orsetArb, (a) => {
-          const result = orsetJoin(a, a);
+          const result = a.join(a);
           return orsetEqual(result, a);
         }),
         { numRuns: 100 }
@@ -114,8 +108,8 @@ describe('ORSet property tests', () => {
     it('empty set is identity: join(a, empty) === a', () => {
       fc.assert(
         fc.property(orsetArb, (a) => {
-          const empty = createORSet();
-          const result = orsetJoin(a, empty);
+          const empty = ORSet.empty();
+          const result = a.join(empty);
           return orsetEqual(result, a);
         }),
         { numRuns: 100 }
@@ -127,7 +121,7 @@ describe('ORSet property tests', () => {
     it('join always grows or stays same (no shrinking)', () => {
       fc.assert(
         fc.property(orsetArb, orsetArb, (a, b) => {
-          const joined = orsetJoin(a, b);
+          const joined = a.join(b);
 
           // All entries from a should be in joined
           for (const [element, dots] of a.entries) {
@@ -159,8 +153,8 @@ describe('ORSet property tests', () => {
     it('serialization is deterministic', () => {
       fc.assert(
         fc.property(orsetArb, (set) => {
-          const s1 = JSON.stringify(orsetSerialize(set));
-          const s2 = JSON.stringify(orsetSerialize(set));
+          const s1 = JSON.stringify(set.serialize());
+          const s2 = JSON.stringify(set.serialize());
           return s1 === s2;
         }),
         { numRuns: 100 }
@@ -171,11 +165,11 @@ describe('ORSet property tests', () => {
       fc.assert(
         fc.property(orsetArb, orsetArb, (a, b) => {
           // Join both ways to get equivalent sets
-          const ab = orsetJoin(a, b);
-          const ba = orsetJoin(b, a);
+          const ab = a.join(b);
+          const ba = b.join(a);
 
-          const sAB = JSON.stringify(orsetSerialize(ab));
-          const sBA = JSON.stringify(orsetSerialize(ba));
+          const sAB = JSON.stringify(ab.serialize());
+          const sBA = JSON.stringify(ba.serialize());
           return sAB === sBA;
         }),
         { numRuns: 100 }
@@ -192,13 +186,13 @@ describe('ORSet property tests', () => {
           (element, dots) => {
             // Create separate ORSets for each dot
             const sets = dots.map((dot) => {
-              const set = createORSet();
-              orsetAdd(set, element, dot);
+              const set = ORSet.empty();
+              set.add(element, dot);
               return set;
             });
 
             // Join all sets
-            const joined = sets.reduce((acc, set) => orsetJoin(acc, set), createORSet());
+            const joined = sets.reduce((acc, set) => acc.join(set), ORSet.empty());
 
             // All dots should be present (minus duplicates)
             const uniqueDots = new Set(dots.map(encodeDot));
@@ -230,16 +224,16 @@ describe('ORSet property tests', () => {
           }
 
           // Set A: add with dot1, then remove dot1
-          const setA = createORSet();
-          orsetAdd(setA, element, dot1);
-          orsetRemove(setA, new Set([encodeDot(dot1)]));
+          const setA = ORSet.empty();
+          setA.add(element, dot1);
+          setA.remove(new Set([encodeDot(dot1)]));
 
           // Set B: add with dot2 (concurrent add)
-          const setB = createORSet();
-          orsetAdd(setB, element, dot2);
+          const setB = ORSet.empty();
+          setB.add(element, dot2);
 
           // Join
-          const joined = orsetJoin(setA, setB);
+          const joined = setA.join(setB);
 
           // Element should be present (dot2 not tombstoned)
           const dots = joined.entries.get(element);

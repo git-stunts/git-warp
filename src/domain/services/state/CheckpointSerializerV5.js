@@ -13,9 +13,9 @@
  */
 
 import defaultCodec from '../../utils/defaultCodec.ts';
-import { orsetSerialize, orsetDeserialize } from '../../crdt/ORSet.js';
-import VersionVector, { vvSerialize } from '../../crdt/VersionVector.js';
-import { decodeDot } from '../../crdt/Dot.js';
+import ORSet from '../../crdt/ORSet.ts';
+import VersionVector from '../../crdt/VersionVector.ts';
+import { decodeDot } from '../../crdt/Dot.ts';
 import { createEmptyStateV5 } from '../JoinReducer.js';
 import WarpStateV5 from './WarpStateV5.js';
 
@@ -41,10 +41,10 @@ import WarpStateV5 from './WarpStateV5.js';
  */
 export function serializeFullStateV5(state, { codec } = {}) {
   const c = codec ?? defaultCodec;
-  const nodeAliveObj = orsetSerialize(state.nodeAlive);
-  const edgeAliveObj = orsetSerialize(state.edgeAlive);
+  const nodeAliveObj = state.nodeAlive.serialize();
+  const edgeAliveObj = state.edgeAlive.serialize();
   const propArray = serializePropsArray(state.prop);
-  const observedFrontierObj = vvSerialize(state.observedFrontier);
+  const observedFrontierObj = VersionVector.serialize(state.observedFrontier);
   const edgeBirthArray = serializeEdgeBirthArray(state.edgeBirthEvent);
 
   return c.encode({
@@ -59,7 +59,7 @@ export function serializeFullStateV5(state, { codec } = {}) {
 
 /**
  * Serializes the props Map into a sorted array of [key, register] pairs.
- * @param {Map<string, import('../../crdt/LWW.js').LWWRegister<unknown>>} propMap
+ * @param {Map<string, import('../../crdt/LWW.ts').LWWRegister<unknown>>} propMap
  * @returns {Array<[string, unknown]>}
  */
 function serializePropsArray(propMap) {
@@ -110,8 +110,8 @@ export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
     throw new Error(`Unsupported full state version: expected 'full-v5', got '${JSON.stringify(obj['version'])}'`);
   }
   return new WarpStateV5({
-    nodeAlive: orsetDeserialize(obj['nodeAlive'] ?? {}),
-    edgeAlive: orsetDeserialize(obj['edgeAlive'] ?? {}),
+    nodeAlive: ORSet.deserialize(obj['nodeAlive'] ?? {}),
+    edgeAlive: ORSet.deserialize(obj['edgeAlive'] ?? {}),
     prop: deserializeProps(/** @type {[string, unknown][]} */ (obj['prop'])),
     observedFrontier: VersionVector.from(/** @type {{[x: string]: number}} */ (obj['observedFrontier'] ?? {})),
     edgeBirthEvent: /** @type {Map<string, import('../../utils/EventId.ts').EventId>} */ (deserializeEdgeBirthEvent(obj)),
@@ -138,7 +138,7 @@ export function computeAppliedVV(state) {
 
   /**
    * Helper to scan all dots from an ORSet and update vv with max counters.
-   * @param {import('../../crdt/ORSet.js').default} orset
+   * @param {import('../../crdt/ORSet.ts').default} orset
    */
   function scanORSet(orset) {
     for (const dots of orset.entries.values()) {
@@ -170,7 +170,7 @@ export function computeAppliedVV(state) {
  */
 export function serializeAppliedVV(vv, { codec } = {}) {
   const c = codec || defaultCodec;
-  const obj = vvSerialize(vv);
+  const obj = VersionVector.serialize(vv);
   return c.encode(obj);
 }
 
@@ -194,10 +194,10 @@ export function deserializeAppliedVV(buffer, { codec } = {}) {
 /**
  * Deserializes the props array from checkpoint format.
  * @param {Array<[string, unknown]>} propArray - Array of [key, registerObj] pairs
- * @returns {Map<string, import('../../crdt/LWW.js').LWWRegister<unknown>>}
+ * @returns {Map<string, import('../../crdt/LWW.ts').LWWRegister<unknown>>}
  */
 function deserializeProps(propArray) {
-  /** @type {Map<string, import('../../crdt/LWW.js').LWWRegister<unknown>>} */
+  /** @type {Map<string, import('../../crdt/LWW.ts').LWWRegister<unknown>>} */
   const prop = new Map();
   if (!Array.isArray(propArray)) {
     return prop;
@@ -247,7 +247,7 @@ function deserializeSingleBirthEvent(val) {
  * Serializes an LWW register for CBOR encoding.
  * EventId is serialized as a plain object with sorted keys.
  *
- * @param {import('../../crdt/LWW.js').LWWRegister<unknown>} register
+ * @param {import('../../crdt/LWW.ts').LWWRegister<unknown>} register
  * @returns {{ eventId: { lamport: number, opIndex: number, patchSha: string, writerId: string }, value: unknown } | null}
  */
 function serializeLWWRegister(register) {
@@ -270,7 +270,7 @@ function serializeLWWRegister(register) {
  * Deserializes an LWW register from CBOR.
  *
  * @param {{ eventId: { lamport: number, writerId: string, patchSha: string, opIndex: number }, value: unknown } | null} obj
- * @returns {import('../../crdt/LWW.js').LWWRegister<unknown> | null}
+ * @returns {import('../../crdt/LWW.ts').LWWRegister<unknown> | null}
  */
 function deserializeLWWRegister(obj) {
   if (obj === null || obj === undefined) {

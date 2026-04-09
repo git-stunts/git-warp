@@ -6,7 +6,7 @@
  * objects through all three apply paths.
  */
 import { describe, it, expect } from 'vitest';
-import { Dot } from '../../../../../src/domain/crdt/Dot.js';
+import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
 import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
 import NodeRemove from '../../../../../src/domain/types/ops/NodeRemove.ts';
@@ -41,8 +41,8 @@ import {
   OP_STRATEGIES,
 } from '../../../../../src/domain/services/JoinReducer.js';
 import { createEventId } from '../../../../../src/domain/utils/EventId.ts';
-import { orsetContains } from '../../../../../src/domain/crdt/ORSet.js';
-import VersionVector from '../../../../../src/domain/crdt/VersionVector.js';
+import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
+import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 
 describe('Op class instances through JoinReducer', () => {
   /** @param {number} opIndex */
@@ -59,7 +59,7 @@ describe('Op class instances through JoinReducer', () => {
       expect(op).toBeInstanceOf(NodeAdd);
       applyOpV2(state, op, eid(0));
 
-      expect(orsetContains(state.nodeAlive, 'user:alice')).toBe(true);
+      expect(state.nodeAlive.contains('user:alice')).toBe(true);
     });
 
     it('applies EdgeAdd class instance to state', () => {
@@ -72,7 +72,7 @@ describe('Op class instances through JoinReducer', () => {
       applyOpV2(state, createNodeAddV2('n2', dot2), eid(1));
       applyOpV2(state, createEdgeAddV2('n1', 'n2', 'rel', dot3), eid(2));
 
-      expect(orsetContains(state.edgeAlive, 'n1\x00n2\x00rel')).toBe(true);
+      expect(state.edgeAlive.contains('n1\x00n2\x00rel')).toBe(true);
     });
 
     it('applies NodePropSet class instance to state', () => {
@@ -105,10 +105,10 @@ describe('Op class instances through JoinReducer', () => {
       const dot = new Dot('alice', 1);
 
       applyOpV2(state, createNodeAddV2('n1', dot), eid(0));
-      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
+      expect(state.nodeAlive.contains('n1')).toBe(true);
 
       applyOpV2(state, createNodeRemoveV2('n1', ['alice:1']), eid(1));
-      expect(orsetContains(state.nodeAlive, 'n1')).toBe(false);
+      expect(state.nodeAlive.contains('n1')).toBe(false);
     });
   });
 
@@ -129,9 +129,9 @@ describe('Op class instances through JoinReducer', () => {
 
       applyFast(state, patch, 'abcd1234abcd1234abcd1234abcd1234abcd1234');
 
-      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'n2')).toBe(true);
-      expect(orsetContains(state.edgeAlive, 'n1\x00n2\x00rel')).toBe(true);
+      expect(state.nodeAlive.contains('n1')).toBe(true);
+      expect(state.nodeAlive.contains('n2')).toBe(true);
+      expect(state.edgeAlive.contains('n1\x00n2\x00rel')).toBe(true);
       expect(state.prop.get('n1\x00name')?.value).toBe('Node One');
     });
   });

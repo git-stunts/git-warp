@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import WarpStream from '../../../../src/domain/stream/WarpStream.js';
-import Transform from '../../../../src/domain/stream/Transform.js';
+import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
+import Transform from '../../../../src/domain/stream/Transform.ts';
 import { CborEncodeTransform } from '../../../../src/infrastructure/adapters/CborEncodeTransform.js';
 import { CborDecodeTransform } from '../../../../src/infrastructure/adapters/CborDecodeTransform.js';
 import { GitBlobWriteTransform } from '../../../../src/infrastructure/adapters/GitBlobWriteTransform.js';

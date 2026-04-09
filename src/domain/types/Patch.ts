@@ -10,7 +10,7 @@
  * @module domain/types/Patch
  */
 
-import type VersionVector from '../crdt/VersionVector.js';
+import type VersionVector from '../crdt/VersionVector.ts';
 import type { OpV2 } from './ops/unions.ts';
 
 /**

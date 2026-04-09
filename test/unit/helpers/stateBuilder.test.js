@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { orsetContains } from '../../../src/domain/crdt/ORSet.js';
+import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import {
   encodeEdgeKey,
   encodeEdgePropKey,
@@ -18,9 +18,9 @@ describe('StateBuilder', () => {
       .vv('w1', 3)
       .build();
 
-    expect(orsetContains(state.nodeAlive, 'node:a')).toBe(true);
-    expect(orsetContains(state.nodeAlive, 'node:b')).toBe(true);
-    expect(orsetContains(state.edgeAlive, encodeEdgeKey('node:a', 'node:b', 'knows'))).toBe(true);
+    expect(state.nodeAlive.contains('node:a')).toBe(true);
+    expect(state.nodeAlive.contains('node:b')).toBe(true);
+    expect(state.edgeAlive.contains(encodeEdgeKey('node:a', 'node:b', 'knows'))).toBe(true);
     expect(state.prop.get(encodePropKey('node:a', 'name'))?.value).toBe('Alice');
     expect(state.prop.get(encodeEdgePropKey('node:a', 'node:b', 'knows', 'weight'))?.value).toBe(9);
     expect(state.observedFrontier.get('w1')).toBe(3);
@@ -36,8 +36,8 @@ describe('StateBuilder', () => {
       .removeEdge('node:a', 'node:b', 'knows')
       .build();
 
-    expect(orsetContains(state.nodeAlive, 'node:a')).toBe(false);
-    expect(orsetContains(state.edgeAlive, encodeEdgeKey('node:a', 'node:b', 'knows'))).toBe(false);
+    expect(state.nodeAlive.contains('node:a')).toBe(false);
+    expect(state.edgeAlive.contains(encodeEdgeKey('node:a', 'node:b', 'knows'))).toBe(false);
   });
 
   it('seedGraph installs the built state as the cached materialized view', async () => {

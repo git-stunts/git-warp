@@ -11,7 +11,6 @@
  */
 
 import BitmapIndexBuilder from './BitmapIndexBuilder.js';
-import { orsetContains, orsetElements } from '../../crdt/ORSet.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
 
 /**
@@ -102,7 +101,7 @@ export default class WarpStateIndexBuilder {
    */
   _registerNodes(state) {
     let count = 0;
-    for (const nodeId of orsetElements(state.nodeAlive)) {
+    for (const nodeId of state.nodeAlive.elements()) {
       this._builder.registerNode(nodeId);
       count++;
     }
@@ -118,9 +117,9 @@ export default class WarpStateIndexBuilder {
    */
   _indexEdges(state) {
     let count = 0;
-    for (const edgeKey of orsetElements(state.edgeAlive)) {
+    for (const edgeKey of state.edgeAlive.elements()) {
       const { from, to } = decodeEdgeKey(edgeKey);
-      if (orsetContains(state.nodeAlive, from) && orsetContains(state.nodeAlive, to)) {
+      if (state.nodeAlive.contains(from) && state.nodeAlive.contains(to)) {
         this._builder.addEdge(from, to);
         count++;
       }

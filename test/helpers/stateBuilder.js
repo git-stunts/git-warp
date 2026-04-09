@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
-import { createDot, encodeDot } from '../../src/domain/crdt/Dot.js';
-import { orsetGetDots } from '../../src/domain/crdt/ORSet.js';
+import { createDot, encodeDot } from '../../src/domain/crdt/Dot.ts';
+import ORSet from '../../src/domain/crdt/ORSet.ts';
 import { applyOpV2, createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';
 import { createEventId } from '../../src/domain/utils/EventId.ts';
 
@@ -112,7 +112,7 @@ export class StateBuilder {
    */
   removeNode(nodeId, options = {}) {
     const { eventId } = this._createMutationContext(options);
-    const observedDots = this._normalizeObserved(options.observed) || orsetGetDots(this._state.nodeAlive, nodeId);
+    const observedDots = this._normalizeObserved(options.observed) || this._state.nodeAlive.getDots(nodeId);
     applyOpV2(
       this._state,
       /** @type {any} */ ({ type: 'NodeRemove', node: nodeId, observedDots }),
@@ -144,7 +144,7 @@ export class StateBuilder {
   removeEdge(from, to, label, options = {}) {
     const { eventId } = this._createMutationContext(options);
     const edgeKey = encodeEdgeKey(from, to, label);
-    const observedDots = this._normalizeObserved(options.observed) || orsetGetDots(this._state.edgeAlive, edgeKey);
+    const observedDots = this._normalizeObserved(options.observed) || this._state.edgeAlive.getDots(edgeKey);
     applyOpV2(
       this._state,
       /** @type {any} */ ({ type: 'EdgeRemove', from, to, label, observedDots }),

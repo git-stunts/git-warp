@@ -2,8 +2,8 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import WarpCore from '../../../src/domain/WarpCore.js';
-import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
-import { createDot } from '../../../src/domain/crdt/Dot.js';
+import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
+import { createDot } from '../../../src/domain/crdt/Dot.ts';
 
 /** @typedef {any} WarpCoreRuntime */
 
@@ -107,7 +107,7 @@ async function simulatePatchCommit(persistence, {
     writer: writerId,
     lamport,
     ops,
-    context: context || createVersionVector(),
+    context: context || VersionVector.empty(),
   };
 
   const patchBuffer = encode(patch);

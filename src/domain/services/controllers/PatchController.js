@@ -9,14 +9,13 @@
 
 import { PatchBuilder } from '../PatchBuilder.js';
 import { joinStates, applyWithDiff, applyWithReceipt } from '../JoinReducer.js';
-import { orsetElements } from '../../crdt/ORSet.js';
 import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../../utils/RefLayout.ts';
 import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';
-import { Writer } from '../../warp/Writer.js';
+import { Writer } from '../../warp/Writer.ts';
 import { resolveWriterId } from '../../utils/WriterId.ts';
 import EncryptionError from '../../errors/EncryptionError.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
-import { QueryError, E_NO_STATE_MSG, E_STALE_STATE_MSG } from '../../warp/_internal.js';
+import { QueryError, E_NO_STATE_MSG, E_STALE_STATE_MSG } from '../../warp/_internal.ts';
 
 /**
  * @typedef {import('../../WarpRuntime.js').default} PatchHost
@@ -470,14 +469,14 @@ export default class PatchController {
       throw new Error('Invalid state: must be a valid WarpStateV5 object');
     }
 
-    const beforeNodes = orsetElements(h._cachedState.nodeAlive).length;
-    const beforeEdges = orsetElements(h._cachedState.edgeAlive).length;
+    const beforeNodes = h._cachedState.nodeAlive.elements().length;
+    const beforeEdges = h._cachedState.edgeAlive.elements().length;
     const beforeFrontierSize = h._cachedState.observedFrontier.size;
 
     const mergedState = joinStates(h._cachedState, otherState);
 
-    const afterNodes = orsetElements(mergedState.nodeAlive).length;
-    const afterEdges = orsetElements(mergedState.edgeAlive).length;
+    const afterNodes = mergedState.nodeAlive.elements().length;
+    const afterEdges = mergedState.edgeAlive.elements().length;
     const afterFrontierSize = mergedState.observedFrontier.size;
 
     let propsChanged = 0;
@@ -516,8 +515,8 @@ export default class PatchController {
   /**
    * Compares two version vectors for equality.
    *
-   * @param {import('../../crdt/VersionVector.js').default} a
-   * @param {import('../../crdt/VersionVector.js').default} b
+   * @param {import('../../crdt/VersionVector.ts').default} a
+   * @param {import('../../crdt/VersionVector.ts').default} b
    * @returns {boolean}
    */
   _frontierEquals(a, b) {

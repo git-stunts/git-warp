@@ -31,7 +31,7 @@ const reduceV5 = (patches, initialState) => _reduceV5(patches, initialState);
 
 // v4 reducer helpers (local test helpers for migration tests)
 import { compareEventIds, createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { lwwSet, lwwMax } from '../../../../src/domain/crdt/LWW.js';
+import { lwwSet, lwwMax } from '../../../../src/domain/crdt/LWW.ts';
 
 /**
  * Creates an empty v4 state for migration testing.
@@ -176,10 +176,10 @@ function createPatchV1({ writer, lamport, ops, baseCheckpoint }) {
 }
 
 // CRDT primitives
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { createVersionVector, vvMerge } from '../../../../src/domain/crdt/VersionVector.js';
-import { orsetCompact, orsetElements, orsetContains } from '../../../../src/domain/crdt/ORSet.js';
-import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 
 // ============================================================================
 // Test Utilities
@@ -264,7 +264,7 @@ function generatePatches(n, options = {}) {
     const patch = createPatch({
       writer,
       lamport,
-      context: /** @type {any} */ (createVersionVector()),
+      context: /** @type {any} */ (VersionVector.empty()),
       ops: /** @type {any[]} */ (ops),
     });
 
@@ -309,7 +309,7 @@ function generateV2Patches(n) {
       patch: createPatch({
         writer,
         lamport,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops,
       }),
       sha,
@@ -325,7 +325,7 @@ function generateV2Patches(n) {
  * @param {any[]} patches
  */
 function computeIncludedVV(patches) {
-  const vv = createVersionVector();
+  const vv = VersionVector.empty();
 
   for (const { patch } of patches) {
     for (const op of patch.ops) {
@@ -383,7 +383,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
       patch: createPatch({
         writer: 'A',
         lamport: 1,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [createNodeAddV2('x', createDot('A', 1))],
       }),
       sha: 'aaaa1111',
@@ -393,7 +393,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
       patch: createPatch({
         writer: 'B',
         lamport: 2,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [createNodeAddV2('y', createDot('B', 1))],
       }),
       sha: 'bbbb2222',
@@ -403,7 +403,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
       patch: createPatch({
         writer: 'C',
         lamport: 3,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [createEdgeAddV2('x', 'y', 'link', createDot('C', 1))],
       }),
       sha: 'cccc3333',
@@ -492,7 +492,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
 
     // Verify visible projections match at boundary
     const v4VisibleNodes = getVisibleNodes(v4State).sort();
-    const v5VisibleNodes = orsetElements(v5State.nodeAlive).sort();
+    const v5VisibleNodes = v5State.nodeAlive.elements().sort();
 
     expect(v5VisibleNodes).toEqual(v4VisibleNodes);
 
@@ -507,7 +507,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
         patch: createPatch({
           writer: 'charlie',
           lamport: 10,
-          context: /** @type {any} */ (createVersionVector()),
+          context: /** @type {any} */ (VersionVector.empty()),
           ops: [
             createNodeAddV2('user:charlie', createDot('charlie', 1)),
             createPropSetV2('user:charlie', 'name', createInlineValue('Charlie')),
@@ -519,7 +519,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
         patch: createPatch({
           writer: 'charlie',
           lamport: 11,
-          context: /** @type {any} */ (createVersionVector()),
+          context: /** @type {any} */ (VersionVector.empty()),
           ops: [
             createEdgeAddV2('user:charlie', 'user:alice', 'follows', createDot('charlie', 2)),
           ],
@@ -626,7 +626,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'A',
         lamport: 1,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [{ type: 'NodeAdd', node: 'X', dot: createDot('A', 1) }],
       }),
       sha: 'aaaa1234',
@@ -637,7 +637,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'B',
         lamport: 1,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [/** @type {any} */ ({ type: 'NodeRemove', observedDots: new Set() })],
       }),
       sha: 'bbbb1234',
@@ -661,7 +661,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'A',
         lamport: 1,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [createNodeAddV2('X', createDot('A', 1))],
       }),
       sha: 'aaaa1111',
@@ -672,7 +672,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'B',
         lamport: 1,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [createNodeAddV2('X', createDot('B', 1))],
       }),
       sha: 'bbbb1111',
@@ -683,7 +683,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'C',
         lamport: 2,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [/** @type {any} */ ({ type: 'NodeRemove', observedDots: new Set(['A:1']) })],
       }),
       sha: 'cccc1111',
@@ -716,7 +716,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'A',
         lamport: 1,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [createNodeAddV2('X', createDot('A', 1))],
       }),
       sha: 'aaaa1111',
@@ -727,7 +727,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'B',
         lamport: 2,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [/** @type {any} */ ({ type: 'NodeRemove', observedDots: new Set(['A:1']) })],
       }),
       sha: 'bbbb2222',
@@ -746,7 +746,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
         patch: createPatch({
           writer: 'setup',
           lamport: 1,
-          context: /** @type {any} */ (createVersionVector()),
+          context: /** @type {any} */ (VersionVector.empty()),
           ops: [
             createNodeAddV2('from', createDot('setup', 1)),
             createNodeAddV2('to', createDot('setup', 2)),
@@ -761,7 +761,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'A',
         lamport: 10,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [createEdgeAddV2('from', 'to', 'link', createDot('A', 1))],
       }),
       sha: 'edaa0011',
@@ -772,7 +772,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'B',
         lamport: 10,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [/** @type {any} */ ({ type: 'EdgeRemove', observedDots: new Set() })],
       }),
       sha: 'edbb0011',
@@ -803,8 +803,8 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
 
     // Create checkpoint with compaction
     const includedVV = computeIncludedVV(patches);
-    orsetCompact(state.nodeAlive, includedVV);
-    orsetCompact(state.edgeAlive, includedVV);
+    state.nodeAlive.compact(includedVV);
+    state.edgeAlive.compact(includedVV);
 
     // Hash must match - compaction didn't eat the graph
     const hashAfter = await computeStateHashV5(state, { crypto });
@@ -817,7 +817,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
       patch: createPatch({
         writer: 'A',
         lamport: 1,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [createNodeAddV2('x', createDot('A', 1))],
       }),
       sha: 'aaaa1111',
@@ -827,7 +827,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
       patch: createPatch({
         writer: 'A',
         lamport: 2,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [/** @type {any} */ ({ type: 'NodeRemove', observedDots: new Set(['A:1']) })],
       }),
       sha: 'bbbb2222',
@@ -839,9 +839,9 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     expect(nodeVisibleV5(state, 'x')).toBe(false);
 
     // Compaction should clean up
-    const vv = createVersionVector();
+    const vv = VersionVector.empty();
     vv.set('A', 2);
-    orsetCompact(state.nodeAlive, vv);
+    state.nodeAlive.compact(vv);
 
     // State should still have same visible projection (empty)
     expect(nodeVisibleV5(state, 'x')).toBe(false);
@@ -856,7 +856,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
       patch: createPatch({
         writer: 'A',
         lamport: 1,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [createNodeAddV2('live-node', createDot('A', 1))],
       }),
       sha: 'aaaa1111',
@@ -868,10 +868,10 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     expect(nodeVisibleV5(state, 'live-node')).toBe(true);
 
     // Compact with VV that includes the dot
-    const vv = createVersionVector();
+    const vv = VersionVector.empty();
     vv.set('A', 10); // Way past the dot
 
-    orsetCompact(state.nodeAlive, vv);
+    state.nodeAlive.compact(vv);
 
     // Node should STILL be visible - live dots are never compacted
     expect(nodeVisibleV5(state, 'live-node')).toBe(true);
@@ -890,13 +890,13 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     // Incremental with compaction between waves
     let state = reduceV5(wave1);
     let vv = computeIncludedVV(wave1);
-    orsetCompact(state.nodeAlive, vv);
-    orsetCompact(state.edgeAlive, vv);
+    state.nodeAlive.compact(vv);
+    state.edgeAlive.compact(vv);
 
     state = reduceV5(wave2, state);
-    vv = vvMerge(vv, computeIncludedVV(wave2));
-    orsetCompact(state.nodeAlive, vv);
-    orsetCompact(state.edgeAlive, vv);
+    vv = vv.merge(computeIncludedVV(wave2));
+    state.nodeAlive.compact(vv);
+    state.edgeAlive.compact(vv);
 
     state = reduceV5(wave3, state);
 
@@ -917,7 +917,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
         patch: createPatch({
           writer: 'base',
           lamport: 1,
-          context: /** @type {any} */ (createVersionVector()),
+          context: /** @type {any} */ (VersionVector.empty()),
           ops: [
             createNodeAddV2('root', createDot('base', 1)),
             createNodeAddV2('shared', createDot('base', 2)),
@@ -940,7 +940,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       patch: createPatch({
         writer: 'alice',
         lamport: 10,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [
           createNodeAddV2('alice-node', createDot('alice', 1)),
           createEdgeAddV2('root', 'alice-node', 'owns', createDot('alice', 2)),
@@ -955,7 +955,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       patch: createPatch({
         writer: 'bob',
         lamport: 10,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [
           createNodeAddV2('bob-node', createDot('bob', 1)),
           createEdgeAddV2('root', 'bob-node', 'owns', createDot('bob', 2)),
@@ -1002,7 +1002,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
         patch: createPatch({
           writer: 'base',
           lamport: 1,
-          context: /** @type {any} */ (createVersionVector()),
+          context: /** @type {any} */ (VersionVector.empty()),
           ops: [
             createNodeAddV2('target', createDot('base', 1)),
             createPropSetV2('target', 'value', createInlineValue('initial')),
@@ -1021,7 +1021,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       patch: createPatch({
         writer: 'alice',
         lamport: 5,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [createPropSetV2('target', 'value', createInlineValue('alice-value'))],
       }),
       sha: 'aaaa2222',
@@ -1031,7 +1031,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       patch: createPatch({
         writer: 'bob',
         lamport: 7, // Higher lamport - Bob wins
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [createPropSetV2('target', 'value', createInlineValue('bob-value'))],
       }),
       sha: 'bbbb3333',
@@ -1059,7 +1059,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
         patch: createPatch({
           writer: 'base',
           lamport: 1,
-          context: /** @type {any} */ (createVersionVector()),
+          context: /** @type {any} */ (VersionVector.empty()),
           ops: [createNodeAddV2('contested', createDot('base', 1))],
         }),
         sha: 'baaa4444',
@@ -1075,7 +1075,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       patch: createPatch({
         writer: 'alice',
         lamport: 10,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [/** @type {any} */ ({ type: 'NodeRemove', observedDots: new Set(['base:1']) })],
       }),
       sha: 'aaaa5555',
@@ -1086,7 +1086,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       patch: createPatch({
         writer: 'bob',
         lamport: 10,
-        context: /** @type {any} */ (createVersionVector()),
+        context: /** @type {any} */ (VersionVector.empty()),
         ops: [createNodeAddV2('contested', createDot('bob', 1))],
       }),
       sha: 'bbbb6666',
@@ -1202,7 +1202,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
         patch: createPatch({
           writer,
           lamport,
-          context: /** @type {any} */ (createVersionVector()),
+          context: /** @type {any} */ (VersionVector.empty()),
           ops,
         }),
         sha,
@@ -1258,7 +1258,7 @@ describe('Additional WARP v5 Integration Tests', () => {
         patch: createPatch({
           writer: 'A',
           lamport: 1,
-          context: /** @type {any} */ (createVersionVector()),
+          context: /** @type {any} */ (VersionVector.empty()),
           ops: [
             createNodeAddV2('x', createDot('A', 1)),
             createPropSetV2('x', 'color', createInlineValue('red')),
@@ -1271,7 +1271,7 @@ describe('Additional WARP v5 Integration Tests', () => {
         patch: createPatch({
           writer: 'B',
           lamport: 2, // Higher lamport wins
-          context: /** @type {any} */ (createVersionVector()),
+          context: /** @type {any} */ (VersionVector.empty()),
           ops: [createPropSetV2('x', 'color', createInlineValue('blue'))],
         }),
         sha: 'bbbb2222',
@@ -1295,7 +1295,7 @@ describe('Additional WARP v5 Integration Tests', () => {
         patch: createPatch({
           writer: 'A',
           lamport: 5,
-          context: /** @type {any} */ (createVersionVector()),
+          context: /** @type {any} */ (VersionVector.empty()),
           ops: [
             createNodeAddV2('x', createDot('A', 1)),
             createPropSetV2('x', 'val', createInlineValue('A-value')),
@@ -1308,7 +1308,7 @@ describe('Additional WARP v5 Integration Tests', () => {
         patch: createPatch({
           writer: 'B',
           lamport: 5, // Same lamport
-          context: /** @type {any} */ (createVersionVector()),
+          context: /** @type {any} */ (VersionVector.empty()),
           ops: [createPropSetV2('x', 'val', createInlineValue('B-value'))],
         }),
         sha: 'bbbb2222',
@@ -1329,7 +1329,7 @@ describe('Additional WARP v5 Integration Tests', () => {
           patch: createPatch({
             writer: 'W',
             lamport: 1,
-            context: /** @type {any} */ (createVersionVector()),
+            context: /** @type {any} */ (VersionVector.empty()),
             ops: [
               createNodeAddV2('a', createDot('W', 1)),
               createNodeAddV2('b', createDot('W', 2)),
@@ -1342,7 +1342,7 @@ describe('Additional WARP v5 Integration Tests', () => {
           patch: createPatch({
             writer: 'W',
             lamport: 2,
-            context: /** @type {any} */ (createVersionVector()),
+            context: /** @type {any} */ (VersionVector.empty()),
             ops: [/** @type {any} */ ({ type: 'NodeRemove', observedDots: new Set(['W:1']) })], // Remove 'a'
           }),
           sha: 'aaa22222',
@@ -1360,17 +1360,17 @@ describe('Additional WARP v5 Integration Tests', () => {
       expect(edgeVisibleV5(state, edgeKey)).toBe(false);
 
       // But the edge is still in the ORSet (just invisible due to endpoint)
-      expect(orsetContains(state.edgeAlive, edgeKey)).toBe(true);
+      expect(state.edgeAlive.contains(edgeKey)).toBe(true);
     });
   });
 
   describe('Version vector tracking', () => {
     it('observed frontier accumulates context from all patches', () => {
-      const ctx1 = createVersionVector();
+      const ctx1 = VersionVector.empty();
       ctx1.set('X', 5);
       ctx1.set('Y', 3);
 
-      const ctx2 = createVersionVector();
+      const ctx2 = VersionVector.empty();
       ctx2.set('Y', 7); // Higher Y
       ctx2.set('Z', 2); // New writer
 

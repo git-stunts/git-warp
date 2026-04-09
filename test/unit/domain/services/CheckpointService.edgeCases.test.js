@@ -35,13 +35,8 @@ import {
   encodeCheckpointMessage,
   decodeCheckpointMessage,
 } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
-import {
-  orsetAdd,
-  orsetRemove,
-  orsetContains,
-  orsetElements,
-} from '../../../../src/domain/crdt/ORSet.js';
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { ProvenanceIndex } from '../../../../src/domain/services/provenance/ProvenanceIndex.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
@@ -109,7 +104,7 @@ describe('CheckpointService edge cases', () => {
     it('accepts schema:3 checkpoints', async () => {
       const state = createEmptyStateV5();
       const dot = createDot('w1', 1);
-      orsetAdd(state.nodeAlive, 'x', dot);
+      state.nodeAlive.add('x', dot);
 
       const frontier = createFrontier();
       updateFrontier(frontier, 'w1', makeOid('sha1'));
@@ -223,8 +218,8 @@ describe('CheckpointService edge cases', () => {
       );
 
       expect(loaded.schema).toBe(CHECKPOINT_SCHEMA_STANDARD);
-      expect(orsetElements(loaded.state.nodeAlive)).toHaveLength(0);
-      expect(orsetElements(loaded.state.edgeAlive)).toHaveLength(0);
+      expect(loaded.state.nodeAlive.elements()).toHaveLength(0);
+      expect(loaded.state.edgeAlive.elements()).toHaveLength(0);
       expect(loaded.state.prop.size).toBe(0);
       expect(loaded.frontier.size).toBe(0);
     });
@@ -237,14 +232,14 @@ describe('CheckpointService edge cases', () => {
   describe('deserializeFullStateV5 edge cases', () => {
     it('returns empty state for null buffer', () => {
       const state = deserializeFullStateV5(/** @type {any} */ (null));
-      expect(orsetElements(state.nodeAlive)).toHaveLength(0);
-      expect(orsetElements(state.edgeAlive)).toHaveLength(0);
+      expect(state.nodeAlive.elements()).toHaveLength(0);
+      expect(state.edgeAlive.elements()).toHaveLength(0);
       expect(state.prop.size).toBe(0);
     });
 
     it('returns empty state for undefined buffer', () => {
       const state = deserializeFullStateV5(/** @type {any} */ (undefined));
-      expect(orsetElements(state.nodeAlive)).toHaveLength(0);
+      expect(state.nodeAlive.elements()).toHaveLength(0);
     });
 
     it('throws for wrong version string', () => {
@@ -268,7 +263,7 @@ describe('CheckpointService edge cases', () => {
   describe('missing appliedVV.cbor', () => {
     it('returns null appliedVV when blob is absent', async () => {
       const state = createEmptyStateV5();
-      orsetAdd(state.nodeAlive, 'a', createDot('w1', 1));
+      state.nodeAlive.add('a', createDot('w1', 1));
 
       const stateBuffer = serializeFullStateV5(state);
       const frontierBuffer = serializeFrontier(createFrontier());
@@ -317,7 +312,7 @@ describe('CheckpointService edge cases', () => {
     it('returns checkpoint state when target frontier matches checkpoint', async () => {
       const state = createEmptyStateV5();
       const dot = createDot('w1', 1);
-      orsetAdd(state.nodeAlive, 'x', dot);
+      state.nodeAlive.add('x', dot);
 
       const frontier = createFrontier();
       updateFrontier(frontier, 'w1', makeOid('sha1'));
@@ -368,13 +363,13 @@ describe('CheckpointService edge cases', () => {
       });
 
       // Should return the checkpoint state unchanged
-      expect(orsetContains(result.nodeAlive, 'x')).toBe(true);
+      expect(result.nodeAlive.contains('x')).toBe(true);
       expect(patchLoader).toHaveBeenCalledTimes(1);
     });
 
     it('returns checkpoint state when target frontier is empty', async () => {
       const state = createEmptyStateV5();
-      orsetAdd(state.nodeAlive, 'y', createDot('w1', 1));
+      state.nodeAlive.add('y', createDot('w1', 1));
 
       const frontier = createFrontier();
       updateFrontier(frontier, 'w1', makeOid('sha1'));
@@ -425,12 +420,12 @@ describe('CheckpointService edge cases', () => {
       });
 
       // No patches loaded, returns checkpoint state as-is
-      expect(orsetContains(result.nodeAlive, 'y')).toBe(true);
+      expect(result.nodeAlive.contains('y')).toBe(true);
     });
 
     it('applies newly loaded patches on top of checkpoint state', async () => {
       const state = createEmptyStateV5();
-      orsetAdd(state.nodeAlive, 'base', createDot('w1', 1));
+      state.nodeAlive.add('base', createDot('w1', 1));
 
       const checkpointFrontier = createFrontier();
       updateFrontier(checkpointFrontier, 'w1', makeOid('sha1'));
@@ -498,8 +493,8 @@ describe('CheckpointService edge cases', () => {
         patchLoader,
       });
 
-      expect(orsetContains(result.nodeAlive, 'base')).toBe(true);
-      expect(orsetContains(result.nodeAlive, 'new-node')).toBe(true);
+      expect(result.nodeAlive.contains('base')).toBe(true);
+      expect(result.nodeAlive.contains('new-node')).toBe(true);
       expect(patchLoader).toHaveBeenCalledWith('w1', makeOid('sha1'), makeOid('sha1'));
       expect(patchLoader).toHaveBeenCalledWith('w2', null, makeOid('sha2'));
     });
@@ -517,9 +512,9 @@ describe('CheckpointService edge cases', () => {
         props: [],
       });
 
-      expect(orsetContains(state.nodeAlive, 'isolated1')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'isolated2')).toBe(true);
-      expect(orsetElements(state.edgeAlive)).toHaveLength(0);
+      expect(state.nodeAlive.contains('isolated1')).toBe(true);
+      expect(state.nodeAlive.contains('isolated2')).toBe(true);
+      expect(state.edgeAlive.elements()).toHaveLength(0);
     });
 
     it('handles nodes with properties but no edges', () => {
@@ -529,7 +524,7 @@ describe('CheckpointService edge cases', () => {
         props: [{ node: 'solo', key: 'name', value: 'alone' }],
       });
 
-      expect(orsetContains(state.nodeAlive, 'solo')).toBe(true);
+      expect(state.nodeAlive.contains('solo')).toBe(true);
       const propKey = encodePropKeyV5('solo', 'name');
       expect(state.prop.has(propKey)).toBe(true);
       expect(/** @type {any} */ (state.prop.get(propKey)).value).toBe('alone');
@@ -618,8 +613,8 @@ describe('CheckpointService edge cases', () => {
       });
 
       const restored = deserializeFullStateV5(capturedStateBuffer);
-      expect(orsetElements(restored.nodeAlive)).toHaveLength(0);
-      expect(orsetElements(restored.edgeAlive)).toHaveLength(0);
+      expect(restored.nodeAlive.elements()).toHaveLength(0);
+      expect(restored.edgeAlive.elements()).toHaveLength(0);
       expect(restored.nodeAlive.tombstones.size).toBe(0);
       expect(restored.edgeAlive.tombstones.size).toBe(0);
     });
@@ -634,10 +629,10 @@ describe('CheckpointService edge cases', () => {
       const state = createEmptyStateV5();
       const dot1 = createDot('w1', 1);
       const dot2 = createDot('w1', 2);
-      orsetAdd(state.nodeAlive, 'gone1', dot1);
-      orsetAdd(state.nodeAlive, 'gone2', dot2);
-      orsetRemove(state.nodeAlive, new Set([encodeDot(dot1)]));
-      orsetRemove(state.nodeAlive, new Set([encodeDot(dot2)]));
+      state.nodeAlive.add('gone1', dot1);
+      state.nodeAlive.add('gone2', dot2);
+      state.nodeAlive.remove(new Set([encodeDot(dot1)]));
+      state.nodeAlive.remove(new Set([encodeDot(dot2)]));
 
       const frontier = createFrontier();
       updateFrontier(frontier, 'w1', makeOid('sha1'));
@@ -668,7 +663,7 @@ describe('CheckpointService edge cases', () => {
 
       const restored = deserializeFullStateV5(capturedStateBuffer);
       // After compaction, all tombstoned entries should be removed
-      expect(orsetElements(restored.nodeAlive)).toHaveLength(0);
+      expect(restored.nodeAlive.elements()).toHaveLength(0);
       expect(restored.nodeAlive.entries.size).toBe(0);
       expect(restored.nodeAlive.tombstones.size).toBe(0);
     });
@@ -717,7 +712,7 @@ describe('CheckpointService edge cases', () => {
   describe('provenanceIndex absent', () => {
     it('returns undefined provenanceIndex when blob is absent', async () => {
       const state = createEmptyStateV5();
-      orsetAdd(state.nodeAlive, 'a', createDot('w1', 1));
+      state.nodeAlive.add('a', createDot('w1', 1));
 
       const stateBuffer = serializeFullStateV5(state);
       const frontierBuffer = serializeFrontier(createFrontier());
@@ -765,7 +760,7 @@ describe('CheckpointService edge cases', () => {
   describe('provenanceIndex present', () => {
     it('loads provenanceIndex from checkpoint tree when blob is present', async () => {
       const state = createEmptyStateV5();
-      orsetAdd(state.nodeAlive, 'a', createDot('w1', 1));
+      state.nodeAlive.add('a', createDot('w1', 1));
 
       const provenanceIndex = new ProvenanceIndex();
       provenanceIndex.addPatch(makeOid('patch1'), ['a'], ['a']);
@@ -822,7 +817,7 @@ describe('CheckpointService edge cases', () => {
   describe('createV5 with checkpointStore and provenance index', () => {
     it('computes stateHash for checkpointStore when no stateHashService is provided', async () => {
       const state = createEmptyStateV5();
-      orsetAdd(state.nodeAlive, 'n', createDot('w1', 1));
+      state.nodeAlive.add('n', createDot('w1', 1));
       const frontier = createFrontier();
       const checkpointStore = {
         writeCheckpoint: vi.fn(async () => ({
@@ -852,7 +847,7 @@ describe('CheckpointService edge cases', () => {
 
     it('writes provenanceIndex blob in the legacy checkpoint path', async () => {
       const state = createEmptyStateV5();
-      orsetAdd(state.nodeAlive, 'n', createDot('w1', 1));
+      state.nodeAlive.add('n', createDot('w1', 1));
       const frontier = createFrontier();
       const provenanceIndex = new ProvenanceIndex();
       provenanceIndex.addPatch(makeOid('patch1'), ['n'], ['n']);

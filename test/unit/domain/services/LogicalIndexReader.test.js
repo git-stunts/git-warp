@@ -2,14 +2,14 @@ import { describe, it, expect, vi } from 'vitest';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
 import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
-import WarpStream from '../../../../src/domain/stream/WarpStream.js';
+import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import {
   makeFixture,
   F7_MULTILABEL_SAME_NEIGHBOR,
   F10_PROTO_POLLUTION,
 } from '../../../helpers/fixtureDsl.js';
 import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 

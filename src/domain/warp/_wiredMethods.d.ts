@@ -6,7 +6,7 @@
  */
 
 import type { PatchBuilder } from '../services/PatchBuilder.js';
-import type { Writer } from './Writer.js';
+import type { Writer } from './Writer.ts';
 import type { WarpStateV5 } from '../services/JoinReducer.js';
 import type Patch from '../types/Patch.js';
 import type { StateDiffResult } from '../services/StateDiff.js';
@@ -643,7 +643,7 @@ declare module '../WarpRuntime.js' {
     discoverWriters(): Promise<string[]>;
     discoverTicks(): Promise<{ ticks: number[]; maxTick: number; perWriter: Map<string, { ticks: number[]; tipSha: string | null; tickShas: Record<number, string> }> }>;
     join(otherState: WarpStateV5): { state: WarpStateV5; receipt: JoinReceipt };
-    _frontierEquals(a: import('../crdt/VersionVector.js').default, b: import('../crdt/VersionVector.js').default): boolean;
+    _frontierEquals(a: import('../crdt/VersionVector.ts').default, b: import('../crdt/VersionVector.ts').default): boolean;
 
     // ── MaterializeController ─────────────────────────────────────────────
     materialize(options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;

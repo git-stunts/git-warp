@@ -43,7 +43,7 @@ import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 import SyncError from '../../errors/SyncError.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
 import { cloneFrontier, updateFrontier } from '../Frontier.js';
-import VersionVector from '../../crdt/VersionVector.js';
+import VersionVector from '../../crdt/VersionVector.ts';
 
 /**
  * A decoded patch object after CBOR deserialization.

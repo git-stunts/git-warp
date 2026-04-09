@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import GraphNode_ from '../../../../src/domain/entities/GraphNode.js';
+import GraphNode_ from '../../../../src/domain/entities/GraphNode.ts';
 
 /** @type {any} */
 const GraphNode = GraphNode_;

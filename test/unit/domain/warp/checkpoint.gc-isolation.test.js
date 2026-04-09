@@ -10,8 +10,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import CheckpointController from '../../../../src/domain/services/controllers/CheckpointController.js';
 import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
-import { orsetAdd, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
 import * as GCPolicy from '../../../../src/domain/services/GCPolicy.js';
 
@@ -27,10 +27,10 @@ function createMockHost(overrides = {}) {
   // Add a live node and a dead node with tombstone
   const dot1 = createDot('w1', 1);
   const dot2 = createDot('w1', 2);
-  orsetAdd(state.nodeAlive, 'live-node', dot1);
-  orsetAdd(state.nodeAlive, 'dead-node', dot2);
+  state.nodeAlive.add('live-node', dot1);
+  state.nodeAlive.add('dead-node', dot2);
   // Tombstone the dead node (adds its dot to tombstones set)
-  orsetRemove(state.nodeAlive, new Set([encodeDot(dot2)]));
+  state.nodeAlive.remove(new Set([encodeDot(dot2)]));
 
   return {
     _cachedState: state,

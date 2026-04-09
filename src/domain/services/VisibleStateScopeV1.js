@@ -1,5 +1,5 @@
 import QueryError from '../errors/QueryError.ts';
-import { createORSet, orsetContains } from '../crdt/ORSet.js';
+import ORSet from '../crdt/ORSet.ts';
 import WarpStateV5 from './state/WarpStateV5.js';
 import { normalizeRawOp } from './OpNormalizer.js';
 import {
@@ -243,10 +243,10 @@ function edgeInVisibleStateScope(edge, scope) {
  * @param {Map<string, Set<string>>} sourceEntries
  * @param {(element: string) => boolean} includeElement
  * @param {Set<string>} tombstones
- * @returns {import('../crdt/ORSet.js').default}
+ * @returns {import('../crdt/ORSet.ts').default}
  */
 function cloneScopedOrSet(sourceEntries, includeElement, tombstones) {
-  const scoped = createORSet();
+  const scoped = ORSet.empty();
   scoped.tombstones = new Set(tombstones);
   for (const [element, dots] of sourceEntries.entries()) {
     if (includeElement(element)) {
@@ -267,7 +267,7 @@ function collectScopedNodeIds(state, scope) {
   /** @type {Set<string>} */
   const scopedNodeIds = new Set();
   for (const nodeId of state.nodeAlive.entries.keys()) {
-    if (orsetContains(state.nodeAlive, nodeId) && nodeIdInVisibleStateScope(nodeId, scope)) {
+    if (state.nodeAlive.contains(nodeId) && nodeIdInVisibleStateScope(nodeId, scope)) {
       scopedNodeIds.add(nodeId);
     }
   }
@@ -285,7 +285,7 @@ function collectScopedEdgeKeys(state, scopedNodeIds) {
   /** @type {Set<string>} */
   const scopedEdgeKeys = new Set();
   for (const edgeKey of state.edgeAlive.entries.keys()) {
-    if (!orsetContains(state.edgeAlive, edgeKey)) {
+    if (!state.edgeAlive.contains(edgeKey)) {
       continue;
     }
     const edge = decodeEdgeKey(edgeKey);
@@ -302,10 +302,10 @@ function collectScopedEdgeKeys(state, scopedNodeIds) {
  * @param {WarpStateV5} state
  * @param {Set<string>} scopedNodeIds
  * @param {Set<string>} scopedEdgeKeys
- * @returns {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>}
+ * @returns {Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>>}
  */
 function collectScopedProps(state, scopedNodeIds, scopedEdgeKeys) {
-  /** @type {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} */
+  /** @type {Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>>} */
   const scopedProps = new Map();
   for (const [propKey, register] of state.prop.entries()) {
     if (isEdgePropKey(propKey)) {

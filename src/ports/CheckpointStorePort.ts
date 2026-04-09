@@ -1,5 +1,5 @@
 import type WarpStateV5 from '../domain/services/state/WarpStateV5.js';
-import type VersionVector from '../domain/crdt/VersionVector.js';
+import type VersionVector from '../domain/crdt/VersionVector.ts';
 import type { ProvenanceIndex } from '../domain/services/provenance/ProvenanceIndex.js';
 
 /**

@@ -121,15 +121,15 @@ describe('V7 Contract Guards', () => {
         reason: 'Main WARP API',
       },
       {
-        path: 'domain/crdt/ORSet.js',
+        path: 'domain/crdt/ORSet.ts',
         reason: 'OR-Set CRDT implementation',
       },
       {
-        path: 'domain/crdt/VersionVector.js',
+        path: 'domain/crdt/VersionVector.ts',
         reason: 'Version vector for causality',
       },
       {
-        path: 'domain/crdt/Dot.js',
+        path: 'domain/crdt/Dot.ts',
         reason: 'Dot notation for unique events',
       },
       {

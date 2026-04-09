@@ -1,7 +1,7 @@
 import CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
-import { orsetSerialize, orsetDeserialize } from '../../domain/crdt/ORSet.js';
-import VersionVector, { vvSerialize } from '../../domain/crdt/VersionVector.js';
+import ORSet from '../../domain/crdt/ORSet.ts';
+import VersionVector from '../../domain/crdt/VersionVector.ts';
 import { createEmptyStateV5 } from '../../domain/services/JoinReducer.js';
 import WarpStateV5 from '../../domain/services/state/WarpStateV5.js';
 import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceIndex.js';
@@ -155,10 +155,10 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
   _encodeFullState(state) {
     return this._codec.encode({
       version: 'full-v5',
-      nodeAlive: orsetSerialize(state.nodeAlive),
-      edgeAlive: orsetSerialize(state.edgeAlive),
+      nodeAlive: state.nodeAlive.serialize(),
+      edgeAlive: state.edgeAlive.serialize(),
       prop: _serializePropsArray(state.prop),
-      observedFrontier: vvSerialize(state.observedFrontier),
+      observedFrontier: VersionVector.serialize(state.observedFrontier),
       edgeBirthEvent: _serializeEdgeBirthArray(state.edgeBirthEvent),
     });
   }
@@ -185,7 +185,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
    * @returns {Uint8Array}
    */
   _encodeAppliedVV(vv) {
-    return this._codec.encode(vvSerialize(vv));
+    return this._codec.encode(VersionVector.serialize(vv));
   }
 
   // ── Decode Helpers ──────────────────────────────────────────────────
@@ -211,8 +211,8 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
       );
     }
     return new WarpStateV5({
-      nodeAlive: orsetDeserialize(obj['nodeAlive'] ?? {}),
-      edgeAlive: orsetDeserialize(obj['edgeAlive'] ?? {}),
+      nodeAlive: ORSet.deserialize(obj['nodeAlive'] ?? {}),
+      edgeAlive: ORSet.deserialize(obj['edgeAlive'] ?? {}),
       prop: _deserializeProps(/** @type {[string, unknown][]} */ (obj['prop'])),
       observedFrontier: VersionVector.from(
         /** @type {{ [x: string]: number }} */ (obj['observedFrontier'] ?? {}),
@@ -254,7 +254,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
 /**
  * Serializes the props Map into a sorted array.
  *
- * @param {Map<string, import('../../domain/crdt/LWW.js').LWWRegister<unknown>>} propMap
+ * @param {Map<string, import('../../domain/crdt/LWW.ts').LWWRegister<unknown>>} propMap
  * @returns {Array<[string, unknown]>}
  */
 function _serializePropsArray(propMap) {
@@ -292,10 +292,10 @@ function _serializeEdgeBirthArray(edgeBirthEvent) {
  * Deserializes props array.
  *
  * @param {Array<[string, unknown]>} propArray
- * @returns {Map<string, import('../../domain/crdt/LWW.js').LWWRegister<unknown>>}
+ * @returns {Map<string, import('../../domain/crdt/LWW.ts').LWWRegister<unknown>>}
  */
 function _deserializeProps(propArray) {
-  /** @type {Map<string, import('../../domain/crdt/LWW.js').LWWRegister<unknown>>} */
+  /** @type {Map<string, import('../../domain/crdt/LWW.ts').LWWRegister<unknown>>} */
   const prop = new Map();
   if (!Array.isArray(propArray)) { return prop; }
   for (const [key, registerObj] of propArray) {
@@ -333,7 +333,7 @@ function _deserializeEdgeBirthEvent(obj) {
 /**
  * Serializes an LWW register.
  *
- * @param {import('../../domain/crdt/LWW.js').LWWRegister<unknown>} register
+ * @param {import('../../domain/crdt/LWW.ts').LWWRegister<unknown>} register
  * @returns {{ eventId: { lamport: number, opIndex: number, patchSha: string, writerId: string }, value: unknown } | null}
  */
 function _serializeLWWRegister(register) {
@@ -351,7 +351,7 @@ function _serializeLWWRegister(register) {
  * Deserializes an LWW register.
  *
  * @param {{ eventId: { lamport: number, writerId: string, patchSha: string, opIndex: number }, value: unknown } | null} obj
- * @returns {import('../../domain/crdt/LWW.js').LWWRegister<unknown> | null}
+ * @returns {import('../../domain/crdt/LWW.ts').LWWRegister<unknown> | null}
  */
 function _deserializeLWWRegister(obj) {
   if (obj === null || obj === undefined) { return null; }

@@ -8,12 +8,11 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PatchController from '../../../../../src/domain/services/controllers/PatchController.js';
-import { createVersionVector } from '../../../../../src/domain/crdt/VersionVector.js';
-import VersionVector from '../../../../../src/domain/crdt/VersionVector.js';
+import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import WarpStateV5 from '../../../../../src/domain/services/state/WarpStateV5.js';
-import { createORSet, orsetAdd } from '../../../../../src/domain/crdt/ORSet.js';
-import { createDot } from '../../../../../src/domain/crdt/Dot.js';
-import { QueryError } from '../../../../../src/domain/warp/_internal.js';
+import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
+import { createDot } from '../../../../../src/domain/crdt/Dot.ts';
+import { QueryError } from '../../../../../src/domain/warp/_internal.ts';
 import EncryptionError from '../../../../../src/domain/errors/EncryptionError.ts';
 import PersistenceError from '../../../../../src/domain/errors/PersistenceError.ts';
 
@@ -86,7 +85,7 @@ function createMockHost(overrides = {}) {
     _codec: { decode: vi.fn() },
     _clock: { now: vi.fn(() => 1000) },
     _maxObservedLamport: 0,
-    _versionVector: createVersionVector(),
+    _versionVector: VersionVector.empty(),
     _blobStorage: null,
     _effectSink: null,
     _logger: null,
@@ -140,7 +139,7 @@ function createMockPersistence() {
  */
 function createStateWithNode(nodeId = 'n1') {
   const state = WarpStateV5.empty();
-  orsetAdd(state.nodeAlive, nodeId, createDot('alice', 1));
+  state.nodeAlive.add(nodeId, createDot('alice', 1));
   return state;
 }
 
@@ -449,7 +448,7 @@ describe('PatchController', () => {
 
   describe('_onPatchCommitted()', () => {
     it('increments version vector for the writer', async () => {
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
       host._versionVector = vv;
 
       await ctrl._onPatchCommitted('alice', {});
@@ -1016,13 +1015,13 @@ describe('PatchController', () => {
       host._versionVector = localState.observedFrontier.clone();
 
       const remoteState = WarpStateV5.empty();
-      orsetAdd(remoteState.nodeAlive, 'n2', createDot('bob', 1));
+      remoteState.nodeAlive.add('n2', createDot('bob', 1));
       remoteState.observedFrontier.increment('bob');
 
       // joinStates returns the merged state
       const merged = WarpStateV5.empty();
-      orsetAdd(merged.nodeAlive, 'n1', createDot('alice', 1));
-      orsetAdd(merged.nodeAlive, 'n2', createDot('bob', 1));
+      merged.nodeAlive.add('n1', createDot('alice', 1));
+      merged.nodeAlive.add('n2', createDot('bob', 1));
       merged.observedFrontier.increment('alice');
       merged.observedFrontier.increment('bob');
       joinStatesMock.mockReturnValue(merged);

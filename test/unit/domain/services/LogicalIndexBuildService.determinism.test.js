@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
 import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.js';
-import { LabelShard } from '../../../../src/domain/artifacts/LabelShard.js';
-import { EdgeShard } from '../../../../src/domain/artifacts/EdgeShard.js';
+import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.ts';
+import { LabelShard } from '../../../../src/domain/artifacts/LabelShard.ts';
+import { EdgeShard } from '../../../../src/domain/artifacts/EdgeShard.ts';
 
 /**
  * Helper: builds a WarpStateV5 from nodes and edges, applying ops in the

@@ -12,7 +12,6 @@
 import TraversalError from '../../errors/TraversalError.ts';
 import GraphTraversal from './GraphTraversal.js';
 import AdjacencyNeighborProvider from './AdjacencyNeighborProvider.js';
-import { orsetElements } from '../../crdt/ORSet.js';
 
 const DEFAULT_MAX_DEPTH = 1000;
 
@@ -112,7 +111,7 @@ export default class LogicalTraversal {
     // Private access: _materializeGraph is a WarpRuntime internal.
     // This coupling will be removed when the LogicalTraversal facade is sunset
     // and callers migrate to GraphTraversal + NeighborProvider directly.
-    const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: {nodeAlive: import('../../crdt/ORSet.js').default}, adjacency: {outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>}}> }} */ (this._graph)._materializeGraph();
+    const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: {nodeAlive: import('../../crdt/ORSet.ts').default}, adjacency: {outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>}}> }} */ (this._graph)._materializeGraph();
 
     const direction = assertDirection(dir);
     const labelSet = normalizeLabelFilter(labelFilter);
@@ -122,7 +121,7 @@ export default class LogicalTraversal {
     const provider = new AdjacencyNeighborProvider({
       outgoing: adjacency.outgoing,
       incoming: adjacency.incoming,
-      aliveNodes: new Set(orsetElements(state.nodeAlive)),
+      aliveNodes: new Set(state.nodeAlive.elements()),
     });
     const engine = new GraphTraversal({ provider });
 

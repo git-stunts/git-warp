@@ -1,6 +1,6 @@
 import type Patch from '../domain/types/Patch.ts';
-import type WarpStream from '../domain/stream/WarpStream.js';
-import type PatchEntry from '../domain/artifacts/PatchEntry.js';
+import type WarpStream from '../domain/stream/WarpStream.ts';
+import type PatchEntry from '../domain/artifacts/PatchEntry.ts';
 
 /**
  * Port for patch journal persistence.

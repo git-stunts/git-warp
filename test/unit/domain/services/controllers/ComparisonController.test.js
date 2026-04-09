@@ -8,9 +8,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ComparisonController from '../../../../../src/domain/services/controllers/ComparisonController.js';
 import WarpStateV5 from '../../../../../src/domain/services/state/WarpStateV5.js';
-import ORSet from '../../../../../src/domain/crdt/ORSet.js';
-import VersionVector from '../../../../../src/domain/crdt/VersionVector.js';
-import { Dot } from '../../../../../src/domain/crdt/Dot.js';
+import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
+import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
+import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 import { encodeEdgeKey, encodePropKey, encodeEdgePropKey } from '../../../../../src/domain/services/KeyCodec.js';
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────

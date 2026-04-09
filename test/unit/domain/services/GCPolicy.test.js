@@ -12,9 +12,9 @@ import {
   countTombstones,
 } from '../../../../src/domain/services/GCMetrics.js';
 import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
-import { orsetAdd, orsetRemove, orsetContains } from '../../../../src/domain/crdt/ORSet.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 
 describe('GCPolicy', () => {
   describe('DEFAULT_GC_POLICY', () => {
@@ -138,21 +138,21 @@ describe('GCPolicy', () => {
       const dot2 = createDot('A', 2);
       const dot3 = createDot('B', 1);
 
-      orsetAdd(state.nodeAlive, 'node1', dot1);
-      orsetAdd(state.nodeAlive, 'node2', dot2);
-      orsetAdd(state.nodeAlive, 'node3', dot3);
+      state.nodeAlive.add('node1', dot1);
+      state.nodeAlive.add('node2', dot2);
+      state.nodeAlive.add('node3', dot3);
 
       // Tombstone node1 and node2
-      orsetRemove(state.nodeAlive, new Set([encodeDot(dot1)]));
-      orsetRemove(state.nodeAlive, new Set([encodeDot(dot2)]));
+      state.nodeAlive.remove(new Set([encodeDot(dot1)]));
+      state.nodeAlive.remove(new Set([encodeDot(dot2)]));
 
       // Verify setup
-      expect(orsetContains(state.nodeAlive, 'node1')).toBe(false);
-      expect(orsetContains(state.nodeAlive, 'node2')).toBe(false);
-      expect(orsetContains(state.nodeAlive, 'node3')).toBe(true);
+      expect(state.nodeAlive.contains('node1')).toBe(false);
+      expect(state.nodeAlive.contains('node2')).toBe(false);
+      expect(state.nodeAlive.contains('node3')).toBe(true);
 
       // Create VV that includes A:1 but not A:2
-      const appliedVV = createVersionVector();
+      const appliedVV = VersionVector.empty();
       appliedVV.set('A', 1);
 
       const result = executeGC(state, appliedVV);
@@ -168,7 +168,7 @@ describe('GCPolicy', () => {
       // node2 entry should still exist with tombstoned dot
       expect(state.nodeAlive.entries.has('node2')).toBe(true);
       // node3 should still be alive
-      expect(orsetContains(state.nodeAlive, 'node3')).toBe(true);
+      expect(state.nodeAlive.contains('node3')).toBe(true);
     });
 
     it('preserves live dots even if <= appliedVV', () => {
@@ -178,13 +178,13 @@ describe('GCPolicy', () => {
       const dot1 = createDot('A', 1);
       const dot2 = createDot('A', 2);
 
-      orsetAdd(state.nodeAlive, 'node1', dot1);
-      orsetAdd(state.nodeAlive, 'node2', dot2);
+      state.nodeAlive.add('node1', dot1);
+      state.nodeAlive.add('node2', dot2);
 
       // Don't tombstone anything - both are live
 
       // Create VV that includes both dots
-      const appliedVV = createVersionVector();
+      const appliedVV = VersionVector.empty();
       appliedVV.set('A', 5);
 
       const result = executeGC(state, appliedVV);
@@ -194,8 +194,8 @@ describe('GCPolicy', () => {
       expect(result.tombstonesRemoved).toBe(0);
 
       // Both nodes should still be alive
-      expect(orsetContains(state.nodeAlive, 'node1')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'node2')).toBe(true);
+      expect(state.nodeAlive.contains('node1')).toBe(true);
+      expect(state.nodeAlive.contains('node2')).toBe(true);
     });
 
     it('returns accurate stats for edges', () => {
@@ -205,14 +205,14 @@ describe('GCPolicy', () => {
       const dot1 = createDot('A', 1);
       const dot2 = createDot('A', 2);
 
-      orsetAdd(state.edgeAlive, 'edge1', dot1);
-      orsetAdd(state.edgeAlive, 'edge2', dot2);
+      state.edgeAlive.add('edge1', dot1);
+      state.edgeAlive.add('edge2', dot2);
 
       // Tombstone edge1
-      orsetRemove(state.edgeAlive, new Set([encodeDot(dot1)]));
+      state.edgeAlive.remove(new Set([encodeDot(dot1)]));
 
       // VV includes A:1
-      const appliedVV = createVersionVector();
+      const appliedVV = VersionVector.empty();
       appliedVV.set('A', 1);
 
       const result = executeGC(state, appliedVV);
@@ -243,15 +243,15 @@ describe('GCPolicy', () => {
       const dot1 = createDot('A', 1);
       const dot2 = createDot('A', 2);
 
-      orsetAdd(state.nodeAlive, 'node1', dot1);
-      orsetAdd(state.edgeAlive, 'edge1', dot2);
+      state.nodeAlive.add('node1', dot1);
+      state.edgeAlive.add('edge1', dot2);
 
       // Tombstone both
-      orsetRemove(state.nodeAlive, new Set([encodeDot(dot1)]));
-      orsetRemove(state.edgeAlive, new Set([encodeDot(dot2)]));
+      state.nodeAlive.remove(new Set([encodeDot(dot1)]));
+      state.edgeAlive.remove(new Set([encodeDot(dot2)]));
 
       // VV includes both
-      const appliedVV = createVersionVector();
+      const appliedVV = VersionVector.empty();
       appliedVV.set('A', 5);
 
       const result = executeGC(state, appliedVV);
@@ -268,9 +268,9 @@ describe('GCMetrics', () => {
     it('counts total dots across all elements', () => {
       const state = createEmptyStateV5();
 
-      orsetAdd(state.nodeAlive, 'node1', createDot('A', 1));
-      orsetAdd(state.nodeAlive, 'node1', createDot('B', 1)); // Same node, different dot
-      orsetAdd(state.nodeAlive, 'node2', createDot('A', 2));
+      state.nodeAlive.add('node1', createDot('A', 1));
+      state.nodeAlive.add('node1', createDot('B', 1)); // Same node, different dot
+      state.nodeAlive.add('node2', createDot('A', 2));
 
       expect(countEntries(state.nodeAlive)).toBe(3);
     });
@@ -289,12 +289,12 @@ describe('GCMetrics', () => {
       const dot2 = createDot('A', 2);
       const dot3 = createDot('A', 3);
 
-      orsetAdd(state.nodeAlive, 'node1', dot1);
-      orsetAdd(state.nodeAlive, 'node2', dot2);
-      orsetAdd(state.nodeAlive, 'node3', dot3);
+      state.nodeAlive.add('node1', dot1);
+      state.nodeAlive.add('node2', dot2);
+      state.nodeAlive.add('node3', dot3);
 
       // Tombstone one
-      orsetRemove(state.nodeAlive, new Set([encodeDot(dot2)]));
+      state.nodeAlive.remove(new Set([encodeDot(dot2)]));
 
       expect(countLiveDots(state.nodeAlive)).toBe(2);
     });
@@ -307,11 +307,11 @@ describe('GCMetrics', () => {
       const dot1 = createDot('A', 1);
       const dot2 = createDot('A', 2);
 
-      orsetAdd(state.nodeAlive, 'node1', dot1);
-      orsetAdd(state.nodeAlive, 'node2', dot2);
+      state.nodeAlive.add('node1', dot1);
+      state.nodeAlive.add('node2', dot2);
 
       // Tombstone one
-      orsetRemove(state.nodeAlive, new Set([encodeDot(dot1)]));
+      state.nodeAlive.remove(new Set([encodeDot(dot1)]));
 
       expect(countTombstones(state.nodeAlive)).toBe(1);
     });
@@ -330,11 +330,11 @@ describe('GCMetrics', () => {
       ];
 
       dots.forEach((dot, i) => {
-        orsetAdd(state.nodeAlive, `node${i}`, dot);
+        state.nodeAlive.add(`node${i}`, dot);
       });
 
       // Tombstone 1 of them (25% ratio)
-      orsetRemove(state.nodeAlive, new Set([encodeDot(/** @type {import('../../../../src/domain/crdt/Dot.js').Dot} */ (dots[0]))]));
+      state.nodeAlive.remove(new Set([encodeDot(/** @type {import('../../../../src/domain/crdt/Dot.js').Dot} */ (dots[0]))]));
 
       const metrics = collectGCMetrics(state);
 
@@ -367,14 +367,14 @@ describe('GCMetrics', () => {
       const edgeDot1 = createDot('B', 1);
       const edgeDot2 = createDot('B', 2);
 
-      orsetAdd(state.nodeAlive, 'node1', nodeDot1);
-      orsetAdd(state.nodeAlive, 'node2', nodeDot2);
-      orsetAdd(state.edgeAlive, 'edge1', edgeDot1);
-      orsetAdd(state.edgeAlive, 'edge2', edgeDot2);
+      state.nodeAlive.add('node1', nodeDot1);
+      state.nodeAlive.add('node2', nodeDot2);
+      state.edgeAlive.add('edge1', edgeDot1);
+      state.edgeAlive.add('edge2', edgeDot2);
 
       // Tombstone 1 node, 1 edge
-      orsetRemove(state.nodeAlive, new Set([encodeDot(nodeDot1)]));
-      orsetRemove(state.edgeAlive, new Set([encodeDot(edgeDot1)]));
+      state.nodeAlive.remove(new Set([encodeDot(nodeDot1)]));
+      state.edgeAlive.remove(new Set([encodeDot(edgeDot1)]));
 
       const metrics = collectGCMetrics(state);
 

@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { createRng } from '../../../helpers/seededRng.js';
 import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
 import { createV5 } from '../../../../src/domain/services/state/CheckpointService.js';
 import { createEmptyStateV5, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.js';
-import { orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { CONTENT_PROPERTY_KEY, encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
 import InMemoryBlobStorageAdapter from '../../../../src/domain/utils/defaultBlobStorage.ts';
@@ -53,7 +53,7 @@ async function createPatchTreeOid(contentIds, shuffleSeed) {
     graphName: 'g',
     writerId: 'alice',
     lamport: 1,
-    versionVector: createVersionVector(),
+    versionVector: VersionVector.empty(),
     getCurrentState: () => null,
     expectedParentSha: null,
     blobStorage: new InMemoryBlobStorageAdapter(),
@@ -96,7 +96,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
 
   for (let i = 0; i < contentIds.length; i++) {
     const nodeId = `n${i}`;
-    orsetAdd(state.nodeAlive, nodeId, createDot('alice', i + 1));
+    state.nodeAlive.add(nodeId, createDot('alice', i + 1));
     propItems.push({
       key: encodePropKeyV5(nodeId, CONTENT_PROPERTY_KEY),
       value: makeOid(/** @type {number} */ (contentIds[i])),
@@ -109,7 +109,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
     });
   }
 
-  orsetAdd(state.nodeAlive, 'dup', createDot('alice', contentIds.length + 1));
+  state.nodeAlive.add('dup', createDot('alice', contentIds.length + 1));
   propItems.push({
     key: encodePropKeyV5('dup', CONTENT_PROPERTY_KEY),
     value: makeOid(/** @type {number} */ (contentIds[0])),
@@ -125,8 +125,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
     const edgeFrom = 'n0';
     const edgeTo = `n${contentIds.length - 1}`;
     const edgeLabel = 'rel';
-    orsetAdd(
-      state.edgeAlive,
+    state.edgeAlive.add(
       encodeEdgeKeyV5(edgeFrom, edgeTo, edgeLabel),
       createDot('alice', contentIds.length + 2),
     );

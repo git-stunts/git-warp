@@ -7,7 +7,7 @@
  * @module domain/services/controllers/CheckpointController
  */
 
-import { QueryError, E_NO_STATE_MSG } from '../../warp/_internal.js';
+import { QueryError, E_NO_STATE_MSG } from '../../warp/_internal.ts';
 import { SchemaUnsupportedError } from '../../errors/index.ts';
 import { buildWriterRef, buildCheckpointRef, buildCoverageRef } from '../../utils/RefLayout.ts';
 import { createFrontier, updateFrontier, frontierFingerprint } from '../Frontier.js';
@@ -250,7 +250,7 @@ export default class CheckpointController {
 
       if (kind === 'patch') {
         const patchMeta = decodePatchMessage(nodeInfo.message);
-        const host = /** @type {import('../../warp/_internal.js').WarpGraphWithMixins} */ (/** @type {unknown} */ (h));
+        const host = /** @type {import('../../warp/_internal.ts').WarpGraphWithMixins} */ (/** @type {unknown} */ (h));
         const patchBuffer = await host._readPatchBlob(patchMeta);
         const decoded = /** @type {{schema?: number}} */ (host._codec.decode(patchBuffer));
 

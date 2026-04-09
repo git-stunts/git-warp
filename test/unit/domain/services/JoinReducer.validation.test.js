@@ -13,8 +13,8 @@ import {
   reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.js';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { orsetContains, orsetElements } from '../../../../src/domain/crdt/ORSet.js';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import PatchError from '../../../../src/domain/errors/PatchError.ts';
 
 /** @type {(...args: any[]) => any} */
@@ -43,7 +43,7 @@ describe('JoinReducer validation', () => {
       applyOpV2(state, /** @type {any} */ ({ type: 'FutureOp', data: 42 }), eventId);
 
       // State unchanged
-      expect([...orsetElements(state.nodeAlive)]).toHaveLength(0);
+      expect([...state.nodeAlive.elements()]).toHaveLength(0);
     });
 
     it('silently ignores unknown op type in reduceV5', () => {
@@ -55,7 +55,7 @@ describe('JoinReducer validation', () => {
       const state = reduceV5([entry]);
 
       // The known NodeAdd should still apply
-      expect(orsetContains(state.nodeAlive, 'node:a')).toBe(true);
+      expect(state.nodeAlive.contains('node:a')).toBe(true);
     });
   });
 
@@ -64,14 +64,14 @@ describe('JoinReducer validation', () => {
       const entry = makePatchEntry([]);
       const state = reduceV5([entry]);
 
-      expect([...orsetElements(state.nodeAlive)]).toHaveLength(0);
+      expect([...state.nodeAlive.elements()]).toHaveLength(0);
       expect(state.prop.size).toBe(0);
     });
 
     it('reduceV5 with zero patches produces empty state', () => {
       const state = reduceV5([]);
 
-      expect([...orsetElements(state.nodeAlive)]).toHaveLength(0);
+      expect([...state.nodeAlive.elements()]).toHaveLength(0);
       expect(state.prop.size).toBe(0);
     });
   });

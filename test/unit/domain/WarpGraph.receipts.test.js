@@ -12,9 +12,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encodePropKey, encodeEdgeKey } from '../../../src/domain/services/JoinReducer.js';
-import { orsetContains } from '../../../src/domain/crdt/ORSet.js';
-import { createDot, encodeDot } from '../../../src/domain/crdt/Dot.js';
-import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
+import ORSet from '../../../src/domain/crdt/ORSet.ts';
+import { createDot, encodeDot } from '../../../src/domain/crdt/Dot.ts';
+import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers: mock persistence + patch infrastructure
@@ -100,7 +100,7 @@ async function simulatePatchCommit(/** @type {any} */ persistence, /** @type {an
     writer: writerId,
     lamport,
     ops,
-    context: context || createVersionVector(),
+    context: context || VersionVector.empty(),
   };
 
   // Encode patch to CBOR blob
@@ -211,7 +211,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
         target: 'user:alice',
         result: 'applied',
       });
-      expect(orsetContains(state.nodeAlive, 'user:alice')).toBe(true);
+      expect(state.nodeAlive.contains('user:alice')).toBe(true);
     });
 
     it('same node added twice by same writer → second is redundant', async () => {
@@ -533,8 +533,8 @@ describe('WarpRuntime.materialize() with receipts', () => {
       expect(cachedState.observedFrontier).not.toBe(state.observedFrontier);
       expect(Object.isFrozen(state)).toBe(true);
       expect(Object.isFrozen(cachedState)).toBe(false);
-      expect(orsetContains(cachedState.nodeAlive, 'n1')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
+      expect(cachedState.nodeAlive.contains('n1')).toBe(true);
+      expect(state.nodeAlive.contains('n1')).toBe(true);
     });
 
     it('subsequent queries work after receipts-enabled materialize', async () => {

@@ -6,7 +6,7 @@ import { OP_SCOPE_BOTH } from './OpScope.ts';
  * @module domain/types/ops/NodeAdd
  */
 
-import { Dot } from '../../crdt/Dot.js';
+import { Dot } from '../../crdt/Dot.ts';
 import Op from './Op.ts';
 import { assertNonEmptyString, assertNoReservedBytes } from './validate.ts';
 

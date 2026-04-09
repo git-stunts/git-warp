@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import WriterError from '../../../../src/domain/errors/WriterError.ts';
-import { PatchSession } from '../../../../src/domain/warp/PatchSession.js';
+import { PatchSession } from '../../../../src/domain/warp/PatchSession.ts';
 
 function createSession() {
   const builder = {

@@ -8,8 +8,7 @@
  * @see ROADMAP.md PL/DIFF/1
  */
 
-import { orsetElements } from '../../crdt/ORSet.js';
-import { lwwValue } from '../../crdt/LWW.js';
+import { lwwValue } from '../../crdt/LWW.ts';
 import { decodeEdgeKey, decodePropKey, isEdgePropKey } from '../KeyCodec.js';
 
 /**
@@ -193,15 +192,15 @@ function setAdded(before, after) {
  * @returns {{nodesAdded: string[], nodesRemoved: string[], edgesAdded: EdgeChange[], edgesRemoved: EdgeChange[]}}
  */
 function diffNodesAndEdges(before, after) {
-  const beforeNodes = before ? new Set(orsetElements(before.nodeAlive)) : new Set();
-  const afterNodes = new Set(orsetElements(after.nodeAlive));
+  const beforeNodes = before ? new Set(before.nodeAlive.elements()) : new Set();
+  const afterNodes = new Set(after.nodeAlive.elements());
 
   // Filter edges to only include those with visible endpoints (both nodes must be alive).
   // This ensures diffs respect node visibility rules - edges with tombstoned endpoints
   // are treated as invisible.
   const beforeEdges = before
     ? new Set(
-        orsetElements(before.edgeAlive).filter((edgeKey) => {
+        before.edgeAlive.elements().filter((edgeKey) => {
           const { from, to } = decodeEdgeKey(edgeKey);
           return beforeNodes.has(from) && beforeNodes.has(to);
         })
@@ -209,7 +208,7 @@ function diffNodesAndEdges(before, after) {
     : new Set();
 
   const afterEdges = new Set(
-    orsetElements(after.edgeAlive).filter((edgeKey) => {
+    after.edgeAlive.elements().filter((edgeKey) => {
       const { from, to } = decodeEdgeKey(edgeKey);
       return afterNodes.has(from) && afterNodes.has(to);
     })
@@ -280,10 +279,10 @@ function classifyPropChange(key, beforeProps, afterProps) {
   const { nodeId, propKey } = decodePropKey(key);
 
   if (afterReg !== undefined && beforeReg === undefined) {
-    return { key, nodeId, propKey, oldValue: undefined, newValue: /** @type {unknown} */ (lwwValue(/** @type {import('../../crdt/LWW.js').LWWRegister<unknown>} */ (afterReg))) };
+    return { key, nodeId, propKey, oldValue: undefined, newValue: /** @type {unknown} */ (lwwValue(/** @type {import('../../crdt/LWW.ts').LWWRegister<unknown>} */ (afterReg))) };
   }
   if (afterReg === undefined && beforeReg !== undefined) {
-    return { key, nodeId, propKey, oldValue: /** @type {unknown} */ (lwwValue(/** @type {import('../../crdt/LWW.js').LWWRegister<unknown>} */ (beforeReg))) };
+    return { key, nodeId, propKey, oldValue: /** @type {unknown} */ (lwwValue(/** @type {import('../../crdt/LWW.ts').LWWRegister<unknown>} */ (beforeReg))) };
   }
   return classifyPropUpdate({ key, nodeId, propKey, beforeReg, afterReg });
 }
@@ -297,8 +296,8 @@ function classifyPropUpdate({ key, nodeId, propKey, beforeReg, afterReg }) {
   if (afterReg === undefined) {
     return undefined;
   }
-  const beforeValue = /** @type {unknown} */ (lwwValue(/** @type {import('../../crdt/LWW.js').LWWRegister<unknown>} */ (beforeReg)));
-  const afterValue = /** @type {unknown} */ (lwwValue(/** @type {import('../../crdt/LWW.js').LWWRegister<unknown>} */ (afterReg)));
+  const beforeValue = /** @type {unknown} */ (lwwValue(/** @type {import('../../crdt/LWW.ts').LWWRegister<unknown>} */ (beforeReg)));
+  const afterValue = /** @type {unknown} */ (lwwValue(/** @type {import('../../crdt/LWW.ts').LWWRegister<unknown>} */ (afterReg)));
   if (!deepEqual(beforeValue, afterValue)) {
     return { key, nodeId, propKey, oldValue: beforeValue, newValue: afterValue };
   }

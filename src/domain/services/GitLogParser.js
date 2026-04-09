@@ -1,4 +1,4 @@
-import GraphNode from '../entities/GraphNode.js';
+import GraphNode from '../entities/GraphNode.ts';
 import { checkAborted } from '../utils/cancellation.ts';
 import { concatBytes, textEncode, textDecode } from '../utils/bytes.ts';
 

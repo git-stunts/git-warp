@@ -8,11 +8,11 @@ import {
 } from '../../../../src/domain/services/JoinReducer.js';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
-import { orsetAdd, orsetRemove, orsetContains } from '../../../../src/domain/crdt/ORSet.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { lwwSet } from '../../../../src/domain/crdt/LWW.js';
+import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -24,7 +24,7 @@ function makePatch({ writer = 'w1', lamport = 1, ops = /** @type {any[]} */ ([])
     writer,
     lamport,
     ops,
-    context: context || createVersionVector(),
+    context: context || VersionVector.empty(),
   };
 }
 
@@ -151,7 +151,7 @@ describe('JoinReducer receipts', () => {
       const state = createEmptyStateV5();
       const dot = createDot('w1', 1);
       // Pre-add the dot
-      orsetAdd(state.nodeAlive, 'n1', dot);
+      state.nodeAlive.add('n1', dot);
 
       const patch = makePatch({
         ops: [nodeAdd('n1', dot)],
@@ -162,7 +162,7 @@ describe('JoinReducer receipts', () => {
 
     it('different dot for same node → applied', () => {
       const state = createEmptyStateV5();
-      orsetAdd(state.nodeAlive, 'n1', createDot('w1', 1));
+      state.nodeAlive.add('n1', createDot('w1', 1));
 
       const patch = makePatch({
         writer: 'w2',
@@ -181,7 +181,7 @@ describe('JoinReducer receipts', () => {
     it('removing existing dot → applied', () => {
       const state = createEmptyStateV5();
       const dot = createDot('w1', 1);
-      orsetAdd(state.nodeAlive, 'n1', dot);
+      state.nodeAlive.add('n1', dot);
       const encoded = encodeDot(dot);
 
       const patch = makePatch({
@@ -197,10 +197,10 @@ describe('JoinReducer receipts', () => {
     it('removing already-tombstoned dot → redundant', () => {
       const state = createEmptyStateV5();
       const dot = createDot('w1', 1);
-      orsetAdd(state.nodeAlive, 'n1', dot);
+      state.nodeAlive.add('n1', dot);
       const encoded = encodeDot(dot);
       // Tombstone it first
-      orsetRemove(state.nodeAlive, new Set([encoded]));
+      state.nodeAlive.remove(new Set([encoded]));
 
       const patch = makePatch({
         ops: [nodeRemove('n1', new Set([encoded]))],
@@ -243,7 +243,7 @@ describe('JoinReducer receipts', () => {
       const state = createEmptyStateV5();
       const dot = createDot('w1', 1);
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-      orsetAdd(state.edgeAlive, edgeKey, dot);
+      state.edgeAlive.add(edgeKey, dot);
 
       const patch = makePatch({
         ops: [edgeAdd('a', 'b', 'rel', dot)],
@@ -262,7 +262,7 @@ describe('JoinReducer receipts', () => {
       const state = createEmptyStateV5();
       const dot = createDot('w1', 1);
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-      orsetAdd(state.edgeAlive, edgeKey, dot);
+      state.edgeAlive.add(edgeKey, dot);
       const encoded = encodeDot(dot);
 
       const patch = makePatch({
@@ -279,9 +279,9 @@ describe('JoinReducer receipts', () => {
       const state = createEmptyStateV5();
       const dot = createDot('w1', 1);
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-      orsetAdd(state.edgeAlive, edgeKey, dot);
+      state.edgeAlive.add(edgeKey, dot);
       const encoded = encodeDot(dot);
-      orsetRemove(state.edgeAlive, new Set([encoded]));
+      state.edgeAlive.remove(new Set([encoded]));
 
       const patch = makePatch({
         ops: [edgeRemove('a', 'b', 'rel', new Set([encoded]))],
@@ -381,7 +381,7 @@ describe('JoinReducer receipts', () => {
       expect(result).toHaveProperty('state');
       expect(result).toHaveProperty('receipts');
       expect(result.receipts).toHaveLength(1);
-      expect(orsetContains(result.state.nodeAlive, 'n1')).toBe(true);
+      expect(result.state.nodeAlive.contains('n1')).toBe(true);
     });
 
     it('returns state directly when receipts option is false', () => {
@@ -446,7 +446,7 @@ describe('JoinReducer receipts', () => {
 
     it('works with initial state', () => {
       const initial = createEmptyStateV5();
-      orsetAdd(initial.nodeAlive, 'n0', createDot('w0', 1));
+      initial.nodeAlive.add('n0', createDot('w0', 1));
 
       const patches = [
         {
@@ -460,8 +460,8 @@ describe('JoinReducer receipts', () => {
       ];
       const { state, receipts } = reduceV5(patches, initial, { receipts: true });
       expect(receipts).toHaveLength(1);
-      expect(orsetContains(state.nodeAlive, 'n0')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
+      expect(state.nodeAlive.contains('n0')).toBe(true);
+      expect(state.nodeAlive.contains('n1')).toBe(true);
     });
 
     it('empty patches array yields empty receipts', () => {

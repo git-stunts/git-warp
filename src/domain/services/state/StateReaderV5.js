@@ -1,4 +1,3 @@
-import { orsetContains } from '../../crdt/ORSet.js';
 import { compareEventIds } from '../../utils/EventId.ts';
 import {
   CONTENT_MIME_PROPERTY_KEY,
@@ -91,7 +90,7 @@ function edgeKeyFromRef(edge) {
  * @returns {{ contentRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: string }, mimeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null }|null}
  */
 function getNodeContentRegisters(state, nodeId) {
-  if (!orsetContains(state.nodeAlive, nodeId)) {
+  if (!state.nodeAlive.contains(nodeId)) {
     return null;
   }
   const contentRegister = state.prop.get(encodePropKey(nodeId, CONTENT_PROPERTY_KEY));
@@ -114,10 +113,10 @@ function getNodeContentRegisters(state, nodeId) {
  */
 function getEdgeContentRegisters(state, edge) {
   const edgeKey = edgeKeyFromRef(edge);
-  if (!orsetContains(state.edgeAlive, edgeKey)) {
+  if (!state.edgeAlive.contains(edgeKey)) {
     return null;
   }
-  if (!orsetContains(state.nodeAlive, edge.from) || !orsetContains(state.nodeAlive, edge.to)) {
+  if (!state.nodeAlive.contains(edge.from) || !state.nodeAlive.contains(edge.to)) {
     return null;
   }
 

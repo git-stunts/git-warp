@@ -9,22 +9,16 @@ import WarpError from '../errors/WarpError.ts';
  *
  * Examples: TreeAssemblerSink accumulates [path, oid] entries and
  * calls writeTree() in finalize(). ArraySink collects all items.
- *
- * @template T - The type of elements consumed
- * @template R - The type of the accumulated result
  */
-export default class Sink {
+export default class Sink<T, R> {
   /**
    * Consumes an entire async iterable and returns the accumulated result.
    *
    * Subclasses implement `_accept(item)` for per-element processing and
    * `_finalize()` for the terminal result. The default `consume()` loop
    * handles iteration, error propagation, and finalization.
-   *
-   * @param {AsyncIterable<T>} source - The upstream async iterable
-   * @returns {Promise<R>} The accumulated result
    */
-  async consume(source) {
+  async consume(source: AsyncIterable<T>): Promise<R> {
     if (source === null || source === undefined) {
       throw new WarpError('Sink.consume() requires a source', 'E_INVALID_SOURCE');
     }
@@ -38,11 +32,8 @@ export default class Sink {
    * Accepts a single element from the stream.
    *
    * Override this in subclasses to process each element.
-   *
-   * @param {T} _item - The element to accept
-   * @returns {void | Promise<void>}
    */
-  _accept(_item) {
+  protected _accept(_item: T): void | Promise<void> {
     throw new WarpError('Sink._accept() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
@@ -50,10 +41,8 @@ export default class Sink {
    * Produces the final accumulated result after all elements are consumed.
    *
    * Override this in subclasses to return the terminal value.
-   *
-   * @returns {R | Promise<R>}
    */
-  _finalize() {
+  protected _finalize(): R | Promise<R> {
     throw new WarpError('Sink._finalize() not implemented', 'E_NOT_IMPLEMENTED');
   }
 }

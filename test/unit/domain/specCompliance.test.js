@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { computeStateHashV5 } from '../../../src/domain/services/state/StateSerializerV5.js';
-import { orsetJoin, createORSet, orsetAdd } from '../../../src/domain/crdt/ORSet.js';
-import { createVersionVector, vvMerge, vvIncrement } from '../../../src/domain/crdt/VersionVector.js';
+import ORSet from '../../../src/domain/crdt/ORSet.ts';
+import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { createEmptyStateV5, join as joinState } from '../../../src/domain/services/JoinReducer.js';
-import { createDot } from '../../../src/domain/crdt/Dot.js';
+import { createDot } from '../../../src/domain/crdt/Dot.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 import { encode, decode } from '../../../src/infrastructure/codecs/CborCodec.js';
 
@@ -18,7 +18,7 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
     it('returns identical hash when called twice on the same state', async () => {
       const state = createEmptyStateV5();
       const dot = createDot('w1', 1);
-      orsetAdd(state.nodeAlive, 'node:a', dot);
+      state.nodeAlive.add('node:a', dot);
 
       const hash1 = await computeStateHashV5(state, { crypto, codec });
       const hash2 = await computeStateHashV5(state, { crypto, codec });
@@ -29,12 +29,12 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
     it('returns identical hash for structurally equivalent states', async () => {
       // Build two identical states independently
       const stateA = createEmptyStateV5();
-      orsetAdd(stateA.nodeAlive, 'node:x', createDot('w1', 1));
-      orsetAdd(stateA.nodeAlive, 'node:y', createDot('w2', 1));
+      stateA.nodeAlive.add('node:x', createDot('w1', 1));
+      stateA.nodeAlive.add('node:y', createDot('w2', 1));
 
       const stateB = createEmptyStateV5();
-      orsetAdd(stateB.nodeAlive, 'node:x', createDot('w1', 1));
-      orsetAdd(stateB.nodeAlive, 'node:y', createDot('w2', 1));
+      stateB.nodeAlive.add('node:x', createDot('w1', 1));
+      stateB.nodeAlive.add('node:y', createDot('w2', 1));
 
       const hashA = await computeStateHashV5(stateA, { crypto, codec });
       const hashB = await computeStateHashV5(stateB, { crypto, codec });
@@ -47,19 +47,19 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
   // 2. orsetJoin is commutative
   // ---------------------------------------------------------------------------
   describe('orsetJoin is commutative', () => {
-    it('orsetJoin(a, b) equals orsetJoin(b, a) for entries and tombstones', () => {
-      const a = createORSet();
-      orsetAdd(a, 'node:1', createDot('alice', 1));
-      orsetAdd(a, 'node:2', createDot('alice', 2));
+    it('a.join(b) equals b.join(a) for entries and tombstones', () => {
+      const a = ORSet.empty();
+      a.add('node:1', createDot('alice', 1));
+      a.add('node:2', createDot('alice', 2));
 
-      const b = createORSet();
-      orsetAdd(b, 'node:2', createDot('bob', 1));
-      orsetAdd(b, 'node:3', createDot('bob', 2));
+      const b = ORSet.empty();
+      b.add('node:2', createDot('bob', 1));
+      b.add('node:3', createDot('bob', 2));
       // Add a tombstone in b
       b.tombstones.add('alice:2');
 
-      const ab = orsetJoin(a, b);
-      const ba = orsetJoin(b, a);
+      const ab = a.join(b);
+      const ba = b.join(a);
 
       // Entries: same keys, same dot sets
       expect([...ab.entries.keys()].sort()).toEqual([...ba.entries.keys()].sort());
@@ -76,17 +76,17 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
   // 3. vvMerge is commutative
   // ---------------------------------------------------------------------------
   describe('vvMerge is commutative', () => {
-    it('vvMerge(a, b) equals vvMerge(b, a)', () => {
-      const a = createVersionVector();
-      vvIncrement(a, 'alice'); // alice:1
-      vvIncrement(a, 'alice'); // alice:2
+    it('a.merge(b) equals b.merge(a)', () => {
+      const a = VersionVector.empty();
+      a.increment('alice'); // alice:1
+      a.increment('alice'); // alice:2
 
-      const b = createVersionVector();
-      vvIncrement(b, 'bob');   // bob:1
-      vvIncrement(b, 'alice'); // alice:1
+      const b = VersionVector.empty();
+      b.increment('bob');   // bob:1
+      b.increment('alice'); // alice:1
 
-      const ab = vvMerge(a, b);
-      const ba = vvMerge(b, a);
+      const ab = a.merge(b);
+      const ba = b.merge(a);
 
       expect([...ab.entries()].sort()).toEqual([...ba.entries()].sort());
       // Verify actual values
@@ -101,13 +101,13 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
   // 4. vvMerge is idempotent
   // ---------------------------------------------------------------------------
   describe('vvMerge is idempotent', () => {
-    it('vvMerge(a, a) equals a', () => {
-      const a = createVersionVector();
-      vvIncrement(a, 'alice'); // alice:1
-      vvIncrement(a, 'alice'); // alice:2
-      vvIncrement(a, 'bob');   // bob:1
+    it('a.merge(a) equals a', () => {
+      const a = VersionVector.empty();
+      a.increment('alice'); // alice:1
+      a.increment('alice'); // alice:2
+      a.increment('bob');   // bob:1
 
-      const merged = vvMerge(a, a);
+      const merged = a.merge(a);
 
       expect(merged.size).toBe(a.size);
       for (const [writer, counter] of a) {

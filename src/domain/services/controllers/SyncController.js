@@ -10,7 +10,7 @@
 
 import SyncError from '../../errors/SyncError.ts';
 import OperationAbortedError from '../../errors/OperationAbortedError.ts';
-import { QueryError, E_NO_STATE_MSG } from '../../warp/_internal.js';
+import { QueryError, E_NO_STATE_MSG } from '../../warp/_internal.ts';
 import { validateSyncResponse } from '../sync/SyncPayloadSchema.js';
 import {
   createSyncRequest as createSyncRequestImpl,

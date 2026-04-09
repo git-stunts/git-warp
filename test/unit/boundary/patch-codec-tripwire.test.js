@@ -23,7 +23,7 @@ const ROOT = resolve(__dirname, '..', '..', '..');
 const PATCH_FILES = [
   'src/domain/services/PatchBuilder.js',
   'src/domain/services/sync/SyncProtocol.js',
-  'src/domain/warp/Writer.js',
+  'src/domain/warp/Writer.ts',
 ];
 
 // Checkpoint files that are already codec-free (CheckpointService routes

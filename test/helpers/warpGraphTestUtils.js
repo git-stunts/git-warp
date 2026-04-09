@@ -16,9 +16,9 @@ import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGrap
 import { encode } from '../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../src/domain/services/codec/WarpMessageCodec.js';
 import { createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';
-import { orsetAdd } from '../../src/domain/crdt/ORSet.js';
-import { createVersionVector } from '../../src/domain/crdt/VersionVector.js';
-import { createDot } from '../../src/domain/crdt/Dot.js';
+import ORSet from '../../src/domain/crdt/ORSet.ts';
+import VersionVector from '../../src/domain/crdt/VersionVector.ts';
+import { createDot } from '../../src/domain/crdt/Dot.ts';
 /** @param {unknown} value */
 function createInlineValue(value) { return { type: 'inline', value }; }
 
@@ -482,7 +482,7 @@ export function createPatch({ writer, lamport, ops, context }) {
     writer,
     lamport,
     ops,
-    context: context || createVersionVector(),
+    context: context || VersionVector.empty(),
   };
 }
 
@@ -654,7 +654,7 @@ export function createInMemoryRepo() {
  * @param {string} [writerId='w1'] - Writer ID for the dot
  */
 export function addNodeToState(state, nodeId, counter, writerId = 'w1') {
-  orsetAdd(state.nodeAlive, nodeId, createDot(writerId, counter));
+  state.nodeAlive.add(nodeId, createDot(writerId, counter));
 }
 
 /**
@@ -669,7 +669,7 @@ export function addNodeToState(state, nodeId, counter, writerId = 'w1') {
  */
 export function addEdgeToState(state, from, to, label, counter, writerId = 'w1') {
   const edgeKey = encodeEdgeKey(from, to, label);
-  orsetAdd(state.edgeAlive, edgeKey, createDot(writerId, counter));
+  state.edgeAlive.add(edgeKey, createDot(writerId, counter));
 }
 
 /**
@@ -700,7 +700,7 @@ export function setupGraphState(graph, seedFn) {
 // ============================================================================
 
 // Re-export commonly used CRDT helpers so tests can import from one place
-export { createDot } from '../../src/domain/crdt/Dot.js';
-export { createVersionVector } from '../../src/domain/crdt/VersionVector.js';
+export { createDot } from '../../src/domain/crdt/Dot.ts';
+export { default as VersionVector } from '../../src/domain/crdt/VersionVector.ts';
 export { createInlineValue };
 export { createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';

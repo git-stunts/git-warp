@@ -33,14 +33,14 @@
 // Core API
 export { default as WarpApp } from './src/domain/WarpApp.js';
 export { default as WarpCore } from './src/domain/WarpCore.js';
-export { default as GraphNode } from './src/domain/entities/GraphNode.js';
+export { default as GraphNode } from './src/domain/entities/GraphNode.ts';
 
 // Browser-compatible adapters
 export { default as InMemoryGraphAdapter } from './src/infrastructure/adapters/InMemoryGraphAdapter.js';
 export { default as WebCryptoAdapter } from './src/infrastructure/adapters/WebCryptoAdapter.js';
 
 // CRDT primitives
-export { createVersionVector } from './src/domain/crdt/VersionVector.js';
+export { default as VersionVector } from './src/domain/crdt/VersionVector.ts';
 
 // Errors
 export { default as WarpError } from './src/domain/errors/WarpError.ts';

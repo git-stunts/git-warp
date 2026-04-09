@@ -18,13 +18,12 @@ import LogicalIndexBuildService from './index/LogicalIndexBuildService.js';
 import LogicalIndexReader from './index/LogicalIndexReader.js';
 import PropertyIndexReader from './index/PropertyIndexReader.js';
 import IncrementalIndexUpdater from './index/IncrementalIndexUpdater.js';
-import { orsetElements, orsetContains } from '../crdt/ORSet.js';
 import { decodeEdgeKey } from './KeyCodec.js';
-import { MetaShard } from '../artifacts/MetaShard.js';
-import { EdgeShard } from '../artifacts/EdgeShard.js';
-import { LabelShard } from '../artifacts/LabelShard.js';
-import { PropertyShard } from '../artifacts/PropertyShard.js';
-import { ReceiptShard } from '../artifacts/ReceiptShard.js';
+import { MetaShard } from '../artifacts/MetaShard.ts';
+import { EdgeShard } from '../artifacts/EdgeShard.ts';
+import { LabelShard } from '../artifacts/LabelShard.ts';
+import { PropertyShard } from '../artifacts/PropertyShard.ts';
+import { ReceiptShard } from '../artifacts/ReceiptShard.ts';
 
 /** Prefix for property shard paths in the index tree. */
 const PROPS_PREFIX = 'props_';
@@ -169,9 +168,9 @@ function buildGroundTruthAdjacency(state) {
   /** @type {Map<string, Array<{neighborId: string, label: string}>>} */
   const incoming = new Map();
 
-  for (const edgeKey of orsetElements(state.edgeAlive)) {
+  for (const edgeKey of state.edgeAlive.elements()) {
     const { from, to, label } = decodeEdgeKey(edgeKey);
-    if (!orsetContains(state.nodeAlive, from) || !orsetContains(state.nodeAlive, to)) {
+    if (!state.nodeAlive.contains(from) || !state.nodeAlive.contains(to)) {
       continue;
     }
     pushAdjacencyEntry(outgoing, from, { neighborId: to, label });
@@ -434,7 +433,7 @@ export default class MaterializedViewService {
     // eslint-disable-next-line no-restricted-syntax -- legacy: use seeded PRNG (tracked in backlog)
     const seed = options.seed ?? (Math.random() * 0x7FFFFFFF >>> 0);
     const sampleRate = options.sampleRate ?? 0.1;
-    const allNodes = [...orsetElements(state.nodeAlive)].sort();
+    const allNodes = [...state.nodeAlive.elements()].sort();
     const sampled = sampleNodes(allNodes, sampleRate, seed);
     const truth = buildGroundTruthAdjacency(state);
 
@@ -449,7 +448,7 @@ export default class MaterializedViewService {
    * persistIndexTree(tree, persistence). Will be removed when callers
    * migrate to IndexStorePort.writeShards().
    *
-   * @param {import('../artifacts/IndexShard.js').IndexShard[]} shards
+   * @param {import('../artifacts/IndexShard.ts').IndexShard[]} shards
    * @returns {Record<string, Uint8Array>}
    * @private
    */
@@ -472,7 +471,7 @@ export default class MaterializedViewService {
  * the applyDiff() legacy path. Dies when IncrementalIndexUpdater
  * is migrated to IndexStorePort.
  *
- * @param {import('../artifacts/IndexShard.js').IndexShard} shard
+ * @param {import('../artifacts/IndexShard.ts').IndexShard} shard
  * @returns {{ path: string, payload: unknown }}
  */
 function _shardToEntry(shard) {

@@ -16,9 +16,9 @@ import {
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.js';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { lwwSet } from '../../../../src/domain/crdt/LWW.js';
-import { orsetAdd, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 /** @param {unknown} value */
 function createInlineValue(value) { return { type: 'inline', value }; }
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
@@ -58,10 +58,10 @@ function buildStateV5({ nodes = /** @type {any[]} */ ([]), edges = /** @type {an
   for (const { nodeId, alive = true, dot } of nodes) {
     // Each element needs a unique dot to avoid tombstone interference
     const nodeDot = dot ?? mockDot('test', dotSeq++);
-    orsetAdd(state.nodeAlive, nodeId, nodeDot);
+    state.nodeAlive.add(nodeId, nodeDot);
     if (!alive) {
       // Remove by adding observed dots to tombstones
-      orsetRemove(state.nodeAlive, /** @type {any} */ (state.nodeAlive.entries.get(nodeId)));
+      state.nodeAlive.remove(/** @type {any} */ (state.nodeAlive.entries.get(nodeId)));
     }
   }
 
@@ -70,9 +70,9 @@ function buildStateV5({ nodes = /** @type {any[]} */ ([]), edges = /** @type {an
     const key = encodeEdgeKey(from, to, label);
     // Each element needs a unique dot to avoid tombstone interference
     const edgeDot = dot ?? mockDot('test', dotSeq++);
-    orsetAdd(state.edgeAlive, key, edgeDot);
+    state.edgeAlive.add(key, edgeDot);
     if (!alive) {
-      orsetRemove(state.edgeAlive, /** @type {any} */ (state.edgeAlive.entries.get(key)));
+      state.edgeAlive.remove(/** @type {any} */ (state.edgeAlive.entries.get(key)));
     }
   }
 
@@ -113,13 +113,13 @@ describe('StateSerializerV5', () => {
       const state = createEmptyStateV5();
 
       // First add
-      orsetAdd(state.nodeAlive, 'a', mockDot('alice', 1));
+      state.nodeAlive.add('a', mockDot('alice', 1));
       // Remove observes the first add
       const dots = new Set(state.nodeAlive.entries.get('a'));
-      orsetRemove(state.nodeAlive, dots);
+      state.nodeAlive.remove(dots);
 
       // Concurrent add (not observed by the remove)
-      orsetAdd(state.nodeAlive, 'a', mockDot('bob', 1));
+      state.nodeAlive.add('a', mockDot('bob', 1));
 
       // Node should be visible (concurrent add wins)
       expect(nodeVisibleV5(state, 'a')).toBe(true);
@@ -571,15 +571,15 @@ describe('StateSerializerV5', () => {
     it('ORSet add-remove semantics produce consistent hash', async () => {
       // State 1: Add node, then another writer removes it
       const state1 = createEmptyStateV5();
-      orsetAdd(state1.nodeAlive, 'a', mockDot('alice', 1));
+      state1.nodeAlive.add('a', mockDot('alice', 1));
       const observedDots1 = new Set(state1.nodeAlive.entries.get('a'));
-      orsetRemove(state1.nodeAlive, observedDots1);
+      state1.nodeAlive.remove(observedDots1);
 
       // State 2: Same operations via different writer IDs (same result)
       const state2 = createEmptyStateV5();
-      orsetAdd(state2.nodeAlive, 'a', mockDot('bob', 1));
+      state2.nodeAlive.add('a', mockDot('bob', 1));
       const observedDots2 = new Set(state2.nodeAlive.entries.get('a'));
-      orsetRemove(state2.nodeAlive, observedDots2);
+      state2.nodeAlive.remove(observedDots2);
 
       // Both should have empty visible state (node removed)
       expect(await computeStateHashV5(state1, { crypto })).toBe(await computeStateHashV5(state2, { crypto }));
@@ -590,16 +590,16 @@ describe('StateSerializerV5', () => {
       const state1 = createEmptyStateV5();
 
       // Add by Alice
-      orsetAdd(state1.nodeAlive, 'n', mockDot('alice', 1));
+      state1.nodeAlive.add('n', mockDot('alice', 1));
       // Bob observed Alice's add and removes
       const observedDots = new Set(state1.nodeAlive.entries.get('n'));
-      orsetRemove(state1.nodeAlive, observedDots);
+      state1.nodeAlive.remove(observedDots);
       // Concurrent add by Carol (not observed by Bob's remove)
-      orsetAdd(state1.nodeAlive, 'n', mockDot('carol', 1));
+      state1.nodeAlive.add('n', mockDot('carol', 1));
 
       // State 2: Same final result via different order
       const state2 = createEmptyStateV5();
-      orsetAdd(state2.nodeAlive, 'n', mockDot('carol', 1));
+      state2.nodeAlive.add('n', mockDot('carol', 1));
 
       // Both should show 'n' as visible
       expect(nodeVisibleV5(state1, 'n')).toBe(true);
@@ -610,14 +610,14 @@ describe('StateSerializerV5', () => {
     it('different insertion orders produce same hash when final state is same', async () => {
       // Build states with nodes added in different orders
       const state1 = createEmptyStateV5();
-      orsetAdd(state1.nodeAlive, 'zebra', mockDot('w1', 1));
-      orsetAdd(state1.nodeAlive, 'apple', mockDot('w1', 2));
-      orsetAdd(state1.nodeAlive, 'mango', mockDot('w1', 3));
+      state1.nodeAlive.add('zebra', mockDot('w1', 1));
+      state1.nodeAlive.add('apple', mockDot('w1', 2));
+      state1.nodeAlive.add('mango', mockDot('w1', 3));
 
       const state2 = createEmptyStateV5();
-      orsetAdd(state2.nodeAlive, 'apple', mockDot('w2', 1));
-      orsetAdd(state2.nodeAlive, 'mango', mockDot('w2', 2));
-      orsetAdd(state2.nodeAlive, 'zebra', mockDot('w2', 3));
+      state2.nodeAlive.add('apple', mockDot('w2', 1));
+      state2.nodeAlive.add('mango', mockDot('w2', 2));
+      state2.nodeAlive.add('zebra', mockDot('w2', 3));
 
       expect(await computeStateHashV5(state1, { crypto })).toBe(await computeStateHashV5(state2, { crypto }));
     });

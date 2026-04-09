@@ -18,10 +18,10 @@ const computeStateHashV5 = _computeStateHashV5;
 
 const crypto = new NodeCryptoAdapter();
 const PROPERTY_TEST_SEED = 42;
-import { createORSet, orsetAdd, orsetRemove, orsetSerialize } from '../../../../src/domain/crdt/ORSet.js';
-import { createVersionVector, vvSerialize } from '../../../../src/domain/crdt/VersionVector.js';
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
-import { lwwSet } from '../../../../src/domain/crdt/LWW.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 
 // ============================================================================
@@ -92,15 +92,15 @@ function generateORSet(elements, dotArbitrary) {
     }),
     { minLength: 0, maxLength: 5 }
   ).map((items) => {
-    const set = createORSet();
+    const set = ORSet.empty();
     for (const { element, dots, tombstoneCount } of items) {
       for (const dot of dots) {
-        orsetAdd(set, /** @type {string} */ (element), dot);
+        set.add(/** @type {string} */ (element), dot);
       }
       // Tombstone some dots
       const dotsToTombstone = dots.slice(0, Math.min(tombstoneCount, dots.length));
       if (dotsToTombstone.length > 0) {
-        orsetRemove(set, new Set(dotsToTombstone.map(encodeDot)));
+        set.remove(new Set(dotsToTombstone.map(encodeDot)));
       }
     }
     return set;
@@ -114,7 +114,7 @@ const versionVectorArb = fc.array(
   fc.tuple(fc.stringMatching(/^[a-z]{1,5}$/), fc.integer({ min: 1, max: 100 })),
   { minLength: 0, maxLength: 5 }
 ).map((entries) => {
-  const vv = createVersionVector();
+  const vv = VersionVector.empty();
   for (const [writerId, counter] of entries) {
     vv.set(writerId, counter);
   }
@@ -155,17 +155,17 @@ const stateArb = fc.record({
 /** @param {any} a @param {any} b */
 function statesEqual(a, b) {
   // Compare nodeAlive ORSets
-  if (JSON.stringify(orsetSerialize(a.nodeAlive)) !== JSON.stringify(orsetSerialize(b.nodeAlive))) {
+  if (JSON.stringify(a.nodeAlive.serialize()) !== JSON.stringify(b.nodeAlive.serialize())) {
     return false;
   }
 
   // Compare edgeAlive ORSets
-  if (JSON.stringify(orsetSerialize(a.edgeAlive)) !== JSON.stringify(orsetSerialize(b.edgeAlive))) {
+  if (JSON.stringify(a.edgeAlive.serialize()) !== JSON.stringify(b.edgeAlive.serialize())) {
     return false;
   }
 
   // Compare observedFrontier VersionVectors
-  if (JSON.stringify(vvSerialize(a.observedFrontier)) !== JSON.stringify(vvSerialize(b.observedFrontier))) {
+  if (JSON.stringify(VersionVector.serialize(a.observedFrontier)) !== JSON.stringify(VersionVector.serialize(b.observedFrontier))) {
     return false;
   }
 

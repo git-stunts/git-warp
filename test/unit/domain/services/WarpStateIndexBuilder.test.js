@@ -8,8 +8,8 @@
 import { describe, it, expect } from 'vitest';
 import WarpStateIndexBuilder, { buildWarpStateIndex } from '../../../../src/domain/services/index/WarpStateIndexBuilder.js';
 import { createEmptyStateV5, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
-import { orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 
 describe('WarpStateIndexBuilder', () => {
   describe('buildFromState()', () => {
@@ -32,9 +32,9 @@ describe('WarpStateIndexBuilder', () => {
       const state = createEmptyStateV5();
 
       // Add nodes
-      orsetAdd(state.nodeAlive, 'node-a', createDot('w1', 1));
-      orsetAdd(state.nodeAlive, 'node-b', createDot('w1', 2));
-      orsetAdd(state.nodeAlive, 'node-c', createDot('w1', 3));
+      state.nodeAlive.add('node-a', createDot('w1', 1));
+      state.nodeAlive.add('node-b', createDot('w1', 2));
+      state.nodeAlive.add('node-c', createDot('w1', 3));
 
       const builder = new WarpStateIndexBuilder();
       const { stats } = builder.buildFromState(state);
@@ -46,13 +46,13 @@ describe('WarpStateIndexBuilder', () => {
       const state = createEmptyStateV5();
 
       // Add nodes
-      orsetAdd(state.nodeAlive, 'a', createDot('w1', 1));
-      orsetAdd(state.nodeAlive, 'b', createDot('w1', 2));
-      orsetAdd(state.nodeAlive, 'c', createDot('w1', 3));
+      state.nodeAlive.add('a', createDot('w1', 1));
+      state.nodeAlive.add('b', createDot('w1', 2));
+      state.nodeAlive.add('c', createDot('w1', 3));
 
       // Add edges
-      orsetAdd(state.edgeAlive, encodeEdgeKey('a', 'b', 'e1'), createDot('w1', 4));
-      orsetAdd(state.edgeAlive, encodeEdgeKey('b', 'c', 'e2'), createDot('w1', 5));
+      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'e1'), createDot('w1', 4));
+      state.edgeAlive.add(encodeEdgeKey('b', 'c', 'e2'), createDot('w1', 5));
 
       const builder = new WarpStateIndexBuilder();
       const { stats } = builder.buildFromState(state);
@@ -64,12 +64,12 @@ describe('WarpStateIndexBuilder', () => {
       const state = createEmptyStateV5();
 
       // Only add 'a' and 'b' nodes (NOT 'c')
-      orsetAdd(state.nodeAlive, 'a', createDot('w1', 1));
-      orsetAdd(state.nodeAlive, 'b', createDot('w1', 2));
+      state.nodeAlive.add('a', createDot('w1', 1));
+      state.nodeAlive.add('b', createDot('w1', 2));
 
       // Add edge a->b (valid) and b->c (invalid - c doesn't exist)
-      orsetAdd(state.edgeAlive, encodeEdgeKey('a', 'b', 'e1'), createDot('w1', 3));
-      orsetAdd(state.edgeAlive, encodeEdgeKey('b', 'c', 'e2'), createDot('w1', 4));
+      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'e1'), createDot('w1', 3));
+      state.edgeAlive.add(encodeEdgeKey('b', 'c', 'e2'), createDot('w1', 4));
 
       const builder = new WarpStateIndexBuilder();
       const { stats } = builder.buildFromState(state);
@@ -80,8 +80,8 @@ describe('WarpStateIndexBuilder', () => {
     it('handles self-loops', () => {
       const state = createEmptyStateV5();
 
-      orsetAdd(state.nodeAlive, 'a', createDot('w1', 1));
-      orsetAdd(state.edgeAlive, encodeEdgeKey('a', 'a', 'self'), createDot('w1', 2));
+      state.nodeAlive.add('a', createDot('w1', 1));
+      state.edgeAlive.add(encodeEdgeKey('a', 'a', 'self'), createDot('w1', 2));
 
       const builder = new WarpStateIndexBuilder();
       const { stats } = builder.buildFromState(state);
@@ -93,13 +93,13 @@ describe('WarpStateIndexBuilder', () => {
     it('handles multi-edges (same endpoints, different labels)', () => {
       const state = createEmptyStateV5();
 
-      orsetAdd(state.nodeAlive, 'a', createDot('w1', 1));
-      orsetAdd(state.nodeAlive, 'b', createDot('w1', 2));
+      state.nodeAlive.add('a', createDot('w1', 1));
+      state.nodeAlive.add('b', createDot('w1', 2));
 
       // Multiple edges between same nodes with different labels
-      orsetAdd(state.edgeAlive, encodeEdgeKey('a', 'b', 'follows'), createDot('w1', 3));
-      orsetAdd(state.edgeAlive, encodeEdgeKey('a', 'b', 'likes'), createDot('w1', 4));
-      orsetAdd(state.edgeAlive, encodeEdgeKey('a', 'b', 'blocks'), createDot('w1', 5));
+      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'follows'), createDot('w1', 3));
+      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'likes'), createDot('w1', 4));
+      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'blocks'), createDot('w1', 5));
 
       const builder = new WarpStateIndexBuilder();
       const { stats } = builder.buildFromState(state);
@@ -112,9 +112,9 @@ describe('WarpStateIndexBuilder', () => {
     it('produces deterministic output', async () => {
       const state = createEmptyStateV5();
 
-      orsetAdd(state.nodeAlive, 'a', createDot('w1', 1));
-      orsetAdd(state.nodeAlive, 'b', createDot('w1', 2));
-      orsetAdd(state.edgeAlive, encodeEdgeKey('a', 'b', 'e1'), createDot('w1', 3));
+      state.nodeAlive.add('a', createDot('w1', 1));
+      state.nodeAlive.add('b', createDot('w1', 2));
+      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'e1'), createDot('w1', 3));
 
       // Build twice and compare
       const builder1 = new WarpStateIndexBuilder();
@@ -137,9 +137,9 @@ describe('WarpStateIndexBuilder', () => {
     it('produces sharded output structure', async () => {
       const state = createEmptyStateV5();
 
-      orsetAdd(state.nodeAlive, 'node-a', createDot('w1', 1));
-      orsetAdd(state.nodeAlive, 'node-b', createDot('w1', 2));
-      orsetAdd(state.edgeAlive, encodeEdgeKey('node-a', 'node-b', 'edge'), createDot('w1', 3));
+      state.nodeAlive.add('node-a', createDot('w1', 1));
+      state.nodeAlive.add('node-b', createDot('w1', 2));
+      state.edgeAlive.add(encodeEdgeKey('node-a', 'node-b', 'edge'), createDot('w1', 3));
 
       const builder = new WarpStateIndexBuilder();
       builder.buildFromState(state);
@@ -161,9 +161,9 @@ describe('WarpStateIndexBuilder', () => {
     it('builds and serializes in one call', async () => {
       const state = createEmptyStateV5();
 
-      orsetAdd(state.nodeAlive, 'x', createDot('w1', 1));
-      orsetAdd(state.nodeAlive, 'y', createDot('w1', 2));
-      orsetAdd(state.edgeAlive, encodeEdgeKey('x', 'y', 'link'), createDot('w1', 3));
+      state.nodeAlive.add('x', createDot('w1', 1));
+      state.nodeAlive.add('y', createDot('w1', 2));
+      state.edgeAlive.add(encodeEdgeKey('x', 'y', 'link'), createDot('w1', 3));
 
       const { tree, stats } = await buildWarpStateIndex(state);
 
@@ -178,9 +178,9 @@ describe('WarpStateIndexBuilder', () => {
       const state = createEmptyStateV5();
 
       // Node IDs are semantic (user:alice), not commit SHAs
-      orsetAdd(state.nodeAlive, 'user:alice', createDot('w1', 1));
-      orsetAdd(state.nodeAlive, 'user:bob', createDot('w1', 2));
-      orsetAdd(state.edgeAlive, encodeEdgeKey('user:alice', 'user:bob', 'follows'), createDot('w1', 3));
+      state.nodeAlive.add('user:alice', createDot('w1', 1));
+      state.nodeAlive.add('user:bob', createDot('w1', 2));
+      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:bob', 'follows'), createDot('w1', 3));
 
       const builder = new WarpStateIndexBuilder();
       const { stats } = builder.buildFromState(state);
@@ -196,11 +196,11 @@ describe('WarpStateIndexBuilder', () => {
     it('edge direction comes from edge definition, not parent relationship', () => {
       const state = createEmptyStateV5();
 
-      orsetAdd(state.nodeAlive, 'parent', createDot('w1', 1));
-      orsetAdd(state.nodeAlive, 'child', createDot('w1', 2));
+      state.nodeAlive.add('parent', createDot('w1', 1));
+      state.nodeAlive.add('child', createDot('w1', 2));
 
       // Edge direction is defined by from/to, not by any commit parent relationship
-      orsetAdd(state.edgeAlive, encodeEdgeKey('parent', 'child', 'contains'), createDot('w1', 3));
+      state.edgeAlive.add(encodeEdgeKey('parent', 'child', 'contains'), createDot('w1', 3));
 
       const builder = new WarpStateIndexBuilder();
       builder.buildFromState(state);
@@ -230,14 +230,14 @@ describe('WarpStateIndexBuilder', () => {
 
       // Add 1000 nodes
       for (let i = 0; i < 1000; i++) {
-        orsetAdd(state.nodeAlive, `node-${i}`, createDot('w1', i + 1));
+        state.nodeAlive.add(`node-${i}`, createDot('w1', i + 1));
       }
 
       // Add 5000 random edges
       for (let i = 0; i < 5000; i++) {
         const from = `node-${Math.floor(Math.random() * 1000)}`;
         const to = `node-${Math.floor(Math.random() * 1000)}`;
-        orsetAdd(state.edgeAlive, encodeEdgeKey(from, to, `edge-${i}`), createDot('w1', 1001 + i));
+        state.edgeAlive.add(encodeEdgeKey(from, to, `edge-${i}`), createDot('w1', 1001 + i));
       }
 
       const builder = new WarpStateIndexBuilder();

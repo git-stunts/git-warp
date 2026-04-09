@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.js';
-import { orsetContains } from '../../../src/domain/crdt/ORSet.js';
-import { lwwValue } from '../../../src/domain/crdt/LWW.js';
+import ORSet from '../../../src/domain/crdt/ORSet.ts';
+import { lwwValue } from '../../../src/domain/crdt/LWW.ts';
 import {
   createOidGenerator,
   createMockPersistence,
@@ -86,7 +86,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
 
       const slice = await graph.materializeSlice('user:alice');
       expect(slice.patchCount).toBe(1);
-      expect(orsetContains(slice.state.nodeAlive, 'user:alice')).toBe(true);
+      expect(slice.state.nodeAlive.contains('user:alice')).toBe(true);
     });
 
     it('slices a node with multiple property patches', async () => {
@@ -163,7 +163,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
 
       const slice = await graph.materializeSlice('user:alice');
       expect(slice.patchCount).toBe(3);
-      expect(orsetContains(slice.state.nodeAlive, 'user:alice')).toBe(true);
+      expect(slice.state.nodeAlive.contains('user:alice')).toBe(true);
 
       // Check properties are set correctly
       const namePropKey = encodePropKey('user:alice', 'name');
@@ -255,9 +255,9 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
       // Slice for the edge - should include all 3 patches (edge + its endpoint dependencies)
       const slice = await graph.materializeSlice(edgeKey);
       expect(slice.patchCount).toBe(3);
-      expect(orsetContains(slice.state.nodeAlive, 'node:A')).toBe(true);
-      expect(orsetContains(slice.state.nodeAlive, 'node:B')).toBe(true);
-      expect(orsetContains(slice.state.edgeAlive, edgeKey)).toBe(true);
+      expect(slice.state.nodeAlive.contains('node:A')).toBe(true);
+      expect(slice.state.nodeAlive.contains('node:B')).toBe(true);
+      expect(slice.state.edgeAlive.contains(edgeKey)).toBe(true);
     });
 
     it('slice is smaller than full materialization when nodes are independent', async () => {
@@ -327,14 +327,14 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
       // Slice for node A should only include patch 1
       const sliceA = await graph.materializeSlice('node:A');
       expect(sliceA.patchCount).toBe(1);
-      expect(orsetContains(sliceA.state.nodeAlive, 'node:A')).toBe(true);
-      expect(orsetContains(sliceA.state.nodeAlive, 'node:B')).toBe(false);
+      expect(sliceA.state.nodeAlive.contains('node:A')).toBe(true);
+      expect(sliceA.state.nodeAlive.contains('node:B')).toBe(false);
 
       // Slice for node B should only include patch 2
       const sliceB = await graph.materializeSlice('node:B');
       expect(sliceB.patchCount).toBe(1);
-      expect(orsetContains(sliceB.state.nodeAlive, 'node:B')).toBe(true);
-      expect(orsetContains(sliceB.state.nodeAlive, 'node:A')).toBe(false);
+      expect(sliceB.state.nodeAlive.contains('node:B')).toBe(true);
+      expect(sliceB.state.nodeAlive.contains('node:A')).toBe(false);
     });
   });
 
@@ -406,7 +406,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
 
       const slice = await graph.materializeSlice('shared');
       expect(slice.patchCount).toBe(2);
-      expect(orsetContains(slice.state.nodeAlive, 'shared')).toBe(true);
+      expect(slice.state.nodeAlive.contains('shared')).toBe(true);
 
       const propKey = encodePropKey('shared', 'owner');
       expect(lwwValue(slice.state.prop.get(propKey))).toBe('bob');
@@ -650,9 +650,9 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
       // Slice for Z should include all 3 patches due to transitive dependencies
       const slice = await graph.materializeSlice('node:Z');
       expect(slice.patchCount).toBe(3);
-      expect(orsetContains(slice.state.nodeAlive, 'node:X')).toBe(true);
-      expect(orsetContains(slice.state.nodeAlive, 'node:Y')).toBe(true);
-      expect(orsetContains(slice.state.nodeAlive, 'node:Z')).toBe(true);
+      expect(slice.state.nodeAlive.contains('node:X')).toBe(true);
+      expect(slice.state.nodeAlive.contains('node:Y')).toBe(true);
+      expect(slice.state.nodeAlive.contains('node:Z')).toBe(true);
     });
   });
 
@@ -794,10 +794,10 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
       // Slice for D should include all 4 patches (A, B, C, D)
       const slice = await graph.materializeSlice('node:D');
       expect(slice.patchCount).toBe(4);
-      expect(orsetContains(slice.state.nodeAlive, 'node:A')).toBe(true);
-      expect(orsetContains(slice.state.nodeAlive, 'node:B')).toBe(true);
-      expect(orsetContains(slice.state.nodeAlive, 'node:C')).toBe(true);
-      expect(orsetContains(slice.state.nodeAlive, 'node:D')).toBe(true);
+      expect(slice.state.nodeAlive.contains('node:A')).toBe(true);
+      expect(slice.state.nodeAlive.contains('node:B')).toBe(true);
+      expect(slice.state.nodeAlive.contains('node:C')).toBe(true);
+      expect(slice.state.nodeAlive.contains('node:D')).toBe(true);
     });
   });
 });

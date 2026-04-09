@@ -17,10 +17,10 @@
 import computeShardKey from '../../utils/shardKey.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
 import { ShardIdOverflowError } from '../../errors/index.ts';
-import { MetaShard } from '../../artifacts/MetaShard.js';
-import { EdgeShard } from '../../artifacts/EdgeShard.js';
-import { LabelShard } from '../../artifacts/LabelShard.js';
-import { ReceiptShard } from '../../artifacts/ReceiptShard.js';
+import { MetaShard } from '../../artifacts/MetaShard.ts';
+import { EdgeShard } from '../../artifacts/EdgeShard.ts';
+import { LabelShard } from '../../artifacts/LabelShard.ts';
+import { ReceiptShard } from '../../artifacts/ReceiptShard.ts';
 
 /** Maximum local IDs per shard (2^24). */
 const MAX_LOCAL_ID = 1 << 24;
@@ -220,7 +220,7 @@ export default class LogicalBitmapIndexBuilder {
    * output through the adapter's encode → blobWrite → treeAssemble
    * pipeline to persist.
    *
-   * @returns {Generator<import('../../artifacts/IndexShard.js').IndexShard>}
+   * @returns {Generator<import('../../artifacts/IndexShard.ts').IndexShard>}
    */
   *yieldShards() {
     const allShardKeys = new Set([...this._shardNextLocal.keys()]);

@@ -1,5 +1,5 @@
-import type WarpStream from '../domain/stream/WarpStream.js';
-import type { IndexShard } from '../domain/artifacts/IndexShard.js';
+import type WarpStream from '../domain/stream/WarpStream.ts';
+import type { IndexShard } from '../domain/artifacts/IndexShard.ts';
 
 /**
  * Port for index shard persistence.

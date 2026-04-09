@@ -11,7 +11,7 @@ import {
   encodeEdgePropKey,
 } from '../../../../src/domain/services/JoinReducer.js';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 
 // ---------------------------------------------------------------------------
 // ADR 2 Tripwire — Op Set Membership Tests

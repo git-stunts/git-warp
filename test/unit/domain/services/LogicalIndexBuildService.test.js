@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
 import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';
-import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.js';
-import { LabelShard } from '../../../../src/domain/artifacts/LabelShard.js';
-import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.js';
-import { ReceiptShard } from '../../../../src/domain/artifacts/ReceiptShard.js';
+import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.ts';
+import { LabelShard } from '../../../../src/domain/artifacts/LabelShard.ts';
+import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.ts';
+import { ReceiptShard } from '../../../../src/domain/artifacts/ReceiptShard.ts';
 
 /**
  * Helper: builds a WarpStateV5 from a simple fixture definition.

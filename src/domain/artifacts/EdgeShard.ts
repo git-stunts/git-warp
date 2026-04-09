@@ -1,12 +1,17 @@
 import WarpError from '../errors/WarpError.ts';
-import { IndexShard } from './IndexShard.js';
+import { IndexShard } from './IndexShard.ts';
 
 /** Forward or reverse edge bitmaps for a shard. */
 export class EdgeShard extends IndexShard {
-  /** Creates an instance.
-   * @param {{ shardKey: string, schemaVersion?: number, direction: 'fwd'|'rev', buckets: Record<string, Record<string, Uint8Array>> }} fields
-   */
-  constructor({ shardKey, schemaVersion = 1, direction, buckets }) {
+  readonly direction: 'fwd' | 'rev';
+  readonly buckets: Record<string, Record<string, Uint8Array>>;
+
+  constructor({ shardKey, schemaVersion = 1, direction, buckets }: {
+    shardKey: string;
+    schemaVersion?: number;
+    direction: 'fwd' | 'rev';
+    buckets: Record<string, Record<string, Uint8Array>>;
+  }) {
     super({ shardKey, schemaVersion });
     if (direction !== 'fwd' && direction !== 'rev') {
       throw new WarpError(
@@ -14,9 +19,7 @@ export class EdgeShard extends IndexShard {
         'E_INVALID_SHARD',
       );
     }
-    /** @type {'fwd'|'rev'} */
     this.direction = direction;
-    /** @type {Record<string, Record<string, Uint8Array>>} */
     this.buckets = buckets;
     Object.freeze(this);
   }

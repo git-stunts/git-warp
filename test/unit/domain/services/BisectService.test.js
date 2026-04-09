@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
 import BisectService from '../../../../src/domain/services/BisectService.js';
-import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { createGitRepo } from '../../../helpers/warpGraphTestUtils.js';
 
 describe('BisectService', { timeout: 30000 }, () => {
@@ -30,7 +30,7 @@ describe('BisectService', { timeout: 30000 }, () => {
         writerId: 'w1',
         testFn: async (state) => {
           // "good" means 'bug' node is NOT alive
-          return !orsetContains(state.nodeAlive, 'bug');
+          return !state.nodeAlive.contains('bug');
         },
       });
 
@@ -90,7 +90,7 @@ describe('BisectService', { timeout: 30000 }, () => {
         bad: shaB,
         writerId: 'w1',
         testFn: async (state) => {
-          return !orsetContains(state.nodeAlive, 'bug');
+          return !state.nodeAlive.contains('bug');
         },
       });
 
@@ -186,7 +186,7 @@ describe('BisectService', { timeout: 30000 }, () => {
         writerId: 'w1',
         testFn: async (state, sha) => {
           observedShas.push(sha);
-          return !orsetContains(state.nodeAlive, 'bug');
+          return !state.nodeAlive.contains('bug');
         },
       });
 

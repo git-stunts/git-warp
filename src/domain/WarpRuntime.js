@@ -9,7 +9,7 @@
  */
 
 import { validateGraphName, validateWriterId } from './utils/RefLayout.ts';
-import VersionVector from './crdt/VersionVector.js';
+import VersionVector from './crdt/VersionVector.ts';
 import { DEFAULT_GC_POLICY } from './services/GCPolicy.js';
 import { AuditReceiptService } from './services/audit/AuditReceiptService.js';
 import { TemporalQuery } from './services/TemporalQuery.js';
@@ -213,7 +213,7 @@ export default class WarpRuntime {
     /** @type {string} */
     this._writerId = writerId;
 
-    /** @type {import('./crdt/VersionVector.js').default} */
+    /** @type {import('./crdt/VersionVector.ts').default} */
     this._versionVector = VersionVector.empty();
 
     /** @type {import('./services/JoinReducer.js').WarpStateV5|null} */
@@ -343,13 +343,13 @@ export default class WarpRuntime {
     this._subscriptionController = new SubscriptionController(this);
 
     /** @type {ProvenanceController} */
-    this._provenanceController = new ProvenanceController(/** @type {import('./warp/_internal.js').WarpGraphWithMixins} */ (/** @type {unknown} */ (this)));
+    this._provenanceController = new ProvenanceController(/** @type {import('./warp/_internal.ts').WarpGraphWithMixins} */ (/** @type {unknown} */ (this)));
 
     /** @type {ForkController} */
     this._forkController = new ForkController(this);
 
     /** @type {QueryController} */
-    this._queryController = new QueryController(/** @type {import('./warp/_internal.js').WarpGraphWithMixins} */ (/** @type {unknown} */ (this)));
+    this._queryController = new QueryController(/** @type {import('./warp/_internal.ts').WarpGraphWithMixins} */ (/** @type {unknown} */ (this)));
 
     /** @type {PatchController} */
     this._patchController = new PatchController(this);

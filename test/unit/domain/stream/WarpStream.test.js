@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import WarpStream from '../../../../src/domain/stream/WarpStream.js';
-import Transform from '../../../../src/domain/stream/Transform.js';
-import Sink from '../../../../src/domain/stream/Sink.js';
+import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
+import Transform from '../../../../src/domain/stream/Transform.ts';
+import Sink from '../../../../src/domain/stream/Sink.ts';
 
 // ── Helpers ───────────────────────────────────────────────────────────
 

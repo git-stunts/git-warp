@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { CborCheckpointStoreAdapter } from '../../../../src/infrastructure/adapters/CborCheckpointStoreAdapter.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import CheckpointStorePort from '../../../../src/ports/CheckpointStorePort.ts';
-import { createORSet, orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import WarpStateV5 from '../../../../src/domain/services/state/WarpStateV5.js';
 import MockBlobPort from '../../../helpers/MockBlobPort.js';
@@ -14,12 +14,12 @@ import MockBlobPort from '../../../helpers/MockBlobPort.js';
  * @returns {WarpStateV5}
  */
 function createGoldenState() {
-  const nodeAlive = createORSet();
-  orsetAdd(nodeAlive, 'user:alice', createDot('w1', 1));
-  orsetAdd(nodeAlive, 'user:bob', createDot('w1', 2));
+  const nodeAlive = ORSet.empty();
+  nodeAlive.add('user:alice', createDot('w1', 1));
+  nodeAlive.add('user:bob', createDot('w1', 2));
 
-  const edgeAlive = createORSet();
-  orsetAdd(edgeAlive, 'user:alice\x00user:bob\x00knows', createDot('w1', 3));
+  const edgeAlive = ORSet.empty();
+  edgeAlive.add('user:alice\x00user:bob\x00knows', createDot('w1', 3));
 
   /** @type {Map<string, import('../../../../src/domain/crdt/LWW.js').LWWRegister<unknown>>} */
   const prop = new Map();
@@ -28,7 +28,7 @@ function createGoldenState() {
     value: 'Alice',
   });
 
-  const observedFrontier = createVersionVector();
+  const observedFrontier = VersionVector.empty();
   observedFrontier.set('w1', 3);
 
   return new WarpStateV5({ nodeAlive, edgeAlive, prop, observedFrontier });
@@ -73,7 +73,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         codec: new CborCodec(), blobPort,
       });
 
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
       vv.set('w1', 3);
 
       const result = await adapter.writeCheckpoint({
@@ -99,7 +99,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       const { ProvenanceIndex } = await import('../../../../src/domain/services/provenance/ProvenanceIndex.js');
       const provIndex = new ProvenanceIndex();
 
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
 
       const result = await adapter.writeCheckpoint({
         state: createGoldenState(),
@@ -120,7 +120,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       const codec = new CborCodec();
       const adapter = new CborCheckpointStoreAdapter({ codec, blobPort });
 
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
       vv.set('w1', 3);
 
       const writeResult = await adapter.writeCheckpoint({
@@ -168,7 +168,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       const codec = new CborCodec();
       const adapter = new CborCheckpointStoreAdapter({ codec, blobPort });
 
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
       const writeResult = await adapter.writeCheckpoint({
         state: createGoldenState(),
         frontier: new Map(),
@@ -261,10 +261,10 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       ]);
 
       const state = new WarpStateV5({
-        nodeAlive: createORSet(),
-        edgeAlive: createORSet(),
+        nodeAlive: ORSet.empty(),
+        edgeAlive: ORSet.empty(),
         prop,
-        observedFrontier: createVersionVector(),
+        observedFrontier: VersionVector.empty(),
         edgeBirthEvent,
       });
 

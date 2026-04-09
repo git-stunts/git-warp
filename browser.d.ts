@@ -29,9 +29,9 @@ export class WarpError extends Error {
 }
 
 /**
- * Creates an empty VersionVector (Map<string, number>).
+ * VersionVector — causality tracking for distributed CRDT systems.
  */
-export function createVersionVector(): Map<string, number>;
+export { default as VersionVector } from './src/domain/crdt/VersionVector.ts';
 
 /**
  * Generates a new canonical writer ID.

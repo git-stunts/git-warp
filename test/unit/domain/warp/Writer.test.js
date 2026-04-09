@@ -6,12 +6,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Writer, WriterError } from '../../../../src/domain/warp/Writer.js';
-import { PatchSession } from '../../../../src/domain/warp/PatchSession.js';
+import { Writer, WriterError } from '../../../../src/domain/warp/Writer.ts';
+import { PatchSession } from '../../../../src/domain/warp/PatchSession.ts';
 import { buildWriterRef, validateWriterId } from '../../../../src/domain/utils/RefLayout.ts';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
-import { createORSet, orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
@@ -68,7 +68,7 @@ describe('Writer (WARP schema:2)', () => {
 
   beforeEach(() => {
     persistence = createMockPersistence();
-    versionVector = createVersionVector();
+    versionVector = VersionVector.empty();
     getCurrentState = vi.fn(() => null);
   });
 
@@ -686,7 +686,7 @@ describe('PatchSession operations', () => {
 
   beforeEach(() => {
     persistence = createMockPersistence();
-    versionVector = createVersionVector();
+    versionVector = VersionVector.empty();
     getCurrentState = vi.fn(() => null);
     persistence.readRef.mockResolvedValue(null);
     patchJournal = createPatchJournal(persistence);
@@ -712,8 +712,8 @@ describe('PatchSession operations', () => {
   });
 
   it('removeNode creates node-remove op', async () => {
-    const state = /** @type {any} */ ({ nodeAlive: createORSet(), edgeAlive: createORSet(), prop: new Map(), observedFrontier: createVersionVector() });
-    orsetAdd(state.nodeAlive, 'user:alice', createDot('alice', 1));
+    const state = /** @type {any} */ ({ nodeAlive: ORSet.empty(), edgeAlive: ORSet.empty(), prop: new Map(), observedFrontier: VersionVector.empty() });
+    state.nodeAlive.add('user:alice', createDot('alice', 1));
 
     const writer = new Writer({
       persistence,
@@ -755,9 +755,9 @@ describe('PatchSession operations', () => {
   });
 
   it('removeEdge creates edge-remove op', async () => {
-    const state = /** @type {any} */ ({ nodeAlive: createORSet(), edgeAlive: createORSet(), prop: new Map(), observedFrontier: createVersionVector() });
+    const state = /** @type {any} */ ({ nodeAlive: ORSet.empty(), edgeAlive: ORSet.empty(), prop: new Map(), observedFrontier: VersionVector.empty() });
     const ek = encodeEdgeKey('n1', 'n2', 'links');
-    orsetAdd(state.edgeAlive, ek, createDot('alice', 1));
+    state.edgeAlive.add(ek, createDot('alice', 1));
 
     const writer = new Writer({
       persistence,

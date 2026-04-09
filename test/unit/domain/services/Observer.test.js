@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
 import Observer from '../../../../src/domain/services/query/Observer.js';
 import { createEmptyStateV5, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.js';
-import { orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 
 /** @param {any} graph @param {(state: any) => void} seedFn */
 function setupGraphState(graph, seedFn) {
@@ -15,13 +15,13 @@ function setupGraphState(graph, seedFn) {
 
 /** @param {any} state @param {any} nodeId @param {any} counter */
 function addNode(state, nodeId, counter) {
-  orsetAdd(state.nodeAlive, nodeId, createDot('w1', counter));
+  state.nodeAlive.add(nodeId, createDot('w1', counter));
 }
 
 /** @param {any} state @param {any} from @param {any} to @param {any} label @param {any} counter */
 function addEdge(state, from, to, label, counter) {
   const edgeKey = encodeEdgeKey(from, to, label);
-  orsetAdd(state.edgeAlive, edgeKey, createDot('w1', counter));
+  state.edgeAlive.add(edgeKey, createDot('w1', counter));
 }
 
 /** @param {any} state @param {any} nodeId @param {any} key @param {any} value */

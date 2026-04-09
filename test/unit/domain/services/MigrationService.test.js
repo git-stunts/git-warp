@@ -8,7 +8,7 @@ import {
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
 import { compareEventIds, createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { lwwSet as lwwSetImported, lwwMax as lwwMaxImported } from '../../../../src/domain/crdt/LWW.js';
+import { lwwSet as lwwSetImported, lwwMax as lwwMaxImported } from '../../../../src/domain/crdt/LWW.ts';
 
 // Re-export lwwSet/lwwMax for use in tests
 const lwwSetLocal = lwwSetImported;
@@ -123,10 +123,10 @@ function reduce(patches) {
 // End of v4 test helpers
 // ============================================================================
 import { computeStateHashV5, nodeVisibleV5, edgeVisibleV5 } from '../../../../src/domain/services/state/StateSerializerV5.js';
-import { orsetContains, orsetElements } from '../../../../src/domain/crdt/ORSet.js';
-import { lwwSet, lwwValue } from '../../../../src/domain/crdt/LWW.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { lwwSet, lwwValue } from '../../../../src/domain/crdt/LWW.ts';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 // v1 op types (for migration tests) — inlined after WarpTypes.ts deletion
 /** @param {string} node */
 function createNodeAdd(node) { return { type: 'NodeAdd', node }; }
@@ -218,8 +218,8 @@ describe('MigrationService', () => {
 
         const v5State = migrateV4toV5(v4State, migrationWriterId);
 
-        expect(orsetElements(v5State.nodeAlive)).toHaveLength(0);
-        expect(orsetElements(v5State.edgeAlive)).toHaveLength(0);
+        expect(v5State.nodeAlive.elements()).toHaveLength(0);
+        expect(v5State.edgeAlive.elements()).toHaveLength(0);
         expect(v5State.prop.size).toBe(0);
         expect(v5State.observedFrontier.size).toBe(0);
       });
@@ -234,8 +234,8 @@ describe('MigrationService', () => {
 
         const v5State = migrateV4toV5(v4State, migrationWriterId);
 
-        expect(orsetContains(v5State.nodeAlive, 'node-a')).toBe(true);
-        expect(orsetElements(v5State.nodeAlive)).toEqual(['node-a']);
+        expect(v5State.nodeAlive.contains('node-a')).toBe(true);
+        expect(v5State.nodeAlive.elements()).toEqual(['node-a']);
       });
 
       it('migrates multiple visible nodes', () => {
@@ -250,10 +250,10 @@ describe('MigrationService', () => {
 
         const v5State = migrateV4toV5(v4State, migrationWriterId);
 
-        expect(orsetContains(v5State.nodeAlive, 'node-a')).toBe(true);
-        expect(orsetContains(v5State.nodeAlive, 'node-b')).toBe(true);
-        expect(orsetContains(v5State.nodeAlive, 'node-c')).toBe(true);
-        expect(orsetElements(v5State.nodeAlive)).toHaveLength(3);
+        expect(v5State.nodeAlive.contains('node-a')).toBe(true);
+        expect(v5State.nodeAlive.contains('node-b')).toBe(true);
+        expect(v5State.nodeAlive.contains('node-c')).toBe(true);
+        expect(v5State.nodeAlive.elements()).toHaveLength(3);
       });
 
       it('assigns synthetic dots from migration writer', () => {
@@ -282,8 +282,8 @@ describe('MigrationService', () => {
 
         const v5State = migrateV4toV5(v4State, migrationWriterId);
 
-        expect(orsetContains(v5State.nodeAlive, 'deleted-node')).toBe(false);
-        expect(orsetElements(v5State.nodeAlive)).toHaveLength(0);
+        expect(v5State.nodeAlive.contains('deleted-node')).toBe(false);
+        expect(v5State.nodeAlive.elements()).toHaveLength(0);
       });
 
       it('only migrates visible nodes, not tombstoned ones', () => {
@@ -297,9 +297,9 @@ describe('MigrationService', () => {
 
         const v5State = migrateV4toV5(v4State, migrationWriterId);
 
-        expect(orsetContains(v5State.nodeAlive, 'visible-node')).toBe(true);
-        expect(orsetContains(v5State.nodeAlive, 'deleted-node')).toBe(false);
-        expect(orsetElements(v5State.nodeAlive)).toEqual(['visible-node']);
+        expect(v5State.nodeAlive.contains('visible-node')).toBe(true);
+        expect(v5State.nodeAlive.contains('deleted-node')).toBe(false);
+        expect(v5State.nodeAlive.elements()).toEqual(['visible-node']);
       });
 
       it('handles previously deleted then re-created node (final state visible)', () => {
@@ -337,7 +337,7 @@ describe('MigrationService', () => {
         // Node is visible in v4 after resurrection
         expect(lwwValue(v4State.nodeAlive.get('node-x'))).toBe(true);
         // Node should be present in v5
-        expect(orsetContains(v5State.nodeAlive, 'node-x')).toBe(true);
+        expect(v5State.nodeAlive.contains('node-x')).toBe(true);
       });
     });
 
@@ -355,7 +355,7 @@ describe('MigrationService', () => {
         const v5State = migrateV4toV5(v4State, migrationWriterId);
 
         const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-        expect(orsetContains(v5State.edgeAlive, edgeKey)).toBe(true);
+        expect(v5State.edgeAlive.contains(edgeKey)).toBe(true);
       });
 
       it('does not migrate tombstoned edge', () => {
@@ -367,7 +367,7 @@ describe('MigrationService', () => {
         const v5State = migrateV4toV5(v4State, migrationWriterId);
 
         const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-        expect(orsetContains(v5State.edgeAlive, edgeKey)).toBe(false);
+        expect(v5State.edgeAlive.contains(edgeKey)).toBe(false);
       });
 
       it('migrates multiple edges with different labels', () => {
@@ -382,10 +382,10 @@ describe('MigrationService', () => {
 
         const v5State = migrateV4toV5(v4State, migrationWriterId);
 
-        expect(orsetContains(v5State.edgeAlive, encodeEdgeKey('a', 'b', 'follows'))).toBe(true);
-        expect(orsetContains(v5State.edgeAlive, encodeEdgeKey('a', 'b', 'likes'))).toBe(true);
-        expect(orsetContains(v5State.edgeAlive, encodeEdgeKey('b', 'a', 'follows'))).toBe(true);
-        expect(orsetElements(v5State.edgeAlive)).toHaveLength(3);
+        expect(v5State.edgeAlive.contains(encodeEdgeKey('a', 'b', 'follows'))).toBe(true);
+        expect(v5State.edgeAlive.contains(encodeEdgeKey('a', 'b', 'likes'))).toBe(true);
+        expect(v5State.edgeAlive.contains(encodeEdgeKey('b', 'a', 'follows'))).toBe(true);
+        expect(v5State.edgeAlive.elements()).toHaveLength(3);
       });
 
       it('filters visible from tombstoned edges', () => {
@@ -399,9 +399,9 @@ describe('MigrationService', () => {
 
         const v5State = migrateV4toV5(v4State, migrationWriterId);
 
-        expect(orsetContains(v5State.edgeAlive, encodeEdgeKey('a', 'b', 'visible'))).toBe(true);
-        expect(orsetContains(v5State.edgeAlive, encodeEdgeKey('a', 'c', 'deleted'))).toBe(false);
-        expect(orsetElements(v5State.edgeAlive)).toHaveLength(1);
+        expect(v5State.edgeAlive.contains(encodeEdgeKey('a', 'b', 'visible'))).toBe(true);
+        expect(v5State.edgeAlive.contains(encodeEdgeKey('a', 'c', 'deleted'))).toBe(false);
+        expect(v5State.edgeAlive.elements()).toHaveLength(1);
       });
     });
 
@@ -542,10 +542,10 @@ describe('MigrationService', () => {
         v4VisibleEdges.sort();
 
         // Compute visible projection from v5
-        const v5VisibleNodes = orsetElements(v5State.nodeAlive);
+        const v5VisibleNodes = v5State.nodeAlive.elements();
         v5VisibleNodes.sort();
 
-        const v5VisibleEdges = orsetElements(v5State.edgeAlive);
+        const v5VisibleEdges = v5State.edgeAlive.elements();
         v5VisibleEdges.sort();
 
         // They should match
@@ -591,13 +591,13 @@ describe('MigrationService', () => {
         expect(lwwValue(v4State.nodeAlive.get('c'))).toBe(true);
 
         // v5 should match the visible projection
-        expect(orsetContains(v5State.nodeAlive, 'a')).toBe(true);
-        expect(orsetContains(v5State.nodeAlive, 'b')).toBe(false);
-        expect(orsetContains(v5State.nodeAlive, 'c')).toBe(true);
+        expect(v5State.nodeAlive.contains('a')).toBe(true);
+        expect(v5State.nodeAlive.contains('b')).toBe(false);
+        expect(v5State.nodeAlive.contains('c')).toBe(true);
 
         // Edge a->b should be tombstoned, b->c should be visible
-        expect(orsetContains(v5State.edgeAlive, encodeEdgeKey('a', 'b', 'link'))).toBe(false);
-        expect(orsetContains(v5State.edgeAlive, encodeEdgeKey('b', 'c', 'link'))).toBe(true);
+        expect(v5State.edgeAlive.contains(encodeEdgeKey('a', 'b', 'link'))).toBe(false);
+        expect(v5State.edgeAlive.contains(encodeEdgeKey('b', 'c', 'link'))).toBe(true);
       });
 
       it('preserves LWW register metadata for props', () => {
@@ -695,7 +695,7 @@ describe('MigrationService', () => {
             patch: createPatch({
               writer: 'charlie',
               lamport: 10,
-              context: /** @type {any} */ (createVersionVector()),
+              context: /** @type {any} */ (VersionVector.empty()),
               ops: [
                 createNodeAddV2('user:charlie', createDot('charlie', 1)),
                 createPropSetV2('user:charlie', 'name', createInlineValue('Charlie')),
@@ -707,7 +707,7 @@ describe('MigrationService', () => {
             patch: createPatch({
               writer: 'charlie',
               lamport: 11,
-              context: /** @type {any} */ (createVersionVector()),
+              context: /** @type {any} */ (VersionVector.empty()),
               ops: [
                 createEdgeAddV2('user:charlie', 'user:alice', 'follows', createDot('charlie', 2)),
                 createEdgeAddV2('user:charlie', 'user:bob', 'follows', createDot('charlie', 3)),
@@ -762,7 +762,7 @@ describe('MigrationService', () => {
           patch: createPatch({
             writer: 'A',
             lamport: 10,
-            context: /** @type {any} */ (createVersionVector()),
+            context: /** @type {any} */ (VersionVector.empty()),
             ops: [createNodeAddV2('node-a', createDot('A', 1))],
           }),
           sha: 'aaaa2222',
@@ -772,7 +772,7 @@ describe('MigrationService', () => {
           patch: createPatch({
             writer: 'B',
             lamport: 11,
-            context: /** @type {any} */ (createVersionVector()),
+            context: /** @type {any} */ (VersionVector.empty()),
             ops: [createNodeAddV2('node-b', createDot('B', 1))],
           }),
           sha: 'bbbb3333',
@@ -782,7 +782,7 @@ describe('MigrationService', () => {
           patch: createPatch({
             writer: 'C',
             lamport: 12,
-            context: /** @type {any} */ (createVersionVector()),
+            context: /** @type {any} */ (VersionVector.empty()),
             ops: [createEdgeAddV2('node-a', 'node-b', 'link', createDot('C', 1))],
           }),
           sha: 'cccc4444',
@@ -842,7 +842,7 @@ describe('MigrationService', () => {
           patch: createPatch({
             writer: 'bob',
             lamport: 2,
-            context: /** @type {any} */ (createVersionVector()),
+            context: /** @type {any} */ (VersionVector.empty()),
             ops: [createNodeAddV2('node-from-v2', createDot('bob', 1))],
           }),
           sha: 'b2bb2222',
@@ -901,7 +901,7 @@ describe('MigrationService', () => {
             patch: createPatch({
               writer: 'V5-writer',
               lamport: 10,
-              context: /** @type {any} */ (createVersionVector()),
+              context: /** @type {any} */ (VersionVector.empty()),
               ops: [
                 createNodeAddV2('n3', createDot('V5-writer', 1)),
                 createEdgeAddV2('n1', 'n3', 'link', createDot('V5-writer', 2)),
@@ -948,7 +948,7 @@ describe('MigrationService', () => {
         const v2Patch = createPatch({
           writer: 'W',
           lamport: 1,
-          context: /** @type {any} */ (createVersionVector()),
+          context: /** @type {any} */ (VersionVector.empty()),
           ops: [createNodeAddV2('test-node', createDot('W', 1))],
         });
 

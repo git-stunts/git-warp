@@ -7,8 +7,8 @@
  * @module domain/services/state/WarpStateV5
  */
 
-import { createORSet, orsetClone } from '../../crdt/ORSet.js';
-import VersionVector from '../../crdt/VersionVector.js';
+import ORSet from '../../crdt/ORSet.ts';
+import VersionVector from '../../crdt/VersionVector.ts';
 
 /**
  * The CRDT materialized state for a WARP graph.
@@ -17,16 +17,16 @@ import VersionVector from '../../crdt/VersionVector.js';
  * be cloned before handing to consumers that expect isolation.
  */
 export default class WarpStateV5 {
-  /** @type {import('../../crdt/ORSet.js').default} */
+  /** @type {import('../../crdt/ORSet.ts').default} */
   nodeAlive;
 
-  /** @type {import('../../crdt/ORSet.js').default} */
+  /** @type {import('../../crdt/ORSet.ts').default} */
   edgeAlive;
 
-  /** @type {Map<string, import('../../crdt/LWW.js').LWWRegister<unknown>>} */
+  /** @type {Map<string, import('../../crdt/LWW.ts').LWWRegister<unknown>>} */
   prop;
 
-  /** @type {import('../../crdt/VersionVector.js').default} */
+  /** @type {import('../../crdt/VersionVector.ts').default} */
   observedFrontier;
 
   /**
@@ -39,10 +39,10 @@ export default class WarpStateV5 {
    * Creates a WarpStateV5 from field values.
    *
    * @param {{
-   *   nodeAlive: import('../../crdt/ORSet.js').default,
-   *   edgeAlive: import('../../crdt/ORSet.js').default,
-   *   prop: Map<string, import('../../crdt/LWW.js').LWWRegister<unknown>>,
-   *   observedFrontier: import('../../crdt/VersionVector.js').default,
+   *   nodeAlive: import('../../crdt/ORSet.ts').default,
+   *   edgeAlive: import('../../crdt/ORSet.ts').default,
+   *   prop: Map<string, import('../../crdt/LWW.ts').LWWRegister<unknown>>,
+   *   observedFrontier: import('../../crdt/VersionVector.ts').default,
    *   edgeBirthEvent?: Map<string, import('../../utils/EventId.ts').EventId>
    * }} fields
    */
@@ -61,8 +61,8 @@ export default class WarpStateV5 {
    */
   static empty() {
     return new WarpStateV5({
-      nodeAlive: createORSet(),
-      edgeAlive: createORSet(),
+      nodeAlive: ORSet.empty(),
+      edgeAlive: ORSet.empty(),
       prop: new Map(),
       observedFrontier: VersionVector.empty(),
       edgeBirthEvent: new Map(),
@@ -76,8 +76,8 @@ export default class WarpStateV5 {
    */
   clone() {
     return new WarpStateV5({
-      nodeAlive: orsetClone(this.nodeAlive),
-      edgeAlive: orsetClone(this.edgeAlive),
+      nodeAlive: this.nodeAlive.clone(),
+      edgeAlive: this.edgeAlive.clone(),
       prop: new Map(this.prop),
       observedFrontier: this.observedFrontier.clone(),
       edgeBirthEvent: new Map(this.edgeBirthEvent),

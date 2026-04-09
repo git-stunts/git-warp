@@ -12,8 +12,7 @@
  */
 
 import nullLogger from '../utils/nullLogger.ts';
-import { vvSerialize } from '../crdt/VersionVector.js';
-import { orsetGetDots, orsetContains, orsetElements } from '../crdt/ORSet.js';
+import VersionVector from '../crdt/VersionVector.ts';
 import NodeAdd from '../types/ops/NodeAdd.ts';
 import NodeRemove from '../types/ops/NodeRemove.ts';
 import EdgeAdd from '../types/ops/EdgeAdd.ts';
@@ -61,7 +60,7 @@ function findAttachedData(state, nodeId) {
   // and interior substring for target — avoids split() on every key.
   const srcPrefix = `${nodeId}\0`;
   const tgtInfix = `\0${nodeId}\0`;
-  for (const key of orsetElements(state.edgeAlive)) {
+  for (const key of state.edgeAlive.elements()) {
     if (key.startsWith(srcPrefix) || key.includes(tgtInfix)) {
       edges.push(key);
     }
@@ -162,7 +161,7 @@ export class PatchBuilder {
   /**
    * Creates a new PatchBuilder.
    *
-   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/Patch.ts').default, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal?: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.ts').default, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/Patch.ts').default, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal?: import('../../ports/PatchJournalPort.ts').default, logger?: import('../../ports/LoggerPort.ts').default, blobStorage?: import('../../ports/BlobStoragePort.ts').default }} options
    */
   constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, targetRefPath, onCommitSuccess = null, onDeleteWithData = 'warn', patchJournal, logger, blobStorage }) {
     /** @type {import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default & import('../../ports/TreePort.ts').default & import('../../ports/RefPort.ts').default} */
@@ -182,7 +181,7 @@ export class PatchBuilder {
     /** @type {number} */
     this._lamport = lamport;
 
-    /** @type {import('../crdt/VersionVector.js').default} */
+    /** @type {import('../crdt/VersionVector.ts').default} */
     this._vv = versionVector.clone(); // Clone to track local increments
 
     /** @type {() => import('./JoinReducer.js').WarpStateV5 | null} */
@@ -370,7 +369,7 @@ export class PatchBuilder {
         const from = /** @type {string} */ (parts[0]);
         const to = /** @type {string} */ (parts[1]);
         const label = /** @type {string} */ (parts[2]);
-        const edgeDots = [...orsetGetDots(state.edgeAlive, edgeKey)];
+        const edgeDots = [...state.edgeAlive.getDots(edgeKey)];
         this._ops.push(new EdgeRemove({ from, to, label, observedDots: edgeDots }));
         // Provenance: cascade-generated EdgeRemove reads the edge key (to observe its dots)
         this._observedOperands.add(edgeKey);
@@ -412,7 +411,7 @@ export class PatchBuilder {
         { code: 'E_PATCH_NO_STATE' },
       );
     }
-    const observedDots = [...orsetGetDots(state.nodeAlive, nodeId)];
+    const observedDots = [...state.nodeAlive.getDots(nodeId)];
     this._ops.push(new NodeRemove(nodeId, observedDots));
     // Provenance: NodeRemove reads the node (to observe its dots)
     this._observedOperands.add(nodeId);
@@ -497,7 +496,7 @@ export class PatchBuilder {
         { code: 'E_PATCH_NO_STATE' },
       );
     }
-    const observedDots = [...orsetGetDots(state.edgeAlive, edgeKey)];
+    const observedDots = [...state.edgeAlive.getDots(edgeKey)];
     this._ops.push(new EdgeRemove({ from, to, label, observedDots }));
     // Provenance: EdgeRemove reads the edge key (to observe its dots)
     this._observedOperands.add(edgeKey);
@@ -813,7 +812,7 @@ export class PatchBuilder {
       return;
     }
     const state = this._getSnapshotState();
-    if (!state || !orsetContains(state.nodeAlive, nodeId)) {
+    if (!state || !state.nodeAlive.contains(nodeId)) {
       throw new Error(`Cannot attach content to unknown node '${nodeId}': add the node first`);
     }
   }
@@ -830,7 +829,7 @@ export class PatchBuilder {
     const ek = encodeEdgeKey(from, to, label);
     if (!this._edgesAdded.has(ek)) {
       const state = this._getSnapshotState();
-      if (!state || !orsetContains(state.edgeAlive, ek)) {
+      if (!state || !state.edgeAlive.contains(ek)) {
         throw new Error(`Cannot set property on unknown edge (${from} → ${to} [${label}]): add the edge first`);
       }
     }
@@ -863,7 +862,7 @@ export class PatchBuilder {
       schema,
       writer: this._writerId,
       lamport: this._lamport,
-      context: vvSerialize(this._vv),
+      context: VersionVector.serialize(this._vv),
       ops: rawOps,
       reads: [...this._observedOperands].sort(),
       writes: [...this._writes].sort(),
@@ -986,7 +985,7 @@ export class PatchBuilder {
         schema,
         writer: this._writerId,
         lamport,
-        context: vvSerialize(this._vv),
+        context: VersionVector.serialize(this._vv),
         ops: rawOps,
         reads: [...this._observedOperands].sort(),
         writes: [...this._writes].sort(),
@@ -1074,7 +1073,7 @@ export class PatchBuilder {
    * `addNode` and `addEdge` operation. This tracks the causal context
    * for OR-Set dot generation.
    *
-   * @returns {import('../crdt/VersionVector.js').default} The version vector as a
+   * @returns {import('../crdt/VersionVector.ts').default} The version vector as a
    *   `Map<string, number>` mapping writer IDs to their logical clock values
    */
   get versionVector() {

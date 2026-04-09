@@ -3,8 +3,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import WarpCore from '../../../src/domain/WarpCore.js';
-import { createDot } from '../../../src/domain/crdt/Dot.js';
-import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
+import { createDot } from '../../../src/domain/crdt/Dot.ts';
+import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
 import { createStateReaderV5 } from '../../../src/domain/services/state/StateReaderV5.js';
 
@@ -120,7 +120,7 @@ async function simulatePatchCommit(persistence, {
     ops,
     ...(reads ? { reads } : {}),
     ...(writes ? { writes } : {}),
-    context: context || createVersionVector(),
+    context: context || VersionVector.empty(),
   };
 
   const patchBuffer = encode(patch);

@@ -1,4 +1,4 @@
-import Sink from '../../domain/stream/Sink.js';
+import Sink from '../../domain/stream/Sink.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 
 /**

@@ -9,7 +9,7 @@
  * @module domain/services/ImmutableSnapshot
  */
 
-import VersionVector from '../crdt/VersionVector.js';
+import VersionVector from '../crdt/VersionVector.ts';
 
 /** @typedef {import('./JoinReducer.js').WarpStateV5} WarpStateV5 */
 

@@ -9,7 +9,7 @@
  */
 
 import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.js';
-import { createDot } from '../../src/domain/crdt/Dot.js';
+import { createDot } from '../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../src/domain/utils/EventId.ts';
 
 /**

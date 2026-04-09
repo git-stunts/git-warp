@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import QueryController from '../../../../../src/domain/services/controllers/QueryController.js';
 import WarpStateV5 from '../../../../../src/domain/services/state/WarpStateV5.js';
-import ORSet from '../../../../../src/domain/crdt/ORSet.js';
-import VersionVector from '../../../../../src/domain/crdt/VersionVector.js';
-import { Dot } from '../../../../../src/domain/crdt/Dot.js';
+import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
+import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
+import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 import {
   encodePropKey,
   encodeEdgeKey,

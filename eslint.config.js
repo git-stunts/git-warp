@@ -41,7 +41,6 @@ export default tseslint.config(
       parserOptions: {
         projectService: {
           allowDefaultProject: [
-            "src/domain/entities/GraphNode.js",
             "src/visualization/index.js",
           ],
         },
@@ -288,7 +287,7 @@ export default tseslint.config(
       "src/domain/services/query/LogicalTraversal.js",
       "src/domain/services/state/StateSerializerV5.js",
       "src/domain/services/PatchBuilder.js",
-      "src/domain/warp/PatchSession.js",
+      "src/domain/warp/PatchSession.ts",
       "src/domain/utils/EventId.ts",
       "src/domain/types/WorldlineSelector.ts",
       "src/visualization/renderers/ascii/graph.js",
@@ -326,8 +325,8 @@ export default tseslint.config(
       "src/infrastructure/adapters/CborCheckpointStoreAdapter.js",
       "src/infrastructure/adapters/CborPatchJournalAdapter.js",
       "src/infrastructure/adapters/IndexShardEncodeTransform.js",
-      "src/domain/stream/WarpStream.js",
-      "src/domain/artifacts/IndexShard.js",
+      "src/domain/stream/WarpStream.ts",
+      "src/domain/artifacts/IndexShard.ts",
       "src/visualization/renderers/ascii/path.js",
       "src/domain/services/strand/StrandService.js",
       "src/domain/services/query/AdjacencyNeighborProvider.js",

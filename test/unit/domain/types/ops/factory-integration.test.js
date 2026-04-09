@@ -3,7 +3,7 @@
  * and that OpNormalizer returns class instances.
  */
 import { describe, it, expect } from 'vitest';
-import { Dot } from '../../../../../src/domain/crdt/Dot.js';
+import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 import Op from '../../../../../src/domain/types/ops/Op.ts';
 import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
 import NodeRemove from '../../../../../src/domain/types/ops/NodeRemove.ts';

@@ -6,8 +6,8 @@ import {
   createEmptyStateV5,
 } from '../../../../src/domain/services/JoinReducer.js';
 import { createFrontier } from '../../../../src/domain/services/Frontier.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -28,7 +28,7 @@ function makeSyncResponse(ops) {
         writer: 'w1',
         lamport: 1,
         ops,
-        context: createVersionVector(),
+        context: VersionVector.empty(),
       },
     }],
   };

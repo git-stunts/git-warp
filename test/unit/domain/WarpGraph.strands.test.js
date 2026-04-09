@@ -8,8 +8,8 @@ import {
   exportCoordinateTransferPlanFact,
 } from '../../../src/domain/services/CoordinateFactExport.js';
 import { createStateReaderV5 } from '../../../src/domain/services/state/StateReaderV5.js';
-import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
-import { createDot } from '../../../src/domain/crdt/Dot.js';
+import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
+import { createDot } from '../../../src/domain/crdt/Dot.ts';
 import { buildStrandBraidRef, buildStrandOverlayRef } from '../../../src/domain/utils/RefLayout.ts';
 
 /** @typedef {any} WarpCoreRuntime */
@@ -123,7 +123,7 @@ async function simulatePatchCommit(persistence, {
     ops,
     ...(reads ? { reads } : {}),
     ...(writes ? { writes } : {}),
-    context: context || createVersionVector(),
+    context: context || VersionVector.empty(),
   };
 
   const patchBuffer = encode(patch);
@@ -645,7 +645,7 @@ describe('WarpCore strand foundation', () => {
       graphName,
       writerId: 'alice',
       lamport: 1,
-      context: createVersionVector(),
+      context: VersionVector.empty(),
       ops: [
         { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'status', value: 'base' },
@@ -713,7 +713,7 @@ describe('WarpCore strand foundation', () => {
       graphName,
       writerId: 'alice',
       lamport: 1,
-      context: createVersionVector(),
+      context: VersionVector.empty(),
       ops: [
         { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
@@ -791,7 +791,7 @@ describe('WarpCore strand foundation', () => {
       graphName,
       writerId: 'alice',
       lamport: 1,
-      context: createVersionVector(),
+      context: VersionVector.empty(),
       ops: [
         { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'status', value: 'base' },
@@ -858,7 +858,7 @@ describe('WarpCore strand foundation', () => {
       graphName,
       writerId: 'alice',
       lamport: 1,
-      context: createVersionVector(),
+      context: VersionVector.empty(),
       ops: [
         { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'status', value: 'base' },
@@ -908,7 +908,7 @@ describe('WarpCore strand foundation', () => {
       graphName,
       writerId: 'alice',
       lamport: 1,
-      context: createVersionVector(),
+      context: VersionVector.empty(),
       ops: [
         { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
@@ -1012,7 +1012,7 @@ describe('WarpCore strand foundation', () => {
       graphName,
       writerId: 'alice',
       lamport: 1,
-      context: createVersionVector(),
+      context: VersionVector.empty(),
       ops: [
         { type: 'NodeAdd', node: 'task:1', dot: createDot('alice', 1) },
         { type: 'PropSet', node: 'task:1', key: 'status', value: 'ready' },
@@ -1088,7 +1088,7 @@ describe('WarpCore strand foundation', () => {
       graphName,
       writerId: 'alice',
       lamport: 1,
-      context: createVersionVector(),
+      context: VersionVector.empty(),
       ops: [
         { type: 'NodeAdd', node: 'doc:1', dot: createDot('alice', 1) },
         { type: 'PropSet', node: 'doc:1', key: 'status', value: 'draft' },
@@ -1215,7 +1215,7 @@ describe('WarpCore strand foundation', () => {
       graphName,
       writerId: 'alice',
       lamport: 1,
-      context: createVersionVector(),
+      context: VersionVector.empty(),
       ops: [
         { type: 'NodeAdd', node: 'task:1', dot: createDot('alice', 1) },
         { type: 'PropSet', node: 'task:1', key: 'status', value: 'base' },
@@ -1266,7 +1266,7 @@ describe('WarpCore strand foundation', () => {
       graphName,
       writerId: 'alice',
       lamport: 1,
-      context: createVersionVector(),
+      context: VersionVector.empty(),
       ops: [
         { type: 'NodeAdd', node: 'doc:clear', dot: createDot('alice', 1) },
       ],
@@ -1307,7 +1307,7 @@ describe('WarpCore strand foundation', () => {
       graphName,
       writerId: 'alice',
       lamport: 1,
-      context: createVersionVector(),
+      context: VersionVector.empty(),
       ops: [
         { type: 'NodeAdd', node: 'task:queued', dot: createDot('alice', 1) },
         { type: 'PropSet', node: 'task:queued', key: 'status', value: 'base' },
@@ -1342,7 +1342,7 @@ describe('WarpCore strand foundation', () => {
       graphName,
       writerId: 'alice',
       lamport: 1,
-      context: createVersionVector(),
+      context: VersionVector.empty(),
       ops: [
         { type: 'NodeAdd', node: 'task:red', dot: createDot('alice', 1) },
         { type: 'NodeAdd', node: 'task:blue', dot: createDot('alice', 2) },
@@ -1385,7 +1385,7 @@ describe('WarpCore strand foundation', () => {
       graphName,
       writerId: 'alice',
       lamport: 1,
-      context: createVersionVector(),
+      context: VersionVector.empty(),
       ops: [
         { type: 'NodeAdd', node: 'task:conflict', dot: createDot('alice', 1) },
         { type: 'PropSet', node: 'task:conflict', key: 'status', value: 'base' },

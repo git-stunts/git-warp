@@ -10,9 +10,9 @@ import {
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.js';
 import { encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { lwwSet } from '../../../../src/domain/crdt/LWW.js';
+import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 
 // Helper to create a node add operation
 /** @param {string} nodeId @param {string} writerId @param {number} counter */

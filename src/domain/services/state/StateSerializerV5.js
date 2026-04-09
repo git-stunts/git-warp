@@ -1,6 +1,5 @@
 import defaultCodec from '../../utils/defaultCodec.ts';
 import defaultCrypto from '../../utils/defaultCrypto.ts';
-import { orsetContains, orsetElements } from '../../crdt/ORSet.js';
 import { decodeEdgeKey, decodePropKey } from '../KeyCodec.js';
 
 /**
@@ -27,7 +26,7 @@ import { decodeEdgeKey, decodePropKey } from '../KeyCodec.js';
  * @returns {boolean}
  */
 export function nodeVisibleV5(state, nodeId) {
-  return orsetContains(state.nodeAlive, nodeId);
+  return state.nodeAlive.contains(nodeId);
 }
 
 /**
@@ -38,7 +37,7 @@ export function nodeVisibleV5(state, nodeId) {
  * @returns {boolean}
  */
 export function edgeVisibleV5(state, edgeKey) {
-  if (!orsetContains(state.edgeAlive, edgeKey)) {
+  if (!state.edgeAlive.contains(edgeKey)) {
     return false;
   }
   const { from, to } = decodeEdgeKey(edgeKey);
@@ -99,11 +98,11 @@ export function serializeStateV5(state, { codec } = {}) {
  */
 export function projectStateV5(state) {
   // 1. Collect visible nodes, sorted
-  const nodes = [...orsetElements(state.nodeAlive)].sort();
+  const nodes = [...state.nodeAlive.elements()].sort();
 
   // 2. Collect visible edges (both endpoints visible), sorted by (from, to, label)
   const visibleEdges = [];
-  for (const edgeKey of orsetElements(state.edgeAlive)) {
+  for (const edgeKey of state.edgeAlive.elements()) {
     if (edgeVisibleV5(state, edgeKey)) {
       visibleEdges.push(decodeEdgeKey(edgeKey));
     }

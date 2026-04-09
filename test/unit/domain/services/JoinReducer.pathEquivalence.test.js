@@ -19,9 +19,9 @@ import {
 } from '../../../../src/domain/services/JoinReducer.js';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
-import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -398,8 +398,8 @@ describe('cross-path state equivalence', () => {
     assertStatesEqual(s1, s3, 'fast vs diff (all ops)');
 
     // Verify the state is sane: n1 alive, n2 tombstoned, edge alive, props set
-    expect(orsetContains(s1.nodeAlive, 'n1')).toBe(true);
-    expect(orsetContains(s1.nodeAlive, 'n2')).toBe(false);
+    expect(s1.nodeAlive.contains('n1')).toBe(true);
+    expect(s1.nodeAlive.contains('n2')).toBe(false);
     expect(lwwValue(s1.prop.get('n1\0name'))).toBe('Node1');
   });
 });

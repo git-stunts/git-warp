@@ -15,10 +15,10 @@ import {
   applyOpV2,
   reduceV5,
 } from '../../../../src/domain/services/JoinReducer.js';
-import { orsetContains, orsetElements, orsetGetDots } from '../../../../src/domain/crdt/ORSet.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { decodeEdgeKey } from '../../../../src/domain/services/KeyCodec.js';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
 import BitmapNeighborProvider from '../../../../src/domain/services/index/BitmapNeighborProvider.js';
@@ -70,8 +70,8 @@ function generatePatches(seed) {
 
     for (let o = 0; o < opCount; o++) {
       const roll = rng();
-      const aliveNodes = orsetElements(trackState.nodeAlive);
-      const aliveEdgeKeys = orsetElements(trackState.edgeAlive);
+      const aliveNodes = trackState.nodeAlive.elements();
+      const aliveEdgeKeys = trackState.edgeAlive.elements();
 
       if (roll < 0.3) {
         // NodeAdd
@@ -81,7 +81,7 @@ function generatePatches(seed) {
       } else if (roll < 0.45 && aliveNodes.length > 0) {
         // NodeRemove
         const nodeId = pick(rng, aliveNodes);
-        const dots = orsetGetDots(trackState.nodeAlive, nodeId);
+        const dots = trackState.nodeAlive.getDots(nodeId);
         if (dots.size > 0) {
           ops.push({
             type: 'NodeRemove',
@@ -99,7 +99,7 @@ function generatePatches(seed) {
       } else if (roll < 0.8 && aliveEdgeKeys.length > 0) {
         // EdgeRemove
         const edgeKey = pick(rng, aliveEdgeKeys);
-        const dots = orsetGetDots(trackState.edgeAlive, edgeKey);
+        const dots = trackState.edgeAlive.getDots(edgeKey);
         if (dots.size > 0) {
           const { from, to, label } = decodeEdgeKey(edgeKey);
           ops.push({
@@ -132,7 +132,7 @@ function generatePatches(seed) {
       writer,
       lamport,
       ops,
-      context: createVersionVector(),
+      context: VersionVector.empty(),
     };
     patches.push({ patch, sha });
 
@@ -154,9 +154,9 @@ function generatePatches(seed) {
 function buildAdjacency(state) {
   const outgoing = new Map();
   const incoming = new Map();
-  const aliveNodes = new Set(orsetElements(state.nodeAlive));
+  const aliveNodes = new Set(state.nodeAlive.elements());
 
-  for (const edgeKey of orsetElements(state.edgeAlive)) {
+  for (const edgeKey of state.edgeAlive.elements()) {
     const { from, to, label } = decodeEdgeKey(edgeKey);
     if (!aliveNodes.has(from) || !aliveNodes.has(to)) {
       continue;
@@ -237,7 +237,7 @@ describe('MaterializedView equivalence', () => {
 
       // ── Adjacency provider (ground truth from state) ──────────────
       const { outgoing, incoming } = buildAdjacency(fullState);
-      const aliveNodeSet = new Set(orsetElements(fullState.nodeAlive));
+      const aliveNodeSet = new Set(fullState.nodeAlive.elements());
       const adjacencyProvider = new AdjacencyNeighborProvider({
         outgoing,
         incoming,
@@ -245,7 +245,7 @@ describe('MaterializedView equivalence', () => {
       });
 
       // ── Compare per-node neighbors ────────────────────────────────
-      const fullAlive = orsetElements(fullState.nodeAlive).sort();
+      const fullAlive = fullState.nodeAlive.elements().sort();
 
       for (const nodeId of fullAlive) {
         const bmpOut = sortNeighbors(
@@ -300,8 +300,8 @@ describe('MaterializedView equivalence', () => {
       });
 
       // ── Compare alive nodes ───────────────────────────────────────
-      const fullAlive = orsetElements(fullState.nodeAlive).sort();
-      const incrAlive = orsetElements(incrState.nodeAlive).sort();
+      const fullAlive = fullState.nodeAlive.elements().sort();
+      const incrAlive = incrState.nodeAlive.elements().sort();
       expect(incrAlive, `seed ${seed}: alive node sets differ`).toEqual(fullAlive);
 
       // ── Compare per-node neighbors + properties ───────────────────
@@ -393,7 +393,7 @@ describe('MaterializedView equivalence', () => {
               value: 'sneaky',
             },
           ],
-          context: createVersionVector(),
+          context: VersionVector.empty(),
         },
         sha,
       },
@@ -407,9 +407,9 @@ describe('MaterializedView equivalence', () => {
     expect(afterKeys).toEqual(beforeKeys);
 
     // Nodes are alive
-    expect(orsetContains(fullState.nodeAlive, '__proto__')).toBe(true);
-    expect(orsetContains(fullState.nodeAlive, 'constructor')).toBe(true);
-    expect(orsetContains(fullState.nodeAlive, 'toString')).toBe(true);
+    expect(fullState.nodeAlive.contains('__proto__')).toBe(true);
+    expect(fullState.nodeAlive.contains('constructor')).toBe(true);
+    expect(fullState.nodeAlive.contains('toString')).toBe(true);
 
     // Bitmap index handles tricky names
     expect(build.logicalIndex.isAlive('__proto__')).toBe(true);

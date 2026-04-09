@@ -15,9 +15,9 @@ import {
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
 import { createFrontier } from '../../../../src/domain/services/Frontier.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
@@ -47,7 +47,7 @@ function createTestPatch({ writer = /** @type {any} */ (undefined), lamport = /*
     writer,
     lamport,
     ops: ops || [],
-    context: context || createVersionVector(),
+    context: context || VersionVector.empty(),
   };
 }
 
@@ -412,7 +412,7 @@ describe('SyncProtocol', () => {
       const result = /** @type {any} */ (applySyncResponse(/** @type {any} */ (response), state, frontier));
 
       expect(result.applied).toBe(1);
-      expect(orsetContains(result.state.nodeAlive, 'x')).toBe(true);
+      expect(result.state.nodeAlive.contains('x')).toBe(true);
       expect(result.frontier.get('w1')).toBe(SHA_A);
     });
 
@@ -444,8 +444,8 @@ describe('SyncProtocol', () => {
       const result = /** @type {any} */ (applySyncResponse(/** @type {any} */ (response), state, frontier));
 
       expect(result.applied).toBe(2);
-      expect(orsetContains(result.state.nodeAlive, 'x')).toBe(true);
-      expect(orsetContains(result.state.nodeAlive, 'y')).toBe(true);
+      expect(result.state.nodeAlive.contains('x')).toBe(true);
+      expect(result.state.nodeAlive.contains('y')).toBe(true);
       expect(result.frontier.get('w1')).toBe(SHA_B);
     });
 
@@ -468,7 +468,7 @@ describe('SyncProtocol', () => {
       applySyncResponse(/** @type {any} */ (response), state, frontier);
 
       // Original state should be unchanged
-      expect(orsetContains(state.nodeAlive, 'x')).toBe(false);
+      expect(state.nodeAlive.contains('x')).toBe(false);
       expect(frontier.has('w1')).toBe(false);
     });
 
@@ -500,8 +500,8 @@ describe('SyncProtocol', () => {
       const result = /** @type {any} */ (applySyncResponse(/** @type {any} */ (response), state, frontier));
 
       expect(result.applied).toBe(2);
-      expect(orsetContains(result.state.nodeAlive, 'x')).toBe(true);
-      expect(orsetContains(result.state.nodeAlive, 'y')).toBe(true);
+      expect(result.state.nodeAlive.contains('x')).toBe(true);
+      expect(result.state.nodeAlive.contains('y')).toBe(true);
       expect(result.frontier.get('w1')).toBe(SHA_A);
       expect(result.frontier.get('w2')).toBe(SHA_B);
     });
@@ -634,13 +634,13 @@ describe('SyncProtocol', () => {
       frontierA = resultA.frontier;
 
       // Both should now have all nodes
-      expect(orsetContains(stateA.nodeAlive, 'x')).toBe(true);
-      expect(orsetContains(stateA.nodeAlive, 'y')).toBe(true);
-      expect(orsetContains(stateA.nodeAlive, 'nodeA')).toBe(true);
+      expect(stateA.nodeAlive.contains('x')).toBe(true);
+      expect(stateA.nodeAlive.contains('y')).toBe(true);
+      expect(stateA.nodeAlive.contains('nodeA')).toBe(true);
 
-      expect(orsetContains(stateB.nodeAlive, 'x')).toBe(true);
-      expect(orsetContains(stateB.nodeAlive, 'y')).toBe(true);
-      expect(orsetContains(stateB.nodeAlive, 'nodeA')).toBe(true);
+      expect(stateB.nodeAlive.contains('x')).toBe(true);
+      expect(stateB.nodeAlive.contains('y')).toBe(true);
+      expect(stateB.nodeAlive.contains('nodeA')).toBe(true);
 
       // Frontiers should match
       expect(frontierA.get('w1')).toBe(SHA_B);
@@ -689,8 +689,8 @@ describe('SyncProtocol', () => {
       // State should be the same (idempotent)
       // Note: Due to OR-Set semantics, applying the same add twice adds a new dot
       // but the element is still present (this is correct OR-Set behavior)
-      expect(orsetContains(result1.state.nodeAlive, 'x')).toBe(true);
-      expect(orsetContains(result2.state.nodeAlive, 'x')).toBe(true);
+      expect(result1.state.nodeAlive.contains('x')).toBe(true);
+      expect(result2.state.nodeAlive.contains('x')).toBe(true);
     });
   });
 
@@ -706,7 +706,7 @@ describe('SyncProtocol', () => {
           { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
           { type: 'FutureOp', node: 'n2' }, // unknown op
         ],
-        context: createVersionVector(),
+        context: VersionVector.empty(),
       });
 
       const response = {
@@ -728,7 +728,7 @@ describe('SyncProtocol', () => {
         ops: [
           { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
         ],
-        context: createVersionVector(),
+        context: VersionVector.empty(),
       });
 
       const response = {
@@ -742,7 +742,7 @@ describe('SyncProtocol', () => {
 
       const result = /** @type {any} */ (applySyncResponse(response, state, frontier));
       expect(result.applied).toBe(1);
-      expect(orsetContains(result.state.nodeAlive, 'n1')).toBe(true);
+      expect(result.state.nodeAlive.contains('n1')).toBe(true);
     });
   });
 

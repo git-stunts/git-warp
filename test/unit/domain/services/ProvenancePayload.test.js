@@ -3,8 +3,8 @@ import ProvenancePayload from '../../../../src/domain/services/provenance/Proven
 import { reduceV5 as _reduceV5, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.js';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
-import { orsetContains, orsetGetDots } from '../../../../src/domain/crdt/ORSet.js';
-import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import {
   createNodeAddV2,
   createNodeRemoveV2,
@@ -173,10 +173,10 @@ describe('ProvenancePayload', () => {
         const stateResult = result.replay();
 
         // Both should have same nodes
-        expect(orsetContains(stateP.nodeAlive, 'node-a')).toBe(true);
-        expect(orsetContains(stateResult.nodeAlive, 'node-a')).toBe(true);
-        expect(orsetContains(stateP.nodeAlive, 'node-b')).toBe(true);
-        expect(orsetContains(stateResult.nodeAlive, 'node-b')).toBe(true);
+        expect(stateP.nodeAlive.contains('node-a')).toBe(true);
+        expect(stateResult.nodeAlive.contains('node-a')).toBe(true);
+        expect(stateP.nodeAlive.contains('node-b')).toBe(true);
+        expect(stateResult.nodeAlive.contains('node-b')).toBe(true);
       });
     });
 
@@ -209,8 +209,8 @@ describe('ProvenancePayload', () => {
 
         // Both should have same edges
         const edgeKey = encodeEdgeKey('node-a', 'node-b', 'connects');
-        expect(orsetContains(stateP.edgeAlive, edgeKey)).toBe(true);
-        expect(orsetContains(stateResult.edgeAlive, edgeKey)).toBe(true);
+        expect(stateP.edgeAlive.contains(edgeKey)).toBe(true);
+        expect(stateResult.edgeAlive.contains(edgeKey)).toBe(true);
       });
     });
 
@@ -255,15 +255,15 @@ describe('ProvenancePayload', () => {
         const stateRight = rightAssoc.replay();
 
         // Both should have same nodes
-        expect(orsetContains(stateLeft.nodeAlive, 'node-a')).toBe(true);
-        expect(orsetContains(stateRight.nodeAlive, 'node-a')).toBe(true);
-        expect(orsetContains(stateLeft.nodeAlive, 'node-b')).toBe(true);
-        expect(orsetContains(stateRight.nodeAlive, 'node-b')).toBe(true);
+        expect(stateLeft.nodeAlive.contains('node-a')).toBe(true);
+        expect(stateRight.nodeAlive.contains('node-a')).toBe(true);
+        expect(stateLeft.nodeAlive.contains('node-b')).toBe(true);
+        expect(stateRight.nodeAlive.contains('node-b')).toBe(true);
 
         // Both should have same edges
         const edgeKey = encodeEdgeKey('node-a', 'node-b', 'connects');
-        expect(orsetContains(stateLeft.edgeAlive, edgeKey)).toBe(true);
-        expect(orsetContains(stateRight.edgeAlive, edgeKey)).toBe(true);
+        expect(stateLeft.edgeAlive.contains(edgeKey)).toBe(true);
+        expect(stateRight.edgeAlive.contains(edgeKey)).toBe(true);
 
         // Both should have same properties
         const propKey = encodePropKey('node-a', 'name');
@@ -304,7 +304,7 @@ describe('ProvenancePayload', () => {
 
       const state = payload.replay();
 
-      expect(orsetContains(state.nodeAlive, 'node-a')).toBe(true);
+      expect(state.nodeAlive.contains('node-a')).toBe(true);
     });
 
     it('materializes multiple patches correctly', () => {
@@ -314,12 +314,12 @@ describe('ProvenancePayload', () => {
       const state = payload.replay();
 
       // Check nodes
-      expect(orsetContains(state.nodeAlive, 'node-a')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'node-b')).toBe(true);
+      expect(state.nodeAlive.contains('node-a')).toBe(true);
+      expect(state.nodeAlive.contains('node-b')).toBe(true);
 
       // Check edge
       const edgeKey = encodeEdgeKey('node-a', 'node-b', 'connects');
-      expect(orsetContains(state.edgeAlive, edgeKey)).toBe(true);
+      expect(state.edgeAlive.contains(edgeKey)).toBe(true);
 
       // Check property
       const propKey = encodePropKey('node-a', 'name');
@@ -338,17 +338,17 @@ describe('ProvenancePayload', () => {
       const directState = reduceV5(patches);
 
       // Compare nodes
-      expect(orsetContains(payloadState.nodeAlive, 'node-a')).toBe(
-        orsetContains(directState.nodeAlive, 'node-a')
+      expect(payloadState.nodeAlive.contains('node-a')).toBe(
+        directState.nodeAlive.contains('node-a')
       );
-      expect(orsetContains(payloadState.nodeAlive, 'node-b')).toBe(
-        orsetContains(directState.nodeAlive, 'node-b')
+      expect(payloadState.nodeAlive.contains('node-b')).toBe(
+        directState.nodeAlive.contains('node-b')
       );
 
       // Compare edges
       const edgeKey = encodeEdgeKey('node-a', 'node-b', 'connects');
-      expect(orsetContains(payloadState.edgeAlive, edgeKey)).toBe(
-        orsetContains(directState.edgeAlive, edgeKey)
+      expect(payloadState.edgeAlive.contains(edgeKey)).toBe(
+        directState.edgeAlive.contains(edgeKey)
       );
 
       // Compare properties
@@ -370,11 +370,11 @@ describe('ProvenancePayload', () => {
       const finalState = payload.replay(initialState);
 
       // Should have all nodes and edges
-      expect(orsetContains(finalState.nodeAlive, 'node-a')).toBe(true);
-      expect(orsetContains(finalState.nodeAlive, 'node-b')).toBe(true);
+      expect(finalState.nodeAlive.contains('node-a')).toBe(true);
+      expect(finalState.nodeAlive.contains('node-b')).toBe(true);
 
       const edgeKey = encodeEdgeKey('node-a', 'node-b', 'connects');
-      expect(orsetContains(finalState.edgeAlive, edgeKey)).toBe(true);
+      expect(finalState.edgeAlive.contains(edgeKey)).toBe(true);
     });
 
     it('does not mutate initial state', () => {
@@ -388,7 +388,7 @@ describe('ProvenancePayload', () => {
 
       // Initial state should be unchanged
       expect(initialState.nodeAlive.entries.size).toBe(originalNodeCount);
-      expect(orsetContains(initialState.nodeAlive, 'node-b')).toBe(false);
+      expect(initialState.nodeAlive.contains('node-b')).toBe(false);
     });
 
     it('returns cloned initial state for empty payload', () => {
@@ -400,7 +400,7 @@ describe('ProvenancePayload', () => {
 
       // Should be a clone, not the same instance
       expect(result).not.toBe(initialState);
-      expect(orsetContains(result.nodeAlive, 'node-a')).toBe(true);
+      expect(result.nodeAlive.contains('node-a')).toBe(true);
     });
   });
 
@@ -571,8 +571,8 @@ describe('ProvenancePayload', () => {
       const stateOriginal = original.replay();
       const stateRestored = restored.replay();
 
-      expect(orsetContains(stateOriginal.nodeAlive, 'node-a')).toBe(
-        orsetContains(stateRestored.nodeAlive, 'node-a')
+      expect(stateOriginal.nodeAlive.contains('node-a')).toBe(
+        stateRestored.nodeAlive.contains('node-a')
       );
     });
   });
@@ -669,17 +669,17 @@ describe('ProvenancePayload', () => {
         const splitState = p2.replay(intermediateState);
 
         // Verify same nodes
-        expect(orsetContains(splitState.nodeAlive, 'x')).toBe(
-          orsetContains(fullState.nodeAlive, 'x')
+        expect(splitState.nodeAlive.contains('x')).toBe(
+          fullState.nodeAlive.contains('x')
         );
-        expect(orsetContains(splitState.nodeAlive, 'y')).toBe(
-          orsetContains(fullState.nodeAlive, 'y')
+        expect(splitState.nodeAlive.contains('y')).toBe(
+          fullState.nodeAlive.contains('y')
         );
 
         // Verify same edges
         const edgeKey = encodeEdgeKey('x', 'y', 'link');
-        expect(orsetContains(splitState.edgeAlive, edgeKey)).toBe(
-          orsetContains(fullState.edgeAlive, edgeKey)
+        expect(splitState.edgeAlive.contains(edgeKey)).toBe(
+          fullState.edgeAlive.contains(edgeKey)
         );
 
         // Verify same properties
@@ -731,10 +731,10 @@ describe('ProvenancePayload', () => {
       const state = payload.replay();
 
       // Node should exist (both adds contribute dots)
-      expect(orsetContains(state.nodeAlive, 'shared')).toBe(true);
+      expect(state.nodeAlive.contains('shared')).toBe(true);
 
       // Should have dots from both A and B
-      const dots = orsetGetDots(state.nodeAlive, 'shared');
+      const dots = state.nodeAlive.getDots('shared');
       expect(dots.has('A:1')).toBe(true);
       expect(dots.has('B:1')).toBe(true);
 
@@ -775,9 +775,9 @@ describe('ProvenancePayload', () => {
       const state = payload.replay();
 
       // Node should exist with new dot
-      expect(orsetContains(state.nodeAlive, 'cycle')).toBe(true);
+      expect(state.nodeAlive.contains('cycle')).toBe(true);
 
-      const dots = orsetGetDots(state.nodeAlive, 'cycle');
+      const dots = state.nodeAlive.getDots('cycle');
       expect(dots.has('W:2')).toBe(true);
       expect(dots.has('W:1')).toBe(false); // Old dot should be tombstoned
     });

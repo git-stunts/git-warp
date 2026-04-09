@@ -9,16 +9,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-  createORSet,
-  orsetAdd,
-  orsetRemove,
-  orsetCompact,
-  orsetElements,
-  orsetContains,
-} from '../../src/domain/crdt/ORSet.js';
-import { createDot, encodeDot } from '../../src/domain/crdt/Dot.js';
-import { createVersionVector } from '../../src/domain/crdt/VersionVector.js';
+import ORSet from '../../src/domain/crdt/ORSet.ts';
+import { createDot, encodeDot } from '../../src/domain/crdt/Dot.ts';
+import VersionVector from '../../src/domain/crdt/VersionVector.ts';
 import { logEnvironment, forceGC, runBenchmark } from './benchmarkUtils.js';
 
 // ============================================================================
@@ -51,8 +44,8 @@ const SOFT_TARGETS = {
  * @returns {{set: any, vv: any, tombstoneCount: number, liveCount: number}}
  */
 function createPopulatedORSet(entryCount, tombstoneRatio = TOMBSTONE_RATIO) {
-  const set = createORSet();
-  const vv = createVersionVector();
+  const set = ORSet.empty();
+  const vv = VersionVector.empty();
   const writers = ['writer-0', 'writer-1', 'writer-2', 'writer-3', 'writer-4'];
   const writerCounters = new Map();
   const addedEntries = [];
@@ -66,7 +59,7 @@ function createPopulatedORSet(entryCount, tombstoneRatio = TOMBSTONE_RATIO) {
     const element = `element-${i}`;
     const dot = createDot(writer, counter);
 
-    orsetAdd(set, element, dot);
+    set.add(element, dot);
     addedEntries.push({ element, dot: encodeDot(dot) });
   }
 
@@ -81,7 +74,7 @@ function createPopulatedORSet(entryCount, tombstoneRatio = TOMBSTONE_RATIO) {
   }
 
   // Apply tombstones
-  orsetRemove(set, toTombstone);
+  set.remove(toTombstone);
 
   // Build version vector covering all dots
   for (const [writer, counter] of writerCounters) {
@@ -101,7 +94,7 @@ function createPopulatedORSet(entryCount, tombstoneRatio = TOMBSTONE_RATIO) {
  */
 /** @param {any} set */
 function cloneORSet(set) {
-  const clone = createORSet();
+  const clone = ORSet.empty();
 
   for (const [element, dots] of set.entries) {
     clone.entries.set(element, new Set(dots));
@@ -163,7 +156,7 @@ describe('ORSet Compaction Benchmarks', () => {
       let compactedSet;
       const stats = await runBenchmark(() => {
         compactedSet = cloneORSet(templateSet);
-        orsetCompact(compactedSet, vv);
+        compactedSet.compact(vv);
       }, WARMUP_RUNS, MEASURED_RUNS);
 
       // Measure memory after compaction
@@ -179,7 +172,7 @@ describe('ORSet Compaction Benchmarks', () => {
       console.log(`    Memory reduction: ${memReduction.toFixed(1)}%`);
 
       // Verify compaction worked correctly
-      const elementsAfter = orsetElements(compactedSet).length;
+      const elementsAfter = compactedSet.elements().length;
       expect(elementsAfter).toBe(liveCount);
 
       // Verify tombstones were cleaned up
@@ -197,13 +190,13 @@ describe('ORSet Compaction Benchmarks', () => {
       const { set, vv, liveCount } = createPopulatedORSet(1000);
 
       // Get live elements before
-      const liveElementsBefore = orsetElements(set).sort();
+      const liveElementsBefore = set.elements().sort();
 
       // Compact
-      orsetCompact(set, vv);
+      set.compact(vv);
 
       // Get live elements after
-      const liveElementsAfter = orsetElements(set).sort();
+      const liveElementsAfter = set.elements().sort();
 
       // Should be identical
       expect(liveElementsAfter).toEqual(liveElementsBefore);
@@ -211,47 +204,47 @@ describe('ORSet Compaction Benchmarks', () => {
     });
 
     it('does not remove live dots even when covered by VV', () => {
-      const set = createORSet();
-      const vv = createVersionVector();
+      const set = ORSet.empty();
+      const vv = VersionVector.empty();
 
       // Add a live element
       const dot = createDot('writer', 5);
-      orsetAdd(set, 'live-element', dot);
+      set.add('live-element', dot);
 
       // VV covers the dot
       vv.set('writer', 10);
 
       // Element should be visible before
-      expect(orsetContains(set, 'live-element')).toBe(true);
+      expect(set.contains('live-element')).toBe(true);
 
       // Compact
-      orsetCompact(set, vv);
+      set.compact(vv);
 
       // Element should STILL be visible - live dots are never compacted
-      expect(orsetContains(set, 'live-element')).toBe(true);
+      expect(set.contains('live-element')).toBe(true);
     });
 
     it('removes tombstoned dots within VV', () => {
-      const set = createORSet();
-      const vv = createVersionVector();
+      const set = ORSet.empty();
+      const vv = VersionVector.empty();
 
       // Add and remove an element
       const dot = createDot('writer', 5);
-      orsetAdd(set, 'removed-element', dot);
-      orsetRemove(set, new Set([encodeDot(dot)]));
+      set.add('removed-element', dot);
+      set.remove(new Set([encodeDot(dot)]));
 
       // VV covers the dot
       vv.set('writer', 10);
 
       // Element should not be visible
-      expect(orsetContains(set, 'removed-element')).toBe(false);
+      expect(set.contains('removed-element')).toBe(false);
 
       // But it's still in the entries (with tombstone)
       expect(set.entries.has('removed-element')).toBe(true);
       expect(set.tombstones.has(encodeDot(dot))).toBe(true);
 
       // Compact
-      orsetCompact(set, vv);
+      set.compact(vv);
 
       // Entry should be completely removed
       expect(set.entries.has('removed-element')).toBe(false);
@@ -259,19 +252,19 @@ describe('ORSet Compaction Benchmarks', () => {
     });
 
     it('does not remove tombstoned dots outside VV', () => {
-      const set = createORSet();
-      const vv = createVersionVector();
+      const set = ORSet.empty();
+      const vv = VersionVector.empty();
 
       // Add and remove an element
       const dot = createDot('writer', 15);
-      orsetAdd(set, 'future-element', dot);
-      orsetRemove(set, new Set([encodeDot(dot)]));
+      set.add('future-element', dot);
+      set.remove(new Set([encodeDot(dot)]));
 
       // VV does NOT cover the dot
       vv.set('writer', 10);
 
       // Compact
-      orsetCompact(set, vv);
+      set.compact(vv);
 
       // Entry should still exist (not compacted because dot > vv)
       expect(set.entries.has('future-element')).toBe(true);
@@ -291,7 +284,7 @@ describe('ORSet Compaction Benchmarks', () => {
       const tombstonesBefore = set.tombstones.size;
 
       // Compact
-      orsetCompact(set, vv);
+      set.compact(vv);
 
       forceGC();
       const heapAfter = process.memoryUsage().heapUsed;
@@ -317,11 +310,11 @@ describe('ORSet Compaction Benchmarks', () => {
 
   describe('Edge Cases', () => {
     it('handles empty ORSet', async () => {
-      const set = createORSet();
-      const vv = createVersionVector();
+      const set = ORSet.empty();
+      const vv = VersionVector.empty();
 
       const stats = await runBenchmark(() => {
-        orsetCompact(set, vv);
+        set.compact(vv);
       }, WARMUP_RUNS, MEASURED_RUNS);
 
       console.log(`\n  Empty ORSet compaction: ${stats.median.toFixed(3)}ms`);
@@ -331,26 +324,26 @@ describe('ORSet Compaction Benchmarks', () => {
     });
 
     it('handles ORSet with no tombstones', async () => {
-      const set = createORSet();
-      const vv = createVersionVector();
+      const set = ORSet.empty();
+      const vv = VersionVector.empty();
 
       // Add elements without removing any
       for (let i = 0; i < 1000; i++) {
         const dot = createDot('writer', i + 1);
-        orsetAdd(set, `element-${i}`, dot);
+        set.add(`element-${i}`, dot);
       }
       vv.set('writer', 1000);
 
-      const elementsBefore = orsetElements(set).length;
+      const elementsBefore = set.elements().length;
 
       const stats = await runBenchmark(() => {
-        orsetCompact(cloneORSet(set), vv);
+        cloneORSet(set).compact(vv);
       }, WARMUP_RUNS, MEASURED_RUNS);
 
       console.log(`\n  1K entries, no tombstones: ${stats.median.toFixed(2)}ms`);
 
       // No change expected
-      expect(orsetElements(set).length).toBe(elementsBefore);
+      expect(set.elements().length).toBe(elementsBefore);
     });
 
     it('handles ORSet with all entries tombstoned', async () => {
@@ -358,18 +351,18 @@ describe('ORSet Compaction Benchmarks', () => {
 
       const stats = await runBenchmark(() => {
         const clone = cloneORSet(set);
-        orsetCompact(clone, vv);
+        clone.compact(vv);
       }, WARMUP_RUNS, MEASURED_RUNS);
 
       // Compact the original
-      orsetCompact(set, vv);
+      set.compact(vv);
 
       console.log(`\n  1K entries, 100% tombstones: ${stats.median.toFixed(2)}ms`);
 
       // Everything should be gone
       expect(set.entries.size).toBe(0);
       expect(set.tombstones.size).toBe(0);
-      expect(orsetElements(set).length).toBe(0);
+      expect(set.elements().length).toBe(0);
     });
   });
 });

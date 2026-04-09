@@ -21,9 +21,9 @@ import {
 } from './CheckpointSerializerV5.js';
 import { serializeFrontier, deserializeFrontier } from '../Frontier.js';
 import { encodeCheckpointMessage, decodeCheckpointMessage } from '../codec/WarpMessageCodec.js';
-import { createORSet, orsetAdd, orsetCompact } from '../../crdt/ORSet.js';
-import { createDot } from '../../crdt/Dot.js';
-import VersionVector from '../../crdt/VersionVector.js';
+import ORSet from '../../crdt/ORSet.ts';
+import { createDot } from '../../crdt/Dot.ts';
+import VersionVector from '../../crdt/VersionVector.ts';
 import { cloneStateV5, reduceV5 } from '../JoinReducer.js';
 import WarpStateV5 from './WarpStateV5.js';
 import { encodeEdgeKey, encodePropKey, CONTENT_PROPERTY_KEY, decodePropKey, isEdgePropKey, decodeEdgePropKey } from '../KeyCodec.js';
@@ -291,8 +291,8 @@ export async function createV5({
   let checkpointState = state;
   if (compact) {
     checkpointState = cloneStateV5(state);
-    orsetCompact(checkpointState.nodeAlive, appliedVV);
-    orsetCompact(checkpointState.edgeAlive, appliedVV);
+    checkpointState.nodeAlive.compact(appliedVV);
+    checkpointState.edgeAlive.compact(appliedVV);
   }
 
   // 3–6. Serialize and write state, frontier, appliedVV.
@@ -601,21 +601,21 @@ export function reconstructStateV5FromCheckpoint(visibleProjection) {
     opIndex: 0,
   };
 
-  const nodeAlive = createORSet();
-  const edgeAlive = createORSet();
+  const nodeAlive = ORSet.empty();
+  const edgeAlive = ORSet.empty();
   /** @type {Map<string, { eventId: { lamport: number, writerId: string, patchSha: string, opIndex: number }, value: unknown }>} */
   const prop = new Map();
   const observedFrontier = VersionVector.empty();
 
   // Reconstruct nodes as ORSet entries
   for (const nodeId of nodes) {
-    orsetAdd(nodeAlive, nodeId, syntheticDot);
+    nodeAlive.add(nodeId, syntheticDot);
   }
 
   // Reconstruct edges as ORSet entries
   for (const edge of edges) {
     const edgeKey = encodeEdgeKey(edge.from, edge.to, edge.label);
-    orsetAdd(edgeAlive, edgeKey, syntheticDot);
+    edgeAlive.add(edgeKey, syntheticDot);
   }
 
   // Reconstruct props with LWW registers (same as v4)

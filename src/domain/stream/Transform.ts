@@ -9,22 +9,20 @@ import WarpError from '../errors/WarpError.ts';
  *
  * Transforms are the composition unit for WarpStream pipelines. The
  * codec, the compressor, the encryptor — all Transforms.
- *
- * @template T
- * @template U
  */
-export default class Transform {
+export default class Transform<T, U> {
+  protected _fn: ((item: T) => U | Promise<U>) | undefined;
+
   /**
    * Creates a new Transform.
    *
-   * @param {(item: T) => U | Promise<U>} [fn] - Per-element mapping function.
+   * @param fn - Per-element mapping function.
    *   Optional — subclasses that override apply() don't need it.
    */
-  constructor(fn) {
+  constructor(fn?: (item: T) => U | Promise<U>) {
     if (fn !== undefined && typeof fn !== 'function') {
       throw new WarpError('Transform requires a function or subclass override', 'E_INVALID_TRANSFORM');
     }
-    /** @type {((item: T) => U | Promise<U>) | undefined} */
     this._fn = fn;
   }
 
@@ -34,11 +32,8 @@ export default class Transform {
    * The default implementation maps each element through the constructor
    * function. Subclasses override this for complex transforms (batching,
    * splitting, stateful accumulation).
-   *
-   * @param {AsyncIterable<T>} source - The upstream async iterable
-   * @returns {AsyncIterable<U>} A new async iterable of transformed values
    */
-  async *apply(source) {
+  async *apply(source: AsyncIterable<T>): AsyncIterable<U> {
     if (this._fn === undefined) {
       throw new WarpError(
         'Transform.apply() must be overridden or a function must be provided to the constructor',

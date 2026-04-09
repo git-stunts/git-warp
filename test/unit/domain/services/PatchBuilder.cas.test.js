@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.js';
-import { WriterError } from '../../../../src/domain/warp/Writer.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import { WriterError } from '../../../../src/domain/warp/Writer.ts';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 
@@ -55,7 +55,7 @@ describe('PatchBuilder CAS conflict detection', () => {
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
-        versionVector: createVersionVector(),
+        versionVector: VersionVector.empty(),
         getCurrentState: () => null,
         expectedParentSha: expectedParent,
       });
@@ -70,7 +70,7 @@ describe('PatchBuilder CAS conflict detection', () => {
           graphName: 'test-graph',
           writerId: 'writer1',
           lamport: 1,
-          versionVector: createVersionVector(),
+          versionVector: VersionVector.empty(),
           getCurrentState: () => null,
           expectedParentSha: expectedParent,
         })
@@ -92,7 +92,7 @@ describe('PatchBuilder CAS conflict detection', () => {
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
-        versionVector: createVersionVector(),
+        versionVector: VersionVector.empty(),
         getCurrentState: () => null,
         expectedParentSha: expectedParent,
       });
@@ -122,7 +122,7 @@ describe('PatchBuilder CAS conflict detection', () => {
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
-        versionVector: createVersionVector(),
+        versionVector: VersionVector.empty(),
         getCurrentState: () => null,
         expectedParentSha: expectedParent,
       });
@@ -146,7 +146,7 @@ describe('PatchBuilder CAS conflict detection', () => {
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
-        versionVector: createVersionVector(),
+        versionVector: VersionVector.empty(),
         getCurrentState: () => null,
         expectedParentSha: null, // Writer expected no prior commits
       });
@@ -177,7 +177,7 @@ describe('PatchBuilder CAS conflict detection', () => {
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
-        versionVector: createVersionVector(),
+        versionVector: VersionVector.empty(),
         getCurrentState: () => null,
         expectedParentSha: expectedParent,
       });
@@ -211,7 +211,7 @@ describe('PatchBuilder CAS conflict detection', () => {
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
-        versionVector: createVersionVector(),
+        versionVector: VersionVector.empty(),
         getCurrentState: () => null,
         expectedParentSha: null,
       });
@@ -241,7 +241,7 @@ describe('PatchBuilder CAS conflict detection', () => {
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
-        versionVector: createVersionVector(),
+        versionVector: VersionVector.empty(),
         getCurrentState: () => null,
         expectedParentSha: parentSha,
       });

@@ -33,7 +33,7 @@
  */
 
 import GitGraphAdapter from './src/infrastructure/adapters/GitGraphAdapter.js';
-import GraphNode from './src/domain/entities/GraphNode.js';
+import GraphNode from './src/domain/entities/GraphNode.ts';
 import BitmapIndexBuilder from './src/domain/services/index/BitmapIndexBuilder.js';
 import BitmapIndexReader from './src/domain/services/index/BitmapIndexReader.js';
 import IndexRebuildService from './src/domain/services/index/IndexRebuildService.js';
@@ -164,8 +164,8 @@ import { NoOpEffectSink } from './src/infrastructure/adapters/NoOpEffectSink.js'
 import { ConsoleEffectSink } from './src/infrastructure/adapters/ConsoleEffectSink.js';
 import { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.js';
 import { PatchBuilder } from './src/domain/services/PatchBuilder.js';
-import { PatchSession } from './src/domain/warp/PatchSession.js';
-import { Writer } from './src/domain/warp/Writer.js';
+import { PatchSession } from './src/domain/warp/PatchSession.ts';
+import { Writer } from './src/domain/warp/Writer.ts';
 import { ProvenanceIndex } from './src/domain/services/provenance/ProvenanceIndex.js';
 import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/services/index/WarpStateIndexBuilder.js';
 import { computeStateHashV5, projectStateV5 } from './src/domain/services/state/StateSerializerV5.js';

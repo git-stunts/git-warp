@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import PatchEntry from '../../../../src/domain/artifacts/PatchEntry.js';
-import ProvenanceEntry from '../../../../src/domain/artifacts/ProvenanceEntry.js';
+import PatchEntry from '../../../../src/domain/artifacts/PatchEntry.ts';
+import ProvenanceEntry from '../../../../src/domain/artifacts/ProvenanceEntry.ts';
 import Patch from '../../../../src/domain/types/Patch.ts';
 
 /** @returns {Patch} */

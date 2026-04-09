@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import IndexRebuildService from '../../../../src/domain/services/index/IndexRebuildService.js';
-import GraphNode from '../../../../src/domain/entities/GraphNode.js';
+import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
 
 describe('IndexRebuildService Deep DAG Test', () => {
   it('handles 10,000 node chain without stack overflow', { timeout: 30000 }, async () => {

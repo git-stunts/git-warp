@@ -1,11 +1,11 @@
 import PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
-import WarpStream from '../../domain/stream/WarpStream.js';
-import PatchEntry from '../../domain/artifacts/PatchEntry.js';
+import WarpStream from '../../domain/stream/WarpStream.ts';
+import PatchEntry from '../../domain/artifacts/PatchEntry.ts';
 import { decodePatchMessage, detectMessageKind } from '../../domain/services/codec/WarpMessageCodec.js';
 import SyncError from '../../domain/errors/SyncError.ts';
 import EncryptionError from '../../domain/errors/EncryptionError.ts';
-import VersionVector from '../../domain/crdt/VersionVector.js';
+import VersionVector from '../../domain/crdt/VersionVector.ts';
 
 /**
  * CBOR-backed implementation of PatchJournalPort.

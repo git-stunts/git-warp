@@ -1,24 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import VersionVector, {
-  createVersionVector,
-  vvIncrement,
-  vvMerge,
-  vvDescends,
-  vvContains,
-  vvSerialize,
-  vvDeserialize as _vvDeserialize,
-  vvClone,
-  vvEqual,
-} from '../../../../src/domain/crdt/VersionVector.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 
 /** @type {any} */
-const vvDeserialize = _vvDeserialize;
 
 describe('VersionVector', () => {
   describe('createVersionVector', () => {
     it('creates an empty version vector', () => {
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
 
       expect(vv).toBeInstanceOf(VersionVector);
       expect(vv.size).toBe(0);
@@ -27,48 +16,48 @@ describe('VersionVector', () => {
 
   describe('vvIncrement', () => {
     it('increments counter for new writer', () => {
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
 
-      const dot = vvIncrement(vv, 'alice');
+      const dot = vv.increment('alice');
 
       expect(dot).toEqual({ writerId: 'alice', counter: 1 });
       expect(vv.get('alice')).toBe(1);
     });
 
     it('increments counter for existing writer', () => {
-      const vv = createVersionVector();
-      vvIncrement(vv, 'alice');
-      vvIncrement(vv, 'alice');
+      const vv = VersionVector.empty();
+      vv.increment('alice');
+      vv.increment('alice');
 
-      const dot = vvIncrement(vv, 'alice');
+      const dot = vv.increment('alice');
 
       expect(dot).toEqual({ writerId: 'alice', counter: 3 });
       expect(vv.get('alice')).toBe(3);
     });
 
     it('maintains separate counters per writer', () => {
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
 
-      vvIncrement(vv, 'alice');
-      vvIncrement(vv, 'alice');
-      vvIncrement(vv, 'bob');
+      vv.increment('alice');
+      vv.increment('alice');
+      vv.increment('bob');
 
       expect(vv.get('alice')).toBe(2);
       expect(vv.get('bob')).toBe(1);
     });
 
     it('mutates the version vector', () => {
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
 
-      vvIncrement(vv, 'alice');
+      vv.increment('alice');
 
       expect(vv.size).toBe(1);
     });
 
     it('returns a valid Dot', () => {
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
 
-      const dot = vvIncrement(vv, 'alice');
+      const dot = vv.increment('alice');
 
       expect(dot.writerId).toBe('alice');
       expect(dot.counter).toBe(1);
@@ -77,35 +66,35 @@ describe('VersionVector', () => {
 
   describe('vvMerge', () => {
     it('merges empty vectors', () => {
-      const a = createVersionVector();
-      const b = createVersionVector();
+      const a = VersionVector.empty();
+      const b = VersionVector.empty();
 
-      const result = vvMerge(a, b);
+      const result = a.merge(b);
 
       expect(result.size).toBe(0);
     });
 
     it('merges with empty vector', () => {
-      const a = createVersionVector();
-      vvIncrement(a, 'alice');
-      const b = createVersionVector();
+      const a = VersionVector.empty();
+      a.increment('alice');
+      const b = VersionVector.empty();
 
-      const result = vvMerge(a, b);
+      const result = a.merge(b);
 
       expect(result.get('alice')).toBe(1);
     });
 
     it('takes pointwise maximum', () => {
-      const a = createVersionVector();
+      const a = VersionVector.empty();
       a.set('alice', 3);
       a.set('bob', 2);
 
-      const b = createVersionVector();
+      const b = VersionVector.empty();
       b.set('alice', 1);
       b.set('bob', 5);
       b.set('charlie', 1);
 
-      const result = vvMerge(a, b);
+      const result = a.merge(b);
 
       expect(result.get('alice')).toBe(3);
       expect(result.get('bob')).toBe(5);
@@ -113,12 +102,12 @@ describe('VersionVector', () => {
     });
 
     it('does not mutate inputs', () => {
-      const a = createVersionVector();
+      const a = VersionVector.empty();
       a.set('alice', 1);
-      const b = createVersionVector();
+      const b = VersionVector.empty();
       b.set('bob', 2);
 
-      vvMerge(a, b);
+      a.merge(b);
 
       expect(a.size).toBe(1);
       expect(a.get('alice')).toBe(1);
@@ -126,184 +115,184 @@ describe('VersionVector', () => {
     });
 
     it('is commutative', () => {
-      const a = createVersionVector();
+      const a = VersionVector.empty();
       a.set('alice', 3);
       a.set('bob', 2);
 
-      const b = createVersionVector();
+      const b = VersionVector.empty();
       b.set('alice', 1);
       b.set('charlie', 5);
 
-      const ab = vvMerge(a, b);
-      const ba = vvMerge(b, a);
+      const ab = a.merge(b);
+      const ba = b.merge(a);
 
-      expect(vvEqual(ab, ba)).toBe(true);
+      expect(ab.equals(ba)).toBe(true);
     });
 
     it('is associative', () => {
-      const a = createVersionVector();
+      const a = VersionVector.empty();
       a.set('alice', 1);
 
-      const b = createVersionVector();
+      const b = VersionVector.empty();
       b.set('bob', 2);
 
-      const c = createVersionVector();
+      const c = VersionVector.empty();
       c.set('charlie', 3);
 
-      const ab_c = vvMerge(vvMerge(a, b), c);
-      const a_bc = vvMerge(a, vvMerge(b, c));
+      const ab_c = a.merge(b).merge(c);
+      const a_bc = a.merge(b.merge(c));
 
-      expect(vvEqual(ab_c, a_bc)).toBe(true);
+      expect(ab_c.equals(a_bc)).toBe(true);
     });
 
     it('is idempotent', () => {
-      const a = createVersionVector();
+      const a = VersionVector.empty();
       a.set('alice', 1);
       a.set('bob', 2);
 
-      const result = vvMerge(a, a);
+      const result = a.merge(a);
 
-      expect(vvEqual(result, a)).toBe(true);
+      expect(result.equals(a)).toBe(true);
     });
   });
 
   describe('vvDescends', () => {
     it('empty vector descends from empty vector', () => {
-      const a = createVersionVector();
-      const b = createVersionVector();
+      const a = VersionVector.empty();
+      const b = VersionVector.empty();
 
-      expect(vvDescends(a, b)).toBe(true);
+      expect(a.descends(b)).toBe(true);
     });
 
     it('non-empty vector descends from empty vector', () => {
-      const a = createVersionVector();
+      const a = VersionVector.empty();
       a.set('alice', 1);
-      const b = createVersionVector();
+      const b = VersionVector.empty();
 
-      expect(vvDescends(a, b)).toBe(true);
+      expect(a.descends(b)).toBe(true);
     });
 
     it('empty vector does not descend from non-empty vector', () => {
-      const a = createVersionVector();
-      const b = createVersionVector();
+      const a = VersionVector.empty();
+      const b = VersionVector.empty();
       b.set('alice', 1);
 
-      expect(vvDescends(a, b)).toBe(false);
+      expect(a.descends(b)).toBe(false);
     });
 
     it('vector with equal values descends', () => {
-      const a = createVersionVector();
+      const a = VersionVector.empty();
       a.set('alice', 2);
 
-      const b = createVersionVector();
+      const b = VersionVector.empty();
       b.set('alice', 2);
 
-      expect(vvDescends(a, b)).toBe(true);
+      expect(a.descends(b)).toBe(true);
     });
 
     it('vector with greater value descends', () => {
-      const a = createVersionVector();
+      const a = VersionVector.empty();
       a.set('alice', 3);
 
-      const b = createVersionVector();
+      const b = VersionVector.empty();
       b.set('alice', 2);
 
-      expect(vvDescends(a, b)).toBe(true);
+      expect(a.descends(b)).toBe(true);
     });
 
     it('vector with lesser value does not descend', () => {
-      const a = createVersionVector();
+      const a = VersionVector.empty();
       a.set('alice', 1);
 
-      const b = createVersionVector();
+      const b = VersionVector.empty();
       b.set('alice', 2);
 
-      expect(vvDescends(a, b)).toBe(false);
+      expect(a.descends(b)).toBe(false);
     });
 
     it('concurrent vectors neither descends from other', () => {
-      const a = createVersionVector();
+      const a = VersionVector.empty();
       a.set('alice', 2);
       a.set('bob', 1);
 
-      const b = createVersionVector();
+      const b = VersionVector.empty();
       b.set('alice', 1);
       b.set('bob', 2);
 
-      expect(vvDescends(a, b)).toBe(false);
-      expect(vvDescends(b, a)).toBe(false);
+      expect(a.descends(b)).toBe(false);
+      expect(b.descends(a)).toBe(false);
     });
 
     it('merged vector descends from both', () => {
-      const a = createVersionVector();
+      const a = VersionVector.empty();
       a.set('alice', 2);
 
-      const b = createVersionVector();
+      const b = VersionVector.empty();
       b.set('bob', 3);
 
-      const merged = vvMerge(a, b);
+      const merged = a.merge(b);
 
-      expect(vvDescends(merged, a)).toBe(true);
-      expect(vvDescends(merged, b)).toBe(true);
+      expect(merged.descends(a)).toBe(true);
+      expect(merged.descends(b)).toBe(true);
     });
   });
 
   describe('vvContains', () => {
     it('empty vector does not contain any dot', () => {
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
       const dot = createDot('alice', 1);
 
-      expect(vvContains(vv, dot)).toBe(false);
+      expect(vv.contains(dot)).toBe(false);
     });
 
     it('contains dot with matching counter', () => {
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
       vv.set('alice', 2);
       const dot = createDot('alice', 2);
 
-      expect(vvContains(vv, dot)).toBe(true);
+      expect(vv.contains(dot)).toBe(true);
     });
 
     it('contains dot with smaller counter', () => {
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
       vv.set('alice', 5);
       const dot = createDot('alice', 3);
 
-      expect(vvContains(vv, dot)).toBe(true);
+      expect(vv.contains(dot)).toBe(true);
     });
 
     it('does not contain dot with larger counter', () => {
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
       vv.set('alice', 2);
       const dot = createDot('alice', 3);
 
-      expect(vvContains(vv, dot)).toBe(false);
+      expect(vv.contains(dot)).toBe(false);
     });
 
     it('does not contain dot for unknown writer', () => {
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
       vv.set('alice', 2);
       const dot = createDot('bob', 1);
 
-      expect(vvContains(vv, dot)).toBe(false);
+      expect(vv.contains(dot)).toBe(false);
     });
   });
 
   describe('vvSerialize / vvDeserialize', () => {
     it('serializes empty vector', () => {
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
 
-      const obj = vvSerialize(vv);
+      const obj = VersionVector.serialize(vv);
 
       expect(obj).toEqual({});
     });
 
     it('serializes vector with entries', () => {
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
       vv.set('alice', 3);
       vv.set('bob', 2);
 
-      const obj = vvSerialize(vv);
+      const obj = VersionVector.serialize(vv);
 
       expect(obj).toEqual({
         alice: 3,
@@ -312,12 +301,12 @@ describe('VersionVector', () => {
     });
 
     it('serializes with sorted keys', () => {
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
       vv.set('charlie', 1);
       vv.set('alice', 2);
       vv.set('bob', 3);
 
-      const obj = vvSerialize(vv);
+      const obj = VersionVector.serialize(vv);
       const keys = Object.keys(obj);
 
       expect(keys).toEqual(['alice', 'bob', 'charlie']);
@@ -326,7 +315,7 @@ describe('VersionVector', () => {
     it('deserializes empty object', () => {
       const obj = {};
 
-      const vv = vvDeserialize(obj);
+      const vv = VersionVector.from(obj);
 
       expect(vv.size).toBe(0);
     });
@@ -337,7 +326,7 @@ describe('VersionVector', () => {
         bob: 2,
       };
 
-      const vv = vvDeserialize(obj);
+      const vv = VersionVector.from(obj);
 
       expect(vv.get('alice')).toBe(3);
       expect(vv.get('bob')).toBe(2);
@@ -349,45 +338,45 @@ describe('VersionVector', () => {
         bob: 0,
       };
 
-      const vv = vvDeserialize(obj);
+      const vv = VersionVector.from(obj);
 
       expect(vv.get('alice')).toBe(3);
       expect(vv.has('bob')).toBe(false);
     });
 
     it('throws on invalid counter', () => {
-      expect(() => vvDeserialize({ alice: 'not a number' })).toThrow('Invalid counter');
-      expect(() => vvDeserialize({ alice: 1.5 })).toThrow('Invalid counter');
-      expect(() => vvDeserialize({ alice: -1 })).toThrow('Invalid counter');
+      expect(() => VersionVector.from({ alice: 'not a number' })).toThrow('Invalid counter');
+      expect(() => VersionVector.from({ alice: 1.5 })).toThrow('Invalid counter');
+      expect(() => VersionVector.from({ alice: -1 })).toThrow('Invalid counter');
     });
 
     it('roundtrips', () => {
-      const original = createVersionVector();
+      const original = VersionVector.empty();
       original.set('alice', 3);
       original.set('bob', 2);
 
-      const serialized = vvSerialize(original);
-      const deserialized = vvDeserialize(serialized);
+      const serialized = VersionVector.serialize(original);
+      const deserialized = VersionVector.from(serialized);
 
-      expect(vvEqual(original, deserialized)).toBe(true);
+      expect(original.equals(deserialized)).toBe(true);
     });
   });
 
   describe('vvClone', () => {
     it('creates a copy', () => {
-      const original = createVersionVector();
+      const original = VersionVector.empty();
       original.set('alice', 1);
 
-      const clone = vvClone(original);
+      const clone = original.clone();
 
-      expect(vvEqual(original, clone)).toBe(true);
+      expect(original.equals(clone)).toBe(true);
     });
 
     it('clone is independent from original', () => {
-      const original = createVersionVector();
+      const original = VersionVector.empty();
       original.set('alice', 1);
 
-      const clone = vvClone(original);
+      const clone = original.clone();
       clone.set('alice', 2);
 
       expect(original.get('alice')).toBe(1);
@@ -397,71 +386,71 @@ describe('VersionVector', () => {
 
   describe('vvEqual', () => {
     it('empty vectors are equal', () => {
-      const a = createVersionVector();
-      const b = createVersionVector();
+      const a = VersionVector.empty();
+      const b = VersionVector.empty();
 
-      expect(vvEqual(a, b)).toBe(true);
+      expect(a.equals(b)).toBe(true);
     });
 
     it('equal vectors are equal', () => {
-      const a = createVersionVector();
+      const a = VersionVector.empty();
       a.set('alice', 1);
 
-      const b = createVersionVector();
+      const b = VersionVector.empty();
       b.set('alice', 1);
 
-      expect(vvEqual(a, b)).toBe(true);
+      expect(a.equals(b)).toBe(true);
     });
 
     it('vectors with different sizes are not equal', () => {
-      const a = createVersionVector();
+      const a = VersionVector.empty();
       a.set('alice', 1);
 
-      const b = createVersionVector();
+      const b = VersionVector.empty();
       b.set('alice', 1);
       b.set('bob', 1);
 
-      expect(vvEqual(a, b)).toBe(false);
+      expect(a.equals(b)).toBe(false);
     });
 
     it('vectors with different values are not equal', () => {
-      const a = createVersionVector();
+      const a = VersionVector.empty();
       a.set('alice', 1);
 
-      const b = createVersionVector();
+      const b = VersionVector.empty();
       b.set('alice', 2);
 
-      expect(vvEqual(a, b)).toBe(false);
+      expect(a.equals(b)).toBe(false);
     });
 
     it('vectors with different keys are not equal', () => {
-      const a = createVersionVector();
+      const a = VersionVector.empty();
       a.set('alice', 1);
 
-      const b = createVersionVector();
+      const b = VersionVector.empty();
       b.set('bob', 1);
 
-      expect(vvEqual(a, b)).toBe(false);
+      expect(a.equals(b)).toBe(false);
     });
   });
 
   describe('integration scenarios', () => {
     it('simulates two writers merging', () => {
-      const alice = createVersionVector();
-      const bob = createVersionVector();
+      const alice = VersionVector.empty();
+      const bob = VersionVector.empty();
 
       // Alice does two operations
-      vvIncrement(alice, 'alice');
-      vvIncrement(alice, 'alice');
+      alice.increment('alice');
+      alice.increment('alice');
 
       // Bob does one operation
-      vvIncrement(bob, 'bob');
+      bob.increment('bob');
 
       // Bob receives Alice's state
-      const bobMerged = vvMerge(bob, alice);
+      const bobMerged = bob.merge(alice);
 
       // Bob continues with merged state
-      const dot = vvIncrement(bobMerged, 'bob');
+      const dot = bobMerged.increment('bob');
 
       expect(dot).toEqual({ writerId: 'bob', counter: 2 });
       expect(bobMerged.get('alice')).toBe(2);
@@ -469,22 +458,22 @@ describe('VersionVector', () => {
     });
 
     it('tracks causality correctly', () => {
-      const writer = createVersionVector();
+      const writer = VersionVector.empty();
 
       // Dot 1 is created
-      const dot1 = vvIncrement(writer, 'writer');
+      const dot1 = writer.increment('writer');
 
       // At this point, dot1 is contained
-      expect(vvContains(writer, dot1)).toBe(true);
+      expect(writer.contains(dot1)).toBe(true);
 
       // But dot 2 doesn't exist yet
       const futureDot = createDot('writer', 2);
-      expect(vvContains(writer, futureDot)).toBe(false);
+      expect(writer.contains(futureDot)).toBe(false);
 
       // Now create dot 2
-      const dot2 = vvIncrement(writer, 'writer');
-      expect(vvContains(writer, dot2)).toBe(true);
-      expect(vvContains(writer, futureDot)).toBe(true);
+      const dot2 = writer.increment('writer');
+      expect(writer.contains(dot2)).toBe(true);
+      expect(writer.contains(futureDot)).toBe(true);
     });
   });
 });

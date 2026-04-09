@@ -18,10 +18,10 @@ import {
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { orsetContains, orsetGetDots } from '../../../../src/domain/crdt/ORSet.js';
-import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
-import VersionVector, { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 /** @param {unknown} value */
 function createInlineValue(value) { return { type: 'inline', value }; }
 
@@ -58,7 +58,7 @@ function createPatch({ writer, lamport, ops, context }) {
     writer,
     lamport,
     ops,
-    context: context || createVersionVector(),
+    context: context || VersionVector.empty(),
   };
 }
 
@@ -128,7 +128,7 @@ describe('JoinReducer', () => {
 
         applyOpV2(state, op, eventId);
 
-        expect(orsetContains(state.nodeAlive, 'x')).toBe(true);
+        expect(state.nodeAlive.contains('x')).toBe(true);
       });
 
       it('can add same node with multiple dots', () => {
@@ -139,8 +139,8 @@ describe('JoinReducer', () => {
         applyOpV2(state, createNodeAddV2('x', dot1), createEventId(1, 'writer1', 'aaaa1234', 0));
         applyOpV2(state, createNodeAddV2('x', dot2), createEventId(1, 'writer2', 'bbbb1234', 0));
 
-        expect(orsetContains(state.nodeAlive, 'x')).toBe(true);
-        const dots = orsetGetDots(state.nodeAlive, 'x');
+        expect(state.nodeAlive.contains('x')).toBe(true);
+        const dots = state.nodeAlive.getDots('x');
         expect(dots.size).toBe(2);
       });
     });
@@ -152,7 +152,7 @@ describe('JoinReducer', () => {
 
         // Add node
         applyOpV2(state, createNodeAddV2('x', dot), createEventId(1, 'writer1', 'aaaa1234', 0));
-        expect(orsetContains(state.nodeAlive, 'x')).toBe(true);
+        expect(state.nodeAlive.contains('x')).toBe(true);
 
         // Remove node with observed dots
         const observedDots = new Set(['writer1:1']);
@@ -162,7 +162,7 @@ describe('JoinReducer', () => {
           createEventId(2, 'writer1', 'bbbb1234', 0)
         );
 
-        expect(orsetContains(state.nodeAlive, 'x')).toBe(false);
+        expect(state.nodeAlive.contains('x')).toBe(false);
       });
     });
 
@@ -175,7 +175,7 @@ describe('JoinReducer', () => {
         applyOpV2(state, op, createEventId(1, 'writer1', 'abcd1234', 0));
 
         const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-        expect(orsetContains(state.edgeAlive, edgeKey)).toBe(true);
+        expect(state.edgeAlive.contains(edgeKey)).toBe(true);
       });
     });
 
@@ -191,7 +191,7 @@ describe('JoinReducer', () => {
           createEventId(1, 'writer1', 'aaaa1234', 0)
         );
         const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-        expect(orsetContains(state.edgeAlive, edgeKey)).toBe(true);
+        expect(state.edgeAlive.contains(edgeKey)).toBe(true);
 
         // Remove edge
         const observedDots = new Set(['writer1:1']);
@@ -201,7 +201,7 @@ describe('JoinReducer', () => {
           createEventId(2, 'writer1', 'bbbb1234', 0)
         );
 
-        expect(orsetContains(state.edgeAlive, edgeKey)).toBe(false);
+        expect(state.edgeAlive.contains(edgeKey)).toBe(false);
       });
     });
 
@@ -291,10 +291,10 @@ describe('JoinReducer', () => {
       ]);
 
       // Both states should have the same nodes
-      expect(orsetContains(stateAB.nodeAlive, 'x')).toBe(true);
-      expect(orsetContains(stateAB.nodeAlive, 'y')).toBe(true);
-      expect(orsetContains(stateBA.nodeAlive, 'x')).toBe(true);
-      expect(orsetContains(stateBA.nodeAlive, 'y')).toBe(true);
+      expect(stateAB.nodeAlive.contains('x')).toBe(true);
+      expect(stateAB.nodeAlive.contains('y')).toBe(true);
+      expect(stateBA.nodeAlive.contains('x')).toBe(true);
+      expect(stateBA.nodeAlive.contains('y')).toBe(true);
     });
 
     it('produces identical state for complex graph regardless of patch order', () => {
@@ -335,10 +335,10 @@ describe('JoinReducer', () => {
 
       // All should have same nodes
       for (const state of [state123, state132, state213, state231, state312, state321]) {
-        expect(orsetContains(state.nodeAlive, 'a')).toBe(true);
-        expect(orsetContains(state.nodeAlive, 'b')).toBe(true);
+        expect(state.nodeAlive.contains('a')).toBe(true);
+        expect(state.nodeAlive.contains('b')).toBe(true);
         const edgeKey = encodeEdgeKey('a', 'b', 'link');
-        expect(orsetContains(state.edgeAlive, edgeKey)).toBe(true);
+        expect(state.edgeAlive.contains(edgeKey)).toBe(true);
       }
     });
   });
@@ -371,8 +371,8 @@ describe('JoinReducer', () => {
       ]);
 
       // Add wins because remove didn't observe the add's dot
-      expect(orsetContains(stateAB.nodeAlive, 'x')).toBe(true);
-      expect(orsetContains(stateBA.nodeAlive, 'x')).toBe(true);
+      expect(stateAB.nodeAlive.contains('x')).toBe(true);
+      expect(stateBA.nodeAlive.contains('x')).toBe(true);
     });
 
     it('concurrent add and remove: remove only removes observed dots', () => {
@@ -404,10 +404,10 @@ describe('JoinReducer', () => {
       ]);
 
       // Node x should still exist because B's dot wasn't tombstoned
-      expect(orsetContains(state.nodeAlive, 'x')).toBe(true);
+      expect(state.nodeAlive.contains('x')).toBe(true);
 
       // A's dot should be tombstoned, B's should remain
-      const dots = orsetGetDots(state.nodeAlive, 'x');
+      const dots = state.nodeAlive.getDots('x');
       expect(dots.has('B:1')).toBe(true);
       expect(dots.has('A:1')).toBe(false);
     });
@@ -483,7 +483,7 @@ describe('JoinReducer', () => {
       ]);
 
       // Node should be removed
-      expect(orsetContains(state.nodeAlive, 'x')).toBe(false);
+      expect(state.nodeAlive.contains('x')).toBe(false);
 
       // But property should still have its value
       const propKey = encodePropKey('x', 'name');
@@ -517,8 +517,8 @@ describe('JoinReducer', () => {
       const joined = joinStates(stateA, stateB);
 
       // Should have both nodes
-      expect(orsetContains(joined.nodeAlive, 'x')).toBe(true);
-      expect(orsetContains(joined.nodeAlive, 'y')).toBe(true);
+      expect(joined.nodeAlive.contains('x')).toBe(true);
+      expect(joined.nodeAlive.contains('y')).toBe(true);
 
       // Should have both properties
       expect(lwwValue(joined.prop.get(encodePropKey('x', 'name')))).toEqual(
@@ -567,8 +567,8 @@ describe('JoinReducer', () => {
       applyOpV2(joined, createNodeAddV2('z', dotNew), createEventId(1, 'C', 'cccc1234', 0));
 
       // Original states should be unchanged
-      expect(orsetContains(stateA.nodeAlive, 'z')).toBe(false);
-      expect(orsetContains(stateB.nodeAlive, 'z')).toBe(false);
+      expect(stateA.nodeAlive.contains('z')).toBe(false);
+      expect(stateB.nodeAlive.contains('z')).toBe(false);
     });
   });
 
@@ -585,12 +585,12 @@ describe('JoinReducer', () => {
       applyOpV2(cloned, createNodeAddV2('y', dot2), createEventId(1, 'B', 'bbbb1234', 0));
 
       // Original should be unchanged
-      expect(orsetContains(state.nodeAlive, 'x')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'y')).toBe(false);
+      expect(state.nodeAlive.contains('x')).toBe(true);
+      expect(state.nodeAlive.contains('y')).toBe(false);
 
       // Clone should have both
-      expect(orsetContains(cloned.nodeAlive, 'x')).toBe(true);
-      expect(orsetContains(cloned.nodeAlive, 'y')).toBe(true);
+      expect(cloned.nodeAlive.contains('x')).toBe(true);
+      expect(cloned.nodeAlive.contains('y')).toBe(true);
     });
 
     it('normalizes plain state-like objects through the structural fallback', () => {
@@ -611,9 +611,9 @@ describe('JoinReducer', () => {
       const cloned = cloneStateV5(/** @type {any} */ (plainState));
       applyOpV2(cloned, createNodeAddV2('z', createDot('B', 1)), createEventId(4, 'B', 'dddd1234', 0));
 
-      expect(orsetContains(cloned.nodeAlive, 'x')).toBe(true);
-      expect(orsetContains(cloned.nodeAlive, 'z')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'z')).toBe(false);
+      expect(cloned.nodeAlive.contains('x')).toBe(true);
+      expect(cloned.nodeAlive.contains('z')).toBe(true);
+      expect(state.nodeAlive.contains('z')).toBe(false);
       expect(cloned.prop.get(encodePropKey('x', 'name'))?.value).toEqual(createInlineValue('Alice'));
     });
   });
@@ -646,8 +646,8 @@ describe('JoinReducer', () => {
       const finalState = reduceV5([{ patch: newPatch, sha: 'bbbb1234' }], initialState);
 
       // Should have both nodes
-      expect(orsetContains(finalState.nodeAlive, 'existing')).toBe(true);
-      expect(orsetContains(finalState.nodeAlive, 'new')).toBe(true);
+      expect(finalState.nodeAlive.contains('existing')).toBe(true);
+      expect(finalState.nodeAlive.contains('new')).toBe(true);
     });
 
     it('does not mutate initial state', () => {
@@ -667,8 +667,8 @@ describe('JoinReducer', () => {
       reduceV5([{ patch: newPatch, sha: 'bbbb1234' }], initialState);
 
       // Initial state should still only have 'x'
-      expect(orsetContains(initialState.nodeAlive, 'x')).toBe(true);
-      expect(orsetContains(initialState.nodeAlive, 'y')).toBe(false);
+      expect(initialState.nodeAlive.contains('x')).toBe(true);
+      expect(initialState.nodeAlive.contains('y')).toBe(false);
     });
   });
 
@@ -676,7 +676,7 @@ describe('JoinReducer', () => {
     it('merges patch context into observedFrontier', () => {
       const state = createEmptyStateV5();
 
-      const context = createVersionVector();
+      const context = VersionVector.empty();
       context.set('A', 5);
       context.set('B', 3);
 
@@ -698,7 +698,7 @@ describe('JoinReducer', () => {
       state.observedFrontier.set('A', 10);
       state.observedFrontier.set('B', 2);
 
-      const context = createVersionVector();
+      const context = VersionVector.empty();
       context.set('A', 5); // lower than existing
       context.set('B', 8); // higher than existing
       context.set('C', 3); // new writer
@@ -720,7 +720,7 @@ describe('JoinReducer', () => {
     it('incorporates the patch own dot into observedFrontier', () => {
       const state = createEmptyStateV5();
 
-      const context = createVersionVector();
+      const context = VersionVector.empty();
       context.set('A', 5);
       context.set('B', 3);
 
@@ -744,12 +744,12 @@ describe('JoinReducer', () => {
       join(state, createPatch({
         writer: 'A', lamport: 1,
         ops: [createNodeAddV2('n1', createDot('A', 1))],
-        context: createVersionVector(),
+        context: VersionVector.empty(),
       }), 'aaaa0001');
 
       expect(state.observedFrontier.get('A')).toBe(1);
 
-      const ctx2 = createVersionVector();
+      const ctx2 = VersionVector.empty();
       ctx2.set('A', 1);
       join(state, createPatch({
         writer: 'A', lamport: 2,
@@ -763,7 +763,7 @@ describe('JoinReducer', () => {
     it('incorporates patch own dot on receipt path', () => {
       const state = createEmptyStateV5();
 
-      const context = createVersionVector();
+      const context = VersionVector.empty();
       context.set('A', 5);
 
       const patch = createPatch({
@@ -791,11 +791,11 @@ describe('JoinReducer', () => {
         writer: 'w1',
         lamport: 1,
         ops: [createNodeAddV2('n1', dot)],
-        context: createVersionVector(),
+        context: VersionVector.empty(),
       });
       const result = applyFast(state, patch, 'fa51aa00ee11');
       expect(result).toBe(state); // mutates in place
-      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
+      expect(state.nodeAlive.contains('n1')).toBe(true);
       expect(state.observedFrontier.get('w1')).toBe(1);
     });
 
@@ -806,7 +806,7 @@ describe('JoinReducer', () => {
         writer: 'w1',
         lamport: 1,
         ops: [createNodeAddV2('n1', dot)],
-        context: createVersionVector(),
+        context: VersionVector.empty(),
       });
       const result = applyWithReceipt(state, patch, 'bece1111ee22');
       expect(result.state).toBe(state);
@@ -815,7 +815,7 @@ describe('JoinReducer', () => {
       expect(result.receipt.ops).toHaveLength(1);
       expect(result.receipt.ops[0]?.op).toBe('NodeAdd');
       expect(result.receipt.ops[0]?.result).toBe('applied');
-      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
+      expect(state.nodeAlive.contains('n1')).toBe(true);
       expect(state.observedFrontier.get('w1')).toBe(1);
     });
 
@@ -828,12 +828,12 @@ describe('JoinReducer', () => {
           /** @type {any} */ (undefined),
           createNodeAddV2('n1', createDot('w1', 1)),
         ],
-        context: createVersionVector(),
+        context: VersionVector.empty(),
       });
 
       applyFast(state, patch, 'fa51aa00ee12');
 
-      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
+      expect(state.nodeAlive.contains('n1')).toBe(true);
       expect(state.observedFrontier.get('w1')).toBe(1);
     });
 
@@ -846,14 +846,14 @@ describe('JoinReducer', () => {
           /** @type {any} */ (undefined),
           createNodeAddV2('n1', createDot('w1', 1)),
         ],
-        context: createVersionVector(),
+        context: VersionVector.empty(),
       });
 
       const result = applyWithReceipt(state, patch, 'bece1111ee23');
 
       expect(result.receipt.ops).toHaveLength(1);
       expect(result.receipt.ops[0]?.op).toBe('NodeAdd');
-      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
+      expect(state.nodeAlive.contains('n1')).toBe(true);
     });
 
     it('raw PropSet strategy exposes outcome, snapshot, and diff accumulation', () => {
@@ -927,7 +927,7 @@ describe('JoinReducer', () => {
           writer: 'w1',
           lamport: 1,
           ops: [{ type: 'BlobValue', oid: 'blob-1' }],
-          context: createVersionVector(),
+          context: VersionVector.empty(),
         }), 'bece1111ee24');
 
         expect(result.receipt.ops).toEqual([]);
@@ -948,7 +948,7 @@ describe('JoinReducer', () => {
       };
       const result = applyFast(state, /** @type {*} */ (patch), 'aa00000000000000');
       expect(result).toBe(state);
-      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
+      expect(state.nodeAlive.contains('n1')).toBe(true);
       expect(state.observedFrontier.get('w1')).toBe(1);
     });
 
@@ -964,7 +964,7 @@ describe('JoinReducer', () => {
       };
       const result = applyFast(state, /** @type {*} */ (patch), 'bb00000000000000');
       expect(result).toBe(state);
-      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
+      expect(state.nodeAlive.contains('n1')).toBe(true);
       expect(state.observedFrontier.get('w1')).toBe(1);
     });
 
@@ -975,12 +975,12 @@ describe('JoinReducer', () => {
         writer: 'w1',
         lamport: 1,
         ops: [createNodeAddV2('n1', dot)],
-        context: createVersionVector(),
+        context: VersionVector.empty(),
       });
       const result = join(state, patch, 'd15a07c0');
       // applyFast returns state directly
       expect(result).toBe(state);
-      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
+      expect(state.nodeAlive.contains('n1')).toBe(true);
     });
 
     it('join dispatches to applyWithReceipt when collectReceipts is true', () => {
@@ -990,7 +990,7 @@ describe('JoinReducer', () => {
         writer: 'w1',
         lamport: 1,
         ops: [createNodeAddV2('n1', dot)],
-        context: createVersionVector(),
+        context: VersionVector.empty(),
       });
       const result = /** @type {{state: *, receipt: *}} */ (join(state, patch, 'd15a07c1', true));
       expect(result.state).toBe(state);

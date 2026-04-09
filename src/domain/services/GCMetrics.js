@@ -18,7 +18,7 @@
 
 /**
  * Counts total entries (dots) in an ORSet across all elements.
- * @param {import('../crdt/ORSet.js').default} orset
+ * @param {import('../crdt/ORSet.ts').default} orset
  * @returns {number}
  */
 export function countEntries(orset) {
@@ -31,7 +31,7 @@ export function countEntries(orset) {
 
 /**
  * Counts live dots in an ORSet (entries minus tombstoned).
- * @param {import('../crdt/ORSet.js').default} orset
+ * @param {import('../crdt/ORSet.ts').default} orset
  * @returns {number}
  */
 export function countLiveDots(orset) {
@@ -49,7 +49,7 @@ export function countLiveDots(orset) {
 /**
  * Counts tombstones in an ORSet that reference entry dots.
  * Only counts tombstones that actually correspond to dots in entries.
- * @param {import('../crdt/ORSet.js').default} orset
+ * @param {import('../crdt/ORSet.ts').default} orset
  * @returns {number}
  */
 export function countTombstones(orset) {

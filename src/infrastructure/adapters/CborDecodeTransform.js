@@ -1,4 +1,4 @@
-import Transform from '../../domain/stream/Transform.js';
+import Transform from '../../domain/stream/Transform.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 
 /**

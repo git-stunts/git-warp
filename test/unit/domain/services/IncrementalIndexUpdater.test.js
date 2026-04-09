@@ -3,9 +3,9 @@ import IncrementalIndexUpdater from '../../../../src/domain/services/index/Incre
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
 import { createEmptyStateV5, applyOpV2, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { orsetGetDots, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 import { ShardIdOverflowError } from '../../../../src/domain/errors/index.ts';
@@ -115,8 +115,8 @@ describe('IncrementalIndexUpdater', () => {
       const originalGid = index1.getGlobalId('A');
 
       // Simulate A removed — apply removal to state so state and diff agree
-      const aDots = orsetGetDots(state1.nodeAlive, 'A');
-      orsetRemove(state1.nodeAlive, aDots);
+      const aDots = state1.nodeAlive.getDots('A');
+      state1.nodeAlive.remove(aDots);
 
       const removeDiff = {
         nodesAdded: [],
@@ -207,7 +207,7 @@ describe('IncrementalIndexUpdater', () => {
       const updater = new IncrementalIndexUpdater();
 
       // Remove B, then re-add it to initialize the updater's adjacency cache.
-      orsetRemove(state.nodeAlive, orsetGetDots(state.nodeAlive, 'B'));
+      state.nodeAlive.remove(state.nodeAlive.getDots('B'));
       const removedB = updater.computeDirtyShards({
         diff: {
           nodesAdded: [],
@@ -237,7 +237,7 @@ describe('IncrementalIndexUpdater', () => {
 
       // Edge transition with no re-added nodes must still reconcile cache state.
       const edgeKey = encodeEdgeKey('A', 'B', 'knows');
-      orsetRemove(state.edgeAlive, orsetGetDots(state.edgeAlive, edgeKey));
+      state.edgeAlive.remove(state.edgeAlive.getDots(edgeKey));
       const removedEdge = updater.computeDirtyShards({
         diff: {
           nodesAdded: [],
@@ -252,7 +252,7 @@ describe('IncrementalIndexUpdater', () => {
       const tree4 = { ...tree3, ...removedEdge };
 
       // Re-add B again; stale adjacency would incorrectly resurrect A->B.
-      orsetRemove(state.nodeAlive, orsetGetDots(state.nodeAlive, 'B'));
+      state.nodeAlive.remove(state.nodeAlive.getDots('B'));
       const removedBAgain = updater.computeDirtyShards({
         diff: {
           nodesAdded: [],
@@ -299,7 +299,7 @@ describe('IncrementalIndexUpdater', () => {
       const tree1 = buildTree(state);
       const updater = new IncrementalIndexUpdater();
 
-      orsetRemove(state.nodeAlive, orsetGetDots(state.nodeAlive, 'B'));
+      state.nodeAlive.remove(state.nodeAlive.getDots('B'));
       const removed = updater.computeDirtyShards({
         diff: {
           nodesAdded: [],
@@ -529,8 +529,8 @@ describe('IncrementalIndexUpdater', () => {
 
       // Remove only 'knows' edge — apply removal to state so state and diff agree
       const knowsKey = encodeEdgeKey('A', 'B', 'knows');
-      const knowsDots = orsetGetDots(state.edgeAlive, knowsKey);
-      orsetRemove(state.edgeAlive, knowsDots);
+      const knowsDots = state.edgeAlive.getDots(knowsKey);
+      state.edgeAlive.remove(knowsDots);
 
       const diff = {
         nodesAdded: [],

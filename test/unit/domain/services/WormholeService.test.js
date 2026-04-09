@@ -22,8 +22,8 @@ import {
 } from '../../../../src/domain/services/JoinReducer.js';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
-import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
-import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import {
   createNodeAddV2,
   createEdgeAddV2,
@@ -429,12 +429,12 @@ describe('WormholeService', () => {
       const state = replayWormhole(wormhole);
 
       // Verify nodes
-      expect(orsetContains(state.nodeAlive, 'node-a')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'node-b')).toBe(true);
+      expect(state.nodeAlive.contains('node-a')).toBe(true);
+      expect(state.nodeAlive.contains('node-b')).toBe(true);
 
       // Verify edge
       const edgeKey = encodeEdgeKey('node-a', 'node-b', 'connects');
-      expect(orsetContains(state.edgeAlive, edgeKey)).toBe(true);
+      expect(state.edgeAlive.contains(edgeKey)).toBe(true);
 
       // Verify property
       const propKey = encodePropKey('node-a', 'name');
@@ -476,8 +476,8 @@ describe('WormholeService', () => {
       const state = replayWormhole(wormhole, initialState);
 
       // Both nodes should exist
-      expect(orsetContains(state.nodeAlive, 'initial-node')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'node-a')).toBe(true);
+      expect(state.nodeAlive.contains('initial-node')).toBe(true);
+      expect(state.nodeAlive.contains('node-a')).toBe(true);
     });
   });
 
@@ -539,10 +539,10 @@ describe('WormholeService', () => {
 
       // Verify replay produces correct state
       const state = replayWormhole(composed);
-      expect(orsetContains(state.nodeAlive, 'node-a')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'node-b')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'node-c')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'node-d')).toBe(true);
+      expect(state.nodeAlive.contains('node-a')).toBe(true);
+      expect(state.nodeAlive.contains('node-b')).toBe(true);
+      expect(state.nodeAlive.contains('node-c')).toBe(true);
+      expect(state.nodeAlive.contains('node-d')).toBe(true);
     });
 
     it('throws E_WORMHOLE_MULTI_WRITER for different writers', async () => {
@@ -656,8 +656,8 @@ describe('WormholeService', () => {
       const stateRight = replayWormhole(rightAssoc);
 
       for (let i = 1; i <= 6; i++) {
-        expect(orsetContains(stateLeft.nodeAlive, `node-${i}`)).toBe(
-          orsetContains(stateRight.nodeAlive, `node-${i}`)
+        expect(stateLeft.nodeAlive.contains(`node-${i}`)).toBe(
+          stateRight.nodeAlive.contains(`node-${i}`)
         );
       }
     });
@@ -706,11 +706,11 @@ describe('WormholeService', () => {
       const stateOriginal = replayWormhole(original);
       const stateRestored = replayWormhole(restored);
 
-      expect(orsetContains(stateOriginal.nodeAlive, 'node-a')).toBe(
-        orsetContains(stateRestored.nodeAlive, 'node-a')
+      expect(stateOriginal.nodeAlive.contains('node-a')).toBe(
+        stateRestored.nodeAlive.contains('node-a')
       );
-      expect(orsetContains(stateOriginal.nodeAlive, 'node-b')).toBe(
-        orsetContains(stateRestored.nodeAlive, 'node-b')
+      expect(stateOriginal.nodeAlive.contains('node-b')).toBe(
+        stateRestored.nodeAlive.contains('node-b')
       );
     });
 
@@ -818,8 +818,8 @@ describe('WormholeService', () => {
 
       // Verify both produce same state
       for (let i = 1; i <= 10; i++) {
-        expect(orsetContains(wormholeResult.nodeAlive, `node-${i}`)).toBe(
-          orsetContains(fullResult.nodeAlive, `node-${i}`)
+        expect(wormholeResult.nodeAlive.contains(`node-${i}`)).toBe(
+          fullResult.nodeAlive.contains(`node-${i}`)
         );
         const propKey = encodePropKey(`node-${i}`, 'index');
         expect(lwwValue(wormholeResult.prop.get(propKey))).toEqual(
@@ -896,8 +896,8 @@ describe('WormholeService', () => {
 
       // Verify both produce same state
       for (let i = 1; i <= 20; i++) {
-        expect(orsetContains(wormholeResult.nodeAlive, `node-${i}`)).toBe(
-          orsetContains(fullResult.nodeAlive, `node-${i}`)
+        expect(wormholeResult.nodeAlive.contains(`node-${i}`)).toBe(
+          fullResult.nodeAlive.contains(`node-${i}`)
         );
       }
     });
@@ -925,7 +925,7 @@ describe('WormholeService', () => {
 
       expect(wormhole.patchCount).toBe(1);
       const state = replayWormhole(wormhole);
-      expect(orsetContains(state.nodeAlive, 'root')).toBe(true);
+      expect(state.nodeAlive.contains('root')).toBe(true);
     });
 
     it('handles wormhole with complex operations', async () => {
@@ -957,10 +957,10 @@ describe('WormholeService', () => {
 
       const state = replayWormhole(wormhole);
 
-      expect(orsetContains(state.nodeAlive, 'a')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'b')).toBe(true);
-      expect(orsetContains(state.edgeAlive, encodeEdgeKey('a', 'b', 'link1'))).toBe(true);
-      expect(orsetContains(state.edgeAlive, encodeEdgeKey('b', 'a', 'link2'))).toBe(true);
+      expect(state.nodeAlive.contains('a')).toBe(true);
+      expect(state.nodeAlive.contains('b')).toBe(true);
+      expect(state.edgeAlive.contains(encodeEdgeKey('a', 'b', 'link1'))).toBe(true);
+      expect(state.edgeAlive.contains(encodeEdgeKey('b', 'a', 'link2'))).toBe(true);
       expect(lwwValue(state.prop.get(encodePropKey('a', 'x')))).toEqual(createInlineValue(1));
       expect(lwwValue(state.prop.get(encodePropKey('a', 'y')))).toEqual(createInlineValue(2));
       expect(lwwValue(state.prop.get(encodePropKey('b', 'z')))).toEqual(createInlineValue(3));

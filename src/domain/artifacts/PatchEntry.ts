@@ -1,4 +1,5 @@
 import WarpError from '../errors/WarpError.ts';
+import type Patch from '../types/Patch.ts';
 
 /**
  * A patch entry from a patch scan stream.
@@ -7,21 +8,17 @@ import WarpError from '../errors/WarpError.ts';
  * unit yielded by PatchJournalPort.scanPatchRange().
  */
 export default class PatchEntry {
-  /**
-   * Creates a PatchEntry.
-   *
-   * @param {{ patch: import('../types/Patch.ts').default, sha: string }} fields
-   */
-  constructor({ patch, sha }) {
+  readonly patch: Patch;
+  readonly sha: string;
+
+  constructor({ patch, sha }: { patch: Patch; sha: string }) {
     if (patch === null || patch === undefined) {
       throw new WarpError('PatchEntry requires a patch', 'E_INVALID_ENTRY');
     }
     if (typeof sha !== 'string' || sha.length === 0) {
       throw new WarpError('PatchEntry requires a non-empty sha', 'E_INVALID_ENTRY');
     }
-    /** @type {import('../types/Patch.ts').default} */
     this.patch = patch;
-    /** @type {string} */
     this.sha = sha;
     Object.freeze(this);
   }

@@ -14,10 +14,11 @@ export { default as StrandError } from '../errors/StrandError.ts';
 
 /**
  * Extended WarpRuntime type that includes mixin methods wired at runtime.
- * Use this as the `@this` type in method files that call other mixin methods.
- *
- * @typedef {import('../WarpRuntime.js').default & { _readPatchBlob(patchMeta: { patchOid: string, encrypted: boolean }): Promise<Uint8Array> }} WarpGraphWithMixins
+ * Use this as the `this` type in method files that call other mixin methods.
  */
+export type WarpGraphWithMixins = import('../WarpRuntime.js').default & {
+  _readPatchBlob(patchMeta: { patchOid: string; encrypted: boolean }): Promise<Uint8Array>;
+};
 
 // ── Shared constants ────────────────────────────────────────────────────────
 export const DEFAULT_ADJACENCY_CACHE_SIZE = 3;

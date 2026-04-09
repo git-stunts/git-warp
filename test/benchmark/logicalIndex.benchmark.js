@@ -15,12 +15,12 @@ import { describe, it, expect } from 'vitest';
 import LogicalIndexBuildService from '../../src/domain/services/index/LogicalIndexBuildService.js';
 import PropertyIndexBuilder from '../../src/domain/services/index/PropertyIndexBuilder.js';
 import PropertyIndexReader from '../../src/domain/services/index/PropertyIndexReader.js';
-import { PropertyShard } from '../../src/domain/artifacts/PropertyShard.js';
+import { PropertyShard } from '../../src/domain/artifacts/PropertyShard.ts';
 import { CborCodec } from '../../src/infrastructure/codecs/CborCodec.js';
 import { makeLogicalBitmapProvider, makeFixture } from '../helpers/fixtureDsl.js';
 import { runBenchmark, logEnvironment, randomHex } from './benchmarkUtils.js';
 import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.js';
-import { createDot } from '../../src/domain/crdt/Dot.js';
+import { createDot } from '../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../src/domain/utils/EventId.ts';
 
 const WARMUP = 1;

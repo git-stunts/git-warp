@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-import { orsetElements } from '../../../../src/domain/crdt/ORSet.js';
 import { EXIT_CODES, notFoundError, parseCommandArgs, usageError } from '../../infrastructure.js';
 import { openGraph } from '../../shared.js';
 
@@ -41,8 +40,8 @@ function buildMaterializePayload(graphName, strand, materialized) {
       state,
       receipts,
       summary: {
-        nodeCount: orsetElements(/** @type {import('../../../../src/domain/crdt/ORSet.js').default} */ (state.nodeAlive)).length,
-        edgeCount: orsetElements(/** @type {import('../../../../src/domain/crdt/ORSet.js').default} */ (state.edgeAlive)).length,
+        nodeCount: state.nodeAlive.elements().length,
+        edgeCount: state.edgeAlive.elements().length,
         propertyCount: state.prop.size,
         receiptCount: receipts?.length ?? 0,
       },

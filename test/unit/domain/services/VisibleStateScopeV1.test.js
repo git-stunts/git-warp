@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { createORSet, orsetAdd, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { encodeDot } from '../../../../src/domain/crdt/Dot.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
-import { lwwSet } from '../../../../src/domain/crdt/LWW.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { encodeEdgeKey, encodeEdgePropKey, encodePropKey } from '../../../../src/domain/services/KeyCodec.js';
 import { createStateReaderV5 } from '../../../../src/domain/services/state/StateReaderV5.js';
@@ -17,13 +17,13 @@ import {
 import WarpStateV5 from '../../../../src/domain/services/state/WarpStateV5.js';
 
 function buildScopedFixtureState() {
-  const nodeAlive = createORSet();
-  const edgeAlive = createORSet();
-  orsetAdd(nodeAlive, 'task:1', createDot('alice', 1));
-  orsetAdd(nodeAlive, 'comparison-artifact:cmp-1', createDot('alice', 2));
+  const nodeAlive = ORSet.empty();
+  const edgeAlive = ORSet.empty();
+  nodeAlive.add('task:1', createDot('alice', 1));
+  nodeAlive.add('comparison-artifact:cmp-1', createDot('alice', 2));
 
   const edgeKey = encodeEdgeKey('task:1', 'comparison-artifact:cmp-1', 'governs');
-  orsetAdd(edgeAlive, edgeKey, createDot('alice', 3));
+  edgeAlive.add(edgeKey, createDot('alice', 3));
 
   const prop = new Map([
     [encodePropKey('task:1', 'status'), lwwSet(createEventId(1, 'alice', 'abc1234', 0), 'ready')],
@@ -35,7 +35,7 @@ function buildScopedFixtureState() {
     nodeAlive,
     edgeAlive,
     prop,
-    observedFrontier: createVersionVector(),
+    observedFrontier: VersionVector.empty(),
     edgeBirthEvent: new Map([
       [edgeKey, createEventId(3, 'alice', 'abc1236', 0)],
     ]),
@@ -128,8 +128,8 @@ describe('VisibleStateScopeV1', () => {
     const aliveEdgeKey = encodeEdgeKey('task:1', 'comparison-artifact:cmp-1', 'governs');
     const deadEdgeKey = encodeEdgeKey('task:1', 'comparison-artifact:cmp-1', 'stale');
     const deadDot = createDot('alice', 99);
-    orsetAdd(state.edgeAlive, deadEdgeKey, deadDot);
-    orsetRemove(state.edgeAlive, new Set([encodeDot(deadDot)]));
+    state.edgeAlive.add(deadEdgeKey, deadDot);
+    state.edgeAlive.remove(new Set([encodeDot(deadDot)]));
 
     state.prop.set(
       encodeEdgePropKey('task:1', 'comparison-artifact:cmp-1', 'stale', 'via'),

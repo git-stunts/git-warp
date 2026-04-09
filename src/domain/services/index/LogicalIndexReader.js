@@ -12,9 +12,9 @@ import defaultCodec from '../../utils/defaultCodec.ts';
 import computeShardKey from '../../utils/shardKey.ts';
 import toBytes from '../../utils/toBytes.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
-import { MetaShard } from '../../artifacts/MetaShard.js';
-import { EdgeShard } from '../../artifacts/EdgeShard.js';
-import { LabelShard } from '../../artifacts/LabelShard.js';
+import { MetaShard } from '../../artifacts/MetaShard.ts';
+import { EdgeShard } from '../../artifacts/EdgeShard.ts';
+import { LabelShard } from '../../artifacts/LabelShard.ts';
 
 /** @typedef {import('./BitmapNeighborProvider.js').LogicalIndex} LogicalIndex */
 /** @typedef {import('../../utils/roaring.ts').RoaringBitmapSubset} Bitmap */
@@ -333,7 +333,7 @@ export default class LogicalIndexReader {
    * This is the codec-free alternative to loadFromTree() and loadFromOids().
    * No CBOR decoding is needed — the shards already carry decoded data.
    *
-   * @param {Iterable<import('../../artifacts/IndexShard.js').IndexShard>} shards
+   * @param {Iterable<import('../../artifacts/IndexShard.ts').IndexShard>} shards
    * @returns {this}
    */
   loadFromShards(shards) {

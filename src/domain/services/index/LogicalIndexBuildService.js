@@ -10,11 +10,10 @@
 import nullLogger from '../../utils/nullLogger.ts';
 import LogicalBitmapIndexBuilder from './LogicalBitmapIndexBuilder.js';
 import PropertyIndexBuilder from './PropertyIndexBuilder.js';
-import { orsetElements } from '../../crdt/ORSet.js';
 import { decodeEdgeKey, decodePropKey, isEdgePropKey } from '../KeyCodec.js';
 import { nodeVisibleV5, edgeVisibleV5 } from '../state/StateSerializerV5.js';
-import WarpStream from '../../stream/WarpStream.js';
-import { ReceiptShard } from '../../artifacts/ReceiptShard.js';
+import WarpStream from '../../stream/WarpStream.ts';
+import { ReceiptShard } from '../../artifacts/ReceiptShard.ts';
 
 export default class LogicalIndexBuildService {
   /**
@@ -36,7 +35,7 @@ export default class LogicalIndexBuildService {
    *
    * @param {import('../JoinReducer.js').WarpStateV5} state
    * @param {{ existingMeta?: Record<string, { nodeToGlobal: Record<string, number>, nextLocalId: number }>, existingLabels?: Record<string, number>|Array<[string, number]> }} [options]
-   * @returns {{ shards: import('../../artifacts/IndexShard.js').IndexShard[], receipt: ReceiptShard }}
+   * @returns {{ shards: import('../../artifacts/IndexShard.ts').IndexShard[], receipt: ReceiptShard }}
    */
   buildShards(state, options = {}) {
     const { indexBuilder, propBuilder } = this._populateBuilders(state, options);
@@ -59,7 +58,7 @@ export default class LogicalIndexBuildService {
    *
    * @param {import('../JoinReducer.js').WarpStateV5} state
    * @param {{ existingMeta?: Record<string, { nodeToGlobal: Record<string, number>, nextLocalId: number }>, existingLabels?: Record<string, number>|Array<[string, number]> }} [options]
-   * @returns {{ stream: WarpStream<import('../../artifacts/IndexShard.js').IndexShard>, receipt: ReceiptShard }}
+   * @returns {{ stream: WarpStream<import('../../artifacts/IndexShard.ts').IndexShard>, receipt: ReceiptShard }}
    */
   buildStream(state, options = {}) {
     const { indexBuilder, propBuilder } = this._populateBuilders(state, options);
@@ -102,7 +101,7 @@ export default class LogicalIndexBuildService {
       indexBuilder.loadExistingLabels(options.existingLabels);
     }
 
-    const aliveNodes = [...orsetElements(state.nodeAlive)].sort();
+    const aliveNodes = [...state.nodeAlive.elements()].sort();
     for (const nodeId of aliveNodes) {
       indexBuilder.registerNode(nodeId);
       indexBuilder.markAlive(nodeId);
@@ -137,7 +136,7 @@ export default class LogicalIndexBuildService {
  */
 function _collectVisibleEdges(state) {
   const visibleEdges = [];
-  for (const edgeKey of orsetElements(state.edgeAlive)) {
+  for (const edgeKey of state.edgeAlive.elements()) {
     if (edgeVisibleV5(state, edgeKey)) {
       visibleEdges.push(decodeEdgeKey(edgeKey));
     }

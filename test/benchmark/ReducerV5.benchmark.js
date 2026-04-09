@@ -25,9 +25,9 @@ function createPropSetV2(node, key, value) { return new PropSet(node, key, value
 const reduceV5 = _reduceV5;
 /** @param {unknown} value */
 function createInlineValue(value) { return { type: 'inline', value }; }
-import { createDot, encodeDot } from '../../src/domain/crdt/Dot.js';
-import { createVersionVector } from '../../src/domain/crdt/VersionVector.js';
-import { orsetElements } from '../../src/domain/crdt/ORSet.js';
+import { createDot, encodeDot } from '../../src/domain/crdt/Dot.ts';
+import VersionVector from '../../src/domain/crdt/VersionVector.ts';
+import ORSet from '../../src/domain/crdt/ORSet.ts';
 import {
   TestClock,
   logEnvironment,
@@ -91,7 +91,7 @@ function generateV5Patches(patchCount, options = {}) {
     let nextCounter = currentCounter;
 
     const ops = [];
-    const context = createVersionVector();
+    const context = VersionVector.empty();
 
     for (let j = 0; j < opsPerPatch; j++) {
       const opType = Math.floor(rng.next() * 100);
@@ -217,7 +217,7 @@ describe('WARP V5 Reducer Performance Benchmarks', () => {
       console.log(`    Min: ${stats.min.toFixed(0)}ms`);
       console.log(`    Max: ${stats.max.toFixed(0)}ms`);
       console.log(`    Heap delta: ${memDeltaMB.toFixed(1)}MB`);
-      console.log(`    Nodes alive: ${orsetElements(state.nodeAlive).length}`);
+      console.log(`    Nodes alive: ${state.nodeAlive.elements().length}`);
 
       // Soft target check (warn only, never fails CI)
       if (stats.median > softTarget) {
@@ -272,8 +272,8 @@ describe('WARP V5 Reducer Performance Benchmarks', () => {
       expect(incrementalStats.median).toBeLessThan(fullStats.median / 2);
 
       // Correctness: both approaches produce the same state
-      const fullNodes = orsetElements(stateFull.nodeAlive).sort();
-      const incNodes = orsetElements(incrementalState.nodeAlive).sort();
+      const fullNodes = stateFull.nodeAlive.elements().sort();
+      const incNodes = incrementalState.nodeAlive.elements().sort();
       expect(incNodes).toEqual(fullNodes);
     });
 
@@ -312,7 +312,7 @@ describe('WARP V5 Reducer Performance Benchmarks', () => {
       const memUsedMB = (memAfter - memBefore) / 1024 / 1024;
 
       console.log(`\n  Memory delta: ${memUsedMB.toFixed(1)}MB`);
-      console.log(`  State size: ${orsetElements(state.nodeAlive).length} nodes, ${orsetElements(state.edgeAlive).length} edges`);
+      console.log(`  State size: ${state.nodeAlive.elements().length} nodes, ${state.edgeAlive.elements().length} edges`);
 
       // Should be well under 500MB
       expect(memUsedMB).toBeLessThan(500);
@@ -328,8 +328,8 @@ describe('WARP V5 Reducer Performance Benchmarks', () => {
       const state2 = reduceV5(shuffled);
 
       // Compare node alive sets
-      const nodes1 = orsetElements(state1.nodeAlive).sort();
-      const nodes2 = orsetElements(state2.nodeAlive).sort();
+      const nodes1 = state1.nodeAlive.elements().sort();
+      const nodes2 = state2.nodeAlive.elements().sort();
 
       expect(nodes1).toEqual(nodes2);
       expect(state1.observedFrontier).toEqual(state2.observedFrontier);

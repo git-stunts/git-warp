@@ -1,20 +1,23 @@
 import WarpError from '../errors/WarpError.ts';
 import { checkAborted } from '../utils/cancellation.ts';
+import type Transform from './Transform.ts';
+import type Sink from './Sink.ts';
 
-/**
- * Validates that a source is a valid iterable.
- * @param {unknown} source
- */
-function _validateSource(source) {
+/** Validates that a source is a valid iterable. */
+function _validateSource(source: unknown): void {
   if (source === null || source === undefined) {
     throw new WarpError('WarpStream requires an async iterable source', 'E_INVALID_SOURCE');
   }
-  const s = /** @type {Record<string | symbol, unknown>} */ (source);
+  const s = source as Record<string | symbol, unknown>;
   const hasAsync = typeof s[Symbol.asyncIterator] === 'function';
   const hasSync = typeof s[Symbol.iterator] === 'function';
   if (!hasAsync && !hasSync) {
     throw new WarpError('WarpStream source must implement Symbol.asyncIterator or Symbol.iterator', 'E_INVALID_SOURCE');
   }
+}
+
+interface WarpStreamOptions {
+  signal?: AbortSignal;
 }
 
 /**
@@ -30,21 +33,17 @@ function _validateSource(source) {
  *
  * When the dataset is unbounded, stream-first is not an optimization —
  * it is the honest API.
- *
- * @template T
  */
-export default class WarpStream {
+export default class WarpStream<T> {
+  _source: AsyncIterable<T>;
+  _signal: AbortSignal | undefined;
+
   /**
    * Creates a WarpStream wrapping an async iterable source.
-   *
-   * @param {AsyncIterable<T>} source - The underlying async iterable
-   * @param {{ signal?: AbortSignal }} [options]
    */
-  constructor(source, { signal } = {}) {
+  constructor(source: AsyncIterable<T>, { signal }: WarpStreamOptions = {}) {
     _validateSource(source);
-    /** @type {AsyncIterable<T>} */
     this._source = source;
-    /** @type {AbortSignal | undefined} */
     this._signal = signal;
   }
 
@@ -52,36 +51,26 @@ export default class WarpStream {
 
   /**
    * Creates a WarpStream from any iterable or async iterable.
-   *
-   * @template V
-   * @param {AsyncIterable<V> | Iterable<V>} iterable
-   * @param {{ signal?: AbortSignal }} [options]
-   * @returns {WarpStream<V>}
    */
-  static from(iterable, options) {
+  static from<V>(iterable: AsyncIterable<V> | Iterable<V>, options?: WarpStreamOptions): WarpStream<V> {
     if (iterable instanceof WarpStream) {
-       
-      return /** @type {WarpStream<V>} */ (iterable);
+      return iterable as WarpStream<V>;
     }
     // Wrap sync iterables as async
-    const src = /** @type {Record<string | symbol, unknown>} */ (/** @type {unknown} */ (iterable));
+    const src = iterable as Record<string | symbol, unknown>;
     if (typeof src[Symbol.asyncIterator] === 'function') {
-      return new WarpStream(/** @type {AsyncIterable<V>} */ (iterable), options);
+      return new WarpStream(iterable as AsyncIterable<V>, options);
     }
     if (typeof src[Symbol.iterator] === 'function') {
-      return new WarpStream(_syncToAsync(/** @type {Iterable<V>} */ (iterable)), options);
+      return new WarpStream(_syncToAsync(iterable as Iterable<V>), options);
     }
     throw new WarpError('WarpStream.from() requires an iterable or async iterable', 'E_INVALID_SOURCE');
   }
 
   /**
    * Creates a WarpStream from explicit values.
-   *
-   * @template V
-   * @param  {...V} items
-   * @returns {WarpStream<V>}
    */
-  static of(...items) {
+  static of<V>(...items: V[]): WarpStream<V> {
     return WarpStream.from(items);
   }
 
@@ -90,17 +79,13 @@ export default class WarpStream {
    *
    * Elements are interleaved in arrival order — whichever source yields
    * next gets emitted next. All sources are consumed concurrently.
-   *
-   * @template V
-   * @param  {...WarpStream<V>} streams
-   * @returns {WarpStream<V>}
    */
-  static mux(...streams) {
+  static mux<V>(...streams: WarpStream<V>[]): WarpStream<V> {
     if (streams.length === 0) {
-      return WarpStream.from(/** @type {AsyncIterable<V>} */ (_empty()));
+      return WarpStream.from(_empty<V>());
     }
     if (streams.length === 1) {
-      return /** @type {WarpStream<V>} */ (streams[0]);
+      return streams[0] as WarpStream<V>;
     }
     return new WarpStream(_muxImpl(streams));
   }
@@ -109,12 +94,8 @@ export default class WarpStream {
 
   /**
    * Pipes this stream through a Transform, producing a new WarpStream.
-   *
-   * @template U
-   * @param {import('./Transform.js').default<T, U>} transform
-   * @returns {WarpStream<U>}
    */
-  pipe(transform) {
+  pipe<U>(transform: Transform<T, U>): WarpStream<U> {
     if (transform === null || transform === undefined || typeof transform.apply !== 'function') {
       throw new WarpError('pipe() requires a Transform with an apply() method', 'E_INVALID_TRANSFORM');
     }
@@ -127,14 +108,11 @@ export default class WarpStream {
    *
    * Both branches receive all elements. Elements are buffered for the
    * slower branch (one element at a time via the pull protocol).
-   *
-   * @returns {[WarpStream<T>, WarpStream<T>]}
    */
-  tee() {
+  tee(): [WarpStream<T>, WarpStream<T>] {
     const source = this._withCancellation();
     const [a, b] = _teeImpl(source);
-    /** @type {{ signal?: AbortSignal }} */
-    const opts = this._signal !== undefined ? { signal: this._signal } : {};
+    const opts: WarpStreamOptions = this._signal !== undefined ? { signal: this._signal } : {};
     return [
       new WarpStream(a, opts),
       new WarpStream(b, opts),
@@ -150,21 +128,15 @@ export default class WarpStream {
    * Note: demux eagerly consumes the source. All branches must be
    * consumed to avoid deadlock. Use for bounded fan-out where you know
    * the key space upfront.
-   *
-   * @param {(item: T) => string} classify - Returns the branch key for each element
-   * @param {string[]} keys - The expected branch keys (must be known upfront)
-   * @returns {Map<string, WarpStream<T>>}
    */
-  demux(classify, keys) {
+  demux(classify: (item: T) => string, keys: string[]): Map<string, WarpStream<T>> {
     if (!Array.isArray(keys) || keys.length === 0) {
       throw new WarpError('demux() requires a non-empty keys array', 'E_INVALID_DEMUX');
     }
     const source = this._withCancellation();
     const branches = _demuxImpl(source, classify, keys);
-    /** @type {{ signal?: AbortSignal }} */
-    const demuxOpts = this._signal !== undefined ? { signal: this._signal } : {};
-    /** @type {Map<string, WarpStream<T>>} */
-    const result = new Map();
+    const demuxOpts: WarpStreamOptions = this._signal !== undefined ? { signal: this._signal } : {};
+    const result = new Map<string, WarpStream<T>>();
     for (const [key, iter] of branches) {
       result.set(key, new WarpStream(iter, demuxOpts));
     }
@@ -175,12 +147,8 @@ export default class WarpStream {
 
   /**
    * Drains this stream into a Sink and returns the accumulated result.
-   *
-   * @template R
-   * @param {import('./Sink.js').default<T, R>} sink
-   * @returns {Promise<R>}
    */
-  async drain(sink) {
+  async drain<R>(sink: Sink<T, R>): Promise<R> {
     if (sink === null || sink === undefined || typeof sink.consume !== 'function') {
       throw new WarpError('drain() requires a Sink with a consume() method', 'E_INVALID_SINK');
     }
@@ -189,13 +157,8 @@ export default class WarpStream {
 
   /**
    * Reduces the stream to a single accumulated value.
-   *
-   * @template R
-   * @param {(acc: R, item: T) => R | Promise<R>} fn - Reducer function
-   * @param {R} init - Initial accumulator value
-   * @returns {Promise<R>}
    */
-  async reduce(fn, init) {
+  async reduce<R>(fn: (acc: R, item: T) => R | Promise<R>, init: R): Promise<R> {
     let acc = init;
     for await (const item of this._withCancellation()) {
       acc = await fn(acc, item);
@@ -205,11 +168,8 @@ export default class WarpStream {
 
   /**
    * Executes a function for each element. Returns when the stream ends.
-   *
-   * @param {(item: T) => void | Promise<void>} fn
-   * @returns {Promise<void>}
    */
-  async forEach(fn) {
+  async forEach(fn: (item: T) => void | Promise<void>): Promise<void> {
     for await (const item of this._withCancellation()) {
       await fn(item);
     }
@@ -221,12 +181,9 @@ export default class WarpStream {
    * **DANGER**: This materializes the entire stream. Use only when the
    * result is known to be bounded. For unbounded streams, use forEach(),
    * reduce(), or drain() instead.
-   *
-   * @returns {Promise<T[]>}
    */
-  async collect() {
-    /** @type {T[]} */
-    const items = [];
+  async collect(): Promise<T[]> {
+    const items: T[] = [];
     for await (const item of this._withCancellation()) {
       items.push(item);
     }
@@ -235,12 +192,8 @@ export default class WarpStream {
 
   // ── Interop ───────────────────────────────────────────────────────
 
-  /**
-   * Makes WarpStream directly usable in `for await` loops.
-   *
-   * @returns {AsyncIterator<T>}
-   */
-  [Symbol.asyncIterator]() {
+  /** Makes WarpStream directly usable in `for await` loops. */
+  [Symbol.asyncIterator](): AsyncIterator<T> {
     return this._withCancellation()[Symbol.asyncIterator]();
   }
 
@@ -248,11 +201,8 @@ export default class WarpStream {
 
   /**
    * Wraps the source with AbortSignal checking if a signal is set.
-   *
-   * @returns {AsyncIterable<T>}
-   * @private
    */
-  _withCancellation() {
+  _withCancellation(): AsyncIterable<T> {
     if (this._signal === undefined) {
       return this._source;
     }
@@ -262,14 +212,8 @@ export default class WarpStream {
 
 // ── Private Helpers ───────────────────────────────────────────────────
 
-/**
- * Wraps a sync iterable as an async iterable.
- *
- * @template T
- * @param {Iterable<T>} iterable
- * @returns {AsyncIterable<T>}
- */
-function _syncToAsync(iterable) {
+/** Wraps a sync iterable as an async iterable. */
+function _syncToAsync<T>(iterable: Iterable<T>): AsyncIterable<T> {
   return {
     [Symbol.asyncIterator]() {
       const iter = iterable[Symbol.iterator]();
@@ -282,25 +226,13 @@ function _syncToAsync(iterable) {
   };
 }
 
-/**
- * An empty async iterable.
- *
- * @template T
- * @returns {AsyncIterable<T>}
- */
-async function* _empty() {
+/** An empty async iterable. */
+async function* _empty<T>(): AsyncIterable<T> {
   // yields nothing
 }
 
-/**
- * Wraps an async iterable with AbortSignal cancellation.
- *
- * @template T
- * @param {AsyncIterable<T>} source
- * @param {AbortSignal} signal
- * @returns {AsyncIterable<T>}
- */
-async function* _cancelable(source, signal) {
+/** Wraps an async iterable with AbortSignal cancellation. */
+async function* _cancelable<T>(source: AsyncIterable<T>, signal: AbortSignal): AsyncIterable<T> {
   checkAborted(signal);
   for await (const item of source) {
     checkAborted(signal);
@@ -308,21 +240,14 @@ async function* _cancelable(source, signal) {
   }
 }
 
-/**
- * Merges multiple async iterables into one, interleaving by arrival order.
- *
- * @template T
- * @param {WarpStream<T>[]} streams
- * @returns {AsyncIterable<T>}
- */
-async function* _muxImpl(streams) {
+/** Merges multiple async iterables into one, interleaving by arrival order. */
+async function* _muxImpl<T>(streams: WarpStream<T>[]): AsyncIterable<T> {
   const iterators = streams.map((s) => s[Symbol.asyncIterator]());
-  /** @type {Map<number, Promise<{index: number, result: IteratorResult<T>}>>} */
-  const pending = new Map();
+  const pending = new Map<number, Promise<{ index: number; result: IteratorResult<T> }>>();
 
   // Start initial pull for each iterator
   for (let i = 0; i < iterators.length; i++) {
-    const iter = /** @type {AsyncIterator<T>} */ (iterators[i]);
+    const iter = iterators[i] as AsyncIterator<T>;
     pending.set(i, iter.next().then((result) => ({ index: i, result })));
   }
 
@@ -333,37 +258,28 @@ async function* _muxImpl(streams) {
     } else {
       yield result.value;
       // Re-arm this iterator for its next value
-      const iter = /** @type {AsyncIterator<T>} */ (iterators[index]);
+      const iter = iterators[index] as AsyncIterator<T>;
       pending.set(index, iter.next().then((r) => ({ index, result: r })));
     }
   }
 }
 
-/**
- * Tees an async iterable into two independent branches.
- *
- * @template T
- * @param {AsyncIterable<T>} source
- * @returns {[AsyncIterable<T>, AsyncIterable<T>]}
- */
-function _teeImpl(source) {
+/** Tees an async iterable into two independent branches. */
+function _teeImpl<T>(source: AsyncIterable<T>): [AsyncIterable<T>, AsyncIterable<T>] {
   const iterator = source[Symbol.asyncIterator]();
-  /** @type {T[]} Shared cache of items pulled from source, trimmed from the front. */
-  const cache = [];
-  /** @type {number} Offset: the absolute index of cache[0]. */
+  /** Shared cache of items pulled from source, trimmed from the front. */
+  const cache: T[] = [];
+  /** Offset: the absolute index of cache[0]. */
   let cacheOffset = 0;
   let finished = false;
-  /** @type {Error | null} */
-  let error = null;
-  /** @type {Promise<IteratorResult<T>> | null} In-flight pull to prevent concurrent pulls. */
-  let inflight = null;
-  /** @type {[number, number]} Absolute consumed index per branch. */
-  const consumed = [0, 0];
+  let error: Error | null = null;
+  /** In-flight pull to prevent concurrent pulls. */
+  let inflight: Promise<IteratorResult<T>> | null = null;
+  /** Absolute consumed index per branch. */
+  const consumed: [number, number] = [0, 0];
 
-  /**
-   * Trims cache entries that both branches have consumed.
-   */
-  function trimCache() {
+  /** Trims cache entries that both branches have consumed. */
+  function trimCache(): void {
     const minConsumed = Math.min(consumed[0], consumed[1]);
     const trimCount = minConsumed - cacheOffset;
     if (trimCount > 0) {
@@ -375,10 +291,8 @@ function _teeImpl(source) {
   /**
    * Ensures the cache covers absolute index `needed - 1`, or source is done.
    * Serializes concurrent pulls via the inflight promise.
-   * @param {number} needed - Absolute index count needed.
-   * @returns {Promise<void>}
    */
-  async function ensureCached(needed) {
+  async function ensureCached(needed: number): Promise<void> {
     while (cacheOffset + cache.length < needed && !finished && error === null) {
       if (inflight !== null) {
         await inflight;
@@ -393,7 +307,7 @@ function _teeImpl(source) {
           cache.push(result.value);
         }
       } catch (err) {
-        error = /** @type {Error} */ (err);
+        error = err as Error;
         finished = true;
       } finally {
         inflight = null;
@@ -403,27 +317,25 @@ function _teeImpl(source) {
 
   /**
    * Creates a branch that reads from the shared cache by absolute index.
-   * @param {number} branchId - 0 or 1, identifying this branch for trim tracking.
-   * @returns {AsyncIterable<T>}
    */
-  function makeBranch(branchId) {
+  function makeBranch(branchId: number): AsyncIterable<T> {
     let index = 0;
     return {
       [Symbol.asyncIterator]() {
-        return /** @type {AsyncIterator<T>} */ ({
-          async next() {
+        return {
+          async next(): Promise<IteratorResult<T>> {
             await ensureCached(index + 1);
             if (error !== null) { throw error; }
             if (index >= cacheOffset + cache.length) {
-              return { value: /** @type {T} */ (undefined), done: true };
+              return { value: undefined as T, done: true };
             }
-            const value = cache[index - cacheOffset];
+            const value = cache[index - cacheOffset] as T;
             index++;
             consumed[branchId] = index;
             trimCache();
             return { value, done: false };
           },
-        });
+        };
       },
     };
   }
@@ -431,35 +343,21 @@ function _teeImpl(source) {
   return [makeBranch(0), makeBranch(1)];
 }
 
-/**
- * Demuxes an async iterable into named branches.
- *
- * @template T
- * @param {AsyncIterable<T>} source
- * @param {(item: T) => string} classify
- * @param {string[]} keys
- * @returns {Map<string, AsyncIterable<T>>}
- */
-function _demuxImpl(source, classify, keys) {
-  /** @type {Map<string, Array<{resolve: (result: IteratorResult<T>) => void, reject: (err: Error) => void}>>} */
-  const waiters = new Map();
-  /** @type {Map<string, Array<T>>} */
-  const buffers = new Map();
+/** Demuxes an async iterable into named branches. */
+function _demuxImpl<T>(source: AsyncIterable<T>, classify: (item: T) => string, keys: string[]): Map<string, AsyncIterable<T>> {
+  const waiters = new Map<string, Array<{ resolve: (result: IteratorResult<T>) => void; reject: (err: Error) => void }>>();
+  const buffers = new Map<string, T[]>();
   let pumpStarted = false;
   let pumpDone = false;
-  /** @type {Error | null} */
-  let pumpError = null;
+  let pumpError: Error | null = null;
 
   for (const key of keys) {
     waiters.set(key, []);
     buffers.set(key, []);
   }
 
-  /**
-   * Pumps the source and routes elements to branch buffers/waiters.
-   * @returns {Promise<void>}
-   */
-  async function pump() {
+  /** Pumps the source and routes elements to branch buffers/waiters. */
+  async function pump(): Promise<void> {
     try {
       for await (const item of source) {
         const key = classify(item);
@@ -468,14 +366,14 @@ function _demuxImpl(source, classify, keys) {
           continue; // unknown key — drop
         }
         if (keyWaiters.length > 0) {
-          const waiter = /** @type {{resolve: (result: IteratorResult<T>) => void}} */ (keyWaiters.shift());
+          const waiter = keyWaiters.shift()!;
           waiter.resolve({ value: item, done: false });
         } else {
-          /** @type {T[]} */ (buffers.get(key)).push(item);
+          (buffers.get(key) as T[]).push(item);
         }
       }
     } catch (err) {
-      pumpError = /** @type {Error} */ (err);
+      pumpError = err as Error;
     } finally {
       pumpDone = true;
       // Signal all waiting branches that the source is done
@@ -484,7 +382,7 @@ function _demuxImpl(source, classify, keys) {
           if (pumpError !== null) {
             waiter.reject(pumpError);
           } else {
-            waiter.resolve({ value: /** @type {T} */ (undefined), done: true });
+            waiter.resolve({ value: undefined as T, done: true });
           }
         }
         keyWaiters.length = 0;
@@ -492,16 +390,12 @@ function _demuxImpl(source, classify, keys) {
     }
   }
 
-  /**
-   * Creates a branch async iterable for a given key.
-   * @param {string} key
-   * @returns {AsyncIterable<T>}
-   */
-  function makeBranch(key) {
+  /** Creates a branch async iterable for a given key. */
+  function makeBranch(key: string): AsyncIterable<T> {
     return {
       [Symbol.asyncIterator]() {
         return {
-          next() {
+          next(): Promise<IteratorResult<T>> {
             // Start pump on first pull from any branch
             if (!pumpStarted) {
               pumpStarted = true;
@@ -510,16 +404,16 @@ function _demuxImpl(source, classify, keys) {
             if (pumpError !== null) {
               return Promise.reject(pumpError);
             }
-            const buffer = /** @type {T[]} */ (buffers.get(key));
+            const buffer = buffers.get(key) as T[];
             if (buffer.length > 0) {
-              return Promise.resolve({ value: /** @type {T} */ (buffer.shift()), done: false });
+              return Promise.resolve({ value: buffer.shift() as T, done: false });
             }
             if (pumpDone) {
-              return Promise.resolve({ value: /** @type {T} */ (undefined), done: true });
+              return Promise.resolve({ value: undefined as T, done: true });
             }
             // Wait for next item routed to this branch
             return new Promise((resolve, reject) => {
-              /** @type {Array<{resolve: (result: IteratorResult<T>) => void, reject: (err: Error) => void}>} */ (waiters.get(key)).push({ resolve, reject });
+              (waiters.get(key) as Array<{ resolve: (result: IteratorResult<T>) => void; reject: (err: Error) => void }>).push({ resolve, reject });
             });
           },
         };
@@ -527,8 +421,7 @@ function _demuxImpl(source, classify, keys) {
     };
   }
 
-  /** @type {Map<string, AsyncIterable<T>>} */
-  const result = new Map();
+  const result = new Map<string, AsyncIterable<T>>();
   for (const key of keys) {
     result.set(key, makeBranch(key));
   }

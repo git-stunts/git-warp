@@ -641,12 +641,12 @@ const isEdge: boolean = isEdgePropKey(encoded);
 // ---------------------------------------------------------------------------
 import {
   WarpError as BrowserWarpError,
-  createVersionVector as browserCreateVV,
+  VersionVector as BrowserVersionVector,
   generateWriterId as browserGenWriterId,
 } from '../../browser.js';
 
 const _browserErr: BrowserWarpError = new BrowserWarpError('test', { code: 'TEST' });
-const _browserVV: Map<string, number> = browserCreateVV();
+const _browserVV: BrowserVersionVector = BrowserVersionVector.empty();
 const _browserWriterId: string = browserGenWriterId();
 
 // ---------------------------------------------------------------------------

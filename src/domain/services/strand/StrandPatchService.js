@@ -7,7 +7,7 @@ import {
 } from './strandShared.js';
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
-/** @import VersionVector from '../../crdt/VersionVector.js' */
+/** @import VersionVector from '../../crdt/VersionVector.ts' */
 /** @import { default as Patch } from '../../types/Patch.ts' */
 /** @import { TickReceipt } from '../../types/TickReceipt.ts' */
 /** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */

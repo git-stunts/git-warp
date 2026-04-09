@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import MaterializeController from '../../../../../src/domain/services/controllers/MaterializeController.js';
 import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReducer.js';
-import VersionVector from '../../../../../src/domain/crdt/VersionVector.js';
-import { orsetAdd } from '../../../../../src/domain/crdt/ORSet.js';
+import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
+import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import { ProvenanceIndex } from '../../../../../src/domain/services/provenance/ProvenanceIndex.js';
 import { encodeEdgeKey } from '../../../../../src/domain/services/KeyCodec.js';
 import { encodePatchMessage } from '../../../../../src/domain/services/codec/WarpMessageCodec.js';
@@ -877,10 +877,10 @@ describe('MaterializeController', () => {
     it('sorts same-neighbor edges by label for deterministic output', () => {
       const { ctrl } = setup();
       const state = emptyState();
-      orsetAdd(state.nodeAlive, 'node:a', { writerId: 'w1', counter: 1 });
-      orsetAdd(state.nodeAlive, 'node:b', { writerId: 'w1', counter: 2 });
-      orsetAdd(state.edgeAlive, encodeEdgeKey('node:a', 'node:b', 'zebra'), { writerId: 'w1', counter: 3 });
-      orsetAdd(state.edgeAlive, encodeEdgeKey('node:a', 'node:b', 'alpha'), { writerId: 'w1', counter: 4 });
+      state.nodeAlive.add('node:a', { writerId: 'w1', counter: 1 });
+      state.nodeAlive.add('node:b', { writerId: 'w1', counter: 2 });
+      state.edgeAlive.add(encodeEdgeKey('node:a', 'node:b', 'zebra'), { writerId: 'w1', counter: 3 });
+      state.edgeAlive.add(encodeEdgeKey('node:a', 'node:b', 'alpha'), { writerId: 'w1', counter: 4 });
 
       const adj = controllerPrivate(ctrl)._buildAdjacency(state);
 

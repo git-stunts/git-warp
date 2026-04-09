@@ -7,7 +7,6 @@
  * @module domain/services/controllers/QueryController
  */
 
-import { orsetContains, orsetElements } from '../../crdt/ORSet.js';
 import {
   decodePropKey,
   encodePropKey,
@@ -38,7 +37,7 @@ import StrandSelector from '../../types/StrandSelector.ts';
 /**
  * The host interface that QueryController depends on.
  *
- * @typedef {import('../../warp/_internal.js').WarpGraphWithMixins} QueryHost
+ * @typedef {import('../../warp/_internal.ts').WarpGraphWithMixins} QueryHost
  */
 
 /**
@@ -195,7 +194,7 @@ async function resolveObserverSnapshot(graph, options) {
 async function hasNode(nodeId) {
   await this._host._ensureFreshState();
   const s = /** @type {import('../state/WarpStateV5.js').default} */ (this._host._cachedState);
-  return orsetContains(s.nodeAlive, nodeId);
+  return s.nodeAlive.contains(nodeId);
 }
 
 /**
@@ -225,7 +224,7 @@ async function getNodeProps(nodeId) {
   // ── Linear scan fallback ─────────────────────────────────────────────
   const s = /** @type {import('../state/WarpStateV5.js').default} */ (this._host._cachedState);
 
-  if (!orsetContains(s.nodeAlive, nodeId)) {
+  if (!s.nodeAlive.contains(nodeId)) {
     return null;
   }
 
@@ -256,12 +255,12 @@ async function getEdgeProps(from, to, label) {
   const s = /** @type {import('../state/WarpStateV5.js').default} */ (this._host._cachedState);
 
   const edgeKey = encodeEdgeKey(from, to, label);
-  if (!orsetContains(s.edgeAlive, edgeKey)) {
+  if (!s.edgeAlive.contains(edgeKey)) {
     return null;
   }
 
-  if (!orsetContains(s.nodeAlive, from) ||
-      !orsetContains(s.nodeAlive, to)) {
+  if (!s.nodeAlive.contains(from) ||
+      !s.nodeAlive.contains(to)) {
     return null;
   }
 
@@ -363,15 +362,15 @@ function _linearNeighbors(cachedState, nodeId, direction, edgeLabel) {
   const checkOut = direction === 'outgoing' || direction === 'both';
   const checkIn = direction === 'incoming' || direction === 'both';
 
-  for (const edgeKey of orsetElements(s.edgeAlive)) {
+  for (const edgeKey of s.edgeAlive.elements()) {
     const { from, to, label } = decodeEdgeKey(edgeKey);
     if (edgeLabel !== undefined && label !== edgeLabel) {
       continue;
     }
-    if (checkOut && from === nodeId && orsetContains(s.nodeAlive, to)) {
+    if (checkOut && from === nodeId && s.nodeAlive.contains(to)) {
       result.push({ nodeId: to, label, direction: /** @type {const} */ ('outgoing') });
     }
-    if (checkIn && to === nodeId && orsetContains(s.nodeAlive, from)) {
+    if (checkIn && to === nodeId && s.nodeAlive.contains(from)) {
       result.push({ nodeId: from, label, direction: /** @type {const} */ ('incoming') });
     }
   }
@@ -406,7 +405,7 @@ async function getStateSnapshot() {
 async function getNodes() {
   await this._host._ensureFreshState();
   const s = /** @type {import('../state/WarpStateV5.js').default} */ (this._host._cachedState);
-  return [...orsetElements(s.nodeAlive)];
+  return [...s.nodeAlive.elements()];
 }
 
 /**
@@ -445,10 +444,10 @@ async function getEdges() {
   }
 
   const edges = [];
-  for (const edgeKey of orsetElements(s.edgeAlive)) {
+  for (const edgeKey of s.edgeAlive.elements()) {
     const { from, to, label } = decodeEdgeKey(edgeKey);
-    if (orsetContains(s.nodeAlive, from) &&
-        orsetContains(s.nodeAlive, to)) {
+    if (s.nodeAlive.contains(from) &&
+        s.nodeAlive.contains(to)) {
       const props = edgePropsByKey.get(edgeKey) ?? /** @type {Record<string, unknown>} */ ({});
       edges.push({ from, to, label, props });
     }
@@ -608,7 +607,7 @@ function visibleEdgeRegister(register, birthEvent) {
  * @returns {{ contentRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: string }, mimeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null }|null}
  */
 function getNodeContentRegisters(state, nodeId) {
-  if (!orsetContains(state.nodeAlive, nodeId)) {
+  if (!state.nodeAlive.contains(nodeId)) {
     return null;
   }
   const contentRegister = state.prop.get(encodePropKey(nodeId, CONTENT_PROPERTY_KEY));
@@ -633,10 +632,10 @@ function getNodeContentRegisters(state, nodeId) {
  */
 function getEdgeContentRegisters(state, from, to, label) {
   const edgeKey = encodeEdgeKey(from, to, label);
-  if (!orsetContains(state.edgeAlive, edgeKey)) {
+  if (!state.edgeAlive.contains(edgeKey)) {
     return null;
   }
-  if (!orsetContains(state.nodeAlive, from) || !orsetContains(state.nodeAlive, to)) {
+  if (!state.nodeAlive.contains(from) || !state.nodeAlive.contains(to)) {
     return null;
   }
   const birthEvent = state.edgeBirthEvent?.get(edgeKey);

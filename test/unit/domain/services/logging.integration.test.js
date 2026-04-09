@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import IndexRebuildService from '../../../../src/domain/services/index/IndexRebuildService.js';
 import BitmapIndexReader from '../../../../src/domain/services/index/BitmapIndexReader.js';
-import GraphNode from '../../../../src/domain/entities/GraphNode.js';
+import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 const crypto = new NodeCryptoAdapter();

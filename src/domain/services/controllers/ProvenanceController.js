@@ -22,7 +22,7 @@ import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec
  * (_readPatchBlob, _ensureFreshState) are wired onto the prototype
  * by other mixin files and not visible to TSC as class members.
  *
- * @typedef {import('../../warp/_internal.js').WarpGraphWithMixins} ProvenanceHost
+ * @typedef {import('../../warp/_internal.ts').WarpGraphWithMixins} ProvenanceHost
  */
 
 export default class ProvenanceController {

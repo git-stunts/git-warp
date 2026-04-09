@@ -7,7 +7,7 @@
  * @module domain/services/strand/ConflictFrameLoader
  */
 
-import VersionVector from '../../crdt/VersionVector.js';
+import VersionVector from '../../crdt/VersionVector.ts';
 import ConflictAnchor from '../../types/conflict/ConflictAnchor.ts';
 import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
 import ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.ts';

@@ -2,8 +2,7 @@
  * GCPolicy - Garbage collection policy for WARP V5.
  */
 
-import { orsetCompact } from '../crdt/ORSet.js';
-import VersionVector from '../crdt/VersionVector.js';
+import VersionVector from '../crdt/VersionVector.ts';
 import { collectGCMetrics } from './GCMetrics.js';
 import WarpError from '../errors/WarpError.ts';
 
@@ -86,15 +85,15 @@ export function shouldRunGC(metrics, policy) {
 /**
  * Compacts node and edge ORSets against the applied version vector.
  * @param {import('./JoinReducer.js').WarpStateV5} state - State to compact (mutated!)
- * @param {import('../crdt/VersionVector.js').default} appliedVV - Version vector cutoff
+ * @param {import('../crdt/VersionVector.ts').default} appliedVV - Version vector cutoff
  * @throws {WarpError} E_GC_COMPACT_FAILED if orsetCompact throws
  */
 function compactORSets(state, appliedVV) {
   let nodesDone = false;
   try {
-    orsetCompact(state.nodeAlive, appliedVV);
+    state.nodeAlive.compact(appliedVV);
     nodesDone = true;
-    orsetCompact(state.edgeAlive, appliedVV);
+    state.edgeAlive.compact(appliedVV);
   } catch {
     const phase = nodesDone ? 'edgeAlive' : 'nodeAlive';
     throw new WarpError(
@@ -111,7 +110,7 @@ function compactORSets(state, appliedVV) {
  * a rollback copy (see CheckpointService for the canonical pattern).
  *
  * @param {import('./JoinReducer.js').WarpStateV5} state - State to compact (mutated!)
- * @param {import('../crdt/VersionVector.js').default} appliedVV - Version vector cutoff
+ * @param {import('../crdt/VersionVector.ts').default} appliedVV - Version vector cutoff
  * @returns {GCExecuteResult}
  * @throws {WarpError} E_GC_INVALID_VV if appliedVV is not a VersionVector
  * @throws {WarpError} E_GC_COMPACT_FAILED if orsetCompact throws

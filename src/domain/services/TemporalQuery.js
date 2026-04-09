@@ -28,7 +28,6 @@
 
 import { createEmptyStateV5, cloneStateV5, join as joinPatch } from './JoinReducer.js';
 import { decodePropKey } from './KeyCodec.js';
-import { orsetContains } from '../crdt/ORSet.js';
 
 /**
  * Unwraps a property value from its CRDT envelope.
@@ -85,7 +84,7 @@ function unwrapValue(value) {
  * @returns {{ id: string, exists: boolean, props: Record<string, unknown> }}
  */
 function extractNodeSnapshot(state, nodeId) {
-  const exists = orsetContains(state.nodeAlive, nodeId);
+  const exists = state.nodeAlive.contains(nodeId);
   /** @type {Record<string, unknown>} */
   const props = {};
 

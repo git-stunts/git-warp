@@ -1,19 +1,15 @@
 import WarpError from '../errors/WarpError.ts';
-import { CheckpointArtifact } from './CheckpointArtifact.js';
+import { CheckpointArtifact } from './CheckpointArtifact.ts';
 
-/**
- * Carries the writer frontier for checkpoint recovery.
- */
+/** Carries the writer frontier for checkpoint recovery. */
 export class FrontierArtifact extends CheckpointArtifact {
-  /** Creates an instance.
-   * @param {{ schemaVersion: number, frontier: Map<string, string> }} fields
-   */
-  constructor({ schemaVersion, frontier }) {
+  readonly frontier: Map<string, string>;
+
+  constructor({ schemaVersion, frontier }: { schemaVersion: number; frontier: Map<string, string> }) {
     super({ schemaVersion });
     if (!(frontier instanceof Map)) {
       throw new WarpError('FrontierArtifact requires a Map frontier', 'E_INVALID_ARTIFACT');
     }
-    /** @type {Map<string, string>} */
     this.frontier = frontier;
     Object.freeze(this);
   }

@@ -14,10 +14,10 @@ import {
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
-import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 /** @param {unknown} value */
 function createInlineValue(value) { return { type: 'inline', value }; }
 
@@ -53,7 +53,7 @@ function createPatch({ writer, lamport, ops, context }) {
     writer,
     lamport,
     ops,
-    context: context || createVersionVector(),
+    context: context || VersionVector.empty(),
   };
 }
 
@@ -662,7 +662,7 @@ describe('JoinReducer — edge property LWW', () => {
 
       // Edge should be removed from OR-Set
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-      expect(orsetContains(state.edgeAlive, edgeKey)).toBe(false);
+      expect(state.edgeAlive.contains(edgeKey)).toBe(false);
 
       // But property remains in prop map (intentional — matches node behavior)
       expect(getEdgeProp(state, 'a', 'b', 'rel', 'weight')).toEqual(createInlineValue(42));
@@ -681,7 +681,7 @@ describe('JoinReducer — edge property LWW', () => {
 
       // Edge should NOT be alive (no EdgeAdd was done)
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-      expect(orsetContains(state.edgeAlive, edgeKey)).toBe(false);
+      expect(state.edgeAlive.contains(edgeKey)).toBe(false);
 
       // But prop is stored
       expect(getEdgeProp(state, 'a', 'b', 'rel', 'weight')).toEqual(createInlineValue(99));

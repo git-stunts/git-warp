@@ -1,4 +1,4 @@
-import { compareEventIds } from '../utils/EventId.ts';
+import { compareEventIds, type EventId } from '../utils/EventId.ts';
 
 /**
  * @fileoverview LWW Register - Last-Write-Wins with Total Ordering
@@ -70,109 +70,82 @@ import { compareEventIds } from '../utils/EventId.ts';
 
 /**
  * LWW Register — stores value with EventId for conflict resolution.
- * @template T
  */
-export class LWWRegister {
-  /** @type {import('../utils/EventId.ts').EventId} */
-  eventId;
-
-  /** @type {T} */
-  value;
+export class LWWRegister<T> {
+  readonly eventId: EventId;
+  readonly value: T;
 
   /**
    * Creates an LWW register.
-   * @param {import('../utils/EventId.ts').EventId} eventId
-   * @param {T} value
    */
-  constructor(eventId, value) {
+  constructor(eventId: EventId, value: T) {
     this.eventId = eventId;
     this.value = value;
     Object.freeze(this);
   }
-}
 
-/**
- * Creates an LWW register with the given EventId and value.
- * @template T
- * @param {import('../utils/EventId.ts').EventId} eventId
- * @param {T} value
- * @returns {LWWRegister<T>}
- */
-export function lwwSet(eventId, value) {
-  return new LWWRegister(eventId, value);
-}
-
-/**
- * Returns the LWW register with the greater EventId.
- * This is the join operation for LWW registers.
- *
- * ## EventId Comparison Logic
- *
- * Comparison proceeds through four levels until a difference is found:
- *
- * 1. **lamport** (number): Higher Lamport timestamp wins. This respects
- *    causality - if A happened-before B, A's Lamport < B's Lamport.
- *
- * 2. **writerId** (string): Lexicographic comparison. Deterministic tie-break
- *    for concurrent operations with the same Lamport clock.
- *
- * 3. **patchSha** (string): Lexicographic comparison of Git commit SHA.
- *    Distinguishes operations in different patches from the same writer.
- *
- * 4. **opIndex** (number): Numeric comparison. Distinguishes multiple
- *    property-set operations within the same patch.
- *
- * ## Deterministic Tie-Break
- *
- * On exactly equal EventIds (cmp === 0), returns the first argument `a`.
- * This is arbitrary but deterministic - all replicas make the same choice.
- * In practice, equal EventIds only occur when merging identical operations.
- *
- * ## Semilattice Properties
- *
- * - **Commutative**: lwwMax(a, b) === lwwMax(b, a) -- both return the one
- *   with greater EventId, or `a` on tie (same value anyway)
- * - **Associative**: lwwMax(lwwMax(a, b), c) === lwwMax(a, lwwMax(b, c))
- * - **Idempotent**: lwwMax(a, a) === a
- *
- * @template T
- * @param {LWWRegister<T> | null | undefined} a - First register (returned on tie)
- * @param {LWWRegister<T> | null | undefined} b - Second register
- * @returns {LWWRegister<T> | null} Register with greater EventId, or null if both null/undefined
- */
-export function lwwMax(a, b) {
-  const resolvedA = lwwCoalesce(a);
-  const resolvedB = lwwCoalesce(b);
-
-  if (resolvedA === null) {
-    return resolvedB;
-  }
-  if (resolvedB === null) {
-    return resolvedA;
+  /**
+   * Creates an LWW register with the given EventId and value.
+   */
+  static set<V>(eventId: EventId, value: V): LWWRegister<V> {
+    return new LWWRegister(eventId, value);
   }
 
-  // Compare EventIds - return the one with greater EventId
-  // On equal EventIds, return first argument (deterministic)
-  const cmp = compareEventIds(resolvedA.eventId, resolvedB.eventId);
-  return cmp >= 0 ? resolvedA : resolvedB;
+  /**
+   * Returns the LWW register with the greater EventId.
+   * This is the join operation for LWW registers.
+   *
+   * On exactly equal EventIds (cmp === 0), returns the first argument `a`.
+   * This is arbitrary but deterministic - all replicas make the same choice.
+   *
+   * @returns Register with greater EventId, or null if both null/undefined
+   */
+  static max<V>(a: LWWRegister<V> | null | undefined, b: LWWRegister<V> | null | undefined): LWWRegister<V> | null {
+    const resolvedA = _lwwCoalesce(a);
+    const resolvedB = _lwwCoalesce(b);
+
+    if (resolvedA === null) {
+      return resolvedB;
+    }
+    if (resolvedB === null) {
+      return resolvedA;
+    }
+
+    // Compare EventIds - return the one with greater EventId
+    // On equal EventIds, return first argument (deterministic)
+    const cmp = compareEventIds(resolvedA.eventId, resolvedB.eventId);
+    return cmp >= 0 ? resolvedA : resolvedB;
+  }
+
+  /**
+   * Extracts just the value from an LWW register.
+   */
+  static value<V>(reg: LWWRegister<V> | null | undefined): V | undefined {
+    return reg?.value;
+  }
 }
 
 /**
  * Normalizes a nullable/undefined register to either a valid register or null.
- * @template T
- * @param {LWWRegister<T> | null | undefined} reg
- * @returns {LWWRegister<T> | null}
  */
-function lwwCoalesce(reg) {
+function _lwwCoalesce<T>(reg: LWWRegister<T> | null | undefined): LWWRegister<T> | null {
   return reg !== null && reg !== undefined ? reg : null;
 }
 
-/**
- * Extracts just the value from an LWW register.
- * @template T
- * @param {LWWRegister<T> | null | undefined} reg
- * @returns {T | undefined}
- */
-export function lwwValue(reg) {
-  return reg?.value;
+// ── Backward-compat re-exports ────────────────────────────────────────
+// Free-function aliases that delegate to static methods.
+
+/** @deprecated Use {@link LWWRegister.set} */
+export function lwwSet<T>(eventId: EventId, value: T): LWWRegister<T> {
+  return LWWRegister.set(eventId, value);
+}
+
+/** @deprecated Use {@link LWWRegister.max} */
+export function lwwMax<T>(a: LWWRegister<T> | null | undefined, b: LWWRegister<T> | null | undefined): LWWRegister<T> | null {
+  return LWWRegister.max(a, b);
+}
+
+/** @deprecated Use {@link LWWRegister.value} */
+export function lwwValue<T>(reg: LWWRegister<T> | null | undefined): T | undefined {
+  return LWWRegister.value(reg);
 }

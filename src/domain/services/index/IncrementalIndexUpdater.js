@@ -19,7 +19,6 @@ import defaultCodec from '../../utils/defaultCodec.ts';
 import computeShardKey from '../../utils/shardKey.ts';
 import toBytes from '../../utils/toBytes.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
-import { orsetContains, orsetElements } from '../../crdt/ORSet.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
 import { ShardIdOverflowError } from '../../errors/index.ts';
 
@@ -73,7 +72,7 @@ export default class IncrementalIndexUpdater {
   constructor(options = undefined) {
     const { codec } = options || {};
     this._codec = codec || defaultCodec;
-    /** @type {WeakMap<import('../../crdt/ORSet.js').default, Map<string, Set<string>>>} */
+    /** @type {WeakMap<import('../../crdt/ORSet.ts').default, Map<string, Set<string>>>} */
     this._edgeAdjacencyCache = new WeakMap();
     /**
      * Cached next label ID — avoids O(L) max-scan per new label.
@@ -139,7 +138,7 @@ export default class IncrementalIndexUpdater {
 
     // Filter edgesAdded by endpoint alive-ness (matches edgeVisibleV5).
     for (const edge of diff.edgesAdded) {
-      if (!orsetContains(state.nodeAlive, edge.from) || !orsetContains(state.nodeAlive, edge.to)) {
+      if (!state.nodeAlive.contains(edge.from) || !state.nodeAlive.contains(edge.to)) {
         continue;
       }
       labelsDirty = this._ensureLabel(edge.label, labels) || labelsDirty;
@@ -165,7 +164,7 @@ export default class IncrementalIndexUpdater {
       );
       for (const edgeKey of this._collectReaddedEdgeKeys(readdAdjacency, readdedNodes)) {
         const { from, to, label } = decodeEdgeKey(edgeKey);
-        if (!orsetContains(state.nodeAlive, from) || !orsetContains(state.nodeAlive, to)) {
+        if (!state.nodeAlive.contains(from) || !state.nodeAlive.contains(to)) {
           continue;
         }
         const diffKey = `${from}\0${to}\0${label}`;
@@ -866,7 +865,7 @@ export default class IncrementalIndexUpdater {
     let adjacency = this._edgeAdjacencyCache.get(edgeAlive);
     if (!adjacency) {
       adjacency = new Map();
-      for (const edgeKey of orsetElements(edgeAlive)) {
+      for (const edgeKey of edgeAlive.elements()) {
         const { from, to } = decodeEdgeKey(edgeKey);
         this._addEdgeKeyToAdjacency(adjacency, from, edgeKey);
         this._addEdgeKeyToAdjacency(adjacency, to, edgeKey);
@@ -877,7 +876,7 @@ export default class IncrementalIndexUpdater {
 
     for (const edge of diff.edgesAdded) {
       const edgeKey = `${edge.from}\0${edge.to}\0${edge.label}`;
-      if (!orsetContains(edgeAlive, edgeKey)) {
+      if (!edgeAlive.contains(edgeKey)) {
         continue;
       }
       this._addEdgeKeyToAdjacency(adjacency, edge.from, edgeKey);
@@ -885,7 +884,7 @@ export default class IncrementalIndexUpdater {
     }
     for (const edge of diff.edgesRemoved) {
       const edgeKey = `${edge.from}\0${edge.to}\0${edge.label}`;
-      if (orsetContains(edgeAlive, edgeKey)) {
+      if (edgeAlive.contains(edgeKey)) {
         continue;
       }
       this._removeEdgeKeyFromAdjacency(adjacency, edge.from, edgeKey);

@@ -4,14 +4,14 @@
  */
 import { describe, it, expect } from 'vitest';
 import LogicalBitmapIndexBuilder from '../../../../src/domain/services/index/LogicalBitmapIndexBuilder.js';
-import WarpStream from '../../../../src/domain/stream/WarpStream.js';
+import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import { IndexShardEncodeTransform } from '../../../../src/infrastructure/adapters/IndexShardEncodeTransform.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
-import { IndexShard } from '../../../../src/domain/artifacts/IndexShard.js';
-import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.js';
-import { EdgeShard } from '../../../../src/domain/artifacts/EdgeShard.js';
-import { LabelShard } from '../../../../src/domain/artifacts/LabelShard.js';
-import { ReceiptShard } from '../../../../src/domain/artifacts/ReceiptShard.js';
+import { IndexShard } from '../../../../src/domain/artifacts/IndexShard.ts';
+import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.ts';
+import { EdgeShard } from '../../../../src/domain/artifacts/EdgeShard.ts';
+import { LabelShard } from '../../../../src/domain/artifacts/LabelShard.ts';
+import { ReceiptShard } from '../../../../src/domain/artifacts/ReceiptShard.ts';
 
 /**
  * Builds a small index with nodes and edges for testing.

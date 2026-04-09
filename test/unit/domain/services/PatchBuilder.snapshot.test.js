@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { createStateBuilder } from '../../../helpers/stateBuilder.js';
 
 /**
@@ -19,7 +19,7 @@ function makeBuilder(getCurrentState) {
   return new PatchBuilder(/** @type {any} */ ({
     writerId: 'w1',
     lamport: 1,
-    versionVector: createVersionVector(),
+    versionVector: VersionVector.empty(),
     getCurrentState,
   }));
 }

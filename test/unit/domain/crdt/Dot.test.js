@@ -5,7 +5,7 @@ import {
   encodeDot,
   decodeDot,
   compareDots,
-} from '../../../../src/domain/crdt/Dot.js';
+} from '../../../../src/domain/crdt/Dot.ts';
 
 /** @type {any} */
 const createDot = _createDot;

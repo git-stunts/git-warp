@@ -15,11 +15,11 @@ import {
 } from '../../../../src/domain/services/JoinReducer.js';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
 // createDot reserved for future test expansion
-// import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { orsetElements } from '../../../../src/domain/crdt/ORSet.js';
+// import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 
@@ -62,8 +62,8 @@ function mkResponse(/** @type {any} */ frontier, /** @type {any} */ patches) {
  * sorted alive-node set, sorted alive-edge set, sorted prop entries.
  */
 function stateSignature(/** @type {any} */ state) {
-  const nodes = orsetElements(state.nodeAlive).sort();
-  const edges = orsetElements(state.edgeAlive).sort();
+  const nodes = state.nodeAlive.elements().sort();
+  const edges = state.edgeAlive.elements().sort();
   const props = [...state.prop.entries()]
     .map(([k, reg]) => [k, reg.value])
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
@@ -254,8 +254,8 @@ describe('SyncProtocol — state coherence (Phase 4, Invariant 5)', () => {
     const blobs = {};
 
     // Two disconnected chains for writer w1 — no parent link
-    const patchA = { schema: 2, writer: 'w1', lamport: 1, ops: [], context: createVersionVector() };
-    const patchB = { schema: 2, writer: 'w1', lamport: 2, ops: [], context: createVersionVector() };
+    const patchA = { schema: 2, writer: 'w1', lamport: 1, ops: [], context: VersionVector.empty() };
+    const patchB = { schema: 2, writer: 'w1', lamport: 2, ops: [], context: VersionVector.empty() };
 
     const OID_A = '1'.repeat(40);
     const OID_B = '2'.repeat(40);

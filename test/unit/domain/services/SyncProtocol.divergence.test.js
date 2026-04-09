@@ -9,7 +9,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { processSyncRequest } from '../../../../src/domain/services/sync/SyncProtocol.js';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 
@@ -20,7 +20,7 @@ const OID_A = '1'.repeat(40);
 const OID_B = '2'.repeat(40);
 
 function createTestPatch(/** @type {any} */ { writer, lamport }) {
-  return { schema: 2, writer, lamport, ops: [], context: createVersionVector() };
+  return { schema: 2, writer, lamport, ops: [], context: VersionVector.empty() };
 }
 
 function setupCommit(/** @type {Record<string, any>} */ commits, /** @type {Record<string, any>} */ blobs, /** @type {string} */ sha, /** @type {any} */ patch, /** @type {string} */ patchOid, /** @type {string[]} */ parents = []) {

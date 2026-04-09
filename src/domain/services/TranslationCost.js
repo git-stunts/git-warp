@@ -13,7 +13,6 @@
  * @see Paper IV, Section 4 -- Directed rulial cost
  */
 
-import { orsetElements, orsetContains } from '../crdt/ORSet.js';
 import { decodeEdgeKey, decodePropKey, isEdgePropKey } from './KeyCodec.js';
 import { matchGlob } from '../utils/matchGlob.ts';
 
@@ -188,7 +187,7 @@ function filterEdgesForNodeSet(edges, nodeSet) {
 function filterAliveEdges(state) {
   /** @type {Array<{ edgeKey: string, from: string, to: string }>} */
   const result = [];
-  for (const edgeKey of orsetElements(state.edgeAlive)) {
+  for (const edgeKey of state.edgeAlive.elements()) {
     const { from, to } = decodeEdgeKey(edgeKey);
     if (areBothEndpointsAlive(state, from, to)) {
       result.push({ edgeKey, from, to });
@@ -206,7 +205,7 @@ function filterAliveEdges(state) {
  * @returns {boolean}
  */
 function areBothEndpointsAlive(state, from, to) {
-  return orsetContains(state.nodeAlive, from) && orsetContains(state.nodeAlive, to);
+  return state.nodeAlive.contains(from) && state.nodeAlive.contains(to);
 }
 
 /**
@@ -264,7 +263,7 @@ function computePropLoss(state, { nodesA, nodesBSet, configA, configB }) {
  */
 export function computeTranslationCost(configA, configB, state) {
   validateObserverConfigs(configA, configB);
-  const allNodes = orsetElements(state.nodeAlive);
+  const allNodes = state.nodeAlive.elements();
   const nodesA = allNodes.filter((id) => matchGlob(configA.match, id));
 
   if (nodesA.length === 0) {

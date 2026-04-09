@@ -15,14 +15,13 @@ import { createImmutableValue, createImmutableWarpStateV5 } from '../ImmutableSn
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
 import { diffStates, isEmptyDiff } from '../state/StateDiff.js';
 import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';
-import { orsetContains, orsetElements } from '../../crdt/ORSet.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
 import { computeStateHashV5 } from '../state/StateSerializerV5.js';
 import { serializeFullStateV5, deserializeFullStateV5 } from '../state/CheckpointSerializerV5.js';
 import { buildSeekCacheKey } from '../../utils/seekCacheKey.ts';
 import { createFrontier, updateFrontier } from '../Frontier.js';
 import BitmapNeighborProvider from '../index/BitmapNeighborProvider.js';
-import { QueryError } from '../../warp/_internal.js';
+import { QueryError } from '../../warp/_internal.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 
 /**
@@ -556,10 +555,10 @@ export default class MaterializeController {
     /** @type {Map<string, Array<{neighborId: string, label: string}>>} */
     const incoming = new Map();
 
-    for (const edgeKey of orsetElements(state.edgeAlive)) {
+    for (const edgeKey of state.edgeAlive.elements()) {
       const { from, to, label } = decodeEdgeKey(edgeKey);
 
-      if (!orsetContains(state.nodeAlive, from) || !orsetContains(state.nodeAlive, to)) {
+      if (!state.nodeAlive.contains(from) || !state.nodeAlive.contains(to)) {
         continue;
       }
 
@@ -931,7 +930,7 @@ export default class MaterializeController {
    * @example
    * // Time-travel to a previous checkpoint
    * const oldState = await graph.materializeAt('abc123');
-   * console.log('Nodes at checkpoint:', orsetElements(oldState.nodeAlive));
+   * console.log('Nodes at checkpoint:', oldState.nodeAlive.elements());
    */
   async materializeAt(checkpointSha) {
     const h = this._host;

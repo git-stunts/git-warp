@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 
 /**
  * ADR 1-T12: Reserved-byte validation rejects ambiguous identifiers.
@@ -10,7 +10,7 @@ function makeBuilder(opts = /** @type {any} */ ({})) {
   return new PatchBuilder(/** @type {any} */ ({
     writerId: opts.writerId ?? 'w1',
     lamport: opts.lamport ?? 1,
-    versionVector: opts.versionVector ?? createVersionVector(),
+    versionVector: opts.versionVector ?? VersionVector.empty(),
     getCurrentState: opts.getCurrentState ?? (() => null),
   }));
 }

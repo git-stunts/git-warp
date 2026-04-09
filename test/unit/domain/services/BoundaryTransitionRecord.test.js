@@ -20,8 +20,8 @@ import {
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
 import { computeStateHashV5 } from '../../../../src/domain/services/state/StateSerializerV5.js';
-import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
-import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
+import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
@@ -343,11 +343,11 @@ describe('BoundaryTransitionRecord', () => {
       expect(h_out).toBe(btr.h_out);
 
       // Verify state contents
-      expect(orsetContains(state.nodeAlive, 'node-a')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'node-b')).toBe(true);
+      expect(state.nodeAlive.contains('node-a')).toBe(true);
+      expect(state.nodeAlive.contains('node-b')).toBe(true);
 
       const edgeKey = encodeEdgeKey('node-a', 'node-b', 'connects');
-      expect(orsetContains(state.edgeAlive, edgeKey)).toBe(true);
+      expect(state.edgeAlive.contains(edgeKey)).toBe(true);
 
       const propKey = encodePropKey('node-a', 'name');
       expect(lwwValue(state.prop.get(propKey))).toEqual(createInlineValue('Alice'));
@@ -481,8 +481,8 @@ describe('BoundaryTransitionRecord', () => {
       // Replay still works
       const { state, h_out } = await replayBTR(btr, { crypto });
       expect(h_out).toBe(btr.h_out);
-      expect(orsetContains(state.nodeAlive, 'node-0')).toBe(true);
-      expect(orsetContains(state.nodeAlive, 'node-99')).toBe(true);
+      expect(state.nodeAlive.contains('node-0')).toBe(true);
+      expect(state.nodeAlive.contains('node-99')).toBe(true);
     });
 
     it('handles Buffer key', async () => {

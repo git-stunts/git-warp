@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { CheckpointArtifact } from '../../../../src/domain/artifacts/CheckpointArtifact.js';
-import { StateArtifact } from '../../../../src/domain/artifacts/StateArtifact.js';
-import { FrontierArtifact } from '../../../../src/domain/artifacts/FrontierArtifact.js';
-import { AppliedVVArtifact } from '../../../../src/domain/artifacts/AppliedVVArtifact.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import { CheckpointArtifact } from '../../../../src/domain/artifacts/CheckpointArtifact.ts';
+import { StateArtifact } from '../../../../src/domain/artifacts/StateArtifact.ts';
+import { FrontierArtifact } from '../../../../src/domain/artifacts/FrontierArtifact.ts';
+import { AppliedVVArtifact } from '../../../../src/domain/artifacts/AppliedVVArtifact.ts';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
 
 describe('CheckpointArtifact family', () => {
@@ -45,7 +45,7 @@ describe('CheckpointArtifact family', () => {
 
   describe('AppliedVVArtifact', () => {
     it('constructs with a VersionVector', () => {
-      const vv = createVersionVector();
+      const vv = VersionVector.empty();
       vv.set('w1', 5);
       const a = new AppliedVVArtifact({ schemaVersion: 2, appliedVV: vv });
       expect(a).toBeInstanceOf(AppliedVVArtifact);
@@ -62,7 +62,7 @@ describe('CheckpointArtifact family', () => {
     it('dispatches correctly across all subtypes', () => {
       const state = new StateArtifact({ schemaVersion: 2, state: createEmptyStateV5() });
       const frontier = new FrontierArtifact({ schemaVersion: 2, frontier: new Map() });
-      const vv = new AppliedVVArtifact({ schemaVersion: 2, appliedVV: createVersionVector() });
+      const vv = new AppliedVVArtifact({ schemaVersion: 2, appliedVV: VersionVector.empty() });
 
       expect(state instanceof StateArtifact).toBe(true);
       expect(state instanceof FrontierArtifact).toBe(false);

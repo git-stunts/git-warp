@@ -8,23 +8,18 @@ import WarpError from '../errors/WarpError.ts';
  * Git tree paths at the last responsible moment.
  *
  * Subclasses: StateArtifact, FrontierArtifact, AppliedVVArtifact.
- *
- * @abstract
  */
 export class CheckpointArtifact {
-  /**
-   * Creates a CheckpointArtifact.
-   *
-   * @param {{ schemaVersion: number }} fields
-   */
-  constructor({ schemaVersion }) {
+  /** Schema version (positive integer). */
+  readonly schemaVersion: number;
+
+  constructor({ schemaVersion }: { schemaVersion: number }) {
     if (typeof schemaVersion !== 'number' || !Number.isInteger(schemaVersion) || schemaVersion < 1) {
       throw new WarpError(
         `CheckpointArtifact schemaVersion must be a positive integer, got ${JSON.stringify(schemaVersion)}`,
         'E_INVALID_ARTIFACT',
       );
     }
-    /** @type {number} */
     this.schemaVersion = schemaVersion;
   }
 }
