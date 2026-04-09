@@ -37,7 +37,7 @@ export default class StateHashService {
   /**
    * Computes the SHA-256 hash of the canonical visible state projection.
    *
-   * @param {import('../../services/JoinReducer.ts').WarpStateV5} state
+   * @param {import('../../services/JoinReducer.ts').WarpState} state
    * @returns {Promise<string>} Hex-encoded SHA-256 hash
    */
   async compute(state) {

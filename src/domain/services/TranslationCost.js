@@ -17,7 +17,7 @@ import { decodeEdgeKey, decodePropKey, isEdgePropKey } from './KeyCodec.js';
 import { matchGlob } from '../utils/matchGlob.ts';
 import QueryError from '../errors/QueryError.ts';
 
-/** @typedef {import('./JoinReducer.ts').WarpStateV5} WarpStateV5 */
+/** @typedef {import('./JoinReducer.ts').WarpState} WarpState */
 
 /**
  * Computes the set of property keys visible under an observer config.
@@ -83,7 +83,7 @@ function isKeyVisible(key, exposeSet, redactSet) {
 /**
  * Collects node property keys from state for a given node.
  *
- * @param {WarpStateV5} state - WarpStateV5 materialized state
+ * @param {WarpState} state - WarpState materialized state
  * @param {string} nodeId - The node ID
  * @returns {Map<string, boolean>} Map of propKey -> true
  */
@@ -136,7 +136,7 @@ function countMissing(source, targetSet) {
 /**
  * Computes edge loss between two observer node sets.
  *
- * @param {WarpStateV5} state
+ * @param {WarpState} state
  * @param {Set<string>} nodesASet - Nodes visible to A
  * @param {Set<string>} nodesBSet - Nodes visible to B
  * @returns {number} edgeLoss fraction
@@ -149,7 +149,7 @@ function computeEdgeLoss(state, nodesASet, nodesBSet) {
 /**
  * Classifies alive edges into A-visible and B-visible buckets.
  *
- * @param {WarpStateV5} state
+ * @param {WarpState} state
  * @param {Set<string>} nodesASet
  * @param {Set<string>} nodesBSet
  * @returns {{ edgesA: string[], edgesBSet: Set<string> }}
@@ -182,7 +182,7 @@ function filterEdgesForNodeSet(edges, nodeSet) {
 /**
  * Filters edges to only those whose both endpoints are alive, returning decoded keys.
  *
- * @param {WarpStateV5} state
+ * @param {WarpState} state
  * @returns {Array<{ edgeKey: string, from: string, to: string }>}
  */
 function filterAliveEdges(state) {
@@ -200,7 +200,7 @@ function filterAliveEdges(state) {
 /**
  * Checks whether both endpoints of an edge are alive in the graph state.
  *
- * @param {WarpStateV5} state
+ * @param {WarpState} state
  * @param {string} from
  * @param {string} to
  * @returns {boolean}
@@ -228,7 +228,7 @@ function countNodePropLoss(nodeProps, { configA, configB, nodeInB }) {
 /**
  * Computes property loss across all A-visible nodes.
  *
- * @param {WarpStateV5} state - WarpStateV5
+ * @param {WarpState} state - WarpState
  * @param {{ nodesA: string[], nodesBSet: Set<string>, configA: {expose?: string[], redact?: string[]}, configB: {expose?: string[], redact?: string[]} }} opts
  * @returns {number} propLoss fraction
  */
@@ -259,7 +259,7 @@ function computePropLoss(state, { nodesA, nodesBSet, configA, configB }) {
  *
  * @param {{ match: string|string[], expose?: string[], redact?: string[] }} configA - Observer configuration for A
  * @param {{ match: string|string[], expose?: string[], redact?: string[] }} configB - Observer configuration for B
- * @param {WarpStateV5} state - WarpStateV5 materialized state
+ * @param {WarpState} state - WarpState materialized state
  * @returns {{ cost: number, breakdown: { nodeLoss: number, edgeLoss: number, propLoss: number } }}
  */
 export function computeTranslationCost(configA, configB, state) {

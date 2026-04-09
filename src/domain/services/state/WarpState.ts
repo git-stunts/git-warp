@@ -1,10 +1,10 @@
 /**
- * WarpStateV5 — the core CRDT materialized state object.
+ * WarpState — the core CRDT materialized state object.
  *
  * Holds the alive sets (OR-Set for nodes and edges), property registers
  * (LWW), the observed version vector frontier, and edge birth events.
  *
- * @module domain/services/state/WarpStateV5
+ * @module domain/services/state/WarpState
  */
 
 import ORSet from '../../crdt/ORSet.ts';
@@ -19,7 +19,7 @@ import { compareEventIds, type EventId } from '../../utils/EventId.ts';
  * live instance in place for performance, then callers clone or snapshot
  * before handing state to consumers that expect isolation.
  */
-export default class WarpStateV5 {
+export default class WarpState {
   nodeAlive: ORSet;
   edgeAlive: ORSet;
   prop: Map<string, LWWRegister<unknown>>;
@@ -42,8 +42,8 @@ export default class WarpStateV5 {
   }
 
   /** Creates an empty state with fresh OR-Sets and version vector. */
-  static empty(): WarpStateV5 {
-    return new WarpStateV5({
+  static empty(): WarpState {
+    return new WarpState({
       nodeAlive: ORSet.empty(),
       edgeAlive: ORSet.empty(),
       prop: new Map(),
@@ -53,8 +53,8 @@ export default class WarpStateV5 {
   }
 
   /** Creates a deep clone with independent data structures. */
-  clone(): WarpStateV5 {
-    return new WarpStateV5({
+  clone(): WarpState {
+    return new WarpState({
       nodeAlive: this.nodeAlive.clone(),
       edgeAlive: this.edgeAlive.clone(),
       prop: new Map(this.prop),
@@ -65,21 +65,21 @@ export default class WarpStateV5 {
 
   /**
    * Normalizes a plain-object or deserialized state into a live
-   * `WarpStateV5` instance with cloned inner structures. Used by the
+   * `WarpState` instance with cloned inner structures. Used by the
    * reducer and checkpoint loader to accept either class instances or
    * hydrated POJOs at the boundary.
    */
-  static cloneFromSnapshot(state: WarpStateV5 | {
+  static cloneFromSnapshot(state: WarpState | {
     readonly nodeAlive: ORSet;
     readonly edgeAlive: ORSet;
     readonly prop: Map<string, LWWRegister<unknown>>;
     readonly observedFrontier: VersionVector;
     readonly edgeBirthEvent?: Map<string, EventId>;
-  }): WarpStateV5 {
-    if (state instanceof WarpStateV5) {
+  }): WarpState {
+    if (state instanceof WarpState) {
       return state.clone();
     }
-    return new WarpStateV5({
+    return new WarpState({
       nodeAlive: state.nodeAlive.clone(),
       edgeAlive: state.edgeAlive.clone(),
       prop: new Map(state.prop),
@@ -96,13 +96,13 @@ export default class WarpStateV5 {
    * - `observedFrontier`: VersionVector merge (component-wise max)
    * - `edgeBirthEvent`: EventId max per edge key
    */
-  join(other: WarpStateV5): WarpStateV5 {
-    return new WarpStateV5({
+  join(other: WarpState): WarpState {
+    return new WarpState({
       nodeAlive: this.nodeAlive.join(other.nodeAlive),
       edgeAlive: this.edgeAlive.join(other.edgeAlive),
-      prop: WarpStateV5._mergeProps(this.prop, other.prop),
+      prop: WarpState._mergeProps(this.prop, other.prop),
       observedFrontier: this.observedFrontier.merge(other.observedFrontier),
-      edgeBirthEvent: WarpStateV5._mergeEdgeBirthEvent(this.edgeBirthEvent, other.edgeBirthEvent),
+      edgeBirthEvent: WarpState._mergeEdgeBirthEvent(this.edgeBirthEvent, other.edgeBirthEvent),
     });
   }
 

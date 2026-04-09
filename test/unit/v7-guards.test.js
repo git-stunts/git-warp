@@ -134,7 +134,7 @@ describe('V7 Contract Guards', () => {
       },
       {
         path: 'domain/services/index/WarpStateIndexBuilder.js',
-        reason: 'Task 6: Index built from WarpStateV5, not commit DAG',
+        reason: 'Task 6: Index built from WarpState, not commit DAG',
       },
     ];
 

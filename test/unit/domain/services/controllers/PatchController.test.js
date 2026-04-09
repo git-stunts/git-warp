@@ -9,7 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PatchController from '../../../../../src/domain/services/controllers/PatchController.js';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
-import WarpStateV5 from '../../../../../src/domain/services/state/WarpStateV5.ts';
+import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import { createDot } from '../../../../../src/domain/crdt/Dot.ts';
 import { QueryError } from '../../../../../src/domain/warp/_internal.ts';
@@ -132,13 +132,13 @@ function createMockPersistence() {
 }
 
 /**
- * Creates a minimal WarpStateV5 with an alive node.
+ * Creates a minimal WarpState with an alive node.
  *
  * @param {string} [nodeId]
- * @returns {WarpStateV5}
+ * @returns {WarpState}
  */
 function createStateWithNode(nodeId = 'n1') {
-  const state = WarpStateV5.empty();
+  const state = WarpState.empty();
   state.nodeAlive.add(nodeId, createDot('alice', 1));
   return state;
 }
@@ -242,7 +242,7 @@ describe('PatchController', () => {
 
     it('skips auto-materialize when state is already cached', async () => {
       host._autoMaterialize = true;
-      host._cachedState = WarpStateV5.empty();
+      host._cachedState = WarpState.empty();
 
       const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host._persistence);
       persistence.readRef.mockResolvedValue('parentsha');
@@ -789,7 +789,7 @@ describe('PatchController', () => {
 
     it('auto-materializes when enabled and state is dirty', async () => {
       host._autoMaterialize = true;
-      host._cachedState = WarpStateV5.empty();
+      host._cachedState = WarpState.empty();
       host._stateDirty = true;
 
       await ctrl._ensureFreshState();
@@ -807,7 +807,7 @@ describe('PatchController', () => {
 
     it('throws E_STALE_STATE when state is dirty and auto-materialize is off', async () => {
       host._autoMaterialize = false;
-      host._cachedState = WarpStateV5.empty();
+      host._cachedState = WarpState.empty();
       host._stateDirty = true;
 
       await expect(ctrl._ensureFreshState()).rejects.toThrow(QueryError);
@@ -815,7 +815,7 @@ describe('PatchController', () => {
 
     it('succeeds silently when state is cached and clean', async () => {
       host._autoMaterialize = false;
-      host._cachedState = WarpStateV5.empty();
+      host._cachedState = WarpState.empty();
       host._stateDirty = false;
 
       await expect(ctrl._ensureFreshState()).resolves.toBeUndefined();
@@ -994,19 +994,19 @@ describe('PatchController', () => {
     it('throws E_NO_STATE when no cached state', () => {
       host._cachedState = null;
 
-      expect(() => ctrl.join(WarpStateV5.empty())).toThrow(QueryError);
+      expect(() => ctrl.join(WarpState.empty())).toThrow(QueryError);
     });
 
     it('throws when otherState is null', () => {
-      host._cachedState = WarpStateV5.empty();
+      host._cachedState = WarpState.empty();
 
-      expect(() => ctrl.join(/** @type {import('../../../../../src/domain/services/JoinReducer.ts').WarpStateV5} */ (/** @type {unknown} */ (null)))).toThrow(/Invalid state/);
+      expect(() => ctrl.join(/** @type {import('../../../../../src/domain/services/JoinReducer.ts').WarpState} */ (/** @type {unknown} */ (null)))).toThrow(/Invalid state/);
     });
 
     it('throws when otherState is missing required fields', () => {
-      host._cachedState = WarpStateV5.empty();
+      host._cachedState = WarpState.empty();
 
-      expect(() => ctrl.join(/** @type {import('../../../../../src/domain/services/JoinReducer.ts').WarpStateV5} */ (/** @type {unknown} */ ({ prop: new Map() })))).toThrow(/Invalid state/);
+      expect(() => ctrl.join(/** @type {import('../../../../../src/domain/services/JoinReducer.ts').WarpState} */ (/** @type {unknown} */ ({ prop: new Map() })))).toThrow(/Invalid state/);
     });
 
     it('merges states and returns receipt with change counts', () => {
@@ -1014,12 +1014,12 @@ describe('PatchController', () => {
       host._cachedState = localState;
       host._versionVector = localState.observedFrontier.clone();
 
-      const remoteState = WarpStateV5.empty();
+      const remoteState = WarpState.empty();
       remoteState.nodeAlive.add('n2', createDot('bob', 1));
       remoteState.observedFrontier.increment('bob');
 
       // joinStates returns the merged state
-      const merged = WarpStateV5.empty();
+      const merged = WarpState.empty();
       merged.nodeAlive.add('n1', createDot('alice', 1));
       merged.nodeAlive.add('n2', createDot('bob', 1));
       merged.observedFrontier.increment('alice');
@@ -1041,11 +1041,11 @@ describe('PatchController', () => {
       host._cachedViewHash = 'old-hash';
       host._cachedIndexTree = { some: 'tree' };
 
-      const merged = WarpStateV5.empty();
+      const merged = WarpState.empty();
       merged.observedFrontier = VersionVector.empty();
       joinStatesMock.mockReturnValue(merged);
 
-      ctrl.join(WarpStateV5.empty());
+      ctrl.join(WarpState.empty());
 
       expect(host._logicalIndex).toBeNull();
       expect(host._propertyReader).toBeNull();
@@ -1055,16 +1055,16 @@ describe('PatchController', () => {
     });
 
     it('updates host version vector to merged frontier clone', () => {
-      const localState = WarpStateV5.empty();
+      const localState = WarpState.empty();
       localState.observedFrontier.increment('alice');
       host._cachedState = localState;
 
-      const merged = WarpStateV5.empty();
+      const merged = WarpState.empty();
       merged.observedFrontier.increment('alice');
       merged.observedFrontier.increment('bob');
       joinStatesMock.mockReturnValue(merged);
 
-      ctrl.join(WarpStateV5.empty());
+      ctrl.join(WarpState.empty());
 
       const vv = /** @type {import('../../../../../src/domain/crdt/VersionVector.js').default} */ (host._versionVector);
       expect(vv.get('alice')).toBe(1);

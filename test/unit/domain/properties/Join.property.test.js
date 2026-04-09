@@ -2,7 +2,7 @@ import { describe, it } from 'vitest';
 import fc from 'fast-check';
 import { createRng } from '../../../helpers/seededRng.js';
 import {
-  createEmptyStateV5,
+  createEmptyState,
   joinStates as _joinStates,
   reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.ts';
@@ -20,7 +20,7 @@ const crypto = new NodeCryptoAdapter();
 const PROPERTY_TEST_SEED = 42;
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import WarpStateV5 from '../../../../src/domain/services/state/WarpStateV5.ts';
+import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
@@ -137,14 +137,14 @@ const propMapArb = fc.array(
 });
 
 /**
- * Generates a random WarpStateV5 (real class instance).
+ * Generates a random WarpState (real class instance).
  */
 const stateArb = fc.record({
   nodeAlive: generateORSet(nodeIdArb, dotArb),
   edgeAlive: generateORSet(edgeKeyArb, dotArb),
   prop: propMapArb,
   observedFrontier: versionVectorArb,
-}).map((fields) => new WarpStateV5(fields));
+}).map((fields) => new WarpState(fields));
 
 // ============================================================================
 // State Equality Helper
@@ -225,7 +225,7 @@ describe('JoinReducer property tests', () => {
     it('empty state is identity: join(a, empty) === a', () => {
       fc.assert(
         fc.property(stateArb, (a) => {
-          const empty = createEmptyStateV5();
+          const empty = createEmptyState();
           const result = joinStates(a, empty);
           return statesEqual(result, a);
         }),
@@ -332,7 +332,7 @@ describe('JoinReducer property tests', () => {
             const individualStates = patches.map((p) => reduceV5([p]));
             const joined = individualStates.reduce(
               (acc, state) => joinStates(acc, state),
-              createEmptyStateV5()
+              createEmptyState()
             );
 
             return (await computeStateHashV5(allAtOnce, { crypto })) === (await computeStateHashV5(joined, { crypto }));

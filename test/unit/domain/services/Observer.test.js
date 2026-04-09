@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
 import Observer from '../../../../src/domain/services/query/Observer.js';
-import { createEmptyStateV5, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 
 /** @param {any} graph @param {(state: any) => void} seedFn */
 function setupGraphState(graph, seedFn) {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   graph._cachedState = state;
   graph.materialize = vi.fn().mockResolvedValue(state);
   seedFn(state);
@@ -59,7 +59,7 @@ describe('Observer', () => {
 
   describe('provider batching', () => {
     it('caps concurrent provider reads to batch size (64)', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const visibleNodes = Array.from({ length: 130 }, (_, i) => `user:${String(i).padStart(3, '0')}`);
       for (let i = 0; i < visibleNodes.length; i++) {
         addNode(state, visibleNodes[i], i + 1);
@@ -500,7 +500,7 @@ describe('Observer', () => {
     });
 
     it('throws when a live backing graph is required but absent', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const view = new Observer({
         name: 'snapshot',
         config: { match: '*' },
@@ -512,7 +512,7 @@ describe('Observer', () => {
     });
 
     it('materializes adjacency by scanning edges when no provider is available', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addNode(state, 'user:carol', 3);
@@ -553,7 +553,7 @@ describe('Observer', () => {
     });
 
     it('builds filtered adjacency through the provider and sorts incoming neighbors', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addNode(state, 'user:carol', 3);
@@ -662,7 +662,7 @@ describe('Observer', () => {
     });
 
     it('exposes pinned source and snapshot hash metadata', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const view = new Observer({
         name: 'snapshotMeta',
         config: { match: '*' },

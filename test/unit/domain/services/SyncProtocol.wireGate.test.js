@@ -3,7 +3,7 @@ import {
   applySyncResponse,
 } from '../../../../src/domain/services/sync/SyncProtocol.js';
 import {
-  createEmptyStateV5,
+  createEmptyState,
 } from '../../../../src/domain/services/JoinReducer.ts';
 import { createFrontier } from '../../../../src/domain/services/Frontier.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
@@ -46,7 +46,7 @@ function makeSyncResponse(ops) {
 
 describe('SyncProtocol wire gate (ADR 2 tripwire)', () => {
   it('rejects raw EdgePropSet arriving via sync', () => {
-    const state = createEmptyStateV5();
+    const state = createEmptyState();
     const frontier = createFrontier();
     const response = makeSyncResponse([
       { type: 'EdgePropSet', from: 'a', to: 'b', label: 'rel', key: 'w', value: 1 },
@@ -58,7 +58,7 @@ describe('SyncProtocol wire gate (ADR 2 tripwire)', () => {
   });
 
   it('rejects raw NodePropSet arriving via sync', () => {
-    const state = createEmptyStateV5();
+    const state = createEmptyState();
     const frontier = createFrontier();
     const response = makeSyncResponse([
       { type: 'NodePropSet', node: 'x', key: 'color', value: 'red' },
@@ -70,7 +70,7 @@ describe('SyncProtocol wire gate (ADR 2 tripwire)', () => {
   });
 
   it('accepts raw PropSet arriving via sync', () => {
-    const state = createEmptyStateV5();
+    const state = createEmptyState();
     const frontier = createFrontier();
     const response = makeSyncResponse([
       { type: 'NodeAdd', node: 'x', dot: createDot('w1', 1) },
@@ -84,7 +84,7 @@ describe('SyncProtocol wire gate (ADR 2 tripwire)', () => {
   });
 
   it('accepts all 6 raw wire-format types', () => {
-    const state = createEmptyStateV5();
+    const state = createEmptyState();
     const frontier = createFrontier();
     const dot = createDot('w1', 1);
     const response = makeSyncResponse([
@@ -103,7 +103,7 @@ describe('SyncProtocol wire gate (ADR 2 tripwire)', () => {
   });
 
   it('rejects unknown future op types', () => {
-    const state = createEmptyStateV5();
+    const state = createEmptyState();
     const frontier = createFrontier();
     const response = makeSyncResponse([
       { type: 'HyperEdgeAdd', vertices: ['a', 'b', 'c'] },

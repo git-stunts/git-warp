@@ -9,7 +9,7 @@ import {
   createEmptySyncResponse,
 } from '../../../../src/domain/services/sync/SyncProtocol.js';
 import {
-  createEmptyStateV5,
+  createEmptyState,
   reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
@@ -394,7 +394,7 @@ describe('SyncProtocol', () => {
 
   describe('applySyncResponse', () => {
     it('applies patches to state', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const frontier = createFrontier();
 
       const patch1 = createTestPatch({
@@ -417,7 +417,7 @@ describe('SyncProtocol', () => {
     });
 
     it('applies multiple patches in order', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const frontier = createFrontier();
 
       const patch1 = createTestPatch({
@@ -450,7 +450,7 @@ describe('SyncProtocol', () => {
     });
 
     it('does not mutate input state', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const frontier = createFrontier();
 
       const patch = createTestPatch({
@@ -473,7 +473,7 @@ describe('SyncProtocol', () => {
     });
 
     it('handles patches from multiple writers', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const frontier = createFrontier();
 
       const patchW1 = createTestPatch({
@@ -507,7 +507,7 @@ describe('SyncProtocol', () => {
     });
 
     it('returns zero applied for empty response', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const frontier = createFrontier();
 
       const response = {
@@ -664,7 +664,7 @@ describe('SyncProtocol', () => {
       const persistence = createMockPersistence(commits, blobs);
 
       // Start with empty state
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const frontier = createFrontier();
 
       // First sync
@@ -715,7 +715,7 @@ describe('SyncProtocol', () => {
         patches: [{ writerId: 'alice', sha: SHA_A, patch }],
       };
 
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const frontier = createFrontier();
 
       expect(() => applySyncResponse(response, state, frontier)).toThrow(/unknown op type.*FutureOp/i);
@@ -737,7 +737,7 @@ describe('SyncProtocol', () => {
         patches: [{ writerId: 'alice', sha: SHA_A, patch }],
       };
 
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const frontier = createFrontier();
 
       const result = /** @type {any} */ (applySyncResponse(response, state, frontier));

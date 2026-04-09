@@ -1,5 +1,5 @@
 /**
- * Orchestrates a full logical bitmap index build from WarpStateV5.
+ * Orchestrates a full logical bitmap index build from WarpState.
  *
  * Extracts the visible projection (nodes, edges, properties) from materialized
  * state and delegates to LogicalBitmapIndexBuilder + PropertyIndexBuilder.
@@ -34,7 +34,7 @@ export default class LogicalIndexBuildService {
    * shards in memory (e.g., MaterializedViewService.build() which hydrates
    * an in-memory LogicalIndex).
    *
-   * @param {import('../JoinReducer.ts').WarpStateV5} state
+   * @param {import('../JoinReducer.ts').WarpState} state
    * @param {{ existingMeta?: Record<string, { nodeToGlobal: Record<string, number>, nextLocalId: number }>, existingLabels?: Record<string, number>|Array<[string, number]> }} [options]
    * @returns {{ shards: import('../../artifacts/IndexShard.ts').IndexShard[], receipt: ReceiptShard }}
    */
@@ -60,7 +60,7 @@ export default class LogicalIndexBuildService {
    * IndexShardEncodeTransform → GitBlobWriteTransform → TreeAssemblerSink
    * to persist.
    *
-   * @param {import('../JoinReducer.ts').WarpStateV5} state
+   * @param {import('../JoinReducer.ts').WarpState} state
    * @param {{ existingMeta?: Record<string, { nodeToGlobal: Record<string, number>, nextLocalId: number }>, existingLabels?: Record<string, number>|Array<[string, number]> }} [options]
    * @returns {{ stream: WarpStream<import('../../artifacts/IndexShard.ts').IndexShard>, receipt: ReceiptShard }}
    */
@@ -90,7 +90,7 @@ export default class LogicalIndexBuildService {
   /**
    * Populates both builders from state. Used by buildStream().
    *
-   * @param {import('../JoinReducer.ts').WarpStateV5} state
+   * @param {import('../JoinReducer.ts').WarpState} state
    * @param {{ existingMeta?: Record<string, { nodeToGlobal: Record<string, number>, nextLocalId: number }>, existingLabels?: Record<string, number>|Array<[string, number]> }} options
    * @returns {{ indexBuilder: LogicalBitmapIndexBuilder, propBuilder: PropertyIndexBuilder }}
    * @private
@@ -138,7 +138,7 @@ export default class LogicalIndexBuildService {
 /**
  * Collects and sorts visible edges from state.
  *
- * @param {import('../JoinReducer.ts').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpState} state
  * @returns {Array<{from: string, to: string, label: string}>}
  */
 function _collectVisibleEdges(state) {

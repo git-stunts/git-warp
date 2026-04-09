@@ -8,7 +8,7 @@ const VISIBLE_STATE_COMPARISON_VERSION = 'visible-state-compare/v1';
 /**
 
 
- * @typedef {import('./JoinReducer.ts').WarpStateV5} WarpStateV5
+ * @typedef {import('./JoinReducer.ts').WarpState} WarpState
  */
 
 /**
@@ -778,8 +778,8 @@ function collectAllDeltas(leftReader, rightReader) {
  * - visible edge-property deltas
  * - optional node-local target diff helper
  *
- * @param {WarpStateV5} leftState
- * @param {WarpStateV5} rightState
+ * @param {WarpState} leftState
+ * @param {WarpState} rightState
  * @param {{ targetId?: string|null }} [options]
  * @returns {VisibleStateComparisonV5}
  */

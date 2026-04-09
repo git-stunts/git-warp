@@ -4,12 +4,12 @@ import { StateArtifact } from '../../../../src/domain/artifacts/StateArtifact.ts
 import { FrontierArtifact } from '../../../../src/domain/artifacts/FrontierArtifact.ts';
 import { AppliedVVArtifact } from '../../../../src/domain/artifacts/AppliedVVArtifact.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 
 describe('CheckpointArtifact family', () => {
   describe('StateArtifact', () => {
     it('constructs with valid fields', () => {
-      const a = new StateArtifact({ schemaVersion: 2, state: createEmptyStateV5() });
+      const a = new StateArtifact({ schemaVersion: 2, state: createEmptyState() });
       expect(a).toBeInstanceOf(StateArtifact);
       expect(a).toBeInstanceOf(CheckpointArtifact);
       expect(a.schemaVersion).toBe(2);
@@ -17,7 +17,7 @@ describe('CheckpointArtifact family', () => {
     });
 
     it('is frozen', () => {
-      const a = new StateArtifact({ schemaVersion: 2, state: createEmptyStateV5() });
+      const a = new StateArtifact({ schemaVersion: 2, state: createEmptyState() });
       expect(Object.isFrozen(a)).toBe(true);
     });
 
@@ -26,7 +26,7 @@ describe('CheckpointArtifact family', () => {
     });
 
     it('rejects invalid schemaVersion', () => {
-      expect(() => new StateArtifact({ schemaVersion: 0, state: createEmptyStateV5() })).toThrow('positive integer');
+      expect(() => new StateArtifact({ schemaVersion: 0, state: createEmptyState() })).toThrow('positive integer');
     });
   });
 
@@ -60,7 +60,7 @@ describe('CheckpointArtifact family', () => {
 
   describe('instanceof dispatch', () => {
     it('dispatches correctly across all subtypes', () => {
-      const state = new StateArtifact({ schemaVersion: 2, state: createEmptyStateV5() });
+      const state = new StateArtifact({ schemaVersion: 2, state: createEmptyState() });
       const frontier = new FrontierArtifact({ schemaVersion: 2, frontier: new Map() });
       const vv = new AppliedVVArtifact({ schemaVersion: 2, appliedVV: VersionVector.empty() });
 

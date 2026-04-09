@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  createEmptyStateV5,
+  createEmptyState,
   applyOpV2,
   reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.ts';
@@ -36,7 +36,7 @@ const makePatchEntry = (/** @type {any[]} */ ops) => ({
 describe('JoinReducer validation', () => {
   describe('C2 — unknown op types', () => {
     it('silently ignores unknown op type in applyOpV2', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const eventId = createEventId(1, 'w1', 'a'.repeat(40), 0);
 
       // Should not throw
@@ -117,21 +117,21 @@ describe('JoinReducer validation', () => {
     });
 
     it('throws PatchError for null op', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const eventId = createEventId(1, 'w1', 'a'.repeat(40), 0);
 
       expect(() => applyOpV2(state, /** @type {any} */ (null), eventId)).toThrow(PatchError);
     });
 
     it('throws PatchError for op without type field', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const eventId = createEventId(1, 'w1', 'a'.repeat(40), 0);
 
       expect(() => applyOpV2(state, /** @type {any} */ ({ node: 'x' }), eventId)).toThrow(PatchError);
     });
 
     it('throws PatchError for op with non-string type', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const eventId = createEventId(1, 'w1', 'a'.repeat(40), 0);
 
       expect(() => applyOpV2(state, /** @type {any} */ ({ type: 42 }), eventId)).toThrow(PatchError);
@@ -139,7 +139,7 @@ describe('JoinReducer validation', () => {
   });
 
   describe('C3 — per-op-type validation', () => {
-    const state = () => createEmptyStateV5();
+    const state = () => createEmptyState();
     const eid = createEventId(1, 'w1', 'a'.repeat(40), 0);
 
     describe('NodeAdd', () => {

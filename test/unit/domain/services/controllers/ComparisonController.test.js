@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ComparisonController from '../../../../../src/domain/services/controllers/ComparisonController.js';
-import WarpStateV5 from '../../../../../src/domain/services/state/WarpStateV5.ts';
+import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
@@ -134,10 +134,10 @@ function orsetWith(elements) {
 }
 
 /**
- * Creates a minimal WarpStateV5 for testing.
+ * Creates a minimal WarpState for testing.
  *
  * @param {{ nodes?: string[], edges?: Array<{from: string, to: string, label: string}>, props?: Array<{nodeId: string, key: string, value: unknown}> }} [opts]
- * @returns {WarpStateV5}
+ * @returns {WarpState}
  */
 function makeState(opts = {}) {
   const { nodes = [], edges = [], props = [] } = opts;
@@ -147,7 +147,7 @@ function makeState(opts = {}) {
   for (const p of props) {
     propMap.set(encodePropKey(p.nodeId, p.key), { value: p.value, eventId: null });
   }
-  return new WarpStateV5({
+  return new WarpState({
     nodeAlive: orsetWith(nodes),
     edgeAlive: orsetWith(edgeKeys),
     prop: propMap,

@@ -5,7 +5,7 @@ import {
   createEmptyDiff,
 } from '../../../../src/domain/services/state/StateDiff.js';
 import {
-  createEmptyStateV5,
+  createEmptyState,
   applyOpV2,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
@@ -56,8 +56,8 @@ describe('StateDiff', () => {
   describe('diffStates', () => {
     describe('node changes', () => {
       it('detects added nodes', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         applyOps(after, [createNodeAddOp('user:alice', 'w1', 1)], 'w1');
 
@@ -68,8 +68,8 @@ describe('StateDiff', () => {
       });
 
       it('detects removed nodes', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         applyOps(before, [createNodeAddOp('user:alice', 'w1', 1)], 'w1');
 
@@ -80,8 +80,8 @@ describe('StateDiff', () => {
       });
 
       it('detects multiple node changes', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         applyOps(before, [
           createNodeAddOp('user:alice', 'w1', 1),
@@ -100,8 +100,8 @@ describe('StateDiff', () => {
       });
 
       it('returns sorted node IDs', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         applyOps(after, [
           createNodeAddOp('zebra', 'w1', 1),
@@ -117,8 +117,8 @@ describe('StateDiff', () => {
 
     describe('edge changes', () => {
       it('detects added edges', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         applyOps(after, [
           createNodeAddOp('user:alice', 'w1', 1),
@@ -135,8 +135,8 @@ describe('StateDiff', () => {
       });
 
       it('detects removed edges', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         applyOps(before, [
           createNodeAddOp('user:alice', 'w1', 1),
@@ -158,8 +158,8 @@ describe('StateDiff', () => {
       });
 
       it('returns sorted edges', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         applyOps(after, [
           // Add nodes first - edges are only visible if both endpoints exist
@@ -182,8 +182,8 @@ describe('StateDiff', () => {
       });
 
       it('excludes edges with missing endpoints from diff', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         // Add edge without nodes - edge should be invisible
         applyOps(after, [
@@ -197,8 +197,8 @@ describe('StateDiff', () => {
       });
 
       it('excludes edges when source node is missing', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         applyOps(after, [
           // Only add target node, not source
@@ -212,8 +212,8 @@ describe('StateDiff', () => {
       });
 
       it('excludes edges when target node is missing', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         applyOps(after, [
           // Only add source node, not target
@@ -227,8 +227,8 @@ describe('StateDiff', () => {
       });
 
       it('removes edge from diff when endpoint node disappears', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         // Before: both nodes and edge exist
         applyOps(before, [
@@ -256,8 +256,8 @@ describe('StateDiff', () => {
 
     describe('property changes', () => {
       it('detects new properties', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'name');
         after.prop.set(propKey, lwwSet(makeEventId(1), 'Alice'));
@@ -277,8 +277,8 @@ describe('StateDiff', () => {
       });
 
       it('detects removed properties', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'name');
         before.prop.set(propKey, lwwSet(makeEventId(1), 'Alice'));
@@ -297,8 +297,8 @@ describe('StateDiff', () => {
       });
 
       it('detects changed properties', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'name');
         before.prop.set(propKey, lwwSet(makeEventId(1), 'Alice'));
@@ -319,8 +319,8 @@ describe('StateDiff', () => {
       });
 
       it('ignores unchanged properties', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'name');
         before.prop.set(propKey, lwwSet(makeEventId(1), 'Alice'));
@@ -333,8 +333,8 @@ describe('StateDiff', () => {
       });
 
       it('detects changes to object properties', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'meta');
         before.prop.set(propKey, lwwSet(makeEventId(1), { age: 25 }));
@@ -348,8 +348,8 @@ describe('StateDiff', () => {
       });
 
       it('ignores unchanged object properties', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'meta');
         before.prop.set(propKey, lwwSet(makeEventId(1), { age: 25, tags: ['a', 'b'] }));
@@ -361,8 +361,8 @@ describe('StateDiff', () => {
       });
 
       it('detects changed array element values', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'tags');
         before.prop.set(propKey, lwwSet(makeEventId(1), ['a', 'b']));
@@ -376,8 +376,8 @@ describe('StateDiff', () => {
       });
 
       it('detects changed object key sets', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'meta');
         before.prop.set(propKey, lwwSet(makeEventId(1), { age: 25 }));
@@ -390,8 +390,8 @@ describe('StateDiff', () => {
       });
 
       it('detects changed object keys when shapes differ at equal length', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'meta');
         before.prop.set(propKey, lwwSet(makeEventId(1), { age: 25, city: 'SF' }));
@@ -405,8 +405,8 @@ describe('StateDiff', () => {
       });
 
       it('treats array and object values as different even when contents look similar', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         const propKey = encodePropKey('user:alice', 'meta');
         before.prop.set(propKey, lwwSet(makeEventId(1), ['a', 'b']));
@@ -418,8 +418,8 @@ describe('StateDiff', () => {
       });
 
       it('returns sorted properties', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         after.prop.set(encodePropKey('z', 'name'), lwwSet(makeEventId(1), 'Z'));
         after.prop.set(encodePropKey('a', 'name'), lwwSet(makeEventId(2), 'A'));
@@ -435,8 +435,8 @@ describe('StateDiff', () => {
       });
 
       it('ignores edge properties in property diffs', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         const edgePropKey = encodeEdgePropKey('a', 'b', 'link', 'weight');
         before.prop.set(edgePropKey, lwwSet(makeEventId(1), 1));
@@ -451,7 +451,7 @@ describe('StateDiff', () => {
 
     describe('null before state (initial)', () => {
       it('treats null before as empty state', () => {
-        const after = createEmptyStateV5();
+        const after = createEmptyState();
 
         applyOps(after, [
           createNodeAddOp('user:alice', 'w1', 1),
@@ -473,7 +473,7 @@ describe('StateDiff', () => {
 
     describe('identical states', () => {
       it('returns empty diff for identical states', () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
 
         applyOps(state, [
           createNodeAddOp('user:alice', 'w1', 1),
@@ -493,8 +493,8 @@ describe('StateDiff', () => {
       });
 
       it('returns empty diff for two empty states', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         const diff = diffStates(before, after);
 
@@ -504,8 +504,8 @@ describe('StateDiff', () => {
 
     describe('determinism', () => {
       it('produces identical output across multiple runs', () => {
-        const before = createEmptyStateV5();
-        const after = createEmptyStateV5();
+        const before = createEmptyState();
+        const after = createEmptyState();
 
         applyOps(before, [
           createNodeAddOp('a', 'w1', 1),

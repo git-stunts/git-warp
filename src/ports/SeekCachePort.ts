@@ -1,7 +1,7 @@
 /**
  * Port interface for seek materialization cache operations.
  *
- * Defines the contract for caching and retrieving serialized WarpStateV5
+ * Defines the contract for caching and retrieving serialized WarpState
  * snapshots keyed by (ceiling, frontier) tuples. Used by the seek time-travel
  * feature to avoid full re-materialization for previously-visited ticks.
  *

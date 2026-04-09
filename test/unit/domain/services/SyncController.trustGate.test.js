@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import SyncController from '../../../../src/domain/services/controllers/SyncController.js';
 import SyncTrustGate from '../../../../src/domain/services/sync/SyncTrustGate.js';
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
-import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
 
 vi.mock('../../../../src/domain/services/sync/SyncProtocol.js', async (importOriginal) => {
@@ -101,7 +101,7 @@ function createTrustEvaluator(trustedWriters) {
  * @param {Record<string, unknown>} _host
  */
 function stubApplySuccess(_host) {
-  const newState = createEmptyStateV5();
+  const newState = createEmptyState();
   const newFrontier = createFrontier();
   updateFrontier(newFrontier, 'applied-writer', 'sha-applied');
   applySyncResponseMock.mockReturnValue({
@@ -124,7 +124,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
       trustMode: 'enforce',
     });
 
-    const host = createMockHost({ _cachedState: createEmptyStateV5() });
+    const host = createMockHost({ _cachedState: createEmptyState() });
     const ctrl = new SyncController(/** @type {*} */ (host), { trustGate: gate });
     const response = buildSyncResponse(['untrusted-writer']);
 
@@ -149,7 +149,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
       trustMode: 'enforce',
     });
 
-    const initialState = createEmptyStateV5();
+    const initialState = createEmptyState();
     const initialFrontier = createFrontier();
     updateFrontier(initialFrontier, 'alice', 'sha-a1');
 
@@ -191,7 +191,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
         trustMode: 'enforce',
       });
 
-      const host = createMockHost({ _cachedState: createEmptyStateV5() });
+      const host = createMockHost({ _cachedState: createEmptyState() });
       const ctrl = new SyncController(/** @type {*} */ (host), { trustGate: gate });
 
       await expect(ctrl.applySyncResponse(buildSyncResponse(['x'])))
@@ -207,7 +207,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
       });
 
       const host = createMockHost({
-        _cachedState: createEmptyStateV5(),
+        _cachedState: createEmptyState(),
         _lastFrontier: createFrontier(),
       });
       stubApplySuccess(host);
@@ -232,7 +232,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
       });
 
       const host = createMockHost({
-        _cachedState: createEmptyStateV5(),
+        _cachedState: createEmptyState(),
         _lastFrontier: createFrontier(),
       });
       stubApplySuccess(host);
@@ -265,7 +265,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
     };
 
     const host = createMockHost({
-      _cachedState: createEmptyStateV5(),
+      _cachedState: createEmptyState(),
       _lastFrontier: createFrontier(),
     });
     stubApplySuccess(host);
@@ -283,7 +283,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
 
   it('syncWith() can use a per-call trust override via the public host hook', async () => {
     const host = createMockHost({
-      _cachedState: createEmptyStateV5(),
+      _cachedState: createEmptyState(),
       _lastFrontier: createFrontier(),
       _createSyncTrustGate: vi.fn((trust) => new SyncTrustGate({
         trustEvaluator: /** @type {*} */ (createTrustEvaluator([])),
@@ -309,7 +309,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
   // ── Test 9: Derived caches rebuilt after successful sync (B105) ───────────
   it('rebuilds derived caches via _setMaterializedState after successful applySyncResponse', async () => {
     const host = createMockHost({
-      _cachedState: createEmptyStateV5(),
+      _cachedState: createEmptyState(),
       _lastFrontier: createFrontier(),
       _materializedGraph: { fake: 'graph' },
       _logicalIndex: { fake: 'index' },

@@ -3,7 +3,7 @@
  * composed of a LogicalIndex + PropertyIndexReader.
  *
  * Five entry points:
- * - `build(state)` — from a WarpStateV5 (in-memory)
+ * - `build(state)` — from a WarpState (in-memory)
  * - `persistIndexTree(tree, persistence)` — write shards to Git storage
  * - `loadFromOids(shardOids, storage)` — hydrate from blob OIDs
  * - `applyDiff(existingTree, diff, state)` — incremental update from PatchDiff
@@ -161,7 +161,7 @@ function sampleNodes(allNodes, sampleRate, seed) {
 /**
  * Builds adjacency maps from state for ground-truth verification.
  *
- * @param {import('./JoinReducer.ts').WarpStateV5} state
+ * @param {import('./JoinReducer.ts').WarpState} state
  * @returns {{ outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>> }}
  */
 function buildGroundTruthAdjacency(state) {
@@ -301,9 +301,9 @@ export default class MaterializedViewService {
   }
 
   /**
-   * Builds a complete MaterializedView from WarpStateV5.
+   * Builds a complete MaterializedView from WarpState.
    *
-   * @param {import('./JoinReducer.ts').WarpStateV5} state
+   * @param {import('./JoinReducer.ts').WarpState} state
    * @returns {BuildResult}
    */
   build(state) {
@@ -395,7 +395,7 @@ export default class MaterializedViewService {
   /**
    * Applies a PatchDiff incrementally to an existing index tree.
    *
-   * @param {{ existingTree: Record<string, Uint8Array>, diff: import('../types/PatchDiff.ts').PatchDiff, state: import('./JoinReducer.ts').WarpStateV5 }} params
+   * @param {{ existingTree: Record<string, Uint8Array>, diff: import('../types/PatchDiff.ts').PatchDiff, state: import('./JoinReducer.ts').WarpState }} params
    * @returns {BuildResult}
    */
   applyDiff({ existingTree, diff, state }) {
@@ -430,7 +430,7 @@ export default class MaterializedViewService {
    * Verifies index integrity by sampling alive nodes and comparing
    * bitmap neighbor queries against adjacency-based ground truth.
    *
-   * @param {{ state: import('./JoinReducer.ts').WarpStateV5, logicalIndex: LogicalIndex, options?: { seed?: number, sampleRate?: number } }} params
+   * @param {{ state: import('./JoinReducer.ts').WarpState, logicalIndex: LogicalIndex, options?: { seed?: number, sampleRate?: number } }} params
    * @returns {VerifyResult}
    */
   verifyIndex({ state, logicalIndex, options = {} }) {

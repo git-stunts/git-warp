@@ -20,7 +20,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import QueryError from '../../../src/domain/errors/QueryError.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
-import { createEmptyStateV5, encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import { createDot } from '../../../src/domain/crdt/Dot.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
@@ -426,7 +426,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
       // query().run() calls _materializeGraph() which calls materialize().
       // We need to mock materialize to return a pre-seeded state so it
       // does not get overwritten on each call (same pattern as queryBuilder tests).
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.nodeAlive.add('test:alice', createDot('w1', 1));
       state.nodeAlive.add('test:bob', createDot('w1', 2));
       state.edgeAlive.add(encodeEdgeKey('test:alice', 'test:bob', 'follows'), createDot('w1', 3));
@@ -538,7 +538,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
     it('traverse.bfs works with seeded data after auto-materialize', async () => {
       // traverse._prepare() calls _materializeGraph() -> materialize(), so
       // we mock materialize to return a pre-seeded state (same pattern as traverse tests).
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.nodeAlive.add('test:a', createDot('w1', 1));
       state.nodeAlive.add('test:b', createDot('w1', 2));
       state.nodeAlive.add('test:c', createDot('w1', 3));
@@ -553,7 +553,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
     });
 
     it('traverse.shortestPath works with seeded data after auto-materialize', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.nodeAlive.add('test:a', createDot('w1', 1));
       state.nodeAlive.add('test:b', createDot('w1', 2));
       state.edgeAlive.add(encodeEdgeKey('test:a', 'test:b', 'x'), createDot('w1', 3));

@@ -16,7 +16,7 @@ The return type is nullable because the function returns `null` when
 **both** inputs are null/undefined. Every caller has to null-check:
 
 ```ts
-// OpStrategies.ts / WarpStateV5.ts
+// OpStrategies.ts / WarpState.ts
 const winner = lwwMax(current, lwwSet(eventId, value));
 if (winner !== null) {
   state.prop.set(propKey, winner);

@@ -27,7 +27,7 @@ import {
 } from '../../../../src/domain/services/state/CheckpointSerializerV5.js';
 import { computeStateHashV5 } from '../../../../src/domain/services/state/StateSerializerV5.js';
 import {
-  createEmptyStateV5,
+  createEmptyState,
   encodeEdgeKey as encodeEdgeKeyV5,
   encodePropKey as encodePropKeyV5,
 } from '../../../../src/domain/services/JoinReducer.ts';
@@ -102,7 +102,7 @@ describe('CheckpointService edge cases', () => {
     });
 
     it('accepts schema:3 checkpoints', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       state.nodeAlive.add('x', dot);
 
@@ -158,7 +158,7 @@ describe('CheckpointService edge cases', () => {
 
   describe('empty state checkpoint', () => {
     it('roundtrips an empty state through create and load', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const frontier = createFrontier();
 
       // Capture written blobs
@@ -262,7 +262,7 @@ describe('CheckpointService edge cases', () => {
 
   describe('missing appliedVV.cbor', () => {
     it('returns null appliedVV when blob is absent', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.nodeAlive.add('a', createDot('w1', 1));
 
       const stateBuffer = serializeFullStateV5(state);
@@ -310,7 +310,7 @@ describe('CheckpointService edge cases', () => {
 
   describe('materializeIncremental edge cases', () => {
     it('returns checkpoint state when target frontier matches checkpoint', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       state.nodeAlive.add('x', dot);
 
@@ -368,7 +368,7 @@ describe('CheckpointService edge cases', () => {
     });
 
     it('returns checkpoint state when target frontier is empty', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.nodeAlive.add('y', createDot('w1', 1));
 
       const frontier = createFrontier();
@@ -424,7 +424,7 @@ describe('CheckpointService edge cases', () => {
     });
 
     it('applies newly loaded patches on top of checkpoint state', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.nodeAlive.add('base', createDot('w1', 1));
 
       const checkpointFrontier = createFrontier();
@@ -585,7 +585,7 @@ describe('CheckpointService edge cases', () => {
 
   describe('compaction with empty state', () => {
     it('compaction on empty state is a no-op', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const frontier = createFrontier();
 
       /** @type {any} */
@@ -626,7 +626,7 @@ describe('CheckpointService edge cases', () => {
 
   describe('checkpoint with all-tombstoned state', () => {
     it('compacts a fully-tombstoned state to empty', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot1 = createDot('w1', 1);
       const dot2 = createDot('w1', 2);
       state.nodeAlive.add('gone1', dot1);
@@ -711,7 +711,7 @@ describe('CheckpointService edge cases', () => {
 
   describe('provenanceIndex absent', () => {
     it('returns undefined provenanceIndex when blob is absent', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.nodeAlive.add('a', createDot('w1', 1));
 
       const stateBuffer = serializeFullStateV5(state);
@@ -759,7 +759,7 @@ describe('CheckpointService edge cases', () => {
 
   describe('provenanceIndex present', () => {
     it('loads provenanceIndex from checkpoint tree when blob is present', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.nodeAlive.add('a', createDot('w1', 1));
 
       const provenanceIndex = new ProvenanceIndex();
@@ -816,7 +816,7 @@ describe('CheckpointService edge cases', () => {
 
   describe('createV5 with checkpointStore and provenance index', () => {
     it('computes stateHash for checkpointStore when no stateHashService is provided', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.nodeAlive.add('n', createDot('w1', 1));
       const frontier = createFrontier();
       const checkpointStore = {
@@ -846,7 +846,7 @@ describe('CheckpointService edge cases', () => {
     });
 
     it('writes provenanceIndex blob in the legacy checkpoint path', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.nodeAlive.add('n', createDot('w1', 1));
       const frontier = createFrontier();
       const provenanceIndex = new ProvenanceIndex();

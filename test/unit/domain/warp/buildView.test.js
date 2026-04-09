@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import MaterializeController from '../../../../src/domain/services/controllers/MaterializeController.js';
-import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 
 describe('_buildView', () => {
   it('logs warning when index build fails (H7)', () => {
@@ -18,7 +18,7 @@ describe('_buildView', () => {
     };
 
     const ctrl = /** @type {MaterializeController} */ (/** @type {unknown} */ ({ _host: host }));
-    /** @type {any} */ (MaterializeController.prototype)._buildView.call(ctrl, createEmptyStateV5(), 'hash123');
+    /** @type {any} */ (MaterializeController.prototype)._buildView.call(ctrl, createEmptyState(), 'hash123');
 
     expect(warn).toHaveBeenCalledOnce();
     const firstCall = warn.mock.calls[0];
@@ -44,7 +44,7 @@ describe('_buildView', () => {
 
     const ctrl = /** @type {MaterializeController} */ (/** @type {unknown} */ ({ _host: host }));
     // Should not throw
-    /** @type {any} */ (MaterializeController.prototype)._buildView.call(ctrl, createEmptyStateV5(), 'hash456');
+    /** @type {any} */ (MaterializeController.prototype)._buildView.call(ctrl, createEmptyState(), 'hash456');
     expect(host._logicalIndex).toBeNull();
   });
 });

@@ -14,7 +14,7 @@
  *   - DiffCalculator         → ./DiffCalculator.ts
  *   - ReceiptBuilder         → ./ReceiptBuilder.ts
  *   - OpStrategy hierarchy   → ./OpStrategies.ts
- *   - WarpStateV5 class      → ./state/WarpStateV5.ts (state factory
+ *   - WarpState class      → ./state/WarpState.ts (state factory
  *     concerns live as methods on the class)
  *
  * @module domain/services/JoinReducer
@@ -25,7 +25,7 @@ import { createTickReceipt, type TickReceipt, type OpOutcome } from '../types/Ti
 import { normalizeRawOp } from './OpNormalizer.ts';
 import { createEmptyDiff, mergeDiffs, type PatchDiff } from '../types/PatchDiff.ts';
 import PatchError from '../errors/PatchError.ts';
-import WarpStateV5 from './state/WarpStateV5.ts';
+import WarpState from './state/WarpState.ts';
 import OpSuperseded from '../types/ops/OpSuperseded.ts';
 import OpValidator from './OpValidator.ts';
 import ReceiptBuilder from './ReceiptBuilder.ts';
@@ -36,7 +36,7 @@ import { OP_STRATEGIES, type OpLike } from './OpStrategies.ts';
 // to the direct import paths in a follow-up pass and these go away.
 // -------------------------------------------------------------------
 
-export { default as WarpStateV5 } from './state/WarpStateV5.ts';
+export { default as WarpState } from './state/WarpState.ts';
 export { default as OpOutcomeResult } from '../types/ops/OpOutcomeResult.ts';
 export { default as OpApplied } from '../types/ops/OpApplied.ts';
 export { default as OpSuperseded } from '../types/ops/OpSuperseded.ts';
@@ -69,7 +69,7 @@ export type PatchLike = {
   readonly lamport: number;
   readonly ops: readonly OpLike[];
   readonly context:
-    | WarpStateV5['observedFrontier']
+    | WarpState['observedFrontier']
     | Map<string, number>
     | Record<string, number>
     | null
@@ -77,32 +77,32 @@ export type PatchLike = {
 };
 
 // -------------------------------------------------------------------
-// State factory wrappers — real homes are on WarpStateV5
+// State factory wrappers — real homes are on WarpState
 // -------------------------------------------------------------------
 
 /**
- * Creates an empty V5 state. Thin wrapper around `WarpStateV5.empty()`.
- * @deprecated Call `WarpStateV5.empty()` directly.
+ * Creates an empty state. Thin wrapper around `WarpState.empty()`.
+ * @deprecated Call `WarpState.empty()` directly.
  */
-export function createEmptyStateV5(): WarpStateV5 {
-  return WarpStateV5.empty();
+export function createEmptyState(): WarpState {
+  return WarpState.empty();
 }
 
 /**
- * Returns a deep clone of a V5 state. Accepts either a real
- * `WarpStateV5` instance or a plain/deserialized snapshot (from a
+ * Returns a deep clone of a state. Accepts either a real
+ * `WarpState` instance or a plain/deserialized snapshot (from a
  * checkpoint decode).
- * @deprecated Call `WarpStateV5.cloneFromSnapshot(state)` directly.
+ * @deprecated Call `WarpState.cloneFromSnapshot(state)` directly.
  */
-export function cloneStateV5(state: Parameters<typeof WarpStateV5.cloneFromSnapshot>[0]): WarpStateV5 {
-  return WarpStateV5.cloneFromSnapshot(state);
+export function cloneState(state: Parameters<typeof WarpState.cloneFromSnapshot>[0]): WarpState {
+  return WarpState.cloneFromSnapshot(state);
 }
 
 /**
  * CRDT join of two states. Thin wrapper around `a.join(b)`.
  * @deprecated Call `a.join(b)` directly.
  */
-export function joinStates(a: WarpStateV5, b: WarpStateV5): WarpStateV5 {
+export function joinStates(a: WarpState, b: WarpState): WarpState {
   return a.join(b);
 }
 
@@ -115,7 +115,7 @@ export function joinStates(a: WarpStateV5, b: WarpStateV5): WarpStateV5 {
  * in place. Unknown op types are silently ignored for forward
  * compatibility.
  */
-export function applyOpV2(state: WarpStateV5, op: OpLike, eventId: EventId): void {
+export function applyOpV2(state: WarpState, op: OpLike, eventId: EventId): void {
   if (op === null || op === undefined || typeof op.type !== 'string') {
     const actual = op === null || op === undefined ? String(op) : typeof (op as { type: unknown }).type;
     throw new PatchError(
@@ -130,7 +130,7 @@ export function applyOpV2(state: WarpStateV5, op: OpLike, eventId: EventId): voi
 }
 
 /** Applies a patch to state without receipt or diff collection. */
-export function applyFast(state: WarpStateV5, patch: PatchLike, patchSha: string): WarpStateV5 {
+export function applyFast(state: WarpState, patch: PatchLike, patchSha: string): WarpState {
   for (let i = 0; i < patch.ops.length; i++) {
     const op = patch.ops[i];
     if (op === undefined) { continue; }
@@ -150,10 +150,10 @@ export function applyFast(state: WarpStateV5, patch: PatchLike, patchSha: string
  * Only emits diff entries when alive-ness actually changes.
  */
 export function applyWithDiff(
-  state: WarpStateV5,
+  state: WarpState,
   patch: PatchLike,
   patchSha: string,
-): { state: WarpStateV5; diff: PatchDiff } {
+): { state: WarpState; diff: PatchDiff } {
   const diff = createEmptyDiff();
   for (let i = 0; i < patch.ops.length; i++) {
     const rawOp = patch.ops[i];
@@ -177,10 +177,10 @@ export function applyWithDiff(
  * patch.
  */
 export function applyWithReceipt(
-  state: WarpStateV5,
+  state: WarpState,
   patch: PatchLike,
   patchSha: string,
-): { state: WarpStateV5; receipt: TickReceipt } {
+): { state: WarpState; receipt: TickReceipt } {
   const opResults: OpOutcome[] = [];
   for (let i = 0; i < patch.ops.length; i++) {
     const rawOp = patch.ops[i];
@@ -225,11 +225,11 @@ export function applyWithReceipt(
  * `applyFast`.
  */
 export function join(
-  state: WarpStateV5,
+  state: WarpState,
   patch: PatchLike,
   patchSha: string,
   collectReceipts?: boolean,
-): WarpStateV5 | { state: WarpStateV5; receipt: TickReceipt } {
+): WarpState | { state: WarpState; receipt: TickReceipt } {
   return collectReceipts === true
     ? applyWithReceipt(state, patch, patchSha)
     : applyFast(state, patch, patchSha);
@@ -244,10 +244,10 @@ export function join(
  */
 export function reduceV5(
   patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>,
-  initialState?: WarpStateV5,
+  initialState?: WarpState,
   options?: { readonly receipts?: boolean; readonly trackDiff?: boolean },
-): WarpStateV5 | { state: WarpStateV5; receipts: TickReceipt[] } | { state: WarpStateV5; diff: PatchDiff } {
-  const state = initialState ? cloneStateV5(initialState) : createEmptyStateV5();
+): WarpState | { state: WarpState; receipts: TickReceipt[] } | { state: WarpState; diff: PatchDiff } {
+  const state = initialState ? cloneState(initialState) : createEmptyState();
 
   if (options !== undefined && options.receipts === true) {
     const receipts: TickReceipt[] = [];

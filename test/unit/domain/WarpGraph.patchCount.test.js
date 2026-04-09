@@ -140,11 +140,11 @@ describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
 
     // We simulate materialization with a checkpoint by mocking _loadLatestCheckpoint
     // and _loadPatchesSince. The simplest approach: spy on private methods.
-    const { createEmptyStateV5 } = await import(
+    const { createEmptyState } = await import(
       '../../../src/domain/services/JoinReducer.ts'
     );
 
-    const checkpointState = createEmptyStateV5();
+    const checkpointState = createEmptyState();
 
     // Build 10 fake patch objects for _loadPatchesSince to return
     const patches = [];

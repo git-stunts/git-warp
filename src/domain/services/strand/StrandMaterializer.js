@@ -1,4 +1,4 @@
-import { createEmptyStateV5, reduceV5 } from '../JoinReducer.ts';
+import { createEmptyState, reduceV5 } from '../JoinReducer.ts';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
 import { isNonEmptyString, maxPatchLamport } from './strandShared.js';
 
@@ -93,7 +93,7 @@ export default class StrandMaterializer {
    * @param {StrandDescriptor} descriptor
    * @param {{ collectReceipts: boolean, ceiling: number|null }} options
    * @returns {Promise<{
-   *   state: import('../JoinReducer.ts').WarpStateV5,
+   *   state: import('../JoinReducer.ts').WarpState,
    *   receipts: TickReceipt[],
    *   allPatches: Array<{ patch: Patch, sha: string }>
    * }>}
@@ -163,24 +163,24 @@ export default class StrandMaterializer {
    * @private
    * @param {Array<{ patch: Patch, sha: string }>} allPatches
    * @param {boolean} collectReceipts
-   * @returns {{ state: import('../JoinReducer.ts').WarpStateV5, receipts: TickReceipt[] }}
+   * @returns {{ state: import('../JoinReducer.ts').WarpState, receipts: TickReceipt[] }}
    */
   _reduceCollectedPatches(allPatches, collectReceipts) {
     if (allPatches.length === 0) {
       return {
-        state: createEmptyStateV5(),
+        state: createEmptyState(),
         receipts: [],
       };
     }
     if (collectReceipts) {
-      return /** @type {{ state: import('../JoinReducer.ts').WarpStateV5, receipts: TickReceipt[] }} */ (
+      return /** @type {{ state: import('../JoinReducer.ts').WarpState, receipts: TickReceipt[] }} */ (
         reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches), undefined, {
           receipts: true,
         })
       );
     }
     return {
-      state: /** @type {import('../JoinReducer.ts').WarpStateV5} */ (
+      state: /** @type {import('../JoinReducer.ts').WarpState} */ (
         reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches))
       ),
       receipts: [],
@@ -192,7 +192,7 @@ export default class StrandMaterializer {
    *
    * @private
    * @param {Array<{ patch: Patch, sha: string }>} allPatches
-   * @param {import('../JoinReducer.ts').WarpStateV5} state
+   * @param {import('../JoinReducer.ts').WarpState} state
    * @returns {void}
    */
   _syncGraphMaterialization(allPatches, state) {

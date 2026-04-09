@@ -88,7 +88,7 @@ import WarpApp, {
 } from '../../index.js';
 
 import type {
-  WarpStateV5,
+  WarpState,
   TickReceipt,
   Aperture,
   ObserverConfig,
@@ -273,7 +273,7 @@ const sha2: string = await graph.patch((p: PatchBuilder) => {
 });
 
 // ---- materialize overloads ----
-const state: WarpStateV5 = await graph.materialize();
+const state: WarpState = await graph.materialize();
 const stateReader: VisibleStateReaderV5 = createStateReaderV5(state);
 const visibleComparison: VisibleStateComparisonV5 = compareVisibleStateV5(state, state, { targetId: 'n1' });
 const readerProjection = stateReader.project();
@@ -286,7 +286,7 @@ const readerNeighbors: VisibleStateNeighborV5[] = stateReader.neighbors('n1', 'o
 const readerContent: ContentMeta | null = stateReader.getNodeContentMeta('n1');
 const readerEdgeContent: ContentMeta | null = stateReader.getEdgeContentMeta('n1', 'n2', 'knows');
 const readerNodeView: VisibleNodeViewV5 | null = stateReader.inspectNode('n1');
-const withReceipts: { state: WarpStateV5; receipts: TickReceipt[] } = await graph.materialize({ receipts: true });
+const withReceipts: { state: WarpState; receipts: TickReceipt[] } = await graph.materialize({ receipts: true });
 const conflictKinds: ConflictKind[] = ['supersession', 'redundancy'];
 const conflictTarget: ConflictTargetSelector = { targetKind: 'node_property', entityId: 'user:alice', propertyKey: 'name' };
 const conflictAnalysis: ConflictAnalysis = await graph.analyzeConflicts({
@@ -360,7 +360,7 @@ const _transferPlanShape: [boolean, number, Uint8Array | undefined] = [
 ];
 
 // ---- materializeAt ----
-const atState: WarpStateV5 = await graph.materializeAt('abc123');
+const atState: WarpState = await graph.materializeAt('abc123');
 
 // ---- query methods ----
 const nodes: string[] = await graph.getNodes();
@@ -369,7 +369,7 @@ const props: Record<string, unknown> | null = await graph.getNodeProps('n1');
 const edgeProps: Record<string, unknown> | null = await graph.getEdgeProps('n1', 'n2', 'knows');
 const neighbors: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }> = await graph.neighbors('n1');
 const propCount: number = await graph.getPropertyCount();
-const snapshot: WarpStateV5 | null = await graph.getStateSnapshot();
+const snapshot: WarpState | null = await graph.getStateSnapshot();
 const edges: Array<{ from: string; to: string; label: string; props: Record<string, unknown> }> = await graph.getEdges();
 
 // ---- content attachment ----
@@ -436,9 +436,9 @@ const needed: boolean = await graph.syncNeeded(frontier);
 await graph.syncCoverage();
 
 // ---- syncWith ----
-const syncResult: { applied: number; attempts: number; state?: WarpStateV5 } =
+const syncResult: { applied: number; attempts: number; state?: WarpState } =
   await graph.syncWith('http://localhost:3000', { trust: { mode: 'enforce', pin: 'abc123' } });
-const syncWithGraph: { applied: number; attempts: number; state?: WarpStateV5 } =
+const syncWithGraph: { applied: number; attempts: number; state?: WarpState } =
   await graph.syncWith(graph, { materialize: true });
 
 // ---- serve ----
@@ -458,7 +458,7 @@ const cpSha: string = await graph.createCheckpoint();
 // ---- provenance ----
 const patchesFor: string[] = await graph.patchesFor('n1');
 const slice = await graph.materializeSlice('n1');
-const sliceState: WarpStateV5 = slice.state;
+const sliceState: WarpState = slice.state;
 const slicePatchCount: number = slice.patchCount;
 const sliceWithReceipts = await graph.materializeSlice('n1', { receipts: true });
 
@@ -482,7 +482,7 @@ const gcRun: GCExecuteResult = graph.runGC();
 const gcMetrics: GCMetrics | null = graph.getGCMetrics();
 
 // ---- join ----
-const joinResult: { state: WarpStateV5; receipt: JoinReceipt } = graph.join(state);
+const joinResult: { state: WarpState; receipt: JoinReceipt } = graph.join(state);
 
 // ---- subscribe ----
 const sub = graph.subscribe({ onChange: (diff: StateDiffResult) => {} });
@@ -536,12 +536,12 @@ const _resultTypes: readonly TickReceiptResult[] = TICK_RECEIPT_RESULT_TYPES;
 // ---------------------------------------------------------------------------
 // Standalone functions — BTR
 // ---------------------------------------------------------------------------
-declare const btrState: WarpStateV5;
+declare const btrState: WarpState;
 const payload = new ProvenancePayload([]);
 const btr: BTR = await createBTR(btrState, payload, { key: 'secret', crypto });
 const verified: BTRVerificationResult = await verifyBTR(btr, 'secret', { crypto });
 const replayed = await replayBTR(btr, { crypto });
-const replayedState: WarpStateV5 = replayed.state;
+const replayedState: WarpState = replayed.state;
 const replayedHash: string = replayed.h_out;
 const btrBytes: Uint8Array = serializeBTR(btr);
 const btrBack: BTR = deserializeBTR(btrBytes);
@@ -553,7 +553,7 @@ declare const wmOpts: CreateWormholeOptions;
 const wm: WormholeEdge = await createWormhole(wmOpts);
 declare const wm2: WormholeEdge;
 const composed: WormholeEdge = await composeWormholes(wm, wm2);
-const wmState: WarpStateV5 = replayWormhole(wm);
+const wmState: WarpState = replayWormhole(wm);
 const wmSerialized = serializeWormhole(wm);
 const wmBack: WormholeEdge = deserializeWormhole(wmSerialized);
 
@@ -570,7 +570,7 @@ declare const v4State: {
   edgeAlive: Map<string, { value: boolean }>;
   prop: Map<string, unknown>;
 };
-const migrated: WarpStateV5 = migrateV4toV5(v4State, 'migration-writer');
+const migrated: WarpState = migrateV4toV5(v4State, 'migration-writer');
 
 // ---------------------------------------------------------------------------
 // Classes — InMemoryGraphAdapter
@@ -606,7 +606,7 @@ const emptyPayload: ProvenancePayload = ProvenancePayload.identity();
 const pp = new ProvenancePayload([]);
 const ppLen: number = pp.length;
 const ppConcat: ProvenancePayload = pp.concat(emptyPayload);
-const ppReplay: WarpStateV5 = pp.replay();
+const ppReplay: WarpState = pp.replay();
 const ppAt: PatchEntry | undefined = pp.at(0);
 const ppSlice: ProvenancePayload = pp.slice(0, 1);
 const ppJson: PatchEntry[] = pp.toJSON();

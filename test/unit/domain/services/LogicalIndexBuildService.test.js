@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
-import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';
@@ -10,11 +10,11 @@ import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.ts
 import { ReceiptShard } from '../../../../src/domain/artifacts/ReceiptShard.ts';
 
 /**
- * Helper: builds a WarpStateV5 from a simple fixture definition.
+ * Helper: builds a WarpState from a simple fixture definition.
  */
 /** @param {{ nodes: string[], edges: Array<{from: string, to: string, label: string}>, props?: Array<{nodeId: string, key: string, value: *}> }} params */
 function buildState({ nodes, edges, props }) {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   const writer = 'w1';
   const sha = 'a'.repeat(40);
   let opIdx = 0;
@@ -44,7 +44,7 @@ function buildState({ nodes, edges, props }) {
 }
 
 describe('LogicalIndexBuildService', () => {
-  it('builds from a programmatic WarpStateV5 with all shards present', async () => {
+  it('builds from a programmatic WarpState with all shards present', async () => {
     const state = buildState({
       nodes: ['A', 'B', 'C'],
       edges: [
@@ -165,7 +165,7 @@ describe('LogicalIndexBuildService', () => {
   });
 
   it('empty state produces valid output', async () => {
-    const state = createEmptyStateV5();
+    const state = createEmptyState();
     const service = new LogicalIndexBuildService();
     const { stream, receipt } = service.buildStream(state);
     const shards = await stream.collect();

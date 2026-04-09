@@ -89,7 +89,7 @@ export default class StrandController {
    * Materializes the graph state scoped to a single strand.
    * @param {string} strandId
    * @param {{ receipts?: boolean, ceiling?: number|null }} [options]
-   * @returns {Promise<import('../JoinReducer.ts').WarpStateV5|{state: import('../JoinReducer.ts').WarpStateV5, receipts: import('../../types/TickReceipt.ts').TickReceipt[]}>}
+   * @returns {Promise<import('../JoinReducer.ts').WarpState|{state: import('../JoinReducer.ts').WarpState, receipts: import('../../types/TickReceipt.ts').TickReceipt[]}>}
    */
   async materializeStrand(strandId, options) {
     return await this._strandService.materialize(strandId, options);

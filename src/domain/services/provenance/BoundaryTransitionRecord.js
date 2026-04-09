@@ -210,7 +210,7 @@ class VerificationResult {
  * ## Example
  *
  * ```javascript
- * const initialState = createEmptyStateV5();
+ * const initialState = createEmptyState();
  * const payload = new ProvenancePayload([...patches]);
  * const key = 'secret-key';
  *
@@ -218,7 +218,7 @@ class VerificationResult {
  * // btr.h_in, btr.h_out, btr.kappa are all set
  * ```
  *
- * @param {import('../JoinReducer.ts').WarpStateV5} initialState - The input state U_0
+ * @param {import('../JoinReducer.ts').WarpState} initialState - The input state U_0
  * @param {ProvenancePayload} payload - The provenance payload P
  * @param {{ key: string|Uint8Array, timestamp?: string, crypto: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} options - BTR creation options
  * @returns {Promise<BTR>} The created BTR
@@ -456,7 +456,7 @@ async function verifyHmacSafe(btr, key, deps) {
  *
  * @param {BTR} btr - The BTR to replay
  * @param {{ crypto?: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} deps - Dependencies
- * @returns {Promise<{ state: import('../JoinReducer.ts').WarpStateV5, h_out: string }>}
+ * @returns {Promise<{ state: import('../JoinReducer.ts').WarpState, h_out: string }>}
  *   The final state and its hash
  * @throws {Error} If replay fails
  */
@@ -483,7 +483,7 @@ export async function replayBTR(btr, deps = {}) {
 /**
  * Deserializes the initial state from the U_0 field.
  *
- * The U_0 field contains the complete WarpStateV5 serialized via
+ * The U_0 field contains the complete WarpState serialized via
  * serializeFullStateV5, including full CRDT internals (ORSet entries,
  * tombstones, LWW registers, version vectors).
  *
@@ -492,7 +492,7 @@ export async function replayBTR(btr, deps = {}) {
  *
  * @param {Uint8Array} U_0 - Serialized full state
  * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} deps
- * @returns {import('../JoinReducer.ts').WarpStateV5} The deserialized state
+ * @returns {import('../JoinReducer.ts').WarpState} The deserialized state
  * @private
  */
 function deserializeInitialState(U_0, deps = {}) {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import MaterializeController from '../../../../../src/domain/services/controllers/MaterializeController.js';
-import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState } from '../../../../../src/domain/services/JoinReducer.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import { ProvenanceIndex } from '../../../../../src/domain/services/provenance/ProvenanceIndex.js';
@@ -9,7 +9,7 @@ import { encodePatchMessage } from '../../../../../src/domain/services/codec/War
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 
 /** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.js' */
-/** @typedef {import('../../../../../src/domain/services/JoinReducer.ts').WarpStateV5} WarpStateV5 */
+/** @typedef {import('../../../../../src/domain/services/JoinReducer.ts').WarpState} WarpState */
 /** @typedef {import('../../../../../src/domain/types/TickReceipt.ts').TickReceipt} TickReceipt */
 /** @typedef {import('../../../../../src/domain/types/Patch.ts').default} Patch */
 
@@ -22,14 +22,14 @@ import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 
 /**
  * @typedef {{
- *   state: WarpStateV5,
+ *   state: WarpState,
  *   stateHash: string,
  *   adjacency: AdjacencyMap
  * }} MaterializedGraph
  */
 
 /**
- * @typedef {WarpStateV5 | { state: WarpStateV5, receipts: TickReceipt[] }} MaterializeResult
+ * @typedef {WarpState | { state: WarpState, receipts: TickReceipt[] }} MaterializeResult
  */
 
 /**
@@ -46,13 +46,13 @@ import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 
 /**
  * @typedef {{
- *   _setMaterializedState(state: WarpStateV5, optionsOrDiff?: unknown): Promise<MaterializedGraph>,
- *   _buildView(state: WarpStateV5, stateHash: string, diff?: unknown): void,
- *   _buildAdjacency(state: WarpStateV5): AdjacencyMap,
+ *   _setMaterializedState(state: WarpState, optionsOrDiff?: unknown): Promise<MaterializedGraph>,
+ *   _buildView(state: WarpState, stateHash: string, diff?: unknown): void,
+ *   _buildAdjacency(state: WarpState): AdjacencyMap,
  *   _restoreIndexFromCache(treeOid: string): Promise<void>,
  *   _materializeGraph(): Promise<object|null>,
  *   _resolveCeiling(options?: { ceiling?: number|null }): number|null,
- *   _persistSeekCacheEntry(key: string, buf: Uint8Array, state: WarpStateV5): Promise<void>,
+ *   _persistSeekCacheEntry(key: string, buf: Uint8Array, state: WarpState): Promise<void>,
  *   _materializeWithCoordinate(frontier: Map<string, string>, ceiling: number|null, collectReceipts: boolean, t0: number): Promise<MaterializeResult>
  * }} MaterializeControllerPrivate
  */
@@ -83,12 +83,12 @@ function callMaterializeCoordinate(ctrl, options) {
 // ── Mock factories ──────────────────────────────────────────────────────────
 
 /**
- * Creates a minimal WarpStateV5-shaped empty state for test assertions.
+ * Creates a minimal WarpState-shaped empty state for test assertions.
  *
- * @returns {import('../../../../../src/domain/services/state/WarpStateV5.ts').default}
+ * @returns {import('../../../../../src/domain/services/state/WarpState.ts').default}
  */
 function emptyState() {
-  return createEmptyStateV5();
+  return createEmptyState();
 }
 
 /**
@@ -114,22 +114,22 @@ function makePatch(overrides = {}) {
  * Require a plain-state materialize result.
  *
  * @param {MaterializeResult} result
- * @returns {WarpStateV5}
+ * @returns {WarpState}
  */
 function requirePlainState(result) {
   expect('nodeAlive' in result).toBe(true);
-  return /** @type {WarpStateV5} */ (result);
+  return /** @type {WarpState} */ (result);
 }
 
 /**
  * Require a state+receipts materialize result.
  *
  * @param {MaterializeResult} result
- * @returns {{ state: WarpStateV5, receipts: TickReceipt[] }}
+ * @returns {{ state: WarpState, receipts: TickReceipt[] }}
  */
 function requireStateWithReceipts(result) {
   expect('receipts' in result).toBe(true);
-  return /** @type {{ state: WarpStateV5, receipts: TickReceipt[] }} */ (result);
+  return /** @type {{ state: WarpState, receipts: TickReceipt[] }} */ (result);
 }
 
 /**
@@ -188,7 +188,7 @@ class MockMaterializeHost {
   _checkpointStore = undefined;
   _patchJournal = undefined;
   _indexStore = undefined;
-  /** @type {WarpStateV5|null} */
+  /** @type {WarpState|null} */
   _cachedState = null;
   /** @type {number|null} */
   _cachedCeiling = null;
@@ -206,7 +206,7 @@ class MockMaterializeHost {
   _provenanceDegraded = false;
   /** @type {Map<string, string>|null} */
   _lastFrontier = null;
-  /** @type {WarpStateV5|null} */
+  /** @type {WarpState|null} */
   _lastNotifiedState = null;
   /** @type {MaterializedGraph|null} */
   _materializedGraph = null;
@@ -218,7 +218,7 @@ class MockMaterializeHost {
   /** @type {MaterializeSubscriber[]} */
   _subscribers = [];
   _versionVector = VersionVector.empty();
-  /** @type {Map<WarpStateV5, AdjacencyMap>|null} */
+  /** @type {Map<WarpState, AdjacencyMap>|null} */
   _adjacencyCache = null;
   _stateHashService = null;
 
@@ -232,15 +232,15 @@ class MockMaterializeHost {
   _maybeRunGC = vi.fn();
   _notifySubscribers = vi.fn();
   createCheckpoint = vi.fn().mockResolvedValue(undefined);
-  /** @type {(state: WarpStateV5, optionsOrDiff?: unknown) => Promise<MaterializedGraph>} */
+  /** @type {(state: WarpState, optionsOrDiff?: unknown) => Promise<MaterializedGraph>} */
   _setMaterializedState = vi.fn().mockResolvedValue({
     state: emptyState(),
     stateHash: 'hash1',
     adjacency: { outgoing: new Map(), incoming: new Map() },
   });
-  /** @type {(state: WarpStateV5, stateHash: string, diff?: unknown) => void} */
+  /** @type {(state: WarpState, stateHash: string, diff?: unknown) => void} */
   _buildView = vi.fn();
-  /** @type {(state: WarpStateV5) => AdjacencyMap} */
+  /** @type {(state: WarpState) => AdjacencyMap} */
   _buildAdjacency = vi.fn().mockReturnValue({ outgoing: new Map(), incoming: new Map() });
   /** @type {(treeOid: string) => Promise<void>} */
   _restoreIndexFromCache = vi.fn().mockResolvedValue(undefined);
@@ -932,7 +932,7 @@ describe('MaterializeController', () => {
     });
 
     it('uses adjacency cache when available', async () => {
-      const adjCache = /** @type {Map<WarpStateV5, AdjacencyMap>} */ (new Map());
+      const adjCache = /** @type {Map<WarpState, AdjacencyMap>} */ (new Map());
       const { ctrl, host } = setup({ _adjacencyCache: adjCache });
       const state = emptyState();
 

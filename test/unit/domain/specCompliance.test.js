@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { computeStateHashV5 } from '../../../src/domain/services/state/StateSerializerV5.js';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
-import { createEmptyStateV5, join as joinState } from '../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, join as joinState } from '../../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../../src/domain/crdt/Dot.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 import { encode, decode } from '../../../src/infrastructure/codecs/CborCodec.js';
@@ -16,7 +16,7 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
   // ---------------------------------------------------------------------------
   describe('computeStateHashV5 is deterministic', () => {
     it('returns identical hash when called twice on the same state', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       state.nodeAlive.add('node:a', dot);
 
@@ -28,11 +28,11 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
 
     it('returns identical hash for structurally equivalent states', async () => {
       // Build two identical states independently
-      const stateA = createEmptyStateV5();
+      const stateA = createEmptyState();
       stateA.nodeAlive.add('node:x', createDot('w1', 1));
       stateA.nodeAlive.add('node:y', createDot('w2', 1));
 
-      const stateB = createEmptyStateV5();
+      const stateB = createEmptyState();
       stateB.nodeAlive.add('node:x', createDot('w1', 1));
       stateB.nodeAlive.add('node:y', createDot('w2', 1));
 
@@ -145,12 +145,12 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
       const sha2 = 'bbbb000000000000000000000000000000000002';
 
       // Order 1: patch1 then patch2
-      const state1 = createEmptyStateV5();
+      const state1 = createEmptyState();
       joinState(state1, patch1, sha1);
       joinState(state1, patch2, sha2);
 
       // Order 2: patch2 then patch1
-      const state2 = createEmptyStateV5();
+      const state2 = createEmptyState();
       joinState(state2, patch2, sha2);
       joinState(state2, patch1, sha1);
 

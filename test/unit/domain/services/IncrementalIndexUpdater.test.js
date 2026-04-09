@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import IncrementalIndexUpdater from '../../../../src/domain/services/index/IncrementalIndexUpdater.js';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
-import { createEmptyStateV5, applyOpV2, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyOpV2, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
@@ -14,7 +14,7 @@ import { ShardIdOverflowError } from '../../../../src/domain/errors/index.ts';
 
 /** @param {{nodes: string[], edges: Array<{from: string, to: string, label: string}>, props?: Array<{nodeId: string, key: string, value: unknown}>}} fixture */
 function buildState({ nodes, edges, props }) {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   const writer = 'w1';
   const sha = 'a'.repeat(40);
   let opIdx = 0;
@@ -43,7 +43,7 @@ function buildState({ nodes, edges, props }) {
   return state;
 }
 
-/** @param {import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5} state */
+/** @param {import('../../../../src/domain/services/JoinReducer.ts').WarpState} state */
 function buildTree(state) {
   return new MaterializedViewService().build(state).tree;
 }

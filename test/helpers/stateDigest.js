@@ -1,7 +1,7 @@
 /**
  * Test helper: deterministic state digest for WarpRuntime.
  *
- * Computes a SHA-256 hash of the serialized WarpStateV5 + version vector
+ * Computes a SHA-256 hash of the serialized WarpState + version vector
  * for use in test assertions (e.g., "state did not mutate").
  *
  * @module test/helpers/stateDigest
@@ -15,9 +15,9 @@ const crypto = new NodeCryptoAdapter();
 const codec = { encode, decode: (/** @type {Buffer} */ b) => b };
 
 /**
- * Computes a deterministic hex digest of a WarpStateV5 state.
+ * Computes a deterministic hex digest of a WarpState state.
  *
- * @param {import('../../src/domain/services/JoinReducer.ts').WarpStateV5} state
+ * @param {import('../../src/domain/services/JoinReducer.ts').WarpState} state
  * @returns {Promise<string>} Hex SHA-256 digest
  */
 export async function stateDigest(state) {

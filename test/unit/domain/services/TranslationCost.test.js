@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
-import { createEmptyStateV5, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { computeTranslationCost } from '../../../../src/domain/services/TranslationCost.js';
 
 /** @param {any} graph @param {(state: any) => void} seedFn */
 function setupGraphState(graph, seedFn) {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   graph._cachedState = state;
   graph.materialize = vi.fn().mockResolvedValue(state);
   seedFn(state);
@@ -60,7 +60,7 @@ describe('TranslationCost', () => {
 
   describe('computeTranslationCost (unit)', () => {
     it('identical configs produce cost 0', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
 
@@ -74,7 +74,7 @@ describe('TranslationCost', () => {
     });
 
     it('supports multiple glob match patterns as arrays', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       addNode(state, 'campaign:1', 1);
       addNode(state, 'milestone:A', 2);
       addNode(state, 'user:alice', 3);
@@ -89,13 +89,13 @@ describe('TranslationCost', () => {
     });
 
     it('rejects empty array as match pattern', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       expect(() => computeTranslationCost({ match: [] }, { match: 'user:*' }, state))
         .toThrow('non-empty');
     });
 
     it('completely disjoint match patterns produce cost 1', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addNode(state, 'team:eng', 3);
@@ -114,7 +114,7 @@ describe('TranslationCost', () => {
     });
 
     it('A sees everything, B sees subset -> cost > 0', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addNode(state, 'team:eng', 3);
@@ -130,7 +130,7 @@ describe('TranslationCost', () => {
     });
 
     it('A sees subset, B sees everything -> cost 0', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addNode(state, 'team:eng', 3);
@@ -147,7 +147,7 @@ describe('TranslationCost', () => {
     });
 
     it('A sees nothing -> cost 0', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
 
@@ -160,7 +160,7 @@ describe('TranslationCost', () => {
     });
 
     it('both see everything -> cost 0', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addNode(state, 'team:eng', 3);
@@ -179,7 +179,7 @@ describe('TranslationCost', () => {
     });
 
     it('property redaction causes propLoss', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       addNode(state, 'user:alice', 1);
       addProp(state, 'user:alice', 'name', 'Alice');
       addProp(state, 'user:alice', 'ssn', '123-45-6789');
@@ -198,7 +198,7 @@ describe('TranslationCost', () => {
     });
 
     it('edge loss when observer B match excludes an endpoint', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addNode(state, 'team:eng', 3);
@@ -218,7 +218,7 @@ describe('TranslationCost', () => {
     });
 
     it('breakdown object has correct fields', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       addNode(state, 'user:alice', 1);
 
       const configA = { match: '*' };
@@ -238,7 +238,7 @@ describe('TranslationCost', () => {
     });
 
     it('empty graph produces cost 0', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const configA = { match: '*' };
       const configB = { match: '*' };
@@ -249,7 +249,7 @@ describe('TranslationCost', () => {
     });
 
     it('expose filter on A limits what is countable', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       addNode(state, 'user:alice', 1);
       addProp(state, 'user:alice', 'name', 'Alice');
       addProp(state, 'user:alice', 'ssn', '123-45-6789');
@@ -268,7 +268,7 @@ describe('TranslationCost', () => {
     });
 
     it('cost is normalized to [0, 1] range', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addNode(state, 'team:eng', 3);

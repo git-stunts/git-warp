@@ -555,7 +555,7 @@ export class ClockAdapter extends ClockPort {
 /**
  * Port interface for seek materialization cache operations.
  *
- * Implementations store serialized WarpStateV5 snapshots keyed by
+ * Implementations store serialized WarpState snapshots keyed by
  * (ceiling, frontier) tuples for near-instant restoration of
  * previously-visited ticks during seek exploration.
  *
@@ -825,7 +825,7 @@ export class BitmapIndexBuilder {
 /**
  * Builder for constructing bitmap indexes from materialized WARP state.
  *
- * This builder creates adjacency indexes from WarpStateV5.edgeAlive OR-Set,
+ * This builder creates adjacency indexes from WarpState.edgeAlive OR-Set,
  * NOT from Git commit DAG topology.
  */
 export class WarpStateIndexBuilder {
@@ -834,7 +834,7 @@ export class WarpStateIndexBuilder {
   /**
    * Builds an index from materialized WARP state.
    */
-  buildFromState(state: WarpStateV5): { builder: BitmapIndexBuilder; stats: { nodes: number; edges: number } };
+  buildFromState(state: WarpState): { builder: BitmapIndexBuilder; stats: { nodes: number; edges: number } };
 
   /**
    * Serializes the index to a tree structure of buffers.
@@ -848,40 +848,40 @@ export class WarpStateIndexBuilder {
  * Convenience function that creates a WarpStateIndexBuilder, builds from state,
  * and returns the serialized tree and stats.
  */
-export function buildWarpStateIndex(state: WarpStateV5, options?: { crypto?: CryptoPort }): Promise<{ tree: Record<string, Uint8Array>; stats: { nodes: number; edges: number } }>;
+export function buildWarpStateIndex(state: WarpState, options?: { crypto?: CryptoPort }): Promise<{ tree: Record<string, Uint8Array>; stats: { nodes: number; edges: number } }>;
 
 /**
- * Computes a deterministic hash of a WarpStateV5 state.
+ * Computes a deterministic hash of a WarpState state.
  *
  * Uses canonical serialization to ensure the same state always produces
  * the same hash regardless of property iteration order.
  */
-export function computeStateHashV5(state: WarpStateV5, options?: { crypto?: CryptoPort; codec?: unknown }): Promise<string | null>;
+export function computeStateHashV5(state: WarpState, options?: { crypto?: CryptoPort; codec?: unknown }): Promise<string | null>;
 
 /**
- * Projects a materialized WarpStateV5 into its visible graph projection.
+ * Projects a materialized WarpState into its visible graph projection.
  *
  * This is the stable substrate helper for higher layers that need to inspect
  * materialized strand or coordinate state without depending on OR-Set
  * internals.
  */
-export function projectStateV5(state: WarpStateV5): VisibleStateProjectionV5;
+export function projectStateV5(state: WarpState): VisibleStateProjectionV5;
 
 /**
- * Creates a substrate-generic reader over a materialized WarpStateV5.
+ * Creates a substrate-generic reader over a materialized WarpState.
  *
  * The reader exposes stable node/edge/property helpers plus entity-local node
  * inspection without requiring callers to understand reducer internals.
  */
-export function createStateReaderV5(state: WarpStateV5): VisibleStateReaderV5;
+export function createStateReaderV5(state: WarpState): VisibleStateReaderV5;
 
 /**
- * Compares two materialized WarpStateV5 snapshots using only their visible
+ * Compares two materialized WarpState snapshots using only their visible
  * substrate truth.
  */
 export function compareVisibleStateV5(
-  leftState: WarpStateV5,
-  rightState: WarpStateV5,
+  leftState: WarpState,
+  rightState: WarpState,
   options?: { targetId?: string | null },
 ): VisibleStateComparisonV5;
 
@@ -896,13 +896,13 @@ export function normalizeVisibleStateScopeV1(
 ): VisibleStateScopeV1 | null;
 
 /**
- * Projects a materialized WarpStateV5 down to the visible subset admitted by
+ * Projects a materialized WarpState down to the visible subset admitted by
  * a normalized visible-state scope.
  */
 export function scopeMaterializedStateV5(
-  state: WarpStateV5,
+  state: WarpState,
   scope?: VisibleStateScopeV1 | null,
-): WarpStateV5;
+): WarpState;
 
 /**
  * Exports the exact deterministic substrate fact hashed by a coordinate
@@ -1142,7 +1142,7 @@ export class BisectService {
     good: string;
     bad: string;
     writerId: string;
-    testFn: (state: WarpStateV5, sha: string) => Promise<boolean>;
+    testFn: (state: WarpState, sha: string) => Promise<boolean>;
   }): Promise<BisectResult>;
 }
 
@@ -1576,8 +1576,8 @@ export class Worldline {
    *
    * For application-facing reads, prefer `Observer` query/traverse helpers over direct materialization.
    */
-  materialize(options: { receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
-  materialize(options?: { receipts?: false }): Promise<WarpStateV5>;
+  materialize(options: { receipts: true }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+  materialize(options?: { receipts?: false }): Promise<WarpState>;
 
   /** Creates an observer pinned to the worldline source when a filtered aperture is needed. */
   observer(config: Aperture): Promise<Observer>;
@@ -1611,12 +1611,12 @@ export interface TranslationCostResult {
  *
  * @param configA - Aperture for observer A
  * @param configB - Aperture for observer B
- * @param state - WarpStateV5 materialized state
+ * @param state - WarpState materialized state
  */
 export function computeTranslationCost(
   configA: Aperture,
   configB: Aperture,
-  state: WarpStateV5
+  state: WarpState
 ): TranslationCostResult;
 
 // ============================================================================
@@ -1928,7 +1928,7 @@ export interface SyncResponse {
  * Result of applySyncResponse().
  */
 export interface ApplySyncResult {
-  state: WarpStateV5;
+  state: WarpState;
   frontier: Map<string, number>;
   applied: number;
   skippedWriters: Array<{ writerId: string; reason: string; localSha: string; remoteSha: string | null }>;
@@ -2138,7 +2138,7 @@ declare class WarpCoreBase {
    * Application-facing reads are usually clearer through `Worldline` or
    * `Observer` handles.
    */
-  getStateSnapshot(): Promise<WarpStateV5 | null>;
+  getStateSnapshot(): Promise<WarpState | null>;
 
   /**
    * Gets all properties for an edge from the materialized state.
@@ -2233,7 +2233,7 @@ declare class WarpCoreBase {
   /**
    * Materializes graph state from a checkpoint, applying incremental patches.
    */
-  materializeAt(checkpointSha: string): Promise<WarpStateV5>;
+  materializeAt(checkpointSha: string): Promise<WarpState>;
 
   /**
    * Logical graph traversal helpers.
@@ -2279,14 +2279,14 @@ declare class WarpCoreBase {
    * Advanced substrate replay primitive over the live frontier.
    *
    * When `options.receipts` is true, returns `{ state, receipts }`.
-   * Otherwise returns the WarpStateV5 directly.
+   * Otherwise returns the WarpState directly.
    *
    * Use this when you need replay output itself. For application-facing reads,
    * prefer `Worldline` / `Observer` and then query or traverse through that
    * read handle.
    */
-  materialize(options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
-  materialize(options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
+  materialize(options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+  materialize(options?: { receipts?: false; ceiling?: number | null }): Promise<WarpState>;
 
   /**
    * Advanced substrate replay primitive against an explicit pinned frontier.
@@ -2294,8 +2294,8 @@ declare class WarpCoreBase {
    * This is the substrate primitive used by strands to replay a pinned
    * observation without assuming the live frontier.
    */
-  materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
-  materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts?: false }): Promise<WarpStateV5>;
+  materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts: true }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+  materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts?: false }): Promise<WarpState>;
 
   /**
    * Starts a built-in sync server for this graph.
@@ -2333,7 +2333,7 @@ declare class WarpCoreBase {
     trust?: SyncTrustOptions;
     /** Auto-materialize after sync; when true, result includes `state` */
     materialize?: boolean;
-  }): Promise<{ applied: number; attempts: number; skippedWriters: Array<{ writerId: string; reason: string; localSha: string; remoteSha: string | null }>; state?: WarpStateV5 }>;
+  }): Promise<{ applied: number; attempts: number; skippedWriters: Array<{ writerId: string; reason: string; localSha: string; remoteSha: string | null }>; state?: WarpState }>;
 
   /**
    * Creates a fork of this graph at a specific point in a writer's history.
@@ -2382,7 +2382,7 @@ declare class WarpCoreBase {
     /** If true, collect tick receipts */
     receipts?: boolean;
   }): Promise<{
-    state: WarpStateV5;
+    state: WarpState;
     patchCount: number;
     receipts?: TickReceipt[];
   }>;
@@ -2429,8 +2429,8 @@ declare class WarpCoreBase {
   /**
    * Advanced substrate replay primitive for a strand's pinned base observation plus overlay.
    */
-  materializeStrand(strandId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
-  materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
+  materializeStrand(strandId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+  materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpState>;
 
   /** Returns the causal patch entries visible inside a strand. */
   getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: Patch; sha: string }>>;
@@ -2510,7 +2510,7 @@ declare class WarpCoreBase {
   get onDeleteWithData(): 'reject' | 'cascade' | 'warn';
 
   /** Synchronous CRDT merge of another state into the cached state. */
-  join(otherState: WarpStateV5): { state: WarpStateV5; receipt: JoinReceipt };
+  join(otherState: WarpState): { state: WarpState; receipt: JoinReceipt };
 
   /** Creates an octopus anchor commit recording all writer tips. */
   syncCoverage(): Promise<void>;
@@ -3224,7 +3224,7 @@ export function migrateV4toV5(v4State: {
   nodeAlive: Map<string, { value: boolean }>;
   edgeAlive: Map<string, { value: boolean }>;
   prop: Map<string, unknown>;
-}, migrationWriterId: string): WarpStateV5;
+}, migrationWriterId: string): WarpState;
 
 /**
  * A patch entry in a provenance payload.
@@ -3237,9 +3237,9 @@ export interface PatchEntry {
 }
 
 /**
- * WARP V5 materialized state.
+ * WARP materialized state.
  */
-export interface WarpStateV5 {
+export interface WarpState {
   nodeAlive: unknown;
   edgeAlive: unknown;
   prop: Map<string, unknown>;
@@ -3617,7 +3617,7 @@ export class ProvenancePayload {
    *
    * @param initialState - Optional initial state to replay from
    */
-  replay(initialState?: WarpStateV5): WarpStateV5;
+  replay(initialState?: WarpState): WarpState;
 
   /**
    * Returns the patch entry at the given index.
@@ -3717,7 +3717,7 @@ export interface VerifyBTROptions {
  * @throws {TypeError} If payload is not a ProvenancePayload
  */
 export function createBTR(
-  initialState: WarpStateV5,
+  initialState: WarpState,
   payload: ProvenancePayload,
   options: CreateBTROptions
 ): Promise<BTR>;
@@ -3741,7 +3741,7 @@ export function verifyBTR(
  * @param btr - The BTR to replay
  * @returns The final state and its hash
  */
-export function replayBTR(btr: BTR, options?: { crypto?: CryptoPort; codec?: unknown }): Promise<{ state: WarpStateV5; h_out: string }>;
+export function replayBTR(btr: BTR, options?: { crypto?: CryptoPort; codec?: unknown }): Promise<{ state: WarpState; h_out: string }>;
 
 /**
  * Serializes a BTR to CBOR bytes for transport.
@@ -3857,8 +3857,8 @@ export function composeWormholes(
  */
 export function replayWormhole(
   wormhole: WormholeEdge,
-  initialState?: WarpStateV5
-): WarpStateV5;
+  initialState?: WarpState
+): WarpState;
 
 /**
  * Serializes a wormhole to a JSON-serializable object.

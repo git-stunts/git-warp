@@ -1,7 +1,7 @@
 /**
  * WarpStateIndexBuilder - Builds bitmap index from materialized WARP state.
  *
- * This builder creates adjacency indexes from WarpStateV5.edgeAlive OR-Set,
+ * This builder creates adjacency indexes from WarpState.edgeAlive OR-Set,
  * NOT from Git commit DAG topology. This is the correct WARP architecture
  * as specified in TECH-SPEC-V7.md Task 6.
  *
@@ -25,7 +25,7 @@ function isNullish(value) {
 }
 
 /**
- * Validates that the given state is a valid WarpStateV5 with nodeAlive and edgeAlive fields.
+ * Validates that the given state is a valid WarpState with nodeAlive and edgeAlive fields.
  *
  * @param {unknown} state
  * @throws {IndexError} If state is null, undefined, or missing required fields
@@ -33,14 +33,14 @@ function isNullish(value) {
 function validateWarpState(state) {
   if (isNullish(state)) {
     throw new IndexError(
-      'Invalid state: must be a valid WarpStateV5 object',
+      'Invalid state: must be a valid WarpState object',
       { code: 'E_INDEX_INVALID_STATE' },
     );
   }
   const s = /** @type {Record<string, unknown>} */ (state);
   if (isNullish(/** @type {{ nodeAlive?: unknown, edgeAlive?: unknown }} */ (s).nodeAlive) || isNullish(/** @type {{ nodeAlive?: unknown, edgeAlive?: unknown }} */ (s).edgeAlive)) {
     throw new IndexError(
-      'Invalid state: must be a valid WarpStateV5 object',
+      'Invalid state: must be a valid WarpState object',
       { code: 'E_INDEX_INVALID_STATE' },
     );
   }
@@ -77,7 +77,7 @@ export default class WarpStateIndexBuilder {
    * bitmaps for each node. Only includes edges where both endpoints are
    * visible (exist in nodeAlive).
    *
-   * @param {import('../JoinReducer.ts').WarpStateV5} state - The materialized state
+   * @param {import('../JoinReducer.ts').WarpState} state - The materialized state
    * @returns {{builder: BitmapIndexBuilder, stats: {nodes: number, edges: number}}} The populated builder and stats
    * @throws {Error} If state is null or missing nodeAlive/edgeAlive fields
    *
@@ -102,7 +102,7 @@ export default class WarpStateIndexBuilder {
   /**
    * Registers all visible nodes from the state's nodeAlive OR-Set.
    *
-   * @param {import('../JoinReducer.ts').WarpStateV5} state
+   * @param {import('../JoinReducer.ts').WarpState} state
    * @returns {number} Number of nodes registered
    * @private
    */
@@ -118,7 +118,7 @@ export default class WarpStateIndexBuilder {
   /**
    * Indexes edges where both endpoints are visible in nodeAlive.
    *
-   * @param {import('../JoinReducer.ts').WarpStateV5} state
+   * @param {import('../JoinReducer.ts').WarpState} state
    * @returns {number} Number of edges indexed
    * @private
    */
@@ -156,7 +156,7 @@ export default class WarpStateIndexBuilder {
 /**
  * Convenience function to build and serialize a WARP state index.
  *
- * @param {import('../JoinReducer.ts').WarpStateV5} state - The materialized state
+ * @param {import('../JoinReducer.ts').WarpState} state - The materialized state
  * @param {{ crypto?: import('../../../ports/CryptoPort.ts').default }} [options] - Configuration
  * @returns {Promise<{tree: Record<string, Uint8Array>, stats: {nodes: number, edges: number}}>} Serialized index and stats
  *

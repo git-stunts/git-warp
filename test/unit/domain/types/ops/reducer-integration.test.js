@@ -31,7 +31,7 @@ function createNodePropSetV2(node, key, value) { return new NodePropSet(node, ke
 /** @param {string} from @param {string} to @param {string} label @param {string} key @param {unknown} value */
 function createEdgePropSetV2(from, to, label, key, value) { return new EdgePropSet({ from, to, label, key, value }); }
 import {
-  createEmptyStateV5,
+  createEmptyState,
   applyOpV2,
   applyFast,
   applyWithReceipt,
@@ -52,7 +52,7 @@ describe('Op class instances through JoinReducer', () => {
 
   describe('applyOpV2', () => {
     it('applies NodeAdd class instance to state', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = new Dot('alice', 1);
       const op = createNodeAddV2('user:alice', dot);
 
@@ -63,7 +63,7 @@ describe('Op class instances through JoinReducer', () => {
     });
 
     it('applies EdgeAdd class instance to state', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot1 = new Dot('alice', 1);
       const dot2 = new Dot('alice', 2);
       const dot3 = new Dot('alice', 3);
@@ -76,7 +76,7 @@ describe('Op class instances through JoinReducer', () => {
     });
 
     it('applies NodePropSet class instance to state', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const op = createNodePropSetV2('user:alice', 'name', 'Alice');
 
       expect(op).toBeInstanceOf(NodePropSet);
@@ -89,7 +89,7 @@ describe('Op class instances through JoinReducer', () => {
     });
 
     it('applies PropSet class instance to state', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const op = createPropSetV2('user:alice', 'name', 'Alice');
 
       applyOpV2(state, op, eid(0));
@@ -101,7 +101,7 @@ describe('Op class instances through JoinReducer', () => {
     });
 
     it('applies NodeRemove class instance to state', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = new Dot('alice', 1);
 
       applyOpV2(state, createNodeAddV2('n1', dot), eid(0));
@@ -114,7 +114,7 @@ describe('Op class instances through JoinReducer', () => {
 
   describe('applyFast with class instances', () => {
     it('applies a patch of class-instance ops', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = new Patch({
         writer: 'alice',
         lamport: 1,
@@ -138,7 +138,7 @@ describe('Op class instances through JoinReducer', () => {
 
   describe('applyWithReceipt with class instances', () => {
     it('produces a receipt from class-instance ops', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = new Patch({
         writer: 'alice',
         lamport: 1,
@@ -162,7 +162,7 @@ describe('Op class instances through JoinReducer', () => {
 
   describe('applyWithDiff with class instances', () => {
     it('produces a diff from class-instance ops', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = new Patch({
         writer: 'alice',
         lamport: 1,

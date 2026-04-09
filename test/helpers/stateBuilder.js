@@ -1,11 +1,11 @@
 import { vi } from 'vitest';
 import { createDot, encodeDot } from '../../src/domain/crdt/Dot.ts';
 import ORSet from '../../src/domain/crdt/ORSet.ts';
-import { applyOpV2, createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
+import { applyOpV2, createEmptyState, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import { createEventId } from '../../src/domain/utils/EventId.ts';
 
 /**
- * @typedef {import('../../src/domain/services/JoinReducer.ts').WarpStateV5} WarpStateV5
+ * @typedef {import('../../src/domain/services/JoinReducer.ts').WarpState} WarpState
  */
 
 /**
@@ -25,13 +25,13 @@ import { createEventId } from '../../src/domain/utils/EventId.ts';
  */
 
 /**
- * Fluently seeds WarpStateV5 instances for tests without spelling out
+ * Fluently seeds WarpState instances for tests without spelling out
  * low-level OR-Set/LWW mutations in each file.
  */
 export class StateBuilder {
   constructor() {
-    /** @type {WarpStateV5} */
-    this._state = createEmptyStateV5();
+    /** @type {WarpState} */
+    this._state = createEmptyState();
     this._nextCounter = 1;
     this._nextLamport = 1;
   }
@@ -200,7 +200,7 @@ export class StateBuilder {
    * Seeds a WarpRuntime-like object with the built state and a stable materialize mock.
    *
    * @param {any} graph
-   * @returns {WarpStateV5}
+   * @returns {WarpState}
    */
   seedGraph(graph) {
     graph._cachedState = this._state;
@@ -209,7 +209,7 @@ export class StateBuilder {
   }
 
   /**
-   * @returns {WarpStateV5}
+   * @returns {WarpState}
    */
   build() {
     return this._state;

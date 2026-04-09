@@ -22,7 +22,7 @@ import {
  *   descriptor: StrandDescriptor,
  *   lamport: number,
  *   versionVector: VersionVector,
- *   getCurrentState: () => import('../JoinReducer.ts').WarpStateV5|null,
+ *   getCurrentState: () => import('../JoinReducer.ts').WarpState|null,
  *   expectedParentSha: string|null,
  *   targetRefPath?: string,
  *   onCommitSuccess?: PatchCommitSuccessHandler,
@@ -40,7 +40,7 @@ export default class StrandPatchService {
    *     descriptor: StrandDescriptor,
    *     options: { collectReceipts: boolean, ceiling: number|null }
    *   ) => Promise<{
-   *     state: import('../JoinReducer.ts').WarpStateV5,
+   *     state: import('../JoinReducer.ts').WarpState,
    *     receipts?: TickReceipt[],
    *     allPatches: Array<{ patch: Patch, sha: string }>
    *   }>,
@@ -273,7 +273,7 @@ export default class StrandPatchService {
    *
    * @private
    * @param {StrandDescriptor} descriptor
-   * @param {import('../JoinReducer.ts').WarpStateV5} state
+   * @param {import('../JoinReducer.ts').WarpState} state
    * @param {Array<{ patch: Patch, sha: string }>} allPatches
    * @returns {PatchBuilder}
    */
@@ -285,7 +285,7 @@ export default class StrandPatchService {
       /**
        * Return the immutable snapshot state used while assembling one queued intent.
        *
-       * @returns {import('../JoinReducer.ts').WarpStateV5}
+       * @returns {import('../JoinReducer.ts').WarpState}
        */
       getCurrentState: () => state,
       expectedParentSha: descriptor.overlay.headPatchSha ?? null,
@@ -413,7 +413,7 @@ export default class StrandPatchService {
    *
    * @private
    * @param {StrandDescriptor} descriptor
-   * @param {import('../JoinReducer.ts').WarpStateV5} state
+   * @param {import('../JoinReducer.ts').WarpState} state
    * @param {Array<{ patch: Patch, sha: string }>} allPatches
    * @returns {ConstructorParameters<typeof PatchBuilder>[0]}
    */
@@ -426,7 +426,7 @@ export default class StrandPatchService {
       /**
        * Return the runtime's latest cached materialized state for overlay patch builders.
        *
-       * @returns {import('../JoinReducer.ts').WarpStateV5|null}
+       * @returns {import('../JoinReducer.ts').WarpState|null}
        */
       getCurrentState: () => this._graph._cachedState,
       expectedParentSha: descriptor.overlay.headPatchSha ?? null,

@@ -38,7 +38,7 @@
 
 import nullLogger from '../../utils/nullLogger.ts';
 import { decodePatchMessage, assertOpsCompatible, SCHEMA_V3 } from '../codec/WarpMessageCodec.js';
-import { join, cloneStateV5, isKnownRawOp } from '../JoinReducer.ts';
+import { join, cloneState, isKnownRawOp } from '../JoinReducer.ts';
 import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 import SyncError from '../../errors/SyncError.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
@@ -526,11 +526,11 @@ export async function processSyncRequest(request, localFrontier, persistence, gr
  * It returns new objects.
  *
  * @param {SyncResponse} response - Incoming sync response containing patches
- * @param {import('../JoinReducer.ts').WarpStateV5} state - Current CRDT state
+ * @param {import('../JoinReducer.ts').WarpState} state - Current CRDT state
  *   (nodeAlive, edgeAlive, prop, observedFrontier)
  * @param {Map<string, string>} frontier - Current frontier mapping writer IDs to SHAs
- * @returns {{state: import('../JoinReducer.ts').WarpStateV5, frontier: Map<string, string>, applied: number}} Result containing:
- *   - `state`: New WarpStateV5 with patches applied
+ * @returns {{state: import('../JoinReducer.ts').WarpState, frontier: Map<string, string>, applied: number}} Result containing:
+ *   - `state`: New WarpState with patches applied
  *   - `frontier`: New frontier with updated writer tips
  *   - `applied`: Number of patches successfully applied
  * @throws {Error} If a patch contains unsupported op types (schema incompatibility).
@@ -547,7 +547,7 @@ export async function processSyncRequest(request, localFrontier, persistence, gr
  */
 export function applySyncResponse(response, state, frontier) {
   // Clone state and frontier to avoid mutating inputs
-  const newState = cloneStateV5(state);
+  const newState = cloneState(state);
   const newFrontier = cloneFrontier(frontier);
   let applied = 0;
 

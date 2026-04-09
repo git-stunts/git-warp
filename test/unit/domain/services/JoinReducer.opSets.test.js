@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createEmptyStateV5,
+  createEmptyState,
   applyOpV2,
   encodePropKey,
   encodeEdgePropKey,
@@ -122,7 +122,7 @@ describe('JoinReducer op sets (ADR 2 tripwire)', () => {
 
   describe('applyOpV2 accepts canonical ops internally', () => {
     it('applies NodePropSet', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       const addEid = createEventId(1, 'w1', 'a'.repeat(40), 0);
       const propEid = createEventId(2, 'w1', 'b'.repeat(40), 0);
@@ -134,7 +134,7 @@ describe('JoinReducer op sets (ADR 2 tripwire)', () => {
     });
 
     it('applies EdgePropSet', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       const addEid = createEventId(1, 'w1', 'a'.repeat(40), 0);
       const propEid = createEventId(2, 'w1', 'b'.repeat(40), 0);

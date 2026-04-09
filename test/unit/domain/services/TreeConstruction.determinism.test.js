@@ -5,7 +5,7 @@ import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.js';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
 import { createV5 } from '../../../../src/domain/services/state/CheckpointService.js';
-import { createEmptyStateV5, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { CONTENT_PROPERTY_KEY, encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';
@@ -87,7 +87,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
     author: FIXED_AUTHOR,
     clock: FIXED_CLOCK,
   });
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   const frontier = createFrontier();
   updateFrontier(frontier, 'alice', makeOid(0xabc));
 

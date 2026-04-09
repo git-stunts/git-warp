@@ -160,7 +160,7 @@ function normalizeTrustConfig(trust) {
 
 /**
  * @typedef {Object} MaterializedGraph
- * @property {import('./services/JoinReducer.ts').WarpStateV5} state
+ * @property {import('./services/JoinReducer.ts').WarpState} state
  * @property {string|null} stateHash
  * @property {{outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>}} adjacency
  * @property {import('./services/index/BitmapNeighborProvider.js').default} [provider]
@@ -216,7 +216,7 @@ export default class WarpRuntime {
     /** @type {import('./crdt/VersionVector.ts').default} */
     this._versionVector = VersionVector.empty();
 
-    /** @type {import('./services/JoinReducer.ts').WarpStateV5|null} */
+    /** @type {import('./services/JoinReducer.ts').WarpState|null} */
     this._cachedState = null;
 
     /** @type {boolean} */
@@ -276,7 +276,7 @@ export default class WarpRuntime {
     /** @type {Array<{onChange: Function, onError?: Function, pendingReplay?: boolean}>} */
     this._subscribers = [];
 
-    /** @type {import('./services/JoinReducer.ts').WarpStateV5|null} */
+    /** @type {import('./services/JoinReducer.ts').WarpState|null} */
     this._lastNotifiedState = null;
 
     /** @type {import('./services/provenance/ProvenanceIndex.js').ProvenanceIndex|null} */
@@ -496,9 +496,9 @@ export default class WarpRuntime {
   }
 
   /**
-   * Extracts the maximum Lamport timestamp from a WarpStateV5.
+   * Extracts the maximum Lamport timestamp from a WarpState.
    *
-   * @param {import('./services/JoinReducer.ts').WarpStateV5} state
+   * @param {import('./services/JoinReducer.ts').WarpState} state
    * @returns {number} Maximum Lamport value (0 if frontier is empty)
    * @private
    */

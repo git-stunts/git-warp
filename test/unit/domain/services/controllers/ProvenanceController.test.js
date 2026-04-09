@@ -38,7 +38,7 @@ const { ProvenancePayload } = await import(
 // ── Mock JoinReducer ────────────────────────────────────────────────────
 
 vi.mock('../../../../../src/domain/services/JoinReducer.ts', () => ({
-  createEmptyStateV5: vi.fn(() => ({
+  createEmptyState: vi.fn(() => ({
     nodeAlive: new Map(),
     edgeAlive: new Map(),
     prop: new Map(),
@@ -46,7 +46,7 @@ vi.mock('../../../../../src/domain/services/JoinReducer.ts', () => ({
   reduceV5: vi.fn(),
 }));
 
-const { createEmptyStateV5, reduceV5 } = await import(
+const { createEmptyState, reduceV5 } = await import(
   '../../../../../src/domain/services/JoinReducer.ts'
 );
 
@@ -166,7 +166,7 @@ describe('ProvenanceController — materializeSlice', () => {
     const result = await ctrl.materializeSlice('node:x');
 
     expect(result.patchCount).toBe(0);
-    expect(createEmptyStateV5).toHaveBeenCalledOnce();
+    expect(createEmptyState).toHaveBeenCalledOnce();
     expect(host._logTiming).toHaveBeenCalledWith(
       'materializeSlice',
       expect.any(Number),

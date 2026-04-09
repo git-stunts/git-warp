@@ -11,7 +11,7 @@ import { diffStates, isEmptyDiff } from '../state/StateDiff.js';
 import { matchGlob } from '../../utils/matchGlob.ts';
 import WarpError from '../../errors/WarpError.ts';
 
-/** @import { WarpStateV5 } from '../JoinReducer.ts' */
+/** @import { WarpState } from '../JoinReducer.ts' */
 /** @import { StateDiffResult, EdgeChange, PropSet, PropRemoved } from '../state/StateDiff.js' */
 
 /**
@@ -25,7 +25,7 @@ import WarpError from '../../errors/WarpError.ts';
  * The host interface that SubscriptionController depends on.
  *
  * @typedef {Object} SubscriptionHost
- * @property {WarpStateV5|null} _cachedState
+ * @property {WarpState|null} _cachedState
  * @property {Array<{onChange: Function, onError?: Function, pendingReplay?: boolean}>} _subscribers
  * @property {() => Promise<boolean>} hasFrontierChanged
  * @property {(options?: Record<string, unknown>) => Promise<unknown>} materialize
@@ -221,7 +221,7 @@ export default class SubscriptionController {
    * cached state was available.
    *
    * @param {StateDiffResult} diff
-   * @param {WarpStateV5} currentState
+   * @param {WarpState} currentState
    */
   _notifySubscribers(diff, currentState) {
     for (const subscriber of /** @type {Subscriber[]} */ ([...this._host._subscribers])) {

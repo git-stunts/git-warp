@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
-import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildTestState() {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   const writer = 'w1';
   const sha = 'a'.repeat(40);
   let opIdx = 0;
@@ -60,7 +60,7 @@ describe('MaterializedViewService.verifyIndex', () => {
     const state = buildTestState();
 
     // Build index from a smaller state (only 2 nodes, no edges)
-    const smallState = createEmptyStateV5();
+    const smallState = createEmptyState();
     const writer = 'w1';
     const sha = 'b'.repeat(40);
     let opIdx = 0;
@@ -162,7 +162,7 @@ describe('MaterializedViewService.verifyIndex', () => {
 
   it('handles empty state without errors', () => {
     const service = new MaterializedViewService();
-    const state = createEmptyStateV5();
+    const state = createEmptyState();
     const { logicalIndex } = service.build(state);
 
     const result = service.verifyIndex({
@@ -178,7 +178,7 @@ describe('MaterializedViewService.verifyIndex', () => {
 
   it('detects missing alive nodes even when edge signatures are empty', () => {
     const service = new MaterializedViewService();
-    const state = createEmptyStateV5();
+    const state = createEmptyState();
     const writer = 'w1';
     const sha = 'c'.repeat(40);
     let opIdx = 0;

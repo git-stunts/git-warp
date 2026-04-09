@@ -11,7 +11,7 @@
 
 import VersionVector from '../crdt/VersionVector.ts';
 import WarpError from '../errors/WarpError.ts';
-import type WarpStateV5 from './state/WarpStateV5.ts';
+import type WarpState from './state/WarpState.ts';
 import GCMetrics from './GCMetrics.ts';
 import GCExecuteResult from './GCExecuteResult.ts';
 
@@ -19,7 +19,7 @@ import GCExecuteResult from './GCExecuteResult.ts';
  * Compacts both alive sets in place. Throws `E_GC_COMPACT_FAILED` on
  * any underlying ORSet failure, including partial-compaction recovery.
  */
-function compactORSets(state: WarpStateV5, appliedVV: VersionVector): void {
+function compactORSets(state: WarpState, appliedVV: VersionVector): void {
   let nodesDone = false;
   try {
     state.nodeAlive.compact(appliedVV);
@@ -42,7 +42,7 @@ function compactORSets(state: WarpStateV5, appliedVV: VersionVector): void {
  * @throws {WarpError} `E_GC_COMPACT_FAILED` if ORSet.compact throws
  */
 export default function executeGC(
-  state: WarpStateV5,
+  state: WarpState,
   appliedVV: VersionVector,
 ): GCExecuteResult {
   if (!(appliedVV instanceof VersionVector)) {

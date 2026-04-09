@@ -1,4 +1,4 @@
-import type WarpStateV5 from '../domain/services/state/WarpStateV5.ts';
+import type WarpState from '../domain/services/state/WarpState.ts';
 import type VersionVector from '../domain/crdt/VersionVector.ts';
 import type { ProvenanceIndex } from '../domain/services/provenance/ProvenanceIndex.js';
 
@@ -14,7 +14,7 @@ import type { ProvenanceIndex } from '../domain/services/provenance/ProvenanceIn
  */
 
 export interface CheckpointRecord {
-  state: WarpStateV5;
+  state: WarpState;
   frontier: Map<string, string>;
   appliedVV: VersionVector;
   stateHash: string;
@@ -29,7 +29,7 @@ export interface CheckpointWriteResult {
 }
 
 export interface CheckpointData {
-  state: WarpStateV5;
+  state: WarpState;
   frontier: Map<string, string>;
   appliedVV: VersionVector | null;
   stateHash: string;

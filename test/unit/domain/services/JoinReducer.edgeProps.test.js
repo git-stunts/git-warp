@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createEmptyStateV5,
+  createEmptyState,
   encodeEdgeKey,
   encodePropKey,
   encodeEdgePropKey,
@@ -581,8 +581,8 @@ describe('JoinReducer — edge property LWW', () => {
   // =========================================================================
   describe('joinStates merges edge props via LWW', () => {
     it('merges conflicting edge props from two separate states', () => {
-      const stateA = createEmptyStateV5();
-      const stateB = createEmptyStateV5();
+      const stateA = createEmptyState();
+      const stateB = createEmptyState();
 
       // Apply edge prop in state A at lamport 1
       applyOpV2(
@@ -605,8 +605,8 @@ describe('JoinReducer — edge property LWW', () => {
     });
 
     it('joinStates is commutative for edge props', () => {
-      const stateA = createEmptyStateV5();
-      const stateB = createEmptyStateV5();
+      const stateA = createEmptyState();
+      const stateB = createEmptyState();
 
       applyOpV2(
         stateA,
@@ -693,7 +693,7 @@ describe('JoinReducer — edge property LWW', () => {
   // =========================================================================
   describe('applyOpV2 — direct edge PropSet', () => {
     it('applies edge PropSet via applyOpV2', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const eventId = createEventId(1, 'W', 'abcd1234', 0);
       const op = createEdgePropSetV2('from', 'to', 'label', 'key', createInlineValue('val'));
 
@@ -705,7 +705,7 @@ describe('JoinReducer — edge property LWW', () => {
     });
 
     it('LWW correctly resolves when applying two ops via applyOpV2', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const op = createEdgePropSetV2('f', 't', 'l', 'k', createInlineValue('old'));
 
       // Apply lower EventId first
@@ -719,7 +719,7 @@ describe('JoinReducer — edge property LWW', () => {
     });
 
     it('LWW does not overwrite when applying lower EventId second', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       // Apply higher EventId first
       const opHigh = createEdgePropSetV2('f', 't', 'l', 'k', createInlineValue('winner'));

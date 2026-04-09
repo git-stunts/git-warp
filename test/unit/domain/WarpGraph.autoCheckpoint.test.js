@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
-import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
 /**
@@ -372,7 +372,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
       checkpointPolicy: { every: 3 },
     });
 
-    const checkpointState = createEmptyStateV5();
+    const checkpointState = createEmptyState();
 
     // Build 4 fake patch objects for _loadPatchesSince
     const patches = [];
@@ -408,7 +408,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
       checkpointPolicy: { every: 10 },
     });
 
-    const checkpointState = createEmptyStateV5();
+    const checkpointState = createEmptyState();
 
     const patches = [];
     for (let i = 1; i <= 3; i++) {
@@ -453,7 +453,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
 
     const state = /** @type {any} */ (await graph.materialize());
 
-    // Should return a WarpStateV5, not a SHA string
+    // Should return a WarpState, not a SHA string
     expect(typeof state).toBe('object');
     expect(state.nodeAlive).toBeDefined();
     expect(state.edgeAlive).toBeDefined();
@@ -503,7 +503,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
       writerId: 'w1',
     });
 
-    const checkpointState = createEmptyStateV5();
+    const checkpointState = createEmptyState();
 
     const patches = [];
     for (let i = 1; i <= 2; i++) {

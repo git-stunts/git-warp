@@ -9,7 +9,7 @@
  * @module domain/services/GCMetrics
  */
 
-import type WarpStateV5 from './state/WarpStateV5.ts';
+import type WarpState from './state/WarpState.ts';
 
 /**
  * Immutable snapshot of GC-relevant counters for a materialized state.
@@ -73,7 +73,7 @@ export default class GCMetrics {
   /**
    * Collects a GCMetrics snapshot from a materialized WARP state.
    */
-  static fromState(state: WarpStateV5): GCMetrics {
+  static fromState(state: WarpState): GCMetrics {
     return new GCMetrics({
       nodeEntries: state.nodeAlive.countEntries(),
       edgeEntries: state.edgeAlive.countEntries(),

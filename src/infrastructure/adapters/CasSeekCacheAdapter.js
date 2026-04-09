@@ -2,7 +2,7 @@
  * CAS-backed seek materialization cache adapter.
  *
  * Implements SeekCachePort using @git-stunts/git-cas for persistent storage
- * of serialized WarpStateV5 snapshots. Each cached state is stored as a CAS
+ * of serialized WarpState snapshots. Each cached state is stored as a CAS
  * asset (chunked blobs + manifest tree), and an index ref tracks the mapping
  * from cache keys to tree OIDs.
  *

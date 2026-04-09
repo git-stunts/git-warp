@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
-import { encodeEdgeKey, createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.ts';
+import { encodeEdgeKey, createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { serializeFullStateV5, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializerV5.js';
 import { serializeFrontier } from '../../../src/domain/services/Frontier.js';
 import { ProvenanceIndex } from '../../../src/domain/services/provenance/ProvenanceIndex.js';
@@ -480,7 +480,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
       index.addPatch(sha1, [], ['user:alice']);
       index.addPatch(sha2, ['user:alice'], ['user:alice']);
 
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const frontier = new Map([['alice', sha2]]);
       const appliedVV = computeAppliedVV(state);
 

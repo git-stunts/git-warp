@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import CheckpointController from '../../../../src/domain/services/controllers/CheckpointController.js';
-import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
@@ -23,7 +23,7 @@ function createMockHost(overrides = {}) {
   const frontier = createFrontier();
   updateFrontier(frontier, 'w1', 'a'.repeat(40));
 
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   // Add a live node and a dead node with tombstone
   const dot1 = createDot('w1', 1);
   const dot2 = createDot('w1', 2);
@@ -125,7 +125,7 @@ describe('B63 — GC snapshot isolation', () => {
       });
 
       // Should not throw
-      expect(() => new CheckpointController(/** @type {any} */ (host))._maybeRunGC(createEmptyStateV5())).not.toThrow();
+      expect(() => new CheckpointController(/** @type {any} */ (host))._maybeRunGC(createEmptyState())).not.toThrow();
     });
   });
 

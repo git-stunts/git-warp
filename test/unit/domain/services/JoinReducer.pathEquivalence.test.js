@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  createEmptyStateV5,
+  createEmptyState,
   applyFast,
   applyWithReceipt,
   applyWithDiff,
@@ -73,10 +73,10 @@ function makePatch(writer, lamport, ops, context = {}) {
 }
 
 /**
- * Deep-compares two WarpStateV5 objects for structural equality.
+ * Deep-compares two WarpState objects for structural equality.
  * Checks all five fields: nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthEvent.
- * @param {import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5} a
- * @param {import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5} b
+ * @param {import('../../../../src/domain/services/JoinReducer.ts').WarpState} a
+ * @param {import('../../../../src/domain/services/JoinReducer.ts').WarpState} b
  * @param {string} [label]
  */
 function assertStatesEqual(a, b, label = '') {
@@ -200,9 +200,9 @@ describe('cross-path state equivalence', () => {
     const patch = makePatch('alice', 1, [nodeAdd('user:alice', dot1)]);
     const sha = 'a'.repeat(40);
 
-    const stateFast = applyFast(createEmptyStateV5(), patch, sha);
-    const { state: stateReceipt } = applyWithReceipt(createEmptyStateV5(), patch, sha);
-    const { state: stateDiff } = applyWithDiff(createEmptyStateV5(), patch, sha);
+    const stateFast = applyFast(createEmptyState(), patch, sha);
+    const { state: stateReceipt } = applyWithReceipt(createEmptyState(), patch, sha);
+    const { state: stateDiff } = applyWithDiff(createEmptyState(), patch, sha);
 
     assertStatesEqual(stateFast, stateReceipt, 'fast vs receipt');
     assertStatesEqual(stateFast, stateDiff, 'fast vs diff');
@@ -216,15 +216,15 @@ describe('cross-path state equivalence', () => {
     const sha1 = 'a'.repeat(40);
     const sha2 = 'b'.repeat(40);
 
-    const s1 = createEmptyStateV5();
+    const s1 = createEmptyState();
     applyFast(s1, addPatch, sha1);
     applyFast(s1, removePatch, sha2);
 
-    const s2 = createEmptyStateV5();
+    const s2 = createEmptyState();
     applyWithReceipt(s2, addPatch, sha1);
     applyWithReceipt(s2, removePatch, sha2);
 
-    const s3 = createEmptyStateV5();
+    const s3 = createEmptyState();
     applyWithDiff(s3, addPatch, sha1);
     applyWithDiff(s3, removePatch, sha2);
 
@@ -244,15 +244,15 @@ describe('cross-path state equivalence', () => {
     const sha1 = 'c'.repeat(40);
     const sha2 = 'd'.repeat(40);
 
-    const s1 = createEmptyStateV5();
+    const s1 = createEmptyState();
     applyFast(s1, addPatch, sha1);
     applyFast(s1, removePatch, sha2);
 
-    const s2 = createEmptyStateV5();
+    const s2 = createEmptyState();
     applyWithReceipt(s2, addPatch, sha1);
     applyWithReceipt(s2, removePatch, sha2);
 
-    const s3 = createEmptyStateV5();
+    const s3 = createEmptyState();
     applyWithDiff(s3, addPatch, sha1);
     applyWithDiff(s3, removePatch, sha2);
 
@@ -267,9 +267,9 @@ describe('cross-path state equivalence', () => {
     ]);
     const sha = 'e'.repeat(40);
 
-    const s1 = applyFast(createEmptyStateV5(), patch, sha);
-    const { state: s2 } = applyWithReceipt(createEmptyStateV5(), patch, sha);
-    const { state: s3 } = applyWithDiff(createEmptyStateV5(), patch, sha);
+    const s1 = applyFast(createEmptyState(), patch, sha);
+    const { state: s2 } = applyWithReceipt(createEmptyState(), patch, sha);
+    const { state: s3 } = applyWithDiff(createEmptyState(), patch, sha);
 
     assertStatesEqual(s1, s2, 'fast vs receipt');
     assertStatesEqual(s1, s3, 'fast vs diff');
@@ -284,9 +284,9 @@ describe('cross-path state equivalence', () => {
     ]);
     const sha = 'f'.repeat(40);
 
-    const s1 = applyFast(createEmptyStateV5(), patch, sha);
-    const { state: s2 } = applyWithReceipt(createEmptyStateV5(), patch, sha);
-    const { state: s3 } = applyWithDiff(createEmptyStateV5(), patch, sha);
+    const s1 = applyFast(createEmptyState(), patch, sha);
+    const { state: s2 } = applyWithReceipt(createEmptyState(), patch, sha);
+    const { state: s3 } = applyWithDiff(createEmptyState(), patch, sha);
 
     assertStatesEqual(s1, s2, 'fast vs receipt');
     assertStatesEqual(s1, s3, 'fast vs diff');
@@ -298,9 +298,9 @@ describe('cross-path state equivalence', () => {
     ]);
     const sha = '1'.repeat(40);
 
-    const s1 = applyFast(createEmptyStateV5(), patch, sha);
-    const { state: s2 } = applyWithReceipt(createEmptyStateV5(), patch, sha);
-    const { state: s3 } = applyWithDiff(createEmptyStateV5(), patch, sha);
+    const s1 = applyFast(createEmptyState(), patch, sha);
+    const { state: s2 } = applyWithReceipt(createEmptyState(), patch, sha);
+    const { state: s3 } = applyWithDiff(createEmptyState(), patch, sha);
 
     assertStatesEqual(s1, s2, 'fast vs receipt');
     assertStatesEqual(s1, s3, 'fast vs diff');
@@ -321,15 +321,15 @@ describe('cross-path state equivalence', () => {
     const sha1 = '2'.repeat(40);
     const sha2 = '3'.repeat(40);
 
-    const s1 = createEmptyStateV5();
+    const s1 = createEmptyState();
     applyFast(s1, alicePatch, sha1);
     applyFast(s1, bobPatch, sha2);
 
-    const s2 = createEmptyStateV5();
+    const s2 = createEmptyState();
     applyWithReceipt(s2, alicePatch, sha1);
     applyWithReceipt(s2, bobPatch, sha2);
 
-    const s3 = createEmptyStateV5();
+    const s3 = createEmptyState();
     applyWithDiff(s3, alicePatch, sha1);
     applyWithDiff(s3, bobPatch, sha2);
 
@@ -360,15 +360,15 @@ describe('cross-path state equivalence', () => {
     ]);
     const sha = '7'.repeat(40);
 
-    const s1 = createEmptyStateV5();
+    const s1 = createEmptyState();
     applyFast(s1, patch, sha);
     applyFast(s1, patch, sha); // redundant re-application
 
-    const s2 = createEmptyStateV5();
+    const s2 = createEmptyState();
     applyWithReceipt(s2, patch, sha);
     applyWithReceipt(s2, patch, sha);
 
-    const s3 = createEmptyStateV5();
+    const s3 = createEmptyState();
     applyWithDiff(s3, patch, sha);
     applyWithDiff(s3, patch, sha);
 
@@ -390,9 +390,9 @@ describe('cross-path state equivalence', () => {
     ]);
     const sha = '8'.repeat(40);
 
-    const s1 = applyFast(createEmptyStateV5(), patch, sha);
-    const { state: s2 } = applyWithReceipt(createEmptyStateV5(), patch, sha);
-    const { state: s3 } = applyWithDiff(createEmptyStateV5(), patch, sha);
+    const s1 = applyFast(createEmptyState(), patch, sha);
+    const { state: s2 } = applyWithReceipt(createEmptyState(), patch, sha);
+    const { state: s3 } = applyWithDiff(createEmptyState(), patch, sha);
 
     assertStatesEqual(s1, s2, 'fast vs receipt (all ops)');
     assertStatesEqual(s1, s3, 'fast vs diff (all ops)');

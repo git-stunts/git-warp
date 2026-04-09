@@ -8,7 +8,7 @@ import {
 } from '../../../../src/domain/services/state/CheckpointSerializerV5.js';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import {
-  createEmptyStateV5,
+  createEmptyState,
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
@@ -28,7 +28,7 @@ function mockEventId(lamport = 1, writerId = 'test', patchSha = 'abcd1234', opIn
  * Helper to build a V5 state with specific nodes, edges, and props.
  */
 function buildStateV5({ nodes = /** @type {any[]} */ ([]), edges = /** @type {any[]} */ ([]), props = /** @type {any[]} */ ([]), tombstoneDots = /** @type {any[]} */ ([]) }) {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
 
   // Add nodes with their dots
   for (const { nodeId, writerId, counter } of nodes) {
@@ -97,7 +97,7 @@ describe('CheckpointSerializerV5', () => {
     });
 
     it('round-trips empty state', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const buffer = serializeFullStateV5(state);
       const restored = deserializeFullStateV5(buffer);
@@ -192,7 +192,7 @@ describe('CheckpointSerializerV5', () => {
     });
 
     it('round-trips state with observedFrontier', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.observedFrontier.set('alice', 5);
       state.observedFrontier.set('bob', 3);
 
@@ -330,7 +330,7 @@ describe('CheckpointSerializerV5', () => {
 
   describe('computeAppliedVV', () => {
     it('returns empty map for empty state', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const vv = computeAppliedVV(state);
 
@@ -391,7 +391,7 @@ describe('CheckpointSerializerV5', () => {
     });
 
     it('handles multiple dots per element', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       // Add multiple dots to the same node (simulating concurrent adds)
       state.nodeAlive.add('shared', createDot('alice', 1));
@@ -504,7 +504,7 @@ describe('CheckpointSerializerV5', () => {
     });
 
     it('handles state with removed nodes (tombstones)', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       // Add a node
       const addDot = createDot('alice', 1);

@@ -2,7 +2,7 @@
  * Key encoding/decoding for WARP graph CRDT state maps.
  *
  * Single source of truth for encoding composite keys (edges, properties,
- * edge properties) used as Map keys in WarpStateV5. Uses null character
+ * edge properties) used as Map keys in WarpState. Uses null character
  * (\0) as field separator and \x01 prefix for edge property keys.
  *
  * @module domain/services/KeyCodec

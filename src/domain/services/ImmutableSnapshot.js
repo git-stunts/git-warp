@@ -12,7 +12,7 @@
 import VersionVector from '../crdt/VersionVector.ts';
 import WarpError from '../errors/WarpError.ts';
 
-/** @typedef {import('./JoinReducer.ts').WarpStateV5} WarpStateV5 */
+/** @typedef {import('./JoinReducer.ts').WarpState} WarpState */
 
 const MAP_MUTATORS = new Set(['set', 'delete', 'clear']);
 const SET_MUTATORS = new Set(['add', 'delete', 'clear']);
@@ -211,10 +211,10 @@ export function createImmutableValue(value) {
 }
 
 /**
- * Create a deeply frozen immutable clone of a WarpStateV5 instance.
- * @param {WarpStateV5} state
- * @returns {WarpStateV5}
+ * Create a deeply frozen immutable clone of a WarpState instance.
+ * @param {WarpState} state
+ * @returns {WarpState}
  */
-export function createImmutableWarpStateV5(state) {
+export function createImmutableWarpState(state) {
   return createImmutableValue(state);
 }

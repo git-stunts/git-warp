@@ -22,7 +22,7 @@ import CoordinateSelector from '../types/CoordinateSelector.ts';
 /**
 
 
- * @typedef {import('./JoinReducer.ts').WarpStateV5 | { state: import('./JoinReducer.ts').WarpStateV5, receipts: import('../types/TickReceipt.ts').TickReceipt[] }} MaterializedSourceResult
+ * @typedef {import('./JoinReducer.ts').WarpState | { state: import('./JoinReducer.ts').WarpState, receipts: import('../types/TickReceipt.ts').TickReceipt[] }} MaterializedSourceResult
  * @typedef {{
  *   _materializeGraph: () => Promise<{
  *     state: unknown,
@@ -113,7 +113,7 @@ function orUndefined(value) {
  * @param {WarpRuntime} graph
  * @param {{ kind: 'live', ceiling?: number|null }} source
  * @param {boolean} collectReceipts
- * @returns {Promise<import('./JoinReducer.ts').WarpStateV5 | { state: import('./JoinReducer.ts').WarpStateV5, receipts: import('../types/TickReceipt.ts').TickReceipt[] }>}
+ * @returns {Promise<import('./JoinReducer.ts').WarpState | { state: import('./JoinReducer.ts').WarpState, receipts: import('../types/TickReceipt.ts').TickReceipt[] }>}
  */
 async function materializeLiveSource(graph, source, collectReceipts) {
   if (collectReceipts) {
@@ -133,7 +133,7 @@ async function materializeLiveSource(graph, source, collectReceipts) {
  * @param {WarpRuntime} graph
  * @param {{ kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null }} source
  * @param {boolean} collectReceipts
- * @returns {Promise<import('./JoinReducer.ts').WarpStateV5 | { state: import('./JoinReducer.ts').WarpStateV5, receipts: import('../types/TickReceipt.ts').TickReceipt[] }>}
+ * @returns {Promise<import('./JoinReducer.ts').WarpState | { state: import('./JoinReducer.ts').WarpState, receipts: import('../types/TickReceipt.ts').TickReceipt[] }>}
  */
 async function materializeCoordinateSource(graph, source, collectReceipts) {
   if (collectReceipts) {
@@ -186,7 +186,7 @@ async function materializeStrandSource(graph, source, collectReceipts) {
  * @param {WarpRuntime} graph
  * @param {import('../types/WorldlineSelector.ts').default} source
  * @param {boolean} collectReceipts
- * @returns {Promise<import('./JoinReducer.ts').WarpStateV5 | { state: import('./JoinReducer.ts').WarpStateV5, receipts: import('../types/TickReceipt.ts').TickReceipt[] }>}
+ * @returns {Promise<import('./JoinReducer.ts').WarpState | { state: import('./JoinReducer.ts').WarpState, receipts: import('../types/TickReceipt.ts').TickReceipt[] }>}
  */
 async function materializeSource(graph, source, collectReceipts) {
   if (source instanceof LiveSelector) {
@@ -258,7 +258,7 @@ export default class Worldline {
    * Materializes the pinned worldline source into a detached snapshot.
    *
    * @param {{ receipts?: false } | { receipts: true }} [options]
-   * @returns {Promise<import('./JoinReducer.ts').WarpStateV5 | { state: import('./JoinReducer.ts').WarpStateV5, receipts: import('../types/TickReceipt.ts').TickReceipt[] }>}
+   * @returns {Promise<import('./JoinReducer.ts').WarpState | { state: import('./JoinReducer.ts').WarpState, receipts: import('../types/TickReceipt.ts').TickReceipt[] }>}
    */
   async materialize(options = undefined) {
     const detached = await openDetachedReadGraph(this._graph);

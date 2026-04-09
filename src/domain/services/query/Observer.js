@@ -103,7 +103,7 @@ function sortNeighbors(list) {
 
 /**
  * Checks whether both edge endpoints are alive and match the glob pattern.
- * @param {{ state: import('../JoinReducer.ts').WarpStateV5, pattern: string|string[] }} ctx
+ * @param {{ state: import('../JoinReducer.ts').WarpState, pattern: string|string[] }} ctx
  * @param {string} from
  * @param {string} to
  * @returns {boolean}
@@ -129,7 +129,7 @@ function pushAdjacencyEntry(map, key, entry) {
 /**
  * Builds filtered adjacency maps by scanning all edges in the OR-Set.
  *
- * @param {import('../JoinReducer.ts').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpState} state
  * @param {string|string[]} pattern
  * @returns {{ outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]> }}
  */
@@ -215,7 +215,7 @@ export default class Observer {
   /**
    * Creates a new Observer.
    *
-   * @param {{ name: string, config: { match: string|string[], expose?: string[], redact?: string[] }, graph?: import('../../WarpRuntime.js').default, snapshot?: { state: import('../JoinReducer.ts').WarpStateV5, stateHash: string }, source?: { kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } }} options
+   * @param {{ name: string, config: { match: string|string[], expose?: string[], redact?: string[] }, graph?: import('../../WarpRuntime.js').default, snapshot?: { state: import('../JoinReducer.ts').WarpState, stateHash: string }, source?: { kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } }} options
    */
   constructor({ name, config, graph, snapshot, source }) {
     this._initIdentity(name, config);
@@ -251,14 +251,14 @@ export default class Observer {
   /**
    * Initializes the backing graph, snapshot, and source state.
    * @param {import('../../WarpRuntime.js').default|undefined} graph
-   * @param {{ state: import('../JoinReducer.ts').WarpStateV5, stateHash: string }|undefined} snapshot
+   * @param {{ state: import('../JoinReducer.ts').WarpState, stateHash: string }|undefined} snapshot
    * @param {import('../../types/WorldlineSelector.ts').default|import('../../../../index.js').WorldlineSource|undefined} source
    * @private
    */
   _initBacking(graph, snapshot, source) {
     /** @type {import('../../WarpRuntime.js').default|null} */
     this._graph = graph || null;
-    /** @type {{ state: import('../JoinReducer.ts').WarpStateV5, stateHash: string }|null} */
+    /** @type {{ state: import('../JoinReducer.ts').WarpState, stateHash: string }|null} */
     this._snapshot = snapshot || null;
     /** @type {WorldlineSelector|null} */
     this._source = toSelector(/** @type {WorldlineSelector|{ kind: string, [key: string]: unknown }} */ (source || new LiveSelector()));
@@ -373,7 +373,7 @@ export default class Observer {
     }
 
     const graph = this._requireGraph();
-    const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: import('../JoinReducer.ts').WarpStateV5, stateHash: string, provider?: import('../index/BitmapNeighborProvider.js').default, adjacency: {outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]>}}> }} */ (graph)._materializeGraph();
+    const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: import('../JoinReducer.ts').WarpState, stateHash: string, provider?: import('../index/BitmapNeighborProvider.js').default, adjacency: {outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]>}}> }} */ (graph)._materializeGraph();
     const { state, stateHash } = materialized;
 
     /** @type {{ outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]> }} */

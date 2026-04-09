@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
-import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import { createDot } from '../../../src/domain/crdt/Dot.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
@@ -161,7 +161,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      const otherState = createEmptyStateV5();
+      const otherState = createEmptyState();
 
       expect(() => graph.join(otherState)).toThrow('No materialized state');
     });
@@ -174,7 +174,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyState();
 
       expect(() => graph.join(/** @type {any} */ (null))).toThrow('Invalid state');
     });
@@ -187,7 +187,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyState();
 
       expect(() => graph.join(/** @type {any} */ ({ edgeAlive: ORSet.empty() }))).toThrow('Invalid state');
     });
@@ -200,7 +200,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyState();
 
       expect(() => graph.join(/** @type {any} */ ({ nodeAlive: ORSet.empty() }))).toThrow('Invalid state');
     });
@@ -213,8 +213,8 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
-      const otherState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyState();
+      const otherState = createEmptyState();
 
       const { state, receipt } = graph.join(otherState);
 
@@ -235,9 +235,9 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyState();
 
-      const otherState = createEmptyStateV5();
+      const otherState = createEmptyState();
       const dot = createDot('writer-2', 1);
       otherState.nodeAlive.add('user:alice', dot);
 
@@ -257,10 +257,10 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyState();
       /** @type {any} */ (graph)._stateDirty = false;
 
-      const otherState = createEmptyStateV5();
+      const otherState = createEmptyState();
       const dot = createDot('writer-2', 1);
       otherState.nodeAlive.add('user:alice', dot);
 
@@ -282,10 +282,10 @@ describe('WarpRuntime coverage gaps', () => {
         autoMaterialize: false,
       });
 
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyState();
       /** @type {any} */ (graph)._stateDirty = false;
 
-      const otherState = createEmptyStateV5();
+      const otherState = createEmptyState();
       const dot = createDot('writer-2', 1);
       otherState.nodeAlive.add('user:alice', dot);
 
@@ -303,7 +303,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      const baseState = createEmptyStateV5();
+      const baseState = createEmptyState();
       const dotA = createDot('writer-1', 1);
       const dotB = createDot('writer-1', 2);
       baseState.nodeAlive.add('user:alice', dotA);
@@ -313,7 +313,7 @@ describe('WarpRuntime coverage gaps', () => {
       /** @type {any} */ (graph)._cachedState = baseState;
       /** @type {any} */ (graph)._stateDirty = false;
 
-      const otherState = createEmptyStateV5();
+      const otherState = createEmptyState();
       const dotC = createDot('writer-2', 1);
       otherState.nodeAlive.add('user:alice', dotC);
       otherState.nodeAlive.add('user:bob', dotC);
@@ -335,11 +335,11 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyState();
       /** @type {any} */ (graph)._stateDirty = false;
       /** @type {any} */ (graph)._cachedViewHash = 'stale-hash-value';
 
-      const otherState = createEmptyStateV5();
+      const otherState = createEmptyState();
       graph.join(otherState);
 
       expect(/** @type {any} */ (graph)._cachedViewHash).toBeNull();
@@ -353,12 +353,12 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      const baseState = createEmptyStateV5();
+      const baseState = createEmptyState();
       baseState.observedFrontier.set('writer-1', 3);
       /** @type {any} */ (graph)._cachedState = baseState;
       /** @type {any} */ (graph)._stateDirty = false;
 
-      const otherState = createEmptyStateV5();
+      const otherState = createEmptyState();
       otherState.observedFrontier.set('writer-2', 5);
 
       graph.join(otherState);
@@ -399,7 +399,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyState();
       /** @type {any} */ (graph)._stateDirty = false;
       /** @type {any} */ (graph)._provenanceIndex = null;
       /** @type {any} */ (graph)._lastFrontier = null;
@@ -442,7 +442,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyState();
       /** @type {any} */ (graph)._stateDirty = false;
       /** @type {any} */ (graph)._provenanceIndex = null;
       /** @type {any} */ (graph)._lastFrontier = null;
@@ -488,7 +488,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const diff = {
         nodesAdded: ['user:alice'],
         nodesRemoved: [],
@@ -516,7 +516,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const diff = {
         nodesAdded: ['user:bob'],
         nodesRemoved: [],
@@ -563,7 +563,7 @@ describe('WarpRuntime coverage gaps', () => {
       });
 
       // Set up a minimal cached state — empty state has no tombstones
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyState();
 
       const result = graph.maybeRunGC();
 
@@ -587,7 +587,7 @@ describe('WarpRuntime coverage gaps', () => {
       });
 
       // Set up state with a node that has a dot (so metrics show entries)
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('writer-1', 1);
       state.nodeAlive.add('user:alice', dot);
       /** @type {any} */ (graph)._cachedState = state;
@@ -627,7 +627,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('writer-1', 1);
       state.nodeAlive.add('user:alice', dot);
       /** @type {any} */ (graph)._cachedState = state;
@@ -650,7 +650,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyState();
       /** @type {any} */ (graph)._patchesSinceGC = 42;
       /** @type {any} */ (graph)._lastGCTime = 1234567890;
 
@@ -833,7 +833,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyState();
 
       const count = await graph.getPropertyCount();
 
@@ -848,7 +848,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.prop.set('user:alice\0name', { value: 'Alice', eventId: /** @type {any} */ ('writer-1:1') });
       state.prop.set('user:alice\0age', { value: 30, eventId: /** @type {any} */ ('writer-1:2') });
       state.prop.set('user:bob\0name', { value: 'Bob', eventId: /** @type {any} */ ('writer-1:3') });
@@ -1102,7 +1102,7 @@ describe('WarpRuntime coverage gaps', () => {
         autoMaterialize: false,
       });
 
-      const checkpointState = createEmptyStateV5();
+      const checkpointState = createEmptyState();
       const loadLatestCheckpointSpy = vi
         .spyOn(/** @type {any} */ (graph), '_loadLatestCheckpoint')
         .mockResolvedValue({ state: checkpointState });
@@ -1199,7 +1199,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const result = /** @type {any} */ (graph)._maxLamportFromState(state);
 
       expect(result).toBe(0);
@@ -1213,7 +1213,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.observedFrontier.set('w1', 3);
       state.observedFrontier.set('w2', 10);
       state.observedFrontier.set('w3', 7);
@@ -1231,7 +1231,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.observedFrontier.set('w1', 42);
 
       const result = /** @type {any} */ (graph)._maxLamportFromState(state);

@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
-import { createEmptyStateV5, encodeEdgeKey, encodeEdgePropKey } from '../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, encodeEdgeKey, encodeEdgePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import { createDot } from '../../../src/domain/crdt/Dot.ts';
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
 import PersistenceError from '../../../src/domain/errors/PersistenceError.ts';
 
 function setupGraphState(/** @type {any} */ graph, /** @type {any} */ seedFn) {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   /** @type {any} */ (graph)._cachedState = state;
   graph.materialize = vi.fn().mockResolvedValue(state);
   seedFn(state);

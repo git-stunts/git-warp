@@ -29,7 +29,7 @@ import type RefPort from '../../ports/RefPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
-import type { WarpStateV5 } from '../services/JoinReducer.ts';
+import type { WarpState } from '../services/JoinReducer.ts';
 
 // Re-export for backward compatibility — consumers importing from Writer.ts
 // should migrate to importing from '../errors/WriterError.ts' directly.
@@ -84,7 +84,7 @@ interface WriterOptions {
   graphName: string;
   writerId: string;
   versionVector: VersionVector;
-  getCurrentState: () => WarpStateV5 | null;
+  getCurrentState: () => WarpState | null;
   onCommitSuccess?: (result: { patch: Patch; sha: string }) => void | Promise<void>;
   onDeleteWithData?: OnDeleteWithData;
   patchJournal: PatchJournalPort;
@@ -100,7 +100,7 @@ export class Writer {
   private _graphName: string;
   private _writerId: string;
   private _versionVector: VersionVector;
-  private _getCurrentState: () => WarpStateV5 | null;
+  private _getCurrentState: () => WarpState | null;
   private _onCommitSuccess: ((result: { patch: Patch; sha: string }) => void | Promise<void>) | undefined;
   private _onDeleteWithData: OnDeleteWithData;
   private _patchJournal: PatchJournalPort;

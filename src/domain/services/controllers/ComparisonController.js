@@ -32,7 +32,7 @@ const COORDINATE_COMPARISON_VERSION = 'coordinate-compare/v1';
 const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
 
 /** @import { VisibleStateScopeV1, VisibleStateReaderV5, CoordinateComparisonSelectorV1, CoordinateTransferPlanSelectorV1, CoordinateComparisonV1, CoordinateTransferPlanV1, StrandDescriptor as StrandDescriptorV1 } from '../../../../index.js' */
-/** @import { WarpStateV5 } from '../JoinReducer.ts' */
+/** @import { WarpState } from '../JoinReducer.ts' */
 
 /**
  * @typedef {{ left: Record<string, unknown>, right: Record<string, unknown>, targetId?: string|null, scope?: VisibleStateScopeV1|null }} InternalCompareCoordinatesOptions
@@ -145,7 +145,7 @@ class StrandSelector extends NormalizedSelector {
   async resolve(graph, scope) {
     const strands = new StrandService({ graph });
     const descriptor = await strands.getOrThrow(this.strandId);
-    const state = /** @type {WarpStateV5} */ (await callInternalRuntimeMethod(
+    const state = /** @type {WarpState} */ (await callInternalRuntimeMethod(
       graph, 'materializeStrand', this.strandId,
       this.ceiling === null ? undefined : { ceiling: this.ceiling },
     ));
@@ -207,7 +207,7 @@ class ResolvedComparisonSide {
   /** @type {Record<string, unknown>} Resolved metadata with digests */
   resolved;
 
-  /** @type {WarpStateV5} Materialized state */
+  /** @type {WarpState} Materialized state */
   state;
 
   /** @type {Array<{ patch: import('../../types/Patch.ts').default, sha: string }>} */
@@ -215,7 +215,7 @@ class ResolvedComparisonSide {
 
   /**
    * Creates a ResolvedComparisonSide.
-   * @param {{ requested: Record<string, unknown>, state: WarpStateV5, patchEntries: Array<{ patch: import('../../types/Patch.ts').default, sha: string }>, resolved: Record<string, unknown> }} fields
+   * @param {{ requested: Record<string, unknown>, state: WarpState, patchEntries: Array<{ patch: import('../../types/Patch.ts').default, sha: string }>, resolved: Record<string, unknown> }} fields
    */
   constructor({ requested, state, patchEntries, resolved }) {
     this.requested = requested;
@@ -765,7 +765,7 @@ function buildStrandMetadata(strandId, descriptor) {
  * Computes the canonical state hash, preferring StateHashService when available.
  *
  * @param {import('../../WarpRuntime.js').default} graph
- * @param {WarpStateV5} state
+ * @param {WarpState} state
  * @returns {Promise<string>}
  */
 async function computeStateHashForGraph(graph, state) {
@@ -782,7 +782,7 @@ async function computeStateHashForGraph(graph, state) {
  * @param {import('../../WarpRuntime.js').default} graph
  * @param {{
  *   requested: Record<string, unknown>,
- *   state: WarpStateV5,
+ *   state: WarpState,
  *   patchEntries: Array<{ patch: import('../../types/Patch.ts').default, sha: string }>,
  *   coordinateKind: 'frontier'|'strand'|'strand_base',
  *   lamportCeiling: number|null,

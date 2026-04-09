@@ -13,7 +13,7 @@ import {
 import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.js';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import {
-  createEmptyStateV5,
+  createEmptyState,
   reduceV5 as _reduceV5,
   encodeEdgeKey,
   encodePropKey,
@@ -41,7 +41,7 @@ describe('BoundaryTransitionRecord', () => {
 
   describe('createBTR', () => {
     it('creates a BTR from empty state and empty payload', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
@@ -57,7 +57,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('creates a BTR from empty state and non-empty payload', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const { patchA, patchB, patchC } = createSamplePatches();
       const payload = new ProvenancePayload([patchA, patchB, patchC]);
 
@@ -92,7 +92,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('accepts custom timestamp', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
       const customTimestamp = '2025-01-15T12:00:00.000Z';
 
@@ -106,7 +106,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('generates timestamp when not provided', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
 
       const before = new Date().toISOString();
@@ -118,7 +118,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('throws WarpError with E_BTR_INVALID_PAYLOAD for non-ProvenancePayload', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
 
       await expect(createBTR(initialState, /** @type {any} */ ([]), { key: testKey, crypto })).rejects.toThrow(WarpError);
       await expect(createBTR(initialState, /** @type {any} */ ({}), { key: testKey, crypto })).rejects.toThrow(WarpError);
@@ -127,7 +127,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('produces different kappa for different keys', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
 
       const btr1 = await createBTR(initialState, payload, { key: 'key-1', crypto });
@@ -137,7 +137,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('produces same kappa for same inputs', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
       const timestamp = '2025-01-15T12:00:00.000Z';
 
@@ -150,7 +150,7 @@ describe('BoundaryTransitionRecord', () => {
 
   describe('verifyBTR', () => {
     it('verifies a valid BTR', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const { patchA, patchB } = createSamplePatches();
       const payload = new ProvenancePayload([patchA, patchB]);
 
@@ -162,7 +162,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('rejects BTR with wrong key', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
 
       const btr = await createBTR(initialState, payload, { key: 'correct-key', crypto });
@@ -173,7 +173,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('rejects BTR with tampered h_in', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
@@ -186,7 +186,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('rejects BTR with tampered h_out', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
@@ -199,7 +199,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('rejects BTR with tampered timestamp', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
@@ -212,7 +212,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('rejects BTR with tampered payload', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const { patchA } = createSamplePatches();
       const payload = new ProvenancePayload([patchA]);
 
@@ -226,7 +226,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('rejects BTR with tampered kappa', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
@@ -255,7 +255,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('rejects BTR with unsupported version', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
@@ -269,7 +269,7 @@ describe('BoundaryTransitionRecord', () => {
 
     describe('with replay verification', () => {
       it('passes when replay matches h_out', async () => {
-        const initialState = createEmptyStateV5();
+        const initialState = createEmptyState();
         const { patchA, patchB } = createSamplePatches();
         const payload = new ProvenancePayload([patchA, patchB]);
 
@@ -283,7 +283,7 @@ describe('BoundaryTransitionRecord', () => {
         // Test the replay logic in isolation: if we tamper with h_out,
         // replayBTR will produce a different hash than the tampered value.
         // This validates the replay verification logic works correctly.
-        const initialState = createEmptyStateV5();
+        const initialState = createEmptyState();
         const { patchA } = createSamplePatches();
         const payload = new ProvenancePayload([patchA]);
 
@@ -305,7 +305,7 @@ describe('BoundaryTransitionRecord', () => {
         // Full integration test: tampered h_out is caught.
         // Note: HMAC check runs first, so tampered h_out fails HMAC.
         // This validates the defense-in-depth: both checks protect h_out.
-        const initialState = createEmptyStateV5();
+        const initialState = createEmptyState();
         const { patchA } = createSamplePatches();
         const payload = new ProvenancePayload([patchA]);
 
@@ -322,7 +322,7 @@ describe('BoundaryTransitionRecord', () => {
 
   describe('replayBTR', () => {
     it('replays empty payload to empty state', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
@@ -334,7 +334,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('replays payload to produce correct state', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const { patchA, patchB, patchC } = createSamplePatches();
       const payload = new ProvenancePayload([patchA, patchB, patchC]);
 
@@ -356,7 +356,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('produces h_out that matches BTR', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const { patchA, patchB } = createSamplePatches();
       const payload = new ProvenancePayload([patchA, patchB]);
 
@@ -369,7 +369,7 @@ describe('BoundaryTransitionRecord', () => {
 
   describe('serialization', () => {
     it('round-trips through CBOR', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const { patchA, patchB } = createSamplePatches();
       const payload = new ProvenancePayload([patchA, patchB]);
 
@@ -386,7 +386,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('serialized BTR still verifies', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const { patchA } = createSamplePatches();
       const payload = new ProvenancePayload([patchA]);
 
@@ -413,7 +413,7 @@ describe('BoundaryTransitionRecord', () => {
 
   describe('accessor functions', () => {
     it('getBTRInputHash returns h_in', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
 
@@ -421,7 +421,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('getBTROutputHash returns h_out', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
 
@@ -429,7 +429,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('getBTRTimestamp returns t', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
 
@@ -437,7 +437,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('getBTRPayloadLength returns patch count', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const { patchA, patchB, patchC } = createSamplePatches();
       const payload = new ProvenancePayload([patchA, patchB, patchC]);
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
@@ -446,7 +446,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('getBTRPayloadLength returns 0 for empty payload', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
 
@@ -456,7 +456,7 @@ describe('BoundaryTransitionRecord', () => {
 
   describe('edge cases', () => {
     it('handles very long payload', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
 
       // Create a payload with many patches
       const patches = [];
@@ -488,7 +488,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('handles Buffer key', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
       const bufferKey = Buffer.from('secret-key-as-buffer');
 
@@ -499,7 +499,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('rejects empty string key', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
       const emptyKey = '';
 
@@ -508,7 +508,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('h_in equals h_out for identity payload', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
@@ -518,7 +518,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('h_in differs from h_out when payload modifies state', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const { patchA } = createSamplePatches();
       const payload = new ProvenancePayload([patchA]);
 
@@ -530,7 +530,7 @@ describe('BoundaryTransitionRecord', () => {
 
   describe('security properties', () => {
     it('rejects kappa containing non-hex characters', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
@@ -546,7 +546,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('single bit flip in kappa is detected', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const payload = ProvenancePayload.identity();
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
@@ -563,7 +563,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('adding a patch to P is detected', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const { patchA, patchB } = createSamplePatches();
       const payload = new ProvenancePayload([patchA]);
 
@@ -577,7 +577,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('removing a patch from P is detected', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const { patchA, patchB } = createSamplePatches();
       const payload = new ProvenancePayload([patchA, patchB]);
 
@@ -591,7 +591,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('reordering patches in P is detected', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const { patchA, patchB } = createSamplePatches();
       const payload = new ProvenancePayload([patchA, patchB]);
 
@@ -605,7 +605,7 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('different keys produce different kappas for same content', async () => {
-      const initialState = createEmptyStateV5();
+      const initialState = createEmptyState();
       const { patchA } = createSamplePatches();
       const payload = new ProvenancePayload([patchA]);
       const timestamp = '2025-01-15T12:00:00.000Z';

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import StateHashService from '../../../../../src/domain/services/state/StateHashService.js';
-import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState } from '../../../../../src/domain/services/JoinReducer.ts';
 import { CborCodec } from '../../../../../src/infrastructure/codecs/CborCodec.js';
 import CryptoPort from '../../../../../src/ports/CryptoPort.ts';
 
@@ -34,7 +34,7 @@ describe('StateHashService', () => {
     const crypto = createMockCrypto();
     const svc = new StateHashService({ codec: new CborCodec(), crypto });
 
-    const hash = await svc.compute(createEmptyStateV5());
+    const hash = await svc.compute(createEmptyState());
 
     expect(typeof hash).toBe('string');
     expect(hash).toBe('deadbeef'.repeat(8));
@@ -51,8 +51,8 @@ describe('StateHashService', () => {
     });
     const svc = new StateHashService({ codec: new CborCodec(), crypto });
 
-    await svc.compute(createEmptyStateV5());
-    await svc.compute(createEmptyStateV5());
+    await svc.compute(createEmptyState());
+    await svc.compute(createEmptyState());
 
     // Same state → same bytes → same hash
     expect(captured).toHaveLength(2);

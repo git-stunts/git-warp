@@ -2,9 +2,9 @@
  * Creates a v5 checkpoint from v4 visible projection.
  * This is the migration boundary.
  */
-import { createEmptyStateV5 } from './JoinReducer.ts';
+import { createEmptyState } from './JoinReducer.ts';
 import VersionVector from '../crdt/VersionVector.ts';
-import type WarpStateV5 from './state/WarpStateV5.ts';
+import type WarpState from './state/WarpState.ts';
 import type { LWWRegister } from '../crdt/LWW.ts';
 
 /**
@@ -16,8 +16,8 @@ type V4AliveRegister = { readonly value: boolean };
 /**
  * Shape of the legacy v4 materialized state accepted at the migration boundary.
  *
- * NOTE: The `LWWRegister<unknown>` in `prop` is inherited from WarpStateV5's
- * own field type. It will be tightened when WarpStateV5 is converted in a
+ * NOTE: The `LWWRegister<unknown>` in `prop` is inherited from WarpState's
+ * own field type. It will be tightened when WarpState is converted in a
  * later wave of the TypeScript migration.
  */
 type V4State = {
@@ -36,8 +36,8 @@ type V4State = {
 export function migrateV4toV5(
   v4State: V4State,
   migrationWriterId: string,
-): WarpStateV5 {
-  const v5State = createEmptyStateV5();
+): WarpState {
+  const v5State = createEmptyState();
   const vv = VersionVector.empty();
 
   migrateAliveEntities({ v4State, v5State, vv, migrationWriterId });
@@ -57,7 +57,7 @@ function migrateAliveEntities({
   migrationWriterId,
 }: {
   readonly v4State: V4State;
-  readonly v5State: WarpStateV5;
+  readonly v5State: WarpState;
   readonly vv: VersionVector;
   readonly migrationWriterId: string;
 }): void {
@@ -78,7 +78,7 @@ function migrateAliveEntities({
 /**
  * Copies properties for visible nodes only, dropping dangling props from deleted nodes.
  */
-function migrateVisibleProps(v4State: V4State, v5State: WarpStateV5): void {
+function migrateVisibleProps(v4State: V4State, v5State: WarpState): void {
   for (const [propKey, reg] of v4State.prop) {
     const idx = propKey.indexOf('\0');
     const nodeId = propKey.slice(0, idx);

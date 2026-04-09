@@ -8,11 +8,11 @@
  */
 
 import QueryError from '../../errors/QueryError.ts';
-import { createEmptyStateV5, reduceV5 } from '../JoinReducer.ts';
+import { createEmptyState, reduceV5 } from '../JoinReducer.ts';
 import { ProvenancePayload } from '../provenance/ProvenancePayload.js';
 import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';
 
-/** @import { WarpStateV5 } from '../JoinReducer.ts' */
+/** @import { WarpState } from '../JoinReducer.ts' */
 /** @import { default as Patch } from '../../types/Patch.ts' */
 
 /**
@@ -65,7 +65,7 @@ export default class ProvenanceController {
    *
    * @param {string} nodeId
    * @param {{receipts?: boolean}} [options]
-   * @returns {Promise<{state: WarpStateV5, patchCount: number, receipts?: import('../../types/TickReceipt.ts').TickReceipt[]}>}
+   * @returns {Promise<{state: WarpState, patchCount: number, receipts?: import('../../types/TickReceipt.ts').TickReceipt[]}>}
    */
   async materializeSlice(nodeId, options) {
     const host = this._host;
@@ -90,7 +90,7 @@ export default class ProvenanceController {
       const conePatchMap = await this._computeBackwardCone(nodeId);
 
       if (conePatchMap.size === 0) {
-        const emptyState = createEmptyStateV5();
+        const emptyState = createEmptyState();
         host._logTiming('materializeSlice', t0, { metrics: '0 patches (empty cone)' });
         return {
           state: emptyState,
@@ -108,7 +108,7 @@ export default class ProvenanceController {
       host._logTiming('materializeSlice', t0, { metrics: `${sortedPatches.length} patches` });
 
       if (collectReceipts) {
-        const result = /** @type {{state: WarpStateV5, receipts: import('../../types/TickReceipt.ts').TickReceipt[]}} */ (reduceV5(sortedPatches, undefined, { receipts: true }));
+        const result = /** @type {{state: WarpState, receipts: import('../../types/TickReceipt.ts').TickReceipt[]}} */ (reduceV5(sortedPatches, undefined, { receipts: true }));
         return {
           state: result.state,
           patchCount: sortedPatches.length,

@@ -19,7 +19,7 @@ import { PropertyShard } from '../../src/domain/artifacts/PropertyShard.ts';
 import { CborCodec } from '../../src/infrastructure/codecs/CborCodec.js';
 import { makeLogicalBitmapProvider, makeFixture } from '../helpers/fixtureDsl.js';
 import { runBenchmark, logEnvironment, randomHex } from './benchmarkUtils.js';
-import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../src/domain/utils/EventId.ts';
 
@@ -57,11 +57,11 @@ function generateFixture(nodeCount, avgDegree = 5) {
 }
 
 /**
- * Builds a WarpStateV5 from a generated fixture for benchmarking.
+ * Builds a WarpState from a generated fixture for benchmarking.
  */
 /** @param {{ nodes: string[], edges: Array<{from: string, to: string, label: string}> }} generated */
 function buildStateFromGenerated({ nodes, edges }) {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   const writer = 'bench';
   const sha = randomHex(40);
   let opIdx = 0;

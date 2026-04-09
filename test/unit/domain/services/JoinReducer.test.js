@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createEmptyStateV5,
+  createEmptyState,
   encodeEdgeKey,
   decodeEdgeKey,
   encodePropKey,
@@ -13,7 +13,7 @@ import {
   joinStates,
   OP_STRATEGIES,
   reduceV5 as _reduceV5,
-  cloneStateV5,
+  cloneState,
 } from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
@@ -64,9 +64,9 @@ function createPatch({ writer, lamport, ops, context }) {
 
 
 describe('JoinReducer', () => {
-  describe('createEmptyStateV5', () => {
+  describe('createEmptyState', () => {
     it('returns state with empty ORSets and Maps', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       expect(state.nodeAlive).toBeDefined();
       expect(state.nodeAlive.entries).toBeInstanceOf(Map);
@@ -81,8 +81,8 @@ describe('JoinReducer', () => {
     });
 
     it('returns independent state objects', () => {
-      const state1 = createEmptyStateV5();
-      const state2 = createEmptyStateV5();
+      const state1 = createEmptyState();
+      const state2 = createEmptyState();
 
       state1.prop.set('key', { eventId: /** @type {any} */ ({}), value: 'test' });
 
@@ -121,7 +121,7 @@ describe('JoinReducer', () => {
   describe('applyOpV2', () => {
     describe('NodeAdd', () => {
       it('adds node to nodeAlive ORSet', () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const dot = createDot('writer1', 1);
         const eventId = createEventId(1, 'writer1', 'abcd1234', 0);
         const op = createNodeAddV2('x', dot);
@@ -132,7 +132,7 @@ describe('JoinReducer', () => {
       });
 
       it('can add same node with multiple dots', () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const dot1 = createDot('writer1', 1);
         const dot2 = createDot('writer2', 1);
 
@@ -147,7 +147,7 @@ describe('JoinReducer', () => {
 
     describe('NodeRemove', () => {
       it('removes node by tombstoning observed dots', () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const dot = createDot('writer1', 1);
 
         // Add node
@@ -168,7 +168,7 @@ describe('JoinReducer', () => {
 
     describe('EdgeAdd', () => {
       it('adds edge to edgeAlive ORSet', () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const dot = createDot('writer1', 1);
         const op = createEdgeAddV2('a', 'b', 'rel', dot);
 
@@ -181,7 +181,7 @@ describe('JoinReducer', () => {
 
     describe('EdgeRemove', () => {
       it('removes edge by tombstoning observed dots', () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const dot = createDot('writer1', 1);
 
         // Add edge
@@ -207,7 +207,7 @@ describe('JoinReducer', () => {
 
   describe('PropSet', () => {
       it('sets property value using LWW', () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const eventId = createEventId(1, 'writer1', 'abcd1234', 0);
         const value = createInlineValue('hello');
         const op = createPropSetV2('x', 'name', value);
@@ -219,7 +219,7 @@ describe('JoinReducer', () => {
       });
 
       it('overwrites property if EventId is greater', () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const eventId1 = createEventId(1, 'writer', 'aaaa1234', 0);
         const eventId2 = createEventId(2, 'writer', 'bbbb1234', 0);
         const value1 = createInlineValue('old');
@@ -233,7 +233,7 @@ describe('JoinReducer', () => {
       });
 
       it('keeps older property if EventId is lower', () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const eventId1 = createEventId(2, 'writer', 'bbbb1234', 0);
         const eventId2 = createEventId(1, 'writer', 'aaaa1234', 0);
         const value1 = createInlineValue('newer');
@@ -247,7 +247,7 @@ describe('JoinReducer', () => {
       });
 
       it('rejects unnormalized legacy edge-property PropSet on the canonical apply path', () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const eventId = createEventId(1, 'writer1', 'abcd1234', 0);
 
         expect(() =>
@@ -493,8 +493,8 @@ describe('JoinReducer', () => {
 
   describe('joinStates', () => {
     it('joins two states together', () => {
-      const stateA = createEmptyStateV5();
-      const stateB = createEmptyStateV5();
+      const stateA = createEmptyState();
+      const stateB = createEmptyState();
 
       // Add node to state A
       const dotA = createDot('A', 1);
@@ -530,8 +530,8 @@ describe('JoinReducer', () => {
     });
 
     it('merges conflicting properties using LWW', () => {
-      const stateA = createEmptyStateV5();
-      const stateB = createEmptyStateV5();
+      const stateA = createEmptyState();
+      const stateB = createEmptyState();
 
       // Both set same property with different values
       applyOpV2(
@@ -554,8 +554,8 @@ describe('JoinReducer', () => {
     });
 
     it('does not mutate input states', () => {
-      const stateA = createEmptyStateV5();
-      const stateB = createEmptyStateV5();
+      const stateA = createEmptyState();
+      const stateB = createEmptyState();
 
       const dotA = createDot('A', 1);
       applyOpV2(stateA, createNodeAddV2('x', dotA), createEventId(1, 'A', 'aaaa1234', 0));
@@ -572,13 +572,13 @@ describe('JoinReducer', () => {
     });
   });
 
-  describe('cloneStateV5', () => {
+  describe('cloneState', () => {
     it('creates independent copy', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('A', 1);
       applyOpV2(state, createNodeAddV2('x', dot), createEventId(1, 'A', 'aaaa1234', 0));
 
-      const cloned = cloneStateV5(state);
+      const cloned = cloneState(state);
 
       // Modify cloned state
       const dot2 = createDot('B', 1);
@@ -594,7 +594,7 @@ describe('JoinReducer', () => {
     });
 
     it('normalizes plain state-like objects through the structural fallback', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('A', 1);
       applyOpV2(state, createNodeAddV2('x', dot), createEventId(1, 'A', 'aaaa1234', 0));
       applyOpV2(state, createEdgeAddV2('x', 'y', 'rel', createDot('A', 2)), createEventId(2, 'A', 'bbbb1234', 0));
@@ -608,7 +608,7 @@ describe('JoinReducer', () => {
         edgeBirthEvent: state.edgeBirthEvent,
       };
 
-      const cloned = cloneStateV5(/** @type {any} */ (plainState));
+      const cloned = cloneState(/** @type {any} */ (plainState));
       applyOpV2(cloned, createNodeAddV2('z', createDot('B', 1)), createEventId(4, 'B', 'dddd1234', 0));
 
       expect(cloned.nodeAlive.contains('x')).toBe(true);
@@ -674,7 +674,7 @@ describe('JoinReducer', () => {
 
   describe('join with context (VersionVector)', () => {
     it('merges patch context into observedFrontier', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const context = VersionVector.empty();
       context.set('A', 5);
@@ -694,7 +694,7 @@ describe('JoinReducer', () => {
     });
 
     it('takes pointwise max when merging contexts', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.observedFrontier.set('A', 10);
       state.observedFrontier.set('B', 2);
 
@@ -718,7 +718,7 @@ describe('JoinReducer', () => {
     });
 
     it('incorporates the patch own dot into observedFrontier', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const context = VersionVector.empty();
       context.set('A', 5);
@@ -739,7 +739,7 @@ describe('JoinReducer', () => {
     });
 
     it('observedFrontier advances with each patch from the same writer', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       join(state, createPatch({
         writer: 'A', lamport: 1,
@@ -761,7 +761,7 @@ describe('JoinReducer', () => {
     });
 
     it('incorporates patch own dot on receipt path', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const context = VersionVector.empty();
       context.set('A', 5);
@@ -776,7 +776,7 @@ describe('JoinReducer', () => {
       const result = join(state, patch, 'aaaa1234', true);
 
       expect('state' in result).toBe(true);
-      const { state: s, receipt } = /** @type {{state: import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5, receipt: *}} */ (result);
+      const { state: s, receipt } = /** @type {{state: import('../../../../src/domain/services/JoinReducer.ts').WarpState, receipt: *}} */ (result);
       expect(s.observedFrontier.get('A')).toBe(5);
       expect(s.observedFrontier.get('C')).toBe(1);
       expect(receipt).toBeDefined();
@@ -785,7 +785,7 @@ describe('JoinReducer', () => {
 
   describe('applyFast / applyWithReceipt', () => {
     it('applyFast applies ops and updates frontier', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       const patch = createPatch({
         writer: 'w1',
@@ -800,7 +800,7 @@ describe('JoinReducer', () => {
     });
 
     it('applyWithReceipt returns state and receipt', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       const patch = createPatch({
         writer: 'w1',
@@ -820,7 +820,7 @@ describe('JoinReducer', () => {
     });
 
     it('applyFast skips undefined ops while still applying later entries', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = createPatch({
         writer: 'w1',
         lamport: 1,
@@ -838,7 +838,7 @@ describe('JoinReducer', () => {
     });
 
     it('applyWithReceipt skips undefined ops while recording later known ops', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = createPatch({
         writer: 'w1',
         lamport: 1,
@@ -861,7 +861,7 @@ describe('JoinReducer', () => {
       if (!strategy) {
         throw new Error('expected PropSet strategy');
       }
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const op = {
         type: 'PropSet',
         node: 'n1',
@@ -889,7 +889,7 @@ describe('JoinReducer', () => {
     });
 
     it('remove strategies tolerate snapshots without alive-before sets', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const nodeRemoveStrategy = OP_STRATEGIES.get('NodeRemove');
       const edgeRemoveStrategy = OP_STRATEGIES.get('EdgeRemove');
       if (!nodeRemoveStrategy || !edgeRemoveStrategy) {
@@ -914,7 +914,7 @@ describe('JoinReducer', () => {
     });
 
     it('applyWithReceipt skips strategy outcomes whose receipt name is no longer valid', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const strategy = OP_STRATEGIES.get('BlobValue');
       if (!strategy) {
         throw new Error('expected BlobValue strategy');
@@ -937,7 +937,7 @@ describe('JoinReducer', () => {
     });
 
     it('applyFast handles undefined context gracefully', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       const patch = {
         schema: 2,
@@ -953,7 +953,7 @@ describe('JoinReducer', () => {
     });
 
     it('applyFast handles null context gracefully', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       const patch = {
         schema: 2,
@@ -969,7 +969,7 @@ describe('JoinReducer', () => {
     });
 
     it('join dispatches to applyFast when collectReceipts is false', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       const patch = createPatch({
         writer: 'w1',
@@ -984,7 +984,7 @@ describe('JoinReducer', () => {
     });
 
     it('join dispatches to applyWithReceipt when collectReceipts is true', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       const patch = createPatch({
         writer: 'w1',

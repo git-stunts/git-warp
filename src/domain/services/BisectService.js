@@ -71,7 +71,7 @@ function resolveCandidates(patches, good, bad) {
 /**
  * @typedef {Object} BisectGraph
  * @property {(writerId: string) => Promise<Array<{patch: {lamport: number}, sha: string}>>} getWriterPatches
- * @property {(opts: {ceiling: number}) => Promise<import('./JoinReducer.ts').WarpStateV5>} materialize
+ * @property {(opts: {ceiling: number}) => Promise<import('./JoinReducer.ts').WarpState>} materialize
  */
 
 export default class BisectService {
@@ -87,7 +87,7 @@ export default class BisectService {
   /**
    * Runs bisect on a single writer's patch chain.
    *
-   * @param {{ good: string, bad: string, writerId: string, testFn: (state: import('./JoinReducer.ts').WarpStateV5, sha: string) => Promise<boolean> }} options
+   * @param {{ good: string, bad: string, writerId: string, testFn: (state: import('./JoinReducer.ts').WarpState, sha: string) => Promise<boolean> }} options
    *   - good: SHA of known-good commit
    *   - bad: SHA of known-bad commit
    *   - writerId: writer whose chain to bisect
@@ -122,7 +122,7 @@ export default class BisectService {
    * Performs binary search over candidates, materializing at each midpoint.
    *
    * @param {Array<{patch: {lamport: number}, sha: string}>} candidates
-   * @param {(state: import('./JoinReducer.ts').WarpStateV5, sha: string) => Promise<boolean>} testFn
+   * @param {(state: import('./JoinReducer.ts').WarpState, sha: string) => Promise<boolean>} testFn
    * @returns {Promise<{index: number, steps: number}>}
    * @private
    */

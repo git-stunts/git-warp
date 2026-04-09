@@ -9,7 +9,7 @@ import StrandService, {
 } from '../../../../../src/domain/services/strand/StrandService.js';
 import StrandError from '../../../../../src/domain/errors/StrandError.ts';
 import { textEncode, textDecode } from '../../../../../src/domain/utils/bytes.ts';
-import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState } from '../../../../../src/domain/services/JoinReducer.ts';
 
 /** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.js' */
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').ParsedStrandBlob} ParsedStrandBlob */
@@ -86,7 +86,7 @@ const OVERLAY_KIND = /** @type {'patch-log'} */ (STRAND_OVERLAY_KIND);
  *     descriptor: StrandDescriptor,
  *     options: { collectReceipts: boolean, ceiling: number|null }
  *   ): Promise<{
- *     state: import('../../../../../src/domain/services/JoinReducer.ts').WarpStateV5,
+ *     state: import('../../../../../src/domain/services/JoinReducer.ts').WarpState,
  *     receipts: import('../../../../../src/domain/types/TickReceipt.ts').TickReceipt[],
  *     allPatches: Array<{ patch: Patch, sha: string }>
  *   }>,
@@ -281,7 +281,7 @@ function storeDescriptor(descriptor) {
  *   },
  *   _crypto: { hash: ReturnType<typeof vi.fn> },
  *   _clock: { timestamp: ReturnType<typeof vi.fn> },
- *   _cachedState: import('../../../../../src/domain/services/JoinReducer.ts').WarpStateV5|null,
+ *   _cachedState: import('../../../../../src/domain/services/JoinReducer.ts').WarpState|null,
  *   _patchInProgress: boolean,
  *   _maxObservedLamport: number,
  *   _stateDirty: boolean,
@@ -1058,7 +1058,7 @@ describe('StrandService', () => {
       if ('nodeAlive' in result) {
         expect(result.nodeAlive).toBeDefined();
       } else {
-        expect.unreachable('expected bare WarpStateV5 result');
+        expect.unreachable('expected bare WarpState result');
       }
     });
 
@@ -1180,7 +1180,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
       const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-      const cachedState = createEmptyStateV5();
+      const cachedState = createEmptyState();
       graph._logger = logger;
       graph._cachedState = cachedState;
 
@@ -1343,7 +1343,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
       const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-      const snapshotState = createEmptyStateV5();
+      const snapshotState = createEmptyState();
       graph._logger = logger;
       vi.spyOn(service._patchService, '_materializeDescriptor').mockResolvedValue({
         state: snapshotState,

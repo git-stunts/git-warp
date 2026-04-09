@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 import WarpStateIndexBuilder, { buildWarpStateIndex } from '../../../../src/domain/services/index/WarpStateIndexBuilder.js';
-import { createEmptyStateV5, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 
@@ -20,7 +20,7 @@ describe('WarpStateIndexBuilder', () => {
     });
 
     it('returns empty index for empty state', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const builder = new WarpStateIndexBuilder();
       const { stats } = builder.buildFromState(state);
 
@@ -29,7 +29,7 @@ describe('WarpStateIndexBuilder', () => {
     });
 
     it('indexes all visible nodes', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       // Add nodes
       state.nodeAlive.add('node-a', createDot('w1', 1));
@@ -43,7 +43,7 @@ describe('WarpStateIndexBuilder', () => {
     });
 
     it('indexes edges from edgeAlive OR-Set', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       // Add nodes
       state.nodeAlive.add('a', createDot('w1', 1));
@@ -61,7 +61,7 @@ describe('WarpStateIndexBuilder', () => {
     });
 
     it('excludes edges with non-visible endpoints', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       // Only add 'a' and 'b' nodes (NOT 'c')
       state.nodeAlive.add('a', createDot('w1', 1));
@@ -78,7 +78,7 @@ describe('WarpStateIndexBuilder', () => {
     });
 
     it('handles self-loops', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       state.nodeAlive.add('a', createDot('w1', 1));
       state.edgeAlive.add(encodeEdgeKey('a', 'a', 'self'), createDot('w1', 2));
@@ -91,7 +91,7 @@ describe('WarpStateIndexBuilder', () => {
     });
 
     it('handles multi-edges (same endpoints, different labels)', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       state.nodeAlive.add('a', createDot('w1', 1));
       state.nodeAlive.add('b', createDot('w1', 2));
@@ -110,7 +110,7 @@ describe('WarpStateIndexBuilder', () => {
 
   describe('serialize()', () => {
     it('produces deterministic output', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       state.nodeAlive.add('a', createDot('w1', 1));
       state.nodeAlive.add('b', createDot('w1', 2));
@@ -135,7 +135,7 @@ describe('WarpStateIndexBuilder', () => {
     });
 
     it('produces sharded output structure', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       state.nodeAlive.add('node-a', createDot('w1', 1));
       state.nodeAlive.add('node-b', createDot('w1', 2));
@@ -159,7 +159,7 @@ describe('WarpStateIndexBuilder', () => {
 
   describe('buildWarpStateIndex() convenience function', () => {
     it('builds and serializes in one call', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       state.nodeAlive.add('x', createDot('w1', 1));
       state.nodeAlive.add('y', createDot('w1', 2));
@@ -175,7 +175,7 @@ describe('WarpStateIndexBuilder', () => {
 
   describe('WARP contract: index is built from logical edges, not commit DAG', () => {
     it('indexes node IDs, not commit SHAs', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       // Node IDs are semantic (user:alice), not commit SHAs
       state.nodeAlive.add('user:alice', createDot('w1', 1));
@@ -194,7 +194,7 @@ describe('WarpStateIndexBuilder', () => {
     });
 
     it('edge direction comes from edge definition, not parent relationship', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       state.nodeAlive.add('parent', createDot('w1', 1));
       state.nodeAlive.add('child', createDot('w1', 2));
@@ -226,7 +226,7 @@ describe('WarpStateIndexBuilder', () => {
 
   describe('stress test', () => {
     it('handles large graph (1000 nodes, 5000 edges)', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       // Add 1000 nodes
       for (let i = 0; i < 1000; i++) {

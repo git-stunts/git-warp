@@ -5,7 +5,7 @@ import SchemaUnsupportedError from '../../../../../src/domain/errors/SchemaUnsup
 import GCPolicy from '../../../../../src/domain/services/GCPolicy.ts';
 import GCExecuteResult from '../../../../../src/domain/services/GCExecuteResult.ts';
 import WarpError from '../../../../../src/domain/errors/WarpError.ts';
-import WarpStateV5 from '../../../../../src/domain/services/state/WarpStateV5.ts';
+import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 
 /**
  * Builds a GCPolicy where every threshold is infinite EXCEPT the tombstone
@@ -46,7 +46,7 @@ const {
   executeGCMock,
   collectGCMetricsMock,
   computeAppliedVVMock,
-  cloneStateV5Mock,
+  cloneStateMock,
   createFrontierMock,
   updateFrontierMock,
   frontierFingerprintMock,
@@ -60,7 +60,7 @@ const {
   executeGCMock: vi.fn(),
   collectGCMetricsMock: vi.fn(),
   computeAppliedVVMock: vi.fn(),
-  cloneStateV5Mock: vi.fn(),
+  cloneStateMock: vi.fn(),
   createFrontierMock: vi.fn(),
   updateFrontierMock: vi.fn(),
   frontierFingerprintMock: vi.fn(),
@@ -91,7 +91,7 @@ vi.mock('../../../../../src/domain/services/state/CheckpointSerializerV5.js', ()
 }));
 
 vi.mock('../../../../../src/domain/services/JoinReducer.ts', () => ({
-  cloneStateV5: cloneStateV5Mock,
+  cloneState: cloneStateMock,
 }));
 
 vi.mock('../../../../../src/domain/services/Frontier.js', () => ({
@@ -104,9 +104,9 @@ vi.mock('../../../../../src/domain/services/Frontier.js', () => ({
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 
-/** Minimal WarpStateV5 stub (real class instance). */
+/** Minimal WarpState stub (real class instance). */
 function stubState() {
-  return WarpStateV5.empty();
+  return WarpState.empty();
 }
 
 /** Minimal GC result stub. */
@@ -178,7 +178,7 @@ describe('CheckpointController', () => {
       totalTombstones: 2,
       tombstoneRatio: 0.1,
     });
-    cloneStateV5Mock.mockImplementation((s) => ({ ...s }));
+    cloneStateMock.mockImplementation((s) => ({ ...s }));
     computeAppliedVVMock.mockReturnValue(new Map());
     executeGCMock.mockReturnValue(stubGCResult());
 
@@ -435,7 +435,7 @@ describe('CheckpointController', () => {
       const result = ctrl.runGC();
 
       expect(result).toEqual(gcResult);
-      expect(cloneStateV5Mock).toHaveBeenCalledWith(state);
+      expect(cloneStateMock).toHaveBeenCalledWith(state);
       expect(computeAppliedVVMock).toHaveBeenCalled();
       expect(host._patchesSinceGC).toBe(0);
     });

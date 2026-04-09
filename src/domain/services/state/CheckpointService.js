@@ -24,8 +24,8 @@ import { encodeCheckpointMessage, decodeCheckpointMessage } from '../codec/WarpM
 import ORSet from '../../crdt/ORSet.ts';
 import { createDot } from '../../crdt/Dot.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
-import { cloneStateV5, reduceV5 } from '../JoinReducer.ts';
-import WarpStateV5 from './WarpStateV5.ts';
+import { cloneState, reduceV5 } from '../JoinReducer.ts';
+import WarpState from './WarpState.ts';
 import { encodeEdgeKey, encodePropKey, CONTENT_PROPERTY_KEY, decodePropKey, isEdgePropKey, decodeEdgePropKey } from '../KeyCodec.js';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
 import PersistenceError from '../../errors/PersistenceError.ts';
@@ -239,7 +239,7 @@ function collectContentAnchorEntries(propMap) {
  * └── provenanceIndex.cbor # Optional: node-to-patchSha index (HG/IO/2)
  * ```
  *
- * @param {{ persistence: import('../../../ports/CommitPort.ts').default & import('../../../ports/BlobPort.ts').default & import('../../../ports/TreePort.ts').default, graphName: string, state: import('../JoinReducer.ts').WarpStateV5, frontier: import('../Frontier.js').Frontier, parents?: string[], compact?: boolean, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, codec?: import('../../../ports/CodecPort.ts').default, crypto?: import('../../../ports/CryptoPort.ts').default, indexTree?: Record<string, Uint8Array>, checkpointStore?: import('../../../ports/CheckpointStorePort.ts').default, stateHashService?: import('./StateHashService.js').default }} options - Checkpoint creation options
+ * @param {{ persistence: import('../../../ports/CommitPort.ts').default & import('../../../ports/BlobPort.ts').default & import('../../../ports/TreePort.ts').default, graphName: string, state: import('../JoinReducer.ts').WarpState, frontier: import('../Frontier.js').Frontier, parents?: string[], compact?: boolean, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, codec?: import('../../../ports/CodecPort.ts').default, crypto?: import('../../../ports/CryptoPort.ts').default, indexTree?: Record<string, Uint8Array>, checkpointStore?: import('../../../ports/CheckpointStorePort.ts').default, stateHashService?: import('./StateHashService.js').default }} options - Checkpoint creation options
  * @returns {Promise<string>} The checkpoint commit SHA
  */
 export async function create({ persistence, graphName, state, frontier, parents = [], compact = true, provenanceIndex, codec, crypto, indexTree, checkpointStore, stateHashService }) {
@@ -266,7 +266,7 @@ export async function create({ persistence, graphName, state, frontier, parents 
  * └── provenanceIndex.cbor # Optional: node-to-patchSha index (HG/IO/2)
  * ```
  *
- * @param {{ persistence: import('../../../ports/CommitPort.ts').default & import('../../../ports/BlobPort.ts').default & import('../../../ports/TreePort.ts').default, graphName: string, state: import('../JoinReducer.ts').WarpStateV5, frontier: import('../Frontier.js').Frontier, parents?: string[], compact?: boolean, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, codec?: import('../../../ports/CodecPort.ts').default, crypto?: import('../../../ports/CryptoPort.ts').default, indexTree?: Record<string, Uint8Array>, checkpointStore?: import('../../../ports/CheckpointStorePort.ts').default, stateHashService?: import('./StateHashService.js').default }} options - Checkpoint creation options
+ * @param {{ persistence: import('../../../ports/CommitPort.ts').default & import('../../../ports/BlobPort.ts').default & import('../../../ports/TreePort.ts').default, graphName: string, state: import('../JoinReducer.ts').WarpState, frontier: import('../Frontier.js').Frontier, parents?: string[], compact?: boolean, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, codec?: import('../../../ports/CodecPort.ts').default, crypto?: import('../../../ports/CryptoPort.ts').default, indexTree?: Record<string, Uint8Array>, checkpointStore?: import('../../../ports/CheckpointStorePort.ts').default, stateHashService?: import('./StateHashService.js').default }} options - Checkpoint creation options
  * @returns {Promise<string>} The checkpoint commit SHA
  */
 export async function createV5({
@@ -291,7 +291,7 @@ export async function createV5({
   // remaining path is read-only (serialize + hash), so no clone is needed.
   let checkpointState = state;
   if (compact) {
-    checkpointState = cloneStateV5(state);
+    checkpointState = cloneState(state);
     checkpointState.nodeAlive.compact(appliedVV);
     checkpointState.edgeAlive.compact(appliedVV);
   }
@@ -426,7 +426,7 @@ export async function createV5({
  * @param {import('../../../ports/CommitPort.ts').default & import('../../../ports/BlobPort.ts').default & import('../../../ports/TreePort.ts').default} persistence - Git persistence adapter
  * @param {string} checkpointSha - The checkpoint commit SHA to load
  * @param {{ codec?: import('../../../ports/CodecPort.ts').default, checkpointStore?: import('../../../ports/CheckpointStorePort.ts').default }} [options] - Load options
- * @returns {Promise<{state: import('../JoinReducer.ts').WarpStateV5, frontier: import('../Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: VersionVector|null, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null}>} The loaded checkpoint data
+ * @returns {Promise<{state: import('../JoinReducer.ts').WarpState, frontier: import('../Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: VersionVector|null, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null}>} The loaded checkpoint data
  * @throws {Error} If checkpoint is schema:1 (migration required)
  */
 export async function loadCheckpoint(persistence, checkpointSha, { codec, checkpointStore } = {}) {
@@ -456,7 +456,7 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec, checkp
   if (checkpointStore !== undefined && checkpointStore !== null) {
     // New collapsed API: one call reads all artifacts
     const cpData = await checkpointStore.readCheckpoint(treeOids);
-    /** @type {{ state: import('../JoinReducer.ts').WarpStateV5, frontier: import('../Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: VersionVector|null, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null }} */
+    /** @type {{ state: import('../JoinReducer.ts').WarpState, frontier: import('../Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: VersionVector|null, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null }} */
     const result = {
       state: cpData.state,
       frontier: cpData.frontier,
@@ -515,7 +515,7 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec, checkp
     provenanceIndex = ProvenanceIndex.deserialize(provenanceIndexBuffer, loadCodecOpt);
   }
 
-  /** @type {{ state: import('../JoinReducer.ts').WarpStateV5, frontier: import('../Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: VersionVector|null, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null }} */
+  /** @type {{ state: import('../JoinReducer.ts').WarpState, frontier: import('../Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: VersionVector|null, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null }} */
   const result = {
     state,
     frontier,
@@ -544,7 +544,7 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec, checkp
  * loadCheckpoint to throw an error.
  *
  * @param {{ persistence: import('../../../ports/CommitPort.ts').default & import('../../../ports/BlobPort.ts').default & import('../../../ports/TreePort.ts').default, graphName: string, checkpointSha: string, targetFrontier: import('../Frontier.js').Frontier, patchLoader: (writerId: string, fromSha: string|null, toSha: string) => Promise<Array<{patch: import('../../types/Patch.ts').default, sha: string}>>, codec?: import('../../../ports/CodecPort.ts').default }} options - Materialization options
- * @returns {Promise<import('../JoinReducer.ts').WarpStateV5>} The materialized V5 state at targetFrontier
+ * @returns {Promise<import('../JoinReducer.ts').WarpState>} The materialized V5 state at targetFrontier
  * @throws {Error} If checkpoint is schema:1 (migration required)
  * @throws {Error} If checkpoint is missing required blobs (state.cbor, frontier.cbor)
  */
@@ -581,19 +581,19 @@ export async function materializeIncremental({
   }
 
   // 5. Apply new patches using V5 reducer with checkpoint state as initial
-  const finalState = /** @type {import('../JoinReducer.ts').WarpStateV5} */ (reduceV5(allPatches, initialState));
+  const finalState = /** @type {import('../JoinReducer.ts').WarpState} */ (reduceV5(allPatches, initialState));
 
   return finalState;
 }
 
 /**
- * Reconstructs WarpStateV5 (ORSet-based) from a checkpoint's visible projection.
+ * Reconstructs WarpState (ORSet-based) from a checkpoint's visible projection.
  *
  * Creates ORSet-based state with synthetic dots for all visible elements.
  * This is used when loading a v5 checkpoint for incremental materialization.
  *
  * @param {{ nodes: string[], edges: Array<{from: string, to: string, label: string}>, props: Array<{node: string, key: string, value: unknown}> }} visibleProjection - The checkpoint's visible projection
- * @returns {import('../JoinReducer.ts').WarpStateV5} Reconstructed WarpStateV5
+ * @returns {import('../JoinReducer.ts').WarpState} Reconstructed WarpState
  * @public
  */
 export function reconstructStateV5FromCheckpoint(visibleProjection) {
@@ -647,5 +647,5 @@ export function reconstructStateV5FromCheckpoint(visibleProjection) {
     edgeBirthEvent.set(edgeKey, { lamport: 0, writerId: '', patchSha: '0000', opIndex: 0 });
   }
 
-  return new WarpStateV5({ nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthEvent });
+  return new WarpState({ nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthEvent });
 }

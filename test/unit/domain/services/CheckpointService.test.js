@@ -9,7 +9,7 @@ import {
   serializeAppliedVV,
   deserializeAppliedVV,
 } from '../../../../src/domain/services/state/CheckpointSerializerV5.js';
-import { createEmptyStateV5, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.ts';
 import { encodeCheckpointMessage, decodeCheckpointMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
@@ -46,7 +46,7 @@ describe('CheckpointService', () => {
   describe('create', () => {
     it('creates schema:2 checkpoint commit with state and frontier blobs', async () => {
       // Setup test data - V5 state (schema:2 only)
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('writer1', 1);
       state.nodeAlive.add('x', dot);
 
@@ -78,7 +78,7 @@ describe('CheckpointService', () => {
     });
 
     it('creates tree entries in sorted order', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const frontier = createFrontier();
 
       // V5 writes 3 blobs: state, frontier, appliedVV
@@ -111,7 +111,7 @@ describe('CheckpointService', () => {
     });
 
     it('includes parents in commit', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const frontier = createFrontier();
 
       mockPersistence.writeBlob.mockResolvedValue(makeOid('blob'));
@@ -136,7 +136,7 @@ describe('CheckpointService', () => {
 
     it('encodes checkpoint message with correct trailers', async () => {
       // V5 state (schema:2 only)
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const frontier = createFrontier();
 
       // V5 writes 3 blobs: state, frontier, appliedVV
@@ -166,7 +166,7 @@ describe('CheckpointService', () => {
   describe('loadCheckpoint', () => {
     it('loads checkpoint state and frontier from commit', async () => {
       // Create V5 state (ORSet-based)
-      const v5State = createEmptyStateV5();
+      const v5State = createEmptyState();
       const dot = createDot('writer1', 1);
       v5State.nodeAlive.add('node1', dot);
       v5State.nodeAlive.add('node2', dot);
@@ -293,7 +293,7 @@ describe('CheckpointService', () => {
     describe('create', () => {
       it('creates checkpoint using v5 full state serializer', async () => {
         // Create v5 state (ORSet-based)
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const dot = createDot('writer1', 1);
         state.nodeAlive.add('node1', dot);
         state.nodeAlive.add('node2', dot);
@@ -343,7 +343,7 @@ describe('CheckpointService', () => {
     describe('loadCheckpoint', () => {
       it('loads checkpoint with v5 full state deserializer', async () => {
         // Create v5 state and serialize it using FULL STATE serializer
-        const v5State = createEmptyStateV5();
+        const v5State = createEmptyState();
         const dot = createDot('writer1', 1);
         v5State.nodeAlive.add('x', dot);
         v5State.nodeAlive.add('y', dot);
@@ -404,7 +404,7 @@ describe('CheckpointService', () => {
 
     describe('roundtrip', () => {
       it('roundtrip preserves full ORSet data', async () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const dot = createDot('writer1', 1);
         state.nodeAlive.add('a', dot);
         state.nodeAlive.add('b', dot);
@@ -555,7 +555,7 @@ describe('CheckpointService', () => {
     describe('createV5', () => {
       it('creates V5 checkpoint with full state', async () => {
         // Create V5 state with nodes, edges, props
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const dot1 = createDot('alice', 1);
         const dot2 = createDot('alice', 2);
         state.nodeAlive.add('n1', dot1);
@@ -604,7 +604,7 @@ describe('CheckpointService', () => {
       });
 
       it('compacts tombstoned dots when compact=true', async () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const dot = createDot('alice', 1);
         state.nodeAlive.add('deleted', dot);
         state.nodeAlive.remove(new Set([encodeDot(dot)]));
@@ -640,7 +640,7 @@ describe('CheckpointService', () => {
       });
 
       it('preserves tombstoned dots when compact=false', async () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const dot = createDot('alice', 1);
         state.nodeAlive.add('deleted', dot);
         state.nodeAlive.remove(new Set([encodeDot(dot)]));
@@ -675,7 +675,7 @@ describe('CheckpointService', () => {
       });
 
       it('anchors unique content blobs in sorted tree order for node and edge content', async () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         state.nodeAlive.add('n1', createDot('alice', 1));
         state.nodeAlive.add('n2', createDot('alice', 2));
         state.edgeAlive.add(encodeEdgeKeyV5('n1', 'n2', 'link'), createDot('alice', 3));
@@ -727,7 +727,7 @@ describe('CheckpointService', () => {
       });
 
       it('anchors large content sets without duplicate entries when batch flushes occur', async () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const frontier = createFrontier();
         updateFrontier(frontier, 'alice', makeOid('sha1'));
 
@@ -776,7 +776,7 @@ describe('CheckpointService', () => {
       });
 
       it('merges reversed content-anchor batches into sorted unique output', async () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const frontier = createFrontier();
         updateFrontier(frontier, 'alice', makeOid('sha1'));
 
@@ -833,7 +833,7 @@ describe('CheckpointService', () => {
     describe('loadCheckpoint for V5', () => {
       it('loads V5 checkpoint with full ORSet state', async () => {
         // Create and serialize V5 state
-        const originalState = createEmptyStateV5();
+        const originalState = createEmptyState();
         const dot1 = createDot('alice', 1);
         const dot2 = createDot('bob', 2);
         originalState.nodeAlive.add('x', dot1);
@@ -904,7 +904,7 @@ describe('CheckpointService', () => {
       });
 
       it('ignores _content_ anchor entries when loading a checkpoint tree', async () => {
-        const originalState = createEmptyStateV5();
+        const originalState = createEmptyState();
         originalState.nodeAlive.add('x', createDot('alice', 1));
 
         const frontier = createFrontier();
@@ -952,7 +952,7 @@ describe('CheckpointService', () => {
 
       it('loads V5 checkpoint without appliedVV for backward compatibility', async () => {
         // Create V5 state
-        const originalState = createEmptyStateV5();
+        const originalState = createEmptyState();
         originalState.nodeAlive.add('a', createDot('w1', 1));
 
         const frontier = createFrontier();
@@ -999,7 +999,7 @@ describe('CheckpointService', () => {
     describe('V5 checkpoint roundtrip', () => {
       it('create -> loadCheckpoint preserves full state', async () => {
         // Build V5 state with various elements
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         const aliceDot1 = createDot('alice', 1);
         const aliceDot2 = createDot('alice', 2);
         const bobDot1 = createDot('bob', 1);
@@ -1113,7 +1113,7 @@ describe('CheckpointService', () => {
 
     describe('appliedVV correctness', () => {
       it('appliedVV is computed and saved correctly', async () => {
-        const state = createEmptyStateV5();
+        const state = createEmptyState();
         // Add various dots
         state.nodeAlive.add('a', createDot('alice', 5));
         state.nodeAlive.add('b', createDot('alice', 3));
@@ -1156,7 +1156,7 @@ describe('CheckpointService', () => {
 
   describe('schema 4 (index subtree)', () => {
     it('creates schema:4 checkpoint when indexTree is provided', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('writer1', 1);
       state.nodeAlive.add('x', dot);
 
@@ -1218,7 +1218,7 @@ describe('CheckpointService', () => {
     });
 
     it('loads schema:4 checkpoint with indexShardOids', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('writer1', 1);
       state.nodeAlive.add('x', dot);
 
@@ -1267,7 +1267,7 @@ describe('CheckpointService', () => {
     });
 
     it('returns null indexShardOids for schema:2 checkpoints', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('writer1', 1);
       state.nodeAlive.add('x', dot);
 

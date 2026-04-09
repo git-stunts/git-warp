@@ -1,6 +1,6 @@
 import QueryError from '../errors/QueryError.ts';
 import ORSet from '../crdt/ORSet.ts';
-import WarpStateV5 from './state/WarpStateV5.ts';
+import WarpState from './state/WarpState.ts';
 import { normalizeRawOp } from './OpNormalizer.ts';
 import {
   decodeEdgeKey,
@@ -259,7 +259,7 @@ function cloneScopedOrSet(sourceEntries, includeElement, tombstones) {
 /**
  * Collects node IDs that are alive and within the given scope.
  *
- * @param {WarpStateV5} state
+ * @param {WarpState} state
  * @param {VisibleStateScopeV1} scope
  * @returns {Set<string>}
  */
@@ -277,7 +277,7 @@ function collectScopedNodeIds(state, scope) {
 /**
  * Collects edge keys whose both endpoints are in the scoped node set.
  *
- * @param {WarpStateV5} state
+ * @param {WarpState} state
  * @param {Set<string>} scopedNodeIds
  * @returns {Set<string>}
  */
@@ -299,7 +299,7 @@ function collectScopedEdgeKeys(state, scopedNodeIds) {
 /**
  * Collects property registers belonging to scoped nodes or scoped edges.
  *
- * @param {WarpStateV5} state
+ * @param {WarpState} state
  * @param {Set<string>} scopedNodeIds
  * @param {Set<string>} scopedEdgeKeys
  * @returns {Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>>}
@@ -328,7 +328,7 @@ function collectScopedProps(state, scopedNodeIds, scopedEdgeKeys) {
 /**
  * Collects birth events for edges whose keys are in the scoped set.
  *
- * @param {WarpStateV5} state
+ * @param {WarpState} state
  * @param {Set<string>} scopedEdgeKeys
  * @returns {Map<string, import('../utils/EventId.ts').EventId>}
  */
@@ -346,9 +346,9 @@ function collectScopedEdgeBirthEvents(state, scopedEdgeKeys) {
 /**
  * Projects a full materialized state down to only the nodes/edges/props in scope.
  *
- * @param {WarpStateV5} state
+ * @param {WarpState} state
  * @param {VisibleStateScopeV1|null|undefined} scope
- * @returns {WarpStateV5}
+ * @returns {WarpState}
  */
 export function scopeMaterializedStateV5(state, scope) {
   if (scope === null || scope === undefined) {
@@ -368,7 +368,7 @@ export function scopeMaterializedStateV5(state, scope) {
     state.edgeAlive.tombstones,
   );
 
-  return new WarpStateV5({
+  return new WarpState({
     nodeAlive: scopedNodeAlive,
     edgeAlive: scopedEdgeAlive,
     prop: collectScopedProps(state, scopedNodeIds, scopedEdgeKeys),

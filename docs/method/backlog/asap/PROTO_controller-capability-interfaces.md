@@ -17,7 +17,7 @@ and methods it actually needs:
  *   _graphName: string,
  *   _writerId: string,
  *   _codec: CodecPort,
- *   materialize: () => Promise<WarpStateV5>
+ *   materialize: () => Promise<WarpState>
  * }} PatchControllerCapabilities */
 
 class PatchController {

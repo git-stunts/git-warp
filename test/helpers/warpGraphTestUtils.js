@@ -15,7 +15,7 @@ import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.j
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
 import { encode } from '../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../src/domain/services/codec/WarpMessageCodec.js';
-import { createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
 import { createDot } from '../../src/domain/crdt/Dot.ts';
@@ -648,7 +648,7 @@ export function createInMemoryRepo() {
 /**
  * Adds a node to a V5 state's alive set.
  *
- * @param {any} state - WarpStateV5
+ * @param {any} state - WarpState
  * @param {string} nodeId - Node ID
  * @param {number} counter - Dot counter
  * @param {string} [writerId='w1'] - Writer ID for the dot
@@ -660,7 +660,7 @@ export function addNodeToState(state, nodeId, counter, writerId = 'w1') {
 /**
  * Adds an edge to a V5 state's alive set.
  *
- * @param {any} state - WarpStateV5
+ * @param {any} state - WarpState
  * @param {string} from - Source node ID
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
@@ -678,7 +678,7 @@ export function addEdgeToState(state, from, to, label, counter, writerId = 'w1')
  *
  * @param {any} graph - WarpRuntime instance
  * @param {Function} seedFn - Function that receives the state and populates it
- * @returns {any} The seeded WarpStateV5
+ * @returns {any} The seeded WarpState
  *
  * @example
  * setupGraphState(graph, (state) => {
@@ -687,7 +687,7 @@ export function addEdgeToState(state, from, to, label, counter, writerId = 'w1')
  * });
  */
 export function setupGraphState(graph, seedFn) {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   // COUPLING: relies on WarpRuntime internal field `_cachedState`
   graph._cachedState = state;
   graph.materialize = vi.fn().mockResolvedValue(state);
@@ -703,4 +703,4 @@ export function setupGraphState(graph, seedFn) {
 export { createDot } from '../../src/domain/crdt/Dot.ts';
 export { default as VersionVector } from '../../src/domain/crdt/VersionVector.ts';
 export { createInlineValue };
-export { createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
+export { createEmptyState, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';

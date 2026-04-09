@@ -12,7 +12,7 @@ import { deepStrictEqual } from 'node:assert/strict';
 import AdjacencyNeighborProvider from '../../src/domain/services/query/AdjacencyNeighborProvider.js';
 import BitmapNeighborProvider from '../../src/domain/services/index/BitmapNeighborProvider.js';
 import MaterializedViewService from '../../src/domain/services/MaterializedViewService.js';
-import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../src/domain/utils/EventId.ts';
 
@@ -649,14 +649,14 @@ export async function runCrossProvider({ providers, run, assert }) {
 // ── Logical Bitmap Provider ─────────────────────────────────────────────────
 
 /**
- * Builds a WarpStateV5 from a fixture, runs LogicalIndexBuildService,
+ * Builds a WarpState from a fixture, runs LogicalIndexBuildService,
  * creates an in-memory LogicalIndex, and wraps in BitmapNeighborProvider.
  *
  * @param {GraphFixture} fixture
  * @returns {BitmapNeighborProvider}
  */
 export function makeLogicalBitmapProvider(fixture) {
-  // Build WarpStateV5 from fixture
+  // Build WarpState from fixture
   const state = fixtureToState(fixture);
 
   // Build logical index via MaterializedViewService
@@ -667,12 +667,12 @@ export function makeLogicalBitmapProvider(fixture) {
 }
 
 /**
- * Converts a fixture to WarpStateV5.
+ * Converts a fixture to WarpState.
  * @param {GraphFixture} fixture
- * @returns {import('../../src/domain/services/JoinReducer.ts').WarpStateV5}
+ * @returns {import('../../src/domain/services/JoinReducer.ts').WarpState}
  */
 export function fixtureToState(fixture) {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   const writer = 'w1';
   const sha = 'a'.repeat(40);
   let opIdx = 0;

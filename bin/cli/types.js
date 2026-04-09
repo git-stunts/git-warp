@@ -15,8 +15,8 @@
 
 /**
  * @typedef {Object} WarpGraphInstance
- * @property {(opts?: {ceiling?: number}) => Promise<import('../../src/domain/services/JoinReducer.ts').WarpStateV5>} materialize
- * @property {(opts: {frontier: Map<string, string>|Record<string, string>, ceiling?: number|null, receipts?: boolean}) => Promise<import('../../src/domain/services/JoinReducer.ts').WarpStateV5|{state: import('../../src/domain/services/JoinReducer.ts').WarpStateV5, receipts: import('../../src/domain/types/TickReceipt.ts').TickReceipt[]}>} materializeCoordinate
+ * @property {(opts?: {ceiling?: number}) => Promise<import('../../src/domain/services/JoinReducer.ts').WarpState>} materialize
+ * @property {(opts: {frontier: Map<string, string>|Record<string, string>, ceiling?: number|null, receipts?: boolean}) => Promise<import('../../src/domain/services/JoinReducer.ts').WarpState|{state: import('../../src/domain/services/JoinReducer.ts').WarpState, receipts: import('../../src/domain/types/TickReceipt.ts').TickReceipt[]}>} materializeCoordinate
  * @property {() => Promise<Array<{id: string}>>} getNodes
  * @property {() => Promise<Array<{from: string, to: string, label?: string}>>} getEdges
  * @property {() => Promise<string|null>} createCheckpoint
@@ -29,14 +29,14 @@
  * @property {(entityId: string) => Promise<string[]>} patchesFor
  * @property {() => {totalTombstones: number, tombstoneRatio: number}} getGCMetrics
  * @property {() => Promise<number>} getPropertyCount
- * @property {() => Promise<import('../../src/domain/services/JoinReducer.ts').WarpStateV5 | null>} getStateSnapshot
+ * @property {() => Promise<import('../../src/domain/services/JoinReducer.ts').WarpState | null>} getStateSnapshot
  * @property {(options?: import('../../src/domain/services/strand/ConflictAnalyzerService.js').ConflictAnalyzeOptions) => Promise<import('../../src/domain/services/strand/ConflictAnalyzerService.js').ConflictAnalysis>} analyzeConflicts
  * @property {(options?: import('../../index.js').StrandCreateOptions) => Promise<import('../../index.js').StrandDescriptor>} createStrand
  * @property {(strandId: string, options?: import('../../index.js').StrandBraidOptions) => Promise<import('../../index.js').StrandDescriptor>} braidStrand
  * @property {(strandId: string) => Promise<import('../../index.js').StrandDescriptor|null>} getStrand
  * @property {() => Promise<import('../../index.js').StrandDescriptor[]>} listStrands
  * @property {(strandId: string) => Promise<boolean>} dropStrand
- * @property {(strandId: string, options?: {receipts?: boolean, ceiling?: number|null}) => Promise<import('../../src/domain/services/JoinReducer.ts').WarpStateV5|{state: import('../../src/domain/services/JoinReducer.ts').WarpStateV5, receipts: import('../../src/domain/types/TickReceipt.ts').TickReceipt[]}>} materializeStrand
+ * @property {(strandId: string, options?: {receipts?: boolean, ceiling?: number|null}) => Promise<import('../../src/domain/services/JoinReducer.ts').WarpState|{state: import('../../src/domain/services/JoinReducer.ts').WarpState, receipts: import('../../src/domain/types/TickReceipt.ts').TickReceipt[]}>} materializeStrand
  * @property {(strandId: string, options?: {ceiling?: number|null}) => Promise<Array<{patch: import('../../src/domain/types/Patch.ts').default, sha: string}>>} getStrandPatches
  * @property {(strandId: string, entityId: string, options?: {ceiling?: number|null}) => Promise<string[]>} patchesForStrand
  * @property {(strandId: string, options?: {against?: 'base'|'live'|{kind: 'strand', strandId: string}, ceiling?: number|null, againstCeiling?: number|null, targetId?: string|null}) => Promise<import('../../index.js').CoordinateComparisonV1>} compareStrand

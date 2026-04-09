@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import MaterializeController from '../../../../src/domain/services/controllers/MaterializeController.js';
-import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
@@ -10,7 +10,7 @@ import MaterializedViewService from '../../../../src/domain/services/Materialize
  * @param {Array<[string, string, string]>} edges
  */
 function buildState(nodes, edges) {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   const writer = 'w1';
   const sha = 'a'.repeat(40);
   let lamport = 1;
@@ -36,7 +36,7 @@ function buildState(nodes, edges) {
 }
 
 /**
- * @param {import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5} state
+ * @param {import('../../../../src/domain/services/JoinReducer.ts').WarpState} state
  */
 function buildLogicalIndex(state) {
   return new MaterializedViewService().build(state).logicalIndex;
@@ -90,7 +90,7 @@ describe('materialize stale-checkpoint regression', () => {
       _checkpointing: false,
       _maybeRunGC: () => {},
       _subscribers: [],
-      _lastNotifiedState: createEmptyStateV5(),
+      _lastNotifiedState: createEmptyState(),
       _notifySubscribers: () => {},
       _logTiming: () => {},
       _provenanceDegraded: false,
@@ -103,7 +103,7 @@ describe('materialize stale-checkpoint regression', () => {
     // Patch _setMaterializedState to mimic the real one for this test
     const ctrl = new MaterializeController(host);
     // Override _setMaterializedState to a simplified version that builds index
-    /** @type {any} */ (ctrl)._setMaterializedState = async (/** @type {import('../../../../src/domain/services/JoinReducer.ts').WarpStateV5} */ state) => {
+    /** @type {any} */ (ctrl)._setMaterializedState = async (/** @type {import('../../../../src/domain/services/JoinReducer.ts').WarpState} */ state) => {
       const result = host._viewService.build(state);
       host._cachedState = state;
       host._stateDirty = false;

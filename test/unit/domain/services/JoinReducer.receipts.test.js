@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createEmptyStateV5,
+  createEmptyState,
   encodeEdgeKey,
   encodePropKey,
   join,
@@ -64,7 +64,7 @@ describe('JoinReducer receipts', () => {
 
   describe('join() without receipts (default)', () => {
     it('returns state directly when collectReceipts is falsy', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = makePatch({
         ops: [nodeAdd('n1', createDot('w1', 1))],
       });
@@ -75,7 +75,7 @@ describe('JoinReducer receipts', () => {
     });
 
     it('returns state directly when collectReceipts is undefined', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = makePatch({ ops: [] });
       const result = /** @type {any} */ (join(state, patch, 'abcd1234', undefined));
       expect(result).toBe(state);
@@ -88,7 +88,7 @@ describe('JoinReducer receipts', () => {
 
   describe('join() with receipts', () => {
     it('returns { state, receipt } when collectReceipts is true', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = makePatch({
         ops: [nodeAdd('n1', createDot('w1', 1))],
       });
@@ -99,7 +99,7 @@ describe('JoinReducer receipts', () => {
     });
 
     it('receipt contains correct patchSha, writer, lamport', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = makePatch({
         writer: 'alice',
         lamport: 42,
@@ -112,7 +112,7 @@ describe('JoinReducer receipts', () => {
     });
 
     it('receipt is frozen', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = makePatch({
         ops: [nodeAdd('n1', createDot('w1', 1))],
       });
@@ -122,7 +122,7 @@ describe('JoinReducer receipts', () => {
     });
 
     it('empty patch yields receipt with empty ops', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = makePatch({ ops: [] });
       const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops).toHaveLength(0);
@@ -135,7 +135,7 @@ describe('JoinReducer receipts', () => {
 
   describe('NodeAdd receipt outcomes', () => {
     it('new node → applied', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = makePatch({
         ops: [nodeAdd('n1', createDot('w1', 1))],
       });
@@ -148,7 +148,7 @@ describe('JoinReducer receipts', () => {
     });
 
     it('same dot added again → redundant', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       // Pre-add the dot
       state.nodeAlive.add('n1', dot);
@@ -161,7 +161,7 @@ describe('JoinReducer receipts', () => {
     });
 
     it('different dot for same node → applied', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       state.nodeAlive.add('n1', createDot('w1', 1));
 
       const patch = makePatch({
@@ -179,7 +179,7 @@ describe('JoinReducer receipts', () => {
 
   describe('NodeRemove receipt outcomes', () => {
     it('removing existing dot → applied', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       state.nodeAlive.add('n1', dot);
       const encoded = encodeDot(dot);
@@ -195,7 +195,7 @@ describe('JoinReducer receipts', () => {
     });
 
     it('removing already-tombstoned dot → redundant', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       state.nodeAlive.add('n1', dot);
       const encoded = encodeDot(dot);
@@ -210,7 +210,7 @@ describe('JoinReducer receipts', () => {
     });
 
     it('removing non-existent dot → redundant', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const encoded = encodeDot(createDot('w1', 99));
 
       const patch = makePatch({
@@ -227,7 +227,7 @@ describe('JoinReducer receipts', () => {
 
   describe('EdgeAdd receipt outcomes', () => {
     it('new edge → applied', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = makePatch({
         ops: [edgeAdd('a', 'b', 'rel', createDot('w1', 1))],
       });
@@ -240,7 +240,7 @@ describe('JoinReducer receipts', () => {
     });
 
     it('same edge dot added again → redundant', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
       state.edgeAlive.add(edgeKey, dot);
@@ -259,7 +259,7 @@ describe('JoinReducer receipts', () => {
 
   describe('EdgeRemove receipt outcomes', () => {
     it('removing existing edge dot → applied', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
       state.edgeAlive.add(edgeKey, dot);
@@ -276,7 +276,7 @@ describe('JoinReducer receipts', () => {
     });
 
     it('removing already-tombstoned edge dot → redundant', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
       state.edgeAlive.add(edgeKey, dot);
@@ -297,7 +297,7 @@ describe('JoinReducer receipts', () => {
 
   describe('PropSet receipt outcomes', () => {
     it('setting property with no prior value → applied', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = makePatch({
         ops: [propSet('n1', 'name', 'Alice')],
       });
@@ -310,7 +310,7 @@ describe('JoinReducer receipts', () => {
     });
 
     it('setting property with higher lamport than existing → applied', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       // Pre-set a property at lamport 1
       const key = encodePropKey('n1', 'name');
       const existingEventId = createEventId(1, 'w1', 'aaaa1111', 0);
@@ -326,7 +326,7 @@ describe('JoinReducer receipts', () => {
     });
 
     it('setting property with lower lamport than existing → superseded', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const key = encodePropKey('n1', 'name');
       // Pre-set at lamport 10
       const existingEventId = createEventId(10, 'w1', 'aaaa1111', 0);
@@ -345,7 +345,7 @@ describe('JoinReducer receipts', () => {
     });
 
     it('setting property with same EventId → redundant', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const key = encodePropKey('n1', 'name');
       // Pre-set with exact same EventId (same lamport, writer, sha, opIndex)
       const existingEventId = createEventId(1, 'w1', 'abcd1234', 0);
@@ -445,7 +445,7 @@ describe('JoinReducer receipts', () => {
     });
 
     it('works with initial state', () => {
-      const initial = createEmptyStateV5();
+      const initial = createEmptyState();
       initial.nodeAlive.add('n0', createDot('w0', 1));
 
       const patches = [
@@ -477,7 +477,7 @@ describe('JoinReducer receipts', () => {
 
   describe('multi-op patch receipts', () => {
     it('records one entry per op', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = makePatch({
         writer: 'w1',
         lamport: 1,
@@ -501,7 +501,7 @@ describe('JoinReducer receipts', () => {
 
   describe('unknown op types (forward-compat)', () => {
     it('unknown op is applied to state but excluded from receipt ops', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       // Mix a known op with an unknown future op type
       const patch = makePatch({
         writer: 'w1',
@@ -526,7 +526,7 @@ describe('JoinReducer receipts', () => {
     });
 
     it('patch with only unknown ops yields receipt with empty ops', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = makePatch({
         writer: 'w1',
         lamport: 1,

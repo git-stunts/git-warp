@@ -336,7 +336,7 @@ flowchart TB
     walk --> decode["Decode CBOR"]
     decode --> sort["Sort by Lamport"]
     sort --> reducer["JoinReducer<br/>OR-Set merge (nodes, edges) · LWW merge (properties)"]
-    reducer --> state["WarpStateV5<br/>nodeAlive · edgeAlive · prop · frontier"]
+    reducer --> state["WarpState<br/>nodeAlive · edgeAlive · prop · frontier"]
 
     refs -.->|"shortcut (if checkpoint exists)"| reducer
 
@@ -346,7 +346,7 @@ flowchart TB
 ```javascript
 const state = await graph.materialize();
 
-// state = WarpStateV5
+// state = WarpState
 // {
 //   nodeAlive: Map(...),
 //   edgeAlive: Map(...),
@@ -724,7 +724,7 @@ flowchart TB
 
     pa3 & pb2 --> sort["Sort by Lamport"]
     sort --> reducer["JoinReducer<br/>OR-Set merge · LWW merge"]
-    reducer --> state["WarpStateV5<br/>nodeAlive · edgeAlive · prop · frontier"]
+    reducer --> state["WarpState<br/>nodeAlive · edgeAlive · prop · frontier"]
 ```
 
 ```javascript

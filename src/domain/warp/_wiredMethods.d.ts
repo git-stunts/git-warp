@@ -7,7 +7,7 @@
 
 import type { PatchBuilder } from '../services/PatchBuilder.js';
 import type { Writer } from './Writer.ts';
-import type { WarpStateV5 } from '../services/JoinReducer.ts';
+import type { WarpState } from '../services/JoinReducer.ts';
 import type Patch from '../types/Patch.js';
 import type { StateDiffResult } from '../services/StateDiff.js';
 import type { TickReceipt } from '../types/TickReceipt.js';
@@ -67,7 +67,7 @@ interface SyncResponse {
  * Result of applySyncResponse().
  */
 interface ApplySyncResult {
-  state: WarpStateV5;
+  state: WarpState;
   frontier: Map<string, number>;
   applied: number;
 }
@@ -158,7 +158,7 @@ interface WormholeEdge {
  * Checkpoint data returned by _loadLatestCheckpoint.
  */
 interface CheckpointData {
-  state: WarpStateV5;
+  state: WarpState;
   frontier: Map<string, string>;
   stateHash: string;
   schema: number;
@@ -558,7 +558,7 @@ declare module '../WarpRuntime.js' {
     getContentMeta(nodeId: string): Promise<ContentMeta | null>;
     getEdgeContentMeta(from: string, to: string, label: string): Promise<ContentMeta | null>;
     neighbors(nodeId: string, direction?: 'outgoing' | 'incoming' | 'both', edgeLabel?: string): Promise<Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>>;
-    getStateSnapshot(): Promise<WarpStateV5 | null>;
+    getStateSnapshot(): Promise<WarpState | null>;
     getNodes(): Promise<string[]>;
     getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
     getPropertyCount(): Promise<number>;
@@ -570,11 +570,11 @@ declare module '../WarpRuntime.js' {
     // ── subscribe.methods.js ──────────────────────────────────────────────
     subscribe(options: { onChange: (diff: StateDiffResult) => void; onError?: (error: unknown) => void; replay?: boolean }): { unsubscribe: () => void };
     watch(pattern: string | string[], options: { onChange: (diff: StateDiffResult) => void; onError?: (error: unknown) => void; poll?: number }): { unsubscribe: () => void };
-    _notifySubscribers(diff: StateDiffResult, currentState: WarpStateV5): void;
+    _notifySubscribers(diff: StateDiffResult, currentState: WarpState): void;
 
     // ── provenance.methods.js ─────────────────────────────────────────────
     patchesFor(entityId: string): Promise<string[]>;
-    materializeSlice(nodeId: string, options?: { receipts?: boolean }): Promise<{ state: WarpStateV5; patchCount: number; receipts?: TickReceipt[] }>;
+    materializeSlice(nodeId: string, options?: { receipts?: boolean }): Promise<{ state: WarpState; patchCount: number; receipts?: TickReceipt[] }>;
     _computeBackwardCone(nodeId: string): Promise<Map<string, Patch>>;
     loadPatchBySha(sha: string): Promise<Patch>;
     _loadPatchBySha(sha: string): Promise<Patch>;
@@ -606,7 +606,7 @@ declare module '../WarpRuntime.js' {
     processSyncRequest(request: SyncRequest): Promise<SyncResponse>;
     applySyncResponse(response: SyncResponse): ApplySyncResult;
     syncNeeded(remoteFrontier: Map<string, string>): Promise<boolean>;
-    syncWith(remote: string | WarpRuntime, options?: SyncWithOptions): Promise<{ applied: number; attempts: number; state?: WarpStateV5 }>;
+    syncWith(remote: string | WarpRuntime, options?: SyncWithOptions): Promise<{ applied: number; attempts: number; state?: WarpState }>;
     serve(options: {
       port: number;
       host?: string;
@@ -624,7 +624,7 @@ declare module '../WarpRuntime.js' {
     _loadPatchesSince(checkpoint: CheckpointData): Promise<Array<{ patch: Patch; sha: string }>>;
     _validateMigrationBoundary(): Promise<void>;
     _hasSchema1Patches(): Promise<boolean>;
-    _maybeRunGC(state: WarpStateV5): void;
+    _maybeRunGC(state: WarpState): void;
     maybeRunGC(): MaybeGCResult;
     runGC(): GCExecuteResult;
     getGCMetrics(): GCMetrics | null;
@@ -642,26 +642,26 @@ declare module '../WarpRuntime.js' {
     _ensureFreshState(): Promise<void>;
     discoverWriters(): Promise<string[]>;
     discoverTicks(): Promise<{ ticks: number[]; maxTick: number; perWriter: Map<string, { ticks: number[]; tipSha: string | null; tickShas: Record<number, string> }> }>;
-    join(otherState: WarpStateV5): { state: WarpStateV5; receipt: JoinReceipt };
+    join(otherState: WarpState): { state: WarpState; receipt: JoinReceipt };
     _frontierEquals(a: import('../crdt/VersionVector.ts').default, b: import('../crdt/VersionVector.ts').default): boolean;
 
     // ── MaterializeController ─────────────────────────────────────────────
-    materialize(options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
-    materialize(options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
-    _materializeGraph(): Promise<{ state: WarpStateV5; stateHash: string; adjacency: unknown }>;
+    materialize(options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+    materialize(options?: { receipts?: false; ceiling?: number | null }): Promise<WarpState>;
+    _materializeGraph(): Promise<{ state: WarpState; stateHash: string; adjacency: unknown }>;
 
     // ── MaterializeController (advanced) ──────────────────────────────────
     _resolveCeiling(options?: { ceiling?: number | null }): number | null;
-    _buildAdjacency(state: WarpStateV5): { outgoing: Map<string, Array<{ neighborId: string; label: string }>>; incoming: Map<string, Array<{ neighborId: string; label: string }>> };
-    _buildView(state: WarpStateV5, stateHash: string, diff?: import('../types/PatchDiff.js').PatchDiff): void;
-    _setMaterializedState(state: WarpStateV5, optionsOrDiff?: import('../types/PatchDiff.js').PatchDiff | { diff?: import('../types/PatchDiff.js').PatchDiff | null }): Promise<{ state: WarpStateV5; stateHash: string; adjacency: unknown }>;
-    materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
-    materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts?: false }): Promise<WarpStateV5>;
-    _materializeWithCeiling(ceiling: number, collectReceipts: boolean, t0: number): Promise<WarpStateV5 | { state: WarpStateV5; receipts: TickReceipt[] }>;
-    _materializeWithCoordinate(frontier: Map<string, string>, ceiling: number | null, collectReceipts: boolean, t0: number): Promise<WarpStateV5 | { state: WarpStateV5; receipts: TickReceipt[] }>;
-    _persistSeekCacheEntry(cacheKey: string, buf: Uint8Array, state: WarpStateV5): Promise<void>;
+    _buildAdjacency(state: WarpState): { outgoing: Map<string, Array<{ neighborId: string; label: string }>>; incoming: Map<string, Array<{ neighborId: string; label: string }>> };
+    _buildView(state: WarpState, stateHash: string, diff?: import('../types/PatchDiff.js').PatchDiff): void;
+    _setMaterializedState(state: WarpState, optionsOrDiff?: import('../types/PatchDiff.js').PatchDiff | { diff?: import('../types/PatchDiff.js').PatchDiff | null }): Promise<{ state: WarpState; stateHash: string; adjacency: unknown }>;
+    materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts: true }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+    materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts?: false }): Promise<WarpState>;
+    _materializeWithCeiling(ceiling: number, collectReceipts: boolean, t0: number): Promise<WarpState | { state: WarpState; receipts: TickReceipt[] }>;
+    _materializeWithCoordinate(frontier: Map<string, string>, ceiling: number | null, collectReceipts: boolean, t0: number): Promise<WarpState | { state: WarpState; receipts: TickReceipt[] }>;
+    _persistSeekCacheEntry(cacheKey: string, buf: Uint8Array, state: WarpState): Promise<void>;
     _restoreIndexFromCache(indexTreeOid: string): Promise<void>;
-    materializeAt(checkpointSha: string): Promise<WarpStateV5>;
+    materializeAt(checkpointSha: string): Promise<WarpState>;
     verifyIndex(options?: { seed?: number; sampleRate?: number }): { passed: number; failed: number; errors: Array<{ nodeId: string; direction: string; expected: string[]; actual: string[] }> };
     invalidateIndex(): void;
 
@@ -671,8 +671,8 @@ declare module '../WarpRuntime.js' {
     getStrand(strandId: string): Promise<StrandDescriptor | null>;
     listStrands(): Promise<StrandDescriptor[]>;
     dropStrand(strandId: string): Promise<boolean>;
-    materializeStrand(strandId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
-    materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
+    materializeStrand(strandId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+    materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpState>;
     getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: Patch; sha: string }>>;
     patchesForStrand(strandId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
     createStrandPatch(strandId: string): Promise<PatchBuilder>;

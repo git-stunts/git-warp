@@ -20,8 +20,8 @@ import {
   CONTENT_SIZE_PROPERTY_KEY,
 } from '../KeyCodec.js';
 import { compareEventIds } from '../../utils/EventId.ts';
-import { cloneStateV5 } from '../JoinReducer.ts';
-import { createImmutableWarpStateV5 } from '../ImmutableSnapshot.js';
+import { cloneState } from '../JoinReducer.ts';
+import { createImmutableWarpState } from '../ImmutableSnapshot.js';
 import QueryBuilder from '../query/QueryBuilder.js';
 import Observer from '../query/Observer.js';
 import Worldline from '../Worldline.js';
@@ -106,12 +106,12 @@ async function openDetachedObserverGraph(graph) {
  * Snapshots the current materialized state with a cloned copy and hash.
  *
  * @param {import('../../WarpRuntime.js').default} graph
- * @returns {Promise<{ state: import('../state/WarpStateV5.ts').default, stateHash: string }>}
+ * @returns {Promise<{ state: import('../state/WarpState.ts').default, stateHash: string }>}
  */
 async function snapshotCurrentMaterialized(graph) {
-  const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: import('../state/WarpStateV5.ts').default, stateHash: string|null}> }} */ (graph)._materializeGraph();
+  const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: import('../state/WarpState.ts').default, stateHash: string|null}> }} */ (graph)._materializeGraph();
   return {
-    state: cloneStateV5(materialized.state),
+    state: cloneState(materialized.state),
     stateHash: /** @type {string} */ (materialized.stateHash),
   };
 }
@@ -120,8 +120,8 @@ async function snapshotCurrentMaterialized(graph) {
  * Clones and hashes a returned state for snapshot isolation.
  *
  * @param {import('../../WarpRuntime.js').default} graph
- * @param {import('../state/WarpStateV5.ts').default} state
- * @returns {Promise<{ state: import('../state/WarpStateV5.ts').default, stateHash: string }>}
+ * @param {import('../state/WarpState.ts').default} state
+ * @returns {Promise<{ state: import('../state/WarpState.ts').default, stateHash: string }>}
  */
 async function snapshotReturnedState(graph, state) {
   const stateHashService = /** @type {import('../state/StateHashService.js').default|null} */ (graph._stateHashService);
@@ -129,7 +129,7 @@ async function snapshotReturnedState(graph, state) {
     ? await stateHashService.compute(state)
     : await computeStateHashV5(state, { crypto: graph._crypto, codec: graph._codec });
   return {
-    state: cloneStateV5(state),
+    state: cloneState(state),
     stateHash,
   };
 }
@@ -139,7 +139,7 @@ async function snapshotReturnedState(graph, state) {
  *
  * @param {import('../../WarpRuntime.js').default} graph
  * @param {ObserverOptions|undefined} options
- * @returns {Promise<{ state: import('../state/WarpStateV5.ts').default, stateHash: string }>}
+ * @returns {Promise<{ state: import('../state/WarpState.ts').default, stateHash: string }>}
  */
 async function resolveObserverSnapshot(graph, options) {
   const source = toSelector(options?.source);
@@ -150,7 +150,7 @@ async function resolveObserverSnapshot(graph, options) {
 
   if (source instanceof LiveSelector) {
     const detached = await openDetachedObserverGraph(graph);
-    const state = /** @type {import('../state/WarpStateV5.ts').default} */ (await detached.materialize({
+    const state = /** @type {import('../state/WarpState.ts').default} */ (await detached.materialize({
       ceiling: source.ceiling ?? null,
     }));
     return await snapshotReturnedState(detached, state);
@@ -158,7 +158,7 @@ async function resolveObserverSnapshot(graph, options) {
 
   if (source instanceof CoordinateSelector) {
     const detached = await openDetachedObserverGraph(graph);
-    const state = /** @type {import('../state/WarpStateV5.ts').default} */ (await detached.materializeCoordinate({
+    const state = /** @type {import('../state/WarpState.ts').default} */ (await detached.materializeCoordinate({
       frontier: source.frontier,
       ceiling: source.ceiling ?? null,
     }));
@@ -170,7 +170,7 @@ async function resolveObserverSnapshot(graph, options) {
     const internalSource = /** @type {{ strandId: string, ceiling?: number|null }} */ (
       /** @type {unknown} */ (toInternalStrandShape(source.toDTO()))
     );
-    const state = /** @type {import('../state/WarpStateV5.ts').default} */ (
+    const state = /** @type {import('../state/WarpState.ts').default} */ (
       await callInternalRuntimeMethod(detached, 'materializeStrand', internalSource.strandId, {
         ceiling: internalSource.ceiling ?? null,
       })
@@ -197,7 +197,7 @@ async function resolveObserverSnapshot(graph, options) {
  */
 async function hasNode(nodeId) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState);
   return s.nodeAlive.contains(nodeId);
 }
 
@@ -226,7 +226,7 @@ async function getNodeProps(nodeId) {
   }
 
   // ── Linear scan fallback ─────────────────────────────────────────────
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState);
 
   if (!s.nodeAlive.contains(nodeId)) {
     return null;
@@ -256,7 +256,7 @@ async function getNodeProps(nodeId) {
  */
 async function getEdgeProps(from, to, label) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState);
 
   const edgeKey = encodeEdgeKey(from, to, label);
   if (!s.edgeAlive.contains(edgeKey)) {
@@ -324,7 +324,7 @@ async function neighbors(nodeId, direction = 'both', edgeLabel = undefined) {
   }
 
   // ── Linear scan fallback ─────────────────────────────────────────────
-  return _linearNeighbors(/** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState), nodeId, direction, edgeLabel);
+  return _linearNeighbors(/** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState), nodeId, direction, edgeLabel);
 }
 
 /**
@@ -353,14 +353,14 @@ async function _indexedNeighbors(provider, nodeId, direction, opts) {
 /**
  * Linear-scan neighbor lookup from raw CRDT state.
  *
- * @param {import('../state/WarpStateV5.ts').default} cachedState
+ * @param {import('../state/WarpState.ts').default} cachedState
  * @param {string} nodeId
  * @param {'outgoing' | 'incoming' | 'both'} direction
  * @param {string} [edgeLabel]
  * @returns {Array<{nodeId: string, label: string, direction: 'outgoing' | 'incoming'}>}
  */
 function _linearNeighbors(cachedState, nodeId, direction, edgeLabel) {
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (cachedState);
   /** @type {Array<{nodeId: string, label: string, direction: 'outgoing' | 'incoming'}>} */
   const result = [];
   const checkOut = direction === 'outgoing' || direction === 'both';
@@ -385,7 +385,7 @@ function _linearNeighbors(cachedState, nodeId, direction, edgeLabel) {
 /**
  * Returns a defensive copy of the current materialized state.
  *
- * @returns {Promise<import('../state/WarpStateV5.ts').default | null>}
+ * @returns {Promise<import('../state/WarpState.ts').default | null>}
  * @this {QueryController}
  */
 async function getStateSnapshot() {
@@ -396,7 +396,7 @@ async function getStateSnapshot() {
   if (!this._host._cachedState) {
     return null;
   }
-  return createImmutableWarpStateV5(/** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState));
+  return createImmutableWarpState(/** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState));
 }
 
 /**
@@ -408,7 +408,7 @@ async function getStateSnapshot() {
  */
 async function getNodes() {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState);
   return [...s.nodeAlive.elements()];
 }
 
@@ -421,7 +421,7 @@ async function getNodes() {
  */
 async function getEdges() {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState);
 
   /** @type {Map<string, Record<string, unknown>>} */
   const edgePropsByKey = new Map();
@@ -468,7 +468,7 @@ async function getEdges() {
  */
 async function getPropertyCount() {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState);
   return s.prop.size;
 }
 
@@ -562,7 +562,7 @@ async function observer(nameOrConfig, configOrOptions = undefined, maybeOptions 
  */
 async function translationCost(configA, configB) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState);
   return computeTranslationCost(configA, configB, s);
 }
 
@@ -608,7 +608,7 @@ function visibleEdgeRegister(register, birthEvent) {
 /**
  * Looks up the current node attachment registers directly from materialized state.
  *
- * @param {import('../state/WarpStateV5.ts').default} state
+ * @param {import('../state/WarpState.ts').default} state
  * @param {string} nodeId
  * @returns {{ contentRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: string }, mimeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../../utils/EventId.ts').EventId|null, value: unknown }|null }|null}
  */
@@ -630,7 +630,7 @@ function getNodeContentRegisters(state, nodeId) {
 /**
  * Looks up the current edge attachment registers directly from materialized state.
  *
- * @param {import('../state/WarpStateV5.ts').default} state
+ * @param {import('../state/WarpState.ts').default} state
  * @param {string} from
  * @param {string} to
  * @param {string} label
@@ -706,7 +706,7 @@ function extractContentMeta(contentRegister, mimeRegister, sizeRegister) {
  */
 async function getContentOid(nodeId) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState);
   const registers = getNodeContentRegisters(s, nodeId);
   return registers?.contentRegister.value ?? null;
 }
@@ -721,7 +721,7 @@ async function getContentOid(nodeId) {
  */
 async function getContentMeta(nodeId) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState);
   const registers = getNodeContentRegisters(s, nodeId);
   return registers
     ? extractContentMeta(registers.contentRegister, registers.mimeRegister, registers.sizeRegister)
@@ -744,7 +744,7 @@ async function getContentMeta(nodeId) {
  */
 async function getContent(nodeId) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState);
   const registers = getNodeContentRegisters(s, nodeId);
   if (!registers) {
     return null;
@@ -768,7 +768,7 @@ async function getContent(nodeId) {
  */
 async function getEdgeContentOid(from, to, label) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState);
   const registers = getEdgeContentRegisters(s, from, to, label);
   return registers?.contentRegister.value ?? null;
 }
@@ -785,7 +785,7 @@ async function getEdgeContentOid(from, to, label) {
  */
 async function getEdgeContentMeta(from, to, label) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState);
   const registers = getEdgeContentRegisters(s, from, to, label);
   return registers
     ? extractContentMeta(registers.contentRegister, registers.mimeRegister, registers.sizeRegister)
@@ -810,7 +810,7 @@ async function getEdgeContentMeta(from, to, label) {
  */
 async function getEdgeContent(from, to, label) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState);
   const registers = getEdgeContentRegisters(s, from, to, label);
   if (!registers) {
     return null;
@@ -834,7 +834,7 @@ async function getEdgeContent(from, to, label) {
  */
 async function getContentStream(nodeId) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState);
   const registers = getNodeContentRegisters(s, nodeId);
   if (!registers) {
     return null;
@@ -862,7 +862,7 @@ async function getContentStream(nodeId) {
  */
 async function getEdgeContentStream(from, to, label) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../state/WarpStateV5.ts').default} */ (this._host._cachedState);
+  const s = /** @type {import('../state/WarpState.ts').default} */ (this._host._cachedState);
   const registers = getEdgeContentRegisters(s, from, to, label);
   if (!registers) {
     return null;

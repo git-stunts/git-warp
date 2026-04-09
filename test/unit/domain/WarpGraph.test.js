@@ -6,7 +6,7 @@ import { NoOpEffectSink } from '../../../src/infrastructure/adapters/NoOpEffectS
 
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
-import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../../src/domain/crdt/Dot.ts';
 import { serializeFullStateV5, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializerV5.js';
 import { serializeFrontier } from '../../../src/domain/services/Frontier.js';
@@ -690,7 +690,7 @@ eg-schema: 2`;
       });
 
       // Create V5 state for mock
-      const v5State = createEmptyStateV5();
+      const v5State = createEmptyState();
       const stateBuffer = serializeFullStateV5(v5State);
       const frontierBuffer = serializeFrontier(new Map([['writer-1', writerTipSha]]));
       const appliedVV = computeAppliedVV(v5State);
@@ -886,7 +886,7 @@ eg-schema: 2`;
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1']);
       // Mock materialize to return V5 state (with ORSet structure)
-      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyStateV5());
+      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyState());
 
       persistence.readRef.mockResolvedValue(writerSha);
       persistence.writeBlob.mockResolvedValue(blobOid);
@@ -922,7 +922,7 @@ eg-schema: 2`;
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1']);
       // Mock materialize to return V5 state (with ORSet structure)
-      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyStateV5());
+      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyState());
 
       persistence.readRef.mockResolvedValue(writerSha);
       persistence.writeBlob.mockResolvedValue(blobOid);
@@ -955,7 +955,7 @@ eg-schema: 2`;
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1']);
       // Mock materialize to return V5 state (with ORSet structure)
-      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyStateV5());
+      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyState());
 
       persistence.readRef.mockResolvedValue(writerSha);
       persistence.writeBlob.mockResolvedValue(blobOid);
@@ -985,7 +985,7 @@ eg-schema: 2`;
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1', 'writer-2']);
       // Mock materialize to return V5 state (with ORSet structure)
-      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyStateV5());
+      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyState());
 
       persistence.readRef
         .mockResolvedValueOnce(writer1Sha)
@@ -1020,7 +1020,7 @@ eg-schema: 2`;
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1']);
       // Mock materialize to return V5 state (with ORSet structure)
-      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyStateV5());
+      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyState());
 
       persistence.readRef.mockResolvedValue(null); // No refs exist
       persistence.writeBlob.mockResolvedValue(blobOid);
@@ -1055,7 +1055,7 @@ eg-schema: 2`;
       const warn = vi.fn();
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1']);
-      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyStateV5());
+      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyState());
 
       persistence.readRef.mockResolvedValue(writerSha);
       persistence.writeBlob.mockResolvedValue(blobOid);
@@ -1635,7 +1635,7 @@ eg-schema: 2`;
             ['writer-2', 'b'.repeat(40)],
             ['writer-3', 'c'.repeat(40)],
           ]),
-          state: createEmptyStateV5(),
+          state: createEmptyState(),
           stateHash: 'd'.repeat(64),
         };
 

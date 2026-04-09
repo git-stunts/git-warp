@@ -3,7 +3,7 @@
 ## What must remain true?
 
 Every query, traversal, or materialized view is a deterministic
-function of the materialized state. Given the same `WarpStateV5`,
+function of the materialized state. Given the same `WarpState`,
 identical queries must return identical results, regardless of
 runtime, timing, or execution environment.
 

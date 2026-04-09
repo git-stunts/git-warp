@@ -16,8 +16,8 @@ import defaultCodec from '../../utils/defaultCodec.ts';
 import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { decodeDot } from '../../crdt/Dot.ts';
-import { createEmptyStateV5 } from '../JoinReducer.ts';
-import WarpStateV5 from './WarpStateV5.ts';
+import { createEmptyState } from '../JoinReducer.ts';
+import WarpState from './WarpState.ts';
 import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 
 // ============================================================================
@@ -36,7 +36,7 @@ import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
  *   observedFrontier: { writerId: counter, ... }
  * }
  *
- * @param {import('../JoinReducer.ts').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpState} state
  * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options]
  * @returns {Uint8Array} CBOR-encoded full state
  */
@@ -95,16 +95,16 @@ function serializeEdgeBirthArray(edgeBirthEvent) {
  *
  * @param {Uint8Array} buffer - CBOR-encoded full state
  * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options]
- * @returns {import('../JoinReducer.ts').WarpStateV5}
+ * @returns {import('../JoinReducer.ts').WarpState}
  */
 export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
   const codec = codecOpt ?? defaultCodec;
   if (buffer === null || buffer === undefined) {
-    return createEmptyStateV5();
+    return createEmptyState();
   }
   const obj = /** @type {Record<string, unknown>} */ (codec.decode(buffer));
   if (obj === null || obj === undefined) {
-    return createEmptyStateV5();
+    return createEmptyState();
   }
   // Accept both 'full-v5' and missing version (backward compat with pre-versioned data)
   if (obj['version'] !== undefined && obj['version'] !== 'full-v5') {
@@ -113,7 +113,7 @@ export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
       { context: { version: obj['version'] } },
     );
   }
-  return new WarpStateV5({
+  return new WarpState({
     nodeAlive: ORSet.deserialize(obj['nodeAlive'] ?? {}),
     edgeAlive: ORSet.deserialize(obj['edgeAlive'] ?? {}),
     prop: deserializeProps(/** @type {[string, unknown][]} */ (obj['prop'])),
@@ -134,7 +134,7 @@ export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
  * CRITICAL: This scans ALL dots, including those that may be tombstoned.
  * The appliedVV represents what operations have been applied, not what is visible.
  *
- * @param {import('../JoinReducer.ts').WarpStateV5} state
+ * @param {import('../JoinReducer.ts').WarpState} state
  * @returns {VersionVector}
  */
 export function computeAppliedVV(state) {

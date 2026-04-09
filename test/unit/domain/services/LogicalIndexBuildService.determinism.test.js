@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
-import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.ts';
@@ -8,7 +8,7 @@ import { LabelShard } from '../../../../src/domain/artifacts/LabelShard.ts';
 import { EdgeShard } from '../../../../src/domain/artifacts/EdgeShard.ts';
 
 /**
- * Helper: builds a WarpStateV5 from nodes and edges, applying ops in the
+ * Helper: builds a WarpState from nodes and edges, applying ops in the
  * given order. Different orderings of the same final state should produce
  * identical index mappings after the determinism sort fix.
  *
@@ -16,7 +16,7 @@ import { EdgeShard } from '../../../../src/domain/artifacts/EdgeShard.ts';
  * @param {Array<{from: string, to: string, label: string}>} edges
  */
 function buildState(nodes, edges) {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   const writer = 'w1';
   const sha = 'a'.repeat(40);
   let opIdx = 0;

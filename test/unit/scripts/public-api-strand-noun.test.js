@@ -49,7 +49,7 @@ describe('Strand is the public speculative-lane noun', () => {
     expect(indexDts).toContain('getStrand(strandId: string): Promise<StrandDescriptor | null>;');
     expect(indexDts).toContain('listStrands(): Promise<StrandDescriptor[]>;');
     expect(indexDts).toContain('braidStrand(strandId: string, options?: StrandBraidOptions): Promise<StrandDescriptor>;');
-    expect(indexDts).toContain('materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;');
+    expect(indexDts).toContain('materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpState>;');
     expect(indexDts).toContain('compareStrand(strandId: string, options?: {');
     expect(indexDts).toContain('planStrandTransfer(strandId: string, options?: {');
 

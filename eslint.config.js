@@ -274,7 +274,7 @@ export default tseslint.config(
       "src/domain/services/ReceiptBuilder.ts",
       "src/domain/services/OpStrategies.ts",
       "src/domain/services/OpValidator.ts",
-      "src/domain/services/state/WarpStateV5.ts",
+      "src/domain/services/state/WarpState.ts",
     ],
     rules: {
       "complexity": ["error", 35],

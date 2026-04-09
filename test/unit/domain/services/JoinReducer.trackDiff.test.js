@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createEmptyStateV5,
+  createEmptyState,
   encodeEdgeKey,
   encodePropKey,
   applyWithDiff,
@@ -71,7 +71,7 @@ describe('JoinReducer diff tracking', () => {
 
   describe('applyWithDiff — NodeAdd', () => {
     it('fresh node → nodesAdded contains it', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = makePatch({
         ops: [nodeAdd('n1', createDot('w1', 1))],
       });
@@ -84,7 +84,7 @@ describe('JoinReducer diff tracking', () => {
     });
 
     it('already-alive node → nodesAdded is empty (redundant add)', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       // Pre-populate: node n1 already alive with dot (w1, 1)
       state.nodeAlive.add('n1', createDot('w1', 1));
 
@@ -108,7 +108,7 @@ describe('JoinReducer diff tracking', () => {
 
   describe('applyWithDiff — NodeRemove', () => {
     it('all dots tombstoned → nodesRemoved contains it', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       state.nodeAlive.add('n1', dot);
       expect(state.nodeAlive.contains('n1')).toBe(true);
@@ -126,7 +126,7 @@ describe('JoinReducer diff tracking', () => {
     });
 
     it('partial dots removed, node stays alive → nodesRemoved is empty', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot1 = createDot('w1', 1);
       const dot2 = createDot('w2', 1);
       state.nodeAlive.add('n1', dot1);
@@ -146,7 +146,7 @@ describe('JoinReducer diff tracking', () => {
     });
 
     it('redundant remove of already-dead node produces no spurious diff (H4)', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       // n1 is alive, n2 was added and already fully tombstoned (dead)
       const dot1 = createDot('w1', 1);
@@ -181,7 +181,7 @@ describe('JoinReducer diff tracking', () => {
 
   describe('applyWithDiff — EdgeAdd', () => {
     it('fresh edge → edgesAdded contains {from, to, label}', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = makePatch({
         ops: [edgeAdd('a', 'b', 'rel', createDot('w1', 1))],
       });
@@ -195,7 +195,7 @@ describe('JoinReducer diff tracking', () => {
     });
 
     it('already-alive edge → edgesAdded is empty (redundant add)', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
       state.edgeAlive.add(edgeKey, createDot('w1', 1));
 
@@ -219,7 +219,7 @@ describe('JoinReducer diff tracking', () => {
 
   describe('applyWithDiff — EdgeRemove', () => {
     it('all dots tombstoned → edgesRemoved contains {from, to, label}', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot = createDot('w1', 1);
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
       state.edgeAlive.add(edgeKey, dot);
@@ -237,7 +237,7 @@ describe('JoinReducer diff tracking', () => {
     });
 
     it('partial dots removed, edge stays alive → edgesRemoved is empty', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const dot1 = createDot('w1', 1);
       const dot2 = createDot('w2', 1);
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
@@ -257,7 +257,7 @@ describe('JoinReducer diff tracking', () => {
     });
 
     it('redundant remove of already-dead edge produces no spurious diff (H4)', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const dot1 = createDot('w1', 1);
       const dot2 = createDot('w1', 2);
@@ -291,7 +291,7 @@ describe('JoinReducer diff tracking', () => {
 
   describe('applyWithDiff — PropSet', () => {
     it('new property (no prior value) → propsChanged with prevValue: undefined', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const patch = makePatch({
         ops: [propSet('n1', 'color', 'red')],
       });
@@ -304,7 +304,7 @@ describe('JoinReducer diff tracking', () => {
     });
 
     it('LWW winner changes existing value → propsChanged with correct prevValue', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       // Pre-populate: property n1.color = 'red' at lamport=1
       const propKey = encodePropKey('n1', 'color');
       const oldEventId = createEventId(1, 'w1', 'aaa00000', 0);
@@ -324,7 +324,7 @@ describe('JoinReducer diff tracking', () => {
     });
 
     it('incoming value is superseded (lower lamport) → propsChanged is empty', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       // Pre-populate: property n1.color = 'red' at lamport=10
       const propKey = encodePropKey('n1', 'color');
       const highEventId = createEventId(10, 'w1', 'fff00000', 0);
@@ -350,7 +350,7 @@ describe('JoinReducer diff tracking', () => {
 
   describe('applyWithDiff — mixed operations in a single patch', () => {
     it('tracks multiple transitions in one patch', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const patch = makePatch({
         ops: [
@@ -373,7 +373,7 @@ describe('JoinReducer diff tracking', () => {
     });
 
     it('skips undefined ops while still tracking later transitions', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const { diff } = applyWithDiff(state, makePatch({
         ops: [
@@ -491,7 +491,7 @@ describe('JoinReducer diff tracking', () => {
 
     it('trackDiff with initialState applies patches incrementally', () => {
       // Create initial state with node n1 and prop color=red
-      const initial = createEmptyStateV5();
+      const initial = createEmptyState();
       initial.nodeAlive.add('n1', createDot('w1', 1));
       const propKey = encodePropKey('n1', 'color');
       const oldEventId = createEventId(1, 'w1', 'a0a00001', 0);

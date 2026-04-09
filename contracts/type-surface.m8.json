@@ -682,7 +682,7 @@
               "optional": true
             }
           ],
-          "returns": "Promise<WarpStateV5>",
+          "returns": "Promise<WarpState>",
           "overloads": [
             {
               "params": [
@@ -691,7 +691,7 @@
                   "type": "{ receipts: true; ceiling?: number }"
                 }
               ],
-              "returns": "Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>"
+              "returns": "Promise<{ state: WarpState; receipts: TickReceipt[] }>"
             },
             {
               "params": [
@@ -701,7 +701,7 @@
                   "optional": true
                 }
               ],
-              "returns": "Promise<WarpStateV5>"
+              "returns": "Promise<WarpState>"
             }
           ]
         },
@@ -713,7 +713,7 @@
               "type": "string"
             }
           ],
-          "returns": "Promise<WarpStateV5>"
+          "returns": "Promise<WarpState>"
         },
         "hasNode": {
           "async": true,
@@ -875,7 +875,7 @@
         "getStateSnapshot": {
           "async": true,
           "params": [],
-          "returns": "Promise<WarpStateV5 | null>"
+          "returns": "Promise<WarpState | null>"
         },
         "discoverWriters": {
           "async": true,
@@ -953,7 +953,7 @@
               "optional": true
             }
           ],
-          "returns": "Promise<{ applied: number; attempts: number; skippedWriters: Array<{ writerId: string; reason: string; localSha: string; remoteSha: string | null }>; state?: WarpStateV5 }>"
+          "returns": "Promise<{ applied: number; attempts: number; skippedWriters: Array<{ writerId: string; reason: string; localSha: string; remoteSha: string | null }>; state?: WarpState }>"
         },
         "fork": {
           "async": true,
@@ -1002,7 +1002,7 @@
               "optional": true
             }
           ],
-          "returns": "Promise<{ state: WarpStateV5; patchCount: number; receipts?: TickReceipt[] }>"
+          "returns": "Promise<{ state: WarpState; patchCount: number; receipts?: TickReceipt[] }>"
         },
         "analyzeConflicts": {
           "async": true,
@@ -1035,10 +1035,10 @@
           "params": [
             {
               "name": "otherState",
-              "type": "WarpStateV5"
+              "type": "WarpState"
             }
           ],
-          "returns": "{ state: WarpStateV5; receipt: JoinReceipt }"
+          "returns": "{ state: WarpState; receipt: JoinReceipt }"
         },
         "subscribe": {
           "async": false,
@@ -1854,7 +1854,7 @@
     "WarpStatus": {
       "kind": "interface"
     },
-    "WarpStateV5": {
+    "WarpState": {
       "kind": "interface"
     },
     "WeightedCostSelector": {

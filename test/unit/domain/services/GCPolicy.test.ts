@@ -3,7 +3,7 @@ import GCPolicy from '../../../../src/domain/services/GCPolicy.ts';
 import executeGC from '../../../../src/domain/services/executeGC.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import GCMetrics from '../../../../src/domain/services/GCMetrics.ts';
-import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 
@@ -111,7 +111,7 @@ describe('GCPolicy', () => {
 
   describe('executeGC', () => {
     it('removes tombstoned dots that are <= appliedVV', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       // Add nodes with dots
       const dot1 = createDot('A', 1);
@@ -152,7 +152,7 @@ describe('GCPolicy', () => {
     });
 
     it('preserves live dots even if <= appliedVV', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const dot1 = createDot('A', 1);
       const dot2 = createDot('A', 2);
@@ -172,7 +172,7 @@ describe('GCPolicy', () => {
     });
 
     it('returns accurate stats for edges', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const dot1 = createDot('A', 1);
       const dot2 = createDot('A', 2);
@@ -194,7 +194,7 @@ describe('GCPolicy', () => {
     });
 
     it('throws E_GC_INVALID_VV when appliedVV is not a VersionVector', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       // This test exists precisely to verify the runtime guard that
       // catches non-VersionVector input. We intentionally invoke
@@ -219,7 +219,7 @@ describe('GCPolicy', () => {
     });
 
     it('compacts both nodes and edges in one call', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const dot1 = createDot('A', 1);
       const dot2 = createDot('A', 2);
@@ -245,7 +245,7 @@ describe('GCPolicy', () => {
 describe('GCMetrics', () => {
   describe('countEntries', () => {
     it('counts total dots across all elements', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       state.nodeAlive.add('node1', createDot('A', 1));
       state.nodeAlive.add('node1', createDot('B', 1));
@@ -255,14 +255,14 @@ describe('GCMetrics', () => {
     });
 
     it('returns 0 for empty ORSet', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       expect(state.nodeAlive.countEntries()).toBe(0);
     });
   });
 
   describe('countLiveDots', () => {
     it('excludes tombstoned dots from count', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const dot1 = createDot('A', 1);
       const dot2 = createDot('A', 2);
@@ -280,7 +280,7 @@ describe('GCMetrics', () => {
 
   describe('countTombstones', () => {
     it('counts only tombstones that match entry dots', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const dot1 = createDot('A', 1);
       const dot2 = createDot('A', 2);
@@ -296,7 +296,7 @@ describe('GCMetrics', () => {
 
   describe('GCMetrics.fromState', () => {
     it('calculates correct tombstone ratio', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const dot0 = createDot('A', 1);
       const dots = [
@@ -324,7 +324,7 @@ describe('GCMetrics', () => {
     });
 
     it('returns 0 ratio for empty state', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const metrics = GCMetrics.fromState(state);
 
       expect(metrics.tombstoneRatio).toBe(0);
@@ -334,7 +334,7 @@ describe('GCMetrics', () => {
     });
 
     it('handles mixed nodes and edges', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const nodeDot1 = createDot('A', 1);
       const nodeDot2 = createDot('A', 2);

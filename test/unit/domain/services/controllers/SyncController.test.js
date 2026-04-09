@@ -117,7 +117,7 @@ function createMockHost(overrides = {}) {
   return host;
 }
 
-/** Minimal fake WarpStateV5 that satisfies GCMetrics. */
+/** Minimal fake WarpState that satisfies GCMetrics. */
 function fakeState() {
   return {
     observedFrontier: new Map(),

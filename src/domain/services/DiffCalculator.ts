@@ -13,7 +13,7 @@
  */
 
 import type ORSet from '../crdt/ORSet.ts';
-import type WarpStateV5 from './state/WarpStateV5.ts';
+import type WarpState from './state/WarpState.ts';
 import type { PatchDiff } from '../types/PatchDiff.ts';
 import { decodeEdgeKey } from './KeyCodec.js';
 
@@ -69,7 +69,7 @@ export default class DiffCalculator {
    */
   static collectNodeRemovals(
     diff: PatchDiff,
-    state: WarpStateV5,
+    state: WarpState,
     aliveBeforeNodes: ReadonlySet<string> | undefined,
   ): void {
     if (!aliveBeforeNodes) { return; }
@@ -86,7 +86,7 @@ export default class DiffCalculator {
    */
   static collectEdgeRemovals(
     diff: PatchDiff,
-    state: WarpStateV5,
+    state: WarpState,
     aliveBeforeEdges: ReadonlySet<string> | undefined,
   ): void {
     if (!aliveBeforeEdges) { return; }

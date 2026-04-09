@@ -11,7 +11,7 @@ import {
 import { createStateReaderV5 } from '../../../../src/domain/services/state/StateReaderV5.js';
 import { compareVisibleStateV5 } from '../../../../src/domain/services/VisibleStateComparisonV5.js';
 import {
-  createEmptyStateV5,
+  createEmptyState,
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
@@ -51,7 +51,7 @@ function mockDot(writerId = 'test', seq = 1) {
  * Uses ORSet for nodes and edges (V5 style).
  */
 function buildStateV5({ nodes = /** @type {any[]} */ ([]), edges = /** @type {any[]} */ ([]), props = /** @type {any[]} */ ([]) }) {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   let dotSeq = 1;
 
   // Add nodes using ORSet
@@ -104,13 +104,13 @@ describe('StateSerializerV5', () => {
     });
 
     it('returns false for unknown nodes', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       expect(nodeVisibleV5(state, 'nonexistent')).toBe(false);
     });
 
     it('returns true when add-remove-add (concurrent wins)', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       // First add
       state.nodeAlive.add('a', mockDot('alice', 1));
@@ -227,7 +227,7 @@ describe('StateSerializerV5', () => {
     });
 
     it('returns false when node unknown', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const propKey = encodePropKey('a', 'name');
       expect(propVisibleV5(state, propKey)).toBe(false);
@@ -373,7 +373,7 @@ describe('StateSerializerV5', () => {
     });
 
     it('serializes empty state correctly', () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
 
       const bytes = serializeStateV5(state);
       const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
@@ -522,7 +522,7 @@ describe('StateSerializerV5', () => {
     });
 
     it('empty state has consistent hash', async () => {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       const hash1 = await computeStateHashV5(state, { crypto });
       const hash2 = await computeStateHashV5(state, { crypto });
 
@@ -570,13 +570,13 @@ describe('StateSerializerV5', () => {
   describe('determinism (CRITICAL WARP invariant)', () => {
     it('ORSet add-remove semantics produce consistent hash', async () => {
       // State 1: Add node, then another writer removes it
-      const state1 = createEmptyStateV5();
+      const state1 = createEmptyState();
       state1.nodeAlive.add('a', mockDot('alice', 1));
       const observedDots1 = new Set(state1.nodeAlive.entries.get('a'));
       state1.nodeAlive.remove(observedDots1);
 
       // State 2: Same operations via different writer IDs (same result)
-      const state2 = createEmptyStateV5();
+      const state2 = createEmptyState();
       state2.nodeAlive.add('a', mockDot('bob', 1));
       const observedDots2 = new Set(state2.nodeAlive.entries.get('a'));
       state2.nodeAlive.remove(observedDots2);
@@ -587,7 +587,7 @@ describe('StateSerializerV5', () => {
 
     it('concurrent add after remove wins correctly', async () => {
       // State where a concurrent add survives a remove
-      const state1 = createEmptyStateV5();
+      const state1 = createEmptyState();
 
       // Add by Alice
       state1.nodeAlive.add('n', mockDot('alice', 1));
@@ -598,7 +598,7 @@ describe('StateSerializerV5', () => {
       state1.nodeAlive.add('n', mockDot('carol', 1));
 
       // State 2: Same final result via different order
-      const state2 = createEmptyStateV5();
+      const state2 = createEmptyState();
       state2.nodeAlive.add('n', mockDot('carol', 1));
 
       // Both should show 'n' as visible
@@ -609,12 +609,12 @@ describe('StateSerializerV5', () => {
 
     it('different insertion orders produce same hash when final state is same', async () => {
       // Build states with nodes added in different orders
-      const state1 = createEmptyStateV5();
+      const state1 = createEmptyState();
       state1.nodeAlive.add('zebra', mockDot('w1', 1));
       state1.nodeAlive.add('apple', mockDot('w1', 2));
       state1.nodeAlive.add('mango', mockDot('w1', 3));
 
-      const state2 = createEmptyStateV5();
+      const state2 = createEmptyState();
       state2.nodeAlive.add('apple', mockDot('w2', 1));
       state2.nodeAlive.add('mango', mockDot('w2', 2));
       state2.nodeAlive.add('zebra', mockDot('w2', 3));

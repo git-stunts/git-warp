@@ -6,12 +6,12 @@ import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import WarpStateV5 from '../../../../src/domain/services/state/WarpStateV5.ts';
+import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import MockBlobPort from '../../../helpers/MockBlobPort.js';
 
 /**
  * Builds a small but representative checkpoint state.
- * @returns {WarpStateV5}
+ * @returns {WarpState}
  */
 function createGoldenState() {
   const nodeAlive = ORSet.empty();
@@ -31,7 +31,7 @@ function createGoldenState() {
   const observedFrontier = VersionVector.empty();
   observedFrontier.set('w1', 3);
 
-  return new WarpStateV5({ nodeAlive, edgeAlive, prop, observedFrontier });
+  return new WarpState({ nodeAlive, edgeAlive, prop, observedFrontier });
 }
 
 /**
@@ -199,7 +199,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       }));
 
       const emptyFromNullBuffer = adapter._decodeFullState(null);
-      expect(emptyFromNullBuffer).toBeInstanceOf(WarpStateV5);
+      expect(emptyFromNullBuffer).toBeInstanceOf(WarpState);
       expect(emptyFromNullBuffer.nodeAlive.entries.size).toBe(0);
 
       const nullDecodingAdapter = /** @type {any} */ (new CborCheckpointStoreAdapter({
@@ -215,7 +215,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       }));
 
       const emptyFromNullPayload = nullDecodingAdapter._decodeFullState(new Uint8Array([1]));
-      expect(emptyFromNullPayload).toBeInstanceOf(WarpStateV5);
+      expect(emptyFromNullPayload).toBeInstanceOf(WarpState);
       expect(emptyFromNullPayload.edgeAlive.entries.size).toBe(0);
     });
 
@@ -260,7 +260,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         ['user:a\x00user:b\x00knows', createEventId(1, 'w1', 'e'.repeat(40), 0)],
       ]);
 
-      const state = new WarpStateV5({
+      const state = new WarpState({
         nodeAlive: ORSet.empty(),
         edgeAlive: ORSet.empty(),
         prop,

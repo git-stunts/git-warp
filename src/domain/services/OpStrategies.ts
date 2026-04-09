@@ -31,7 +31,7 @@ import {
 } from './KeyCodec.js';
 import { OP_TYPES } from '../types/TickReceipt.ts';
 import PatchError from '../errors/PatchError.ts';
-import WarpStateV5 from './state/WarpStateV5.ts';
+import WarpState from './state/WarpState.ts';
 import type { PatchDiff } from '../types/PatchDiff.ts';
 import OpApplied from '../types/ops/OpApplied.ts';
 import type OpOutcomeResult from '../types/ops/OpOutcomeResult.ts';
@@ -81,18 +81,18 @@ export abstract class OpStrategy {
   abstract validate(op: OpLikeRecord): void;
 
   /** CRDT mutation. Mutates `state` in place. */
-  abstract mutate(state: WarpStateV5, op: OpLike, eventId: EventId): void;
+  abstract mutate(state: WarpState, op: OpLike, eventId: EventId): void;
 
   /** Pre-mutation receipt outcome. Reads state; does not mutate. */
-  abstract outcome(state: WarpStateV5, op: OpLike, eventId: EventId): OpOutcomeResult;
+  abstract outcome(state: WarpState, op: OpLike, eventId: EventId): OpOutcomeResult;
 
   /** Pre-mutation snapshot used by the diff path. Reads state; does not mutate. */
-  abstract snapshot(state: WarpStateV5, op: OpLike): SnapshotBeforeOp;
+  abstract snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp;
 
   /** Post-mutation diff accumulation. Mutates `diff` in place. */
   abstract accumulate(
     diff: PatchDiff,
-    state: WarpStateV5,
+    state: WarpState,
     op: OpLike,
     before: SnapshotBeforeOp,
   ): void;
@@ -103,7 +103,7 @@ export abstract class OpStrategy {
 
   /** Shared mutate logic for NodePropSet / EdgePropSet / legacy PropSet. */
   protected static _mutateProp(
-    state: WarpStateV5,
+    state: WarpState,
     propKey: string,
     eventId: EventId,
     value: unknown,
@@ -116,7 +116,7 @@ export abstract class OpStrategy {
   }
 
   /** Shared pre-op snapshot for property strategies. */
-  protected static _snapshotProp(state: WarpStateV5, propKey: string): SnapshotBeforeOp {
+  protected static _snapshotProp(state: WarpState, propKey: string): SnapshotBeforeOp {
     const reg = state.prop.get(propKey);
     return { prevPropValue: reg !== undefined ? reg.value : undefined, propKey };
   }
@@ -124,7 +124,7 @@ export abstract class OpStrategy {
   /** Shared diff accumulator for property strategies. */
   protected static _accumulatePropDiff(
     diff: PatchDiff,
-    state: WarpStateV5,
+    state: WarpState,
     nodeId: string,
     key: string,
     before: SnapshotBeforeOp,
@@ -144,16 +144,16 @@ export abstract class OpStrategy {
 class NodeAddStrategy extends OpStrategy {
   readonly receiptName = 'NodeAdd';
   validate(op: OpLikeRecord): void { OpValidator.assertString(op, 'node'); OpValidator.assertDot(op); }
-  mutate(state: WarpStateV5, op: OpLike): void {
+  mutate(state: WarpState, op: OpLike): void {
     state.nodeAlive.add(op.node as string, op.dot as Dot);
   }
-  outcome(state: WarpStateV5, op: OpLike): OpOutcomeResult {
+  outcome(state: WarpState, op: OpLike): OpOutcomeResult {
     return ReceiptBuilder.nodeAddOutcome(state.nodeAlive, { node: op.node as string, dot: op.dot as Dot });
   }
-  snapshot(state: WarpStateV5, op: OpLike): SnapshotBeforeOp {
+  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp {
     return { nodeWasAlive: state.nodeAlive.contains(op.node as string) };
   }
-  accumulate(diff: PatchDiff, state: WarpStateV5, op: OpLike, before: SnapshotBeforeOp): void {
+  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void {
     if (before.nodeWasAlive !== true && state.nodeAlive.contains(op.node as string)) {
       diff.nodesAdded.push(op.node as string);
     }
@@ -163,22 +163,22 @@ class NodeAddStrategy extends OpStrategy {
 class NodeRemoveStrategy extends OpStrategy {
   readonly receiptName = 'NodeTombstone';
   validate(op: OpLikeRecord): void { OpValidator.assertIterable(op, 'observedDots'); }
-  mutate(state: WarpStateV5, op: OpLike): void {
+  mutate(state: WarpState, op: OpLike): void {
     const dots = op.observedDots as Iterable<string>;
     state.nodeAlive.remove(dots instanceof Set ? dots : new Set(dots));
   }
-  outcome(state: WarpStateV5, op: OpLike): OpOutcomeResult {
+  outcome(state: WarpState, op: OpLike): OpOutcomeResult {
     return ReceiptBuilder.nodeRemoveOutcome(state.nodeAlive, {
       node: op.node,
       observedDots: op.observedDots as Iterable<string>,
     });
   }
-  snapshot(state: WarpStateV5, op: OpLike): SnapshotBeforeOp {
+  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp {
     const rawDots = op.observedDots as Iterable<string>;
     const nodeDots = rawDots instanceof Set ? rawDots : new Set(rawDots);
     return { aliveBeforeNodes: DiffCalculator.aliveElementsForDots(state.nodeAlive, nodeDots) };
   }
-  accumulate(diff: PatchDiff, state: WarpStateV5, _op: OpLike, before: SnapshotBeforeOp): void {
+  accumulate(diff: PatchDiff, state: WarpState, _op: OpLike, before: SnapshotBeforeOp): void {
     DiffCalculator.collectNodeRemovals(diff, state, before.aliveBeforeNodes);
   }
 }
@@ -191,7 +191,7 @@ class EdgeAddStrategy extends OpStrategy {
     OpValidator.assertString(op, 'label');
     OpValidator.assertDot(op);
   }
-  mutate(state: WarpStateV5, op: OpLike, eventId: EventId): void {
+  mutate(state: WarpState, op: OpLike, eventId: EventId): void {
     const edgeKey = encodeEdgeKey(op.from as string, op.to as string, op.label as string);
     state.edgeAlive.add(edgeKey, op.dot as Dot);
     const prev = state.edgeBirthEvent.get(edgeKey);
@@ -199,15 +199,15 @@ class EdgeAddStrategy extends OpStrategy {
       state.edgeBirthEvent.set(edgeKey, eventId);
     }
   }
-  outcome(state: WarpStateV5, op: OpLike): OpOutcomeResult {
+  outcome(state: WarpState, op: OpLike): OpOutcomeResult {
     const edgeKey = encodeEdgeKey(op.from as string, op.to as string, op.label as string);
     return ReceiptBuilder.edgeAddOutcome(state.edgeAlive, { dot: op.dot as Dot }, edgeKey);
   }
-  snapshot(state: WarpStateV5, op: OpLike): SnapshotBeforeOp {
+  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp {
     const ek = encodeEdgeKey(op.from as string, op.to as string, op.label as string);
     return { edgeWasAlive: state.edgeAlive.contains(ek), edgeKey: ek };
   }
-  accumulate(diff: PatchDiff, state: WarpStateV5, op: OpLike, before: SnapshotBeforeOp): void {
+  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void {
     if (before.edgeWasAlive !== true && before.edgeKey !== undefined && state.edgeAlive.contains(before.edgeKey)) {
       diff.edgesAdded.push({ from: op.from as string, to: op.to as string, label: op.label as string });
     }
@@ -217,11 +217,11 @@ class EdgeAddStrategy extends OpStrategy {
 class EdgeRemoveStrategy extends OpStrategy {
   readonly receiptName = 'EdgeTombstone';
   validate(op: OpLikeRecord): void { OpValidator.assertIterable(op, 'observedDots'); }
-  mutate(state: WarpStateV5, op: OpLike): void {
+  mutate(state: WarpState, op: OpLike): void {
     const dots = op.observedDots as Iterable<string>;
     state.edgeAlive.remove(dots instanceof Set ? dots : new Set(dots));
   }
-  outcome(state: WarpStateV5, op: OpLike): OpOutcomeResult {
+  outcome(state: WarpState, op: OpLike): OpOutcomeResult {
     return ReceiptBuilder.edgeRemoveOutcome(state.edgeAlive, {
       from: op.from,
       to: op.to,
@@ -229,12 +229,12 @@ class EdgeRemoveStrategy extends OpStrategy {
       observedDots: op.observedDots as Iterable<string>,
     });
   }
-  snapshot(state: WarpStateV5, op: OpLike): SnapshotBeforeOp {
+  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp {
     const rawEdgeDots = op.observedDots as Iterable<string>;
     const edgeDots = rawEdgeDots instanceof Set ? rawEdgeDots : new Set(rawEdgeDots);
     return { aliveBeforeEdges: DiffCalculator.aliveElementsForDots(state.edgeAlive, edgeDots) };
   }
-  accumulate(diff: PatchDiff, state: WarpStateV5, _op: OpLike, before: SnapshotBeforeOp): void {
+  accumulate(diff: PatchDiff, state: WarpState, _op: OpLike, before: SnapshotBeforeOp): void {
     DiffCalculator.collectEdgeRemovals(diff, state, before.aliveBeforeEdges);
   }
 }
@@ -245,16 +245,16 @@ class NodePropSetStrategy extends OpStrategy {
     OpValidator.assertString(op, 'node');
     OpValidator.assertString(op, 'key');
   }
-  mutate(state: WarpStateV5, op: OpLike, eventId: EventId): void {
+  mutate(state: WarpState, op: OpLike, eventId: EventId): void {
     OpStrategy._mutateProp(state, encodePropKey(op.node as string, op.key as string), eventId, op.value);
   }
-  outcome(state: WarpStateV5, op: OpLike, eventId: EventId): OpOutcomeResult {
+  outcome(state: WarpState, op: OpLike, eventId: EventId): OpOutcomeResult {
     return ReceiptBuilder.propSetOutcome(state.prop, { node: op.node as string, key: op.key as string }, eventId);
   }
-  snapshot(state: WarpStateV5, op: OpLike): SnapshotBeforeOp {
+  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp {
     return OpStrategy._snapshotProp(state, encodePropKey(op.node as string, op.key as string));
   }
-  accumulate(diff: PatchDiff, state: WarpStateV5, op: OpLike, before: SnapshotBeforeOp): void {
+  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void {
     OpStrategy._accumulatePropDiff(diff, state, op.node as string, op.key as string, before);
   }
 }
@@ -267,7 +267,7 @@ class EdgePropSetStrategy extends OpStrategy {
     OpValidator.assertString(op, 'label');
     OpValidator.assertString(op, 'key');
   }
-  mutate(state: WarpStateV5, op: OpLike, eventId: EventId): void {
+  mutate(state: WarpState, op: OpLike, eventId: EventId): void {
     OpStrategy._mutateProp(
       state,
       encodeEdgePropKey(op.from as string, op.to as string, op.label as string, op.key as string),
@@ -275,20 +275,20 @@ class EdgePropSetStrategy extends OpStrategy {
       op.value,
     );
   }
-  outcome(state: WarpStateV5, op: OpLike, eventId: EventId): OpOutcomeResult {
+  outcome(state: WarpState, op: OpLike, eventId: EventId): OpOutcomeResult {
     return ReceiptBuilder.edgePropSetOutcome(
       state.prop,
       { from: op.from as string, to: op.to as string, label: op.label as string, key: op.key as string },
       eventId,
     );
   }
-  snapshot(state: WarpStateV5, op: OpLike): SnapshotBeforeOp {
+  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp {
     return OpStrategy._snapshotProp(
       state,
       encodeEdgePropKey(op.from as string, op.to as string, op.label as string, op.key as string),
     );
   }
-  accumulate(diff: PatchDiff, state: WarpStateV5, op: OpLike, before: SnapshotBeforeOp): void {
+  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void {
     OpStrategy._accumulatePropDiff(
       diff,
       state,
@@ -305,7 +305,7 @@ class PropSetStrategy extends OpStrategy {
     OpValidator.assertString(op, 'node');
     OpValidator.assertString(op, 'key');
   }
-  mutate(state: WarpStateV5, op: OpLike, eventId: EventId): void {
+  mutate(state: WarpState, op: OpLike, eventId: EventId): void {
     // Legacy raw PropSet — must NOT carry edge-property encoding at this point.
     if (typeof op.node === 'string' && op.node[0] === EDGE_PROP_PREFIX) {
       throw new PatchError(
@@ -316,13 +316,13 @@ class PropSetStrategy extends OpStrategy {
     }
     OpStrategy._mutateProp(state, encodePropKey(op.node as string, op.key as string), eventId, op.value);
   }
-  outcome(state: WarpStateV5, op: OpLike, eventId: EventId): OpOutcomeResult {
+  outcome(state: WarpState, op: OpLike, eventId: EventId): OpOutcomeResult {
     return ReceiptBuilder.propSetOutcome(state.prop, { node: op.node as string, key: op.key as string }, eventId);
   }
-  snapshot(state: WarpStateV5, op: OpLike): SnapshotBeforeOp {
+  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp {
     return OpStrategy._snapshotProp(state, encodePropKey(op.node as string, op.key as string));
   }
-  accumulate(diff: PatchDiff, state: WarpStateV5, op: OpLike, before: SnapshotBeforeOp): void {
+  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void {
     OpStrategy._accumulatePropDiff(diff, state, op.node as string, op.key as string, before);
   }
 }
@@ -330,14 +330,14 @@ class PropSetStrategy extends OpStrategy {
 class BlobValueStrategy extends OpStrategy {
   readonly receiptName = 'BlobValue';
   validate(_op: OpLikeRecord): void { /* forward-compat: no structural check */ }
-  mutate(_state: WarpStateV5, _op: OpLike): void { /* BlobValue has no state effect */ }
-  outcome(_state: WarpStateV5, op: OpLike): OpOutcomeResult {
+  mutate(_state: WarpState, _op: OpLike): void { /* BlobValue has no state effect */ }
+  outcome(_state: WarpState, op: OpLike): OpOutcomeResult {
     const blobOid = op.oid;
     const blobTarget = (typeof blobOid === 'string' && blobOid.length > 0) ? blobOid : '*';
     return new OpApplied(blobTarget);
   }
-  snapshot(_state: WarpStateV5, _op: OpLike): SnapshotBeforeOp { return {}; }
-  accumulate(_diff: PatchDiff, _state: WarpStateV5, _op: OpLike, _before: SnapshotBeforeOp): void { /* no-op */ }
+  snapshot(_state: WarpState, _op: OpLike): SnapshotBeforeOp { return {}; }
+  accumulate(_diff: PatchDiff, _state: WarpState, _op: OpLike, _before: SnapshotBeforeOp): void { /* no-op */ }
 }
 
 /**

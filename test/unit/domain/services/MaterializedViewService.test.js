@@ -1,13 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
-import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildTestState() {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   const writer = 'w1';
   const sha = 'a'.repeat(40);
   let opIdx = 0;

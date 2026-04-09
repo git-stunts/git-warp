@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import QueryController from '../../../../../src/domain/services/controllers/QueryController.js';
-import WarpStateV5 from '../../../../../src/domain/services/state/WarpStateV5.ts';
+import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
@@ -53,7 +53,7 @@ function lww(value, eid = null) {
 }
 
 /**
- * Creates a WarpStateV5 with nodes, edges, and properties.
+ * Creates a WarpState with nodes, edges, and properties.
  *
  * @param {{
  *   nodes?: string[],
@@ -62,7 +62,7 @@ function lww(value, eid = null) {
  *   edgeProps?: Array<{from: string, to: string, label: string, key: string, value: unknown, eventId?: { lamport: number, writerId: string, patchSha: string }|null}>,
  *   edgeBirthEvents?: Array<{from: string, to: string, label: string, eventId: { lamport: number, writerId: string, patchSha: string }}>,
  * }} spec
- * @returns {WarpStateV5}
+ * @returns {WarpState}
  */
 function buildState(spec = {}) {
   const nodeAlive = orsetWith(spec.nodes ?? []);
@@ -86,7 +86,7 @@ function buildState(spec = {}) {
     edgeBirthEvent.set(encodeEdgeKey(eb.from, eb.to, eb.label), eb.eventId);
   }
 
-  return new WarpStateV5({
+  return new WarpState({
     nodeAlive,
     edgeAlive,
     prop,
@@ -98,7 +98,7 @@ function buildState(spec = {}) {
 /**
  * Creates a mock host with the given cached state and optional overrides.
  *
- * @param {WarpStateV5} state
+ * @param {WarpState} state
  * @param {Record<string, unknown>} [overrides]
  * @returns {object}
  */
@@ -124,7 +124,7 @@ function createHost(state, overrides = {}) {
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe('QueryController', () => {
-  /** @type {WarpStateV5} */
+  /** @type {WarpState} */
   let state;
   /** @type {ReturnType<typeof createHost>} */
   let host;
@@ -486,7 +486,7 @@ describe('QueryController', () => {
     it('returns an immutable snapshot of the cached state', async () => {
       const snapshot = await ctrl.getStateSnapshot();
       expect(snapshot).not.toBeNull();
-      expect(snapshot).toBeInstanceOf(WarpStateV5);
+      expect(snapshot).toBeInstanceOf(WarpState);
     });
 
     it('returns null when no cached state and autoMaterialize is false', async () => {

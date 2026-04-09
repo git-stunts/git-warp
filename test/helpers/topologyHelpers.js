@@ -1,5 +1,5 @@
 /**
- * Topology test helpers for creating WarpStateV5-compatible graph states.
+ * Topology test helpers for creating WarpState-compatible graph states.
  *
  * These helpers produce states that are structurally identical to what
  * JoinReducer/materialize produce, using ORSets for node/edge liveness,
@@ -8,26 +8,26 @@
  * @module test/helpers/topologyHelpers
  */
 
-import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../src/domain/utils/EventId.ts';
 
 /**
- * Creates a WarpStateV5-compatible state representing a circular graph of n nodes.
+ * Creates a WarpState-compatible state representing a circular graph of n nodes.
  *
  * Nodes are named "n0", "n1", ..., "n{n-1}".
  * Edges: n0->n1, n1->n2, ..., n{n-2}->n{n-1}, n{n-1}->n0.
  * All edges use the label "edge".
  *
  * @param {number} n - Number of nodes (must be >= 2)
- * @returns {import('../../src/domain/services/JoinReducer.ts').WarpStateV5}
+ * @returns {import('../../src/domain/services/JoinReducer.ts').WarpState}
  */
 export function createCircular(n) {
   if (!Number.isInteger(n) || n < 2) {
     throw new Error('createCircular requires n >= 2');
   }
 
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   const writer = 'topo';
   const sha = 'a'.repeat(40);
   let lamport = 1;
@@ -56,7 +56,7 @@ export function createCircular(n) {
 }
 
 /**
- * Creates a WarpStateV5-compatible state representing a diamond-shaped graph.
+ * Creates a WarpState-compatible state representing a diamond-shaped graph.
  *
  * Shape:
  * ```
@@ -70,10 +70,10 @@ export function createCircular(n) {
  * Nodes: A, B, C, D
  * Edges: A->B, A->C, B->D, C->D (all with label "edge")
  *
- * @returns {import('../../src/domain/services/JoinReducer.ts').WarpStateV5}
+ * @returns {import('../../src/domain/services/JoinReducer.ts').WarpState}
  */
 export function createDiamond() {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   const writer = 'topo';
   const sha = 'a'.repeat(40);
   let lamport = 1;

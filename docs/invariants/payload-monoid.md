@@ -30,7 +30,7 @@ wrong state.
 
 ## How the codebase upholds it
 
-- `CheckpointService` snapshots the full `WarpStateV5` (OR-Sets,
+- `CheckpointService` snapshots the full `WarpState` (OR-Sets,
   property map, version vector) at a known frontier.
 - `WarpGraph.materialize()` can start from a checkpoint and apply only
   patches beyond the checkpoint's frontier, using `VersionVector`

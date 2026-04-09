@@ -2,8 +2,8 @@ import CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import ORSet from '../../domain/crdt/ORSet.ts';
 import VersionVector from '../../domain/crdt/VersionVector.ts';
-import { createEmptyStateV5 } from '../../domain/services/JoinReducer.ts';
-import WarpStateV5 from '../../domain/services/state/WarpStateV5.ts';
+import { createEmptyState } from '../../domain/services/JoinReducer.ts';
+import WarpState from '../../domain/services/state/WarpState.ts';
 import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceIndex.js';
 
 /**
@@ -149,7 +149,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
   /**
    * Encodes full V5 state to CBOR bytes.
    *
-   * @param {import('../../domain/services/JoinReducer.ts').WarpStateV5} state
+   * @param {import('../../domain/services/JoinReducer.ts').WarpState} state
    * @returns {Uint8Array}
    */
   _encodeFullState(state) {
@@ -194,15 +194,15 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
    * Decodes CBOR bytes to full V5 state.
    *
    * @param {Uint8Array} buffer
-   * @returns {import('../../domain/services/JoinReducer.ts').WarpStateV5}
+   * @returns {import('../../domain/services/JoinReducer.ts').WarpState}
    */
   _decodeFullState(buffer) {
     if (buffer === null || buffer === undefined) {
-      return createEmptyStateV5();
+      return createEmptyState();
     }
     const obj = /** @type {Record<string, unknown>} */ (this._codec.decode(buffer));
     if (obj === null || obj === undefined) {
-      return createEmptyStateV5();
+      return createEmptyState();
     }
     if (obj['version'] !== undefined && obj['version'] !== 'full-v5') {
       throw new WarpError(
@@ -210,7 +210,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
         'E_UNSUPPORTED_VERSION',
       );
     }
-    return new WarpStateV5({
+    return new WarpState({
       nodeAlive: ORSet.deserialize(obj['nodeAlive'] ?? {}),
       edgeAlive: ORSet.deserialize(obj['edgeAlive'] ?? {}),
       prop: _deserializeProps(/** @type {[string, unknown][]} */ (obj['prop'])),

@@ -1,10 +1,10 @@
-# WarpStateV5.prop carries `LWWRegister<unknown>` — the value type is a lie
+# WarpState.prop carries `LWWRegister<unknown>` — the value type is a lie
 
 **Effort:** M
 
 ## What's wrong
 
-`WarpStateV5.prop: Map<string, LWWRegister<unknown>>` — the stored property
+`WarpState.prop: Map<string, LWWRegister<unknown>>` — the stored property
 value is typed `unknown`. The `unknown` propagates through every caller:
 
 - `_mergeProps`, `_mutateProp`, `_snapshotProp`, `_accumulatePropDiff`

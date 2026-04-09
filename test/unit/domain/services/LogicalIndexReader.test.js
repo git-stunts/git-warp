@@ -8,7 +8,7 @@ import {
   F7_MULTILABEL_SAME_NEIGHBOR,
   F10_PROTO_POLLUTION,
 } from '../../../helpers/fixtureDsl.js';
-import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
@@ -16,11 +16,11 @@ import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Builds a WarpStateV5 from a fixture (mirrors fixtureDsl._fixtureToState).
+ * Builds a WarpState from a fixture (mirrors fixtureDsl._fixtureToState).
  * @param {{nodes: string[], edges: Array<{from: string, to: string, label: string}>, props?: Array<{nodeId: string, key: string, value: unknown}>}} fixture
  */
 function fixtureToState(fixture) {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   const writer = 'w1';
   const sha = 'a'.repeat(40);
   let opIdx = 0;

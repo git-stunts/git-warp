@@ -11,7 +11,7 @@ import {
   processSyncRequest,
 } from '../../../../src/domain/services/sync/SyncProtocol.js';
 import {
-  createEmptyStateV5,
+  createEmptyState,
 } from '../../../../src/domain/services/JoinReducer.ts';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
 // createDot reserved for future test expansion
@@ -58,7 +58,7 @@ function mkResponse(/** @type {any} */ frontier, /** @type {any} */ patches) {
 }
 
 /**
- * Collects the structural signature of a WarpStateV5 for equivalence checks:
+ * Collects the structural signature of a WarpState for equivalence checks:
  * sorted alive-node set, sorted alive-edge set, sorted prop entries.
  */
 function stateSignature(/** @type {any} */ state) {
@@ -111,7 +111,7 @@ describe('SyncProtocol — state coherence (Phase 4, Invariant 5)', () => {
       [{ writerId: 'alice', sha: SHA_A, patch }],
     );
 
-    const state0 = createEmptyStateV5();
+    const state0 = createEmptyState();
     const frontier0 = createFrontier();
 
     // First application
@@ -170,12 +170,12 @@ describe('SyncProtocol — state coherence (Phase 4, Invariant 5)', () => {
     );
 
     // Apply A then B
-    const state0 = createEmptyStateV5();
+    const state0 = createEmptyState();
     const frontier0 = createFrontier();
     const rAB = /** @type {any} */ (applySyncResponse(/** @type {*} */ (responseAB), state0, frontier0));
 
     // Apply B then A (fresh start)
-    const state1 = createEmptyStateV5();
+    const state1 = createEmptyState();
     const frontier1 = createFrontier();
     const rBA = /** @type {any} */ (applySyncResponse(/** @type {*} */ (responseBA), state1, frontier1));
 
@@ -223,7 +223,7 @@ describe('SyncProtocol — state coherence (Phase 4, Invariant 5)', () => {
       ],
     );
 
-    const state = createEmptyStateV5();
+    const state = createEmptyState();
     const result = /** @type {any} */ (applySyncResponse(/** @type {*} */ (response), state, frontier));
 
     // Every writer present in the original frontier must still be present

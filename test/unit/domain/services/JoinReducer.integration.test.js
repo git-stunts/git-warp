@@ -17,12 +17,12 @@ import {
   reduceV5 as _reduceV5,
   encodeEdgeKey,
   encodePropKey,
-  cloneStateV5,
+  cloneState,
   joinStates,
 } from '../../../../src/domain/services/JoinReducer.ts';
 
 /**
- * Typed wrapper for reduceV5 that returns WarpStateV5 (no receipts in these tests).
+ * Typed wrapper for reduceV5 that returns WarpState (no receipts in these tests).
  * @param {any[]} patches
  * @param {any} [initialState]
  * @returns {any}
@@ -932,8 +932,8 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     const stateS = reduceV5(basePatches);
 
     // Fork S into S1 and S2 (clone the state)
-    const stateS1 = cloneStateV5(stateS);
-    const stateS2 = cloneStateV5(stateS);
+    const stateS1 = cloneState(stateS);
+    const stateS2 = cloneState(stateS);
 
     // Patch P1 - applied to S1
     const patchP1 = {
@@ -1013,8 +1013,8 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     ];
 
     const stateS = reduceV5(basePatches);
-    const stateS1 = cloneStateV5(stateS);
-    const stateS2 = cloneStateV5(stateS);
+    const stateS1 = cloneState(stateS);
+    const stateS2 = cloneState(stateS);
 
     // P1 and P2 both modify the same property (conflict scenario)
     const patchP1 = {
@@ -1067,8 +1067,8 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     ];
 
     const stateS = reduceV5(basePatches);
-    const stateS1 = cloneStateV5(stateS);
-    const stateS2 = cloneStateV5(stateS);
+    const stateS1 = cloneState(stateS);
+    const stateS2 = cloneState(stateS);
 
     // P1: Alice removes the contested node (observed the base dot)
     const patchP1 = {

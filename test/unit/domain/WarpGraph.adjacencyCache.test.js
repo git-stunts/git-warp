@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
-import { createEmptyStateV5, encodeEdgeKey } from '../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, encodeEdgeKey } from '../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import { createDot } from '../../../src/domain/crdt/Dot.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
@@ -17,7 +17,7 @@ function addEdge(/** @type {any} */ state, /** @type {any} */ from, /** @type {a
 }
 
 function createSeededState() {
-  const state = createEmptyStateV5();
+  const state = createEmptyState();
   addNode(state, 'node:a', 1);
   addNode(state, 'node:b', 2);
   addEdge(state, 'node:a', 'node:b', 'knows', 3);
@@ -73,7 +73,7 @@ describe('WarpRuntime adjacency cache', () => {
     });
 
     const stateOne = createSeededState();
-    const stateTwo = createEmptyStateV5();
+    const stateTwo = createEmptyState();
     addNode(stateTwo, 'node:x', 1);
     addNode(stateTwo, 'node:y', 2);
     addEdge(stateTwo, 'node:x', 'node:y', 'likes', 3);

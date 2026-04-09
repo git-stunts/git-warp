@@ -14,7 +14,7 @@ import {
   scopeMaterializedStateV5,
   scopePatchEntriesV1,
 } from '../../../../src/domain/services/VisibleStateScopeV1.js';
-import WarpStateV5 from '../../../../src/domain/services/state/WarpStateV5.ts';
+import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 
 function buildScopedFixtureState() {
   const nodeAlive = ORSet.empty();
@@ -31,7 +31,7 @@ function buildScopedFixtureState() {
     [encodeEdgePropKey('task:1', 'comparison-artifact:cmp-1', 'governs', 'via'), lwwSet(createEventId(3, 'alice', 'abc1236', 0), 'control-plane')],
   ]);
 
-  return new WarpStateV5({
+  return new WarpState({
     nodeAlive,
     edgeAlive,
     prop,

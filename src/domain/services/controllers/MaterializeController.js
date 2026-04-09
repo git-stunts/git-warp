@@ -9,9 +9,9 @@
  * @module domain/services/controllers/MaterializeController
  */
 
-import { reduceV5, createEmptyStateV5, cloneStateV5 } from '../JoinReducer.ts';
+import { reduceV5, createEmptyState, cloneState } from '../JoinReducer.ts';
 import { isV5CheckpointSchema, materializeIncremental } from '../state/CheckpointService.js';
-import { createImmutableValue, createImmutableWarpStateV5 } from '../ImmutableSnapshot.js';
+import { createImmutableValue, createImmutableWarpState } from '../ImmutableSnapshot.js';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
 import { diffStates, isEmptyDiff } from '../state/StateDiff.js';
 import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';
@@ -29,7 +29,7 @@ import { buildWriterRef } from '../../utils/RefLayout.ts';
  * @typedef {import('../../types/WarpPersistence.ts').CorePersistence} CorePersistence
  */
 
-/** @import { WarpStateV5 } from '../JoinReducer.ts' */
+/** @import { WarpState } from '../JoinReducer.ts' */
 /** @import { TickReceipt } from '../../types/TickReceipt.ts' */
 /** @import { PatchDiff } from '../../types/PatchDiff.ts' */
 
@@ -78,19 +78,19 @@ function scanPatchesForMaxLamport(host, patches) {
 /**
  * Creates a shallow-frozen public view of materialized state.
  *
- * @param {WarpStateV5} state
- * @returns {WarpStateV5}
+ * @param {WarpState} state
+ * @returns {WarpState}
  */
 function freezePublicState(state) {
-  return createImmutableWarpStateV5(state);
+  return createImmutableWarpState(state);
 }
 
 /**
  * Creates a shallow-frozen public result for receipt-enabled materialization.
  *
- * @param {WarpStateV5} state
+ * @param {WarpState} state
  * @param {TickReceipt[]} receipts
- * @returns {{state: WarpStateV5, receipts: TickReceipt[]}}
+ * @returns {{state: WarpState, receipts: TickReceipt[]}}
  */
 function freezePublicStateWithReceipts(state, receipts) {
   return Object.freeze({
@@ -230,7 +230,7 @@ function frontiersEqual(a, b) {
  * @param {Map<string, string>} frontier
  * @param {number|null} ceiling
  * @param {number} t0
- * @returns {Promise<{state: WarpStateV5|null, cacheKey: string|null}|null>}
+ * @returns {Promise<{state: WarpState|null, cacheKey: string|null}|null>}
  */
 async function tryReadCoordinateCache(host, frontier, ceiling, t0) {
   if (!host._seekCache || ceiling === null) {
@@ -298,7 +298,7 @@ async function collectPatchesForFrontier(host, frontier, ceiling) {
 
 /**
  * @typedef {{ outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>> }} AdjacencyMap
- * @typedef {{ state: WarpStateV5, stateHash: string|null, adjacency: AdjacencyMap }} MaterializedResult
+ * @typedef {{ state: WarpState, stateHash: string|null, adjacency: AdjacencyMap }} MaterializedResult
  */
 
 export default class MaterializeController {
@@ -336,7 +336,7 @@ export default class MaterializeController {
    * based on configured policies. Notifies subscribers if state changed.
    *
    * @param {{receipts?: boolean, ceiling?: number|null}} [options] - Optional configuration
-   * @returns {Promise<WarpStateV5|{state: WarpStateV5, receipts: TickReceipt[]}>} The materialized graph state, or { state, receipts } when receipts enabled
+   * @returns {Promise<WarpState|{state: WarpState, receipts: TickReceipt[]}>} The materialized graph state, or { state, receipts } when receipts enabled
    * @throws {Error} If checkpoint loading fails or patch decoding fails
    * @throws {Error} If writer ref access or patch blob reading fails
    */
@@ -353,16 +353,16 @@ export default class MaterializeController {
       if (ceiling !== null) {
         const result = await this._materializeWithCeiling(ceiling, collectReceipts === true, t0);
         if (collectReceipts === true) {
-          const withReceipts = /** @type {{state: WarpStateV5, receipts: TickReceipt[]}} */ (result);
+          const withReceipts = /** @type {{state: WarpState, receipts: TickReceipt[]}} */ (result);
           return freezePublicStateWithReceipts(withReceipts.state, withReceipts.receipts);
         }
-        return freezePublicState(/** @type {WarpStateV5} */ (result));
+        return freezePublicState(/** @type {WarpState} */ (result));
       }
 
       // Check for checkpoint
       const checkpoint = await h._loadLatestCheckpoint();
 
-      /** @type {WarpStateV5|undefined} */
+      /** @type {WarpState|undefined} */
       let state;
       /** @type {TickReceipt[]|undefined} */
       let receipts;
@@ -383,15 +383,15 @@ export default class MaterializeController {
         }
         scanPatchesForMaxLamport(h, patches);
         if (collectReceipts === true) {
-          const result = /** @type {{state: WarpStateV5, receipts: TickReceipt[]}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (patches), ck.state, { receipts: true }));
+          const result = /** @type {{state: WarpState, receipts: TickReceipt[]}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (patches), ck.state, { receipts: true }));
           state = result.state;
           receipts = result.receipts;
         } else if (wantDiff) {
-          const result = /** @type {{state: WarpStateV5, diff: PatchDiff}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (patches), ck.state, { trackDiff: true }));
+          const result = /** @type {{state: WarpState, diff: PatchDiff}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (patches), ck.state, { trackDiff: true }));
           state = result.state;
           diff = result.diff;
         } else {
-          state = /** @type {WarpStateV5} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (patches), ck.state));
+          state = /** @type {WarpState} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (patches), ck.state));
         }
         patchCount = patches.length;
 
@@ -409,7 +409,7 @@ export default class MaterializeController {
 
         // 2. If no writers, return empty state
         if (writerIds.length === 0) {
-          state = createEmptyStateV5();
+          state = createEmptyState();
           h._provenanceIndex = new ProvenanceIndex();
           if (collectReceipts === true) {
             receipts = [];
@@ -426,7 +426,7 @@ export default class MaterializeController {
 
           // 4. If no patches, return empty state
           if (allPatches.length === 0) {
-            state = createEmptyStateV5();
+            state = createEmptyState();
             h._provenanceIndex = new ProvenanceIndex();
             if (collectReceipts === true) {
               receipts = [];
@@ -436,15 +436,15 @@ export default class MaterializeController {
             scanPatchesForMaxLamport(h, allPatches);
             // 5. Reduce all patches to state
             if (collectReceipts === true) {
-              const result = /** @type {{state: WarpStateV5, receipts: TickReceipt[]}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches), undefined, { receipts: true }));
+              const result = /** @type {{state: WarpState, receipts: TickReceipt[]}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches), undefined, { receipts: true }));
               state = result.state;
               receipts = result.receipts;
             } else if (wantDiff) {
-              const result = /** @type {{state: WarpStateV5, diff: PatchDiff}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches), undefined, { trackDiff: true }));
+              const result = /** @type {{state: WarpState, diff: PatchDiff}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches), undefined, { trackDiff: true }));
               state = result.state;
               diff = result.diff;
             } else {
-              state = /** @type {WarpStateV5} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches)));
+              state = /** @type {WarpState} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches)));
             }
             patchCount = allPatches.length;
 
@@ -478,17 +478,17 @@ export default class MaterializeController {
         }
       }
       // Clone state to prevent eager path mutations from affecting the baseline
-      h._lastNotifiedState = cloneStateV5(state);
+      h._lastNotifiedState = cloneState(state);
 
       h._logTiming('materialize', t0, { metrics: `${patchCount} patches` });
 
       if (collectReceipts === true) {
         return freezePublicStateWithReceipts(
-          /** @type {WarpStateV5} */ (state),
+          /** @type {WarpState} */ (state),
           /** @type {TickReceipt[]} */ (receipts),
         );
       }
-      return freezePublicState(/** @type {WarpStateV5} */ (state));
+      return freezePublicState(/** @type {WarpState} */ (state));
     } catch (err) {
       h._logTiming('materialize', t0, { error: /** @type {Error} */ (err) });
       throw err;
@@ -509,14 +509,14 @@ export default class MaterializeController {
     // Route through host so test mocks on graph.materialize are respected.
     const materialized = await h.materialize();
     const state = h._stateDirty
-      ? /** @type {WarpStateV5} */ (materialized)
+      ? /** @type {WarpState} */ (materialized)
       : (h._cachedState
-        || /** @type {WarpStateV5} */ (materialized));
+        || /** @type {WarpState} */ (materialized));
     if (state === undefined || state === null) {
       return /** @type {object} */ (h._materializedGraph);
     }
     if (!h._materializedGraph || h._materializedGraph.state !== state) {
-      await this._setMaterializedState(/** @type {WarpStateV5} */ (state));
+      await this._setMaterializedState(/** @type {WarpState} */ (state));
     }
     return /** @type {object} */ (h._materializedGraph);
   }
@@ -545,7 +545,7 @@ export default class MaterializeController {
   /**
    * Builds a deterministic adjacency map for the logical graph.
    *
-   * @param {WarpStateV5} state
+   * @param {WarpState} state
    * @returns {{outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>}}
    * @private
    */
@@ -601,7 +601,7 @@ export default class MaterializeController {
   /**
    * Sets the cached state and materialized graph details.
    *
-   * @param {WarpStateV5} state
+   * @param {WarpState} state
    * @param {PatchDiff|{diff?: PatchDiff|null}} [optionsOrDiff]
    *   Either a PatchDiff (legacy positional form) or options object.
    * @returns {Promise<MaterializedResult>}
@@ -651,7 +651,7 @@ export default class MaterializeController {
    * the stateHash matches the previous build. Uses incremental update when
    * a diff and cached index tree are available.
    *
-   * @param {WarpStateV5} state
+   * @param {WarpState} state
    * @param {string} stateHash
    * @param {PatchDiff} [diff] - Optional diff for incremental update
    * @public — called via host delegation (defineProperty in WarpRuntime)
@@ -702,7 +702,7 @@ export default class MaterializeController {
    * writer refs. The provided frontier snapshot is authoritative for the read.
    *
    * @param {{ frontier: Map<string, string>|Record<string, string>, ceiling?: number|null, receipts?: boolean }} options
-   * @returns {Promise<WarpStateV5|{state: WarpStateV5, receipts: TickReceipt[]}>}
+   * @returns {Promise<WarpState|{state: WarpState, receipts: TickReceipt[]}>}
    */
   async materializeCoordinate(options) {
     const h = this._host;
@@ -742,8 +742,8 @@ export default class MaterializeController {
    * @param {boolean} collectReceipts - When `true`, return receipts alongside
    *   state and skip the ceiling cache
    * @param {number} t0 - Start timestamp for performance logging
-   * @returns {Promise<WarpStateV5 |
-   *   {state: WarpStateV5,
+   * @returns {Promise<WarpState |
+   *   {state: WarpState,
    *    receipts: TickReceipt[]}>}
    *   Plain state when `collectReceipts` is falsy; `{ state, receipts }`
    *   when truthy
@@ -762,7 +762,7 @@ export default class MaterializeController {
    * @param {number|null} ceiling
    * @param {boolean} collectReceipts
    * @param {number} t0
-   * @returns {Promise<WarpStateV5|{state: WarpStateV5, receipts: TickReceipt[]}>}
+   * @returns {Promise<WarpState|{state: WarpState, receipts: TickReceipt[]}>}
    * @private
    */
   async _materializeWithCoordinate(frontier, ceiling, collectReceipts, t0) {
@@ -779,7 +779,7 @@ export default class MaterializeController {
 
     const writerIds = [...frontier.keys()];
     if (writerIds.length === 0 || (ceiling !== null && ceiling <= 0)) {
-      const state = createEmptyStateV5();
+      const state = createEmptyState();
       h._provenanceIndex = new ProvenanceIndex();
       h._provenanceDegraded = false;
       await this._setMaterializedState(state);
@@ -803,24 +803,24 @@ export default class MaterializeController {
 
     const allPatches = await collectPatchesForFrontier(h, frontier, ceiling);
 
-    /** @type {WarpStateV5|undefined} */
+    /** @type {WarpState|undefined} */
     let state;
     /** @type {TickReceipt[]|undefined} */
     let receipts;
 
     if (allPatches.length === 0) {
-      state = createEmptyStateV5();
+      state = createEmptyState();
       if (collectReceipts) {
         receipts = [];
       }
     } else if (collectReceipts) {
-      const result = /** @type {{state: WarpStateV5, receipts: TickReceipt[]}} */ (
+      const result = /** @type {{state: WarpState, receipts: TickReceipt[]}} */ (
         reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches), undefined, { receipts: true })
       );
       state = result.state;
       receipts = result.receipts;
     } else {
-      state = /** @type {WarpStateV5} */ (
+      state = /** @type {WarpState} */ (
         reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches))
       );
     }
@@ -868,8 +868,8 @@ export default class MaterializeController {
    * buffer is still cached without the index.
    *
    * @param {string} cacheKey - Seek cache key
-   * @param {Uint8Array} buf - Serialized WarpStateV5 buffer
-   * @param {WarpStateV5} state
+   * @param {Uint8Array} buf - Serialized WarpState buffer
+   * @param {WarpState} state
    * @returns {Promise<void>}
    * @private
    */
@@ -923,7 +923,7 @@ export default class MaterializeController {
    * incremental patches since the checkpoint.
    *
    * @param {string} checkpointSha - The checkpoint commit SHA
-   * @returns {Promise<WarpStateV5>} The materialized graph state at the checkpoint
+   * @returns {Promise<WarpState>} The materialized graph state at the checkpoint
    * @throws {Error} If checkpoint SHA is invalid or not found
    * @throws {Error} If checkpoint loading or patch decoding fails
    *
