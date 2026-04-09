@@ -13,18 +13,16 @@ import VersionVector from '../crdt/VersionVector.ts';
 import { lwwSet, lwwMax } from '../crdt/LWW.ts';
 import { createEventId, compareEventIds } from '../utils/EventId.ts';
 import { createTickReceipt, OP_TYPES } from '../types/TickReceipt.ts';
-import { encodeDot } from '../crdt/Dot.ts';
-import { encodeEdgeKey, decodeEdgeKey, encodePropKey, encodeEdgePropKey, EDGE_PROP_PREFIX } from './KeyCodec.js';
+import { encodeEdgeKey, encodePropKey, encodeEdgePropKey, EDGE_PROP_PREFIX } from './KeyCodec.js';
 import { normalizeRawOp } from './OpNormalizer.ts';
 import { createEmptyDiff, mergeDiffs } from '../types/PatchDiff.ts';
 import PatchError from '../errors/PatchError.ts';
 import WarpStateV5 from './state/WarpStateV5.ts';
-import OpOutcomeResult from '../types/ops/OpOutcomeResult.ts';
 import OpApplied from '../types/ops/OpApplied.ts';
 import OpSuperseded from '../types/ops/OpSuperseded.ts';
-import OpRedundant from '../types/ops/OpRedundant.ts';
 import OpValidator from './OpValidator.ts';
 import DiffCalculator from './DiffCalculator.ts';
+import ReceiptBuilder from './ReceiptBuilder.ts';
 
 export { default as WarpStateV5 } from './state/WarpStateV5.ts';
 
@@ -151,7 +149,7 @@ const nodeAddStrategy = {
     state.nodeAlive.add(/** @type {string} */ (op.node), /** @type {import('../crdt/Dot.ts').Dot} */ (op.dot));
   },
   outcome(state, op) {
-    return nodeAddOutcome(state.nodeAlive, /** @type {{node: string, dot: import('../crdt/Dot.ts').Dot}} */ (op));
+    return ReceiptBuilder.nodeAddOutcome(state.nodeAlive, /** @type {{node: string, dot: import('../crdt/Dot.ts').Dot}} */ (op));
   },
   snapshot(state, op) {
     return { nodeWasAlive: state.nodeAlive.contains(/** @type {string} */ (op.node)) };
@@ -171,7 +169,7 @@ const nodeRemoveStrategy = {
     state.nodeAlive.remove(/** @type {Set<string>} */ (/** @type {unknown} */ (op.observedDots)));
   },
   outcome(state, op) {
-    return nodeRemoveOutcome(state.nodeAlive, /** @type {{node?: string, observedDots: string[]}} */ (op));
+    return ReceiptBuilder.nodeRemoveOutcome(state.nodeAlive, /** @type {{node?: string, observedDots: string[]}} */ (op));
   },
   snapshot(state, op) {
     const rawDots = /** @type {Iterable<string>} */ (op.observedDots);
@@ -200,7 +198,7 @@ const edgeAddStrategy = {
   },
   outcome(state, op) {
     const edgeKey = encodeEdgeKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label));
-    return edgeAddOutcome(state.edgeAlive, /** @type {{from: string, to: string, label: string, dot: import('../crdt/Dot.ts').Dot}} */ (op), edgeKey);
+    return ReceiptBuilder.edgeAddOutcome(state.edgeAlive, /** @type {{from: string, to: string, label: string, dot: import('../crdt/Dot.ts').Dot}} */ (op), edgeKey);
   },
   snapshot(state, op) {
     const ek = encodeEdgeKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label));
@@ -221,7 +219,7 @@ const edgeRemoveStrategy = {
     state.edgeAlive.remove(/** @type {Set<string>} */ (/** @type {unknown} */ (op.observedDots)));
   },
   outcome(state, op) {
-    return edgeRemoveOutcome(state.edgeAlive, /** @type {{from?: string, to?: string, label?: string, observedDots: string[]}} */ (op));
+    return ReceiptBuilder.edgeRemoveOutcome(state.edgeAlive, /** @type {{from?: string, to?: string, label?: string, observedDots: string[]}} */ (op));
   },
   snapshot(state, op) {
     const rawEdgeDots = /** @type {Iterable<string>} */ (op.observedDots);
@@ -281,7 +279,7 @@ const nodePropSetStrategy = {
     mutateProp(state, encodePropKey(/** @type {string} */ (op.node), /** @type {string} */ (op.key)), eventId, op.value);
   },
   outcome(state, op, eventId) {
-    return propSetOutcome(state.prop, /** @type {{node: string, key: string}} */ (op), eventId);
+    return ReceiptBuilder.propSetOutcome(state.prop, /** @type {{node: string, key: string}} */ (op), eventId);
   },
   snapshot(state, op) {
     return snapshotProp(state, encodePropKey(/** @type {string} */ (op.node), /** @type {string} */ (op.key)));
@@ -299,7 +297,7 @@ const edgePropSetStrategy = {
     mutateProp(state, encodeEdgePropKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label), /** @type {string} */ (op.key)), eventId, op.value);
   },
   outcome(state, op, eventId) {
-    return edgePropSetOutcome(state.prop, /** @type {{from: string, to: string, label: string, key: string}} */ (op), eventId);
+    return ReceiptBuilder.edgePropSetOutcome(state.prop, /** @type {{from: string, to: string, label: string, key: string}} */ (op), eventId);
   },
   snapshot(state, op) {
     return snapshotProp(state, encodeEdgePropKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label), /** @type {string} */ (op.key)));
@@ -325,7 +323,7 @@ const propSetStrategy = {
     mutateProp(state, encodePropKey(/** @type {string} */ (op.node), /** @type {string} */ (op.key)), eventId, op.value);
   },
   outcome(state, op, eventId) {
-    return propSetOutcome(state.prop, /** @type {{node: string, key: string}} */ (op), eventId);
+    return ReceiptBuilder.propSetOutcome(state.prop, /** @type {{node: string, key: string}} */ (op), eventId);
   },
   snapshot(state, op) {
     return snapshotProp(state, encodePropKey(/** @type {string} */ (op.node), /** @type {string} */ (op.key)));
@@ -402,185 +400,11 @@ export function applyOpV2(state, op, eventId) {
 }
 
 
-/**
- * Set of valid receipt op types (from TickReceipt) for fast membership checks.
- * Used to filter out forward-compatible unknown operation types from receipts.
- * @const {Set<string>}
- */
-const VALID_RECEIPT_OPS = new Set(OP_TYPES);
-
-/**
- * Determines the receipt outcome for a NodeAdd operation.
- *
- * Checks if the node's dot already exists in the OR-Set to determine whether
- * this add operation is effective or redundant (idempotent re-delivery).
- *
- * @param {import('../crdt/ORSet.ts').default} orset - The node OR-Set containing alive nodes
- * @param {{node: string, dot: import('../crdt/Dot.ts').Dot}} op - The NodeAdd operation
- * @returns {OpApplied|OpRedundant} Outcome with node ID as target
- */
-function nodeAddOutcome(orset, op) {
-  const encoded = encodeDot(op.dot);
-  const existingDots = orset.entries.get(op.node);
-  if (existingDots && existingDots.has(encoded)) {
-    return new OpRedundant(op.node);
-  }
-  return new OpApplied(op.node);
-}
-
-/**
- * Determines the receipt outcome for a NodeRemove (tombstone) operation.
- *
- * Checks if any of the observed dots exist in the OR-Set and are not yet tombstoned.
- * A remove is only effective if it actually removes at least one existing, non-tombstoned dot.
- * This implements OR-Set remove semantics where removes only affect dots that were
- * observed at the time the remove was issued.
- *
- * @param {import('../crdt/ORSet.ts').default} orset - The node OR-Set containing alive nodes
- * @param {{node?: string, observedDots: string[] | Set<string>}} op - The NodeRemove operation
- * @returns {OpApplied|OpRedundant} Outcome with node ID (or '*') as target
- */
-function nodeRemoveOutcome(orset, op) {
-  // Build a reverse index (dot → elementId) for the observed dots to avoid
-  // O(|observedDots| × |entries|) scanning. Same pattern as buildDotToElement.
-  const targetDots = op.observedDots instanceof Set
-    ? op.observedDots
-    : new Set(op.observedDots);
-  const dotToElement = DiffCalculator.buildDotToElement(orset, targetDots);
-
-  let effective = false;
-  for (const encodedDot of targetDots) {
-    if (!orset.tombstones.has(encodedDot) && dotToElement.has(encodedDot)) {
-      effective = true;
-      break;
-    }
-  }
-  const target = (typeof op.node === 'string' && op.node.length > 0) ? op.node : '*';
-  return { target, result: effective ? 'applied' : 'redundant' };
-}
-
-/**
- * Determines the receipt outcome for an EdgeAdd operation.
- *
- * Checks if the edge's dot already exists in the OR-Set to determine whether
- * this add operation is effective or redundant (idempotent re-delivery).
- * Unlike nodes, edges are keyed by the composite (from, to, label) tuple.
- *
- * @param {import('../crdt/ORSet.ts').default} orset - The edge OR-Set containing alive edges
- * @param {{from: string, to: string, label: string, dot: import('../crdt/Dot.ts').Dot}} op - The EdgeAdd operation
- * @param {string} edgeKey - Pre-encoded edge key (from\0to\0label format)
- * @returns {OpApplied|OpRedundant} Outcome with encoded edge key as target
- */
-function edgeAddOutcome(orset, op, edgeKey) {
-  const encoded = encodeDot(op.dot);
-  const existingDots = orset.entries.get(edgeKey);
-  if (existingDots && existingDots.has(encoded)) {
-    return new OpRedundant(edgeKey);
-  }
-  return new OpApplied(edgeKey);
-}
-
-/**
- * Determines the receipt outcome for an EdgeRemove (tombstone) operation.
- *
- * Checks if any of the observed dots exist in the OR-Set and are not yet tombstoned.
- * A remove is only effective if it actually removes at least one existing, non-tombstoned dot.
- * This implements OR-Set remove semantics where removes only affect dots that were
- * observed at the time the remove was issued.
- *
- * The target is computed from the operation's (from, to, label) fields if available,
- * otherwise falls back to '*' for wildcard/unknown targets.
- *
- * @param {import('../crdt/ORSet.ts').default} orset - The edge OR-Set containing alive edges
- * @param {{from?: string, to?: string, label?: string, observedDots: string[] | Set<string>}} op - The EdgeRemove operation
- * @returns {OpApplied|OpRedundant} Outcome with encoded edge key (or '*') as target
- */
-function edgeRemoveOutcome(orset, op) {
-  // Build a reverse index (dot → elementId) for the observed dots to avoid
-  // O(|observedDots| × |entries|) scanning. Same pattern as buildDotToElement.
-  const targetDots = op.observedDots instanceof Set
-    ? op.observedDots
-    : new Set(op.observedDots);
-  const dotToElement = DiffCalculator.buildDotToElement(orset, targetDots);
-
-  let effective = false;
-  for (const encodedDot of targetDots) {
-    if (!orset.tombstones.has(encodedDot) && dotToElement.has(encodedDot)) {
-      effective = true;
-      break;
-    }
-  }
-  // Construct target from op fields if available
-  const hasEdgeFields = typeof op.from === 'string' && op.from.length > 0
-    && typeof op.to === 'string' && op.to.length > 0
-    && typeof op.label === 'string' && op.label.length > 0;
-  const target = hasEdgeFields
-    ? encodeEdgeKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label))
-    : '*';
-  return { target, result: effective ? 'applied' : 'redundant' };
-}
-
-/**
- * Determines the receipt outcome for a property operation given a pre-computed key.
- *
- * Uses LWW (Last-Write-Wins) semantics to determine whether the incoming property
- * value wins over any existing value. The comparison is based on EventId ordering:
- * 1. Higher Lamport timestamp wins
- * 2. On tie, higher writer ID wins (lexicographic)
- * 3. On tie, higher patch SHA wins (lexicographic)
- *
- * Possible outcomes:
- * - `applied`: The incoming value wins (no existing value or higher EventId)
- * - `superseded`: An existing value with higher EventId wins
- * - `redundant`: Exact same write (identical EventId)
- *
- * @param {Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>>} propMap - The properties map keyed by encoded prop keys
- * @param {string} key - Pre-encoded property key (node or edge)
- * @param {import('../utils/EventId.ts').EventId} eventId - The event ID for this operation, used for LWW comparison
- * @returns {OpOutcomeResult}
- *          Outcome with encoded prop key as target; includes reason when superseded
- */
-function propOutcomeForKey(propMap, key, eventId) {
-  const current = propMap.get(key);
-
-  if (!current) {
-    return new OpApplied(key);
-  }
-
-  const cmp = compareEventIds(eventId, current.eventId);
-  if (cmp > 0) {
-    return new OpApplied(key);
-  }
-  if (cmp < 0) {
-    const winner = current.eventId;
-    return new OpSuperseded(key, winner);
-  }
-  return new OpRedundant(key);
-}
-
-/**
- * Determines the receipt outcome for a PropSet/NodePropSet operation.
- *
- * @param {Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>>} propMap
- * @param {{node: string, key: string}} op - The PropSet or NodePropSet operation
- * @param {import('../utils/EventId.ts').EventId} eventId
- * @returns {OpOutcomeResult}
- */
-function propSetOutcome(propMap, op, eventId) {
-  return propOutcomeForKey(propMap, encodePropKey(op.node, op.key), eventId);
-}
-
-/**
- * Determines the receipt outcome for an EdgePropSet operation.
- *
- * @param {Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>>} propMap
- * @param {{from: string, to: string, label: string, key: string}} op - The EdgePropSet operation
- * @param {import('../utils/EventId.ts').EventId} eventId
- * @returns {OpOutcomeResult}
- */
-function edgePropSetOutcome(propMap, op, eventId) {
-  return propOutcomeForKey(propMap, encodeEdgePropKey(op.from, op.to, op.label, op.key), eventId);
-}
+// Receipt-building helpers live on ReceiptBuilder
+// (src/domain/services/ReceiptBuilder.ts): nodeAddOutcome,
+// nodeRemoveOutcome, edgeAddOutcome, edgeRemoveOutcome,
+// propOutcomeForKey, propSetOutcome, edgePropSetOutcome, and the
+// VALID_RECEIPT_OPS membership set.
 
 /**
  * Folds a patch's own dot into the observed frontier.
@@ -705,7 +529,7 @@ export function applyWithReceipt(state, patch, patchSha) {
 
     const receiptOp = strategy.receiptName;
     // Skip unknown/forward-compatible op types that aren't valid receipt ops
-    if (!VALID_RECEIPT_OPS.has(receiptOp)) {
+    if (!ReceiptBuilder.VALID_RECEIPT_OPS.has(receiptOp)) {
       continue;
     }
     /** @type {import('../types/TickReceipt.ts').OpOutcome} */
