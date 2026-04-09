@@ -353,6 +353,7 @@ await replayer.replaySegment(segment, policy);
 - **Raw objects may carry bytes, not meaning** — Plain objects are for decoded payloads or logging only.
 - **Magic numbers and strings are banished** — Give semantic numbers a named constant.
 - **Boolean trap parameters are banished** — Use named parameter objects or separate methods.
+- **One thing per file.** "Where is Foo?" → open `Foo.ts` → find Foo. Done. Every class, every domain type, every meaningful export lives in a file named after it. Re-export shims that forward from a monolith are not splits — they are lies about where code lives. If the file is named after the class, the class definition must be in that file.
 - **No `enum`.** TypeScript enums are runtime objects with surprising behavior. Use `as const` objects or class hierarchies.
 
 ```typescript
