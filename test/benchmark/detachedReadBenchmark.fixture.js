@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import WarpCore from '../../src/domain/WarpCore.js';
+import WarpCore from '../../src/domain/WarpCore.ts';
 import { createDot } from '../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
 

@@ -1,4 +1,4 @@
-import WarpCore from './WarpCore.js';
+import WarpCore from './WarpCore.ts';
 import { callInternalRuntimeMethod } from './utils/callInternalRuntimeMethod.ts';
 
 /**

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpCore from '../../../src/domain/WarpCore.js';
+import WarpCore from '../../../src/domain/WarpCore.ts';
 
 // ── Mock runtime that WarpCore._adopt() can wrap ─────────────────────────────
 
@@ -65,6 +65,15 @@ describe('WarpCore', () => {
       expect(core).toBeInstanceOf(WarpCore);
       // Verify the original object was mutated, not cloned
       expect(core).toBe(runtime);
+    });
+
+    it('throws when runtime adoption cannot install the WarpCore prototype', () => {
+      const runtime = createMockRuntimeForAdopt();
+      const setPrototypeOf = vi.spyOn(Object, 'setPrototypeOf').mockImplementation((value) => value);
+
+      expect(() => WarpCore._adopt(runtime)).toThrow('failed to adopt runtime as WarpCore');
+
+      setPrototypeOf.mockRestore();
     });
   });
 

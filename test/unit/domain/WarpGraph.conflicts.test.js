@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import WarpCore from '../../../src/domain/WarpCore.js';
+import WarpCore from '../../../src/domain/WarpCore.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { createDot } from '../../../src/domain/crdt/Dot.ts';
 

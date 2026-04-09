@@ -8,15 +8,21 @@ import WarpError from '../errors/WarpError.ts';
  * still letting the substrate internals route through the underlying runtime
  * implementation.
  */
-export async function callInternalRuntimeMethod(target: object, methodName: string, ...args: unknown[]): Promise<unknown> {
+export async function callInternalRuntimeMethod<T>(target: object, methodName: string, ...args: unknown[]): Promise<T> {
   const candidate = resolveCandidate(target, methodName);
-
-  if (typeof candidate !== 'function') {
+  if (!isCallable<T>(candidate)) {
     throw new WarpError(`missing internal runtime method: ${methodName}`, 'E_NOT_IMPLEMENTED');
   }
 
-  const result: unknown = await candidate.call(target, ...args);
-  return result;
+  const boundCandidate = candidate.bind(target);
+  return await boundCandidate(...args);
+}
+
+/**
+ * Narrows an unknown method candidate to a callable shape.
+ */
+function isCallable<T>(value: unknown): value is (...args: unknown[]) => Promise<T> | T {
+  return typeof value === 'function';
 }
 
 /**

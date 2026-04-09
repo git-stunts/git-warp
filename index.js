@@ -78,7 +78,7 @@ import DenoHttpAdapter from './src/infrastructure/adapters/DenoHttpAdapter.js';
 import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellation.ts';
 
 // Multi-writer graph support (WARP)
-import WarpCore from './src/domain/WarpCore.js';
+import WarpCore from './src/domain/WarpCore.ts';
 import WarpApp from './src/domain/WarpApp.js';
 // V1 op factories — inlined after WarpTypes.ts deletion (deprecated, kept for backward compat)
 /** @param {string} node */

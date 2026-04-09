@@ -15,7 +15,7 @@ const TypedShellRunnerFactory = /** @type {{ create: () => unknown }} */ (_sfRaw
 /** @type {unknown} */
 const _gpRaw = _GitPlumbing;
 const TypedGitPlumbing = /** @type {new (opts: { cwd: string, runner: unknown }) => unknown} */ (_gpRaw);
-import WarpCore from '../../src/domain/WarpCore.js';
+import WarpCore from '../../src/domain/WarpCore.ts';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.js';
 import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter.js';
 import {

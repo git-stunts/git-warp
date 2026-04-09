@@ -2,7 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import WarpCore from '../../../src/domain/WarpCore.js';
+import WarpCore from '../../../src/domain/WarpCore.ts';
 import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,

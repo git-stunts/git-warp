@@ -32,7 +32,7 @@
 
 // Core API
 export { default as WarpApp } from './src/domain/WarpApp.js';
-export { default as WarpCore } from './src/domain/WarpCore.js';
+export { default as WarpCore } from './src/domain/WarpCore.ts';
 export { default as GraphNode } from './src/domain/entities/GraphNode.ts';
 
 // Browser-compatible adapters
