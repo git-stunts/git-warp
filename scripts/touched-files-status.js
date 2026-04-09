@@ -270,12 +270,18 @@ export function pairTypeScriptConversions(changedFiles) {
       .filter(file => file.status === 'D' && file.path.endsWith('.js'))
       .map(file => [`${file.path.slice(0, -3)}.ts`, file]),
   );
-  const convertedTsPaths = new Map(
-    changedFiles
-      .filter(file => file.path.endsWith('.ts') && file.oldPath === undefined)
-      .map(file => [file.path, deletedJsByTargetTsPath.get(file.path)?.path])
-      .filter((entry) => entry[1] !== undefined),
-  );
+  /** @type {Array<[string, string]>} */
+  const convertedEntries = [];
+  for (const file of changedFiles) {
+    if (!file.path.endsWith('.ts') || file.oldPath !== undefined) {
+      continue;
+    }
+    const oldPath = deletedJsByTargetTsPath.get(file.path)?.path;
+    if (oldPath !== undefined) {
+      convertedEntries.push([file.path, oldPath]);
+    }
+  }
+  const convertedTsPaths = new Map(convertedEntries);
 
   return changedFiles.flatMap(file => {
     if (file.path.endsWith('.ts') && file.oldPath === undefined) {
@@ -334,6 +340,7 @@ function appendBucket(lines, label, emoji, entries, showLineDelta = false) {
  * @returns {Promise<TouchedFilesReport>}
  */
 export async function buildTouchedFilesReport(changedFiles, dependencies) {
+  /** @type {TouchedFilesReport} */
   const report = {
     branch: dependencies.branch,
     baseRef: dependencies.baseRef,

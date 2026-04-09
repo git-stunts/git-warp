@@ -139,7 +139,10 @@ function countExports(sourceFile) {
  * @returns {boolean}
  */
 function hasExportModifier(node) {
-  return node.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+  if (!ts.canHaveModifiers(node)) {
+    return false;
+  }
+  return ts.getModifiers(node)?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false;
 }
 
 /**
