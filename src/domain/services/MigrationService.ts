@@ -4,6 +4,27 @@
  */
 import { createEmptyStateV5 } from './JoinReducer.js';
 import VersionVector from '../crdt/VersionVector.ts';
+import type WarpStateV5 from './state/WarpStateV5.js';
+import type { LWWRegister } from '../crdt/LWW.ts';
+
+/**
+ * Minimal shape of a v4 "visible projection" entry.
+ * Only the `.value` field is read during migration.
+ */
+type V4AliveRegister = { readonly value: boolean };
+
+/**
+ * Shape of the legacy v4 materialized state accepted at the migration boundary.
+ *
+ * NOTE: The `LWWRegister<unknown>` in `prop` is inherited from WarpStateV5's
+ * own field type. It will be tightened when WarpStateV5 is converted in a
+ * later wave of the TypeScript migration.
+ */
+type V4State = {
+  readonly nodeAlive: ReadonlyMap<string, V4AliveRegister>;
+  readonly edgeAlive: ReadonlyMap<string, V4AliveRegister>;
+  readonly prop: ReadonlyMap<string, LWWRegister<unknown>>;
+};
 
 /**
  * Migrates a V4 visible-projection state to a V5 state with ORSet internals.
@@ -11,12 +32,11 @@ import VersionVector from '../crdt/VersionVector.ts';
  * Creates synthetic dots for each visible node and edge under the migration
  * writer, rebuilds the ORSet structures, and copies only properties belonging
  * to visible nodes (dropping dangling props from deleted nodes).
- *
- * @param {{ nodeAlive: Map<string, {value: boolean}>, edgeAlive: Map<string, {value: boolean}>, prop: Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>> }} v4State - The V4 materialized state (visible projection)
- * @param {string} migrationWriterId - Writer ID to use for synthetic dots
- * @returns {import('./JoinReducer.js').WarpStateV5} The migrated V5 state
  */
-export function migrateV4toV5(v4State, migrationWriterId) {
+export function migrateV4toV5(
+  v4State: V4State,
+  migrationWriterId: string,
+): WarpStateV5 {
   const v5State = createEmptyStateV5();
   const vv = VersionVector.empty();
 
@@ -29,10 +49,18 @@ export function migrateV4toV5(v4State, migrationWriterId) {
 
 /**
  * Migrates alive nodes and edges from v4 to v5 ORSets with synthetic dots.
- *
- * @param {{ v4State: { nodeAlive: Map<string, {value: boolean}>, edgeAlive: Map<string, {value: boolean}> }, v5State: import('./JoinReducer.js').WarpStateV5, vv: import('../crdt/VersionVector.ts').default, migrationWriterId: string }} opts
  */
-function migrateAliveEntities({ v4State, v5State, vv, migrationWriterId }) {
+function migrateAliveEntities({
+  v4State,
+  v5State,
+  vv,
+  migrationWriterId,
+}: {
+  readonly v4State: V4State;
+  readonly v5State: WarpStateV5;
+  readonly vv: VersionVector;
+  readonly migrationWriterId: string;
+}): void {
   for (const [nodeId, reg] of v4State.nodeAlive) {
     if (reg.value) {
       const dot = vv.increment(migrationWriterId);
@@ -49,11 +77,8 @@ function migrateAliveEntities({ v4State, v5State, vv, migrationWriterId }) {
 
 /**
  * Copies properties for visible nodes only, dropping dangling props from deleted nodes.
- *
- * @param {{ nodeAlive: Map<string, {value: boolean}>, prop: Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>> }} v4State
- * @param {import('./JoinReducer.js').WarpStateV5} v5State
  */
-function migrateVisibleProps(v4State, v5State) {
+function migrateVisibleProps(v4State: V4State, v5State: WarpStateV5): void {
   for (const [propKey, reg] of v4State.prop) {
     const idx = propKey.indexOf('\0');
     const nodeId = propKey.slice(0, idx);

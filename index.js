@@ -97,7 +97,7 @@ function createInlineValue(value) { return { type: 'inline', value }; }
 function createBlobValue(oid) { return { type: 'blob', oid }; }
 /** @param {{ lamport: number, writerId: string, patchSha: string, opIndex: number }} fields */
 function createEventId({ lamport, writerId, patchSha, opIndex }) { return { lamport, writerId, patchSha, opIndex }; }
-import { migrateV4toV5 } from './src/domain/services/MigrationService.js';
+import { migrateV4toV5 } from './src/domain/services/MigrationService.ts';
 import QueryBuilder from './src/domain/services/query/QueryBuilder.js';
 import Observer from './src/domain/services/query/Observer.js';
 import Worldline from './src/domain/services/Worldline.js';

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { migrateV4toV5 } from '../../../../src/domain/services/MigrationService.js';
+import { migrateV4toV5 } from '../../../../src/domain/services/MigrationService.ts';
 import {
   reduceV5 as _reduceV5,
   encodeEdgeKey as encodeEdgeKeyV5,

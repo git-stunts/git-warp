@@ -122,7 +122,7 @@ import {
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 // Migration service
-import { migrateV4toV5 } from '../../../../src/domain/services/MigrationService.js';
+import { migrateV4toV5 } from '../../../../src/domain/services/MigrationService.ts';
 
 // v2 patch/op types — direct class imports after WarpTypesV2.ts deletion
 import Patch from '../../../../src/domain/types/Patch.ts';
