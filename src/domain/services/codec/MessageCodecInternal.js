@@ -14,6 +14,7 @@
 
 // @ts-expect-error -- no declaration file for @git-stunts/trailer-codec
 import { TrailerCodec, TrailerCodecService } from '@git-stunts/trailer-codec';
+import MessageCodecError from '../../errors/MessageCodecError.ts';
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -100,14 +101,20 @@ export function getCodec() {
  * Validates that a value is a valid Git OID.
  * @param {string} oid - The OID to validate
  * @param {string} fieldName - Name of the field for error messages
- * @throws {Error} If the OID is invalid
+ * @throws {MessageCodecError} If the OID is invalid
  */
 export function validateOid(oid, fieldName) {
   if (typeof oid !== 'string') {
-    throw new Error(`Invalid ${fieldName}: expected string, got ${typeof oid}`);
+    throw new MessageCodecError(
+      `Invalid ${fieldName}: expected string, got ${typeof oid}`,
+      { code: 'E_MESSAGE_OID_TYPE', context: { fieldName, actual: typeof oid } },
+    );
   }
   if (!OID_PATTERN.test(oid)) {
-    throw new Error(`Invalid ${fieldName}: must be a 40 or 64 character hex string, got '${oid}'`);
+    throw new MessageCodecError(
+      `Invalid ${fieldName}: must be a 40 or 64 character hex string, got '${oid}'`,
+      { code: 'E_MESSAGE_OID_FORMAT', context: { fieldName, oid } },
+    );
   }
 }
 
@@ -115,14 +122,20 @@ export function validateOid(oid, fieldName) {
  * Validates that a value is a valid SHA-256 hash.
  * @param {string} hash - The hash to validate
  * @param {string} fieldName - Name of the field for error messages
- * @throws {Error} If the hash is invalid
+ * @throws {MessageCodecError} If the hash is invalid
  */
 export function validateSha256(hash, fieldName) {
   if (typeof hash !== 'string') {
-    throw new Error(`Invalid ${fieldName}: expected string, got ${typeof hash}`);
+    throw new MessageCodecError(
+      `Invalid ${fieldName}: expected string, got ${typeof hash}`,
+      { code: 'E_MESSAGE_SHA256_TYPE', context: { fieldName, actual: typeof hash } },
+    );
   }
   if (!SHA256_PATTERN.test(hash)) {
-    throw new Error(`Invalid ${fieldName}: must be a 64 character hex string, got '${hash}'`);
+    throw new MessageCodecError(
+      `Invalid ${fieldName}: must be a 64 character hex string, got '${hash}'`,
+      { code: 'E_MESSAGE_SHA256_FORMAT', context: { fieldName, hash } },
+    );
   }
 }
 
@@ -130,11 +143,14 @@ export function validateSha256(hash, fieldName) {
  * Validates that a value is a positive integer.
  * @param {number} value - The value to validate
  * @param {string} fieldName - Name of the field for error messages
- * @throws {Error} If the value is not a positive integer
+ * @throws {MessageCodecError} If the value is not a positive integer
  */
 export function validatePositiveInteger(value, fieldName) {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
-    throw new Error(`Invalid ${fieldName}: must be a positive integer, got ${value}`);
+    throw new MessageCodecError(
+      `Invalid ${fieldName}: must be a positive integer, got ${value}`,
+      { code: 'E_MESSAGE_POSITIVE_INTEGER', context: { fieldName, value } },
+    );
   }
 }
 

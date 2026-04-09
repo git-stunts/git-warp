@@ -14,6 +14,7 @@ import defaultCrypto from '../../utils/defaultCrypto.ts';
 import nullLogger from '../../utils/nullLogger.ts';
 import { validateWriterId } from '../../utils/RefLayout.ts';
 import { hexEncode, hexDecode } from '../../utils/bytes.ts';
+import SyncError from '../../errors/SyncError.ts';
 
 const SIG_VERSION = '1';
 const SIG_PREFIX = 'warp-v1';
@@ -143,7 +144,10 @@ function _checkHeaderFormats(timestamp, nonce, signature) {
  */
 function _validateKeys(keys) {
   if (!keys || typeof keys !== 'object' || Object.keys(keys).length === 0) {
-    throw new Error('SyncAuthService requires a non-empty keys map');
+    throw new SyncError(
+      'SyncAuthService requires a non-empty keys map',
+      { code: 'E_SYNC_AUTH_NO_KEYS' },
+    );
   }
 }
 
@@ -158,7 +162,10 @@ function _validateAllowedWriters(allowedWriters) {
     return null;
   }
   if (allowedWriters.length === 0) {
-    throw new Error('allowedWriters must be a non-empty array when provided');
+    throw new SyncError(
+      'allowedWriters must be a non-empty array when provided',
+      { code: 'E_SYNC_AUTH_EMPTY_ALLOWED_WRITERS' },
+    );
   }
   for (const w of allowedWriters) {
     validateWriterId(w);

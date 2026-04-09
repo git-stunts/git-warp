@@ -9,6 +9,7 @@
 
 import ConflictTarget from '../../types/conflict/ConflictTarget.ts';
 import { requireNonEmptyString, requireEnum, requireNonNegativeInt } from '../../types/conflict/validation.ts';
+import StrandError from '../../errors/StrandError.ts';
 
 const CTX = 'OpRecord';
 const VALID_RESULTS = new Set(['applied', 'superseded', 'redundant']);
@@ -40,7 +41,10 @@ export default class OpRecord {
    */
   constructor({ target, patchSha, writerId, lamport, opIndex, receiptOpIndex, opType, receiptResult, receiptReason, effectDigest, eventId, context, patchOrder }) {
     if (!(target instanceof ConflictTarget)) {
-      throw new TypeError(`${CTX}: target must be a ConflictTarget instance`);
+      throw new StrandError(
+        `${CTX}: target must be a ConflictTarget instance`,
+        { code: 'E_OP_RECORD_INVALID_TARGET' },
+      );
     }
     this.target = target;
     this.targetKey = target.targetDigest;

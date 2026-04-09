@@ -21,6 +21,8 @@ import {
   requireTrailer,
   validateKindDiscriminator,
 } from './TrailerValidation.js';
+import MessageCodecError from '../../errors/MessageCodecError.ts';
+import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 
 // -----------------------------------------------------------------------------
 // Encoder
@@ -76,7 +78,10 @@ export function decodeAuditMessage(message) {
   const seen = new Set();
   for (const key of keys) {
     if (seen.has(key)) {
-      throw new Error(`Duplicate trailer rejected: ${key}`);
+      throw new MessageCodecError(
+        `Duplicate trailer rejected: ${key}`,
+        { code: 'E_AUDIT_DUPLICATE_TRAILER', context: { key } },
+      );
     }
     seen.add(key);
   }
@@ -98,7 +103,10 @@ export function decodeAuditMessage(message) {
 
   const schema = parsePositiveIntTrailer(trailers, 'schema', 'audit');
   if (schema > 1) {
-    throw new Error(`Unsupported audit schema version: ${schema}`);
+    throw new SchemaUnsupportedError(
+      `Unsupported audit schema version: ${schema}`,
+      { context: { schema } },
+    );
   }
 
   return {
