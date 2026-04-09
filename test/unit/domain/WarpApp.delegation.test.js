@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpApp from '../../../src/domain/WarpApp.js';
+import WarpApp from '../../../src/domain/WarpApp.ts';
+import WarpCore from '../../../src/domain/WarpCore.ts';
 
 // ── Mock runtime + core ───────────────────────────────────────────────────────
 
@@ -44,6 +45,13 @@ function createMockCore() {
   };
 }
 
+function createRuntimeBackedCore() {
+  return {
+    ...createMockRuntime(),
+    ...createMockCore(),
+  };
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('WarpApp delegation', () => {
@@ -62,6 +70,37 @@ describe('WarpApp delegation', () => {
     app._runtime = () => mockRuntime;
     // Override core() to return our mock core
     app.core = () => mockCore;
+  });
+
+  describe('runtime surface', () => {
+    it('open() wraps WarpCore.open()', async () => {
+      const runtimeBackedCore = createRuntimeBackedCore();
+      const open = vi.spyOn(WarpCore, 'open').mockResolvedValue(runtimeBackedCore);
+
+      const opened = await WarpApp.open({ graphName: 'g', writerId: 'w', persistence: {} });
+
+      expect(open).toHaveBeenCalledWith({ graphName: 'g', writerId: 'w', persistence: {} });
+      expect(opened).toBeInstanceOf(WarpApp);
+      expect(opened.core()).toBe(runtimeBackedCore);
+
+      open.mockRestore();
+    });
+
+    it('graphName and writerId read through the runtime-backed core', () => {
+      const runtimeBackedCore = createRuntimeBackedCore();
+      const runtimeBackedApp = new WarpApp(runtimeBackedCore);
+
+      expect(runtimeBackedApp.graphName).toBe('test-graph');
+      expect(runtimeBackedApp.writerId).toBe('writer-1');
+      expect(runtimeBackedApp.core()).toBe(runtimeBackedCore);
+      expect(runtimeBackedApp._runtime()).toBe(runtimeBackedCore);
+    });
+
+    it('throws when the wrapped core is not runtime-backed', () => {
+      const runtimeBackedApp = new WarpApp(createMockCore());
+
+      expect(() => runtimeBackedApp._runtime()).toThrow('WarpApp requires a runtime-backed WarpCore');
+    });
   });
 
   // ── Patch building & writing ────────────────────────────────────────────
@@ -108,6 +147,36 @@ describe('WarpApp delegation', () => {
 
       expect(mockRuntime.patchMany).toHaveBeenCalledWith(build1, build2);
       expect(result).toEqual(['sha-1', 'sha-2']);
+    });
+  });
+
+  describe('syncWith', () => {
+    it('delegates string remotes directly', async () => {
+      const result = await app.syncWith('https://example.test/warp', { timeoutMs: 50 });
+
+      expect(mockRuntime.syncWith).toHaveBeenCalledWith('https://example.test/warp', { timeoutMs: 50 });
+      expect(result).toEqual({ applied: 0 });
+    });
+
+    it('unwraps WarpApp remotes to their runtime surface', async () => {
+      const remoteRuntime = createRuntimeBackedCore();
+      const remoteApp = new WarpApp(remoteRuntime);
+
+      await app.syncWith(remoteApp, { retries: 2 });
+
+      expect(mockRuntime.syncWith).toHaveBeenCalledWith(remoteRuntime, { retries: 2 });
+    });
+
+    it('passes runtime-backed WarpCore remotes through directly', async () => {
+      const remoteCore = createRuntimeBackedCore();
+
+      await app.syncWith(remoteCore);
+
+      expect(mockRuntime.syncWith).toHaveBeenCalledWith(remoteCore, undefined);
+    });
+
+    it('rejects non-runtime-backed WarpCore peers', async () => {
+      await expect(app.syncWith(createMockCore())).rejects.toThrow('runtime-backed WarpCore peer');
     });
   });
 

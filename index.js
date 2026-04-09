@@ -79,7 +79,7 @@ import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellati
 
 // Multi-writer graph support (WARP)
 import WarpCore from './src/domain/WarpCore.ts';
-import WarpApp from './src/domain/WarpApp.js';
+import WarpApp from './src/domain/WarpApp.ts';
 // V1 op factories — inlined after WarpTypes.ts deletion (deprecated, kept for backward compat)
 /** @param {string} node */
 function createNodeAdd(node) { return { type: 'NodeAdd', node }; }
