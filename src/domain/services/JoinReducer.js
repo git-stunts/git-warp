@@ -24,6 +24,7 @@ import OpApplied from '../types/ops/OpApplied.ts';
 import OpSuperseded from '../types/ops/OpSuperseded.ts';
 import OpRedundant from '../types/ops/OpRedundant.ts';
 import OpValidator from './OpValidator.ts';
+import DiffCalculator from './DiffCalculator.ts';
 
 export { default as WarpStateV5 } from './state/WarpStateV5.ts';
 
@@ -176,10 +177,10 @@ const nodeRemoveStrategy = {
     const rawDots = /** @type {Iterable<string>} */ (op.observedDots);
     /** @type {Set<string>} */
     const nodeDots = rawDots instanceof Set ? rawDots : new Set(rawDots);
-    return { aliveBeforeNodes: aliveElementsForDots(state.nodeAlive, nodeDots) };
+    return { aliveBeforeNodes: DiffCalculator.aliveElementsForDots(state.nodeAlive, nodeDots) };
   },
   accumulate(diff, state, _op, before) {
-    collectNodeRemovals(diff, state, before);
+    DiffCalculator.collectNodeRemovals(diff, state, before.aliveBeforeNodes);
   },
 };
 
@@ -226,10 +227,10 @@ const edgeRemoveStrategy = {
     const rawEdgeDots = /** @type {Iterable<string>} */ (op.observedDots);
     /** @type {Set<string>} */
     const edgeDots = rawEdgeDots instanceof Set ? rawEdgeDots : new Set(rawEdgeDots);
-    return { aliveBeforeEdges: aliveElementsForDots(state.edgeAlive, edgeDots) };
+    return { aliveBeforeEdges: DiffCalculator.aliveElementsForDots(state.edgeAlive, edgeDots) };
   },
   accumulate(diff, state, _op, before) {
-    collectEdgeRemovals(diff, state, before);
+    DiffCalculator.collectEdgeRemovals(diff, state, before.aliveBeforeEdges);
   },
 };
 
@@ -445,7 +446,7 @@ function nodeRemoveOutcome(orset, op) {
   const targetDots = op.observedDots instanceof Set
     ? op.observedDots
     : new Set(op.observedDots);
-  const dotToElement = buildDotToElement(orset, targetDots);
+  const dotToElement = DiffCalculator.buildDotToElement(orset, targetDots);
 
   let effective = false;
   for (const encodedDot of targetDots) {
@@ -500,7 +501,7 @@ function edgeRemoveOutcome(orset, op) {
   const targetDots = op.observedDots instanceof Set
     ? op.observedDots
     : new Set(op.observedDots);
-  const dotToElement = buildDotToElement(orset, targetDots);
+  const dotToElement = DiffCalculator.buildDotToElement(orset, targetDots);
 
   let effective = false;
   for (const encodedDot of targetDots) {
@@ -630,56 +631,8 @@ export function applyFast(state, patch, patchSha) {
   return state;
 }
 
-/**
- * Builds a reverse map from dot string → element ID for an OR-Set.
- *
- * Only includes mappings for dots that appear in the given targetDots set,
- * allowing early termination once all target dots are accounted for.
- *
- * @param {import('../crdt/ORSet.ts').default} orset
- * @param {Set<string>} targetDots - The dots we care about
- * @returns {Map<string, string>} dot → elementId
- */
-function buildDotToElement(orset, targetDots) {
-  /** @type {Map<string, string>} */
-  const dotToElement = new Map();
-  let remaining = targetDots.size;
-  for (const [element, dots] of orset.entries) {
-    if (remaining === 0) { break; }
-    for (const d of dots) {
-      if (targetDots.has(d)) {
-        dotToElement.set(d, element);
-        remaining--;
-        if (remaining === 0) { break; }
-      }
-    }
-  }
-  return dotToElement;
-}
-
-/**
- * Collects the set of alive elements that own at least one of the target dots.
- *
- * Uses a reverse-index from dot → element to avoid scanning every entry in the
- * OR-Set. Complexity: O(total_dots_in_orset) for index build (with early exit)
- * + O(|targetDots|) for lookups, vs the previous O(N * |targetDots|) full scan.
- *
- * @param {import('../crdt/ORSet.ts').default} orset
- * @param {Set<string>} observedDots
- * @returns {Set<string>} element IDs that were alive and own at least one observed dot
- */
-function aliveElementsForDots(orset, observedDots) {
-  /** @type {Set<string>} */
-  const result = new Set();
-  const dotToElement = buildDotToElement(orset, observedDots);
-  for (const d of observedDots) {
-    const element = dotToElement.get(d);
-    if (element !== undefined && !result.has(element) && orset.contains(element)) {
-      result.add(element);
-    }
-  }
-  return result;
-}
+// buildDotToElement / aliveElementsForDots / collectNodeRemovals /
+// collectEdgeRemovals live on DiffCalculator (src/domain/services/DiffCalculator.ts).
 
 /**
  * @typedef {Object} SnapshotBeforeOp
@@ -691,41 +644,6 @@ function aliveElementsForDots(orset, observedDots) {
  * @property {Set<string>} [aliveBeforeNodes]
  * @property {Set<string>} [aliveBeforeEdges]
  */
-
-// snapshotBeforeOp and accumulateOpDiff logic now lives in each OpStrategy's
-// .snapshot() and .accumulate() methods
-
-/**
- * Records removal only for elements that were alive before AND dead after.
- *
- * @param {import('../types/PatchDiff.ts').PatchDiff} diff
- * @param {WarpStateV5} state
- * @param {SnapshotBeforeOp} before
- */
-function collectNodeRemovals(diff, state, before) {
-  if (!before.aliveBeforeNodes) { return; }
-  for (const element of before.aliveBeforeNodes) {
-    if (!state.nodeAlive.contains(element)) {
-      diff.nodesRemoved.push(element);
-    }
-  }
-}
-
-/**
- * Records removal only for edges that were alive before AND dead after.
- *
- * @param {import('../types/PatchDiff.ts').PatchDiff} diff
- * @param {WarpStateV5} state
- * @param {SnapshotBeforeOp} before
- */
-function collectEdgeRemovals(diff, state, before) {
-  if (!before.aliveBeforeEdges) { return; }
-  for (const edgeKey of before.aliveBeforeEdges) {
-    if (!state.edgeAlive.contains(edgeKey)) {
-      diff.edgesRemoved.push(decodeEdgeKey(edgeKey));
-    }
-  }
-}
 
 /**
  * Applies a patch to state with diff tracking for incremental index updates.
