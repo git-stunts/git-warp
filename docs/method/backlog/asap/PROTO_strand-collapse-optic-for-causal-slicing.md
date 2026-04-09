@@ -9,6 +9,12 @@ canonical admitted lanes (`Worldline`), and a working optic framing,
 but it does not yet have a first-class collapse operation that turns a
 subset of strand activity into canonical provenance lawfully.
 
+This matters directly for Graft. Graft is using git-warp to extend Git
+with a causal layer that tracks meaningful activity between "hard" Git
+commits. The product goal is not just to keep speculative session
+history around, but to preserve why an eventual staged and committed
+change happened.
+
 That gap matters for the "between Git commits" product story. A session
 may touch dozens of files, but later stage and commit only one file. If
 collapse means "admit the whole strand," canonical history gets noisy
@@ -66,4 +72,5 @@ The missing feature is a causal-slice collapse:
 
 ## Source
 
+- Graft design discussion, 2026-04-09
 - `/Users/james/git/aion-paper-07/optics/warp-optic.tex`
