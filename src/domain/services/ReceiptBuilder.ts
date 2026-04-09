@@ -6,7 +6,8 @@
  * The reducer's `applyWithReceipt` path calls these before mutation.
  * The methods are pure — they read state but do not mutate it.
  *
- * The class exposes only static methods.
+ * The class exposes only static methods, so there is no instance state
+ * or constructor-time freeze contract to satisfy here.
  *
  * @module domain/services/ReceiptBuilder
  */

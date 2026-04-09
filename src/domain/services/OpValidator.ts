@@ -12,7 +12,9 @@
  *    field violates its expected shape. Called from each
  *    `OpStrategy.validate()` method.
  *
- * The class exposes only static methods — there is no instance state.
+ * The class exposes only static methods — there is no instance state to
+ * freeze, and the `unknown` inputs on `isKnownRaw` / `isKnownCanonical`
+ * are intentional parser-boundary types rather than leaked ambiguity.
  *
  * @module domain/services/OpValidator
  */

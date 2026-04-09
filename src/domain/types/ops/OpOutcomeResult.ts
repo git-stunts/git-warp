@@ -11,7 +11,8 @@
 /**
  * Abstract base: every outcome knows its target identifier and which
  * state it ended in. Concrete subclasses (OpApplied, OpSuperseded,
- * OpRedundant) live in their own files.
+ * OpRedundant) live in their own files and freeze themselves after
+ * construction; this abstract base carries shared fields only.
  */
 export default abstract class OpOutcomeResult<
   R extends 'applied' | 'superseded' | 'redundant' = 'applied' | 'superseded' | 'redundant',

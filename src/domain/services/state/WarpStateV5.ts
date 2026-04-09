@@ -15,8 +15,9 @@ import { compareEventIds, type EventId } from '../../utils/EventId.ts';
 /**
  * The CRDT materialized state for a WARP graph.
  *
- * Instances are mutable during reduce (patch application) but should
- * be cloned before handing to consumers that expect isolation.
+ * This is an entity, not a frozen value object: reduce paths mutate a
+ * live instance in place for performance, then callers clone or snapshot
+ * before handing state to consumers that expect isolation.
  */
 export default class WarpStateV5 {
   nodeAlive: ORSet;

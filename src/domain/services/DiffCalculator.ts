@@ -6,7 +6,8 @@
  * applyWithDiff path and by ReceiptBuilder's *Remove outcome paths
  * (which share the same reverse-index walk).
  *
- * The class exposes only static methods.
+ * The class exposes only static methods, so there is no instance state
+ * or constructor-time freeze contract to satisfy here.
  *
  * @module domain/services/DiffCalculator
  */
