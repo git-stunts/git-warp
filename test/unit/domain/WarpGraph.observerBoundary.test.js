@@ -7,6 +7,7 @@ import { createDot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { createStateReaderV5 } from '../../../src/domain/services/state/StateReaderV5.js';
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
+import WarpError from '../../../src/domain/errors/WarpError.ts';
 
 /** @typedef {any} WarpCoreRuntime */
 
@@ -179,9 +180,9 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
     expect(liveDots).toBeDefined();
     expect(Object.isFrozen(colorRegister)).toBe(true);
     expect(Object.isFrozen(colorRegister.value)).toBe(true);
-    expect(() => state.prop.set(propKey, colorRegister)).toThrow(TypeError);
-    expect(() => state.nodeAlive.entries.set('evil', new Set())).toThrow(TypeError);
-    expect(() => liveDots.add('alice:999')).toThrow(TypeError);
+    expect(() => state.prop.set(propKey, colorRegister)).toThrow(WarpError);
+    expect(() => state.nodeAlive.entries.set('evil', new Set())).toThrow(WarpError);
+    expect(() => liveDots.add('alice:999')).toThrow(WarpError);
     expect(() => {
       colorRegister.value.tone = 'green';
     }).toThrow(TypeError);
@@ -222,7 +223,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
     }));
     const redReader = createStateReaderV5(redState);
 
-    expect(() => redState.prop.set('intruder', null)).toThrow(TypeError);
+    expect(() => redState.prop.set('intruder', null)).toThrow(WarpError);
     expect(redReader.getNodeProps('n1')).toMatchObject({ color: 'red' });
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
   });
@@ -262,7 +263,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
     const strandState = /** @type {any} */ (await graph.materializeStrand('ws_red'));
     const strandReader = createStateReaderV5(strandState);
 
-    expect(() => strandState.prop.set('intruder', null)).toThrow(TypeError);
+    expect(() => strandState.prop.set('intruder', null)).toThrow(WarpError);
     expect(strandReader.getNodeProps('n1')).toMatchObject({
       color: 'red',
       status: 'reviewing',

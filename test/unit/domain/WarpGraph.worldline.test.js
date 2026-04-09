@@ -7,6 +7,7 @@ import { createDot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
 import { createStateReaderV5 } from '../../../src/domain/services/state/StateReaderV5.js';
+import WarpError from '../../../src/domain/errors/WarpError.ts';
 
 /** @typedef {any} WarpCoreRuntime */
 
@@ -192,9 +193,9 @@ describe('WarpCore worldline surface', () => {
     const propKey = encodePropKey('n1', 'color');
     const liveDots = state.nodeAlive.entries.get('n1');
 
-    expect(() => state.prop.set(propKey, null)).toThrow(TypeError);
-    expect(() => state.nodeAlive.tombstones.add('alice:999')).toThrow(TypeError);
-    expect(() => liveDots.add('alice:1000')).toThrow(TypeError);
+    expect(() => state.prop.set(propKey, null)).toThrow(WarpError);
+    expect(() => state.nodeAlive.tombstones.add('alice:999')).toThrow(WarpError);
+    expect(() => liveDots.add('alice:1000')).toThrow(WarpError);
     expect(reader.getNodeProps('n1')).toMatchObject({ color: 'blue' });
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
   });
