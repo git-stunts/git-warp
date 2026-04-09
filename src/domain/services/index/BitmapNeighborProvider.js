@@ -11,6 +11,7 @@
  */
 
 import NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
+import IndexError from '../../errors/IndexError.ts';
 
 /** @typedef {import('./BitmapIndexReader.js').default} BitmapIndexReader */
 
@@ -76,11 +77,14 @@ export default class BitmapNeighborProvider extends NeighborProviderPort {
   /**
    * Validates that at least one index backend is configured.
    *
-   * @throws {Error} If neither indexReader nor logicalIndex is configured.
+   * @throws {IndexError} If neither indexReader nor logicalIndex is configured.
    */
   _assertReady() {
     if (!this._reader && !this._logical) {
-      throw new Error('BitmapNeighborProvider requires either indexReader or logicalIndex');
+      throw new IndexError(
+        'BitmapNeighborProvider requires either indexReader or logicalIndex',
+        { code: 'E_NEIGHBOR_PROVIDER_NO_BACKEND' },
+      );
     }
   }
 

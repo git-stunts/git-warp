@@ -14,6 +14,7 @@ import { decodeEdgeKey, decodePropKey, isEdgePropKey } from '../KeyCodec.js';
 import { nodeVisibleV5, edgeVisibleV5 } from '../state/StateSerializerV5.js';
 import WarpStream from '../../stream/WarpStream.ts';
 import { ReceiptShard } from '../../artifacts/ReceiptShard.ts';
+import IndexError from '../../errors/IndexError.ts';
 
 export default class LogicalIndexBuildService {
   /**
@@ -43,7 +44,10 @@ export default class LogicalIndexBuildService {
     const propShards = [...propBuilder.yieldShards()];
     const receiptShard = indexShards.find((s) => s instanceof ReceiptShard);
     if (!receiptShard) {
-      throw new Error('LogicalIndexBuildService: index builder did not emit a ReceiptShard');
+      throw new IndexError(
+        'LogicalIndexBuildService: index builder did not emit a ReceiptShard',
+        { code: 'E_INDEX_NO_RECEIPT_SHARD' },
+      );
     }
     return { shards: [...indexShards, ...propShards], receipt: /** @type {ReceiptShard} */ (receiptShard) };
   }
@@ -68,7 +72,10 @@ export default class LogicalIndexBuildService {
     const indexShards = [...indexBuilder.yieldShards()];
     const receiptShard = indexShards.find((s) => s instanceof ReceiptShard);
     if (!receiptShard) {
-      throw new Error('LogicalIndexBuildService: index builder did not emit a ReceiptShard');
+      throw new IndexError(
+        'LogicalIndexBuildService: index builder did not emit a ReceiptShard',
+        { code: 'E_INDEX_NO_RECEIPT_SHARD' },
+      );
     }
 
     // Merge both builders' shard streams

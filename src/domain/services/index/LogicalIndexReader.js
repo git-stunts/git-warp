@@ -15,6 +15,7 @@ import { getRoaringBitmap32 } from '../../utils/roaring.ts';
 import { MetaShard } from '../../artifacts/MetaShard.ts';
 import { EdgeShard } from '../../artifacts/EdgeShard.ts';
 import { LabelShard } from '../../artifacts/LabelShard.ts';
+import IndexError from '../../errors/IndexError.ts';
 
 /** @typedef {import('./BitmapNeighborProvider.js').LogicalIndex} LogicalIndex */
 /** @typedef {import('../../utils/roaring.ts').RoaringBitmapSubset} Bitmap */
@@ -362,7 +363,10 @@ export default class LogicalIndexReader {
    */
   async loadFromStore(treeOid) {
     if (!this._indexStore) {
-      throw new Error('LogicalIndexReader: loadFromStore() requires an indexStore');
+      throw new IndexError(
+        'LogicalIndexReader: loadFromStore() requires an indexStore',
+        { code: 'E_INDEX_NO_STORE' },
+      );
     }
     const shards = await this._indexStore.scanShards(treeOid).collect();
     this.loadFromShards(shards);

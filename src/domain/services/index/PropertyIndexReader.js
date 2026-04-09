@@ -9,6 +9,7 @@
 import defaultCodec from '../../utils/defaultCodec.ts';
 import computeShardKey from '../../utils/shardKey.ts';
 import LRUCache from '../../utils/LRUCache.ts';
+import IndexError from '../../errors/IndexError.ts';
 
 /**
  * Creates a prototype-less record for safe property storage.
@@ -134,7 +135,10 @@ export default class PropertyIndexReader {
     }
     const buffer = await /** @type {{ readBlob(oid: string): Promise<Uint8Array|undefined|null> }} */ (this._storage).readBlob(oid);
     if (buffer === null || buffer === undefined) {
-      throw new Error(`PropertyIndexReader: missing blob for OID '${oid}' (${path})`);
+      throw new IndexError(
+        `PropertyIndexReader: missing blob for OID '${oid}' (${path})`,
+        { code: 'E_INDEX_SHARD_MISSING', context: { oid, path } },
+      );
     }
     const decoded = /** @type {unknown} */ (this._codec.decode(buffer));
     return this._parseShard(decoded, path);
@@ -150,7 +154,10 @@ export default class PropertyIndexReader {
   _parseShard(decoded, path) {
     if (!Array.isArray(decoded)) {
       const shape = decoded === null ? 'null' : typeof decoded;
-      throw new Error(`PropertyIndexReader: invalid shard format for '${path}' (expected array, got ${shape})`);
+      throw new IndexError(
+        `PropertyIndexReader: invalid shard format for '${path}' (expected array, got ${shape})`,
+        { code: 'E_INDEX_SHARD_MALFORMED', context: { path, shape } },
+      );
     }
 
     const data = createNullRecord();

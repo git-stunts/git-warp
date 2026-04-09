@@ -5,6 +5,7 @@ import StreamingBitmapIndexBuilder from './StreamingBitmapIndexBuilder.js';
 import { loadIndexFrontier, checkStaleness } from './IndexStalenessChecker.js';
 import nullLogger from '../../utils/nullLogger.ts';
 import { checkAborted } from '../../utils/cancellation.ts';
+import IndexError from '../../errors/IndexError.ts';
 
 /**
  * Service for building and loading the bitmap index from the graph.
@@ -40,15 +41,21 @@ export default class IndexRebuildService {
    * Creates an IndexRebuildService instance.
    *
    * @param {{ graphService: { iterateNodes: (opts: { ref: string, limit: number }) => AsyncIterable<{ sha: string, parents: string[] }> }, storage: import('../../../ports/IndexStoragePort.ts').default, logger?: import('../../../ports/LoggerPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default, crypto?: import('../../../ports/CryptoPort.ts').default }} options - Configuration options
-   * @throws {Error} If graphService is not provided
-   * @throws {Error} If storage adapter is not provided
+   * @throws {IndexError} If graphService is not provided
+   * @throws {IndexError} If storage adapter is not provided
    */
   constructor({ graphService, storage, logger = nullLogger, codec, crypto } = /** @type {{ graphService: { iterateNodes: (opts: { ref: string, limit: number }) => AsyncIterable<{ sha: string, parents: string[] }> }, storage: import('../../../ports/IndexStoragePort.ts').default }} */ ({})) {
     if (graphService === undefined || graphService === null) {
-      throw new Error('IndexRebuildService requires a graphService');
+      throw new IndexError(
+        'IndexRebuildService requires a graphService',
+        { code: 'E_INDEX_MISSING_GRAPH_SERVICE' },
+      );
     }
     if (storage === undefined || storage === null) {
-      throw new Error('IndexRebuildService requires a storage adapter');
+      throw new IndexError(
+        'IndexRebuildService requires a storage adapter',
+        { code: 'E_INDEX_MISSING_STORAGE' },
+      );
     }
     this.graphService = graphService;
     this.storage = storage;
@@ -100,7 +107,10 @@ export default class IndexRebuildService {
    */
   async rebuild(ref, { limit = 10_000_000, maxMemoryBytes, onFlush, onProgress, signal, frontier } = {}) {
     if (maxMemoryBytes !== undefined && maxMemoryBytes <= 0) {
-      throw new Error('maxMemoryBytes must be a positive number');
+      throw new IndexError(
+        'maxMemoryBytes must be a positive number',
+        { code: 'E_INDEX_INVALID_MEMORY_LIMIT', context: { maxMemoryBytes } },
+      );
     }
     const mode = maxMemoryBytes !== undefined ? 'streaming' : 'in-memory';
     this.logger.info('Starting index rebuild', {
@@ -351,7 +361,10 @@ export default class IndexRebuildService {
     });
 
     if (autoRebuild && (rebuildRef === undefined || rebuildRef.length === 0)) {
-      throw new Error('rebuildRef is required when autoRebuild is true');
+      throw new IndexError(
+        'rebuildRef is required when autoRebuild is true',
+        { code: 'E_INDEX_MISSING_REBUILD_REF' },
+      );
     }
 
     // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)

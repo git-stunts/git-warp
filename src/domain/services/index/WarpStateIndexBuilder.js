@@ -12,6 +12,7 @@
 
 import BitmapIndexBuilder from './BitmapIndexBuilder.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
+import IndexError from '../../errors/IndexError.ts';
 
 /**
  * Returns true if the value is null or undefined.
@@ -27,15 +28,21 @@ function isNullish(value) {
  * Validates that the given state is a valid WarpStateV5 with nodeAlive and edgeAlive fields.
  *
  * @param {unknown} state
- * @throws {Error} If state is null, undefined, or missing required fields
+ * @throws {IndexError} If state is null, undefined, or missing required fields
  */
 function validateWarpState(state) {
   if (isNullish(state)) {
-    throw new Error('Invalid state: must be a valid WarpStateV5 object');
+    throw new IndexError(
+      'Invalid state: must be a valid WarpStateV5 object',
+      { code: 'E_INDEX_INVALID_STATE' },
+    );
   }
   const s = /** @type {Record<string, unknown>} */ (state);
   if (isNullish(/** @type {{ nodeAlive?: unknown, edgeAlive?: unknown }} */ (s).nodeAlive) || isNullish(/** @type {{ nodeAlive?: unknown, edgeAlive?: unknown }} */ (s).edgeAlive)) {
-    throw new Error('Invalid state: must be a valid WarpStateV5 object');
+    throw new IndexError(
+      'Invalid state: must be a valid WarpStateV5 object',
+      { code: 'E_INDEX_INVALID_STATE' },
+    );
   }
 }
 
