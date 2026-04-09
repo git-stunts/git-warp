@@ -1,4 +1,5 @@
 import { canonicalStringify } from '../utils/canonicalStringify.ts';
+import WarpError from '../errors/WarpError.ts';
 
 /**
  * Returns true if the value is null or undefined.
@@ -11,7 +12,7 @@ function isNullish(value) {
 }
 
 /**
- * Asserts the value is a non-null, non-array object, throwing TypeError if not.
+ * Asserts the value is a non-null, non-array object, throwing if not.
  *
  * @param {unknown} value
  * @param {string} label
@@ -19,7 +20,7 @@ function isNullish(value) {
  */
 function requireObject(value, label) {
   if (isNullish(value) || typeof value !== 'object' || Array.isArray(value)) {
-    throw new TypeError(`${label} must be an object`);
+    throw new WarpError(`${label} must be an object`, 'E_COORDINATE_FACT_NOT_OBJECT', { context: { label } });
   }
 }
 
@@ -99,7 +100,7 @@ const COORDINATE_TRANSFER_PLAN_FACT_EXPORT_VERSION = 'coordinate-transfer-plan-f
  */
 function requireNonEmptyString(value, label) {
   if (typeof value !== 'string' || value.trim().length === 0) {
-    throw new TypeError(`${label} must be a non-empty string`);
+    throw new WarpError(`${label} must be a non-empty string`, 'E_COORDINATE_FACT_NOT_STRING', { context: { label } });
   }
   return value;
 }
@@ -164,7 +165,7 @@ function serializeSingleTransferOp(op) {
  */
 function serializeTransferOpsForFact(ops) {
   if (!Array.isArray(ops)) {
-    throw new TypeError('ops must be an array');
+    throw new WarpError('ops must be an array', 'E_COORDINATE_FACT_OPS_NOT_ARRAY');
   }
 
   return ops.map((op) => serializeSingleTransferOp(op));

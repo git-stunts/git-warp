@@ -24,6 +24,8 @@ import { EdgeShard } from '../artifacts/EdgeShard.ts';
 import { LabelShard } from '../artifacts/LabelShard.ts';
 import { PropertyShard } from '../artifacts/PropertyShard.ts';
 import { ReceiptShard } from '../artifacts/ReceiptShard.ts';
+import WarpError from '../errors/WarpError.ts';
+import IndexError from '../errors/IndexError.ts';
 
 /** Prefix for property shard paths in the index tree. */
 const PROPS_PREFIX = 'props_';
@@ -350,7 +352,9 @@ export default class MaterializedViewService {
     const oids = await Promise.all(
       paths.map((p) => {
         const blob = tree[p];
-        if (!blob) { throw new Error(`Missing blob for path: ${p}`); }
+        if (!blob) {
+          throw new WarpError(`Missing blob for path: ${p}`, 'E_MATERIALIZED_VIEW_MISSING_BLOB', { context: { path: p } });
+        }
         return persistence.writeBlob(blob);
       })
     );
@@ -490,5 +494,8 @@ function _shardToEntry(shard) {
   if (shard instanceof ReceiptShard) {
     return { path: 'receipt.cbor', payload: { version: shard.version, nodeCount: shard.nodeCount, labelCount: shard.labelCount, shardCount: shard.shardCount } };
   }
-  throw new Error(`MaterializedViewService: unknown IndexShard type (shardKey=${shard.shardKey})`);
+  throw new IndexError(
+    `MaterializedViewService: unknown IndexShard type (shardKey=${shard.shardKey})`,
+    { code: 'E_MATERIALIZED_VIEW_UNKNOWN_SHARD', context: { shardKey: shard.shardKey } },
+  );
 }

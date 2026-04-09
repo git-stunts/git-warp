@@ -167,7 +167,7 @@ export default class VersionVector {
    */
   set(writerId: string, counter: number): this {
     if (Object.isFrozen(this)) {
-      throw new TypeError('Cannot mutate a frozen VersionVector');
+      throw new CrdtError('Cannot mutate a frozen VersionVector', { code: 'E_CRDT_FROZEN_MUTATION' });
     }
     _validateEntry(writerId, counter);
     if (counter === 0) {
@@ -218,7 +218,7 @@ export default class VersionVector {
    */
   increment(writerId: string): Dot {
     if (Object.isFrozen(this)) {
-      throw new TypeError('Cannot mutate a frozen VersionVector');
+      throw new CrdtError('Cannot mutate a frozen VersionVector', { code: 'E_CRDT_FROZEN_MUTATION' });
     }
     // Validate before mutating to avoid partial corruption
     const dot = new Dot(writerId, (this.#entries.get(writerId) ?? 0) + 1);

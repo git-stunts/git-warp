@@ -10,6 +10,7 @@
  */
 
 import EffectSinkPort from '../../ports/EffectSinkPort.ts';
+import WarpError from '../errors/WarpError.ts';
 import type { EffectEmission } from '../types/EffectEmission.ts';
 import type { ExternalizationPolicy } from '../types/ExternalizationPolicy.ts';
 import type { DeliveryObservation } from '../types/DeliveryObservation.ts';
@@ -45,7 +46,11 @@ export class MultiplexSink extends EffectSinkPort {
   /** Registers a child sink. Rejects duplicate IDs. */
   addSink(sink: EffectSinkPort): void {
     if (this._sinks.some((s) => s.id === sink.id)) {
-      throw new Error(`duplicate sink id: ${sink.id}`);
+      throw new WarpError(
+        `duplicate sink id: ${sink.id}`,
+        'E_MULTIPLEX_DUPLICATE_SINK',
+        { context: { sinkId: sink.id } },
+      );
     }
     this._sinks.push(sink);
   }

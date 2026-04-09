@@ -15,6 +15,7 @@
 
 import { decodeEdgeKey, decodePropKey, isEdgePropKey } from './KeyCodec.js';
 import { matchGlob } from '../utils/matchGlob.ts';
+import QueryError from '../errors/QueryError.ts';
 
 /** @typedef {import('./JoinReducer.ts').WarpStateV5} WarpStateV5 */
 
@@ -286,11 +287,14 @@ export function computeTranslationCost(configA, configB, state) {
  *
  * @param {{ match: string|string[] }} configA
  * @param {{ match: string|string[] }} configB
- * @throws {Error} If either config is missing or has an invalid match
+ * @throws {QueryError} If either config is missing or has an invalid match
  */
 function validateObserverConfigs(configA, configB) {
   if (!isValidMatchConfig(configA) || !isValidMatchConfig(configB)) {
-    throw new Error('configA.match and configB.match must be non-empty strings or non-empty arrays of strings');
+    throw new QueryError(
+      'configA.match and configB.match must be non-empty strings or non-empty arrays of strings',
+      { code: 'E_TRANSLATION_COST_INVALID_MATCH' },
+    );
   }
 }
 

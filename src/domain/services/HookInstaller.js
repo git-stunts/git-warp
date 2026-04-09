@@ -7,6 +7,8 @@
  * @module domain/services/HookInstaller
  */
 
+import WarpError from '../errors/WarpError.ts';
+
 /**
  * @typedef {Object} FsAdapter
  * @property {(path: string, content: string | Uint8Array, options?: Object) => void} writeFileSync
@@ -145,7 +147,11 @@ export class HookInstaller {
       return this._replaceInstall(hookPath, stamped);
     }
 
-    throw new Error(`Unknown install strategy: ${strategy}`);
+    throw new WarpError(
+      `Unknown install strategy: ${strategy}`,
+      'E_HOOK_UNKNOWN_STRATEGY',
+      { context: { strategy } },
+    );
   }
 
   /**

@@ -538,21 +538,21 @@ export default class WarpRuntime {
     // Validate checkpointPolicy
     if (checkpointPolicy !== undefined && checkpointPolicy !== null) {
       if (typeof checkpointPolicy !== 'object' || checkpointPolicy === null) {
-        throw new Error('checkpointPolicy must be an object with { every: number }');
+        throw new WarpError('checkpointPolicy must be an object with { every: number }', 'E_CHECKPOINT_POLICY_TYPE');
       }
       if (!Number.isInteger(checkpointPolicy.every) || checkpointPolicy.every <= 0) {
-        throw new Error('checkpointPolicy.every must be a positive integer');
+        throw new WarpError('checkpointPolicy.every must be a positive integer', 'E_CHECKPOINT_POLICY_EVERY');
       }
     }
 
     // Validate autoMaterialize
     if (autoMaterialize !== undefined && typeof autoMaterialize !== 'boolean') {
-      throw new Error('autoMaterialize must be a boolean');
+      throw new WarpError('autoMaterialize must be a boolean', 'E_AUTO_MATERIALIZE_TYPE');
     }
 
     // Validate audit
     if (audit !== undefined && typeof audit !== 'boolean') {
-      throw new Error('audit must be a boolean');
+      throw new WarpError('audit must be a boolean', 'E_AUDIT_TYPE');
     }
 
     normalizeTrustConfig(trust);
@@ -561,7 +561,11 @@ export default class WarpRuntime {
     if (onDeleteWithData !== undefined) {
       const valid = ['reject', 'cascade', 'warn'];
       if (!valid.includes(onDeleteWithData)) {
-        throw new Error(`onDeleteWithData must be one of: ${valid.join(', ')}`);
+        throw new WarpError(
+          `onDeleteWithData must be one of: ${valid.join(', ')}`,
+          'E_ON_DELETE_WITH_DATA_INVALID',
+          { context: { got: onDeleteWithData, valid } },
+        );
       }
     }
 
