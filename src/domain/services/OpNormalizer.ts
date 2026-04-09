@@ -225,7 +225,7 @@ const HYDRATORS: ReadonlyMap<string, (rawOp: OpLike) => OpLike> = Object.freeze(
   ['BlobValue', hydrateBlobValue],
 ]));
 
-function isRuntimeOp(rawOp: OpLike): boolean {
+function isRuntimeOp(rawOp: OpLike): rawOp is OpV2 {
   return RUNTIME_OP_CLASSES.some((OpClass) => rawOp instanceof OpClass);
 }
 
@@ -235,6 +235,29 @@ function hydrateRawOp(rawOp: OpLike): OpLike {
   }
   const hydrate = HYDRATORS.get(rawOp.type);
   return hydrate !== undefined ? hydrate(rawOp) : rawOp;
+}
+
+/**
+ * Hydrates a decoded op into the corresponding runtime-backed op class
+ * when the op type is known. Unknown types pass through unchanged so
+ * forward-compatible callers can decide how to handle them.
+ */
+export function hydrateDecodedOp(rawOp: OpLike): OpLike {
+  return hydrateRawOp(rawOp);
+}
+
+/**
+ * Hydrates a known decoded op into a runtime-backed current op class.
+ * Unknown types are rejected at this stricter boundary.
+ */
+export function hydrateKnownDecodedOp(rawOp: OpLike): OpV2 {
+  const hydratedOp = hydrateDecodedOp(rawOp);
+  if (isRuntimeOp(hydratedOp)) {
+    return hydratedOp;
+  }
+  throw new PatchError(`Cannot hydrate unknown decoded op type '${rawOp.type}'`, {
+    context: { opType: rawOp.type },
+  });
 }
 
 function normalizePropSet(rawPropSet: PropSet): CanonicalOpV2 {
@@ -259,7 +282,7 @@ function normalizePropSet(rawPropSet: PropSet): CanonicalOpV2 {
  * shapes back into real op/domain objects before reducer dispatch.
  */
 export function normalizeRawOp(rawOp: OpLike): OpLike {
-  const hydratedOp = hydrateRawOp(rawOp);
+  const hydratedOp = hydrateDecodedOp(rawOp);
   return hydratedOp instanceof PropSet ? normalizePropSet(hydratedOp) : hydratedOp;
 }
 

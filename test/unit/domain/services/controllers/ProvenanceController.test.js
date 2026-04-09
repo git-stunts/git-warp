@@ -8,6 +8,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ProvenanceController from '../../../../../src/domain/services/controllers/ProvenanceController.js';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
+import Patch from '../../../../../src/domain/types/Patch.ts';
+import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
+import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 
 // ── Mock WarpMessageCodec ───────────────────────────────────────────────
 
@@ -189,7 +192,10 @@ describe('ProvenanceController — materializeSlice', () => {
     expect(result).not.toHaveProperty('receipts');
     expect(ProvenancePayload).toHaveBeenCalledWith(
       expect.arrayContaining([
-        expect.objectContaining({ sha: 'sha1', patch }),
+        expect.objectContaining({
+          sha: 'sha1',
+          patch: expect.objectContaining({ writer: patch.writer, lamport: patch.lamport }),
+        }),
       ]),
     );
   });
@@ -287,7 +293,7 @@ describe('ProvenanceController — _computeBackwardCone', () => {
     const cone = await ctrl._computeBackwardCone('node:x');
 
     expect(cone.size).toBe(1);
-    expect(cone.get('sha1')).toBe(patch);
+    expect(cone.get('sha1')).toEqual(expect.objectContaining({ writer: patch.writer, lamport: patch.lamport }));
   });
 
   it('follows reads transitively via BFS', async () => {
@@ -371,7 +377,12 @@ describe('ProvenanceController — loadPatchBySha', () => {
   });
 
   it('loads and decodes a patch commit', async () => {
-    const patch = makePatch({ writer: 'w1', lamport: 5 });
+    const patch = {
+      writer: 'w1',
+      lamport: 5,
+      context: { w1: 0 },
+      ops: [{ type: 'NodeAdd', id: 'n1', dot: ['w1', 1] }],
+    };
 
     detectMessageKind.mockReturnValue('patch');
     decodePatchMessage.mockReturnValue({
@@ -387,7 +398,10 @@ describe('ProvenanceController — loadPatchBySha', () => {
 
     const result = await ctrl.loadPatchBySha('abc123');
 
-    expect(result).toBe(patch);
+    expect(result).toBeInstanceOf(Patch);
+    expect(result.ops[0]).toBeInstanceOf(NodeAdd);
+    expect(result.ops[0]?.dot).toBeInstanceOf(Dot);
+    expect(result.ops[0]?.node).toBe('n1');
     expect(host._persistence.getNodeInfo).toHaveBeenCalledWith('abc123');
     expect(detectMessageKind).toHaveBeenCalledWith('patch-message');
     expect(decodePatchMessage).toHaveBeenCalledWith('patch-message');

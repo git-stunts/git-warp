@@ -11,6 +11,7 @@ import QueryError from '../../errors/QueryError.ts';
 import { createEmptyState, reduceV5 } from '../JoinReducer.ts';
 import { ProvenancePayload } from '../provenance/ProvenancePayload.js';
 import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';
+import { hydrateDecodedPatch } from '../PatchHydrator.ts';
 
 /** @import { WarpState } from '../JoinReducer.ts' */
 /** @import { default as Patch } from '../../types/Patch.ts' */
@@ -206,7 +207,7 @@ export default class ProvenanceController {
 
     const patchMeta = decodePatchMessage(nodeInfo.message);
     const patchBuffer = await host._readPatchBlob(patchMeta);
-    return /** @type {Patch} */ (host._codec.decode(patchBuffer));
+    return hydrateDecodedPatch(host._codec.decode(patchBuffer));
   }
 
   /**

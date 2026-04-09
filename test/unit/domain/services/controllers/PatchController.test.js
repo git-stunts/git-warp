@@ -759,14 +759,24 @@ describe('PatchController', () => {
       const rawBytes = new Uint8Array([1, 2, 3]);
       persistence.readBlob.mockResolvedValue(rawBytes);
 
-      const decodedPatch = { ops: ['op1'], lamport: 1 };
+      const decodedPatch = {
+        writer: 'alice',
+        lamport: 1,
+        context: { alice: 0 },
+        ops: [{ type: 'NodeAdd', id: 'n1', dot: ['alice', 1] }],
+      };
       const codec = /** @type {{ decode: import('vitest').Mock }} */ (host._codec);
       codec.decode.mockReturnValue(decodedPatch);
 
       const result = await ctrl._loadWriterPatches('alice');
 
       expect(result).toHaveLength(1);
-      expect(result[0].patch).toBe(decodedPatch);
+      expect(result[0].patch).toMatchObject({ writer: 'alice', lamport: 1 });
+      expect(result[0].patch.ops[0]).toMatchObject({
+        type: 'NodeAdd',
+        node: 'n1',
+        dot: createDot('alice', 1),
+      });
       expect(persistence.readBlob).toHaveBeenCalledWith('blob-oid');
       expect(codec.decode).toHaveBeenCalledWith(rawBytes);
     });

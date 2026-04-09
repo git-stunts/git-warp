@@ -3,9 +3,9 @@ import WarpError from '../../domain/errors/WarpError.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import PatchEntry from '../../domain/artifacts/PatchEntry.ts';
 import { decodePatchMessage, detectMessageKind } from '../../domain/services/codec/WarpMessageCodec.js';
+import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
 import SyncError from '../../domain/errors/SyncError.ts';
 import EncryptionError from '../../domain/errors/EncryptionError.ts';
-import VersionVector from '../../domain/crdt/VersionVector.ts';
 
 /**
  * CBOR-backed implementation of PatchJournalPort.
@@ -81,9 +81,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     } else {
       bytes = await this._blobPort.readBlob(patchOid);
     }
-    return /** @type {import('../../domain/types/Patch.ts').default} */ (
-      this._codec.decode(bytes)
-    );
+    return hydrateDecodedPatch(this._codec.decode(bytes));
   }
 
   /**
@@ -154,30 +152,10 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
         // Yield in chronological order (oldest first)
         for (let i = stack.length - 1; i >= 0; i--) {
           const { sha, patchOid, encrypted } = /** @type {{ sha: string, patchOid: string, encrypted: boolean }} */ (stack[i]);
-          const raw = await adapter.readPatch(patchOid, { encrypted });
-          const patch = _normalizePatch(raw);
+          const patch = await adapter.readPatch(patchOid, { encrypted });
           yield new PatchEntry({ patch, sha });
         }
       })(),
     );
   }
-}
-
-/**
- * Normalizes a decoded patch (converts context from plain object to Map).
- *
- * @param {import('../../domain/types/Patch.ts').default} patch
- * @returns {import('../../domain/types/Patch.ts').default}
- */
-function _normalizePatch(patch) {
-  if (patch.context !== null && patch.context !== undefined && !(patch.context instanceof Map)) {
-    const ctx = patch.context;
-    if (ctx instanceof VersionVector) {
-      return patch;
-    }
-    /** @type {Record<string, number>} */
-    const record = Object.fromEntries(Object.entries(/** @type {Record<string, number>} */ (ctx)));
-    return { ...patch, context: record };
-  }
-  return patch;
 }

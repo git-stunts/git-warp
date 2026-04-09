@@ -11,6 +11,7 @@ import { PatchBuilder } from '../PatchBuilder.js';
 import { joinStates, applyWithDiff, applyWithReceipt } from '../JoinReducer.ts';
 import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../../utils/RefLayout.ts';
 import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';
+import { hydrateDecodedPatch } from '../PatchHydrator.ts';
 import { Writer } from '../../warp/Writer.ts';
 import { resolveWriterId } from '../../utils/WriterId.ts';
 import EncryptionError from '../../errors/EncryptionError.ts';
@@ -180,7 +181,7 @@ export default class PatchController {
       if (journal === null || journal === undefined) {
         // Legacy fallback: read the patch blob directly and decode with the codec
         const raw = await h._persistence.readBlob(patchMeta.patchOid);
-        const decoded = /** @type {import('../../types/Patch.ts').default} */ (h._codec.decode(raw));
+        const decoded = hydrateDecodedPatch(h._codec.decode(raw));
         patches.push({ patch: decoded, sha: currentSha });
         if (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0) {
           currentSha = nodeInfo.parents[0] ?? '';
