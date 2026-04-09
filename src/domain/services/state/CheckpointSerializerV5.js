@@ -18,6 +18,7 @@ import VersionVector from '../../crdt/VersionVector.ts';
 import { decodeDot } from '../../crdt/Dot.ts';
 import { createEmptyStateV5 } from '../JoinReducer.ts';
 import WarpStateV5 from './WarpStateV5.ts';
+import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 
 // ============================================================================
 // Full State Serialization (for Checkpoints)
@@ -107,7 +108,10 @@ export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
   }
   // Accept both 'full-v5' and missing version (backward compat with pre-versioned data)
   if (obj['version'] !== undefined && obj['version'] !== 'full-v5') {
-    throw new Error(`Unsupported full state version: expected 'full-v5', got '${JSON.stringify(obj['version'])}'`);
+    throw new SchemaUnsupportedError(
+      `Unsupported full state version: expected 'full-v5', got '${JSON.stringify(obj['version'])}'`,
+      { context: { version: obj['version'] } },
+    );
   }
   return new WarpStateV5({
     nodeAlive: ORSet.deserialize(obj['nodeAlive'] ?? {}),

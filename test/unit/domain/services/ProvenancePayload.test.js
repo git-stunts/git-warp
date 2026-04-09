@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.js';
+import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import { reduceV5 as _reduceV5, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
@@ -34,10 +35,16 @@ describe('ProvenancePayload', () => {
       expect(payload.length).toBe(2);
     });
 
-    it('throws TypeError for non-array input', () => {
-      expect(() => new ProvenancePayload(/** @type {any} */ ('not-an-array'))).toThrow(TypeError);
-      expect(() => new ProvenancePayload(/** @type {any} */ ({}))).toThrow(TypeError);
-      expect(() => new ProvenancePayload(/** @type {any} */ (42))).toThrow(TypeError);
+    it('throws WarpError with E_PROVENANCE_PAYLOAD_INVALID for non-array input', () => {
+      expect(() => new ProvenancePayload(/** @type {any} */ ('not-an-array'))).toThrow(WarpError);
+      expect(() => new ProvenancePayload(/** @type {any} */ ({}))).toThrow(WarpError);
+      expect(() => new ProvenancePayload(/** @type {any} */ (42))).toThrow(WarpError);
+      try {
+        new ProvenancePayload(/** @type {any} */ ('not-an-array'));
+      } catch (err) {
+        expect(err).toBeInstanceOf(WarpError);
+        expect(/** @type {WarpError} */ (err).code).toBe('E_PROVENANCE_PAYLOAD_INVALID');
+      }
     });
 
     it('is immutable (frozen)', () => {
@@ -80,11 +87,17 @@ describe('ProvenancePayload', () => {
   });
 
   describe('concat', () => {
-    it('throws TypeError for non-ProvenancePayload argument', () => {
+    it('throws WarpError with E_PROVENANCE_PAYLOAD_CONCAT for non-ProvenancePayload argument', () => {
       const payload = new ProvenancePayload();
-      expect(() => payload.concat(/** @type {any} */ ([]))).toThrow(TypeError);
-      expect(() => payload.concat(/** @type {any} */ ({}))).toThrow(TypeError);
-      expect(() => payload.concat(/** @type {any} */ (null))).toThrow(TypeError);
+      expect(() => payload.concat(/** @type {any} */ ([]))).toThrow(WarpError);
+      expect(() => payload.concat(/** @type {any} */ ({}))).toThrow(WarpError);
+      expect(() => payload.concat(/** @type {any} */ (null))).toThrow(WarpError);
+      try {
+        payload.concat(/** @type {any} */ ([]));
+      } catch (err) {
+        expect(err).toBeInstanceOf(WarpError);
+        expect(/** @type {WarpError} */ (err).code).toBe('E_PROVENANCE_PAYLOAD_CONCAT');
+      }
     });
 
     it('concatenates two payloads', () => {

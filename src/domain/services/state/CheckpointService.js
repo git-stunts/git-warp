@@ -28,6 +28,7 @@ import { cloneStateV5, reduceV5 } from '../JoinReducer.ts';
 import WarpStateV5 from './WarpStateV5.ts';
 import { encodeEdgeKey, encodePropKey, CONTENT_PROPERTY_KEY, decodePropKey, isEdgePropKey, decodeEdgePropKey } from '../KeyCodec.js';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
+import PersistenceError from '../../errors/PersistenceError.ts';
 
 // ============================================================================
 // Checkpoint Schema Constants
@@ -435,9 +436,11 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec, checkp
 
   // 2. Reject unsupported schemas - migration required for schema:1
   if (!isV5CheckpointSchema(decoded.schema)) {
-    throw new Error(
+    throw new PersistenceError(
       `Checkpoint ${checkpointSha} is schema:${decoded.schema}. ` +
-        `Only schema:2, schema:3, and schema:4 checkpoints are supported. Please migrate using MigrationService.`
+        `Only schema:2, schema:3, and schema:4 checkpoints are supported. Please migrate using MigrationService.`,
+      'E_CHECKPOINT_UNSUPPORTED_SCHEMA',
+      { context: { checkpointSha, schema: decoded.schema } },
     );
   }
 
@@ -473,7 +476,11 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec, checkp
   // 4. Read frontier.cbor blob
   const frontierOid = treeOids['frontier.cbor'];
   if (frontierOid === undefined) {
-    throw new Error(`Checkpoint ${checkpointSha} missing frontier.cbor in tree`);
+    throw new PersistenceError(
+      `Checkpoint ${checkpointSha} missing frontier.cbor in tree`,
+      'E_CHECKPOINT_MISSING_FRONTIER',
+      { context: { checkpointSha } },
+    );
   }
   const frontierBuffer = await persistence.readBlob(frontierOid);
   const frontier = deserializeFrontier(frontierBuffer, loadCodecOpt);
@@ -481,7 +488,11 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec, checkp
   // 5. Read state.cbor blob and deserialize as V5 full state
   const stateOid = treeOids['state.cbor'];
   if (stateOid === undefined) {
-    throw new Error(`Checkpoint ${checkpointSha} missing state.cbor in tree`);
+    throw new PersistenceError(
+      `Checkpoint ${checkpointSha} missing state.cbor in tree`,
+      'E_CHECKPOINT_MISSING_STATE',
+      { context: { checkpointSha } },
+    );
   }
   const stateBuffer = await persistence.readBlob(stateOid);
   // V5: Load AUTHORITATIVE full state from state.cbor (NEVER use visible.cbor for resume)

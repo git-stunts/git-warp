@@ -1,4 +1,6 @@
 import defaultCodec from '../../utils/defaultCodec.ts';
+import WarpError from '../../errors/WarpError.ts';
+import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 
 /**
  * ProvenanceIndex - Node-to-Patch SHA Index
@@ -287,14 +289,20 @@ class ProvenanceIndex {
    * Validates the shape of a deserialized or parsed ProvenanceIndex payload.
    *
    * @param {{ version?: number, entries?: Array<[string, string[]]> }} obj
-   * @throws {Error} If version is unsupported or entries are missing/invalid
+   * @throws {WarpError} If version is unsupported or entries are missing/invalid
    */
   static #validateSerialized(obj) {
     if (obj.version !== 1) {
-      throw new Error(`Unsupported ProvenanceIndex version: ${obj.version}`);
+      throw new SchemaUnsupportedError(
+        `Unsupported ProvenanceIndex version: ${obj.version}`,
+        { context: { version: obj.version } },
+      );
     }
     if (!Array.isArray(obj.entries)) {
-      throw new Error('Missing or invalid ProvenanceIndex entries');
+      throw new WarpError(
+        'Missing or invalid ProvenanceIndex entries',
+        'E_PROVENANCE_INDEX_MALFORMED',
+      );
     }
   }
 

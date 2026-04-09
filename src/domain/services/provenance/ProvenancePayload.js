@@ -17,6 +17,7 @@
  */
 
 import { reduceV5, createEmptyStateV5, cloneStateV5 } from '../JoinReducer.ts';
+import WarpError from '../../errors/WarpError.ts';
 
 /**
  * A single patch entry in the provenance payload.
@@ -80,11 +81,14 @@ class ProvenancePayload {
    * @param {Array<PatchEntry>} patches - Ordered sequence of patch entries.
    *   Each entry must have { patch, sha } where patch is the decoded patch
    *   object and sha is the Git commit SHA.
-   * @throws {TypeError} If patches is not an array
+   * @throws {WarpError} If patches is not an array
    */
   constructor(patches = []) {
     if (!Array.isArray(patches)) {
-      throw new TypeError('ProvenancePayload requires an array of patches');
+      throw new WarpError(
+        'ProvenancePayload requires an array of patches',
+        'E_PROVENANCE_PAYLOAD_INVALID',
+      );
     }
 
     // Shallow copy and freeze to ensure immutability
@@ -130,11 +134,14 @@ class ProvenancePayload {
    *
    * @param {ProvenancePayload} other - The payload to append
    * @returns {ProvenancePayload} A new payload with combined patches
-   * @throws {TypeError} If other is not a ProvenancePayload
+   * @throws {WarpError} If other is not a ProvenancePayload
    */
   concat(other) {
     if (!(other instanceof ProvenancePayload)) {
-      throw new TypeError('concat requires a ProvenancePayload');
+      throw new WarpError(
+        'concat requires a ProvenancePayload',
+        'E_PROVENANCE_PAYLOAD_CONCAT',
+      );
     }
 
     // Optimization: avoid array allocation for identity cases

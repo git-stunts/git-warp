@@ -11,6 +11,7 @@ import {
   getBTRPayloadLength,
 } from '../../../../src/domain/services/provenance/BoundaryTransitionRecord.js';
 import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.js';
+import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import {
   createEmptyStateV5,
   reduceV5 as _reduceV5,
@@ -116,12 +117,13 @@ describe('BoundaryTransitionRecord', () => {
       expect(btr.t <= after).toBe(true);
     });
 
-    it('throws TypeError for non-ProvenancePayload', async () => {
+    it('throws WarpError with E_BTR_INVALID_PAYLOAD for non-ProvenancePayload', async () => {
       const initialState = createEmptyStateV5();
 
-      await expect(createBTR(initialState, /** @type {any} */ ([]), { key: testKey, crypto })).rejects.toThrow(TypeError);
-      await expect(createBTR(initialState, /** @type {any} */ ({}), { key: testKey, crypto })).rejects.toThrow(TypeError);
-      await expect(createBTR(initialState, /** @type {any} */ (null), { key: testKey, crypto })).rejects.toThrow(TypeError);
+      await expect(createBTR(initialState, /** @type {any} */ ([]), { key: testKey, crypto })).rejects.toThrow(WarpError);
+      await expect(createBTR(initialState, /** @type {any} */ ({}), { key: testKey, crypto })).rejects.toThrow(WarpError);
+      await expect(createBTR(initialState, /** @type {any} */ (null), { key: testKey, crypto })).rejects.toThrow(WarpError);
+      await expect(createBTR(initialState, /** @type {any} */ ([]), { key: testKey, crypto })).rejects.toMatchObject({ code: 'E_BTR_INVALID_PAYLOAD' });
     });
 
     it('produces different kappa for different keys', async () => {

@@ -21,6 +21,7 @@
 
 import defaultCodec from '../../utils/defaultCodec.ts';
 import CryptoError from '../../errors/CryptoError.ts';
+import WarpError from '../../errors/WarpError.ts';
 import { ProvenancePayload } from './ProvenancePayload.js';
 import { serializeFullStateV5, deserializeFullStateV5, computeStateHashV5 } from '../state/StateSerializerV5.js';
 
@@ -221,11 +222,11 @@ class VerificationResult {
  * @param {ProvenancePayload} payload - The provenance payload P
  * @param {{ key: string|Uint8Array, timestamp?: string, crypto: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} options - BTR creation options
  * @returns {Promise<BTR>} The created BTR
- * @throws {TypeError} If payload is not a ProvenancePayload
+ * @throws {WarpError} If payload is not a ProvenancePayload
  */
 export async function createBTR(initialState, payload, options) {
   if (!(payload instanceof ProvenancePayload)) {
-    throw new TypeError('payload must be a ProvenancePayload');
+    throw new WarpError('payload must be a ProvenancePayload', 'E_BTR_INVALID_PAYLOAD');
   }
 
   // eslint-disable-next-line no-restricted-syntax -- wall-clock default for BTR timestamp
