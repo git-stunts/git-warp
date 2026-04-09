@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildTouchedFilesReport,
-  classifyJavaScriptChange,
-  formatTouchedFilesReport,
-  getImportRegionEnd,
-  parseChangedFiles,
-  parseUnifiedDiff,
-  pairTypeScriptConversions,
-} from '../../../scripts/touched-files-status.js';
+} from '../../../scripts/touched-files/buildTouchedFilesReport.js';
+import { classifyJavaScriptChange } from '../../../scripts/touched-files/classifyJavaScriptChange.js';
+import { getImportRegionEnd } from '../../../scripts/touched-files/getImportRegionEnd.js';
+import { parseChangedFiles } from '../../../scripts/touched-files/parseChangedFiles.js';
+import { parseUnifiedDiff } from '../../../scripts/touched-files/parseUnifiedDiff.js';
+import { pairTypeScriptConversions } from '../../../scripts/touched-files/pairTypeScriptConversions.js';
+import TouchedFilesReport from '../../../scripts/touched-files/TouchedFilesReport.js';
 
 describe('touched-files-status', () => {
   it('parses name-status output including renames', () => {
@@ -75,12 +75,7 @@ describe('touched-files-status', () => {
       'const runtime = 1;',
     ].join('\n');
 
-    expect(classifyJavaScriptChange({
-      status: 'M',
-      patch,
-      baseContent: content,
-      headContent: content,
-    })).toEqual({
+    expect(classifyJavaScriptChange('M', patch, content, content)).toEqual({
       kind: 'import-only',
       added: 1,
       deleted: 1,
@@ -102,12 +97,7 @@ describe('touched-files-status', () => {
       '}',
     ].join('\n');
 
-    expect(classifyJavaScriptChange({
-      status: 'M',
-      patch,
-      baseContent: content,
-      headContent: content,
-    })).toEqual({
+    expect(classifyJavaScriptChange('M', patch, content, content)).toEqual({
       kind: 'body-modified',
       added: 1,
       deleted: 1,
@@ -180,14 +170,17 @@ describe('touched-files-status', () => {
       ].join('\n')],
     ]);
 
-    const report = await buildTouchedFilesReport(changedFiles, {
-      branch: 'cycle/0013-typescript-migration',
-      baseRef: 'main',
-      headRef: 'HEAD',
-      mergeBase: 'abc123',
-      readPatch: async path => patches.get(path) ?? '',
-      readFileAtRef: async (ref, path) => filesAtRef.get(`${ref}:${path}`) ?? null,
-    });
+    const report = await buildTouchedFilesReport(
+      changedFiles,
+      {
+        branch: 'cycle/0013-typescript-migration',
+        baseRef: 'main',
+        headRef: 'HEAD',
+        mergeBase: 'abc123',
+      },
+      async path => patches.get(path) ?? '',
+      async (ref, path) => filesAtRef.get(`${ref}:${path}`) ?? null,
+    );
 
     expect(report.convertedToTs).toEqual([
       {
@@ -254,30 +247,26 @@ describe('touched-files-status', () => {
   });
 
   it('formats the report into a bucketed human-readable summary', () => {
-    const text = formatTouchedFilesReport({
+    const report = new TouchedFilesReport({
       branch: 'cycle/0013-typescript-migration',
       baseRef: 'main',
       headRef: 'HEAD',
       mergeBase: 'abc12345def67890',
-      convertedToTs: [
-        {
-          status: 'R100',
-          oldPath: 'src/domain/services/LegacyAnchorDetector.js',
-          path: 'src/domain/services/LegacyAnchorDetector.ts',
-        },
-      ],
-      alreadyTsModified: [],
-      jsBodyModified: [
-        {
-          status: 'M',
-          path: 'src/domain/services/PatchBuilder.js',
-          added: 2,
-          deleted: 1,
-        },
-      ],
-      jsImportOnly: [],
-      otherChangedFiles: [],
     });
+    report.addConvertedToTs({
+      status: 'R100',
+      oldPath: 'src/domain/services/LegacyAnchorDetector.js',
+      path: 'src/domain/services/LegacyAnchorDetector.ts',
+    });
+    report.addJavaScriptChange(
+      {
+        status: 'M',
+        path: 'src/domain/services/PatchBuilder.js',
+      },
+      { kind: 'body-modified', added: 2, deleted: 1 },
+    );
+
+    const text = report.freeze().formatText();
 
     expect(text).toContain('Touched on cycle/0013-typescript-migration (vs main, merge-base abc12345):');
     expect(text).toContain('Converted to .ts ✅ (1)');

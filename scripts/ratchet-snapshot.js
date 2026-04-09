@@ -5,14 +5,12 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
-import {
-  buildSnapshotPath,
-  createSnapshot,
-  extractEslintCounts,
-  extractTypecheckErrorCount,
-  extractVitestCounts,
-  writeSnapshot,
-} from './ratchet-telemetry.js';
+import { buildSnapshotPath } from './ratchet/buildSnapshotPath.js';
+import { createSnapshot } from './ratchet/createSnapshot.js';
+import { extractEslintCounts } from './ratchet/extractEslintCounts.js';
+import { extractTypecheckErrorCount } from './ratchet/extractTypecheckErrorCount.js';
+import { extractVitestCounts } from './ratchet/extractVitestCounts.js';
+import { writeSnapshot } from './ratchet/writeSnapshot.js';
 
 const execFile = promisify(execFileCallback);
 

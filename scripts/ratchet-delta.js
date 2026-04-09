@@ -3,12 +3,10 @@
 import { execFile as execFileCallback } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import {
-  diffSnapshots,
-  formatDelta,
-  listSnapshotPaths,
-  readSnapshot,
-} from './ratchet-telemetry.js';
+import { diffSnapshots } from './ratchet/diffSnapshots.js';
+import { formatDelta } from './ratchet/formatDelta.js';
+import { listSnapshotPaths } from './ratchet/listSnapshotPaths.js';
+import { readSnapshot } from './ratchet/readSnapshot.js';
 
 const execFile = promisify(execFileCallback);
 

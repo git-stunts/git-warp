@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  buildScorecardRows,
-  classifyPath,
-  collectMetrics,
-  formatMarkdown,
-  parseArgs,
-  scoreStatus,
-} from '../../../scripts/agent-scorecard.js';
+import { parseArgs } from '../../../scripts/agent-scorecard.js';
+import { buildScorecardRows } from '../../../scripts/scorecard/buildScorecardRows.js';
+import { classifyPath } from '../../../scripts/scorecard/classifyPath.js';
+import { collectMetrics } from '../../../scripts/scorecard/collectMetrics.js';
+import { formatMarkdown } from '../../../scripts/scorecard/formatScorecard.js';
+import { scoreStatus } from '../../../scripts/scorecard/scoreStatus.js';
 
 describe('agent-scorecard', () => {
   it('parses CLI options', () => {
@@ -120,5 +118,13 @@ describe('agent-scorecard', () => {
     expect(rows[0]?.path).toBe('scripts/coverage-ratchet.js');
     expect(rows[0]?.kind).toBe('bin');
     expect(rows[0]?.status).toBeTypeOf('string');
+  });
+
+  it('skips touched entries whose current file is missing', async () => {
+    const rows = await buildScorecardRows({
+      listCodeTouches: () => [{ path: 'scripts/does-not-exist.js', touch: 'js-body' }],
+    });
+
+    expect(rows).toEqual([]);
   });
 });
