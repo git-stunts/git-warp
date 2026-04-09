@@ -8,15 +8,14 @@
  * @module domain/types/ops/OpOutcomeResult
  */
 
-/** Possible outcome states for a single op application. */
-export type OpOutcomeState = 'applied' | 'superseded' | 'redundant';
-
 /**
  * Abstract base: every outcome knows its target identifier and which
  * state it ended in. Concrete subclasses (OpApplied, OpSuperseded,
  * OpRedundant) live in their own files.
  */
-export default abstract class OpOutcomeResult<R extends OpOutcomeState = OpOutcomeState> {
+export default abstract class OpOutcomeResult<
+  R extends 'applied' | 'superseded' | 'redundant' = 'applied' | 'superseded' | 'redundant',
+> {
   /** The entity ID or encoded key the op targeted. */
   readonly target: string;
 

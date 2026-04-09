@@ -13,28 +13,6 @@ import { lwwMax, type LWWRegister } from '../../crdt/LWW.ts';
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
 
 /**
- * Minimal shape that `WarpStateV5.join` / `cloneFromSnapshot` accept when
- * hydrating a deserialized or plain-object state (e.g. from a checkpoint).
- */
-export type WarpStateV5Snapshot = {
-  readonly nodeAlive: ORSet;
-  readonly edgeAlive: ORSet;
-  readonly prop: Map<string, LWWRegister<unknown>>;
-  readonly observedFrontier: VersionVector;
-  readonly edgeBirthEvent?: Map<string, EventId>;
-};
-
-/**
- * Minimal shape for a patch that can be folded into a state's frontier.
- * (The caller supplies `writer`, `lamport`, and a version-vector context.)
- */
-export type FrontierPatch = {
-  readonly writer: string;
-  readonly lamport: number;
-  readonly context: VersionVector | Map<string, number> | Record<string, number> | null | undefined;
-};
-
-/**
  * The CRDT materialized state for a WARP graph.
  *
  * Instances are mutable during reduce (patch application) but should
@@ -90,7 +68,13 @@ export default class WarpStateV5 {
    * reducer and checkpoint loader to accept either class instances or
    * hydrated POJOs at the boundary.
    */
-  static cloneFromSnapshot(state: WarpStateV5 | WarpStateV5Snapshot): WarpStateV5 {
+  static cloneFromSnapshot(state: WarpStateV5 | {
+    readonly nodeAlive: ORSet;
+    readonly edgeAlive: ORSet;
+    readonly prop: Map<string, LWWRegister<unknown>>;
+    readonly observedFrontier: VersionVector;
+    readonly edgeBirthEvent?: Map<string, EventId>;
+  }): WarpStateV5 {
     if (state instanceof WarpStateV5) {
       return state.clone();
     }
@@ -126,7 +110,11 @@ export default class WarpStateV5 {
    * (writer, lamport) into this state's `observedFrontier`. Mutates
    * `this.observedFrontier` in place.
    */
-  foldPatch(patch: FrontierPatch): void {
+  foldPatch(patch: {
+    readonly writer: string;
+    readonly lamport: number;
+    readonly context: VersionVector | Map<string, number> | Record<string, number> | null | undefined;
+  }): void {
     const contextVV = patch.context instanceof VersionVector
       ? patch.context
       : VersionVector.from(patch.context ?? {});
