@@ -157,8 +157,7 @@ describe('OpNormalizer', () => {
     });
 
     it('round-trip with many different identifier patterns', () => {
-      /** @type {Array<[string, string, string, string, string, unknown]>} */
-      const cases = [
+      const cases: ReadonlyArray<readonly [string, string, string, string, string, unknown]> = [
         ['simple', 'x', 'y', 'rel', 'key', 'val'],
         ['namespaced', 'user:alice', 'doc:123', 'authored', 'date', '2025-01-01'],
         ['UUIDs', 'abc-def', '123-456', 'edge-label', 'prop-key', 42],
