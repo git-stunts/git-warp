@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeRawOp, lowerCanonicalOp } from '../../../../src/domain/services/OpNormalizer.js';
+import { normalizeRawOp, lowerCanonicalOp } from '../../../../src/domain/services/OpNormalizer.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 import NodePropSet from '../../../../src/domain/types/ops/NodePropSet.ts';
 import EdgePropSet from '../../../../src/domain/types/ops/EdgePropSet.ts';

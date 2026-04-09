@@ -15,7 +15,7 @@ import { createEventId, compareEventIds } from '../utils/EventId.ts';
 import { createTickReceipt, OP_TYPES } from '../types/TickReceipt.ts';
 import { encodeDot } from '../crdt/Dot.ts';
 import { encodeEdgeKey, decodeEdgeKey, encodePropKey, encodeEdgePropKey, EDGE_PROP_PREFIX } from './KeyCodec.js';
-import { normalizeRawOp } from './OpNormalizer.js';
+import { normalizeRawOp } from './OpNormalizer.ts';
 import { createEmptyDiff, mergeDiffs } from '../types/PatchDiff.ts';
 import PatchError from '../errors/PatchError.ts';
 import WarpStateV5 from './state/WarpStateV5.js';
@@ -31,7 +31,7 @@ export {
 } from './KeyCodec.js';
 
 // Re-export op normalization for consumers that operate on raw patches
-export { normalizeRawOp, lowerCanonicalOp } from './OpNormalizer.js';
+export { normalizeRawOp, lowerCanonicalOp } from './OpNormalizer.ts';
 
 // WarpStateV5 class imported from ./WarpStateV5.js (re-exported above)
 

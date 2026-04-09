@@ -29,7 +29,7 @@ import {
   CONTENT_SIZE_PROPERTY_KEY,
   EFFECT_NODE_PREFIX,
 } from './KeyCodec.js';
-import { lowerCanonicalOp } from './OpNormalizer.js';
+import { lowerCanonicalOp } from './OpNormalizer.ts';
 import { encodePatchMessage, decodePatchMessage, detectMessageKind } from './codec/WarpMessageCodec.js';
 import { buildWriterRef } from '../utils/RefLayout.ts';
 import WriterError from '../errors/WriterError.ts';

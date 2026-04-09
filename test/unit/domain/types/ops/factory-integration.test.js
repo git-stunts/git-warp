@@ -26,7 +26,7 @@ function createPropSetV2(node, key, value) { return new PropSetClass(node, key, 
 function createNodePropSetV2(node, key, value) { return new NodePropSet(node, key, value); }
 /** @param {string} from @param {string} to @param {string} label @param {string} key @param {unknown} value */
 function createEdgePropSetV2(from, to, label, key, value) { return new EdgePropSet({ from, to, label, key, value }); }
-import { normalizeRawOp, lowerCanonicalOp } from '../../../../../src/domain/services/OpNormalizer.js';
+import { normalizeRawOp, lowerCanonicalOp } from '../../../../../src/domain/services/OpNormalizer.ts';
 
 describe('Op class constructor produce Op class instances', () => {
   it('createNodeAddV2 returns a NodeAdd instance', () => {
