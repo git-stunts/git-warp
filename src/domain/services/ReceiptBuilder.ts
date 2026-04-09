@@ -12,11 +12,9 @@
  */
 
 import type ORSet from '../crdt/ORSet.ts';
-import type { Dot } from '../crdt/Dot.ts';
+import { encodeDot, type Dot } from '../crdt/Dot.ts';
 import type { LWWRegister } from '../crdt/LWW.ts';
-import type { EventId } from '../utils/EventId.ts';
-import { encodeDot } from '../crdt/Dot.ts';
-import { compareEventIds } from '../utils/EventId.ts';
+import { compareEventIds, type EventId } from '../utils/EventId.ts';
 import { encodeEdgeKey, encodePropKey, encodeEdgePropKey } from './KeyCodec.js';
 import { OP_TYPES } from '../types/TickReceipt.ts';
 import OpOutcomeResult from '../types/ops/OpOutcomeResult.ts';
@@ -28,9 +26,17 @@ import DiffCalculator from './DiffCalculator.ts';
 /** Set of valid receipt op types (from TickReceipt) for fast membership checks. */
 const VALID_RECEIPT_OPS: ReadonlySet<string> = new Set(OP_TYPES);
 
+/** Type guard: value is a string with length > 0. */
+function _isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
 /** Normalizes an arbitrary observed-dots iterable into a Set. */
 function toDotSet(observedDots: Iterable<string>): Set<string> {
-  return observedDots instanceof Set ? observedDots : new Set(observedDots);
+  if (observedDots instanceof Set) {
+    return observedDots as Set<string>;
+  }
+  return new Set(observedDots);
 }
 
 /**
@@ -117,13 +123,24 @@ export default class ReceiptBuilder {
     },
   ): OpApplied | OpRedundant {
     const effective = hasEffectiveRemoval(orset, toDotSet(op.observedDots));
-    const hasEdgeFields = typeof op.from === 'string' && op.from.length > 0
-      && typeof op.to === 'string' && op.to.length > 0
-      && typeof op.label === 'string' && op.label.length > 0;
-    const target = hasEdgeFields
-      ? encodeEdgeKey(op.from as string, op.to as string, op.label as string)
-      : '*';
+    const target = ReceiptBuilder._edgeRemoveTargetKey(op);
     return effective ? new OpApplied(target) : new OpRedundant(target);
+  }
+
+  /**
+   * Computes the target key for an edge-remove outcome: the encoded edge
+   * key when (from, to, label) are all present and non-empty, else `'*'`.
+   */
+  static _edgeRemoveTargetKey(op: {
+    readonly from?: string;
+    readonly to?: string;
+    readonly label?: string;
+  }): string {
+    const { from, to, label } = op;
+    if (_isNonEmptyString(from) && _isNonEmptyString(to) && _isNonEmptyString(label)) {
+      return encodeEdgeKey(from, to, label);
+    }
+    return '*';
   }
 
   /**

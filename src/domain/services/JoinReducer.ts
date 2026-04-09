@@ -51,9 +51,9 @@ export {
 export { normalizeRawOp, lowerCanonicalOp } from './OpNormalizer.ts';
 
 /** @deprecated Use OpValidator.RAW_KNOWN_OPS */
-export const RAW_KNOWN_OPS: ReadonlySet<string> = OpValidator.RAW_KNOWN_OPS;
+export const { RAW_KNOWN_OPS } = OpValidator;
 /** @deprecated Use OpValidator.CANONICAL_KNOWN_OPS */
-export const CANONICAL_KNOWN_OPS: ReadonlySet<string> = OpValidator.CANONICAL_KNOWN_OPS;
+export const { CANONICAL_KNOWN_OPS } = OpValidator;
 /** @deprecated Use OpValidator.isKnownRaw */
 export function isKnownRawOp(op: unknown): boolean { return OpValidator.isKnownRaw(op); }
 /** @deprecated Use OpValidator.isKnownCanonical */

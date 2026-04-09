@@ -21,10 +21,8 @@
  */
 
 import type { Dot } from '../crdt/Dot.ts';
-import type { LWWRegister } from '../crdt/LWW.ts';
-import type { EventId } from '../utils/EventId.ts';
 import { lwwSet, lwwMax } from '../crdt/LWW.ts';
-import { compareEventIds } from '../utils/EventId.ts';
+import { compareEventIds, type EventId } from '../utils/EventId.ts';
 import {
   encodeEdgeKey,
   encodePropKey,

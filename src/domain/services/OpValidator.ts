@@ -102,7 +102,7 @@ export default class OpValidator {
    * decoded wire patches.)
    */
   static assertDot(op: TaggedFields): void {
-    const dot = op['dot'];
+    const { dot } = op;
     if (dot === null || dot === undefined || typeof dot !== 'object') {
       throw new PatchError(
         `${op.type} op requires 'dot' to be an object, got ${typeof dot}`,

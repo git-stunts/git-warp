@@ -41,10 +41,10 @@ export default class WarpStream<T> {
   /**
    * Creates a WarpStream wrapping an async iterable source.
    */
-  constructor(source: AsyncIterable<T>, { signal }: WarpStreamOptions = {}) {
+  constructor(source: AsyncIterable<T>, options?: WarpStreamOptions) {
     _validateSource(source);
     this._source = source;
-    this._signal = signal;
+    this._signal = options?.signal;
   }
 
   // ── Factories ─────────────────────────────────────────────────────

@@ -26,7 +26,8 @@ export default class PropertyIndexReader {
    * Constructs a PropertyIndexReader with optional storage, codec, indexStore, and cache size.
    * @param {{ storage?: import('../../../ports/IndexStoragePort.ts').default, codec?: import('../../../ports/CodecPort.ts').default, indexStore?: import('../../../ports/IndexStorePort.ts').default, maxCachedShards?: number }} [options]
    */
-  constructor({ storage, codec, indexStore, maxCachedShards = 64 } = /** @type {{ storage?: import('../../../ports/IndexStoragePort.ts').default, codec?: import('../../../ports/CodecPort.ts').default, indexStore?: import('../../../ports/IndexStorePort.ts').default, maxCachedShards?: number }} */ ({})) {
+  constructor(options) {
+    const { storage, codec, indexStore, maxCachedShards = 64 } = options ?? {};
     this._storage = storage;
     this._codec = codec || defaultCodec;
     /** @type {import('../../../ports/IndexStorePort.ts').default|null} */

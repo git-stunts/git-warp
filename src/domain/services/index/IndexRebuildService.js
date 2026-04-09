@@ -44,7 +44,8 @@ export default class IndexRebuildService {
    * @throws {IndexError} If graphService is not provided
    * @throws {IndexError} If storage adapter is not provided
    */
-  constructor({ graphService, storage, logger = nullLogger, codec, crypto } = /** @type {{ graphService: { iterateNodes: (opts: { ref: string, limit: number }) => AsyncIterable<{ sha: string, parents: string[] }> }, storage: import('../../../ports/IndexStoragePort.ts').default }} */ ({})) {
+  constructor(options) {
+    const { graphService, storage, logger = nullLogger, codec, crypto } = options ?? {};
     if (graphService === undefined || graphService === null) {
       throw new IndexError(
         'IndexRebuildService requires a graphService',

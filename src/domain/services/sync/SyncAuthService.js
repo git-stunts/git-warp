@@ -179,7 +179,8 @@ export default class SyncAuthService {
    *
    * @param {{ keys: Record<string, string>, mode?: 'enforce'|'log-only', nonceCapacity?: number, maxClockSkewMs?: number, crypto?: import('../../../ports/CryptoPort.ts').default, logger?: import('../../../ports/LoggerPort.ts').default, wallClockMs?: () => number, allowedWriters?: string[] }} options - service configuration
    */
-  constructor({ keys, mode = 'enforce', nonceCapacity, maxClockSkewMs, crypto, logger, wallClockMs, allowedWriters } = /** @type {{ keys: Record<string, string> }} */ ({})) {
+  constructor(options) {
+    const { keys, mode = 'enforce', nonceCapacity, maxClockSkewMs, crypto, logger, wallClockMs, allowedWriters } = options ?? {};
     _validateKeys(keys);
     this._keys = keys;
     this._mode = mode;
