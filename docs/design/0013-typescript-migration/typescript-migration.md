@@ -182,6 +182,21 @@ Convert alongside source or as a dedicated cleanup pass.
 - Update release runbook
 - Tag v17.0.0
 
+### Phase 7: SSTS conformance suite
+Automated witness for the entire migration. A test suite
+(`test/conformance/ssts.test.ts`) that validates structural rules
+ESLint can't express:
+
+- One-thing-per-file: exported class `Foo` lives in `Foo.ts`
+- No re-export shims: file named `Foo.ts` contains `Foo`'s definition
+- Object.freeze in value constructors
+- `interface` only in `src/ports/`
+- No `unknown` escaping parser functions
+- File size ceiling (500/800/300 LOC)
+
+This suite IS the playback witness. If it passes, the migration meets
+SSTS. If it fails, we know exactly what's wrong and where.
+
 ## Playback Questions
 
 1. Does `tsc --noEmit` pass with zero errors on all source files?
@@ -194,3 +209,5 @@ Convert alongside source or as a dedicated cleanup pass.
 7. Does the JSR publish dry-run pass?
 8. Can a TypeScript consumer import and use the package with zero type
    errors?
+9. Does the SSTS conformance suite (`test/conformance/ssts.test.ts`)
+   pass with zero violations?
