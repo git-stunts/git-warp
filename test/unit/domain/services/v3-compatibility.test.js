@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isLegacyAnchor, isAnyAnchor } from '../../../../src/domain/services/LegacyAnchorDetector.js';
+import { isLegacyAnchor, isAnyAnchor } from '../../../../src/domain/services/LegacyAnchorDetector.ts';
 import { encodeAnchorMessage, detectMessageKind } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 
 /**
@@ -37,7 +37,7 @@ describe('v3 Backward Compatibility', () => {
     it('handles malformed JSON gracefully', () => {
       expect(isLegacyAnchor('{invalid')).toBe(false);
       expect(isLegacyAnchor('')).toBe(false);
-      expect(isLegacyAnchor(/** @type {any} */ (null))).toBe(false);
+      expect(isLegacyAnchor(null)).toBe(false);
     });
   });
 
