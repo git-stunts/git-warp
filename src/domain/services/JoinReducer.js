@@ -23,6 +23,7 @@ import OpOutcomeResult from '../types/ops/OpOutcomeResult.ts';
 import OpApplied from '../types/ops/OpApplied.ts';
 import OpSuperseded from '../types/ops/OpSuperseded.ts';
 import OpRedundant from '../types/ops/OpRedundant.ts';
+import OpValidator from './OpValidator.ts';
 
 export { default as WarpStateV5 } from './state/WarpStateV5.ts';
 
@@ -105,128 +106,23 @@ export function createEmptyStateV5() {
  * @param {import('../utils/EventId.ts').EventId} eventId - Event ID for causality tracking
  * @returns {void}
  */
-/**
- * Known raw (wire-format) V2 operation types. These are the 6 types that
- * appear in persisted patches and on the sync wire.
- * @type {ReadonlySet<string>}
- */
-export const RAW_KNOWN_OPS = new Set([
-  'NodeAdd', 'NodeRemove', 'EdgeAdd', 'EdgeRemove',
-  'PropSet', 'BlobValue',
-]);
+// Type recognition and field assertion live on OpValidator. The symbols
+// below are thin wrappers kept ONLY for legacy consumers (SyncProtocol,
+// a handful of tests). They disappear when JoinReducer becomes thin in
+// step 7 and consumers migrate to OpValidator directly.
 
-/**
- * Known canonical (internal) V2 operation types. Includes the 6 raw types
- * plus the ADR 1 canonical split types `NodePropSet` and `EdgePropSet`.
- * @type {ReadonlySet<string>}
- */
-export const CANONICAL_KNOWN_OPS = new Set([
-  'NodeAdd', 'NodeRemove', 'EdgeAdd', 'EdgeRemove',
-  'PropSet', 'NodePropSet', 'EdgePropSet', 'BlobValue',
-]);
-
-/**
- * Validates that an operation has a known raw (wire-format) type.
- * Use this at sync/wire boundaries to fail-close on unknown or
- * canonical-only types arriving over the wire.
- *
- * @param {{ type: string }} op
- * @returns {boolean} True if the op type is in RAW_KNOWN_OPS
- */
-export function isKnownRawOp(op) {
-  return op !== null && op !== undefined && typeof op.type === 'string' && RAW_KNOWN_OPS.has(op.type);
-}
-
-/**
- * Validates that an operation has a known canonical (internal) type.
- * Use this for internal guards after normalization.
- *
- * @param {{ type: string }} op
- * @returns {boolean} True if the op type is in CANONICAL_KNOWN_OPS
- */
-export function isKnownCanonicalOp(op) {
-  return op !== null && op !== undefined && typeof op.type === 'string' && CANONICAL_KNOWN_OPS.has(op.type);
-}
-
-/**
- * Validates that an operation has a known type.
- *
- * @deprecated Use {@link isKnownRawOp} for wire validation or
- * {@link isKnownCanonicalOp} for internal guards.
- * @param {{ type: string }} op
- * @returns {boolean} True if the op type is a known raw wire type
- */
-export function isKnownOp(op) {
-  return isKnownRawOp(op);
-}
+/** @deprecated Use OpValidator.RAW_KNOWN_OPS */
+export const RAW_KNOWN_OPS = OpValidator.RAW_KNOWN_OPS;
+/** @deprecated Use OpValidator.CANONICAL_KNOWN_OPS */
+export const CANONICAL_KNOWN_OPS = OpValidator.CANONICAL_KNOWN_OPS;
+/** @deprecated Use OpValidator.isKnownRaw */
+export function isKnownRawOp(op) { return OpValidator.isKnownRaw(op); }
+/** @deprecated Use OpValidator.isKnownCanonical */
+export function isKnownCanonicalOp(op) { return OpValidator.isKnownCanonical(op); }
 
 /**
  * @typedef {{ type: string, [key: string]: unknown }} OpLikeRecord
- * @typedef {{ type: string, writerId: string, counter: number, [key: string]: unknown }} DotLikeRecord
  */
-
-/**
- * Asserts that `op[field]` is a string. Throws PatchError if not.
- * @param {OpLikeRecord} op
- * @param {string} field
- */
-function requireString(op, field) {
-  if (typeof op[field] !== 'string') {
-    throw new PatchError(
-      `${op.type} op requires '${field}' to be a string, got ${typeof op[field]}`,
-      { context: { opType: op.type, field, actual: typeof op[field] } },
-    );
-  }
-}
-
-/**
- * Asserts that `op[field]` is iterable (Array, Set, or any Symbol.iterator).
- * @param {OpLikeRecord} op
- * @param {string} field
- */
-function requireIterable(op, field) {
-  const val = op[field];
-  if (
-    val === null ||
-    val === undefined ||
-    typeof val !== 'object' ||
-    typeof /** @type {Iterable<unknown>} */ (val)[Symbol.iterator] !== 'function'
-  ) {
-    throw new PatchError(
-      `${op.type} op requires '${field}' to be iterable, got ${typeof val}`,
-      { context: { opType: op.type, field, actual: typeof val } },
-    );
-  }
-}
-
-/**
- * Asserts that `op.dot` is an object with writerId (string) and counter (number).
- * @param {OpLikeRecord} op
- */
-function requireDot(op) {
-  const { dot } = op;
-  if (dot === null || dot === undefined || typeof dot !== 'object') {
-    throw new PatchError(
-      `${op.type} op requires 'dot' to be an object, got ${typeof dot}`,
-      { context: { opType: op.type, field: 'dot', actual: typeof dot } },
-    );
-  }
-  const d = /** @type {DotLikeRecord} */ (dot);
-  if (typeof d.writerId !== 'string') {
-    throw new PatchError(
-      `${op.type} op requires 'dot.writerId' to be a string, got ${typeof d.writerId}`,
-      { context: { opType: op.type, field: 'dot.writerId', actual: typeof d.writerId } },
-    );
-  }
-  if (typeof d.counter !== 'number') {
-    throw new PatchError(
-      `${op.type} op requires 'dot.counter' to be a number, got ${typeof d.counter}`,
-      { context: { opType: op.type, field: 'dot.counter', actual: typeof d.counter } },
-    );
-  }
-}
-
-// validateOp logic now lives in each OpStrategy.validate() method
 
 // ============================================================================
 // OpStrategy Registry — structural coupling of all apply paths
@@ -249,7 +145,7 @@ function requireDot(op) {
 /** @type {OpStrategy} */
 const nodeAddStrategy = {
   receiptName: 'NodeAdd',
-  validate(op) { requireString(op, 'node'); requireDot(op); },
+  validate(op) { OpValidator.assertString(op, 'node'); OpValidator.assertDot(op); },
   mutate(state, op) {
     state.nodeAlive.add(/** @type {string} */ (op.node), /** @type {import('../crdt/Dot.ts').Dot} */ (op.dot));
   },
@@ -269,7 +165,7 @@ const nodeAddStrategy = {
 /** @type {OpStrategy} */
 const nodeRemoveStrategy = {
   receiptName: 'NodeTombstone',
-  validate(op) { requireIterable(op, 'observedDots'); },
+  validate(op) { OpValidator.assertIterable(op, 'observedDots'); },
   mutate(state, op) {
     state.nodeAlive.remove(/** @type {Set<string>} */ (/** @type {unknown} */ (op.observedDots)));
   },
@@ -290,7 +186,7 @@ const nodeRemoveStrategy = {
 /** @type {OpStrategy} */
 const edgeAddStrategy = {
   receiptName: 'EdgeAdd',
-  validate(op) { requireString(op, 'from'); requireString(op, 'to'); requireString(op, 'label'); requireDot(op); },
+  validate(op) { OpValidator.assertString(op, 'from'); OpValidator.assertString(op, 'to'); OpValidator.assertString(op, 'label'); OpValidator.assertDot(op); },
   mutate(state, op, eventId) {
     const edgeKey = encodeEdgeKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label));
     state.edgeAlive.add(edgeKey, /** @type {import('../crdt/Dot.ts').Dot} */ (op.dot));
@@ -319,7 +215,7 @@ const edgeAddStrategy = {
 /** @type {OpStrategy} */
 const edgeRemoveStrategy = {
   receiptName: 'EdgeTombstone',
-  validate(op) { requireIterable(op, 'observedDots'); },
+  validate(op) { OpValidator.assertIterable(op, 'observedDots'); },
   mutate(state, op) {
     state.edgeAlive.remove(/** @type {Set<string>} */ (/** @type {unknown} */ (op.observedDots)));
   },
@@ -379,7 +275,7 @@ function accumulatePropDiff(diff, state, nodeId, key, before) {
 /** @type {OpStrategy} */
 const nodePropSetStrategy = {
   receiptName: 'NodePropSet',
-  validate(op) { requireString(op, 'node'); requireString(op, 'key'); },
+  validate(op) { OpValidator.assertString(op, 'node'); OpValidator.assertString(op, 'key'); },
   mutate(state, op, eventId) {
     mutateProp(state, encodePropKey(/** @type {string} */ (op.node), /** @type {string} */ (op.key)), eventId, op.value);
   },
@@ -397,7 +293,7 @@ const nodePropSetStrategy = {
 /** @type {OpStrategy} */
 const edgePropSetStrategy = {
   receiptName: 'EdgePropSet',
-  validate(op) { requireString(op, 'from'); requireString(op, 'to'); requireString(op, 'label'); requireString(op, 'key'); },
+  validate(op) { OpValidator.assertString(op, 'from'); OpValidator.assertString(op, 'to'); OpValidator.assertString(op, 'label'); OpValidator.assertString(op, 'key'); },
   mutate(state, op, eventId) {
     mutateProp(state, encodeEdgePropKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label), /** @type {string} */ (op.key)), eventId, op.value);
   },
@@ -415,7 +311,7 @@ const edgePropSetStrategy = {
 /** @type {OpStrategy} */
 const propSetStrategy = {
   receiptName: 'PropSet',
-  validate(op) { requireString(op, 'node'); requireString(op, 'key'); },
+  validate(op) { OpValidator.assertString(op, 'node'); OpValidator.assertString(op, 'key'); },
   mutate(state, op, eventId) {
     // Legacy raw PropSet — must NOT carry edge-property encoding at this point.
     if (typeof op.node === 'string' && op.node[0] === EDGE_PROP_PREFIX) {

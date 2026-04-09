@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import SyncController from '../../../../src/domain/services/controllers/SyncController.js';
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
 import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.ts';
+import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 
 const { timeoutMock, retryMock, httpSyncServerMock } = vi.hoisted(() => {
   const timeoutMock = vi.fn(async (/** @type {number} */ _ms, /** @type {Function} */ fn) => {
@@ -240,8 +241,8 @@ describe('SyncController', () => {
       const host = createMockHost({
         _cachedState: {
           observedFrontier: new Map(),
-          nodeAlive: { entries: new Map(), tombstones: new Map() },
-          edgeAlive: { entries: new Map(), tombstones: new Map() },
+          nodeAlive: ORSet.empty(),
+          edgeAlive: ORSet.empty(),
         },
         _stateDirty: true,
         _lastFrontier: new Map(),
@@ -258,8 +259,8 @@ describe('SyncController', () => {
       const host = createMockHost({
         _cachedState: {
           observedFrontier: new Map(),
-          nodeAlive: { entries: new Map(), tombstones: new Map() },
-          edgeAlive: { entries: new Map(), tombstones: new Map() },
+          nodeAlive: ORSet.empty(),
+          edgeAlive: ORSet.empty(),
         },
         _stateDirty: false,
         _lastFrontier: new Map(),

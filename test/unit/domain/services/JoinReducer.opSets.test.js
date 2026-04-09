@@ -1,15 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
-  RAW_KNOWN_OPS,
-  CANONICAL_KNOWN_OPS,
-  isKnownRawOp,
-  isKnownCanonicalOp,
-  isKnownOp,
   createEmptyStateV5,
   applyOpV2,
   encodePropKey,
   encodeEdgePropKey,
 } from '../../../../src/domain/services/JoinReducer.js';
+import OpValidator from '../../../../src/domain/services/OpValidator.ts';
+const { RAW_KNOWN_OPS, CANONICAL_KNOWN_OPS } = OpValidator;
+const isKnownRawOp = OpValidator.isKnownRaw.bind(OpValidator);
+const isKnownCanonicalOp = OpValidator.isKnownCanonical.bind(OpValidator);
 import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 
@@ -114,21 +113,8 @@ describe('JoinReducer op sets (ADR 2 tripwire)', () => {
     });
   });
 
-  // -----------------------------------------------------------------------
-  // isKnownOp (deprecated alias)
-  // -----------------------------------------------------------------------
-
-  describe('isKnownOp (deprecated)', () => {
-    it('delegates to isKnownRawOp — accepts raw types', () => {
-      expect(isKnownOp({ type: 'NodeAdd' })).toBe(true);
-      expect(isKnownOp({ type: 'PropSet' })).toBe(true);
-    });
-
-    it('delegates to isKnownRawOp — rejects canonical-only types', () => {
-      expect(isKnownOp({ type: 'NodePropSet' })).toBe(false);
-      expect(isKnownOp({ type: 'EdgePropSet' })).toBe(false);
-    });
-  });
+  // isKnownOp (deprecated) was removed in the OpValidator extraction —
+  // callers now use OpValidator.isKnownRaw directly.
 
   // -----------------------------------------------------------------------
   // applyOpV2 accepts canonical ops internally
