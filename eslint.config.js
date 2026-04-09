@@ -113,10 +113,21 @@ export default tseslint.config(
       "jsdoc/valid-types": "error",
 
       // ── CUSTOM ERROR TIER: no raw Errors ────────────────────────────────
+      // IMPORTANT: In ESLint flat config, multiple blocks setting
+      // `no-restricted-syntax` REPLACE rather than merge — the last
+      // matching block wins per rule. The domain purity block below
+      // (at files: src/domain/**) MUST re-list every selector from
+      // this block plus its own Date/Math/timer bans, or the bans here
+      // will silently disappear in domain code. See eslint.config.js
+      // lines ~385 onward.
       "no-restricted-syntax": ["error",
         {
           "selector": "NewExpression[callee.name='Error']",
-          "message": "Zero-slop policy: Do not throw raw Errors. Create and instantiate a custom Error class extending Error.",
+          "message": "Zero-slop policy: Do not throw raw Errors. Create and instantiate a domain error class extending WarpError.",
+        },
+        {
+          "selector": "NewExpression[callee.name='TypeError']",
+          "message": "Zero-slop policy: Do not throw raw TypeErrors. Use a domain error class extending WarpError with a structured `code` field.",
         },
         {
           "selector": "MethodDefinition[kind='constructor'] > FunctionExpression > AssignmentPattern[left.type='ObjectPattern'][right.type='ObjectExpression'][right.properties.length=0]",
@@ -256,6 +267,14 @@ export default tseslint.config(
     files: [
       "src/domain/services/index/IndexRebuildService.js",
       "src/domain/services/MaterializedViewService.js",
+      // JoinReducer-family files extracted from the original god class.
+      // These inherit its algorithmic density: concerns-per-file is low,
+      // but branching complexity and parameter counts are intrinsic.
+      "src/domain/services/DiffCalculator.ts",
+      "src/domain/services/ReceiptBuilder.ts",
+      "src/domain/services/OpStrategies.ts",
+      "src/domain/services/OpValidator.ts",
+      "src/domain/services/state/WarpStateV5.ts",
     ],
     rules: {
       "complexity": ["error", 35],
@@ -381,10 +400,32 @@ export default tseslint.config(
   // The domain layer must be fully deterministic and reproducible.
   // All external state (time, randomness, I/O scheduling) must flow
   // through injected ports, never accessed directly.
+  //
+  // NOTE: This block's `no-restricted-syntax` array REPLACES the one
+  // in the src/** block above (flat-config rule values don't merge).
+  // It must re-list every selector from the generic src/** block
+  // (raw Error, raw TypeError, constructor object-default) PLUS its
+  // own Date/Math/timer bans — otherwise the generic bans silently
+  // disappear in src/domain. If you add a new selector in either
+  // block, add it here too. See docs/method/backlog/cool-ideas/
+  // DX_domain-error-strict-lint.md for history.
   {
     files: ["src/domain/**/*.js", "src/domain/**/*.ts"],
     rules: {
       "no-restricted-syntax": ["error",
+        // ── Raw Errors (inherited from generic src/** block) ──
+        {
+          "selector": "NewExpression[callee.name='Error']",
+          "message": "Zero-slop policy: Do not throw raw Errors. Create and instantiate a domain error class extending WarpError.",
+        },
+        {
+          "selector": "NewExpression[callee.name='TypeError']",
+          "message": "Zero-slop policy: Do not throw raw TypeErrors. Use a domain error class extending WarpError with a structured `code` field.",
+        },
+        {
+          "selector": "MethodDefinition[kind='constructor'] > FunctionExpression > AssignmentPattern[left.type='ObjectPattern'][right.type='ObjectExpression'][right.properties.length=0]",
+          "message": "Avoid `constructor({ ... } = {})`. Accept an `options` parameter and destructure inside the constructor body so optionality stays explicit in JSDoc and type checking.",
+        },
         // ── Wall clock ──
         {
           "selector": "CallExpression[callee.object.name='Date'][callee.property.name='now']",
@@ -439,6 +480,11 @@ export default tseslint.config(
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
+      parser: tseslint.parser,
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: __dirname,
+      },
       globals: {
         process: "readonly",
         Buffer: "readonly",
