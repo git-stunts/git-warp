@@ -15,6 +15,9 @@ You can use `git-warp` directly as a graph database and causal substrate
 without adopting Echo, `warp-ttd`, or Continuum. If you do use those sibling
 systems, `git-warp` serves as the cold side of that wider stack.
 
+It syncs through normal Git transport. In practice that means `git push`,
+`git pull`, and `git fetch` of the relevant WARP refs.
+
 In plain terms, `git-warp` is also:
 
 - offline-first
@@ -157,6 +160,9 @@ Git and WARP fit together unusually well:
 Each writer appends patch commits under `refs/warp/<graph>/writers/<writerId>`.
 Those commits point at Git's empty tree, so graph history stays orthogonal to
 normal source-tree history.
+
+That also means ordinary Git transport remains the sync story. `git-warp` does
+not require a separate central database server to replicate graph history.
 
 ## Choose The Right Tool
 

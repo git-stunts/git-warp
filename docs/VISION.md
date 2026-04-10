@@ -23,6 +23,7 @@ execution are different problems and should not be forced into one runtime.
 - offline-first graph work without requiring a central server
 - append-only causal history
 - decentralized replication through Git transport
+- normal sync through `git push`, `git pull`, and `git fetch` of WARP refs
 - asynchronous multi-writer storage
 - later convergence across hosts
 - CRDT-backed eventually consistent admission
