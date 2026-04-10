@@ -1,7 +1,7 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/git-stunts/git-warp/main/docs/images/git-warp-alt.svg" alt="git-warp logo" />
   <h1><code>git-warp</code>: the cold causal substrate on top of Git</h1>
-  <p>Append-only, multi-writer, provenance-preserving graph storage with observer-first reads.</p>
+  <p>Offline-first, decentralized, multi-writer, deterministic, eventually consistent causal graph storage with observer-first reads.</p>
 </div>
 
 [![CI](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml/badge.svg)](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![npm version](https://badge.fury.io/js/%40git-stunts%2Fgit-warp.svg)](https://www.npmjs.com/package/@git-stunts%2Fgit-warp)
@@ -14,6 +14,16 @@ not bolted-on afterthoughts.
 You can use `git-warp` directly as a graph database and causal substrate
 without adopting Echo, `warp-ttd`, or Continuum. If you do use those sibling
 systems, `git-warp` serves as the cold side of that wider stack.
+
+In plain terms, `git-warp` is also:
+
+- offline-first
+- decentralized
+- multi-writer
+- CRDT-backed and eventually consistent
+- deterministic under replay and materialization
+- serverless in the sense that it does not require a central database server
+- causal and provenance-preserving by construction
 
 ## Start Here
 

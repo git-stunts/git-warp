@@ -7,10 +7,11 @@ doctrine.
 
 ## One Sentence
 
-`git-warp` is an append-only, multi-writer, provenance-preserving graph system
-built on Git, with observer-first read surfaces over canonical and
-speculative causal lanes. It stands alone and also serves as the cold causal
-substrate when used inside the wider Continuum stack.
+`git-warp` is an offline-first, decentralized, append-only, multi-writer,
+eventually consistent, deterministic, provenance-preserving graph system built
+on Git, with observer-first read surfaces over canonical and speculative
+causal lanes. It stands alone and also serves as the cold causal substrate
+when used inside the wider Continuum stack.
 
 ## Thesis
 
@@ -19,9 +20,12 @@ execution are different problems and should not be forced into one runtime.
 
 `git-warp` owns the cold side:
 
+- offline-first graph work without requiring a central server
 - append-only causal history
+- decentralized replication through Git transport
 - asynchronous multi-writer storage
 - later convergence across hosts
+- CRDT-backed eventually consistent admission
 - deterministic replay and materialization
 - provenance-bearing inspection surfaces
 - speculative causal lanes that can later be compared or lawfully admitted
