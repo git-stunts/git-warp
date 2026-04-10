@@ -18,6 +18,10 @@ systems, `git-warp` serves as the cold side of that wider stack.
 It syncs through normal Git transport. In practice that means `git push`,
 `git pull`, and `git fetch` of the relevant WARP refs.
 
+It also stays orthogonal to your normal Git worktrees. Writing graph history
+does not rewrite your checked-out files, mutate your source-tree commits, or
+otherwise take over the branches you are working in.
+
 In plain terms, `git-warp` is also:
 
 - offline-first
@@ -163,6 +167,7 @@ normal source-tree history.
 
 That also means ordinary Git transport remains the sync story. `git-warp` does
 not require a separate central database server to replicate graph history.
+Your checked-out worktrees remain your checked-out worktrees.
 
 ## Choose The Right Tool
 

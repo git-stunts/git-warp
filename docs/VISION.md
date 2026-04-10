@@ -24,6 +24,7 @@ execution are different problems and should not be forced into one runtime.
 - append-only causal history
 - decentralized replication through Git transport
 - normal sync through `git push`, `git pull`, and `git fetch` of WARP refs
+- graph history orthogonal to checked-out branches and worktrees
 - asynchronous multi-writer storage
 - later convergence across hosts
 - CRDT-backed eventually consistent admission
