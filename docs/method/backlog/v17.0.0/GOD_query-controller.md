@@ -104,17 +104,20 @@ This is the end state. Option A is the intermediate step.
 4. Delete defineProperty wiring
 5. Update imports in WarpRuntime.js
 
-## Dependencies on WarpRuntime internals
+## Sludge that MUST die during this split
 
-The `this._host._xxx` pattern accesses:
-- `_cachedState` — materialized CRDT state
-- `_cachedIndex` — bitmap index
-- `_stateHashService` — state hash computation
-- `_blobStorage` — content blob storage
-- `_persistence` — Git object store
-- `_crypto` / `_codec` — ports
-- `_graphName` / `_writerId` — identity
-- `constructor` (via `graph.constructor`) — for detached cloning
+1. **No `_host` bag.** Each extracted module gets typed deps:
+   `QueryReads` gets `MaterializedStateProvider` + `IndexProvider`.
+   `QueryContent` gets `BlobStoragePort` + `MaterializedStateProvider`.
+   See `SLUDGE_host-bag-injection.md`.
 
-These need to become injected dependencies when the capability
-interface lands. For now, the `_host` reference stays.
+2. **Free functions become real methods.** The 30 `this`-bound free
+   functions wired via `defineProperty` become methods on the class
+   or module that owns them. No `this`-bound free functions survive.
+
+3. **Content duplication → `NodeContent` / `EdgeContent`.** The 8
+   content methods collapse into 2 content accessor factories.
+   See `SLUDGE_content-access-duplication.md`.
+
+4. **`openDetachedObserverGraph` → shared `DetachedGraphFactory`.**
+   See `SLUDGE_detached-graph-duplication.md`.

@@ -21,9 +21,11 @@ builder pattern methods and a big `run()` execution method.
 - `QueryExecution.ts` (~400 LOC) — `run()` + result processing helpers
 - `QueryBuilder.ts` (~500 LOC) — DSL + delegates to execution
 
-Or push `run()` into a separate `QueryRunner` that takes the
-accumulated builder state as input. Builder becomes pure accumulator,
-runner is pure executor. Clean separation of concerns.
+**Preferred:** Push `run()` into a `QueryRunner` that takes the
+accumulated builder state as input. Builder = pure accumulator.
+Runner = pure executor. Clean SRP. Both comfortably under 500 LOC.
+
+The "QueryBuilder at 500 LOC" option is ceiling-riding — don't.
 
 ## Already improved
 

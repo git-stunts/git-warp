@@ -87,5 +87,17 @@ Via `this._host`:
 - `_subscribers` (notification)
 - `_provenanceDegraded` flag
 
-This is the most coupled controller. The capability interface will
-need a `MaterializeContext` dependency bag to replace `_host`.
+This is the most coupled controller.
+
+## Sludge that MUST die during this split
+
+1. **No `_host` bag, no "MaterializeContext" bag.** Inject specific
+   deps: `StateCache`, `SeekCachePort`, `IndexStore`, `PatchCollector`,
+   `ClockPort`, `LoggerPort`. See `SLUDGE_host-bag-injection.md`.
+
+2. **`openDetachedReadGraph` → shared `DetachedGraphFactory`.**
+   See `SLUDGE_detached-graph-duplication.md`.
+
+3. **`_maybeAutoCheckpoint` reaches into host for checkpoint policy.**
+   Should receive the policy as a constructor dep, not reach through
+   host.

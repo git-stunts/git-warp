@@ -39,9 +39,14 @@ The class already delegates to 4 sub-services. The problem is the
   + operations, or dissolves entirely with methods split between
   the two new files
 
-Alternatively, push behavior down into the existing sub-services
-(StrandDescriptorStore, StrandMaterializer, etc.) and delete
-StrandService entirely. It's mostly glue.
+## Sludge that MUST die during this split
+
+1. **Dissolve, don't facade.** StrandService is glue. Push behavior
+   down into the sub-services that already exist. A thin facade that
+   just forwards is the same sludge we killed in WarpRuntime.
+
+2. **No `_graph` host bag.** Sub-services get typed deps, not a
+   WarpRuntime reference. See `SLUDGE_host-bag-injection.md`.
 
 ## Dependencies
 

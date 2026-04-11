@@ -26,7 +26,8 @@ diff.
 - `IncrementalIndexUpdater.ts` (~350 LOC) — orchestrator + shard I/O
   + property handling + label management
 
-Each updater receives the shard I/O interface as a dependency.
+Each updater receives a `ShardIO` port (named, typed interface — not
+a bag of functions) as a dependency.
 
 ## Risk
 

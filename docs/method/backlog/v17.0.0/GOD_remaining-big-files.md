@@ -11,8 +11,10 @@ which patches existing ones). Split: build phase vs serialize phase.
   writes to index store
 - **Shared** (~135 LOC): shard key computation, bitmap utilities
 
-2 files: `BitmapIndexBuild.ts` + `BitmapIndexSerialize.ts`, or keep
-as one file if it shrinks enough after TS conversion removes JSDoc.
+2 files: `BitmapIndexBuild.ts` + `BitmapIndexSerialize.ts`. Plan the
+split even if TS conversion might shrink it enough — hope is not a
+strategy. If it fits in one file after conversion, don't create the
+second file. But have the seam identified.
 
 ## AuditVerifierService (824 LOC)
 
@@ -41,4 +43,5 @@ property comparison vs aggregation.
 
 3 files would be clean but might be over-decomposition for ~200 LOC
 each. Try 2: `NodeEdgeDiff.ts` + `PropertyDiff.ts` + orchestrator.
-Or keep as one file if TS conversion + JSDoc removal gets it under 500.
+Plan the 2-file split. If TS conversion gets it under 500, keep it
+as one file — but have the seam ready. Hope is not a strategy.
