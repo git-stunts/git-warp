@@ -24,7 +24,7 @@ import ComparisonController from './services/controllers/ComparisonController.ts
 import SubscriptionController from './services/controllers/SubscriptionController.js';
 import ProvenanceController from './services/controllers/ProvenanceController.js';
 import ForkController from './services/controllers/ForkController.js';
-import QueryController from './services/controllers/QueryController.js';
+import QueryController from './services/controllers/QueryController.ts';
 import PatchController from './services/controllers/PatchController.js';
 import CheckpointController from './services/controllers/CheckpointController.js';
 import SyncTrustGate from './services/sync/SyncTrustGate.js';
