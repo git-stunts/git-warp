@@ -15,10 +15,10 @@ import {
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 /** @param {unknown} value */
 function createInlineValue(value) { return { type: 'inline', value }; }
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
@@ -36,14 +36,14 @@ const crypto = new NodeCryptoAdapter();
  * Uses valid hex sha (4-64 chars), positive lamport.
  */
 function mockEventId(lamport = 1, writerId = 'test', patchSha = 'abcd1234', opIndex = 0) {
-  return createEventId(lamport, writerId, patchSha, opIndex);
+  return new EventId(lamport, writerId, patchSha, opIndex);
 }
 
 /**
  * Helper to create a dot for ORSet operations.
  */
 function mockDot(writerId = 'test', seq = 1) {
-  return createDot(writerId, seq);
+  return Dot.create(writerId, seq);
 }
 
 /**

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
 import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -14,8 +14,8 @@ function buildTestState() {
   let lamport = 1;
 
   for (const nodeId of ['A', 'B', 'C', 'D']) {
-    const dot = createDot(writer, lamport);
-    const eventId = createEventId(lamport, writer, sha, opIdx++);
+    const dot = Dot.create(writer, lamport);
+    const eventId = new EventId(lamport, writer, sha, opIdx++);
     applyOpV2(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
     lamport++;
   }
@@ -26,8 +26,8 @@ function buildTestState() {
     { from: 'B', to: 'D', label: 'uses' },
     { from: 'C', to: 'D', label: 'refs' },
   ]) {
-    const dot = createDot(writer, lamport);
-    const eventId = createEventId(lamport, writer, sha, opIdx++);
+    const dot = Dot.create(writer, lamport);
+    const eventId = new EventId(lamport, writer, sha, opIdx++);
     applyOpV2(state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
     lamport++;
   }
@@ -66,8 +66,8 @@ describe('MaterializedViewService.verifyIndex', () => {
     let opIdx = 0;
     let lamport = 1;
     for (const nodeId of ['A', 'B']) {
-      const dot = createDot(writer, lamport);
-      const eventId = createEventId(lamport, writer, sha, opIdx++);
+      const dot = Dot.create(writer, lamport);
+      const eventId = new EventId(lamport, writer, sha, opIdx++);
       applyOpV2(smallState, { type: 'NodeAdd', node: nodeId, dot }, eventId);
       lamport++;
     }
@@ -184,8 +184,8 @@ describe('MaterializedViewService.verifyIndex', () => {
     let opIdx = 0;
     let lamport = 1;
     for (const nodeId of ['ISO']) {
-      const dot = createDot(writer, lamport);
-      const eventId = createEventId(lamport, writer, sha, opIdx++);
+      const dot = Dot.create(writer, lamport);
+      const eventId = new EventId(lamport, writer, sha, opIdx++);
       applyOpV2(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
       lamport++;
     }

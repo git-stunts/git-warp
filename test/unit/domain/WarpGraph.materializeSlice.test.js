@@ -7,7 +7,7 @@ import {
   createOidGenerator,
   createMockPersistence,
   createMockPatchWithIO,
-  createDot,
+  Dot,
 } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
@@ -61,7 +61,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create('alice', 1) }],
         reads: [],
         writes: ['user:alice'],
       }, oidGen.next);
@@ -99,7 +99,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create('alice', 1) }],
         writes: ['user:alice'],
       }, oidGen.next);
 
@@ -191,7 +191,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'node:A', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'node:A', dot: Dot.create('alice', 1) }],
         writes: ['node:A'],
       }, oidGen.next);
 
@@ -200,7 +200,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 2,
-        ops: [{ type: 'NodeAdd', node: 'node:B', dot: createDot('alice', 2) }],
+        ops: [{ type: 'NodeAdd', node: 'node:B', dot: Dot.create('alice', 2) }],
         writes: ['node:B'],
         parentSha: sha1,
       }, oidGen.next);
@@ -210,7 +210,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 3,
-        ops: [{ type: 'EdgeAdd', from: 'node:A', to: 'node:B', label: 'connects', dot: createDot('alice', 3) }],
+        ops: [{ type: 'EdgeAdd', from: 'node:A', to: 'node:B', label: 'connects', dot: Dot.create('alice', 3) }],
         reads: ['node:A', 'node:B'],
         writes: [edgeKey],
         parentSha: sha2,
@@ -274,7 +274,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'node:A', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'node:A', dot: Dot.create('alice', 1) }],
         writes: ['node:A'],
       }, oidGen.next);
 
@@ -283,7 +283,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'bob',
         lamport: 2,
-        ops: [{ type: 'NodeAdd', node: 'node:B', dot: createDot('bob', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'node:B', dot: Dot.create('bob', 1) }],
         writes: ['node:B'],
       }, oidGen.next);
 
@@ -353,7 +353,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'shared', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'shared', dot: Dot.create('alice', 1) }],
         writes: ['shared'],
       }, oidGen.next);
 
@@ -425,7 +425,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         writerId: 'alice',
         lamport: 1,
         ops: [
-          { type: 'NodeAdd', node: 'target', dot: createDot('alice', 1) },
+          { type: 'NodeAdd', node: 'target', dot: Dot.create('alice', 1) },
           { type: 'PropSet', node: 'target', key: 'value', value: 100 },
         ],
         writes: ['target'],
@@ -506,7 +506,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create('alice', 1) }],
         writes: ['user:alice'],
       }, oidGen.next);
 
@@ -541,7 +541,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create('alice', 1) }],
         writes: ['user:alice'],
       }, oidGen.next);
 
@@ -585,7 +585,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'node:X', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'node:X', dot: Dot.create('alice', 1) }],
         writes: ['node:X'],
       }, oidGen.next);
 
@@ -594,7 +594,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 2,
-        ops: [{ type: 'NodeAdd', node: 'node:Y', dot: createDot('alice', 2) }],
+        ops: [{ type: 'NodeAdd', node: 'node:Y', dot: Dot.create('alice', 2) }],
         reads: ['node:X'],
         writes: ['node:Y'],
         parentSha: sha1,
@@ -605,7 +605,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 3,
-        ops: [{ type: 'NodeAdd', node: 'node:Z', dot: createDot('alice', 3) }],
+        ops: [{ type: 'NodeAdd', node: 'node:Z', dot: Dot.create('alice', 3) }],
         reads: ['node:Y'],
         writes: ['node:Z'],
         parentSha: sha2,
@@ -665,7 +665,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create('alice', 1) }],
         // No reads/writes - legacy patch
       }, oidGen.next);
 
@@ -712,7 +712,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'node:A', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'node:A', dot: Dot.create('alice', 1) }],
         writes: ['node:A'],
       }, oidGen.next);
 
@@ -721,7 +721,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 2,
-        ops: [{ type: 'NodeAdd', node: 'node:B', dot: createDot('alice', 2) }],
+        ops: [{ type: 'NodeAdd', node: 'node:B', dot: Dot.create('alice', 2) }],
         reads: ['node:A'],
         writes: ['node:B'],
         parentSha: shaA,
@@ -732,7 +732,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'bob',
         lamport: 2,
-        ops: [{ type: 'NodeAdd', node: 'node:C', dot: createDot('bob', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'node:C', dot: Dot.create('bob', 1) }],
         reads: ['node:A'],
         writes: ['node:C'],
       }, oidGen.next);
@@ -742,7 +742,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 3,
-        ops: [{ type: 'NodeAdd', node: 'node:D', dot: createDot('alice', 3) }],
+        ops: [{ type: 'NodeAdd', node: 'node:D', dot: Dot.create('alice', 3) }],
         reads: ['node:B', 'node:C'],
         writes: ['node:D'],
         parentSha: shaB,

@@ -19,7 +19,7 @@ import {
 } from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 
@@ -192,9 +192,9 @@ describe('OP_STRATEGIES registry', () => {
 // ─── Cross-Path State Equivalence ─────────────────────────────────────────────
 
 describe('cross-path state equivalence', () => {
-  const dot1 = createDot('alice', 1);
-  const dot2 = createDot('alice', 2);
-  const dot3 = createDot('bob', 1);
+  const dot1 = Dot.create('alice', 1);
+  const dot2 = Dot.create('alice', 2);
+  const dot3 = Dot.create('bob', 1);
 
   it('single NodeAdd produces identical state across all three paths', () => {
     const patch = makePatch('alice', 1, [nodeAdd('user:alice', dot1)]);
@@ -236,7 +236,7 @@ describe('cross-path state equivalence', () => {
     const addPatch = makePatch('alice', 1, [
       nodeAdd('a', dot1),
       nodeAdd('b', dot2),
-      edgeAdd('a', 'b', 'knows', createDot('alice', 3)),
+      edgeAdd('a', 'b', 'knows', Dot.create('alice', 3)),
     ]);
     const removePatch = makePatch('alice', 2, [
       edgeRemove('a', 'b', 'knows', ['alice:3']),
@@ -279,7 +279,7 @@ describe('cross-path state equivalence', () => {
     const patch = makePatch('alice', 1, [
       nodeAdd('a', dot1),
       nodeAdd('b', dot2),
-      edgeAdd('a', 'b', 'knows', createDot('alice', 3)),
+      edgeAdd('a', 'b', 'knows', Dot.create('alice', 3)),
       edgePropSet('a', 'b', 'knows', 'weight', 42),
     ]);
     const sha = 'f'.repeat(40);
@@ -311,7 +311,7 @@ describe('cross-path state equivalence', () => {
     const alicePatch = makePatch('alice', 1, [
       nodeAdd('user:alice', dot1),
       propSet('user:alice', 'name', 'Alice'),
-      edgeAdd('user:alice', 'user:bob', 'knows', createDot('alice', 3)),
+      edgeAdd('user:alice', 'user:bob', 'knows', Dot.create('alice', 3)),
     ]);
     const bobPatch = makePatch('bob', 1, [
       nodeAdd('user:bob', dot3),
@@ -340,7 +340,7 @@ describe('cross-path state equivalence', () => {
   it('reduceV5 all three modes produce identical state', () => {
     const patches = [
       { patch: makePatch('alice', 1, [nodeAdd('a', dot1), propSet('a', 'x', 1)]), sha: '4'.repeat(40) },
-      { patch: makePatch('bob', 1, [nodeAdd('b', dot3), edgeAdd('a', 'b', 'r', createDot('bob', 2))]), sha: '5'.repeat(40) },
+      { patch: makePatch('bob', 1, [nodeAdd('b', dot3), edgeAdd('a', 'b', 'r', Dot.create('bob', 2))]), sha: '5'.repeat(40) },
       { patch: makePatch('alice', 2, [propSet('a', 'x', 2)], { alice: 1 }), sha: '6'.repeat(40) },
     ];
 
@@ -381,7 +381,7 @@ describe('cross-path state equivalence', () => {
     const patch = makePatch('alice', 1, [
       nodeAdd('n1', dot1),
       nodeAdd('n2', dot2),
-      edgeAdd('n1', 'n2', 'rel', createDot('alice', 3)),
+      edgeAdd('n1', 'n2', 'rel', Dot.create('alice', 3)),
       propSet('n1', 'name', 'Node1'),              // legacy PropSet
       { type: 'NodePropSet', node: 'n2', key: 'name', value: 'Node2' },  // canonical NodePropSet
       edgePropSet('n1', 'n2', 'rel', 'weight', 10),

@@ -9,7 +9,7 @@ import {
 } from '../../../src/domain/services/CoordinateFactExport.js';
 import { createStateReaderV5 } from '../../../src/domain/services/state/StateReaderV5.js';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
-import { createDot } from '../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import { buildStrandBraidRef, buildStrandOverlayRef } from '../../../src/domain/utils/RefLayout.ts';
 
 /** @typedef {any} WarpCoreRuntime */
@@ -161,7 +161,7 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
       ],
     });
 
@@ -205,7 +205,7 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -238,7 +238,7 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -273,7 +273,7 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -302,7 +302,7 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -340,7 +340,7 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -388,7 +388,7 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -435,7 +435,7 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
       ],
     });
 
@@ -475,7 +475,7 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -509,7 +509,7 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'status', value: 'base' },
       ],
     });
@@ -581,7 +581,7 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
       ],
     });
 
@@ -612,7 +612,7 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
       ],
     });
 
@@ -647,7 +647,7 @@ describe('WarpCore strand foundation', () => {
       lamport: 1,
       context: VersionVector.empty(),
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'status', value: 'base' },
       ],
       reads: [],
@@ -686,7 +686,7 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
       ],
     });
 
@@ -715,7 +715,7 @@ describe('WarpCore strand foundation', () => {
       lamport: 1,
       context: VersionVector.empty(),
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
       reads: [],
@@ -742,9 +742,9 @@ describe('WarpCore strand foundation', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
-        { type: 'NodeAdd', node: 'n2', dot: createDot('alice', 2) },
-        { type: 'EdgeAdd', from: 'n1', to: 'n2', label: 'links', dot: createDot('alice', 3) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
+        { type: 'NodeAdd', node: 'n2', dot: Dot.create('alice', 2) },
+        { type: 'EdgeAdd', from: 'n1', to: 'n2', label: 'links', dot: Dot.create('alice', 3) },
         { type: 'PropSet', node: 'n1', key: 'status', value: 'base' },
       ],
     });
@@ -793,7 +793,7 @@ describe('WarpCore strand foundation', () => {
       lamport: 1,
       context: VersionVector.empty(),
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'status', value: 'base' },
       ],
       reads: [],
@@ -860,7 +860,7 @@ describe('WarpCore strand foundation', () => {
       lamport: 1,
       context: VersionVector.empty(),
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'status', value: 'base' },
       ],
       reads: [],
@@ -910,7 +910,7 @@ describe('WarpCore strand foundation', () => {
       lamport: 1,
       context: VersionVector.empty(),
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
       reads: [],
@@ -1014,7 +1014,7 @@ describe('WarpCore strand foundation', () => {
       lamport: 1,
       context: VersionVector.empty(),
       ops: [
-        { type: 'NodeAdd', node: 'task:1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'task:1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'task:1', key: 'status', value: 'ready' },
       ],
       reads: [],
@@ -1029,9 +1029,9 @@ describe('WarpCore strand foundation', () => {
       lamport: 2,
       context: new Map([['alice', 1]]),
       ops: [
-        { type: 'NodeAdd', node: 'comparison-artifact:cmp-1', dot: createDot('alice', 2) },
+        { type: 'NodeAdd', node: 'comparison-artifact:cmp-1', dot: Dot.create('alice', 2) },
         { type: 'PropSet', node: 'comparison-artifact:cmp-1', key: 'kind', value: 'comparison-artifact' },
-        { type: 'EdgeAdd', from: 'task:1', to: 'comparison-artifact:cmp-1', label: 'governs', dot: createDot('alice', 3) },
+        { type: 'EdgeAdd', from: 'task:1', to: 'comparison-artifact:cmp-1', label: 'governs', dot: Dot.create('alice', 3) },
       ],
       reads: ['task:1', 'comparison-artifact:cmp-1'],
       writes: ['comparison-artifact:cmp-1', 'task:1\0comparison-artifact:cmp-1\0governs'],
@@ -1090,7 +1090,7 @@ describe('WarpCore strand foundation', () => {
       lamport: 1,
       context: VersionVector.empty(),
       ops: [
-        { type: 'NodeAdd', node: 'doc:1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'doc:1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'doc:1', key: 'status', value: 'draft' },
         { type: 'PropSet', node: 'doc:1', key: 'obsolete', value: true },
       ],
@@ -1217,7 +1217,7 @@ describe('WarpCore strand foundation', () => {
       lamport: 1,
       context: VersionVector.empty(),
       ops: [
-        { type: 'NodeAdd', node: 'task:1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'task:1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'task:1', key: 'status', value: 'base' },
       ],
       reads: [],
@@ -1268,7 +1268,7 @@ describe('WarpCore strand foundation', () => {
       lamport: 1,
       context: VersionVector.empty(),
       ops: [
-        { type: 'NodeAdd', node: 'doc:clear', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'doc:clear', dot: Dot.create('alice', 1) },
       ],
       reads: [],
       writes: ['doc:clear'],
@@ -1309,7 +1309,7 @@ describe('WarpCore strand foundation', () => {
       lamport: 1,
       context: VersionVector.empty(),
       ops: [
-        { type: 'NodeAdd', node: 'task:queued', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'task:queued', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'task:queued', key: 'status', value: 'base' },
       ],
       reads: [],
@@ -1344,8 +1344,8 @@ describe('WarpCore strand foundation', () => {
       lamport: 1,
       context: VersionVector.empty(),
       ops: [
-        { type: 'NodeAdd', node: 'task:red', dot: createDot('alice', 1) },
-        { type: 'NodeAdd', node: 'task:blue', dot: createDot('alice', 2) },
+        { type: 'NodeAdd', node: 'task:red', dot: Dot.create('alice', 1) },
+        { type: 'NodeAdd', node: 'task:blue', dot: Dot.create('alice', 2) },
       ],
       reads: [],
       writes: ['task:red', 'task:blue'],
@@ -1387,7 +1387,7 @@ describe('WarpCore strand foundation', () => {
       lamport: 1,
       context: VersionVector.empty(),
       ops: [
-        { type: 'NodeAdd', node: 'task:conflict', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'task:conflict', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'task:conflict', key: 'status', value: 'base' },
       ],
       reads: [],

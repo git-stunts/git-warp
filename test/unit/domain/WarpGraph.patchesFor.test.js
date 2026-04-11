@@ -13,7 +13,7 @@ import {
   createHashGenerator,
   createMockPersistence,
   createMockPatchWithIO,
-  createDot,
+  Dot,
 } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
@@ -64,7 +64,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create('alice', 1) }],
         reads: [],
         writes: ['user:alice'],
       }, oidGen.next);
@@ -102,7 +102,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create('alice', 1) }],
         writes: ['user:alice'],
       }, oidGen.next);
 
@@ -183,8 +183,8 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
         writerId: 'alice',
         lamport: 1,
         ops: [
-          { type: 'NodeAdd', node: 'user:alice', dot: createDot('alice', 1) },
-          { type: 'NodeAdd', node: 'user:bob', dot: createDot('alice', 2) },
+          { type: 'NodeAdd', node: 'user:alice', dot: Dot.create('alice', 1) },
+          { type: 'NodeAdd', node: 'user:bob', dot: Dot.create('alice', 2) },
         ],
         writes: ['user:alice', 'user:bob'],
       }, oidGen.next);
@@ -194,7 +194,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 2,
-        ops: [{ type: 'EdgeAdd', from: 'user:alice', to: 'user:bob', label: 'follows', dot: createDot('alice', 3) }],
+        ops: [{ type: 'EdgeAdd', from: 'user:alice', to: 'user:bob', label: 'follows', dot: Dot.create('alice', 3) }],
         reads: ['user:alice', 'user:bob'],
         writes: [edgeKey],
         parentSha: sha1,
@@ -248,7 +248,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'EdgeAdd', from: 'user:alice', to: 'user:bob', label: 'follows', dot: createDot('alice', 1) }],
+        ops: [{ type: 'EdgeAdd', from: 'user:alice', to: 'user:bob', label: 'follows', dot: Dot.create('alice', 1) }],
         reads: ['user:alice', 'user:bob'],
         writes: [edgeKey],
       }, oidGen.next);
@@ -286,7 +286,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'node:X', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'node:X', dot: Dot.create('alice', 1) }],
         writes: ['node:X'],
       }, oidGen.next);
 
@@ -375,7 +375,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create('alice', 1) }],
         writes: ['user:alice'],
       }, oidGen.next);
 
@@ -412,7 +412,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'shared', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'shared', dot: Dot.create('alice', 1) }],
         writes: ['shared'],
       }, oidGen.next);
 
@@ -558,7 +558,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
         graphName: 'test',
         writerId: 'alice',
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot('alice', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create('alice', 1) }],
         // No reads/writes - legacy patch
       }, oidGen.next);
 

@@ -4,7 +4,7 @@ import {
   createNodeAddV2,
   createPropSetV2,
   createPatch,
-  createDot,
+  Dot,
   createInlineValue,
 } from '../../../helpers/warpGraphTestUtils.js';
 
@@ -44,7 +44,7 @@ function createNodeWithPropPatch({
 }) {
   const ops = [];
   if (addNode) {
-    ops.push(createNodeAddV2(nodeId, createDot(writer, lamport)));
+    ops.push(createNodeAddV2(nodeId, Dot.create(writer, lamport)));
   }
   ops.push(createPropSetV2(nodeId, propKey, createInlineValue(propValue)));
   return {

@@ -60,7 +60,6 @@ import WarpApp, {
   createPropSet,
   createInlineValue,
   createBlobValue,
-  createEventId,
   createTickReceipt,
   tickReceiptCanonicalJson,
   TICK_RECEIPT_OP_TYPES,
@@ -518,7 +517,7 @@ const et: OpEdgeTombstone = createEdgeTombstone('a', 'b', 'knows');
 const pps: OpPropSet = createPropSet('n1', 'key', createInlineValue('val'));
 const iv: ValueRefInline = createInlineValue('hello');
 const bv: ValueRefBlob = createBlobValue('abc123');
-const eid: EventId = createEventId({ lamport: 1, writerId: 'w1', patchSha: 'abc', opIndex: 0 });
+const eid: EventId = { lamport: 1, writerId: 'w1', patchSha: 'abc', opIndex: 0 };
 
 // ---------------------------------------------------------------------------
 // Standalone functions — Tick Receipts

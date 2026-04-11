@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import ORSet from '../../src/domain/crdt/ORSet.ts';
-import { createDot, encodeDot } from '../../src/domain/crdt/Dot.ts';
+import { Dot, encodeDot } from '../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
 import { logEnvironment, forceGC, runBenchmark } from './benchmarkUtils.js';
 
@@ -57,7 +57,7 @@ function createPopulatedORSet(entryCount, tombstoneRatio = TOMBSTONE_RATIO) {
     writerCounters.set(writer, counter);
 
     const element = `element-${i}`;
-    const dot = createDot(writer, counter);
+    const dot = Dot.create(writer, counter);
 
     set.add(element, dot);
     addedEntries.push({ element, dot: encodeDot(dot) });
@@ -208,7 +208,7 @@ describe('ORSet Compaction Benchmarks', () => {
       const vv = VersionVector.empty();
 
       // Add a live element
-      const dot = createDot('writer', 5);
+      const dot = Dot.create('writer', 5);
       set.add('live-element', dot);
 
       // VV covers the dot
@@ -229,7 +229,7 @@ describe('ORSet Compaction Benchmarks', () => {
       const vv = VersionVector.empty();
 
       // Add and remove an element
-      const dot = createDot('writer', 5);
+      const dot = Dot.create('writer', 5);
       set.add('removed-element', dot);
       set.remove(new Set([encodeDot(dot)]));
 
@@ -256,7 +256,7 @@ describe('ORSet Compaction Benchmarks', () => {
       const vv = VersionVector.empty();
 
       // Add and remove an element
-      const dot = createDot('writer', 15);
+      const dot = Dot.create('writer', 15);
       set.add('future-element', dot);
       set.remove(new Set([encodeDot(dot)]));
 
@@ -329,7 +329,7 @@ describe('ORSet Compaction Benchmarks', () => {
 
       // Add elements without removing any
       for (let i = 0; i < 1000; i++) {
-        const dot = createDot('writer', i + 1);
+        const dot = Dot.create('writer', i + 1);
         set.add(`element-${i}`, dot);
       }
       vv.set('writer', 1000);

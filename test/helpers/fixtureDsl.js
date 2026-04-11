@@ -13,8 +13,8 @@ import AdjacencyNeighborProvider from '../../src/domain/services/query/Adjacency
 import BitmapNeighborProvider from '../../src/domain/services/index/BitmapNeighborProvider.js';
 import MaterializedViewService from '../../src/domain/services/MaterializedViewService.js';
 import { createEmptyState, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
-import { createDot } from '../../src/domain/crdt/Dot.ts';
-import { createEventId } from '../../src/domain/utils/EventId.ts';
+import { Dot } from '../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../src/domain/utils/EventId.ts';
 
 /**
  * Normalizes a thrown value into an object with `.name` and `.message` for
@@ -679,8 +679,8 @@ export function fixtureToState(fixture) {
   let lamport = 1;
 
   for (const nodeId of fixture.nodes) {
-    const dot = createDot(writer, lamport);
-    const eventId = createEventId(lamport, writer, sha, opIdx++);
+    const dot = Dot.create(writer, lamport);
+    const eventId = new EventId(lamport, writer, sha, opIdx++);
     applyOpV2(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
     lamport++;
   }
@@ -690,15 +690,15 @@ export function fixtureToState(fixture) {
   for (const nodeId of tombNodes) {
     const dots = state.nodeAlive.entries.get(nodeId);
     if (dots) {
-      const eventId = createEventId(lamport, writer, sha, opIdx++);
+      const eventId = new EventId(lamport, writer, sha, opIdx++);
       applyOpV2(state, /** @type {*} */ ({ type: 'NodeRemove', node: nodeId, observedDots: new Set(dots) }), eventId);
       lamport++;
     }
   }
 
   for (const { from, to, label } of fixture.edges) {
-    const dot = createDot(writer, lamport);
-    const eventId = createEventId(lamport, writer, sha, opIdx++);
+    const dot = Dot.create(writer, lamport);
+    const eventId = new EventId(lamport, writer, sha, opIdx++);
     applyOpV2(state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
     lamport++;
   }
@@ -709,7 +709,7 @@ export function fixtureToState(fixture) {
     const dots = state.edgeAlive.entries.get(edgeKey);
     if (dots) {
       const [from, to, label] = edgeKey.split('\0');
-      const eventId = createEventId(lamport, writer, sha, opIdx++);
+      const eventId = new EventId(lamport, writer, sha, opIdx++);
       applyOpV2(state, /** @type {*} */ ({ type: 'EdgeRemove', from, to, label, observedDots: new Set(dots) }), eventId);
       lamport++;
     }
@@ -717,7 +717,7 @@ export function fixtureToState(fixture) {
 
   for (const { nodeId, key, value, lamport: propLamport } of (fixture.props || [])) {
     const tick = propLamport ?? lamport;
-    const eventId = createEventId(tick, writer, sha, opIdx++);
+    const eventId = new EventId(tick, writer, sha, opIdx++);
     applyOpV2(state, { type: 'PropSet', node: nodeId, key, value }, eventId);
     lamport = Math.max(lamport, tick) + 1;
   }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 
 /** @param {Map<any, any>} map @param {any} key @returns {any} */
@@ -21,7 +21,7 @@ describe('ORSet', () => {
   describe('orsetAdd', () => {
     it('adds element with dot', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
 
       set.add('element1', dot);
 
@@ -31,8 +31,8 @@ describe('ORSet', () => {
 
     it('adds multiple dots to same element', () => {
       const set = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer2', 1);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer2', 1);
 
       set.add('element1', dot1);
       set.add('element1', dot2);
@@ -44,7 +44,7 @@ describe('ORSet', () => {
 
     it('adds same dot twice (idempotent)', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
 
       set.add('element1', dot);
       set.add('element1', dot);
@@ -54,8 +54,8 @@ describe('ORSet', () => {
 
     it('adds different elements', () => {
       const set = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer1', 2);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer1', 2);
 
       set.add('element1', dot1);
       set.add('element2', dot2);
@@ -67,7 +67,7 @@ describe('ORSet', () => {
   describe('orsetRemove', () => {
     it('adds observed dots to tombstones', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
       const encodedDot = encodeDot(dot);
 
       set.add('element1', dot);
@@ -78,8 +78,8 @@ describe('ORSet', () => {
 
     it('adds multiple dots to tombstones', () => {
       const set = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer2', 1);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer2', 1);
 
       set.add('element1', dot1);
       set.add('element1', dot2);
@@ -90,7 +90,7 @@ describe('ORSet', () => {
 
     it('removes with empty observedDots does nothing', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
 
       set.add('element1', dot);
       set.remove(new Set());
@@ -102,7 +102,7 @@ describe('ORSet', () => {
   describe('orsetContains', () => {
     it('returns true for element with non-tombstoned dot', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
 
       set.add('element1', dot);
 
@@ -111,7 +111,7 @@ describe('ORSet', () => {
 
     it('returns false for element with all dots tombstoned', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
 
       set.add('element1', dot);
       set.remove(new Set([encodeDot(dot)]));
@@ -121,8 +121,8 @@ describe('ORSet', () => {
 
     it('returns true if at least one dot is not tombstoned', () => {
       const set = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer2', 1);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer2', 1);
 
       set.add('element1', dot1);
       set.add('element1', dot2);
@@ -147,8 +147,8 @@ describe('ORSet', () => {
 
     it('returns only present elements', () => {
       const set = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer1', 2);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer1', 2);
 
       set.add('element1', dot1);
       set.add('element2', dot2);
@@ -162,9 +162,9 @@ describe('ORSet', () => {
 
     it('returns all present elements', () => {
       const set = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer1', 2);
-      const dot3 = createDot('writer1', 3);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer1', 2);
+      const dot3 = Dot.create('writer1', 3);
 
       set.add('a', dot1);
       set.add('b', dot2);
@@ -181,8 +181,8 @@ describe('ORSet', () => {
   describe('orsetGetDots', () => {
     it('returns non-tombstoned dots for element', () => {
       const set = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer2', 1);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer2', 1);
 
       set.add('element1', dot1);
       set.add('element1', dot2);
@@ -203,7 +203,7 @@ describe('ORSet', () => {
 
     it('returns empty set if all dots tombstoned', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
 
       set.add('element1', dot);
       set.remove(new Set([encodeDot(dot)]));
@@ -217,8 +217,8 @@ describe('ORSet', () => {
     it('commutativity: a.join(b) equals b.join(a)', () => {
       const a = ORSet.empty();
       const b = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer2', 1);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer2', 1);
 
       a.add('element1', dot1);
       b.add('element2', dot2);
@@ -245,9 +245,9 @@ describe('ORSet', () => {
       const a = ORSet.empty();
       const b = ORSet.empty();
       const c = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer2', 1);
-      const dot3 = createDot('writer3', 1);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer2', 1);
+      const dot3 = Dot.create('writer3', 1);
 
       a.add('element1', dot1);
       b.add('element2', dot2);
@@ -273,8 +273,8 @@ describe('ORSet', () => {
 
     it('idempotence: a.join(a) equals a', () => {
       const a = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer1', 2);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer1', 2);
 
       a.add('element1', dot1);
       a.add('element2', dot2);
@@ -301,8 +301,8 @@ describe('ORSet', () => {
     it('unions entries from both sets', () => {
       const a = ORSet.empty();
       const b = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer2', 1);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer2', 1);
 
       a.add('element1', dot1);
       b.add('element2', dot2);
@@ -316,8 +316,8 @@ describe('ORSet', () => {
     it('unions dots for same element', () => {
       const a = ORSet.empty();
       const b = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer2', 1);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer2', 1);
 
       a.add('element1', dot1);
       b.add('element1', dot2);
@@ -330,8 +330,8 @@ describe('ORSet', () => {
     it('unions tombstones', () => {
       const a = ORSet.empty();
       const b = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer2', 1);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer2', 1);
 
       a.add('element1', dot1);
       b.add('element2', dot2);
@@ -348,8 +348,8 @@ describe('ORSet', () => {
     it('does not mutate input sets', () => {
       const a = ORSet.empty();
       const b = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer2', 1);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer2', 1);
 
       a.add('element1', dot1);
       b.add('element2', dot2);
@@ -367,7 +367,7 @@ describe('ORSet', () => {
   describe('OR-Set Semantics', () => {
     it('add then remove = removed', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
 
       set.add('element1', dot);
       expect(set.contains('element1')).toBe(true);
@@ -380,7 +380,7 @@ describe('ORSet', () => {
       // Scenario: Writer A adds element, Writer B removes (but hasn't seen the add)
       const setA = ORSet.empty();
       const setB = ORSet.empty();
-      const dot = createDot('writerA', 1);
+      const dot = Dot.create('writerA', 1);
 
       // Writer A adds
       setA.add('element1', dot);
@@ -397,8 +397,8 @@ describe('ORSet', () => {
 
     it('remove only removes observed dots', () => {
       const set = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer2', 1);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer2', 1);
 
       set.add('element1', dot1);
       set.add('element1', dot2);
@@ -419,8 +419,8 @@ describe('ORSet', () => {
       // Scenario: A removes, then B adds concurrently (different dot)
       const setA = ORSet.empty();
       const setB = ORSet.empty();
-      const dot1 = createDot('writerA', 1);
-      const dot2 = createDot('writerB', 1);
+      const dot1 = Dot.create('writerA', 1);
+      const dot2 = Dot.create('writerB', 1);
 
       // Initial state: element exists with dot1
       setA.add('element1', dot1);
@@ -444,7 +444,7 @@ describe('ORSet', () => {
   describe('orsetCompact', () => {
     it('removes tombstoned dots that are <= includedVV', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
 
       set.add('element1', dot);
       set.remove(new Set([encodeDot(dot)]));
@@ -461,7 +461,7 @@ describe('ORSet', () => {
 
     it('does NOT remove live (non-tombstoned) dots even if <= vv', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
 
       set.add('element1', dot);
       // No tombstone!
@@ -478,7 +478,7 @@ describe('ORSet', () => {
 
     it('does NOT remove tombstoned dots that are > includedVV', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 5);
+      const dot = Dot.create('writer1', 5);
 
       set.add('element1', dot);
       set.remove(new Set([encodeDot(dot)]));
@@ -495,8 +495,8 @@ describe('ORSet', () => {
 
     it('removes entry when all dots are compacted', () => {
       const set = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer1', 2);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer1', 2);
 
       set.add('element1', dot1);
       set.add('element1', dot2);
@@ -512,8 +512,8 @@ describe('ORSet', () => {
 
     it('partially compacts when some dots are beyond vv', () => {
       const set = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer1', 5);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer1', 5);
 
       set.add('element1', dot1);
       set.add('element1', dot2);
@@ -534,8 +534,8 @@ describe('ORSet', () => {
 
     it('compacts multiple elements', () => {
       const set = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer1', 2);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer1', 2);
 
       set.add('element1', dot1);
       set.add('element2', dot2);
@@ -564,7 +564,7 @@ describe('ORSet', () => {
 
     it('serializes set with entries', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
 
       set.add('element1', dot);
       const serialized = set.serialize();
@@ -575,7 +575,7 @@ describe('ORSet', () => {
 
     it('serializes set with tombstones', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
 
       set.add('element1', dot);
       set.remove(new Set([encodeDot(dot)]));
@@ -586,9 +586,9 @@ describe('ORSet', () => {
 
     it('sorts entries by element', () => {
       const set = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer1', 2);
-      const dot3 = createDot('writer1', 3);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer1', 2);
+      const dot3 = Dot.create('writer1', 3);
 
       set.add('c', dot1);
       set.add('a', dot2);
@@ -606,8 +606,8 @@ describe('ORSet', () => {
 
     it('sorts dots within entries', () => {
       const set = ORSet.empty();
-      const dot1 = createDot('writer2', 1);
-      const dot2 = createDot('writer1', 1);
+      const dot1 = Dot.create('writer2', 1);
+      const dot2 = Dot.create('writer1', 1);
 
       set.add('element1', dot1);
       set.add('element1', dot2);
@@ -621,8 +621,8 @@ describe('ORSet', () => {
 
     it('sorts tombstones', () => {
       const set = ORSet.empty();
-      const dot1 = createDot('writer2', 1);
-      const dot2 = createDot('writer1', 1);
+      const dot1 = Dot.create('writer2', 1);
+      const dot2 = Dot.create('writer1', 1);
 
       set.remove(new Set([encodeDot(dot1), encodeDot(dot2)]));
 
@@ -633,8 +633,8 @@ describe('ORSet', () => {
 
     it('deserializes back to equivalent set', () => {
       const original = ORSet.empty();
-      const dot1 = createDot('writer1', 1);
-      const dot2 = createDot('writer2', 1);
+      const dot1 = Dot.create('writer1', 1);
+      const dot2 = Dot.create('writer2', 1);
 
       original.add('element1', dot1);
       original.add('element2', dot2);
@@ -658,9 +658,9 @@ describe('ORSet', () => {
 
     it('round-trip serialization preserves structure', () => {
       const original = ORSet.empty();
-      const dot1 = createDot('alice', 1);
-      const dot2 = createDot('alice', 2);
-      const dot3 = createDot('bob', 1);
+      const dot1 = Dot.create('alice', 1);
+      const dot2 = Dot.create('alice', 2);
+      const dot3 = Dot.create('bob', 1);
 
       original.add('x', dot1);
       original.add('x', dot2);
@@ -679,7 +679,7 @@ describe('ORSet', () => {
   describe('edge cases', () => {
     it('works with numeric elements', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
 
       // @ts-expect-error — testing ORSet with non-string elements
       set.add(42, dot);
@@ -691,7 +691,7 @@ describe('ORSet', () => {
 
     it('works with object elements (by reference)', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
       const obj = { id: 1 };
 
       // @ts-expect-error — testing ORSet with non-string elements
@@ -716,7 +716,7 @@ describe('ORSet', () => {
     it('handles join with one empty set', () => {
       const a = ORSet.empty();
       const b = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
 
       a.add('element1', dot);
 
@@ -727,7 +727,7 @@ describe('ORSet', () => {
 
     it('compaction with empty vv does nothing', () => {
       const set = ORSet.empty();
-      const dot = createDot('writer1', 1);
+      const dot = Dot.create('writer1', 1);
 
       set.add('element1', dot);
       set.remove(new Set([encodeDot(dot)]));

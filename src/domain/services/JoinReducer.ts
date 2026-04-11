@@ -20,7 +20,7 @@
  * @module domain/services/JoinReducer
  */
 
-import { createEventId, type EventId } from '../utils/EventId.ts';
+import { EventId } from '../utils/EventId.ts';
 import { createTickReceipt, type TickReceipt, type OpOutcome } from '../types/TickReceipt.ts';
 import { normalizeRawOp } from './OpNormalizer.ts';
 import { createEmptyDiff, mergeDiffs, type PatchDiff } from '../types/PatchDiff.ts';
@@ -150,7 +150,7 @@ export function applyFast(state: WarpState, patch: PatchLike, patchSha: string):
     const canonOp = normalizeRawOp(op);
     if (!(canonOp instanceof Op)) { continue; }
     canonOp.validate();
-    const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
+    const eventId = new EventId(patch.lamport, patch.writer, patchSha, i);
     canonOp.mutate(state, eventId);
   }
   state.foldPatch(patch);
@@ -174,7 +174,7 @@ export function applyWithDiff(
     const canonOp = normalizeRawOp(rawOp);
     if (!(canonOp instanceof Op)) { continue; }
     canonOp.validate();
-    const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
+    const eventId = new EventId(patch.lamport, patch.writer, patchSha, i);
     const before = canonOp.snapshot(state);
     canonOp.mutate(state, eventId);
     canonOp.accumulate(diff, state, before);
@@ -201,7 +201,7 @@ export function applyWithReceipt(
     const canonOp = normalizeRawOp(rawOp);
     if (!(canonOp instanceof Op)) { continue; }
     canonOp.validate();
-    const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
+    const eventId = new EventId(patch.lamport, patch.writer, patchSha, i);
 
     // Determine outcome BEFORE applying the op (state is pre-op).
     const outcome = canonOp.outcome(state, eventId);

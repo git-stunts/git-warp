@@ -6,7 +6,7 @@ import {
   createEmptyState,
 } from '../../../../src/domain/services/JoinReducer.ts';
 import { createFrontier } from '../../../../src/domain/services/Frontier.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 
 // ---------------------------------------------------------------------------
@@ -73,7 +73,7 @@ describe('SyncProtocol wire gate (ADR 2 tripwire)', () => {
     const state = createEmptyState();
     const frontier = createFrontier();
     const response = makeSyncResponse([
-      { type: 'NodeAdd', node: 'x', dot: createDot('w1', 1) },
+      { type: 'NodeAdd', node: 'x', dot: Dot.create('w1', 1) },
       { type: 'PropSet', node: 'x', key: 'color', value: 'blue' },
     ]);
 
@@ -86,7 +86,7 @@ describe('SyncProtocol wire gate (ADR 2 tripwire)', () => {
   it('accepts all 6 raw wire-format types', () => {
     const state = createEmptyState();
     const frontier = createFrontier();
-    const dot = createDot('w1', 1);
+    const dot = Dot.create('w1', 1);
     const response = makeSyncResponse([
       { type: 'NodeAdd', node: 'x', dot },
       { type: 'EdgeAdd', from: 'x', to: 'x', label: 'self', dot },

@@ -13,15 +13,15 @@ import {
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 
 /**
  * Helper to create a mock EventId for testing.
  */
 function mockEventId(lamport = 1, writerId = 'test', patchSha = 'abcd1234', opIndex = 0) {
-  return createEventId(lamport, writerId, patchSha, opIndex);
+  return new EventId(lamport, writerId, patchSha, opIndex);
 }
 
 /**
@@ -32,13 +32,13 @@ function buildStateV5({ nodes = /** @type {any[]} */ ([]), edges = /** @type {an
 
   // Add nodes with their dots
   for (const { nodeId, writerId, counter } of nodes) {
-    const dot = createDot(writerId, counter);
+    const dot = Dot.create(writerId, counter);
     state.nodeAlive.add(nodeId, dot);
   }
 
   // Add edges with their dots
   for (const { from, to, label, writerId, counter } of edges) {
-    const dot = createDot(writerId, counter);
+    const dot = Dot.create(writerId, counter);
     const edgeKey = encodeEdgeKey(from, to, label);
     state.edgeAlive.add(edgeKey, dot);
   }
@@ -394,9 +394,9 @@ describe('CheckpointSerializerV5', () => {
       const state = createEmptyState();
 
       // Add multiple dots to the same node (simulating concurrent adds)
-      state.nodeAlive.add('shared', createDot('alice', 1));
-      state.nodeAlive.add('shared', createDot('bob', 3));
-      state.nodeAlive.add('shared', createDot('alice', 7));
+      state.nodeAlive.add('shared', Dot.create('alice', 1));
+      state.nodeAlive.add('shared', Dot.create('bob', 3));
+      state.nodeAlive.add('shared', Dot.create('alice', 7));
 
       const vv = computeAppliedVV(state);
 
@@ -507,7 +507,7 @@ describe('CheckpointSerializerV5', () => {
       const state = createEmptyState();
 
       // Add a node
-      const addDot = createDot('alice', 1);
+      const addDot = Dot.create('alice', 1);
       state.nodeAlive.add('temp', addDot);
 
       // Remove the node (add to tombstones)

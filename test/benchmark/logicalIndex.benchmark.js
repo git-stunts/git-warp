@@ -20,8 +20,8 @@ import { CborCodec } from '../../src/infrastructure/codecs/CborCodec.js';
 import { makeLogicalBitmapProvider, makeFixture } from '../helpers/fixtureDsl.js';
 import { runBenchmark, logEnvironment, randomHex } from './benchmarkUtils.js';
 import { createEmptyState, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
-import { createDot } from '../../src/domain/crdt/Dot.ts';
-import { createEventId } from '../../src/domain/utils/EventId.ts';
+import { Dot } from '../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../src/domain/utils/EventId.ts';
 
 const WARMUP = 1;
 const RUNS = 3;
@@ -68,15 +68,15 @@ function buildStateFromGenerated({ nodes, edges }) {
   let lamport = 1;
 
   for (const nodeId of nodes) {
-    const dot = createDot(writer, lamport);
-    const eventId = createEventId(lamport, writer, sha, opIdx++);
+    const dot = Dot.create(writer, lamport);
+    const eventId = new EventId(lamport, writer, sha, opIdx++);
     applyOpV2(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
     lamport++;
   }
 
   for (const { from, to, label } of edges) {
-    const dot = createDot(writer, lamport);
-    const eventId = createEventId(lamport, writer, sha, opIdx++);
+    const dot = Dot.create(writer, lamport);
+    const eventId = new EventId(lamport, writer, sha, opIdx++);
     applyOpV2(state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
     lamport++;
   }

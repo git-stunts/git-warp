@@ -31,7 +31,7 @@ import {
   createPatch,
   generateOidFromNumber as generateOid,
   createPopulatedMockPersistence as createMockPersistence,
-  createDot,
+  Dot,
   createInlineValue,
 } from '../../../helpers/warpGraphTestUtils.js';
 
@@ -41,7 +41,7 @@ describe('WormholeService', () => {
       const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
-        ops: [createNodeAddV2('node-a', createDot('alice', 1))],
+        ops: [createNodeAddV2('node-a', Dot.create('alice', 1))],
       });
 
       const commits = [
@@ -70,18 +70,18 @@ describe('WormholeService', () => {
       const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
-        ops: [createNodeAddV2('node-a', createDot('alice', 1))],
+        ops: [createNodeAddV2('node-a', Dot.create('alice', 1))],
       });
       const patch2 = createPatch({
         writer: 'alice',
         lamport: 2,
-        ops: [createNodeAddV2('node-b', createDot('alice', 2))],
+        ops: [createNodeAddV2('node-b', Dot.create('alice', 2))],
       });
       const patch3 = createPatch({
         writer: 'alice',
         lamport: 3,
         ops: [
-          createEdgeAddV2('node-a', 'node-b', 'connects', createDot('alice', 3)),
+          createEdgeAddV2('node-a', 'node-b', 'connects', Dot.create('alice', 3)),
           createPropSetV2('node-a', 'name', createInlineValue('Alice')),
         ],
       });
@@ -129,7 +129,7 @@ describe('WormholeService', () => {
       const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
-        ops: [createNodeAddV2('node-a', createDot('alice', 1))],
+        ops: [createNodeAddV2('node-a', Dot.create('alice', 1))],
       });
 
       const commits = [
@@ -155,12 +155,12 @@ describe('WormholeService', () => {
       const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
-        ops: [createNodeAddV2('node-a', createDot('alice', 1))],
+        ops: [createNodeAddV2('node-a', Dot.create('alice', 1))],
       });
       const patch2 = createPatch({
         writer: 'alice',
         lamport: 2,
-        ops: [createNodeAddV2('node-b', createDot('alice', 2))],
+        ops: [createNodeAddV2('node-b', Dot.create('alice', 2))],
       });
 
       // Create two independent commits (not in same chain)
@@ -187,12 +187,12 @@ describe('WormholeService', () => {
       const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
-        ops: [createNodeAddV2('node-a', createDot('alice', 1))],
+        ops: [createNodeAddV2('node-a', Dot.create('alice', 1))],
       });
       const patch2 = createPatch({
         writer: 'bob',
         lamport: 2,
-        ops: [createNodeAddV2('node-b', createDot('bob', 1))],
+        ops: [createNodeAddV2('node-b', Dot.create('bob', 1))],
       });
 
       const commits = [
@@ -267,7 +267,7 @@ describe('WormholeService', () => {
       const patch = createPatch({
         writer: 'alice',
         lamport: 1,
-        ops: [createNodeAddV2('node-a', createDot('alice', 1))],
+        ops: [createNodeAddV2('node-a', Dot.create('alice', 1))],
       });
       const persistence = {
         nodeExists: vi.fn(async (candidate) => candidate === sha),
@@ -328,7 +328,7 @@ describe('WormholeService', () => {
       const patch = createPatch({
         writer: 'alice',
         lamport: 1,
-        ops: [createNodeAddV2('node-a', createDot('alice', 1))],
+        ops: [createNodeAddV2('node-a', Dot.create('alice', 1))],
       });
       const patchBlobStorage = {
         retrieve: vi.fn(async (oid) => {
@@ -396,18 +396,18 @@ describe('WormholeService', () => {
       const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
-        ops: [createNodeAddV2('node-a', createDot('alice', 1))],
+        ops: [createNodeAddV2('node-a', Dot.create('alice', 1))],
       });
       const patch2 = createPatch({
         writer: 'alice',
         lamport: 2,
-        ops: [createNodeAddV2('node-b', createDot('alice', 2))],
+        ops: [createNodeAddV2('node-b', Dot.create('alice', 2))],
       });
       const patch3 = createPatch({
         writer: 'alice',
         lamport: 3,
         ops: [
-          createEdgeAddV2('node-a', 'node-b', 'connects', createDot('alice', 3)),
+          createEdgeAddV2('node-a', 'node-b', 'connects', Dot.create('alice', 3)),
           createPropSetV2('node-a', 'name', createInlineValue('Alice')),
         ],
       });
@@ -448,7 +448,7 @@ describe('WormholeService', () => {
         patch: createPatch({
           writer: 'bob',
           lamport: 1,
-          ops: [createNodeAddV2('initial-node', createDot('bob', 1))],
+          ops: [createNodeAddV2('initial-node', Dot.create('bob', 1))],
         }),
         sha: initialSha,
       }];
@@ -458,7 +458,7 @@ describe('WormholeService', () => {
       const patch1 = createPatch({
         writer: 'alice',
         lamport: 2,
-        ops: [createNodeAddV2('node-a', createDot('alice', 1))],
+        ops: [createNodeAddV2('node-a', Dot.create('alice', 1))],
       });
 
       const commits = [
@@ -486,22 +486,22 @@ describe('WormholeService', () => {
       const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
-        ops: [createNodeAddV2('node-a', createDot('alice', 1))],
+        ops: [createNodeAddV2('node-a', Dot.create('alice', 1))],
       });
       const patch2 = createPatch({
         writer: 'alice',
         lamport: 2,
-        ops: [createNodeAddV2('node-b', createDot('alice', 2))],
+        ops: [createNodeAddV2('node-b', Dot.create('alice', 2))],
       });
       const patch3 = createPatch({
         writer: 'alice',
         lamport: 3,
-        ops: [createNodeAddV2('node-c', createDot('alice', 3))],
+        ops: [createNodeAddV2('node-c', Dot.create('alice', 3))],
       });
       const patch4 = createPatch({
         writer: 'alice',
         lamport: 4,
-        ops: [createNodeAddV2('node-d', createDot('alice', 4))],
+        ops: [createNodeAddV2('node-d', Dot.create('alice', 4))],
       });
 
       const commits = [
@@ -606,7 +606,7 @@ describe('WormholeService', () => {
         patches.push(createPatch({
           writer: 'alice',
           lamport: i,
-          ops: [createNodeAddV2(`node-${i}`, createDot('alice', i))],
+          ops: [createNodeAddV2(`node-${i}`, Dot.create('alice', i))],
         }));
       }
 
@@ -668,13 +668,13 @@ describe('WormholeService', () => {
       const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
-        ops: [createNodeAddV2('node-a', createDot('alice', 1))],
+        ops: [createNodeAddV2('node-a', Dot.create('alice', 1))],
       });
       const patch2 = createPatch({
         writer: 'alice',
         lamport: 2,
         ops: [
-          createNodeAddV2('node-b', createDot('alice', 2)),
+          createNodeAddV2('node-b', Dot.create('alice', 2)),
           createPropSetV2('node-a', 'val', createInlineValue(42)),
         ],
       });
@@ -776,7 +776,7 @@ describe('WormholeService', () => {
           writer: 'alice',
           lamport: i,
           ops: [
-            createNodeAddV2(`node-${i}`, createDot('alice', i)),
+            createNodeAddV2(`node-${i}`, Dot.create('alice', i)),
             createPropSetV2(`node-${i}`, 'index', createInlineValue(i)),
           ],
         }));
@@ -835,7 +835,7 @@ describe('WormholeService', () => {
         patches.push(createPatch({
           writer: 'alice',
           lamport: i,
-          ops: [createNodeAddV2(`node-${i}`, createDot('alice', i))],
+          ops: [createNodeAddV2(`node-${i}`, Dot.create('alice', i))],
         }));
       }
 
@@ -908,7 +908,7 @@ describe('WormholeService', () => {
       const patch1 = createPatch({
         writer: 'alice',
         lamport: 1,
-        ops: [createNodeAddV2('root', createDot('alice', 1))],
+        ops: [createNodeAddV2('root', Dot.create('alice', 1))],
       });
 
       const commits = [
@@ -933,10 +933,10 @@ describe('WormholeService', () => {
         writer: 'alice',
         lamport: 1,
         ops: [
-          createNodeAddV2('a', createDot('alice', 1)),
-          createNodeAddV2('b', createDot('alice', 2)),
-          createEdgeAddV2('a', 'b', 'link1', createDot('alice', 3)),
-          createEdgeAddV2('b', 'a', 'link2', createDot('alice', 4)),
+          createNodeAddV2('a', Dot.create('alice', 1)),
+          createNodeAddV2('b', Dot.create('alice', 2)),
+          createEdgeAddV2('a', 'b', 'link1', Dot.create('alice', 3)),
+          createEdgeAddV2('b', 'a', 'link2', Dot.create('alice', 4)),
           createPropSetV2('a', 'x', createInlineValue(1)),
           createPropSetV2('a', 'y', createInlineValue(2)),
           createPropSetV2('b', 'z', createInlineValue(3)),

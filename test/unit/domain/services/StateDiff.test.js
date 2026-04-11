@@ -10,8 +10,8 @@ import {
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
 import { encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 
 // Helper to create a node add operation
@@ -20,7 +20,7 @@ function createNodeAddOp(nodeId, writerId, counter) {
   return {
     type: 'NodeAdd',
     node: nodeId,
-    dot: createDot(writerId, counter),
+    dot: Dot.create(writerId, counter),
   };
 }
 
@@ -32,7 +32,7 @@ function createEdgeAddOp(from, to, label, writerId, counter) {
     from,
     to,
     label,
-    dot: createDot(writerId, counter),
+    dot: Dot.create(writerId, counter),
   };
 }
 
@@ -41,7 +41,7 @@ function createEdgeAddOp(from, to, label, writerId, counter) {
 function applyOps(state, ops, writerId) {
   let lamport = 1;
   for (const op of ops) {
-    const eventId = createEventId(lamport++, writerId, 'abcd1234', 0);
+    const eventId = new EventId(lamport++, writerId, 'abcd1234', 0);
     applyOpV2(state, op, eventId);
   }
 }
@@ -49,7 +49,7 @@ function applyOps(state, ops, writerId) {
 // Helper to create an EventId for property tests
 /** @param {number} lamport @param {string} [writerId] */
 function makeEventId(lamport, writerId = 'w1') {
-  return createEventId(lamport, writerId, 'abcd1234', 0);
+  return new EventId(lamport, writerId, 'abcd1234', 0);
 }
 
 describe('StateDiff', () => {

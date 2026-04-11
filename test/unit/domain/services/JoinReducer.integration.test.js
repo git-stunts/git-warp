@@ -30,7 +30,7 @@ import {
 const reduceV5 = (patches, initialState) => _reduceV5(patches, initialState);
 
 // v4 reducer helpers (local test helpers for migration tests)
-import { compareEventIds, createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { compareEventIds, EventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet, lwwMax } from '../../../../src/domain/crdt/LWW.ts';
 
 /**
@@ -60,7 +60,7 @@ function reduce(patches) {
   for (const { patch, sha } of patches) {
     for (let index = 0; index < patch.ops.length; index++) {
       tuples.push({
-        eventId: createEventId(patch.lamport, patch.writer, sha, index),
+        eventId: new EventId(patch.lamport, patch.writer, sha, index),
         op: patch.ops[index],
       });
     }
@@ -171,7 +171,7 @@ function createPatchV1({ writer, lamport, ops, baseCheckpoint }) {
 }
 
 // CRDT primitives
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
@@ -232,7 +232,7 @@ function generatePatches(n, options = {}) {
     for (let j = 0; j < numOps; j++) {
       const opType = Math.floor(Math.random() * 5);
       const nodeId = `node:${Math.floor(Math.random() * 10)}`;
-      const dot = createDot(writer, newCounter + j);
+      const dot = Dot.create(writer, newCounter + j);
       writerCounters.set(writer, newCounter + j);
 
       switch (opType) {
@@ -282,7 +282,7 @@ function generateV2Patches(n) {
     const lamport = i + 1;
     // SHA must be hex only, at least 4 chars
     const sha = `aaaa${i.toString(16).padStart(4, '0')}`;
-    const dot = createDot(writer, i + 1);
+    const dot = Dot.create(writer, i + 1);
 
     /** @type {any[]} */
     const ops = [
@@ -291,7 +291,7 @@ function generateV2Patches(n) {
 
     // Add an edge every 3rd patch
     if (i % 3 === 0 && i > 0) {
-      const edgeDot = createDot(writer, i + 2);
+      const edgeDot = Dot.create(writer, i + 2);
       ops.push(new EdgeAdd({ from: `node:${i}`, to: `node:${i - 1}`, label: 'link', dot: edgeDot }));
     }
 
@@ -379,7 +379,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
         writer: 'A',
         lamport: 1,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [new NodeAdd('x', createDot('A', 1))],
+        ops: [new NodeAdd('x', Dot.create('A', 1))],
       }),
       sha: 'aaaa1111',
     };
@@ -389,7 +389,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
         writer: 'B',
         lamport: 2,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [new NodeAdd('y', createDot('B', 1))],
+        ops: [new NodeAdd('y', Dot.create('B', 1))],
       }),
       sha: 'bbbb2222',
     };
@@ -399,7 +399,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
         writer: 'C',
         lamport: 3,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [new EdgeAdd({ from: 'x', to: 'y', label: 'link', dot: createDot('C', 1) })],
+        ops: [new EdgeAdd({ from: 'x', to: 'y', label: 'link', dot: Dot.create('C', 1) })],
       }),
       sha: 'cccc3333',
     };
@@ -504,7 +504,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
           lamport: 10,
           context: /** @type {any} */ (VersionVector.empty()),
           ops: [
-            new NodeAdd('user:charlie', createDot('charlie', 1)),
+            new NodeAdd('user:charlie', Dot.create('charlie', 1)),
             new PropSet('user:charlie', 'name', createInlineValue('Charlie')),
           ],
         }),
@@ -516,7 +516,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
           lamport: 11,
           context: /** @type {any} */ (VersionVector.empty()),
           ops: [
-            new EdgeAdd({ from: 'user:charlie', to: 'user:alice', label: 'follows', dot: createDot('charlie', 2) }),
+            new EdgeAdd({ from: 'user:charlie', to: 'user:alice', label: 'follows', dot: Dot.create('charlie', 2) }),
           ],
         }),
         sha: 'eeee5555',
@@ -622,7 +622,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
         writer: 'A',
         lamport: 1,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [{ type: 'NodeAdd', node: 'X', dot: createDot('A', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'X', dot: Dot.create('A', 1) }],
       }),
       sha: 'aaaa1234',
     };
@@ -657,7 +657,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
         writer: 'A',
         lamport: 1,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [new NodeAdd('X', createDot('A', 1))],
+        ops: [new NodeAdd('X', Dot.create('A', 1))],
       }),
       sha: 'aaaa1111',
     };
@@ -668,7 +668,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
         writer: 'B',
         lamport: 1,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [new NodeAdd('X', createDot('B', 1))],
+        ops: [new NodeAdd('X', Dot.create('B', 1))],
       }),
       sha: 'bbbb1111',
     };
@@ -712,7 +712,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
         writer: 'A',
         lamport: 1,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [new NodeAdd('X', createDot('A', 1))],
+        ops: [new NodeAdd('X', Dot.create('A', 1))],
       }),
       sha: 'aaaa1111',
     };
@@ -743,8 +743,8 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
           lamport: 1,
           context: /** @type {any} */ (VersionVector.empty()),
           ops: [
-            new NodeAdd('from', createDot('setup', 1)),
-            new NodeAdd('to', createDot('setup', 2)),
+            new NodeAdd('from', Dot.create('setup', 1)),
+            new NodeAdd('to', Dot.create('setup', 2)),
           ],
         }),
         sha: 'aaaa0011',
@@ -757,7 +757,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
         writer: 'A',
         lamport: 10,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [new EdgeAdd({ from: 'from', to: 'to', label: 'link', dot: createDot('A', 1) })],
+        ops: [new EdgeAdd({ from: 'from', to: 'to', label: 'link', dot: Dot.create('A', 1) })],
       }),
       sha: 'edaa0011',
     };
@@ -813,7 +813,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
         writer: 'A',
         lamport: 1,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [new NodeAdd('x', createDot('A', 1))],
+        ops: [new NodeAdd('x', Dot.create('A', 1))],
       }),
       sha: 'aaaa1111',
     };
@@ -852,7 +852,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
         writer: 'A',
         lamport: 1,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [new NodeAdd('live-node', createDot('A', 1))],
+        ops: [new NodeAdd('live-node', Dot.create('A', 1))],
       }),
       sha: 'aaaa1111',
     };
@@ -914,9 +914,9 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
           lamport: 1,
           context: /** @type {any} */ (VersionVector.empty()),
           ops: [
-            new NodeAdd('root', createDot('base', 1)),
-            new NodeAdd('shared', createDot('base', 2)),
-            new EdgeAdd({ from: 'root', to: 'shared', label: 'contains', dot: createDot('base', 3) }),
+            new NodeAdd('root', Dot.create('base', 1)),
+            new NodeAdd('shared', Dot.create('base', 2)),
+            new EdgeAdd({ from: 'root', to: 'shared', label: 'contains', dot: Dot.create('base', 3) }),
           ],
         }),
         sha: 'baaabbbb',
@@ -937,8 +937,8 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
         lamport: 10,
         context: /** @type {any} */ (VersionVector.empty()),
         ops: [
-          new NodeAdd('alice-node', createDot('alice', 1)),
-          new EdgeAdd({ from: 'root', to: 'alice-node', label: 'owns', dot: createDot('alice', 2) }),
+          new NodeAdd('alice-node', Dot.create('alice', 1)),
+          new EdgeAdd({ from: 'root', to: 'alice-node', label: 'owns', dot: Dot.create('alice', 2) }),
           new PropSet('alice-node', 'name', createInlineValue('Alice Data')),
         ],
       }),
@@ -952,8 +952,8 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
         lamport: 10,
         context: /** @type {any} */ (VersionVector.empty()),
         ops: [
-          new NodeAdd('bob-node', createDot('bob', 1)),
-          new EdgeAdd({ from: 'root', to: 'bob-node', label: 'owns', dot: createDot('bob', 2) }),
+          new NodeAdd('bob-node', Dot.create('bob', 1)),
+          new EdgeAdd({ from: 'root', to: 'bob-node', label: 'owns', dot: Dot.create('bob', 2) }),
           new PropSet('bob-node', 'name', createInlineValue('Bob Data')),
         ],
       }),
@@ -999,7 +999,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
           lamport: 1,
           context: /** @type {any} */ (VersionVector.empty()),
           ops: [
-            new NodeAdd('target', createDot('base', 1)),
+            new NodeAdd('target', Dot.create('base', 1)),
             new PropSet('target', 'value', createInlineValue('initial')),
           ],
         }),
@@ -1055,7 +1055,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
           writer: 'base',
           lamport: 1,
           context: /** @type {any} */ (VersionVector.empty()),
-          ops: [new NodeAdd('contested', createDot('base', 1))],
+          ops: [new NodeAdd('contested', Dot.create('base', 1))],
         }),
         sha: 'baaa4444',
       },
@@ -1082,7 +1082,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
         writer: 'bob',
         lamport: 10,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [new NodeAdd('contested', createDot('bob', 1))],
+        ops: [new NodeAdd('contested', Dot.create('bob', 1))],
       }),
       sha: 'bbbb6666',
     };
@@ -1179,11 +1179,11 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
 
       if (i % 4 === 0) {
         // Add node
-        ops.push(new NodeAdd(nodeId, createDot(writer, newCounter)));
+        ops.push(new NodeAdd(nodeId, Dot.create(writer, newCounter)));
       } else if (i % 4 === 1) {
         // Add edge
         const toNode = `chaos-node-${(i + 5) % 20}`;
-        ops.push(new EdgeAdd({ from: nodeId, to: toNode, label: 'chaos-link', dot: createDot(writer, newCounter) }));
+        ops.push(new EdgeAdd({ from: nodeId, to: toNode, label: 'chaos-link', dot: Dot.create(writer, newCounter) }));
       } else if (i % 4 === 2) {
         // Set prop
         ops.push(new PropSet(nodeId, 'chaos-prop', createInlineValue(`chaos-value-${i}`)));
@@ -1255,7 +1255,7 @@ describe('Additional WARP v5 Integration Tests', () => {
           lamport: 1,
           context: /** @type {any} */ (VersionVector.empty()),
           ops: [
-            new NodeAdd('x', createDot('A', 1)),
+            new NodeAdd('x', Dot.create('A', 1)),
             new PropSet('x', 'color', createInlineValue('red')),
           ],
         }),
@@ -1292,7 +1292,7 @@ describe('Additional WARP v5 Integration Tests', () => {
           lamport: 5,
           context: /** @type {any} */ (VersionVector.empty()),
           ops: [
-            new NodeAdd('x', createDot('A', 1)),
+            new NodeAdd('x', Dot.create('A', 1)),
             new PropSet('x', 'val', createInlineValue('A-value')),
           ],
         }),
@@ -1326,9 +1326,9 @@ describe('Additional WARP v5 Integration Tests', () => {
             lamport: 1,
             context: /** @type {any} */ (VersionVector.empty()),
             ops: [
-              new NodeAdd('a', createDot('W', 1)),
-              new NodeAdd('b', createDot('W', 2)),
-              new EdgeAdd({ from: 'a', to: 'b', label: 'link', dot: createDot('W', 3) }),
+              new NodeAdd('a', Dot.create('W', 1)),
+              new NodeAdd('b', Dot.create('W', 2)),
+              new EdgeAdd({ from: 'a', to: 'b', label: 'link', dot: Dot.create('W', 3) }),
             ],
           }),
           sha: 'aaa11111',
@@ -1375,7 +1375,7 @@ describe('Additional WARP v5 Integration Tests', () => {
             writer: 'A',
             lamport: 1,
             context: /** @type {any} */ (ctx1),
-            ops: [new NodeAdd('n1', createDot('A', 1))],
+            ops: [new NodeAdd('n1', Dot.create('A', 1))],
           }),
           sha: 'aaaa1111',
         },
@@ -1384,7 +1384,7 @@ describe('Additional WARP v5 Integration Tests', () => {
             writer: 'B',
             lamport: 2,
             context: /** @type {any} */ (ctx2),
-            ops: [new NodeAdd('n2', createDot('B', 1))],
+            ops: [new NodeAdd('n2', Dot.create('B', 1))],
           }),
           sha: 'bbbb2222',
         },

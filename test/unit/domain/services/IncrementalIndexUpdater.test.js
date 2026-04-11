@@ -3,8 +3,8 @@ import IncrementalIndexUpdater from '../../../../src/domain/services/index/Incre
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
 import { createEmptyState, applyOpV2, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
@@ -21,21 +21,21 @@ function buildState({ nodes, edges, props }) {
   let lamport = 1;
 
   for (const nodeId of nodes) {
-    const dot = createDot(writer, lamport);
-    const eventId = createEventId(lamport, writer, sha, opIdx++);
+    const dot = Dot.create(writer, lamport);
+    const eventId = new EventId(lamport, writer, sha, opIdx++);
     applyOpV2(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
     lamport++;
   }
 
   for (const { from, to, label } of edges) {
-    const dot = createDot(writer, lamport);
-    const eventId = createEventId(lamport, writer, sha, opIdx++);
+    const dot = Dot.create(writer, lamport);
+    const eventId = new EventId(lamport, writer, sha, opIdx++);
     applyOpV2(state, { type: 'EdgeAdd', from, to, label, dot }, eventId);
     lamport++;
   }
 
   for (const { nodeId, key, value } of (props || [])) {
-    const eventId = createEventId(lamport, writer, sha, opIdx++);
+    const eventId = new EventId(lamport, writer, sha, opIdx++);
     applyOpV2(state, { type: 'PropSet', node: nodeId, key, value }, eventId);
     lamport++;
   }
@@ -134,8 +134,8 @@ describe('IncrementalIndexUpdater', () => {
       const tree2 = { ...tree1, ...removed };
 
       // Re-add A — apply add to state so state and diff agree
-      const readdDot = createDot('w1', 100);
-      const readdEventId = createEventId(100, 'w1', 'a'.repeat(40), 99);
+      const readdDot = Dot.create('w1', 100);
+      const readdEventId = new EventId(100, 'w1', 'a'.repeat(40), 99);
       applyOpV2(state1, { type: 'NodeAdd', node: 'A', dot: readdDot }, readdEventId);
 
       const readdDiff = {
@@ -221,7 +221,7 @@ describe('IncrementalIndexUpdater', () => {
       });
       const tree2 = { ...tree1, ...removedB };
 
-      applyOpV2(state, { type: 'NodeAdd', node: 'B', dot: createDot('w1', 200) }, createEventId(200, 'w1', 'a'.repeat(40), 200));
+      applyOpV2(state, { type: 'NodeAdd', node: 'B', dot: Dot.create('w1', 200) }, new EventId(200, 'w1', 'a'.repeat(40), 200));
       const readdedB1 = updater.computeDirtyShards({
         diff: {
           nodesAdded: ['B'],
@@ -266,7 +266,7 @@ describe('IncrementalIndexUpdater', () => {
       });
       const tree5 = { ...tree4, ...removedBAgain };
 
-      applyOpV2(state, { type: 'NodeAdd', node: 'B', dot: createDot('w1', 201) }, createEventId(201, 'w1', 'a'.repeat(40), 201));
+      applyOpV2(state, { type: 'NodeAdd', node: 'B', dot: Dot.create('w1', 201) }, new EventId(201, 'w1', 'a'.repeat(40), 201));
       const readdedB2 = updater.computeDirtyShards({
         diff: {
           nodesAdded: ['B'],
@@ -313,7 +313,7 @@ describe('IncrementalIndexUpdater', () => {
       });
       const tree2 = { ...tree1, ...removed };
 
-      applyOpV2(state, { type: 'NodeAdd', node: 'B', dot: createDot('w1', 300) }, createEventId(300, 'w1', 'a'.repeat(40), 300));
+      applyOpV2(state, { type: 'NodeAdd', node: 'B', dot: Dot.create('w1', 300) }, new EventId(300, 'w1', 'a'.repeat(40), 300));
 
       const readded = updater.computeDirtyShards({
         diff: {
@@ -855,7 +855,7 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [],
       });
 
-      applyOpV2(state, { type: 'EdgeAdd', from: 'A', to: 'C', label: 'rel', dot: createDot('w1', 301) }, createEventId(301, 'w1', 'a'.repeat(40), 301));
+      applyOpV2(state, { type: 'EdgeAdd', from: 'A', to: 'C', label: 'rel', dot: Dot.create('w1', 301) }, new EventId(301, 'w1', 'a'.repeat(40), 301));
 
       const adjacency = updater._getOrBuildAliveEdgeAdjacency(state, {
         nodesAdded: [],

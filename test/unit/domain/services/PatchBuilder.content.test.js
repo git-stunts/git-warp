@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/KeyCodec.js';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
@@ -68,7 +68,7 @@ describe('PatchBuilder content attachment', () => {
   describe('attachContent()', () => {
     it('writes blob and sets content reference metadata properties', async () => {
       const state = createMockState();
-      state.nodeAlive.add('node:1', createDot('w1', 1));
+      state.nodeAlive.add('node:1', Dot.create('w1', 1));
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage({ storeOid: 'abc123' });
       const builder = new PatchBuilder(/** @type {any} */ ({
@@ -108,7 +108,7 @@ describe('PatchBuilder content attachment', () => {
 
     it('accepts optional content metadata and persists it alongside the blob oid', async () => {
       const state = createMockState();
-      state.nodeAlive.add('node:1', createDot('w1', 1));
+      state.nodeAlive.add('node:1', Dot.create('w1', 1));
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage({ storeOid: 'abc123' });
       const builder = new PatchBuilder(/** @type {any} */ ({
@@ -139,7 +139,7 @@ describe('PatchBuilder content attachment', () => {
 
     it('tracks blob OID in _contentBlobs', async () => {
       const state = createMockState();
-      state.nodeAlive.add('node:1', createDot('w1', 1));
+      state.nodeAlive.add('node:1', Dot.create('w1', 1));
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage({ storeOid: 'abc123' });
       const builder = new PatchBuilder(/** @type {any} */ ({
@@ -159,7 +159,7 @@ describe('PatchBuilder content attachment', () => {
 
     it('returns the builder for chaining', async () => {
       const state = createMockState();
-      state.nodeAlive.add('node:1', createDot('w1', 1));
+      state.nodeAlive.add('node:1', Dot.create('w1', 1));
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage();
       const builder = new PatchBuilder(/** @type {any} */ ({
@@ -178,7 +178,7 @@ describe('PatchBuilder content attachment', () => {
 
     it('propagates blob storage errors', async () => {
       const state = createMockState();
-      state.nodeAlive.add('node:1', createDot('w1', 1));
+      state.nodeAlive.add('node:1', Dot.create('w1', 1));
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage();
       blobStorage.store = vi.fn().mockRejectedValue(new Error('disk full'));
@@ -213,7 +213,7 @@ describe('PatchBuilder content attachment', () => {
 
     it('rejects mismatched size metadata before writing the blob', async () => {
       const state = createMockState();
-      state.nodeAlive.add('node:1', createDot('w1', 1));
+      state.nodeAlive.add('node:1', Dot.create('w1', 1));
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage();
       const builder = new PatchBuilder(/** @type {any} */ ({
@@ -236,7 +236,7 @@ describe('PatchBuilder content attachment', () => {
   describe('clearContent()', () => {
     it('sets reserved content registers to null without writing a blob', () => {
       const state = createMockState();
-      state.nodeAlive.add('node:1', createDot('w1', 1));
+      state.nodeAlive.add('node:1', Dot.create('w1', 1));
       const persistence = createMockPersistence();
       const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
@@ -294,7 +294,7 @@ describe('PatchBuilder content attachment', () => {
     it('writes blob and sets content reference metadata on the edge', async () => {
       const state = createMockState();
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-      state.edgeAlive.add(edgeKey, createDot('w1', 1));
+      state.edgeAlive.add(edgeKey, Dot.create('w1', 1));
 
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage({ storeOid: 'def456' });
@@ -334,7 +334,7 @@ describe('PatchBuilder content attachment', () => {
 
     it('tracks blob OID in _contentBlobs', async () => {
       const state = createMockState();
-      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'rel'), createDot('w1', 1));
+      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'rel'), Dot.create('w1', 1));
 
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage({ storeOid: 'def456' });
@@ -355,7 +355,7 @@ describe('PatchBuilder content attachment', () => {
 
     it('returns the builder for chaining', async () => {
       const state = createMockState();
-      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'rel'), createDot('w1', 1));
+      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'rel'), Dot.create('w1', 1));
 
       const persistence = createMockPersistence();
       const blobStorage = createMockBlobStorage();
@@ -397,7 +397,7 @@ describe('PatchBuilder content attachment', () => {
     it('sets reserved edge content registers to null without writing a blob', () => {
       const state = createMockState();
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-      state.edgeAlive.add(edgeKey, createDot('w1', 1));
+      state.edgeAlive.add(edgeKey, Dot.create('w1', 1));
       const persistence = createMockPersistence();
       const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
@@ -451,8 +451,8 @@ describe('PatchBuilder content attachment', () => {
   describe('multiple attachments in one patch', () => {
     it('tracks multiple blob OIDs', async () => {
       const state = createMockState();
-      state.nodeAlive.add('node:1', createDot('w1', 1));
-      state.nodeAlive.add('node:2', createDot('w1', 2));
+      state.nodeAlive.add('node:1', Dot.create('w1', 1));
+      state.nodeAlive.add('node:2', Dot.create('w1', 2));
       let callCount = 0;
       const blobStorage = createMockBlobStorage();
       blobStorage.store = vi.fn().mockImplementation(() => {
@@ -481,7 +481,7 @@ describe('PatchBuilder content attachment', () => {
   describe('attachContent() with streaming input', () => {
     it('accepts an AsyncIterable<Uint8Array> as content', async () => {
       const state = createMockState();
-      state.nodeAlive.add('node:1', createDot('w1', 1));
+      state.nodeAlive.add('node:1', Dot.create('w1', 1));
       const blobStorage = {
         store: vi.fn().mockResolvedValue('cas-oid-1'),
         retrieve: vi.fn(),
@@ -519,7 +519,7 @@ describe('PatchBuilder content attachment', () => {
 
     it('accepts a ReadableStream<Uint8Array> as content', async () => {
       const state = createMockState();
-      state.nodeAlive.add('node:1', createDot('w1', 1));
+      state.nodeAlive.add('node:1', Dot.create('w1', 1));
       const blobStorage = {
         store: vi.fn().mockResolvedValue('cas-oid-1'),
         retrieve: vi.fn(),
@@ -552,7 +552,7 @@ describe('PatchBuilder content attachment', () => {
   describe('attachEdgeContent() with streaming input', () => {
     it('accepts an AsyncIterable<Uint8Array> as content', async () => {
       const state = createMockState();
-      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'rel'), createDot('w1', 1));
+      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'rel'), Dot.create('w1', 1));
       const blobStorage = {
         store: vi.fn().mockResolvedValue('cas-oid-1'),
         retrieve: vi.fn(),
@@ -584,7 +584,7 @@ describe('PatchBuilder content attachment', () => {
   describe('attachContent() with blobStorage', () => {
     it('uses blobStorage.store() when blobStorage is provided', async () => {
       const state = createMockState();
-      state.nodeAlive.add('node:1', createDot('w1', 1));
+      state.nodeAlive.add('node:1', Dot.create('w1', 1));
       const blobStorage = {
         store: vi.fn().mockResolvedValue('cas-tree-oid'),
         retrieve: vi.fn(),
@@ -619,7 +619,7 @@ describe('PatchBuilder content attachment', () => {
 
     it('throws NO_BLOB_STORAGE when blobStorage is not provided', async () => {
       const state = createMockState();
-      state.nodeAlive.add('node:1', createDot('w1', 1));
+      state.nodeAlive.add('node:1', Dot.create('w1', 1));
       const persistence = createMockPersistence();
       const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
@@ -641,7 +641,7 @@ describe('PatchBuilder content attachment', () => {
       // attachContent without blobStorage should throw, not silently
       // fall back to persistence.writeBlob().
       const state = createMockState();
-      state.nodeAlive.add('node:1', createDot('w1', 1));
+      state.nodeAlive.add('node:1', Dot.create('w1', 1));
       const persistence = createMockPersistence();
       const builder = new PatchBuilder(/** @type {any} */ ({
         persistence,
@@ -662,7 +662,7 @@ describe('PatchBuilder content attachment', () => {
   describe('attachEdgeContent() with blobStorage', () => {
     it('uses blobStorage.store() when blobStorage is provided', async () => {
       const state = createMockState();
-      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'rel'), createDot('w1', 1));
+      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'rel'), Dot.create('w1', 1));
 
       const blobStorage = {
         store: vi.fn().mockResolvedValue('cas-edge-tree-oid'),

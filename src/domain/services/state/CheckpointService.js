@@ -22,7 +22,7 @@ import {
 import { serializeFrontier, deserializeFrontier } from '../Frontier.js';
 import { encodeCheckpointMessage, decodeCheckpointMessage } from '../codec/WarpMessageCodec.js';
 import ORSet from '../../crdt/ORSet.ts';
-import { createDot } from '../../crdt/Dot.ts';
+import { Dot } from '../../crdt/Dot.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { cloneState, reduceV5 } from '../JoinReducer.ts';
 import WarpState from './WarpState.ts';
@@ -602,7 +602,7 @@ export function reconstructStateV5FromCheckpoint(visibleProjection) {
   // Create a synthetic dot for checkpoint entries
   // Uses a special writerId that won't conflict with real writers
   // Counter starts at 1 (0 is invalid for dots)
-  const syntheticDot = createDot('__checkpoint__', 1);
+  const syntheticDot = Dot.create('__checkpoint__', 1);
 
   // Create a synthetic eventId for LWW props
   const syntheticEventId = {

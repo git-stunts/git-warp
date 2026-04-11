@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { encodeEdgeKey, encodeEdgePropKey, encodePropKey } from '../../../../src/domain/services/KeyCodec.js';
 import { createStateReaderV5 } from '../../../../src/domain/services/state/StateReaderV5.js';
 import {
@@ -19,16 +19,16 @@ import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 function buildScopedFixtureState() {
   const nodeAlive = ORSet.empty();
   const edgeAlive = ORSet.empty();
-  nodeAlive.add('task:1', createDot('alice', 1));
-  nodeAlive.add('comparison-artifact:cmp-1', createDot('alice', 2));
+  nodeAlive.add('task:1', Dot.create('alice', 1));
+  nodeAlive.add('comparison-artifact:cmp-1', Dot.create('alice', 2));
 
   const edgeKey = encodeEdgeKey('task:1', 'comparison-artifact:cmp-1', 'governs');
-  edgeAlive.add(edgeKey, createDot('alice', 3));
+  edgeAlive.add(edgeKey, Dot.create('alice', 3));
 
   const prop = new Map([
-    [encodePropKey('task:1', 'status'), lwwSet(createEventId(1, 'alice', 'abc1234', 0), 'ready')],
-    [encodePropKey('comparison-artifact:cmp-1', 'kind'), lwwSet(createEventId(2, 'alice', 'abc1235', 0), 'comparison-artifact')],
-    [encodeEdgePropKey('task:1', 'comparison-artifact:cmp-1', 'governs', 'via'), lwwSet(createEventId(3, 'alice', 'abc1236', 0), 'control-plane')],
+    [encodePropKey('task:1', 'status'), lwwSet(new EventId(1, 'alice', 'abc1234', 0), 'ready')],
+    [encodePropKey('comparison-artifact:cmp-1', 'kind'), lwwSet(new EventId(2, 'alice', 'abc1235', 0), 'comparison-artifact')],
+    [encodeEdgePropKey('task:1', 'comparison-artifact:cmp-1', 'governs', 'via'), lwwSet(new EventId(3, 'alice', 'abc1236', 0), 'control-plane')],
   ]);
 
   return new WarpState({
@@ -37,7 +37,7 @@ function buildScopedFixtureState() {
     prop,
     observedFrontier: VersionVector.empty(),
     edgeBirthEvent: new Map([
-      [edgeKey, createEventId(3, 'alice', 'abc1236', 0)],
+      [edgeKey, new EventId(3, 'alice', 'abc1236', 0)],
     ]),
   });
 }
@@ -127,15 +127,15 @@ describe('VisibleStateScopeV1', () => {
     const state = buildScopedFixtureState();
     const aliveEdgeKey = encodeEdgeKey('task:1', 'comparison-artifact:cmp-1', 'governs');
     const deadEdgeKey = encodeEdgeKey('task:1', 'comparison-artifact:cmp-1', 'stale');
-    const deadDot = createDot('alice', 99);
+    const deadDot = Dot.create('alice', 99);
     state.edgeAlive.add(deadEdgeKey, deadDot);
     state.edgeAlive.remove(new Set([encodeDot(deadDot)]));
 
     state.prop.set(
       encodeEdgePropKey('task:1', 'comparison-artifact:cmp-1', 'stale', 'via'),
-      lwwSet(createEventId(99, 'alice', 'abc1299', 0), 'obsolete'),
+      lwwSet(new EventId(99, 'alice', 'abc1299', 0), 'obsolete'),
     );
-    state.edgeBirthEvent.set(deadEdgeKey, createEventId(99, 'alice', 'abc1299', 0));
+    state.edgeBirthEvent.set(deadEdgeKey, new EventId(99, 'alice', 'abc1299', 0));
 
     const scope = normalizeVisibleStateScopeV1({
       nodeIdPrefixes: {

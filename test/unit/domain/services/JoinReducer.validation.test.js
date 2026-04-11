@@ -12,8 +12,8 @@ import {
   applyOpV2,
   reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.ts';
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import PatchError from '../../../../src/domain/errors/PatchError.ts';
 
@@ -37,7 +37,7 @@ describe('JoinReducer validation', () => {
   describe('C2 — unknown op types', () => {
     it('silently ignores unknown op type in applyOpV2', () => {
       const state = createEmptyState();
-      const eventId = createEventId(1, 'w1', 'a'.repeat(40), 0);
+      const eventId = new EventId(1, 'w1', 'a'.repeat(40), 0);
 
       // Should not throw
       applyOpV2(state, /** @type {any} */ ({ type: 'FutureOp', data: 42 }), eventId);
@@ -48,7 +48,7 @@ describe('JoinReducer validation', () => {
 
     it('silently ignores unknown op type in reduceV5', () => {
       const entry = makePatchEntry([
-        { type: 'NodeAdd', node: 'node:a', dot: createDot('w1', 1) },
+        { type: 'NodeAdd', node: 'node:a', dot: Dot.create('w1', 1) },
         { type: 'UnknownFutureOp', payload: {} },
       ]);
 
@@ -92,7 +92,7 @@ describe('JoinReducer validation', () => {
 
     it('throws PatchError for NodeAdd missing node', () => {
       const entry = makePatchEntry([
-        { type: 'NodeAdd', dot: createDot('w1', 1) /* missing node */ },
+        { type: 'NodeAdd', dot: Dot.create('w1', 1) /* missing node */ },
       ]);
 
       expect(() => reduceV5([entry], undefined, { receipts: true })).toThrow(PatchError);
@@ -118,21 +118,21 @@ describe('JoinReducer validation', () => {
 
     it('throws PatchError for null op', () => {
       const state = createEmptyState();
-      const eventId = createEventId(1, 'w1', 'a'.repeat(40), 0);
+      const eventId = new EventId(1, 'w1', 'a'.repeat(40), 0);
 
       expect(() => applyOpV2(state, /** @type {any} */ (null), eventId)).toThrow(PatchError);
     });
 
     it('throws PatchError for op without type field', () => {
       const state = createEmptyState();
-      const eventId = createEventId(1, 'w1', 'a'.repeat(40), 0);
+      const eventId = new EventId(1, 'w1', 'a'.repeat(40), 0);
 
       expect(() => applyOpV2(state, /** @type {any} */ ({ node: 'x' }), eventId)).toThrow(PatchError);
     });
 
     it('throws PatchError for op with non-string type', () => {
       const state = createEmptyState();
-      const eventId = createEventId(1, 'w1', 'a'.repeat(40), 0);
+      const eventId = new EventId(1, 'w1', 'a'.repeat(40), 0);
 
       expect(() => applyOpV2(state, /** @type {any} */ ({ type: 42 }), eventId)).toThrow(PatchError);
     });
@@ -140,15 +140,15 @@ describe('JoinReducer validation', () => {
 
   describe('C3 — per-op-type validation', () => {
     const state = () => createEmptyState();
-    const eid = createEventId(1, 'w1', 'a'.repeat(40), 0);
+    const eid = new EventId(1, 'w1', 'a'.repeat(40), 0);
 
     describe('NodeAdd', () => {
       it('throws when node is missing', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'NodeAdd', dot: createDot('w1', 1) }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'NodeAdd', dot: Dot.create('w1', 1) }), eid)).toThrow(PatchError);
       });
 
       it('throws when node is not a string', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'NodeAdd', node: 123, dot: createDot('w1', 1) }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'NodeAdd', node: 123, dot: Dot.create('w1', 1) }), eid)).toThrow(PatchError);
       });
 
       it('throws when dot is missing', () => {
@@ -185,15 +185,15 @@ describe('JoinReducer validation', () => {
 
     describe('EdgeAdd', () => {
       it('throws when from is missing', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'EdgeAdd', to: 'b', label: 'l', dot: createDot('w', 1) }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'EdgeAdd', to: 'b', label: 'l', dot: Dot.create('w', 1) }), eid)).toThrow(PatchError);
       });
 
       it('throws when to is missing', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'EdgeAdd', from: 'a', label: 'l', dot: createDot('w', 1) }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'EdgeAdd', from: 'a', label: 'l', dot: Dot.create('w', 1) }), eid)).toThrow(PatchError);
       });
 
       it('throws when label is missing', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'EdgeAdd', from: 'a', to: 'b', dot: createDot('w', 1) }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'EdgeAdd', from: 'a', to: 'b', dot: Dot.create('w', 1) }), eid)).toThrow(PatchError);
       });
 
       it('throws when dot is missing', () => {

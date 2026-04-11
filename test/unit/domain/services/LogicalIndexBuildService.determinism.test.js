@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
 import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.ts';
 import { LabelShard } from '../../../../src/domain/artifacts/LabelShard.ts';
 import { EdgeShard } from '../../../../src/domain/artifacts/EdgeShard.ts';
@@ -24,15 +24,15 @@ function buildState(nodes, edges) {
 
   for (const nodeId of nodes) {
     applyOpV2(state,
-      { type: 'NodeAdd', node: nodeId, dot: createDot(writer, lamport) },
-      createEventId(lamport, writer, sha, opIdx++));
+      { type: 'NodeAdd', node: nodeId, dot: Dot.create(writer, lamport) },
+      new EventId(lamport, writer, sha, opIdx++));
     lamport++;
   }
 
   for (const { from, to, label } of edges) {
     applyOpV2(state,
-      { type: 'EdgeAdd', from, to, label, dot: createDot(writer, lamport) },
-      createEventId(lamport, writer, sha, opIdx++));
+      { type: 'EdgeAdd', from, to, label, dot: Dot.create(writer, lamport) },
+      new EventId(lamport, writer, sha, opIdx++));
     lamport++;
   }
 

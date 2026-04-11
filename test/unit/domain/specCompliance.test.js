@@ -3,7 +3,7 @@ import { computeStateHashV5 } from '../../../src/domain/services/state/StateSeri
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { createEmptyState, join as joinState } from '../../../src/domain/services/JoinReducer.ts';
-import { createDot } from '../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 import { encode, decode } from '../../../src/infrastructure/codecs/CborCodec.js';
 
@@ -17,7 +17,7 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
   describe('computeStateHashV5 is deterministic', () => {
     it('returns identical hash when called twice on the same state', async () => {
       const state = createEmptyState();
-      const dot = createDot('w1', 1);
+      const dot = Dot.create('w1', 1);
       state.nodeAlive.add('node:a', dot);
 
       const hash1 = await computeStateHashV5(state, { crypto, codec });
@@ -29,12 +29,12 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
     it('returns identical hash for structurally equivalent states', async () => {
       // Build two identical states independently
       const stateA = createEmptyState();
-      stateA.nodeAlive.add('node:x', createDot('w1', 1));
-      stateA.nodeAlive.add('node:y', createDot('w2', 1));
+      stateA.nodeAlive.add('node:x', Dot.create('w1', 1));
+      stateA.nodeAlive.add('node:y', Dot.create('w2', 1));
 
       const stateB = createEmptyState();
-      stateB.nodeAlive.add('node:x', createDot('w1', 1));
-      stateB.nodeAlive.add('node:y', createDot('w2', 1));
+      stateB.nodeAlive.add('node:x', Dot.create('w1', 1));
+      stateB.nodeAlive.add('node:y', Dot.create('w2', 1));
 
       const hashA = await computeStateHashV5(stateA, { crypto, codec });
       const hashB = await computeStateHashV5(stateB, { crypto, codec });
@@ -49,12 +49,12 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
   describe('orsetJoin is commutative', () => {
     it('a.join(b) equals b.join(a) for entries and tombstones', () => {
       const a = ORSet.empty();
-      a.add('node:1', createDot('alice', 1));
-      a.add('node:2', createDot('alice', 2));
+      a.add('node:1', Dot.create('alice', 1));
+      a.add('node:2', Dot.create('alice', 2));
 
       const b = ORSet.empty();
-      b.add('node:2', createDot('bob', 1));
-      b.add('node:3', createDot('bob', 2));
+      b.add('node:2', Dot.create('bob', 1));
+      b.add('node:3', Dot.create('bob', 2));
       // Add a tombstone in b
       b.tombstones.add('alice:2');
 
@@ -127,7 +127,7 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
         writer: 'alice',
         lamport: 1,
         ops: [
-          { type: 'NodeAdd', node: 'A', dot: createDot('alice', 1) },
+          { type: 'NodeAdd', node: 'A', dot: Dot.create('alice', 1) },
         ],
         context: {},
       };
@@ -138,7 +138,7 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
         writer: 'bob',
         lamport: 1,
         ops: [
-          { type: 'NodeAdd', node: 'B', dot: createDot('bob', 1) },
+          { type: 'NodeAdd', node: 'B', dot: Dot.create('bob', 1) },
         ],
         context: {},
       };

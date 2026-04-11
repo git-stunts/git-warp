@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import WarpCore from '../../src/domain/WarpCore.ts';
-import { createDot } from '../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
 
 /** @typedef {any} WarpCoreRuntime */
@@ -199,7 +199,7 @@ export async function seedDetachedReadBenchmarkFixture({
       writerId,
       lamport,
       ops: [
-        { type: 'NodeAdd', node: `task:${index}`, dot: createDot(writerId, lamport) },
+        { type: 'NodeAdd', node: `task:${index}`, dot: Dot.create(writerId, lamport) },
         { type: 'PropSet', node: `task:${index}`, key: 'status', value: index <= captureAt ? 'captured' : 'live' },
         { type: 'PropSet', node: `task:${index}`, key: 'ordinal', value: index },
       ],

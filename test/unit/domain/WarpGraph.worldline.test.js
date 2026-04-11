@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import WarpCore from '../../../src/domain/WarpCore.ts';
-import { createDot } from '../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
 import { createStateReaderV5 } from '../../../src/domain/services/state/StateReaderV5.js';
@@ -171,7 +171,7 @@ describe('WarpCore worldline surface', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -206,7 +206,7 @@ describe('WarpCore worldline surface', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -239,7 +239,7 @@ describe('WarpCore worldline surface', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -273,11 +273,11 @@ describe('WarpCore worldline surface', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'user:alice', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'user:alice', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'user:alice', key: 'role', value: 'admin' },
-        { type: 'NodeAdd', node: 'user:bob', dot: createDot('alice', 2) },
+        { type: 'NodeAdd', node: 'user:bob', dot: Dot.create('alice', 2) },
         { type: 'PropSet', node: 'user:bob', key: 'role', value: 'member' },
-        { type: 'EdgeAdd', from: 'user:alice', to: 'user:bob', label: 'manages', dot: createDot('alice', 3) },
+        { type: 'EdgeAdd', from: 'user:alice', to: 'user:bob', label: 'manages', dot: Dot.create('alice', 3) },
       ],
     });
     const frontierAtInitial = await graph.getFrontier();
@@ -330,7 +330,7 @@ describe('WarpCore worldline surface', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -371,7 +371,7 @@ describe('WarpCore worldline surface', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });

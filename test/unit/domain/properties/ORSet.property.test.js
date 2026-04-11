@@ -1,7 +1,7 @@
 import { describe, it } from 'vitest';
 import fc from 'fast-check';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 
 // ============================================================================
 // Arbitraries for generating random ORSets
@@ -13,7 +13,7 @@ import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 const dotArb = fc.record({
   writerId: fc.stringMatching(/^[a-z]{1,5}$/),
   counter: fc.integer({ min: 1, max: 100 }),
-}).map(({ writerId, counter }) => createDot(writerId, counter));
+}).map(({ writerId, counter }) => Dot.create(writerId, counter));
 
 /**
  * Arbitrary for generating element identifiers

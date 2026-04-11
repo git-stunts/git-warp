@@ -25,7 +25,7 @@ function createPropSetV2(node, key, value) { return new PropSet(node, key, value
 const reduceV5 = _reduceV5;
 /** @param {unknown} value */
 function createInlineValue(value) { return { type: 'inline', value }; }
-import { createDot, encodeDot } from '../../src/domain/crdt/Dot.ts';
+import { Dot, encodeDot } from '../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
 import ORSet from '../../src/domain/crdt/ORSet.ts';
 import {
@@ -100,21 +100,21 @@ function generateV5Patches(patchCount, options = {}) {
       if (opType < 40) {
         // 40% - NodeAdd
         nextCounter++;
-        const dot = createDot(writer, nextCounter);
+        const dot = Dot.create(writer, nextCounter);
         ops.push(createNodeAddV2(nodeId, dot));
         nodePool.push({ id: nodeId, dot: encodeDot(dot) });
       } else if (opType < 60) {
         // 20% - EdgeAdd (if we have nodes)
         if (nodePool.length >= 2) {
           nextCounter++;
-          const dot = createDot(writer, nextCounter);
+          const dot = Dot.create(writer, nextCounter);
           const from = /** @type {{id: string, dot: string}} */ (nodePool[Math.floor(rng.next() * nodePool.length)]).id;
           const to = /** @type {{id: string, dot: string}} */ (nodePool[Math.floor(rng.next() * nodePool.length)]).id;
           ops.push(createEdgeAddV2(from, to, 'link', dot));
         } else {
           // Fall back to NodeAdd if not enough nodes
           nextCounter++;
-          const dot = createDot(writer, nextCounter);
+          const dot = Dot.create(writer, nextCounter);
           ops.push(createNodeAddV2(nodeId, dot));
           nodePool.push({ id: nodeId, dot: encodeDot(dot) });
         }
@@ -126,7 +126,7 @@ function generateV5Patches(patchCount, options = {}) {
         } else {
           // Add node first if pool empty
           nextCounter++;
-          const dot = createDot(writer, nextCounter);
+          const dot = Dot.create(writer, nextCounter);
           ops.push(createNodeAddV2(nodeId, dot));
           nodePool.push({ id: nodeId, dot: encodeDot(dot) });
         }
@@ -145,7 +145,7 @@ function generateV5Patches(patchCount, options = {}) {
       } else {
         // If removes disabled, fall back to NodeAdd
         nextCounter++;
-        const dot = createDot(writer, nextCounter);
+        const dot = Dot.create(writer, nextCounter);
         ops.push(createNodeAddV2(nodeId, dot));
         nodePool.push({ id: nodeId, dot: encodeDot(dot) });
       }

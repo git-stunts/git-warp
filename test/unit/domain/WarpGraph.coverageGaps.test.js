@@ -4,7 +4,7 @@ import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
-import { createDot } from '../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 const crypto = new NodeCryptoAdapter();
@@ -238,7 +238,7 @@ describe('WarpRuntime coverage gaps', () => {
       /** @type {any} */ (graph)._cachedState = createEmptyState();
 
       const otherState = createEmptyState();
-      const dot = createDot('writer-2', 1);
+      const dot = Dot.create('writer-2', 1);
       otherState.nodeAlive.add('user:alice', dot);
 
       const { receipt } = graph.join(otherState);
@@ -261,7 +261,7 @@ describe('WarpRuntime coverage gaps', () => {
       /** @type {any} */ (graph)._stateDirty = false;
 
       const otherState = createEmptyState();
-      const dot = createDot('writer-2', 1);
+      const dot = Dot.create('writer-2', 1);
       otherState.nodeAlive.add('user:alice', dot);
 
       graph.join(otherState);
@@ -286,7 +286,7 @@ describe('WarpRuntime coverage gaps', () => {
       /** @type {any} */ (graph)._stateDirty = false;
 
       const otherState = createEmptyState();
-      const dot = createDot('writer-2', 1);
+      const dot = Dot.create('writer-2', 1);
       otherState.nodeAlive.add('user:alice', dot);
 
       graph.join(otherState);
@@ -304,20 +304,20 @@ describe('WarpRuntime coverage gaps', () => {
       });
 
       const baseState = createEmptyState();
-      const dotA = createDot('writer-1', 1);
-      const dotB = createDot('writer-1', 2);
+      const dotA = Dot.create('writer-1', 1);
+      const dotB = Dot.create('writer-1', 2);
       baseState.nodeAlive.add('user:alice', dotA);
       baseState.nodeAlive.add('user:bob', dotB);
-      const edgeDot = createDot('writer-1', 3);
+      const edgeDot = Dot.create('writer-1', 3);
       baseState.edgeAlive.add('user:alice\0user:bob\0knows', edgeDot);
       /** @type {any} */ (graph)._cachedState = baseState;
       /** @type {any} */ (graph)._stateDirty = false;
 
       const otherState = createEmptyState();
-      const dotC = createDot('writer-2', 1);
+      const dotC = Dot.create('writer-2', 1);
       otherState.nodeAlive.add('user:alice', dotC);
       otherState.nodeAlive.add('user:bob', dotC);
-      const edgeDot2 = createDot('writer-2', 2);
+      const edgeDot2 = Dot.create('writer-2', 2);
       otherState.edgeAlive.add('user:alice\0user:bob\0knows', edgeDot2);
 
       graph.join(otherState);
@@ -417,7 +417,7 @@ describe('WarpRuntime coverage gaps', () => {
           {
             type: 'NodeAdd',
             node: 'user:alice',
-            dot: createDot('writer-1', 1),
+            dot: Dot.create('writer-1', 1),
           },
         ],
       };
@@ -462,7 +462,7 @@ describe('WarpRuntime coverage gaps', () => {
           {
             type: 'NodeAdd',
             node: 'user:bob',
-            dot: createDot('writer-1', 2),
+            dot: Dot.create('writer-1', 2),
           },
         ],
       };
@@ -588,7 +588,7 @@ describe('WarpRuntime coverage gaps', () => {
 
       // Set up state with a node that has a dot (so metrics show entries)
       const state = createEmptyState();
-      const dot = createDot('writer-1', 1);
+      const dot = Dot.create('writer-1', 1);
       state.nodeAlive.add('user:alice', dot);
       /** @type {any} */ (graph)._cachedState = state;
 
@@ -628,7 +628,7 @@ describe('WarpRuntime coverage gaps', () => {
       });
 
       const state = createEmptyState();
-      const dot = createDot('writer-1', 1);
+      const dot = Dot.create('writer-1', 1);
       state.nodeAlive.add('user:alice', dot);
       /** @type {any} */ (graph)._cachedState = state;
 
@@ -1030,7 +1030,7 @@ describe('WarpRuntime coverage gaps', () => {
         writerId: 'writer-1',
         lamport: 1,
         patchOid,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot('writer-1', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create('writer-1', 1) }],
       });
 
       persistence.listRefs.mockResolvedValue(['refs/warp/test-graph/writers/writer-1']);

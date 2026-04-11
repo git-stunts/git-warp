@@ -7,7 +7,7 @@ import { createFrontier, updateFrontier } from '../../../../src/domain/services/
 import { createV5 } from '../../../../src/domain/services/state/CheckpointService.js';
 import { createEmptyState, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { CONTENT_PROPERTY_KEY, encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
 import InMemoryBlobStorageAdapter from '../../../../src/domain/utils/defaultBlobStorage.ts';
@@ -96,7 +96,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
 
   for (let i = 0; i < contentIds.length; i++) {
     const nodeId = `n${i}`;
-    state.nodeAlive.add(nodeId, createDot('alice', i + 1));
+    state.nodeAlive.add(nodeId, Dot.create('alice', i + 1));
     propItems.push({
       key: encodePropKeyV5(nodeId, CONTENT_PROPERTY_KEY),
       value: makeOid(/** @type {number} */ (contentIds[i])),
@@ -109,7 +109,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
     });
   }
 
-  state.nodeAlive.add('dup', createDot('alice', contentIds.length + 1));
+  state.nodeAlive.add('dup', Dot.create('alice', contentIds.length + 1));
   propItems.push({
     key: encodePropKeyV5('dup', CONTENT_PROPERTY_KEY),
     value: makeOid(/** @type {number} */ (contentIds[0])),
@@ -127,7 +127,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
     const edgeLabel = 'rel';
     state.edgeAlive.add(
       encodeEdgeKeyV5(edgeFrom, edgeTo, edgeLabel),
-      createDot('alice', contentIds.length + 2),
+      Dot.create('alice', contentIds.length + 2),
     );
     propItems.push({
       key: encodeEdgePropKey(edgeFrom, edgeTo, edgeLabel, CONTENT_PROPERTY_KEY),

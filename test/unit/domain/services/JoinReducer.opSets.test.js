@@ -9,8 +9,8 @@ import OpValidator from '../../../../src/domain/services/OpValidator.ts';
 const { RAW_KNOWN_OPS, CANONICAL_KNOWN_OPS } = OpValidator;
 const isKnownRawOp = OpValidator.isKnownRaw.bind(OpValidator);
 const isKnownCanonicalOp = OpValidator.isKnownCanonical.bind(OpValidator);
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 
 // ---------------------------------------------------------------------------
 // ADR 2 Tripwire — Op Set Membership Tests
@@ -123,9 +123,9 @@ describe('JoinReducer op sets (ADR 2 tripwire)', () => {
   describe('applyOpV2 accepts canonical ops internally', () => {
     it('applies NodePropSet', () => {
       const state = createEmptyState();
-      const dot = createDot('w1', 1);
-      const addEid = createEventId(1, 'w1', 'a'.repeat(40), 0);
-      const propEid = createEventId(2, 'w1', 'b'.repeat(40), 0);
+      const dot = Dot.create('w1', 1);
+      const addEid = new EventId(1, 'w1', 'a'.repeat(40), 0);
+      const propEid = new EventId(2, 'w1', 'b'.repeat(40), 0);
       applyOpV2(state, { type: 'NodeAdd', node: 'x', dot }, addEid);
       applyOpV2(state, { type: 'NodePropSet', node: 'x', key: 'color', value: 'blue' }, propEid);
 
@@ -135,9 +135,9 @@ describe('JoinReducer op sets (ADR 2 tripwire)', () => {
 
     it('applies EdgePropSet', () => {
       const state = createEmptyState();
-      const dot = createDot('w1', 1);
-      const addEid = createEventId(1, 'w1', 'a'.repeat(40), 0);
-      const propEid = createEventId(2, 'w1', 'b'.repeat(40), 0);
+      const dot = Dot.create('w1', 1);
+      const addEid = new EventId(1, 'w1', 'a'.repeat(40), 0);
+      const propEid = new EventId(2, 'w1', 'b'.repeat(40), 0);
       applyOpV2(state, { type: 'NodeAdd', node: 'a', dot }, addEid);
       applyOpV2(state, { type: 'NodeAdd', node: 'b', dot }, addEid);
       applyOpV2(state, { type: 'EdgeAdd', from: 'a', to: 'b', label: 'rel', dot }, addEid);

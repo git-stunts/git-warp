@@ -18,7 +18,7 @@ import { encodePatchMessage } from '../../src/domain/services/codec/WarpMessageC
 import { createEmptyState, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
-import { createDot } from '../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../src/domain/crdt/Dot.ts';
 /** @param {unknown} value */
 function createInlineValue(value) { return { type: 'inline', value }; }
 
@@ -248,7 +248,7 @@ export function createPopulatedMockPersistence(commits, graphName = 'test-graph'
  *   graphName: 'test',
  *   writerId: 'alice',
  *   lamport: 1,
- *   ops: [createNodeAddV2('user:alice', createDot('alice', 1))],
+ *   ops: [createNodeAddV2('user:alice', Dot.create('alice', 1))],
  *   reads: [],
  *   writes: ['user:alice'],
  * }, oidGen.next);
@@ -371,11 +371,11 @@ export function createMockPatch({
  * Creates a NodeAdd operation for V2 patches.
  *
  * @param {string} node - Node ID
- * @param {any} dot - Dot from createDot()
+ * @param {any} dot - Dot from Dot.create()
  * @returns {any} NodeAdd operation
  *
  * @example
- * createNodeAddV2('user:alice', createDot('alice', 1))
+ * createNodeAddV2('user:alice', Dot.create('alice', 1))
  */
 export function createNodeAddV2(node, dot) {
   return { type: 'NodeAdd', node, dot };
@@ -388,7 +388,7 @@ export function createNodeAddV2(node, dot) {
  * @returns {any} NodeRemove operation
  *
  * @example
- * createNodeRemoveV2([createDot('alice', 1)])
+ * createNodeRemoveV2([Dot.create('alice', 1)])
  */
 export function createNodeRemoveV2(observedDots) {
   return { type: 'NodeRemove', observedDots };
@@ -402,7 +402,7 @@ export function createNodeRemoveV2(observedDots) {
  * @returns {any} NodeTombstone operation
  *
  * @example
- * createNodeTombstoneV2('user:alice', [createDot('alice', 1)])
+ * createNodeTombstoneV2('user:alice', [Dot.create('alice', 1)])
  */
 export function createNodeTombstoneV2(node, observedDots) {
   return { type: 'NodeTombstone', node, observedDots };
@@ -414,11 +414,11 @@ export function createNodeTombstoneV2(node, observedDots) {
  * @param {string} from - Source node ID
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
- * @param {any} dot - Dot from createDot()
+ * @param {any} dot - Dot from Dot.create()
  * @returns {any} EdgeAdd operation
  *
  * @example
- * createEdgeAddV2('user:alice', 'user:bob', 'follows', createDot('alice', 1))
+ * createEdgeAddV2('user:alice', 'user:bob', 'follows', Dot.create('alice', 1))
  */
 export function createEdgeAddV2(from, to, label, dot) {
   return { type: 'EdgeAdd', from, to, label, dot };
@@ -434,7 +434,7 @@ export function createEdgeAddV2(from, to, label, dot) {
  * @returns {any} EdgeTombstone operation
  *
  * @example
- * createEdgeTombstoneV2('user:alice', 'user:bob', 'follows', [createDot('alice', 1)])
+ * createEdgeTombstoneV2('user:alice', 'user:bob', 'follows', [Dot.create('alice', 1)])
  */
 export function createEdgeTombstoneV2(from, to, label, observedDots) {
   return { type: 'EdgeTombstone', from, to, label, observedDots };
@@ -473,7 +473,7 @@ export function createPropSetV2(node, key, value) {
  * createPatch({
  *   writer: 'alice',
  *   lamport: 1,
- *   ops: [createNodeAddV2('user:alice', createDot('alice', 1))],
+ *   ops: [createNodeAddV2('user:alice', Dot.create('alice', 1))],
  * })
  */
 export function createPatch({ writer, lamport, ops, context }) {
@@ -502,7 +502,7 @@ export function createSamplePatches() {
       patch: createPatch({
         writer: 'A',
         lamport: 1,
-        ops: [createNodeAddV2('node-a', createDot('A', 1))],
+        ops: [createNodeAddV2('node-a', Dot.create('A', 1))],
       }),
       sha: generateOidFromNumber(0xaaaa1111),
     },
@@ -510,7 +510,7 @@ export function createSamplePatches() {
       patch: createPatch({
         writer: 'B',
         lamport: 2,
-        ops: [createNodeAddV2('node-b', createDot('B', 1))],
+        ops: [createNodeAddV2('node-b', Dot.create('B', 1))],
       }),
       sha: generateOidFromNumber(0xbbbb2222),
     },
@@ -519,7 +519,7 @@ export function createSamplePatches() {
         writer: 'C',
         lamport: 3,
         ops: [
-          createEdgeAddV2('node-a', 'node-b', 'connects', createDot('C', 1)),
+          createEdgeAddV2('node-a', 'node-b', 'connects', Dot.create('C', 1)),
           createPropSetV2('node-a', 'name', createInlineValue('Alice')),
         ],
       }),
@@ -654,7 +654,7 @@ export function createInMemoryRepo() {
  * @param {string} [writerId='w1'] - Writer ID for the dot
  */
 export function addNodeToState(state, nodeId, counter, writerId = 'w1') {
-  state.nodeAlive.add(nodeId, createDot(writerId, counter));
+  state.nodeAlive.add(nodeId, Dot.create(writerId, counter));
 }
 
 /**
@@ -669,7 +669,7 @@ export function addNodeToState(state, nodeId, counter, writerId = 'w1') {
  */
 export function addEdgeToState(state, from, to, label, counter, writerId = 'w1') {
   const edgeKey = encodeEdgeKey(from, to, label);
-  state.edgeAlive.add(edgeKey, createDot(writerId, counter));
+  state.edgeAlive.add(edgeKey, Dot.create(writerId, counter));
 }
 
 /**
@@ -700,7 +700,7 @@ export function setupGraphState(graph, seedFn) {
 // ============================================================================
 
 // Re-export commonly used CRDT helpers so tests can import from one place
-export { createDot } from '../../src/domain/crdt/Dot.ts';
+export { Dot } from '../../src/domain/crdt/Dot.ts';
 export { default as VersionVector } from '../../src/domain/crdt/VersionVector.ts';
 export { createInlineValue };
 export { createEmptyState, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';

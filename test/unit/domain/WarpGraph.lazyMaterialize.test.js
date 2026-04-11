@@ -22,7 +22,7 @@ import QueryError from '../../../src/domain/errors/QueryError.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
 import { createEmptyState, encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
-import { createDot } from '../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
 const FAKE_BLOB_OID = 'a'.repeat(40);
@@ -290,7 +290,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
     it('querying state with data works after materialize + manual seed', async () => {
       await graph.materialize();
       const state = /** @type {any} */ (graph)._cachedState;
-      state.nodeAlive.add('test:alice', createDot('w1', 1));
+      state.nodeAlive.add('test:alice', Dot.create('w1', 1));
 
       expect(await graph.hasNode('test:alice')).toBe(true);
       expect(await graph.getNodes()).toContain('test:alice');
@@ -358,9 +358,9 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
       const state = /** @type {any} */ (graph)._cachedState;
 
       // Seed data
-      state.nodeAlive.add('test:alice', createDot('w1', 1));
-      state.nodeAlive.add('test:bob', createDot('w1', 2));
-      state.edgeAlive.add(encodeEdgeKey('test:alice', 'test:bob', 'knows'), createDot('w1', 3));
+      state.nodeAlive.add('test:alice', Dot.create('w1', 1));
+      state.nodeAlive.add('test:bob', Dot.create('w1', 2));
+      state.edgeAlive.add(encodeEdgeKey('test:alice', 'test:bob', 'knows'), Dot.create('w1', 3));
       const propKey = encodePropKey('test:alice', 'name');
       state.prop.set(propKey, { value: 'Alice', lamport: 1, writerId: 'w1' });
 
@@ -427,9 +427,9 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
       // We need to mock materialize to return a pre-seeded state so it
       // does not get overwritten on each call (same pattern as queryBuilder tests).
       const state = createEmptyState();
-      state.nodeAlive.add('test:alice', createDot('w1', 1));
-      state.nodeAlive.add('test:bob', createDot('w1', 2));
-      state.edgeAlive.add(encodeEdgeKey('test:alice', 'test:bob', 'follows'), createDot('w1', 3));
+      state.nodeAlive.add('test:alice', Dot.create('w1', 1));
+      state.nodeAlive.add('test:bob', Dot.create('w1', 2));
+      state.edgeAlive.add(encodeEdgeKey('test:alice', 'test:bob', 'follows'), Dot.create('w1', 3));
 
       /** @type {any} */ (graph)._cachedState = state;
       graph.materialize = vi.fn().mockResolvedValue(state);
@@ -539,11 +539,11 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
       // traverse._prepare() calls _materializeGraph() -> materialize(), so
       // we mock materialize to return a pre-seeded state (same pattern as traverse tests).
       const state = createEmptyState();
-      state.nodeAlive.add('test:a', createDot('w1', 1));
-      state.nodeAlive.add('test:b', createDot('w1', 2));
-      state.nodeAlive.add('test:c', createDot('w1', 3));
-      state.edgeAlive.add(encodeEdgeKey('test:a', 'test:b', 'x'), createDot('w1', 4));
-      state.edgeAlive.add(encodeEdgeKey('test:b', 'test:c', 'x'), createDot('w1', 5));
+      state.nodeAlive.add('test:a', Dot.create('w1', 1));
+      state.nodeAlive.add('test:b', Dot.create('w1', 2));
+      state.nodeAlive.add('test:c', Dot.create('w1', 3));
+      state.edgeAlive.add(encodeEdgeKey('test:a', 'test:b', 'x'), Dot.create('w1', 4));
+      state.edgeAlive.add(encodeEdgeKey('test:b', 'test:c', 'x'), Dot.create('w1', 5));
 
       /** @type {any} */ (graph)._cachedState = state;
       graph.materialize = vi.fn().mockResolvedValue(state);
@@ -554,9 +554,9 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     it('traverse.shortestPath works with seeded data after auto-materialize', async () => {
       const state = createEmptyState();
-      state.nodeAlive.add('test:a', createDot('w1', 1));
-      state.nodeAlive.add('test:b', createDot('w1', 2));
-      state.edgeAlive.add(encodeEdgeKey('test:a', 'test:b', 'x'), createDot('w1', 3));
+      state.nodeAlive.add('test:a', Dot.create('w1', 1));
+      state.nodeAlive.add('test:b', Dot.create('w1', 2));
+      state.edgeAlive.add(encodeEdgeKey('test:a', 'test:b', 'x'), Dot.create('w1', 3));
 
       /** @type {any} */ (graph)._cachedState = state;
       graph.materialize = vi.fn().mockResolvedValue(state);

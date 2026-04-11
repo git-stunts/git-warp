@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 
 /** @type {any} */
 
@@ -240,7 +240,7 @@ describe('VersionVector', () => {
   describe('vvContains', () => {
     it('empty vector does not contain any dot', () => {
       const vv = VersionVector.empty();
-      const dot = createDot('alice', 1);
+      const dot = Dot.create('alice', 1);
 
       expect(vv.contains(dot)).toBe(false);
     });
@@ -248,7 +248,7 @@ describe('VersionVector', () => {
     it('contains dot with matching counter', () => {
       const vv = VersionVector.empty();
       vv.set('alice', 2);
-      const dot = createDot('alice', 2);
+      const dot = Dot.create('alice', 2);
 
       expect(vv.contains(dot)).toBe(true);
     });
@@ -256,7 +256,7 @@ describe('VersionVector', () => {
     it('contains dot with smaller counter', () => {
       const vv = VersionVector.empty();
       vv.set('alice', 5);
-      const dot = createDot('alice', 3);
+      const dot = Dot.create('alice', 3);
 
       expect(vv.contains(dot)).toBe(true);
     });
@@ -264,7 +264,7 @@ describe('VersionVector', () => {
     it('does not contain dot with larger counter', () => {
       const vv = VersionVector.empty();
       vv.set('alice', 2);
-      const dot = createDot('alice', 3);
+      const dot = Dot.create('alice', 3);
 
       expect(vv.contains(dot)).toBe(false);
     });
@@ -272,7 +272,7 @@ describe('VersionVector', () => {
     it('does not contain dot for unknown writer', () => {
       const vv = VersionVector.empty();
       vv.set('alice', 2);
-      const dot = createDot('bob', 1);
+      const dot = Dot.create('bob', 1);
 
       expect(vv.contains(dot)).toBe(false);
     });
@@ -467,7 +467,7 @@ describe('VersionVector', () => {
       expect(writer.contains(dot1)).toBe(true);
 
       // But dot 2 doesn't exist yet
-      const futureDot = createDot('writer', 2);
+      const futureDot = Dot.create('writer', 2);
       expect(writer.contains(futureDot)).toBe(false);
 
       // Now create dot 2

@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import WarpCore from '../../../src/domain/WarpCore.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
-import { createDot } from '../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../src/domain/crdt/Dot.ts';
 
 /** @typedef {any} WarpCoreRuntime */
 
@@ -194,7 +194,7 @@ describe('WarpCore.analyzeConflicts()', () => {
   });
 
   it('classifies replay-equivalent redundant writes with loser-level detail', async () => {
-    const dot = createDot('alice', 1);
+    const dot = Dot.create('alice', 1);
     await simulatePatchCommit(persistence, {
       graphName,
       writerId: 'alice',
@@ -262,7 +262,7 @@ describe('WarpCore.analyzeConflicts()', () => {
       graphName,
       writerId: 'charlie',
       lamport: 20,
-      ops: [{ type: 'NodeAdd', node: 'n2', dot: createDot('charlie', 20) }],
+      ops: [{ type: 'NodeAdd', node: 'n2', dot: Dot.create('charlie', 20) }],
     });
 
     const analysis = await graph.analyzeConflicts({ scanBudget: { maxPatches: 1 } });

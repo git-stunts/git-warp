@@ -13,8 +13,8 @@ import {
 } from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
@@ -569,14 +569,14 @@ describe('JoinReducer — edge property LWW', () => {
       applyOpV2(
         stateA,
         new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue(10) }),
-        createEventId(1, 'A', 'aaaa1234', 0)
+        new EventId(1, 'A', 'aaaa1234', 0)
       );
 
       // Apply edge prop in state B at lamport 2
       applyOpV2(
         stateB,
         new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue(20) }),
-        createEventId(2, 'B', 'bbbb1234', 0)
+        new EventId(2, 'B', 'bbbb1234', 0)
       );
 
       const joined = joinStates(stateA, stateB);
@@ -592,12 +592,12 @@ describe('JoinReducer — edge property LWW', () => {
       applyOpV2(
         stateA,
         new EdgePropSet({ from: 'p', to: 'q', label: 'link', key: 'tag', value: createInlineValue('alpha') }),
-        createEventId(5, 'A', 'aaaa1234', 0)
+        new EventId(5, 'A', 'aaaa1234', 0)
       );
       applyOpV2(
         stateB,
         new EdgePropSet({ from: 'p', to: 'q', label: 'link', key: 'tag', value: createInlineValue('beta') }),
-        createEventId(5, 'B', 'bbbb1234', 0)
+        new EventId(5, 'B', 'bbbb1234', 0)
       );
 
       const joinedAB = joinStates(stateA, stateB);
@@ -624,7 +624,7 @@ describe('JoinReducer — edge property LWW', () => {
         writer: 'W',
         lamport: 1,
         ops: [
-          new EdgeAdd({ from: 'a', to: 'b', label: 'rel', dot: createDot('W', 1) }),
+          new EdgeAdd({ from: 'a', to: 'b', label: 'rel', dot: Dot.create('W', 1) }),
           new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'weight', value: createInlineValue(42) }),
         ],
       });
@@ -675,7 +675,7 @@ describe('JoinReducer — edge property LWW', () => {
   describe('applyOpV2 — direct edge PropSet', () => {
     it('applies edge PropSet via applyOpV2', () => {
       const state = createEmptyState();
-      const eventId = createEventId(1, 'W', 'abcd1234', 0);
+      const eventId = new EventId(1, 'W', 'abcd1234', 0);
       const op = new EdgePropSet({ from: 'from', to: 'to', label: 'label', key: 'key', value: createInlineValue('val') });
 
       applyOpV2(state, op, eventId);
@@ -690,12 +690,12 @@ describe('JoinReducer — edge property LWW', () => {
       const op = new EdgePropSet({ from: 'f', to: 't', label: 'l', key: 'k', value: createInlineValue('old') });
 
       // Apply lower EventId first
-      applyOpV2(state, op, createEventId(1, 'W', 'aaaa1234', 0));
+      applyOpV2(state, op, new EventId(1, 'W', 'aaaa1234', 0));
       expect(getEdgeProp(state, 'f', 't', 'l', 'k')).toEqual(createInlineValue('old'));
 
       // Apply higher EventId — should overwrite
       const op2 = new EdgePropSet({ from: 'f', to: 't', label: 'l', key: 'k', value: createInlineValue('new') });
-      applyOpV2(state, op2, createEventId(2, 'W', 'bbbb1234', 0));
+      applyOpV2(state, op2, new EventId(2, 'W', 'bbbb1234', 0));
       expect(getEdgeProp(state, 'f', 't', 'l', 'k')).toEqual(createInlineValue('new'));
     });
 
@@ -704,11 +704,11 @@ describe('JoinReducer — edge property LWW', () => {
 
       // Apply higher EventId first
       const opHigh = new EdgePropSet({ from: 'f', to: 't', label: 'l', key: 'k', value: createInlineValue('winner') });
-      applyOpV2(state, opHigh, createEventId(5, 'W', 'aaaa1234', 0));
+      applyOpV2(state, opHigh, new EventId(5, 'W', 'aaaa1234', 0));
 
       // Apply lower EventId second — should NOT overwrite
       const opLow = new EdgePropSet({ from: 'f', to: 't', label: 'l', key: 'k', value: createInlineValue('loser') });
-      applyOpV2(state, opLow, createEventId(1, 'W', 'bbbb1234', 0));
+      applyOpV2(state, opLow, new EventId(1, 'W', 'bbbb1234', 0));
 
       expect(getEdgeProp(state, 'f', 't', 'l', 'k')).toEqual(createInlineValue('winner'));
     });

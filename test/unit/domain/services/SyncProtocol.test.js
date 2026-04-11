@@ -15,7 +15,7 @@ import {
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
 import { createFrontier } from '../../../../src/domain/services/Frontier.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
@@ -324,12 +324,12 @@ describe('SyncProtocol', () => {
       const patchA = createTestPatch({
         writer: 'w1',
         lamport: 1,
-        ops: [createNodeAddOp('x', createDot('w1', 1))],
+        ops: [createNodeAddOp('x', Dot.create('w1', 1))],
       });
       const patchB = createTestPatch({
         writer: 'w1',
         lamport: 2,
-        ops: [createNodeAddOp('y', createDot('w1', 2))],
+        ops: [createNodeAddOp('y', Dot.create('w1', 2))],
       });
 
       setupCommit(commits, blobs, SHA_A, patchA, OID_A, []);
@@ -400,7 +400,7 @@ describe('SyncProtocol', () => {
       const patch1 = createTestPatch({
         writer: 'w1',
         lamport: 1,
-        ops: [createNodeAddOp('x', createDot('w1', 1))],
+        ops: [createNodeAddOp('x', Dot.create('w1', 1))],
       });
 
       const response = {
@@ -423,13 +423,13 @@ describe('SyncProtocol', () => {
       const patch1 = createTestPatch({
         writer: 'w1',
         lamport: 1,
-        ops: [createNodeAddOp('x', createDot('w1', 1))],
+        ops: [createNodeAddOp('x', Dot.create('w1', 1))],
       });
 
       const patch2 = createTestPatch({
         writer: 'w1',
         lamport: 2,
-        ops: [createNodeAddOp('y', createDot('w1', 2))],
+        ops: [createNodeAddOp('y', Dot.create('w1', 2))],
       });
 
       const response = {
@@ -456,7 +456,7 @@ describe('SyncProtocol', () => {
       const patch = createTestPatch({
         writer: 'w1',
         lamport: 1,
-        ops: [createNodeAddOp('x', createDot('w1', 1))],
+        ops: [createNodeAddOp('x', Dot.create('w1', 1))],
       });
 
       const response = {
@@ -479,13 +479,13 @@ describe('SyncProtocol', () => {
       const patchW1 = createTestPatch({
         writer: 'w1',
         lamport: 1,
-        ops: [createNodeAddOp('x', createDot('w1', 1))],
+        ops: [createNodeAddOp('x', Dot.create('w1', 1))],
       });
 
       const patchW2 = createTestPatch({
         writer: 'w2',
         lamport: 1,
-        ops: [createNodeAddOp('y', createDot('w2', 1))],
+        ops: [createNodeAddOp('y', Dot.create('w2', 1))],
       });
 
       const response = {
@@ -582,19 +582,19 @@ describe('SyncProtocol', () => {
       const patchA1 = createTestPatch({
         writer: 'w1',
         lamport: 1,
-        ops: [createNodeAddOp('x', createDot('w1', 1))],
+        ops: [createNodeAddOp('x', Dot.create('w1', 1))],
       });
       const patchA2 = createTestPatch({
         writer: 'w1',
         lamport: 2,
-        ops: [createNodeAddOp('y', createDot('w1', 2))],
+        ops: [createNodeAddOp('y', Dot.create('w1', 2))],
       });
 
       // Node B has patches from w2
       const patchB1 = createTestPatch({
         writer: 'w2',
         lamport: 1,
-        ops: [createNodeAddOp('nodeA', createDot('w2', 1))],
+        ops: [createNodeAddOp('nodeA', Dot.create('w2', 1))],
       });
 
       // Setup commits and blobs
@@ -656,7 +656,7 @@ describe('SyncProtocol', () => {
       const patch = createTestPatch({
         writer: 'w1',
         lamport: 1,
-        ops: [createNodeAddOp('x', createDot('w1', 1))],
+        ops: [createNodeAddOp('x', Dot.create('w1', 1))],
       });
 
       setupCommit(commits, blobs, SHA_A, patch, OID_A, []);
@@ -703,7 +703,7 @@ describe('SyncProtocol', () => {
         writer: 'alice',
         lamport: 1,
         ops: [
-          { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+          { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
           { type: 'FutureOp', node: 'n2' }, // unknown op
         ],
         context: VersionVector.empty(),
@@ -726,7 +726,7 @@ describe('SyncProtocol', () => {
         writer: 'alice',
         lamport: 1,
         ops: [
-          { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+          { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         ],
         context: VersionVector.empty(),
       });

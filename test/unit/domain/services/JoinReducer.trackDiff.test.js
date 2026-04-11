@@ -8,11 +8,11 @@ import {
 } from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -73,7 +73,7 @@ describe('JoinReducer diff tracking', () => {
     it('fresh node → nodesAdded contains it', () => {
       const state = createEmptyState();
       const patch = makePatch({
-        ops: [nodeAdd('n1', createDot('w1', 1))],
+        ops: [nodeAdd('n1', Dot.create('w1', 1))],
       });
 
       const { state: s, diff } = applyWithDiff(state, patch, 'aaa00001');
@@ -86,13 +86,13 @@ describe('JoinReducer diff tracking', () => {
     it('already-alive node → nodesAdded is empty (redundant add)', () => {
       const state = createEmptyState();
       // Pre-populate: node n1 already alive with dot (w1, 1)
-      state.nodeAlive.add('n1', createDot('w1', 1));
+      state.nodeAlive.add('n1', Dot.create('w1', 1));
 
       // Another add from a different writer — node was already alive
       const patch = makePatch({
         writer: 'w2',
         lamport: 2,
-        ops: [nodeAdd('n1', createDot('w2', 1))],
+        ops: [nodeAdd('n1', Dot.create('w2', 1))],
       });
 
       const { diff } = applyWithDiff(state, patch, 'aaa00002');
@@ -109,7 +109,7 @@ describe('JoinReducer diff tracking', () => {
   describe('applyWithDiff — NodeRemove', () => {
     it('all dots tombstoned → nodesRemoved contains it', () => {
       const state = createEmptyState();
-      const dot = createDot('w1', 1);
+      const dot = Dot.create('w1', 1);
       state.nodeAlive.add('n1', dot);
       expect(state.nodeAlive.contains('n1')).toBe(true);
 
@@ -127,8 +127,8 @@ describe('JoinReducer diff tracking', () => {
 
     it('partial dots removed, node stays alive → nodesRemoved is empty', () => {
       const state = createEmptyState();
-      const dot1 = createDot('w1', 1);
-      const dot2 = createDot('w2', 1);
+      const dot1 = Dot.create('w1', 1);
+      const dot2 = Dot.create('w2', 1);
       state.nodeAlive.add('n1', dot1);
       state.nodeAlive.add('n1', dot2);
       expect(state.nodeAlive.contains('n1')).toBe(true);
@@ -149,8 +149,8 @@ describe('JoinReducer diff tracking', () => {
       const state = createEmptyState();
 
       // n1 is alive, n2 was added and already fully tombstoned (dead)
-      const dot1 = createDot('w1', 1);
-      const dot2 = createDot('w1', 2);
+      const dot1 = Dot.create('w1', 1);
+      const dot2 = Dot.create('w1', 2);
       state.nodeAlive.add('n1', dot1);
       state.nodeAlive.add('n2', dot2);
 
@@ -183,7 +183,7 @@ describe('JoinReducer diff tracking', () => {
     it('fresh edge → edgesAdded contains {from, to, label}', () => {
       const state = createEmptyState();
       const patch = makePatch({
-        ops: [edgeAdd('a', 'b', 'rel', createDot('w1', 1))],
+        ops: [edgeAdd('a', 'b', 'rel', Dot.create('w1', 1))],
       });
 
       const { state: s, diff } = applyWithDiff(state, patch, 'ccc00001');
@@ -197,13 +197,13 @@ describe('JoinReducer diff tracking', () => {
     it('already-alive edge → edgesAdded is empty (redundant add)', () => {
       const state = createEmptyState();
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-      state.edgeAlive.add(edgeKey, createDot('w1', 1));
+      state.edgeAlive.add(edgeKey, Dot.create('w1', 1));
 
       // Another add from different writer — edge was already alive
       const patch = makePatch({
         writer: 'w2',
         lamport: 2,
-        ops: [edgeAdd('a', 'b', 'rel', createDot('w2', 1))],
+        ops: [edgeAdd('a', 'b', 'rel', Dot.create('w2', 1))],
       });
 
       const { diff } = applyWithDiff(state, patch, 'ccc00002');
@@ -220,7 +220,7 @@ describe('JoinReducer diff tracking', () => {
   describe('applyWithDiff — EdgeRemove', () => {
     it('all dots tombstoned → edgesRemoved contains {from, to, label}', () => {
       const state = createEmptyState();
-      const dot = createDot('w1', 1);
+      const dot = Dot.create('w1', 1);
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
       state.edgeAlive.add(edgeKey, dot);
 
@@ -238,8 +238,8 @@ describe('JoinReducer diff tracking', () => {
 
     it('partial dots removed, edge stays alive → edgesRemoved is empty', () => {
       const state = createEmptyState();
-      const dot1 = createDot('w1', 1);
-      const dot2 = createDot('w2', 1);
+      const dot1 = Dot.create('w1', 1);
+      const dot2 = Dot.create('w2', 1);
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
       state.edgeAlive.add(edgeKey, dot1);
       state.edgeAlive.add(edgeKey, dot2);
@@ -259,8 +259,8 @@ describe('JoinReducer diff tracking', () => {
     it('redundant remove of already-dead edge produces no spurious diff (H4)', () => {
       const state = createEmptyState();
 
-      const dot1 = createDot('w1', 1);
-      const dot2 = createDot('w1', 2);
+      const dot1 = Dot.create('w1', 1);
+      const dot2 = Dot.create('w1', 2);
       const ek1 = encodeEdgeKey('a', 'b', 'rel');
       const ek2 = encodeEdgeKey('c', 'd', 'rel');
       state.edgeAlive.add(ek1, dot1);
@@ -307,7 +307,7 @@ describe('JoinReducer diff tracking', () => {
       const state = createEmptyState();
       // Pre-populate: property n1.color = 'red' at lamport=1
       const propKey = encodePropKey('n1', 'color');
-      const oldEventId = createEventId(1, 'w1', 'aaa00000', 0);
+      const oldEventId = new EventId(1, 'w1', 'aaa00000', 0);
       state.prop.set(propKey, { eventId: oldEventId, value: 'red' });
 
       // New patch with higher lamport overwrites
@@ -327,7 +327,7 @@ describe('JoinReducer diff tracking', () => {
       const state = createEmptyState();
       // Pre-populate: property n1.color = 'red' at lamport=10
       const propKey = encodePropKey('n1', 'color');
-      const highEventId = createEventId(10, 'w1', 'fff00000', 0);
+      const highEventId = new EventId(10, 'w1', 'fff00000', 0);
       state.prop.set(propKey, { eventId: highEventId, value: 'red' });
 
       // New patch with lower lamport — should be superseded
@@ -354,9 +354,9 @@ describe('JoinReducer diff tracking', () => {
 
       const patch = makePatch({
         ops: [
-          nodeAdd('n1', createDot('w1', 1)),
-          nodeAdd('n2', createDot('w1', 2)),
-          edgeAdd('n1', 'n2', 'knows', createDot('w1', 3)),
+          nodeAdd('n1', Dot.create('w1', 1)),
+          nodeAdd('n2', Dot.create('w1', 2)),
+          edgeAdd('n1', 'n2', 'knows', Dot.create('w1', 3)),
           propSet('n1', 'name', 'Alice'),
         ],
       });
@@ -378,7 +378,7 @@ describe('JoinReducer diff tracking', () => {
       const { diff } = applyWithDiff(state, makePatch({
         ops: [
           /** @type {any} */ (undefined),
-          nodeAdd('n1', createDot('w1', 1)),
+          nodeAdd('n1', Dot.create('w1', 1)),
         ],
       }), 'fff00002');
 
@@ -400,7 +400,7 @@ describe('JoinReducer diff tracking', () => {
             writer: 'w1',
             lamport: 1,
             ops: [
-              nodeAdd('n1', createDot('w1', 1)),
+              nodeAdd('n1', Dot.create('w1', 1)),
               propSet('n1', 'color', 'red'),
             ],
           }),
@@ -411,8 +411,8 @@ describe('JoinReducer diff tracking', () => {
             writer: 'w1',
             lamport: 2,
             ops: [
-              nodeAdd('n2', createDot('w1', 2)),
-              edgeAdd('n1', 'n2', 'link', createDot('w1', 3)),
+              nodeAdd('n2', Dot.create('w1', 2)),
+              edgeAdd('n1', 'n2', 'link', Dot.create('w1', 3)),
             ],
           }),
           sha: 'aa000002',
@@ -435,7 +435,7 @@ describe('JoinReducer diff tracking', () => {
       const patches = [
         {
           patch: makePatch({
-            ops: [nodeAdd('n1', createDot('w1', 1))],
+            ops: [nodeAdd('n1', Dot.create('w1', 1))],
           }),
           sha: 'aa100001',
         },
@@ -456,7 +456,7 @@ describe('JoinReducer diff tracking', () => {
       const patches = [
         {
           patch: makePatch({
-            ops: [nodeAdd('x', createDot('w1', 1))],
+            ops: [nodeAdd('x', Dot.create('w1', 1))],
           }),
           sha: 'aa200001',
         },
@@ -492,9 +492,9 @@ describe('JoinReducer diff tracking', () => {
     it('trackDiff with initialState applies patches incrementally', () => {
       // Create initial state with node n1 and prop color=red
       const initial = createEmptyState();
-      initial.nodeAlive.add('n1', createDot('w1', 1));
+      initial.nodeAlive.add('n1', Dot.create('w1', 1));
       const propKey = encodePropKey('n1', 'color');
-      const oldEventId = createEventId(1, 'w1', 'a0a00001', 0);
+      const oldEventId = new EventId(1, 'w1', 'a0a00001', 0);
       initial.prop.set(propKey, { eventId: oldEventId, value: 'red' });
 
       const patches = [
@@ -504,7 +504,7 @@ describe('JoinReducer diff tracking', () => {
             lamport: 5,
             ops: [
               propSet('n1', 'color', 'blue'),
-              nodeAdd('n2', createDot('w1', 5)),
+              nodeAdd('n2', Dot.create('w1', 5)),
             ],
           }),
           sha: 'aa300001',
@@ -526,7 +526,7 @@ describe('JoinReducer diff tracking', () => {
       const patches = [
         {
           patch: makePatch({
-            ops: [nodeAdd('n1', createDot('w1', 1))],
+            ops: [nodeAdd('n1', Dot.create('w1', 1))],
           }),
           sha: 'aa400001',
         },

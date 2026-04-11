@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import WarpCore from '../../../src/domain/WarpCore.ts';
-import { createDot } from '../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { createStateReaderV5 } from '../../../src/domain/services/state/StateReaderV5.js';
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
@@ -166,7 +166,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: { tone: 'red' } },
       ],
     });
@@ -199,7 +199,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -234,7 +234,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -277,7 +277,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -329,7 +329,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -365,7 +365,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -409,7 +409,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });
@@ -450,7 +450,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });

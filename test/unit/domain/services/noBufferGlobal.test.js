@@ -3,8 +3,8 @@ import LogicalIndexReader from '../../../../src/domain/services/index/LogicalInd
 import IncrementalIndexUpdater from '../../../../src/domain/services/index/IncrementalIndexUpdater.js';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
 import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 
 /**
@@ -20,21 +20,21 @@ function buildState() {
   for (const nodeId of ['A', 'B']) {
     applyOpV2(
       state,
-      { type: 'NodeAdd', node: nodeId, dot: createDot(writer, lamport) },
-      createEventId(lamport, writer, sha, opIdx++),
+      { type: 'NodeAdd', node: nodeId, dot: Dot.create(writer, lamport) },
+      new EventId(lamport, writer, sha, opIdx++),
     );
     lamport++;
   }
   applyOpV2(
     state,
-    { type: 'EdgeAdd', from: 'A', to: 'B', label: 'knows', dot: createDot(writer, lamport) },
-    createEventId(lamport, writer, sha, opIdx++),
+    { type: 'EdgeAdd', from: 'A', to: 'B', label: 'knows', dot: Dot.create(writer, lamport) },
+    new EventId(lamport, writer, sha, opIdx++),
   );
   lamport++;
   applyOpV2(
     state,
     { type: 'PropSet', node: 'A', key: 'name', value: 'Alice' },
-    createEventId(lamport, writer, sha, opIdx++),
+    new EventId(lamport, writer, sha, opIdx++),
   );
 
   return state;

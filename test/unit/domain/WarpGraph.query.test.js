@@ -14,7 +14,7 @@ import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import QueryError from '../../../src/domain/errors/QueryError.ts';
 import { encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
-import { createDot } from '../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../src/domain/crdt/Dot.ts';
 
 describe('WarpRuntime Query API', () => {
   /** @type {any} */
@@ -55,7 +55,7 @@ describe('WarpRuntime Query API', () => {
 
       // Manually add a node to cached state for testing
       const state = /** @type {any} */ (graph)._cachedState;
-      state.nodeAlive.add('user:alice', createDot('w1', 1));
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
 
       expect(await graph.hasNode('user:alice')).toBe(true);
     });
@@ -79,7 +79,7 @@ describe('WarpRuntime Query API', () => {
     it('returns empty record for node with no props', async () => {
       await graph.materialize();
       const state = /** @type {any} */ (graph)._cachedState;
-      state.nodeAlive.add('user:alice', createDot('w1', 1));
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
 
       const props = await graph.getNodeProps('user:alice');
       expect(Object.keys(props).length).toBe(0);
@@ -90,7 +90,7 @@ describe('WarpRuntime Query API', () => {
       const state = /** @type {any} */ (graph)._cachedState;
 
       // Add node
-      state.nodeAlive.add('user:alice', createDot('w1', 1));
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
 
       // Add properties using LWW registers directly
       const propKey1 = encodePropKey('user:alice', 'name');
@@ -109,7 +109,7 @@ describe('WarpRuntime Query API', () => {
       await graph.materialize();
       const state = /** @type {any} */ (graph)._cachedState;
 
-      state.nodeAlive.add('user:alice', createDot('w1', 1));
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
       const propKey = encodePropKey('user:alice', 'name');
       state.prop.set(propKey, { value: 'Alice', lamport: 1, writerId: 'w1' });
 
@@ -133,7 +133,7 @@ describe('WarpRuntime Query API', () => {
     it('returns empty array for node with no edges', async () => {
       await graph.materialize();
       const state = /** @type {any} */ (graph)._cachedState;
-      state.nodeAlive.add('user:alice', createDot('w1', 1));
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
 
       expect(await graph.neighbors('user:alice')).toEqual([]);
     });
@@ -143,12 +143,12 @@ describe('WarpRuntime Query API', () => {
       const state = /** @type {any} */ (graph)._cachedState;
 
       // Add nodes
-      state.nodeAlive.add('user:alice', createDot('w1', 1));
-      state.nodeAlive.add('user:bob', createDot('w1', 2));
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+      state.nodeAlive.add('user:bob', Dot.create('w1', 2));
 
       // Add edge: alice --follows--> bob
       const edgeKey = encodeEdgeKey('user:alice', 'user:bob', 'follows');
-      state.edgeAlive.add(edgeKey, createDot('w1', 3));
+      state.edgeAlive.add(edgeKey, Dot.create('w1', 3));
 
       const outgoing = await graph.neighbors('user:alice', 'outgoing');
       expect(outgoing).toHaveLength(1);
@@ -164,12 +164,12 @@ describe('WarpRuntime Query API', () => {
       const state = /** @type {any} */ (graph)._cachedState;
 
       // Add nodes
-      state.nodeAlive.add('user:alice', createDot('w1', 1));
-      state.nodeAlive.add('user:bob', createDot('w1', 2));
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+      state.nodeAlive.add('user:bob', Dot.create('w1', 2));
 
       // Add edge: alice --follows--> bob
       const edgeKey = encodeEdgeKey('user:alice', 'user:bob', 'follows');
-      state.edgeAlive.add(edgeKey, createDot('w1', 3));
+      state.edgeAlive.add(edgeKey, Dot.create('w1', 3));
 
       const incoming = await graph.neighbors('user:bob', 'incoming');
       expect(incoming).toHaveLength(1);
@@ -185,14 +185,14 @@ describe('WarpRuntime Query API', () => {
       const state = /** @type {any} */ (graph)._cachedState;
 
       // Add nodes
-      state.nodeAlive.add('user:alice', createDot('w1', 1));
-      state.nodeAlive.add('user:bob', createDot('w1', 2));
-      state.nodeAlive.add('user:carol', createDot('w1', 3));
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+      state.nodeAlive.add('user:bob', Dot.create('w1', 2));
+      state.nodeAlive.add('user:carol', Dot.create('w1', 3));
 
       // alice --follows--> bob
-      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:bob', 'follows'), createDot('w1', 4));
+      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:bob', 'follows'), Dot.create('w1', 4));
       // carol --follows--> alice
-      state.edgeAlive.add(encodeEdgeKey('user:carol', 'user:alice', 'follows'), createDot('w1', 5));
+      state.edgeAlive.add(encodeEdgeKey('user:carol', 'user:alice', 'follows'), Dot.create('w1', 5));
 
       const neighbors = await graph.neighbors('user:alice');
       expect(neighbors).toHaveLength(2);
@@ -205,14 +205,14 @@ describe('WarpRuntime Query API', () => {
       const state = /** @type {any} */ (graph)._cachedState;
 
       // Add nodes
-      state.nodeAlive.add('user:alice', createDot('w1', 1));
-      state.nodeAlive.add('user:bob', createDot('w1', 2));
-      state.nodeAlive.add('user:carol', createDot('w1', 3));
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+      state.nodeAlive.add('user:bob', Dot.create('w1', 2));
+      state.nodeAlive.add('user:carol', Dot.create('w1', 3));
 
       // alice --follows--> bob
-      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:bob', 'follows'), createDot('w1', 4));
+      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:bob', 'follows'), Dot.create('w1', 4));
       // alice --blocks--> carol
-      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:carol', 'blocks'), createDot('w1', 5));
+      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:carol', 'blocks'), Dot.create('w1', 5));
 
       const follows = await graph.neighbors('user:alice', 'outgoing', 'follows');
       expect(follows).toHaveLength(1);
@@ -224,10 +224,10 @@ describe('WarpRuntime Query API', () => {
       const state = /** @type {any} */ (graph)._cachedState;
 
       // Add only alice (bob is NOT added)
-      state.nodeAlive.add('user:alice', createDot('w1', 1));
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
 
       // Add edge to non-existent bob
-      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:bob', 'follows'), createDot('w1', 2));
+      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:bob', 'follows'), Dot.create('w1', 2));
 
       // Should not return bob since it doesn't exist
       const neighbors = await graph.neighbors('user:alice', 'outgoing');
@@ -238,9 +238,9 @@ describe('WarpRuntime Query API', () => {
       await graph.materialize();
       const state = /** @type {any} */ (graph)._cachedState;
 
-      state.nodeAlive.add('user:alice', createDot('w1', 1));
-      state.nodeAlive.add('user:bob', createDot('w1', 2));
-      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:bob', 'follows'), createDot('w1', 3));
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+      state.nodeAlive.add('user:bob', Dot.create('w1', 2));
+      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:bob', 'follows'), Dot.create('w1', 3));
 
       /** @type {any} */ (graph)._logicalIndex = { isAlive: () => true };
       /** @type {any} */ (graph)._materializedGraph = {
@@ -274,9 +274,9 @@ describe('WarpRuntime Query API', () => {
       await graph.materialize();
       const state = /** @type {any} */ (graph)._cachedState;
 
-      state.nodeAlive.add('node-a', createDot('w1', 1));
-      state.nodeAlive.add('node-b', createDot('w1', 2));
-      state.nodeAlive.add('node-c', createDot('w1', 3));
+      state.nodeAlive.add('node-a', Dot.create('w1', 1));
+      state.nodeAlive.add('node-b', Dot.create('w1', 2));
+      state.nodeAlive.add('node-c', Dot.create('w1', 3));
 
       const nodes = await graph.getNodes();
       expect(nodes).toHaveLength(3);
@@ -301,13 +301,13 @@ describe('WarpRuntime Query API', () => {
       const state = /** @type {any} */ (graph)._cachedState;
 
       // Add nodes
-      state.nodeAlive.add('a', createDot('w1', 1));
-      state.nodeAlive.add('b', createDot('w1', 2));
-      state.nodeAlive.add('c', createDot('w1', 3));
+      state.nodeAlive.add('a', Dot.create('w1', 1));
+      state.nodeAlive.add('b', Dot.create('w1', 2));
+      state.nodeAlive.add('c', Dot.create('w1', 3));
 
       // Add edges
-      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'e1'), createDot('w1', 4));
-      state.edgeAlive.add(encodeEdgeKey('b', 'c', 'e2'), createDot('w1', 5));
+      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'e1'), Dot.create('w1', 4));
+      state.edgeAlive.add(encodeEdgeKey('b', 'c', 'e2'), Dot.create('w1', 5));
 
       const edges = await graph.getEdges();
       expect(edges).toHaveLength(2);
@@ -320,10 +320,10 @@ describe('WarpRuntime Query API', () => {
       const state = /** @type {any} */ (graph)._cachedState;
 
       // Only add 'a' node
-      state.nodeAlive.add('a', createDot('w1', 1));
+      state.nodeAlive.add('a', Dot.create('w1', 1));
 
       // Add edge to non-existent 'b'
-      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'e1'), createDot('w1', 2));
+      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'e1'), Dot.create('w1', 2));
 
       const edges = await graph.getEdges();
       expect(edges).toHaveLength(0);

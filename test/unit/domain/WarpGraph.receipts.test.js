@@ -13,7 +13,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encodePropKey, encodeEdgeKey } from '../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
-import { createDot, encodeDot } from '../../../src/domain/crdt/Dot.ts';
+import { Dot, encodeDot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 
 // ---------------------------------------------------------------------------
@@ -201,7 +201,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
         graphName,
         writerId,
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot(writerId, 1) }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create(writerId, 1) }],
       });
 
       const { state, receipts } = await graph.materialize({ receipts: true });
@@ -215,7 +215,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
     });
 
     it('same node added twice by same writer → second is redundant', async () => {
-      const dot = createDot(writerId, 1);
+      const dot = Dot.create(writerId, 1);
       // First commit
       await simulatePatchCommit(persistence, {
         graphName,
@@ -297,7 +297,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
 
   describe('NodeTombstone receipts', () => {
     it('removing existing node → applied', async () => {
-      const dot = createDot(writerId, 1);
+      const dot = Dot.create(writerId, 1);
       const encoded = encodeDot(dot);
 
       await simulatePatchCommit(persistence, {
@@ -322,7 +322,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
     });
 
     it('removing non-existent node → redundant', async () => {
-      const dot = createDot('phantom', 99);
+      const dot = Dot.create('phantom', 99);
       const encoded = encodeDot(dot);
 
       await simulatePatchCommit(persistence, {
@@ -350,7 +350,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
         graphName,
         writerId,
         lamport: 1,
-        ops: [{ type: 'EdgeAdd', from: 'a', to: 'b', label: 'knows', dot: createDot(writerId, 1) }],
+        ops: [{ type: 'EdgeAdd', from: 'a', to: 'b', label: 'knows', dot: Dot.create(writerId, 1) }],
       });
 
       const { receipts } = await graph.materialize({ receipts: true });
@@ -362,7 +362,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
     });
 
     it('removing existing edge → applied', async () => {
-      const dot = createDot(writerId, 1);
+      const dot = Dot.create(writerId, 1);
       const encoded = encodeDot(dot);
 
       await simulatePatchCommit(persistence, {
@@ -398,7 +398,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
           graphName,
           writerId,
           lamport: i,
-          ops: [{ type: 'NodeAdd', node: `n${i}`, dot: createDot(writerId, i) }],
+          ops: [{ type: 'NodeAdd', node: `n${i}`, dot: Dot.create(writerId, i) }],
         });
       }
 
@@ -427,7 +427,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
         graphName,
         writerId,
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'n1', dot: createDot(writerId, 1) }],
+        ops: [{ type: 'NodeAdd', node: 'n1', dot: Dot.create(writerId, 1) }],
       });
 
       // Materialize without receipts
@@ -471,9 +471,9 @@ describe('WarpRuntime.materialize() with receipts', () => {
         writerId: 'alice',
         lamport: 5,
         ops: [
-          { type: 'NodeAdd', node: 'shared', dot: createDot('alice', 1) },
+          { type: 'NodeAdd', node: 'shared', dot: Dot.create('alice', 1) },
           { type: 'PropSet', node: 'shared', key: 'owner', value: 'Alice' },
-          { type: 'EdgeAdd', from: 'shared', to: 'target', label: 'link', dot: createDot('alice', 2) },
+          { type: 'EdgeAdd', from: 'shared', to: 'target', label: 'link', dot: Dot.create('alice', 2) },
         ],
       });
 
@@ -483,7 +483,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
         writerId: 'bob',
         lamport: 2,
         ops: [
-          { type: 'NodeAdd', node: 'shared', dot: createDot('bob', 1) },
+          { type: 'NodeAdd', node: 'shared', dot: Dot.create('bob', 1) },
           { type: 'PropSet', node: 'shared', key: 'owner', value: 'Bob' },
         ],
       });
@@ -521,7 +521,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
         graphName,
         writerId,
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'n1', dot: createDot(writerId, 1) }],
+        ops: [{ type: 'NodeAdd', node: 'n1', dot: Dot.create(writerId, 1) }],
       });
 
       const { state } = await graph.materialize({ receipts: true });
@@ -542,7 +542,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
         graphName,
         writerId,
         lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'n1', dot: createDot(writerId, 1) }],
+        ops: [{ type: 'NodeAdd', node: 'n1', dot: Dot.create(writerId, 1) }],
       });
 
       await graph.materialize({ receipts: true });

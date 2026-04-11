@@ -32,7 +32,7 @@ import {
   createNodeAddV2,
   createPatch,
   createSamplePatches,
-  createDot,
+  Dot,
   createInlineValue,
 } from '../../../helpers/warpGraphTestUtils.js';
 
@@ -465,7 +465,7 @@ describe('BoundaryTransitionRecord', () => {
           patch: createPatch({
             writer: `writer-${i % 10}`,
             lamport: i + 1,
-            ops: [createNodeAddV2(`node-${i}`, createDot(`writer-${i % 10}`, i + 1))],
+            ops: [createNodeAddV2(`node-${i}`, Dot.create(`writer-${i % 10}`, i + 1))],
           }),
           sha: `a${i.toString(16).padStart(39, '0')}`, // 40-char hex SHA
         });

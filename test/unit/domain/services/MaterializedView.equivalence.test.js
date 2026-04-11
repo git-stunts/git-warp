@@ -16,8 +16,8 @@ import {
   reduceV5,
 } from '../../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { decodeEdgeKey } from '../../../../src/domain/services/KeyCodec.js';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
@@ -76,7 +76,7 @@ function generatePatches(seed) {
       if (roll < 0.3) {
         // NodeAdd
         const nodeId = pick(rng, NODE_IDS);
-        const dot = createDot(writer, lamport * 100 + o);
+        const dot = Dot.create(writer, lamport * 100 + o);
         ops.push({ type: 'NodeAdd', node: nodeId, dot });
       } else if (roll < 0.45 && aliveNodes.length > 0) {
         // NodeRemove
@@ -94,7 +94,7 @@ function generatePatches(seed) {
         const from = pick(rng, aliveNodes);
         const to = pick(rng, aliveNodes);
         const label = pick(rng, LABELS);
-        const dot = createDot(writer, lamport * 100 + o);
+        const dot = Dot.create(writer, lamport * 100 + o);
         ops.push({ type: 'EdgeAdd', from, to, label, dot });
       } else if (roll < 0.8 && aliveEdgeKeys.length > 0) {
         // EdgeRemove
@@ -119,7 +119,7 @@ function generatePatches(seed) {
       } else {
         // Fallback: NodeAdd
         const nodeId = pick(rng, NODE_IDS);
-        const dot = createDot(writer, lamport * 100 + o);
+        const dot = Dot.create(writer, lamport * 100 + o);
         ops.push({ type: 'NodeAdd', node: nodeId, dot });
       }
     }
@@ -138,7 +138,7 @@ function generatePatches(seed) {
 
     // Update tracking state so future removals are meaningful
     for (let i = 0; i < ops.length; i++) {
-      const eventId = createEventId(lamport, writer, sha, i);
+      const eventId = new EventId(lamport, writer, sha, i);
       applyOpV2(trackState, /** @type {typeof ops[0]} */ (ops[i]), eventId);
     }
   }
@@ -375,16 +375,16 @@ describe('MaterializedView equivalence', () => {
           writer,
           lamport: 1,
           ops: [
-            { type: 'NodeAdd', node: '__proto__', dot: createDot(writer, 1) },
-            { type: 'NodeAdd', node: 'constructor', dot: createDot(writer, 2) },
-            { type: 'NodeAdd', node: 'toString', dot: createDot(writer, 3) },
-            { type: 'NodeAdd', node: 'normal', dot: createDot(writer, 4) },
+            { type: 'NodeAdd', node: '__proto__', dot: Dot.create(writer, 1) },
+            { type: 'NodeAdd', node: 'constructor', dot: Dot.create(writer, 2) },
+            { type: 'NodeAdd', node: 'toString', dot: Dot.create(writer, 3) },
+            { type: 'NodeAdd', node: 'normal', dot: Dot.create(writer, 4) },
             {
               type: 'EdgeAdd',
               from: '__proto__',
               to: 'constructor',
               label: 'knows',
-              dot: createDot(writer, 5),
+              dot: Dot.create(writer, 5),
             },
             {
               type: 'PropSet',

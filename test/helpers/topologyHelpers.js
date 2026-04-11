@@ -9,8 +9,8 @@
  */
 
 import { createEmptyState, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
-import { createDot } from '../../src/domain/crdt/Dot.ts';
-import { createEventId } from '../../src/domain/utils/EventId.ts';
+import { Dot } from '../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../src/domain/utils/EventId.ts';
 
 /**
  * Creates a WarpState-compatible state representing a circular graph of n nodes.
@@ -36,8 +36,8 @@ export function createCircular(n) {
   // Add nodes
   for (let i = 0; i < n; i++) {
     const nodeId = `n${i}`;
-    const dot = createDot(writer, lamport);
-    const eventId = createEventId(lamport, writer, sha, opIdx++);
+    const dot = Dot.create(writer, lamport);
+    const eventId = new EventId(lamport, writer, sha, opIdx++);
     applyOpV2(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
     lamport++;
   }
@@ -46,8 +46,8 @@ export function createCircular(n) {
   for (let i = 0; i < n; i++) {
     const from = `n${i}`;
     const to = `n${(i + 1) % n}`;
-    const dot = createDot(writer, lamport);
-    const eventId = createEventId(lamport, writer, sha, opIdx++);
+    const dot = Dot.create(writer, lamport);
+    const eventId = new EventId(lamport, writer, sha, opIdx++);
     applyOpV2(state, { type: 'EdgeAdd', from, to, label: 'edge', dot }, eventId);
     lamport++;
   }
@@ -89,16 +89,16 @@ export function createDiamond() {
 
   // Add nodes
   for (const nodeId of nodes) {
-    const dot = createDot(writer, lamport);
-    const eventId = createEventId(lamport, writer, sha, opIdx++);
+    const dot = Dot.create(writer, lamport);
+    const eventId = new EventId(lamport, writer, sha, opIdx++);
     applyOpV2(state, { type: 'NodeAdd', node: nodeId, dot }, eventId);
     lamport++;
   }
 
   // Add edges
   for (const { from, to } of edges) {
-    const dot = createDot(writer, lamport);
-    const eventId = createEventId(lamport, writer, sha, opIdx++);
+    const dot = Dot.create(writer, lamport);
+    const eventId = new EventId(lamport, writer, sha, opIdx++);
     applyOpV2(state, { type: 'EdgeAdd', from, to, label: 'edge', dot }, eventId);
     lamport++;
   }

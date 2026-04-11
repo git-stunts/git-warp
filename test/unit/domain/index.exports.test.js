@@ -57,7 +57,6 @@ import WarpAppDefault, {
   createPropSet,
   createInlineValue,
   createBlobValue,
-  createEventId,
   createStateReaderV5,
   compareVisibleStateV5,
   normalizeVisibleStateScopeV1,
@@ -334,23 +333,6 @@ describe('index.js exports', () => {
       expect(typeof createBlobValue).toBe('function');
       const ref = createBlobValue('abc123def456');
       expect(ref).toEqual({ type: 'blob', oid: 'abc123def456' });
-    });
-
-    it('exports createEventId', () => {
-      expect(createEventId).toBeDefined();
-      expect(typeof createEventId).toBe('function');
-      const eventId = createEventId({
-        lamport: 5,
-        writerId: 'node-1',
-        patchSha: 'abc123',
-        opIndex: 2,
-      });
-      expect(eventId).toEqual({
-        lamport: 5,
-        writerId: 'node-1',
-        patchSha: 'abc123',
-        opIndex: 2,
-      });
     });
 
     it('exports createStateReaderV5', () => {

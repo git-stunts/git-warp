@@ -8,7 +8,7 @@
  */
 
 import { normalizeRawOp, OP_STRATEGIES } from '../JoinReducer.ts';
-import { createEventId } from '../../utils/EventId.ts';
+import { EventId } from '../../utils/EventId.ts';
 import { decodeEdgeKey } from '../KeyCodec.js';
 import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
 import ConflictResolution from '../../types/conflict/ConflictResolution.ts';
@@ -377,7 +377,7 @@ async function buildOpRecord(service, { frame, opIndex, receiptOpIndex, canonOp,
     target, patchSha: sha, writerId: patch.writer, lamport: patch.lamport,
     opIndex, receiptOpIndex, opType: receiptOpType, receiptResult: receiptOutcome.result,
     receiptReason: receiptOutcome.reason, effectDigest,
-    eventId: createEventId(patch.lamport, patch.writer, sha, opIndex), context, patchOrder,
+    eventId: new EventId(patch.lamport, patch.writer, sha, opIndex), context, patchOrder,
   });
 }
 

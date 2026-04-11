@@ -1,8 +1,8 @@
 import { vi } from 'vitest';
-import { createDot, encodeDot } from '../../src/domain/crdt/Dot.ts';
+import { Dot, encodeDot } from '../../src/domain/crdt/Dot.ts';
 import ORSet from '../../src/domain/crdt/ORSet.ts';
 import { applyOpV2, createEmptyState, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
-import { createEventId } from '../../src/domain/utils/EventId.ts';
+import { EventId } from '../../src/domain/utils/EventId.ts';
 
 /**
  * @typedef {import('../../src/domain/services/JoinReducer.ts').WarpState} WarpState
@@ -70,8 +70,8 @@ export class StateBuilder {
     const counter = this._takeCounter(options.counter);
     const lamport = this._takeLamport(options.lamport, counter);
     return {
-      dot: createDot(writerId, counter),
-      eventId: createEventId(lamport, writerId, options.patchSha || 'aabbccdd', options.opIndex || 0),
+      dot: Dot.create(writerId, counter),
+      eventId: new EventId(lamport, writerId, options.patchSha || 'aabbccdd', options.opIndex || 0),
     };
   }
 
@@ -90,7 +90,7 @@ export class StateBuilder {
       if (typeof value === 'string') {
         return value;
       }
-      return encodeDot(createDot(value.writerId, value.counter));
+      return encodeDot(Dot.create(value.writerId, value.counter));
     }));
   }
 

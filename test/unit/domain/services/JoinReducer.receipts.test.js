@@ -8,10 +8,10 @@ import {
 } from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 
 // ---------------------------------------------------------------------------
@@ -66,7 +66,7 @@ describe('JoinReducer receipts', () => {
     it('returns state directly when collectReceipts is falsy', () => {
       const state = createEmptyState();
       const patch = makePatch({
-        ops: [nodeAdd('n1', createDot('w1', 1))],
+        ops: [nodeAdd('n1', Dot.create('w1', 1))],
       });
       const result = /** @type {any} */ (join(state, patch, 'abcd1234'));
       // Returns the state object directly (not wrapped)
@@ -90,7 +90,7 @@ describe('JoinReducer receipts', () => {
     it('returns { state, receipt } when collectReceipts is true', () => {
       const state = createEmptyState();
       const patch = makePatch({
-        ops: [nodeAdd('n1', createDot('w1', 1))],
+        ops: [nodeAdd('n1', Dot.create('w1', 1))],
       });
       const result = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(result).toHaveProperty('state');
@@ -103,7 +103,7 @@ describe('JoinReducer receipts', () => {
       const patch = makePatch({
         writer: 'alice',
         lamport: 42,
-        ops: [nodeAdd('n1', createDot('alice', 1))],
+        ops: [nodeAdd('n1', Dot.create('alice', 1))],
       });
       const { receipt } = /** @type {any} */ (join(state, patch, 'deadbeef', true));
       expect(receipt.patchSha).toBe('deadbeef');
@@ -114,7 +114,7 @@ describe('JoinReducer receipts', () => {
     it('receipt is frozen', () => {
       const state = createEmptyState();
       const patch = makePatch({
-        ops: [nodeAdd('n1', createDot('w1', 1))],
+        ops: [nodeAdd('n1', Dot.create('w1', 1))],
       });
       const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(Object.isFrozen(receipt)).toBe(true);
@@ -137,7 +137,7 @@ describe('JoinReducer receipts', () => {
     it('new node → applied', () => {
       const state = createEmptyState();
       const patch = makePatch({
-        ops: [nodeAdd('n1', createDot('w1', 1))],
+        ops: [nodeAdd('n1', Dot.create('w1', 1))],
       });
       const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0]).toEqual({
@@ -149,7 +149,7 @@ describe('JoinReducer receipts', () => {
 
     it('same dot added again → redundant', () => {
       const state = createEmptyState();
-      const dot = createDot('w1', 1);
+      const dot = Dot.create('w1', 1);
       // Pre-add the dot
       state.nodeAlive.add('n1', dot);
 
@@ -162,11 +162,11 @@ describe('JoinReducer receipts', () => {
 
     it('different dot for same node → applied', () => {
       const state = createEmptyState();
-      state.nodeAlive.add('n1', createDot('w1', 1));
+      state.nodeAlive.add('n1', Dot.create('w1', 1));
 
       const patch = makePatch({
         writer: 'w2',
-        ops: [nodeAdd('n1', createDot('w2', 1))],
+        ops: [nodeAdd('n1', Dot.create('w2', 1))],
       });
       const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0].result).toBe('applied');
@@ -180,7 +180,7 @@ describe('JoinReducer receipts', () => {
   describe('NodeRemove receipt outcomes', () => {
     it('removing existing dot → applied', () => {
       const state = createEmptyState();
-      const dot = createDot('w1', 1);
+      const dot = Dot.create('w1', 1);
       state.nodeAlive.add('n1', dot);
       const encoded = encodeDot(dot);
 
@@ -196,7 +196,7 @@ describe('JoinReducer receipts', () => {
 
     it('removing already-tombstoned dot → redundant', () => {
       const state = createEmptyState();
-      const dot = createDot('w1', 1);
+      const dot = Dot.create('w1', 1);
       state.nodeAlive.add('n1', dot);
       const encoded = encodeDot(dot);
       // Tombstone it first
@@ -211,7 +211,7 @@ describe('JoinReducer receipts', () => {
 
     it('removing non-existent dot → redundant', () => {
       const state = createEmptyState();
-      const encoded = encodeDot(createDot('w1', 99));
+      const encoded = encodeDot(Dot.create('w1', 99));
 
       const patch = makePatch({
         ops: [nodeRemove('n1', new Set([encoded]))],
@@ -229,7 +229,7 @@ describe('JoinReducer receipts', () => {
     it('new edge → applied', () => {
       const state = createEmptyState();
       const patch = makePatch({
-        ops: [edgeAdd('a', 'b', 'rel', createDot('w1', 1))],
+        ops: [edgeAdd('a', 'b', 'rel', Dot.create('w1', 1))],
       });
       const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0]).toEqual({
@@ -241,7 +241,7 @@ describe('JoinReducer receipts', () => {
 
     it('same edge dot added again → redundant', () => {
       const state = createEmptyState();
-      const dot = createDot('w1', 1);
+      const dot = Dot.create('w1', 1);
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
       state.edgeAlive.add(edgeKey, dot);
 
@@ -260,7 +260,7 @@ describe('JoinReducer receipts', () => {
   describe('EdgeRemove receipt outcomes', () => {
     it('removing existing edge dot → applied', () => {
       const state = createEmptyState();
-      const dot = createDot('w1', 1);
+      const dot = Dot.create('w1', 1);
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
       state.edgeAlive.add(edgeKey, dot);
       const encoded = encodeDot(dot);
@@ -277,7 +277,7 @@ describe('JoinReducer receipts', () => {
 
     it('removing already-tombstoned edge dot → redundant', () => {
       const state = createEmptyState();
-      const dot = createDot('w1', 1);
+      const dot = Dot.create('w1', 1);
       const edgeKey = encodeEdgeKey('a', 'b', 'rel');
       state.edgeAlive.add(edgeKey, dot);
       const encoded = encodeDot(dot);
@@ -313,7 +313,7 @@ describe('JoinReducer receipts', () => {
       const state = createEmptyState();
       // Pre-set a property at lamport 1
       const key = encodePropKey('n1', 'name');
-      const existingEventId = createEventId(1, 'w1', 'aaaa1111', 0);
+      const existingEventId = new EventId(1, 'w1', 'aaaa1111', 0);
       state.prop.set(key, lwwSet(existingEventId, 'OldName'));
 
       const patch = makePatch({
@@ -329,7 +329,7 @@ describe('JoinReducer receipts', () => {
       const state = createEmptyState();
       const key = encodePropKey('n1', 'name');
       // Pre-set at lamport 10
-      const existingEventId = createEventId(10, 'w1', 'aaaa1111', 0);
+      const existingEventId = new EventId(10, 'w1', 'aaaa1111', 0);
       state.prop.set(key, lwwSet(existingEventId, 'Winner'));
 
       const patch = makePatch({
@@ -348,7 +348,7 @@ describe('JoinReducer receipts', () => {
       const state = createEmptyState();
       const key = encodePropKey('n1', 'name');
       // Pre-set with exact same EventId (same lamport, writer, sha, opIndex)
-      const existingEventId = createEventId(1, 'w1', 'abcd1234', 0);
+      const existingEventId = new EventId(1, 'w1', 'abcd1234', 0);
       state.prop.set(key, lwwSet(existingEventId, 'Value'));
 
       const patch = makePatch({
@@ -372,7 +372,7 @@ describe('JoinReducer receipts', () => {
           patch: makePatch({
             writer: 'w1',
             lamport: 1,
-            ops: [nodeAdd('n1', createDot('w1', 1))],
+            ops: [nodeAdd('n1', Dot.create('w1', 1))],
           }),
           sha: 'abcd1234',
         },
@@ -388,7 +388,7 @@ describe('JoinReducer receipts', () => {
       const patches = [
         {
           patch: makePatch({
-            ops: [nodeAdd('n1', createDot('w1', 1))],
+            ops: [nodeAdd('n1', Dot.create('w1', 1))],
           }),
           sha: 'abcd1234',
         },
@@ -403,7 +403,7 @@ describe('JoinReducer receipts', () => {
       const patches = [
         {
           patch: makePatch({
-            ops: [nodeAdd('n1', createDot('w1', 1))],
+            ops: [nodeAdd('n1', Dot.create('w1', 1))],
           }),
           sha: 'abcd1234',
         },
@@ -419,7 +419,7 @@ describe('JoinReducer receipts', () => {
           patch: makePatch({
             writer: 'w1',
             lamport: 1,
-            ops: [nodeAdd('n1', createDot('w1', 1))],
+            ops: [nodeAdd('n1', Dot.create('w1', 1))],
           }),
           sha: 'aaaa1111',
         },
@@ -427,7 +427,7 @@ describe('JoinReducer receipts', () => {
           patch: makePatch({
             writer: 'w1',
             lamport: 2,
-            ops: [nodeAdd('n2', createDot('w1', 2))],
+            ops: [nodeAdd('n2', Dot.create('w1', 2))],
           }),
           sha: 'bbbb2222',
         },
@@ -435,7 +435,7 @@ describe('JoinReducer receipts', () => {
           patch: makePatch({
             writer: 'w2',
             lamport: 1,
-            ops: [nodeAdd('n3', createDot('w2', 1))],
+            ops: [nodeAdd('n3', Dot.create('w2', 1))],
           }),
           sha: 'cccc3333',
         },
@@ -446,14 +446,14 @@ describe('JoinReducer receipts', () => {
 
     it('works with initial state', () => {
       const initial = createEmptyState();
-      initial.nodeAlive.add('n0', createDot('w0', 1));
+      initial.nodeAlive.add('n0', Dot.create('w0', 1));
 
       const patches = [
         {
           patch: makePatch({
             writer: 'w1',
             lamport: 1,
-            ops: [nodeAdd('n1', createDot('w1', 1))],
+            ops: [nodeAdd('n1', Dot.create('w1', 1))],
           }),
           sha: 'abcd1234',
         },
@@ -482,8 +482,8 @@ describe('JoinReducer receipts', () => {
         writer: 'w1',
         lamport: 1,
         ops: [
-          nodeAdd('n1', createDot('w1', 1)),
-          nodeAdd('n2', createDot('w1', 2)),
+          nodeAdd('n1', Dot.create('w1', 1)),
+          nodeAdd('n2', Dot.create('w1', 2)),
           propSet('n1', 'name', 'Alice'),
         ],
       });
@@ -507,7 +507,7 @@ describe('JoinReducer receipts', () => {
         writer: 'w1',
         lamport: 1,
         ops: [
-          nodeAdd('n1', createDot('w1', 1)),
+          nodeAdd('n1', Dot.create('w1', 1)),
           { type: 'FutureOpV99', node: 'n1', payload: 'exotic' },
           propSet('n1', 'name', 'Alice'),
         ],
@@ -551,7 +551,7 @@ describe('JoinReducer receipts', () => {
         writer: 'alice',
         lamport: 1,
         ops: [
-          nodeAdd('n1', createDot('alice', 1)),
+          nodeAdd('n1', Dot.create('alice', 1)),
           propSet('n1', 'color', 'red'),
         ],
       });
@@ -561,7 +561,7 @@ describe('JoinReducer receipts', () => {
         writer: 'bob',
         lamport: 2,
         ops: [
-          nodeAdd('n1', createDot('bob', 1)),
+          nodeAdd('n1', Dot.create('bob', 1)),
           propSet('n1', 'color', 'blue'),
         ],
       });

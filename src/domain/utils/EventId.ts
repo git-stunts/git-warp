@@ -50,13 +50,6 @@ export class EventId {
 }
 
 /**
- * Creates a validated EventId.
- */
-export function createEventId(lamport: number, writerId: string, patchSha: string, opIndex: number): EventId {
-  return new EventId(lamport, writerId, patchSha, opIndex);
-}
-
-/**
  * Compares two EventIds lexicographically.
  * Order: lamport -> writerId -> patchSha -> opIndex
  *

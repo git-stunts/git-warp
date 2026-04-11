@@ -3207,13 +3207,6 @@ export function createInlineValue(value: unknown): ValueRefInline;
 /** Creates a blob value reference. */
 export function createBlobValue(oid: string): ValueRefBlob;
 
-/** Creates an EventId for total ordering of operations. */
-export function createEventId(options: {
-  lamport: number;
-  writerId: string;
-  patchSha: string;
-  opIndex: number;
-}): EventId;
 
 // ============================================================================
 // WARP Migration

@@ -21,9 +21,9 @@ const PROPERTY_TEST_SEED = 42;
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 
 // ============================================================================
 // Arbitraries for generating random states and patches
@@ -35,7 +35,7 @@ import { createEventId } from '../../../../src/domain/utils/EventId.ts';
 const dotArb = fc.record({
   writerId: fc.stringMatching(/^[a-z]{1,5}$/),
   counter: fc.integer({ min: 1, max: 100 }),
-}).map(({ writerId, counter }) => createDot(writerId, counter));
+}).map(({ writerId, counter }) => Dot.create(writerId, counter));
 
 /**
  * Arbitrary for generating node IDs
@@ -77,7 +77,7 @@ const eventIdArb = fc.record({
   patchSha: hexStringArb,
   opIndex: fc.integer({ min: 0, max: 10 }),
 }).map(({ lamport, writerId, patchSha, opIndex }) =>
-  createEventId(lamport, writerId, patchSha, opIndex)
+  new EventId(lamport, writerId, patchSha, opIndex)
 );
 
 /**

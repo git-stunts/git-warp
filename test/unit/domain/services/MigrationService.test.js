@@ -7,7 +7,7 @@ import {
 } from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
-import { compareEventIds, createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { compareEventIds, EventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet as lwwSetImported, lwwMax as lwwMaxImported } from '../../../../src/domain/crdt/LWW.ts';
 
 // Re-export lwwSet/lwwMax for use in tests
@@ -68,7 +68,7 @@ function reduce(patches) {
   for (const { patch, sha } of patches) {
     for (let index = 0; index < patch.ops.length; index++) {
       tuples.push({
-        eventId: createEventId(patch.lamport, patch.writer, sha, index),
+        eventId: new EventId(patch.lamport, patch.writer, sha, index),
         op: patch.ops[index],
       });
     }
@@ -125,7 +125,7 @@ function reduce(patches) {
 import { computeStateHashV5, nodeVisibleV5, edgeVisibleV5 } from '../../../../src/domain/services/state/StateSerializerV5.js';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { lwwSet, lwwValue } from '../../../../src/domain/crdt/LWW.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 // v1 op types (for migration tests) — inlined after WarpTypes.ts deletion
 /** @param {string} node */
@@ -190,18 +190,18 @@ function createV4State({ nodes = /** @type {any[]} */ ([]), edges = /** @type {a
   let counter = 0;
 
   for (const { nodeId, alive } of nodes) {
-    const eventId = createEventId(++counter, 'test-writer', 'abcd1234', 0);
+    const eventId = new EventId(++counter, 'test-writer', 'abcd1234', 0);
     state.nodeAlive.set(nodeId, lwwSet(eventId, alive));
   }
 
   for (const { from, to, label, alive } of edges) {
-    const eventId = createEventId(++counter, 'test-writer', 'abcd1234', 0);
+    const eventId = new EventId(++counter, 'test-writer', 'abcd1234', 0);
     const edgeKey = encodeEdgeKey(from, to, label);
     state.edgeAlive.set(edgeKey, lwwSet(eventId, alive));
   }
 
   for (const { nodeId, key, value } of props) {
-    const eventId = createEventId(++counter, 'test-writer', 'abcd1234', 0);
+    const eventId = new EventId(++counter, 'test-writer', 'abcd1234', 0);
     const propKey = encodePropKey(nodeId, key);
     state.prop.set(propKey, lwwSet(eventId, value));
   }
@@ -466,7 +466,7 @@ describe('MigrationService', () => {
       it('handles props for nodes with no entry in nodeAlive map (dangling)', () => {
         // Create a v4 state with a prop for a node that has no nodeAlive entry
         const v4State = createEmptyState();
-        const eventId = createEventId(1, 'test-writer', 'abcd1234', 0);
+        const eventId = new EventId(1, 'test-writer', 'abcd1234', 0);
         v4State.prop.set(
           encodePropKey('orphan-node', 'name'),
           lwwSet(eventId, createInlineValue('Orphan'))
@@ -697,7 +697,7 @@ describe('MigrationService', () => {
               lamport: 10,
               context: /** @type {any} */ (VersionVector.empty()),
               ops: [
-                createNodeAddV2('user:charlie', createDot('charlie', 1)),
+                createNodeAddV2('user:charlie', Dot.create('charlie', 1)),
                 createPropSetV2('user:charlie', 'name', createInlineValue('Charlie')),
               ],
             }),
@@ -709,8 +709,8 @@ describe('MigrationService', () => {
               lamport: 11,
               context: /** @type {any} */ (VersionVector.empty()),
               ops: [
-                createEdgeAddV2('user:charlie', 'user:alice', 'follows', createDot('charlie', 2)),
-                createEdgeAddV2('user:charlie', 'user:bob', 'follows', createDot('charlie', 3)),
+                createEdgeAddV2('user:charlie', 'user:alice', 'follows', Dot.create('charlie', 2)),
+                createEdgeAddV2('user:charlie', 'user:bob', 'follows', Dot.create('charlie', 3)),
               ],
             }),
             sha: 'dddd4444',
@@ -763,7 +763,7 @@ describe('MigrationService', () => {
             writer: 'A',
             lamport: 10,
             context: /** @type {any} */ (VersionVector.empty()),
-            ops: [createNodeAddV2('node-a', createDot('A', 1))],
+            ops: [createNodeAddV2('node-a', Dot.create('A', 1))],
           }),
           sha: 'aaaa2222',
         };
@@ -773,7 +773,7 @@ describe('MigrationService', () => {
             writer: 'B',
             lamport: 11,
             context: /** @type {any} */ (VersionVector.empty()),
-            ops: [createNodeAddV2('node-b', createDot('B', 1))],
+            ops: [createNodeAddV2('node-b', Dot.create('B', 1))],
           }),
           sha: 'bbbb3333',
         };
@@ -783,7 +783,7 @@ describe('MigrationService', () => {
             writer: 'C',
             lamport: 12,
             context: /** @type {any} */ (VersionVector.empty()),
-            ops: [createEdgeAddV2('node-a', 'node-b', 'link', createDot('C', 1))],
+            ops: [createEdgeAddV2('node-a', 'node-b', 'link', Dot.create('C', 1))],
           }),
           sha: 'cccc4444',
         };
@@ -843,7 +843,7 @@ describe('MigrationService', () => {
             writer: 'bob',
             lamport: 2,
             context: /** @type {any} */ (VersionVector.empty()),
-            ops: [createNodeAddV2('node-from-v2', createDot('bob', 1))],
+            ops: [createNodeAddV2('node-from-v2', Dot.create('bob', 1))],
           }),
           sha: 'b2bb2222',
         };
@@ -903,8 +903,8 @@ describe('MigrationService', () => {
               lamport: 10,
               context: /** @type {any} */ (VersionVector.empty()),
               ops: [
-                createNodeAddV2('n3', createDot('V5-writer', 1)),
-                createEdgeAddV2('n1', 'n3', 'link', createDot('V5-writer', 2)),
+                createNodeAddV2('n3', Dot.create('V5-writer', 1)),
+                createEdgeAddV2('n1', 'n3', 'link', Dot.create('V5-writer', 2)),
               ],
             }),
             sha: 'cccc3333',
@@ -949,7 +949,7 @@ describe('MigrationService', () => {
           writer: 'W',
           lamport: 1,
           context: /** @type {any} */ (VersionVector.empty()),
-          ops: [createNodeAddV2('test-node', createDot('W', 1))],
+          ops: [createNodeAddV2('test-node', Dot.create('W', 1))],
         });
 
         // Verify the structural difference that makes mixing incompatible

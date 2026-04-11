@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { lwwSet, lwwMax as _lwwMax, lwwValue } from '../../../../src/domain/crdt/LWW.ts';
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 
 /** @type {any} */
 const lwwMax = _lwwMax;
@@ -8,7 +8,7 @@ const lwwMax = _lwwMax;
 describe('LWW Register', () => {
   describe('lwwSet', () => {
     it('creates register with eventId and value', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const register = lwwSet(eventId, 'hello');
 
       expect(register).toEqual({
@@ -18,7 +18,7 @@ describe('LWW Register', () => {
     });
 
     it('creates register with null value', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const register = lwwSet(eventId, null);
 
       expect(register).toEqual({
@@ -28,7 +28,7 @@ describe('LWW Register', () => {
     });
 
     it('creates register with undefined value', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const register = lwwSet(eventId, undefined);
 
       expect(register).toEqual({
@@ -40,8 +40,8 @@ describe('LWW Register', () => {
 
   describe('lwwMax', () => {
     it('returns register with greater EventId (by lamport)', () => {
-      const eventId1 = createEventId(1, 'writer', 'abcd1234', 0);
-      const eventId2 = createEventId(2, 'writer', 'abcd1234', 0);
+      const eventId1 = new EventId(1, 'writer', 'abcd1234', 0);
+      const eventId2 = new EventId(2, 'writer', 'abcd1234', 0);
       const a = lwwSet(eventId1, 'old');
       const b = lwwSet(eventId2, 'new');
 
@@ -52,8 +52,8 @@ describe('LWW Register', () => {
     });
 
     it('returns register with greater EventId (by writerId)', () => {
-      const eventId1 = createEventId(1, 'alice', 'abcd1234', 0);
-      const eventId2 = createEventId(1, 'bob', 'abcd1234', 0);
+      const eventId1 = new EventId(1, 'alice', 'abcd1234', 0);
+      const eventId2 = new EventId(1, 'bob', 'abcd1234', 0);
       const a = lwwSet(eventId1, 'alice-value');
       const b = lwwSet(eventId2, 'bob-value');
 
@@ -64,8 +64,8 @@ describe('LWW Register', () => {
     });
 
     it('returns register with greater EventId (by patchSha)', () => {
-      const eventId1 = createEventId(1, 'writer', 'aaaa1234', 0);
-      const eventId2 = createEventId(1, 'writer', 'bbbb1234', 0);
+      const eventId1 = new EventId(1, 'writer', 'aaaa1234', 0);
+      const eventId2 = new EventId(1, 'writer', 'bbbb1234', 0);
       const a = lwwSet(eventId1, 'first');
       const b = lwwSet(eventId2, 'second');
 
@@ -76,8 +76,8 @@ describe('LWW Register', () => {
     });
 
     it('returns register with greater EventId (by opIndex)', () => {
-      const eventId1 = createEventId(1, 'writer', 'abcd1234', 0);
-      const eventId2 = createEventId(1, 'writer', 'abcd1234', 1);
+      const eventId1 = new EventId(1, 'writer', 'abcd1234', 0);
+      const eventId2 = new EventId(1, 'writer', 'abcd1234', 1);
       const a = lwwSet(eventId1, 'op0');
       const b = lwwSet(eventId2, 'op1');
 
@@ -88,8 +88,8 @@ describe('LWW Register', () => {
     });
 
     it('is commutative (swap args, same winner)', () => {
-      const eventId1 = createEventId(1, 'writer', 'abcd1234', 0);
-      const eventId2 = createEventId(5, 'writer', 'abcd1234', 0);
+      const eventId1 = new EventId(1, 'writer', 'abcd1234', 0);
+      const eventId2 = new EventId(5, 'writer', 'abcd1234', 0);
       const a = lwwSet(eventId1, 'loser');
       const b = lwwSet(eventId2, 'winner');
 
@@ -103,7 +103,7 @@ describe('LWW Register', () => {
     });
 
     it('handles null first arg', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const b = lwwSet(eventId, 'value');
 
       const result = lwwMax(null, b);
@@ -112,7 +112,7 @@ describe('LWW Register', () => {
     });
 
     it('handles undefined first arg', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const b = lwwSet(eventId, 'value');
 
       const result = lwwMax(undefined, b);
@@ -121,7 +121,7 @@ describe('LWW Register', () => {
     });
 
     it('handles null second arg', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const a = lwwSet(eventId, 'value');
 
       const result = lwwMax(a, null);
@@ -130,7 +130,7 @@ describe('LWW Register', () => {
     });
 
     it('handles undefined second arg', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const a = lwwSet(eventId, 'value');
 
       const result = lwwMax(a, undefined);
@@ -156,8 +156,8 @@ describe('LWW Register', () => {
     });
 
     it('with equal EventIds returns first arg (deterministic tie-break)', () => {
-      const eventId1 = createEventId(1, 'writer', 'abcd1234', 0);
-      const eventId2 = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId1 = new EventId(1, 'writer', 'abcd1234', 0);
+      const eventId2 = new EventId(1, 'writer', 'abcd1234', 0);
       const a = lwwSet(eventId1, 'first');
       const b = lwwSet(eventId2, 'second');
 
@@ -169,7 +169,7 @@ describe('LWW Register', () => {
     });
 
     it('is idempotent (same register twice)', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const a = lwwSet(eventId, 'value');
 
       const result = lwwMax(a, a);
@@ -178,9 +178,9 @@ describe('LWW Register', () => {
     });
 
     it('is associative', () => {
-      const eventId1 = createEventId(1, 'writer', 'abcd1234', 0);
-      const eventId2 = createEventId(2, 'writer', 'abcd1234', 0);
-      const eventId3 = createEventId(3, 'writer', 'abcd1234', 0);
+      const eventId1 = new EventId(1, 'writer', 'abcd1234', 0);
+      const eventId2 = new EventId(2, 'writer', 'abcd1234', 0);
+      const eventId3 = new EventId(3, 'writer', 'abcd1234', 0);
       const a = lwwSet(eventId1, 'a');
       const b = lwwSet(eventId2, 'b');
       const c = lwwSet(eventId3, 'c');
@@ -198,7 +198,7 @@ describe('LWW Register', () => {
 
   describe('lwwValue', () => {
     it('extracts value from register', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const register = lwwSet(eventId, 'hello');
 
       expect(lwwValue(register)).toBe('hello');
@@ -213,14 +213,14 @@ describe('LWW Register', () => {
     });
 
     it('returns null when value is null', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const register = lwwSet(eventId, null);
 
       expect(lwwValue(register)).toBeNull();
     });
 
     it('returns undefined when value is undefined', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const register = lwwSet(eventId, undefined);
 
       expect(lwwValue(register)).toBeUndefined();
@@ -229,22 +229,22 @@ describe('LWW Register', () => {
 
   describe('works with boolean values (for node_alive, edge_alive)', () => {
     it('stores true value', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const register = lwwSet(eventId, true);
 
       expect(lwwValue(register)).toBe(true);
     });
 
     it('stores false value', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const register = lwwSet(eventId, false);
 
       expect(lwwValue(register)).toBe(false);
     });
 
     it('lwwMax selects correct boolean based on EventId', () => {
-      const eventId1 = createEventId(1, 'writer', 'abcd1234', 0);
-      const eventId2 = createEventId(2, 'writer', 'abcd1234', 0);
+      const eventId1 = new EventId(1, 'writer', 'abcd1234', 0);
+      const eventId2 = new EventId(2, 'writer', 'abcd1234', 0);
       const alive = lwwSet(eventId1, true);
       const deleted = lwwSet(eventId2, false);
 
@@ -254,8 +254,8 @@ describe('LWW Register', () => {
     });
 
     it('resurrection scenario - later true overrides earlier false', () => {
-      const eventId1 = createEventId(1, 'writer', 'abcd1234', 0);
-      const eventId2 = createEventId(2, 'writer', 'abcd1234', 0);
+      const eventId1 = new EventId(1, 'writer', 'abcd1234', 0);
+      const eventId2 = new EventId(2, 'writer', 'abcd1234', 0);
       const deleted = lwwSet(eventId1, false);
       const resurrected = lwwSet(eventId2, true);
 
@@ -266,7 +266,7 @@ describe('LWW Register', () => {
 
   describe('works with object values (for ValueRef in props)', () => {
     it('stores object value', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const valueRef = { type: 'string', value: 'hello' };
       const register = lwwSet(eventId, valueRef);
 
@@ -274,8 +274,8 @@ describe('LWW Register', () => {
     });
 
     it('lwwMax selects correct object based on EventId', () => {
-      const eventId1 = createEventId(1, 'writer', 'abcd1234', 0);
-      const eventId2 = createEventId(2, 'writer', 'abcd1234', 0);
+      const eventId1 = new EventId(1, 'writer', 'abcd1234', 0);
+      const eventId2 = new EventId(2, 'writer', 'abcd1234', 0);
       const old = lwwSet(eventId1, { type: 'string', value: 'old' });
       const newer = lwwSet(eventId2, { type: 'string', value: 'new' });
 
@@ -285,7 +285,7 @@ describe('LWW Register', () => {
     });
 
     it('stores complex nested object', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const complexValue = {
         type: 'object',
         nested: {
@@ -302,36 +302,36 @@ describe('LWW Register', () => {
 
   describe('edge cases', () => {
     it('works with number values', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const register = lwwSet(eventId, 42);
 
       expect(lwwValue(register)).toBe(42);
     });
 
     it('works with zero value', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const register = lwwSet(eventId, 0);
 
       expect(lwwValue(register)).toBe(0);
     });
 
     it('works with empty string value', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const register = lwwSet(eventId, '');
 
       expect(lwwValue(register)).toBe('');
     });
 
     it('works with array value', () => {
-      const eventId = createEventId(1, 'writer', 'abcd1234', 0);
+      const eventId = new EventId(1, 'writer', 'abcd1234', 0);
       const register = lwwSet(eventId, [1, 2, 3]);
 
       expect(lwwValue(register)).toEqual([1, 2, 3]);
     });
 
     it('preserves object reference identity in lwwMax', () => {
-      const eventId1 = createEventId(1, 'writer', 'abcd1234', 0);
-      const eventId2 = createEventId(2, 'writer', 'abcd1234', 0);
+      const eventId1 = new EventId(1, 'writer', 'abcd1234', 0);
+      const eventId2 = new EventId(2, 'writer', 'abcd1234', 0);
       const obj1 = { id: 1 };
       const obj2 = { id: 2 };
       const a = lwwSet(eventId1, obj1);

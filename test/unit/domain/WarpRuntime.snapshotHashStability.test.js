@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import WarpCore from '../../../src/domain/WarpCore.ts';
-import { createDot } from '../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { computeStateHashV5 } from '../../../src/domain/services/state/StateSerializerV5.js';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
@@ -188,7 +188,7 @@ describe('WarpCore public snapshot hash stability', () => {
       writerId: 'alice',
       lamport: 1,
       ops: [
-        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n1', dot: Dot.create('alice', 1) },
         { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
       ],
     });

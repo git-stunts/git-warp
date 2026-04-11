@@ -36,7 +36,7 @@ import {
   decodeCheckpointMessage,
 } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { ProvenanceIndex } from '../../../../src/domain/services/provenance/ProvenanceIndex.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
@@ -103,7 +103,7 @@ describe('CheckpointService edge cases', () => {
 
     it('accepts schema:3 checkpoints', async () => {
       const state = createEmptyState();
-      const dot = createDot('w1', 1);
+      const dot = Dot.create('w1', 1);
       state.nodeAlive.add('x', dot);
 
       const frontier = createFrontier();
@@ -263,7 +263,7 @@ describe('CheckpointService edge cases', () => {
   describe('missing appliedVV.cbor', () => {
     it('returns null appliedVV when blob is absent', async () => {
       const state = createEmptyState();
-      state.nodeAlive.add('a', createDot('w1', 1));
+      state.nodeAlive.add('a', Dot.create('w1', 1));
 
       const stateBuffer = serializeFullStateV5(state);
       const frontierBuffer = serializeFrontier(createFrontier());
@@ -311,7 +311,7 @@ describe('CheckpointService edge cases', () => {
   describe('materializeIncremental edge cases', () => {
     it('returns checkpoint state when target frontier matches checkpoint', async () => {
       const state = createEmptyState();
-      const dot = createDot('w1', 1);
+      const dot = Dot.create('w1', 1);
       state.nodeAlive.add('x', dot);
 
       const frontier = createFrontier();
@@ -369,7 +369,7 @@ describe('CheckpointService edge cases', () => {
 
     it('returns checkpoint state when target frontier is empty', async () => {
       const state = createEmptyState();
-      state.nodeAlive.add('y', createDot('w1', 1));
+      state.nodeAlive.add('y', Dot.create('w1', 1));
 
       const frontier = createFrontier();
       updateFrontier(frontier, 'w1', makeOid('sha1'));
@@ -425,7 +425,7 @@ describe('CheckpointService edge cases', () => {
 
     it('applies newly loaded patches on top of checkpoint state', async () => {
       const state = createEmptyState();
-      state.nodeAlive.add('base', createDot('w1', 1));
+      state.nodeAlive.add('base', Dot.create('w1', 1));
 
       const checkpointFrontier = createFrontier();
       updateFrontier(checkpointFrontier, 'w1', makeOid('sha1'));
@@ -478,7 +478,7 @@ describe('CheckpointService edge cases', () => {
               {
                 type: 'NodeAdd',
                 node: 'new-node',
-                dot: createDot('w2', 1),
+                dot: Dot.create('w2', 1),
               },
             ],
           },
@@ -627,8 +627,8 @@ describe('CheckpointService edge cases', () => {
   describe('checkpoint with all-tombstoned state', () => {
     it('compacts a fully-tombstoned state to empty', async () => {
       const state = createEmptyState();
-      const dot1 = createDot('w1', 1);
-      const dot2 = createDot('w1', 2);
+      const dot1 = Dot.create('w1', 1);
+      const dot2 = Dot.create('w1', 2);
       state.nodeAlive.add('gone1', dot1);
       state.nodeAlive.add('gone2', dot2);
       state.nodeAlive.remove(new Set([encodeDot(dot1)]));
@@ -712,7 +712,7 @@ describe('CheckpointService edge cases', () => {
   describe('provenanceIndex absent', () => {
     it('returns undefined provenanceIndex when blob is absent', async () => {
       const state = createEmptyState();
-      state.nodeAlive.add('a', createDot('w1', 1));
+      state.nodeAlive.add('a', Dot.create('w1', 1));
 
       const stateBuffer = serializeFullStateV5(state);
       const frontierBuffer = serializeFrontier(createFrontier());
@@ -760,7 +760,7 @@ describe('CheckpointService edge cases', () => {
   describe('provenanceIndex present', () => {
     it('loads provenanceIndex from checkpoint tree when blob is present', async () => {
       const state = createEmptyState();
-      state.nodeAlive.add('a', createDot('w1', 1));
+      state.nodeAlive.add('a', Dot.create('w1', 1));
 
       const provenanceIndex = new ProvenanceIndex();
       provenanceIndex.addPatch(makeOid('patch1'), ['a'], ['a']);
@@ -817,7 +817,7 @@ describe('CheckpointService edge cases', () => {
   describe('createV5 with checkpointStore and provenance index', () => {
     it('computes stateHash for checkpointStore when no stateHashService is provided', async () => {
       const state = createEmptyState();
-      state.nodeAlive.add('n', createDot('w1', 1));
+      state.nodeAlive.add('n', Dot.create('w1', 1));
       const frontier = createFrontier();
       const checkpointStore = {
         writeCheckpoint: vi.fn(async () => ({
@@ -847,7 +847,7 @@ describe('CheckpointService edge cases', () => {
 
     it('writes provenanceIndex blob in the legacy checkpoint path', async () => {
       const state = createEmptyState();
-      state.nodeAlive.add('n', createDot('w1', 1));
+      state.nodeAlive.add('n', Dot.create('w1', 1));
       const frontier = createFrontier();
       const provenanceIndex = new ProvenanceIndex();
       provenanceIndex.addPatch(makeOid('patch1'), ['n'], ['n']);

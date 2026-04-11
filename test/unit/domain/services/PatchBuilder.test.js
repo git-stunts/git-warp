@@ -3,7 +3,7 @@ import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
 import PatchError from '../../../../src/domain/errors/PatchError.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 import { decodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { decode } from '../../../../src/infrastructure/codecs/CborCodec.js';
@@ -91,7 +91,7 @@ describe('PatchBuilder', () => {
     it('creates NodeRemove operation with observedDots from state', () => {
       const state = createMockState();
       // Add a node with a dot to the mock state
-      const existingDot = createDot('otherWriter', 5);
+      const existingDot = Dot.create('otherWriter', 5);
       state.nodeAlive.add('x', existingDot);
 
       const builder = new PatchBuilder(/** @type {any} */ ({
@@ -114,8 +114,8 @@ describe('PatchBuilder', () => {
 
     it('includes multiple observed dots when node has multiple adds', () => {
       const state = createMockState();
-      const dot1 = createDot('writerA', 1);
-      const dot2 = createDot('writerB', 2);
+      const dot1 = Dot.create('writerA', 1);
+      const dot2 = Dot.create('writerB', 2);
       state.nodeAlive.add('x', dot1);
       state.nodeAlive.add('x', dot2);
 
@@ -137,7 +137,7 @@ describe('PatchBuilder', () => {
 
     it('returns this for chaining', () => {
       const state = createMockState();
-      state.nodeAlive.add('x', createDot('w', 1));
+      state.nodeAlive.add('x', Dot.create('w', 1));
       const builder = new PatchBuilder(/** @type {any} */ ({
         writerId: 'writer1',
         lamport: 1,
@@ -173,7 +173,7 @@ describe('PatchBuilder', () => {
 
     it('creates EdgeRemove operation with observedDots from state', () => {
       const state = createMockState();
-      const existingDot = createDot('otherWriter', 3);
+      const existingDot = Dot.create('otherWriter', 3);
       const edgeKey = encodeEdgeKey('a', 'b', 'follows');
       state.edgeAlive.add(edgeKey, existingDot);
 
@@ -211,7 +211,7 @@ describe('PatchBuilder', () => {
     it('removeEdge returns this for chaining', () => {
       const state = createMockState();
       const ek = encodeEdgeKey('a', 'b', 'rel');
-      state.edgeAlive.add(ek, createDot('w', 1));
+      state.edgeAlive.add(ek, Dot.create('w', 1));
       const builder = new PatchBuilder(/** @type {any} */ ({
         writerId: 'writer1',
         lamport: 1,
@@ -513,7 +513,7 @@ describe('PatchBuilder', () => {
   describe('complex patch building', () => {
     it('preserves operation order', () => {
       const state = createMockState();
-      const nodeDot = createDot('writer1', 1);
+      const nodeDot = Dot.create('writer1', 1);
       state.nodeAlive.add('b', nodeDot);
 
       // Start from counter 1 since we added dot with counter 1
@@ -545,9 +545,9 @@ describe('PatchBuilder', () => {
 
     it('supports method chaining for all operations', () => {
       const state = createMockState();
-      state.nodeAlive.add('c', createDot('w', 1));
+      state.nodeAlive.add('c', Dot.create('w', 1));
       const ek = encodeEdgeKey('x', 'y', 'rel');
-      state.edgeAlive.add(ek, createDot('w', 2));
+      state.edgeAlive.add(ek, Dot.create('w', 2));
 
       const builder = new PatchBuilder(/** @type {any} */ ({
         writerId: 'writer1',
@@ -921,7 +921,7 @@ describe('PatchBuilder', () => {
     describe('NodeRemove', () => {
       it('tracks nodeId as read', () => {
         const state = createMockState();
-        const existingDot = createDot('otherWriter', 5);
+        const existingDot = Dot.create('otherWriter', 5);
         state.nodeAlive.add('user:alice', existingDot);
 
         const builder = new PatchBuilder(/** @type {any} */ ({
@@ -939,7 +939,7 @@ describe('PatchBuilder', () => {
 
       it('includes reads in built patch', () => {
         const state = createMockState();
-        const existingDot = createDot('otherWriter', 5);
+        const existingDot = Dot.create('otherWriter', 5);
         state.nodeAlive.add('user:alice', existingDot);
 
         const builder = new PatchBuilder(/** @type {any} */ ({
@@ -998,7 +998,7 @@ describe('PatchBuilder', () => {
     describe('EdgeRemove', () => {
       it('tracks edge key as read', () => {
         const state = createMockState();
-        const existingDot = createDot('otherWriter', 3);
+        const existingDot = Dot.create('otherWriter', 3);
         const edgeKey = encodeEdgeKey('user:alice', 'user:bob', 'follows');
         state.edgeAlive.add(edgeKey, existingDot);
 
@@ -1017,7 +1017,7 @@ describe('PatchBuilder', () => {
 
       it('includes reads in built patch', () => {
         const state = createMockState();
-        const existingDot = createDot('otherWriter', 3);
+        const existingDot = Dot.create('otherWriter', 3);
         const edgeKey = encodeEdgeKey('user:alice', 'user:bob', 'follows');
         state.edgeAlive.add(edgeKey, existingDot);
 
@@ -1152,8 +1152,8 @@ describe('PatchBuilder', () => {
       it('handles mixed operations correctly', () => {
         const state = createMockState();
         // Pre-populate state with an existing node and edge
-        const nodeDot = createDot('writer0', 1);
-        const edgeDot = createDot('writer0', 2);
+        const nodeDot = Dot.create('writer0', 1);
+        const edgeDot = Dot.create('writer0', 2);
         state.nodeAlive.add('user:existing', nodeDot);
         const existingEdgeKey = encodeEdgeKey('user:existing', 'user:target', 'knows');
         state.edgeAlive.add(existingEdgeKey, edgeDot);
@@ -1209,7 +1209,7 @@ describe('PatchBuilder', () => {
 
       it('omits empty writes array from patch', () => {
         const state = createMockState();
-        const existingDot = createDot('otherWriter', 5);
+        const existingDot = Dot.create('otherWriter', 5);
         state.nodeAlive.add('x', existingDot);
 
         const builder = new PatchBuilder(/** @type {any} */ ({
@@ -1336,7 +1336,7 @@ describe('PatchBuilder', () => {
 
     it('removeNode works when state is available', () => {
       const state = createMockState();
-      state.nodeAlive.add('alice', createDot('writer1', 1));
+      state.nodeAlive.add('alice', Dot.create('writer1', 1));
 
       const vv = VersionVector.empty();
       const builder = new PatchBuilder(/** @type {any} */ ({

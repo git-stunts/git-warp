@@ -13,7 +13,7 @@ import {
   createPropSetV2,
   createPatch,
   createSamplePatches,
-  createDot,
+  Dot,
   createInlineValue,
 } from '../../../helpers/warpGraphTestUtils.js';
 
@@ -599,7 +599,7 @@ describe('ProvenancePayload', () => {
           patch: createPatch({
             writer: `writer-${i % 5}`,
             lamport: i + 1,
-            ops: [createNodeAddV2(`node-${i}`, createDot(`writer-${i % 5}`, i + 1))],
+            ops: [createNodeAddV2(`node-${i}`, Dot.create(`writer-${i % 5}`, i + 1))],
           }),
           sha: `sha-${i.toString(16).padStart(8, '0')}`,
         });
@@ -635,7 +635,7 @@ describe('ProvenancePayload', () => {
           patch: createPatch({
             writer: 'W1',
             lamport: 1,
-            ops: [createNodeAddV2('x', createDot('W1', 1))],
+            ops: [createNodeAddV2('x', Dot.create('W1', 1))],
           }),
           sha: 'abcd0001',
         },
@@ -643,7 +643,7 @@ describe('ProvenancePayload', () => {
           patch: createPatch({
             writer: 'W2',
             lamport: 2,
-            ops: [createNodeAddV2('y', createDot('W2', 1))],
+            ops: [createNodeAddV2('y', Dot.create('W2', 1))],
           }),
           sha: 'abcd0002',
         },
@@ -652,7 +652,7 @@ describe('ProvenancePayload', () => {
             writer: 'W1',
             lamport: 3,
             ops: [
-              createEdgeAddV2('x', 'y', 'link', createDot('W1', 2)),
+              createEdgeAddV2('x', 'y', 'link', Dot.create('W1', 2)),
               createPropSetV2('x', 'val', createInlineValue(100)),
             ],
           }),
@@ -713,7 +713,7 @@ describe('ProvenancePayload', () => {
             writer: 'A',
             lamport: 1,
             ops: [
-              createNodeAddV2('shared', createDot('A', 1)),
+              createNodeAddV2('shared', Dot.create('A', 1)),
               createPropSetV2('shared', 'author', createInlineValue('A')),
             ],
           }),
@@ -724,7 +724,7 @@ describe('ProvenancePayload', () => {
             writer: 'B',
             lamport: 1,
             ops: [
-              createNodeAddV2('shared', createDot('B', 1)),
+              createNodeAddV2('shared', Dot.create('B', 1)),
               createPropSetV2('shared', 'author', createInlineValue('B')),
             ],
           }),
@@ -762,7 +762,7 @@ describe('ProvenancePayload', () => {
           patch: createPatch({
             writer: 'W',
             lamport: 1,
-            ops: [createNodeAddV2('cycle', createDot('W', 1))],
+            ops: [createNodeAddV2('cycle', Dot.create('W', 1))],
           }),
           sha: 'abcd0001',
         },
@@ -778,7 +778,7 @@ describe('ProvenancePayload', () => {
           patch: createPatch({
             writer: 'W',
             lamport: 3,
-            ops: [createNodeAddV2('cycle', createDot('W', 2))],
+            ops: [createNodeAddV2('cycle', Dot.create('W', 2))],
           }),
           sha: 'abcd0003',
         },

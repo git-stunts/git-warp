@@ -185,11 +185,6 @@ export class Dot {
 // Free-function aliases that delegate to static methods.
 // Existing callers import these; new code should use Dot.* directly.
 
-/** @deprecated Use {@link Dot.create} */
-export function createDot(writerId: string, counter: number): Dot {
-  return Dot.create(writerId, counter);
-}
-
 /** @deprecated Use {@link Dot.equals} */
 export function dotsEqual(a: Dot, b: Dot): boolean {
   return Dot.equals(a, b);

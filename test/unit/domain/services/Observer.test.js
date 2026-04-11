@@ -3,7 +3,7 @@ import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
 import Observer from '../../../../src/domain/services/query/Observer.js';
 import { createEmptyState, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 
 /** @param {any} graph @param {(state: any) => void} seedFn */
 function setupGraphState(graph, seedFn) {
@@ -15,13 +15,13 @@ function setupGraphState(graph, seedFn) {
 
 /** @param {any} state @param {any} nodeId @param {any} counter */
 function addNode(state, nodeId, counter) {
-  state.nodeAlive.add(nodeId, createDot('w1', counter));
+  state.nodeAlive.add(nodeId, Dot.create('w1', counter));
 }
 
 /** @param {any} state @param {any} from @param {any} to @param {any} label @param {any} counter */
 function addEdge(state, from, to, label, counter) {
   const edgeKey = encodeEdgeKey(from, to, label);
-  state.edgeAlive.add(edgeKey, createDot('w1', counter));
+  state.edgeAlive.add(edgeKey, Dot.create('w1', counter));
 }
 
 /** @param {any} state @param {any} nodeId @param {any} key @param {any} value */
