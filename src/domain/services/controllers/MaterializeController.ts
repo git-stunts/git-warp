@@ -16,7 +16,7 @@ import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
 import { computeStateHashV5 } from '../state/StateSerializerV5.js';
 import { createFrontier, updateFrontier } from '../Frontier.js';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
-import { normalizeFrontierInput, normalizeExplicitCeiling, buildAdjacency } from './MaterializeHelpers.ts';
+import { normalizeFrontierInput, normalizeExplicitCeiling, buildAdjacency, maxLamportInPatches } from './MaterializeHelpers.ts';
 import type ClockPort from '../../../ports/ClockPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
@@ -57,6 +57,7 @@ export type MaterializeResult = {
   receipts?: TickReceipt[] | undefined;
   diff?: PatchDiff | undefined;
   patchCount: number;
+  maxObservedLamport: number;
   provenanceIndex: ProvenanceIndex;
   provenanceDegraded: boolean;
   frontier: Map<string, string> | null;
@@ -242,6 +243,7 @@ export default class MaterializeController {
       stateHash,
       adjacency: new AdjacencyMap({ outgoing: adjacency.outgoing, incoming: adjacency.incoming }),
       patchCount: 0,
+      maxObservedLamport: 0,
       provenanceIndex: new ProvenanceIndex(),
       provenanceDegraded: false,
       frontier,
@@ -259,14 +261,14 @@ export default class MaterializeController {
   }): Promise<MaterializeResult> {
     const stateHash = await computeHash(this._deps, params.reduced.state);
     const adjacency = buildAdjacency(params.reduced.state);
-    const AdjMap = (await import('../../capabilities/AdjacencyMap.ts')).default;
     return {
       state: params.reduced.state,
       stateHash,
-      adjacency: new AdjMap({ outgoing: adjacency.outgoing, incoming: adjacency.incoming }),
+      adjacency: new AdjacencyMap({ outgoing: adjacency.outgoing, incoming: adjacency.incoming }),
       receipts: params.reduced.receipts,
       diff: params.reduced.diff,
       patchCount: params.patches.length,
+      maxObservedLamport: maxLamportInPatches(params.patches),
       provenanceIndex: params.provenance,
       provenanceDegraded: params.degraded,
       frontier: params.frontier,

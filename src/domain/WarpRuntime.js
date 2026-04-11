@@ -828,10 +828,13 @@ export default class WarpRuntime {
    * @returns {Promise<void>}
    */
   async _onMaterialized(result) {
-    // 1. Cache state
+    // 1. Cache state + lamport
     this._cachedState = result.state;
     this._stateDirty = false;
     this._versionVector = result.state.observedFrontier.clone();
+    if (result.maxObservedLamport > this._maxObservedLamport) {
+      this._maxObservedLamport = result.maxObservedLamport;
+    }
     this._materializedGraph = {
       state: result.state,
       stateHash: result.stateHash,
@@ -975,15 +978,24 @@ wireMaterialize('_buildAdjacency', /** @param {import('./services/state/WarpStat
   return buildAdjacency(state);
 });
 
-wireMaterialize('_setMaterializedState', /** @param {import('./services/state/WarpState.ts').default} state @param {*} [optionsOrDiff] */ async function (state, optionsOrDiff) {
+wireMaterialize('_setMaterializedState', /** @param {import('./services/state/WarpState.ts').default} state @param {import('./types/PatchDiff.ts').PatchDiff|{diff?: import('./types/PatchDiff.ts').PatchDiff|null}} [optionsOrDiff] */ async function (state, optionsOrDiff) {
   const self = /** @type {WarpRuntime} */ (this);
-  // Legacy compat: callers pass state + optional diff. Re-materialize to populate all fields.
-  void optionsOrDiff;
-  const result = await self._materializeController.materialize({ ceiling: null, wantDiff: false });
-  // Override with the caller-provided state if different.
-  if (result.state !== state) {
-    result.state = state;
+  const { computeStateHashV5 } = await import('./services/state/StateSerializerV5.js');
+  const stateHash = await computeStateHashV5(state, { crypto: self._crypto, codec: self._codec });
+  const adj = self._buildAdjacency(state);
+  /** @type {import('./types/PatchDiff.ts').PatchDiff|undefined} */
+  let diff;
+  if (optionsOrDiff && typeof optionsOrDiff === 'object' && 'diff' in optionsOrDiff) {
+    diff = /** @type {{diff?: import('./types/PatchDiff.ts').PatchDiff|null}} */ (optionsOrDiff).diff ?? undefined;
+  } else {
+    diff = /** @type {import('./types/PatchDiff.ts').PatchDiff|undefined} */ (optionsOrDiff ?? undefined);
   }
+  // Cache state (no side effects — this is the eager apply path)
+  self._cachedState = state;
+  self._stateDirty = false;
+  self._versionVector = state.observedFrontier.clone();
+  self._materializedGraph = { state, stateHash, adjacency: adj };
+  self._buildViewFromResult({ state, stateHash, diff });
   return self._materializedGraph;
 });
 
