@@ -10,5 +10,13 @@ CLAUDE.md
 TASKS-DO-NOT-CHECK-IN.md
 EDITORS-REPORT.md
 git-stunts-git-warp-*.tgz
+# LaTeX build artifacts
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+
 # Claude Code conversation exports
 2026-*.txt
