@@ -4,29 +4,34 @@ blocks: []
 blocked_by: []
 ---
 
-# Use @git-stunts/vault for trust record storage (optional)
+# Use @git-stunts/vault for trust signing keys
 
 ## Idea
 
-Trust records are an append-only chain of Git commits under
-`refs/warp/<graph>/trust/records`. These commits contain signed
-key/binding records that establish writer identity.
+`@git-stunts/vault` stores secrets in OS-native keychains (macOS
+Keychain, Linux Secret Service, Windows Credential Manager). Trust
+records require Ed25519 signing keys for record creation and
+verification.
 
-Vault provides:
-- **GC protection** — trust commits won't be pruned by `git gc`
-- **Optional encryption** — protect key material at rest
-- **Key rotation** — rotate vault encryption without re-signing records
-- **Audit trail** — vault commits track when entries were added/removed
+Currently the trust pipeline receives signing keys as raw parameters.
+Vault could be the canonical provisioning path:
 
-## Considerations
+```typescript
+const vault = new Vault({ account: 'git-warp' });
+const signingKey = vault.getSecret({ target: `trust/${graphName}/signing-key` });
+```
 
-- Trust records are already GC-safe (they're reachable via the ref)
-- Encryption adds complexity to the verification pipeline
-- Vault's CAS-conflict retry may interact with trust chain CAS
-- Could store the entire trust chain as a single vault entry (tree OID)
-  or individual records as separate entries
+## Benefits
 
-## When to explore
+- Signing keys never touch disk as plaintext
+- Multi-runtime (Node/Bun/Deno) via vault's adapter pattern
+- `resolveSecret({ envKey, vaultTarget })` supports CI (env var)
+  and local dev (keychain) with one call
+- `ensureSecret()` can prompt for key provisioning on first use
 
-After `INFRA_unify-persistence-on-git-cas` ships — vault is built on
-git-cas, so unifying persistence first makes vault integration cleaner.
+## Scope
+
+- Wire vault into `appendRecord` / `appendRecordWithRetry` as the
+  default key source
+- CLI `git warp trust` commands use vault for key lookup
+- Optional: `git warp trust init` stores generated keypair in vault
