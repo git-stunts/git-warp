@@ -3,7 +3,7 @@ import {
   WriterBindAddSubjectSchema,
   WriterBindRevokeSubjectSchema,
   TrustRecordSchema,
-} from '../../../../src/domain/trust/schemas.js';
+} from '../../../../src/domain/trust/schemas.ts';
 
 describe('WriterBind schemas — trim-before-min validation', () => {
   const validKeyId = 'ed25519:' + 'a'.repeat(64);

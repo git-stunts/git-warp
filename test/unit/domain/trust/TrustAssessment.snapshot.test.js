@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { TrustAssessmentSchema } from '../../../../src/domain/trust/schemas.js';
+import { TrustAssessmentSchema } from '../../../../src/domain/trust/schemas.ts';
 import { evaluateWriters } from '../../../../src/domain/trust/TrustEvaluator.js';
 import { buildState } from '../../../../src/domain/trust/TrustStateBuilder.js';
 import {

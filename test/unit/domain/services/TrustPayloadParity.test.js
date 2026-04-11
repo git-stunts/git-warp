@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import { evaluateWriters } from '../../../../src/domain/trust/TrustEvaluator.js';
 import { buildState } from '../../../../src/domain/trust/TrustStateBuilder.js';
-import { TrustAssessmentSchema } from '../../../../src/domain/trust/schemas.js';
+import { TrustAssessmentSchema } from '../../../../src/domain/trust/schemas.ts';
 import {
   KEY_ADD_1,
   KEY_ADD_2,
