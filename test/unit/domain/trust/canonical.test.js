@@ -4,7 +4,7 @@ import {
   signaturePayload,
   TRUST_RECORD_ID_DOMAIN,
   TRUST_SIGN_DOMAIN,
-} from '../../../../src/domain/trust/canonical.js';
+} from '../../../../src/domain/trust/canonical.ts';
 
 describe('canonical helpers return strings', () => {
   const record = {

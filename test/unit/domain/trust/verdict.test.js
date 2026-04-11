@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { deriveTrustVerdict } from '../../../../src/domain/trust/verdict.js';
+import { deriveTrustVerdict } from '../../../../src/domain/trust/verdict.ts';
 
 describe('deriveTrustVerdict', () => {
   it('returns not_configured when trust is not configured', () => {

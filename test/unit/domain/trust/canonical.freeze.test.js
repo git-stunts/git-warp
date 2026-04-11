@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { computeRecordId, verifyRecordId } from '../../../../src/domain/trust/TrustCanonical.js';
+import { computeRecordId, verifyRecordId } from '../../../../src/domain/trust/TrustCanonical.ts';
 import {
   KEY_ADD_1,
   KEY_ADD_2,

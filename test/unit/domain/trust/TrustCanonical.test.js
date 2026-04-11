@@ -4,8 +4,8 @@ import {
   computeRecordId,
   computeSignaturePayload,
   verifyRecordId,
-} from '../../../../src/domain/trust/TrustCanonical.js';
-import { recordIdPayload } from '../../../../src/domain/trust/canonical.js';
+} from '../../../../src/domain/trust/TrustCanonical.ts';
+import { recordIdPayload } from '../../../../src/domain/trust/canonical.ts';
 
 const record = {
   schemaVersion: 1,

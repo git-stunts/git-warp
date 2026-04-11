@@ -10,8 +10,8 @@
  */
 
 import { buildTrustRecordRef } from '../utils/RefLayout.ts';
-import { TrustRecordSchema } from './schemas.js';
-import { verifyRecordId } from './TrustCanonical.js';
+import { TrustRecordSchema } from './schemas.ts';
+import { verifyRecordId } from './TrustCanonical.ts';
 import PersistenceError from '../errors/PersistenceError.ts';
 import TrustError from '../errors/TrustError.ts';
 import WarpError from '../errors/WarpError.ts';

@@ -9,7 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TrustRecordService } from '../../../../src/domain/trust/TrustRecordService.js';
 import TrustError from '../../../../src/domain/errors/TrustError.ts';
-import { computeRecordId } from '../../../../src/domain/trust/TrustCanonical.js';
+import { computeRecordId } from '../../../../src/domain/trust/TrustCanonical.ts';
 import { createJsonCodec, createTrustRecordPersistence } from '../../../helpers/trustTestUtils.js';
 import { KEY_ADD_1, KEY_ADD_2 } from './fixtures/goldenRecords.js';
 

@@ -7,7 +7,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TrustRecordService } from '../../../../src/domain/trust/TrustRecordService.js';
-import { verifyRecordId } from '../../../../src/domain/trust/TrustCanonical.js';
+import { verifyRecordId } from '../../../../src/domain/trust/TrustCanonical.ts';
 import { createJsonCodec, createTrustRecordPersistence } from '../../../helpers/trustTestUtils.js';
 import {
   GOLDEN_CHAIN,
