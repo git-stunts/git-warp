@@ -14,6 +14,7 @@ import {
   KEY_ADD_2,
   WRITER_BIND_ADD_ALICE,
 } from './fixtures/goldenRecords.js';
+import { toTrustRecord, toTrustRecords } from './fixtures/trustRecordFactory.ts';
 
 const WARN_POLICY = {
   schemaVersion: 1,
@@ -28,8 +29,8 @@ const ENFORCE_POLICY = {
 };
 
 describe('Cross-mode determinism (RG-T5)', () => {
-  it('same verdict for trusted writer in warn vs enforce', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('same verdict for trusted writer in warn vs enforce', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const warnResult = evaluateWriters(['alice'], state, WARN_POLICY);
     const enforceResult = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 
@@ -38,8 +39,8 @@ describe('Cross-mode determinism (RG-T5)', () => {
     expect(warnResult.trustVerdict).toBe(enforceResult.trustVerdict);
   });
 
-  it('same verdict for untrusted writer in warn vs enforce', () => {
-    const state = buildState([KEY_ADD_1]);
+  it('same verdict for untrusted writer in warn vs enforce', async () => {
+    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
     const warnResult = evaluateWriters(['unknown'], state, WARN_POLICY);
     const enforceResult = evaluateWriters(['unknown'], state, ENFORCE_POLICY);
 
@@ -48,8 +49,8 @@ describe('Cross-mode determinism (RG-T5)', () => {
     expect(warnResult.trustVerdict).toBe(enforceResult.trustVerdict);
   });
 
-  it('identical explanations across modes', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('identical explanations across modes', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const writers = ['alice', 'mallory', 'bob'];
     const warnResult = evaluateWriters(writers, state, WARN_POLICY);
     const enforceResult = evaluateWriters(writers, state, ENFORCE_POLICY);
@@ -66,16 +67,16 @@ describe('Cross-mode determinism (RG-T5)', () => {
     }
   });
 
-  it('identical evidence summaries across modes', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('identical evidence summaries across modes', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const warnResult = evaluateWriters(['alice'], state, WARN_POLICY);
     const enforceResult = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 
     expect(warnResult.trust.evidenceSummary).toEqual(enforceResult.trust.evidenceSummary);
   });
 
-  it('both modes return frozen output', () => {
-    const state = buildState([KEY_ADD_1]);
+  it('both modes return frozen output', async () => {
+    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
     const warnResult = evaluateWriters(['alice'], state, WARN_POLICY);
     const enforceResult = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 

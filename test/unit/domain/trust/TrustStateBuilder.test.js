@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { buildState } from '../../../../src/domain/trust/TrustStateBuilder.ts';
-import { computeSignaturePayload } from '../../../../src/domain/trust/TrustCanonical.ts';
+import { TrustRecord } from '../../../../src/domain/trust/TrustRecord.ts';
 import {
   verifySignature,
   computeKeyFingerprint,
@@ -24,10 +24,11 @@ import {
   PUBLIC_KEY_1,
   PUBLIC_KEY_2,
 } from './fixtures/goldenRecords.js';
+import { toTrustRecord, toTrustRecords } from './fixtures/trustRecordFactory.ts';
 
 describe('buildState — key lifecycle', () => {
-  it('KEY_ADD makes key active', () => {
-    const state = buildState([KEY_ADD_1]);
+  it('KEY_ADD makes key active', async () => {
+    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
     expect(state.activeKeys.size).toBe(1);
     expect(state.activeKeys.has(KEY_ID_1)).toBe(true);
     expect(/** @type {*} */ (state.activeKeys.get(KEY_ID_1)).publicKey).toBe(PUBLIC_KEY_1);
@@ -35,15 +36,15 @@ describe('buildState — key lifecycle', () => {
     expect(state.errors).toHaveLength(0);
   });
 
-  it('two KEY_ADDs make two active keys', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2]);
+  it('two KEY_ADDs make two active keys', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2]));
     expect(state.activeKeys.size).toBe(2);
     expect(state.activeKeys.has(KEY_ID_1)).toBe(true);
     expect(state.activeKeys.has(KEY_ID_2)).toBe(true);
   });
 
-  it('KEY_REVOKE moves key from active to revoked', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]);
+  it('KEY_REVOKE moves key from active to revoked', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]));
     expect(state.activeKeys.size).toBe(1);
     expect(state.activeKeys.has(KEY_ID_1)).toBe(true);
     expect(state.activeKeys.has(KEY_ID_2)).toBe(false);
@@ -55,14 +56,14 @@ describe('buildState — key lifecycle', () => {
 
 describe('buildState — signature verification', () => {
   /**
-   * @param {import('../../../../src/domain/trust/TrustStateBuilder.ts').TrustRecord} record
+   * @param {import('../../../../src/domain/trust/TrustRecord.ts').TrustRecord} record
    * @param {string} publicKeyBase64
    */
   const signatureVerifier = (record, publicKeyBase64) => verifySignature({
     algorithm: record.signature.alg,
     publicKeyBase64,
     signatureBase64: record.signature.sig,
-    payload: computeSignaturePayload(record),
+    payload: record.signaturePayload,
   });
 
   const cryptoOptions = {
@@ -70,27 +71,27 @@ describe('buildState — signature verification', () => {
     computeKeyFingerprint,
   };
 
-  it('accepts the golden chain when real signatures are verified', () => {
-    const state = buildState([
+  it('accepts the golden chain when real signatures are verified', async () => {
+    const state = await buildState(toTrustRecords([
       KEY_ADD_1,
       KEY_ADD_2,
       WRITER_BIND_ADD_ALICE,
-    ], cryptoOptions);
+    ]), cryptoOptions);
     expect(state.errors).toEqual([]);
     expect(state.activeKeys.has(KEY_ID_1)).toBe(true);
   });
 
-  it('fails closed on tampered signatures when verification is enabled', () => {
+  it('fails closed on tampered signatures when verification is enabled', async () => {
     const tampered = {
       ...KEY_ADD_2,
       issuedAt: '2025-06-15T12:09:00Z',
     };
-    const state = buildState([KEY_ADD_1, tampered], cryptoOptions);
+    const state = await buildState([toTrustRecord(KEY_ADD_1), toTrustRecord(tampered)], cryptoOptions);
     expect(state.errors.some((e) => e.error.includes('Signature verification failed'))).toBe(true);
     expect(state.activeKeys.has(KEY_ID_2)).toBe(false);
   });
 
-  it('rejects KEY_ADD records with mismatched key fingerprints when verification is enabled', () => {
+  it('rejects KEY_ADD records with mismatched key fingerprints when verification is enabled', async () => {
     const mismatched = {
       ...KEY_ADD_2,
       subject: {
@@ -98,22 +99,22 @@ describe('buildState — signature verification', () => {
         keyId: KEY_ID_1,
       },
     };
-    const state = buildState([KEY_ADD_1, mismatched], cryptoOptions);
+    const state = await buildState([toTrustRecord(KEY_ADD_1), toTrustRecord(mismatched)], cryptoOptions);
     expect(state.errors.some((e) => e.error.includes('fingerprint mismatch'))).toBe(true);
     expect(state.activeKeys.has(KEY_ID_2)).toBe(false);
   });
 });
 
 describe('buildState — binding lifecycle', () => {
-  it('WRITER_BIND_ADD creates active binding', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('WRITER_BIND_ADD creates active binding', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const bindingKey = `alice\0${KEY_ID_1}`;
     expect(state.writerBindings.has(bindingKey)).toBe(true);
     expect(/** @type {*} */ (state.writerBindings.get(bindingKey)).keyId).toBe(KEY_ID_1);
     expect(state.revokedBindings.size).toBe(0);
   });
 
-  it('WRITER_BIND_REVOKE moves binding from active to revoked', () => {
+  it('WRITER_BIND_REVOKE moves binding from active to revoked', async () => {
     // Need to first bind bob to key2 before revoking
     const bobBind = {
       schemaVersion: 1,
@@ -126,7 +127,7 @@ describe('buildState — binding lifecycle', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, bobBind, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2, WRITER_BIND_REVOKE_BOB]);
+    const state = await buildState([toTrustRecord(KEY_ADD_1), toTrustRecord(KEY_ADD_2), toTrustRecord(bobBind), toTrustRecord(WRITER_BIND_ADD_ALICE), toTrustRecord(KEY_REVOKE_2), toTrustRecord(WRITER_BIND_REVOKE_BOB)]);
     const bindingKey = `bob\0${KEY_ID_2}`;
     expect(state.writerBindings.has(bindingKey)).toBe(false);
     expect(state.revokedBindings.has(bindingKey)).toBe(true);
@@ -135,7 +136,7 @@ describe('buildState — binding lifecycle', () => {
 });
 
 describe('buildState — monotonic revocation', () => {
-  it('re-adding a revoked key produces an error', () => {
+  it('re-adding a revoked key produces an error', async () => {
     const reAdd = {
       schemaVersion: 1,
       recordType: 'KEY_ADD',
@@ -147,13 +148,13 @@ describe('buildState — monotonic revocation', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2, reAdd]);
+    const state = await buildState([toTrustRecord(KEY_ADD_1), toTrustRecord(KEY_ADD_2), toTrustRecord(WRITER_BIND_ADD_ALICE), toTrustRecord(KEY_REVOKE_2), toTrustRecord(reAdd)]);
     expect(state.errors.length).toBeGreaterThan(0);
     expect(state.errors.some(e => e.error.includes('Cannot re-add revoked key'))).toBe(true);
     expect(state.activeKeys.has(KEY_ID_2)).toBe(false);
   });
 
-  it('revoking an already-revoked key produces an error', () => {
+  it('revoking an already-revoked key produces an error', async () => {
     const doubleRevoke = {
       schemaVersion: 1,
       recordType: 'KEY_REVOKE',
@@ -165,13 +166,13 @@ describe('buildState — monotonic revocation', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2, doubleRevoke]);
+    const state = await buildState([toTrustRecord(KEY_ADD_1), toTrustRecord(KEY_ADD_2), toTrustRecord(WRITER_BIND_ADD_ALICE), toTrustRecord(KEY_REVOKE_2), toTrustRecord(doubleRevoke)]);
     expect(state.errors.some(e => e.error.includes('already revoked'))).toBe(true);
   });
 });
 
 describe('buildState — binding validation', () => {
-  it('binding to revoked key produces an error', () => {
+  it('binding to revoked key produces an error', async () => {
     const bindToRevoked = {
       schemaVersion: 1,
       recordType: 'WRITER_BIND_ADD',
@@ -183,11 +184,11 @@ describe('buildState — binding validation', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2, bindToRevoked]);
+    const state = await buildState([toTrustRecord(KEY_ADD_1), toTrustRecord(KEY_ADD_2), toTrustRecord(WRITER_BIND_ADD_ALICE), toTrustRecord(KEY_REVOKE_2), toTrustRecord(bindToRevoked)]);
     expect(state.errors.some(e => e.error.includes('Cannot bind writer to revoked key'))).toBe(true);
   });
 
-  it('binding to unknown key produces an error', () => {
+  it('binding to unknown key produces an error', async () => {
     const bindToUnknown = {
       schemaVersion: 1,
       recordType: 'WRITER_BIND_ADD',
@@ -199,11 +200,11 @@ describe('buildState — binding validation', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
-    const state = buildState([KEY_ADD_1, bindToUnknown]);
+    const state = await buildState([toTrustRecord(KEY_ADD_1), toTrustRecord(bindToUnknown)]);
     expect(state.errors.some(e => e.error.includes('Cannot bind writer to unknown key'))).toBe(true);
   });
 
-  it('revoking non-existent binding produces an error', () => {
+  it('revoking non-existent binding produces an error', async () => {
     const revokePhantom = {
       schemaVersion: 1,
       recordType: 'WRITER_BIND_REVOKE',
@@ -215,14 +216,14 @@ describe('buildState — binding validation', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
-    const state = buildState([KEY_ADD_1, revokePhantom]);
+    const state = await buildState([toTrustRecord(KEY_ADD_1), toTrustRecord(revokePhantom)]);
     expect(state.errors.some(e => e.error.includes('Cannot revoke non-existent binding'))).toBe(true);
   });
 });
 
 describe('buildState — full golden chain', () => {
-  it('processes full chain without errors', () => {
-    const state = buildState(/** @type {*} */ (GOLDEN_CHAIN));
+  it('processes full chain without errors', async () => {
+    const state = await buildState(toTrustRecords(GOLDEN_CHAIN));
     // After full chain: key1 active, key2 revoked, alice bound to key1, bob's binding revoked
     expect(state.activeKeys.size).toBe(1);
     expect(state.activeKeys.has(KEY_ID_1)).toBe(true);
@@ -235,27 +236,48 @@ describe('buildState — full golden chain', () => {
     expect(state.errors.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('returns frozen state', () => {
-    const state = buildState([KEY_ADD_1]);
+  it('returns frozen state', async () => {
+    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
     expect(Object.isFrozen(state)).toBe(true);
   });
 });
 
 describe('buildState — schema validation', () => {
-  it('rejects records that fail schema validation', () => {
-    const invalid = { schemaVersion: 99, recordType: 'BOGUS' };
-    const state = buildState([invalid]);
-    expect(state.errors.length).toBeGreaterThan(0);
-    const firstErr = state.errors[0];
-    expect(firstErr).toBeDefined();
-    expect(firstErr?.error).toContain('Schema validation failed');
+  it('TrustRecord.fromDecoded throws for invalid schema version', () => {
+    expect(() => TrustRecord.fromDecoded(/** @type {*} */ ({
+      schemaVersion: 99,
+      recordType: 'KEY_ADD',
+      recordId: 'a'.repeat(64),
+      issuerKeyId: 'ed25519:' + 'a'.repeat(64),
+      issuedAt: '2025-06-15T12:00:00Z',
+      prev: null,
+      subject: { keyId: 'ed25519:' + 'a'.repeat(64), publicKey: 'AAAA' },
+      meta: {},
+      signature: { alg: 'ed25519', sig: 'placeholder' },
+      signaturePayload: new Uint8Array(0),
+    }))).toThrow();
+  });
+
+  it('TrustRecord.fromDecoded throws for unknown record type', () => {
+    expect(() => TrustRecord.fromDecoded(/** @type {*} */ ({
+      schemaVersion: 1,
+      recordType: 'BOGUS',
+      recordId: 'a'.repeat(64),
+      issuerKeyId: 'ed25519:' + 'a'.repeat(64),
+      issuedAt: '2025-06-15T12:00:00Z',
+      prev: null,
+      subject: {},
+      meta: {},
+      signature: { alg: 'ed25519', sig: 'placeholder' },
+      signaturePayload: new Uint8Array(0),
+    }))).toThrow();
   });
 });
 
 describe('buildState — deterministic ordering', () => {
-  it('identical input → identical output', () => {
-    const state1 = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
-    const state2 = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('identical input → identical output', async () => {
+    const state1 = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
+    const state2 = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     expect(state1.activeKeys.size).toBe(state2.activeKeys.size);
     expect([...state1.activeKeys.keys()]).toEqual([...state2.activeKeys.keys()]);
   });

@@ -24,6 +24,7 @@ import {
   KEY_ID_2,
   PUBLIC_KEY_2,
 } from './fixtures/goldenRecords.js';
+import { toTrustRecord, toTrustRecords } from './fixtures/trustRecordFactory.ts';
 
 const ENFORCE_POLICY = {
   schemaVersion: 1,
@@ -58,7 +59,7 @@ describe('Adversarial case 1: Tampered record mid-chain', () => {
 });
 
 describe('Adversarial case 2: Stale key after KEY_REVOKE', () => {
-  it('writer bound to revoked key evaluates as untrusted', () => {
+  it('writer bound to revoked key evaluates as untrusted', async () => {
     // Bind bob to key2, then revoke key2
     const bobBind = {
       schemaVersion: 1,
@@ -72,7 +73,7 @@ describe('Adversarial case 2: Stale key after KEY_REVOKE', () => {
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
 
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, bobBind, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]);
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, bobBind, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]));
     const assessment = evaluateWriters(['bob'], state, ENFORCE_POLICY);
 
     expect(assessment.trustVerdict).toBe('fail');
@@ -83,7 +84,7 @@ describe('Adversarial case 2: Stale key after KEY_REVOKE', () => {
 });
 
 describe('Adversarial case 3: Revoked key signs new binding', () => {
-  it('buildState rejects binding to revoked key', () => {
+  it('buildState rejects binding to revoked key', async () => {
     const bindAfterRevoke = {
       schemaVersion: 1,
       recordType: 'WRITER_BIND_ADD',
@@ -96,10 +97,10 @@ describe('Adversarial case 3: Revoked key signs new binding', () => {
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
 
-    const state = buildState([
+    const state = await buildState(toTrustRecords([
       KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE,
       KEY_REVOKE_2, bindAfterRevoke,
-    ]);
+    ]));
 
     expect(state.errors.some((e) => e.error.includes('Cannot bind writer to revoked key'))).toBe(true);
     // charlie should NOT have an active binding
@@ -108,7 +109,7 @@ describe('Adversarial case 3: Revoked key signs new binding', () => {
 });
 
 describe('Adversarial case 4: Out-of-order record input', () => {
-  it('buildState requires chain order — out-of-order input produces errors, not silent corruption', () => {
+  it('buildState requires chain order — out-of-order input produces errors, not silent corruption', async () => {
     // buildState expects records in chain order (oldest first).
     // If records arrive out of order, the builder MUST detect the issue
     // via dependency violations (e.g. binding references unknown key)
@@ -116,8 +117,8 @@ describe('Adversarial case 4: Out-of-order record input', () => {
     const records = [KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE];
     const shuffled = [WRITER_BIND_ADD_ALICE, KEY_ADD_2, KEY_ADD_1];
 
-    const correctState = buildState(records);
-    const shuffledState = buildState(shuffled);
+    const correctState = await buildState(toTrustRecords(records));
+    const shuffledState = await buildState(toTrustRecords(shuffled));
 
     // Correct order: clean state
     expect(correctState.errors).toHaveLength(0);
@@ -131,10 +132,10 @@ describe('Adversarial case 4: Out-of-order record input', () => {
     )).toBe(true);
   });
 
-  it('evaluateWriters is deterministic for shuffled writer ID input', () => {
+  it('evaluateWriters is deterministic for shuffled writer ID input', async () => {
     // The evaluator sorts writer IDs internally, so input order
     // must not affect the output.
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const a1 = evaluateWriters(['bob', 'alice'], state, ENFORCE_POLICY);
     const a2 = evaluateWriters(['alice', 'bob'], state, ENFORCE_POLICY);
 

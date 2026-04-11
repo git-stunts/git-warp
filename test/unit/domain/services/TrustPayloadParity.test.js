@@ -17,6 +17,7 @@ import {
   WRITER_BIND_ADD_ALICE,
   KEY_REVOKE_2,
 } from '../trust/fixtures/goldenRecords.js';
+import { toTrustRecord, toTrustRecords } from '../trust/fixtures/trustRecordFactory.ts';
 
 // ── Constants ────────────────────────────────────────────────────────────
 
@@ -142,8 +143,8 @@ function buildErrorPayload(graphName, pinInfo) {
 // ============================================================================
 
 describe('TrustPayloadParity — shape parity', () => {
-  it('CLI payload contains all evaluator keys (pass verdict)', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('CLI payload contains all evaluator keys (pass verdict)', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 
     const cliPayload = buildCliPayload(assessment, {
@@ -163,8 +164,8 @@ describe('TrustPayloadParity — shape parity', () => {
     }
   });
 
-  it('CLI trust object contains all evaluator trust keys', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('CLI trust object contains all evaluator trust keys', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 
     const cliPayload = buildCliPayload(assessment, {
@@ -180,8 +181,8 @@ describe('TrustPayloadParity — shape parity', () => {
     }
   });
 
-  it('evidenceSummary preserves all five counter fields', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]);
+  it('evidenceSummary preserves all five counter fields', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]));
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 
     const cliPayload = buildCliPayload(assessment, {
@@ -197,8 +198,8 @@ describe('TrustPayloadParity — shape parity', () => {
     }
   });
 
-  it('explanations array entries retain all four fields', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('explanations array entries retain all four fields', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const assessment = evaluateWriters(['alice', 'unknown'], state, ENFORCE_POLICY);
 
     const cliPayload = buildCliPayload(assessment, {
@@ -221,8 +222,8 @@ describe('TrustPayloadParity — shape parity', () => {
     }
   });
 
-  it('CLI payload passes TrustAssessmentSchema after stripping CLI-only keys', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('CLI payload passes TrustAssessmentSchema after stripping CLI-only keys', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 
     const cliPayload = buildCliPayload(assessment, {
@@ -244,8 +245,8 @@ describe('TrustPayloadParity — shape parity', () => {
 // ============================================================================
 
 describe('TrustPayloadParity — CLI overrides', () => {
-  it('CLI pin overrides evaluator defaults (source=cli_pin, status=pinned)', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('CLI pin overrides evaluator defaults (source=cli_pin, status=pinned)', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 
     // Evaluator defaults: status='configured', source='ref'
@@ -264,8 +265,8 @@ describe('TrustPayloadParity — CLI overrides', () => {
     expect(cliPayload.trust.sourceDetail).toBe('abc123def');
   });
 
-  it('env pin overrides evaluator defaults (source=env_pin, status=pinned)', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('env pin overrides evaluator defaults (source=env_pin, status=pinned)', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 
     const cliPayload = buildCliPayload(assessment, {
@@ -280,8 +281,8 @@ describe('TrustPayloadParity — CLI overrides', () => {
     expect(cliPayload.trust.sourceDetail).toBe('deadbeef');
   });
 
-  it('ref resolution uses evaluator defaults (source=ref, status=configured)', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('ref resolution uses evaluator defaults (source=ref, status=configured)', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 
     const cliPayload = buildCliPayload(assessment, {
@@ -296,8 +297,8 @@ describe('TrustPayloadParity — CLI overrides', () => {
     expect(cliPayload.trust.sourceDetail).toBeNull();
   });
 
-  it('override does not discard non-overridden trust fields', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('override does not discard non-overridden trust fields', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const assessment = evaluateWriters(['alice', 'unknown'], state, ENFORCE_POLICY);
 
     const cliPayload = buildCliPayload(assessment, {
@@ -458,8 +459,8 @@ describe('TrustPayloadParity — not-configured path', () => {
 // ============================================================================
 
 describe('TrustPayloadParity — structural invariants', () => {
-  it('all paths produce the same set of trust keys', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('all paths produce the same set of trust keys', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 
     const happyPayload = buildCliPayload(assessment, {
@@ -480,8 +481,8 @@ describe('TrustPayloadParity — structural invariants', () => {
     expect(notConfiguredKeys).toEqual(happyKeys);
   });
 
-  it('all paths produce the same set of top-level keys', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('all paths produce the same set of top-level keys', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 
     const happyPayload = buildCliPayload(assessment, {
@@ -500,8 +501,8 @@ describe('TrustPayloadParity — structural invariants', () => {
     expect(Object.keys(notConfiguredPayload).sort()).toEqual(expectedTopKeys);
   });
 
-  it('evidenceSummary key set is identical across all paths', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('evidenceSummary key set is identical across all paths', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 
     const happyPayload = buildCliPayload(assessment, {
@@ -522,8 +523,8 @@ describe('TrustPayloadParity — structural invariants', () => {
     expect(notConfiguredEvidenceKeys).toEqual(happyEvidenceKeys);
   });
 
-  it('CLI payload with fail verdict still has complete shape', () => {
-    const state = buildState([KEY_ADD_1]);
+  it('CLI payload with fail verdict still has complete shape', async () => {
+    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
     const assessment = evaluateWriters(['unknown-writer'], state, ENFORCE_POLICY);
     expect(assessment.trustVerdict).toBe('fail');
 

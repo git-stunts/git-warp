@@ -15,6 +15,7 @@ import {
   KEY_ADD_2,
   WRITER_BIND_ADD_ALICE,
 } from '../domain/trust/fixtures/goldenRecords.js';
+import { toTrustRecord, toTrustRecords } from '../domain/trust/fixtures/trustRecordFactory.ts';
 
 /**
  * Simulates the exit code logic from the trust CLI handler.
@@ -30,8 +31,8 @@ function computeExitCode(assessment, mode) {
 }
 
 describe('Trust exit code matrix', () => {
-  it('pass verdict + enforce → exit 0', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('pass verdict + enforce → exit 0', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const assessment = evaluateWriters(['alice'], state, {
       schemaVersion: 1,
       mode: 'enforce',
@@ -40,8 +41,8 @@ describe('Trust exit code matrix', () => {
     expect(computeExitCode(assessment, 'enforce')).toBe(EXIT_CODES.OK);
   });
 
-  it('fail verdict + enforce → TRUST_FAIL', () => {
-    const state = buildState([KEY_ADD_1]);
+  it('fail verdict + enforce → TRUST_FAIL', async () => {
+    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
     const assessment = evaluateWriters(['unknown'], state, {
       schemaVersion: 1,
       mode: 'enforce',
@@ -50,8 +51,8 @@ describe('Trust exit code matrix', () => {
     expect(computeExitCode(assessment, 'enforce')).toBe(EXIT_CODES.TRUST_FAIL);
   });
 
-  it('fail verdict + warn → exit 0', () => {
-    const state = buildState([KEY_ADD_1]);
+  it('fail verdict + warn → exit 0', async () => {
+    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
     const assessment = evaluateWriters(['unknown'], state, {
       schemaVersion: 1,
       mode: 'warn',
@@ -69,8 +70,8 @@ describe('Trust exit code matrix', () => {
     expect(computeExitCode(assessment, 'enforce')).toBe(EXIT_CODES.OK);
   });
 
-  it('fail verdict + null mode → exit 0', () => {
-    const state = buildState([KEY_ADD_1]);
+  it('fail verdict + null mode → exit 0', async () => {
+    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
     const assessment = evaluateWriters(['unknown'], state, {
       schemaVersion: 1,
       mode: 'warn',

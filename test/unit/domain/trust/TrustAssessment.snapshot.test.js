@@ -15,6 +15,7 @@ import {
   WRITER_BIND_ADD_ALICE,
   KEY_REVOKE_2,
 } from './fixtures/goldenRecords.js';
+import { toTrustRecord, toTrustRecords } from './fixtures/trustRecordFactory.ts';
 
 const ENFORCE_POLICY = {
   schemaVersion: 1,
@@ -23,29 +24,29 @@ const ENFORCE_POLICY = {
 };
 
 describe('TrustAssessment schema conformance', () => {
-  it('pass verdict conforms to schema', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('pass verdict conforms to schema', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
     const result = TrustAssessmentSchema.safeParse(assessment);
     expect(result.success).toBe(true);
   });
 
-  it('fail verdict conforms to schema', () => {
-    const state = buildState([KEY_ADD_1]);
+  it('fail verdict conforms to schema', async () => {
+    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
     const assessment = evaluateWriters(['unknown'], state, ENFORCE_POLICY);
     const result = TrustAssessmentSchema.safeParse(assessment);
     expect(result.success).toBe(true);
   });
 
-  it('error verdict (bad policy) conforms to schema', () => {
-    const state = buildState([KEY_ADD_1]);
+  it('error verdict (bad policy) conforms to schema', async () => {
+    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
     const assessment = evaluateWriters(['alice'], state, { mode: 'bogus' });
     const result = TrustAssessmentSchema.safeParse(assessment);
     expect(result.success).toBe(true);
   });
 
-  it('mixed trusted/untrusted conforms to schema', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]);
+  it('mixed trusted/untrusted conforms to schema', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]));
     const assessment = evaluateWriters(['alice', 'mallory'], state, ENFORCE_POLICY);
     const result = TrustAssessmentSchema.safeParse(assessment);
     expect(result.success).toBe(true);
@@ -53,35 +54,35 @@ describe('TrustAssessment schema conformance', () => {
 });
 
 describe('TrustAssessment structural invariants', () => {
-  it('trustSchemaVersion is always 1', () => {
-    const state = buildState([KEY_ADD_1]);
+  it('trustSchemaVersion is always 1', async () => {
+    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
     expect(assessment.trustSchemaVersion).toBe(1);
   });
 
-  it('mode is always signed_evidence_v1', () => {
-    const state = buildState([KEY_ADD_1]);
+  it('mode is always signed_evidence_v1', async () => {
+    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
     expect(assessment.mode).toBe('signed_evidence_v1');
   });
 
-  it('untrustedWriters is a subset of evaluatedWriters', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
+  it('untrustedWriters is a subset of evaluatedWriters', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
     const assessment = evaluateWriters(['alice', 'unknown'], state, ENFORCE_POLICY);
     for (const w of assessment.trust.untrustedWriters) {
       expect(assessment.trust.evaluatedWriters).toContain(w);
     }
   });
 
-  it('explanations.length === evaluatedWriters.length', () => {
-    const state = buildState([KEY_ADD_1]);
+  it('explanations.length === evaluatedWriters.length', async () => {
+    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
     const writers = ['a', 'b', 'c'];
     const assessment = evaluateWriters(writers, state, ENFORCE_POLICY);
     expect(assessment.trust.explanations).toHaveLength(writers.length);
   });
 
-  it('evidence summary counts are non-negative integers', () => {
-    const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]);
+  it('evidence summary counts are non-negative integers', async () => {
+    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]));
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
     const { evidenceSummary } = assessment.trust;
     for (const key of Object.keys(evidenceSummary)) {
