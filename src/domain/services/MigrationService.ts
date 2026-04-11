@@ -6,6 +6,7 @@ import { createEmptyState } from './JoinReducer.ts';
 import VersionVector from '../crdt/VersionVector.ts';
 import type WarpState from './state/WarpState.ts';
 import type { LWWRegister } from '../crdt/LWW.ts';
+import type { PropValue } from '../types/PropValue.ts';
 
 /**
  * Minimal shape of a v4 "visible projection" entry.
@@ -16,14 +17,11 @@ type V4AliveRegister = { readonly value: boolean };
 /**
  * Shape of the legacy v4 materialized state accepted at the migration boundary.
  *
- * NOTE: The `LWWRegister<unknown>` in `prop` is inherited from WarpState's
- * own field type. It will be tightened when WarpState is converted in a
- * later wave of the TypeScript migration.
  */
 type V4State = {
   readonly nodeAlive: ReadonlyMap<string, V4AliveRegister>;
   readonly edgeAlive: ReadonlyMap<string, V4AliveRegister>;
-  readonly prop: ReadonlyMap<string, LWWRegister<unknown>>;
+  readonly prop: ReadonlyMap<string, LWWRegister<PropValue>>;
 };
 
 /**

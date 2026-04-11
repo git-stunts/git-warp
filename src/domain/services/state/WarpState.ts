@@ -11,6 +11,7 @@ import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { lwwMax, type LWWRegister } from '../../crdt/LWW.ts';
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
+import type { PropValue } from '../../types/PropValue.ts';
 
 /**
  * The CRDT materialized state for a WARP graph.
@@ -22,7 +23,7 @@ import { compareEventIds, type EventId } from '../../utils/EventId.ts';
 export default class WarpState {
   nodeAlive: ORSet;
   edgeAlive: ORSet;
-  prop: Map<string, LWWRegister<unknown>>;
+  prop: Map<string, LWWRegister<PropValue>>;
   observedFrontier: VersionVector;
   /** EdgeKey → EventId of most recent EdgeAdd (for clean-slate prop visibility). */
   edgeBirthEvent: Map<string, EventId>;
@@ -30,7 +31,7 @@ export default class WarpState {
   constructor(fields: {
     nodeAlive: ORSet;
     edgeAlive: ORSet;
-    prop: Map<string, LWWRegister<unknown>>;
+    prop: Map<string, LWWRegister<PropValue>>;
     observedFrontier: VersionVector;
     edgeBirthEvent?: Map<string, EventId>;
   }) {
@@ -72,7 +73,7 @@ export default class WarpState {
   static cloneFromSnapshot(state: WarpState | {
     readonly nodeAlive: ORSet;
     readonly edgeAlive: ORSet;
-    readonly prop: Map<string, LWWRegister<unknown>>;
+    readonly prop: Map<string, LWWRegister<PropValue>>;
     readonly observedFrontier: VersionVector;
     readonly edgeBirthEvent?: Map<string, EventId>;
   }): WarpState {
@@ -128,9 +129,9 @@ export default class WarpState {
 
   /** LWW-Max merge of two property maps. */
   private static _mergeProps(
-    a: Map<string, LWWRegister<unknown>>,
-    b: Map<string, LWWRegister<unknown>>,
-  ): Map<string, LWWRegister<unknown>> {
+    a: Map<string, LWWRegister<PropValue>>,
+    b: Map<string, LWWRegister<PropValue>>,
+  ): Map<string, LWWRegister<PropValue>> {
     const result = new Map(a);
     for (const [key, regB] of b) {
       const regA = result.get(key);

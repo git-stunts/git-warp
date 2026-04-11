@@ -15,6 +15,7 @@
 import type ORSet from '../crdt/ORSet.ts';
 import { encodeDot, type Dot } from '../crdt/Dot.ts';
 import type { LWWRegister } from '../crdt/LWW.ts';
+import type { PropValue } from '../types/PropValue.ts';
 import { compareEventIds, type EventId } from '../utils/EventId.ts';
 import { encodeEdgeKey, encodePropKey, encodeEdgePropKey } from './KeyCodec.js';
 import { OP_TYPES } from '../types/TickReceipt.ts';
@@ -150,7 +151,7 @@ export default class ReceiptBuilder {
    * redundant on exact EventId match.
    */
   static propOutcomeForKey(
-    propMap: ReadonlyMap<string, LWWRegister<unknown>>,
+    propMap: ReadonlyMap<string, LWWRegister<PropValue>>,
     key: string,
     eventId: EventId,
   ): OpOutcomeResult {
@@ -170,7 +171,7 @@ export default class ReceiptBuilder {
 
   /** NodePropSet / legacy PropSet receipt outcome. */
   static propSetOutcome(
-    propMap: ReadonlyMap<string, LWWRegister<unknown>>,
+    propMap: ReadonlyMap<string, LWWRegister<PropValue>>,
     op: { readonly node: string; readonly key: string },
     eventId: EventId,
   ): OpOutcomeResult {
@@ -179,7 +180,7 @@ export default class ReceiptBuilder {
 
   /** EdgePropSet receipt outcome. */
   static edgePropSetOutcome(
-    propMap: ReadonlyMap<string, LWWRegister<unknown>>,
+    propMap: ReadonlyMap<string, LWWRegister<PropValue>>,
     op: { readonly from: string; readonly to: string; readonly label: string; readonly key: string },
     eventId: EventId,
   ): OpOutcomeResult {
