@@ -1,3 +1,11 @@
+---
+id: GOD_strand-service
+blocks:
+  - API_migrate-consumers-to-capabilities
+blocked_by:
+  - API_capability-interfaces
+---
+
 # Slay StrandService (992 LOC)
 
 ## Current shape

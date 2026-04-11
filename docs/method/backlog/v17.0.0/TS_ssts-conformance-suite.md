@@ -1,3 +1,10 @@
+---
+id: TS_ssts-conformance-suite
+blocks: []
+blocked_by:
+  - TS_publish-pipeline
+---
+
 # SSTS conformance suite
 
 Automated witness for the entire migration. A test suite

@@ -1,3 +1,10 @@
+---
+id: GOD_query-builder
+blocks:
+  - API_migrate-consumers-to-capabilities
+blocked_by: []
+---
+
 # Slay QueryBuilder (904 LOC)
 
 ## Current shape

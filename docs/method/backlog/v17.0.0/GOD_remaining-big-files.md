@@ -1,3 +1,12 @@
+---
+id: GOD_remaining-big-files
+blocks:
+  - API_migrate-consumers-to-capabilities
+blocked_by:
+  - CROSS_shared-provider-interfaces
+  - GOD_incremental-index-updater
+---
+
 # Slay remaining big files (835–808 LOC)
 
 ## StreamingBitmapIndexBuilder (835 LOC)

@@ -1,3 +1,9 @@
+---
+id: SLUDGE_content-access-duplication
+blocks: []
+blocked_by: []
+---
+
 # De-duplicate content access methods (8 → 2 objects)
 
 ## The sludge

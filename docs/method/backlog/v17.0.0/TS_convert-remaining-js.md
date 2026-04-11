@@ -1,3 +1,11 @@
+---
+id: TS_convert-remaining-js
+blocks:
+  - TS_infrastructure-adapters
+  - TS_cli-viz-scripts
+blocked_by: []
+---
+
 # Convert remaining 93 .js files to TypeScript
 
 Phase 2 of cycle 0013. Every .js in src/domain/ becomes .ts.

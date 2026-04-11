@@ -1,3 +1,17 @@
+---
+id: API_migrate-consumers-to-capabilities
+blocks:
+  - API_kill-warpruntime
+blocked_by:
+  - API_warpgraph-factory
+  - GOD_query-controller
+  - GOD_materialize-controller
+  - GOD_strand-service
+  - GOD_query-builder
+  - GOD_incremental-index-updater
+  - GOD_remaining-big-files
+---
+
 # Migrate internal consumers from WarpRuntime to capabilities
 
 Every internal file that imports `WarpRuntime` and calls methods on it

@@ -1,3 +1,12 @@
+---
+id: GOD_incremental-index-updater
+blocks:
+  - API_migrate-consumers-to-capabilities
+  - GOD_remaining-big-files
+blocked_by:
+  - CROSS_shared-provider-interfaces
+---
+
 # Slay IncrementalIndexUpdater (955 LOC)
 
 ## Current shape

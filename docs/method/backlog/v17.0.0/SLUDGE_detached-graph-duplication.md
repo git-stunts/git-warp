@@ -1,3 +1,10 @@
+---
+id: SLUDGE_detached-graph-duplication
+blocks: []
+blocked_by:
+  - CROSS_shared-provider-interfaces
+---
+
 # Deduplicate openDetachedReadGraph / openDetachedObserverGraph
 
 ## The sludge

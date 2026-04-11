@@ -1,3 +1,12 @@
+---
+id: API_capability-interfaces
+blocks:
+  - API_warpgraph-factory
+  - GOD_query-controller
+  - GOD_strand-service
+blocked_by: []
+---
+
 # Write capability interfaces for WarpGraph API
 
 Define the public contract for each domain capability as a TypeScript

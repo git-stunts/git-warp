@@ -1,3 +1,12 @@
+---
+id: GOD_query-controller
+blocks:
+  - API_migrate-consumers-to-capabilities
+blocked_by:
+  - API_capability-interfaces
+  - CROSS_shared-provider-interfaces
+---
+
 # Slay QueryController (951 LOC)
 
 ## Current shape

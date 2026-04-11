@@ -1,3 +1,12 @@
+---
+id: API_warpgraph-factory
+blocks:
+  - API_migrate-consumers-to-capabilities
+blocked_by:
+  - API_capability-interfaces
+  - CROSS_shared-provider-interfaces
+---
+
 # Ship openWarpGraph() factory
 
 Create `src/domain/WarpGraph.ts` with:

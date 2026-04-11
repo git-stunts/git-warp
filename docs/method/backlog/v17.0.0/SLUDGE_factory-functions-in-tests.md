@@ -1,3 +1,9 @@
+---
+id: SLUDGE_factory-functions-in-tests
+blocks: []
+blocked_by: []
+---
+
 # Kill factory sludge in test suite
 
 Factory functions like `createNodeAddV2()`, `createEdgeAddV2()`,
