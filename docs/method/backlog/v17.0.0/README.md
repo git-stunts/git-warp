@@ -21,7 +21,7 @@ LAYER 1 (blocked by layer 0):
   [x] GOD_query-controller ← capability-interfaces + shared-providers
   [x] GOD_materialize-controller ← shared-providers (pure DI, bridge WIP)
   [ ] GOD_incremental-index-updater ← shared-providers
-  [ ] GOD_strand-service ← capability-interfaces
+  [x] GOD_strand-service ← capability-interfaces (dissolved → coordinator + validation)
   [ ] GOD_remaining-big-files ← shared-providers + index-updater
   [~] SLUDGE_host-bag-injection ← doing per-god-kill, not separate
   [x] SLUDGE_detached-graph-duplication ← detachedOpen.ts shared helper
