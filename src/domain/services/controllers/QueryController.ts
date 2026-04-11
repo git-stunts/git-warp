@@ -8,6 +8,7 @@
 import { cloneState } from '../JoinReducer.ts';
 import QueryBuilder from '../query/QueryBuilder.js';
 import Observer from '../query/Observer.js';
+import { openDetachedGraph } from './detachedOpen.ts';
 import Worldline from '../Worldline.ts';
 import { computeTranslationCost } from '../TranslationCost.js';
 import { computeStateHashV5 } from '../state/StateSerializerV5.js';
@@ -39,57 +40,6 @@ type ObserverSource = { kind: string; [key: string]: unknown };
 function toSelector(source: WorldlineSelector | ObserverSource | undefined): WorldlineSelector | undefined {
   if (!source) { return undefined; }
   return WorldlineSelector.from(source).clone();
-}
-
-// ── Detached graph cloning ──────────────────────────────────────────
-// TODO: Replace with DetachedGraphFactory once DI is wired.
-
-type DetachedOpenOptions = Parameters<typeof WarpRuntime.open>[0];
-
-function coreDetachedOptions(graph: WarpRuntime): DetachedOpenOptions {
-  return {
-    persistence: graph._persistence,
-    graphName: graph._graphName,
-    writerId: graph._writerId,
-    gcPolicy: graph._gcPolicy,
-    autoMaterialize: false,
-    onDeleteWithData: graph._onDeleteWithData,
-    clock: graph._clock,
-    crypto: graph._crypto,
-    codec: graph._codec,
-    audit: false,
-  };
-}
-
-function addCachePorts(opts: DetachedOpenOptions, graph: WarpRuntime): void {
-  if (graph._checkpointPolicy) { opts.checkpointPolicy = graph._checkpointPolicy; }
-  if (graph._logger) { opts.logger = graph._logger; }
-  if (graph._seekCache) { opts.seekCache = graph._seekCache; }
-}
-
-function addStoragePorts(opts: DetachedOpenOptions, graph: WarpRuntime): void {
-  if (graph._blobStorage) { opts.blobStorage = graph._blobStorage; }
-  if (graph._patchBlobStorage) { opts.patchBlobStorage = graph._patchBlobStorage; }
-}
-
-function addTrustAndJournal(opts: DetachedOpenOptions, graph: WarpRuntime): void {
-  if (graph._trustConfig !== undefined && graph._trustConfig !== null) { opts.trust = graph._trustConfig; }
-  if (graph._patchJournal !== undefined && graph._patchJournal !== null) { opts.patchJournal = graph._patchJournal; }
-}
-
-function addStoresPorts(opts: DetachedOpenOptions, graph: WarpRuntime): void {
-  if (graph._checkpointStore !== undefined && graph._checkpointStore !== null) { opts.checkpointStore = graph._checkpointStore; }
-  if (graph._indexStore !== undefined && graph._indexStore !== null) { opts.indexStore = graph._indexStore; }
-}
-
-async function openDetachedGraph(graph: WarpRuntime): Promise<WarpRuntime> {
-  const opts = coreDetachedOptions(graph);
-  addCachePorts(opts, graph);
-  addStoragePorts(opts, graph);
-  addTrustAndJournal(opts, graph);
-  addStoresPorts(opts, graph);
-  const Ctor = graph.constructor as typeof WarpRuntime;
-  return await Ctor.open(opts);
 }
 
 // ── Snapshot helpers ────────────────────────────────────────────────
