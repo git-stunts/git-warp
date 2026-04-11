@@ -18,33 +18,14 @@ import { createDot } from '../../../../src/domain/crdt/Dot.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
+import EdgeRemove from '../../../../src/domain/types/ops/EdgeRemove.ts';
+import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
+import EdgePropSet from '../../../../src/domain/types/ops/EdgePropSet.ts';
 /** @param {unknown} value */
 function createInlineValue(value) { return { type: 'inline', value }; }
 
-// ---------------------------------------------------------------------------
-// Helpers — mirror the patterns in JoinReducer.test.js
-// ---------------------------------------------------------------------------
 
-/** @param {string} from @param {string} to @param {string} label @param {any} dot */
-function createEdgeAddV2(from, to, label, dot) {
-  return { type: 'EdgeAdd', from, to, label, dot };
-}
-
-/** @param {string} node @param {string} key @param {any} value */
-function createPropSetV2(node, key, value) {
-  return { type: 'PropSet', node, key, value };
-}
-
-/**
- * Creates a canonical EdgePropSet operation (ADR 1).
- * The reducer and direct applyOpV2 calls operate on canonical ops.
- * When used in patches going through reduceV5, normalizeRawOp passes
- * canonical ops through unchanged.
- */
-/** @param {string} from @param {string} to @param {string} label @param {string} propKey @param {any} value */
-function createEdgePropSetV2(from, to, label, propKey, value) {
-  return { type: 'EdgePropSet', from, to, label, key: propKey, value };
-}
 
 /** @param {any} params */
 function createPatch({ writer, lamport, ops, context }) {
@@ -130,12 +111,12 @@ describe('JoinReducer — edge property LWW', () => {
       const patchA = createPatch({
         writer: 'A',
         lamport: 1,
-        ops: [createEdgePropSetV2('x', 'y', 'rel', 'weight', createInlineValue(10))],
+        ops: [new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue(10) })],
       });
       const patchB = createPatch({
         writer: 'B',
         lamport: 2,
-        ops: [createEdgePropSetV2('x', 'y', 'rel', 'weight', createInlineValue(42))],
+        ops: [new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue(42) })],
       });
 
       const state = reduceV5([
@@ -150,12 +131,12 @@ describe('JoinReducer — edge property LWW', () => {
       const patchA = createPatch({
         writer: 'A',
         lamport: 1,
-        ops: [createEdgePropSetV2('x', 'y', 'rel', 'weight', createInlineValue(10))],
+        ops: [new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue(10) })],
       });
       const patchB = createPatch({
         writer: 'B',
         lamport: 2,
-        ops: [createEdgePropSetV2('x', 'y', 'rel', 'weight', createInlineValue(42))],
+        ops: [new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue(42) })],
       });
 
       const stateAB = reduceV5([
@@ -180,12 +161,12 @@ describe('JoinReducer — edge property LWW', () => {
       const patchA = createPatch({
         writer: 'A',
         lamport: 5,
-        ops: [createEdgePropSetV2('x', 'y', 'rel', 'weight', createInlineValue('from-A'))],
+        ops: [new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue('from-A') })],
       });
       const patchB = createPatch({
         writer: 'B',
         lamport: 5,
-        ops: [createEdgePropSetV2('x', 'y', 'rel', 'weight', createInlineValue('from-B'))],
+        ops: [new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue('from-B') })],
       });
 
       const stateAB = reduceV5([
@@ -210,12 +191,12 @@ describe('JoinReducer — edge property LWW', () => {
       const patchAlice = createPatch({
         writer: 'alice',
         lamport: 3,
-        ops: [createEdgePropSetV2('n1', 'n2', 'link', 'color', createInlineValue('red'))],
+        ops: [new EdgePropSet({ from: 'n1', to: 'n2', label: 'link', key: 'color', value: createInlineValue('red') })],
       });
       const patchZara = createPatch({
         writer: 'zara',
         lamport: 3,
-        ops: [createEdgePropSetV2('n1', 'n2', 'link', 'color', createInlineValue('blue'))],
+        ops: [new EdgePropSet({ from: 'n1', to: 'n2', label: 'link', key: 'color', value: createInlineValue('blue') })],
       });
 
       const state = reduceV5([
@@ -236,12 +217,12 @@ describe('JoinReducer — edge property LWW', () => {
       const patchLow = createPatch({
         writer: 'W',
         lamport: 7,
-        ops: [createEdgePropSetV2('a', 'b', 'edge', 'k', createInlineValue('low-sha'))],
+        ops: [new EdgePropSet({ from: 'a', to: 'b', label: 'edge', key: 'k', value: createInlineValue('low-sha') })],
       });
       const patchHigh = createPatch({
         writer: 'W',
         lamport: 7,
-        ops: [createEdgePropSetV2('a', 'b', 'edge', 'k', createInlineValue('high-sha'))],
+        ops: [new EdgePropSet({ from: 'a', to: 'b', label: 'edge', key: 'k', value: createInlineValue('high-sha') })],
       });
 
       // 'ffff0000' > '0000ffff' lexicographically
@@ -274,8 +255,8 @@ describe('JoinReducer — edge property LWW', () => {
         writer: 'W',
         lamport: 1,
         ops: [
-          createEdgePropSetV2('a', 'b', 'rel', 'color', createInlineValue('first')),
-          createEdgePropSetV2('a', 'b', 'rel', 'color', createInlineValue('second')),
+          new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'color', value: createInlineValue('first') }),
+          new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'color', value: createInlineValue('second') }),
         ],
       });
 
@@ -295,7 +276,7 @@ describe('JoinReducer — edge property LWW', () => {
           patch: createPatch({
             writer: 'W1',
             lamport: 1,
-            ops: [createEdgePropSetV2('x', 'y', 'rel', 'score', createInlineValue(100))],
+            ops: [new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'score', value: createInlineValue(100) })],
           }),
           sha: 'aaaa1111',
         },
@@ -303,7 +284,7 @@ describe('JoinReducer — edge property LWW', () => {
           patch: createPatch({
             writer: 'W2',
             lamport: 3,
-            ops: [createEdgePropSetV2('x', 'y', 'rel', 'score', createInlineValue(200))],
+            ops: [new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'score', value: createInlineValue(200) })],
           }),
           sha: 'bbbb2222',
         },
@@ -311,7 +292,7 @@ describe('JoinReducer — edge property LWW', () => {
           patch: createPatch({
             writer: 'W3',
             lamport: 2,
-            ops: [createEdgePropSetV2('x', 'y', 'rel', 'score', createInlineValue(300))],
+            ops: [new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'score', value: createInlineValue(300) })],
           }),
           sha: 'cccc3333',
         },
@@ -319,7 +300,7 @@ describe('JoinReducer — edge property LWW', () => {
           patch: createPatch({
             writer: 'W4',
             lamport: 3,
-            ops: [createEdgePropSetV2('x', 'y', 'rel', 'score', createInlineValue(400))],
+            ops: [new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'score', value: createInlineValue(400) })],
           }),
           sha: 'dddd4444',
         },
@@ -358,7 +339,7 @@ describe('JoinReducer — edge property LWW', () => {
         patch: createPatch({
           writer: w,
           lamport: 5,
-          ops: [createEdgePropSetV2('src', 'dst', 'link', 'tag', createInlineValue(w))],
+          ops: [new EdgePropSet({ from: 'src', to: 'dst', label: 'link', key: 'tag', value: createInlineValue(w) })],
         }),
         sha: `${String(i).padStart(4, '0')}abcd`,
       }));
@@ -400,8 +381,8 @@ describe('JoinReducer — edge property LWW', () => {
         writer: 'W',
         lamport: 1,
         ops: [
-          createPropSetV2('x', 'weight', createInlineValue('node-weight')),
-          createEdgePropSetV2('x', 'y', 'rel', 'weight', createInlineValue('edge-weight')),
+          new PropSet('x', 'weight', createInlineValue('node-weight')),
+          new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue('edge-weight') }),
         ],
       });
 
@@ -422,15 +403,15 @@ describe('JoinReducer — edge property LWW', () => {
         writer: 'A',
         lamport: 1,
         ops: [
-          createPropSetV2('n', 'name', createInlineValue('A-node')),
-          createEdgePropSetV2('n', 'm', 'link', 'label', createInlineValue('A-edge')),
+          new PropSet('n', 'name', createInlineValue('A-node')),
+          new EdgePropSet({ from: 'n', to: 'm', label: 'link', key: 'label', value: createInlineValue('A-edge') }),
         ],
       });
       const patchB = createPatch({
         writer: 'B',
         lamport: 2,
         ops: [
-          createPropSetV2('n', 'name', createInlineValue('B-node')),
+          new PropSet('n', 'name', createInlineValue('B-node')),
         ],
       });
       // A separate patch from C that only touches edge prop at lamport 1
@@ -438,7 +419,7 @@ describe('JoinReducer — edge property LWW', () => {
         writer: 'C',
         lamport: 1,
         ops: [
-          createEdgePropSetV2('n', 'm', 'link', 'label', createInlineValue('C-edge')),
+          new EdgePropSet({ from: 'n', to: 'm', label: 'link', key: 'label', value: createInlineValue('C-edge') }),
         ],
       });
 
@@ -461,16 +442,16 @@ describe('JoinReducer — edge property LWW', () => {
         writer: 'A',
         lamport: 2,
         ops: [
-          createEdgePropSetV2('u', 'v', 'rel', 'color', createInlineValue('red')),
-          createEdgePropSetV2('u', 'v', 'rel', 'weight', createInlineValue(10)),
+          new EdgePropSet({ from: 'u', to: 'v', label: 'rel', key: 'color', value: createInlineValue('red') }),
+          new EdgePropSet({ from: 'u', to: 'v', label: 'rel', key: 'weight', value: createInlineValue(10) }),
         ],
       });
       const patchB = createPatch({
         writer: 'B',
         lamport: 1,
         ops: [
-          createEdgePropSetV2('u', 'v', 'rel', 'color', createInlineValue('blue')),
-          createEdgePropSetV2('u', 'v', 'rel', 'weight', createInlineValue(99)),
+          new EdgePropSet({ from: 'u', to: 'v', label: 'rel', key: 'color', value: createInlineValue('blue') }),
+          new EdgePropSet({ from: 'u', to: 'v', label: 'rel', key: 'weight', value: createInlineValue(99) }),
         ],
       });
 
@@ -490,8 +471,8 @@ describe('JoinReducer — edge property LWW', () => {
         writer: 'W',
         lamport: 1,
         ops: [
-          createEdgePropSetV2('x', 'y', 'follows', 'since', createInlineValue('2024-01')),
-          createEdgePropSetV2('y', 'z', 'follows', 'since', createInlineValue('2025-06')),
+          new EdgePropSet({ from: 'x', to: 'y', label: 'follows', key: 'since', value: createInlineValue('2024-01') }),
+          new EdgePropSet({ from: 'y', to: 'z', label: 'follows', key: 'since', value: createInlineValue('2025-06') }),
         ],
       });
 
@@ -510,8 +491,8 @@ describe('JoinReducer — edge property LWW', () => {
         writer: 'W',
         lamport: 1,
         ops: [
-          createEdgePropSetV2('a', 'b', 'friend', 'strength', createInlineValue(5)),
-          createEdgePropSetV2('a', 'b', 'colleague', 'strength', createInlineValue(8)),
+          new EdgePropSet({ from: 'a', to: 'b', label: 'friend', key: 'strength', value: createInlineValue(5) }),
+          new EdgePropSet({ from: 'a', to: 'b', label: 'colleague', key: 'strength', value: createInlineValue(8) }),
         ],
       });
 
@@ -532,17 +513,17 @@ describe('JoinReducer — edge property LWW', () => {
       const patch1 = createPatch({
         writer: 'W',
         lamport: 1,
-        ops: [createEdgePropSetV2('a', 'b', 'rel', 'status', createInlineValue('draft'))],
+        ops: [new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'status', value: createInlineValue('draft') })],
       });
       const patch2 = createPatch({
         writer: 'W',
         lamport: 2,
-        ops: [createEdgePropSetV2('a', 'b', 'rel', 'status', createInlineValue('review'))],
+        ops: [new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'status', value: createInlineValue('review') })],
       });
       const patch3 = createPatch({
         writer: 'W',
         lamport: 3,
-        ops: [createEdgePropSetV2('a', 'b', 'rel', 'status', createInlineValue('published'))],
+        ops: [new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'status', value: createInlineValue('published') })],
       });
 
       // Apply in reverse order — LWW should still pick lamport 3
@@ -562,11 +543,11 @@ describe('JoinReducer — edge property LWW', () => {
         writer: 'W',
         lamport: 1,
         ops: [
-          createEdgePropSetV2('a', 'b', 'rel', 'val', createInlineValue(1)),
-          createEdgePropSetV2('a', 'b', 'rel', 'val', createInlineValue(2)),
-          createEdgePropSetV2('a', 'b', 'rel', 'val', createInlineValue(3)),
-          createEdgePropSetV2('a', 'b', 'rel', 'val', createInlineValue(4)),
-          createEdgePropSetV2('a', 'b', 'rel', 'val', createInlineValue(5)),
+          new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'val', value: createInlineValue(1) }),
+          new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'val', value: createInlineValue(2) }),
+          new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'val', value: createInlineValue(3) }),
+          new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'val', value: createInlineValue(4) }),
+          new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'val', value: createInlineValue(5) }),
         ],
       });
 
@@ -587,14 +568,14 @@ describe('JoinReducer — edge property LWW', () => {
       // Apply edge prop in state A at lamport 1
       applyOpV2(
         stateA,
-        createEdgePropSetV2('x', 'y', 'rel', 'weight', createInlineValue(10)),
+        new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue(10) }),
         createEventId(1, 'A', 'aaaa1234', 0)
       );
 
       // Apply edge prop in state B at lamport 2
       applyOpV2(
         stateB,
-        createEdgePropSetV2('x', 'y', 'rel', 'weight', createInlineValue(20)),
+        new EdgePropSet({ from: 'x', to: 'y', label: 'rel', key: 'weight', value: createInlineValue(20) }),
         createEventId(2, 'B', 'bbbb1234', 0)
       );
 
@@ -610,12 +591,12 @@ describe('JoinReducer — edge property LWW', () => {
 
       applyOpV2(
         stateA,
-        createEdgePropSetV2('p', 'q', 'link', 'tag', createInlineValue('alpha')),
+        new EdgePropSet({ from: 'p', to: 'q', label: 'link', key: 'tag', value: createInlineValue('alpha') }),
         createEventId(5, 'A', 'aaaa1234', 0)
       );
       applyOpV2(
         stateB,
-        createEdgePropSetV2('p', 'q', 'link', 'tag', createInlineValue('beta')),
+        new EdgePropSet({ from: 'p', to: 'q', label: 'link', key: 'tag', value: createInlineValue('beta') }),
         createEventId(5, 'B', 'bbbb1234', 0)
       );
 
@@ -643,15 +624,15 @@ describe('JoinReducer — edge property LWW', () => {
         writer: 'W',
         lamport: 1,
         ops: [
-          createEdgeAddV2('a', 'b', 'rel', createDot('W', 1)),
-          createEdgePropSetV2('a', 'b', 'rel', 'weight', createInlineValue(42)),
+          new EdgeAdd({ from: 'a', to: 'b', label: 'rel', dot: createDot('W', 1) }),
+          new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'weight', value: createInlineValue(42) }),
         ],
       });
       const patchRemove = createPatch({
         writer: 'W',
         lamport: 2,
         ops: [
-          { type: 'EdgeRemove', observedDots: new Set(['W:1']) },
+          new EdgeRemove({ from: 'a', to: 'b', label: 'rel', observedDots: ['W:1'] }),
         ],
       });
 
@@ -673,7 +654,7 @@ describe('JoinReducer — edge property LWW', () => {
         writer: 'W',
         lamport: 1,
         ops: [
-          createEdgePropSetV2('a', 'b', 'rel', 'weight', createInlineValue(99)),
+          new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'weight', value: createInlineValue(99) }),
         ],
       });
 
@@ -695,7 +676,7 @@ describe('JoinReducer — edge property LWW', () => {
     it('applies edge PropSet via applyOpV2', () => {
       const state = createEmptyState();
       const eventId = createEventId(1, 'W', 'abcd1234', 0);
-      const op = createEdgePropSetV2('from', 'to', 'label', 'key', createInlineValue('val'));
+      const op = new EdgePropSet({ from: 'from', to: 'to', label: 'label', key: 'key', value: createInlineValue('val') });
 
       applyOpV2(state, op, eventId);
 
@@ -706,14 +687,14 @@ describe('JoinReducer — edge property LWW', () => {
 
     it('LWW correctly resolves when applying two ops via applyOpV2', () => {
       const state = createEmptyState();
-      const op = createEdgePropSetV2('f', 't', 'l', 'k', createInlineValue('old'));
+      const op = new EdgePropSet({ from: 'f', to: 't', label: 'l', key: 'k', value: createInlineValue('old') });
 
       // Apply lower EventId first
       applyOpV2(state, op, createEventId(1, 'W', 'aaaa1234', 0));
       expect(getEdgeProp(state, 'f', 't', 'l', 'k')).toEqual(createInlineValue('old'));
 
       // Apply higher EventId — should overwrite
-      const op2 = createEdgePropSetV2('f', 't', 'l', 'k', createInlineValue('new'));
+      const op2 = new EdgePropSet({ from: 'f', to: 't', label: 'l', key: 'k', value: createInlineValue('new') });
       applyOpV2(state, op2, createEventId(2, 'W', 'bbbb1234', 0));
       expect(getEdgeProp(state, 'f', 't', 'l', 'k')).toEqual(createInlineValue('new'));
     });
@@ -722,11 +703,11 @@ describe('JoinReducer — edge property LWW', () => {
       const state = createEmptyState();
 
       // Apply higher EventId first
-      const opHigh = createEdgePropSetV2('f', 't', 'l', 'k', createInlineValue('winner'));
+      const opHigh = new EdgePropSet({ from: 'f', to: 't', label: 'l', key: 'k', value: createInlineValue('winner') });
       applyOpV2(state, opHigh, createEventId(5, 'W', 'aaaa1234', 0));
 
       // Apply lower EventId second — should NOT overwrite
-      const opLow = createEdgePropSetV2('f', 't', 'l', 'k', createInlineValue('loser'));
+      const opLow = new EdgePropSet({ from: 'f', to: 't', label: 'l', key: 'k', value: createInlineValue('loser') });
       applyOpV2(state, opLow, createEventId(1, 'W', 'bbbb1234', 0));
 
       expect(getEdgeProp(state, 'f', 't', 'l', 'k')).toEqual(createInlineValue('winner'));
@@ -742,13 +723,7 @@ describe('JoinReducer — edge property LWW', () => {
         writer: 'W',
         lamport: 1,
         ops: [
-          createEdgePropSetV2(
-            'a',
-            'b',
-            'rel',
-            'metadata',
-            createInlineValue({ created: '2025-01-01', version: 3 })
-          ),
+          new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'metadata', value: createInlineValue({ created: '2025-01-01', version: 3 }) }),
         ],
       });
 
@@ -763,7 +738,7 @@ describe('JoinReducer — edge property LWW', () => {
       const patch = createPatch({
         writer: 'W',
         lamport: 1,
-        ops: [createEdgePropSetV2('a', 'b', 'rel', 'optional', createInlineValue(null))],
+        ops: [new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'optional', value: createInlineValue(null) })],
       });
 
       const state = reduceV5([{ patch, sha: 'abcd1234' }]);
@@ -775,7 +750,7 @@ describe('JoinReducer — edge property LWW', () => {
       const patch = createPatch({
         writer: 'W',
         lamport: 1,
-        ops: [createEdgePropSetV2('a', 'b', 'rel', 'active', createInlineValue(true))],
+        ops: [new EdgePropSet({ from: 'a', to: 'b', label: 'rel', key: 'active', value: createInlineValue(true) })],
       });
 
       const state = reduceV5([{ patch, sha: 'abcd1234' }]);
