@@ -48,6 +48,15 @@ The class already delegates to 4 sub-services. The problem is the
 2. **No `_graph` host bag.** Sub-services get typed deps, not a
    WarpRuntime reference. See `SLUDGE_host-bag-injection.md`.
 
+## SSTS amendments
+
+- **Named options types** for `create(options)` and all methods
+  accepting options. No `= {}` default bags.
+- **Check sub-service LOC after dissolution.** StrandDescriptorStore
+  is 643 LOC. If pushing behavior into it exceeds 500, split it:
+  `StrandDescriptorNormalization.ts` (validation/normalization) +
+  `StrandDescriptorStore.ts` (CRUD).
+
 ## Dependencies
 
 - `StrandDescriptorStore` — descriptor CRUD

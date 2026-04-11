@@ -34,3 +34,9 @@ a bag of functions) as a dependency.
 This is algorithmic code with bitmap-level operations. Splitting
 must preserve the exact same shard mutation semantics. Needs careful
 test verification via the existing index tests.
+
+## SSTS amendments
+
+- **Shard data validated after deserialization.** ShardIO returns
+  typed shard objects, not raw decoded blobs. The port is the
+  boundary; validation happens there.

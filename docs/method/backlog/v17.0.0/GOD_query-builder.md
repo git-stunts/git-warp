@@ -32,3 +32,12 @@ The "QueryBuilder at 500 LOC" option is ceiling-riding — don't.
 `QueryGraph` typed interface replaces the old cast-heavy WarpRuntime
 access. `requireAdjacencyMaps` and `requireStateHash` provide runtime
 boundary validation.
+
+## SSTS amendments
+
+- **`QueryPlan` value object.** The builder → runner handoff is an
+  explicit frozen value object containing match, where, select,
+  direction, depth, aggregates, sort, limit, offset. Not a bag of
+  fields on the builder instance.
+- **Named result type.** `QueryResult` (or `QueryResultSet`) with
+  typed fields: nodes, edges, aggregates, stats. Not a plain object.

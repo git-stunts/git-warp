@@ -104,3 +104,11 @@ This is the most coupled controller.
 3. **`_maybeAutoCheckpoint` reaches into host for checkpoint policy.**
    Should receive the policy as a constructor dep, not reach through
    host.
+
+## SSTS amendments
+
+- **Named options types** for `materialize(options)` and
+  `materializeCoordinate(options)`. No anonymous bags.
+- **Cache encoding through CodecPort.** `_persistSeekCacheEntry`
+  must use the injected codec, not inline encoding.
+- **Named result types** for materialization results.

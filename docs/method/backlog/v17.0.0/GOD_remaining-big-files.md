@@ -27,7 +27,16 @@ logic vs chain walking.
 - **Types** (~125 LOC): assessment result shapes
 
 2 files: `AuditVerifier.ts` (verification) + `AuditChainWalker.ts`
-(chain traversal). Or 3 if types warrant their own file.
+(chain traversal).
+
+## SSTS amendments
+
+- **Assessment results:** `TrustAssessment` class with behavior
+  (`isValid()`, `trustLevel()`, `violations()`). Not a plain record —
+  consumers need to act on assessments, not switch on fields.
+- **Diff results:** `StateDiff` stays a record (no behavior — it's
+  pure data consumed by comparison). Node/edge diff entries are
+  records too. Only promote to class if consumers need methods.
 
 ## VisibleStateComparisonV5 (808 LOC)
 

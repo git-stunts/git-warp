@@ -17,3 +17,12 @@ capabilities:
 
 Each interface is the PORT for its domain. SSTS says interfaces are
 for ports. Controllers implement them.
+
+## SSTS amendments
+
+- **Name every options param.** No `Record<string, unknown>`. Each
+  method's options gets a named type (e.g., `MaterializeOptions`,
+  `ObserverConfig`, `StrandCreateOptions`).
+- **Controllers validate at method entry.** Empty strings, null IDs,
+  invalid selectors — rejected with domain errors. The capability
+  interface is the contract; the controller is the enforcement.

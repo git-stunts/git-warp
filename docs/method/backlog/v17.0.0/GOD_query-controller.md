@@ -101,6 +101,15 @@ Observer comparison utility.
 4. Delete all defineProperty wiring
 5. Delete `_wiredMethods.d.ts` query section
 
+## SSTS amendments
+
+- **Input validation at method entry.** `hasNode("")` → domain error.
+  Null nodeIds, empty strings, invalid labels — rejected.
+- **Observer overload cleanup.** The 3-arg `observer(nameOrConfig,
+  config, options)` is a boolean trap. Replace with named params:
+  `observer({ name?, match, source? })` — one shape, no overloads.
+- **Named options types** for every method that accepts options.
+
 ## Sludge that MUST die during this split
 
 1. **No `_host` bag.** Each extracted module gets typed deps:
