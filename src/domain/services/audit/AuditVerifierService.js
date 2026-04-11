@@ -19,7 +19,7 @@
 /** @typedef {import('./AuditReceiptService.js').AuditReceipt} AuditReceipt */
 
 import { buildAuditPrefix, buildAuditRef } from '../../utils/RefLayout.ts';
-import { decodeAuditMessage } from '../codec/AuditMessageCodec.js';
+import { decodeAuditMessage } from '../codec/AuditMessageCodec.ts';
 import { computeSignaturePayload } from '../../trust/TrustCanonical.js';
 import { TrustRecordService } from '../../trust/TrustRecordService.js';
 import { buildState } from '../../trust/TrustStateBuilder.js';

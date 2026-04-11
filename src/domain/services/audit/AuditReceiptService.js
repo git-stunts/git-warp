@@ -12,7 +12,7 @@
 
 import AuditError from '../../errors/AuditError.ts';
 import { buildAuditRef } from '../../utils/RefLayout.ts';
-import { encodeAuditMessage } from '../codec/AuditMessageCodec.js';
+import { encodeAuditMessage } from '../codec/AuditMessageCodec.ts';
 
 // ============================================================================
 // Constants
