@@ -1,133 +1,21 @@
 /**
- * QueryBuilder - Fluent query builder for materialized WARP state.
+ * QueryBuilder — fluent query accumulator for materialized WARP state.
  *
- * Supports deterministic, multi-hop traversal over the logical graph.
+ * Pure accumulator: builder methods accumulate query state into a
+ * QueryPlan, then run() delegates execution to QueryRunner.
  */
 
 import QueryError from '../../errors/QueryError.ts';
-import { matchGlob } from '../../utils/matchGlob.ts';
+import QueryPlan from './QueryPlan.ts';
+import QueryRunner from './QueryRunner.ts';
 
 const DEFAULT_PATTERN = '*';
 
-/**
- * Processes items in batches with bounded concurrency.
- *
- * @template T, R
- * @param {T[]} items - Items to process
- * @param {(item: T) => Promise<R>} fn - Async function to apply to each item
- * @param {number} [limit=100] - Maximum concurrent operations per batch
- * @returns {Promise<R[]>} Results in input order
- */
-async function batchMap(items, fn, limit = 100) {
-  const results = [];
-  for (let i = 0; i < items.length; i += limit) {
-    const batch = items.slice(i, i + limit);
-    const batchResults = await Promise.all(batch.map(fn));
-    for (const r of batchResults) {
-      results.push(r);
-    }
-  }
-  return results;
-}
-
-/**
- * @typedef {Object} QueryNodeSnapshot
- * @property {string} id - The unique identifier of the node
- * @property {Record<string, unknown>} props - Frozen snapshot of node properties
- * @property {ReadonlyArray<{label: string, to?: string, from?: string}>} edgesOut - Outgoing edges sorted by label then target
- * @property {ReadonlyArray<{label: string, to?: string, from?: string}>} edgesIn - Incoming edges sorted by label then source
- */
-
-/**
- * @typedef {Object} AdjacencyMaps
- * @property {Map<string, Array<{label: string, neighborId: string}>>} outgoing - Map of node ID to outgoing edges
- * @property {Map<string, Array<{label: string, neighborId: string}>>} incoming - Map of node ID to incoming edges
- */
-
-/**
- * @typedef {{
- *   _materializeGraph: () => Promise<{ adjacency: unknown, stateHash: string|null }>;
- *   getNodes: () => Promise<string[]>;
- *   getNodeProps: (nodeId: string) => Promise<Record<string, unknown>|null>;
- *   getEdges: () => Promise<Array<{ from: string, to: string, label: string, props: Record<string, unknown> }>>;
- * }} QueryGraph
- */
-
-/**
- * Returns true when a value is a materialized adjacency record.
- *
- * @param {unknown} adjacency
- * @returns {boolean}
- */
-function isAdjacencyMaps(adjacency) {
-  return (
-    adjacency !== null &&
-    typeof adjacency === 'object' &&
-    adjacency.outgoing instanceof Map &&
-    adjacency.incoming instanceof Map
-  );
-}
-
-/**
- * Validates the materialized adjacency boundary before query execution.
- *
- * @param {unknown} adjacency
- * @returns {AdjacencyMaps}
- */
-function requireAdjacencyMaps(adjacency) {
-  if (!isAdjacencyMaps(adjacency)) {
-    throw new QueryError('materialized query adjacency is invalid', {
-      code: 'E_QUERY_ADJACENCY',
-    });
-  }
-  return adjacency;
-}
-
-/**
- * Validates the materialized state hash boundary before query execution.
- *
- * @param {string|null} stateHash
- * @returns {string}
- */
-function requireStateHash(stateHash) {
-  if (typeof stateHash !== 'string') {
-    throw new QueryError('materialized query state hash must be a string', {
-      code: 'E_QUERY_STATE_HASH',
-    });
-  }
-  return stateHash;
-}
-
-/**
- * @typedef {Object} AggregateSpec
- * @property {boolean} [count] - If true, include count of matched nodes
- * @property {string} [sum] - Property path to sum (e.g., "props.price" or "price")
- * @property {string} [avg] - Property path to average
- * @property {string} [min] - Property path to find minimum
- * @property {string} [max] - Property path to find maximum
- */
-
-/**
- * @typedef {Object} QueryResult
- * @property {string} stateHash - Hash of the materialized state at query time
- * @property {Array<{id?: string, props?: Record<string, unknown>}>} nodes - Matched nodes (absent when aggregating)
- */
-
-/**
- * @typedef {Object} AggregateResult
- * @property {string} stateHash - Hash of the materialized state at query time
- * @property {number} [count] - Count of matched nodes (if requested)
- * @property {number} [sum] - Sum of property values (if requested)
- * @property {number} [avg] - Average of property values (if requested)
- * @property {number} [min] - Minimum property value (if requested)
- * @property {number} [max] - Maximum property value (if requested)
- */
+// ── Validation helpers ──────────────────────────────────────────────
 
 /**
  * Asserts that a match pattern is a string or array of strings.
- *
- * @param {unknown} pattern - The pattern to validate
- * @throws {QueryError} If pattern is not a string or array of strings (code: E_QUERY_MATCH_TYPE)
+ * @param {unknown} pattern
  * @private
  */
 function assertMatchPattern(pattern) {
@@ -143,10 +31,8 @@ function assertMatchPattern(pattern) {
 }
 
 /**
- * Asserts that a predicate is either a function or a plain object.
- *
- * @param {unknown} fn - The predicate to validate
- * @throws {QueryError} If fn is neither a function nor a plain object (code: E_QUERY_WHERE_TYPE)
+ * Asserts that a predicate is a function or plain object.
+ * @param {unknown} fn
  * @private
  */
 function assertPredicate(fn) {
@@ -159,10 +45,9 @@ function assertPredicate(fn) {
 }
 
 /**
- * Checks whether a value is a plain JavaScript object (not null, not an array).
- *
- * @param {unknown} value - The value to check
- * @returns {boolean} True if value is a non-null, non-array object
+ * Checks whether a value is a plain object.
+ * @param {unknown} value
+ * @returns {boolean}
  * @private
  */
 function isPlainObject(value) {
@@ -170,10 +55,9 @@ function isPlainObject(value) {
 }
 
 /**
- * Checks whether a value is a JavaScript primitive (null, string, number, boolean, symbol, bigint, or undefined).
- *
- * @param {unknown} value - The value to check
- * @returns {boolean} True if value is null or not an object/function
+ * Checks whether a value is a primitive.
+ * @param {unknown} value
+ * @returns {boolean}
  * @private
  */
 function isPrimitive(value) {
@@ -181,14 +65,9 @@ function isPrimitive(value) {
 }
 
 /**
- * Converts a plain object to a predicate function for use in where() clauses.
- *
- * The returned predicate checks that all key-value pairs in the object match
- * the corresponding properties in a node's props. Uses strict equality (===).
- *
- * @param {Record<string, unknown>} obj - Object with property constraints (all values must be primitives)
- * @returns {(node: QueryNodeSnapshot) => boolean} Predicate function that returns true if all constraints match
- * @throws {QueryError} If any value in obj is not a primitive (code: E_QUERY_WHERE_VALUE_TYPE)
+ * Converts a plain object to a where() predicate function.
+ * @param {Record<string, unknown>} obj
+ * @returns {(node: import('./QueryPlan.ts').QueryNodeSnapshot) => boolean}
  * @private
  */
 function objectToPredicate(obj) {
@@ -215,10 +94,8 @@ function objectToPredicate(obj) {
 }
 
 /**
- * Asserts that an edge label is either undefined or a string.
- *
- * @param {unknown} label - The label to validate
- * @throws {QueryError} If label is defined but not a string (code: E_QUERY_LABEL_TYPE)
+ * Asserts that a label is undefined or a string.
+ * @param {unknown} label
  * @private
  */
 function assertLabel(label) {
@@ -234,166 +111,9 @@ function assertLabel(label) {
 }
 
 /**
- * Sorts an iterable of node IDs lexicographically for deterministic output.
- *
- * @param {Iterable<string>} ids - The node IDs to sort
- * @returns {string[]} New sorted array of IDs
- * @private
- */
-function sortIds(ids) {
-  return [...ids].sort();
-}
-
-/**
- * Recursively freezes an object and all nested objects/arrays.
- *
- * Already-frozen objects are skipped to avoid redundant work.
- * Non-objects and null values are returned unchanged.
- *
- * @template T
- * @param {T} obj - The object to freeze
- * @returns {T} The same object, now deeply frozen
- * @private
- */
-function deepFreeze(obj) {
-  if (obj === null || obj === undefined || typeof obj !== 'object' || Object.isFrozen(obj)) {
-    return obj;
-  }
-  Object.freeze(obj);
-  if (Array.isArray(obj)) {
-    for (const item of obj) {
-      deepFreeze(item);
-    }
-  } else {
-    for (const value of Object.values(obj)) {
-      deepFreeze(value);
-    }
-  }
-  return obj;
-}
-
-/**
- * Creates a deep clone of a value.
- *
- * Results are deep-frozen to prevent accidental mutation of cached state.
- * structuredClone is preferred; JSON round-trip is the fallback for
- * environments without structuredClone support.
- *
- * Attempts structuredClone first (Node 17+ / modern browsers), falls back
- * to JSON round-trip, and returns the original value if both fail (e.g.,
- * for values containing functions or circular references).
- *
- * Primitives are returned as-is without cloning.
- *
- * @template T
- * @param {T} value - The value to clone
- * @returns {T} A deep clone of the value, or the original if cloning fails
- * @private
- */
-function cloneValue(value) {
-  if (value === null || typeof value !== 'object') {
-    return value;
-  }
-  if (typeof globalThis.structuredClone === 'function') {
-    try {
-      return /** @type {T} */ (globalThis.structuredClone(value));
-    } catch {
-      // fall through to JSON clone
-    }
-  }
-  try {
-    /** @type {unknown} */
-    const cloned = JSON.parse(JSON.stringify(value));
-    return /** @type {T} */ (cloned);
-  } catch {
-    return value;
-  }
-}
-
-/**
- * Builds a frozen, deterministic snapshot of node properties from a Record.
- *
- * Keys are sorted lexicographically for deterministic iteration order.
- * Values are deep-cloned to prevent mutation of the original state.
- *
- * @param {Record<string, unknown>} propsRecord - Object of property names to values
- * @returns {Readonly<Record<string, unknown>>} Frozen object with sorted keys and cloned values
- * @private
- */
-function buildPropsSnapshot(propsRecord) {
-  /** @type {Record<string, unknown>} */
-  const props = {};
-  const keys = Object.keys(propsRecord).sort();
-  for (const key of keys) {
-    props[key] = cloneValue(propsRecord[key]);
-  }
-  return deepFreeze(props);
-}
-
-/**
- * Builds a frozen, sorted snapshot of edges for a node.
- *
- * Edges are sorted first by label (lexicographically), then by peer node ID.
- * This ensures deterministic ordering for query results.
- *
- * @param {Array<{label: string, neighborId?: string, to?: string, from?: string}>} edges - Array of edge objects
- * @param {'to' | 'from'} directionKey - The key to use for the peer node ID in the output
- * @returns {ReadonlyArray<{label: string, to?: string, from?: string}>} Frozen array of edge snapshots
- * @private
- */
-function buildEdgesSnapshot(edges, directionKey) {
-  const list = edges.map((edge) => ({
-    label: edge.label,
-    [directionKey]: edge.neighborId ?? edge[directionKey],
-  }));
-  list.sort((a, b) => {
-    if (a.label !== b.label) {
-      return a.label < b.label ? -1 : 1;
-    }
-    const aPeer = /** @type {string} */ (a[directionKey]);
-    const bPeer = /** @type {string} */ (b[directionKey]);
-    return aPeer < bPeer ? -1 : aPeer > bPeer ? 1 : 0;
-  });
-  return deepFreeze(list);
-}
-
-/**
- * Creates a complete frozen snapshot of a node for use in query predicates.
- *
- * The snapshot includes the node's ID, properties, outgoing edges, and incoming edges.
- * All data is deeply frozen to prevent mutation.
- *
- * @param {{ id: string, propsRecord: Record<string, unknown>, edgesOut: Array<{label: string, neighborId: string}>, edgesIn: Array<{label: string, neighborId: string}> }} params - Node data
- * @returns {Readonly<QueryNodeSnapshot>} Frozen node snapshot
- * @private
- */
-function createNodeSnapshot({ id, propsRecord, edgesOut, edgesIn }) {
-  const props = buildPropsSnapshot(propsRecord);
-  const edgesOutSnapshot = buildEdgesSnapshot(edgesOut, 'to');
-  const edgesInSnapshot = buildEdgesSnapshot(edgesIn, 'from');
-
-  return deepFreeze({
-    id,
-    props,
-    edgesOut: edgesOutSnapshot,
-    edgesIn: edgesInSnapshot,
-  });
-}
-
-/**
  * Normalizes a depth specification into a [min, max] tuple.
- *
- * Accepts:
- * - undefined: defaults to [1, 1] (single hop)
- * - number n: normalized to [n, n] (exactly n hops)
- * - [min, max]: used as-is (range of hops)
- *
- * @param {number | [number, number] | undefined} depth - The depth specification
- * @returns {[number, number]} Tuple of [minDepth, maxDepth]
- * @throws {QueryError} If depth is not a non-negative integer (code: E_QUERY_DEPTH_TYPE)
- * @throws {QueryError} If depth array values are not non-negative integers (code: E_QUERY_DEPTH_TYPE)
- * @throws {QueryError} If min > max in a depth array (code: E_QUERY_DEPTH_RANGE)
- * @throws {QueryError} If depth is neither a number nor a valid [min, max] array (code: E_QUERY_DEPTH_TYPE)
+ * @param {number | [number, number] | undefined} depth
+ * @returns {[number, number]}
  * @private
  */
 function normalizeDepth(depth) {
@@ -431,131 +151,39 @@ function normalizeDepth(depth) {
   });
 }
 
-/**
- * Applies a single-hop traversal from a strand of nodes.
- *
- * Collects all neighbors reachable via one edge in the specified direction,
- * optionally filtered by edge label.
- *
- * @param {{ direction: 'outgoing' | 'incoming', label: string | undefined, strand: string[], adjacency: AdjacencyMaps }} params - Traversal parameters
- * @returns {string[]} Sorted array of neighbor node IDs
- * @private
- */
-function applyHop({ direction, label, strand, adjacency }) {
-  const next = new Set();
-  const source = direction === 'outgoing' ? adjacency.outgoing : adjacency.incoming;
-  const labelFilter = label === undefined ? null : label;
-
-  for (const nodeId of strand) {
-    const edges = source.get(nodeId) || [];
-    for (const edge of edges) {
-      if (labelFilter !== null && edge.label !== labelFilter) {
-        continue;
-      }
-      next.add(edge.neighborId);
-    }
-  }
-
-  return sortIds(next);
-}
+// ── Builder ─────────────────────────────────────────────────────────
 
 /**
- * Applies a multi-hop BFS traversal from a strand of nodes.
- *
- * Performs breadth-first traversal up to maxDepth hops, collecting nodes
- * that fall within the [minDepth, maxDepth] range. Each node is visited
- * at most once (cycle-safe).
- *
- * If minDepth is 0, the starting nodes themselves are included in the result.
- *
- * @param {{ direction: 'outgoing' | 'incoming', label: string | undefined, strand: string[], adjacency: AdjacencyMaps, depth: [number, number] }} params - Traversal parameters
- * @returns {string[]} Sorted array of reachable node IDs within the depth range
- * @private
+ * @typedef {import('./QueryRunner.ts').QueryGraph} QueryGraph
  */
-function applyMultiHop({ direction, label, strand, adjacency, depth }) {
-  const [minDepth, maxDepth] = depth;
-  const source = direction === 'outgoing' ? adjacency.outgoing : adjacency.incoming;
-  const labelFilter = label === undefined ? null : label;
-
-  /** @type {Set<string>} */
-  const result = new Set();
-  /** @type {Set<string>} */
-  let currentLevel = new Set(strand);
-  const visited = new Set(strand);
-
-  if (minDepth === 0) {
-    for (const nodeId of strand) {
-      result.add(nodeId);
-    }
-  }
-
-  for (let hop = 1; hop <= maxDepth; hop++) {
-    /** @type {Set<string>} */
-    const nextLevel = new Set();
-    for (const nodeId of currentLevel) {
-      const edges = source.get(nodeId) || [];
-      for (const edge of edges) {
-        if (labelFilter !== null && edge.label !== labelFilter) {
-          continue;
-        }
-        const neighbor = edge.neighborId;
-        if (visited.has(neighbor)) {
-          continue;
-        }
-        visited.add(neighbor);
-        nextLevel.add(neighbor);
-        if (hop >= minDepth) {
-          result.add(neighbor);
-        }
-      }
-    }
-    currentLevel = nextLevel;
-    if (currentLevel.size === 0) {
-      break;
-    }
-  }
-
-  return sortIds(result);
-}
 
 /**
  * Fluent query builder for materialized WARP state.
  *
- * Supports pattern matching, predicate filtering, multi-hop traversal
- * over outgoing/incoming edges, and field selection.
- *
- * @throws {QueryError} On invalid match patterns, where predicates, label types, or select fields
+ * Accumulates query state via chaining methods, then delegates
+ * execution to QueryRunner via run().
  */
 export default class QueryBuilder {
   /**
    * Creates a new QueryBuilder.
-   *
-   * @param {QueryGraph} graph - Graph-like read handle with node, edge, and adjacency access
+   * @param {QueryGraph} graph
    */
   constructor(graph) {
     this._graph = graph;
     /** @type {string|string[]|null} */
     this._pattern = null;
-    /** @type {Array<{type: string, fn?: (node: QueryNodeSnapshot) => boolean, label?: string, depth?: [number, number]}>} */
+    /** @type {Array<import('./QueryPlan.ts').QueryOperation>} */
     this._operations = [];
     /** @type {string[]|null} */
     this._select = null;
-    /** @type {AggregateSpec|null} */
+    /** @type {import('./QueryPlan.ts').AggregateSpec|null} */
     this._aggregate = null;
   }
 
   /**
-   * Sets the match pattern(s) for filtering nodes by ID.
-   *
-   * Supports glob-style patterns:
-   * - `*` matches all nodes
-   * - `user:*` matches all nodes starting with "user:"
-   * - `*:admin` matches all nodes ending with ":admin"
-   * - Array of patterns: `['campaign:*', 'milestone:*']` (OR semantics)
-   *
-   * @param {string|string[]} pattern - Glob pattern or array of patterns to match node IDs against
-   * @returns {QueryBuilder} This builder for chaining
-   * @throws {QueryError} If pattern is not a string or array of strings (code: E_QUERY_MATCH_TYPE)
+   * Sets the match pattern for node ID filtering.
+   * @param {string|string[]} pattern
+   * @returns {QueryBuilder}
    */
   match(pattern) {
     assertMatchPattern(pattern);
@@ -566,35 +194,21 @@ export default class QueryBuilder {
 
   /**
    * Filters nodes by predicate function or object shorthand.
-   *
-   * Object form: `where({ role: 'admin' })` filters nodes where `props.role === 'admin'`.
-   * Multiple properties in the object = AND semantics.
-   * Function form: `where(n => n.props.age > 18)` for arbitrary predicates.
-   *
-   * @param {((node: QueryNodeSnapshot) => boolean) | Record<string, unknown>} fn - Predicate function or object with property constraints
-   * @returns {QueryBuilder} This builder for chaining
-   * @throws {QueryError} If fn is neither a function nor a plain object (code: E_QUERY_WHERE_TYPE)
-   * @throws {QueryError} If object shorthand contains non-primitive values (code: E_QUERY_WHERE_VALUE_TYPE)
+   * @param {((node: import('./QueryPlan.ts').QueryNodeSnapshot) => boolean) | Record<string, unknown>} fn
+   * @returns {QueryBuilder}
    */
   where(fn) {
     assertPredicate(fn);
-    const predicate = isPlainObject(fn) ? objectToPredicate(/** @type {Record<string, unknown>} */ (fn)) : /** @type {(node: QueryNodeSnapshot) => boolean} */ (fn);
+    const predicate = isPlainObject(fn) ? objectToPredicate(/** @type {Record<string, unknown>} */ (fn)) : /** @type {(node: import('./QueryPlan.ts').QueryNodeSnapshot) => boolean} */ (fn);
     this._operations.push({ type: 'where', fn: predicate });
     return this;
   }
 
   /**
    * Traverses outgoing edges from the current strand.
-   *
-   * Replaces the strand with all nodes reachable via outgoing edges.
-   * Use the depth option for multi-hop traversal.
-   *
-   * @param {string} [label] - Edge label filter (undefined = all labels)
-   * @param {{ depth?: number | [number, number] }} [options] - Traversal options. depth can be a number (exactly N hops) or [min, max] range
-   * @returns {QueryBuilder} This builder for chaining
-   * @throws {QueryError} If called after aggregate() (code: E_QUERY_AGGREGATE_TERMINAL)
-   * @throws {QueryError} If label is defined but not a string (code: E_QUERY_LABEL_TYPE)
-   * @throws {QueryError} If depth is invalid (code: E_QUERY_DEPTH_TYPE or E_QUERY_DEPTH_RANGE)
+   * @param {string} [label]
+   * @param {{ depth?: number | [number, number] }} [options]
+   * @returns {QueryBuilder}
    */
   outgoing(label, options) {
     if (this._aggregate) {
@@ -610,16 +224,9 @@ export default class QueryBuilder {
 
   /**
    * Traverses incoming edges to the current strand.
-   *
-   * Replaces the strand with all nodes that have edges pointing to nodes in the current set.
-   * Use the depth option for multi-hop traversal.
-   *
-   * @param {string} [label] - Edge label filter (undefined = all labels)
-   * @param {{ depth?: number | [number, number] }} [options] - Traversal options. depth can be a number (exactly N hops) or [min, max] range
-   * @returns {QueryBuilder} This builder for chaining
-   * @throws {QueryError} If called after aggregate() (code: E_QUERY_AGGREGATE_TERMINAL)
-   * @throws {QueryError} If label is defined but not a string (code: E_QUERY_LABEL_TYPE)
-   * @throws {QueryError} If depth is invalid (code: E_QUERY_DEPTH_TYPE or E_QUERY_DEPTH_RANGE)
+   * @param {string} [label]
+   * @param {{ depth?: number | [number, number] }} [options]
+   * @returns {QueryBuilder}
    */
   incoming(label, options) {
     if (this._aggregate) {
@@ -635,15 +242,8 @@ export default class QueryBuilder {
 
   /**
    * Selects which fields to include in the result nodes.
-   *
-   * Available fields: `id`, `props`. If not called or called with undefined,
-   * all fields are included. Empty arrays behave the same as undefined.
-   *
-   * @param {string[]} [fields] - Array of field names to include (e.g., ['id', 'props'])
-   * @returns {QueryBuilder} This builder for chaining
-   * @throws {QueryError} If called after aggregate() (code: E_QUERY_AGGREGATE_TERMINAL)
-   * @throws {QueryError} If fields is not an array (code: E_QUERY_SELECT_TYPE)
-   * @throws {QueryError} If fields contains unknown field names (code: E_QUERY_SELECT_FIELD) - thrown at run() time
+   * @param {string[]} [fields]
+   * @returns {QueryBuilder}
    */
   select(fields) {
     if (this._aggregate) {
@@ -667,18 +267,8 @@ export default class QueryBuilder {
 
   /**
    * Computes aggregations over the matched nodes.
-   *
-   * This is a terminal operation - calling `select()`, `outgoing()`, or `incoming()` after
-   * `aggregate()` throws. The result of `run()` will contain aggregation values instead of nodes.
-   *
-   * Numeric aggregations (sum, avg, min, max) accept property paths like "price" or "nested.value".
-   * The "props." prefix is optional and will be stripped automatically.
-   *
-   * @param {AggregateSpec} spec - Aggregation specification
-   * @returns {QueryBuilder} This builder for chaining
-   * @throws {QueryError} If spec is not a plain object (code: E_QUERY_AGGREGATE_TYPE)
-   * @throws {QueryError} If numeric aggregation keys are not strings (code: E_QUERY_AGGREGATE_TYPE)
-   * @throws {QueryError} If count is not a boolean (code: E_QUERY_AGGREGATE_TYPE)
+   * @param {import('./QueryPlan.ts').AggregateSpec} spec
+   * @returns {QueryBuilder}
    */
   aggregate(spec) {
     if (!isPlainObject(spec)) {
@@ -708,197 +298,18 @@ export default class QueryBuilder {
   }
 
   /**
-   * Executes the query and returns matching nodes or aggregation results.
+   * Executes the query by building a QueryPlan and delegating to QueryRunner.
    *
-   * The returned stateHash can be used to detect if the graph has changed
-   * between queries. Results are deterministically ordered by node ID.
-   *
-   * @returns {Promise<QueryResult | AggregateResult>} Query results with stateHash. Contains `nodes` array for regular queries, or aggregation values (count, sum, avg, min, max) if aggregate() was called.
-   * @throws {QueryError} If an unknown select field is specified (code: E_QUERY_SELECT_FIELD)
+   * @returns {Promise<import('./QueryRunner.ts').QueryResult | import('./QueryRunner.ts').AggregateResult>}
    */
   async run() {
-    const materialized = await this._graph._materializeGraph();
-    const adjacency = requireAdjacencyMaps(materialized.adjacency);
-    const stateHash = requireStateHash(materialized.stateHash);
-    const allNodes = sortIds(await this._graph.getNodes());
-
-    const pattern = this._pattern ?? DEFAULT_PATTERN;
-
-    // Per-run props memo to avoid redundant getNodeProps calls
-    /** @type {Map<string, Record<string, unknown>>} */
-    const propsMemo = new Map();
-    /**
-     * Fetches and caches node properties.
-     * @param {string} nodeId - the node to fetch props for
-     * @returns {Promise<Record<string, unknown>>} the node properties
-     */
-    const getProps = async (nodeId) => {
-      const cached = propsMemo.get(nodeId);
-      if (cached !== undefined) {
-        return cached;
-      }
-      const rawProps = await this._graph.getNodeProps(nodeId);
-      const propsRecord = rawProps ?? {};
-      propsMemo.set(nodeId, propsRecord);
-      return propsRecord;
-    };
-
-    let strand;
-    strand = allNodes.filter((nodeId) => matchGlob(pattern, nodeId));
-
-    for (const op of this._operations) {
-      if (op.type === 'where') {
-        const snapshots = await batchMap(strand, async (nodeId) => {
-          const propsRecord = await getProps(nodeId);
-          const edgesOut = adjacency.outgoing.get(nodeId) ?? /** @type {Array<{label: string, neighborId: string}>} */ ([]);
-          const edgesIn = adjacency.incoming.get(nodeId) ?? /** @type {Array<{label: string, neighborId: string}>} */ ([]);
-          return {
-            nodeId,
-            snapshot: createNodeSnapshot({ id: nodeId, propsRecord, edgesOut, edgesIn }),
-          };
-        });
-        const predicate = /** @type {(node: QueryNodeSnapshot) => boolean} */ (op.fn);
-        const filtered = snapshots
-          .filter(({ snapshot }) => predicate(snapshot))
-          .map(({ nodeId }) => nodeId);
-        strand = sortIds(filtered);
-        continue;
-      }
-
-      if (op.type === 'outgoing' || op.type === 'incoming') {
-        const [minD, maxD] = /** @type {[number, number]} */ (op.depth);
-        if (minD === 1 && maxD === 1) {
-          strand = applyHop({
-            direction: op.type,
-            label: op.label,
-            strand,
-            adjacency,
-          });
-        } else {
-          strand = applyMultiHop({
-            direction: op.type,
-            label: op.label,
-            strand,
-            adjacency,
-            depth: /** @type {[number, number]} */ (op.depth),
-          });
-        }
-      }
-    }
-
-    if (this._aggregate) {
-      return await this._runAggregate(strand, stateHash, getProps);
-    }
-
-    const selected = this._select;
-    const selectFields = Array.isArray(selected) && selected.length > 0 ? selected : null;
-    const allowedFields = new Set(['id', 'props']);
-    if (selectFields) {
-      for (const field of selectFields) {
-        if (!allowedFields.has(field)) {
-          throw new QueryError(`Unknown select field: ${field}`, {
-            code: 'E_QUERY_SELECT_FIELD',
-            context: { field },
-          });
-        }
-      }
-    }
-
-    const includeId = !selectFields || selectFields.includes('id');
-    const includeProps = !selectFields || selectFields.includes('props');
-
-    const nodes = await batchMap(strand, async (nodeId) => {
-      /** @type {{id?: string, props?: Record<string, unknown>}} */
-      const entry = {};
-      if (includeId) {
-        entry.id = nodeId;
-      }
-      if (includeProps) {
-        const propsRecord = await getProps(nodeId);
-        const props = buildPropsSnapshot(propsRecord);
-        if (selectFields !== null || Object.keys(props).length > 0) {
-          entry.props = props;
-        }
-      }
-      return entry;
+    const plan = new QueryPlan({
+      pattern: this._pattern ?? DEFAULT_PATTERN,
+      operations: this._operations,
+      select: this._select,
+      aggregate: this._aggregate,
     });
-
-    return { stateHash, nodes };
-  }
-
-  /**
-   * Executes aggregate computations over the matched node set.
-   *
-   * Supports count, sum, avg, min, and max aggregations. Numeric aggregations
-   * (sum, avg, min, max) operate on property paths like "price" or "props.nested.value".
-   * Non-numeric values are silently ignored in numeric aggregations.
-   *
-   * @param {string[]} strand - Array of matched node IDs
-   * @param {string} stateHash - Hash of the materialized state
-   * @param {(nodeId: string) => Promise<Record<string, unknown>>} getProps - Memoized props fetcher
-   * @returns {Promise<AggregateResult>} Object containing stateHash and requested aggregation values
-   * @private
-   */
-  async _runAggregate(strand, stateHash, getProps) {
-    const spec = /** @type {AggregateSpec} */ (this._aggregate);
-    /** @type {AggregateResult} */
-    const result = { stateHash };
-    const specRec = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (spec));
-
-    if (spec.count === true) {
-      result.count = strand.length;
-    }
-
-    const numericAggs = ['sum', 'avg', 'min', 'max'];
-    const activeAggs = numericAggs.filter((key) => specRec[key] !== undefined && specRec[key] !== null);
-
-    if (activeAggs.length > 0) {
-      /** @type {Map<string, {segments: string[], values: number[]}>} */
-      const propsByAgg = new Map();
-      for (const key of activeAggs) {
-        propsByAgg.set(key, {
-          segments: /** @type {string} */ (specRec[key]).replace(/^props\./, '').split('.'),
-          values: [],
-        });
-      }
-
-      // Pre-fetch all props with bounded concurrency
-      const propsList = await batchMap(strand, getProps);
-
-      for (const propsRecord of propsList) {
-        for (const { segments, values } of propsByAgg.values()) {
-          const firstSeg = /** @type {string} */ (segments[0]);
-          /** @type {unknown} */
-          let value = propsRecord[firstSeg];
-          for (let i = 1; i < segments.length; i++) {
-            if (value !== null && value !== undefined && typeof value === 'object') {
-              value = /** @type {Record<string, unknown>} */ (value)[/** @type {string} */ (segments[i])];
-            } else {
-              value = undefined;
-              break;
-            }
-          }
-          if (typeof value === 'number' && !Number.isNaN(value)) {
-            values.push(value);
-          }
-        }
-      }
-
-      for (const [key, { values }] of propsByAgg) {
-        if (key === 'sum') {
-          result.sum = values.length > 0 ? values.reduce((/** @type {number} */ a, /** @type {number} */ b) => a + b, 0) : 0;
-        } else if (key === 'avg') {
-          result.avg = values.length > 0 ? values.reduce((/** @type {number} */ a, /** @type {number} */ b) => a + b, 0) / values.length : 0;
-        } else if (key === 'min') {
-          result.min =
-            values.length > 0 ? values.reduce((/** @type {number} */ m, /** @type {number} */ v) => (v < m ? v : m), Infinity) : 0;
-        } else if (key === 'max') {
-          result.max =
-            values.length > 0 ? values.reduce((/** @type {number} */ m, /** @type {number} */ v) => (v > m ? v : m), -Infinity) : 0;
-        }
-      }
-    }
-
-    return result;
+    const runner = new QueryRunner(this._graph);
+    return await runner.run(plan);
   }
 }
