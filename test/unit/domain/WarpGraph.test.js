@@ -7,7 +7,7 @@ import { NoOpEffectSink } from '../../../src/infrastructure/adapters/NoOpEffectS
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
-import { createDot } from '../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import { serializeFullStateV5, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializerV5.js';
 import { serializeFrontier } from '../../../src/domain/services/Frontier.js';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
@@ -497,7 +497,7 @@ describe('WarpRuntime', () => {
         writerId: 'writer-1',
         lamport: 1,
         patchOid,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot('writer-1', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create('writer-1', 1) }],
         parentSha: null,
       });
 
@@ -533,7 +533,7 @@ describe('WarpRuntime', () => {
         writerId: 'writer-1',
         lamport: 1,
         patchOid: patchOid1,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot('writer-1', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create('writer-1', 1) }],
         parentSha: null,
       });
 
@@ -543,7 +543,7 @@ describe('WarpRuntime', () => {
         writerId: 'writer-2',
         lamport: 1,
         patchOid: patchOid2,
-        ops: [{ type: 'NodeAdd', node: 'user:bob', dot: createDot('writer-2', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'user:bob', dot: Dot.create('writer-2', 1) }],
         parentSha: null,
       });
 
@@ -594,7 +594,7 @@ describe('WarpRuntime', () => {
         writerId: 'writer-1',
         lamport: 1,
         patchOid: patchOid1,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot('writer-1', 1) }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create('writer-1', 1) }],
         parentSha: null,
       });
 
@@ -604,7 +604,7 @@ describe('WarpRuntime', () => {
         writerId: 'writer-1',
         lamport: 2,
         patchOid: patchOid2,
-        ops: [{ type: 'NodeAdd', node: 'user:bob', dot: createDot('writer-1', 2) }],
+        ops: [{ type: 'NodeAdd', node: 'user:bob', dot: Dot.create('writer-1', 2) }],
         parentSha: commitSha1,
         context: { 'writer-1': 2 },
       });
@@ -1681,7 +1681,7 @@ eg-schema: 2`;
           writer: 'writer-a',
           lamport: 3,
           context: { 'writer-a': 3 },
-          ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot('writer-a', 3) }],
+          ops: [{ type: 'NodeAdd', node: 'user:alice', dot: Dot.create('writer-a', 3) }],
         };
         const patchBufferA = encode(patchA);
         const messageA = encodePatchMessage({
@@ -1698,7 +1698,7 @@ eg-schema: 2`;
           writer: 'writer-b',
           lamport: 2,
           context: { 'writer-b': 2 },
-          ops: [{ type: 'NodeAdd', node: 'user:bob', dot: createDot('writer-b', 2) }],
+          ops: [{ type: 'NodeAdd', node: 'user:bob', dot: Dot.create('writer-b', 2) }],
         };
         const patchBufferB = encode(patchB);
         const messageB = encodePatchMessage({
@@ -1801,7 +1801,7 @@ eg-schema: 2`;
           writer: 'writer-other',
           lamport: 5,
           context: { 'writer-other': 5 },
-          ops: [{ type: 'NodeAdd', node: 'user:bob', dot: createDot('writer-other', 5) }],
+          ops: [{ type: 'NodeAdd', node: 'user:bob', dot: Dot.create('writer-other', 5) }],
         };
         const patchBuffer = encode(patchFromOther);
         const message = encodePatchMessage({

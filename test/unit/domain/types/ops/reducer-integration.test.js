@@ -40,14 +40,14 @@ import {
   isKnownCanonicalOp,
   OP_STRATEGIES,
 } from '../../../../../src/domain/services/JoinReducer.ts';
-import { createEventId } from '../../../../../src/domain/utils/EventId.ts';
+import { EventId } from '../../../../../src/domain/utils/EventId.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 
 describe('Op class instances through JoinReducer', () => {
   /** @param {number} opIndex */
   function eid(opIndex) {
-    return createEventId(1, 'alice', 'abcd1234', opIndex);
+    return new EventId(1, 'alice', 'abcd1234', opIndex);
   }
 
   describe('applyOpV2', () => {

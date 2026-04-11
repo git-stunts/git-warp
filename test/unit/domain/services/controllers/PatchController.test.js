@@ -11,7 +11,7 @@ import PatchController from '../../../../../src/domain/services/controllers/Patc
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
-import { createDot } from '../../../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 import { QueryError } from '../../../../../src/domain/warp/_internal.ts';
 import EncryptionError from '../../../../../src/domain/errors/EncryptionError.ts';
 import PersistenceError from '../../../../../src/domain/errors/PersistenceError.ts';
@@ -139,7 +139,7 @@ function createMockPersistence() {
  */
 function createStateWithNode(nodeId = 'n1') {
   const state = WarpState.empty();
-  state.nodeAlive.add(nodeId, createDot('alice', 1));
+  state.nodeAlive.add(nodeId, Dot.create('alice', 1));
   return state;
 }
 
@@ -775,7 +775,7 @@ describe('PatchController', () => {
       expect(result[0].patch.ops[0]).toMatchObject({
         type: 'NodeAdd',
         node: 'n1',
-        dot: createDot('alice', 1),
+        dot: Dot.create('alice', 1),
       });
       expect(persistence.readBlob).toHaveBeenCalledWith('blob-oid');
       expect(codec.decode).toHaveBeenCalledWith(rawBytes);
@@ -1087,13 +1087,13 @@ describe('PatchController', () => {
       host._versionVector = localState.observedFrontier.clone();
 
       const remoteState = WarpState.empty();
-      remoteState.nodeAlive.add('n2', createDot('bob', 1));
+      remoteState.nodeAlive.add('n2', Dot.create('bob', 1));
       remoteState.observedFrontier.increment('bob');
 
       // joinStates returns the merged state
       const merged = WarpState.empty();
-      merged.nodeAlive.add('n1', createDot('alice', 1));
-      merged.nodeAlive.add('n2', createDot('bob', 1));
+      merged.nodeAlive.add('n1', Dot.create('alice', 1));
+      merged.nodeAlive.add('n2', Dot.create('bob', 1));
       merged.observedFrontier.increment('alice');
       merged.observedFrontier.increment('bob');
       joinStatesMock.mockReturnValue(merged);
@@ -1114,7 +1114,7 @@ describe('PatchController', () => {
 
       const remoteState = WarpState.empty();
       const merged = WarpState.empty();
-      merged.nodeAlive.add('n1', createDot('alice', 1));
+      merged.nodeAlive.add('n1', Dot.create('alice', 1));
       merged.prop.set('n1:name', { value: 'Bob' });
       merged.prop.set('n1:title', { value: 'Engineer' });
       merged.observedFrontier.increment('alice');

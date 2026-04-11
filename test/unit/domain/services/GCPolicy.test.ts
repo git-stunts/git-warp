@@ -4,7 +4,7 @@ import executeGC from '../../../../src/domain/services/executeGC.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import GCMetrics from '../../../../src/domain/services/GCMetrics.ts';
 import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 
 describe('GCPolicy', () => {
@@ -114,9 +114,9 @@ describe('GCPolicy', () => {
       const state = createEmptyState();
 
       // Add nodes with dots
-      const dot1 = createDot('A', 1);
-      const dot2 = createDot('A', 2);
-      const dot3 = createDot('B', 1);
+      const dot1 = Dot.create('A', 1);
+      const dot2 = Dot.create('A', 2);
+      const dot3 = Dot.create('B', 1);
 
       state.nodeAlive.add('node1', dot1);
       state.nodeAlive.add('node2', dot2);
@@ -154,8 +154,8 @@ describe('GCPolicy', () => {
     it('preserves live dots even if <= appliedVV', () => {
       const state = createEmptyState();
 
-      const dot1 = createDot('A', 1);
-      const dot2 = createDot('A', 2);
+      const dot1 = Dot.create('A', 1);
+      const dot2 = Dot.create('A', 2);
 
       state.nodeAlive.add('node1', dot1);
       state.nodeAlive.add('node2', dot2);
@@ -174,8 +174,8 @@ describe('GCPolicy', () => {
     it('returns accurate stats for edges', () => {
       const state = createEmptyState();
 
-      const dot1 = createDot('A', 1);
-      const dot2 = createDot('A', 2);
+      const dot1 = Dot.create('A', 1);
+      const dot2 = Dot.create('A', 2);
 
       state.edgeAlive.add('edge1', dot1);
       state.edgeAlive.add('edge2', dot2);
@@ -221,8 +221,8 @@ describe('GCPolicy', () => {
     it('compacts both nodes and edges in one call', () => {
       const state = createEmptyState();
 
-      const dot1 = createDot('A', 1);
-      const dot2 = createDot('A', 2);
+      const dot1 = Dot.create('A', 1);
+      const dot2 = Dot.create('A', 2);
 
       state.nodeAlive.add('node1', dot1);
       state.edgeAlive.add('edge1', dot2);
@@ -247,9 +247,9 @@ describe('GCMetrics', () => {
     it('counts total dots across all elements', () => {
       const state = createEmptyState();
 
-      state.nodeAlive.add('node1', createDot('A', 1));
-      state.nodeAlive.add('node1', createDot('B', 1));
-      state.nodeAlive.add('node2', createDot('A', 2));
+      state.nodeAlive.add('node1', Dot.create('A', 1));
+      state.nodeAlive.add('node1', Dot.create('B', 1));
+      state.nodeAlive.add('node2', Dot.create('A', 2));
 
       expect(state.nodeAlive.countEntries()).toBe(3);
     });
@@ -264,9 +264,9 @@ describe('GCMetrics', () => {
     it('excludes tombstoned dots from count', () => {
       const state = createEmptyState();
 
-      const dot1 = createDot('A', 1);
-      const dot2 = createDot('A', 2);
-      const dot3 = createDot('A', 3);
+      const dot1 = Dot.create('A', 1);
+      const dot2 = Dot.create('A', 2);
+      const dot3 = Dot.create('A', 3);
 
       state.nodeAlive.add('node1', dot1);
       state.nodeAlive.add('node2', dot2);
@@ -282,8 +282,8 @@ describe('GCMetrics', () => {
     it('counts only tombstones that match entry dots', () => {
       const state = createEmptyState();
 
-      const dot1 = createDot('A', 1);
-      const dot2 = createDot('A', 2);
+      const dot1 = Dot.create('A', 1);
+      const dot2 = Dot.create('A', 2);
 
       state.nodeAlive.add('node1', dot1);
       state.nodeAlive.add('node2', dot2);
@@ -298,12 +298,12 @@ describe('GCMetrics', () => {
     it('calculates correct tombstone ratio', () => {
       const state = createEmptyState();
 
-      const dot0 = createDot('A', 1);
+      const dot0 = Dot.create('A', 1);
       const dots = [
         dot0,
-        createDot('A', 2),
-        createDot('A', 3),
-        createDot('A', 4),
+        Dot.create('A', 2),
+        Dot.create('A', 3),
+        Dot.create('A', 4),
       ];
 
       dots.forEach((dot, i) => {
@@ -336,10 +336,10 @@ describe('GCMetrics', () => {
     it('handles mixed nodes and edges', () => {
       const state = createEmptyState();
 
-      const nodeDot1 = createDot('A', 1);
-      const nodeDot2 = createDot('A', 2);
-      const edgeDot1 = createDot('B', 1);
-      const edgeDot2 = createDot('B', 2);
+      const nodeDot1 = Dot.create('A', 1);
+      const nodeDot2 = Dot.create('A', 2);
+      const edgeDot1 = Dot.create('B', 1);
+      const edgeDot2 = Dot.create('B', 2);
 
       state.nodeAlive.add('node1', nodeDot1);
       state.nodeAlive.add('node2', nodeDot2);

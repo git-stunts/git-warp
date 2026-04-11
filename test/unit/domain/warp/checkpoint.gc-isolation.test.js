@@ -11,7 +11,7 @@ import { describe, it, expect, vi } from 'vitest';
 import CheckpointController from '../../../../src/domain/services/controllers/CheckpointController.js';
 import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
 import GCPolicy from '../../../../src/domain/services/GCPolicy.ts';
 
@@ -25,8 +25,8 @@ function createMockHost(overrides = {}) {
 
   const state = createEmptyState();
   // Add a live node and a dead node with tombstone
-  const dot1 = createDot('w1', 1);
-  const dot2 = createDot('w1', 2);
+  const dot1 = Dot.create('w1', 1);
+  const dot2 = Dot.create('w1', 2);
   state.nodeAlive.add('live-node', dot1);
   state.nodeAlive.add('dead-node', dot2);
   // Tombstone the dead node (adds its dot to tombstones set)

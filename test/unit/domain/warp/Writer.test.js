@@ -11,7 +11,7 @@ import { PatchSession } from '../../../../src/domain/warp/PatchSession.ts';
 import { buildWriterRef, validateWriterId } from '../../../../src/domain/utils/RefLayout.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
@@ -713,7 +713,7 @@ describe('PatchSession operations', () => {
 
   it('removeNode creates node-remove op', async () => {
     const state = /** @type {any} */ ({ nodeAlive: ORSet.empty(), edgeAlive: ORSet.empty(), prop: new Map(), observedFrontier: VersionVector.empty() });
-    state.nodeAlive.add('user:alice', createDot('alice', 1));
+    state.nodeAlive.add('user:alice', Dot.create('alice', 1));
 
     const writer = new Writer({
       persistence,
@@ -757,7 +757,7 @@ describe('PatchSession operations', () => {
   it('removeEdge creates edge-remove op', async () => {
     const state = /** @type {any} */ ({ nodeAlive: ORSet.empty(), edgeAlive: ORSet.empty(), prop: new Map(), observedFrontier: VersionVector.empty() });
     const ek = encodeEdgeKey('n1', 'n2', 'links');
-    state.edgeAlive.add(ek, createDot('alice', 1));
+    state.edgeAlive.add(ek, Dot.create('alice', 1));
 
     const writer = new Writer({
       persistence,

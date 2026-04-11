@@ -4,8 +4,8 @@ import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import CheckpointStorePort from '../../../../src/ports/CheckpointStorePort.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import { createDot } from '../../../../src/domain/crdt/Dot.ts';
-import { createEventId } from '../../../../src/domain/utils/EventId.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import MockBlobPort from '../../../helpers/MockBlobPort.js';
 
@@ -15,11 +15,11 @@ import MockBlobPort from '../../../helpers/MockBlobPort.js';
  */
 function createGoldenState() {
   const nodeAlive = ORSet.empty();
-  nodeAlive.add('user:alice', createDot('w1', 1));
-  nodeAlive.add('user:bob', createDot('w1', 2));
+  nodeAlive.add('user:alice', Dot.create('w1', 1));
+  nodeAlive.add('user:bob', Dot.create('w1', 2));
 
   const edgeAlive = ORSet.empty();
-  edgeAlive.add('user:alice\x00user:bob\x00knows', createDot('w1', 3));
+  edgeAlive.add('user:alice\x00user:bob\x00knows', Dot.create('w1', 3));
 
   /** @type {Map<string, import('../../../../src/domain/crdt/LWW.js').LWWRegister<unknown>>} */
   const prop = new Map();
@@ -245,19 +245,19 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       /** @type {Map<string, import('../../../../src/domain/crdt/LWW.js').LWWRegister<unknown>>} */
       const prop = new Map([
         ['user:z\x00name', {
-          eventId: createEventId(3, 'w3', 'c'.repeat(40), 2),
+          eventId: new EventId(3, 'w3', 'c'.repeat(40), 2),
           value: 'Zed',
         }],
         ['user:a\x00name', {
-          eventId: createEventId(1, 'w1', 'a'.repeat(40), 0),
+          eventId: new EventId(1, 'w1', 'a'.repeat(40), 0),
           value: 'Ada',
         }],
         ['user:skip\x00name', /** @type {any} */ (null)],
       ]);
 
       const edgeBirthEvent = new Map([
-        ['user:z\x00user:y\x00likes', createEventId(9, 'w9', 'f'.repeat(40), 2)],
-        ['user:a\x00user:b\x00knows', createEventId(1, 'w1', 'e'.repeat(40), 0)],
+        ['user:z\x00user:y\x00likes', new EventId(9, 'w9', 'f'.repeat(40), 2)],
+        ['user:a\x00user:b\x00knows', new EventId(1, 'w1', 'e'.repeat(40), 0)],
       ]);
 
       const state = new WarpState({
