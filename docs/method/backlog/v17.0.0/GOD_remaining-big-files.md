@@ -45,12 +45,14 @@ class BitmapIndexBuilder {
 The current "serialize" methods (`_serializeMeta`, `_serializeEdge`,
 etc.) move into the `ShardPort` adapter — they ARE the adapter.
 
-If the builder exceeds 500 LOC after removing serialize logic, split
-further:
-- `BitmapNodeBuilder.ts` — node shard construction
-- `BitmapEdgeBuilder.ts` — edge shard construction
+The serialize removal drops ~300 LOC, leaving ~500 LOC in the builder.
+If the builder still exceeds 500 LOC after serialize extraction, split
+into two files:
+- `BitmapNodeBuilder.ts` — node + property shard construction
+- `BitmapEdgeBuilder.ts` — edge shard construction + label map
 
-But the serialize removal alone should drop ~300 LOC.
+`BitmapIndexBuilder.ts` becomes a thin orchestrator that delegates to
+both builders. This is the concrete fallback, not a maybe.
 
 ---
 
@@ -110,19 +112,22 @@ Behavior on the object. Consumers call `assessment.isValid()`, not
 
 `NodeEdgeDiff.ts` (~400 LOC):
 ```typescript
+type NodeDiffResult = { readonly added: string[]; readonly removed: string[] };
+type EdgeDiffResult = { readonly added: EdgeDiffEntry[]; readonly removed: EdgeDiffEntry[] };
+
 function diffNodes(
   left: WarpState,
   right: WarpState,
-): { added: string[]; removed: string[] }
+): NodeDiffResult
 
 function diffEdges(
   left: WarpState,
   right: WarpState,
-): { added: EdgeDiffEntry[]; removed: EdgeDiffEntry[] }
+): EdgeDiffResult
 
 function aggregateStructuralDiff(
-  nodeDiff: { added: string[]; removed: string[] },
-  edgeDiff: { added: EdgeDiffEntry[]; removed: EdgeDiffEntry[] },
+  nodeDiff: NodeDiffResult,
+  edgeDiff: EdgeDiffResult,
 ): StructuralDiff
 ```
 

@@ -15,3 +15,11 @@ Op behavior now lives on the op classes. These files are dead:
 
 Also remove the `OP_STRATEGIES` re-export from `JoinReducer.ts` and
 update any consumers still importing from those paths.
+
+## Execution
+
+1. Run `grep -r 'OpStrategies\|OpStrategy\|OpLike\|SnapshotBeforeOp' src/ test/`
+   to verify zero remaining imports before deletion.
+2. Delete the 4 dead files listed above.
+3. Remove the `OP_STRATEGIES` re-export from `JoinReducer.ts`.
+4. Re-run the grep to confirm clean removal.

@@ -40,10 +40,30 @@ interface MaterializedStateProvider {
 ```
 Used by: QueryController (reads), QueryContent (content access).
 
+### `src/domain/capabilities/MaterializedSnapshot.ts`
+```typescript
+class MaterializedSnapshot {
+  readonly state: WarpState;
+  readonly stateHash: string | null;
+  readonly adjacency: AdjacencyMap;
+
+  constructor(params: {
+    state: WarpState;
+    stateHash: string | null;
+    adjacency: AdjacencyMap;
+  }) {
+    this.state = params.state;
+    this.stateHash = params.stateHash;
+    this.adjacency = params.adjacency;
+    Object.freeze(this);
+  }
+}
+```
+
 ### `src/domain/capabilities/MaterializedStateStore.ts`
 ```typescript
 interface MaterializedStateStore {
-  get(): { state: WarpState; stateHash: string | null; adjacency: AdjacencyMap } | null;
+  get(): MaterializedSnapshot | null;
   set(state: WarpState, stateHash: string | null, adjacency: AdjacencyMap): void;
   clear(): void;
 }
@@ -79,6 +99,10 @@ interface DetachedGraphFactory {
   openReadOnly(): Promise<WarpGraph>;
 }
 ```
+`openReadOnly()` returns a frozen `WarpGraph` capability object,
+not a raw runtime handle. The returned graph has all mutation methods
+disabled — it is a read-only snapshot for isolated traversal.
+
 Used by: QueryController (observer), MaterializeController
 (coordinate materialize), Worldline.
 

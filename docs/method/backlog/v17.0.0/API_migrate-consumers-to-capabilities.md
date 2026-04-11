@@ -28,3 +28,47 @@ Key consumers:
 
 Each consumer should accept the narrowest capability it needs, not the
 full WarpGraph. This is the hexagonal architecture payoff.
+
+## Consumer migration signatures
+
+### Worldline.ts
+```typescript
+// BEFORE
+constructor({ graph }: { graph: WarpRuntime })
+
+// AFTER
+constructor({ query, materialize }: {
+  query: QueryCapability;
+  materialize: MaterializeCapability;
+})
+```
+
+### LogicalTraversal.js
+```typescript
+// BEFORE
+constructor({ graph }: { graph: WarpRuntime })
+
+// AFTER
+constructor({ query }: { query: QueryCapability })
+```
+
+### QueryBuilder.js
+```typescript
+// BEFORE
+constructor({ graph }: { graph: WarpRuntime })
+
+// AFTER
+constructor({ query }: { query: QueryCapability })
+```
+
+### ComparisonSelector.ts
+```typescript
+// BEFORE
+constructor({ graph }: { graph: WarpRuntime })
+
+// AFTER
+constructor({ materialize, sync }: {
+  materialize: MaterializeCapability;
+  sync: SyncCapability;
+})
+```

@@ -24,3 +24,36 @@ read-only graph handle. All three consumers import from here.
 When the capability API lands, "detached read graph" becomes
 `openWarpGraph()` with the same persistence and
 `autoMaterialize: false`. The factory function dissolves.
+
+## Concrete interface
+
+```typescript
+interface DetachedGraphFactory {
+  openReadOnly(): Promise<WarpGraph>;
+}
+```
+
+Adapter implementation:
+
+```typescript
+class WarpGraphDetachedFactory implements DetachedGraphFactory {
+  constructor(
+    private readonly persistence: GraphPersistencePort,
+    private readonly ports: {
+      clock: ClockPort;
+      crypto: CryptoPort;
+      codec: CodecPort;
+    },
+    private readonly config: {
+      graphName: string;
+      writerId: string;
+      gcPolicy: GCPolicy;
+    },
+  ) {}
+
+  async openReadOnly(): Promise<WarpGraph> {
+    // Constructs a frozen, read-only WarpGraph capability object.
+    // No mutation methods, no write refs, no materialization side effects.
+  }
+}
+```

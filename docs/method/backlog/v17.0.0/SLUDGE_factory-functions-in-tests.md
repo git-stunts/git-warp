@@ -22,4 +22,8 @@ Also kill `createEventId()` in `src/domain/utils/EventId.ts` and
 `createDot()` in `src/domain/crdt/Dot.ts` — use `new EventId()` and
 `new Dot()` directly.
 
+**`createEventId` is exported from `index.js`** (the public API surface).
+Removing it is a **BREAKING CHANGE** — the commit must carry a
+`BREAKING CHANGE` footer and the release must be a major version bump.
+
 JoinReducer.test.js, edgeProps, and integration tests already fixed.
