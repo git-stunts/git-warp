@@ -10,7 +10,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TrustRecordService } from '../../../../src/domain/trust/TrustRecordService.js';
 import { createJsonCodec, createTrustRecordPersistence } from '../../../helpers/trustTestUtils.js';
-import { KEY_ADD_1, KEY_ADD_2 } from './fixtures/goldenRecords.js';
+import { KEY_ADD_1, KEY_ADD_2 } from './fixtures/goldenRecords.ts';
 
 describe('B39 — Trust CAS retry', () => {
   /** @type {ReturnType<typeof createTrustRecordPersistence>} */

@@ -17,7 +17,7 @@ import {
   KEY_ADD_1,
   KEY_ADD_2,
   WRITER_BIND_ADD_ALICE,
-} from '../trust/fixtures/goldenRecords.js';
+} from '../trust/fixtures/goldenRecords.ts';
 
 // ── Test crypto adapter ──────────────────────────────────────────────────
 

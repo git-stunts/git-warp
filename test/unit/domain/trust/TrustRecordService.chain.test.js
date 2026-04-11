@@ -11,7 +11,7 @@ import { verifyRecordId } from '../../../../src/domain/trust/TrustCanonical.ts';
 import { createJsonCodec, createTrustRecordPersistence } from '../../../helpers/trustTestUtils.js';
 import {
   GOLDEN_CHAIN,
-} from './fixtures/goldenRecords.js';
+} from './fixtures/goldenRecords.ts';
 
 describe('Chain integration (B15)', () => {
   /** @type {*} */

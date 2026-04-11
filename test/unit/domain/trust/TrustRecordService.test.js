@@ -15,7 +15,7 @@ import {
   KEY_ADD_2,
   WRITER_BIND_ADD_ALICE,
   GOLDEN_CHAIN,
-} from './fixtures/goldenRecords.js';
+} from './fixtures/goldenRecords.ts';
 
 
 describe('TrustRecordService.appendRecord', () => {

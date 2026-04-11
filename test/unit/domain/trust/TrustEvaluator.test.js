@@ -16,8 +16,8 @@ import {
   KEY_REVOKE_2,
   KEY_ID_1,
   KEY_ID_2,
-} from './fixtures/goldenRecords.js';
-import { toTrustRecord, toTrustRecords } from './fixtures/trustRecordFactory.ts';
+  record,
+} from './fixtures/goldenRecords.ts';
 
 const VALID_POLICY = {
   schemaVersion: 1,
@@ -33,7 +33,7 @@ const WARN_POLICY = {
 
 describe('evaluateWriters — trusted writer', () => {
   it('returns pass for writer bound to active key', async () => {
-    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
     const assessment = evaluateWriters(['alice'], state, VALID_POLICY);
 
     expect(assessment.trustVerdict).toBe('pass');
@@ -51,7 +51,7 @@ describe('evaluateWriters — trusted writer', () => {
 
 describe('evaluateWriters — untrusted writers', () => {
   it('returns fail for writer with no bindings', async () => {
-    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
+    const state = await buildState([KEY_ADD_1]);
     const assessment = evaluateWriters(['unknown-writer'], state, VALID_POLICY);
 
     expect(assessment.trustVerdict).toBe('fail');
@@ -74,7 +74,7 @@ describe('evaluateWriters — untrusted writers', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
-    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, bobBind, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]));
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, record(bobBind), WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]);
     const assessment = evaluateWriters(['bob'], state, VALID_POLICY);
 
     expect(assessment.trustVerdict).toBe('fail');
@@ -86,7 +86,7 @@ describe('evaluateWriters — untrusted writers', () => {
 
 describe('evaluateWriters — policy validation', () => {
   it('returns fail for invalid policy', async () => {
-    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
+    const state = await buildState([KEY_ADD_1]);
     const assessment = evaluateWriters(['alice'], state, { mode: 'bogus' });
 
     expect(assessment.trustVerdict).toBe('fail');
@@ -97,7 +97,7 @@ describe('evaluateWriters — policy validation', () => {
   });
 
   it('accepts warn mode policy', async () => {
-    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
     const assessment = evaluateWriters(['alice'], state, WARN_POLICY);
     expect(assessment.trustVerdict).toBe('pass');
   });
@@ -105,7 +105,7 @@ describe('evaluateWriters — policy validation', () => {
 
 describe('evaluateWriters — deterministic ordering', () => {
   it('sorts writers alphabetically', async () => {
-    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
     const assessment = evaluateWriters(['zebra', 'alice', 'bob'], state, VALID_POLICY);
 
     expect(assessment.trust.evaluatedWriters).toEqual(['alice', 'bob', 'zebra']);
@@ -115,7 +115,7 @@ describe('evaluateWriters — deterministic ordering', () => {
   });
 
   it('sorts explanations consistently', async () => {
-    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
     const a1 = evaluateWriters(['charlie', 'alice', 'bob'], state, VALID_POLICY);
     const a2 = evaluateWriters(['bob', 'charlie', 'alice'], state, VALID_POLICY);
     expect(a1.trust.evaluatedWriters).toEqual(a2.trust.evaluatedWriters);
@@ -127,7 +127,7 @@ describe('evaluateWriters — deterministic ordering', () => {
 
 describe('evaluateWriters — evidence summary', () => {
   it('includes correct counts', async () => {
-    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]));
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]);
     const assessment = evaluateWriters(['alice'], state, VALID_POLICY);
     const { evidenceSummary } = assessment.trust;
 
@@ -141,7 +141,7 @@ describe('evaluateWriters — evidence summary', () => {
 
 describe('evaluateWriters — frozen output', () => {
   it('returns frozen assessment', async () => {
-    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
     const assessment = evaluateWriters(['alice'], state, VALID_POLICY);
     expect(Object.isFrozen(assessment)).toBe(true);
     expect(Object.isFrozen(assessment.trust)).toBe(true);
@@ -150,7 +150,7 @@ describe('evaluateWriters — frozen output', () => {
 
 describe('evaluateWriters — reason code completeness', () => {
   it('every explanation has a machine-readable reasonCode', async () => {
-    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
     const assessment = evaluateWriters(['alice', 'unknown'], state, VALID_POLICY);
     for (const expl of assessment.trust.explanations) {
       expect(typeof expl.reasonCode).toBe('string');
@@ -163,7 +163,7 @@ describe('evaluateWriters — reason code completeness', () => {
 
 describe('evaluateWriters — mixed trusted/untrusted', () => {
   it('correctly identifies both trusted and untrusted writers', async () => {
-    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
     const assessment = evaluateWriters(['alice', 'mallory'], state, VALID_POLICY);
 
     expect(assessment.trustVerdict).toBe('fail');

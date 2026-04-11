@@ -27,22 +27,26 @@ type TrustRecordFields = Readonly<Record<string, unknown>>;
 
 /**
  * Returns the record payload used for recordId computation.
- * Strips `recordId` and `signature` -- these are derived, not inputs.
+ * Strips `recordId`, `signature`, and `signaturePayload` -- these are
+ * derived, not inputs to the canonical hash.
  */
 function unsignedRecordForId(record: TrustRecordFields): Record<string, unknown> {
   const out: Record<string, unknown> = { ...record };
   delete out['recordId'];
   delete out['signature'];
+  delete out['signaturePayload'];
   return out;
 }
 
 /**
  * Returns the record payload used for signature computation.
- * Strips `signature` only -- `recordId` is included in signed payload.
+ * Strips `signature` and `signaturePayload` -- `recordId` is included
+ * in the signed payload; `signaturePayload` is derived, not an input.
  */
 function unsignedRecordForSignature(record: TrustRecordFields): Record<string, unknown> {
   const out: Record<string, unknown> = { ...record };
   delete out['signature'];
+  delete out['signaturePayload'];
   return out;
 }
 

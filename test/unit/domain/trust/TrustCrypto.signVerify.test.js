@@ -21,7 +21,7 @@ import {
   PUBLIC_KEY_1,
   PRIVATE_KEY_1_PKCS8,
   KEY_ID_1,
-} from './fixtures/goldenRecords.js';
+} from './fixtures/goldenRecords.ts';
 
 /** Reconstruct the private key object from PKCS8 DER bytes. */
 const privateKey1 = createPrivateKey({

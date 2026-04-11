@@ -22,7 +22,7 @@ const warpGraphUrl = pathToFileURL(resolve(projectRoot, 'src/domain/WarpRuntime.
 const adapterUrl = pathToFileURL(resolve(projectRoot, 'src/infrastructure/adapters/GitGraphAdapter.js')).href;
 const cryptoUrl = pathToFileURL(resolve(projectRoot, 'src/infrastructure/adapters/NodeCryptoAdapter.js')).href;
 const trustRecordServiceUrl = pathToFileURL(resolve(projectRoot, 'src/domain/trust/TrustRecordService.js')).href;
-const goldenRecordsUrl = pathToFileURL(resolve(projectRoot, 'test/unit/domain/trust/fixtures/goldenRecords.js')).href;
+const goldenRecordsUrl = pathToFileURL(resolve(projectRoot, 'test/unit/domain/trust/fixtures/goldenRecords.ts')).href;
 const defaultCodecUrl = pathToFileURL(resolve(projectRoot, 'src/domain/utils/defaultCodec.ts')).href;
 
 const { default: WarpRuntime } = await import(warpGraphUrl);

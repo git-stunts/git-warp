@@ -15,7 +15,7 @@ import {
   KEY_REVOKE_2,
   WRITER_BIND_REVOKE_BOB,
   GOLDEN_CHAIN,
-} from './fixtures/goldenRecords.js';
+} from './fixtures/goldenRecords.ts';
 
 describe('Canonical hash freeze', () => {
   it('KEY_ADD_1 recordId is pinned', async () => {

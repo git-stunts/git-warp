@@ -13,8 +13,7 @@ import {
   KEY_ADD_1,
   KEY_ADD_2,
   WRITER_BIND_ADD_ALICE,
-} from './fixtures/goldenRecords.js';
-import { toTrustRecord, toTrustRecords } from './fixtures/trustRecordFactory.ts';
+} from './fixtures/goldenRecords.ts';
 
 const WARN_POLICY = {
   schemaVersion: 1,
@@ -30,7 +29,7 @@ const ENFORCE_POLICY = {
 
 describe('Cross-mode determinism (RG-T5)', () => {
   it('same verdict for trusted writer in warn vs enforce', async () => {
-    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
     const warnResult = evaluateWriters(['alice'], state, WARN_POLICY);
     const enforceResult = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 
@@ -40,7 +39,7 @@ describe('Cross-mode determinism (RG-T5)', () => {
   });
 
   it('same verdict for untrusted writer in warn vs enforce', async () => {
-    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
+    const state = await buildState([KEY_ADD_1]);
     const warnResult = evaluateWriters(['unknown'], state, WARN_POLICY);
     const enforceResult = evaluateWriters(['unknown'], state, ENFORCE_POLICY);
 
@@ -50,7 +49,7 @@ describe('Cross-mode determinism (RG-T5)', () => {
   });
 
   it('identical explanations across modes', async () => {
-    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
     const writers = ['alice', 'mallory', 'bob'];
     const warnResult = evaluateWriters(writers, state, WARN_POLICY);
     const enforceResult = evaluateWriters(writers, state, ENFORCE_POLICY);
@@ -68,7 +67,7 @@ describe('Cross-mode determinism (RG-T5)', () => {
   });
 
   it('identical evidence summaries across modes', async () => {
-    const state = await buildState(toTrustRecords([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]));
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
     const warnResult = evaluateWriters(['alice'], state, WARN_POLICY);
     const enforceResult = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 
@@ -76,7 +75,7 @@ describe('Cross-mode determinism (RG-T5)', () => {
   });
 
   it('both modes return frozen output', async () => {
-    const state = await buildState([toTrustRecord(KEY_ADD_1)]);
+    const state = await buildState([KEY_ADD_1]);
     const warnResult = evaluateWriters(['alice'], state, WARN_POLICY);
     const enforceResult = evaluateWriters(['alice'], state, ENFORCE_POLICY);
 
