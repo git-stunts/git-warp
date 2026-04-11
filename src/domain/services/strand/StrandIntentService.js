@@ -6,7 +6,7 @@ import {
 } from './strandShared.js';
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
-/** @import { PatchBuilder } from '../PatchBuilder.js' */
+/** @import { PatchBuilder } from '../PatchBuilder.ts' */
 /** @import { default as Patch } from '../../types/Patch.ts' */
 /** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */
 /** @typedef {import('./strandTypes.js').StrandIntentQueue} StrandIntentQueue */

@@ -1,5 +1,5 @@
 import StrandError from '../../errors/StrandError.ts';
-import { PatchBuilder } from '../PatchBuilder.js';
+import { PatchBuilder } from '../PatchBuilder.ts';
 import { encodePatchMessage } from '../codec/WarpMessageCodec.js';
 import {
   maxPatchLamport,

@@ -7,7 +7,7 @@
  * @module domain/services/controllers/PatchController
  */
 
-import { PatchBuilder } from '../PatchBuilder.js';
+import { PatchBuilder } from '../PatchBuilder.ts';
 import { joinStates, applyWithDiff, applyWithReceipt } from '../JoinReducer.ts';
 import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../../utils/RefLayout.ts';
 import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';

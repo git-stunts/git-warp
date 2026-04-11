@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.js';
+import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import {
   encodePropKey,

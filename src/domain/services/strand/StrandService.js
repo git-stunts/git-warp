@@ -34,7 +34,7 @@ export {
 
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
-/** @import { PatchBuilder } from '../PatchBuilder.js' */
+/** @import { PatchBuilder } from '../PatchBuilder.ts' */
 /** @typedef {import('./strandTypes.js').ParsedStrandBlob} ParsedStrandBlob */
 /** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */
 /** @typedef {import('./strandTypes.js').StrandIntentQueue} StrandIntentQueue */

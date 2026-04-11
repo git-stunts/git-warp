@@ -5,7 +5,7 @@
  * via defineProperty delegation. This declaration file makes them visible to tsc.
  */
 
-import type { PatchBuilder } from '../services/PatchBuilder.js';
+import type { PatchBuilder } from '../services/PatchBuilder.ts';
 import type { Writer } from './Writer.ts';
 import type { WarpState } from '../services/JoinReducer.ts';
 import type Patch from '../types/Patch.js';

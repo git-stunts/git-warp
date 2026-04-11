@@ -11,7 +11,7 @@
 
 import WriterError from '../errors/WriterError.ts';
 import { buildWriterRef } from '../utils/RefLayout.ts';
-import type { PatchBuilder } from '../services/PatchBuilder.js';
+import type { PatchBuilder } from '../services/PatchBuilder.ts';
 import type RefPort from '../../ports/RefPort.ts';
 import type Patch from '../types/Patch.ts';
 

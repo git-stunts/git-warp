@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.js';
+import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
 import { WriterError } from '../../../../src/domain/warp/Writer.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';

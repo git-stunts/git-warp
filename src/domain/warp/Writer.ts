@@ -17,7 +17,7 @@
 import nullLogger from '../utils/nullLogger.ts';
 import { validateWriterId, buildWriterRef } from '../utils/RefLayout.ts';
 import { PatchSession } from './PatchSession.ts';
-import { PatchBuilder } from '../services/PatchBuilder.js';
+import { PatchBuilder } from '../services/PatchBuilder.ts';
 import { decodePatchMessage, detectMessageKind } from '../services/codec/WarpMessageCodec.js';
 import WriterError from '../errors/WriterError.ts';
 import type VersionVector from '../crdt/VersionVector.ts';
