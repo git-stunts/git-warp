@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { processSyncRequest } from '../../../../src/domain/services/sync/SyncProtocol.js';
-import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
+import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';

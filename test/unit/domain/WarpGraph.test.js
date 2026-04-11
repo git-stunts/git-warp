@@ -5,7 +5,7 @@ import { AuditVerifierService } from '../../../src/domain/services/audit/AuditVe
 import { NoOpEffectSink } from '../../../src/infrastructure/adapters/NoOpEffectSink.js';
 
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
-import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
+import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import { serializeFullStateV5, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializerV5.js';

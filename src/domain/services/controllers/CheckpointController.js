@@ -12,7 +12,7 @@ import { SchemaUnsupportedError } from '../../errors/index.ts';
 import { buildWriterRef, buildCheckpointRef, buildCoverageRef } from '../../utils/RefLayout.ts';
 import { createFrontier, updateFrontier, frontierFingerprint } from '../Frontier.js';
 import { loadCheckpoint, create as createCheckpointCommit, isV5CheckpointSchema } from '../state/CheckpointService.js';
-import { decodePatchMessage, detectMessageKind, encodeAnchorMessage } from '../codec/WarpMessageCodec.js';
+import { decodePatchMessage, detectMessageKind, encodeAnchorMessage } from '../codec/WarpMessageCodec.ts';
 import executeGC from '../executeGC.ts';
 import GCMetrics from '../GCMetrics.ts';
 

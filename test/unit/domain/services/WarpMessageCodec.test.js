@@ -7,7 +7,7 @@ import {
   decodeCheckpointMessage,
   decodeAnchorMessage,
   detectMessageKind,
-} from '../../../../src/domain/services/codec/WarpMessageCodec.js';
+} from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 
 // Test fixtures
 const VALID_OID_SHA1 = 'a'.repeat(40);

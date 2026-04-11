@@ -19,7 +19,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import QueryError from '../../../src/domain/errors/QueryError.ts';
-import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
+import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState, encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';

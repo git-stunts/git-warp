@@ -14,7 +14,7 @@ import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 import {
   encodePatchMessage,
   encodeCheckpointMessage,
-} from '../../../../src/domain/services/codec/WarpMessageCodec.js';
+} from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import {
   reduceV5 as _reduceV5,
   encodeEdgeKey,

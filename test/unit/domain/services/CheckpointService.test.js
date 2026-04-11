@@ -10,7 +10,7 @@ import {
   deserializeAppliedVV,
 } from '../../../../src/domain/services/state/CheckpointSerializerV5.js';
 import { createEmptyState, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.ts';
-import { encodeCheckpointMessage, decodeCheckpointMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
+import { encodeCheckpointMessage, decodeCheckpointMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { CONTENT_PROPERTY_KEY, encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';

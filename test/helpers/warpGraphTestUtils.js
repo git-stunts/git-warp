@@ -14,7 +14,7 @@ import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.js';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
 import { encode } from '../../src/infrastructure/codecs/CborCodec.js';
-import { encodePatchMessage } from '../../src/domain/services/codec/WarpMessageCodec.js';
+import { encodePatchMessage } from '../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';

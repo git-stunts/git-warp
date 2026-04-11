@@ -11,7 +11,7 @@
 import VersionVector from '../crdt/VersionVector.ts';
 import Patch from '../types/Patch.ts';
 import { lowerCanonicalOp } from './OpNormalizer.ts';
-import { encodePatchMessage, decodePatchMessage, detectMessageKind } from './codec/WarpMessageCodec.js';
+import { encodePatchMessage, decodePatchMessage, detectMessageKind } from './codec/WarpMessageCodec.ts';
 import { buildWriterRef } from '../utils/RefLayout.ts';
 import WriterError from '../errors/WriterError.ts';
 import PatchError from '../errors/PatchError.ts';

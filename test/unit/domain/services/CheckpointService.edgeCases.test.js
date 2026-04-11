@@ -34,7 +34,7 @@ import {
 import {
   encodeCheckpointMessage,
   decodeCheckpointMessage,
-} from '../../../../src/domain/services/codec/WarpMessageCodec.js';
+} from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { ProvenanceIndex } from '../../../../src/domain/services/provenance/ProvenanceIndex.js';

@@ -5,7 +5,7 @@ import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import { ProvenanceIndex } from '../../../../../src/domain/services/provenance/ProvenanceIndex.js';
 import { encodeEdgeKey } from '../../../../../src/domain/services/KeyCodec.js';
-import { encodePatchMessage } from '../../../../../src/domain/services/codec/WarpMessageCodec.js';
+import { encodePatchMessage } from '../../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 
 /** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.js' */

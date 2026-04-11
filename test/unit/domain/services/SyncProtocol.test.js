@@ -18,7 +18,7 @@ import { createFrontier } from '../../../../src/domain/services/Frontier.js';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
+import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';

@@ -6,7 +6,7 @@ import EncryptionError from '../../../../src/domain/errors/EncryptionError.ts';
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
 import Patch from '../../../../src/domain/types/Patch.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
-import { encodePatchMessage } from '../../../../src/domain/services/codec/PatchMessageCodec.js';
+import { encodePatchMessage } from '../../../../src/domain/services/codec/PatchMessageCodec.ts';
 
 /** @param {Record<string, unknown>} opts */
 function createPatch(opts) { return new Patch(/** @type {any} */ (opts)); }

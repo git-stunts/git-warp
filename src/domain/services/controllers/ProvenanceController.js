@@ -10,7 +10,7 @@
 import QueryError from '../../errors/QueryError.ts';
 import { createEmptyState, reduceV5 } from '../JoinReducer.ts';
 import { ProvenancePayload } from '../provenance/ProvenancePayload.js';
-import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';
+import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.ts';
 import { hydrateDecodedPatch } from '../PatchHydrator.ts';
 
 /** @import { WarpState } from '../JoinReducer.ts' */

@@ -37,7 +37,7 @@
  */
 
 import nullLogger from '../../utils/nullLogger.ts';
-import { decodePatchMessage, assertOpsCompatible, SCHEMA_V3 } from '../codec/WarpMessageCodec.js';
+import { decodePatchMessage, assertOpsCompatible, SCHEMA_V3 } from '../codec/WarpMessageCodec.ts';
 import { join, cloneState, isKnownRawOp } from '../JoinReducer.ts';
 import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 import SyncError from '../../errors/SyncError.ts';

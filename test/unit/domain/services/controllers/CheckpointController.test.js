@@ -72,7 +72,7 @@ vi.mock('../../../../../src/domain/services/state/CheckpointService.js', () => (
   isV5CheckpointSchema: isV5CheckpointSchemaMock,
 }));
 
-vi.mock('../../../../../src/domain/services/codec/WarpMessageCodec.js', () => ({
+vi.mock('../../../../../src/domain/services/codec/WarpMessageCodec.ts', () => ({
   decodePatchMessage: decodePatchMessageMock,
   detectMessageKind: detectMessageKindMock,
   encodeAnchorMessage: encodeAnchorMessageMock,

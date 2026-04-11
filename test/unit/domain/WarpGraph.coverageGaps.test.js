@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
-import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
+import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';

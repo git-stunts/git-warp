@@ -25,7 +25,7 @@ import ProvenancePayload from './provenance/ProvenancePayload.js';
 import WormholeError from '../errors/WormholeError.ts';
 import EncryptionError from '../errors/EncryptionError.ts';
 import PersistenceError from '../errors/PersistenceError.ts';
-import { detectMessageKind, decodePatchMessage } from './codec/WarpMessageCodec.js';
+import { detectMessageKind, decodePatchMessage } from './codec/WarpMessageCodec.ts';
 
 /**
  * Validates that a SHA parameter is a non-empty string.

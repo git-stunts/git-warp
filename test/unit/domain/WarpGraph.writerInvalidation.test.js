@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
-import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
+import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
 /**

@@ -1,6 +1,6 @@
 import StrandError from '../../errors/StrandError.ts';
 import { PatchBuilder } from '../PatchBuilder.ts';
-import { encodePatchMessage } from '../codec/WarpMessageCodec.js';
+import { encodePatchMessage } from '../codec/WarpMessageCodec.ts';
 import {
   maxPatchLamport,
   normalizeStringArray,

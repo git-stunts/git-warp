@@ -10,7 +10,7 @@
 import { PatchBuilder } from '../PatchBuilder.ts';
 import { joinStates, applyWithDiff, applyWithReceipt } from '../JoinReducer.ts';
 import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../../utils/RefLayout.ts';
-import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.js';
+import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.ts';
 import { hydrateDecodedPatch } from '../PatchHydrator.ts';
 import { Writer } from '../../warp/Writer.ts';
 import { resolveWriterId } from '../../utils/WriterId.ts';

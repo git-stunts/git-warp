@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { isLegacyAnchor, isAnyAnchor } from '../../../../src/domain/services/LegacyAnchorDetector.ts';
-import { encodeAnchorMessage, detectMessageKind } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
+import { encodeAnchorMessage, detectMessageKind } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 
 /**
  * v3 Backward Compatibility Tests (Phase 5.4)

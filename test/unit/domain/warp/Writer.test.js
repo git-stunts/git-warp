@@ -13,7 +13,7 @@ import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
-import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
+import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 

@@ -2,7 +2,7 @@ import PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import PatchEntry from '../../domain/artifacts/PatchEntry.ts';
-import { decodePatchMessage, detectMessageKind } from '../../domain/services/codec/WarpMessageCodec.js';
+import { decodePatchMessage, detectMessageKind } from '../../domain/services/codec/WarpMessageCodec.ts';
 import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
 import SyncError from '../../domain/errors/SyncError.ts';
 import EncryptionError from '../../domain/errors/EncryptionError.ts';

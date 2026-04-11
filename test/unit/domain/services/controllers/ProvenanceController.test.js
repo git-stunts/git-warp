@@ -14,13 +14,13 @@ import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 
 // ── Mock WarpMessageCodec ───────────────────────────────────────────────
 
-vi.mock('../../../../../src/domain/services/codec/WarpMessageCodec.js', () => ({
+vi.mock('../../../../../src/domain/services/codec/WarpMessageCodec.ts', () => ({
   detectMessageKind: vi.fn(),
   decodePatchMessage: vi.fn(),
 }));
 
 const { detectMessageKind, decodePatchMessage } = await import(
-  '../../../../../src/domain/services/codec/WarpMessageCodec.js'
+  '../../../../../src/domain/services/codec/WarpMessageCodec.ts'
 );
 
 // ── Mock ProvenancePayload ──────────────────────────────────────────────
