@@ -563,7 +563,7 @@ declare module '../WarpRuntime.js' {
     getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
     getPropertyCount(): Promise<number>;
     query(): import('../services/QueryBuilder.js').default;
-    worldline(options?: import('../../../index.js').WorldlineOptions): import('../services/Worldline.js').default;
+    worldline(options?: import('../../../index.js').WorldlineOptions): import('../services/Worldline.ts').default;
     observer(nameOrConfig: string | ObserverConfig, configOrOptions?: ObserverConfig | import('../../../index.js').ObserverOptions, options?: import('../../../index.js').ObserverOptions): Promise<import('../services/Observer.js').default>;
     translationCost(configA: ObserverConfig, configB: ObserverConfig): Promise<TranslationCostResult>;
 

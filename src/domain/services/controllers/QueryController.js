@@ -24,7 +24,7 @@ import { cloneState } from '../JoinReducer.ts';
 import { createImmutableWarpState } from '../ImmutableSnapshot.js';
 import QueryBuilder from '../query/QueryBuilder.js';
 import Observer from '../query/Observer.js';
-import Worldline from '../Worldline.js';
+import Worldline from '../Worldline.ts';
 import { computeTranslationCost } from '../TranslationCost.js';
 import { computeStateHashV5 } from '../state/StateSerializerV5.js';
 import { toInternalStrandShape } from '../../utils/strandPublicShape.ts';
@@ -486,7 +486,7 @@ function query() {
  * Creates a first-class worldline handle over a pinned read source.
  *
  * @param {ObserverOptions} [options]
- * @returns {import('../Worldline.js').default}
+ * @returns {import('../Worldline.ts').default}
  * @this {QueryController}
  */
 function worldline(options = undefined) {

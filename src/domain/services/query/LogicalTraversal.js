@@ -10,10 +10,66 @@
  */
 
 import TraversalError from '../../errors/TraversalError.ts';
+import ORSet from '../../crdt/ORSet.ts';
 import GraphTraversal from './GraphTraversal.js';
 import AdjacencyNeighborProvider from './AdjacencyNeighborProvider.js';
 
 const DEFAULT_MAX_DEPTH = 1000;
+
+/**
+ * @typedef {{
+ *   hasNode: (nodeId: string) => Promise<boolean>;
+ *   _materializeGraph: () => Promise<{
+ *     state: unknown;
+ *     adjacency: unknown;
+ *   }>;
+ * }} TraversalGraph
+ */
+
+/**
+ * Returns true when a value is a materialized adjacency record.
+ *
+ * @param {unknown} adjacency
+ * @returns {boolean}
+ */
+function isAdjacencyMaps(adjacency) {
+  return (
+    adjacency !== null &&
+    typeof adjacency === 'object' &&
+    adjacency.outgoing instanceof Map &&
+    adjacency.incoming instanceof Map
+  );
+}
+
+/**
+ * Validates the materialized adjacency boundary before traversal.
+ *
+ * @param {unknown} adjacency
+ * @returns {{ outgoing: Map<string, Array<{ neighborId: string, label: string }>>, incoming: Map<string, Array<{ neighborId: string, label: string }>> }}
+ */
+function requireAdjacencyMaps(adjacency) {
+  if (!isAdjacencyMaps(adjacency)) {
+    throw new TraversalError('materialized traversal adjacency is invalid', {
+      code: 'E_TRAVERSAL_ADJACENCY',
+    });
+  }
+  return adjacency;
+}
+
+/**
+ * Validates the materialized traversal state boundary before building the provider.
+ *
+ * @param {unknown} state
+ * @returns {{ nodeAlive: ORSet }}
+ */
+function requireTraversalState(state) {
+  if (state === null || typeof state !== 'object' || !(state.nodeAlive instanceof ORSet)) {
+    throw new TraversalError('materialized traversal state is missing nodeAlive', {
+      code: 'E_TRAVERSAL_STATE',
+    });
+  }
+  return state;
+}
 
 /**
  * Strips keys whose value is `undefined` from an object so that
@@ -90,7 +146,7 @@ export default class LogicalTraversal {
   /**
    * Creates a new LogicalTraversal.
    *
-   * @param {import('../../WarpRuntime.js').default} graph - The WarpRuntime instance to traverse
+   * @param {TraversalGraph} graph - Graph-like read handle with node checks and adjacency materialization
    */
   constructor(graph) {
     this._graph = graph;
@@ -108,14 +164,12 @@ export default class LogicalTraversal {
    * @throws {TraversalError} If the labelFilter is invalid (INVALID_LABEL_FILTER)
    */
   async _prepareEngine({ dir, labelFilter, maxDepth }) {
-    // Private access: _materializeGraph is a WarpRuntime internal.
-    // This coupling will be removed when the LogicalTraversal facade is sunset
-    // and callers migrate to GraphTraversal + NeighborProvider directly.
-    const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: {nodeAlive: import('../../crdt/ORSet.ts').default}, adjacency: {outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>}}> }} */ (this._graph)._materializeGraph();
+    const materialized = await this._graph._materializeGraph();
+    const adjacency = requireAdjacencyMaps(materialized.adjacency);
+    const state = requireTraversalState(materialized.state);
 
     const direction = assertDirection(dir);
     const labelSet = normalizeLabelFilter(labelFilter);
-    const { adjacency, state } = materialized;
     const depthLimit = maxDepth ?? DEFAULT_MAX_DEPTH;
 
     const provider = new AdjacencyNeighborProvider({

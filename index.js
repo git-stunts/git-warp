@@ -100,7 +100,7 @@ function createEventId({ lamport, writerId, patchSha, opIndex }) { return { lamp
 import { migrateV4toV5 } from './src/domain/services/MigrationService.ts';
 import QueryBuilder from './src/domain/services/query/QueryBuilder.js';
 import Observer from './src/domain/services/query/Observer.js';
-import Worldline from './src/domain/services/Worldline.js';
+import Worldline from './src/domain/services/Worldline.ts';
 import WorldlineSelector from './src/domain/types/WorldlineSelector.ts';
 import LiveSelector from './src/domain/types/LiveSelector.ts';
 import CoordinateSelector from './src/domain/types/CoordinateSelector.ts';

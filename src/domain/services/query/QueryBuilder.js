@@ -45,6 +45,60 @@ async function batchMap(items, fn, limit = 100) {
  */
 
 /**
+ * @typedef {{
+ *   _materializeGraph: () => Promise<{ adjacency: unknown, stateHash: string|null }>;
+ *   getNodes: () => Promise<string[]>;
+ *   getNodeProps: (nodeId: string) => Promise<Record<string, unknown>|null>;
+ *   getEdges: () => Promise<Array<{ from: string, to: string, label: string, props: Record<string, unknown> }>>;
+ * }} QueryGraph
+ */
+
+/**
+ * Returns true when a value is a materialized adjacency record.
+ *
+ * @param {unknown} adjacency
+ * @returns {boolean}
+ */
+function isAdjacencyMaps(adjacency) {
+  return (
+    adjacency !== null &&
+    typeof adjacency === 'object' &&
+    adjacency.outgoing instanceof Map &&
+    adjacency.incoming instanceof Map
+  );
+}
+
+/**
+ * Validates the materialized adjacency boundary before query execution.
+ *
+ * @param {unknown} adjacency
+ * @returns {AdjacencyMaps}
+ */
+function requireAdjacencyMaps(adjacency) {
+  if (!isAdjacencyMaps(adjacency)) {
+    throw new QueryError('materialized query adjacency is invalid', {
+      code: 'E_QUERY_ADJACENCY',
+    });
+  }
+  return adjacency;
+}
+
+/**
+ * Validates the materialized state hash boundary before query execution.
+ *
+ * @param {string|null} stateHash
+ * @returns {string}
+ */
+function requireStateHash(stateHash) {
+  if (typeof stateHash !== 'string') {
+    throw new QueryError('materialized query state hash must be a string', {
+      code: 'E_QUERY_STATE_HASH',
+    });
+  }
+  return stateHash;
+}
+
+/**
  * @typedef {Object} AggregateSpec
  * @property {boolean} [count] - If true, include count of matched nodes
  * @property {string} [sum] - Property path to sum (e.g., "props.price" or "price")
@@ -476,7 +530,7 @@ export default class QueryBuilder {
   /**
    * Creates a new QueryBuilder.
    *
-   * @param {import('../../WarpRuntime.js').default} graph - The WarpRuntime instance to query
+   * @param {QueryGraph} graph - Graph-like read handle with node, edge, and adjacency access
    */
   constructor(graph) {
     this._graph = graph;
@@ -663,8 +717,9 @@ export default class QueryBuilder {
    * @throws {QueryError} If an unknown select field is specified (code: E_QUERY_SELECT_FIELD)
    */
   async run() {
-    const materialized = await /** @type {{ _materializeGraph: () => Promise<{adjacency: AdjacencyMaps, stateHash: string}> }} */ (this._graph)._materializeGraph();
-    const { adjacency, stateHash } = materialized;
+    const materialized = await this._graph._materializeGraph();
+    const adjacency = requireAdjacencyMaps(materialized.adjacency);
+    const stateHash = requireStateHash(materialized.stateHash);
     const allNodes = sortIds(await this._graph.getNodes());
 
     const pattern = this._pattern ?? DEFAULT_PATTERN;
@@ -682,11 +737,8 @@ export default class QueryBuilder {
       if (cached !== undefined) {
         return cached;
       }
-      /** @type {unknown} */
       const rawProps = await this._graph.getNodeProps(nodeId);
-      const propsRecord = /** @type {Record<string, unknown>} */ (
-        rawProps !== null && rawProps !== undefined ? rawProps : {}
-      );
+      const propsRecord = rawProps ?? {};
       propsMemo.set(nodeId, propsRecord);
       return propsRecord;
     };
