@@ -45,8 +45,6 @@ export type MaterializeDeps = {
   patches: PatchCollector;
   graphCloner: DetachedGraphFactory;
   graphName: string;
-  /** Called after every materialization. Host applies side effects here. */
-  onMaterialized: (result: MaterializeResult) => Promise<void>;
 };
 
 // ── Result types ────────────────────────────────────────────────────
@@ -120,31 +118,25 @@ export default class MaterializeController {
     this._deps = deps;
   }
 
-  /** Emits result to the host callback and returns it. */
-  private async _emit(result: MaterializeResult): Promise<MaterializeResult> {
-    await this._deps.onMaterialized(result);
-    return result;
-  }
-
   /** Full materialization — live frontier, optional ceiling. */
   async materialize(opts: { receipts?: boolean; ceiling?: number | null; wantDiff?: boolean }): Promise<MaterializeResult> {
     const ceiling = normalizeExplicitCeiling(opts.ceiling);
     if (ceiling !== null) {
-      return await this._emit(await this._materializeWithCeiling({ ceiling, receipts: opts.receipts === true }));
+      return await this._materializeWithCeiling({ ceiling, receipts: opts.receipts === true });
     }
-    return await this._emit(await this._materializeLive({ receipts: opts.receipts === true, wantDiff: opts.wantDiff === true }));
+    return await this._materializeLive({ receipts: opts.receipts === true, wantDiff: opts.wantDiff === true });
   }
 
   /** Coordinate materialization — explicit frontier. */
   async materializeCoordinate(opts: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts?: boolean }): Promise<MaterializeResult> {
     const frontier = normalizeFrontierInput(opts.frontier);
     const ceiling = normalizeExplicitCeiling(opts.ceiling);
-    return await this._emit(await this._materializeCoordinate({ frontier, ceiling, receipts: opts.receipts === true }));
+    return await this._materializeCoordinate({ frontier, ceiling, receipts: opts.receipts === true });
   }
 
   /** Checkpoint materialization — replay from a specific checkpoint SHA. */
   async materializeAt(checkpointSha: string): Promise<MaterializeResult> {
-    return await this._emit(await this._materializeAtCheckpoint(checkpointSha));
+    return await this._materializeAtCheckpoint(checkpointSha);
   }
 
   // ── Live pipeline ───────────────────────────────────────────────

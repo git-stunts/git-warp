@@ -374,7 +374,6 @@ export default class WarpRuntime {
       patches: new RuntimePatchCollector(this),
       graphCloner: new RuntimeDetachedFactory(this),
       graphName: this._graphName,
-      onMaterialized: this._onMaterialized.bind(this),
     });
 
     /** @type {MaterializedViewService} */
@@ -925,11 +924,8 @@ function wireMaterialize(name, fn) {
 wireMaterialize('materialize', /** @param {{receipts?: boolean, ceiling?: number|null}} [options] */ async function (options) {
   const self = /** @type {WarpRuntime} */ (this);
   const wantDiff = options?.receipts !== true && self._cachedIndexTree !== null && self._cachedIndexTree !== undefined;
-  const result = await self._materializeController.materialize({
-    receipts: options?.receipts,
-    ceiling: options?.ceiling,
-    wantDiff,
-  });
+  const result = await self._materializeController.materialize({ receipts: options?.receipts, ceiling: options?.ceiling, wantDiff });
+  await self._onMaterialized(result);
   if (options?.receipts === true) {
     return Object.freeze({ state: createImmutableWarpState(result.state), receipts: /** @type {import('./types/TickReceipt.ts').TickReceipt[]} */ (createImmutableValue(result.receipts ?? [])) });
   }
@@ -939,6 +935,7 @@ wireMaterialize('materialize', /** @param {{receipts?: boolean, ceiling?: number
 wireMaterialize('materializeCoordinate', /** @param {{ frontier: Map<string,string>|Record<string,string>, ceiling?: number|null, receipts?: boolean }} options */ async function (options) {
   const self = /** @type {WarpRuntime} */ (this);
   const result = await self._materializeController.materializeCoordinate(options);
+  await self._onMaterialized(result);
   if (options.receipts === true) {
     return Object.freeze({ state: createImmutableWarpState(result.state), receipts: /** @type {import('./types/TickReceipt.ts').TickReceipt[]} */ (createImmutableValue(result.receipts ?? [])) });
   }
@@ -948,6 +945,7 @@ wireMaterialize('materializeCoordinate', /** @param {{ frontier: Map<string,stri
 wireMaterialize('materializeAt', /** @param {string} checkpointSha */ async function (checkpointSha) {
   const self = /** @type {WarpRuntime} */ (this);
   const result = await self._materializeController.materializeAt(checkpointSha);
+  await self._onMaterialized(result);
   return createImmutableWarpState(result.state);
 });
 
@@ -967,7 +965,9 @@ wireMaterialize('_materializeGraph', async function () {
   self._stateDirty = false;
   self._versionVector = state.observedFrontier.clone();
   const adj = self._buildAdjacency(state);
-  self._materializedGraph = { state, stateHash: null, adjacency: adj };
+  const { computeStateHashV5 } = await import('./services/state/StateSerializerV5.js');
+  const stateHash = await computeStateHashV5(state, { crypto: self._crypto, codec: self._codec });
+  self._materializedGraph = { state, stateHash, adjacency: adj };
   return self._materializedGraph;
 });
 
