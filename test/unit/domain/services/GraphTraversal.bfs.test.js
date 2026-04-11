@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import GraphTraversal from '../../../../src/domain/services/query/GraphTraversal.js';
+import GraphTraversal from '../../../../src/domain/services/query/GraphTraversal.ts';
 import {
   makeAdjacencyProvider,
   F1_BFS_LEVEL_SORT_TRAP,

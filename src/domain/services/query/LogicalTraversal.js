@@ -11,7 +11,7 @@
 
 import TraversalError from '../../errors/TraversalError.ts';
 import ORSet from '../../crdt/ORSet.ts';
-import GraphTraversal from './GraphTraversal.js';
+import GraphTraversal from './GraphTraversal.ts';
 import AdjacencyNeighborProvider from './AdjacencyNeighborProvider.js';
 
 const DEFAULT_MAX_DEPTH = 1000;

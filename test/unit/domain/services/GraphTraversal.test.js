@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import GraphTraversal from '../../../../src/domain/services/query/GraphTraversal.js';
+import GraphTraversal from '../../../../src/domain/services/query/GraphTraversal.ts';
 import AdjacencyNeighborProvider from '../../../../src/domain/services/query/AdjacencyNeighborProvider.js';
 
 /**

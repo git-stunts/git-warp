@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import GraphTraversal from '../../../../src/domain/services/query/GraphTraversal.js';
+import GraphTraversal from '../../../../src/domain/services/query/GraphTraversal.ts';
 import {
   makeAdjacencyProvider, makeWeightFn,
   F3_DIAMOND_EQUAL_PATHS,

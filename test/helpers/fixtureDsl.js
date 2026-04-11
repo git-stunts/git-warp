@@ -578,13 +578,13 @@ export function makeNodeWeightFn(weights, defaultWeight = 1) {
  * @param {Object} params
  * @param {GraphFixture} [params.fixture]
  * @param {Array<{name: string, provider: import('../../src/ports/NeighborProviderPort.ts').default}>} params.providers
- * @param {(engine: import('../../src/domain/services/query/GraphTraversal.js').default) => Promise<unknown>} params.run
+ * @param {(engine: import('../../src/domain/services/query/GraphTraversal.ts').default) => Promise<unknown>} params.run
  * @param {(result: unknown) => void} params.assert
  */
 export async function runCrossProvider({ providers, run, assert }) {
   const results = [];
   for (const { name, provider } of providers) {
-    const { default: GraphTraversal } = await import('../../src/domain/services/query/GraphTraversal.js');
+    const { default: GraphTraversal } = await import('../../src/domain/services/query/GraphTraversal.ts');
     const engine = new GraphTraversal({ provider });
     try {
       const result = await run(engine);
