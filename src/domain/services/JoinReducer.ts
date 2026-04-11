@@ -29,6 +29,7 @@ import WarpState from './state/WarpState.ts';
 import OpSuperseded from '../types/ops/OpSuperseded.ts';
 import OpValidator from './OpValidator.ts';
 import ReceiptBuilder from './ReceiptBuilder.ts';
+import Op from '../types/ops/Op.ts';
 import type { OpLike } from './OpLike.ts';
 import { OP_STRATEGIES } from './OpStrategies.ts';
 
@@ -135,10 +136,9 @@ export function applyOpV2(state: WarpState, op: OpLike, eventId: EventId): void 
     return;
   }
   const canonOp = normalizeRawOp(op);
-  const strategy = OP_STRATEGIES.get(canonOp.type);
-  if (!strategy) { return; }
-  strategy.validate(canonOp);
-  strategy.mutate(state, canonOp, eventId);
+  if (!(canonOp instanceof Op)) { return; }
+  canonOp.validate();
+  canonOp.mutate(state, eventId);
 }
 
 /** Applies a patch to state without receipt or diff collection. */
@@ -148,11 +148,10 @@ export function applyFast(state: WarpState, patch: PatchLike, patchSha: string):
     if (op === undefined) { continue; }
     if (!OpValidator.isKnownRaw(op) && !OpValidator.isKnownCanonical(op)) { continue; }
     const canonOp = normalizeRawOp(op);
-    const strategy = OP_STRATEGIES.get(canonOp.type);
-    if (!strategy) { continue; }
-    strategy.validate(canonOp);
+    if (!(canonOp instanceof Op)) { continue; }
+    canonOp.validate();
     const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
-    strategy.mutate(state, canonOp, eventId);
+    canonOp.mutate(state, eventId);
   }
   state.foldPatch(patch);
   return state;
@@ -173,13 +172,12 @@ export function applyWithDiff(
     if (rawOp === undefined) { continue; }
     if (!OpValidator.isKnownRaw(rawOp) && !OpValidator.isKnownCanonical(rawOp)) { continue; }
     const canonOp = normalizeRawOp(rawOp);
-    const strategy = OP_STRATEGIES.get(canonOp.type);
-    if (!strategy) { continue; }
-    strategy.validate(canonOp);
+    if (!(canonOp instanceof Op)) { continue; }
+    canonOp.validate();
     const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
-    const before = strategy.snapshot(state, canonOp);
-    strategy.mutate(state, canonOp, eventId);
-    strategy.accumulate(diff, state, canonOp, before);
+    const before = canonOp.snapshot(state);
+    canonOp.mutate(state, eventId);
+    canonOp.accumulate(diff, state, before);
   }
   state.foldPatch(patch);
   return { state, diff };
@@ -201,17 +199,16 @@ export function applyWithReceipt(
     if (rawOp === undefined) { continue; }
     if (!OpValidator.isKnownRaw(rawOp) && !OpValidator.isKnownCanonical(rawOp)) { continue; }
     const canonOp = normalizeRawOp(rawOp);
-    const strategy = OP_STRATEGIES.get(canonOp.type);
-    if (!strategy) { continue; }
-    strategy.validate(canonOp);
+    if (!(canonOp instanceof Op)) { continue; }
+    canonOp.validate();
     const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
 
     // Determine outcome BEFORE applying the op (state is pre-op).
-    const outcome = strategy.outcome(state, canonOp, eventId);
+    const outcome = canonOp.outcome(state, eventId);
 
-    strategy.mutate(state, canonOp, eventId);
+    canonOp.mutate(state, eventId);
 
-    const receiptOp = strategy.receiptName;
+    const receiptOp = canonOp.receiptName;
     if (!ReceiptBuilder.VALID_RECEIPT_OPS.has(receiptOp)) {
       continue;
     }

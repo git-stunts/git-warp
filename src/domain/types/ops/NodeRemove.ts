@@ -1,26 +1,23 @@
-import { OP_SCOPE_BOTH } from './OpScope.ts';
 /**
  * NodeRemove — removes a node by tombstoning observed dots.
- *
- * @module domain/types/ops/NodeRemove
  */
 
 import Op from './Op.ts';
+import { OP_SCOPE_BOTH } from './OpScope.ts';
 import { assertNonEmptyString, assertNoReservedBytes, assertArray } from './validate.ts';
+import type WarpState from '../../services/state/WarpState.ts';
+import type { EventId } from '../../utils/EventId.ts';
+import type OpOutcomeResult from './OpOutcomeResult.ts';
+import type { PatchDiff } from '../PatchDiff.ts';
+import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
+import ReceiptBuilder from '../../services/ReceiptBuilder.ts';
+import DiffCalculator from '../../services/DiffCalculator.ts';
 
-/**
- * Removes a node from the graph's OR-Set by tombstoning observed dots.
- */
 export default class NodeRemove extends Op<'NodeRemove'> {
-  /** Node ID to remove */
+  readonly receiptName = 'NodeTombstone' as const;
   readonly node: string;
-
-  /** Encoded dot strings being removed */
   readonly observedDots: readonly string[];
 
-  /**
-   * Creates a NodeRemove operation.
-   */
   constructor(node: string, observedDots: string[]) {
     super('NodeRemove', OP_SCOPE_BOTH);
     assertNonEmptyString(node, 'NodeRemove', 'node');
@@ -32,5 +29,27 @@ export default class NodeRemove extends Op<'NodeRemove'> {
     this.node = node;
     this.observedDots = Object.freeze([...observedDots]);
     Object.freeze(this);
+  }
+
+  validate(): void { /* validated in constructor */ }
+
+  mutate(state: WarpState): void {
+    const dots = new Set(this.observedDots);
+    state.nodeAlive.remove(dots);
+  }
+
+  outcome(state: WarpState): OpOutcomeResult {
+    return ReceiptBuilder.nodeRemoveOutcome(state.nodeAlive, {
+      node: this.node,
+      observedDots: this.observedDots,
+    });
+  }
+
+  snapshot(state: WarpState): SnapshotBeforeOp {
+    return { aliveBeforeNodes: DiffCalculator.aliveElementsForDots(state.nodeAlive, new Set(this.observedDots)) };
+  }
+
+  accumulate(diff: PatchDiff, state: WarpState, before: SnapshotBeforeOp): void {
+    DiffCalculator.collectNodeRemovals(diff, state, before.aliveBeforeNodes);
   }
 }

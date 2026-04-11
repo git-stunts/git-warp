@@ -1,27 +1,23 @@
-import { OP_SCOPE_BOTH } from './OpScope.ts';
 /**
  * BlobValue — reference to an external blob in the Git object store.
- *
- * @module domain/types/ops/BlobValue
+ * No state effect in the reducer — recorded for provenance tracking.
  */
 
 import Op from './Op.ts';
+import { OP_SCOPE_BOTH } from './OpScope.ts';
 import { assertNonEmptyString, assertNoReservedBytes } from './validate.ts';
+import OpApplied from './OpApplied.ts';
+import type WarpState from '../../services/state/WarpState.ts';
+import type { EventId } from '../../utils/EventId.ts';
+import type OpOutcomeResult from './OpOutcomeResult.ts';
+import type { PatchDiff } from '../PatchDiff.ts';
+import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
 
-/**
- * References an external blob attached to a node.
- * No state effect in the reducer — recorded for provenance tracking.
- */
 export default class BlobValue extends Op<'BlobValue'> {
-  /** Node ID the blob is attached to */
+  readonly receiptName = 'BlobValue' as const;
   readonly node: string;
-
-  /** Blob object ID in the Git object store */
   readonly oid: string;
 
-  /**
-   * Creates a BlobValue operation.
-   */
   constructor(node: string, oid: string) {
     super('BlobValue', OP_SCOPE_BOTH);
     assertNonEmptyString(node, 'BlobValue', 'node');
@@ -31,4 +27,15 @@ export default class BlobValue extends Op<'BlobValue'> {
     this.oid = oid;
     Object.freeze(this);
   }
+
+  validate(): void { /* forward-compat: no structural check */ }
+  mutate(): void { /* BlobValue has no state effect */ }
+
+  outcome(): OpOutcomeResult {
+    const target = (this.oid.length > 0) ? this.oid : '*';
+    return new OpApplied(target);
+  }
+
+  snapshot(): SnapshotBeforeOp { return {}; }
+  accumulate(): void { /* no-op */ }
 }
