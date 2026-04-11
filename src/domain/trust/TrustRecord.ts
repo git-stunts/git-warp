@@ -1,65 +1,235 @@
 /**
- * Trust V1 record — discriminated union with typed subjects.
+ * Trust V1 record — runtime-backed value object.
  *
- * Runtime backing: Zod validation at the decode boundary (TrustRecordSchema).
- * After parsing, the domain works with typed TrustRecord values.
- * Subject fields narrow automatically via TypeScript's control flow.
+ * Validated at the adapter boundary via fromDecoded(). No Zod —
+ * integrity is guaranteed by git-cas (SHA-256 chunks), recordId
+ * (content-addressed hash), and Ed25519 signatures.
+ *
+ * The signaturePayload is precomputed by the adapter from the raw
+ * canonical form, so domain code never touches untyped wire data.
  *
  * @module domain/trust/TrustRecord
  * @see docs/specs/TRUST_V1_CRYPTO.md
  */
 
-import type {
-  KeyAddSubject,
-  KeyRevokeSubject,
-  WriterBindAddSubject,
-  WriterBindRevokeSubject,
-  TrustSignature,
-} from './schemas.ts';
+import TrustError from '../errors/TrustError.ts';
 
-// -- Common fields shared by all record types ---------------------------------
+// -- Record type literal ------------------------------------------------------
 
-type TrustRecordCommon = {
-  readonly schemaVersion: 1;
+const RECORD_TYPES = ['KEY_ADD', 'KEY_REVOKE', 'WRITER_BIND_ADD', 'WRITER_BIND_REVOKE'] as const;
+type RecordType = typeof RECORD_TYPES[number];
+
+// -- Typed subjects -----------------------------------------------------------
+
+type KeyAddSubject = {
+  readonly keyId: string;
+  readonly publicKey: string;
+};
+
+type KeyRevokeSubject = {
+  readonly keyId: string;
+  readonly reasonCode: string;
+};
+
+type WriterBindAddSubject = {
+  readonly writerId: string;
+  readonly keyId: string;
+};
+
+type WriterBindRevokeSubject = {
+  readonly writerId: string;
+  readonly keyId: string;
+  readonly reasonCode: string;
+};
+
+type TrustSubject = KeyAddSubject | KeyRevokeSubject | WriterBindAddSubject | WriterBindRevokeSubject;
+
+// -- Signature ----------------------------------------------------------------
+
+type TrustSignature = {
+  readonly alg: 'ed25519';
+  readonly sig: string;
+};
+
+// -- Decoded input shape (what the adapter provides after CBOR decode) ---------
+
+type DecodedTrustRecord = {
+  readonly schemaVersion: number;
+  readonly recordType: string;
   readonly recordId: string;
   readonly issuerKeyId: string;
   readonly issuedAt: string;
   readonly prev: string | null;
-  readonly meta: Readonly<Record<string, unknown>>;
+  readonly subject: Readonly<Record<string, string>>;
+  readonly meta: Readonly<Record<string, string | number | boolean | null>>;
+  readonly signature: { readonly alg: string; readonly sig: string };
+  readonly signaturePayload: Uint8Array;
+};
+
+// -- Validation helpers -------------------------------------------------------
+
+function requireString(obj: Readonly<Record<string, string>>, key: string, context: string): string {
+  const val = obj[key];
+  if (typeof val !== 'string' || val.length === 0) {
+    throw new TrustError(`${context}: missing or empty '${key}'`, { code: 'E_TRUST_RECORD_INVALID' });
+  }
+  return val;
+}
+
+function validateKeyAddSubject(subj: Readonly<Record<string, string>>): KeyAddSubject {
+  return {
+    keyId: requireString(subj, 'keyId', 'KEY_ADD subject'),
+    publicKey: requireString(subj, 'publicKey', 'KEY_ADD subject'),
+  };
+}
+
+function validateKeyRevokeSubject(subj: Readonly<Record<string, string>>): KeyRevokeSubject {
+  return {
+    keyId: requireString(subj, 'keyId', 'KEY_REVOKE subject'),
+    reasonCode: requireString(subj, 'reasonCode', 'KEY_REVOKE subject'),
+  };
+}
+
+function validateBindAddSubject(subj: Readonly<Record<string, string>>): WriterBindAddSubject {
+  return {
+    writerId: requireString(subj, 'writerId', 'WRITER_BIND_ADD subject'),
+    keyId: requireString(subj, 'keyId', 'WRITER_BIND_ADD subject'),
+  };
+}
+
+function validateBindRevokeSubject(subj: Readonly<Record<string, string>>): WriterBindRevokeSubject {
+  return {
+    writerId: requireString(subj, 'writerId', 'WRITER_BIND_REVOKE subject'),
+    keyId: requireString(subj, 'keyId', 'WRITER_BIND_REVOKE subject'),
+    reasonCode: requireString(subj, 'reasonCode', 'WRITER_BIND_REVOKE subject'),
+  };
+}
+
+function validateSubject(recordType: RecordType, subj: Readonly<Record<string, string>>): TrustSubject {
+  switch (recordType) {
+    case 'KEY_ADD': { return validateKeyAddSubject(subj); }
+    case 'KEY_REVOKE': { return validateKeyRevokeSubject(subj); }
+    case 'WRITER_BIND_ADD': { return validateBindAddSubject(subj); }
+    case 'WRITER_BIND_REVOKE': { return validateBindRevokeSubject(subj); }
+  }
+}
+
+function validateSignature(sig: { readonly alg: string; readonly sig: string }): TrustSignature {
+  if (sig.alg !== 'ed25519') {
+    throw new TrustError(`Unsupported signature algorithm: ${sig.alg}`, { code: 'E_TRUST_RECORD_INVALID' });
+  }
+  if (typeof sig.sig !== 'string' || sig.sig.length === 0) {
+    throw new TrustError('Empty signature', { code: 'E_TRUST_SIGNATURE_MISSING' });
+  }
+  return { alg: 'ed25519', sig: sig.sig };
+}
+
+// -- TrustRecord class --------------------------------------------------------
+
+class TrustRecord {
+  readonly schemaVersion: 1 = 1;
+  readonly recordType: RecordType;
+  readonly recordId: string;
+  readonly issuerKeyId: string;
+  readonly issuedAt: string;
+  readonly prev: string | null;
+  readonly subject: Readonly<TrustSubject>;
+  readonly meta: Readonly<Record<string, string | number | boolean | null>>;
   readonly signature: Readonly<TrustSignature>;
-};
+  readonly signaturePayload: Uint8Array;
 
-// -- Per-type records with typed subjects -------------------------------------
+  private constructor(
+    recordType: RecordType,
+    recordId: string,
+    issuerKeyId: string,
+    issuedAt: string,
+    prev: string | null,
+    subject: Readonly<TrustSubject>,
+    meta: Readonly<Record<string, string | number | boolean | null>>,
+    signature: Readonly<TrustSignature>,
+    signaturePayload: Uint8Array,
+  ) {
+    this.recordType = recordType;
+    this.recordId = recordId;
+    this.issuerKeyId = issuerKeyId;
+    this.issuedAt = issuedAt;
+    this.prev = prev;
+    this.subject = subject;
+    this.meta = meta;
+    this.signature = signature;
+    this.signaturePayload = signaturePayload;
+    Object.freeze(this);
+  }
 
-type KeyAddRecord = TrustRecordCommon & {
-  readonly recordType: 'KEY_ADD';
-  readonly subject: Readonly<KeyAddSubject>;
-};
+  /**
+   * Constructs a TrustRecord from adapter-decoded data.
+   *
+   * The adapter is responsible for:
+   * 1. CBOR decoding the raw blob (via git-cas)
+   * 2. Verifying recordId against the raw canonical hash
+   * 3. Computing signaturePayload from the raw canonical form
+   * 4. Passing the decoded + verified data here for structural validation
+   *
+   * Throws TrustError on invalid structure.
+   */
+  static fromDecoded(input: DecodedTrustRecord): TrustRecord {
+    if (input.schemaVersion !== 1) {
+      throw new TrustError(
+        `Unsupported schema version: ${String(input.schemaVersion)}`,
+        { code: 'E_TRUST_RECORD_INVALID' },
+      );
+    }
 
-type KeyRevokeRecord = TrustRecordCommon & {
-  readonly recordType: 'KEY_REVOKE';
-  readonly subject: Readonly<KeyRevokeSubject>;
-};
+    if (!RECORD_TYPES.includes(input.recordType as RecordType)) {
+      throw new TrustError(
+        `Unknown record type: ${input.recordType}`,
+        { code: 'E_TRUST_RECORD_INVALID' },
+      );
+    }
+    const recordType = input.recordType as RecordType;
 
-type WriterBindAddRecord = TrustRecordCommon & {
-  readonly recordType: 'WRITER_BIND_ADD';
-  readonly subject: Readonly<WriterBindAddSubject>;
-};
+    return new TrustRecord(
+      recordType,
+      input.recordId,
+      input.issuerKeyId,
+      input.issuedAt,
+      input.prev,
+      validateSubject(recordType, input.subject),
+      input.meta,
+      validateSignature(input.signature),
+      input.signaturePayload,
+    );
+  }
 
-type WriterBindRevokeRecord = TrustRecordCommon & {
-  readonly recordType: 'WRITER_BIND_REVOKE';
-  readonly subject: Readonly<WriterBindRevokeSubject>;
-};
+  /** Type guard: is this a KEY_ADD record? */
+  isKeyAdd(): this is TrustRecord & { readonly subject: KeyAddSubject; readonly recordType: 'KEY_ADD' } {
+    return this.recordType === 'KEY_ADD';
+  }
 
-// -- Discriminated union ------------------------------------------------------
+  /** Type guard: is this a KEY_REVOKE record? */
+  isKeyRevoke(): this is TrustRecord & { readonly subject: KeyRevokeSubject; readonly recordType: 'KEY_REVOKE' } {
+    return this.recordType === 'KEY_REVOKE';
+  }
 
-type TrustRecord = KeyAddRecord | KeyRevokeRecord | WriterBindAddRecord | WriterBindRevokeRecord;
+  /** Type guard: is this a WRITER_BIND_ADD record? */
+  isBindAdd(): this is TrustRecord & { readonly subject: WriterBindAddSubject; readonly recordType: 'WRITER_BIND_ADD' } {
+    return this.recordType === 'WRITER_BIND_ADD';
+  }
 
+  /** Type guard: is this a WRITER_BIND_REVOKE record? */
+  isBindRevoke(): this is TrustRecord & { readonly subject: WriterBindRevokeSubject; readonly recordType: 'WRITER_BIND_REVOKE' } {
+    return this.recordType === 'WRITER_BIND_REVOKE';
+  }
+}
+
+export { TrustRecord, RECORD_TYPES };
 export type {
-  TrustRecord,
-  TrustRecordCommon,
-  KeyAddRecord,
-  KeyRevokeRecord,
-  WriterBindAddRecord,
-  WriterBindRevokeRecord,
+  RecordType,
+  KeyAddSubject,
+  KeyRevokeSubject,
+  WriterBindAddSubject,
+  WriterBindRevokeSubject,
+  TrustSubject,
+  TrustSignature,
+  DecodedTrustRecord,
 };

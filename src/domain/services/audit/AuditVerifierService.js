@@ -789,7 +789,7 @@ export class AuditVerifierService {
       });
     }
 
-    const trustState = buildState(records, {
+    const trustState = await buildState(records, {
       /** Verifies a record's cryptographic signature against a public key. */
       signatureVerifier: (record, publicKeyBase64) =>
         this._trustCrypto.verifySignature({

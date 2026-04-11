@@ -9,11 +9,11 @@
  */
 
 import { TrustPolicySchema } from './schemas.ts';
-import type { TrustExplanation, EvidenceSummary } from './schemas.ts';
+import type { TrustExplanation, EvidenceSummary, TrustPolicy } from './schemas.ts';
 import { TRUST_REASON_CODES } from './reasonCodes.ts';
 import { TrustAssessment } from './TrustAssessment.ts';
 import type { TrustDetail, TrustSource } from './TrustAssessment.ts';
-import type { TrustState } from './TrustStateBuilder.ts';
+import type { TrustState, RevokedBindingInfo } from './TrustStateBuilder.ts';
 
 // -- Evidence summary builder -------------------------------------------------
 
@@ -45,7 +45,7 @@ function findActiveBindings(
 
 function hasRevokedBindings(
   writerId: string,
-  revoked: ReadonlyMap<string, unknown>,
+  revoked: ReadonlyMap<string, RevokedBindingInfo>,
 ): boolean {
   const prefix = `${writerId}\0`;
   for (const key of revoked.keys()) {
@@ -137,7 +137,7 @@ function failAll(
 function evaluateWriters(
   writerIds: readonly string[],
   trustState: TrustState,
-  policy: Record<string, unknown>,
+  policy: TrustPolicy,
 ): TrustAssessment {
   const sorted = [...writerIds].sort();
 

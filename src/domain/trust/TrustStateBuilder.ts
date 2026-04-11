@@ -5,13 +5,14 @@
  * accumulates the trust state: active/revoked keys and writer bindings.
  *
  * No I/O, no side effects, no infrastructure imports.
+ * Accepts sync arrays or async streams (from TrustChainPort).
  *
  * @module domain/trust/TrustStateBuilder
  * @see docs/specs/TRUST_V1_CRYPTO.md Section 11
  */
 
-import { TrustRecordSchema } from './schemas.ts';
-import type { TrustRecord, KeyAddRecord, KeyRevokeRecord, WriterBindAddRecord, WriterBindRevokeRecord } from './TrustRecord.ts';
+import { TrustRecord } from './TrustRecord.ts';
+import type { KeyAddSubject, KeyRevokeSubject, WriterBindAddSubject, WriterBindRevokeSubject } from './TrustRecord.ts';
 
 // -- Domain types for trust state ---------------------------------------------
 
@@ -70,17 +71,21 @@ type TrustBuildContext = {
 // -- Crypto validation --------------------------------------------------------
 
 function validateFingerprint(
-  rec: KeyAddRecord,
+  subject: KeyAddSubject,
+  recordId: string,
   compute: (pk: string) => string,
-): string | null {
+  errors: BuildError[],
+): boolean {
   try {
-    const expected = compute(rec.subject.publicKey);
-    if (expected !== rec.subject.keyId) {
-      return `KEY_ADD fingerprint mismatch: declared ${rec.subject.keyId}, computed ${expected}`;
+    const expected = compute(subject.publicKey);
+    if (expected !== subject.keyId) {
+      errors.push({ recordId, error: `KEY_ADD fingerprint mismatch: declared ${subject.keyId}, computed ${expected}` });
+      return false;
     }
-    return null;
+    return true;
   } catch (err) {
-    return `KEY_ADD fingerprint validation failed: ${err instanceof Error ? err.message : String(err)}`;
+    errors.push({ recordId, error: `KEY_ADD fingerprint validation failed: ${err instanceof Error ? err.message : String(err)}` });
+    return false;
   }
 }
 
@@ -88,7 +93,7 @@ function resolveIssuerKey(
   rec: TrustRecord,
   activeKeys: ReadonlyMap<string, ActiveKeyInfo>,
 ): string | null {
-  if (rec.recordType === 'KEY_ADD' && rec.issuerKeyId === rec.subject.keyId) {
+  if (rec.isKeyAdd() && rec.issuerKeyId === rec.subject.keyId) {
     return rec.subject.publicKey;
   }
   const found = activeKeys.get(rec.issuerKeyId);
@@ -98,116 +103,114 @@ function resolveIssuerKey(
   return null;
 }
 
-function validateCryptography(
-  rec: TrustRecord,
-  activeKeys: ReadonlyMap<string, ActiveKeyInfo>,
-  options: TrustBuildOptions,
-): string | null {
-  if (options.computeKeyFingerprint && rec.recordType === 'KEY_ADD') {
-    const fpError = validateFingerprint(rec, options.computeKeyFingerprint);
-    if (fpError) {
-      return fpError;
+function validateCryptography(rec: TrustRecord, ctx: TrustBuildContext): boolean {
+  if (ctx.options.computeKeyFingerprint && rec.isKeyAdd()) {
+    if (!validateFingerprint(rec.subject, rec.recordId, ctx.options.computeKeyFingerprint, ctx.errors)) {
+      return false;
     }
   }
 
-  if (!options.signatureVerifier) {
-    return null;
+  if (!ctx.options.signatureVerifier) {
+    return true;
   }
 
-  const issuerPk = resolveIssuerKey(rec, activeKeys);
+  const issuerPk = resolveIssuerKey(rec, ctx.activeKeys);
   if (!issuerPk) {
-    return `Unknown issuer key for signature verification: ${rec.issuerKeyId}`;
+    ctx.errors.push({ recordId: rec.recordId, error: `Unknown issuer key for signature verification: ${rec.issuerKeyId}` });
+    return false;
   }
 
   try {
-    if (!options.signatureVerifier(rec, issuerPk)) {
-      return `Signature verification failed for issuer key ${rec.issuerKeyId}`;
+    if (!ctx.options.signatureVerifier(rec, issuerPk)) {
+      ctx.errors.push({ recordId: rec.recordId, error: `Signature verification failed for issuer key ${rec.issuerKeyId}` });
+      return false;
     }
   } catch (err) {
-    return `Signature verification failed: ${err instanceof Error ? err.message : String(err)}`;
+    ctx.errors.push({ recordId: rec.recordId, error: `Signature verification failed: ${err instanceof Error ? err.message : String(err)}` });
+    return false;
   }
 
-  return null;
+  return true;
 }
 
 // -- Per-type record handlers -------------------------------------------------
 
-function handleKeyAdd(rec: KeyAddRecord, ctx: TrustBuildContext): void {
-  const { keyId, publicKey } = rec.subject;
-
-  if (ctx.revokedKeys.has(keyId)) {
-    ctx.errors.push({ recordId: rec.recordId, error: `Cannot re-add revoked key: ${keyId}` });
+function handleKeyAdd(subject: KeyAddSubject, issuedAt: string, recordId: string, ctx: TrustBuildContext): void {
+  if (ctx.revokedKeys.has(subject.keyId)) {
+    ctx.errors.push({ recordId, error: `Cannot re-add revoked key: ${subject.keyId}` });
     return;
   }
-  if (ctx.activeKeys.has(keyId)) {
-    ctx.errors.push({ recordId: rec.recordId, error: `Duplicate KEY_ADD for already-active key: ${keyId}` });
+  if (ctx.activeKeys.has(subject.keyId)) {
+    ctx.errors.push({ recordId, error: `Duplicate KEY_ADD for already-active key: ${subject.keyId}` });
     return;
   }
-  ctx.activeKeys.set(keyId, { publicKey, addedAt: rec.issuedAt });
+  ctx.activeKeys.set(subject.keyId, { publicKey: subject.publicKey, addedAt: issuedAt });
 }
 
-function handleKeyRevoke(rec: KeyRevokeRecord, ctx: TrustBuildContext): void {
-  const { keyId, reasonCode } = rec.subject;
-
-  if (ctx.revokedKeys.has(keyId)) {
-    ctx.errors.push({ recordId: rec.recordId, error: `Key already revoked: ${keyId}` });
+function handleKeyRevoke(subject: KeyRevokeSubject, issuedAt: string, recordId: string, ctx: TrustBuildContext): void {
+  if (ctx.revokedKeys.has(subject.keyId)) {
+    ctx.errors.push({ recordId, error: `Key already revoked: ${subject.keyId}` });
     return;
   }
-  const keyInfo = ctx.activeKeys.get(keyId);
+  const keyInfo = ctx.activeKeys.get(subject.keyId);
   if (!keyInfo) {
-    ctx.errors.push({ recordId: rec.recordId, error: `Cannot revoke unknown key: ${keyId}` });
+    ctx.errors.push({ recordId, error: `Cannot revoke unknown key: ${subject.keyId}` });
     return;
   }
-  ctx.activeKeys.delete(keyId);
-  ctx.revokedKeys.set(keyId, { publicKey: keyInfo.publicKey, revokedAt: rec.issuedAt, reasonCode });
+  ctx.activeKeys.delete(subject.keyId);
+  ctx.revokedKeys.set(subject.keyId, { publicKey: keyInfo.publicKey, revokedAt: issuedAt, reasonCode: subject.reasonCode });
 }
 
-function handleBindAdd(rec: WriterBindAddRecord, ctx: TrustBuildContext): void {
-  const { writerId, keyId } = rec.subject;
-  const bindingKey = `${writerId}\0${keyId}`;
-
-  if (ctx.revokedKeys.has(keyId)) {
-    ctx.errors.push({ recordId: rec.recordId, error: `Cannot bind writer to revoked key: ${keyId}` });
+function handleBindAdd(subject: WriterBindAddSubject, issuedAt: string, recordId: string, ctx: TrustBuildContext): void {
+  const bindingKey = `${subject.writerId}\0${subject.keyId}`;
+  if (ctx.revokedKeys.has(subject.keyId)) {
+    ctx.errors.push({ recordId, error: `Cannot bind writer to revoked key: ${subject.keyId}` });
     return;
   }
-  if (!ctx.activeKeys.has(keyId)) {
-    ctx.errors.push({ recordId: rec.recordId, error: `Cannot bind writer to unknown key: ${keyId}` });
+  if (!ctx.activeKeys.has(subject.keyId)) {
+    ctx.errors.push({ recordId, error: `Cannot bind writer to unknown key: ${subject.keyId}` });
     return;
   }
-  ctx.writerBindings.set(bindingKey, { keyId, boundAt: rec.issuedAt });
+  ctx.writerBindings.set(bindingKey, { keyId: subject.keyId, boundAt: issuedAt });
 }
 
-function handleBindRevoke(rec: WriterBindRevokeRecord, ctx: TrustBuildContext): void {
-  const { writerId, keyId, reasonCode } = rec.subject;
-  const bindingKey = `${writerId}\0${keyId}`;
-
+function handleBindRevoke(subject: WriterBindRevokeSubject, issuedAt: string, recordId: string, ctx: TrustBuildContext): void {
+  const bindingKey = `${subject.writerId}\0${subject.keyId}`;
   const binding = ctx.writerBindings.get(bindingKey);
   if (!binding) {
-    ctx.errors.push({ recordId: rec.recordId, error: `Cannot revoke non-existent binding: writer=${writerId} key=${keyId}` });
+    ctx.errors.push({ recordId, error: `Cannot revoke non-existent binding: writer=${subject.writerId} key=${subject.keyId}` });
     return;
   }
   ctx.writerBindings.delete(bindingKey);
-  ctx.revokedBindings.set(bindingKey, { keyId, revokedAt: rec.issuedAt, reasonCode });
+  ctx.revokedBindings.set(bindingKey, { keyId: subject.keyId, revokedAt: issuedAt, reasonCode: subject.reasonCode });
 }
 
 // -- Record dispatch ----------------------------------------------------------
 
 function processRecord(rec: TrustRecord, ctx: TrustBuildContext): void {
-  const cryptoError = validateCryptography(rec, ctx.activeKeys, ctx.options);
-  if (cryptoError) {
-    ctx.errors.push({ recordId: rec.recordId, error: cryptoError });
+  if (!validateCryptography(rec, ctx)) {
     return;
   }
 
-  switch (rec.recordType) {
-    case 'KEY_ADD': { handleKeyAdd(rec, ctx); break; }
-    case 'KEY_REVOKE': { handleKeyRevoke(rec, ctx); break; }
-    case 'WRITER_BIND_ADD': { handleBindAdd(rec, ctx); break; }
-    case 'WRITER_BIND_REVOKE': { handleBindRevoke(rec, ctx); break; }
+  if (rec.isKeyAdd()) {
+    handleKeyAdd(rec.subject, rec.issuedAt, rec.recordId, ctx);
+  } else if (rec.isKeyRevoke()) {
+    handleKeyRevoke(rec.subject, rec.issuedAt, rec.recordId, ctx);
+  } else if (rec.isBindAdd()) {
+    handleBindAdd(rec.subject, rec.issuedAt, rec.recordId, ctx);
+  } else if (rec.isBindRevoke()) {
+    handleBindRevoke(rec.subject, rec.issuedAt, rec.recordId, ctx);
   }
 }
 
 // -- Public entry point -------------------------------------------------------
+
+/** Input can be a sync array (tests) or async stream (port). */
+type RecordSource = readonly TrustRecord[] | Iterable<TrustRecord> | AsyncIterable<TrustRecord>;
+
+function isAsyncIterable(v: RecordSource): v is AsyncIterable<TrustRecord> {
+  return v != null && Symbol.asyncIterator in Object(v);
+}
 
 /**
  * Builds trust state from an ordered sequence of trust records.
@@ -215,12 +218,15 @@ function processRecord(rec: TrustRecord, ctx: TrustBuildContext): void {
  * Records MUST be in chain order (oldest first). The builder enforces:
  * - Monotonic revocation: once a key is revoked, it cannot be re-added
  * - Binding validity: WRITER_BIND_ADD requires the referenced key to be active
- * - Schema validation: each record is validated against TrustRecordSchema
+ * - Cryptographic verification (when signatureVerifier is provided)
+ *
+ * Records are already validated by TrustRecord.fromDecoded() at the
+ * adapter boundary. No Zod, no schema re-validation here.
  */
-function buildState(
-  records: readonly Record<string, unknown>[],
+async function buildState(
+  records: RecordSource,
   options: TrustBuildOptions = {},
-): TrustState {
+): Promise<TrustState> {
   const ctx: TrustBuildContext = {
     activeKeys: new Map(),
     revokedKeys: new Map(),
@@ -230,20 +236,18 @@ function buildState(
     options,
   };
 
-  for (const record of records) {
-    const parsed = TrustRecordSchema.safeParse(record);
-    if (!parsed.success) {
-      const id = typeof (record as Record<string, unknown>)['recordId'] === 'string'
-        ? (record as Record<string, unknown>)['recordId'] as string
-        : '(unknown)';
-      ctx.errors.push({
-        recordId: id,
-        error: `Schema validation failed: ${parsed.error.message}`,
-      });
-      continue;
-    }
+  let count = 0;
 
-    processRecord(parsed.data as TrustRecord, ctx);
+  if (isAsyncIterable(records)) {
+    for await (const record of records) {
+      processRecord(record, ctx);
+      count++;
+    }
+  } else {
+    for (const record of records) {
+      processRecord(record, ctx);
+      count++;
+    }
   }
 
   return new TrustState({
@@ -252,7 +256,7 @@ function buildState(
     writerBindings: ctx.writerBindings,
     revokedBindings: ctx.revokedBindings,
     errors: ctx.errors,
-    recordsProcessed: records.length,
+    recordsProcessed: count,
   });
 }
 
