@@ -35,7 +35,10 @@ import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.ts';
 // checkpoint.methods.js replaced by CheckpointController (imported above)
 // patch.methods.js replaced by PatchController (imported above)
 // materialize.methods.js + materializeAdvanced.methods.js replaced by MaterializeController
-import MaterializeController from './services/controllers/MaterializeController.js';
+import MaterializeController from './services/controllers/MaterializeController.ts';
+import { buildAdjacency } from './services/controllers/MaterializeHelpers.ts';
+import RuntimePatchCollector from './warp/RuntimePatchCollector.ts';
+import RuntimeDetachedFactory from './warp/RuntimeDetachedFactory.ts';
 
 /** @typedef {import('./types/WarpPersistence.ts').CorePersistence} CorePersistence */
 
@@ -358,7 +361,17 @@ export default class WarpRuntime {
     this._checkpointController = new CheckpointController(this);
 
     /** @type {MaterializeController} */
-    this._materializeController = new MaterializeController(this);
+    this._materializeController = new MaterializeController({
+      clock: this._clock,
+      logger: this._logger ?? { info() {}, warn() {}, error() {}, debug() {} },
+      codec: this._codec,
+      crypto: this._crypto,
+      persistence: this._persistence,
+      seekCache: this._seekCache ?? null,
+      patches: new RuntimePatchCollector(this),
+      graphCloner: new RuntimeDetachedFactory(this),
+      graphName: this._graphName,
+    });
 
     /** @type {MaterializedViewService} */
     this._viewService = viewService;
@@ -804,30 +817,188 @@ export default class WarpRuntime {
   }
 }
 
-// ── Materialize methods: direct delegation to MaterializeController ─────────
-const materializeDelegates = /** @type {const} */ ([
-  'materialize', '_materializeGraph',
-  '_resolveCeiling', '_buildAdjacency', '_setMaterializedState', '_buildView',
-  'materializeCoordinate', '_materializeWithCeiling', '_materializeWithCoordinate',
-  '_persistSeekCacheEntry', '_restoreIndexFromCache',
-  'materializeAt', 'verifyIndex', 'invalidateIndex',
-]);
-for (const method of materializeDelegates) {
-  Object.defineProperty(WarpRuntime.prototype, method, {
-    // eslint-disable-next-line object-shorthand -- function keyword needed for `this` binding
-    value: /** Delegates to MaterializeController. @param {unknown[]} args @returns {unknown} */ function (...args) {
-      /** @type {unknown} */
-      const raw = this;
-      const self = /** @type {WarpRuntime} */ (raw);
-      const ctrl = /** @type {Record<string, Function>} */ (/** @type {unknown} */ (self._materializeController));
-      const fn = /** @type {(...a: unknown[]) => unknown} */ (ctrl[method]);
-      return fn.call(ctrl, ...args);
+// ── Materialize methods: orchestrate controller + side effects ─────────────
+
+import { createImmutableWarpState } from './services/ImmutableSnapshot.js';
+import { diffStates, isEmptyDiff } from './services/state/StateDiff.js';
+import BitmapNeighborProvider from './services/index/BitmapNeighborProvider.js';
+
+/**
+ * Applies a MaterializeResult to WarpRuntime host state.
+ *
+ * @param {WarpRuntime} self
+ * @param {import('./services/controllers/MaterializeController.ts').MaterializeResult} result
+ */
+function applyMaterializeResult(self, result) {
+  self._cachedState = result.state;
+  self._stateDirty = false;
+  self._versionVector = result.state.observedFrontier.clone();
+  self._materializedGraph = {
+    state: result.state,
+    stateHash: result.stateHash,
+    adjacency: {
+      outgoing: new Map(result.adjacency.outgoing),
+      incoming: new Map(result.adjacency.incoming),
     },
-    writable: true,
-    configurable: true,
-    enumerable: false,
+  };
+  self._provenanceIndex = result.provenanceIndex;
+  self._provenanceDegraded = result.provenanceDegraded;
+  self._cachedCeiling = result.ceiling;
+  self._cachedFrontier = result.frontier ? new Map(result.frontier) : null;
+
+  // Build view (index) from result state
+  try {
+    const viewResult = result.diff && self._cachedIndexTree
+      ? self._viewService.applyDiff({ existingTree: self._cachedIndexTree, diff: result.diff, state: result.state })
+      : self._viewService.build(result.state);
+    self._logicalIndex = viewResult.logicalIndex;
+    self._propertyReader = viewResult.propertyReader;
+    self._cachedViewHash = result.stateHash;
+    self._cachedIndexTree = viewResult.tree;
+    self._indexDegraded = false;
+    if (self._materializedGraph) {
+      self._materializedGraph.provider = new BitmapNeighborProvider({ logicalIndex: viewResult.logicalIndex });
+    }
+  } catch {
+    self._indexDegraded = true;
+    self._logicalIndex = null;
+    self._propertyReader = null;
+    self._cachedIndexTree = null;
+  }
+}
+
+/**
+ * Applies post-materialize side effects (notify, GC, auto-checkpoint).
+ *
+ * @param {WarpRuntime} self
+ * @param {import('./services/controllers/MaterializeController.ts').MaterializeResult} result
+ */
+async function applyPostMaterializeSideEffects(self, result) {
+  if (result.ceiling === null) {
+    self._lastFrontier = await self.getFrontier();
+    self._patchesSinceCheckpoint = result.patchCount;
+    // Auto-checkpoint
+    if (self._checkpointPolicy && !self._checkpointing && result.patchCount >= self._checkpointPolicy.every) {
+      try { await self.createCheckpoint(); self._patchesSinceCheckpoint = 0; } catch { /* non-fatal */ }
+    }
+    self._maybeRunGC(result.state);
+  }
+  // Notify subscribers
+  if (self._subscribers.length > 0) {
+    const hasPendingReplay = self._subscribers.some(/** @param {{ pendingReplay?: boolean }} s */ (s) => s.pendingReplay === true);
+    const delta = diffStates(self._lastNotifiedState, result.state);
+    if (!isEmptyDiff(delta) || hasPendingReplay) {
+      self._notifySubscribers(delta, result.state);
+    }
+  }
+  self._lastNotifiedState = /** @type {typeof import('./services/JoinReducer.ts').cloneState} */ (
+    (await import('./services/JoinReducer.ts')).cloneState
+  )(result.state);
+}
+
+/** @param {string} name @param {Function} fn */
+function wireMaterialize(name, fn) {
+  Object.defineProperty(WarpRuntime.prototype, name, {
+    value: fn, writable: true, configurable: true, enumerable: false,
   });
 }
+
+wireMaterialize('materialize', /** @param {{receipts?: boolean, ceiling?: number|null}} [options] */ async function (options) {
+  const self = /** @type {WarpRuntime} */ (this);
+  const t0 = self._clock.now();
+  const wantDiff = options?.receipts !== true && self._cachedIndexTree !== null && self._cachedIndexTree !== undefined;
+  try {
+    const result = await self._materializeController.materialize({
+      receipts: options?.receipts,
+      ceiling: options?.ceiling,
+      wantDiff,
+    });
+    applyMaterializeResult(self, result);
+    await applyPostMaterializeSideEffects(self, result);
+    self._logTiming('materialize', t0, { metrics: `${result.patchCount} patches` });
+    if (options?.receipts === true) {
+      return Object.freeze({ state: createImmutableWarpState(result.state), receipts: Object.freeze(result.receipts ?? []) });
+    }
+    return createImmutableWarpState(result.state);
+  } catch (err) {
+    self._logTiming('materialize', t0, { error: err });
+    throw err;
+  }
+});
+
+wireMaterialize('materializeCoordinate', /** @param {{ frontier: Map<string,string>|Record<string,string>, ceiling?: number|null, receipts?: boolean }} options */ async function (options) {
+  const self = /** @type {WarpRuntime} */ (this);
+  const result = await self._materializeController.materializeCoordinate(options);
+  applyMaterializeResult(self, result);
+  if (options.receipts === true) {
+    return Object.freeze({ state: createImmutableWarpState(result.state), receipts: Object.freeze(result.receipts ?? []) });
+  }
+  return createImmutableWarpState(result.state);
+});
+
+wireMaterialize('materializeAt', /** @param {string} checkpointSha */ async function (checkpointSha) {
+  const self = /** @type {WarpRuntime} */ (this);
+  const result = await self._materializeController.materializeAt(checkpointSha);
+  applyMaterializeResult(self, result);
+  return createImmutableWarpState(result.state);
+});
+
+wireMaterialize('_materializeGraph', async function () {
+  const self = /** @type {WarpRuntime} */ (this);
+  if (!self._stateDirty && self._materializedGraph) {
+    return self._materializedGraph;
+  }
+  const materialized = await self.materialize();
+  // If _materializedGraph was populated by the real pipeline, use it.
+  if (self._materializedGraph) {
+    return self._materializedGraph;
+  }
+  // Fallback for test mocks that replace materialize() and return raw state.
+  const state = self._cachedState || materialized;
+  if (!state) {
+    return self._materializedGraph;
+  }
+  self._cachedState = state;
+  self._stateDirty = false;
+  self._versionVector = state.observedFrontier.clone();
+  const adj = self._buildAdjacency(state);
+  self._materializedGraph = { state, stateHash: null, adjacency: adj };
+  return self._materializedGraph;
+});
+
+wireMaterialize('_buildAdjacency', /** @param {import('./services/state/WarpState.ts').default} state */ function (state) {
+  return buildAdjacency(state);
+});
+
+wireMaterialize('_setMaterializedState', /** @param {import('./services/state/WarpState.ts').default} state */ async function (state) {
+  const self = /** @type {WarpRuntime} */ (this);
+  const result = await self._materializeController.materialize({ ceiling: null, wantDiff: false });
+  applyMaterializeResult(self, { ...result, state });
+  return self._materializedGraph;
+});
+
+wireMaterialize('_buildView', function () { /* no-op: view built inside applyMaterializeResult */ });
+wireMaterialize('_resolveCeiling', function () { return null; });
+wireMaterialize('_persistSeekCacheEntry', async function () { /* no-op: handled by controller */ });
+wireMaterialize('_restoreIndexFromCache', async function () { /* no-op: handled by controller */ });
+
+wireMaterialize('verifyIndex', /** @param {{ seed?: number, sampleRate?: number }} [options] */ function (options) {
+  const self = /** @type {WarpRuntime} */ (this);
+  if (!self._logicalIndex || !self._cachedState || !self._viewService) {
+    throw new (/** @type {typeof import('./errors/QueryError.ts').default} */ (QueryController._host?.constructor ?? Error))('Cannot verify index: graph not materialized or index not built');
+  }
+  return self._viewService.verifyIndex({
+    state: self._cachedState,
+    logicalIndex: self._logicalIndex,
+    ...(options !== undefined ? { options } : {}),
+  });
+});
+
+wireMaterialize('invalidateIndex', function () {
+  const self = /** @type {WarpRuntime} */ (this);
+  self._cachedIndexTree = null;
+  self._cachedViewHash = null;
+});
 
 // ── Checkpoint methods: direct delegation to CheckpointController ─────────────
 const checkpointDelegates = /** @type {const} */ ([
