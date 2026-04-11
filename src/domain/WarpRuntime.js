@@ -20,7 +20,7 @@ import LogicalTraversal from './services/query/LogicalTraversal.js';
 import LRUCache from './utils/LRUCache.ts';
 import SyncController from './services/controllers/SyncController.js';
 import StrandController from './services/controllers/StrandController.js';
-import ComparisonController from './services/controllers/ComparisonController.js';
+import ComparisonController from './services/controllers/ComparisonController.ts';
 import SubscriptionController from './services/controllers/SubscriptionController.js';
 import ProvenanceController from './services/controllers/ProvenanceController.js';
 import ForkController from './services/controllers/ForkController.js';

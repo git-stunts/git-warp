@@ -1,0 +1,470 @@
+/**
+ * ComparisonSelector — validated comparison selector hierarchy and
+ * frontier normalization utilities.
+ *
+ * Each selector subclass implements `resolve()` with the resolution
+ * logic for its kind (live, coordinate, strand, strand_base),
+ * eliminating dispatch switches.
+ *
+ * @module domain/services/controllers/ComparisonSelector
+ */
+
+import QueryError from '../../errors/QueryError.ts';
+import { computeChecksum } from '../../utils/checksumUtils.ts';
+import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod.ts';
+import StrandService from '../strand/StrandService.js';
+import { createStateReaderV5 } from '../state/StateReaderV5.js';
+import { computeStateHashV5 } from '../state/StateSerializerV5.js';
+import {
+  normalizeVisibleStateScopeV1,
+  scopeMaterializedStateV5,
+  scopePatchEntriesV1,
+} from '../VisibleStateScopeV1.js';
+import type { WarpState } from '../JoinReducer.ts';
+import type Patch from '../../types/Patch.ts';
+
+// Re-export index types used by callers
+import type {
+  VisibleStateScopeV1,
+  StrandDescriptor as StrandDescriptorV1,
+} from '../../../../index.js';
+
+// ── Shared types ─────────────────────────────────────────────────────
+
+export type PatchEntry = { patch: Patch; sha: string };
+
+export type ComparisonHost = {
+  getFrontier(): Promise<Map<string, string>>;
+  materializeCoordinate(opts: Record<string, unknown>): Promise<WarpState>;
+  _loadPatchChainFromSha(sha: string): Promise<PatchEntry[]>;
+  _crypto: { hash(alg: string, data: string | Uint8Array): Promise<string>; hmac(alg: string, key: string | Uint8Array, data: string | Uint8Array): Promise<Uint8Array>; timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean };
+  _codec: { encode(data: unknown): Uint8Array; decode(bytes: Uint8Array): unknown };
+  _blobStorage: { retrieve(oid: string): Promise<Uint8Array> } | null;
+  _persistence: { readBlob(oid: string): Promise<Uint8Array> };
+  _stateHashService: { compute(state: WarpState): Promise<string> } | null;
+};
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+export function compareStrings(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+export function normalizeLamportCeiling(value: unknown, field: string): number | null {
+  if (value === undefined || value === null) { return null; }
+  assertValidLamport(value, field);
+  return value;
+}
+
+function assertValidLamport(value: unknown, field: string): asserts value is number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new QueryError(`${field} must be a non-negative integer or null`, {
+      code: 'invalid_coordinate', context: { field, value },
+    });
+  }
+}
+
+export function normalizeOptionalString(value: unknown, field: string): string | null {
+  if (value === undefined || value === null) { return null; }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new QueryError(`${field} must be a non-empty string when provided`, {
+      code: 'invalid_coordinate', context: { field, valueType: typeof value },
+    });
+  }
+  return value.trim();
+}
+
+export function normalizeRequiredString(value: unknown, field: string): string {
+  const normalized = normalizeOptionalString(value, field);
+  if (normalized === null) {
+    throw new QueryError(`${field} must be a non-empty string`, {
+      code: 'invalid_coordinate', context: { field },
+    });
+  }
+  return normalized;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value);
+}
+
+function frontierEntries(frontier: unknown): Array<[string, string]> | null {
+  if (frontier instanceof Map) { return [...frontier.entries()]; }
+  if (!isPlainObject(frontier)) { return null; }
+  return Object.entries(frontier) as Array<[string, string]>;
+}
+
+function assertFrontierEntry(writerId: string, sha: string, field: string): void {
+  if (typeof writerId !== 'string' || writerId.length === 0) {
+    throw new QueryError(`${field} contains an invalid writer id`, {
+      code: 'invalid_coordinate', context: { field, writerId },
+    });
+  }
+  if (typeof sha !== 'string' || sha.length === 0) {
+    throw new QueryError(`${field} contains an invalid patch sha`, {
+      code: 'invalid_coordinate', context: { field, writerId, shaType: typeof sha },
+    });
+  }
+}
+
+export function normalizeFrontierRecord(
+  frontier: Map<string, string> | Record<string, string>,
+  field: string,
+): Record<string, string> {
+  const entries = frontierEntries(frontier);
+  if (entries === null) {
+    throw new QueryError(`${field} must be a frontier map or record`, {
+      code: 'invalid_coordinate', context: { field },
+    });
+  }
+  const record: Record<string, string> = {};
+  for (const [writerId, sha] of entries.sort(([a], [b]) => compareStrings(a, b))) {
+    assertFrontierEntry(writerId, sha, field);
+    record[writerId] = sha;
+  }
+  return record;
+}
+
+export function frontierRecordToMap(frontierRecord: Record<string, string>): Map<string, string> {
+  return new Map(Object.entries(frontierRecord).sort(([a], [b]) => compareStrings(a, b)));
+}
+
+export function optionalCeiling(ceiling: number | null): Record<string, number> {
+  return ceiling === null ? {} : { ceiling };
+}
+
+export function combineCeilings(left: number | null, right: number | null): number | null {
+  if (left === null) { return right; }
+  if (right === null) { return left; }
+  return Math.min(left, right);
+}
+
+function buildCoordinateRequest(
+  frontierRecord: Record<string, string>,
+  ceiling: number | null,
+): { frontier: Record<string, string>; ceiling: number | null } {
+  return { frontier: { ...frontierRecord }, ceiling };
+}
+
+// ── Frontier analysis ────────────────────────────────────────────────
+
+function updateWriterHighestPatch(
+  byWriter: Map<string, { lamport: number; sha: string }>,
+  writerId: string,
+  patchInfo: { lamport: number; sha: string },
+): void {
+  const current = byWriter.get(writerId);
+  const isNewer = !current || patchInfo.lamport > current.lamport ||
+    (patchInfo.lamport === current.lamport && compareStrings(patchInfo.sha, current.sha) > 0);
+  if (isNewer) { byWriter.set(writerId, patchInfo); }
+}
+
+export function patchFrontierFromEntries(entries: PatchEntry[]): Record<string, string> {
+  const byWriter = new Map<string, { lamport: number; sha: string }>();
+  for (const entry of entries) {
+    updateWriterHighestPatch(byWriter, entry.patch.writer, {
+      lamport: entry.patch.lamport ?? 0, sha: entry.sha,
+    });
+  }
+  const sorted = [...byWriter.entries()].sort(([a], [b]) => compareStrings(a, b));
+  const record: Record<string, string> = {};
+  for (const [writerId, info] of sorted) { record[writerId] = info.sha; }
+  return record;
+}
+
+export function lamportFrontierFromEntries(entries: PatchEntry[]): Record<string, number> {
+  const byWriter = new Map<string, number>();
+  for (const entry of entries) {
+    const lamport = entry.patch.lamport ?? 0;
+    const current = byWriter.get(entry.patch.writer);
+    if (current === undefined || lamport > current) { byWriter.set(entry.patch.writer, lamport); }
+  }
+  return Object.fromEntries([...byWriter.entries()].sort(([a], [b]) => compareStrings(a, b)));
+}
+
+export function uniqueSortedPatchShas(entries: PatchEntry[]): string[] {
+  return [...new Set(entries.map(({ sha }) => sha))].sort(compareStrings);
+}
+
+// ── Patch collection ─────────────────────────────────────────────────
+
+async function collectWriterEntries(
+  graph: ComparisonHost,
+  params: { tipSha: string; ceiling: number | null },
+): Promise<PatchEntry[]> {
+  const entries: PatchEntry[] = [];
+  const writerEntries = await graph._loadPatchChainFromSha(params.tipSha);
+  for (const entry of writerEntries) {
+    if (params.ceiling === null || (entry.patch.lamport ?? 0) <= params.ceiling) {
+      entries.push(entry);
+    }
+  }
+  return entries;
+}
+
+export async function collectPatchEntriesForFrontier(
+  graph: ComparisonHost,
+  frontierRecord: Record<string, string>,
+  ceiling: number | null,
+): Promise<PatchEntry[]> {
+  const frontier = frontierRecordToMap(frontierRecord);
+  const results: PatchEntry[][] = [];
+  for (const tipSha of frontier.values()) {
+    if (tipSha) { results.push(await collectWriterEntries(graph, { tipSha, ceiling })); }
+  }
+  return results.flat();
+}
+
+// ── Strand metadata ──────────────────────────────────────────────────
+
+function buildStrandMetadata(
+  strandId: string,
+  descriptor: StrandDescriptorV1,
+): Record<string, unknown> {
+  const readOverlays = descriptor.braid?.readOverlays ?? [];
+  return {
+    strandId,
+    baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
+    overlayHeadPatchSha: descriptor.overlay.headPatchSha,
+    overlayPatchCount: descriptor.overlay.patchCount,
+    overlayWritable: descriptor.overlay.writable ?? true,
+    braid: {
+      readOverlayCount: readOverlays.length,
+      braidedStrandIds: readOverlays.map((o: { strandId: string }) => o.strandId).sort(compareStrings),
+    },
+  };
+}
+
+// ── State hash ───────────────────────────────────────────────────────
+
+export async function computeStateHashForGraph(graph: ComparisonHost, state: WarpState): Promise<string> {
+  if (graph._stateHashService) {
+    return await graph._stateHashService.compute(state);
+  }
+  return await computeStateHashV5(state, { crypto: graph._crypto, codec: graph._codec });
+}
+
+// ── ResolvedComparisonSide ───────────────────────────────────────────
+
+export class ResolvedComparisonSide {
+  readonly requested: Record<string, unknown>;
+  readonly resolved: Record<string, unknown>;
+  readonly state: WarpState;
+  readonly patchEntries: PatchEntry[];
+
+  constructor(params: {
+    requested: Record<string, unknown>;
+    state: WarpState;
+    patchEntries: PatchEntry[];
+    resolved: Record<string, unknown>;
+  }) {
+    this.requested = params.requested;
+    this.resolved = params.resolved;
+    this.state = params.state;
+    this.patchEntries = params.patchEntries;
+    Object.freeze(this);
+  }
+}
+
+// ── finalizeSide ─────────────────────────────────────────────────────
+
+export async function finalizeSide(
+  graph: ComparisonHost,
+  params: {
+    requested: Record<string, unknown>;
+    state: WarpState;
+    patchEntries: PatchEntry[];
+    coordinateKind: string;
+    lamportCeiling: number | null;
+    strand?: Record<string, unknown>;
+  },
+  scope: VisibleStateScopeV1 | null,
+): Promise<ResolvedComparisonSide> {
+  const scopedState = scopeMaterializedStateV5(params.state, scope);
+  const scopedPatchEntries = scopePatchEntriesV1(params.patchEntries, scope);
+  const visiblePatchFrontier = patchFrontierFromEntries(scopedPatchEntries);
+  const visibleLamportFrontier = lamportFrontierFromEntries(scopedPatchEntries);
+  const reader = createStateReaderV5(scopedState);
+  const stateHash = await computeStateHashForGraph(graph, scopedState);
+  const patchShas = uniqueSortedPatchShas(scopedPatchEntries);
+
+  return new ResolvedComparisonSide({
+    requested: params.requested,
+    state: scopedState,
+    patchEntries: scopedPatchEntries,
+    resolved: {
+      coordinateKind: params.coordinateKind,
+      patchFrontier: visiblePatchFrontier,
+      patchFrontierDigest: await computeChecksum(visiblePatchFrontier, graph._crypto),
+      lamportFrontier: visibleLamportFrontier,
+      lamportFrontierDigest: await computeChecksum(visibleLamportFrontier, graph._crypto),
+      lamportCeiling: params.lamportCeiling,
+      stateHash,
+      patchUniverseDigest: await computeChecksum({ patches: patchShas }, graph._crypto),
+      summary: summarizeVisibleState(reader, scopedPatchEntries.length),
+      ...(params.strand !== undefined ? { strand: params.strand } : {}),
+    },
+  });
+}
+
+function summarizeVisibleState(reader: ReturnType<typeof createStateReaderV5>, patchCount: number) {
+  const nodes = reader.getNodes();
+  const edges = reader.getEdges();
+  let nodePropertyCount = 0;
+  for (const nodeId of nodes) {
+    nodePropertyCount += Object.keys(reader.getNodeProps(nodeId) ?? {}).length;
+  }
+  let edgePropertyCount = 0;
+  for (const edge of edges) {
+    edgePropertyCount += Object.keys(edge.props ?? {}).length;
+  }
+  return { nodeCount: nodes.length, edgeCount: edges.length, nodePropertyCount, edgePropertyCount, patchCount };
+}
+
+// ── Selector hierarchy ───────────────────────────────────────────────
+
+export abstract class NormalizedSelector {
+  readonly kind: string;
+  readonly ceiling: number | null;
+
+  constructor(kind: string, ceiling: number | null) {
+    this.kind = kind;
+    this.ceiling = ceiling;
+  }
+
+  abstract resolve(
+    graph: ComparisonHost,
+    scope: VisibleStateScopeV1 | null,
+    liveFrontier: Map<string, string> | null,
+  ): Promise<ResolvedComparisonSide>;
+}
+
+export class LiveComparisonSelector extends NormalizedSelector {
+  constructor(ceiling: number | null) { super('live', ceiling); }
+
+  async resolve(graph: ComparisonHost, scope: VisibleStateScopeV1 | null, liveFrontier: Map<string, string> | null) {
+    const requestedFrontier = liveFrontier ?? await graph.getFrontier();
+    const requestedRecord = normalizeFrontierRecord(requestedFrontier, 'live.frontier');
+    const state = await graph.materializeCoordinate({
+      frontier: frontierRecordToMap(requestedRecord),
+      ...optionalCeiling(this.ceiling),
+    });
+    const patchEntries = await collectPatchEntriesForFrontier(graph, requestedRecord, this.ceiling);
+    return await finalizeSide(graph, {
+      requested: { kind: 'live', ...optionalCeiling(this.ceiling) },
+      state, patchEntries, coordinateKind: 'frontier', lamportCeiling: this.ceiling,
+    }, scope);
+  }
+}
+
+export class CoordinateComparisonSelector extends NormalizedSelector {
+  readonly frontier: Record<string, string>;
+
+  constructor(frontier: Record<string, string>, ceiling: number | null) {
+    super('coordinate', ceiling);
+    this.frontier = frontier;
+  }
+
+  async resolve(graph: ComparisonHost, scope: VisibleStateScopeV1 | null) {
+    const state = await graph.materializeCoordinate({
+      frontier: frontierRecordToMap(this.frontier),
+      ...optionalCeiling(this.ceiling),
+    });
+    const patchEntries = await collectPatchEntriesForFrontier(graph, this.frontier, this.ceiling);
+    return await finalizeSide(graph, {
+      requested: { ...buildCoordinateRequest(this.frontier, this.ceiling), kind: 'coordinate' },
+      state, patchEntries, coordinateKind: 'frontier', lamportCeiling: this.ceiling,
+    }, scope);
+  }
+}
+
+export class StrandComparisonSelector extends NormalizedSelector {
+  readonly strandId: string;
+
+  constructor(strandId: string, ceiling: number | null) {
+    super('strand', ceiling);
+    this.strandId = strandId;
+  }
+
+  async resolve(graph: ComparisonHost, scope: VisibleStateScopeV1 | null) {
+    const strands = new StrandService({ graph });
+    const descriptor = await strands.getOrThrow(this.strandId);
+    const state = await callInternalRuntimeMethod<WarpState>(
+      graph, 'materializeStrand', this.strandId,
+      this.ceiling === null ? undefined : { ceiling: this.ceiling },
+    );
+    const patchEntries = await strands.getPatchEntries(
+      this.strandId, this.ceiling === null ? undefined : { ceiling: this.ceiling },
+    );
+    return await finalizeSide(graph, {
+      requested: { kind: 'strand', strandId: this.strandId, ...optionalCeiling(this.ceiling) },
+      state, patchEntries, coordinateKind: 'strand', lamportCeiling: this.ceiling,
+      strand: buildStrandMetadata(this.strandId, descriptor),
+    }, scope);
+  }
+}
+
+export class StrandBaseComparisonSelector extends NormalizedSelector {
+  readonly strandId: string;
+
+  constructor(strandId: string, ceiling: number | null) {
+    super('strand_base', ceiling);
+    this.strandId = strandId;
+  }
+
+  async resolve(graph: ComparisonHost, scope: VisibleStateScopeV1 | null) {
+    const strands = new StrandService({ graph });
+    const descriptor = await strands.getOrThrow(this.strandId);
+    const effectiveCeiling = combineCeilings(descriptor.baseObservation.lamportCeiling, this.ceiling);
+    const state = await graph.materializeCoordinate({
+      frontier: descriptor.baseObservation.frontier,
+      ...optionalCeiling(effectiveCeiling),
+    });
+    const patchEntries = await collectPatchEntriesForFrontier(
+      graph, descriptor.baseObservation.frontier, effectiveCeiling,
+    );
+    return await finalizeSide(graph, {
+      requested: {
+        kind: 'strand_base', strandId: this.strandId,
+        frontier: { ...descriptor.baseObservation.frontier },
+        baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
+        ...optionalCeiling(this.ceiling),
+      },
+      state, patchEntries, coordinateKind: 'strand_base', lamportCeiling: effectiveCeiling,
+      strand: buildStrandMetadata(this.strandId, descriptor as StrandDescriptorV1),
+    }, scope);
+  }
+}
+
+// ── Selector normalization ───────────────────────────────────────────
+
+function extractSelectorKind(raw: Record<string, unknown>): string {
+  const kind = (raw as { kind?: unknown }).kind;
+  if (typeof kind !== 'string') {
+    throw new QueryError('selector.kind must be a string', { code: 'invalid_coordinate' });
+  }
+  return kind;
+}
+
+export function normalizeSelector(selector: Record<string, unknown>, field: string): NormalizedSelector {
+  const kind = extractSelectorKind(selector);
+  if (kind === 'live') {
+    return new LiveComparisonSelector(normalizeLamportCeiling((selector as { ceiling?: unknown }).ceiling, `${field}.ceiling`));
+  }
+  if (kind === 'coordinate') {
+    const r = selector as { frontier?: unknown; ceiling?: unknown };
+    return new CoordinateComparisonSelector(
+      normalizeFrontierRecord(r.frontier as Map<string, string> | Record<string, string>, `${field}.frontier`),
+      normalizeLamportCeiling(r.ceiling, `${field}.ceiling`),
+    );
+  }
+  if (kind === 'strand' || kind === 'strand_base') {
+    const r = selector as { strandId?: unknown; ceiling?: unknown };
+    const strandId = normalizeRequiredString(r.strandId, `${field}.strandId`);
+    const ceiling = normalizeLamportCeiling(r.ceiling, `${field}.ceiling`);
+    return kind === 'strand_base'
+      ? new StrandBaseComparisonSelector(strandId, ceiling)
+      : new StrandComparisonSelector(strandId, ceiling);
+  }
+  throw new QueryError(`${field}.kind is unsupported`, { code: 'invalid_coordinate', context: { field, kind } });
+}

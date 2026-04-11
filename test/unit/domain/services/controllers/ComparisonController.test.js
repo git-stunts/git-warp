@@ -2,11 +2,11 @@
  * Tests for ComparisonController — coordinate comparison, strand comparison,
  * transfer planning, patch divergence, and input validation.
  *
- * @see src/domain/services/controllers/ComparisonController.js
+ * @see src/domain/services/controllers/ComparisonController.ts
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import ComparisonController from '../../../../../src/domain/services/controllers/ComparisonController.js';
+import ComparisonController from '../../../../../src/domain/services/controllers/ComparisonController.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
