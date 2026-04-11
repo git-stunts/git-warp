@@ -35,7 +35,7 @@ import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.ts';
 // checkpoint.methods.js replaced by CheckpointController (imported above)
 // patch.methods.js replaced by PatchController (imported above)
 // materialize.methods.js + materializeAdvanced.methods.js replaced by MaterializeController
-import MaterializeController from './services/controllers/MaterializeController.js';
+import MaterializeController from './services/controllers/MaterializeController.ts';
 
 /** @typedef {import('./types/WarpPersistence.ts').CorePersistence} CorePersistence */
 
