@@ -129,6 +129,7 @@ import Patch from '../../../../src/domain/types/Patch.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
+import NodeRemove from '../../../../src/domain/types/ops/NodeRemove.ts';
 
 /** @param {Record<string, unknown>} opts */
 function createPatch(opts) { return new Patch(/** @type {any} */ (opts)); }
@@ -247,7 +248,7 @@ function generatePatches(n, options = {}) {
           ops.push(new PropSet(nodeId, 'prop', createInlineValue(`value-${i}-${j}`)));
           break;
         case 3: // NodeRemove (with empty observedDots - concurrent scenario)
-          ops.push({ type: 'NodeRemove', observedDots: new Set() });
+          ops.push(new NodeRemove(nodeId, []));
           break;
         case 4: // EdgeRemove (with empty observedDots)
           ops.push({ type: 'EdgeRemove', observedDots: new Set() });
@@ -632,7 +633,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
         writer: 'B',
         lamport: 1,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [/** @type {any} */ ({ type: 'NodeRemove', observedDots: new Set() })],
+        ops: [new NodeRemove('X', [])],
       }),
       sha: 'bbbb1234',
     };
@@ -678,7 +679,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
         writer: 'C',
         lamport: 2,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [/** @type {any} */ ({ type: 'NodeRemove', observedDots: new Set(['A:1']) })],
+        ops: [new NodeRemove('X', ['A:1'])],
       }),
       sha: 'cccc1111',
     };
@@ -722,7 +723,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
         writer: 'B',
         lamport: 2,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [/** @type {any} */ ({ type: 'NodeRemove', observedDots: new Set(['A:1']) })],
+        ops: [new NodeRemove('X', ['A:1'])],
       }),
       sha: 'bbbb2222',
     };
@@ -822,7 +823,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
         writer: 'A',
         lamport: 2,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [/** @type {any} */ ({ type: 'NodeRemove', observedDots: new Set(['A:1']) })],
+        ops: [new NodeRemove('x', ['A:1'])],
       }),
       sha: 'bbbb2222',
     };
@@ -1070,7 +1071,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
         writer: 'alice',
         lamport: 10,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [/** @type {any} */ ({ type: 'NodeRemove', observedDots: new Set(['base:1']) })],
+        ops: [new NodeRemove('contested', ['base:1'])],
       }),
       sha: 'aaaa5555',
     };
@@ -1189,7 +1190,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
       } else {
         // Remove (with observed dots from previous iteration if any)
         // Use empty observedDots to simulate concurrent scenario
-        ops.push({ type: 'NodeRemove', observedDots: new Set() });
+        ops.push(new NodeRemove(nodeId, []));
       }
 
       patches.push({
@@ -1337,7 +1338,7 @@ describe('Additional WARP v5 Integration Tests', () => {
             writer: 'W',
             lamport: 2,
             context: /** @type {any} */ (VersionVector.empty()),
-            ops: [/** @type {any} */ ({ type: 'NodeRemove', observedDots: new Set(['W:1']) })], // Remove 'a'
+            ops: [new NodeRemove('a', ['W:1'])], // Remove 'a'
           }),
           sha: 'aaa22222',
         },
