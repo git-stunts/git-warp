@@ -296,7 +296,6 @@ export default tseslint.config(
       "src/domain/services/dag/CommitDagTraversalService.js",
       "src/domain/services/state/CheckpointService.js",
       "src/domain/services/query/QueryBuilder.js",
-      "src/domain/services/query/QueryRunner.ts",
       "src/domain/services/codec/WarpMessageCodec.js",
       "src/domain/services/codec/PatchMessageCodec.js",
       "src/domain/services/codec/CheckpointMessageCodec.js",
