@@ -20,11 +20,11 @@
 
 import { buildAuditPrefix, buildAuditRef } from '../../utils/RefLayout.ts';
 import { decodeAuditMessage } from '../codec/AuditMessageCodec.ts';
-import { computeSignaturePayload } from '../../trust/TrustCanonical.js';
+import { computeSignaturePayload } from '../../trust/TrustCanonical.ts';
 import { TrustRecordService } from '../../trust/TrustRecordService.js';
-import { buildState } from '../../trust/TrustStateBuilder.js';
-import { evaluateWriters } from '../../trust/TrustEvaluator.js';
-import { TRUST_REASON_CODES } from '../../trust/reasonCodes.js';
+import { buildState } from '../../trust/TrustStateBuilder.ts';
+import { evaluateWriters } from '../../trust/TrustEvaluator.ts';
+import { TRUST_REASON_CODES } from '../../trust/reasonCodes.ts';
 import defaultTrustCrypto from '../../utils/defaultTrustCrypto.ts';
 
 // ============================================================================
@@ -220,7 +220,7 @@ function resolveTrustSource(options) {
  * Builds a fail-closed trust assessment for invalid evidence.
  *
  * @param {{ status: TrustAssessmentStatus, source: string, sourceDetail: string|null, writerIds?: string[], recordsScanned?: number, activeKeys?: number, revokedKeys?: number, activeBindings?: number, revokedBindings?: number, reasonCode: string, reason: string }} params
- * @returns {import('../../trust/TrustEvaluator.js').TrustAssessment}
+ * @returns {import('../../trust/TrustEvaluator.ts').TrustAssessment}
  */
 function buildTrustFailureAssessment({
   status,
@@ -732,7 +732,7 @@ export class AuditVerifierService {
    *
    * @param {string} graphName
    * @param {{ pin?: string, mode?: string, writerIds?: string[], source?: string, sourceDetail?: string|null, status?: TrustAssessmentStatus }} [options]
-   * @returns {Promise<import('../../trust/TrustEvaluator.js').TrustAssessment>}
+   * @returns {Promise<import('../../trust/TrustEvaluator.ts').TrustAssessment>}
    */
   async evaluateTrust(graphName, options = {}) {
     const { status, source, sourceDetail } = resolveTrustSource(options);

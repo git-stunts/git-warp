@@ -10,10 +10,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { buildState } from '../../../../src/domain/trust/TrustStateBuilder.js';
-import { evaluateWriters } from '../../../../src/domain/trust/TrustEvaluator.js';
-import { verifyRecordId } from '../../../../src/domain/trust/TrustCanonical.js';
-import { TRUST_REASON_CODES } from '../../../../src/domain/trust/reasonCodes.js';
+import { buildState } from '../../../../src/domain/trust/TrustStateBuilder.ts';
+import { evaluateWriters } from '../../../../src/domain/trust/TrustEvaluator.ts';
+import { verifyRecordId } from '../../../../src/domain/trust/TrustCanonical.ts';
+import { TRUST_REASON_CODES } from '../../../../src/domain/trust/reasonCodes.ts';
 import { TrustRecordService } from '../../../../src/domain/trust/TrustRecordService.js';
 import {
   KEY_ADD_1,

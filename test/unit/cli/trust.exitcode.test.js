@@ -7,8 +7,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { evaluateWriters } from '../../../src/domain/trust/TrustEvaluator.js';
-import { buildState } from '../../../src/domain/trust/TrustStateBuilder.js';
+import { evaluateWriters } from '../../../src/domain/trust/TrustEvaluator.ts';
+import { buildState } from '../../../src/domain/trust/TrustStateBuilder.ts';
 import { EXIT_CODES } from '../../../bin/cli/infrastructure.js';
 import {
   KEY_ADD_1,

@@ -6,8 +6,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { buildState } from '../../../../src/domain/trust/TrustStateBuilder.js';
-import { computeSignaturePayload } from '../../../../src/domain/trust/TrustCanonical.js';
+import { buildState } from '../../../../src/domain/trust/TrustStateBuilder.ts';
+import { computeSignaturePayload } from '../../../../src/domain/trust/TrustCanonical.ts';
 import {
   verifySignature,
   computeKeyFingerprint,
@@ -55,7 +55,7 @@ describe('buildState — key lifecycle', () => {
 
 describe('buildState — signature verification', () => {
   /**
-   * @param {import('../../../../src/domain/trust/TrustStateBuilder.js').TrustRecord} record
+   * @param {import('../../../../src/domain/trust/TrustStateBuilder.ts').TrustRecord} record
    * @param {string} publicKeyBase64
    */
   const signatureVerifier = (record, publicKeyBase64) => verifySignature({
