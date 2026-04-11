@@ -2,6 +2,7 @@
 id: SLUDGE_content-access-duplication
 blocks: []
 blocked_by: []
+status: partial
 ---
 
 # De-duplicate content access methods (8 → 2 objects)
@@ -42,3 +43,13 @@ const edgeContent = graph.query.edgeContent(from, to, label);
 
 This cuts 8 methods to 2 factory methods on QueryCapability, and the
 actual I/O lives on the content accessor — behavior on the object.
+
+## Current status: PARTIAL
+
+The 8 content methods are extracted to `QueryContent.ts` with shared
+helpers (`getNodeContentRegisters`, `getEdgeContentRegisters`,
+`extractContentMeta`, `EdgeId` type). The duplication between
+node/edge variants is significantly reduced.
+
+The class-based `NodeContent`/`EdgeContent` accessor pattern is an
+API surface change that belongs in `API_migrate-consumers-to-capabilities`.

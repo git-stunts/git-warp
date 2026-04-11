@@ -2,28 +2,30 @@
 id: SLUDGE_factory-functions-in-tests
 blocks: []
 blocked_by: []
+status: done
 ---
 
 # Kill factory sludge in test suite
 
-Factory functions like `createNodeAddV2()`, `createEdgeAddV2()`,
-`createPropSetV2()`, `createEventId()`, `createDot()` are one-line
-wrappers around constructors. They hide what's actually being
-constructed and add zero value.
+## Status: DONE (with corrections)
 
-Files with factory sludge:
-- `test/helpers/warpGraphTestUtils.js` — shared exports (root source)
-- `test/unit/domain/services/MigrationService.test.js`
-- `test/unit/domain/types/ops/factory-integration.test.js`
-- `test/unit/domain/types/ops/reducer-integration.test.js`
-- `test/benchmark/ReducerV5.benchmark.js`
+### Shipped (commit 2e99c0cb)
 
-Also kill `createEventId()` in `src/domain/utils/EventId.ts` and
-`createDot()` in `src/domain/crdt/Dot.ts` — use `new EventId()` and
-`new Dot()` directly.
+- `createEventId()` deleted from `src/domain/utils/EventId.ts` — replaced
+  with `new EventId()` in all 76+ consumer files.
+- `createDot()` deleted from `src/domain/crdt/Dot.ts` — replaced with
+  `Dot.create()` in all consumer files.
+- `createEventId` removed from public API (`index.js`, `index.d.ts`).
+- BREAKING CHANGE committed.
 
-**`createEventId` is exported from `index.js`** (the public API surface).
-Removing it is a **BREAKING CHANGE** — the commit must carry a
-`BREAKING CHANGE` footer and the release must be a major version bump.
+### Kept (plan was wrong about these)
 
-JoinReducer.test.js, edgeProps, and integration tests already fixed.
+The test wire-format factories (`createNodeAddV2()`, `createEdgeAddV2()`,
+`createPropSetV2()`, etc.) in `warpGraphTestUtils.js` are **NOT sludge**.
+They construct CBOR wire-format plain objects for testing the
+decode → reduce pipeline. They are NOT wrappers around domain class
+constructors. Replacing them with `new NodeAdd()` would skip the
+decode path and change test semantics.
+
+These factories should be renamed to `wireNodeAdd()`, `wireEdgeAdd()`,
+etc. to clarify their purpose — but that's a separate cleanup.

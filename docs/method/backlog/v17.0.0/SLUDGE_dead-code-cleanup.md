@@ -2,24 +2,31 @@
 id: SLUDGE_dead-code-cleanup
 blocks: []
 blocked_by: []
+status: blocked
 ---
 
 # Delete dead code from op behavior migration
 
-Op behavior now lives on the op classes. These files are dead:
+## Status: BLOCKED
 
-- `src/domain/services/OpStrategies.ts` — strategies dissolved into ops
-- `src/domain/services/OpStrategy.ts` — abstract base no longer needed
-- `src/domain/services/OpLike.ts` — loose bag type eliminated
-- `src/domain/services/SnapshotBeforeOp.ts` — moved to `types/ops/`
+**Original plan was wrong.** These files are NOT dead:
 
-Also remove the `OP_STRATEGIES` re-export from `JoinReducer.ts` and
-update any consumers still importing from those paths.
+- `OpStrategies.ts` — still imported by `ConflictCandidateCollector.js`
+  via `JoinReducer.ts` re-export. Used for conflict analysis dispatch.
+- `OpStrategy.ts` — base class for OpStrategies, stays while it stays.
+- `OpLike.ts` — still imported by `PatchHydrator.ts` and `OpNormalizer.ts`.
+- `SnapshotBeforeOp.ts` (services/) — imported by OpStrategy + OpStrategies.
 
-## Execution
+**True blocker:** `ConflictCandidateCollector` must migrate from
+`OP_STRATEGIES.get(opType).outcome()` to using op class methods
+directly (e.g., `op.outcome()`). Until then, the strategy registry
+and its base class are live code.
 
-1. Run `grep -r 'OpStrategies\|OpStrategy\|OpLike\|SnapshotBeforeOp' src/ test/`
-   to verify zero remaining imports before deletion.
-2. Delete the 4 dead files listed above.
-3. Remove the `OP_STRATEGIES` re-export from `JoinReducer.ts`.
-4. Re-run the grep to confirm clean removal.
+**Prereq:** Migrate ConflictCandidateCollector to use op class
+dispatch, THEN delete OpStrategies/OpStrategy/OpLike.
+
+## What IS safely deletable now
+
+- `src/domain/services/SnapshotBeforeOp.ts` (old location) — duplicate
+  of `src/domain/types/ops/SnapshotBeforeOp.ts`. Only imported by
+  OpStrategy.ts and OpStrategies.ts. Can be deleted when those die.

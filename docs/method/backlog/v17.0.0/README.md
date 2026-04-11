@@ -8,37 +8,37 @@ object is decomposed. SSTS is the active standard.
 
 ```
 LAYER 0 (unblocked — start here):
-  CROSS_shared-provider-interfaces
-  API_capability-interfaces
-  GOD_query-builder
-  SLUDGE_dead-code-cleanup
-  SLUDGE_factory-functions-in-tests
-  SLUDGE_content-access-duplication
-  TS_convert-remaining-js
+  [x] CROSS_shared-provider-interfaces
+  [x] API_capability-interfaces
+  [x] GOD_query-builder
+  [!] SLUDGE_dead-code-cleanup               ← BLOCKED (ConflictCandidateCollector)
+  [x] SLUDGE_factory-functions-in-tests       ← done (plan corrected)
+  [ ] SLUDGE_content-access-duplication
+  [ ] TS_convert-remaining-js
 
 LAYER 1 (blocked by layer 0):
-  API_warpgraph-factory ← capability-interfaces + shared-providers
-  GOD_query-controller ← capability-interfaces + shared-providers
-  GOD_materialize-controller ← shared-providers
-  GOD_incremental-index-updater ← shared-providers
-  GOD_strand-service ← capability-interfaces
-  GOD_remaining-big-files ← shared-providers + index-updater
-  SLUDGE_host-bag-injection ← shared-providers
-  SLUDGE_detached-graph-duplication ← shared-providers
-  TS_infrastructure-adapters ← convert-remaining-js
-  TS_cli-viz-scripts ← convert-remaining-js
+  [ ] API_warpgraph-factory ← capability-interfaces + shared-providers
+  [x] GOD_query-controller ← capability-interfaces + shared-providers
+  [x] GOD_materialize-controller ← shared-providers (pure DI, bridge WIP)
+  [ ] GOD_incremental-index-updater ← shared-providers
+  [ ] GOD_strand-service ← capability-interfaces
+  [ ] GOD_remaining-big-files ← shared-providers + index-updater
+  [~] SLUDGE_host-bag-injection ← doing per-god-kill, not separate
+  [x] SLUDGE_detached-graph-duplication ← detachedOpen.ts shared helper
+  [ ] TS_infrastructure-adapters ← convert-remaining-js
+  [ ] TS_cli-viz-scripts ← convert-remaining-js
 
 LAYER 2 (blocked by all gods + factory):
-  API_migrate-consumers-to-capabilities
+  [ ] API_migrate-consumers-to-capabilities
 
 LAYER 3:
-  API_kill-warpruntime ← migrate-consumers
+  [ ] API_kill-warpruntime ← migrate-consumers
 
 LAYER 4:
-  TS_publish-pipeline ← kill-warpruntime + adapters + cli
+  [ ] TS_publish-pipeline ← kill-warpruntime + adapters + cli
 
 LAYER 5:
-  TS_ssts-conformance-suite ← publish-pipeline
+  [ ] TS_ssts-conformance-suite ← publish-pipeline
 ```
 
 ## Status key
@@ -46,6 +46,14 @@ LAYER 5:
 - `[ ]` not started
 - `[~]` in progress
 - `[x]` done
+- `[!]` blocked
+
+## Unplanned work shipped
+
+- `PropValue` type — kills `LWWRegister<unknown>` across the codebase
+- `RuntimePatchCollector`, `RuntimeDetachedFactory`, `RuntimeStateStore` —
+  adapter implementations for MaterializeController DI
+- `detachedOpen.ts` — shared helper for graph cloning (dedup)
 
 ## Items
 
