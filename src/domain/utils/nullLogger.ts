@@ -7,16 +7,19 @@
  * @module domain/utils/nullLogger
  */
 
-import type LoggerPort from '../../ports/LoggerPort.ts';
+import LoggerPort from '../../ports/LoggerPort.ts';
 
-const nullLogger: LoggerPort = {
-  debug(): void {},
-  info(): void {},
-  warn(): void {},
-  error(): void {},
+class NullLogger extends LoggerPort {
+  debug(): void {}
+  info(): void {}
+  warn(): void {}
+  error(): void {}
   child(): LoggerPort {
     return nullLogger;
-  },
-};
+  }
+}
+
+const nullLogger = new NullLogger();
+Object.freeze(nullLogger);
 
 export default nullLogger;

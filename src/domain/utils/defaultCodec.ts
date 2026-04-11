@@ -3,7 +3,6 @@
  *
  * Provides canonical CBOR encoding/decoding using cbor-x directly,
  * avoiding concrete adapter imports from the infrastructure layer.
- * This follows the same pattern as defaultClock.ts.
  *
  * Keys are recursively sorted before encoding for deterministic output,
  * which is critical for content-addressed storage (Git SHA matching).
@@ -12,7 +11,7 @@
  */
 
 import { Encoder, decode as cborDecode } from 'cbor-x';
-import type CodecPort from '../../ports/CodecPort.ts';
+import CodecPort from '../../ports/CodecPort.ts';
 
 const encoder = new Encoder({
   useRecords: false,
@@ -71,13 +70,17 @@ function sortObjectKeys(obj: Record<string, unknown>): Record<string, unknown> {
   return sorted;
 }
 
-const defaultCodec: CodecPort = {
+class DefaultCodec extends CodecPort {
   encode(data: unknown): Uint8Array {
     return encoder.encode(sortKeys(data));
-  },
+  }
+
   decode(buffer: Uint8Array): unknown {
     return cborDecode(buffer) as unknown;
-  },
-};
+  }
+}
+
+const defaultCodec = new DefaultCodec();
+Object.freeze(defaultCodec);
 
 export default defaultCodec;

@@ -7,17 +7,21 @@
  * @module domain/utils/defaultClock
  */
 
-import type ClockPort from '../../ports/ClockPort.ts';
+import ClockPort from '../../ports/ClockPort.ts';
 
-const defaultClock: ClockPort = {
+class DefaultClock extends ClockPort {
   now(): number {
     // eslint-disable-next-line no-restricted-syntax -- this IS the ClockPort default implementation
     return performance.now();
-  },
+  }
+
   timestamp(): string {
     // eslint-disable-next-line no-restricted-syntax -- ClockPort implementation
     return new Date().toISOString();
-  },
-};
+  }
+}
+
+const defaultClock = new DefaultClock();
+Object.freeze(defaultClock);
 
 export default defaultClock;

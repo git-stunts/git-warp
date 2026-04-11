@@ -3,8 +3,7 @@
  *
  * Provides SHA hashing, HMAC, and timing-safe comparison using
  * node:crypto directly, avoiding concrete adapter imports from
- * the infrastructure layer. This follows the same pattern as
- * defaultCodec.ts and defaultClock.ts.
+ * the infrastructure layer.
  *
  * In Node/Bun/Deno, node:crypto loads normally. When the import
  * fails (e.g., Vite stubs `node:crypto` in browser bundles),
@@ -15,7 +14,7 @@
 
 import type { Hash, Hmac } from 'node:crypto';
 import CryptoError from '../errors/CryptoError.ts';
-import type CryptoPort from '../../ports/CryptoPort.ts';
+import CryptoPort from '../../ports/CryptoPort.ts';
 
 let _createHash: ((algorithm: string) => Hash) | null = null;
 let _createHmac: ((algorithm: string, key: Uint8Array | string) => Hmac) | null = null;
@@ -52,24 +51,26 @@ function hmacSync(algorithm: string, key: Uint8Array | string, data: Uint8Array 
   return new Uint8Array(result);
 }
 
-const defaultCrypto: CryptoPort = {
+class DefaultCrypto extends CryptoPort {
   // eslint-disable-next-line @typescript-eslint/require-await -- async matches CryptoPort contract
   async hash(algorithm: string, data: string | Uint8Array): Promise<string> {
     return hashSync(algorithm, data);
-  },
+  }
+
   // eslint-disable-next-line @typescript-eslint/require-await -- async matches CryptoPort contract
   async hmac(algorithm: string, key: string | Uint8Array, data: string | Uint8Array): Promise<Uint8Array> {
     return hmacSync(algorithm, key, data);
-  },
-  /**
-   * Compares two byte arrays in constant time.
-   */
+  }
+
   timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
     if (_timingSafeEqual === null) {
       throw new CryptoError('No crypto available. Inject a CryptoPort explicitly.');
     }
     return _timingSafeEqual(a, b);
-  },
-};
+  }
+}
+
+const defaultCrypto = new DefaultCrypto();
+Object.freeze(defaultCrypto);
 
 export default defaultCrypto;
