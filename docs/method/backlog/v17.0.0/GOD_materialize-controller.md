@@ -1,11 +1,91 @@
 # Slay MaterializeController (1009 LOC)
 
-Split strategy from design doc: full vs ceiling materialization,
-index management.
+## Current shape
 
-Natural seams:
-- Full materialization pipeline
-- Coordinate/ceiling materialization
-- Seek cache + index restore
-- Detached read graph management
-- Auto-checkpoint logic
+Real class (not defineProperty sludge) with 3 public async methods
+and 10 private helpers, plus 12 free helper functions at the top
+(~290 LOC). Unlike QueryController, this is a proper class — the
+methods are just too big and the concerns are tangled.
+
+## Public methods
+
+- `materialize(options)` — full materialization (the big one, ~160 LOC)
+- `materializeCoordinate(options)` — coordinate/ceiling materialization
+- `materializeAt(checkpointSha)` — materialize from checkpoint
+- `verifyIndex(options)` — index verification
+- `invalidateIndex()` — index invalidation
+
+## Private methods
+
+- `_materializeGraph()` — internal state + adjacency snapshot
+- `_resolveCeiling(options)` — ceiling normalization
+- `_buildAdjacency(state)` — adjacency map construction
+- `_setMaterializedState(state, optionsOrDiff)` — state caching + index update
+- `_buildView(state, stateHash, diff)` — view construction for subscribers
+- `_materializeWithCeiling(ceiling, collectReceipts, t0)` — ceiling pipeline
+- `_materializeWithCoordinate(frontier, ceiling, collectReceipts, t0)` — coordinate pipeline
+- `_persistSeekCacheEntry(cacheKey, buf, state)` — seek cache persistence
+- `_restoreIndexFromCache(indexTreeOid)` — index restore from cache
+
+## Free helper functions (~290 LOC)
+
+- `scanFrontierForMaxLamport(host, frontier)` — frontier lamport scan
+- `scanPatchesForMaxLamport(host, patches)` — patch lamport scan
+- `freezePublicState(state)` — freeze for public return
+- `freezePublicStateWithReceipts(state, receipts)` — freeze with receipts
+- `_maybeAutoCheckpoint(host, patchCount)` — auto-checkpoint logic
+- `openDetachedReadGraph(host)` — detached graph clone
+- `normalizeFrontierInput(frontierInput)` — frontier normalization
+- `normalizeExplicitCeiling(ceiling)` — ceiling validation
+- `frontiersEqual(a, b)` — frontier comparison
+- `tryReadCoordinateCache(host, frontier, ceiling, t0)` — seek cache lookup
+- `collectPatchesForFrontier(host, frontier, ceiling)` — patch collection
+
+## Natural seams
+
+### 1. Materialization pipeline (~400 LOC)
+The core: `materialize()`, `materializeCoordinate()`, `materializeAt()`.
+These are the 3 entry points. Each collects patches, reduces them,
+builds adjacency, caches state, and optionally collects receipts.
+
+### 2. State management (~200 LOC)
+`_setMaterializedState()`, `_buildView()`, `_buildAdjacency()`,
+freeze helpers. Owns the transition from reduced CRDT state to the
+cached, frozen, subscriber-notifiable form.
+
+### 3. Index/cache (~200 LOC)
+`_persistSeekCacheEntry()`, `_restoreIndexFromCache()`,
+`tryReadCoordinateCache()`, `verifyIndex()`, `invalidateIndex()`.
+Seek cache and bitmap index lifecycle.
+
+### 4. Normalization/helpers (~200 LOC)
+Free functions: frontier normalization, ceiling validation, lamport
+scanning, detached graph cloning, frontier comparison.
+
+## Split strategy
+
+### 3 files (recommended)
+- `MaterializeCache.ts` (~200 LOC) — seek cache + index lifecycle
+- `MaterializeHelpers.ts` (~200 LOC) — normalization, scanning,
+  frontier comparison, detached cloning, freeze
+- `MaterializeController.ts` (~400 LOC) — pipeline + state management
+
+Alternatively, if the pipeline methods are still too long after
+extracting cache + helpers, split the controller itself into
+`LiveMaterializer` (full materialize) and `CoordinateMaterializer`
+(coordinate/ceiling materialize). But try the 3-file split first.
+
+## Dependencies on WarpRuntime internals
+
+Via `this._host`:
+- `_cachedState` / `_cachedStateHash` / `_cachedStateLamport`
+- `_cachedAdjacency` / `_cachedIndex` / `_adjacencyCacheSize`
+- `_seekCache` / `_persistence` / `_crypto` / `_codec`
+- `_graphName` / `_writerId` / `_clock` / `_logger`
+- `_gcPolicy` / `_checkpointPolicy`
+- `_materializeController` (self-reference for detached cloning)
+- `_subscribers` (notification)
+- `_provenanceDegraded` flag
+
+This is the most coupled controller. The capability interface will
+need a `MaterializeContext` dependency bag to replace `_host`.
