@@ -2,42 +2,139 @@
 
 ## Current shape
 
-Fluent DSL class. Already partially cleaned during Worldline migration
-(typed `QueryGraph` interface, boundary validators). Single class with
-builder pattern methods and a big `run()` execution method.
+Fluent DSL class. Builder methods accumulate query state. `run()`
+executes: materializes, filters, aggregates, sorts, returns results.
+Already partially cleaned during Worldline migration (typed
+`QueryGraph` interface, boundary validators).
 
-## Natural seams
+## Split: 2 files + 1 value object
 
-- **DSL construction** (~300 LOC): `match()`, `where()`, `select()`,
-  `outgoing()`, `incoming()`, `depth()`, `aggregate()`, `sort()`,
-  `limit()`, `offset()`, `distinct()`, `with()`, `count()` — pure
-  builder state accumulation, no I/O
-- **Execution** (~400 LOC): `run()` — the big method that
-  materializes, filters, aggregates, sorts, and returns results
-- **Helpers** (~200 LOC): `batchMap`, sorting, field extraction
+### `QueryPlan.ts` (~40 LOC)
 
-## Split strategy: 2 files
+Frozen value object — the handoff between builder and runner.
 
-- `QueryExecution.ts` (~400 LOC) — `run()` + result processing helpers
-- `QueryBuilder.ts` (~500 LOC) — DSL + delegates to execution
+```typescript
+class QueryPlan {
+  readonly match: string;
+  readonly where: WhereClause[];
+  readonly select: SelectField[];
+  readonly direction: 'outgoing' | 'incoming' | null;
+  readonly depth: number | null;
+  readonly aggregates: AggregateSpec | null;
+  readonly sort: SortSpec | null;
+  readonly limit: number | null;
+  readonly offset: number | null;
+  readonly distinct: boolean;
 
-**Preferred:** Push `run()` into a `QueryRunner` that takes the
-accumulated builder state as input. Builder = pure accumulator.
-Runner = pure executor. Clean SRP. Both comfortably under 500 LOC.
+  constructor(params: { ... }) { Object.freeze(this); }
+}
+```
 
-The "QueryBuilder at 500 LOC" option is ceiling-riding — don't.
+### `QueryRunner.ts` (~400 LOC)
 
-## Already improved
+Pure executor. Takes a plan + graph handle, returns results.
 
-`QueryGraph` typed interface replaces the old cast-heavy WarpRuntime
-access. `requireAdjacencyMaps` and `requireStateHash` provide runtime
-boundary validation.
+```typescript
+class QueryRunner {
+  constructor(private readonly graph: QueryGraph) {}
 
-## SSTS amendments
+  async run(plan: QueryPlan): Promise<QueryResult> {
+    const materialized = await this.graph._materializeGraph();
+    const adjacency = requireAdjacencyMaps(materialized.adjacency);
+    const stateHash = requireStateHash(materialized.stateHash);
+    const allNodes = sortIds(await this.graph.getNodes());
 
-- **`QueryPlan` value object.** The builder → runner handoff is an
-  explicit frozen value object containing match, where, select,
-  direction, depth, aggregates, sort, limit, offset. Not a bag of
-  fields on the builder instance.
-- **Named result type.** `QueryResult` (or `QueryResultSet`) with
-  typed fields: nodes, edges, aggregates, stats. Not a plain object.
+    // Filter → select → aggregate → sort → limit → return
+    ...
+  }
+}
+
+class QueryResult {
+  readonly nodes: QueryResultNode[];
+  readonly stats: { stateHash: string; nodeCount: number; matchedCount: number };
+
+  constructor(params: { ... }) { Object.freeze(this); }
+}
+```
+
+### `QueryBuilder.ts` (~350 LOC)
+
+Pure accumulator. Builds a `QueryPlan`, delegates `run()` to runner.
+
+```typescript
+class QueryBuilder {
+  constructor(private readonly graph: QueryGraph) {}
+
+  match(pattern: string): QueryBuilder { ... return this; }
+  where(clause: WhereClause): QueryBuilder { ... return this; }
+  select(...fields: SelectField[]): QueryBuilder { ... return this; }
+  outgoing(): QueryBuilder { ... return this; }
+  incoming(): QueryBuilder { ... return this; }
+  depth(n: number): QueryBuilder { ... return this; }
+  aggregate(spec: AggregateSpec): QueryBuilder { ... return this; }
+  sort(spec: SortSpec): QueryBuilder { ... return this; }
+  limit(n: number): QueryBuilder { ... return this; }
+  offset(n: number): QueryBuilder { ... return this; }
+  distinct(): QueryBuilder { ... return this; }
+
+  async run(): Promise<QueryResult> {
+    const plan = new QueryPlan({ ... accumulated state ... });
+    const runner = new QueryRunner(this.graph);
+    return await runner.run(plan);
+  }
+}
+```
+
+## Named types
+
+```typescript
+type WhereClause = {
+  field: string;
+  op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'exists';
+  value: unknown;
+};
+
+type SelectField = 'id' | 'props' | 'edges' | 'neighbors' | string;
+
+type AggregateSpec = {
+  count?: boolean;
+  sum?: string;
+  avg?: string;
+  min?: string;
+  max?: string;
+};
+
+type SortSpec = {
+  field: string;
+  direction: 'asc' | 'desc';
+};
+```
+
+## Data flow
+
+```
+Consumer: graph.query.query().match('user:*').where(...).select('id', 'props').limit(10).run()
+  → QueryBuilder accumulates state
+  → .run() creates QueryPlan (frozen value object)
+  → QueryRunner.run(plan)
+    → materializes graph via QueryGraph interface
+    → filters nodes by match pattern
+    → applies where clauses
+    → selects fields
+    → aggregates if requested
+    → sorts
+    → applies limit/offset
+    → returns QueryResult (frozen)
+```
+
+## Test files
+
+- `test/unit/domain/services/query/QueryBuilder.test.js`
+- `test/unit/domain/services/query/QueryBuilder.*.test.js`
+
+## Execution order
+
+1. Create `QueryPlan.ts` value object
+2. Create `QueryResult.ts` value object
+3. Create `QueryRunner.ts` — move execution logic from QueryBuilder.run()
+4. Slim `QueryBuilder.ts` to pure accumulator + delegation

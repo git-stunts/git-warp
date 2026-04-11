@@ -2,113 +2,166 @@
 
 ## Current shape
 
-Real class (not defineProperty sludge) with 3 public async methods
-and 10 private helpers, plus 12 free helper functions at the top
-(~290 LOC). Unlike QueryController, this is a proper class — the
-methods are just too big and the concerns are tangled.
+Real class with 3 public async methods, 10 private helpers, 12 free
+helper functions (~290 LOC). Methods are too big and concerns are
+tangled: materialization pipeline, state caching, index management,
+seek cache, normalization.
 
-## Public methods
+## Split: 3 files
 
-- `materialize(options)` — full materialization (the big one, ~160 LOC)
-- `materializeCoordinate(options)` — coordinate/ceiling materialization
-- `materializeAt(checkpointSha)` — materialize from checkpoint
-- `verifyIndex(options)` — index verification
-- `invalidateIndex()` — index invalidation
+### `MaterializeHelpers.ts` (~200 LOC)
 
-## Private methods
+Pure functions. No host access. No ports.
 
-- `_materializeGraph()` — internal state + adjacency snapshot
-- `_resolveCeiling(options)` — ceiling normalization
-- `_buildAdjacency(state)` — adjacency map construction
-- `_setMaterializedState(state, optionsOrDiff)` — state caching + index update
-- `_buildView(state, stateHash, diff)` — view construction for subscribers
-- `_materializeWithCeiling(ceiling, collectReceipts, t0)` — ceiling pipeline
-- `_materializeWithCoordinate(frontier, ceiling, collectReceipts, t0)` — coordinate pipeline
-- `_persistSeekCacheEntry(cacheKey, buf, state)` — seek cache persistence
-- `_restoreIndexFromCache(indexTreeOid)` — index restore from cache
+```typescript
+function normalizeFrontierInput(
+  input: Map<string, string> | Record<string, string>,
+): Map<string, string>
 
-## Free helper functions (~290 LOC)
+function normalizeExplicitCeiling(ceiling: unknown): number | null
 
-- `scanFrontierForMaxLamport(host, frontier)` — frontier lamport scan
-- `scanPatchesForMaxLamport(host, patches)` — patch lamport scan
-- `freezePublicState(state)` — freeze for public return
-- `freezePublicStateWithReceipts(state, receipts)` — freeze with receipts
-- `_maybeAutoCheckpoint(host, patchCount)` — auto-checkpoint logic
-- `openDetachedReadGraph(host)` — detached graph clone
-- `normalizeFrontierInput(frontierInput)` — frontier normalization
-- `normalizeExplicitCeiling(ceiling)` — ceiling validation
-- `frontiersEqual(a, b)` — frontier comparison
-- `tryReadCoordinateCache(host, frontier, ceiling, t0)` — seek cache lookup
-- `collectPatchesForFrontier(host, frontier, ceiling)` — patch collection
+function frontiersEqual(
+  a: Map<string, string>,
+  b: Map<string, string>,
+): boolean
 
-## Natural seams
+function scanFrontierForMaxLamport(
+  frontier: Map<string, string>,
+  readPatch: (sha: string) => Promise<{ lamport: number }>,
+): Promise<number>
 
-### 1. Materialization pipeline (~400 LOC)
-The core: `materialize()`, `materializeCoordinate()`, `materializeAt()`.
-These are the 3 entry points. Each collects patches, reduces them,
-builds adjacency, caches state, and optionally collects receipts.
+function scanPatchesForMaxLamport(
+  patches: Array<{ patch: { lamport: number } }>,
+): number
 
-### 2. State management (~200 LOC)
-`_setMaterializedState()`, `_buildView()`, `_buildAdjacency()`,
-freeze helpers. Owns the transition from reduced CRDT state to the
-cached, frozen, subscriber-notifiable form.
+function freezePublicState(state: WarpState): WarpState
+function freezePublicStateWithReceipts(
+  state: WarpState,
+  receipts: TickReceipt[],
+): { state: WarpState; receipts: TickReceipt[] }
+```
 
-### 3. Index/cache (~200 LOC)
-`_persistSeekCacheEntry()`, `_restoreIndexFromCache()`,
-`tryReadCoordinateCache()`, `verifyIndex()`, `invalidateIndex()`.
-Seek cache and bitmap index lifecycle.
+### `MaterializeCache.ts` (~200 LOC)
 
-### 4. Normalization/helpers (~200 LOC)
-Free functions: frontier normalization, ceiling validation, lamport
-scanning, detached graph cloning, frontier comparison.
+Seek cache + index lifecycle. Injected ports.
 
-## Split strategy
+```typescript
+class MaterializeCache {
+  constructor(
+    private readonly seekCache: SeekCachePort | null,
+    private readonly codec: CodecPort,
+    private readonly clock: ClockPort,
+    private readonly logger: LoggerPort,
+  ) {}
 
-### 3 files
+  async tryReadCoordinate(
+    frontier: Map<string, string>,
+    ceiling: number | null,
+  ): Promise<{ state: WarpState; indexTreeOid: string } | null>
 
-- `MaterializeCache.ts` (~200 LOC) — seek cache persistence, index
-  restore, coordinate cache lookup, index verify/invalidate.
-  Injected deps: `SeekCachePort`, `IndexStore`.
-- `MaterializeHelpers.ts` (~200 LOC) — frontier normalization, ceiling
-  validation, lamport scanning, frontier comparison, freeze helpers.
-  Pure functions, no host access.
-- `MaterializeController.ts` (~400 LOC) — the 3 materialization
-  pipelines (live, coordinate, checkpoint) + state caching +
-  adjacency building + subscriber notification. Composes cache +
-  helpers. Injected deps: `StateCache`, `PatchCollector`, `ClockPort`,
-  `LoggerPort`. No `_host` bag.
+  async persistEntry(
+    cacheKey: string,
+    state: WarpState,
+  ): Promise<void>
 
-## Dependencies on WarpRuntime internals
+  async restoreIndex(indexTreeOid: string): Promise<IndexShard[] | null>
 
-Via `this._host`:
-- `_cachedState` / `_cachedStateHash` / `_cachedStateLamport`
-- `_cachedAdjacency` / `_cachedIndex` / `_adjacencyCacheSize`
-- `_seekCache` / `_persistence` / `_crypto` / `_codec`
-- `_graphName` / `_writerId` / `_clock` / `_logger`
-- `_gcPolicy` / `_checkpointPolicy`
-- `_materializeController` (self-reference for detached cloning)
-- `_subscribers` (notification)
-- `_provenanceDegraded` flag
+  verifyIndex(state: WarpState, index: unknown): VerifyResult
+  invalidateIndex(): void
+}
+```
 
-This is the most coupled controller.
+### `MaterializeController.ts` (~400 LOC)
 
-## Sludge that MUST die during this split
+The 3 materialization pipelines + state caching + adjacency building.
+Injected deps, no host bag.
 
-1. **No `_host` bag, no "MaterializeContext" bag.** Inject specific
-   deps: `StateCache`, `SeekCachePort`, `IndexStore`, `PatchCollector`,
-   `ClockPort`, `LoggerPort`. See `SLUDGE_host-bag-injection.md`.
+```typescript
+class MaterializeController implements MaterializeCapability {
+  constructor(
+    private readonly persistence: CommitPort & RefPort,
+    private readonly patchCollector: PatchCollector,
+    private readonly cache: MaterializeCache,
+    private readonly graphCloner: DetachedGraphFactory,
+    private readonly stateStore: MaterializedStateStore,
+    private readonly checkpointPolicy: CheckpointPolicy | null,
+    private readonly clock: ClockPort,
+    private readonly logger: LoggerPort,
+  ) {}
 
-2. **`openDetachedReadGraph` → shared `DetachedGraphFactory`.**
-   See `SLUDGE_detached-graph-duplication.md`.
+  async materialize(options?: MaterializeOptions): Promise<WarpState>
+  async materializeCoordinate(options: CoordinateOptions): Promise<WarpState>
+  async materializeAt(checkpointSha: string): Promise<WarpState>
+  verifyIndex(options?: VerifyIndexOptions): VerifyResult
+  invalidateIndex(): void
+}
 
-3. **`_maybeAutoCheckpoint` reaches into host for checkpoint policy.**
-   Should receive the policy as a constructor dep, not reach through
-   host.
+type MaterializeOptions = {
+  ceiling?: number | null;
+  receipts?: boolean;
+};
 
-## SSTS amendments
+type CoordinateOptions = {
+  frontier: Map<string, string> | Record<string, string>;
+  ceiling?: number | null;
+  receipts?: boolean;
+};
+```
 
-- **Named options types** for `materialize(options)` and
-  `materializeCoordinate(options)`. No anonymous bags.
-- **Cache encoding through CodecPort.** `_persistSeekCacheEntry`
-  must use the injected codec, not inline encoding.
-- **Named result types** for materialization results.
+`MaterializedStateStore` is an interface for the stateful cache that
+currently lives as `_cachedState` / `_cachedStateHash` /
+`_cachedAdjacency` on WarpRuntime:
+
+```typescript
+interface MaterializedStateStore {
+  get(): { state: WarpState; stateHash: string | null; adjacency: AdjacencyMap } | null;
+  set(state: WarpState, stateHash: string | null, adjacency: AdjacencyMap): void;
+  clear(): void;
+}
+```
+
+`PatchCollector` is an interface for collecting patches from the
+frontier:
+
+```typescript
+interface PatchCollector {
+  collectForFrontier(
+    frontier: Map<string, string>,
+    ceiling: number | null,
+  ): Promise<Array<{ patch: Patch; sha: string }>>;
+}
+```
+
+## Data flow
+
+```
+Consumer calls graph.materialize.snapshot()
+  → MaterializeController.materialize()
+    → patchCollector.collectForFrontier(frontier, ceiling)
+    → reduces patches via JoinReducer (applyFast or applyWithDiff)
+    → builds adjacency via _buildAdjacency(state)
+    → stateStore.set(state, hash, adjacency)
+    → cache.persistEntry(key, state) (async, non-blocking)
+    → freezePublicState(state)
+    → returns frozen state
+```
+
+## Named option types
+
+Every public method has a named options type (see above). No
+`Record<string, unknown>`. No anonymous bags.
+
+## Test files
+
+- `test/unit/domain/WarpGraph.autoMaterialize.test.js`
+- `test/unit/domain/WarpGraph.adjacencyCache.test.js`
+- `test/unit/domain/WarpGraph.autoCheckpoint.test.js`
+- All WarpGraph tests that call `materialize()` / `materializeCoordinate()`
+
+## Execution order
+
+1. Define `MaterializedStateStore`, `PatchCollector` interfaces
+2. Create `MaterializeHelpers.ts` (pure functions)
+3. Create `MaterializeCache.ts` with injected ports
+4. Rewrite `MaterializeController.ts` with injected deps
+5. Wire in `openWarpGraph` factory (or WarpRuntime constructor for now)

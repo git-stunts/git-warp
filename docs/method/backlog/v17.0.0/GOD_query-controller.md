@@ -3,127 +3,164 @@
 ## Current shape
 
 12-line class body + 30 free functions wired via `defineProperty`.
-Same sludge pattern as WarpRuntime. The class is a bag. The free
-functions use `this._host._xxx` to reach into WarpRuntime internals.
+The class is a bag. The free functions use `this._host._xxx` to
+reach into WarpRuntime internals.
 
-## Natural groupings
+## Split: 3 files
 
-The 20 public functions fall into 4 coherent capabilities:
+### `QueryReads.ts` (~250 LOC)
 
-### 1. Graph reads (~200 LOC)
-Core node/edge/property queries against materialized state.
+Graph read methods. Injected deps, no host bag.
 
-- `hasNode(nodeId)` — node existence
-- `getNodes()` — all visible nodes
-- `getNodeProps(nodeId)` — node properties
-- `getEdgeProps(from, to, label)` — edge properties
-- `getEdges()` — all visible edges
-- `getPropertyCount()` — total property count
-- `neighbors(nodeId, direction, edgeLabel)` — neighbor lookup
-- `getStateSnapshot()` — full state snapshot
+```typescript
+class QueryReads {
+  constructor(
+    private readonly state: MaterializedStateProvider,
+    private readonly index: IndexProvider | null,
+  ) {}
 
-**Depends on:** materialized state (`_host._cachedState`), index
-(`_host._cachedIndex`), KeyCodec, ImmutableSnapshot.
+  hasNode(nodeId: string): boolean
+  getNodes(): string[]
+  getNodeProps(nodeId: string): Record<string, unknown> | null
+  getEdgeProps(from: string, to: string, label: string): Record<string, unknown> | null
+  getEdges(): Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>
+  getPropertyCount(): number
+  neighbors(nodeId: string, direction: Direction, edgeLabel?: string): NeighborResult[]
+  getStateSnapshot(): ImmutableWarpState
+}
 
-### 2. Query/traversal factories (~50 LOC)
-Create higher-order query objects.
+interface MaterializedStateProvider {
+  current(): WarpState | null;
+  stateHash(): string | null;
+}
 
-- `query()` — returns QueryBuilder
-- `worldline(options)` — returns Worldline handle
-- `observer(nameOrConfig, config, options)` — creates Observer
+interface IndexProvider {
+  neighborsOf(nodeId: string, direction: Direction, opts?: { labels?: Set<string> }): NeighborResult[];
+}
+```
 
-**Depends on:** QueryBuilder, Worldline, Observer, detached graph
-cloning, selector normalization.
+### `QueryContent.ts` (~300 LOC)
 
-### 3. Content access (~300 LOC)
-Blob content read operations for nodes and edges.
+Two content accessor classes. Injected deps: state + blob storage.
 
-- `getContentOid(nodeId)` — content blob OID
-- `getContentMeta(nodeId)` — content metadata (mime, size)
-- `getContent(nodeId)` — full content bytes
-- `getEdgeContentOid(from, to, label)` — edge content OID
-- `getEdgeContentMeta(from, to, label)` — edge content metadata
-- `getEdgeContent(from, to, label)` — edge content bytes
-- `getContentStream(nodeId)` — streaming content
-- `getEdgeContentStream(from, to, label)` — streaming edge content
+```typescript
+class NodeContent {
+  constructor(
+    private readonly nodeId: string,
+    private readonly state: MaterializedStateProvider,
+    private readonly blobs: BlobStoragePort,
+  ) {}
 
-**Depends on:** materialized state, blob storage, content register
-helpers (`getNodeContentRegisters`, `getEdgeContentRegisters`,
-`extractContentMeta`, `visibleEdgeRegister`).
+  oid(): string | null
+  meta(): { mime: string | null; size: number | null } | null
+  async bytes(): Promise<Uint8Array | null>
+  stream(): AsyncIterable<Uint8Array> | null
+}
 
-### 4. Translation cost (~20 LOC)
-Observer comparison utility.
+class EdgeContent {
+  constructor(
+    private readonly from: string,
+    private readonly to: string,
+    private readonly label: string,
+    private readonly state: MaterializedStateProvider,
+    private readonly blobs: BlobStoragePort,
+  ) {}
 
-- `translationCost(configA, configB)` — cost of translating between
-  two observer configurations
+  oid(): string | null
+  meta(): { mime: string | null; size: number | null } | null
+  async bytes(): Promise<Uint8Array | null>
+  stream(): AsyncIterable<Uint8Array> | null
+}
+```
 
-**Depends on:** Observer, computeTranslationCost.
+### `QueryController.ts` (~350 LOC)
 
-## Additional free functions (helpers, ~380 LOC)
+Implements `QueryCapability`. Composes reads + content. Owns factory
+methods and observer logic. Real methods, no defineProperty.
 
-- `toSelector(source)` — selector normalization
-- `openDetachedObserverGraph(graph)` — creates detached clone
-- `snapshotCurrentMaterialized(graph)` — snapshots current state
-- `snapshotReturnedState(graph, state)` — snapshots returned state
-- `resolveObserverSnapshot(graph, options)` — resolves observer state
-- `normalizeObserverArgs(...)` — argument normalization
-- `isSameAttachmentLineage(...)` — content lineage check
-- `visibleEdgeRegister(...)` — edge register resolution
-- `getNodeContentRegisters(...)` — node content registers
-- `getEdgeContentRegisters(...)` — edge content registers
-- `extractContentMeta(...)` — metadata extraction
-- `tagDirection(edges, dir)` — direction tagging
-- `_indexedNeighbors(...)` — bitmap index neighbors
-- `_linearNeighbors(...)` — linear scan neighbors
-- `singleChunkAsyncIterable(buf)` — streaming helper
+```typescript
+class QueryController implements QueryCapability {
+  constructor(
+    private readonly state: MaterializedStateProvider,
+    private readonly index: IndexProvider | null,
+    private readonly blobs: BlobStoragePort,
+    private readonly graphCloner: DetachedGraphFactory,
+  ) {
+    this._reads = new QueryReads(state, index);
+  }
 
-## Split strategy
+  // Delegates to QueryReads
+  hasNode(nodeId: string): boolean { return this._reads.hasNode(nodeId); }
+  getNodes(): string[] { return this._reads.getNodes(); }
+  // ... etc for all read methods
 
-3 files. QueryController implements `QueryCapability` directly.
+  // Content accessor factories
+  nodeContent(nodeId: string): NodeContent {
+    return new NodeContent(nodeId, this.state, this.blobs);
+  }
+  edgeContent(from: string, to: string, label: string): EdgeContent {
+    return new EdgeContent(from, to, label, this.state, this.blobs);
+  }
 
-- `QueryReads.ts` (~250 LOC) — graph read methods: hasNode, getNodes,
-  getNodeProps, getEdgeProps, getEdges, getPropertyCount, neighbors,
-  getStateSnapshot. Injected deps: `MaterializedStateProvider`,
-  `IndexProvider`.
-- `QueryContent.ts` (~350 LOC) — `NodeContent` and `EdgeContent`
-  accessor classes (oid, meta, bytes, stream). Injected deps:
-  `MaterializedStateProvider`, `BlobStoragePort`.
-- `QueryController.ts` (~350 LOC) — implements `QueryCapability`.
-  Composes QueryReads + QueryContent. Owns factory methods (query,
-  worldline, observer), translation cost, selector normalization.
-  Real methods, no defineProperty. Injected deps, no _host bag.
+  // Query/traversal factories
+  query(): QueryBuilder { return new QueryBuilder(this); }
+  worldline(options?: WorldlineOptions): Worldline { ... }
+  observer(config: ObserverConfig): Promise<Observer> { ... }
+
+  translationCost(a: ObserverConfig, b: ObserverConfig): Promise<number> { ... }
+}
+```
+
+## Data flow
+
+```
+Consumer calls graph.query.hasNode('x')
+  → QueryController.hasNode('x')
+    → QueryReads.hasNode('x')
+      → this.state.current().nodeAlive.contains('x')
+      → returns boolean
+
+Consumer calls graph.query.nodeContent('x').bytes()
+  → QueryController.nodeContent('x')
+    → new NodeContent('x', state, blobs)
+  → NodeContent.bytes()
+    → reads oid from state registers
+    → fetches from BlobStoragePort
+    → returns Uint8Array
+```
+
+## Observer overload cleanup
+
+Old: `observer(nameOrConfig, configOrOptions, maybeOptions)` — 3 args,
+positional overloads, boolean trap.
+
+New: single shape:
+```typescript
+observer(config: ObserverConfig): Promise<Observer>
+```
+
+Where `ObserverConfig` is:
+```typescript
+type ObserverConfig = {
+  name?: string;
+  match: string;
+  source?: WorldlineSource;
+};
+```
+
+## Test files
+
+- `test/unit/domain/services/controllers/QueryController.test.js` (if exists)
+- All WarpGraph tests that call hasNode, getNodes, query, etc.
+
+Tests that call `graph.hasNode()` will eventually migrate to
+`graph.query.hasNode()` — but that's the API migration item, not this
+item.
 
 ## Execution order
 
-1. Create `QueryContent.ts` with `NodeContent` / `EdgeContent` classes
-2. Create `QueryReads.ts` with graph read methods as real methods
-3. Rewrite `QueryController.ts` as capability implementation
-4. Delete all defineProperty wiring
-5. Delete `_wiredMethods.d.ts` query section
-
-## SSTS amendments
-
-- **Input validation at method entry.** `hasNode("")` → domain error.
-  Null nodeIds, empty strings, invalid labels — rejected.
-- **Observer overload cleanup.** The 3-arg `observer(nameOrConfig,
-  config, options)` is a boolean trap. Replace with named params:
-  `observer({ name?, match, source? })` — one shape, no overloads.
-- **Named options types** for every method that accepts options.
-
-## Sludge that MUST die during this split
-
-1. **No `_host` bag.** Each extracted module gets typed deps:
-   `QueryReads` gets `MaterializedStateProvider` + `IndexProvider`.
-   `QueryContent` gets `BlobStoragePort` + `MaterializedStateProvider`.
-   See `SLUDGE_host-bag-injection.md`.
-
-2. **Free functions become real methods.** The 30 `this`-bound free
-   functions wired via `defineProperty` become methods on the class
-   or module that owns them. No `this`-bound free functions survive.
-
-3. **Content duplication → `NodeContent` / `EdgeContent`.** The 8
-   content methods collapse into 2 content accessor factories.
-   See `SLUDGE_content-access-duplication.md`.
-
-4. **`openDetachedObserverGraph` → shared `DetachedGraphFactory`.**
-   See `SLUDGE_detached-graph-duplication.md`.
+1. Define `MaterializedStateProvider` + `IndexProvider` interfaces
+2. Create `QueryContent.ts` with `NodeContent` / `EdgeContent`
+3. Create `QueryReads.ts` with all read methods
+4. Rewrite `QueryController.ts` as capability implementation
+5. Delete all defineProperty wiring

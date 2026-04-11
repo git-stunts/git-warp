@@ -2,66 +2,95 @@
 
 ## Current shape
 
-Real class with 15 public methods + ~410 LOC of free helper functions.
-Already delegates to `StrandDescriptorStore`, `StrandMaterializer`,
-`StrandPatchService`, `StrandIntentService`. The class orchestrates
-but still does too much itself.
+Orchestrator class with 15 public methods + ~410 LOC of free helpers.
+Already delegates to 4 sub-services: StrandDescriptorStore,
+StrandMaterializer, StrandPatchService, StrandIntentService.
+The class is glue. The sub-services own the behavior.
 
-## Public methods
+## Strategy: dissolve
 
-- `create(options)` — create a new strand
-- `braid(strandId, options)` — braid strands
-- `get(strandId)` — get strand descriptor
-- `list()` — list all strands
-- `drop(strandId)` — drop a strand
-- `materialize(strandId, options)` — materialize strand state
-- `createPatchBuilder(strandId)` — create patch builder for strand
-- `patch(strandId, build)` — apply patch to strand
-- `queueIntent(strandId, build)` — queue intent
-- `listIntents(strandId)` — list intents
-- `tick(strandId)` — tick strand (apply intents)
-- `getPatchEntries(strandId, options)` — get patch entries
-- `patchesFor(strandId, entityId, options)` — patches for entity
-- `getOrThrow(strandId)` — get or throw
+StrandService dissolves. Its methods push down into the sub-services
+that already exist. The `StrandCapability` interface is implemented
+by a thin coordinator that composes the sub-services — NOT a facade
+that forwards, but a coordinator that owns the lifecycle wiring.
 
-## Natural seams
+## Where each method goes
 
-The class already delegates to 4 sub-services. The problem is the
-~410 LOC of orchestration helpers that don't belong to any of them.
+| Method | Destination | Why |
+|--------|-------------|-----|
+| `create(options)` | StrandDescriptorStore.create() | Descriptor CRUD |
+| `braid(strandId, options)` | StrandDescriptorStore.braid() | Descriptor mutation |
+| `get(strandId)` | StrandDescriptorStore.get() | Descriptor read |
+| `getOrThrow(strandId)` | StrandDescriptorStore.getOrThrow() | Descriptor read |
+| `list()` | StrandDescriptorStore.list() | Descriptor read |
+| `drop(strandId)` | StrandDescriptorStore.drop() | Descriptor CRUD |
+| `materialize(strandId, opts)` | StrandMaterializer.materialize() | Already there |
+| `createPatchBuilder(strandId)` | StrandPatchService.createBuilder() | Already there |
+| `patch(strandId, build)` | StrandPatchService.patch() | Already there |
+| `queueIntent(strandId, build)` | StrandIntentService.queue() | Already there |
+| `listIntents(strandId)` | StrandIntentService.list() | Already there |
+| `tick(strandId)` | StrandIntentService.tick() | Already there |
+| `getPatchEntries(strandId, opts)` | StrandPatchService.getEntries() | Already there |
+| `patchesFor(strandId, entityId)` | StrandPatchService.patchesFor() | Already there |
+| `analyzeConflicts(options)` | ConflictAnalyzerService.analyze() | Already there |
 
-### Split strategy: 2 files
+## StrandCapability coordinator (~150 LOC)
 
-- `StrandLifecycle.ts` (~250 LOC) — create, braid, drop, list, get,
-  getOrThrow + validation/normalization helpers
-- `StrandOperations.ts` (~300 LOC) — materialize, patch, tick,
-  intents, patchEntries, patchesFor + orchestration logic
-- `StrandService.ts` (~200 LOC) — thin facade composing lifecycle
-  + operations, or dissolves entirely with methods split between
-  the two new files
+```typescript
+class StrandCoordinator implements StrandCapability {
+  constructor(
+    private readonly descriptors: StrandDescriptorStore,
+    private readonly materializer: StrandMaterializer,
+    private readonly patches: StrandPatchService,
+    private readonly intents: StrandIntentService,
+    private readonly conflicts: ConflictAnalyzerService,
+  ) {}
 
-## Sludge that MUST die during this split
+  // Each method delegates to the owning sub-service.
+  // The coordinator's only unique logic is validation that
+  // spans sub-services (e.g., "strand must exist before patch").
+}
+```
 
-1. **Dissolve, don't facade.** StrandService is glue. Push behavior
-   down into the sub-services that already exist. A thin facade that
-   just forwards is the same sludge we killed in WarpRuntime.
+## Named option types
 
-2. **No `_graph` host bag.** Sub-services get typed deps, not a
-   WarpRuntime reference. See `SLUDGE_host-bag-injection.md`.
+```typescript
+type StrandCreateOptions = {
+  strandId?: string;
+  writerId?: string;
+  baseObservation?: { frontier: Record<string, string>; lamportCeiling?: number };
+};
 
-## SSTS amendments
+type StrandBraidOptions = {
+  readOverlayStrandId: string;
+};
 
-- **Named options types** for `create(options)` and all methods
-  accepting options. No `= {}` default bags.
-- **Check sub-service LOC after dissolution.** StrandDescriptorStore
-  is 643 LOC. If pushing behavior into it exceeds 500, split it:
-  `StrandDescriptorNormalization.ts` (validation/normalization) +
-  `StrandDescriptorStore.ts` (CRUD).
+type StrandMaterializeOptions = {
+  ceiling?: number;
+  receipts?: boolean;
+};
+```
 
-## Dependencies
+## LOC guard
 
-- `StrandDescriptorStore` — descriptor CRUD
-- `StrandMaterializer` — strand materialization
-- `StrandPatchService` — strand patch building
-- `StrandIntentService` — intent queue
-- `ConflictAnalyzerService` — conflict detection
-- WarpRuntime internals via `this._graph` (materialize, patch, etc.)
+StrandDescriptorStore is currently 643 LOC. Pushing `create`, `braid`,
+`drop`, `list`, `get`, `getOrThrow` adds ~200 LOC of orchestration.
+That puts it over 500.
+
+Split: `StrandDescriptorValidation.ts` (~200 LOC) — all the
+normalization and validation helpers that are currently free functions
+in StrandService. `StrandDescriptorStore.ts` (~450 LOC) — CRUD +
+composition of validated inputs.
+
+## Test files
+
+- `test/unit/domain/WarpGraph.strands.test.js`
+- `test/unit/domain/services/strand/*.test.js`
+
+## Execution order
+
+1. Push lifecycle methods into StrandDescriptorStore
+2. Split StrandDescriptorValidation.ts if over 500
+3. Verify sub-services already own their methods
+4. Create StrandCoordinator implementing StrandCapability
+5. Delete StrandService.js

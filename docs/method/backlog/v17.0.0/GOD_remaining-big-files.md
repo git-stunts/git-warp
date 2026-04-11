@@ -3,54 +3,151 @@
 ## StreamingBitmapIndexBuilder (835 LOC)
 
 Builds complete bitmap indexes from scratch (vs IncrementalIndexUpdater
-which patches existing ones). Split: build phase vs serialize phase.
+which patches existing ones).
 
-- **Build** (~400 LOC): walks materialized state, constructs bitmaps
-  for nodes, edges, properties
-- **Serialize** (~300 LOC): converts built bitmaps to shard format,
-  writes to index store
-- **Shared** (~135 LOC): shard key computation, bitmap utilities
+### Boundary violation
 
-Split into 2 files:
-- `BitmapIndexBuild.ts` (~400 LOC) — walk state, construct bitmaps
-- `BitmapIndexSerialize.ts` (~300 LOC) — convert to shard format, write
+Same as IncrementalIndexUpdater: the "serialize phase" is domain code
+encoding typed objects to `Uint8Array`. Serialization is the port's
+job (SSTS P5).
+
+### The fix
+
+Uses the same `ShardPort` from the IncrementalIndexUpdater split.
+The builder constructs typed shard objects (`MetaShard`, `EdgeShard`,
+`LabelMap`). The port adapter serializes them.
+
+### Split: 2 files
+
+`BitmapIndexBuilder.ts` (~500 LOC):
+```typescript
+class BitmapIndexBuilder {
+  constructor(private readonly shards: ShardPort) {}
+
+  build(state: WarpState): void
+  // Walks state.nodeAlive, state.edgeAlive, state.prop.
+  // Constructs MetaShard/EdgeShard/LabelMap objects.
+  // Saves via this.shards.saveMeta(), saveEdgeShard(), saveLabels().
+
+  // Private: buildNodeShards, buildEdgeShards, buildPropertyShards
+}
+```
+
+The current "serialize" methods (`_serializeMeta`, `_serializeEdge`,
+etc.) move into the `ShardPort` adapter — they ARE the adapter.
+
+If the builder exceeds 500 LOC after removing serialize logic, split
+further:
+- `BitmapNodeBuilder.ts` — node shard construction
+- `BitmapEdgeBuilder.ts` — edge shard construction
+
+But the serialize removal alone should drop ~300 LOC.
+
+---
 
 ## AuditVerifierService (824 LOC)
 
-Verifies audit receipt chains for trust evaluation. Split: verification
-logic vs chain walking.
+### Split: 2 files + 1 class
 
-- **Verification** (~400 LOC): signature verification, receipt
-  validation, trust assessment per patch
-- **Chain walking** (~300 LOC): traverses writer patch chains,
-  collects receipts, builds assessment summary
-- **Types** (~125 LOC): assessment result shapes
+`AuditChainWalker.ts` (~300 LOC):
+```typescript
+class AuditChainWalker {
+  constructor(
+    private readonly persistence: CommitPort & BlobPort,
+    private readonly codec: CodecPort,
+  ) {}
 
-2 files: `AuditVerifier.ts` (verification) + `AuditChainWalker.ts`
-(chain traversal).
+  walkWriterChain(writerId: string, tipSha: string): AsyncGenerator<AuditRecord>
+  collectAllRecords(frontier: Map<string, string>): Promise<AuditRecord[]>
+}
+```
 
-## SSTS amendments
+`AuditVerifier.ts` (~400 LOC):
+```typescript
+class AuditVerifier {
+  constructor(
+    private readonly walker: AuditChainWalker,
+    private readonly crypto: CryptoPort,
+  ) {}
 
-- **Assessment results:** `TrustAssessment` class with behavior
-  (`isValid()`, `trustLevel()`, `violations()`). Not a plain record —
-  consumers need to act on assessments, not switch on fields.
-- **Diff results:** `StateDiff` stays a record (no behavior — it's
-  pure data consumed by comparison). Node/edge diff entries are
-  records too. Only promote to class if consumers need methods.
+  verifyChain(frontier: Map<string, string>): Promise<TrustAssessment>
+  verifyRecord(record: AuditRecord): Promise<RecordVerdict>
+}
+```
+
+`TrustAssessment` class (~125 LOC, own file):
+```typescript
+class TrustAssessment {
+  readonly verdict: 'trusted' | 'degraded' | 'untrusted';
+  readonly violations: readonly TrustViolation[];
+  readonly writerAssessments: ReadonlyMap<string, WriterAssessment>;
+
+  constructor(params: { ... }) { Object.freeze(this); }
+
+  isValid(): boolean { return this.verdict === 'trusted'; }
+  trustLevel(): 'trusted' | 'degraded' | 'untrusted' { return this.verdict; }
+  violationsFor(writerId: string): readonly TrustViolation[] { ... }
+}
+```
+
+Behavior on the object. Consumers call `assessment.isValid()`, not
+`assessment.verdict === 'trusted'`.
+
+---
 
 ## VisibleStateComparisonV5 (808 LOC)
 
-Compares two materialized states for divergence analysis. Used by
-ComparisonController. Split: node comparison vs edge comparison vs
-property comparison vs aggregation.
+### Split: 2 files
 
-- **Node diff** (~200 LOC): added/removed nodes
-- **Edge diff** (~200 LOC): added/removed edges
-- **Property diff** (~250 LOC): changed properties, target filtering
-- **Aggregation** (~160 LOC): combines diffs into comparison result
+`NodeEdgeDiff.ts` (~400 LOC):
+```typescript
+function diffNodes(
+  left: WarpState,
+  right: WarpState,
+): { added: string[]; removed: string[] }
 
-3 files would be clean but might be over-decomposition for ~200 LOC
-each. Try 2: `NodeEdgeDiff.ts` + `PropertyDiff.ts` + orchestrator.
-Split into 2 files:
-- `NodeEdgeDiff.ts` (~400 LOC) — node/edge added/removed + aggregation
-- `PropertyDiff.ts` (~250 LOC) — property changes + target filtering
+function diffEdges(
+  left: WarpState,
+  right: WarpState,
+): { added: EdgeDiffEntry[]; removed: EdgeDiffEntry[] }
+
+function aggregateStructuralDiff(
+  nodeDiff: { added: string[]; removed: string[] },
+  edgeDiff: { added: EdgeDiffEntry[]; removed: EdgeDiffEntry[] },
+): StructuralDiff
+```
+
+`PropertyDiff.ts` (~250 LOC):
+```typescript
+function diffProperties(
+  left: WarpState,
+  right: WarpState,
+  targetId: string | null,
+): PropertyDiffResult
+
+type PropertyDiffResult = {
+  changed: Array<{
+    nodeId: string;
+    key: string;
+    leftValue: unknown;
+    rightValue: unknown;
+  }>;
+  targetDiff: TargetPropertyDiff | null;
+};
+```
+
+Orchestrator stays in existing `VisibleStateComparisonV5.ts` (~160 LOC):
+```typescript
+function compareVisibleStateV5(
+  left: WarpState,
+  right: WarpState,
+  options: { targetId: string | null },
+): VisibleStateDiff {
+  const structural = aggregateStructuralDiff(diffNodes(...), diffEdges(...));
+  const properties = diffProperties(left, right, options.targetId);
+  return { structural, properties };
+}
+```
+
+`StateDiff` stays a record — it's pure data, no behavior. Consumers
+read fields, they don't dispatch on them.
