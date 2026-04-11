@@ -14,6 +14,6 @@ One function, one file. `src/domain/services/DetachedGraphFactory.ts`.
 Takes typed dependencies (persistence, ports, config) and returns a
 read-only graph handle. All three consumers import from here.
 
-Better yet: when the capability API lands, "detached read graph" is
-just `openWarpGraph()` with the same persistence and
-`autoMaterialize: false`. The factory function might dissolve entirely.
+When the capability API lands, "detached read graph" becomes
+`openWarpGraph()` with the same persistence and
+`autoMaterialize: false`. The factory function dissolves.

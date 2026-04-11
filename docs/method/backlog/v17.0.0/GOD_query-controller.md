@@ -79,30 +79,27 @@ Observer comparison utility.
 
 ## Split strategy
 
-### Option A: 3 files (recommended)
-- `QueryReads.ts` (~250 LOC) — graph reads + helpers
-- `QueryContent.ts` (~350 LOC) — content access + content helpers
-- `QueryController.ts` (~350 LOC) — factories, observer logic,
-  translation cost, selector normalization, detached graph cloning
+3 files. QueryController implements `QueryCapability` directly.
 
-All under 500. QueryController remains the capability implementation
-and composes the read/content modules internally.
-
-### Option B: QueryController becomes the capability directly
-When the capability interface lands, QueryController itself IS the
-`QueryCapability` implementation. The free functions become real
-methods. The `defineProperty` wiring dies. The `_host` reference
-becomes injected dependencies (state provider, blob storage, index).
-
-This is the end state. Option A is the intermediate step.
+- `QueryReads.ts` (~250 LOC) — graph read methods: hasNode, getNodes,
+  getNodeProps, getEdgeProps, getEdges, getPropertyCount, neighbors,
+  getStateSnapshot. Injected deps: `MaterializedStateProvider`,
+  `IndexProvider`.
+- `QueryContent.ts` (~350 LOC) — `NodeContent` and `EdgeContent`
+  accessor classes (oid, meta, bytes, stream). Injected deps:
+  `MaterializedStateProvider`, `BlobStoragePort`.
+- `QueryController.ts` (~350 LOC) — implements `QueryCapability`.
+  Composes QueryReads + QueryContent. Owns factory methods (query,
+  worldline, observer), translation cost, selector normalization.
+  Real methods, no defineProperty. Injected deps, no _host bag.
 
 ## Execution order
 
-1. Extract content helpers to `QueryContent.ts`
-2. Extract graph read helpers to `QueryReads.ts`
-3. Convert remaining QueryController to TS with real methods
-4. Delete defineProperty wiring
-5. Update imports in WarpRuntime.js
+1. Create `QueryContent.ts` with `NodeContent` / `EdgeContent` classes
+2. Create `QueryReads.ts` with graph read methods as real methods
+3. Rewrite `QueryController.ts` as capability implementation
+4. Delete all defineProperty wiring
+5. Delete `_wiredMethods.d.ts` query section
 
 ## Sludge that MUST die during this split
 

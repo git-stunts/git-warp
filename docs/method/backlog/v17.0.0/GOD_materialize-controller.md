@@ -64,16 +64,19 @@ scanning, detached graph cloning, frontier comparison.
 
 ## Split strategy
 
-### 3 files (recommended)
-- `MaterializeCache.ts` (~200 LOC) — seek cache + index lifecycle
-- `MaterializeHelpers.ts` (~200 LOC) — normalization, scanning,
-  frontier comparison, detached cloning, freeze
-- `MaterializeController.ts` (~400 LOC) — pipeline + state management
+### 3 files
 
-Alternatively, if the pipeline methods are still too long after
-extracting cache + helpers, split the controller itself into
-`LiveMaterializer` (full materialize) and `CoordinateMaterializer`
-(coordinate/ceiling materialize). But try the 3-file split first.
+- `MaterializeCache.ts` (~200 LOC) — seek cache persistence, index
+  restore, coordinate cache lookup, index verify/invalidate.
+  Injected deps: `SeekCachePort`, `IndexStore`.
+- `MaterializeHelpers.ts` (~200 LOC) — frontier normalization, ceiling
+  validation, lamport scanning, frontier comparison, freeze helpers.
+  Pure functions, no host access.
+- `MaterializeController.ts` (~400 LOC) — the 3 materialization
+  pipelines (live, coordinate, checkpoint) + state caching +
+  adjacency building + subscriber notification. Composes cache +
+  helpers. Injected deps: `StateCache`, `PatchCollector`, `ClockPort`,
+  `LoggerPort`. No `_host` bag.
 
 ## Dependencies on WarpRuntime internals
 
