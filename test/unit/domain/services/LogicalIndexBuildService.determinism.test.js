@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
+import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.ts';
 import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';

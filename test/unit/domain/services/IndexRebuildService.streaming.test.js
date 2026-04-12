@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import IndexRebuildService from '../../../../src/domain/services/index/IndexRebuildService.js';
+import IndexRebuildService from '../../../../src/domain/services/index/IndexRebuildService.ts';
 import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
 
 describe('IndexRebuildService streaming mode', () => {

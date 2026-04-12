@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import PropertyIndexBuilder from '../../../../src/domain/services/index/PropertyIndexBuilder.js';
-import PropertyIndexReader from '../../../../src/domain/services/index/PropertyIndexReader.js';
+import PropertyIndexBuilder from '../../../../src/domain/services/index/PropertyIndexBuilder.ts';
+import PropertyIndexReader from '../../../../src/domain/services/index/PropertyIndexReader.ts';
 import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';

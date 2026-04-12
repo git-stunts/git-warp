@@ -14,9 +14,9 @@
 
 import defaultCodec from '../utils/defaultCodec.ts';
 import nullLogger from '../utils/nullLogger.ts';
-import LogicalIndexBuildService from './index/LogicalIndexBuildService.js';
+import LogicalIndexBuildService from './index/LogicalIndexBuildService.ts';
 import LogicalIndexReader from './index/LogicalIndexReader.ts';
-import PropertyIndexReader from './index/PropertyIndexReader.js';
+import PropertyIndexReader from './index/PropertyIndexReader.ts';
 import IncrementalIndexUpdater from './index/IncrementalIndexUpdater.ts';
 import WarpError from '../errors/WarpError.ts';
 import { buildInMemoryPropertyReader, partitionShardOids, shardToEntry } from './MaterializedViewHelpers.ts';

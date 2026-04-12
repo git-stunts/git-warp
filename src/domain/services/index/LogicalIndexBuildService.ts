@@ -7,49 +7,42 @@
  * @module domain/services/index/LogicalIndexBuildService
  */
 
-import nullLogger from '../../utils/nullLogger.ts';
-import LogicalBitmapIndexBuilder from './LogicalBitmapIndexBuilder.js';
-import PropertyIndexBuilder from './PropertyIndexBuilder.js';
-import { decodeEdgeKey, decodePropKey, isEdgePropKey } from '../KeyCodec.js';
-import { nodeVisibleV5, edgeVisible } from '../state/StateSerializer.js';
+import LogicalBitmapIndexBuilder from './LogicalBitmapIndexBuilder.ts';
+import PropertyIndexBuilder from './PropertyIndexBuilder.ts';
+import { decodeEdgeKey, decodePropKey, isEdgePropKey } from '../KeyCodec.ts';
+import { nodeVisibleV5, edgeVisible } from '../state/StateSerializer.ts';
 import WarpStream from '../../stream/WarpStream.ts';
 import { ReceiptShard } from '../../artifacts/ReceiptShard.ts';
 import IndexError from '../../errors/IndexError.ts';
+import type WarpState from '../state/WarpState.ts';
+import type { IndexShard } from '../../artifacts/IndexShard.ts';
 
 export default class LogicalIndexBuildService {
-  /**
-   * Creates a LogicalIndexBuildService with optional logger.
-   *
-   * @param {{ logger?: import('../../../ports/LoggerPort.ts').default }} [options]
-   */
-  constructor(options = undefined) {
-    const { logger } = options || {};
-    this._logger = logger || nullLogger;
-  }
-
   /**
    * Builds a complete logical index as a collected array of IndexShard records.
    *
    * Synchronous alternative to buildStream() for callers that need all
    * shards in memory (e.g., MaterializedViewService.build() which hydrates
    * an in-memory LogicalIndex).
-   *
-   * @param {import('../JoinReducer.ts').WarpState} state
-   * @param {{ existingMeta?: Record<string, { nodeToGlobal: Record<string, number>, nextLocalId: number }>, existingLabels?: Record<string, number>|Array<[string, number]> }} [options]
-   * @returns {{ shards: import('../../artifacts/IndexShard.ts').IndexShard[], receipt: ReceiptShard }}
    */
-  buildShards(state, options = {}) {
+  buildShards(
+    state: WarpState,
+    options: {
+      existingMeta?: Record<string, { nodeToGlobal: Record<string, number>; nextLocalId: number }>;
+      existingLabels?: Record<string, number> | Array<[string, number]>;
+    } = {},
+  ): { shards: IndexShard[]; receipt: ReceiptShard } {
     const { indexBuilder, propBuilder } = this._populateBuilders(state, options);
     const indexShards = [...indexBuilder.yieldShards()];
     const propShards = [...propBuilder.yieldShards()];
-    const receiptShard = indexShards.find((s) => s instanceof ReceiptShard);
-    if (!receiptShard) {
+    const receiptShardBase = indexShards.find((s) => s instanceof ReceiptShard);
+    if (!(receiptShardBase instanceof ReceiptShard)) {
       throw new IndexError(
         'LogicalIndexBuildService: index builder did not emit a ReceiptShard',
         { code: 'E_INDEX_NO_RECEIPT_SHARD' },
       );
     }
-    return { shards: [...indexShards, ...propShards], receipt: /** @type {ReceiptShard} */ (receiptShard) };
+    return { shards: [...indexShards, ...propShards], receipt: receiptShardBase };
   }
 
   /**
@@ -59,19 +52,21 @@ export default class LogicalIndexBuildService {
    * and ReceiptShard instances in builder order. Pipe through
    * IndexShardEncodeTransform → GitBlobWriteTransform → TreeAssemblerSink
    * to persist.
-   *
-   * @param {import('../JoinReducer.ts').WarpState} state
-   * @param {{ existingMeta?: Record<string, { nodeToGlobal: Record<string, number>, nextLocalId: number }>, existingLabels?: Record<string, number>|Array<[string, number]> }} [options]
-   * @returns {{ stream: WarpStream<import('../../artifacts/IndexShard.ts').IndexShard>, receipt: ReceiptShard }}
    */
-  buildStream(state, options = {}) {
+  buildStream(
+    state: WarpState,
+    options: {
+      existingMeta?: Record<string, { nodeToGlobal: Record<string, number>; nextLocalId: number }>;
+      existingLabels?: Record<string, number> | Array<[string, number]>;
+    } = {},
+  ): { stream: WarpStream<IndexShard>; receipt: ReceiptShard } {
     const { indexBuilder, propBuilder } = this._populateBuilders(state, options);
 
     // Collect shards once — generators yield fresh iterators on each call,
     // so calling yieldShards() twice would re-iterate all bitmaps.
     const indexShards = [...indexBuilder.yieldShards()];
-    const receiptShard = indexShards.find((s) => s instanceof ReceiptShard);
-    if (!receiptShard) {
+    const receiptShardBase = indexShards.find((s) => s instanceof ReceiptShard);
+    if (!(receiptShardBase instanceof ReceiptShard)) {
       throw new IndexError(
         'LogicalIndexBuildService: index builder did not emit a ReceiptShard',
         { code: 'E_INDEX_NO_RECEIPT_SHARD' },
@@ -84,18 +79,16 @@ export default class LogicalIndexBuildService {
       WarpStream.from(propBuilder.yieldShards()),
     );
 
-    return { stream, receipt: /** @type {ReceiptShard} */ (receiptShard) };
+    return { stream, receipt: receiptShardBase };
   }
 
-  /**
-   * Populates both builders from state. Used by buildStream().
-   *
-   * @param {import('../JoinReducer.ts').WarpState} state
-   * @param {{ existingMeta?: Record<string, { nodeToGlobal: Record<string, number>, nextLocalId: number }>, existingLabels?: Record<string, number>|Array<[string, number]> }} options
-   * @returns {{ indexBuilder: LogicalBitmapIndexBuilder, propBuilder: PropertyIndexBuilder }}
-   * @private
-   */
-  _populateBuilders(state, options) {
+  private _populateBuilders(
+    state: WarpState,
+    options: {
+      existingMeta?: Record<string, { nodeToGlobal: Record<string, number>; nextLocalId: number }>;
+      existingLabels?: Record<string, number> | Array<[string, number]>;
+    },
+  ): { indexBuilder: LogicalBitmapIndexBuilder; propBuilder: PropertyIndexBuilder } {
     const indexBuilder = new LogicalBitmapIndexBuilder();
     const propBuilder = new PropertyIndexBuilder();
 
@@ -114,7 +107,7 @@ export default class LogicalIndexBuildService {
       indexBuilder.markAlive(nodeId);
     }
 
-    const visibleEdges = _collectVisibleEdges(state);
+    const visibleEdges = collectVisibleEdges(state);
     const uniqueLabels = [...new Set(visibleEdges.map((e) => e.label))].sort();
     for (const label of uniqueLabels) {
       indexBuilder.registerLabel(label);
@@ -125,7 +118,7 @@ export default class LogicalIndexBuildService {
 
     for (const [propKey, register] of state.prop) {
       if (isEdgePropKey(propKey)) { continue; }
-      const { nodeId, propKey: key } = decodePropKey(propKey);
+      const { nodeId, propKey: key } = decodePropKey(propKey) as { nodeId: string; propKey: string };
       if (nodeVisibleV5(state, nodeId)) {
         propBuilder.addProperty(nodeId, key, register.value);
       }
@@ -135,17 +128,11 @@ export default class LogicalIndexBuildService {
   }
 }
 
-/**
- * Collects and sorts visible edges from state.
- *
- * @param {import('../JoinReducer.ts').WarpState} state
- * @returns {Array<{from: string, to: string, label: string}>}
- */
-function _collectVisibleEdges(state) {
-  const visibleEdges = [];
+function collectVisibleEdges(state: WarpState): Array<{ from: string; to: string; label: string }> {
+  const visibleEdges: Array<{ from: string; to: string; label: string }> = [];
   for (const edgeKey of state.edgeAlive.elements()) {
     if (edgeVisible(state, edgeKey)) {
-      visibleEdges.push(decodeEdgeKey(edgeKey));
+      visibleEdges.push(decodeEdgeKey(edgeKey) as { from: string; to: string; label: string });
     }
   }
   visibleEdges.sort((a, b) => {

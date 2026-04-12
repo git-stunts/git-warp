@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import BitmapIndexBuilder from '../../../../src/domain/services/index/BitmapIndexBuilder.js';
+import BitmapIndexBuilder from '../../../../src/domain/services/index/BitmapIndexBuilder.ts';
 
 describe('BitmapIndexBuilder Integrity Tests', () => {
   describe('Merkle-like properties', () => {

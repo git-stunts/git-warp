@@ -15,50 +15,45 @@
  */
 
 import computeShardKey from '../../utils/shardKey.ts';
-import { getRoaringBitmap32 } from '../../utils/roaring.ts';
+import { getRoaringBitmap32, type RoaringBitmapSubset } from '../../utils/roaring.ts';
 import { ShardIdOverflowError } from '../../errors/index.ts';
 import { MetaShard } from '../../artifacts/MetaShard.ts';
 import { EdgeShard } from '../../artifacts/EdgeShard.ts';
 import { LabelShard } from '../../artifacts/LabelShard.ts';
 import { ReceiptShard } from '../../artifacts/ReceiptShard.ts';
+import type { IndexShard } from '../../artifacts/IndexShard.ts';
 
 /** Maximum local IDs per shard (2^24). */
 const MAX_LOCAL_ID = 1 << 24;
 
+type NodeToGlobalArray = Array<[string, number]>;
+type NodeToGlobalRecord = Record<string, number>;
+
+type MetaInput = {
+  nodeToGlobal: NodeToGlobalArray | NodeToGlobalRecord;
+  nextLocalId: number;
+};
+
 export default class LogicalBitmapIndexBuilder {
-  /**
-   * Creates a LogicalBitmapIndexBuilder.
-   */
+  private readonly _nodeToGlobal: Map<string, number>;
+  private readonly _globalToNode: Map<string, string>;
+  private readonly _shardNextLocal: Map<string, number>;
+  private readonly _aliveBitmaps: Map<string, RoaringBitmapSubset>;
+  private readonly _labelToId: Map<string, number>;
+  private _nextLabelId: number;
+  private readonly _fwdBitmaps: Map<string, RoaringBitmapSubset>;
+  private readonly _revBitmaps: Map<string, RoaringBitmapSubset>;
+  private readonly _shardNodes: Map<string, Array<[string, number]>>;
+
   constructor() {
-    /** @type {Map<string, number>} nodeId → globalId */
     this._nodeToGlobal = new Map();
-
-    /** @type {Map<string, string>} globalId(string) → nodeId */
     this._globalToNode = new Map();
-
-    /** Per-shard next local ID counters. @type {Map<string, number>} */
     this._shardNextLocal = new Map();
-
-    /** Alive bitmap per shard. @type {Map<string, import('../../utils/roaring.ts').RoaringBitmapSubset>} */
     this._aliveBitmaps = new Map();
-
-    /** Label → labelId (append-only). @type {Map<string, number>} */
     this._labelToId = new Map();
-
-    /** @type {number} */
     this._nextLabelId = 0;
-
-    /**
-     * Forward edge bitmaps.
-     * Key: `${shardKey}:all:${globalId}` or `${shardKey}:${labelId}:${globalId}`
-     * @type {Map<string, import('../../utils/roaring.ts').RoaringBitmapSubset>}
-     */
     this._fwdBitmaps = new Map();
-
-    /** Reverse edge bitmaps. Same key scheme as _fwdBitmaps. @type {Map<string, import('../../utils/roaring.ts').RoaringBitmapSubset>} */
     this._revBitmaps = new Map();
-
-    /** Per-shard node list for O(shard) serialize. @type {Map<string, Array<[string, number]>>} */
     this._shardNodes = new Map();
   }
 
@@ -66,11 +61,9 @@ export default class LogicalBitmapIndexBuilder {
    * Registers a node and returns its stable global ID.
    * GlobalId = (shardByte << 24) | localId.
    *
-   * @param {string} nodeId
-   * @returns {number} globalId
    * @throws {ShardIdOverflowError} If the shard is full
    */
-  registerNode(nodeId) {
+  registerNode(nodeId: string): number {
     const existing = this._nodeToGlobal.get(nodeId);
     if (existing !== undefined) {
       return existing;
@@ -104,10 +97,8 @@ export default class LogicalBitmapIndexBuilder {
 
   /**
    * Marks a node as alive in its shard's alive bitmap.
-   *
-   * @param {string} nodeId
    */
-  markAlive(nodeId) {
+  markAlive(nodeId: string): void {
     const globalId = this._nodeToGlobal.get(nodeId);
     if (globalId === undefined) {
       return;
@@ -124,11 +115,8 @@ export default class LogicalBitmapIndexBuilder {
 
   /**
    * Registers a label and returns its append-only labelId.
-   *
-   * @param {string} label
-   * @returns {number}
    */
-  registerLabel(label) {
+  registerLabel(label: string): number {
     const existing = this._labelToId.get(label);
     if (existing !== undefined) {
       return existing;
@@ -141,12 +129,8 @@ export default class LogicalBitmapIndexBuilder {
   /**
    * Adds a directed edge, populating forward/reverse bitmaps
    * for both the 'all' bucket and the per-label bucket.
-   *
-   * @param {string} fromId - Source node ID (must be registered)
-   * @param {string} toId - Target node ID (must be registered)
-   * @param {string} label - Edge label (must be registered)
    */
-  addEdge(fromId, toId, label) {
+  addEdge(fromId: string, toId: string, label: string): void {
     const fromGlobal = this._nodeToGlobal.get(fromId);
     const toGlobal = this._nodeToGlobal.get(toId);
     if (fromGlobal === undefined || toGlobal === undefined) {
@@ -172,12 +156,9 @@ export default class LogicalBitmapIndexBuilder {
 
   /**
    * Seeds ID mappings from a previously built meta shard for ID stability.
-   *
-   * @param {string} shardKey
-   * @param {{ nodeToGlobal: Array<[string, number]>|Record<string, number>, nextLocalId: number }} metaShard
    */
-  loadExistingMeta(shardKey, metaShard) {
-    const entries = Array.isArray(metaShard.nodeToGlobal)
+  loadExistingMeta(shardKey: string, metaShard: MetaInput): void {
+    const entries: Array<[string, number]> = Array.isArray(metaShard.nodeToGlobal)
       ? metaShard.nodeToGlobal
       : Object.entries(metaShard.nodeToGlobal);
     let shardList = this._shardNodes.get(shardKey);
@@ -186,9 +167,9 @@ export default class LogicalBitmapIndexBuilder {
       this._shardNodes.set(shardKey, shardList);
     }
     for (const [nodeId, globalId] of entries) {
-      this._nodeToGlobal.set(nodeId, /** @type {number} */ (globalId));
-      this._globalToNode.set(String(globalId), /** @type {string} */ (nodeId));
-      shardList.push([/** @type {string} */ (nodeId), /** @type {number} */ (globalId)]);
+      this._nodeToGlobal.set(nodeId, globalId);
+      this._globalToNode.set(String(globalId), nodeId);
+      shardList.push([nodeId, globalId]);
     }
     const current = this._shardNextLocal.get(shardKey) ?? 0;
     if (metaShard.nextLocalId > current) {
@@ -198,11 +179,11 @@ export default class LogicalBitmapIndexBuilder {
 
   /**
    * Seeds the label registry from a previous build for append-only stability.
-   *
-   * @param {Record<string, number>|Array<[string, number]>} registry - label → labelId
    */
-  loadExistingLabels(registry) {
-    const entries = Array.isArray(registry) ? registry : Object.entries(registry);
+  loadExistingLabels(registry: Record<string, number> | Array<[string, number]>): void {
+    const entries: Array<[string, number]> = Array.isArray(registry)
+      ? registry
+      : Object.entries(registry);
     let maxId = this._nextLabelId;
     for (const [label, id] of entries) {
       this._labelToId.set(label, id);
@@ -216,13 +197,10 @@ export default class LogicalBitmapIndexBuilder {
   /**
    * Yields IndexShard instances without encoding.
    *
-   * Pipe the
-   * output through the adapter's encode → blobWrite → treeAssemble
+   * Pipe the output through the adapter's encode → blobWrite → treeAssemble
    * pipeline to persist.
-   *
-   * @returns {Generator<import('../../artifacts/IndexShard.ts').IndexShard>}
    */
-  *yieldShards() {
+  *yieldShards(): Generator<IndexShard> {
     const allShardKeys = new Set([...this._shardNextLocal.keys()]);
 
     // Meta shards
@@ -243,8 +221,7 @@ export default class LogicalBitmapIndexBuilder {
     }
 
     // Labels registry
-    /** @type {Array<[string, number]>} */
-    const labelRegistry = [];
+    const labelRegistry: Array<[string, number]> = [];
     for (const [label, id] of this._labelToId) {
       labelRegistry.push([label, id]);
     }
@@ -263,17 +240,11 @@ export default class LogicalBitmapIndexBuilder {
     });
   }
 
-  /**
-   * Yields EdgeShard instances for a direction without encoding.
-   *
-   * @param {'fwd'|'rev'} direction
-   * @param {Map<string, import('../../utils/roaring.ts').RoaringBitmapSubset>} bitmaps
-   * @returns {Generator<EdgeShard>}
-   * @private
-   */
-  *_yieldEdgeShards(direction, bitmaps) {
-    /** @type {Map<string, Record<string, Record<string, Uint8Array>>>} */
-    const byShardKey = new Map();
+  private *_yieldEdgeShards(
+    direction: 'fwd' | 'rev',
+    bitmaps: Map<string, RoaringBitmapSubset>,
+  ): Generator<EdgeShard> {
+    const byShardKey = new Map<string, Record<string, Record<string, Uint8Array>>>();
 
     for (const [key, bitmap] of bitmaps) {
       const firstColon = key.indexOf(':');
@@ -285,7 +256,7 @@ export default class LogicalBitmapIndexBuilder {
       if (!byShardKey.has(shardKey)) {
         byShardKey.set(shardKey, {});
       }
-      const shardData = /** @type {Record<string, Record<string, Uint8Array>>} */ (byShardKey.get(shardKey));
+      const shardData = byShardKey.get(shardKey)!;
       if (!shardData[bucketName]) {
         shardData[bucketName] = {};
       }
@@ -297,14 +268,11 @@ export default class LogicalBitmapIndexBuilder {
     }
   }
 
-  /**
-   * Adds a target ID to a Roaring bitmap in the given store, creating it if needed.
-   *
-   * @param {Map<string, import('../../utils/roaring.ts').RoaringBitmapSubset>} store
-   * @param {{ shardKey: string, bucket: string, owner: number, target: number }} opts
-   * @private
-   */
-  _addToBitmap(store, { shardKey, bucket, owner, target }) {
+  private _addToBitmap(
+    store: Map<string, RoaringBitmapSubset>,
+    opts: { shardKey: string; bucket: string; owner: number; target: number },
+  ): void {
+    const { shardKey, bucket, owner, target } = opts;
     const key = `${shardKey}:${bucket}:${owner}`;
     let bitmap = store.get(key);
     if (!bitmap) {

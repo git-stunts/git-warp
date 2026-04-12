@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.ts';
-import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
+import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
 import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import {

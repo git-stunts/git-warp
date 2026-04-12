@@ -17,7 +17,7 @@ import { LabelShard } from '../artifacts/LabelShard.ts';
 import { PropertyShard } from '../artifacts/PropertyShard.ts';
 import { ReceiptShard } from '../artifacts/ReceiptShard.ts';
 import IndexError from '../errors/IndexError.ts';
-import PropertyIndexReader from './index/PropertyIndexReader.js';
+import PropertyIndexReader from './index/PropertyIndexReader.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type IndexStoragePort from '../../ports/IndexStoragePort.ts';
 import type { IndexShard } from '../artifacts/IndexShard.ts';

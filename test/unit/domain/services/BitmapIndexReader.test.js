@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import BitmapIndexReader from '../../../../src/domain/services/index/BitmapIndexReader.js';
-import BitmapIndexBuilder from '../../../../src/domain/services/index/BitmapIndexBuilder.js';
+import BitmapIndexReader from '../../../../src/domain/services/index/BitmapIndexReader.ts';
+import BitmapIndexBuilder from '../../../../src/domain/services/index/BitmapIndexBuilder.ts';
 import { ShardLoadError, ShardCorruptionError } from '../../../../src/domain/errors/index.ts';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 import { getRoaringBitmap32 } from '../../../../src/domain/utils/roaring.ts';

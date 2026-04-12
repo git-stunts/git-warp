@@ -3,7 +3,7 @@
  * IndexShard instances that can be piped through the encode pipeline.
  */
 import { describe, it, expect } from 'vitest';
-import LogicalBitmapIndexBuilder from '../../../../src/domain/services/index/LogicalBitmapIndexBuilder.js';
+import LogicalBitmapIndexBuilder from '../../../../src/domain/services/index/LogicalBitmapIndexBuilder.ts';
 import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import { IndexShardEncodeTransform } from '../../../../src/infrastructure/adapters/IndexShardEncodeTransform.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';

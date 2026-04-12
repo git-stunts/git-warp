@@ -16,7 +16,7 @@ import {
   F9_UNICODE_CODEPOINT_ORDER,
   F10_PROTO_POLLUTION,
 } from '../helpers/fixtureDsl.js';
-import BitmapNeighborProvider from '../../src/domain/services/index/BitmapNeighborProvider.js';
+import BitmapNeighborProvider from '../../src/domain/services/index/BitmapNeighborProvider.ts';
 
 // ── Build providers ─────────────────────────────────────────────────────────
 

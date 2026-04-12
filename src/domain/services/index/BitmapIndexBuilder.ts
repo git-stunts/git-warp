@@ -2,16 +2,18 @@ import defaultCodec from '../../utils/defaultCodec.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
 import { textEncode } from '../../utils/bytes.ts';
 import BitmapAccumulator from './BitmapAccumulator.ts';
+import type CodecPort from '../../../ports/CodecPort.ts';
+import type { RoaringBitmapSubset } from '../../utils/roaring.ts';
 
 /**
  * Serializes a frontier Map into CBOR and JSON blobs in the given tree.
- * @param {Map<string, string>} frontier - Writer→tip SHA map
- * @param {Record<string, Uint8Array>} tree - Target tree to add entries to
- * @param {import('../../../ports/CodecPort.ts').default} codec - Codec for CBOR serialization
  */
-function serializeFrontierToTree(frontier, tree, codec) {
-  /** @type {Record<string, string|undefined>} */
-  const sorted = {};
+function serializeFrontierToTree(
+  frontier: Map<string, string>,
+  tree: Record<string, Uint8Array>,
+  codec: CodecPort,
+): void {
+  const sorted: Record<string, string | undefined> = {};
   for (const key of Array.from(frontier.keys()).sort()) {
     sorted[key] = frontier.get(key);
   }
@@ -33,45 +35,45 @@ function serializeFrontierToTree(frontier, tree, codec) {
  * const tree = await builder.serialize();
  */
 export default class BitmapIndexBuilder {
+  private readonly _codec: CodecPort;
+  private readonly _accumulator: BitmapAccumulator;
+
   /**
    * Creates a new BitmapIndexBuilder instance.
-   *
-   * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options] - Configuration options
    */
-  constructor(options = undefined) {
+  constructor(options?: { codec?: CodecPort }) {
     const { codec } = options ?? {};
-    /** @type {import('../../../ports/CodecPort.ts').default} */
-    this._codec = codec || defaultCodec;
+    this._codec = codec ?? defaultCodec;
     this._accumulator = new BitmapAccumulator();
   }
 
-  /** SHA→numeric-ID forward mapping.
-   * @returns {Map<string, number>} */
-  get shaToId() { return this._accumulator.shaToId; }
+  /** SHA→numeric-ID forward mapping. */
+  get shaToId(): Map<string, number> {
+    return this._accumulator.shaToId;
+  }
 
-  /** Numeric-ID→SHA reverse mapping.
-   * @returns {string[]} */
-  get idToSha() { return this._accumulator.idToSha; }
+  /** Numeric-ID→SHA reverse mapping. */
+  get idToSha(): string[] {
+    return this._accumulator.idToSha;
+  }
 
-  /** Active bitmap map keyed by `{dir}_{sha}`.
-   * @returns {Map<string, import('../../utils/roaring.ts').RoaringBitmapSubset>} */
-  get bitmaps() { return this._accumulator.bitmaps; }
+  /** Active bitmap map keyed by `{dir}_{sha}`. */
+  get bitmaps(): Map<string, RoaringBitmapSubset> {
+    return this._accumulator.bitmaps;
+  }
 
   /**
    * Registers a node without adding edges.
-   * @param {string} sha - The node's SHA
-   * @returns {number} The assigned numeric ID
+   * @returns The assigned numeric ID
    */
-  registerNode(sha) {
+  registerNode(sha: string): number {
     return this._accumulator.registerNode(sha);
   }
 
   /**
    * Adds a directed edge from source to target node.
-   * @param {string} srcSha - Source node SHA (parent)
-   * @param {string} tgtSha - Target node SHA (child)
    */
-  addEdge(srcSha, tgtSha) {
+  addEdge(srcSha: string, tgtSha: string): void {
     this._accumulator.addEdge(srcSha, tgtSha);
   }
 
@@ -82,13 +84,10 @@ export default class BitmapIndexBuilder {
    * - `meta_XX.cbor`: {sha: id, ...} for SHAs with prefix XX
    * - `shards_fwd_XX.cbor`: {sha: Uint8Array(bitmap), ...} for forward edges
    * - `shards_rev_XX.cbor`: {sha: Uint8Array(bitmap), ...} for reverse edges
-   *
-   * @param {{ frontier?: Map<string, string> }} [options] - Serialization options
-   * @returns {Record<string, Uint8Array>} Map of path → serialized content
    */
-  serialize({ frontier } = {}) {
-    /** @type {Record<string, Uint8Array>} */
-    const tree = {};
+  serialize(options?: { frontier?: Map<string, string> }): Record<string, Uint8Array> {
+    const { frontier } = options ?? {};
+    const tree: Record<string, Uint8Array> = {};
 
     const metaShards = this._accumulator.buildMetaShards();
     for (const [prefix, map] of Object.entries(metaShards)) {
@@ -96,7 +95,7 @@ export default class BitmapIndexBuilder {
     }
 
     const bitmapShards = this._accumulator.serializeBitmapsToShards();
-    for (const dir of /** @type {const} */ (['fwd', 'rev'])) {
+    for (const dir of ['fwd', 'rev'] as const) {
       for (const [prefix, data] of Object.entries(bitmapShards[dir])) {
         tree[`shards_${dir}_${prefix}.cbor`] = this._codec.encode(data);
       }
