@@ -11,6 +11,14 @@ import StrandIntentService from './StrandIntentService.ts';
 import StrandCoordinator from './StrandCoordinator.ts';
 import { frontierRecordsEqual } from './StrandDescriptorValidation.ts';
 import { buildIntentId, buildTickId } from './strandShared.ts';
+import type { StrandDescriptor } from './strandTypes.ts';
+import type { PatchBuilder } from '../PatchBuilder.ts';
+import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
+import type { WarpState } from '../JoinReducer.ts';
+import type Patch from '../../types/Patch.ts';
+import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
+import type LoggerPort from '../../../ports/LoggerPort.ts';
+import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 
 type BaseObservation = {
   coordinateVersion: string;
@@ -31,6 +39,28 @@ type GraphRuntime = {
   _persistence: import('../../../ports/GraphPersistencePort.ts').default;
   _clock: import('../../../ports/ClockPort.ts').default;
   _crypto: import('../../../ports/CryptoPort.ts').default;
+  // Required by StrandDescriptorStore and StrandMaterializer
+  _loadPatchChainFromSha(sha: string): Promise<Array<{ patch: Patch; sha: string }>>;
+  // Required by StrandMaterializer
+  _maxObservedLamport: number;
+  _provenanceIndex: ProvenanceIndex | null;
+  _provenanceDegraded: boolean;
+  _cachedCeiling: number | null;
+  _cachedFrontier: Map<string, string> | null;
+  _lastFrontier: Map<string, string> | null;
+  _setMaterializedState(state: WarpState): Promise<void>;
+  getFrontier(): Promise<Map<string, string>>;
+  // Required by StrandPatchService
+  _patchInProgress: boolean;
+  _stateDirty: boolean;
+  _cachedViewHash: string | null;
+  _cachedState: WarpState | null;
+  _patchJournal: PatchJournalPort | null | undefined;
+  _patchBlobStorage: BlobStoragePort | null | undefined;
+  _blobStorage: BlobStoragePort | null | undefined;
+  _logger: LoggerPort | null | undefined;
+  _codec: { encode(v: unknown): Uint8Array };
+  _onDeleteWithData: 'reject' | 'cascade' | 'warn';
   [key: string]: unknown;
 };
 
@@ -51,9 +81,9 @@ function wirePatches(graph: GraphRuntime, ref: { coordinator: StrandCoordinator 
   return new StrandPatchService({
     graph,
     loadStrandOrThrow: async (strandId: string) => await ref.coordinator!.getOrThrow(strandId),
-    materializeDescriptor: async (descriptor: unknown, options: unknown) =>
+    materializeDescriptor: async (descriptor: StrandDescriptor, options: { collectReceipts: boolean; ceiling: number | null }) =>
       await subs.materializer.materializeDescriptor(descriptor, options),
-    writeDescriptor: async (descriptor: unknown) => await subs.descriptors.writeDescriptor(descriptor),
+    writeDescriptor: async (descriptor: StrandDescriptor) => await subs.descriptors.writeDescriptor(descriptor),
     buildOverlayRef: (strandId: string) => subs.descriptors.buildOverlayRef(strandId),
     normalizeIntentQueue: (value: unknown) => subs.descriptors.normalizeIntentQueue(value),
     buildIntentId,
@@ -64,14 +94,14 @@ function wireIntents(graph: GraphRuntime, ref: { coordinator: StrandCoordinator 
   return new StrandIntentService({
     graph,
     loadStrandOrThrow: async (strandId: string) => await ref.coordinator!.getOrThrow(strandId),
-    buildQueuedIntent: async (descriptor: unknown, build: unknown) =>
+    buildQueuedIntent: async (descriptor: StrandDescriptor, build: (p: PatchBuilder) => void | Promise<void>) =>
       await subs.patches.buildQueuedIntent(descriptor, build),
     normalizeIntentQueue: (value: unknown) => subs.descriptors.normalizeIntentQueue(value),
     normalizeEvolution: (value: unknown) => subs.descriptors.normalizeEvolution(value),
-    writeDescriptor: async (descriptor: unknown) => await subs.descriptors.writeDescriptor(descriptor),
-    commitQueuedPatch: async (params: unknown) =>
-      await subs.patches.commitQueuedPatch(params as Parameters<typeof subs.patches.commitQueuedPatch>[0]),
-    collectPatchEntries: async (descriptor: unknown, options: unknown) =>
+    writeDescriptor: async (descriptor: StrandDescriptor) => await subs.descriptors.writeDescriptor(descriptor),
+    commitQueuedPatch: async (params: Parameters<typeof subs.patches.commitQueuedPatch>[0]) =>
+      await subs.patches.commitQueuedPatch(params),
+    collectPatchEntries: async (descriptor: StrandDescriptor, options: { ceiling: number | null }) =>
       await subs.materializer.collectPatchEntries(descriptor, options),
     buildTickId,
   });
