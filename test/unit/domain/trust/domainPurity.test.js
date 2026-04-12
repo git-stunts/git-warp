@@ -15,7 +15,7 @@ const TRUST_DIR = path.resolve('src/domain/trust');
 
 function getTrustFiles() {
   return fs.readdirSync(TRUST_DIR)
-    .filter((f) => f.endsWith('.js'))
+    .filter((f) => f.endsWith('.js') || f.endsWith('.ts'))
     .map((f) => ({
       name: f,
       content: fs.readFileSync(path.join(TRUST_DIR, f), 'utf8'),
