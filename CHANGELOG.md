@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **IncrementalIndexUpdater split** — 955 LOC god slain. Split into `IndexNodeUpdater.ts` (198 LOC, node add/remove/purge), `IndexEdgeUpdater.ts` (168 LOC, edge bitmap ops), and slim `IncrementalIndexUpdater.ts` orchestrator (495 LOC). Shared working types in `types.ts`. All converted to TypeScript with option objects replacing boolean-trap parameter lists.
+- **StrandDescriptorStore split** — 643 LOC god slain. Split into `descriptorNormalization.ts` (294 LOC) and `StrandDescriptorStore.ts` (330 LOC). All converted to TypeScript.
+- **LogicalTraversal split** — 643 LOC god slain. Split into `traversalHelpers.ts` (142 LOC) and `LogicalTraversal.ts` (581 LOC). All converted to TypeScript.
+- **LogicalIndexReader split** — 603 LOC god slain. Split into `logicalIndexHelpers.ts` (253 LOC) and `LogicalIndexReader.ts` (307 LOC). All converted to TypeScript.
 - **ConflictCandidateCollector split** — 649 LOC god slain. Split into `conflictTargetIdentity.ts` (295 LOC), `conflictCandidateAnalysis.ts` (493 LOC), and slim `ConflictCandidateCollector.ts` (64 LOC). All converted to TypeScript.
 - **SyncController split** — 684 LOC god slain. Split into `syncHelpers.ts` (150 LOC), `SyncServerLauncher.ts` (92 LOC), and `SyncController.ts` (601 LOC). Converted to TypeScript.
 - **SyncProtocol split** — 683 LOC god slain. Split into `syncPatchLoader.ts` (178 LOC), `syncDelta.ts` (168 LOC), `syncRequestResponse.ts` (379 LOC), and barrel re-export. All converted to TypeScript.
