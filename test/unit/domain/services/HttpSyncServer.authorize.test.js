@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.js';
+import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.ts';
 
 function createMockHttpPort() {
   return {

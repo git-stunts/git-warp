@@ -59,7 +59,7 @@ vi.mock('@git-stunts/alfred', async (importOriginal) => {
   };
 });
 
-vi.mock('../../../../../src/domain/services/sync/HttpSyncServer.js', () => ({
+vi.mock('../../../../../src/domain/services/sync/HttpSyncServer.ts', () => ({
   default: httpSyncServerMock,
 }));
 

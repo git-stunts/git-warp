@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.js';
+import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.ts';
 
 /** @param {any} value @returns {any} */
 function canonicalizeJson(value) {

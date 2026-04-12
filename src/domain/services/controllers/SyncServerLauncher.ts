@@ -8,7 +8,7 @@
  */
 
 import SyncError from '../../errors/SyncError.ts';
-import HttpSyncServer from '../sync/HttpSyncServer.js';
+import HttpSyncServer from '../sync/HttpSyncServer.ts';
 import type { SyncRequest, SyncResponse } from '../sync/SyncProtocol.ts';
 import type HttpServerPort from '../../../ports/HttpServerPort.ts';
 import type { SyncHost } from './SyncController.ts';
