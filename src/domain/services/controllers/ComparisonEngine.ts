@@ -92,7 +92,7 @@ export function buildPatchDivergenceImpl(
   };
 
   if (targetId !== null && targetId !== undefined && targetId !== '') {
-    result.target = buildTargetDivergence(leftEntries, rightEntries, targetId);
+    result['target'] = buildTargetDivergence(leftEntries, rightEntries, targetId);
   }
 
   return result;
@@ -227,7 +227,7 @@ export async function compareCoordinatesImpl(
     visiblePatchDivergence,
     visibleState,
   });
-  const digest = await computeChecksum(fact as Record<string, unknown>, graph._crypto);
+  const digest = await computeChecksum(fact, graph._crypto);
   return { ...fact, comparisonDigest: digest };
 }
 
@@ -238,13 +238,13 @@ export async function compareStrandImpl(
 ): Promise<Record<string, unknown>> {
   assertOptionsObject(options, 'compareStrand()');
   const normalizedStrandId = normalizeRequiredString(strandId, 'strandId');
-  const ceiling = normalizeLamportCeiling(options.ceiling, 'ceiling');
-  const againstCeiling = normalizeLamportCeiling(options.againstCeiling, 'againstCeiling');
-  const targetId = normalizeOptionalString(options.targetId, 'targetId');
-  const scope = normalizeVisibleStateScope(options.scope, 'scope');
+  const ceiling = normalizeLamportCeiling(options['ceiling'], 'ceiling');
+  const againstCeiling = normalizeLamportCeiling(options['againstCeiling'], 'againstCeiling');
+  const targetId = normalizeOptionalString(options['targetId'], 'targetId');
+  const scope = normalizeVisibleStateScope(options['scope'], 'scope');
 
   const left = { kind: 'strand', strandId: normalizedStrandId, ceiling };
-  const right = normalizeAgainstSelector(normalizedStrandId, options.against ?? 'base', againstCeiling);
+  const right = normalizeAgainstSelector(normalizedStrandId, options['against'] ?? 'base', againstCeiling);
 
   return await compareCoordinatesImpl(graph, {
     left, right, targetId, ...(scope ? { scope } : {}),
@@ -272,14 +272,14 @@ async function finalizeTransferPlan(params: {
     ...(scope ? { scope } : {}), changed, ...sides,
     summary: transfer.summary, ops: transfer.ops,
   });
-  const digest = await computeChecksum(fact as Record<string, unknown>, graph._crypto);
+  const digest = await computeChecksum(fact, graph._crypto);
   const plan: Record<string, unknown> = {
     transferVersion: COORDINATE_TRANSFER_PLAN_VERSION,
     transferDigest: digest,
     comparisonDigest, changed, ...sides,
     summary: transfer.summary, ops: transfer.ops,
   };
-  if (scope) { plan.scope = scope; }
+  if (scope) { plan['scope'] = scope; }
   return plan;
 }
 
@@ -290,13 +290,13 @@ export async function planCoordinateTransferImpl(
   assertTransferOptions(options);
 
   const normalizedSource = normalizeSelector(
-    (options as { source: Record<string, unknown> }).source, 'source',
+    options['source'] as Record<string, unknown>, 'source',
   );
   const normalizedTarget = normalizeSelector(
-    (options as { target: Record<string, unknown> }).target, 'target',
+    options['target'] as Record<string, unknown>, 'target',
   );
   const scope = normalizeVisibleStateScope(
-    (options as { scope?: unknown }).scope, 'scope',
+    options['scope'], 'scope',
   );
   const liveFrontier = (normalizedSource.kind === 'live' || normalizedTarget.kind === 'live')
     ? await graph.getFrontier()
@@ -319,7 +319,7 @@ export async function planCoordinateTransferImpl(
   );
   return await finalizeTransferPlan({
     graph, sourceSide, targetSide, transfer,
-    comparisonDigest: comp.comparisonDigest as string, scope,
+    comparisonDigest: comp['comparisonDigest'] as string, scope,
   });
 }
 
@@ -330,12 +330,12 @@ export async function planStrandTransferImpl(
 ): Promise<Record<string, unknown>> {
   assertOptionsObject(options, 'planStrandTransfer()');
   const normalizedStrandId = normalizeRequiredString(strandId, 'strandId');
-  const ceiling = normalizeLamportCeiling(options.ceiling, 'ceiling');
-  const intoCeiling = normalizeLamportCeiling(options.intoCeiling, 'intoCeiling');
-  const scope = normalizeVisibleStateScope(options.scope, 'scope');
+  const ceiling = normalizeLamportCeiling(options['ceiling'], 'ceiling');
+  const intoCeiling = normalizeLamportCeiling(options['intoCeiling'], 'intoCeiling');
+  const scope = normalizeVisibleStateScope(options['scope'], 'scope');
 
   const source = { kind: 'strand', strandId: normalizedStrandId, ceiling };
-  const target = normalizeIntoSelector(normalizedStrandId, options.into ?? 'live', intoCeiling);
+  const target = normalizeIntoSelector(normalizedStrandId, options['into'] ?? 'live', intoCeiling);
 
   return await planCoordinateTransferImpl(graph, {
     source, target, ...(scope ? { scope } : {}),

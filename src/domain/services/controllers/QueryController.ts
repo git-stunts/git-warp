@@ -103,7 +103,7 @@ async function resolveCoordinateSnapshot(graph: WarpRuntime, source: CoordinateS
 async function resolveStrandSnapshot(graph: WarpRuntime, source: StrandSelector): Promise<{ state: WarpState; stateHash: string }> {
   const detached = await openDetachedGraph(graph);
   const internal = toInternalStrandShape(source.toDTO());
-  const state = await callInternalRuntimeMethod(detached, 'materializeStrand', internal.strandId, { ceiling: internal.ceiling ?? null });
+  const state = await callInternalRuntimeMethod(detached, 'materializeStrand', internal.strandId, { ceiling: internal.ceiling ?? null }) as WarpState;
   return await snapshotWith(detached, state);
 }
 
@@ -143,6 +143,7 @@ export default class QueryController {
 
 function host(ctrl: QueryController): WarpGraphWithMixins { return ctrl._host; }
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type -- wire() is the defineProperty delegation pattern
 function wire(name: string, fn: Function): void {
   Object.defineProperty(QueryController.prototype, name, {
     value: fn, writable: true, configurable: true, enumerable: false,
@@ -150,38 +151,38 @@ function wire(name: string, fn: Function): void {
 }
 
 function wireEdge(name: string, impl: (h: WarpGraphWithMixins, edge: { from: string; to: string; label: string }) => Promise<unknown>): void {
-  wire(name, function (from: string, to: string, label: string) { return impl(host(this), { from, to, label }); });
+  wire(name, function (this: QueryController, from: string, to: string, label: string) { return impl(host(this), { from, to, label }); });
 }
 
 // QueryReads delegates
-wire('hasNode', function (nodeId: string) { return hasNodeImpl(host(this), nodeId); });
-wire('getNodeProps', function (nodeId: string) { return getNodePropsImpl(host(this), nodeId); });
-wire('getEdgeProps', function (from: string, to: string, label: string) { return getEdgePropsImpl(host(this), { from, to, label }); });
-wire('neighbors', function (nodeId: string, direction: 'outgoing' | 'incoming' | 'both' = 'both', edgeLabel?: string) {
+wire('hasNode', function (this: QueryController, nodeId: string) { return hasNodeImpl(host(this), nodeId); });
+wire('getNodeProps', function (this: QueryController, nodeId: string) { return getNodePropsImpl(host(this), nodeId); });
+wire('getEdgeProps', function (this: QueryController, from: string, to: string, label: string) { return getEdgePropsImpl(host(this), { from, to, label }); });
+wire('neighbors', function (this: QueryController, nodeId: string, direction: 'outgoing' | 'incoming' | 'both' = 'both', edgeLabel?: string) {
   return neighborsImpl(host(this), { nodeId, direction, ...(edgeLabel !== undefined ? { edgeLabel } : {}) });
 });
-wire('getStateSnapshot', function () { return getStateSnapshotImpl(host(this)); });
-wire('getNodes', function () { return getNodesImpl(host(this)); });
-wire('getEdges', function () { return getEdgesImpl(host(this)); });
-wire('getPropertyCount', function () { return getPropertyCountImpl(host(this)); });
+wire('getStateSnapshot', function (this: QueryController) { return getStateSnapshotImpl(host(this)); });
+wire('getNodes', function (this: QueryController) { return getNodesImpl(host(this)); });
+wire('getEdges', function (this: QueryController) { return getEdgesImpl(host(this)); });
+wire('getPropertyCount', function (this: QueryController) { return getPropertyCountImpl(host(this)); });
 
 // QueryContent delegates
-wire('getContentOid', function (nodeId: string) { return getContentOidImpl(host(this), nodeId); });
-wire('getContentMeta', function (nodeId: string) { return getContentMetaImpl(host(this), nodeId); });
-wire('getContent', function (nodeId: string) { return getContentImpl(host(this), nodeId); });
-wire('getContentStream', function (nodeId: string) { return getContentStreamImpl(host(this), nodeId); });
+wire('getContentOid', function (this: QueryController, nodeId: string) { return getContentOidImpl(host(this), nodeId); });
+wire('getContentMeta', function (this: QueryController, nodeId: string) { return getContentMetaImpl(host(this), nodeId); });
+wire('getContent', function (this: QueryController, nodeId: string) { return getContentImpl(host(this), nodeId); });
+wire('getContentStream', function (this: QueryController, nodeId: string) { return getContentStreamImpl(host(this), nodeId); });
 wireEdge('getEdgeContentOid', getEdgeContentOidImpl);
 wireEdge('getEdgeContentMeta', getEdgeContentMetaImpl);
 wireEdge('getEdgeContent', getEdgeContentImpl);
 wireEdge('getEdgeContentStream', getEdgeContentStreamImpl);
 
 // Factory methods
-wire('query', function () { return new QueryBuilder(host(this)); });
-wire('worldline', function (options?: ObserverOptions) {
+wire('query', function (this: QueryController) { return new QueryBuilder(host(this)); });
+wire('worldline', function (this: QueryController, options?: ObserverOptions) {
   return new Worldline({ graph: host(this), source: toSelector(options?.source) ?? new LiveSelector() });
 });
 
-wire('observer', async function (nameOrConfig: string | ObserverConfig, configOrOptions?: ObserverConfig | ObserverOptions, maybeOptions?: ObserverOptions) {
+wire('observer', async function (this: QueryController, nameOrConfig: string | ObserverConfig, configOrOptions?: ObserverConfig | ObserverOptions, maybeOptions?: ObserverOptions) {
   const { name, config, options } = normalizeObserverArgs(nameOrConfig, configOrOptions, maybeOptions);
   if (!config || !isValidMatch(config.match)) {
     throw new QueryError('observer config.match must be a non-empty string or non-empty array of strings', {
@@ -190,10 +191,11 @@ wire('observer', async function (nameOrConfig: string | ObserverConfig, configOr
   }
   const h = host(this);
   const snapshot = await resolveSnapshot(h as WarpRuntime, options);
-  return new Observer({ name, config, graph: h, snapshot, source: options?.source });
+  const sourceSelector = options?.source !== undefined ? options.source : undefined;
+  return new Observer({ name, config, graph: h, snapshot, source: sourceSelector });
 });
 
-wire('translationCost', async function (configA: ObserverConfig, configB: ObserverConfig) {
+wire('translationCost', async function (this: QueryController, configA: ObserverConfig, configB: ObserverConfig) {
   const h = host(this);
   await h._ensureFreshState();
   return computeTranslationCost(configA, configB, h._cachedState as WarpState);

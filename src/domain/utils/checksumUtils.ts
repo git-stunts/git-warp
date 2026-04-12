@@ -15,7 +15,7 @@ import type CryptoPort from '../../ports/CryptoPort.ts';
  * Uses canonical JSON stringification for deterministic output
  * across different JavaScript engines.
  */
-export const computeChecksum = async (data: Record<string, unknown>, crypto: CryptoPort): Promise<string> => {
+export const computeChecksum = async (data: object, crypto: CryptoPort): Promise<string> => {
   const json = canonicalStringify(data);
   return await crypto.hash('sha256', json);
 };

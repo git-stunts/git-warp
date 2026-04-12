@@ -193,7 +193,7 @@ async function tryIndexedNeighbors(host: WarpGraphWithMixins, params: { nodeId: 
     if (params.direction === 'both') {
       return await indexedBothNeighbors(provider, params.nodeId, opts);
     }
-    return await indexedDirectionalNeighbors({ provider, nodeId: params.nodeId, direction: params.direction, opts });
+    return await indexedDirectionalNeighbors({ provider, nodeId: params.nodeId, direction: params.direction, ...(opts !== undefined ? { opts } : {}) });
   } catch {
     return undefined;
   }
