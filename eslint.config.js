@@ -309,7 +309,7 @@ export default tseslint.config(
       "src/domain/services/sync/syncPatchLoader.ts",
       "src/domain/services/sync/syncDelta.ts",
       "src/domain/services/sync/syncRequestResponse.ts",
-      "src/domain/services/query/LogicalTraversal.js",
+      "src/domain/services/query/LogicalTraversal.ts",
       "src/domain/services/state/StateSerializerV5.js",
       "src/domain/services/PatchBuilder.ts",
       "src/domain/warp/PatchSession.ts",

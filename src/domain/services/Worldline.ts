@@ -17,7 +17,7 @@ import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.ts
 import { toInternalStrandShape } from '../utils/strandPublicShape.ts';
 import type { WarpState } from './JoinReducer.ts';
 import type Observer from './query/Observer.js';
-import LogicalTraversal from './query/LogicalTraversal.js';
+import LogicalTraversal from './query/LogicalTraversal.ts';
 import QueryBuilder from './query/QueryBuilder.js';
 import QueryError from '../errors/QueryError.ts';
 

@@ -10,7 +10,7 @@
  */
 
 import QueryBuilder from './QueryBuilder.js';
-import LogicalTraversal from './LogicalTraversal.js';
+import LogicalTraversal from './LogicalTraversal.ts';
 import { createStateReaderV5 } from '../state/StateReaderV5.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
 import { matchGlob } from '../../utils/matchGlob.ts';

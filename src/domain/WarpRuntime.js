@@ -16,7 +16,7 @@ import { TemporalQuery } from './services/TemporalQuery.js';
 import defaultCodec from './utils/defaultCodec.ts';
 import defaultCrypto from './utils/defaultCrypto.ts';
 import defaultClock from './utils/defaultClock.ts';
-import LogicalTraversal from './services/query/LogicalTraversal.js';
+import LogicalTraversal from './services/query/LogicalTraversal.ts';
 import LRUCache from './utils/LRUCache.ts';
 import SyncController from './services/controllers/SyncController.ts';
 import StrandController from './services/controllers/StrandController.js';
