@@ -38,7 +38,7 @@ import BitmapIndexBuilder from './src/domain/services/index/BitmapIndexBuilder.j
 import BitmapIndexReader from './src/domain/services/index/BitmapIndexReader.js';
 import IndexRebuildService from './src/domain/services/index/IndexRebuildService.js';
 import HealthCheckService, { HealthStatus } from './src/domain/services/HealthCheckService.js';
-import CommitDagTraversalService from './src/domain/services/dag/CommitDagTraversalService.js';
+import CommitDagTraversalService from './src/domain/services/dag/CommitDagTraversalService.ts';
 import GraphPersistencePort from './src/ports/GraphPersistencePort.ts';
 import IndexStoragePort from './src/ports/IndexStoragePort.ts';
 import LoggerPort from './src/ports/LoggerPort.ts';

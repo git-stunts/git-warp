@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import CommitDagTraversalService from '../../../../src/domain/services/dag/CommitDagTraversalService.js';
+import CommitDagTraversalService from '../../../../src/domain/services/dag/CommitDagTraversalService.ts';
 import TraversalError from '../../../../src/domain/errors/TraversalError.ts';
 
 /**
