@@ -91,16 +91,12 @@ const { strandServiceGetOrThrowMock, strandServiceGetPatchEntriesMock } = vi.hoi
   strandServiceGetPatchEntriesMock: vi.fn(async () => []),
 }));
 
-vi.mock('../../../../../src/domain/services/strand/StrandService.js', () => {
-  class MockStrandService {
-    /** @param {Record<string, unknown>} _opts */
-    constructor(_opts) {
-      this.getOrThrow = strandServiceGetOrThrowMock;
-      this.getPatchEntries = strandServiceGetPatchEntriesMock;
-    }
-  }
-  return { default: MockStrandService };
-});
+vi.mock('../../../../../src/domain/services/strand/createStrandCoordinator.ts', () => ({
+  default: () => ({
+    getOrThrow: strandServiceGetOrThrowMock,
+    getPatchEntries: strandServiceGetPatchEntriesMock,
+  }),
+}));
 
 // StateReaderV5 — pass through to real implementation for reader accuracy
 // (we need real getNodes/getEdges/getNodeProps for summarizeVisibleState)

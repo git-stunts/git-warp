@@ -7,15 +7,11 @@
  * @module domain/services/controllers/StrandController
  */
 
-import StrandService from '../strand/StrandService.js';
+import createStrandCoordinator from '../strand/createStrandCoordinator.ts';
 import ConflictAnalyzerService from '../strand/ConflictAnalyzerService.js';
 
 /**
  * The host interface that StrandController depends on.
- *
- * StrandService and ConflictAnalyzerService both accept `{ graph }` where
- * graph is the full WarpRuntime instance. This typedef documents that
- * coupling explicitly.
  *
  * @typedef {import('../../WarpRuntime.js').default} StrandHost
  */
@@ -24,7 +20,7 @@ export default class StrandController {
   /** @type {StrandHost} */
   _host;
 
-  /** @type {StrandService} */
+  /** @type {import('../strand/StrandCoordinator.ts').default} */
   _strandService;
 
   /**
@@ -33,15 +29,15 @@ export default class StrandController {
    */
   constructor(host) {
     this._host = host;
-    this._strandService = new StrandService({ graph: host });
+    this._strandService = createStrandCoordinator(/** @type {any} */ (host));
   }
 
   // ── Strand lifecycle ────────────────────────────────────────────────────
 
   /**
    * Creates a new strand with the given options.
-   * @param {import('../strand/StrandService.js').StrandCreateOptions} [options]
-   * @returns {Promise<import('../strand/StrandService.js').StrandDescriptor>}
+   * @param {{ strandId?: string, lamportCeiling?: number|null, owner?: string|null, scope?: string|null, leaseExpiresAt?: string|null }} [options]
+   * @returns {Promise<import('../strand/strandTypes.js').StrandDescriptor>}
    */
   async createStrand(options) {
     return await this._strandService.create(options);
@@ -50,8 +46,8 @@ export default class StrandController {
   /**
    * Braids a strand, merging its overlay back into the base graph.
    * @param {string} strandId
-   * @param {import('../strand/StrandService.js').StrandBraidOptions} [options]
-   * @returns {Promise<import('../strand/StrandService.js').StrandDescriptor>}
+   * @param {{ braidedStrandIds?: string[], writable?: boolean|null }} [options]
+   * @returns {Promise<import('../strand/strandTypes.js').StrandDescriptor>}
    */
   async braidStrand(strandId, options) {
     return await this._strandService.braid(strandId, options);
@@ -60,7 +56,7 @@ export default class StrandController {
   /**
    * Retrieves the descriptor for a strand by its identifier.
    * @param {string} strandId
-   * @returns {Promise<import('../strand/StrandService.js').StrandDescriptor|null>}
+   * @returns {Promise<import('../strand/strandTypes.js').StrandDescriptor|null>}
    */
   async getStrand(strandId) {
     return await this._strandService.get(strandId);
@@ -68,7 +64,7 @@ export default class StrandController {
 
   /**
    * Lists all strand descriptors in the current graph.
-   * @returns {Promise<import('../strand/StrandService.js').StrandDescriptor[]>}
+   * @returns {Promise<import('../strand/strandTypes.js').StrandDescriptor[]>}
    */
   async listStrands() {
     return await this._strandService.list();

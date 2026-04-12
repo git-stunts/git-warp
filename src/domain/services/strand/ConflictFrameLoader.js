@@ -13,7 +13,7 @@ import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
 import ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.ts';
 import { compareStrings } from '../../types/conflict/validation.ts';
 import { reduceV5 } from '../JoinReducer.ts';
-import StrandService from './StrandService.js';
+import createStrandCoordinator from './createStrandCoordinator.ts';
 
 
 /**
@@ -359,7 +359,7 @@ function buildResolvedCoordinate({
  * @returns {Promise<{ patchFrames: PatchFrame[], resolvedCoordinate: ConflictResolvedCoordinate }>} Context.
  */
 async function resolveStrandContext(service, request) {
-  const strands = new StrandService({ graph: service._graph });
+  const strands = createStrandCoordinator(/** @type {any} */ (service._graph));
   const descriptor = await strands.getOrThrow(request.strandId);
   const entries = await strands.getPatchEntries(request.strandId, {
     ceiling: request.lamportCeiling,

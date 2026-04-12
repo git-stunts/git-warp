@@ -1,12 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import StrandService, {
+import createStrandCoordinator from '../../../../../src/domain/services/strand/createStrandCoordinator.ts';
+import {
   STRAND_SCHEMA_VERSION,
   STRAND_COORDINATE_VERSION,
   STRAND_OVERLAY_KIND,
+} from '../../../../../src/domain/services/strand/StrandCoordinator.ts';
+import {
   STRAND_INTENT_ID_WIDTH,
   STRAND_TICK_ID_WIDTH,
   STRAND_COUNTERFACTUAL_REASON,
-} from '../../../../../src/domain/services/strand/StrandService.js';
+} from '../../../../../src/domain/services/strand/strandShared.js';
 import StrandError from '../../../../../src/domain/errors/StrandError.ts';
 import { textEncode, textDecode } from '../../../../../src/domain/utils/bytes.ts';
 import { createEmptyState } from '../../../../../src/domain/services/JoinReducer.ts';
@@ -364,12 +367,12 @@ function createMockGraph() {
 describe('StrandService', () => {
   /** @type {ReturnType<typeof createMockGraph>} */
   let graph;
-  /** @type {StrandService} */
+  /** @type {import('../../../../../src/domain/services/strand/StrandCoordinator.ts').default} */
   let service;
 
   beforeEach(() => {
     graph = createMockGraph();
-    service = new StrandService({ graph: /** @type {WarpRuntime} */ (/** @type {unknown} */ (graph)) });
+    service = createStrandCoordinator(/** @type {any} */ (graph));
   });
 
   // ── Exported constants ────────────────────────────────────────────────────

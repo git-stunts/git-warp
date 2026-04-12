@@ -6,7 +6,7 @@ import * as JoinReducer from '../../../../../src/domain/services/JoinReducer.ts'
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import { textEncode } from '../../../../../src/domain/utils/bytes.ts';
 import { createHash } from 'node:crypto';
-import StrandService from '../../../../../src/domain/services/strand/StrandService.js';
+import createStrandCoordinator from '../../../../../src/domain/services/strand/createStrandCoordinator.ts';
 
 // ── Deterministic helpers ─────────────────────────────────────────────────────
 

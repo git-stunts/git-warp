@@ -12,7 +12,7 @@
 import QueryError from '../../errors/QueryError.ts';
 import { computeChecksum } from '../../utils/checksumUtils.ts';
 import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod.ts';
-import StrandService from '../strand/StrandService.js';
+import createStrandCoordinator from '../strand/createStrandCoordinator.ts';
 import { createStateReaderV5 } from '../state/StateReaderV5.js';
 import { computeStateHashV5 } from '../state/StateSerializerV5.js';
 import {
@@ -387,7 +387,7 @@ export class StrandComparisonSelector extends NormalizedSelector {
   }
 
   async resolve(graph: ComparisonHost, scope: VisibleStateScopeV1 | null) {
-    const strands = new StrandService({ graph });
+    const strands = createStrandCoordinator(graph as Parameters<typeof createStrandCoordinator>[0]);
     const descriptor = await strands.getOrThrow(this.strandId);
     const state = await callInternalRuntimeMethod<WarpState>(
       graph, 'materializeStrand', this.strandId,
@@ -413,7 +413,7 @@ export class StrandBaseComparisonSelector extends NormalizedSelector {
   }
 
   async resolve(graph: ComparisonHost, scope: VisibleStateScopeV1 | null) {
-    const strands = new StrandService({ graph });
+    const strands = createStrandCoordinator(graph as Parameters<typeof createStrandCoordinator>[0]);
     const descriptor = await strands.getOrThrow(this.strandId);
     const effectiveCeiling = combineCeilings(descriptor.baseObservation.lamportCeiling, this.ceiling);
     const state = await graph.materializeCoordinate({
