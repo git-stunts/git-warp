@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ForkController from '../../../../../src/domain/services/controllers/ForkController.js';
 import ForkError from '../../../../../src/domain/errors/ForkError.ts';
-import { CHECKPOINT_SCHEMA_STANDARD, CHECKPOINT_SCHEMA_V5_INTERMEDIATE } from '../../../../../src/domain/services/state/CheckpointService.js';
+import { CHECKPOINT_SCHEMA_STANDARD, CHECKPOINT_SCHEMA_V5_INTERMEDIATE } from '../../../../../src/domain/services/state/checkpointHelpers.ts';
 import { buildWriterRef, buildWritersPrefix } from '../../../../../src/domain/utils/RefLayout.ts';
 
 // ---------------------------------------------------------------------------

@@ -11,7 +11,8 @@
  */
 
 import { reduceV5, createEmptyState } from '../JoinReducer.ts';
-import { isV5CheckpointSchema, materializeIncremental } from '../state/CheckpointService.js';
+import { isV5CheckpointSchema } from '../state/checkpointHelpers.ts';
+import { materializeIncremental } from '../state/checkpointLoad.ts';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
 import { computeStateHashV5 } from '../state/StateSerializerV5.js';
 import { createFrontier, updateFrontier } from '../Frontier.ts';
@@ -97,7 +98,7 @@ function reducePatches(patches: PatchWithSha[], base: WarpState | undefined, opt
 // ── Provenance ──────────────────────────────────────────────────────
 
 function buildProvenance(patches: PatchWithSha[], base?: ProvenanceIndex): ProvenanceIndex {
-  const index = base ? (base.clone() as ProvenanceIndex) : new ProvenanceIndex();
+  const index = base ? base.clone() : new ProvenanceIndex();
   for (const { patch, sha } of patches) {
     index.addPatch(sha, patch.reads, patch.writes);
   }

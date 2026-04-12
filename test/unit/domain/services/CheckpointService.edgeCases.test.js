@@ -6,14 +6,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  create,
-  loadCheckpoint,
-  materializeIncremental,
-  reconstructStateV5FromCheckpoint,
-  CHECKPOINT_SCHEMA_STANDARD,
-  CHECKPOINT_SCHEMA_INDEX_TREE,
-} from '../../../../src/domain/services/state/CheckpointService.js';
+import { create } from '../../../../src/domain/services/state/checkpointCreate.ts';
+import { loadCheckpoint, materializeIncremental, reconstructStateV5FromCheckpoint } from '../../../../src/domain/services/state/checkpointLoad.ts';
+import { CHECKPOINT_SCHEMA_STANDARD, CHECKPOINT_SCHEMA_INDEX_TREE } from '../../../../src/domain/services/state/checkpointHelpers.ts';
 import {
   createFrontier,
   updateFrontier,

@@ -66,9 +66,15 @@ const {
   frontierFingerprintMock: vi.fn(),
 }));
 
-vi.mock('../../../../../src/domain/services/state/CheckpointService.js', () => ({
+vi.mock('../../../../../src/domain/services/state/checkpointLoad.ts', () => ({
   loadCheckpoint: loadCheckpointMock,
+}));
+
+vi.mock('../../../../../src/domain/services/state/checkpointCreate.ts', () => ({
   create: createCheckpointCommitMock,
+}));
+
+vi.mock('../../../../../src/domain/services/state/checkpointHelpers.ts', () => ({
   isV5CheckpointSchema: isV5CheckpointSchemaMock,
 }));
 

@@ -11,7 +11,9 @@ import { QueryError, E_NO_STATE_MSG } from '../../warp/_internal.ts';
 import { SchemaUnsupportedError } from '../../errors/index.ts';
 import { buildWriterRef, buildCheckpointRef, buildCoverageRef } from '../../utils/RefLayout.ts';
 import { createFrontier, updateFrontier, frontierFingerprint } from '../Frontier.ts';
-import { loadCheckpoint, create as createCheckpointCommit, isV5CheckpointSchema } from '../state/CheckpointService.js';
+import { isV5CheckpointSchema } from '../state/checkpointHelpers.ts';
+import { loadCheckpoint } from '../state/checkpointLoad.ts';
+import { create as createCheckpointCommit } from '../state/checkpointCreate.ts';
 import { decodePatchMessage, detectMessageKind, encodeAnchorMessage } from '../codec/WarpMessageCodec.ts';
 import executeGC from '../executeGC.ts';
 import GCMetrics from '../GCMetrics.ts';
@@ -153,7 +155,7 @@ export default class CheckpointController {
   /**
    * Loads the latest checkpoint for this graph.
    *
-   * @returns {Promise<{state: import('../JoinReducer.ts').WarpState, frontier: Map<string, string>, stateHash: string, schema: number, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, indexShardOids?: Record<string, string>|null}|null>}
+   * @returns {Promise<import('../state/checkpointLoad.ts').LoadedCheckpoint|null>}
    */
   async _loadLatestCheckpoint() {
     const h = this._host;
@@ -185,7 +187,7 @@ export default class CheckpointController {
   /**
    * Loads patches since a checkpoint for incremental materialization.
    *
-   * @param {{state: import('../JoinReducer.ts').WarpState, frontier: Map<string, string>, stateHash: string, schema: number}} checkpoint
+   * @param {import('../state/checkpointLoad.ts').LoadedCheckpoint} checkpoint
    * @returns {Promise<Array<{patch: import('../../types/Patch.ts').default, sha: string}>>}
    */
   async _loadPatchesSince(checkpoint) {

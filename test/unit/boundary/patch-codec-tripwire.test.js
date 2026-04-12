@@ -21,7 +21,7 @@ const ROOT = resolve(__dirname, '..', '..', '..');
  * Add files here as each artifact family is migrated.
  */
 const PATCH_FILES = [
-  'src/domain/services/PatchBuilder.js',
+  'src/domain/services/PatchBuilder.ts',
   'src/domain/services/sync/SyncProtocol.js',
   'src/domain/warp/Writer.ts',
 ];
@@ -33,7 +33,9 @@ const PATCH_FILES = [
 // used by callers that haven't been migrated (MaterializeController,
 // BoundaryTransitionRecord, etc.). Add them when ALL callers are migrated.
 const CHECKPOINT_FILES = [
-  'src/domain/services/state/CheckpointService.js',
+  'src/domain/services/state/checkpointHelpers.ts',
+  'src/domain/services/state/checkpointCreate.ts',
+  'src/domain/services/state/checkpointLoad.ts',
 ];
 
 /**

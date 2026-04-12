@@ -3,7 +3,7 @@
  */
 
 import { validateGraphName } from '../../utils/RefLayout.ts';
-import { isV5CheckpointSchema } from '../state/CheckpointService.js';
+import { isV5CheckpointSchema } from '../state/checkpointHelpers.ts';
 import {
   getCodec,
   MESSAGE_TITLES,
