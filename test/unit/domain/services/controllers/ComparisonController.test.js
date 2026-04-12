@@ -50,7 +50,7 @@ const { planVisibleStateTransferV5Mock } = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../../../src/domain/services/VisibleStateTransferPlannerV5.js', () => ({
+vi.mock('../../../../../src/domain/services/transfer/VisibleStateTransferPlannerV5.ts', () => ({
   planVisibleStateTransferV5: planVisibleStateTransferV5Mock,
 }));
 

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   planVisibleStateTransferV5,
   VISIBLE_STATE_TRANSFER_PLAN_VERSION,
-} from '../../../../src/domain/services/VisibleStateTransferPlannerV5.js';
+} from '../../../../src/domain/services/transfer/VisibleStateTransferPlannerV5.ts';
 import { CONTENT_PROPERTY_KEY } from '../../../../src/domain/services/KeyCodec.js';
 
 function makeEdgeKey(from, to, label) {
