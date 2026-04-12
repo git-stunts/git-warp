@@ -1,7 +1,7 @@
 import defaultCodec from '../../utils/defaultCodec.ts';
 import BitmapIndexBuilder from './BitmapIndexBuilder.js';
 import BitmapIndexReader from './BitmapIndexReader.js';
-import StreamingBitmapIndexBuilder from './StreamingBitmapIndexBuilder.js';
+import StreamingBitmapIndexBuilder from './StreamingBitmapIndexBuilder.ts';
 import { loadIndexFrontier, checkStaleness } from './IndexStalenessChecker.js';
 import nullLogger from '../../utils/nullLogger.ts';
 import { checkAborted } from '../../utils/cancellation.ts';
@@ -188,7 +188,7 @@ export default class IndexRebuildService {
    * @private
    */
   async _rebuildInMemory(ref, { limit, onProgress, signal, frontier }) {
-    const builder = new BitmapIndexBuilder(this._crypto ? { crypto: this._crypto } : {});
+    const builder = new BitmapIndexBuilder();
     let processedNodes = 0;
 
     for await (const node of this.graphService.iterateNodes({ ref, limit })) {
@@ -240,7 +240,6 @@ export default class IndexRebuildService {
     /** @type {ConstructorParameters<typeof StreamingBitmapIndexBuilder>[0]} */
     const streamOpts = { storage: this.storage, maxMemoryBytes };
     if (onFlush) { streamOpts.onFlush = onFlush; }
-    if (this._crypto) { streamOpts.crypto = this._crypto; }
     const builder = new StreamingBitmapIndexBuilder(streamOpts);
 
     let processedNodes = 0;
@@ -398,7 +397,6 @@ export default class IndexRebuildService {
 
     /** @type {ConstructorParameters<typeof BitmapIndexReader>[0]} */
     const readerOpts = { storage: this.storage, strict, logger: this.logger.child({ component: 'BitmapIndexReader' }) };
-    if (this._crypto) { readerOpts.crypto = this._crypto; }
     const reader = new BitmapIndexReader(readerOpts);
     reader.setup(shardOids);
 

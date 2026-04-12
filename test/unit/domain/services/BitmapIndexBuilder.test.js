@@ -1,24 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import BitmapIndexBuilder, {
-  SHARD_VERSION,
-  resetNativeRoaringFlag,
-} from '../../../../src/domain/services/index/BitmapIndexBuilder.js';
+import { describe, it, expect } from 'vitest';
+import BitmapIndexBuilder from '../../../../src/domain/services/index/BitmapIndexBuilder.js';
+import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 
 describe('BitmapIndexBuilder', () => {
-  beforeEach(() => {
-    resetNativeRoaringFlag();
-  });
-
-  describe('SHARD_VERSION export', () => {
-    it('exports SHARD_VERSION as 2 (current format)', () => {
-      expect(SHARD_VERSION).toBe(2);
-    });
-
-    it('exports resetNativeRoaringFlag for test isolation', () => {
-      expect(() => resetNativeRoaringFlag()).not.toThrow();
-    });
-  });
-
   describe('constructor', () => {
     it('creates an empty builder', () => {
       const builder = new BitmapIndexBuilder();
@@ -64,52 +48,43 @@ describe('BitmapIndexBuilder', () => {
       const tree = await builder.serialize();
 
       // Should have meta shard for 'aa' prefix
-      expect(tree['meta_aa.json']).toBeDefined();
+      expect(tree['meta_aa.cbor']).toBeDefined();
       // Should have forward/reverse shards
       expect(Object.keys(tree).some(k => k.startsWith('shards_fwd_'))).toBe(true);
       expect(Object.keys(tree).some(k => k.startsWith('shards_rev_'))).toBe(true);
     });
 
-    it('encodes bitmaps as base64 in JSON', async () => {
+    it('encodes bitmaps as Uint8Array in CBOR', async () => {
       const builder = new BitmapIndexBuilder();
       builder.addEdge('aabbcc', 'aaddee');
 
       const tree = await builder.serialize();
-      const envelope = JSON.parse(new TextDecoder().decode(tree['shards_fwd_aa.json']));
+      const data = defaultCodec.decode(tree['shards_fwd_aa.cbor']);
 
-      // Shard is wrapped in version/checksum envelope
-      expect(envelope.version).toBeDefined();
-      expect(envelope.checksum).toBeDefined();
-      expect(typeof envelope.data['aabbcc']).toBe('string'); // base64 encoded
+      // Decoded data IS the shard map — no envelope wrapping
+      expect(data['aabbcc']).toBeInstanceOf(Uint8Array);
     });
 
-    it('writes v2 shards by default', async () => {
+    it('writes CBOR shards with no version envelope', async () => {
       const builder = new BitmapIndexBuilder();
       builder.addEdge('aabbcc', 'ddeeff');
 
       const tree = await builder.serialize();
 
-      // Check meta shard
-      const metaEnvelope = JSON.parse(new TextDecoder().decode(tree['meta_aa.json']));
-      expect(metaEnvelope.version).toBe(2);
+      // Decode meta shard — should be a plain ID map, no version/checksum
+      const metaData = defaultCodec.decode(tree['meta_aa.cbor']);
+      expect(metaData).not.toHaveProperty('version');
+      expect(metaData).not.toHaveProperty('checksum');
 
-      // Check forward shard
-      const fwdEnvelope = JSON.parse(new TextDecoder().decode(tree['shards_fwd_aa.json']));
-      expect(fwdEnvelope.version).toBe(2);
+      // Decode forward shard — should be a plain bitmap map, no envelope
+      const fwdData = defaultCodec.decode(tree['shards_fwd_aa.cbor']);
+      expect(fwdData).not.toHaveProperty('version');
+      expect(fwdData).not.toHaveProperty('checksum');
 
-      // Check reverse shard
-      const revEnvelope = JSON.parse(new TextDecoder().decode(tree['shards_rev_dd.json']));
-      expect(revEnvelope.version).toBe(2);
-    });
-
-    it('uses SHARD_VERSION constant for serialized version', async () => {
-      const builder = new BitmapIndexBuilder();
-      builder.registerNode('testsha1');
-
-      const tree = await builder.serialize();
-      const envelope = JSON.parse(new TextDecoder().decode(tree['meta_te.json']));
-
-      expect(envelope.version).toBe(SHARD_VERSION);
+      // Decode reverse shard — should be a plain bitmap map, no envelope
+      const revData = defaultCodec.decode(tree['shards_rev_dd.cbor']);
+      expect(revData).not.toHaveProperty('version');
+      expect(revData).not.toHaveProperty('checksum');
     });
   });
 });

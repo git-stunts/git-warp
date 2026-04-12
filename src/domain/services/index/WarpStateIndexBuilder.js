@@ -64,10 +64,9 @@ export default class WarpStateIndexBuilder {
    * Creates a new WarpStateIndexBuilder.
    * @param {{ crypto?: import('../../../ports/CryptoPort.ts').default }} [options] - Configuration
    */
-  constructor(options = undefined) {
-    const { crypto } = options || {};
+  constructor(_options = undefined) {
     /** @type {BitmapIndexBuilder} */
-    this._builder = new BitmapIndexBuilder(crypto !== undefined ? { crypto } : {});
+    this._builder = new BitmapIndexBuilder();
   }
 
   /**

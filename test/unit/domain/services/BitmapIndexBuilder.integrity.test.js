@@ -17,8 +17,8 @@ describe('BitmapIndexBuilder Integrity Tests', () => {
       const treeB = await builderB.serialize();
 
       // The forward shard for 'aaa' should differ
-      const fwdA = treeA['shards_fwd_aa.json']?.toString();
-      const fwdB = treeB['shards_fwd_aa.json']?.toString();
+      const fwdA = treeA['shards_fwd_aa.cbor']?.toString();
+      const fwdB = treeB['shards_fwd_aa.cbor']?.toString();
 
       expect(fwdA).not.toBe(fwdB);
     });

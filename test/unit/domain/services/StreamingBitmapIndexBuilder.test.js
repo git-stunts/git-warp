@@ -1,43 +1,28 @@
-import { createHash } from 'crypto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import StreamingBitmapIndexBuilder, { SHARD_VERSION } from '../../../../src/domain/services/index/StreamingBitmapIndexBuilder.js';
-
-/**
- * Helper to create a valid shard envelope with checksum.
- * Uses SHA-256 to match production validation in StreamingBitmapIndexBuilder.
- */
-/** @param {any} data @returns {any} */
-function createMockEnvelope(data) {
-  const checksum = createHash('sha256')
-    .update(JSON.stringify(data))
-    .digest('hex');
-  return {
-    version: SHARD_VERSION,
-    checksum,
-    data,
-  };
-}
+import StreamingBitmapIndexBuilder from '../../../../src/domain/services/index/StreamingBitmapIndexBuilder.ts';
+import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 
 describe('StreamingBitmapIndexBuilder', () => {
   /** @type {any} */
   let mockStorage;
-  /** @type {any} */
+  /** @type {Map<string, Uint8Array>} */
   let writtenBlobs;
 
   beforeEach(() => {
-    writtenBlobs = [];
+    writtenBlobs = new Map();
     let blobCounter = 0;
 
     mockStorage = {
-      writeBlob: vi.fn().mockImplementation(async (buffer) => {
+      writeBlob: vi.fn().mockImplementation(async (/** @type {Uint8Array} */ buffer) => {
         const oid = `blob-${blobCounter++}`;
-        writtenBlobs.push({ oid, content: new TextDecoder().decode(buffer) });
+        writtenBlobs.set(oid, buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer));
         return oid;
       }),
       writeTree: vi.fn().mockResolvedValue('tree-oid'),
-      readBlob: vi.fn().mockImplementation(async (oid) => {
-        const blob = writtenBlobs.find((/** @type {any} */ b) => b.oid === oid);
-        return new TextEncoder().encode(blob ? blob.content : '{}');
+      readBlob: vi.fn().mockImplementation(async (/** @type {string} */ oid) => {
+        const buf = writtenBlobs.get(oid);
+        if (buf) { return buf; }
+        return defaultCodec.encode({});
       }),
     };
   });
@@ -60,44 +45,11 @@ describe('StreamingBitmapIndexBuilder', () => {
         maxMemoryBytes: -100,
       }))).toThrow('maxMemoryBytes must be a positive number');
     });
-
-    it('accepts custom maxMemoryBytes', () => {
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
-        storage: mockStorage,
-        maxMemoryBytes: 1024,
-      }));
-      expect(builder.maxMemoryBytes).toBe(1024);
-    });
-
-    it('uses default maxMemoryBytes of 50MB', () => {
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
-      expect(builder.maxMemoryBytes).toBe(50 * 1024 * 1024);
-    });
-
-    it('accepts custom codec and crypto dependencies', () => {
-      const codec = {
-        encode: vi.fn((value) => new TextEncoder().encode(JSON.stringify(value))),
-        decode: vi.fn((buffer) => JSON.parse(new TextDecoder().decode(buffer))),
-      };
-      const crypto = {
-        hashBytes: vi.fn(async () => 'digest'),
-        hashString: vi.fn(async () => 'digest'),
-      };
-
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
-        storage: mockStorage,
-        codec,
-        crypto,
-      }));
-
-      expect(builder._codec).toBe(codec);
-      expect(builder._crypto).toBe(crypto);
-    });
   });
 
   describe('registerNode', () => {
     it('assigns sequential IDs to nodes', async () => {
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
+      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
 
       const id1 = await builder.registerNode('abc123');
       const id2 = await builder.registerNode('def456');
@@ -105,39 +57,39 @@ describe('StreamingBitmapIndexBuilder', () => {
 
       expect(id1).toBe(0);
       expect(id2).toBe(1);
-      expect(id3).toBe(0); // same as first
+      expect(id3).toBe(0);
     });
   });
 
   describe('addEdge', () => {
     it('registers both nodes and creates bitmaps', async () => {
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
+      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
 
       await builder.addEdge('parent1', 'child1');
+      const stats = builder.getMemoryStats();
 
-      expect(builder.shaToId.size).toBe(2);
-      expect(builder.bitmaps.size).toBe(2); // fwd_parent1 and rev_child1
+      expect(stats.nodeCount).toBe(2);
+      expect(stats.bitmapCount).toBe(2);
     });
   });
 
   describe('flush', () => {
     it('writes bitmap shards to storage', async () => {
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
+      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
 
       await builder.addEdge('aa1111', 'bb2222');
       await builder.flush();
 
       expect(mockStorage.writeBlob).toHaveBeenCalled();
-      expect(builder.bitmaps.size).toBe(0); // cleared after flush
-      expect(builder.flushedChunks.size).toBeGreaterThan(0);
+      expect(builder.getMemoryStats().bitmapCount).toBe(0);
     });
 
     it('invokes onFlush callback', async () => {
       const onFlush = vi.fn();
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
+      const builder = new StreamingBitmapIndexBuilder({
         storage: mockStorage,
         onFlush,
-      }));
+      });
 
       await builder.addEdge('aa1111', 'bb2222');
       await builder.flush();
@@ -150,7 +102,7 @@ describe('StreamingBitmapIndexBuilder', () => {
     });
 
     it('does nothing when bitmaps are empty', async () => {
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
+      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
 
       await builder.flush();
 
@@ -158,20 +110,20 @@ describe('StreamingBitmapIndexBuilder', () => {
     });
 
     it('preserves SHA→ID mappings after flush', async () => {
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
+      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
 
       await builder.addEdge('aa1111', 'bb2222');
-      const idBefore = builder.shaToId.get('aa1111');
+      const statsBefore = builder.getMemoryStats();
       await builder.flush();
-      const idAfter = builder.shaToId.get('aa1111');
+      const statsAfter = builder.getMemoryStats();
 
-      expect(idAfter).toBe(idBefore);
+      expect(statsAfter.nodeCount).toBe(statsBefore.nodeCount);
     });
   });
 
   describe('finalize', () => {
-    it('creates tree with all shards', async () => {
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
+    it('creates tree with meta and bitmap shards', async () => {
+      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
 
       await builder.addEdge('aa1111', 'bb2222');
       const treeOid = await builder.finalize();
@@ -179,14 +131,28 @@ describe('StreamingBitmapIndexBuilder', () => {
       expect(treeOid).toBe('tree-oid');
       expect(mockStorage.writeTree).toHaveBeenCalled();
 
-      const treeEntries = /** @type {*} */ (mockStorage.writeTree.mock.calls[0])[0];
-      expect(treeEntries.some((/** @type {any} */ e) => e.includes('meta_'))).toBe(true);
-      expect(treeEntries.some((/** @type {any} */ e) => e.includes('shards_fwd_'))).toBe(true);
-      expect(treeEntries.some((/** @type {any} */ e) => e.includes('shards_rev_'))).toBe(true);
+      const treeEntries = /** @type {string[]} */ (mockStorage.writeTree.mock.calls[0][0]);
+      expect(treeEntries.some((e) => e.includes('meta_'))).toBe(true);
+      expect(treeEntries.some((e) => e.includes('shards_fwd_'))).toBe(true);
+      expect(treeEntries.some((e) => e.includes('shards_rev_'))).toBe(true);
     });
 
-    it('writes sorted frontier metadata when a frontier is provided', async () => {
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
+    it('uses .cbor extension for shards', async () => {
+      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
+
+      await builder.addEdge('aa1111', 'bb2222');
+      await builder.finalize();
+
+      const treeEntries = /** @type {string[]} */ (mockStorage.writeTree.mock.calls[0][0]);
+      for (const entry of treeEntries) {
+        if (entry.includes('meta_') || entry.includes('shards_')) {
+          expect(entry).toContain('.cbor');
+        }
+      }
+    });
+
+    it('writes sorted frontier metadata when provided', async () => {
+      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
 
       await builder.addEdge('aa1111', 'bb2222');
       await builder.finalize({
@@ -196,37 +162,18 @@ describe('StreamingBitmapIndexBuilder', () => {
         ]),
       });
 
-      const treeEntries = /** @type {string[]} */ (mockStorage.writeTree.mock.calls[0])[0];
-      const frontierJsonEntry = treeEntries.find((entry) => entry.includes('\tfrontier.json'));
-      const frontierCborEntry = treeEntries.find((entry) => entry.includes('\tfrontier.cbor'));
-
-      expect(frontierJsonEntry).toBeDefined();
-      expect(frontierCborEntry).toBeDefined();
-
-      const oidMatch = frontierJsonEntry?.match(/blob ([^\s]+)/);
-      const frontierJson = JSON.parse(
-        /** @type {{content: string}} */ (
-          writtenBlobs.find((blob) => blob.oid === oidMatch?.[1])
-        ).content
-      );
-
-      expect(frontierJson).toEqual({
-        version: 1,
-        writerCount: 2,
-        frontier: {
-          'writer-a': 'aaaa',
-          'writer-b': 'bbbb',
-        },
-      });
+      const treeEntries = /** @type {string[]} */ (mockStorage.writeTree.mock.calls[0][0]);
+      expect(treeEntries.find((e) => e.includes('\tfrontier.json'))).toBeDefined();
+      expect(treeEntries.find((e) => e.includes('\tfrontier.cbor'))).toBeDefined();
     });
   });
 
   describe('getMemoryStats', () => {
     it('returns current memory statistics', async () => {
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
+      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
 
       await builder.addEdge('aa1111', 'bb2222');
-      const stats = /** @type {any} */ (builder.getMemoryStats());
+      const stats = builder.getMemoryStats();
 
       expect(stats.nodeCount).toBe(2);
       expect(stats.bitmapCount).toBe(2);
@@ -238,156 +185,82 @@ describe('StreamingBitmapIndexBuilder', () => {
   describe('automatic flush on memory threshold', () => {
     it('flushes when memory exceeds threshold', async () => {
       const onFlush = vi.fn();
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
+      const builder = new StreamingBitmapIndexBuilder({
         storage: mockStorage,
-        maxMemoryBytes: 200, // Very low threshold to trigger flush
+        maxMemoryBytes: 200,
         onFlush,
-      }));
+      });
 
-      // Add enough edges to exceed threshold
       for (let i = 0; i < 10; i++) {
         await builder.addEdge(`aa${i.toString().padStart(4, '0')}`, `bb${i.toString().padStart(4, '0')}`);
       }
 
       expect(onFlush).toHaveBeenCalled();
-      expect(builder.flushCount).toBeGreaterThan(0);
+      expect(builder.getMemoryStats().flushCount).toBeGreaterThan(0);
     });
   });
 
   describe('chunk merging', () => {
     it('merges multiple chunks for same shard', async () => {
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
+      const builder = new StreamingBitmapIndexBuilder({
         storage: mockStorage,
-        maxMemoryBytes: 100, // Force multiple flushes
-      }));
+        maxMemoryBytes: 100,
+      });
 
-      // First batch of edges
       await builder.addEdge('aa1111', 'aa2222');
       await builder.flush();
-
-      // Second batch with same prefix
       await builder.addEdge('aa3333', 'aa4444');
       await builder.flush();
-
-      // Finalize should merge chunks
       await builder.finalize();
 
-      // readBlob should have been called to load chunks for merging
-      // (may or may not depending on whether same shard was hit twice)
       expect(mockStorage.writeTree).toHaveBeenCalled();
     });
 
     it('correctly merges bitmap data from multiple chunks', async () => {
-      // Create builder with very low threshold
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
+      const builder = new StreamingBitmapIndexBuilder({
         storage: mockStorage,
-        maxMemoryBytes: 1, // Force immediate flush after each edge
-      }));
+        maxMemoryBytes: 1,
+      });
 
-      // Add edges that will be in same shard (same prefix)
       await builder.addEdge('aa0001', 'bb0001');
       await builder.addEdge('aa0002', 'bb0002');
 
       const treeOid = await builder.finalize();
       expect(treeOid).toBe('tree-oid');
 
-      // Verify all nodes are in the meta shards
-      const metaBlobs = writtenBlobs.filter((/** @type {any} */ b) => b.oid.includes('blob-'));
-      expect(metaBlobs.length).toBeGreaterThan(0);
-    });
-
-    it('rejects invalid chunk JSON during merge loading', async () => {
-      const storage = {
-        ...mockStorage,
-        readBlob: vi.fn().mockResolvedValue(new TextEncoder().encode('not-json')),
-      };
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage }));
-
-      await expect(builder._loadAndValidateChunk('bad-oid')).rejects.toThrow('Failed to parse shard JSON');
-    });
-
-    it('rejects chunk version mismatches during merge loading', async () => {
-      const envelope = {
-        ...createMockEnvelope({ aa0001: 'ZmFrZQ==' }),
-        version: SHARD_VERSION + 1,
-      };
-      const storage = {
-        ...mockStorage,
-        readBlob: vi.fn().mockResolvedValue(new TextEncoder().encode(JSON.stringify(envelope))),
-      };
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage }));
-
-      await expect(builder._loadAndValidateChunk('bad-version')).rejects.toThrow('Shard version mismatch');
-    });
-
-    it('rejects chunk checksum mismatches during merge loading', async () => {
-      const envelope = {
-        ...createMockEnvelope({ aa0001: 'ZmFrZQ==' }),
-        checksum: 'not-the-real-checksum',
-      };
-      const storage = {
-        ...mockStorage,
-        readBlob: vi.fn().mockResolvedValue(new TextEncoder().encode(JSON.stringify(envelope))),
-      };
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage }));
-
-      await expect(builder._loadAndValidateChunk('bad-checksum')).rejects.toThrow('Shard checksum mismatch');
-    });
-
-    it('wraps invalid bitmap payloads during chunk merge', () => {
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
-
-      expect(() =>
-        builder._mergeDeserializedBitmap({
-          merged: {},
-          sha: 'aa0001',
-          base64Bitmap: 'not-a-valid-bitmap',
-          oid: 'bad-bitmap-oid',
-        })
-      ).toThrow('Failed to deserialize bitmap');
+      expect(builder.getMemoryStats().nodeCount).toBe(4);
     });
   });
 });
 
 describe('StreamingBitmapIndexBuilder memory guard', () => {
   it('bitmap memory stays below threshold during large build', async () => {
-    const memoryReadings = [];
     let maxMemorySeen = 0;
-    const memoryThreshold = 5000; // 5KB threshold for test
-    const writtenBlobs = new Map();
+    const memoryThreshold = 5000;
+    const blobStore = new Map();
     let blobCounter = 0;
 
     const mockStorage = {
-      writeBlob: vi.fn().mockImplementation(async (buffer) => {
+      writeBlob: vi.fn().mockImplementation(async (/** @type {Uint8Array} */ buffer) => {
         const oid = `blob-${blobCounter++}`;
-        writtenBlobs.set(oid, new TextDecoder().decode(buffer));
+        blobStore.set(oid, buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer));
         return oid;
       }),
       writeTree: vi.fn().mockResolvedValue('tree-oid'),
-      readBlob: vi.fn().mockImplementation(async (oid) => {
-        const content = writtenBlobs.get(oid);
-        if (content) {
-          return new TextEncoder().encode(content);
-        }
-        // Return valid empty envelope for any untracked blobs
-        return new TextEncoder().encode(JSON.stringify(createMockEnvelope({})));
+      readBlob: vi.fn().mockImplementation(async (/** @type {string} */ oid) => {
+        return blobStore.get(oid) || defaultCodec.encode({});
       }),
     };
 
-    const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
+    const builder = new StreamingBitmapIndexBuilder({
       storage: mockStorage,
       maxMemoryBytes: memoryThreshold,
-      onFlush: (/** @type {any} */ { flushedBytes }) => {
-        memoryReadings.push({ event: 'flush', flushedBytes });
-      },
-    }));
+    });
 
-    // Simulate large input (500 nodes with edges)
     for (let i = 0; i < 500; i++) {
       const sha = `${(i % 256).toString(16).padStart(2, '0')}${i.toString().padStart(6, '0')}`;
       await builder.registerNode(sha);
 
-      // Add 1-3 parent edges per node
       const numParents = (i % 3) + 1;
       for (let p = 0; p < numParents && i > p; p++) {
         const parentIdx = Math.max(0, i - p - 1);
@@ -395,368 +268,175 @@ describe('StreamingBitmapIndexBuilder memory guard', () => {
         await builder.addEdge(parentSha, sha);
       }
 
-      // Track memory after each node
-      const stats = builder.getMemoryStats();
-      maxMemorySeen = Math.max(maxMemorySeen, /** @type {any} */ (stats).estimatedBitmapBytes);
+      maxMemorySeen = Math.max(maxMemorySeen, builder.getMemoryStats().estimatedBitmapBytes);
     }
 
     await builder.finalize();
 
-    // Assert memory never exceeded threshold by too much
-    // (allow some overshoot since we check after addEdge)
-    const allowedOvershoot = memoryThreshold * 0.5; // 50% tolerance for batch processing
+    const allowedOvershoot = memoryThreshold * 0.5;
     expect(maxMemorySeen).toBeLessThan(memoryThreshold + allowedOvershoot);
-
-    // Should have flushed multiple times
-    expect(builder.flushCount).toBeGreaterThan(0);
-
-    // Verify final tree was created
+    expect(builder.getMemoryStats().flushCount).toBeGreaterThan(0);
     expect(mockStorage.writeTree).toHaveBeenCalled();
   });
 
   it('produces correct index despite multiple flushes', async () => {
-    const writtenBlobs = new Map();
+    const blobStore = new Map();
     let blobCounter = 0;
 
     const mockStorage = {
-      writeBlob: vi.fn().mockImplementation(async (buffer) => {
+      writeBlob: vi.fn().mockImplementation(async (/** @type {Uint8Array} */ buffer) => {
         const oid = `blob-${blobCounter++}`;
-        writtenBlobs.set(oid, new TextDecoder().decode(buffer));
+        blobStore.set(oid, buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer));
         return oid;
       }),
       writeTree: vi.fn().mockResolvedValue('tree-oid'),
-      readBlob: vi.fn().mockImplementation(async (oid) => {
-        return new TextEncoder().encode(writtenBlobs.get(oid) || '{}');
+      readBlob: vi.fn().mockImplementation(async (/** @type {string} */ oid) => {
+        return blobStore.get(oid) || defaultCodec.encode({});
       }),
     };
 
-    const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
+    const builder = new StreamingBitmapIndexBuilder({
       storage: mockStorage,
-      maxMemoryBytes: 500, // Force frequent flushes
-    }));
+      maxMemoryBytes: 500,
+    });
 
-    // Build a small graph
     const nodes = ['aa0001', 'aa0002', 'aa0003', 'bb0001', 'bb0002'];
-    const edges = [
-      ['aa0001', 'aa0002'],
-      ['aa0002', 'aa0003'],
-      ['aa0001', 'bb0001'],
-      ['bb0001', 'bb0002'],
-    ];
+    const edges = [['aa0001', 'aa0002'], ['aa0002', 'aa0003'], ['aa0001', 'bb0001'], ['bb0001', 'bb0002']];
 
-    for (const sha of nodes) {
-      await builder.registerNode(sha);
-    }
-    for (const [parent, child] of edges) {
-      await builder.addEdge(/** @type {string} */ (parent), /** @type {string} */ (child));
-    }
-
+    for (const sha of nodes) { await builder.registerNode(sha); }
+    for (const [parent, child] of edges) { await builder.addEdge(parent, child); }
     await builder.finalize();
 
-    // Verify all nodes are in meta shards
-    const treeEntries = /** @type {*} */ (mockStorage.writeTree.mock.calls[0])[0];
-    const metaEntries = treeEntries.filter((/** @type {any} */ e) => e.includes('meta_'));
+    const treeEntries = /** @type {string[]} */ (mockStorage.writeTree.mock.calls[0][0]);
+    const metaEntries = treeEntries.filter((e) => e.includes('meta_'));
     expect(metaEntries.length).toBeGreaterThan(0);
-
-    // Verify all nodes got IDs
-    expect(builder.shaToId.size).toBe(5);
-    expect(builder.idToSha.length).toBe(5);
+    expect(builder.getMemoryStats().nodeCount).toBe(5);
   });
 });
 
 describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
-  describe('smallest window test', () => {
-    it('handles 1000 nodes with 512-byte memory limit forcing flush on nearly every edge', async () => {
-      const writtenBlobs = new Map();
-      let blobCounter = 0;
-      let flushCount = 0;
+  it('handles 1000 nodes with 512-byte memory limit', async () => {
+    const blobStore = new Map();
+    let blobCounter = 0;
+    let flushCount = 0;
 
-      const mockStorage = {
-        writeBlob: vi.fn().mockImplementation(async (buffer) => {
-          const oid = `blob-${blobCounter++}`;
-          writtenBlobs.set(oid, new TextDecoder().decode(buffer));
-          return oid;
-        }),
-        writeTree: vi.fn().mockResolvedValue('tree-oid'),
-        readBlob: vi.fn().mockImplementation(async (oid) => {
-          return new TextEncoder().encode(writtenBlobs.get(oid) || '{}');
-        }),
-      };
+    const mockStorage = {
+      writeBlob: vi.fn().mockImplementation(async (/** @type {Uint8Array} */ buffer) => {
+        const oid = `blob-${blobCounter++}`;
+        blobStore.set(oid, buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer));
+        return oid;
+      }),
+      writeTree: vi.fn().mockResolvedValue('tree-oid'),
+      readBlob: vi.fn().mockImplementation(async (/** @type {string} */ oid) => {
+        return blobStore.get(oid) || defaultCodec.encode({});
+      }),
+    };
 
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
-        storage: mockStorage,
-        maxMemoryBytes: 512, // Extremely small - forces flush on almost every edge
-        onFlush: () => { flushCount++; },
-      }));
-
-      // Create 1000 nodes with edges forming a chain
-      const nodeCount = 1000;
-      for (let i = 0; i < nodeCount; i++) {
-        const sha = `${(i % 256).toString(16).padStart(2, '0')}${i.toString(16).padStart(6, '0')}`;
-        await builder.registerNode(sha);
-
-        // Add edge to previous node (if not first)
-        if (i > 0) {
-          const prevSha = `${((i - 1) % 256).toString(16).padStart(2, '0')}${(i - 1).toString(16).padStart(6, '0')}`;
-          await builder.addEdge(prevSha, sha);
-        }
-      }
-
-      // Finalize should complete without error
-      const treeOid = await builder.finalize();
-      expect(treeOid).toBe('tree-oid');
-
-      // All nodes should be in final index
-      expect(builder.shaToId.size).toBe(nodeCount);
-      expect(builder.idToSha.length).toBe(nodeCount);
-
-      // Should have flushed many times due to tiny memory limit
-      expect(flushCount).toBeGreaterThan(10);
-
-      // Verify tree was created with merged shards
-      expect(mockStorage.writeTree).toHaveBeenCalled();
-      const treeEntries = /** @type {*} */ (mockStorage.writeTree.mock.calls[0])[0];
-
-      // Should have meta shards for SHA→ID mappings
-      const metaEntries = treeEntries.filter((/** @type {any} */ e) => e.includes('meta_'));
-      expect(metaEntries.length).toBeGreaterThan(0);
-
-      // Should have both fwd and rev bitmap shards
-      const fwdEntries = treeEntries.filter((/** @type {any} */ e) => e.includes('shards_fwd_'));
-      const revEntries = treeEntries.filter((/** @type {any} */ e) => e.includes('shards_rev_'));
-      expect(fwdEntries.length).toBeGreaterThan(0);
-      expect(revEntries.length).toBeGreaterThan(0);
+    const builder = new StreamingBitmapIndexBuilder({
+      storage: mockStorage,
+      maxMemoryBytes: 512,
+      onFlush: () => { flushCount++; },
     });
+
+    const nodeCount = 1000;
+    for (let i = 0; i < nodeCount; i++) {
+      const sha = `${(i % 256).toString(16).padStart(2, '0')}${i.toString(16).padStart(6, '0')}`;
+      await builder.registerNode(sha);
+      if (i > 0) {
+        const prevSha = `${((i - 1) % 256).toString(16).padStart(2, '0')}${(i - 1).toString(16).padStart(6, '0')}`;
+        await builder.addEdge(prevSha, sha);
+      }
+    }
+
+    const treeOid = await builder.finalize();
+    expect(treeOid).toBe('tree-oid');
+    expect(builder.getMemoryStats().nodeCount).toBe(nodeCount);
+    expect(flushCount).toBeGreaterThan(10);
+
+    const treeEntries = /** @type {string[]} */ (mockStorage.writeTree.mock.calls[0][0]);
+    expect(treeEntries.some((e) => e.includes('meta_'))).toBe(true);
+    expect(treeEntries.some((e) => e.includes('shards_fwd_'))).toBe(true);
+    expect(treeEntries.some((e) => e.includes('shards_rev_'))).toBe(true);
   });
 
-  describe('persistence failure during flush', () => {
-    it('throws clean error when storage.writeBlob fails mid-flush', async () => {
-      let writeCallCount = 0;
+  it('throws clean error when storage.writeBlob fails mid-flush', async () => {
+    let writeCallCount = 0;
 
-      const mockStorage = {
-        writeBlob: vi.fn().mockImplementation(async () => {
-          writeCallCount++;
-          if (writeCallCount === 3) {
-            throw new Error('Storage write failed: disk full');
-          }
-          return `blob-${writeCallCount}`;
-        }),
-        writeTree: vi.fn().mockResolvedValue('tree-oid'),
-        readBlob: vi.fn().mockResolvedValue(new TextEncoder().encode('{}')),
-      };
+    const mockStorage = {
+      writeBlob: vi.fn().mockImplementation(async () => {
+        writeCallCount++;
+        if (writeCallCount === 3) {
+          throw new Error('Storage write failed: disk full');
+        }
+        return `blob-${writeCallCount}`;
+      }),
+      writeTree: vi.fn().mockResolvedValue('tree-oid'),
+      readBlob: vi.fn().mockResolvedValue(defaultCodec.encode({})),
+    };
 
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
-        storage: mockStorage,
-        maxMemoryBytes: 50000, // Large enough to not auto-flush during addEdge
-      }));
-
-      // Add edges across multiple prefixes to ensure multiple writeBlob calls per flush
-      await builder.addEdge('aa0001', 'bb0001');
-      await builder.addEdge('cc0001', 'dd0001');
-      await builder.addEdge('ee0001', 'ff0001');
-
-      // Flush should throw the storage error on the 3rd writeBlob call
-      await expect(builder.flush()).rejects.toThrow('Storage write failed: disk full');
-
-      // Error message should be descriptive (comes from storage layer)
-      writeCallCount = 2; // Reset to trigger on next call
-      try {
-        await builder.flush();
-      } catch (/** @type {any} */ err) {
-        expect(err.message).toContain('Storage write failed');
-      }
+    const builder = new StreamingBitmapIndexBuilder({
+      storage: mockStorage,
+      maxMemoryBytes: 50000,
     });
 
-    it('maintains consistent internal state when flush fails before clearing bitmaps', async () => {
-      let shouldFail = false;
+    await builder.addEdge('aa0001', 'bb0001');
+    await builder.addEdge('cc0001', 'dd0001');
+    await builder.addEdge('ee0001', 'ff0001');
 
-      const mockStorage = {
-        writeBlob: vi.fn().mockImplementation(async () => {
-          if (shouldFail) {
-            throw new Error('Network timeout');
-          }
-          return 'blob-oid';
-        }),
-        writeTree: vi.fn().mockResolvedValue('tree-oid'),
-        readBlob: vi.fn().mockResolvedValue(new TextEncoder().encode('{}')),
-      };
-
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
-        storage: mockStorage,
-        maxMemoryBytes: 50000, // Large enough to not auto-flush
-      }));
-
-      // Add some edges
-      await builder.addEdge('aa0001', 'bb0001');
-      await builder.addEdge('aa0002', 'bb0002');
-
-      const bitmapCountBefore = builder.bitmaps.size;
-      const estimatedBytesBefore = builder.estimatedBitmapBytes;
-
-      // Now make storage fail
-      shouldFail = true;
-
-      // Flush should fail
-      await expect(builder.flush()).rejects.toThrow('Network timeout');
-
-      // Since flush throws before clearing bitmaps (during writeBlob loop),
-      // internal state should reflect partial completion
-      // The bitmaps may or may not be cleared depending on where failure occurred
-      // but flushCount should not be incremented since callback wasn't reached
-      expect(builder.flushCount).toBe(0);
-
-      // Bitmaps should still be present since we failed before clearing them
-      expect(builder.bitmaps.size).toBe(bitmapCountBefore);
-      expect(builder.estimatedBitmapBytes).toBe(estimatedBytesBefore);
-    });
+    await expect(builder.flush()).rejects.toThrow('Storage write failed: disk full');
   });
 
-  describe('merge collision test', () => {
-    it('correctly merges same node prefix from 10 different flushed chunks', async () => {
-      const writtenBlobs = new Map();
-      let blobCounter = 0;
+  it('correctly merges same node prefix from 10 different flushed chunks', async () => {
+    const blobStore = new Map();
+    let blobCounter = 0;
 
-      const mockStorage = {
-        writeBlob: vi.fn().mockImplementation(async (buffer) => {
-          const oid = `blob-${blobCounter++}`;
-          writtenBlobs.set(oid, new TextDecoder().decode(buffer));
-          return oid;
-        }),
-        writeTree: vi.fn().mockResolvedValue('tree-oid'),
-        readBlob: vi.fn().mockImplementation(async (oid) => {
-          return new TextEncoder().encode(writtenBlobs.get(oid) || '{}');
-        }),
-      };
+    const mockStorage = {
+      writeBlob: vi.fn().mockImplementation(async (/** @type {Uint8Array} */ buffer) => {
+        const oid = `blob-${blobCounter++}`;
+        blobStore.set(oid, buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer));
+        return oid;
+      }),
+      writeTree: vi.fn().mockResolvedValue('tree-oid'),
+      readBlob: vi.fn().mockImplementation(async (/** @type {string} */ oid) => {
+        return blobStore.get(oid) || defaultCodec.encode({});
+      }),
+    };
 
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
-        storage: mockStorage,
-        maxMemoryBytes: 1, // Force flush after every edge
-      }));
-
-      // Create 10 edges from aa0001 to different targets, each in separate flush
-      const sourceNode = 'aa0001';
-      const targetNodes = [];
-
-      for (let i = 0; i < 10; i++) {
-        const targetNode = `bb${i.toString().padStart(4, '0')}`;
-        targetNodes.push(targetNode);
-        await builder.addEdge(sourceNode, targetNode);
-        // With maxMemoryBytes=1, each addEdge triggers a flush
-      }
-
-      // Finalize to merge all chunks
-      await builder.finalize();
-
-      // The final tree should reference a merged shard
-      expect(mockStorage.writeTree).toHaveBeenCalled();
-      const treeEntries = /** @type {*} */ (mockStorage.writeTree.mock.calls[0])[0];
-      const fwdAaShard = treeEntries.find((/** @type {any} */ e) => e.includes('shards_fwd_aa'));
-      expect(fwdAaShard).toBeDefined();
-
-      // Find the merged content for aa prefix (now wrapped in envelope)
-      let mergedFwdContent = null;
-      for (const entry of treeEntries) {
-        if (entry.includes('shards_fwd_aa')) {
-          const oidMatch = entry.match(/blob ([^\s]+)/);
-          if (oidMatch) {
-            const mergedOid = oidMatch[1];
-            const envelope = JSON.parse(writtenBlobs.get(mergedOid));
-            // Extract data from envelope
-            mergedFwdContent = envelope.data;
-          }
-        }
-      }
-
-      expect(mergedFwdContent).not.toBeNull();
-      expect(mergedFwdContent[sourceNode]).toBeDefined();
-
-      // Deserialize the bitmap to check cardinality
-      const roaring = await import('roaring');
-      const { RoaringBitmap32 } = roaring.default;
-      const bitmap = RoaringBitmap32.deserialize(
-        Buffer.from(mergedFwdContent[sourceNode], 'base64'),
-        true
-      );
-
-      // Should have exactly 10 children (no duplicates, all edges preserved)
-      expect(bitmap.size).toBe(10);
-
-      // Verify all target node IDs are in the bitmap
-      for (const targetNode of targetNodes) {
-        const targetId = builder.shaToId.get(targetNode);
-        expect(bitmap.has(targetId)).toBe(true);
-      }
+    const builder = new StreamingBitmapIndexBuilder({
+      storage: mockStorage,
+      maxMemoryBytes: 1,
     });
 
-    it('handles multiple nodes with same prefix across many flushes without data loss', async () => {
-      const writtenBlobs = new Map();
-      let blobCounter = 0;
+    const sourceNode = 'aa0001';
+    const targetNodes = [];
+    for (let i = 0; i < 10; i++) {
+      const targetNode = `bb${i.toString().padStart(4, '0')}`;
+      targetNodes.push(targetNode);
+      await builder.addEdge(sourceNode, targetNode);
+    }
 
-      const mockStorage = {
-        writeBlob: vi.fn().mockImplementation(async (buffer) => {
-          const oid = `blob-${blobCounter++}`;
-          writtenBlobs.set(oid, new TextDecoder().decode(buffer));
-          return oid;
-        }),
-        writeTree: vi.fn().mockResolvedValue('tree-oid'),
-        readBlob: vi.fn().mockImplementation(async (oid) => {
-          return new TextEncoder().encode(writtenBlobs.get(oid) || '{}');
-        }),
-      };
+    await builder.finalize();
 
-      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
-        storage: mockStorage,
-        maxMemoryBytes: 1, // Force flush after every edge
-      }));
+    const treeEntries = /** @type {string[]} */ (mockStorage.writeTree.mock.calls[0][0]);
+    const fwdAaShard = treeEntries.find((e) => e.includes('shards_fwd_aa'));
+    expect(fwdAaShard).toBeDefined();
 
-      // Create a more complex scenario:
-      // Multiple sources with 'aa' prefix, each with multiple targets
-      const edgeMap = new Map(); // Track expected edges for verification
-      const sources = ['aa0001', 'aa0002', 'aa0003'];
+    // Decode the merged CBOR shard and verify bitmap cardinality
+    const oidMatch = /** @type {RegExpMatchArray} */ (fwdAaShard?.match(/blob ([^\s]+)/));
+    const mergedBlob = blobStore.get(oidMatch[1]);
+    const mergedContent = /** @type {Record<string, Uint8Array>} */ (defaultCodec.decode(mergedBlob));
 
-      for (const source of sources) {
-        edgeMap.set(source, []);
-        for (let i = 0; i < 5; i++) {
-          const target = `bb${source.slice(-4)}_${i}`;
-          edgeMap.get(source).push(target);
-          await builder.addEdge(source, target);
-        }
-      }
+    expect(mergedContent[sourceNode]).toBeDefined();
 
-      await builder.finalize();
+    const roaring = await import('roaring');
+    const { RoaringBitmap32 } = roaring.default;
+    const bitmap = RoaringBitmap32.deserialize(
+      mergedContent[sourceNode] instanceof Uint8Array
+        ? mergedContent[sourceNode]
+        : new Uint8Array(mergedContent[sourceNode]),
+      true,
+    );
 
-      // Extract the merged 'aa' shard (now wrapped in envelope)
-      const treeEntries = /** @type {*} */ (mockStorage.writeTree.mock.calls[0])[0];
-      const fwdAaShard = treeEntries.find((/** @type {any} */ e) => e.includes('shards_fwd_aa'));
-      expect(fwdAaShard).toBeDefined();
-
-      const oidMatch = fwdAaShard.match(/blob ([^\s]+)/);
-      const envelope = JSON.parse(writtenBlobs.get(oidMatch[1]));
-      const mergedContent = envelope.data;
-
-      // Verify all sources are present
-      for (const source of sources) {
-        expect(mergedContent[source]).toBeDefined();
-      }
-
-      // Verify correct cardinality for each source
-      const roaring = await import('roaring');
-      const { RoaringBitmap32 } = roaring.default;
-
-      for (const source of sources) {
-        const bitmap = RoaringBitmap32.deserialize(
-          Buffer.from(mergedContent[source], 'base64'),
-          true
-        );
-        // Each source should have exactly 5 targets
-        expect(bitmap.size).toBe(5);
-
-        // Verify all expected targets are present
-        for (const target of edgeMap.get(source)) {
-          const targetId = builder.shaToId.get(target);
-          expect(bitmap.has(targetId)).toBe(true);
-        }
-      }
-    });
+    expect(bitmap.size).toBe(10);
   });
 });

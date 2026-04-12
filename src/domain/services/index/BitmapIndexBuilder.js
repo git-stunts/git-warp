@@ -1,45 +1,7 @@
 import defaultCodec from '../../utils/defaultCodec.ts';
-import defaultCrypto from '../../utils/defaultCrypto.ts';
-import { computeChecksum } from '../../utils/checksumUtils.ts';
-import { getRoaringBitmap32, getNativeRoaringAvailable } from '../../utils/roaring.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
-import { SHARD_VERSION } from '../../utils/shardVersion.ts';
-import { textEncode, base64Encode } from '../../utils/bytes.ts';
-
-// Re-export for backwards compatibility
-export { SHARD_VERSION };
-
-/** @type {boolean|null} Whether native Roaring bindings are available (null = unknown until first use) */
-let _nativeRoaringAvailable = null;
-
-/**
- * Resets native Roaring availability detection (test-only utility).
- * @returns {void}
- */
-export function resetNativeRoaringFlag() {
-  _nativeRoaringAvailable = null;
-}
-
-/** Lazily resolves the Roaring bitmap constructor and caches native availability. */
-const ensureRoaringBitmap32 = () => {
-  const RoaringBitmap32 = getRoaringBitmap32();
-  if (_nativeRoaringAvailable === null) {
-    _nativeRoaringAvailable = getNativeRoaringAvailable();
-  }
-  return RoaringBitmap32;
-};
-
-/**
- * Wraps data in a version/checksum envelope.
- * @param {Record<string, unknown>} data - The data to wrap
- * @param {import('../../../ports/CryptoPort.ts').default} crypto - CryptoPort instance
- * @returns {Promise<{version: number, checksum: string, data: Record<string, unknown>}>} Envelope with version, checksum, and data
- */
-const wrapShard = async (data, crypto) => ({
-  version: SHARD_VERSION,
-  checksum: await computeChecksum(data, crypto),
-  data,
-});
+import { textEncode } from '../../utils/bytes.ts';
+import BitmapAccumulator from './BitmapAccumulator.ts';
 
 /**
  * Serializes a frontier Map into CBOR and JSON blobs in the given tree.
@@ -61,180 +23,89 @@ function serializeFrontierToTree(frontier, tree, codec) {
 /**
  * Builder for constructing bitmap indexes in memory.
  *
- * This is a pure domain class with no infrastructure dependencies.
- * Create an instance, add nodes and edges, then serialize to persist.
- *
- * Callers that persist the serialized output typically need
- * BlobPort + TreePort + RefPort from the persistence layer.
- *
- * **Performance Note**: Uses Roaring Bitmaps for compression. Native bindings
- * provide best performance. Use `getNativeRoaringAvailable()` from
- * `src/domain/utils/roaring.ts` if runtime capability checks are needed.
+ * Pure domain class with no infrastructure dependencies. Delegates ID
+ * allocation and bitmap accumulation to BitmapAccumulator. Serializes
+ * to CBOR shard format (no envelopes — git-cas handles integrity).
  *
  * @example
- * import BitmapIndexBuilder from './BitmapIndexBuilder.js';
  * const builder = new BitmapIndexBuilder();
+ * builder.addEdge(parentSha, childSha);
+ * const tree = await builder.serialize();
  */
 export default class BitmapIndexBuilder {
   /**
    * Creates a new BitmapIndexBuilder instance.
    *
-   * The builder tracks:
-   * - SHA to numeric ID mappings (for compact bitmap storage)
-   * - Forward edge bitmaps (parent → children)
-   * - Reverse edge bitmaps (child → parents)
-   *
-   * @param {{ crypto?: import('../../../ports/CryptoPort.ts').default, codec?: import('../../../ports/CodecPort.ts').default }} [options] - Configuration options
+   * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options] - Configuration options
    */
   constructor(options = undefined) {
-    const { crypto, codec } = options ?? {};
-    /** @type {import('../../../ports/CryptoPort.ts').default} */
-    this._crypto = crypto || defaultCrypto;
+    const { codec } = options ?? {};
     /** @type {import('../../../ports/CodecPort.ts').default} */
     this._codec = codec || defaultCodec;
-    /** @type {Map<string, number>} */
-    this.shaToId = new Map();
-    /** @type {string[]} */
-    this.idToSha = [];
-    /** @type {Map<string, import('../../utils/roaring.ts').RoaringBitmapSubset>} */
-    this.bitmaps = new Map();
+    this._accumulator = new BitmapAccumulator();
   }
+
+  /** SHA→numeric-ID forward mapping.
+   * @returns {Map<string, number>} */
+  get shaToId() { return this._accumulator.shaToId; }
+
+  /** Numeric-ID→SHA reverse mapping.
+   * @returns {string[]} */
+  get idToSha() { return this._accumulator.idToSha; }
+
+  /** Active bitmap map keyed by `{dir}_{sha}`.
+   * @returns {Map<string, import('../../utils/roaring.ts').RoaringBitmapSubset>} */
+  get bitmaps() { return this._accumulator.bitmaps; }
 
   /**
    * Registers a node without adding edges.
-   * Useful for root nodes with no parents.
-   *
    * @param {string} sha - The node's SHA
    * @returns {number} The assigned numeric ID
    */
   registerNode(sha) {
-    return this._getOrCreateId(sha);
+    return this._accumulator.registerNode(sha);
   }
 
   /**
    * Adds a directed edge from source to target node.
-   *
-   * Updates both forward (src → tgt) and reverse (tgt → src) bitmaps.
-   *
    * @param {string} srcSha - Source node SHA (parent)
    * @param {string} tgtSha - Target node SHA (child)
-   * @returns {void}
    */
   addEdge(srcSha, tgtSha) {
-    const srcId = this._getOrCreateId(srcSha);
-    const tgtId = this._getOrCreateId(tgtSha);
-    this._addToBitmap({ sha: srcSha, id: tgtId, type: 'fwd' });
-    this._addToBitmap({ sha: tgtSha, id: srcId, type: 'rev' });
+    this._accumulator.addEdge(srcSha, tgtSha);
   }
 
   /**
-   * Serializes the index to a tree structure of buffers.
+   * Serializes the index to a tree structure of CBOR buffers.
    *
-   * Output structure (sharded by SHA prefix for lazy loading):
-   * - `meta_XX.json`: {version, checksum, data: {sha: id, ...}} for SHAs with prefix XX
-   * - `shards_fwd_XX.json`: {version, checksum, data: {sha: base64Bitmap, ...}} for forward edges
-   * - `shards_rev_XX.json`: {version, checksum, data: {sha: base64Bitmap, ...}} for reverse edges
-   *
-   * Each shard is wrapped in a version/checksum envelope for integrity verification.
+   * Output structure (sharded by SHA prefix):
+   * - `meta_XX.cbor`: {sha: id, ...} for SHAs with prefix XX
+   * - `shards_fwd_XX.cbor`: {sha: Uint8Array(bitmap), ...} for forward edges
+   * - `shards_rev_XX.cbor`: {sha: Uint8Array(bitmap), ...} for reverse edges
    *
    * @param {{ frontier?: Map<string, string> }} [options] - Serialization options
-   * @returns {Promise<Record<string, Uint8Array>>} Map of path → serialized content
+   * @returns {Record<string, Uint8Array>} Map of path → serialized content
    */
-  async serialize({ frontier } = {}) {
+  serialize({ frontier } = {}) {
     /** @type {Record<string, Uint8Array>} */
     const tree = {};
 
-    await this._serializeIdShards(tree);
-    await this._serializeBitmapShards(tree);
+    const metaShards = this._accumulator.buildMetaShards();
+    for (const [prefix, map] of Object.entries(metaShards)) {
+      tree[`meta_${prefix}.cbor`] = this._codec.encode(map);
+    }
+
+    const bitmapShards = this._accumulator.serializeBitmapsToShards();
+    for (const dir of /** @type {const} */ (['fwd', 'rev'])) {
+      for (const [prefix, data] of Object.entries(bitmapShards[dir])) {
+        tree[`shards_${dir}_${prefix}.cbor`] = this._codec.encode(data);
+      }
+    }
 
     if (frontier !== undefined) {
       serializeFrontierToTree(frontier, tree, this._codec);
     }
 
     return tree;
-  }
-
-  /**
-   * Serializes SHA-to-ID mappings into prefix-sharded JSON entries.
-   * @param {Record<string, Uint8Array>} tree - Target tree to populate
-   * @returns {Promise<void>}
-   * @private
-   */
-  async _serializeIdShards(tree) {
-    /** @type {Record<string, Record<string, number>>} */
-    const idShards = {};
-    for (const [sha, id] of this.shaToId) {
-      const prefix = sha.substring(0, 2);
-      if (idShards[prefix] === undefined) {
-        idShards[prefix] = {};
-      }
-      idShards[prefix][sha] = id;
-    }
-    for (const [prefix, map] of Object.entries(idShards)) {
-      tree[`meta_${prefix}.json`] = textEncode(JSON.stringify(await wrapShard(map, this._crypto)));
-    }
-  }
-
-  /**
-   * Serializes forward and reverse bitmap shards into JSON entries.
-   * @param {Record<string, Uint8Array>} tree - Target tree to populate
-   * @returns {Promise<void>}
-   * @private
-   */
-  async _serializeBitmapShards(tree) {
-    /** @type {Record<string, Record<string, Record<string, string>>>} */
-    const bitmapShards = { fwd: {}, rev: {} };
-    for (const [key, bitmap] of this.bitmaps) {
-      const type = key.substring(0, 3);
-      const sha = key.substring(4);
-      const prefix = sha.substring(0, 2);
-
-      const typeShard = bitmapShards[type];
-      if (typeShard === undefined) { continue; }
-      if (typeShard[prefix] === undefined) {
-        typeShard[prefix] = {};
-      }
-      const prefixShard = typeShard[prefix];
-      if (prefixShard === undefined) { continue; }
-      prefixShard[sha] = base64Encode(new Uint8Array(bitmap.serialize(true)));
-    }
-
-    for (const type of ['fwd', 'rev']) {
-      const shardGroup = bitmapShards[type];
-      if (shardGroup === undefined) { continue; }
-      for (const [prefix, shardData] of Object.entries(shardGroup)) {
-        tree[`shards_${type}_${prefix}.json`] = textEncode(JSON.stringify(await wrapShard(shardData, this._crypto)));
-      }
-    }
-  }
-
-  /**
-   * Gets or creates a numeric ID for a SHA.
-   * @param {string} sha - The SHA to look up or register
-   * @returns {number} The numeric ID
-   * @private
-   */
-  _getOrCreateId(sha) {
-    if (this.shaToId.has(sha)) {
-      return /** @type {number} */ (this.shaToId.get(sha));
-    }
-    const id = this.idToSha.length;
-    this.idToSha.push(sha);
-    this.shaToId.set(sha, id);
-    return id;
-  }
-
-  /**
-   * Adds an ID to a node's bitmap.
-   * @param {{ sha: string, id: number, type: string }} opts - Options
-   * @private
-   */
-  _addToBitmap({ sha, id, type }) {
-    const key = `${type}_${sha}`;
-    if (!this.bitmaps.has(key)) {
-      const RoaringBitmap32 = ensureRoaringBitmap32();
-      this.bitmaps.set(key, new RoaringBitmap32());
-    }
-    /** @type {import('../../utils/roaring.ts').RoaringBitmapSubset} */ (this.bitmaps.get(key)).add(id);
   }
 }
