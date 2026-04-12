@@ -92,7 +92,7 @@ vi.mock('../../../../../src/domain/services/GCMetrics.ts', () => ({
   default: { fromState: collectGCMetricsMock },
 }));
 
-vi.mock('../../../../../src/domain/services/state/CheckpointSerializerV5.js', () => ({
+vi.mock('../../../../../src/domain/services/state/CheckpointSerializer.js', () => ({
   computeAppliedVV: computeAppliedVVMock,
 }));
 

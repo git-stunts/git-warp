@@ -7,13 +7,13 @@ import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { encodeEdgeKey, encodeEdgePropKey, encodePropKey } from '../../../../src/domain/services/KeyCodec.js';
-import { createStateReaderV5 } from '../../../../src/domain/services/state/StateReaderV5.js';
+import { createStateReader } from '../../../../src/domain/services/state/StateReader.js';
 import {
-  normalizeVisibleStateScopeV1,
+  normalizeVisibleStateScope,
   nodeIdInVisibleStateScope,
-  scopeMaterializedStateV5,
+  scopeMaterializedState,
   scopePatchEntriesV1,
-} from '../../../../src/domain/services/VisibleStateScopeV1.js';
+} from '../../../../src/domain/services/VisibleStateScope.js';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 
 function buildScopedFixtureState() {
@@ -42,9 +42,9 @@ function buildScopedFixtureState() {
   });
 }
 
-describe('VisibleStateScopeV1', () => {
+describe('VisibleStateScope', () => {
   it('normalizes node-id prefix scopes deterministically', () => {
-    expect(normalizeVisibleStateScopeV1({
+    expect(normalizeVisibleStateScope({
       nodeIdPrefixes: {
         exclude: ['comparison-artifact:', 'comparison-artifact:'],
       },
@@ -58,14 +58,14 @@ describe('VisibleStateScopeV1', () => {
 
   it('filters nodes, dependent edges, and properties by node-id prefix scope', () => {
     const state = buildScopedFixtureState();
-    const scope = normalizeVisibleStateScopeV1({
+    const scope = normalizeVisibleStateScope({
       nodeIdPrefixes: {
         exclude: ['comparison-artifact:'],
       },
     });
 
-    const scoped = scopeMaterializedStateV5(state, scope);
-    const reader = createStateReaderV5(scoped);
+    const scoped = scopeMaterializedState(state, scope);
+    const reader = createStateReader(scoped);
 
     expect(reader.getNodes()).toEqual(['task:1']);
     expect(reader.getEdges()).toEqual([]);
@@ -74,23 +74,23 @@ describe('VisibleStateScopeV1', () => {
   });
 
   it('rejects malformed scope definitions and empty prefix items', () => {
-    expect(() => normalizeVisibleStateScopeV1({
+    expect(() => normalizeVisibleStateScope({
       nodeIdPrefixes: {
         include: ['task:', '   '],
       },
     })).toThrow('scope.nodeIdPrefixes.include must contain only non-empty strings');
 
-    expect(() => normalizeVisibleStateScopeV1({
+    expect(() => normalizeVisibleStateScope({
       nodeIdPrefixes: {
         include: /** @type {unknown} */ ('task:'),
       },
     })).toThrow('scope.nodeIdPrefixes.include must be an array of non-empty strings');
 
-    expect(() => normalizeVisibleStateScopeV1({
+    expect(() => normalizeVisibleStateScope({
       nodeIdPrefixes: /** @type {unknown} */ (['task:']),
     })).toThrow('scope.nodeIdPrefixes must be an object with include/exclude prefix arrays');
 
-    expect(() => normalizeVisibleStateScopeV1({
+    expect(() => normalizeVisibleStateScope({
       nodeIdPrefixes: {
         include: ['task:'],
         extra: ['bad'],
@@ -99,7 +99,7 @@ describe('VisibleStateScopeV1', () => {
   });
 
   it('collapses empty prefix filters to null', () => {
-    expect(normalizeVisibleStateScopeV1({
+    expect(normalizeVisibleStateScope({
       nodeIdPrefixes: {},
     })).toBeNull();
   });
@@ -108,12 +108,12 @@ describe('VisibleStateScopeV1', () => {
     expect(nodeIdInVisibleStateScope('task:1', null)).toBe(true);
     expect(nodeIdInVisibleStateScope(
       'task:1',
-      /** @type {import('../../../../src/domain/services/VisibleStateScopeV1.js').VisibleStateScopeV1} */ ({}),
+      /** @type {import('../../../../src/domain/services/VisibleStateScope.js').VisibleStateScope} */ ({}),
     )).toBe(true);
   });
 
   it('matches include-empty rules and filters edges by endpoint visibility', () => {
-    const scope = normalizeVisibleStateScopeV1({
+    const scope = normalizeVisibleStateScope({
       nodeIdPrefixes: {
         exclude: ['comparison-artifact:'],
       },
@@ -137,14 +137,14 @@ describe('VisibleStateScopeV1', () => {
     );
     state.edgeBirthEvent.set(deadEdgeKey, new EventId(99, 'alice', 'abc1299', 0));
 
-    const scope = normalizeVisibleStateScopeV1({
+    const scope = normalizeVisibleStateScope({
       nodeIdPrefixes: {
         include: ['comparison-artifact:', 'task:'],
       },
     });
 
-    const scoped = scopeMaterializedStateV5(state, scope);
-    const reader = createStateReaderV5(scoped);
+    const scoped = scopeMaterializedState(state, scope);
+    const reader = createStateReader(scoped);
 
     expect(reader.getNodes()).toEqual(['comparison-artifact:cmp-1', 'task:1']);
     expect(reader.getEdges()).toEqual([{
@@ -161,7 +161,7 @@ describe('VisibleStateScopeV1', () => {
   });
 
   it('filters patch entries by in-scope ops and keeps unscopable ops conservative', () => {
-    const scope = normalizeVisibleStateScopeV1({
+    const scope = normalizeVisibleStateScope({
       nodeIdPrefixes: {
         include: ['task:'],
       },

@@ -14,11 +14,11 @@ import {
   buildCoordinateComparisonFact,
   buildCoordinateTransferPlanFact,
 } from '../CoordinateFactExport.js';
-import { createStateReaderV5 } from '../state/StateReaderV5.js';
-import { compareVisibleStateV5 } from '../comparison/VisibleStateComparisonV5.ts';
-import { planVisibleStateTransferV5 } from '../transfer/VisibleStateTransferPlannerV5.ts';
-import { normalizeVisibleStateScopeV1 } from '../VisibleStateScopeV1.js';
-import type { VisibleStateScopeV1 } from '../../../../index.js';
+import { createStateReader } from '../state/StateReader.js';
+import { compareVisibleState } from '../comparison/VisibleStateComparison.ts';
+import { planVisibleStateTransfer } from '../transfer/VisibleStateTransferPlanner.ts';
+import { normalizeVisibleStateScope } from '../VisibleStateScope.js';
+import type { VisibleStateScope } from '../../../../index.js';
 import type Patch from '../../types/Patch.ts';
 import {
   type ComparisonHost,
@@ -186,7 +186,7 @@ function extractComparisonInputs(options: Record<string, unknown>): {
   normalizedLeft: NormalizedSelector;
   normalizedRight: NormalizedSelector;
   targetId: string | null;
-  scope: VisibleStateScopeV1 | null;
+  scope: VisibleStateScope | null;
 } {
   assertComparisonOptions(options);
   return {
@@ -199,7 +199,7 @@ function extractComparisonInputs(options: Record<string, unknown>): {
     targetId: normalizeOptionalString(
       (options as { targetId?: unknown }).targetId, 'targetId',
     ),
-    scope: normalizeVisibleStateScopeV1(
+    scope: normalizeVisibleStateScope(
       (options as { scope?: unknown }).scope, 'scope',
     ),
   };
@@ -217,7 +217,7 @@ export async function compareCoordinatesImpl(
   const left = await normalizedLeft.resolve(graph, scope, liveFrontier);
   const right = await normalizedRight.resolve(graph, scope, liveFrontier);
   const visiblePatchDivergence = buildPatchDivergenceImpl(left.patchEntries, right.patchEntries, targetId);
-  const visibleState = compareVisibleStateV5(left.state, right.state, { targetId });
+  const visibleState = compareVisibleState(left.state, right.state, { targetId });
 
   const fact = buildCoordinateComparisonFact({
     comparisonVersion: COORDINATE_COMPARISON_VERSION,
@@ -241,7 +241,7 @@ export async function compareStrandImpl(
   const ceiling = normalizeLamportCeiling(options.ceiling, 'ceiling');
   const againstCeiling = normalizeLamportCeiling(options.againstCeiling, 'againstCeiling');
   const targetId = normalizeOptionalString(options.targetId, 'targetId');
-  const scope = normalizeVisibleStateScopeV1(options.scope, 'scope');
+  const scope = normalizeVisibleStateScope(options.scope, 'scope');
 
   const left = { kind: 'strand', strandId: normalizedStrandId, ceiling };
   const right = normalizeAgainstSelector(normalizedStrandId, options.against ?? 'base', againstCeiling);
@@ -257,9 +257,9 @@ async function finalizeTransferPlan(params: {
   graph: ComparisonHost;
   sourceSide: ResolvedComparisonSide;
   targetSide: ResolvedComparisonSide;
-  transfer: Awaited<ReturnType<typeof planVisibleStateTransferV5>>;
+  transfer: Awaited<ReturnType<typeof planVisibleStateTransfer>>;
   comparisonDigest: string;
-  scope: VisibleStateScopeV1 | null;
+  scope: VisibleStateScope | null;
 }): Promise<Record<string, unknown>> {
   const { graph, sourceSide, targetSide, transfer, comparisonDigest, scope } = params;
   const changed = transfer.summary.opCount > 0;
@@ -295,7 +295,7 @@ export async function planCoordinateTransferImpl(
   const normalizedTarget = normalizeSelector(
     (options as { target: Record<string, unknown> }).target, 'target',
   );
-  const scope = normalizeVisibleStateScopeV1(
+  const scope = normalizeVisibleStateScope(
     (options as { scope?: unknown }).scope, 'scope',
   );
   const liveFrontier = (normalizedSource.kind === 'live' || normalizedTarget.kind === 'live')
@@ -312,9 +312,9 @@ export async function planCoordinateTransferImpl(
     await readContentBlobByOid(graph, meta.oid);
   const loadEdgeContent = async (_edge: unknown, meta: { oid: string }) =>
     await readContentBlobByOid(graph, meta.oid);
-  const transfer = await planVisibleStateTransferV5(
-    createStateReaderV5(sourceSide.state),
-    createStateReaderV5(targetSide.state),
+  const transfer = await planVisibleStateTransfer(
+    createStateReader(sourceSide.state),
+    createStateReader(targetSide.state),
     { loadNodeContent, loadEdgeContent },
   );
   return await finalizeTransferPlan({
@@ -332,7 +332,7 @@ export async function planStrandTransferImpl(
   const normalizedStrandId = normalizeRequiredString(strandId, 'strandId');
   const ceiling = normalizeLamportCeiling(options.ceiling, 'ceiling');
   const intoCeiling = normalizeLamportCeiling(options.intoCeiling, 'intoCeiling');
-  const scope = normalizeVisibleStateScopeV1(options.scope, 'scope');
+  const scope = normalizeVisibleStateScope(options.scope, 'scope');
 
   const source = { kind: 'strand', strandId: normalizedStrandId, ceiling };
   const target = normalizeIntoSelector(normalizedStrandId, options.into ?? 'live', intoCeiling);

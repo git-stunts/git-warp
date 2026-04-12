@@ -19,7 +19,7 @@ export type VisibleStateScopePrefixFilterV1 = {
   exclude?: string[];
 };
 
-export type VisibleStateScopeV1 = {
+export type VisibleStateScope = {
   nodeIdPrefixes?: VisibleStateScopePrefixFilterV1;
 };
 
@@ -57,7 +57,7 @@ export type CoordinateComparisonSideV1 = {
   };
 };
 
-export type VisibleStateComparisonV5 = {
+export type VisibleStateComparison = {
   comparisonVersion: string;
   changed: boolean;
   summary: {
@@ -125,7 +125,7 @@ export type VisibleStateComparisonV5 = {
 export type CoordinateComparisonV1 = {
   comparisonVersion: string;
   comparisonDigest: string;
-  scope?: VisibleStateScopeV1;
+  scope?: VisibleStateScope;
   left: CoordinateComparisonSideV1;
   right: CoordinateComparisonSideV1;
   visiblePatchDivergence: {
@@ -145,7 +145,7 @@ export type CoordinateComparisonV1 = {
       rightOnlyPatchShas: string[];
     };
   };
-  visibleState: VisibleStateComparisonV5;
+  visibleState: VisibleStateComparison;
 };
 
 export type VisibleStateTransferPlanSummaryV1 = {
@@ -182,7 +182,7 @@ export type CoordinateTransferPlanV1 = {
   transferVersion: string;
   transferDigest: string;
   comparisonDigest: string;
-  scope?: VisibleStateScopeV1;
+  scope?: VisibleStateScope;
   changed: boolean;
   source: CoordinateTransferPlanSideV1;
   target: CoordinateTransferPlanSideV1;

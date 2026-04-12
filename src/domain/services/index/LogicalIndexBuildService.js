@@ -11,7 +11,7 @@ import nullLogger from '../../utils/nullLogger.ts';
 import LogicalBitmapIndexBuilder from './LogicalBitmapIndexBuilder.js';
 import PropertyIndexBuilder from './PropertyIndexBuilder.js';
 import { decodeEdgeKey, decodePropKey, isEdgePropKey } from '../KeyCodec.js';
-import { nodeVisibleV5, edgeVisibleV5 } from '../state/StateSerializerV5.js';
+import { nodeVisibleV5, edgeVisible } from '../state/StateSerializer.js';
 import WarpStream from '../../stream/WarpStream.ts';
 import { ReceiptShard } from '../../artifacts/ReceiptShard.ts';
 import IndexError from '../../errors/IndexError.ts';
@@ -144,7 +144,7 @@ export default class LogicalIndexBuildService {
 function _collectVisibleEdges(state) {
   const visibleEdges = [];
   for (const edgeKey of state.edgeAlive.elements()) {
-    if (edgeVisibleV5(state, edgeKey)) {
+    if (edgeVisible(state, edgeKey)) {
       visibleEdges.push(decodeEdgeKey(edgeKey));
     }
   }

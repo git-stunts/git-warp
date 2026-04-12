@@ -19,7 +19,7 @@ import executeGC from '../executeGC.ts';
 import GCMetrics from '../GCMetrics.ts';
 
 /** @typedef {import('../GCPolicy.ts').default} GCPolicy */
-import { computeAppliedVV } from '../state/CheckpointSerializerV5.js';
+import { computeAppliedVV } from '../state/CheckpointSerializer.js';
 import { cloneState } from '../JoinReducer.ts';
 
 /**

@@ -1,5 +1,5 @@
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
-import { computeStateHashV5 } from '../../../src/domain/services/state/StateSerializerV5.js';
+import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.js';
 import {
   createDetachedReadBenchmarkPlan,
   DETACHED_READ_BENCHMARK_KINDS,
@@ -15,7 +15,7 @@ const crypto = new NodeCryptoAdapter();
  * @returns {Promise<string>}
  */
 async function hashState(state) {
-  return await computeStateHashV5(
+  return await computeStateHash(
     /** @type {import('../../../src/domain/services/JoinReducer.ts').WarpState} */ (state),
     { crypto },
   );

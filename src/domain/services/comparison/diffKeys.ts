@@ -7,7 +7,7 @@
  */
 
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
-import type { VisibleStateNeighborV5, VisibleStateReaderV5 } from '../../../../index.js';
+import type { VisibleStateNeighbor, VisibleStateReader } from '../../../../index.js';
 
 // ── Key encoding ────────────────────────────────────────────────────────────
 
@@ -49,7 +49,7 @@ export function nodePropKey(prop: { node: string; key: string }): string {
 /**
  * Encodes a neighbor reference as a null-delimited composite key.
  */
-export function neighborKey(neighbor: VisibleStateNeighborV5): string {
+export function neighborKey(neighbor: VisibleStateNeighbor): string {
   return `${neighbor.direction}\0${neighbor.nodeId}\0${neighbor.label}`;
 }
 
@@ -88,7 +88,7 @@ export function compareEdgePropRefs(
 /**
  * Compares two neighbor references by their composite keys.
  */
-export function compareNeighbors(a: VisibleStateNeighborV5, b: VisibleStateNeighborV5): number {
+export function compareNeighbors(a: VisibleStateNeighbor, b: VisibleStateNeighbor): number {
   return compareStrings(neighborKey(a), neighborKey(b));
 }
 
@@ -97,7 +97,7 @@ export function compareNeighbors(a: VisibleStateNeighborV5, b: VisibleStateNeigh
 /**
  * Counts node properties for a single node via the reader.
  */
-function countNodeProps(reader: VisibleStateReaderV5, nodeId: string): number {
+function countNodeProps(reader: VisibleStateReader, nodeId: string): number {
   const props = reader.getNodeProps(nodeId);
   return Object.keys(props ?? {}).length;
 }
@@ -112,7 +112,7 @@ function countEdgeProps(edge: { props?: Record<string, unknown> }): number {
 /**
  * Produces a summary of node/edge/property counts from a state reader.
  */
-export function summarizeReader(reader: VisibleStateReaderV5): {
+export function summarizeReader(reader: VisibleStateReader): {
   nodeCount: number;
   edgeCount: number;
   nodePropertyCount: number;
@@ -142,7 +142,7 @@ export function summarizeReader(reader: VisibleStateReaderV5): {
  * Collects all node properties from a reader into a keyed map.
  */
 export function collectNodeProperties(
-  reader: VisibleStateReaderV5,
+  reader: VisibleStateReader,
 ): Map<string, { node: string; key: string; value: unknown }> {
   const entries = new Map<string, { node: string; key: string; value: unknown }>();
   for (const nodeId of reader.getNodes()) {
@@ -158,7 +158,7 @@ export function collectNodeProperties(
  * Collects all edge properties from a reader into a keyed map.
  */
 export function collectEdgeProperties(
-  reader: VisibleStateReaderV5,
+  reader: VisibleStateReader,
 ): Map<string, { from: string; to: string; label: string; key: string; value: unknown }> {
   const entries = new Map<string, { from: string; to: string; label: string; key: string; value: unknown }>();
   for (const edge of reader.getEdges()) {
@@ -174,7 +174,7 @@ export function collectEdgeProperties(
  * Collects all edges from a reader into a keyed map of edge references.
  */
 export function collectEdges(
-  reader: VisibleStateReaderV5,
+  reader: VisibleStateReader,
 ): Map<string, { from: string; to: string; label: string }> {
   const edges = new Map<string, { from: string; to: string; label: string }>();
   for (const edge of reader.getEdges()) {

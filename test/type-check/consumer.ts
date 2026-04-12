@@ -75,8 +75,8 @@ import WarpApp, {
   serializeWormhole,
   deserializeWormhole,
   computeTranslationCost,
-  createStateReaderV5,
-  compareVisibleStateV5,
+  createStateReader,
+  compareVisibleState,
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
   migrateV4toV5,
@@ -110,10 +110,10 @@ import type {
   BTRVerificationResult,
   WormholeEdge,
   PatchEntry,
-  VisibleNodeViewV5,
-  VisibleStateComparisonV5,
-  VisibleStateNeighborV5,
-  VisibleStateReaderV5,
+  VisibleNodeView,
+  VisibleStateComparison,
+  VisibleStateNeighbor,
+  VisibleStateReader,
   CoordinateComparisonSelectorV1,
   CoordinateComparisonV1,
   CoordinateComparisonFactExportV1,
@@ -273,18 +273,18 @@ const sha2: string = await graph.patch((p: PatchBuilder) => {
 
 // ---- materialize overloads ----
 const state: WarpState = await graph.materialize();
-const stateReader: VisibleStateReaderV5 = createStateReaderV5(state);
-const visibleComparison: VisibleStateComparisonV5 = compareVisibleStateV5(state, state, { targetId: 'n1' });
+const stateReader: VisibleStateReader = createStateReader(state);
+const visibleComparison: VisibleStateComparison = compareVisibleState(state, state, { targetId: 'n1' });
 const readerProjection = stateReader.project();
 const readerHasNode: boolean = stateReader.hasNode('n1');
 const readerNodes: string[] = stateReader.getNodes();
 const readerEdges: Array<{ from: string; to: string; label: string; props: Record<string, unknown> }> = stateReader.getEdges();
 const readerProps: Record<string, unknown> | null = stateReader.getNodeProps('n1');
 const readerEdgeProps: Record<string, unknown> | null = stateReader.getEdgeProps('n1', 'n2', 'knows');
-const readerNeighbors: VisibleStateNeighborV5[] = stateReader.neighbors('n1', 'outgoing');
+const readerNeighbors: VisibleStateNeighbor[] = stateReader.neighbors('n1', 'outgoing');
 const readerContent: ContentMeta | null = stateReader.getNodeContentMeta('n1');
 const readerEdgeContent: ContentMeta | null = stateReader.getEdgeContentMeta('n1', 'n2', 'knows');
-const readerNodeView: VisibleNodeViewV5 | null = stateReader.inspectNode('n1');
+const readerNodeView: VisibleNodeView | null = stateReader.inspectNode('n1');
 const withReceipts: { state: WarpState; receipts: TickReceipt[] } = await graph.materialize({ receipts: true });
 const conflictKinds: ConflictKind[] = ['supersession', 'redundancy'];
 const conflictTarget: ConflictTargetSelector = { targetKind: 'node_property', entityId: 'user:alice', propertyKey: 'name' };

@@ -11,7 +11,7 @@
 
 import QueryBuilder from './QueryBuilder.js';
 import LogicalTraversal from './LogicalTraversal.ts';
-import { createStateReaderV5 } from '../state/StateReaderV5.js';
+import { createStateReader } from '../state/StateReader.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
 import { matchGlob } from '../../utils/matchGlob.ts';
 import QueryError from '../../errors/QueryError.ts';
@@ -262,8 +262,8 @@ export default class Observer {
     this._snapshot = snapshot || null;
     /** @type {WorldlineSelector|null} */
     this._source = toSelector(/** @type {WorldlineSelector|{ kind: string, [key: string]: unknown }} */ (source || new LiveSelector()));
-    /** @type {import('../../../../index.js').VisibleStateReaderV5|null} */
-    this._stateReader = snapshot ? createStateReaderV5(snapshot.state) : null;
+    /** @type {import('../../../../index.js').VisibleStateReader|null} */
+    this._stateReader = snapshot ? createStateReader(snapshot.state) : null;
     /** @type {{ outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]> }|null} */
     this._snapshotAdjacency = null;
   }

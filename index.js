@@ -165,13 +165,13 @@ import { PatchSession } from './src/domain/warp/PatchSession.ts';
 import { Writer } from './src/domain/warp/Writer.ts';
 import { ProvenanceIndex } from './src/domain/services/provenance/ProvenanceIndex.js';
 import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/services/index/WarpStateIndexBuilder.js';
-import { computeStateHashV5, projectStateV5 } from './src/domain/services/state/StateSerializerV5.js';
-import { createStateReaderV5 } from './src/domain/services/state/StateReaderV5.js';
-import { compareVisibleStateV5 } from './src/domain/services/comparison/VisibleStateComparisonV5.ts';
+import { computeStateHash, projectState } from './src/domain/services/state/StateSerializer.js';
+import { createStateReader } from './src/domain/services/state/StateReader.js';
+import { compareVisibleState } from './src/domain/services/comparison/VisibleStateComparison.ts';
 import {
-  normalizeVisibleStateScopeV1,
-  scopeMaterializedStateV5,
-} from './src/domain/services/VisibleStateScopeV1.js';
+  normalizeVisibleStateScope,
+  scopeMaterializedState,
+} from './src/domain/services/VisibleStateScope.js';
 import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
@@ -275,12 +275,12 @@ export {
   // State indexing & hashing
   WarpStateIndexBuilder,
   buildWarpStateIndex,
-  computeStateHashV5,
-  projectStateV5,
-  createStateReaderV5,
-  compareVisibleStateV5,
-  normalizeVisibleStateScopeV1,
-  scopeMaterializedStateV5,
+  computeStateHash,
+  projectState,
+  createStateReader,
+  compareVisibleState,
+  normalizeVisibleStateScope,
+  scopeMaterializedState,
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
 

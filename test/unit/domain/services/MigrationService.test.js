@@ -122,7 +122,7 @@ function reduce(patches) {
 // ============================================================================
 // End of v4 test helpers
 // ============================================================================
-import { computeStateHashV5, nodeVisibleV5, edgeVisibleV5 } from '../../../../src/domain/services/state/StateSerializerV5.js';
+import { computeStateHash, nodeVisibleV5, edgeVisible } from '../../../../src/domain/services/state/StateSerializer.js';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { lwwSet, lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
@@ -687,7 +687,7 @@ describe('MigrationService', () => {
         // Verify migration preserved all visible entities
         expect(nodeVisibleV5(v5State, 'user:alice')).toBe(true);
         expect(nodeVisibleV5(v5State, 'user:bob')).toBe(true);
-        expect(edgeVisibleV5(v5State, encodeEdgeKeyV5('user:bob', 'user:alice', 'follows'))).toBe(true);
+        expect(edgeVisible(v5State, encodeEdgeKeyV5('user:bob', 'user:alice', 'follows'))).toBe(true);
 
         // Step 3: Apply v5 patches (OR-Set based) AFTER migration
         const v5Patches = [
@@ -723,7 +723,7 @@ describe('MigrationService', () => {
         // Step 4: Verify NO data loss - all original v4 data is preserved
         expect(nodeVisibleV5(finalState, 'user:alice')).toBe(true);
         expect(nodeVisibleV5(finalState, 'user:bob')).toBe(true);
-        expect(edgeVisibleV5(finalState, encodeEdgeKeyV5('user:bob', 'user:alice', 'follows'))).toBe(true);
+        expect(edgeVisible(finalState, encodeEdgeKeyV5('user:bob', 'user:alice', 'follows'))).toBe(true);
 
         // Verify props from v4 are preserved
         const alicePropKey = encodePropKeyV5('user:alice', 'name');
@@ -733,8 +733,8 @@ describe('MigrationService', () => {
 
         // Step 5: Verify new v5 data is present
         expect(nodeVisibleV5(finalState, 'user:charlie')).toBe(true);
-        expect(edgeVisibleV5(finalState, encodeEdgeKeyV5('user:charlie', 'user:alice', 'follows'))).toBe(true);
-        expect(edgeVisibleV5(finalState, encodeEdgeKeyV5('user:charlie', 'user:bob', 'follows'))).toBe(true);
+        expect(edgeVisible(finalState, encodeEdgeKeyV5('user:charlie', 'user:alice', 'follows'))).toBe(true);
+        expect(edgeVisible(finalState, encodeEdgeKeyV5('user:charlie', 'user:bob', 'follows'))).toBe(true);
 
         // Verify Charlie's prop
         const charliePropKey = encodePropKeyV5('user:charlie', 'name');
@@ -794,9 +794,9 @@ describe('MigrationService', () => {
         const stateBAC = reduceV5([v5PatchB, v5PatchA, v5PatchC], v5State);
 
         // All orders produce the same hash (permutation invariance)
-        const hashABC = await computeStateHashV5(stateABC, { crypto });
-        const hashCBA = await computeStateHashV5(stateCBA, { crypto });
-        const hashBAC = await computeStateHashV5(stateBAC, { crypto });
+        const hashABC = await computeStateHash(stateABC, { crypto });
+        const hashCBA = await computeStateHash(stateCBA, { crypto });
+        const hashBAC = await computeStateHash(stateBAC, { crypto });
 
         expect(hashABC).toBe(hashCBA);
         expect(hashABC).toBe(hashBAC);
@@ -917,7 +917,7 @@ describe('MigrationService', () => {
         expect(nodeVisibleV5(finalState, 'n1')).toBe(true);  // from v4
         expect(nodeVisibleV5(finalState, 'n2')).toBe(false); // tombstoned in v4
         expect(nodeVisibleV5(finalState, 'n3')).toBe(true);  // from v5
-        expect(edgeVisibleV5(finalState, encodeEdgeKeyV5('n1', 'n3', 'link'))).toBe(true);
+        expect(edgeVisible(finalState, encodeEdgeKeyV5('n1', 'n3', 'link'))).toBe(true);
       });
 
       it('documents that direct mixing of v1/v2 patches is NOT supported', () => {

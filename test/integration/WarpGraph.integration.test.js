@@ -6,7 +6,7 @@ import { tmpdir } from 'os';
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.js';
 import WarpRuntime from '../../src/domain/WarpRuntime.js';
-import { computeStateHashV5, nodeVisibleV5, edgeVisibleV5 } from '../../src/domain/services/state/StateSerializerV5.js';
+import { computeStateHash, nodeVisibleV5, edgeVisible } from '../../src/domain/services/state/StateSerializer.js';
 import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 import { buildWriterRef } from '../../src/domain/utils/RefLayout.ts';
@@ -61,7 +61,7 @@ describe('WarpRuntime Integration', () => {
 
       expect(nodeVisibleV5(state, 'user:alice')).toBe(true);
       expect(nodeVisibleV5(state, 'user:bob')).toBe(true);
-      expect(edgeVisibleV5(state, encodeEdgeKey('user:alice', 'user:bob', 'follows'))).toBe(true);
+      expect(edgeVisible(state, encodeEdgeKey('user:alice', 'user:bob', 'follows'))).toBe(true);
     });
 
     it('handles tombstones correctly', async () => {
@@ -188,7 +188,7 @@ describe('WarpRuntime Integration', () => {
       const crypto = new NodeCryptoAdapter();
       /** @type {any} */
       const state1 = await graph1.materialize();
-      const hash1 = await computeStateHashV5(state1, { crypto });
+      const hash1 = await computeStateHash(state1, { crypto });
 
       // Create identical patches in repo 2 (same repo, fresh graph)
       const graph2 = await WarpRuntime.open({
@@ -204,7 +204,7 @@ describe('WarpRuntime Integration', () => {
 
       /** @type {any} */
       const state2 = await graph2.materialize();
-      const hash2 = await computeStateHashV5(state2, { crypto });
+      const hash2 = await computeStateHash(state2, { crypto });
 
       expect(hash1).toBe(hash2);
     });

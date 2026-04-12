@@ -30,7 +30,7 @@ const PATCH_FILES = [
 
 // Checkpoint files that are already codec-free (CheckpointService routes
 // through CheckpointStorePort when available). The serializer files
-// (CheckpointSerializerV5, StateSerializerV5, Frontier) are NOT yet in
+// (CheckpointSerializer, StateSerializer, Frontier) are NOT yet in
 // the tripwire — they still export legacy serialize/deserialize functions
 // used by callers that haven't been migrated (MaterializeController,
 // BoundaryTransitionRecord, etc.). Add them when ALL callers are migrated.

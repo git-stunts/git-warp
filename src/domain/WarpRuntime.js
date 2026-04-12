@@ -968,8 +968,8 @@ wireMaterialize('_materializeGraph', async function () {
   self._stateDirty = false;
   self._versionVector = state.observedFrontier.clone();
   const adj = self._buildAdjacency(state);
-  const { computeStateHashV5 } = await import('./services/state/StateSerializerV5.js');
-  const stateHash = await computeStateHashV5(state, { crypto: self._crypto, codec: self._codec });
+  const { computeStateHash } = await import('./services/state/StateSerializer.js');
+  const stateHash = await computeStateHash(state, { crypto: self._crypto, codec: self._codec });
   self._materializedGraph = { state, stateHash, adjacency: adj };
   return self._materializedGraph;
 });
@@ -980,8 +980,8 @@ wireMaterialize('_buildAdjacency', /** @param {import('./services/state/WarpStat
 
 wireMaterialize('_setMaterializedState', /** @param {import('./services/state/WarpState.ts').default} state @param {import('./types/PatchDiff.ts').PatchDiff|{diff?: import('./types/PatchDiff.ts').PatchDiff|null}} [optionsOrDiff] */ async function (state, optionsOrDiff) {
   const self = /** @type {WarpRuntime} */ (this);
-  const { computeStateHashV5 } = await import('./services/state/StateSerializerV5.js');
-  const stateHash = await computeStateHashV5(state, { crypto: self._crypto, codec: self._codec });
+  const { computeStateHash } = await import('./services/state/StateSerializer.js');
+  const stateHash = await computeStateHash(state, { crypto: self._crypto, codec: self._codec });
   const adj = self._buildAdjacency(state);
   /** @type {import('./types/PatchDiff.ts').PatchDiff|undefined} */
   let diff;

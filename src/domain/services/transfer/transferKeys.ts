@@ -10,9 +10,9 @@ import {
   CONTENT_SIZE_PROPERTY_KEY,
 } from '../KeyCodec.js';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
-import type { ContentMeta, VisibleStateReaderV5 } from '../../../../index.js';
+import type { ContentMeta, VisibleStateReader } from '../../../../index.js';
 
-export type { ContentMeta, VisibleStateReaderV5 };
+export type { ContentMeta, VisibleStateReader };
 
 export type EdgeRef = { from: string; to: string; label: string };
 
@@ -53,7 +53,7 @@ export function edgeKey(edge: EdgeRef): string {
 /**
  * Collect all edges from a reader into a Map keyed by composite edge key.
  */
-export function collectEdgeRefs(reader: VisibleStateReaderV5): Map<string, EdgeRef> {
+export function collectEdgeRefs(reader: VisibleStateReader): Map<string, EdgeRef> {
   return new Map(
     reader
       .getEdges()

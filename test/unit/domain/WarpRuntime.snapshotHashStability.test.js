@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import WarpCore from '../../../src/domain/WarpCore.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
-import { computeStateHashV5 } from '../../../src/domain/services/state/StateSerializerV5.js';
+import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.js';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 /** @typedef {any} WarpCoreRuntime */
@@ -147,7 +147,7 @@ async function simulatePatchCommit(persistence, {
  * @returns {Promise<string>}
  */
 async function hashState(state) {
-  return await computeStateHashV5(
+  return await computeStateHash(
     /** @type {import('../../../src/domain/services/JoinReducer.ts').WarpState} */ (state),
     { crypto },
   );

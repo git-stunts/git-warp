@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import WarpCore from '../../../src/domain/WarpCore.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
-import { createStateReaderV5 } from '../../../src/domain/services/state/StateReaderV5.js';
+import { createStateReader } from '../../../src/domain/services/state/StateReader.js';
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
 import WarpError from '../../../src/domain/errors/WarpError.ts';
 
@@ -188,7 +188,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
     }).toThrow(TypeError);
 
     const liveSnapshot = await graph.getStateSnapshot();
-    const reader = createStateReaderV5(/** @type {any} */ (liveSnapshot));
+    const reader = createStateReader(/** @type {any} */ (liveSnapshot));
 
     expect(reader.getNodeProps('n1')).toMatchObject({ color: { tone: 'red' } });
   });
@@ -221,7 +221,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
       frontier: Object.fromEntries(frontierAtRed),
       ceiling: null,
     }));
-    const redReader = createStateReaderV5(redState);
+    const redReader = createStateReader(redState);
 
     expect(() => redState.prop.set('intruder', null)).toThrow(WarpError);
     expect(redReader.getNodeProps('n1')).toMatchObject({ color: 'red' });
@@ -261,7 +261,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
 
     const strandState = /** @type {any} */ (await graph.materializeStrand('ws_red'));
-    const strandReader = createStateReaderV5(strandState);
+    const strandReader = createStateReader(strandState);
 
     expect(() => strandState.prop.set('intruder', null)).toThrow(WarpError);
     expect(strandReader.getNodeProps('n1')).toMatchObject({

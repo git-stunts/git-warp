@@ -57,10 +57,10 @@ import WarpAppDefault, {
   createPropSet,
   createInlineValue,
   createBlobValue,
-  createStateReaderV5,
-  compareVisibleStateV5,
-  normalizeVisibleStateScopeV1,
-  scopeMaterializedStateV5,
+  createStateReader,
+  compareVisibleState,
+  normalizeVisibleStateScope,
+  scopeMaterializedState,
 } from '../../../index.js';
 
 const { WarpGraph, WarpRuntime, Worldline, ObserverView } = /** @type {any} */ (await import('../../../index.js'));
@@ -98,14 +98,14 @@ describe('index.js exports', () => {
   });
 
   describe('visible-state helpers', () => {
-    it('exports normalizeVisibleStateScopeV1', () => {
-      expect(normalizeVisibleStateScopeV1).toBeDefined();
-      expect(typeof normalizeVisibleStateScopeV1).toBe('function');
+    it('exports normalizeVisibleStateScope', () => {
+      expect(normalizeVisibleStateScope).toBeDefined();
+      expect(typeof normalizeVisibleStateScope).toBe('function');
     });
 
-    it('exports scopeMaterializedStateV5', () => {
-      expect(scopeMaterializedStateV5).toBeDefined();
-      expect(typeof scopeMaterializedStateV5).toBe('function');
+    it('exports scopeMaterializedState', () => {
+      expect(scopeMaterializedState).toBeDefined();
+      expect(typeof scopeMaterializedState).toBe('function');
     });
   });
 
@@ -335,14 +335,14 @@ describe('index.js exports', () => {
       expect(ref).toEqual({ type: 'blob', oid: 'abc123def456' });
     });
 
-    it('exports createStateReaderV5', () => {
-      expect(createStateReaderV5).toBeDefined();
-      expect(typeof createStateReaderV5).toBe('function');
+    it('exports createStateReader', () => {
+      expect(createStateReader).toBeDefined();
+      expect(typeof createStateReader).toBe('function');
     });
 
-    it('exports compareVisibleStateV5', () => {
-      expect(compareVisibleStateV5).toBeDefined();
-      expect(typeof compareVisibleStateV5).toBe('function');
+    it('exports compareVisibleState', () => {
+      expect(compareVisibleState).toBeDefined();
+      expect(typeof compareVisibleState).toBe('function');
     });
   });
 

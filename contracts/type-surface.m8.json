@@ -1273,20 +1273,20 @@
       "kind": "function",
       "async": true
     },
-    "compareVisibleStateV5": {
+    "compareVisibleState": {
       "kind": "function"
     },
-    "normalizeVisibleStateScopeV1": {
+    "normalizeVisibleStateScope": {
       "kind": "function"
     },
-    "scopeMaterializedStateV5": {
+    "scopeMaterializedState": {
       "kind": "function"
     },
-    "computeStateHashV5": {
+    "computeStateHash": {
       "kind": "function",
       "async": true
     },
-    "createStateReaderV5": {
+    "createStateReader": {
       "kind": "function"
     },
     "exportCoordinateComparisonFact": {
@@ -1295,7 +1295,7 @@
     "exportCoordinateTransferPlanFact": {
       "kind": "function"
     },
-    "projectStateV5": {
+    "projectState": {
       "kind": "function"
     },
     "computeTranslationCost": {
@@ -1806,7 +1806,7 @@
     "VisibleStateComparisonTargetV5": {
       "kind": "interface"
     },
-    "VisibleStateComparisonV5": {
+    "VisibleStateComparison": {
       "kind": "interface"
     },
     "VisibleStateEdgePropertyChangeV5": {
@@ -1827,16 +1827,16 @@
     "VisibleStateScopePrefixFilterV1": {
       "kind": "interface"
     },
-    "VisibleStateScopeV1": {
+    "VisibleStateScope": {
       "kind": "interface"
     },
-    "VisibleNodeViewV5": {
+    "VisibleNodeView": {
       "kind": "interface"
     },
-    "VisibleStateNeighborV5": {
+    "VisibleStateNeighbor": {
       "kind": "interface"
     },
-    "VisibleStateReaderV5": {
+    "VisibleStateReader": {
       "kind": "interface"
     },
     "VisibleStateSummaryV5": {

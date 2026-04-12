@@ -11,7 +11,7 @@ import {
   propertyKeys,
   type ContentMeta,
   type EdgeRef,
-  type VisibleStateReaderV5,
+  type VisibleStateReader,
 } from './transferKeys.ts';
 
 // ── Property ops ─────────────────────────────────────────────────────────────
@@ -167,8 +167,8 @@ export function buildNodeClear(nodeId: string): VisibleStateTransferOperationV1 
 }
 
 export type NodeContentOpsParams = {
-  sourceReader: VisibleStateReaderV5;
-  targetReader: VisibleStateReaderV5;
+  sourceReader: VisibleStateReader;
+  targetReader: VisibleStateReader;
   nodeIds: string[];
   loadContent: (nodeId: string, meta: ContentMeta) => Promise<Uint8Array>;
 };
@@ -253,8 +253,8 @@ export function buildEdgeClear(edge: EdgeRef): VisibleStateTransferOperationV1 {
 }
 
 export type EdgeContentOpsParams = {
-  sourceReader: VisibleStateReaderV5;
-  targetReader: VisibleStateReaderV5;
+  sourceReader: VisibleStateReader;
+  targetReader: VisibleStateReader;
   edges: EdgeRef[];
   loadContent: (edge: EdgeRef, meta: ContentMeta) => Promise<Uint8Array>;
 };

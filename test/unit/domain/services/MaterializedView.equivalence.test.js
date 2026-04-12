@@ -148,7 +148,7 @@ function generatePatches(seed) {
 
 /**
  * Builds adjacency maps from CRDT state for AdjacencyNeighborProvider.
- * Only includes edges where both endpoints are alive (matches edgeVisibleV5).
+ * Only includes edges where both endpoints are alive (matches edgeVisible).
  */
 /** @param {import('../../../../src/domain/services/JoinReducer.ts').WarpState} state */
 function buildAdjacency(state) {

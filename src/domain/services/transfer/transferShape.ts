@@ -10,7 +10,7 @@ import {
   collectEdgeRefs,
   type ContentMeta,
   type EdgeRef,
-  type VisibleStateReaderV5,
+  type VisibleStateReader,
 } from './transferKeys.ts';
 import {
   nodePropertyOp,
@@ -91,8 +91,8 @@ export type EdgeShapeDelta = {
  * Compute added, removed, and surviving edge sets.
  */
 export function collectEdgeShapeDelta(
-  sourceReader: VisibleStateReaderV5,
-  targetReader: VisibleStateReaderV5,
+  sourceReader: VisibleStateReader,
+  targetReader: VisibleStateReader,
 ): EdgeShapeDelta {
   const sourceEdgesByKey = collectEdgeRefs(sourceReader);
   const targetEdgesByKey = collectEdgeRefs(targetReader);
@@ -121,8 +121,8 @@ export function collectEdgeShapeDelta(
  * Collect property-diff ops for all nodes present in the source.
  */
 export function collectNodePropertyOps(
-  sourceReader: VisibleStateReaderV5,
-  targetReader: VisibleStateReaderV5,
+  sourceReader: VisibleStateReader,
+  targetReader: VisibleStateReader,
   nodeIds: string[],
 ): VisibleStateTransferOperationV1[] {
   return nodeIds.flatMap((nodeId) =>
@@ -138,8 +138,8 @@ export function collectNodePropertyOps(
  * Collect property-diff ops for all edges present in the source.
  */
 export function collectEdgePropertyOps(
-  sourceReader: VisibleStateReaderV5,
-  targetReader: VisibleStateReaderV5,
+  sourceReader: VisibleStateReader,
+  targetReader: VisibleStateReader,
   edgeRefs: EdgeRef[],
 ): VisibleStateTransferOperationV1[] {
   return edgeRefs.flatMap((edge) =>
@@ -154,8 +154,8 @@ export function collectEdgePropertyOps(
 // ── Sync + content aggregators ────────────────────────────────────────────────
 
 export type SyncPropertyOpsParams = {
-  sourceReader: VisibleStateReaderV5;
-  targetReader: VisibleStateReaderV5;
+  sourceReader: VisibleStateReader;
+  targetReader: VisibleStateReader;
   nodeShape: NodeShapeDelta;
   edgeShape: EdgeShapeDelta;
 };
@@ -182,8 +182,8 @@ export function collectSyncPropertyOps(params: SyncPropertyOpsParams): {
 }
 
 export type AllContentOpsParams = {
-  sourceReader: VisibleStateReaderV5;
-  targetReader: VisibleStateReaderV5;
+  sourceReader: VisibleStateReader;
+  targetReader: VisibleStateReader;
   nodeShape: NodeShapeDelta;
   edgeShape: EdgeShapeDelta;
   loaders: {

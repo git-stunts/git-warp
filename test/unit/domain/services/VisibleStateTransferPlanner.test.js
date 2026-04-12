@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  planVisibleStateTransferV5,
+  planVisibleStateTransfer,
   VISIBLE_STATE_TRANSFER_PLAN_VERSION,
-} from '../../../../src/domain/services/transfer/VisibleStateTransferPlannerV5.ts';
+} from '../../../../src/domain/services/transfer/VisibleStateTransferPlanner.ts';
 import { CONTENT_PROPERTY_KEY } from '../../../../src/domain/services/KeyCodec.js';
 
 function makeEdgeKey(from, to, label) {
@@ -40,7 +40,7 @@ function createReader({
   };
 }
 
-describe('VisibleStateTransferPlannerV5', () => {
+describe('VisibleStateTransferPlanner', () => {
   it('plans deterministic node, edge, property, and content transfer operations', async () => {
     const sharedEdgeKey = makeEdgeKey('alpha', 'alpha', 'shared');
     const newEdgeKey = makeEdgeKey('alpha', 'beta', 'fresh');
@@ -120,7 +120,7 @@ describe('VisibleStateTransferPlannerV5', () => {
       return new TextEncoder().encode(`edge:${edge.from}->${edge.to}:${edge.label}`);
     });
 
-    const plan = await planVisibleStateTransferV5(sourceReader, targetReader, {
+    const plan = await planVisibleStateTransfer(sourceReader, targetReader, {
       loadNodeContent,
       loadEdgeContent,
     });
@@ -206,7 +206,7 @@ describe('VisibleStateTransferPlannerV5', () => {
     const loadNodeContent = vi.fn();
     const loadEdgeContent = vi.fn();
 
-    const plan = await planVisibleStateTransferV5(reader, reader, {
+    const plan = await planVisibleStateTransfer(reader, reader, {
       loadNodeContent,
       loadEdgeContent,
     });

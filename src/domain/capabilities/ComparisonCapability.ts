@@ -10,7 +10,7 @@ import type {
   CoordinateComparisonV1,
   CoordinateTransferPlanSelectorV1,
   CoordinateTransferPlanV1,
-  VisibleStateScopeV1,
+  VisibleStateScope,
 } from '../types/CoordinateComparison.ts';
 
 /** Patch with its content-addressable SHA. */
@@ -25,7 +25,7 @@ export type CompareStrandOptions = {
   ceiling?: number | null;
   againstCeiling?: number | null;
   targetId?: string | null;
-  scope?: VisibleStateScopeV1 | null;
+  scope?: VisibleStateScope | null;
 };
 
 /** Options for planStrandTransfer(). */
@@ -33,7 +33,7 @@ export type PlanStrandTransferOptions = {
   into?: 'base' | 'live' | { kind: 'strand'; strandId: string };
   ceiling?: number | null;
   intoCeiling?: number | null;
-  scope?: VisibleStateScopeV1 | null;
+  scope?: VisibleStateScope | null;
 };
 
 /** Options for compareCoordinates(). */
@@ -41,14 +41,14 @@ export type CompareCoordinatesOptions = {
   left: CoordinateComparisonSelectorV1;
   right: CoordinateComparisonSelectorV1;
   targetId?: string | null;
-  scope?: VisibleStateScopeV1 | null;
+  scope?: VisibleStateScope | null;
 };
 
 /** Options for planCoordinateTransfer(). */
 export type PlanCoordinateTransferOptions = {
   source: CoordinateTransferPlanSelectorV1;
   target: CoordinateTransferPlanSelectorV1;
-  scope?: VisibleStateScopeV1 | null;
+  scope?: VisibleStateScope | null;
 };
 
 export default abstract class ComparisonCapability {

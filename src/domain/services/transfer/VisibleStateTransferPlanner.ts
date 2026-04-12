@@ -1,9 +1,9 @@
 /**
- * VisibleStateTransferPlannerV5 — orchestrates a full visible-state transfer plan.
+ * VisibleStateTransferPlanner — orchestrates a full visible-state transfer plan.
  *
  * Delegates key encoding to transferKeys, op-building to transferOps, and shape/aggregation to transferShape.
  *
- * @module domain/services/transfer/VisibleStateTransferPlannerV5
+ * @module domain/services/transfer/VisibleStateTransferPlanner
  */
 
 import type {
@@ -14,7 +14,7 @@ import {
   compareStrings,
   type ContentMeta,
   type EdgeRef,
-  type VisibleStateReaderV5,
+  type VisibleStateReader,
 } from './transferKeys.ts';
 import {
   collectNodeShapeDelta,
@@ -68,8 +68,8 @@ export type TransferPlanResult = {
 };
 
 type BuildOpsParams = {
-  sourceReader: VisibleStateReaderV5;
-  targetReader: VisibleStateReaderV5;
+  sourceReader: VisibleStateReader;
+  targetReader: VisibleStateReader;
   nodeShape: NodeShapeDelta;
   edgeShape: EdgeShapeDelta;
   loaders: TransferLoaders;
@@ -96,9 +96,9 @@ async function buildOps(params: BuildOpsParams): Promise<VisibleStateTransferOpe
 /**
  * Produce a complete visible-state transfer plan that transforms target into source.
  */
-export async function planVisibleStateTransferV5(
-  sourceReader: VisibleStateReaderV5,
-  targetReader: VisibleStateReaderV5,
+export async function planVisibleStateTransfer(
+  sourceReader: VisibleStateReader,
+  targetReader: VisibleStateReader,
   loaders: TransferLoaders,
 ): Promise<TransferPlanResult> {
   const nodeShape = collectNodeShapeDelta(

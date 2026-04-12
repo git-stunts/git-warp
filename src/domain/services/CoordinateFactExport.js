@@ -34,13 +34,13 @@ const COORDINATE_TRANSFER_PLAN_FACT_EXPORT_VERSION = 'coordinate-transfer-plan-f
  * }} VisibleStateScopePrefixFilterV1
  * @typedef {{
  *   nodeIdPrefixes?: VisibleStateScopePrefixFilterV1
- * }} VisibleStateScopeV1
+ * }} VisibleStateScope
  * @typedef {{ op: string, [key: string]: unknown }} VisibleStateTransferOperationV1
  * @typedef {{ op: string, [key: string]: unknown }} VisibleStateTransferOperationFactV1
  * @typedef {{
  *   comparisonVersion: string,
  *   comparisonDigest?: string,
- *   scope?: VisibleStateScopeV1|null,
+ *   scope?: VisibleStateScope|null,
  *   left: unknown,
  *   right: unknown,
  *   visiblePatchDivergence: unknown,
@@ -48,7 +48,7 @@ const COORDINATE_TRANSFER_PLAN_FACT_EXPORT_VERSION = 'coordinate-transfer-plan-f
  * }} CoordinateComparisonV1
  * @typedef {{
  *   comparisonVersion: string,
- *   scope?: VisibleStateScopeV1,
+ *   scope?: VisibleStateScope,
  *   left: unknown,
  *   right: unknown,
  *   visiblePatchDivergence: unknown,
@@ -65,7 +65,7 @@ const COORDINATE_TRANSFER_PLAN_FACT_EXPORT_VERSION = 'coordinate-transfer-plan-f
  *   transferVersion: string,
  *   transferDigest?: string,
  *   comparisonDigest: string,
- *   scope?: VisibleStateScopeV1|null,
+ *   scope?: VisibleStateScope|null,
  *   changed: boolean,
  *   source: unknown,
  *   target: unknown,
@@ -75,7 +75,7 @@ const COORDINATE_TRANSFER_PLAN_FACT_EXPORT_VERSION = 'coordinate-transfer-plan-f
  * @typedef {{
  *   transferVersion: string,
  *   comparisonDigest: string,
- *   scope?: VisibleStateScopeV1,
+ *   scope?: VisibleStateScope,
  *   changed: boolean,
  *   source: unknown,
  *   target: unknown,
@@ -174,7 +174,7 @@ function serializeTransferOpsForFact(ops) {
 /**
  * Builds the exact substrate fact payload hashed by `comparisonDigest`.
  *
- * @param {Pick<CoordinateComparisonV1, 'comparisonVersion'|'left'|'right'|'visiblePatchDivergence'|'visibleState'> & { scope?: VisibleStateScopeV1|null }} comparison
+ * @param {Pick<CoordinateComparisonV1, 'comparisonVersion'|'left'|'right'|'visiblePatchDivergence'|'visibleState'> & { scope?: VisibleStateScope|null }} comparison
  * @returns {CoordinateComparisonFactV1}
  */
 export function buildCoordinateComparisonFact(comparison) {
@@ -194,7 +194,7 @@ export function buildCoordinateComparisonFact(comparison) {
 /**
  * Builds the exact JSON-safe substrate fact payload hashed by `transferDigest`.
  *
- * @param {Pick<CoordinateTransferPlanV1, 'transferVersion'|'comparisonDigest'|'changed'|'source'|'target'|'summary'|'ops'> & { scope?: VisibleStateScopeV1|null }} transferPlan
+ * @param {Pick<CoordinateTransferPlanV1, 'transferVersion'|'comparisonDigest'|'changed'|'source'|'target'|'summary'|'ops'> & { scope?: VisibleStateScope|null }} transferPlan
  * @returns {CoordinateTransferPlanFactV1}
  */
 export function buildCoordinateTransferPlanFact(transferPlan) {

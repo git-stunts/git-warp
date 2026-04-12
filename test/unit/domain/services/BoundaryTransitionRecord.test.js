@@ -11,7 +11,7 @@ import {
 } from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
-import { computeStateHashV5 } from '../../../../src/domain/services/state/StateSerializerV5.js';
+import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.js';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
@@ -61,7 +61,7 @@ describe('BoundaryTransitionRecord', () => {
       expect(btr.kappa).toBeDefined();
 
       // h_in should be hash of empty state
-      expect(btr.h_in).toBe(await computeStateHashV5(initialState, { crypto }));
+      expect(btr.h_in).toBe(await computeStateHash(initialState, { crypto }));
 
       // h_out should differ from h_in (state changed)
       expect(btr.h_out).not.toBe(btr.h_in);
@@ -78,7 +78,7 @@ describe('BoundaryTransitionRecord', () => {
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
 
-      expect(btr.h_in).toBe(await computeStateHashV5(initialState, { crypto }));
+      expect(btr.h_in).toBe(await computeStateHash(initialState, { crypto }));
       expect(btr.P.length).toBe(2);
     });
 

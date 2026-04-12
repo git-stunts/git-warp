@@ -1,15 +1,15 @@
 /**
- * compareVisibleStateV5 — public entry point for visible-state comparison.
+ * compareVisibleState — public entry point for visible-state comparison.
  *
  * Orchestrates readers, delta collection, and summary assembly.
  * All heavy lifting lives in diffKeys, diffProperties, and diffStructure.
  *
- * @module domain/services/comparison/VisibleStateComparisonV5
+ * @module domain/services/comparison/VisibleStateComparison
  */
 
-import type { VisibleStateComparisonV5 } from '../../../../index.js';
+import type { VisibleStateComparison } from '../../../../index.js';
 import type WarpState from '../state/WarpState.ts';
-import { createStateReaderV5 } from '../state/StateReaderV5.js';
+import { createStateReader } from '../state/StateReader.js';
 import { summarizeReader, collectNodeProperties, collectEdgeProperties } from './diffKeys.ts';
 import { compareNodePropertyMaps, compareEdgePropertyMaps } from './diffProperties.ts';
 import {
@@ -82,7 +82,7 @@ function buildComparisonSummary(params: {
   edgeDelta: { added: Array<unknown>; removed: Array<unknown> };
   nodePropertyDelta: { added: Array<unknown>; removed: Array<unknown>; changed: Array<unknown> };
   edgePropertyDelta: { added: Array<unknown>; removed: Array<unknown>; changed: Array<unknown> };
-}): VisibleStateComparisonV5['summary'] {
+}): VisibleStateComparison['summary'] {
   const { leftSummary, rightSummary, nodeDelta, edgeDelta, nodePropertyDelta, edgePropertyDelta } = params;
   return {
     left: leftSummary,
@@ -98,8 +98,8 @@ function buildComparisonSummary(params: {
  * Collects all deltas between two readers (nodes, edges, properties).
  */
 function collectAllDeltas(
-  leftReader: ReturnType<typeof createStateReaderV5>,
-  rightReader: ReturnType<typeof createStateReaderV5>,
+  leftReader: ReturnType<typeof createStateReader>,
+  rightReader: ReturnType<typeof createStateReader>,
 ): {
   nodeDelta: ReturnType<typeof buildNodeDelta>;
   edgeDelta: ReturnType<typeof buildEdgeDelta>;
@@ -131,7 +131,7 @@ type AssembleParams = {
   target: ReturnType<typeof buildTargetComparison>;
 };
 
-function assembleResult({ deltas, leftSummary, rightSummary, target }: AssembleParams): VisibleStateComparisonV5 {
+function assembleResult({ deltas, leftSummary, rightSummary, target }: AssembleParams): VisibleStateComparison {
   const { nodeDelta, edgeDelta, nodePropertyDelta, edgePropertyDelta } = deltas;
   const changed = hasVisibleStateChanges({ nodeDelta, edgeDelta, nodePropertyDelta, edgePropertyDelta });
   return {
@@ -156,13 +156,13 @@ function assembleResult({ deltas, leftSummary, rightSummary, target }: AssembleP
  * - visible edge-property deltas
  * - optional node-local target diff helper
  */
-export function compareVisibleStateV5(
+export function compareVisibleState(
   leftState: WarpState,
   rightState: WarpState,
   options: { targetId?: string | null } = {},
-): VisibleStateComparisonV5 {
-  const leftReader = createStateReaderV5(leftState);
-  const rightReader = createStateReaderV5(rightState);
+): VisibleStateComparison {
+  const leftReader = createStateReader(leftState);
+  const rightReader = createStateReader(rightState);
   return assembleResult({
     deltas: collectAllDeltas(leftReader, rightReader),
     leftSummary: summarizeReader(leftReader),

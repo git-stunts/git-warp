@@ -6,7 +6,7 @@ import WarpCore from '../../../src/domain/WarpCore.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
-import { createStateReaderV5 } from '../../../src/domain/services/state/StateReaderV5.js';
+import { createStateReader } from '../../../src/domain/services/state/StateReader.js';
 import WarpError from '../../../src/domain/errors/WarpError.ts';
 
 /** @typedef {any} WarpCoreRuntime */
@@ -189,7 +189,7 @@ describe('WarpCore worldline surface', () => {
     });
 
     const state = /** @type {any} */ (await graph.worldline().materialize());
-    const reader = createStateReaderV5(state);
+    const reader = createStateReader(state);
     const propKey = encodePropKey('n1', 'color');
     const liveDots = state.nodeAlive.entries.get('n1');
 
@@ -405,7 +405,7 @@ describe('WarpCore worldline surface', () => {
     });
 
     const state = /** @type {any} */ (await worldline.materialize());
-    const reader = createStateReaderV5(state);
+    const reader = createStateReader(state);
     const observer = await worldline.observer('ws', { match: 'n1' });
 
     expect(reader.getNodeProps('n1')).toMatchObject({

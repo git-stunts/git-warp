@@ -2,16 +2,16 @@
  * Checkpoint loading and incremental materialization for WARP.
  *
  * Provides loadCheckpoint, materializeIncremental, and
- * reconstructStateV5FromCheckpoint.
+ * reconstructStateFromCheckpoint.
  *
  * @module domain/services/state/checkpointLoad
  * @see WARP Spec Section 10
  */
 
 import {
-  deserializeFullStateV5,
+  deserializeFullState,
   deserializeAppliedVV,
-} from './CheckpointSerializerV5.js';
+} from './CheckpointSerializer.js';
 import { deserializeFrontier } from '../Frontier.ts';
 import { decodeCheckpointMessage } from '../codec/WarpMessageCodec.ts';
 import ORSet from '../../crdt/ORSet.ts';
@@ -137,7 +137,7 @@ export async function loadCheckpoint(
   }
   const stateBuffer = await persistence.readBlob(stateOid);
   // V5: Load AUTHORITATIVE full state from state.cbor (NEVER use visible.cbor for resume)
-  const state = deserializeFullStateV5(stateBuffer, loadCodecOpt);
+  const state = deserializeFullState(stateBuffer, loadCodecOpt);
 
   // Load appliedVV if present
   let appliedVV: VersionVector | null = null;
@@ -234,7 +234,7 @@ export async function materializeIncremental({
   return finalState;
 }
 
-/** Visible projection used for reconstructStateV5FromCheckpoint. */
+/** Visible projection used for reconstructStateFromCheckpoint. */
 export interface VisibleProjection {
   nodes: string[];
   edges: Array<{ from: string; to: string; label: string }>;
@@ -247,7 +247,7 @@ export interface VisibleProjection {
  * Creates ORSet-based state with synthetic dots for all visible elements.
  * This is used when loading a v5 checkpoint for incremental materialization.
  */
-export function reconstructStateV5FromCheckpoint(
+export function reconstructStateFromCheckpoint(
   visibleProjection: VisibleProjection,
 ): WarpState {
   const { nodes, edges, props } = visibleProjection;

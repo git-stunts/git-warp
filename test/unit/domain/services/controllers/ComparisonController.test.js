@@ -28,8 +28,8 @@ vi.mock('../../../../../src/domain/services/CoordinateFactExport.js', () => ({
   buildCoordinateTransferPlanFact: buildCoordinateTransferPlanFactMock,
 }));
 
-const { compareVisibleStateV5Mock } = vi.hoisted(() => ({
-  compareVisibleStateV5Mock: vi.fn(() => ({
+const { compareVisibleStateMock } = vi.hoisted(() => ({
+  compareVisibleStateMock: vi.fn(() => ({
     comparisonVersion: 'visible-state-compare/v1',
     changed: false,
     nodeDelta: { added: [], removed: [] },
@@ -39,34 +39,34 @@ const { compareVisibleStateV5Mock } = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../../../src/domain/services/comparison/VisibleStateComparisonV5.ts', () => ({
-  compareVisibleStateV5: compareVisibleStateV5Mock,
+vi.mock('../../../../../src/domain/services/comparison/VisibleStateComparison.ts', () => ({
+  compareVisibleState: compareVisibleStateMock,
 }));
 
-const { planVisibleStateTransferV5Mock } = vi.hoisted(() => ({
-  planVisibleStateTransferV5Mock: vi.fn(async () => ({
+const { planVisibleStateTransferMock } = vi.hoisted(() => ({
+  planVisibleStateTransferMock: vi.fn(async () => ({
     summary: { opCount: 0, nodeAdds: 0, nodeRemoves: 0, edgeAdds: 0, edgeRemoves: 0, propSets: 0 },
     ops: [],
   })),
 }));
 
-vi.mock('../../../../../src/domain/services/transfer/VisibleStateTransferPlannerV5.ts', () => ({
-  planVisibleStateTransferV5: planVisibleStateTransferV5Mock,
+vi.mock('../../../../../src/domain/services/transfer/VisibleStateTransferPlanner.ts', () => ({
+  planVisibleStateTransfer: planVisibleStateTransferMock,
 }));
 
 const {
-  normalizeVisibleStateScopeV1Mock,
-  scopeMaterializedStateV5Mock,
+  normalizeVisibleStateScopeMock,
+  scopeMaterializedStateMock,
   scopePatchEntriesV1Mock,
 } = vi.hoisted(() => ({
-  normalizeVisibleStateScopeV1Mock: vi.fn((scope) => scope ?? null),
-  scopeMaterializedStateV5Mock: vi.fn((state) => state),
+  normalizeVisibleStateScopeMock: vi.fn((scope) => scope ?? null),
+  scopeMaterializedStateMock: vi.fn((state) => state),
   scopePatchEntriesV1Mock: vi.fn((entries) => entries),
 }));
 
-vi.mock('../../../../../src/domain/services/VisibleStateScopeV1.js', () => ({
-  normalizeVisibleStateScopeV1: normalizeVisibleStateScopeV1Mock,
-  scopeMaterializedStateV5: scopeMaterializedStateV5Mock,
+vi.mock('../../../../../src/domain/services/VisibleStateScope.js', () => ({
+  normalizeVisibleStateScope: normalizeVisibleStateScopeMock,
+  scopeMaterializedState: scopeMaterializedStateMock,
   scopePatchEntriesV1: scopePatchEntriesV1Mock,
 }));
 
@@ -98,18 +98,18 @@ vi.mock('../../../../../src/domain/services/strand/createStrandCoordinator.ts', 
   }),
 }));
 
-// StateReaderV5 — pass through to real implementation for reader accuracy
+// StateReader — pass through to real implementation for reader accuracy
 // (we need real getNodes/getEdges/getNodeProps for summarizeVisibleState)
 
-const { computeStateHashV5Mock } = vi.hoisted(() => ({
-  computeStateHashV5Mock: vi.fn(async () => 'state-hash-deadbeef'),
+const { computeStateHashMock } = vi.hoisted(() => ({
+  computeStateHashMock: vi.fn(async () => 'state-hash-deadbeef'),
 }));
 
-vi.mock('../../../../../src/domain/services/state/StateSerializerV5.js', async (importOriginal) => {
+vi.mock('../../../../../src/domain/services/state/StateSerializer.js', async (importOriginal) => {
   const original = /** @type {Record<string, unknown>} */ (await importOriginal());
   return {
     ...original,
-    computeStateHashV5: computeStateHashV5Mock,
+    computeStateHash: computeStateHashMock,
   };
 });
 
@@ -339,7 +339,7 @@ describe('ComparisonController', () => {
 
       expect(result).toBeDefined();
       expect(result.comparisonDigest).toBe('checksum-abc123');
-      expect(compareVisibleStateV5Mock).toHaveBeenCalled();
+      expect(compareVisibleStateMock).toHaveBeenCalled();
     });
 
     it('compares two explicit coordinate selectors', async () => {
@@ -411,7 +411,7 @@ describe('ComparisonController', () => {
         targetId: 'node:1',
       });
 
-      expect(compareVisibleStateV5Mock).toHaveBeenCalledWith(
+      expect(compareVisibleStateMock).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
         expect.objectContaining({ targetId: 'node:1' }),
@@ -432,7 +432,7 @@ describe('ComparisonController', () => {
       /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
 
       const scope = { nodeIdPrefixes: { include: ['user:'] } };
-      normalizeVisibleStateScopeV1Mock.mockReturnValue(scope);
+      normalizeVisibleStateScopeMock.mockReturnValue(scope);
 
       await controller.compareCoordinates({
         left: { kind: 'live' },
@@ -440,8 +440,8 @@ describe('ComparisonController', () => {
         scope,
       });
 
-      expect(normalizeVisibleStateScopeV1Mock).toHaveBeenCalled();
-      expect(scopeMaterializedStateV5Mock).toHaveBeenCalled();
+      expect(normalizeVisibleStateScopeMock).toHaveBeenCalled();
+      expect(scopeMaterializedStateMock).toHaveBeenCalled();
     });
 
     it('captures live frontier once for both sides', async () => {
@@ -623,11 +623,11 @@ describe('ComparisonController', () => {
       });
 
       expect(result).toBeDefined();
-      expect(planVisibleStateTransferV5Mock).toHaveBeenCalled();
+      expect(planVisibleStateTransferMock).toHaveBeenCalled();
     });
 
     it('reports changed=true when transfer has ops', async () => {
-      planVisibleStateTransferV5Mock.mockResolvedValueOnce({
+      planVisibleStateTransferMock.mockResolvedValueOnce({
         summary: { opCount: 2, nodeAdds: 1, nodeRemoves: 1, edgeAdds: 0, edgeRemoves: 0, propSets: 0 },
         ops: [{ kind: 'node-add', nodeId: 'x' }, { kind: 'node-remove', nodeId: 'y' }],
       });
@@ -642,7 +642,7 @@ describe('ComparisonController', () => {
 
     it('includes scope in result when provided', async () => {
       const scope = { nodeIdPrefixes: { include: ['user:'] } };
-      normalizeVisibleStateScopeV1Mock.mockReturnValue(scope);
+      normalizeVisibleStateScopeMock.mockReturnValue(scope);
 
       const result = await controller.planCoordinateTransfer({
         source: { kind: 'live' },
@@ -657,7 +657,7 @@ describe('ComparisonController', () => {
       const blobStorageRetrieve = vi.fn(async () => new Uint8Array([10, 20]));
       host._blobStorage = { retrieve: blobStorageRetrieve };
 
-      planVisibleStateTransferV5Mock.mockImplementationOnce(async (_src, _tgt, loaders) => {
+      planVisibleStateTransferMock.mockImplementationOnce(async (_src, _tgt, loaders) => {
         // Simulate the planner calling loadNodeContent
         if (loaders.loadNodeContent) {
           await loaders.loadNodeContent('n1', { oid: 'blob-oid' });
@@ -676,7 +676,7 @@ describe('ComparisonController', () => {
     it('falls back to persistence.readBlob when blobStorage is null', async () => {
       host._blobStorage = null;
 
-      planVisibleStateTransferV5Mock.mockImplementationOnce(async (_src, _tgt, loaders) => {
+      planVisibleStateTransferMock.mockImplementationOnce(async (_src, _tgt, loaders) => {
         if (loaders.loadEdgeContent) {
           await loaders.loadEdgeContent('e1', { oid: 'blob-oid-2' });
         }
@@ -878,10 +878,10 @@ describe('ComparisonController', () => {
       });
 
       expect(stateHashCompute).toHaveBeenCalled();
-      expect(computeStateHashV5Mock).not.toHaveBeenCalled();
+      expect(computeStateHashMock).not.toHaveBeenCalled();
     });
 
-    it('falls back to computeStateHashV5 when StateHashService is null', async () => {
+    it('falls back to computeStateHash when StateHashService is null', async () => {
       host._stateHashService = null;
       const state = makeState();
       /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
@@ -892,7 +892,7 @@ describe('ComparisonController', () => {
         right: { kind: 'live' },
       });
 
-      expect(computeStateHashV5Mock).toHaveBeenCalled();
+      expect(computeStateHashMock).toHaveBeenCalled();
     });
   });
 
@@ -915,7 +915,7 @@ describe('ComparisonController', () => {
 
       // The visible state comparison still happens — the key behavior is that
       // patches above ceiling=5 (lamport 10) are excluded from the left side
-      expect(compareVisibleStateV5Mock).toHaveBeenCalled();
+      expect(compareVisibleStateMock).toHaveBeenCalled();
     });
   });
 
@@ -971,7 +971,7 @@ describe('ComparisonController', () => {
         right: { kind: 'live' },
       });
 
-      expect(compareVisibleStateV5Mock).toHaveBeenCalled();
+      expect(compareVisibleStateMock).toHaveBeenCalled();
     });
   });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestRepo } from './helpers/setup.js';
-import { computeStateHashV5 } from '../../../src/domain/services/state/StateSerializerV5.js';
+import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.js';
 
 describe('API: Multi-Writer', () => {
   /** @type {any} */
@@ -75,8 +75,8 @@ describe('API: Multi-Writer', () => {
     const stateA = await alice.materialize();
     const stateB = await bob.materialize();
 
-    const hashA = await computeStateHashV5(stateA, { crypto: repo.crypto });
-    const hashB = await computeStateHashV5(stateB, { crypto: repo.crypto });
+    const hashA = await computeStateHash(stateA, { crypto: repo.crypto });
+    const hashB = await computeStateHash(stateB, { crypto: repo.crypto });
 
     expect(hashA).toBe(hashB);
   });

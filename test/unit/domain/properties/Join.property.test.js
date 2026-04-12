@@ -6,7 +6,7 @@ import {
   joinStates as _joinStates,
   reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.ts';
-import { computeStateHashV5 as _computeStateHashV5 } from '../../../../src/domain/services/state/StateSerializerV5.js';
+import { computeStateHash as _computeStateHash } from '../../../../src/domain/services/state/StateSerializer.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 /** @type {any} */
@@ -14,7 +14,7 @@ const joinStates = _joinStates;
 /** @type {any} */
 const reduceV5 = _reduceV5;
 /** @type {any} */
-const computeStateHashV5 = _computeStateHashV5;
+const computeStateHash = _computeStateHash;
 
 const crypto = new NodeCryptoAdapter();
 const PROPERTY_TEST_SEED = 42;
@@ -238,8 +238,8 @@ describe('JoinReducer property tests', () => {
     it('same state produces same hash', async () => {
       await fc.assert(
         fc.asyncProperty(stateArb, async (state) => {
-          const hash1 = await computeStateHashV5(state, { crypto });
-          const hash2 = await computeStateHashV5(state, { crypto });
+          const hash1 = await computeStateHash(state, { crypto });
+          const hash2 = await computeStateHash(state, { crypto });
           return hash1 === hash2;
         }),
         { numRuns: 100, seed: PROPERTY_TEST_SEED }
@@ -251,8 +251,8 @@ describe('JoinReducer property tests', () => {
         fc.asyncProperty(stateArb, stateArb, async (a, b) => {
           const ab = joinStates(a, b);
           const ba = joinStates(b, a);
-          const hashAB = await computeStateHashV5(ab, { crypto });
-          const hashBA = await computeStateHashV5(ba, { crypto });
+          const hashAB = await computeStateHash(ab, { crypto });
+          const hashBA = await computeStateHash(ba, { crypto });
           return hashAB === hashBA;
         }),
         { numRuns: 100, seed: PROPERTY_TEST_SEED }
@@ -304,14 +304,14 @@ describe('JoinReducer property tests', () => {
           async (patches) => {
             // Reduce patches in original order
             const state1 = reduceV5(patches);
-            const hash1 = await computeStateHashV5(state1, { crypto });
+            const hash1 = await computeStateHash(state1, { crypto });
 
             // Shuffle patches using seeded RNG helper
             const shuffled = createRng(PROPERTY_TEST_SEED).shuffle(patches);
 
             // Reduce shuffled patches
             const state2 = reduceV5(shuffled);
-            const hash2 = await computeStateHashV5(state2, { crypto });
+            const hash2 = await computeStateHash(state2, { crypto });
 
             return hash1 === hash2;
           }
@@ -335,7 +335,7 @@ describe('JoinReducer property tests', () => {
               createEmptyState()
             );
 
-            return (await computeStateHashV5(allAtOnce, { crypto })) === (await computeStateHashV5(joined, { crypto }));
+            return (await computeStateHash(allAtOnce, { crypto })) === (await computeStateHash(joined, { crypto }));
           }
         ),
         { numRuns: 50, seed: PROPERTY_TEST_SEED }

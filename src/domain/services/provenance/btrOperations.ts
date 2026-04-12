@@ -17,7 +17,7 @@ import CryptoError from '../../errors/CryptoError.ts';
 import WarpError from '../../errors/WarpError.ts';
 import { BTR, VerificationResult, BTR_VERSION, validateBTRStructure } from './BTR.ts';
 import { ProvenancePayload } from './ProvenancePayload.js';
-import { serializeFullStateV5, deserializeFullStateV5, computeStateHashV5 } from '../state/StateSerializerV5.js';
+import { serializeFullState, deserializeFullState, computeStateHash } from '../state/StateSerializer.js';
 
 // -- Constants ----------------------------------------------------------------
 
@@ -94,10 +94,10 @@ async function createBTR(
   const deps: CryptoDeps = { crypto: opts.crypto, codec: opts.codec };
   const codecOpt = opts.codec ? { codec: opts.codec } : {};
 
-  const h_in = await computeStateHashV5(initialState, deps);
-  const U_0 = serializeFullStateV5(initialState, codecOpt);
+  const h_in = await computeStateHash(initialState, deps);
+  const U_0 = serializeFullState(initialState, codecOpt);
   const finalState = payload.replay(initialState);
-  const h_out = await computeStateHashV5(finalState, deps);
+  const h_out = await computeStateHash(finalState, deps);
   const P = payload.toJSON();
 
   const fields = { version: BTR_VERSION, h_in, h_out, U_0, P, t: timestamp };
@@ -189,14 +189,14 @@ async function replayBTR(
   deps: { crypto?: CryptoPort; codec?: CodecPort } = {},
 ): Promise<{ state: WarpState; h_out: string }> {
   const codecOpt = deps.codec ? { codec: deps.codec } : {};
-  const initialState = deserializeFullStateV5(btr.U_0, codecOpt);
+  const initialState = deserializeFullState(btr.U_0, codecOpt);
   const payload = ProvenancePayload.fromJSON(btr.P);
   const finalState = payload.replay(initialState);
 
   if (!deps.crypto) {
     throw new CryptoError('CryptoPort required for state hash', { code: 'E_MISSING_CRYPTO' });
   }
-  const h_out = await computeStateHashV5(finalState, { crypto: deps.crypto, codec: deps.codec });
+  const h_out = await computeStateHash(finalState, { crypto: deps.crypto, codec: deps.codec });
   return { state: finalState, h_out };
 }
 

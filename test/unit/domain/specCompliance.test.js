@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeStateHashV5 } from '../../../src/domain/services/state/StateSerializerV5.js';
+import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.js';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { createEmptyState, join as joinState } from '../../../src/domain/services/JoinReducer.ts';
@@ -12,16 +12,16 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
   const codec = { encode, decode };
 
   // ---------------------------------------------------------------------------
-  // 1. computeStateHashV5 is deterministic
+  // 1. computeStateHash is deterministic
   // ---------------------------------------------------------------------------
-  describe('computeStateHashV5 is deterministic', () => {
+  describe('computeStateHash is deterministic', () => {
     it('returns identical hash when called twice on the same state', async () => {
       const state = createEmptyState();
       const dot = Dot.create('w1', 1);
       state.nodeAlive.add('node:a', dot);
 
-      const hash1 = await computeStateHashV5(state, { crypto, codec });
-      const hash2 = await computeStateHashV5(state, { crypto, codec });
+      const hash1 = await computeStateHash(state, { crypto, codec });
+      const hash2 = await computeStateHash(state, { crypto, codec });
 
       expect(hash1).toBe(hash2);
     });
@@ -36,8 +36,8 @@ describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
       stateB.nodeAlive.add('node:x', Dot.create('w1', 1));
       stateB.nodeAlive.add('node:y', Dot.create('w2', 1));
 
-      const hashA = await computeStateHashV5(stateA, { crypto, codec });
-      const hashB = await computeStateHashV5(stateB, { crypto, codec });
+      const hashA = await computeStateHash(stateA, { crypto, codec });
+      const hashB = await computeStateHash(stateB, { crypto, codec });
 
       expect(hashA).toBe(hashB);
     });

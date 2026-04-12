@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { create, createV5 } from '../../../../src/domain/services/state/checkpointCreate.ts';
-import { loadCheckpoint, reconstructStateV5FromCheckpoint } from '../../../../src/domain/services/state/checkpointLoad.ts';
+import { loadCheckpoint, reconstructStateFromCheckpoint } from '../../../../src/domain/services/state/checkpointLoad.ts';
 import { createFrontier, updateFrontier, serializeFrontier } from '../../../../src/domain/services/Frontier.ts';
-import { computeStateHashV5 } from '../../../../src/domain/services/state/StateSerializerV5.js';
+import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.js';
 import {
-  serializeFullStateV5,
-  deserializeFullStateV5,
+  serializeFullState,
+  deserializeFullState,
   computeAppliedVV,
   serializeAppliedVV,
   deserializeAppliedVV,
-} from '../../../../src/domain/services/state/CheckpointSerializerV5.js';
+} from '../../../../src/domain/services/state/CheckpointSerializer.js';
 import { createEmptyState, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.ts';
 import { encodeCheckpointMessage, decodeCheckpointMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
@@ -181,9 +181,9 @@ describe('CheckpointService', () => {
       updateFrontier(originalFrontier, 'writer1', makeOid('sha111'));
 
       // Serialize for mock returns
-      const stateBuffer = serializeFullStateV5(v5State);
+      const stateBuffer = serializeFullState(v5State);
       const frontierBuffer = serializeFrontier(originalFrontier);
-      const stateHash = await computeStateHashV5(v5State, { crypto });
+      const stateHash = await computeStateHash(v5State, { crypto });
       const appliedVV = computeAppliedVV(v5State);
       const appliedVVBuffer = serializeAppliedVV(appliedVV);
 
@@ -333,9 +333,9 @@ describe('CheckpointService', () => {
         // Verify 3 blobs were written (state, frontier, appliedVV)
         expect(writtenBlobs).toHaveLength(3);
 
-        // First blob is full state - should deserialize with deserializeFullStateV5
+        // First blob is full state - should deserialize with deserializeFullState
         /** @type {any} */
-        const deserializedFullState = deserializeFullStateV5(writtenBlobs[0]);
+        const deserializedFullState = deserializeFullState(writtenBlobs[0]);
         expect(deserializedFullState.nodeAlive.entries.has('node1')).toBe(true);
         expect(deserializedFullState.nodeAlive.entries.get('node1').has('writer1:1')).toBe(true);
       });
@@ -355,9 +355,9 @@ describe('CheckpointService', () => {
         });
 
         // V5 checkpoints use full state serialization
-        const stateBuffer = serializeFullStateV5(v5State);
+        const stateBuffer = serializeFullState(v5State);
         const frontierBuffer = serializeFrontier(createFrontier());
-        const stateHash = await computeStateHashV5(v5State, { crypto });
+        const stateHash = await computeStateHash(v5State, { crypto });
         const appliedVV = computeAppliedVV(v5State);
         const appliedVVBuffer = serializeAppliedVV(appliedVV);
 
@@ -481,7 +481,7 @@ describe('CheckpointService', () => {
       });
     });
 
-    describe('reconstructStateV5FromCheckpoint', () => {
+    describe('reconstructStateFromCheckpoint', () => {
       it('creates ORSet-based state from visible projection', () => {
         const visibleProjection = {
           nodes: ['n1', 'n2', 'n3'],
@@ -495,7 +495,7 @@ describe('CheckpointService', () => {
           ],
         };
 
-        const state = reconstructStateV5FromCheckpoint(visibleProjection);
+        const state = reconstructStateFromCheckpoint(visibleProjection);
 
         // Verify nodes are in ORSet
         expect(state.nodeAlive.contains('n1')).toBe(true);
@@ -528,7 +528,7 @@ describe('CheckpointService', () => {
           props: [],
         };
 
-        const state = reconstructStateV5FromCheckpoint(visibleProjection);
+        const state = reconstructStateFromCheckpoint(visibleProjection);
 
         expect(state.nodeAlive.elements()).toHaveLength(0);
         expect(state.edgeAlive.elements()).toHaveLength(0);
@@ -634,7 +634,7 @@ describe('CheckpointService', () => {
         });
 
         // Verify the state blob was compacted (tombstoned entry removed)
-        const restoredState = deserializeFullStateV5(capturedStateBuffer);
+        const restoredState = deserializeFullState(capturedStateBuffer);
         // After compaction, the tombstoned entry should be removed
         expect(restoredState.nodeAlive.entries.has('deleted')).toBe(false);
         expect(restoredState.nodeAlive.tombstones.size).toBe(0);
@@ -670,7 +670,7 @@ describe('CheckpointService', () => {
         });
 
         // Verify the state blob preserves tombstoned entry
-        const restoredState = deserializeFullStateV5(capturedStateBuffer);
+        const restoredState = deserializeFullState(capturedStateBuffer);
         expect(restoredState.nodeAlive.entries.has('deleted')).toBe(true);
         expect(restoredState.nodeAlive.tombstones.has('alice:1')).toBe(true);
       });
@@ -849,11 +849,11 @@ describe('CheckpointService', () => {
         updateFrontier(frontier, 'alice', makeOid('sha1'));
 
         // Serialize buffers
-        const stateBuffer = serializeFullStateV5(originalState);
+        const stateBuffer = serializeFullState(originalState);
         const frontierBuffer = serializeFrontier(frontier);
         const appliedVV = computeAppliedVV(originalState);
         const appliedVVBuffer = serializeAppliedVV(appliedVV);
-        const stateHash = await computeStateHashV5(originalState, { crypto });
+        const stateHash = await computeStateHash(originalState, { crypto });
 
         const treeOid = makeOid('tree');
         const stateBlobOid = makeOid('state');
@@ -911,10 +911,10 @@ describe('CheckpointService', () => {
         const frontier = createFrontier();
         updateFrontier(frontier, 'alice', makeOid('sha1'));
 
-        const stateBuffer = serializeFullStateV5(originalState);
+        const stateBuffer = serializeFullState(originalState);
         const frontierBuffer = serializeFrontier(frontier);
         const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(originalState));
-        const stateHash = await computeStateHashV5(originalState, { crypto });
+        const stateHash = await computeStateHash(originalState, { crypto });
 
         const treeOid = makeOid('tree');
         const stateBlobOid = makeOid('state');
@@ -959,9 +959,9 @@ describe('CheckpointService', () => {
         const frontier = createFrontier();
         updateFrontier(frontier, 'w1', makeOid('sha1'));
 
-        const stateBuffer = serializeFullStateV5(originalState);
+        const stateBuffer = serializeFullState(originalState);
         const frontierBuffer = serializeFrontier(frontier);
-        const stateHash = await computeStateHashV5(originalState, { crypto });
+        const stateHash = await computeStateHash(originalState, { crypto });
 
         const treeOid = makeOid('tree');
         const stateBlobOid = makeOid('state');
@@ -1227,7 +1227,7 @@ describe('CheckpointService', () => {
       updateFrontier(frontier, 'writer1', makeOid('aaa'));
 
       // Encode checkpoint message with schema:4
-      const stateHash = await computeStateHashV5(state, { crypto });
+      const stateHash = await computeStateHash(state, { crypto });
       const message = encodeCheckpointMessage({
         graph: 'test',
         stateHash,
@@ -1239,7 +1239,7 @@ describe('CheckpointService', () => {
       mockPersistence.showNode.mockResolvedValue(message);
 
       // readTreeOids returns flat entries — ls-tree -r recurses into subtrees
-      const stateBlob = serializeFullStateV5(state);
+      const stateBlob = serializeFullState(state);
       const frontierBlob = serializeFrontier(frontier);
       const appliedVVBlob = serializeAppliedVV(computeAppliedVV(state));
 
@@ -1275,7 +1275,7 @@ describe('CheckpointService', () => {
       const frontier = createFrontier();
       updateFrontier(frontier, 'writer1', makeOid('aaa'));
 
-      const stateHash = await computeStateHashV5(state, { crypto });
+      const stateHash = await computeStateHash(state, { crypto });
       const message = encodeCheckpointMessage({
         graph: 'test',
         stateHash,
@@ -1286,7 +1286,7 @@ describe('CheckpointService', () => {
 
       mockPersistence.showNode.mockResolvedValue(message);
 
-      const stateBlob = serializeFullStateV5(state);
+      const stateBlob = serializeFullState(state);
       const frontierBlob = serializeFrontier(frontier);
       const appliedVVBlob = serializeAppliedVV(computeAppliedVV(state));
 

@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import {
   nodeVisibleV5,
-  edgeVisibleV5,
+  edgeVisible,
   propVisibleV5,
-  projectStateV5,
+  projectState,
   serializeStateV5,
-  computeStateHashV5,
+  computeStateHash,
   deserializeStateV5,
-} from '../../../../src/domain/services/state/StateSerializerV5.js';
-import { createStateReaderV5 } from '../../../../src/domain/services/state/StateReaderV5.js';
-import { compareVisibleStateV5 } from '../../../../src/domain/services/comparison/VisibleStateComparisonV5.ts';
+} from '../../../../src/domain/services/state/StateSerializer.js';
+import { createStateReader } from '../../../../src/domain/services/state/StateReader.js';
+import { compareVisibleState } from '../../../../src/domain/services/comparison/VisibleStateComparison.ts';
 import {
   createEmptyState,
   encodeEdgeKey,
@@ -85,7 +85,7 @@ function buildStateV5({ nodes = /** @type {any[]} */ ([]), edges = /** @type {an
   return state;
 }
 
-describe('StateSerializerV5', () => {
+describe('StateSerializer', () => {
   describe('nodeVisibleV5', () => {
     it('returns true for alive nodes', () => {
       const state = buildStateV5({
@@ -126,7 +126,7 @@ describe('StateSerializerV5', () => {
     });
   });
 
-  describe('edgeVisibleV5', () => {
+  describe('edgeVisible', () => {
     it('returns true when edge alive AND both endpoints visible', () => {
       const state = buildStateV5({
         nodes: [{ nodeId: 'a' }, { nodeId: 'b' }],
@@ -134,7 +134,7 @@ describe('StateSerializerV5', () => {
       });
 
       const edgeKey = encodeEdgeKey('a', 'b', 'knows');
-      expect(edgeVisibleV5(state, edgeKey)).toBe(true);
+      expect(edgeVisible(state, edgeKey)).toBe(true);
     });
 
     it('returns false when edge tombstoned', () => {
@@ -144,7 +144,7 @@ describe('StateSerializerV5', () => {
       });
 
       const edgeKey = encodeEdgeKey('a', 'b', 'knows');
-      expect(edgeVisibleV5(state, edgeKey)).toBe(false);
+      expect(edgeVisible(state, edgeKey)).toBe(false);
     });
 
     it('returns false when source endpoint tombstoned', () => {
@@ -157,7 +157,7 @@ describe('StateSerializerV5', () => {
       });
 
       const edgeKey = encodeEdgeKey('a', 'b', 'knows');
-      expect(edgeVisibleV5(state, edgeKey)).toBe(false);
+      expect(edgeVisible(state, edgeKey)).toBe(false);
     });
 
     it('returns false when target endpoint tombstoned', () => {
@@ -170,7 +170,7 @@ describe('StateSerializerV5', () => {
       });
 
       const edgeKey = encodeEdgeKey('a', 'b', 'knows');
-      expect(edgeVisibleV5(state, edgeKey)).toBe(false);
+      expect(edgeVisible(state, edgeKey)).toBe(false);
     });
 
     it('returns false when both endpoints tombstoned', () => {
@@ -183,7 +183,7 @@ describe('StateSerializerV5', () => {
       });
 
       const edgeKey = encodeEdgeKey('a', 'b', 'knows');
-      expect(edgeVisibleV5(state, edgeKey)).toBe(false);
+      expect(edgeVisible(state, edgeKey)).toBe(false);
     });
 
     it('returns false for unknown edges', () => {
@@ -192,7 +192,7 @@ describe('StateSerializerV5', () => {
       });
 
       const edgeKey = encodeEdgeKey('a', 'b', 'knows');
-      expect(edgeVisibleV5(state, edgeKey)).toBe(false);
+      expect(edgeVisible(state, edgeKey)).toBe(false);
     });
   });
 
@@ -235,7 +235,7 @@ describe('StateSerializerV5', () => {
   });
 
   describe('serializeStateV5', () => {
-    it('projectStateV5 returns the visible projection without exposing OR-Set internals', () => {
+    it('projectState returns the visible projection without exposing OR-Set internals', () => {
       const state = buildStateV5({
         nodes: [
           { nodeId: 'a' },
@@ -253,7 +253,7 @@ describe('StateSerializerV5', () => {
         ],
       });
 
-      expect(projectStateV5(state)).toEqual({
+      expect(projectState(state)).toEqual({
         nodes: ['a', 'c'],
         edges: [{ from: 'a', to: 'c', label: 'rel' }],
         props: [
@@ -382,7 +382,7 @@ describe('StateSerializerV5', () => {
     });
   });
 
-  describe('createStateReaderV5', () => {
+  describe('createStateReader', () => {
     it('provides stable node, edge, neighbor, and content helpers over visible state', () => {
       const edgeBirth = mockEventId(2, 'alice', 'bbbbbbbb', 0);
       const nodeContentEvent = mockEventId(4, 'alice', 'cccccccc', 0);
@@ -430,7 +430,7 @@ describe('StateSerializerV5', () => {
         lwwSet(mockEventId(1, 'alice', 'aaaaaaaa', 0), 'ignore-me'),
       );
 
-      const reader = createStateReaderV5(state);
+      const reader = createStateReader(state);
 
       expect(reader.hasNode('a')).toBe(true);
       expect(reader.hasNode('b')).toBe(false);
@@ -478,17 +478,17 @@ describe('StateSerializerV5', () => {
         },
       });
       expect(reader.inspectNode('b')).toBeNull();
-      expect(reader.project()).toEqual(projectStateV5(state));
+      expect(reader.project()).toEqual(projectState(state));
     });
   });
 
-  describe('computeStateHashV5', () => {
+  describe('computeStateHash', () => {
     it('returns 64-char hex string (SHA-256)', async () => {
       const state = buildStateV5({
         nodes: [{ nodeId: 'a' }],
       });
 
-      const hash = await computeStateHashV5(state, { crypto });
+      const hash = await computeStateHash(state, { crypto });
 
       expect(hash).toMatch(/^[0-9a-f]{64}$/);
     });
@@ -506,7 +506,7 @@ describe('StateSerializerV5', () => {
         props: [{ nodeId: 'a', key: 'name', value: createInlineValue('Alice') }],
       });
 
-      expect(await computeStateHashV5(state1, { crypto })).toBe(await computeStateHashV5(state2, { crypto }));
+      expect(await computeStateHash(state1, { crypto })).toBe(await computeStateHash(state2, { crypto }));
     });
 
     it('produces different hashes for different states', async () => {
@@ -518,13 +518,13 @@ describe('StateSerializerV5', () => {
         nodes: [{ nodeId: 'b' }],
       });
 
-      expect(await computeStateHashV5(state1, { crypto })).not.toBe(await computeStateHashV5(state2, { crypto }));
+      expect(await computeStateHash(state1, { crypto })).not.toBe(await computeStateHash(state2, { crypto }));
     });
 
     it('empty state has consistent hash', async () => {
       const state = createEmptyState();
-      const hash1 = await computeStateHashV5(state, { crypto });
-      const hash2 = await computeStateHashV5(state, { crypto });
+      const hash1 = await computeStateHash(state, { crypto });
+      const hash2 = await computeStateHash(state, { crypto });
 
       expect(hash1).toBe(hash2);
     });
@@ -582,7 +582,7 @@ describe('StateSerializerV5', () => {
       state2.nodeAlive.remove(observedDots2);
 
       // Both should have empty visible state (node removed)
-      expect(await computeStateHashV5(state1, { crypto })).toBe(await computeStateHashV5(state2, { crypto }));
+      expect(await computeStateHash(state1, { crypto })).toBe(await computeStateHash(state2, { crypto }));
     });
 
     it('concurrent add after remove wins correctly', async () => {
@@ -604,7 +604,7 @@ describe('StateSerializerV5', () => {
       // Both should show 'n' as visible
       expect(nodeVisibleV5(state1, 'n')).toBe(true);
       expect(nodeVisibleV5(state2, 'n')).toBe(true);
-      expect(await computeStateHashV5(state1, { crypto })).toBe(await computeStateHashV5(state2, { crypto }));
+      expect(await computeStateHash(state1, { crypto })).toBe(await computeStateHash(state2, { crypto }));
     });
 
     it('different insertion orders produce same hash when final state is same', async () => {
@@ -619,11 +619,11 @@ describe('StateSerializerV5', () => {
       state2.nodeAlive.add('mango', mockDot('w2', 2));
       state2.nodeAlive.add('zebra', mockDot('w2', 3));
 
-      expect(await computeStateHashV5(state1, { crypto })).toBe(await computeStateHashV5(state2, { crypto }));
+      expect(await computeStateHash(state1, { crypto })).toBe(await computeStateHash(state2, { crypto }));
     });
   });
 
-  describe('compareVisibleStateV5', () => {
+  describe('compareVisibleState', () => {
     it('reports visible node, edge, property, and target-local deltas without exposing reducer internals', () => {
       const left = buildStateV5({
         nodes: [{ nodeId: 'a' }, { nodeId: 'b' }, { nodeId: 'd' }],
@@ -658,7 +658,7 @@ describe('StateSerializerV5', () => {
         lwwSet(mockEventId(4), 1),
       );
 
-      const comparison = compareVisibleStateV5(left, right, { targetId: 'a' });
+      const comparison = compareVisibleState(left, right, { targetId: 'a' });
 
       expect(comparison.changed).toBe(true);
       expect(comparison.summary).toEqual({

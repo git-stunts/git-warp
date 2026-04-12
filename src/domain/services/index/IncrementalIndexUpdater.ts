@@ -129,7 +129,7 @@ export default class IncrementalIndexUpdater {
       this._nodeUpdater.purgeNodeEdges(nodeId, purgeCtx);
     }
 
-    // Filter edgesAdded by endpoint alive-ness (matches edgeVisibleV5).
+    // Filter edgesAdded by endpoint alive-ness (matches edgeVisible).
     for (const edge of diff.edgesAdded) {
       if (!state.nodeAlive.contains(edge.from) || !state.nodeAlive.contains(edge.to)) {
         continue;

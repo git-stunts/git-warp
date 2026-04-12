@@ -8,7 +8,7 @@
  * @module domain/services/comparison/diffStructure
  */
 
-import type { VisibleNodeViewV5, VisibleStateNeighborV5, VisibleStateReaderV5 } from '../../../../index.js';
+import type { VisibleNodeView, VisibleStateNeighbor, VisibleStateReader } from '../../../../index.js';
 import {
   compareStrings,
   compareNeighbors,
@@ -25,8 +25,8 @@ import { compareNodeViewProperties } from './diffProperties.ts';
  * Builds a map from composite neighbor key to neighbor object.
  */
 export function neighborMap(
-  neighbors: VisibleStateNeighborV5[],
-): Map<string, VisibleStateNeighborV5> {
+  neighbors: VisibleStateNeighbor[],
+): Map<string, VisibleStateNeighbor> {
   return new Map(neighbors.map((neighbor) => [neighborKey(neighbor), neighbor]));
 }
 
@@ -34,9 +34,9 @@ export function neighborMap(
  * Computes the added and removed deltas between two neighbor lists.
  */
 export function compareNeighborLists(
-  leftNeighbors: VisibleStateNeighborV5[],
-  rightNeighbors: VisibleStateNeighborV5[],
-): { added: VisibleStateNeighborV5[]; removed: VisibleStateNeighborV5[] } {
+  leftNeighbors: VisibleStateNeighbor[],
+  rightNeighbors: VisibleStateNeighbor[],
+): { added: VisibleStateNeighbor[]; removed: VisibleStateNeighbor[] } {
   const leftMap = neighborMap(leftNeighbors);
   const rightMap = neighborMap(rightNeighbors);
   return {
@@ -66,8 +66,8 @@ type NormalizedNodeView = {
   exists: boolean;
   nodeId: string | null;
   props: Record<string, unknown>;
-  outgoing: VisibleStateNeighborV5[];
-  incoming: VisibleStateNeighborV5[];
+  outgoing: VisibleStateNeighbor[];
+  incoming: VisibleStateNeighbor[];
   content: unknown;
 };
 
@@ -83,7 +83,7 @@ export const EMPTY_NODE_VIEW: NormalizedNodeView = {
 /**
  * Extracts fields from a non-null node view with defaults applied.
  */
-export function extractNodeView(view: VisibleNodeViewV5): NormalizedNodeView {
+export function extractNodeView(view: VisibleNodeView): NormalizedNodeView {
   return {
     exists: true,
     nodeId: view.nodeId,
@@ -97,7 +97,7 @@ export function extractNodeView(view: VisibleNodeViewV5): NormalizedNodeView {
 /**
  * Normalizes a nullable node view into a consistent shape with defaults.
  */
-export function normalizeNodeView(view: VisibleNodeViewV5 | null | undefined): NormalizedNodeView {
+export function normalizeNodeView(view: VisibleNodeView | null | undefined): NormalizedNodeView {
   if (view === null || view === undefined) {
     return { ...EMPTY_NODE_VIEW };
   }
@@ -146,23 +146,23 @@ export type NodeViewComparison = {
   leftExists: boolean;
   rightExists: boolean;
   changed: boolean;
-  left: VisibleNodeViewV5 | null;
-  right: VisibleNodeViewV5 | null;
+  left: VisibleNodeView | null;
+  right: VisibleNodeView | null;
   propertyDelta: {
     added: Array<{ key: string; value: unknown }>;
     removed: Array<{ key: string; value: unknown }>;
     changed: Array<{ key: string; leftValue: unknown; rightValue: unknown }>;
   };
-  outgoingDelta: { added: VisibleStateNeighborV5[]; removed: VisibleStateNeighborV5[] };
-  incomingDelta: { added: VisibleStateNeighborV5[]; removed: VisibleStateNeighborV5[] };
+  outgoingDelta: { added: VisibleStateNeighbor[]; removed: VisibleStateNeighbor[] };
+  incomingDelta: { added: VisibleStateNeighbor[]; removed: VisibleStateNeighbor[] };
   contentChanged: boolean;
 };
 
 type NodeViewDeltas = {
   targetId: string | null;
   propertyDelta: NodeViewComparison['propertyDelta'];
-  outgoingDelta: { added: VisibleStateNeighborV5[]; removed: VisibleStateNeighborV5[] };
-  incomingDelta: { added: VisibleStateNeighborV5[]; removed: VisibleStateNeighborV5[] };
+  outgoingDelta: { added: VisibleStateNeighbor[]; removed: VisibleStateNeighbor[] };
+  incomingDelta: { added: VisibleStateNeighbor[]; removed: VisibleStateNeighbor[] };
   contentChanged: boolean;
   leftExists: boolean;
   rightExists: boolean;
@@ -190,8 +190,8 @@ function diffNormalizedViews(
  * Compares two nullable node views and returns a detailed diff result.
  */
 export function compareNodeViews(
-  left: VisibleNodeViewV5 | null,
-  right: VisibleNodeViewV5 | null,
+  left: VisibleNodeView | null,
+  right: VisibleNodeView | null,
 ): NodeViewComparison {
   const d = diffNormalizedViews(normalizeNodeView(left), normalizeNodeView(right));
   const changed = hasNodeViewChanges(d);
@@ -215,8 +215,8 @@ export function compareNodeViews(
  * Computes the set-difference delta of node IDs between two readers.
  */
 export function buildNodeDelta(
-  leftReader: VisibleStateReaderV5,
-  rightReader: VisibleStateReaderV5,
+  leftReader: VisibleStateReader,
+  rightReader: VisibleStateReader,
 ): { added: string[]; removed: string[] } {
   const leftNodes = new Set(leftReader.getNodes());
   const rightNodes = new Set(rightReader.getNodes());
@@ -230,8 +230,8 @@ export function buildNodeDelta(
  * Computes the set-difference delta of edges between two readers.
  */
 export function buildEdgeDelta(
-  leftReader: VisibleStateReaderV5,
-  rightReader: VisibleStateReaderV5,
+  leftReader: VisibleStateReader,
+  rightReader: VisibleStateReader,
 ): { added: Array<{ from: string; to: string; label: string }>; removed: Array<{ from: string; to: string; label: string }> } {
   const leftEdges = collectEdges(leftReader);
   const rightEdges = collectEdges(rightReader);
@@ -292,8 +292,8 @@ export function normalizeTargetId(targetId: string | undefined | null): string |
  * Builds a node-level comparison for a specific target, or undefined if no target.
  */
 export function buildTargetComparison(
-  leftReader: VisibleStateReaderV5,
-  rightReader: VisibleStateReaderV5,
+  leftReader: VisibleStateReader,
+  rightReader: VisibleStateReader,
   targetId: string | null,
 ): NodeViewComparison | undefined {
   if (typeof targetId !== 'string' || targetId.length === 0) {

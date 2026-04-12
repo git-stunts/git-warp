@@ -13,19 +13,19 @@ import QueryError from '../../errors/QueryError.ts';
 import { computeChecksum } from '../../utils/checksumUtils.ts';
 import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod.ts';
 import createStrandCoordinator from '../strand/createStrandCoordinator.ts';
-import { createStateReaderV5 } from '../state/StateReaderV5.js';
-import { computeStateHashV5 } from '../state/StateSerializerV5.js';
+import { createStateReader } from '../state/StateReader.js';
+import { computeStateHash } from '../state/StateSerializer.js';
 import {
-  normalizeVisibleStateScopeV1,
-  scopeMaterializedStateV5,
+  normalizeVisibleStateScope,
+  scopeMaterializedState,
   scopePatchEntriesV1,
-} from '../VisibleStateScopeV1.js';
+} from '../VisibleStateScope.js';
 import type { WarpState } from '../JoinReducer.ts';
 import type Patch from '../../types/Patch.ts';
 
 // Re-export index types used by callers
 import type {
-  VisibleStateScopeV1,
+  VisibleStateScope,
   StrandDescriptor as StrandDescriptorV1,
 } from '../../../../index.js';
 
@@ -241,7 +241,7 @@ export async function computeStateHashForGraph(graph: ComparisonHost, state: War
   if (graph._stateHashService) {
     return await graph._stateHashService.compute(state);
   }
-  return await computeStateHashV5(state, { crypto: graph._crypto, codec: graph._codec });
+  return await computeStateHash(state, { crypto: graph._crypto, codec: graph._codec });
 }
 
 // ── ResolvedComparisonSide ───────────────────────────────────────────
@@ -278,13 +278,13 @@ export async function finalizeSide(
     lamportCeiling: number | null;
     strand?: Record<string, unknown>;
   },
-  scope: VisibleStateScopeV1 | null,
+  scope: VisibleStateScope | null,
 ): Promise<ResolvedComparisonSide> {
-  const scopedState = scopeMaterializedStateV5(params.state, scope);
+  const scopedState = scopeMaterializedState(params.state, scope);
   const scopedPatchEntries = scopePatchEntriesV1(params.patchEntries, scope);
   const visiblePatchFrontier = patchFrontierFromEntries(scopedPatchEntries);
   const visibleLamportFrontier = lamportFrontierFromEntries(scopedPatchEntries);
-  const reader = createStateReaderV5(scopedState);
+  const reader = createStateReader(scopedState);
   const stateHash = await computeStateHashForGraph(graph, scopedState);
   const patchShas = uniqueSortedPatchShas(scopedPatchEntries);
 
@@ -307,7 +307,7 @@ export async function finalizeSide(
   });
 }
 
-function summarizeVisibleState(reader: ReturnType<typeof createStateReaderV5>, patchCount: number) {
+function summarizeVisibleState(reader: ReturnType<typeof createStateReader>, patchCount: number) {
   const nodes = reader.getNodes();
   const edges = reader.getEdges();
   let nodePropertyCount = 0;
@@ -334,7 +334,7 @@ export abstract class NormalizedSelector {
 
   abstract resolve(
     graph: ComparisonHost,
-    scope: VisibleStateScopeV1 | null,
+    scope: VisibleStateScope | null,
     liveFrontier: Map<string, string> | null,
   ): Promise<ResolvedComparisonSide>;
 }
@@ -342,7 +342,7 @@ export abstract class NormalizedSelector {
 export class LiveComparisonSelector extends NormalizedSelector {
   constructor(ceiling: number | null) { super('live', ceiling); }
 
-  async resolve(graph: ComparisonHost, scope: VisibleStateScopeV1 | null, liveFrontier: Map<string, string> | null) {
+  async resolve(graph: ComparisonHost, scope: VisibleStateScope | null, liveFrontier: Map<string, string> | null) {
     const requestedFrontier = liveFrontier ?? await graph.getFrontier();
     const requestedRecord = normalizeFrontierRecord(requestedFrontier, 'live.frontier');
     const state = await graph.materializeCoordinate({
@@ -365,7 +365,7 @@ export class CoordinateComparisonSelector extends NormalizedSelector {
     this.frontier = frontier;
   }
 
-  async resolve(graph: ComparisonHost, scope: VisibleStateScopeV1 | null) {
+  async resolve(graph: ComparisonHost, scope: VisibleStateScope | null) {
     const state = await graph.materializeCoordinate({
       frontier: frontierRecordToMap(this.frontier),
       ...optionalCeiling(this.ceiling),
@@ -386,7 +386,7 @@ export class StrandComparisonSelector extends NormalizedSelector {
     this.strandId = strandId;
   }
 
-  async resolve(graph: ComparisonHost, scope: VisibleStateScopeV1 | null) {
+  async resolve(graph: ComparisonHost, scope: VisibleStateScope | null) {
     const strands = createStrandCoordinator(graph as Parameters<typeof createStrandCoordinator>[0]);
     const descriptor = await strands.getOrThrow(this.strandId);
     const state = await callInternalRuntimeMethod<WarpState>(
@@ -412,7 +412,7 @@ export class StrandBaseComparisonSelector extends NormalizedSelector {
     this.strandId = strandId;
   }
 
-  async resolve(graph: ComparisonHost, scope: VisibleStateScopeV1 | null) {
+  async resolve(graph: ComparisonHost, scope: VisibleStateScope | null) {
     const strands = createStrandCoordinator(graph as Parameters<typeof createStrandCoordinator>[0]);
     const descriptor = await strands.getOrThrow(this.strandId);
     const effectiveCeiling = combineCeilings(descriptor.baseObservation.lamportCeiling, this.ceiling);

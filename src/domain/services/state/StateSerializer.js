@@ -10,7 +10,7 @@ import { decodeEdgeKey, decodePropKey } from '../KeyCodec.js';
  *
  * V5 uses ORSet-based state (rather than LWW registers for nodeAlive/edgeAlive).
  *
- * @module StateSerializerV5
+ * @module StateSerializer
  * @see WARP Spec Section 8.3 (Visibility)
  * @see WARP Spec Section 10.3 (Canonical Serialization)
  */
@@ -36,7 +36,7 @@ export function nodeVisibleV5(state, nodeId) {
  * @param {string} edgeKey - Encoded edge key
  * @returns {boolean}
  */
-export function edgeVisibleV5(state, edgeKey) {
+export function edgeVisible(state, edgeKey) {
   if (!state.edgeAlive.contains(edgeKey)) {
     return false;
   }
@@ -77,7 +77,7 @@ export function propVisibleV5(state, propKey) {
  * @returns {Uint8Array}
  */
 export function serializeStateV5(state, { codec } = {}) {
-  const projection = projectStateV5(state);
+  const projection = projectState(state);
   // Encode as canonical CBOR
   return (codec || defaultCodec).encode(projection);
 }
@@ -96,14 +96,14 @@ export function serializeStateV5(state, { codec } = {}) {
  * @param {import('../JoinReducer.ts').WarpState} state
  * @returns {{nodes: string[], edges: Array<{from: string, to: string, label: string}>, props: Array<{node: string, key: string, value: unknown}>}}
  */
-export function projectStateV5(state) {
+export function projectState(state) {
   // 1. Collect visible nodes, sorted
   const nodes = [...state.nodeAlive.elements()].sort();
 
   // 2. Collect visible edges (both endpoints visible), sorted by (from, to, label)
   const visibleEdges = [];
   for (const edgeKey of state.edgeAlive.elements()) {
-    if (edgeVisibleV5(state, edgeKey)) {
+    if (edgeVisible(state, edgeKey)) {
       visibleEdges.push(decodeEdgeKey(edgeKey));
     }
   }
@@ -145,7 +145,7 @@ export function projectStateV5(state) {
  * @param {StateHashOptions} [options] - Options
  * @returns {Promise<string>} Hex-encoded SHA-256 hash
  */
-export async function computeStateHashV5(state, { crypto, codec } = /** @type {StateHashOptions} */ ({})) {
+export async function computeStateHash(state, { crypto, codec } = /** @type {StateHashOptions} */ ({})) {
   const c = crypto || defaultCrypto;
   const serialized = serializeStateV5(state, codec ? { codec } : {});
   return await c.hash('sha256', serialized);
@@ -167,9 +167,9 @@ export function deserializeStateV5(buffer, { codec } = {}) {
 // Full State Serialization (for BTR replay)
 // ============================================================================
 
-// Re-export from CheckpointSerializerV5 for compatibility.
+// Re-export from CheckpointSerializer for compatibility.
 // Both BTR and Checkpoint use the same canonical full-state format.
 export {
-  serializeFullStateV5,
-  deserializeFullStateV5,
-} from './CheckpointSerializerV5.js';
+  serializeFullState,
+  deserializeFullState,
+} from './CheckpointSerializer.js';

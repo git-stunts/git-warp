@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { create } from '../../../../src/domain/services/state/checkpointCreate.ts';
-import { loadCheckpoint, materializeIncremental, reconstructStateV5FromCheckpoint } from '../../../../src/domain/services/state/checkpointLoad.ts';
+import { loadCheckpoint, materializeIncremental, reconstructStateFromCheckpoint } from '../../../../src/domain/services/state/checkpointLoad.ts';
 import { CHECKPOINT_SCHEMA_STANDARD, CHECKPOINT_SCHEMA_INDEX_TREE } from '../../../../src/domain/services/state/checkpointHelpers.ts';
 import {
   createFrontier,
@@ -15,12 +15,12 @@ import {
   serializeFrontier,
 } from '../../../../src/domain/services/Frontier.ts';
 import {
-  serializeFullStateV5,
-  deserializeFullStateV5,
+  serializeFullState,
+  deserializeFullState,
   computeAppliedVV,
   serializeAppliedVV,
-} from '../../../../src/domain/services/state/CheckpointSerializerV5.js';
-import { computeStateHashV5 } from '../../../../src/domain/services/state/StateSerializerV5.js';
+} from '../../../../src/domain/services/state/CheckpointSerializer.js';
+import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.js';
 import {
   createEmptyState,
   encodeEdgeKey as encodeEdgeKeyV5,
@@ -104,10 +104,10 @@ describe('CheckpointService edge cases', () => {
       const frontier = createFrontier();
       updateFrontier(frontier, 'w1', makeOid('sha1'));
 
-      const stateBuffer = serializeFullStateV5(state);
+      const stateBuffer = serializeFullState(state);
       const frontierBuffer = serializeFrontier(frontier);
       const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(state));
-      const stateHash = await computeStateHashV5(state, { crypto });
+      const stateHash = await computeStateHash(state, { crypto });
 
       const message = encodeCheckpointMessage({
         graph: 'test',
@@ -221,19 +221,19 @@ describe('CheckpointService edge cases', () => {
   });
 
   // --------------------------------------------------------------------------
-  // deserializeFullStateV5 edge cases
+  // deserializeFullState edge cases
   // --------------------------------------------------------------------------
 
-  describe('deserializeFullStateV5 edge cases', () => {
+  describe('deserializeFullState edge cases', () => {
     it('returns empty state for null buffer', () => {
-      const state = deserializeFullStateV5(/** @type {any} */ (null));
+      const state = deserializeFullState(/** @type {any} */ (null));
       expect(state.nodeAlive.elements()).toHaveLength(0);
       expect(state.edgeAlive.elements()).toHaveLength(0);
       expect(state.prop.size).toBe(0);
     });
 
     it('returns empty state for undefined buffer', () => {
-      const state = deserializeFullStateV5(/** @type {any} */ (undefined));
+      const state = deserializeFullState(/** @type {any} */ (undefined));
       expect(state.nodeAlive.elements()).toHaveLength(0);
     });
 
@@ -244,7 +244,7 @@ describe('CheckpointService edge cases', () => {
       );
       return defaultCodecImport.then(({ default: codec }) => {
         const buf = codec.encode({ version: 'full-v99', nodeAlive: {} });
-        expect(() => deserializeFullStateV5(buf)).toThrow(
+        expect(() => deserializeFullState(buf)).toThrow(
           /Unsupported full state version.*full-v99/
         );
       });
@@ -260,9 +260,9 @@ describe('CheckpointService edge cases', () => {
       const state = createEmptyState();
       state.nodeAlive.add('a', Dot.create('w1', 1));
 
-      const stateBuffer = serializeFullStateV5(state);
+      const stateBuffer = serializeFullState(state);
       const frontierBuffer = serializeFrontier(createFrontier());
-      const stateHash = await computeStateHashV5(state, { crypto });
+      const stateHash = await computeStateHash(state, { crypto });
 
       const message = encodeCheckpointMessage({
         graph: 'test',
@@ -312,10 +312,10 @@ describe('CheckpointService edge cases', () => {
       const frontier = createFrontier();
       updateFrontier(frontier, 'w1', makeOid('sha1'));
 
-      const stateBuffer = serializeFullStateV5(state);
+      const stateBuffer = serializeFullState(state);
       const frontierBuffer = serializeFrontier(frontier);
       const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(state));
-      const stateHash = await computeStateHashV5(state, { crypto });
+      const stateHash = await computeStateHash(state, { crypto });
 
       const message = encodeCheckpointMessage({
         graph: 'test',
@@ -369,10 +369,10 @@ describe('CheckpointService edge cases', () => {
       const frontier = createFrontier();
       updateFrontier(frontier, 'w1', makeOid('sha1'));
 
-      const stateBuffer = serializeFullStateV5(state);
+      const stateBuffer = serializeFullState(state);
       const frontierBuffer = serializeFrontier(frontier);
       const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(state));
-      const stateHash = await computeStateHashV5(state, { crypto });
+      const stateHash = await computeStateHash(state, { crypto });
 
       const message = encodeCheckpointMessage({
         graph: 'test',
@@ -429,10 +429,10 @@ describe('CheckpointService edge cases', () => {
       updateFrontier(targetFrontier, 'w1', makeOid('sha1'));
       updateFrontier(targetFrontier, 'w2', makeOid('sha2'));
 
-      const stateBuffer = serializeFullStateV5(state);
+      const stateBuffer = serializeFullState(state);
       const frontierBuffer = serializeFrontier(checkpointFrontier);
       const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(state));
-      const stateHash = await computeStateHashV5(state, { crypto });
+      const stateHash = await computeStateHash(state, { crypto });
 
       const message = encodeCheckpointMessage({
         graph: 'test',
@@ -496,12 +496,12 @@ describe('CheckpointService edge cases', () => {
   });
 
   // --------------------------------------------------------------------------
-  // reconstructStateV5FromCheckpoint edge cases
+  // reconstructStateFromCheckpoint edge cases
   // --------------------------------------------------------------------------
 
-  describe('reconstructStateV5FromCheckpoint edge cases', () => {
+  describe('reconstructStateFromCheckpoint edge cases', () => {
     it('handles nodes with no edges', () => {
-      const state = reconstructStateV5FromCheckpoint({
+      const state = reconstructStateFromCheckpoint({
         nodes: ['isolated1', 'isolated2'],
         edges: [],
         props: [],
@@ -513,7 +513,7 @@ describe('CheckpointService edge cases', () => {
     });
 
     it('handles nodes with properties but no edges', () => {
-      const state = reconstructStateV5FromCheckpoint({
+      const state = reconstructStateFromCheckpoint({
         nodes: ['solo'],
         edges: [],
         props: [{ node: 'solo', key: 'name', value: 'alone' }],
@@ -526,7 +526,7 @@ describe('CheckpointService edge cases', () => {
     });
 
     it('uses synthetic dot for all elements (shared identity)', () => {
-      const state = reconstructStateV5FromCheckpoint({
+      const state = reconstructStateFromCheckpoint({
         nodes: ['a', 'b'],
         edges: [{ from: 'a', to: 'b', label: 'link' }],
         props: [],
@@ -546,7 +546,7 @@ describe('CheckpointService edge cases', () => {
     });
 
     it('initializes edgeBirthEvent for reconstructed edges', () => {
-      const state = reconstructStateV5FromCheckpoint({
+      const state = reconstructStateFromCheckpoint({
         nodes: ['x', 'y'],
         edges: [{ from: 'x', to: 'y', label: 'rel' }],
         props: [],
@@ -607,7 +607,7 @@ describe('CheckpointService edge cases', () => {
         crypto,
       });
 
-      const restored = deserializeFullStateV5(capturedStateBuffer);
+      const restored = deserializeFullState(capturedStateBuffer);
       expect(restored.nodeAlive.elements()).toHaveLength(0);
       expect(restored.edgeAlive.elements()).toHaveLength(0);
       expect(restored.nodeAlive.tombstones.size).toBe(0);
@@ -656,7 +656,7 @@ describe('CheckpointService edge cases', () => {
         crypto,
       });
 
-      const restored = deserializeFullStateV5(capturedStateBuffer);
+      const restored = deserializeFullState(capturedStateBuffer);
       // After compaction, all tombstoned entries should be removed
       expect(restored.nodeAlive.elements()).toHaveLength(0);
       expect(restored.nodeAlive.entries.size).toBe(0);
@@ -709,10 +709,10 @@ describe('CheckpointService edge cases', () => {
       const state = createEmptyState();
       state.nodeAlive.add('a', Dot.create('w1', 1));
 
-      const stateBuffer = serializeFullStateV5(state);
+      const stateBuffer = serializeFullState(state);
       const frontierBuffer = serializeFrontier(createFrontier());
       const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(state));
-      const stateHash = await computeStateHashV5(state, { crypto });
+      const stateHash = await computeStateHash(state, { crypto });
 
       const message = encodeCheckpointMessage({
         graph: 'test',
@@ -760,11 +760,11 @@ describe('CheckpointService edge cases', () => {
       const provenanceIndex = new ProvenanceIndex();
       provenanceIndex.addPatch(makeOid('patch1'), ['a'], ['a']);
 
-      const stateBuffer = serializeFullStateV5(state);
+      const stateBuffer = serializeFullState(state);
       const frontierBuffer = serializeFrontier(createFrontier());
       const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(state));
       const provenanceBuffer = provenanceIndex.serialize();
-      const stateHash = await computeStateHashV5(state, { crypto });
+      const stateHash = await computeStateHash(state, { crypto });
 
       const message = encodeCheckpointMessage({
         graph: 'test',
@@ -836,7 +836,7 @@ describe('CheckpointService edge cases', () => {
       });
 
       expect(checkpointStore.writeCheckpoint).toHaveBeenCalledWith(expect.objectContaining({
-        stateHash: await computeStateHashV5(state, { crypto }),
+        stateHash: await computeStateHash(state, { crypto }),
       }));
     });
 

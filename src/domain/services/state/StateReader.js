@@ -10,7 +10,7 @@ import {
   encodePropKey,
   isEdgePropKey,
 } from '../KeyCodec.js';
-import { projectStateV5 } from './StateSerializerV5.js';
+import { projectState } from './StateSerializer.js';
 
 /**
  * @typedef {{ oid: string, mime: string|null, size: number|null }} ContentMeta
@@ -514,10 +514,10 @@ function inspectVisibleNode(context, nodeId) {
  * Assembles the frozen reader API from a pre-built context.
  *
  * @param {StateReaderContext} context - the reader context
- * @returns {import('../../../../index.js').VisibleStateReaderV5} frozen reader
+ * @returns {import('../../../../index.js').VisibleStateReader} frozen reader
  */
 function buildReaderApi(context) {
-  /** @type {import('../../../../index.js').VisibleStateReaderV5} */
+  /** @type {import('../../../../index.js').VisibleStateReader} */
   const reader = {
     project() {
       return cloneProjection(context);
@@ -563,7 +563,7 @@ function buildReaderApi(context) {
  * @returns {StateReaderContext} the reader context
  */
 function buildReaderContext(state) {
-  const projection = projectStateV5(state);
+  const projection = projectState(state);
   const visibleNodeIds = new Set(projection.nodes);
   const nodePropsById = createNodePropIndex(projection.nodes);
   const edgePropsByKey = createEdgePropIndex(projection.edges);
@@ -591,8 +591,8 @@ function buildReaderContext(state) {
  * node inspection view without leaking OR-Set internals to higher layers.
  *
  * @param {import('../JoinReducer.ts').WarpState} state
- * @returns {import('../../../../index.js').VisibleStateReaderV5}
+ * @returns {import('../../../../index.js').VisibleStateReader}
  */
-export function createStateReaderV5(state) {
+export function createStateReader(state) {
   return buildReaderApi(buildReaderContext(state));
 }

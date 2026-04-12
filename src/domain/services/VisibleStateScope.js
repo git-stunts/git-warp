@@ -17,7 +17,7 @@ import {
  * }} VisibleStateScopePrefixFilterV1
  * @typedef {{
  *   nodeIdPrefixes?: VisibleStateScopePrefixFilterV1
- * }} VisibleStateScopeV1
+ * }} VisibleStateScope
  */
 
 /**
@@ -139,9 +139,9 @@ function normalizePrefixFilter(value, field) {
  *
  * @param {unknown} scope
  * @param {string} [field='scope']
- * @returns {VisibleStateScopeV1|null}
+ * @returns {VisibleStateScope|null}
  */
-export function normalizeVisibleStateScopeV1(scope, field = 'scope') {
+export function normalizeVisibleStateScope(scope, field = 'scope') {
   if (scope === undefined || scope === null) {
     return null;
   }
@@ -216,7 +216,7 @@ function matchesPrefixFilter(value, rules) {
  * Tests whether a node ID falls within the visible state scope.
  *
  * @param {string} nodeId
- * @param {VisibleStateScopeV1|null|undefined} scope
+ * @param {VisibleStateScope|null|undefined} scope
  * @returns {boolean}
  */
 export function nodeIdInVisibleStateScope(nodeId, scope) {
@@ -230,7 +230,7 @@ export function nodeIdInVisibleStateScope(nodeId, scope) {
  * Tests whether both endpoints of an edge fall within the visible state scope.
  *
  * @param {{ from: string, to: string, label: string }} edge
- * @param {VisibleStateScopeV1|null|undefined} scope
+ * @param {VisibleStateScope|null|undefined} scope
  * @returns {boolean}
  */
 function edgeInVisibleStateScope(edge, scope) {
@@ -260,7 +260,7 @@ function cloneScopedOrSet(sourceEntries, includeElement, tombstones) {
  * Collects node IDs that are alive and within the given scope.
  *
  * @param {WarpState} state
- * @param {VisibleStateScopeV1} scope
+ * @param {VisibleStateScope} scope
  * @returns {Set<string>}
  */
 function collectScopedNodeIds(state, scope) {
@@ -347,10 +347,10 @@ function collectScopedEdgeBirthEvents(state, scopedEdgeKeys) {
  * Projects a full materialized state down to only the nodes/edges/props in scope.
  *
  * @param {WarpState} state
- * @param {VisibleStateScopeV1|null|undefined} scope
+ * @param {VisibleStateScope|null|undefined} scope
  * @returns {WarpState}
  */
-export function scopeMaterializedStateV5(state, scope) {
+export function scopeMaterializedState(state, scope) {
   if (scope === null || scope === undefined) {
     return state;
   }
@@ -381,7 +381,7 @@ export function scopeMaterializedStateV5(state, scope) {
  * Tests whether a node-targeted op affects the given scope.
  *
  * @param {Record<string, unknown>} op
- * @param {VisibleStateScopeV1} scope
+ * @param {VisibleStateScope} scope
  * @returns {boolean}
  */
 function nodeOpAffectsScope(op, scope) {
@@ -392,7 +392,7 @@ function nodeOpAffectsScope(op, scope) {
  * Tests whether an edge-targeted op affects the given scope.
  *
  * @param {Record<string, unknown>} op
- * @param {VisibleStateScopeV1} scope
+ * @param {VisibleStateScope} scope
  * @returns {boolean}
  */
 function edgeOpAffectsScope(op, scope) {
@@ -415,7 +415,7 @@ const EDGE_SCOPED_OP_TYPES = new Set(['EdgeAdd', 'EdgeRemove', 'EdgePropSet']);
  * Tests whether a normalized op with a known type affects the visible scope.
  *
  * @param {Record<string, unknown>} normalized
- * @param {VisibleStateScopeV1} scope
+ * @param {VisibleStateScope} scope
  * @returns {boolean}
  */
 function normalizedOpAffectsScope(normalized, scope) {
@@ -443,7 +443,7 @@ function isUnscopableOp(op) {
  * Tests whether a single op affects any element within the visible scope.
  *
  * @param {unknown} op
- * @param {VisibleStateScopeV1|null|undefined} scope
+ * @param {VisibleStateScope|null|undefined} scope
  * @returns {boolean}
  */
 function opAffectsScope(op, scope) {
@@ -464,7 +464,7 @@ function opAffectsScope(op, scope) {
  * Tests whether a patch contains at least one op that affects the scope.
  *
  * @param {import('../types/Patch.ts').default} patch
- * @param {VisibleStateScopeV1|null|undefined} scope
+ * @param {VisibleStateScope|null|undefined} scope
  * @returns {boolean}
  */
 function patchAffectsScope(patch, scope) {
@@ -479,7 +479,7 @@ function patchAffectsScope(patch, scope) {
  * Filters patch entries down to patches with at least one in-scope op.
  *
  * @param {Array<{ patch: import('../types/Patch.ts').default, sha: string }>} entries
- * @param {VisibleStateScopeV1|null|undefined} scope
+ * @param {VisibleStateScope|null|undefined} scope
  * @returns {Array<{ patch: import('../types/Patch.ts').default, sha: string }>}
  */
 export function scopePatchEntriesV1(entries, scope) {

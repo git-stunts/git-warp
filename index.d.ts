@@ -856,7 +856,7 @@ export function buildWarpStateIndex(state: WarpState, options?: { crypto?: Crypt
  * Uses canonical serialization to ensure the same state always produces
  * the same hash regardless of property iteration order.
  */
-export function computeStateHashV5(state: WarpState, options?: { crypto?: CryptoPort; codec?: unknown }): Promise<string | null>;
+export function computeStateHash(state: WarpState, options?: { crypto?: CryptoPort; codec?: unknown }): Promise<string | null>;
 
 /**
  * Projects a materialized WarpState into its visible graph projection.
@@ -865,7 +865,7 @@ export function computeStateHashV5(state: WarpState, options?: { crypto?: Crypto
  * materialized strand or coordinate state without depending on OR-Set
  * internals.
  */
-export function projectStateV5(state: WarpState): VisibleStateProjectionV5;
+export function projectState(state: WarpState): VisibleStateProjectionV5;
 
 /**
  * Creates a substrate-generic reader over a materialized WarpState.
@@ -873,35 +873,35 @@ export function projectStateV5(state: WarpState): VisibleStateProjectionV5;
  * The reader exposes stable node/edge/property helpers plus entity-local node
  * inspection without requiring callers to understand reducer internals.
  */
-export function createStateReaderV5(state: WarpState): VisibleStateReaderV5;
+export function createStateReader(state: WarpState): VisibleStateReader;
 
 /**
  * Compares two materialized WarpState snapshots using only their visible
  * substrate truth.
  */
-export function compareVisibleStateV5(
+export function compareVisibleState(
   leftState: WarpState,
   rightState: WarpState,
   options?: { targetId?: string | null },
-): VisibleStateComparisonV5;
+): VisibleStateComparison;
 
 /**
  * Normalizes a substrate-generic visible-state scope. Current v1 scope
  * supports include/exclude node-id prefixes; dependent edges and properties
  * follow node visibility.
  */
-export function normalizeVisibleStateScopeV1(
+export function normalizeVisibleStateScope(
   scope: unknown,
   field?: string,
-): VisibleStateScopeV1 | null;
+): VisibleStateScope | null;
 
 /**
  * Projects a materialized WarpState down to the visible subset admitted by
  * a normalized visible-state scope.
  */
-export function scopeMaterializedStateV5(
+export function scopeMaterializedState(
   state: WarpState,
-  scope?: VisibleStateScopeV1 | null,
+  scope?: VisibleStateScope | null,
 ): WarpState;
 
 /**
@@ -2462,7 +2462,7 @@ declare class WarpCoreBase {
     ceiling?: number | null;
     againstCeiling?: number | null;
     targetId?: string | null;
-    scope?: VisibleStateScopeV1 | null;
+    scope?: VisibleStateScope | null;
   }): Promise<CoordinateComparisonV1>;
 
   /**
@@ -2474,7 +2474,7 @@ declare class WarpCoreBase {
     into?: 'base' | 'live' | { kind: 'strand'; strandId: string };
     ceiling?: number | null;
     intoCeiling?: number | null;
-    scope?: VisibleStateScopeV1 | null;
+    scope?: VisibleStateScope | null;
   }): Promise<CoordinateTransferPlanV1>;
 
   /**
@@ -2484,7 +2484,7 @@ declare class WarpCoreBase {
     left: CoordinateComparisonSelectorV1;
     right: CoordinateComparisonSelectorV1;
     targetId?: string | null;
-    scope?: VisibleStateScopeV1 | null;
+    scope?: VisibleStateScope | null;
   }): Promise<CoordinateComparisonV1>;
 
   /**
@@ -2494,7 +2494,7 @@ declare class WarpCoreBase {
   planCoordinateTransfer(options: {
     source: CoordinateTransferPlanSelectorV1;
     target: CoordinateTransferPlanSelectorV1;
-    scope?: VisibleStateScopeV1 | null;
+    scope?: VisibleStateScope | null;
   }): Promise<CoordinateTransferPlanV1>;
 
   /**
@@ -3248,7 +3248,7 @@ export interface VisibleStateProjectionV5 {
 }
 
 /** Neighbor entry from visible state: target node, edge label, and direction. */
-export interface VisibleStateNeighborV5 {
+export interface VisibleStateNeighbor {
   nodeId: string;
   label: string;
   direction: 'outgoing' | 'incoming';
@@ -3263,16 +3263,16 @@ export interface VisibleEdgeViewV5 {
 }
 
 /** Node-local view from visible state: properties, neighbors, and content metadata. */
-export interface VisibleNodeViewV5 {
+export interface VisibleNodeView {
   nodeId: string;
   props: Record<string, unknown>;
-  outgoing: VisibleStateNeighborV5[];
-  incoming: VisibleStateNeighborV5[];
+  outgoing: VisibleStateNeighbor[];
+  incoming: VisibleStateNeighbor[];
   content: ContentMeta | null;
 }
 
 /** Read-only accessor over materialized V5 state with entity-local inspection. */
-export interface VisibleStateReaderV5 {
+export interface VisibleStateReader {
   project(): VisibleStateProjectionV5;
   hasNode(nodeId: string): boolean;
   getNodes(): string[];
@@ -3283,10 +3283,10 @@ export interface VisibleStateReaderV5 {
     nodeId: string,
     direction?: 'outgoing' | 'incoming' | 'both',
     edgeLabel?: string,
-  ): VisibleStateNeighborV5[];
+  ): VisibleStateNeighbor[];
   getNodeContentMeta(nodeId: string): ContentMeta | null;
   getEdgeContentMeta(from: string, to: string, label: string): ContentMeta | null;
-  inspectNode(nodeId: string): VisibleNodeViewV5 | null;
+  inspectNode(nodeId: string): VisibleNodeView | null;
 }
 
 /** Compact summary of visible state: entity and property counts. */
@@ -3337,26 +3337,26 @@ export interface VisibleStateComparisonTargetV5 {
   leftExists: boolean;
   rightExists: boolean;
   changed: boolean;
-  left: VisibleNodeViewV5 | null;
-  right: VisibleNodeViewV5 | null;
+  left: VisibleNodeView | null;
+  right: VisibleNodeView | null;
   propertyDelta: {
     added: Array<{ key: string; value: unknown }>;
     removed: Array<{ key: string; value: unknown }>;
     changed: Array<{ key: string; leftValue: unknown; rightValue: unknown }>;
   };
   outgoingDelta: {
-    added: VisibleStateNeighborV5[];
-    removed: VisibleStateNeighborV5[];
+    added: VisibleStateNeighbor[];
+    removed: VisibleStateNeighbor[];
   };
   incomingDelta: {
-    added: VisibleStateNeighborV5[];
-    removed: VisibleStateNeighborV5[];
+    added: VisibleStateNeighbor[];
+    removed: VisibleStateNeighbor[];
   };
   contentChanged: boolean;
 }
 
 /** Full visible state comparison between two materialized states. */
-export interface VisibleStateComparisonV5 {
+export interface VisibleStateComparison {
   comparisonVersion: string;
   changed: boolean;
   summary: {
@@ -3395,7 +3395,7 @@ export interface VisibleStateScopePrefixFilterV1 {
 }
 
 /** Scope configuration for filtering visible state comparison or transfer. */
-export interface VisibleStateScopeV1 {
+export interface VisibleStateScope {
   nodeIdPrefixes?: VisibleStateScopePrefixFilterV1;
 }
 
@@ -3462,21 +3462,21 @@ export interface CoordinateComparisonSideV1 {
 export interface CoordinateComparisonV1 {
   comparisonVersion: string;
   comparisonDigest: string;
-  scope?: VisibleStateScopeV1;
+  scope?: VisibleStateScope;
   left: CoordinateComparisonSideV1;
   right: CoordinateComparisonSideV1;
   visiblePatchDivergence: CoordinateComparisonPatchDivergenceV1;
-  visibleState: VisibleStateComparisonV5;
+  visibleState: VisibleStateComparison;
 }
 
 /** Canonical fact payload for a coordinate comparison. */
 export interface CoordinateComparisonFactV1 {
   comparisonVersion: string;
-  scope?: VisibleStateScopeV1;
+  scope?: VisibleStateScope;
   left: CoordinateComparisonSideV1;
   right: CoordinateComparisonSideV1;
   visiblePatchDivergence: CoordinateComparisonPatchDivergenceV1;
-  visibleState: VisibleStateComparisonV5;
+  visibleState: VisibleStateComparison;
 }
 
 /** Exported coordinate comparison fact with canonical JSON and digest. */
@@ -3539,7 +3539,7 @@ export interface CoordinateTransferPlanV1 {
   transferVersion: string;
   transferDigest: string;
   comparisonDigest: string;
-  scope?: VisibleStateScopeV1;
+  scope?: VisibleStateScope;
   changed: boolean;
   source: CoordinateTransferPlanSideV1;
   target: CoordinateTransferPlanSideV1;
@@ -3551,7 +3551,7 @@ export interface CoordinateTransferPlanV1 {
 export interface CoordinateTransferPlanFactV1 {
   transferVersion: string;
   comparisonDigest: string;
-  scope?: VisibleStateScopeV1;
+  scope?: VisibleStateScope;
   changed: boolean;
   source: CoordinateTransferPlanSideV1;
   target: CoordinateTransferPlanSideV1;

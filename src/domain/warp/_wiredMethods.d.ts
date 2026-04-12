@@ -371,7 +371,7 @@ interface VisibleStateSummaryV5 {
   edgePropertyCount: number;
 }
 
-interface VisibleStateComparisonV5 {
+interface VisibleStateComparison {
   comparisonVersion: string;
   changed: boolean;
   summary: {
@@ -441,7 +441,7 @@ interface VisibleStateScopePrefixFilterV1 {
   exclude?: string[];
 }
 
-interface VisibleStateScopeV1 {
+interface VisibleStateScope {
   nodeIdPrefixes?: VisibleStateScopePrefixFilterV1;
 }
 
@@ -482,7 +482,7 @@ interface CoordinateComparisonSideV1 {
 interface CoordinateComparisonV1 {
   comparisonVersion: string;
   comparisonDigest: string;
-  scope?: VisibleStateScopeV1;
+  scope?: VisibleStateScope;
   left: CoordinateComparisonSideV1;
   right: CoordinateComparisonSideV1;
   visiblePatchDivergence: {
@@ -502,7 +502,7 @@ interface CoordinateComparisonV1 {
       rightOnlyPatchShas: string[];
     };
   };
-  visibleState: VisibleStateComparisonV5;
+  visibleState: VisibleStateComparison;
 }
 
 interface VisibleStateTransferPlanSummaryV1 {
@@ -539,7 +539,7 @@ interface CoordinateTransferPlanV1 {
   transferVersion: string;
   transferDigest: string;
   comparisonDigest: string;
-  scope?: VisibleStateScopeV1;
+  scope?: VisibleStateScope;
   changed: boolean;
   source: CoordinateTransferPlanSideV1;
   target: CoordinateTransferPlanSideV1;
@@ -685,24 +685,24 @@ declare module '../WarpRuntime.js' {
       ceiling?: number | null;
       againstCeiling?: number | null;
       targetId?: string | null;
-      scope?: VisibleStateScopeV1 | null;
+      scope?: VisibleStateScope | null;
     }): Promise<CoordinateComparisonV1>;
     planStrandTransfer(strandId: string, options?: {
       into?: 'base' | 'live' | { kind: 'strand'; strandId: string };
       ceiling?: number | null;
       intoCeiling?: number | null;
-      scope?: VisibleStateScopeV1 | null;
+      scope?: VisibleStateScope | null;
     }): Promise<CoordinateTransferPlanV1>;
     compareCoordinates(options: {
       left: CoordinateComparisonSelectorV1;
       right: CoordinateComparisonSelectorV1;
       targetId?: string | null;
-      scope?: VisibleStateScopeV1 | null;
+      scope?: VisibleStateScope | null;
     }): Promise<CoordinateComparisonV1>;
     planCoordinateTransfer(options: {
       source: CoordinateTransferPlanSelectorV1;
       target: CoordinateTransferPlanSelectorV1;
-      scope?: VisibleStateScopeV1 | null;
+      scope?: VisibleStateScope | null;
     }): Promise<CoordinateTransferPlanV1>;
   }
 }

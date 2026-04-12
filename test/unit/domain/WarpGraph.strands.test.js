@@ -7,7 +7,7 @@ import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
 } from '../../../src/domain/services/CoordinateFactExport.js';
-import { createStateReaderV5 } from '../../../src/domain/services/state/StateReaderV5.js';
+import { createStateReader } from '../../../src/domain/services/state/StateReader.js';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import { buildStrandBraidRef, buildStrandOverlayRef } from '../../../src/domain/utils/RefLayout.ts';
@@ -224,7 +224,7 @@ describe('WarpCore strand foundation', () => {
       frontier: Object.fromEntries(frontierAtRed),
       ceiling: null,
     }));
-    const redReader = createStateReaderV5(redState);
+    const redReader = createStateReader(redState);
 
     expect(redReader.getNodeProps('n1')).toMatchObject({ color: 'red' });
 
@@ -258,7 +258,7 @@ describe('WarpCore strand foundation', () => {
     });
 
     const result = /** @type {{ state: any, receipts: any[] }} */ (await graph.materializeStrand('ws_red', { receipts: true }));
-    const reader = createStateReaderV5(result.state);
+    const reader = createStateReader(result.state);
 
     expect(result.receipts).toHaveLength(1);
     expect(reader.getNodeProps('n1')).toMatchObject({ color: 'red' });
@@ -420,7 +420,7 @@ describe('WarpCore strand foundation', () => {
     expect(descriptor?.braid).toEqual({ readOverlays: [] });
 
     const strandState = /** @type {any} */ (await graph.materializeStrand('ws_overlay'));
-    const reader = createStateReaderV5(strandState);
+    const reader = createStateReader(strandState);
 
     expect(reader.getNodeProps('n1')).toMatchObject({ color: 'blue' });
 
@@ -449,7 +449,7 @@ describe('WarpCore strand foundation', () => {
     const overlaySha = await builder.commit();
 
     const materialized = /** @type {{ state: any, receipts: any[] }} */ (await graph.materializeStrand('ws_receipts', { receipts: true }));
-    const reader = createStateReaderV5(materialized.state);
+    const reader = createStateReader(materialized.state);
 
     expect(materialized.receipts).toHaveLength(2);
     expect(reader.getNodeProps('n1')).toMatchObject({ status: 'overlay' });
@@ -490,12 +490,12 @@ describe('WarpCore strand foundation', () => {
     });
 
     const limitedState = /** @type {any} */ (await graph.materializeStrand('ws_ceiling', { ceiling: 1 }));
-    const limitedReader = createStateReaderV5(limitedState);
+    const limitedReader = createStateReader(limitedState);
 
     expect(limitedReader.getNodeProps('n1')).toMatchObject({ color: 'red' });
 
     const fullState = /** @type {any} */ (await graph.materializeStrand('ws_ceiling'));
-    const fullReader = createStateReaderV5(fullState);
+    const fullReader = createStateReader(fullState);
 
     expect(fullReader.getNodeProps('n1')).toMatchObject({ color: 'blue' });
 
@@ -547,7 +547,7 @@ describe('WarpCore strand foundation', () => {
     expect(await persistence.readRef(buildStrandBraidRef(graphName, 'ws_target', 'ws_support'))).toBe(supportSha);
 
     const braidedState = /** @type {any} */ (await graph.materializeStrand('ws_target'));
-    const braidedReader = createStateReaderV5(braidedState);
+    const braidedReader = createStateReader(braidedState);
 
     expect(braidedReader.getNodeProps('n1')).toMatchObject({
       status: 'target',
@@ -736,7 +736,7 @@ describe('WarpCore strand foundation', () => {
     expect(shas).toEqual([baseSha, overlaySha].sort());
   });
 
-  it('createStateReaderV5 inspects entity-local strand truth without touching OR-Set internals', async () => {
+  it('createStateReader inspects entity-local strand truth without touching OR-Set internals', async () => {
     await simulatePatchCommit(persistence, {
       graphName,
       writerId: 'alice',
@@ -760,7 +760,7 @@ describe('WarpCore strand foundation', () => {
     });
 
     const state = await graph.materializeStrand('ws_reader');
-    const reader = createStateReaderV5(state);
+    const reader = createStateReader(state);
 
     expect(reader.inspectNode('n1')).toEqual({
       nodeId: 'n1',
@@ -1115,7 +1115,7 @@ describe('WarpCore strand foundation', () => {
     });
 
     const strandState = await graph.materializeStrand('ws_transfer_live');
-    const strandReader = createStateReaderV5(strandState);
+    const strandReader = createStateReader(strandState);
     const strandContentMeta = strandReader.getNodeContentMeta('doc:1');
     expect(strandContentMeta).toEqual({
       oid: expect.any(String),
@@ -1329,11 +1329,11 @@ describe('WarpCore strand foundation', () => {
     expect(intents.map((intent) => intent.intentId)).toEqual(['ws_queue.intent.0001']);
 
     const strandState = await graph.materializeStrand('ws_queue');
-    const strandReader = createStateReaderV5(strandState);
+    const strandReader = createStateReader(strandState);
     expect(strandReader.getNodeProps('task:queued')).toMatchObject({ status: 'base' });
 
     const liveState = await graph.materialize();
-    const liveReader = createStateReaderV5(liveState);
+    const liveReader = createStateReader(liveState);
     expect(liveReader.getNodeProps('task:queued')).toMatchObject({ status: 'base' });
   });
 
@@ -1370,7 +1370,7 @@ describe('WarpCore strand foundation', () => {
     expect(result.overlayPatchShas).toHaveLength(2);
 
     const strandState = await graph.materializeStrand('ws_tick');
-    const strandReader = createStateReaderV5(strandState);
+    const strandReader = createStateReader(strandState);
     expect(strandReader.getNodeProps('task:red')).toMatchObject({ status: 'ready' });
     expect(strandReader.getNodeProps('task:blue')).toMatchObject({ status: 'review' });
 
@@ -1418,16 +1418,16 @@ describe('WarpCore strand foundation', () => {
     ]);
 
     const primaryState = await graph.materializeStrand('ws_primary');
-    const primaryReader = createStateReaderV5(primaryState);
+    const primaryReader = createStateReader(primaryState);
     expect(primaryReader.getNodeProps('task:conflict')).toMatchObject({ status: 'approved' });
     expect(primaryReader.getNodeProps('task:conflict')).not.toHaveProperty('priority');
 
     const siblingState = await graph.materializeStrand('ws_sibling');
-    const siblingReader = createStateReaderV5(siblingState);
+    const siblingReader = createStateReader(siblingState);
     expect(siblingReader.getNodeProps('task:conflict')).toMatchObject({ status: 'base' });
 
     const liveState = await graph.materialize();
-    const liveReader = createStateReaderV5(liveState);
+    const liveReader = createStateReader(liveState);
     expect(liveReader.getNodeProps('task:conflict')).toMatchObject({ status: 'base' });
     expect(liveReader.getNodeProps('task:conflict')).not.toHaveProperty('priority');
   });

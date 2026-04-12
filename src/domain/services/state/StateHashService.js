@@ -1,4 +1,4 @@
-import { projectStateV5 } from './StateSerializerV5.js';
+import { projectState } from './StateSerializer.js';
 import WarpError from '../../errors/WarpError.ts';
 
 /**
@@ -41,7 +41,7 @@ export default class StateHashService {
    * @returns {Promise<string>} Hex-encoded SHA-256 hash
    */
   async compute(state) {
-    const projection = projectStateV5(state);
+    const projection = projectState(state);
     const bytes = this._codec.encode(projection);
     return await this._crypto.hash('sha256', bytes);
   }

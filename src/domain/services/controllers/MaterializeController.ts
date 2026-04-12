@@ -14,7 +14,7 @@ import { reduceV5, createEmptyState } from '../JoinReducer.ts';
 import { isV5CheckpointSchema } from '../state/checkpointHelpers.ts';
 import { materializeIncremental } from '../state/checkpointLoad.ts';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
-import { computeStateHashV5 } from '../state/StateSerializerV5.js';
+import { computeStateHash } from '../state/StateSerializer.js';
 import { createFrontier, updateFrontier } from '../Frontier.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import { normalizeFrontierInput, normalizeExplicitCeiling, buildAdjacency, maxLamportInPatches } from './MaterializeHelpers.ts';
@@ -108,7 +108,7 @@ function buildProvenance(patches: PatchWithSha[], base?: ProvenanceIndex): Prove
 // ── State hash ──────────────────────────────────────────────────────
 
 async function computeHash(deps: MaterializeDeps, state: WarpState): Promise<string> {
-  return await computeStateHashV5(state, { crypto: deps.crypto, codec: deps.codec });
+  return await computeStateHash(state, { crypto: deps.crypto, codec: deps.codec });
 }
 
 // ── Controller ──────────────────────────────────────────────────────

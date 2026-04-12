@@ -4,11 +4,11 @@
  * Provides full V5 state serialization including ORSet internals (entries + tombstones).
  * This is the AUTHORITATIVE checkpoint format for V5 state.
  *
- * Key differences from StateSerializerV5:
- * - StateSerializerV5 serializes the VISIBLE PROJECTION (for hashing)
- * - CheckpointSerializerV5 serializes the FULL INTERNAL STATE (for resume)
+ * Key differences from StateSerializer:
+ * - StateSerializer serializes the VISIBLE PROJECTION (for hashing)
+ * - CheckpointSerializer serializes the FULL INTERNAL STATE (for resume)
  *
- * @module CheckpointSerializerV5
+ * @module CheckpointSerializer
  * @see WARP Spec Section 10 (Checkpoints)
  */
 
@@ -40,7 +40,7 @@ import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
  * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options]
  * @returns {Uint8Array} CBOR-encoded full state
  */
-export function serializeFullStateV5(state, { codec } = {}) {
+export function serializeFullState(state, { codec } = {}) {
   const c = codec ?? defaultCodec;
   const nodeAliveObj = state.nodeAlive.serialize();
   const edgeAliveObj = state.edgeAlive.serialize();
@@ -97,7 +97,7 @@ function serializeEdgeBirthArray(edgeBirthEvent) {
  * @param {{ codec?: import('../../../ports/CodecPort.ts').default }} [options]
  * @returns {import('../JoinReducer.ts').WarpState}
  */
-export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
+export function deserializeFullState(buffer, { codec: codecOpt } = {}) {
   const codec = codecOpt ?? defaultCodec;
   if (buffer === null || buffer === undefined) {
     return createEmptyState();

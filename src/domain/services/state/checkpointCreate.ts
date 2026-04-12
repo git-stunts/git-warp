@@ -7,12 +7,12 @@
  * @see WARP Spec Section 10
  */
 
-import { computeStateHashV5 } from './StateSerializerV5.js';
+import { computeStateHash } from './StateSerializer.js';
 import {
-  serializeFullStateV5,
+  serializeFullState,
   computeAppliedVV,
   serializeAppliedVV,
-} from './CheckpointSerializerV5.js';
+} from './CheckpointSerializer.js';
 import { serializeFrontier } from '../Frontier.ts';
 import { encodeCheckpointMessage } from '../codec/WarpMessageCodec.ts';
 import { cloneState } from '../JoinReducer.ts';
@@ -129,7 +129,7 @@ export async function createV5({
     if (stateHashService !== undefined && stateHashService !== null) {
       stateHash = await stateHashService.compute(checkpointState);
     } else {
-      stateHash = await computeStateHashV5(checkpointState, { ...codecOpt, crypto: crypto as CryptoPort });
+      stateHash = await computeStateHash(checkpointState, { ...codecOpt, crypto: crypto as CryptoPort });
     }
     const writeResult = await checkpointStore.writeCheckpoint({
       state: checkpointState,
@@ -144,8 +144,8 @@ export async function createV5({
     provenanceIndexBlobOid = writeResult.provenanceIndexBlobOid;
   } else {
     // Legacy path: serialize in-process, write raw blobs
-    const stateBuffer = serializeFullStateV5(checkpointState, codecOpt);
-    stateHash = await computeStateHashV5(checkpointState, { ...codecOpt, crypto: crypto as CryptoPort });
+    const stateBuffer = serializeFullState(checkpointState, codecOpt);
+    stateHash = await computeStateHash(checkpointState, { ...codecOpt, crypto: crypto as CryptoPort });
     const frontierBuffer = serializeFrontier(frontier, codecOpt);
     const appliedVVBuffer = serializeAppliedVV(appliedVV, codecOpt);
     stateBlobOid = await persistence.writeBlob(stateBuffer);

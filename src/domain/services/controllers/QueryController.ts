@@ -11,7 +11,7 @@ import Observer from '../query/Observer.js';
 import { openDetachedGraph } from './detachedOpen.ts';
 import Worldline from '../Worldline.ts';
 import { computeTranslationCost } from '../TranslationCost.js';
-import { computeStateHashV5 } from '../state/StateSerializerV5.js';
+import { computeStateHash } from '../state/StateSerializer.js';
 import { toInternalStrandShape } from '../../utils/strandPublicShape.ts';
 import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod.ts';
 import WorldlineSelector from '../../types/WorldlineSelector.ts';
@@ -55,7 +55,7 @@ async function snapshotWith(graph: WarpRuntime, state: WarpState): Promise<{ sta
   const h = graph as unknown as HashHost;
   const stateHash = h._stateHashService
     ? await h._stateHashService.compute(state)
-    : await computeStateHashV5(state, { crypto: graph._crypto, codec: graph._codec });
+    : await computeStateHash(state, { crypto: graph._crypto, codec: graph._codec });
   return { state: cloneState(state), stateHash };
 }
 

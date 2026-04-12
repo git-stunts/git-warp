@@ -7,7 +7,7 @@
  * @module test/helpers/stateDigest
  */
 
-import { computeStateHashV5 } from '../../src/domain/services/state/StateSerializerV5.js';
+import { computeStateHash } from '../../src/domain/services/state/StateSerializer.js';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 import { encode } from '../../src/infrastructure/codecs/CborCodec.js';
 
@@ -21,5 +21,5 @@ const codec = { encode, decode: (/** @type {Buffer} */ b) => b };
  * @returns {Promise<string>} Hex SHA-256 digest
  */
 export async function stateDigest(state) {
-  return await computeStateHashV5(state, { crypto, codec });
+  return await computeStateHash(state, { crypto, codec });
 }

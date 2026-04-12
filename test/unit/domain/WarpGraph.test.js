@@ -8,7 +8,7 @@ import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
-import { serializeFullStateV5, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializerV5.js';
+import { serializeFullState, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializer.js';
 import { serializeFrontier } from '../../../src/domain/services/Frontier.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
@@ -691,7 +691,7 @@ eg-schema: 2`;
 
       // Create V5 state for mock
       const v5State = createEmptyState();
-      const stateBuffer = serializeFullStateV5(v5State);
+      const stateBuffer = serializeFullState(v5State);
       const frontierBuffer = serializeFrontier(new Map([['writer-1', writerTipSha]]));
       const appliedVV = computeAppliedVV(v5State);
       const appliedVVBuffer = serializeAppliedVV(appliedVV);
