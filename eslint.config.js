@@ -305,6 +305,7 @@ export default tseslint.config(
       "src/domain/services/codec/MessageSchemaDetector.ts",
       "src/domain/services/controllers/SyncController.ts",
       "src/domain/services/controllers/syncHelpers.ts",
+      "src/domain/services/controllers/SyncServerLauncher.ts",
       "src/domain/services/sync/syncPatchLoader.ts",
       "src/domain/services/sync/syncDelta.ts",
       "src/domain/services/sync/syncRequestResponse.ts",

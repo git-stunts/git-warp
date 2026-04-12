@@ -25,8 +25,8 @@ import { checkAborted } from '../../utils/cancellation.ts';
 import { createFrontier, updateFrontier } from '../Frontier.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import GCMetrics from '../GCMetrics.ts';
-import HttpSyncServer from '../sync/HttpSyncServer.js';
 import SyncTrustGate from '../sync/SyncTrustGate.js';
+import { launchSyncServer, type ServeOptions, type ServerHandle } from './SyncServerLauncher.ts';
 import { isError } from '../../types/WarpErrors.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type { CorePersistence } from '../../types/WarpPersistence.ts';
@@ -36,7 +36,6 @@ import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
-import type HttpServerPort from '../../../ports/HttpServerPort.ts';
 import {
   mapsEqual,
   resolveSyncTarget,
@@ -46,7 +45,6 @@ import {
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
-const DEFAULT_SYNC_SERVER_MAX_BYTES = 4 * 1024 * 1024;
 const DEFAULT_SYNC_WITH_RETRIES = 3;
 const DEFAULT_SYNC_WITH_BASE_DELAY_MS = 250;
 const DEFAULT_SYNC_WITH_MAX_DELAY_MS = 2000;
@@ -115,8 +113,8 @@ export interface SyncWithResult {
  * Encapsulates all sync-related operations for a WarpRuntime instance.
  */
 export default class SyncController {
-  private readonly _host: SyncHost;
-  private readonly _trustGate: SyncTrustGate | null;
+  readonly _host: SyncHost;
+  readonly _trustGate: SyncTrustGate | null;
 
   /**
    * Creates a new SyncController bound to the given host runtime.
@@ -597,55 +595,7 @@ export default class SyncController {
    * @returns Server handle with close() method and url string
    * @throws SyncError If port is not a number or httpPort adapter is missing
    */
-  async serve(options: {
-    port: number;
-    host?: string;
-    path?: string;
-    maxRequestBytes?: number;
-    httpPort: HttpServerPort;
-    auth?: { keys: Record<string, string>; mode?: 'enforce' | 'log-only' };
-  }): Promise<{ close: () => Promise<void>; url: string }> {
-    const {
-      port,
-      host = '127.0.0.1',
-      path = '/sync',
-      maxRequestBytes = DEFAULT_SYNC_SERVER_MAX_BYTES,
-      httpPort,
-      auth,
-    } = options;
-
-    if (typeof port !== 'number') {
-      throw new SyncError('serve() requires a numeric port', {
-        code: 'E_SYNC_SERVE',
-        context: { port },
-      });
-    }
-    if (httpPort === undefined || httpPort === null) {
-      throw new SyncError('serve() requires an httpPort adapter', {
-        code: 'E_SYNC_SERVE',
-        context: {},
-      });
-    }
-
-    const authConfig = auth
-      ? {
-          ...auth,
-          crypto: this._host._crypto,
-          ...(this._host._logger ? { logger: this._host._logger } : {}),
-        }
-      : undefined;
-
-    const httpServer = new HttpSyncServer({
-      httpPort,
-      graph: this._host as unknown as {
-        processSyncRequest: (req: SyncRequest) => Promise<unknown>;
-      },
-      path,
-      host,
-      maxRequestBytes,
-      ...(authConfig !== undefined ? { auth: authConfig } : {}),
-    } as ConstructorParameters<typeof HttpSyncServer>[0]);
-
-    return await httpServer.listen(port);
+  async serve(options: ServeOptions): Promise<ServerHandle> {
+    return await launchSyncServer(this._host, options);
   }
 }
