@@ -1,10 +1,4 @@
-/**
- * Chain verification for tamper-evident audit receipt chains.
- * Walks backward from tip to genesis validating schema, linking,
- * monotonicity, OID format, trailers, and tree structure.
- *
- * @module domain/services/audit/AuditChainVerifier
- */
+/** Chain verification for tamper-evident audit receipt chains. */
 
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';

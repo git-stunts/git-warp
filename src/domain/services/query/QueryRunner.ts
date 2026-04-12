@@ -1,9 +1,4 @@
-/**
- * QueryRunner — pure executor for QueryPlan instances.
- *
- * Takes a frozen QueryPlan and a graph handle, returns results.
- * All mutation-free: the runner does not modify the plan or the graph.
- */
+/** QueryRunner — pure executor for QueryPlan instances. */
 
 import QueryError from '../../errors/QueryError.ts';
 import { matchGlob } from '../../utils/matchGlob.ts';

@@ -1,14 +1,4 @@
-/**
- * AuditReceiptService — persistent, chained, tamper-evident audit receipts.
- *
- * When audit mode is enabled, each data commit produces a corresponding
- * audit commit recording per-operation outcomes. Audit commits form an
- * independent chain per (graphName, writerId) pair, linked via
- * `prevAuditCommit` and Git commit parents.
- *
- * @module domain/services/audit/AuditReceiptService
- * @see docs/specs/AUDIT_RECEIPT.md
- */
+/** AuditReceiptService — persistent, chained, tamper-evident audit receipts. */
 
 import AuditError from '../../errors/AuditError.ts';
 import { buildAuditRef } from '../../utils/RefLayout.ts';
@@ -22,9 +12,7 @@ import type BlobPort from '../../../ports/BlobPort.ts';
 import type TreePort from '../../../ports/TreePort.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';
 
-// ============================================================================
 // Constants
-// ============================================================================
 
 /**
  * Domain-separated prefix for opsDigest computation.
@@ -33,14 +21,9 @@ import type CommitPort from '../../../ports/CommitPort.ts';
  */
 export const OPS_DIGEST_PREFIX = 'git-warp:opsDigest:v1\0';
 
-// ============================================================================
 // Normative Canonicalization Helpers (DO NOT ALTER — tied to spec Sections 5.2-5.3)
-// ============================================================================
 
-/**
- * JSON.stringify replacer that sorts object keys lexicographically
- * at every nesting level. Produces canonical JSON per spec Section 5.2.
- */
+/** JSON.stringify replacer sorting object keys lexicographically (spec Section 5.2). */
 export function sortedReplacer(_key: string, value: unknown): unknown {
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
     const sorted: Record<string, unknown> = {};
@@ -53,21 +36,14 @@ export function sortedReplacer(_key: string, value: unknown): unknown {
   return value;
 }
 
-/**
- * Produces canonical JSON string of an ops array per spec Section 5.2.
- * Exported for testing.
- */
+/** Canonical JSON string of an ops array (spec Section 5.2). */
 export function canonicalOpsJson(ops: ReadonlyArray<Readonly<OpOutcome>>): string {
   return JSON.stringify(ops, sortedReplacer);
 }
 
 const textEncoder = new TextEncoder();
 
-/**
- * Computes the domain-separated SHA-256 opsDigest per spec Section 5.3.
- *
- * @returns Lowercase hex SHA-256 digest
- */
+/** Computes domain-separated SHA-256 opsDigest (spec Section 5.3). */
 export async function computeOpsDigest(
   ops: ReadonlyArray<Readonly<OpOutcome>>,
   crypto: CryptoPort,
@@ -81,9 +57,7 @@ export async function computeOpsDigest(
   return await crypto.hash('sha256', combined);
 }
 
-// ============================================================================
 // Receipt Value Object
-// ============================================================================
 
 export interface AuditReceiptFields {
   version: number;
@@ -97,12 +71,7 @@ export interface AuditReceiptFields {
   timestamp: number;
 }
 
-/**
- * Immutable audit receipt value object.
- *
- * Instances are frozen after construction. Keys are stored in sorted
- * order for deterministic CBOR serialization.
- */
+/** Immutable audit receipt value object. Frozen, keys in sorted order for deterministic CBOR. */
 export class AuditReceipt {
   readonly dataCommit: string;
   readonly graphName: string;
@@ -130,9 +99,7 @@ export class AuditReceipt {
   }
 }
 
-// ============================================================================
 // Receipt Construction
-// ============================================================================
 
 const OID_HEX_PATTERN = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
 
@@ -223,10 +190,6 @@ export function buildReceiptRecord(fields: AuditReceiptFields): AuditReceipt {
     timestamp,
   });
 }
-
-// ============================================================================
-// Service
-// ============================================================================
 
 /** Combined persistence interface required by AuditReceiptService. */
 export type AuditPersistence = RefPort & BlobPort & TreePort & CommitPort;
