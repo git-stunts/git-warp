@@ -15,7 +15,7 @@
 import defaultCodec from '../utils/defaultCodec.ts';
 import nullLogger from '../utils/nullLogger.ts';
 import LogicalIndexBuildService from './index/LogicalIndexBuildService.js';
-import LogicalIndexReader from './index/LogicalIndexReader.js';
+import LogicalIndexReader from './index/LogicalIndexReader.ts';
 import PropertyIndexReader from './index/PropertyIndexReader.js';
 import IncrementalIndexUpdater from './index/IncrementalIndexUpdater.ts';
 import { decodeEdgeKey } from './KeyCodec.js';

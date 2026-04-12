@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
+import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.ts';
 import IncrementalIndexUpdater from '../../../../src/domain/services/index/IncrementalIndexUpdater.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
 import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';

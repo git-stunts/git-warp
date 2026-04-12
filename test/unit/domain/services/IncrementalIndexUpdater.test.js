@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import IncrementalIndexUpdater from '../../../../src/domain/services/index/IncrementalIndexUpdater.ts';
 import IndexNodeUpdater from '../../../../src/domain/services/index/IndexNodeUpdater.ts';
 import IndexEdgeUpdater from '../../../../src/domain/services/index/IndexEdgeUpdater.ts';
-import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
+import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
 import { createEmptyState, applyOpV2, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
