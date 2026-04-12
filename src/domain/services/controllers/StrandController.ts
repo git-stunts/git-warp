@@ -55,11 +55,15 @@ export default class StrandController {
   // ── Strand materialization & queries ─────────────────────────────────────
 
   async materializeStrand(strandId: string, options?: { receipts?: boolean; ceiling?: number | null }): Promise<WarpState | { state: WarpState; receipts: TickReceipt[] }> {
-    return await this._strandService.materialize(strandId, options);
+    // StrandCoordinator.materialize() returns Promise<unknown> to avoid circular imports.
+    // This controller sits above the coordinator and knows the concrete type.
+    return await this._strandService.materialize(strandId, options) as WarpState | { state: WarpState; receipts: TickReceipt[] };
   }
 
   async getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: Patch; sha: string }>> {
-    return await this._strandService.getPatchEntries(strandId, options);
+    // StrandCoordinator.getPatchEntries() returns Promise<Array<{ patch: unknown; sha: string }>>
+    // to avoid circular imports. The concrete patch type is known at this boundary.
+    return await this._strandService.getPatchEntries(strandId, options) as Array<{ patch: Patch; sha: string }>;
   }
 
   async patchesForStrand(strandId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]> {
@@ -69,25 +73,35 @@ export default class StrandController {
   // ── Strand patching ─────────────────────────────────────────────────────
 
   async createStrandPatch(strandId: string): Promise<PatchBuilder> {
-    return await this._strandService.createPatchBuilder(strandId);
+    // StrandCoordinator.createPatchBuilder() returns Promise<unknown> to avoid circular imports.
+    // The concrete return type is PatchBuilder, known at this controller boundary.
+    return await this._strandService.createPatchBuilder(strandId) as PatchBuilder;
   }
 
   async patchStrand(strandId: string, build: (p: PatchBuilder) => void | Promise<void>): Promise<string> {
-    return await this._strandService.patch(strandId, build);
+    // StrandCoordinator.patch() accepts (p: unknown) to avoid circular imports.
+    // The build callback is typed as (p: PatchBuilder) here; cast aligns the signatures.
+    return await this._strandService.patch(strandId, build as (p: unknown) => void | Promise<void>);
   }
 
   // ── Speculative intents ─────────────────────────────────────────────────
 
   async queueStrandIntent(strandId: string, build: (p: PatchBuilder) => void | Promise<void>): Promise<StrandQueuedIntent> {
-    return await this._strandService.queueIntent(strandId, build);
+    // StrandCoordinator.queueIntent() uses (p: unknown) and returns Promise<unknown> to avoid
+    // circular imports. The concrete types are PatchBuilder and StrandQueuedIntent.
+    return await this._strandService.queueIntent(strandId, build as (p: unknown) => void | Promise<void>) as StrandQueuedIntent;
   }
 
   async listStrandIntents(strandId: string): Promise<ReadonlyArray<StrandQueuedIntent>> {
-    return await this._strandService.listIntents(strandId);
+    // StrandCoordinator.listIntents() returns Promise<unknown> to avoid circular imports.
+    // The concrete type is ReadonlyArray<StrandQueuedIntent>.
+    return await this._strandService.listIntents(strandId) as ReadonlyArray<StrandQueuedIntent>;
   }
 
   async tickStrand(strandId: string): Promise<StrandTickRecord> {
-    return await this._strandService.tick(strandId);
+    // StrandCoordinator.tick() returns Promise<unknown> to avoid circular imports.
+    // The concrete type is StrandTickRecord.
+    return await this._strandService.tick(strandId) as StrandTickRecord;
   }
 
   // ── Conflict analysis ───────────────────────────────────────────────────
