@@ -1,15 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-  createBTR,
-  verifyBTR,
-  replayBTR,
-  serializeBTR,
-  deserializeBTR,
-  getBTRInputHash,
-  getBTROutputHash,
-  getBTRTimestamp,
-  getBTRPayloadLength,
-} from '../../../../src/domain/services/provenance/BoundaryTransitionRecord.js';
+import { createBTR, verifyBTR, replayBTR } from '../../../../src/domain/services/provenance/btrOperations.ts';
+import { BTR } from '../../../../src/domain/services/provenance/BTR.ts';
 import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.js';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import {
@@ -374,8 +365,8 @@ describe('BoundaryTransitionRecord', () => {
       const payload = new ProvenancePayload([patchA, patchB]);
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
-      const bytes = serializeBTR(btr);
-      const restored = deserializeBTR(bytes);
+      const bytes = btr.serialize();
+      const restored = BTR.deserialize(bytes);
 
       expect(restored.version).toBe(btr.version);
       expect(restored.h_in).toBe(btr.h_in);
@@ -391,8 +382,8 @@ describe('BoundaryTransitionRecord', () => {
       const payload = new ProvenancePayload([patchA]);
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
-      const bytes = serializeBTR(btr);
-      const restored = deserializeBTR(bytes);
+      const bytes = btr.serialize();
+      const restored = BTR.deserialize(bytes);
 
       const result = await verifyBTR(restored, testKey, { crypto });
       expect(result.valid).toBe(true);
@@ -401,56 +392,13 @@ describe('BoundaryTransitionRecord', () => {
     it('throws on invalid CBOR', () => {
       const invalidBytes = Buffer.from([0xff, 0xff, 0xff]);
 
-      expect(() => deserializeBTR(invalidBytes)).toThrow();
+      expect(() => BTR.deserialize(invalidBytes)).toThrow();
     });
 
     it('throws on missing fields', () => {
       const incompleteBytes = encode({ version: 1, h_in: 'abc' });
 
-      expect(() => deserializeBTR(incompleteBytes)).toThrow('missing field');
-    });
-  });
-
-  describe('accessor functions', () => {
-    it('getBTRInputHash returns h_in', async () => {
-      const initialState = createEmptyState();
-      const payload = ProvenancePayload.identity();
-      const btr = await createBTR(initialState, payload, { key: testKey, crypto });
-
-      expect(getBTRInputHash(btr)).toBe(btr.h_in);
-    });
-
-    it('getBTROutputHash returns h_out', async () => {
-      const initialState = createEmptyState();
-      const payload = ProvenancePayload.identity();
-      const btr = await createBTR(initialState, payload, { key: testKey, crypto });
-
-      expect(getBTROutputHash(btr)).toBe(btr.h_out);
-    });
-
-    it('getBTRTimestamp returns t', async () => {
-      const initialState = createEmptyState();
-      const payload = ProvenancePayload.identity();
-      const btr = await createBTR(initialState, payload, { key: testKey, crypto });
-
-      expect(getBTRTimestamp(btr)).toBe(btr.t);
-    });
-
-    it('getBTRPayloadLength returns patch count', async () => {
-      const initialState = createEmptyState();
-      const { patchA, patchB, patchC } = createSamplePatches();
-      const payload = new ProvenancePayload([patchA, patchB, patchC]);
-      const btr = await createBTR(initialState, payload, { key: testKey, crypto });
-
-      expect(getBTRPayloadLength(btr)).toBe(3);
-    });
-
-    it('getBTRPayloadLength returns 0 for empty payload', async () => {
-      const initialState = createEmptyState();
-      const payload = ProvenancePayload.identity();
-      const btr = await createBTR(initialState, payload, { key: testKey, crypto });
-
-      expect(getBTRPayloadLength(btr)).toBe(0);
+      expect(() => BTR.deserialize(incompleteBytes)).toThrow('missing field');
     });
   });
 
@@ -474,7 +422,7 @@ describe('BoundaryTransitionRecord', () => {
       const payload = new ProvenancePayload(patches);
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
 
-      expect(getBTRPayloadLength(btr)).toBe(100);
+      expect(btr.P.length).toBe(100);
 
       // Verify still works
       const result = await verifyBTR(btr, testKey, { crypto });

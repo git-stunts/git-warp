@@ -125,9 +125,8 @@ import {
   createBTR,
   verifyBTR,
   replayBTR,
-  serializeBTR,
-  deserializeBTR,
-} from './src/domain/services/provenance/BoundaryTransitionRecord.js';
+} from './src/domain/services/provenance/btrOperations.ts';
+import { BTR } from './src/domain/services/provenance/BTR.ts';
 
 // Wormhole compression (HOLOGRAM)
 import {
@@ -298,11 +297,10 @@ export {
   ProvenancePayload,
 
   // Boundary Transition Records (HOLOGRAM)
+  BTR,
   createBTR,
   verifyBTR,
   replayBTR,
-  serializeBTR,
-  deserializeBTR,
 
   // Wormhole compression (HOLOGRAM)
   createWormhole,
