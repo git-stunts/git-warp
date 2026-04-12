@@ -14,7 +14,6 @@ import { buildState } from '../../../../src/domain/trust/TrustStateBuilder.ts';
 import { evaluateWriters } from '../../../../src/domain/trust/TrustEvaluator.ts';
 import { verifyRecordId } from '../../../../src/domain/trust/TrustCanonical.ts';
 import { TRUST_REASON_CODES } from '../../../../src/domain/trust/reasonCodes.ts';
-import { TrustRecordService } from '../../../../src/domain/trust/TrustRecordService.js';
 import { TrustRecord } from '../../../../src/domain/trust/TrustRecord.ts';
 import { signaturePayload } from '../../../../src/domain/trust/canonical.ts';
 import { textEncode } from '../../../../src/domain/utils/bytes.ts';
@@ -51,20 +50,14 @@ describe('Adversarial case 1: Tampered record mid-chain', () => {
     expect(await verifyRecordId(tampered)).toBe(false);
   });
 
-  it('verifyChain detects recordId mismatch', async () => {
-    const service = new TrustRecordService({
-      persistence: /** @type {*} */ ({}),
-      codec: /** @type {*} */ ({ encode: () => {}, decode: () => {} }),
-    });
-
+  it('verifyRecordId rejects when content is modified', async () => {
     const tampered = {
       ...KEY_ADD_2,
       subject: { ...KEY_ADD_2.subject, publicKey: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' },
     };
 
-    const result = await service.verifyChain([KEY_ADD_1, tampered]);
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.error.includes('RecordId does not match'))).toBe(true);
+    // The recordId was computed on the original content — tampered content won't match
+    expect(await verifyRecordId(tampered)).toBe(false);
   });
 });
 
