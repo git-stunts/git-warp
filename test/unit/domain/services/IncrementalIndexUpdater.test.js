@@ -1,13 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import IncrementalIndexUpdater from '../../../../src/domain/services/index/IncrementalIndexUpdater.js';
+import IncrementalIndexUpdater from '../../../../src/domain/services/index/IncrementalIndexUpdater.ts';
+import IndexNodeUpdater from '../../../../src/domain/services/index/IndexNodeUpdater.ts';
+import IndexEdgeUpdater from '../../../../src/domain/services/index/IndexEdgeUpdater.ts';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
 import { createEmptyState, applyOpV2, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
+import { getRoaringBitmap32 } from '../../../../src/domain/utils/roaring.ts';
 import { ShardIdOverflowError } from '../../../../src/domain/errors/index.ts';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -731,58 +733,65 @@ describe('IncrementalIndexUpdater', () => {
 
   describe('internal guard paths', () => {
     it('no-ops node removal when the node has no allocated global id', () => {
-      const state = buildState({ nodes: ['A'], edges: [], props: [] });
-      const tree = buildTree(state);
-      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
-      const metaCache = new Map();
+      const RoaringBitmap32 = getRoaringBitmap32();
+      const nodeUpdater = new IndexNodeUpdater();
+      const emptyMeta = {
+        nodeToGlobal: /** @type {Array<[string, number]>} */ ([]),
+        nextLocalId: 0,
+        aliveBitmap: new RoaringBitmap32(),
+        globalToNode: new Map(),
+        nodeToGlobalMap: new Map(),
+      };
 
-      updater._handleNodeRemove('ghost', metaCache, (path) => tree[path]);
+      // Should not throw — ghost has no globalId
+      nodeUpdater.handleNodeRemove('ghost', emptyMeta);
 
-      expect(metaCache.has(computeShardKey('ghost'))).toBe(true);
-      expect(() => updater._flushMeta(metaCache, {})).not.toThrow();
+      expect(emptyMeta.aliveBitmap.size).toBe(0);
     });
 
     it('returns early when purging edges for a node with no allocated global id', () => {
-      const state = buildState({ nodes: ['A'], edges: [], props: [] });
-      const tree = buildTree(state);
-      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
+      const RoaringBitmap32 = getRoaringBitmap32();
+      const nodeUpdater = new IndexNodeUpdater();
+      const emptyMeta = {
+        nodeToGlobal: /** @type {Array<[string, number]>} */ ([]),
+        nextLocalId: 0,
+        aliveBitmap: new RoaringBitmap32(),
+        globalToNode: new Map(),
+        nodeToGlobalMap: new Map(),
+      };
 
       expect(() =>
-        updater._purgeNodeEdges(
-          'ghost',
-          new Map(),
-          new Map(),
-          new Map(),
-          {},
-          (path) => tree[path],
-        )
+        nodeUpdater.purgeNodeEdges('ghost', {
+          fwdCache: new Map(),
+          revCache: new Map(),
+          getOrLoadMeta: () => emptyMeta,
+          getOrLoadEdgeShard: () => ({}),
+        })
       ).not.toThrow();
     });
 
     it('skips edge add and remove when endpoint global ids are missing', () => {
-      const state = buildState({ nodes: ['A'], edges: [], props: [] });
-      const tree = buildTree(state);
-      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
-      const metaCache = new Map();
+      const RoaringBitmap32 = getRoaringBitmap32();
+      const edgeUpdater = new IndexEdgeUpdater();
+      const emptyMeta = {
+        nodeToGlobal: /** @type {Array<[string, number]>} */ ([]),
+        nextLocalId: 0,
+        aliveBitmap: new RoaringBitmap32(),
+        globalToNode: new Map(),
+        nodeToGlobalMap: new Map(),
+      };
       const fwdCache = new Map();
       const revCache = new Map();
+      const ctx = {
+        labels: { rel: 0 },
+        getOrLoadMeta: () => emptyMeta,
+        fwdCache,
+        revCache,
+        getOrLoadEdgeShard: () => ({}),
+      };
 
-      updater._handleEdgeAdd(
-        { from: 'A', to: 'B', label: 'rel' },
-        { rel: 0 },
-        metaCache,
-        fwdCache,
-        revCache,
-        (path) => tree[path],
-      );
-      updater._handleEdgeRemove(
-        { from: 'A', to: 'B', label: 'rel' },
-        { rel: 0 },
-        metaCache,
-        fwdCache,
-        revCache,
-        (path) => tree[path],
-      );
+      edgeUpdater.handleEdgeAdd({ from: 'A', to: 'B', label: 'rel' }, ctx);
+      edgeUpdater.handleEdgeRemove({ from: 'A', to: 'B', label: 'rel' }, ctx);
 
       expect(fwdCache.size).toBe(0);
       expect(revCache.size).toBe(0);

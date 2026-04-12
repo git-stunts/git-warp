@@ -17,7 +17,7 @@ import nullLogger from '../utils/nullLogger.ts';
 import LogicalIndexBuildService from './index/LogicalIndexBuildService.js';
 import LogicalIndexReader from './index/LogicalIndexReader.js';
 import PropertyIndexReader from './index/PropertyIndexReader.js';
-import IncrementalIndexUpdater from './index/IncrementalIndexUpdater.js';
+import IncrementalIndexUpdater from './index/IncrementalIndexUpdater.ts';
 import { decodeEdgeKey } from './KeyCodec.js';
 import { MetaShard } from '../artifacts/MetaShard.ts';
 import { EdgeShard } from '../artifacts/EdgeShard.ts';

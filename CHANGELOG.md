@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **IncrementalIndexUpdater split** — 955 LOC god slain. Split into `IndexNodeUpdater.ts` (198 LOC, node add/remove/purge), `IndexEdgeUpdater.ts` (168 LOC, edge bitmap ops), and slim `IncrementalIndexUpdater.ts` orchestrator (495 LOC). Shared working types in `types.ts`. All converted to TypeScript with option objects replacing boolean-trap parameter lists.
 - **V2 naming purge** — `PatchV2` renamed to `Patch`, `PatchBuilderV2` renamed to `PatchBuilder`. Old names preserved as deprecated type aliases in `index.d.ts` for backward compatibility. No wire format changes.
 - **WarpTypes.ts deleted** — v1 factory functions (`createNodeAdd`, `createInlineValue`, etc.) inlined into `index.js` and test helpers. Zero source consumers remain.
 - **WarpTypesV2.ts deleted** — factory functions replaced with direct class constructors throughout. Union types (`OpV2`, `RawOpV2`, `CanonicalOpV2`) moved to `src/domain/types/ops/unions.ts`.

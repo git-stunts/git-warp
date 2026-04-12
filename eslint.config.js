@@ -332,7 +332,7 @@ export default tseslint.config(
       "bin/presenters/text.js",
       "src/domain/services/index/LogicalBitmapIndexBuilder.js",
       "src/domain/services/index/LogicalIndexBuildService.js",
-      "src/domain/services/index/IncrementalIndexUpdater.js",
+      "src/domain/services/index/IncrementalIndexUpdater.ts",
       "src/domain/services/WormholeService.js",
       "src/domain/services/state/StateReaderV5.js",
       "src/domain/services/sync/SyncAuthService.js",
