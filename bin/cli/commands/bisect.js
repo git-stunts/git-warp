@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process';
 import { EXIT_CODES, parseCommandArgs, usageError } from '../infrastructure.js';
 import { bisectSchema } from '../schemas.js';
 import { openGraph } from '../shared.js';
-import BisectService from '../../../src/domain/services/BisectService.js';
+import BisectService from '../../../src/domain/services/BisectService.ts';
 
 /** @typedef {import('../types.js').CliOptions} CliOptions */
 

@@ -138,7 +138,7 @@ import {
   deserializeWormhole,
 } from './src/domain/services/WormholeService.js';
 
-import BisectService from './src/domain/services/BisectService.js';
+import BisectService from './src/domain/services/BisectService.ts';
 import EffectSinkPort from './src/ports/EffectSinkPort.ts';
 import { MultiplexSink } from './src/domain/services/MultiplexSink.ts';
 import { EffectPipeline } from './src/domain/services/EffectPipeline.js';

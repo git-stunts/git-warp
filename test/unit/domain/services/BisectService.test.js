@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
-import BisectService from '../../../../src/domain/services/BisectService.js';
+import BisectService from '../../../../src/domain/services/BisectService.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { createGitRepo } from '../../../helpers/warpGraphTestUtils.js';
 
