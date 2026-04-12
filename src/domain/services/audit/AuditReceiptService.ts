@@ -13,6 +13,14 @@
 import AuditError from '../../errors/AuditError.ts';
 import { buildAuditRef } from '../../utils/RefLayout.ts';
 import { encodeAuditMessage } from '../codec/AuditMessageCodec.ts';
+import type { OpOutcome, TickReceipt } from '../../types/TickReceipt.ts';
+import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type CodecPort from '../../../ports/CodecPort.ts';
+import type LoggerPort from '../../../ports/LoggerPort.ts';
+import type RefPort from '../../../ports/RefPort.ts';
+import type BlobPort from '../../../ports/BlobPort.ts';
+import type TreePort from '../../../ports/TreePort.ts';
+import type CommitPort from '../../../ports/CommitPort.ts';
 
 // ============================================================================
 // Constants
@@ -22,7 +30,6 @@ import { encodeAuditMessage } from '../codec/AuditMessageCodec.ts';
  * Domain-separated prefix for opsDigest computation.
  * The trailing \0 is a literal null byte (U+0000) acting as an
  * unambiguous delimiter between the prefix and the JSON payload.
- * @type {string}
  */
 export const OPS_DIGEST_PREFIX = 'git-warp:opsDigest:v1\0';
 
@@ -33,15 +40,11 @@ export const OPS_DIGEST_PREFIX = 'git-warp:opsDigest:v1\0';
 /**
  * JSON.stringify replacer that sorts object keys lexicographically
  * at every nesting level. Produces canonical JSON per spec Section 5.2.
- *
- * @param {string} _key
- * @param {unknown} value
- * @returns {unknown}
  */
-export function sortedReplacer(_key, value) {
+export function sortedReplacer(_key: string, value: unknown): unknown {
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-    const sorted = /** @type {Record<string, unknown>} */ ({});
-    const obj = /** @type {Record<string, unknown>} */ (value);
+    const sorted: Record<string, unknown> = {};
+    const obj = value as Record<string, unknown>;
     for (const k of Object.keys(obj).sort()) {
       sorted[k] = obj[k];
     }
@@ -53,25 +56,22 @@ export function sortedReplacer(_key, value) {
 /**
  * Produces canonical JSON string of an ops array per spec Section 5.2.
  * Exported for testing.
- *
- * @param {ReadonlyArray<Readonly<import('../../types/TickReceipt.ts').OpOutcome>>} ops
- * @returns {string}
  */
-export function canonicalOpsJson(ops) {
+export function canonicalOpsJson(ops: ReadonlyArray<Readonly<OpOutcome>>): string {
   return JSON.stringify(ops, sortedReplacer);
 }
 
-/** @type {TextEncoder} */
 const textEncoder = new TextEncoder();
 
 /**
  * Computes the domain-separated SHA-256 opsDigest per spec Section 5.3.
  *
- * @param {ReadonlyArray<Readonly<import('../../types/TickReceipt.ts').OpOutcome>>} ops
- * @param {import('../../../ports/CryptoPort.ts').default} crypto - Crypto adapter
- * @returns {Promise<string>} Lowercase hex SHA-256 digest
+ * @returns Lowercase hex SHA-256 digest
  */
-export async function computeOpsDigest(ops, crypto) {
+export async function computeOpsDigest(
+  ops: ReadonlyArray<Readonly<OpOutcome>>,
+  crypto: CryptoPort,
+): Promise<string> {
   const json = canonicalOpsJson(ops);
   const prefix = textEncoder.encode(OPS_DIGEST_PREFIX);
   const payload = textEncoder.encode(json);
@@ -85,6 +85,18 @@ export async function computeOpsDigest(ops, crypto) {
 // Receipt Value Object
 // ============================================================================
 
+export interface AuditReceiptFields {
+  version: number;
+  graphName: string;
+  writerId: string;
+  dataCommit: string;
+  tickStart: number;
+  tickEnd: number;
+  opsDigest: string;
+  prevAuditCommit: string;
+  timestamp: number;
+}
+
 /**
  * Immutable audit receipt value object.
  *
@@ -92,21 +104,18 @@ export async function computeOpsDigest(ops, crypto) {
  * order for deterministic CBOR serialization.
  */
 export class AuditReceipt {
-  /** @type {string} */   dataCommit;
-  /** @type {string} */   graphName;
-  /** @type {string} */   opsDigest;
-  /** @type {string} */   prevAuditCommit;
-  /** @type {number} */   tickEnd;
-  /** @type {number} */   tickStart;
-  /** @type {number} */   timestamp;
-  /** @type {number} */   version;
-  /** @type {string} */   writerId;
+  readonly dataCommit: string;
+  readonly graphName: string;
+  readonly opsDigest: string;
+  readonly prevAuditCommit: string;
+  readonly tickEnd: number;
+  readonly tickStart: number;
+  readonly timestamp: number;
+  readonly version: number;
+  readonly writerId: string;
 
-  /**
-   * Creates an immutable audit receipt from validated fields.
-   * @param {{ version: number, graphName: string, writerId: string, dataCommit: string, tickStart: number, tickEnd: number, opsDigest: string, prevAuditCommit: string, timestamp: number }} fields
-   */
-  constructor({ version, graphName, writerId, dataCommit, tickStart, tickEnd, opsDigest, prevAuditCommit, timestamp }) {
+  /** Creates an immutable audit receipt from validated fields. */
+  constructor({ version, graphName, writerId, dataCommit, tickStart, tickEnd, opsDigest, prevAuditCommit, timestamp }: AuditReceiptFields) {
     // Alphabetical key order for canonical CBOR
     this.dataCommit = dataCommit;
     this.graphName = graphName;
@@ -125,17 +134,14 @@ export class AuditReceipt {
 // Receipt Construction
 // ============================================================================
 
-/** @type {RegExp} */
 const OID_HEX_PATTERN = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
 
 /**
  * Validates and builds a frozen receipt record with keys in sorted order.
  *
- * @param {{ version: number, graphName: string, writerId: string, dataCommit: string, tickStart: number, tickEnd: number, opsDigest: string, prevAuditCommit: string, timestamp: number }} fields
- * @returns {AuditReceipt}
  * @throws {AuditError} If any field is invalid (code: E_AUDIT_INVALID)
  */
-export function buildReceiptRecord(fields) {
+export function buildReceiptRecord(fields: AuditReceiptFields): AuditReceipt {
   const {
     version, graphName, writerId, dataCommit,
     tickStart, tickEnd, opsDigest, prevAuditCommit, timestamp,
@@ -222,6 +228,25 @@ export function buildReceiptRecord(fields) {
 // Service
 // ============================================================================
 
+/** Combined persistence interface required by AuditReceiptService. */
+export type AuditPersistence = RefPort & BlobPort & TreePort & CommitPort;
+
+export interface AuditReceiptServiceOptions {
+  persistence: AuditPersistence;
+  graphName: string;
+  writerId: string;
+  codec: CodecPort;
+  crypto: CryptoPort;
+  logger?: LoggerPort;
+}
+
+export interface AuditStats {
+  committed: number;
+  skipped: number;
+  failed: number;
+  degraded: boolean;
+}
+
 /**
  * AuditReceiptService manages the audit receipt chain for a single writer.
  *
@@ -236,32 +261,45 @@ export function buildReceiptRecord(fields) {
  * are detectable by M4 verification.
  */
 export class AuditReceiptService {
-  /**
-   * Constructs an AuditReceiptService for the given writer audit chain.
-   * @param {{ persistence: import('../../../ports/RefPort.ts').default & import('../../../ports/BlobPort.ts').default & import('../../../ports/TreePort.ts').default & import('../../../ports/CommitPort.ts').default, graphName: string, writerId: string, codec: import('../../../ports/CodecPort.ts').default, crypto: import('../../../ports/CryptoPort.ts').default, logger?: import('../../../ports/LoggerPort.ts').default }} options
-   */
-  constructor({ persistence, graphName, writerId, codec, crypto, logger }) {
+  private readonly _persistence: AuditPersistence;
+  private readonly _graphName: string;
+  private readonly _writerId: string;
+  private readonly _codec: CodecPort;
+  private readonly _crypto: CryptoPort;
+  private readonly _logger: LoggerPort | null;
+  private readonly _auditRef: string;
+
+  /** Previous audit commit SHA (null = genesis) */
+  private _prevAuditCommit: string | null;
+
+  /** Expected old ref value for CAS (null = ref doesn't exist) */
+  private _expectedOldRef: string | null;
+
+  /** If true, service is degraded — skip all commits */
+  private _degraded: boolean;
+
+  /** If true, currently retrying — prevents recursive retry */
+  private _retrying: boolean;
+
+  private _committed: number;
+  private _skipped: number;
+  private _failed: number;
+
+  /** Constructs an AuditReceiptService for the given writer audit chain. */
+  constructor({ persistence, graphName, writerId, codec, crypto, logger }: AuditReceiptServiceOptions) {
     this._persistence = persistence;
     this._graphName = graphName;
     this._writerId = writerId;
     this._codec = codec;
     this._crypto = crypto;
-    this._logger = logger || null;
+    this._logger = logger ?? null;
     this._auditRef = buildAuditRef(graphName, writerId);
 
-    /** @type {string|null} Previous audit commit SHA (null = genesis) */
     this._prevAuditCommit = null;
-
-    /** @type {string|null} Expected old ref value for CAS (null = ref doesn't exist) */
     this._expectedOldRef = null;
-
-    /** @type {boolean} If true, service is degraded — skip all commits */
     this._degraded = false;
-
-    /** @type {boolean} If true, currently retrying — prevents recursive retry */
     this._retrying = false;
 
-    // Stats
     this._committed = 0;
     this._skipped = 0;
     this._failed = 0;
@@ -270,9 +308,8 @@ export class AuditReceiptService {
   /**
    * Initializes the service by reading the current audit ref tip.
    * Must be called before `commit()`.
-   * @returns {Promise<void>}
    */
-  async init() {
+  async init(): Promise<void> {
     try {
       const tip = await this._persistence.readRef(this._auditRef);
       if (tip !== null && tip !== undefined && tip.length > 0) {
@@ -301,10 +338,9 @@ export class AuditReceiptService {
    * has a gap. This is acceptable by design in M3 — gaps are detected
    * by M4 verification coverage rules (receipt count vs data commit count).
    *
-   * @param {import('../../types/TickReceipt.ts').TickReceipt} tickReceipt
-   * @returns {Promise<string|null>} The audit commit SHA, or null on failure
+   * @returns The audit commit SHA, or null on failure
    */
-  async commit(tickReceipt) {
+  async commit(tickReceipt: TickReceipt): Promise<string | null> {
     if (this._degraded) {
       this._skipped++;
       this._logger?.warn('[warp:audit]', {
@@ -327,11 +363,8 @@ export class AuditReceiptService {
     }
   }
 
-  /**
-   * Returns audit stats for coverage probing.
-   * @returns {{ committed: number, skipped: number, failed: number, degraded: boolean }}
-   */
-  getStats() {
+  /** Returns audit stats for coverage probing. */
+  getStats(): AuditStats {
     return {
       committed: this._committed,
       skipped: this._skipped,
@@ -342,11 +375,9 @@ export class AuditReceiptService {
 
   /**
    * Inner commit logic. Throws on failure (caught by `commit()`).
-   * @param {import('../../types/TickReceipt.ts').TickReceipt} tickReceipt
-   * @returns {Promise<string>}
    * @private
    */
-  async _commitInner(tickReceipt) {
+  private async _commitInner(tickReceipt: TickReceipt): Promise<string> {
     const { patchSha, writer, lamport, ops } = tickReceipt;
 
     // Guard: reject cross-writer attribution
@@ -391,7 +422,7 @@ export class AuditReceiptService {
     const cborBytes = this._codec.encode(receipt);
 
     // Write blob
-    let blobOid;
+    let blobOid: string;
     try {
       blobOid = await this._persistence.writeBlob(cborBytes);
     } catch (err) {
@@ -404,7 +435,7 @@ export class AuditReceiptService {
     }
 
     // Write tree
-    let treeOid;
+    let treeOid: string;
     try {
       treeOid = await this._persistence.writeTree([
         `100644 blob ${blobOid}\treceipt.cbor`,
@@ -461,12 +492,9 @@ export class AuditReceiptService {
 
   /**
    * Retry-once after CAS conflict. Reads fresh tip, rebuilds receipt, retries.
-   * @param {string} _failedCommitSha - The commit that failed CAS (unused, for logging)
-   * @param {import('../../types/TickReceipt.ts').TickReceipt} tickReceipt
-   * @returns {Promise<string>}
    * @private
    */
-  async _retryAfterCasConflict(_failedCommitSha, tickReceipt) {
+  private async _retryAfterCasConflict(_failedCommitSha: string, tickReceipt: TickReceipt): Promise<string> {
     this._logger?.warn('[warp:audit]', {
       code: 'AUDIT_REF_CAS_CONFLICT',
       writerId: this._writerId,

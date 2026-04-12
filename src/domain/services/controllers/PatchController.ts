@@ -32,6 +32,7 @@ import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 import type ConfigPort from '../../../ports/ConfigPort.ts';
 import type { PatchDiff } from '../../types/PatchDiff.ts';
+import type { TickReceipt } from '../../types/TickReceipt.ts';
 
 // ── PatchHost ─────────────────────────────────────────────────────────────────
 
@@ -61,7 +62,7 @@ export interface PatchHost extends PatchDiscoveryHost {
   } | null | undefined;
   _lastFrontier: Map<string, string> | null | undefined;
   _auditService: {
-    commit: (receipt: unknown) => Promise<void>;
+    commit: (receipt: TickReceipt) => Promise<string | null>;
   } | null | undefined;
   _auditSkipCount: number;
   _cachedViewHash: string | null;

@@ -265,7 +265,11 @@ export default tseslint.config(
   // ── Relaxed complexity for algorithm-heavy modules ─────────────────────────
   {
     files: [
-      "src/domain/services/index/IndexRebuildService.js",
+      "src/domain/services/index/IndexRebuildService.ts",
+      "src/domain/services/index/BitmapNeighborProvider.ts",
+      "src/domain/services/index/BitmapIndexBuilder.ts",
+      "src/domain/services/index/LogicalBitmapIndexBuilder.ts",
+      "src/domain/services/index/LogicalIndexBuildService.ts",
       "src/domain/services/MaterializedViewHelpers.ts",
       // JoinReducer-family files extracted from the original god class.
       // These inherit its algorithmic density: concerns-per-file is low,
@@ -317,12 +321,12 @@ export default tseslint.config(
       "src/domain/utils/EventId.ts",
       "src/domain/types/WorldlineSelector.ts",
       "src/visualization/renderers/ascii/graph.js",
-      "src/domain/services/KeyCodec.js",
+      "src/domain/services/KeyCodec.ts",
       "src/domain/services/dag/DagTraversal.js",
       "src/domain/services/dag/DagTopology.js",
       "src/domain/services/query/GraphTraversal.js",
       "src/domain/services/codec/AuditMessageCodec.ts",
-      "src/domain/services/audit/AuditReceiptService.js",
+      "src/domain/services/audit/AuditReceiptService.ts",
       "src/domain/services/audit/AuditChainVerifier.ts",
       "bin/warp-graph.js",
       "bin/cli/infrastructure.js",
@@ -340,7 +344,7 @@ export default tseslint.config(
       "src/domain/services/index/LogicalBitmapIndexBuilder.js",
       "src/domain/services/index/LogicalIndexBuildService.js",
       "src/domain/services/index/IncrementalIndexUpdater.ts",
-      "src/domain/services/WormholeService.js",
+      "src/domain/services/WormholeService.ts",
       "src/domain/services/state/StateReader.ts",
       "src/domain/services/state/StateReaderContext.ts",
       "src/domain/services/sync/SyncAuthService.js",

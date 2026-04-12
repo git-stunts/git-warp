@@ -14,7 +14,7 @@ import {
   buildReceiptRecord,
   OPS_DIGEST_PREFIX,
   AuditReceiptService,
-} from '../../../../src/domain/services/audit/AuditReceiptService.js';
+} from '../../../../src/domain/services/audit/AuditReceiptService.ts';
 import {
   encode as cborEncode,
 } from '../../../../src/infrastructure/codecs/CborCodec.js';

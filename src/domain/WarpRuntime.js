@@ -11,26 +11,26 @@
 import { validateGraphName, validateWriterId } from './utils/RefLayout.ts';
 import VersionVector from './crdt/VersionVector.ts';
 import GCPolicy from './services/GCPolicy.ts';
-import { AuditReceiptService } from './services/audit/AuditReceiptService.js';
-import { TemporalQuery } from './services/TemporalQuery.js';
+import { AuditReceiptService } from './services/audit/AuditReceiptService.ts';
+import { TemporalQuery } from './services/TemporalQuery.ts';
 import defaultCodec from './utils/defaultCodec.ts';
 import defaultCrypto from './utils/defaultCrypto.ts';
 import defaultClock from './utils/defaultClock.ts';
 import LogicalTraversal from './services/query/LogicalTraversal.ts';
 import LRUCache from './utils/LRUCache.ts';
 import SyncController from './services/controllers/SyncController.ts';
-import StrandController from './services/controllers/StrandController.js';
+import StrandController from './services/controllers/StrandController.ts';
 import ComparisonController from './services/controllers/ComparisonController.ts';
-import SubscriptionController from './services/controllers/SubscriptionController.js';
-import ProvenanceController from './services/controllers/ProvenanceController.js';
-import ForkController from './services/controllers/ForkController.js';
+import SubscriptionController from './services/controllers/SubscriptionController.ts';
+import ProvenanceController from './services/controllers/ProvenanceController.ts';
+import ForkController from './services/controllers/ForkController.ts';
 import QueryController from './services/controllers/QueryController.ts';
 import PatchController from './services/controllers/PatchController.ts';
-import CheckpointController from './services/controllers/CheckpointController.js';
-import SyncTrustGate from './services/sync/SyncTrustGate.js';
+import CheckpointController from './services/controllers/CheckpointController.ts';
+import SyncTrustGate from './services/sync/SyncTrustGate.ts';
 import AuditVerifierService from './services/audit/AuditVerifierService.ts';
 import MaterializedViewService from './services/MaterializedViewService.ts';
-import StateHashService from './services/state/StateHashService.js';
+import StateHashService from './services/state/StateHashService.ts';
 import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.ts';
 // checkpoint.methods.js replaced by CheckpointController (imported above)
 // patch.methods.js replaced by PatchController (imported above)
@@ -39,9 +39,9 @@ import MaterializeController from './services/controllers/MaterializeController.
 import { buildAdjacency } from './services/controllers/MaterializeHelpers.ts';
 import RuntimePatchCollector from './warp/RuntimePatchCollector.ts';
 import RuntimeDetachedFactory from './warp/RuntimeDetachedFactory.ts';
-import BitmapNeighborProvider from './services/index/BitmapNeighborProvider.js';
+import BitmapNeighborProvider from './services/index/BitmapNeighborProvider.ts';
 import { cloneState } from './services/JoinReducer.ts';
-import { diffStates, isEmptyDiff } from './services/state/StateDiff.js';
+import { diffStates, isEmptyDiff } from './services/state/StateDiff.ts';
 
 /** @typedef {import('./types/WarpPersistence.ts').CorePersistence} CorePersistence */
 
@@ -915,7 +915,7 @@ export default class WarpRuntime {
 
 // ── Materialize methods: one-liner delegation to DI controller ──────────────
 
-import { createImmutableWarpState, createImmutableValue } from './services/ImmutableSnapshot.js';
+import { createImmutableWarpState, createImmutableValue } from './services/ImmutableSnapshot.ts';
 
 /** @param {string} name @param {Function} fn */
 function wireMaterialize(name, fn) {

@@ -7,7 +7,7 @@
 
 import { createHash } from 'node:crypto';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
-import { AuditReceiptService } from '../../../../src/domain/services/audit/AuditReceiptService.js';
+import { AuditReceiptService } from '../../../../src/domain/services/audit/AuditReceiptService.ts';
 import AuditVerifierService from '../../../../src/domain/services/audit/AuditVerifierService.ts';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 

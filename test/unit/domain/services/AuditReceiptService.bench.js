@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import {
   computeOpsDigest,
   buildReceiptRecord,
-} from '../../../../src/domain/services/audit/AuditReceiptService.js';
+} from '../../../../src/domain/services/audit/AuditReceiptService.ts';
 
 const testCrypto = {
   /** @param {string} algorithm @param {string|Buffer|Uint8Array} data */
