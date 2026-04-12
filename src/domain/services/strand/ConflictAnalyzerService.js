@@ -16,7 +16,7 @@ import {
   ScanWindow,
   CONFLICT_ANALYSIS_VERSION,
 } from './ConflictFrameLoader.js';
-import { ConflictCandidateCollector } from './ConflictCandidateCollector.js';
+import { ConflictCandidateCollector } from './ConflictCandidateCollector.ts';
 import {
   groupCandidates,
   buildConflictTraces,

@@ -9,7 +9,7 @@ import ConflictParticipant from '../../types/conflict/ConflictParticipant.ts';
 import ConflictTrace from '../../types/conflict/ConflictTrace.ts';
 import ConflictWinner from '../../types/conflict/ConflictWinner.ts';
 import { compareStrings } from '../../types/conflict/validation.ts';
-import { inferCausalRelation } from './ConflictCandidateCollector.js';
+import { inferCausalRelation } from './ConflictCandidateCollector.ts';
 import {
   CONFLICT_ANALYSIS_VERSION,
 } from './ConflictFrameLoader.js';
