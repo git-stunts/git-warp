@@ -4,7 +4,7 @@ import ORSet from '../../domain/crdt/ORSet.ts';
 import VersionVector from '../../domain/crdt/VersionVector.ts';
 import { createEmptyState } from '../../domain/services/JoinReducer.ts';
 import WarpState from '../../domain/services/state/WarpState.ts';
-import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceIndex.js';
+import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceIndex.ts';
 
 /**
  * CBOR-backed implementation of CheckpointStorePort.

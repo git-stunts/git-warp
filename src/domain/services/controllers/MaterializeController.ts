@@ -13,8 +13,8 @@
 import { reduceV5, createEmptyState } from '../JoinReducer.ts';
 import { isV5CheckpointSchema } from '../state/checkpointHelpers.ts';
 import { materializeIncremental } from '../state/checkpointLoad.ts';
-import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
-import { computeStateHash } from '../state/StateSerializer.js';
+import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
+import { computeStateHash } from '../state/StateSerializer.ts';
 import { createFrontier, updateFrontier } from '../Frontier.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import { normalizeFrontierInput, normalizeExplicitCeiling, buildAdjacency, maxLamportInPatches } from './MaterializeHelpers.ts';

@@ -36,9 +36,6 @@ export const HELP_TEXT = `warp-graph <command> [options]
 
 Commands:
   info             Summarize graphs in the repo
-  query            Run a logical graph query
-  path             Find a logical path between two nodes
-  history          Show writer history
   check            Report graph health/GC status
   doctor           Diagnose structural issues and suggest fixes
   debug            Inspect substrate history and conflict state
@@ -229,7 +226,7 @@ export function notFoundError(message) {
   return new CliError(message, { code: 'E_NOT_FOUND', exitCode: EXIT_CODES.NOT_FOUND });
 }
 
-export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'doctor', 'debug', 'strand', 'materialize', 'seek', 'verify-audit', 'verify-index', 'reindex', 'trust', 'patch', 'tree', 'bisect', 'install-hooks'];
+export const KNOWN_COMMANDS = ['info', 'check', 'doctor', 'debug', 'strand', 'materialize', 'seek', 'verify-audit', 'verify-index', 'reindex', 'trust', 'patch', 'tree', 'bisect', 'install-hooks'];
 
 const BASE_OPTIONS = {
   repo:   { type: 'string', short: 'r' },

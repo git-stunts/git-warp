@@ -8,7 +8,7 @@
  * @module domain/services/sync/HttpSyncServer
  */
 
-import SyncAuthService from './SyncAuthService.js';
+import SyncAuthService from './SyncAuthService.ts';
 import SyncError from '../../errors/SyncError.ts';
 import type { HttpRequest } from '../../../ports/HttpServerPort.ts';
 import type { SyncRequest } from './SyncProtocol.ts';

@@ -26,9 +26,14 @@ import {
   normalizeEvolution,
   normalizeLastTick,
   normalizeQueuedIntents,
+  normalizeQueuedIntentEntry,
+  normalizeRejectedCounterfactuals,
+  resolveQueuedIntentIdentity,
   type StrandReadOverlayDescriptor,
   type StrandIntentQueue,
   type StrandEvolution,
+  type StrandQueuedIntent,
+  type StrandRejectedCounterfactual,
 } from './descriptorNormalization.ts';
 
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
@@ -326,5 +331,27 @@ export default class StrandDescriptorStore {
     if ((await this._graph._persistence.readRef(ref)) !== null) {
       await this._graph._persistence.deleteRef(ref);
     }
+  }
+
+  // ── Test-seam private wrappers ───────────────────────────────────────────
+
+  /** @internal for test seam access */
+  _normalizeQueuedIntentEntry(rawEntry: unknown): StrandQueuedIntent[] {
+    return normalizeQueuedIntentEntry(rawEntry);
+  }
+
+  /** @internal for test seam access */
+  _resolveQueuedIntentIdentity(candidate: Record<string, unknown>): { patch: import('../../types/Patch.ts').default; intentId: string; enqueuedAt: string } | null {
+    return resolveQueuedIntentIdentity(candidate);
+  }
+
+  /** @internal for test seam access */
+  _normalizeQueuedIntents(value: unknown): StrandQueuedIntent[] {
+    return normalizeQueuedIntents(value);
+  }
+
+  /** @internal for test seam access */
+  _normalizeRejectedCounterfactuals(value: unknown): StrandRejectedCounterfactual[] {
+    return normalizeRejectedCounterfactuals(value);
   }
 }

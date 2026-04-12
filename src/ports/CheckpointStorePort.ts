@@ -1,6 +1,6 @@
 import type WarpState from '../domain/services/state/WarpState.ts';
 import type VersionVector from '../domain/crdt/VersionVector.ts';
-import type { ProvenanceIndex } from '../domain/services/provenance/ProvenanceIndex.js';
+import type { ProvenanceIndex } from '../domain/services/provenance/ProvenanceIndex.ts';
 
 /**
  * Port for checkpoint persistence.

@@ -4,7 +4,7 @@
  * @module domain/services/strand/descriptorNormalization
  */
 
-import { compareStrings, normalizeOptionalString, normalizeStringArray } from './strandShared.js';
+import { compareStrings, normalizeOptionalString, normalizeStringArray } from './strandShared.ts';
 import type { StrandDescriptor } from '../../utils/parseStrandBlob.ts';
 
 export type StrandReadOverlayDescriptor = {

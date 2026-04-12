@@ -7,12 +7,12 @@
  * @see WARP Spec Section 10
  */
 
-import { computeStateHash } from './StateSerializer.js';
+import { computeStateHash } from './StateSerializer.ts';
 import {
   serializeFullState,
   computeAppliedVV,
   serializeAppliedVV,
-} from './CheckpointSerializer.js';
+} from './CheckpointSerializer.ts';
 import { serializeFrontier } from '../Frontier.ts';
 import { encodeCheckpointMessage } from '../codec/WarpMessageCodec.ts';
 import { cloneState } from '../JoinReducer.ts';
@@ -30,8 +30,8 @@ import type TreePort from '../../../ports/TreePort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
-import type StateHashService from './StateHashService.js';
-import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
+import type StateHashService from './StateHashService.ts';
+import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 
 /** Combined persistence surface needed by checkpoint creation. */
 export type CheckpointPersistence = CommitPort & BlobPort & TreePort;

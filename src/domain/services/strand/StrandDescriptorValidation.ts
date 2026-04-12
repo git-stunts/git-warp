@@ -8,7 +8,7 @@
 import StrandError from '../../errors/StrandError.ts';
 import { validateWriterId } from '../../utils/RefLayout.ts';
 import { generateWriterId } from '../../utils/WriterId.ts';
-import { normalizeOptionalString, compareStrings } from './strandShared.js';
+import { normalizeOptionalString, compareStrings } from './strandShared.ts';
 
 /** Convert a frontier Map to a sorted plain object. */
 export function frontierToRecord(frontier: Map<string, string>): Record<string, string> {

@@ -1,5 +1,12 @@
-import { summarizeOps } from '../../src/visualization/renderers/ascii/history.js';
 import { stableStringify } from '../presenters/json.js';
+
+/** @param {Array<{ type: string }>} ops @returns {Record<string, number>} */
+function summarizeOps(ops) {
+  /** @type {Record<string, number>} */
+  const summary = { NodeAdd: 0, EdgeAdd: 0, PropSet: 0, NodeTombstone: 0, EdgeTombstone: 0, BlobValue: 0 };
+  for (const op of ops) { if (op.type in summary) { summary[op.type]++; } }
+  return summary;
+}
 
 /** @typedef {import('./types.js').WarpGraphInstance} WarpGraphInstance */
 /** @typedef {import('./types.js').WriterTickInfo} WriterTickInfo */

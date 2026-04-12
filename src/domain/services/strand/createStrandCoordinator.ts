@@ -5,12 +5,12 @@
  */
 
 import StrandDescriptorStore from './StrandDescriptorStore.ts';
-import StrandMaterializer from './StrandMaterializer.js';
-import StrandPatchService from './StrandPatchService.js';
-import StrandIntentService from './StrandIntentService.js';
+import StrandMaterializer from './StrandMaterializer.ts';
+import StrandPatchService from './StrandPatchService.ts';
+import StrandIntentService from './StrandIntentService.ts';
 import StrandCoordinator from './StrandCoordinator.ts';
 import { frontierRecordsEqual } from './StrandDescriptorValidation.ts';
-import { buildIntentId, buildTickId } from './strandShared.js';
+import { buildIntentId, buildTickId } from './strandShared.ts';
 
 type BaseObservation = {
   coordinateVersion: string;
@@ -94,6 +94,7 @@ export default function createStrandCoordinator(graph: GraphRuntime): StrandCoor
     materializer,
     patches,
     intents,
+    graph: graph as Record<string, unknown>,
   });
 
   return ref.coordinator;

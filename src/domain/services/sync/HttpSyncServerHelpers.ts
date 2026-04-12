@@ -9,9 +9,9 @@
  */
 
 import { z } from 'zod';
-import SyncAuthService from './SyncAuthService.js';
+import SyncAuthService from './SyncAuthService.ts';
 import SyncError from '../../errors/SyncError.ts';
-import { validateSyncRequest } from './SyncPayloadSchema.js';
+import { validateSyncRequest } from './SyncPayloadSchema.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type HttpServerPort from '../../../ports/HttpServerPort.ts';

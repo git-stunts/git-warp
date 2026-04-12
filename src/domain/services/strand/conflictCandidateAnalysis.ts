@@ -14,8 +14,8 @@ import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
 import ConflictResolution from '../../types/conflict/ConflictResolution.ts';
 import { TickReceipt, type OpOutcome } from '../../types/TickReceipt.ts';
 import type Patch from '../../types/Patch.ts';
-import ConflictCandidate from './ConflictCandidate.js';
-import OpRecord from './OpRecord.js';
+import ConflictCandidate from './ConflictCandidate.ts';
+import OpRecord from './OpRecord.ts';
 import {
   receiptNameForOp,
   cloneObject,

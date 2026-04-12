@@ -11,7 +11,7 @@
 import SyncError from '../../errors/SyncError.ts';
 import OperationAbortedError from '../../errors/OperationAbortedError.ts';
 import { QueryError, E_NO_STATE_MSG } from '../../warp/_internal.ts';
-import { validateSyncResponse } from '../sync/SyncPayloadSchema.js';
+import { validateSyncResponse } from '../sync/SyncPayloadSchema.ts';
 import {
   createSyncRequest as createSyncRequestImpl,
   processSyncRequest as processSyncRequestImpl,
@@ -25,7 +25,7 @@ import { checkAborted } from '../../utils/cancellation.ts';
 import { createFrontier, updateFrontier } from '../Frontier.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import GCMetrics from '../GCMetrics.ts';
-import SyncTrustGate from '../sync/SyncTrustGate.js';
+import SyncTrustGate from '../sync/SyncTrustGate.ts';
 import { launchSyncServer, type ServeOptions, type ServerHandle } from './SyncServerLauncher.ts';
 import { isError } from '../../types/WarpErrors.ts';
 import type { WarpState } from '../JoinReducer.ts';

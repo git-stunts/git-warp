@@ -1,0 +1,203 @@
+/**
+ * SubscriptionController — graph change subscription and watch logic.
+ *
+ * Extracted from subscribe.methods.js. Manages subscriber registration,
+ * glob-filtered watches with optional polling, and deferred replay.
+ *
+ * @module domain/services/controllers/SubscriptionController
+ */
+
+import { diffStates, isEmptyDiff } from '../state/StateDiff.ts';
+import { matchGlob } from '../../utils/matchGlob.ts';
+import WarpError from '../../errors/WarpError.ts';
+import type { WarpState } from '../JoinReducer.ts';
+import type { StateDiffResult, EdgeChange, PropSet, PropRemoved } from '../state/StateDiff.ts';
+
+interface Subscriber {
+  onChange: (diff: StateDiffResult) => void;
+  onError?: (error: unknown) => void;
+  pendingReplay: boolean;
+}
+
+interface SubscriptionHost {
+  _cachedState: WarpState | null;
+  _subscribers: Array<{ onChange: (diff: StateDiffResult) => void; onError?: (error: unknown) => void; pendingReplay?: boolean }>;
+  hasFrontierChanged(): Promise<boolean>;
+  materialize(options?: Record<string, unknown>): Promise<unknown>;
+}
+
+export default class SubscriptionController {
+  _host: SubscriptionHost;
+
+  constructor(host: SubscriptionHost) {
+    this._host = host;
+  }
+
+  subscribe({ onChange, onError, replay = false }: {
+    onChange: (diff: StateDiffResult) => void;
+    onError?: (error: unknown) => void;
+    replay?: boolean;
+  }): { unsubscribe: () => void } {
+    if (typeof onChange !== 'function') {
+      throw new WarpError('onChange must be a function', 'E_SUBSCRIBE_INVALID_CALLBACK');
+    }
+
+    const host = this._host;
+    const subscriber: Subscriber = {
+      onChange,
+      ...(onError !== undefined ? { onError } : {}),
+      pendingReplay: replay && !host._cachedState,
+    };
+    host._subscribers.push(subscriber);
+
+    if (replay && host._cachedState) {
+      const diff = diffStates(null, host._cachedState);
+      if (!isEmptyDiff(diff)) {
+        try {
+          onChange(diff);
+        } catch (err) {
+          if (onError) {
+            try {
+              onError(err);
+            } catch {
+              // onError itself threw — swallow to prevent cascade
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      unsubscribe: () => {
+        const index = host._subscribers.indexOf(subscriber);
+        if (index !== -1) {
+          host._subscribers.splice(index, 1);
+        }
+      },
+    };
+  }
+
+  watch(
+    pattern: string | string[],
+    { onChange, onError, poll }: {
+      onChange: (diff: StateDiffResult) => void;
+      onError?: (error: unknown) => void;
+      poll?: number;
+    },
+  ): { unsubscribe: () => void } {
+    const isValidPattern = (p: string | string[]): boolean =>
+      typeof p === 'string' || (Array.isArray(p) && p.length > 0 && p.every(i => typeof i === 'string'));
+
+    if (!isValidPattern(pattern)) {
+      throw new WarpError(
+        'pattern must be a non-empty string or non-empty array of strings',
+        'E_WATCH_INVALID_PATTERN',
+      );
+    }
+    if (typeof onChange !== 'function') {
+      throw new WarpError('onChange must be a function', 'E_WATCH_INVALID_CALLBACK');
+    }
+    if (poll !== undefined) {
+      if (typeof poll !== 'number' || !Number.isFinite(poll) || poll < 1000) {
+        throw new WarpError('poll must be a finite number >= 1000', 'E_WATCH_INVALID_POLL');
+      }
+    }
+
+    const matchesPattern = (nodeId: string): boolean => matchGlob(pattern, nodeId);
+
+    const filteredOnChange = (diff: StateDiffResult): void => {
+      const filteredDiff: StateDiffResult = {
+        nodes: {
+          added: diff.nodes.added.filter(matchesPattern),
+          removed: diff.nodes.removed.filter(matchesPattern),
+        },
+        edges: {
+          added: diff.edges.added.filter((e: EdgeChange) => matchesPattern(e.from) || matchesPattern(e.to)),
+          removed: diff.edges.removed.filter((e: EdgeChange) => matchesPattern(e.from) || matchesPattern(e.to)),
+        },
+        props: {
+          set: diff.props.set.filter((p: PropSet) => matchesPattern(p.nodeId)),
+          removed: diff.props.removed.filter((p: PropRemoved) => matchesPattern(p.nodeId)),
+        },
+      };
+
+      const hasChanges =
+        filteredDiff.nodes.added.length > 0 ||
+        filteredDiff.nodes.removed.length > 0 ||
+        filteredDiff.edges.added.length > 0 ||
+        filteredDiff.edges.removed.length > 0 ||
+        filteredDiff.props.set.length > 0 ||
+        filteredDiff.props.removed.length > 0;
+
+      if (hasChanges) { onChange(filteredDiff); }
+    };
+
+    const subscription = this.subscribe({
+      onChange: filteredOnChange,
+      ...(onError !== undefined ? { onError } : {}),
+    });
+
+    const host = this._host;
+
+    let pollIntervalId: ReturnType<typeof setInterval> | null = null;
+    let pollInFlight = false;
+    if (poll !== undefined) {
+      // eslint-disable-next-line no-restricted-syntax -- legacy: inject scheduler (tracked in backlog)
+      pollIntervalId = setInterval(() => {
+        if (pollInFlight) { return; }
+        pollInFlight = true;
+        host.hasFrontierChanged()
+          .then(async (changed) => {
+            if (changed) { await host.materialize(); }
+          })
+          .catch((err) => {
+            if (onError) {
+              try {
+                onError(err);
+              } catch {
+                // onError itself threw — swallow
+              }
+            }
+          })
+          .finally(() => {
+            pollInFlight = false;
+          });
+      }, poll);
+    }
+
+    return {
+      unsubscribe: () => {
+        if (pollIntervalId !== null) {
+          clearInterval(pollIntervalId);
+          pollIntervalId = null;
+        }
+        subscription.unsubscribe();
+      },
+    };
+  }
+
+  _notifySubscribers(diff: StateDiffResult, currentState: WarpState): void {
+    for (const subscriber of [...this._host._subscribers] as Subscriber[]) {
+      try {
+        if (subscriber.pendingReplay) {
+          subscriber.pendingReplay = false;
+          const replayDiff = diffStates(null, currentState);
+          if (!isEmptyDiff(replayDiff)) {
+            subscriber.onChange(replayDiff);
+          }
+        } else {
+          if (isEmptyDiff(diff)) { continue; }
+          subscriber.onChange(diff);
+        }
+      } catch (err) {
+        if (typeof subscriber.onError === 'function') {
+          try {
+            subscriber.onError(err);
+          } catch {
+            // onError itself threw — swallow
+          }
+        }
+      }
+    }
+  }
+}

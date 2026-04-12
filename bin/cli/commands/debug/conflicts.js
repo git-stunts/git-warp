@@ -250,7 +250,7 @@ function spreadNonNull(key, value) {
  * Build ConflictAnalyzeOptions from the parsed CLI spec and resolved lamport ceiling.
  * @param {{ strandId: string|null, entityId: string|null, target: { targetKind: "node"|"edge"|"node_property"|"edge_property", entityId?: string, propertyKey?: string, from?: string, to?: string, label?: string }|null, kinds: string[], writerId: string|null, evidence: "full"|"summary"|"standard", maxPatches: number|null }} spec - Parsed conflict filter spec.
  * @param {number|null} lamportCeiling - Resolved lamport ceiling.
- * @returns {import('../../../../src/domain/services/strand/ConflictAnalyzerService.js').ConflictAnalyzeOptions}
+ * @returns {import('../../../../src/domain/services/strand/ConflictAnalyzerService.ts').ConflictAnalyzeOptions}
  */
 function buildConflictAnalyzeOptions(spec, lamportCeiling) {
   return {

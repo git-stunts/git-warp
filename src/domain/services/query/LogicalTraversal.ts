@@ -11,7 +11,7 @@
 
 import TraversalError from '../../errors/TraversalError.ts';
 import GraphTraversal from './GraphTraversal.ts';
-import AdjacencyNeighborProvider from './AdjacencyNeighborProvider.js';
+import AdjacencyNeighborProvider from './AdjacencyNeighborProvider.ts';
 import {
   requireAdjacencyMaps,
   requireTraversalState,

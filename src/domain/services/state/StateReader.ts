@@ -1,4 +1,4 @@
-import { projectState } from './StateSerializer.js';
+import { projectState } from './StateSerializer.ts';
 import WarpState from './WarpState.ts';
 import {
   type ContentMeta,

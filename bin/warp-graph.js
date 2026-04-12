@@ -2,12 +2,8 @@
 
 import process from 'node:process';
 import { EXIT_CODES, HELP_TEXT, CliError, parseArgs, usageError } from './cli/infrastructure.js';
-import { present } from './presenters/index.js';
 import { stableStringify, compactStringify } from './presenters/json.js';
-import { renderError } from './presenters/text.js';
 import { COMMANDS } from './cli/commands/registry.js';
-
-const VIEW_SUPPORTED_COMMANDS = ['info', 'check', 'history', 'path', 'materialize', 'query', 'seek'];
 
 // Output format must be captured from raw process.argv BEFORE parseArgs() runs.
 // If parseArgs() itself throws (e.g., unknown flag, malformed input), the `options`
@@ -30,11 +26,8 @@ async function main() {
     return;
   }
 
-  if (options.json && options.view !== null && options.view !== '') {
-    throw usageError('--json and --view are mutually exclusive');
-  }
-  if (options.ndjson && options.view !== null && options.view !== '') {
-    throw usageError('--ndjson and --view are mutually exclusive');
+  if (options.view !== null && options.view !== '') {
+    throw usageError('--view has been removed. Use warp-ttd for visualization.');
   }
   if (options.json && options.ndjson) {
     throw usageError('--json and --ndjson are mutually exclusive');
@@ -51,10 +44,6 @@ async function main() {
     throw usageError(`Unknown command: ${command}`);
   }
 
-  if (options.view !== null && options.view !== '' && !VIEW_SUPPORTED_COMMANDS.includes(command)) {
-    throw usageError(`--view is not supported for '${command}'. Supported commands: ${VIEW_SUPPORTED_COMMANDS.join(', ')}`);
-  }
-
   /** @type {(opts: {command: string, args: string[], options: Record<string, unknown>}) => Promise<unknown>} */
   const typedHandler = /** @type {(opts: {command: string, args: string[], options: Record<string, unknown>}) => Promise<unknown>} */ (handler);
   const result = await typedHandler({
@@ -69,8 +58,8 @@ async function main() {
     : { payload: result, exitCode: EXIT_CODES.OK };
 
   if (normalized.payload !== undefined) {
-    const format = options.ndjson ? 'ndjson' : options.json ? 'json' : 'text';
-    present(/** @type {Record<string, unknown>} */ (normalized.payload), { format, command, view: /** @type {string | null | boolean} */ (options.view ?? null) });
+    const stringify = options.ndjson ? compactStringify : stableStringify;
+    process.stdout.write(`${stringify(normalized.payload)}\n`);
   }
 
   // Long-running commands may return a `close` function.
@@ -113,7 +102,7 @@ main().catch((/** @type {unknown} */ error) => {
     const stringify = hasNdjsonFlag ? compactStringify : stableStringify;
     process.stdout.write(`${stringify(payload)}\n`);
   } else {
-    process.stderr.write(renderError(payload));
+    process.stderr.write(`Error: ${payload.error.message}\n`);
   }
   process.exit(exitCode);
 });

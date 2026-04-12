@@ -8,8 +8,8 @@
  */
 
 import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
-import ConflictCandidate from './ConflictCandidate.js';
-import OpRecord from './OpRecord.js';
+import ConflictCandidate from './ConflictCandidate.ts';
+import OpRecord from './OpRecord.ts';
 import { analyzeFrameOps, addEventualOverrideCandidates, type PatchFrame } from './conflictCandidateAnalysis.ts';
 
 export { inferCausalRelation } from './conflictCandidateAnalysis.ts';
