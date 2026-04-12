@@ -20,8 +20,6 @@
 
 import { buildAuditPrefix, buildAuditRef } from '../../utils/RefLayout.ts';
 import { decodeAuditMessage } from '../codec/AuditMessageCodec.ts';
-import { computeSignaturePayload } from '../../trust/TrustCanonical.ts';
-import { TrustRecordService } from '../../trust/TrustRecordService.js';
 import { buildState } from '../../trust/TrustStateBuilder.ts';
 import { evaluateWriters } from '../../trust/TrustEvaluator.ts';
 import { TRUST_REASON_CODES } from '../../trust/reasonCodes.ts';
@@ -279,13 +277,15 @@ export class AuditVerifierService {
   /**
    * Creates a new AuditVerifierService.
    *
-   * @param {{ persistence: import('../../../ports/CommitPort.ts').default & import('../../../ports/RefPort.ts').default & import('../../../ports/BlobPort.ts').default & import('../../../ports/TreePort.ts').default, codec: import('../../../ports/CodecPort.ts').default, logger?: import('../../../ports/LoggerPort.ts').default, trustCrypto?: { verifySignature: (params: { algorithm: string, publicKeyBase64: string, signatureBase64: string, payload: Uint8Array }) => boolean, computeKeyFingerprint: (publicKeyBase64: string) => string } }} options
+   * @param {{ persistence: import('../../../ports/CommitPort.ts').default & import('../../../ports/RefPort.ts').default & import('../../../ports/BlobPort.ts').default & import('../../../ports/TreePort.ts').default, codec: import('../../../ports/CodecPort.ts').default, logger?: import('../../../ports/LoggerPort.ts').default, trustCrypto?: { verifySignature: (params: { algorithm: string, publicKeyBase64: string, signatureBase64: string, payload: Uint8Array }) => boolean, computeKeyFingerprint: (publicKeyBase64: string) => string }, trustChain?: import('../../../ports/TrustChainPort.ts').default }} options
    */
-  constructor({ persistence, codec, logger, trustCrypto }) {
+  constructor({ persistence, codec, logger, trustCrypto, trustChain }) {
     this._persistence = persistence;
     this._codec = codec;
     this._logger = logger || null;
     this._trustCrypto = trustCrypto || defaultTrustCrypto;
+    /** @type {import('../../../ports/TrustChainPort.ts').default|null} */
+    this._trustChain = trustChain || null;
   }
 
   /**
@@ -736,22 +736,36 @@ export class AuditVerifierService {
    */
   async evaluateTrust(graphName, options = {}) {
     const { status, source, sourceDetail } = resolveTrustSource(options);
-    const recordService = new TrustRecordService({
-      persistence: this._persistence,
-      codec: this._codec,
-    });
 
-    const recordsResult = await recordService.readRecords(graphName, (typeof options.pin === 'string' && options.pin.length > 0) ? { tip: options.pin } : {});
-    if (!recordsResult.ok) {
+    if (!this._trustChain) {
       return buildTrustFailureAssessment({
         status: 'error',
         source,
         sourceDetail,
         reasonCode: TRUST_REASON_CODES.TRUST_RECORD_CHAIN_INVALID,
-        reason: `Trust chain read failed: ${recordsResult.error.message}`,
+        reason: 'Trust chain port not configured',
       });
     }
-    const { records } = recordsResult;
+
+    // Read records via streaming port — collect for buildState
+    /** @type {import('../../trust/TrustRecord.ts').TrustRecord[]} */
+    const records = [];
+    try {
+      const tip = (typeof options.pin === 'string' && options.pin.length > 0)
+        ? options.pin
+        : undefined;
+      for await (const record of this._trustChain.readRecords(graphName, tip)) {
+        records.push(record);
+      }
+    } catch (err) {
+      return buildTrustFailureAssessment({
+        status: 'error',
+        source,
+        sourceDetail,
+        reasonCode: TRUST_REASON_CODES.TRUST_RECORD_CHAIN_INVALID,
+        reason: `Trust chain read failed: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
 
     if (records.length === 0) {
       return {
@@ -776,29 +790,16 @@ export class AuditVerifierService {
       };
     }
 
-    const chainResult = await recordService.verifyChain(records);
-    if (!chainResult.valid) {
-      return buildTrustFailureAssessment({
-        status: 'error',
-        source,
-        sourceDetail,
-        writerIds: options.writerIds || [],
-        recordsScanned: records.length,
-        reasonCode: TRUST_REASON_CODES.TRUST_RECORD_CHAIN_INVALID,
-        reason: `Trust chain invalid: ${(typeof chainResult.errors[0]?.error === 'string' && chainResult.errors[0].error.length > 0) ? chainResult.errors[0].error : 'unknown chain error'}`,
-      });
-    }
-
+    // Chain integrity verified at adapter boundary (recordId hash + fromDecoded).
+    // Build trust state with signature verification.
     const trustState = await buildState(records, {
-      /** Verifies a record's cryptographic signature against a public key. */
       signatureVerifier: (record, publicKeyBase64) =>
         this._trustCrypto.verifySignature({
           algorithm: record.signature.alg,
           publicKeyBase64,
           signatureBase64: record.signature.sig,
-          payload: computeSignaturePayload(record),
+          payload: record.signaturePayload,
         }),
-      /** Computes a fingerprint for a base64-encoded public key. */
       computeKeyFingerprint: (publicKeyBase64) =>
         this._trustCrypto.computeKeyFingerprint(publicKeyBase64),
     });

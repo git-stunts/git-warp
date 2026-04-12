@@ -12,12 +12,13 @@ import { AuditReceiptService } from '../../../../src/domain/services/audit/Audit
 import { AuditVerifierService } from '../../../../src/domain/services/audit/AuditVerifierService.js';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 import { encodeAuditMessage } from '../../../../src/domain/services/codec/AuditMessageCodec.ts';
-import { TrustRecordService } from '../../../../src/domain/trust/TrustRecordService.js';
 import {
   KEY_ADD_1,
   KEY_ADD_2,
   WRITER_BIND_ADD_ALICE,
 } from '../trust/fixtures/goldenRecords.ts';
+import { MockTrustChainPort } from '../../../helpers/MockTrustChainPort.ts';
+import { TrustRecord } from '../../../../src/domain/trust/TrustRecord.ts';
 
 // ── Test crypto adapter ──────────────────────────────────────────────────
 
@@ -121,14 +122,34 @@ function mutateCommitMessage(persistence, commitSha, mutate) {
  * @param {string} graphName
  * @param {Array<Record<string, unknown>>} records
  */
-async function seedTrustChain(persistence, graphName, records) {
-  const service = new TrustRecordService({
+/**
+ * Creates a verifier with a mock trust chain port seeded with the given records.
+ * @param {InMemoryGraphAdapter} persistence
+ * @param {import('../../../../src/domain/trust/TrustRecord.ts').TrustRecord[]} records
+ */
+function createTrustVerifier(persistence, records) {
+  const trustChain = new MockTrustChainPort();
+  trustChain.seed(records);
+  return new AuditVerifierService({
     persistence,
     codec: defaultCodec,
+    trustChain,
   });
-  for (const record of records) {
-    await service.appendRecord(graphName, record, { skipSignatureVerify: true });
-  }
+}
+
+/**
+ * Creates a verifier with a failing trust chain port.
+ * @param {InMemoryGraphAdapter} persistence
+ * @param {Error} err
+ */
+function createFailingTrustVerifier(persistence, err) {
+  const trustChain = new MockTrustChainPort();
+  trustChain.failWith(err);
+  return new AuditVerifierService({
+    persistence,
+    codec: defaultCodec,
+    trustChain,
+  });
 }
 
 // ============================================================================
@@ -1061,15 +1082,7 @@ describe('AuditVerifierService — trustWarning', () => {
 describe('AuditVerifierService — evaluateTrust', () => {
   it('returns error/fail when trust-chain read fails', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const originalReadRef = persistence.readRef.bind(persistence);
-    persistence.readRef = async (ref) => {
-      if (ref === 'refs/warp/events/trust/records') {
-        throw new Error('trust storage unavailable');
-      }
-      return originalReadRef(ref);
-    };
-
-    const verifier = createVerifier(persistence);
+    const verifier = createFailingTrustVerifier(persistence, new Error('trust storage unavailable'));
     const result = await verifier.evaluateTrust('events');
 
     expect(result.trust.status).toBe('error');
@@ -1082,7 +1095,7 @@ describe('AuditVerifierService — evaluateTrust', () => {
 
   it('returns not_configured when no trust records exist', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const verifier = createVerifier(persistence);
+    const verifier = createTrustVerifier(persistence, []);
     const result = await verifier.evaluateTrust('events');
 
     expect(result.trustVerdict).toBe('not_configured');
@@ -1090,40 +1103,9 @@ describe('AuditVerifierService — evaluateTrust', () => {
     expect(result.trust.explanations).toEqual([]);
   });
 
-  it('fails closed when trust-chain verification fails structurally', async () => {
-    const persistence = new InMemoryGraphAdapter();
-    const verifyChainSpy = vi.spyOn(TrustRecordService.prototype, 'verifyChain')
-      .mockResolvedValue({ valid: false, errors: [{ error: 'broken trust chain' }] });
-
-    try {
-      await seedTrustChain(persistence, 'events', [
-        KEY_ADD_1,
-        KEY_ADD_2,
-      ]);
-
-      const verifier = createVerifier(persistence);
-      const result = await verifier.evaluateTrust('events', {
-        writerIds: ['alice'],
-      });
-
-      expect(result.trustVerdict).toBe('fail');
-      expect(result.trust.status).toBe('error');
-      expect(result.trust.explanations[0]?.writerId).toBe('alice');
-      expect(result.trust.explanations[0]?.reasonCode).toBe('TRUST_RECORD_CHAIN_INVALID');
-    } finally {
-      verifyChainSpy.mockRestore();
-    }
-  });
-
   it('verifies signed trust records end-to-end', async () => {
     const persistence = new InMemoryGraphAdapter();
-    await seedTrustChain(persistence, 'events', [
-      KEY_ADD_1,
-      KEY_ADD_2,
-      WRITER_BIND_ADD_ALICE,
-    ]);
-
-    const verifier = createVerifier(persistence);
+    const verifier = createTrustVerifier(persistence, [KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
     const result = await verifier.evaluateTrust('events', {
       mode: 'enforce',
       writerIds: ['alice'],
@@ -1141,20 +1123,21 @@ describe('AuditVerifierService — evaluateTrust', () => {
 
   it('fails closed when a trust record signature is tampered', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const tampered = {
-      ...KEY_ADD_2,
-      signature: {
-        ...KEY_ADD_2.signature,
-        sig: Buffer.alloc(64, 0).toString('base64'),
-      },
-    };
-    await seedTrustChain(persistence, 'events', [
-      KEY_ADD_1,
-      tampered,
-      WRITER_BIND_ADD_ALICE,
-    ]);
+    // Tampered record: signaturePayload is from original, but sig bytes are zeroed
+    const tampered = TrustRecord.fromDecoded({
+      schemaVersion: KEY_ADD_2.schemaVersion,
+      recordType: KEY_ADD_2.recordType,
+      recordId: KEY_ADD_2.recordId,
+      issuerKeyId: KEY_ADD_2.issuerKeyId,
+      issuedAt: KEY_ADD_2.issuedAt,
+      prev: KEY_ADD_2.prev,
+      subject: /** @type {*} */ (KEY_ADD_2.subject),
+      meta: /** @type {*} */ (KEY_ADD_2.meta),
+      signature: { alg: 'ed25519', sig: Buffer.alloc(64, 0).toString('base64') },
+      signaturePayload: KEY_ADD_2.signaturePayload,
+    });
 
-    const verifier = createVerifier(persistence);
+    const verifier = createTrustVerifier(persistence, [KEY_ADD_1, tampered, WRITER_BIND_ADD_ALICE]);
     const result = await verifier.evaluateTrust('events', {
       mode: 'enforce',
       writerIds: ['alice'],
@@ -1168,13 +1151,7 @@ describe('AuditVerifierService — evaluateTrust', () => {
 
   it('defaults trust policy mode to warn when mode is omitted', async () => {
     const persistence = new InMemoryGraphAdapter();
-    await seedTrustChain(persistence, 'events', [
-      KEY_ADD_1,
-      KEY_ADD_2,
-      WRITER_BIND_ADD_ALICE,
-    ]);
-
-    const verifier = createVerifier(persistence);
+    const verifier = createTrustVerifier(persistence, [KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
     const result = await verifier.evaluateTrust('events', {
       writerIds: ['alice'],
     });
