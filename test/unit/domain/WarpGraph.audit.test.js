@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
-import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
+import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 
 describe('WarpRuntime — audit mode', () => {
   it('rejects audit: "yes" (non-boolean truthy)', async () => {

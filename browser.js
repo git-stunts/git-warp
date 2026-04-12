@@ -36,7 +36,7 @@ export { default as WarpCore } from './src/domain/WarpCore.ts';
 export { default as GraphNode } from './src/domain/entities/GraphNode.ts';
 
 // Browser-compatible adapters
-export { default as InMemoryGraphAdapter } from './src/infrastructure/adapters/InMemoryGraphAdapter.js';
+export { default as InMemoryGraphAdapter } from './src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 export { default as WebCryptoAdapter } from './src/infrastructure/adapters/WebCryptoAdapter.js';
 
 // CRDT primitives

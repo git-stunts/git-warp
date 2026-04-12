@@ -7,7 +7,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createHash } from 'node:crypto';
-import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
+import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import { AuditReceiptService } from '../../../../src/domain/services/audit/AuditReceiptService.ts';
 import AuditVerifierService from '../../../../src/domain/services/audit/AuditVerifierService.ts';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';

@@ -44,7 +44,7 @@ import IndexStoragePort from './src/ports/IndexStoragePort.ts';
 import LoggerPort from './src/ports/LoggerPort.ts';
 import ClockPort from './src/ports/ClockPort.ts';
 import SeekCachePort from './src/ports/SeekCachePort.ts';
-import InMemoryGraphAdapter from './src/infrastructure/adapters/InMemoryGraphAdapter.js';
+import InMemoryGraphAdapter from './src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import NoOpLogger from './src/infrastructure/adapters/NoOpLogger.js';
 import ConsoleLogger, { LogLevel } from './src/infrastructure/adapters/ConsoleLogger.js';
 import ClockAdapter from './src/infrastructure/adapters/ClockAdapter.js';

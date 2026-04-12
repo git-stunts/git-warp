@@ -12,7 +12,7 @@ import { tmpdir } from 'os';
 // @ts-expect-error - no declaration file for @git-stunts/plumbing
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.ts';
-import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
+import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import { encode } from '../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';

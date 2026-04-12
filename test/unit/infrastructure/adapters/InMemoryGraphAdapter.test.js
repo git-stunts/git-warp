@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
+import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import { describeAdapterConformance } from './AdapterConformance.js';
 
 // ── Conformance suite ───────────────────────────────────────────────────
@@ -246,12 +246,15 @@ describe('InMemoryGraphAdapter specifics', () => {
     expect(/** @type {any} */ (adapter)._walkLog('refs/warp/missing', 10)).toEqual([]);
   });
 
-  it('_enqueueCommit ignores missing commit SHAs', () => {
+  it('_collectCommits ignores missing commit SHAs in parent chains', async () => {
     const adapter = new InMemoryGraphAdapter();
-    const ctx = { all: [], visited: new Set(), queue: [] };
-    /** @type {any} */ (adapter)._enqueueCommit('abcd' + '0'.repeat(36), ctx);
-    expect(ctx.all).toEqual([]);
-    expect(ctx.queue).toEqual([]);
+    // Create a commit whose parent doesn't exist in the store.
+    // The parent OID is valid hex but points to nothing.
+    const orphan = await adapter.commitNode({ message: 'orphan', parents: ['abcd' + '0'.repeat(36)] });
+    await adapter.updateRef('refs/test', orphan);
+    // countNodes walks the DAG — it should count 1 (the orphan) and skip the missing parent.
+    const count = await adapter.countNodes('refs/test');
+    expect(count).toBe(1);
   });
 
   it('_countReachable does not double-count duplicated parent paths', async () => {
