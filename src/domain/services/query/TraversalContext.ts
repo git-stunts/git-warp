@@ -42,12 +42,12 @@ export type WeightFn = (from: string, to: string, label: string) => number | Pro
 
 export type BfsFn = (params: {
   start: string;
-  direction?: Direction;
-  options?: NeighborOptions;
-  maxNodes?: number;
-  maxDepth?: number;
-  signal?: AbortSignal;
-  hooks?: TraversalHooks;
+  direction?: Direction | undefined;
+  options?: NeighborOptions | undefined;
+  maxNodes?: number | undefined;
+  maxDepth?: number | undefined;
+  signal?: AbortSignal | undefined;
+  hooks?: TraversalHooks | undefined;
 }) => Promise<{ nodes: string[]; stats: TraversalStats }>;
 
 export type TopoSortFn = (params: {

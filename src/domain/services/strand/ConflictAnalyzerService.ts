@@ -15,6 +15,7 @@ import {
   attachReceipts,
   ScanWindow,
   CONFLICT_ANALYSIS_VERSION,
+  type AnalyzerService,
 } from './ConflictFrameLoader.ts';
 import { ConflictCandidateCollector } from './ConflictCandidateCollector.ts';
 import {
@@ -26,6 +27,7 @@ import {
 } from './ConflictTraceAssembler.ts';
 import type WarpRuntime from '../../WarpRuntime.ts';
 import type ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
+import type ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.ts';
 
 export { CONFLICT_ANALYSIS_VERSION };
 
@@ -63,7 +65,8 @@ export class ConflictAnalyzerService {
   async analyze(options?: ConflictAnalyzeOptions): Promise<ConflictAnalysis> {
     const request = ConflictAnalysisRequest.from(options);
     const diagnostics: ConflictDiagnostic[] = [];
-    const { patchFrames, resolvedCoordinate } = await resolveAnalysisContext(this, request);
+    // Adapter boundary: ConflictAnalyzerService satisfies AnalyzerService structurally
+    const { patchFrames, resolvedCoordinate } = await resolveAnalysisContext(this as unknown as AnalyzerService, request);
     if (patchFrames.length === 0) {
       return await this._emptyResult(resolvedCoordinate, request, diagnostics);
     }
@@ -88,7 +91,7 @@ export class ConflictAnalyzerService {
   }
 
   private async _emptyResult(
-    resolvedCoordinate: unknown,
+    resolvedCoordinate: ConflictResolvedCoordinate,
     request: ConflictAnalysisRequest,
     diagnostics: ConflictDiagnostic[],
   ): Promise<ConflictAnalysis> {

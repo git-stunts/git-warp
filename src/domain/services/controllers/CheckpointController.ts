@@ -297,7 +297,7 @@ export default class CheckpointController {
     }
 
     const result = this.runGC();
-    return { ran: true, result, reasons };
+    return { ran: true, result, reasons: [...reasons] };
   }
 
   runGC(): GCExecuteResult {

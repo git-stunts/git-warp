@@ -158,7 +158,9 @@ export function attachReceipts(patchFrames: PatchFrame[]): void {
   for (let i = 0; i < patchFrames.length; i++) {
     const frame = patchFrames[i];
     const receipt = reduced.receipts[i];
-    frame.receipt = receipt;
+    if (frame !== undefined && receipt !== undefined) {
+      frame.receipt = receipt;
+    }
   }
 }
 
@@ -273,13 +275,13 @@ function buildResolvedCoordinate({
     lamportCeiling,
     scanBudgetApplied: { maxPatches },
     truncationPolicy: CONFLICT_TRUNCATION_POLICY,
-    strand,
+    ...(strand !== undefined ? { strand } : {}),
   });
 }
 
 // ── Context resolution ──────────────────────────────────────────────
 
-type AnalyzerService = {
+export type AnalyzerService = {
   _graph: {
     getFrontier(): Promise<Map<string, string>>;
     _loadWriterPatches(writerId: string): Promise<Array<{ patch: Patch; sha: string }>>;
@@ -297,7 +299,8 @@ async function resolveStrandContext(
   service: AnalyzerService,
   request: ConflictAnalysisRequest,
 ): Promise<AnalysisContext> {
-  const strands = createStrandCoordinator(service._graph as Parameters<typeof createStrandCoordinator>[0]);
+  // Adapter boundary: _graph satisfies the structural subset that createStrandCoordinator uses
+  const strands = createStrandCoordinator(service._graph as unknown as Parameters<typeof createStrandCoordinator>[0]);
   const descriptor = await strands.getOrThrow(request.strandId!);
   const entries = await strands.getPatchEntries(request.strandId!, {
     ceiling: request.lamportCeiling,

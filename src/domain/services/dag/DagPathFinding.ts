@@ -56,7 +56,7 @@ export default class DagPathFinding {
 
   async findPath(opts: {
     from: string; to: string;
-    maxNodes?: number; maxDepth?: number; signal?: AbortSignal;
+    maxNodes?: number | undefined; maxDepth?: number | undefined; signal?: AbortSignal | undefined;
   }): Promise<PathResult> {
     if (opts.from === opts.to) {
       return { found: true, path: [opts.from], length: 0 };

@@ -211,9 +211,10 @@ export function toGitError(err: unknown): GitError {
   if (err instanceof Error) {
     return err as GitError;
   }
+  // Adapter boundary: PersistenceError is the infrastructure representation of GitError
   return new PersistenceError(
     String(err),
     PersistenceError.E_MISSING_OBJECT,
     {},
-  ) as GitError;
+  ) as unknown as GitError;
 }

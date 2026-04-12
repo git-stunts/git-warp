@@ -25,10 +25,10 @@ type TraversalNode = {
 
 type TraversalOptions = {
   readonly start: string;
-  readonly maxNodes?: number;
-  readonly maxDepth?: number;
-  readonly direction?: TraversalDirection;
-  readonly signal?: AbortSignal;
+  readonly maxNodes?: number | undefined;
+  readonly maxDepth?: number | undefined;
+  readonly direction?: TraversalDirection | undefined;
+  readonly signal?: AbortSignal | undefined;
 };
 
 /** Minimal contract for the index reader. */
@@ -42,8 +42,8 @@ type PathFinder = {
   readonly findPath: (opts: {
     from: string;
     to: string;
-    maxDepth?: number;
-    signal?: AbortSignal;
+    maxDepth?: number | undefined;
+    signal?: AbortSignal | undefined;
   }) => Promise<{ found: boolean }>;
 };
 
@@ -151,9 +151,9 @@ export default class DagTraversal {
 
   async *ancestors(opts: {
     sha: string;
-    maxNodes?: number;
-    maxDepth?: number;
-    signal?: AbortSignal;
+    maxNodes?: number | undefined;
+    maxDepth?: number | undefined;
+    signal?: AbortSignal | undefined;
   }): AsyncGenerator<TraversalNode> {
     yield* this.bfs({
       start: opts.sha,
@@ -166,9 +166,9 @@ export default class DagTraversal {
 
   async *descendants(opts: {
     sha: string;
-    maxNodes?: number;
-    maxDepth?: number;
-    signal?: AbortSignal;
+    maxNodes?: number | undefined;
+    maxDepth?: number | undefined;
+    signal?: AbortSignal | undefined;
   }): AsyncGenerator<TraversalNode> {
     yield* this.bfs({
       start: opts.sha,
@@ -182,8 +182,8 @@ export default class DagTraversal {
   async isReachable(opts: {
     from: string;
     to: string;
-    maxDepth?: number;
-    signal?: AbortSignal;
+    maxDepth?: number | undefined;
+    signal?: AbortSignal | undefined;
   }): Promise<boolean> {
     if (this._pathFinder) {
       const result = await this._pathFinder.findPath(opts);

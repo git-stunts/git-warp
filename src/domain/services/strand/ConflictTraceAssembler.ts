@@ -22,9 +22,11 @@ type HashingService = {
   _hash(payload: unknown): Promise<string>;
 };
 
+type ConflictKind = 'supersession' | 'redundancy' | 'eventual_override';
+
 type GroupedConflict = {
   target: ConflictTarget;
-  kind: string;
+  kind: ConflictKind;
   winner: OpRecord;
   losers: OpRecord[];
   resolution: ConflictResolution;
@@ -82,7 +84,7 @@ function buildLosers(
   evidence: 'summary' | 'standard' | 'full',
 ): ConflictParticipant[] {
   return group.losers
-    .map((loser) => ConflictParticipant.fromRecord({ winner: group.winner, loser, kind: group.kind, evidence, inferCausalRelation }))
+    .map((loser) => ConflictParticipant.fromRecord({ winner: group.winner, loser, kind: group.kind, evidence, inferCausalRelation: (w, l) => inferCausalRelation(w as OpRecord, l as OpRecord) }))
     .sort((a, b) => ConflictAnchor.compare(a.anchor, b.anchor));
 }
 
@@ -156,6 +158,7 @@ async function buildConflictTrace(
   const losers = buildLosers(group, evidence);
   const whyFingerprint = await service._hash(buildWhyFingerprintInput(group, losers));
   const conflictId = await service._hash(buildConflictIdInput({ group, winner, losers, resolvedCoordinate }));
+  const classificationNotes = evidence === 'full' ? [...group.noteCodes].sort(compareStrings) : undefined;
   return new ConflictTrace({
     conflictId,
     kind: group.kind,
@@ -164,7 +167,7 @@ async function buildConflictTrace(
     losers,
     resolution: group.resolution,
     whyFingerprint,
-    classificationNotes: evidence === 'full' ? [...group.noteCodes].sort(compareStrings) : undefined,
+    ...(classificationNotes !== undefined ? { classificationNotes } : {}),
     evidence: buildTraceEvidence(group, evidence),
   });
 }

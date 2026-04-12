@@ -103,7 +103,7 @@ function toSelector(source?: WorldlineSelector | WorldlineSource | null): Worldl
 
   throw new QueryError('unknown worldline source kind', {
     code: 'E_WORLDLINE_SOURCE',
-    context: { kind: String(source.kind) },
+    context: { kind: String((source as { kind?: unknown }).kind) },
   });
 }
 

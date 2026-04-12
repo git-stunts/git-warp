@@ -16,7 +16,6 @@
 import TrustChainPort from '../../ports/TrustChainPort.ts';
 import type { TrustChainTip } from '../../ports/TrustChainPort.ts';
 import { TrustRecord } from '../../domain/trust/TrustRecord.ts';
-import type { DecodedTrustRecord } from '../../domain/trust/TrustRecord.ts';
 import { recordIdPayload, signaturePayload } from '../../domain/trust/canonical.ts';
 import { textEncode } from '../../domain/utils/bytes.ts';
 import { buildTrustRecordRef } from '../../domain/utils/RefLayout.ts';
@@ -167,8 +166,9 @@ type CborCodecInstance = {
 };
 
 async function loadCborCodec(): Promise<CborCodecInstance> {
-  const mod = await import('@git-stunts/git-cas');
-  return new mod.CborCodec() as CborCodecInstance;
+  // Adapter boundary: @git-stunts/git-cas exports CborCodec but TS resolution misses it
+  const mod = await import('@git-stunts/git-cas') as unknown as Record<string, new () => CborCodecInstance>;
+  return new mod['CborCodec']!();
 }
 
 // -- Adapter ------------------------------------------------------------------
@@ -189,8 +189,10 @@ export default class GitTrustChainAdapter extends TrustChainPort {
   }
 
   private async _initCas(): Promise<CasStore> {
-    const casModule = await import('@git-stunts/git-cas');
-    const ContentAddressableStore = casModule.default;
+    // Adapter boundary: @git-stunts/git-cas exports are accessed via dynamic import
+    const casModule = await import('@git-stunts/git-cas') as unknown as Record<string, new (...args: unknown[]) => unknown>;
+    const ContentAddressableStore = casModule['default'] as unknown as new (opts: unknown) => CasStore;
+    const CborCodecCtor = casModule['CborCodec'] as unknown as new () => CborCodecInstance;
     const opts: {
       plumbing: Plumbing;
       codec: CborCodecInstance;
@@ -198,13 +200,13 @@ export default class GitTrustChainAdapter extends TrustChainPort {
       observability?: LoggerObservabilityBridge;
     } = {
       plumbing: this._plumbing,
-      codec: new casModule.CborCodec() as CborCodecInstance,
+      codec: new CborCodecCtor(),
       chunking: { strategy: 'cdc' },
     };
     if (this._logger) {
       opts.observability = new LoggerObservabilityBridge(this._logger);
     }
-    return new ContentAddressableStore(opts) as CasStore;
+    return new ContentAddressableStore(opts);
   }
 
   private async _getCbor(): Promise<CborCodecInstance> {
@@ -383,7 +385,7 @@ export default class GitTrustChainAdapter extends TrustChainPort {
     ref: string,
     commitSha: string,
     expectedSha: string | null,
-    graphName: string,
+    _graphName: string,
   ): Promise<void> {
     for (let attempt = 1; attempt <= MAX_TRANSIENT_CAS_ATTEMPTS; attempt++) {
       try {

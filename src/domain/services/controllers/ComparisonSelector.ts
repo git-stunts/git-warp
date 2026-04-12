@@ -386,7 +386,8 @@ export class StrandComparisonSelector extends NormalizedSelector {
   }
 
   async resolve(graph: ComparisonHost, scope: VisibleStateScope | null) {
-    const strands = createStrandCoordinator(graph as Parameters<typeof createStrandCoordinator>[0]);
+    // Adapter boundary: ComparisonHost is a structural subset of GraphRuntime
+const strands = createStrandCoordinator(graph as unknown as Parameters<typeof createStrandCoordinator>[0]);
     const descriptor = await strands.getOrThrow(this.strandId);
     const state = await callInternalRuntimeMethod<WarpState>(
       graph, 'materializeStrand', this.strandId,
@@ -412,7 +413,8 @@ export class StrandBaseComparisonSelector extends NormalizedSelector {
   }
 
   async resolve(graph: ComparisonHost, scope: VisibleStateScope | null) {
-    const strands = createStrandCoordinator(graph as Parameters<typeof createStrandCoordinator>[0]);
+    // Adapter boundary: ComparisonHost is a structural subset of GraphRuntime
+const strands = createStrandCoordinator(graph as unknown as Parameters<typeof createStrandCoordinator>[0]);
     const descriptor = await strands.getOrThrow(this.strandId);
     const effectiveCeiling = combineCeilings(descriptor.baseObservation.lamportCeiling, this.ceiling);
     const state = await graph.materializeCoordinate({

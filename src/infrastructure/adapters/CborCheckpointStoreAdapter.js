@@ -292,10 +292,10 @@ function _serializeEdgeBirthArray(edgeBirthEvent) {
  * Deserializes props array.
  *
  * @param {Array<[string, unknown]>} propArray
- * @returns {Map<string, import('../../domain/crdt/LWW.ts').LWWRegister<unknown>>}
+ * @returns {Map<string, import('../../domain/crdt/LWW.ts').LWWRegister<import('../../domain/types/PropValue.ts').PropValue>>}
  */
 function _deserializeProps(propArray) {
-  /** @type {Map<string, import('../../domain/crdt/LWW.ts').LWWRegister<unknown>>} */
+  /** @type {Map<string, import('../../domain/crdt/LWW.ts').LWWRegister<import('../../domain/types/PropValue.ts').PropValue>>} */
   const prop = new Map();
   if (!Array.isArray(propArray)) { return prop; }
   for (const [key, registerObj] of propArray) {
@@ -351,7 +351,7 @@ function _serializeLWWRegister(register) {
  * Deserializes an LWW register.
  *
  * @param {{ eventId: { lamport: number, writerId: string, patchSha: string, opIndex: number }, value: unknown } | null} obj
- * @returns {import('../../domain/crdt/LWW.ts').LWWRegister<unknown> | null}
+ * @returns {import('../../domain/crdt/LWW.ts').LWWRegister<import('../../domain/types/PropValue.ts').PropValue> | null}
  */
 function _deserializeLWWRegister(obj) {
   if (obj === null || obj === undefined) { return null; }
@@ -360,6 +360,7 @@ function _deserializeLWWRegister(obj) {
       lamport: obj.eventId.lamport, writerId: obj.eventId.writerId,
       patchSha: obj.eventId.patchSha, opIndex: obj.eventId.opIndex,
     },
-    value: obj.value,
+    // Codec boundary: deserialized value is treated as PropValue
+    value: /** @type {import('../../domain/types/PropValue.ts').PropValue} */ (obj.value),
   };
 }

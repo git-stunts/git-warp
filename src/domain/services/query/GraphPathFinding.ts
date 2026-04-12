@@ -339,7 +339,7 @@ export default class GraphPathFinding {
     heuristicFn: (nodeId: string, goalId: string) => number;
     target: string;
     directionForNeighbors: Direction;
-    options?: NeighborOptions;
+    options?: NeighborOptions | undefined;
     mu: number;
     meeting: string | null;
     rs: RunStats;

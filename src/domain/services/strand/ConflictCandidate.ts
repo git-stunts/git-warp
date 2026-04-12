@@ -46,7 +46,7 @@ function assertInstance(
  * Instances are frozen on construction.
  */
 export default class ConflictCandidate {
-  readonly kind: string;
+  readonly kind: 'supersession' | 'redundancy' | 'eventual_override';
   readonly target: ConflictTarget;
   readonly winner: OpRecord;
   readonly loser: OpRecord;
@@ -58,7 +58,8 @@ export default class ConflictCandidate {
     assertInstance(winner, OpRecord, { fieldName: 'winner', code: 'E_CANDIDATE_INVALID_WINNER', expectedLabel: 'an OpRecord instance' });
     assertInstance(loser, OpRecord, { fieldName: 'loser', code: 'E_CANDIDATE_INVALID_LOSER', expectedLabel: 'an OpRecord instance' });
     assertInstance(resolution, ConflictResolution, { fieldName: 'resolution', code: 'E_CANDIDATE_INVALID_RESOLUTION', expectedLabel: 'a ConflictResolution instance' });
-    this.kind = requireEnum(kind, VALID_KINDS, { name: 'kind', context: CTX });
+    // requireEnum validates kind is one of VALID_KINDS
+    this.kind = requireEnum(kind, VALID_KINDS, { name: 'kind', context: CTX }) as 'supersession' | 'redundancy' | 'eventual_override';
     this.target = target;
     this.winner = winner;
     this.loser = loser;

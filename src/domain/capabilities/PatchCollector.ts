@@ -1,6 +1,5 @@
 import type Patch from '../types/Patch.ts';
 import type WarpState from '../services/state/WarpState.ts';
-import type { TickReceipt } from '../types/TickReceipt.ts';
 
 /** A patch with its content-addressable SHA. */
 export type PatchWithSha = { patch: Patch; sha: string };

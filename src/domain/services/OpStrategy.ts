@@ -5,6 +5,7 @@ import type { EventId } from '../utils/EventId.ts';
 import type { OpLike } from './OpLike.ts';
 import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
 import WarpState from './state/WarpState.ts';
+import type { PropValue } from '../types/PropValue.ts';
 
 /**
  * Abstract base for per-op-type dispatch strategies.
@@ -46,7 +47,7 @@ export default abstract class OpStrategy {
     },
   ): void {
     const current = state.prop.get(mutation.propKey);
-    const winner = lwwMax(current, lwwSet(mutation.eventId, mutation.value));
+    const winner = lwwMax(current, lwwSet(mutation.eventId, mutation.value as PropValue));
     if (winner !== null) {
       state.prop.set(mutation.propKey, winner);
     }

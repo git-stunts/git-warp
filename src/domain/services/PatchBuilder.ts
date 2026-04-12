@@ -17,7 +17,7 @@ import EdgeAdd from '../types/ops/EdgeAdd.ts';
 import EdgeRemove from '../types/ops/EdgeRemove.ts';
 import NodePropSet from '../types/ops/NodePropSet.ts';
 import EdgePropSet from '../types/ops/EdgePropSet.ts';
-import type { OpV2 } from '../types/ops/unions.ts';
+import type { OpV2, CanonicalOpV2 } from '../types/ops/unions.ts';
 import { encodeEdgeKey, CONTENT_PROPERTY_KEY, CONTENT_MIME_PROPERTY_KEY, CONTENT_SIZE_PROPERTY_KEY, EFFECT_NODE_PREFIX } from './KeyCodec.ts';
 import { lowerCanonicalOp } from './OpNormalizer.ts';
 import WriterError from '../errors/WriterError.ts';
@@ -373,7 +373,7 @@ export class PatchBuilder {
 
   build(): Patch {
     const schema = this._hasEdgeProps ? 3 : 2;
-    const rawOps = this._ops.map(lowerCanonicalOp);
+    const rawOps = this._ops.map((op) => lowerCanonicalOp(op as CanonicalOpV2));
     return new Patch({
       schema,
       writer: this._writerId,

@@ -24,13 +24,15 @@ export default class RuntimeStateStore extends MaterializedStateStore {
     if (!r._cachedState || !r._materializedGraph) {
       return null;
     }
+    const adj = r._materializedGraph.adjacency;
+    const outgoing = new Map<string, Array<{ neighborId: string; label: string }>>();
+    for (const [k, v] of (adj?.outgoing ?? [])) { outgoing.set(k, [...v]); }
+    const incoming = new Map<string, Array<{ neighborId: string; label: string }>>();
+    for (const [k, v] of (adj?.incoming ?? [])) { incoming.set(k, [...v]); }
     return new MaterializedSnapshot({
       state: r._cachedState,
       stateHash: r._materializedGraph.stateHash ?? null,
-      adjacency: new AdjacencyMap({
-        outgoing: r._materializedGraph.adjacency?.outgoing ?? new Map(),
-        incoming: r._materializedGraph.adjacency?.incoming ?? new Map(),
-      }),
+      adjacency: new AdjacencyMap({ outgoing, incoming }),
     });
   }
 
@@ -42,7 +44,7 @@ export default class RuntimeStateStore extends MaterializedStateStore {
     for (const [k, v] of adjacency.outgoing) { outgoing.set(k, [...v]); }
     const incoming = new Map<string, Array<{ neighborId: string; label: string }>>();
     for (const [k, v] of adjacency.incoming) { incoming.set(k, [...v]); }
-    r._materializedGraph = { state, stateHash, adjacency: { outgoing, incoming } };
+    r._materializedGraph = { state, stateHash: stateHash ?? '', adjacency: { outgoing, incoming } };
   }
 
   clear(): void {

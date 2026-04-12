@@ -96,15 +96,13 @@ interface PatchSessionOptions {
  */
 export class PatchSession {
   private _builder: PatchBuilder;
-  private _persistence: RefPort;
   private _graphName: string;
   private _writerId: string;
   private _expectedOldHead: string | null;
   private _committed: boolean;
 
-  constructor({ builder, persistence, graphName, writerId, expectedOldHead }: PatchSessionOptions) {
+  constructor({ builder, persistence: _persistence, graphName, writerId, expectedOldHead }: PatchSessionOptions) {
     this._builder = builder;
-    this._persistence = persistence;
     this._graphName = graphName;
     this._writerId = writerId;
     this._expectedOldHead = expectedOldHead;

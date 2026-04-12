@@ -57,7 +57,7 @@ export default class WarpStream<T> {
       return iterable as WarpStream<V>;
     }
     // Wrap sync iterables as async
-    const src = iterable as Record<string | symbol, unknown>;
+    const src = iterable as unknown as Record<string | symbol, unknown>;
     if (typeof src[Symbol.asyncIterator] === 'function') {
       return new WarpStream(iterable as AsyncIterable<V>, options);
     }

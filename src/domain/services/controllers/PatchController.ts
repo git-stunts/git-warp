@@ -249,7 +249,7 @@ export default class PatchController {
     }
     h._patchesSinceCheckpoint++;
     if (h._cachedState && !h._stateDirty && committed && typeof sha === 'string' && sha.length > 0) {
-      let tickReceipt: unknown = null;
+      let tickReceipt: TickReceipt | null = null;
       let diff: PatchDiff | null = null;
       if (h._auditService) {
         const result = applyWithReceipt(h._cachedState, committed, sha);

@@ -191,8 +191,11 @@ wire('observer', async function (this: QueryController, nameOrConfig: string | O
   }
   const h = host(this);
   const snapshot = await resolveSnapshot(h as WarpRuntime, options);
-  const sourceSelector = options?.source !== undefined ? options.source : undefined;
-  return new Observer({ name, config, graph: h, snapshot, source: sourceSelector });
+  const sourceSelector = options?.source !== undefined ? toSelector(options.source) : undefined;
+  return new Observer({
+    name, config, graph: h, snapshot,
+    ...(sourceSelector !== undefined ? { source: sourceSelector } : {}),
+  });
 });
 
 wire('translationCost', async function (this: QueryController, configA: ObserverConfig, configB: ObserverConfig) {

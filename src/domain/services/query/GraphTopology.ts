@@ -53,13 +53,13 @@ export default class GraphTopology {
 
   async topologicalSort(params: {
     start: string | string[];
-    direction?: Direction;
-    options?: NeighborOptions;
-    maxNodes?: number;
-    throwOnCycle?: boolean;
-    signal?: AbortSignal;
-    _returnAdjList?: boolean;
-    _lightweight?: boolean;
+    direction?: Direction | undefined;
+    options?: NeighborOptions | undefined;
+    maxNodes?: number | undefined;
+    throwOnCycle?: boolean | undefined;
+    signal?: AbortSignal | undefined;
+    _returnAdjList?: boolean | undefined;
+    _lightweight?: boolean | undefined;
   }): Promise<{
     sorted: string[];
     hasCycle: boolean;

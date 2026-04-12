@@ -16,7 +16,7 @@ import { buildWriterRef } from '../utils/RefLayout.ts';
 import WriterError from '../errors/WriterError.ts';
 import PatchError from '../errors/PatchError.ts';
 import PersistenceError from '../errors/PersistenceError.ts';
-import type { OpV2 } from '../types/ops/unions.ts';
+import type { OpV2, CanonicalOpV2 } from '../types/ops/unions.ts';
 import type CommitPort from '../../ports/CommitPort.ts';
 import type BlobPort from '../../ports/BlobPort.ts';
 import type TreePort from '../../ports/TreePort.ts';
@@ -100,7 +100,7 @@ export async function commitPatch(state: CommitState): Promise<string> {
 
   // Build Patch
   const schema = state.hasEdgeProps ? 3 : 2;
-  const rawOps = state.ops.map(lowerCanonicalOp);
+  const rawOps = state.ops.map((op) => lowerCanonicalOp(op as CanonicalOpV2));
   const patch = new Patch({
     schema,
     writer: state.writerId,

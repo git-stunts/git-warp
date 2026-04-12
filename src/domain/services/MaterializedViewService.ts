@@ -13,7 +13,6 @@
  */
 
 import defaultCodec from '../utils/defaultCodec.ts';
-import nullLogger from '../utils/nullLogger.ts';
 import LogicalIndexBuildService from './index/LogicalIndexBuildService.ts';
 import LogicalIndexReader from './index/LogicalIndexReader.ts';
 import PropertyIndexReader from './index/PropertyIndexReader.ts';
@@ -56,13 +55,11 @@ export interface MaterializedViewServiceOptions {
 
 export default class MaterializedViewService {
   private readonly _codec: CodecPort;
-  private readonly _logger: LoggerPort;
   private readonly _indexStore: IndexStorePort | null;
 
   constructor(options?: MaterializedViewServiceOptions) {
-    const { codec, logger, indexStore } = options ?? {};
+    const { codec, logger: _logger, indexStore } = options ?? {};
     this._codec = codec ?? defaultCodec;
-    this._logger = logger ?? nullLogger;
     this._indexStore = indexStore ?? null;
   }
 
@@ -70,7 +67,7 @@ export default class MaterializedViewService {
    * Builds a complete MaterializedView from WarpState.
    */
   build(state: WarpState): BuildResult {
-    const svc = new LogicalIndexBuildService({ logger: this._logger });
+    const svc = new LogicalIndexBuildService();
     const { shards, receipt } = svc.buildShards(state);
 
     // P5-LEGACY: encode shards for callers that persist via persistIndexTree().

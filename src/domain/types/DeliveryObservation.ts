@@ -158,7 +158,10 @@ function sortedReplacer(_key: string, value: Record<string, number | string | bo
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
     const sorted: Record<string, number | string | boolean | null> = {};
     for (const k of Object.keys(value).sort()) {
-      sorted[k] = value[k];
+      const v = value[k];
+      if (v !== undefined) {
+        sorted[k] = v;
+      }
     }
     return sorted;
   }

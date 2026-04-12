@@ -103,10 +103,10 @@ export function base64Encode(bytes: Uint8Array): string {
     const b1 = bytes[i + 1]!;
     const b2 = bytes[i + 2]!;
     const n = (b0 << 16) | (b1 << 8) | b2;
-    result += B64_CHARS[(n >>> 18) & 0x3f]
-            + B64_CHARS[(n >>> 12) & 0x3f]
-            + B64_CHARS[(n >>> 6) & 0x3f]
-            + B64_CHARS[n & 0x3f];
+    result += B64_CHARS[(n >>> 18) & 0x3f]!
+            + B64_CHARS[(n >>> 12) & 0x3f]!
+            + B64_CHARS[(n >>> 6) & 0x3f]!
+            + B64_CHARS[n & 0x3f]!;
   }
 
   if (remainder === 1) {

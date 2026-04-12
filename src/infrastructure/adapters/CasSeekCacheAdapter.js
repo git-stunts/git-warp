@@ -112,19 +112,22 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
    * @returns {Promise<CasStore>}
    */
   async _initCas() {
-    const { default: ContentAddressableStore, CborCodec } = await import(
-      /* webpackIgnore: true */ '@git-stunts/git-cas'
-    );
+    // Adapter boundary: @git-stunts/git-cas exports are accessed via dynamic import
+    const casModule = /** @type {Record<string, new(...args: unknown[]) => unknown>} */ (/** @type {unknown} */ (
+      await import(/* webpackIgnore: true */ '@git-stunts/git-cas')
+    ));
+    const ContentAddressableStore = /** @type {new(opts: unknown) => CasStore} */ (casModule['default']);
+    const CborCodecCtor = /** @type {new() => unknown} */ (casModule['CborCodec']);
     /** @type {{ plumbing: unknown, codec: unknown, chunking: { strategy: string }, observability?: unknown }} */
     const opts = {
       plumbing: this._plumbing,
-      codec: new CborCodec(),
+      codec: new CborCodecCtor(),
       chunking: { strategy: 'cdc' },
     };
     if (this._logger !== null && this._logger !== undefined) {
       opts.observability = new LoggerObservabilityBridge(this._logger);
     }
-    return /** @type {CasStore} */ (/** @type {unknown} */ (new ContentAddressableStore(/** @type {ConstructorParameters<typeof ContentAddressableStore>[0]} */ (/** @type {unknown} */ (opts)))));
+    return new ContentAddressableStore(opts);
   }
 
   // ---------------------------------------------------------------------------

@@ -41,11 +41,13 @@ export default class RuntimePatchCollector extends PatchCollector {
   }
 
   async loadCheckpoint(): Promise<CheckpointData | null> {
-    return await this._runtime._loadLatestCheckpoint();
+    // Adapter boundary: _wiredMethods.CheckpointData is structurally identical to PatchCollector.CheckpointData
+    return await this._runtime._loadLatestCheckpoint() as CheckpointData | null;
   }
 
   async loadPatchesSince(checkpoint: CheckpointData): Promise<PatchWithSha[]> {
-    return await this._runtime._loadPatchesSince(checkpoint);
+    // Adapter boundary: same type identity difference as loadCheckpoint
+    return await this._runtime._loadPatchesSince(checkpoint as Parameters<typeof this._runtime._loadPatchesSince>[0]);
   }
 
   async loadPatchChain(toSha: string, fromSha?: string | null): Promise<PatchWithSha[]> {

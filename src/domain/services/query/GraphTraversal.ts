@@ -33,7 +33,6 @@ import { checkAborted } from '../../utils/cancellation.ts';
 import TraversalContext, {
   type TraversalStats,
   type TraversalHooks,
-  type WeightFn,
   DEFAULT_MAX_NODES,
   DEFAULT_MAX_DEPTH,
 } from './TraversalContext.ts';
@@ -64,12 +63,12 @@ export default class GraphTraversal {
 
   async bfs(params: {
     start: string;
-    direction?: Direction;
-    options?: NeighborOptions;
-    maxNodes?: number;
-    maxDepth?: number;
-    signal?: AbortSignal;
-    hooks?: TraversalHooks;
+    direction?: Direction | undefined;
+    options?: NeighborOptions | undefined;
+    maxNodes?: number | undefined;
+    maxDepth?: number | undefined;
+    signal?: AbortSignal | undefined;
+    hooks?: TraversalHooks | undefined;
   }): Promise<{ nodes: string[]; stats: TraversalStats }> {
     const { start, direction = 'out', options, signal, hooks } = params;
     const maxNodes = params.maxNodes ?? DEFAULT_MAX_NODES;

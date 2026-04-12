@@ -31,7 +31,8 @@ import type StrandIntentService from './StrandIntentService.ts';
 import type ClockPort from '../../../ports/ClockPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
-import type { ParsedStrandDescriptor } from '../../utils/parseStrandBlob.ts';
+import type { StrandDescriptor as ParsedStrandDescriptor } from '../../utils/parseStrandBlob.ts';
+import type Patch from '../../types/Patch.ts';
 
 // Re-export constants that were on StrandService
 export { STRAND_SCHEMA_VERSION, STRAND_COORDINATE_VERSION, STRAND_OVERLAY_KIND };
@@ -272,7 +273,7 @@ export default class StrandCoordinator {
     return await this._deps.patches.patch(strandId, build);
   }
 
-  async getPatchEntries(strandId: string, options: { ceiling?: number | null } = {}): Promise<Array<{ patch: unknown; sha: string }>> {
+  async getPatchEntries(strandId: string, options: { ceiling?: number | null } = {}): Promise<Array<{ patch: Patch; sha: string }>> {
     const descriptor = await this.getOrThrow(strandId);
     const ceiling = normalizeLamportCeiling(options.ceiling);
     return await this._deps.materializer.collectPatchEntries(descriptor, { ceiling });

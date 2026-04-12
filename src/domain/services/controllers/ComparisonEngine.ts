@@ -302,8 +302,8 @@ export async function planCoordinateTransferImpl(
     ? await graph.getFrontier()
     : null;
   const comp = await compareCoordinatesImpl(graph, {
-    left: options.source as Record<string, unknown>,
-    right: options.target as Record<string, unknown>,
+    left: options['source'] as Record<string, unknown>,
+    right: options['target'] as Record<string, unknown>,
     ...(scope !== null && scope !== undefined ? { scope } : {}),
   });
   const sourceSide = await normalizedSource.resolve(graph, scope, liveFrontier);

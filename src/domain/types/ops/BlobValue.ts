@@ -7,10 +7,7 @@ import Op from './Op.ts';
 import { OP_SCOPE_BOTH } from './OpScope.ts';
 import { assertNonEmptyString, assertNoReservedBytes } from './validate.ts';
 import OpApplied from './OpApplied.ts';
-import type WarpState from '../../services/state/WarpState.ts';
-import type { EventId } from '../../utils/EventId.ts';
 import type OpOutcomeResult from './OpOutcomeResult.ts';
-import type { PatchDiff } from '../PatchDiff.ts';
 import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
 
 export default class BlobValue extends Op<'BlobValue'> {

@@ -93,7 +93,8 @@ class BTR {
     if (missing) {
       throw new CryptoError(`Invalid BTR: missing field ${missing}`, { code: 'E_BTR_INVALID' });
     }
-    return new BTR(obj as BTRFields);
+    // Adapter boundary: validated by findMissingField above
+    return new BTR(obj as unknown as BTRFields);
   }
 }
 

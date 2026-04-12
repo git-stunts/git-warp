@@ -26,7 +26,6 @@ import EdgeRemove from '../types/ops/EdgeRemove.ts';
 import NodeAdd from '../types/ops/NodeAdd.ts';
 import NodePropSet from '../types/ops/NodePropSet.ts';
 import NodeRemove from '../types/ops/NodeRemove.ts';
-import Op from '../types/ops/Op.ts';
 import PropSet from '../types/ops/PropSet.ts';
 import type { CanonicalOpV2, OpV2 } from '../types/ops/unions.ts';
 import type { OpLike } from './OpLike.ts';

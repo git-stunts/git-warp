@@ -16,6 +16,7 @@ import { hexEncode, hexDecode } from '../../utils/bytes.ts';
 import CryptoError from '../../errors/CryptoError.ts';
 import WarpError from '../../errors/WarpError.ts';
 import { BTR, VerificationResult, BTR_VERSION, validateBTRStructure } from './BTR.ts';
+import type { PatchEntryJSON } from './BTR.ts';
 import { ProvenancePayload } from './ProvenancePayload.ts';
 import { serializeFullState, deserializeFullState, computeStateHash } from '../state/StateSerializer.ts';
 
@@ -91,14 +92,15 @@ async function createBTR(
 
   // eslint-disable-next-line no-restricted-syntax -- wall-clock default for BTR timestamp
   const timestamp = opts.timestamp ?? new Date().toISOString();
-  const deps: CryptoDeps = { crypto: opts.crypto, codec: opts.codec };
+  const deps: CryptoDeps = opts.codec ? { crypto: opts.crypto, codec: opts.codec } : { crypto: opts.crypto };
   const codecOpt = opts.codec ? { codec: opts.codec } : {};
 
   const h_in = await computeStateHash(initialState, deps);
   const U_0 = serializeFullState(initialState, codecOpt);
   const finalState = payload.replay(initialState);
   const h_out = await computeStateHash(finalState, deps);
-  const P = payload.toJSON();
+  // Codec boundary: PatchEntry objects are JSON-safe when codec-encoded
+  const P = payload.toJSON() as unknown as readonly PatchEntryJSON[];
 
   const fields = { version: BTR_VERSION, h_in, h_out, U_0, P, t: timestamp };
   const kappa = await computeHmac(fields, opts.key, deps);
@@ -133,7 +135,7 @@ async function verifyBTR(
     return new VerificationResult(false, 'CryptoPort required for HMAC verification');
   }
 
-  const deps: CryptoDeps = { crypto: opts.crypto, codec: opts.codec };
+  const deps: CryptoDeps = opts.crypto ? (opts.codec ? { crypto: opts.crypto, codec: opts.codec } : { crypto: opts.crypto }) : { crypto: opts.crypto };
 
   // HMAC verification
   let hmacValid: boolean;
@@ -190,13 +192,14 @@ async function replayBTR(
 ): Promise<{ state: WarpState; h_out: string }> {
   const codecOpt = deps.codec ? { codec: deps.codec } : {};
   const initialState = deserializeFullState(btr.U_0, codecOpt);
-  const payload = ProvenancePayload.fromJSON(btr.P);
+  // Codec boundary: PatchEntryJSON is the JSON-safe form of PatchEntry
+  const payload = ProvenancePayload.fromJSON(btr.P as unknown as import('./ProvenancePayload.ts').PatchEntry[]);
   const finalState = payload.replay(initialState);
 
   if (!deps.crypto) {
     throw new CryptoError('CryptoPort required for state hash', { code: 'E_MISSING_CRYPTO' });
   }
-  const h_out = await computeStateHash(finalState, { crypto: deps.crypto, codec: deps.codec });
+  const h_out = await computeStateHash(finalState, deps.codec ? { crypto: deps.crypto, codec: deps.codec } : { crypto: deps.crypto });
   return { state: finalState, h_out };
 }
 

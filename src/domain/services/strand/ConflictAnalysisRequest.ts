@@ -219,6 +219,7 @@ export default class ConflictAnalysisRequest {
       });
     }
     const requirement = TARGET_REQUIREMENTS[target.targetKind];
+    if (!requirement) { return; }
     ConflictAnalysisRequest._requireTargetFields(target, requirement.fields, requirement.message);
   }
 

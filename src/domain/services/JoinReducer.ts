@@ -31,8 +31,6 @@ import OpValidator from './OpValidator.ts';
 import ReceiptBuilder from './ReceiptBuilder.ts';
 import Op from '../types/ops/Op.ts';
 import type { OpLike } from './OpLike.ts';
-import { OP_STRATEGIES } from './OpStrategies.ts';
-
 // -------------------------------------------------------------------
 // Re-exports kept during the incremental split. Consumers will migrate
 // to the direct import paths in a follow-up pass and these go away.

@@ -23,6 +23,7 @@ import type CodecPort from '../../../ports/CodecPort.ts';
 import type { LWWRegister } from '../../crdt/LWW.ts';
 import type { EventId } from '../../utils/EventId.ts';
 import type { WarpState as WarpStateType } from '../JoinReducer.ts';
+import type { PropValue } from '../../types/PropValue.ts';
 
 interface SerializedLWWRegister {
   eventId: { lamport: number; opIndex: number; patchSha: string; writerId: string };
@@ -58,7 +59,7 @@ export function serializeFullState(
   });
 }
 
-function serializePropsArray(propMap: Map<string, LWWRegister<unknown>>): Array<[string, unknown]> {
+function serializePropsArray(propMap: Map<string, LWWRegister<PropValue>>): Array<[string, unknown]> {
   const propArray: Array<[string, unknown]> = [];
   for (const [key, register] of propMap) {
     propArray.push([key, serializeLWWRegister(register)]);
@@ -171,8 +172,8 @@ export function deserializeAppliedVV(
 // Helper Functions
 // ============================================================================
 
-function deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWRegister<unknown>> {
-  const prop = new Map<string, LWWRegister<unknown>>();
+function deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWRegister<PropValue>> {
+  const prop = new Map<string, LWWRegister<PropValue>>();
   if (!Array.isArray(propArray)) { return prop; }
   for (const [key, registerObj] of propArray) {
     const register = deserializeLWWRegister(registerObj as SerializedLWWRegister | null);
@@ -201,7 +202,7 @@ function deserializeSingleBirthEvent(val: unknown): { lamport: number; writerId:
   return { lamport: ev.lamport, writerId: ev.writerId, patchSha: ev.patchSha, opIndex: ev.opIndex };
 }
 
-function serializeLWWRegister(register: LWWRegister<unknown>): SerializedLWWRegister | null {
+function serializeLWWRegister(register: LWWRegister<PropValue>): SerializedLWWRegister | null {
   if (register === null || register === undefined) { return null; }
   return {
     eventId: {
@@ -214,7 +215,7 @@ function serializeLWWRegister(register: LWWRegister<unknown>): SerializedLWWRegi
   };
 }
 
-function deserializeLWWRegister(obj: SerializedLWWRegister | null): LWWRegister<unknown> | null {
+function deserializeLWWRegister(obj: SerializedLWWRegister | null): LWWRegister<PropValue> | null {
   if (obj === null || obj === undefined) { return null; }
   return {
     eventId: {
@@ -223,6 +224,7 @@ function deserializeLWWRegister(obj: SerializedLWWRegister | null): LWWRegister<
       patchSha: obj.eventId.patchSha,
       opIndex: obj.eventId.opIndex,
     },
-    value: obj.value,
+    // Codec boundary: deserialized value is typed as PropValue
+    value: obj.value as PropValue,
   };
 }

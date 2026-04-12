@@ -10,6 +10,7 @@ import type { EventId } from '../../utils/EventId.ts';
 import type WarpState from '../../services/state/WarpState.ts';
 import type { PatchDiff } from '../PatchDiff.ts';
 import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
+import type { PropValue } from '../PropValue.ts';
 
 /** LWW property mutation — sets or updates a prop register. */
 export function mutateProp(
@@ -19,7 +20,7 @@ export function mutateProp(
   value: unknown,
 ): void {
   const current = state.prop.get(propKey);
-  const winner = lwwMax(current, lwwSet(eventId, value));
+  const winner = lwwMax(current, lwwSet(eventId, value as PropValue));
   if (winner !== null) {
     state.prop.set(propKey, winner);
   }

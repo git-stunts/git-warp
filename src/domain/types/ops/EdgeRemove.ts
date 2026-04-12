@@ -6,7 +6,6 @@ import Op from './Op.ts';
 import { OP_SCOPE_BOTH } from './OpScope.ts';
 import { assertNonEmptyString, assertNoReservedBytes, assertArray } from './validate.ts';
 import type WarpState from '../../services/state/WarpState.ts';
-import type { EventId } from '../../utils/EventId.ts';
 import type OpOutcomeResult from './OpOutcomeResult.ts';
 import type { PatchDiff } from '../PatchDiff.ts';
 import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';

@@ -49,14 +49,6 @@ function _assertValidLamport(lamport: unknown, commitSha: string): asserts lampo
   }
 }
 
-/** Maps private Writer fields to PatchBuilder option keys. */
-const _WRITER_OPTIONAL_KEYS: ReadonlyArray<[string, string]> = [
-  ['_patchJournal', 'patchJournal'],
-  ['_logger', 'logger'],
-  ['_onCommitSuccess', 'onCommitSuccess'],
-  ['_blobStorage', 'blobStorage'],
-] as const;
-
 /** Validates that a PatchJournalPort is provided. */
 function _validateJournal(patchJournal: PatchJournalPort): void {
   if (patchJournal === null || patchJournal === undefined) {
@@ -64,16 +56,6 @@ function _validateJournal(patchJournal: PatchJournalPort): void {
       'E_MISSING_JOURNAL',
       'patchJournal is required — Writer.beginPatch() produces patches that must be persisted via a PatchJournalPort.',
     );
-  }
-}
-
-/** Copies optional Writer fields to PatchBuilder options. */
-function _copyWriterOptionals(writer: Record<string, unknown>, opts: Record<string, unknown>): void {
-  for (const [src, dst] of _WRITER_OPTIONAL_KEYS) {
-    const val = writer[src];
-    if (val !== undefined && val !== null) {
-      opts[dst] = val;
-    }
   }
 }
 
@@ -180,7 +162,10 @@ export class Writer {
       getCurrentState: this._getCurrentState,
       onDeleteWithData: this._onDeleteWithData,
     };
-    _copyWriterOptionals(this as unknown as Record<string, unknown>, opts);
+    if (this._patchJournal) { opts['patchJournal'] = this._patchJournal; }
+    if (this._logger) { opts['logger'] = this._logger; }
+    if (this._onCommitSuccess) { opts['onCommitSuccess'] = this._onCommitSuccess; }
+    if (this._blobStorage) { opts['blobStorage'] = this._blobStorage; }
     return opts as ConstructorParameters<typeof PatchBuilder>[0];
   }
 
