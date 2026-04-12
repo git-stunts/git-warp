@@ -4,7 +4,7 @@
  * @module domain/services/strand/createStrandCoordinator
  */
 
-import StrandDescriptorStore from './StrandDescriptorStore.js';
+import StrandDescriptorStore from './StrandDescriptorStore.ts';
 import StrandMaterializer from './StrandMaterializer.js';
 import StrandPatchService from './StrandPatchService.js';
 import StrandIntentService from './StrandIntentService.js';

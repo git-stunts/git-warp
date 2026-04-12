@@ -15,7 +15,7 @@ import {
   normalizeWritable, normalizeBraidedStrandIds, patchTouchesEntity,
 } from './StrandDescriptorValidation.ts';
 import { normalizeOptionalString } from './strandShared.js';
-import type StrandDescriptorStore from './StrandDescriptorStore.js';
+import type StrandDescriptorStore from './StrandDescriptorStore.ts';
 import type StrandMaterializer from './StrandMaterializer.js';
 import type StrandPatchService from './StrandPatchService.js';
 import type StrandIntentService from './StrandIntentService.js';
