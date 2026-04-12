@@ -10,7 +10,7 @@ import {
   encodeEdgePropKey,
   encodePropKey,
   isEdgePropKey,
-} from '../KeyCodec.js';
+} from '../KeyCodec.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import WarpState from './WarpState.ts';
 

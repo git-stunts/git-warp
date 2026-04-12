@@ -27,26 +27,51 @@
  */
 
 import { createEmptyState, cloneState, join as joinPatch } from './JoinReducer.ts';
-import { decodePropKey } from './KeyCodec.js';
+import { decodePropKey } from './KeyCodec.ts';
+import type WarpState from './state/WarpState.ts';
+import type Patch from '../types/Patch.ts';
 
 /**
- * Unwraps a property value from its CRDT envelope.
- *
- * InlineValue objects `{ type: 'inline', value: ... }` are unwrapped
- * to their inner value. All other values pass through unchanged.
- *
- * @param {unknown} value - Property value (potentially InlineValue-wrapped)
- * @returns {unknown} The unwrapped value
- * @private
+ * A node snapshot passed to temporal predicates.
  */
+export interface NodeSnapshot {
+  id: string;
+  exists: boolean;
+  props: Record<string, unknown>;
+}
+
+/**
+ * A patch with its SHA, used during replay.
+ */
+interface PatchEntry {
+  patch: Patch;
+  sha: string;
+}
+
+/**
+ * A checkpoint that can be used to start replay from a known-good state.
+ */
+interface Checkpoint {
+  state: WarpState;
+  maxLamport: number;
+}
+
+/**
+ * Parameters shared by both replay functions.
+ */
+interface ReplayParams {
+  state: WarpState;
+  allPatches: PatchEntry[];
+  startIdx: number;
+  since: number;
+  nodeId: string;
+  predicate: (snapshot: NodeSnapshot) => boolean;
+}
+
 /**
  * Checks if a value is a non-null object.
- *
- * @param {unknown} value - Value to check
- * @returns {boolean} True if non-null object
- * @private
  */
-function isNonNullObject(value) {
+function isNonNullObject(value: unknown): value is object {
   return value !== null && value !== undefined && typeof value === 'object';
 }
 
@@ -55,15 +80,11 @@ function isNonNullObject(value) {
  *
  * InlineValue objects `{ type: 'inline', value: ... }` are unwrapped
  * to their inner value. All other values pass through unchanged.
- *
- * @param {unknown} value - Property value (potentially InlineValue-wrapped)
- * @returns {unknown} The unwrapped value
- * @private
  */
-function unwrapValue(value) {
-  if (isNonNullObject(value) && 'type' in /** @type {object} */ (value)) {
-    const rec = /** @type {{ type: string, value?: unknown }} */ (value);
-    return /** @type {unknown} */ (rec.type === 'inline' ? rec.value : value);
+function unwrapValue(value: unknown): unknown {
+  if (isNonNullObject(value) && 'type' in value) {
+    const rec = value as { type: string; value?: unknown };
+    return rec.type === 'inline' ? rec.value : value;
   }
   return value;
 }
@@ -78,15 +99,10 @@ function unwrapValue(value) {
  *
  * If the node does not exist in the state, `exists` is false and
  * `props` is an empty object.
- *
- * @param {import('./JoinReducer.ts').WarpState} state - Current state
- * @param {string} nodeId - Node ID to extract
- * @returns {{ id: string, exists: boolean, props: Record<string, unknown> }}
  */
-function extractNodeSnapshot(state, nodeId) {
+function extractNodeSnapshot(state: WarpState, nodeId: string): NodeSnapshot {
   const exists = state.nodeAlive.contains(nodeId);
-  /** @type {Record<string, unknown>} */
-  const props = {};
+  const props: Record<string, unknown> = {};
 
   if (exists) {
     const prefix = `${nodeId}\0`;
@@ -103,18 +119,15 @@ function extractNodeSnapshot(state, nodeId) {
 
 /**
  * Evaluates checkpoint boundary semantics for `always()`.
- *
- * @param {{ state: import('./JoinReducer.ts').WarpState, nodeId: string, predicate: (snapshot: {id: string, exists: boolean, props: Record<string, unknown>}) => boolean, checkpointMaxLamport: number|null, since: number }} params
- * @returns {{ nodeEverExisted: boolean, shouldReturn: boolean, returnValue: boolean }}
- * @private
  */
-function evaluateAlwaysCheckpointBoundary({
-  state,
-  nodeId,
-  predicate,
-  checkpointMaxLamport,
-  since,
-}) {
+function evaluateAlwaysCheckpointBoundary(params: {
+  state: WarpState;
+  nodeId: string;
+  predicate: (snapshot: NodeSnapshot) => boolean;
+  checkpointMaxLamport: number | null;
+  since: number;
+}): { nodeEverExisted: boolean; shouldReturn: boolean; returnValue: boolean } {
+  const { state, nodeId, predicate, checkpointMaxLamport, since } = params;
   if (checkpointMaxLamport !== since) {
     return { nodeEverExisted: false, shouldReturn: false, returnValue: false };
   }
@@ -130,18 +143,15 @@ function evaluateAlwaysCheckpointBoundary({
 
 /**
  * Evaluates checkpoint boundary semantics for `eventually()`.
- *
- * @param {{ state: import('./JoinReducer.ts').WarpState, nodeId: string, predicate: (snapshot: {id: string, exists: boolean, props: Record<string, unknown>}) => boolean, checkpointMaxLamport: number|null, since: number }} params
- * @returns {boolean}
- * @private
  */
-function evaluateEventuallyCheckpointBoundary({
-  state,
-  nodeId,
-  predicate,
-  checkpointMaxLamport,
-  since,
-}) {
+function evaluateEventuallyCheckpointBoundary(params: {
+  state: WarpState;
+  nodeId: string;
+  predicate: (snapshot: NodeSnapshot) => boolean;
+  checkpointMaxLamport: number | null;
+  since: number;
+}): boolean {
+  const { state, nodeId, predicate, checkpointMaxLamport, since } = params;
   if (checkpointMaxLamport !== since) {
     return false;
   }
@@ -151,47 +161,33 @@ function evaluateEventuallyCheckpointBoundary({
 
 /**
  * Attempts to resume from a checkpoint for temporal replay.
- *
- * @param {() => Promise<{state: import('./JoinReducer.ts').WarpState, maxLamport: number}|null>} loadCheckpoint
- * @param {Array<{patch: {lamport: number}, sha: string}>} allPatches
- * @param {number} since
- * @returns {Promise<{state: import('./JoinReducer.ts').WarpState, startIdx: number, checkpointMaxLamport: number|null}>}
- * @private
  */
-async function _tryCheckpointStart(loadCheckpoint, allPatches, since) {
-  const ck = /** @type {{ state: import('./JoinReducer.ts').WarpState, maxLamport: number } | null} */ (await loadCheckpoint());
+async function _tryCheckpointStart(
+  loadCheckpoint: () => Promise<Checkpoint | null>,
+  allPatches: PatchEntry[],
+  since: number,
+): Promise<{ state: WarpState; startIdx: number; checkpointMaxLamport: number | null }> {
+  const ck = await loadCheckpoint();
   const usable = ck !== null && ck.maxLamport <= since;
   if (!usable) {
     return { state: createEmptyState(), startIdx: 0, checkpointMaxLamport: null };
   }
-  const idx = allPatches.findIndex(({ patch }) => patch.lamport > ck.maxLamport);
+  const idx = allPatches.findIndex(({ patch }) => (patch as { lamport: number }).lamport > ck.maxLamport);
   const startIdx = idx < 0 ? allPatches.length : idx;
   return { state: cloneState(ck.state), startIdx, checkpointMaxLamport: ck.maxLamport };
 }
 
 /**
- * @typedef {{ state: import('./JoinReducer.ts').WarpState, allPatches: Array<{patch: import('../types/Patch.ts').default, sha: string}>, startIdx: number, since: number, nodeId: string, predicate: (snapshot: {id: string, exists: boolean, props: Record<string, unknown>}) => boolean }} ReplayParams
- */
-
-/**
  * Extracts the lamport timestamp from a patch safely.
- *
- * @param {import('../types/Patch.ts').default} patch - The patch
- * @returns {number} The lamport value
- * @private
  */
-function patchLamport(patch) {
-  return /** @type {{ lamport: number }} */ (patch).lamport;
+function patchLamport(patch: Patch): number {
+  return (patch as unknown as { lamport: number }).lamport;
 }
 
 /**
  * Replays patches for the `always` operator, checking the predicate at each tick.
- *
- * @param {ReplayParams & { nodeEverExisted: boolean }} opts
- * @returns {boolean} True if predicate held at every tick
- * @private
  */
-function _replayAlways(opts) {
+function _replayAlways(opts: ReplayParams & { nodeEverExisted: boolean }): boolean {
   const { state, allPatches, startIdx, since, nodeId, predicate } = opts;
   let seen = opts.nodeEverExisted;
   for (const { patch, sha } of allPatches.slice(startIdx)) {
@@ -214,12 +210,8 @@ function _replayAlways(opts) {
 
 /**
  * Replays patches for the `eventually` operator, short-circuiting on first match.
- *
- * @param {ReplayParams} opts
- * @returns {boolean} True if predicate held at any tick
- * @private
  */
-function _replayEventually(opts) {
+function _replayEventually(opts: ReplayParams): boolean {
   const { state, allPatches, startIdx, since, nodeId, predicate } = opts;
   for (const { patch, sha } of allPatches.slice(startIdx)) {
     joinPatch(state, patch, sha);
@@ -243,16 +235,18 @@ function _replayEventually(opts) {
  * Both methods are async because they need to load patches from Git.
  */
 export class TemporalQuery {
+  private readonly _loadAllPatches: () => Promise<PatchEntry[]>;
+  private readonly _loadCheckpoint: (() => Promise<Checkpoint | null>) | null;
+
   /**
    * Creates a TemporalQuery with patch-loading and optional checkpoint functions.
-   *
-   * @param {{ loadAllPatches: () => Promise<Array<{patch: import('../types/Patch.ts').default, sha: string}>>, loadCheckpoint?: () => Promise<{state: import('./JoinReducer.ts').WarpState, maxLamport: number}|null> }} options
    */
-  constructor({ loadAllPatches, loadCheckpoint }) {
-    /** @type {() => Promise<Array<{patch: import('../types/Patch.ts').default, sha: string}>>} */
-    this._loadAllPatches = loadAllPatches;
-    /** @type {(() => Promise<{state: import('./JoinReducer.ts').WarpState, maxLamport: number}|null>)|null} */
-    this._loadCheckpoint = loadCheckpoint || null;
+  constructor(options: {
+    loadAllPatches: () => Promise<PatchEntry[]>;
+    loadCheckpoint?: () => Promise<Checkpoint | null>;
+  }) {
+    this._loadAllPatches = options.loadAllPatches;
+    this._loadCheckpoint = options.loadCheckpoint ?? null;
   }
 
   /**
@@ -264,11 +258,10 @@ export class TemporalQuery {
    *
    * Returns false if the node never existed in the range.
    *
-   * @param {string} nodeId - The node ID to evaluate
-   * @param {(snapshot: {id: string, exists: boolean, props: Record<string, unknown>}) => boolean} predicate - Predicate receiving node snapshot
-   *   `{ id, exists, props }`. Should return boolean.
-   * @param {{ since?: number }} [options={}] - Options
-   * @returns {Promise<boolean>} True if predicate held at every tick
+   * @param nodeId - The node ID to evaluate
+   * @param predicate - Predicate receiving node snapshot `{ id, exists, props }`. Should return boolean.
+   * @param options - Options
+   * @returns True if predicate held at every tick
    *
    * @example
    * const result = await graph.temporal.always(
@@ -277,7 +270,11 @@ export class TemporalQuery {
    *   { since: 0 }
    * );
    */
-  async always(nodeId, predicate, options = {}) {
+  async always(
+    nodeId: string,
+    predicate: (snapshot: NodeSnapshot) => boolean,
+    options: { since?: number } = {},
+  ): Promise<boolean> {
     const since = options.since ?? 0;
     const allPatches = await this._loadAllPatches();
 
@@ -299,11 +296,10 @@ export class TemporalQuery {
    * builds the node snapshot and tests the predicate. Returns true as
    * soon as the predicate returns true at any tick.
    *
-   * @param {string} nodeId - The node ID to evaluate
-   * @param {(snapshot: {id: string, exists: boolean, props: Record<string, unknown>}) => boolean} predicate - Predicate receiving node snapshot
-   *   `{ id, exists, props }`. Should return boolean.
-   * @param {{ since?: number }} [options={}] - Options
-   * @returns {Promise<boolean>} True if predicate held at any tick
+   * @param nodeId - The node ID to evaluate
+   * @param predicate - Predicate receiving node snapshot `{ id, exists, props }`. Should return boolean.
+   * @param options - Options
+   * @returns True if predicate held at any tick
    *
    * @example
    * const result = await graph.temporal.eventually(
@@ -312,7 +308,11 @@ export class TemporalQuery {
    *   { since: 0 }
    * );
    */
-  async eventually(nodeId, predicate, options = {}) {
+  async eventually(
+    nodeId: string,
+    predicate: (snapshot: NodeSnapshot) => boolean,
+    options: { since?: number } = {},
+  ): Promise<boolean> {
     const since = options.since ?? 0;
     const allPatches = await this._loadAllPatches();
 
@@ -344,12 +344,14 @@ export class TemporalQuery {
    * the remaining same-tick patches. Checkpoint creators MUST guarantee the
    * all-or-nothing inclusion property for any given Lamport tick.
    *
-   * @param {Array<{patch: {lamport: number}, sha: string}>} allPatches
-   * @param {number} since - Minimum Lamport tick
-   * @returns {Promise<{state: import('./JoinReducer.ts').WarpState, startIdx: number, checkpointMaxLamport: number|null}>}
-   * @private
+   * @param allPatches - All patches in causal order
+   * @param since - Minimum Lamport tick
+   * @returns Start state, start index, and checkpoint max lamport
    */
-  async _resolveStart(allPatches, since) {
+  private async _resolveStart(
+    allPatches: PatchEntry[],
+    since: number,
+  ): Promise<{ state: WarpState; startIdx: number; checkpointMaxLamport: number | null }> {
     if (since > 0 && this._loadCheckpoint !== null) {
       return await _tryCheckpointStart(this._loadCheckpoint, allPatches, since);
     }

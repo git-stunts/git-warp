@@ -9,7 +9,7 @@ import {
   applyOpV2,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
-import { encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';
+import { encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';

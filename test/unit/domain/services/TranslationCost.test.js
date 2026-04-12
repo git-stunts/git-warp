@@ -1,9 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
 import { createEmptyState, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
-import { computeTranslationCost } from '../../../../src/domain/services/TranslationCost.js';
+import { computeTranslationCost } from '../../../../src/domain/services/TranslationCost.ts';
 
 /** @param {any} graph @param {(state: any) => void} seedFn */
 function setupGraphState(graph, seedFn) {

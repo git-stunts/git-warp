@@ -6,7 +6,7 @@
 import Op from './Op.ts';
 import { OP_SCOPE_CANONICAL } from './OpScope.ts';
 import { assertNonEmptyString, assertNoReservedBytes } from './validate.ts';
-import { encodePropKey } from '../../services/KeyCodec.js';
+import { encodePropKey } from '../../services/KeyCodec.ts';
 import { mutateProp, snapshotProp, accumulatePropDiff } from './propHelpers.ts';
 import type WarpState from '../../services/state/WarpState.ts';
 import type { EventId } from '../../utils/EventId.ts';

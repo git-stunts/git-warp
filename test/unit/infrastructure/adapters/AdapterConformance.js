@@ -7,7 +7,7 @@
  * @module test/unit/infrastructure/adapters/AdapterConformance
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import GitLogParser from '../../../../src/domain/services/GitLogParser.js';
+import GitLogParser from '../../../../src/domain/services/GitLogParser.ts';
 
 /**
  * @param {string} name - Adapter display name for describe blocks

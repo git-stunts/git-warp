@@ -12,7 +12,7 @@ import {
   CONTENT_PROPERTY_KEY,
   CONTENT_MIME_PROPERTY_KEY,
   CONTENT_SIZE_PROPERTY_KEY,
-} from '../KeyCodec.js';
+} from '../KeyCodec.ts';
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { WarpGraphWithMixins } from '../../warp/_internal.ts';

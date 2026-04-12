@@ -9,35 +9,41 @@
 
 import WarpError from '../errors/WarpError.ts';
 
-/**
- * @typedef {Object} FsAdapter
- * @property {(path: string, content: string | Uint8Array, options?: Object) => void} writeFileSync
- * @property {(path: string, mode: number) => void} chmodSync
- * @property {(path: string, encoding?: string) => string} readFileSync
- * @property {(path: string) => boolean} existsSync
- * @property {(path: string, options?: Object) => void} mkdirSync
- */
+export interface FsAdapter {
+  writeFileSync(path: string, content: string | Uint8Array, options?: { mode?: number }): void;
+  chmodSync(path: string, mode: number): void;
+  readFileSync(path: string, encoding?: string): string;
+  existsSync(path: string): boolean;
+  mkdirSync(path: string, options?: { recursive?: boolean }): void;
+}
 
-/**
- * @typedef {Object} PathUtils
- * @property {(...segments: string[]) => string} join
- * @property {(...segments: string[]) => string} resolve
- */
+export interface PathUtils {
+  join(...segments: string[]): string;
+  resolve(...segments: string[]): string;
+}
 
 const DELIMITER_START_PREFIX = '# --- @git-stunts/git-warp post-merge hook';
 const DELIMITER_END = '# --- end @git-stunts/git-warp ---';
 const VERSION_MARKER_PREFIX = '# warp-hook-version:';
 const VERSION_PLACEHOLDER = '__WARP_HOOK_VERSION__';
 
+export type HookKind = 'none' | 'ours' | 'foreign';
+
+export interface HookClassification {
+  kind: HookKind;
+  version?: string;
+  appended?: boolean;
+}
+
 /**
  * Classifies an existing hook file's content.
  *
  * Determines whether the hook is absent, ours (with version), or foreign (third-party).
  *
- * @param {string|null} content - File content or null if missing
- * @returns {{ kind: 'none'|'ours'|'foreign', version?: string, appended?: boolean }}
+ * @param content - File content or null if missing
+ * @returns Classification result
  */
-export function classifyExistingHook(content) {
+export function classifyExistingHook(content: string | null | undefined): HookClassification {
   if (content === null || content === undefined || content.trim() === '') {
     return { kind: 'none' };
   }
@@ -54,11 +60,10 @@ export function classifyExistingHook(content) {
 /**
  * Extracts the warp hook version from a hook file's content.
  *
- * @param {string} content - File content to search
- * @returns {string|null} The version string, or null if not found
- * @private
+ * @param content - File content to search
+ * @returns The version string, or null if not found
  */
-function extractVersion(content) {
+function extractVersion(content: string): string | null {
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
     if (trimmed.startsWith(VERSION_MARKER_PREFIX)) {
@@ -71,32 +76,64 @@ function extractVersion(content) {
   return null;
 }
 
+export type InstallStrategy = 'install' | 'upgrade' | 'append' | 'replace';
+
+export interface InstallResult {
+  action: string;
+  hookPath: string;
+  version: string;
+  backupPath?: string;
+}
+
+export interface HookStatus {
+  installed: boolean;
+  version?: string;
+  current?: boolean;
+  foreign?: boolean;
+  hookPath: string;
+}
+
 export class HookInstaller {
+  private readonly _fs: FsAdapter;
+  private readonly _execGitConfig: (repoPath: string, key: string) => string | null;
+  private readonly _templateDir: string;
+  private readonly _version: string;
+  private readonly _path: PathUtils;
+
   /**
    * Creates a new HookInstaller.
-   *
-   * @param {{ fs: FsAdapter, execGitConfig: (repoPath: string, key: string) => string|null, version: string, templateDir: string, path: PathUtils }} deps - Injected dependencies
    */
-  constructor({ fs, execGitConfig, version, templateDir, path }) {
-    /** @type {FsAdapter} */
+  constructor({
+    fs,
+    execGitConfig,
+    version,
+    templateDir,
+    path,
+  }: {
+    fs: FsAdapter;
+    execGitConfig: (repoPath: string, key: string) => string | null;
+    version: string;
+    templateDir: string;
+    path: PathUtils;
+  }) {
     this._fs = fs;
-    /** @type {(repoPath: string, key: string) => string|null} */
     this._execGitConfig = execGitConfig;
-    /** @type {string} */
     this._templateDir = templateDir;
-    /** @type {string} */
     this._version = version;
-    /** @type {PathUtils} */
     this._path = path;
   }
 
   /**
-   * Get the current hook status for a repo.
-   *
-   * @param {string} repoPath - Path to git repo
-   * @returns {{ installed: boolean, version?: string, current?: boolean, foreign?: boolean, hookPath: string }}
+   * Returns the version string this installer stamps hooks with.
    */
-  getHookStatus(repoPath) {
+  get version(): string {
+    return this._version;
+  }
+
+  /**
+   * Get the current hook status for a repo.
+   */
+  getHookStatus(repoPath: string): HookStatus {
     const hookPath = this._resolveHookPath(repoPath);
     const content = this._readFile(hookPath);
     const classification = classifyExistingHook(content);
@@ -121,12 +158,11 @@ export class HookInstaller {
   /**
    * Installs the post-merge hook.
    *
-   * @param {string} repoPath - Path to git repo
-   * @param {{ strategy: 'install'|'upgrade'|'append'|'replace' }} opts - Install options
-   * @returns {{ action: string, hookPath: string, version: string, backupPath?: string }}
-   * @throws {Error} If the strategy is unknown
+   * @param repoPath - Path to git repo
+   * @param opts - Install options
+   * @throws {WarpError} If the strategy is unknown
    */
-  install(repoPath, { strategy }) {
+  install(repoPath: string, { strategy }: { strategy: InstallStrategy }): InstallResult {
     const hooksDir = this._resolveHooksDir(repoPath);
     const hookPath = this._path.join(hooksDir, 'post-merge');
     const template = this._loadTemplate();
@@ -156,12 +192,8 @@ export class HookInstaller {
 
   /**
    * Writes a fresh hook file with no pre-existing content.
-   *
-   * @param {string} hookPath
-   * @param {string} content
-   * @private
    */
-  _freshInstall(hookPath, content) {
+  private _freshInstall(hookPath: string, content: string): InstallResult {
     this._fs.writeFileSync(hookPath, content, { mode: 0o755 });
     this._fs.chmodSync(hookPath, 0o755);
     return {
@@ -173,17 +205,13 @@ export class HookInstaller {
 
   /**
    * Upgrades an existing warp hook, preserving appended third-party content when possible.
-   *
-   * @param {string} hookPath
-   * @param {string} stamped
-   * @private
    */
-  _upgradeInstall(hookPath, stamped) {
+  private _upgradeInstall(hookPath: string, stamped: string): InstallResult {
     const existing = this._readFile(hookPath);
     const classification = classifyExistingHook(existing);
 
     if (classification.appended === true) {
-      const updated = replaceDelimitedSection(/** @type {string} */ (existing), stamped);
+      const updated = replaceDelimitedSection(existing as string, stamped);
       // If delimiters were corrupted, replaceDelimitedSection returns unchanged content — fall back to overwrite
       if (updated === existing) {
         this._fs.writeFileSync(hookPath, stamped, { mode: 0o755 });
@@ -204,12 +232,8 @@ export class HookInstaller {
 
   /**
    * Appends the warp hook body to an existing third-party hook file.
-   *
-   * @param {string} hookPath
-   * @param {string} stamped
-   * @private
    */
-  _appendInstall(hookPath, stamped) {
+  private _appendInstall(hookPath: string, stamped: string): InstallResult {
     const existing = this._readFile(hookPath) ?? '';
     const body = stripShebang(stamped);
     const appended = buildAppendedContent(existing, body);
@@ -224,14 +248,10 @@ export class HookInstaller {
 
   /**
    * Replaces an existing hook file, creating a backup of the original.
-   *
-   * @param {string} hookPath
-   * @param {string} stamped
-   * @private
    */
-  _replaceInstall(hookPath, stamped) {
+  private _replaceInstall(hookPath: string, stamped: string): InstallResult {
     const existing = this._readFile(hookPath);
-    let backupPath;
+    let backupPath: string | undefined;
     if (existing !== null && existing.length > 0) {
       backupPath = `${hookPath}.backup`;
       this._fs.writeFileSync(backupPath, existing);
@@ -250,31 +270,23 @@ export class HookInstaller {
 
   /**
    * Loads the post-merge hook template from the configured template directory.
-   *
-   * @private
    */
-  _loadTemplate() {
+  private _loadTemplate(): string {
     const templatePath = this._path.join(this._templateDir, 'post-merge.sh');
     return this._fs.readFileSync(templatePath, 'utf8');
   }
 
   /**
    * Replaces version placeholders in the template with the actual version string.
-   *
-   * @param {string} template
-   * @private
    */
-  _stampVersion(template) {
+  private _stampVersion(template: string): string {
     return template.replaceAll(VERSION_PLACEHOLDER, this._version);
   }
 
   /**
    * Resolves the hooks directory, respecting core.hooksPath and custom git-dir config.
-   *
-   * @param {string} repoPath
-   * @private
    */
-  _resolveHooksDir(repoPath) {
+  private _resolveHooksDir(repoPath: string): string {
     const customPath = this._execGitConfig(repoPath, 'core.hooksPath');
     if (customPath !== null && customPath.length > 0) {
       return resolveHooksPath(customPath, repoPath, this._path);
@@ -290,21 +302,15 @@ export class HookInstaller {
 
   /**
    * Resolves the full path to the post-merge hook file.
-   *
-   * @param {string} repoPath
-   * @private
    */
-  _resolveHookPath(repoPath) {
+  private _resolveHookPath(repoPath: string): string {
     return this._path.join(this._resolveHooksDir(repoPath), 'post-merge');
   }
 
   /**
    * Reads a file, returning null if it does not exist or cannot be read.
-   *
-   * @param {string} filePath
-   * @private
    */
-  _readFile(filePath) {
+  private _readFile(filePath: string): string | null {
     try {
       return this._fs.readFileSync(filePath, 'utf8');
     } catch {
@@ -314,11 +320,8 @@ export class HookInstaller {
 
   /**
    * Creates the directory if it does not already exist.
-   *
-   * @param {string} dirPath
-   * @private
    */
-  _ensureDir(dirPath) {
+  private _ensureDir(dirPath: string): void {
     if (!this._fs.existsSync(dirPath)) {
       this._fs.mkdirSync(dirPath, { recursive: true });
     }
@@ -328,13 +331,12 @@ export class HookInstaller {
 /**
  * Resolves a hooks path, handling both absolute and relative paths.
  *
- * @param {string} customPath - The custom hooks path from git config
- * @param {string} repoPath - The repo root path for resolving relative paths
- * @param {{ resolve: (...segments: string[]) => string }} pathUtils - Path utilities
- * @returns {string} Resolved absolute hooks directory path
- * @private
+ * @param customPath - The custom hooks path from git config
+ * @param repoPath - The repo root path for resolving relative paths
+ * @param pathUtils - Path utilities
+ * @returns Resolved absolute hooks directory path
  */
-function resolveHooksPath(customPath, repoPath, pathUtils) {
+function resolveHooksPath(customPath: string, repoPath: string, pathUtils: { resolve: (...segments: string[]) => string }): string {
   if (customPath.startsWith('/')) {
     return customPath;
   }
@@ -344,11 +346,10 @@ function resolveHooksPath(customPath, repoPath, pathUtils) {
 /**
  * Strips the shebang line from hook content.
  *
- * @param {string} content - Hook file content
- * @returns {string} Content without the shebang line
- * @private
+ * @param content - Hook file content
+ * @returns Content without the shebang line
  */
-function stripShebang(content) {
+function stripShebang(content: string): string {
   const lines = content.split('\n');
   if (lines[0] !== undefined && lines[0].startsWith('#!')) {
     return lines.slice(1).join('\n');
@@ -359,12 +360,11 @@ function stripShebang(content) {
 /**
  * Builds content by appending the warp hook body to existing hook content.
  *
- * @param {string} existing - Existing hook file content
- * @param {string} body - Warp hook body to append (without shebang)
- * @returns {string} Combined hook content
- * @private
+ * @param existing - Existing hook file content
+ * @param body - Warp hook body to append (without shebang)
+ * @returns Combined hook content
  */
-function buildAppendedContent(existing, body) {
+function buildAppendedContent(existing: string, body: string): string {
   const trimmed = existing.trimEnd();
   return `${trimmed}\n\n${body}`;
 }
@@ -374,12 +374,11 @@ function buildAppendedContent(existing, body) {
  *
  * Returns the original content unchanged if delimiters are not found.
  *
- * @param {string} existing - Existing hook file content
- * @param {string} stamped - New version-stamped hook content
- * @returns {string} Updated content with replaced section, or original if delimiters missing
- * @private
+ * @param existing - Existing hook file content
+ * @param stamped - New version-stamped hook content
+ * @returns Updated content with replaced section, or original if delimiters missing
  */
-function replaceDelimitedSection(existing, stamped) {
+function replaceDelimitedSection(existing: string, stamped: string): string {
   const body = stripShebang(stamped);
   const startIdx = existing.indexOf(DELIMITER_START_PREFIX);
   const endIdx = existing.indexOf(DELIMITER_END);

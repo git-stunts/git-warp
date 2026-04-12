@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import path from 'node:path';
-import { HookInstaller, classifyExistingHook } from '../../../../src/domain/services/HookInstaller.js';
+import { HookInstaller, classifyExistingHook } from '../../../../src/domain/services/HookInstaller.ts';
 
 const VERSION = '7.1.0';
 

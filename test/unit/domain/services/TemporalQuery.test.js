@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TemporalQuery } from '../../../../src/domain/services/TemporalQuery.js';
+import { TemporalQuery } from '../../../../src/domain/services/TemporalQuery.ts';
 import {
   createNodeAddV2,
   createPropSetV2,

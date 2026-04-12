@@ -11,52 +11,43 @@
  * @see docs/design/layer-boundary.md
  */
 
-import { createEffectEmission } from '../types/EffectEmission.ts';
-
-/**
- * @typedef {import('../types/EffectEmission.ts').EffectEmission} EffectEmission
- * @typedef {import('../types/ExternalizationPolicy.ts').ExternalizationPolicy} ExternalizationPolicy
- * @typedef {import('../types/DeliveryObservation.ts').DeliveryObservation} DeliveryObservation
- * @typedef {import('../../ports/EffectSinkPort.ts').default} EffectSinkPort
- */
+import { createEffectEmission, type EffectEmission } from '../types/EffectEmission.ts';
+import type { ExternalizationPolicy } from '../types/ExternalizationPolicy.ts';
+import type { DeliveryObservation } from '../types/DeliveryObservation.ts';
+import type EffectSinkPort from '../../ports/EffectSinkPort.ts';
 
 /** Prefix for auto-generated emission IDs. */
 const EMISSION_ID_PREFIX = 'eff-';
 
-/** @type {number} */
 let _counter = 0;
 
 /**
  * Generates a unique emission ID using the provided clock.
- *
- * @param {{ now: () => number }} clock
- * @returns {string}
  */
-function generateId(clock) {
+function generateId(clock: { now: () => number }): string {
   _counter += 1;
   return `${EMISSION_ID_PREFIX}${clock.now()}-${_counter}`;
 }
 
-/** @type {{ frontier: Record<string, string> | null, ceiling: number | null }} */
-const NULL_COORDINATE = { frontier: null, ceiling: null };
+const NULL_COORDINATE: { frontier: Record<string, string> | null; ceiling: number | null } = {
+  frontier: null,
+  ceiling: null,
+};
 
 /**
  * Extracts the writer from emit options, defaulting to null.
- *
- * @param {{ writer?: string | null }} [options]
- * @returns {string | null}
  */
-function resolveWriter(options) {
+function resolveWriter(options?: { writer?: string | null }): string | null {
   return options?.writer ?? null;
 }
 
 /**
  * Normalizes a raw coordinate object, defaulting undefined fields to null.
- *
- * @param {{ frontier?: Record<string, string> | null, ceiling?: number | null }} coord
- * @returns {{ frontier: Record<string, string> | null, ceiling: number | null }}
  */
-function normalizeCoordinate(coord) {
+function normalizeCoordinate(coord: {
+  frontier?: Record<string, string> | null;
+  ceiling?: number | null;
+}): { frontier: Record<string, string> | null; ceiling: number | null } {
   return {
     frontier: coord.frontier ?? null,
     ceiling: coord.ceiling ?? null,
@@ -65,11 +56,10 @@ function normalizeCoordinate(coord) {
 
 /**
  * Extracts the coordinate from emit options, defaulting to null frontier and ceiling.
- *
- * @param {{ coordinate?: { frontier?: Record<string, string> | null, ceiling?: number | null } }} [options]
- * @returns {{ frontier: Record<string, string> | null, ceiling: number | null }}
  */
-function resolveCoordinate(options) {
+function resolveCoordinate(options?: {
+  coordinate?: { frontier?: Record<string, string> | null; ceiling?: number | null };
+}): { frontier: Record<string, string> | null; ceiling: number | null } {
   const coord = options?.coordinate ?? null;
   if (coord === null) {
     return NULL_COORDINATE;
@@ -78,76 +68,66 @@ function resolveCoordinate(options) {
 }
 
 export class EffectPipeline {
+  private _sink: EffectSinkPort;
+  private _lens: Readonly<ExternalizationPolicy>;
+  private readonly _clock: { now: () => number };
+  private _emissions: EffectEmission[];
+  private _observations: DeliveryObservation[];
+
   /**
    * Constructs a pipeline bound to a delivery sink, an externalization lens, and a clock source.
-   *
-   * @param {{
-   *   sink: EffectSinkPort,
-   *   lens: Readonly<ExternalizationPolicy>,
-   *   clock: { now: () => number }
-   * }} options
    */
-  constructor({ sink, lens, clock }) {
-    /** @type {EffectSinkPort} */
-    this._sink = sink;
-    /** @type {Readonly<ExternalizationPolicy>} */
-    this._lens = lens;
-    /** @type {{ now: () => number }} */
-    this._clock = clock;
-    /** @type {EffectEmission[]} */
+  constructor(options: {
+    sink: EffectSinkPort;
+    lens: Readonly<ExternalizationPolicy>;
+    clock: { now: () => number };
+  }) {
+    this._sink = options.sink;
+    this._lens = options.lens;
+    this._clock = options.clock;
     this._emissions = [];
-    /** @type {DeliveryObservation[]} */
     this._observations = [];
   }
 
   /**
    * Returns the current externalization policy governing delivery behavior.
-   *
-   * @returns {Readonly<ExternalizationPolicy>}
    */
-  get lens() {
+  get lens(): Readonly<ExternalizationPolicy> {
     return this._lens;
   }
 
   /**
    * Replaces the externalization policy for subsequent deliveries.
-   *
-   * @param {Readonly<ExternalizationPolicy>} newLens
    */
-  set lens(newLens) {
+  set lens(newLens: Readonly<ExternalizationPolicy>) {
     this._lens = newLens;
   }
 
   /**
    * Returns a copy of the emission log.
-   *
-   * @returns {ReadonlyArray<EffectEmission>}
    */
-  get emissions() {
+  get emissions(): ReadonlyArray<EffectEmission> {
     return [...this._emissions];
   }
 
   /**
    * Returns a copy of the observation log.
-   *
-   * @returns {ReadonlyArray<DeliveryObservation>}
    */
-  get observations() {
+  get observations(): ReadonlyArray<DeliveryObservation> {
     return [...this._observations];
   }
 
   /**
    * Emits an effect and delivers it through the configured sink.
-   *
-   * @param {string} kind - Effect kind (generic string)
-   * @param {unknown} payload - Opaque effect payload
-   * @param {{
-   *   writer?: string | null,
-   *   coordinate?: { frontier?: Record<string, string> | null, ceiling?: number | null }
-   * }} [options]
-   * @returns {Promise<{ emission: EffectEmission, observations: DeliveryObservation | DeliveryObservation[] }>}
    */
-  async emit(kind, payload, options) {
+  async emit(
+    kind: string,
+    payload: unknown,
+    options?: {
+      writer?: string | null;
+      coordinate?: { frontier?: Record<string, string> | null; ceiling?: number | null };
+    },
+  ): Promise<{ emission: EffectEmission; observations: DeliveryObservation | DeliveryObservation[] }> {
     const emission = createEffectEmission({
       id: generateId(this._clock),
       kind,
@@ -167,11 +147,8 @@ export class EffectPipeline {
 
   /**
    * Appends one or more delivery observations to the internal observation log.
-   *
-   * @param {DeliveryObservation | DeliveryObservation[]} observations
-   * @returns {void}
    */
-  _recordObservations(observations) {
+  private _recordObservations(observations: DeliveryObservation | DeliveryObservation[]): void {
     if (Array.isArray(observations)) {
       for (const obs of observations) {
         this._observations.push(obs);

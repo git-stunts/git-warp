@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import GitLogParser, { RECORD_SEPARATOR } from '../../../../src/domain/services/GitLogParser.js';
+import GitLogParser, { RECORD_SEPARATOR } from '../../../../src/domain/services/GitLogParser.ts';
 import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
 
 describe('GitLogParser', () => {

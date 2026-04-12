@@ -13,13 +13,12 @@ import QueryError from '../../errors/QueryError.ts';
 import { computeChecksum } from '../../utils/checksumUtils.ts';
 import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod.ts';
 import createStrandCoordinator from '../strand/createStrandCoordinator.ts';
-import { createStateReader } from '../state/StateReader.js';
-import { computeStateHash } from '../state/StateSerializer.js';
+import { createStateReader } from '../state/StateReader.ts';
+import { computeStateHash } from '../state/StateSerializer.ts';
 import {
-  normalizeVisibleStateScope,
   scopeMaterializedState,
   scopePatchEntriesV1,
-} from '../VisibleStateScope.js';
+} from '../VisibleStateScope.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type Patch from '../../types/Patch.ts';
 

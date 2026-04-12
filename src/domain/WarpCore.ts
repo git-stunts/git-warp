@@ -5,11 +5,11 @@ import { toInternalStrandShape, toPublicStrandShape } from './utils/strandPublic
 import {
   buildCoordinateComparisonFact,
   buildCoordinateTransferPlanFact,
-} from './services/CoordinateFactExport.js';
+} from './services/CoordinateFactExport.ts';
 import { computeChecksum } from './utils/checksumUtils.ts';
 
 import type CryptoPort from '../ports/CryptoPort.ts';
-import type { EffectPipeline } from './services/EffectPipeline.js';
+import type { EffectPipeline } from './services/EffectPipeline.ts';
 import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
 
 type ContentMeta = {

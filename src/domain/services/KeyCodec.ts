@@ -16,59 +16,54 @@ export const FIELD_SEPARATOR = '\0';
 /**
  * Prefix byte for edge property keys. Guarantees no collision with node
  * property keys (which start with a node-ID character, never \x01).
- * @const {string}
  */
 export const EDGE_PROP_PREFIX = '\x01';
 
 /**
  * Well-known property key for content attachment.
  * Stores a content-addressed blob OID as the property value.
- * @const {string}
  */
 export const CONTENT_PROPERTY_KEY = '_content';
 
 /**
  * Well-known property key for attached content MIME metadata.
  * Stores a MIME type hint for the attached logical content referenced by `_content`.
- * @const {string}
  */
 export const CONTENT_MIME_PROPERTY_KEY = '_content.mime';
 
 /**
  * Well-known property key for attached content byte-size metadata.
  * Stores the byte length of the attached logical content referenced by `_content`.
- * @const {string}
  */
 export const CONTENT_SIZE_PROPERTY_KEY = '_content.size';
 
 /**
  * Reserved node ID prefix for substrate-internal effect entities.
  * Observers match this prefix to discover effect nodes.
- * @const {string}
  */
 export const EFFECT_NODE_PREFIX = '@warp/effect:';
 
 /**
  * Encodes an edge key to a string for Map storage.
  *
- * @param {string} from - Source node ID
- * @param {string} to - Target node ID
- * @param {string} label - Edge label/type
- * @returns {string} Encoded edge key in format "from\0to\0label"
+ * @param from - Source node ID
+ * @param to - Target node ID
+ * @param label - Edge label/type
+ * @returns Encoded edge key in format "from\0to\0label"
  * @see decodeEdgeKey - The inverse operation
  */
-export function encodeEdgeKey(from, to, label) {
+export function encodeEdgeKey(from: string, to: string, label: string): string {
   return `${from}\0${to}\0${label}`;
 }
 
 /**
  * Decodes an edge key string back to its component parts.
  *
- * @param {string} key - Encoded edge key in format "from\0to\0label"
- * @returns {{from: string, to: string, label: string}}
+ * @param key - Encoded edge key in format "from\0to\0label"
+ * @returns Decoded edge components
  * @see encodeEdgeKey - The inverse operation
  */
-export function decodeEdgeKey(key) {
+export function decodeEdgeKey(key: string): { from: string; to: string; label: string } {
   const parts = key.split('\0');
   return { from: parts[0] ?? '', to: parts[1] ?? '', label: parts[2] ?? '' };
 }
@@ -76,23 +71,23 @@ export function decodeEdgeKey(key) {
 /**
  * Encodes a node property key for Map storage.
  *
- * @param {string} nodeId - The ID of the node owning the property
- * @param {string} propKey - The property name/key
- * @returns {string} Encoded property key in format "nodeId\0propKey"
+ * @param nodeId - The ID of the node owning the property
+ * @param propKey - The property name/key
+ * @returns Encoded property key in format "nodeId\0propKey"
  * @see decodePropKey - The inverse operation
  */
-export function encodePropKey(nodeId, propKey) {
+export function encodePropKey(nodeId: string, propKey: string): string {
   return `${nodeId}\0${propKey}`;
 }
 
 /**
  * Decodes a node property key string back to its component parts.
  *
- * @param {string} key - Encoded property key in format "nodeId\0propKey"
- * @returns {{nodeId: string, propKey: string}}
+ * @param key - Encoded property key in format "nodeId\0propKey"
+ * @returns Decoded property components
  * @see encodePropKey - The inverse operation
  */
-export function decodePropKey(key) {
+export function decodePropKey(key: string): { nodeId: string; propKey: string } {
   const parts = key.split('\0');
   return { nodeId: parts[0] ?? '', propKey: parts[1] ?? '' };
 }
@@ -104,13 +99,13 @@ export function decodePropKey(key) {
  *
  * The \x01 prefix guarantees collision-freedom with node property keys.
  *
- * @param {string} from - Source node ID
- * @param {string} to - Target node ID
- * @param {string} label - Edge label
- * @param {string} propKey - Property name
- * @returns {string}
+ * @param from - Source node ID
+ * @param to - Target node ID
+ * @param label - Edge label
+ * @param propKey - Property name
+ * @returns Encoded edge property key
  */
-export function encodeEdgePropKey(from, to, label, propKey) {
+export function encodeEdgePropKey(from: string, to: string, label: string, propKey: string): string {
   return `${EDGE_PROP_PREFIX}${from}\0${to}\0${label}\0${propKey}`;
 }
 
@@ -123,31 +118,31 @@ export function encodeEdgePropKey(from, to, label, propKey) {
  *
  * Format: `\x01from\0to\0label`
  *
- * @param {string} from - Source node ID
- * @param {string} to - Target node ID
- * @param {string} label - Edge label
- * @returns {string}
+ * @param from - Source node ID
+ * @param to - Target node ID
+ * @param label - Edge label
+ * @returns Encoded legacy edge property node
  */
-export function encodeLegacyEdgePropNode(from, to, label) {
+export function encodeLegacyEdgePropNode(from: string, to: string, label: string): string {
   return `${EDGE_PROP_PREFIX}${from}\0${to}\0${label}`;
 }
 
 /**
  * Returns true if a raw PropSet `node` field encodes an edge identity.
- * @param {string} node - The `node` field from a raw PropSet op
- * @returns {boolean}
+ * @param node - The `node` field from a raw PropSet op
+ * @returns True if this is a legacy edge property node encoding
  */
-export function isLegacyEdgePropNode(node) {
+export function isLegacyEdgePropNode(node: string): boolean {
   return typeof node === 'string' && node.length > 0 && node[0] === EDGE_PROP_PREFIX;
 }
 
 /**
  * Decodes a legacy edge-property `node` field back to its components.
- * @param {string} node - The `node` field (must start with \x01)
- * @returns {{from: string, to: string, label: string}}
+ * @param node - The `node` field (must start with \x01)
+ * @returns Decoded edge components
  * @throws {WarpError} If the node field is not a valid legacy edge-property encoding
  */
-export function decodeLegacyEdgePropNode(node) {
+export function decodeLegacyEdgePropNode(node: string): { from: string; to: string; label: string } {
   if (!isLegacyEdgePropNode(node)) {
     throw new WarpError(
       'Invalid legacy edge-property node: missing \\x01 prefix',
@@ -174,21 +169,21 @@ export function decodeLegacyEdgePropNode(node) {
 
 /**
  * Returns true if the encoded key is an edge property key.
- * @param {string} key - Encoded property key
- * @returns {boolean}
+ * @param key - Encoded property key
+ * @returns True if this is an edge property key
  */
-export function isEdgePropKey(key) {
+export function isEdgePropKey(key: string): boolean {
   return key[0] === EDGE_PROP_PREFIX;
 }
 
 /**
  * Decodes an edge property key string.
- * @param {string} encoded - Encoded edge property key (must start with \x01)
- * @returns {{from: string, to: string, label: string, propKey: string}}
+ * @param encoded - Encoded edge property key (must start with \x01)
+ * @returns Decoded edge property components
  * @throws {WarpError} If the encoded key is missing the edge property prefix
  * @throws {WarpError} If the encoded key does not contain exactly 4 segments
  */
-export function decodeEdgePropKey(encoded) {
+export function decodeEdgePropKey(encoded: string): { from: string; to: string; label: string; propKey: string } {
   if (!isEdgePropKey(encoded)) {
     throw new WarpError(
       'Invalid edge property key: missing prefix',

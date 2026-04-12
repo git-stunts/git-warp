@@ -15,7 +15,7 @@
 import type ORSet from '../crdt/ORSet.ts';
 import type WarpState from './state/WarpState.ts';
 import type { PatchDiff } from '../types/PatchDiff.ts';
-import { decodeEdgeKey } from './KeyCodec.js';
+import { decodeEdgeKey } from './KeyCodec.ts';
 
 export default class DiffCalculator {
   /**

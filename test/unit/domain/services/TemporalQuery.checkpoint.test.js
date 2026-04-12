@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { TemporalQuery } from '../../../../src/domain/services/TemporalQuery.js';
+import { TemporalQuery } from '../../../../src/domain/services/TemporalQuery.ts';
 import { createEmptyState, join as joinPatch } from '../../../../src/domain/services/JoinReducer.ts';
 import {
   createNodeAddV2,

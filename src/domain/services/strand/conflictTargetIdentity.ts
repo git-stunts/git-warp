@@ -8,7 +8,7 @@
  */
 
 import { OP_STRATEGIES } from '../JoinReducer.ts';
-import { decodeEdgeKey } from '../KeyCodec.js';
+import { decodeEdgeKey } from '../KeyCodec.ts';
 import ConflictTarget from '../../types/conflict/ConflictTarget.ts';
 import { compareStrings } from '../../types/conflict/validation.ts';
 

@@ -11,9 +11,9 @@ import {
   decodeEdgePropKey,
   encodeEdgeKey,
   decodeEdgeKey,
-} from '../KeyCodec.js';
+} from '../KeyCodec.ts';
 import { compareEventIds } from '../../utils/EventId.ts';
-import { createImmutableWarpState } from '../ImmutableSnapshot.js';
+import { createImmutableWarpState } from '../ImmutableSnapshot.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { WarpGraphWithMixins } from '../../warp/_internal.ts';
 import type NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';

@@ -4,7 +4,7 @@ import {
   planVisibleStateTransfer,
   VISIBLE_STATE_TRANSFER_PLAN_VERSION,
 } from '../../../../src/domain/services/transfer/VisibleStateTransferPlanner.ts';
-import { CONTENT_PROPERTY_KEY } from '../../../../src/domain/services/KeyCodec.js';
+import { CONTENT_PROPERTY_KEY } from '../../../../src/domain/services/KeyCodec.ts';
 
 function makeEdgeKey(from, to, label) {
   return `${from}\0${to}\0${label}`;

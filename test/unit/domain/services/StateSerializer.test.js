@@ -27,7 +27,7 @@ import {
   CONTENT_PROPERTY_KEY,
   CONTENT_SIZE_PROPERTY_KEY,
   encodeEdgePropKey,
-} from '../../../../src/domain/services/KeyCodec.js';
+} from '../../../../src/domain/services/KeyCodec.ts';
 
 const crypto = new NodeCryptoAdapter();
 

@@ -30,7 +30,7 @@ import Op from '../types/ops/Op.ts';
 import PropSet from '../types/ops/PropSet.ts';
 import type { CanonicalOpV2, OpV2 } from '../types/ops/unions.ts';
 import type { OpLike } from './OpLike.ts';
-import { isLegacyEdgePropNode, decodeLegacyEdgePropNode, encodeLegacyEdgePropNode } from './KeyCodec.js';
+import { isLegacyEdgePropNode, decodeLegacyEdgePropNode, encodeLegacyEdgePropNode } from './KeyCodec.ts';
 
 const RUNTIME_OP_CLASSES = [
   NodeAdd,

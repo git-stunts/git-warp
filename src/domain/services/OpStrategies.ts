@@ -27,7 +27,7 @@ import {
   encodePropKey,
   encodeEdgePropKey,
   EDGE_PROP_PREFIX,
-} from './KeyCodec.js';
+} from './KeyCodec.ts';
 import { OP_TYPES } from '../types/TickReceipt.ts';
 import PatchError from '../errors/PatchError.ts';
 import WarpState from './state/WarpState.ts';

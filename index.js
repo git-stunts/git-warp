@@ -37,7 +37,7 @@ import GraphNode from './src/domain/entities/GraphNode.ts';
 import BitmapIndexBuilder from './src/domain/services/index/BitmapIndexBuilder.js';
 import BitmapIndexReader from './src/domain/services/index/BitmapIndexReader.js';
 import IndexRebuildService from './src/domain/services/index/IndexRebuildService.js';
-import HealthCheckService, { HealthStatus } from './src/domain/services/HealthCheckService.js';
+import HealthCheckService, { HealthStatus } from './src/domain/services/HealthCheckService.ts';
 import CommitDagTraversalService from './src/domain/services/dag/CommitDagTraversalService.ts';
 import GraphPersistencePort from './src/ports/GraphPersistencePort.ts';
 import IndexStoragePort from './src/ports/IndexStoragePort.ts';
@@ -103,13 +103,13 @@ import WorldlineSelector from './src/domain/types/WorldlineSelector.ts';
 import LiveSelector from './src/domain/types/LiveSelector.ts';
 import CoordinateSelector from './src/domain/types/CoordinateSelector.ts';
 import StrandSelector from './src/domain/types/StrandSelector.ts';
-import { computeTranslationCost } from './src/domain/services/TranslationCost.js';
+import { computeTranslationCost } from './src/domain/services/TranslationCost.ts';
 import {
   encodeEdgePropKey,
   decodeEdgePropKey,
   isEdgePropKey,
   CONTENT_PROPERTY_KEY,
-} from './src/domain/services/KeyCodec.js';
+} from './src/domain/services/KeyCodec.ts';
 import {
   createTickReceipt,
   canonicalJson as tickReceiptCanonicalJson,
@@ -135,12 +135,12 @@ import {
   replayWormhole,
   serializeWormhole,
   deserializeWormhole,
-} from './src/domain/services/WormholeService.js';
+} from './src/domain/services/WormholeService.ts';
 
 import BisectService from './src/domain/services/BisectService.ts';
 import EffectSinkPort from './src/ports/EffectSinkPort.ts';
 import { MultiplexSink } from './src/domain/services/MultiplexSink.ts';
-import { EffectPipeline } from './src/domain/services/EffectPipeline.js';
+import { EffectPipeline } from './src/domain/services/EffectPipeline.ts';
 import {
   createEffectEmission,
   canonicalEmissionJson,
@@ -171,11 +171,11 @@ import { compareVisibleState } from './src/domain/services/comparison/VisibleSta
 import {
   normalizeVisibleStateScope,
   scopeMaterializedState,
-} from './src/domain/services/VisibleStateScope.js';
+} from './src/domain/services/VisibleStateScope.ts';
 import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
-} from './src/domain/services/CoordinateFactExport.js';
+} from './src/domain/services/CoordinateFactExport.ts';
 
 export {
   GitGraphAdapter,

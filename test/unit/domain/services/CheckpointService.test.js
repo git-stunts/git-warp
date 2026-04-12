@@ -14,7 +14,7 @@ import { createEmptyState, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as en
 import { encodeCheckpointMessage, decodeCheckpointMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
-import { CONTENT_PROPERTY_KEY, encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';
+import { CONTENT_PROPERTY_KEY, encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 const crypto = new NodeCryptoAdapter();

@@ -5,7 +5,7 @@ import {
   replayWormhole,
   serializeWormhole,
   deserializeWormhole,
-} from '../../../../src/domain/services/WormholeService.js';
+} from '../../../../src/domain/services/WormholeService.ts';
 import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.js';
 import WormholeError from '../../../../src/domain/errors/WormholeError.ts';
 import EncryptionError from '../../../../src/domain/errors/EncryptionError.ts';
@@ -22,7 +22,6 @@ import {
 } from '../../../../src/domain/services/JoinReducer.ts';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import {
   createNodeAddV2,

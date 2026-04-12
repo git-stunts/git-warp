@@ -15,7 +15,7 @@ import EdgeRemove from '../../../../src/domain/types/ops/EdgeRemove.ts';
 import BlobValue from '../../../../src/domain/types/ops/BlobValue.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import PatchError from '../../../../src/domain/errors/PatchError.ts';
-import { encodePropKey, encodeEdgePropKey, encodeLegacyEdgePropNode, EDGE_PROP_PREFIX } from '../../../../src/domain/services/KeyCodec.js';
+import { encodePropKey, encodeEdgePropKey, encodeLegacyEdgePropNode, EDGE_PROP_PREFIX } from '../../../../src/domain/services/KeyCodec.ts';
 
 // ============================================================================
 // ADR 1 Test Cases

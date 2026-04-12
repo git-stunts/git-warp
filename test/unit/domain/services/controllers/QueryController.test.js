@@ -11,7 +11,7 @@ import {
   CONTENT_PROPERTY_KEY,
   CONTENT_MIME_PROPERTY_KEY,
   CONTENT_SIZE_PROPERTY_KEY,
-} from '../../../../../src/domain/services/KeyCodec.js';
+} from '../../../../../src/domain/services/KeyCodec.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

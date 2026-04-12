@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import process from 'node:process';
-import { classifyExistingHook } from '../../../src/domain/services/HookInstaller.js';
+import { classifyExistingHook } from '../../../src/domain/services/HookInstaller.ts';
 import { EXIT_CODES, usageError, parseCommandArgs } from '../infrastructure.js';
 import { installHooksSchema } from '../schemas.js';
 import { createHookInstaller, isInteractive, promptUser } from '../shared.js';
@@ -50,7 +50,7 @@ async function resolveStrategy(classification, hookOptions) {
  */
 async function promptForOursStrategy(classification) {
   const installer = createHookInstaller();
-  if (classification.version === installer._version) {
+  if (classification.version === installer.version) {
     return 'up-to-date';
   }
 
@@ -59,7 +59,7 @@ async function promptForOursStrategy(classification) {
   }
 
   const answer = await promptUser(
-    `Upgrade hook from v${classification.version} to v${installer._version}? [Y/n] `,
+    `Upgrade hook from v${classification.version} to v${installer.version}? [Y/n] `,
   );
   if (answer === '' || answer.toLowerCase() === 'y') {
     return 'upgrade';
@@ -113,13 +113,13 @@ function readHookContent(hookPath) {
  *
  * @param {string} strategy - Either 'up-to-date' or 'skip'
  * @param {{ hookPath: string }} status
- * @param {{ _version: string }} installer
+ * @param {{ version: string }} installer
  * @returns {{ payload: unknown, exitCode: number }|null} Response or null if strategy is not a no-op
  */
 function buildNoOpResponse(strategy, status, installer) {
   if (strategy === 'up-to-date') {
     return {
-      payload: { action: 'up-to-date', hookPath: status.hookPath, version: installer._version },
+      payload: { action: 'up-to-date', hookPath: status.hookPath, version: installer.version },
       exitCode: EXIT_CODES.OK,
     };
   }

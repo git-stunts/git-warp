@@ -5,7 +5,7 @@
  * @module domain/services/PatchBuilderValidation
  */
 
-import { FIELD_SEPARATOR, EDGE_PROP_PREFIX } from './KeyCodec.js';
+import { FIELD_SEPARATOR, EDGE_PROP_PREFIX } from './KeyCodec.ts';
 import PatchError from '../errors/PatchError.ts';
 import type { WarpState } from './JoinReducer.ts';
 

@@ -9,7 +9,7 @@
 import Op from './Op.ts';
 import { OP_SCOPE_RAW } from './OpScope.ts';
 import { assertNonEmptyString, assertNoReservedBytes } from './validate.ts';
-import { encodePropKey, EDGE_PROP_PREFIX } from '../../services/KeyCodec.js';
+import { encodePropKey, EDGE_PROP_PREFIX } from '../../services/KeyCodec.ts';
 import { mutateProp, snapshotProp, accumulatePropDiff } from './propHelpers.ts';
 import PatchError from '../../errors/PatchError.ts';
 import type WarpState from '../../services/state/WarpState.ts';

@@ -9,7 +9,7 @@ import {
   encodeEdgePropKey,
   decodeEdgePropKey,
   isEdgePropKey,
-} from '../../../../src/domain/services/KeyCodec.js';
+} from '../../../../src/domain/services/KeyCodec.ts';
 
 describe('KeyCodec', () => {
   describe('constants', () => {

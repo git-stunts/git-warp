@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import WarpCore from '../../../src/domain/WarpCore.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
-import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
+import { encodePropKey } from '../../../src/domain/services/KeyCodec.ts';
 import { createStateReader } from '../../../src/domain/services/state/StateReader.js';
 import WarpError from '../../../src/domain/errors/WarpError.ts';
 

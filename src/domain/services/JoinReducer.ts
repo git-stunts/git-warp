@@ -50,7 +50,7 @@ export {
   encodePropKey, decodePropKey,
   EDGE_PROP_PREFIX,
   encodeEdgePropKey, isEdgePropKey, decodeEdgePropKey,
-} from './KeyCodec.js';
+} from './KeyCodec.ts';
 export { normalizeRawOp, lowerCanonicalOp } from './OpNormalizer.ts';
 
 /** @deprecated Use OpValidator.RAW_KNOWN_OPS */

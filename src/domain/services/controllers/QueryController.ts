@@ -6,12 +6,12 @@
  */
 
 import { cloneState } from '../JoinReducer.ts';
-import QueryBuilder from '../query/QueryBuilder.js';
-import Observer from '../query/Observer.js';
+import QueryBuilder from '../query/QueryBuilder.ts';
+import Observer from '../query/Observer.ts';
 import { openDetachedGraph } from './detachedOpen.ts';
 import Worldline from '../Worldline.ts';
-import { computeTranslationCost } from '../TranslationCost.js';
-import { computeStateHash } from '../state/StateSerializer.js';
+import { computeTranslationCost } from '../TranslationCost.ts';
+import { computeStateHash } from '../state/StateSerializer.ts';
 import { toInternalStrandShape } from '../../utils/strandPublicShape.ts';
 import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod.ts';
 import WorldlineSelector from '../../types/WorldlineSelector.ts';

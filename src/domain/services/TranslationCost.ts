@@ -13,21 +13,19 @@
  * @see Paper IV, Section 4 -- Directed rulial cost
  */
 
-import { decodeEdgeKey, decodePropKey, isEdgePropKey } from './KeyCodec.js';
+import { decodeEdgeKey, decodePropKey, isEdgePropKey } from './KeyCodec.ts';
 import { matchGlob } from '../utils/matchGlob.ts';
 import QueryError from '../errors/QueryError.ts';
-
-/** @typedef {import('./JoinReducer.ts').WarpState} WarpState */
+import type WarpState from './state/WarpState.ts';
 
 /**
  * Computes the set of property keys visible under an observer config.
- *
- * @param {Map<string, unknown>} allNodeProps - Map of propKey -> placeholder
- * @param {string[]|undefined} expose - Whitelist of property keys
- * @param {string[]|undefined} redact - Blacklist of property keys
- * @returns {Set<string>} Visible property keys
  */
-function visiblePropKeys(allNodeProps, expose, redact) {
+function visiblePropKeys(
+  allNodeProps: Map<string, unknown>,
+  expose: string[] | undefined,
+  redact: string[] | undefined,
+): Set<string> {
   const redactSet = toFilterSet(redact);
   const exposeSet = toFilterSet(expose);
   return filterPropKeys(allNodeProps, exposeSet, redactSet);
@@ -35,25 +33,20 @@ function visiblePropKeys(allNodeProps, expose, redact) {
 
 /**
  * Converts an optional array to a Set for O(1) lookups, or null if empty/absent.
- *
- * @param {string[]|undefined} list
- * @returns {Set<string>|null}
  */
-function toFilterSet(list) {
+function toFilterSet(list: string[] | undefined): Set<string> | null {
   return Array.isArray(list) && list.length > 0 ? new Set(list) : null;
 }
 
 /**
  * Filters property keys through expose/redact sets.
- *
- * @param {Map<string, unknown>} allNodeProps
- * @param {Set<string>|null} exposeSet
- * @param {Set<string>|null} redactSet
- * @returns {Set<string>}
  */
-function filterPropKeys(allNodeProps, exposeSet, redactSet) {
-  /** @type {Set<string>} */
-  const keys = new Set();
+function filterPropKeys(
+  allNodeProps: Map<string, unknown>,
+  exposeSet: Set<string> | null,
+  redactSet: Set<string> | null,
+): Set<string> {
+  const keys = new Set<string>();
   for (const key of allNodeProps.keys()) {
     if (isKeyVisible(key, exposeSet, redactSet)) {
       keys.add(key);
@@ -64,13 +57,8 @@ function filterPropKeys(allNodeProps, exposeSet, redactSet) {
 
 /**
  * Determines whether a property key passes expose/redact filters.
- *
- * @param {string} key
- * @param {Set<string>|null} exposeSet
- * @param {Set<string>|null} redactSet
- * @returns {boolean}
  */
-function isKeyVisible(key, exposeSet, redactSet) {
+function isKeyVisible(key: string, exposeSet: Set<string> | null, redactSet: Set<string> | null): boolean {
   if (redactSet !== null && redactSet.has(key)) {
     return false;
   }
@@ -82,14 +70,9 @@ function isKeyVisible(key, exposeSet, redactSet) {
 
 /**
  * Collects node property keys from state for a given node.
- *
- * @param {WarpState} state - WarpState materialized state
- * @param {string} nodeId - The node ID
- * @returns {Map<string, boolean>} Map of propKey -> true
  */
-function collectNodePropKeys(state, nodeId) {
-  /** @type {Map<string, boolean>} */
-  const props = new Map();
+function collectNodePropKeys(state: WarpState, nodeId: string): Map<string, boolean> {
+  const props = new Map<string, boolean>();
   for (const [propKey] of state.prop) {
     if (isEdgePropKey(propKey)) {
       continue;
@@ -109,21 +92,15 @@ const PROP_WEIGHT = 0.2;
 
 /**
  * Returns a zero-cost result indicating identical views.
- *
- * @returns {{ cost: 0, breakdown: { nodeLoss: 0, edgeLoss: 0, propLoss: 0 } }}
  */
-function zeroCost() {
+function zeroCost(): { cost: 0; breakdown: { nodeLoss: 0; edgeLoss: 0; propLoss: 0 } } {
   return { cost: 0, breakdown: { nodeLoss: 0, edgeLoss: 0, propLoss: 0 } };
 }
 
 /**
  * Counts how many items in `source` are absent from `targetSet`.
- *
- * @param {Array<string>|Set<string>} source - Source collection
- * @param {Set<string>} targetSet - Target set to test against
- * @returns {number}
  */
-function countMissing(source, targetSet) {
+function countMissing(source: Array<string> | Set<string>, targetSet: Set<string>): number {
   let count = 0;
   for (const item of source) {
     if (!targetSet.has(item)) {
@@ -135,26 +112,20 @@ function countMissing(source, targetSet) {
 
 /**
  * Computes edge loss between two observer node sets.
- *
- * @param {WarpState} state
- * @param {Set<string>} nodesASet - Nodes visible to A
- * @param {Set<string>} nodesBSet - Nodes visible to B
- * @returns {number} edgeLoss fraction
  */
-function computeEdgeLoss(state, nodesASet, nodesBSet) {
+function computeEdgeLoss(state: WarpState, nodesASet: Set<string>, nodesBSet: Set<string>): number {
   const { edgesA, edgesBSet } = classifyEdges(state, nodesASet, nodesBSet);
   return countMissing(edgesA, edgesBSet) / Math.max(edgesA.length, 1);
 }
 
 /**
  * Classifies alive edges into A-visible and B-visible buckets.
- *
- * @param {WarpState} state
- * @param {Set<string>} nodesASet
- * @param {Set<string>} nodesBSet
- * @returns {{ edgesA: string[], edgesBSet: Set<string> }}
  */
-function classifyEdges(state, nodesASet, nodesBSet) {
+function classifyEdges(
+  state: WarpState,
+  nodesASet: Set<string>,
+  nodesBSet: Set<string>,
+): { edgesA: string[]; edgesBSet: Set<string> } {
   const aliveEdges = filterAliveEdges(state);
   const edgesA = filterEdgesForNodeSet(aliveEdges, nodesASet);
   const edgesBSet = new Set(filterEdgesForNodeSet(aliveEdges, nodesBSet));
@@ -163,14 +134,12 @@ function classifyEdges(state, nodesASet, nodesBSet) {
 
 /**
  * Filters alive edges to those where both endpoints belong to a given node set.
- *
- * @param {Array<{ edgeKey: string, from: string, to: string }>} edges
- * @param {Set<string>} nodeSet
- * @returns {string[]}
  */
-function filterEdgesForNodeSet(edges, nodeSet) {
-  /** @type {string[]} */
-  const result = [];
+function filterEdgesForNodeSet(
+  edges: Array<{ edgeKey: string; from: string; to: string }>,
+  nodeSet: Set<string>,
+): string[] {
+  const result: string[] = [];
   for (const { edgeKey, from, to } of edges) {
     if (nodeSet.has(from) && nodeSet.has(to)) {
       result.push(edgeKey);
@@ -181,13 +150,9 @@ function filterEdgesForNodeSet(edges, nodeSet) {
 
 /**
  * Filters edges to only those whose both endpoints are alive, returning decoded keys.
- *
- * @param {WarpState} state
- * @returns {Array<{ edgeKey: string, from: string, to: string }>}
  */
-function filterAliveEdges(state) {
-  /** @type {Array<{ edgeKey: string, from: string, to: string }>} */
-  const result = [];
+function filterAliveEdges(state: WarpState): Array<{ edgeKey: string; from: string; to: string }> {
+  const result: Array<{ edgeKey: string; from: string; to: string }> = [];
   for (const edgeKey of state.edgeAlive.elements()) {
     const { from, to } = decodeEdgeKey(edgeKey);
     if (areBothEndpointsAlive(state, from, to)) {
@@ -199,50 +164,50 @@ function filterAliveEdges(state) {
 
 /**
  * Checks whether both endpoints of an edge are alive in the graph state.
- *
- * @param {WarpState} state
- * @param {string} from
- * @param {string} to
- * @returns {boolean}
  */
-function areBothEndpointsAlive(state, from, to) {
+function areBothEndpointsAlive(state: WarpState, from: string, to: string): boolean {
   return state.nodeAlive.contains(from) && state.nodeAlive.contains(to);
+}
+
+interface ObserverConfig {
+  match: string | string[];
+  expose?: string[];
+  redact?: string[];
 }
 
 /**
  * Counts lost properties for a single node between two observer configs.
- *
- * @param {Map<string, boolean>} nodeProps - Property keys for the node
- * @param {{ configA: {expose?: string[], redact?: string[]}, configB: {expose?: string[], redact?: string[]}, nodeInB: boolean }} opts
- * @returns {{ propsInA: number, lostProps: number }}
  */
-function countNodePropLoss(nodeProps, { configA, configB, nodeInB }) {
-  const propsA = visiblePropKeys(nodeProps, configA.expose, configA.redact);
-  if (!nodeInB) {
+function countNodePropLoss(
+  nodeProps: Map<string, boolean>,
+  opts: { configA: ObserverConfig; configB: ObserverConfig; nodeInB: boolean },
+): { propsInA: number; lostProps: number } {
+  const propsA = visiblePropKeys(nodeProps, opts.configA.expose, opts.configA.redact);
+  if (!opts.nodeInB) {
     return { propsInA: propsA.size, lostProps: propsA.size };
   }
-  const propsB = visiblePropKeys(nodeProps, configB.expose, configB.redact);
+  const propsB = visiblePropKeys(nodeProps, opts.configB.expose, opts.configB.redact);
   return { propsInA: propsA.size, lostProps: countMissing(propsA, propsB) };
 }
 
 /**
  * Computes property loss across all A-visible nodes.
- *
- * @param {WarpState} state - WarpState
- * @param {{ nodesA: string[], nodesBSet: Set<string>, configA: {expose?: string[], redact?: string[]}, configB: {expose?: string[], redact?: string[]} }} opts
- * @returns {number} propLoss fraction
  */
-function computePropLoss(state, { nodesA, nodesBSet, configA, configB }) {
+function computePropLoss(
+  state: WarpState,
+  opts: { nodesA: string[]; nodesBSet: Set<string>; configA: ObserverConfig; configB: ObserverConfig },
+): number {
   let totalPropsInA = 0;
   let totalLostProps = 0;
 
-  for (const nodeId of nodesA) {
+  for (const nodeId of opts.nodesA) {
     const nodeProps = collectNodePropKeys(state, nodeId);
     if (nodeProps.size === 0) {
       continue;
     }
     const { propsInA, lostProps } = countNodePropLoss(
-      nodeProps, { configA, configB, nodeInB: nodesBSet.has(nodeId) }
+      nodeProps,
+      { configA: opts.configA, configB: opts.configB, nodeInB: opts.nodesBSet.has(nodeId) },
     );
     totalPropsInA += propsInA;
     totalLostProps += lostProps;
@@ -257,12 +222,16 @@ function computePropLoss(state, { nodesA, nodesBSet, configA, configB }) {
  * The cost measures how much information is lost when translating from
  * A's view to B's view. It is asymmetric: cost(A->B) != cost(B->A) in general.
  *
- * @param {{ match: string|string[], expose?: string[], redact?: string[] }} configA - Observer configuration for A
- * @param {{ match: string|string[], expose?: string[], redact?: string[] }} configB - Observer configuration for B
- * @param {WarpState} state - WarpState materialized state
- * @returns {{ cost: number, breakdown: { nodeLoss: number, edgeLoss: number, propLoss: number } }}
+ * @param configA - Observer configuration for A
+ * @param configB - Observer configuration for B
+ * @param state - WarpState materialized state
+ * @returns Cost and breakdown
  */
-export function computeTranslationCost(configA, configB, state) {
+export function computeTranslationCost(
+  configA: ObserverConfig,
+  configB: ObserverConfig,
+  state: WarpState,
+): { cost: number; breakdown: { nodeLoss: number; edgeLoss: number; propLoss: number } } {
   validateObserverConfigs(configA, configB);
   const allNodes = state.nodeAlive.elements();
   const nodesA = allNodes.filter((id) => matchGlob(configA.match, id));
@@ -285,11 +254,9 @@ export function computeTranslationCost(configA, configB, state) {
 /**
  * Validates that both observer configs have a non-empty match property.
  *
- * @param {{ match: string|string[] }} configA
- * @param {{ match: string|string[] }} configB
  * @throws {QueryError} If either config is missing or has an invalid match
  */
-function validateObserverConfigs(configA, configB) {
+function validateObserverConfigs(configA: unknown, configB: unknown): void {
   if (!isValidMatchConfig(configA) || !isValidMatchConfig(configB)) {
     throw new QueryError(
       'configA.match and configB.match must be non-empty strings or non-empty arrays of strings',
@@ -300,25 +267,19 @@ function validateObserverConfigs(configA, configB) {
 
 /**
  * Checks whether a config has a valid match property (non-empty string or string[]).
- *
- * @param {unknown} config
- * @returns {boolean}
  */
-function isValidMatchConfig(config) {
+function isValidMatchConfig(config: unknown): boolean {
   if (config === null || config === undefined || typeof config !== 'object') {
     return false;
   }
-  const m = /** @type {{match?: unknown}} */ (config).match;
+  const m = (config as { match?: unknown }).match;
   return isValidMatch(m);
 }
 
 /**
  * Checks whether a match value is a non-empty string or non-empty string array.
- *
- * @param {unknown} m
- * @returns {boolean}
  */
-function isValidMatch(m) {
+function isValidMatch(m: unknown): boolean {
   if (typeof m === 'string') {
     return true;
   }
@@ -330,10 +291,7 @@ function isValidMatch(m) {
 
 /**
  * Checks whether a value is a string.
- *
- * @param {unknown} value
- * @returns {boolean}
  */
-function isString(value) {
+function isString(value: unknown): boolean {
   return typeof value === 'string';
 }

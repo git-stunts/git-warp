@@ -4,9 +4,9 @@
  * No host access. No ports. No side effects.
  */
 
-import { createImmutableValue, createImmutableWarpState } from '../ImmutableSnapshot.js';
+import { createImmutableValue, createImmutableWarpState } from '../ImmutableSnapshot.ts';
 import { QueryError } from '../../warp/_internal.ts';
-import { decodeEdgeKey } from '../KeyCodec.js';
+import { decodeEdgeKey } from '../KeyCodec.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 

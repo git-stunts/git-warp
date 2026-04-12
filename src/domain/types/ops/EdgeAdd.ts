@@ -8,7 +8,7 @@ import Op from './Op.ts';
 import { OP_SCOPE_BOTH } from './OpScope.ts';
 import { assertNonEmptyString, assertNoReservedBytes } from './validate.ts';
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
-import { encodeEdgeKey } from '../../services/KeyCodec.js';
+import { encodeEdgeKey } from '../../services/KeyCodec.ts';
 import type WarpState from '../../services/state/WarpState.ts';
 import type OpOutcomeResult from './OpOutcomeResult.ts';
 import type { PatchDiff } from '../PatchDiff.ts';

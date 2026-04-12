@@ -21,20 +21,54 @@
  */
 
 import defaultCodec from '../utils/defaultCodec.ts';
-import ProvenancePayload from './provenance/ProvenancePayload.js';
+import ProvenancePayload from './provenance/ProvenancePayload.ts';
 import WormholeError from '../errors/WormholeError.ts';
 import EncryptionError from '../errors/EncryptionError.ts';
 import PersistenceError from '../errors/PersistenceError.ts';
 import { detectMessageKind, decodePatchMessage } from './codec/WarpMessageCodec.ts';
+import type CommitPort from '../../ports/CommitPort.ts';
+import type BlobPort from '../../ports/BlobPort.ts';
+import type CodecPort from '../../ports/CodecPort.ts';
+import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import type Patch from '../types/Patch.ts';
+import type WarpState from './state/WarpState.ts';
+
+type PersistencePort = CommitPort & BlobPort;
+
+/**
+ * Represents a compressed range of patches (wormhole).
+ *
+ * A WormholeEdge contains:
+ * - The SHA of the first (oldest) patch in the range (fromSha)
+ * - The SHA of the last (newest) patch in the range (toSha)
+ * - The writer ID who created all patches in the range
+ * - A ProvenancePayload containing all patches for replay
+ */
+export interface WormholeEdge {
+  /** SHA of the first (oldest) patch commit */
+  fromSha: string;
+  /** SHA of the last (newest) patch commit */
+  toSha: string;
+  /** Writer ID of all patches in the range */
+  writerId: string;
+  /** Sub-payload for replay */
+  payload: InstanceType<typeof ProvenancePayload>;
+  /** Number of patches compressed */
+  patchCount: number;
+}
+
+interface PatchEntry {
+  patch: Patch;
+  sha: string;
+  writerId: string;
+  parentSha: string | null;
+}
 
 /**
  * Validates that a SHA parameter is a non-empty string.
- * @param {unknown} sha - The SHA to validate
- * @param {string} paramName - Parameter name for error messages
  * @throws {WormholeError} If SHA is invalid
- * @private
  */
-function validateSha(sha, paramName) {
+function validateSha(sha: unknown, paramName: string): void {
   if (sha === null || sha === undefined || typeof sha !== 'string') {
     throw new WormholeError(`${paramName} is required and must be a string`, {
       code: 'E_WORMHOLE_SHA_NOT_FOUND',
@@ -45,13 +79,13 @@ function validateSha(sha, paramName) {
 
 /**
  * Verifies that a SHA exists in the repository.
- * @param {{ nodeExists: (sha: string) => Promise<boolean> }} persistence - Git persistence adapter
- * @param {string} sha - The SHA to verify
- * @param {string} paramName - Parameter name for error messages
  * @throws {WormholeError} If SHA doesn't exist
- * @private
  */
-async function verifyShaExists(persistence, sha, paramName) {
+async function verifyShaExists(
+  persistence: PersistencePort,
+  sha: string,
+  paramName: string,
+): Promise<void> {
   const exists = await persistence.nodeExists(sha);
   if (!exists) {
     throw new WormholeError(`Patch SHA '${sha}' does not exist`, {
@@ -61,16 +95,29 @@ async function verifyShaExists(persistence, sha, paramName) {
   }
 }
 
+interface ProcessCommitOptions {
+  persistence: PersistencePort;
+  sha: string;
+  graphName: string;
+  expectedWriter: string | null;
+  codec?: CodecPort;
+  patchBlobStorage?: BlobStoragePort;
+}
+
 /**
  * Processes a single commit in the wormhole chain.
- * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default, sha: string, graphName: string, expectedWriter: string|null, codec?: import('../../ports/CodecPort.ts').default, patchBlobStorage?: import('../../ports/BlobStoragePort.ts').default }} opts - Options
- * @returns {Promise<{patch: import('../types/Patch.ts').default, sha: string, writerId: string, parentSha: string|null}>}
  * @throws {WormholeError} On validation errors
  * @throws {EncryptionError} If the patch is encrypted but no patchBlobStorage is provided
- * @private
  */
-async function processCommit({ persistence, sha, graphName, expectedWriter, codec: codecOpt, patchBlobStorage }) {
-  const codec = codecOpt || defaultCodec;
+async function processCommit({
+  persistence,
+  sha,
+  graphName,
+  expectedWriter,
+  codec: codecOpt,
+  patchBlobStorage,
+}: ProcessCommitOptions): Promise<PatchEntry> {
+  const codec = codecOpt ?? defaultCodec;
   const nodeInfo = await persistence.getNodeInfo(sha);
   const { message, parents } = nodeInfo;
 
@@ -98,8 +145,7 @@ async function processCommit({ persistence, sha, graphName, expectedWriter, code
     });
   }
 
-  /** @type {Uint8Array} */
-  let patchBuffer;
+  let patchBuffer: Uint8Array;
   if (patchMeta.encrypted) {
     if (!patchBlobStorage) {
       throw new EncryptionError(
@@ -117,7 +163,7 @@ async function processCommit({ persistence, sha, graphName, expectedWriter, code
       { context: { oid: patchMeta.patchOid } },
     );
   }
-  const patch = /** @type {import('../types/Patch.ts').default} */ (codec.decode(patchBuffer));
+  const patch = codec.decode(patchBuffer) as Patch;
 
   return {
     patch,
@@ -127,54 +173,13 @@ async function processCommit({ persistence, sha, graphName, expectedWriter, code
   };
 }
 
-/**
- * Represents a compressed range of patches (wormhole).
- *
- * A WormholeEdge contains:
- * - The SHA of the first (oldest) patch in the range (fromSha)
- * - The SHA of the last (newest) patch in the range (toSha)
- * - The writer ID who created all patches in the range
- * - A ProvenancePayload containing all patches for replay
- *
- * @typedef {Object} WormholeEdge
- * @property {string} fromSha - SHA of the first (oldest) patch commit
- * @property {string} toSha - SHA of the last (newest) patch commit
- * @property {string} writerId - Writer ID of all patches in the range
- * @property {ProvenancePayload} payload - Sub-payload for replay
- * @property {number} patchCount - Number of patches compressed
- */
-
-/**
- * Creates a wormhole compressing a range of patches.
- *
- * The range is specified by two patch SHAs from the same writer. The `fromSha`
- * must be an ancestor of `toSha` in the writer's patch chain. Both endpoints
- * are inclusive in the wormhole.
- *
- * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default, graphName: string, fromSha: string, toSha: string, codec?: import('../../ports/CodecPort.ts').default, patchBlobStorage?: import('../../ports/BlobStoragePort.ts').default }} options - Wormhole creation options
- * @returns {Promise<WormholeEdge>} The created wormhole
- * @throws {WormholeError} If fromSha or toSha doesn't exist (E_WORMHOLE_SHA_NOT_FOUND)
- * @throws {WormholeError} If fromSha is not an ancestor of toSha (E_WORMHOLE_INVALID_RANGE)
- * @throws {WormholeError} If commits span multiple writers (E_WORMHOLE_MULTI_WRITER)
- * @throws {WormholeError} If a commit is not a patch commit (E_WORMHOLE_NOT_PATCH)
- * @throws {EncryptionError} If patches are encrypted but no patchBlobStorage is provided
- */
-export async function createWormhole({ persistence, graphName, fromSha, toSha, codec, patchBlobStorage }) {
-  validateSha(fromSha, 'fromSha');
-  validateSha(toSha, 'toSha');
-  await verifyShaExists(persistence, fromSha, 'fromSha');
-  await verifyShaExists(persistence, toSha, 'toSha');
-
-  const patches = await collectPatchRange({ persistence, graphName, fromSha, toSha, ...(codec !== undefined ? { codec } : {}), ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}) });
-
-  // Reverse to get oldest-first order (as required by ProvenancePayload)
-  patches.reverse();
-
-  const writerId = patches.length > 0 ? /** @type {string} */ (patches[0]?.writerId) : /** @type {string} */ ('');
-  // Strip writerId to match ProvenancePayload's PatchEntry typedef ({patch, sha})
-  const payload = new ProvenancePayload(patches.map(({ patch, sha }) => ({ patch, sha })));
-
-  return { fromSha, toSha, writerId, payload, patchCount: patches.length };
+interface CollectPatchRangeOptions {
+  persistence: PersistencePort;
+  graphName: string;
+  fromSha: string;
+  toSha: string;
+  codec?: CodecPort;
+  patchBlobStorage?: BlobStoragePort;
 }
 
 /**
@@ -183,18 +188,30 @@ export async function createWormhole({ persistence, graphName, fromSha, toSha, c
  * Walks the parent chain from toSha towards fromSha, collecting and
  * validating each commit along the way.
  *
- * @param {{ persistence: import('../../ports/CommitPort.ts').default & import('../../ports/BlobPort.ts').default, graphName: string, fromSha: string, toSha: string, codec?: import('../../ports/CodecPort.ts').default, patchBlobStorage?: import('../../ports/BlobStoragePort.ts').default }} options
- * @returns {Promise<Array<{patch: import('../types/Patch.ts').default, sha: string, writerId: string}>>} Patches in newest-first order
+ * @returns Patches in newest-first order
  * @throws {WormholeError} If fromSha is not an ancestor of toSha or range is empty
- * @private
  */
-async function collectPatchRange({ persistence, graphName, fromSha, toSha, codec, patchBlobStorage }) {
-  const patches = [];
-  let currentSha = toSha;
-  let writerId = null;
+async function collectPatchRange({
+  persistence,
+  graphName,
+  fromSha,
+  toSha,
+  codec,
+  patchBlobStorage,
+}: CollectPatchRangeOptions): Promise<Array<{ patch: Patch; sha: string; writerId: string }>> {
+  const patches: Array<{ patch: Patch; sha: string; writerId: string }> = [];
+  let currentSha: string | null = toSha;
+  let writerId: string | null = null;
 
   while (currentSha !== null && currentSha !== undefined) {
-    const result = await processCommit({ persistence, sha: currentSha, graphName, expectedWriter: writerId, ...(codec !== undefined ? { codec } : {}), ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}) });
+    const result = await processCommit({
+      persistence,
+      sha: currentSha,
+      graphName,
+      expectedWriter: writerId,
+      ...(codec !== undefined ? { codec } : {}),
+      ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),
+    });
     writerId = result.writerId;
     patches.push({ patch: result.patch, sha: result.sha, writerId: result.writerId });
 
@@ -228,6 +245,60 @@ async function collectPatchRange({ persistence, graphName, fromSha, toSha, codec
   return patches;
 }
 
+interface CreateWormholeOptions {
+  persistence: PersistencePort;
+  graphName: string;
+  fromSha: string;
+  toSha: string;
+  codec?: CodecPort;
+  patchBlobStorage?: BlobStoragePort;
+}
+
+/**
+ * Creates a wormhole compressing a range of patches.
+ *
+ * The range is specified by two patch SHAs from the same writer. The `fromSha`
+ * must be an ancestor of `toSha` in the writer's patch chain. Both endpoints
+ * are inclusive in the wormhole.
+ *
+ * @throws {WormholeError} If fromSha or toSha doesn't exist (E_WORMHOLE_SHA_NOT_FOUND)
+ * @throws {WormholeError} If fromSha is not an ancestor of toSha (E_WORMHOLE_INVALID_RANGE)
+ * @throws {WormholeError} If commits span multiple writers (E_WORMHOLE_MULTI_WRITER)
+ * @throws {WormholeError} If a commit is not a patch commit (E_WORMHOLE_NOT_PATCH)
+ * @throws {EncryptionError} If patches are encrypted but no patchBlobStorage is provided
+ */
+export async function createWormhole({
+  persistence,
+  graphName,
+  fromSha,
+  toSha,
+  codec,
+  patchBlobStorage,
+}: CreateWormholeOptions): Promise<WormholeEdge> {
+  validateSha(fromSha, 'fromSha');
+  validateSha(toSha, 'toSha');
+  await verifyShaExists(persistence, fromSha, 'fromSha');
+  await verifyShaExists(persistence, toSha, 'toSha');
+
+  const patches = await collectPatchRange({
+    persistence,
+    graphName,
+    fromSha,
+    toSha,
+    ...(codec !== undefined ? { codec } : {}),
+    ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),
+  });
+
+  // Reverse to get oldest-first order (as required by ProvenancePayload)
+  patches.reverse();
+
+  const writerId = patches.length > 0 ? (patches[0]?.writerId ?? '') : '';
+  // Strip writerId to match ProvenancePayload's PatchEntry typedef ({patch, sha})
+  const payload = new ProvenancePayload(patches.map(({ patch, sha }) => ({ patch, sha })));
+
+  return { fromSha, toSha, writerId, payload, patchCount: patches.length };
+}
+
 /**
  * Composes two consecutive wormholes into a single wormhole.
  *
@@ -237,20 +308,23 @@ async function collectPatchRange({ persistence, graphName, fromSha, toSha, codec
  * This leverages the ProvenancePayload monoid structure:
  * `composed.payload = first.payload.concat(second.payload)`
  *
- * @param {WormholeEdge} first - The earlier (older) wormhole
- * @param {WormholeEdge} second - The later (newer) wormhole
- * @param {{ persistence?: import('../../ports/CommitPort.ts').default }} [options] - Composition options
- * @returns {Promise<WormholeEdge>} The composed wormhole
  * @throws {WormholeError} If wormholes are from different writers (E_WORMHOLE_MULTI_WRITER)
  * @throws {WormholeError} If wormholes are not consecutive (E_WORMHOLE_INVALID_RANGE)
  */
-export async function composeWormholes(first, second, options = {}) {
+export async function composeWormholes(
+  first: WormholeEdge,
+  second: WormholeEdge,
+  options: { persistence?: CommitPort } = {},
+): Promise<WormholeEdge> {
   // Validate writer consistency
   if (first.writerId !== second.writerId) {
-    throw new WormholeError(`Cannot compose wormholes from different writers: '${first.writerId}' and '${second.writerId}'`, {
-      code: 'E_WORMHOLE_MULTI_WRITER',
-      context: { firstWriter: first.writerId, secondWriter: second.writerId },
-    });
+    throw new WormholeError(
+      `Cannot compose wormholes from different writers: '${first.writerId}' and '${second.writerId}'`,
+      {
+        code: 'E_WORMHOLE_MULTI_WRITER',
+        context: { firstWriter: first.writerId, secondWriter: second.writerId },
+      },
+    );
   }
 
   // If persistence is provided, validate that wormholes are consecutive
@@ -287,22 +361,15 @@ export async function composeWormholes(first, second, options = {}) {
  *
  * This is equivalent to materializing all the patches in the wormhole
  * individually. The replay uses CRDT merge semantics as defined in JoinReducer.
- *
- * @param {WormholeEdge} wormhole - The wormhole to replay
- * @param {import('./JoinReducer.ts').WarpState} [initialState] - Optional initial state
- * @returns {import('./JoinReducer.ts').WarpState} The materialized state
  */
-export function replayWormhole(wormhole, initialState) {
+export function replayWormhole(wormhole: WormholeEdge, initialState?: WarpState): WarpState {
   return wormhole.payload.replay(initialState);
 }
 
 /**
  * Serializes a wormhole to a JSON-serializable object.
- *
- * @param {WormholeEdge} wormhole - The wormhole to serialize
- * @returns {Record<string, unknown>} JSON-serializable representation
  */
-export function serializeWormhole(wormhole) {
+export function serializeWormhole(wormhole: WormholeEdge): Record<string, unknown> {
   return {
     fromSha: wormhole.fromSha,
     toSha: wormhole.toSha,
@@ -315,22 +382,18 @@ export function serializeWormhole(wormhole) {
 /**
  * Deserializes a wormhole from a JSON object.
  *
- * @param {Record<string, unknown>} json - The JSON object to deserialize
- * @returns {WormholeEdge} The deserialized wormhole
  * @throws {WormholeError} If the JSON structure is invalid
  */
-export function deserializeWormhole(json) {
-  // Validate required fields
+export function deserializeWormhole(json: Record<string, unknown>): WormholeEdge {
   if (json === null || json === undefined || typeof json !== 'object') {
     throw new WormholeError('Invalid wormhole JSON: expected object', {
       code: 'E_INVALID_WORMHOLE_JSON',
     });
   }
 
-  const /** @type {Record<string, unknown>} */ typedJson = /** @type {Record<string, unknown>} */ (json);
   const requiredFields = ['fromSha', 'toSha', 'writerId', 'patchCount', 'payload'];
   for (const field of requiredFields) {
-    if (typedJson[field] === undefined) {
+    if (json[field] === undefined) {
       throw new WormholeError(`Invalid wormhole JSON: missing required field '${field}'`, {
         code: 'E_INVALID_WORMHOLE_JSON',
         context: { missingField: field },
@@ -339,27 +402,28 @@ export function deserializeWormhole(json) {
   }
 
   for (const field of ['fromSha', 'toSha', 'writerId']) {
-    if (typeof typedJson[field] !== 'string') {
+    if (typeof json[field] !== 'string') {
       throw new WormholeError(`Invalid wormhole JSON: '${field}' must be a string`, {
         code: 'E_INVALID_WORMHOLE_JSON',
-        context: { [field]: typedJson[field] },
+        context: { [field]: json[field] },
       });
     }
   }
 
-  if (typeof typedJson['patchCount'] !== 'number' || typedJson['patchCount'] < 0) {
+  const { patchCount } = json;
+  if (typeof patchCount !== 'number' || patchCount < 0) {
     throw new WormholeError('Invalid wormhole JSON: patchCount must be a non-negative number', {
       code: 'E_INVALID_WORMHOLE_JSON',
-      context: { patchCount: typedJson['patchCount'] },
+      context: { patchCount },
     });
   }
 
   return {
-    fromSha: /** @type {string} */ (typedJson['fromSha']),
-    toSha: /** @type {string} */ (typedJson['toSha']),
-    writerId: /** @type {string} */ (typedJson['writerId']),
-    patchCount: /** @type {number} */ (typedJson['patchCount']),
-    payload: ProvenancePayload.fromJSON(/** @type {import('./provenance/ProvenancePayload.js').PatchEntry[]} */ (typedJson['payload'])),
+    fromSha: json['fromSha'] as string,
+    toSha: json['toSha'] as string,
+    writerId: json['writerId'] as string,
+    patchCount,
+    payload: ProvenancePayload.fromJSON(json['payload'] as Array<{ patch: Patch; sha: string }>),
   };
 }
 

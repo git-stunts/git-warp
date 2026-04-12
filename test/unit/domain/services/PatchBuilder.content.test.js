@@ -3,7 +3,7 @@ import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
-import { encodeEdgeKey } from '../../../../src/domain/services/KeyCodec.js';
+import { encodeEdgeKey } from '../../../../src/domain/services/KeyCodec.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 

@@ -17,7 +17,7 @@ import { encodeDot, type Dot } from '../crdt/Dot.ts';
 import type { LWWRegister } from '../crdt/LWW.ts';
 import type { PropValue } from '../types/PropValue.ts';
 import { compareEventIds, type EventId } from '../utils/EventId.ts';
-import { encodeEdgeKey, encodePropKey, encodeEdgePropKey } from './KeyCodec.js';
+import { encodeEdgeKey, encodePropKey, encodeEdgePropKey } from './KeyCodec.ts';
 import { OP_TYPES } from '../types/TickReceipt.ts';
 import OpOutcomeResult from '../types/ops/OpOutcomeResult.ts';
 import OpApplied from '../types/ops/OpApplied.ts';

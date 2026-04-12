@@ -8,7 +8,7 @@ import {
   CONTENT_MIME_PROPERTY_KEY,
   CONTENT_PROPERTY_KEY,
   CONTENT_SIZE_PROPERTY_KEY,
-} from '../KeyCodec.js';
+} from '../KeyCodec.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
 import type { ContentMeta, VisibleStateReader } from '../../../../index.js';
 

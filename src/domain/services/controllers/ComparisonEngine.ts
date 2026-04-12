@@ -13,11 +13,11 @@ import { computeChecksum } from '../../utils/checksumUtils.ts';
 import {
   buildCoordinateComparisonFact,
   buildCoordinateTransferPlanFact,
-} from '../CoordinateFactExport.js';
+} from '../CoordinateFactExport.ts';
 import { createStateReader } from '../state/StateReader.js';
 import { compareVisibleState } from '../comparison/VisibleStateComparison.ts';
 import { planVisibleStateTransfer } from '../transfer/VisibleStateTransferPlanner.ts';
-import { normalizeVisibleStateScope } from '../VisibleStateScope.js';
+import { normalizeVisibleStateScope } from '../VisibleStateScope.ts';
 import type { VisibleStateScope } from '../../../../index.js';
 import type Patch from '../../types/Patch.ts';
 import {

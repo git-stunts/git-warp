@@ -15,7 +15,7 @@ import defaultCodec from '../../utils/defaultCodec.ts';
 import computeShardKey from '../../utils/shardKey.ts';
 import toBytes from '../../utils/toBytes.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
-import { decodeEdgeKey } from '../KeyCodec.js';
+import { decodeEdgeKey } from '../KeyCodec.ts';
 import IndexNodeUpdater from './IndexNodeUpdater.ts';
 import IndexEdgeUpdater, { type EdgeUpdateContext } from './IndexEdgeUpdater.ts';
 import type { WorkingMetaShard, EdgeShardData } from './types.ts';

@@ -25,7 +25,7 @@ vi.mock(
 );
 
 vi.mock(
-  '../../../../../src/domain/services/strand/ConflictAnalyzerService.js',
+  '../../../../../src/domain/services/strand/ConflictAnalyzerService.ts',
   () => {
     const MockConflictAnalyzerService = vi.fn();
     MockConflictAnalyzerService.prototype.analyze = vi.fn();

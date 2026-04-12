@@ -11,19 +11,15 @@
 
 import VersionVector from '../crdt/VersionVector.ts';
 import WarpError from '../errors/WarpError.ts';
-
-/** @typedef {import('./JoinReducer.ts').WarpState} WarpState */
+import type WarpState from './state/WarpState.ts';
 
 const MAP_MUTATORS = new Set(['set', 'delete', 'clear']);
 const SET_MUTATORS = new Set(['add', 'delete', 'clear']);
 
 /**
  * Build a domain error for attempts to mutate a read-only collection snapshot.
- * @param {'Map'|'Set'} kind
- * @param {string} method
- * @returns {WarpError}
  */
-function createReadonlyMutationError(kind, method) {
+function createReadonlyMutationError(kind: 'Map' | 'Set', method: string): WarpError {
   return new WarpError(
     `${kind} snapshot is read-only; ${method}() is not allowed`,
     'E_IMMUTABLE_SNAPSHOT_MUTATION',
@@ -33,13 +29,12 @@ function createReadonlyMutationError(kind, method) {
 
 /**
  * Wrap a Map or Set in a Proxy that throws on any mutation attempt.
- * @template {Map<unknown, unknown>|Set<unknown>} T
- * @param {T} target
- * @param {Set<string>} mutators
- * @param {'Map'|'Set'} kind
- * @returns {T}
  */
-function createReadonlyCollectionProxy(target, mutators, kind) {
+function createReadonlyCollectionProxy<T extends Map<unknown, unknown> | Set<unknown>>(
+  target: T,
+  mutators: Set<string>,
+  kind: 'Map' | 'Set',
+): T {
   const proxy = new Proxy(target, {
     get(innerTarget, prop) {
       if (typeof prop === 'string' && mutators.has(prop)) {
@@ -48,8 +43,8 @@ function createReadonlyCollectionProxy(target, mutators, kind) {
         };
       }
 
-      const val = /** @type {unknown} */ (Reflect.get(innerTarget, prop, innerTarget));
-      return /** @type {unknown} */ (typeof val === 'function' ? /** @type {Function} */ (val).bind(innerTarget) : val);
+      const val = Reflect.get(innerTarget, prop, innerTarget) as unknown;
+      return typeof val === 'function' ? (val as (...args: unknown[]) => unknown).bind(innerTarget) : val;
     },
     set() {
       throw createReadonlyMutationError(kind, 'set');
@@ -62,18 +57,14 @@ function createReadonlyCollectionProxy(target, mutators, kind) {
     },
   });
 
-  return /** @type {T} */ (Object.freeze(proxy));
+  return Object.freeze(proxy) as T;
 }
 
 /**
  * Deep-clone a Map into a read-only snapshot with immutable entries.
- * @template T
- * @param {Map<unknown, unknown>} value
- * @param {WeakMap<object, unknown>} seen
- * @returns {T}
  */
-function cloneImmutableMap(value, seen) {
-  const cloned = new Map();
+function cloneImmutableMap<T>(value: Map<unknown, unknown>, seen: WeakMap<object, unknown>): T {
+  const cloned = new Map<unknown, unknown>();
   const proxy = createReadonlyCollectionProxy(cloned, MAP_MUTATORS, 'Map');
   seen.set(value, proxy);
   for (const [key, entryValue] of value.entries()) {
@@ -82,56 +73,40 @@ function cloneImmutableMap(value, seen) {
       cloneImmutableValue(entryValue, seen),
     );
   }
-  return /** @type {T} */ (proxy);
+  return proxy as T;
 }
 
 /**
  * Deep-clone a Set into a read-only snapshot with immutable entries.
- * @template T
- * @param {Set<unknown>} value
- * @param {WeakMap<object, unknown>} seen
- * @returns {T}
  */
-function cloneImmutableSet(value, seen) {
-  const cloned = new Set();
+function cloneImmutableSet<T>(value: Set<unknown>, seen: WeakMap<object, unknown>): T {
+  const cloned = new Set<unknown>();
   const proxy = createReadonlyCollectionProxy(cloned, SET_MUTATORS, 'Set');
   seen.set(value, proxy);
   for (const entryValue of value.values()) {
     cloned.add(cloneImmutableValue(entryValue, seen));
   }
-  return /** @type {T} */ (proxy);
+  return proxy as T;
 }
 
 /**
  * Deep-clone an array into a frozen snapshot with immutable entries.
- * @template T
- * @param {unknown[]} value
- * @param {WeakMap<object, unknown>} seen
- * @returns {T}
  */
-function cloneImmutableArray(value, seen) {
-  const cloned = /** @type {unknown[]} */ ([]);
+function cloneImmutableArray<T>(value: unknown[], seen: WeakMap<object, unknown>): T {
+  const cloned: unknown[] = [];
   seen.set(value, cloned);
   for (const entryValue of value) {
     cloned.push(cloneImmutableValue(entryValue, seen));
   }
-  return /** @type {T} */ (Object.freeze(cloned));
+  return Object.freeze(cloned) as T;
 }
 
 /**
  * Deep-clone a plain object into a frozen snapshot with immutable properties.
- * @template T
- * @param {object} value
- * @param {WeakMap<object, unknown>} seen
- * @returns {T}
  */
-function cloneImmutableObject(value, seen) {
-  /** @type {unknown} */
-  const rawProto = Object.getPrototypeOf(value);
-  const proto = /** @type {object | null} */ (rawProto);
-  /** @type {unknown} */
-  const rawCloned = Object.create(proto ?? Object.prototype);
-  const cloned = /** @type {Record<string | symbol, unknown>} */ (rawCloned);
+function cloneImmutableObject<T>(value: object, seen: WeakMap<object, unknown>): T {
+  const proto = Object.getPrototypeOf(value) as object | null;
+  const cloned = Object.create(proto ?? Object.prototype) as Record<string | symbol, unknown>;
   seen.set(value, cloned);
 
   for (const key of Reflect.ownKeys(value)) {
@@ -141,29 +116,25 @@ function cloneImmutableObject(value, seen) {
     }
 
     if ('value' in descriptor) {
-      /** @type {PropertyDescriptor} */ (descriptor).value = cloneImmutableValue(/** @type {unknown} */ (descriptor.value), seen);
+      descriptor.value = cloneImmutableValue(descriptor.value as unknown, seen);
     }
 
     Object.defineProperty(cloned, key, descriptor);
   }
 
-  return /** @type {T} */ (/** @type {unknown} */ (Object.freeze(cloned)));
+  return Object.freeze(cloned) as unknown as T;
 }
 
 /**
  * Dispatch an object value to the appropriate collection-specific cloner.
- * @template T
- * @param {T & object} value - Non-null object value
- * @param {WeakMap<object, unknown>} seen - Cycle-detection cache
- * @returns {T}
  */
-function cloneImmutableObjectValue(value, seen) {
+function cloneImmutableObjectValue<T extends object>(value: T, seen: WeakMap<object, unknown>): T {
   // VersionVector uses private fields that Object.create cannot replicate.
   // Clone via its own method and freeze the result.
   if (value instanceof VersionVector) {
     const cloned = value.clone();
     seen.set(value, cloned);
-    return /** @type {typeof value} */ (Object.freeze(cloned));
+    return Object.freeze(cloned) as typeof value;
   }
 
   if (value instanceof Map) {
@@ -175,7 +146,7 @@ function cloneImmutableObjectValue(value, seen) {
   }
 
   if (Array.isArray(value)) {
-    return cloneImmutableArray(value, seen);
+    return cloneImmutableArray(value as unknown[], seen);
   }
 
   return cloneImmutableObject(value, seen);
@@ -183,38 +154,30 @@ function cloneImmutableObjectValue(value, seen) {
 
 /**
  * Recursively clone a value into a deeply frozen immutable snapshot.
- * @template T
- * @param {T} value
- * @param {WeakMap<object, unknown>} seen
- * @returns {T}
  */
-function cloneImmutableValue(value, seen) {
+function cloneImmutableValue<T>(value: T, seen: WeakMap<object, unknown>): T {
   if (value === null || value === undefined || typeof value !== 'object') {
     return value;
   }
 
-  if (seen.has(value)) {
-    return /** @type {T} */ (seen.get(value));
+  if (seen.has(value as object)) {
+    return seen.get(value as object) as T;
   }
 
+  // After the typeof guard above, value is narrowed to T & object
   return cloneImmutableObjectValue(value, seen);
 }
 
 /**
  * Create a deeply frozen immutable clone of the given value.
- * @template T
- * @param {T} value
- * @returns {T}
  */
-export function createImmutableValue(value) {
+export function createImmutableValue<T>(value: T): T {
   return cloneImmutableValue(value, new WeakMap());
 }
 
 /**
  * Create a deeply frozen immutable clone of a WarpState instance.
- * @param {WarpState} state
- * @returns {WarpState}
  */
-export function createImmutableWarpState(state) {
+export function createImmutableWarpState(state: WarpState): WarpState {
   return createImmutableValue(state);
 }

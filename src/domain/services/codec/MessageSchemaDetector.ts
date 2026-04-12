@@ -2,7 +2,7 @@
  * Schema version detection and compatibility validation for WARP messages.
  */
 
-import { EDGE_PROP_PREFIX } from '../KeyCodec.js';
+import { EDGE_PROP_PREFIX } from '../KeyCodec.ts';
 import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 import { getCodec, TRAILER_KEYS } from './MessageCodecInternal.ts';
 

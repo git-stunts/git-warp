@@ -3,7 +3,7 @@ import {
   WarpCore,
   InMemoryGraphAdapter,
 } from '../../../index.js';
-import { EFFECT_NODE_PREFIX } from '../../../src/domain/services/KeyCodec.js';
+import { EFFECT_NODE_PREFIX } from '../../../src/domain/services/KeyCodec.ts';
 
 /**
  * @param {Record<string, unknown>} [extra]

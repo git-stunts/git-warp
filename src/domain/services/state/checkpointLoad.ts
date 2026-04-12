@@ -11,7 +11,7 @@
 import {
   deserializeFullState,
   deserializeAppliedVV,
-} from './CheckpointSerializer.js';
+} from './CheckpointSerializer.ts';
 import { deserializeFrontier } from '../Frontier.ts';
 import { decodeCheckpointMessage } from '../codec/WarpMessageCodec.ts';
 import ORSet from '../../crdt/ORSet.ts';
@@ -21,9 +21,9 @@ import { LWWRegister } from '../../crdt/LWW.ts';
 import { EventId } from '../../utils/EventId.ts';
 import { reduceV5 } from '../JoinReducer.ts';
 import WarpState from './WarpState.ts';
-import { encodeEdgeKey, encodePropKey } from '../KeyCodec.js';
+import { encodeEdgeKey, encodePropKey } from '../KeyCodec.ts';
 import type { PropValue } from '../../types/PropValue.ts';
-import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
+import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
 import { isV5CheckpointSchema, partitionTreeOids } from './checkpointHelpers.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';

@@ -23,7 +23,7 @@ import {
   buildCursorActiveRef,
 } from '../../src/domain/utils/RefLayout.ts';
 import CasSeekCacheAdapter from '../../src/infrastructure/adapters/CasSeekCacheAdapter.js';
-import { HookInstaller } from '../../src/domain/services/HookInstaller.js';
+import { HookInstaller } from '../../src/domain/services/HookInstaller.ts';
 import { parseCursorBlob } from '../../src/domain/utils/parseCursorBlob.ts';
 import { usageError, notFoundError } from './infrastructure.js';
 

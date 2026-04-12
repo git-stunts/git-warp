@@ -7,7 +7,7 @@
  * @module domain/services/MaterializedViewVerifier
  */
 
-import { decodeEdgeKey } from './KeyCodec.js';
+import { decodeEdgeKey } from './KeyCodec.ts';
 import type WarpState from './state/WarpState.ts';
 import type { LogicalIndex } from './index/logicalIndexHelpers.ts';
 

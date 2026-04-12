@@ -6,7 +6,7 @@ import WarpCore from '../../../src/domain/WarpCore.ts';
 import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
-} from '../../../src/domain/services/CoordinateFactExport.js';
+} from '../../../src/domain/services/CoordinateFactExport.ts';
 import { createStateReader } from '../../../src/domain/services/state/StateReader.js';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';

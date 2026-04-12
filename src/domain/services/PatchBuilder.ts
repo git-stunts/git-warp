@@ -18,7 +18,7 @@ import EdgeRemove from '../types/ops/EdgeRemove.ts';
 import NodePropSet from '../types/ops/NodePropSet.ts';
 import EdgePropSet from '../types/ops/EdgePropSet.ts';
 import type { OpV2 } from '../types/ops/unions.ts';
-import { encodeEdgeKey, CONTENT_PROPERTY_KEY, CONTENT_MIME_PROPERTY_KEY, CONTENT_SIZE_PROPERTY_KEY, EFFECT_NODE_PREFIX } from './KeyCodec.js';
+import { encodeEdgeKey, CONTENT_PROPERTY_KEY, CONTENT_MIME_PROPERTY_KEY, CONTENT_SIZE_PROPERTY_KEY, EFFECT_NODE_PREFIX } from './KeyCodec.ts';
 import { lowerCanonicalOp } from './OpNormalizer.ts';
 import WriterError from '../errors/WriterError.ts';
 import PatchError from '../errors/PatchError.ts';

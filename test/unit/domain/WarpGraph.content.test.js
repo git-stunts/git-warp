@@ -3,7 +3,7 @@ import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createEmptyState, encodeEdgeKey, encodeEdgePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
-import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
+import { encodePropKey } from '../../../src/domain/services/KeyCodec.ts';
 import PersistenceError from '../../../src/domain/errors/PersistenceError.ts';
 
 function setupGraphState(/** @type {any} */ graph, /** @type {any} */ seedFn) {

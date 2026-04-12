@@ -4,10 +4,8 @@ import { concatBytes, textEncode, textDecode } from '../utils/bytes.ts';
 
 /**
  * Parses a parent-SHAs line into an array.
- * @param {string | undefined} line
- * @returns {string[]}
  */
-function parseParentLine(line) {
+function parseParentLine(line: string | undefined): string[] {
   if (line === undefined || line === '') {
     return [];
   }
@@ -16,17 +14,12 @@ function parseParentLine(line) {
 
 /**
  * Converts a chunk to Uint8Array.
- * @param {Uint8Array|string} chunk
- * @returns {Uint8Array}
  */
-function toBytes(chunk) {
+function toBytes(chunk: Uint8Array | string): Uint8Array {
   if (typeof chunk === 'string') {
     return textEncode(chunk);
   }
-  if (chunk instanceof Uint8Array) {
-    return chunk;
-  }
-  return Uint8Array.from(chunk);
+  return chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk);
 }
 
 /**
@@ -51,7 +44,6 @@ function toBytes(chunk) {
  * the NUL terminator is the message body.
  *
  * @see https://git-scm.com/docs/git-log (see -z option documentation)
- * @const {string}
  */
 export const RECORD_SEPARATOR = '\x00';
 
@@ -111,10 +103,9 @@ export default class GitLogParser {
    * - Backwards compatibility with string chunks
    * - Cancellation via AbortSignal
    *
-   * @param {AsyncIterable<Uint8Array|string>} stream - The git log output stream.
-   *   May yield Uint8Array or string chunks.
-   * @param {{ signal?: AbortSignal }} [options] - Parse options
-   * @yields {GraphNode} Parsed graph nodes. Invalid records are silently skipped.
+   * @param stream - The git log output stream. May yield Uint8Array or string chunks.
+   * @param options - Parse options
+   * @yields Parsed graph nodes. Invalid records are silently skipped.
    * @throws {OperationAbortedError} If signal is aborted during parsing
    *
    * @example
@@ -130,16 +121,18 @@ export default class GitLogParser {
    *   console.log(node.sha);
    * }
    */
-  async *parse(stream, { signal } = {}) {
-    /** @type {Uint8Array} */
-    let buffer = new Uint8Array(0); // Binary buffer accumulator
+  async *parse(
+    stream: AsyncIterable<Uint8Array | string>,
+    { signal }: { signal?: AbortSignal } = {},
+  ): AsyncGenerator<GraphNode> {
+    let buffer: Uint8Array = new Uint8Array(0); // Binary buffer accumulator
 
     for await (const chunk of stream) {
       checkAborted(signal, 'GitLogParser.parse');
       const chunkBytes = toBytes(chunk);
-      buffer = concatBytes(buffer, chunkBytes);
+      buffer = new Uint8Array(concatBytes(buffer, chunkBytes));
       const result = this._drainBuffer(buffer, signal);
-      buffer = result.remaining;
+      buffer = new Uint8Array(result.remaining);
       yield* result.nodes;
     }
 
@@ -152,11 +145,8 @@ export default class GitLogParser {
 
   /**
    * Parses any remaining bytes after the stream ends (final record without trailing NUL).
-   * @param {Uint8Array} buffer
-   * @returns {GraphNode | null}
-   * @private
    */
-  _parseTrailing(buffer) {
+  private _parseTrailing(buffer: Uint8Array): GraphNode | null {
     if (buffer.length === 0) {
       return null;
     }
@@ -170,16 +160,14 @@ export default class GitLogParser {
   /**
    * Extracts complete NUL-delimited records from the binary buffer.
    *
-   * @param {Uint8Array} buffer - Accumulated binary data
-   * @param {AbortSignal} [signal] - Optional cancellation signal
-   * @returns {{ nodes: GraphNode[], remaining: Uint8Array }} Parsed nodes and leftover bytes
-   * @private
+   * @param buffer - Accumulated binary data
+   * @param signal - Optional cancellation signal
+   * @returns Parsed nodes and leftover bytes
    */
-  _drainBuffer(buffer, signal) {
-    /** @type {GraphNode[]} */
-    const nodes = [];
+  private _drainBuffer(buffer: Uint8Array, signal?: AbortSignal): { nodes: GraphNode[]; remaining: Uint8Array } {
+    const nodes: GraphNode[] = [];
     let buf = buffer;
-    let nullIndex;
+    let nullIndex: number;
     while ((nullIndex = buf.indexOf(0)) !== -1) {
       checkAborted(signal, 'GitLogParser.parse');
       const recordBytes = buf.subarray(0, nullIndex);
@@ -206,8 +194,8 @@ export default class GitLogParser {
    * The block should not include the trailing NUL terminator - that is stripped
    * by the parse() method before calling parseNode().
    *
-   * @param {string} block - Raw block text (without trailing NUL terminator)
-   * @returns {GraphNode|null} Parsed node, or null if the block is malformed
+   * @param block - Raw block text (without trailing NUL terminator)
+   * @returns Parsed node, or null if the block is malformed
    *   or has an empty message (GraphNode requires non-empty message)
    *
    * @example
@@ -216,7 +204,7 @@ export default class GitLogParser {
    * // node.sha === 'abc123'
    * // node.parents === ['parent1', 'parent2']
    */
-  parseNode(block) {
+  parseNode(block: string): GraphNode | null {
     const lines = block.split('\n');
     if (lines.length < 4) {
       return null;
@@ -234,8 +222,8 @@ export default class GitLogParser {
 
     return new GraphNode({
       sha,
-      author: /** @type {string} */ (lines[1]),
-      date: /** @type {string} */ (lines[2]),
+      author: lines[1] as string,
+      date: lines[2] as string,
       message,
       parents: parseParentLine(lines[3]),
     });

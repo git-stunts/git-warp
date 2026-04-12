@@ -6,14 +6,14 @@ import { encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
-import { encodeEdgeKey, encodeEdgePropKey, encodePropKey } from '../../../../src/domain/services/KeyCodec.js';
+import { encodeEdgeKey, encodeEdgePropKey, encodePropKey } from '../../../../src/domain/services/KeyCodec.ts';
 import { createStateReader } from '../../../../src/domain/services/state/StateReader.js';
 import {
   normalizeVisibleStateScope,
   nodeIdInVisibleStateScope,
   scopeMaterializedState,
   scopePatchEntriesV1,
-} from '../../../../src/domain/services/VisibleStateScope.js';
+} from '../../../../src/domain/services/VisibleStateScope.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 
 function buildScopedFixtureState() {
@@ -200,6 +200,6 @@ describe('VisibleStateScope', () => {
       },
     ];
 
-    expect(scopePatchEntriesV1(entries, scope).map(({ sha }) => sha)).toEqual(['a', 'd', 'e']);
+    expect(scopePatchEntriesV1(/** @type {any} */ (entries), scope).map(({ sha }) => sha)).toEqual(['a', 'd', 'e']);
   });
 });

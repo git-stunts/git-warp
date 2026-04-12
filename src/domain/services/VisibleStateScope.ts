@@ -8,36 +8,33 @@ import {
   decodePropKey,
   encodeEdgeKey,
   isEdgePropKey,
-} from './KeyCodec.js';
+} from './KeyCodec.ts';
+import type { LWWRegister } from '../crdt/LWW.ts';
+import type { PropValue } from '../types/PropValue.ts';
+import type { EventId } from '../utils/EventId.ts';
+import type { RawOpV2 } from '../types/ops/unions.ts';
+import type Patch from '../types/Patch.ts';
 
-/**
- * @typedef {{
- *   include?: string[],
- *   exclude?: string[]
- * }} VisibleStateScopePrefixFilterV1
- * @typedef {{
- *   nodeIdPrefixes?: VisibleStateScopePrefixFilterV1
- * }} VisibleStateScope
- */
+export interface VisibleStateScopePrefixFilterV1 {
+  include?: string[];
+  exclude?: string[];
+}
+
+export interface VisibleStateScope {
+  nodeIdPrefixes?: VisibleStateScopePrefixFilterV1;
+}
 
 /**
  * Deduplicates and sorts string values.
- *
- * @param {string[]} values
- * @returns {string[]}
  */
-function uniqueSorted(values) {
+function uniqueSorted(values: string[]): string[] {
   return [...new Set(values)].sort();
 }
 
 /**
  * Validates that a single item is a non-empty string, throwing if not.
- *
- * @param {unknown} item
- * @param {string} field
- * @returns {string}
  */
-function validatePrefixItem(item, field) {
+function validatePrefixItem(item: unknown, field: string): string {
   if (typeof item !== 'string' || item.trim().length === 0) {
     throw new QueryError(`${field} must contain only non-empty strings`, {
       code: 'invalid_coordinate',
@@ -49,12 +46,8 @@ function validatePrefixItem(item, field) {
 
 /**
  * Normalizes a value expected to be a list of non-empty string prefixes.
- *
- * @param {unknown} value
- * @param {string} field
- * @returns {string[]}
  */
-function normalizePrefixList(value, field) {
+function normalizePrefixList(value: unknown, field: string): string[] {
   if (value === undefined || value === null) {
     return [];
   }
@@ -65,7 +58,7 @@ function normalizePrefixList(value, field) {
     });
   }
 
-  const normalized = [];
+  const normalized: string[] = [];
   for (const item of value) {
     normalized.push(validatePrefixItem(item, field));
   }
@@ -74,29 +67,21 @@ function normalizePrefixList(value, field) {
 
 /**
  * Throws if the value is not a plain object (excludes arrays and primitives).
- *
- * @param {unknown} value
- * @param {string} field
- * @returns {Record<string, unknown>}
  */
-function assertPlainObject(value, field) {
+function assertPlainObject(value: unknown, field: string): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new QueryError(`${field} must be an object with include/exclude prefix arrays`, {
       code: 'invalid_coordinate',
       context: { field, valueType: typeof value },
     });
   }
-  return /** @type {Record<string, unknown>} */ (value);
+  return value as Record<string, unknown>;
 }
 
 /**
  * Throws if the raw object contains keys other than the allowed set.
- *
- * @param {Record<string, unknown>} raw
- * @param {string[]} allowed
- * @param {string} field
  */
-function rejectUnknownKeys(raw, allowed, field) {
+function rejectUnknownKeys(raw: Record<string, unknown>, allowed: string[], field: string): void {
   const allowedSet = new Set(allowed);
   const unknownKeys = Object.keys(raw).filter((key) => !allowedSet.has(key));
   if (unknownKeys.length > 0) {
@@ -109,12 +94,8 @@ function rejectUnknownKeys(raw, allowed, field) {
 
 /**
  * Normalizes a prefix filter object with optional include/exclude arrays.
- *
- * @param {unknown} value
- * @param {string} field
- * @returns {VisibleStateScopePrefixFilterV1|null}
  */
-function normalizePrefixFilter(value, field) {
+function normalizePrefixFilter(value: unknown, field: string): VisibleStateScopePrefixFilterV1 | null {
   if (value === undefined || value === null) {
     return null;
   }
@@ -136,12 +117,8 @@ function normalizePrefixFilter(value, field) {
  * - include/exclude node-id prefixes
  *
  * Edges, edge properties, and attachment metadata follow node visibility.
- *
- * @param {unknown} scope
- * @param {string} [field='scope']
- * @returns {VisibleStateScope|null}
  */
-export function normalizeVisibleStateScope(scope, field = 'scope') {
+export function normalizeVisibleStateScope(scope: unknown, field = 'scope'): VisibleStateScope | null {
   if (scope === undefined || scope === null) {
     return null;
   }
@@ -158,54 +135,36 @@ export function normalizeVisibleStateScope(scope, field = 'scope') {
 
 /**
  * Tests whether a value matches the include prefix list (empty means include all).
- *
- * @param {string} value
- * @param {string[]} include
- * @returns {boolean}
  */
-function matchesInclude(value, include) {
+function matchesInclude(value: string, include: string[]): boolean {
   return include.length === 0 || include.some((prefix) => value.startsWith(prefix));
 }
 
 /**
  * Tests whether a value is excluded by the exclude prefix list.
- *
- * @param {string} value
- * @param {string[]} exclude
- * @returns {boolean}
  */
-function matchesExclude(value, exclude) {
+function matchesExclude(value: string, exclude: string[]): boolean {
   return exclude.some((prefix) => value.startsWith(prefix));
 }
 
 /**
  * Extracts the include list from prefix filter rules, defaulting to empty.
- *
- * @param {VisibleStateScopePrefixFilterV1} rules
- * @returns {string[]}
  */
-function extractIncludeList(rules) {
+function extractIncludeList(rules: VisibleStateScopePrefixFilterV1): string[] {
   return Array.isArray(rules.include) ? rules.include : [];
 }
 
 /**
  * Extracts the exclude list from prefix filter rules, defaulting to empty.
- *
- * @param {VisibleStateScopePrefixFilterV1} rules
- * @returns {string[]}
  */
-function extractExcludeList(rules) {
+function extractExcludeList(rules: VisibleStateScopePrefixFilterV1): string[] {
   return Array.isArray(rules.exclude) ? rules.exclude : [];
 }
 
 /**
  * Tests whether a value matches include/exclude prefix rules.
- *
- * @param {string} value
- * @param {VisibleStateScopePrefixFilterV1|null|undefined} rules
- * @returns {boolean}
  */
-function matchesPrefixFilter(value, rules) {
+function matchesPrefixFilter(value: string, rules: VisibleStateScopePrefixFilterV1 | null | undefined): boolean {
   if (rules === null || rules === undefined) {
     return true;
   }
@@ -214,12 +173,8 @@ function matchesPrefixFilter(value, rules) {
 
 /**
  * Tests whether a node ID falls within the visible state scope.
- *
- * @param {string} nodeId
- * @param {VisibleStateScope|null|undefined} scope
- * @returns {boolean}
  */
-export function nodeIdInVisibleStateScope(nodeId, scope) {
+export function nodeIdInVisibleStateScope(nodeId: string, scope: VisibleStateScope | null | undefined): boolean {
   if (scope === null || scope === undefined) {
     return true;
   }
@@ -228,24 +183,22 @@ export function nodeIdInVisibleStateScope(nodeId, scope) {
 
 /**
  * Tests whether both endpoints of an edge fall within the visible state scope.
- *
- * @param {{ from: string, to: string, label: string }} edge
- * @param {VisibleStateScope|null|undefined} scope
- * @returns {boolean}
  */
-function edgeInVisibleStateScope(edge, scope) {
+function edgeInVisibleStateScope(
+  edge: { from: string; to: string; label: string },
+  scope: VisibleStateScope | null | undefined,
+): boolean {
   return nodeIdInVisibleStateScope(edge.from, scope) && nodeIdInVisibleStateScope(edge.to, scope);
 }
 
 /**
  * Clones an ORSet, keeping only elements that pass the inclusion predicate.
- *
- * @param {Map<string, Set<string>>} sourceEntries
- * @param {(element: string) => boolean} includeElement
- * @param {Set<string>} tombstones
- * @returns {import('../crdt/ORSet.ts').default}
  */
-function cloneScopedOrSet(sourceEntries, includeElement, tombstones) {
+function cloneScopedOrSet(
+  sourceEntries: Map<string, Set<string>>,
+  includeElement: (element: string) => boolean,
+  tombstones: Set<string>,
+): ORSet {
   const scoped = ORSet.empty();
   scoped.tombstones = new Set(tombstones);
   for (const [element, dots] of sourceEntries.entries()) {
@@ -258,14 +211,9 @@ function cloneScopedOrSet(sourceEntries, includeElement, tombstones) {
 
 /**
  * Collects node IDs that are alive and within the given scope.
- *
- * @param {WarpState} state
- * @param {VisibleStateScope} scope
- * @returns {Set<string>}
  */
-function collectScopedNodeIds(state, scope) {
-  /** @type {Set<string>} */
-  const scopedNodeIds = new Set();
+function collectScopedNodeIds(state: WarpState, scope: VisibleStateScope): Set<string> {
+  const scopedNodeIds = new Set<string>();
   for (const nodeId of state.nodeAlive.entries.keys()) {
     if (state.nodeAlive.contains(nodeId) && nodeIdInVisibleStateScope(nodeId, scope)) {
       scopedNodeIds.add(nodeId);
@@ -276,14 +224,9 @@ function collectScopedNodeIds(state, scope) {
 
 /**
  * Collects edge keys whose both endpoints are in the scoped node set.
- *
- * @param {WarpState} state
- * @param {Set<string>} scopedNodeIds
- * @returns {Set<string>}
  */
-function collectScopedEdgeKeys(state, scopedNodeIds) {
-  /** @type {Set<string>} */
-  const scopedEdgeKeys = new Set();
+function collectScopedEdgeKeys(state: WarpState, scopedNodeIds: Set<string>): Set<string> {
+  const scopedEdgeKeys = new Set<string>();
   for (const edgeKey of state.edgeAlive.entries.keys()) {
     if (!state.edgeAlive.contains(edgeKey)) {
       continue;
@@ -298,15 +241,13 @@ function collectScopedEdgeKeys(state, scopedNodeIds) {
 
 /**
  * Collects property registers belonging to scoped nodes or scoped edges.
- *
- * @param {WarpState} state
- * @param {Set<string>} scopedNodeIds
- * @param {Set<string>} scopedEdgeKeys
- * @returns {Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>>}
  */
-function collectScopedProps(state, scopedNodeIds, scopedEdgeKeys) {
-  /** @type {Map<string, import('../crdt/LWW.ts').LWWRegister<unknown>>} */
-  const scopedProps = new Map();
+function collectScopedProps(
+  state: WarpState,
+  scopedNodeIds: Set<string>,
+  scopedEdgeKeys: Set<string>,
+): Map<string, LWWRegister<PropValue>> {
+  const scopedProps = new Map<string, LWWRegister<PropValue>>();
   for (const [propKey, register] of state.prop.entries()) {
     if (isEdgePropKey(propKey)) {
       const edgeProp = decodeEdgePropKey(propKey);
@@ -327,14 +268,12 @@ function collectScopedProps(state, scopedNodeIds, scopedEdgeKeys) {
 
 /**
  * Collects birth events for edges whose keys are in the scoped set.
- *
- * @param {WarpState} state
- * @param {Set<string>} scopedEdgeKeys
- * @returns {Map<string, import('../utils/EventId.ts').EventId>}
  */
-function collectScopedEdgeBirthEvents(state, scopedEdgeKeys) {
-  /** @type {Map<string, import('../utils/EventId.ts').EventId>} */
-  const scopedEdgeBirthEvent = new Map();
+function collectScopedEdgeBirthEvents(
+  state: WarpState,
+  scopedEdgeKeys: Set<string>,
+): Map<string, EventId> {
+  const scopedEdgeBirthEvent = new Map<string, EventId>();
   for (const [edgeKey, eventId] of state.edgeBirthEvent.entries()) {
     if (scopedEdgeKeys.has(edgeKey)) {
       scopedEdgeBirthEvent.set(edgeKey, eventId);
@@ -345,12 +284,8 @@ function collectScopedEdgeBirthEvents(state, scopedEdgeKeys) {
 
 /**
  * Projects a full materialized state down to only the nodes/edges/props in scope.
- *
- * @param {WarpState} state
- * @param {VisibleStateScope|null|undefined} scope
- * @returns {WarpState}
  */
-export function scopeMaterializedState(state, scope) {
+export function scopeMaterializedState(state: WarpState, scope: VisibleStateScope | null | undefined): WarpState {
   if (scope === null || scope === undefined) {
     return state;
   }
@@ -379,23 +314,15 @@ export function scopeMaterializedState(state, scope) {
 
 /**
  * Tests whether a node-targeted op affects the given scope.
- *
- * @param {Record<string, unknown>} op
- * @param {VisibleStateScope} scope
- * @returns {boolean}
  */
-function nodeOpAffectsScope(op, scope) {
+function nodeOpAffectsScope(op: Record<string, unknown>, scope: VisibleStateScope): boolean {
   return typeof op['node'] === 'string' && nodeIdInVisibleStateScope(op['node'], scope);
 }
 
 /**
  * Tests whether an edge-targeted op affects the given scope.
- *
- * @param {Record<string, unknown>} op
- * @param {VisibleStateScope} scope
- * @returns {boolean}
  */
-function edgeOpAffectsScope(op, scope) {
+function edgeOpAffectsScope(op: Record<string, unknown>, scope: VisibleStateScope): boolean {
   return typeof op['from'] === 'string'
     && typeof op['to'] === 'string'
     && edgeInVisibleStateScope(
@@ -413,17 +340,13 @@ const EDGE_SCOPED_OP_TYPES = new Set(['EdgeAdd', 'EdgeRemove', 'EdgePropSet']);
 
 /**
  * Tests whether a normalized op with a known type affects the visible scope.
- *
- * @param {Record<string, unknown>} normalized
- * @param {VisibleStateScope} scope
- * @returns {boolean}
  */
-function normalizedOpAffectsScope(normalized, scope) {
+function normalizedOpAffectsScope(normalized: Record<string, unknown>, scope: VisibleStateScope): boolean {
   const { type } = normalized;
-  if (NODE_SCOPED_OP_TYPES.has(/** @type {string} */ (type))) {
+  if (NODE_SCOPED_OP_TYPES.has(type as string)) {
     return nodeOpAffectsScope(normalized, scope);
   }
-  if (EDGE_SCOPED_OP_TYPES.has(/** @type {string} */ (type))) {
+  if (EDGE_SCOPED_OP_TYPES.has(type as string)) {
     return edgeOpAffectsScope(normalized, scope);
   }
   return type !== 'BlobValue';
@@ -431,22 +354,15 @@ function normalizedOpAffectsScope(normalized, scope) {
 
 /**
  * Returns true if the op value is not a usable object for scope analysis.
- *
- * @param {unknown} op
- * @returns {boolean}
  */
-function isUnscopableOp(op) {
+function isUnscopableOp(op: unknown): boolean {
   return op === null || op === undefined || typeof op !== 'object';
 }
 
 /**
  * Tests whether a single op affects any element within the visible scope.
- *
- * @param {unknown} op
- * @param {VisibleStateScope|null|undefined} scope
- * @returns {boolean}
  */
-function opAffectsScope(op, scope) {
+function opAffectsScope(op: unknown, scope: VisibleStateScope | null | undefined): boolean {
   if (scope === null || scope === undefined) {
     return true;
   }
@@ -454,35 +370,28 @@ function opAffectsScope(op, scope) {
     return true;
   }
 
-  const normalized = /** @type {Record<string, unknown>} */ (
-    normalizeRawOp(/** @type {import('../types/ops/unions.ts').RawOpV2 | { type: string }} */ (op))
-  );
+  const normalized = normalizeRawOp(op as RawOpV2 | { type: string }) as Record<string, unknown>;
   return normalizedOpAffectsScope(normalized, scope);
 }
 
 /**
  * Tests whether a patch contains at least one op that affects the scope.
- *
- * @param {import('../types/Patch.ts').default} patch
- * @param {VisibleStateScope|null|undefined} scope
- * @returns {boolean}
  */
-function patchAffectsScope(patch, scope) {
+function patchAffectsScope(patch: Patch, scope: VisibleStateScope | null | undefined): boolean {
   if (scope === null || scope === undefined) {
     return true;
   }
-  const ops = Array.isArray(patch?.ops) ? patch.ops : [];
+  const ops = Array.isArray((patch as unknown as { ops?: unknown[] })?.ops) ? (patch as unknown as { ops: unknown[] }).ops : [];
   return ops.some((op) => opAffectsScope(op, scope));
 }
 
 /**
  * Filters patch entries down to patches with at least one in-scope op.
- *
- * @param {Array<{ patch: import('../types/Patch.ts').default, sha: string }>} entries
- * @param {VisibleStateScope|null|undefined} scope
- * @returns {Array<{ patch: import('../types/Patch.ts').default, sha: string }>}
  */
-export function scopePatchEntriesV1(entries, scope) {
+export function scopePatchEntriesV1(
+  entries: Array<{ patch: Patch; sha: string }>,
+  scope: VisibleStateScope | null | undefined,
+): Array<{ patch: Patch; sha: string }> {
   if (scope === null || scope === undefined) {
     return entries;
   }

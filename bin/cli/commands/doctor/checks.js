@@ -7,7 +7,7 @@
  * @module cli/commands/doctor/checks
  */
 
-import HealthCheckService from '../../../../src/domain/services/HealthCheckService.js';
+import HealthCheckService from '../../../../src/domain/services/HealthCheckService.ts';
 import ClockAdapter from '../../../../src/infrastructure/adapters/ClockAdapter.js';
 import {
   buildCheckpointRef,

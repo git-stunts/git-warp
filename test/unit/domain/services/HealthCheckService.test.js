@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import HealthCheckService, { HealthStatus } from '../../../../src/domain/services/HealthCheckService.js';
+import HealthCheckService, { HealthStatus } from '../../../../src/domain/services/HealthCheckService.ts';
 
 describe('HealthCheckService', () => {
   /** @type {any} */

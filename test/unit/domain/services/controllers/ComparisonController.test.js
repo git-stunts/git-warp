@@ -11,7 +11,7 @@ import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
-import { encodeEdgeKey, encodePropKey, encodeEdgePropKey } from '../../../../../src/domain/services/KeyCodec.js';
+import { encodeEdgeKey, encodePropKey, encodeEdgePropKey } from '../../../../../src/domain/services/KeyCodec.ts';
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────
 
