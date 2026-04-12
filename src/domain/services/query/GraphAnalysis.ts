@@ -19,7 +19,6 @@ import {
   type TraversalStats,
   DEFAULT_MAX_NODES,
   DEFAULT_MAX_DEPTH,
-  stripUndefined,
 } from './TraversalContext.ts';
 
 export default class GraphAnalysis {
@@ -43,10 +42,11 @@ export default class GraphAnalysis {
     const { start, direction = 'out', options, signal } = params;
     const maxNodes = params.maxNodes ?? DEFAULT_MAX_NODES;
 
-    const { sorted } = await this._topologicalSort(stripUndefined({
-      start, direction, options, maxNodes,
-      throwOnCycle: true, signal,
-    }));
+    const { sorted } = await this._topologicalSort({
+      start, direction, maxNodes, throwOnCycle: true,
+      ...(options !== undefined && { options }),
+      ...(signal !== undefined && { signal }),
+    });
 
     const rs = this._ctx.newRunStats();
     const levelMap = new Map<string, number>();
@@ -85,9 +85,11 @@ export default class GraphAnalysis {
     const maxNodes = params.maxNodes ?? DEFAULT_MAX_NODES;
     const maxDepth = params.maxDepth ?? DEFAULT_MAX_DEPTH;
 
-    const { nodes: visited, stats: bfsStats } = await this._bfs(stripUndefined({
-      start, direction: 'in' as const, options, maxNodes, maxDepth, signal,
-    }));
+    const { nodes: visited, stats: bfsStats } = await this._bfs({
+      start, direction: 'in' as const, maxNodes, maxDepth,
+      ...(options !== undefined && { options }),
+      ...(signal !== undefined && { signal }),
+    });
 
     const rs = this._ctx.newRunStats();
     const roots: string[] = [];
@@ -121,10 +123,11 @@ export default class GraphAnalysis {
     const { start, direction = 'out', options, signal } = params;
     const maxNodes = params.maxNodes ?? DEFAULT_MAX_NODES;
 
-    const { sorted } = await this._topologicalSort(stripUndefined({
-      start, direction, options, maxNodes,
-      throwOnCycle: true, signal,
-    }));
+    const { sorted } = await this._topologicalSort({
+      start, direction, maxNodes, throwOnCycle: true,
+      ...(options !== undefined && { options }),
+      ...(signal !== undefined && { signal }),
+    });
 
     const rs = this._ctx.newRunStats();
     const fetchedSuccessors = new Map<string, NeighborEdge[]>();
@@ -216,15 +219,17 @@ export default class GraphAnalysis {
     const maxEdges = params.maxEdges ?? 1000000;
 
     const rs = this._ctx.newRunStats();
-    const prepared = await this._prepareTransitiveClosure(stripUndefined({
-      start, direction, options, maxNodes, signal, rs,
-      opName: 'transitiveClosureStream',
-    }));
+    const prepared = await this._prepareTransitiveClosure({
+      start, direction, maxNodes, rs, opName: 'transitiveClosureStream',
+      ...(options !== undefined && { options }),
+      ...(signal !== undefined && { signal }),
+    });
 
-    yield* this._streamTransitiveClosureEdges(stripUndefined({
-      nodeList: prepared.nodeList, direction, options, maxEdges, signal, rs,
-      opName: 'transitiveClosureStream',
-    }));
+    yield* this._streamTransitiveClosureEdges({
+      nodeList: prepared.nodeList, direction, maxEdges, rs, opName: 'transitiveClosureStream',
+      ...(options !== undefined && { options }),
+      ...(signal !== undefined && { signal }),
+    });
   }
 
   async transitiveClosure(params: {
@@ -240,16 +245,18 @@ export default class GraphAnalysis {
     const maxEdges = params.maxEdges ?? 1000000;
 
     const rs = this._ctx.newRunStats();
-    const { nodeList, nodesVisited } = await this._prepareTransitiveClosure(stripUndefined({
-      start, direction, options, maxNodes, signal, rs,
-      opName: 'transitiveClosure',
-    }));
+    const { nodeList, nodesVisited } = await this._prepareTransitiveClosure({
+      start, direction, maxNodes, rs, opName: 'transitiveClosure',
+      ...(options !== undefined && { options }),
+      ...(signal !== undefined && { signal }),
+    });
 
     const edges: Array<{ from: string; to: string }> = [];
-    for await (const edge of this._streamTransitiveClosureEdges(stripUndefined({
-      nodeList, direction, options, maxEdges, signal, rs,
-      opName: 'transitiveClosure',
-    }))) {
+    for await (const edge of this._streamTransitiveClosureEdges({
+      nodeList, direction, maxEdges, rs, opName: 'transitiveClosure',
+      ...(options !== undefined && { options }),
+      ...(signal !== undefined && { signal }),
+    })) {
       edges.push(edge);
     }
 

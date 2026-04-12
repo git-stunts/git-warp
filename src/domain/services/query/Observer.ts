@@ -149,16 +149,16 @@ interface ObserverOptions {
  * Read-only observer view of a materialized WarpRuntime state.
  */
 export default class Observer {
-  private _name: string;
-  private _matchPattern: string | string[];
+  private _name!: string;
+  private _matchPattern!: string | string[];
   private _expose: string[] | undefined;
   private _redact: string[] | undefined;
-  private _graph: WarpRuntime | null;
-  private _snapshot: { state: WarpState; stateHash: string } | null;
-  private _source: WorldlineSelector | null;
+  private _graph!: WarpRuntime | null;
+  private _snapshot!: { state: WarpState; stateHash: string } | null;
+  private _source!: WorldlineSelector | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- StateReader type not exported directly
   private _stateReader: any;
-  private _snapshotAdjacency: AdjacencyMaps | null;
+  private _snapshotAdjacency!: AdjacencyMaps | null;
   // Public traversal API — duck-typed by LogicalTraversal constructor
   traverse: LogicalTraversal;
 
@@ -320,6 +320,6 @@ export default class Observer {
   // ===========================================================================
 
   query(): QueryBuilder {
-    return new QueryBuilder(this as unknown as Parameters<typeof QueryBuilder>[0]);
+    return new QueryBuilder(this as unknown as ConstructorParameters<typeof QueryBuilder>[0]);
   }
 }
