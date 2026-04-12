@@ -5,7 +5,7 @@ import {
   runCrossProvider,
   fixtureToState,
 } from '../../helpers/fixtureDsl.js';
-import MaterializedViewService from '../../../src/domain/services/MaterializedViewService.js';
+import MaterializedViewService from '../../../src/domain/services/MaterializedViewService.ts';
 
 describe('fixtureDsl helpers', () => {
   it('makeFixture throws when props reference unknown nodes', () => {

@@ -3,7 +3,7 @@ import MaterializeController from '../../../../src/domain/services/controllers/M
 import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
-import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
+import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
 
 /**
  * @param {string[]} nodes

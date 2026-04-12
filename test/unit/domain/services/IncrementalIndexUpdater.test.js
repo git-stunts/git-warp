@@ -3,7 +3,7 @@ import IncrementalIndexUpdater from '../../../../src/domain/services/index/Incre
 import IndexNodeUpdater from '../../../../src/domain/services/index/IndexNodeUpdater.ts';
 import IndexEdgeUpdater from '../../../../src/domain/services/index/IndexEdgeUpdater.ts';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.ts';
-import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
+import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
 import { createEmptyState, applyOpV2, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
@@ -892,7 +892,7 @@ describe('IncrementalIndexUpdater', () => {
   describe('MaterializedViewService.applyDiff integration', () => {
     it('produces a valid BuildResult via applyDiff', async () => {
       const { default: MaterializedViewService } = await import(
-        '../../../../src/domain/services/MaterializedViewService.js'
+        '../../../../src/domain/services/MaterializedViewService.ts'
       );
 
       const state1 = buildState({

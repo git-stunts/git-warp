@@ -20,7 +20,7 @@ import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { decodeEdgeKey } from '../../../../src/domain/services/KeyCodec.js';
-import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
+import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
 import BitmapNeighborProvider from '../../../../src/domain/services/index/BitmapNeighborProvider.js';
 import AdjacencyNeighborProvider from '../../../../src/domain/services/query/AdjacencyNeighborProvider.js';
 import { createEmptyDiff } from '../../../../src/domain/types/PatchDiff.ts';

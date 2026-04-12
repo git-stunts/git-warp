@@ -266,7 +266,7 @@ export default tseslint.config(
   {
     files: [
       "src/domain/services/index/IndexRebuildService.js",
-      "src/domain/services/MaterializedViewService.js",
+      "src/domain/services/MaterializedViewHelpers.ts",
       // JoinReducer-family files extracted from the original god class.
       // These inherit its algorithmic density: concerns-per-file is low,
       // but branching complexity and parameter counts are intrinsic.

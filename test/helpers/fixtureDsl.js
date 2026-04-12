@@ -11,7 +11,7 @@
 import { deepStrictEqual } from 'node:assert/strict';
 import AdjacencyNeighborProvider from '../../src/domain/services/query/AdjacencyNeighborProvider.js';
 import BitmapNeighborProvider from '../../src/domain/services/index/BitmapNeighborProvider.js';
-import MaterializedViewService from '../../src/domain/services/MaterializedViewService.js';
+import MaterializedViewService from '../../src/domain/services/MaterializedViewService.ts';
 import { createEmptyState, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../src/domain/utils/EventId.ts';
