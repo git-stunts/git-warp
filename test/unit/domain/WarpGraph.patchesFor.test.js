@@ -3,7 +3,7 @@ import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { encodeEdgeKey, createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { serializeFullStateV5, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializerV5.js';
-import { serializeFrontier } from '../../../src/domain/services/Frontier.js';
+import { serializeFrontier } from '../../../src/domain/services/Frontier.ts';
 import { ProvenanceIndex } from '../../../src/domain/services/provenance/ProvenanceIndex.js';
 
 // Shared test utilities - generators are designed for parallel-safety

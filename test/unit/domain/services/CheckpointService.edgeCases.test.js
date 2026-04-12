@@ -18,7 +18,7 @@ import {
   createFrontier,
   updateFrontier,
   serializeFrontier,
-} from '../../../../src/domain/services/Frontier.js';
+} from '../../../../src/domain/services/Frontier.ts';
 import {
   serializeFullStateV5,
   deserializeFullStateV5,

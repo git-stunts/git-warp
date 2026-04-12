@@ -8,7 +8,7 @@ import {
   deserializeFrontier,
   cloneFrontier,
   mergeFrontiers,
-} from '../../../../src/domain/services/Frontier.js';
+} from '../../../../src/domain/services/Frontier.ts';
 
 describe('Frontier', () => {
   describe('createFrontier', () => {

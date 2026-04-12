@@ -20,7 +20,7 @@ import {
 } from '../sync/SyncProtocol.js';
 import { retry, timeout, RetryExhaustedError, TimeoutError } from '@git-stunts/alfred';
 import { checkAborted } from '../../utils/cancellation.ts';
-import { createFrontier, updateFrontier } from '../Frontier.js';
+import { createFrontier, updateFrontier } from '../Frontier.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import GCMetrics from '../GCMetrics.ts';
 import HttpSyncServer from '../sync/HttpSyncServer.js';

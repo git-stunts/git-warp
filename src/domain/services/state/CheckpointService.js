@@ -19,7 +19,7 @@ import {
   serializeAppliedVV,
   deserializeAppliedVV,
 } from './CheckpointSerializerV5.js';
-import { serializeFrontier, deserializeFrontier } from '../Frontier.js';
+import { serializeFrontier, deserializeFrontier } from '../Frontier.ts';
 import { encodeCheckpointMessage, decodeCheckpointMessage } from '../codec/WarpMessageCodec.ts';
 import ORSet from '../../crdt/ORSet.ts';
 import { Dot } from '../../crdt/Dot.ts';

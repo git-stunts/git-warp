@@ -5,7 +5,7 @@ import {
 import {
   createEmptyState,
 } from '../../../../src/domain/services/JoinReducer.ts';
-import { createFrontier } from '../../../../src/domain/services/Frontier.js';
+import { createFrontier } from '../../../../src/domain/services/Frontier.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 

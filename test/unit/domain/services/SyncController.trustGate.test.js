@@ -3,7 +3,7 @@ import SyncController from '../../../../src/domain/services/controllers/SyncCont
 import SyncTrustGate from '../../../../src/domain/services/sync/SyncTrustGate.js';
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
 import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
-import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
+import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.ts';
 
 vi.mock('../../../../src/domain/services/sync/SyncProtocol.js', async (importOriginal) => {
   const original = /** @type {Record<string, unknown>} */ (await importOriginal());

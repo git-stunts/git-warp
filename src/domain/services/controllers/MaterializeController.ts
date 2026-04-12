@@ -14,7 +14,7 @@ import { reduceV5, createEmptyState } from '../JoinReducer.ts';
 import { isV5CheckpointSchema, materializeIncremental } from '../state/CheckpointService.js';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
 import { computeStateHashV5 } from '../state/StateSerializerV5.js';
-import { createFrontier, updateFrontier } from '../Frontier.js';
+import { createFrontier, updateFrontier } from '../Frontier.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import { normalizeFrontierInput, normalizeExplicitCeiling, buildAdjacency, maxLamportInPatches } from './MaterializeHelpers.ts';
 import type ClockPort from '../../../ports/ClockPort.ts';

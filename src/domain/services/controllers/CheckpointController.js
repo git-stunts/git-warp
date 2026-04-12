@@ -10,7 +10,7 @@
 import { QueryError, E_NO_STATE_MSG } from '../../warp/_internal.ts';
 import { SchemaUnsupportedError } from '../../errors/index.ts';
 import { buildWriterRef, buildCheckpointRef, buildCoverageRef } from '../../utils/RefLayout.ts';
-import { createFrontier, updateFrontier, frontierFingerprint } from '../Frontier.js';
+import { createFrontier, updateFrontier, frontierFingerprint } from '../Frontier.ts';
 import { loadCheckpoint, create as createCheckpointCommit, isV5CheckpointSchema } from '../state/CheckpointService.js';
 import { decodePatchMessage, detectMessageKind, encodeAnchorMessage } from '../codec/WarpMessageCodec.ts';
 import executeGC from '../executeGC.ts';

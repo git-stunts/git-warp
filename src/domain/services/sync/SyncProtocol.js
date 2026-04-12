@@ -42,7 +42,7 @@ import { join, cloneState, isKnownRawOp } from '../JoinReducer.ts';
 import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 import SyncError from '../../errors/SyncError.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
-import { cloneFrontier, updateFrontier } from '../Frontier.js';
+import { cloneFrontier, updateFrontier } from '../Frontier.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 
 /**

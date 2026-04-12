@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { create, createV5, loadCheckpoint, reconstructStateV5FromCheckpoint } from '../../../../src/domain/services/state/CheckpointService.js';
-import { createFrontier, updateFrontier, serializeFrontier } from '../../../../src/domain/services/Frontier.js';
+import { createFrontier, updateFrontier, serializeFrontier } from '../../../../src/domain/services/Frontier.ts';
 import { computeStateHashV5 } from '../../../../src/domain/services/state/StateSerializerV5.js';
 import {
   serializeFullStateV5,

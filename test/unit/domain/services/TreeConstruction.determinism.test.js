@@ -3,7 +3,7 @@ import fc from 'fast-check';
 import { createRng } from '../../../helpers/seededRng.js';
 import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
+import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.ts';
 import { createV5 } from '../../../../src/domain/services/state/CheckpointService.js';
 import { createEmptyState, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';

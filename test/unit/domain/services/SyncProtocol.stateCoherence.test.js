@@ -13,7 +13,7 @@ import {
 import {
   createEmptyState,
 } from '../../../../src/domain/services/JoinReducer.ts';
-import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
+import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.ts';
 // createDot reserved for future test expansion
 // import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
