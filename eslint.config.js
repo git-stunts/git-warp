@@ -312,7 +312,6 @@ export default tseslint.config(
       "src/visualization/renderers/ascii/graph.js",
       "src/domain/services/KeyCodec.js",
       "src/domain/services/dag/DagTraversal.js",
-      "src/domain/services/dag/DagPathFinding.js",
       "src/domain/services/dag/DagTopology.js",
       "src/domain/services/query/GraphTraversal.js",
       "src/domain/services/codec/AuditMessageCodec.ts",

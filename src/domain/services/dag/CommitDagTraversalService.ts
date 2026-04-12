@@ -12,7 +12,7 @@ import nullLogger from '../../utils/nullLogger.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import DagTraversal from './DagTraversal.ts';
 import type { TraversalNode, TraversalOptions, DagIndexReader } from './DagTraversal.ts';
-import DagPathFinding from './DagPathFinding.js';
+import DagPathFinding from './DagPathFinding.ts';
 import DagTopology from './DagTopology.ts';
 import TraversalError from '../../errors/TraversalError.ts';
 
