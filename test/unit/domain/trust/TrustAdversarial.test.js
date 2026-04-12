@@ -15,6 +15,9 @@ import { evaluateWriters } from '../../../../src/domain/trust/TrustEvaluator.ts'
 import { verifyRecordId } from '../../../../src/domain/trust/TrustCanonical.ts';
 import { TRUST_REASON_CODES } from '../../../../src/domain/trust/reasonCodes.ts';
 import { TrustRecordService } from '../../../../src/domain/trust/TrustRecordService.js';
+import { TrustRecord } from '../../../../src/domain/trust/TrustRecord.ts';
+import { signaturePayload } from '../../../../src/domain/trust/canonical.ts';
+import { textEncode } from '../../../../src/domain/utils/bytes.ts';
 import {
   KEY_ADD_1,
   KEY_ADD_2,
@@ -23,8 +26,15 @@ import {
   KEY_ID_1,
   KEY_ID_2,
   PUBLIC_KEY_2,
-  record,
 } from './fixtures/goldenRecords.ts';
+
+/** Build an ad-hoc TrustRecord from plain fields. */
+function tr(fields) {
+  return TrustRecord.fromDecoded({
+    ...fields,
+    signaturePayload: textEncode(signaturePayload(fields)),
+  });
+}
 
 const ENFORCE_POLICY = {
   schemaVersion: 1,
@@ -73,7 +83,7 @@ describe('Adversarial case 2: Stale key after KEY_REVOKE', () => {
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
 
-    const state = await buildState([KEY_ADD_1, KEY_ADD_2, record(bobBind), WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]);
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, tr(bobBind), WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]);
     const assessment = evaluateWriters(['bob'], state, ENFORCE_POLICY);
 
     expect(assessment.trustVerdict).toBe('fail');
@@ -99,7 +109,7 @@ describe('Adversarial case 3: Revoked key signs new binding', () => {
 
     const state = await buildState([
       KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE,
-      KEY_REVOKE_2, record(bindAfterRevoke),
+      KEY_REVOKE_2, tr(bindAfterRevoke),
     ]);
 
     expect(state.errors.some((e) => e.error.includes('Cannot bind writer to revoked key'))).toBe(true);

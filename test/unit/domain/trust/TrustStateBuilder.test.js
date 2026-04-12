@@ -8,6 +8,8 @@
 import { describe, it, expect } from 'vitest';
 import { buildState } from '../../../../src/domain/trust/TrustStateBuilder.ts';
 import { TrustRecord } from '../../../../src/domain/trust/TrustRecord.ts';
+import { signaturePayload } from '../../../../src/domain/trust/canonical.ts';
+import { textEncode } from '../../../../src/domain/utils/bytes.ts';
 import {
   verifySignature,
   computeKeyFingerprint,
@@ -23,8 +25,15 @@ import {
   KEY_ID_2,
   PUBLIC_KEY_1,
   PUBLIC_KEY_2,
-  record,
 } from './fixtures/goldenRecords.ts';
+
+/** Build an ad-hoc TrustRecord from plain fields. */
+function tr(fields) {
+  return TrustRecord.fromDecoded({
+    ...fields,
+    signaturePayload: textEncode(signaturePayload(fields)),
+  });
+}
 
 describe('buildState — key lifecycle', () => {
   it('KEY_ADD makes key active', async () => {
@@ -86,7 +95,7 @@ describe('buildState — signature verification', () => {
       ...KEY_ADD_2,
       issuedAt: '2025-06-15T12:09:00Z',
     };
-    const state = await buildState([KEY_ADD_1, record(tampered)], cryptoOptions);
+    const state = await buildState([KEY_ADD_1, tr(tampered)], cryptoOptions);
     expect(state.errors.some((e) => e.error.includes('Signature verification failed'))).toBe(true);
     expect(state.activeKeys.has(KEY_ID_2)).toBe(false);
   });
@@ -99,7 +108,7 @@ describe('buildState — signature verification', () => {
         keyId: KEY_ID_1,
       },
     };
-    const state = await buildState([KEY_ADD_1, record(mismatched)], cryptoOptions);
+    const state = await buildState([KEY_ADD_1, tr(mismatched)], cryptoOptions);
     expect(state.errors.some((e) => e.error.includes('fingerprint mismatch'))).toBe(true);
     expect(state.activeKeys.has(KEY_ID_2)).toBe(false);
   });
@@ -127,7 +136,7 @@ describe('buildState — binding lifecycle', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
-    const state = await buildState([KEY_ADD_1, KEY_ADD_2, record(bobBind), WRITER_BIND_ADD_ALICE, KEY_REVOKE_2, WRITER_BIND_REVOKE_BOB]);
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, tr(bobBind), WRITER_BIND_ADD_ALICE, KEY_REVOKE_2, WRITER_BIND_REVOKE_BOB]);
     const bindingKey = `bob\0${KEY_ID_2}`;
     expect(state.writerBindings.has(bindingKey)).toBe(false);
     expect(state.revokedBindings.has(bindingKey)).toBe(true);
@@ -148,7 +157,7 @@ describe('buildState — monotonic revocation', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
-    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2, record(reAdd)]);
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2, tr(reAdd)]);
     expect(state.errors.length).toBeGreaterThan(0);
     expect(state.errors.some(e => e.error.includes('Cannot re-add revoked key'))).toBe(true);
     expect(state.activeKeys.has(KEY_ID_2)).toBe(false);
@@ -166,7 +175,7 @@ describe('buildState — monotonic revocation', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
-    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2, record(doubleRevoke)]);
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2, tr(doubleRevoke)]);
     expect(state.errors.some(e => e.error.includes('already revoked'))).toBe(true);
   });
 });
@@ -184,7 +193,7 @@ describe('buildState — binding validation', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
-    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2, record(bindToRevoked)]);
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2, tr(bindToRevoked)]);
     expect(state.errors.some(e => e.error.includes('Cannot bind writer to revoked key'))).toBe(true);
   });
 
@@ -200,7 +209,7 @@ describe('buildState — binding validation', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
-    const state = await buildState([KEY_ADD_1, record(bindToUnknown)]);
+    const state = await buildState([KEY_ADD_1, tr(bindToUnknown)]);
     expect(state.errors.some(e => e.error.includes('Cannot bind writer to unknown key'))).toBe(true);
   });
 
@@ -216,7 +225,7 @@ describe('buildState — binding validation', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
-    const state = await buildState([KEY_ADD_1, record(revokePhantom)]);
+    const state = await buildState([KEY_ADD_1, tr(revokePhantom)]);
     expect(state.errors.some(e => e.error.includes('Cannot revoke non-existent binding'))).toBe(true);
   });
 });

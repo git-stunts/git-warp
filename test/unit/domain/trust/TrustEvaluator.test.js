@@ -9,6 +9,9 @@ import { describe, it, expect } from 'vitest';
 import { evaluateWriters } from '../../../../src/domain/trust/TrustEvaluator.ts';
 import { buildState } from '../../../../src/domain/trust/TrustStateBuilder.ts';
 import { TRUST_REASON_CODES } from '../../../../src/domain/trust/reasonCodes.ts';
+import { TrustRecord } from '../../../../src/domain/trust/TrustRecord.ts';
+import { signaturePayload } from '../../../../src/domain/trust/canonical.ts';
+import { textEncode } from '../../../../src/domain/utils/bytes.ts';
 import {
   KEY_ADD_1,
   KEY_ADD_2,
@@ -16,8 +19,15 @@ import {
   KEY_REVOKE_2,
   KEY_ID_1,
   KEY_ID_2,
-  record,
 } from './fixtures/goldenRecords.ts';
+
+/** Build an ad-hoc TrustRecord from plain fields. */
+function tr(fields) {
+  return TrustRecord.fromDecoded({
+    ...fields,
+    signaturePayload: textEncode(signaturePayload(fields)),
+  });
+}
 
 const VALID_POLICY = {
   schemaVersion: 1,
@@ -74,7 +84,7 @@ describe('evaluateWriters — untrusted writers', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
     };
-    const state = await buildState([KEY_ADD_1, KEY_ADD_2, record(bobBind), WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]);
+    const state = await buildState([KEY_ADD_1, KEY_ADD_2, tr(bobBind), WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]);
     const assessment = evaluateWriters(['bob'], state, VALID_POLICY);
 
     expect(assessment.trustVerdict).toBe('fail');

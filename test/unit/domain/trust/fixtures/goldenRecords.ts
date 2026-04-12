@@ -121,14 +121,6 @@ function toRecord(raw: RawRecord): TrustRecord {
   return TrustRecord.fromDecoded(decoded);
 }
 
-/**
- * Build a TrustRecord from inline fields. For ad-hoc test records.
- * Computes signaturePayload automatically.
- */
-function record(fields: RawRecord): TrustRecord {
-  return toRecord(fields);
-}
-
 // -- Exported TrustRecord instances -------------------------------------------
 
 const KEY_ADD_1 = toRecord(RAW_KEY_ADD_1);
@@ -171,7 +163,5 @@ export {
   RAW_WRITER_BIND_ADD_ALICE,
   RAW_KEY_REVOKE_2,
   RAW_WRITER_BIND_REVOKE_BOB,
-  // Ad-hoc record builder
-  record,
 };
 export type { RawRecord };
