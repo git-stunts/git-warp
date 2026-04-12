@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 // @ts-expect-error - no declaration file for @git-stunts/plumbing
 import Plumbing from '@git-stunts/plumbing';
-import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.js';
+import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
 import CasBlobAdapter from '../../../../src/infrastructure/adapters/CasBlobAdapter.js';
 import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
 import WebCryptoAdapter from '../../../../src/infrastructure/adapters/WebCryptoAdapter.js';

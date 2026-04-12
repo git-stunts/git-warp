@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
-import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.js';
+import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
 import { createGitRepo } from '../../../helpers/warpGraphTestUtils.js';
 import { describeAdapterConformance } from './AdapterConformance.js';
 

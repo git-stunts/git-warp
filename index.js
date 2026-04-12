@@ -32,7 +32,7 @@
  * ```
  */
 
-import GitGraphAdapter from './src/infrastructure/adapters/GitGraphAdapter.js';
+import GitGraphAdapter from './src/infrastructure/adapters/GitGraphAdapter.ts';
 import GraphNode from './src/domain/entities/GraphNode.ts';
 import BitmapIndexBuilder from './src/domain/services/index/BitmapIndexBuilder.js';
 import BitmapIndexReader from './src/domain/services/index/BitmapIndexReader.js';

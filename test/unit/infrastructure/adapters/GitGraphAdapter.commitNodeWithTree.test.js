@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.js';
+import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
 
 describe('GitGraphAdapter', () => {
   describe('commitNodeWithTree()', () => {

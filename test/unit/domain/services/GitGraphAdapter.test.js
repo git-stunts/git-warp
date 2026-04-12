@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.js';
+import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
+import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
 
 describe('GitGraphAdapter', () => {
   describe('constructor', () => {
@@ -539,13 +540,11 @@ describe('GitGraphAdapter', () => {
       expect(result).toBeNull();
     });
 
-    it('returns null when config key not found (message pattern)', async () => {
-      const err = new Error('error: exit code 1');
+    it('throws when error has no exit code (message-only errors are not config-not-found)', async () => {
+      const err = new PersistenceError('error: exit code 1', PersistenceError.E_REF_IO);
       mockPlumbing.execute.mockRejectedValue(err);
 
-      const result = await adapter.configGet('nonexistent.key');
-
-      expect(result).toBeNull();
+      await expect(adapter.configGet('nonexistent.key')).rejects.toThrow('error: exit code 1');
     });
 
     it('validates config key before calling git', async () => {

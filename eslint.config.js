@@ -348,7 +348,7 @@ export default tseslint.config(
       "src/domain/services/state/StateReader.ts",
       "src/domain/services/state/StateReaderContext.ts",
       "src/domain/services/sync/SyncAuthService.js",
-      "src/infrastructure/adapters/GitGraphAdapter.js",
+      "src/infrastructure/adapters/GitGraphAdapter.ts",
       "src/infrastructure/adapters/CborCheckpointStoreAdapter.js",
       "src/infrastructure/adapters/CborPatchJournalAdapter.js",
       "src/infrastructure/adapters/IndexShardEncodeTransform.js",

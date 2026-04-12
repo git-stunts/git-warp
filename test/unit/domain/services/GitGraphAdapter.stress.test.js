@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.js';
+import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
 
 describe('GitGraphAdapter Concurrency Stress Test', () => {
   it('handles 50 simultaneous createNode calls without corruption', async () => {
@@ -21,7 +21,7 @@ describe('GitGraphAdapter Concurrency Stress Test', () => {
       executeStream: vi.fn(),
     };
 
-    const adapter = new GitGraphAdapter({ plumbing: /** @type {import('../../../../src/infrastructure/adapters/GitGraphAdapter.js').GitPlumbingLike} */ (mockPlumbing) });
+    const adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
 
     // Fire 50 concurrent commits
     const promises = Array.from({ length: 50 }, (_, i) =>
@@ -54,7 +54,7 @@ describe('GitGraphAdapter Concurrency Stress Test', () => {
       executeStream: vi.fn(),
     };
 
-    const adapter = new GitGraphAdapter({ plumbing: /** @type {import('../../../../src/infrastructure/adapters/GitGraphAdapter.js').GitPlumbingLike} */ (mockPlumbing) });
+    const adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
 
     // Mix of writes, reads, and ref lookups
     const operations = [

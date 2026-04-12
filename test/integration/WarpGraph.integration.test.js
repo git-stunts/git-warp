@@ -4,7 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 // @ts-expect-error - no declaration file for @git-stunts/plumbing
 import Plumbing from '@git-stunts/plumbing';
-import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.js';
+import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.ts';
 import WarpRuntime from '../../src/domain/WarpRuntime.ts';
 import { computeStateHash, nodeVisibleV5, edgeVisible } from '../../src/domain/services/state/StateSerializer.js';
 import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';

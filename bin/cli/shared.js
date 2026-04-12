@@ -16,7 +16,7 @@ const TypedShellRunnerFactory = /** @type {{ create: () => unknown }} */ (_sfRaw
 const _gpRaw = _GitPlumbing;
 const TypedGitPlumbing = /** @type {new (opts: { cwd: string, runner: unknown }) => unknown} */ (_gpRaw);
 import WarpCore from '../../src/domain/WarpCore.ts';
-import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.js';
+import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.ts';
 import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter.js';
 import {
   REF_PREFIX,
@@ -41,7 +41,7 @@ import { usageError, notFoundError } from './infrastructure.js';
 export async function createPersistence(repoPath) {
   const runner = TypedShellRunnerFactory.create();
   const plumbing = new TypedGitPlumbing({ cwd: repoPath, runner });
-  const persistence = /** @type {Persistence} */ (/** @type {unknown} */ (new GitGraphAdapter({ plumbing: /** @type {import('../../src/infrastructure/adapters/GitGraphAdapter.js').GitPlumbingLike} */ (plumbing) })));
+  const persistence = /** @type {Persistence} */ (new GitGraphAdapter({ plumbing }));
   const ping = await persistence.ping();
   if (!ping.ok) {
     throw usageError(`Repository not accessible: ${repoPath}`);
