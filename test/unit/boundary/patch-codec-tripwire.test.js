@@ -22,7 +22,9 @@ const ROOT = resolve(__dirname, '..', '..', '..');
  */
 const PATCH_FILES = [
   'src/domain/services/PatchBuilder.ts',
-  'src/domain/services/sync/SyncProtocol.js',
+  'src/domain/services/sync/syncPatchLoader.ts',
+  'src/domain/services/sync/syncDelta.ts',
+  'src/domain/services/sync/syncRequestResponse.ts',
   'src/domain/warp/Writer.ts',
 ];
 

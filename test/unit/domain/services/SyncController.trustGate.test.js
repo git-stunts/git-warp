@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import SyncController from '../../../../src/domain/services/controllers/SyncController.js';
+import SyncController from '../../../../src/domain/services/controllers/SyncController.ts';
 import SyncTrustGate from '../../../../src/domain/services/sync/SyncTrustGate.js';
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
 import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';

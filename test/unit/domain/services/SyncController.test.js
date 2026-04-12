@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import SyncController from '../../../../src/domain/services/controllers/SyncController.js';
+import SyncController from '../../../../src/domain/services/controllers/SyncController.ts';
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
 import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
