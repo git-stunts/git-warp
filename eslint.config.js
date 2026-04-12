@@ -316,7 +316,7 @@ export default tseslint.config(
       "src/domain/services/query/GraphTraversal.js",
       "src/domain/services/codec/AuditMessageCodec.ts",
       "src/domain/services/audit/AuditReceiptService.js",
-      "src/domain/services/audit/AuditVerifierService.js",
+      "src/domain/services/audit/AuditChainVerifier.ts",
       "bin/warp-graph.js",
       "bin/cli/infrastructure.js",
       "bin/cli/shared.js",

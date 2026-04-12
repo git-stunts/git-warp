@@ -28,7 +28,7 @@ import QueryController from './services/controllers/QueryController.ts';
 import PatchController from './services/controllers/PatchController.js';
 import CheckpointController from './services/controllers/CheckpointController.js';
 import SyncTrustGate from './services/sync/SyncTrustGate.js';
-import { AuditVerifierService } from './services/audit/AuditVerifierService.js';
+import AuditVerifierService from './services/audit/AuditVerifierService.ts';
 import MaterializedViewService from './services/MaterializedViewService.js';
 import StateHashService from './services/state/StateHashService.js';
 import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.ts';
