@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import IndexRebuildService from '../../../../src/domain/services/index/IndexRebuildService.js';
 import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
-import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
-
-const crypto = new NodeCryptoAdapter();
+import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 
 describe('IndexRebuildService', () => {
   /** @type {any} */
@@ -32,7 +30,6 @@ describe('IndexRebuildService', () => {
     service = new IndexRebuildService(/** @type {any} */ ({
       storage: mockStorage,
       graphService: mockGraphService,
-      crypto,
     }));
   });
 
@@ -125,30 +122,11 @@ describe('IndexRebuildService', () => {
       expect(reader.strict).toBe(false);
     });
 
-    it('strict mode throws ShardValidationError on checksum mismatch', async () => {
-      // Mock storage to return shard with wrong checksum
+    it('strict mode throws ShardCorruptionError on invalid CBOR', async () => {
       mockStorage.readTreeOids.mockResolvedValue({
-        'meta_ab.json': 'badcbadcbadcbadcbadcbadcbadcbadcbadcbadc'
+        'meta_ab.cbor': 'c0aac0aac0aac0aac0aac0aac0aac0aac0aac0aa'
       });
-      mockStorage.readBlob.mockResolvedValue(Buffer.from(JSON.stringify({
-        version: 1,
-        checksum: 'wrong-checksum',
-        data: { 'ab123456': 0 }
-      })));
-
-      const reader = await service.load('tree-oid');
-
-      // Import error type
-      const { ShardValidationError } = await import('../../../../src/domain/errors/index.ts');
-
-      await expect(reader.lookupId('ab123456')).rejects.toThrow(ShardValidationError);
-    });
-
-    it('strict mode throws ShardCorruptionError on invalid format', async () => {
-      mockStorage.readTreeOids.mockResolvedValue({
-        'meta_ab.json': 'c0aac0aac0aac0aac0aac0aac0aac0aac0aac0aa'
-      });
-      mockStorage.readBlob.mockResolvedValue(Buffer.from('not valid json'));
+      mockStorage.readBlob.mockResolvedValue(Buffer.from('not valid cbor'));
 
       const reader = await service.load('tree-oid');
 
@@ -157,9 +135,9 @@ describe('IndexRebuildService', () => {
       await expect(reader.lookupId('ab123456')).rejects.toThrow(ShardCorruptionError);
     });
 
-    it('non-strict mode returns empty on integrity failure instead of throwing', async () => {
+    it('non-strict mode returns empty on decode failure instead of throwing', async () => {
       mockStorage.readTreeOids.mockResolvedValue({
-        'meta_ab.json': 'bad0bad0bad0bad0bad0bad0bad0bad0bad0bad0'
+        'meta_ab.cbor': 'bad0bad0bad0bad0bad0bad0bad0bad0bad0bad0'
       });
       mockStorage.readBlob.mockResolvedValue(Buffer.from('invalid'));
 
@@ -168,6 +146,20 @@ describe('IndexRebuildService', () => {
       // Should not throw, returns undefined for unknown ID
       const id = await reader.lookupId('ab123456');
       expect(id).toBeUndefined();
+    });
+
+    it('returns data from valid CBOR-encoded shard', async () => {
+      const shardData = { 'ab123456abcdef0123456789abcdef0123456789': 0 };
+      const encoded = defaultCodec.encode(shardData);
+
+      mockStorage.readTreeOids.mockResolvedValue({
+        'meta_ab.cbor': 'aabbccddaabbccddaabbccddaabbccddaabbccdd'
+      });
+      mockStorage.readBlob.mockResolvedValue(Buffer.from(encoded));
+
+      const reader = await service.load('tree-oid');
+      const id = await reader.lookupId('ab123456abcdef0123456789abcdef0123456789');
+      expect(id).toBe(0);
     });
   });
 });
