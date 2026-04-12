@@ -14,7 +14,7 @@ describe('architecture doc shape', () => {
     expect(architecture).toContain('### `WarpApp`');
     expect(architecture).toContain('### `WarpCore`');
     expect(architecture).toContain('### Internal engine');
-    expect(architecture).toContain('`src/domain/WarpRuntime.js`');
+    expect(architecture).toContain('`src/domain/WarpRuntime.ts`');
   });
 
   it('teaches the current read and speculative-lane nouns', () => {

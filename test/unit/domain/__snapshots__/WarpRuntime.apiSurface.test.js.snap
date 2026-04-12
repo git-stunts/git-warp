@@ -17,6 +17,11 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
+  "_buildViewFromResult": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "_computeBackwardCone": {
     "configurable": true,
     "enumerable": false,
@@ -92,16 +97,6 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
-  "_materializeWithCeiling": {
-    "configurable": true,
-    "enumerable": false,
-    "type": "method",
-  },
-  "_materializeWithCoordinate": {
-    "configurable": true,
-    "enumerable": false,
-    "type": "method",
-  },
   "_maxLamportFromState": {
     "configurable": true,
     "enumerable": false,
@@ -117,7 +112,17 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
+  "_notifyAfterMaterialize": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "_notifySubscribers": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_onMaterialized": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -158,6 +163,11 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "type": "method",
   },
   "_sortPatchesCausally": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_tryAutoCheckpoint": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -585,13 +595,14 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
 }
 `;
 
-exports[`WarpRuntime API surface > prototype method count matches snapshot 1`] = `116`;
+exports[`WarpRuntime API surface > prototype method count matches snapshot 1`] = `118`;
 
 exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
 [
   "_buildAdjacency",
   "_buildTrustGate",
   "_buildView",
+  "_buildViewFromResult",
   "_computeBackwardCone",
   "_emitTimingMessage",
   "_ensureFreshState",
@@ -607,12 +618,12 @@ exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
   "_loadWriterPatches",
   "_logTiming",
   "_materializeGraph",
-  "_materializeWithCeiling",
-  "_materializeWithCoordinate",
   "_maxLamportFromState",
   "_maybeRunGC",
   "_nextLamport",
+  "_notifyAfterMaterialize",
   "_notifySubscribers",
+  "_onMaterialized",
   "_onPatchCommitted",
   "_persistSeekCacheEntry",
   "_readPatchBlob",
@@ -621,6 +632,7 @@ exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
   "_restoreIndexFromCache",
   "_setMaterializedState",
   "_sortPatchesCausally",
+  "_tryAutoCheckpoint",
   "_validateMigrationBoundary",
   "_validatePatchAgainstCheckpoint",
   "analyzeConflicts",

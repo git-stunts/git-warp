@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
-import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
 
 describe('InMemoryGraphAdapter integration smoke test', () => {
   it('WarpRuntime can write a patch and materialize with InMemoryAdapter', async () => {

@@ -20,7 +20,7 @@ import CoordinateSelector from '../../types/CoordinateSelector.ts';
 import StrandSelector from '../../types/StrandSelector.ts';
 import QueryError from '../../errors/QueryError.ts';
 import type WarpState from '../state/WarpState.ts';
-import type WarpRuntime from '../../WarpRuntime.js';
+import type WarpRuntime from '../../WarpRuntime.ts';
 import type { WarpGraphWithMixins } from '../../warp/_internal.ts';
 
 import {

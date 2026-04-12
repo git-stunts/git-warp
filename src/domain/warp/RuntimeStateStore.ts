@@ -9,7 +9,7 @@ import MaterializedStateStore from '../capabilities/MaterializedStateStore.ts';
 import MaterializedSnapshot from '../capabilities/MaterializedSnapshot.ts';
 import AdjacencyMap from '../capabilities/AdjacencyMap.ts';
 import type { WarpState } from '../services/JoinReducer.ts';
-import type WarpRuntime from '../WarpRuntime.js';
+import type WarpRuntime from '../WarpRuntime.ts';
 
 export default class RuntimeStateStore extends MaterializedStateStore {
   private readonly _runtime: WarpRuntime;

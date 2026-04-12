@@ -5,7 +5,7 @@
  * isolation. Will be replaced by DetachedGraphFactory once DI is wired.
  */
 
-import type WarpRuntime from '../../WarpRuntime.js';
+import type WarpRuntime from '../../WarpRuntime.ts';
 
 type DetachedOpenOptions = Parameters<typeof WarpRuntime.open>[0];
 

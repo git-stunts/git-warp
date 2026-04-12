@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import fc from 'fast-check';
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 

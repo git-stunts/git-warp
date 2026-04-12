@@ -6,7 +6,7 @@
 
 import type { WarpState } from '../services/JoinReducer.ts';
 import type HttpServerPort from '../../ports/HttpServerPort.ts';
-import type WarpRuntime from '../WarpRuntime.js';
+import type WarpRuntime from '../WarpRuntime.ts';
 
 /** Lightweight status snapshot. */
 export type WarpStatus = {

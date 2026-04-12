@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import ConflictAnalysisRequest from '../../../../../src/domain/services/strand/ConflictAnalysisRequest.js';
+import ConflictAnalysisRequest from '../../../../../src/domain/services/strand/ConflictAnalysisRequest.ts';
 
 describe('ConflictAnalysisRequest', () => {
   it('defaults to an unfiltered frontier request', () => {
@@ -57,8 +57,8 @@ describe('ConflictAnalysisRequest', () => {
   it('normalizes every supported target selector shape', () => {
     /**
      * @typedef {{
-     *   input: import('../../../../../src/domain/services/strand/ConflictAnalysisRequest.js').ConflictTargetSelector,
-     *   expected: import('../../../../../src/domain/services/strand/ConflictAnalysisRequest.js').ConflictSnapshotTarget
+     *   input: import('../../../../../src/domain/services/strand/ConflictAnalysisRequest.ts').ConflictTargetSelector,
+     *   expected: import('../../../../../src/domain/services/strand/ConflictAnalysisRequest.ts').ConflictSnapshotTarget
      * }} TargetCase
      */
 

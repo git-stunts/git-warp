@@ -1,6 +1,6 @@
 // TODO: Return type will change from WarpRuntime to WarpGraph when
 // API_capability-interfaces lands the capability-namespaced API.
-import type WarpRuntime from '../WarpRuntime.js';
+import type WarpRuntime from '../WarpRuntime.ts';
 
 /**
  * Creates read-only, detached graph instances for isolated traversal.

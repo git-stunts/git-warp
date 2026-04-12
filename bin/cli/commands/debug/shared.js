@@ -8,7 +8,7 @@ import { notFoundError } from '../../infrastructure.js';
 
 /** @typedef {import('../../types.js').CliOptions} CliOptions */
 /** @typedef {import('../../types.js').WarpGraphInstance} WarpGraphInstance */
-/** @typedef {import('../../../../src/domain/WarpCore.ts').default & import('../../../../src/domain/WarpRuntime.js').default} WarpCoreRuntime */
+/** @typedef {import('../../../../src/domain/WarpCore.ts').default & import('../../../../src/domain/WarpRuntime.ts').default} WarpCoreRuntime */
 
 /**
  * Opens a graph with debug context including cursor state for exploratory analysis.

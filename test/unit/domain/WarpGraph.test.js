@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { PatchBuilder } from '../../../src/domain/services/PatchBuilder.ts';
 import AuditVerifierService from '../../../src/domain/services/audit/AuditVerifierService.ts';
 import { NoOpEffectSink } from '../../../src/infrastructure/adapters/NoOpEffectSink.js';

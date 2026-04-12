@@ -5,7 +5,7 @@ import { tmpdir } from 'os';
 // @ts-expect-error - no declaration file for @git-stunts/plumbing
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.js';
-import WarpRuntime from '../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../src/domain/WarpRuntime.ts';
 import { computeStateHash, nodeVisibleV5, edgeVisible } from '../../src/domain/services/state/StateSerializer.js';
 import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.js';

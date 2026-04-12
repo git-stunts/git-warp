@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 
 describe('WarpRuntime writer API', () => {
   /** @type {any} */

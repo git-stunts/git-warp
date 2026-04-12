@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import QueryError from '../../../src/domain/errors/QueryError.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 

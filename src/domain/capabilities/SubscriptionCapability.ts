@@ -4,7 +4,7 @@
  * 2 methods for push-based change notification.
  */
 
-import type { StateDiffResult } from '../services/state/StateDiff.js';
+import type { StateDiffResult } from '../services/state/StateDiff.ts';
 
 /** Options for subscribe(). */
 export type SubscribeOptions = {

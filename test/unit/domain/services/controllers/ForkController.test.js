@@ -15,7 +15,7 @@ vi.mock('../../../../../src/domain/services/WormholeService.js', () => ({
 // WarpRuntime mock (dynamic import in fork())
 // ---------------------------------------------------------------------------
 const mockRuntimeOpen = vi.fn();
-vi.mock('../../../../../src/domain/WarpRuntime.js', () => ({
+vi.mock('../../../../../src/domain/WarpRuntime.ts', () => ({
   default: { open: (...args) => mockRuntimeOpen(...args) },
 }));
 

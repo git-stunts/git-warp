@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import {
   createMockPersistence,
   createMockPatch,

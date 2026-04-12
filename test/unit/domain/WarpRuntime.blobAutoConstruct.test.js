@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 
 /**
  * Spec tests for OG-014: auto-construction of blob storage.

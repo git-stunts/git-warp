@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
 
 describe('WarpRuntime — audit mode', () => {

@@ -154,7 +154,7 @@ describe('PatchController', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     host = createMockHost();
-    ctrl = new PatchController(/** @type {import('../../../../../src/domain/WarpRuntime.js').default} */ (/** @type {unknown} */ (host)));
+    ctrl = new PatchController(/** @type {import('../../../../../src/domain/WarpRuntime.ts').default} */ (/** @type {unknown} */ (host)));
   });
 
   // ────────────────────────────────────────────────────────────────────────

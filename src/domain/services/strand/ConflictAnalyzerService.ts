@@ -1,0 +1,103 @@
+/**
+ * ConflictAnalyzerService — read-only conflict provenance analysis over patch history.
+ *
+ * Orchestrates the pipeline: ConflictFrameLoader → ConflictCandidateCollector →
+ * ConflictTraceAssembler → ConflictAnalysis.
+ *
+ * @module domain/services/strand/ConflictAnalyzerService
+ */
+
+import { canonicalStringify } from '../../utils/canonicalStringify.ts';
+import ConflictAnalysis from '../../types/conflict/ConflictAnalysis.ts';
+import ConflictAnalysisRequest, { type ConflictAnalyzeOptions } from './ConflictAnalysisRequest.ts';
+import {
+  resolveAnalysisContext,
+  attachReceipts,
+  ScanWindow,
+  CONFLICT_ANALYSIS_VERSION,
+} from './ConflictFrameLoader.ts';
+import { ConflictCandidateCollector } from './ConflictCandidateCollector.ts';
+import {
+  groupCandidates,
+  buildConflictTraces,
+  filterTraces,
+  buildAnalysisSnapshotHash,
+  buildEmptySnapshotHash,
+} from './ConflictTraceAssembler.ts';
+import type WarpRuntime from '../../WarpRuntime.ts';
+import type ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
+
+export { CONFLICT_ANALYSIS_VERSION };
+
+/**
+ * ConflictAnalyzerService analyzes read-only patch history for conflict traces.
+ */
+export class ConflictAnalyzerService {
+  private readonly _graph: WarpRuntime;
+  private readonly _digestCache: Map<string, string>;
+
+  /**
+   * Initializes the analyzer with a warp runtime graph instance.
+   */
+  constructor({ graph }: { graph: WarpRuntime }) {
+    this._graph = graph;
+    this._digestCache = new Map();
+  }
+
+  /**
+   * Computes a cached SHA-256 digest of the canonical serialization of a payload.
+   */
+  async _hash(payload: unknown): Promise<string> {
+    const canonical = canonicalStringify(payload);
+    if (this._digestCache.has(canonical)) {
+      return this._digestCache.get(canonical)!;
+    }
+    const digest = await this._graph._crypto.hash('sha256', canonical);
+    this._digestCache.set(canonical, digest);
+    return digest;
+  }
+
+  /**
+   * Performs a full conflict analysis over the patch history.
+   */
+  async analyze(options?: ConflictAnalyzeOptions): Promise<ConflictAnalysis> {
+    const request = ConflictAnalysisRequest.from(options);
+    const diagnostics: ConflictDiagnostic[] = [];
+    const { patchFrames, resolvedCoordinate } = await resolveAnalysisContext(this, request);
+    if (patchFrames.length === 0) {
+      return await this._emptyResult(resolvedCoordinate, request, diagnostics);
+    }
+    attachReceipts(patchFrames);
+    const scanWindow = new ScanWindow({
+      patchFrames, maxPatches: request.maxPatches, lamportCeiling: request.lamportCeiling, diagnostics,
+    });
+    const collector = await ConflictCandidateCollector.collect(this, {
+      patchFrames, scannedPatchShas: scanWindow.scannedPatchShas, diagnostics,
+    });
+    const traces = await buildConflictTraces(this, {
+      grouped: groupCandidates(collector.candidates).values(), evidence: request.evidence, resolvedCoordinate,
+    });
+    const conflicts = filterTraces(traces, request);
+    const analysisSnapshotHash = await buildAnalysisSnapshotHash(this, {
+      resolvedCoordinate, request, truncated: scanWindow.truncated, diagnostics, traces: conflicts,
+    });
+    return new ConflictAnalysis({
+      analysisVersion: CONFLICT_ANALYSIS_VERSION, resolvedCoordinate,
+      analysisSnapshotHash, diagnostics, conflicts,
+    });
+  }
+
+  private async _emptyResult(
+    resolvedCoordinate: unknown,
+    request: ConflictAnalysisRequest,
+    diagnostics: ConflictDiagnostic[],
+  ): Promise<ConflictAnalysis> {
+    return new ConflictAnalysis({
+      analysisVersion: CONFLICT_ANALYSIS_VERSION, resolvedCoordinate,
+      analysisSnapshotHash: await buildEmptySnapshotHash(this, { resolvedCoordinate, request }),
+      diagnostics, conflicts: [],
+    });
+  }
+}
+
+export default ConflictAnalyzerService;

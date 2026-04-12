@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import ConflictCandidate from '../../../../../src/domain/services/strand/ConflictCandidate.js';
+import ConflictCandidate from '../../../../../src/domain/services/strand/ConflictCandidate.ts';
 import ConflictTarget from '../../../../../src/domain/types/conflict/ConflictTarget.ts';
 import ConflictResolution from '../../../../../src/domain/types/conflict/ConflictResolution.ts';
-import OpRecord from '../../../../../src/domain/services/strand/OpRecord.js';
+import OpRecord from '../../../../../src/domain/services/strand/OpRecord.ts';
 
 function makeTarget() {
   return new ConflictTarget({ targetKind: 'node', targetDigest: 'td1', entityId: 'n1' });

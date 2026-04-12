@@ -117,7 +117,7 @@ describe('V7 Contract Guards', () => {
         reason: 'Schema:2 OR-Set reducer',
       },
       {
-        path: 'domain/WarpRuntime.js',
+        path: 'domain/WarpRuntime.ts',
         reason: 'Main WARP API',
       },
       {

@@ -7,7 +7,7 @@
 
 import PatchCollector from '../capabilities/PatchCollector.ts';
 import type { PatchWithSha, CheckpointData } from '../capabilities/PatchCollector.ts';
-import type WarpRuntime from '../WarpRuntime.js';
+import type WarpRuntime from '../WarpRuntime.ts';
 
 export default class RuntimePatchCollector extends PatchCollector {
   private readonly _runtime: WarpRuntime;

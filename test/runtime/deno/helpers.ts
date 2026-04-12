@@ -20,7 +20,7 @@ export async function loadModules() {
   const root = Deno.cwd();
   Plumbing = (await import(join(root, "node_modules/@git-stunts/plumbing/index.js"))).default;
   GitGraphAdapter = (await import(join(root, "src/infrastructure/adapters/GitGraphAdapter.js"))).default;
-  WarpRuntime = (await import(join(root, "src/domain/WarpRuntime.js"))).default;
+  WarpRuntime = (await import(join(root, "src/domain/WarpRuntime.ts"))).default;
   WebCryptoAdapter = (await import(join(root, "src/infrastructure/adapters/WebCryptoAdapter.js"))).default;
 }
 

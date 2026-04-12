@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { addNodeToState, addEdgeToState, setupGraphState, createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpRuntime logical traversal', () => {

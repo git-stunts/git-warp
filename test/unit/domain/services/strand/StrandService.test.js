@@ -9,16 +9,16 @@ import {
   STRAND_INTENT_ID_WIDTH,
   STRAND_TICK_ID_WIDTH,
   STRAND_COUNTERFACTUAL_REASON,
-} from '../../../../../src/domain/services/strand/strandShared.js';
+} from '../../../../../src/domain/services/strand/strandShared.ts';
 import StrandError from '../../../../../src/domain/errors/StrandError.ts';
 import { textEncode, textDecode } from '../../../../../src/domain/utils/bytes.ts';
 import { createEmptyState } from '../../../../../src/domain/services/JoinReducer.ts';
 
-/** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.js' */
-/** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').ParsedStrandBlob} ParsedStrandBlob */
-/** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').StrandDescriptor} StrandDescriptor */
-/** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').StrandQueuedIntent} StrandQueuedIntent */
-/** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').StrandTickRecord} StrandTickRecord */
+/** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.ts' */
+/** @typedef {import('../../../../../src/domain/services/strand/strandTypes.ts').ParsedStrandBlob} ParsedStrandBlob */
+/** @typedef {import('../../../../../src/domain/services/strand/strandTypes.ts').StrandDescriptor} StrandDescriptor */
+/** @typedef {import('../../../../../src/domain/services/strand/strandTypes.ts').StrandQueuedIntent} StrandQueuedIntent */
+/** @typedef {import('../../../../../src/domain/services/strand/strandTypes.ts').StrandTickRecord} StrandTickRecord */
 /** @typedef {import('../../../../../src/domain/types/Patch.ts').default} Patch */
 
 // ── Deterministic OID generator ───────────────────────────────────────────────

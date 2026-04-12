@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { encodeEdgeKey, createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { serializeFullState, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializer.js';

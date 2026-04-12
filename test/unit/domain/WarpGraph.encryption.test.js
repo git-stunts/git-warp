@@ -5,7 +5,7 @@
  * BlobStoragePort that simulates encrypted storage in memory.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import BlobStoragePort from '../../../src/ports/BlobStoragePort.ts';
 import EncryptionError from '../../../src/domain/errors/EncryptionError.ts';
 import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.js';

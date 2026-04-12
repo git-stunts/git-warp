@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.js';
 
 async function createGraph(writerId = 'writer-1') {

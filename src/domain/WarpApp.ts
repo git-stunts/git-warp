@@ -2,7 +2,7 @@ import WarpCore from './WarpCore.ts';
 import WarpError from './errors/WarpError.ts';
 import { callInternalRuntimeMethod } from './utils/callInternalRuntimeMethod.ts';
 
-import type WarpRuntime from './WarpRuntime.js';
+import type WarpRuntime from './WarpRuntime.ts';
 import type { Aperture, Observer, ObserverOptions } from '../../index.js';
 
 type RuntimeBackedCore = WarpCore & {

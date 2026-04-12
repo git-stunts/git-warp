@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.js';
 import CasBlobAdapter from '../../../../src/infrastructure/adapters/CasBlobAdapter.js';
-import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
 import WebCryptoAdapter from '../../../../src/infrastructure/adapters/WebCryptoAdapter.js';
 
 /**

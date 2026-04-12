@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpRuntime.subscribe() (PL/SUB/1)', () => {

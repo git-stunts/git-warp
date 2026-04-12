@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
 import Observer from '../../../../src/domain/services/query/Observer.js';
 import { createEmptyState, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';

@@ -6,7 +6,7 @@
 
 import DetachedGraphFactory from '../capabilities/DetachedGraphFactory.ts';
 import { openDetachedGraph } from '../services/controllers/detachedOpen.ts';
-import type WarpRuntime from '../WarpRuntime.js';
+import type WarpRuntime from '../WarpRuntime.ts';
 
 export default class RuntimeDetachedFactory extends DetachedGraphFactory {
   private readonly _runtime: WarpRuntime;

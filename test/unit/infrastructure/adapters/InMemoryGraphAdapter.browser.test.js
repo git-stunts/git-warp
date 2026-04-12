@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
 import { sha1sync } from '../../../../src/infrastructure/adapters/sha1sync.js';
-import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
 import WebCryptoAdapter from '../../../../src/infrastructure/adapters/WebCryptoAdapter.js';
 
 describe('InMemoryGraphAdapter with injected hash (browser simulation)', () => {

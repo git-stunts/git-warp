@@ -7,9 +7,9 @@
 
 import type { WarpState } from '../services/JoinReducer.ts';
 import type { ContentMeta } from '../types/ContentMeta.ts';
-import type QueryBuilder from '../services/query/QueryBuilder.js';
+import type QueryBuilder from '../services/query/QueryBuilder.ts';
 import type Worldline from '../services/Worldline.ts';
-import type Observer from '../services/query/Observer.js';
+import type Observer from '../services/query/Observer.ts';
 
 /** Observer lens configuration for match/expose/redact filtering. */
 export type ObserverConfig = {

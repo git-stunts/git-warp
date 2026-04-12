@@ -1,4 +1,4 @@
-import WarpRuntime from './WarpRuntime.js';
+import WarpRuntime from './WarpRuntime.ts';
 import WarpError from './errors/WarpError.ts';
 import { callInternalRuntimeMethod } from './utils/callInternalRuntimeMethod.ts';
 import { toInternalStrandShape, toPublicStrandShape } from './utils/strandPublicShape.ts';

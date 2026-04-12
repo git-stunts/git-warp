@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ConflictAnalyzerService,
   CONFLICT_ANALYSIS_VERSION,
-} from '../../../../../src/domain/services/strand/ConflictAnalyzerService.js';
+} from '../../../../../src/domain/services/strand/ConflictAnalyzerService.ts';
 import * as JoinReducer from '../../../../../src/domain/services/JoinReducer.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import { textEncode } from '../../../../../src/domain/utils/bytes.ts';

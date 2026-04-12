@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import OpRecord from '../../../../../src/domain/services/strand/OpRecord.js';
+import OpRecord from '../../../../../src/domain/services/strand/OpRecord.ts';
 import ConflictTarget from '../../../../../src/domain/types/conflict/ConflictTarget.ts';
 
 function makeTarget() {

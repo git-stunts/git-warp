@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import QueryError from '../../../src/domain/errors/QueryError.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState, encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.ts';

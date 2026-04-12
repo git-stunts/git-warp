@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **WarpRuntime.js → TypeScript** — The LAST `.js` file in `src/domain/` is dead. 1234 LOC monolith split into `runtimeHelpers.ts` (150 LOC, factory helpers + trust config), `WarpRuntime.ts` (771 LOC, class + constructor + open), and `runtimeWiring.ts` (262 LOC, delegation wiring). Zero `.js` files remain in the domain. 100% TypeScript.
 - **IncrementalIndexUpdater split** — 955 LOC god slain. Split into `IndexNodeUpdater.ts` (198 LOC, node add/remove/purge), `IndexEdgeUpdater.ts` (168 LOC, edge bitmap ops), and slim `IncrementalIndexUpdater.ts` orchestrator (495 LOC). Shared working types in `types.ts`. All converted to TypeScript with option objects replacing boolean-trap parameter lists.
 - **StrandDescriptorStore split** — 643 LOC god slain. Split into `descriptorNormalization.ts` (294 LOC) and `StrandDescriptorStore.ts` (330 LOC). All converted to TypeScript.
 - **LogicalTraversal split** — 643 LOC god slain. Split into `traversalHelpers.ts` (142 LOC) and `LogicalTraversal.ts` (581 LOC). All converted to TypeScript.

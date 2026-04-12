@@ -9,7 +9,7 @@ import type { PatchBuilder } from '../services/PatchBuilder.ts';
 import type { Writer } from './Writer.ts';
 import type { WarpState } from '../services/JoinReducer.ts';
 import type Patch from '../types/Patch.js';
-import type { StateDiffResult } from '../services/StateDiff.js';
+import type { StateDiffResult } from '../services/state/StateDiff.ts';
 import type { TickReceipt } from '../types/TickReceipt.js';
 
 /**
@@ -549,7 +549,7 @@ interface CoordinateTransferPlanV1 {
 
 export {};
 
-declare module '../WarpRuntime.js' {
+declare module '../WarpRuntime.ts' {
   export default interface WarpRuntime {
     // ── query.methods.js ──────────────────────────────────────────────────
     hasNode(nodeId: string): Promise<boolean>;

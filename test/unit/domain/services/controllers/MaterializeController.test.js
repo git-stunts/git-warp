@@ -8,7 +8,7 @@ import { encodeEdgeKey } from '../../../../../src/domain/services/KeyCodec.ts';
 import { encodePatchMessage } from '../../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 
-/** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.js' */
+/** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.ts' */
 /** @typedef {import('../../../../../src/domain/services/JoinReducer.ts').WarpState} WarpState */
 /** @typedef {import('../../../../../src/domain/types/TickReceipt.ts').TickReceipt} TickReceipt */
 /** @typedef {import('../../../../../src/domain/types/Patch.ts').default} Patch */
