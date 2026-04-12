@@ -1,21 +1,22 @@
-# StrandService is a god object (2048 LOC)
+# RETIRED — StrandService god object decomposition
 
-**Effort:** L
+**Status:** Superseded
 
-## Problem
+## Rationale
 
-StrandService handles: strand CRUD, strand materialization, strand
-patching, intent queuing/dequeuing, strand transfer planning, strand
-braiding, strand overlays, strand comparison, and descriptor
-serialization. It owns 40+ methods across ~2048 lines.
+This item described StrandService at 2048 LOC with a proposed 5-way
+decomposition. The decomposition has already landed (cycle 0011):
 
-## Decomposition candidates
+- StrandDescriptorStore (643 LOC)
+- StrandMaterializer (215 LOC)
+- StrandPatchService (484 LOC)
+- StrandIntentService (456 LOC)
+- StrandCoordinator.ts (169 LOC, thin coordinator)
+- StrandDescriptorValidation.ts (extracted)
 
-- `StrandMaterializationService` — materialize/compare/snapshot
-- `StrandIntentService` — intent queue (queue, dequeue, tick, drain)
-- `StrandBraidService` — braid overlay pinning and resolution
-- `StrandTransferService` — transfer plan computation
-- `StrandDescriptorCodec` — serialization/deserialization
+StrandService is now 992 LOC of residual glue pending final dissolution
+via GOD_strand-service.md. The decomposition candidates listed here
+(StrandBraidService, StrandTransferService, StrandDescriptorCodec) were
+superseded by the actual split.
 
-Each sub-service takes the same `graph` + `persistence` deps.
-StrandService becomes a thin facade.
+Retired 2026-04-12.
