@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import PatchController from '../../../../../src/domain/services/controllers/PatchController.js';
+import PatchController from '../../../../../src/domain/services/controllers/PatchController.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
@@ -23,7 +23,7 @@ const { patchBuilderMock } = vi.hoisted(() => {
   return { patchBuilderMock };
 });
 
-vi.mock('../../../../../src/domain/services/PatchBuilder.js', () => ({
+vi.mock('../../../../../src/domain/services/PatchBuilder.ts', () => ({
   PatchBuilder: patchBuilderMock,
 }));
 

@@ -25,11 +25,11 @@ import SubscriptionController from './services/controllers/SubscriptionControlle
 import ProvenanceController from './services/controllers/ProvenanceController.js';
 import ForkController from './services/controllers/ForkController.js';
 import QueryController from './services/controllers/QueryController.ts';
-import PatchController from './services/controllers/PatchController.js';
+import PatchController from './services/controllers/PatchController.ts';
 import CheckpointController from './services/controllers/CheckpointController.js';
 import SyncTrustGate from './services/sync/SyncTrustGate.js';
 import AuditVerifierService from './services/audit/AuditVerifierService.ts';
-import MaterializedViewService from './services/MaterializedViewService.js';
+import MaterializedViewService from './services/MaterializedViewService.ts';
 import StateHashService from './services/state/StateHashService.js';
 import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.ts';
 // checkpoint.methods.js replaced by CheckpointController (imported above)
@@ -179,7 +179,7 @@ export default class WarpRuntime {
   /**
    * Constructs a WarpRuntime instance with injected dependencies and configuration.
    * @private
-   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: import('./services/GCPolicy.ts').GCPolicyConfig | import('./services/GCPolicy.ts').default, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.ts').default, clock?: import('../ports/ClockPort.ts').default, crypto?: import('../ports/CryptoPort.ts').default, codec?: import('../ports/CodecPort.ts').default, seekCache?: import('../ports/SeekCachePort.ts').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.ts').default, patchBlobStorage?: import('../ports/BlobStoragePort.ts').default, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, patchJournal: import('../ports/PatchJournalPort.ts').default, checkpointStore: import('../ports/CheckpointStorePort.ts').default, indexStore: import('../ports/IndexStorePort.ts').default, viewService: import('./services/MaterializedViewService.js').default, stateHashService?: StateHashService, auditService?: AuditReceiptService, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline }} options
+   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: import('./services/GCPolicy.ts').GCPolicyConfig | import('./services/GCPolicy.ts').default, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.ts').default, clock?: import('../ports/ClockPort.ts').default, crypto?: import('../ports/CryptoPort.ts').default, codec?: import('../ports/CodecPort.ts').default, seekCache?: import('../ports/SeekCachePort.ts').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.ts').default, patchBlobStorage?: import('../ports/BlobStoragePort.ts').default, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, patchJournal: import('../ports/PatchJournalPort.ts').default, checkpointStore: import('../ports/CheckpointStorePort.ts').default, indexStore: import('../ports/IndexStorePort.ts').default, viewService: import('./services/MaterializedViewService.ts').default, stateHashService?: StateHashService, auditService?: AuditReceiptService, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline }} options
    */
   // TODO(OG): split constructor responsibilities; legacy hotspot kept explicit until the API redesign cycle.
   // eslint-disable-next-line max-lines-per-function, complexity

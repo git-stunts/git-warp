@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import PatchController from '../../../../src/domain/services/controllers/PatchController.js';
+import PatchController from '../../../../src/domain/services/controllers/PatchController.ts';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
 
 /**
