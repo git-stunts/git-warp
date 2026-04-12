@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **IncrementalIndexUpdater split** — 955 LOC god slain. Split into `IndexNodeUpdater.ts` (198 LOC, node add/remove/purge), `IndexEdgeUpdater.ts` (168 LOC, edge bitmap ops), and slim `IncrementalIndexUpdater.ts` orchestrator (495 LOC). Shared working types in `types.ts`. All converted to TypeScript with option objects replacing boolean-trap parameter lists.
+- **ConflictCandidateCollector split** — 649 LOC god slain. Split into `conflictTargetIdentity.ts` (295 LOC), `conflictCandidateAnalysis.ts` (493 LOC), and slim `ConflictCandidateCollector.ts` (64 LOC). All converted to TypeScript.
+- **SyncController split** — 684 LOC god slain. Split into `syncHelpers.ts` (150 LOC), `SyncServerLauncher.ts` (92 LOC), and `SyncController.ts` (601 LOC). Converted to TypeScript.
+- **SyncProtocol split** — 683 LOC god slain. Split into `syncPatchLoader.ts` (178 LOC), `syncDelta.ts` (168 LOC), `syncRequestResponse.ts` (379 LOC), and barrel re-export. All converted to TypeScript.
 - **CheckpointService split** — 651 LOC god slain. Split into `checkpointHelpers.ts` (182 LOC), `checkpointCreate.ts` (220 LOC), and `checkpointLoad.ts` (312 LOC). All converted to TypeScript with proper type annotations.
 - **VisibleStateTransferPlannerV5 split** — 692 LOC god slain. Split into `transfer/transferKeys.ts` (76 LOC), `transfer/transferOps.ts` (404 LOC), `transfer/transferShape.ts` (215 LOC), and `transfer/VisibleStateTransferPlannerV5.ts` orchestrator (111 LOC). All converted to TypeScript.
 - **StrandService dissolved** — 992 LOC god dissolved. Consumers rewired to StrandCoordinator (already existed at 169 LOC) via new `createStrandCoordinator.ts` factory (105 LOC). StrandService.js deleted.
