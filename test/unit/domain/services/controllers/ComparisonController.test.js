@@ -39,7 +39,7 @@ const { compareVisibleStateV5Mock } = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../../../src/domain/services/VisibleStateComparisonV5.js', () => ({
+vi.mock('../../../../../src/domain/services/comparison/VisibleStateComparisonV5.ts', () => ({
   compareVisibleStateV5: compareVisibleStateV5Mock,
 }));
 

@@ -9,7 +9,7 @@ import {
   deserializeStateV5,
 } from '../../../../src/domain/services/state/StateSerializerV5.js';
 import { createStateReaderV5 } from '../../../../src/domain/services/state/StateReaderV5.js';
-import { compareVisibleStateV5 } from '../../../../src/domain/services/VisibleStateComparisonV5.js';
+import { compareVisibleStateV5 } from '../../../../src/domain/services/comparison/VisibleStateComparisonV5.ts';
 import {
   createEmptyState,
   encodeEdgeKey,

@@ -15,7 +15,7 @@ import {
   buildCoordinateTransferPlanFact,
 } from '../CoordinateFactExport.js';
 import { createStateReaderV5 } from '../state/StateReaderV5.js';
-import { compareVisibleStateV5 } from '../VisibleStateComparisonV5.js';
+import { compareVisibleStateV5 } from '../comparison/VisibleStateComparisonV5.ts';
 import { planVisibleStateTransferV5 } from '../VisibleStateTransferPlannerV5.js';
 import { normalizeVisibleStateScopeV1 } from '../VisibleStateScopeV1.js';
 import type { VisibleStateScopeV1 } from '../../../../index.js';

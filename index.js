@@ -167,7 +167,7 @@ import { ProvenanceIndex } from './src/domain/services/provenance/ProvenanceInde
 import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/services/index/WarpStateIndexBuilder.js';
 import { computeStateHashV5, projectStateV5 } from './src/domain/services/state/StateSerializerV5.js';
 import { createStateReaderV5 } from './src/domain/services/state/StateReaderV5.js';
-import { compareVisibleStateV5 } from './src/domain/services/VisibleStateComparisonV5.js';
+import { compareVisibleStateV5 } from './src/domain/services/comparison/VisibleStateComparisonV5.ts';
 import {
   normalizeVisibleStateScopeV1,
   scopeMaterializedStateV5,
