@@ -286,7 +286,7 @@ export default tseslint.config(
   },
   {
     files: [
-      "src/domain/WarpGraph.js",
+      "src/domain/WarpGraph.ts",
       "src/domain/services/controllers/QueryController.js",
       "src/domain/services/controllers/SubscriptionController.js",
       "src/domain/services/controllers/ProvenanceController.js",
