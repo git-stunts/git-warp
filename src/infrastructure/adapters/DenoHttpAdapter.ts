@@ -1,5 +1,4 @@
-import HttpServerPort from '../../ports/HttpServerPort.ts';
-import type { HttpRequest, HttpResponse, HttpServerHandle } from '../../ports/HttpServerPort.ts';
+import HttpServerPort, { type HttpRequest, type HttpResponse, type HttpServerHandle } from '../../ports/HttpServerPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import {
   noopLogger,
@@ -162,7 +161,7 @@ function listenImpl(ctx: DenoListenContext, args: DenoListenArgs): void {
   const { cb, hostname } = resolveListenArgs(args.host, args.callback);
   try {
     const opts = buildDenoServeOptions(args.port, hostname, cb);
-    ctx.state.server = globalThis.Deno!.serve(opts, ctx.handler);
+    ctx.state.server = globalThis.Deno.serve(opts, ctx.handler);
   } catch (err: unknown) {
     if (cb) {
       cb(wrapError(err));

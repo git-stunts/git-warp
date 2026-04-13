@@ -119,5 +119,5 @@ export function sha1sync(data: Uint8Array): string {
     processBlock(state, w);
   }
 
-  return state.map(v => (v as number).toString(16).padStart(8, '0')).join('');
+  return state.map(v => (v).toString(16).padStart(8, '0')).join('');
 }

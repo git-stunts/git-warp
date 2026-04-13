@@ -1,5 +1,4 @@
-import HttpServerPort from '../../ports/HttpServerPort.ts';
-import type { HttpRequest, HttpResponse, HttpServerHandle } from '../../ports/HttpServerPort.ts';
+import HttpServerPort, { type HttpRequest, type HttpResponse, type HttpServerHandle } from '../../ports/HttpServerPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import {
   noopLogger,
@@ -73,7 +72,7 @@ function startServer(
   serveOptions: BunServeOptions,
   cb: ((err: Error | null) => void) | undefined,
 ): BunServer {
-  const server = globalThis.Bun!.serve(serveOptions);
+  const server = globalThis.Bun.serve(serveOptions);
   if (cb) {
     cb(null);
   }

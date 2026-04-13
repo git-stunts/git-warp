@@ -67,7 +67,7 @@ const encoder = new Encoder({
   mapsAsObjects: true,
 });
 
-// eslint-disable-next-line @typescript-eslint/ban-types
+ 
 const CBOR_NATIVE_TYPES: ReadonlyArray<Function> = [Uint8Array, Date, RegExp, Set, Map];
 
 /**
@@ -83,7 +83,7 @@ function isCborNative(value: object): boolean {
  * Returns false for built-in types with their own CBOR representation.
  */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !isCborNative(value as object);
+  return typeof value === 'object' && value !== null && !isCborNative(value);
 }
 
 /**
@@ -139,7 +139,7 @@ function sortKeys(value: unknown): unknown {
     return value;
   }
 
-  return _sortComposite(value as object);
+  return _sortComposite(value);
 }
 
 /**
@@ -150,7 +150,7 @@ function _sortComposite(value: object): unknown {
     return (value as unknown[]).map(sortKeys);
   }
   if (isPlainObject(value)) {
-    return sortPlainObject(value as Record<string, unknown>);
+    return sortPlainObject(value);
   }
   if (value instanceof Map) {
     return sortMapToObject(value as Map<unknown, unknown>);

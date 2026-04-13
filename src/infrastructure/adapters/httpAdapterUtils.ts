@@ -41,7 +41,7 @@ export async function readStreamBody(bodyStream: ReadableStream<Uint8Array>): Pr
     if (result.done) {
       break;
     }
-    const chunk = result.value as Uint8Array;
+    const chunk = result.value;
     total += chunk.byteLength;
     if (total > MAX_BODY_BYTES) {
       await reader.cancel();

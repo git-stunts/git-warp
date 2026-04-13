@@ -106,7 +106,7 @@ describe('CasSeekCacheAdapter', () => {
     });
 
     it('defaults maxEntries to 200', () => {
-      expect(adapter._maxEntries).toBe(200);
+      expect((adapter as any)._maxEntries).toBe(200);
     });
 
     it('respects custom maxEntries', () => {
@@ -116,7 +116,7 @@ describe('CasSeekCacheAdapter', () => {
         graphName: GRAPH_NAME,
         maxEntries: 50,
       });
-      expect(custom._maxEntries).toBe(50);
+      expect((custom as any)._maxEntries).toBe(50);
     });
 
     it('builds the correct ref path', () => {
@@ -124,7 +124,7 @@ describe('CasSeekCacheAdapter', () => {
     });
 
     it('exposes _getCas as a function', () => {
-      expect(typeof adapter._getCas).toBe('function');
+      expect(typeof (adapter as any)._getCas).toBe('function');
     });
 
     it('stores encryptionKey when provided', () => {
@@ -135,11 +135,11 @@ describe('CasSeekCacheAdapter', () => {
         graphName: GRAPH_NAME,
         encryptionKey: key,
       });
-      expect(encrypted._encryptionKey).toBe(key);
+      expect((encrypted as any)._encryptionKey).toBe(key);
     });
 
     it('defaults encryptionKey to undefined', () => {
-      expect(adapter._encryptionKey).toBeUndefined();
+      expect((adapter as any)._encryptionKey).toBeUndefined();
     });
 
     it('stores logger when provided', () => {
@@ -150,11 +150,11 @@ describe('CasSeekCacheAdapter', () => {
         graphName: GRAPH_NAME,
         logger,
       });
-      expect(withLogger._logger).toBe(logger);
+      expect((withLogger as any)._logger).toBe(logger);
     });
 
     it('defaults logger to undefined', () => {
-      expect(adapter._logger).toBeUndefined();
+      expect((adapter as any)._logger).toBeUndefined();
     });
   });
 
@@ -164,15 +164,15 @@ describe('CasSeekCacheAdapter', () => {
 
   describe('_getCas()', () => {
     it('creates CAS instance with CDC chunking on first call', async () => {
-      await adapter._getCas();
+      await (adapter as any)._getCas();
       expect((lastConstructorArgs as any).plumbing).toBe(plumbing);
       expect((lastConstructorArgs as any).codec).toBeInstanceOf(MockCborCodec);
       expect((lastConstructorArgs as any).chunking).toEqual({ strategy: 'cdc' });
     });
 
     it('caches the CAS promise across multiple calls', async () => {
-      const first = await adapter._getCas();
-      const second = await adapter._getCas();
+      const first = await (adapter as any)._getCas();
+      const second = await (adapter as any)._getCas();
       expect(first).toBe(second);
     });
 
@@ -194,10 +194,10 @@ describe('CasSeekCacheAdapter', () => {
         return origInit();
       };
 
-      await expect(badAdapter._getCas()).rejects.toThrow('init failure');
+      await expect((badAdapter as any)._getCas()).rejects.toThrow('init failure');
 
       // Second call should retry and succeed (promise was reset on failure)
-      await expect(badAdapter._getCas()).resolves.toBeDefined();
+      await expect((badAdapter as any)._getCas()).resolves.toBeDefined();
     });
   });
 

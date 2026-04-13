@@ -60,6 +60,12 @@ export default tseslint.config(
         performance: "readonly",
         global: "readonly",
         WebSocket: "readonly",
+        Bun: "readonly",
+        BunServer: "readonly",
+        BunServeOptions: "readonly",
+        Deno: "readonly",
+        DenoServer: "readonly",
+        DenoServeOptions: "readonly",
       },
     },
     plugins: {
@@ -406,7 +412,7 @@ export default tseslint.config(
       "src/infrastructure/adapters/GitGraphAdapter.ts",
       "src/infrastructure/adapters/GitTrustChainAdapter.ts",
       "src/infrastructure/adapters/InMemoryGraphAdapter.ts",
-      "src/infrastructure/adapters/IndexShardEncodeTransform.js",
+      "src/infrastructure/adapters/IndexShardEncodeTransform.ts",
       "src/infrastructure/adapters/gitErrorClassification.ts",
       "src/infrastructure/adapters/inMemoryHashing.ts",
       // CLI

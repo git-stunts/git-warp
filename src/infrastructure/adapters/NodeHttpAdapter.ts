@@ -1,8 +1,6 @@
-import HttpServerPort from '../../ports/HttpServerPort.ts';
-import type { HttpRequest, HttpResponse, HttpServerHandle } from '../../ports/HttpServerPort.ts';
+import HttpServerPort, { type HttpRequest, type HttpResponse, type HttpServerHandle } from '../../ports/HttpServerPort.ts';
 import { MAX_BODY_BYTES, noopLogger } from './httpAdapterUtils.ts';
-import { createServer } from 'node:http';
-import type { IncomingMessage, ServerResponse, Server } from 'node:http';
+import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
 import WarpError from '../../domain/errors/WarpError.ts';
 
 /**
