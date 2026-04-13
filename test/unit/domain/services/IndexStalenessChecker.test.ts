@@ -14,12 +14,12 @@ describe('loadIndexFrontier', () => {
     const storage = { readBlob: vi.fn().mockResolvedValue(cborBuffer) };
     const shardOids = { 'frontier.cbor': 'cbor-oid' };
 
-    const result = await loadIndexFrontier(shardOids, (storage));
+    const result = await loadIndexFrontier(shardOids, (storage as any));
 
     expect(result).toBeInstanceOf(Map);
-    expect((result).get('alice')).toBe('sha-a');
-    expect((result).get('bob')).toBe('sha-b');
-    expect((result).size).toBe(2);
+    expect(result!.get('alice')).toBe('sha-a');
+    expect(result!.get('bob')).toBe('sha-b');
+    expect(result!.size).toBe(2);
   });
 
   it('with JSON fallback → correct Map', async () => {
@@ -28,10 +28,10 @@ describe('loadIndexFrontier', () => {
     const storage = { readBlob: vi.fn().mockResolvedValue(jsonBuffer) };
     const shardOids = { 'frontier.json': 'json-oid' };
 
-    const result = await loadIndexFrontier(shardOids, (storage));
+    const result = await loadIndexFrontier(shardOids, (storage as any));
 
     expect(result).toBeInstanceOf(Map);
-    expect((result).get('alice')).toBe('sha-a');
+    expect(result!.get('alice')).toBe('sha-a');
   });
 
   it('with indexStore → decodes CBOR frontier via port', async () => {
@@ -44,14 +44,14 @@ describe('loadIndexFrontier', () => {
     const result = await loadIndexFrontier(shardOids, ({} as any), { indexStore: mockIndexStore });
 
     expect(result).toBeInstanceOf(Map);
-    expect((result).get('alice')).toBe('sha-a');
-    expect((result).get('bob')).toBe('sha-b');
+    expect(result!.get('alice')).toBe('sha-a');
+    expect(result!.get('bob')).toBe('sha-b');
     expect(mockIndexStore.decodeShard).toHaveBeenCalledWith('cbor-oid');
   });
 
   it('with neither → null', async () => {
     const storage = { readBlob: vi.fn() };
-    const result = await loadIndexFrontier({}, (storage));
+    const result = await loadIndexFrontier({}, (storage as any));
     expect(result).toBeNull();
   });
 });

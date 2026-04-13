@@ -120,7 +120,7 @@ describe('WarpRuntime.getStateSnapshot()', () => {
     // No explicit materialize() call — getStateSnapshot should trigger it
     const snap = await graph.getStateSnapshot();
     expect(snap).not.toBeNull();
-    expect((snap).nodeAlive).toBeDefined();
+    expect((snap as any).nodeAlive).toBeDefined();
   });
 
   it('returns an immutable detached snapshot of materialized state', async () => {
@@ -145,11 +145,11 @@ describe('WarpRuntime.getStateSnapshot()', () => {
     expect(snap).not.toBeNull();
 
     const propKey = encodePropKey('n1', 'profile');
-    const register = (snap).prop.get(propKey);
+    const register = snap!.prop.get(propKey);
     expect(register).toBeDefined();
     expect(Object.isFrozen(register)).toBe(true);
     expect(Object.isFrozen(register!.value)).toBe(true);
-    expect(() => (snap).prop.set('injected', { value: 'bad' })).toThrow(WarpError);
+    expect(() => snap!.prop.set('injected', { value: 'bad' } as any)).toThrow(WarpError);
     expect(() => {
       (register!.value as any).color = 'blue';
     }).toThrow(TypeError);
@@ -211,7 +211,7 @@ describe('Structural seek diff (diffStates integration)', () => {
     const after = await graph.getStateSnapshot();
 
     const { diffStates } = await import('../../../src/domain/services/state/StateDiff.js');
-    const diff = diffStates(before, (after));
+    const diff = diffStates(before as any, after as any);
 
     expect(diff.nodes.added).toContain('n2');
     expect(diff.nodes.removed).toEqual([]);
@@ -238,7 +238,7 @@ describe('Structural seek diff (diffStates integration)', () => {
     const after = await graph.getStateSnapshot();
 
     const { diffStates } = await import('../../../src/domain/services/state/StateDiff.js');
-    const diff = diffStates(before, (after));
+    const diff = diffStates(before as any, after as any);
 
     expect(diff.nodes.removed).toContain('n2');
     expect(diff.nodes.added).toEqual([]);
@@ -262,7 +262,7 @@ describe('Structural seek diff (diffStates integration)', () => {
     const after = await graph.getStateSnapshot();
 
     const { diffStates } = await import('../../../src/domain/services/state/StateDiff.js');
-    const diff = diffStates(null, (after));
+    const diff = diffStates(null as any, after as any);
 
     expect(diff.nodes.added.sort()).toEqual(['n1', 'n2']);
     expect(diff.nodes.removed).toEqual([]);
@@ -315,7 +315,7 @@ describe('Structural seek diff (diffStates integration)', () => {
     const after = await graph.getStateSnapshot();
 
     const { diffStates } = await import('../../../src/domain/services/state/StateDiff.js');
-    const diff = diffStates(before, (after));
+    const diff = diffStates(before as any, after as any);
 
     expect(diff.props.set.length).toBe(1);
     expect(diff.props.set[0]?.propKey).toBe('name');

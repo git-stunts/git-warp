@@ -85,9 +85,9 @@ describe('BitmapIndexReader', () => {
         'meta_ab.cbor': 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
         'meta_cd.cbor': 'not-a-valid-oid!!!',
       });
-      expect(((lenientReader)).shardOids.size).toBe(1);
-      expect(((lenientReader)).shardOids.has('meta_ab.cbor')).toBe(true);
-      expect(((lenientReader)).shardOids.has('meta_cd.cbor')).toBe(false);
+      expect((lenientReader as any).shardOids.size).toBe(1);
+      expect((lenientReader as any).shardOids.has('meta_ab.cbor')).toBe(true);
+      expect((lenientReader as any).shardOids.has('meta_cd.cbor')).toBe(false);
       expect(warnSpy).toHaveBeenCalledWith('Skipping shard with invalid OID', expect.objectContaining({
         shardPath: 'meta_cd.cbor',
         reason: 'invalid_oid',
@@ -400,17 +400,17 @@ describe('BitmapIndexReader', () => {
 
       // Load first shard
       await smallCacheReader.lookupId('aabbccdd00000000000000000000000000000000');
-      expect((smallCacheReader).loadedShards.size).toBe(1);
+      expect((smallCacheReader as any).loadedShards.size).toBe(1);
       expect(mockStorage.readBlob).toHaveBeenCalledTimes(1);
 
       // Load second shard
       await smallCacheReader.lookupId('bbccddee00000000000000000000000000000000');
-      expect((smallCacheReader).loadedShards.size).toBe(2);
+      expect((smallCacheReader as any).loadedShards.size).toBe(2);
       expect(mockStorage.readBlob).toHaveBeenCalledTimes(2);
 
       // Load third shard - should evict first
       await smallCacheReader.lookupId('ccddeeff00000000000000000000000000000000');
-      expect((smallCacheReader).loadedShards.size).toBe(2); // Still 2 due to LRU eviction
+      expect((smallCacheReader as any).loadedShards.size).toBe(2); // Still 2 due to LRU eviction
 
       // First shard should be evicted, accessing it again should reload
       await smallCacheReader.lookupId('aabbccdd00000000000000000000000000000000');
@@ -446,11 +446,11 @@ describe('BitmapIndexReader', () => {
       await smallCacheReader.lookupId('ccddeeff00000000000000000000000000000000'); // Load cc
 
       // 'aa' should still be in cache (was recently used)
-      expect((smallCacheReader).loadedShards.has('meta_aa.cbor')).toBe(true);
+      expect((smallCacheReader as any).loadedShards.has('meta_aa.cbor')).toBe(true);
       // 'bb' should have been evicted
-      expect((smallCacheReader).loadedShards.has('meta_bb.cbor')).toBe(false);
+      expect((smallCacheReader as any).loadedShards.has('meta_bb.cbor')).toBe(false);
       // 'cc' should be in cache
-      expect((smallCacheReader).loadedShards.has('meta_cc.cbor')).toBe(true);
+      expect((smallCacheReader as any).loadedShards.has('meta_cc.cbor')).toBe(true);
     });
   });
 
@@ -467,7 +467,7 @@ describe('BitmapIndexReader', () => {
         storage: mockStorage,
         logger: { warn, info: vi.fn(), error: vi.fn(), debug: vi.fn() },
       }) as any));
-      (noisyReader)._warnLargeIdCache(1_000_001);
+      (noisyReader as any)._warnLargeIdCache(1_000_001);
       expect(warn).toHaveBeenCalledWith('ID-to-SHA cache has high memory usage', expect.objectContaining({
         operation: '_buildIdToShaMapping',
         entryCount: 1_000_001,

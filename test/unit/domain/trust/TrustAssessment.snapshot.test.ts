@@ -17,7 +17,7 @@ import {
 } from './fixtures/goldenRecords.ts';
 
 const ENFORCE_POLICY = {
-  schemaVersion: 1,
+  schemaVersion: 1 as const,
   mode: ('enforce' as 'enforce'),
   writerPolicy: ('all_writers_must_be_trusted' as 'all_writers_must_be_trusted'),
 };
