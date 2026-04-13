@@ -146,7 +146,7 @@ describe('Logical Index Benchmarks', () => {
         blobs.set(oid, codec.encode(shard.entries));
         oids[path] = oid;
       }
-      const storage = { readBlob: async (/** @type {string} */ oid) => blobs.get(oid) };
+      const storage = /** @type {any} */ ({ readBlob: async (/** @type {string} */ oid) => blobs.get(oid) });
       const reader = new PropertyIndexReader({ storage });
       reader.setup(oids);
 

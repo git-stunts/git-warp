@@ -59,8 +59,8 @@ describe('CborPatchJournalAdapter', () => {
     const codec = new CborCodec();
     const blobPort = createMemoryBlobPort();
 
-    expect(() => new CborPatchJournalAdapter({ blobPort })).toThrow('CborPatchJournalAdapter requires a codec');
-    expect(() => new CborPatchJournalAdapter({ codec })).toThrow('CborPatchJournalAdapter requires a blobPort');
+    expect(() => new CborPatchJournalAdapter(/** @type {any} */ ({ blobPort }))).toThrow('CborPatchJournalAdapter requires a codec');
+    expect(() => new CborPatchJournalAdapter(/** @type {any} */ ({ codec }))).toThrow('CborPatchJournalAdapter requires a blobPort');
   });
 
   it('writePatch returns a string OID', async () => {
@@ -142,11 +142,12 @@ describe('CborPatchJournalAdapter', () => {
      * @returns {BlobStoragePort}
      */
     function createMockBlobStorage(opts = {}) {
-      const mock = new BlobStoragePort();
-      mock.store = vi.fn().mockResolvedValue(opts.storeResult ?? 'encrypted_oid');
-      mock.retrieve = vi.fn().mockResolvedValue(opts.retrieveResult ?? new Uint8Array(0));
-      mock.storeStream = vi.fn();
-      mock.retrieveStream = vi.fn();
+      const mock = /** @type {BlobStoragePort} */ (/** @type {unknown} */ ({
+        store: vi.fn().mockResolvedValue(opts.storeResult ?? 'encrypted_oid'),
+        retrieve: vi.fn().mockResolvedValue(opts.retrieveResult ?? new Uint8Array(0)),
+        storeStream: vi.fn(),
+        retrieveStream: vi.fn(),
+      }));
       return mock;
     }
 

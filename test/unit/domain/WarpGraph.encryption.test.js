@@ -40,6 +40,15 @@ class InMemoryBlobStorage extends BlobStoragePort {
     }
     return buf;
   }
+
+  /** @returns {Promise<string>} */
+  async storeStream(/** @type {any} */ _stream) {
+    throw new Error('storeStream not implemented');
+  }
+
+  async *retrieveStream(/** @type {string} */ _oid) {
+    throw new Error('retrieveStream not implemented');
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@ import { stableStringify } from '../presenters/json.js';
 function summarizeOps(ops) {
   /** @type {Record<string, number>} */
   const summary = { NodeAdd: 0, EdgeAdd: 0, PropSet: 0, NodeTombstone: 0, EdgeTombstone: 0, BlobValue: 0 };
-  for (const op of ops) { if (op.type in summary) { summary[op.type]++; } }
+  for (const op of ops) { if (op.type in summary) { summary[op.type] = (summary[op.type] ?? 0) + 1; } }
   return summary;
 }
 

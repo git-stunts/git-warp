@@ -41,7 +41,7 @@ import { usageError, notFoundError } from './infrastructure.js';
 export async function createPersistence(repoPath) {
   const runner = TypedShellRunnerFactory.create();
   const plumbing = new TypedGitPlumbing({ cwd: repoPath, runner });
-  const persistence = /** @type {Persistence} */ (new GitGraphAdapter({ plumbing }));
+  const persistence = /** @type {Persistence} */ (/** @type {unknown} */ (new GitGraphAdapter({ plumbing: /** @type {import('../../src/infrastructure/adapters/GitGraphAdapter.ts').GitPlumbingLike} */ (plumbing) })));
   const ping = await persistence.ping();
   if (!ping.ok) {
     throw usageError(`Repository not accessible: ${repoPath}`);

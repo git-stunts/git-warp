@@ -49,7 +49,7 @@ export function diffSnapshots(fromSnapshot, toSnapshot) {
   /** @type {Record<string, number>} */
   const deltas = {};
   for (const key of SNAPSHOT_METRIC_KEYS) {
-    deltas[key] = toSnapshot.metrics[key] - fromSnapshot.metrics[key];
+    deltas[key] = ((/** @type {Record<string, number>} */ (toSnapshot.metrics))[key] ?? 0) - ((/** @type {Record<string, number>} */ (fromSnapshot.metrics))[key] ?? 0);
   }
   return {
     fromLabel: fromSnapshot.label,

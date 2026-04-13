@@ -16,7 +16,7 @@ vi.mock('../../../../../src/domain/services/WormholeService.js', () => ({
 // ---------------------------------------------------------------------------
 const mockRuntimeOpen = vi.fn();
 vi.mock('../../../../../src/domain/WarpRuntime.ts', () => ({
-  default: { open: (...args) => mockRuntimeOpen(...args) },
+  default: { open: (/** @type {any[]} */ ...args) => mockRuntimeOpen(...args) },
 }));
 
 // ---------------------------------------------------------------------------
@@ -65,8 +65,8 @@ function createMockHost(overrides = {}) {
  * Build a linear commit chain: sha-0 <- sha-1 <- sha-2 (tip).
  * getNodeInfo returns the previous SHA as parent.
  */
-function setupLinearChain(host, chain) {
-  host._persistence.getNodeInfo.mockImplementation(async (sha) => {
+function setupLinearChain(/** @type {any} */ host, /** @type {any[]} */ chain) {
+  host._persistence.getNodeInfo.mockImplementation(async (/** @type {string} */ sha) => {
     const idx = chain.indexOf(sha);
     if (idx <= 0) {
       return { parents: [] };
@@ -88,7 +88,7 @@ describe('ForkController', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     host = createMockHost();
-    ctrl = new ForkController(host);
+    ctrl = new ForkController(/** @type {any} */ (host));
 
     // Default: WarpRuntime.open succeeds
     mockRuntimeOpen.mockResolvedValue({ _graphName: 'fork-graph' });
@@ -117,7 +117,7 @@ describe('ForkController', () => {
 
       // WarpRuntime.open was called with correct graphName + writerId
       expect(mockRuntimeOpen).toHaveBeenCalledOnce();
-      const openArgs = mockRuntimeOpen.mock.calls[0][0];
+      const openArgs = /** @type {any} */ (mockRuntimeOpen.mock.calls[0])[0];
       expect(openArgs.graphName).toBe('my-fork');
       expect(openArgs.writerId).toBe('fork-writer');
       expect(openArgs.persistence).toBe(host._persistence);
@@ -337,11 +337,11 @@ describe('ForkController', () => {
   // =========================================================================
   describe('_validatePatchAgainstCheckpoint()', () => {
     it('no-op when checkpoint is null', async () => {
-      await expect(ctrl._validatePatchAgainstCheckpoint('w1', 'sha-a', null)).resolves.toBeUndefined();
+      await expect(ctrl._validatePatchAgainstCheckpoint('w1', 'sha-a', /** @type {any} */ (null))).resolves.toBeUndefined();
     });
 
     it('no-op when checkpoint is undefined', async () => {
-      await expect(ctrl._validatePatchAgainstCheckpoint('w1', 'sha-a', undefined)).resolves.toBeUndefined();
+      await expect(ctrl._validatePatchAgainstCheckpoint('w1', 'sha-a', /** @type {any} */ (undefined))).resolves.toBeUndefined();
     });
 
     it('no-op when checkpoint schema is unsupported', async () => {

@@ -249,14 +249,14 @@ describe('WarpRuntime', () => {
         debug: vi.fn(),
       };
       const evaluateTrustSpy = vi.spyOn(AuditVerifierService.prototype, 'evaluateTrust')
-        .mockResolvedValue({
+        .mockResolvedValue(/** @type {any} */ ({
           trust: {
             explanations: [
-              { writerId: 'alice', trusted: true },
-              { writerId: 'bob', trusted: false },
+              { writerId: 'alice', trusted: true, reason: '', reasonCode: '' },
+              { writerId: 'bob', trusted: false, reason: '', reasonCode: '' },
             ],
           },
-        });
+        }));
 
       const graph = await WarpRuntime.open({
         persistence,
@@ -340,7 +340,7 @@ describe('WarpRuntime', () => {
       const patchBuilder = await graph.createPatch();
 
       // First commit should have lamport 1
-      expect(patchBuilder._lamport).toBe(1);
+      expect(/** @type {any} */ (patchBuilder)._lamport).toBe(1);
     });
 
     it('uses correct lamport from existing writer ref (continuing)', async () => {
@@ -372,7 +372,7 @@ describe('WarpRuntime', () => {
       const patchBuilder = await graph.createPatch();
 
       // Should be 7 + 1 = 8
-      expect(patchBuilder._lamport).toBe(8);
+      expect(/** @type {any} */ (patchBuilder)._lamport).toBe(8);
     });
 
     it('throws error on malformed lamport trailer', async () => {

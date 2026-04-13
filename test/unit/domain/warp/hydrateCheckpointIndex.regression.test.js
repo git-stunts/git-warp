@@ -113,7 +113,7 @@ describe('materialize stale-checkpoint regression', () => {
       return host._materializedGraph;
     };
 
-    await ctrl.materialize();
+    await ctrl.materialize({});
 
     expect(hydrateCalled).toBe(false);
     const neighbors = host._logicalIndex

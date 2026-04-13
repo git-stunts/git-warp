@@ -11,7 +11,7 @@ import { EXIT_CODES, parseCommandArgs, getEnvVar } from '../infrastructure.js';
 import { trustSchema } from '../schemas.js';
 import { createPersistence, resolveGraphName } from '../shared.js';
 import defaultCodec from '../../../src/domain/utils/defaultCodec.ts';
-import { AuditVerifierService } from '../../../src/domain/services/audit/AuditVerifierService.js';
+import AuditVerifierService from '../../../src/domain/services/audit/AuditVerifierService.js';
 
 /** @typedef {import('../types.js').CliOptions} CliOptions */
 

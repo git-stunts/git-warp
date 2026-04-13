@@ -80,7 +80,7 @@ function parseSnapshotMetrics(value, label) {
  * }}
  */
 export function parseSnapshot(value, label) {
-  const metrics = isRecord(value) ? value.metrics : undefined;
+  const metrics = isRecord(value) ? value['metrics'] : undefined;
   return {
     branch: readStringField(value, 'branch', label),
     baseRef: readStringField(value, 'baseRef', label),

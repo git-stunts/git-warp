@@ -18,6 +18,6 @@ describe('IndexStorePort', () => {
     }
     const store = new TestStore();
     expect(store).toBeInstanceOf(IndexStorePort);
-    expect(await store.writeShards(/** @type {any} */ (null))).toBe('tree-oid');
+    expect(await (/** @type {any} */ (store)).writeShards(null)).toBe('tree-oid');
   });
 });

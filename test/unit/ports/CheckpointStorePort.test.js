@@ -18,7 +18,7 @@ describe('CheckpointStorePort', () => {
     }
     const store = new TestStore();
     expect(store).toBeInstanceOf(CheckpointStorePort);
-    const result = await store.writeCheckpoint(/** @type {any} */ ({}));
+    const result = await (/** @type {any} */ (store)).writeCheckpoint({});
     expect(result.stateBlobOid).toBe('a');
   });
 });

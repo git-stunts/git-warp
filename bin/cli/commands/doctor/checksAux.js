@@ -15,13 +15,13 @@ import { CODES } from './codes.js';
  * @returns {DoctorFinding}
  */
 function internalError(id, err) {
-  return {
+  return /** @type {DoctorFinding} */ ({
     id,
-    status: 'error',
+    status: /** @type {any} */ ('error'),
     code: 'CHECK_INTERNAL_ERROR',
-    impact: 'unknown',
+    impact: /** @type {any} */ ('unknown'),
     message: err instanceof Error ? err.message : String(err),
-  };
+  });
 }
 
 // ── clock-skew ──────────────────────────────────────────────────────────────

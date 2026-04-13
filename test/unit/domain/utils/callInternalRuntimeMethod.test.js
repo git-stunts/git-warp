@@ -5,13 +5,14 @@ import { callInternalRuntimeMethod } from '../../../../src/domain/utils/callInte
 describe('callInternalRuntimeMethod', () => {
   it('uses the grandparent implementation when a facade shim shadows the name', async () => {
     class RuntimeBase {
-      async getContent(value) {
+      async getContent(/** @type {unknown} */ value) {
         return `base:${value}`;
       }
     }
 
     class FacadeShim extends RuntimeBase {
-      async getContent() {
+      /** @returns {Promise<string>} */
+      async getContent(/** @type {unknown} */ _value) {
         throw new Error('shim should be skipped');
       }
     }
@@ -34,7 +35,7 @@ describe('callInternalRuntimeMethod', () => {
 
   it('fails predictably when called with an undefined target', async () => {
     await expect(
-      callInternalRuntimeMethod(/** @type {object} */ (undefined), 'missing'),
+      callInternalRuntimeMethod(/** @type {any} */ (undefined), 'missing'),
     ).rejects.toThrow(TypeError);
   });
 });

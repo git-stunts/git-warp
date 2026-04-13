@@ -21,7 +21,7 @@ function createGoldenState() {
   const edgeAlive = ORSet.empty();
   edgeAlive.add('user:alice\x00user:bob\x00knows', Dot.create('w1', 3));
 
-  /** @type {Map<string, import('../../../../src/domain/crdt/LWW.js').LWWRegister<unknown>>} */
+  /** @type {Map<string, import('../../../../src/domain/crdt/LWW.js').LWWRegister<import('../../../../src/domain/types/PropValue.ts').PropValue>>} */
   const prop = new Map();
   prop.set('user:alice\x00name', {
     eventId: { lamport: 1, writerId: 'w1', patchSha: 'a'.repeat(40), opIndex: 0 },
@@ -242,7 +242,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         blobPort: createMemoryBlobPort(),
       }));
 
-      /** @type {Map<string, import('../../../../src/domain/crdt/LWW.js').LWWRegister<unknown>>} */
+      /** @type {Map<string, import('../../../../src/domain/crdt/LWW.js').LWWRegister<import('../../../../src/domain/types/PropValue.ts').PropValue>>} */
       const prop = new Map([
         ['user:z\x00name', {
           eventId: new EventId(3, 'w3', 'c'.repeat(40), 2),

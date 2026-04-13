@@ -12,7 +12,7 @@ const { timeoutMock, retryMock, RetryExhaustedErrorClass, httpSyncServerMock } =
     const ac = new AbortController();
     return await fn(ac.signal);
   });
-  const retryMock = vi.fn(async (/** @type {Function} */ fn) => await fn());
+  const retryMock = vi.fn(async (/** @type {Function} */ fn, /** @type {any} */ _opts) => await fn());
 
   class RetryExhaustedErrorClass extends Error {
     /**
@@ -737,7 +737,7 @@ describe('SyncController', () => {
     it('does NOT retry on direct peer errors', async () => {
       /** @type {((err: unknown) => boolean) | undefined} */
       let capturedShouldRetry;
-      retryMock.mockImplementation(async (fn, opts) => {
+      retryMock.mockImplementation(async (/** @type {any} */ fn, /** @type {any} */ opts) => {
         capturedShouldRetry = /** @type {*} */ (opts).shouldRetry;
         return await fn();
       });
@@ -950,7 +950,7 @@ describe('SyncController', () => {
 
       /** @type {((err: unknown) => boolean) | undefined} */
       let capturedShouldRetry;
-      retryMock.mockImplementation(async (fn, opts) => {
+      retryMock.mockImplementation(async (/** @type {any} */ fn, /** @type {any} */ opts) => {
         capturedShouldRetry = /** @type {*} */ (opts).shouldRetry;
         return await fn();
       });
@@ -1033,7 +1033,7 @@ describe('SyncController', () => {
         (/** @type {*[]} */ c) => c[0].type === 'failed',
       );
       expect(failedCall).toBeDefined();
-      expect(failedCall[0].error).toBeInstanceOf(OperationAbortedError);
+      expect(/** @type {any[]} */ (failedCall)[0].error).toBeInstanceOf(OperationAbortedError);
     });
 
     it('emits "failed" with retry count on RetryExhaustedError', async () => {
@@ -1051,7 +1051,7 @@ describe('SyncController', () => {
         (/** @type {*[]} */ c) => c[0].type === 'failed',
       );
       expect(failedCall).toBeDefined();
-      expect(failedCall[0].attempt).toBe(3);
+      expect(/** @type {any[]} */ (failedCall)[0].attempt).toBe(3);
     });
 
     // ── Auth headers ─────────────────────────────────────────────────────
@@ -1203,7 +1203,7 @@ describe('SyncController', () => {
       }));
 
       expect(httpSyncServerMock).toHaveBeenCalledOnce();
-      const args = httpSyncServerMock.mock.calls[0][0];
+      const args = /** @type {any} */ (httpSyncServerMock.mock.calls[0])[0];
       expect(args.httpPort).toBe(httpPort);
       expect(args.graph).toBe(host);
       expect(args.path).toBe('/custom-sync');
@@ -1223,7 +1223,7 @@ describe('SyncController', () => {
         httpPort: { listen: vi.fn() },
       }));
 
-      const args = httpSyncServerMock.mock.calls[0][0];
+      const args = /** @type {any} */ (httpSyncServerMock.mock.calls[0])[0];
       expect(args.host).toBe('127.0.0.1');
     });
 
@@ -1240,7 +1240,7 @@ describe('SyncController', () => {
         auth: { keys: { k1: 'secret1' } },
       }));
 
-      const args = httpSyncServerMock.mock.calls[0][0];
+      const args = /** @type {any} */ (httpSyncServerMock.mock.calls[0])[0];
       expect(args.auth.crypto).toBe(mockCrypto);
       expect(args.auth.logger).toBe(mockLogger);
       expect(args.auth.keys).toEqual({ k1: 'secret1' });
@@ -1256,7 +1256,7 @@ describe('SyncController', () => {
         httpPort: { listen: vi.fn() },
       }));
 
-      const args = httpSyncServerMock.mock.calls[0][0];
+      const args = /** @type {any} */ (httpSyncServerMock.mock.calls[0])[0];
       expect(args).not.toHaveProperty('auth');
     });
 
@@ -1271,7 +1271,7 @@ describe('SyncController', () => {
         auth: { keys: { k: 's' } },
       }));
 
-      const args = httpSyncServerMock.mock.calls[0][0];
+      const args = /** @type {any} */ (httpSyncServerMock.mock.calls[0])[0];
       expect(args.auth).not.toHaveProperty('logger');
     });
   });

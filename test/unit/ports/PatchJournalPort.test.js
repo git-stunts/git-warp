@@ -26,6 +26,6 @@ describe('PatchJournalPort', () => {
     }
     const journal = new TestJournal();
     expect(journal).toBeInstanceOf(PatchJournalPort);
-    expect(await journal.writePatch(/** @type {any} */ ({}))).toBe('oid');
+    expect(await (/** @type {any} */ (journal)).writePatch({})).toBe('oid');
   });
 });
