@@ -18,6 +18,7 @@ export default tseslint.config(
       "examples/html/assets/**",
       "scripts/**",
       ".claude/**",
+      ".obsidian/**",
       "test/type-check/**",
       "test/runtime/**",
       "**/*.d.ts",
