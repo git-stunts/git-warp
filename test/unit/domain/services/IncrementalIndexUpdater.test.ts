@@ -357,7 +357,7 @@ describe('IncrementalIndexUpdater', () => {
 
       // Tamper with the meta shard: push nextLocalId to the limit
       const metaBuf = (tree[`meta_${shardKey}.cbor`] as Uint8Array);
-      const meta = /** @type {{nextLocalId: number, nodeToGlobal: Array<[string, number]>, alive: Uint8Array}} */ (defaultCodec.decode(metaBuf));
+      const meta = (defaultCodec.decode(metaBuf) as {nextLocalId: number; nodeToGlobal: Array<[string, number]>; alive: Uint8Array});
       meta.nextLocalId = (1 << 24);
       tree[`meta_${shardKey}.cbor`] = new Uint8Array(defaultCodec.encode(meta));
 

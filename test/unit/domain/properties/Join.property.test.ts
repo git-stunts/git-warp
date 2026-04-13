@@ -93,12 +93,12 @@ function generateORSet(elements, dotArbitrary) {
     const set = ORSet.empty();
     for (const { element, dots, tombstoneCount } of items) {
       for (const dot of dots) {
-        set.add((element), dot);
+        set.add((element as any), (dot as any));
       }
       // Tombstone some dots
       const dotsToTombstone = dots.slice(0, Math.min(tombstoneCount, dots.length));
       if (dotsToTombstone.length > 0) {
-        set.remove(new Set(dotsToTombstone.map(encodeDot)));
+        set.remove(new Set(dotsToTombstone.map((dot: any) => encodeDot(dot))));
       }
     }
     return set;

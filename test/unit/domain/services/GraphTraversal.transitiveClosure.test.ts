@@ -149,7 +149,7 @@ describe('GraphTraversal.transitiveClosure()', () => {
     it('stream yields the same sorted edges as transitiveClosure()', async () => {
       const provider = makeAdjacencyProvider(F3_DIAMOND_EQUAL_PATHS);
       const engine = new GraphTraversal({ provider });
-      const streamed = [];
+      const streamed: any[] = [];
 
       for await (const edge of engine.transitiveClosureStream({ start: 'A' })) {
         streamed.push(edge);
@@ -162,7 +162,7 @@ describe('GraphTraversal.transitiveClosure()', () => {
     it('stream supports early break without materializing the whole closure', async () => {
       const provider = makeAdjacencyProvider(F18_TRANSITIVE_CLOSURE_CHAIN);
       const engine = new GraphTraversal({ provider });
-      const streamed = [];
+      const streamed: any[] = [];
 
       for await (const edge of engine.transitiveClosureStream({ start: 'A' })) {
         streamed.push(edge);
@@ -217,7 +217,7 @@ describe('GraphTraversal.transitiveClosure()', () => {
 
     it('checks AbortSignal every thousand discovered nodes', async () => {
       const nodes = ['root'];
-      const edges = [];
+      const edges: Array<{from: string; to: string}> = [];
       for (let i = 0; i < 999; i += 1) {
         const child = `N${String(i).padStart(3, '0')}`;
         nodes.push(child);

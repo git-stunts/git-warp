@@ -186,7 +186,7 @@ describe('IndexRebuildService streaming mode', () => {
           for (let i = 0; i < 200; i++) {
             const prefix = (i % 256).toString(16).padStart(2, '0');
             const sha = `${prefix}${i.toString().padStart(6, '0')}`;
-            const parents = [];
+            const parents: string[] = [];
 
             // Add parent edges
             if (i > 0) {

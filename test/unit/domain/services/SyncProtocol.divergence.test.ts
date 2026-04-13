@@ -23,7 +23,7 @@ function createTestPatch(/** @type {any} */ { writer, lamport }) {
   return { schema: 2, writer, lamport, ops: [], context: VersionVector.empty() };
 }
 
-function setupCommit(/** @type {Record<string, any>} */ commits, /** @type {Record<string, any>} */ blobs, /** @type {string} */ sha, /** @type {any} */ patch, /** @type {string} */ patchOid, /** @type {string[]} */ parents = []) {
+function setupCommit(commits: Record<string, any>, blobs: Record<string, any>, sha: string, patch: any, patchOid: string, parents: string[] = []) {
   const message = encodePatchMessage({
     graph: 'events',
     writer: patch.writer,
@@ -87,11 +87,11 @@ describe('B65 — Sync divergence logging', () => {
     const logger = createMockLogger();
 
     // Remote (requester) claims SHA_A, local has SHA_B for same writer
-    const request = { type: 'sync-request', frontier: { w1: SHA_A } };
+    const request = ({ type: 'sync-request', frontier: { w1: SHA_A } } as any);
     const localFrontier = new Map([['w1', SHA_B]]);
 
     const response = await processSyncRequest(
-      (request), localFrontier, (persistence), 'events', { patchJournal: createPatchJournal(persistence), logger },
+      (request), localFrontier, (persistence as any), 'events', { patchJournal: createPatchJournal(persistence), logger },
     );
 
     // Should return empty patches (diverged writer skipped)
@@ -121,11 +121,11 @@ describe('B65 — Sync divergence logging', () => {
     const persistence = createMockPersistence(commits, blobs);
     const logger = createMockLogger();
 
-    const request = { type: 'sync-request', frontier: { w1: SHA_A } };
+    const request = ({ type: 'sync-request', frontier: { w1: SHA_A } } as any);
     const localFrontier = new Map([['w1', SHA_B]]);
 
     const response = await processSyncRequest(
-      (request), localFrontier, (persistence), 'events', { patchJournal: createPatchJournal(persistence), logger },
+      (request), localFrontier, (persistence as any), 'events', { patchJournal: createPatchJournal(persistence), logger },
     );
 
     expect(response.patches).toHaveLength(1);
@@ -144,7 +144,7 @@ describe('B65 — Sync divergence logging', () => {
     const persistence = createMockPersistence(commits, blobs);
 
     // No logger passed — should not throw
-    const request = { type: 'sync-request', frontier: { w1: SHA_A } };
+    const request = ({ type: 'sync-request', frontier: { w1: SHA_A } } as any);
     const localFrontier = new Map([['w1', SHA_B]]);
 
     const response = await processSyncRequest(
@@ -172,7 +172,7 @@ describe('B65 — Sync divergence logging', () => {
     const localFrontier = new Map([['w1', SHA_A], ['w2', SHA_C]]);
 
     const response = await processSyncRequest(
-      (request), localFrontier, (persistence), 'events', { patchJournal: createPatchJournal(persistence), logger },
+      (request), localFrontier, (persistence as any), 'events', { patchJournal: createPatchJournal(persistence), logger },
     );
 
     // w1 skipped (diverged), w2 returned

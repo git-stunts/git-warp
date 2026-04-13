@@ -35,7 +35,7 @@ describe('Sign+verify round-trip (B23)', () => {
 
   for (const record of allRecords) {
     it(`verifies golden signature for ${record.recordType} (${record.recordId.slice(0, 8)})`, () => {
-      const payload = computeSignaturePayload((record));
+      const payload = computeSignaturePayload((record as any));
       const result = verifySignature({
         algorithm: record.signature.alg,
         publicKeyBase64: PUBLIC_KEY_1,
@@ -126,7 +126,7 @@ describe('Tamper detection through canonical path', () => {
   it('rejects mutated signature bytes', () => {
     const sigBuf = Buffer.from(KEY_ADD_1.signature.sig, 'base64');
     if (sigBuf[0] !== undefined) { sigBuf[0] ^= 0xff; }
-    const payload = computeSignaturePayload((KEY_ADD_1));
+    const payload = computeSignaturePayload((KEY_ADD_1 as any));
     expect(verifySignature({
       algorithm: 'ed25519',
       publicKeyBase64: PUBLIC_KEY_1,

@@ -130,7 +130,7 @@ describe('VisibleStateTransferPlanner', () => {
       return new TextEncoder().encode(`edge:${edge.from}->${edge.to}:${edge.label}`);
     });
 
-    const plan = await planVisibleStateTransfer(sourceReader, targetReader, {
+    const plan = await planVisibleStateTransfer(sourceReader as any, targetReader as any, {
       loadNodeContent,
       loadEdgeContent,
     });

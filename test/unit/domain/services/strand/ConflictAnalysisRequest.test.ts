@@ -82,7 +82,7 @@ describe('ConflictAnalysisRequest', () => {
     ];
 
     for (const testCase of cases) {
-      const request = ConflictAnalysisRequest.from({ target: testCase.input });
+      const request = ConflictAnalysisRequest.from({ target: testCase.input as any });
       const filterRecord = request.toSnapshotFilterRecord();
       expect(request.target).toEqual(testCase.expected);
       expect(filterRecord['target']).toEqual(testCase.expected);

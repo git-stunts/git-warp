@@ -202,7 +202,7 @@ describe('Cancellation', () => {
         }
       }
 
-      const collectedNodes = [];
+      const collectedNodes: any[] = [];
 
       try {
         for await (const node of mockIterateNodes({ signal: controller.signal })) {
@@ -237,7 +237,7 @@ describe('Cancellation', () => {
         }
       }
 
-      const collectedNodes = [];
+      const collectedNodes: any[] = [];
       for await (const node of mockIterateNodes({ signal: controller.signal })) {
         collectedNodes.push(node);
       }
@@ -255,7 +255,7 @@ describe('Cancellation', () => {
         }
       }
 
-      const collectedNodes = [];
+      const collectedNodes: any[] = [];
       for await (const node of mockIterateNodes({})) {
         collectedNodes.push(node);
       }

@@ -74,7 +74,7 @@ describe('WarpApp delegation', () => {
   describe('runtime surface', () => {
     it('open() wraps WarpCore.open()', async () => {
       const runtimeBackedCore = createRuntimeBackedCore();
-      const open = vi.spyOn(WarpCore, 'open').mockResolvedValue((runtimeBackedCore));
+      const open = vi.spyOn(WarpCore, 'open').mockResolvedValue((runtimeBackedCore as any));
 
       const opened = await WarpApp.open({ graphName: 'g', writerId: 'w', persistence: ({} as any) });
 
@@ -87,7 +87,7 @@ describe('WarpApp delegation', () => {
 
     it('graphName and writerId read through the runtime-backed core', () => {
       const runtimeBackedCore = createRuntimeBackedCore();
-      const runtimeBackedApp = new WarpApp((runtimeBackedCore));
+      const runtimeBackedApp = new WarpApp((runtimeBackedCore as any));
 
       expect(runtimeBackedApp.graphName).toBe('test-graph');
       expect(runtimeBackedApp.writerId).toBe('writer-1');
@@ -159,7 +159,7 @@ describe('WarpApp delegation', () => {
 
     it('unwraps WarpApp remotes to their runtime surface', async () => {
       const remoteRuntime = createRuntimeBackedCore();
-      const remoteApp = new WarpApp((remoteRuntime));
+      const remoteApp = new WarpApp((remoteRuntime as any));
 
       await app.syncWith(remoteApp, ({ retries: 2 } as any));
 

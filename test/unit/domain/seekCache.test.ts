@@ -33,7 +33,7 @@ function setupPersistence(persistence, writerSpecs, graphName = 'test') {
     const writerTips = ({}) as Record<string, string>;
 
   for (const [writer, count] of Object.entries(writerSpecs)) {
-    const shas = [];
+    const shas: string[] = [];
     for (let i = 1; i <= (count as any); i++) {
       shas.push(fakeSha(`${writer}${i}`));
     }
@@ -383,7 +383,7 @@ describe('WarpRuntime seek cache integration', () => {
     });
 
     expect(graph.seekCache).toBe(seekCache);
-    graph.setSeekCache((null));
+    graph.setSeekCache((null as any));
     expect(graph.seekCache).toBeNull();
 
     // Materialize should still work without cache

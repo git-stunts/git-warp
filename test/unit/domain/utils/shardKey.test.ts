@@ -43,8 +43,8 @@ describe('computeShardKey', () => {
   });
 
   it('returns fallback shard for null, undefined, and non-string inputs', () => {
-    expect(computeShardKey((null))).toBe('00');
-    expect(computeShardKey((undefined))).toBe('00');
+    expect(computeShardKey((null as any))).toBe('00');
+    expect(computeShardKey((undefined as any))).toBe('00');
     expect(computeShardKey((42 as any))).toBe('00');
     expect(computeShardKey(({} as any))).toBe('00');
   });

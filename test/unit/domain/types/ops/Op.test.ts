@@ -12,7 +12,7 @@ import BlobValue from '../../../../../src/domain/types/ops/BlobValue.ts';
 
 describe('Op base class', () => {
   it('cannot be instantiated directly', () => {
-    expect(() => new ((Op))('NodeAdd')).toThrow();
+    expect(() => new ((Op as any))('NodeAdd')).toThrow();
   });
 
   it('is the prototype of all op subclasses', () => {
@@ -76,7 +76,7 @@ describe('NodeAdd', () => {
   it('throws on non-string nodeId', () => {
     const dot = new Dot('alice', 1);
     expect(() => new NodeAdd((42 as any), dot)).toThrow();
-    expect(() => new NodeAdd((null), dot)).toThrow();
+    expect(() => new NodeAdd((null as any), dot)).toThrow();
   });
 
   it('throws when dot is not a Dot instance', () => {

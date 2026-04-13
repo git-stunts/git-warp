@@ -291,7 +291,7 @@ describe('HttpSyncServer', () => {
   describe('allowedWriters configuration validation', () => {
     it('throws when allowedWriters is set without auth.keys', () => {
       expect(() => new HttpSyncServer({
-        httpPort: createMockPort(),
+        httpPort: (createMockPort() as any),
         graph: { processSyncRequest: vi.fn() },
         allowedWriters: ['alice'],
       })).toThrow(/allowedWriters requires auth\.keys to be configured/);
@@ -299,7 +299,7 @@ describe('HttpSyncServer', () => {
 
     it('does not throw when allowedWriters is set with auth.keys', () => {
       expect(() => new HttpSyncServer({
-        httpPort: createMockPort(),
+        httpPort: (createMockPort() as any),
         graph: { processSyncRequest: vi.fn() },
         auth: { keys: { default: 'secret' } },
         allowedWriters: ['alice'],

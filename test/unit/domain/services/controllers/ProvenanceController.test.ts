@@ -32,7 +32,7 @@ const mockDecodePatchMessage = (decodePatchMessage);
 const mockReplay = vi.fn();
 
 vi.mock('../../../../../src/domain/services/provenance/ProvenancePayload.js', () => {
-  const MockPayload = vi.fn(function () {
+  const MockPayload = vi.fn(function (this: any) {
     this.replay = mockReplay;
   });
   return { ProvenancePayload: MockPayload };
@@ -90,7 +90,7 @@ function createHost(overrides = {}) {
  * @param {{ writer?: string; lamport?: number; ops?: any[]; reads?: string[] }} [opts]
  * @returns {any}
  */
-function makePatch({ writer = 'w1', lamport = 1, ops = [], reads } = {}) {
+function makePatch({ writer = 'w1', lamport = 1, ops = [], reads }: { writer?: string; lamport?: number; ops?: any[]; reads?: string[] } = {}) {
     const patch = ({ writer, lamport, ops }) as Record<string, unknown>;
   if (reads !== undefined) {
     patch['reads'] = reads;
@@ -484,7 +484,7 @@ describe('ProvenanceController — _sortPatchesCausally', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    ctrl = new ProvenanceController(createHost());
+    ctrl = new ProvenanceController(createHost() as any);
   });
 
   it('sorts by lamport timestamp ascending', () => {

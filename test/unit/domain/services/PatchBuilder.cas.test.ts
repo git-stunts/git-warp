@@ -11,8 +11,7 @@ import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
  * @param {Object} [overrides] - Method overrides
  * @returns {Object} Mock persistence adapter
  */
-/** @returns {any} */
-function createMockPersistence(overrides = {}) {
+function createMockPersistence(overrides = {}): any {
   return {
     readRef: vi.fn().mockResolvedValue(null),
     showNode: vi.fn(),

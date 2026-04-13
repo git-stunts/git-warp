@@ -307,8 +307,8 @@ describe('AuditReceiptService — commit flow', () => {
 
     await service.init();
 
-    expect((service)._prevAuditCommit).toBe('a'.repeat(40));
-    expect((service)._expectedOldRef).toBe('a'.repeat(40));
+    expect((service as any)._prevAuditCommit).toBe('a'.repeat(40));
+    expect((service as any)._expectedOldRef).toBe('a'.repeat(40));
   });
 
   it('init logs and resets state when reading the audit ref fails', async () => {
@@ -324,10 +324,10 @@ describe('AuditReceiptService — commit flow', () => {
       writerId: 'alice',
       codec: defaultCodec,
       crypto: testCrypto,
-      logger: (logger),
+      logger: (logger as any),
     });
-    (service)._prevAuditCommit = 'f'.repeat(40);
-    (service)._expectedOldRef = 'f'.repeat(40);
+    (service as any)._prevAuditCommit = 'f'.repeat(40);
+    (service as any)._expectedOldRef = 'f'.repeat(40);
 
     await service.init();
 
@@ -335,8 +335,8 @@ describe('AuditReceiptService — commit flow', () => {
       code: 'AUDIT_INIT_READ_FAILED',
       writerId: 'alice',
     }));
-    expect((service)._prevAuditCommit).toBeNull();
-    expect((service)._expectedOldRef).toBeNull();
+    expect((service as any)._prevAuditCommit).toBeNull();
+    expect((service as any)._expectedOldRef).toBeNull();
   });
 
   function makeTickReceipt(lamport = 1, patchSha = 'a'.repeat(40)) {

@@ -49,7 +49,7 @@ describe('ConflictCandidate', () => {
   it('accepts all valid kinds', () => {
     for (const kind of ['supersession', 'eventual_override', 'redundancy']) {
       const c = new ConflictCandidate({
-        kind: (kind),
+        kind: (kind as any),
         target: makeTarget(),
         winner: makeRecord(),
         loser: makeRecord({ patchSha: 'x' }),

@@ -329,7 +329,7 @@ describe('ProvenanceIndex', () => {
       index.addPatch('sha1', ['a'], []);
       index.addPatch('sha2', ['b'], []);
 
-      const collected = [];
+      const collected: any[] = [];
       for (const [entityId, shas] of index) {
         collected.push([entityId, shas]);
       }

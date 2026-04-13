@@ -512,10 +512,10 @@ describe('Writer (WARP schema:2)', () => {
       try {
         await patch.commit();
         expect.fail('Should have thrown');
-      } catch (/** @type {any} */ err) {
-        expect(err.message).toContain(oldHead);
-        expect(err.message).toContain(movedHead);
-        expect(err.message).toContain('beginPatch()');
+      } catch (err) {
+        expect((err as any).message).toContain(oldHead);
+        expect((err as any).message).toContain(movedHead);
+        expect((err as any).message).toContain('beginPatch()');
       }
     });
   });

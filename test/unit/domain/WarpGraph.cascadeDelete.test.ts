@@ -37,7 +37,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
 
       expect(edgeRemoves).toHaveLength(3);
       expect(nodeRemoves).toHaveLength(1);
-      expect(/** @type {{ node: string }} */ (nodeRemoves[0]).node).toBe('A');
+      expect((nodeRemoves[0] as any)?.node).toBe('A');
 
       // Verify EdgeRemove ops target the correct edges
       const removedEdges = edgeRemoves.map(op => `${op.from}->${op.to}[${op.label}]`).sort();
@@ -116,9 +116,9 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
 
       const ops = builder.ops;
       expect(ops).toHaveLength(1);
-      const op0 = /** @type {{ type: string, node: string }} */ (ops[0]);
-      expect(op0!.type).toBe('NodeRemove');
-      expect(op0!.node).toBe('lonely');
+      const op0 = (ops[0] as any);
+      expect(op0?.type).toBe('NodeRemove');
+      expect(op0?.node).toBe('lonely');
     } finally {
       await repo.cleanup();
     }
@@ -339,7 +339,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
       const ops = builder.ops;
       // Should only have NodeRemove, no EdgeRemove
       expect(ops).toHaveLength(1);
-      expect(/** @type {{ type: string }} */ (ops[0]).type).toBe('NodeRemove');
+      expect((ops[0] as any)?.type).toBe('NodeRemove');
     } finally {
       await repo.cleanup();
     }

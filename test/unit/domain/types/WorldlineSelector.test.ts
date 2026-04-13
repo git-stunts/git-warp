@@ -123,7 +123,7 @@ describe('CoordinateSelector', () => {
   });
 
   it('rejects null frontier', () => {
-    expect(() => new CoordinateSelector((null))).toThrow(QueryError);
+    expect(() => new CoordinateSelector((null as any))).toThrow(QueryError);
   });
 
   it('rejects non-object frontier', () => {
@@ -216,7 +216,7 @@ describe('StrandSelector', () => {
   });
 
   it('rejects null strandId', () => {
-    expect(() => new StrandSelector((null))).toThrow(QueryError);
+    expect(() => new StrandSelector((null as any))).toThrow(QueryError);
   });
 
   it('rejects negative ceiling', () => {

@@ -74,13 +74,13 @@ describe('EventId', () => {
       });
 
       it('rejects null writerId', () => {
-        expect(() => new EventId(1, (null), 'abcd1234', 0)).toThrow(
+        expect(() => new EventId(1, (null as any), 'abcd1234', 0)).toThrow(
           'writerId must be a non-empty string'
         );
       });
 
       it('rejects undefined writerId', () => {
-        expect(() => new EventId(1, (undefined), 'abcd1234', 0)).toThrow(
+        expect(() => new EventId(1, (undefined as any), 'abcd1234', 0)).toThrow(
           'writerId must be a non-empty string'
         );
       });
@@ -125,7 +125,7 @@ describe('EventId', () => {
       });
 
       it('rejects null patchSha', () => {
-        expect(() => new EventId(1, 'writer', (null), 0)).toThrow(
+        expect(() => new EventId(1, 'writer', (null as any), 0)).toThrow(
           'patchSha must be a hex string of 4-64 characters'
         );
       });

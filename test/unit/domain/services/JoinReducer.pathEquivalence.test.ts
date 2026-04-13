@@ -167,7 +167,7 @@ describe('OP_STRATEGIES registry', () => {
   it('every strategy has all five required methods', () => {
     const requiredMethods = ['mutate', 'outcome', 'snapshot', 'accumulate', 'validate'];
     for (const [opType, strategy] of OP_STRATEGIES) {
-      const s = ((strategy) as Record<string, unknown>);
+      const s = (strategy as unknown as Record<string, unknown>);
       for (const method of requiredMethods) {
         expect(
           typeof s[method],

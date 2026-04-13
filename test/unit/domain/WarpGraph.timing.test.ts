@@ -247,7 +247,7 @@ describe('WarpRuntime operation timing (LH/TIMING/1)', () => {
       const responsePayload = { type: 'sync-response', frontier: {}, patches: [] };
       const peer = { processSyncRequest: vi.fn().mockResolvedValue(responsePayload) };
 
-      const result = await graph.syncWith((peer));
+      const result = await graph.syncWith((peer as any));
 
       expect(result.applied).toBe(5);
       expect(logger.info).toHaveBeenCalledWith(

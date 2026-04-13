@@ -134,7 +134,7 @@ describe('CachedValue', () => {
 
     it('memoizes in-flight compute for concurrent get calls', async () => {
       const clock = createMockClock();
-            let resolveCompute = () => {};
+      let resolveCompute: (value: any) => void = () => {};
       const compute = vi.fn().mockImplementation(() => {
         return new Promise((resolve) => {
           resolveCompute = resolve;
@@ -219,7 +219,7 @@ describe('CachedValue', () => {
 
     it('does not re-cache stale in-flight result after invalidate', async () => {
       const clock = createMockClock();
-            let resolveCompute = () => {};
+      let resolveCompute: (value: any) => void = () => {};
       const compute = vi.fn()
         .mockImplementationOnce(() => {
           return new Promise((resolve) => {

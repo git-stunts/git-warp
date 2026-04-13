@@ -11,8 +11,7 @@ const crypto = new NodeCryptoAdapter();
  */
 /** @returns {any} */
 function createMockLogger() {
-  /** @type {{ debug: any[], info: any[], warn: any[], error: any[], child: any[] }} */
-  const calls = {
+  const calls: { debug: any[]; info: any[]; warn: any[]; error: any[]; child: any[] } = {
     debug: [],
     info: [],
     warn: [],

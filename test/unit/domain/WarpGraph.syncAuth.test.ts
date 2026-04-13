@@ -15,7 +15,7 @@ async function createGraph(writerId = 'writer-1') {
     readTreeOids: vi.fn(),
     writeTree: vi.fn(),
   };
-  return WarpRuntime.open({ persistence: (mockPersistence), graphName: 'test', writerId });
+  return WarpRuntime.open({ persistence: (mockPersistence as any), graphName: 'test', writerId });
 }
 
 /**

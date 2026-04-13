@@ -153,7 +153,7 @@ describe('LogicalIndexBuildService determinism', () => {
 
     const metaAA = shards.find((s) => s instanceof MetaShard && s.shardKey === 'aa');
     expect(metaAA).toBeDefined();
-    const nodeIds = (metaAA).nodeToGlobal.map(
+    const nodeIds = (metaAA as any).nodeToGlobal.map(
       (/** @type {[string, number]} */ pair) => pair[0],
     );
     expect(nodeIds.length).toBe(4);

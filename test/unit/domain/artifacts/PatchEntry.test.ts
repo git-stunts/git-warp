@@ -22,7 +22,7 @@ describe('PatchEntry', () => {
   });
 
   it('rejects null patch', () => {
-    expect(() => new PatchEntry({ patch: (null), sha: 'abc' })).toThrow('requires a patch');
+    expect(() => new PatchEntry({ patch: (null as any), sha: 'abc' })).toThrow('requires a patch');
   });
 
   it('rejects empty sha', () => {

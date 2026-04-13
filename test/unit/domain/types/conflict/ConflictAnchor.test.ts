@@ -39,9 +39,9 @@ describe('ConflictAnchor', () => {
     it('treats null receipt fields as undefined', () => {
       const anchor = new ConflictAnchor({
         ...VALID,
-        receiptPatchSha: (null),
-        receiptLamport: (null),
-        receiptOpIndex: (null),
+        receiptPatchSha: (null as any),
+        receiptLamport: (null as any),
+        receiptOpIndex: (null as any),
       });
       expect(anchor.receiptPatchSha).toBeUndefined();
       expect(anchor.receiptLamport).toBeUndefined();

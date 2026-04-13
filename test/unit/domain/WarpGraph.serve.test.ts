@@ -39,7 +39,7 @@ describe('WarpRuntime serve', () => {
     };
 
     graph = await WarpRuntime.open({
-      persistence: (mockPersistence),
+      persistence: (mockPersistence as any),
       graphName: 'test',
       writerId: 'writer-1',
     });

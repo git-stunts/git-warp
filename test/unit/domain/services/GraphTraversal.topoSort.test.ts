@@ -112,7 +112,7 @@ describe('GraphTraversal.topologicalSort', () => {
       // 201 nodes, 200 edges. BFS discovery queue grows large enough
       // that O(n) shift per dequeue would be measurably slower.
       const nodes = ['root'];
-      const edges = [];
+      const edges: Array<{from: string; to: string}> = [];
       for (let i = 0; i < 100; i++) {
         const l0 = `L0_${String(i).padStart(3, '0')}`;
         const l1 = `L1_${String(i).padStart(3, '0')}`;

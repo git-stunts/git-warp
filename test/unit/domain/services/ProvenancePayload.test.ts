@@ -40,7 +40,7 @@ describe('ProvenancePayload', () => {
         new ProvenancePayload(('not-an-array' as any));
       } catch (err) {
         expect(err).toBeInstanceOf(WarpError);
-        expect((err).code).toBe('E_PROVENANCE_PAYLOAD_INVALID');
+        expect((err as any).code).toBe('E_PROVENANCE_PAYLOAD_INVALID');
       }
     });
 
@@ -52,7 +52,7 @@ describe('ProvenancePayload', () => {
 
       // Attempting to add properties should fail in strict mode
       expect(() => {
-        (payload).newProp = 'value';
+        (payload as any).newProp = 'value';
       }).toThrow();
     });
   });
@@ -88,12 +88,12 @@ describe('ProvenancePayload', () => {
       const payload = new ProvenancePayload();
       expect(() => payload.concat(([] as any))).toThrow(WarpError);
       expect(() => payload.concat(({} as any))).toThrow(WarpError);
-      expect(() => payload.concat((null))).toThrow(WarpError);
+      expect(() => payload.concat((null as any))).toThrow(WarpError);
       try {
         payload.concat(([] as any));
       } catch (err) {
         expect(err).toBeInstanceOf(WarpError);
-        expect((err).code).toBe('E_PROVENANCE_PAYLOAD_CONCAT');
+        expect((err as any).code).toBe('E_PROVENANCE_PAYLOAD_CONCAT');
       }
     });
 
@@ -419,7 +419,7 @@ describe('ProvenancePayload', () => {
       const { patchA, patchB } = createSamplePatches();
       const payload = new ProvenancePayload([patchA, patchB]);
 
-      const collected = [];
+      const collected: any[] = [];
       for (const entry of payload) {
         collected.push(entry);
       }
@@ -590,7 +590,7 @@ describe('ProvenancePayload', () => {
   describe('fuzz tests', () => {
     it('monoid laws hold for random payload combinations', () => {
       // Generate random patches
-      const patches = [];
+      const patches: any[] = [];
       for (let i = 0; i < 20; i++) {
         patches.push({
           patch: createPatch({

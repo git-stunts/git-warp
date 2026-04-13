@@ -57,7 +57,7 @@ describe('MinHeap', () => {
         heap.insert(`item${v}`, v);
       }
 
-      const extracted = [];
+      const extracted: any[] = [];
       while (!heap.isEmpty()) {
         extracted.push(heap.extractMin());
       }
@@ -85,7 +85,7 @@ describe('MinHeap', () => {
       heap.insert('B', 5);
       heap.insert('C', 5);
 
-      const extracted = [];
+      const extracted: any[] = [];
       while (!heap.isEmpty()) {
         extracted.push(heap.extractMin());
       }

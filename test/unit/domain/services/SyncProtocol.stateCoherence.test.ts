@@ -292,7 +292,7 @@ describe('SyncProtocol — state coherence (Phase 4, Invariant 5)', () => {
     const logger = createMockLogger();
 
     // Remote (requester) has SHA_A, local has SHA_B — chains are disjoint
-    const request = { type: 'sync-request', frontier: { w1: SHA_A } };
+    const request = ({ type: 'sync-request', frontier: { w1: SHA_A } } as any);
     const localFrontier = new Map([['w1', SHA_B]]);
 
     const response = ((await processSyncRequest(

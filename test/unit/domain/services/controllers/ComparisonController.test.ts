@@ -150,7 +150,7 @@ function orsetWith(elements) {
  * @param {{ nodes?: string[], edges?: Array<{from: string, to: string, label: string}>, props?: Array<{nodeId: string, key: string, value: unknown}> }} [opts]
  * @returns {WarpState}
  */
-function makeState(opts = {}) {
+function makeState(opts: { nodes?: string[]; edges?: Array<{from: string; to: string; label: string}>; props?: Array<{nodeId: string; key: string; value: unknown}> } = {}) {
   const { nodes = [], edges = [], props = [] } = opts;
   const edgeKeys = edges.map((e) => encodeEdgeKey(e.from, e.to, e.label));
     const propMap = (new Map()) as any;
@@ -176,7 +176,7 @@ function makeState(opts = {}) {
  * @param {{ writer: string, lamport?: number, sha?: string, reads?: string[], writes?: string[] }} opts
  * @returns {import('../../../../../src/domain/services/controllers/ComparisonSelector.ts').PatchEntry}
  */
-function makePatchEntry({ writer, lamport = 1, sha, reads = [], writes = [] }) {
+function makePatchEntry({ writer, lamport = 1, sha, reads = [], writes = [] }: { writer: string; lamport?: number; sha?: string; reads?: string[]; writes?: string[] }) {
   const resolvedSha = sha ?? `sha-${writer}-${lamport}`;
   const patch = new Patch({
     writer,

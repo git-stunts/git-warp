@@ -15,8 +15,7 @@ import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 
 const SHA_A = 'a'.repeat(40);
 
-/** @param {any} ops */
-function makeSyncResponse(ops) {
+function makeSyncResponse(ops: any): any {
   return {
     type: 'sync-response',
     frontier: { w1: SHA_A },

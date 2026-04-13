@@ -17,11 +17,13 @@ function makeEmission(id = 'em-1') {
 }
 
 class StubSink extends EffectSinkPort {
+  _id: string;
+  calls: Array<{emission: unknown; lens: unknown}>;
+
   /** @param {string} sinkId */
-  constructor(sinkId) {
+  constructor(sinkId: string) {
     super();
     this._id = sinkId;
-    /** @type {Array<{emission: unknown, lens: unknown}>} */
     this.calls = [];
   }
 

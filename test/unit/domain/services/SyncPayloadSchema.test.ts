@@ -155,7 +155,7 @@ describe('SyncPayloadSchema', () => {
     });
 
     it('rejects patches exceeding limit', () => {
-      const patches = [];
+      const patches: any[] = [];
       for (let i = 0; i < 6; i++) {
         patches.push({
           writerId: 'w1',
@@ -171,7 +171,7 @@ describe('SyncPayloadSchema', () => {
     });
 
     it('rejects patches with too many ops', () => {
-      const ops = [];
+      const ops: any[] = [];
       for (let i = 0; i < 6; i++) {
         ops.push({ type: 'NodeAdd', node: `n${i}`, dot: ['w1', i] });
       }

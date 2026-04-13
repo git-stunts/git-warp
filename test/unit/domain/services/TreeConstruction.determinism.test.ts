@@ -69,7 +69,7 @@ async function createPatchTreeOid(contentIds, shuffleSeed) {
   await builder.attachContent('dup', `payload:${contentIds[0]}`);
 
   if (shuffleSeed !== null) {
-    ((builder))._contentBlobs = createRng(shuffleSeed).shuffle(((builder))._contentBlobs);
+    (builder as any)._contentBlobs = createRng(shuffleSeed).shuffle((builder as any)._contentBlobs);
   }
 
   const commitSha = await builder.commit();
@@ -90,8 +90,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
   const frontier = createFrontier();
   updateFrontier(frontier, 'alice', makeOid(0xabc));
 
-  /** @type {Array<{ key: string, value: unknown, eventId: { lamport: number, writerId: string, patchSha: string, opIndex: number } }>} */
-  const propItems = [];
+  const propItems: Array<{ key: string; value: unknown; eventId: { lamport: number; writerId: string; patchSha: string; opIndex: number } }> = [];
 
   for (let i = 0; i < contentIds.length; i++) {
     const nodeId = `n${i}`;

@@ -377,7 +377,7 @@ describe('LogicalIndexReader', () => {
     it('returns correct neighbors for a 100-node graph', () => {
       // Build a state with 100 nodes, each node i -> node i+1 via "next", node i -> node 0 via "loop"
       const nodes = Array.from({ length: 100 }, (_, i) => `n${String(i).padStart(3, '0')}`);
-      const edges = [];
+      const edges: Array<{from: string; to: string; label: string}> = [];
       for (let i = 0; i < 99; i++) {
         edges.push({ from: (nodes[i] as string), to: (nodes[i + 1] as string), label: 'next' });
       }

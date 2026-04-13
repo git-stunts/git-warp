@@ -41,7 +41,7 @@ describe('_readPatchBlob', () => {
     try {
       await ctrl._readPatchBlob({ patchOid: 'b'.repeat(40), encrypted: false });
     } catch (err) {
-      expect((err).code).toBe(PersistenceError.E_MISSING_OBJECT);
+      expect((err as any).code).toBe(PersistenceError.E_MISSING_OBJECT);
     }
   });
 
@@ -58,7 +58,7 @@ describe('_readPatchBlob', () => {
     const patchBlobStorage = { retrieve: vi.fn().mockResolvedValue(expected) };
     const ctrl = createController(
       { readBlob: vi.fn().mockResolvedValue(null) },
-      patchBlobStorage,
+      patchBlobStorage as any,
     );
     const result = await ctrl._readPatchBlob({
       patchOid: 'd'.repeat(40),

@@ -47,7 +47,7 @@ describe('StreamingBitmapIndexBuilder', () => {
 
   describe('registerNode', () => {
     it('assigns sequential IDs to nodes', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage as any) });
 
       const id1 = await builder.registerNode('abc123');
       const id2 = await builder.registerNode('def456');
@@ -61,7 +61,7 @@ describe('StreamingBitmapIndexBuilder', () => {
 
   describe('addEdge', () => {
     it('registers both nodes and creates bitmaps', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage as any) });
 
       await builder.addEdge('parent1', 'child1');
       const stats = builder.getMemoryStats();
@@ -73,7 +73,7 @@ describe('StreamingBitmapIndexBuilder', () => {
 
   describe('flush', () => {
     it('writes bitmap shards to storage', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage as any) });
 
       await builder.addEdge('aa1111', 'bb2222');
       await builder.flush();
@@ -85,7 +85,7 @@ describe('StreamingBitmapIndexBuilder', () => {
     it('invokes onFlush callback', async () => {
       const onFlush = vi.fn();
       const builder = new StreamingBitmapIndexBuilder({
-        storage: (mockStorage),
+        storage: (mockStorage as any),
         onFlush,
       });
 
@@ -100,7 +100,7 @@ describe('StreamingBitmapIndexBuilder', () => {
     });
 
     it('does nothing when bitmaps are empty', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage as any) });
 
       await builder.flush();
 
@@ -108,7 +108,7 @@ describe('StreamingBitmapIndexBuilder', () => {
     });
 
     it('preserves SHA→ID mappings after flush', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage as any) });
 
       await builder.addEdge('aa1111', 'bb2222');
       const statsBefore = builder.getMemoryStats();
@@ -121,7 +121,7 @@ describe('StreamingBitmapIndexBuilder', () => {
 
   describe('finalize', () => {
     it('creates tree with meta and bitmap shards', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage as any) });
 
       await builder.addEdge('aa1111', 'bb2222');
       const treeOid = await builder.finalize();
@@ -136,7 +136,7 @@ describe('StreamingBitmapIndexBuilder', () => {
     });
 
     it('uses .cbor extension for shards', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage as any) });
 
       await builder.addEdge('aa1111', 'bb2222');
       await builder.finalize();
@@ -150,7 +150,7 @@ describe('StreamingBitmapIndexBuilder', () => {
     });
 
     it('writes sorted frontier metadata when provided', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage as any) });
 
       await builder.addEdge('aa1111', 'bb2222');
       await builder.finalize({
@@ -168,7 +168,7 @@ describe('StreamingBitmapIndexBuilder', () => {
 
   describe('getMemoryStats', () => {
     it('returns current memory statistics', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage as any) });
 
       await builder.addEdge('aa1111', 'bb2222');
       const stats = builder.getMemoryStats();
@@ -184,7 +184,7 @@ describe('StreamingBitmapIndexBuilder', () => {
     it('flushes when memory exceeds threshold', async () => {
       const onFlush = vi.fn();
       const builder = new StreamingBitmapIndexBuilder({
-        storage: (mockStorage),
+        storage: (mockStorage as any),
         maxMemoryBytes: 200,
         onFlush,
       });
@@ -201,7 +201,7 @@ describe('StreamingBitmapIndexBuilder', () => {
   describe('chunk merging', () => {
     it('merges multiple chunks for same shard', async () => {
       const builder = new StreamingBitmapIndexBuilder({
-        storage: (mockStorage),
+        storage: (mockStorage as any),
         maxMemoryBytes: 100,
       });
 
@@ -216,7 +216,7 @@ describe('StreamingBitmapIndexBuilder', () => {
 
     it('correctly merges bitmap data from multiple chunks', async () => {
       const builder = new StreamingBitmapIndexBuilder({
-        storage: (mockStorage),
+        storage: (mockStorage as any),
         maxMemoryBytes: 1,
       });
 
@@ -251,7 +251,7 @@ describe('StreamingBitmapIndexBuilder memory guard', () => {
     };
 
     const builder = new StreamingBitmapIndexBuilder({
-      storage: (mockStorage),
+      storage: (mockStorage as any),
       maxMemoryBytes: memoryThreshold,
     });
 
@@ -294,7 +294,7 @@ describe('StreamingBitmapIndexBuilder memory guard', () => {
     };
 
     const builder = new StreamingBitmapIndexBuilder({
-      storage: (mockStorage),
+      storage: (mockStorage as any),
       maxMemoryBytes: 500,
     });
 
@@ -302,7 +302,7 @@ describe('StreamingBitmapIndexBuilder memory guard', () => {
     const edges = [['aa0001', 'aa0002'], ['aa0002', 'aa0003'], ['aa0001', 'bb0001'], ['bb0001', 'bb0002']];
 
     for (const sha of nodes) { await builder.registerNode(sha); }
-    for (const [parent, child] of edges) { await builder.addEdge((parent), (child)); }
+    for (const [parent, child] of edges) { await builder.addEdge((parent as string), (child as string)); }
     await builder.finalize();
 
     const treeEntries = ((mockStorage.writeTree.mock.calls[0] as any[])[0] as string[]);
@@ -331,7 +331,7 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
     };
 
     const builder = new StreamingBitmapIndexBuilder({
-      storage: (mockStorage),
+      storage: (mockStorage as any),
       maxMemoryBytes: 512,
       onFlush: () => { flushCount++; },
     });
@@ -373,7 +373,7 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
     };
 
     const builder = new StreamingBitmapIndexBuilder({
-      storage: (mockStorage),
+      storage: (mockStorage as any),
       maxMemoryBytes: 50000,
     });
 
@@ -401,12 +401,12 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
     };
 
     const builder = new StreamingBitmapIndexBuilder({
-      storage: (mockStorage),
+      storage: (mockStorage as any),
       maxMemoryBytes: 1,
     });
 
     const sourceNode = 'aa0001';
-    const targetNodes = [];
+    const targetNodes: string[] = [];
     for (let i = 0; i < 10; i++) {
       const targetNode = `bb${i.toString().padStart(4, '0')}`;
       targetNodes.push(targetNode);

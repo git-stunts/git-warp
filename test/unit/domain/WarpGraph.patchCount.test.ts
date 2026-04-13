@@ -144,7 +144,7 @@ describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
     const checkpointState = createEmptyState();
 
     // Build 10 fake patch objects for _loadPatchesSince to return
-    const patches = [];
+    const patches: any[] = [];
     for (let i = 1; i <= patchCount; i++) {
       patches.push({
         patch: createPatch('w1', i, `n:w1:${i}`),

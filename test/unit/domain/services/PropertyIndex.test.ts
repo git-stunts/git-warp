@@ -69,7 +69,7 @@ describe('PropertyIndex', () => {
     const builder = new PropertyIndexBuilder();
     const first = 'a';
     const shardKey = computeShardKey(first);
-    let second = null;
+    let second: string | null = null;
     for (let i = 0; i < 10000; i++) {
       const candidate = `node:${i}`;
       if (candidate !== first && computeShardKey(candidate) === shardKey) {
@@ -212,7 +212,7 @@ describe('PropertyIndex', () => {
     for (const shard1 of shards1) {
       const shard2 = shards2.find((s) => s.shardKey === shard1.shardKey);
       expect(shard2).toBeDefined();
-      expect(shard1.entries).toEqual((shard2).entries);
+      expect(shard1.entries).toEqual((shard2 as any).entries);
     }
   });
 });

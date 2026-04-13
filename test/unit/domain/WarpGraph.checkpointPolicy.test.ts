@@ -95,7 +95,7 @@ describe('WarpRuntime checkpointPolicy (AP/CKPT/1)', () => {
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
-      checkpointPolicy: (null),
+      checkpointPolicy: (null as any),
     });
 
     expect((graph)._checkpointPolicy).toBeNull();

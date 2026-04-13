@@ -448,7 +448,7 @@ describe('ForkController', () => {
       const { createWormhole: mockCreateWormhole } = await import('../../../../../src/domain/services/WormholeService.js');
 
       const wormholeResult = { fromSha: 'sha-a', toSha: 'sha-b', writerId: 'w1', payload: {}, patchCount: 5 };
-      (mockCreateWormhole).mockResolvedValue(wormholeResult);
+      (mockCreateWormhole as any).mockResolvedValue(wormholeResult);
 
       const result = await ctrl.createWormhole('sha-a', 'sha-b');
 
@@ -465,7 +465,7 @@ describe('ForkController', () => {
 
     it('re-throws WormholeService errors and logs timing', async () => {
       const { createWormhole: mockCreateWormhole } = await import('../../../../../src/domain/services/WormholeService.js');
-      (mockCreateWormhole).mockRejectedValue(new Error('wormhole boom'));
+      (mockCreateWormhole as any).mockRejectedValue(new Error('wormhole boom'));
 
       await expect(ctrl.createWormhole('sha-a', 'sha-b')).rejects.toThrow('wormhole boom');
       expect(host._logTiming).toHaveBeenCalledWith('createWormhole', 0, expect.objectContaining({ error: expect.any(Error) }));

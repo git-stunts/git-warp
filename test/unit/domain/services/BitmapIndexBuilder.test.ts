@@ -62,7 +62,7 @@ describe('BitmapIndexBuilder', () => {
       const data = defaultCodec.decode((tree['shards_fwd_aa.cbor'] as Uint8Array));
 
       // Decoded data IS the shard map — no envelope wrapping
-      expect(((data))['aabbcc']).toBeInstanceOf(Uint8Array);
+      expect(((data as any))['aabbcc']).toBeInstanceOf(Uint8Array);
     });
 
     it('writes CBOR shards with no version envelope', async () => {

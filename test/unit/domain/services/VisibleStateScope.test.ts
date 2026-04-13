@@ -200,6 +200,6 @@ describe('VisibleStateScope', () => {
       },
     ];
 
-    expect(scopePatchEntriesV1((entries), scope).map(({ sha }) => sha)).toEqual(['a', 'd', 'e']);
+    expect(scopePatchEntriesV1((entries as any), scope).map(({ sha }) => sha)).toEqual(['a', 'd', 'e']);
   });
 });

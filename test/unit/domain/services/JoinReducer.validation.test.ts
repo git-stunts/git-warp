@@ -83,8 +83,8 @@ describe('JoinReducer validation', () => {
       expect(() => reduceV5([entry], undefined, { receipts: true })).toThrow(PatchError);
       try {
         reduceV5([entry], undefined, { receipts: true });
-      } catch (/** @type {any} */ err) {
-        expect(err.code).toBe('E_PATCH_MALFORMED');
+      } catch (err) {
+        expect((err as any).code).toBe('E_PATCH_MALFORMED');
       }
     });
 
@@ -96,8 +96,8 @@ describe('JoinReducer validation', () => {
       expect(() => reduceV5([entry], undefined, { receipts: true })).toThrow(PatchError);
       try {
         reduceV5([entry], undefined, { receipts: true });
-      } catch (/** @type {any} */ err) {
-        expect(err.code).toBe('E_PATCH_MALFORMED');
+      } catch (err) {
+        expect((err as any).code).toBe('E_PATCH_MALFORMED');
       }
     });
 
@@ -109,8 +109,8 @@ describe('JoinReducer validation', () => {
       expect(() => reduceV5([entry])).toThrow(PatchError);
       try {
         reduceV5([entry]);
-      } catch (/** @type {any} */ err) {
-        expect(err.code).toBe('E_PATCH_MALFORMED');
+      } catch (err) {
+        expect((err as any).code).toBe('E_PATCH_MALFORMED');
       }
     });
 
@@ -118,7 +118,7 @@ describe('JoinReducer validation', () => {
       const state = createEmptyState();
       const eventId = new EventId(1, 'w1', 'a'.repeat(40), 0);
 
-      expect(() => applyOpV2(state, (null), eventId)).toThrow(PatchError);
+      expect(() => applyOpV2(state, (null as any), eventId)).toThrow(PatchError);
     });
 
     it('throws PatchError for op without type field', () => {

@@ -31,7 +31,7 @@ function makeInstaller(fsFiles = {}, gitOverrides = {}) {
   const fs = makeFs(fsFiles);
   const execGitConfig = makeExecGitConfig(gitOverrides);
   const installer = new HookInstaller({
-    fs,
+    fs: (fs as any),
     execGitConfig,
     version: VERSION,
     templateDir: '/tmpl',

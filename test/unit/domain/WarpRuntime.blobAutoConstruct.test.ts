@@ -12,8 +12,7 @@ import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
  * These tests should all FAIL against the current code (red phase).
  */
 
-/** @returns {any} */
-function makeMockPersistence({ hasPlumbing = false } = {}) {
+function makeMockPersistence({ hasPlumbing = false } = {}): any {
   const persistence = {
     readRef: vi.fn().mockResolvedValue(null),
     listRefs: vi.fn().mockResolvedValue([]),
@@ -51,11 +50,11 @@ describe('WarpRuntime blob storage auto-construction (OG-014)', () => {
       writerId: 'w1',
     });
 
-    const bs = (graph)._blobStorage;
+    const bs = (graph as any)._blobStorage;
     expect(bs).not.toBeNull();
     // Should have the streaming methods
-    expect(typeof bs.storeStream).toBe('function');
-    expect(typeof bs.retrieveStream).toBe('function');
+    expect(typeof bs!.storeStream).toBe('function');
+    expect(typeof bs!.retrieveStream).toBe('function');
   });
 
   it('preserves explicitly provided blobStorage', async () => {

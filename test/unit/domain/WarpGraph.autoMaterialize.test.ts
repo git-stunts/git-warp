@@ -74,7 +74,7 @@ describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
-        autoMaterialize: (null),
+        autoMaterialize: (null as any),
       }),
     ).rejects.toThrow('autoMaterialize must be a boolean');
   });

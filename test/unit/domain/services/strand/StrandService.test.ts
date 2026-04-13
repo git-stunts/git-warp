@@ -13,12 +13,12 @@ import {
 import StrandError from '../../../../../src/domain/errors/StrandError.ts';
 import { textEncode, textDecode } from '../../../../../src/domain/utils/bytes.ts';
 import { createEmptyState } from '../../../../../src/domain/services/JoinReducer.ts';
+import type PatchType from '../../../../../src/domain/types/Patch.ts';
+import type { StrandDescriptor as StrandDescriptorType } from '../../../../../src/domain/services/strand/strandTypes.ts';
 
 /** @typedef {import('../../../../../src/domain/utils/parseStrandBlob.ts').StrandDescriptor} ParsedStrandBlob */
-/** @typedef {import('../../../../../src/domain/services/strand/strandTypes.ts').StrandDescriptor} StrandDescriptor */
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.ts').StrandQueuedIntent} StrandQueuedIntent */
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.ts').StrandTickRecord} StrandTickRecord */
-/** @typedef {import('../../../../../src/domain/types/Patch.ts').default} Patch */
 
 // ── Deterministic OID generator ───────────────────────────────────────────────
 
@@ -181,7 +181,7 @@ function makeNodeAddOp(nodeId, writerId, counter) {
     type: 'NodeAdd',
     node: nodeId,
     dot: makeDot(writerId, counter),
-  })) as Patch['ops'][number]);
+  })) as PatchType['ops'][number]);
 }
 
 /**
@@ -253,7 +253,7 @@ function buildValidDescriptor(overrides = {}) {
     braid: { readOverlays: [] },
     materialization: { cacheAuthority: DERIVED_CACHE_AUTHORITY },
     ...overrides,
-  }) as StrandDescriptor);
+  }) as unknown as StrandDescriptorType);
 }
 
 /**
@@ -468,7 +468,7 @@ describe('StrandService', () => {
                 })
               ),
             )
-          )) as ParsedStrandBlob),
+          )) as any),
       );
 
       expect(hydrated.braid.readOverlays).toEqual([]);
@@ -537,7 +537,7 @@ describe('StrandService', () => {
             }),
             reads: [undefined, 'node:b', 'node:a'],
             writes: [null, 'node:c', 'node:a'],
-          })) as Patch),
+          })) as PatchType),
           _contentBlobs: [undefined, 'blob:b', 'blob:a'],
         },
       );
@@ -561,7 +561,7 @@ describe('StrandService', () => {
             }),
             reads: [42],
             writes: [],
-          })) as Patch),
+          })) as unknown as PatchType),
           _contentBlobs: [],
         },
       )).toThrow(StrandError);
@@ -579,7 +579,7 @@ describe('StrandService', () => {
             ops: [makeNodeAddOp('node:test', 'alpha', 1)],
             reads: ['   '],
             writes: [],
-          }))) as Patch),
+          }))) as PatchType),
           _contentBlobs: [],
         },
       )).toThrow(StrandError);
@@ -994,7 +994,7 @@ describe('StrandService', () => {
       storeDescriptor(target);
 
       // normalizeBraidedStrandIds returns [] for non-array inputs without throwing
-      const result = await Reflect.apply(service.braid, service, ['target', { braidedStrandIds: 'support' }]);
+      const result = await Reflect.apply(service.braid, service, ['target', { braidedStrandIds: 'support' }]) as any;
       expect(result.braid.readOverlays).toHaveLength(0);
     });
 

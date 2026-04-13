@@ -64,8 +64,8 @@ describe('WarpMessageCodec schema v3', () => {
     });
 
     it('returns schema 2 for non-array input', () => {
-      expect(detectSchemaVersion((null))).toBe(2);
-      expect(detectSchemaVersion((undefined))).toBe(2);
+      expect(detectSchemaVersion((null as any))).toBe(2);
+      expect(detectSchemaVersion((undefined as any))).toBe(2);
       expect(detectSchemaVersion(('not-an-array' as any))).toBe(2);
     });
 

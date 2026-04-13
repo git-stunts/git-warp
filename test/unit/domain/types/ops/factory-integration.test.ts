@@ -187,7 +187,7 @@ describe('OpNormalizer returns Op class instances', () => {
   it('round-trip: PropSet → normalize → lower → PropSet with same data', () => {
     const original = createPropSetV2('user:alice', 'name', 'Alice');
     const canonical = normalizeRawOp(original);
-    const lowered = lowerCanonicalOp((canonical));
+    const lowered = lowerCanonicalOp((canonical as any));
 
     expect(lowered).toBeInstanceOf(PropSetClass);
     expect(lowered.type).toBe('PropSet');
@@ -201,7 +201,7 @@ describe('OpNormalizer returns Op class instances', () => {
   it('round-trip: edge PropSet → normalize → lower → PropSet with same encoding', () => {
     const original = createPropSetV2('\x01n1\x00n2\x00rel', 'weight', 42);
     const canonical = normalizeRawOp(original);
-    const lowered = lowerCanonicalOp((canonical));
+    const lowered = lowerCanonicalOp((canonical as any));
 
     expect(lowered).toBeInstanceOf(PropSetClass);
     expect(lowered.type).toBe('PropSet');

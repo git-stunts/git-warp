@@ -65,7 +65,7 @@ describe('IndexRebuildService Deep DAG Test', () => {
 
     // Create 1000 parent nodes and 1 child with all of them as parents
         const nodes = ([]) as GraphNode[];
-    const parentShas = [];
+    const parentShas: string[] = [];
 
     for (let i = 0; i < PARENT_COUNT; i++) {
       const sha = `parent${i.toString().padStart(4, '0')}`;

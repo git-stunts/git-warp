@@ -373,7 +373,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
     const checkpointState = createEmptyState();
 
     // Build 4 fake patch objects for _loadPatchesSince
-    const patches = [];
+    const patches: any[] = [];
     for (let i = 1; i <= 4; i++) {
       patches.push({
         patch: createPatch('w1', i, `n:w1:${i}`),

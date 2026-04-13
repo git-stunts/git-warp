@@ -33,7 +33,7 @@ describe('LogicalBitmapIndexBuilder ID stability (F12)', () => {
     // Build 2: seed from build 1, then add new nodes
     const builder2 = new LogicalBitmapIndexBuilder();
     for (const [shardKey, meta] of Object.entries(metaShards)) {
-      builder2.loadExistingMeta(shardKey, meta);
+      builder2.loadExistingMeta(shardKey, meta as any);
     }
     for (const node of addedNodes) {
       builder2.registerNode(node);

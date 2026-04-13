@@ -286,7 +286,7 @@ describe('Structural seek diff (diffStates integration)', () => {
     const snap2 = await graph.getStateSnapshot();
 
     const { diffStates, isEmptyDiff } = await import('../../../src/domain/services/state/StateDiff.js');
-    const diff = diffStates(snap1, (snap2));
+    const diff = diffStates(snap1, (snap2 as any));
 
     expect(isEmptyDiff(diff)).toBe(true);
   });

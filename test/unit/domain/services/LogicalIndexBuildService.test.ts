@@ -94,7 +94,7 @@ describe('LogicalIndexBuildService', () => {
     }
     const labelShard = shards1.find((s) => s instanceof LabelShard);
     expect(labelShard).toBeDefined();
-    const existingLabels = (labelShard).labels;
+    const existingLabels = (labelShard as any).labels;
 
     // Build 2: add node C
     const state2 = buildState({

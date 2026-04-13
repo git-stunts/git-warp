@@ -22,7 +22,7 @@ function createMockLogger() {
   };
 }
 
-function createMockEvaluator(/** @type {string[]} */ trustedWriters = []) {
+function createMockEvaluator(trustedWriters: string[] = []) {
   return {
     evaluateWriters: vi.fn(async () => ({
       trusted: new Set(trustedWriters),

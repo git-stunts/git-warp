@@ -196,7 +196,7 @@ describe('EdgePropKey', () => {
     /** @param {number} maxLen */
     function randomString(maxLen) {
       const len = Math.floor(Math.random() * maxLen) + 1;
-      const chars = [];
+      const chars: string[] = [];
       for (let i = 0; i < len; i++) {
         // Printable ASCII range 0x20-0x7e, avoiding \0 and \x01
         // which are used as delimiters/prefix

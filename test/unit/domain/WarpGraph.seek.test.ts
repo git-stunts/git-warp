@@ -40,7 +40,7 @@ function setupMultiWriterPersistence(persistence, writerSpecs, graphName = 'test
   const writerTips = {};
 
   for (const [writer, count] of Object.entries(writerSpecs)) {
-    const shas = [];
+    const shas: string[] = [];
     for (let i = 1; i <= (count as any); i++) {
       shas.push(fakeSha(`${writer}${i}`));
     }
@@ -163,9 +163,9 @@ describe('WarpRuntime.seek (time-travel)', () => {
 
       const result = await graph.discoverTicks();
 
-      expect((result).perWriter.get('alice').ticks).toEqual([1, 2]);
-      expect((result).perWriter.get('bob').ticks).toEqual([1, 2, 3]);
-      expect((result).perWriter.get('alice').tipSha).toBe((tips as any).alice);
+      expect((result as any).perWriter.get('alice')?.ticks).toEqual([1, 2]);
+      expect((result as any).perWriter.get('bob')?.ticks).toEqual([1, 2, 3]);
+      expect((result as any).perWriter.get('alice')?.tipSha).toBe((tips as any).alice);
     });
   });
 

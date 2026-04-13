@@ -17,7 +17,7 @@ async function createGraph() {
   };
 
   return WarpRuntime.open({
-    persistence: (mockPersistence),
+    persistence: (mockPersistence as any),
     graphName: 'test',
     writerId: 'writer-1',
   });
@@ -44,8 +44,8 @@ describe('WarpRuntime syncWith', () => {
       });
     });
 
-    await new Promise((resolve) => server.listen(0, '127.0.0.1', (resolve)));
-    const port = (server).address().port;
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+    const port = (server.address() as any).port;
 
     try {
       const result = await graph.syncWith(`http://127.0.0.1:${port}`);
@@ -70,8 +70,8 @@ describe('WarpRuntime syncWith', () => {
       res.end(JSON.stringify(responsePayload));
     });
 
-    await new Promise((resolve) => server.listen(0, '127.0.0.1', (resolve)));
-    const port = (server).address().port;
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+    const port = (server.address() as any).port;
 
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
     try {

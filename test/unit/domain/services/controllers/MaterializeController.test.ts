@@ -5,10 +5,10 @@ import { ProvenanceIndex } from '../../../../../src/domain/services/provenance/P
 import { encodeEdgeKey } from '../../../../../src/domain/services/KeyCodec.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import AdjacencyMap from '../../../../../src/domain/capabilities/AdjacencyMap.ts';
+import type PatchType from '../../../../../src/domain/types/Patch.ts';
 
 /** @typedef {import('../../../../../src/domain/services/state/WarpState.ts').default} WarpState */
 /** @typedef {import('../../../../../src/domain/types/TickReceipt.ts').TickReceipt} TickReceipt */
-/** @typedef {import('../../../../../src/domain/types/Patch.ts').default} Patch */
 /** @typedef {import('../../../../../src/domain/services/controllers/MaterializeController.ts').MaterializeResult} MaterializeResult */
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -34,7 +34,7 @@ function makePatch(overrides = {}) {
     reads: [],
     writes: [],
     ...overrides,
-  }) as Patch);
+  }) as PatchType);
 }
 
 /**
@@ -46,8 +46,8 @@ function fakePatchEntry(opts = {}) {
     patch: makePatch({
       lamport: (opts as any).lamport ?? 1,
       writer: (opts as any).writer ?? 'w1',
-      ...((opts as any).reads ? { reads: opts.reads } : {}),
-      ...((opts as any).writes ? { writes: opts.writes } : {}),
+      ...((opts as any).reads ? { reads: (opts as any).reads } : {}),
+      ...((opts as any).writes ? { writes: (opts as any).writes } : {}),
     }),
     sha: (opts as any).sha ?? 'abc123',
   };

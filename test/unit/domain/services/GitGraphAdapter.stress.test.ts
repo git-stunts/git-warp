@@ -4,7 +4,7 @@ import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAda
 describe('GitGraphAdapter Concurrency Stress Test', () => {
   it('handles 50 simultaneous createNode calls without corruption', async () => {
     // Track call order to verify all calls complete
-    const callLog = [];
+    const callLog: Array<{id: number; start?: number; end?: number; args?: any}> = [];
     let callCounter = 0;
 
     const mockPlumbing = {

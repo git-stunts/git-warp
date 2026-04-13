@@ -35,7 +35,7 @@ describe('LogicalBitmapIndexBuilder', () => {
     // Should have a LabelShard
     const labelShard = shards.find((s) => s instanceof LabelShard);
     expect(labelShard).toBeInstanceOf(LabelShard);
-    const labels = new Map((labelShard).labels);
+    const labels = new Map((labelShard as any).labels);
     expect(labels.has('manages')).toBe(true);
     expect(labels.has('owns')).toBe(true);
 
@@ -46,7 +46,7 @@ describe('LogicalBitmapIndexBuilder', () => {
     );
     expect(fwdShard).toBeDefined();
 
-    const buckets = (fwdShard).buckets;
+    const buckets = (fwdShard as any)?.buckets;
     // 'all' bucket should exist
     expect(buckets).toHaveProperty('all');
     // Per-label buckets should exist (labelId 0 and 1)
@@ -69,7 +69,7 @@ describe('LogicalBitmapIndexBuilder', () => {
       (s) => s instanceof EdgeShard && (s).direction === 'fwd' && s.shardKey === shardKeyA,
     );
     expect(fwdShard).toBeDefined();
-    const buckets = (fwdShard).buckets;
+    const buckets = (fwdShard as any).buckets;
 
     // The 'all' bitmap for A (by globalA) should contain B's globalId
     const RoaringBitmap32 = getRoaringBitmap32();

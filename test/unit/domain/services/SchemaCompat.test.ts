@@ -69,8 +69,8 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
       });
 
       it('accepts non-array ops (defensive)', () => {
-        expect(() => assertOpsCompatible((null), SCHEMA_V2)).not.toThrow();
-        expect(() => assertOpsCompatible((undefined), SCHEMA_V2)).not.toThrow();
+        expect(() => assertOpsCompatible((null as any), SCHEMA_V2)).not.toThrow();
+        expect(() => assertOpsCompatible((undefined as any), SCHEMA_V2)).not.toThrow();
       });
 
       it('throws E_SCHEMA_UNSUPPORTED for edge property ops', () => {

@@ -141,7 +141,7 @@ describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
     await graph.materialize();
 
     // Create a broken state that will cause GC to throw
-    const badState = { nodeAlive: null, edgeAlive: null };
+    const badState = ({ nodeAlive: null, edgeAlive: null } as any);
 
     // Should not throw despite internal error
     expect(() => (graph)._maybeRunGC(badState)).not.toThrow();

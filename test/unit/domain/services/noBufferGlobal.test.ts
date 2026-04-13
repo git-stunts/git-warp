@@ -50,7 +50,7 @@ describe('Buffer-free index paths', () => {
     const originalBuffer = globalRef.Buffer;
 
     try {
-      globalRef.Buffer = undefined;
+      (globalRef as any).Buffer = undefined;
 
       const state = buildState();
       const { tree } = new MaterializedViewService().build(state);

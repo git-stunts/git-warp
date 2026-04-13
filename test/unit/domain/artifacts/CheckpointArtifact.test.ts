@@ -22,7 +22,7 @@ describe('CheckpointArtifact family', () => {
     });
 
     it('rejects null state', () => {
-      expect(() => new StateArtifact({ schemaVersion: 2, state: (null) })).toThrow('requires a state');
+      expect(() => new StateArtifact({ schemaVersion: 2, state: (null as any) })).toThrow('requires a state');
     });
 
     it('rejects invalid schemaVersion', () => {
@@ -54,7 +54,7 @@ describe('CheckpointArtifact family', () => {
     });
 
     it('rejects null appliedVV', () => {
-      expect(() => new AppliedVVArtifact({ schemaVersion: 2, appliedVV: (null) })).toThrow('requires an appliedVV');
+      expect(() => new AppliedVVArtifact({ schemaVersion: 2, appliedVV: (null as any) })).toThrow('requires an appliedVV');
     });
   });
 

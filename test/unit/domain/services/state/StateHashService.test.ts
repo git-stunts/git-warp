@@ -9,7 +9,7 @@ import CryptoPort from '../../../../../src/ports/CryptoPort.ts';
  * @param {(algo: string, data: Uint8Array) => Promise<string>} [hashImpl]
  * @returns {CryptoPort}
  */
-function createMockCrypto(hashImpl) {
+function createMockCrypto(hashImpl?: (algo: string, data: Uint8Array) => Promise<string>) {
   const mock = (Object.create(CryptoPort.prototype) as any);
   mock.hash = vi.fn(hashImpl ?? (async () => 'deadbeef'.repeat(8)));
   return mock;

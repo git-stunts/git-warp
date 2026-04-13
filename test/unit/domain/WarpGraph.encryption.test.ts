@@ -15,13 +15,16 @@ import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.js';
 // ---------------------------------------------------------------------------
 
 class InMemoryBlobStorage extends BlobStoragePort {
+  _blobs: Map<string, Uint8Array>;
+  _counter: number;
+
   constructor() {
     super();
-        this._blobs = new Map();
+    this._blobs = new Map();
     this._counter = 0;
   }
 
-  async store(/** @type {string|Uint8Array} */ content) {
+  async store(content: string | Uint8Array) {
     this._counter++;
     // Generate a fake OID (40-char hex)
     const oid = this._counter.toString(16).padStart(40, '0');
@@ -32,7 +35,7 @@ class InMemoryBlobStorage extends BlobStoragePort {
     return oid;
   }
 
-  async retrieve(/** @type {string} */ oid) {
+  async retrieve(oid: string) {
     const buf = this._blobs.get(oid);
     if (!buf) {
       throw new Error(`InMemoryBlobStorage: OID not found: ${oid}`);
@@ -40,12 +43,11 @@ class InMemoryBlobStorage extends BlobStoragePort {
     return buf;
   }
 
-  /** @returns {Promise<string>} */
-  async storeStream(/** @type {any} */ _stream) {
+  async storeStream(_stream: any): Promise<string> {
     throw new Error('storeStream not implemented');
   }
 
-  async *retrieveStream(/** @type {string} */ _oid) {
+  async *retrieveStream(_oid: string): AsyncGenerator<Uint8Array> {
     yield* ([] as Uint8Array[]);
     throw new Error('retrieveStream not implemented');
   }
