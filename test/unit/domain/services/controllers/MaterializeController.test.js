@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import MaterializeController from '../../../../../src/domain/services/controllers/MaterializeController.js';
 import { createEmptyState } from '../../../../../src/domain/services/JoinReducer.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
-import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import { ProvenanceIndex } from '../../../../../src/domain/services/provenance/ProvenanceIndex.js';
 import { encodeEdgeKey } from '../../../../../src/domain/services/KeyCodec.ts';
 import { encodePatchMessage } from '../../../../../src/domain/services/codec/WarpMessageCodec.ts';
@@ -29,8 +28,10 @@ import QueryError from '../../../../../src/domain/errors/QueryError.ts';
  */
 
 /**
- * @typedef {WarpState | { state: WarpState, receipts: TickReceipt[] }} MaterializeResult
+ * @typedef {WarpState | { state: WarpState, receipts: TickReceipt[] }} TestMaterializeResult
  */
+
+/** @typedef {import('../../../../../src/domain/services/controllers/MaterializeController.js').MaterializeResult} MaterializeResult */
 
 /**
  * @typedef {{ pendingReplay?: boolean }} MaterializeSubscriber
@@ -53,7 +54,7 @@ import QueryError from '../../../../../src/domain/errors/QueryError.ts';
  *   _materializeGraph(): Promise<object|null>,
  *   _resolveCeiling(options?: { ceiling?: number|null }): number|null,
  *   _persistSeekCacheEntry(key: string, buf: Uint8Array, state: WarpState): Promise<void>,
- *   _materializeWithCoordinate(frontier: Map<string, string>, ceiling: number|null, collectReceipts: boolean, t0: number): Promise<MaterializeResult>
+ *   _materializeWithCoordinate(frontier: Map<string, string>, ceiling: number|null, collectReceipts: boolean, t0: number): Promise<TestMaterializeResult>
  * }} MaterializeControllerPrivate
  */
 
@@ -65,6 +66,18 @@ import QueryError from '../../../../../src/domain/errors/QueryError.ts';
  */
 function controllerPrivate(value) {
   return /** @type {MaterializeControllerPrivate} */ (value);
+}
+
+/**
+ * Narrow a controller to the wired capability surface (verifyIndex, invalidateIndex).
+ *
+ * These methods are dynamically wired at runtime and not on the static class type.
+ *
+ * @param {unknown} value
+ * @returns {import('../../../../../src/domain/capabilities/MaterializeCapability.ts').default}
+ */
+function controllerCapability(value) {
+  return /** @type {import('../../../../../src/domain/capabilities/MaterializeCapability.ts').default} */ (value);
 }
 
 /**
@@ -113,22 +126,22 @@ function makePatch(overrides = {}) {
 /**
  * Require a plain-state materialize result.
  *
- * @param {MaterializeResult} result
+ * @param {unknown} result
  * @returns {WarpState}
  */
 function requirePlainState(result) {
-  expect('nodeAlive' in result).toBe(true);
+  expect('nodeAlive' in /** @type {object} */ (result)).toBe(true);
   return /** @type {WarpState} */ (result);
 }
 
 /**
  * Require a state+receipts materialize result.
  *
- * @param {MaterializeResult} result
+ * @param {unknown} result
  * @returns {{ state: WarpState, receipts: TickReceipt[] }}
  */
 function requireStateWithReceipts(result) {
-  expect('receipts' in result).toBe(true);
+  expect('receipts' in /** @type {object} */ (result)).toBe(true);
   return /** @type {{ state: WarpState, receipts: TickReceipt[] }} */ (result);
 }
 
@@ -278,7 +291,7 @@ function createMockHost(overrides = {}) {
  */
 function setup(hostOverrides = {}) {
   const host = createMockHost(hostOverrides);
-  const ctrl = new MaterializeController(/** @type {WarpRuntime} */ (/** @type {unknown} */ (host)));
+  const ctrl = new MaterializeController(/** @type {import('../../../../../src/domain/services/controllers/MaterializeController.js').MaterializeDeps} */ (/** @type {unknown} */ (host)));
   // Wire _setMaterializedState and _buildView on the controller (host delegates to controller)
   host._setMaterializedState = controllerPrivate(ctrl)._setMaterializedState.bind(ctrl);
   host._buildView = controllerPrivate(ctrl)._buildView.bind(ctrl);
@@ -298,7 +311,7 @@ describe('MaterializeController', () => {
       const { ctrl, host } = setup();
       host.discoverWriters.mockResolvedValue([]);
 
-      const result = await ctrl.materialize();
+      const result = await ctrl.materialize({});
 
       expect(result).toBeDefined();
       expect(requirePlainState(result).nodeAlive).toBeDefined();
@@ -311,7 +324,7 @@ describe('MaterializeController', () => {
       host.discoverWriters.mockResolvedValue(['w1', 'w2']);
       host._loadWriterPatches.mockResolvedValue([]);
 
-      const result = await ctrl.materialize();
+      const result = await ctrl.materialize({});
 
       expect(result).toBeDefined();
       expect(Object.isFrozen(result)).toBe(true);
@@ -327,7 +340,7 @@ describe('MaterializeController', () => {
         .mockResolvedValueOnce([patch1])
         .mockResolvedValueOnce([patch2]);
 
-      const result = await ctrl.materialize();
+      const result = await ctrl.materialize({});
 
       expect(result).toBeDefined();
       expect(host._loadWriterPatches).toHaveBeenCalledTimes(2);
@@ -343,7 +356,7 @@ describe('MaterializeController', () => {
         fakePatchEntry({ lamport: 3 }),
       ]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._patchesSinceCheckpoint).toBe(3);
     });
@@ -352,7 +365,7 @@ describe('MaterializeController', () => {
       const { ctrl, host } = setup();
       host.discoverWriters.mockResolvedValue([]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._maybeRunGC).toHaveBeenCalled();
     });
@@ -362,7 +375,7 @@ describe('MaterializeController', () => {
       host._provenanceDegraded = true;
       host.discoverWriters.mockResolvedValue([]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._provenanceDegraded).toBe(false);
     });
@@ -373,7 +386,7 @@ describe('MaterializeController', () => {
       host._cachedFrontier = new Map([['w1', 'abc']]);
       host.discoverWriters.mockResolvedValue([]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._cachedCeiling).toBeNull();
       expect(host._cachedFrontier).toBeNull();
@@ -385,7 +398,7 @@ describe('MaterializeController', () => {
       host.discoverWriters.mockResolvedValue([]);
       host.getFrontier.mockResolvedValue(frontier);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._lastFrontier).toBe(frontier);
     });
@@ -394,7 +407,7 @@ describe('MaterializeController', () => {
       const { ctrl, host } = setup();
       host.discoverWriters.mockResolvedValue([]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._logTiming).toHaveBeenCalledWith(
         'materialize',
@@ -408,7 +421,7 @@ describe('MaterializeController', () => {
       const error = new Error('boom');
       host._loadLatestCheckpoint.mockRejectedValue(error);
 
-      await expect(ctrl.materialize()).rejects.toThrow('boom');
+      await expect(ctrl.materialize({})).rejects.toThrow('boom');
       expect(host._logTiming).toHaveBeenCalledWith(
         'materialize',
         expect.any(Number),
@@ -437,7 +450,7 @@ describe('MaterializeController', () => {
       const { ctrl, host } = setup();
       host.discoverWriters.mockResolvedValue([]);
 
-      const result = await ctrl.materialize();
+      const result = await ctrl.materialize({});
 
       // Plain state has nodeAlive directly on it, not nested under .state
       expect(requirePlainState(result).nodeAlive).toBeDefined();
@@ -471,7 +484,7 @@ describe('MaterializeController', () => {
       host._loadLatestCheckpoint.mockResolvedValue(checkpoint);
       host._loadPatchesSince.mockResolvedValue([]);
 
-      const result = await ctrl.materialize();
+      const result = await ctrl.materialize({});
 
       expect(result).toBeDefined();
       expect(host._loadPatchesSince).toHaveBeenCalledWith(checkpoint);
@@ -492,7 +505,7 @@ describe('MaterializeController', () => {
       // The frontier scan reads commit messages via showNode
       host._persistence.showNode.mockResolvedValue('not-a-patch');
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._persistence.showNode).toHaveBeenCalledWith('tip1');
     });
@@ -516,7 +529,7 @@ describe('MaterializeController', () => {
         }),
       );
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._maxObservedLamport).toBe(11);
     });
@@ -549,7 +562,7 @@ describe('MaterializeController', () => {
       host._loadLatestCheckpoint.mockResolvedValue(checkpoint);
       host._loadPatchesSince.mockResolvedValue([fakePatchEntry({ sha: 'sha1' })]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._viewService.applyDiff).toHaveBeenCalled();
       expect(host._viewService.build).not.toHaveBeenCalled();
@@ -569,7 +582,7 @@ describe('MaterializeController', () => {
       host._loadLatestCheckpoint.mockResolvedValue(checkpoint);
       host._loadPatchesSince.mockResolvedValue([newPatch]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._provenanceIndex).toBeInstanceOf(ProvenanceIndex);
     });
@@ -587,7 +600,7 @@ describe('MaterializeController', () => {
         fakePatchEntry({ sha: 'sha1' }),
       ]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._provenanceIndex).toBeInstanceOf(ProvenanceIndex);
     });
@@ -607,7 +620,7 @@ describe('MaterializeController', () => {
         fakePatchEntry({ lamport: 2 }),
       ]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host.createCheckpoint).toHaveBeenCalled();
     });
@@ -621,7 +634,7 @@ describe('MaterializeController', () => {
         fakePatchEntry({ lamport: 1 }),
       ]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host.createCheckpoint).not.toHaveBeenCalled();
     });
@@ -636,7 +649,7 @@ describe('MaterializeController', () => {
         fakePatchEntry({ lamport: 1 }),
       ]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host.createCheckpoint).not.toHaveBeenCalled();
     });
@@ -649,7 +662,7 @@ describe('MaterializeController', () => {
       host._loadWriterPatches.mockResolvedValue([fakePatchEntry()]);
       host.createCheckpoint.mockRejectedValue(new Error('checkpoint failed'));
 
-      const result = await ctrl.materialize();
+      const result = await ctrl.materialize({});
 
       expect(result).toBeDefined();
     });
@@ -666,7 +679,7 @@ describe('MaterializeController', () => {
       });
       host.discoverWriters.mockResolvedValue([]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._notifySubscribers).toHaveBeenCalled();
     });
@@ -678,7 +691,7 @@ describe('MaterializeController', () => {
       });
       host.discoverWriters.mockResolvedValue([]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._notifySubscribers).toHaveBeenCalled();
     });
@@ -689,7 +702,7 @@ describe('MaterializeController', () => {
       });
       host.discoverWriters.mockResolvedValue([]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._notifySubscribers).not.toHaveBeenCalled();
     });
@@ -802,7 +815,7 @@ describe('MaterializeController', () => {
       host._seekCeiling = 5;
       host.getFrontier.mockResolvedValue(new Map());
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       // Checkpoint path should not be taken
       expect(host._loadLatestCheckpoint).not.toHaveBeenCalled();
@@ -1088,7 +1101,7 @@ describe('MaterializeController', () => {
         crypto: host._crypto,
         codec: host._codec,
       }));
-      const [frontier, ceiling, collectReceipts, t0] = detached._materializeWithCoordinate.mock.calls[0];
+      const [frontier, ceiling, collectReceipts, t0] = /** @type {any[]} */ (detached._materializeWithCoordinate.mock.calls[0]);
       expect([...frontier]).toEqual([
         ['w1', 'sha1'],
         ['w2', 'sha2'],
@@ -1109,7 +1122,7 @@ describe('MaterializeController', () => {
         _cachedState: null,
       });
 
-      expect(() => ctrl.verifyIndex()).toThrow(QueryError);
+      expect(() => controllerCapability(ctrl).verifyIndex()).toThrow(QueryError);
     });
 
     it('delegates to _viewService.verifyIndex when index is available', () => {
@@ -1120,7 +1133,7 @@ describe('MaterializeController', () => {
         _cachedState: state,
       });
 
-      const result = ctrl.verifyIndex();
+      const result = controllerCapability(ctrl).verifyIndex();
 
       expect(result).toEqual({ passed: 10, failed: 0, errors: [] });
       expect(host._viewService.verifyIndex).toHaveBeenCalledWith(
@@ -1137,7 +1150,7 @@ describe('MaterializeController', () => {
         _cachedState: emptyState(),
       });
 
-      ctrl.verifyIndex({ seed: 42, sampleRate: 0.5 });
+      controllerCapability(ctrl).verifyIndex({ seed: 42, sampleRate: 0.5 });
 
       expect(host._viewService.verifyIndex).toHaveBeenCalledWith(
         expect.objectContaining({ options: { seed: 42, sampleRate: 0.5 } }),
@@ -1155,7 +1168,7 @@ describe('MaterializeController', () => {
         _cachedViewHash: 'old-hash',
       });
 
-      ctrl.invalidateIndex();
+      controllerCapability(ctrl).invalidateIndex();
 
       expect(host._cachedIndexTree).toBeNull();
       expect(host._cachedViewHash).toBeNull();
@@ -1243,7 +1256,7 @@ describe('MaterializeController', () => {
         .mockResolvedValueOnce([fakePatchEntry({ lamport: 3, writer: 'w1', sha: 'sha-w1' })])
         .mockResolvedValueOnce([fakePatchEntry({ lamport: 7, writer: 'w2', sha: 'sha-w2' })]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._maxObservedLamport).toBe(7);
     });
@@ -1262,7 +1275,7 @@ describe('MaterializeController', () => {
         fakePatchEntry({ lamport: 12 }),
       ]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._maxObservedLamport).toBe(12);
     });
@@ -1274,7 +1287,7 @@ describe('MaterializeController', () => {
         { patch: { writer: 'w1', ops: [] }, sha: 'sha1' },
       ]);
 
-      await ctrl.materialize();
+      await ctrl.materialize({});
 
       expect(host._maxObservedLamport).toBe(0);
     });

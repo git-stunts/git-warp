@@ -14,8 +14,7 @@ import StrandError from '../../../../../src/domain/errors/StrandError.ts';
 import { textEncode, textDecode } from '../../../../../src/domain/utils/bytes.ts';
 import { createEmptyState } from '../../../../../src/domain/services/JoinReducer.ts';
 
-/** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.ts' */
-/** @typedef {import('../../../../../src/domain/services/strand/strandTypes.ts').ParsedStrandBlob} ParsedStrandBlob */
+/** @typedef {import('../../../../../src/domain/utils/parseStrandBlob.ts').StrandDescriptor} ParsedStrandBlob */
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.ts').StrandDescriptor} StrandDescriptor */
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.ts').StrandQueuedIntent} StrandQueuedIntent */
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.ts').StrandTickRecord} StrandTickRecord */
@@ -178,11 +177,11 @@ function makeDot(writerId, counter) {
  * @returns {Patch['ops'][number]}
  */
 function makeNodeAddOp(nodeId, writerId, counter) {
-  return {
+  return /** @type {Patch['ops'][number]} */ (/** @type {unknown} */ ({
     type: 'NodeAdd',
     node: nodeId,
     dot: makeDot(writerId, counter),
-  };
+  }));
 }
 
 /**
@@ -1055,6 +1054,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
 
+      /** @type {any} */
       const result = await service.materialize('alpha');
 
       expect(result).toBeDefined();
@@ -1069,6 +1069,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
 
+      /** @type {any} */
       const result = await service.materialize('alpha', { receipts: true });
 
       if ('state' in result) {
@@ -1172,6 +1173,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
 
+      /** @type {any} */
       const builder = await service.createPatchBuilder('alpha');
 
       expect(builder).toBeDefined();
@@ -1187,6 +1189,7 @@ describe('StrandService', () => {
       graph._logger = logger;
       graph._cachedState = cachedState;
 
+      /** @type {any} */
       const builder = await service.createPatchBuilder('alpha');
 
       expect(builder._logger).toBe(logger);
@@ -1225,7 +1228,7 @@ describe('StrandService', () => {
 
       let wasInProgress = false;
       try {
-        await service.patch('alpha', (builder) => {
+        await service.patch('alpha', (/** @type {any} */ builder) => {
           wasInProgress = graph._patchInProgress;
           builder.addNode('node:test');
         });
@@ -1290,7 +1293,7 @@ describe('StrandService', () => {
       storeDescriptor(desc);
 
       try {
-        await service.queueIntent('readonly', (builder) => {
+        await service.queueIntent('readonly', (/** @type {any} */ builder) => {
           builder.addNode('node:test');
         });
         expect.unreachable('should have thrown');
@@ -1303,7 +1306,8 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
 
-      const intent = await service.queueIntent('alpha', (builder) => {
+      /** @type {any} */
+      const intent = await service.queueIntent('alpha', (/** @type {any} */ builder) => {
         builder.addNode('node:test');
       });
 
@@ -1320,7 +1324,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
 
-      await service.queueIntent('alpha', (builder) => {
+      await service.queueIntent('alpha', (/** @type {any} */ builder) => {
         builder.addNode('node:test');
       });
 
@@ -1335,7 +1339,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
 
-      await service.queueIntent('alpha', (builder) => {
+      await service.queueIntent('alpha', (/** @type {any} */ builder) => {
         builder.addNode('node:test');
       });
 
@@ -1348,7 +1352,7 @@ describe('StrandService', () => {
       const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
       const snapshotState = createEmptyState();
       graph._logger = logger;
-      vi.spyOn(service._patchService, '_materializeDescriptor').mockResolvedValue({
+      vi.spyOn(/** @type {any} */ (service._patchService), '_materializeDescriptor').mockResolvedValue({
         state: snapshotState,
         allPatches: [],
       });
@@ -1357,7 +1361,7 @@ describe('StrandService', () => {
       let seenState = null;
       /** @type {unknown} */
       let seenLogger = null;
-      await service.queueIntent('alpha', (builder) => {
+      await service.queueIntent('alpha', (/** @type {any} */ builder) => {
         seenState = builder._getCurrentState();
         seenLogger = builder._logger;
         builder.addNode('node:test');
@@ -1396,7 +1400,8 @@ describe('StrandService', () => {
       });
       storeDescriptor(desc);
 
-      const intents = await service.listIntents('alpha');
+      /** @type {any[]} */
+      const intents = /** @type {any} */ (await service.listIntents('alpha'));
 
       expect(intents).toHaveLength(1);
       expect(requirePresent(intents[0]).intentId).toBe('alpha.intent.0001');
@@ -1415,6 +1420,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
 
+      /** @type {any} */
       const tickRecord = await service.tick('alpha');
 
       expect(tickRecord.tickId).toBeTruthy();
@@ -1436,6 +1442,7 @@ describe('StrandService', () => {
       });
       storeDescriptor(desc);
 
+      /** @type {any} */
       const tickRecord = await service.tick('alpha');
       expect(tickRecord.tickIndex).toBe(4);
     });
@@ -1475,6 +1482,7 @@ describe('StrandService', () => {
       });
       storeDescriptor(desc);
 
+      /** @type {any} */
       const tickRecord = await service.tick('alpha');
 
       // First intent (n1) admitted, second (n1 overlap) rejected, third (n2) admitted
