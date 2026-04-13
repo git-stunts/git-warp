@@ -103,8 +103,7 @@ async function resolveCoordinateSnapshot(graph: WarpRuntime, source: CoordinateS
 async function resolveStrandSnapshot(graph: WarpRuntime, source: StrandSelector): Promise<{ state: WarpState; stateHash: string }> {
   const detached = await openDetachedGraph(graph);
   const internal = toInternalStrandShape(source.toDTO());
-  // Host delegation boundary: callInternalRuntimeMethod returns unknown; controller knows the concrete type.
-  const state = await callInternalRuntimeMethod(detached, 'materializeStrand', internal.strandId, { ceiling: internal.ceiling ?? null }) as WarpState;
+  const state = await callInternalRuntimeMethod<WarpState>(detached, 'materializeStrand', internal.strandId, { ceiling: internal.ceiling ?? null });
   return await snapshotWith(detached, state);
 }
 
