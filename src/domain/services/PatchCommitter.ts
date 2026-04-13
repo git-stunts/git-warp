@@ -72,7 +72,7 @@ export async function commitPatch(state: CommitState): Promise<string> {
   }
 
   // Lamport resolution from parent chain
-  let lamport = state.lamport;
+  let {lamport} = state;
   let parentCommit: string | null = null;
 
   if (currentRefSha !== null && currentRefSha !== undefined && currentRefSha !== '') {
@@ -132,7 +132,7 @@ export async function commitPatch(state: CommitState): Promise<string> {
     lamport,
     patchOid: patchBlobOid,
     schema,
-    encrypted: state.patchJournal ? state.patchJournal.usesExternalStorage : false,
+    encrypted: state.patchJournal.usesExternalStorage,
   });
   const parents = (parentCommit !== null && parentCommit !== '') ? [parentCommit] : [];
   const newCommitSha = await state.persistence.commitNodeWithTree({

@@ -45,7 +45,7 @@ export default class DagPathFinding {
   private readonly _log: LoggerPort;
 
   constructor(deps: { indexReader: DagIndexReader; logger?: LoggerPort }) {
-    if (!deps.indexReader) {
+    if (deps.indexReader === null || deps.indexReader === undefined) {
       throw new TraversalError('DagPathFinding requires an indexReader', { code: 'E_DAG_PATHFINDING_NO_INDEX' });
     }
     this._index = deps.indexReader;
@@ -172,7 +172,7 @@ export default class DagPathFinding {
     while (!pq.isEmpty()) {
       if (visited.size % 1000 === 0) { checkAborted(opts.signal, 'weightedShortestPath'); }
       const cur = pq.extractMin();
-      if (!cur || visited.has(cur)) { continue; }
+      if (cur === undefined || visited.has(cur)) { continue; }
       visited.add(cur);
 
       if (cur === opts.to) {
@@ -225,7 +225,7 @@ export default class DagPathFinding {
     while (!pq.isEmpty()) {
       if (explored % 1000 === 0) { checkAborted(opts.signal, 'aStarSearch'); }
       const cur = pq.extractMin();
-      if (!cur || visited.has(cur)) { continue; }
+      if (cur === undefined || visited.has(cur)) { continue; }
       visited.add(cur);
       explored++;
 
@@ -296,7 +296,7 @@ export default class DagPathFinding {
       }
     }
 
-    if (!meet) {
+    if (meet === null) {
       throw new TraversalError(`No path exists from ${opts.from} to ${opts.to}`, {
         code: 'NO_PATH', context: { from: opts.from, to: opts.to, nodesExplored: explored },
       });
@@ -326,7 +326,7 @@ export default class DagPathFinding {
     target: string,
   ): Promise<{ explored: number; cost: number; meeting: string | null }> {
     const cur = active.heap.extractMin();
-    if (!cur || active.visited.has(cur)) {
+    if (cur === undefined || active.visited.has(cur)) {
       return { explored: 0, cost: Infinity, meeting: null };
     }
     active.visited.add(cur);

@@ -29,7 +29,7 @@ export default class DagTopology {
     logger?: LoggerPort;
     traversal?: DagTraversal;
   }) {
-    if (!deps.indexReader) {
+    if (deps.indexReader === null || deps.indexReader === undefined) {
       throw new TraversalError('DagTopology requires an indexReader', { code: 'E_MISSING_INDEX_READER' });
     }
     this._indexReader = deps.indexReader;
@@ -39,9 +39,9 @@ export default class DagTopology {
 
   private async _getNeighbors(sha: string, direction: TraversalDirection): Promise<string[]> {
     if (direction === 'forward') {
-      return this._indexReader.getChildren(sha);
+      return await this._indexReader.getChildren(sha);
     }
-    return this._indexReader.getParents(sha);
+    return await this._indexReader.getParents(sha);
   }
 
   /**

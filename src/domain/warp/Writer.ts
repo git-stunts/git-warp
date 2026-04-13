@@ -162,8 +162,8 @@ export class Writer {
       getCurrentState: this._getCurrentState,
       onDeleteWithData: this._onDeleteWithData,
     };
-    if (this._patchJournal) { opts['patchJournal'] = this._patchJournal; }
-    if (this._logger) { opts['logger'] = this._logger; }
+    opts['patchJournal'] = this._patchJournal;
+    opts['logger'] = this._logger;
     if (this._onCommitSuccess) { opts['onCommitSuccess'] = this._onCommitSuccess; }
     if (this._blobStorage) { opts['blobStorage'] = this._blobStorage; }
     return opts as ConstructorParameters<typeof PatchBuilder>[0];

@@ -88,7 +88,7 @@ export default class CheckpointController {
         crypto: h._crypto,
         codec: h._codec,
         ...(indexTree ? { indexTree } : {}),
-        ...(checkpointStore ? { checkpointStore } : {}),
+        checkpointStore,
         ...(stateHashService ? { stateHashService } : {}),
       });
 
@@ -139,7 +139,7 @@ export default class CheckpointController {
 
     try {
       const checkpointStore = h._checkpointStore ?? null;
-      return await loadCheckpoint(h._persistence, checkpointSha, { codec: h._codec, ...(checkpointStore ? { checkpointStore } : {}) });
+      return await loadCheckpoint(h._persistence, checkpointSha, { codec: h._codec, checkpointStore });
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (

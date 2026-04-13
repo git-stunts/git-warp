@@ -167,21 +167,21 @@ interface GitErrorHint {
 export function wrapGitError(err: GitError, hint: GitErrorHint = {}): GitError | PersistenceError {
   if (isMissingObjectError(err)) {
     return new PersistenceError(
-      hint.oid ? `Missing Git object: ${hint.oid}` : err.message,
+      (hint.oid !== undefined && hint.oid.length > 0) ? `Missing Git object: ${hint.oid}` : err.message,
       PersistenceError.E_MISSING_OBJECT,
       { cause: err, context: { ...hint } },
     );
   }
   if (isRefNotFoundError(err)) {
     return new PersistenceError(
-      hint.ref ? `Ref not found: ${hint.ref}` : err.message,
+      (hint.ref !== undefined && hint.ref.length > 0) ? `Ref not found: ${hint.ref}` : err.message,
       PersistenceError.E_REF_NOT_FOUND,
       { cause: err, context: { ...hint } },
     );
   }
   if (isRefIoError(err)) {
     return new PersistenceError(
-      hint.ref ? `Ref I/O error: ${hint.ref}` : err.message,
+      (hint.ref !== undefined && hint.ref.length > 0) ? `Ref I/O error: ${hint.ref}` : err.message,
       PersistenceError.E_REF_IO,
       { cause: err, context: { ...hint } },
     );

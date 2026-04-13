@@ -123,7 +123,7 @@ async function createCommit(
   message: string,
 ): Promise<string> {
   const args = ['commit-tree', treeSha, '-m', message];
-  if (parentSha) {
+  if (parentSha !== null) {
     args.push('-p', parentSha);
   }
   const sha = await plumbing.execute({ args });
@@ -136,7 +136,7 @@ async function compareAndSwapRef(
   newSha: string,
   expectedSha: string | null,
 ): Promise<void> {
-  const args = expectedSha
+  const args = (expectedSha !== null && expectedSha.length > 0)
     ? ['update-ref', ref, newSha, expectedSha]
     : ['update-ref', ref, newSha];
   await plumbing.execute({ args });
@@ -220,7 +220,7 @@ export default class GitTrustChainAdapter extends TrustChainPort {
   async readTip(graphName: string): Promise<TrustChainTip | null> {
     const ref = buildTrustRecordRef(graphName);
     const tipSha = await resolveRef(this._plumbing, ref);
-    if (!tipSha) {
+    if (tipSha === null) {
       return null;
     }
 
@@ -234,7 +234,7 @@ export default class GitTrustChainAdapter extends TrustChainPort {
     const entries = await readTreeEntries(this._plumbing, info.treeSha);
 
     const manifestOid = entries.get(RECORD_BLOB_NAME);
-    if (!manifestOid) {
+    if (manifestOid === undefined) {
       return null;
     }
 
@@ -267,13 +267,13 @@ export default class GitTrustChainAdapter extends TrustChainPort {
     const ref = buildTrustRecordRef(graphName);
     let currentSha = tip ?? await resolveRef(this._plumbing, ref);
 
-    if (!currentSha) {
+    if (currentSha === null) {
       return;
     }
 
     // Walk backward, collecting SHAs for forward iteration
     const commitShas: string[] = [];
-    while (currentSha) {
+    while (currentSha !== null) {
       commitShas.push(currentSha);
       const info = await readCommitInfo(this._plumbing, currentSha);
       currentSha = info.parents[0] ?? null;
@@ -304,7 +304,7 @@ export default class GitTrustChainAdapter extends TrustChainPort {
       // Fallback: pre-CAS raw blob
       const entries = await readTreeEntries(this._plumbing, info.treeSha);
       const blobOid = entries.get(RECORD_BLOB_NAME);
-      if (!blobOid) {
+      if (blobOid === undefined) {
         return null;
       }
       const raw = await this._plumbing.execute({ args: ['cat-file', 'blob', blobOid] });
@@ -316,7 +316,7 @@ export default class GitTrustChainAdapter extends TrustChainPort {
     const actualId = rawRecord['recordId'];
     if (typeof actualId !== 'string' || actualId !== expectedId) {
       throw new TrustError(
-        `RecordId mismatch: expected ${expectedId}, got ${String(actualId)}`,
+        `RecordId mismatch: expected ${expectedId}, got ${JSON.stringify(actualId)}`,
         { code: 'E_TRUST_RECORD_ID_MISMATCH' },
       );
     }
@@ -406,7 +406,7 @@ export default class GitTrustChainAdapter extends TrustChainPort {
         }
 
         // Real conflict — chain advanced
-        const freshRecordId = freshTipSha
+        const freshRecordId = freshTipSha !== null
           ? await this._readRecordIdFromCommit(freshTipSha)
           : null;
 

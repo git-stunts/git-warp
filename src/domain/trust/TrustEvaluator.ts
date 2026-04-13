@@ -162,7 +162,7 @@ function evaluateWriters(
   }
 
   if (trustState.errors.length > 0) {
-    const firstError = trustState.errors[0]?.error || 'Invalid trust evidence';
+    const firstError = trustState.errors[0]?.error ?? 'Invalid trust evidence';
     return new TrustAssessment(buildDetail({
       status: 'error',
       source: 'ref',

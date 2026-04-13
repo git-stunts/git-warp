@@ -109,12 +109,12 @@ function validateCryptography(rec: TrustRecord, ctx: TrustBuildContext): boolean
     }
   }
 
-  if (!ctx.options.signatureVerifier) {
+  if (ctx.options.signatureVerifier === undefined) {
     return true;
   }
 
   const issuerPk = resolveIssuerKey(rec, ctx.activeKeys);
-  if (!issuerPk) {
+  if (issuerPk === null) {
     ctx.errors.push({ recordId: rec.recordId, error: `Unknown issuer key for signature verification: ${rec.issuerKeyId}` });
     return false;
   }

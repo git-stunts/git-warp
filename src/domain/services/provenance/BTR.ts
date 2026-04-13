@@ -90,7 +90,7 @@ class BTR {
     const c = codec ?? defaultCodec;
     const obj = c.decode(bytes) as Record<string, string | number | Uint8Array | PatchEntryJSON[]>;
     const missing = findMissingField(obj);
-    if (missing) {
+    if (missing !== null) {
       throw new CryptoError(`Invalid BTR: missing field ${missing}`, { code: 'E_BTR_INVALID' });
     }
     // Adapter boundary: validated by findMissingField above
@@ -122,11 +122,11 @@ function findMissingField(rec: Record<string, string | number | Uint8Array | Pat
 }
 
 function validateBTRStructure(btr: BTR): string | null {
-  if (!btr || typeof btr !== 'object') {
+  if (typeof btr !== 'object') {
     return 'BTR must be an object';
   }
   const missing = findMissingField(btr as unknown as Record<string, string | number | Uint8Array | PatchEntryJSON[]>);
-  if (missing) {
+  if (missing !== null) {
     return `Missing required field: ${missing}`;
   }
   if (btr.version !== BTR_VERSION) {

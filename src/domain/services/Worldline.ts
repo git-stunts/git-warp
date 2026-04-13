@@ -346,7 +346,7 @@ export default class Worldline {
   async observer(nameOrConfig: string | Aperture, config?: Aperture): Promise<Observer> {
     // observer() is a dynamically-wired method on WarpRuntime. Cast through unknown.
     type ObserverFn = (...args: unknown[]) => Promise<Observer>;
-    const observerFn = this._graph.observer as unknown as ObserverFn;
+    const observerFn = (this._graph.observer as unknown as ObserverFn).bind(this._graph);
     if (typeof nameOrConfig === 'string') {
       return await observerFn(nameOrConfig, config, { source: this.source });
     }

@@ -21,7 +21,7 @@ export default class CommitDagTraversalService {
   private readonly _topology: DagTopology;
 
   constructor(deps: { indexReader: DagIndexReader; logger?: LoggerPort }) {
-    if (!deps.indexReader) {
+    if (deps.indexReader === null || deps.indexReader === undefined) {
       throw new TraversalError(
         'CommitDagTraversalService requires an indexReader',
         { code: 'E_DAG_TRAVERSAL_NO_INDEX' },

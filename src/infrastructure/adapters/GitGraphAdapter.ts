@@ -133,7 +133,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
 
     const [commitSha, author, date, parentsStr, ...messageParts] = parts;
     const message = messageParts.join('\x00');
-    const parents = parentsStr ? parentsStr.split(' ').filter(p => p !== '') : [];
+    const parents = (parentsStr !== undefined && parentsStr.length > 0) ? parentsStr.split(' ').filter(p => p !== '') : [];
     return {
       sha: (commitSha ?? '').trim(),
       message,
@@ -157,7 +157,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     validateRef(ref);
     validateLimit(limit);
     const args = ['log', `-${limit}`];
-    if (format) {
+    if (typeof format === 'string' && format.length > 0) {
       args.push(`--format=${format}`);
     }
     args.push(ref);
@@ -172,7 +172,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     validateRef(ref);
     validateLimit(limit);
     const args = ['log', '-z', `-${limit}`];
-    if (format) {
+    if (typeof format === 'string' && format.length > 0) {
       // Strip NUL bytes — Git -z uses NUL as record terminator.
       // eslint-disable-next-line no-control-regex
       const cleanFormat = format.replace(/\x00/g, '');

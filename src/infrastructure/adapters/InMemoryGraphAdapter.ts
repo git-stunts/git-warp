@@ -54,7 +54,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   constructor(options?: InMemoryAdapterOptions) {
     super();
     const opts = options ?? {};
-    this._author = opts.author && opts.author.length > 0 ? opts.author : 'InMemory <inmemory@test>';
+    this._author = (opts.author !== undefined && opts.author.length > 0) ? opts.author : 'InMemory <inmemory@test>';
     this._clock = opts.clock ?? { now: () => Date.now() };
     this._hash = opts.hash ?? defaultHash;
     this._cryptoReady = initCryptoReady(opts.hash);

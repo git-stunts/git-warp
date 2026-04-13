@@ -54,9 +54,6 @@ async function computeHmac(
 // -- Key validation -----------------------------------------------------------
 
 function validateHmacKey(key: string | Uint8Array): void {
-  if (!key) {
-    throw new CryptoError('Invalid HMAC key: key must not be empty', { code: 'E_INVALID_HMAC_KEY' });
-  }
   if (typeof key === 'string' && key.length === 0) {
     throw new CryptoError('Invalid HMAC key: key must not be empty', { code: 'E_INVALID_HMAC_KEY' });
   }
@@ -126,15 +123,15 @@ async function verifyBTR(
   } = {},
 ): Promise<VerificationResult> {
   const structError = validateBTRStructure(btr);
-  if (structError) {
+  if (structError !== null) {
     return new VerificationResult(false, structError);
   }
 
-  if (!opts.crypto) {
+  if (opts.crypto === undefined) {
     return new VerificationResult(false, 'CryptoPort required for HMAC verification');
   }
 
-  const deps: CryptoDeps = opts.crypto ? (opts.codec ? { crypto: opts.crypto, codec: opts.codec } : { crypto: opts.crypto }) : { crypto: opts.crypto };
+  const deps: CryptoDeps = opts.codec !== undefined ? { crypto: opts.crypto, codec: opts.codec } : { crypto: opts.crypto };
 
   // HMAC verification
   let hmacValid: boolean;
@@ -163,7 +160,7 @@ async function verifyBTR(
   }
 
   // Optional replay verification
-  if (opts.verifyReplay) {
+  if (opts.verifyReplay === true) {
     try {
       const result = await replayBTR(btr, deps);
       if (result.h_out !== btr.h_out) {

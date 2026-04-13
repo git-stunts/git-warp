@@ -60,7 +60,7 @@ export default class DagTraversal {
   private _pathFinder: PathFinder | null = null;
 
   constructor(deps: { indexReader: DagIndexReader; logger?: LoggerPort }) {
-    if (!deps.indexReader) {
+    if (deps.indexReader === null || deps.indexReader === undefined) {
       throw new WarpError('DagTraversal requires an indexReader', 'E_DAG_TRAVERSAL_NO_INDEX');
     }
     this._indexReader = deps.indexReader;
@@ -69,9 +69,9 @@ export default class DagTraversal {
 
   private async _getNeighbors(sha: string, direction: TraversalDirection): Promise<string[]> {
     if (direction === 'forward') {
-      return this._indexReader.getChildren(sha);
+      return await this._indexReader.getChildren(sha);
     }
-    return this._indexReader.getParents(sha);
+    return await this._indexReader.getParents(sha);
   }
 
   async *bfs(opts: TraversalOptions): AsyncGenerator<TraversalNode> {
