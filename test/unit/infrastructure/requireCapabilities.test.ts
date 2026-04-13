@@ -34,11 +34,11 @@ describe('requireCapabilities', () => {
   describe('requireBlobPort', () => {
     /** @returns {{ readBlob: import('vitest').Mock, writeBlob: import('vitest').Mock }} */
     function makeBlobPersistence() {
-      return /** @type {*} */ ({
+      return (({
         readBlob: vi.fn(),
         writeBlob: vi.fn(),
         extraMethod: vi.fn(),
-      });
+      }) as any);
     }
 
     it('returns a frozen object with readBlob and writeBlob', () => {
@@ -76,7 +76,7 @@ describe('requireCapabilities', () => {
       try {
         requireBlobPort({ writeBlob: vi.fn() });
       } catch (err) {
-        expect(/** @type {MissingCapabilityError} */ (err).method).toBe(
+        expect((err).method).toBe(
           'readBlob',
         );
       }
@@ -89,7 +89,7 @@ describe('requireCapabilities', () => {
       try {
         requireBlobPort({ readBlob: vi.fn() });
       } catch (err) {
-        expect(/** @type {MissingCapabilityError} */ (err).method).toBe(
+        expect((err).method).toBe(
           'writeBlob',
         );
       }
@@ -114,10 +114,10 @@ describe('requireCapabilities', () => {
 
   describe('requireCommitPort', () => {
     function makeCommitPersistence() {
-      return /** @type {*} */ ({
+      return (({
         getNodeInfo: vi.fn(),
         extraMethod: vi.fn(),
-      });
+      }) as any);
     }
 
     it('returns a frozen object with getNodeInfo', () => {
@@ -148,7 +148,7 @@ describe('requireCapabilities', () => {
       try {
         requireCommitPort({ readBlob: vi.fn() });
       } catch (err) {
-        expect(/** @type {MissingCapabilityError} */ (err).method).toBe(
+        expect((err).method).toBe(
           'getNodeInfo',
         );
       }
@@ -162,11 +162,11 @@ describe('requireCapabilities', () => {
   describe('requireTreePort', () => {
     /** @returns {{ readTreeOids: import('vitest').Mock, writeTree: import('vitest').Mock }} */
     function makeTreePersistence() {
-      return /** @type {*} */ ({
+      return (({
         readTreeOids: vi.fn(),
         writeTree: vi.fn(),
         extraMethod: vi.fn(),
-      });
+      }) as any);
     }
 
     it('returns a frozen object with readTreeOids and writeTree', () => {
@@ -202,7 +202,7 @@ describe('requireCapabilities', () => {
       try {
         requireTreePort({ writeTree: vi.fn() });
       } catch (err) {
-        expect(/** @type {MissingCapabilityError} */ (err).method).toBe(
+        expect((err).method).toBe(
           'readTreeOids',
         );
       }
@@ -215,7 +215,7 @@ describe('requireCapabilities', () => {
       try {
         requireTreePort({ readTreeOids: vi.fn() });
       } catch (err) {
-        expect(/** @type {MissingCapabilityError} */ (err).method).toBe(
+        expect((err).method).toBe(
           'writeTree',
         );
       }

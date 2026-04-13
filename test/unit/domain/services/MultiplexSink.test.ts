@@ -36,11 +36,11 @@ class StubSink extends EffectSinkPort {
       '../../../../src/domain/types/DeliveryObservation.ts'
     );
     return createDeliveryObservation({
-      emissionId: /** @type {any} */ (emission).id,
+      emissionId: (emission).id,
       sinkId: this._id,
       outcome: 'delivered',
       timestamp: Date.now(),
-      lens: /** @type {any} */ (lens),
+      lens: (lens),
     });
   }
 }
@@ -56,12 +56,12 @@ class FailingSink extends EffectSinkPort {
       '../../../../src/domain/types/DeliveryObservation.ts'
     );
     return createDeliveryObservation({
-      emissionId: /** @type {any} */ (emission).id,
+      emissionId: (emission).id,
       sinkId: 'failing',
       outcome: 'failed',
       reason: 'boom',
       timestamp: Date.now(),
-      lens: /** @type {any} */ (lens),
+      lens: (lens),
     });
   }
 }
@@ -109,7 +109,7 @@ describe('MultiplexSink', () => {
     mux.addSink(new StubSink('b'));
     mux.removeSink('a');
     expect(mux.sinks).toHaveLength(1);
-    expect(/** @type {*} */ (mux.sinks[0]).id).toBe('b');
+    expect((mux.sinks[0] as any).id).toBe('b');
   });
 
   it('returns false when removing nonexistent sink', () => {
@@ -131,10 +131,10 @@ describe('MultiplexSink', () => {
     const observations = await mux.deliver(emission, LIVE_LENS);
 
     expect(observations).toHaveLength(2);
-    expect(/** @type {*} */ (observations[0]).sinkId).toBe('a');
-    expect(/** @type {*} */ (observations[1]).sinkId).toBe('b');
-    expect(s1.calls).toHaveLength(1);
-    expect(s2.calls).toHaveLength(1);
+    expect((observations[0] as any).sinkId).toBe('a');
+    expect((observations[1] as any).sinkId).toBe('b');
+    expect((s1 as any).calls).toHaveLength(1);
+    expect((s2 as any).calls).toHaveLength(1);
   });
 
   it('returns empty array with no sinks', async () => {
@@ -166,6 +166,6 @@ describe('MultiplexSink', () => {
     const emission = makeEmission();
     await mux.deliver(emission, REPLAY_LENS);
 
-    expect(/** @type {*} */ (stub.calls[0]).lens).toBe(REPLAY_LENS);
+    expect(((stub as any).calls[0] as any).lens).toBe(REPLAY_LENS);
   });
 });

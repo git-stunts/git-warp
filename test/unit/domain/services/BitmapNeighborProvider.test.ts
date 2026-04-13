@@ -2,10 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import BitmapNeighborProvider from '../../../../src/domain/services/index/BitmapNeighborProvider.ts';
 
 describe('BitmapNeighborProvider', () => {
-  /** @type {*} */
-  let mockReader;
-  /** @type {*} */
-  let provider;
+    let mockReader;
+    let provider;
 
   beforeEach(() => {
     mockReader = {
@@ -13,7 +11,7 @@ describe('BitmapNeighborProvider', () => {
       getParents: vi.fn().mockResolvedValue([]),
       lookupId: vi.fn().mockResolvedValue(undefined),
     };
-    provider = new BitmapNeighborProvider({ indexReader: /** @type {*} */ (mockReader) });
+    provider = new BitmapNeighborProvider({ indexReader: (mockReader) });
   });
 
   it('returns outgoing neighbors with empty label', async () => {
@@ -111,10 +109,8 @@ describe('BitmapNeighborProvider', () => {
   });
 
   describe('logical index mode', () => {
-    /** @type {*} */
-    let logicalIndex;
-    /** @type {*} */
-    let logicalProvider;
+        let logicalIndex;
+        let logicalProvider;
 
     beforeEach(() => {
       logicalIndex = {
@@ -139,7 +135,7 @@ describe('BitmapNeighborProvider', () => {
           return [];
         }),
       };
-      logicalProvider = new BitmapNeighborProvider({ logicalIndex: /** @type {*} */ (logicalIndex) });
+      logicalProvider = new BitmapNeighborProvider({ logicalIndex: (logicalIndex) });
     });
 
     it('uses logical isAlive for hasNode', async () => {

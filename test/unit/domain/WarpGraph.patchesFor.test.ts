@@ -17,13 +17,10 @@ import {
 } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
-  /** @type {any} */
-  let persistence;
+    let persistence;
   // Parallel-safe generators: each test gets fresh instances via beforeEach
-  /** @type {any} */
-  let oidGen;
-  /** @type {any} */
-  let hashGen;
+    let oidGen;
+    let hashGen;
 
   beforeEach(() => {
     persistence = createMockPersistence();
@@ -398,7 +395,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
       await graph.materialize();
 
       expect(graph.provenanceIndex).not.toBeNull();
-      expect(/** @type {any} */ (graph.provenanceIndex).size).toBeGreaterThan(0);
+      expect((graph.provenanceIndex as any).size).toBeGreaterThan(0);
     });
   });
 

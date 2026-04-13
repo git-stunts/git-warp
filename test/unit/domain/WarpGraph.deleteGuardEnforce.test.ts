@@ -3,8 +3,7 @@ import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000 }, () => {
-  /** @type {any} */
-  let repo;
+    let repo;
 
   afterEach(async () => {
     if (repo) {

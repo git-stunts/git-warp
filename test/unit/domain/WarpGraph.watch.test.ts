@@ -3,10 +3,8 @@ import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
-  /** @type {any} */
-  let repo;
-  /** @type {any} */
-  let graph;
+    let repo;
+    let graph;
 
   beforeEach(async () => {
     repo = await createGitRepo('watch');
@@ -356,8 +354,7 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
     });
 
     it('unsubscribe during onError callback prevents infinite loop and stops future notifications', async () => {
-      /** @type {any} */
-      let sub;
+            let sub;
 
       const onChange = vi.fn(() => {
         throw new Error('onChange always throws');
@@ -468,10 +465,8 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
 });
 
 describe('WarpRuntime.watch() polling (PL/WATCH/2)', () => {
-  /** @type {any} */
-  let repo;
-  /** @type {any} */
-  let graph;
+    let repo;
+    let graph;
 
   beforeEach(async () => {
     vi.useFakeTimers();

@@ -9,7 +9,7 @@ import BlobStoragePort from '../../../../src/ports/BlobStoragePort.ts';
 
 /** Collects an async iterable into a single Uint8Array. */
 async function collect(/** @type {AsyncIterable<Uint8Array>} */ stream) {
-  const chunks = [];
+  const chunks: any[] = [];
   for await (const chunk of stream) {
     chunks.push(chunk);
   }

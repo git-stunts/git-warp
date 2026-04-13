@@ -12,7 +12,7 @@ import BlobValue from '../../../../../src/domain/types/ops/BlobValue.ts';
 
 describe('Op base class', () => {
   it('cannot be instantiated directly', () => {
-    expect(() => new (/** @type {any} */ (Op))('NodeAdd')).toThrow();
+    expect(() => new ((Op))('NodeAdd')).toThrow();
   });
 
   it('is the prototype of all op subclasses', () => {
@@ -75,12 +75,12 @@ describe('NodeAdd', () => {
 
   it('throws on non-string nodeId', () => {
     const dot = new Dot('alice', 1);
-    expect(() => new NodeAdd(/** @type {any} */ (42), dot)).toThrow();
-    expect(() => new NodeAdd(/** @type {any} */ (null), dot)).toThrow();
+    expect(() => new NodeAdd((42 as any), dot)).toThrow();
+    expect(() => new NodeAdd((null), dot)).toThrow();
   });
 
   it('throws when dot is not a Dot instance', () => {
-    expect(() => new NodeAdd('n1', /** @type {any} */ ({ writerId: 'w', counter: 1 }))).toThrow();
+    expect(() => new NodeAdd('n1', ({ writerId: 'w', counter: 1 } as any))).toThrow();
   });
 
   it('rejects nodeId containing NUL byte', () => {
@@ -125,7 +125,7 @@ describe('NodeRemove', () => {
   });
 
   it('throws when observedDots is not an array', () => {
-    expect(() => new NodeRemove('n1', /** @type {any} */ ('alice:1'))).toThrow();
+    expect(() => new NodeRemove('n1', ('alice:1' as any))).toThrow();
   });
 
   it('throws when observedDots contains an empty string', () => {
@@ -188,7 +188,7 @@ describe('EdgeAdd', () => {
   });
 
   it('throws when dot is not a Dot instance', () => {
-    expect(() => new EdgeAdd({ from: 'n1', to: 'n2', label: 'rel', dot: /** @type {any} */ ({ writerId: 'w', counter: 1 }) })).toThrow();
+    expect(() => new EdgeAdd({ from: 'n1', to: 'n2', label: 'rel', dot: ({ writerId: 'w', counter: 1 } as any) })).toThrow();
   });
 
   it('rejects from/to/label containing NUL byte', () => {
@@ -246,7 +246,7 @@ describe('EdgeRemove', () => {
   });
 
   it('throws when observedDots is not an array', () => {
-    expect(() => new EdgeRemove({ from: 'n1', to: 'n2', label: 'rel', observedDots: /** @type {any} */ ('w:1') })).toThrow();
+    expect(() => new EdgeRemove({ from: 'n1', to: 'n2', label: 'rel', observedDots: ('w:1' as any) })).toThrow();
   });
 
   it('throws when observedDots contains an empty string', () => {
@@ -457,7 +457,7 @@ describe('BlobValue', () => {
   });
 
   it('throws on non-string oid', () => {
-    expect(() => new BlobValue('n1', /** @type {any} */ (42))).toThrow();
+    expect(() => new BlobValue('n1', (42 as any))).toThrow();
   });
 
   it('rejects node containing NUL byte', () => {

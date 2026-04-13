@@ -6,8 +6,7 @@ import {
   INSPECT_LENS,
 } from '../../../../src/domain/types/ExternalizationPolicy.ts';
 
-/** @type {any} */
-const create = createExternalizationPolicy;
+const create = (createExternalizationPolicy) as any;
 
 describe('ExternalizationPolicy', () => {
   // -----------------------------------------------------------------------

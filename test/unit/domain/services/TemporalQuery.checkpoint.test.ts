@@ -35,7 +35,7 @@ function createNodeWithPropPatch({
   sha,
   addNode = true,
 }) {
-  const ops = [];
+  const ops: any[] = [];
   if (addNode) {
     ops.push(createNodeAddV2(nodeId, Dot.create(writer, lamport)));
   }

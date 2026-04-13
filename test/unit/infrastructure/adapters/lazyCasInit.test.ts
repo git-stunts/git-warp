@@ -29,8 +29,7 @@ describe('createLazyCas', () => {
   });
 
   it('returns the same promise for concurrent callers', async () => {
-    /** @type {((value: string) => void) | undefined} */
-    let resolveInit;
+        let resolveInit;
     const factory = vi.fn().mockImplementation(
       () => new Promise((resolve) => { resolveInit = resolve; }),
     );

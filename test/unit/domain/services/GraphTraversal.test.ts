@@ -520,8 +520,7 @@ describe('GraphTraversal.bidirectionalAStar', () => {
     ]);
     const engine = new GraphTraversal({ provider });
 
-    /** @type {Record<string, number>} */
-    const weights = { 'a|b': 10, 'b|a': 999, 'b|c': 5, 'c|b': 999 };
+        const weights = ({ 'a|b': 10, 'b|a': 999, 'b|c': 5, 'c|b': 999 }) as Record<string, number>;
     const weightFn = (/** @type {string} */ from, /** @type {string} */ to) => weights[`${from}|${to}`] ?? 1;
 
     const result = await engine.bidirectionalAStar({
@@ -605,8 +604,8 @@ describe('GraphTraversal.topologicalSort', () => {
       await engine.topologicalSort({ start: 'a', throwOnCycle: true });
       expect.fail('should have thrown');
     } catch (err) {
-      expect(/** @type {*} */ (err).code).toBe('ERR_GRAPH_HAS_CYCLES');
-      expect(/** @type {*} */ (err).context.cycleWitness).toBeDefined();
+      expect((err).code).toBe('ERR_GRAPH_HAS_CYCLES');
+      expect((err).context.cycleWitness).toBeDefined();
     }
   });
 
@@ -841,8 +840,7 @@ describe('GraphTraversal stats', () => {
   it('tracks cache hits/misses for async providers', async () => {
     // Create a mock async provider
     const inner = diamondProvider();
-    /** @type {*} */
-    const asyncProvider = {
+        const asyncProvider = {
       getNeighbors: (/** @type {string} */ nodeId, /** @type {*} */ opts) => inner.getNeighbors(nodeId, opts),
       hasNode: (/** @type {string} */ nodeId) => inner.hasNode(nodeId),
       get latencyClass() { return 'async-local'; },
@@ -862,8 +860,7 @@ describe('GraphTraversal stats', () => {
   });
 
   it('uses collision-safe label cache keys when labels contain commas', async () => {
-    /** @type {import('../../../../src/ports/NeighborProviderPort.ts').default} */
-    const provider = {
+        const provider = {
       async getNeighbors(
         /** @type {string} */ _nodeId,
         /** @type {'out'|'in'|'both'} */ _direction,
@@ -915,7 +912,7 @@ describe('GraphTraversal hooks', () => {
       start: 'a',
       hooks: { onVisit: (nodeId, depth) => visited.push({ nodeId, depth }) },
     });
-    expect(visited.map(v => v.nodeId)).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(visited.map(v => (v as any).nodeId)).toEqual(['a', 'b', 'c', 'd', 'e']);
     expect(visited[0]?.depth).toBe(0);
     expect(visited[4]?.depth).toBe(4);
   });
@@ -958,10 +955,10 @@ describe('GraphTraversal private helpers', () => {
   it('_biAStarExpand returns immediately for stale heap entries', async () => {
     const engine = new GraphTraversal({ provider: diamondProvider() });
     const result = await engine._biAStarExpand({
-      heap: /** @type {any} */ ({
+      heap: (({
         extractMin: () => 'a',
         insert: () => {},
-      }),
+      }) as any),
       visited: new Set(['a']),
       gScore: new Map([['a', 0]]),
       predMap: new Map(),
@@ -984,10 +981,10 @@ describe('GraphTraversal private helpers', () => {
       provider: buildProvider([{ from: 'a', to: 'b' }]),
     });
     const result = await engine._biAStarExpand({
-      heap: /** @type {any} */ ({
+      heap: (({
         extractMin: () => 'a',
         insert: () => {},
-      }),
+      }) as any),
       visited: new Set(),
       gScore: new Map([['a', 2]]),
       predMap: new Map(),
@@ -1016,10 +1013,10 @@ describe('GraphTraversal private helpers', () => {
     });
     const predMap = new Map();
     const result = await engine._biAStarExpand({
-      heap: /** @type {any} */ ({
+      heap: (({
         extractMin: () => 'a',
-        insert: (/** @type {string} */ nodeId, /** @type {number} */ priority) => inserts.push({ nodeId, priority }),
-      }),
+        insert: ( nodeId,  priority) => inserts.push({ nodeId, priority }),
+      }) as any),
       visited: new Set(['b']),
       gScore: new Map([['a', 0]]),
       predMap,

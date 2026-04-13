@@ -384,10 +384,8 @@ describe('ConflictAnalyzerService', () => {
   // ── analyze: options and filtering ──────────────────────────────────────
 
   describe('analyze — options', () => {
-    /** @type {ReturnType<typeof createMockGraph>} */
-    let graph;
-    /** @type {ConflictAnalyzerService} */
-    let analyzer;
+        let graph;
+        let analyzer;
 
     beforeEach(() => {
       graph = createMockGraph({
@@ -570,8 +568,7 @@ describe('ConflictAnalyzerService', () => {
   // ── analyze: validation errors ──────────────────────────────────────────
 
   describe('analyze — validation', () => {
-    /** @type {ConflictAnalyzerService} */
-    let analyzer;
+        let analyzer;
 
     beforeEach(() => {
       analyzer = new ConflictAnalyzerService({ graph: createMockGraph() });

@@ -83,8 +83,7 @@ describe('LogicalIndexBuildService', () => {
     const shards1 = await stream1.collect();
 
     // Extract existing meta + labels for seeding
-    /** @type {Record<string, *>} */
-    const existingMeta = {};
+        const existingMeta = ({}) as Record<string, any>;
     for (const shard of shards1) {
       if (shard instanceof MetaShard) {
         existingMeta[shard.shardKey] = {
@@ -95,7 +94,7 @@ describe('LogicalIndexBuildService', () => {
     }
     const labelShard = shards1.find((s) => s instanceof LabelShard);
     expect(labelShard).toBeDefined();
-    const existingLabels = /** @type {LabelShard} */ (labelShard).labels;
+    const existingLabels = (labelShard).labels;
 
     // Build 2: add node C
     const state2 = buildState({
@@ -107,7 +106,7 @@ describe('LogicalIndexBuildService', () => {
       props: [],
     });
 
-    const { stream: stream2 } = service.buildStream(state2, /** @type {*} */ ({ existingMeta, existingLabels }));
+    const { stream: stream2 } = service.buildStream(state2, ({ existingMeta, existingLabels } as any));
     const shards2 = await stream2.collect();
 
     // Verify A and B still have same globalIds
@@ -183,7 +182,7 @@ describe('LogicalIndexBuildService', () => {
     });
 
     const edgePropKey = encodeEdgePropKey('A', 'B', 'knows', 'weight');
-    state.prop.set(edgePropKey, /** @type {any} */ ({ value: 99 }));
+    state.prop.set(edgePropKey, ({ value: 99 } as any));
 
     const service = new LogicalIndexBuildService();
     const { stream } = service.buildStream(state);

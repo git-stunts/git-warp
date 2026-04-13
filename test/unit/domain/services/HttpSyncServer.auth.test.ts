@@ -31,8 +31,7 @@ async function signedBody(bodyObj) {
  * @returns {any}
  */
 function createMockPort() {
-  /** @type {any} */
-  let handler;
+    let handler;
   const addressValue = { port: 9999 };
 
   return {
@@ -66,10 +65,8 @@ function createMockPort() {
 }
 
 describe('HttpSyncServer auth integration', () => {
-  /** @type {any} */
-  let mockPort;
-  /** @type {any} */
-  let graph;
+    let mockPort;
+    let graph;
 
   beforeEach(() => {
     mockPort = createMockPort();
@@ -86,17 +83,16 @@ describe('HttpSyncServer auth integration', () => {
   // enforce mode
   // ---------------------------------------------------------------------------
   describe('enforce mode', () => {
-    /** @type {any} */
-    let handler;
+        let handler;
 
     beforeEach(async () => {
-      const server = new HttpSyncServer(/** @type {any} */ ({
+      const server = new HttpSyncServer((({
         httpPort: mockPort.port,
         graph,
         host: '127.0.0.1',
         path: '/sync',
         auth: { keys: KEYS, mode: 'enforce', wallClockMs: () => Date.now() },
-      }));
+      }) as any));
       await server.listen(9999);
       handler = mockPort.getHandler();
     });
@@ -166,13 +162,13 @@ describe('HttpSyncServer auth integration', () => {
     it('returns 403 for expired timestamp', async () => {
       // Sign at "now", but the server's wall clock is 10 minutes ahead
       const expiredMockPort = createMockPort();
-      const server = new HttpSyncServer(/** @type {any} */ ({
+      const server = new HttpSyncServer((({
         httpPort: expiredMockPort.port,
         graph,
         host: '127.0.0.1',
         path: '/sync',
         auth: { keys: KEYS, mode: 'enforce', wallClockMs: () => Date.now() + 10 * 60 * 1000 },
-      }));
+      }) as any));
       await server.listen(9999);
       const expiredHandler = expiredMockPort.getHandler();
 
@@ -201,17 +197,16 @@ describe('HttpSyncServer auth integration', () => {
   // log-only mode
   // ---------------------------------------------------------------------------
   describe('log-only mode', () => {
-    /** @type {any} */
-    let handler;
+        let handler;
 
     beforeEach(async () => {
-      const server = new HttpSyncServer(/** @type {any} */ ({
+      const server = new HttpSyncServer((({
         httpPort: mockPort.port,
         graph,
         host: '127.0.0.1',
         path: '/sync',
         auth: { keys: KEYS, mode: 'log-only', wallClockMs: () => Date.now() },
-      }));
+      }) as any));
       await server.listen(9999);
       handler = mockPort.getHandler();
     });
@@ -259,16 +254,15 @@ describe('HttpSyncServer auth integration', () => {
   // no auth config (backward compatibility)
   // ---------------------------------------------------------------------------
   describe('no auth config', () => {
-    /** @type {any} */
-    let handler;
+        let handler;
 
     beforeEach(async () => {
-      const server = new HttpSyncServer(/** @type {any} */ ({
+      const server = new HttpSyncServer((({
         httpPort: mockPort.port,
         graph,
         host: '127.0.0.1',
         path: '/sync',
-      }));
+      }) as any));
       await server.listen(9999);
       handler = mockPort.getHandler();
     });
@@ -312,13 +306,13 @@ describe('HttpSyncServer auth integration', () => {
   describe('auth.mode validation', () => {
     it('defaults to enforce when mode is omitted', async () => {
       const noModeMockPort = createMockPort();
-      const server = new HttpSyncServer(/** @type {any} */ ({
+      const server = new HttpSyncServer((({
         httpPort: noModeMockPort.port,
         graph,
         host: '127.0.0.1',
         path: '/sync',
         auth: { keys: KEYS, wallClockMs: () => Date.now() },
-      }));
+      }) as any));
       await server.listen(9999);
       const noModeHandler = noModeMockPort.getHandler();
 
@@ -334,13 +328,13 @@ describe('HttpSyncServer auth integration', () => {
 
     it('throws on invalid auth.mode string', () => {
       const badModeMockPort = createMockPort();
-      expect(() => new HttpSyncServer(/** @type {any} */ ({
+      expect(() => new HttpSyncServer((({
         httpPort: badModeMockPort.port,
         graph,
         host: '127.0.0.1',
         path: '/sync',
         auth: { keys: KEYS, mode: 'typo' },
-      }))).toThrow(/HttpSyncServer config/);
+      }) as any))).toThrow(/HttpSyncServer config/);
     });
   });
 
@@ -350,14 +344,14 @@ describe('HttpSyncServer auth integration', () => {
   describe('ordering', () => {
     it('returns 413 before auth check for oversize body', async () => {
       const oversizeMockPort = createMockPort();
-      const server = new HttpSyncServer(/** @type {any} */ ({
+      const server = new HttpSyncServer((({
         httpPort: oversizeMockPort.port,
         graph,
         host: '127.0.0.1',
         path: '/sync',
         maxRequestBytes: 10,
         auth: { keys: KEYS, mode: 'enforce', wallClockMs: () => Date.now() },
-      }));
+      }) as any));
       await server.listen(9999);
       const oversizeHandler = oversizeMockPort.getHandler();
 
@@ -374,14 +368,14 @@ describe('HttpSyncServer auth integration', () => {
 
     it('returns 413 even when request is properly signed', async () => {
       const oversizeMockPort = createMockPort();
-      const server = new HttpSyncServer(/** @type {any} */ ({
+      const server = new HttpSyncServer((({
         httpPort: oversizeMockPort.port,
         graph,
         host: '127.0.0.1',
         path: '/sync',
         maxRequestBytes: 10,
         auth: { keys: KEYS, mode: 'enforce', wallClockMs: () => Date.now() },
-      }));
+      }) as any));
       await server.listen(9999);
       const oversizeHandler = oversizeMockPort.getHandler();
 
@@ -399,12 +393,12 @@ describe('HttpSyncServer auth integration', () => {
   describe('allowedWriters + log-only mode', () => {
     it('allows forbidden writer through in log-only mode', async () => {
       const mock = createMockPort();
-      const server = new HttpSyncServer(/** @type {any} */ ({
+      const server = new HttpSyncServer((({
         httpPort: mock.port,
         graph,
         auth: { keys: KEYS, mode: 'log-only', crypto: defaultCrypto, wallClockMs: () => Date.now() },
         allowedWriters: ['alice'],
-      }));
+      }) as any));
       await server.listen(9999);
       const handler = mock.getHandler();
 
@@ -423,12 +417,12 @@ describe('HttpSyncServer auth integration', () => {
 
     it('blocks forbidden writer in enforce mode', async () => {
       const mock = createMockPort();
-      const server = new HttpSyncServer(/** @type {any} */ ({
+      const server = new HttpSyncServer((({
         httpPort: mock.port,
         graph,
         auth: { keys: KEYS, mode: 'enforce', crypto: defaultCrypto, wallClockMs: () => Date.now() },
         allowedWriters: ['alice'],
-      }));
+      }) as any));
       await server.listen(9999);
       const handler = mock.getHandler();
 
@@ -452,12 +446,12 @@ describe('HttpSyncServer auth integration', () => {
     it('bad signature + forbidden writer both pass through, sync succeeds', async () => {
       const mock = createMockPort();
       const logger = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() };
-      const server = new HttpSyncServer(/** @type {any} */ ({
+      const server = new HttpSyncServer((({
         httpPort: mock.port,
         graph,
         auth: { keys: KEYS, mode: 'log-only', crypto: defaultCrypto, logger, wallClockMs: () => Date.now() },
         allowedWriters: ['alice'],
-      }));
+      }) as any));
       await server.listen(9999);
       const handler = mock.getHandler();
 

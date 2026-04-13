@@ -5,16 +5,14 @@ import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts'
 describe('GitGraphAdapter', () => {
   describe('constructor', () => {
     it('requires plumbing', () => {
-      expect(() => new GitGraphAdapter(/** @type {any} */ ({ plumbing: null })))
+      expect(() => new GitGraphAdapter(({ plumbing: null } as any)))
         .toThrow(/plumbing is required/);
     });
   });
 
   describe('readBlob()', () => {
-    /** @type {any} */
-    let mockPlumbing;
-    /** @type {any} */
-    let adapter;
+        let mockPlumbing;
+        let adapter;
 
     beforeEach(() => {
       mockPlumbing = {
@@ -29,7 +27,7 @@ describe('GitGraphAdapter', () => {
       mockPlumbing.executeStream.mockResolvedValue({
         collect: vi.fn().mockResolvedValue(Buffer.alloc(0)),
       });
-      const err = /** @type {any} */ (new Error('fatal: bad object deadbeef'));
+      const err = (new Error('fatal: bad object deadbeef') as any);
       err.details = { code: 128, stderr: 'fatal: bad object deadbeef' };
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -48,7 +46,7 @@ describe('GitGraphAdapter', () => {
       mockPlumbing.executeStream.mockResolvedValue({
         collect: vi.fn().mockResolvedValue(Buffer.alloc(0)),
       });
-      const err = /** @type {any} */ (new Error('Git command failed with code 1'));
+      const err = (new Error('Git command failed with code 1') as any);
       err.name = 'GitPlumbingError';
       err.details = { code: 1, stderr: '', stdout: '' };
       mockPlumbing.execute.mockRejectedValue(err);
@@ -64,7 +62,7 @@ describe('GitGraphAdapter', () => {
       mockPlumbing.executeStream.mockResolvedValue({
         collect: vi.fn().mockResolvedValue(Buffer.alloc(0)),
       });
-      const err = /** @type {any} */ (new Error('fatal: not a git repository'));
+      const err = (new Error('fatal: not a git repository') as any);
       err.details = { code: 128, stderr: 'fatal: not a git repository (or any of the parent directories): .git' };
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -88,10 +86,8 @@ describe('GitGraphAdapter', () => {
   });
 
   describe('getNodeInfo()', () => {
-    /** @type {any} */
-    let mockPlumbing;
-    /** @type {any} */
-    let adapter;
+        let mockPlumbing;
+        let adapter;
 
     beforeEach(() => {
       mockPlumbing = {
@@ -190,7 +186,7 @@ describe('GitGraphAdapter', () => {
 
     it('wraps missing-object errors as PersistenceError', async () => {
       const sha = 'abc123def456789012345678901234567890abcd';
-      const err = /** @type {any} */ (new Error(`fatal: bad object ${sha}`));
+      const err = (new Error(`fatal: bad object ${sha}`) as any);
       err.details = { code: 128, stderr: `fatal: bad object ${sha}` };
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -203,12 +199,9 @@ describe('GitGraphAdapter', () => {
   });
 
   describe('logNodesStream NUL byte stripping', () => {
-    /** @type {any} */
-    let mockPlumbing;
-    /** @type {any} */
-    let adapter;
-    /** @type {any} */
-    let capturedArgs;
+        let mockPlumbing;
+        let adapter;
+        let capturedArgs;
 
     beforeEach(() => {
       capturedArgs = null;
@@ -320,10 +313,8 @@ describe('GitGraphAdapter', () => {
   });
 
   describe('nodeExists()', () => {
-    /** @type {any} */
-    let mockPlumbing;
-    /** @type {any} */
-    let adapter;
+        let mockPlumbing;
+        let adapter;
 
     beforeEach(() => {
       mockPlumbing = {
@@ -346,7 +337,7 @@ describe('GitGraphAdapter', () => {
     });
 
     it('returns false when node does not exist', async () => {
-      const err = /** @type {any} */ (new Error('fatal: Not a valid object name'));
+      const err = (new Error('fatal: Not a valid object name') as any);
       err.details = { code: 1 };
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -406,10 +397,8 @@ describe('GitGraphAdapter', () => {
   });
 
   describe('countNodes()', () => {
-    /** @type {any} */
-    let mockPlumbing;
-    /** @type {any} */
-    let adapter;
+        let mockPlumbing;
+        let adapter;
 
     beforeEach(() => {
       mockPlumbing = {
@@ -492,7 +481,7 @@ describe('GitGraphAdapter', () => {
     });
 
     it('wraps missing refs as PersistenceError', async () => {
-      const err = /** @type {any} */ (new Error('fatal: bad revision refs/warp/missing'));
+      const err = (new Error('fatal: bad revision refs/warp/missing') as any);
       err.details = { code: 128, stderr: 'fatal: bad revision refs/warp/missing' };
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -505,10 +494,8 @@ describe('GitGraphAdapter', () => {
   });
 
   describe('configGet()', () => {
-    /** @type {any} */
-    let mockPlumbing;
-    /** @type {any} */
-    let adapter;
+        let mockPlumbing;
+        let adapter;
 
     beforeEach(() => {
       mockPlumbing = {
@@ -531,7 +518,7 @@ describe('GitGraphAdapter', () => {
     });
 
     it('returns null when config key not found', async () => {
-      const err = /** @type {any} */ (new Error('exit code 1'));
+      const err = (new Error('exit code 1') as any);
       err.exitCode = 1;
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -594,10 +581,8 @@ describe('GitGraphAdapter', () => {
   });
 
   describe('configSet()', () => {
-    /** @type {any} */
-    let mockPlumbing;
-    /** @type {any} */
-    let adapter;
+        let mockPlumbing;
+        let adapter;
 
     beforeEach(() => {
       mockPlumbing = {
@@ -631,10 +616,10 @@ describe('GitGraphAdapter', () => {
     });
 
     it('rejects non-string value', async () => {
-      await expect(adapter.configSet('some.key', /** @type {any} */ (123)))
+      await expect(adapter.configSet('some.key', (123 as any)))
         .rejects.toThrow(/Config value must be a string/);
 
-      await expect(adapter.configSet('some.key', /** @type {any} */ (null)))
+      await expect(adapter.configSet('some.key', (null)))
         .rejects.toThrow(/Config value must be a string/);
     });
 
@@ -657,10 +642,8 @@ describe('GitGraphAdapter', () => {
   });
 
   describe('readRef() dangling-ref handling', () => {
-    /** @type {any} */
-    let mockPlumbing;
-    /** @type {any} */
-    let adapter;
+        let mockPlumbing;
+        let adapter;
 
     beforeEach(() => {
       mockPlumbing = {
@@ -673,7 +656,7 @@ describe('GitGraphAdapter', () => {
 
     it('readRef returns null for dangling ref (bad object)', async () => {
       // First call: refExists (show-ref) throws exit 128
-      const err128 = /** @type {any} */ (new Error('fatal: bad object refs/warp/test/writers/alice'));
+      const err128 = (new Error('fatal: bad object refs/warp/test/writers/alice') as any);
       err128.details = { code: 128, stderr: 'fatal: bad object refs/warp/test/writers/alice' };
       mockPlumbing.execute.mockRejectedValue(err128);
 
@@ -682,7 +665,7 @@ describe('GitGraphAdapter', () => {
     });
 
     it('readRef returns null for "not a valid object name" error', async () => {
-      const err128 = /** @type {any} */ (new Error('fatal: not a valid object name'));
+      const err128 = (new Error('fatal: not a valid object name') as any);
       err128.details = { code: 128, stderr: 'fatal: not a valid object name abc123' };
       mockPlumbing.execute.mockRejectedValue(err128);
 
@@ -691,7 +674,7 @@ describe('GitGraphAdapter', () => {
     });
 
     it('readRef returns null for "does not point to a valid object"', async () => {
-      const err128 = /** @type {any} */ (new Error('show-ref failed'));
+      const err128 = (new Error('show-ref failed') as any);
       err128.details = { code: 128, stderr: 'error: refs/warp/x does not point to a valid object' };
       mockPlumbing.execute.mockRejectedValue(err128);
 
@@ -700,7 +683,7 @@ describe('GitGraphAdapter', () => {
     });
 
     it('readRef still throws on exit 128 with non-dangling stderr', async () => {
-      const err128 = /** @type {any} */ (new Error('fatal: not a git repository'));
+      const err128 = (new Error('fatal: not a git repository') as any);
       err128.details = { code: 128, stderr: 'fatal: not a git repository' };
       mockPlumbing.execute.mockRejectedValue(err128);
 
@@ -709,7 +692,7 @@ describe('GitGraphAdapter', () => {
     });
 
     it('readRef still throws on unexpected exit codes', async () => {
-      const err129 = /** @type {any} */ (new Error('fatal: unknown option'));
+      const err129 = (new Error('fatal: unknown option') as any);
       err129.details = { code: 129 };
       mockPlumbing.execute.mockRejectedValue(err129);
 
@@ -718,7 +701,7 @@ describe('GitGraphAdapter', () => {
     });
 
     it('readRef returns null when rev-parse hits dangling object (exit 128)', async () => {
-      const err128 = /** @type {any} */ (new Error('fatal: bad object'));
+      const err128 = (new Error('fatal: bad object') as any);
       err128.details = { code: 128, stderr: 'fatal: bad object abc123' };
       mockPlumbing.execute.mockRejectedValue(err128);
 

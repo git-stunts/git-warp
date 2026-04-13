@@ -12,12 +12,9 @@ import { PropertyShard } from '../../../src/domain/artifacts/PropertyShard.ts';
 import { ReceiptShard } from '../../../src/domain/artifacts/ReceiptShard.ts';
 
 describe('CborIndexStoreAdapter', () => {
-  /** @type {MockBlobPort} */
-  let blobPort;
-  /** @type {MockTreePort} */
-  let treePort;
-  /** @type {CborIndexStoreAdapter} */
-  let adapter;
+    let blobPort;
+    let treePort;
+    let adapter;
 
   beforeEach(() => {
     blobPort = new MockBlobPort();
@@ -38,7 +35,7 @@ describe('CborIndexStoreAdapter', () => {
 
     it('rejects null codec', () => {
       expect(() => new CborIndexStoreAdapter({
-        codec: /** @type {*} */ (null),
+        codec: (null),
         blobPort,
         treePort,
       })).toThrow('requires a codec');
@@ -47,7 +44,7 @@ describe('CborIndexStoreAdapter', () => {
     it('rejects null blobPort', () => {
       expect(() => new CborIndexStoreAdapter({
         codec: defaultCodec,
-        blobPort: /** @type {*} */ (null),
+        blobPort: (null),
         treePort,
       })).toThrow('requires a blobPort');
     });
@@ -56,7 +53,7 @@ describe('CborIndexStoreAdapter', () => {
       expect(() => new CborIndexStoreAdapter({
         codec: defaultCodec,
         blobPort,
-        treePort: /** @type {*} */ (null),
+        treePort: (null),
       })).toThrow('requires a treePort');
     });
   });
@@ -123,9 +120,9 @@ describe('CborIndexStoreAdapter', () => {
       const shards = createTestShards();
       await adapter.writeShards(WarpStream.from(shards));
 
-      const mock = /** @type {import('vitest').Mock} */ (treePort.writeTree);
-      const firstCall = /** @type {unknown[]} */ (mock.mock.calls[0]);
-      const treeEntries = /** @type {string[]} */ (firstCall[0]);
+      const mock = (treePort.writeTree as any);
+      const firstCall = (mock.mock.calls[0] as unknown[]);
+      const treeEntries = (firstCall[0] as string[]);
       const paths = treeEntries.map((e) => e.split('\t')[1]).sort();
 
       expect(paths).toEqual([
@@ -177,7 +174,7 @@ describe('CborIndexStoreAdapter', () => {
       const [recovered] = await adapter.scanShards(treeOid).collect();
 
       expect(recovered).toBeInstanceOf(MetaShard);
-      const meta = /** @type {MetaShard} */ (recovered);
+      const meta = (recovered);
       expect(meta.shardKey).toBe('b3');
       expect(meta.nodeToGlobal).toEqual([['x', 10], ['y', 20]]);
       expect(meta.nextLocalId).toBe(21);
@@ -194,7 +191,7 @@ describe('CborIndexStoreAdapter', () => {
       const [recovered] = await adapter.scanShards(treeOid).collect();
 
       expect(recovered).toBeInstanceOf(EdgeShard);
-      const edge = /** @type {EdgeShard} */ (recovered);
+      const edge = (recovered);
       expect(edge.shardKey).toBe('ff');
       expect(edge.direction).toBe('fwd');
       expect(edge.buckets).toEqual({ all: { '5': new Uint8Array([0x01, 0x02]) } });
@@ -208,7 +205,7 @@ describe('CborIndexStoreAdapter', () => {
       const [recovered] = await adapter.scanShards(treeOid).collect();
 
       expect(recovered).toBeInstanceOf(LabelShard);
-      const label = /** @type {LabelShard} */ (recovered);
+      const label = (recovered);
       expect(label.labels).toEqual([['edge_type_a', 0], ['edge_type_b', 1]]);
     });
 
@@ -221,7 +218,7 @@ describe('CborIndexStoreAdapter', () => {
       const [recovered] = await adapter.scanShards(treeOid).collect();
 
       expect(recovered).toBeInstanceOf(PropertyShard);
-      const prop = /** @type {PropertyShard} */ (recovered);
+      const prop = (recovered);
       expect(prop.shardKey).toBe('c2');
       expect(prop.entries).toEqual([['node:x', { k: 'v', n: 42 }]]);
     });
@@ -237,7 +234,7 @@ describe('CborIndexStoreAdapter', () => {
       const [recovered] = await adapter.scanShards(treeOid).collect();
 
       expect(recovered).toBeInstanceOf(ReceiptShard);
-      const receipt = /** @type {ReceiptShard} */ (recovered);
+      const receipt = (recovered);
       expect(receipt.version).toBe(2);
       expect(receipt.nodeCount).toBe(1000);
       expect(receipt.labelCount).toBe(50);

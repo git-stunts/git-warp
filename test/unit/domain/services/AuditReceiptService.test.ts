@@ -65,10 +65,10 @@ describe('AuditReceiptService — Canonicalization', () => {
   });
 
   it('canonicalOpsJson matches spec Section 5.2', () => {
-    const ops = /** @type {const} */ ([
+    const ops = (([
       { op: 'NodeAdd', target: 'user:alice', result: 'applied' },
       { op: 'PropSet', target: 'user:alice\0name', result: 'applied' },
-    ]);
+    ]) as const);
     const json = canonicalOpsJson(ops);
     const hex = Buffer.from(json, 'utf8').toString('hex');
     expect(hex).toBe(
@@ -83,7 +83,7 @@ describe('AuditReceiptService — Canonicalization', () => {
 
 describe('AuditReceiptService — Domain Separator', () => {
   it('with vs without prefix produces different hashes', async () => {
-    const ops = /** @type {const} */ ([{ op: 'NodeAdd', target: 'test', result: 'applied' }]);
+    const ops = ([{ op: 'NodeAdd', target: 'test', result: 'applied' }] as const);
     const withPrefix = await computeOpsDigest(ops, testCrypto);
     const json = canonicalOpsJson(ops);
     const without = createHash('sha256').update(json).digest('hex');
@@ -102,36 +102,36 @@ describe('AuditReceiptService — Domain Separator', () => {
 
 describe('AuditReceiptService — Golden Vectors', () => {
   it('Vector 1: genesis receipt opsDigest', async () => {
-    const ops = /** @type {const} */ ([
+    const ops = (([
       { op: 'NodeAdd', target: 'user:alice', result: 'applied' },
       { op: 'PropSet', target: 'user:alice\0name', result: 'applied' },
-    ]);
+    ]) as const);
     const digest = await computeOpsDigest(ops, testCrypto);
     expect(digest).toBe('63df7eaa05e5dc38b436ffd562dad96d2175c7fa089fec6df8bb78bdc389b8fe');
   });
 
   it('Vector 2: continuation receipt opsDigest', async () => {
-    const ops = /** @type {const} */ ([
+    const ops = (([
       { op: 'EdgeAdd', target: 'user:alice\0user:bob\0follows', result: 'applied' },
-    ]);
+    ]) as const);
     const digest = await computeOpsDigest(ops, testCrypto);
     expect(digest).toBe('2d060db4f93b99b55c5effdf7f28042e09c1e93f1e0369a7e561bfc639f4e3d3');
   });
 
   it('Vector 3: mixed outcomes opsDigest', async () => {
-    const ops = /** @type {const} */ ([
+    const ops = (([
       { op: 'NodeAdd', target: 'user:charlie', result: 'applied' },
       { op: 'PropSet', target: 'user:alice\0name', result: 'superseded', reason: 'LWW: writer bob at lamport 5 wins' },
       { op: 'NodeAdd', target: 'user:alice', result: 'redundant' },
-    ]);
+    ]) as const);
     const digest = await computeOpsDigest(ops, testCrypto);
     expect(digest).toBe('c8e06e3a8b8d920dd9b27ebb4d5944e91053314150cd3671d0557d3cff58d057');
   });
 
   it('Vector 4: SHA-256 OIDs opsDigest', async () => {
-    const ops = /** @type {const} */ ([
+    const ops = (([
       { op: 'NodeAdd', target: 'server:prod-1', result: 'applied' },
-    ]);
+    ]) as const);
     const digest = await computeOpsDigest(ops, testCrypto);
     expect(digest).toBe('03a8cb1f891ac5b92277271559bf4e2f235a4313a04ab947c1ec5a4f78185cb8');
   });
@@ -167,7 +167,7 @@ describe('AuditReceiptService — buildReceiptRecord', () => {
   it('CBOR encoding of receipt matches expected key order', () => {
     const receipt = buildReceiptRecord(validFields());
     const encoded = cborEncode(receipt);
-    const decoded = /** @type {Record<string, unknown>} */ (defaultCodec.decode(encoded));
+    const decoded = (defaultCodec.decode(encoded) as Record<string, unknown>);
     const keys = Object.keys(decoded);
     expect(keys).toEqual([
       'dataCommit', 'graphName', 'opsDigest', 'prevAuditCommit',
@@ -278,10 +278,8 @@ describe('AuditReceiptService — buildReceiptRecord', () => {
 // ============================================================================
 
 describe('AuditReceiptService — commit flow', () => {
-  /** @type {InMemoryGraphAdapter} */
-  let persistence;
-  /** @type {AuditReceiptService} */
-  let service;
+    let persistence;
+    let service;
 
   beforeEach(async () => {
     persistence = new InMemoryGraphAdapter();
@@ -296,9 +294,9 @@ describe('AuditReceiptService — commit flow', () => {
   });
 
   it('init adopts the existing audit ref tip when present', async () => {
-    const persistence = /** @type {any} */ ({
+    const persistence = (({
       readRef: vi.fn(async () => 'a'.repeat(40)),
-    });
+    }) as any);
     const service = new AuditReceiptService({
       persistence,
       graphName: 'events',
@@ -309,27 +307,27 @@ describe('AuditReceiptService — commit flow', () => {
 
     await service.init();
 
-    expect(/** @type {any} */ (service)._prevAuditCommit).toBe('a'.repeat(40));
-    expect(/** @type {any} */ (service)._expectedOldRef).toBe('a'.repeat(40));
+    expect((service)._prevAuditCommit).toBe('a'.repeat(40));
+    expect((service)._expectedOldRef).toBe('a'.repeat(40));
   });
 
   it('init logs and resets state when reading the audit ref fails', async () => {
     const logger = { warn: vi.fn() };
-    const persistence = /** @type {any} */ ({
+    const persistence = (({
       readRef: vi.fn(async () => {
         throw new Error('ref read failed');
       }),
-    });
+    }) as any);
     const service = new AuditReceiptService({
       persistence,
       graphName: 'events',
       writerId: 'alice',
       codec: defaultCodec,
       crypto: testCrypto,
-      logger: /** @type {any} */ (logger),
+      logger: (logger),
     });
-    /** @type {any} */ (service)._prevAuditCommit = 'f'.repeat(40);
-    /** @type {any} */ (service)._expectedOldRef = 'f'.repeat(40);
+    (service)._prevAuditCommit = 'f'.repeat(40);
+    (service)._expectedOldRef = 'f'.repeat(40);
 
     await service.init();
 
@@ -337,8 +335,8 @@ describe('AuditReceiptService — commit flow', () => {
       code: 'AUDIT_INIT_READ_FAILED',
       writerId: 'alice',
     }));
-    expect(/** @type {any} */ (service)._prevAuditCommit).toBeNull();
-    expect(/** @type {any} */ (service)._expectedOldRef).toBeNull();
+    expect((service)._prevAuditCommit).toBeNull();
+    expect((service)._expectedOldRef).toBeNull();
   });
 
   function makeTickReceipt(lamport = 1, patchSha = 'a'.repeat(40)) {
@@ -347,7 +345,7 @@ describe('AuditReceiptService — commit flow', () => {
       writer: 'alice',
       lamport,
       ops: Object.freeze([
-        Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: 'user:alice', result: 'applied' })),
+        Object.freeze(({ op: 'NodeAdd', target: 'user:alice', result: 'applied' } as const)),
       ]),
     });
   }
@@ -371,7 +369,7 @@ describe('AuditReceiptService — commit flow', () => {
     expect(sha2).not.toBe(sha1);
 
     // Second commit should have first as parent
-    const info = await persistence.getNodeInfo(/** @type {string} */ (sha2));
+    const info = await persistence.getNodeInfo((sha2));
     expect(info.parents).toEqual([sha1]);
   });
 
@@ -387,7 +385,7 @@ describe('AuditReceiptService — commit flow', () => {
 
   it('audit commit tree contains receipt.cbor blob', async () => {
     const sha = await service.commit(makeTickReceipt());
-    const commit = (/** @type {any} */ (persistence))._commits.get(/** @type {string} */ (sha));
+    const commit = ((persistence))._commits.get((sha));
     expect(commit).toBeTruthy();
     const tree = await persistence.readTree(/** @type {{ treeOid: string }} */ (commit).treeOid);
     expect(tree).toHaveProperty('receipt.cbor');
@@ -396,7 +394,7 @@ describe('AuditReceiptService — commit flow', () => {
     // Decode the CBOR and verify structure
     const receiptBlob = tree['receipt.cbor'];
     expect(receiptBlob).toBeDefined();
-    const receipt = /** @type {Record<string, unknown>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (receiptBlob)));
+    const receipt = (defaultCodec.decode((receiptBlob)) as Record<string, unknown>);
     expect(receipt['version']).toBe(1);
     expect(receipt['graphName']).toBe('events');
     expect(receipt['writerId']).toBe('alice');
@@ -427,7 +425,7 @@ describe('AuditReceiptService — CAS conflict handling', () => {
       patchSha: 'a'.repeat(40),
       writer: 'alice',
       lamport: 1,
-      ops: Object.freeze([Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: 'n1', result: 'applied' }))]),
+      ops: Object.freeze([Object.freeze(({ op: 'NodeAdd', target: 'n1', result: 'applied' } as const))]),
     });
     await service.commit(receipt1);
 
@@ -440,7 +438,7 @@ describe('AuditReceiptService — CAS conflict handling', () => {
       patchSha: 'b'.repeat(40),
       writer: 'alice',
       lamport: 2,
-      ops: Object.freeze([Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: 'n2', result: 'applied' }))]),
+      ops: Object.freeze([Object.freeze(({ op: 'NodeAdd', target: 'n2', result: 'applied' } as const))]),
     });
     const sha2 = await service.commit(receipt2);
 
@@ -485,7 +483,7 @@ describe('AuditReceiptService — CAS conflict handling', () => {
       patchSha: 'a'.repeat(40),
       writer: 'alice',
       lamport: 1,
-      ops: Object.freeze([Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: 'n1', result: 'applied' }))]),
+      ops: Object.freeze([Object.freeze(({ op: 'NodeAdd', target: 'n1', result: 'applied' } as const))]),
     });
 
     // Should fail gracefully (commit() catches errors)
@@ -532,7 +530,7 @@ describe('AuditReceiptService — Error resilience', () => {
       patchSha: 'a'.repeat(40),
       writer: 'alice',
       lamport: 1,
-      ops: Object.freeze([Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: 'n1', result: 'applied' }))]),
+      ops: Object.freeze([Object.freeze(({ op: 'NodeAdd', target: 'n1', result: 'applied' } as const))]),
     });
 
     const result = await service.commit(receipt);
@@ -569,7 +567,7 @@ describe('AuditReceiptService — Error resilience', () => {
       patchSha: 'a'.repeat(40),
       writer: 'alice',
       lamport: 1,
-      ops: Object.freeze([Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: 'n1', result: 'applied' }))]),
+      ops: Object.freeze([Object.freeze(({ op: 'NodeAdd', target: 'n1', result: 'applied' } as const))]),
     });
 
     const result = await service.commit(receipt);
@@ -605,7 +603,7 @@ describe('AuditReceiptService — Error resilience', () => {
       patchSha: 'a'.repeat(40),
       writer: 'alice',
       lamport: 1,
-      ops: Object.freeze([Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: 'n1', result: 'applied' }))]),
+      ops: Object.freeze([Object.freeze(({ op: 'NodeAdd', target: 'n1', result: 'applied' } as const))]),
     });
 
     await service.commit(receipt);
@@ -641,7 +639,7 @@ describe('AuditReceiptService — cross-writer guard', () => {
       writer: 'eve', // ← wrong writer
       lamport: 1,
       ops: Object.freeze([
-        Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: 'x', result: 'applied' })),
+        Object.freeze(({ op: 'NodeAdd', target: 'x', result: 'applied' } as const)),
       ]),
     });
 
@@ -658,18 +656,18 @@ describe('AuditReceiptService — cross-writer guard', () => {
 
 describe('AuditReceiptService — TickReceipt integration', () => {
   it('ops with reason field → correct canonical key order', () => {
-    const ops = /** @type {const} */ ([
+    const ops = (([
       { op: 'PropSet', target: 'a\0b', result: 'superseded', reason: 'LWW conflict' },
-    ]);
+    ]) as const);
     const json = canonicalOpsJson(ops);
     // "reason" sorts before "result"
     expect(json).toContain('"reason":"LWW conflict","result":"superseded"');
   });
 
   it('ops without reason → field absent, not null', () => {
-    const ops = /** @type {const} */ ([
+    const ops = (([
       { op: 'NodeAdd', target: 'x', result: 'applied' },
-    ]);
+    ]) as const);
     const json = canonicalOpsJson(ops);
     expect(json).not.toContain('reason');
     expect(json).not.toContain('null');

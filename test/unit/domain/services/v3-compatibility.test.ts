@@ -137,35 +137,35 @@ describe('v3 Backward Compatibility', () => {
 
   describe('Type Safety', () => {
     it('isLegacyAnchor handles undefined', () => {
-      expect(isLegacyAnchor(/** @type {any} */ (undefined))).toBe(false);
+      expect(isLegacyAnchor((undefined))).toBe(false);
     });
 
     it('isLegacyAnchor handles numbers', () => {
-      expect(isLegacyAnchor(/** @type {any} */ (123))).toBe(false);
+      expect(isLegacyAnchor((123 as any))).toBe(false);
     });
 
     it('isLegacyAnchor handles objects', () => {
-      expect(isLegacyAnchor(/** @type {any} */ ({ _type: 'anchor' }))).toBe(false);
+      expect(isLegacyAnchor(({ _type: 'anchor' } as any))).toBe(false);
     });
 
     it('isLegacyAnchor handles arrays', () => {
-      expect(isLegacyAnchor(/** @type {any} */ (['{"_type":"anchor"}']))).toBe(false);
+      expect(isLegacyAnchor((['{"_type":"anchor"}'] as any))).toBe(false);
     });
 
     it('isAnyAnchor handles undefined', () => {
-      expect(isAnyAnchor(/** @type {any} */ (undefined))).toBe(false);
+      expect(isAnyAnchor((undefined))).toBe(false);
     });
 
     it('isAnyAnchor handles numbers', () => {
-      expect(isAnyAnchor(/** @type {any} */ (123))).toBe(false);
+      expect(isAnyAnchor((123 as any))).toBe(false);
     });
 
     it('isAnyAnchor handles objects', () => {
-      expect(isAnyAnchor(/** @type {any} */ ({ message: 'test' }))).toBe(false);
+      expect(isAnyAnchor(({ message: 'test' } as any))).toBe(false);
     });
 
     it('isAnyAnchor handles arrays', () => {
-      expect(isAnyAnchor(/** @type {any} */ (['test']))).toBe(false);
+      expect(isAnyAnchor((['test'] as any))).toBe(false);
     });
   });
 
@@ -191,7 +191,7 @@ describe('v3 Backward Compatibility', () => {
     it('handles empty commit list', () => {
       /** @type {{sha: string, message: string}[]} */
       const commits = [];
-      const filtered = commits.filter(c => !isAnyAnchor(c.message));
+      const filtered = commits.filter(c => !isAnyAnchor((c as any).message));
       expect(filtered).toHaveLength(0);
     });
 

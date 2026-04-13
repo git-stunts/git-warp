@@ -19,7 +19,7 @@ function makeFs(files = {}) {
   };
 }
 
-function makeExecGitConfig(overrides = /** @type {any} */ ({})) {
+function makeExecGitConfig(overrides = ({} as any)) {
   return vi.fn((_repoPath, key) => {
     if (key === '--git-dir') return overrides.gitDir || '.git';
     if (key === 'core.hooksPath') return overrides.hooksPath || null;
@@ -204,7 +204,7 @@ describe('HookInstaller.install', () => {
     expect(result.action).toBe('replaced');
     expect(result.backupPath).toContain('.backup');
 
-    const backup = fs._store.get(/** @type {string} */ (result.backupPath));
+    const backup = fs._store.get((result.backupPath as string));
     expect(backup).toBe(foreign);
 
     const written = fs._store.get(result.hookPath);
@@ -226,7 +226,7 @@ describe('HookInstaller.install', () => {
       '/tmpl/post-merge.sh': TEMPLATE,
     });
 
-    expect(() => installer.install('/repo', { strategy: /** @type {any} */ ('bogus') }))
+    expect(() => installer.install('/repo', { strategy: ('bogus' as any) }))
       .toThrow('Unknown install strategy: bogus');
   });
 });
@@ -310,8 +310,7 @@ describe('hooks directory resolution', () => {
 // ── Template integrity ──────────────────────────────────────────────────────
 
 describe('template integrity', () => {
-  /** @type {any} */
-  let templateContent;
+    let templateContent;
 
   beforeEach(async () => {
     const { readFileSync } = await import('node:fs');

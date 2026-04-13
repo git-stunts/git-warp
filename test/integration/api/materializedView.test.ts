@@ -3,8 +3,7 @@ import { createTestRepo } from './helpers/setup.js';
 import BitmapNeighborProvider from '../../../src/domain/services/index/BitmapNeighborProvider.ts';
 
 describe('API: MaterializedView', () => {
-  /** @type {any} */
-  let repo;
+    let repo;
 
   beforeEach(async () => {
     repo = await createTestRepo('materialized-view');

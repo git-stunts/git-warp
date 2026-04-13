@@ -4,8 +4,7 @@ import { createTestRepo } from './helpers/setup.js';
 import PersistenceError from '../../../src/domain/errors/PersistenceError.ts';
 
 describe('API: Content Attachment', () => {
-  /** @type {any} */
-  let repo;
+    let repo;
 
   beforeEach(async () => {
     repo = await createTestRepo('content');

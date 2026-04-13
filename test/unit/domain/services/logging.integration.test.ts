@@ -37,12 +37,9 @@ function createMockLogger() {
 
 describe('Service Logging Integration', () => {
   describe('IndexRebuildService', () => {
-    /** @type {any} */
-    let mockGraphService;
-    /** @type {any} */
-    let mockStorage;
-    /** @type {any} */
-    let mockLogger;
+        let mockGraphService;
+        let mockStorage;
+        let mockLogger;
 
     beforeEach(() => {
       mockGraphService = {
@@ -61,11 +58,11 @@ describe('Service Logging Integration', () => {
 
     describe('rebuild', () => {
       it('logs info at start and completion', async () => {
-        const service = new IndexRebuildService(/** @type {any} */ ({
+        const service = new IndexRebuildService((({
           graphService: mockGraphService,
           storage: mockStorage,
           logger: mockLogger
-        }));
+        }) as any));
 
         await service.rebuild('HEAD');
 
@@ -89,11 +86,11 @@ describe('Service Logging Integration', () => {
           throw new Error('Graph error');
         });
 
-        const service = new IndexRebuildService(/** @type {any} */ ({
+        const service = new IndexRebuildService((({
           graphService: mockGraphService,
           storage: mockStorage,
           logger: mockLogger
-        }));
+        }) as any));
 
         await expect(service.rebuild('HEAD')).rejects.toThrow('Graph error');
 
@@ -104,11 +101,11 @@ describe('Service Logging Integration', () => {
       });
 
       it('indicates streaming mode in logs', async () => {
-        const service = new IndexRebuildService(/** @type {any} */ ({
+        const service = new IndexRebuildService((({
           graphService: mockGraphService,
           storage: mockStorage,
           logger: mockLogger
-        }));
+        }) as any));
 
         await service.rebuild('HEAD', { maxMemoryBytes: 1024 * 1024 });
 
@@ -120,11 +117,11 @@ describe('Service Logging Integration', () => {
 
     describe('load', () => {
       it('logs debug on load', async () => {
-        const service = new IndexRebuildService(/** @type {any} */ ({
+        const service = new IndexRebuildService((({
           graphService: mockGraphService,
           storage: mockStorage,
           logger: mockLogger
-        }));
+        }) as any));
 
         await service.load('tree-oid');
 
@@ -141,11 +138,11 @@ describe('Service Logging Integration', () => {
       });
 
       it('creates child logger for BitmapIndexReader', async () => {
-        const service = new IndexRebuildService(/** @type {any} */ ({
+        const service = new IndexRebuildService((({
           graphService: mockGraphService,
           storage: mockStorage,
           logger: mockLogger
-        }));
+        }) as any));
 
         await service.load('tree-oid');
 
@@ -156,10 +153,8 @@ describe('Service Logging Integration', () => {
   });
 
   describe('BitmapIndexReader', () => {
-    /** @type {any} */
-    let mockStorage;
-    /** @type {any} */
-    let mockLogger;
+        let mockStorage;
+        let mockLogger;
 
     beforeEach(() => {
       mockStorage = {
@@ -179,12 +174,12 @@ describe('Service Logging Integration', () => {
           }))
         );
 
-        const reader = new BitmapIndexReader(/** @type {any} */ ({
+        const reader = new BitmapIndexReader((({
           storage: mockStorage,
           strict: false,
           logger: mockLogger,
           crypto,
-        }));
+        }) as any));
         reader.setup({ 'meta_sh.cbor': 'aaa1bbb2ccc3ddd4eee5fff6aaa7bbb8ccc9ddd0' });
 
         const id = await reader.lookupId('sha123');

@@ -2,18 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import HealthCheckService, { HealthStatus } from '../../../../src/domain/services/HealthCheckService.ts';
 
 describe('HealthCheckService', () => {
-  /** @type {any} */
-  let service;
-  /** @type {any} */
-  let mockPersistence;
-  /** @type {any} */
-  let mockClock;
-  /** @type {any} */
-  let mockIndexReader;
-  /** @type {any} */
-  let mockLogger;
-  /** @type {any} */
-  let currentTime;
+    let service;
+    let mockPersistence;
+    let mockClock;
+    let mockIndexReader;
+    let mockLogger;
+    let currentTime;
 
   beforeEach(() => {
     currentTime = 0;
@@ -43,22 +37,22 @@ describe('HealthCheckService', () => {
       child: vi.fn().mockReturnThis(),
     };
 
-    service = new HealthCheckService(/** @type {any} */ ({
+    service = new HealthCheckService((({
       persistence: mockPersistence,
       clock: mockClock,
       cacheTtlMs: 5000,
       logger: mockLogger,
-    }));
+    }) as any));
   });
 
   describe('constructor', () => {
     it('accepts persistence, clock, and optional parameters', () => {
-      const s = new HealthCheckService(/** @type {any} */ ({ persistence: mockPersistence, clock: mockClock }));
+      const s = new HealthCheckService(({ persistence: mockPersistence, clock: mockClock } as any));
       expect(s).toBeDefined();
     });
 
     it('uses default cache TTL of 5000ms', async () => {
-      const s = new HealthCheckService(/** @type {any} */ ({ persistence: mockPersistence, clock: mockClock }));
+      const s = new HealthCheckService(({ persistence: mockPersistence, clock: mockClock } as any));
       await s.getHealth();
 
       // Call again immediately - should be cached
@@ -73,11 +67,11 @@ describe('HealthCheckService', () => {
     });
 
     it('allows custom cache TTL', async () => {
-      const s = new HealthCheckService(/** @type {any} */ ({
+      const s = new HealthCheckService((({
         persistence: mockPersistence,
         clock: mockClock,
         cacheTtlMs: 1000,
-      }));
+      }) as any));
       await s.getHealth();
 
       // Advance 1.5 seconds - should expire

@@ -27,7 +27,7 @@ function makeMockPersistence({ hasPlumbing = false } = {}) {
     writeTree: vi.fn().mockResolvedValue('a'.repeat(40)),
   };
   if (hasPlumbing) {
-    /** @type {any} */ (persistence).plumbing = {};
+    (persistence).plumbing = {};
   }
   return persistence;
 }
@@ -41,7 +41,7 @@ describe('WarpRuntime blob storage auto-construction (OG-014)', () => {
     });
 
     // _blobStorage should not be null — it should be auto-constructed
-    expect(/** @type {any} */ (graph)._blobStorage).not.toBeNull();
+    expect((graph)._blobStorage).not.toBeNull();
   });
 
   it('auto-constructs InMemoryBlobStorageAdapter when persistence lacks plumbing', async () => {
@@ -51,7 +51,7 @@ describe('WarpRuntime blob storage auto-construction (OG-014)', () => {
       writerId: 'w1',
     });
 
-    const bs = /** @type {any} */ (graph)._blobStorage;
+    const bs = (graph)._blobStorage;
     expect(bs).not.toBeNull();
     // Should have the streaming methods
     expect(typeof bs.storeStream).toBe('function');
@@ -69,10 +69,10 @@ describe('WarpRuntime blob storage auto-construction (OG-014)', () => {
       persistence: makeMockPersistence(),
       graphName: 'test',
       writerId: 'w1',
-      blobStorage: /** @type {any} */ (customStorage),
+      blobStorage: (customStorage),
     });
 
-    expect(/** @type {any} */ (graph)._blobStorage).toBe(customStorage);
+    expect((graph)._blobStorage).toBe(customStorage);
   });
 
   it('attachContent uses blob storage even when caller did not provide one', async () => {
@@ -88,7 +88,7 @@ describe('WarpRuntime blob storage auto-construction (OG-014)', () => {
     // This should NOT call persistence.writeBlob — it should use auto-constructed blob storage
     await patch.attachContent('n1', 'hello');
 
-    const persistence = /** @type {any} */ (graph)._persistence;
+    const persistence = (graph)._persistence;
     expect(persistence.writeBlob).not.toHaveBeenCalled();
   });
 });

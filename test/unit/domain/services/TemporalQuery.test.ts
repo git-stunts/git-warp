@@ -315,8 +315,7 @@ describe('TemporalQuery', () => {
       ];
 
       const tq = createTemporalWithPatches(patches);
-      /** @type {any[]} */
-      const snapshots: any[] = [];
+            const snapshots: any[] = [];
 
       await tq.always('X', (/** @type {any} */ n) => {
         snapshots.push({

@@ -10,10 +10,8 @@ function addProp(/** @type {any} */ state, /** @type {any} */ nodeId, /** @type 
 }
 
 describe('WarpRuntime QueryBuilder', () => {
-  /** @type {any} */
-  let mockPersistence;
-  /** @type {any} */
-  let graph;
+    let mockPersistence;
+    let graph;
 
   beforeEach(async () => {
     mockPersistence = {
@@ -41,7 +39,7 @@ describe('WarpRuntime QueryBuilder', () => {
     try {
       graph.query().match(123);
     } catch (/** @type {any} */ err) {
-      expect(err.code).toBe('E_QUERY_MATCH_TYPE');
+      expect((err as any).code).toBe('E_QUERY_MATCH_TYPE');
     }
   });
 
@@ -97,7 +95,7 @@ describe('WarpRuntime QueryBuilder', () => {
     try {
       graph.query().where({ role: { name: 'admin' } });
     } catch (/** @type {any} */ err) {
-      expect(err.code).toBe('E_QUERY_WHERE_VALUE_TYPE');
+      expect((err as any).code).toBe('E_QUERY_WHERE_VALUE_TYPE');
     }
   });
 
@@ -239,7 +237,7 @@ describe('WarpRuntime QueryBuilder', () => {
       await graph.query().match('user:alice').select(['id', 'bogus']).run();
     } catch (/** @type {any} */ err) {
       expect(err).toBeInstanceOf(QueryError);
-      expect(err.code).toBe('E_QUERY_SELECT_FIELD');
+      expect((err as any).code).toBe('E_QUERY_SELECT_FIELD');
     }
   });
 
@@ -254,23 +252,23 @@ describe('WarpRuntime QueryBuilder', () => {
   });
 
   it('select rejects non-array input', () => {
-    expect(() => graph.query().select(/** @type {any} */ ('id'))).toThrow(QueryError);
+    expect(() => graph.query().select(('id' as any))).toThrow(QueryError);
     try {
-      graph.query().select(/** @type {any} */ ('id'));
+      graph.query().select(('id' as any));
     } catch (/** @type {any} */ err) {
-      expect(err.code).toBe('E_QUERY_SELECT_TYPE');
+      expect((err as any).code).toBe('E_QUERY_SELECT_TYPE');
     }
   });
 
   it('outgoing rejects invalid labels and depth values', () => {
-    expect(() => graph.query().outgoing(/** @type {any} */ (123))).toThrow(QueryError);
-    expect(() => graph.query().outgoing(undefined, { depth: /** @type {any} */ (-1) })).toThrow(QueryError);
-    expect(() => graph.query().outgoing(undefined, { depth: /** @type {any} */ ([2, 1]) })).toThrow(QueryError);
+    expect(() => graph.query().outgoing((123 as any))).toThrow(QueryError);
+    expect(() => graph.query().outgoing(undefined, { depth: (-1 as any) })).toThrow(QueryError);
+    expect(() => graph.query().outgoing(undefined, { depth: ([2, 1] as any) })).toThrow(QueryError);
   });
 
   it('incoming rejects invalid labels and depth tuples', () => {
-    expect(() => graph.query().incoming(/** @type {any} */ (123))).toThrow(QueryError);
-    expect(() => graph.query().incoming(undefined, { depth: /** @type {any} */ (['a', 1]) })).toThrow(QueryError);
+    expect(() => graph.query().incoming((123 as any))).toThrow(QueryError);
+    expect(() => graph.query().incoming(undefined, { depth: (['a', 1] as any) })).toThrow(QueryError);
   });
 
   it('single-hop traversal skips non-matching labels', async () => {
@@ -381,8 +379,8 @@ describe('WarpRuntime QueryBuilder', () => {
   });
 
   it('aggregate validates spec types', () => {
-    expect(() => graph.query().aggregate({ sum: /** @type {any} */ (123) })).toThrow(QueryError);
-    expect(() => graph.query().aggregate({ count: /** @type {any} */ ('yes') })).toThrow(QueryError);
+    expect(() => graph.query().aggregate({ sum: (123 as any) })).toThrow(QueryError);
+    expect(() => graph.query().aggregate({ count: ('yes' as any) })).toThrow(QueryError);
   });
 
   it('aggregate computes numeric summaries and ignores non-numeric nested misses', async () => {

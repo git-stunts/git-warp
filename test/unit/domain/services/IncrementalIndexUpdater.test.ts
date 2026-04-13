@@ -356,7 +356,7 @@ describe('IncrementalIndexUpdater', () => {
       const tree = buildTree(state);
 
       // Tamper with the meta shard: push nextLocalId to the limit
-      const metaBuf = /** @type {Uint8Array} */ (tree[`meta_${shardKey}.cbor`]);
+      const metaBuf = (tree[`meta_${shardKey}.cbor`] as Uint8Array);
       const meta = /** @type {{nextLocalId: number, nodeToGlobal: Array<[string, number]>, alive: Uint8Array}} */ (defaultCodec.decode(metaBuf));
       meta.nextLocalId = (1 << 24);
       tree[`meta_${shardKey}.cbor`] = new Uint8Array(defaultCodec.encode(meta));
@@ -627,7 +627,7 @@ describe('IncrementalIndexUpdater', () => {
       const tree2 = { ...tree1, ...dirtyShards };
       const propsMap = decodeProps(tree2, shardKey);
       if (!propsMap) { throw new Error('expected propsMap'); }
-      const aProps = /** @type {Record<string, unknown>} */ (propsMap.get('A'));
+      const aProps = (propsMap.get('A') as Record<string, unknown>);
       expect(aProps['name']).toBe('Bob');
     });
   });
@@ -663,9 +663,9 @@ describe('IncrementalIndexUpdater', () => {
 
       // Should be safe — no prototype poisoning
       if (!propsMap) { throw new Error('expected propsMap'); }
-      const proto = /** @type {Record<string, unknown>} */ (propsMap.get('__proto__'));
+      const proto = (propsMap.get('__proto__') as Record<string, unknown>);
       expect(proto['x']).toBe(1);
-      expect(/** @type {Record<string, unknown>} */ ({})['x']).toBeUndefined();
+      expect(({} as Record<string, unknown>)['x']).toBeUndefined();
     });
 
     it('normalizes legacy prop bags before writing arbitrary keys', () => {
@@ -699,11 +699,11 @@ describe('IncrementalIndexUpdater', () => {
       const tree2 = { ...tree1, ...dirtyShards };
       const propsMap = decodeProps(tree2, shardKey);
       if (!propsMap) { throw new Error('expected propsMap'); }
-      const aProps = /** @type {Record<string, unknown>} */ (propsMap.get('A'));
+      const aProps = (propsMap.get('A') as Record<string, unknown>);
 
       expect(aProps['name']).toBe('Alice');
       expect(Reflect.get(Object.getPrototypeOf(aProps), 'polluted')).toBeUndefined();
-      expect(/** @type {Record<string, unknown>} */ ({})['polluted']).toBeUndefined();
+      expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
     });
   });
 
@@ -736,7 +736,7 @@ describe('IncrementalIndexUpdater', () => {
       const RoaringBitmap32 = getRoaringBitmap32();
       const nodeUpdater = new IndexNodeUpdater();
       const emptyMeta = {
-        nodeToGlobal: /** @type {Array<[string, number]>} */ ([]),
+        nodeToGlobal: ([] as Array<[string, number]>),
         nextLocalId: 0,
         aliveBitmap: new RoaringBitmap32(),
         globalToNode: new Map(),
@@ -753,7 +753,7 @@ describe('IncrementalIndexUpdater', () => {
       const RoaringBitmap32 = getRoaringBitmap32();
       const nodeUpdater = new IndexNodeUpdater();
       const emptyMeta = {
-        nodeToGlobal: /** @type {Array<[string, number]>} */ ([]),
+        nodeToGlobal: ([] as Array<[string, number]>),
         nextLocalId: 0,
         aliveBitmap: new RoaringBitmap32(),
         globalToNode: new Map(),
@@ -774,7 +774,7 @@ describe('IncrementalIndexUpdater', () => {
       const RoaringBitmap32 = getRoaringBitmap32();
       const edgeUpdater = new IndexEdgeUpdater();
       const emptyMeta = {
-        nodeToGlobal: /** @type {Array<[string, number]>} */ ([]),
+        nodeToGlobal: ([] as Array<[string, number]>),
         nextLocalId: 0,
         aliveBitmap: new RoaringBitmap32(),
         globalToNode: new Map(),
@@ -798,7 +798,7 @@ describe('IncrementalIndexUpdater', () => {
     });
 
     it('ignores non-matching cache prefixes when flushing edge shards', () => {
-      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
+      const updater = (new IncrementalIndexUpdater() as any);
       const out = {};
       const cache = new Map([
         ['rev_aa', { all: { '1': new Uint8Array([1]) } }],
@@ -811,7 +811,7 @@ describe('IncrementalIndexUpdater', () => {
     });
 
     it('returns a null-prototype label registry when labels.cbor is absent', () => {
-      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
+      const updater = (new IncrementalIndexUpdater() as any);
 
       const labels = updater._loadLabels(() => undefined);
 
@@ -825,7 +825,7 @@ describe('IncrementalIndexUpdater', () => {
         edges: [{ from: 'A', to: 'B', label: 'rel' }],
         props: [],
       });
-      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
+      const updater = (new IncrementalIndexUpdater() as any);
       const emptyDiff = {
         nodesAdded: [],
         nodesRemoved: [],
@@ -843,7 +843,7 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [],
       });
 
-      expect([.../** @type {Set<string>} */ (adjacency.get('A'))]).toEqual([encodeEdgeKey('A', 'B', 'rel')]);
+      expect([...(adjacency.get('A') as Set<string>)]).toEqual([encodeEdgeKey('A', 'B', 'rel')]);
       expect(adjacency.get('C')).toBeUndefined();
     });
 
@@ -853,7 +853,7 @@ describe('IncrementalIndexUpdater', () => {
         edges: [{ from: 'A', to: 'B', label: 'rel' }],
         props: [],
       });
-      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
+      const updater = (new IncrementalIndexUpdater() as any);
       const edgeKey = encodeEdgeKey('A', 'C', 'rel');
 
       updater._getOrBuildAliveEdgeAdjacency(state, {
@@ -874,14 +874,13 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [],
       });
 
-      expect(/** @type {Set<string>} */ (adjacency.get('A'))?.has(edgeKey)).toBe(true);
-      expect(/** @type {Set<string>} */ (adjacency.get('C'))?.has(edgeKey)).toBe(true);
+      expect((adjacency.get('A') as Set<string>)?.has(edgeKey)).toBe(true);
+      expect((adjacency.get('C') as Set<string>)?.has(edgeKey)).toBe(true);
     });
 
     it('ignores missing adjacency sets when removing an edge key', () => {
-      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
-      /** @type {Map<string, Set<string>>} */
-      const adjacency = new Map();
+      const updater = (new IncrementalIndexUpdater() as any);
+            const adjacency = (new Map()) as Map<string, Set<string>>;
 
       updater._removeEdgeKeyFromAdjacency(adjacency, 'ghost', encodeEdgeKey('A', 'B', 'rel'));
 

@@ -139,20 +139,18 @@ async function simulatePatchCommit(persistence, {
 }
 
 describe('WarpCore strand foundation', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {WarpCoreRuntime} */
-  let graph;
+    let persistence;
+    let graph;
   const graphName = 'strands-demo';
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = /** @type {WarpCoreRuntime} */ (await WarpCore.open({
+    graph = ((await WarpCore.open({
       persistence,
       graphName,
       writerId: 'tester',
       autoMaterialize: false,
-    }));
+    })) as WarpCoreRuntime);
   });
 
   it('creates durable strand descriptors with empty overlay identity', async () => {
@@ -220,10 +218,10 @@ describe('WarpCore strand foundation', () => {
       ],
     });
 
-    const redState = /** @type {any} */ (await graph.materializeCoordinate({
+    const redState = ((await graph.materializeCoordinate({
       frontier: Object.fromEntries(frontierAtRed),
       ceiling: null,
-    }));
+    })) as any);
     const redReader = createStateReader(redState);
 
     expect(redReader.getNodeProps('n1')).toMatchObject({ color: 'red' });
@@ -419,7 +417,7 @@ describe('WarpCore strand foundation', () => {
     });
     expect(descriptor?.braid).toEqual({ readOverlays: [] });
 
-    const strandState = /** @type {any} */ (await graph.materializeStrand('ws_overlay'));
+    const strandState = (await graph.materializeStrand('ws_overlay') as any);
     const reader = createStateReader(strandState);
 
     expect(reader.getNodeProps('n1')).toMatchObject({ color: 'blue' });
@@ -489,12 +487,12 @@ describe('WarpCore strand foundation', () => {
       p.setProperty('n1', 'color', 'blue');
     });
 
-    const limitedState = /** @type {any} */ (await graph.materializeStrand('ws_ceiling', { ceiling: 1 }));
+    const limitedState = (await graph.materializeStrand('ws_ceiling', { ceiling: 1 }) as any);
     const limitedReader = createStateReader(limitedState);
 
     expect(limitedReader.getNodeProps('n1')).toMatchObject({ color: 'red' });
 
-    const fullState = /** @type {any} */ (await graph.materializeStrand('ws_ceiling'));
+    const fullState = (await graph.materializeStrand('ws_ceiling') as any);
     const fullReader = createStateReader(fullState);
 
     expect(fullReader.getNodeProps('n1')).toMatchObject({ color: 'blue' });
@@ -546,7 +544,7 @@ describe('WarpCore strand foundation', () => {
     ]);
     expect(await persistence.readRef(buildStrandBraidRef(graphName, 'ws_target', 'ws_support'))).toBe(supportSha);
 
-    const braidedState = /** @type {any} */ (await graph.materializeStrand('ws_target'));
+    const braidedState = (await graph.materializeStrand('ws_target') as any);
     const braidedReader = createStateReader(braidedState);
 
     expect(braidedReader.getNodeProps('n1')).toMatchObject({

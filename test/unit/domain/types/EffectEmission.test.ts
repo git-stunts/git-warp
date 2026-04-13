@@ -6,8 +6,7 @@ import {
   DELIVERY_OUTCOMES,
 } from '../../../../src/domain/types/EffectEmission.ts';
 
-/** @type {any} */
-const create = createEffectEmission;
+const create = (createEffectEmission) as any;
 
 describe('EffectEmission', () => {
   // -----------------------------------------------------------------------

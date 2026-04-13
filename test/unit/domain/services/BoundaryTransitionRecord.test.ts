@@ -9,8 +9,7 @@ import {
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
-/** @type {(...args: any[]) => any} */
-const reduceV5 = _reduceV5;
+const reduceV5 = (_reduceV5) as (...args: any[]) => any;
 import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
@@ -110,10 +109,10 @@ describe('BoundaryTransitionRecord', () => {
     it('throws WarpError with E_BTR_INVALID_PAYLOAD for non-ProvenancePayload', async () => {
       const initialState = createEmptyState();
 
-      await expect(createBTR(initialState, /** @type {any} */ ([]), { key: testKey, crypto })).rejects.toThrow(WarpError);
-      await expect(createBTR(initialState, /** @type {any} */ ({}), { key: testKey, crypto })).rejects.toThrow(WarpError);
-      await expect(createBTR(initialState, /** @type {any} */ (null), { key: testKey, crypto })).rejects.toThrow(WarpError);
-      await expect(createBTR(initialState, /** @type {any} */ ([]), { key: testKey, crypto })).rejects.toMatchObject({ code: 'E_BTR_INVALID_PAYLOAD' });
+      await expect(createBTR(initialState, ([] as any), { key: testKey, crypto })).rejects.toThrow(WarpError);
+      await expect(createBTR(initialState, ({} as any), { key: testKey, crypto })).rejects.toThrow(WarpError);
+      await expect(createBTR(initialState, (null), { key: testKey, crypto })).rejects.toThrow(WarpError);
+      await expect(createBTR(initialState, ([] as any), { key: testKey, crypto })).rejects.toMatchObject({ code: 'E_BTR_INVALID_PAYLOAD' });
     });
 
     it('produces different kappa for different keys', async () => {
@@ -169,7 +168,7 @@ describe('BoundaryTransitionRecord', () => {
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
       const tampered = { ...btr, h_in: 'tampered_hash_value' };
 
-      const result = await verifyBTR(/** @type {any} */ (tampered), testKey, { crypto });
+      const result = await verifyBTR((tampered), testKey, { crypto });
 
       expect(result.valid).toBe(false);
       expect(result.reason).toBe('Authentication tag mismatch');
@@ -182,7 +181,7 @@ describe('BoundaryTransitionRecord', () => {
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
       const tampered = { ...btr, h_out: 'tampered_hash_value' };
 
-      const result = await verifyBTR(/** @type {any} */ (tampered), testKey, { crypto });
+      const result = await verifyBTR((tampered), testKey, { crypto });
 
       expect(result.valid).toBe(false);
       expect(result.reason).toBe('Authentication tag mismatch');
@@ -195,7 +194,7 @@ describe('BoundaryTransitionRecord', () => {
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
       const tampered = { ...btr, t: '1999-01-01T00:00:00.000Z' };
 
-      const result = await verifyBTR(/** @type {any} */ (tampered), testKey, { crypto });
+      const result = await verifyBTR((tampered), testKey, { crypto });
 
       expect(result.valid).toBe(false);
       expect(result.reason).toBe('Authentication tag mismatch');
@@ -209,7 +208,7 @@ describe('BoundaryTransitionRecord', () => {
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
       const tampered = { ...btr, P: [] };
 
-      const result = await verifyBTR(/** @type {any} */ (tampered), testKey, { crypto });
+      const result = await verifyBTR((tampered), testKey, { crypto });
 
       expect(result.valid).toBe(false);
       expect(result.reason).toBe('Authentication tag mismatch');
@@ -223,7 +222,7 @@ describe('BoundaryTransitionRecord', () => {
       // Use valid hex that differs from the real kappa
       const tampered = { ...btr, kappa: 'aa'.repeat(btr.kappa.length / 2) };
 
-      const result = await verifyBTR(/** @type {any} */ (tampered), testKey, { crypto });
+      const result = await verifyBTR((tampered), testKey, { crypto });
 
       expect(result.valid).toBe(false);
       expect(result.reason).toBe('Authentication tag mismatch');
@@ -233,11 +232,11 @@ describe('BoundaryTransitionRecord', () => {
       // null passes `typeof btr !== 'object'` check (typeof null === 'object'),
       // so validateBTRStructure proceeds to findMissingField which throws TypeError
       // when using 'in' operator on null. The caller should validate before invoking.
-      await expect(verifyBTR(/** @type {any} */ (null), testKey)).rejects.toThrow(TypeError);
+      await expect(verifyBTR((null), testKey)).rejects.toThrow(TypeError);
     });
 
     it('rejects BTR missing required fields', async () => {
-      const partialBTR = /** @type {any} */ ({ version: 1, h_in: 'abc' });
+      const partialBTR = ({ version: 1, h_in: 'abc' } as any);
       const result = await verifyBTR(partialBTR, testKey);
 
       expect(result.valid).toBe(false);
@@ -251,7 +250,7 @@ describe('BoundaryTransitionRecord', () => {
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
       const tampered = { ...btr, version: 999 };
 
-      const result = await verifyBTR(/** @type {any} */ (tampered), testKey, { crypto });
+      const result = await verifyBTR((tampered), testKey, { crypto });
 
       expect(result.valid).toBe(false);
       expect(result.reason).toContain('Unsupported BTR version');
@@ -283,7 +282,7 @@ describe('BoundaryTransitionRecord', () => {
         const tamperedBtr = { ...btr, h_out: 'tampered_hash_value' };
 
         // replayBTR will compute the correct h_out from U_0 and P
-        const { h_out: computedHash } = await replayBTR(/** @type {any} */ (tamperedBtr), { crypto });
+        const { h_out: computedHash } = await replayBTR((tamperedBtr), { crypto });
 
         // The computed hash should NOT match the tampered value
         expect(computedHash).not.toBe(tamperedBtr.h_out);
@@ -303,7 +302,7 @@ describe('BoundaryTransitionRecord', () => {
         const tamperedBtr = { ...btr, h_out: 'wrong_hash' };
 
         // HMAC check catches the tamper (h_out is covered by HMAC)
-        const result = await verifyBTR(/** @type {any} */ (tamperedBtr), testKey, { verifyReplay: true, crypto });
+        const result = await verifyBTR((tamperedBtr), testKey, { verifyReplay: true, crypto });
         expect(result.valid).toBe(false);
         expect(result.reason).toBe('Authentication tag mismatch');
       });
@@ -486,7 +485,7 @@ describe('BoundaryTransitionRecord', () => {
       const invalidKappa = btr.kappa.slice(0, -2) + 'GG';
       const tampered = { ...btr, kappa: invalidKappa };
 
-      const result = await verifyBTR(/** @type {any} */ (tampered), testKey, { crypto });
+      const result = await verifyBTR((tampered), testKey, { crypto });
 
       expect(result.valid).toBe(false);
       expect(result.reason).toContain('Invalid hex');
@@ -504,7 +503,7 @@ describe('BoundaryTransitionRecord', () => {
       const tamperedKappa = flippedChar + originalKappa.slice(1);
 
       const tampered = { ...btr, kappa: tamperedKappa };
-      const result = await verifyBTR(/** @type {any} */ (tampered), testKey, { crypto });
+      const result = await verifyBTR((tampered), testKey, { crypto });
 
       expect(result.valid).toBe(false);
     });
@@ -518,7 +517,7 @@ describe('BoundaryTransitionRecord', () => {
 
       // Add another patch
       const tampered = { ...btr, P: [...btr.P, patchB] };
-      const result = await verifyBTR(/** @type {any} */ (tampered), testKey, { crypto });
+      const result = await verifyBTR((tampered), testKey, { crypto });
 
       expect(result.valid).toBe(false);
     });
@@ -532,7 +531,7 @@ describe('BoundaryTransitionRecord', () => {
 
       // Remove a patch
       const tampered = { ...btr, P: [btr.P[0]] };
-      const result = await verifyBTR(/** @type {any} */ (tampered), testKey, { crypto });
+      const result = await verifyBTR((tampered), testKey, { crypto });
 
       expect(result.valid).toBe(false);
     });
@@ -546,7 +545,7 @@ describe('BoundaryTransitionRecord', () => {
 
       // Reorder patches
       const tampered = { ...btr, P: [btr.P[1], btr.P[0]] };
-      const result = await verifyBTR(/** @type {any} */ (tampered), testKey, { crypto });
+      const result = await verifyBTR((tampered), testKey, { crypto });
 
       expect(result.valid).toBe(false);
     });

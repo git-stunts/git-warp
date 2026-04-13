@@ -3,22 +3,22 @@ import fc from 'fast-check';
 import { canonicalStringify } from '../../../../src/domain/utils/canonicalStringify.ts';
 import { TrustRecordSchema } from '../../../../src/domain/trust/schemas.ts';
 
-const HEX_CHARS = /** @type {const} */ ([
+const HEX_CHARS = (([
   '0', '1', '2', '3', '4', '5', '6', '7',
   '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
-]);
+]) as const);
 
-const REVOKE_REASONS = /** @type {const} */ ([
+const REVOKE_REASONS = (([
   'KEY_COMPROMISE',
   'KEY_ROLLOVER',
   'OPERATOR_REQUEST',
-]);
+]) as const);
 
-const BIND_REVOKE_REASONS = /** @type {const} */ ([
+const BIND_REVOKE_REASONS = (([
   'ACCESS_REMOVED',
   'ROTATION',
   'KEY_REVOKED',
-]);
+]) as const);
 
 const hex64Arb = fc.array(fc.constantFrom(...HEX_CHARS), { minLength: 64, maxLength: 64 })
   .map((chars) => chars.join(''));

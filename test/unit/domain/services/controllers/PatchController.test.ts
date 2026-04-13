@@ -33,7 +33,7 @@ const { joinStatesMock, applyWithDiffMock, applyWithReceiptMock } = vi.hoisted((
 }));
 
 vi.mock('../../../../../src/domain/services/JoinReducer.ts', async (importOriginal) => {
-  const original = /** @type {Record<string, unknown>} */ (await importOriginal());
+  const original = (await importOriginal() as Record<string, unknown>);
   return {
     ...original,
     joinStates: joinStatesMock,
@@ -48,7 +48,7 @@ const { decodePatchMessageMock, detectMessageKindMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../../../src/domain/services/codec/WarpMessageCodec.ts', async (importOriginal) => {
-  const original = /** @type {Record<string, unknown>} */ (await importOriginal());
+  const original = (await importOriginal() as Record<string, unknown>);
   return {
     ...original,
     decodePatchMessage: decodePatchMessageMock,
@@ -73,8 +73,7 @@ vi.mock('../../../../../src/domain/utils/WriterId.ts', () => ({
  * @returns {Record<string, unknown>}
  */
 function createMockHost(overrides = {}) {
-  /** @type {Record<string, unknown>} */
-  const host = {
+    const host = {
     _writerId: 'alice',
     _graphName: 'test-graph',
     _persistence: createMockPersistence(),
@@ -145,15 +144,13 @@ function createStateWithNode(nodeId = 'n1') {
 // ── Tests ───────────────────────────────────────────────────────────────────
 
 describe('PatchController', () => {
-  /** @type {Record<string, unknown>} */
-  let host;
-  /** @type {PatchController} */
-  let ctrl;
+    let host;
+    let ctrl;
 
   beforeEach(() => {
     vi.clearAllMocks();
     host = createMockHost();
-    ctrl = new PatchController(/** @type {import('../../../../../src/domain/WarpRuntime.ts').default} */ (/** @type {unknown} */ (host)));
+    ctrl = new PatchController(((host) as any));
   });
 
   // ────────────────────────────────────────────────────────────────────────
@@ -162,7 +159,7 @@ describe('PatchController', () => {
 
   describe('createPatch()', () => {
     it('returns a PatchBuilder for a brand-new writer (no parent)', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
 
       patchBuilderMock.mockImplementation(function () {
@@ -174,12 +171,12 @@ describe('PatchController', () => {
       expect(patchBuilderMock).toHaveBeenCalledOnce();
 
       // Should NOT auto-materialize when parentSha is null (nothing to materialize)
-      const materialize = /** @type {import('vitest').Mock} */ (host['materialize']);
+      const materialize = (host['materialize'] as any);
       expect(materialize).not.toHaveBeenCalled();
     });
 
     it('reads lamport from existing writer ref and increments', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('abc123');
       persistence.showNode.mockResolvedValue('patch-message-data');
 
@@ -200,7 +197,7 @@ describe('PatchController', () => {
 
     it('uses maxObservedLamport when it exceeds own tick', async () => {
       host['_maxObservedLamport'] = 10;
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('abc123');
       persistence.showNode.mockResolvedValue('msg');
 
@@ -222,7 +219,7 @@ describe('PatchController', () => {
       host['_autoMaterialize'] = true;
       host['_cachedState'] = null;
 
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('parentsha');
       persistence.showNode.mockResolvedValue('msg');
 
@@ -235,7 +232,7 @@ describe('PatchController', () => {
 
       await ctrl.createPatch();
 
-      const materialize = /** @type {import('vitest').Mock} */ (host['materialize']);
+      const materialize = (host['materialize'] as any);
       expect(materialize).toHaveBeenCalledOnce();
     });
 
@@ -243,7 +240,7 @@ describe('PatchController', () => {
       host['_autoMaterialize'] = true;
       host['_cachedState'] = WarpState.empty();
 
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('parentsha');
       persistence.showNode.mockResolvedValue('msg');
 
@@ -256,7 +253,7 @@ describe('PatchController', () => {
 
       await ctrl.createPatch();
 
-      const materialize = /** @type {import('vitest').Mock} */ (host['materialize']);
+      const materialize = (host['materialize'] as any);
       expect(materialize).not.toHaveBeenCalled();
     });
 
@@ -264,7 +261,7 @@ describe('PatchController', () => {
       host['_autoMaterialize'] = true;
       host['_cachedState'] = null;
 
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
 
       patchBuilderMock.mockImplementation(function () {
@@ -273,7 +270,7 @@ describe('PatchController', () => {
 
       await ctrl.createPatch();
 
-      const materialize = /** @type {import('vitest').Mock} */ (host['materialize']);
+      const materialize = (host['materialize'] as any);
       expect(materialize).not.toHaveBeenCalled();
     });
 
@@ -281,7 +278,7 @@ describe('PatchController', () => {
       host['_autoMaterialize'] = false;
       host['_cachedState'] = null;
 
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('parentsha');
       persistence.showNode.mockResolvedValue('msg');
 
@@ -294,12 +291,12 @@ describe('PatchController', () => {
 
       await ctrl.createPatch();
 
-      const materialize = /** @type {import('vitest').Mock} */ (host['materialize']);
+      const materialize = (host['materialize'] as any);
       expect(materialize).not.toHaveBeenCalled();
     });
 
     it('throws when lamport parsing fails on existing ref', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('abc123');
       persistence.showNode.mockResolvedValue('msg');
 
@@ -319,7 +316,7 @@ describe('PatchController', () => {
       host['_logger'] = logger;
       host['_blobStorage'] = blobStorage;
 
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
 
       patchBuilderMock.mockImplementation(function () {
@@ -339,7 +336,7 @@ describe('PatchController', () => {
       host['_logger'] = null;
       host['_blobStorage'] = null;
 
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
 
       patchBuilderMock.mockImplementation(function () {
@@ -361,7 +358,7 @@ describe('PatchController', () => {
 
   describe('patch()', () => {
     it('creates a patch, runs the build callback, and commits', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
 
       const commitMock = vi.fn().mockResolvedValue('sha-abc');
@@ -384,7 +381,7 @@ describe('PatchController', () => {
     });
 
     it('resets _patchInProgress even when build callback throws', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
 
       patchBuilderMock.mockImplementation(function () {
@@ -399,7 +396,7 @@ describe('PatchController', () => {
     });
 
     it('resets _patchInProgress even when commit throws', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
 
       patchBuilderMock.mockImplementation(function () {
@@ -423,7 +420,7 @@ describe('PatchController', () => {
     });
 
     it('applies multiple patches sequentially', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
 
       let callCount = 0;
@@ -458,7 +455,7 @@ describe('PatchController', () => {
     it('updates maxObservedLamport when patch lamport exceeds it', async () => {
       host['_maxObservedLamport'] = 3;
 
-      await ctrl._onPatchCommitted('alice', { patch: /** @type {any} */ ({ lamport: 7 }) });
+      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 7 } as any) });
 
       expect(host['_maxObservedLamport']).toBe(7);
     });
@@ -466,7 +463,7 @@ describe('PatchController', () => {
     it('does not decrease maxObservedLamport', async () => {
       host['_maxObservedLamport'] = 10;
 
-      await ctrl._onPatchCommitted('alice', { patch: /** @type {any} */ ({ lamport: 5 }) });
+      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 5 } as any) });
 
       expect(host['_maxObservedLamport']).toBe(10);
     });
@@ -487,14 +484,13 @@ describe('PatchController', () => {
       const diff = { nodesAdded: ['n2'], nodesRemoved: [], edgesAdded: [], edgesRemoved: [], propsChanged: [] };
       applyWithDiffMock.mockReturnValue({ diff });
 
-      /** @type {any} */
+      
 
-
-      const patch = { lamport: 1, ops: [] };
+      const patch = ({ lamport: 1, ops: [] }) as any;
       await ctrl._onPatchCommitted('alice', { patch, sha: 'sha-1' });
 
       expect(applyWithDiffMock).toHaveBeenCalledWith(state, patch, 'sha-1');
-      const setMat = /** @type {import('vitest').Mock} */ (host['_setMaterializedState']);
+      const setMat = (host['_setMaterializedState'] as any);
       expect(setMat).toHaveBeenCalledWith(state, { diff });
     });
 
@@ -509,10 +505,9 @@ describe('PatchController', () => {
       const receipt = { accepted: 1, rejected: 0 };
       applyWithReceiptMock.mockReturnValue({ receipt });
 
-      /** @type {any} */
+      
 
-
-      const patch = { lamport: 1, ops: [] };
+      const patch = ({ lamport: 1, ops: [] }) as any;
       await ctrl._onPatchCommitted('alice', { patch, sha: 'sha-1' });
 
       expect(applyWithReceiptMock).toHaveBeenCalledWith(state, patch, 'sha-1');
@@ -530,7 +525,7 @@ describe('PatchController', () => {
       applyWithReceiptMock.mockReturnValue({ receipt: {} });
 
       // Should not throw
-      await ctrl._onPatchCommitted('alice', { patch: /** @type {any} */ ({ lamport: 1 }), sha: 'sha-1' });
+      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 1 } as any), sha: 'sha-1' });
     });
 
     it('updates provenance index when present', async () => {
@@ -543,10 +538,9 @@ describe('PatchController', () => {
 
       applyWithDiffMock.mockReturnValue({ diff: null });
 
-      /** @type {any} */
+      
 
-
-      const patch = { lamport: 1, reads: ['r1'], writes: ['w1'] };
+      const patch = ({ lamport: 1, reads: ['r1'], writes: ['w1'] }) as any;
       await ctrl._onPatchCommitted('alice', { patch, sha: 'sha-1' });
 
       expect(provenanceIndex.addPatch).toHaveBeenCalledWith('sha-1', ['r1'], ['w1']);
@@ -562,7 +556,7 @@ describe('PatchController', () => {
 
       applyWithDiffMock.mockReturnValue({ diff: null });
 
-      await ctrl._onPatchCommitted('alice', { patch: /** @type {any} */ ({ lamport: 1 }), sha: 'sha-1' });
+      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 1 } as any), sha: 'sha-1' });
 
       expect(frontier.get('alice')).toBe('sha-1');
     });
@@ -571,7 +565,7 @@ describe('PatchController', () => {
       host['_cachedState'] = null;
       host['_stateDirty'] = false;
 
-      await ctrl._onPatchCommitted('alice', { patch: /** @type {any} */ ({ lamport: 1 }), sha: 'sha-1' });
+      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 1 } as any), sha: 'sha-1' });
 
       expect(host['_stateDirty']).toBe(true);
       expect(host['_cachedViewHash']).toBeNull();
@@ -581,7 +575,7 @@ describe('PatchController', () => {
       host['_cachedState'] = createStateWithNode('n1');
       host['_stateDirty'] = true;
 
-      await ctrl._onPatchCommitted('alice', { patch: /** @type {any} */ ({ lamport: 1 }), sha: 'sha-1' });
+      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 1 } as any), sha: 'sha-1' });
 
       expect(host['_stateDirty']).toBe(true);
     });
@@ -590,7 +584,7 @@ describe('PatchController', () => {
       host['_cachedState'] = createStateWithNode('n1');
       host['_stateDirty'] = false;
 
-      await ctrl._onPatchCommitted('alice', { patch: /** @type {any} */ ({ lamport: 1 }) });
+      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 1 } as any) });
 
       expect(host['_stateDirty']).toBe(true);
     });
@@ -606,7 +600,7 @@ describe('PatchController', () => {
       const auditService = { commit: vi.fn() };
       host['_auditService'] = auditService;
 
-      await ctrl._onPatchCommitted('alice', { patch: /** @type {any} */ ({ lamport: 1 }), sha: 'sha-1' });
+      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 1 } as any), sha: 'sha-1' });
 
       expect(host['_auditSkipCount']).toBe(1);
       expect(logger.warn).toHaveBeenCalledWith(
@@ -622,7 +616,7 @@ describe('PatchController', () => {
 
   describe('_nextLamport()', () => {
     it('returns lamport 1 for a new writer with no ref', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
 
       const result = await ctrl._nextLamport();
@@ -632,7 +626,7 @@ describe('PatchController', () => {
     });
 
     it('returns lamport 1 for empty string ref', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('');
 
       const result = await ctrl._nextLamport();
@@ -643,7 +637,7 @@ describe('PatchController', () => {
     });
 
     it('skips lamport parsing for non-patch commits', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('sha-checkpoint');
       persistence.showNode.mockResolvedValue('checkpoint-msg');
 
@@ -664,7 +658,7 @@ describe('PatchController', () => {
 
   describe('_loadWriterPatches()', () => {
     it('returns empty array when writer has no ref', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
 
       const result = await ctrl._loadWriterPatches('alice');
@@ -673,7 +667,7 @@ describe('PatchController', () => {
     });
 
     it('returns empty array when writer ref is empty string', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('');
 
       const result = await ctrl._loadWriterPatches('alice');
@@ -682,7 +676,7 @@ describe('PatchController', () => {
     });
 
     it('walks the commit chain and returns patches in chronological order', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('sha-2');
 
       // Chain: sha-2 -> sha-1 -> (no parent)
@@ -710,7 +704,7 @@ describe('PatchController', () => {
     });
 
     it('stops at stopAtSha', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('sha-3');
 
       // Chain: sha-3 -> sha-2 -> sha-1
@@ -731,7 +725,7 @@ describe('PatchController', () => {
     });
 
     it('stops when a non-patch commit is encountered', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('sha-2');
 
       persistence.getNodeInfo
@@ -756,7 +750,7 @@ describe('PatchController', () => {
 
     it('falls back to codec decode when no patchJournal is set', async () => {
       host['_patchJournal'] = null;
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('sha-1');
 
       persistence.getNodeInfo.mockResolvedValue({ message: 'msg1', parents: [] });
@@ -791,7 +785,7 @@ describe('PatchController', () => {
 
     it('continues legacy fallback decoding across parent commits', async () => {
       host['_patchJournal'] = null;
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('sha-2');
       persistence.getNodeInfo
         .mockResolvedValueOnce({ message: 'msg2', parents: ['sha-1'] })
@@ -843,7 +837,7 @@ describe('PatchController', () => {
 
       await ctrl._ensureFreshState();
 
-      const materialize = /** @type {import('vitest').Mock} */ (host['materialize']);
+      const materialize = (host['materialize'] as any);
       expect(materialize).toHaveBeenCalledOnce();
     });
 
@@ -854,7 +848,7 @@ describe('PatchController', () => {
 
       await ctrl._ensureFreshState();
 
-      const materialize = /** @type {import('vitest').Mock} */ (host['materialize']);
+      const materialize = (host['materialize'] as any);
       expect(materialize).toHaveBeenCalledOnce();
     });
 
@@ -889,7 +883,7 @@ describe('PatchController', () => {
   describe('_readPatchBlob()', () => {
     it('reads unencrypted blob from persistence', async () => {
       const blob = new Uint8Array([10, 20, 30]);
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readBlob.mockResolvedValue(blob);
 
       const result = await ctrl._readPatchBlob({ patchOid: 'oid1', encrypted: false });
@@ -899,7 +893,7 @@ describe('PatchController', () => {
     });
 
     it('throws PersistenceError when unencrypted blob is missing', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readBlob.mockResolvedValue(null);
 
       await expect(ctrl._readPatchBlob({ patchOid: 'oid1', encrypted: false }))
@@ -931,7 +925,7 @@ describe('PatchController', () => {
 
   describe('discoverWriters()', () => {
     it('returns sorted writer IDs from ref listing', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.listRefs.mockResolvedValue([
         'refs/warp/test-graph/writers/charlie',
         'refs/warp/test-graph/writers/alice',
@@ -944,7 +938,7 @@ describe('PatchController', () => {
     });
 
     it('returns empty array when no writers exist', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.listRefs.mockResolvedValue([]);
 
       const writers = await ctrl.discoverWriters();
@@ -959,7 +953,7 @@ describe('PatchController', () => {
 
   describe('discoverTicks()', () => {
     it('collects ticks from all writers and returns sorted global ticks', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.listRefs.mockResolvedValue([
         'refs/warp/test-graph/writers/alice',
         'refs/warp/test-graph/writers/bob',
@@ -992,7 +986,7 @@ describe('PatchController', () => {
     });
 
     it('returns maxTick 0 when no writers exist', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.listRefs.mockResolvedValue([]);
 
       const result = await ctrl.discoverTicks();
@@ -1006,7 +1000,7 @@ describe('PatchController', () => {
       const logger = { warn: vi.fn(), info: vi.fn(), error: vi.fn() };
       host['_logger'] = logger;
 
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.listRefs.mockResolvedValue([
         'refs/warp/test-graph/writers/alice',
       ]);
@@ -1031,7 +1025,7 @@ describe('PatchController', () => {
     });
 
     it('reports null tipSha for writers with empty ref', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.listRefs.mockResolvedValue([
         'refs/warp/test-graph/writers/alice',
       ]);
@@ -1046,7 +1040,7 @@ describe('PatchController', () => {
     });
 
     it('stops walking a writer when it hits a non-patch commit', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.listRefs.mockResolvedValue([
         'refs/warp/test-graph/writers/alice',
       ]);
@@ -1080,13 +1074,13 @@ describe('PatchController', () => {
     it('throws when otherState is null', () => {
       host['_cachedState'] = WarpState.empty();
 
-      expect(() => ctrl.join(/** @type {import('../../../../../src/domain/services/JoinReducer.ts').WarpState} */ (/** @type {unknown} */ (null)))).toThrow(/Invalid state/);
+      expect(() => ctrl.join(((null) as any))).toThrow(/Invalid state/);
     });
 
     it('throws when otherState is missing required fields', () => {
       host['_cachedState'] = WarpState.empty();
 
-      expect(() => ctrl.join(/** @type {import('../../../../../src/domain/services/JoinReducer.ts').WarpState} */ (/** @type {unknown} */ ({ prop: new Map() })))).toThrow(/Invalid state/);
+      expect(() => ctrl.join((({ prop: new Map() } as unknown) as any))).toThrow(/Invalid state/);
     });
 
     it('merges states and returns receipt with change counts', () => {
@@ -1116,15 +1110,15 @@ describe('PatchController', () => {
 
     it('counts property additions and value changes in the join receipt', () => {
       const localState = createStateWithNode('n1');
-      localState.prop.set('n1:name', /** @type {any} */ ({ value: 'Alice' }));
+      localState.prop.set('n1:name', ({ value: 'Alice' } as any));
       host['_cachedState'] = localState;
       host['_versionVector'] = localState.observedFrontier.clone();
 
       const remoteState = WarpState.empty();
       const merged = WarpState.empty();
       merged.nodeAlive.add('n1', Dot.create('alice', 1));
-      merged.prop.set('n1:name', /** @type {any} */ ({ value: 'Bob' }));
-      merged.prop.set('n1:title', /** @type {any} */ ({ value: 'Engineer' }));
+      merged.prop.set('n1:name', ({ value: 'Bob' } as any));
+      merged.prop.set('n1:title', ({ value: 'Engineer' } as any));
       merged.observedFrontier.increment('alice');
       joinStatesMock.mockReturnValue(merged);
 
@@ -1165,7 +1159,7 @@ describe('PatchController', () => {
 
       ctrl.join(WarpState.empty());
 
-      const vv = /** @type {import('../../../../../src/domain/crdt/VersionVector.js').default} */ (host['_versionVector']);
+      const vv = (host['_versionVector'] as any);
       expect(vv.get('alice')).toBe(1);
       expect(vv.get('bob')).toBe(1);
     });
@@ -1183,7 +1177,7 @@ describe('PatchController', () => {
       const journal = { readPatch: vi.fn(), writePatch: vi.fn() };
       host['_patchJournal'] = journal;
 
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
 
       const w = await ctrl.writer('alice');
@@ -1202,17 +1196,17 @@ describe('PatchController', () => {
       const journal = { readPatch: vi.fn(), writePatch: vi.fn() };
       host['_patchJournal'] = journal;
       host['_cachedState'] = createStateWithNode('n1');
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
       const onPatchCommitted = vi.spyOn(ctrl, '_onPatchCommitted')
         .mockImplementation(async () => {});
 
-      const writer = /** @type {any} */ (await ctrl.writer('alice'));
+      const writer = (await ctrl.writer('alice') as any);
       const currentState = writer._getCurrentState();
 
       expect(currentState).toBe(host['_cachedState']);
 
-      await writer._onCommitSuccess({ patch: /** @type {any} */ ({ lamport: 1, ops: [] }), sha: 'sha-1' });
+      await writer._onCommitSuccess({ patch: ({ lamport: 1, ops: [] } as any), sha: 'sha-1' });
 
       expect(onPatchCommitted).toHaveBeenCalledWith('resolved-alice', {
         patch: { lamport: 1, ops: [] },
@@ -1234,7 +1228,7 @@ describe('PatchController', () => {
 
   describe('getWriterPatches()', () => {
     it('delegates to _loadWriterPatches', async () => {
-      const persistence = /** @type {ReturnType<typeof createMockPersistence>} */ (host['_persistence']);
+      const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue(null);
 
       const result = await ctrl.getWriterPatches('alice');

@@ -6,10 +6,8 @@ import HttpServerPort from '../../../../src/ports/HttpServerPort.ts';
  * and returns a controllable mock server object.
  */
 function createMockDenoServe() {
-  /** @type {any} */
-  let capturedHandler = null;
-  /** @type {any} */
-  let capturedOptions = null;
+    let capturedHandler = (null) as any;
+    let capturedOptions = (null) as any;
 
   const mockServer = {
     addr: { hostname: '127.0.0.1', port: 8080, transport: 'tcp' },
@@ -30,21 +28,15 @@ function createMockDenoServe() {
 }
 
 describe('DenoHttpAdapter', () => {
-  /** @type {any} */
-  let originalDeno;
-  /** @type {any} */
-  let mockServe;
-  /** @type {any} */
-  let mockServer;
-  /** @type {any} */
-  let getCapturedHandler;
-  /** @type {any} */
-  let getCapturedOptions;
-  /** @type {any} */
-  let DenoHttpAdapter;
+    let originalDeno;
+    let mockServe;
+    let mockServer;
+    let getCapturedHandler;
+    let getCapturedOptions;
+    let DenoHttpAdapter;
 
   beforeEach(async () => {
-    originalDeno = /** @type {any} */ (globalThis).Deno;
+    originalDeno = (globalThis).Deno;
 
     const mock = createMockDenoServe();
     mockServe = mock.serve;
@@ -52,7 +44,7 @@ describe('DenoHttpAdapter', () => {
     getCapturedHandler = mock.getCapturedHandler;
     getCapturedOptions = mock.getCapturedOptions;
 
-    /** @type {any} */ (globalThis).Deno = { serve: mockServe };
+    (globalThis).Deno = { serve: mockServe };
 
     // Dynamic import to pick up the globalThis.Deno we just set
     const mod = await import('../../../../src/infrastructure/adapters/DenoHttpAdapter.js');
@@ -61,9 +53,9 @@ describe('DenoHttpAdapter', () => {
 
   afterEach(() => {
     if (originalDeno === undefined) {
-      delete /** @type {any} */ (globalThis).Deno;
+      delete (globalThis).Deno;
     } else {
-      /** @type {any} */ (globalThis).Deno = originalDeno;
+      (globalThis).Deno = originalDeno;
     }
   });
 
@@ -139,7 +131,7 @@ describe('DenoHttpAdapter', () => {
 
     it('passes error to callback when Deno.serve throws', () => {
       const error = new Error('bind failed');
-      /** @type {any} */ (globalThis).Deno.serve = vi.fn(() => {
+      (globalThis).Deno.serve = vi.fn(() => {
         throw error;
       });
 
@@ -161,7 +153,7 @@ describe('DenoHttpAdapter', () => {
 
     it('throws when Deno.serve fails without callback', () => {
       const error = new Error('bind failed');
-      /** @type {any} */ (globalThis).Deno.serve = vi.fn(() => {
+      (globalThis).Deno.serve = vi.fn(() => {
         throw error;
       });
 
@@ -193,13 +185,13 @@ describe('DenoHttpAdapter', () => {
       const response = await denoHandler(request);
 
       expect(handler).toHaveBeenCalledTimes(1);
-      const arg = /** @type {any} */ (handler).mock.calls[0][0];
-      expect(arg.method).toBe('POST');
-      expect(arg.url).toBe('/api/test?q=1');
-      expect(arg.headers['content-type']).toBe('text/plain');
-      expect(arg.headers['x-custom']).toBe('value');
-      expect(arg.body).toBeInstanceOf(Uint8Array);
-      expect(new TextDecoder().decode(arg.body)).toBe('hello body');
+      const arg = (handler).mock.calls[0][0];
+      expect(arg!.method).toBe('POST');
+      expect(arg!.url).toBe('/api/test?q=1');
+      expect(arg!.headers['content-type']).toBe('text/plain');
+      expect(arg!.headers['x-custom']).toBe('value');
+      expect(arg!.body).toBeInstanceOf(Uint8Array);
+      expect(new TextDecoder().decode(arg!.body)).toBe('hello body');
 
       expect(response).toBeInstanceOf(Response);
       expect(response.status).toBe(200);
@@ -221,8 +213,8 @@ describe('DenoHttpAdapter', () => {
 
       await denoHandler(request);
 
-      const arg = /** @type {any} */ (handler).mock.calls[0][0];
-      expect(arg.body).toBeUndefined();
+      const arg = (handler).mock.calls[0][0];
+      expect(arg!.body).toBeUndefined();
     });
 
     it('defaults status to 200 when handler omits it', async () => {

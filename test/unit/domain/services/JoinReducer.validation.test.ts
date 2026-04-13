@@ -16,8 +16,7 @@ import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import PatchError from '../../../../src/domain/errors/PatchError.ts';
 
-/** @type {(...args: any[]) => any} */
-const reduceV5 = _reduceV5;
+const reduceV5 = (_reduceV5) as (...args: any[]) => any;
 
 const makePatchEntry = (/** @type {any[]} */ ops) => ({
   patch: {
@@ -39,7 +38,7 @@ describe('JoinReducer validation', () => {
       const eventId = new EventId(1, 'w1', 'a'.repeat(40), 0);
 
       // Should not throw
-      applyOpV2(state, /** @type {any} */ ({ type: 'FutureOp', data: 42 }), eventId);
+      applyOpV2(state, ({ type: 'FutureOp', data: 42 } as any), eventId);
 
       // State unchanged
       expect([...state.nodeAlive.elements()]).toHaveLength(0);
@@ -119,21 +118,21 @@ describe('JoinReducer validation', () => {
       const state = createEmptyState();
       const eventId = new EventId(1, 'w1', 'a'.repeat(40), 0);
 
-      expect(() => applyOpV2(state, /** @type {any} */ (null), eventId)).toThrow(PatchError);
+      expect(() => applyOpV2(state, (null), eventId)).toThrow(PatchError);
     });
 
     it('throws PatchError for op without type field', () => {
       const state = createEmptyState();
       const eventId = new EventId(1, 'w1', 'a'.repeat(40), 0);
 
-      expect(() => applyOpV2(state, /** @type {any} */ ({ node: 'x' }), eventId)).toThrow(PatchError);
+      expect(() => applyOpV2(state, ({ node: 'x' } as any), eventId)).toThrow(PatchError);
     });
 
     it('throws PatchError for op with non-string type', () => {
       const state = createEmptyState();
       const eventId = new EventId(1, 'w1', 'a'.repeat(40), 0);
 
-      expect(() => applyOpV2(state, /** @type {any} */ ({ type: 42 }), eventId)).toThrow(PatchError);
+      expect(() => applyOpV2(state, ({ type: 42 } as any), eventId)).toThrow(PatchError);
     });
   });
 
@@ -143,99 +142,99 @@ describe('JoinReducer validation', () => {
 
     describe('NodeAdd', () => {
       it('throws when node is missing', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'NodeAdd', dot: Dot.create('w1', 1) }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'NodeAdd', dot: Dot.create('w1', 1) } as any), eid)).toThrow(PatchError);
       });
 
       it('throws when node is not a string', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'NodeAdd', node: 123, dot: Dot.create('w1', 1) }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'NodeAdd', node: 123, dot: Dot.create('w1', 1) } as any), eid)).toThrow(PatchError);
       });
 
       it('throws when dot is missing', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'NodeAdd', node: 'n' }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'NodeAdd', node: 'n' } as any), eid)).toThrow(PatchError);
       });
 
       it('throws when dot.writerId is not a string', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'NodeAdd', node: 'n', dot: { writerId: 1, counter: 1 } }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'NodeAdd', node: 'n', dot: { writerId: 1, counter: 1 } } as any), eid)).toThrow(PatchError);
       });
 
       it('throws when dot.counter is not a number', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'NodeAdd', node: 'n', dot: { writerId: 'w', counter: 'x' } }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'NodeAdd', node: 'n', dot: { writerId: 'w', counter: 'x' } } as any), eid)).toThrow(PatchError);
       });
     });
 
     describe('NodeRemove', () => {
       it('throws when observedDots is missing', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'NodeRemove', node: 'n' }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'NodeRemove', node: 'n' } as any), eid)).toThrow(PatchError);
       });
 
       it('throws when observedDots is not iterable', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'NodeRemove', node: 'n', observedDots: 42 }), eid)).toThrow(PatchError);
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'NodeRemove', node: 'n', observedDots: {} }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'NodeRemove', node: 'n', observedDots: 42 } as any), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'NodeRemove', node: 'n', observedDots: {} } as any), eid)).toThrow(PatchError);
       });
 
       it('accepts Set as observedDots', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'NodeRemove', node: 'n', observedDots: new Set() }), eid)).not.toThrow();
+        expect(() => applyOpV2(state(), ({ type: 'NodeRemove', node: 'n', observedDots: new Set() } as any), eid)).not.toThrow();
       });
 
       it('accepts NodeRemove without node field (informational only)', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'NodeRemove', observedDots: [] }), eid)).not.toThrow();
+        expect(() => applyOpV2(state(), ({ type: 'NodeRemove', observedDots: [] } as any), eid)).not.toThrow();
       });
     });
 
     describe('EdgeAdd', () => {
       it('throws when from is missing', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'EdgeAdd', to: 'b', label: 'l', dot: Dot.create('w', 1) }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'EdgeAdd', to: 'b', label: 'l', dot: Dot.create('w', 1) } as any), eid)).toThrow(PatchError);
       });
 
       it('throws when to is missing', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'EdgeAdd', from: 'a', label: 'l', dot: Dot.create('w', 1) }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'EdgeAdd', from: 'a', label: 'l', dot: Dot.create('w', 1) } as any), eid)).toThrow(PatchError);
       });
 
       it('throws when label is missing', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'EdgeAdd', from: 'a', to: 'b', dot: Dot.create('w', 1) }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'EdgeAdd', from: 'a', to: 'b', dot: Dot.create('w', 1) } as any), eid)).toThrow(PatchError);
       });
 
       it('throws when dot is missing', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'EdgeAdd', from: 'a', to: 'b', label: 'l' }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'EdgeAdd', from: 'a', to: 'b', label: 'l' } as any), eid)).toThrow(PatchError);
       });
     });
 
     describe('EdgeRemove', () => {
       it('throws when observedDots is missing', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'EdgeRemove', from: 'a', to: 'b', label: 'l' }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'EdgeRemove', from: 'a', to: 'b', label: 'l' } as any), eid)).toThrow(PatchError);
       });
 
       it('throws when observedDots is not iterable', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'EdgeRemove', from: 'a', to: 'b', label: 'l', observedDots: 42 }), eid)).toThrow(PatchError);
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'EdgeRemove', from: 'a', to: 'b', label: 'l', observedDots: {} }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'EdgeRemove', from: 'a', to: 'b', label: 'l', observedDots: 42 } as any), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'EdgeRemove', from: 'a', to: 'b', label: 'l', observedDots: {} } as any), eid)).toThrow(PatchError);
       });
 
       it('accepts Set as observedDots', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'EdgeRemove', from: 'a', to: 'b', label: 'l', observedDots: new Set() }), eid)).not.toThrow();
+        expect(() => applyOpV2(state(), ({ type: 'EdgeRemove', from: 'a', to: 'b', label: 'l', observedDots: new Set() } as any), eid)).not.toThrow();
       });
 
       it('accepts EdgeRemove without from/to/label (informational only)', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'EdgeRemove', observedDots: [] }), eid)).not.toThrow();
+        expect(() => applyOpV2(state(), ({ type: 'EdgeRemove', observedDots: [] } as any), eid)).not.toThrow();
       });
     });
 
     describe('PropSet', () => {
       it('throws when node is missing', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'PropSet', key: 'k', value: 'v' }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'PropSet', key: 'k', value: 'v' } as any), eid)).toThrow(PatchError);
       });
 
       it('throws when key is missing', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'PropSet', node: 'n', value: 'v' }), eid)).toThrow(PatchError);
+        expect(() => applyOpV2(state(), ({ type: 'PropSet', node: 'n', value: 'v' } as any), eid)).toThrow(PatchError);
       });
     });
 
     describe('forward-compat', () => {
       it('BlobValue does NOT throw', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'BlobValue', oid: 'abc' }), eid)).not.toThrow();
+        expect(() => applyOpV2(state(), ({ type: 'BlobValue', oid: 'abc' } as any), eid)).not.toThrow();
       });
 
       it('unknown type does NOT throw', () => {
-        expect(() => applyOpV2(state(), /** @type {any} */ ({ type: 'FutureOpV99', data: {} }), eid)).not.toThrow();
+        expect(() => applyOpV2(state(), ({ type: 'FutureOpV99', data: {} } as any), eid)).not.toThrow();
       });
     });
   });

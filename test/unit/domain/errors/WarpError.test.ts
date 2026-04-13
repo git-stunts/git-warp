@@ -67,8 +67,7 @@ describe('All domain errors extend WarpError', () => {
   ];
 
   for (const { Class: _Class, args, expectedCode, expectedName } of errorCases) {
-    /** @type {any} */
-    const Class = _Class;
+        const Class = (_Class) as any;
     it(`${expectedName} instanceof WarpError`, () => {
       const err = new Class(...args);
       expect(err).toBeInstanceOf(WarpError);

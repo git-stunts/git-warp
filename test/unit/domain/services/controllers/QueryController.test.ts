@@ -24,7 +24,7 @@ import {
 function orsetWith(elements) {
   const set = ORSet.empty();
   for (let i = 0; i < elements.length; i++) {
-    set.add(/** @type {string} */ (elements[i]), new Dot('w', i + 1));
+    set.add((elements[i] as string), new Dot('w', i + 1));
   }
   return set;
 }
@@ -65,16 +65,15 @@ function lww(value, eid = null) {
  * @returns {WarpState}
  */
 function buildState(spec = {}) {
-  const nodeAlive = orsetWith(spec.nodes ?? []);
-  const edgeKeys = (spec.edges ?? []).map((e) => encodeEdgeKey(e.from, e.to, e.label));
+  const nodeAlive = orsetWith((spec as any).nodes ?? []);
+  const edgeKeys = ((spec as any).edges ?? []).map((e) => encodeEdgeKey(e.from, e.to, e.label));
   const edgeAlive = orsetWith(edgeKeys);
 
-  /** @type {*} */
-  const prop = new Map();
-  for (const p of spec.props ?? []) {
+    const prop = (new Map()) as any;
+  for (const p of (spec as any).props ?? []) {
     prop.set(encodePropKey(p.nodeId, p.key), lww(p.value, p.eventId ?? null));
   }
-  for (const ep of spec.edgeProps ?? []) {
+  for (const ep of (spec as any).edgeProps ?? []) {
     prop.set(
       encodeEdgePropKey(ep.from, ep.to, ep.label, ep.key),
       lww(ep.value, ep.eventId ?? null),
@@ -82,7 +81,7 @@ function buildState(spec = {}) {
   }
 
   const edgeBirthEvent = new Map();
-  for (const eb of spec.edgeBirthEvents ?? []) {
+  for (const eb of (spec as any).edgeBirthEvents ?? []) {
     edgeBirthEvent.set(encodeEdgeKey(eb.from, eb.to, eb.label), eb.eventId);
   }
 
@@ -124,12 +123,9 @@ function createHost(state, overrides = {}) {
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe('QueryController', () => {
-  /** @type {WarpState} */
-  let state;
-  /** @type {*} */
-  let host;
-  /** @type {*} */
-  let ctrl;
+    let state;
+    let host;
+    let ctrl;
 
   beforeEach(() => {
     state = buildState({
@@ -145,7 +141,7 @@ describe('QueryController', () => {
       ],
     });
     host = createHost(state);
-    ctrl = new QueryController(/** @type {*} */ (host));
+    ctrl = new QueryController((host));
   });
 
   // ── hasNode ──────────────────────────────────────────────────────────────
@@ -511,13 +507,13 @@ describe('QueryController', () => {
 
   describe('observer()', () => {
     it('throws when config.match is missing', async () => {
-      await expect(ctrl.observer(/** @type {*} */ ({}))).rejects.toThrow(
+      await expect(ctrl.observer(({} as any))).rejects.toThrow(
         'observer config.match must be a non-empty string or non-empty array of strings',
       );
     });
 
     it('throws when config.match is an empty array', async () => {
-      await expect(ctrl.observer({ match: /** @type {*} */ ([]) })).rejects.toThrow(
+      await expect(ctrl.observer({ match: ([] as any) })).rejects.toThrow(
         'observer config.match must be a non-empty string or non-empty array of strings',
       );
     });
@@ -797,8 +793,8 @@ describe('QueryController', () => {
       const stream = await ctrl.getContentStream('alice');
       expect(stream).not.toBeNull();
 
-      const chunks = [];
-      for await (const chunk of /** @type {AsyncIterable<Uint8Array>} */ (stream)) {
+      const chunks: any[] = [];
+      for await (const chunk of (stream)) {
         chunks.push(chunk);
       }
       expect(chunks).toEqual([new Uint8Array([1, 2, 3])]);
@@ -845,8 +841,8 @@ describe('QueryController', () => {
       const stream = await ctrl.getEdgeContentStream('alice', 'bob', 'knows');
       expect(stream).not.toBeNull();
 
-      const chunks = [];
-      for await (const chunk of /** @type {AsyncIterable<Uint8Array>} */ (stream)) {
+      const chunks: any[] = [];
+      for await (const chunk of (stream)) {
         chunks.push(chunk);
       }
       expect(chunks).toEqual([new Uint8Array([1, 2, 3])]);

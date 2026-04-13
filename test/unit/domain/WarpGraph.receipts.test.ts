@@ -41,7 +41,7 @@ function createMockPersistence() {
 
     readRef: vi.fn(async (ref) => refs.get(ref) || null),
     listRefs: vi.fn(async (prefix) => {
-      const result = [];
+      const result: any[] = [];
       for (const key of refs.keys()) {
         if (key.startsWith(prefix)) {
           result.push(key);
@@ -126,10 +126,8 @@ async function simulatePatchCommit(/** @type {any} */ persistence, /** @type {an
 // ---------------------------------------------------------------------------
 
 describe('WarpRuntime.materialize() with receipts', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {any} */
-  let graph;
+    let persistence;
+    let graph;
   const graphName = 'test';
   const writerId = 'writer-1';
 
@@ -148,7 +146,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
 
   describe('receipts disabled (default)', () => {
     it('materialize() returns state directly', async () => {
-      const state = /** @type {any} */ (await graph.materialize());
+      const state = (await graph.materialize() as any);
       expect(state).toBeDefined();
       expect(state.nodeAlive).toBeDefined();
       expect(state.edgeAlive).toBeDefined();
@@ -158,13 +156,13 @@ describe('WarpRuntime.materialize() with receipts', () => {
     });
 
     it('materialize({}) returns state directly', async () => {
-      const state = /** @type {any} */ (await graph.materialize({}));
+      const state = (await graph.materialize({}) as any);
       expect(state.nodeAlive).toBeDefined();
       expect(state.receipts).toBeUndefined();
     });
 
     it('materialize({ receipts: false }) returns state directly', async () => {
-      const state = /** @type {any} */ (await graph.materialize({ receipts: false }));
+      const state = (await graph.materialize({ receipts: false }) as any);
       expect(state.nodeAlive).toBeDefined();
       expect(state.receipts).toBeUndefined();
     });
@@ -176,7 +174,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
 
   describe('receipts enabled', () => {
     it('materialize({ receipts: true }) returns { state, receipts }', async () => {
-      const result = /** @type {any} */ (await graph.materialize({ receipts: true }));
+      const result = (await graph.materialize({ receipts: true }) as any);
       expect(result).toHaveProperty('state');
       expect(result).toHaveProperty('receipts');
       expect(result.state.nodeAlive).toBeDefined();
@@ -524,7 +522,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
       });
 
       const { state } = await graph.materialize({ receipts: true });
-      const cachedState = /** @type {any} */ (graph)._cachedState;
+      const cachedState = (graph)._cachedState;
       expect(cachedState).not.toBe(state);
       expect(cachedState.nodeAlive).not.toBe(state.nodeAlive);
       expect(cachedState.edgeAlive).not.toBe(state.edgeAlive);

@@ -145,7 +145,7 @@ import EdgeAddClass from '../../../../src/domain/types/ops/EdgeAdd.ts';
 import PropSetClass from '../../../../src/domain/types/ops/PropSet.ts';
 
 /** @param {Record<string, unknown>} opts */
-function createPatch(opts) { return new Patch(/** @type {any} */ (opts)); }
+function createPatch(opts) { return new Patch((opts)); }
 /** @param {string} node @param {any} dot */
 function createNodeAddV2(node, dot) { return new NodeAddClass(node, dot); }
 /** @param {string} from @param {string} to @param {string} label @param {any} dot */
@@ -694,7 +694,7 @@ describe('MigrationService', () => {
             patch: createPatch({
               writer: 'charlie',
               lamport: 10,
-              context: /** @type {any} */ (VersionVector.empty()),
+              context: (VersionVector.empty() as any),
               ops: [
                 createNodeAddV2('user:charlie', Dot.create('charlie', 1)),
                 createPropSetV2('user:charlie', 'name', createInlineValue('Charlie')),
@@ -706,7 +706,7 @@ describe('MigrationService', () => {
             patch: createPatch({
               writer: 'charlie',
               lamport: 11,
-              context: /** @type {any} */ (VersionVector.empty()),
+              context: (VersionVector.empty() as any),
               ops: [
                 createEdgeAddV2('user:charlie', 'user:alice', 'follows', Dot.create('charlie', 2)),
                 createEdgeAddV2('user:charlie', 'user:bob', 'follows', Dot.create('charlie', 3)),
@@ -761,7 +761,7 @@ describe('MigrationService', () => {
           patch: createPatch({
             writer: 'A',
             lamport: 10,
-            context: /** @type {any} */ (VersionVector.empty()),
+            context: (VersionVector.empty() as any),
             ops: [createNodeAddV2('node-a', Dot.create('A', 1))],
           }),
           sha: 'aaaa2222',
@@ -771,7 +771,7 @@ describe('MigrationService', () => {
           patch: createPatch({
             writer: 'B',
             lamport: 11,
-            context: /** @type {any} */ (VersionVector.empty()),
+            context: (VersionVector.empty() as any),
             ops: [createNodeAddV2('node-b', Dot.create('B', 1))],
           }),
           sha: 'bbbb3333',
@@ -781,7 +781,7 @@ describe('MigrationService', () => {
           patch: createPatch({
             writer: 'C',
             lamport: 12,
-            context: /** @type {any} */ (VersionVector.empty()),
+            context: (VersionVector.empty() as any),
             ops: [createEdgeAddV2('node-a', 'node-b', 'link', Dot.create('C', 1))],
           }),
           sha: 'cccc4444',
@@ -841,7 +841,7 @@ describe('MigrationService', () => {
           patch: createPatch({
             writer: 'bob',
             lamport: 2,
-            context: /** @type {any} */ (VersionVector.empty()),
+            context: (VersionVector.empty() as any),
             ops: [createNodeAddV2('node-from-v2', Dot.create('bob', 1))],
           }),
           sha: 'b2bb2222',
@@ -900,7 +900,7 @@ describe('MigrationService', () => {
             patch: createPatch({
               writer: 'V5-writer',
               lamport: 10,
-              context: /** @type {any} */ (VersionVector.empty()),
+              context: (VersionVector.empty() as any),
               ops: [
                 createNodeAddV2('n3', Dot.create('V5-writer', 1)),
                 createEdgeAddV2('n1', 'n3', 'link', Dot.create('V5-writer', 2)),
@@ -947,7 +947,7 @@ describe('MigrationService', () => {
         const v2Patch = createPatch({
           writer: 'W',
           lamport: 1,
-          context: /** @type {any} */ (VersionVector.empty()),
+          context: (VersionVector.empty() as any),
           ops: [createNodeAddV2('test-node', Dot.create('W', 1))],
         });
 

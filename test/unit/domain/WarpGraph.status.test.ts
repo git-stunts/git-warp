@@ -35,10 +35,8 @@ function mockSingleWriter(/** @type {any} */ persistence, /** @type {any} */ { w
 }
 
 describe('WarpRuntime.status() (LH/STATUS/1)', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {any} */
-  let graph;
+    let persistence;
+    let graph;
 
   beforeEach(async () => {
     persistence = createMockPersistence();
@@ -84,7 +82,7 @@ describe('WarpRuntime.status() (LH/STATUS/1)', () => {
     await graph.materialize();
 
     // Manually mark state dirty (simulates a commit without eager re-materialize)
-    /** @type {any} */ (graph)._stateDirty = true;
+    (graph)._stateDirty = true;
 
     const status = await graph.status();
     expect(status.cachedState).toBe('stale');
@@ -301,7 +299,7 @@ describe('WarpRuntime.status() (LH/STATUS/1)', () => {
     // getNodeInfo should not be called — that would mean materialization occurred
     expect(getNodeInfoSpy).not.toHaveBeenCalled();
     // The internal cached state should remain null
-    expect(/** @type {any} */ (graph)._cachedState).toBeNull();
+    expect((graph)._cachedState).toBeNull();
   });
 
   it('does NOT trigger materialization even when autoMaterialize is true', async () => {
@@ -503,7 +501,7 @@ describe('WarpRuntime.status() (LH/STATUS/1)', () => {
     expect(statusAfter.frontier).toEqual({ 'writer-1': FAKE_COMMIT_SHA });
 
     // After marking dirty
-    /** @type {any} */ (graph)._stateDirty = true;
+    (graph)._stateDirty = true;
     const statusDirty = await graph.status();
     expect(statusDirty.cachedState).toBe('stale');
     expect(statusDirty.patchesSinceCheckpoint).toBe(1);

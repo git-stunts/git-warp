@@ -80,15 +80,13 @@ function setupLinearChain(/** @type {any} */ host, /** @type {any[]} */ chain) {
 // ---------------------------------------------------------------------------
 
 describe('ForkController', () => {
-  /** @type {ReturnType<typeof createMockHost>} */
-  let host;
-  /** @type {ForkController} */
-  let ctrl;
+    let host;
+    let ctrl;
 
   beforeEach(() => {
     vi.clearAllMocks();
     host = createMockHost();
-    ctrl = new ForkController(/** @type {any} */ (host));
+    ctrl = new ForkController((host));
 
     // Default: WarpRuntime.open succeeds
     mockRuntimeOpen.mockResolvedValue({ _graphName: 'fork-graph' });
@@ -117,7 +115,7 @@ describe('ForkController', () => {
 
       // WarpRuntime.open was called with correct graphName + writerId
       expect(mockRuntimeOpen).toHaveBeenCalledOnce();
-      const openArgs = /** @type {any} */ (mockRuntimeOpen.mock.calls[0])[0];
+      const openArgs = (mockRuntimeOpen.mock.calls[0] as any)[0];
       expect(openArgs.graphName).toBe('my-fork');
       expect(openArgs.writerId).toBe('fork-writer');
       expect(openArgs.persistence).toBe(host._persistence);
@@ -157,7 +155,7 @@ describe('ForkController', () => {
     });
 
     it('throws E_FORK_INVALID_ARGS when from is not a string', async () => {
-      await expect(ctrl.fork({ from: /** @type {*} */ (42), at: 'sha-abc' }))
+      await expect(ctrl.fork({ from: (42 as any), at: 'sha-abc' }))
         .rejects.toThrow(ForkError);
     });
 
@@ -274,7 +272,7 @@ describe('ForkController', () => {
     });
 
     it('returns false when both are null/undefined', async () => {
-      expect(await ctrl._isAncestor(/** @type {*} */ (null), /** @type {*} */ (null))).toBe(false);
+      expect(await ctrl._isAncestor((null), (null))).toBe(false);
     });
 
     it('returns false when ancestor is not in the chain', async () => {
@@ -337,11 +335,11 @@ describe('ForkController', () => {
   // =========================================================================
   describe('_validatePatchAgainstCheckpoint()', () => {
     it('no-op when checkpoint is null', async () => {
-      await expect(ctrl._validatePatchAgainstCheckpoint('w1', 'sha-a', /** @type {any} */ (null))).resolves.toBeUndefined();
+      await expect(ctrl._validatePatchAgainstCheckpoint('w1', 'sha-a', (null))).resolves.toBeUndefined();
     });
 
     it('no-op when checkpoint is undefined', async () => {
-      await expect(ctrl._validatePatchAgainstCheckpoint('w1', 'sha-a', /** @type {any} */ (undefined))).resolves.toBeUndefined();
+      await expect(ctrl._validatePatchAgainstCheckpoint('w1', 'sha-a', (undefined))).resolves.toBeUndefined();
     });
 
     it('no-op when checkpoint schema is unsupported', async () => {
@@ -450,7 +448,7 @@ describe('ForkController', () => {
       const { createWormhole: mockCreateWormhole } = await import('../../../../../src/domain/services/WormholeService.js');
 
       const wormholeResult = { fromSha: 'sha-a', toSha: 'sha-b', writerId: 'w1', payload: {}, patchCount: 5 };
-      /** @type {import('vitest').Mock} */ (mockCreateWormhole).mockResolvedValue(wormholeResult);
+      (mockCreateWormhole).mockResolvedValue(wormholeResult);
 
       const result = await ctrl.createWormhole('sha-a', 'sha-b');
 
@@ -467,7 +465,7 @@ describe('ForkController', () => {
 
     it('re-throws WormholeService errors and logs timing', async () => {
       const { createWormhole: mockCreateWormhole } = await import('../../../../../src/domain/services/WormholeService.js');
-      /** @type {import('vitest').Mock} */ (mockCreateWormhole).mockRejectedValue(new Error('wormhole boom'));
+      (mockCreateWormhole).mockRejectedValue(new Error('wormhole boom'));
 
       await expect(ctrl.createWormhole('sha-a', 'sha-b')).rejects.toThrow('wormhole boom');
       expect(host._logTiming).toHaveBeenCalledWith('createWormhole', 0, expect.objectContaining({ error: expect.any(Error) }));

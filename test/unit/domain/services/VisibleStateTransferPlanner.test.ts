@@ -36,16 +36,16 @@ function createReader({
       return edges.map((/** @type {any} */ edge) => ({ ...edge }));
     },
     getNodeProps(/** @type {string} */ nodeId) {
-      return /** @type {Record<string, unknown>} */ (nodeProps)[nodeId] ?? null;
+      return (nodeProps)[nodeId] ?? null;
     },
     getEdgeProps(/** @type {string} */ from, /** @type {string} */ to, /** @type {string} */ label) {
-      return /** @type {Record<string, unknown>} */ (edgeProps)[makeEdgeKey(from, to, label)] ?? null;
+      return (edgeProps)[makeEdgeKey(from, to, label)] ?? null;
     },
     getNodeContentMeta(/** @type {string} */ nodeId) {
-      return /** @type {Record<string, unknown>} */ (nodeContentMeta)[nodeId] ?? null;
+      return (nodeContentMeta)[nodeId] ?? null;
     },
     getEdgeContentMeta(/** @type {string} */ from, /** @type {string} */ to, /** @type {string} */ label) {
-      return /** @type {Record<string, unknown>} */ (edgeContentMeta)[makeEdgeKey(from, to, label)] ?? null;
+      return (edgeContentMeta)[makeEdgeKey(from, to, label)] ?? null;
     },
   };
 }

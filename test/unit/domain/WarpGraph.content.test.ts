@@ -7,7 +7,7 @@ import PersistenceError from '../../../src/domain/errors/PersistenceError.ts';
 
 function setupGraphState(/** @type {any} */ graph, /** @type {any} */ seedFn) {
   const state = createEmptyState();
-  /** @type {any} */ (graph)._cachedState = state;
+  (graph)._cachedState = state;
   graph.materialize = vi.fn().mockResolvedValue(state);
   seedFn(state);
 }
@@ -32,10 +32,8 @@ function attachmentEvent(
 }
 
 describe('WarpRuntime content attachment (query methods)', () => {
-  /** @type {any} */
-  let mockPersistence;
-  /** @type {any} */
-  let graph;
+    let mockPersistence;
+    let graph;
 
   beforeEach(async () => {
     mockPersistence = {
@@ -175,7 +173,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
         storeStream: vi.fn(),
         retrieveStream: vi.fn(),
       };
-      /** @type {any} */ (graph)._blobStorage = blobStorage;
+      (graph)._blobStorage = blobStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
@@ -213,7 +211,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
         store: vi.fn(),
         retrieve: vi.fn().mockResolvedValue(casBuf),
       };
-      /** @type {any} */ (graph)._blobStorage = blobStorage;
+      (graph)._blobStorage = blobStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
@@ -239,7 +237,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
         storeStream: vi.fn(),
         retrieveStream: vi.fn(),
       };
-      /** @type {any} */ (graph)._blobStorage = blobStorage;
+      (graph)._blobStorage = blobStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
@@ -264,7 +262,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
           ),
         ),
       };
-      /** @type {any} */ (graph)._blobStorage = blobStorage;
+      (graph)._blobStorage = blobStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
@@ -284,7 +282,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
         store: vi.fn(),
         retrieve: vi.fn().mockResolvedValue(casBuf),
       };
-      /** @type {any} */ (graph)._blobStorage = blobStorage;
+      (graph)._blobStorage = blobStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'a', 1);
@@ -312,7 +310,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
           ),
         ),
       };
-      /** @type {any} */ (graph)._blobStorage = blobStorage;
+      (graph)._blobStorage = blobStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'a', 1);
@@ -440,7 +438,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
         storeStream: vi.fn(),
         retrieveStream: vi.fn(),
       };
-      /** @type {any} */ (graph)._blobStorage = blobStorage;
+      (graph)._blobStorage = blobStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'a', 1);
@@ -480,7 +478,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
           yield chunk2;
         })()),
       };
-      /** @type {any} */ (graph)._blobStorage = blobStorage;
+      (graph)._blobStorage = blobStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
@@ -491,8 +489,8 @@ describe('WarpRuntime content attachment (query methods)', () => {
       const stream = await graph.getContentStream('doc:1');
       expect(stream).not.toBeNull();
 
-      const chunks = [];
-      for await (const chunk of /** @type {AsyncIterable<Uint8Array>} */ (stream)) {
+      const chunks: any[] = [];
+      for await (const chunk of (stream)) {
         chunks.push(chunk);
       }
 
@@ -530,7 +528,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
           yield chunk;
         })()),
       };
-      /** @type {any} */ (graph)._blobStorage = blobStorage;
+      (graph)._blobStorage = blobStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'a', 1);
@@ -546,8 +544,8 @@ describe('WarpRuntime content attachment (query methods)', () => {
       const stream = await graph.getEdgeContentStream('a', 'b', 'rel');
       expect(stream).not.toBeNull();
 
-      const chunks = [];
-      for await (const c of /** @type {AsyncIterable<Uint8Array>} */ (stream)) {
+      const chunks: any[] = [];
+      for await (const c of (stream)) {
         chunks.push(c);
       }
 

@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
-// @ts-expect-error - no declaration file for @git-stunts/plumbing
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.ts';
 import WarpRuntime from '../../src/domain/WarpRuntime.ts';
@@ -12,12 +11,9 @@ import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapt
 import { buildWriterRef } from '../../src/domain/utils/RefLayout.ts';
 
 describe('WarpRuntime Integration', () => {
-  /** @type {any} */
-  let tempDir;
-  /** @type {any} */
-  let plumbing;
-  /** @type {any} */
-  let persistence;
+    let tempDir;
+    let plumbing;
+    let persistence;
 
   beforeEach(async () => {
     // Create temp directory and init git repo
@@ -56,8 +52,7 @@ describe('WarpRuntime Integration', () => {
         .commit();
 
       // Materialize and verify
-      /** @type {any} */
-      const state = await graph.materialize();
+            const state = (await graph.materialize()) as any;
 
       expect(nodeVisibleV5(state, 'user:alice')).toBe(true);
       expect(nodeVisibleV5(state, 'user:bob')).toBe(true);
@@ -85,8 +80,7 @@ describe('WarpRuntime Integration', () => {
         .removeNode('temp')
         .commit();
 
-      /** @type {any} */
-      const state2 = await graph.materialize();
+            const state2 = (await graph.materialize()) as any;
       expect(nodeVisibleV5(state2, 'temp')).toBe(false);
     });
   });
@@ -116,8 +110,7 @@ describe('WarpRuntime Integration', () => {
         .commit();
 
       // Either writer can materialize the combined state
-      /** @type {any} */
-      const state = await alice.materialize();
+            const state = (await alice.materialize()) as any;
 
       expect(nodeVisibleV5(state, 'node:a')).toBe(true);
       expect(nodeVisibleV5(state, 'node:b')).toBe(true);
@@ -164,8 +157,7 @@ describe('WarpRuntime Integration', () => {
       await (await graph.createPatch()).addNode('n3').commit();
 
       // Materialize from checkpoint should include all nodes
-      /** @type {any} */
-      const state = await graph.materializeAt(checkpointSha);
+            const state = (await graph.materializeAt(checkpointSha)) as any;
       expect(nodeVisibleV5(state, 'n1')).toBe(true);
       expect(nodeVisibleV5(state, 'n2')).toBe(true);
     });
@@ -186,8 +178,7 @@ describe('WarpRuntime Integration', () => {
         .commit();
 
       const crypto = new NodeCryptoAdapter();
-      /** @type {any} */
-      const state1 = await graph1.materialize();
+            const state1 = (await graph1.materialize()) as any;
       const hash1 = await computeStateHash(state1, { crypto });
 
       // Create identical patches in repo 2 (same repo, fresh graph)
@@ -202,8 +193,7 @@ describe('WarpRuntime Integration', () => {
         .setProperty('x', 'v', 42)
         .commit();
 
-      /** @type {any} */
-      const state2 = await graph2.materialize();
+            const state2 = (await graph2.materialize()) as any;
       const hash2 = await computeStateHash(state2, { crypto });
 
       expect(hash1).toBe(hash2);
@@ -253,7 +243,7 @@ describe('WarpRuntime Integration', () => {
       expect(refAfter).toBeTruthy();
       expect(refAfter).not.toBe(refBefore);
 
-      const state = /** @type {*} */ (await graph.materialize());
+      const state = (await graph.materialize() as any);
       expect(nodeVisibleV5(state, 'a')).toBe(true);
     });
 
@@ -274,7 +264,7 @@ describe('WarpRuntime Integration', () => {
       expect(sha2).toBeTruthy();
       expect(sha1).not.toBe(sha2);
 
-      const state = /** @type {*} */ (await graph.materialize());
+      const state = (await graph.materialize() as any);
       expect(nodeVisibleV5(state, 'a')).toBe(true);
       expect(nodeVisibleV5(state, 'b')).toBe(true);
     });
@@ -286,25 +276,24 @@ describe('WarpRuntime Integration', () => {
         writerId: 'alice',
       });
 
-      /** @type {Error|undefined} */
-      let innerError;
+            let innerError;
       await graph.patch(async (p) => {
         p.addNode('a');
         try {
           await graph.patch(p2 => { p2.addNode('b'); });
         } catch (err) {
-          innerError = /** @type {Error} */ (err);
+          innerError = (err);
         }
       });
 
       expect(innerError).toBeDefined();
-      expect(/** @type {Error} */ (innerError).message).toMatch(/not reentrant/i);
+      expect((innerError).message).toMatch(/not reentrant/i);
 
       // Outer patch committed (ref advanced once)
       const ref = await persistence.readRef(buildWriterRef('cas-reentrant', 'alice'));
       expect(ref).toBeTruthy();
 
-      const state = /** @type {*} */ (await graph.materialize());
+      const state = (await graph.materialize() as any);
       expect(nodeVisibleV5(state, 'a')).toBe(true);
       expect(nodeVisibleV5(state, 'b')).toBe(false);
     });

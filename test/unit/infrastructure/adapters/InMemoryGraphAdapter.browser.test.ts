@@ -44,8 +44,7 @@ describe('InMemoryGraphAdapter with injected hash (browser simulation)', () => {
     patch.setProperty('user:alice', 'name', 'Alice');
     await patch.commit();
 
-    /** @type {any} */
-    const state = await graph.materialize();
+        const state = (await graph.materialize()) as any;
     expect(state.nodeAlive.entries.has('user:alice')).toBe(true);
   });
 });

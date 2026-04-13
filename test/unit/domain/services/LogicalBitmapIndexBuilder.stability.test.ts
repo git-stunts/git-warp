@@ -12,8 +12,7 @@ describe('LogicalBitmapIndexBuilder ID stability (F12)', () => {
 
     // Build 1: register initial nodes
     const builder1 = new LogicalBitmapIndexBuilder();
-    /** @type {Record<string, number>} */
-    const initialIds = {};
+        const initialIds = ({}) as Record<string, number>;
     for (const node of initialNodes) {
       initialIds[node] = builder1.registerNode(node);
     }
@@ -69,9 +68,9 @@ describe('LogicalBitmapIndexBuilder ID stability (F12)', () => {
     try {
       builder.registerNode(testNode);
     } catch (_e) {
-      const err = /** @type {*} */ (_e);
-      expect(err.code).toBe('E_SHARD_ID_OVERFLOW');
-      expect(err.context.shardKey).toBe(shardKey);
+      const err = (_e);
+      expect((err as any).code).toBe('E_SHARD_ID_OVERFLOW');
+      expect((err as any).context.shardKey).toBe(shardKey);
     }
   });
 
@@ -83,7 +82,7 @@ describe('LogicalBitmapIndexBuilder ID stability (F12)', () => {
     expect(ownsId).toBe(1);
 
     const shards1 = [...builder1.yieldShards()];
-    const labelShard = /** @type {LabelShard} */ (shards1.find((s) => s instanceof LabelShard));
+    const labelShard = (shards1.find((s) => s instanceof LabelShard) as LabelShard);
     const labelRegistry = Object.fromEntries(labelShard.labels);
 
     // Build 2: seed existing labels, add new
@@ -111,9 +110,7 @@ describe('LogicalBitmapIndexBuilder ID stability (F12)', () => {
       seedBuilder.markAlive(nodeId);
     }
     const seededShards = [...seedBuilder.yieldShards()];
-    const seededMeta = /** @type {MetaShard} */ (
-      seededShards.find((s) => s instanceof MetaShard && s.shardKey === 'aa')
-    );
+    const seededMeta = ((seededShards.find((s) => s instanceof MetaShard && s.shardKey === 'aa')) as MetaShard);
 
     const rebuild = new LogicalBitmapIndexBuilder();
     rebuild.loadExistingMeta('aa', {
@@ -125,9 +122,7 @@ describe('LogicalBitmapIndexBuilder ID stability (F12)', () => {
     }
 
     const rebuiltShards = [...rebuild.yieldShards()];
-    const rebuiltMeta = /** @type {MetaShard} */ (
-      rebuiltShards.find((s) => s instanceof MetaShard && s.shardKey === 'aa')
-    );
+    const rebuiltMeta = ((rebuiltShards.find((s) => s instanceof MetaShard && s.shardKey === 'aa')) as MetaShard);
     const nodeIds = rebuiltMeta.nodeToGlobal.map(([nodeId]) => nodeId);
     const uniqueNodeIds = new Set(nodeIds);
 

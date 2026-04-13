@@ -1,8 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import CachedValue_ from '../../../../src/domain/utils/CachedValue.ts';
 
-/** @type {any} */
-const CachedValue = CachedValue_;
+const CachedValue = (CachedValue_) as any;
 
 /**
  * Creates a mock clock for testing.
@@ -135,8 +134,7 @@ describe('CachedValue', () => {
 
     it('memoizes in-flight compute for concurrent get calls', async () => {
       const clock = createMockClock();
-      /** @type {(value: string) => void} */
-      let resolveCompute = () => {};
+            let resolveCompute = () => {};
       const compute = vi.fn().mockImplementation(() => {
         return new Promise((resolve) => {
           resolveCompute = resolve;
@@ -221,8 +219,7 @@ describe('CachedValue', () => {
 
     it('does not re-cache stale in-flight result after invalidate', async () => {
       const clock = createMockClock();
-      /** @type {(value: string) => void} */
-      let resolveCompute = () => {};
+            let resolveCompute = () => {};
       const compute = vi.fn()
         .mockImplementationOnce(() => {
           return new Promise((resolve) => {

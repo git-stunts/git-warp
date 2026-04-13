@@ -33,8 +33,7 @@ function fakeSha(/** @type {any} */ label) {
  * Returns the tip SHA so it can be wired to readRef.
  */
 function buildPatchChain(/** @type {any} */ persistence, /** @type {any} */ writer, /** @type {any} */ count) {
-  /** @type {any[]} */
-  const shas = [];
+    const shas = ([]) as any[];
   for (let i = 1; i <= count; i++) {
     shas.push(fakeSha(`${writer}${i}`));
   }
@@ -81,10 +80,8 @@ function buildPatchChain(/** @type {any} */ persistence, /** @type {any} */ writ
 }
 
 describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {any} */
-  let graph;
+    let persistence;
+    let graph;
 
   beforeEach(async () => {
     persistence = createMockPersistence();

@@ -15,18 +15,16 @@ import {
   WRITER_BIND_ADD_ALICE,
 } from './fixtures/goldenRecords.ts';
 
-/** @type {import('../../../../src/domain/trust/schemas.ts').TrustPolicy} */
 const WARN_POLICY = {
   schemaVersion: 1,
-  mode: /** @type {'warn'} */ ('warn'),
-  writerPolicy: /** @type {'all_writers_must_be_trusted'} */ ('all_writers_must_be_trusted'),
+  mode: ('warn' as 'warn'),
+  writerPolicy: ('all_writers_must_be_trusted' as 'all_writers_must_be_trusted'),
 };
 
-/** @type {import('../../../../src/domain/trust/schemas.ts').TrustPolicy} */
 const ENFORCE_POLICY = {
   schemaVersion: 1,
-  mode: /** @type {'enforce'} */ ('enforce'),
-  writerPolicy: /** @type {'all_writers_must_be_trusted'} */ ('all_writers_must_be_trusted'),
+  mode: ('enforce' as 'enforce'),
+  writerPolicy: ('all_writers_must_be_trusted' as 'all_writers_must_be_trusted'),
 };
 
 describe('Cross-mode determinism (RG-T5)', () => {
@@ -60,8 +58,8 @@ describe('Cross-mode determinism (RG-T5)', () => {
     expect(warnResult.trust.untrustedWriters).toEqual(enforceResult.trust.untrustedWriters);
 
     for (let i = 0; i < warnResult.trust.explanations.length; i++) {
-      const w = /** @type {NonNullable<typeof warnResult.trust.explanations[0]>} */ (warnResult.trust.explanations[i]);
-      const e = /** @type {NonNullable<typeof enforceResult.trust.explanations[0]>} */ (enforceResult.trust.explanations[i]);
+      const w = (warnResult.trust.explanations[i] as NonNullable<typeof warnResult.trust.explanations[0]>);
+      const e = (enforceResult.trust.explanations[i] as NonNullable<typeof enforceResult.trust.explanations[0]>);
       expect(w.writerId).toBe(e.writerId);
       expect(w.trusted).toBe(e.trusted);
       expect(w.reasonCode).toBe(e.reasonCode);

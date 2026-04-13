@@ -80,11 +80,9 @@ describe('WarpCore', () => {
   // ── Content attachment reads (node) ─────────────────────────────────────
 
   describe('content methods (node)', () => {
-    /** @type {WarpCore} */
-    let core;
+        let core;
     let runtime;
-    /** @type {any} */
-    let runtimeProto;
+        let runtimeProto;
 
     beforeEach(() => {
       runtime = createMockRuntimeForAdopt();
@@ -131,11 +129,9 @@ describe('WarpCore', () => {
   // ── Content attachment reads (edge) ─────────────────────────────────────
 
   describe('content methods (edge)', () => {
-    /** @type {WarpCore} */
-    let core;
+        let core;
     let runtime;
-    /** @type {any} */
-    let runtimeProto;
+        let runtimeProto;
 
     beforeEach(() => {
       runtime = createMockRuntimeForAdopt();
@@ -198,7 +194,7 @@ describe('WarpCore', () => {
     it('externalizationPolicy setter is no-op when no pipeline', () => {
       const core = WarpCore._adopt(createMockRuntimeForAdopt());
       // Should not throw
-      core.externalizationPolicy = /** @type {any} */ ('LIVE_LENS');
+      core.externalizationPolicy = ('LIVE_LENS' as any);
       expect(core.externalizationPolicy).toBeNull();
     });
   });

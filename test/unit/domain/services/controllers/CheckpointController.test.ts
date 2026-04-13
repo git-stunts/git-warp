@@ -168,10 +168,8 @@ function createMockHost(overrides = {}) {
 /* ------------------------------------------------------------------ */
 
 describe('CheckpointController', () => {
-  /** @type {ReturnType<typeof createMockHost>} */
-  let host;
-  /** @type {CheckpointController} */
-  let ctrl;
+    let host;
+    let ctrl;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -189,7 +187,7 @@ describe('CheckpointController', () => {
     executeGCMock.mockReturnValue(stubGCResult());
 
     host = createMockHost();
-    ctrl = new CheckpointController(/** @type {never} */ (host));
+    ctrl = new CheckpointController((host));
   });
 
   /* ================================================================ */
@@ -199,7 +197,7 @@ describe('CheckpointController', () => {
   describe('createCheckpoint', () => {
     it('creates a checkpoint from writer tips', async () => {
       host['discoverWriters'] = vi.fn().mockResolvedValue(['alice', 'bob']);
-      /** @type {import('vitest').Mock} */ (/** @type {any} */ (host['_persistence']).readRef)
+      ((host['_persistence'] as any).readRef as any)
         .mockResolvedValueOnce('sha-alice')
         .mockResolvedValueOnce('sha-bob');
       createCheckpointCommitMock.mockResolvedValue('cp-sha');
@@ -207,7 +205,7 @@ describe('CheckpointController', () => {
       const result = await ctrl.createCheckpoint();
 
       expect(result).toBe('cp-sha');
-      expect(/** @type {any} */ (host['_persistence']).updateRef).toHaveBeenCalledWith(
+      expect((host['_persistence'] as any).updateRef).toHaveBeenCalledWith(
         expect.stringContaining('checkpoints'),
         'cp-sha',
       );
@@ -264,15 +262,15 @@ describe('CheckpointController', () => {
   describe('syncCoverage', () => {
     it('creates an octopus anchor from writer tips', async () => {
       host['discoverWriters'] = vi.fn().mockResolvedValue(['alice']);
-      /** @type {import('vitest').Mock} */ (/** @type {any} */ (host['_persistence']).readRef).mockResolvedValue('sha-alice');
+      ((host['_persistence'] as any).readRef as any).mockResolvedValue('sha-alice');
       encodeAnchorMessageMock.mockReturnValue('anchor-msg');
 
       await ctrl.syncCoverage();
 
-      expect(/** @type {any} */ (host['_persistence']).commitNode).toHaveBeenCalledWith(
+      expect((host['_persistence'] as any).commitNode).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'anchor-msg', parents: ['sha-alice'] }),
       );
-      expect(/** @type {any} */ (host['_persistence']).updateRef).toHaveBeenCalledWith(
+      expect((host['_persistence'] as any).updateRef).toHaveBeenCalledWith(
         expect.stringContaining('coverage'),
         'anchor-sha',
       );
@@ -283,16 +281,16 @@ describe('CheckpointController', () => {
 
       await ctrl.syncCoverage();
 
-      expect(/** @type {any} */ (host['_persistence']).commitNode).not.toHaveBeenCalled();
+      expect((host['_persistence'] as any).commitNode).not.toHaveBeenCalled();
     });
 
     it('returns early when no writer SHAs are found', async () => {
       host['discoverWriters'] = vi.fn().mockResolvedValue(['alice']);
-      /** @type {import('vitest').Mock} */ (/** @type {any} */ (host['_persistence']).readRef).mockResolvedValue('');
+      ((host['_persistence'] as any).readRef as any).mockResolvedValue('');
 
       await ctrl.syncCoverage();
 
-      expect(/** @type {any} */ (host['_persistence']).commitNode).not.toHaveBeenCalled();
+      expect((host['_persistence'] as any).commitNode).not.toHaveBeenCalled();
     });
   });
 
@@ -302,7 +300,7 @@ describe('CheckpointController', () => {
 
   describe('_loadLatestCheckpoint', () => {
     it('returns checkpoint when ref exists', async () => {
-      /** @type {import('vitest').Mock} */ (/** @type {any} */ (host['_persistence']).readRef).mockResolvedValue('cp-sha');
+      ((host['_persistence'] as any).readRef as any).mockResolvedValue('cp-sha');
       const cpData = { state: stubState(), frontier: new Map(), stateHash: 'abc', schema: 2, appliedVV: null, indexShardOids: null };
       loadCheckpointMock.mockResolvedValue(cpData);
 
@@ -312,7 +310,7 @@ describe('CheckpointController', () => {
     });
 
     it('returns null when ref is empty', async () => {
-      /** @type {import('vitest').Mock} */ (/** @type {any} */ (host['_persistence']).readRef).mockResolvedValue('');
+      ((host['_persistence'] as any).readRef as any).mockResolvedValue('');
 
       const result = await ctrl._loadLatestCheckpoint();
 
@@ -320,7 +318,7 @@ describe('CheckpointController', () => {
     });
 
     it('returns null when ref is null', async () => {
-      /** @type {import('vitest').Mock} */ (/** @type {any} */ (host['_persistence']).readRef).mockResolvedValue(null);
+      ((host['_persistence'] as any).readRef as any).mockResolvedValue(null);
 
       const result = await ctrl._loadLatestCheckpoint();
 
@@ -328,7 +326,7 @@ describe('CheckpointController', () => {
     });
 
     it('returns null for known load errors (missing, not found, ENOENT)', async () => {
-      /** @type {import('vitest').Mock} */ (/** @type {any} */ (host['_persistence']).readRef).mockResolvedValue('cp-sha');
+      ((host['_persistence'] as any).readRef as any).mockResolvedValue('cp-sha');
 
       for (const msg of ['object missing', 'ref not found', 'ENOENT: no such file', 'non-empty string']) {
         loadCheckpointMock.mockRejectedValueOnce(new Error(msg));
@@ -338,7 +336,7 @@ describe('CheckpointController', () => {
     });
 
     it('rethrows unknown errors', async () => {
-      /** @type {import('vitest').Mock} */ (/** @type {any} */ (host['_persistence']).readRef).mockResolvedValue('cp-sha');
+      ((host['_persistence'] as any).readRef as any).mockResolvedValue('cp-sha');
       loadCheckpointMock.mockRejectedValue(new Error('disk on fire'));
 
       await expect(ctrl._loadLatestCheckpoint()).rejects.toThrow('disk on fire');
@@ -354,11 +352,11 @@ describe('CheckpointController', () => {
       host['discoverWriters'] = vi.fn().mockResolvedValue(['alice', 'bob']);
       const patchA = { patch: { ops: [] }, sha: 'sha-a' };
       const patchB = { patch: { ops: [] }, sha: 'sha-b' };
-      /** @type {import('vitest').Mock} */ (host['_loadWriterPatches'])
+      (host['_loadWriterPatches'] as any)
         .mockResolvedValueOnce([patchA])
         .mockResolvedValueOnce([patchB]);
 
-      const checkpoint = /** @type {import('../../../../../src/domain/services/state/checkpointLoad.ts').LoadedCheckpoint} */ ({ state: stubState(), frontier: new Map([['alice', 'old-sha']]), stateHash: 'h', schema: 2, appliedVV: null, indexShardOids: null });
+      const checkpoint = ({ state: stubState(), frontier: new Map([['alice', 'old-sha']]), stateHash: 'h', schema: 2, appliedVV: null, indexShardOids: null } as any);
       const result = await ctrl._loadPatchesSince(checkpoint);
 
       expect(result).toEqual([patchA, patchB]);
@@ -369,9 +367,9 @@ describe('CheckpointController', () => {
     it('validates the last patch per writer against the checkpoint', async () => {
       host['discoverWriters'] = vi.fn().mockResolvedValue(['alice']);
       const patch = { patch: { ops: [] }, sha: 'tip-sha' };
-      /** @type {import('vitest').Mock} */ (host['_loadWriterPatches']).mockResolvedValue([patch]);
+      (host['_loadWriterPatches'] as any).mockResolvedValue([patch]);
 
-      const checkpoint = /** @type {import('../../../../../src/domain/services/state/checkpointLoad.ts').LoadedCheckpoint} */ ({ state: stubState(), frontier: new Map(), stateHash: 'h', schema: 2, appliedVV: null, indexShardOids: null });
+      const checkpoint = ({ state: stubState(), frontier: new Map(), stateHash: 'h', schema: 2, appliedVV: null, indexShardOids: null } as any);
       await ctrl._loadPatchesSince(checkpoint);
 
       expect(host['_validatePatchAgainstCheckpoint']).toHaveBeenCalledWith('alice', 'tip-sha', checkpoint);
@@ -379,9 +377,9 @@ describe('CheckpointController', () => {
 
     it('skips validation when writer has no patches', async () => {
       host['discoverWriters'] = vi.fn().mockResolvedValue(['alice']);
-      /** @type {import('vitest').Mock} */ (host['_loadWriterPatches']).mockResolvedValue([]);
+      (host['_loadWriterPatches'] as any).mockResolvedValue([]);
 
-      const checkpoint = /** @type {import('../../../../../src/domain/services/state/checkpointLoad.ts').LoadedCheckpoint} */ ({ state: stubState(), frontier: new Map(), stateHash: 'h', schema: 2, appliedVV: null, indexShardOids: null });
+      const checkpoint = ({ state: stubState(), frontier: new Map(), stateHash: 'h', schema: 2, appliedVV: null, indexShardOids: null } as any);
       await ctrl._loadPatchesSince(checkpoint);
 
       expect(host['_validatePatchAgainstCheckpoint']).not.toHaveBeenCalled();
@@ -394,7 +392,7 @@ describe('CheckpointController', () => {
 
   describe('_validateMigrationBoundary', () => {
     it('passes when checkpoint has v5 schema', async () => {
-      /** @type {import('vitest').Mock} */ (/** @type {any} */ (host['_persistence']).readRef).mockResolvedValue('cp-sha');
+      ((host['_persistence'] as any).readRef as any).mockResolvedValue('cp-sha');
       loadCheckpointMock.mockResolvedValue({ state: stubState(), frontier: new Map(), stateHash: 'h', schema: 5, appliedVV: null, indexShardOids: null });
       isV5CheckpointSchemaMock.mockReturnValue(true);
 
@@ -402,24 +400,24 @@ describe('CheckpointController', () => {
     });
 
     it('throws SchemaUnsupportedError when schema:1 patches exist', async () => {
-      /** @type {import('vitest').Mock} */ (/** @type {any} */ (host['_persistence']).readRef)
+      ((host['_persistence'] as any).readRef as any)
         .mockResolvedValueOnce('') // checkpoint ref empty
         .mockResolvedValueOnce('tip-sha'); // writer ref
       isV5CheckpointSchemaMock.mockReturnValue(false);
       host['discoverWriters'] = vi.fn().mockResolvedValue(['alice']);
-      /** @type {import('vitest').Mock} */ (/** @type {any} */ (host['_persistence']).getNodeInfo).mockResolvedValue({ message: 'patch-msg', parents: [] });
+      ((host['_persistence'] as any).getNodeInfo as any).mockResolvedValue({ message: 'patch-msg', parents: [] });
       detectMessageKindMock.mockReturnValue('patch');
       decodePatchMessageMock.mockReturnValue({ blobSha: 'blob-sha' });
 
       // Wire _readPatchBlob and _codec.decode on the host for _hasSchema1Patches
       host['_readPatchBlob'] = vi.fn().mockResolvedValue(new Uint8Array(0));
-      /** @type {import('vitest').Mock} */ (/** @type {any} */ (host['_codec']).decode).mockReturnValue({ schema: 1 });
+      ((host['_codec'] as any).decode as any).mockReturnValue({ schema: 1 });
 
       await expect(ctrl._validateMigrationBoundary()).rejects.toThrow(SchemaUnsupportedError);
     });
 
     it('passes when no checkpoint and no schema:1 patches', async () => {
-      /** @type {import('vitest').Mock} */ (/** @type {any} */ (host['_persistence']).readRef).mockResolvedValue('');
+      ((host['_persistence'] as any).readRef as any).mockResolvedValue('');
       isV5CheckpointSchemaMock.mockReturnValue(false);
       host['discoverWriters'] = vi.fn().mockResolvedValue([]);
 

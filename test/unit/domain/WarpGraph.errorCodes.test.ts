@@ -30,10 +30,8 @@ function mockFirstCommit(/** @type {any} */ persistence) {
 }
 
 describe('HS/ERR/2: Error codes and recovery hints for state-related errors', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {any} */
-  let graph;
+    let persistence;
+    let graph;
 
   beforeEach(async () => {
     persistence = createMockPersistence();
@@ -142,7 +140,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       await (await graph.createPatch()).addNode('test:node').commit();
 
       // Force dirty to simulate the stale-after-write scenario
-      /** @type {any} */ (graph)._stateDirty = true;
+      (graph)._stateDirty = true;
 
       try {
         await graph.hasNode('test:node');
@@ -155,7 +153,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
     it('throws QueryError with code E_STALE_STATE when _stateDirty is manually set', async () => {
       await graph.materialize();
-      /** @type {any} */ (graph)._stateDirty = true;
+      (graph)._stateDirty = true;
 
       try {
         await graph.getNodes();
@@ -168,7 +166,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
     it('error message includes recovery hint mentioning materialize()', async () => {
       await graph.materialize();
-      /** @type {any} */ (graph)._stateDirty = true;
+      (graph)._stateDirty = true;
 
       try {
         await graph.hasNode('test:x');
@@ -180,7 +178,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
     it('error message includes link to materialization docs', async () => {
       await graph.materialize();
-      /** @type {any} */ (graph)._stateDirty = true;
+      (graph)._stateDirty = true;
 
       try {
         await graph.hasNode('test:x');
@@ -192,7 +190,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
     it('error message matches expected recovery hint text', async () => {
       await graph.materialize();
-      /** @type {any} */ (graph)._stateDirty = true;
+      (graph)._stateDirty = true;
 
       try {
         await graph.hasNode('test:x');
@@ -224,7 +222,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
     it('catch (e) { if (e.code === "E_STALE_STATE") } works for stale-state errors', async () => {
       await graph.materialize();
-      /** @type {any} */ (graph)._stateDirty = true;
+      (graph)._stateDirty = true;
 
       let matched = false;
 
@@ -240,7 +238,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
     });
 
     it('E_NO_STATE and E_STALE_STATE are distinguishable', async () => {
-      const codes = [];
+      const codes: any[] = [];
 
       // Trigger E_NO_STATE
       try {
@@ -251,7 +249,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
       // Trigger E_STALE_STATE
       await graph.materialize();
-      /** @type {any} */ (graph)._stateDirty = true;
+      (graph)._stateDirty = true;
 
       try {
         await graph.hasNode('test:x');
@@ -276,8 +274,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
   // ── autoMaterialize prevents both errors ───────────────────────────────
 
   describe('autoMaterialize: true prevents both E_NO_STATE and E_STALE_STATE', () => {
-    /** @type {any} */
-    let autoGraph;
+        let autoGraph;
 
     beforeEach(async () => {
       const autoPersistence = createMockPersistence();
@@ -346,7 +343,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
     it('E_STALE_STATE error has name, code, message, and context properties', async () => {
       await graph.materialize();
-      /** @type {any} */ (graph)._stateDirty = true;
+      (graph)._stateDirty = true;
 
       try {
         await graph.hasNode('test:x');
@@ -371,7 +368,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
     it('E_STALE_STATE error has a stack trace', async () => {
       await graph.materialize();
-      /** @type {any} */ (graph)._stateDirty = true;
+      (graph)._stateDirty = true;
 
       try {
         await graph.hasNode('test:x');

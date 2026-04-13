@@ -6,8 +6,7 @@ import {
   applyWithDiff,
   reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.ts';
-/** @type {(...args: any[]) => any} */
-const reduceV5 = _reduceV5;
+const reduceV5 = (_reduceV5) as (...args: any[]) => any;
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
@@ -376,7 +375,7 @@ describe('JoinReducer diff tracking', () => {
 
       const { diff } = applyWithDiff(state, makePatch({
         ops: [
-          /** @type {any} */ (undefined),
+          (undefined),
           nodeAdd('n1', Dot.create('w1', 1)),
         ],
       }), 'fff00002');

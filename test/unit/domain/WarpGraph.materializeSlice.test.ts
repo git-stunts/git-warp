@@ -10,10 +10,8 @@ import {
 } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {any} */
-  let oidGen;
+    let persistence;
+    let oidGen;
 
   beforeEach(() => {
     persistence = createMockPersistence();
@@ -530,7 +528,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
       const slice = await graph.materializeSlice('user:alice', { receipts: true });
       expect((slice.receipts as any)).toBeDefined();
       expect(Array.isArray((slice.receipts as any))).toBe(true);
-      expect((/** @type {any} */ (slice.receipts as any)).length).toBe(1);
+      expect(((slice.receipts as any as any)).length).toBe(1);
     });
 
     it('does not include receipts when not requested', async () => {

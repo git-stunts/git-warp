@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.ts';
 import { checkAborted as _checkAborted, createTimeoutSignal } from '../../../../src/domain/utils/cancellation.ts';
 
-/** @type {any} */
-const checkAborted = _checkAborted;
+const checkAborted = (_checkAborted) as any;
 
 describe('Cancellation', () => {
   describe('OperationAbortedError', () => {
@@ -86,7 +85,7 @@ describe('Cancellation', () => {
         checkAborted(controller.signal, 'rebuild');
         expect.fail('Should have thrown');
       } catch (/** @type {any} */ err) {
-        expect(err.context.operation).toBe('rebuild');
+        expect((err as any).context.operation).toBe('rebuild');
       }
     });
 
@@ -113,7 +112,7 @@ describe('Cancellation', () => {
         checkAborted(controller.signal);
         expect.fail('Should have thrown');
       } catch (/** @type {any} */ err) {
-        expect(err.message).toContain('Operation was aborted');
+        expect((err as any).message).toContain('Operation was aborted');
       }
     });
   });
@@ -297,7 +296,7 @@ describe('Cancellation', () => {
         // Might complete if abort happens after all nodes
       } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(OperationAbortedError);
-        expect(err.message).toContain('rebuild');
+        expect((err as any).message).toContain('rebuild');
         // Should have processed at least one node but not all
         expect(processedCount).toBeLessThanOrEqual(4);
       }

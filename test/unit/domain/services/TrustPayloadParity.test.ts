@@ -193,7 +193,7 @@ describe('TrustPayloadParity — shape parity', () => {
 
     for (const key of REQUIRED_EVIDENCE_KEYS) {
       expect(cliPayload.trust.evidenceSummary).toHaveProperty(key);
-      expect(typeof (/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (cliPayload.trust.evidenceSummary)))[key]).toBe('number');
+      expect(typeof (((cliPayload.trust.evidenceSummary as unknown) as Record<string, unknown>))[key]).toBe('number');
     }
   });
 
@@ -369,7 +369,7 @@ describe('TrustPayloadParity — error path', () => {
 
   it('error payload evidenceSummary has all zero counters', () => {
     const payload = buildErrorPayload('g', { source: 'ref', sourceDetail: null });
-    const summary = /** @type {Record<string, number>} */ (payload.trust.evidenceSummary);
+    const summary = (payload.trust.evidenceSummary as Record<string, number>);
     for (const key of REQUIRED_EVIDENCE_KEYS) {
       expect(summary[key]).toBe(0);
     }
@@ -446,7 +446,7 @@ describe('TrustPayloadParity — not-configured path', () => {
 
   it('not_configured evidenceSummary has all zero counters', () => {
     const payload = buildNotConfiguredPayload('g');
-    const summary = /** @type {Record<string, number>} */ (payload.trust.evidenceSummary);
+    const summary = (payload.trust.evidenceSummary as Record<string, number>);
     for (const key of REQUIRED_EVIDENCE_KEYS) {
       expect(summary[key]).toBe(0);
     }

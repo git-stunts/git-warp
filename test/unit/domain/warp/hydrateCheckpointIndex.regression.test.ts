@@ -43,7 +43,7 @@ describe('materialize stale-checkpoint regression', () => {
     );
 
     // MaterializeDeps mock: patches returns a checkpoint with latestState and no new patches.
-    const deps = /** @type {any} */ ({
+    const deps = (({
       clock: { now: () => 0, timestamp: () => 0 },
       logger: { info() {}, warn() {}, error() {}, debug() {} },
       codec: null,
@@ -66,7 +66,7 @@ describe('materialize stale-checkpoint regression', () => {
         getFrontier: async () => new Map(),
         loadPatchChain: async () => [],
       },
-    });
+    }) as any);
 
     const ctrl = new MaterializeController(deps);
     const result = await ctrl.materialize({});

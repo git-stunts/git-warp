@@ -15,8 +15,8 @@ function createSession() {
   };
 
   const session = new PatchSession({
-    builder: /** @type {any} */ (builder),
-    persistence: /** @type {any} */ ({}),
+    builder: (builder),
+    persistence: ({} as any),
     graphName: 'events',
     writerId: 'alice',
     expectedOldHead: null,

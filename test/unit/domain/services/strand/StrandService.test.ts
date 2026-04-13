@@ -45,9 +45,9 @@ let blobs;
 /** @type {Map<string, Array<{patch: object, sha: string}>>} sha -> patch chain */
 let patchChains;
 
-const DERIVED_CACHE_AUTHORITY = /** @type {'derived'} */ ('derived');
-const COORDINATE_VERSION = /** @type {'frontier-lamport/v1'} */ (STRAND_COORDINATE_VERSION);
-const OVERLAY_KIND = /** @type {'patch-log'} */ (STRAND_OVERLAY_KIND);
+const DERIVED_CACHE_AUTHORITY = ('derived' as 'derived');
+const COORDINATE_VERSION = (STRAND_COORDINATE_VERSION);
+const OVERLAY_KIND = (STRAND_OVERLAY_KIND);
 
 /**
  * @typedef {{
@@ -110,7 +110,7 @@ const OVERLAY_KIND = /** @type {'patch-log'} */ (STRAND_OVERLAY_KIND);
  * @returns {DescriptorStorePrivate}
  */
 function descriptorStorePrivate(value) {
-  return /** @type {DescriptorStorePrivate} */ (value);
+  return (value);
 }
 
 /**
@@ -120,7 +120,7 @@ function descriptorStorePrivate(value) {
  * @returns {PatchServicePrivate}
  */
 function patchServicePrivate(value) {
-  return /** @type {PatchServicePrivate} */ (value);
+  return (value);
 }
 
 /**
@@ -130,7 +130,7 @@ function patchServicePrivate(value) {
  * @returns {StrandServicePrivate}
  */
 function strandServicePrivate(value) {
-  return /** @type {StrandServicePrivate} */ (value);
+  return (value);
 }
 
 /**
@@ -143,7 +143,7 @@ function strandServicePrivate(value) {
 function requirePresent(value) {
   expect(value).toBeDefined();
   expect(value).not.toBeNull();
-  return /** @type {T} */ (value);
+  return (value);
 }
 
 /**
@@ -154,7 +154,7 @@ function requirePresent(value) {
  */
 function requireStrandError(err) {
   expect(err).toBeInstanceOf(StrandError);
-  return /** @type {StrandError} */ (err);
+  return (err);
 }
 
 /**
@@ -177,11 +177,11 @@ function makeDot(writerId, counter) {
  * @returns {Patch['ops'][number]}
  */
 function makeNodeAddOp(nodeId, writerId, counter) {
-  return /** @type {Patch['ops'][number]} */ (/** @type {unknown} */ ({
+  return ((({
     type: 'NodeAdd',
     node: nodeId,
     dot: makeDot(writerId, counter),
-  }));
+  })) as Patch['ops'][number]);
 }
 
 /**
@@ -228,8 +228,8 @@ function makeQueuedIntent(overrides = {}) {
  * @returns {StrandDescriptor}
  */
 function buildValidDescriptor(overrides = {}) {
-  return /** @type {StrandDescriptor} */ ({
-    schemaVersion: /** @type {1} */ (1),
+  return (({
+    schemaVersion:  (1),
     strandId: 'test-strand',
     graphName: 'test-graph',
     createdAt: '2026-04-06T00:00:00.000Z',
@@ -253,7 +253,7 @@ function buildValidDescriptor(overrides = {}) {
     braid: { readOverlays: [] },
     materialization: { cacheAuthority: DERIVED_CACHE_AUTHORITY },
     ...overrides,
-  });
+  }) as StrandDescriptor);
 }
 
 /**
@@ -342,9 +342,9 @@ function createMockGraph() {
     _patchInProgress: false,
     _maxObservedLamport: 0,
     _stateDirty: false,
-    _cachedViewHash: /** @type {string|null} */ (null),
-    _cachedCeiling: /** @type {number|null} */ (null),
-    _cachedFrontier: /** @type {Map<string, string>|null} */ (null),
+    _cachedViewHash: (null),
+    _cachedCeiling: (null),
+    _cachedFrontier: (null),
     _provenanceIndex: null,
     _provenanceDegraded: true,
     _patchJournal: /** @type {{ writePatch(patch: Patch): Promise<string> }|null} */ (null),
@@ -364,14 +364,12 @@ function createMockGraph() {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('StrandService', () => {
-  /** @type {ReturnType<typeof createMockGraph>} */
-  let graph;
-  /** @type {import('../../../../../src/domain/services/strand/StrandCoordinator.ts').default} */
-  let service;
+    let graph;
+    let service;
 
   beforeEach(() => {
     graph = createMockGraph();
-    service = createStrandCoordinator(/** @type {any} */ (graph));
+    service = createStrandCoordinator((graph));
   });
 
   // ── Exported constants ────────────────────────────────────────────────────
@@ -461,18 +459,16 @@ describe('StrandService', () => {
 
     it('treats missing braid overlays as an empty normalized list', async () => {
       const hydrated = await service._descriptorStore.hydrateDescriptor(
-        /** @type {ParsedStrandBlob} */ (
-          /** @type {unknown} */ (
+        (((
             buildValidDescriptor(
-              /** @type {Partial<StrandDescriptor>} */ (
-                /** @type {unknown} */ ({
+               (
+                 ({
                   strandId: 'alpha',
                   braid: {},
                 })
               ),
             )
-          )
-        ),
+          )) as ParsedStrandBlob),
       );
 
       expect(hydrated.braid.readOverlays).toEqual([]);
@@ -535,13 +531,13 @@ describe('StrandService', () => {
         desc,
         { nextIntentSeq: 1, intents: [] },
         {
-          build: () => /** @type {Patch} */ (/** @type {unknown} */ ({
+          build: () => ((({
             ...makePatch({
               ops: [makeNodeAddOp('node:test', 'alpha', 1)],
             }),
             reads: [undefined, 'node:b', 'node:a'],
             writes: [null, 'node:c', 'node:a'],
-          })),
+          })) as Patch),
           _contentBlobs: [undefined, 'blob:b', 'blob:a'],
         },
       );
@@ -559,13 +555,13 @@ describe('StrandService', () => {
         desc,
         { nextIntentSeq: 1, intents: [] },
         {
-          build: () => /** @type {Patch} */ (/** @type {unknown} */ ({
+          build: () => ((({
             ...makePatch({
               ops: [makeNodeAddOp('node:test', 'alpha', 1)],
             }),
             reads: [42],
             writes: [],
-          })),
+          })) as Patch),
           _contentBlobs: [],
         },
       )).toThrow(StrandError);
@@ -579,11 +575,11 @@ describe('StrandService', () => {
         desc,
         { nextIntentSeq: 1, intents: [] },
         {
-          build: () => /** @type {Patch} */ (/** @type {unknown} */ (makePatch({
+          build: () => (((makePatch({
             ops: [makeNodeAddOp('node:test', 'alpha', 1)],
             reads: ['   '],
             writes: [],
-          }))),
+          }))) as Patch),
           _contentBlobs: [],
         },
       )).toThrow(StrandError);
@@ -1029,10 +1025,8 @@ describe('StrandService', () => {
      * graph.constructor.open(). We mock the constructor to support this.
      */
 
-    /** @type {ReturnType<typeof createMockGraph>} */
-    let detachedGraph;
-    /** @type {ReturnType<typeof vi.fn>} */
-    let openSpy;
+        let detachedGraph;
+        let openSpy;
 
     beforeEach(() => {
       // Create a mock class constructor with static open()
@@ -1054,8 +1048,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
 
-      /** @type {any} */
-      const result = await service.materialize('alpha');
+            const result = (await service.materialize('alpha')) as any;
 
       expect(result).toBeDefined();
       if ('nodeAlive' in result) {
@@ -1069,8 +1062,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
 
-      /** @type {any} */
-      const result = await service.materialize('alpha', { receipts: true });
+            const result = (await service.materialize('alpha', { receipts: true })) as any;
 
       if ('state' in result) {
         expect(result.state).toBeDefined();
@@ -1163,8 +1155,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
 
-      /** @type {any} */
-      const builder = await service.createPatchBuilder('alpha');
+            const builder = (await service.createPatchBuilder('alpha')) as any;
 
       expect(builder).toBeDefined();
       expect(typeof builder.addNode).toBe('function');
@@ -1177,8 +1168,7 @@ describe('StrandService', () => {
       const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
       graph._logger = logger;
 
-      /** @type {any} */
-      const builder = await service.createPatchBuilder('alpha');
+            const builder = (await service.createPatchBuilder('alpha')) as any;
 
       expect(builder._logger).toBe(logger);
       // The builder uses the strand-materialized state (not the live _cachedState)
@@ -1298,8 +1288,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
 
-      /** @type {any} */
-      const intent = await service.queueIntent('alpha', (/** @type {any} */ builder) => {
+            const intent = await service.queueIntent('alpha', (/** @type {any} */ builder) => {
         builder.addNode('node:test');
       });
 
@@ -1344,15 +1333,13 @@ describe('StrandService', () => {
       const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
       const snapshotState = createEmptyState();
       graph._logger = logger;
-      vi.spyOn(/** @type {any} */ (service._patchService), '_materializeDescriptor').mockResolvedValue({
+      vi.spyOn((service._patchService as any), '_materializeDescriptor').mockResolvedValue({
         state: snapshotState,
         allPatches: [],
       });
 
-      /** @type {unknown} */
-      let seenState = null;
-      /** @type {unknown} */
-      let seenLogger = null;
+            let seenState = (null) as unknown;
+            let seenLogger = (null) as unknown;
       await service.queueIntent('alpha', (/** @type {any} */ builder) => {
         seenState = builder._getCurrentState();
         seenLogger = builder._logger;
@@ -1392,8 +1379,7 @@ describe('StrandService', () => {
       });
       storeDescriptor(desc);
 
-      /** @type {any[]} */
-      const intents = /** @type {any} */ (await service.listIntents('alpha'));
+            const intents = (await service.listIntents('alpha') as any);
 
       expect(intents).toHaveLength(1);
       expect(requirePresent(intents[0]).intentId).toBe('alpha.intent.0001');
@@ -1412,8 +1398,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
 
-      /** @type {any} */
-      const tickRecord = await service.tick('alpha');
+            const tickRecord = (await service.tick('alpha')) as any;
 
       expect(tickRecord.tickId).toBeTruthy();
       expect(tickRecord.strandId).toBe('alpha');
@@ -1434,8 +1419,7 @@ describe('StrandService', () => {
       });
       storeDescriptor(desc);
 
-      /** @type {any} */
-      const tickRecord = await service.tick('alpha');
+            const tickRecord = (await service.tick('alpha')) as any;
       expect(tickRecord.tickIndex).toBe(4);
     });
 
@@ -1474,8 +1458,7 @@ describe('StrandService', () => {
       });
       storeDescriptor(desc);
 
-      /** @type {any} */
-      const tickRecord = await service.tick('alpha');
+            const tickRecord = (await service.tick('alpha')) as any;
 
       // First intent (n1) admitted, second (n1 overlap) rejected, third (n2) admitted
       expect(tickRecord.admittedIntentIds).toContain('alpha.intent.0001');
@@ -2155,8 +2138,7 @@ describe('StrandService', () => {
         },
       });
 
-      /** @type {string[]} */
-      const callOrder = [];
+            const callOrder = ([]) as string[];
       graph._loadPatchChainFromSha.mockImplementation(async (sha) => {
         callOrder.push(sha);
         return [];
@@ -2618,7 +2600,7 @@ describe('StrandService', () => {
         lamport: 1,
       });
 
-      const treeEntries = /** @type {string[]} */ (requirePresent(graph._persistence.writeTree.mock.calls[0])[0]);
+      const treeEntries = (requirePresent(graph._persistence.writeTree.mock.calls[0])[0] as string[]);
       expect(treeEntries).toHaveLength(3); // patch.cbor + 2 content blobs
       expect(treeEntries.some((entry) => entry.includes('_content_blob-1'))).toBe(true);
       expect(treeEntries.some((entry) => entry.includes('_content_blob-2'))).toBe(true);

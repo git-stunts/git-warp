@@ -30,9 +30,8 @@ import {
  */
 function sortedReplacer(_key, value) {
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-    /** @type {Record<string, unknown>} */
-    const sorted = {};
-    const obj = /** @type {Record<string, unknown>} */ (value);
+        const sorted = ({}) as Record<string, unknown>;
+    const obj = (value);
     for (const k of Object.keys(obj).sort()) {
       sorted[k] = obj[k];
     }
@@ -599,19 +598,19 @@ describe('Audit Receipt Spec — Negative Fixtures', () => {
 
   it('N3: rejects missing required field (graphName)', () => {
     const r = baseReceipt();
-    delete (/** @type {any} */ (r)).graphName;
+    delete ((r)).graphName;
     expect(validateReceipt(r)).toBe('missing required field: graphName');
   });
 
   it('N3b: rejects missing required field (writerId)', () => {
     const r = baseReceipt();
-    delete (/** @type {any} */ (r)).writerId;
+    delete ((r)).writerId;
     expect(validateReceipt(r)).toBe('missing required field: writerId');
   });
 
   it('N3c: rejects missing required field (timestamp)', () => {
     const r = baseReceipt();
-    delete (/** @type {any} */ (r)).timestamp;
+    delete ((r)).timestamp;
     expect(validateReceipt(r)).toBe('missing required field: timestamp');
   });
 
@@ -768,7 +767,7 @@ describe('Audit Receipt Spec — CBOR Key Ordering', () => {
 
     // Encode and decode to verify key order
     const encoded = cborEncode(receipt);
-    const decoded = /** @type {Record<string, unknown>} */ (cborDecode(encoded));
+    const decoded = (cborDecode(encoded) as Record<string, unknown>);
     const keys = Object.keys(decoded);
 
     // Expected canonical order

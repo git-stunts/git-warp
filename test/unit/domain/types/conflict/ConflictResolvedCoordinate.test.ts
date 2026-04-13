@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import ConflictResolvedCoordinate from '../../../../../src/domain/types/conflict/ConflictResolvedCoordinate.ts';
 
 describe('ConflictResolvedCoordinate', () => {
-  const VALID = /** @type {any} */ ({
+  const VALID = (({
     analysisVersion: 'conflict-analyzer/v2',
     coordinateKind: 'frontier',
     frontier: { w1: 'abc', w2: 'def' },
@@ -10,7 +10,7 @@ describe('ConflictResolvedCoordinate', () => {
     lamportCeiling: null,
     scanBudgetApplied: { maxPatches: null },
     truncationPolicy: 'scan_budget_max_patches_reverse_causal',
-  });
+  }) as any);
 
   it('creates a frozen coordinate', () => {
     const c = new ConflictResolvedCoordinate(VALID);
@@ -55,23 +55,23 @@ describe('ConflictResolvedCoordinate', () => {
   });
 
   it('treats null strand as undefined', () => {
-    const c = new ConflictResolvedCoordinate(/** @type {any} */ ({ ...VALID, strand: null }));
+    const c = new ConflictResolvedCoordinate(({ ...VALID, strand: null } as any));
     expect(c.strand).toBeUndefined();
   });
 
   it('rejects invalid coordinateKind', () => {
-    expect(() => new ConflictResolvedCoordinate(/** @type {any} */ ({ ...VALID, coordinateKind: 'custom' }))).toThrow('coordinateKind');
+    expect(() => new ConflictResolvedCoordinate(({ ...VALID, coordinateKind: 'custom' } as any))).toThrow('coordinateKind');
   });
 
   it('rejects null frontier', () => {
-    expect(() => new ConflictResolvedCoordinate(/** @type {any} */ ({ ...VALID, frontier: null }))).toThrow('frontier');
+    expect(() => new ConflictResolvedCoordinate(({ ...VALID, frontier: null } as any))).toThrow('frontier');
   });
 
   it('rejects null scanBudgetApplied', () => {
-    expect(() => new ConflictResolvedCoordinate(/** @type {any} */ ({ ...VALID, scanBudgetApplied: null }))).toThrow('scanBudgetApplied');
+    expect(() => new ConflictResolvedCoordinate(({ ...VALID, scanBudgetApplied: null } as any))).toThrow('scanBudgetApplied');
   });
 
   it('rejects empty analysisVersion', () => {
-    expect(() => new ConflictResolvedCoordinate(/** @type {any} */ ({ ...VALID, analysisVersion: '' }))).toThrow('analysisVersion');
+    expect(() => new ConflictResolvedCoordinate(({ ...VALID, analysisVersion: '' } as any))).toThrow('analysisVersion');
   });
 });

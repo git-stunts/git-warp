@@ -9,8 +9,7 @@ import HttpServerPort from '../../../../src/ports/HttpServerPort.ts';
  * @returns {{ serve: any, mockServer: any }}
  */
 function createMockBunServe() {
-  /** @type {any} */
-  const mockServer = {
+    const mockServer = {
     port: 0,
     hostname: '0.0.0.0',
     stop: vi.fn(),
@@ -79,18 +78,17 @@ function createMockRequest(opts = {}) {
 }
 
 describe('BunHttpAdapter', () => {
-  /** @type {any} */
-  let savedBun;
+    let savedBun;
 
   beforeEach(() => {
-    savedBun = /** @type {any} */ (globalThis).Bun;
+    savedBun = (globalThis).Bun;
   });
 
   afterEach(() => {
     if (savedBun === undefined) {
-      delete /** @type {any} */ (globalThis).Bun;
+      delete (globalThis).Bun;
     } else {
-      /** @type {any} */ (globalThis).Bun = savedBun;
+      (globalThis).Bun = savedBun;
     }
   });
 
@@ -133,7 +131,7 @@ describe('BunHttpAdapter', () => {
   describe('listen', () => {
     it('calls Bun.serve with correct port', () => {
       const { serve } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const adapter = new BunHttpAdapter();
       const server = adapter.createServer(vi.fn());
@@ -148,7 +146,7 @@ describe('BunHttpAdapter', () => {
 
     it('calls Bun.serve with hostname when host is a string', () => {
       const { serve } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const adapter = new BunHttpAdapter();
       const server = adapter.createServer(vi.fn());
@@ -164,7 +162,7 @@ describe('BunHttpAdapter', () => {
 
     it('does not set hostname when host is a function (callback)', () => {
       const { serve } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const adapter = new BunHttpAdapter();
       const server = adapter.createServer(vi.fn());
@@ -178,7 +176,7 @@ describe('BunHttpAdapter', () => {
 
     it('passes error to callback when Bun.serve throws', () => {
       const err = new Error('bind EADDRINUSE');
-      /** @type {any} */ (globalThis).Bun = {
+      (globalThis).Bun = {
         serve: vi.fn(() => {
           throw err;
         }),
@@ -195,7 +193,7 @@ describe('BunHttpAdapter', () => {
 
     it('works without callback', () => {
       const { serve } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const adapter = new BunHttpAdapter();
       const server = adapter.createServer(vi.fn());
@@ -208,7 +206,7 @@ describe('BunHttpAdapter', () => {
   describe('address', () => {
     it('returns address info after listen', () => {
       const { serve } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const adapter = new BunHttpAdapter();
       const server = adapter.createServer(vi.fn());
@@ -226,7 +224,7 @@ describe('BunHttpAdapter', () => {
   describe('close', () => {
     it('calls server.stop()', () => {
       const { serve, mockServer } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const adapter = new BunHttpAdapter();
       const server = adapter.createServer(vi.fn());
@@ -241,7 +239,7 @@ describe('BunHttpAdapter', () => {
 
     it('address returns null after close', () => {
       const { serve } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const adapter = new BunHttpAdapter();
       const server = adapter.createServer(vi.fn());
@@ -253,7 +251,7 @@ describe('BunHttpAdapter', () => {
 
     it('works without callback', () => {
       const { serve } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const adapter = new BunHttpAdapter();
       const server = adapter.createServer(vi.fn());
@@ -266,7 +264,7 @@ describe('BunHttpAdapter', () => {
   describe('request/response bridging', () => {
     it('converts GET Request to port request and back', async () => {
       const { serve, mockServer } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const handler = vi.fn(async () => ({
         status: 200,
@@ -287,11 +285,11 @@ describe('BunHttpAdapter', () => {
       const response = await mockServer._fetch(mockReq);
 
       expect(handler).toHaveBeenCalledOnce();
-      const portReq = /** @type {any} */ (handler).mock.calls[0][0];
-      expect(portReq.method).toBe('GET');
-      expect(portReq.url).toBe('/api/nodes?limit=10');
-      expect(portReq.headers.accept).toBe('application/json');
-      expect(portReq.body).toBeUndefined();
+      const portReq = (handler).mock.calls[0][0];
+      expect(portReq!.method).toBe('GET');
+      expect(portReq!.url).toBe('/api/nodes?limit=10');
+      expect(portReq!.headers.accept).toBe('application/json');
+      expect(portReq!.body).toBeUndefined();
 
       expect(response.status).toBe(200);
       const text = await response.text();
@@ -300,7 +298,7 @@ describe('BunHttpAdapter', () => {
 
     it('converts POST Request with body', async () => {
       const { serve, mockServer } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const handler = vi.fn(async (/** @type {any} */ req) => ({
         status: 201,
@@ -321,7 +319,7 @@ describe('BunHttpAdapter', () => {
 
       const response = await mockServer._fetch(mockReq);
 
-      const portReq = /** @type {any} */ (/** @type {any[]} */ (handler.mock.calls[0])[0]);
+      const portReq = ((handler.mock.calls[0] as any[])[0] as any);
       expect(portReq.method).toBe('POST');
       expect(portReq.body).toBeInstanceOf(Uint8Array);
       expect(portReq.body.length).toBe(15);
@@ -331,7 +329,7 @@ describe('BunHttpAdapter', () => {
 
     it('body is undefined for GET even if arrayBuffer returns data', async () => {
       const { serve, mockServer } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const handler = vi.fn(async () => ({
         status: 200,
@@ -350,13 +348,13 @@ describe('BunHttpAdapter', () => {
 
       await mockServer._fetch(mockReq);
 
-      const portReq = /** @type {any} */ (handler).mock.calls[0][0];
-      expect(portReq.body).toBeUndefined();
+      const portReq = (handler).mock.calls[0][0];
+      expect(portReq!.body).toBeUndefined();
     });
 
     it('defaults status to 200 and headers to empty', async () => {
       const { serve, mockServer } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const handler = vi.fn(async () => ({
         body: 'hello',
@@ -377,7 +375,7 @@ describe('BunHttpAdapter', () => {
   describe('body size enforcement', () => {
     it('rejects request with Content-Length exceeding MAX_BODY_BYTES', async () => {
       const { serve, mockServer } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const handler = vi.fn(async () => ({ status: 200 }));
       const adapter = new BunHttpAdapter();
@@ -399,7 +397,7 @@ describe('BunHttpAdapter', () => {
 
     it('uses streaming to enforce body limit without calling arrayBuffer', async () => {
       const { serve, mockServer } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const handler = vi.fn(async () => ({ status: 200 }));
       const adapter = new BunHttpAdapter();
@@ -421,8 +419,7 @@ describe('BunHttpAdapter', () => {
       });
 
       const arrayBufferSpy = vi.fn();
-      /** @type {any} */
-      const mockReq = {
+            const mockReq = {
         method: 'POST',
         url: 'http://localhost:8001/stream',
         headers: {
@@ -446,7 +443,7 @@ describe('BunHttpAdapter', () => {
   describe('error handling', () => {
     it('returns 500 when handler throws', async () => {
       const { serve, mockServer } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const logger = { error: vi.fn() };
       const handler = vi.fn(async () => {
@@ -464,14 +461,14 @@ describe('BunHttpAdapter', () => {
       const text = await response.text();
       expect(text).toBe('Internal Server Error');
       expect(logger.error).toHaveBeenCalledOnce();
-      expect(/** @type {any[]} */ (logger.error.mock.calls[0])[0]).toBe(
+      expect((logger.error.mock.calls[0] as any[])[0]).toBe(
         'BunHttpAdapter dispatch error',
       );
     });
 
     it('returns 500 with default noop logger (no throw)', async () => {
       const { serve, mockServer } = createMockBunServe();
-      /** @type {any} */ (globalThis).Bun = { serve };
+      (globalThis).Bun = { serve };
 
       const handler = vi.fn(async () => {
         throw new Error('boom');

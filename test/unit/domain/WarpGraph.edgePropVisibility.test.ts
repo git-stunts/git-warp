@@ -6,10 +6,8 @@ import { createStateBuilder } from '../../helpers/stateBuilder.js';
 // =============================================================================
 
 describe('WarpRuntime edge property visibility (WT/VIS/1)', () => {
-  /** @type {any} */
-  let mockPersistence;
-  /** @type {any} */
-  let graph;
+    let mockPersistence;
+    let graph;
 
   beforeEach(async () => {
     mockPersistence = {
@@ -185,7 +183,7 @@ describe('WarpRuntime edge property visibility (WT/VIS/1)', () => {
 
     // The prop is still in the map (not physically deleted)
     const propKey = encodeEdgePropKey('a', 'b', 'rel', 'weight');
-    expect(/** @type {any} */ (graph)._cachedState.prop.has(propKey)).toBeTruthy();
+    expect((graph)._cachedState.prop.has(propKey)).toBeTruthy();
 
     // But it is not surfaced via getEdgeProps
     const props = await graph.getEdgeProps('a', 'b', 'rel');

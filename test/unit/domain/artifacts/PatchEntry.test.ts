@@ -22,7 +22,7 @@ describe('PatchEntry', () => {
   });
 
   it('rejects null patch', () => {
-    expect(() => new PatchEntry({ patch: /** @type {any} */ (null), sha: 'abc' })).toThrow('requires a patch');
+    expect(() => new PatchEntry({ patch: (null), sha: 'abc' })).toThrow('requires a patch');
   });
 
   it('rejects empty sha', () => {
@@ -48,6 +48,6 @@ describe('ProvenanceEntry', () => {
   });
 
   it('rejects non-Set patchShas', () => {
-    expect(() => new ProvenanceEntry({ entityId: 'x', patchShas: /** @type {any} */ ([]) })).toThrow('requires a Set');
+    expect(() => new ProvenanceEntry({ entityId: 'x', patchShas: ([] as any) })).toThrow('requires a Set');
   });
 });

@@ -30,18 +30,17 @@ function fakeSha(label) {
 function setupPersistence(persistence, writerSpecs, graphName = 'test') {
   const nodeInfoMap = new Map();
   const blobMap = new Map();
-  /** @type {Record<string, string>} */
-  const writerTips = {};
+    const writerTips = ({}) as Record<string, string>;
 
   for (const [writer, count] of Object.entries(writerSpecs)) {
     const shas = [];
-    for (let i = 1; i <= count; i++) {
+    for (let i = 1; i <= (count as any); i++) {
       shas.push(fakeSha(`${writer}${i}`));
     }
     writerTips[writer] = shas[0] ?? '';
 
-    for (let j = 0; j < count; j++) {
-      const lamport = count - j;
+    for (let j = 0; j < (count as any); j++) {
+      const lamport = (count as any) - j;
       const patchOid = fakeSha(`blob-${writer}-${lamport}`);
       const message = encodePatchMessage({
         graph: graphName,
@@ -50,7 +49,7 @@ function setupPersistence(persistence, writerSpecs, graphName = 'test') {
         patchOid,
         schema: 2,
       });
-      const parents = j < count - 1 ? [shas[j + 1]] : [];
+      const parents = j < (count as any) - 1 ? [shas[j + 1]] : [];
       nodeInfoMap.set(shas[j], { message, parents });
       const patch = createPatch(writer, lamport, `n:${writer}:${lamport}`);
       blobMap.set(patchOid, encode(patch));
@@ -114,7 +113,7 @@ function createMockSeekCache() {
       /** @type {{ buffer: Buffer, indexTreeOid?: string }} */
       const entry = { buffer: buf };
       if (opts?.indexTreeOid) {
-        entry.indexTreeOid = opts.indexTreeOid;
+        (entry as any).indexTreeOid = opts.indexTreeOid;
       }
       store.set(key, entry);
     }),
@@ -177,10 +176,8 @@ const flush = () => new Promise((r) => { setTimeout(r, 0); });
 // ===========================================================================
 
 describe('WarpRuntime seek cache integration', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {any} */
-  let seekCache;
+    let persistence;
+    let seekCache;
 
   beforeEach(() => {
     persistence = createMockPersistence();
@@ -343,7 +340,7 @@ describe('WarpRuntime seek cache integration', () => {
     });
 
     // Should not throw — falls through to full materialize
-    const state = /** @type {any} */ (await graph.materialize({ ceiling: 2 }));
+    const state = (await graph.materialize({ ceiling: 2 }) as any);
     expect(state).toBeDefined();
     expect(state.nodeAlive).toBeDefined();
   });
@@ -386,7 +383,7 @@ describe('WarpRuntime seek cache integration', () => {
     });
 
     expect(graph.seekCache).toBe(seekCache);
-    graph.setSeekCache(/** @type {any} */ (null));
+    graph.setSeekCache((null));
     expect(graph.seekCache).toBeNull();
 
     // Materialize should still work without cache
@@ -420,7 +417,7 @@ describe('WarpRuntime seek cache integration', () => {
     graph._cachedFrontier = null;
 
     // Second materialize should self-heal: delete bad entry and re-materialize
-    const state = /** @type {any} */ (await graph.materialize({ ceiling: 2 }));
+    const state = (await graph.materialize({ ceiling: 2 }) as any);
     expect(state).toBeDefined();
     expect(state.nodeAlive).toBeDefined();
     expect(seekCache.delete).toHaveBeenCalledWith(cacheKey);

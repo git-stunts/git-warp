@@ -31,10 +31,8 @@ function addProp(state, nodeId, key, value) {
 }
 
 describe('TranslationCost', () => {
-  /** @type {any} */
-  let mockPersistence;
-  /** @type {any} */
-  let graph;
+    let mockPersistence;
+    let graph;
 
   beforeEach(async () => {
     mockPersistence = {

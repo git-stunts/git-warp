@@ -5,7 +5,7 @@ import { Dot } from '../../../src/domain/crdt/Dot.ts';
 
 function setupGraphState(/** @type {any} */ graph, /** @type {any} */ seedFn) {
   const state = createEmptyState();
-  /** @type {any} */ (graph)._cachedState = state;
+  (graph)._cachedState = state;
   graph.materialize = vi.fn().mockResolvedValue(state);
   seedFn(state);
 }
@@ -26,10 +26,8 @@ function addEdgeProp(/** @type {any} */ state, /** @type {any} */ from, /** @typ
 }
 
 describe('WarpRuntime edge properties', () => {
-  /** @type {any} */
-  let mockPersistence;
-  /** @type {any} */
-  let graph;
+    let mockPersistence;
+    let graph;
 
   beforeEach(async () => {
     mockPersistence = {
@@ -196,7 +194,7 @@ describe('WarpRuntime edge properties', () => {
       await noAutoGraph.getEdgeProps('user:alice', 'user:bob', 'follows');
       expect.unreachable('should have thrown');
     } catch (/** @type {any} */ err) {
-      expect(err.code).toBe('E_NO_STATE');
+      expect((err as any).code).toBe('E_NO_STATE');
     }
   });
 

@@ -43,7 +43,7 @@ async function createPatchTreeOid(contentIds, shuffleSeed) {
     clock: FIXED_CLOCK,
   });
 
-  const builder = new PatchBuilder(/** @type {any} */ ({
+  const builder = new PatchBuilder((({
     persistence,
     patchJournal: new CborPatchJournalAdapter({
       codec: new CborCodec(),
@@ -56,7 +56,7 @@ async function createPatchTreeOid(contentIds, shuffleSeed) {
     getCurrentState: () => null,
     expectedParentSha: null,
     blobStorage: new InMemoryBlobStorageAdapter(),
-  }));
+  }) as any));
 
   for (let i = 0; i < contentIds.length; i++) {
     builder.addNode(`n${i}`);
@@ -69,7 +69,7 @@ async function createPatchTreeOid(contentIds, shuffleSeed) {
   await builder.attachContent('dup', `payload:${contentIds[0]}`);
 
   if (shuffleSeed !== null) {
-    (/** @type {any} */ (builder))._contentBlobs = createRng(shuffleSeed).shuffle((/** @type {any} */ (builder))._contentBlobs);
+    ((builder))._contentBlobs = createRng(shuffleSeed).shuffle(((builder))._contentBlobs);
   }
 
   const commitSha = await builder.commit();
@@ -98,7 +98,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
     state.nodeAlive.add(nodeId, Dot.create('alice', i + 1));
     propItems.push({
       key: encodePropKeyV5(nodeId, CONTENT_PROPERTY_KEY),
-      value: makeOid(/** @type {number} */ (contentIds[i])),
+      value: makeOid((contentIds[i] as number)),
       eventId: {
         lamport: i + 1,
         writerId: 'alice',
@@ -111,7 +111,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
   state.nodeAlive.add('dup', Dot.create('alice', contentIds.length + 1));
   propItems.push({
     key: encodePropKeyV5('dup', CONTENT_PROPERTY_KEY),
-    value: makeOid(/** @type {number} */ (contentIds[0])),
+    value: makeOid((contentIds[0] as number)),
     eventId: {
       lamport: contentIds.length + 1,
       writerId: 'alice',
@@ -130,7 +130,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
     );
     propItems.push({
       key: encodeEdgePropKey(edgeFrom, edgeTo, edgeLabel, CONTENT_PROPERTY_KEY),
-      value: makeOid(/** @type {number} */ (contentIds[0])),
+      value: makeOid((contentIds[0] as number)),
       eventId: {
         lamport: contentIds.length + 2,
         writerId: 'alice',
@@ -156,9 +156,9 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
     : createRng(shuffleSeed).shuffle(propItems);
 
   for (const item of orderedItems) {
-    state.prop.set(item.key, {
-      eventId: item.eventId,
-      value: /** @type {import('../../../../src/domain/types/PropValue.ts').PropValue} */ (item.value),
+    state.prop.set((item as any).key, {
+      eventId: (item as any).eventId,
+      value: ((item as any).value as any),
     });
   }
 

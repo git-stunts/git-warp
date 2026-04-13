@@ -16,12 +16,9 @@ import {
   validateWriterId as _validateWriterId,
 } from '../../../../src/domain/utils/RefLayout.ts';
 
-/** @type {any} */
-const parseWriterIdFromRef = _parseWriterIdFromRef;
-/** @type {any} */
-const validateGraphName = _validateGraphName;
-/** @type {any} */
-const validateWriterId = _validateWriterId;
+const parseWriterIdFromRef = (_parseWriterIdFromRef) as any;
+const validateGraphName = (_validateGraphName) as any;
+const validateWriterId = (_validateWriterId) as any;
 
 describe('RefLayout', () => {
   describe('constants', () => {

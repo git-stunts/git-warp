@@ -49,7 +49,7 @@ describe('SyncTrustGate', () => {
     it('allows empty writer list', async () => {
       const evaluator = createMockEvaluator(['w1']);
       const gate = new SyncTrustGate({
-        trustEvaluator: /** @type {*} */ (evaluator),
+        trustEvaluator: (evaluator),
         trustMode: 'enforce',
       });
       const result = await gate.evaluate([]);
@@ -61,7 +61,7 @@ describe('SyncTrustGate', () => {
       const evaluator = createMockEvaluator(['w1', 'w2']);
       const logger = createMockLogger();
       const gate = new SyncTrustGate({
-        trustEvaluator: /** @type {*} */ (evaluator),
+        trustEvaluator: (evaluator),
         trustMode: 'enforce',
         logger,
       });
@@ -76,7 +76,7 @@ describe('SyncTrustGate', () => {
       const evaluator = createMockEvaluator(['w1']);
       const logger = createMockLogger();
       const gate = new SyncTrustGate({
-        trustEvaluator: /** @type {*} */ (evaluator),
+        trustEvaluator: (evaluator),
         trustMode: 'enforce',
         logger,
       });
@@ -98,7 +98,7 @@ describe('SyncTrustGate', () => {
       const evaluator = createMockEvaluator(['w1']);
       const logger = createMockLogger();
       const gate = new SyncTrustGate({
-        trustEvaluator: /** @type {*} */ (evaluator),
+        trustEvaluator: (evaluator),
         trustMode: 'log-only',
         logger,
       });
@@ -119,7 +119,7 @@ describe('SyncTrustGate', () => {
       const evaluator = createMockEvaluator(['w1']);
       const logger = createMockLogger();
       const gate = new SyncTrustGate({
-        trustEvaluator: /** @type {*} */ (evaluator),
+        trustEvaluator: (evaluator),
         trustMode: 'enforce',
         logger,
       });
@@ -140,7 +140,7 @@ describe('SyncTrustGate', () => {
       };
       const logger = createMockLogger();
       const gate = new SyncTrustGate({
-        trustEvaluator: /** @type {*} */ (evaluator),
+        trustEvaluator: (evaluator),
         trustMode: 'enforce',
         logger,
       });
@@ -157,7 +157,7 @@ describe('SyncTrustGate', () => {
       };
       const logger = createMockLogger();
       const gate = new SyncTrustGate({
-        trustEvaluator: /** @type {*} */ (evaluator),
+        trustEvaluator: (evaluator),
         trustMode: 'log-only',
         logger,
       });

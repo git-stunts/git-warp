@@ -7,9 +7,7 @@ import {
 } from '../../../../src/infrastructure/adapters/TrustCryptoAdapter.js';
 import TrustError from '../../../../src/domain/errors/TrustError.ts';
 
-/** @type {string} */
 let publicKeyBase64;
-/** @type {import('node:crypto').KeyObject} */
 let privateKey;
 
 beforeAll(() => {
@@ -113,7 +111,7 @@ describe('computeKeyFingerprint', () => {
     try {
       computeKeyFingerprint(short);
     } catch (/** @type {any} */ err) {
-      expect(err.code).toBe('E_TRUST_INVALID_KEY');
+      expect((err as any).code).toBe('E_TRUST_INVALID_KEY');
     }
   });
 });
@@ -162,7 +160,7 @@ describe('unsupported algorithm rejection', () => {
         payload: Buffer.from('x'),
       });
     } catch (/** @type {any} */ err) {
-      expect(err.code).toBe('E_TRUST_UNSUPPORTED_ALGORITHM');
+      expect((err as any).code).toBe('E_TRUST_UNSUPPORTED_ALGORITHM');
     }
   });
 });

@@ -62,8 +62,7 @@ describe('ConflictAnalysisRequest', () => {
      * }} TargetCase
      */
 
-    /** @type {TargetCase[]} */
-    const cases = [
+        const cases = [
       {
         input: { targetKind: 'node', entityId: 'node:1' },
         expected: { targetKind: 'node', entityId: 'node:1' },

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DagPathFinding from '../../../../src/domain/services/dag/DagPathFinding.ts';
 import MinHeap from '../../../../src/domain/utils/MinHeap.ts';
 
-function createIndexReader({ children = /** @type {Record<string, string[]>} */ ({}), parents = /** @type {Record<string, string[]>} */ ({}) } = {}) {
+function createIndexReader({ children = ({} as Record<string, string[]>), parents = ({} as Record<string, string[]>) } = {}) {
   return {
     getChildren: vi.fn(async (/** @type {string} */ sha) => children[sha] ?? []),
     getParents: vi.fn(async (/** @type {string} */ sha) => parents[sha] ?? []),
@@ -20,12 +20,9 @@ function createLogger() {
 }
 
 describe('DagPathFinding', () => {
-  /** @type {ReturnType<typeof createIndexReader>} */
-  let indexReader;
-  /** @type {ReturnType<typeof createLogger>} */
-  let logger;
-  /** @type {DagPathFinding} */
-  let service;
+    let indexReader;
+    let logger;
+    let service;
 
   beforeEach(() => {
     indexReader = createIndexReader();
@@ -34,7 +31,7 @@ describe('DagPathFinding', () => {
   });
 
   it('throws when indexReader is missing', () => {
-    expect(() => new DagPathFinding(/** @type {any} */ ({}))).toThrow('DagPathFinding requires an indexReader');
+    expect(() => new DagPathFinding(({} as any))).toThrow('DagPathFinding requires an indexReader');
   });
 
   it('shortestPath finds a path after backward frontier expansion seeds the meeting set', async () => {
@@ -77,8 +74,7 @@ describe('DagPathFinding', () => {
 
     const weightProvider = vi.fn(async (from, to) => {
       const key = `${from}->${to}`;
-      /** @type {Record<string, number>} */
-      const weights = {
+            const weights = {
         'S->B': 1,
         'S->C': 1,
         'B->X': 10,
@@ -132,8 +128,7 @@ describe('DagPathFinding', () => {
 
     const weightProvider = vi.fn(async (from, to) => {
       const key = `${from}->${to}`;
-      /** @type {Record<string, number>} */
-      const weights = {
+            const weights = {
         'S->B': 1,
         'S->C': 1,
         'B->X': 10,

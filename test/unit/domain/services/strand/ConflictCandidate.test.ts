@@ -49,7 +49,7 @@ describe('ConflictCandidate', () => {
   it('accepts all valid kinds', () => {
     for (const kind of ['supersession', 'eventual_override', 'redundancy']) {
       const c = new ConflictCandidate({
-        kind: /** @type {any} */ (kind),
+        kind: (kind),
         target: makeTarget(),
         winner: makeRecord(),
         loser: makeRecord({ patchSha: 'x' }),
@@ -62,7 +62,7 @@ describe('ConflictCandidate', () => {
 
   it('rejects invalid kind', () => {
     expect(() => new ConflictCandidate({
-      kind: /** @type {any} */ ('clash'),
+      kind: ('clash' as any),
       target: makeTarget(),
       winner: makeRecord(),
       loser: makeRecord(),
@@ -74,7 +74,7 @@ describe('ConflictCandidate', () => {
   it('rejects non-ConflictTarget target', () => {
     expect(() => new ConflictCandidate({
       kind: 'supersession',
-      target: /** @type {any} */ ({}),
+      target: ({} as any),
       winner: makeRecord(),
       loser: makeRecord(),
       resolution: makeResolution(),
@@ -86,7 +86,7 @@ describe('ConflictCandidate', () => {
     expect(() => new ConflictCandidate({
       kind: 'supersession',
       target: makeTarget(),
-      winner: /** @type {any} */ ({}),
+      winner: ({} as any),
       loser: makeRecord(),
       resolution: makeResolution(),
       noteCodes: [],
@@ -98,7 +98,7 @@ describe('ConflictCandidate', () => {
       kind: 'supersession',
       target: makeTarget(),
       winner: makeRecord(),
-      loser: /** @type {any} */ ({}),
+      loser: ({} as any),
       resolution: makeResolution(),
       noteCodes: [],
     })).toThrow('loser must be an OpRecord');
@@ -110,7 +110,7 @@ describe('ConflictCandidate', () => {
       target: makeTarget(),
       winner: makeRecord(),
       loser: makeRecord(),
-      resolution: /** @type {any} */ ({}),
+      resolution: ({} as any),
       noteCodes: [],
     })).toThrow('resolution must be a ConflictResolution');
   });

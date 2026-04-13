@@ -129,7 +129,7 @@ describe('ORSet property tests', () => {
               return false;
             }
             for (const dot of dots) {
-              if (!(/** @type {any} */ (joined.entries.get(element))).has(dot)) {
+              if (!((joined.entries.get(element) as any)).has(dot)) {
                 return false;
               }
             }

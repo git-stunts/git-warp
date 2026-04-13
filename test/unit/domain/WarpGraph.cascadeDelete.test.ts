@@ -75,7 +75,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
 
       // Cascade delete node A
       await (await graph.createPatch()).removeNode('A').commit();
-      /** @type {any} */ (await graph.materialize());
+      (await graph.materialize() as any);
 
       // Node A should be gone
       expect(await graph.hasNode('A')).toBe(false);
@@ -117,8 +117,8 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
       const ops = builder.ops;
       expect(ops).toHaveLength(1);
       const op0 = /** @type {{ type: string, node: string }} */ (ops[0]);
-      expect(op0.type).toBe('NodeRemove');
-      expect(op0.node).toBe('lonely');
+      expect(op0!.type).toBe('NodeRemove');
+      expect(op0!.node).toBe('lonely');
     } finally {
       await repo.cleanup();
     }
@@ -207,9 +207,9 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
       // findAttachedData collects unique edge keys and the self-loop is one edge
       expect(edgeRemoves).toHaveLength(1);
       const selfEdge = /** @type {{ from: string, to: string, label: string }} */ (edgeRemoves[0]);
-      expect(selfEdge.from).toBe('A');
-      expect(selfEdge.to).toBe('A');
-      expect(selfEdge.label).toBe('self');
+      expect(selfEdge!.from).toBe('A');
+      expect(selfEdge!.to).toBe('A');
+      expect(selfEdge!.label).toBe('self');
       expect(nodeRemoves).toHaveLength(1);
 
       // Commit and verify materialized state
@@ -251,8 +251,8 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
 
       // Load and verify the committed patches
       const patches = await graph.getWriterPatches('w1');
-      const lastEntry = /** @type {{ patch: { ops: Array<Record<string, unknown>> } }} */ (/** @type {unknown} */ (patches[patches.length - 1]));
-      const lastPatch = lastEntry.patch;
+      const lastEntry = /** @type {{ patch: { ops: Array<Record<string, unknown>> } }} */ ((patches[patches.length - 1] as unknown));
+      const lastPatch = (lastEntry as any).patch;
 
       // The cascade patch should contain EdgeRemove + NodeRemove
       const edgeRemoves = lastPatch.ops.filter(op => op['type'] === 'EdgeRemove');
@@ -306,8 +306,8 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
       const edges = await graph.getEdges();
       expect(edges).toHaveLength(1);
       const edge0 = /** @type {{ from: string, to: string }} */ (edges[0]);
-      expect(edge0.from).toBe('C');
-      expect(edge0.to).toBe('D');
+      expect(edge0!.from).toBe('C');
+      expect(edge0!.to).toBe('D');
     } finally {
       await repo.cleanup();
     }

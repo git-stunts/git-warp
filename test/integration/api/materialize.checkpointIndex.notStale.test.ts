@@ -2,8 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestRepo } from './helpers/setup.js';
 
 describe('API: materialize checkpoint index freshness', () => {
-  /** @type {any} */
-  let repo;
+    let repo;
 
   beforeEach(async () => {
     repo = await createTestRepo('materialize-checkpoint-index');

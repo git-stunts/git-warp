@@ -144,20 +144,18 @@ async function simulatePatchCommit(persistence, {
 }
 
 describe('WarpCore plumbing vs porcelain observer boundary', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {WarpCoreRuntime} */
-  let graph;
+    let persistence;
+    let graph;
   const graphName = 'observer-boundary-demo';
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = /** @type {WarpCoreRuntime} */ (await WarpCore.open({
+    graph = ((await WarpCore.open({
       persistence,
       graphName,
       writerId: 'tester',
       autoMaterialize: false,
-    }));
+    })) as WarpCoreRuntime);
   });
 
   it('materialize() returns a transitively immutable detached snapshot', async () => {
@@ -171,7 +169,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
       ],
     });
 
-    const state = /** @type {any} */ (await graph.materialize());
+    const state = (await graph.materialize() as any);
     const propKey = encodePropKey('n1', 'color');
     const colorRegister = state.prop.get(propKey);
     const liveDots = state.nodeAlive.entries.get('n1');
@@ -188,7 +186,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
     }).toThrow(TypeError);
 
     const liveSnapshot = await graph.getStateSnapshot();
-    const reader = createStateReader(/** @type {any} */ (liveSnapshot));
+    const reader = createStateReader((liveSnapshot));
 
     expect(reader.getNodeProps('n1')).toMatchObject({ color: { tone: 'red' } });
   });
@@ -217,10 +215,10 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
     await graph.materialize();
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
 
-    const redState = /** @type {any} */ (await graph.materializeCoordinate({
+    const redState = ((await graph.materializeCoordinate({
       frontier: Object.fromEntries(frontierAtRed),
       ceiling: null,
-    }));
+    })) as any);
     const redReader = createStateReader(redState);
 
     expect(() => redState.prop.set('intruder', null)).toThrow(WarpError);
@@ -260,7 +258,7 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
     await graph.materialize();
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
 
-    const strandState = /** @type {any} */ (await graph.materializeStrand('ws_red'));
+    const strandState = (await graph.materializeStrand('ws_red') as any);
     const strandReader = createStateReader(strandState);
 
     expect(() => strandState.prop.set('intruder', null)).toThrow(WarpError);

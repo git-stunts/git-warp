@@ -75,12 +75,9 @@ const SAMPLE_BUFFER = new TextEncoder().encode('serialized-state-data');
 // ---------------------------------------------------------------------------
 
 describe('CasSeekCacheAdapter', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {any} */
-  let plumbing;
-  /** @type {any} */
-  let adapter;
+    let persistence;
+    let plumbing;
+    let adapter;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -163,9 +160,9 @@ describe('CasSeekCacheAdapter', () => {
   describe('_getCas()', () => {
     it('creates CAS instance with CDC chunking on first call', async () => {
       await adapter._getCas();
-      expect(lastConstructorArgs.plumbing).toBe(plumbing);
-      expect(lastConstructorArgs.codec).toBeInstanceOf(MockCborCodec);
-      expect(lastConstructorArgs.chunking).toEqual({ strategy: 'cdc' });
+      expect((lastConstructorArgs as any).plumbing).toBe(plumbing);
+      expect((lastConstructorArgs as any).codec).toBeInstanceOf(MockCborCodec);
+      expect((lastConstructorArgs as any).chunking).toEqual({ strategy: 'cdc' });
     });
 
     it('caches the CAS promise across multiple calls', async () => {
@@ -176,16 +173,15 @@ describe('CasSeekCacheAdapter', () => {
 
     it('resets cached promise on init error so next call retries', async () => {
       // Create a fresh adapter whose _initCas will throw
-      /** @type {any} */
-      const badAdapter = new CasSeekCacheAdapter({
+            const badAdapter = new CasSeekCacheAdapter({
         persistence,
         plumbing,
         graphName: GRAPH_NAME,
       });
       // Override _initCas to throw once
       let throwOnce = true;
-      const origInit = badAdapter._initCas.bind(badAdapter);
-      badAdapter._initCas = async () => {
+      const origInit = (badAdapter as any)._initCas.bind(badAdapter);
+      (badAdapter as any)._initCas = async () => {
         if (throwOnce) {
           throwOnce = false;
           throw new Error('init failure');
@@ -387,7 +383,7 @@ describe('CasSeekCacheAdapter', () => {
       const result = await streamAdapter.get(SAMPLE_KEY);
 
       expect(result).not.toBeNull();
-      expect(new TextDecoder().decode(/** @type {any} */ (result).buffer)).toBe('hello-world');
+      expect(new TextDecoder().decode((result).buffer)).toBe('hello-world');
       expect(mockRestoreStream).toHaveBeenCalledWith({ manifest });
       // Should NOT fall back to cas.restore()
       expect(mockRestore).not.toHaveBeenCalled();
@@ -512,7 +508,7 @@ describe('CasSeekCacheAdapter', () => {
 
       await adapter.set(SAMPLE_KEY, SAMPLE_BUFFER);
 
-      const storeArg = /** @type {any[]} */ (mockStore.mock.calls[0])[0];
+      const storeArg = (mockStore.mock.calls[0] as any[])[0];
       expect(storeArg.encryptionKey).toBeUndefined();
     });
   });
@@ -654,7 +650,7 @@ describe('CasSeekCacheAdapter', () => {
         },
       };
 
-      const result = /** @type {any} */ (smallAdapter)._enforceMaxEntries(index);
+      const result = (smallAdapter)._enforceMaxEntries(index);
       expect(Object.keys(result.entries)).toHaveLength(2);
     });
 
@@ -676,7 +672,7 @@ describe('CasSeekCacheAdapter', () => {
         },
       };
 
-      const result = /** @type {any} */ (smallAdapter)._enforceMaxEntries(index);
+      const result = (smallAdapter)._enforceMaxEntries(index);
       const remaining = Object.keys(result.entries);
       expect(remaining).toHaveLength(2);
       expect(remaining).toContain('v1:t3-newest');
@@ -704,7 +700,7 @@ describe('CasSeekCacheAdapter', () => {
         },
       };
 
-      const result = /** @type {any} */ (smallAdapter)._enforceMaxEntries(index);
+      const result = (smallAdapter)._enforceMaxEntries(index);
       expect(Object.keys(result.entries)).toHaveLength(3);
     });
 
@@ -735,7 +731,7 @@ describe('CasSeekCacheAdapter', () => {
         },
       };
 
-      const result = /** @type {any} */ (smallAdapter)._enforceMaxEntries(index);
+      const result = (smallAdapter)._enforceMaxEntries(index);
       const remaining = Object.keys(result.entries);
       expect(remaining).toHaveLength(2);
       // The old-but-recently-used entry should survive (LRU)
@@ -760,7 +756,7 @@ describe('CasSeekCacheAdapter', () => {
         },
       };
 
-      const result = /** @type {any} */ (smallAdapter)._enforceMaxEntries(index);
+      const result = (smallAdapter)._enforceMaxEntries(index);
       expect(Object.keys(result.entries)).toHaveLength(1);
     });
 

@@ -4,8 +4,7 @@ import {
   canonicalObservationJson,
 } from '../../../../src/domain/types/DeliveryObservation.ts';
 
-/** @type {any} */
-const create = createDeliveryObservation;
+const create = (createDeliveryObservation) as any;
 
 describe('DeliveryObservation', () => {
   // -----------------------------------------------------------------------

@@ -16,7 +16,7 @@ describe('WarpRuntime — audit mode', () => {
         persistence: new InMemoryGraphAdapter(),
         graphName: 'events',
         writerId: 'alice',
-        audit: /** @type {any} */ ('yes'),
+        audit: ('yes' as any),
       }),
     ).rejects.toThrow('audit must be a boolean');
   });
@@ -27,7 +27,7 @@ describe('WarpRuntime — audit mode', () => {
         persistence: new InMemoryGraphAdapter(),
         graphName: 'events',
         writerId: 'alice',
-        audit: /** @type {any} */ (1),
+        audit: (1 as any),
       }),
     ).rejects.toThrow('audit must be a boolean');
   });
@@ -119,7 +119,7 @@ describe('WarpRuntime — audit mode', () => {
     const auditSha2 = await persistence.readRef('refs/warp/events/audit/alice');
 
     // Second audit commit should have first as parent
-    const info = await persistence.getNodeInfo(/** @type {string} */ (auditSha2));
+    const info = await persistence.getNodeInfo((auditSha2));
     expect(info.parents).toEqual([auditSha1]);
   });
 
@@ -182,7 +182,7 @@ describe('WarpRuntime — audit mode', () => {
       return;
     }
 
-    const commit = (/** @type {any} */ (persistence))._commits.get(auditSha);
+    const commit = ((persistence))._commits.get(auditSha);
     expect(commit).toBeTruthy();
     const tree = await persistence.readTree(/** @type {{ treeOid: string }} */ (commit).treeOid);
     expect(tree).toHaveProperty('receipt.cbor');
@@ -191,7 +191,7 @@ describe('WarpRuntime — audit mode', () => {
     const { decode } = await import('../../../src/infrastructure/codecs/CborCodec.js');
     const receiptBlob = tree['receipt.cbor'];
     expect(receiptBlob).toBeDefined();
-    const receipt = /** @type {Record<string, unknown>} */ (decode(/** @type {Uint8Array} */ (receiptBlob)));
+    const receipt = (decode((receiptBlob)) as Record<string, unknown>);
     expect(receipt['version']).toBe(1);
     expect(receipt['graphName']).toBe('events');
     expect(receipt['writerId']).toBe('alice');

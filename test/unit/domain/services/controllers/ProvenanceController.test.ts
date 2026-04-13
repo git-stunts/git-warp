@@ -24,8 +24,8 @@ const { detectMessageKind, decodePatchMessage } = await import(
 );
 
 // Cast mocked functions so .mockReturnValue is available
-const mockDetectMessageKind = /** @type {import('vitest').Mock} */ (detectMessageKind);
-const mockDecodePatchMessage = /** @type {import('vitest').Mock} */ (decodePatchMessage);
+const mockDetectMessageKind = (detectMessageKind);
+const mockDecodePatchMessage = (decodePatchMessage);
 
 // ── Mock ProvenancePayload ──────────────────────────────────────────────
 
@@ -58,8 +58,8 @@ const { createEmptyState, reduceV5 } = await import(
 );
 
 // Cast mocked functions so .mockReturnValue is available
-const mockCreateEmptyState = /** @type {import('vitest').Mock} */ (createEmptyState);
-const mockReduceV5 = /** @type {import('vitest').Mock} */ (reduceV5);
+const mockCreateEmptyState = (createEmptyState);
+const mockReduceV5 = (reduceV5);
 
 // ── Host factory ────────────────────────────────────────────────────────
 
@@ -91,8 +91,7 @@ function createHost(overrides = {}) {
  * @returns {any}
  */
 function makePatch({ writer = 'w1', lamport = 1, ops = [], reads } = {}) {
-  /** @type {Record<string, unknown>} */
-  const patch = { writer, lamport, ops };
+    const patch = ({ writer, lamport, ops }) as Record<string, unknown>;
   if (reads !== undefined) {
     patch['reads'] = reads;
   }
@@ -104,10 +103,8 @@ function makePatch({ writer = 'w1', lamport = 1, ops = [], reads } = {}) {
 // ============================================================================
 
 describe('ProvenanceController — patchesFor', () => {
-  /** @type {ProvenanceController} */
-  let ctrl;
-  /** @type {any} */
-  let host;
+    let ctrl;
+    let host;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -156,10 +153,8 @@ describe('ProvenanceController — patchesFor', () => {
 // ============================================================================
 
 describe('ProvenanceController — materializeSlice', () => {
-  /** @type {ProvenanceController} */
-  let ctrl;
-  /** @type {any} */
-  let host;
+    let ctrl;
+    let host;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -167,8 +162,8 @@ describe('ProvenanceController — materializeSlice', () => {
     ctrl = new ProvenanceController(host);
 
     // Default: detectMessageKind returns 'patch', decodePatchMessage returns metadata
-    mockDetectMessageKind.mockReturnValue('patch');
-    mockDecodePatchMessage.mockReturnValue({
+    (mockDetectMessageKind as any).mockReturnValue('patch');
+    (mockDecodePatchMessage as any).mockReturnValue({
       kind: 'patch',
       graph: 'g',
       writer: 'w1',
@@ -210,7 +205,7 @@ describe('ProvenanceController — materializeSlice', () => {
       expect.arrayContaining([
         expect.objectContaining({
           sha: 'sha1',
-          patch: expect.objectContaining({ writer: patch.writer, lamport: patch.lamport }),
+          patch: expect.objectContaining({ writer: patch['writer'], lamport: patch.lamport }),
         }),
       ]),
     );
@@ -223,7 +218,7 @@ describe('ProvenanceController — materializeSlice', () => {
 
     const fakeState = { nodeAlive: new Map() };
     const fakeReceipts = [{ type: 'tick' }];
-    mockReduceV5.mockReturnValue({ state: fakeState, receipts: fakeReceipts });
+    (mockReduceV5 as any).mockReturnValue({ state: fakeState, receipts: fakeReceipts });
 
     const result = await ctrl.materializeSlice('node:x', { receipts: true });
 
@@ -273,18 +268,16 @@ describe('ProvenanceController — materializeSlice', () => {
 // ============================================================================
 
 describe('ProvenanceController — _computeBackwardCone', () => {
-  /** @type {ProvenanceController} */
-  let ctrl;
-  /** @type {any} */
-  let host;
+    let ctrl;
+    let host;
 
   beforeEach(() => {
     vi.clearAllMocks();
     host = createHost();
     ctrl = new ProvenanceController(host);
 
-    mockDetectMessageKind.mockReturnValue('patch');
-    mockDecodePatchMessage.mockReturnValue({
+    (mockDetectMessageKind as any).mockReturnValue('patch');
+    (mockDecodePatchMessage as any).mockReturnValue({
       kind: 'patch',
       graph: 'g',
       writer: 'w1',
@@ -311,7 +304,7 @@ describe('ProvenanceController — _computeBackwardCone', () => {
     const cone = await ctrl._computeBackwardCone('node:x');
 
     expect(cone.size).toBe(1);
-    expect(cone.get('sha1')).toEqual(expect.objectContaining({ writer: patch.writer, lamport: patch.lamport }));
+    expect(cone.get('sha1')).toEqual(expect.objectContaining({ writer: patch['writer'], lamport: patch.lamport }));
   });
 
   it('follows reads transitively via BFS', async () => {
@@ -403,10 +396,8 @@ describe('ProvenanceController — _computeBackwardCone', () => {
 // ============================================================================
 
 describe('ProvenanceController — loadPatchBySha', () => {
-  /** @type {ProvenanceController} */
-  let ctrl;
-  /** @type {any} */
-  let host;
+    let ctrl;
+    let host;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -422,8 +413,8 @@ describe('ProvenanceController — loadPatchBySha', () => {
       ops: [{ type: 'NodeAdd', id: 'n1', dot: ['w1', 1] }],
     };
 
-    mockDetectMessageKind.mockReturnValue('patch');
-    mockDecodePatchMessage.mockReturnValue({
+    (mockDetectMessageKind as any).mockReturnValue('patch');
+    (mockDecodePatchMessage as any).mockReturnValue({
       kind: 'patch',
       graph: 'g',
       writer: 'w1',
@@ -438,7 +429,7 @@ describe('ProvenanceController — loadPatchBySha', () => {
 
     expect(result).toBeInstanceOf(Patch);
     expect(result.ops[0]).toBeInstanceOf(NodeAdd);
-    const firstOp = /** @type {NodeAdd} */ (result.ops[0]);
+    const firstOp = (result.ops[0] as NodeAdd);
     expect(firstOp?.dot).toBeInstanceOf(Dot);
     expect(firstOp?.node).toBe('n1');
     expect(host._persistence.getNodeInfo).toHaveBeenCalledWith('abc123');
@@ -451,7 +442,7 @@ describe('ProvenanceController — loadPatchBySha', () => {
   });
 
   it('throws when commit is not a patch', async () => {
-    mockDetectMessageKind.mockReturnValue('checkpoint');
+    (mockDetectMessageKind as any).mockReturnValue('checkpoint');
 
     await expect(ctrl.loadPatchBySha('abc123')).rejects.toThrow(
       /Commit abc123 is not a patch/,
@@ -459,7 +450,7 @@ describe('ProvenanceController — loadPatchBySha', () => {
   });
 
   it('throws when commit kind is null', async () => {
-    mockDetectMessageKind.mockReturnValue(null);
+    (mockDetectMessageKind as any).mockReturnValue(null);
 
     await expect(ctrl.loadPatchBySha('abc123')).rejects.toThrow(
       /Commit abc123 is not a patch/,
@@ -470,8 +461,8 @@ describe('ProvenanceController — loadPatchBySha', () => {
     const patchA = makePatch({ writer: 'w1', lamport: 1 });
     const patchB = makePatch({ writer: 'w2', lamport: 2 });
     const loadPatchBySha = vi.spyOn(ctrl, '_loadPatchBySha')
-      .mockResolvedValueOnce(/** @type {any} */ (patchA))
-      .mockResolvedValueOnce(/** @type {any} */ (patchB));
+      .mockResolvedValueOnce((patchA))
+      .mockResolvedValueOnce((patchB));
 
     const entries = await ctrl._loadPatchesBySha(['sha-a', 'sha-b']);
 
@@ -489,8 +480,7 @@ describe('ProvenanceController — loadPatchBySha', () => {
 // ============================================================================
 
 describe('ProvenanceController — _sortPatchesCausally', () => {
-  /** @type {ProvenanceController} */
-  let ctrl;
+    let ctrl;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -504,7 +494,7 @@ describe('ProvenanceController — _sortPatchesCausally', () => {
       { patch: makePatch({ lamport: 2, writer: 'w1' }), sha: 'ccc' },
     ];
 
-    const sorted = ctrl._sortPatchesCausally(/** @type {any} */ (entries));
+    const sorted = ctrl._sortPatchesCausally((entries));
 
     expect(sorted.map((e) => e.patch.lamport)).toEqual([1, 2, 3]);
   });
@@ -516,7 +506,7 @@ describe('ProvenanceController — _sortPatchesCausally', () => {
       { patch: makePatch({ lamport: 1, writer: 'bob' }), sha: 'ccc' },
     ];
 
-    const sorted = ctrl._sortPatchesCausally(/** @type {any} */ (entries));
+    const sorted = ctrl._sortPatchesCausally((entries));
 
     expect(sorted.map((e) => e.patch.writer)).toEqual(['alice', 'bob', 'charlie']);
   });
@@ -528,7 +518,7 @@ describe('ProvenanceController — _sortPatchesCausally', () => {
       { patch: makePatch({ lamport: 1, writer: 'w1' }), sha: 'bbb' },
     ];
 
-    const sorted = ctrl._sortPatchesCausally(/** @type {any} */ (entries));
+    const sorted = ctrl._sortPatchesCausally((entries));
 
     expect(sorted.map((e) => e.sha)).toEqual(['aaa', 'bbb', 'ccc']);
   });
@@ -539,10 +529,10 @@ describe('ProvenanceController — _sortPatchesCausally', () => {
       { patch: makePatch({ lamport: 1, writer: 'w1' }), sha: 'bbb' },
     ];
 
-    const sorted = ctrl._sortPatchesCausally(/** @type {any} */ (entries));
+    const sorted = ctrl._sortPatchesCausally((entries));
 
     expect(sorted).not.toBe(entries);
-    expect(entries[0]?.patch.lamport).toBe(2);
+    expect(entries[0]?.patch['lamport']).toBe(2);
   });
 
   it('handles missing lamport/writer gracefully (defaults to 0/empty)', () => {
@@ -551,7 +541,7 @@ describe('ProvenanceController — _sortPatchesCausally', () => {
       { patch: { ops: [], lamport: 1 }, sha: 'aaa' },
     ];
 
-    const sorted = ctrl._sortPatchesCausally(/** @type {any} */ (entries));
+    const sorted = ctrl._sortPatchesCausally((entries));
 
     expect(sorted[0]?.sha).toBe('bbb'); // lamport 0 < 1
     expect(sorted[1]?.sha).toBe('aaa');

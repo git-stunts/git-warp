@@ -53,7 +53,7 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
     ]);
 
     const tree = await builder.serialize({ frontier });
-    const envelope = /** @type {any} */ (cborDecode(/** @type {Uint8Array} */ (tree['frontier.cbor'])));
+    const envelope = (cborDecode((tree['frontier.cbor'] as Uint8Array)) as any);
 
     expect(envelope.version).toBe(1);
     expect(envelope.writerCount).toBe(2);
@@ -71,8 +71,8 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
     ]);
 
     const tree = await builder.serialize({ frontier });
-    const cborEnvelope = cborDecode(/** @type {Uint8Array} */ (tree['frontier.cbor']));
-    const jsonEnvelope = JSON.parse(new TextDecoder().decode(/** @type {Uint8Array} */ (tree['frontier.json'])));
+    const cborEnvelope = cborDecode((tree['frontier.cbor'] as Uint8Array));
+    const jsonEnvelope = JSON.parse(new TextDecoder().decode((tree['frontier.json'] as Uint8Array)));
 
     expect(jsonEnvelope).toEqual(cborEnvelope);
   });
@@ -97,7 +97,7 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
     const frontier = new Map();
 
     const tree = await builder.serialize({ frontier });
-    const envelope = /** @type {any} */ (cborDecode(/** @type {Uint8Array} */ (tree['frontier.cbor'])));
+    const envelope = (cborDecode((tree['frontier.cbor'] as Uint8Array)) as any);
 
     expect(envelope.version).toBe(1);
     expect(envelope.writerCount).toBe(0);

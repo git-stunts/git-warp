@@ -35,10 +35,8 @@ function mockSingleWriter(/** @type {any} */ persistence, /** @type {any} */ { w
 }
 
 describe('WarpRuntime.hasFrontierChanged() (GK/FRONTIER/1)', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {any} */
-  let graph;
+    let persistence;
+    let graph;
 
   beforeEach(async () => {
     persistence = createMockPersistence();

@@ -65,10 +65,10 @@ describe('initRoaring', () => {
     const { initRoaring, getRoaringBitmap32 } = roaringMod;
 
     const innerBitmap = createMethodBitmap(false);
-    const wrappedMod = /** @type {any} */ ({
+    const wrappedMod = (({
         default: { RoaringBitmap32: innerBitmap },
         RoaringBitmap32: undefined,
-      });
+      }) as any);
     await initRoaring(wrappedMod);
 
     expect(getRoaringBitmap32()).toBe(innerBitmap);
@@ -84,7 +84,7 @@ describe('initRoaring', () => {
       },
     }));
     vi.doMock('roaring-wasm', () => ({
-      RoaringBitmap32: /** @type {Function} */ (function WasmBitmap() {}),
+      RoaringBitmap32: (function WasmBitmap() {} as Function),
       roaringLibraryInitialize: vi.fn(async () => {}),
     }));
 
@@ -133,7 +133,7 @@ describe('getNativeRoaringAvailable', () => {
   it('uses the property-based API when no method is available', async () => {
     const roaringMod = await importFreshRoaring();
     await roaringMod.initRoaring({
-      RoaringBitmap32: /** @type {Function} */ (function PropertyBitmap() {}),
+      RoaringBitmap32: (function PropertyBitmap() {} as Function),
       isNativelyInstalled: true,
     });
 
@@ -143,7 +143,7 @@ describe('getNativeRoaringAvailable', () => {
   it('returns null when installation type is indeterminate', async () => {
     const roaringMod = await importFreshRoaring();
     await roaringMod.initRoaring({
-      RoaringBitmap32: /** @type {Function} */ (function UnknownBitmap() {}),
+      RoaringBitmap32: (function UnknownBitmap() {} as Function),
     });
 
     expect(roaringMod.getNativeRoaringAvailable()).toBeNull();
@@ -151,7 +151,7 @@ describe('getNativeRoaringAvailable', () => {
 
   it('returns false when the loaded module is malformed', async () => {
     const roaringMod = await importFreshRoaring();
-    await roaringMod.initRoaring(/** @type {any} */ ({}));
+    await roaringMod.initRoaring(({} as any));
 
     expect(roaringMod.getNativeRoaringAvailable()).toBe(false);
   });

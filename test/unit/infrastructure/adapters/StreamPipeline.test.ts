@@ -11,11 +11,9 @@ import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
  * Creates an in-memory BlobPort + TreePort stub.
  */
 function createMemoryGit() {
-  /** @type {Map<string, Uint8Array>} */
-  const blobs = new Map();
+    const blobs = (new Map()) as Map<string, Uint8Array>;
   let blobCounter = 0;
-  /** @type {string[]} */
-  let lastTree = [];
+    let lastTree = ([]) as string[];
 
   return {
     blobs,
@@ -50,9 +48,9 @@ describe('Stream Pipeline Integration', () => {
     ];
 
     const treeOid = await WarpStream.from(shards)
-      .pipe(/** @type {any} */ (new CborEncodeTransform(codec)))
-      .pipe(/** @type {any} */ (new GitBlobWriteTransform(/** @type {any} */ (git))))
-      .drain(/** @type {any} */ (new TreeAssemblerSink(/** @type {any} */ (git))));
+      .pipe((new CborEncodeTransform(codec) as any))
+      .pipe((new GitBlobWriteTransform((git)) as any))
+      .drain((new TreeAssemblerSink((git)) as any));
 
     // Tree was assembled
     expect(treeOid).toBe('tree_' + '0'.repeat(36));
@@ -71,10 +69,10 @@ describe('Stream Pipeline Integration', () => {
     expect(paths).toContain('receipt.cbor');
 
     // Round-trip: decode a shard and verify contents
-    const metaEntry = /** @type {string} */ (/** @type {any} */ (entries.find((e) => e.includes('meta_ab.cbor'))));
-    const metaParts = /** @type {string} */ (/** @type {any} */ (metaEntry.split('\t')[0])).split(' ');
-    const metaOid = /** @type {string} */ (/** @type {any} */ (metaParts[metaParts.length - 1]));
-    const metaBytes = /** @type {Uint8Array} */ (/** @type {any} */ (git.blobs.get(metaOid)));
+    const metaEntry = ((entries.find((e) => e.includes('meta_ab.cbor')) as any) as string);
+    const metaParts = ((metaEntry.split('\t')[0] as any) as string).split(' ');
+    const metaOid = ((metaParts[metaParts.length - 1] as any) as string);
+    const metaBytes = ((git.blobs.get(metaOid) as any) as Uint8Array);
     expect(metaBytes).toBeDefined();
     const decoded = codec.decode(metaBytes);
     expect(decoded).toEqual({ nodeToGlobal: [['user:alice', 0]], nextLocalId: 1 });
@@ -93,19 +91,18 @@ describe('Stream Pipeline Integration', () => {
     // Read + decode pipeline
     const entries = [['user1.cbor', 'oid1'], ['user2.cbor', 'oid2']];
 
-    /** @type {Array<[string, unknown]>} */
-    const results = [];
+        const results = ([]) as Array<[string, unknown]>;
     const readTransform = new Transform();
     readTransform.apply = async function *(/** @type {AsyncIterable<[string, string]>} */ source) {
       for await (const [path, oid] of source) {
         const bytes = await git.readBlob(oid);
-        yield /** @type {[string, Uint8Array]} */ ([path, bytes]);
+        yield ([path, bytes] as [string, Uint8Array]);
       }
     };
 
     await WarpStream.from(entries)
-      .pipe(/** @type {any} */ (readTransform))
-      .pipe(/** @type {any} */ (new CborDecodeTransform(codec)))
+      .pipe((readTransform))
+      .pipe((new CborDecodeTransform(codec) as any))
       .forEach(([path, obj]) => { results.push([path, obj]); });
 
     expect(results).toEqual([

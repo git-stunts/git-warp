@@ -148,7 +148,7 @@ async function simulatePatchCommit(persistence, {
  */
 async function hashState(state) {
   return await computeStateHash(
-    /** @type {import('../../../src/domain/services/JoinReducer.ts').WarpState} */ (state),
+    (state),
     { crypto },
   );
 }
@@ -166,22 +166,20 @@ function createCoordinateSource(frontier) {
 }
 
 describe('WarpCore public snapshot hash stability', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {WarpCoreRuntime} */
-  let graph;
+    let persistence;
+    let graph;
   /** @type {{ kind: 'coordinate', frontier: Record<string, string>, ceiling: null }} */
   let coordinateSource;
   const graphName = 'hash-stability-demo';
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = /** @type {WarpCoreRuntime} */ (await WarpCore.open({
+    graph = ((await WarpCore.open({
       persistence,
       graphName,
       writerId: 'tester',
       autoMaterialize: false,
-    }));
+    })) as WarpCoreRuntime);
 
     await simulatePatchCommit(persistence, {
       graphName,

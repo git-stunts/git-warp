@@ -10,7 +10,7 @@ function canonicalizeJson(/** @type {any} */ value) {
   if (value && typeof value === 'object') {
     const sorted = {};
     for (const key of Object.keys(value).sort()) {
-      /** @type {any} */ (sorted)[key] = canonicalizeJson(value[key]);
+      (sorted)[key] = canonicalizeJson(value[key]);
     }
     return sorted;
   }
@@ -22,8 +22,7 @@ function canonicalStringify(/** @type {any} */ value) {
 }
 
 describe('WarpRuntime serve', () => {
-  /** @type {any} */
-  let graph;
+    let graph;
 
   beforeEach(async () => {
     const mockPersistence = {
@@ -40,7 +39,7 @@ describe('WarpRuntime serve', () => {
     };
 
     graph = await WarpRuntime.open({
-      persistence: /** @type {any} */ (mockPersistence),
+      persistence: (mockPersistence),
       graphName: 'test',
       writerId: 'writer-1',
     });

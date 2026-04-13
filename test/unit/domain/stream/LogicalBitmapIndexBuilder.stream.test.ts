@@ -76,17 +76,17 @@ describe('LogicalBitmapIndexBuilder.yieldShards() — IndexShard records', () =>
     const shards = [...builder.yieldShards()];
     const receipt = shards.find((s) => s instanceof ReceiptShard);
     expect(receipt).toBeInstanceOf(ReceiptShard);
-    const r = /** @type {ReceiptShard} */ (receipt);
-    expect(r.version).toBe(1);
-    expect(r.nodeCount).toBe(3);
-    expect(r.labelCount).toBe(2);
+    const r = (receipt);
+    expect(r!.version).toBe(1);
+    expect(r!.nodeCount).toBe(3);
+    expect(r!.labelCount).toBe(2);
   });
 
   it('EdgeShards have correct directions', () => {
     const builder = buildTestIndex();
     const shards = [...builder.yieldShards()];
     const edgeShards = shards.filter((s) => s instanceof EdgeShard);
-    const directions = edgeShards.map((s) => /** @type {EdgeShard} */ (s).direction);
+    const directions = edgeShards.map((s) => (s).direction);
     expect(directions).toContain('fwd');
     expect(directions).toContain('rev');
   });

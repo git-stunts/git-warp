@@ -44,7 +44,7 @@ describe('sha1sync', () => {
   it('throws RangeError for inputs >= 512 MB', () => {
     // Don't actually allocate 512 MB — verify the guard triggers based on length
     const fakeHuge = { length: 0x20000000 };
-    expect(() => sha1sync(/** @type {Uint8Array} */ (fakeHuge))).toThrow(RangeError);
-    expect(() => sha1sync(/** @type {Uint8Array} */ (fakeHuge))).toThrow('512 MB');
+    expect(() => sha1sync((fakeHuge))).toThrow(RangeError);
+    expect(() => sha1sync((fakeHuge))).toThrow('512 MB');
   });
 });

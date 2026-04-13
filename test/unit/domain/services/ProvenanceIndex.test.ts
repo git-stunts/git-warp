@@ -213,7 +213,7 @@ describe('ProvenanceIndex', () => {
     describe('serialize/deserialize', () => {
       it('roundtrips empty index', () => {
         const index = new ProvenanceIndex();
-        const buffer = /** @type {Buffer} */ (index.serialize());
+        const buffer = (index.serialize() as Buffer);
         const restored = ProvenanceIndex.deserialize(buffer);
 
         expect(restored.size).toBe(0);
@@ -225,7 +225,7 @@ describe('ProvenanceIndex', () => {
         index.addPatch('sha2', ['a'], ['c']);
         index.addPatch('sha3', [], ['a']);
 
-        const buffer = /** @type {Buffer} */ (index.serialize());
+        const buffer = (index.serialize() as Buffer);
         const restored = ProvenanceIndex.deserialize(buffer);
 
         expect(restored.patchesFor('a')).toEqual(['sha1', 'sha2', 'sha3']);
@@ -241,8 +241,8 @@ describe('ProvenanceIndex', () => {
         const index2 = new ProvenanceIndex();
         index2.addPatch('sha1', ['a', 'b'], []);
 
-        const buffer1 = /** @type {Buffer} */ (index1.serialize());
-        const buffer2 = /** @type {Buffer} */ (index2.serialize());
+        const buffer1 = (index1.serialize() as Buffer);
+        const buffer2 = (index2.serialize() as Buffer);
 
         expect(buffer1.equals(buffer2)).toBe(true);
       });
@@ -285,7 +285,7 @@ describe('ProvenanceIndex', () => {
         const index = new ProvenanceIndex();
         index.addPatch('sha1', ['z', 'a'], []);
 
-        const json = /** @type {any} */ (index.toJSON());
+        const json = (index.toJSON() as any);
 
         expect(json.version).toBe(1);
         expect(json.entries[0][0]).toBe('a');
@@ -301,7 +301,7 @@ describe('ProvenanceIndex', () => {
       });
 
       it('throws on null entries in fromJSON', () => {
-        expect(() => ProvenanceIndex.fromJSON(/** @type {any} */ ({ version: 1, entries: null }))).toThrow('Missing or invalid ProvenanceIndex entries');
+        expect(() => ProvenanceIndex.fromJSON(({ version: 1, entries: null } as any))).toThrow('Missing or invalid ProvenanceIndex entries');
       });
 
       it('handles empty entries array in fromJSON', () => {
@@ -343,7 +343,7 @@ describe('ProvenanceIndex', () => {
       index.addPatch('aaa', ['a'], []);
 
       const entries = [...index];
-      const aEntry = /** @type {[string, string[]]} */ (entries.find(e => e[0] === 'a'));
+      const aEntry = (entries.find(e => e[0] === 'a') as [string, string[]]);
       expect(aEntry[1]).toEqual(['aaa', 'zzz']);
     });
 
@@ -361,7 +361,7 @@ describe('ProvenanceIndex', () => {
       index.addPatch('sha1', ['c', 'a', 'b'], []);
 
       const iteratedIds = [...index].map(([id]) => id);
-      const jsonIds = /** @type {any} */ (index.toJSON()).entries.map((/** @type {any[]} */ [id]) => id);
+      const jsonIds = (index.toJSON() as any).entries.map((/** @type {any[]} */ [id]) => id);
 
       expect(iteratedIds).toEqual(jsonIds);
     });

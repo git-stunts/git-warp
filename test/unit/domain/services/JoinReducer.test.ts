@@ -16,8 +16,7 @@ import {
   reduceV5 as _reduceV5,
   cloneState,
 } from '../../../../src/domain/services/JoinReducer.ts';
-/** @type {(...args: any[]) => any} */
-const reduceV5 = _reduceV5;
+const reduceV5 = (_reduceV5) as (...args: any[]) => any;
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
@@ -64,7 +63,7 @@ describe('JoinReducer', () => {
       const state1 = createEmptyState();
       const state2 = createEmptyState();
 
-      state1.prop.set('key', { eventId: /** @type {any} */ ({}), value: 'test' });
+      state1.prop.set('key', { eventId: ({} as any), value: 'test' });
 
       expect(state2.prop.size).toBe(0);
     });
@@ -604,7 +603,7 @@ describe('JoinReducer', () => {
         edgeBirthEvent: state.edgeBirthEvent,
       };
 
-      const cloned = cloneState(/** @type {any} */ (plainState));
+      const cloned = cloneState((plainState));
       applyOpV2(cloned, new NodeAdd('z', Dot.create('B', 1)), new EventId(4, 'B', 'dddd1234', 0));
 
       expect(cloned.nodeAlive.contains('x')).toBe(true);
@@ -821,7 +820,7 @@ describe('JoinReducer', () => {
         writer: 'w1',
         lamport: 1,
         ops: [
-          /** @type {any} */ (undefined),
+          (undefined),
           new NodeAdd('n1', Dot.create('w1', 1)),
         ],
         context: VersionVector.empty(),
@@ -839,7 +838,7 @@ describe('JoinReducer', () => {
         writer: 'w1',
         lamport: 1,
         ops: [
-          /** @type {any} */ (undefined),
+          (undefined),
           new NodeAdd('n1', Dot.create('w1', 1)),
         ],
         context: VersionVector.empty(),
@@ -918,7 +917,7 @@ describe('JoinReducer', () => {
       const originalReceiptName = strategy.receiptName;
 
       try {
-        (/** @type {any} */ (strategy)).receiptName = 'FutureBlobValue';
+        ((strategy)).receiptName = 'FutureBlobValue';
         const result = applyWithReceipt(state, createPatch({
           writer: 'w1',
           lamport: 1,
@@ -928,7 +927,7 @@ describe('JoinReducer', () => {
 
         expect(result.receipt.ops).toEqual([]);
       } finally {
-        (/** @type {any} */ (strategy)).receiptName = originalReceiptName;
+        ((strategy)).receiptName = originalReceiptName;
       }
     });
 
@@ -942,7 +941,7 @@ describe('JoinReducer', () => {
         ops: [new NodeAdd('n1', dot)],
         context: undefined,
       };
-      const result = applyFast(state, /** @type {*} */ (patch), 'aa00000000000000');
+      const result = applyFast(state, (patch), 'aa00000000000000');
       expect(result).toBe(state);
       expect(state.nodeAlive.contains('n1')).toBe(true);
       expect(state.observedFrontier.get('w1')).toBe(1);
@@ -958,7 +957,7 @@ describe('JoinReducer', () => {
         ops: [new NodeAdd('n1', dot)],
         context: null,
       };
-      const result = applyFast(state, /** @type {*} */ (patch), 'bb00000000000000');
+      const result = applyFast(state, (patch), 'bb00000000000000');
       expect(result).toBe(state);
       expect(state.nodeAlive.contains('n1')).toBe(true);
       expect(state.observedFrontier.get('w1')).toBe(1);

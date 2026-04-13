@@ -40,7 +40,7 @@ describe('public facade split', () => {
   it('exposes WarpCore and does not export WarpRuntime anymore', async () => {
     const pkg = /** @type {{ WarpCore?: unknown; WarpRuntime?: unknown }} */ (await import('../../../index.js'));
     expect(pkg.WarpCore).toBeDefined();
-    expect(pkg.WarpRuntime).toBeUndefined();
+    expect((pkg as any).WarpRuntime).toBeUndefined();
     expect(indexJs).not.toContain('WarpCore as WarpRuntime,');
     expect(indexDts).not.toContain('export declare class WarpRuntime {');
   });

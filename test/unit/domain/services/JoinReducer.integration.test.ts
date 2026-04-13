@@ -254,7 +254,7 @@ function generatePatches(n: number, options: { writers?: string[], maxOpsPerPatc
     const patch = createPatch({
       writer,
       lamport,
-      context: /** @type {any} */ (VersionVector.empty()),
+      context: (VersionVector.empty() as any),
       ops: (ops as any),
     });
 
@@ -298,7 +298,7 @@ function generateV2Patches(n: number) {
       patch: createPatch({
         writer,
         lamport,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops,
       }),
       sha,
@@ -372,7 +372,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
       patch: createPatch({
         writer: 'A',
         lamport: 1,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new NodeAdd('x', Dot.create('A', 1))],
       }),
       sha: 'aaaa1111',
@@ -382,7 +382,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
       patch: createPatch({
         writer: 'B',
         lamport: 2,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new NodeAdd('y', Dot.create('B', 1))],
       }),
       sha: 'bbbb2222',
@@ -392,7 +392,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
       patch: createPatch({
         writer: 'C',
         lamport: 3,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new EdgeAdd({ from: 'x', to: 'y', label: 'link', dot: Dot.create('C', 1) })],
       }),
       sha: 'cccc3333',
@@ -496,7 +496,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
         patch: createPatch({
           writer: 'charlie',
           lamport: 10,
-          context: /** @type {any} */ (VersionVector.empty()),
+          context: (VersionVector.empty() as any),
           ops: [
             new NodeAdd('user:charlie', Dot.create('charlie', 1)),
             new PropSet('user:charlie', 'name', createInlineValue('Charlie')),
@@ -508,7 +508,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
         patch: createPatch({
           writer: 'charlie',
           lamport: 11,
-          context: /** @type {any} */ (VersionVector.empty()),
+          context: (VersionVector.empty() as any),
           ops: [
             new EdgeAdd({ from: 'user:charlie', to: 'user:alice', label: 'follows', dot: Dot.create('charlie', 2) }),
           ],
@@ -615,7 +615,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'A',
         lamport: 1,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [{ type: 'NodeAdd', node: 'X', dot: Dot.create('A', 1) }],
       }),
       sha: 'aaaa1234',
@@ -626,7 +626,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'B',
         lamport: 1,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new NodeRemove('X', [])],
       }),
       sha: 'bbbb1234',
@@ -650,7 +650,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'A',
         lamport: 1,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new NodeAdd('X', Dot.create('A', 1))],
       }),
       sha: 'aaaa1111',
@@ -661,7 +661,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'B',
         lamport: 1,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new NodeAdd('X', Dot.create('B', 1))],
       }),
       sha: 'bbbb1111',
@@ -672,7 +672,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'C',
         lamport: 2,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new NodeRemove('X', ['A:1'])],
       }),
       sha: 'cccc1111',
@@ -705,7 +705,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'A',
         lamport: 1,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new NodeAdd('X', Dot.create('A', 1))],
       }),
       sha: 'aaaa1111',
@@ -716,7 +716,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'B',
         lamport: 2,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new NodeRemove('X', ['A:1'])],
       }),
       sha: 'bbbb2222',
@@ -735,7 +735,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
         patch: createPatch({
           writer: 'setup',
           lamport: 1,
-          context: /** @type {any} */ (VersionVector.empty()),
+          context: (VersionVector.empty() as any),
           ops: [
             new NodeAdd('from', Dot.create('setup', 1)),
             new NodeAdd('to', Dot.create('setup', 2)),
@@ -750,7 +750,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'A',
         lamport: 10,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new EdgeAdd({ from: 'from', to: 'to', label: 'link', dot: Dot.create('A', 1) })],
       }),
       sha: 'edaa0011',
@@ -761,7 +761,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
       patch: createPatch({
         writer: 'B',
         lamport: 10,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [({ type: 'EdgeRemove', observedDots: new Set() })],
       }),
       sha: 'edbb0011',
@@ -806,7 +806,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
       patch: createPatch({
         writer: 'A',
         lamport: 1,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new NodeAdd('x', Dot.create('A', 1))],
       }),
       sha: 'aaaa1111',
@@ -816,7 +816,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
       patch: createPatch({
         writer: 'A',
         lamport: 2,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new NodeRemove('x', ['A:1'])],
       }),
       sha: 'bbbb2222',
@@ -845,7 +845,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
       patch: createPatch({
         writer: 'A',
         lamport: 1,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new NodeAdd('live-node', Dot.create('A', 1))],
       }),
       sha: 'aaaa1111',
@@ -906,7 +906,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
         patch: createPatch({
           writer: 'base',
           lamport: 1,
-          context: /** @type {any} */ (VersionVector.empty()),
+          context: (VersionVector.empty() as any),
           ops: [
             new NodeAdd('root', Dot.create('base', 1)),
             new NodeAdd('shared', Dot.create('base', 2)),
@@ -929,7 +929,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       patch: createPatch({
         writer: 'alice',
         lamport: 10,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [
           new NodeAdd('alice-node', Dot.create('alice', 1)),
           new EdgeAdd({ from: 'root', to: 'alice-node', label: 'owns', dot: Dot.create('alice', 2) }),
@@ -944,7 +944,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       patch: createPatch({
         writer: 'bob',
         lamport: 10,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [
           new NodeAdd('bob-node', Dot.create('bob', 1)),
           new EdgeAdd({ from: 'root', to: 'bob-node', label: 'owns', dot: Dot.create('bob', 2) }),
@@ -991,7 +991,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
         patch: createPatch({
           writer: 'base',
           lamport: 1,
-          context: /** @type {any} */ (VersionVector.empty()),
+          context: (VersionVector.empty() as any),
           ops: [
             new NodeAdd('target', Dot.create('base', 1)),
             new PropSet('target', 'value', createInlineValue('initial')),
@@ -1010,7 +1010,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       patch: createPatch({
         writer: 'alice',
         lamport: 5,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new PropSet('target', 'value', createInlineValue('alice-value'))],
       }),
       sha: 'aaaa2222',
@@ -1020,7 +1020,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       patch: createPatch({
         writer: 'bob',
         lamport: 7, // Higher lamport - Bob wins
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new PropSet('target', 'value', createInlineValue('bob-value'))],
       }),
       sha: 'bbbb3333',
@@ -1048,7 +1048,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
         patch: createPatch({
           writer: 'base',
           lamport: 1,
-          context: /** @type {any} */ (VersionVector.empty()),
+          context: (VersionVector.empty() as any),
           ops: [new NodeAdd('contested', Dot.create('base', 1))],
         }),
         sha: 'baaa4444',
@@ -1064,7 +1064,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       patch: createPatch({
         writer: 'alice',
         lamport: 10,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new NodeRemove('contested', ['base:1'])],
       }),
       sha: 'aaaa5555',
@@ -1075,7 +1075,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
       patch: createPatch({
         writer: 'bob',
         lamport: 10,
-        context: /** @type {any} */ (VersionVector.empty()),
+        context: (VersionVector.empty() as any),
         ops: [new NodeAdd('contested', Dot.create('bob', 1))],
       }),
       sha: 'bbbb6666',
@@ -1190,7 +1190,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
         patch: createPatch({
           writer,
           lamport,
-          context: /** @type {any} */ (VersionVector.empty()),
+          context: (VersionVector.empty() as any),
           ops,
         }),
         sha,
@@ -1246,7 +1246,7 @@ describe('Additional WARP v5 Integration Tests', () => {
         patch: createPatch({
           writer: 'A',
           lamport: 1,
-          context: /** @type {any} */ (VersionVector.empty()),
+          context: (VersionVector.empty() as any),
           ops: [
             new NodeAdd('x', Dot.create('A', 1)),
             new PropSet('x', 'color', createInlineValue('red')),
@@ -1259,7 +1259,7 @@ describe('Additional WARP v5 Integration Tests', () => {
         patch: createPatch({
           writer: 'B',
           lamport: 2, // Higher lamport wins
-          context: /** @type {any} */ (VersionVector.empty()),
+          context: (VersionVector.empty() as any),
           ops: [new PropSet('x', 'color', createInlineValue('blue'))],
         }),
         sha: 'bbbb2222',
@@ -1283,7 +1283,7 @@ describe('Additional WARP v5 Integration Tests', () => {
         patch: createPatch({
           writer: 'A',
           lamport: 5,
-          context: /** @type {any} */ (VersionVector.empty()),
+          context: (VersionVector.empty() as any),
           ops: [
             new NodeAdd('x', Dot.create('A', 1)),
             new PropSet('x', 'val', createInlineValue('A-value')),
@@ -1296,7 +1296,7 @@ describe('Additional WARP v5 Integration Tests', () => {
         patch: createPatch({
           writer: 'B',
           lamport: 5, // Same lamport
-          context: /** @type {any} */ (VersionVector.empty()),
+          context: (VersionVector.empty() as any),
           ops: [new PropSet('x', 'val', createInlineValue('B-value'))],
         }),
         sha: 'bbbb2222',
@@ -1317,7 +1317,7 @@ describe('Additional WARP v5 Integration Tests', () => {
           patch: createPatch({
             writer: 'W',
             lamport: 1,
-            context: /** @type {any} */ (VersionVector.empty()),
+            context: (VersionVector.empty() as any),
             ops: [
               new NodeAdd('a', Dot.create('W', 1)),
               new NodeAdd('b', Dot.create('W', 2)),
@@ -1330,7 +1330,7 @@ describe('Additional WARP v5 Integration Tests', () => {
           patch: createPatch({
             writer: 'W',
             lamport: 2,
-            context: /** @type {any} */ (VersionVector.empty()),
+            context: (VersionVector.empty() as any),
             ops: [new NodeRemove('a', ['W:1'])], // Remove 'a'
           }),
           sha: 'aaa22222',

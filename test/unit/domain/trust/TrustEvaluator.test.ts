@@ -23,24 +23,22 @@ import {
 
 /** Build an ad-hoc TrustRecord from plain fields. */
 function tr(/** @type {Record<string, unknown>} */ fields) {
-  return TrustRecord.fromDecoded(/** @type {any} */ ({
+  return TrustRecord.fromDecoded((({
     ...fields,
     signaturePayload: textEncode(signaturePayload(fields)),
-  }));
+  }) as any));
 }
 
-/** @type {import('../../../../src/domain/trust/schemas.ts').TrustPolicy} */
 const VALID_POLICY = {
   schemaVersion: 1,
-  mode: /** @type {'enforce'} */ ('enforce'),
-  writerPolicy: /** @type {'all_writers_must_be_trusted'} */ ('all_writers_must_be_trusted'),
+  mode: ('enforce' as 'enforce'),
+  writerPolicy: ('all_writers_must_be_trusted' as 'all_writers_must_be_trusted'),
 };
 
-/** @type {import('../../../../src/domain/trust/schemas.ts').TrustPolicy} */
 const WARN_POLICY = {
   schemaVersion: 1,
-  mode: /** @type {'warn'} */ ('warn'),
-  writerPolicy: /** @type {'all_writers_must_be_trusted'} */ ('all_writers_must_be_trusted'),
+  mode: ('warn' as 'warn'),
+  writerPolicy: ('all_writers_must_be_trusted' as 'all_writers_must_be_trusted'),
 };
 
 describe('evaluateWriters — trusted writer', () => {
@@ -99,7 +97,7 @@ describe('evaluateWriters — untrusted writers', () => {
 describe('evaluateWriters — policy validation', () => {
   it('returns fail for invalid policy', async () => {
     const state = await buildState([KEY_ADD_1]);
-    const assessment = evaluateWriters(['alice'], state, /** @type {any} */ ({ mode: 'bogus' }));
+    const assessment = evaluateWriters(['alice'], state, ({ mode: 'bogus' } as any));
 
     expect(assessment.trustVerdict).toBe('fail');
     expect(assessment.trust.status).toBe('error');
@@ -183,7 +181,7 @@ describe('evaluateWriters — mixed trusted/untrusted', () => {
 
     const aliceExpl = assessment.trust.explanations.find(/** @param {Record<string, unknown>} e */ (e) => e['writerId'] === 'alice');
     const malloryExpl = assessment.trust.explanations.find(/** @param {Record<string, unknown>} e */ (e) => e['writerId'] === 'mallory');
-    expect(/** @type {Record<string, unknown>} */ (aliceExpl)['trusted']).toBe(true);
-    expect(/** @type {Record<string, unknown>} */ (malloryExpl)['trusted']).toBe(false);
+    expect((aliceExpl)['trusted']).toBe(true);
+    expect((malloryExpl)['trusted']).toBe(false);
   });
 });

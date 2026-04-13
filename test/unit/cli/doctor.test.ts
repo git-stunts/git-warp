@@ -28,9 +28,9 @@ vi.mock('../../../src/infrastructure/adapters/ClockAdapter.js', () => ({
 }));
 
 const _shared = await import('../../../bin/cli/shared.js');
-const createPersistence = /** @type {import('vitest').Mock} */ (/** @type {unknown} */ (_shared.createPersistence));
-const resolveGraphName = /** @type {import('vitest').Mock} */ (/** @type {unknown} */ (_shared.resolveGraphName));
-const createHookInstaller = /** @type {import('vitest').Mock} */ (/** @type {unknown} */ (_shared.createHookInstaller));
+const createPersistence = ((_shared.createPersistence as unknown) as any);
+const resolveGraphName = ((_shared.resolveGraphName as unknown) as any);
+const createHookInstaller = ((_shared.createHookInstaller as unknown) as any);
 
 /**
  * Builds a mock persistence object that simulates a healthy graph
@@ -73,8 +73,7 @@ function buildMockPersistence() {
   };
 }
 
-/** @type {import('../../../bin/cli/types.js').CliOptions} */
-const CLI_OPTIONS = /** @type {*} */ ({
+const CLI_OPTIONS = (({
   repo: '/tmp/test',
   graph: 'demo',
   json: true,
@@ -82,13 +81,11 @@ const CLI_OPTIONS = /** @type {*} */ ({
   view: null,
   writer: 'cli',
   help: false,
-});
+}) as any);
 
 describe('doctor command', () => {
-  /** @type {Function} */
-  let handleDoctor;
-  /** @type {ReturnType<typeof buildMockPersistence>} */
-  let mockPersistence;
+    let handleDoctor;
+    let mockPersistence;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -112,8 +109,7 @@ describe('doctor command', () => {
 
   it('produces valid payload for a healthy graph', async () => {
     const result = await handleDoctor({ options: CLI_OPTIONS, args: [] });
-    /** @type {import('../../../bin/cli/commands/doctor/types.js').DoctorPayload} */
-    const payload = result.payload;
+        const payload = (result.payload) as any;
     const { exitCode } = result;
 
     // Exit code
@@ -229,13 +225,11 @@ describe('doctor command', () => {
     expect(statuses).toContain('ok');
 
     // Assert full three-key sort invariant: (status, impact, id) ascending.
-    /** @type {Record<string, number>} */
-    const STATUS_ORDER = { fail: 0, warn: 1, ok: 2 };
-    /** @type {Record<string, number>} */
-    const IMPACT_ORDER = { data_integrity: 0, security: 1, operability: 2, hygiene: 3 };
+        const STATUS_ORDER = ({ fail: 0, warn: 1, ok: 2 }) as Record<string, number>;
+        const IMPACT_ORDER = ({ data_integrity: 0, security: 1, operability: 2, hygiene: 3 }) as Record<string, number>;
     for (let i = 1; i < findings.length; i++) {
-      const a = /** @type {*} */ (findings[i - 1]);
-      const b = /** @type {*} */ (findings[i]);
+      const a = (findings[i - 1] as any);
+      const b = (findings[i] as any);
       const statusCmp = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
       if (statusCmp !== 0) {
         expect(statusCmp).toBeLessThan(0);
@@ -253,7 +247,7 @@ describe('doctor command', () => {
 
 describe('individual check guards', () => {
   it('checkCoverageComplete treats null-sha writer heads as missing', async () => {
-    const ctx = /** @type {*} */ ({
+    const ctx = (({
       graphName: 'demo',
       writerHeads: [
         { writerId: 'alice', sha: null, ref: 'refs/warp/demo/writers/alice' },
@@ -262,9 +256,9 @@ describe('individual check guards', () => {
         readRef: vi.fn().mockResolvedValue('cccc000000000000000000000000000000000000'),
         isAncestor: vi.fn(),
       },
-    });
+    }) as any);
 
-    const finding = /** @type {*} */ (await checkCoverageComplete(ctx));
+    const finding = (await checkCoverageComplete(ctx) as any);
 
     expect(finding.code).toBe(CODES.COVERAGE_MISSING_WRITERS);
     expect(finding.evidence.missingWriters).toContain('alice');
@@ -273,7 +267,7 @@ describe('individual check guards', () => {
   });
 
   it('checkClockSkew skips null-sha writer heads in collectWriterDates', async () => {
-    const ctx = /** @type {*} */ ({
+    const ctx = (({
       graphName: 'demo',
       writerHeads: [
         { writerId: 'alice', sha: null, ref: 'refs/warp/demo/writers/alice' },
@@ -289,7 +283,7 @@ describe('individual check guards', () => {
           parents: [],
         }),
       },
-    });
+    }) as any);
 
     const finding = await checkClockSkew(ctx);
 
@@ -300,7 +294,7 @@ describe('individual check guards', () => {
   });
 
   it('checkRefsConsistent reports null-sha heads as dangling', async () => {
-    const ctx = /** @type {*} */ ({
+    const ctx = (({
       writerHeads: [
         { writerId: 'alice', sha: 'aaaa000000000000000000000000000000000000', ref: 'refs/warp/demo/writers/alice' },
         { writerId: 'bob', sha: null, ref: 'refs/warp/demo/writers/bob' },
@@ -308,9 +302,9 @@ describe('individual check guards', () => {
       persistence: {
         nodeExists: vi.fn().mockResolvedValue(true),
       },
-    });
+    }) as any);
 
-    const findings = /** @type {*[]} */ (await checkRefsConsistent(ctx));
+    const findings = (await checkRefsConsistent(ctx) as any[]);
 
     // bob's null sha should produce a REFS_DANGLING_OBJECT finding
     const dangling = findings.find((/** @type {*} */ f) => f.code === CODES.REFS_DANGLING_OBJECT);

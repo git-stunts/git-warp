@@ -16,7 +16,7 @@ const crypto = new NodeCryptoAdapter();
  */
 async function hashState(state) {
   return await computeStateHash(
-    /** @type {import('../../../src/domain/services/JoinReducer.ts').WarpState} */ (state),
+    (state),
     { crypto },
   );
 }

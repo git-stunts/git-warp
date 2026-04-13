@@ -2,10 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 
 describe('WarpRuntime writer API', () => {
-  /** @type {any} */
-  let mockPersistence;
-  /** @type {any} */
-  let graph;
+    let mockPersistence;
+    let graph;
 
   beforeEach(async () => {
     mockPersistence = {

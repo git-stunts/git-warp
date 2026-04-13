@@ -17,8 +17,7 @@ import {
   CANONICAL_KNOWN_OPS,
   OP_STRATEGIES,
 } from '../../../../src/domain/services/JoinReducer.ts';
-/** @type {(...args: any[]) => any} */
-const reduceV5 = _reduceV5;
+const reduceV5 = (_reduceV5) as (...args: any[]) => any;
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 
@@ -90,7 +89,7 @@ function assertStatesEqual(a, b, label = '') {
     const otherDots = b.nodeAlive.entries.get(key);
     expect(otherDots, `${prefix}nodeAlive entries['${key}']`).toBeDefined();
     expect([...dots].sort(), `${prefix}nodeAlive dots for '${key}'`).toEqual(
-      [.../** @type {Set<string>} */ (otherDots)].sort(),
+      [...(otherDots)].sort(),
     );
   }
   expect(
@@ -107,7 +106,7 @@ function assertStatesEqual(a, b, label = '') {
     const otherDots = b.edgeAlive.entries.get(key);
     expect(otherDots, `${prefix}edgeAlive entries['${key}']`).toBeDefined();
     expect([...dots].sort(), `${prefix}edgeAlive dots for '${key}'`).toEqual(
-      [.../** @type {Set<string>} */ (otherDots)].sort(),
+      [...(otherDots)].sort(),
     );
   }
   expect(
@@ -168,7 +167,7 @@ describe('OP_STRATEGIES registry', () => {
   it('every strategy has all five required methods', () => {
     const requiredMethods = ['mutate', 'outcome', 'snapshot', 'accumulate', 'validate'];
     for (const [opType, strategy] of OP_STRATEGIES) {
-      const s = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (strategy));
+      const s = ((strategy) as Record<string, unknown>);
       for (const method of requiredMethods) {
         expect(
           typeof s[method],

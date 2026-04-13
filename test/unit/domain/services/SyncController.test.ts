@@ -387,8 +387,8 @@ describe('SyncController', () => {
 
       await ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] as any[] });
 
-      expect(/** @type {import('vitest').Mock} */ (host['_setMaterializedState'])).toHaveBeenCalledOnce();
-      expect(/** @type {import('vitest').Mock} */ (host['_setMaterializedState'])).toHaveBeenCalledWith(newState);
+      expect((host['_setMaterializedState'] as any)).toHaveBeenCalledOnce();
+      expect((host['_setMaterializedState'] as any)).toHaveBeenCalledWith(newState);
       // _materializedGraph should be rebuilt (not null)
       expect(host['_materializedGraph']).not.toBeNull();
     });
@@ -770,12 +770,9 @@ describe('SyncController', () => {
   });
 
   describe('syncWith HTTP path', () => {
-    /** @type {import('vitest').Mock} */
-    let fetchMock;
-    /** @type {ReturnType<typeof createMockHost>} */
-    let host;
-    /** @type {SyncController} */
-    let ctrl;
+        let fetchMock;
+        let host;
+        let ctrl;
 
     beforeEach(() => {
       fetchMock = vi.fn();
@@ -894,8 +891,7 @@ describe('SyncController', () => {
       fetchMock.mockResolvedValue({ status: 502 });
 
       // Capture shouldRetry from retry mock
-      /** @type {((err: unknown) => boolean) | undefined} */
-      let capturedShouldRetry;
+            let capturedShouldRetry;
       (retryMock as any).mockImplementation(async (/** @type {Function} */ fn, /** @type {*} */ opts) => {
         capturedShouldRetry = opts.shouldRetry;
         return await fn();
@@ -908,7 +904,7 @@ describe('SyncController', () => {
       }
 
       expect(capturedShouldRetry).toBeDefined();
-      const shouldRetry = /** @type {(err: unknown) => boolean} */ (capturedShouldRetry);
+      const shouldRetry = (capturedShouldRetry);
 
       expect(shouldRetry(new SyncError('remote', { code: 'E_SYNC_REMOTE' }))).toBe(true);
       expect(shouldRetry(new SyncError('timeout', { code: 'E_SYNC_TIMEOUT' }))).toBe(true);

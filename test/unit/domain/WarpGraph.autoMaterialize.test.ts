@@ -11,7 +11,7 @@ describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
       autoMaterialize: true,
     });
 
-    expect(/** @type {any} */ (graph)._autoMaterialize).toBe(true);
+    expect((graph)._autoMaterialize).toBe(true);
   });
 
   it('stores flag when opened with autoMaterialize: false', async () => {
@@ -22,7 +22,7 @@ describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
       autoMaterialize: false,
     });
 
-    expect(/** @type {any} */ (graph)._autoMaterialize).toBe(false);
+    expect((graph)._autoMaterialize).toBe(false);
   });
 
   it('defaults to true when autoMaterialize is not provided', async () => {
@@ -32,18 +32,18 @@ describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
       writerId: 'writer-1',
     });
 
-    expect(/** @type {any} */ (graph)._autoMaterialize).toBe(true);
+    expect((graph)._autoMaterialize).toBe(true);
   });
 
   it('defaults to true when autoMaterialize is explicitly undefined', async () => {
-    const graph = await WarpRuntime.open(/** @type {any} */ ({
+    const graph = await WarpRuntime.open((({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
       autoMaterialize: undefined,
-    }));
+    }) as any));
 
-    expect(/** @type {any} */ (graph)._autoMaterialize).toBe(true);
+    expect((graph)._autoMaterialize).toBe(true);
   });
 
   it('rejects autoMaterialize: "yes" (string)', async () => {
@@ -52,7 +52,7 @@ describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
-        autoMaterialize: /** @type {any} */ ('yes'),
+        autoMaterialize: ('yes' as any),
       }),
     ).rejects.toThrow('autoMaterialize must be a boolean');
   });
@@ -63,7 +63,7 @@ describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
-        autoMaterialize: /** @type {any} */ (1),
+        autoMaterialize: (1 as any),
       }),
     ).rejects.toThrow('autoMaterialize must be a boolean');
   });
@@ -74,7 +74,7 @@ describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
-        autoMaterialize: /** @type {any} */ (null),
+        autoMaterialize: (null),
       }),
     ).rejects.toThrow('autoMaterialize must be a boolean');
   });

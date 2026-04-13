@@ -43,7 +43,7 @@ describe('LiveSelector', () => {
   });
 
   it('rejects string ceiling', () => {
-    expect(() => new LiveSelector(/** @type {any} */ ('42'))).toThrow(QueryError);
+    expect(() => new LiveSelector(('42' as any))).toThrow(QueryError);
   });
 
   it('is frozen', () => {
@@ -123,11 +123,11 @@ describe('CoordinateSelector', () => {
   });
 
   it('rejects null frontier', () => {
-    expect(() => new CoordinateSelector(/** @type {any} */ (null))).toThrow(QueryError);
+    expect(() => new CoordinateSelector((null))).toThrow(QueryError);
   });
 
   it('rejects non-object frontier', () => {
-    expect(() => new CoordinateSelector(/** @type {any} */ ('bad'))).toThrow(QueryError);
+    expect(() => new CoordinateSelector(('bad' as any))).toThrow(QueryError);
   });
 
   it('rejects negative ceiling', () => {
@@ -212,11 +212,11 @@ describe('StrandSelector', () => {
   });
 
   it('rejects non-string strandId', () => {
-    expect(() => new StrandSelector(/** @type {any} */ (123))).toThrow(QueryError);
+    expect(() => new StrandSelector((123 as any))).toThrow(QueryError);
   });
 
   it('rejects null strandId', () => {
-    expect(() => new StrandSelector(/** @type {any} */ (null))).toThrow(QueryError);
+    expect(() => new StrandSelector((null))).toThrow(QueryError);
   });
 
   it('rejects negative ceiling', () => {
@@ -256,15 +256,15 @@ describe('WorldlineSelector.from()', () => {
   it('converts { kind: "live" } to LiveSelector', () => {
     const sel = WorldlineSelector.from({ kind: 'live' });
     expect(sel).toBeInstanceOf(LiveSelector);
-    const live = /** @type {LiveSelector} */ (sel);
-    expect(live.ceiling).toBe(null);
+    const live = (sel);
+    expect((live as any).ceiling).toBe(null);
   });
 
   it('converts { kind: "live", ceiling: 42 } to LiveSelector', () => {
     const sel = WorldlineSelector.from({ kind: 'live', ceiling: 42 });
     expect(sel).toBeInstanceOf(LiveSelector);
-    const live = /** @type {LiveSelector} */ (sel);
-    expect(live.ceiling).toBe(42);
+    const live = (sel);
+    expect((live as any).ceiling).toBe(42);
   });
 
   it('converts { kind: "coordinate" } to CoordinateSelector', () => {
@@ -274,8 +274,8 @@ describe('WorldlineSelector.from()', () => {
       ceiling: null,
     });
     expect(sel).toBeInstanceOf(CoordinateSelector);
-    const coord = /** @type {CoordinateSelector} */ (sel);
-    expect(coord.frontier.get('alice')).toBe('abc');
+    const coord = (sel);
+    expect((coord as any).frontier.get('alice')).toBe('abc');
   });
 
   it('converts { kind: "coordinate" } with plain object frontier', () => {
@@ -284,8 +284,8 @@ describe('WorldlineSelector.from()', () => {
       frontier: { alice: 'abc' },
     });
     expect(sel).toBeInstanceOf(CoordinateSelector);
-    const coord = /** @type {CoordinateSelector} */ (sel);
-    expect(coord.frontier).toBeInstanceOf(Map);
+    const coord = (sel);
+    expect((coord as any).frontier).toBeInstanceOf(Map);
   });
 
   it('converts { kind: "strand" } to StrandSelector', () => {
@@ -295,16 +295,16 @@ describe('WorldlineSelector.from()', () => {
       ceiling: 10,
     });
     expect(sel).toBeInstanceOf(StrandSelector);
-    const strand = /** @type {StrandSelector} */ (sel);
-    expect(strand.strandId).toBe('strand-abc');
-    expect(strand.ceiling).toBe(10);
+    const strand = (sel);
+    expect((strand as any).strandId).toBe('strand-abc');
+    expect((strand as any).ceiling).toBe(10);
   });
 
   it('converts null to LiveSelector', () => {
     const sel = WorldlineSelector.from(null);
     expect(sel).toBeInstanceOf(LiveSelector);
-    const live = /** @type {LiveSelector} */ (sel);
-    expect(live.ceiling).toBe(null);
+    const live = (sel);
+    expect((live as any).ceiling).toBe(null);
   });
 
   it('converts undefined to LiveSelector', () => {
@@ -321,8 +321,8 @@ describe('WorldlineSelector.from()', () => {
     expect(Object.isFrozen(sel)).toBe(true);
     const result = WorldlineSelector.from(sel);
     expect(result).toBe(sel);
-    const live = /** @type {LiveSelector} */ (result);
-    expect(live.ceiling).toBe(42);
+    const live = (result);
+    expect((live as any).ceiling).toBe(42);
   });
 
   it('throws on unknown kind', () => {

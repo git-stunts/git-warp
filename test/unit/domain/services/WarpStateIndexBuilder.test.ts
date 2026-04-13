@@ -14,8 +14,8 @@ describe('WarpStateIndexBuilder', () => {
   describe('buildFromState()', () => {
     it('throws on invalid state', () => {
       const builder = new WarpStateIndexBuilder();
-      expect(() => builder.buildFromState(/** @type {any} */ (null))).toThrow('Invalid state');
-      expect(() => builder.buildFromState(/** @type {any} */ ({}))).toThrow('Invalid state');
+      expect(() => builder.buildFromState((null))).toThrow('Invalid state');
+      expect(() => builder.buildFromState(({} as any))).toThrow('Invalid state');
     });
 
     it('returns empty index for empty state', () => {
@@ -214,12 +214,12 @@ describe('WarpStateIndexBuilder', () => {
       // Forward edge: parent -> child
       const fwdBitmap = builder.builder.bitmaps.get('fwd_parent');
       expect(fwdBitmap).toBeDefined();
-      expect(/** @type {{ has: (id: number) => boolean }} */ (fwdBitmap).has(/** @type {number} */ (childId))).toBe(true);
+      expect(/** @type {{ has: (id: number) => boolean }} */ (fwdBitmap).has((childId))).toBe(true);
 
       // Reverse edge: child -> parent
       const revBitmap = builder.builder.bitmaps.get('rev_child');
       expect(revBitmap).toBeDefined();
-      expect(/** @type {{ has: (id: number) => boolean }} */ (revBitmap).has(/** @type {number} */ (parentId))).toBe(true);
+      expect(/** @type {{ has: (id: number) => boolean }} */ (revBitmap).has((parentId))).toBe(true);
     });
   });
 

@@ -16,7 +16,7 @@ import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts'
  * @returns {PatchController}
  */
 function createController(persistence, patchBlobStorage = null) {
-  const host = /** @type {*} */ ({ _persistence: persistence, _patchBlobStorage: patchBlobStorage });
+  const host = ({ _persistence: persistence, _patchBlobStorage: patchBlobStorage } as any);
   return new PatchController(host);
 }
 
@@ -41,7 +41,7 @@ describe('_readPatchBlob', () => {
     try {
       await ctrl._readPatchBlob({ patchOid: 'b'.repeat(40), encrypted: false });
     } catch (err) {
-      expect(/** @type {PersistenceError} */ (err).code).toBe(PersistenceError.E_MISSING_OBJECT);
+      expect((err).code).toBe(PersistenceError.E_MISSING_OBJECT);
     }
   });
 

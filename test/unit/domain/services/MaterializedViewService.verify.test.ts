@@ -110,7 +110,7 @@ describe('MaterializedViewService.verifyIndex', () => {
 
     const result = service.verifyIndex({
       state,
-      logicalIndex: /** @type {any} */ (corruptedIndex),
+      logicalIndex: (corruptedIndex),
       options: { sampleRate: 1.0, seed: 777 },
     });
 
@@ -203,7 +203,7 @@ describe('MaterializedViewService.verifyIndex', () => {
 
     const result = service.verifyIndex({
       state,
-      logicalIndex: /** @type {any} */ (corruptedIndex),
+      logicalIndex: (corruptedIndex),
       options: { sampleRate: 1.0, seed: 123 },
     });
 

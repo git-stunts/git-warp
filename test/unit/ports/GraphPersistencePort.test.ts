@@ -19,7 +19,7 @@ describe('GraphPersistencePort (abstract composite)', () => {
   it('abstract methods are not on the base prototype (TS abstract)', () => {
     const proto = GraphPersistencePort.prototype;
     for (const method of expectedMethods) {
-      expect((/** @type {any} */ (proto))[method]).toBeUndefined();
+      expect(((proto))[method]).toBeUndefined();
     }
   });
 
@@ -34,9 +34,9 @@ describe('GraphPersistencePort (abstract composite)', () => {
     class TestAdapter extends GraphPersistencePort {
       async commitNode() { return 'sha'; }
       async showNode() { return 'msg'; }
-      async getNodeInfo() { return /** @type {any} */ ({}); }
+      async getNodeInfo() { return ({} as any); }
       async logNodes() { return 'log'; }
-      async logNodesStream() { return /** @type {any} */ (null); }
+      async logNodesStream() { return (null); }
       async countNodes() { return 1; }
       async commitNodeWithTree() { return 'sha2'; }
       async nodeExists() { return true; }
@@ -71,7 +71,7 @@ describe('IndexStoragePort (abstract subset)', () => {
   it('abstract methods are not on the base prototype', () => {
     const proto = IndexStoragePort.prototype;
     for (const method of expectedMethods) {
-      expect((/** @type {any} */ (proto))[method]).toBeUndefined();
+      expect(((proto))[method]).toBeUndefined();
     }
   });
 
@@ -94,6 +94,6 @@ describe('IndexStoragePort (abstract subset)', () => {
     }
     const storage = new TestStorage();
     expect(storage).toBeInstanceOf(IndexStoragePort);
-    expect(await (/** @type {any} */ (storage)).writeBlob(new Uint8Array())).toBe('blob-oid');
+    expect(await ((storage)).writeBlob(new Uint8Array())).toBe('blob-oid');
   });
 });

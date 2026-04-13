@@ -53,7 +53,7 @@ describe('SyncProtocol wire gate (ADR 2 tripwire)', () => {
     ]);
 
     expect(() =>
-      applySyncResponse(/** @type {any} */ (response), state, frontier)
+      applySyncResponse((response), state, frontier)
     ).toThrow(/unknown op type.*EdgePropSet/);
   });
 
@@ -65,7 +65,7 @@ describe('SyncProtocol wire gate (ADR 2 tripwire)', () => {
     ]);
 
     expect(() =>
-      applySyncResponse(/** @type {any} */ (response), state, frontier)
+      applySyncResponse((response), state, frontier)
     ).toThrow(/unknown op type.*NodePropSet/);
   });
 
@@ -77,9 +77,7 @@ describe('SyncProtocol wire gate (ADR 2 tripwire)', () => {
       { type: 'PropSet', node: 'x', key: 'color', value: 'blue' },
     ]);
 
-    const result = /** @type {any} */ (
-      applySyncResponse(/** @type {any} */ (response), state, frontier)
-    );
+    const result = ((applySyncResponse( (response), state, frontier)) as any);
     expect(result.applied).toBe(1);
   });
 
@@ -96,9 +94,7 @@ describe('SyncProtocol wire gate (ADR 2 tripwire)', () => {
       { type: 'NodeRemove', node: 'x', observedDots: [] },
     ]);
 
-    const result = /** @type {any} */ (
-      applySyncResponse(/** @type {any} */ (response), state, frontier)
-    );
+    const result = ((applySyncResponse( (response), state, frontier)) as any);
     expect(result.applied).toBe(1);
   });
 
@@ -110,7 +106,7 @@ describe('SyncProtocol wire gate (ADR 2 tripwire)', () => {
     ]);
 
     expect(() =>
-      applySyncResponse(/** @type {any} */ (response), state, frontier)
+      applySyncResponse((response), state, frontier)
     ).toThrow(/unknown op type.*HyperEdgeAdd/);
   });
 });

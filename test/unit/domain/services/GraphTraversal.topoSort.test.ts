@@ -46,13 +46,13 @@ describe('GraphTraversal.topologicalSort', () => {
         await engine.topologicalSort({ start: 'A', throwOnCycle: true });
         expect.fail('should have thrown');
       } catch (_e) {
-        const err = /** @type {*} */ (_e);
-        expect(err.code).toBe('ERR_GRAPH_HAS_CYCLES');
-        expect(err.context.nodesInCycle).toBeGreaterThan(0);
+        const err = (_e);
+        expect((err as any).code).toBe('ERR_GRAPH_HAS_CYCLES');
+        expect((err as any).context.nodesInCycle).toBeGreaterThan(0);
         // Cycle witness provided
-        expect(err.context.cycleWitness).toBeDefined();
-        expect(err.context.cycleWitness.from).toBeDefined();
-        expect(err.context.cycleWitness.to).toBeDefined();
+        expect((err as any).context.cycleWitness).toBeDefined();
+        expect((err as any).context.cycleWitness.from).toBeDefined();
+        expect((err as any).context.cycleWitness.to).toBeDefined();
       }
     });
 

@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 async function collectChunks(/** @type {AsyncIterable<unknown>} */ iterable) {
-  const chunks = [];
+  const chunks: any[] = [];
   for await (const chunk of iterable) {
     chunks.push(chunk);
   }
@@ -33,7 +33,7 @@ describe('streamUtils', () => {
   });
 
   it('returns false for readable streams when the global constructor is unavailable', () => {
-    globalThis.ReadableStream = /** @type {any} */ (undefined);
+    globalThis.ReadableStream = (undefined);
 
     const streamLike = {
       getReader() {
@@ -94,10 +94,10 @@ describe('streamUtils', () => {
       }
     }
 
-    globalThis.ReadableStream = /** @type {any} */ (FakeReadableStream);
+    globalThis.ReadableStream = (FakeReadableStream);
 
     const stream = new FakeReadableStream([new Uint8Array([3, 4])]);
-    const iterator = normalizeToAsyncIterable(/** @type {any} */ (stream))[Symbol.asyncIterator]();
+    const iterator = normalizeToAsyncIterable((stream))[Symbol.asyncIterator]();
 
     expect(await iterator.next()).toEqual({
       value: new Uint8Array([3, 4]),
@@ -107,7 +107,7 @@ describe('streamUtils', () => {
       value: undefined,
       done: true,
     });
-    expect(stream.released).toBe(true);
+    expect((stream as any).released).toBe(true);
   });
 
   it('releases the reader when iteration is terminated early', async () => {
@@ -127,10 +127,10 @@ describe('streamUtils', () => {
       }
     }
 
-    globalThis.ReadableStream = /** @type {any} */ (FakeReadableStream);
+    globalThis.ReadableStream = (FakeReadableStream);
 
     const stream = new FakeReadableStream([new Uint8Array([9])]);
-    const iterator = normalizeToAsyncIterable(/** @type {any} */ (stream))[Symbol.asyncIterator]();
+    const iterator = normalizeToAsyncIterable((stream))[Symbol.asyncIterator]();
 
     expect(await iterator.next()).toEqual({
       value: new Uint8Array([9]),
@@ -140,7 +140,7 @@ describe('streamUtils', () => {
       value: undefined,
       done: true,
     });
-    expect(stream.released).toBe(true);
+    expect((stream as any).released).toBe(true);
   });
 
   it('collects a single chunk without copying', async () => {

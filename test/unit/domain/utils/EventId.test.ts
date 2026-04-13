@@ -74,19 +74,19 @@ describe('EventId', () => {
       });
 
       it('rejects null writerId', () => {
-        expect(() => new EventId(1, /** @type {any} */ (null), 'abcd1234', 0)).toThrow(
+        expect(() => new EventId(1, (null), 'abcd1234', 0)).toThrow(
           'writerId must be a non-empty string'
         );
       });
 
       it('rejects undefined writerId', () => {
-        expect(() => new EventId(1, /** @type {any} */ (undefined), 'abcd1234', 0)).toThrow(
+        expect(() => new EventId(1, (undefined), 'abcd1234', 0)).toThrow(
           'writerId must be a non-empty string'
         );
       });
 
       it('rejects number writerId', () => {
-        expect(() => new EventId(1, /** @type {any} */ (123), 'abcd1234', 0)).toThrow(
+        expect(() => new EventId(1, (123 as any), 'abcd1234', 0)).toThrow(
           'writerId must be a non-empty string'
         );
       });
@@ -125,7 +125,7 @@ describe('EventId', () => {
       });
 
       it('rejects null patchSha', () => {
-        expect(() => new EventId(1, 'writer', /** @type {any} */ (null), 0)).toThrow(
+        expect(() => new EventId(1, 'writer', (null), 0)).toThrow(
           'patchSha must be a hex string of 4-64 characters'
         );
       });
@@ -299,8 +299,7 @@ describe('EventId', () => {
     });
 
     it('handles empty array', () => {
-      /** @type {any[]} */
-      const events = [];
+            const events = ([]) as any[];
       const sorted = [...events].sort(compareEventIds);
 
       expect(sorted).toEqual([]);

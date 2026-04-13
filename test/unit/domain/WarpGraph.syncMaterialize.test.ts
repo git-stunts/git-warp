@@ -30,7 +30,7 @@ describe('syncWith({ materialize }) option', { timeout: 20000 }, () => {
       expect(result.state).toBeDefined();
 
       // The materialized state should contain bob's node
-      const state1 = /** @type {any} */ (result.state);
+      const state1 = (result.state as any);
       expect(state1.nodeAlive).toBeDefined();
       const aliveNodes = [...state1.nodeAlive.entries.keys()];
       expect(aliveNodes).toContain('node:bob-1');
@@ -95,7 +95,7 @@ describe('syncWith({ materialize }) option', { timeout: 20000 }, () => {
       expect(result.state).toBeDefined();
 
       // State should be a valid empty materialized state
-      const state2 = /** @type {any} */ (result.state);
+      const state2 = (result.state as any);
       expect(state2.nodeAlive).toBeDefined();
       expect([...state2.nodeAlive.entries.keys()]).toHaveLength(0);
     } finally {

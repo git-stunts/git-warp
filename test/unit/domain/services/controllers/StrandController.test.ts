@@ -41,10 +41,8 @@ const { default: createStrandCoordinator } = await import(
 );
 
 describe('StrandController', () => {
-  /** @type {any} */
-  let host;
-  /** @type {InstanceType<typeof StrandController>} */
-  let controller;
+    let host;
+    let controller;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -70,7 +68,7 @@ describe('StrandController', () => {
     it('delegates braidStrand to coordinator.braid', async () => {
       const expected = { strandId: 's1' };
       mockCoordinator.braid.mockResolvedValue(expected);
-      const result = await controller.braidStrand('s1', /** @type {any} */ ({ squash: true }));
+      const result = await controller.braidStrand('s1', ({ squash: true } as any));
       expect(mockCoordinator.braid).toHaveBeenCalledWith('s1', { squash: true });
       expect(result).toBe(expected);
     });

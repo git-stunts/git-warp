@@ -10,13 +10,13 @@ import {
 /**
  * Helper — creates a minimal PatchBuilder for unit tests (no persistence needed).
  */
-function makeBuilder(opts = /** @type {any} */ ({})) {
-  return new PatchBuilder(/** @type {any} */ ({
+function makeBuilder(opts = ({} as any)) {
+  return new PatchBuilder((({
     writerId: opts.writerId ?? 'w1',
     lamport: opts.lamport ?? 1,
     versionVector: opts.versionVector ?? VersionVector.empty(),
     getCurrentState: opts.getCurrentState ?? (() => null),
-  }));
+  }) as any));
 }
 
 describe('PatchBuilder.setEdgeProperty', () => {
@@ -34,7 +34,7 @@ describe('PatchBuilder.setEdgeProperty', () => {
       const patch = builder.build();
       expect(patch.ops).toHaveLength(2);
 
-      const propOp = /** @type {any} */ (patch.ops[1]);
+      const propOp = (patch.ops[1] as any);
       expect(propOp.type).toBe('PropSet');
       expect(propOp.key).toBe('since');
       expect(propOp.value).toBe('2025-01-01');
@@ -47,7 +47,7 @@ describe('PatchBuilder.setEdgeProperty', () => {
       const builder = makeBuilder();
       builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'weight', 42);
 
-      const op = /** @type {any} */ (builder.ops[1]);
+      const op = (builder.ops[1] as any);
       expect(op.type).toBe('EdgePropSet');
       expect(op.from).toBe('a');
       expect(op.to).toBe('b');
@@ -61,7 +61,7 @@ describe('PatchBuilder.setEdgeProperty', () => {
       builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'weight', 42);
 
       const patch = builder.build();
-      const op = /** @type {any} */ (patch.ops[1]);
+      const op = (patch.ops[1] as any);
       expect(op.type).toBe('PropSet');
       const mapKey = encodePropKey(op.node, op.key);
       const expected = encodeEdgePropKey('a', 'b', 'rel', 'weight');
@@ -81,7 +81,7 @@ describe('PatchBuilder.setEdgeProperty', () => {
         .setProperty('a', 'weight', 10)
         .setEdgeProperty('a', 'b', 'rel', 'weight', 99);
 
-      const [, nodeOp, edgeOp] = /** @type {any[]} */ (builder.ops);
+      const [, nodeOp, edgeOp] = (builder.ops as any[]);
 
       // Canonical types distinguish node vs edge properties
       expect(nodeOp.type).toBe('NodePropSet');
@@ -89,7 +89,7 @@ describe('PatchBuilder.setEdgeProperty', () => {
 
       // After lowering via build(), encoded map keys must differ
       const patch = builder.build();
-      const [, rawNodeOp, rawEdgeOp] = /** @type {any[]} */ (patch.ops);
+      const [, rawNodeOp, rawEdgeOp] = (patch.ops as any[]);
       const nodeMapKey = encodePropKey(rawNodeOp.node, rawNodeOp.key);
       const edgeMapKey = encodePropKey(rawEdgeOp.node, rawEdgeOp.key);
       expect(nodeMapKey).not.toBe(edgeMapKey);
@@ -114,7 +114,7 @@ describe('PatchBuilder.setEdgeProperty', () => {
       const edgePropOp = patch.ops[3];
       expect(edgePropOp).toBeDefined();
       expect(edgePropOp?.type).toBe('PropSet');
-      expect(/** @type {any} */ (edgePropOp)?.value).toBe('red');
+      expect((edgePropOp)?.value).toBe('red');
     });
   });
 
@@ -135,7 +135,7 @@ describe('PatchBuilder.setEdgeProperty', () => {
       // 1 EdgeAdd + 3 PropSet
       expect(patch.ops).toHaveLength(4);
 
-      const propOps = /** @type {any[]} */ (patch.ops.filter((o) => o.type === 'PropSet'));
+      const propOps = (patch.ops.filter((o) => o.type === 'PropSet') as any[]);
       expect(propOps).toHaveLength(3);
 
       // All share the same node field (edge identity)
@@ -160,7 +160,7 @@ describe('PatchBuilder.setEdgeProperty', () => {
       const builder = makeBuilder();
       builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'note', '');
 
-      const op = /** @type {any} */ (builder.ops[1]);
+      const op = (builder.ops[1] as any);
       expect(op.value).toBe('');
     });
 
@@ -168,7 +168,7 @@ describe('PatchBuilder.setEdgeProperty', () => {
       const builder = makeBuilder();
       builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'weight', 3.14);
 
-      const op = /** @type {any} */ (builder.ops[1]);
+      const op = (builder.ops[1] as any);
       expect(op.value).toBe(3.14);
     });
 
@@ -177,7 +177,7 @@ describe('PatchBuilder.setEdgeProperty', () => {
       const obj = { nested: true, count: 7 };
       builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'meta', obj);
 
-      const op = /** @type {any} */ (builder.ops[1]);
+      const op = (builder.ops[1] as any);
       expect(op.value).toEqual({ nested: true, count: 7 });
     });
 
@@ -185,7 +185,7 @@ describe('PatchBuilder.setEdgeProperty', () => {
       const builder = makeBuilder();
       builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'deleted', null);
 
-      const op = /** @type {any} */ (builder.ops[1]);
+      const op = (builder.ops[1] as any);
       expect(op.value).toBeNull();
     });
 
@@ -193,7 +193,7 @@ describe('PatchBuilder.setEdgeProperty', () => {
       const builder = makeBuilder();
       builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'active', false);
 
-      const op = /** @type {any} */ (builder.ops[1]);
+      const op = (builder.ops[1] as any);
       expect(op.value).toBe(false);
     });
 
@@ -201,7 +201,7 @@ describe('PatchBuilder.setEdgeProperty', () => {
       const builder = makeBuilder();
       builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'tags', ['x', 'y']);
 
-      const op = /** @type {any} */ (builder.ops[1]);
+      const op = (builder.ops[1] as any);
       expect(op.value).toEqual(['x', 'y']);
     });
   });
@@ -257,16 +257,16 @@ describe('PatchBuilder.setEdgeProperty', () => {
       expect(types).toEqual(['NodeAdd', 'EdgeAdd', 'NodePropSet', 'EdgePropSet', 'NodePropSet']);
 
       // Verify keys
-      expect(/** @type {any} */ (builder.ops[2]).key).toBe('name');
-      expect(/** @type {any} */ (builder.ops[3]).key).toBe('weight');
-      expect(/** @type {any} */ (builder.ops[4]).key).toBe('age');
+      expect((builder.ops[2] as any).key).toBe('name');
+      expect((builder.ops[3] as any).key).toBe('weight');
+      expect((builder.ops[4] as any).key).toBe('age');
 
       // NodePropSet has node field, EdgePropSet has from/to/label
-      expect(/** @type {any} */ (builder.ops[2]).node).toBe('n1');
-      expect(/** @type {any} */ (builder.ops[3]).from).toBe('n1');
-      expect(/** @type {any} */ (builder.ops[3]).to).toBe('n2');
-      expect(/** @type {any} */ (builder.ops[3]).label).toBe('link');
-      expect(/** @type {any} */ (builder.ops[4]).node).toBe('n1');
+      expect((builder.ops[2] as any).node).toBe('n1');
+      expect((builder.ops[3] as any).from).toBe('n1');
+      expect((builder.ops[3] as any).to).toBe('n2');
+      expect((builder.ops[3] as any).label).toBe('link');
+      expect((builder.ops[4] as any).node).toBe('n1');
 
       // build() lowers to raw PropSet
       const patch = builder.build();

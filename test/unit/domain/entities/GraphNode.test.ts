@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import GraphNode_ from '../../../../src/domain/entities/GraphNode.ts';
 
-/** @type {any} */
-const GraphNode = GraphNode_;
+const GraphNode = (GraphNode_) as any;
 
 describe('GraphNode', () => {
   describe('construction with valid data', () => {

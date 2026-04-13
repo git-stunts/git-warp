@@ -39,9 +39,9 @@ describe('ConflictAnchor', () => {
     it('treats null receipt fields as undefined', () => {
       const anchor = new ConflictAnchor({
         ...VALID,
-        receiptPatchSha: /** @type {any} */ (null),
-        receiptLamport: /** @type {any} */ (null),
-        receiptOpIndex: /** @type {any} */ (null),
+        receiptPatchSha: (null),
+        receiptLamport: (null),
+        receiptOpIndex: (null),
       });
       expect(anchor.receiptPatchSha).toBeUndefined();
       expect(anchor.receiptLamport).toBeUndefined();
@@ -60,7 +60,7 @@ describe('ConflictAnchor', () => {
     });
 
     it('rejects non-string patchSha', () => {
-      expect(() => new ConflictAnchor(/** @type {any} */ ({ ...VALID, patchSha: 42 })))
+      expect(() => new ConflictAnchor(({ ...VALID, patchSha: 42 } as any)))
         .toThrow('patchSha must be a non-empty string');
     });
 
@@ -90,7 +90,7 @@ describe('ConflictAnchor', () => {
     });
 
     it('rejects non-integer receiptLamport', () => {
-      expect(() => new ConflictAnchor(/** @type {any} */ ({ ...VALID, receiptLamport: 'five' })))
+      expect(() => new ConflictAnchor(({ ...VALID, receiptLamport: 'five' } as any)))
         .toThrow('receiptLamport must be a non-negative integer');
     });
 

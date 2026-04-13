@@ -68,7 +68,7 @@ describe('InMemoryGraphAdapter specifics', () => {
 
   it('writeBlob rejects unsupported input types', async () => {
     const adapter = new InMemoryGraphAdapter();
-    await expect(adapter.writeBlob(/** @type {any} */ (42)))
+    await expect(adapter.writeBlob((42 as any)))
       .rejects.toThrow(/Expected string or Uint8Array/);
   });
 
@@ -86,7 +86,7 @@ describe('InMemoryGraphAdapter specifics', () => {
 
   it('configSet rejects non-string value', async () => {
     const adapter = new InMemoryGraphAdapter();
-    await expect(adapter.configSet('warp.key', /** @type {any} */ (42)))
+    await expect(adapter.configSet('warp.key', (42 as any)))
       .rejects.toThrow(/Config value must be a string/);
   });
 
@@ -115,7 +115,7 @@ describe('InMemoryGraphAdapter specifics', () => {
       format,
     });
 
-    const chunks = [];
+    const chunks: any[] = [];
     for await (const chunk of stream) {
       chunks.push(chunk);
     }
@@ -238,12 +238,12 @@ describe('InMemoryGraphAdapter specifics', () => {
   it('_resolveRef returns a raw SHA when the commit exists', async () => {
     const adapter = new InMemoryGraphAdapter();
     const sha = await adapter.commitNode({ message: 'raw-ref' });
-    expect(/** @type {any} */ (adapter)._resolveRef(sha)).toBe(sha);
+    expect((adapter)._resolveRef(sha)).toBe(sha);
   });
 
   it('_walkLog returns empty array when the ref cannot be resolved', () => {
     const adapter = new InMemoryGraphAdapter();
-    expect(/** @type {any} */ (adapter)._walkLog('refs/warp/missing', 10)).toEqual([]);
+    expect((adapter)._walkLog('refs/warp/missing', 10)).toEqual([]);
   });
 
   it('_collectCommits ignores missing commit SHAs in parent chains', async () => {
@@ -266,6 +266,6 @@ describe('InMemoryGraphAdapter specifics', () => {
     const right = await adapter.commitNode({ message: 'right', parents: [root] });
     const merge = await adapter.commitNode({ message: 'merge', parents: [left, right] });
 
-    expect(/** @type {any} */ (adapter)._countReachable(merge)).toBe(4);
+    expect((adapter)._countReachable(merge)).toBe(4);
   });
 });

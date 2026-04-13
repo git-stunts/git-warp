@@ -3,8 +3,7 @@ import GitLogParser, { RECORD_SEPARATOR } from '../../../../src/domain/services/
 import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
 
 describe('GitLogParser', () => {
-  /** @type {any} */
-  let parser;
+    let parser: any;
 
   beforeEach(() => {
     parser = new GitLogParser();
@@ -22,18 +21,18 @@ describe('GitLogParser', () => {
         yield 'sha1\nauthor1\ndate1\n\nmessage1\x00';
       })();
 
-      const nodes = [];
+      const nodes: any[] = [];
       for await (const node of parser.parse(stream)) {
         nodes.push(node);
       }
 
       expect(nodes).toHaveLength(1);
-      expect(nodes[0]).toBeInstanceOf(GraphNode);
-      expect(nodes[0].sha).toBe('sha1');
-      expect(nodes[0].author).toBe('author1');
-      expect(nodes[0].date).toBe('date1');
-      expect(nodes[0].message).toBe('message1');
-      expect(nodes[0].parents).toEqual([]);
+      expect(nodes[0]!).toBeInstanceOf(GraphNode);
+      expect(nodes[0]!.sha).toBe('sha1');
+      expect(nodes[0]!.author).toBe('author1');
+      expect(nodes[0]!.date).toBe('date1');
+      expect(nodes[0]!.message).toBe('message1');
+      expect(nodes[0]!.parents).toEqual([]);
     });
 
     it('parses multiple nodes from stream', async () => {
@@ -42,16 +41,16 @@ describe('GitLogParser', () => {
         yield 'sha2\nauthor2\ndate2\nparent2a parent2b\nmessage2\x00';
       })();
 
-      const nodes = [];
+      const nodes: any[] = [];
       for await (const node of parser.parse(stream)) {
         nodes.push(node);
       }
 
       expect(nodes).toHaveLength(2);
-      expect(nodes[0].sha).toBe('sha1');
-      expect(nodes[0].parents).toEqual(['parent1']);
-      expect(nodes[1].sha).toBe('sha2');
-      expect(nodes[1].parents).toEqual(['parent2a', 'parent2b']);
+      expect(nodes[0]!.sha).toBe('sha1');
+      expect(nodes[0]!.parents).toEqual(['parent1']);
+      expect(nodes[1]!.sha).toBe('sha2');
+      expect(nodes[1]!.parents).toEqual(['parent2a', 'parent2b']);
     });
 
     it('handles records split across chunks', async () => {
@@ -61,15 +60,15 @@ describe('GitLogParser', () => {
         yield 'age1\x00';
       })();
 
-      const nodes = [];
+      const nodes: any[] = [];
       for await (const node of parser.parse(stream)) {
         nodes.push(node);
       }
 
       expect(nodes).toHaveLength(1);
-      expect(nodes[0].sha).toBe('sha1');
-      expect(nodes[0].author).toBe('author1');
-      expect(nodes[0].message).toBe('message1');
+      expect(nodes[0]!.sha).toBe('sha1');
+      expect(nodes[0]!.author).toBe('author1');
+      expect(nodes[0]!.message).toBe('message1');
     });
 
     it('handles UTF-8 sequences split across chunk boundaries', async () => {
@@ -83,13 +82,13 @@ describe('GitLogParser', () => {
         yield Buffer.concat([emojiBytes.subarray(2), Buffer.from('\x00')]);
       })();
 
-      const nodes = [];
+      const nodes: any[] = [];
       for await (const node of parser.parse(stream)) {
         nodes.push(node);
       }
 
       expect(nodes).toHaveLength(1);
-      expect(nodes[0].message).toBe('🔥');
+      expect(nodes[0]!.message).toBe('🔥');
     });
 
     it('handles final block without trailing separator', async () => {
@@ -97,13 +96,13 @@ describe('GitLogParser', () => {
         yield 'sha1\nauthor\ndate\n\nmessage';
       })();
 
-      const nodes = [];
+      const nodes: any[] = [];
       for await (const node of parser.parse(stream)) {
         nodes.push(node);
       }
 
       expect(nodes).toHaveLength(1);
-      expect(nodes[0].message).toBe('message');
+      expect(nodes[0]!.message).toBe('message');
     });
 
     it('skips invalid records in stream', async () => {
@@ -113,20 +112,20 @@ describe('GitLogParser', () => {
         yield 'sha3\nauthor\ndate\n\nmessage3\x00';
       })();
 
-      const nodes = [];
+      const nodes: any[] = [];
       for await (const node of parser.parse(stream)) {
         nodes.push(node);
       }
 
       expect(nodes).toHaveLength(2);
-      expect(nodes[0].sha).toBe('sha1');
-      expect(nodes[1].sha).toBe('sha3');
+      expect(nodes[0]!.sha).toBe('sha1');
+      expect(nodes[1]!.sha).toBe('sha3');
     });
 
     it('handles empty stream', async () => {
       const stream = (async function* () {})();
 
-      const nodes = [];
+      const nodes: any[] = [];
       for await (const node of parser.parse(stream)) {
         nodes.push(node);
       }
@@ -139,7 +138,7 @@ describe('GitLogParser', () => {
         yield '   \n\n   ';
       })();
 
-      const nodes = [];
+      const nodes: any[] = [];
       for await (const node of parser.parse(stream)) {
         nodes.push(node);
       }
@@ -154,14 +153,14 @@ describe('GitLogParser', () => {
         yield `sha1\nauthor\ndate\n\n${messageWith0x1E}\x00`;
       })();
 
-      const nodes = [];
+      const nodes: any[] = [];
       for await (const node of parser.parse(stream)) {
         nodes.push(node);
       }
 
       expect(nodes).toHaveLength(1);
-      expect(nodes[0].message).toBe(messageWith0x1E);
-      expect(nodes[0].message).toContain('\x1E');
+      expect(nodes[0]!.message).toBe(messageWith0x1E);
+      expect(nodes[0]!.message).toContain('\x1E');
     });
   });
 

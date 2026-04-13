@@ -33,8 +33,7 @@ function fakeSha(/** @type {any} */ label) {
  * Returns the tip SHA so it can be wired to readRef.
  */
 function buildPatchChain(/** @type {any} */ persistence, /** @type {any} */ writer, /** @type {any} */ count) {
-  /** @type {any[]} */
-  const shas = [];
+    const shas = ([]) as any[];
   for (let i = 1; i <= count; i++) {
     shas.push(fakeSha(`${writer}${i}`));
   }
@@ -96,8 +95,7 @@ function wirePersistenceForWriter(/** @type {any} */ persistence, /** @type {any
 }
 
 describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
-  /** @type {any} */
-  let persistence;
+    let persistence;
 
   beforeEach(() => {
     persistence = createMockPersistence();
@@ -188,7 +186,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
       new Error('disk full')
     );
 
-    const state = /** @type {any} */ (await graph.materialize());
+    const state = (await graph.materialize() as any);
 
     // materialize returns a valid state despite checkpoint failure
     expect(state).toBeDefined();
@@ -210,7 +208,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
       new Error('transient failure')
     );
 
-    const state = /** @type {any} */ (await graph.materialize());
+    const state = (await graph.materialize() as any);
 
     // All 3 nodes should be alive in the materialized state
     const nodeIds = [...state.nodeAlive.entries.keys()];
@@ -383,12 +381,12 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
       });
     }
 
-    vi.spyOn(graph, /** @type {any} */ ('_loadLatestCheckpoint')).mockResolvedValue({
+    vi.spyOn(graph, ('_loadLatestCheckpoint' as any)).mockResolvedValue({
       schema: 2,
       state: checkpointState,
       frontier: {},
     });
-    vi.spyOn(graph, /** @type {any} */ ('_loadPatchesSince')).mockResolvedValue(patches);
+    vi.spyOn(graph, ('_loadPatchesSince' as any)).mockResolvedValue(patches);
 
     const spy = vi
       .spyOn(graph, 'createCheckpoint')
@@ -418,12 +416,12 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
       });
     }
 
-    vi.spyOn(graph, /** @type {any} */ ('_loadLatestCheckpoint')).mockResolvedValue({
+    vi.spyOn(graph, ('_loadLatestCheckpoint' as any)).mockResolvedValue({
       schema: 2,
       state: checkpointState,
       frontier: {},
     });
-    vi.spyOn(graph, /** @type {any} */ ('_loadPatchesSince')).mockResolvedValue(patches);
+    vi.spyOn(graph, ('_loadPatchesSince' as any)).mockResolvedValue(patches);
 
     const spy = vi
       .spyOn(graph, 'createCheckpoint')
@@ -451,7 +449,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
 
     vi.spyOn(graph, 'createCheckpoint').mockResolvedValue(fakeSha('ckpt'));
 
-    const state = /** @type {any} */ (await graph.materialize());
+    const state = (await graph.materialize() as any);
 
     // Should return a WarpState, not a SHA string
     expect(typeof state).toBe('object');
@@ -513,15 +511,15 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
       });
     }
 
-    vi.spyOn(graph, /** @type {any} */ ('_loadLatestCheckpoint')).mockResolvedValue({
+    vi.spyOn(graph, ('_loadLatestCheckpoint' as any)).mockResolvedValue({
       schema: 4,
       state: checkpointState,
       frontier: new Map(),
       indexShardOids: null,
     });
-    vi.spyOn(graph, /** @type {any} */ ('_loadPatchesSince')).mockResolvedValue(patches);
+    vi.spyOn(graph, ('_loadPatchesSince' as any)).mockResolvedValue(patches);
 
-    const state = /** @type {any} */ (await graph.materialize());
+    const state = (await graph.materialize() as any);
 
     // Should have applied the 2 patches on top of the schema:4 checkpoint
     expect(state.nodeAlive).toBeDefined();

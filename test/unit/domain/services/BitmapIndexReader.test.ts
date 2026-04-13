@@ -33,21 +33,19 @@ const _makeBitmapBytes = (ids) => {
 void _makeBitmapBytes;
 
 describe('BitmapIndexReader', () => {
-  /** @type {any} */
-  let mockStorage;
-  /** @type {any} */
-  let reader;
+    let mockStorage;
+    let reader;
 
   beforeEach(() => {
     mockStorage = {
       readBlob: vi.fn(),
     };
-    reader = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage }));
+    reader = new BitmapIndexReader(({ storage: mockStorage } as any));
   });
 
   describe('constructor validation', () => {
     it('throws when storage is not provided', () => {
-      expect(() => new BitmapIndexReader(/** @type {any} */ ({}))).toThrow('BitmapIndexReader requires a storage adapter');
+      expect(() => new BitmapIndexReader(({} as any))).toThrow('BitmapIndexReader requires a storage adapter');
     });
 
     it('throws when called with no arguments', () => {
@@ -56,12 +54,12 @@ describe('BitmapIndexReader', () => {
     });
 
     it('uses default maxCachedShards of 100', () => {
-      const readerWithDefaults = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage }));
+      const readerWithDefaults = new BitmapIndexReader(({ storage: mockStorage } as any));
       expect(readerWithDefaults.maxCachedShards).toBe(100);
     });
 
     it('accepts custom maxCachedShards', () => {
-      const readerWithCustom = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, maxCachedShards: 50 }));
+      const readerWithCustom = new BitmapIndexReader(({ storage: mockStorage, maxCachedShards: 50 } as any));
       expect(readerWithCustom.maxCachedShards).toBe(50);
     });
   });
@@ -78,18 +76,18 @@ describe('BitmapIndexReader', () => {
 
     it('skips invalid OIDs in non-strict mode with warning', () => {
       const warnSpy = vi.fn();
-      const lenientReader = new BitmapIndexReader(/** @type {any} */ ({
+      const lenientReader = new BitmapIndexReader((({
         storage: mockStorage,
         strict: false,
         logger: { warn: warnSpy, info: vi.fn(), error: vi.fn(), debug: vi.fn() },
-      }));
+      }) as any));
       lenientReader.setup({
         'meta_ab.cbor': 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
         'meta_cd.cbor': 'not-a-valid-oid!!!',
       });
-      expect((/** @type {any} */ (lenientReader)).shardOids.size).toBe(1);
-      expect((/** @type {any} */ (lenientReader)).shardOids.has('meta_ab.cbor')).toBe(true);
-      expect((/** @type {any} */ (lenientReader)).shardOids.has('meta_cd.cbor')).toBe(false);
+      expect(((lenientReader)).shardOids.size).toBe(1);
+      expect(((lenientReader)).shardOids.has('meta_ab.cbor')).toBe(true);
+      expect(((lenientReader)).shardOids.has('meta_cd.cbor')).toBe(false);
       expect(warnSpy).toHaveBeenCalledWith('Skipping shard with invalid OID', expect.objectContaining({
         shardPath: 'meta_cd.cbor',
         reason: 'invalid_oid',
@@ -97,29 +95,29 @@ describe('BitmapIndexReader', () => {
     });
 
     it('throws ShardCorruptionError for invalid OIDs in strict mode', () => {
-      const strictReader = new BitmapIndexReader(/** @type {any} */ ({
+      const strictReader = new BitmapIndexReader((({
         storage: mockStorage,
         strict: true,
-      }));
+      }) as any));
       expect(() => strictReader.setup({
         'meta_ab.cbor': 'not-valid-oid',
       })).toThrow(ShardCorruptionError);
     });
 
     it('includes shard path and OID in strict mode error', () => {
-      const strictReader = new BitmapIndexReader(/** @type {any} */ ({
+      const strictReader = new BitmapIndexReader((({
         storage: mockStorage,
         strict: true,
-      }));
+      }) as any));
       try {
         strictReader.setup({ 'meta_ab.cbor': 'bad!' });
         expect.fail('should have thrown');
       } catch (err) {
-        const e = /** @type {import('../../../../src/domain/errors/ShardCorruptionError.ts').default} */ (err);
+        const e = (err);
         expect(e).toBeInstanceOf(ShardCorruptionError);
-        expect(e.shardPath).toBe('meta_ab.cbor');
-        expect(e.oid).toBe('bad!');
-        expect(e.reason).toBe('invalid_oid');
+        expect((e as any).shardPath).toBe('meta_ab.cbor');
+        expect((e as any).oid).toBe('bad!');
+        expect((e as any).reason).toBe('invalid_oid');
       }
     });
   });
@@ -131,13 +129,13 @@ describe('BitmapIndexReader', () => {
     });
 
     it('clears cache when called', () => {
-      (/** @type {any} */ (reader)).loadedShards.set('test', {});
+      ((reader)).loadedShards.set('test', {});
       reader.shardOids.set('test', 'aaaa');
 
       reader.setup({});
 
       expect(reader.shardOids.size).toBe(0);
-      expect((/** @type {any} */ (reader)).loadedShards.size).toBe(0);
+      expect(((reader)).loadedShards.size).toBe(0);
     });
   });
 
@@ -193,7 +191,7 @@ describe('BitmapIndexReader', () => {
     });
 
     it('returns empty array when shard contains invalid CBOR (non-strict)', async () => {
-      const lenient = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, strict: false }));
+      const lenient = new BitmapIndexReader(({ storage: mockStorage, strict: false } as any));
       mockStorage.readBlob.mockResolvedValue(new Uint8Array([0xff, 0xfe, 0xfd])); // invalid CBOR bytes
 
       lenient.setup({
@@ -206,7 +204,7 @@ describe('BitmapIndexReader', () => {
     });
 
     it('returns empty array when shard contains wrong data type (non-strict)', async () => {
-      const lenient = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, strict: false }));
+      const lenient = new BitmapIndexReader(({ storage: mockStorage, strict: false } as any));
       // Valid CBOR but wrong structure (array instead of object)
       mockStorage.readBlob.mockResolvedValue(defaultCodec.encode([1, 2, 3]));
 
@@ -253,7 +251,7 @@ describe('BitmapIndexReader', () => {
     });
 
     it('in strict mode throws ShardCorruptionError on invalid CBOR', async () => {
-      const strictReader = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, strict: true }));
+      const strictReader = new BitmapIndexReader(({ storage: mockStorage, strict: true } as any));
       mockStorage.readBlob.mockResolvedValue(new Uint8Array([0xff, 0xfe, 0xfd])); // invalid CBOR bytes
 
       strictReader.setup({
@@ -276,10 +274,10 @@ describe('BitmapIndexReader', () => {
         expect.fail('Should have thrown');
       } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(ShardLoadError);
-        expect(err.code).toBe('SHARD_LOAD_ERROR');
-        expect(err.shardPath).toBe('meta_ef.cbor');
-        expect(err.oid).toBe('ddeeff3300000000000000000000000000000000');
-        expect(err.cause).toBe(originalError);
+        expect((err as any).code).toBe('SHARD_LOAD_ERROR');
+        expect((err as any).shardPath).toBe('meta_ef.cbor');
+        expect((err as any).oid).toBe('ddeeff3300000000000000000000000000000000');
+        expect((err as any).cause).toBe(originalError);
       }
     });
 
@@ -291,7 +289,7 @@ describe('BitmapIndexReader', () => {
       const corruptBitmapData = defaultCodec.encode({ [sha]: 'not-a-bitmap' });
 
       // Non-strict reader
-      const nonStrictReader = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, strict: false }));
+      const nonStrictReader = new BitmapIndexReader(({ storage: mockStorage, strict: false } as any));
       mockStorage.readBlob.mockResolvedValue(corruptBitmapData);
       nonStrictReader.setup({ 'shards_rev_ab.cbor': 'eee5fff600000000000000000000000000000000' });
 
@@ -301,7 +299,7 @@ describe('BitmapIndexReader', () => {
       // Strict reader gets same data but the bitmap value is not a Uint8Array
       // so _getEdges returns [] for missing/empty bitmapBytes without throwing
       // (the check is `!(bitmapBytes instanceof Uint8Array)`)
-      const strictReader = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, strict: true }));
+      const strictReader = new BitmapIndexReader(({ storage: mockStorage, strict: true } as any));
       strictReader.setup({ 'shards_rev_ab.cbor': 'eee5fff600000000000000000000000000000000' });
 
       const strictResult = await strictReader.getParents(sha);
@@ -315,11 +313,11 @@ describe('BitmapIndexReader', () => {
         warn: vi.fn(),
         error: vi.fn(),
       };
-      const nonStrictReader = new BitmapIndexReader(/** @type {any} */ ({
+      const nonStrictReader = new BitmapIndexReader((({
         storage: mockStorage,
         strict: false,
         logger: mockLogger,
-      }));
+      }) as any));
 
       // Return invalid CBOR bytes (decode failure)
       mockStorage.readBlob.mockResolvedValue(new Uint8Array([0xff, 0xfe, 0xfd]));
@@ -345,11 +343,11 @@ describe('BitmapIndexReader', () => {
         warn: vi.fn(),
         error: vi.fn(),
       };
-      const lenientReader = new BitmapIndexReader(/** @type {any} */ ({
+      const lenientReader = new BitmapIndexReader((({
         storage: mockStorage,
         strict: false,
         logger: mockLogger,
-      }));
+      }) as any));
       const sha = 'abcd123400000000000000000000000000000000';
       // Meta shard: sha → id 1
       const metaShard = encodeShard({ [sha]: 1 });
@@ -382,10 +380,10 @@ describe('BitmapIndexReader', () => {
   describe('LRU cache eviction', () => {
     it('evicts least recently used shards when exceeding maxCachedShards', async () => {
       // Create reader with small cache size
-      const smallCacheReader = new BitmapIndexReader(/** @type {any} */ ({
+      const smallCacheReader = new BitmapIndexReader((({
         storage: mockStorage,
         maxCachedShards: 2
-      }));
+      }) as any));
 
       // Create valid CBOR shard data
       const createValidShard = (/** @type {any} */ id) => defaultCodec.encode({ id });
@@ -402,17 +400,17 @@ describe('BitmapIndexReader', () => {
 
       // Load first shard
       await smallCacheReader.lookupId('aabbccdd00000000000000000000000000000000');
-      expect(/** @type {any} */ (smallCacheReader).loadedShards.size).toBe(1);
+      expect((smallCacheReader).loadedShards.size).toBe(1);
       expect(mockStorage.readBlob).toHaveBeenCalledTimes(1);
 
       // Load second shard
       await smallCacheReader.lookupId('bbccddee00000000000000000000000000000000');
-      expect(/** @type {any} */ (smallCacheReader).loadedShards.size).toBe(2);
+      expect((smallCacheReader).loadedShards.size).toBe(2);
       expect(mockStorage.readBlob).toHaveBeenCalledTimes(2);
 
       // Load third shard - should evict first
       await smallCacheReader.lookupId('ccddeeff00000000000000000000000000000000');
-      expect(/** @type {any} */ (smallCacheReader).loadedShards.size).toBe(2); // Still 2 due to LRU eviction
+      expect((smallCacheReader).loadedShards.size).toBe(2); // Still 2 due to LRU eviction
 
       // First shard should be evicted, accessing it again should reload
       await smallCacheReader.lookupId('aabbccdd00000000000000000000000000000000');
@@ -420,10 +418,10 @@ describe('BitmapIndexReader', () => {
     });
 
     it('marks accessed shards as recently used', async () => {
-      const smallCacheReader = new BitmapIndexReader(/** @type {any} */ ({
+      const smallCacheReader = new BitmapIndexReader((({
         storage: mockStorage,
         maxCachedShards: 2
-      }));
+      }) as any));
 
       const createValidShard = (/** @type {any} */ id) => defaultCodec.encode({ id });
 
@@ -448,28 +446,28 @@ describe('BitmapIndexReader', () => {
       await smallCacheReader.lookupId('ccddeeff00000000000000000000000000000000'); // Load cc
 
       // 'aa' should still be in cache (was recently used)
-      expect(/** @type {any} */ (smallCacheReader).loadedShards.has('meta_aa.cbor')).toBe(true);
+      expect((smallCacheReader).loadedShards.has('meta_aa.cbor')).toBe(true);
       // 'bb' should have been evicted
-      expect(/** @type {any} */ (smallCacheReader).loadedShards.has('meta_bb.cbor')).toBe(false);
+      expect((smallCacheReader).loadedShards.has('meta_bb.cbor')).toBe(false);
       // 'cc' should be in cache
-      expect(/** @type {any} */ (smallCacheReader).loadedShards.has('meta_cc.cbor')).toBe(true);
+      expect((smallCacheReader).loadedShards.has('meta_cc.cbor')).toBe(true);
     });
   });
 
   describe('internal edge cases', () => {
     it('returns cached id-to-sha mapping without repopulating', async () => {
-      /** @type {any} */ (reader)._idToShaCache = ['sha0'];
-      const result = await /** @type {any} */ (reader)._buildIdToShaMapping();
-      expect(result).toBe(/** @type {any} */ (reader)._idToShaCache);
+      (reader)._idToShaCache = ['sha0'];
+      const result = await (reader)._buildIdToShaMapping();
+      expect(result).toBe((reader)._idToShaCache);
     });
 
     it('warns when id-to-sha cache grows beyond the warning threshold', () => {
       const warn = vi.fn();
-      const noisyReader = new BitmapIndexReader(/** @type {any} */ ({
+      const noisyReader = new BitmapIndexReader((({
         storage: mockStorage,
         logger: { warn, info: vi.fn(), error: vi.fn(), debug: vi.fn() },
-      }));
-      /** @type {any} */ (noisyReader)._warnLargeIdCache(1_000_001);
+      }) as any));
+      (noisyReader)._warnLargeIdCache(1_000_001);
       expect(warn).toHaveBeenCalledWith('ID-to-SHA cache has high memory usage', expect.objectContaining({
         operation: '_buildIdToShaMapping',
         entryCount: 1_000_001,
@@ -477,17 +475,17 @@ describe('BitmapIndexReader', () => {
     });
 
     it('wraps codec decode errors into ShardCorruptionError in strict mode', async () => {
-      const strictReader = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, strict: true }));
-      const anyReader = /** @type {any} */ (strictReader);
+      const strictReader = new BitmapIndexReader(({ storage: mockStorage, strict: true } as any));
+      const anyReader = (strictReader);
       anyReader.setup({ 'meta_ab.cbor': '3333444400000000000000000000000000000000' });
       // Inject a codec that throws on decode
       const fakeCodec = {
         decode: vi.fn(() => { throw new RangeError('unexpected parse failure'); }),
       };
-      anyReader._codec = fakeCodec;
+      (anyReader as any)._codec = fakeCodec;
       mockStorage.readBlob.mockResolvedValue(defaultCodec.encode({}));
 
-      await expect(anyReader._getOrLoadShard('meta_ab.cbor')).rejects.toThrow(ShardCorruptionError);
+      await expect((anyReader as any)._getOrLoadShard('meta_ab.cbor')).rejects.toThrow(ShardCorruptionError);
     });
   });
 
@@ -500,8 +498,8 @@ describe('BitmapIndexReader', () => {
       const tree = await builder.serialize();
 
       // Assign fake OIDs to tree entries
-      const oidMap = /** @type {Record<string, string>} */ ({});
-      const blobMap = /** @type {Record<string, Uint8Array>} */ ({});
+      const oidMap = ({} as Record<string, string>);
+      const blobMap = ({} as Record<string, Uint8Array>);
       let counter = 0;
       for (const [path, data] of Object.entries(tree)) {
         const oid = String(counter).padStart(40, '0');
@@ -525,7 +523,7 @@ describe('BitmapIndexReader', () => {
     });
 
     it('uses custom codec when provided', async () => {
-      const decodeCalls = /** @type {Uint8Array[]} */ ([]);
+      const decodeCalls = ([] as Uint8Array[]);
       const spyCodec = {
         encode: defaultCodec.encode.bind(defaultCodec),
         decode: (/** @type {Uint8Array} */ buf) => {
@@ -534,10 +532,10 @@ describe('BitmapIndexReader', () => {
         },
       };
 
-      const customReader = new BitmapIndexReader(/** @type {any} */ ({
+      const customReader = new BitmapIndexReader((({
         storage: mockStorage,
         codec: spyCodec,
-      }));
+      }) as any));
 
       mockStorage.readBlob.mockResolvedValue(defaultCodec.encode({ 'abcd123400000000000000000000000000000000': 7 }));
       customReader.setup({ 'meta_ab.cbor': 'aabb112200000000000000000000000000000000' });

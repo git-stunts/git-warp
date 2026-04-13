@@ -3,8 +3,7 @@ import NodeHttpAdapter from '../../../../src/infrastructure/adapters/NodeHttpAda
 import HttpServerPort from '../../../../src/ports/HttpServerPort.ts';
 
 describe('NodeHttpAdapter error paths', () => {
-  /** @type {any[]} */
-  const servers = [];
+    const servers = ([]) as any[];
 
   afterEach(async () => {
     // Close all servers opened during the test
@@ -29,15 +28,15 @@ describe('NodeHttpAdapter error paths', () => {
     const server = adapter.createServer(handler);
     servers.push(server);
 
-    await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
-      server.listen(0, '127.0.0.1', (/** @type {any} */ err) => {
+    await ((new Promise((resolve, reject) => {
+      server.listen(0, '127.0.0.1', ( err) => {
         if (err) {
           reject(err);
         } else {
           resolve();
         }
       });
-    }));
+    })) as Promise<void>);
 
     const addr = /** @type {{ port: number }} */ (server.address());
     return `http://127.0.0.1:${addr.port}`;
@@ -105,7 +104,7 @@ describe('NodeHttpAdapter error paths', () => {
     } catch (/** @type {any} */ err) {
       // On some platforms / timing, the server resets the connection
       // before fetch can read the response. macOS may yield EPIPE instead.
-      expect(['ECONNRESET', 'EPIPE']).toContain(err.cause?.code ?? err.code);
+      expect(['ECONNRESET', 'EPIPE']).toContain((err as any).cause?.code ?? err.code);
     }
   });
 
@@ -133,15 +132,15 @@ describe('NodeHttpAdapter error paths', () => {
     servers.push(server1);
 
     // Bind to a random port
-    await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
-      server1.listen(0, '127.0.0.1', (/** @type {any} */ err) => {
+    await ((new Promise((resolve, reject) => {
+      server1.listen(0, '127.0.0.1', ( err) => {
         if (err) {
           reject(err);
         } else {
           resolve();
         }
       });
-    }));
+    })) as Promise<void>);
 
     const port = /** @type {{ port: number }} */ (server1.address()).port;
 
@@ -160,7 +159,7 @@ describe('NodeHttpAdapter error paths', () => {
     });
 
     expect(err).toBeInstanceOf(Error);
-    expect(/** @type {any} */ (err).code).toBe('EADDRINUSE');
+    expect((err).code).toBe('EADDRINUSE');
   });
 
   it('listen accepts host as callback (2-arg form)', async () => {
@@ -172,15 +171,15 @@ describe('NodeHttpAdapter error paths', () => {
     servers.push(server);
 
     // listen(port, callback) — host argument is a function
-    await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
-      server.listen(0, (/** @type {any} */ err) => {
+    await ((new Promise((resolve, reject) => {
+      server.listen(0, ( err) => {
         if (err) {
           reject(err);
         } else {
           resolve();
         }
       });
-    }));
+    })) as Promise<void>);
 
     const addr = /** @type {{ port: number }} */ (server.address());
     expect(addr.port).toBeGreaterThan(0);

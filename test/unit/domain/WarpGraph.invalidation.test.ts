@@ -52,10 +52,8 @@ function mockSecondCommit(/** @type {any} */ persistence) {
 }
 
 describe('WarpRuntime dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2)', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {any} */
-  let graph;
+    let persistence;
+    let graph;
 
   beforeEach(async () => {
     persistence = createMockPersistence();
@@ -70,25 +68,25 @@ describe('WarpRuntime dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2
   // ── AP/INVAL/1: Basic dirty flag ──────────────────────────────────
 
   it('_stateDirty is false after construction', () => {
-    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
+    expect((graph)._stateDirty).toBe(false);
   });
 
   it('_stateDirty is false after materialize()', async () => {
     await graph.materialize();
-    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
+    expect((graph)._stateDirty).toBe(false);
   });
 
   // ── AP/INVAL/2: Eager re-materialize on commit ────────────────────
 
   it('_stateDirty stays false after commit when _cachedState exists (eager re-materialize)', async () => {
     await graph.materialize();
-    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
+    expect((graph)._stateDirty).toBe(false);
 
     mockFirstCommit(persistence);
     await (await graph.createPatch()).addNode('test:node').commit();
 
     // Eager re-materialize applied the patch, so state is fresh
-    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
+    expect((graph)._stateDirty).toBe(false);
   });
 
   it('hasNode returns true after commit without explicit re-materialize', async () => {
@@ -120,12 +118,12 @@ describe('WarpRuntime dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2
 
     mockFirstCommit(persistence);
     await (await graph.createPatch()).addNode('test:a').commit();
-    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
+    expect((graph)._stateDirty).toBe(false);
     expect(await graph.hasNode('test:a')).toBe(true);
 
     mockSecondCommit(persistence);
     await (await graph.createPatch()).addNode('test:b').commit();
-    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
+    expect((graph)._stateDirty).toBe(false);
     expect(await graph.hasNode('test:b')).toBe(true);
   });
 
@@ -136,17 +134,17 @@ describe('WarpRuntime dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2
     await (await graph.createPatch()).addNode('test:node').commit();
 
     // No _cachedState, so can't eagerly apply — dirty
-    expect(/** @type {any} */ (graph)._stateDirty).toBe(true);
+    expect((graph)._stateDirty).toBe(true);
   });
 
   it('multiple commits without materialize keep _stateDirty true', async () => {
     mockFirstCommit(persistence);
     await (await graph.createPatch()).addNode('test:a').commit();
-    expect(/** @type {any} */ (graph)._stateDirty).toBe(true);
+    expect((graph)._stateDirty).toBe(true);
 
     mockSecondCommit(persistence);
     await (await graph.createPatch()).addNode('test:b').commit();
-    expect(/** @type {any} */ (graph)._stateDirty).toBe(true);
+    expect((graph)._stateDirty).toBe(true);
   });
 
   // ── Edge cases: failed commits ─────────────────────────────────────
@@ -158,7 +156,7 @@ describe('WarpRuntime dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2
     const patch = (await graph.createPatch()).addNode('test:node');
     await expect(patch.commit()).rejects.toThrow('disk full');
 
-    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
+    expect((graph)._stateDirty).toBe(false);
   });
 
   it('_stateDirty remains false if updateRef fails', async () => {
@@ -171,7 +169,7 @@ describe('WarpRuntime dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2
     const patch = (await graph.createPatch()).addNode('test:node');
     await expect(patch.commit()).rejects.toThrow('ref lock failed');
 
-    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
+    expect((graph)._stateDirty).toBe(false);
   });
 
   it('_stateDirty remains false if race detection rejects', async () => {
@@ -182,6 +180,6 @@ describe('WarpRuntime dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2
     const patch = (await graph.createPatch()).addNode('test:node');
     await expect(patch.commit()).rejects.toThrow('Commit failed: writer ref was updated by another process');
 
-    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
+    expect((graph)._stateDirty).toBe(false);
   });
 });

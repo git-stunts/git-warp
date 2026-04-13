@@ -25,10 +25,9 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
   describe('writes effect graph entities', () => {
     it('creates a node with the effect prefix', async () => {
       const core = await openCore();
-      /** @type {string} */
-      let effectId = '';
+            let effectId = ('') as string;
       await core.patch((p) => {
-        effectId = /** @type {*} */ (p).emitEffect('notification', { text: 'hello' });
+        effectId = (p).emitEffect('notification', { text: 'hello' });
       });
 
       expect(effectId.startsWith(EFFECT_NODE_PREFIX)).toBe(true);
@@ -40,10 +39,9 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
 
     it('sets kind property on the effect node', async () => {
       const core = await openCore();
-      /** @type {string} */
-      let effectId = '';
+            let effectId = ('') as string;
       await core.patch((p) => {
-        effectId = /** @type {*} */ (p).emitEffect('diagnostic', null);
+        effectId = (p).emitEffect('diagnostic', null);
       });
 
       await core.materialize();
@@ -54,10 +52,9 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
 
     it('sets writer property from the patch writerId', async () => {
       const core = await openCore();
-      /** @type {string} */
-      let effectId = '';
+            let effectId = ('') as string;
       await core.patch((p) => {
-        effectId = /** @type {*} */ (p).emitEffect('test', null);
+        effectId = (p).emitEffect('test', null);
       });
 
       await core.materialize();
@@ -68,25 +65,23 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
 
     it('canonically serializes complex payloads', async () => {
       const core = await openCore();
-      /** @type {string} */
-      let effectId = '';
+            let effectId = ('') as string;
       await core.patch((p) => {
-        effectId = /** @type {*} */ (p).emitEffect('export', { format: 'csv', rows: 100 });
+        effectId = (p).emitEffect('export', { format: 'csv', rows: 100 });
       });
 
       await core.materialize();
       const props = await core.getNodeProps(effectId);
       if (props == null) { throw new Error('props should not be null'); }
-      const parsed = JSON.parse(/** @type {string} */ (props['payload']));
+      const parsed = JSON.parse((props['payload'] as string));
       expect(parsed).toEqual({ format: 'csv', rows: 100 });
     });
 
     it('does not set payload property for null payload', async () => {
       const core = await openCore();
-      /** @type {string} */
-      let effectId = '';
+            let effectId = ('') as string;
       await core.patch((p) => {
-        effectId = /** @type {*} */ (p).emitEffect('ping', null);
+        effectId = (p).emitEffect('ping', null);
       });
 
       await core.materialize();
@@ -97,12 +92,11 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
 
     it('generates unique effect IDs across multiple emits', async () => {
       const core = await openCore();
-      /** @type {string[]} */
-      const ids = [];
+            const ids = ([]) as string[];
       await core.patch((p) => {
-        ids.push(/** @type {*} */ (p).emitEffect('a', null));
-        ids.push(/** @type {*} */ (p).emitEffect('b', null));
-        ids.push(/** @type {*} */ (p).emitEffect('c', null));
+        ids.push((p).emitEffect('a', null));
+        ids.push((p).emitEffect('b', null));
+        ids.push((p).emitEffect('c', null));
       });
 
       expect(new Set(ids).size).toBe(3);
@@ -112,7 +106,7 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
       const core = await openCore();
       const customId = `${EFFECT_NODE_PREFIX}my-custom-id`;
       await core.patch((p) => {
-        /** @type {*} */ (p).emitEffect('test', null, { effectId: customId });
+        (p).emitEffect('test', null, { effectId: customId });
       });
 
       await core.materialize();
@@ -124,7 +118,7 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
       const core = await openCore();
       await expect(
         core.patch((p) => {
-          /** @type {*} */ (p).emitEffect('', null);
+          (p).emitEffect('', null);
         }),
       ).rejects.toThrow('emitEffect: kind must be a non-empty string');
     });
@@ -136,12 +130,11 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
   describe('same-patch causality', () => {
     it('effect and its cause share the same patch', async () => {
       const core = await openCore();
-      /** @type {string} */
-      let effectId = '';
+            let effectId = ('') as string;
       const patchSha = await core.patch((p) => {
         p.addNode('user:alice');
         p.setProperty('user:alice', 'name', 'Alice');
-        effectId = /** @type {*} */ (p).emitEffect('user-created', { userId: 'user:alice' });
+        effectId = (p).emitEffect('user-created', { userId: 'user:alice' });
       });
 
       await core.materialize();
@@ -163,10 +156,9 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
   describe('determinism', () => {
     it('does not set a timestamp property', async () => {
       const core = await openCore();
-      /** @type {string} */
-      let effectId = '';
+            let effectId = ('') as string;
       await core.patch((p) => {
-        effectId = /** @type {*} */ (p).emitEffect('test', null);
+        effectId = (p).emitEffect('test', null);
       });
 
       await core.materialize();
@@ -187,10 +179,10 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
       const sharedId = `${EFFECT_NODE_PREFIX}determinism-check`;
 
       await core1.patch((p) => {
-        /** @type {*} */ (p).emitEffect('test', payload, { effectId: sharedId });
+        (p).emitEffect('test', payload, { effectId: sharedId });
       });
       await core2.patch((p) => {
-        /** @type {*} */ (p).emitEffect('test', payload, { effectId: sharedId });
+        (p).emitEffect('test', payload, { effectId: sharedId });
       });
 
       await core1.materialize();

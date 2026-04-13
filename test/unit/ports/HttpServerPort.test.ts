@@ -2,8 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import HttpServerPort_ from '../../../src/ports/HttpServerPort.ts';
 import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.js';
 
-/** @type {any} */
-const HttpServerPort = HttpServerPort_;
+const HttpServerPort = (HttpServerPort_) as any;
 
 describe('HttpServerPort', () => {
   it('abstract methods are not callable on base prototype', () => {
@@ -13,8 +12,7 @@ describe('HttpServerPort', () => {
 
 describe('NodeHttpAdapter', () => {
   const adapter = new NodeHttpAdapter();
-  /** @type {any} */
-  let server;
+    let server;
 
   afterEach(() => {
     if (server) {

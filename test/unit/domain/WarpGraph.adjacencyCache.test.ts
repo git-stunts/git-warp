@@ -24,10 +24,8 @@ function createSeededState() {
 }
 
 describe('WarpRuntime adjacency cache', () => {
-  /** @type {any} */
-  let mockPersistence;
-  /** @type {any} */
-  let graph;
+    let mockPersistence;
+    let graph;
 
   beforeEach(async () => {
     mockPersistence = {
@@ -64,7 +62,7 @@ describe('WarpRuntime adjacency cache', () => {
     // _buildAdjacency is called once; the second call reuses _materializedGraph.
     expect(buildSpy).toHaveBeenCalledTimes(1);
     // _materializedGraph is populated (not null) after the first call.
-    expect(/** @type {any} */ (graph)._materializedGraph).not.toBeNull();
+    expect((graph)._materializedGraph).not.toBeNull();
   });
 
   it('rebuilds adjacency each time _stateDirty is set (no LRU eviction path)', async () => {
@@ -104,6 +102,6 @@ describe('WarpRuntime adjacency cache', () => {
     // _buildAdjacency is called once per unique state transition.
     expect(buildSpy).toHaveBeenCalledTimes(3);
     // _materializedGraph holds the most recent state.
-    expect(/** @type {any} */ (graph)._materializedGraph).not.toBeNull();
+    expect((graph)._materializedGraph).not.toBeNull();
   });
 });

@@ -25,8 +25,7 @@ function createHighTombstoneState() {
 }
 
 describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
-  /** @type {any} */
-  let persistence;
+    let persistence;
 
   beforeEach(() => {
     persistence = createMockPersistence();
@@ -52,8 +51,8 @@ describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
     await graph.materialize();
 
     // Now inject a high-tombstone state and re-materialize
-    /** @type {any} */ (graph)._cachedState = createHighTombstoneState();
-    /** @type {any} */ (graph)._stateDirty = false;
+    (graph)._cachedState = createHighTombstoneState();
+    (graph)._stateDirty = false;
 
     // Clear logger.info after materialize (which now logs timing)
     logger.info.mockClear();
@@ -61,7 +60,7 @@ describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
     // Call materialize — since no writers exist, it'll reduce to empty state
     // but _maybeRunGC runs on the fresh state. Let's trigger it directly.
     // Better approach: test _maybeRunGC directly with injected state
-    /** @type {any} */ (graph)._maybeRunGC(createHighTombstoneState());
+    (graph)._maybeRunGC(createHighTombstoneState());
 
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining('auto-GC is disabled'),
@@ -87,7 +86,7 @@ describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
     });
 
     await graph.materialize();
-    /** @type {any} */ (graph)._maybeRunGC(createHighTombstoneState());
+    (graph)._maybeRunGC(createHighTombstoneState());
 
     expect(logger.info).toHaveBeenCalledWith(
       'Auto-GC completed',
@@ -109,15 +108,15 @@ describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
     });
 
     // Set recent GC time so time-since-compaction doesn't trigger
-    /** @type {any} */ (graph)._lastGCTime = Date.now();
-    /** @type {any} */ (graph)._patchesSinceGC = 0;
+    (graph)._lastGCTime = Date.now();
+    (graph)._patchesSinceGC = 0;
 
     await graph.materialize();
     logger.warn.mockClear();
     logger.info.mockClear();
 
     // Empty state → no tombstones → no GC needed
-    /** @type {any} */ (graph)._maybeRunGC(createStateBuilder().build());
+    (graph)._maybeRunGC(createStateBuilder().build());
 
     expect(logger.warn).not.toHaveBeenCalled();
     expect(logger.info).not.toHaveBeenCalled();
@@ -145,7 +144,7 @@ describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
     const badState = { nodeAlive: null, edgeAlive: null };
 
     // Should not throw despite internal error
-    expect(() => /** @type {any} */ (graph)._maybeRunGC(badState)).not.toThrow();
+    expect(() => (graph)._maybeRunGC(badState)).not.toThrow();
   });
 
   it('_lastGCTime and _patchesSinceGC reset after GC', async () => {
@@ -163,14 +162,14 @@ describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
       },
     });
 
-    /** @type {any} */ (graph)._patchesSinceGC = 999;
-    /** @type {any} */ (graph)._lastGCTime = 0;
+    (graph)._patchesSinceGC = 999;
+    (graph)._lastGCTime = 0;
 
     await graph.materialize();
-    /** @type {any} */ (graph)._maybeRunGC(createHighTombstoneState());
+    (graph)._maybeRunGC(createHighTombstoneState());
 
-    expect(/** @type {any} */ (graph)._patchesSinceGC).toBe(0);
-    expect(/** @type {any} */ (graph)._lastGCTime).toBeGreaterThan(0);
+    expect((graph)._patchesSinceGC).toBe(0);
+    expect((graph)._lastGCTime).toBeGreaterThan(0);
   });
 
   it('no logger provided → no crash', async () => {
@@ -189,6 +188,6 @@ describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
     await graph.materialize();
 
     // No logger → should still work without crashing
-    expect(() => /** @type {any} */ (graph)._maybeRunGC(createHighTombstoneState())).not.toThrow();
+    expect(() => (graph)._maybeRunGC(createHighTombstoneState())).not.toThrow();
   });
 });

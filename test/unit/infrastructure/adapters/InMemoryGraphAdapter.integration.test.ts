@@ -16,8 +16,7 @@ describe('InMemoryGraphAdapter integration smoke test', () => {
     patch.setProperty('user:alice', 'name', 'Alice');
     await patch.commit();
 
-    /** @type {any} */
-    const state = await graph.materialize();
+        const state = (await graph.materialize()) as any;
     expect(state.nodeAlive.entries.has('user:alice')).toBe(true);
   });
 
@@ -45,8 +44,7 @@ describe('InMemoryGraphAdapter integration smoke test', () => {
     await patchB.commit();
 
     // Both writers' patches should be visible after materialization
-    /** @type {any} */
-    const state = await graphA.materialize();
+        const state = (await graphA.materialize()) as any;
     expect(state.nodeAlive.entries.has('node:a')).toBe(true);
     expect(state.nodeAlive.entries.has('node:b')).toBe(true);
   });

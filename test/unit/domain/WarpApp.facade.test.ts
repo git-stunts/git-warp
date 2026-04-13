@@ -20,13 +20,13 @@ describe('WarpApp facade', () => {
     expect(typeof app.createStrand).toBe('function');
     expect(typeof app.core).toBe('function');
 
-    const appAny = /** @type {any} */ (app);
-    expect(appAny.materialize).toBeUndefined();
-    expect(appAny.materializeCoordinate).toBeUndefined();
-    expect(appAny.getNodes).toBeUndefined();
-    expect(appAny.getEdges).toBeUndefined();
-    expect(appAny.query).toBeUndefined();
-    expect(appAny.traverse).toBeUndefined();
+    const appAny = (app);
+    expect((appAny as any).materialize).toBeUndefined();
+    expect((appAny as any).materializeCoordinate).toBeUndefined();
+    expect((appAny as any).getNodes).toBeUndefined();
+    expect((appAny as any).getEdges).toBeUndefined();
+    expect((appAny as any).query).toBeUndefined();
+    expect((appAny as any).traverse).toBeUndefined();
 
     const core = app.core();
     expect(core).toBeInstanceOf(WarpCore);

@@ -104,8 +104,8 @@ describe('PatchBuilder CAS conflict detection', () => {
         expect.unreachable('commit() should have thrown');
       } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(WriterError);
-        expect(err.expectedSha).toBe(expectedParent);
-        expect(err.actualSha).toBe(advancedSha);
+        expect((err as any).expectedSha).toBe(expectedParent);
+        expect((err as any).actualSha).toBe(advancedSha);
       }
     });
 
@@ -158,9 +158,9 @@ describe('PatchBuilder CAS conflict detection', () => {
         expect.unreachable('commit() should have thrown');
       } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(WriterError);
-        expect(err.code).toBe('WRITER_CAS_CONFLICT');
-        expect(err.expectedSha).toBeNull();
-        expect(err.actualSha).toBe(advancedSha);
+        expect((err as any).code).toBe('WRITER_CAS_CONFLICT');
+        expect((err as any).expectedSha).toBeNull();
+        expect((err as any).actualSha).toBe(advancedSha);
       }
     });
 
@@ -189,9 +189,9 @@ describe('PatchBuilder CAS conflict detection', () => {
         expect.unreachable('commit() should have thrown');
       } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(WriterError);
-        expect(err.code).toBe('WRITER_CAS_CONFLICT');
-        expect(err.expectedSha).toBe(expectedParent);
-        expect(err.actualSha).toBeNull();
+        expect((err as any).code).toBe('WRITER_CAS_CONFLICT');
+        expect((err as any).expectedSha).toBe(expectedParent);
+        expect((err as any).actualSha).toBeNull();
       }
     });
   });

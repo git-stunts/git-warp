@@ -57,7 +57,7 @@ describe('B63 — GC snapshot isolation', () => {
       const host = createMockHost();
       const originalState = host._cachedState;
 
-      new CheckpointController(/** @type {any} */ (host))._maybeRunGC(host._cachedState);
+      new CheckpointController((host))._maybeRunGC(host._cachedState);
 
       // State should be replaced with compacted clone
       expect(host._cachedState).not.toBe(originalState);
@@ -86,7 +86,7 @@ describe('B63 — GC snapshot isolation', () => {
         configurable: true,
       });
 
-      new CheckpointController(/** @type {any} */ (host))._maybeRunGC(originalState);
+      new CheckpointController((host))._maybeRunGC(originalState);
 
       expect(host._logger.warn).toHaveBeenCalledWith(
         expect.stringContaining('frontier changed during compaction'),
@@ -112,7 +112,7 @@ describe('B63 — GC snapshot isolation', () => {
       });
       const originalState = host._cachedState;
 
-      new CheckpointController(/** @type {any} */ (host))._maybeRunGC(host._cachedState);
+      new CheckpointController((host))._maybeRunGC(host._cachedState);
 
       // State should be unchanged — GC didn't run
       expect(host._cachedState).toBe(originalState);
@@ -124,7 +124,7 @@ describe('B63 — GC snapshot isolation', () => {
       });
 
       // Should not throw
-      expect(() => new CheckpointController(/** @type {any} */ (host))._maybeRunGC(createEmptyState())).not.toThrow();
+      expect(() => new CheckpointController((host))._maybeRunGC(createEmptyState())).not.toThrow();
     });
   });
 
@@ -133,7 +133,7 @@ describe('B63 — GC snapshot isolation', () => {
       const host = createMockHost();
       const originalState = host._cachedState;
 
-      const result = new CheckpointController(/** @type {any} */ (host)).runGC();
+      const result = new CheckpointController((host)).runGC();
 
       expect(host._cachedState).not.toBe(originalState);
       expect(host._patchesSinceGC).toBe(0);
@@ -159,18 +159,18 @@ describe('B63 — GC snapshot isolation', () => {
       });
 
       try {
-        new CheckpointController(/** @type {any} */ (host)).runGC();
+        new CheckpointController((host)).runGC();
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(/** @type {*} */ (err).code).toBe('E_GC_STALE');
-        expect(/** @type {*} */ (err).message).toContain('frontier changed during compaction');
+        expect((err).code).toBe('E_GC_STALE');
+        expect((err).message).toContain('frontier changed during compaction');
       }
     });
 
     it('throws E_NO_STATE when no cached state exists', () => {
       const host = createMockHost({ _cachedState: null });
 
-      expect(() => new CheckpointController(/** @type {any} */ (host)).runGC()).toThrow(/materialize/i);
+      expect(() => new CheckpointController((host)).runGC()).toThrow(/materialize/i);
     });
   });
 });

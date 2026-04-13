@@ -12,10 +12,8 @@ import {
   WriterIdError,
 } from '../../../../src/domain/utils/WriterId.ts';
 
-/** @type {any} */
-const generateWriterId = _generateWriterId;
-/** @type {any} */
-const validateWriterIdCanonical = _validateWriterIdCanonical;
+const generateWriterId = (_generateWriterId) as any;
+const validateWriterIdCanonical = (_validateWriterIdCanonical) as any;
 import { validateWriterId } from '../../../../src/domain/utils/RefLayout.ts';
 
 /**
@@ -133,8 +131,8 @@ describe('WriterId SPEC', () => {
         validateWriterIdCanonical('bad-id');
         expect.fail('Should have thrown');
       } catch (/** @type {any} */ e) {
-        expect(e.message).toContain('bad-id');
-        expect(e.code).toBe('INVALID_CANONICAL');
+        expect((e as any).message).toContain('bad-id');
+        expect((e as any).code).toBe('INVALID_CANONICAL');
       }
     });
   });
@@ -250,7 +248,7 @@ describe('WriterId SPEC', () => {
         });
         expect.fail('Should have thrown');
       } catch (/** @type {any} */ e) {
-        expect(e.cause).toBe(cause);
+        expect((e as any).cause).toBe(cause);
       }
     });
 
@@ -274,7 +272,7 @@ describe('WriterId SPEC', () => {
         });
         expect.fail('Should have thrown');
       } catch (/** @type {any} */ e) {
-        expect(e.cause).toBe(cause);
+        expect((e as any).cause).toBe(cause);
       }
     });
   });

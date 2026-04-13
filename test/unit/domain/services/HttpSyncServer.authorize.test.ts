@@ -40,8 +40,8 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
     };
 
     const server = new HttpSyncServer({
-      httpPort: /** @type {*} */ (createMockHttpPort()),
-      graph: /** @type {*} */ (createMockGraph()),
+      httpPort: (createMockHttpPort() as any),
+      graph: (createMockGraph() as any),
       auth: {
         keys: { default: 'test-secret' },
         mode: 'enforce',
@@ -49,7 +49,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
     });
 
     // Replace the constructed auth with our mock
-    /** @type {*} */ (server)._auth = mockAuth;
+    (server)._auth = mockAuth;
 
     const request = {
       method: 'POST',
@@ -63,7 +63,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
       frontier: { w1: SHA_A, w2: 'b'.repeat(40) },
     };
 
-    const result = await /** @type {*} */ (server)._authorize(request, parsed);
+    const result = await (server)._authorize(request, parsed);
     expect(result).toBeNull(); // No error
 
     // Verify enforceWriters was called with frontier keys, not patches
@@ -79,14 +79,14 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
     };
 
     const server = new HttpSyncServer({
-      httpPort: /** @type {*} */ (createMockHttpPort()),
-      graph: /** @type {*} */ (createMockGraph()),
+      httpPort: (createMockHttpPort() as any),
+      graph: (createMockGraph() as any),
       auth: {
         keys: { default: 'test-secret' },
         mode: 'enforce',
       },
     });
-    /** @type {*} */ (server)._auth = mockAuth;
+    (server)._auth = mockAuth;
 
     const request = {
       method: 'POST',
@@ -96,7 +96,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
     };
     const parsed = { type: 'sync-request', frontier: {} };
 
-    await /** @type {*} */ (server)._authorize(request, parsed);
+    await (server)._authorize(request, parsed);
 
     // enforceWriters should not be called for empty frontier
     expect(enforceWriters).not.toHaveBeenCalled();
@@ -114,14 +114,14 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
     };
 
     const server = new HttpSyncServer({
-      httpPort: /** @type {*} */ (createMockHttpPort()),
-      graph: /** @type {*} */ (createMockGraph()),
+      httpPort: (createMockHttpPort() as any),
+      graph: (createMockGraph() as any),
       auth: {
         keys: { default: 'test-secret' },
         mode: 'enforce',
       },
     });
-    /** @type {*} */ (server)._auth = mockAuth;
+    (server)._auth = mockAuth;
 
     const request = {
       method: 'POST',
@@ -131,7 +131,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
     };
     const parsed = { type: 'sync-request', frontier: { untrusted: SHA_A } };
 
-    const result = await /** @type {*} */ (server)._authorize(request, parsed);
+    const result = await (server)._authorize(request, parsed);
     expect(result).not.toBeNull();
     expect(result.status).toBe(403);
   });

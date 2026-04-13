@@ -128,7 +128,7 @@ describe('CasBlobAdapter', () => {
 
       await adapter.store('data');
 
-      const storeCall = /** @type {*} */ (mockStore.mock.calls[0])[0];
+      const storeCall = (mockStore.mock.calls[0] as any)[0];
       expect(storeCall.slug).toMatch(/^blob-/);
     });
 
@@ -145,7 +145,7 @@ describe('CasBlobAdapter', () => {
 
       await adapter.store('secret data');
 
-      const storeCall = /** @type {*} */ (mockStore.mock.calls[0])[0];
+      const storeCall = (mockStore.mock.calls[0] as any)[0];
       expect(storeCall.encryptionKey).toBe(encKey);
     });
 
@@ -160,7 +160,7 @@ describe('CasBlobAdapter', () => {
 
       await adapter.store('plain data');
 
-      const storeCall = /** @type {*} */ (mockStore.mock.calls[0])[0];
+      const storeCall = (mockStore.mock.calls[0] as any)[0];
       expect(storeCall.encryptionKey).toBeUndefined();
     });
   });
@@ -345,7 +345,7 @@ describe('CasBlobAdapter', () => {
       expect(mockStore).toHaveBeenCalledOnce();
       expect(mockCreateTree).toHaveBeenCalledWith({ manifest });
       // The source passed to CAS store should be the async iterable (or wrapped)
-      const storeCall = /** @type {*} */ (mockStore.mock.calls[0])[0];
+      const storeCall = (mockStore.mock.calls[0] as any)[0];
       expect(storeCall.slug).toBe('test/streamed');
     });
 
@@ -366,7 +366,7 @@ describe('CasBlobAdapter', () => {
 
       await adapter.storeStream(source());
 
-      const storeCall = /** @type {*} */ (mockStore.mock.calls[0])[0];
+      const storeCall = (mockStore.mock.calls[0] as any)[0];
       expect(storeCall.encryptionKey).toBe(encKey);
     });
   });
@@ -395,11 +395,11 @@ describe('CasBlobAdapter', () => {
       }
 
       expect(chunks).toHaveLength(2);
-      const result = new Uint8Array(chunks.reduce((n, c) => n + c.byteLength, 0));
+      const result = new Uint8Array(chunks.reduce((n, c) => n + (c as any).byteLength, 0));
       let offset = 0;
       for (const c of chunks) {
         result.set(c, offset);
-        offset += c.byteLength;
+        offset += (c as any).byteLength;
       }
       expect(new TextDecoder().decode(result)).toBe('hello world');
     });
@@ -485,7 +485,7 @@ describe('CasBlobAdapter', () => {
       await adapter.store('data');
 
       // CAS initialized with correct options
-      expect(lastConstructorArgs.chunking).toEqual({ strategy: 'cdc' });
+      expect((lastConstructorArgs as any).chunking).toEqual({ strategy: 'cdc' });
     });
 
     it('reuses CAS instance across multiple calls', async () => {
@@ -517,7 +517,7 @@ describe('CasBlobAdapter', () => {
 
       await adapter.store('data');
 
-      expect(lastConstructorArgs.observability).toBeDefined();
+      expect((lastConstructorArgs as any).observability).toBeDefined();
     });
 
     it('does not configure observability when no logger', async () => {
@@ -531,7 +531,7 @@ describe('CasBlobAdapter', () => {
 
       await adapter.store('data');
 
-      expect(lastConstructorArgs.observability).toBeUndefined();
+      expect((lastConstructorArgs as any).observability).toBeUndefined();
     });
   });
 });

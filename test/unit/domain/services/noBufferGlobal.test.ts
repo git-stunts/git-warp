@@ -46,7 +46,7 @@ describe('Buffer-free index paths', () => {
   // The mutation is safely scoped within a try/finally that restores
   // the original value, preventing cross-test contamination.
   it('builds, reads, and incrementally updates without globalThis.Buffer', () => {
-    const globalRef = /** @type {{ Buffer: unknown }} */ (/** @type {any} */ (globalThis));
+    const globalRef = /** @type {{ Buffer: unknown }} */ ((globalThis));
     const originalBuffer = globalRef.Buffer;
 
     try {

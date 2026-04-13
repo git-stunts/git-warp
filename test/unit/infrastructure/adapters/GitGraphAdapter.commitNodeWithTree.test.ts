@@ -3,10 +3,8 @@ import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAda
 
 describe('GitGraphAdapter', () => {
   describe('commitNodeWithTree()', () => {
-    /** @type {any} */
-    let mockPlumbing;
-    /** @type {any} */
-    let adapter;
+        let mockPlumbing;
+        let adapter;
 
     beforeEach(() => {
       mockPlumbing = {

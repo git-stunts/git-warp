@@ -7,8 +7,7 @@ describe('IndexRebuildService Deep DAG Test', () => {
     const CHAIN_LENGTH = 10_000;
 
     // Generate a linear chain: node0 <- node1 <- node2 <- ... <- node9999
-    /** @type {GraphNode[]} */
-    const chain = [];
+        const chain = ([]) as GraphNode[];
     for (let i = 0; i < CHAIN_LENGTH; i++) {
       chain.push(new GraphNode({
         sha: `sha${i.toString().padStart(6, '0')}`,
@@ -36,10 +35,10 @@ describe('IndexRebuildService Deep DAG Test', () => {
       writeTree: vi.fn().mockResolvedValue('tree-oid-deep')
     };
 
-    const service = new IndexRebuildService(/** @type {any} */ ({
+    const service = new IndexRebuildService((({
       graphService: mockGraphService,
       storage: mockStorage
-    }));
+    }) as any));
 
     // This should complete without stack overflow
     const treeOid = await service.rebuild('HEAD');
@@ -52,7 +51,7 @@ describe('IndexRebuildService Deep DAG Test', () => {
     expect(mockStorage.writeTree).toHaveBeenCalledTimes(1);
 
     // Verify tree entries were created for all shards
-    const treeEntries = /** @type {any[]} */ (/** @type {any[]} */ (mockStorage.writeTree.mock.calls[0])[0]);
+    const treeEntries = ((mockStorage.writeTree.mock.calls[0] as any[])[0] as any[]);
     expect(treeEntries.length).toBeGreaterThan(0);
 
     // All entries should be valid tree format
@@ -65,8 +64,7 @@ describe('IndexRebuildService Deep DAG Test', () => {
     const PARENT_COUNT = 1000;
 
     // Create 1000 parent nodes and 1 child with all of them as parents
-    /** @type {GraphNode[]} */
-    const nodes = [];
+        const nodes = ([]) as GraphNode[];
     const parentShas = [];
 
     for (let i = 0; i < PARENT_COUNT; i++) {
@@ -103,10 +101,10 @@ describe('IndexRebuildService Deep DAG Test', () => {
       writeTree: vi.fn().mockResolvedValue('tree-oid-wide')
     };
 
-    const service = new IndexRebuildService(/** @type {any} */ ({
+    const service = new IndexRebuildService((({
       graphService: mockGraphService,
       storage: mockStorage
-    }));
+    }) as any));
 
     const treeOid = await service.rebuild('HEAD');
 

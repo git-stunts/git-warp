@@ -205,7 +205,7 @@ describe('LogicalIndexReader', () => {
       const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
-      const modern = /** @type {Array<[string, number]>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['labels.cbor'])));
+      const modern = (defaultCodec.decode((tree['labels.cbor'] as Uint8Array)) as Array<[string, number]>);
       const legacyLabels = Object.fromEntries(modern);
       const legacyTree = {
         ...tree,
@@ -223,17 +223,16 @@ describe('LogicalIndexReader', () => {
       const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
-      /** @type {Record<string, Uint8Array>} */
-      const legacyTree = { ...tree };
+            const legacyTree = ({ ...tree }) as Record<string, Uint8Array>;
       for (const path of Object.keys(tree)) {
         if (!path.startsWith('meta_') || !path.endsWith('.cbor')) {
           continue;
         }
-        const meta = /** @type {{ nodeToGlobal: Array<[string, number]>, nextLocalId: number, alive: Uint8Array }} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree[path])));
+        const meta = /** @type {{ nodeToGlobal: Array<[string, number]>, nextLocalId: number, alive: Uint8Array }} */ (defaultCodec.decode((tree[path] as Uint8Array)));
         legacyTree[path] = defaultCodec.encode({
-          nodeToGlobal: meta.nodeToGlobal,
-          nextLocalId: meta.nextLocalId,
-          alive: Array.from(meta.alive),
+          nodeToGlobal: (meta as any).nodeToGlobal,
+          nextLocalId: (meta as any).nextLocalId,
+          alive: Array.from((meta as any).alive),
         }).slice();
       }
 
@@ -317,9 +316,9 @@ describe('LogicalIndexReader', () => {
         decodedByOid.set(oid, defaultCodec.decode(buf));
       }
 
-      const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.ts').default} */ (/** @type {unknown} */ ({
+      const mockIndexStore = ((({
         decodeShard: vi.fn((oid) => Promise.resolve(decodedByOid.get(oid))),
-      }));
+      })) as any);
 
       const mockStorage = {
         readBlob: vi.fn(),
@@ -348,9 +347,9 @@ describe('LogicalIndexReader', () => {
       const buildService = new LogicalIndexBuildService();
       const { shards } = buildService.buildShards(state);
 
-      const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.ts').default} */ (/** @type {unknown} */ ({
+      const mockIndexStore = ((({
         scanShards: vi.fn(() => WarpStream.from(shards)),
-      }));
+      })) as any);
 
       const reader = new LogicalIndexReader({ indexStore: mockIndexStore });
       await reader.loadFromStore('fake-tree-oid');
@@ -380,10 +379,10 @@ describe('LogicalIndexReader', () => {
       const nodes = Array.from({ length: 100 }, (_, i) => `n${String(i).padStart(3, '0')}`);
       const edges = [];
       for (let i = 0; i < 99; i++) {
-        edges.push({ from: /** @type {string} */ (nodes[i]), to: /** @type {string} */ (nodes[i + 1]), label: 'next' });
+        edges.push({ from: (nodes[i] as string), to: (nodes[i + 1] as string), label: 'next' });
       }
       for (let i = 1; i < 100; i++) {
-        edges.push({ from: /** @type {string} */ (nodes[i]), to: /** @type {string} */ (nodes[0]), label: 'loop' });
+        edges.push({ from: (nodes[i] as string), to: (nodes[0] as string), label: 'loop' });
       }
 
       const state = fixtureToState({ nodes, edges });

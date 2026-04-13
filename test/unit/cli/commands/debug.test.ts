@@ -62,15 +62,15 @@ describe('handleDebug', () => {
       conflicts: [],
     });
 
-    /** @type {any} */ (openGraph).mockResolvedValue({
+    (openGraph).mockResolvedValue({
       graph: { analyzeConflicts },
       graphName: 'default',
       persistence: {},
     });
-    /** @type {any} */ (readActiveCursor).mockResolvedValue({ tick: 12 });
+    (readActiveCursor).mockResolvedValue({ tick: 12 });
 
     const result = await handleDebug({
-      options: /** @type {any} */ ({ repo: '.', graph: null, writer: 'cli' }),
+      options: ({ repo: '.', graph: null, writer: 'cli' } as any),
       args: ['conflicts'],
     });
 
@@ -107,15 +107,15 @@ describe('handleDebug', () => {
       conflicts: [],
     });
 
-    /** @type {any} */ (openGraph).mockResolvedValue({
+    (openGraph).mockResolvedValue({
       graph: { analyzeConflicts },
       graphName: 'demo',
       persistence: {},
     });
-    /** @type {any} */ (readActiveCursor).mockResolvedValue(null);
+    (readActiveCursor).mockResolvedValue(null);
 
     await handleDebug({
-      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      options: ({ repo: '.', graph: 'demo', writer: 'cli' } as any),
       args: [
         'conflicts',
         '--entity-id', 'user:alice',
@@ -171,15 +171,15 @@ describe('handleDebug', () => {
       conflicts: [],
     });
 
-    /** @type {any} */ (openGraph).mockResolvedValue({
+    (openGraph).mockResolvedValue({
       graph: { analyzeConflicts },
       graphName: 'demo',
       persistence: {},
     });
-    /** @type {any} */ (readActiveCursor).mockResolvedValue(null);
+    (readActiveCursor).mockResolvedValue(null);
 
     await handleDebug({
-      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      options: ({ repo: '.', graph: 'demo', writer: 'cli' } as any),
       args: ['conflicts', '--strand', 'ws_review'],
     });
 
@@ -212,15 +212,15 @@ describe('handleDebug', () => {
       ops: [{ type: 'PropSet', node: 'n1', key: 'role', value: 'admin' }],
     });
 
-    /** @type {any} */ (openGraph).mockResolvedValue({
+    (openGraph).mockResolvedValue({
       graph: { materialize, discoverTicks, getNodes, getEdges, getPropertyCount, loadPatchBySha },
       graphName: 'demo',
       persistence: {},
     });
-    /** @type {any} */ (readActiveCursor).mockResolvedValue({ tick: 4, mode: 'lamport' });
+    (readActiveCursor).mockResolvedValue({ tick: 4, mode: 'lamport' });
 
     const result = await handleDebug({
-      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      options: ({ repo: '.', graph: 'demo', writer: 'cli' } as any),
       args: ['coordinate'],
     });
 
@@ -240,12 +240,12 @@ describe('handleDebug', () => {
         properties: 3,
       },
     });
-    expect(/** @type {any} */ (result.payload).tickReceipt).toHaveProperty('alice');
+    expect((result.payload as any).tickReceipt).toHaveProperty('alice');
   });
 
   it('rejects missing target kind when target fields are provided', async () => {
     await expect(handleDebug({
-      options: /** @type {any} */ ({ repo: '.', graph: null, writer: 'cli' }),
+      options: ({ repo: '.', graph: null, writer: 'cli' } as any),
       args: ['conflicts', '--property-key', 'role'],
     })).rejects.toThrow(/--target-kind/);
   });
@@ -271,15 +271,15 @@ describe('handleDebug', () => {
         writes: ['n1'],
       });
 
-    /** @type {any} */ (openGraph).mockResolvedValue({
+    (openGraph).mockResolvedValue({
       graph: { materialize, patchesFor, loadPatchBySha },
       graphName: 'demo',
       persistence: {},
     });
-    /** @type {any} */ (readActiveCursor).mockResolvedValue({ tick: 7 });
+    (readActiveCursor).mockResolvedValue({ tick: 7 });
 
     const result = await handleDebug({
-      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      options: ({ repo: '.', graph: 'demo', writer: 'cli' } as any),
       args: ['provenance', '--entity-id', 'n1', '--max-patches', '1'],
     });
 
@@ -294,7 +294,7 @@ describe('handleDebug', () => {
       returnedPatches: 1,
       truncated: true,
     });
-    expect(/** @type {any} */ (result.payload).entries[0]).toMatchObject({
+    expect((result.payload as any).entries[0]).toMatchObject({
       sha: 'a'.repeat(40),
       lamport: 1,
     });
@@ -312,21 +312,21 @@ describe('handleDebug', () => {
     });
     const getStrand = vi.fn().mockResolvedValue(makeStrandDescriptor());
 
-    /** @type {any} */ (openGraph).mockResolvedValue({
+    (openGraph).mockResolvedValue({
       graph: { getStrand, patchesForStrand, loadPatchBySha },
       graphName: 'demo',
       persistence: {},
     });
-    /** @type {any} */ (readActiveCursor).mockResolvedValue({ tick: 2 });
+    (readActiveCursor).mockResolvedValue({ tick: 2 });
 
     const result = await handleDebug({
-      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      options: ({ repo: '.', graph: 'demo', writer: 'cli' } as any),
       args: ['provenance', '--strand', 'ws_review', '--entity-id', 'n1'],
     });
 
     expect(patchesForStrand).toHaveBeenCalledWith('ws_review', 'n1', { ceiling: 2 });
     expect(getStrand).toHaveBeenCalledWith('ws_review');
-    expect(/** @type {any} */ (result.payload).strand).toMatchObject({
+    expect((result.payload as any).strand).toMatchObject({
       strandId: 'ws_review',
       overlayWritable: false,
       braid: {
@@ -377,15 +377,15 @@ describe('handleDebug', () => {
         },
       ]);
 
-    /** @type {any} */ (openGraph).mockResolvedValue({
+    (openGraph).mockResolvedValue({
       graph: { discoverWriters, getWriterPatches },
       graphName: 'demo',
       persistence: {},
     });
-    /** @type {any} */ (readActiveCursor).mockResolvedValue({ tick: 4 });
+    (readActiveCursor).mockResolvedValue({ tick: 4 });
 
     const result = await handleDebug({
-      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      options: ({ repo: '.', graph: 'demo', writer: 'cli' } as any),
       args: ['timeline', '--lamport-floor', '1', '--limit', '2'],
     });
 
@@ -403,7 +403,7 @@ describe('handleDebug', () => {
       returnedEntries: 2,
       truncated: true,
     });
-    expect(/** @type {any} */ (result.payload).entries.map((/** @type {{lamport: number}} */ entry) => entry.lamport)).toEqual([2, 4]);
+    expect((result.payload as any).entries.map((/** @type {{lamport: number}} */ entry) => entry.lamport)).toEqual([2, 4]);
   });
 
   it('inspects a strand timeline through getStrandPatches', async () => {
@@ -433,15 +433,15 @@ describe('handleDebug', () => {
     ]);
     const getStrand = vi.fn().mockResolvedValue(makeStrandDescriptor());
 
-    /** @type {any} */ (openGraph).mockResolvedValue({
+    (openGraph).mockResolvedValue({
       graph: { getStrand, getStrandPatches },
       graphName: 'demo',
       persistence: {},
     });
-    /** @type {any} */ (readActiveCursor).mockResolvedValue(null);
+    (readActiveCursor).mockResolvedValue(null);
 
     const result = await handleDebug({
-      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      options: ({ repo: '.', graph: 'demo', writer: 'cli' } as any),
       args: ['timeline', '--strand', 'ws_review'],
     });
 
@@ -474,15 +474,15 @@ describe('handleDebug', () => {
     });
     const getStrand = vi.fn().mockResolvedValue(makeStrandDescriptor());
 
-    /** @type {any} */ (openGraph).mockResolvedValue({
+    (openGraph).mockResolvedValue({
       graph: { getStrand, patchesForStrand, loadPatchBySha },
       graphName: 'demo',
       persistence: {},
     });
-    /** @type {any} */ (readActiveCursor).mockResolvedValue({ tick: 2 });
+    (readActiveCursor).mockResolvedValue({ tick: 2 });
 
     const result = await handleDebug({
-      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      options: ({ repo: '.', graph: 'demo', writer: 'cli' } as any),
       args: ['timeline', '--strand', 'ws_review', '--entity-id', 'n1'],
     });
 
@@ -532,15 +532,15 @@ describe('handleDebug', () => {
       ],
     });
 
-    /** @type {any} */ (openGraph).mockResolvedValue({
+    (openGraph).mockResolvedValue({
       graph: { materialize },
       graphName: 'demo',
       persistence: {},
     });
-    /** @type {any} */ (readActiveCursor).mockResolvedValue(null);
+    (readActiveCursor).mockResolvedValue(null);
 
     const result = await handleDebug({
-      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      options: ({ repo: '.', graph: 'demo', writer: 'cli' } as any),
       args: [
         'receipts',
         '--writer-id', 'alice',
@@ -562,7 +562,7 @@ describe('handleDebug', () => {
         results: { applied: 0, superseded: 1, redundant: 0 },
       },
     });
-    expect(/** @type {any} */ (result.payload).receipts[0].ops).toEqual([
+    expect((result.payload as any).receipts[0].ops).toEqual([
       { op: 'PropSet', target: 'n1\0role', result: 'superseded', reason: 'lost LWW' },
     ]);
   });
@@ -583,21 +583,21 @@ describe('handleDebug', () => {
     });
     const getStrand = vi.fn().mockResolvedValue(makeStrandDescriptor());
 
-    /** @type {any} */ (openGraph).mockResolvedValue({
+    (openGraph).mockResolvedValue({
       graph: { getStrand, materializeStrand },
       graphName: 'demo',
       persistence: {},
     });
-    /** @type {any} */ (readActiveCursor).mockResolvedValue(null);
+    (readActiveCursor).mockResolvedValue(null);
 
     const result = await handleDebug({
-      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      options: ({ repo: '.', graph: 'demo', writer: 'cli' } as any),
       args: ['receipts', '--strand', 'ws_review'],
     });
 
     expect(getStrand).toHaveBeenCalledWith('ws_review');
     expect(materializeStrand).toHaveBeenCalledWith('ws_review', { receipts: true });
-    expect(/** @type {any} */ (result.payload).strand).toMatchObject({
+    expect((result.payload as any).strand).toMatchObject({
       strandId: 'ws_review',
       overlayWritable: false,
       braid: {

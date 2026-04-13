@@ -17,21 +17,20 @@ async function createGraph() {
   };
 
   return WarpRuntime.open({
-    persistence: /** @type {any} */ (mockPersistence),
+    persistence: (mockPersistence),
     graphName: 'test',
     writerId: 'writer-1',
   });
 }
 
 describe('WarpRuntime syncWith', () => {
-  /** @type {any} */
-  let graph;
+    let graph;
 
   beforeEach(async () => {
     graph = await createGraph();
-    /** @type {any} */ (graph)._cachedState = {};
-    vi.spyOn(/** @type {any} */ (graph)._syncController, 'applySyncResponse').mockResolvedValue({ applied: 0 });
-    vi.spyOn(/** @type {any} */ (graph)._syncController, 'createSyncRequest').mockResolvedValue({ type: 'sync-request', frontier: {} });
+    (graph)._cachedState = {};
+    vi.spyOn((graph)._syncController, 'applySyncResponse').mockResolvedValue({ applied: 0 });
+    vi.spyOn((graph)._syncController, 'createSyncRequest').mockResolvedValue({ type: 'sync-request', frontier: {} });
   });
 
   it('syncs over HTTP with default /sync path', async () => {
@@ -45,13 +44,13 @@ describe('WarpRuntime syncWith', () => {
       });
     });
 
-    await new Promise((resolve) => server.listen(0, '127.0.0.1', /** @type {any} */ (resolve)));
-    const port = /** @type {any} */ (server).address().port;
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', (resolve)));
+    const port = (server).address().port;
 
     try {
       const result = await graph.syncWith(`http://127.0.0.1:${port}`);
       expect(result.applied).toBe(0);
-      expect(/** @type {any} */ (graph)._syncController.applySyncResponse).toHaveBeenCalledWith(responsePayload);
+      expect((graph)._syncController.applySyncResponse).toHaveBeenCalledWith(responsePayload);
     } finally {
       await new Promise((resolve) => server.close(resolve));
     }
@@ -71,8 +70,8 @@ describe('WarpRuntime syncWith', () => {
       res.end(JSON.stringify(responsePayload));
     });
 
-    await new Promise((resolve) => server.listen(0, '127.0.0.1', /** @type {any} */ (resolve)));
-    const port = /** @type {any} */ (server).address().port;
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', (resolve)));
+    const port = (server).address().port;
 
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
     try {
@@ -93,8 +92,7 @@ describe('WarpRuntime syncWith', () => {
   it('syncs directly with a peer graph instance', async () => {
     const responsePayload = { type: 'sync-response', frontier: {}, patches: [] };
     const peer = { processSyncRequest: vi.fn().mockResolvedValue(responsePayload) };
-    /** @type {any[]} */
-    const events = [];
+        const events = ([]) as any[];
 
     await graph.syncWith(peer, {
       onStatus: (/** @type {any} */ evt) => events.push(evt.type),

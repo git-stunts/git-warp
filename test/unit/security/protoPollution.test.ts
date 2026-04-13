@@ -17,7 +17,7 @@ describe('F10 — PROTO_POLLUTION_IDS', () => {
   describe('AdjacencyNeighborProvider', () => {
     it('does not mutate Object.prototype', async () => {
       // Snapshot prototype state
-      const beforePolluted = (/** @type {Record<string, unknown>} */ ({}))['polluted'];
+      const beforePolluted = (({} as Record<string, unknown>))['polluted'];
       const beforeConstructor = ({}).constructor;
       const beforeToString = ({}).toString;
 
@@ -31,7 +31,7 @@ describe('F10 — PROTO_POLLUTION_IDS', () => {
       await provider.hasNode('constructor');
 
       // Object.prototype unchanged
-      expect((/** @type {Record<string, unknown>} */ ({}))['polluted']).toBe(beforePolluted);
+      expect((({} as Record<string, unknown>))['polluted']).toBe(beforePolluted);
       expect(({}).constructor).toBe(beforeConstructor);
       expect(({}).toString).toBe(beforeToString);
     });
@@ -62,7 +62,7 @@ describe('F10 — PROTO_POLLUTION_IDS', () => {
       expect(aliveNodes.has('constructor')).toBe(true);
 
       // Object.prototype not mutated
-      expect((/** @type {Record<string, unknown>} */ ({}))['polluted']).toBeUndefined();
+      expect((({} as Record<string, unknown>))['polluted']).toBeUndefined();
     });
   });
 
@@ -77,7 +77,7 @@ describe('F10 — PROTO_POLLUTION_IDS', () => {
       expect(nodes).toContain('constructor');
 
       // Object.prototype not mutated
-      expect((/** @type {Record<string, unknown>} */ ({}))['polluted']).toBeUndefined();
+      expect((({} as Record<string, unknown>))['polluted']).toBeUndefined();
     });
 
     it('shortestPath works with proto-like endpoints', async () => {

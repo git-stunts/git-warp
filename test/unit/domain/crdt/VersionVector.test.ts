@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 
-/** @type {any} */
 
 describe('VersionVector', () => {
   describe('createVersionVector', () => {
@@ -315,7 +314,7 @@ describe('VersionVector', () => {
     it('deserializes empty object', () => {
       const obj = {};
 
-      const vv = VersionVector.from(/** @type {Record<string,number>} */ (obj));
+      const vv = VersionVector.from((obj));
 
       expect(vv.size).toBe(0);
     });
@@ -345,7 +344,7 @@ describe('VersionVector', () => {
     });
 
     it('throws on invalid counter', () => {
-      expect(() => VersionVector.from(/** @type {any} */ ({ alice: 'not a number' }))).toThrow('Invalid counter');
+      expect(() => VersionVector.from(({ alice: 'not a number' } as any))).toThrow('Invalid counter');
       expect(() => VersionVector.from({ alice: 1.5 })).toThrow('Invalid counter');
       expect(() => VersionVector.from({ alice: -1 })).toThrow('Invalid counter');
     });

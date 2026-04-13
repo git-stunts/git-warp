@@ -20,7 +20,7 @@ describe('_buildViewFromResult', () => {
     };
 
     const state = createEmptyState();
-    /** @type {any} */ (WarpRuntime.prototype)._buildViewFromResult.call(host, { state, stateHash: 'hash123' });
+    (WarpRuntime.prototype as any)._buildViewFromResult.call(host, { state, stateHash: 'hash123' });
 
     expect(warn).toHaveBeenCalledOnce();
     const firstCall = warn.mock.calls[0];
@@ -48,7 +48,7 @@ describe('_buildViewFromResult', () => {
 
     const state = createEmptyState();
     // Should not throw
-    /** @type {any} */ (WarpRuntime.prototype)._buildViewFromResult.call(host, { state, stateHash: 'hash456' });
+    (WarpRuntime.prototype as any)._buildViewFromResult.call(host, { state, stateHash: 'hash456' });
     expect(host._logicalIndex).toBeNull();
   });
 });

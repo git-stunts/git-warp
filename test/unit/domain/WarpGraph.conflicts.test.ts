@@ -123,20 +123,18 @@ async function simulatePatchCommit(persistence, {
 }
 
 describe('WarpCore.analyzeConflicts()', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {WarpCoreRuntime} */
-  let graph;
+    let persistence;
+    let graph;
   const graphName = 'conflicts';
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = /** @type {WarpCoreRuntime} */ (await WarpCore.open({
+    graph = ((await WarpCore.open({
       persistence,
       graphName,
       writerId: 'tester',
       autoMaterialize: false,
-    }));
+    })) as WarpCoreRuntime);
   });
 
   it('returns deterministic supersession traces for competing property writes', async () => {

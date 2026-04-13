@@ -20,8 +20,7 @@ function makeEmission(id = 'em-1') {
 }
 
 describe('ChunkEffectSink', () => {
-  /** @type {string} */
-  let dir;
+    let dir;
 
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'chunk-sink-'));

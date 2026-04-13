@@ -151,7 +151,7 @@ describe('OpNormalizer returns Op class instances', () => {
 
   it('lowerCanonicalOp converts NodePropSet to PropSet instance', () => {
     const canonical = createNodePropSetV2('user:alice', 'name', 'Alice');
-    const raw = lowerCanonicalOp(/** @type {any} */ (canonical));
+    const raw = lowerCanonicalOp((canonical));
 
     expect(raw).toBeInstanceOf(PropSetClass);
     expect(raw.type).toBe('PropSet');
@@ -164,7 +164,7 @@ describe('OpNormalizer returns Op class instances', () => {
 
   it('lowerCanonicalOp converts EdgePropSet to PropSet instance', () => {
     const canonical = createEdgePropSetV2('n1', 'n2', 'rel', 'weight', 42);
-    const raw = lowerCanonicalOp(/** @type {any} */ (canonical));
+    const raw = lowerCanonicalOp((canonical));
 
     expect(raw).toBeInstanceOf(PropSetClass);
     expect(raw.type).toBe('PropSet');
@@ -178,7 +178,7 @@ describe('OpNormalizer returns Op class instances', () => {
   it('lowerCanonicalOp passes NodeAdd through as-is', () => {
     const dot = new Dot('w', 1);
     const canonical = createNodeAddV2('n1', dot);
-    const raw = lowerCanonicalOp(/** @type {any} */ (canonical));
+    const raw = lowerCanonicalOp((canonical));
 
     expect(raw).toBe(canonical);
     expect(raw).toBeInstanceOf(NodeAdd);
@@ -187,7 +187,7 @@ describe('OpNormalizer returns Op class instances', () => {
   it('round-trip: PropSet → normalize → lower → PropSet with same data', () => {
     const original = createPropSetV2('user:alice', 'name', 'Alice');
     const canonical = normalizeRawOp(original);
-    const lowered = lowerCanonicalOp(/** @type {any} */ (canonical));
+    const lowered = lowerCanonicalOp((canonical));
 
     expect(lowered).toBeInstanceOf(PropSetClass);
     expect(lowered.type).toBe('PropSet');
@@ -201,7 +201,7 @@ describe('OpNormalizer returns Op class instances', () => {
   it('round-trip: edge PropSet → normalize → lower → PropSet with same encoding', () => {
     const original = createPropSetV2('\x01n1\x00n2\x00rel', 'weight', 42);
     const canonical = normalizeRawOp(original);
-    const lowered = lowerCanonicalOp(/** @type {any} */ (canonical));
+    const lowered = lowerCanonicalOp((canonical));
 
     expect(lowered).toBeInstanceOf(PropSetClass);
     expect(lowered.type).toBe('PropSet');

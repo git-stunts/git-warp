@@ -59,7 +59,7 @@ describe('ConflictAnalysis', () => {
       analysisVersion: 'v2',
       resolvedCoordinate: coord,
       analysisSnapshotHash: 'h',
-      diagnostics: /** @type {any} */ (null),
+      diagnostics: (null),
       conflicts: [],
     });
     expect(a.diagnostics).toBeUndefined();

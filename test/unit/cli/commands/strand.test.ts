@@ -35,13 +35,13 @@ describe('handleStrand strand braid command', () => {
       },
     });
 
-    /** @type {any} */ (openGraph).mockResolvedValue({
+    (openGraph).mockResolvedValue({
       graph: { braidStrand },
       graphName: 'demo',
     });
 
     const result = await handleStrand({
-      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      options: ({ repo: '.', graph: 'demo', writer: 'cli' } as any),
       args: ['braid', 'ws_target', '--support', 'ws_support', '--read-only'],
     });
 
@@ -60,7 +60,7 @@ describe('handleStrand strand braid command', () => {
 
   it('rejects conflicting braid writability flags', async () => {
     await expect(handleStrand({
-      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      options: ({ repo: '.', graph: 'demo', writer: 'cli' } as any),
       args: ['braid', 'ws_target', '--read-only', '--writable'],
     })).rejects.toThrow(/mutually exclusive/);
   });
@@ -103,13 +103,13 @@ describe('handleStrand strand braid command', () => {
       ops: [],
     });
 
-    /** @type {any} */ (openGraph).mockResolvedValue({
+    (openGraph).mockResolvedValue({
       graph: { planStrandTransfer },
       graphName: 'demo',
     });
 
     const result = await handleStrand({
-      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      options: ({ repo: '.', graph: 'demo', writer: 'cli' } as any),
       args: ['transfer-plan', 'ws_target', '--into', 'strand:ws_live_candidate', '--lamport-ceiling', '12', '--into-lamport-ceiling', '8'],
     });
 

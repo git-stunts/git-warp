@@ -91,7 +91,7 @@ describe('B65 — Sync divergence logging', () => {
     const localFrontier = new Map([['w1', SHA_B]]);
 
     const response = await processSyncRequest(
-      /** @type {*} */ (request), localFrontier, /** @type {any} */ (persistence), 'events', { patchJournal: createPatchJournal(persistence), logger },
+      (request), localFrontier, (persistence), 'events', { patchJournal: createPatchJournal(persistence), logger },
     );
 
     // Should return empty patches (diverged writer skipped)
@@ -99,7 +99,7 @@ describe('B65 — Sync divergence logging', () => {
 
     // Logger should have been called with divergence context
     expect(logger.warn).toHaveBeenCalledTimes(1);
-    const [message, context] = /** @type {any[]} */ (logger.warn.mock.calls[0]);
+    const [message, context] = (logger.warn.mock.calls[0] as any[]);
     expect(message).toContain('divergence');
     expect(context.code).toBe('E_SYNC_DIVERGENCE');
     expect(context.graphName).toBe('events');
@@ -125,7 +125,7 @@ describe('B65 — Sync divergence logging', () => {
     const localFrontier = new Map([['w1', SHA_B]]);
 
     const response = await processSyncRequest(
-      /** @type {*} */ (request), localFrontier, /** @type {any} */ (persistence), 'events', { patchJournal: createPatchJournal(persistence), logger },
+      (request), localFrontier, (persistence), 'events', { patchJournal: createPatchJournal(persistence), logger },
     );
 
     expect(response.patches).toHaveLength(1);
@@ -148,7 +148,7 @@ describe('B65 — Sync divergence logging', () => {
     const localFrontier = new Map([['w1', SHA_B]]);
 
     const response = await processSyncRequest(
-      /** @type {*} */ (request), localFrontier, /** @type {any} */ (persistence), 'events', { patchJournal: createPatchJournal(persistence) },
+      (request), localFrontier, (persistence), 'events', { patchJournal: createPatchJournal(persistence) },
     );
 
     expect(response.patches).toHaveLength(0);
@@ -172,7 +172,7 @@ describe('B65 — Sync divergence logging', () => {
     const localFrontier = new Map([['w1', SHA_A], ['w2', SHA_C]]);
 
     const response = await processSyncRequest(
-      /** @type {*} */ (request), localFrontier, /** @type {any} */ (persistence), 'events', { patchJournal: createPatchJournal(persistence), logger },
+      (request), localFrontier, (persistence), 'events', { patchJournal: createPatchJournal(persistence), logger },
     );
 
     // w1 skipped (diverged), w2 returned

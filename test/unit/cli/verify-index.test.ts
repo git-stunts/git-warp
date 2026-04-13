@@ -8,13 +8,12 @@ vi.mock('../../../bin/cli/shared.js', () => ({
 }));
 
 const shared = await import('../../../bin/cli/shared.js');
-const openGraph = /** @type {import('vitest').Mock} */ (/** @type {unknown} */ (shared.openGraph));
-const applyCursorCeiling = /** @type {import('vitest').Mock} */ (/** @type {unknown} */ (shared.applyCursorCeiling));
-const emitCursorWarning = /** @type {import('vitest').Mock} */ (/** @type {unknown} */ (shared.emitCursorWarning));
+const openGraph = ((shared.openGraph as unknown) as any);
+const applyCursorCeiling = ((shared.applyCursorCeiling as unknown) as any);
+const emitCursorWarning = ((shared.emitCursorWarning as unknown) as any);
 const { default: handleVerifyIndex } = await import('../../../bin/cli/commands/verify-index.js');
 
-/** @type {import('../../../bin/cli/types.js').CliOptions} */
-const CLI_OPTIONS = /** @type {*} */ ({
+const CLI_OPTIONS = (({
   repo: '/tmp/repo',
   graph: 'demo',
   json: true,
@@ -22,7 +21,7 @@ const CLI_OPTIONS = /** @type {*} */ ({
   view: null,
   writer: 'cli',
   help: false,
-});
+}) as any);
 
 describe('verify-index command', () => {
   beforeEach(() => {

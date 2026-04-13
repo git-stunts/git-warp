@@ -3,12 +3,9 @@ import ConsoleLogger, { LogLevel } from '../../../../src/infrastructure/adapters
 import LoggerPort from '../../../../src/ports/LoggerPort.ts';
 
 describe('ConsoleLogger', () => {
-  /** @type {any} */
-  let consoleLogSpy;
-  /** @type {any} */
-  let consoleWarnSpy;
-  /** @type {any} */
-  let consoleErrorSpy;
+    let consoleLogSpy;
+    let consoleWarnSpy;
+    let consoleErrorSpy;
 
   beforeEach(() => {
     consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -52,7 +49,7 @@ describe('ConsoleLogger', () => {
     });
 
     it('accepts string log level', () => {
-      const logger = new ConsoleLogger({ level: /** @type {any} */ ('debug') });
+      const logger = new ConsoleLogger({ level: ('debug' as any) });
       logger.debug('test');
       expect(consoleLogSpy).toHaveBeenCalled();
     });

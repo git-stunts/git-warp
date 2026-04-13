@@ -15,8 +15,7 @@ const codec = new CborCodec();
 /** @param {Array<PropertyShard>} shards */
 function mockStorageFromShards(shards) {
   const blobs = new Map();
-  /** @type {Record<string, string>} */
-  const oids = {};
+    const oids = ({}) as Record<string, string>;
   let oidCounter = 0;
 
   for (const shard of shards) {
@@ -27,7 +26,7 @@ function mockStorageFromShards(shards) {
   }
 
   return {
-    storage: /** @type {any} */ ({ readBlob: async (/** @type {string} */ oid) => blobs.get(oid) }),
+    storage: ({ readBlob: async (/** @type {string} */ oid) => blobs.get(oid) } as any),
     oids,
   };
 }
@@ -39,7 +38,7 @@ describe('PropertyIndex', () => {
     builder.addProperty('user:alice', 'age', 30);
     builder.addProperty('user:bob', 'name', 'Bob');
 
-    const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
+    const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
     const { storage, oids } = mockStorageFromShards(shards);
 
     const reader = new PropertyIndexReader({ storage });
@@ -56,7 +55,7 @@ describe('PropertyIndex', () => {
     const builder = new PropertyIndexBuilder();
     builder.addProperty('user:alice', 'name', 'Alice');
 
-    const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
+    const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
     const { storage, oids } = mockStorageFromShards(shards);
 
     const reader = new PropertyIndexReader({ storage });
@@ -84,7 +83,7 @@ describe('PropertyIndex', () => {
     builder.addProperty(first, 'x', 1);
     builder.addProperty(second, 'y', 2);
 
-    const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
+    const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
     const { storage, oids } = mockStorageFromShards(shards);
 
     const reader = new PropertyIndexReader({ storage });
@@ -100,7 +99,7 @@ describe('PropertyIndex', () => {
     builder.addProperty('node:1', 'weight', 42);
     builder.addProperty('node:2', 'color', 'blue');
 
-    const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
+    const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
 
     // Verify PropertyShard entries are well-formed objects
     for (const shard of shards) {
@@ -119,11 +118,11 @@ describe('PropertyIndex', () => {
 
   it('proto pollution safety (F10): __proto__ node props do not leak', async () => {
     const builder = new PropertyIndexBuilder();
-    for (const { nodeId, key, value } of /** @type {*} */ (F10_PROTO_POLLUTION.props)) {
+    for (const { nodeId, key, value } of (F10_PROTO_POLLUTION.props as any)) {
       builder.addProperty(nodeId, key, value);
     }
 
-    const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
+    const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
     const { storage, oids } = mockStorageFromShards(shards);
 
     const reader = new PropertyIndexReader({ storage });
@@ -131,12 +130,12 @@ describe('PropertyIndex', () => {
 
     const props = await reader.getNodeProps('__proto__');
     expect(props).toEqual({ polluted: true });
-    expect((/** @type {Record<string, unknown>} */ ({}))['polluted']).toBeUndefined();
+    expect((({} as Record<string, unknown>))['polluted']).toBeUndefined();
   });
 
   it('throws a descriptive error when a shard OID is missing', async () => {
     const reader = new PropertyIndexReader({
-      storage: /** @type {any} */ ({ readBlob: async () => undefined }),
+      storage: ({ readBlob: async () => undefined } as any),
     });
     reader.setup({ 'props_ab.cbor': 'oid_missing' });
     const abNodeId = `ab${'0'.repeat(38)}`;
@@ -148,7 +147,7 @@ describe('PropertyIndex', () => {
     const abNodeId = `ab${'0'.repeat(38)}`;
     const shardPath = `props_${computeShardKey(abNodeId)}.cbor`;
     const reader = new PropertyIndexReader({
-      storage: /** @type {any} */ ({ readBlob: async () => codec.encode({ [abNodeId]: { name: 'Alice' } }) }),
+      storage: ({ readBlob: async () => codec.encode({ [abNodeId]: { name: 'Alice' } }) } as any),
     });
     reader.setup({ [shardPath]: 'oid_bad_format' });
 
@@ -161,12 +160,11 @@ describe('PropertyIndex', () => {
     builder.addProperty('user:alice', 'age', 30);
     builder.addProperty('user:bob', 'name', 'Bob');
 
-    const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
+    const shards = ([...builder.yieldShards()] as Array<PropertyShard>);
 
     // Build a mock indexStore that returns decoded shard entries directly
     const decodedByOid = new Map();
-    /** @type {Record<string, string>} */
-    const oids = {};
+        const oids = ({}) as Record<string, string>;
     let oidCounter = 0;
     for (const shard of shards) {
       const path = `props_${shard.shardKey}.cbor`;
@@ -175,9 +173,9 @@ describe('PropertyIndex', () => {
       oids[path] = oid;
     }
 
-    const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.ts').default} */ ({
-      decodeShard: async (/** @type {string} */ oid) => decodedByOid.get(oid),
-    });
+    const mockIndexStore = (({
+      decodeShard: async ( oid) => decodedByOid.get(oid),
+    }) as any);
 
     const reader = new PropertyIndexReader({ indexStore: mockIndexStore });
     reader.setup(oids);
@@ -202,8 +200,8 @@ describe('PropertyIndex', () => {
     order2.addProperty('node:beta', 'name', 'Bob');
     order2.addProperty('node:alpha', 'name', 'Alice');
 
-    const shards1 = /** @type {Array<PropertyShard>} */ ([...order1.yieldShards()]);
-    const shards2 = /** @type {Array<PropertyShard>} */ ([...order2.yieldShards()]);
+    const shards1 = ([...order1.yieldShards()] as Array<PropertyShard>);
+    const shards2 = ([...order2.yieldShards()] as Array<PropertyShard>);
 
     // Same number of shards with same shard keys
     const keys1 = shards1.map((s) => s.shardKey).sort();
@@ -214,7 +212,7 @@ describe('PropertyIndex', () => {
     for (const shard1 of shards1) {
       const shard2 = shards2.find((s) => s.shardKey === shard1.shardKey);
       expect(shard2).toBeDefined();
-      expect(shard1.entries).toEqual(/** @type {PropertyShard} */ (shard2).entries);
+      expect(shard1.entries).toEqual((shard2).entries);
     }
   });
 });

@@ -27,7 +27,7 @@ function makeReceipt(lamport, sha) {
     writer: 'alice',
     lamport,
     ops: Object.freeze([
-      Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: `n${lamport}`, result: 'applied' })),
+      Object.freeze(({ op: 'NodeAdd', target: `n${lamport}`, result: 'applied' } as const)),
     ]),
   });
 }

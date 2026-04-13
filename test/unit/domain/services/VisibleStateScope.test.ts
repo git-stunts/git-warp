@@ -82,12 +82,12 @@ describe('VisibleStateScope', () => {
 
     expect(() => normalizeVisibleStateScope({
       nodeIdPrefixes: {
-        include: /** @type {unknown} */ ('task:'),
+        include: ('task:' as unknown),
       },
     })).toThrow('scope.nodeIdPrefixes.include must be an array of non-empty strings');
 
     expect(() => normalizeVisibleStateScope({
-      nodeIdPrefixes: /** @type {unknown} */ (['task:']),
+      nodeIdPrefixes: (['task:'] as unknown),
     })).toThrow('scope.nodeIdPrefixes must be an object with include/exclude prefix arrays');
 
     expect(() => normalizeVisibleStateScope({
@@ -108,7 +108,7 @@ describe('VisibleStateScope', () => {
     expect(nodeIdInVisibleStateScope('task:1', null)).toBe(true);
     expect(nodeIdInVisibleStateScope(
       'task:1',
-      /** @type {import('../../../../src/domain/services/VisibleStateScope.js').VisibleStateScope} */ ({}),
+      ({} as any),
     )).toBe(true);
   });
 
@@ -200,6 +200,6 @@ describe('VisibleStateScope', () => {
       },
     ];
 
-    expect(scopePatchEntriesV1(/** @type {any} */ (entries), scope).map(({ sha }) => sha)).toEqual(['a', 'd', 'e']);
+    expect(scopePatchEntriesV1((entries), scope).map(({ sha }) => sha)).toEqual(['a', 'd', 'e']);
   });
 });

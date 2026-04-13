@@ -12,12 +12,11 @@ import {
   resolveRepoScriptTarget,
 } from '../../../scripts/lint-markdown-code-samples.js';
 
-/** @type {string[]} */
-const tempDirs = [];
+const tempDirs = ([]) as string[];
 
 afterEach(() => {
   while (tempDirs.length > 0) {
-    rmSync(/** @type {string} */ (tempDirs.pop()), { force: true, recursive: true });
+    rmSync((tempDirs.pop() as string), { force: true, recursive: true });
   }
 });
 
@@ -126,14 +125,14 @@ describe('lintMarkdownCodeSample', () => {
   it('accepts valid JavaScript and TypeScript snippets', () => {
     const jsSample = {
       filePath: 'README.md',
-      language: /** @type {'javascript'} */ ('javascript'),
+      language: ('javascript' as 'javascript'),
       code: 'export const answer = 42;',
       fenceLine: 10,
       startLine: 11,
     };
     const tsSample = {
       filePath: 'GUIDE.md',
-      language: /** @type {'ts'} */ ('ts'),
+      language: ('ts' as 'ts'),
       code: 'export const answer: number = 42;',
       fenceLine: 20,
       startLine: 21,
@@ -146,7 +145,7 @@ describe('lintMarkdownCodeSample', () => {
   it('accepts documentation-style top-level await TypeScript snippets', () => {
     const sample = {
       filePath: 'adr/ADR-0004-folds.md',
-      language: /** @type {'ts'} */ ('ts'),
+      language: ('ts' as 'ts'),
       code: [
         "const view = graph.view({ fold: { mode: 'shallow', maxDepth: 1 } });",
         '',
@@ -164,7 +163,7 @@ describe('lintMarkdownCodeSample', () => {
   it('reports syntax errors with Markdown-relative locations', () => {
     const sample = {
       filePath: 'README.md',
-      language: /** @type {'javascript'} */ ('javascript'),
+      language: ('javascript' as 'javascript'),
       code: 'export const broken = ;',
       fenceLine: 5,
       startLine: 6,

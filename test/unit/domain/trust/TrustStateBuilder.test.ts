@@ -29,10 +29,10 @@ import {
 
 /** Build an ad-hoc TrustRecord from plain fields. */
 function tr(/** @type {Record<string, unknown>} */ fields) {
-  return TrustRecord.fromDecoded(/** @type {any} */ ({
+  return TrustRecord.fromDecoded((({
     ...fields,
     signaturePayload: textEncode(signaturePayload(fields)),
-  }));
+  }) as any));
 }
 
 describe('buildState — key lifecycle', () => {
@@ -40,7 +40,7 @@ describe('buildState — key lifecycle', () => {
     const state = await buildState([KEY_ADD_1]);
     expect(state.activeKeys.size).toBe(1);
     expect(state.activeKeys.has(KEY_ID_1)).toBe(true);
-    expect(/** @type {*} */ (state.activeKeys.get(KEY_ID_1)).publicKey).toBe(PUBLIC_KEY_1);
+    expect((state.activeKeys.get(KEY_ID_1) as any).publicKey).toBe(PUBLIC_KEY_1);
     expect(state.revokedKeys.size).toBe(0);
     expect(state.errors).toHaveLength(0);
   });
@@ -59,7 +59,7 @@ describe('buildState — key lifecycle', () => {
     expect(state.activeKeys.has(KEY_ID_2)).toBe(false);
     expect(state.revokedKeys.size).toBe(1);
     expect(state.revokedKeys.has(KEY_ID_2)).toBe(true);
-    expect(/** @type {*} */ (state.revokedKeys.get(KEY_ID_2)).reasonCode).toBe('KEY_ROLLOVER');
+    expect((state.revokedKeys.get(KEY_ID_2) as any).reasonCode).toBe('KEY_ROLLOVER');
   });
 });
 
@@ -119,7 +119,7 @@ describe('buildState — binding lifecycle', () => {
     const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
     const bindingKey = `alice\0${KEY_ID_1}`;
     expect(state.writerBindings.has(bindingKey)).toBe(true);
-    expect(/** @type {*} */ (state.writerBindings.get(bindingKey)).keyId).toBe(KEY_ID_1);
+    expect((state.writerBindings.get(bindingKey) as any).keyId).toBe(KEY_ID_1);
     expect(state.revokedBindings.size).toBe(0);
   });
 
@@ -140,7 +140,7 @@ describe('buildState — binding lifecycle', () => {
     const bindingKey = `bob\0${KEY_ID_2}`;
     expect(state.writerBindings.has(bindingKey)).toBe(false);
     expect(state.revokedBindings.has(bindingKey)).toBe(true);
-    expect(/** @type {*} */ (state.revokedBindings.get(bindingKey)).reasonCode).toBe('KEY_REVOKED');
+    expect((state.revokedBindings.get(bindingKey) as any).reasonCode).toBe('KEY_REVOKED');
   });
 });
 
@@ -253,7 +253,7 @@ describe('buildState — full golden chain', () => {
 
 describe('buildState — schema validation', () => {
   it('TrustRecord.fromDecoded throws for invalid schema version', () => {
-    expect(() => TrustRecord.fromDecoded(/** @type {*} */ ({
+    expect(() => TrustRecord.fromDecoded((({
       schemaVersion: 99,
       recordType: 'KEY_ADD',
       recordId: 'a'.repeat(64),
@@ -264,11 +264,11 @@ describe('buildState — schema validation', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
       signaturePayload: new Uint8Array(0),
-    }))).toThrow();
+    }) as any))).toThrow();
   });
 
   it('TrustRecord.fromDecoded throws for unknown record type', () => {
-    expect(() => TrustRecord.fromDecoded(/** @type {*} */ ({
+    expect(() => TrustRecord.fromDecoded((({
       schemaVersion: 1,
       recordType: 'BOGUS',
       recordId: 'a'.repeat(64),
@@ -279,7 +279,7 @@ describe('buildState — schema validation', () => {
       meta: {},
       signature: { alg: 'ed25519', sig: 'placeholder' },
       signaturePayload: new Uint8Array(0),
-    }))).toThrow();
+    }) as any))).toThrow();
   });
 });
 

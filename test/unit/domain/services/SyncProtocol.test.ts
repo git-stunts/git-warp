@@ -407,7 +407,7 @@ describe('SyncProtocol', () => {
         patches: [{ writerId: 'w1', sha: SHA_A, patch: patch1 }],
       };
 
-      const result = /** @type {any} */ (applySyncResponse((response as any), state, frontier));
+      const result = (applySyncResponse((response as any), state, frontier) as any);
 
       expect(result.applied).toBe(1);
       expect(result.state.nodeAlive.contains('x')).toBe(true);
@@ -439,7 +439,7 @@ describe('SyncProtocol', () => {
         ],
       };
 
-      const result = /** @type {any} */ (applySyncResponse((response as any), state, frontier));
+      const result = (applySyncResponse((response as any), state, frontier) as any);
 
       expect(result.applied).toBe(2);
       expect(result.state.nodeAlive.contains('x')).toBe(true);
@@ -495,7 +495,7 @@ describe('SyncProtocol', () => {
         ],
       };
 
-      const result = /** @type {any} */ (applySyncResponse((response as any), state, frontier));
+      const result = (applySyncResponse((response as any), state, frontier) as any);
 
       expect(result.applied).toBe(2);
       expect(result.state.nodeAlive.contains('x')).toBe(true);
@@ -514,7 +514,7 @@ describe('SyncProtocol', () => {
         patches: [],
       };
 
-      const result = /** @type {any} */ (applySyncResponse((response as any), state, frontier));
+      const result = (applySyncResponse((response as any), state, frontier) as any);
 
       expect(result.applied).toBe(0);
     });
@@ -618,7 +618,7 @@ describe('SyncProtocol', () => {
       const responseA = await processSyncRequest(requestB, frontierA, persistence, 'events', { patchJournal: createPatchJournal(persistence) });
 
       // B applies response from A
-      const resultB = /** @type {any} */ (applySyncResponse(responseA, stateB, frontierB));
+      const resultB = (applySyncResponse(responseA, stateB, frontierB) as any);
       stateB = resultB.state;
       frontierB = resultB.frontier;
 
@@ -627,7 +627,7 @@ describe('SyncProtocol', () => {
       const responseB = await processSyncRequest(requestA, frontierB, persistence, 'events', { patchJournal: createPatchJournal(persistence) });
 
       // A applies response from B
-      const resultA = /** @type {any} */ (applySyncResponse(responseB, stateA, frontierA));
+      const resultA = (applySyncResponse(responseB, stateA, frontierA) as any);
       stateA = resultA.state;
       frontierA = resultA.frontier;
 
@@ -674,7 +674,7 @@ describe('SyncProtocol', () => {
         'events',
         { patchJournal: createPatchJournal(persistence) },
       );
-      const result1 = /** @type {any} */ (applySyncResponse(response1, state, frontier));
+      const result1 = (applySyncResponse(response1, state, frontier) as any);
 
       // Second sync with same data
       const response2 = {
@@ -682,7 +682,7 @@ describe('SyncProtocol', () => {
         frontier: { w1: SHA_A },
         patches: [{ writerId: 'w1', sha: SHA_A, patch }],
       };
-      const result2 = /** @type {any} */ (applySyncResponse((response2 as any), result1.state, result1.frontier));
+      const result2 = (applySyncResponse((response2 as any), result1.state, result1.frontier) as any);
 
       // State should be the same (idempotent)
       // Note: Due to OR-Set semantics, applying the same add twice adds a new dot
@@ -738,7 +738,7 @@ describe('SyncProtocol', () => {
       const state = createEmptyState();
       const frontier = createFrontier();
 
-      const result = /** @type {any} */ (applySyncResponse(response, state, frontier));
+      const result = (applySyncResponse(response, state, frontier) as any);
       expect(result.applied).toBe(1);
       expect(result.state.nodeAlive.contains('n1')).toBe(true);
     });
@@ -772,13 +772,13 @@ describe('SyncProtocol', () => {
       const request = { type: 'sync-request', frontier: { w1: SHA_A } };
       const localFrontier = new Map([['w1', SHA_B], ['w2', SHA_C]]);
 
-      const response = /** @type {any} */ (await processSyncRequest(
+      const response = ((await processSyncRequest(
         (request as any),
         localFrontier,
         (persistence as any),
         'events',
         { logger, patchJournal: createPatchJournal(persistence) },
-      ));
+      )) as any);
 
       // w1 should be skipped via isAncestor, no chain walk needed
       expect(persistence.isAncestor).toHaveBeenCalledWith(SHA_A, SHA_B);
@@ -815,13 +815,13 @@ describe('SyncProtocol', () => {
       const request = { type: 'sync-request', frontier: { w1: SHA_A } };
       const localFrontier = new Map([['w1', SHA_B]]);
 
-      const response = /** @type {any} */ (await processSyncRequest(
+      const response = ((await processSyncRequest(
         (request as any),
         localFrontier,
         (persistence as any),
         'events',
         { patchJournal: createPatchJournal(persistence) },
-      ));
+      )) as any);
 
       expect(persistence.isAncestor).toHaveBeenCalledWith(SHA_A, SHA_B);
       expect(response.patches).toHaveLength(1);
@@ -843,13 +843,13 @@ describe('SyncProtocol', () => {
       const request = { type: 'sync-request', frontier: { w1: SHA_A } };
       const localFrontier = new Map([['w1', SHA_B]]);
 
-      const response = /** @type {any} */ (await processSyncRequest(
+      const response = ((await processSyncRequest(
         (request as any),
         localFrontier,
         (persistence as any),
         'events',
         { patchJournal: createPatchJournal(persistence) },
-      ));
+      )) as any);
 
       // Should still work via chain walk
       expect(response.patches).toHaveLength(1);

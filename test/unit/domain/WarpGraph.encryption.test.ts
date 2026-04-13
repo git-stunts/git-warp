@@ -17,8 +17,7 @@ import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.js';
 class InMemoryBlobStorage extends BlobStoragePort {
   constructor() {
     super();
-    /** @type {Map<string, Uint8Array>} */
-    this._blobs = new Map();
+        this._blobs = new Map();
     this._counter = 0;
   }
 
@@ -47,7 +46,7 @@ class InMemoryBlobStorage extends BlobStoragePort {
   }
 
   async *retrieveStream(/** @type {string} */ _oid) {
-    yield* /** @type {Uint8Array[]} */ ([]);
+    yield* ([] as Uint8Array[]);
     throw new Error('retrieveStream not implemented');
   }
 }
@@ -57,10 +56,8 @@ class InMemoryBlobStorage extends BlobStoragePort {
 // ---------------------------------------------------------------------------
 
 describe('WarpRuntime encryption at rest (B164)', () => {
-  /** @type {ReturnType<typeof createInMemoryRepo>} */
-  let repo;
-  /** @type {InMemoryBlobStorage} */
-  let patchStorage;
+    let repo;
+    let patchStorage;
 
   beforeEach(() => {
     repo = createInMemoryRepo();
@@ -91,7 +88,7 @@ describe('WarpRuntime encryption at rest (B164)', () => {
 
     // Query to verify data integrity
     expect(await graph.hasNode('user:alice')).toBe(true);
-    const props = /** @type {any} */ (await graph.getNodeProps('user:alice'));
+    const props = (await graph.getNodeProps('user:alice') as any);
     expect(props.name).toBe('Alice');
   });
 
@@ -118,7 +115,7 @@ describe('WarpRuntime encryption at rest (B164)', () => {
     await graph2.materialize();
 
     expect(await graph2.hasNode('user:bob')).toBe(true);
-    const props = /** @type {any} */ (await graph2.getNodeProps('user:bob'));
+    const props = (await graph2.getNodeProps('user:bob') as any);
     expect(props.role).toBe('admin');
   });
 
@@ -180,9 +177,9 @@ describe('WarpRuntime encryption at rest (B164)', () => {
 
     expect(await graph3.hasNode('user:plain')).toBe(true);
     expect(await graph3.hasNode('user:secret')).toBe(true);
-    const plainProps = /** @type {any} */ (await graph3.getNodeProps('user:plain'));
+    const plainProps = (await graph3.getNodeProps('user:plain') as any);
     expect(plainProps.mode).toBe('clear');
-    const secretProps = /** @type {any} */ (await graph3.getNodeProps('user:secret'));
+    const secretProps = (await graph3.getNodeProps('user:secret') as any);
     expect(secretProps.mode).toBe('encrypted');
   });
 
@@ -205,7 +202,7 @@ describe('WarpRuntime encryption at rest (B164)', () => {
     expect(state).toBeTruthy();
 
     expect(await graph.hasNode('user:normal')).toBe(true);
-    const props = /** @type {any} */ (await graph.getNodeProps('user:normal'));
+    const props = (await graph.getNodeProps('user:normal') as any);
     expect(props.status).toBe('active');
   });
 
@@ -237,7 +234,7 @@ describe('WarpRuntime encryption at rest (B164)', () => {
 
     const nodes = await graph.getNodes();
     expect(nodes.sort()).toEqual(['a', 'b']);
-    const aProps = /** @type {any} */ (await graph.getNodeProps('a'));
+    const aProps = (await graph.getNodeProps('a') as any);
     expect(aProps.v).toBe(2); // LWW: latest wins
   });
 

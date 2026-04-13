@@ -40,8 +40,7 @@ describe('StateBuilder', () => {
   });
 
   it('seedGraph installs the built state as the cached materialized view', async () => {
-    /** @type {any} */
-    const graph = {};
+        const graph = ({}) as any;
     const state = createStateBuilder()
       .node('node:a', { counter: 1 })
       .seedGraph(graph);

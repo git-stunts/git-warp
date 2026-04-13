@@ -35,9 +35,9 @@ describe('isValidShardOid', () => {
   });
 
   it('rejects non-string input', () => {
-    expect(isValidShardOid(/** @type {any} */ (123))).toBe(false);
-    expect(isValidShardOid(/** @type {any} */ (null))).toBe(false);
-    expect(isValidShardOid(/** @type {any} */ (undefined))).toBe(false);
+    expect(isValidShardOid((123 as any))).toBe(false);
+    expect(isValidShardOid((null))).toBe(false);
+    expect(isValidShardOid((undefined))).toBe(false);
   });
 
   it('accepts mixed-case hex', () => {

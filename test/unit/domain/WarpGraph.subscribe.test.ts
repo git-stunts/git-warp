@@ -3,10 +3,8 @@ import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpRuntime.subscribe() (PL/SUB/1)', () => {
-  /** @type {any} */
-  let repo;
-  /** @type {any} */
-  let graph;
+    let repo;
+    let graph;
 
   beforeEach(async () => {
     repo = await createGitRepo('subscribe');
@@ -257,8 +255,7 @@ describe('WarpRuntime.subscribe() (PL/SUB/1)', () => {
     });
 
     it('handles unsubscribe called during handler execution', async () => {
-      /** @type {any} */
-      let sub;
+            let sub;
       const onChange = vi.fn(() => {
         sub.unsubscribe();
       });
@@ -275,8 +272,7 @@ describe('WarpRuntime.subscribe() (PL/SUB/1)', () => {
     });
 
     it('handler A cross-unsubscribes handler B mid-callback; B still fires for current notification', async () => {
-      /** @type {any} */
-      let subB;
+            let subB;
 
       const onChangeB = vi.fn();
       const onChangeA = vi.fn(() => {
@@ -332,10 +328,8 @@ describe('WarpRuntime.subscribe() (PL/SUB/1)', () => {
 });
 
 describe('WarpRuntime.subscribe() with replay option (PL/SUB/2)', () => {
-  /** @type {any} */
-  let repo;
-  /** @type {any} */
-  let graph;
+    let repo;
+    let graph;
 
   beforeEach(async () => {
     repo = await createGitRepo('subscribe');

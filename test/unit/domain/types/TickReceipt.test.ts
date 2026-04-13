@@ -6,8 +6,7 @@ import {
   RESULT_TYPES,
 } from '../../../../src/domain/types/TickReceipt.ts';
 
-/** @type {any} */
-const createTickReceipt = _createTickReceipt;
+const createTickReceipt = (_createTickReceipt) as any;
 
 describe('TickReceipt', () => {
   // -----------------------------------------------------------------------

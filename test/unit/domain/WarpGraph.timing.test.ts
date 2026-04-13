@@ -14,12 +14,9 @@ const crypto = new NodeCryptoAdapter();
  */
 
 describe('WarpRuntime operation timing (LH/TIMING/1)', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {any} */
-  let logger;
-  /** @type {any} */
-  let clock;
+    let persistence;
+    let logger;
+    let clock;
 
   beforeEach(() => {
     persistence = createMockPersistence();
@@ -48,7 +45,7 @@ describe('WarpRuntime operation timing (LH/TIMING/1)', () => {
         clock,
       });
 
-      const state = /** @type {any} */ (await graph.materialize());
+      const state = (await graph.materialize() as any);
 
       expect(state).toBeDefined();
     });
@@ -65,7 +62,7 @@ describe('WarpRuntime operation timing (LH/TIMING/1)', () => {
       });
 
       // materialize() should succeed without error when clock is injected
-      const state = /** @type {any} */ (await graph.materialize());
+      const state = (await graph.materialize() as any);
       expect(state).toBeDefined();
     });
 
@@ -95,7 +92,7 @@ describe('WarpRuntime operation timing (LH/TIMING/1)', () => {
       });
 
       // Should not throw even without logger
-      const state = /** @type {any} */ (await graph.materialize());
+      const state = (await graph.materialize() as any);
       expect(state).toBeDefined();
     });
   });
@@ -244,13 +241,13 @@ describe('WarpRuntime operation timing (LH/TIMING/1)', () => {
 
       // Materialize so sync doesn't need to lazily materialize
       await graph.materialize();
-      /** @type {any} */ (graph)._syncController.applySyncResponse = vi.fn().mockResolvedValue({ applied: 5 });
-      /** @type {any} */ (graph)._syncController.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
+      (graph)._syncController.applySyncResponse = vi.fn().mockResolvedValue({ applied: 5 });
+      (graph)._syncController.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 
       const responsePayload = { type: 'sync-response', frontier: {}, patches: [] };
       const peer = { processSyncRequest: vi.fn().mockResolvedValue(responsePayload) };
 
-      const result = await graph.syncWith(/** @type {any} */ (peer));
+      const result = await graph.syncWith((peer));
 
       expect(result.applied).toBe(5);
       expect(logger.info).toHaveBeenCalledWith(
@@ -268,13 +265,13 @@ describe('WarpRuntime operation timing (LH/TIMING/1)', () => {
       });
 
       await graph.materialize();
-      /** @type {any} */ (graph)._syncController.applySyncResponse = vi.fn().mockResolvedValue({ applied: 0 });
-      /** @type {any} */ (graph)._syncController.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
+      (graph)._syncController.applySyncResponse = vi.fn().mockResolvedValue({ applied: 0 });
+      (graph)._syncController.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 
       const responsePayload = { type: 'sync-response', frontier: {}, patches: [] };
       const peer = { processSyncRequest: vi.fn().mockResolvedValue(responsePayload) };
 
-      await graph.syncWith(/** @type {any} */ (peer));
+      await graph.syncWith((peer));
 
       expect(clock.now).toHaveBeenCalled();
       expect(clock.now.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -290,13 +287,13 @@ describe('WarpRuntime operation timing (LH/TIMING/1)', () => {
       });
 
       await graph.materialize();
-      /** @type {any} */ (graph)._syncController.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
+      (graph)._syncController.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 
       const peer = {
         processSyncRequest: vi.fn().mockRejectedValue(new Error('peer unreachable')),
       };
 
-      await expect(graph.syncWith(/** @type {any} */ (peer))).rejects.toThrow();
+      await expect(graph.syncWith((peer))).rejects.toThrow();
 
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringMatching(/^\[warp\] syncWith failed in \d+ms$/),
@@ -320,7 +317,7 @@ describe('WarpRuntime operation timing (LH/TIMING/1)', () => {
         logger,
       });
 
-      const state = /** @type {any} */ (await graph.materialize());
+      const state = (await graph.materialize() as any);
       expect(state).toBeDefined();
     });
   });
@@ -343,7 +340,7 @@ describe('WarpRuntime operation timing (LH/TIMING/1)', () => {
         clock: preciseClock,
       });
 
-      const state = /** @type {any} */ (await graph.materialize());
+      const state = (await graph.materialize() as any);
       expect(state).toBeDefined();
     });
   });

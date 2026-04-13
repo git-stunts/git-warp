@@ -156,7 +156,7 @@ describe('Cross-provider equivalence', () => {
 
   describe('transitiveClosureStream: F18 chain', () => {
     forEachProvider(F18_TRANSITIVE_CLOSURE_CHAIN, async (/** @type {*} */ engine) => {
-      const edges = [];
+      const edges: any[] = [];
       for await (const edge of engine.transitiveClosureStream({ start: 'A' })) {
         edges.push(edge);
       }

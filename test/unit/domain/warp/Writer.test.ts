@@ -59,12 +59,9 @@ function createPatchMessage(lamport = 1) {
 }
 
 describe('Writer (WARP schema:2)', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {any} */
-  let versionVector;
-  /** @type {any} */
-  let getCurrentState;
+    let persistence;
+    let versionVector;
+    let getCurrentState;
 
   beforeEach(() => {
     persistence = createMockPersistence();
@@ -79,23 +76,23 @@ describe('Writer (WARP schema:2)', () => {
     });
 
     it('throws on invalid writerId', () => {
-      expect(() => new Writer(/** @type {any} */ ({
+      expect(() => new Writer((({
         persistence,
         graphName: 'events',
         writerId: 'a/b',
         versionVector,
         getCurrentState,
-      }))).toThrow('Invalid writer ID');
+      }) as any))).toThrow('Invalid writer ID');
     });
 
     it('throws when patchJournal is missing', () => {
-      expect(() => new Writer(/** @type {any} */ ({
+      expect(() => new Writer((({
         persistence,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
         getCurrentState,
-      }))).toThrow('patchJournal is required');
+      }) as any))).toThrow('patchJournal is required');
     });
 
     it('accepts valid writerId', () => {
@@ -675,14 +672,10 @@ describe('Writer (WARP schema:2)', () => {
 });
 
 describe('PatchSession operations', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {any} */
-  let versionVector;
-  /** @type {any} */
-  let getCurrentState;
-  /** @type {CborPatchJournalAdapter} */
-  let patchJournal;
+    let persistence;
+    let versionVector;
+    let getCurrentState;
+    let patchJournal;
 
   beforeEach(() => {
     persistence = createMockPersistence();
@@ -705,14 +698,14 @@ describe('PatchSession operations', () => {
     const patch = await writer.beginPatch();
     patch.addNode('user:alice');
 
-    const built = /** @type {any} */ (patch.build());
+    const built = (patch.build() as any);
     expect(built.ops).toHaveLength(1);
     expect(built.ops[0].type).toBe('NodeAdd');
     expect(built.ops[0].node).toBe('user:alice');
   });
 
   it('removeNode creates node-remove op', async () => {
-    const state = /** @type {any} */ ({ nodeAlive: ORSet.empty(), edgeAlive: ORSet.empty(), prop: new Map(), observedFrontier: VersionVector.empty() });
+    const state = ({ nodeAlive: ORSet.empty(), edgeAlive: ORSet.empty(), prop: new Map(), observedFrontier: VersionVector.empty() } as any);
     state.nodeAlive.add('user:alice', Dot.create('alice', 1));
 
     const writer = new Writer({
@@ -727,7 +720,7 @@ describe('PatchSession operations', () => {
     const patch = await writer.beginPatch();
     patch.removeNode('user:alice');
 
-    const built = /** @type {any} */ (patch.build());
+    const built = (patch.build() as any);
     expect(built.ops).toHaveLength(1);
     expect(built.ops[0].type).toBe('NodeRemove');
     expect(built.ops[0].node).toBe('user:alice');
@@ -746,7 +739,7 @@ describe('PatchSession operations', () => {
     const patch = await writer.beginPatch();
     patch.addEdge('n1', 'n2', 'links');
 
-    const built = /** @type {any} */ (patch.build());
+    const built = (patch.build() as any);
     expect(built.ops).toHaveLength(1);
     expect(built.ops[0].type).toBe('EdgeAdd');
     expect(built.ops[0].from).toBe('n1');
@@ -755,7 +748,7 @@ describe('PatchSession operations', () => {
   });
 
   it('removeEdge creates edge-remove op', async () => {
-    const state = /** @type {any} */ ({ nodeAlive: ORSet.empty(), edgeAlive: ORSet.empty(), prop: new Map(), observedFrontier: VersionVector.empty() });
+    const state = ({ nodeAlive: ORSet.empty(), edgeAlive: ORSet.empty(), prop: new Map(), observedFrontier: VersionVector.empty() } as any);
     const ek = encodeEdgeKey('n1', 'n2', 'links');
     state.edgeAlive.add(ek, Dot.create('alice', 1));
 
@@ -771,7 +764,7 @@ describe('PatchSession operations', () => {
     const patch = await writer.beginPatch();
     patch.removeEdge('n1', 'n2', 'links');
 
-    const built = /** @type {any} */ (patch.build());
+    const built = (patch.build() as any);
     expect(built.ops).toHaveLength(1);
     expect(built.ops[0].type).toBe('EdgeRemove');
   });
@@ -789,7 +782,7 @@ describe('PatchSession operations', () => {
     const patch = await writer.beginPatch();
     patch.setProperty('user:alice', 'name', 'Alice');
 
-    const built = /** @type {any} */ (patch.build());
+    const built = (patch.build() as any);
     expect(built.ops).toHaveLength(1);
     expect(built.ops[0].type).toBe('PropSet');
     expect(built.ops[0].node).toBe('user:alice');
@@ -814,7 +807,7 @@ describe('PatchSession operations', () => {
     patch.setProperty('n', 'arr', [1, 2, 3]);
     patch.setProperty('n', 'obj', { x: 1 });
 
-    const built = /** @type {any} */ (patch.build());
+    const built = (patch.build() as any);
     expect(built.ops).toHaveLength(5);
     expect(built.ops[0].value).toBe('hello');
     expect(built.ops[1].value).toBe(42);

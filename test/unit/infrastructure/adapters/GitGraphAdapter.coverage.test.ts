@@ -4,9 +4,7 @@ import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAda
 import { createGitRepo } from '../../../helpers/warpGraphTestUtils.js';
 import { describeAdapterConformance } from './AdapterConformance.js';
 
-/** @type {any} */
 let mockPlumbing;
-/** @type {any} */
 let adapter;
 
 beforeEach(() => {
@@ -59,7 +57,7 @@ describe('GitGraphAdapter coverage', () => {
       await adapter.logNodes({ ref: 'HEAD' });
 
       const args = mockPlumbing.execute.mock.calls[0][0].args;
-      const hasFormat = /** @type {string[]} */ (args).some((a) => a.startsWith('--format='));
+      const hasFormat = (args).some((a) => a.startsWith('--format='));
       expect(hasFormat).toBe(false);
     });
 
@@ -106,7 +104,7 @@ describe('GitGraphAdapter coverage', () => {
     });
 
     it('wraps ref-not-found errors as PersistenceError', async () => {
-      const err = /** @type {any} */ (new Error('fatal: bad revision refs/warp/missing'));
+      const err = (new Error('fatal: bad revision refs/warp/missing') as any);
       err.details = { code: 128, stderr: 'fatal: bad revision refs/warp/missing' };
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -232,7 +230,7 @@ describe('GitGraphAdapter coverage', () => {
 
     it('wraps missing tree errors as PersistenceError', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
-      const err = /** @type {any} */ (new Error(`fatal: bad object ${treeOid}`));
+      const err = (new Error(`fatal: bad object ${treeOid}`) as any);
       err.details = { code: 128, stderr: `fatal: bad object ${treeOid}` };
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -260,7 +258,7 @@ describe('GitGraphAdapter coverage', () => {
 
     it('wraps missing commit errors as PersistenceError', async () => {
       const commitOid = 'a'.repeat(40);
-      const err = /** @type {any} */ (new Error(`fatal: bad object ${commitOid}`));
+      const err = (new Error(`fatal: bad object ${commitOid}`) as any);
       err.details = { code: 128, stderr: `fatal: bad object ${commitOid}` };
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -276,7 +274,7 @@ describe('GitGraphAdapter coverage', () => {
     it('wraps ref lock failures as PersistenceError', async () => {
       const ref = 'refs/warp/test/writers/alice';
       const oid = 'a'.repeat(40);
-      const err = /** @type {any} */ (new Error('fatal: permission denied'));
+      const err = (new Error('fatal: permission denied') as any);
       err.details = { code: 128, stderr: 'fatal: permission denied' };
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -313,7 +311,7 @@ describe('GitGraphAdapter coverage', () => {
       const ref = 'refs/warp/test/writers/alice';
       const oid = 'a'.repeat(40);
       const expectedOid = 'b'.repeat(40);
-      const err = /** @type {any} */ (new Error('fatal: cannot lock ref'));
+      const err = (new Error('fatal: cannot lock ref') as any);
       err.details = { code: 128, stderr: 'fatal: cannot lock ref' };
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -356,8 +354,7 @@ describe('GitGraphAdapter coverage', () => {
     });
 
     it('propagates git errors as PersistenceError with E_REF_IO code', async () => {
-      /** @type {any} */
-      const err = new Error('permission denied');
+            const err = (new Error('permission denied')) as any;
       err.exitCode = 128;
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -419,8 +416,7 @@ describe('GitGraphAdapter coverage', () => {
     });
 
     it('returns false when not an ancestor (exit code 1)', async () => {
-      /** @type {any} */
-      const err = new Error('not ancestor');
+            const err = (new Error('not ancestor')) as any;
       err.details = { code: 1 };
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -433,8 +429,7 @@ describe('GitGraphAdapter coverage', () => {
     });
 
     it('returns false when exit code 1 via exitCode property', async () => {
-      /** @type {any} */
-      const err = new Error('not ancestor');
+            const err = (new Error('not ancestor')) as any;
       err.exitCode = 1;
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -447,8 +442,7 @@ describe('GitGraphAdapter coverage', () => {
     });
 
     it('returns false when exit code 1 via code property', async () => {
-      /** @type {any} */
-      const err = new Error('not ancestor');
+            const err = (new Error('not ancestor')) as any;
       err.code = 1;
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -461,8 +455,7 @@ describe('GitGraphAdapter coverage', () => {
     });
 
     it('re-throws unexpected errors (non exit-code-1)', async () => {
-      /** @type {any} */
-      const err = new Error('repository corrupt');
+            const err = (new Error('repository corrupt')) as any;
       err.details = { code: 128 };
       mockPlumbing.execute.mockRejectedValue(err);
 

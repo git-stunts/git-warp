@@ -474,7 +474,7 @@ describe('SyncController', () => {
       const host = createMockHost({ _cachedState: null });
       const ctrl = new SyncController((host as any));
 
-      await expect(ctrl.applySyncResponse(/** @type {*} */ (validSyncResponse())))
+      await expect(ctrl.applySyncResponse((validSyncResponse() as any)))
         .rejects.toThrow(/No materialized state/);
     });
 
@@ -491,7 +491,7 @@ describe('SyncController', () => {
       });
       const ctrl = new SyncController((host as any));
 
-      const result = await ctrl.applySyncResponse(/** @type {*} */ (validSyncResponse()));
+      const result = await ctrl.applySyncResponse((validSyncResponse() as any));
 
       expect(result.applied).toBe(3);
       expect(host['_cachedState']).toBe(newState);
@@ -509,7 +509,7 @@ describe('SyncController', () => {
       });
       const ctrl = new SyncController((host as any));
 
-      await ctrl.applySyncResponse(/** @type {*} */ (validSyncResponse()));
+      await ctrl.applySyncResponse((validSyncResponse() as any));
 
       expect((host['_setMaterializedState'] as any)).toHaveBeenCalledWith(newState);
     });
@@ -527,7 +527,7 @@ describe('SyncController', () => {
       });
       const ctrl = new SyncController((host as any));
 
-      await expect(ctrl.applySyncResponse(/** @type {*} */ (validSyncResponse())))
+      await expect(ctrl.applySyncResponse((validSyncResponse() as any)))
         .rejects.toThrow('install failed');
       expect(host['_lastFrontier']).toBe(previousFrontier);
       expect(host['_patchesSinceGC']).toBe(5);
@@ -544,7 +544,7 @@ describe('SyncController', () => {
       });
       const ctrl = new SyncController((host as any));
 
-      await ctrl.applySyncResponse(/** @type {*} */ (validSyncResponse()));
+      await ctrl.applySyncResponse((validSyncResponse() as any));
 
       const call = applySyncResponseMock.mock.calls[0];
       if (call == null) { throw new Error('expected call'); }
@@ -563,7 +563,7 @@ describe('SyncController', () => {
       const ctrl = new SyncController((host as any));
 
       const skippedWriters = [{ writerId: 'bob', reason: 'E_SYNC_DIVERGENCE', localSha: 'sha-b1', remoteSha: 'sha-b0' }];
-      const result = await ctrl.applySyncResponse(/** @type {*} */ (validSyncResponse({ skippedWriters })));
+      const result = await ctrl.applySyncResponse((validSyncResponse({ skippedWriters }) as any));
 
       expect(result.skippedWriters).toEqual(skippedWriters);
     });
@@ -577,7 +577,7 @@ describe('SyncController', () => {
       });
       const ctrl = new SyncController((host as any));
 
-      const result = await ctrl.applySyncResponse(/** @type {*} */ (validSyncResponse()));
+      const result = await ctrl.applySyncResponse((validSyncResponse() as any));
 
       expect(result.skippedWriters).toEqual([]);
     });
@@ -596,7 +596,7 @@ describe('SyncController', () => {
         { writerId: 'bob', sha: 'sha-2', ops: [] },
         { writerId: 'alice', sha: 'sha-3', ops: [] },
       ];
-      const result = await ctrl.applySyncResponse(/** @type {*} */ (validSyncResponse({ patches })));
+      const result = await ctrl.applySyncResponse((validSyncResponse({ patches }) as any));
 
       expect(result.writersApplied).toEqual(expect.arrayContaining(['alice', 'bob']));
       expect(result.writersApplied).toHaveLength(2);
@@ -616,7 +616,7 @@ describe('SyncController', () => {
       const ctrl = new SyncController((host as any), { trustGate: gate });
 
       const patches = [{ writerId: 'mallory', sha: 'sha-m', ops: [] }];
-      await expect(ctrl.applySyncResponse(/** @type {*} */ (validSyncResponse({ patches }))))
+      await expect(ctrl.applySyncResponse((validSyncResponse({ patches }) as any)))
         .rejects.toMatchObject({ code: 'E_SYNC_UNTRUSTED_WRITER' });
     });
 
@@ -631,7 +631,7 @@ describe('SyncController', () => {
       const ctrl = new SyncController((host as any), { trustGate: gate });
 
       const patches = [{ writerId: 'alice', sha: 'sha-a', ops: [] }];
-      const result = await ctrl.applySyncResponse(/** @type {*} */ (validSyncResponse({ patches })));
+      const result = await ctrl.applySyncResponse((validSyncResponse({ patches }) as any));
 
       expect(result.applied).toBe(1);
     });
@@ -646,7 +646,7 @@ describe('SyncController', () => {
       const host = createMockHost({ _cachedState: fakeState(), _lastFrontier: new Map() });
       const ctrl = new SyncController((host as any), { trustGate: gate });
 
-      const result = await ctrl.applySyncResponse(/** @type {*} */ (validSyncResponse()));
+      const result = await ctrl.applySyncResponse((validSyncResponse() as any));
 
       expect(result.applied).toBe(0);
       // No patches, so extractWritersFromPatches returns [] and evaluate is not called
@@ -760,7 +760,7 @@ describe('SyncController', () => {
       });
       const ctrl = new SyncController((host as any));
 
-      const result = await ctrl.syncWith(/** @type {*} */ (createDirectPeer()), { materialize: true });
+      const result = await ctrl.syncWith((createDirectPeer() as any), { materialize: true });
 
       expect(result.state).toBe(state);
     });

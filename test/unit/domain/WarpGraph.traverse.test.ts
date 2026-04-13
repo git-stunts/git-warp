@@ -3,10 +3,8 @@ import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { addNodeToState, addEdgeToState, setupGraphState, createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpRuntime logical traversal', () => {
-  /** @type {any} */
-  let mockPersistence;
-  /** @type {any} */
-  let graph;
+    let mockPersistence;
+    let graph;
 
   beforeEach(async () => {
     mockPersistence = createMockPersistence();
@@ -93,7 +91,7 @@ describe('WarpRuntime logical traversal', () => {
     });
 
     await expect(
-      graph.traverse.bfs('node:a', { dir: /** @type {any} */ ('sideways') }),
+      graph.traverse.bfs('node:a', { dir: ('sideways' as any) }),
     ).rejects.toThrow(expect.objectContaining({ code: 'INVALID_DIRECTION' }));
   });
 
@@ -103,7 +101,7 @@ describe('WarpRuntime logical traversal', () => {
     });
 
     await expect(
-      graph.traverse.bfs('node:a', { labelFilter: /** @type {any} */ (123) }),
+      graph.traverse.bfs('node:a', { labelFilter: (123 as any) }),
     ).rejects.toThrow(expect.objectContaining({ code: 'INVALID_LABEL_FILTER' }));
   });
 
@@ -218,7 +216,7 @@ describe('WarpRuntime logical traversal', () => {
       addEdgeToState(state, 'node:c', 'node:d', 'x', 7);
     });
 
-    const edges = [];
+    const edges: any[] = [];
     for await (const edge of graph.traverse.transitiveClosureStream('node:a', { dir: 'out' })) {
       edges.push(edge);
       if (edges.length === 3) {

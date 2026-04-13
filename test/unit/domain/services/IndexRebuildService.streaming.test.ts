@@ -3,14 +3,10 @@ import IndexRebuildService from '../../../../src/domain/services/index/IndexRebu
 import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
 
 describe('IndexRebuildService streaming mode', () => {
-  /** @type {any} */
-  let service;
-  /** @type {any} */
-  let mockStorage;
-  /** @type {any} */
-  let mockGraphService;
-  /** @type {any} */
-  let writtenBlobs;
+    let service;
+    let mockStorage;
+    let mockGraphService;
+    let writtenBlobs;
 
   beforeEach(() => {
     writtenBlobs = new Map();
@@ -39,7 +35,7 @@ describe('IndexRebuildService streaming mode', () => {
         }
       };
 
-      service = new IndexRebuildService(/** @type {any} */ ({ storage: mockStorage, graphService: mockGraphService }));
+      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService } as any));
 
       const treeOid = await service.rebuild('main', { maxMemoryBytes: 50 * 1024 * 1024 });
 
@@ -59,10 +55,9 @@ describe('IndexRebuildService streaming mode', () => {
         }
       };
 
-      service = new IndexRebuildService(/** @type {any} */ ({ storage: mockStorage, graphService: mockGraphService }));
+      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService } as any));
 
-      /** @type {any[]} */
-      const flushCalls = [];
+            const flushCalls = ([]) as any[];
       await service.rebuild('main', {
         maxMemoryBytes: 1000, // Low threshold to trigger flushes
         onFlush: (/** @type {any} */ data) => flushCalls.push(data),
@@ -84,10 +79,9 @@ describe('IndexRebuildService streaming mode', () => {
         }
       };
 
-      service = new IndexRebuildService(/** @type {any} */ ({ storage: mockStorage, graphService: mockGraphService }));
+      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService } as any));
 
-      /** @type {any[]} */
-      const progressCalls = [];
+            const progressCalls = ([]) as any[];
       await service.rebuild('main', {
         maxMemoryBytes: 50 * 1024 * 1024,
         onProgress: (/** @type {any} */ data) => progressCalls.push(data),
@@ -110,7 +104,7 @@ describe('IndexRebuildService streaming mode', () => {
         }
       };
 
-      service = new IndexRebuildService(/** @type {any} */ ({ storage: mockStorage, graphService: mockGraphService }));
+      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService } as any));
 
       const treeOid = await service.rebuild('main', { maxMemoryBytes: 50 * 1024 * 1024 });
 
@@ -120,8 +114,7 @@ describe('IndexRebuildService streaming mode', () => {
       expect(treeEntries.some((/** @type {any} */ e) => e.includes('shards_'))).toBe(true);
 
       // Should be able to load the index (mock the tree OIDs)
-      /** @type {Record<string, string>} */
-      const shardOids = {};
+            const shardOids = ({}) as Record<string, string>;
       treeEntries.forEach((/** @type {any} */ entry) => {
         const match = entry.match(/100644 blob (\S+)\t(\S+)/);
         if (match) {
@@ -145,7 +138,7 @@ describe('IndexRebuildService streaming mode', () => {
         }
       };
 
-      service = new IndexRebuildService(/** @type {any} */ ({ storage: mockStorage, graphService: mockGraphService }));
+      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService } as any));
 
       // Without maxMemoryBytes, should use in-memory builder (original behavior)
       const treeOid = await service.rebuild('main');
@@ -169,10 +162,9 @@ describe('IndexRebuildService streaming mode', () => {
         }
       };
 
-      service = new IndexRebuildService(/** @type {any} */ ({ storage: mockStorage, graphService: mockGraphService }));
+      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService } as any));
 
-      /** @type {any[]} */
-      const progressCalls = [];
+            const progressCalls = ([]) as any[];
       await service.rebuild('main', {
         onProgress: (/** @type {any} */ data) => progressCalls.push(data),
       });
@@ -211,7 +203,7 @@ describe('IndexRebuildService streaming mode', () => {
         }
       };
 
-      service = new IndexRebuildService(/** @type {any} */ ({ storage: mockStorage, graphService: mockGraphService }));
+      service = new IndexRebuildService(({ storage: mockStorage, graphService: mockGraphService } as any));
 
       let flushCount = 0;
       await service.rebuild('main', {

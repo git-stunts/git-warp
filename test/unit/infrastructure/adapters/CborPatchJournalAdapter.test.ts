@@ -9,7 +9,7 @@ import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/PatchMessageCodec.ts';
 
 /** @param {Record<string, unknown>} opts */
-function createPatch(opts) { return new Patch(/** @type {any} */ (opts)); }
+function createPatch(opts) { return new Patch((opts)); }
 import PatchJournalPort from '../../../../src/ports/PatchJournalPort.ts';
 
 /**
@@ -25,10 +25,10 @@ const GOLDEN_PATCH = createPatch({
   writer: 'alice',
   lamport: 1,
   context: { alice: 0 },
-  ops: /** @type {import('../../../../src/domain/types/ops/unions.ts').OpV2[]} */ ([
+  ops: (([
     { type: 'NodeAdd', id: 'user:alice', dot: ['alice', 1] },
     { type: 'PropSet', node: 'user:alice', key: 'name', value: 'Alice' },
-  ]),
+  ]) as any),
   reads: [],
   writes: ['user:alice'],
 });
@@ -59,8 +59,8 @@ describe('CborPatchJournalAdapter', () => {
     const codec = new CborCodec();
     const blobPort = createMemoryBlobPort();
 
-    expect(() => new CborPatchJournalAdapter(/** @type {any} */ ({ blobPort }))).toThrow('CborPatchJournalAdapter requires a codec');
-    expect(() => new CborPatchJournalAdapter(/** @type {any} */ ({ codec }))).toThrow('CborPatchJournalAdapter requires a blobPort');
+    expect(() => new CborPatchJournalAdapter(({ blobPort } as any))).toThrow('CborPatchJournalAdapter requires a codec');
+    expect(() => new CborPatchJournalAdapter(({ codec } as any))).toThrow('CborPatchJournalAdapter requires a blobPort');
   });
 
   it('writePatch returns a string OID', async () => {
@@ -104,7 +104,7 @@ describe('CborPatchJournalAdapter', () => {
       const adapter = new CborPatchJournalAdapter({ codec, blobPort });
 
       await adapter.writePatch(GOLDEN_PATCH);
-      const storedBytes = /** @type {Uint8Array} */ (blobPort.store.values().next().value);
+      const storedBytes = (blobPort.store.values().next().value as Uint8Array);
       const storedHex = Array.from(storedBytes).map(
         (/** @type {number} */ b) => b.toString(16).padStart(2, '0'),
       ).join('');
@@ -114,7 +114,7 @@ describe('CborPatchJournalAdapter', () => {
 
     it('round-trips the golden bytes back to the same domain object', async () => {
       const codec = new CborCodec();
-      const hexPairs = /** @type {string[]} */ (GOLDEN_HEX.match(/.{2}/g));
+      const hexPairs = (GOLDEN_HEX.match(/.{2}/g) as string[]);
       const goldenBytes = new Uint8Array(
         hexPairs.map((h) => parseInt(h, 16)),
       );
@@ -142,12 +142,12 @@ describe('CborPatchJournalAdapter', () => {
      * @returns {BlobStoragePort}
      */
     function createMockBlobStorage(opts = {}) {
-      const mock = /** @type {BlobStoragePort} */ (/** @type {unknown} */ ({
-        store: vi.fn().mockResolvedValue(opts.storeResult ?? 'encrypted_oid'),
-        retrieve: vi.fn().mockResolvedValue(opts.retrieveResult ?? new Uint8Array(0)),
+      const mock = ((({
+        store: vi.fn().mockResolvedValue((opts as any).storeResult ?? 'encrypted_oid'),
+        retrieve: vi.fn().mockResolvedValue((opts as any).retrieveResult ?? new Uint8Array(0)),
         storeStream: vi.fn(),
         retrieveStream: vi.fn(),
-      }));
+      })) as BlobStoragePort);
       return mock;
     }
 

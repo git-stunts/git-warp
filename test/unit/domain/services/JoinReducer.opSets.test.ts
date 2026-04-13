@@ -82,10 +82,10 @@ describe('JoinReducer op sets (ADR 2 tripwire)', () => {
     });
 
     it('rejects null/undefined/missing type', () => {
-      expect(isKnownRawOp(/** @type {any} */ (null))).toBe(false);
-      expect(isKnownRawOp(/** @type {any} */ (undefined))).toBe(false);
-      expect(isKnownRawOp(/** @type {any} */ ({}))).toBe(false);
-      expect(isKnownRawOp(/** @type {any} */ ({ type: 42 }))).toBe(false);
+      expect(isKnownRawOp((null))).toBe(false);
+      expect(isKnownRawOp((undefined))).toBe(false);
+      expect(isKnownRawOp(({} as any))).toBe(false);
+      expect(isKnownRawOp(({ type: 42 } as any))).toBe(false);
     });
   });
 

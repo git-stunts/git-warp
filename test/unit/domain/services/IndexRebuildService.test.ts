@@ -4,12 +4,9 @@ import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 
 describe('IndexRebuildService', () => {
-  /** @type {any} */
-  let service;
-  /** @type {any} */
-  let mockStorage;
-  /** @type {any} */
-  let mockGraphService;
+    let service;
+    let mockStorage;
+    let mockGraphService;
 
   beforeEach(() => {
     mockStorage = {
@@ -27,25 +24,25 @@ describe('IndexRebuildService', () => {
       }
     };
 
-    service = new IndexRebuildService(/** @type {any} */ ({
+    service = new IndexRebuildService((({
       storage: mockStorage,
       graphService: mockGraphService,
-    }));
+    }) as any));
   });
 
   describe('constructor validation', () => {
     it('throws when graphService is not provided', () => {
-      expect(() => new IndexRebuildService(/** @type {any} */ ({ storage: mockStorage })))
+      expect(() => new IndexRebuildService(({ storage: mockStorage } as any)))
         .toThrow('IndexRebuildService requires a graphService');
     });
 
     it('throws when storage is not provided', () => {
-      expect(() => new IndexRebuildService(/** @type {any} */ ({ graphService: mockGraphService })))
+      expect(() => new IndexRebuildService(({ graphService: mockGraphService } as any)))
         .toThrow('IndexRebuildService requires a storage adapter');
     });
 
     it('throws when called with empty options', () => {
-      expect(() => new IndexRebuildService(/** @type {any} */ ({})))
+      expect(() => new IndexRebuildService(({} as any)))
         .toThrow('IndexRebuildService requires a graphService');
     });
   });

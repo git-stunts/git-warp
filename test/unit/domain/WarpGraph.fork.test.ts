@@ -15,10 +15,8 @@ const POID2 = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 const POID3 = 'cccccccccccccccccccccccccccccccccccccccc';
 
 describe('WarpRuntime.fork', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {any} */
-  let graph;
+    let persistence;
+    let graph;
 
   beforeEach(async () => {
     persistence = createMockPersistence();

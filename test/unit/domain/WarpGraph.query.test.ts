@@ -16,10 +16,8 @@ import { encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinR
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 
 describe('WarpRuntime Query API', () => {
-  /** @type {any} */
-  let mockPersistence;
-  /** @type {any} */
-  let graph;
+    let mockPersistence;
+    let graph;
 
   beforeEach(async () => {
     mockPersistence = {
@@ -53,7 +51,7 @@ describe('WarpRuntime Query API', () => {
       await graph.materialize();
 
       // Manually add a node to cached state for testing
-      const state = /** @type {any} */ (graph)._cachedState;
+      const state = (graph)._cachedState;
       state.nodeAlive.add('user:alice', Dot.create('w1', 1));
 
       expect(await graph.hasNode('user:alice')).toBe(true);
@@ -77,7 +75,7 @@ describe('WarpRuntime Query API', () => {
 
     it('returns empty record for node with no props', async () => {
       await graph.materialize();
-      const state = /** @type {any} */ (graph)._cachedState;
+      const state = (graph)._cachedState;
       state.nodeAlive.add('user:alice', Dot.create('w1', 1));
 
       const props = await graph.getNodeProps('user:alice');
@@ -86,7 +84,7 @@ describe('WarpRuntime Query API', () => {
 
     it('returns props for node with properties', async () => {
       await graph.materialize();
-      const state = /** @type {any} */ (graph)._cachedState;
+      const state = (graph)._cachedState;
 
       // Add node
       state.nodeAlive.add('user:alice', Dot.create('w1', 1));
@@ -106,14 +104,14 @@ describe('WarpRuntime Query API', () => {
 
     it('falls back to linear scan when indexed property read throws', async () => {
       await graph.materialize();
-      const state = /** @type {any} */ (graph)._cachedState;
+      const state = (graph)._cachedState;
 
       state.nodeAlive.add('user:alice', Dot.create('w1', 1));
       const propKey = encodePropKey('user:alice', 'name');
       state.prop.set(propKey, { value: 'Alice', lamport: 1, writerId: 'w1' });
 
-      /** @type {any} */ (graph)._logicalIndex = { isAlive: () => true };
-      /** @type {any} */ (graph)._propertyReader = {
+      (graph)._logicalIndex = { isAlive: () => true };
+      (graph)._propertyReader = {
         getNodeProps: async () => {
           throw new Error('simulated index failure');
         },
@@ -131,7 +129,7 @@ describe('WarpRuntime Query API', () => {
 
     it('returns empty array for node with no edges', async () => {
       await graph.materialize();
-      const state = /** @type {any} */ (graph)._cachedState;
+      const state = (graph)._cachedState;
       state.nodeAlive.add('user:alice', Dot.create('w1', 1));
 
       expect(await graph.neighbors('user:alice')).toEqual([]);
@@ -139,7 +137,7 @@ describe('WarpRuntime Query API', () => {
 
     it('returns outgoing neighbors', async () => {
       await graph.materialize();
-      const state = /** @type {any} */ (graph)._cachedState;
+      const state = (graph)._cachedState;
 
       // Add nodes
       state.nodeAlive.add('user:alice', Dot.create('w1', 1));
@@ -160,7 +158,7 @@ describe('WarpRuntime Query API', () => {
 
     it('returns incoming neighbors', async () => {
       await graph.materialize();
-      const state = /** @type {any} */ (graph)._cachedState;
+      const state = (graph)._cachedState;
 
       // Add nodes
       state.nodeAlive.add('user:alice', Dot.create('w1', 1));
@@ -181,7 +179,7 @@ describe('WarpRuntime Query API', () => {
 
     it('returns both directions by default', async () => {
       await graph.materialize();
-      const state = /** @type {any} */ (graph)._cachedState;
+      const state = (graph)._cachedState;
 
       // Add nodes
       state.nodeAlive.add('user:alice', Dot.create('w1', 1));
@@ -201,7 +199,7 @@ describe('WarpRuntime Query API', () => {
 
     it('filters by edge label', async () => {
       await graph.materialize();
-      const state = /** @type {any} */ (graph)._cachedState;
+      const state = (graph)._cachedState;
 
       // Add nodes
       state.nodeAlive.add('user:alice', Dot.create('w1', 1));
@@ -220,7 +218,7 @@ describe('WarpRuntime Query API', () => {
 
     it('excludes edges with non-visible endpoints', async () => {
       await graph.materialize();
-      const state = /** @type {any} */ (graph)._cachedState;
+      const state = (graph)._cachedState;
 
       // Add only alice (bob is NOT added)
       state.nodeAlive.add('user:alice', Dot.create('w1', 1));
@@ -235,14 +233,14 @@ describe('WarpRuntime Query API', () => {
 
     it('falls back to linear scan when indexed neighbor lookup throws', async () => {
       await graph.materialize();
-      const state = /** @type {any} */ (graph)._cachedState;
+      const state = (graph)._cachedState;
 
       state.nodeAlive.add('user:alice', Dot.create('w1', 1));
       state.nodeAlive.add('user:bob', Dot.create('w1', 2));
       state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:bob', 'follows'), Dot.create('w1', 3));
 
-      /** @type {any} */ (graph)._logicalIndex = { isAlive: () => true };
-      /** @type {any} */ (graph)._materializedGraph = {
+      (graph)._logicalIndex = { isAlive: () => true };
+      (graph)._materializedGraph = {
         provider: {
           getNeighbors: async () => {
             throw new Error('simulated provider failure');
@@ -271,7 +269,7 @@ describe('WarpRuntime Query API', () => {
 
     it('returns all visible nodes', async () => {
       await graph.materialize();
-      const state = /** @type {any} */ (graph)._cachedState;
+      const state = (graph)._cachedState;
 
       state.nodeAlive.add('node-a', Dot.create('w1', 1));
       state.nodeAlive.add('node-b', Dot.create('w1', 2));
@@ -297,7 +295,7 @@ describe('WarpRuntime Query API', () => {
 
     it('returns all visible edges', async () => {
       await graph.materialize();
-      const state = /** @type {any} */ (graph)._cachedState;
+      const state = (graph)._cachedState;
 
       // Add nodes
       state.nodeAlive.add('a', Dot.create('w1', 1));
@@ -316,7 +314,7 @@ describe('WarpRuntime Query API', () => {
 
     it('excludes edges with non-visible endpoints', async () => {
       await graph.materialize();
-      const state = /** @type {any} */ (graph)._cachedState;
+      const state = (graph)._cachedState;
 
       // Only add 'a' node
       state.nodeAlive.add('a', Dot.create('w1', 1));

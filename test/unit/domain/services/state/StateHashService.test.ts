@@ -10,7 +10,7 @@ import CryptoPort from '../../../../../src/ports/CryptoPort.ts';
  * @returns {CryptoPort}
  */
 function createMockCrypto(hashImpl) {
-  const mock = /** @type {any} */ (Object.create(CryptoPort.prototype));
+  const mock = (Object.create(CryptoPort.prototype) as any);
   mock.hash = vi.fn(hashImpl ?? (async () => 'deadbeef'.repeat(8)));
   return mock;
 }
@@ -18,16 +18,16 @@ function createMockCrypto(hashImpl) {
 describe('StateHashService', () => {
   it('requires a codec dependency', () => {
     const crypto = createMockCrypto();
-    expect(() => new StateHashService(/** @type {any} */ ({ codec: null, crypto }))).toThrow(
+    expect(() => new StateHashService(({ codec: null, crypto } as any))).toThrow(
       'StateHashService requires a codec',
     );
   });
 
   it('requires a crypto dependency', () => {
-    expect(() => new StateHashService(/** @type {any} */ ({
+    expect(() => new StateHashService((({
       codec: new CborCodec(),
       crypto: null,
-    }))).toThrow('StateHashService requires a crypto adapter');
+    }) as any))).toThrow('StateHashService requires a crypto adapter');
   });
 
   it('computes a hex hash string', async () => {
@@ -43,8 +43,7 @@ describe('StateHashService', () => {
   });
 
   it('produces deterministic output for the same state', async () => {
-    /** @type {Uint8Array[]} */
-    const captured = [];
+        const captured = ([]) as Uint8Array[];
     const crypto = createMockCrypto(async (_algo, data) => {
       captured.push(data);
       return 'abc';
@@ -56,6 +55,6 @@ describe('StateHashService', () => {
 
     // Same state → same bytes → same hash
     expect(captured).toHaveLength(2);
-    expect(Array.from(/** @type {Uint8Array} */ (captured[0]))).toEqual(Array.from(/** @type {Uint8Array} */ (captured[1])));
+    expect(Array.from((captured[0] as Uint8Array))).toEqual(Array.from((captured[1] as Uint8Array)));
   });
 });

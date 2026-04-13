@@ -3,10 +3,8 @@ import StreamingBitmapIndexBuilder from '../../../../src/domain/services/index/S
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 
 describe('StreamingBitmapIndexBuilder', () => {
-  /** @type {any} */
-  let mockStorage;
-  /** @type {Map<string, Uint8Array>} */
-  let writtenBlobs;
+    let mockStorage;
+    let writtenBlobs;
 
   beforeEach(() => {
     writtenBlobs = new Map();
@@ -29,27 +27,27 @@ describe('StreamingBitmapIndexBuilder', () => {
 
   describe('constructor', () => {
     it('requires storage adapter', () => {
-      expect(() => new StreamingBitmapIndexBuilder(/** @type {any} */ ({}))).toThrow('requires a storage adapter');
+      expect(() => new StreamingBitmapIndexBuilder(({} as any))).toThrow('requires a storage adapter');
     });
 
     it('throws when maxMemoryBytes is zero', () => {
-      expect(() => new StreamingBitmapIndexBuilder(/** @type {any} */ ({
+      expect(() => new StreamingBitmapIndexBuilder((({
         storage: mockStorage,
         maxMemoryBytes: 0,
-      }))).toThrow('maxMemoryBytes must be a positive number');
+      }) as any))).toThrow('maxMemoryBytes must be a positive number');
     });
 
     it('throws when maxMemoryBytes is negative', () => {
-      expect(() => new StreamingBitmapIndexBuilder(/** @type {any} */ ({
+      expect(() => new StreamingBitmapIndexBuilder((({
         storage: mockStorage,
         maxMemoryBytes: -100,
-      }))).toThrow('maxMemoryBytes must be a positive number');
+      }) as any))).toThrow('maxMemoryBytes must be a positive number');
     });
   });
 
   describe('registerNode', () => {
     it('assigns sequential IDs to nodes', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: /** @type {any} */ (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
 
       const id1 = await builder.registerNode('abc123');
       const id2 = await builder.registerNode('def456');
@@ -63,7 +61,7 @@ describe('StreamingBitmapIndexBuilder', () => {
 
   describe('addEdge', () => {
     it('registers both nodes and creates bitmaps', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: /** @type {any} */ (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
 
       await builder.addEdge('parent1', 'child1');
       const stats = builder.getMemoryStats();
@@ -75,7 +73,7 @@ describe('StreamingBitmapIndexBuilder', () => {
 
   describe('flush', () => {
     it('writes bitmap shards to storage', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: /** @type {any} */ (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
 
       await builder.addEdge('aa1111', 'bb2222');
       await builder.flush();
@@ -87,7 +85,7 @@ describe('StreamingBitmapIndexBuilder', () => {
     it('invokes onFlush callback', async () => {
       const onFlush = vi.fn();
       const builder = new StreamingBitmapIndexBuilder({
-        storage: /** @type {any} */ (mockStorage),
+        storage: (mockStorage),
         onFlush,
       });
 
@@ -102,7 +100,7 @@ describe('StreamingBitmapIndexBuilder', () => {
     });
 
     it('does nothing when bitmaps are empty', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: /** @type {any} */ (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
 
       await builder.flush();
 
@@ -110,7 +108,7 @@ describe('StreamingBitmapIndexBuilder', () => {
     });
 
     it('preserves SHA→ID mappings after flush', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: /** @type {any} */ (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
 
       await builder.addEdge('aa1111', 'bb2222');
       const statsBefore = builder.getMemoryStats();
@@ -123,7 +121,7 @@ describe('StreamingBitmapIndexBuilder', () => {
 
   describe('finalize', () => {
     it('creates tree with meta and bitmap shards', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: /** @type {any} */ (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
 
       await builder.addEdge('aa1111', 'bb2222');
       const treeOid = await builder.finalize();
@@ -131,19 +129,19 @@ describe('StreamingBitmapIndexBuilder', () => {
       expect(treeOid).toBe('tree-oid');
       expect(mockStorage.writeTree).toHaveBeenCalled();
 
-      const treeEntries = /** @type {string[]} */ (/** @type {any[]} */ (mockStorage.writeTree.mock.calls[0])[0]);
+      const treeEntries = ((mockStorage.writeTree.mock.calls[0] as any[])[0] as string[]);
       expect(treeEntries.some((e) => e.includes('meta_'))).toBe(true);
       expect(treeEntries.some((e) => e.includes('shards_fwd_'))).toBe(true);
       expect(treeEntries.some((e) => e.includes('shards_rev_'))).toBe(true);
     });
 
     it('uses .cbor extension for shards', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: /** @type {any} */ (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
 
       await builder.addEdge('aa1111', 'bb2222');
       await builder.finalize();
 
-      const treeEntries = /** @type {string[]} */ (/** @type {any[]} */ (mockStorage.writeTree.mock.calls[0])[0]);
+      const treeEntries = ((mockStorage.writeTree.mock.calls[0] as any[])[0] as string[]);
       for (const entry of treeEntries) {
         if (entry.includes('meta_') || entry.includes('shards_')) {
           expect(entry).toContain('.cbor');
@@ -152,7 +150,7 @@ describe('StreamingBitmapIndexBuilder', () => {
     });
 
     it('writes sorted frontier metadata when provided', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: /** @type {any} */ (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
 
       await builder.addEdge('aa1111', 'bb2222');
       await builder.finalize({
@@ -162,7 +160,7 @@ describe('StreamingBitmapIndexBuilder', () => {
         ]),
       });
 
-      const treeEntries = /** @type {string[]} */ (/** @type {any[]} */ (mockStorage.writeTree.mock.calls[0])[0]);
+      const treeEntries = ((mockStorage.writeTree.mock.calls[0] as any[])[0] as string[]);
       expect(treeEntries.find((e) => e.includes('\tfrontier.json'))).toBeDefined();
       expect(treeEntries.find((e) => e.includes('\tfrontier.cbor'))).toBeDefined();
     });
@@ -170,7 +168,7 @@ describe('StreamingBitmapIndexBuilder', () => {
 
   describe('getMemoryStats', () => {
     it('returns current memory statistics', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: /** @type {any} */ (mockStorage) });
+      const builder = new StreamingBitmapIndexBuilder({ storage: (mockStorage) });
 
       await builder.addEdge('aa1111', 'bb2222');
       const stats = builder.getMemoryStats();
@@ -186,7 +184,7 @@ describe('StreamingBitmapIndexBuilder', () => {
     it('flushes when memory exceeds threshold', async () => {
       const onFlush = vi.fn();
       const builder = new StreamingBitmapIndexBuilder({
-        storage: /** @type {any} */ (mockStorage),
+        storage: (mockStorage),
         maxMemoryBytes: 200,
         onFlush,
       });
@@ -203,7 +201,7 @@ describe('StreamingBitmapIndexBuilder', () => {
   describe('chunk merging', () => {
     it('merges multiple chunks for same shard', async () => {
       const builder = new StreamingBitmapIndexBuilder({
-        storage: /** @type {any} */ (mockStorage),
+        storage: (mockStorage),
         maxMemoryBytes: 100,
       });
 
@@ -218,7 +216,7 @@ describe('StreamingBitmapIndexBuilder', () => {
 
     it('correctly merges bitmap data from multiple chunks', async () => {
       const builder = new StreamingBitmapIndexBuilder({
-        storage: /** @type {any} */ (mockStorage),
+        storage: (mockStorage),
         maxMemoryBytes: 1,
       });
 
@@ -253,7 +251,7 @@ describe('StreamingBitmapIndexBuilder memory guard', () => {
     };
 
     const builder = new StreamingBitmapIndexBuilder({
-      storage: /** @type {any} */ (mockStorage),
+      storage: (mockStorage),
       maxMemoryBytes: memoryThreshold,
     });
 
@@ -296,7 +294,7 @@ describe('StreamingBitmapIndexBuilder memory guard', () => {
     };
 
     const builder = new StreamingBitmapIndexBuilder({
-      storage: /** @type {any} */ (mockStorage),
+      storage: (mockStorage),
       maxMemoryBytes: 500,
     });
 
@@ -304,10 +302,10 @@ describe('StreamingBitmapIndexBuilder memory guard', () => {
     const edges = [['aa0001', 'aa0002'], ['aa0002', 'aa0003'], ['aa0001', 'bb0001'], ['bb0001', 'bb0002']];
 
     for (const sha of nodes) { await builder.registerNode(sha); }
-    for (const [parent, child] of edges) { await builder.addEdge(/** @type {string} */ (parent), /** @type {string} */ (child)); }
+    for (const [parent, child] of edges) { await builder.addEdge((parent), (child)); }
     await builder.finalize();
 
-    const treeEntries = /** @type {string[]} */ (/** @type {any[]} */ (mockStorage.writeTree.mock.calls[0])[0]);
+    const treeEntries = ((mockStorage.writeTree.mock.calls[0] as any[])[0] as string[]);
     const metaEntries = treeEntries.filter((e) => e.includes('meta_'));
     expect(metaEntries.length).toBeGreaterThan(0);
     expect(builder.getMemoryStats().nodeCount).toBe(5);
@@ -333,7 +331,7 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
     };
 
     const builder = new StreamingBitmapIndexBuilder({
-      storage: /** @type {any} */ (mockStorage),
+      storage: (mockStorage),
       maxMemoryBytes: 512,
       onFlush: () => { flushCount++; },
     });
@@ -353,7 +351,7 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
     expect(builder.getMemoryStats().nodeCount).toBe(nodeCount);
     expect(flushCount).toBeGreaterThan(10);
 
-    const treeEntries = /** @type {string[]} */ (/** @type {any[]} */ (mockStorage.writeTree.mock.calls[0])[0]);
+    const treeEntries = ((mockStorage.writeTree.mock.calls[0] as any[])[0] as string[]);
     expect(treeEntries.some((e) => e.includes('meta_'))).toBe(true);
     expect(treeEntries.some((e) => e.includes('shards_fwd_'))).toBe(true);
     expect(treeEntries.some((e) => e.includes('shards_rev_'))).toBe(true);
@@ -375,7 +373,7 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
     };
 
     const builder = new StreamingBitmapIndexBuilder({
-      storage: /** @type {any} */ (mockStorage),
+      storage: (mockStorage),
       maxMemoryBytes: 50000,
     });
 
@@ -403,7 +401,7 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
     };
 
     const builder = new StreamingBitmapIndexBuilder({
-      storage: /** @type {any} */ (mockStorage),
+      storage: (mockStorage),
       maxMemoryBytes: 1,
     });
 
@@ -417,14 +415,14 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
 
     await builder.finalize();
 
-    const treeEntries = /** @type {string[]} */ (/** @type {any[]} */ (mockStorage.writeTree.mock.calls[0])[0]);
+    const treeEntries = ((mockStorage.writeTree.mock.calls[0] as any[])[0] as string[]);
     const fwdAaShard = treeEntries.find((e) => e.includes('shards_fwd_aa'));
     expect(fwdAaShard).toBeDefined();
 
     // Decode the merged CBOR shard and verify bitmap cardinality
-    const oidMatch = /** @type {RegExpMatchArray} */ (fwdAaShard?.match(/blob ([^\s]+)/));
+    const oidMatch = (fwdAaShard?.match(/blob ([^\s]+)/) as RegExpMatchArray);
     const mergedBlob = blobStore.get(oidMatch[1]);
-    const mergedContent = /** @type {Record<string, Uint8Array>} */ (defaultCodec.decode(mergedBlob));
+    const mergedContent = (defaultCodec.decode(mergedBlob) as Record<string, Uint8Array>);
 
     expect(mergedContent[sourceNode]).toBeDefined();
 
@@ -433,7 +431,7 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
     const bitmap = RoaringBitmap32.deserialize(
       mergedContent[sourceNode] instanceof Uint8Array
         ? mergedContent[sourceNode]
-        : new Uint8Array(/** @type {any} */ (mergedContent[sourceNode])),
+        : new Uint8Array((mergedContent[sourceNode] as any)),
       true,
     );
 

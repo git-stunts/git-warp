@@ -12,10 +12,8 @@ function addProp(/** @type {any} */ state, /** @type {any} */ nodeId, /** @type 
 }
 
 describe('COMPASS — CP/WHERE/1: Object shorthand in where()', () => {
-  /** @type {any} */
-  let mockPersistence;
-  /** @type {any} */
-  let graph;
+    let mockPersistence;
+    let graph;
 
   beforeEach(async () => {
     lamportCounter = 0;
@@ -181,10 +179,8 @@ describe('COMPASS — CP/WHERE/1: Object shorthand in where()', () => {
 });
 
 describe('COMPASS — CP/MULTIHOP/1: Multi-hop traversal', () => {
-  /** @type {any} */
-  let mockPersistence;
-  /** @type {any} */
-  let graph;
+    let mockPersistence;
+    let graph;
 
   beforeEach(async () => {
     lamportCounter = 0;
@@ -390,10 +386,8 @@ describe('COMPASS — CP/MULTIHOP/1: Multi-hop traversal', () => {
 });
 
 describe('COMPASS — CP/AGG/1: Aggregation', () => {
-  /** @type {any} */
-  let mockPersistence;
-  /** @type {any} */
-  let graph;
+    let mockPersistence;
+    let graph;
 
   beforeEach(async () => {
     lamportCounter = 0;
@@ -500,7 +494,7 @@ describe('COMPASS — CP/AGG/1: Aggregation', () => {
     try {
       q.select(['id']);
     } catch (/** @type {any} */ err) {
-      expect(err.code).toBe('E_QUERY_AGGREGATE_TERMINAL');
+      expect((err as any).code).toBe('E_QUERY_AGGREGATE_TERMINAL');
     }
   });
 

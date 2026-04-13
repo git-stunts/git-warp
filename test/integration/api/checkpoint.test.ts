@@ -2,8 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestRepo } from './helpers/setup.js';
 
 describe('API: Checkpoint', () => {
-  /** @type {any} */
-  let repo;
+    let repo;
 
   beforeEach(async () => {
     repo = await createTestRepo('checkpoint');

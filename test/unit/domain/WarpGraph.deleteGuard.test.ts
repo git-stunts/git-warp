@@ -52,7 +52,7 @@ describe('WarpRuntime onDeleteWithData option', () => {
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
-        onDeleteWithData: /** @type {any} */ ('invalid'),
+        onDeleteWithData: ('invalid' as any),
       }),
     ).rejects.toThrow('onDeleteWithData must be one of: reject, cascade, warn');
   });

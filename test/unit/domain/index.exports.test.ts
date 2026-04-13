@@ -63,7 +63,7 @@ import WarpAppDefault, {
   scopeMaterializedState,
 } from '../../../index.js';
 
-const { WarpGraph, WarpRuntime, Worldline, ObserverView } = /** @type {any} */ (await import('../../../index.js'));
+const { WarpGraph, WarpRuntime, Worldline, ObserverView } = (await import('../../../index.js') as any);
 
 describe('index.js exports', () => {
   describe('default export', () => {

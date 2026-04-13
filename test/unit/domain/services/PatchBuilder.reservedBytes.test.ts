@@ -6,13 +6,13 @@ import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
  * ADR 1-T12: Reserved-byte validation rejects ambiguous identifiers.
  */
 
-function makeBuilder(opts = /** @type {any} */ ({})) {
-  return new PatchBuilder(/** @type {any} */ ({
+function makeBuilder(opts = ({} as any)) {
+  return new PatchBuilder((({
     writerId: opts.writerId ?? 'w1',
     lamport: opts.lamport ?? 1,
     versionVector: opts.versionVector ?? VersionVector.empty(),
     getCurrentState: opts.getCurrentState ?? (() => null),
-  }));
+  }) as any));
 }
 
 describe('PatchBuilder — reserved-byte validation (ADR 1-T12)', () => {

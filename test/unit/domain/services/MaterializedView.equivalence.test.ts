@@ -39,7 +39,7 @@ const PROP_VALUES = ['Alice', 'Bob', 42, true, null, 'active', 'red', 0, ''];
 
 /** @template T @param {() => number} nextFn @param {T[]} arr @returns {T} */
 function pick(nextFn, arr) {
-  return /** @type {T} */ (arr[Math.floor(nextFn() * arr.length)]);
+  return (arr[Math.floor(nextFn() * arr.length)] as T);
 }
 
 /** @param {number} seed @param {number} lamport @returns {string} */
@@ -138,7 +138,7 @@ function generatePatches(seed) {
     // Update tracking state so future removals are meaningful
     for (let i = 0; i < ops.length; i++) {
       const eventId = new EventId(lamport, writer, sha, i);
-      applyOpV2(trackState, /** @type {typeof ops[0]} */ (ops[i]), eventId);
+      applyOpV2(trackState, (ops[i] as typeof ops[0]), eventId);
     }
   }
 
@@ -228,7 +228,7 @@ describe('MaterializedView equivalence', () => {
       const service = new MaterializedViewService();
 
       // ── Full rebuild ──────────────────────────────────────────────
-      const fullState = /** @type {import('../../../../src/domain/services/JoinReducer.ts').WarpState} */ (reduceV5(patches));
+      const fullState = (reduceV5(patches) as any);
       const fullBuild = service.build(fullState);
       const fullBitmapProvider = new BitmapNeighborProvider({
         logicalIndex: fullBuild.logicalIndex,
@@ -272,7 +272,7 @@ describe('MaterializedView equivalence', () => {
       const service = new MaterializedViewService();
 
       // ── Full rebuild ──────────────────────────────────────────────
-      const fullState = /** @type {import('../../../../src/domain/services/JoinReducer.ts').WarpState} */ (reduceV5(patches));
+      const fullState = (reduceV5(patches) as any);
       const fullBuild = service.build(fullState);
       const fullBitmapProvider = new BitmapNeighborProvider({
         logicalIndex: fullBuild.logicalIndex,
@@ -295,7 +295,7 @@ describe('MaterializedView equivalence', () => {
 
       if (!lastResult) { throw new Error('expected lastResult'); }
       const incrProvider = new BitmapNeighborProvider({
-        logicalIndex: lastResult.logicalIndex,
+        logicalIndex: (lastResult as any).logicalIndex,
       });
 
       // ── Compare alive nodes ───────────────────────────────────────
@@ -329,7 +329,7 @@ describe('MaterializedView equivalence', () => {
         // PropertyReader from full build vs incremental
         const fullReaderProps = await fullBuild.propertyReader.getNodeProps(nodeId);
         if (lastResult) {
-          const incrReaderProps = await lastResult.propertyReader.getNodeProps(nodeId);
+          const incrReaderProps = await (lastResult as any).propertyReader.getNodeProps(nodeId);
           if (fullReaderProps || incrReaderProps) {
             expect(
               incrReaderProps,
@@ -355,7 +355,7 @@ describe('MaterializedView equivalence', () => {
     expect(Object.keys(result.tree).sort()).toEqual(Object.keys(tree).sort());
     for (const path of Object.keys(tree)) {
       expect(
-        Buffer.compare(/** @type {Uint8Array} */ (result.tree[path]), /** @type {Uint8Array} */ (tree[path])),
+        Buffer.compare((result.tree[path] as Uint8Array), (tree[path] as Uint8Array)),
         `shard ${path} changed on empty diff`,
       ).toBe(0);
     }
@@ -398,7 +398,7 @@ describe('MaterializedView equivalence', () => {
       },
     ];
 
-    const fullState = /** @type {import('../../../../src/domain/services/JoinReducer.ts').WarpState} */ (reduceV5(patches));
+    const fullState = (reduceV5(patches) as any);
     const build = service.build(fullState);
 
     // Object.prototype must be untouched

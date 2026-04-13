@@ -8,12 +8,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const hookPath = fileURLToPath(new URL('../../../scripts/hooks/pre-push', import.meta.url));
 
-/** @type {string[]} */
-const tempDirs = [];
+const tempDirs = ([]) as string[];
 
 afterEach(() => {
   while (tempDirs.length > 0) {
-    rmSync(/** @type {string} */ (tempDirs.pop()), { force: true, recursive: true });
+    rmSync((tempDirs.pop() as string), { force: true, recursive: true });
   }
 });
 
@@ -93,8 +92,7 @@ function runPrePushHook(options = {}) {
     );
   }
 
-  /** @type {Record<string, string | undefined>} */
-  const env = {
+    const env = {
     ...process.env,
     WARP_NPM_LOG: npmLog,
     WARP_LYCHEE_LOG: lycheeLog,

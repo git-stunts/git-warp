@@ -9,12 +9,9 @@ import {
 import { computeStateHash as _computeStateHash } from '../../../../src/domain/services/state/StateSerializer.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
-/** @type {any} */
-const joinStates = _joinStates;
-/** @type {any} */
-const reduceV5 = _reduceV5;
-/** @type {any} */
-const computeStateHash = _computeStateHash;
+const joinStates = (_joinStates) as any;
+const reduceV5 = (_reduceV5) as any;
+const computeStateHash = (_computeStateHash) as any;
 
 const crypto = new NodeCryptoAdapter();
 const PROPERTY_TEST_SEED = 42;
@@ -96,7 +93,7 @@ function generateORSet(elements, dotArbitrary) {
     const set = ORSet.empty();
     for (const { element, dots, tombstoneCount } of items) {
       for (const dot of dots) {
-        set.add(/** @type {string} */ (element), dot);
+        set.add((element), dot);
       }
       // Tombstone some dots
       const dotsToTombstone = dots.slice(0, Math.min(tombstoneCount, dots.length));

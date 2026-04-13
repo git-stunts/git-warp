@@ -18,8 +18,8 @@ vi.mock('../../../../../src/domain/services/state/StateDiff.js', () => ({
 import { diffStates, isEmptyDiff } from '../../../../../src/domain/services/state/StateDiff.js';
 
 // Cast mocked functions so .mockImplementation/.mockReturnValue are available
-const mockDiffStates = /** @type {import('vitest').Mock} */ (diffStates);
-const mockIsEmptyDiff = /** @type {import('vitest').Mock} */ (isEmptyDiff);
+const mockDiffStates = (diffStates);
+const mockIsEmptyDiff = (isEmptyDiff);
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -49,14 +49,14 @@ function emptyDiff() {
 
 /** Sentinel state object — content irrelevant since diffStates is mocked. */
 function fakeState() {
-  return /** @type {any} */ ({ nodeAlive: 'mock', edgeAlive: 'mock', prop: 'mock', observedFrontier: 'mock' });
+  return ({ nodeAlive: 'mock', edgeAlive: 'mock', prop: 'mock', observedFrontier: 'mock' } as any);
 }
 
 /** Creates a mock host for SubscriptionController. */
 function createHost({ cachedState = null } = {}) {
   return {
-    _cachedState: /** @type {any} */ (cachedState),
-    _subscribers: /** @type {any[]} */ ([]),
+    _cachedState: (cachedState),
+    _subscribers: ([] as any[]),
     hasFrontierChanged: vi.fn().mockResolvedValue(false),
     materialize: vi.fn().mockResolvedValue(undefined),
   };
@@ -65,15 +65,13 @@ function createHost({ cachedState = null } = {}) {
 // ── Tests ───────────────────────────────────────────────────────────────────
 
 describe('SubscriptionController', () => {
-  /** @type {ReturnType<typeof createHost>} */
-  let host;
-  /** @type {SubscriptionController} */
-  let ctrl;
+    let host;
+    let ctrl;
 
   beforeEach(() => {
     vi.clearAllMocks();
     host = createHost();
-    ctrl = new SubscriptionController(/** @type {any} */ (host));
+    ctrl = new SubscriptionController((host));
     // Default: isEmptyDiff returns true for empty diffs, false for non-empty
     mockIsEmptyDiff.mockImplementation((/** @type {any} */ d) =>
       d.nodes.added.length === 0 &&
@@ -97,9 +95,9 @@ describe('SubscriptionController', () => {
     });
 
     it('throws when onChange is not a function', () => {
-      expect(() => ctrl.subscribe({ onChange: /** @type {any} */ ('not-a-fn') })).toThrow('onChange must be a function');
-      expect(() => ctrl.subscribe({ onChange: /** @type {any} */ (null) })).toThrow('onChange must be a function');
-      expect(() => ctrl.subscribe({ onChange: /** @type {any} */ (undefined) })).toThrow('onChange must be a function');
+      expect(() => ctrl.subscribe({ onChange: ('not-a-fn' as any) })).toThrow('onChange must be a function');
+      expect(() => ctrl.subscribe({ onChange: (null) })).toThrow('onChange must be a function');
+      expect(() => ctrl.subscribe({ onChange: (undefined) })).toThrow('onChange must be a function');
     });
 
     it('returns an unsubscribe handle that removes the subscriber', () => {
@@ -227,18 +225,18 @@ describe('SubscriptionController', () => {
       });
 
       it('rejects non-string, non-array values', () => {
-        expect(() => ctrl.watch(/** @type {any} */ (42), { onChange: vi.fn() })).toThrow('pattern must be a non-empty string');
-        expect(() => ctrl.watch(/** @type {any} */ (null), { onChange: vi.fn() })).toThrow('pattern must be a non-empty string');
-        expect(() => ctrl.watch(/** @type {any} */ (undefined), { onChange: vi.fn() })).toThrow('pattern must be a non-empty string');
+        expect(() => ctrl.watch((42 as any), { onChange: vi.fn() })).toThrow('pattern must be a non-empty string');
+        expect(() => ctrl.watch((null), { onChange: vi.fn() })).toThrow('pattern must be a non-empty string');
+        expect(() => ctrl.watch((undefined), { onChange: vi.fn() })).toThrow('pattern must be a non-empty string');
       });
 
       it('rejects array with non-string elements', () => {
-        expect(() => ctrl.watch(/** @type {any} */ ([42]), { onChange: vi.fn() })).toThrow('pattern must be a non-empty string');
-        expect(() => ctrl.watch(/** @type {any} */ (['ok', 42]), { onChange: vi.fn() })).toThrow('pattern must be a non-empty string');
+        expect(() => ctrl.watch(([42] as any), { onChange: vi.fn() })).toThrow('pattern must be a non-empty string');
+        expect(() => ctrl.watch((['ok', 42] as any), { onChange: vi.fn() })).toThrow('pattern must be a non-empty string');
       });
 
       it('throws when onChange is not a function', () => {
-        expect(() => ctrl.watch('*', { onChange: /** @type {any} */ ('nope') })).toThrow('onChange must be a function');
+        expect(() => ctrl.watch('*', { onChange: ('nope' as any) })).toThrow('onChange must be a function');
       });
 
       it('throws when poll is less than 1000', () => {
@@ -247,7 +245,7 @@ describe('SubscriptionController', () => {
       });
 
       it('throws when poll is not a number', () => {
-        expect(() => ctrl.watch('*', { onChange: vi.fn(), poll: /** @type {any} */ ('5000') })).toThrow('poll must be a finite number >= 1000');
+        expect(() => ctrl.watch('*', { onChange: vi.fn(), poll: ('5000' as any) })).toThrow('poll must be a finite number >= 1000');
       });
 
       it('throws when poll is NaN', () => {
@@ -279,7 +277,7 @@ describe('SubscriptionController', () => {
           nodesAdded: ['user:alice', 'org:acme', 'user:bob'],
         });
         // _notifySubscribers calls the filtered onChange registered by watch
-        ctrl._notifySubscribers(/** @type {any} */ (diff), fakeState());
+        ctrl._notifySubscribers((diff), fakeState());
 
         expect(onChange).toHaveBeenCalledTimes(1);
         const filtered = onChange.mock.calls[0]?.[0];
@@ -298,7 +296,7 @@ describe('SubscriptionController', () => {
             { from: 'org:x', to: 'user:bob', label: 'owns' },
           ],
         });
-        ctrl._notifySubscribers(/** @type {any} */ (diff), fakeState());
+        ctrl._notifySubscribers((diff), fakeState());
 
         expect(onChange).toHaveBeenCalledTimes(1);
         const filtered = onChange.mock.calls[0]?.[0];
@@ -317,7 +315,7 @@ describe('SubscriptionController', () => {
             { key: 'k2', nodeId: 'org:acme', propKey: 'name', oldValue: undefined, newValue: 'Acme' },
           ],
         });
-        ctrl._notifySubscribers(/** @type {any} */ (diff), fakeState());
+        ctrl._notifySubscribers((diff), fakeState());
 
         expect(onChange).toHaveBeenCalledTimes(1);
         const filtered = onChange.mock.calls[0]?.[0];
@@ -335,7 +333,7 @@ describe('SubscriptionController', () => {
             { key: 'k2', nodeId: 'org:acme', propKey: 'name', oldValue: 'Acme' },
           ],
         });
-        ctrl._notifySubscribers(/** @type {any} */ (diff), fakeState());
+        ctrl._notifySubscribers((diff), fakeState());
 
         expect(onChange).toHaveBeenCalledTimes(1);
         const filtered = onChange.mock.calls[0]?.[0];
@@ -348,7 +346,7 @@ describe('SubscriptionController', () => {
         ctrl.watch('user:*', { onChange });
 
         const diff = makeDiff({ nodesAdded: ['org:acme'] });
-        ctrl._notifySubscribers(/** @type {any} */ (diff), fakeState());
+        ctrl._notifySubscribers((diff), fakeState());
 
         expect(onChange).not.toHaveBeenCalled();
       });
@@ -360,7 +358,7 @@ describe('SubscriptionController', () => {
         const diff = makeDiff({
           nodesAdded: ['user:alice', 'org:acme', 'device:phone'],
         });
-        ctrl._notifySubscribers(/** @type {any} */ (diff), fakeState());
+        ctrl._notifySubscribers((diff), fakeState());
 
         expect(onChange).toHaveBeenCalledTimes(1);
         const filtered = onChange.mock.calls[0]?.[0];
@@ -374,7 +372,7 @@ describe('SubscriptionController', () => {
         const diff = makeDiff({
           nodesRemoved: ['user:alice', 'org:acme'],
         });
-        ctrl._notifySubscribers(/** @type {any} */ (diff), fakeState());
+        ctrl._notifySubscribers((diff), fakeState());
 
         expect(onChange).toHaveBeenCalledTimes(1);
         const filtered = onChange.mock.calls[0]?.[0];
@@ -391,7 +389,7 @@ describe('SubscriptionController', () => {
             { from: 'org:a', to: 'org:b', label: 'link' },
           ],
         });
-        ctrl._notifySubscribers(/** @type {any} */ (diff), fakeState());
+        ctrl._notifySubscribers((diff), fakeState());
 
         expect(onChange).toHaveBeenCalledTimes(1);
         const filtered = onChange.mock.calls[0]?.[0];
@@ -433,8 +431,7 @@ describe('SubscriptionController', () => {
       });
 
       it('guards against overlapping polls (in-flight lock)', async () => {
-        /** @type {((v: boolean) => void) | undefined} */
-        let resolveFirst;
+                let resolveFirst;
         host.hasFrontierChanged.mockImplementationOnce(() => new Promise((r) => { resolveFirst = r; }));
 
         ctrl.watch('*', { onChange: vi.fn(), poll: 1000 });
@@ -552,7 +549,7 @@ describe('SubscriptionController', () => {
       ctrl.subscribe({ onChange: onChange2 });
 
       const diff = makeDiff({ nodesAdded: ['a'] });
-      ctrl._notifySubscribers(/** @type {any} */ (diff), fakeState());
+      ctrl._notifySubscribers((diff), fakeState());
 
       expect(onChange1).toHaveBeenCalledWith(diff);
       expect(onChange2).toHaveBeenCalledWith(diff);
@@ -562,7 +559,7 @@ describe('SubscriptionController', () => {
       const onChange = vi.fn();
       ctrl.subscribe({ onChange });
 
-      ctrl._notifySubscribers(/** @type {any} */ (emptyDiff()), fakeState());
+      ctrl._notifySubscribers((emptyDiff() as any), fakeState());
 
       expect(onChange).not.toHaveBeenCalled();
     });
@@ -579,7 +576,7 @@ describe('SubscriptionController', () => {
       mockDiffStates.mockReturnValue(replayDiff);
 
       const currentState = fakeState();
-      ctrl._notifySubscribers(/** @type {any} */ (emptyDiff()), currentState);
+      ctrl._notifySubscribers((emptyDiff() as any), currentState);
 
       expect(mockDiffStates).toHaveBeenCalledWith(null, currentState);
       expect(onChange).toHaveBeenCalledTimes(1);
@@ -595,7 +592,7 @@ describe('SubscriptionController', () => {
 
       mockDiffStates.mockReturnValue(emptyDiff());
 
-      ctrl._notifySubscribers(/** @type {any} */ (emptyDiff()), fakeState());
+      ctrl._notifySubscribers((emptyDiff() as any), fakeState());
 
       expect(onChange).not.toHaveBeenCalled();
       expect(host._subscribers[0]?.pendingReplay).toBe(false);
@@ -608,7 +605,7 @@ describe('SubscriptionController', () => {
       ctrl.subscribe({ onChange, onError });
 
       const diff = makeDiff({ nodesAdded: ['a'] });
-      ctrl._notifySubscribers(/** @type {any} */ (diff), fakeState());
+      ctrl._notifySubscribers((diff), fakeState());
 
       expect(onError).toHaveBeenCalledWith(err);
     });
@@ -621,7 +618,7 @@ describe('SubscriptionController', () => {
       ctrl.subscribe({ onChange: onChange2 });
 
       const diff = makeDiff({ nodesAdded: ['a'] });
-      ctrl._notifySubscribers(/** @type {any} */ (diff), fakeState());
+      ctrl._notifySubscribers((diff), fakeState());
 
       // Second subscriber still gets notified
       expect(onChange2).toHaveBeenCalledWith(diff);
@@ -632,14 +629,12 @@ describe('SubscriptionController', () => {
       ctrl.subscribe({ onChange });
 
       const diff = makeDiff({ nodesAdded: ['a'] });
-      expect(() => ctrl._notifySubscribers(/** @type {any} */ (diff), fakeState())).not.toThrow();
+      expect(() => ctrl._notifySubscribers((diff), fakeState())).not.toThrow();
     });
 
     it('iterates over a snapshot of subscribers (safe against mid-iteration unsubscribe)', () => {
-      /** @type {string[]} */
-      const calls = [];
-      /** @type {(() => void) | undefined} */
-      let unsub2;
+            const calls = ([]) as string[];
+            let unsub2;
       const onChange1 = vi.fn().mockImplementation(() => {
         calls.push('first');
         if (unsub2) { unsub2(); }
@@ -653,7 +648,7 @@ describe('SubscriptionController', () => {
       unsub2 = sub2.unsubscribe;
 
       const diff = makeDiff({ nodesAdded: ['a'] });
-      ctrl._notifySubscribers(/** @type {any} */ (diff), fakeState());
+      ctrl._notifySubscribers((diff), fakeState());
 
       // Both called because _notifySubscribers spreads the array first
       expect(calls).toEqual(['first', 'second']);
@@ -666,7 +661,7 @@ describe('SubscriptionController', () => {
       ctrl.subscribe({ onChange, onError, replay: true });
 
       mockDiffStates.mockReturnValue(makeDiff({ nodesAdded: ['x'] }));
-      ctrl._notifySubscribers(/** @type {any} */ (emptyDiff()), fakeState());
+      ctrl._notifySubscribers((emptyDiff() as any), fakeState());
 
       expect(onError).toHaveBeenCalledWith(err);
     });

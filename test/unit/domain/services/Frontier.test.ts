@@ -159,7 +159,7 @@ describe('Frontier', () => {
       updateFrontier(original, 'writer1', 'sha123');
       updateFrontier(original, 'writer2', 'sha456');
 
-      const bytes = /** @type {Buffer} */ (serializeFrontier(original));
+      const bytes = (serializeFrontier(original) as Buffer);
       const restored = deserializeFrontier(bytes);
 
       expect(restored).toBeInstanceOf(Map);
@@ -171,7 +171,7 @@ describe('Frontier', () => {
     it('reconstructs empty frontier', () => {
       const original = createFrontier();
 
-      const bytes = /** @type {Buffer} */ (serializeFrontier(original));
+      const bytes = (serializeFrontier(original) as Buffer);
       const restored = deserializeFrontier(bytes);
 
       expect(restored).toBeInstanceOf(Map);
@@ -186,7 +186,7 @@ describe('Frontier', () => {
       updateFrontier(original, 'writer2', '789xyz');
       updateFrontier(original, 'writer3', 'sha-with-special_chars.ok');
 
-      const bytes = /** @type {Buffer} */ (serializeFrontier(original));
+      const bytes = (serializeFrontier(original) as Buffer);
       const restored = deserializeFrontier(bytes);
 
       expect(restored.size).toBe(original.size);
@@ -200,9 +200,9 @@ describe('Frontier', () => {
       updateFrontier(original, 'a', 'sha1');
       updateFrontier(original, 'b', 'sha2');
 
-      const bytes1 = /** @type {Buffer} */ (serializeFrontier(original));
+      const bytes1 = (serializeFrontier(original) as Buffer);
       const restored1 = deserializeFrontier(bytes1);
-      const bytes2 = /** @type {Buffer} */ (serializeFrontier(restored1));
+      const bytes2 = (serializeFrontier(restored1) as Buffer);
       const restored2 = deserializeFrontier(bytes2);
 
       expect(Buffer.from(bytes1).equals(Buffer.from(bytes2))).toBe(true);

@@ -25,7 +25,7 @@ function emptyState() {
  * @returns {Patch}
  */
 function makePatch(overrides = {}) {
-  return /** @type {Patch} */ ({
+  return (({
     schema: 2,
     writer: 'w1',
     lamport: 1,
@@ -34,7 +34,7 @@ function makePatch(overrides = {}) {
     reads: [],
     writes: [],
     ...overrides,
-  });
+  }) as Patch);
 }
 
 /**
@@ -44,12 +44,12 @@ function makePatch(overrides = {}) {
 function fakePatchEntry(opts = {}) {
   return {
     patch: makePatch({
-      lamport: opts.lamport ?? 1,
-      writer: opts.writer ?? 'w1',
-      ...(opts.reads ? { reads: opts.reads } : {}),
-      ...(opts.writes ? { writes: opts.writes } : {}),
+      lamport: (opts as any).lamport ?? 1,
+      writer: (opts as any).writer ?? 'w1',
+      ...((opts as any).reads ? { reads: opts.reads } : {}),
+      ...((opts as any).writes ? { writes: opts.writes } : {}),
     }),
-    sha: opts.sha ?? 'abc123',
+    sha: (opts as any).sha ?? 'abc123',
   };
 }
 
@@ -100,7 +100,7 @@ function makeMockPersistence(overrides = {}) {
 function makeDeps({ patchesOverrides = {}, persistenceOverrides = {}, depsOverrides = {} } = {}) {
   const patches = makeMockPatches(patchesOverrides);
   const persistence = makeMockPersistence(persistenceOverrides);
-  const deps = /** @type {import('../../../../../src/domain/services/controllers/MaterializeController.ts').MaterializeDeps} */ (/** @type {unknown} */ ({
+  const deps = ((({
     clock: { now: vi.fn(() => 0) },
     logger: { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() },
     codec: { encode: vi.fn(() => new Uint8Array([1])), decode: vi.fn(() => ({})) },
@@ -114,7 +114,7 @@ function makeDeps({ patchesOverrides = {}, persistenceOverrides = {}, depsOverri
     graphCloner: { openReadOnly: vi.fn() },
     graphName: 'test',
     ...depsOverrides,
-  }));
+  })) as any);
   return { deps, patches, persistence };
 }
 
@@ -537,7 +537,7 @@ describe('MaterializeController', () => {
      */
     function callMaterializeCoordinate(ctrl, options) {
       return /** @type {{ materializeCoordinate(options: unknown): Promise<unknown> }} */ (
-        /** @type {unknown} */ (ctrl)
+        (ctrl)
       ).materializeCoordinate(options);
     }
 
@@ -635,7 +635,7 @@ describe('MaterializeController', () => {
         expect.any(Map),
         null,
       );
-      const calledFrontier = /** @type {Map<string,string>} */ (/** @type {any} */ (patches.collectForFrontier.mock.calls[0])[0]);
+      const calledFrontier = ((patches.collectForFrontier.mock.calls[0] as any)[0] as Map<string,string>);
       expect([...calledFrontier.keys()]).toEqual(['w1', 'w2']); // sorted
     });
 

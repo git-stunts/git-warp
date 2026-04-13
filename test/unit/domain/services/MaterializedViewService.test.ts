@@ -63,7 +63,7 @@ describe('MaterializedViewService', () => {
       expect(logicalIndex.isAlive('Z')).toBe(false);
 
       // receipt has nodeCount
-      expect(/** @type {{ nodeCount: number }} */ (receipt).nodeCount).toBe(3);
+      expect(/** @type {{ nodeCount: number }} */ (receipt)['nodeCount']).toBe(3);
     });
 
     it('builds a working propertyReader from state', async () => {
@@ -128,7 +128,7 @@ describe('MaterializedViewService', () => {
       expect(treeOid).toBe('tree_oid_' + '0'.repeat(31));
 
       // Tree entries are sorted and have correct format
-      const firstCall = /** @type {string[][]} */ (mockPersistence.writeTree.mock.calls)[0];
+      const firstCall = (mockPersistence.writeTree.mock.calls as string[][])[0];
       if (!firstCall) { throw new Error('expected calls'); }
       const treeEntries = firstCall[0];
       if (!treeEntries) { throw new Error('expected treeEntries'); }
@@ -193,7 +193,7 @@ describe('MaterializedViewService', () => {
 
       // Build shardOids from writeBlob calls
       /** @type {Record<string, string>} */ const shardOids = {};
-      const firstCall = /** @type {string[][]} */ (mockPersistence.writeTree.mock.calls)[0];
+      const firstCall = (mockPersistence.writeTree.mock.calls as string[][])[0];
       if (!firstCall) { throw new Error('expected calls'); }
       const treeEntries = firstCall[0];
       if (!treeEntries) { throw new Error('expected treeEntries'); }

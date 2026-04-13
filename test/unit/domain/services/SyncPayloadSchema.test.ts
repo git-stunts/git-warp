@@ -85,8 +85,7 @@ describe('SyncPayloadSchema', () => {
     });
 
     it('rejects frontier exceeding writer limit', () => {
-      /** @type {Record<string, string>} */
-      const frontier = {};
+            const frontier = ({}) as Record<string, string>;
       for (let i = 0; i < 11; i++) {
         frontier[`w${i}`] = SHA_A;
       }

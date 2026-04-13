@@ -35,18 +35,18 @@ describe('LogicalBitmapIndexBuilder', () => {
     // Should have a LabelShard
     const labelShard = shards.find((s) => s instanceof LabelShard);
     expect(labelShard).toBeInstanceOf(LabelShard);
-    const labels = new Map(/** @type {LabelShard} */ (labelShard).labels);
+    const labels = new Map((labelShard).labels);
     expect(labels.has('manages')).toBe(true);
     expect(labels.has('owns')).toBe(true);
 
     // Find the fwd EdgeShard for node A's shard
     const shardKeyA = computeShardKey('A');
     const fwdShard = shards.find(
-      (s) => s instanceof EdgeShard && /** @type {EdgeShard} */ (s).direction === 'fwd' && s.shardKey === shardKeyA,
+      (s) => s instanceof EdgeShard && (s).direction === 'fwd' && s.shardKey === shardKeyA,
     );
     expect(fwdShard).toBeDefined();
 
-    const buckets = /** @type {EdgeShard} */ (fwdShard).buckets;
+    const buckets = (fwdShard).buckets;
     // 'all' bucket should exist
     expect(buckets).toHaveProperty('all');
     // Per-label buckets should exist (labelId 0 and 1)
@@ -66,18 +66,16 @@ describe('LogicalBitmapIndexBuilder', () => {
     // Find the fwd EdgeShard containing A's edges (keyed by A's shard)
     const shardKeyA = computeShardKey('A');
     const fwdShard = shards.find(
-      (s) => s instanceof EdgeShard && /** @type {EdgeShard} */ (s).direction === 'fwd' && s.shardKey === shardKeyA,
+      (s) => s instanceof EdgeShard && (s).direction === 'fwd' && s.shardKey === shardKeyA,
     );
     expect(fwdShard).toBeDefined();
-    const buckets = /** @type {EdgeShard} */ (fwdShard).buckets;
+    const buckets = (fwdShard).buckets;
 
     // The 'all' bitmap for A (by globalA) should contain B's globalId
     const RoaringBitmap32 = getRoaringBitmap32();
     const allBucket = buckets['all'];
     expect(allBucket).toBeDefined();
-    const bitmapBytes = /** @type {Uint8Array} */ (
-      /** @type {Record<string, Uint8Array>} */ (allBucket)[String(globalA)]
-    );
+    const bitmapBytes = (((allBucket)[String(globalA)]) as Uint8Array);
     expect(bitmapBytes).toBeDefined();
 
     const allBitmap = RoaringBitmap32.deserialize(
@@ -88,12 +86,12 @@ describe('LogicalBitmapIndexBuilder', () => {
   });
 
   it('proto pollution safety (F10): builds without mutating Object.prototype', () => {
-    const beforeProto = /** @type {*} */ ({}).polluted;
+    const beforeProto = ({} as any).polluted;
     const beforeConstructor = ({}).constructor;
 
     buildFromFixture(F10_PROTO_POLLUTION);
 
-    expect(/** @type {*} */ ({}).polluted).toBe(beforeProto);
+    expect(({} as any).polluted).toBe(beforeProto);
     expect(({}).constructor).toBe(beforeConstructor);
   });
 
@@ -104,7 +102,7 @@ describe('LogicalBitmapIndexBuilder', () => {
     expect(shards.some((s) => s instanceof LabelShard)).toBe(true);
     expect(shards.some((s) => s instanceof ReceiptShard)).toBe(true);
 
-    const receipt = /** @type {ReceiptShard} */ (shards.find((s) => s instanceof ReceiptShard));
+    const receipt = (shards.find((s) => s instanceof ReceiptShard) as ReceiptShard);
     expect(receipt.nodeCount).toBe(0);
     expect(receipt.labelCount).toBe(0);
   });
@@ -112,14 +110,14 @@ describe('LogicalBitmapIndexBuilder', () => {
   it('receipt has deterministic fields and no timestamps', () => {
     const builder = buildFromFixture(F7_MULTILABEL_SAME_NEIGHBOR);
     const shards = [...builder.yieldShards()];
-    const receipt = /** @type {ReceiptShard} */ (shards.find((s) => s instanceof ReceiptShard));
+    const receipt = (shards.find((s) => s instanceof ReceiptShard) as ReceiptShard);
 
     expect(receipt.version).toBe(1);
     expect(receipt.nodeCount).toBe(2);
     expect(receipt.labelCount).toBe(2);
     expect(receipt.shardCount).toBeDefined();
-    expect(/** @type {unknown} */ (receipt)).not.toHaveProperty('timestamp');
-    expect(/** @type {unknown} */ (receipt)).not.toHaveProperty('createdAt');
+    expect((receipt)).not.toHaveProperty('timestamp');
+    expect((receipt)).not.toHaveProperty('createdAt');
   });
 
   it('round-trip: serialize → decode each shard → globalId↔nodeId intact', () => {
@@ -129,7 +127,7 @@ describe('LogicalBitmapIndexBuilder', () => {
     // Verify all MetaShards have correct structure
     const metaShards = shards.filter((s) => s instanceof MetaShard);
     for (const shard of metaShards) {
-      const meta = /** @type {MetaShard} */ (shard);
+      const meta = (shard);
       expect(meta.nodeToGlobal).toBeDefined();
       expect(meta.nextLocalId).toBeDefined();
       expect(meta.alive).toBeDefined();

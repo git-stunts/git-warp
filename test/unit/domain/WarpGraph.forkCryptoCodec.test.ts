@@ -12,14 +12,10 @@ const SHA1 = '1111111111111111111111111111111111111111';
 const POID1 = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
 describe('WarpRuntime.fork crypto/codec propagation', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {any} */
-  let mockCrypto;
-  /** @type {any} */
-  let mockCodec;
-  /** @type {any} */
-  let graph;
+    let persistence;
+    let mockCrypto;
+    let mockCodec;
+    let graph;
 
   beforeEach(async () => {
     persistence = createMockPersistence();

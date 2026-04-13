@@ -16,12 +16,12 @@ import { createStateBuilder } from '../../../helpers/stateBuilder.js';
  * @returns {PatchBuilder}
  */
 function makeBuilder(getCurrentState) {
-  return new PatchBuilder(/** @type {any} */ ({
+  return new PatchBuilder((({
     writerId: 'w1',
     lamport: 1,
     versionVector: VersionVector.empty(),
     getCurrentState,
-  }));
+  }) as any));
 }
 
 describe('PatchBuilder snapshot (C4)', () => {

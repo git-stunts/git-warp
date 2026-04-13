@@ -142,20 +142,18 @@ async function simulatePatchCommit(persistence, {
 }
 
 describe('WarpCore worldline surface', () => {
-  /** @type {any} */
-  let persistence;
-  /** @type {WarpCoreRuntime} */
-  let graph;
+    let persistence;
+    let graph;
   const graphName = 'worldline-demo';
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = /** @type {WarpCoreRuntime} */ (await WarpCore.open({
+    graph = ((await WarpCore.open({
       persistence,
       graphName,
       writerId: 'tester',
       autoMaterialize: false,
-    }));
+    })) as WarpCoreRuntime);
   });
 
   it('graph.worldline() returns a live worldline handle', () => {
@@ -188,7 +186,7 @@ describe('WarpCore worldline surface', () => {
       ],
     });
 
-    const state = /** @type {any} */ (await graph.worldline().materialize());
+    const state = (await graph.worldline().materialize() as any);
     const reader = createStateReader(state);
     const propKey = encodePropKey('n1', 'color');
     const liveDots = state.nodeAlive.entries.get('n1');
@@ -404,7 +402,7 @@ describe('WarpCore worldline surface', () => {
       },
     });
 
-    const state = /** @type {any} */ (await worldline.materialize());
+    const state = (await worldline.materialize() as any);
     const reader = createStateReader(state);
     const observer = await worldline.observer('ws', { match: 'n1' });
 

@@ -6,7 +6,7 @@ import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.ts';
 
 vi.mock('../../../../src/domain/services/sync/SyncProtocol.js', async (importOriginal) => {
-  const original = /** @type {Record<string, unknown>} */ (await importOriginal());
+  const original = (await importOriginal() as Record<string, unknown>);
   return {
     ...original,
     applySyncResponse: vi.fn(),
@@ -15,9 +15,7 @@ vi.mock('../../../../src/domain/services/sync/SyncProtocol.js', async (importOri
 
 const { applySyncResponse: applySyncResponseMock } =
   /** @type {{ applySyncResponse: import('vitest').Mock }} */ (
-    /** @type {unknown} */ (
-      await import('../../../../src/domain/services/sync/SyncProtocol.js')
-    )
+    ((await import('../../../../src/domain/services/sync/SyncProtocol.js')) as unknown)
   );
 
 /**
@@ -26,8 +24,7 @@ const { applySyncResponse: applySyncResponseMock } =
  * @returns {Record<string, unknown>}
  */
 function createMockHost(overrides = {}) {
-  /** @type {Record<string, unknown>} */
-  const host = {
+    const host = {
     _cachedState: null,
     _lastFrontier: null,
     _stateDirty: false,
@@ -69,18 +66,17 @@ function createMockHost(overrides = {}) {
  * @returns {{ type: 'sync-response', frontier: Record<string, string>, patches: Array<{writerId: string, sha: string, patch: {ops: never[], context: Record<string, never>, writer: string, lamport: number}}> }}
  */
 function buildSyncResponse(writerIds) {
-  /** @type {Record<string, string>} */
-  const frontier = {};
+    const frontier = ({}) as Record<string, string>;
   const patches = writerIds.map((id, i) => {
     const sha = `sha-${id}-${i}`;
     frontier[id] = sha;
     return {
       writerId: id,
       sha,
-      patch: { ops: /** @type {never[]} */ ([]), context: /** @type {Record<string, never>} */ ({}), writer: id, lamport: i + 1 },
+      patch: { ops: ([] as never[]), context: ({} as Record<string, never>), writer: id, lamport: i + 1 },
     };
   });
-  return { type: /** @type {const} */ ('sync-response'), frontier, patches };
+  return { type: ('sync-response' as const), frontier, patches };
 }
 
 /**
@@ -120,12 +116,12 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
   it('rejects sync with untrusted writer in enforce mode (E_SYNC_UNTRUSTED_WRITER)', async () => {
     const evaluator = createTrustEvaluator([]); // no writers trusted
     const gate = new SyncTrustGate({
-      trustEvaluator: /** @type {*} */ (evaluator),
+      trustEvaluator: (evaluator),
       trustMode: 'enforce',
     });
 
     const host = createMockHost({ _cachedState: createEmptyState() });
-    const ctrl = new SyncController(/** @type {*} */ (host), { trustGate: gate });
+    const ctrl = new SyncController((host), { trustGate: gate });
     const response = buildSyncResponse(['untrusted-writer']);
 
     await expect(ctrl.applySyncResponse(response)).rejects.toThrow(SyncError);
@@ -134,7 +130,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
       await ctrl.applySyncResponse(response);
     } catch (err) {
       expect(err).toBeInstanceOf(SyncError);
-      expect(/** @type {SyncError} */ (err).code).toBe('E_SYNC_UNTRUSTED_WRITER');
+      expect((err).code).toBe('E_SYNC_UNTRUSTED_WRITER');
     }
 
     // applySyncResponseImpl must NOT have been called
@@ -145,7 +141,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
   it('leaves host state unchanged when trust gate rejects', async () => {
     const evaluator = createTrustEvaluator([]); // reject everyone
     const gate = new SyncTrustGate({
-      trustEvaluator: /** @type {*} */ (evaluator),
+      trustEvaluator: (evaluator),
       trustMode: 'enforce',
     });
 
@@ -166,7 +162,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
     const gcBefore = host['_patchesSinceGC'];
     const dirtyBefore = host['_stateDirty'];
 
-    const ctrl = new SyncController(/** @type {*} */ (host), { trustGate: gate });
+    const ctrl = new SyncController((host), { trustGate: gate });
     const response = buildSyncResponse(['evil-writer']);
 
     try {
@@ -187,12 +183,12 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
   describe('trust gate modes', () => {
     it('enforce mode rejects untrusted writers', async () => {
       const gate = new SyncTrustGate({
-        trustEvaluator: /** @type {*} */ (createTrustEvaluator([])),
+        trustEvaluator: (createTrustEvaluator([]) as any),
         trustMode: 'enforce',
       });
 
       const host = createMockHost({ _cachedState: createEmptyState() });
-      const ctrl = new SyncController(/** @type {*} */ (host), { trustGate: gate });
+      const ctrl = new SyncController((host), { trustGate: gate });
 
       await expect(ctrl.applySyncResponse(buildSyncResponse(['x'])))
         .rejects.toMatchObject({ code: 'E_SYNC_UNTRUSTED_WRITER' });
@@ -201,9 +197,9 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
     it('log-only mode warns but applies patches', async () => {
       const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
       const gate = new SyncTrustGate({
-        trustEvaluator: /** @type {*} */ (createTrustEvaluator([])),
+        trustEvaluator: (createTrustEvaluator([]) as any),
         trustMode: 'log-only',
-        logger: /** @type {*} */ (logger),
+        logger: (logger),
       });
 
       const host = createMockHost({
@@ -212,7 +208,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
       });
       stubApplySuccess(host);
 
-      const ctrl = new SyncController(/** @type {*} */ (host), { trustGate: gate });
+      const ctrl = new SyncController((host), { trustGate: gate });
       const result = await ctrl.applySyncResponse(buildSyncResponse(['untrusted']));
 
       // Patches applied despite untrusted writer
@@ -227,7 +223,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
     it('off mode passes through without evaluation', async () => {
       const evaluator = createTrustEvaluator([]);
       const gate = new SyncTrustGate({
-        trustEvaluator: /** @type {*} */ (evaluator),
+        trustEvaluator: (evaluator),
         trustMode: 'off',
       });
 
@@ -237,7 +233,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
       });
       stubApplySuccess(host);
 
-      const ctrl = new SyncController(/** @type {*} */ (host), { trustGate: gate });
+      const ctrl = new SyncController((host), { trustGate: gate });
       const result = await ctrl.applySyncResponse(buildSyncResponse(['anyone']));
 
       // Patches applied, evaluator NOT called
@@ -251,13 +247,13 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
   it('trust gate receives patch authors (writersApplied), not frontier keys', async () => {
     const evaluator = createTrustEvaluator(['C']); // only C is trusted
     const gate = new SyncTrustGate({
-      trustEvaluator: /** @type {*} */ (evaluator),
+      trustEvaluator: (evaluator),
       trustMode: 'enforce',
     });
 
     // Frontier claims writers A and B, but patches come from C
     const response = {
-      type: /** @type {const} */ ('sync-response'),
+      type: ('sync-response' as const),
       frontier: { A: 'sha-A', B: 'sha-B' },
       patches: [
         { writerId: 'C', sha: 'sha-C-0', patch: { ops: [], context: {}, writer: 'C', lamport: 1 } },
@@ -270,7 +266,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
     });
     stubApplySuccess(host);
 
-    const ctrl = new SyncController(/** @type {*} */ (host), { trustGate: gate });
+    const ctrl = new SyncController((host), { trustGate: gate });
     const result = await ctrl.applySyncResponse(response);
 
     // Trust evaluator received ['C'], not ['A', 'B']
@@ -286,16 +282,16 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
       _cachedState: createEmptyState(),
       _lastFrontier: createFrontier(),
       _createSyncTrustGate: vi.fn((trust) => new SyncTrustGate({
-        trustEvaluator: /** @type {*} */ (createTrustEvaluator([])),
+        trustEvaluator: (createTrustEvaluator([]) as any),
         trustMode: trust?.mode || 'off',
       })),
     });
-    const ctrl = new SyncController(/** @type {*} */ (host));
+    const ctrl = new SyncController((host));
     const remotePeer = {
       processSyncRequest: vi.fn().mockResolvedValue(buildSyncResponse(['mallory'])),
     };
 
-    await expect(ctrl.syncWith(/** @type {*} */ (remotePeer), {
+    await expect(ctrl.syncWith((remotePeer), {
       trust: { mode: 'enforce', pin: 'abc123' },
     })).rejects.toMatchObject({ code: 'E_SYNC_UNTRUSTED_WRITER' });
 
@@ -320,11 +316,11 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
     stubApplySuccess(host);
 
     // No trust gate — simple success path
-    const ctrl = new SyncController(/** @type {*} */ (host));
+    const ctrl = new SyncController((host));
     await ctrl.applySyncResponse(buildSyncResponse(['writer-a']));
 
     // _setMaterializedState should have been called to rebuild caches
-    expect(/** @type {import('vitest').Mock} */ (host['_setMaterializedState'])).toHaveBeenCalledOnce();
+    expect((host['_setMaterializedState'] as any)).toHaveBeenCalledOnce();
     // _materializedGraph is rebuilt (not null) — the mock sets it
     expect(host['_materializedGraph']).not.toBeNull();
   });

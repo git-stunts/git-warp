@@ -23,7 +23,7 @@ describe('Auto-materialize on remove (DX/AUTOMAT/1)', { timeout: 15000 }, () => 
 
       const ops = patch.ops;
       expect(ops).toHaveLength(1);
-      const op0 = /** @type {any} */ (ops[0]);
+      const op0 = (ops[0] as any);
       expect(op0.type).toBe('NodeRemove');
       expect(op0.observedDots.length).toBeGreaterThan(0);
 
@@ -60,7 +60,7 @@ describe('Auto-materialize on remove (DX/AUTOMAT/1)', { timeout: 15000 }, () => 
 
       const ops = patch.ops;
       expect(ops).toHaveLength(1);
-      const op0 = /** @type {any} */ (ops[0]);
+      const op0 = (ops[0] as any);
       expect(op0.type).toBe('EdgeRemove');
       expect(op0.observedDots.length).toBeGreaterThan(0);
     } finally {

@@ -60,7 +60,7 @@ describe('EffectPipeline', () => {
       expect(result.emission.timestamp).toBe(42);
       expect(result.observations).toHaveLength(1);
       const obs0 = /** @type {{ outcome: string }} */ (Array.isArray(result.observations) ? result.observations[0] : result.observations);
-      expect(obs0.outcome).toBe('delivered');
+      expect(obs0!.outcome).toBe('delivered');
       expect(sink.delivered).toHaveLength(1);
     });
 
@@ -146,8 +146,8 @@ describe('EffectPipeline', () => {
       const result = await pipeline.emit('notification', null);
 
       const obs0 = /** @type {{ outcome: string, reason: string }} */ (Array.isArray(result.observations) ? result.observations[0] : result.observations);
-      expect(obs0.outcome).toBe('suppressed');
-      expect(obs0.reason).toContain('replay');
+      expect(obs0!.outcome).toBe('suppressed');
+      expect(obs0!.reason).toContain('replay');
     });
   });
 
@@ -208,7 +208,7 @@ describe('EffectPipeline', () => {
       const result = await pipeline.emit('test', null);
 
       const obs = /** @type {{ outcome: string }} */ (result.observations);
-      expect(obs.outcome).toBe('delivered');
+      expect((obs as any).outcome).toBe('delivered');
       expect(sink.delivered).toHaveLength(1);
     });
   });

@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import ConflictResolution from '../../../../../src/domain/types/conflict/ConflictResolution.ts';
 
 describe('ConflictResolution', () => {
-  const VALID = /** @type {any} */ ({
+  const VALID = (({
     reducerId: 'join-reducer-v5',
     basis: { code: 'lww' },
     winnerMode: 'immediate',
-  });
+  }) as any);
 
   it('creates a frozen resolution without comparator', () => {
     const r = new ConflictResolution(VALID);
@@ -54,23 +54,23 @@ describe('ConflictResolution', () => {
   });
 
   it('rejects null basis', () => {
-    expect(() => new ConflictResolution(/** @type {any} */ ({ ...VALID, basis: null }))).toThrow('basis');
+    expect(() => new ConflictResolution(({ ...VALID, basis: null } as any))).toThrow('basis');
   });
 
   it('rejects basis with empty code', () => {
-    expect(() => new ConflictResolution(/** @type {any} */ ({ ...VALID, basis: { code: '' } }))).toThrow('basis.code');
+    expect(() => new ConflictResolution(({ ...VALID, basis: { code: '' } } as any))).toThrow('basis.code');
   });
 
   it('rejects invalid winnerMode', () => {
-    expect(() => new ConflictResolution(/** @type {any} */ ({ ...VALID, winnerMode: 'deferred' }))).toThrow('winnerMode');
+    expect(() => new ConflictResolution(({ ...VALID, winnerMode: 'deferred' } as any))).toThrow('winnerMode');
   });
 
   it('rejects comparator with empty type', () => {
-    expect(() => new ConflictResolution(/** @type {any} */ ({ ...VALID, comparator: { type: '' } }))).toThrow('comparator.type');
+    expect(() => new ConflictResolution(({ ...VALID, comparator: { type: '' } } as any))).toThrow('comparator.type');
   });
 
   it('treats null comparator as undefined', () => {
-    const r = new ConflictResolution(/** @type {any} */ ({ ...VALID, comparator: null }));
+    const r = new ConflictResolution(({ ...VALID, comparator: null } as any));
     expect(r.comparator).toBeUndefined();
   });
 });

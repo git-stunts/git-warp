@@ -66,7 +66,7 @@ function extractNodeMappings(shards) {
 function extractLabelRegistry(shards) {
   const labelShard = shards.find((s) => s instanceof LabelShard);
   if (!labelShard) { return []; }
-  return /** @type {LabelShard} */ (labelShard).labels;
+  return (labelShard).labels;
 }
 
 /**
@@ -76,8 +76,7 @@ function extractLabelRegistry(shards) {
  * @returns {Record<string, Record<string, Record<string, Uint8Array>>>}
  */
 function extractEdgeShards(shards) {
-  /** @type {Record<string, Record<string, Record<string, Uint8Array>>>} */
-  const out = {};
+    const out = ({}) as Record<string, Record<string, Record<string, Uint8Array>>>;
   for (const shard of shards) {
     if (shard instanceof EdgeShard) {
       out[`${shard.direction}_${shard.shardKey}`] = shard.buckets;
@@ -154,7 +153,7 @@ describe('LogicalIndexBuildService determinism', () => {
 
     const metaAA = shards.find((s) => s instanceof MetaShard && s.shardKey === 'aa');
     expect(metaAA).toBeDefined();
-    const nodeIds = /** @type {MetaShard} */ (metaAA).nodeToGlobal.map(
+    const nodeIds = (metaAA).nodeToGlobal.map(
       (/** @type {[string, number]} */ pair) => pair[0],
     );
     expect(nodeIds.length).toBe(4);

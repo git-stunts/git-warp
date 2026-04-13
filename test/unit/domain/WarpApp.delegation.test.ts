@@ -55,19 +55,16 @@ function createRuntimeBackedCore() {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('WarpApp delegation', () => {
-  /** @type {WarpApp} */
-  let app;
-  /** @type {any} */
-  let mockRuntime;
-  /** @type {any} */
-  let mockCore;
+    let app;
+    let mockRuntime;
+    let mockCore;
 
   beforeEach(() => {
     mockRuntime = createMockRuntime();
     mockCore = createMockCore();
 
     // Construct WarpApp with a mock core that also acts as runtime
-    app = new WarpApp(/** @type {any} */ (mockCore));
+    app = new WarpApp((mockCore));
     // Override _runtime() to return our mock runtime (which has all the methods)
     app._runtime = () => mockRuntime;
     // Override core() to return our mock core
@@ -77,9 +74,9 @@ describe('WarpApp delegation', () => {
   describe('runtime surface', () => {
     it('open() wraps WarpCore.open()', async () => {
       const runtimeBackedCore = createRuntimeBackedCore();
-      const open = vi.spyOn(WarpCore, 'open').mockResolvedValue(/** @type {any} */ (runtimeBackedCore));
+      const open = vi.spyOn(WarpCore, 'open').mockResolvedValue((runtimeBackedCore));
 
-      const opened = await WarpApp.open({ graphName: 'g', writerId: 'w', persistence: /** @type {any} */ ({}) });
+      const opened = await WarpApp.open({ graphName: 'g', writerId: 'w', persistence: ({} as any) });
 
       expect(open).toHaveBeenCalledWith({ graphName: 'g', writerId: 'w', persistence: {} });
       expect(opened).toBeInstanceOf(WarpApp);
@@ -90,7 +87,7 @@ describe('WarpApp delegation', () => {
 
     it('graphName and writerId read through the runtime-backed core', () => {
       const runtimeBackedCore = createRuntimeBackedCore();
-      const runtimeBackedApp = new WarpApp(/** @type {any} */ (runtimeBackedCore));
+      const runtimeBackedApp = new WarpApp((runtimeBackedCore));
 
       expect(runtimeBackedApp.graphName).toBe('test-graph');
       expect(runtimeBackedApp.writerId).toBe('writer-1');
@@ -99,7 +96,7 @@ describe('WarpApp delegation', () => {
     });
 
     it('throws when the wrapped core is not runtime-backed', () => {
-      const runtimeBackedApp = new WarpApp(/** @type {any} */ (createMockCore()));
+      const runtimeBackedApp = new WarpApp((createMockCore() as any));
 
       expect(() => runtimeBackedApp._runtime()).toThrow('WarpApp requires a runtime-backed WarpCore');
     });
@@ -162,9 +159,9 @@ describe('WarpApp delegation', () => {
 
     it('unwraps WarpApp remotes to their runtime surface', async () => {
       const remoteRuntime = createRuntimeBackedCore();
-      const remoteApp = new WarpApp(/** @type {any} */ (remoteRuntime));
+      const remoteApp = new WarpApp((remoteRuntime));
 
-      await app.syncWith(remoteApp, /** @type {any} */ ({ retries: 2 }));
+      await app.syncWith(remoteApp, ({ retries: 2 } as any));
 
       expect(mockRuntime.syncWith).toHaveBeenCalledWith(remoteRuntime, { retries: 2 });
     });
@@ -172,13 +169,13 @@ describe('WarpApp delegation', () => {
     it('passes runtime-backed WarpCore remotes through directly', async () => {
       const remoteCore = createRuntimeBackedCore();
 
-      await app.syncWith(/** @type {any} */ (remoteCore));
+      await app.syncWith((remoteCore));
 
       expect(mockRuntime.syncWith).toHaveBeenCalledWith(remoteCore, undefined);
     });
 
     it('rejects non-runtime-backed WarpCore peers', async () => {
-      await expect(app.syncWith(/** @type {any} */ (createMockCore()))).rejects.toThrow('runtime-backed WarpCore peer');
+      await expect(app.syncWith((createMockCore() as any))).rejects.toThrow('runtime-backed WarpCore peer');
     });
   });
 
@@ -186,7 +183,7 @@ describe('WarpApp delegation', () => {
 
   describe('worldline', () => {
     it('delegates to _runtime().worldline()', () => {
-      const opts = /** @type {any} */ ({ ceiling: 5 });
+      const opts = ({ ceiling: 5 } as any);
       const result = app.worldline(opts);
 
       expect(mockRuntime.worldline).toHaveBeenCalledWith(opts);
@@ -196,16 +193,16 @@ describe('WarpApp delegation', () => {
 
   describe('observer', () => {
     it('delegates with (name, config, options) overload', async () => {
-      const config = /** @type {any} */ ({ nodes: '*' });
-      const opts = /** @type {any} */ ({ ceiling: 5 });
+      const config = ({ nodes: '*' } as any);
+      const opts = ({ ceiling: 5 } as any);
       await app.observer('obs-name', config, opts);
 
       expect(mockRuntime.observer).toHaveBeenCalledWith('obs-name', config, opts);
     });
 
     it('delegates with (config, options) overload', async () => {
-      const config = /** @type {any} */ ({ nodes: '*' });
-      const opts = /** @type {any} */ ({ ceiling: 5 });
+      const config = ({ nodes: '*' } as any);
+      const opts = ({ ceiling: 5 } as any);
       await app.observer(config, opts);
 
       expect(mockRuntime.observer).toHaveBeenCalledWith(config, opts);
@@ -214,8 +211,8 @@ describe('WarpApp delegation', () => {
 
   describe('translationCost', () => {
     it('delegates to _runtime().translationCost()', async () => {
-      const configA = /** @type {any} */ ({ nodes: 'a' });
-      const configB = /** @type {any} */ ({ nodes: 'b' });
+      const configA = ({ nodes: 'a' } as any);
+      const configB = ({ nodes: 'b' } as any);
       const result = await app.translationCost(configA, configB);
 
       expect(mockRuntime.translationCost).toHaveBeenCalledWith(configA, configB);

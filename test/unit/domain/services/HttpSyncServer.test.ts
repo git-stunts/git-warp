@@ -7,8 +7,7 @@ function canonicalizeJson(value) {
     return value.map(canonicalizeJson);
   }
   if (value && typeof value === 'object') {
-    /** @type {Record<string, any>} */
-    const sorted = {};
+        const sorted = ({}) as Record<string, any>;
     for (const key of Object.keys(value).sort()) {
       sorted[key] = canonicalizeJson(value[key]);
     }
@@ -28,8 +27,7 @@ function canonicalStringify(value) {
  */
 /** @returns {any} */
 function createMockPort() {
-  /** @type {any} */
-  let handler;
+    let handler;
   const addressValue = { port: 9999 };
 
   return {
@@ -62,10 +60,8 @@ function createMockPort() {
 }
 
 describe('HttpSyncServer', () => {
-  /** @type {any} */
-  let mockPort;
-  /** @type {any} */
-  let graph;
+    let mockPort;
+    let graph;
 
   beforeEach(() => {
     mockPort = createMockPort();
@@ -79,20 +75,20 @@ describe('HttpSyncServer', () => {
   });
 
   it('throws if port is not a number', async () => {
-    const server = new HttpSyncServer(/** @type {any} */ ({
+    const server = new HttpSyncServer((({
       httpPort: mockPort.port,
       graph,
-    }));
-    await expect(server.listen(/** @type {any} */ ('abc'))).rejects.toThrow('listen() requires a numeric port');
+    }) as any));
+    await expect(server.listen(('abc' as any))).rejects.toThrow('listen() requires a numeric port');
   });
 
   it('returns url and close handle on listen', async () => {
-    const server = new HttpSyncServer(/** @type {any} */ ({
+    const server = new HttpSyncServer((({
       httpPort: mockPort.port,
       graph,
       host: '127.0.0.1',
       path: '/sync',
-    }));
+    }) as any));
 
     const handle = await server.listen(9999);
     expect(handle.url).toBe('http://127.0.0.1:9999/sync');
@@ -101,24 +97,23 @@ describe('HttpSyncServer', () => {
   });
 
   it('rejects path without leading slash', () => {
-    expect(() => new HttpSyncServer(/** @type {any} */ ({
+    expect(() => new HttpSyncServer((({
       httpPort: mockPort.port,
       graph,
       path: 'custom',
-    }))).toThrow(/HttpSyncServer config/);
+    }) as any))).toThrow(/HttpSyncServer config/);
   });
 
   describe('request handling', () => {
-    /** @type {any} */
-    let handler;
+        let handler;
 
     beforeEach(async () => {
-      const server = new HttpSyncServer(/** @type {any} */ ({
+      const server = new HttpSyncServer((({
         httpPort: mockPort.port,
         graph,
         host: '127.0.0.1',
         path: '/sync',
-      }));
+      }) as any));
       await server.listen(9999);
       handler = mockPort.getHandler();
     });
@@ -168,11 +163,11 @@ describe('HttpSyncServer', () => {
     });
 
     it('returns 413 for oversized request', async () => {
-      const server = new HttpSyncServer(/** @type {any} */ ({
+      const server = new HttpSyncServer((({
         httpPort: mockPort.port,
         graph,
         maxRequestBytes: 10,
-      }));
+      }) as any));
       await server.listen(9999);
       const h = mockPort.getHandler();
 
@@ -314,38 +309,38 @@ describe('HttpSyncServer', () => {
 
   describe('Zod schema validation', () => {
     it('throws on empty options (missing required fields)', () => {
-      expect(() => new HttpSyncServer(/** @type {any} */ ({}))).toThrow(/HttpSyncServer config/);
+      expect(() => new HttpSyncServer(({} as any))).toThrow(/HttpSyncServer config/);
     });
 
     it('throws on negative maxRequestBytes', () => {
-      expect(() => new HttpSyncServer(/** @type {any} */ ({
+      expect(() => new HttpSyncServer((({
         httpPort: mockPort.port,
         graph,
         maxRequestBytes: -1,
-      }))).toThrow(/HttpSyncServer config/);
+      }) as any))).toThrow(/HttpSyncServer config/);
     });
 
     it('throws on empty auth.keys', () => {
-      expect(() => new HttpSyncServer(/** @type {any} */ ({
+      expect(() => new HttpSyncServer((({
         httpPort: mockPort.port,
         graph,
         auth: { keys: {} },
-      }))).toThrow(/auth\.keys must not be empty/);
+      }) as any))).toThrow(/auth\.keys must not be empty/);
     });
 
     it('throws on unknown top-level key (strict mode)', () => {
-      expect(() => new HttpSyncServer(/** @type {any} */ ({
+      expect(() => new HttpSyncServer((({
         httpPort: mockPort.port,
         graph,
         unknownKey: 42,
-      }))).toThrow(/HttpSyncServer config/);
+      }) as any))).toThrow(/HttpSyncServer config/);
     });
 
     it('succeeds with valid defaults and applies them correctly', () => {
-      const server = new HttpSyncServer(/** @type {any} */ ({
+      const server = new HttpSyncServer((({
         httpPort: mockPort.port,
         graph,
-      }));
+      }) as any));
       // Default path and host are applied via Zod schema
       expect(server._path).toBe('/sync');
       expect(server._host).toBe('127.0.0.1');
