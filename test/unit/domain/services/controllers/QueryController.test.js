@@ -24,7 +24,7 @@ import {
 function orsetWith(elements) {
   const set = ORSet.empty();
   for (let i = 0; i < elements.length; i++) {
-    set.add(elements[i], new Dot('w', i + 1));
+    set.add(/** @type {string} */ (elements[i]), new Dot('w', i + 1));
   }
   return set;
 }
@@ -69,7 +69,7 @@ function buildState(spec = {}) {
   const edgeKeys = (spec.edges ?? []).map((e) => encodeEdgeKey(e.from, e.to, e.label));
   const edgeAlive = orsetWith(edgeKeys);
 
-  /** @type {Map<string, { value: unknown, eventId: { lamport: number, writerId: string, patchSha: string }|null }>} */
+  /** @type {*} */
   const prop = new Map();
   for (const p of spec.props ?? []) {
     prop.set(encodePropKey(p.nodeId, p.key), lww(p.value, p.eventId ?? null));
@@ -100,7 +100,7 @@ function buildState(spec = {}) {
  *
  * @param {WarpState} state
  * @param {Record<string, unknown>} [overrides]
- * @returns {object}
+ * @returns {*}
  */
 function createHost(state, overrides = {}) {
   return {
@@ -126,9 +126,9 @@ function createHost(state, overrides = {}) {
 describe('QueryController', () => {
   /** @type {WarpState} */
   let state;
-  /** @type {ReturnType<typeof createHost>} */
+  /** @type {*} */
   let host;
-  /** @type {QueryController} */
+  /** @type {*} */
   let ctrl;
 
   beforeEach(() => {
