@@ -160,6 +160,7 @@ import {
 import { NoOpEffectSink } from './src/infrastructure/adapters/NoOpEffectSink.js';
 import { ConsoleEffectSink } from './src/infrastructure/adapters/ConsoleEffectSink.js';
 import { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.js';
+import { openWarpGraph } from './src/domain/WarpGraph.ts';
 import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
 import { PatchSession } from './src/domain/warp/PatchSession.ts';
 import { Writer } from './src/domain/warp/Writer.ts';
@@ -241,7 +242,10 @@ export {
   checkAborted,
   createTimeoutSignal,
 
-  // Multi-writer graph support (WARP)
+  // Multi-writer graph — admission architecture entry point
+  openWarpGraph,
+
+  // Multi-writer graph support (legacy — prefer openWarpGraph)
   WarpApp,
   WarpCore,
   Worldline,

@@ -1,14 +1,19 @@
 /**
  * WarpGraph — the public API surface for git-warp.
  *
- * `openWarpGraph()` is the single entry point. It returns a frozen
- * capability bag — no god object, no defineProperty wiring, no
- * _internal shims. Each capability namespace exposes exactly the
- * methods consumers need.
+ * WARP is a recursive, witnessed admission architecture over bounded
+ * frontier-relative causal sites. The admission kernel recurs at three
+ * scales: local tick admission, braid-local admission, and distributed
+ * suffix admission. The stack decomposes into three moments:
  *
- * Internally wraps WarpRuntime during the migration. When all
- * consumers have migrated, WarpRuntime dies and the factory
- * wires controllers directly.
+ *   Commitment — plural claims are admitted into frontier-relative truth
+ *   Folding    — admitted history is re-expressed in boundary-equivalent form
+ *   Revelation — admitted history is exposed under bounded rights
+ *
+ * `openWarpGraph()` is the composition root. It accepts the governing
+ * policy, witness infrastructure, and revelation regime as typed ports,
+ * wires controllers, and returns a frozen capability bag organized by
+ * architectural moment.
  */
 import WarpRuntime from './WarpRuntime.ts';
 import type QueryCapability from './capabilities/QueryCapability.ts';
@@ -36,13 +41,70 @@ import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
 import type { GCPolicyConfig } from './services/GCPolicy.ts';
 
 // ---------------------------------------------------------------------------
-// WarpGraph — the frozen capability bag
+// WarpGraph — frozen capability bag, organized by architectural moment
 // ---------------------------------------------------------------------------
+
+/**
+ * Commitment capabilities — admitting claims into frontier-relative truth.
+ *
+ * Local tick admission (patches), speculative lane management (strands),
+ * and braid presentation for comparison and transfer planning.
+ */
+export interface CommitmentSurface {
+  /** Local tick admission: create patches, commit CRDT state. */
+  readonly patches: PatchCapability;
+  /** Speculative lanes: fork, materialize, collapse, braid. */
+  readonly strands: StrandCapability;
+  /** Braid presentation: compare coordinates, plan transfers. */
+  readonly comparison: ComparisonCapability;
+}
+
+/**
+ * Folding capabilities — re-expressing admitted history.
+ *
+ * Frontier-relative materialization and checkpoint-based history folding.
+ */
+export interface FoldingSurface {
+  /** Frontier-relative materialization of causal history into state. */
+  readonly materialize: MaterializeCapability;
+  /** History folding: create/restore checkpoints. */
+  readonly checkpoint: CheckpointCapability;
+}
+
+/**
+ * Revelation capabilities — bounded observer access to admitted truth.
+ *
+ * Queries, reactive subscriptions, and provenance witness access.
+ */
+export interface RevelationSurface {
+  /** Bounded observer reads: nodes, edges, content, worldlines, observers. */
+  readonly query: QueryCapability;
+  /** Reactive revelation: subscribe to state changes. */
+  readonly subscriptions: SubscriptionCapability;
+  /** Witness access: provenance, audit, boundary transition records. */
+  readonly provenance: ProvenanceCapability;
+}
+
+/**
+ * Governance capabilities — distributed suffix admission and transport.
+ */
+export interface GovernanceSurface {
+  /** Distributed suffix admission: sync, serve, transport. */
+  readonly sync: SyncCapability;
+}
 
 /** The public API surface returned by openWarpGraph(). */
 export interface WarpGraph {
   readonly graphName: string;
   readonly writerId: string;
+
+  // Architectural moments
+  readonly commitment: CommitmentSurface;
+  readonly folding: FoldingSurface;
+  readonly revelation: RevelationSurface;
+  readonly governance: GovernanceSurface;
+
+  // Flat aliases for ergonomic access (commitment.patches vs graph.patches)
   readonly query: QueryCapability;
   readonly patches: PatchCapability;
   readonly materialize: MaterializeCapability;
@@ -58,76 +120,57 @@ export interface WarpGraph {
 }
 
 // ---------------------------------------------------------------------------
-// WarpGraphDeps — validated dependency bag
+// WarpGraphDeps — the composition root's dependency contract
 // ---------------------------------------------------------------------------
 
 type TrustMode = 'off' | 'log-only' | 'enforce';
 
-/** Dependencies for openWarpGraph(). Every field is a named port or value. */
+/**
+ * Dependencies for openWarpGraph().
+ *
+ * The composition root accepts:
+ * - persistence substrate (GraphPersistencePort)
+ * - identity (graphName, writerId)
+ * - governing policy (trust, GC, checkpoint, onDeleteWithData)
+ * - witness infrastructure (crypto, codec, audit)
+ * - revelation regime (logger, effectSinks, externalizationPolicy)
+ * - optional accelerators (seekCache, blobStorage, indexStore)
+ */
 export interface WarpGraphDeps {
+  // Substrate
   readonly persistence: CorePersistence;
+
+  // Identity
   readonly graphName: string;
   readonly writerId: string;
+
+  // Governing policy
+  readonly trust?: { mode?: TrustMode; pin?: string | null };
   readonly gcPolicy?: GCPolicyConfig;
-  readonly adjacencyCacheSize?: number;
   readonly checkpointPolicy?: { every: number };
-  readonly autoMaterialize?: boolean;
   readonly onDeleteWithData?: 'reject' | 'cascade' | 'warn';
-  readonly logger?: LoggerPort;
-  readonly clock?: ClockPort;
+  readonly autoMaterialize?: boolean;
+
+  // Witness infrastructure
   readonly crypto?: CryptoPort;
   readonly codec?: CodecPort;
-  readonly seekCache?: SeekCachePort;
+  readonly clock?: ClockPort;
   readonly audit?: boolean;
+
+  // Revelation regime
+  readonly logger?: LoggerPort;
+  readonly effectPipeline?: EffectPipeline;
+  readonly effectSinks?: EffectSinkPort[];
+  readonly externalizationPolicy?: ExternalizationPolicy;
+
+  // Accelerators (optional — auto-constructed if absent)
+  readonly seekCache?: SeekCachePort;
   readonly blobStorage?: BlobStoragePort;
   readonly patchBlobStorage?: BlobStoragePort;
   readonly patchJournal?: PatchJournalPort | null;
   readonly checkpointStore?: CheckpointStorePort | null;
   readonly indexStore?: IndexStorePort | null;
-  readonly trust?: { mode?: TrustMode; pin?: string | null };
-  readonly effectPipeline?: EffectPipeline;
-  readonly effectSinks?: EffectSinkPort[];
-  readonly externalizationPolicy?: ExternalizationPolicy;
-}
-
-// ---------------------------------------------------------------------------
-// Capability binding — wraps WarpRuntime methods into capability objects
-// ---------------------------------------------------------------------------
-
-function bindQuery(rt: WarpRuntime): QueryCapability {
-  return rt as unknown as QueryCapability;
-}
-
-function bindPatches(rt: WarpRuntime): PatchCapability {
-  return rt as unknown as PatchCapability;
-}
-
-function bindMaterialize(rt: WarpRuntime): MaterializeCapability {
-  return rt as unknown as MaterializeCapability;
-}
-
-function bindSync(rt: WarpRuntime): SyncCapability {
-  return rt as unknown as SyncCapability;
-}
-
-function bindStrands(rt: WarpRuntime): StrandCapability {
-  return rt as unknown as StrandCapability;
-}
-
-function bindCheckpoint(rt: WarpRuntime): CheckpointCapability {
-  return rt as unknown as CheckpointCapability;
-}
-
-function bindProvenance(rt: WarpRuntime): ProvenanceCapability {
-  return rt as unknown as ProvenanceCapability;
-}
-
-function bindComparison(rt: WarpRuntime): ComparisonCapability {
-  return rt as unknown as ComparisonCapability;
-}
-
-function bindSubscriptions(rt: WarpRuntime): SubscriptionCapability {
-  return rt as unknown as SubscriptionCapability;
+  readonly adjacencyCacheSize?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -137,25 +180,62 @@ function bindSubscriptions(rt: WarpRuntime): SubscriptionCapability {
 /**
  * Opens a WARP multi-writer graph and returns a frozen capability bag.
  *
- * This is the single public entry point. The returned WarpGraph is
- * immutable — capabilities cannot be added, removed, or replaced
- * after construction.
+ * This is the single public entry point — the composition root for
+ * the admission architecture. It accepts the governing policy, witness
+ * infrastructure, and revelation regime as typed ports, wires
+ * controllers, and returns a frozen WarpGraph.
+ *
+ * @example
+ * ```ts
+ * import { openWarpGraph } from '@git-stunts/git-warp';
+ *
+ * const graph = await openWarpGraph({
+ *   persistence,
+ *   graphName: 'events',
+ *   writerId: 'node-1',
+ *   trust: { mode: 'enforce' },
+ * });
+ *
+ * // Commitment: create a patch
+ * const patch = await graph.patches.createPatch();
+ * patch.addNode('user:alice');
+ * await patch.commit();
+ *
+ * // Folding: materialize state
+ * await graph.materialize.materialize({});
+ *
+ * // Revelation: query the graph
+ * const props = await graph.query.getNodeProps('user:alice');
+ * ```
  */
 export async function openWarpGraph(deps: WarpGraphDeps): Promise<WarpGraph> {
   const runtime = await WarpRuntime.open(deps);
 
+  // Bind capabilities from the runtime's wired methods
+  const query = runtime as unknown as QueryCapability;
+  const patches = runtime as unknown as PatchCapability;
+  const materialize = runtime as unknown as MaterializeCapability;
+  const sync = runtime as unknown as SyncCapability;
+  const strands = runtime as unknown as StrandCapability;
+  const checkpoint = runtime as unknown as CheckpointCapability;
+  const provenance = runtime as unknown as ProvenanceCapability;
+  const comparison = runtime as unknown as ComparisonCapability;
+  const subscriptions = runtime as unknown as SubscriptionCapability;
+
   const graph: WarpGraph = {
     graphName: runtime.graphName,
     writerId: runtime.writerId,
-    query: bindQuery(runtime),
-    patches: bindPatches(runtime),
-    materialize: bindMaterialize(runtime),
-    sync: bindSync(runtime),
-    strands: bindStrands(runtime),
-    checkpoint: bindCheckpoint(runtime),
-    provenance: bindProvenance(runtime),
-    comparison: bindComparison(runtime),
-    subscriptions: bindSubscriptions(runtime),
+
+    // Architectural moments
+    commitment: Object.freeze({ patches, strands, comparison }),
+    folding: Object.freeze({ materialize, checkpoint }),
+    revelation: Object.freeze({ query, subscriptions, provenance }),
+    governance: Object.freeze({ sync }),
+
+    // Flat aliases
+    query, patches, materialize, sync, strands,
+    checkpoint, provenance, comparison, subscriptions,
+
     _runtime: runtime,
   };
 
