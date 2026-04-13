@@ -10,7 +10,7 @@ import {
   PAYLOAD_TOO_LARGE_BYTES,
   PAYLOAD_TOO_LARGE_LENGTH,
   noopLogger,
-} from '../../../../src/infrastructure/adapters/httpAdapterUtils.js';
+} from '../../../../src/infrastructure/adapters/httpAdapterUtils.ts';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 

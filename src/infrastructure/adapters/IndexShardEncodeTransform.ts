@@ -4,8 +4,8 @@ import { EdgeShard } from '../../domain/artifacts/EdgeShard.ts';
 import { LabelShard } from '../../domain/artifacts/LabelShard.ts';
 import { PropertyShard } from '../../domain/artifacts/PropertyShard.ts';
 import { ReceiptShard } from '../../domain/artifacts/ReceiptShard.ts';
-
-/** @typedef {import('../../domain/artifacts/IndexShard.ts').IndexShard} IndexShard */
+import type { IndexShard } from '../../domain/artifacts/IndexShard.ts';
+import type CodecPort from '../../ports/CodecPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 
 /**
@@ -17,31 +17,19 @@ import WarpError from '../../domain/errors/WarpError.ts';
  *
  * Input:  IndexShard (MetaShard | EdgeShard | LabelShard | PropertyShard | ReceiptShard)
  * Output: [string, Uint8Array] — [Git tree path, CBOR bytes]
- *
- * @extends {Transform<IndexShard, [string, Uint8Array]>}
  */
-export class IndexShardEncodeTransform extends Transform {
-  /**
-   * Creates an IndexShardEncodeTransform.
-   *
-   * @param {import('../../ports/CodecPort.ts').default} codec
-   */
-  constructor(codec) {
+export class IndexShardEncodeTransform extends Transform<IndexShard, [string, Uint8Array]> {
+  private readonly _codec: CodecPort;
+
+  constructor(codec: CodecPort) {
     super();
     if (codec === null || codec === undefined) {
       throw new WarpError('IndexShardEncodeTransform requires a codec', 'E_INVALID_DEPENDENCY');
     }
-    /** @type {import('../../ports/CodecPort.ts').default} */
     this._codec = codec;
   }
 
-  /**
-   * Maps each IndexShard to [path, bytes] via instanceof dispatch.
-   *
-   * @param {AsyncIterable<IndexShard>} source
-   * @returns {AsyncIterable<[string, Uint8Array]>}
-   */
-  async *apply(source) {
+  async *apply(source: AsyncIterable<IndexShard>): AsyncIterable<[string, Uint8Array]> {
     for await (const shard of source) {
       yield this._encode(shard);
     }
@@ -49,12 +37,8 @@ export class IndexShardEncodeTransform extends Transform {
 
   /**
    * Maps a single IndexShard to [path, bytes].
-   *
-   * @param {IndexShard} shard
-   * @returns {[string, Uint8Array]}
-   * @private
    */
-  _encode(shard) {
+  private _encode(shard: IndexShard): [string, Uint8Array] {
     if (shard instanceof MetaShard) {
       return [
         `meta_${shard.shardKey}.cbor`,

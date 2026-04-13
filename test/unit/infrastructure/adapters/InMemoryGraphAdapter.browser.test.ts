@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
-import { sha1sync } from '../../../../src/infrastructure/adapters/sha1sync.js';
+import { sha1sync } from '../../../../src/infrastructure/adapters/sha1sync.ts';
 import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
-import WebCryptoAdapter from '../../../../src/infrastructure/adapters/WebCryptoAdapter.js';
+import WebCryptoAdapter from '../../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 
 describe('InMemoryGraphAdapter with injected hash (browser simulation)', () => {
   it('basic operations work with sha1sync hash function', async () => {

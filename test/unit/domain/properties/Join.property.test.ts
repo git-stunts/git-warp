@@ -7,7 +7,7 @@ import {
   reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.ts';
 import { computeStateHash as _computeStateHash } from '../../../../src/domain/services/state/StateSerializer.js';
-import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
 const joinStates = (_joinStates) as any;
 const reduceV5 = (_reduceV5) as any;

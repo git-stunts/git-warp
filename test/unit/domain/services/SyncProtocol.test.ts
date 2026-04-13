@@ -17,9 +17,9 @@ import { createFrontier } from '../../../../src/domain/services/Frontier.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
-import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
-import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
+import { encode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
+import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 // -----------------------------------------------------------------------------
 // Test Fixtures and Helpers

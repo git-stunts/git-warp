@@ -16,7 +16,7 @@ import { createHash } from 'node:crypto';
 import {
   encode as cborEncode,
   decode as cborDecode,
-} from '../../../src/infrastructure/codecs/CborCodec.js';
+} from '../../../src/infrastructure/codecs/CborCodec.ts';
 
 // ============================================================================
 // Helpers — mirrors the canonical algorithms from the spec

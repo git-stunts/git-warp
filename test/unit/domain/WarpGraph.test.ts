@@ -2,15 +2,15 @@ import { describe, it, expect, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { PatchBuilder } from '../../../src/domain/services/PatchBuilder.ts';
 import AuditVerifierService from '../../../src/domain/services/audit/AuditVerifierService.ts';
-import { NoOpEffectSink } from '../../../src/infrastructure/adapters/NoOpEffectSink.js';
+import { NoOpEffectSink } from '../../../src/infrastructure/adapters/NoOpEffectSink.ts';
 
-import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
+import { encode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import { serializeFullState, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializer.js';
 import { serializeFrontier } from '../../../src/domain/services/Frontier.ts';
-import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
 const crypto = new NodeCryptoAdapter();
 

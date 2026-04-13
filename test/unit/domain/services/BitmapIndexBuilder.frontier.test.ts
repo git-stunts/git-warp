@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import BitmapIndexBuilder from '../../../../src/domain/services/index/BitmapIndexBuilder.ts';
-import { decode as cborDecode } from '../../../../src/infrastructure/codecs/CborCodec.js';
+import { decode as cborDecode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 /**
  * GK/IDX/1 — Store frontier in index metadata at build time.

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { buildSeekCacheKey } from '../../../src/domain/utils/seekCacheKey.ts';
-import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
+import { encode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 

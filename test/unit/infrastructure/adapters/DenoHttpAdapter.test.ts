@@ -47,7 +47,7 @@ describe('DenoHttpAdapter', () => {
     (globalThis as any).Deno = { serve: mockServe };
 
     // Dynamic import to pick up the globalThis.Deno we just set
-    const mod = await import('../../../../src/infrastructure/adapters/DenoHttpAdapter.js');
+    const mod = await import('../../../../src/infrastructure/adapters/DenoHttpAdapter.ts');
     DenoHttpAdapter = mod.default;
   });
 

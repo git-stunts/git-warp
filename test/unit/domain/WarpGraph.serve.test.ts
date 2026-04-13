@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
-import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.js';
+import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.ts';
 
 /** @returns {any} */
 function canonicalizeJson(/** @type {any} */ value) {

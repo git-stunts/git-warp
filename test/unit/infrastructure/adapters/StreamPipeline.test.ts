@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import Transform from '../../../../src/domain/stream/Transform.ts';
-import { CborEncodeTransform } from '../../../../src/infrastructure/adapters/CborEncodeTransform.js';
-import { CborDecodeTransform } from '../../../../src/infrastructure/adapters/CborDecodeTransform.js';
-import { GitBlobWriteTransform } from '../../../../src/infrastructure/adapters/GitBlobWriteTransform.js';
-import { TreeAssemblerSink } from '../../../../src/infrastructure/adapters/TreeAssemblerSink.js';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
+import { CborEncodeTransform } from '../../../../src/infrastructure/adapters/CborEncodeTransform.ts';
+import { CborDecodeTransform } from '../../../../src/infrastructure/adapters/CborDecodeTransform.ts';
+import { GitBlobWriteTransform } from '../../../../src/infrastructure/adapters/GitBlobWriteTransform.ts';
+import { TreeAssemblerSink } from '../../../../src/infrastructure/adapters/TreeAssemblerSink.ts';
+import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 /**
  * Creates an in-memory BlobPort + TreePort stub.

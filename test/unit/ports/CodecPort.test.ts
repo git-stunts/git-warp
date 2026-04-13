@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import CodecPort from '../../../src/ports/CodecPort.ts';
-import { CborCodec } from '../../../src/infrastructure/codecs/CborCodec.js';
-import { encode, decode } from '../../../src/infrastructure/codecs/CborCodec.js';
-import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.js';
+import { CborCodec } from '../../../src/infrastructure/codecs/CborCodec.ts';
+import { encode, decode } from '../../../src/infrastructure/codecs/CborCodec.ts';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 
 describe('CodecPort', () => {
   it('abstract methods are not callable on base prototype', () => {

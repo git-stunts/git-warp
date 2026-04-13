@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { encode, decode } from '../../../../src/infrastructure/codecs/CborCodec.js';
+import { encode, decode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 describe('CborCodec', () => {
   describe('encode', () => {

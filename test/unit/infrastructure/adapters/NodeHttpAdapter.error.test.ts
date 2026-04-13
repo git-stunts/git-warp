@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import NodeHttpAdapter from '../../../../src/infrastructure/adapters/NodeHttpAdapter.js';
+import NodeHttpAdapter from '../../../../src/infrastructure/adapters/NodeHttpAdapter.ts';
 import HttpServerPort from '../../../../src/ports/HttpServerPort.ts';
 
 describe('NodeHttpAdapter error paths', () => {

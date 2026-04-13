@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
-import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.js';
+import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.ts';
 
 async function createGraph(writerId = 'writer-1') {
   const mockPersistence = {

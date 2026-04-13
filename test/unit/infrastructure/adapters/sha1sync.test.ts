@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
-import { sha1sync } from '../../../../src/infrastructure/adapters/sha1sync.js';
+import { sha1sync } from '../../../../src/infrastructure/adapters/sha1sync.ts';
 
 describe('sha1sync', () => {
   it('matches node:crypto for empty input', () => {

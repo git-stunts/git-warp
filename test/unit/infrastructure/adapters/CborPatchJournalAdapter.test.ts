@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
+import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
+import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import EncryptionError from '../../../../src/domain/errors/EncryptionError.ts';
 import SyncError from '../../../../src/domain/errors/SyncError.ts';

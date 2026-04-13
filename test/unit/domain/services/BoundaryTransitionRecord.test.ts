@@ -12,8 +12,8 @@ import {
 const reduceV5 = (_reduceV5) as (...args: any[]) => any;
 import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
-import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
-import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+import { encode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
 const crypto = new NodeCryptoAdapter();
 

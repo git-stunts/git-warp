@@ -16,7 +16,7 @@ import LogicalIndexBuildService from '../../src/domain/services/index/LogicalInd
 import PropertyIndexBuilder from '../../src/domain/services/index/PropertyIndexBuilder.ts';
 import PropertyIndexReader from '../../src/domain/services/index/PropertyIndexReader.ts';
 import { PropertyShard } from '../../src/domain/artifacts/PropertyShard.ts';
-import { CborCodec } from '../../src/infrastructure/codecs/CborCodec.js';
+import { CborCodec } from '../../src/infrastructure/codecs/CborCodec.ts';
 import { makeLogicalBitmapProvider, makeFixture } from '../helpers/fixtureDsl.js';
 import { runBenchmark, logEnvironment, randomHex } from './benchmarkUtils.js';
 import { createEmptyState, applyOpV2 } from '../../src/domain/services/JoinReducer.ts';

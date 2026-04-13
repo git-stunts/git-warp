@@ -1,5 +1,3 @@
-/* @ts-self-types="../../../sha1sync.d.ts" */
-
 /**
  * Synchronous SHA-1 for browser use with InMemoryGraphAdapter.
  *
@@ -12,20 +10,15 @@
 
 /**
  * Left-rotate a 32-bit integer by n bits.
- * @param {number} x
- * @param {number} n
- * @returns {number}
  */
-function rotl(x, n) {
+function rotl(x: number, n: number): number {
   return ((x << n) | (x >>> (32 - n))) >>> 0;
 }
 
 /**
  * Pads and parses a message into 512-bit blocks for SHA-1.
- * @param {Uint8Array} msg
- * @returns {Uint32Array[]}
  */
-function preprocess(msg) {
+function preprocess(msg: Uint8Array): Uint32Array[] {
   const bitLen = msg.length * 8;
   const totalBytes = msg.length + 1 + ((119 - (msg.length % 64)) % 64) + 8;
   const padded = new Uint8Array(totalBytes);
@@ -35,17 +28,17 @@ function preprocess(msg) {
   // Set low 32 bits of 64-bit big-endian message length (high 32 are zero-init).
   dv.setUint32(totalBytes - 4, bitLen, false);
 
-  const blocks = [];
+  const blocks: Uint32Array[] = [];
   for (let i = 0; i < totalBytes; i += 64) {
     const block = new Uint32Array(80);
     for (let j = 0; j < 16; j++) {
       block[j] = dv.getUint32(i + j * 4, false);
     }
     for (let j = 16; j < 80; j++) {
-      const b3 = /** @type {number} */ (block[j - 3]);
-      const b8 = /** @type {number} */ (block[j - 8]);
-      const b14 = /** @type {number} */ (block[j - 14]);
-      const b16 = /** @type {number} */ (block[j - 16]);
+      const b3 = block[j - 3] as number;
+      const b8 = block[j - 8] as number;
+      const b14 = block[j - 14] as number;
+      const b16 = block[j - 16] as number;
       block[j] = rotl(b3 ^ b8 ^ b14 ^ b16, 1);
     }
     blocks.push(block);
@@ -55,10 +48,8 @@ function preprocess(msg) {
 
 /**
  * Returns the SHA-1 round constant for a given round index.
- * @param {number} i - Round index (0-79)
- * @returns {number}
  */
-function roundK(i) {
+function roundK(i: number): number {
   if (i < 20) { return 0x5A827999; }
   if (i < 40) { return 0x6ED9EBA1; }
   if (i < 60) { return 0x8F1BBCDC; }
@@ -67,14 +58,11 @@ function roundK(i) {
 
 /**
  * Computes the SHA-1 round function f(b, c, d) for a given round index.
- * @param {number} i - Round index (0-79)
- * @param {number[]} vars - Working variables [a, b, c, d, e]
- * @returns {number}
  */
-function roundF(i, vars) {
-  const b = /** @type {number} */ (vars[1]);
-  const c = /** @type {number} */ (vars[2]);
-  const d = /** @type {number} */ (vars[3]);
+function roundF(i: number, vars: number[]): number {
+  const b = vars[1] as number;
+  const c = vars[2] as number;
+  const d = vars[3] as number;
   if (i < 20) { return (b & c) | (~b & d); }
   if (i < 40) { return b ^ c ^ d; }
   if (i < 60) { return (b & c) | (b & d) | (c & d); }
@@ -83,47 +71,44 @@ function roundF(i, vars) {
 
 /**
  * Processes a single 512-bit block, updating the hash state in-place.
- * @param {number[]} state - Five-element hash state [h0..h4]
- * @param {Uint32Array} w - 80-word expanded block
  */
-function processBlock(state, w) {
-  /** @type {number[]} */
-  const v = [
-    /** @type {number} */ (state[0]),
-    /** @type {number} */ (state[1]),
-    /** @type {number} */ (state[2]),
-    /** @type {number} */ (state[3]),
-    /** @type {number} */ (state[4]),
+function processBlock(state: number[], w: Uint32Array): void {
+  const v: number[] = [
+    state[0] as number,
+    state[1] as number,
+    state[2] as number,
+    state[3] as number,
+    state[4] as number,
   ];
 
   for (let i = 0; i < 80; i++) {
     const f = roundF(i, v);
     const k = roundK(i);
-    const temp = (rotl(/** @type {number} */ (v[0]), 5) + f + /** @type {number} */ (v[4]) + k + /** @type {number} */ (w[i])) >>> 0;
-    v[4] = /** @type {number} */ (v[3]);
-    v[3] = /** @type {number} */ (v[2]);
-    v[2] = rotl(/** @type {number} */ (v[1]), 30);
-    v[1] = /** @type {number} */ (v[0]);
+    const temp = (rotl(v[0] as number, 5) + f + (v[4] as number) + k + (w[i] as number)) >>> 0;
+    v[4] = v[3] as number;
+    v[3] = v[2] as number;
+    v[2] = rotl(v[1] as number, 30);
+    v[1] = v[0] as number;
     v[0] = temp;
   }
 
   for (let i = 0; i < 5; i++) {
-    state[i] = (/** @type {number} */ (state[i]) + /** @type {number} */ (v[i])) >>> 0;
+    state[i] = ((state[i] as number) + (v[i] as number)) >>> 0;
   }
 }
 
 /**
  * Computes the SHA-1 hash of a Uint8Array, returning a 40-char hex string.
  *
- * @param {Uint8Array} data
- * @returns {string} 40-hex SHA-1 digest
+ * @param data - The data to hash
+ * @returns 40-character lowercase hex SHA-1 digest
  *
  * @example
- * import { sha1sync } from './sha1sync.js';
+ * import { sha1sync } from './sha1sync.ts';
  * const hex = sha1sync(new TextEncoder().encode('hello'));
  * // => 'aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d'
  */
-export function sha1sync(data) {
+export function sha1sync(data: Uint8Array): string {
   if (data.length >= 0x20000000) {
     throw new RangeError('sha1sync: input exceeds 512 MB limit');
   }
@@ -134,5 +119,5 @@ export function sha1sync(data) {
     processBlock(state, w);
   }
 
-  return state.map(v => v.toString(16).padStart(8, '0')).join('');
+  return state.map(v => (v as number).toString(16).padStart(8, '0')).join('');
 }

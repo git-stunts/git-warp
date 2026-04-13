@@ -4,8 +4,8 @@ import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/KeyCodec.ts';
-import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
+import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
+import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 /**
  * Creates a mock blob storage with configurable OID return.

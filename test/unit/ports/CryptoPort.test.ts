@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import CryptoPort from '../../../src/ports/CryptoPort.ts';
-import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
-import WebCryptoAdapter from '../../../src/infrastructure/adapters/WebCryptoAdapter.js';
+import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import WebCryptoAdapter from '../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 
 describe('CryptoPort', () => {
   it('abstract methods are not callable on base prototype', () => {

@@ -45,9 +45,9 @@ import LoggerPort from './src/ports/LoggerPort.ts';
 import ClockPort from './src/ports/ClockPort.ts';
 import SeekCachePort from './src/ports/SeekCachePort.ts';
 import InMemoryGraphAdapter from './src/infrastructure/adapters/InMemoryGraphAdapter.ts';
-import NoOpLogger from './src/infrastructure/adapters/NoOpLogger.js';
-import ConsoleLogger, { LogLevel } from './src/infrastructure/adapters/ConsoleLogger.js';
-import ClockAdapter from './src/infrastructure/adapters/ClockAdapter.js';
+import NoOpLogger from './src/infrastructure/adapters/NoOpLogger.ts';
+import ConsoleLogger, { LogLevel } from './src/infrastructure/adapters/ConsoleLogger.ts';
+import ClockAdapter from './src/infrastructure/adapters/ClockAdapter.ts';
 import {
   AuditError,
   EncryptionError,
@@ -71,10 +71,10 @@ import BlobStoragePort from './src/ports/BlobStoragePort.ts';
 import InMemoryBlobStorageAdapter from './src/domain/utils/defaultBlobStorage.ts';
 import CryptoPort from './src/ports/CryptoPort.ts';
 import HttpServerPort from './src/ports/HttpServerPort.ts';
-import NodeCryptoAdapter from './src/infrastructure/adapters/NodeCryptoAdapter.js';
-import WebCryptoAdapter from './src/infrastructure/adapters/WebCryptoAdapter.js';
-import BunHttpAdapter from './src/infrastructure/adapters/BunHttpAdapter.js';
-import DenoHttpAdapter from './src/infrastructure/adapters/DenoHttpAdapter.js';
+import NodeCryptoAdapter from './src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import WebCryptoAdapter from './src/infrastructure/adapters/WebCryptoAdapter.ts';
+import BunHttpAdapter from './src/infrastructure/adapters/BunHttpAdapter.ts';
+import DenoHttpAdapter from './src/infrastructure/adapters/DenoHttpAdapter.ts';
 import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellation.ts';
 
 // Multi-writer graph support (WARP)
@@ -157,9 +157,9 @@ import {
   REPLAY_LENS,
   INSPECT_LENS,
 } from './src/domain/types/ExternalizationPolicy.ts';
-import { NoOpEffectSink } from './src/infrastructure/adapters/NoOpEffectSink.js';
-import { ConsoleEffectSink } from './src/infrastructure/adapters/ConsoleEffectSink.js';
-import { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.js';
+import { NoOpEffectSink } from './src/infrastructure/adapters/NoOpEffectSink.ts';
+import { ConsoleEffectSink } from './src/infrastructure/adapters/ConsoleEffectSink.ts';
+import { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.ts';
 import { openWarpGraph } from './src/domain/WarpGraph.ts';
 import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
 import { PatchSession } from './src/domain/warp/PatchSession.ts';

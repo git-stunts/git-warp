@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import BunHttpAdapter from '../../../../src/infrastructure/adapters/BunHttpAdapter.js';
+import BunHttpAdapter from '../../../../src/infrastructure/adapters/BunHttpAdapter.ts';
 import HttpServerPort from '../../../../src/ports/HttpServerPort.ts';
 
 /**

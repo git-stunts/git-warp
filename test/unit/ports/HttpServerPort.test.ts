@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import HttpServerPort_ from '../../../src/ports/HttpServerPort.ts';
-import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.js';
+import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.ts';
 
 const HttpServerPort = (HttpServerPort_) as any;
 

@@ -16,12 +16,12 @@ const _gpRaw = _GitPlumbing;
 const TypedGitPlumbing = /** @type {new (opts: { cwd: string, runner: unknown }) => unknown} */ (_gpRaw);
 import WarpCore from '../../src/domain/WarpCore.ts';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.ts';
-import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter.js';
+import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 import {
   REF_PREFIX,
   buildCursorActiveRef,
 } from '../../src/domain/utils/RefLayout.ts';
-import CasSeekCacheAdapter from '../../src/infrastructure/adapters/CasSeekCacheAdapter.js';
+import CasSeekCacheAdapter from '../../src/infrastructure/adapters/CasSeekCacheAdapter.ts';
 import { HookInstaller } from '../../src/domain/services/HookInstaller.ts';
 import { parseCursorBlob } from '../../src/domain/utils/parseCursorBlob.ts';
 import { usageError, notFoundError } from './infrastructure.js';

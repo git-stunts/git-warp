@@ -29,14 +29,9 @@ const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 
 /**
  * Decodes a base64-encoded Ed25519 public key and validates its length.
- *
- * @param {string} base64 - Base64-encoded raw public key bytes
- * @returns {Buffer} 32-byte raw key
- * @throws {TrustError} E_TRUST_INVALID_KEY if base64 is malformed or wrong length
  */
-function decodePublicKey(base64) {
-  /** @type {Buffer} */
-  let raw;
+function decodePublicKey(base64: string): Buffer {
+  let raw: Buffer;
   try {
     raw = Buffer.from(base64, 'base64');
   } catch {
@@ -64,20 +59,22 @@ function decodePublicKey(base64) {
   return raw;
 }
 
+interface VerifySignatureParams {
+  algorithm: string;
+  publicKeyBase64: string;
+  signatureBase64: string;
+  payload: Uint8Array;
+}
+
 /**
  * Verifies an Ed25519 signature against a payload.
- *
- * @param {{ algorithm: string, publicKeyBase64: string, signatureBase64: string, payload: Uint8Array }} params
- * @returns {boolean} true if signature is valid
- * @throws {TrustError} E_TRUST_UNSUPPORTED_ALGORITHM for non-ed25519
- * @throws {TrustError} E_TRUST_INVALID_KEY for malformed public key
  */
 export function verifySignature({
   algorithm,
   publicKeyBase64,
   signatureBase64,
   payload,
-}) {
+}: VerifySignatureParams): boolean {
   if (!SUPPORTED_ALGORITHMS.has(algorithm)) {
     throw new TrustError(`Unsupported algorithm: ${algorithm}`, {
       code: 'E_TRUST_UNSUPPORTED_ALGORITHM',
@@ -102,12 +99,8 @@ export function verifySignature({
  * Computes the key fingerprint for an Ed25519 public key.
  *
  * Format: `"ed25519:" + sha256_hex(rawBytes)`
- *
- * @param {string} publicKeyBase64 - Base64-encoded 32-byte public key
- * @returns {string} Fingerprint string, e.g. "ed25519:abcd1234..."
- * @throws {TrustError} E_TRUST_INVALID_KEY for malformed key
  */
-export function computeKeyFingerprint(publicKeyBase64) {
+export function computeKeyFingerprint(publicKeyBase64: string): string {
   const raw = decodePublicKey(publicKeyBase64);
   const hash = createHash('sha256').update(raw).digest('hex');
   return `ed25519:${hash}`;

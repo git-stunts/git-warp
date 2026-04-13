@@ -3,9 +3,8 @@ import WarpError from '../../domain/errors/WarpError.ts';
 
 /**
  * Map of common algorithm names to Web Crypto API algorithm identifiers.
- * @const {Record<string, string>}
  */
-const ALGO_MAP = /** @type {Record<string, string>} */ ({
+const ALGO_MAP: Record<string, string> = {
   'sha-1': 'SHA-1',
   'sha1': 'SHA-1',
   'sha-256': 'SHA-256',
@@ -14,15 +13,12 @@ const ALGO_MAP = /** @type {Record<string, string>} */ ({
   'sha384': 'SHA-384',
   'sha-512': 'SHA-512',
   'sha512': 'SHA-512',
-});
+};
 
 /**
  * Converts a common algorithm name to the Web Crypto API identifier.
- * @param {string} algorithm - Algorithm name (e.g. 'sha256', 'sha-256')
- * @returns {string} Web Crypto API algorithm identifier (e.g. 'SHA-256')
- * @throws {Error} If the algorithm is not supported
  */
-function toWebCryptoAlgo(algorithm) {
+function toWebCryptoAlgo(algorithm: string): string {
   const mapped = ALGO_MAP[algorithm.toLowerCase()];
   if (mapped === undefined || mapped === '') {
     throw new WarpError(`WebCryptoAdapter: unsupported algorithm "${algorithm}"`, 'E_UNSUPPORTED_ALGORITHM');
@@ -32,26 +28,17 @@ function toWebCryptoAlgo(algorithm) {
 
 /**
  * Converts input data to a Uint8Array for Web Crypto API consumption.
- * @param {string|Uint8Array} data - Input data
- * @returns {Uint8Array} Data as Uint8Array
- * @throws {Error} If data type is not supported
  */
-function toUint8Array(data) {
+function toUint8Array(data: string | Uint8Array): Uint8Array {
   if (data instanceof Uint8Array) { return data; }
   if (typeof data === 'string') { return new TextEncoder().encode(data); }
-  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) {
-    const buf = /** @type {Buffer} */ (data);
-    return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
-  }
-  throw new WarpError('WebCryptoAdapter: data must be string, Buffer, or Uint8Array', 'E_INVALID_DATA');
+  throw new WarpError('WebCryptoAdapter: data must be string or Uint8Array', 'E_INVALID_DATA');
 }
 
 /**
  * Converts an ArrayBuffer to a hex string.
- * @param {ArrayBuffer} buf - ArrayBuffer to convert
- * @returns {string} Hex-encoded string
  */
-function bufToHex(buf) {
+function bufToHex(buf: ArrayBuffer): string {
   return Array.from(new Uint8Array(buf))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
@@ -65,51 +52,40 @@ function bufToHex(buf) {
  *
  * All hash and HMAC operations are async because the Web Crypto API
  * is inherently promise-based.
- *
- * @extends CryptoPort
  */
 export default class WebCryptoAdapter extends CryptoPort {
-  /**
-   * Creates a new WebCryptoAdapter.
-   * @param {{ subtle?: SubtleCrypto }} [options] - Configuration options
-   */
-  constructor(options = undefined) {
-    const { subtle } = options || {};
+  private readonly _subtle: SubtleCrypto;
+
+  constructor(options?: { subtle?: SubtleCrypto }) {
+    const { subtle } = options ?? {};
     super();
-    this._subtle = subtle || globalThis.crypto.subtle;
+    this._subtle = subtle ?? globalThis.crypto.subtle;
   }
 
   /**
    * Computes a hex-encoded digest of the given data using the specified hash algorithm.
-   * @param {string} algorithm
-   * @param {string|Uint8Array} data
-   * @returns {Promise<string>}
    */
-  async hash(algorithm, data) {
+  async hash(algorithm: string, data: string | Uint8Array): Promise<string> {
     const digest = await this._subtle.digest(
       toWebCryptoAlgo(algorithm),
-      /** @type {BufferSource} */ (toUint8Array(data)),
+      toUint8Array(data) as BufferSource,
     );
     return bufToHex(digest);
   }
 
   /**
    * Computes an HMAC signature for the given data using the specified algorithm and key.
-   * @param {string} algorithm
-   * @param {string|Uint8Array} key
-   * @param {string|Uint8Array} data
-   * @returns {Promise<Uint8Array>}
    */
-  async hmac(algorithm, key, data) {
+  async hmac(algorithm: string, key: string | Uint8Array, data: string | Uint8Array): Promise<Uint8Array> {
     const keyBytes = toUint8Array(key);
     const cryptoKey = await this._subtle.importKey(
       'raw',
-      /** @type {BufferSource} */ (keyBytes),
+      keyBytes as BufferSource,
       { name: 'HMAC', hash: toWebCryptoAlgo(algorithm) },
       false,
       ['sign'],
     );
-    const signature = await this._subtle.sign('HMAC', cryptoKey, /** @type {BufferSource} */ (toUint8Array(data)));
+    const signature = await this._subtle.sign('HMAC', cryptoKey, toUint8Array(data) as BufferSource);
     return new Uint8Array(signature);
   }
 
@@ -118,16 +94,12 @@ export default class WebCryptoAdapter extends CryptoPort {
    *
    * Uses XOR accumulation with no early exit to prevent timing attacks.
    * This is the standard approach when crypto.timingSafeEqual is unavailable.
-   *
-   * @param {Uint8Array} a - First byte array
-   * @param {Uint8Array} b - Second byte array
-   * @returns {boolean} True if byte arrays are equal
    */
-  timingSafeEqual(a, b) {
+  timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
     if (a.length !== b.length) { return false; }
     let result = 0;
     for (let i = 0; i < a.length; i++) {
-      result |= /** @type {number} */ (a[i]) ^ /** @type {number} */ (b[i]);
+      result |= (a[i] as number) ^ (b[i] as number);
     }
     return result === 0;
   }

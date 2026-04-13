@@ -12,17 +12,12 @@ import WarpError from '../../domain/errors/WarpError.ts';
 
 /**
  * Error thrown when a request body exceeds the size limit.
- * @class PayloadTooLargeError
- * @extends WarpError
  */
 class PayloadTooLargeError extends WarpError {
-  /**
-   * Creates a PayloadTooLargeError.
-   * @param {number} totalBytes - Number of bytes received before rejection
-   */
-  constructor(totalBytes) {
+  readonly status: number;
+
+  constructor(totalBytes: number) {
     super('Payload Too Large', 'E_PAYLOAD_TOO_LARGE', { context: { totalBytes } });
-    /** @type {number} */
     this.status = 413;
   }
 }
@@ -36,22 +31,17 @@ export const MAX_BODY_BYTES = 10 * 1024 * 1024;
  *
  * Used by BunHttpAdapter and DenoHttpAdapter (which receive Web ReadableStream bodies).
  * NodeHttpAdapter uses its own Node.js stream-based body reading.
- *
- * @param {ReadableStream} bodyStream
- * @returns {Promise<Uint8Array|undefined>}
  */
-export async function readStreamBody(bodyStream) {
+export async function readStreamBody(bodyStream: ReadableStream<Uint8Array>): Promise<Uint8Array | undefined> {
   const reader = bodyStream.getReader();
-  /** @type {Uint8Array[]} */
-  const chunks = [];
+  const chunks: Uint8Array[] = [];
   let total = 0;
   for (;;) {
-    /** @type {{ done: boolean, value?: Uint8Array }} */
     const result = await reader.read();
     if (result.done) {
       break;
     }
-    const chunk = /** @type {Uint8Array} */ (result.value);
+    const chunk = result.value as Uint8Array;
     total += chunk.byteLength;
     if (total > MAX_BODY_BYTES) {
       await reader.cancel();
@@ -64,12 +54,8 @@ export async function readStreamBody(bodyStream) {
 
 /**
  * Assembles an array of Uint8Array chunks into a single Uint8Array.
- *
- * @param {Uint8Array[]} chunks - The collected chunks
- * @param {number} total - Total byte length
- * @returns {Uint8Array|undefined} Combined bytes, or undefined if empty
  */
-function assembleChunks(chunks, total) {
+function assembleChunks(chunks: Uint8Array[], total: number): Uint8Array | undefined {
   if (total === 0) {
     return undefined;
   }
@@ -83,7 +69,7 @@ function assembleChunks(chunks, total) {
 }
 
 /** No-op logger matching the `{ error(...) }` interface. */
-export const noopLogger = { error() {} };
+export const noopLogger: { error(...args: unknown[]): void } = { error() {} };
 
 // ── Shared error response bodies ────────────────────────────────────────────
 
@@ -102,13 +88,14 @@ export const PAYLOAD_TOO_LARGE_LENGTH = String(PAYLOAD_TOO_LARGE_BYTES.byteLengt
  * HttpServerPort request handlers.
  *
  * Used by both BunHttpAdapter and DenoHttpAdapter.
- *
- * @param {Request} request - Web API Request
- * @returns {Promise<{ method: string, url: string, headers: Record<string, string>, body: Uint8Array|undefined }>}
  */
-export async function toPortRequest(request) {
-  /** @type {Record<string, string>} */
-  const headers = {};
+export async function toPortRequest(request: Request): Promise<{
+  method: string;
+  url: string;
+  headers: Record<string, string>;
+  body: Uint8Array | undefined;
+}> {
+  const headers: Record<string, string> = {};
   request.headers.forEach((value, key) => {
     headers[key] = value;
   });
@@ -126,11 +113,8 @@ export async function toPortRequest(request) {
 
 /**
  * Checks the Content-Length header and throws if it exceeds the limit.
- *
- * @param {Record<string, string>} headers - Parsed request headers
- * @throws {PayloadTooLargeError} If the declared content length exceeds the limit
  */
-function enforceContentLengthLimit(headers) {
+function enforceContentLengthLimit(headers: Record<string, string>): void {
   const cl = headers['content-length'];
   if (cl !== undefined && Number(cl) > MAX_BODY_BYTES) {
     throw new PayloadTooLargeError(Number(cl));
@@ -139,12 +123,11 @@ function enforceContentLengthLimit(headers) {
 
 /**
  * Reads the request body if the method allows one.
- *
- * @param {Request} request - Web API Request
- * @param {Record<string, string>} headers - Parsed headers
- * @returns {Promise<Uint8Array|undefined>} The body bytes, or undefined
  */
-async function readRequestBody(request, headers) {
+async function readRequestBody(
+  request: Request,
+  headers: Record<string, string>,
+): Promise<Uint8Array | undefined> {
   if (request.method === 'GET' || request.method === 'HEAD') {
     return undefined;
   }

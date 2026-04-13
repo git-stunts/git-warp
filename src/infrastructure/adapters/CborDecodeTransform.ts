@@ -1,4 +1,5 @@
 import Transform from '../../domain/stream/Transform.ts';
+import type CodecPort from '../../ports/CodecPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 
 /**
@@ -6,31 +7,19 @@ import WarpError from '../../domain/errors/WarpError.ts';
  *
  * Input:  `[string, Uint8Array]` — path + CBOR bytes
  * Output: `[string, unknown]` — path + decoded domain object
- *
- * @extends {Transform<[string, Uint8Array], [string, unknown]>}
  */
-export class CborDecodeTransform extends Transform {
-  /**
-   * Creates a CborDecodeTransform.
-   *
-   * @param {import('../../ports/CodecPort.ts').default} codec
-   */
-  constructor(codec) {
+export class CborDecodeTransform extends Transform<[string, Uint8Array], [string, unknown]> {
+  private readonly _codec: CodecPort;
+
+  constructor(codec: CodecPort) {
     super();
     if (codec === null || codec === undefined) {
       throw new WarpError('CborDecodeTransform requires a codec', 'E_INVALID_DEPENDENCY');
     }
-    /** @type {import('../../ports/CodecPort.ts').default} */
     this._codec = codec;
   }
 
-  /**
-   * Decodes each [path, bytes] entry to [path, data].
-   *
-   * @param {AsyncIterable<[string, Uint8Array]>} source
-   * @returns {AsyncIterable<[string, unknown]>}
-   */
-  async *apply(source) {
+  async *apply(source: AsyncIterable<[string, Uint8Array]>): AsyncIterable<[string, unknown]> {
     for await (const [path, bytes] of source) {
       yield [path, this._codec.decode(bytes)];
     }

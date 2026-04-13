@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { CborIndexStoreAdapter } from '../../../src/infrastructure/adapters/CborIndexStoreAdapter.js';
+import { CborIndexStoreAdapter } from '../../../src/infrastructure/adapters/CborIndexStoreAdapter.ts';
 import IndexStorePort from '../../../src/ports/IndexStorePort.ts';
 import MockBlobPort from '../../helpers/MockBlobPort.js';
 import MockTreePort from '../../helpers/MockTreePort.js';
-import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.js';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import WarpStream from '../../../src/domain/stream/WarpStream.ts';
 import { MetaShard } from '../../../src/domain/artifacts/MetaShard.ts';
 import { EdgeShard } from '../../../src/domain/artifacts/EdgeShard.ts';

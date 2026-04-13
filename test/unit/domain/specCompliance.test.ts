@@ -4,8 +4,8 @@ import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { createEmptyState, join as joinState } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
-import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
-import { encode, decode } from '../../../src/infrastructure/codecs/CborCodec.js';
+import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import { encode, decode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 
 describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
   const crypto = new NodeCryptoAdapter();

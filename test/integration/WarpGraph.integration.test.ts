@@ -7,7 +7,7 @@ import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.t
 import WarpRuntime from '../../src/domain/WarpRuntime.ts';
 import { computeStateHash, nodeVisibleV5, edgeVisible } from '../../src/domain/services/state/StateSerializer.js';
 import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
-import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { buildWriterRef } from '../../src/domain/utils/RefLayout.ts';
 
 describe('WarpRuntime Integration', () => {

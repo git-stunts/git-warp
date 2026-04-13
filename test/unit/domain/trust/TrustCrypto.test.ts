@@ -4,7 +4,7 @@ import {
   verifySignature,
   computeKeyFingerprint,
   SUPPORTED_ALGORITHMS,
-} from '../../../../src/infrastructure/adapters/TrustCryptoAdapter.js';
+} from '../../../../src/infrastructure/adapters/TrustCryptoAdapter.ts';
 import TrustError from '../../../../src/domain/errors/TrustError.ts';
 
 let publicKeyBase64;

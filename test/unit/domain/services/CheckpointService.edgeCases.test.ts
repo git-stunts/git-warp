@@ -32,7 +32,7 @@ import {
 } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { ProvenanceIndex } from '../../../../src/domain/services/provenance/ProvenanceIndex.js';
-import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
 const crypto = new NodeCryptoAdapter();
 

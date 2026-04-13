@@ -6,9 +6,9 @@ import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 import { decodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
-import { decode } from '../../../../src/infrastructure/codecs/CborCodec.js';
-import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
+import { decode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
+import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 /**
  * Creates a mock V5 state for testing.

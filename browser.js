@@ -37,7 +37,7 @@ export { default as GraphNode } from './src/domain/entities/GraphNode.ts';
 
 // Browser-compatible adapters
 export { default as InMemoryGraphAdapter } from './src/infrastructure/adapters/InMemoryGraphAdapter.ts';
-export { default as WebCryptoAdapter } from './src/infrastructure/adapters/WebCryptoAdapter.js';
+export { default as WebCryptoAdapter } from './src/infrastructure/adapters/WebCryptoAdapter.ts';
 
 // CRDT primitives
 export { default as VersionVector } from './src/domain/crdt/VersionVector.ts';

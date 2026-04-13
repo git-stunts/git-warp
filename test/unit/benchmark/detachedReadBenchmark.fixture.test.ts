@@ -1,4 +1,4 @@
-import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.js';
 import {
   createDetachedReadBenchmarkPlan,

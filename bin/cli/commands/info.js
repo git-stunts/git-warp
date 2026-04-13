@@ -1,4 +1,4 @@
-import WebCryptoAdapter from '../../../src/infrastructure/adapters/WebCryptoAdapter.js';
+import WebCryptoAdapter from '../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import {
   buildCheckpointRef,

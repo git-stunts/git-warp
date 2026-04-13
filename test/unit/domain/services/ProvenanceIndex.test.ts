@@ -252,7 +252,7 @@ describe('ProvenanceIndex', () => {
         index.serialize(); // validate serialization works
 
         // Manually create a buffer with version 99
-        const { encode } = await import('../../../../src/infrastructure/codecs/CborCodec.js');
+        const { encode } = await import('../../../../src/infrastructure/codecs/CborCodec.ts');
         const badData = encode({ version: 99, entries: [] });
 
         expect(() => ProvenanceIndex.deserialize(badData)).toThrow('Unsupported');
@@ -310,13 +310,13 @@ describe('ProvenanceIndex', () => {
       });
 
       it('throws on missing entries in deserialize', async () => {
-        const { encode } = await import('../../../../src/infrastructure/codecs/CborCodec.js');
+        const { encode } = await import('../../../../src/infrastructure/codecs/CborCodec.ts');
         const badData = encode({ version: 1 }); // missing entries field
         expect(() => ProvenanceIndex.deserialize(badData)).toThrow('Missing or invalid ProvenanceIndex entries');
       });
 
       it('throws on null entries in deserialize', async () => {
-        const { encode } = await import('../../../../src/infrastructure/codecs/CborCodec.js');
+        const { encode } = await import('../../../../src/infrastructure/codecs/CborCodec.ts');
         const badData = encode({ version: 1, entries: null });
         expect(() => ProvenanceIndex.deserialize(badData)).toThrow('Missing or invalid ProvenanceIndex entries');
       });

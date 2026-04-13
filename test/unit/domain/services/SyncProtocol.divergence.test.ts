@@ -8,10 +8,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { processSyncRequest } from '../../../../src/domain/services/sync/SyncProtocol.js';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
-import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
+import { encode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
+import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
+import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);

@@ -13,7 +13,7 @@ import { textEncode } from '../../../../src/domain/utils/bytes.ts';
 import {
   verifySignature,
   computeKeyFingerprint,
-} from '../../../../src/infrastructure/adapters/TrustCryptoAdapter.js';
+} from '../../../../src/infrastructure/adapters/TrustCryptoAdapter.ts';
 import {
   KEY_ADD_1,
   KEY_ADD_2,

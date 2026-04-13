@@ -8,8 +8,8 @@
  */
 
 import { computeStateHash } from '../../src/domain/services/state/StateSerializer.js';
-import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.js';
-import { encode } from '../../src/infrastructure/codecs/CborCodec.js';
+import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import { encode } from '../../src/infrastructure/codecs/CborCodec.ts';
 
 const crypto = new NodeCryptoAdapter();
 const codec = { encode, decode: (/** @type {Buffer} */ b) => b };

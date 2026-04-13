@@ -151,7 +151,7 @@ function createNodeAddV2(node, dot) { return new NodeAddClass(node, dot); }
 function createEdgeAddV2(from, to, label, dot) { return new EdgeAddClass({ from, to, label, dot }); }
 /** @param {string} node @param {string} key @param {unknown} value */
 function createPropSetV2(node, key, value) { return new PropSetClass(node, key, value); }
-import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
 const crypto = new NodeCryptoAdapter();
 

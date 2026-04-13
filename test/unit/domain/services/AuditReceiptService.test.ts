@@ -17,7 +17,7 @@ import {
 } from '../../../../src/domain/services/audit/AuditReceiptService.ts';
 import {
   encode as cborEncode,
-} from '../../../../src/infrastructure/codecs/CborCodec.js';
+} from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
 

@@ -9,9 +9,9 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
-import CasBlobAdapter from '../../../../src/infrastructure/adapters/CasBlobAdapter.js';
+import CasBlobAdapter from '../../../../src/infrastructure/adapters/CasBlobAdapter.ts';
 import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
-import WebCryptoAdapter from '../../../../src/infrastructure/adapters/WebCryptoAdapter.js';
+import WebCryptoAdapter from '../../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 
 /**
  * Creates a temporary git repository with persistence adapter and crypto.

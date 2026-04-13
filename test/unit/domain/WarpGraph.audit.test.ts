@@ -188,7 +188,7 @@ describe('WarpRuntime — audit mode', () => {
     expect(tree).toHaveProperty('receipt.cbor');
 
     // Decode and verify
-    const { decode } = await import('../../../src/infrastructure/codecs/CborCodec.js');
+    const { decode } = await import('../../../src/infrastructure/codecs/CborCodec.ts');
     const receiptBlob = tree['receipt.cbor'];
     expect(receiptBlob).toBeDefined();
     const receipt = (decode((receiptBlob as Uint8Array)) as Record<string, unknown>);

@@ -116,7 +116,7 @@ import {
   serializeStateV5,
 } from '../../../../src/domain/services/state/StateSerializer.js';
 
-import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
 // Migration service
 import { migrateV4toV5 } from '../../../../src/domain/services/MigrationService.ts';

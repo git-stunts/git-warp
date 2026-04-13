@@ -6,7 +6,7 @@ import {
   serializeAppliedVV,
   deserializeAppliedVV,
 } from '../../../../src/domain/services/state/CheckpointSerializer.js';
-import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
+import { encode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import {
   createEmptyState,
   encodeEdgeKey,
