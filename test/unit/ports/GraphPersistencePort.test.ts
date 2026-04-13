@@ -25,7 +25,7 @@ describe('GraphPersistencePort (abstract composite)', () => {
 
   it('does not leak constructor from focused ports', () => {
     // Even though GraphPersistencePort is abstract, JS allows instantiation
-    /** @type {any} */ const Ctor = GraphPersistencePort;
+    const Ctor = GraphPersistencePort as any;
     const port = new Ctor();
     expect(port.constructor).toBe(GraphPersistencePort);
   });
@@ -36,7 +36,7 @@ describe('GraphPersistencePort (abstract composite)', () => {
       async showNode() { return 'msg'; }
       async getNodeInfo() { return ({} as any); }
       async logNodes() { return 'log'; }
-      async logNodesStream() { return (null); }
+      async logNodesStream(): Promise<any> { return null; }
       async countNodes() { return 1; }
       async commitNodeWithTree() { return 'sha2'; }
       async nodeExists() { return true; }
@@ -76,7 +76,7 @@ describe('IndexStoragePort (abstract subset)', () => {
   });
 
   it('does not include methods outside its subset', () => {
-    /** @type {any} */ const Ctor = IndexStoragePort;
+    const Ctor = IndexStoragePort as any;
     const port = new Ctor();
     expect(port.deleteRef).toBeUndefined();
     expect(port.listRefs).toBeUndefined();
@@ -94,6 +94,6 @@ describe('IndexStoragePort (abstract subset)', () => {
     }
     const storage = new TestStorage();
     expect(storage).toBeInstanceOf(IndexStoragePort);
-    expect(await ((storage)).writeBlob(new Uint8Array())).toBe('blob-oid');
+    expect(await ((storage as any)).writeBlob(new Uint8Array())).toBe('blob-oid');
   });
 });

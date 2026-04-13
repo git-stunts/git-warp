@@ -271,7 +271,7 @@ describe('WarpRuntime operation timing (LH/TIMING/1)', () => {
       const responsePayload = { type: 'sync-response', frontier: {}, patches: [] };
       const peer = { processSyncRequest: vi.fn().mockResolvedValue(responsePayload) };
 
-      await graph.syncWith((peer));
+      await graph.syncWith((peer as any));
 
       expect(clock.now).toHaveBeenCalled();
       expect(clock.now.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -293,7 +293,7 @@ describe('WarpRuntime operation timing (LH/TIMING/1)', () => {
         processSyncRequest: vi.fn().mockRejectedValue(new Error('peer unreachable')),
       };
 
-      await expect(graph.syncWith((peer))).rejects.toThrow();
+      await expect(graph.syncWith((peer as any))).rejects.toThrow();
 
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringMatching(/^\[warp\] syncWith failed in \d+ms$/),

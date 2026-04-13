@@ -148,7 +148,7 @@ describe('B65 — Sync divergence logging', () => {
     const localFrontier = new Map([['w1', SHA_B]]);
 
     const response = await processSyncRequest(
-      (request), localFrontier, (persistence), 'events', { patchJournal: createPatchJournal(persistence) },
+      (request), localFrontier, (persistence as any), 'events', { patchJournal: createPatchJournal(persistence) },
     );
 
     expect(response.patches).toHaveLength(0);
@@ -168,7 +168,7 @@ describe('B65 — Sync divergence logging', () => {
     const logger = createMockLogger();
 
     // Requester has SHA_B for w1 (diverged) and doesn't have w2
-    const request = { type: 'sync-request', frontier: { w1: SHA_B } };
+    const request = ({ type: 'sync-request', frontier: { w1: SHA_B } } as any);
     const localFrontier = new Map([['w1', SHA_A], ['w2', SHA_C]]);
 
     const response = await processSyncRequest(

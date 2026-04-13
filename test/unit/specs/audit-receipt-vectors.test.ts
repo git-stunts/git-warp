@@ -598,19 +598,19 @@ describe('Audit Receipt Spec — Negative Fixtures', () => {
 
   it('N3: rejects missing required field (graphName)', () => {
     const r = baseReceipt();
-    delete ((r)).graphName;
+    delete (r as any).graphName;
     expect(validateReceipt(r)).toBe('missing required field: graphName');
   });
 
   it('N3b: rejects missing required field (writerId)', () => {
     const r = baseReceipt();
-    delete ((r)).writerId;
+    delete (r as any).writerId;
     expect(validateReceipt(r)).toBe('missing required field: writerId');
   });
 
   it('N3c: rejects missing required field (timestamp)', () => {
     const r = baseReceipt();
-    delete ((r)).timestamp;
+    delete (r as any).timestamp;
     expect(validateReceipt(r)).toBe('missing required field: timestamp');
   });
 
@@ -694,8 +694,8 @@ describe('Audit Receipt Spec — Chain Break Dramatization', () => {
     }
 
     // Either CBOR decode fails or the opsDigest mismatches
-    let decodeError = null;
-    let decodedReceipt = null;
+    let decodeError: unknown = null;
+    let decodedReceipt: unknown = null;
     try {
       decodedReceipt = cborDecode(corruptedCbor);
     } catch (err) {

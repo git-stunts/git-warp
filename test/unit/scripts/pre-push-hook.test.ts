@@ -49,10 +49,7 @@ function readLog(filePath) {
   }
 }
 
-/**
- * @param {{ quick?: boolean, failCommand?: string|null, linkcheckAvailable?: boolean }} [options]
- */
-function runPrePushHook(options = {}) {
+function runPrePushHook(options: { quick?: boolean; failCommand?: string | null; linkcheckAvailable?: boolean } = {}) {
   const { quick = false, failCommand = null, linkcheckAvailable = true } = options;
   const binDir = createTempDir();
   const npmBin = join(binDir, 'npm');

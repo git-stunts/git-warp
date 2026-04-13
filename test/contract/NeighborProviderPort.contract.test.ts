@@ -45,7 +45,7 @@ function makeMockBitmapProvider(fixture) {
     lookupId: async (/** @type {string} */ sha) => allNodes.has(sha) ? 1 : undefined,
   };
 
-  return new BitmapNeighborProvider({ indexReader: (mockReader) });
+  return new BitmapNeighborProvider({ indexReader: (mockReader as any) });
 }
 
 // ── Contract suite factory ──────────────────────────────────────────────────

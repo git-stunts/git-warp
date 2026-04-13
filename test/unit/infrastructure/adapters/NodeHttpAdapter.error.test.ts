@@ -38,7 +38,7 @@ describe('NodeHttpAdapter error paths', () => {
       });
     })) as Promise<void>);
 
-    const addr = /** @type {{ port: number }} */ (server.address());
+    const addr = server.address() as { port: number };
     return `http://127.0.0.1:${addr.port}`;
   }
 
@@ -104,7 +104,7 @@ describe('NodeHttpAdapter error paths', () => {
     } catch (/** @type {any} */ err) {
       // On some platforms / timing, the server resets the connection
       // before fetch can read the response. macOS may yield EPIPE instead.
-      expect(['ECONNRESET', 'EPIPE']).toContain((err as any).cause?.code ?? err.code);
+      expect(['ECONNRESET', 'EPIPE']).toContain((err as any).cause?.code ?? (err as any).code);
     }
   });
 
@@ -142,7 +142,7 @@ describe('NodeHttpAdapter error paths', () => {
       });
     })) as Promise<void>);
 
-    const port = /** @type {{ port: number }} */ (server1.address()).port;
+    const port = (server1.address() as { port: number }).port;
 
     // Try to bind a second server to the same port
     const adapter2 = new NodeHttpAdapter();
@@ -159,7 +159,7 @@ describe('NodeHttpAdapter error paths', () => {
     });
 
     expect(err).toBeInstanceOf(Error);
-    expect((err).code).toBe('EADDRINUSE');
+    expect((err as any).code).toBe('EADDRINUSE');
   });
 
   it('listen accepts host as callback (2-arg form)', async () => {
@@ -181,7 +181,7 @@ describe('NodeHttpAdapter error paths', () => {
       });
     })) as Promise<void>);
 
-    const addr = /** @type {{ port: number }} */ (server.address());
+    const addr = server.address() as { port: number };
     expect(addr.port).toBeGreaterThan(0);
   });
 });

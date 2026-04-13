@@ -35,7 +35,7 @@ describe('CborIndexStoreAdapter', () => {
 
     it('rejects null codec', () => {
       expect(() => new CborIndexStoreAdapter({
-        codec: (null),
+        codec: (null as any),
         blobPort,
         treePort,
       })).toThrow('requires a codec');
@@ -44,7 +44,7 @@ describe('CborIndexStoreAdapter', () => {
     it('rejects null blobPort', () => {
       expect(() => new CborIndexStoreAdapter({
         codec: defaultCodec,
-        blobPort: (null),
+        blobPort: (null as any),
         treePort,
       })).toThrow('requires a blobPort');
     });
@@ -53,7 +53,7 @@ describe('CborIndexStoreAdapter', () => {
       expect(() => new CborIndexStoreAdapter({
         codec: defaultCodec,
         blobPort,
-        treePort: (null),
+        treePort: (null as any),
       })).toThrow('requires a treePort');
     });
   });

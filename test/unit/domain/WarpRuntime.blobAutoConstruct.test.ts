@@ -26,7 +26,7 @@ function makeMockPersistence({ hasPlumbing = false } = {}): any {
     writeTree: vi.fn().mockResolvedValue('a'.repeat(40)),
   };
   if (hasPlumbing) {
-    (persistence).plumbing = {};
+    (persistence as any).plumbing = {};
   }
   return persistence;
 }

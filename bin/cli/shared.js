@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 import readline from 'node:readline';
 import { execFileSync } from 'node:child_process';
 import { textEncode } from '../../src/domain/utils/bytes.ts';
-// @ts-expect-error — no type declarations for @git-stunts/plumbing
 import _GitPlumbing, { ShellRunnerFactory as _ShellRunnerFactory } from '@git-stunts/plumbing';
 
 /** @type {unknown} */

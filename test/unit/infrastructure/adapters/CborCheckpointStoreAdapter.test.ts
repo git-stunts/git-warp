@@ -52,7 +52,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
   it('requires codec and blobPort dependencies', () => {
     expect(() =>
       new CborCheckpointStoreAdapter({
-        codec: (null),
+        codec: (null as any),
         blobPort: createMemoryBlobPort(),
       })
     ).toThrow('requires a codec');
@@ -60,7 +60,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
     expect(() =>
       new CborCheckpointStoreAdapter({
         codec: new CborCodec(),
-        blobPort: (null),
+        blobPort: (null as any),
       })
     ).toThrow('requires a blobPort');
   });
@@ -203,8 +203,8 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
 
       const nullDecodingAdapter = ((new CborCheckpointStoreAdapter({
         codec: {
-          encode(value) {
-            return  (value);
+          encode(value): Uint8Array {
+            return (value as any);
           },
           decode() {
             return null;
@@ -221,8 +221,8 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
     it('rejects unsupported full-state versions', () => {
       const adapter = ((new CborCheckpointStoreAdapter({
         codec: {
-          encode(value) {
-            return  (value);
+          encode(value): Uint8Array {
+            return (value as any);
           },
           decode() {
             return { version: 'full-v4' };
@@ -241,7 +241,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         blobPort: createMemoryBlobPort(),
       })) as any);
 
-            const prop = new Map([
+      const prop = new Map([
         ['user:z\x00name', {
           eventId: new EventId(3, 'w3', 'c'.repeat(40), 2),
           value: 'Zed',
@@ -251,7 +251,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
           value: 'Ada',
         }],
         ['user:skip\x00name', (null)],
-      ]);
+      ] as any);
 
       const edgeBirthEvent = new Map([
         ['user:z\x00user:y\x00likes', new EventId(9, 'w9', 'f'.repeat(40), 2)],
@@ -261,7 +261,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       const state = new WarpState({
         nodeAlive: ORSet.empty(),
         edgeAlive: ORSet.empty(),
-        prop,
+        prop: (prop as any),
         observedFrontier: VersionVector.empty(),
         edgeBirthEvent,
       });
@@ -296,8 +296,8 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
     it('accepts legacy numeric edge birth data when decoding full state', () => {
       const adapter = ((new CborCheckpointStoreAdapter({
         codec: {
-          encode(value) {
-            return  (value);
+          encode(value): Uint8Array {
+            return (value as any);
           },
           decode() {
             return {

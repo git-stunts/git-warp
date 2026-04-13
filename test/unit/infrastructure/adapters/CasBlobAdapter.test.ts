@@ -11,6 +11,11 @@ const mockCreateTree = vi.fn();
 let lastConstructorArgs = {};
 
 class MockContentAddressableStore {
+  readManifest: typeof mockReadManifest;
+  restore: typeof mockRestore;
+  restoreStream: typeof mockRestoreStream;
+  store: typeof mockStore;
+  createTree: typeof mockCreateTree;
   constructor(/** @type {any} */ opts) {
     lastConstructorArgs = opts;
     this.readManifest = mockReadManifest;
@@ -389,7 +394,7 @@ describe('CasBlobAdapter', () => {
       });
 
       const stream = adapter.retrieveStream('tree-oid-abc');
-      const chunks = [];
+      const chunks: any[] = [];
       for await (const chunk of stream) {
         chunks.push(chunk);
       }
@@ -417,7 +422,7 @@ describe('CasBlobAdapter', () => {
       });
 
       const stream = adapter.retrieveStream('raw-blob-oid');
-      const chunks = [];
+      const chunks: any[] = [];
       for await (const chunk of stream) {
         chunks.push(chunk);
       }

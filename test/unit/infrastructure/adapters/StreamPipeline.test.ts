@@ -93,7 +93,7 @@ describe('Stream Pipeline Integration', () => {
 
         const results = ([]) as Array<[string, unknown]>;
     const readTransform = new Transform();
-    readTransform.apply = async function *(/** @type {AsyncIterable<[string, string]>} */ source) {
+    readTransform.apply = async function *(source: AsyncIterable<[string, string]>) {
       for await (const [path, oid] of source) {
         const bytes = await git.readBlob(oid);
         yield ([path, bytes] as [string, Uint8Array]);
@@ -103,7 +103,7 @@ describe('Stream Pipeline Integration', () => {
     await WarpStream.from(entries)
       .pipe((readTransform))
       .pipe((new CborDecodeTransform(codec) as any))
-      .forEach(([path, obj]) => { results.push([path, obj]); });
+      .forEach((item) => { const [path, obj] = item as [string, unknown]; results.push([path, obj]); });
 
     expect(results).toEqual([
       ['user1.cbor', { name: 'Alice' }],

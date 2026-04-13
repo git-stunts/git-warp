@@ -408,7 +408,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
 
     const checkpointState = createEmptyState();
 
-    const patches = [];
+    const patches: any[] = [];
     for (let i = 1; i <= 3; i++) {
       patches.push({
         patch: createPatch('w1', i, `n:w1:${i}`),
@@ -503,7 +503,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
 
     const checkpointState = createEmptyState();
 
-    const patches = [];
+    const patches: any[] = [];
     for (let i = 1; i <= 2; i++) {
       patches.push({
         patch: createPatch('w1', i, `n:w1:${i}`),

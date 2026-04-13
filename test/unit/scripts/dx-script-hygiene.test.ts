@@ -68,7 +68,7 @@ describe('dx script hygiene', () => {
 
   it('keeps the remaining ratchet scripts under the script line limit', async () => {
     const paths = await listRatchetScriptPaths();
-    const offenders = [];
+    const offenders: string[] = [];
 
     for (const path of paths) {
       const content = await readFile(repoPath(path), 'utf8');

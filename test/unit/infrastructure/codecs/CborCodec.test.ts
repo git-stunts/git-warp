@@ -193,7 +193,7 @@ describe('CborCodec', () => {
         },
       };
 
-      const results = [];
+      const results: Uint8Array[] = [];
       for (let i = 0; i < 5; i++) {
         results.push(encode(deep));
       }

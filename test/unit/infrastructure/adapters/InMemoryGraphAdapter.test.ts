@@ -238,12 +238,12 @@ describe('InMemoryGraphAdapter specifics', () => {
   it('_resolveRef returns a raw SHA when the commit exists', async () => {
     const adapter = new InMemoryGraphAdapter();
     const sha = await adapter.commitNode({ message: 'raw-ref' });
-    expect((adapter)._resolveRef(sha)).toBe(sha);
+    expect((adapter as any)._resolveRef(sha)).toBe(sha);
   });
 
   it('_walkLog returns empty array when the ref cannot be resolved', () => {
     const adapter = new InMemoryGraphAdapter();
-    expect((adapter)._walkLog('refs/warp/missing', 10)).toEqual([]);
+    expect((adapter as any)._walkLog('refs/warp/missing', 10)).toEqual([]);
   });
 
   it('_collectCommits ignores missing commit SHAs in parent chains', async () => {
@@ -266,6 +266,6 @@ describe('InMemoryGraphAdapter specifics', () => {
     const right = await adapter.commitNode({ message: 'right', parents: [root] });
     const merge = await adapter.commitNode({ message: 'merge', parents: [left, right] });
 
-    expect((adapter)._countReachable(merge)).toBe(4);
+    expect((adapter as any)._countReachable(merge)).toBe(4);
   });
 });

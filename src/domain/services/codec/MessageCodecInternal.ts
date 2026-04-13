@@ -8,7 +8,6 @@
  * Not public API — import from WarpMessageCodec or individual codecs.
  */
 
-// @ts-expect-error -- no declaration file for @git-stunts/trailer-codec
 import { TrailerCodec, TrailerCodecService } from '@git-stunts/trailer-codec';
 import MessageCodecError from '../../errors/MessageCodecError.ts';
 

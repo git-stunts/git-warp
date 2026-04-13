@@ -216,7 +216,7 @@ describe('VisibleStateTransferPlanner', () => {
     const loadNodeContent = vi.fn();
     const loadEdgeContent = vi.fn();
 
-    const plan = await planVisibleStateTransfer(reader, reader, {
+    const plan = await planVisibleStateTransfer((reader as any), (reader as any), {
       loadNodeContent,
       loadEdgeContent,
     });

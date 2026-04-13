@@ -76,7 +76,7 @@ describe('requireCapabilities', () => {
       try {
         requireBlobPort({ writeBlob: vi.fn() });
       } catch (err) {
-        expect((err).method).toBe(
+        expect((err as any).method).toBe(
           'readBlob',
         );
       }
@@ -89,7 +89,7 @@ describe('requireCapabilities', () => {
       try {
         requireBlobPort({ readBlob: vi.fn() });
       } catch (err) {
-        expect((err).method).toBe(
+        expect((err as any).method).toBe(
           'writeBlob',
         );
       }
@@ -148,7 +148,7 @@ describe('requireCapabilities', () => {
       try {
         requireCommitPort({ readBlob: vi.fn() });
       } catch (err) {
-        expect((err).method).toBe(
+        expect((err as any).method).toBe(
           'getNodeInfo',
         );
       }
@@ -202,7 +202,7 @@ describe('requireCapabilities', () => {
       try {
         requireTreePort({ writeTree: vi.fn() });
       } catch (err) {
-        expect((err).method).toBe(
+        expect((err as any).method).toBe(
           'readTreeOids',
         );
       }
@@ -215,7 +215,7 @@ describe('requireCapabilities', () => {
       try {
         requireTreePort({ readTreeOids: vi.fn() });
       } catch (err) {
-        expect((err).method).toBe(
+        expect((err as any).method).toBe(
           'writeTree',
         );
       }

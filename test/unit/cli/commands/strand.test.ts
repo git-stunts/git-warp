@@ -4,7 +4,7 @@ vi.mock('../../../../bin/cli/shared.js', () => ({
   openGraph: vi.fn(),
 }));
 
-const { openGraph } = await import('../../../../bin/cli/shared.js');
+const { openGraph } = await import('../../../../bin/cli/shared.js') as any;
 const handleStrand = (await import('../../../../bin/cli/commands/strand.js')).default;
 
 describe('handleStrand strand braid command', () => {

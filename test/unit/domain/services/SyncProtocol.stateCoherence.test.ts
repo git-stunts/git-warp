@@ -298,7 +298,7 @@ describe('SyncProtocol — state coherence (Phase 4, Invariant 5)', () => {
     const response = ((await processSyncRequest(
        (request),
       localFrontier,
-       (persistence),
+       (persistence as any),
       'events',
       { patchJournal: createPatchJournal(persistence), logger },
     )) as any);
