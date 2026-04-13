@@ -171,13 +171,13 @@ describe('VisibleStateScope', () => {
       {
         sha: 'a',
         patch: {
-          ops: [{ type: 'NodeAdd', node: 'task:1' }],
+          ops: [{ type: 'NodeAdd', node: 'task:1', dot: { writerId: 'w', counter: 1 } }],
         },
       },
       {
         sha: 'b',
         patch: {
-          ops: [{ type: 'EdgeAdd', from: 'comparison-artifact:cmp-1', to: 'comparison-artifact:cmp-2', label: 'rel' }],
+          ops: [{ type: 'EdgeAdd', from: 'comparison-artifact:cmp-1', to: 'comparison-artifact:cmp-2', label: 'rel', dot: { writerId: 'w', counter: 2 } }],
         },
       },
       {

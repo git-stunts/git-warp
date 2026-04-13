@@ -770,7 +770,7 @@ describe('ProvenancePayload', () => {
           patch: createPatch({
             writer: 'W',
             lamport: 2,
-            ops: [createNodeRemoveV2(/** @type {any} */ (new Set(['W:1'])))],
+            ops: [{ type: 'NodeRemove', node: 'cycle', observedDots: /** @type {any} */ (new Set(['W:1'])) }],
           }),
           sha: 'abcd0002',
         },

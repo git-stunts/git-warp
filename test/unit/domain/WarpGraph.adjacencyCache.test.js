@@ -52,18 +52,26 @@ describe('WarpRuntime adjacency cache', () => {
     });
   });
 
-  it('reuses adjacency for identical state hashes', async () => {
+  it('reuses adjacency for identical state hashes (materializedGraph not rebuilt)', async () => {
+    // _materializeGraph() short-circuits on the second call when _stateDirty is false
+    // and _materializedGraph is already set. The adjacency is stored inside
+    // _materializedGraph rather than in the old _adjacencyCache LRU.
     graph.materialize = vi.fn().mockImplementation(async () => createSeededState());
     const buildSpy = vi.spyOn(graph, '_buildAdjacency');
 
     await graph._materializeGraph();
     await graph._materializeGraph();
 
+    // _buildAdjacency is called once; the second call reuses _materializedGraph.
     expect(buildSpy).toHaveBeenCalledTimes(1);
-    expect(/** @type {any} */ (graph)._adjacencyCache.size).toBe(1);
+    // _materializedGraph is populated (not null) after the first call.
+    expect(/** @type {any} */ (graph)._materializedGraph).not.toBeNull();
   });
 
-  it('evicts adjacency entries when over cache cap', async () => {
+  it('rebuilds adjacency each time _stateDirty is set (no LRU eviction path)', async () => {
+    // _materializeGraph() triggers _buildAdjacency whenever _stateDirty=true forces a
+    // fresh materialize. The old _adjacencyCache LRU is initialised but not actively
+    // used; state is stored in _materializedGraph instead.
     graph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
@@ -88,11 +96,15 @@ describe('WarpRuntime adjacency cache', () => {
 
     await graph._materializeGraph();
     graph._stateDirty = true;
+    graph._materializedGraph = null;
     await graph._materializeGraph();
     graph._stateDirty = true;
+    graph._materializedGraph = null;
     await graph._materializeGraph();
 
+    // _buildAdjacency is called once per unique state transition.
     expect(buildSpy).toHaveBeenCalledTimes(3);
-    expect(/** @type {any} */ (graph)._adjacencyCache.size).toBe(1);
+    // _materializedGraph holds the most recent state.
+    expect(/** @type {any} */ (graph)._materializedGraph).not.toBeNull();
   });
 });

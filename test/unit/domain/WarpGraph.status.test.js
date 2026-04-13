@@ -15,8 +15,8 @@ const FAKE_COMMIT_SHA = 'c'.repeat(40);
 const FAKE_COMMIT_SHA_2 = 'd'.repeat(40);
 const FAKE_COMMIT_SHA_3 = 'e'.repeat(40);
 
-/** CBOR-encoded empty V5 patch with required context field */
-const EMPTY_PATCH_CBOR = Buffer.from(cborEncode({ schema: 2, ops: [], context: {} }));
+/** CBOR-encoded empty V5 patch with all required fields (schema, writer, lamport, ops, context) */
+const EMPTY_PATCH_CBOR = Buffer.from(cborEncode({ schema: 2, writer: 'writer-1', lamport: 1, ops: [], context: {} }));
 
 /** Configure mocks for a single writer with one patch */
 function mockSingleWriter(/** @type {any} */ persistence, /** @type {any} */ { writerRef, commitSha, patchMessage }) {

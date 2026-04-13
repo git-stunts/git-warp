@@ -57,7 +57,7 @@ describe('IndexRebuildService Deep DAG Test', () => {
 
     // All entries should be valid tree format
     treeEntries.forEach(/** @param {any} entry */ entry => {
-      expect(entry).toMatch(/^100644 blob blob\d+\t(meta|shards)_.+\.json$/);
+      expect(entry).toMatch(/^100644 blob blob\d+\t(meta|shards)_.+\.cbor$/);
     });
   });
 

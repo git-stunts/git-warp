@@ -637,12 +637,13 @@ describe('Metrics', () => {
 // ---------------------------------------------------------------------------
 describe('Constant-time compare guardrails', () => {
   it('returns INVALID_SIGNATURE when timingSafeEqual throws (no unhandled error)', async () => {
-    const throwingCrypto = {
-      ...defaultCrypto,
+    // Use Object.create to inherit prototype methods (hash, hmac) from defaultCrypto,
+    // then override timingSafeEqual. Plain spread loses prototype methods on class instances.
+    const throwingCrypto = Object.assign(Object.create(defaultCrypto), {
       timingSafeEqual() {
         throw new Error('Buffer length mismatch');
       },
-    };
+    });
     const svc = makeService({ crypto: throwingCrypto });
     const req = await buildSignedRequest();
     const result = await svc.verify(req);

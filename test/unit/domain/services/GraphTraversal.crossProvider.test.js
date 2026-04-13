@@ -134,8 +134,8 @@ describe('Cross-provider equivalence', () => {
       const { edges, removed } = await engine.transitiveReduction({ start: 'A' });
       expect(removed).toBe(1);
       expect(edges).toEqual([
-        { from: 'A', to: 'B', label: '' },
-        { from: 'B', to: 'C', label: '' },
+        { from: 'A', to: 'B', label: 'e' },
+        { from: 'B', to: 'C', label: 'e' },
       ]);
     });
   });

@@ -73,7 +73,7 @@ Use it when you need:
 
 ### Internal engine
 
-Under both public surfaces, the implementation still runs through one internal engine: `src/domain/WarpRuntime.js`.
+Under both public surfaces, the implementation still runs through one internal engine: `src/domain/WarpRuntime.ts`.
 
 That internal runtime is not the public root anymore. It is the shared engine that both façades wrap.
 
@@ -284,7 +284,7 @@ src/
   domain/
     WarpApp.js
     WarpCore.js
-    WarpRuntime.js
+    WarpRuntime.ts
     services/
     warp/
     entities/

@@ -55,7 +55,7 @@ function normalizeError(err) {
 export function makeFixture({ nodes, edges, props = [], tombstones = {} }) {
   const nodeSet = new Set(nodes);
   const normalizedEdges = edges.map(({ from, to, label }) => ({
-    from, to, label: label ?? '',
+    from, to, label: label ?? 'e',
   }));
   const edgeKeySet = new Set(
     normalizedEdges.map(({ from, to, label }) => `${from}\0${to}\0${label}`),
@@ -248,10 +248,10 @@ export const F4_DIJKSTRA_EQUAL_COST_PREDECESSOR = makeFixture({
 
 /** Weight map for F4 */
 export const F4_WEIGHTS = new Map([
-  ['S\0C\0', 1],
-  ['C\0G\0', 4],
-  ['S\0B\0', 3],
-  ['B\0G\0', 2],
+  ['S\0C\0e', 1],
+  ['C\0G\0e', 4],
+  ['S\0B\0e', 3],
+  ['B\0G\0e', 2],
 ]);
 
 /**
@@ -273,10 +273,10 @@ export const F5_ASTAR_TIE_BREAK = makeFixture({
 
 /** Weight map for F5 */
 export const F5_WEIGHTS = new Map([
-  ['S\0B\0', 1],
-  ['S\0C\0', 1],
-  ['B\0G\0', 10],
-  ['C\0G\0', 10],
+  ['S\0B\0e', 1],
+  ['S\0C\0e', 1],
+  ['B\0G\0e', 10],
+  ['C\0G\0e', 10],
 ]);
 
 /**

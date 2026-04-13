@@ -109,7 +109,7 @@ describe('V7 Contract Guards', () => {
   describe('V7 required components must exist', () => {
     const requiredFiles = [
       {
-        path: 'domain/services/PatchBuilder.js',
+        path: 'domain/services/PatchBuilder.ts',
         reason: 'Schema:2 patch builder with dots and OR-Set',
       },
       {

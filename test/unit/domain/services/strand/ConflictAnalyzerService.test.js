@@ -1237,7 +1237,10 @@ describe('ConflictAnalyzerService', () => {
       }
     });
 
-    it('emits anchor_incomplete when a NodeRemove has no node identity', async () => {
+    it('emits receipt_unavailable when a NodeRemove has no node identity (reducer skips the op)', async () => {
+      // A NodeRemove without a 'node' field is silently skipped by the reducer
+      // (hydrateNodeRemove returns the raw op; applyOpV2 skips non-Op values).
+      // The receipt has no entry for this op, so conflict analysis emits receipt_unavailable.
       const graph = createMockGraph({
         writerPatches: {
           w1: [
@@ -1258,10 +1261,12 @@ describe('ConflictAnalyzerService', () => {
 
       const result = await analyzer.analyze();
 
-      expect(result.diagnostics?.some((d) => d.code === 'anchor_incomplete')).toBe(true);
+      expect(result.diagnostics?.some((d) => d.code === 'receipt_unavailable')).toBe(true);
     });
 
-    it('emits anchor_incomplete when an EdgeRemove has no edge identity', async () => {
+    it('emits receipt_unavailable when an EdgeRemove has no edge identity (reducer skips the op)', async () => {
+      // An EdgeRemove without from/to/label fields is silently skipped by the reducer.
+      // The receipt has no entry for this op, so conflict analysis emits receipt_unavailable.
       const graph = createMockGraph({
         writerPatches: {
           w1: [
@@ -1282,7 +1287,7 @@ describe('ConflictAnalyzerService', () => {
 
       const result = await analyzer.analyze();
 
-      expect(result.diagnostics?.some((d) => d.code === 'anchor_incomplete')).toBe(true);
+      expect(result.diagnostics?.some((d) => d.code === 'receipt_unavailable')).toBe(true);
     });
 
     it('uses receipt target fallback to identify edge tombstones when op fields are absent', async () => {

@@ -185,7 +185,7 @@ describe('Service Logging Integration', () => {
           logger: mockLogger,
           crypto,
         }));
-        reader.setup({ 'meta_sh.json': 'aaa1bbb2ccc3ddd4eee5fff6aaa7bbb8ccc9ddd0' });
+        reader.setup({ 'meta_sh.cbor': 'aaa1bbb2ccc3ddd4eee5fff6aaa7bbb8ccc9ddd0' });
 
         const id = await reader.lookupId('sha123');
 
@@ -196,7 +196,7 @@ describe('Service Logging Integration', () => {
         expect(mockLogger._calls.warn.length).toBe(1);
         const logEntry = mockLogger._calls.warn[0];
         expect(logEntry.ctx.operation).toBe('loadShard');
-        expect(logEntry.ctx.shardPath).toBe('meta_sh.json');
+        expect(logEntry.ctx.shardPath).toBe('meta_sh.cbor');
       });
     });
   });
