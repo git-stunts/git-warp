@@ -2,29 +2,29 @@ import { describe, it, expect } from 'vitest';
 import ConflictTarget from '../../../../../src/domain/types/conflict/ConflictTarget.ts';
 
 describe('ConflictTarget', () => {
-  const NODE_TARGET = {
+  const NODE_TARGET = /** @type {any} */ ({
     targetKind: 'node',
     targetDigest: 'abc123',
     entityId: 'node-1',
-  };
+  });
 
-  const EDGE_TARGET = {
+  const EDGE_TARGET = /** @type {any} */ ({
     targetKind: 'edge',
     targetDigest: 'def456',
     from: 'a',
     to: 'b',
     label: 'KNOWS',
     edgeKey: 'a\0b\0KNOWS',
-  };
+  });
 
-  const NODE_PROP_TARGET = {
+  const NODE_PROP_TARGET = /** @type {any} */ ({
     targetKind: 'node_property',
     targetDigest: 'ghi789',
     entityId: 'node-1',
     propertyKey: 'name',
-  };
+  });
 
-  const EDGE_PROP_TARGET = {
+  const EDGE_PROP_TARGET = /** @type {any} */ ({
     targetKind: 'edge_property',
     targetDigest: 'jkl012',
     from: 'a',
@@ -32,7 +32,7 @@ describe('ConflictTarget', () => {
     label: 'KNOWS',
     edgeKey: 'a\0b\0KNOWS',
     propertyKey: 'weight',
-  };
+  });
 
   describe('constructor validation', () => {
     it('creates a frozen node target', () => {
@@ -71,36 +71,36 @@ describe('ConflictTarget', () => {
     });
 
     it('treats null optional fields as undefined', () => {
-      const t = new ConflictTarget({
+      const t = new ConflictTarget(/** @type {any} */ ({
         targetKind: 'node',
         targetDigest: 'abc',
         entityId: null,
-      });
+      }));
       expect(t.entityId).toBeUndefined();
     });
 
     it('rejects invalid targetKind', () => {
-      expect(() => new ConflictTarget({ ...NODE_TARGET, targetKind: 'blob' }))
+      expect(() => new ConflictTarget(/** @type {any} */ ({ ...NODE_TARGET, targetKind: 'blob' })))
         .toThrow('targetKind must be one of');
     });
 
     it('rejects empty targetDigest', () => {
-      expect(() => new ConflictTarget({ ...NODE_TARGET, targetDigest: '' }))
+      expect(() => new ConflictTarget(/** @type {any} */ ({ ...NODE_TARGET, targetDigest: '' })))
         .toThrow('targetDigest must be a non-empty string');
     });
 
     it('rejects non-string targetDigest', () => {
-      expect(() => new ConflictTarget({ ...NODE_TARGET, targetDigest: 42 }))
+      expect(() => new ConflictTarget(/** @type {any} */ ({ ...NODE_TARGET, targetDigest: 42 })))
         .toThrow('targetDigest must be a non-empty string');
     });
 
     it('rejects empty string for optional field', () => {
-      expect(() => new ConflictTarget({ ...NODE_TARGET, entityId: '' }))
+      expect(() => new ConflictTarget(/** @type {any} */ ({ ...NODE_TARGET, entityId: '' })))
         .toThrow('entityId must be a non-empty string when provided');
     });
 
     it('rejects non-string value for optional field', () => {
-      expect(() => new ConflictTarget({ ...EDGE_TARGET, from: 42 }))
+      expect(() => new ConflictTarget(/** @type {any} */ ({ ...EDGE_TARGET, from: 42 })))
         .toThrow('from must be a non-empty string when provided');
     });
   });

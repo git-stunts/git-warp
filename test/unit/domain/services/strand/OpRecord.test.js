@@ -10,7 +10,7 @@ function makeEventId() {
   return { lamport: 3, writerId: 'w1', patchSha: 'abc123', opIndex: 0 };
 }
 
-const VALID = {
+const VALID = /** @type {any} */ ({
   target: undefined,
   patchSha: 'abc123',
   writerId: 'w1',
@@ -23,7 +23,7 @@ const VALID = {
   eventId: makeEventId(),
   context: new Map([['w1', 3]]),
   patchOrder: 0,
-};
+});
 
 describe('OpRecord', () => {
   it('creates a frozen record', () => {
@@ -44,11 +44,11 @@ describe('OpRecord', () => {
   });
 
   it('rejects non-ConflictTarget target', () => {
-    expect(() => new OpRecord({ ...VALID, target: {} })).toThrow('target must be a ConflictTarget');
+    expect(() => new OpRecord(/** @type {any} */ ({ ...VALID, target: {} }))).toThrow('target must be a ConflictTarget');
   });
 
   it('rejects invalid receiptResult', () => {
-    expect(() => new OpRecord({ ...VALID, target: makeTarget(), receiptResult: 'ignored' })).toThrow('receiptResult');
+    expect(() => new OpRecord(/** @type {any} */ ({ ...VALID, target: makeTarget(), receiptResult: 'ignored' }))).toThrow('receiptResult');
   });
 
   it('rejects empty patchSha', () => {

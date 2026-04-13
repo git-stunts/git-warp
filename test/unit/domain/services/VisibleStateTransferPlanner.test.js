@@ -6,10 +6,20 @@ import {
 } from '../../../../src/domain/services/transfer/VisibleStateTransferPlanner.ts';
 import { CONTENT_PROPERTY_KEY } from '../../../../src/domain/services/KeyCodec.ts';
 
+/**
+ * @param {string} from
+ * @param {string} to
+ * @param {string} label
+ * @returns {string}
+ */
 function makeEdgeKey(from, to, label) {
   return `${from}\0${to}\0${label}`;
 }
 
+/**
+ * @param {{ nodes: string[], edges: Array<{from: string, to: string, label: string}>, nodeProps?: Record<string, unknown>, edgeProps?: Record<string, unknown>, nodeContentMeta?: Record<string, unknown>, edgeContentMeta?: Record<string, unknown> }} opts
+ * @returns {any}
+ */
 function createReader({
   nodes,
   edges,
@@ -23,19 +33,19 @@ function createReader({
       return [...nodes];
     },
     getEdges() {
-      return edges.map((edge) => ({ ...edge }));
+      return edges.map((/** @type {any} */ edge) => ({ ...edge }));
     },
-    getNodeProps(nodeId) {
-      return nodeProps[nodeId] ?? null;
+    getNodeProps(/** @type {string} */ nodeId) {
+      return /** @type {Record<string, unknown>} */ (nodeProps)[nodeId] ?? null;
     },
-    getEdgeProps(from, to, label) {
-      return edgeProps[makeEdgeKey(from, to, label)] ?? null;
+    getEdgeProps(/** @type {string} */ from, /** @type {string} */ to, /** @type {string} */ label) {
+      return /** @type {Record<string, unknown>} */ (edgeProps)[makeEdgeKey(from, to, label)] ?? null;
     },
-    getNodeContentMeta(nodeId) {
-      return nodeContentMeta[nodeId] ?? null;
+    getNodeContentMeta(/** @type {string} */ nodeId) {
+      return /** @type {Record<string, unknown>} */ (nodeContentMeta)[nodeId] ?? null;
     },
-    getEdgeContentMeta(from, to, label) {
-      return edgeContentMeta[makeEdgeKey(from, to, label)] ?? null;
+    getEdgeContentMeta(/** @type {string} */ from, /** @type {string} */ to, /** @type {string} */ label) {
+      return /** @type {Record<string, unknown>} */ (edgeContentMeta)[makeEdgeKey(from, to, label)] ?? null;
     },
   };
 }

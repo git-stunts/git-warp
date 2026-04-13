@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import ConflictResolvedCoordinate from '../../../../../src/domain/types/conflict/ConflictResolvedCoordinate.ts';
 
 describe('ConflictResolvedCoordinate', () => {
-  const VALID = {
+  const VALID = /** @type {any} */ ({
     analysisVersion: 'conflict-analyzer/v2',
     coordinateKind: 'frontier',
     frontier: { w1: 'abc', w2: 'def' },
@@ -10,7 +10,7 @@ describe('ConflictResolvedCoordinate', () => {
     lamportCeiling: null,
     scanBudgetApplied: { maxPatches: null },
     truncationPolicy: 'scan_budget_max_patches_reverse_causal',
-  };
+  });
 
   it('creates a frozen coordinate', () => {
     const c = new ConflictResolvedCoordinate(VALID);
@@ -38,10 +38,10 @@ describe('ConflictResolvedCoordinate', () => {
         braid: { readOverlayCount: 1, braidedStrandIds: ['beta'] },
       },
     });
-    expect(c.strand.strandId).toBe('alpha');
+    expect(c.strand?.['strandId']).toBe('alpha');
     expect(Object.isFrozen(c.strand)).toBe(true);
-    expect(Object.isFrozen(c.strand.braid)).toBe(true);
-    expect(Object.isFrozen(c.strand.braid.braidedStrandIds)).toBe(true);
+    expect(Object.isFrozen(c.strand?.braid)).toBe(true);
+    expect(Object.isFrozen(c.strand?.braid?.braidedStrandIds)).toBe(true);
   });
 
   it('accepts strand without braid', () => {
@@ -50,28 +50,28 @@ describe('ConflictResolvedCoordinate', () => {
       coordinateKind: 'strand',
       strand: { strandId: 'alpha', baseLamportCeiling: null, overlayHeadPatchSha: null, overlayPatchCount: 0, overlayWritable: false },
     });
-    expect(c.strand.strandId).toBe('alpha');
-    expect(c.strand.braid).toBeUndefined();
+    expect(c.strand?.['strandId']).toBe('alpha');
+    expect(c.strand?.braid).toBeUndefined();
   });
 
   it('treats null strand as undefined', () => {
-    const c = new ConflictResolvedCoordinate({ ...VALID, strand: null });
+    const c = new ConflictResolvedCoordinate(/** @type {any} */ ({ ...VALID, strand: null }));
     expect(c.strand).toBeUndefined();
   });
 
   it('rejects invalid coordinateKind', () => {
-    expect(() => new ConflictResolvedCoordinate({ ...VALID, coordinateKind: 'custom' })).toThrow('coordinateKind');
+    expect(() => new ConflictResolvedCoordinate(/** @type {any} */ ({ ...VALID, coordinateKind: 'custom' }))).toThrow('coordinateKind');
   });
 
   it('rejects null frontier', () => {
-    expect(() => new ConflictResolvedCoordinate({ ...VALID, frontier: null })).toThrow('frontier');
+    expect(() => new ConflictResolvedCoordinate(/** @type {any} */ ({ ...VALID, frontier: null }))).toThrow('frontier');
   });
 
   it('rejects null scanBudgetApplied', () => {
-    expect(() => new ConflictResolvedCoordinate({ ...VALID, scanBudgetApplied: null })).toThrow('scanBudgetApplied');
+    expect(() => new ConflictResolvedCoordinate(/** @type {any} */ ({ ...VALID, scanBudgetApplied: null }))).toThrow('scanBudgetApplied');
   });
 
   it('rejects empty analysisVersion', () => {
-    expect(() => new ConflictResolvedCoordinate({ ...VALID, analysisVersion: '' })).toThrow('analysisVersion');
+    expect(() => new ConflictResolvedCoordinate(/** @type {any} */ ({ ...VALID, analysisVersion: '' }))).toThrow('analysisVersion');
   });
 });

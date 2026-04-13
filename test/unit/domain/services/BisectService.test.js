@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
 import BisectService from '../../../../src/domain/services/BisectService.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { createGitRepo } from '../../../helpers/warpGraphTestUtils.js';
 
 describe('BisectService', { timeout: 30000 }, () => {
@@ -35,10 +34,10 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('found');
-      expect(result.firstBadPatch).toBe(shas[2]); // C
-      expect(result.writerId).toBe('w1');
-      expect(result.steps).toBeLessThanOrEqual(2);
-      expect(result.totalCandidates).toBe(4); // B, C, D, E
+      expect(/** @type {any} */ (result).firstBadPatch).toBe(shas[2]); // C
+      expect(/** @type {any} */ (result).writerId).toBe('w1');
+      expect(/** @type {any} */ (result).steps).toBeLessThanOrEqual(2);
+      expect(/** @type {any} */ (result).totalCandidates).toBe(4); // B, C, D, E
     } finally {
       await repo.cleanup();
     }
@@ -65,7 +64,7 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('range-error');
-      expect(result.message).toBe('good and bad SHAs are the same');
+      expect(/** @type {any} */ (result).message).toBe('good and bad SHAs are the same');
     } finally {
       await repo.cleanup();
     }
@@ -95,10 +94,10 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('found');
-      expect(result.firstBadPatch).toBe(shaB);
-      expect(result.writerId).toBe('w1');
-      expect(result.steps).toBe(0);
-      expect(result.totalCandidates).toBe(1);
+      expect(/** @type {any} */ (result).firstBadPatch).toBe(shaB);
+      expect(/** @type {any} */ (result).writerId).toBe('w1');
+      expect(/** @type {any} */ (result).steps).toBe(0);
+      expect(/** @type {any} */ (result).totalCandidates).toBe(1);
     } finally {
       await repo.cleanup();
     }
@@ -127,7 +126,7 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('range-error');
-      expect(result.message).toBe('good is not an ancestor of bad');
+      expect(/** @type {any} */ (result).message).toBe('good is not an ancestor of bad');
     } finally {
       await repo.cleanup();
     }
@@ -155,7 +154,7 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('range-error');
-      expect(result.message).toBe('good or bad SHA not found in writer chain');
+      expect(/** @type {any} */ (result).message).toBe('good or bad SHA not found in writer chain');
     } finally {
       await repo.cleanup();
     }
@@ -191,7 +190,7 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('found');
-      expect(result.firstBadPatch).toBe(shas[2]); // C
+      expect(/** @type {any} */ (result).firstBadPatch).toBe(shas[2]); // C
       // Every SHA passed to testFn must be a real candidate SHA
       for (const observed of observedShas) {
         expect(shas.slice(1)).toContain(observed);
@@ -226,7 +225,7 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('found');
-      expect(result.firstBadPatch).toBe(shas[1]); // B — first candidate after good
+      expect(/** @type {any} */ (result).firstBadPatch).toBe(shas[1]); // B — first candidate after good
     } finally {
       await repo.cleanup();
     }
@@ -285,7 +284,7 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('range-error');
-      expect(result.message).toBe('good or bad SHA not found in writer chain');
+      expect(/** @type {any} */ (result).message).toBe('good or bad SHA not found in writer chain');
     } finally {
       await repo.cleanup();
     }
