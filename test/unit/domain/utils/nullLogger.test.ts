@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import nullLogger from '../../../../src/domain/utils/nullLogger.ts';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const any = nullLogger as any;
 
 describe('nullLogger', () => {

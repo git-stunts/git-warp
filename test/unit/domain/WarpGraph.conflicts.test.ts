@@ -5,7 +5,7 @@ import WarpCore from '../../../src/domain/WarpCore.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 
-/** @typedef {any} WarpCoreRuntime */
+type WarpCoreRuntime = any;
 
 /**
  * @param {number} counter

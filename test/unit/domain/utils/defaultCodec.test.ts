@@ -16,7 +16,6 @@ describe('defaultCodec', () => {
 
     expect(Object.keys(decoded)).toEqual(['a', 'b']);
     expect(Object.keys(decoded.b)).toEqual(['a', 'z']);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     expect(Object.keys(decoded.a[0]!)).toEqual(['x', 'y']);
   });
 

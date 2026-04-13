@@ -12,7 +12,7 @@ import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import { buildStrandBraidRef, buildStrandOverlayRef } from '../../../src/domain/utils/RefLayout.ts';
 
-/** @typedef {any} WarpCoreRuntime */
+type WarpCoreRuntime = any;
 
 /**
  * @param {number} counter

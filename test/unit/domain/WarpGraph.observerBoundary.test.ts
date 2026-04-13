@@ -9,7 +9,7 @@ import { createStateReader } from '../../../src/domain/services/state/StateReade
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.ts';
 import WarpError from '../../../src/domain/errors/WarpError.ts';
 
-/** @typedef {any} WarpCoreRuntime */
+type WarpCoreRuntime = any;
 
 /**
  * @param {number} counter

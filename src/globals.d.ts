@@ -69,3 +69,18 @@ declare namespace Bun {
 
 declare var Bun: typeof Bun | undefined;
 declare var Deno: typeof Deno | undefined;
+
+/* ------------------------------------------------------------------ */
+/*  Untyped substrate packages                                        */
+/* ------------------------------------------------------------------ */
+
+declare module '@git-stunts/plumbing' {
+  const Plumbing: any;
+  export const ShellRunnerFactory: any;
+  export default Plumbing;
+}
+
+declare module '@git-stunts/trailer-codec' {
+  export const TrailerCodec: any;
+  export const TrailerCodecService: any;
+}

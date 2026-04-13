@@ -5,7 +5,6 @@ import {
   encodeEdgeKey as encodeEdgeKeyV5,
   encodePropKey as encodePropKeyV5,
 } from '../../../../src/domain/services/JoinReducer.ts';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const reduceV5: (...args: any[]) => any = _reduceV5;
 import { compareEventIds, EventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet as lwwSetImported, lwwMax as lwwMaxImported } from '../../../../src/domain/crdt/LWW.ts';
@@ -168,7 +167,6 @@ const crypto = new NodeCryptoAdapter();
  * @returns {any} PatchV1 object
  */
 function createPatchV1({ writer, lamport, ops, baseCheckpoint }: { writer: any; lamport: any; ops: any; baseCheckpoint?: any }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const patch: any = {
     schema: 1,
     writer,

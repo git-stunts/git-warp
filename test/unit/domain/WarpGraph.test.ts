@@ -18,7 +18,6 @@ const crypto = new NodeCryptoAdapter();
  * Creates a mock persistence adapter for testing.
  * @returns {any} Mock persistence adapter
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function createMockPersistence(): any {
   return {
     readRef: vi.fn(),
@@ -51,7 +50,6 @@ function createMockPersistence(): any {
  * @param {any} [options.context] - The context VV for schema:2 patches
  * @returns {any} Mock patch data for testing
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function createMockPatch({ sha, graphName, writerId, lamport, patchOid, ops, parentSha = null, context = null }: { sha: string; graphName: string; writerId: string; lamport: number; patchOid: string; ops: any[]; parentSha?: string | null; context?: any }) {
   const patch = {
     schema: 2,

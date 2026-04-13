@@ -8,7 +8,7 @@ import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.js';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
-/** @typedef {any} WarpCoreRuntime */
+type WarpCoreRuntime = any;
 
 const crypto = new NodeCryptoAdapter();
 

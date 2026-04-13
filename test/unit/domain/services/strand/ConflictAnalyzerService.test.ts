@@ -21,7 +21,6 @@ function nextOid() {
  * @param {{ writerPatches?: Record<string, Array<{patch: object, sha: string}>> }} [config]
  * @returns {any}
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function createMockGraph(config: { writerPatches?: Record<string, Array<{patch: object; sha: string}>> } = {}): any {
   const { writerPatches = {} } = config;
   oidCounter = 0;
