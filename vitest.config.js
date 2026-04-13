@@ -26,12 +26,7 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.js'],
-      exclude: [
-        'src/visualization/index.js',
-        'src/visualization/renderers/ascii/index.js',
-        'src/visualization/renderers/browser/index.js',
-      ],
+      include: ['src/**/*.js', 'src/**/*.ts'],
       thresholds: {
         lines: 97.71,
         autoUpdate: shouldAutoUpdateCoverageRatchet(),

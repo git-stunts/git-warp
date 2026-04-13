@@ -39,11 +39,7 @@ export default tseslint.config(
       sourceType: "module",
       parser: tseslint.parser,
       parserOptions: {
-        projectService: {
-          allowDefaultProject: [
-            "src/visualization/index.js",
-          ],
-        },
+        projectService: true,
         tsconfigRootDir: __dirname,
       },
       globals: {
@@ -320,7 +316,6 @@ export default tseslint.config(
       "src/domain/warp/PatchSession.ts",
       "src/domain/utils/EventId.ts",
       "src/domain/types/WorldlineSelector.ts",
-      "src/visualization/renderers/ascii/graph.js",
       "src/domain/services/KeyCodec.ts",
       "src/domain/services/dag/DagTraversal.js",
       "src/domain/services/dag/DagTopology.js",
@@ -340,7 +335,6 @@ export default tseslint.config(
       "bin/cli/commands/seek.js",
       "bin/cli/commands/patch.js",
       "bin/cli/commands/tree.js",
-      "bin/presenters/text.js",
       "src/domain/services/index/LogicalBitmapIndexBuilder.js",
       "src/domain/services/index/LogicalIndexBuildService.js",
       "src/domain/services/index/IncrementalIndexUpdater.ts",
@@ -354,7 +348,6 @@ export default tseslint.config(
       "src/infrastructure/adapters/IndexShardEncodeTransform.js",
       "src/domain/stream/WarpStream.ts",
       "src/domain/artifacts/IndexShard.ts",
-      "src/visualization/renderers/ascii/path.js",
       "src/domain/services/strand/StrandService.js",
       "src/domain/services/query/AdjacencyNeighborProvider.js",
       "src/domain/services/index/BitmapIndexBuilder.js",
