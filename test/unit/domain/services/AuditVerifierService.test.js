@@ -5,7 +5,7 @@
  * then verifies chain integrity, tamper detection, and edge cases.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { createHash } from 'node:crypto';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import { AuditReceiptService } from '../../../../src/domain/services/audit/AuditReceiptService.ts';
@@ -89,16 +89,16 @@ function createVerifier(persistence) {
  * @returns {Promise<Record<string, *>>}
  */
 async function mutateReceipt(persistence, commitSha, mutate) {
-  const commit = persistence._commits.get(commitSha);
+  const commit = /** @type {any} */ (/** @type {any} */ (persistence)['_commits'].get(commitSha));
   if (!commit) {
     throw new Error(`missing commit ${commitSha}`);
   }
-  const tree = await persistence.readTree(commit.treeOid);
+  const tree = await persistence.readTree(/** @type {string} */ (commit.treeOid));
   const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
   mutate(receipt);
   const cborBytes = defaultCodec.encode(receipt);
   const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
-  commit.treeOid = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
+  commit['treeOid'] = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
   return receipt;
 }
 
@@ -109,11 +109,11 @@ async function mutateReceipt(persistence, commitSha, mutate) {
  * @param {(message: string) => string} mutate
  */
 function mutateCommitMessage(persistence, commitSha, mutate) {
-  const commit = persistence._commits.get(commitSha);
+  const commit = /** @type {any} */ (/** @type {any} */ (persistence)['_commits'].get(commitSha));
   if (!commit) {
     throw new Error(`missing commit ${commitSha}`);
   }
-  commit.message = mutate(commit.message);
+  commit['message'] = mutate(/** @type {string} */ (commit['message']));
 }
 
 /**
@@ -290,7 +290,7 @@ describe('AuditVerifierService — broken chain', () => {
     const sha2 = await commitReceipt(service, 2);
 
     // Tamper: rewrite sha2's Git parent to a different commit
-    const commit = persistence._commits.get(/** @type {string} */ (sha2));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha2));
     if (commit) {
       commit.parents = ['f'.repeat(40)];
     }
@@ -307,7 +307,7 @@ describe('AuditVerifierService — broken chain', () => {
     const sha1 = await commitReceipt(service, 1);
 
     // Tamper: add a parent to the genesis commit
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       commit.parents = ['f'.repeat(40)];
     }
@@ -325,7 +325,7 @@ describe('AuditVerifierService — broken chain', () => {
     const sha2 = await commitReceipt(service, 2);
 
     // Tamper: remove parents from continuation commit
-    const commit = persistence._commits.get(/** @type {string} */ (sha2));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha2));
     if (commit) {
       commit.parents = [];
     }
@@ -344,7 +344,7 @@ describe('AuditVerifierService — broken chain', () => {
     await commitReceipt(service, 2);
 
     // Tamper: change tick in sha1's receipt to be >= sha2's tick
-    const commit1 = persistence._commits.get(/** @type {string} */ (sha1tick));
+    const commit1 = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1tick));
     if (commit1) {
       const tree = await persistence.readTree(commit1.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
@@ -368,7 +368,7 @@ describe('AuditVerifierService — broken chain', () => {
     const sha1 = await commitReceipt(service, 1);
 
     // Tamper: add extra entry to the tree
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receiptBlob = await persistence.writeBlob(/** @type {Uint8Array} */ (tree['receipt.cbor']));
@@ -392,7 +392,7 @@ describe('AuditVerifierService — broken chain', () => {
     const sha1 = await commitReceipt(service, 1);
 
     // Tamper: replace tree with one that has wrong filename
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receiptBlob = await persistence.writeBlob(/** @type {Uint8Array} */ (tree['receipt.cbor']));
@@ -427,7 +427,7 @@ describe('AuditVerifierService — data mismatch', () => {
     const sha1 = await commitReceipt(service, 1);
 
     // Tamper: rewrite commit message with different dataCommit
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
@@ -451,7 +451,7 @@ describe('AuditVerifierService — data mismatch', () => {
     const service = await createAuditService(persistence, 'events', 'alice');
     const sha1 = await commitReceipt(service, 1);
 
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
@@ -474,7 +474,7 @@ describe('AuditVerifierService — data mismatch', () => {
     const service = await createAuditService(persistence, 'events', 'alice');
     const sha1 = await commitReceipt(service, 1);
 
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
@@ -497,7 +497,7 @@ describe('AuditVerifierService — data mismatch', () => {
     const service = await createAuditService(persistence, 'events', 'alice');
     const sha1 = await commitReceipt(service, 1);
 
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
@@ -520,7 +520,7 @@ describe('AuditVerifierService — data mismatch', () => {
     const service = await createAuditService(persistence, 'events', 'alice');
     const sha1 = await commitReceipt(service, 1);
 
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       // Replace receipt.cbor with garbage
       const garbageBlob = await persistence.writeBlob(Buffer.from('not valid cbor'));
@@ -582,7 +582,7 @@ describe('AuditVerifierService — OID format', () => {
     const service = await createAuditService(persistence, 'events', 'alice');
     const sha1 = await commitReceipt(service, 1);
 
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
@@ -607,7 +607,7 @@ describe('AuditVerifierService — OID format', () => {
     const service = await createAuditService(persistence, 'events', 'alice');
     const sha1 = await commitReceipt(service, 1);
 
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
@@ -629,7 +629,7 @@ describe('AuditVerifierService — OID format', () => {
     const service = await createAuditService(persistence, 'events', 'alice');
     const sha1 = await commitReceipt(service, 1);
 
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
@@ -777,7 +777,7 @@ describe('AuditVerifierService — writer/graph consistency', () => {
     const sha1 = await commitReceipt(service, 1, undefined, 'alice');
 
     // Tamper: change writerId in receipt of sha1
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
@@ -913,7 +913,7 @@ describe('AuditVerifierService — schema validation', () => {
     const service = await createAuditService(persistence, 'events', 'alice');
     const sha1 = await commitReceipt(service, 1);
 
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       // Replace receipt with incomplete object
       const incomplete = { version: 1, graphName: 'events' };
@@ -933,7 +933,7 @@ describe('AuditVerifierService — schema validation', () => {
     const service = await createAuditService(persistence, 'events', 'alice');
     const sha1 = await commitReceipt(service, 1);
 
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
@@ -954,7 +954,7 @@ describe('AuditVerifierService — schema validation', () => {
     const service = await createAuditService(persistence, 'events', 'alice');
     const sha1 = await commitReceipt(service, 1);
 
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       const blobOid = await persistence.writeBlob(Buffer.from(defaultCodec.encode('not-an-object')));
       commit.treeOid = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -966,7 +966,7 @@ describe('AuditVerifierService — schema validation', () => {
     expect(result.errors.some((e) => e.code === 'RECEIPT_SCHEMA_INVALID')).toBe(true);
   });
 
-  for (const [name, mutate] of [
+  for (const [name, mutate] of /** @type {Array<[string, (receipt: Record<string, unknown>) => void]>} */ ([
     ['detects missing required fields with a full 9-field object', (receipt) => { delete receipt['writerId']; receipt['extra'] = 'filler'; }],
     ['detects empty graphName', (receipt) => { receipt['graphName'] = ''; }],
     ['detects empty writerId', (receipt) => { receipt['writerId'] = ''; }],
@@ -977,7 +977,7 @@ describe('AuditVerifierService — schema validation', () => {
     ['detects tickEnd below tickStart', (receipt) => { receipt['tickEnd'] = 0; }],
     ['detects v1 receipts with tickStart != tickEnd', (receipt) => { receipt['tickEnd'] = 2; }],
     ['detects negative timestamps', (receipt) => { receipt['timestamp'] = -1; }],
-  ]) {
+  ])) {
     it(name, async () => {
       const service = await createAuditService(persistence, 'events', 'alice');
       const sha1 = await commitReceipt(service, 1);
@@ -1010,7 +1010,7 @@ describe('AuditVerifierService — OID length mismatch', () => {
     const sha2 = await commitReceipt(service, 2);
 
     // Tamper: change sha2's receipt to use 64-char OIDs
-    const commit = persistence._commits.get(/** @type {string} */ (sha2));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha2));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
@@ -1032,7 +1032,7 @@ describe('AuditVerifierService — OID length mismatch', () => {
     const service = await createAuditService(persistence, 'events', 'alice');
     const sha1 = await commitReceipt(service, 1);
 
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
@@ -1220,7 +1220,7 @@ describe('AuditVerifierService — storage failure paths', () => {
   it('detects missing receipt blob entries even when the tree shape is otherwise correct', async () => {
     const service = await createAuditService(persistence, 'events', 'alice');
     await commitReceipt(service, 1);
-    persistence.readTreeOids = async () => ({ 'receipt.cbor': undefined });
+    persistence.readTreeOids = /** @type {any} */ (async () => ({ 'receipt.cbor': undefined }));
 
     const verifier = createVerifier(persistence);
     const result = await verifier.verifyChain('events', 'alice');
@@ -1233,7 +1233,7 @@ describe('AuditVerifierService — storage failure paths', () => {
     const service = await createAuditService(persistence, 'events', 'alice');
     const sha1 = await commitReceipt(service, 1);
     const originalReadBlob = persistence.readBlob.bind(persistence);
-    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit = /** @type {any} */ (/** @type {any} */ (persistence))['_commits'].get(/** @type {string} */ (sha1));
     if (!commit) {
       throw new Error('missing audit commit');
     }
