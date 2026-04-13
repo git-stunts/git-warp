@@ -26,7 +26,7 @@ function mockEventId(lamport = 1, writerId = 'test', patchSha = 'abcd1234', opIn
 /**
  * Helper to build a V5 state with specific nodes, edges, and props.
  */
-function buildStateV5({ nodes = /** @type {any[]} */ ([]), edges = /** @type {any[]} */ ([]), props = /** @type {any[]} */ ([]), tombstoneDots = /** @type {any[]} */ ([]) }) {
+function buildStateV5({ nodes = [] as any[], edges = [] as any[], props = [] as any[], tombstoneDots = [] as any[] }: { nodes?: any[]; edges?: any[]; props?: any[]; tombstoneDots?: any[] } = {}) {
   const state = createEmptyState();
 
   // Add nodes with their dots
@@ -59,7 +59,7 @@ function buildStateV5({ nodes = /** @type {any[]} */ ([]), edges = /** @type {an
 describe('CheckpointSerializer', () => {
   describe('serializeFullState / deserializeFullState', () => {
     it('returns empty state when buffer is null', () => {
-      const restored = deserializeFullState(/** @type {any} */ (null));
+      const restored = deserializeFullState(null as any);
 
       expect(restored.nodeAlive.entries.size).toBe(0);
       expect(restored.edgeAlive.entries.size).toBe(0);
@@ -69,7 +69,7 @@ describe('CheckpointSerializer', () => {
     });
 
     it('returns empty state when buffer is undefined', () => {
-      const restored = deserializeFullState(/** @type {any} */ (undefined));
+      const restored = deserializeFullState(undefined as any);
 
       expect(restored.nodeAlive.entries.size).toBe(0);
       expect(restored.edgeAlive.entries.size).toBe(0);
@@ -126,10 +126,10 @@ describe('CheckpointSerializer', () => {
       expect(restored.nodeAlive.entries.has('b')).toBe(true);
 
       // Check the dots are preserved
-      const aDots = /** @type {any} */ (restored.nodeAlive.entries.get('a'));
+      const aDots = (restored.nodeAlive.entries.get('a') as any);
       expect(aDots.has('alice:1')).toBe(true);
 
-      const bDots = /** @type {any} */ (restored.nodeAlive.entries.get('b'));
+      const bDots = (restored.nodeAlive.entries.get('b') as any);
       expect(bDots.has('bob:2')).toBe(true);
     });
 
@@ -150,7 +150,7 @@ describe('CheckpointSerializer', () => {
       const edgeKey = encodeEdgeKey('a', 'b', 'knows');
       expect(restored.edgeAlive.entries.has(edgeKey)).toBe(true);
 
-      const edgeDots = /** @type {any} */ (restored.edgeAlive.entries.get(edgeKey));
+      const edgeDots = (restored.edgeAlive.entries.get(edgeKey) as any);
       expect(edgeDots.has('alice:3')).toBe(true);
     });
 
@@ -168,7 +168,7 @@ describe('CheckpointSerializer', () => {
       const propKey = encodePropKey('a', 'name');
       expect(restored.prop.has(propKey)).toBe(true);
 
-      const register = /** @type {any} */ (restored.prop.get(propKey));
+      const register = (restored.prop.get(propKey) as any);
       expect(register.value).toBe('Alice');
       expect(register.eventId.lamport).toBe(5);
       expect(register.eventId.writerId).toBe('alice');
@@ -220,7 +220,7 @@ describe('CheckpointSerializer', () => {
       const restored = deserializeFullState(buffer);
 
       expect(restored.edgeBirthEvent.size).toBe(1);
-      const restoredEvent = /** @type {any} */ (restored.edgeBirthEvent.get(edgeKey));
+      const restoredEvent = (restored.edgeBirthEvent.get(edgeKey) as any);
       expect(restoredEvent.lamport).toBe(3);
       expect(restoredEvent.writerId).toBe('alice');
       expect(restoredEvent.patchSha).toBe('deadbeef');
@@ -242,7 +242,7 @@ describe('CheckpointSerializer', () => {
       const restored = deserializeFullState(buffer);
 
       expect(restored.edgeBirthEvent.size).toBe(1);
-      const event = /** @type {any} */ (restored.edgeBirthEvent.get(edgeKey));
+      const event = (restored.edgeBirthEvent.get(edgeKey) as any);
       expect(event.lamport).toBe(42);
       // Legacy sentinel values
       expect(event.writerId).toBe('');
@@ -275,17 +275,17 @@ describe('CheckpointSerializer', () => {
 
       // Verify nodes
       expect(restored.nodeAlive.entries.size).toBe(3);
-      expect(/** @type {any} */ (restored.nodeAlive.entries.get('n1')).has('alice:1')).toBe(true);
-      expect(/** @type {any} */ (restored.nodeAlive.entries.get('n2')).has('bob:1')).toBe(true);
-      expect(/** @type {any} */ (restored.nodeAlive.entries.get('n3')).has('alice:2')).toBe(true);
+      expect((restored.nodeAlive.entries.get('n1') as any).has('alice:1')).toBe(true);
+      expect((restored.nodeAlive.entries.get('n2') as any).has('bob:1')).toBe(true);
+      expect((restored.nodeAlive.entries.get('n3') as any).has('alice:2')).toBe(true);
 
       // Verify edges
       expect(restored.edgeAlive.entries.size).toBe(2);
 
       // Verify props
       expect(restored.prop.size).toBe(2);
-      expect(/** @type {any} */ (restored.prop.get(encodePropKey('n1', 'name'))).value).toBe('Node One');
-      expect(/** @type {any} */ (restored.prop.get(encodePropKey('n2', 'count'))).value).toBe(42);
+      expect((restored.prop.get(encodePropKey('n1', 'name')) as any).value).toBe('Node One');
+      expect((restored.prop.get(encodePropKey('n2', 'count')) as any).value).toBe(42);
 
       // Verify tombstones
       expect(restored.nodeAlive.tombstones.size).toBe(2);
@@ -323,7 +323,7 @@ describe('CheckpointSerializer', () => {
       const buffer1 = serializeFullState(state1);
       const buffer2 = serializeFullState(state2);
 
-      expect(/** @type {Buffer} */ (buffer1).equals(/** @type {Buffer} */ (buffer2))).toBe(true);
+      expect(Buffer.from(buffer1!).equals(Buffer.from(buffer2!))).toBe(true);
     });
   });
 
@@ -421,7 +421,7 @@ describe('CheckpointSerializer', () => {
     it('round-trips empty version vector', () => {
       const vv = new Map();
 
-      const buffer = serializeAppliedVV(/** @type {any} */ (vv));
+      const buffer = serializeAppliedVV(vv as any);
       const restored = deserializeAppliedVV(buffer);
 
       expect(restored.size).toBe(0);
@@ -433,7 +433,7 @@ describe('CheckpointSerializer', () => {
       vv.set('bob', 5);
       vv.set('carol', 1);
 
-      const buffer = serializeAppliedVV(/** @type {any} */ (vv));
+      const buffer = serializeAppliedVV(vv as any);
       const restored = deserializeAppliedVV(buffer);
 
       expect(restored.size).toBe(3);
@@ -453,10 +453,10 @@ describe('CheckpointSerializer', () => {
       vv2.set('bob', 3);
       vv2.set('zoe', 1);
 
-      const buffer1 = serializeAppliedVV(/** @type {any} */ (vv1));
-      const buffer2 = serializeAppliedVV(/** @type {any} */ (vv2));
+      const buffer1 = serializeAppliedVV(vv1 as any);
+      const buffer2 = serializeAppliedVV(vv2 as any);
 
-      expect(/** @type {Buffer} */ (buffer1).equals(/** @type {Buffer} */ (buffer2))).toBe(true);
+      expect(Buffer.from(buffer1!).equals(Buffer.from(buffer2!))).toBe(true);
     });
   });
 

@@ -5,8 +5,8 @@ import {
   encodeEdgeKey as encodeEdgeKeyV5,
   encodePropKey as encodePropKeyV5,
 } from '../../../../src/domain/services/JoinReducer.ts';
-/** @type {(...args: any[]) => any} */
-const reduceV5 = _reduceV5;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const reduceV5: (...args: any[]) => any = _reduceV5;
 import { compareEventIds, EventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet as lwwSetImported, lwwMax as lwwMaxImported } from '../../../../src/domain/crdt/LWW.ts';
 
@@ -60,11 +60,11 @@ function encodePropKey(nodeId, propKey) {
  * @param {Array<{patch: any, sha: string}>} patches
  * @returns {{nodeAlive: Map<string, any>, edgeAlive: Map<string, any>, prop: Map<string, any>}}
  */
-function reduce(patches) {
+function reduce(patches: Array<{patch: any; sha: string}>) {
   const state = createEmptyState();
 
   // Expand all patches to (EventId, Op) tuples
-  const tuples = [];
+  const tuples: Array<{eventId: any; op: any}> = [];
   for (const { patch, sha } of patches) {
     for (let index = 0; index < patch.ops.length; index++) {
       tuples.push({
@@ -167,9 +167,9 @@ const crypto = new NodeCryptoAdapter();
  * @param {string} [options.baseCheckpoint] - Optional base checkpoint OID
  * @returns {any} PatchV1 object
  */
-function createPatchV1({ writer, lamport, ops, baseCheckpoint }) {
-  /** @type {any} */
-  const patch = {
+function createPatchV1({ writer, lamport, ops, baseCheckpoint }: { writer: any; lamport: any; ops: any; baseCheckpoint?: any }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const patch: any = {
     schema: 1,
     writer,
     lamport,
@@ -184,7 +184,7 @@ function createPatchV1({ writer, lamport, ops, baseCheckpoint }) {
 /**
  * Helper to create a v4 state with nodes, edges, and props directly
  */
-function createV4State({ nodes = /** @type {any[]} */ ([]), edges = /** @type {any[]} */ ([]), props = /** @type {any[]} */ ([]) } = {}) {
+function createV4State({ nodes = [] as any[], edges = [] as any[], props = [] as any[] }: { nodes?: any[]; edges?: any[]; props?: any[] } = {}) {
   const state = createEmptyState();
   let counter = 0;
 
@@ -524,7 +524,7 @@ describe('MigrationService', () => {
         const v5State = migrateV4toV5(v4State, 'migration-writer');
 
         // Compute visible projection from v4
-        const v4VisibleNodes = [];
+        const v4VisibleNodes: string[] = [];
         for (const [nodeId, reg] of v4State.nodeAlive) {
           if (reg.value === true) {
             v4VisibleNodes.push(nodeId);
@@ -532,7 +532,7 @@ describe('MigrationService', () => {
         }
         v4VisibleNodes.sort();
 
-        const v4VisibleEdges = [];
+        const v4VisibleEdges: string[] = [];
         for (const [edgeKey, reg] of v4State.edgeAlive) {
           if (reg.value === true) {
             v4VisibleEdges.push(edgeKey);
@@ -960,9 +960,9 @@ describe('MigrationService', () => {
         const v2Op0 = v2Patch.ops[0];
         expect(v2Op0).toBeDefined();
         expect(v2Op0?.type).toBe('NodeAdd');
-        expect(/** @type {any} */ (v2Op0)?.dot).toBeDefined(); // v2 has a dot
-        expect(/** @type {any} */ (v2Op0)?.dot.writerId).toBe('W');
-        expect(/** @type {any} */ (v2Op0)?.dot.counter).toBe(1);
+        expect((v2Op0 as any)?.dot).toBeDefined(); // v2 has a dot
+        expect((v2Op0 as any)?.dot.writerId).toBe('W');
+        expect((v2Op0 as any)?.dot.counter).toBe(1);
       });
     });
   });

@@ -18,8 +18,7 @@ import {
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
-/** @param {unknown} value */
-function createInlineValue(value) { return { type: 'inline', value }; }
+function createInlineValue(value: unknown) { return { type: 'inline', value }; }
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 import {
   CONTENT_MIME_PROPERTY_KEY,
@@ -49,7 +48,7 @@ function mockDot(writerId = 'test', seq = 1) {
  * Helper to build a V5 state with specific nodes, edges, and props.
  * Uses ORSet for nodes and edges (V5 style).
  */
-function buildStateV5({ nodes = /** @type {any[]} */ ([]), edges = /** @type {any[]} */ ([]), props = /** @type {any[]} */ ([]) }) {
+function buildStateV5({ nodes = [] as any[], edges = [] as any[], props = [] as any[] }: { nodes?: any[]; edges?: any[]; props?: any[] } = {}) {
   const state = createEmptyState();
   let dotSeq = 1;
 
@@ -60,7 +59,7 @@ function buildStateV5({ nodes = /** @type {any[]} */ ([]), edges = /** @type {an
     state.nodeAlive.add(nodeId, nodeDot);
     if (!alive) {
       // Remove by adding observed dots to tombstones
-      state.nodeAlive.remove(/** @type {any} */ (state.nodeAlive.entries.get(nodeId)));
+      state.nodeAlive.remove(state.nodeAlive.entries.get(nodeId) as any);
     }
   }
 
@@ -71,7 +70,7 @@ function buildStateV5({ nodes = /** @type {any[]} */ ([]), edges = /** @type {an
     const edgeDot = dot ?? mockDot('test', dotSeq++);
     state.edgeAlive.add(key, edgeDot);
     if (!alive) {
-      state.edgeAlive.remove(/** @type {any} */ (state.edgeAlive.entries.get(key)));
+      state.edgeAlive.remove(state.edgeAlive.entries.get(key) as any);
     }
   }
 
@@ -272,7 +271,7 @@ describe('StateSerializer', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
+      const result = deserializeStateV5((bytes as any));
 
       expect(result.nodes).toEqual(['a', 'c']);
     });
@@ -283,7 +282,7 @@ describe('StateSerializer', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
+      const result = deserializeStateV5((bytes as any));
 
       expect(result.nodes).toEqual(['apple', 'mango', 'zebra']);
     });
@@ -300,7 +299,7 @@ describe('StateSerializer', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
+      const result = deserializeStateV5((bytes as any));
 
       expect(result.edges).toEqual([
         { from: 'a', to: 'b', label: 'a' },
@@ -322,7 +321,7 @@ describe('StateSerializer', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
+      const result = deserializeStateV5((bytes as any));
 
       expect(result.props).toEqual([
         { node: 'a', key: 'age', value: createInlineValue(25) },
@@ -350,7 +349,7 @@ describe('StateSerializer', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
+      const result = deserializeStateV5((bytes as any));
 
       expect(result.nodes).toEqual(['a', 'c']);
       expect(result.edges).toEqual([{ from: 'a', to: 'c', label: 'knows' }]);
@@ -366,7 +365,7 @@ describe('StateSerializer', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
+      const result = deserializeStateV5((bytes as any));
 
       expect(result.edges).toEqual([]);
     });
@@ -375,7 +374,7 @@ describe('StateSerializer', () => {
       const state = createEmptyState();
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
+      const result = deserializeStateV5((bytes as any));
 
       expect(result).toEqual({ nodes: [], edges: [], props: [] });
     });
@@ -541,7 +540,7 @@ describe('StateSerializer', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
+      const result = deserializeStateV5((bytes as any));
 
       expect(result.nodes).toEqual(['a', 'b']);
       expect(result.edges).toEqual([{ from: 'a', to: 'b', label: 'knows' }]);
@@ -558,7 +557,7 @@ describe('StateSerializer', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
+      const result = deserializeStateV5((bytes as any));
 
       const firstProp = result.props[0];
       expect(firstProp).toBeDefined();

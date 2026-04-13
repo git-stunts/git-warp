@@ -18,7 +18,8 @@ const crypto = new NodeCryptoAdapter();
  * Creates a mock persistence adapter for testing.
  * @returns {any} Mock persistence adapter
  */
-function createMockPersistence() {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function createMockPersistence(): any {
   return {
     readRef: vi.fn(),
     showNode: vi.fn(),
@@ -50,7 +51,8 @@ function createMockPersistence() {
  * @param {any} [options.context] - The context VV for schema:2 patches
  * @returns {any} Mock patch data for testing
  */
-function createMockPatch({ sha, graphName, writerId, lamport, patchOid, ops, parentSha = null, context = null }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function createMockPatch({ sha, graphName, writerId, lamport, patchOid, ops, parentSha = null, context = null }: { sha: string; graphName: string; writerId: string; lamport: number; patchOid: string; ops: any[]; parentSha?: string | null; context?: any }) {
   const patch = {
     schema: 2,
     writer: writerId,
@@ -150,11 +152,11 @@ describe('WarpRuntime', () => {
 
     it('rejects missing persistence', async () => {
       await expect(
-        WarpRuntime.open(/** @type {any} */ ({
-          persistence: null,
+        WarpRuntime.open({
+          persistence: null as any,
           graphName: 'events',
           writerId: 'node-1',
-        }))
+        })
       ).rejects.toThrow('persistence is required');
     });
 
@@ -194,7 +196,7 @@ describe('WarpRuntime', () => {
           persistence,
           graphName: 'events',
           writerId: 'node-1',
-          trust: /** @type {any} */ ('log-only'),
+          trust: 'log-only' as any,
         })
       ).rejects.toThrow('trust must be an object');
     });
@@ -207,7 +209,7 @@ describe('WarpRuntime', () => {
           persistence,
           graphName: 'events',
           writerId: 'node-1',
-          trust: /** @type {any} */ ({ mode: 'bogus' }),
+          trust: { mode: 'bogus' } as any,
         })
       ).rejects.toThrow('trust.mode must be one of: off, log-only, enforce');
     });
@@ -220,7 +222,7 @@ describe('WarpRuntime', () => {
           persistence,
           graphName: 'events',
           writerId: 'node-1',
-          trust: /** @type {any} */ ({ pin: 123 }),
+          trust: { pin: 123 } as any,
         })
       ).rejects.toThrow('trust.pin must be a string');
     });
@@ -235,9 +237,9 @@ describe('WarpRuntime', () => {
         effectSinks: [new NoOpEffectSink()],
       });
 
-      expect(/** @type {any} */ (graph)._effectPipeline).toBeDefined();
-      expect(/** @type {any} */ (graph)._effectPipeline.lens.mode).toBe('live');
-      expect(/** @type {any} */ (graph)._effectPipeline.lens.suppressExternal).toBe(false);
+      expect((graph as any)._effectPipeline).toBeDefined();
+      expect((graph as any)._effectPipeline.lens.mode).toBe('live');
+      expect((graph as any)._effectPipeline.lens.suppressExternal).toBe(false);
     });
 
     it('creates trust gates that forward pin and mode to audit verification', async () => {
@@ -249,25 +251,25 @@ describe('WarpRuntime', () => {
         debug: vi.fn(),
       };
       const evaluateTrustSpy = vi.spyOn(AuditVerifierService.prototype, 'evaluateTrust')
-        .mockResolvedValue(/** @type {any} */ ({
+        .mockResolvedValue({
           trust: {
             explanations: [
               { writerId: 'alice', trusted: true, reason: '', reasonCode: '' },
               { writerId: 'bob', trusted: false, reason: '', reasonCode: '' },
             ],
           },
-        }));
+        } as any);
 
       const graph = await WarpRuntime.open({
         persistence,
         graphName: 'events',
         writerId: 'node-1',
-        logger: /** @type {any} */ (logger),
+        logger: logger as any,
         trust: { mode: 'enforce', pin: 'pin-123' },
       });
 
-      const gate = /** @type {any} */ (graph)._createSyncTrustGate();
-      const result = await gate.evaluate(['alice', 'bob']);
+      const gate = (graph as any)._createSyncTrustGate();
+      const result = await gate!.evaluate(['alice', 'bob']);
 
       expect(evaluateTrustSpy).toHaveBeenCalledWith('events', {
         pin: 'pin-123',
@@ -300,12 +302,12 @@ describe('WarpRuntime', () => {
 
     it('creates a PatchBuilder with correct configuration', async () => {
       const persistence = createMockPersistence();
-      const graph = await WarpRuntime.open(/** @type {any} */ ({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'my-events',
         writerId: 'writer-42',
         schema: 2,
-      }));
+      } as any);
 
       // Set up mock responses for commit
       persistence.readRef.mockResolvedValue(null);
@@ -330,17 +332,17 @@ describe('WarpRuntime', () => {
       // No existing ref - first commit
       persistence.readRef.mockResolvedValue(null);
 
-      const graph = await WarpRuntime.open(/** @type {any} */ ({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer1',
         schema: 2,
-      }));
+      } as any);
 
       const patchBuilder = await graph.createPatch();
 
       // First commit should have lamport 1
-      expect(/** @type {any} */ (patchBuilder)._lamport).toBe(1);
+      expect((patchBuilder as any)._lamport).toBe(1);
     });
 
     it('uses correct lamport from existing writer ref (continuing)', async () => {
@@ -362,17 +364,17 @@ describe('WarpRuntime', () => {
         `warp:patch\n\neg-kind: patch\neg-graph: test-graph\neg-writer: writer1\neg-lamport: 7\neg-patch-oid: ${existingPatchOid}\neg-schema: 2`
       );
 
-      const graph = await WarpRuntime.open(/** @type {any} */ ({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer1',
         schema: 2,
-      }));
+      } as any);
 
       const patchBuilder = await graph.createPatch();
 
       // Should be 7 + 1 = 8
-      expect(/** @type {any} */ (patchBuilder)._lamport).toBe(8);
+      expect((patchBuilder as any)._lamport).toBe(8);
     });
 
     it('throws error on malformed lamport trailer', async () => {
@@ -394,12 +396,12 @@ describe('WarpRuntime', () => {
         'warp:patch\n\neg-kind: patch\neg-graph: test-graph\neg-writer: writer1\neg-lamport: not-a-number\neg-patch-oid: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\neg-schema: 2'
       );
 
-      const graph = await WarpRuntime.open(/** @type {any} */ ({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer1',
         schema: 2,
-      }));
+      } as any);
 
       await expect(graph.createPatch()).rejects.toThrow(/Failed to parse lamport/);
     });
@@ -462,16 +464,16 @@ describe('WarpRuntime', () => {
   describe('materialize', () => {
     it('returns empty state when no writers exist', async () => {
       const persistence = createMockPersistence();
-      const graph = await WarpRuntime.open(/** @type {any} */ ({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'events',
         writerId: 'node-1',
         schema: 2,
-      }));
+      } as any);
 
       persistence.listRefs.mockResolvedValue([]);
 
-      const state = /** @type {any} */ (await graph.materialize());
+      const state = (await graph.materialize());
 
       expect(state.nodeAlive).toBeDefined();
       expect(state.edgeAlive).toBeDefined();
@@ -480,12 +482,12 @@ describe('WarpRuntime', () => {
 
     it('materializes state from single writer', async () => {
       const persistence = createMockPersistence();
-      const graph = await WarpRuntime.open(/** @type {any} */ ({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'events',
         writerId: 'node-1',
         schema: 2,
-      }));
+      } as any);
 
       const patchOid = 'a'.repeat(40);
       const commitSha = 'b'.repeat(40);
@@ -506,7 +508,7 @@ describe('WarpRuntime', () => {
       persistence.getNodeInfo.mockResolvedValue(mockPatch.nodeInfo);
       persistence.readBlob.mockResolvedValue(mockPatch.patchBuffer);
 
-      const state = /** @type {any} */ (await graph.materialize());
+      const state = (await graph.materialize());
 
       // V5 state uses ORSet - check using ORSet API
       expect(state.nodeAlive.entries.has('user:alice')).toBe(true);
@@ -514,12 +516,12 @@ describe('WarpRuntime', () => {
 
     it('materializes state from multiple writers', async () => {
       const persistence = createMockPersistence();
-      const graph = await WarpRuntime.open(/** @type {any} */ ({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'events',
         writerId: 'node-1',
         schema: 2,
-      }));
+      } as any);
 
       const patchOid1 = 'a'.repeat(40);
       const commitSha1 = 'b'.repeat(40);
@@ -566,7 +568,7 @@ describe('WarpRuntime', () => {
         .mockResolvedValueOnce(mockPatch1.patchBuffer)
         .mockResolvedValueOnce(mockPatch2.patchBuffer);
 
-      const state = /** @type {any} */ (await graph.materialize());
+      const state = (await graph.materialize());
 
       // V5 state uses ORSet
       expect(state.nodeAlive.entries.has('user:alice')).toBe(true);
@@ -575,12 +577,12 @@ describe('WarpRuntime', () => {
 
     it('materializes chain of patches from single writer', async () => {
       const persistence = createMockPersistence();
-      const graph = await WarpRuntime.open(/** @type {any} */ ({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'events',
         writerId: 'node-1',
         schema: 2,
-      }));
+      } as any);
 
       const patchOid1 = 'a'.repeat(40);
       const commitSha1 = 'b'.repeat(40);
@@ -621,7 +623,7 @@ describe('WarpRuntime', () => {
         .mockResolvedValueOnce(mockPatch2.patchBuffer)
         .mockResolvedValueOnce(mockPatch1.patchBuffer);
 
-      const state = /** @type {any} */ (await graph.materialize());
+      const state = (await graph.materialize());
 
       // V5 state uses ORSet
       expect(state.nodeAlive.entries.has('user:alice')).toBe(true);
@@ -630,17 +632,17 @@ describe('WarpRuntime', () => {
 
     it('returns empty state when writer ref returns null', async () => {
       const persistence = createMockPersistence();
-      const graph = await WarpRuntime.open(/** @type {any} */ ({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'events',
         writerId: 'node-1',
         schema: 2,
-      }));
+      } as any);
 
       persistence.listRefs.mockResolvedValue(['refs/warp/events/writers/writer-1']);
       persistence.readRef.mockResolvedValue(null);
 
-      const state = /** @type {any} */ (await graph.materialize());
+      const state = (await graph.materialize());
 
       // V5 state uses ORSet
       expect(state.nodeAlive.entries.size).toBe(0);
@@ -1063,9 +1065,9 @@ eg-schema: 2`;
       persistence.commitNodeWithTree.mockResolvedValue(checkpointSha);
       persistence.updateRef.mockResolvedValue(undefined);
 
-      /** @type {any} */ (graph)._cachedIndexTree = null;
-      /** @type {any} */ (graph)._logger = { warn, info: vi.fn() };
-      /** @type {any} */ (graph)._viewService = {
+      (graph as any)._cachedIndexTree = null;
+      (graph as any)._logger = { warn, info: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn() };
+      (graph as any)._viewService = {
         build: vi.fn(() => {
           throw new Error('roaring unavailable');
         }),
@@ -1103,12 +1105,12 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const patchBuilder = await graph.createPatch();
 
@@ -1153,12 +1155,12 @@ eg-schema: 2`;
           .mockResolvedValueOnce(encode({})) // frontier
           .mockResolvedValueOnce(encode({ nodes: [], edges: [], props: [] })); // state
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         expect(graph).toBeInstanceOf(WarpRuntime);
       });
@@ -1170,12 +1172,12 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         expect(graph).toBeInstanceOf(WarpRuntime);
       });
@@ -1189,15 +1191,15 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const sha = 'a'.repeat(40);
-        const result = await /** @type {any} */ (graph)._isAncestor(sha, sha);
+        const result = await (graph)._isAncestor(sha, sha);
 
         expect(result).toBe(true);
       });
@@ -1207,12 +1209,12 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const ancestorSha = 'a'.repeat(40);
         const descendantSha = 'b'.repeat(40);
@@ -1222,7 +1224,7 @@ eg-schema: 2`;
           parents: [ancestorSha],
         });
 
-        const result = await /** @type {any} */ (graph)._isAncestor(ancestorSha, descendantSha);
+        const result = await (graph)._isAncestor(ancestorSha, descendantSha);
 
         expect(result).toBe(true);
       });
@@ -1232,12 +1234,12 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const ancestorSha = 'a'.repeat(40);
         const middleSha = 'b'.repeat(40);
@@ -1247,7 +1249,7 @@ eg-schema: 2`;
           .mockResolvedValueOnce({ sha: descendantSha, parents: [middleSha] })
           .mockResolvedValueOnce({ sha: middleSha, parents: [ancestorSha] });
 
-        const result = await /** @type {any} */ (graph)._isAncestor(ancestorSha, descendantSha);
+        const result = await (graph)._isAncestor(ancestorSha, descendantSha);
 
         expect(result).toBe(true);
       });
@@ -1257,12 +1259,12 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const sha1 = 'a'.repeat(40);
         const sha2 = 'b'.repeat(40);
@@ -1273,7 +1275,7 @@ eg-schema: 2`;
           parents: [],
         });
 
-        const result = await /** @type {any} */ (graph)._isAncestor(sha1, sha2);
+        const result = await (graph)._isAncestor(sha1, sha2);
 
         expect(result).toBe(false);
       });
@@ -1283,16 +1285,16 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
-        expect(await /** @type {any} */ (graph)._isAncestor(null, 'a'.repeat(40))).toBe(false);
-        expect(await /** @type {any} */ (graph)._isAncestor('a'.repeat(40), null)).toBe(false);
-        expect(await /** @type {any} */ (graph)._isAncestor(null, null)).toBe(false);
+        expect(await (graph as any)._isAncestor(null, 'a'.repeat(40))).toBe(false);
+        expect(await (graph as any)._isAncestor('a'.repeat(40), null)).toBe(false);
+        expect(await (graph as any)._isAncestor(null, null)).toBe(false);
       });
     });
 
@@ -1302,15 +1304,15 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const sha = 'a'.repeat(40);
-        const result = await /** @type {any} */ (graph)._relationToCheckpointHead(sha, sha);
+        const result = await (graph)._relationToCheckpointHead(sha, sha);
 
         expect(result).toBe('same');
       });
@@ -1320,12 +1322,12 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const ckHead = 'a'.repeat(40);
         const incomingSha = 'b'.repeat(40);
@@ -1336,7 +1338,7 @@ eg-schema: 2`;
           parents: [ckHead],
         });
 
-        const result = await /** @type {any} */ (graph)._relationToCheckpointHead(ckHead, incomingSha);
+        const result = await (graph)._relationToCheckpointHead(ckHead, incomingSha);
 
         expect(result).toBe('ahead');
       });
@@ -1346,12 +1348,12 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const incomingSha = 'a'.repeat(40);
         const ckHead = 'b'.repeat(40);
@@ -1367,7 +1369,7 @@ eg-schema: 2`;
           parents: [incomingSha],
         });
 
-        const result = await /** @type {any} */ (graph)._relationToCheckpointHead(ckHead, incomingSha);
+        const result = await (graph)._relationToCheckpointHead(ckHead, incomingSha);
 
         expect(result).toBe('behind');
       });
@@ -1377,12 +1379,12 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const ckHead = 'a'.repeat(40);
         const incomingSha = 'b'.repeat(40);
@@ -1407,7 +1409,7 @@ eg-schema: 2`;
           parents: [],
         });
 
-        const result = await /** @type {any} */ (graph)._relationToCheckpointHead(ckHead, incomingSha);
+        const result = await (graph)._relationToCheckpointHead(ckHead, incomingSha);
 
         expect(result).toBe('diverged');
       });
@@ -1419,18 +1421,18 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const checkpoint = { schema: 1, frontier: new Map() };
 
         // Should not throw
         await expect(
-          /** @type {any} */ (graph)._validatePatchAgainstCheckpoint('writer-1', 'a'.repeat(40), checkpoint)
+          (graph)._validatePatchAgainstCheckpoint('writer-1', 'a'.repeat(40), checkpoint)
         ).resolves.toBeUndefined();
       });
 
@@ -1439,12 +1441,12 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const checkpoint = {
           schema: 2,
@@ -1453,7 +1455,7 @@ eg-schema: 2`;
 
         // writer-1 not in checkpoint - should succeed
         await expect(
-          /** @type {any} */ (graph)._validatePatchAgainstCheckpoint('writer-1', 'a'.repeat(40), checkpoint)
+          (graph)._validatePatchAgainstCheckpoint('writer-1', 'a'.repeat(40), checkpoint)
         ).resolves.toBeUndefined();
       });
 
@@ -1462,12 +1464,12 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const ckHead = 'a'.repeat(40);
         const incomingSha = 'b'.repeat(40);
@@ -1484,7 +1486,7 @@ eg-schema: 2`;
         });
 
         await expect(
-          /** @type {any} */ (graph)._validatePatchAgainstCheckpoint('writer-1', incomingSha, checkpoint)
+          (graph)._validatePatchAgainstCheckpoint('writer-1', incomingSha, checkpoint)
         ).resolves.toBeUndefined();
       });
 
@@ -1493,12 +1495,12 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const sha = 'a'.repeat(40);
 
@@ -1508,7 +1510,7 @@ eg-schema: 2`;
         };
 
         await expect(
-          /** @type {any} */ (graph)._validatePatchAgainstCheckpoint('writer-1', sha, checkpoint)
+          (graph)._validatePatchAgainstCheckpoint('writer-1', sha, checkpoint)
         ).rejects.toThrow('Backfill rejected for writer writer-1: incoming patch is same checkpoint frontier');
       });
 
@@ -1517,12 +1519,12 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const incomingSha = 'a'.repeat(40);
         const ckHead = 'b'.repeat(40);
@@ -1544,7 +1546,7 @@ eg-schema: 2`;
         });
 
         await expect(
-          /** @type {any} */ (graph)._validatePatchAgainstCheckpoint('writer-1', incomingSha, checkpoint)
+          (graph)._validatePatchAgainstCheckpoint('writer-1', incomingSha, checkpoint)
         ).rejects.toThrow('Backfill rejected for writer writer-1: incoming patch is behind checkpoint frontier');
       });
 
@@ -1553,12 +1555,12 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const ckHead = 'a'.repeat(40);
         const incomingSha = 'b'.repeat(40);
@@ -1589,7 +1591,7 @@ eg-schema: 2`;
         });
 
         await expect(
-          /** @type {any} */ (graph)._validatePatchAgainstCheckpoint('writer-1', incomingSha, checkpoint)
+          (graph)._validatePatchAgainstCheckpoint('writer-1', incomingSha, checkpoint)
         ).rejects.toThrow('Writer fork detected for writer-1: incoming patch does not extend checkpoint head');
       });
     });
@@ -1600,32 +1602,32 @@ eg-schema: 2`;
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         const writerIds = ['writer-1', 'writer-2', 'writer-3'];
         vi.spyOn(graph, 'discoverWriters').mockResolvedValue(writerIds);
 
-        const writer1Patches = [
+        const writer1Patches: any[] = [
           { sha: '1'.repeat(40), patch: { schema: 2, writer: 'writer-1', lamport: 1, context: { 'writer-1': 1 }, ops: [] } },
           { sha: '2'.repeat(40), patch: { schema: 2, writer: 'writer-1', lamport: 2, context: { 'writer-1': 2 }, ops: [] } },
         ];
-        const writer2Patches = [
+        const writer2Patches: any[] = [
           { sha: '3'.repeat(40), patch: { schema: 2, writer: 'writer-2', lamport: 1, context: { 'writer-2': 1 }, ops: [] } },
         ];
-        const writer3Patches = /** @type {any[]} */ ([]);
+        const writer3Patches: any[] = [];
 
         const loadWriterPatchesSpy = vi
-          .spyOn(graph, /** @type {any} */ ('_loadWriterPatches'))
+          .spyOn(graph, ('_loadWriterPatches'))
           .mockResolvedValueOnce(writer1Patches)
           .mockResolvedValueOnce(writer2Patches)
           .mockResolvedValueOnce(writer3Patches);
         const validateSpy = vi
-          .spyOn(graph, /** @type {any} */ ('_validatePatchAgainstCheckpoint'))
+          .spyOn(graph, ('_validatePatchAgainstCheckpoint'))
           .mockResolvedValue(undefined);
 
         const checkpoint = {
@@ -1639,7 +1641,7 @@ eg-schema: 2`;
           stateHash: 'd'.repeat(64),
         };
 
-        const result = await /** @type {any} */ (graph)._loadPatchesSince(checkpoint);
+        const result = await (graph)._loadPatchesSince(checkpoint);
 
         expect(loadWriterPatchesSpy).toHaveBeenNthCalledWith(1, 'writer-1', 'a'.repeat(40));
         expect(loadWriterPatchesSpy).toHaveBeenNthCalledWith(2, 'writer-2', 'b'.repeat(40));
@@ -1659,15 +1661,15 @@ eg-schema: 2`;
     describe('VV updates after materialize', () => {
       it('updates _versionVector to match state.observedFrontier', async () => {
         const persistence = createMockPersistence();
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         // Before materialize, VV should be empty
-        expect(/** @type {any} */ (graph)._versionVector.size).toBe(0);
+        expect((graph)._versionVector.size).toBe(0);
 
         // Create patches with context VVs that will merge into observedFrontier
         const patchOidA = 'a'.repeat(40);
@@ -1738,25 +1740,25 @@ eg-schema: 2`;
         await graph.materialize();
 
         // After materialize, VV should reflect merged observedFrontier: {writer-a: 3, writer-b: 2}
-        expect(/** @type {any} */ (graph)._versionVector.get('writer-a')).toBe(3);
-        expect(/** @type {any} */ (graph)._versionVector.get('writer-b')).toBe(2);
+        expect((graph)._versionVector.get('writer-a')).toBe(3);
+        expect((graph)._versionVector.get('writer-b')).toBe(2);
       });
 
       it('VV is empty for empty graph', async () => {
         const persistence = createMockPersistence();
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        }));
+        } as any);
 
         persistence.listRefs.mockResolvedValue([]);
         persistence.readRef.mockResolvedValue(null);
 
         await graph.materialize();
 
-        expect(/** @type {any} */ (graph)._versionVector.size).toBe(0);
+        expect((graph)._versionVector.size).toBe(0);
       });
     });
 
@@ -1765,15 +1767,15 @@ eg-schema: 2`;
         const persistence = createMockPersistence();
         persistence.readRef.mockResolvedValue(null); // No existing commits
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'writer-1',
           schema: 2,
-        }));
+        } as any);
 
         // VV starts empty
-        expect(/** @type {any} */ (graph)._versionVector.get('writer-1')).toBeUndefined();
+        expect((graph)._versionVector.get('writer-1')).toBeUndefined();
 
         // Setup mocks for commit
         persistence.writeBlob.mockResolvedValue('a'.repeat(40));
@@ -1786,7 +1788,7 @@ eg-schema: 2`;
         await builder.commit();
 
         // After commit, VV should have writer-1: 1
-        expect(/** @type {any} */ (graph)._versionVector.get('writer-1')).toBe(1);
+        expect((graph)._versionVector.get('writer-1')).toBe(1);
       });
 
       it('increments only local writer counter, not others', async () => {
@@ -1828,18 +1830,18 @@ eg-schema: 2`;
         });
         persistence.readBlob.mockResolvedValue(patchBuffer);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'writer-1',
           schema: 2,
-        }));
+        } as any);
 
         await graph.materialize();
 
         // VV should have writer-other: 5
-        expect(/** @type {any} */ (graph)._versionVector.get('writer-other')).toBe(5);
-        expect(/** @type {any} */ (graph)._versionVector.get('writer-1')).toBeUndefined();
+        expect((graph)._versionVector.get('writer-other')).toBe(5);
+        expect((graph)._versionVector.get('writer-1')).toBeUndefined();
 
         // Setup mocks for commit
         persistence.writeBlob.mockResolvedValue('c'.repeat(40));
@@ -1854,8 +1856,8 @@ eg-schema: 2`;
         // After commit: writer-1 has lamport 6 (max(0, maxObserved=5) + 1),
         // and observedFrontier (→ _versionVector) reflects the actual tick.
         // writer-other should still be 5.
-        expect(/** @type {any} */ (graph)._versionVector.get('writer-1')).toBe(6);
-        expect(/** @type {any} */ (graph)._versionVector.get('writer-other')).toBe(5);
+        expect((graph)._versionVector.get('writer-1')).toBe(6);
+        expect((graph)._versionVector.get('writer-other')).toBe(5);
       });
     });
 
@@ -1867,12 +1869,12 @@ eg-schema: 2`;
         persistence.readRef.mockResolvedValueOnce(null); // During open() checkpoint check
         persistence.listRefs.mockResolvedValue([]);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'writer-1',
           schema: 2,
-        }));
+        } as any);
 
         // createPatch reads ref (returns null - first commit)
         persistence.readRef.mockResolvedValueOnce(null);
@@ -1896,12 +1898,12 @@ eg-schema: 2`;
         persistence.readRef.mockResolvedValueOnce(null); // During open() checkpoint check
         persistence.listRefs.mockResolvedValue([]);
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'writer-1',
           schema: 2,
-        }));
+        } as any);
 
         // Both builders read ref at creation time (both see null)
         persistence.readRef.mockResolvedValueOnce(null); // builder1 creation
@@ -1947,12 +1949,12 @@ eg-schema: 2`;
           `warp:patch\n\neg-kind: patch\neg-graph: events\neg-writer: writer-1\neg-lamport: 5\neg-patch-oid: ${existingPatchOid}\neg-schema: 2`
         );
 
-        const graph = await WarpRuntime.open(/** @type {any} */ ({
+        const graph = await WarpRuntime.open({
           persistence,
           graphName: 'events',
           writerId: 'writer-1',
           schema: 2,
-        }));
+        } as any);
 
         const builder = await graph.createPatch();
         builder.addNode('user:alice');

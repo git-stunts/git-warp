@@ -21,16 +21,16 @@ function nextOid() {
  * @param {{ writerPatches?: Record<string, Array<{patch: object, sha: string}>> }} [config]
  * @returns {any}
  */
-function createMockGraph(config = {}) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function createMockGraph(config: { writerPatches?: Record<string, Array<{patch: object; sha: string}>> } = {}): any {
   const { writerPatches = {} } = config;
   oidCounter = 0;
 
-  /** @type {Map<string, string>} */
-  const frontier = new Map();
+  const frontier = new Map<string, string>();
   for (const writerId of Object.keys(writerPatches)) {
     const chain = writerPatches[writerId] ?? [];
     if (chain.length > 0) {
-      frontier.set(writerId, /** @type {string} */ (chain[chain.length - 1]?.sha));
+      frontier.set(writerId, chain[chain.length - 1]!.sha);
     }
   }
 
@@ -92,7 +92,7 @@ describe('ConflictAnalyzerService', () => {
     it('stores graph reference and initializes digest cache', () => {
       const graph = createMockGraph();
       const analyzer = new ConflictAnalyzerService({ graph });
-      const anyAnalyzer = /** @type {any} */ (analyzer);
+      const anyAnalyzer = analyzer as any;
 
       expect(anyAnalyzer._graph).toBe(graph);
       expect(anyAnalyzer._digestCache).toBeInstanceOf(Map);
@@ -191,7 +191,7 @@ describe('ConflictAnalyzerService', () => {
       expect(supersessions.length).toBeGreaterThan(0);
 
       // Verify trace structure
-      const trace = /** @type {NonNullable<typeof supersessions[0]>} */ (supersessions[0]);
+      const trace = supersessions[0]!
       expect(trace.conflictId).toBeTruthy();
       expect(trace.kind).toBe('supersession');
       expect(trace.target).toBeDefined();
@@ -199,7 +199,7 @@ describe('ConflictAnalyzerService', () => {
       expect(trace.winner.anchor.writerId).toBe('alice');
       expect(trace.losers).toBeDefined();
       expect(trace.losers.length).toBeGreaterThan(0);
-      expect(/** @type {NonNullable<typeof trace.losers[0]>} */ (trace.losers[0]).anchor.writerId).toBe('bob');
+      expect(trace.losers[0]!.anchor.writerId).toBe('bob');
     });
 
     it('identifies the LWW winner by higher lamport', async () => {
@@ -238,7 +238,7 @@ describe('ConflictAnalyzerService', () => {
 
       expect(result.conflicts.length).toBeGreaterThan(0);
       // alice has higher lamport → wins
-      expect(/** @type {NonNullable<typeof result.conflicts[0]>} */ (result.conflicts[0]).winner.anchor.writerId).toBe('alice');
+      expect(result.conflicts[0]!.winner.anchor.writerId).toBe('alice');
     });
   });
 
@@ -598,7 +598,7 @@ describe('ConflictAnalyzerService', () => {
     });
 
     it('rejects invalid evidence level', async () => {
-      await expect(analyzer.analyze({ evidence: /** @type {any} */ ('verbose') }))
+      await expect(analyzer.analyze({ evidence: ('verbose') }))
         .rejects.toThrow(QueryError);
     });
 
@@ -618,12 +618,12 @@ describe('ConflictAnalyzerService', () => {
     });
 
     it('rejects invalid target selector — unknown targetKind', async () => {
-      await expect(analyzer.analyze({ target: /** @type {any} */ ({ targetKind: 'unknown_thing' }) }))
+      await expect(analyzer.analyze({ target: ({ targetKind: 'unknown_thing' }) }))
         .rejects.toThrow(QueryError);
     });
 
     it('rejects non-object target selectors', async () => {
-      await expect(analyzer.analyze({ target: /** @type {any} */ ('node:n1') }))
+      await expect(analyzer.analyze({ target: ('node:n1') }))
         .rejects.toThrow(QueryError);
     });
 
@@ -667,7 +667,7 @@ describe('ConflictAnalyzerService', () => {
     });
 
     it('accepts null options', async () => {
-      const result = await analyzer.analyze(/** @type {any} */ (null));
+      const result = await analyzer.analyze((null));
       expect(result.analysisVersion).toBe(CONFLICT_ANALYSIS_VERSION);
     });
 
@@ -751,7 +751,7 @@ describe('ConflictAnalyzerService', () => {
     it('resolves strand coordinates through StrandCoordinator metadata', async () => {
       const graph = createMockGraph();
       const analyzer = new ConflictAnalyzerService({ graph });
-      const getOrThrowSpy = vi.spyOn(StrandCoordinator.prototype, 'getOrThrow').mockResolvedValue(/** @type {any} */ ({
+      const getOrThrowSpy = vi.spyOn(StrandCoordinator.prototype, 'getOrThrow').mockResolvedValue({
         strandId: 'alpha',
         baseObservation: {
           lamportCeiling: 5,
@@ -766,8 +766,8 @@ describe('ConflictAnalyzerService', () => {
         braid: {
           readOverlays: [{ strandId: 'gamma' }, { strandId: 'beta' }],
         },
-      }));
-      const getPatchEntriesSpy = vi.spyOn(StrandCoordinator.prototype, 'getPatchEntries').mockResolvedValue(/** @type {any} */ ([
+      } as any);
+      const getPatchEntriesSpy = vi.spyOn(StrandCoordinator.prototype, 'getPatchEntries').mockResolvedValue([
         {
           patch: {
             schema: 2,
@@ -788,7 +788,7 @@ describe('ConflictAnalyzerService', () => {
           },
           sha: 'b'.repeat(40),
         },
-      ]));
+      ] as any);
 
       try {
         const result = await analyzer.analyze({ strandId: 'alpha', at: { lamportCeiling: 5 } });
@@ -897,13 +897,13 @@ describe('ConflictAnalyzerService', () => {
 
       const analyzeOnce = async () => {
         const analyzer = new ConflictAnalyzerService({ graph: makeGraph() });
-        const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue(/** @type {any} */ ({
-          state: /** @type {any} */ ({}),
+        const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+          state: {} as any,
           receipts: [
-            { patchSha: 'a'.repeat(40), writer: '', lamport: 1, ops: [] },
-            { patchSha: 'b'.repeat(40), writer: '', lamport: 1, ops: [] },
+            { patchSha: 'a'.repeat(40), writer: '', lamport: 1, ops: [] as any[] },
+            { patchSha: 'b'.repeat(40), writer: '', lamport: 1, ops: [] as any[] },
           ],
-        }));
+        } as any);
         try {
           return await analyzer.analyze();
         } finally {
@@ -1121,9 +1121,9 @@ describe('ConflictAnalyzerService', () => {
       // Causal ordering: w2 saw w1, so this is an ordered supersession
       const supersessions = result.conflicts.filter((c) => c.kind === 'supersession');
       if (supersessions.length > 0) {
-        const loser = /** @type {NonNullable<typeof supersessions[0]>} */ (supersessions[0]).losers[0];
+        const loser = supersessions[0]!.losers[0];
         // May have 'ordered' or 'concurrent' causal relation depending on evidence level
-        expect(/** @type {NonNullable<typeof loser>} */ (loser).causalRelationToWinner).toBeDefined();
+        expect(loser!.causalRelationToWinner).toBeDefined();
       }
     });
 
@@ -1219,14 +1219,14 @@ describe('ConflictAnalyzerService', () => {
         },
       });
       const analyzer = new ConflictAnalyzerService({ graph });
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue(/** @type {any} */ ({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
         receipts: [{
           patchSha: 'a'.repeat(40),
           writer: 'w1',
           lamport: 1,
           ops: [],
         }],
-      }));
+      } as any);
 
       try {
         const result = await analyzer.analyze();
@@ -1309,14 +1309,14 @@ describe('ConflictAnalyzerService', () => {
         },
       });
       const analyzer = new ConflictAnalyzerService({ graph });
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue(/** @type {any} */ ({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
         receipts: [{
           patchSha: sha,
           writer: 'w1',
           lamport: 1,
           ops: [{ result: 'applied', target: 'left\0right\0rel' }],
         }],
-      }));
+      } as any);
 
       try {
         const result = await analyzer.analyze({ evidence: 'full' });
@@ -1347,14 +1347,14 @@ describe('ConflictAnalyzerService', () => {
         },
       });
       const analyzer = new ConflictAnalyzerService({ graph });
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue(/** @type {any} */ ({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
         receipts: [{
           patchSha: sha,
           writer: 'w1',
           lamport: 1,
           ops: [{ result: 'applied', target: 'left\0right' }],
         }],
-      }));
+      } as any);
 
       try {
         const result = await analyzer.analyze();
@@ -1384,14 +1384,14 @@ describe('ConflictAnalyzerService', () => {
         },
       });
       const analyzer = new ConflictAnalyzerService({ graph });
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue(/** @type {any} */ ({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
         receipts: [{
           patchSha: sha,
           writer: 'w1',
           lamport: 1,
           ops: [{ result: 'applied', target: 'n1\0status' }],
         }],
-      }));
+      } as any);
 
       try {
         const result = await analyzer.analyze();
@@ -1421,14 +1421,14 @@ describe('ConflictAnalyzerService', () => {
         },
       });
       const analyzer = new ConflictAnalyzerService({ graph });
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue(/** @type {any} */ ({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
         receipts: [{
           patchSha: sha,
           writer: 'w1',
           lamport: 1,
           ops: [{ result: 'applied', target: 'left\0right\0rel' }],
         }],
-      }));
+      } as any);
 
       try {
         const result = await analyzer.analyze();
@@ -1500,25 +1500,25 @@ describe('ConflictAnalyzerService', () => {
       const analyzer = new ConflictAnalyzerService({ graph });
       const nodeAddStrategy = JoinReducer.OP_STRATEGIES.get('NodeAdd');
       const originalReceiptName = nodeAddStrategy?.receiptName;
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue(/** @type {any} */ ({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
         receipts: [{
           patchSha: sha,
           writer: 'w1',
           lamport: 1,
           ops: [{ result: 'applied', target: 'n1' }],
         }],
-      }));
+      } as any);
       if (nodeAddStrategy === undefined || originalReceiptName === undefined) {
         throw new Error('NodeAdd strategy is unavailable');
       }
-      /** @type {any} */ (nodeAddStrategy).receiptName = 'UnsupportedEffect';
+      (nodeAddStrategy as any).receiptName = 'UnsupportedEffect';
 
       try {
         const result = await analyzer.analyze();
 
         expect(result.diagnostics?.some((d) => d.code === 'digest_unavailable')).toBe(true);
       } finally {
-        /** @type {any} */ (nodeAddStrategy).receiptName = originalReceiptName;
+        (nodeAddStrategy as any).receiptName = originalReceiptName;
         reduceSpy.mockRestore();
       }
     });
@@ -1612,7 +1612,7 @@ describe('ConflictAnalyzerService', () => {
       const analyzer = new ConflictAnalyzerService({ graph });
       const nodePropStrategy = JoinReducer.OP_STRATEGIES.get('NodePropSet');
       const originalReceiptName = nodePropStrategy?.receiptName;
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue(/** @type {any} */ ({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
         receipts: [
           {
             patchSha: alphaSha,
@@ -1627,11 +1627,11 @@ describe('ConflictAnalyzerService', () => {
             ops: [{ result: 'applied', target: 'n1\0status' }],
           },
         ],
-      }));
+      } as any);
       if (nodePropStrategy === undefined || originalReceiptName === undefined) {
         throw new Error('NodePropSet strategy is unavailable');
       }
-      /** @type {any} */ (nodePropStrategy).receiptName = 'PropSet';
+      (nodePropStrategy as any).receiptName = 'PropSet';
 
       try {
         const result = await analyzer.analyze();
@@ -1639,7 +1639,7 @@ describe('ConflictAnalyzerService', () => {
         expect(result.analysisVersion).toBe(CONFLICT_ANALYSIS_VERSION);
         expect(result.diagnostics?.some((d) => d.code === 'digest_unavailable')).not.toBe(true);
       } finally {
-        /** @type {any} */ (nodePropStrategy).receiptName = originalReceiptName;
+        (nodePropStrategy as any).receiptName = originalReceiptName;
         reduceSpy.mockRestore();
       }
     });
@@ -1676,7 +1676,7 @@ describe('ConflictAnalyzerService', () => {
         },
       });
       const analyzer = new ConflictAnalyzerService({ graph });
-      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue(/** @type {any} */ ({
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
         receipts: [
           {
             patchSha: alphaSha,
@@ -1691,7 +1691,7 @@ describe('ConflictAnalyzerService', () => {
             ops: [{ result: 'redundant', target: 'n1\0status' }],
           },
         ],
-      }));
+      } as any);
 
       try {
         const result = await analyzer.analyze({ evidence: 'full' });
@@ -1773,8 +1773,8 @@ describe('ConflictAnalyzerService', () => {
       const graph = createMockGraph();
       const analyzer = new ConflictAnalyzerService({ graph });
 
-      await analyzer._hash({ x: 1 });
-      expect(/** @type {any} */ (analyzer)._digestCache.size).toBeGreaterThan(0);
+      await (analyzer as any)._hash({ x: 1 });
+      expect((analyzer as any)._digestCache.size).toBeGreaterThan(0);
     });
   });
 
@@ -1973,7 +1973,7 @@ describe('ConflictAnalyzerService', () => {
 
       const analyzeOnce = async () => {
         const analyzer = new ConflictAnalyzerService({ graph: makeGraph() });
-        const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue(/** @type {any} */ ({
+        const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
           receipts: [
             {
               patchSha: alphaSha,
@@ -1997,7 +1997,7 @@ describe('ConflictAnalyzerService', () => {
               ops: [{ result: 'applied', target: 'n2\0status' }],
             },
           ],
-        }));
+        } as any);
         try {
           return await analyzer.analyze({ evidence: 'full' });
         } finally {
