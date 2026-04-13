@@ -157,7 +157,7 @@ export default class Observer {
   private _graph!: WarpRuntime | null;
   private _snapshot!: { state: WarpState; stateHash: string } | null;
   private _source!: WorldlineSelector | null;
-  private _stateReader: VisibleStateReader | null;
+  private _stateReader!: VisibleStateReader | null;
   private _snapshotAdjacency!: AdjacencyMaps | null;
   // Public traversal API — duck-typed by LogicalTraversal constructor
   traverse: LogicalTraversal;
@@ -252,7 +252,7 @@ export default class Observer {
       _materializeGraph(): Promise<{
         state: WarpState;
         stateHash: string;
-        provider?: unknown;
+        provider?: NeighborProviderPort;
         adjacency: AdjacencyMaps;
       }>;
     })._materializeGraph();

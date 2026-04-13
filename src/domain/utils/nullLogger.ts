@@ -15,11 +15,12 @@ class NullLogger extends LoggerPort {
   warn(): void {}
   error(): void {}
   child(): LoggerPort {
-    return nullLogger;
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define -- circular: singleton references its own class
+    return NULL_LOGGER;
   }
 }
 
-const nullLogger = new NullLogger();
-Object.freeze(nullLogger);
+const NULL_LOGGER = new NullLogger();
+Object.freeze(NULL_LOGGER);
 
-export default nullLogger;
+export default NULL_LOGGER;

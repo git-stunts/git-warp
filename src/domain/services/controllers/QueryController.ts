@@ -103,6 +103,7 @@ async function resolveCoordinateSnapshot(graph: WarpRuntime, source: CoordinateS
 async function resolveStrandSnapshot(graph: WarpRuntime, source: StrandSelector): Promise<{ state: WarpState; stateHash: string }> {
   const detached = await openDetachedGraph(graph);
   const internal = toInternalStrandShape(source.toDTO());
+  // Host delegation boundary: callInternalRuntimeMethod returns unknown; controller knows the concrete type.
   const state = await callInternalRuntimeMethod(detached, 'materializeStrand', internal.strandId, { ceiling: internal.ceiling ?? null }) as WarpState;
   return await snapshotWith(detached, state);
 }
@@ -143,7 +144,7 @@ export default class QueryController {
 
 function host(ctrl: QueryController): WarpGraphWithMixins { return ctrl._host; }
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type -- wire() is the defineProperty delegation pattern
+ 
 function wire(name: string, fn: Function): void {
   Object.defineProperty(QueryController.prototype, name, {
     value: fn, writable: true, configurable: true, enumerable: false,
