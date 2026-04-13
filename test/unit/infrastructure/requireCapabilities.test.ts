@@ -4,7 +4,7 @@ import {
   requireBlobPort,
   requireCommitPort,
   requireTreePort,
-} from '../../../src/infrastructure/adapters/requireCapabilities.js';
+} from '../../../src/infrastructure/adapters/requireCapabilities.ts';
 
 describe('requireCapabilities', () => {
   describe('MissingCapabilityError', () => {

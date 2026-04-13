@@ -35,7 +35,7 @@ vi.mock('@git-stunts/git-cas', () => ({
 
 // Import after mock setup
 const { default: CasBlobAdapter } = await import(
-  '../../../../src/infrastructure/adapters/CasBlobAdapter.js'
+  '../../../../src/infrastructure/adapters/CasBlobAdapter.ts'
 );
 const { default: BlobStoragePort } = await import(
   '../../../../src/ports/BlobStoragePort.ts'

@@ -10,32 +10,22 @@
 
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 
-/** @type {RegExp} Pattern for valid hex OIDs (4–64 hex characters). */
+/** Pattern for valid hex OIDs (4–64 hex characters). */
 const VALID_OID_PATTERN = /^[0-9a-fA-F]{4,64}$/;
 
-/** @type {RegExp} Pattern for valid Git ref names. */
+/** Pattern for valid Git ref names. */
 const VALID_REF_PATTERN = /^[a-zA-Z0-9._/-]+((~\d*|\^\d*|\.\.[a-zA-Z0-9._/-]+)*)$/;
 
-/** @type {RegExp} Pattern for valid Git config keys. */
+/** Pattern for valid Git config keys. */
 const VALID_CONFIG_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9._-]*$/;
 
-/**
- * Asserts an OID has a valid type and is non-empty.
- * @param {string} oid - The OID to check
- * @throws {AdapterValidationError} If the OID is not a non-empty string
- */
-function assertOidType(oid) {
+function assertOidType(oid: string): void {
   if (typeof oid !== 'string' || oid.length === 0) {
     throw new AdapterValidationError('OID must be a non-empty string');
   }
 }
 
-/**
- * Asserts an OID does not exceed the maximum length and matches the hex pattern.
- * @param {string} oid - The OID to check
- * @throws {AdapterValidationError} If the OID is too long or has an invalid format
- */
-function assertOidFormat(oid) {
+function assertOidFormat(oid: string): void {
   if (oid.length > 64) {
     throw new AdapterValidationError(`OID too long: ${oid.length} chars. Maximum is 64`);
   }
@@ -46,31 +36,20 @@ function assertOidFormat(oid) {
 
 /**
  * Validates that an OID is a safe hex string (4–64 characters).
- * @param {string} oid - The OID to validate
  * @throws {AdapterValidationError} If OID is invalid
  */
-export function validateOid(oid) {
+export function validateOid(oid: string): void {
   assertOidType(oid);
   assertOidFormat(oid);
 }
 
-/**
- * Asserts a ref has a valid type and is non-empty.
- * @param {string} ref - The ref to check
- * @throws {AdapterValidationError} If the ref is not a non-empty string
- */
-function assertRefType(ref) {
+function assertRefType(ref: string): void {
   if (typeof ref !== 'string' || ref.length === 0) {
     throw new AdapterValidationError('Ref must be a non-empty string');
   }
 }
 
-/**
- * Asserts a ref does not exceed the max length, does not start with a dash, and matches the pattern.
- * @param {string} ref - The ref to check
- * @throws {AdapterValidationError} If the ref is too long, starts with a dash, or has an invalid format
- */
-function assertRefFormat(ref) {
+function assertRefFormat(ref: string): void {
   if (ref.length > 1024) {
     throw new AdapterValidationError(`Ref too long: ${ref.length} chars. Maximum is 1024`);
   }
@@ -85,20 +64,14 @@ function assertRefFormat(ref) {
 /**
  * Validates that a ref is safe to use in git commands.
  * Prevents command injection via malicious ref names.
- * @param {string} ref - The ref to validate
  * @throws {AdapterValidationError} If ref contains invalid characters, is too long, or starts with -/--
  */
-export function validateRef(ref) {
+export function validateRef(ref: string): void {
   assertRefType(ref);
   assertRefFormat(ref);
 }
 
-/**
- * Asserts a limit has a valid numeric type and is finite.
- * @param {number} limit - The limit to check
- * @throws {AdapterValidationError} If the limit is not a finite number or not an integer
- */
-function assertLimitType(limit) {
+function assertLimitType(limit: number): void {
   if (typeof limit !== 'number' || !Number.isFinite(limit)) {
     throw new AdapterValidationError('Limit must be a finite number');
   }
@@ -107,12 +80,7 @@ function assertLimitType(limit) {
   }
 }
 
-/**
- * Asserts a limit is within the valid range (1 to 10M).
- * @param {number} limit - The limit to check
- * @throws {AdapterValidationError} If the limit is non-positive or exceeds 10 million
- */
-function assertLimitRange(limit) {
+function assertLimitRange(limit: number): void {
   if (limit <= 0) {
     throw new AdapterValidationError('Limit must be a positive integer');
   }
@@ -123,31 +91,20 @@ function assertLimitRange(limit) {
 
 /**
  * Validates that a limit is a safe positive integer (max 10M).
- * @param {number} limit - The limit to validate
  * @throws {AdapterValidationError} If limit is invalid
  */
-export function validateLimit(limit) {
+export function validateLimit(limit: number): void {
   assertLimitType(limit);
   assertLimitRange(limit);
 }
 
-/**
- * Asserts a config key has a valid type and is non-empty.
- * @param {string} key - The config key to check
- * @throws {AdapterValidationError} If the key is not a non-empty string
- */
-function assertConfigKeyType(key) {
+function assertConfigKeyType(key: string): void {
   if (typeof key !== 'string' || key.length === 0) {
     throw new AdapterValidationError('Config key must be a non-empty string');
   }
 }
 
-/**
- * Asserts a config key does not exceed max length, does not start with a dash, and matches the pattern.
- * @param {string} key - The config key to check
- * @throws {AdapterValidationError} If the key is too long, starts with a dash, or has an invalid format
- */
-function assertConfigKeyFormat(key) {
+function assertConfigKeyFormat(key: string): void {
   if (key.length > 256) {
     throw new AdapterValidationError(`Config key too long: ${key.length} chars. Maximum is 256`);
   }
@@ -161,10 +118,9 @@ function assertConfigKeyFormat(key) {
 
 /**
  * Validates that a config key is safe and well-formed.
- * @param {string} key - The config key to validate
  * @throws {AdapterValidationError} If key is invalid
  */
-export function validateConfigKey(key) {
+export function validateConfigKey(key: string): void {
   assertConfigKeyType(key);
   assertConfigKeyFormat(key);
 }

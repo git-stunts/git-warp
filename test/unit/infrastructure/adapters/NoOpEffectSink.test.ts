@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { NoOpEffectSink } from '../../../../src/infrastructure/adapters/NoOpEffectSink.js';
+import { NoOpEffectSink } from '../../../../src/infrastructure/adapters/NoOpEffectSink.ts';
 import { createEffectEmission } from '../../../../src/domain/types/EffectEmission.ts';
 import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/types/ExternalizationPolicy.ts';
 import EffectSinkPort from '../../../../src/ports/EffectSinkPort.ts';

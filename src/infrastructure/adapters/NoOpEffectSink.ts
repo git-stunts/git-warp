@@ -7,48 +7,30 @@
  */
 
 import EffectSinkPort from '../../ports/EffectSinkPort.ts';
-import { createDeliveryObservation } from '../../domain/types/DeliveryObservation.ts';
+import { createDeliveryObservation, type DeliveryObservation } from '../../domain/types/DeliveryObservation.ts';
+import type { EffectEmission } from '../../domain/types/EffectEmission.ts';
 import {
   OUTCOME_DELIVERED,
   OUTCOME_SUPPRESSED,
+  type ExternalizationPolicy,
 } from '../../domain/types/ExternalizationPolicy.ts';
-
-/**
- * @typedef {import('../../domain/types/EffectEmission.ts').EffectEmission} EffectEmission
- * @typedef {import('../../domain/types/ExternalizationPolicy.ts').ExternalizationPolicy} ExternalizationPolicy
- */
 
 /** Default sink ID for NoOpEffectSink. */
 const NOOP_SINK_ID = 'noop';
 
 export class NoOpEffectSink extends EffectSinkPort {
-  /**
-   * Constructs a no-op sink with an optional custom identifier.
-   *
-   * @param {{ id?: string }} [options]
-   */
-  constructor(options) {
+  private readonly _id: string;
+
+  constructor(options?: { id?: string }) {
     super();
     this._id = (options !== null && options !== undefined && options.id !== undefined && options.id !== '') ? options.id : NOOP_SINK_ID;
   }
 
-  /**
-   * Returns the unique identifier for this no-op sink.
-   *
-   * @returns {string}
-   */
-  get id() {
+  get id(): string {
     return this._id;
   }
 
-  /**
-   * Swallows the emission without side effects, returning a 'delivered' or 'suppressed' observation based on the lens.
-   *
-   * @param {EffectEmission} emission
-   * @param {ExternalizationPolicy} lens
-   * @returns {Promise<import('../../domain/types/DeliveryObservation.ts').DeliveryObservation>}
-   */
-  deliver(emission, lens) {
+  deliver(emission: EffectEmission, lens: ExternalizationPolicy): Promise<DeliveryObservation> {
     if (lens.suppressExternal) {
       return Promise.resolve(
         createDeliveryObservation({

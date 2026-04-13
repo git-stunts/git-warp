@@ -1,5 +1,5 @@
 import HealthCheckService from '../../../src/domain/services/HealthCheckService.ts';
-import ClockAdapter from '../../../src/infrastructure/adapters/ClockAdapter.js';
+import ClockAdapter from '../../../src/infrastructure/adapters/ClockAdapter.ts';
 import { buildCheckpointRef, buildCoverageRef } from '../../../src/domain/utils/RefLayout.ts';
 import { EXIT_CODES } from '../infrastructure.js';
 import { openGraph, applyCursorCeiling, emitCursorWarning, readCheckpointDate, createHookInstaller } from '../shared.js';

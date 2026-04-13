@@ -23,7 +23,7 @@ vi.mock('../../../src/domain/services/HealthCheckService.js', () => ({
 }));
 
 // Mock ClockAdapter
-vi.mock('../../../src/infrastructure/adapters/ClockAdapter.js', () => ({
+vi.mock('../../../src/infrastructure/adapters/ClockAdapter.ts', () => ({
   default: { global: vi.fn().mockReturnValue({}) },
 }));
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import LoggerObservabilityBridge from '../../../../src/infrastructure/adapters/LoggerObservabilityBridge.js';
+import LoggerObservabilityBridge from '../../../../src/infrastructure/adapters/LoggerObservabilityBridge.ts';
 
 function mockLogger() {
   return {

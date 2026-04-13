@@ -12,7 +12,7 @@ import type { ListRefsOptions } from '../../ports/RefPort.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
-import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.js';
+import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.ts';
 import {
   type GitPlumbingLike,
   type GitError,

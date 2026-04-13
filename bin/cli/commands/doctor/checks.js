@@ -8,7 +8,7 @@
  */
 
 import HealthCheckService from '../../../../src/domain/services/HealthCheckService.ts';
-import ClockAdapter from '../../../../src/infrastructure/adapters/ClockAdapter.js';
+import ClockAdapter from '../../../../src/infrastructure/adapters/ClockAdapter.ts';
 import {
   buildCheckpointRef,
   buildCoverageRef,

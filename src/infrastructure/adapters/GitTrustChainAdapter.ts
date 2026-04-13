@@ -19,8 +19,8 @@ import { recordIdPayload, signaturePayload } from '../../domain/trust/canonical.
 import { textEncode } from '../../domain/utils/bytes.ts';
 import { buildTrustRecordRef } from '../../domain/utils/RefLayout.ts';
 import TrustError from '../../domain/errors/TrustError.ts';
-import { createLazyCas } from './lazyCasInit.js';
-import LoggerObservabilityBridge from './LoggerObservabilityBridge.js';
+import { createLazyCas } from './lazyCasInit.ts';
+import LoggerObservabilityBridge from './LoggerObservabilityBridge.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import { Readable } from 'node:stream';

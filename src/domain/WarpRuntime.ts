@@ -508,7 +508,7 @@ export default class WarpRuntime {
     // ── Build port adapters before constructing the runtime ──────────────
     // Runtime-validated capability extraction: no casts, no fake contracts.
     const { requireBlobPort, requireCommitPort, requireTreePort } = await import(
-      /* webpackIgnore: true */ '../infrastructure/adapters/requireCapabilities.js'
+      /* webpackIgnore: true */ '../infrastructure/adapters/requireCapabilities.ts'
     );
     const blobPort = requireBlobPort(persistence);
     const commitPort = requireCommitPort(persistence);
@@ -520,7 +520,7 @@ export default class WarpRuntime {
       resolvedPatchJournal = patchJournal;
     } else {
       const { CborPatchJournalAdapter } = await import(
-        /* webpackIgnore: true */ '../infrastructure/adapters/CborPatchJournalAdapter.js'
+        /* webpackIgnore: true */ '../infrastructure/adapters/CborPatchJournalAdapter.ts'
       );
       resolvedPatchJournal = new CborPatchJournalAdapter({
         codec: resolvedCodec,
@@ -536,7 +536,7 @@ export default class WarpRuntime {
       resolvedCheckpointStore = checkpointStore;
     } else {
       const { CborCheckpointStoreAdapter } = await import(
-        /* webpackIgnore: true */ '../infrastructure/adapters/CborCheckpointStoreAdapter.js'
+        /* webpackIgnore: true */ '../infrastructure/adapters/CborCheckpointStoreAdapter.ts'
       );
       resolvedCheckpointStore = new CborCheckpointStoreAdapter({
         codec: resolvedCodec,

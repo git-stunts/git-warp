@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createLazyCas } from '../../../../src/infrastructure/adapters/lazyCasInit.js';
+import { createLazyCas } from '../../../../src/infrastructure/adapters/lazyCasInit.ts';
 
 describe('createLazyCas', () => {
   it('caches a resolved promise across multiple calls', async () => {

@@ -12,18 +12,15 @@
  */
 
 import EffectSinkPort from '../../ports/EffectSinkPort.ts';
-import { createDeliveryObservation } from '../../domain/types/DeliveryObservation.ts';
+import { createDeliveryObservation, type DeliveryObservation } from '../../domain/types/DeliveryObservation.ts';
+import type { EffectEmission } from '../../domain/types/EffectEmission.ts';
 import {
   OUTCOME_DELIVERED,
   OUTCOME_FAILED,
+  type ExternalizationPolicy,
 } from '../../domain/types/ExternalizationPolicy.ts';
 import { appendFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-
-/**
- * @typedef {import('../../domain/types/EffectEmission.ts').EffectEmission} EffectEmission
- * @typedef {import('../../domain/types/ExternalizationPolicy.ts').ExternalizationPolicy} ExternalizationPolicy
- */
 
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024; // 10 MiB
 
@@ -39,26 +36,14 @@ const CHUNK_FILE_EXT = '.ndjson';
 /** Zero-pad width for chunk index in filenames. */
 const CHUNK_INDEX_PAD_WIDTH = 4;
 
-/**
- * Resolves an optional sink ID, falling back to the default chunk sink ID.
- *
- * @param {{ id?: string }} [options]
- * @returns {string}
- */
-function resolveSinkId(options) {
+function resolveSinkId(options?: { id?: string }): string {
   if (options !== null && options !== undefined && options.id !== undefined && options.id !== '') {
     return options.id;
   }
   return CHUNK_SINK_ID;
 }
 
-/**
- * Resolves an optional max-bytes value, falling back to the default.
- *
- * @param {{ maxBytes?: number }} [options]
- * @returns {number}
- */
-function resolveMaxBytes(options) {
+function resolveMaxBytes(options?: { maxBytes?: number }): number {
   if (options !== null && options !== undefined && options.maxBytes !== undefined && options.maxBytes !== 0) {
     return options.maxBytes;
   }
@@ -66,43 +51,28 @@ function resolveMaxBytes(options) {
 }
 
 export class ChunkEffectSink extends EffectSinkPort {
-  /**
-   * Constructs a chunk sink that writes NDJSON files to the given directory, rotating when the byte budget is exceeded.
-   *
-   * @param {{
-   *   dir: string,
-   *   id?: string,
-   *   maxBytes?: number
-   * }} options
-   */
-  constructor(options) {
+  private readonly _id: string;
+  private readonly _dir: string;
+  private readonly _maxBytes: number;
+  private _currentFile: string | null;
+  private _currentBytes: number;
+  private _chunkIndex: number;
+
+  constructor(options: { dir: string; id?: string; maxBytes?: number }) {
     super();
     this._id = resolveSinkId(options);
     this._dir = options.dir;
     this._maxBytes = resolveMaxBytes(options);
-    /** @type {string | null} */
     this._currentFile = null;
     this._currentBytes = 0;
     this._chunkIndex = 0;
   }
 
-  /**
-   * Returns the unique identifier for this chunk sink.
-   *
-   * @returns {string}
-   */
-  get id() {
+  get id(): string {
     return this._id;
   }
 
-  /**
-   * Writes the emission as NDJSON to the current chunk file, rotating if needed. Returns a 'delivered' or 'failed' observation.
-   *
-   * @param {EffectEmission} emission
-   * @param {ExternalizationPolicy} lens
-   * @returns {Promise<import('../../domain/types/DeliveryObservation.ts').DeliveryObservation>}
-   */
-  async deliver(emission, lens) {
+  async deliver(emission: EffectEmission, lens: ExternalizationPolicy): Promise<DeliveryObservation> {
     try {
       await this._write(emission);
       return createDeliveryObservation({
@@ -112,7 +82,7 @@ export class ChunkEffectSink extends EffectSinkPort {
         timestamp: Date.now(),
         lens,
       });
-    } catch (/** @type {unknown} */ err) {
+    } catch (err: unknown) {
       return createDeliveryObservation({
         emissionId: emission.id,
         sinkId: this._id,
@@ -124,13 +94,7 @@ export class ChunkEffectSink extends EffectSinkPort {
     }
   }
 
-  /**
-   * Serializes the emission to NDJSON and appends it to the current chunk file, rotating to a new file if the byte budget would be exceeded.
-   *
-   * @param {EffectEmission} emission
-   * @returns {Promise<void>}
-   */
-  async _write(emission) {
+  private async _write(emission: EffectEmission): Promise<void> {
     if (this._currentFile === null) {
       this._rotate();
     }
@@ -143,7 +107,7 @@ export class ChunkEffectSink extends EffectSinkPort {
       this._rotate();
     }
 
-    const filePath = /** @type {string} */ (this._currentFile);
+    const filePath = this._currentFile as string;
 
     if (this._currentBytes === 0) {
       await writeFile(filePath, line, 'utf8');
@@ -154,12 +118,7 @@ export class ChunkEffectSink extends EffectSinkPort {
     this._currentBytes += lineBytes;
   }
 
-  /**
-   * Advances to a new chunk file.
-   *
-   * @returns {void}
-   */
-  _rotate() {
+  private _rotate(): void {
     this._chunkIndex += 1;
     const ts = Date.now();
     this._currentFile = join(

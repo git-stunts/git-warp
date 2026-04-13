@@ -11,7 +11,7 @@ import type { ListRefsOptions } from '../../ports/RefPort.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
-import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.js';
+import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.ts';
 import {
   type HashFn,
   type TreeEntry,

@@ -401,8 +401,8 @@ export default tseslint.config(
       "src/domain/stream/WarpStream.ts",
       "src/domain/artifacts/IndexShard.ts",
       // Infrastructure
-      "src/infrastructure/adapters/CborCheckpointStoreAdapter.js",
-      "src/infrastructure/adapters/CborPatchJournalAdapter.js",
+      "src/infrastructure/adapters/CborCheckpointStoreAdapter.ts",
+      "src/infrastructure/adapters/CborPatchJournalAdapter.ts",
       "src/infrastructure/adapters/GitGraphAdapter.ts",
       "src/infrastructure/adapters/GitTrustChainAdapter.ts",
       "src/infrastructure/adapters/InMemoryGraphAdapter.ts",

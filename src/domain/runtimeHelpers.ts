@@ -33,11 +33,11 @@ export async function autoConstructBlobStorage(
   const p = persistence as { plumbing?: unknown };
   if (p.plumbing !== null && p.plumbing !== undefined) {
     const { default: CasBlobAdapter } = await import(
-      /* webpackIgnore: true */ '../infrastructure/adapters/CasBlobAdapter.js'
+      /* webpackIgnore: true */ '../infrastructure/adapters/CasBlobAdapter.ts'
     );
     return new CasBlobAdapter({
       plumbing: p.plumbing,
-      persistence: persistence as import('../infrastructure/adapters/CasBlobAdapter.js').BlobPersistence,
+      persistence: persistence as import('../infrastructure/adapters/CasBlobAdapter.ts').BlobPersistence,
     });
   }
   return new InMemoryBlobStorageAdapter();
@@ -67,7 +67,7 @@ export async function resolveIndexStore(
     return indexStore;
   }
   const { CborIndexStoreAdapter } = await import(
-    /* webpackIgnore: true */ '../infrastructure/adapters/CborIndexStoreAdapter.js'
+    /* webpackIgnore: true */ '../infrastructure/adapters/CborIndexStoreAdapter.ts'
   );
   return new CborIndexStoreAdapter(deps);
 }

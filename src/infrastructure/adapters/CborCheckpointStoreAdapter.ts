@@ -1,10 +1,23 @@
-import CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
+import CheckpointStorePort, { type CheckpointRecord, type CheckpointWriteResult, type CheckpointData } from '../../ports/CheckpointStorePort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import ORSet from '../../domain/crdt/ORSet.ts';
 import VersionVector from '../../domain/crdt/VersionVector.ts';
 import { createEmptyState } from '../../domain/services/JoinReducer.ts';
 import WarpState from '../../domain/services/state/WarpState.ts';
 import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceIndex.ts';
+import type { LWWRegister } from '../../domain/crdt/LWW.ts';
+import type { PropValue } from '../../domain/types/PropValue.ts';
+import type { EventId } from '../../domain/utils/EventId.ts';
+
+interface Codec {
+  encode(value: unknown): Uint8Array;
+  decode(bytes: Uint8Array): unknown;
+}
+
+interface BlobPort {
+  readBlob(oid: string): Promise<Uint8Array>;
+  writeBlob(content: Uint8Array | string): Promise<string>;
+}
 
 /**
  * CBOR-backed implementation of CheckpointStorePort.
@@ -12,19 +25,12 @@ import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceInde
  * Owns the codec and raw blob persistence. Domain services call
  * writeCheckpoint(record) with domain objects; the adapter internally
  * encodes each artifact and writes blobs.
- *
- * @extends CheckpointStorePort
  */
 export class CborCheckpointStoreAdapter extends CheckpointStorePort {
-  /**
-   * Creates a new CborCheckpointStoreAdapter.
-   *
-   * @param {{
-   *   codec: { encode(value: unknown): Uint8Array, decode(bytes: Uint8Array): unknown },
-   *   blobPort: { readBlob(oid: string): Promise<Uint8Array>, writeBlob(content: Uint8Array | string): Promise<string> },
-   * }} options
-   */
-  constructor({ codec, blobPort }) {
+  private readonly _codec: Codec;
+  private readonly _blobPort: BlobPort;
+
+  constructor({ codec, blobPort }: { codec: Codec; blobPort: BlobPort }) {
     super();
     if (codec === null || codec === undefined) {
       throw new WarpError('CborCheckpointStoreAdapter requires a codec', 'E_INVALID_DEPENDENCY');
@@ -32,33 +38,21 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     if (blobPort === null || blobPort === undefined) {
       throw new WarpError('CborCheckpointStoreAdapter requires a blobPort', 'E_INVALID_DEPENDENCY');
     }
-    /** @type {{ encode(value: unknown): Uint8Array, decode(bytes: Uint8Array): unknown }} */
     this._codec = codec;
-    /** @type {{ readBlob(oid: string): Promise<Uint8Array>, writeBlob(content: Uint8Array | string): Promise<string> }} */
     this._blobPort = blobPort;
   }
 
-  /**
-   * Persists a complete checkpoint: encodes and writes all artifacts
-   * as blobs, returns the OIDs for tree assembly.
-   *
-   * @param {import('../../ports/CheckpointStorePort.ts').CheckpointRecord} record
-   * @returns {Promise<import('../../ports/CheckpointStorePort.ts').CheckpointWriteResult>}
-   */
-  async writeCheckpoint(record) {
-    // Encode all artifacts in parallel
+  override async writeCheckpoint(record: CheckpointRecord): Promise<CheckpointWriteResult> {
     const stateBytes = this._encodeFullState(record.state);
     const frontierBytes = this._encodeFrontier(record.frontier);
     const appliedVVBytes = this._encodeAppliedVV(record.appliedVV);
 
-    /** @type {Uint8Array | null} */
-    let provenanceBytes = null;
+    let provenanceBytes: Uint8Array | null = null;
     if (record.provenanceIndex !== null && record.provenanceIndex !== undefined) {
       provenanceBytes = record.provenanceIndex.serialize({ codec: this._codec });
     }
 
-    // Write blobs in parallel
-    const writes = [
+    const writes: Array<Promise<string>> = [
       this._blobPort.writeBlob(stateBytes),
       this._blobPort.writeBlob(frontierBytes),
       this._blobPort.writeBlob(appliedVVBytes),
@@ -69,20 +63,14 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
 
     const oids = await Promise.all(writes);
     return {
-      stateBlobOid: /** @type {string} */ (oids[0]),
-      frontierBlobOid: /** @type {string} */ (oids[1]),
-      appliedVVBlobOid: /** @type {string} */ (oids[2]),
-      provenanceIndexBlobOid: oids.length > 3 ? /** @type {string} */ (oids[3]) : null,
+      stateBlobOid: oids[0] as string,
+      frontierBlobOid: oids[1] as string,
+      appliedVVBlobOid: oids[2] as string,
+      provenanceIndexBlobOid: oids.length > 3 ? (oids[3] as string) : null,
     };
   }
 
-  /**
-   * Reads checkpoint artifacts from a tree of OIDs.
-   *
-   * @param {Record<string, string>} treeOids - Map of path → blob OID
-   * @returns {Promise<import('../../ports/CheckpointStorePort.ts').CheckpointData>}
-   */
-  async readCheckpoint(treeOids) {
+  override async readCheckpoint(treeOids: Record<string, string>): Promise<CheckpointData> {
     const stateOid = treeOids['state.cbor'];
     const frontierOid = treeOids['frontier.cbor'];
     const appliedVVOid = treeOids['appliedVV.cbor'];
@@ -95,9 +83,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
       throw new WarpError('Checkpoint missing frontier.cbor', 'E_MISSING_ARTIFACT');
     }
 
-    // Read blobs in parallel
-    /** @type {Array<Promise<Uint8Array>>} */
-    const reads = [
+    const reads: Array<Promise<Uint8Array>> = [
       this._blobPort.readBlob(stateOid),
       this._blobPort.readBlob(frontierOid),
     ];
@@ -110,24 +96,20 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
 
     const buffers = await Promise.all(reads);
     let idx = 0;
-    const state = this._decodeFullState(/** @type {Uint8Array} */ (buffers[idx++]));
-    const frontier = this._decodeFrontier(/** @type {Uint8Array} */ (buffers[idx++]));
+    const state = this._decodeFullState(buffers[idx++] as Uint8Array);
+    const frontier = this._decodeFrontier(buffers[idx++] as Uint8Array);
 
-    /** @type {VersionVector | null} */
-    let appliedVV = null;
+    let appliedVV: VersionVector | null = null;
     if (appliedVVOid !== undefined) {
-      appliedVV = this._decodeAppliedVV(/** @type {Uint8Array} */ (buffers[idx++]));
+      appliedVV = this._decodeAppliedVV(buffers[idx++] as Uint8Array);
     }
 
-    /** @type {ProvenanceIndex | null} */
-    let provenanceIndex = null;
+    let provenanceIndex: ProvenanceIndex | null = null;
     if (provenanceOid !== undefined) {
-      provenanceIndex = ProvenanceIndex.deserialize(/** @type {Uint8Array} */ (buffers[idx++]), { codec: this._codec });
+      provenanceIndex = ProvenanceIndex.deserialize(buffers[idx++] as Uint8Array, { codec: this._codec });
     }
 
-    // Partition index shard OIDs (entries with 'index/' prefix)
-    /** @type {Record<string, string> | null} */
-    let indexShardOids = null;
+    let indexShardOids: Record<string, string> | null = null;
     const shardEntries = Object.entries(treeOids).filter(([p]) => p.startsWith('index/'));
     if (shardEntries.length > 0) {
       indexShardOids = Object.fromEntries(shardEntries.map(([p, o]) => [p.slice('index/'.length), o]));
@@ -137,7 +119,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
       state,
       frontier,
       appliedVV,
-      stateHash: '', // Caller reads from commit message
+      stateHash: '',
       schema: 2,
       ...(provenanceIndex !== null ? { provenanceIndex } : {}),
       indexShardOids,
@@ -146,13 +128,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
 
   // ── Encode Helpers ──────────────────────────────────────────────────
 
-  /**
-   * Encodes full V5 state to CBOR bytes.
-   *
-   * @param {import('../../domain/services/JoinReducer.ts').WarpState} state
-   * @returns {Uint8Array}
-   */
-  _encodeFullState(state) {
+  private _encodeFullState(state: WarpState): Uint8Array {
     return this._codec.encode({
       version: 'full-v5',
       nodeAlive: state.nodeAlive.serialize(),
@@ -163,44 +139,25 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     });
   }
 
-  /**
-   * Encodes a frontier Map to CBOR bytes.
-   *
-   * @param {Map<string, string>} frontier
-   * @returns {Uint8Array}
-   */
-  _encodeFrontier(frontier) {
-    /** @type {Record<string, string | undefined>} */
-    const obj = {};
+  private _encodeFrontier(frontier: Map<string, string>): Uint8Array {
+    const obj: Record<string, string | undefined> = {};
     for (const key of Array.from(frontier.keys()).sort()) {
       obj[key] = frontier.get(key);
     }
     return this._codec.encode(obj);
   }
 
-  /**
-   * Encodes an applied VersionVector to CBOR bytes.
-   *
-   * @param {VersionVector} vv
-   * @returns {Uint8Array}
-   */
-  _encodeAppliedVV(vv) {
+  private _encodeAppliedVV(vv: VersionVector): Uint8Array {
     return this._codec.encode(VersionVector.serialize(vv));
   }
 
   // ── Decode Helpers ──────────────────────────────────────────────────
 
-  /**
-   * Decodes CBOR bytes to full V5 state.
-   *
-   * @param {Uint8Array} buffer
-   * @returns {import('../../domain/services/JoinReducer.ts').WarpState}
-   */
-  _decodeFullState(buffer) {
+  private _decodeFullState(buffer: Uint8Array): WarpState {
     if (buffer === null || buffer === undefined) {
       return createEmptyState();
     }
-    const obj = /** @type {Record<string, unknown>} */ (this._codec.decode(buffer));
+    const obj = this._codec.decode(buffer) as Record<string, unknown>;
     if (obj === null || obj === undefined) {
       return createEmptyState();
     }
@@ -213,53 +170,33 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     return new WarpState({
       nodeAlive: ORSet.deserialize(obj['nodeAlive'] ?? {}),
       edgeAlive: ORSet.deserialize(obj['edgeAlive'] ?? {}),
-      prop: _deserializeProps(/** @type {[string, unknown][]} */ (obj['prop'])),
+      prop: _deserializeProps(obj['prop'] as [string, unknown][]),
       observedFrontier: VersionVector.from(
-        /** @type {{ [x: string]: number }} */ (obj['observedFrontier'] ?? {}),
+        (obj['observedFrontier'] ?? {}) as { [x: string]: number },
       ),
       edgeBirthEvent: _deserializeEdgeBirthEvent(obj),
     });
   }
 
-  /**
-   * Decodes CBOR bytes to a frontier Map.
-   *
-   * @param {Uint8Array} buffer
-   * @returns {Map<string, string>}
-   */
-  _decodeFrontier(buffer) {
-    const obj = /** @type {Record<string, string>} */ (this._codec.decode(buffer));
-    /** @type {Map<string, string>} */
-    const frontier = new Map();
+  private _decodeFrontier(buffer: Uint8Array): Map<string, string> {
+    const obj = this._codec.decode(buffer) as Record<string, string>;
+    const frontier = new Map<string, string>();
     for (const [k, v] of Object.entries(obj)) {
       frontier.set(k, v);
     }
     return frontier;
   }
 
-  /**
-   * Decodes CBOR bytes to a VersionVector.
-   *
-   * @param {Uint8Array} buffer
-   * @returns {VersionVector}
-   */
-  _decodeAppliedVV(buffer) {
-    const obj = /** @type {{ [x: string]: number }} */ (this._codec.decode(buffer));
+  private _decodeAppliedVV(buffer: Uint8Array): VersionVector {
+    const obj = this._codec.decode(buffer) as { [x: string]: number };
     return VersionVector.from(obj);
   }
 }
 
 // ── Private Helpers ───────────────────────────────────────────────────
 
-/**
- * Serializes the props Map into a sorted array.
- *
- * @param {Map<string, import('../../domain/crdt/LWW.ts').LWWRegister<unknown>>} propMap
- * @returns {Array<[string, unknown]>}
- */
-function _serializePropsArray(propMap) {
-  /** @type {Array<[string, unknown]>} */
-  const arr = [];
+function _serializePropsArray(propMap: Map<string, LWWRegister<unknown>>): Array<[string, unknown]> {
+  const arr: Array<[string, unknown]> = [];
   for (const [key, register] of propMap) {
     arr.push([key, _serializeLWWRegister(register)]);
   }
@@ -267,15 +204,8 @@ function _serializePropsArray(propMap) {
   return arr;
 }
 
-/**
- * Serializes the edgeBirthEvent Map.
- *
- * @param {Map<string, import('../../domain/utils/EventId.ts').EventId> | undefined} edgeBirthEvent
- * @returns {Array<[string, {lamport: number, writerId: string, patchSha: string, opIndex: number}]>}
- */
-function _serializeEdgeBirthArray(edgeBirthEvent) {
-  /** @type {Array<[string, {lamport: number, writerId: string, patchSha: string, opIndex: number}]>} */
-  const result = [];
+function _serializeEdgeBirthArray(edgeBirthEvent: Map<string, EventId> | undefined): Array<[string, { lamport: number; writerId: string; patchSha: string; opIndex: number }]> {
+  const result: Array<[string, { lamport: number; writerId: string; patchSha: string; opIndex: number }]> = [];
   if (edgeBirthEvent !== undefined && edgeBirthEvent !== null) {
     for (const [key, eventId] of edgeBirthEvent) {
       result.push([key, {
@@ -288,55 +218,35 @@ function _serializeEdgeBirthArray(edgeBirthEvent) {
   return result;
 }
 
-/**
- * Deserializes props array.
- *
- * @param {Array<[string, unknown]>} propArray
- * @returns {Map<string, import('../../domain/crdt/LWW.ts').LWWRegister<import('../../domain/types/PropValue.ts').PropValue>>}
- */
-function _deserializeProps(propArray) {
-  /** @type {Map<string, import('../../domain/crdt/LWW.ts').LWWRegister<import('../../domain/types/PropValue.ts').PropValue>>} */
-  const prop = new Map();
+function _deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWRegister<PropValue>> {
+  const prop = new Map<string, LWWRegister<PropValue>>();
   if (!Array.isArray(propArray)) { return prop; }
   for (const [key, registerObj] of propArray) {
     const register = _deserializeLWWRegister(
-      /** @type {{ eventId: { lamport: number, writerId: string, patchSha: string, opIndex: number }, value: unknown } | null} */ (registerObj),
+      registerObj as { eventId: { lamport: number; writerId: string; patchSha: string; opIndex: number }; value: unknown } | null,
     );
     if (register !== null) { prop.set(key, register); }
   }
   return prop;
 }
 
-/**
- * Deserializes edge birth events.
- *
- * @param {Record<string, unknown>} obj
- * @returns {Map<string, import('../../domain/utils/EventId.ts').EventId>}
- */
-function _deserializeEdgeBirthEvent(obj) {
-  /** @type {Map<string, import('../../domain/utils/EventId.ts').EventId>} */
-  const result = new Map();
+function _deserializeEdgeBirthEvent(obj: Record<string, unknown>): Map<string, EventId> {
+  const result = new Map<string, EventId>();
   const birthData = obj['edgeBirthEvent'] ?? obj['edgeBirthLamport'];
   if (!Array.isArray(birthData)) { return result; }
-  const typedData = /** @type {Array<[string, unknown]>} */ (birthData);
+  const typedData = birthData as Array<[string, unknown]>;
   for (const [key, val] of typedData) {
     if (typeof val === 'number') {
       result.set(key, { lamport: val, writerId: '', patchSha: '0000', opIndex: 0 });
     } else {
-      const ev = /** @type {{lamport: number, writerId: string, patchSha: string, opIndex: number}} */ (val);
+      const ev = val as { lamport: number; writerId: string; patchSha: string; opIndex: number };
       result.set(key, { lamport: ev.lamport, writerId: ev.writerId, patchSha: ev.patchSha, opIndex: ev.opIndex });
     }
   }
   return result;
 }
 
-/**
- * Serializes an LWW register.
- *
- * @param {import('../../domain/crdt/LWW.ts').LWWRegister<unknown>} register
- * @returns {{ eventId: { lamport: number, opIndex: number, patchSha: string, writerId: string }, value: unknown } | null}
- */
-function _serializeLWWRegister(register) {
+function _serializeLWWRegister(register: LWWRegister<unknown>): { eventId: { lamport: number; opIndex: number; patchSha: string; writerId: string }; value: unknown } | null {
   if (register === null || register === undefined) { return null; }
   return {
     eventId: {
@@ -347,20 +257,13 @@ function _serializeLWWRegister(register) {
   };
 }
 
-/**
- * Deserializes an LWW register.
- *
- * @param {{ eventId: { lamport: number, writerId: string, patchSha: string, opIndex: number }, value: unknown } | null} obj
- * @returns {import('../../domain/crdt/LWW.ts').LWWRegister<import('../../domain/types/PropValue.ts').PropValue> | null}
- */
-function _deserializeLWWRegister(obj) {
+function _deserializeLWWRegister(obj: { eventId: { lamport: number; writerId: string; patchSha: string; opIndex: number }; value: unknown } | null): LWWRegister<PropValue> | null {
   if (obj === null || obj === undefined) { return null; }
   return {
     eventId: {
       lamport: obj.eventId.lamport, writerId: obj.eventId.writerId,
       patchSha: obj.eventId.patchSha, opIndex: obj.eventId.opIndex,
     },
-    // Codec boundary: deserialized value is treated as PropValue
-    value: /** @type {import('../../domain/types/PropValue.ts').PropValue} */ (obj.value),
+    value: obj.value as PropValue,
   };
 }

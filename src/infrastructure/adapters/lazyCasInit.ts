@@ -11,18 +11,13 @@
 /**
  * Creates a lazy CAS initializer that caches the resolved promise
  * and resets on rejection so subsequent calls retry.
- *
- * @template T
- * @param {() => Promise<T>} initFn - Factory that creates the CAS instance
- * @returns {() => Promise<T>} A `getCas()` function
  */
-export function createLazyCas(initFn) {
-  /** @type {Promise<T> | null} */
-  let promise = null;
+export function createLazyCas<T>(initFn: () => Promise<T>): () => Promise<T> {
+  let promise: Promise<T> | null = null;
 
   return () => {
     if (!promise) {
-      promise = initFn().catch((err) => {
+      promise = initFn().catch((err: unknown) => {
         promise = null;
         throw err;
       });

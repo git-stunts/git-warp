@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ConsoleEffectSink } from '../../../../src/infrastructure/adapters/ConsoleEffectSink.js';
+import { ConsoleEffectSink } from '../../../../src/infrastructure/adapters/ConsoleEffectSink.ts';
 import { createEffectEmission } from '../../../../src/domain/types/EffectEmission.ts';
 import {
   LIVE_LENS,

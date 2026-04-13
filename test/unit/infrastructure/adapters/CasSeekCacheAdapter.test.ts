@@ -40,7 +40,7 @@ vi.mock('@git-stunts/git-cas', () => ({
 
 // Import after mock setup
 const { default: CasSeekCacheAdapter } = await import(
-  '../../../../src/infrastructure/adapters/CasSeekCacheAdapter.js'
+  '../../../../src/infrastructure/adapters/CasSeekCacheAdapter.ts'
 );
 const { default: SeekCachePort } = await import(
   '../../../../src/ports/SeekCachePort.ts'

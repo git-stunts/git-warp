@@ -1,4 +1,4 @@
-import PatchJournalPort from '../../ports/PatchJournalPort.ts';
+import PatchJournalPort, { type ReadPatchOptions } from '../../ports/PatchJournalPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import PatchEntry from '../../domain/artifacts/PatchEntry.ts';
@@ -6,6 +6,22 @@ import { decodePatchMessage, detectMessageKind } from '../../domain/services/cod
 import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
 import SyncError from '../../domain/errors/SyncError.ts';
 import EncryptionError from '../../domain/errors/EncryptionError.ts';
+import type Patch from '../../domain/types/Patch.ts';
+import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+
+interface Codec {
+  encode(value: unknown): Uint8Array;
+  decode(bytes: Uint8Array): unknown;
+}
+
+interface BlobPort {
+  readBlob(oid: string): Promise<Uint8Array>;
+  writeBlob(content: Uint8Array | string): Promise<string>;
+}
+
+interface CommitPort {
+  getNodeInfo(sha: string): Promise<{ sha: string; message: string; author: string; date: string; parents: string[] }>;
+}
 
 /**
  * CBOR-backed implementation of PatchJournalPort.
@@ -16,21 +32,19 @@ import EncryptionError from '../../domain/errors/EncryptionError.ts';
  *
  * Supports both plain Git blob storage (BlobPort) and encrypted external
  * storage (BlobStoragePort) via the optional `patchBlobStorage` parameter.
- *
- * @extends PatchJournalPort
  */
 export class CborPatchJournalAdapter extends PatchJournalPort {
-  /**
-   * Creates a new CborPatchJournalAdapter.
-   *
-   * @param {{
-   *   codec: { encode(value: unknown): Uint8Array, decode(bytes: Uint8Array): unknown },
-   *   blobPort: { readBlob(oid: string): Promise<Uint8Array>, writeBlob(content: Uint8Array | string): Promise<string> },
-   *   commitPort?: { getNodeInfo(sha: string): Promise<{sha: string, message: string, author: string, date: string, parents: string[]}> },
-   *   patchBlobStorage?: import('../../ports/BlobStoragePort.ts').default | null,
-   * }} options
-   */
-  constructor({ codec, blobPort, commitPort, patchBlobStorage }) {
+  private readonly _codec: Codec;
+  private readonly _blobPort: BlobPort;
+  private readonly _commitPort: CommitPort | null;
+  private readonly _patchBlobStorage: BlobStoragePort | null;
+
+  constructor({ codec, blobPort, commitPort, patchBlobStorage }: {
+    codec: Codec;
+    blobPort: BlobPort;
+    commitPort?: CommitPort;
+    patchBlobStorage?: BlobStoragePort | null;
+  }) {
     super();
     if (codec === null || codec === undefined) {
       throw new WarpError('CborPatchJournalAdapter requires a codec', 'E_INVALID_DEPENDENCY');
@@ -38,23 +52,13 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     if (blobPort === null || blobPort === undefined) {
       throw new WarpError('CborPatchJournalAdapter requires a blobPort', 'E_INVALID_DEPENDENCY');
     }
-    /** @type {{ encode(value: unknown): Uint8Array, decode(bytes: Uint8Array): unknown }} */
     this._codec = codec;
-    /** @type {{ readBlob(oid: string): Promise<Uint8Array>, writeBlob(content: Uint8Array | string): Promise<string> }} */
     this._blobPort = blobPort;
-    /** @type {{ getNodeInfo(sha: string): Promise<{sha: string, message: string, author: string, date: string, parents: string[]}> } | null} */
     this._commitPort = commitPort ?? null;
-    /** @type {import('../../ports/BlobStoragePort.ts').default | null} */
     this._patchBlobStorage = patchBlobStorage ?? null;
   }
 
-  /**
-   * Encodes a Patch to CBOR and persists it as a blob.
-   *
-   * @param {import('../../domain/types/Patch.ts').default} patch
-   * @returns {Promise<string>} The blob OID
-   */
-  async writePatch(patch) {
+  override async writePatch(patch: Patch): Promise<string> {
     const bytes = this._codec.encode(patch);
     if (this._patchBlobStorage) {
       return await this._patchBlobStorage.store(bytes);
@@ -62,16 +66,8 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     return await this._blobPort.writeBlob(bytes);
   }
 
-  /**
-   * Reads a blob by OID and decodes the CBOR bytes to a Patch.
-   *
-   * @param {string} patchOid
-   * @param {{ encrypted?: boolean }} [options]
-   * @returns {Promise<import('../../domain/types/Patch.ts').default>}
-   */
-  async readPatch(patchOid, { encrypted = false } = {}) {
-    /** @type {Uint8Array} */
-    let bytes;
+  override async readPatch(patchOid: string, { encrypted = false }: ReadPatchOptions = {}): Promise<Patch> {
+    let bytes: Uint8Array;
     if (encrypted && this._patchBlobStorage) {
       bytes = await this._patchBlobStorage.retrieve(patchOid);
     } else if (encrypted) {
@@ -84,33 +80,18 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     return hydrateDecodedPatch(this._codec.decode(bytes));
   }
 
-  /**
-   * Whether this journal uses external blob storage.
-   *
-   * @returns {boolean}
-   */
-  get usesExternalStorage() {
+  override get usesExternalStorage(): boolean {
     return this._patchBlobStorage !== null;
   }
 
   /**
    * Scans patches in a writer's chain between two SHAs, yielding
    * PatchEntry instances in chronological order (oldest first).
-   *
-   * Walks the commit DAG backwards from toSha to fromSha, decodes
-   * each patch, and yields PatchEntry. The walk is streamed — patches
-   * are yielded as they're decoded, not accumulated into an array.
-   *
-   * @param {string} writerId - The writer whose chain to scan
-   * @param {string|null} fromSha - Start SHA (exclusive), null for all
-   * @param {string} toSha - End SHA (inclusive)
-   * @returns {WarpStream<PatchEntry>}
    */
-  scanPatchRange(writerId, fromSha, toSha) {
+  scanPatchRange(writerId: string, fromSha: string | null, toSha: string): WarpStream<PatchEntry> {
     const adapter = this;
     return WarpStream.from(
-      /** Walks commit chain and yields PatchEntry instances. @returns {AsyncGenerator<PatchEntry>} */
-      (async function* () {
+      (async function* (): AsyncGenerator<PatchEntry> {
         if (adapter._commitPort === null) {
           throw new SyncError('scanPatchRange requires commitPort on the adapter', {
             code: 'E_MISSING_COMMIT_PORT',
@@ -119,11 +100,8 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
         }
         const commitPort = adapter._commitPort;
 
-        // Walk backwards, collect into stack for chronological order
-        /** @type {Array<{sha: string, patchOid: string, encrypted: boolean}>} */
-        const stack = [];
-        /** @type {string | null} */
-        let cur = toSha;
+        const stack: Array<{ sha: string; patchOid: string; encrypted: boolean }> = [];
+        let cur: string | null = toSha;
 
         while (cur !== null && cur !== fromSha) {
           const nodeInfo = await commitPort.getNodeInfo(cur);
@@ -134,14 +112,12 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
           const meta = decodePatchMessage(nodeInfo.message);
           stack.push({ sha: cur, patchOid: meta.patchOid, encrypted: meta.encrypted });
 
-          /** @type {string | null} */
-          const parent = (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0)
-            ? /** @type {string} */ (nodeInfo.parents[0])
+          const parent: string | null = (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0)
+            ? (nodeInfo.parents[0] as string)
             : null;
           cur = parent;
         }
 
-        // Divergence check
         if (fromSha !== null && fromSha !== undefined && fromSha.length > 0 && cur === null) {
           throw new SyncError(
             `Divergence detected: ${toSha} does not descend from ${fromSha} for writer ${writerId}`,
@@ -149,9 +125,8 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
           );
         }
 
-        // Yield in chronological order (oldest first)
         for (let i = stack.length - 1; i >= 0; i--) {
-          const { sha, patchOid, encrypted } = /** @type {{ sha: string, patchOid: string, encrypted: boolean }} */ (stack[i]);
+          const { sha, patchOid, encrypted } = stack[i] as { sha: string; patchOid: string; encrypted: boolean };
           const patch = await adapter.readPatch(patchOid, { encrypted });
           yield new PatchEntry({ patch, sha });
         }
