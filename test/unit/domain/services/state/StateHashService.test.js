@@ -10,7 +10,7 @@ import CryptoPort from '../../../../../src/ports/CryptoPort.ts';
  * @returns {CryptoPort}
  */
 function createMockCrypto(hashImpl) {
-  const mock = new CryptoPort();
+  const mock = /** @type {any} */ (Object.create(CryptoPort.prototype));
   mock.hash = vi.fn(hashImpl ?? (async () => 'deadbeef'.repeat(8)));
   return mock;
 }
@@ -18,16 +18,16 @@ function createMockCrypto(hashImpl) {
 describe('StateHashService', () => {
   it('requires a codec dependency', () => {
     const crypto = createMockCrypto();
-    expect(() => new StateHashService({ codec: null, crypto })).toThrow(
+    expect(() => new StateHashService(/** @type {any} */ ({ codec: null, crypto }))).toThrow(
       'StateHashService requires a codec',
     );
   });
 
   it('requires a crypto dependency', () => {
-    expect(() => new StateHashService({
+    expect(() => new StateHashService(/** @type {any} */ ({
       codec: new CborCodec(),
       crypto: null,
-    })).toThrow('StateHashService requires a crypto adapter');
+    }))).toThrow('StateHashService requires a crypto adapter');
   });
 
   it('computes a hex hash string', async () => {

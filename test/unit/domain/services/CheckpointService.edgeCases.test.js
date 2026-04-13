@@ -30,7 +30,6 @@ import {
   encodeCheckpointMessage,
   decodeCheckpointMessage,
 } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { ProvenanceIndex } from '../../../../src/domain/services/provenance/ProvenanceIndex.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
@@ -485,7 +484,7 @@ describe('CheckpointService edge cases', () => {
         graphName: 'test',
         checkpointSha: makeOid('checkpoint'),
         targetFrontier,
-        patchLoader,
+        patchLoader: /** @type {any} */ (patchLoader),
       });
 
       expect(result.nodeAlive.contains('base')).toBe(true);

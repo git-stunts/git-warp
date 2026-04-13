@@ -173,7 +173,6 @@ function createPatchV1({ writer, lamport, ops, baseCheckpoint }) {
 // CRDT primitives
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 
 // ============================================================================

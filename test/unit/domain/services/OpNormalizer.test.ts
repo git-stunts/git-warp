@@ -93,8 +93,8 @@ describe('OpNormalizer', () => {
       expect(canonical).toBeInstanceOf(NodeAdd);
       if (canonical.type === 'NodeAdd') {
         expect(canonical.dot).toBeInstanceOf(Dot);
-        expect(canonical.dot.writerId).toBe('w');
-        expect(canonical.dot.counter).toBe(1);
+        expect(canonical.dot?.writerId).toBe('w');
+        expect(canonical.dot?.counter).toBe(1);
       }
     });
 
@@ -172,7 +172,7 @@ describe('OpNormalizer', () => {
     it('A1-T03: lowers EdgePropSet to raw PropSet with legacy node encoding', () => {
       const canonical = new EdgePropSet({ from: 'alice', to: 'bob', label: 'follows', key: 'weight', value: 0.9 });
 
-      const raw = lowerCanonicalOp(canonical);
+      const raw = lowerCanonicalOp(canonical as unknown as any);
 
       expect(raw.type).toBe('PropSet');
       if (raw.type === 'PropSet') {
@@ -185,7 +185,7 @@ describe('OpNormalizer', () => {
     it('lowers NodePropSet to raw PropSet', () => {
       const canonical = new NodePropSet('alice', 'color', 'blue');
 
-      const raw = lowerCanonicalOp(canonical);
+      const raw = lowerCanonicalOp(canonical as unknown as any);
 
       expect(raw.type).toBe('PropSet');
       if (raw.type === 'PropSet') {
@@ -220,7 +220,7 @@ describe('OpNormalizer', () => {
       );
 
       const canonical = normalizeRawOp(raw);
-      const roundTripped = lowerCanonicalOp(canonical);
+      const roundTripped = lowerCanonicalOp(canonical as unknown as any);
 
       expect(roundTripped).toEqual(raw);
     });
@@ -229,7 +229,7 @@ describe('OpNormalizer', () => {
       const raw = new PropSet('alice', 'color', 'blue');
 
       const canonical = normalizeRawOp(raw);
-      const roundTripped = lowerCanonicalOp(canonical);
+      const roundTripped = lowerCanonicalOp(canonical as unknown as any);
 
       expect(roundTripped).toEqual(raw);
     });
@@ -244,7 +244,7 @@ describe('OpNormalizer', () => {
       const canonical = normalizeRawOp(raw);
       expect(canonical.type).toBe('EdgePropSet');
 
-      const roundTripped = lowerCanonicalOp(canonical);
+      const roundTripped = lowerCanonicalOp(canonical as unknown as any);
       expect(roundTripped).toEqual(raw);
     });
 
@@ -258,7 +258,7 @@ describe('OpNormalizer', () => {
 
       for (const [, from, to, label, key, value] of cases) {
         const raw = new PropSet(encodeLegacyEdgePropNode(from, to, label), key, value);
-        const roundTripped = lowerCanonicalOp(normalizeRawOp(raw));
+        const roundTripped = lowerCanonicalOp(normalizeRawOp(raw) as unknown as any);
         expect(roundTripped).toEqual(raw);
       }
     });

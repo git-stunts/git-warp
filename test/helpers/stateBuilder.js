@@ -1,6 +1,5 @@
 import { vi } from 'vitest';
 import { Dot, encodeDot } from '../../src/domain/crdt/Dot.ts';
-import ORSet from '../../src/domain/crdt/ORSet.ts';
 import { applyOpV2, createEmptyState, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import { EventId } from '../../src/domain/utils/EventId.ts';
 

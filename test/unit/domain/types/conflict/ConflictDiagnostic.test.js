@@ -18,7 +18,7 @@ describe('ConflictDiagnostic', () => {
   });
 
   it('treats null data as undefined', () => {
-    const d = new ConflictDiagnostic({ code: 'x', severity: 'warning', message: 'y', data: null });
+    const d = new ConflictDiagnostic(/** @type {any} */ ({ code: 'x', severity: 'warning', message: 'y', data: null }));
     expect(d.data).toBeUndefined();
   });
 
@@ -27,7 +27,7 @@ describe('ConflictDiagnostic', () => {
   });
 
   it('rejects invalid severity', () => {
-    expect(() => new ConflictDiagnostic({ code: 'x', severity: 'info', message: 'x' })).toThrow('severity');
+    expect(() => new ConflictDiagnostic(/** @type {any} */ ({ code: 'x', severity: 'info', message: 'x' }))).toThrow('severity');
   });
 
   it('rejects empty message', () => {

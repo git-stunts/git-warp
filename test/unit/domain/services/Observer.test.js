@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
 import Observer from '../../../../src/domain/services/query/Observer.js';
 import { createEmptyState, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 
 /** @param {any} graph @param {(state: any) => void} seedFn */
@@ -486,7 +485,7 @@ describe('Observer', () => {
       expect(result).toBe('next-observer');
       expect(graphStub.observer).toHaveBeenCalledTimes(1);
 
-      const [name, config, options] = graphStub.observer.mock.calls[0];
+      const [name, config, options] = /** @type {any[]} */ (graphStub.observer.mock.calls[0]);
       expect(name).toBe('focused');
       expect(config).toEqual({
         match: ['user:*'],

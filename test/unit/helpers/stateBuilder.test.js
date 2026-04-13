@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import {
   encodeEdgeKey,
   encodeEdgePropKey,

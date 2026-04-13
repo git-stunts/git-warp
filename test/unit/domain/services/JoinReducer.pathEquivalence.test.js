@@ -20,7 +20,6 @@ import {
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -169,7 +168,7 @@ describe('OP_STRATEGIES registry', () => {
   it('every strategy has all five required methods', () => {
     const requiredMethods = ['mutate', 'outcome', 'snapshot', 'accumulate', 'validate'];
     for (const [opType, strategy] of OP_STRATEGIES) {
-      const s = /** @type {Record<string, unknown>} */ (strategy);
+      const s = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (strategy));
       for (const method of requiredMethods) {
         expect(
           typeof s[method],

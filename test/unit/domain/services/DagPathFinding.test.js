@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DagPathFinding from '../../../../src/domain/services/dag/DagPathFinding.ts';
-import TraversalError from '../../../../src/domain/errors/TraversalError.ts';
 import MinHeap from '../../../../src/domain/utils/MinHeap.ts';
 
-function createIndexReader({ children = {}, parents = {} } = {}) {
+function createIndexReader({ children = /** @type {Record<string, string[]>} */ ({}), parents = /** @type {Record<string, string[]>} */ ({}) } = {}) {
   return {
     getChildren: vi.fn(async (/** @type {string} */ sha) => children[sha] ?? []),
     getParents: vi.fn(async (/** @type {string} */ sha) => parents[sha] ?? []),

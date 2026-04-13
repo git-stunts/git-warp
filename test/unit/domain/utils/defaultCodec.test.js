@@ -15,7 +15,7 @@ describe('defaultCodec', () => {
 
     expect(Object.keys(decoded)).toEqual(['a', 'b']);
     expect(Object.keys(decoded.b)).toEqual(['a', 'z']);
-    expect(Object.keys(decoded.a[0])).toEqual(['x', 'y']);
+    expect(Object.keys(/** @type {object} */ (decoded.a[0]))).toEqual(['x', 'y']);
   });
 
   it('preserves CBOR-native nested values without flattening them into plain objects', () => {

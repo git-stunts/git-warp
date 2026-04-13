@@ -18,7 +18,7 @@ describe('TreePort', () => {
     }
     const tree = new TestTree();
     expect(tree).toBeInstanceOf(TreePort);
-    expect(await tree.writeTree(['100644 blob abc\tfile.txt'])).toBe('tree-oid');
+    expect(await (/** @type {any} */ (tree)).writeTree(['100644 blob abc\tfile.txt'])).toBe('tree-oid');
     expect(tree.emptyTree).toBe('4b825dc642cb6eb9a060e54bf8d69288fbee4904');
   });
 });

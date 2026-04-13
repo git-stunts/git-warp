@@ -392,12 +392,12 @@ describe('Transform', () => {
 describe('Sink', () => {
   it('_accept throws if not overridden', () => {
     const s = new Sink();
-    expect(() => s._accept(1)).toThrow('not implemented');
+    expect(() => (/** @type {any} */ (s))._accept(1)).toThrow('not implemented');
   });
 
   it('_finalize throws if not overridden', () => {
     const s = new Sink();
-    expect(() => s._finalize()).toThrow('not implemented');
+    expect(() => (/** @type {any} */ (s))._finalize()).toThrow('not implemented');
   });
 
   it('consume() calls _accept for each item and _finalize at end', async () => {
@@ -408,7 +408,7 @@ describe('Sink', () => {
 
   it('consume() rejects nullish sources', async () => {
     const sink = new ArraySink();
-    await expect(sink.consume(/** @type {AsyncIterable<unknown>} */ (undefined)))
+    await expect(sink.consume(/** @type {AsyncIterable<unknown>} */ (/** @type {unknown} */ (undefined))))
       .rejects.toThrow('Sink.consume() requires a source');
   });
 });

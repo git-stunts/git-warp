@@ -10,7 +10,7 @@ describe('CommitPort', () => {
 
   it('abstract methods are not callable on base prototype', () => {
     for (const method of abstractMethods) {
-      expect(CommitPort.prototype[method]).toBeUndefined();
+      expect((/** @type {any} */ (CommitPort.prototype))[method]).toBeUndefined();
     }
   });
 
@@ -29,7 +29,7 @@ describe('CommitPort', () => {
     }
     const c = new TestCommit();
     expect(c).toBeInstanceOf(CommitPort);
-    expect(await c.commitNode({ message: 'test' })).toBe('sha');
+    expect(await (/** @type {any} */ (c)).commitNode({ message: 'test' })).toBe('sha');
     expect(await c.ping()).toEqual({ ok: true, latencyMs: 1 });
   });
 });

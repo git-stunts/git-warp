@@ -123,7 +123,7 @@ describe('BitmapNeighborProvider', () => {
           ['knows', 1],
           ['likes', 2],
         ])),
-        getEdges: vi.fn().mockImplementation((nodeId, direction, labelIds) => {
+        getEdges: vi.fn().mockImplementation((_nodeId, direction, _labelIds) => {
           if (direction === 'out') {
             return [
               { neighborId: 'n2', label: 'likes' },

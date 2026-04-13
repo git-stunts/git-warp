@@ -22,7 +22,7 @@ describe('SeekCachePort', () => {
     }
     const cache = new TestCache();
     expect(cache).toBeInstanceOf(SeekCachePort);
-    expect(await cache.get('key')).toBeNull();
+    expect(await (/** @type {any} */ (cache)).get('key')).toBeNull();
     expect(await cache.keys()).toEqual([]);
   });
 });

@@ -182,7 +182,7 @@ describe('WarpRuntime — audit mode', () => {
       return;
     }
 
-    const commit = persistence._commits.get(auditSha);
+    const commit = (/** @type {any} */ (persistence))._commits.get(auditSha);
     expect(commit).toBeTruthy();
     const tree = await persistence.readTree(/** @type {{ treeOid: string }} */ (commit).treeOid);
     expect(tree).toHaveProperty('receipt.cbor');

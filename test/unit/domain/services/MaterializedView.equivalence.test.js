@@ -15,7 +15,6 @@ import {
   applyOpV2,
   reduceV5,
 } from '../../../../src/domain/services/JoinReducer.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';

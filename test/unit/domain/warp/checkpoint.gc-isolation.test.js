@@ -10,7 +10,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import CheckpointController from '../../../../src/domain/services/controllers/CheckpointController.js';
 import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.ts';
 import GCPolicy from '../../../../src/domain/services/GCPolicy.ts';

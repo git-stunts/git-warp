@@ -83,6 +83,7 @@ describe('WarpCore', () => {
     /** @type {WarpCore} */
     let core;
     let runtime;
+    /** @type {any} */
     let runtimeProto;
 
     beforeEach(() => {
@@ -133,6 +134,7 @@ describe('WarpCore', () => {
     /** @type {WarpCore} */
     let core;
     let runtime;
+    /** @type {any} */
     let runtimeProto;
 
     beforeEach(() => {

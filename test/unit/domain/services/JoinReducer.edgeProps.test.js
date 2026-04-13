@@ -15,7 +15,6 @@ import {
 const reduceV5 = _reduceV5;
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';

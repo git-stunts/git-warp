@@ -20,7 +20,6 @@ import {
 const reduceV5 = _reduceV5;
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
@@ -919,7 +918,7 @@ describe('JoinReducer', () => {
       const originalReceiptName = strategy.receiptName;
 
       try {
-        strategy.receiptName = 'FutureBlobValue';
+        (/** @type {any} */ (strategy)).receiptName = 'FutureBlobValue';
         const result = applyWithReceipt(state, createPatch({
           writer: 'w1',
           lamport: 1,
@@ -929,7 +928,7 @@ describe('JoinReducer', () => {
 
         expect(result.receipt.ops).toEqual([]);
       } finally {
-        strategy.receiptName = originalReceiptName;
+        (/** @type {any} */ (strategy)).receiptName = originalReceiptName;
       }
     });
 

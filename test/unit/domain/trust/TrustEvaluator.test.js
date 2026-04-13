@@ -22,23 +22,25 @@ import {
 } from './fixtures/goldenRecords.ts';
 
 /** Build an ad-hoc TrustRecord from plain fields. */
-function tr(fields) {
-  return TrustRecord.fromDecoded({
+function tr(/** @type {Record<string, unknown>} */ fields) {
+  return TrustRecord.fromDecoded(/** @type {any} */ ({
     ...fields,
     signaturePayload: textEncode(signaturePayload(fields)),
-  });
+  }));
 }
 
+/** @type {import('../../../../src/domain/trust/schemas.ts').TrustPolicy} */
 const VALID_POLICY = {
   schemaVersion: 1,
-  mode: 'enforce',
-  writerPolicy: 'all_writers_must_be_trusted',
+  mode: /** @type {'enforce'} */ ('enforce'),
+  writerPolicy: /** @type {'all_writers_must_be_trusted'} */ ('all_writers_must_be_trusted'),
 };
 
+/** @type {import('../../../../src/domain/trust/schemas.ts').TrustPolicy} */
 const WARN_POLICY = {
   schemaVersion: 1,
-  mode: 'warn',
-  writerPolicy: 'all_writers_must_be_trusted',
+  mode: /** @type {'warn'} */ ('warn'),
+  writerPolicy: /** @type {'all_writers_must_be_trusted'} */ ('all_writers_must_be_trusted'),
 };
 
 describe('evaluateWriters — trusted writer', () => {
@@ -97,7 +99,7 @@ describe('evaluateWriters — untrusted writers', () => {
 describe('evaluateWriters — policy validation', () => {
   it('returns fail for invalid policy', async () => {
     const state = await buildState([KEY_ADD_1]);
-    const assessment = evaluateWriters(['alice'], state, { mode: 'bogus' });
+    const assessment = evaluateWriters(['alice'], state, /** @type {any} */ ({ mode: 'bogus' }));
 
     expect(assessment.trustVerdict).toBe('fail');
     expect(assessment.trust.status).toBe('error');

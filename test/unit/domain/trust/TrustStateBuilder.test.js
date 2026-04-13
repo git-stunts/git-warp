@@ -28,11 +28,11 @@ import {
 } from './fixtures/goldenRecords.ts';
 
 /** Build an ad-hoc TrustRecord from plain fields. */
-function tr(fields) {
-  return TrustRecord.fromDecoded({
+function tr(/** @type {Record<string, unknown>} */ fields) {
+  return TrustRecord.fromDecoded(/** @type {any} */ ({
     ...fields,
     signaturePayload: textEncode(signaturePayload(fields)),
-  });
+  }));
 }
 
 describe('buildState — key lifecycle', () => {

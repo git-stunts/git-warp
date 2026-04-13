@@ -23,7 +23,7 @@ describe('NeighborProviderPort', () => {
     }
     const provider = new TestProvider();
     expect(provider).toBeInstanceOf(NeighborProviderPort);
-    expect(await provider.hasNode('a')).toBe(true);
-    expect(await provider.getNeighbors('a', 'out')).toHaveLength(1);
+    expect(await (/** @type {any} */ (provider)).hasNode('a')).toBe(true);
+    expect(await (/** @type {any} */ (provider)).getNeighbors('a', 'out')).toHaveLength(1);
   });
 });

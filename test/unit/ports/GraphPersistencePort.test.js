@@ -19,7 +19,7 @@ describe('GraphPersistencePort (abstract composite)', () => {
   it('abstract methods are not on the base prototype (TS abstract)', () => {
     const proto = GraphPersistencePort.prototype;
     for (const method of expectedMethods) {
-      expect(proto[method]).toBeUndefined();
+      expect((/** @type {any} */ (proto))[method]).toBeUndefined();
     }
   });
 
@@ -71,7 +71,7 @@ describe('IndexStoragePort (abstract subset)', () => {
   it('abstract methods are not on the base prototype', () => {
     const proto = IndexStoragePort.prototype;
     for (const method of expectedMethods) {
-      expect(proto[method]).toBeUndefined();
+      expect((/** @type {any} */ (proto))[method]).toBeUndefined();
     }
   });
 
@@ -94,6 +94,6 @@ describe('IndexStoragePort (abstract subset)', () => {
     }
     const storage = new TestStorage();
     expect(storage).toBeInstanceOf(IndexStoragePort);
-    expect(await storage.writeBlob(new Uint8Array())).toBe('blob-oid');
+    expect(await (/** @type {any} */ (storage)).writeBlob(new Uint8Array())).toBe('blob-oid');
   });
 });

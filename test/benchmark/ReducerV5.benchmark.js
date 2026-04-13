@@ -27,7 +27,6 @@ const reduceV5 = _reduceV5;
 function createInlineValue(value) { return { type: 'inline', value }; }
 import { Dot, encodeDot } from '../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
-import ORSet from '../../src/domain/crdt/ORSet.ts';
 import {
   TestClock,
   logEnvironment,

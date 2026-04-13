@@ -9,7 +9,6 @@ import {
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';

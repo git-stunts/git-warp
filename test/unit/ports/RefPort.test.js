@@ -20,6 +20,6 @@ describe('RefPort', () => {
     }
     const ref = new TestRef();
     expect(ref).toBeInstanceOf(RefPort);
-    expect(await ref.readRef('refs/heads/main')).toBe('abc123');
+    expect(await (/** @type {any} */ (ref)).readRef('refs/heads/main')).toBe('abc123');
   });
 });

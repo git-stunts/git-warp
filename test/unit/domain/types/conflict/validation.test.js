@@ -44,10 +44,10 @@ describe('conflict validation utilities', () => {
   describe('requireEnum', () => {
     const allowed = new Set(['a', 'b']);
     it('returns valid value', () => {
-      expect(requireEnum('a', allowed, 'f', 'C')).toBe('a');
+      expect(requireEnum('a', allowed, { name: 'f', context: 'C' })).toBe('a');
     });
     it('rejects invalid value', () => {
-      expect(() => requireEnum('x', allowed, 'f', 'C')).toThrow('must be one of');
+      expect(() => requireEnum('x', allowed, { name: 'f', context: 'C' })).toThrow('must be one of');
     });
   });
 
@@ -69,13 +69,13 @@ describe('conflict validation utilities', () => {
   describe('optionalEnum', () => {
     const allowed = new Set(['x', 'y']);
     it('returns undefined for null', () => {
-      expect(optionalEnum(null, allowed, 'f', 'C')).toBeUndefined();
+      expect(optionalEnum(null, allowed, { name: 'f', context: 'C' })).toBeUndefined();
     });
     it('returns valid value', () => {
-      expect(optionalEnum('x', allowed, 'f', 'C')).toBe('x');
+      expect(optionalEnum('x', allowed, { name: 'f', context: 'C' })).toBe('x');
     });
     it('rejects invalid value', () => {
-      expect(() => optionalEnum('z', allowed, 'f', 'C')).toThrow('must be one of');
+      expect(() => optionalEnum('z', allowed, { name: 'f', context: 'C' })).toThrow('must be one of');
     });
   });
 

@@ -14,6 +14,6 @@ describe('ConfigPort', () => {
     }
     const cfg = new TestConfig();
     expect(cfg).toBeInstanceOf(ConfigPort);
-    expect(await cfg.configGet('key')).toBe('value');
+    expect(await (/** @type {any} */ (cfg)).configGet('key')).toBe('value');
   });
 });

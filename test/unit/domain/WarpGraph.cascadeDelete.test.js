@@ -251,7 +251,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
 
       // Load and verify the committed patches
       const patches = await graph.getWriterPatches('w1');
-      const lastEntry = /** @type {{ patch: { ops: Array<Record<string, unknown>> } }} */ (patches[patches.length - 1]);
+      const lastEntry = /** @type {{ patch: { ops: Array<Record<string, unknown>> } }} */ (/** @type {unknown} */ (patches[patches.length - 1]));
       const lastPatch = lastEntry.patch;
 
       // The cascade patch should contain EdgeRemove + NodeRemove

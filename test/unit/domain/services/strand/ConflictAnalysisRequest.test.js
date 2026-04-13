@@ -9,7 +9,7 @@ describe('ConflictAnalysisRequest', () => {
     expect(request.strandId).toBeNull();
     expect(request.entityId).toBeNull();
     expect(request.target).toBeNull();
-    expect(request.kinds).toBeNull();
+    expect(request['kinds']).toBeNull();
     expect(request.writerId).toBeNull();
     expect(request.evidence).toBe('standard');
     expect(request.maxPatches).toBeNull();
@@ -39,7 +39,7 @@ describe('ConflictAnalysisRequest', () => {
     expect(request.strandId).toBe('alpha');
     expect(request.entityId).toBe('node:1');
     expect(request.target).toEqual({ targetKind: 'node', entityId: 'node:1' });
-    expect(request.kinds).toEqual(['redundancy', 'supersession']);
+    expect(request['kinds']).toEqual(['redundancy', 'supersession']);
     expect(request.writerId).toBe('writer-1');
     expect(request.evidence).toBe('full');
     expect(request.maxPatches).toBe(3);
@@ -51,14 +51,14 @@ describe('ConflictAnalysisRequest', () => {
       writerId: 'writer-1',
     });
     expect(Object.isFrozen(request.target)).toBe(true);
-    expect(Object.isFrozen(request.kinds)).toBe(true);
+    expect(Object.isFrozen(request['kinds'])).toBe(true);
   });
 
   it('normalizes every supported target selector shape', () => {
     /**
      * @typedef {{
      *   input: import('../../../../../src/domain/services/strand/ConflictAnalysisRequest.ts').ConflictTargetSelector,
-     *   expected: import('../../../../../src/domain/services/strand/ConflictAnalysisRequest.ts').ConflictSnapshotTarget
+     *   expected: Record<string, unknown>
      * }} TargetCase
      */
 
@@ -86,7 +86,7 @@ describe('ConflictAnalysisRequest', () => {
       const request = ConflictAnalysisRequest.from({ target: testCase.input });
       const filterRecord = request.toSnapshotFilterRecord();
       expect(request.target).toEqual(testCase.expected);
-      expect(filterRecord.target).toEqual(testCase.expected);
+      expect(filterRecord['target']).toEqual(testCase.expected);
     }
   });
 
@@ -107,8 +107,8 @@ describe('ConflictAnalysisRequest', () => {
       kind: ['supersession', 'eventual_override', 'supersession', 'redundancy'],
     });
 
-    expect(request.kinds).toEqual(['eventual_override', 'redundancy', 'supersession']);
-    expect(request.toSnapshotFilterRecord().kind).toEqual([
+    expect(request['kinds']).toEqual(['eventual_override', 'redundancy', 'supersession']);
+    expect(request.toSnapshotFilterRecord()['kind']).toEqual([
       'eventual_override',
       'redundancy',
       'supersession',

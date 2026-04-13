@@ -236,7 +236,7 @@ describe('PatchBuilder', () => {
 
       const patch = builder.build();
       expect(patch.ops).toHaveLength(1);
-      const op0 = /** @type {{ type: string, node: string, key: string, value: unknown, dot: unknown }} */ (patch.ops[0]);
+      const op0 = /** @type {{ type: string, node: string, key: string, value: unknown, dot: unknown }} */ (/** @type {unknown} */ (patch.ops[0]));
       expect(op0.type).toBe('PropSet');
       expect(op0.node).toBe('x');
       expect(op0.key).toBe('name');
@@ -1349,7 +1349,7 @@ describe('PatchBuilder', () => {
       builder.removeNode('alice');
       const patch = builder.build();
       expect(patch.ops).toHaveLength(1);
-      const op = /** @type {{ type: string, observedDots: string[] }} */ (patch.ops[0]);
+      const op = /** @type {{ type: string, observedDots: string[] }} */ (/** @type {unknown} */ (patch.ops[0]));
       expect(op.type).toBe('NodeRemove');
       expect(op.observedDots.length).toBeGreaterThan(0);
     });

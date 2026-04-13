@@ -20,6 +20,6 @@ describe('LoggerPort', () => {
     }
     const logger = new TestLogger();
     expect(logger).toBeInstanceOf(LoggerPort);
-    expect(logger.child({})).toBeInstanceOf(LoggerPort);
+    expect((/** @type {any} */ (logger)).child({})).toBeInstanceOf(LoggerPort);
   });
 });

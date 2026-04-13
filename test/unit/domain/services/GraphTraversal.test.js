@@ -214,7 +214,9 @@ describe('GraphTraversal.dfs', () => {
   });
 
   it('calls DFS hooks for visits and expansions', async () => {
+    /** @type {Array<{nodeId: string, depth: number}>} */
     const visited = [];
+    /** @type {Array<{nodeId: string, count: number}>} */
     const expanded = [];
     const engine = new GraphTraversal({ provider: diamondProvider() });
     await engine.dfs({
@@ -956,10 +958,10 @@ describe('GraphTraversal private helpers', () => {
   it('_biAStarExpand returns immediately for stale heap entries', async () => {
     const engine = new GraphTraversal({ provider: diamondProvider() });
     const result = await engine._biAStarExpand({
-      heap: {
+      heap: /** @type {any} */ ({
         extractMin: () => 'a',
         insert: () => {},
-      },
+      }),
       visited: new Set(['a']),
       gScore: new Map([['a', 0]]),
       predMap: new Map(),
@@ -982,10 +984,10 @@ describe('GraphTraversal private helpers', () => {
       provider: buildProvider([{ from: 'a', to: 'b' }]),
     });
     const result = await engine._biAStarExpand({
-      heap: {
+      heap: /** @type {any} */ ({
         extractMin: () => 'a',
         insert: () => {},
-      },
+      }),
       visited: new Set(),
       gScore: new Map([['a', 2]]),
       predMap: new Map(),
@@ -1004,6 +1006,7 @@ describe('GraphTraversal private helpers', () => {
   });
 
   it('_biAStarExpand skips neighbors that are already visited on this side', async () => {
+    /** @type {Array<{nodeId: string, priority: number}>} */
     const inserts = [];
     const engine = new GraphTraversal({
       provider: buildProvider([
@@ -1013,10 +1016,10 @@ describe('GraphTraversal private helpers', () => {
     });
     const predMap = new Map();
     const result = await engine._biAStarExpand({
-      heap: {
+      heap: /** @type {any} */ ({
         extractMin: () => 'a',
-        insert: (nodeId, priority) => inserts.push({ nodeId, priority }),
-      },
+        insert: (/** @type {string} */ nodeId, /** @type {number} */ priority) => inserts.push({ nodeId, priority }),
+      }),
       visited: new Set(['b']),
       gScore: new Map([['a', 0]]),
       predMap,

@@ -16,7 +16,6 @@ import {
 const reduceV5 = _reduceV5;
 import { createFrontier } from '../../../../src/domain/services/Frontier.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';

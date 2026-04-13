@@ -387,7 +387,7 @@ describe('AuditReceiptService — commit flow', () => {
 
   it('audit commit tree contains receipt.cbor blob', async () => {
     const sha = await service.commit(makeTickReceipt());
-    const commit = persistence._commits.get(/** @type {string} */ (sha));
+    const commit = (/** @type {any} */ (persistence))._commits.get(/** @type {string} */ (sha));
     expect(commit).toBeTruthy();
     const tree = await persistence.readTree(/** @type {{ treeOid: string }} */ (commit).treeOid);
     expect(tree).toHaveProperty('receipt.cbor');

@@ -31,9 +31,9 @@ describe('Dot', () => {
     });
 
     it('throws on non-string writerId', () => {
-      expect(() => Dot.create(123, 1)).toThrow('writerId must be a non-empty string');
-      expect(() => Dot.create(null, 1)).toThrow('writerId must be a non-empty string');
-      expect(() => Dot.create(undefined, 1)).toThrow('writerId must be a non-empty string');
+      expect(() => Dot.create(/** @type {any} */ (123), 1)).toThrow('writerId must be a non-empty string');
+      expect(() => Dot.create(/** @type {any} */ (null), 1)).toThrow('writerId must be a non-empty string');
+      expect(() => Dot.create(/** @type {any} */ (undefined), 1)).toThrow('writerId must be a non-empty string');
     });
 
     it('throws on non-positive counter', () => {
@@ -48,8 +48,8 @@ describe('Dot', () => {
     });
 
     it('throws on non-number counter', () => {
-      expect(() => Dot.create('alice', '1')).toThrow('counter must be a positive integer');
-      expect(() => Dot.create('alice', null)).toThrow('counter must be a positive integer');
+      expect(() => Dot.create('alice', /** @type {any} */ ('1'))).toThrow('counter must be a positive integer');
+      expect(() => Dot.create('alice', /** @type {any} */ (null))).toThrow('counter must be a positive integer');
     });
   });
 

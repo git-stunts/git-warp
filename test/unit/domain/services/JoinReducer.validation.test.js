@@ -14,7 +14,6 @@ import {
 } from '../../../../src/domain/services/JoinReducer.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import PatchError from '../../../../src/domain/errors/PatchError.ts';
 
 /** @type {(...args: any[]) => any} */

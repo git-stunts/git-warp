@@ -37,17 +37,17 @@ describe('ConflictParticipant', () => {
   });
 
   it('treats null causalRelationToWinner as undefined', () => {
-    const p = new ConflictParticipant({ ...VALID, causalRelationToWinner: null });
+    const p = new ConflictParticipant(/** @type {any} */ ({ ...VALID, causalRelationToWinner: null }));
     expect(p.causalRelationToWinner).toBeUndefined();
   });
 
   it('treats null notes as undefined', () => {
-    const p = new ConflictParticipant({ ...VALID, notes: null });
+    const p = new ConflictParticipant(/** @type {any} */ ({ ...VALID, notes: null }));
     expect(p.notes).toBeUndefined();
   });
 
   it('rejects non-ConflictAnchor anchor', () => {
-    expect(() => new ConflictParticipant({ ...VALID, anchor: {} })).toThrow('anchor must be a ConflictAnchor');
+    expect(() => new ConflictParticipant(/** @type {any} */ ({ ...VALID, anchor: {} }))).toThrow('anchor must be a ConflictAnchor');
   });
 
   it('rejects invalid causalRelationToWinner', () => {
@@ -55,10 +55,10 @@ describe('ConflictParticipant', () => {
   });
 
   it('rejects non-boolean structurallyDistinctAlternative', () => {
-    expect(() => new ConflictParticipant({ ...VALID, structurallyDistinctAlternative: 1 })).toThrow('must be a boolean');
+    expect(() => new ConflictParticipant(/** @type {any} */ ({ ...VALID, structurallyDistinctAlternative: 1 }))).toThrow('must be a boolean');
   });
 
   it('rejects non-boolean replayableFromAnchors', () => {
-    expect(() => new ConflictParticipant({ ...VALID, replayableFromAnchors: 'yes' })).toThrow('must be a boolean');
+    expect(() => new ConflictParticipant(/** @type {any} */ ({ ...VALID, replayableFromAnchors: 'yes' }))).toThrow('must be a boolean');
   });
 });

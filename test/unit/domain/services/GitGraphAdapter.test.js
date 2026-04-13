@@ -5,7 +5,7 @@ import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts'
 describe('GitGraphAdapter', () => {
   describe('constructor', () => {
     it('requires plumbing', () => {
-      expect(() => new GitGraphAdapter({ plumbing: null }))
+      expect(() => new GitGraphAdapter(/** @type {any} */ ({ plumbing: null })))
         .toThrow(/plumbing is required/);
     });
   });

@@ -59,10 +59,10 @@ describe('BitmapIndexBuilder', () => {
       builder.addEdge('aabbcc', 'aaddee');
 
       const tree = await builder.serialize();
-      const data = defaultCodec.decode(tree['shards_fwd_aa.cbor']);
+      const data = defaultCodec.decode(/** @type {Uint8Array} */ (tree['shards_fwd_aa.cbor']));
 
       // Decoded data IS the shard map — no envelope wrapping
-      expect(data['aabbcc']).toBeInstanceOf(Uint8Array);
+      expect((/** @type {any} */ (data))['aabbcc']).toBeInstanceOf(Uint8Array);
     });
 
     it('writes CBOR shards with no version envelope', async () => {
@@ -72,17 +72,17 @@ describe('BitmapIndexBuilder', () => {
       const tree = await builder.serialize();
 
       // Decode meta shard — should be a plain ID map, no version/checksum
-      const metaData = defaultCodec.decode(tree['meta_aa.cbor']);
+      const metaData = defaultCodec.decode(/** @type {Uint8Array} */ (tree['meta_aa.cbor']));
       expect(metaData).not.toHaveProperty('version');
       expect(metaData).not.toHaveProperty('checksum');
 
       // Decode forward shard — should be a plain bitmap map, no envelope
-      const fwdData = defaultCodec.decode(tree['shards_fwd_aa.cbor']);
+      const fwdData = defaultCodec.decode(/** @type {Uint8Array} */ (tree['shards_fwd_aa.cbor']));
       expect(fwdData).not.toHaveProperty('version');
       expect(fwdData).not.toHaveProperty('checksum');
 
       // Decode reverse shard — should be a plain bitmap map, no envelope
-      const revData = defaultCodec.decode(tree['shards_rev_dd.cbor']);
+      const revData = defaultCodec.decode(/** @type {Uint8Array} */ (tree['shards_rev_dd.cbor']));
       expect(revData).not.toHaveProperty('version');
       expect(revData).not.toHaveProperty('checksum');
     });

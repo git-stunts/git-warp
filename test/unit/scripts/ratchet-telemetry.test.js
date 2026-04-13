@@ -167,8 +167,8 @@ describe('ratchet telemetry', () => {
     });
 
     const delta = diffSnapshots(fromSnapshot, toSnapshot);
-    expect(delta.deltas.typecheckErrors).toBe(-12);
-    expect(delta.deltas.testsPassed).toBe(5);
+    expect(delta.deltas['typecheckErrors']).toBe(-12);
+    expect(delta.deltas['testsPassed']).toBe(5);
     expect(formatDelta(delta)).toContain('typecheckErrors: -12');
     expect(formatDelta(delta)).toContain('testsPassed: +5');
   });

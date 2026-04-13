@@ -12,7 +12,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { encodePropKey, encodeEdgeKey } from '../../../src/domain/services/JoinReducer.ts';
-import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import { Dot, encodeDot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 

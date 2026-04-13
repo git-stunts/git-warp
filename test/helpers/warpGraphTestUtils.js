@@ -16,7 +16,6 @@ import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGrap
 import { encode } from '../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
-import ORSet from '../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
 /** @param {unknown} value */

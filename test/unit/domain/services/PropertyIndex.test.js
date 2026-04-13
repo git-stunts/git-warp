@@ -27,7 +27,7 @@ function mockStorageFromShards(shards) {
   }
 
   return {
-    storage: { readBlob: async (/** @type {string} */ oid) => blobs.get(oid) },
+    storage: /** @type {any} */ ({ readBlob: async (/** @type {string} */ oid) => blobs.get(oid) }),
     oids,
   };
 }
@@ -136,7 +136,7 @@ describe('PropertyIndex', () => {
 
   it('throws a descriptive error when a shard OID is missing', async () => {
     const reader = new PropertyIndexReader({
-      storage: { readBlob: async () => undefined },
+      storage: /** @type {any} */ ({ readBlob: async () => undefined }),
     });
     reader.setup({ 'props_ab.cbor': 'oid_missing' });
     const abNodeId = `ab${'0'.repeat(38)}`;
@@ -148,7 +148,7 @@ describe('PropertyIndex', () => {
     const abNodeId = `ab${'0'.repeat(38)}`;
     const shardPath = `props_${computeShardKey(abNodeId)}.cbor`;
     const reader = new PropertyIndexReader({
-      storage: { readBlob: async () => codec.encode({ [abNodeId]: { name: 'Alice' } }) },
+      storage: /** @type {any} */ ({ readBlob: async () => codec.encode({ [abNodeId]: { name: 'Alice' } }) }),
     });
     reader.setup({ [shardPath]: 'oid_bad_format' });
 

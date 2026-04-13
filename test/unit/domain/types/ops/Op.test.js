@@ -12,7 +12,7 @@ import BlobValue from '../../../../../src/domain/types/ops/BlobValue.ts';
 
 describe('Op base class', () => {
   it('cannot be instantiated directly', () => {
-    expect(() => new Op('NodeAdd')).toThrow();
+    expect(() => new (/** @type {any} */ (Op))('NodeAdd')).toThrow();
   });
 
   it('is the prototype of all op subclasses', () => {

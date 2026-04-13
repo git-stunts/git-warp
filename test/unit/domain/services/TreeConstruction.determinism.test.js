@@ -6,7 +6,6 @@ import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.ts';
 import { createV5 } from '../../../../src/domain/services/state/checkpointCreate.ts';
 import { createEmptyState, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { CONTENT_PROPERTY_KEY, encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.ts';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
@@ -70,7 +69,7 @@ async function createPatchTreeOid(contentIds, shuffleSeed) {
   await builder.attachContent('dup', `payload:${contentIds[0]}`);
 
   if (shuffleSeed !== null) {
-    builder._contentBlobs = createRng(shuffleSeed).shuffle(builder._contentBlobs);
+    (/** @type {any} */ (builder))._contentBlobs = createRng(shuffleSeed).shuffle((/** @type {any} */ (builder))._contentBlobs);
   }
 
   const commitSha = await builder.commit();
@@ -159,7 +158,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
   for (const item of orderedItems) {
     state.prop.set(item.key, {
       eventId: item.eventId,
-      value: item.value,
+      value: /** @type {import('../../../../src/domain/types/PropValue.ts').PropValue} */ (item.value),
     });
   }
 

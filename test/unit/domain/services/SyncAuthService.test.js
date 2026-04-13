@@ -720,7 +720,7 @@ describe('Constructor', () => {
   });
 
   it('rejects undefined options', () => {
-    expect(() => new SyncAuthService(undefined)).toThrow('non-empty keys map');
+    expect(() => new SyncAuthService(/** @type {any} */ (undefined))).toThrow('non-empty keys map');
   });
 
   it('defaults optional params without throwing', () => {

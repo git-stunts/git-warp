@@ -58,16 +58,7 @@ function fakePatchEntry(opts = {}) {
 /**
  * Creates a mock PatchCollector with sensible defaults.
  *
- * @param {Partial<{
- *   discoverWriters: () => Promise<string[]>,
- *   loadWriterPatches: (id: string) => Promise<Array<{patch: Patch, sha: string}>>,
- *   collectForFrontier: (frontier: Map<string,string>, ceiling: number|null) => Promise<Array<{patch: Patch, sha: string}>>,
- *   loadCheckpoint: () => Promise<object|null>,
- *   loadPatchesSince: (ck: object) => Promise<Array<{patch: Patch, sha: string}>>,
- *   loadPatchChain: (to: string, from?: string|null) => Promise<Array<{patch: Patch, sha: string}>>,
- *   getFrontier: () => Promise<Map<string,string>>,
- * }>} [overrides]
- * @returns {object}
+ * @param {object} [overrides]
  */
 function makeMockPatches(overrides = {}) {
   return {
@@ -86,7 +77,6 @@ function makeMockPatches(overrides = {}) {
  * Creates a mock persistence port with sensible defaults.
  *
  * @param {object} [overrides]
- * @returns {object}
  */
 function makeMockPersistence(overrides = {}) {
   return {
@@ -645,7 +635,7 @@ describe('MaterializeController', () => {
         expect.any(Map),
         null,
       );
-      const calledFrontier = /** @type {Map<string,string>} */ (patches.collectForFrontier.mock.calls[0][0]);
+      const calledFrontier = /** @type {Map<string,string>} */ (/** @type {any} */ (patches.collectForFrontier.mock.calls[0])[0]);
       expect([...calledFrontier.keys()]).toEqual(['w1', 'w2']); // sorted
     });
 

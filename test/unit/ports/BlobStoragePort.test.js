@@ -18,7 +18,7 @@ describe('BlobStoragePort', () => {
     }
     const s = new TestStorage();
     expect(s).toBeInstanceOf(BlobStoragePort);
-    expect(await s.store(new Uint8Array())).toBe('oid');
-    expect(await s.retrieve('x')).toEqual(new Uint8Array([1]));
+    expect(await (/** @type {any} */ (s)).store(new Uint8Array())).toBe('oid');
+    expect(await (/** @type {any} */ (s)).retrieve('x')).toEqual(new Uint8Array([1]));
   });
 });

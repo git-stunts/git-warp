@@ -65,12 +65,10 @@ describe('initRoaring', () => {
     const { initRoaring, getRoaringBitmap32 } = roaringMod;
 
     const innerBitmap = createMethodBitmap(false);
-    const wrappedMod = /** @type {import('../../../../src/domain/utils/roaring.ts').RoaringModule} */ (
-      /** @type {unknown} */ ({
+    const wrappedMod = /** @type {any} */ ({
         default: { RoaringBitmap32: innerBitmap },
         RoaringBitmap32: undefined,
-      })
-    );
+      });
     await initRoaring(wrappedMod);
 
     expect(getRoaringBitmap32()).toBe(innerBitmap);
@@ -153,9 +151,7 @@ describe('getNativeRoaringAvailable', () => {
 
   it('returns false when the loaded module is malformed', async () => {
     const roaringMod = await importFreshRoaring();
-    await roaringMod.initRoaring(/** @type {import('../../../../src/domain/utils/roaring.ts').RoaringModule} */ (
-      /** @type {unknown} */ ({})
-    ));
+    await roaringMod.initRoaring(/** @type {any} */ ({}));
 
     expect(roaringMod.getNativeRoaringAvailable()).toBe(false);
   });

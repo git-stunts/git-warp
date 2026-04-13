@@ -16,10 +16,11 @@ import {
   KEY_REVOKE_2,
 } from './fixtures/goldenRecords.ts';
 
+/** @type {import('../../../../src/domain/trust/schemas.ts').TrustPolicy} */
 const ENFORCE_POLICY = {
   schemaVersion: 1,
-  mode: 'enforce',
-  writerPolicy: 'all_writers_must_be_trusted',
+  mode: /** @type {'enforce'} */ ('enforce'),
+  writerPolicy: /** @type {'all_writers_must_be_trusted'} */ ('all_writers_must_be_trusted'),
 };
 
 describe('TrustAssessment schema conformance', () => {
@@ -39,7 +40,7 @@ describe('TrustAssessment schema conformance', () => {
 
   it('error verdict (bad policy) conforms to schema', async () => {
     const state = await buildState([KEY_ADD_1]);
-    const assessment = evaluateWriters(['alice'], state, { mode: 'bogus' });
+    const assessment = evaluateWriters(['alice'], state, /** @type {any} */ ({ mode: 'bogus' }));
     const result = TrustAssessmentSchema.safeParse(assessment);
     expect(result.success).toBe(true);
   });
@@ -84,9 +85,10 @@ describe('TrustAssessment structural invariants', () => {
     const state = await buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE, KEY_REVOKE_2]);
     const assessment = evaluateWriters(['alice'], state, ENFORCE_POLICY);
     const { evidenceSummary } = assessment.trust;
-    for (const key of Object.keys(evidenceSummary)) {
-      expect(Number.isInteger(evidenceSummary[key])).toBe(true);
-      expect(evidenceSummary[key]).toBeGreaterThanOrEqual(0);
+    const anySummary = /** @type {Record<string, number>} */ (/** @type {unknown} */ (evidenceSummary));
+    for (const key of Object.keys(anySummary)) {
+      expect(Number.isInteger(anySummary[key])).toBe(true);
+      expect(anySummary[key]).toBeGreaterThanOrEqual(0);
     }
   });
 });

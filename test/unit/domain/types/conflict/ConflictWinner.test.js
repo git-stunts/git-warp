@@ -3,7 +3,7 @@ import ConflictAnchor from '../../../../../src/domain/types/conflict/ConflictAnc
 import ConflictWinner from '../../../../../src/domain/types/conflict/ConflictWinner.ts';
 
 describe('ConflictWinner', () => {
-  const anchor = new ConflictAnchor({ patchSha: 'abcd', writerId: 'w1', lamport: 1, opIndex: 0 });
+  const anchor = new ConflictAnchor(/** @type {any} */ ({ patchSha: 'abcd', writerId: 'w1', lamport: 1, opIndex: 0 }));
 
   it('creates a frozen winner', () => {
     const w = new ConflictWinner({ anchor, effectDigest: 'digest123' });
@@ -13,7 +13,7 @@ describe('ConflictWinner', () => {
   });
 
   it('rejects non-ConflictAnchor anchor', () => {
-    expect(() => new ConflictWinner({ anchor: { patchSha: 'x', writerId: 'y', lamport: 1, opIndex: 0 }, effectDigest: 'd' }))
+    expect(() => new ConflictWinner(/** @type {any} */ ({ anchor: { patchSha: 'x', writerId: 'y', lamport: 1, opIndex: 0 }, effectDigest: 'd' })))
       .toThrow('anchor must be a ConflictAnchor instance');
   });
 

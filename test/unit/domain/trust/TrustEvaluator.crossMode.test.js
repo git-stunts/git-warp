@@ -15,16 +15,18 @@ import {
   WRITER_BIND_ADD_ALICE,
 } from './fixtures/goldenRecords.ts';
 
+/** @type {import('../../../../src/domain/trust/schemas.ts').TrustPolicy} */
 const WARN_POLICY = {
   schemaVersion: 1,
-  mode: 'warn',
-  writerPolicy: 'all_writers_must_be_trusted',
+  mode: /** @type {'warn'} */ ('warn'),
+  writerPolicy: /** @type {'all_writers_must_be_trusted'} */ ('all_writers_must_be_trusted'),
 };
 
+/** @type {import('../../../../src/domain/trust/schemas.ts').TrustPolicy} */
 const ENFORCE_POLICY = {
   schemaVersion: 1,
-  mode: 'enforce',
-  writerPolicy: 'all_writers_must_be_trusted',
+  mode: /** @type {'enforce'} */ ('enforce'),
+  writerPolicy: /** @type {'all_writers_must_be_trusted'} */ ('all_writers_must_be_trusted'),
 };
 
 describe('Cross-mode determinism (RG-T5)', () => {

@@ -28,17 +28,18 @@ import {
 } from './fixtures/goldenRecords.ts';
 
 /** Build an ad-hoc TrustRecord from plain fields. */
-function tr(fields) {
-  return TrustRecord.fromDecoded({
+function tr(/** @type {Record<string, unknown>} */ fields) {
+  return TrustRecord.fromDecoded(/** @type {any} */ ({
     ...fields,
     signaturePayload: textEncode(signaturePayload(fields)),
-  });
+  }));
 }
 
+/** @type {import('../../../../src/domain/trust/schemas.ts').TrustPolicy} */
 const ENFORCE_POLICY = {
   schemaVersion: 1,
-  mode: 'enforce',
-  writerPolicy: 'all_writers_must_be_trusted',
+  mode: /** @type {'enforce'} */ ('enforce'),
+  writerPolicy: /** @type {'all_writers_must_be_trusted'} */ ('all_writers_must_be_trusted'),
 };
 
 describe('Adversarial case 1: Tampered record mid-chain', () => {

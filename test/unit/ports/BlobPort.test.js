@@ -14,7 +14,7 @@ describe('BlobPort', () => {
     }
     const blob = new TestBlob();
     expect(blob).toBeInstanceOf(BlobPort);
-    expect(await blob.writeBlob(new Uint8Array())).toBe('oid');
-    expect(await blob.readBlob('x')).toEqual(new Uint8Array([1]));
+    expect(await (/** @type {any} */ (blob)).writeBlob(new Uint8Array())).toBe('oid');
+    expect(await (/** @type {any} */ (blob)).readBlob('x')).toEqual(new Uint8Array([1]));
   });
 });

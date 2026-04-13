@@ -11,7 +11,7 @@ afterEach(() => {
   globalThis.ReadableStream = OriginalReadableStream;
 });
 
-async function collectChunks(iterable) {
+async function collectChunks(/** @type {AsyncIterable<unknown>} */ iterable) {
   const chunks = [];
   for await (const chunk of iterable) {
     chunks.push(chunk);
@@ -33,7 +33,7 @@ describe('streamUtils', () => {
   });
 
   it('returns false for readable streams when the global constructor is unavailable', () => {
-    globalThis.ReadableStream = /** @type {typeof ReadableStream} */ (undefined);
+    globalThis.ReadableStream = /** @type {any} */ (undefined);
 
     const streamLike = {
       getReader() {
@@ -74,7 +74,7 @@ describe('streamUtils', () => {
 
   it('adapts readable streams without Symbol.asyncIterator via getReader()', async () => {
     class FakeReadableStream {
-      constructor(chunks) {
+      constructor(/** @type {Uint8Array[]} */ chunks) {
         this._chunks = [...chunks];
         this.released = false;
       }
@@ -94,10 +94,10 @@ describe('streamUtils', () => {
       }
     }
 
-    globalThis.ReadableStream = FakeReadableStream;
+    globalThis.ReadableStream = /** @type {any} */ (FakeReadableStream);
 
     const stream = new FakeReadableStream([new Uint8Array([3, 4])]);
-    const iterator = normalizeToAsyncIterable(stream)[Symbol.asyncIterator]();
+    const iterator = normalizeToAsyncIterable(/** @type {any} */ (stream))[Symbol.asyncIterator]();
 
     expect(await iterator.next()).toEqual({
       value: new Uint8Array([3, 4]),
@@ -112,7 +112,7 @@ describe('streamUtils', () => {
 
   it('releases the reader when iteration is terminated early', async () => {
     class FakeReadableStream {
-      constructor(chunks) {
+      constructor(/** @type {Uint8Array[]} */ chunks) {
         this._chunks = [...chunks];
         this.released = false;
       }
@@ -127,16 +127,16 @@ describe('streamUtils', () => {
       }
     }
 
-    globalThis.ReadableStream = FakeReadableStream;
+    globalThis.ReadableStream = /** @type {any} */ (FakeReadableStream);
 
     const stream = new FakeReadableStream([new Uint8Array([9])]);
-    const iterator = normalizeToAsyncIterable(stream)[Symbol.asyncIterator]();
+    const iterator = normalizeToAsyncIterable(/** @type {any} */ (stream))[Symbol.asyncIterator]();
 
     expect(await iterator.next()).toEqual({
       value: new Uint8Array([9]),
       done: false,
     });
-    expect(await iterator.return()).toEqual({
+    expect(await iterator.return?.()).toEqual({
       value: undefined,
       done: true,
     });

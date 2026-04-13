@@ -193,7 +193,7 @@ describe('TrustPayloadParity — shape parity', () => {
 
     for (const key of REQUIRED_EVIDENCE_KEYS) {
       expect(cliPayload.trust.evidenceSummary).toHaveProperty(key);
-      expect(typeof cliPayload.trust.evidenceSummary[key]).toBe('number');
+      expect(typeof (/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (cliPayload.trust.evidenceSummary)))[key]).toBe('number');
     }
   });
 

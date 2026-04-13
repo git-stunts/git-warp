@@ -154,7 +154,7 @@ describe('PatchBuilder content attachment', () => {
 
       await builder.attachContent('node:1', 'content');
 
-      expect(builder._contentBlobs).toEqual(['abc123']);
+      expect((/** @type {any} */ (builder))._contentBlobs).toEqual(['abc123']);
     });
 
     it('returns the builder for chaining', async () => {
@@ -208,7 +208,7 @@ describe('PatchBuilder content attachment', () => {
       await expect(builder.attachContent('missing:node', 'content'))
         .rejects.toThrow("Cannot attach content to unknown node 'missing:node': add the node first");
       expect(persistence.writeBlob).not.toHaveBeenCalled();
-      expect(builder._contentBlobs).toEqual([]);
+      expect((/** @type {any} */ (builder))._contentBlobs).toEqual([]);
     });
 
     it('rejects mismatched size metadata before writing the blob', async () => {
@@ -229,7 +229,7 @@ describe('PatchBuilder content attachment', () => {
       await expect(builder.attachContent('node:1', 'hello', { size: 9 }))
         .rejects.toThrow('content metadata size 9 does not match actual byte size 5');
       expect(blobStorage.store).not.toHaveBeenCalled();
-      expect(builder._contentBlobs).toEqual([]);
+      expect((/** @type {any} */ (builder))._contentBlobs).toEqual([]);
     });
   });
 
@@ -250,7 +250,7 @@ describe('PatchBuilder content attachment', () => {
 
       expect(result).toBe(builder);
       expect(persistence.writeBlob).not.toHaveBeenCalled();
-      expect(builder._contentBlobs).toEqual([]);
+      expect((/** @type {any} */ (builder))._contentBlobs).toEqual([]);
       const patch = builder.build();
       expect(patch.ops).toHaveLength(3);
       expect(patch.ops).toContainEqual(expect.objectContaining({
@@ -286,7 +286,7 @@ describe('PatchBuilder content attachment', () => {
       expect(() => builder.clearContent('missing:node'))
         .toThrow("Cannot attach content to unknown node 'missing:node': add the node first");
       expect(persistence.writeBlob).not.toHaveBeenCalled();
-      expect(builder._contentBlobs).toEqual([]);
+      expect((/** @type {any} */ (builder))._contentBlobs).toEqual([]);
     });
   });
 
@@ -350,7 +350,7 @@ describe('PatchBuilder content attachment', () => {
 
       await builder.attachEdgeContent('a', 'b', 'rel', 'content');
 
-      expect(builder._contentBlobs).toEqual(['def456']);
+      expect((/** @type {any} */ (builder))._contentBlobs).toEqual(['def456']);
     });
 
     it('returns the builder for chaining', async () => {
@@ -389,7 +389,7 @@ describe('PatchBuilder content attachment', () => {
         builder.attachEdgeContent('no', 'such', 'edge', 'content')
       ).rejects.toThrow();
       expect(persistence.writeBlob).not.toHaveBeenCalled();
-      expect(builder._contentBlobs).toEqual([]);
+      expect((/** @type {any} */ (builder))._contentBlobs).toEqual([]);
     });
   });
 
@@ -411,7 +411,7 @@ describe('PatchBuilder content attachment', () => {
 
       expect(result).toBe(builder);
       expect(persistence.writeBlob).not.toHaveBeenCalled();
-      expect(builder._contentBlobs).toEqual([]);
+      expect((/** @type {any} */ (builder))._contentBlobs).toEqual([]);
       const patch = builder.build();
       expect(patch.ops).toHaveLength(3);
       expect(patch.ops).toContainEqual(expect.objectContaining({
@@ -444,7 +444,7 @@ describe('PatchBuilder content attachment', () => {
 
       expect(() => builder.clearEdgeContent('no', 'such', 'edge')).toThrow();
       expect(persistence.writeBlob).not.toHaveBeenCalled();
-      expect(builder._contentBlobs).toEqual([]);
+      expect((/** @type {any} */ (builder))._contentBlobs).toEqual([]);
     });
   });
 
@@ -473,7 +473,7 @@ describe('PatchBuilder content attachment', () => {
       await builder.attachContent('node:1', 'first');
       await builder.attachContent('node:2', 'second');
 
-      expect(builder._contentBlobs).toEqual(['blob1', 'blob2']);
+      expect((/** @type {any} */ (builder))._contentBlobs).toEqual(['blob1', 'blob2']);
       expect(blobStorage.store).toHaveBeenCalledTimes(2);
     });
   });

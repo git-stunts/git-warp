@@ -16,7 +16,7 @@ describe('matchGlob', () => {
   });
 
   it('returns false for non-string scalar patterns', () => {
-    expect(matchGlob(/** @type {unknown} */ (42), 'answer')).toBe(false);
+    expect(matchGlob(/** @type {any} */ (42), 'answer')).toBe(false);
   });
 
   it('escapes regex metacharacters in literal portions of globs', () => {
