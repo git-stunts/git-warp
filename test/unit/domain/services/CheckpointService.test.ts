@@ -19,16 +19,15 @@ import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCrypt
 const crypto = new NodeCryptoAdapter();
 
 // Helper to create valid 40-char hex OIDs for testing
-const makeOid = (/** @type {string} */ prefix) => {
+const makeOid = (prefix) => {
   const base = prefix.replace(/[^0-9a-f]/gi, '0').toLowerCase();
   return (base + '0'.repeat(40)).slice(0, 40);
 };
 
-const makeSequentialOid = (/** @type {number} */ index) => index.toString(16).padStart(40, '0');
+const makeSequentialOid = (index) => index.toString(16).padStart(40, '0');
 
 describe('CheckpointService', () => {
-  /** @type {any} */
-  let mockPersistence;
+    let mockPersistence: any;
 
   beforeEach(() => {
     // Create mock persistence adapter
@@ -208,7 +207,7 @@ describe('CheckpointService', () => {
         'state.cbor': stateBlobOid,
         'appliedVV.cbor': appliedVVBlobOid,
       });
-      mockPersistence.readBlob.mockImplementation((/** @type {string} */ oid) => {
+      mockPersistence.readBlob.mockImplementation((oid) => {
         if (oid === frontierBlobOid) return Promise.resolve(frontierBuffer);
         if (oid === stateBlobOid) return Promise.resolve(stateBuffer);
         if (oid === appliedVVBlobOid) return Promise.resolve(appliedVVBuffer);
@@ -307,9 +306,8 @@ describe('CheckpointService', () => {
         updateFrontier(frontier, 'writer1', makeOid('sha1'));
 
         // Track written blobs (V5 writes 3 blobs: state, frontier, appliedVV)
-        /** @type {any[]} */
-        const writtenBlobs = [];
-        mockPersistence.writeBlob.mockImplementation((/** @type {any} */ buffer) => {
+                const writtenBlobs: any[] = [];
+        mockPersistence.writeBlob.mockImplementation((buffer) => {
           writtenBlobs.push(buffer);
           return Promise.resolve(makeOid(`blob${writtenBlobs.length}`));
         });
@@ -333,8 +331,7 @@ describe('CheckpointService', () => {
         expect(writtenBlobs).toHaveLength(3);
 
         // First blob is full state - should deserialize with deserializeFullState
-        /** @type {any} */
-        const deserializedFullState = deserializeFullState(writtenBlobs[0]);
+        const deserializedFullState: any = deserializeFullState(writtenBlobs[0]);
         expect(deserializedFullState.nodeAlive.entries.has('node1')).toBe(true);
         expect(deserializedFullState.nodeAlive.entries.get('node1').has('writer1:1')).toBe(true);
       });
@@ -380,15 +377,14 @@ describe('CheckpointService', () => {
           'state.cbor': stateBlobOid,
           'appliedVV.cbor': appliedVVBlobOid,
         });
-        mockPersistence.readBlob.mockImplementation((/** @type {string} */ oid) => {
+        mockPersistence.readBlob.mockImplementation((oid) => {
           if (oid === frontierBlobOid) return Promise.resolve(frontierBuffer);
           if (oid === stateBlobOid) return Promise.resolve(stateBuffer);
           if (oid === appliedVVBlobOid) return Promise.resolve(appliedVVBuffer);
           throw new Error(`Unknown oid: ${oid}`);
         });
 
-        /** @type {any} */
-        const result = await loadCheckpoint(mockPersistence, makeOid('checkpoint'));
+        const result: any = await loadCheckpoint(mockPersistence, makeOid('checkpoint'));
 
         expect(result.schema).toBe(2);
         // V5 returns full ORSet state, not visible projection
@@ -418,12 +414,10 @@ describe('CheckpointService', () => {
         updateFrontier(frontier, 'writer1', makeOid('p'));
 
         // V5 writes 3 blobs: state, frontier, appliedVV
-        /** @type {any[]} */
-        const writtenBlobs = [];
-        /** @type {any} */
-        let writtenMessage;
+                const writtenBlobs: any[] = [];
+                let writtenMessage: any;
 
-        mockPersistence.writeBlob.mockImplementation((/** @type {any} */ buffer) => {
+        mockPersistence.writeBlob.mockImplementation((buffer) => {
           writtenBlobs.push(buffer);
           const names = ['state', 'frontier', 'appliedvv'];
           return Promise.resolve(makeOid(names[writtenBlobs.length - 1] ?? 'unknown'));
@@ -450,15 +444,14 @@ describe('CheckpointService', () => {
           'frontier.cbor': makeOid('frontier'),
           'appliedVV.cbor': makeOid('appliedvv'),
         });
-        mockPersistence.readBlob.mockImplementation((/** @type {string} */ oid) => {
+        mockPersistence.readBlob.mockImplementation((oid) => {
           if (oid === makeOid('state')) return Promise.resolve(writtenBlobs[0]);
           if (oid === makeOid('frontier')) return Promise.resolve(writtenBlobs[1]);
           if (oid === makeOid('appliedvv')) return Promise.resolve(writtenBlobs[2]);
           throw new Error(`Unknown oid: ${oid}`);
         });
 
-        /** @type {any} */
-        const loaded = await loadCheckpoint(mockPersistence, makeOid('checkpoint'));
+        const loaded: any = await loadCheckpoint(mockPersistence, makeOid('checkpoint'));
 
         expect(loaded.schema).toBe(2);
         // V5 returns full ORSet state with dots preserved
@@ -513,8 +506,8 @@ describe('CheckpointService', () => {
         const prop2Key = encodePropKeyV5('n2', 'y');
         expect(state.prop.has(prop1Key)).toBe(true);
         expect(state.prop.has(prop2Key)).toBe(true);
-        expect(/** @type {any} */ (state.prop.get(prop1Key)).value).toEqual({ type: 'inline', value: 1 });
-        expect(/** @type {any} */ (state.prop.get(prop2Key)).value).toEqual({ type: 'inline', value: 2 });
+        expect((state.prop.get(prop1Key as any))!.value).toEqual({ type: 'inline', value: 1 });
+        expect((state.prop.get(prop2Key as any))!.value).toEqual({ type: 'inline', value: 2 });
 
         // Verify observedFrontier exists
         expect(state.observedFrontier).toBeDefined();
@@ -537,8 +530,7 @@ describe('CheckpointService', () => {
   });
 
   describe('V5 checkpoint with full ORSet state', () => {
-    /** @type {any} */
-    let mockPersistence;
+        let mockPersistence: any;
 
     beforeEach(() => {
       mockPersistence = {
@@ -570,9 +562,8 @@ describe('CheckpointService', () => {
         updateFrontier(frontier, 'alice', makeOid('sha1'));
 
         // Track written blobs
-        /** @type {any[]} */
-        const writtenBlobs = [];
-        mockPersistence.writeBlob.mockImplementation((/** @type {any} */ buffer) => {
+                const writtenBlobs: any[] = [];
+        mockPersistence.writeBlob.mockImplementation((buffer) => {
           writtenBlobs.push(buffer);
           return Promise.resolve(makeOid(`blob${writtenBlobs.length}`));
         });
@@ -593,9 +584,9 @@ describe('CheckpointService', () => {
         // Verify tree has all 3 entries
         const treeEntries = mockPersistence.writeTree.mock.calls[0][0];
         expect(treeEntries).toHaveLength(3);
-        expect(treeEntries.some((/** @type {string} */ e) => e.includes('state.cbor'))).toBe(true);
-        expect(treeEntries.some((/** @type {string} */ e) => e.includes('frontier.cbor'))).toBe(true);
-        expect(treeEntries.some((/** @type {string} */ e) => e.includes('appliedVV.cbor'))).toBe(true);
+        expect(treeEntries.some((e) => e.includes('state.cbor'))).toBe(true);
+        expect(treeEntries.some((e) => e.includes('frontier.cbor'))).toBe(true);
+        expect(treeEntries.some((e) => e.includes('appliedVV.cbor'))).toBe(true);
 
         // Verify schema 2 in message
         const messageArg = mockPersistence.commitNodeWithTree.mock.calls[0][0].message;
@@ -612,9 +603,8 @@ describe('CheckpointService', () => {
         const frontier = createFrontier();
         updateFrontier(frontier, 'alice', makeOid('sha1'));
 
-        /** @type {any} */
-        let capturedStateBuffer;
-        mockPersistence.writeBlob.mockImplementation((/** @type {any} */ buffer) => {
+                let capturedStateBuffer: any;
+        mockPersistence.writeBlob.mockImplementation((buffer) => {
           if (!capturedStateBuffer) {
             capturedStateBuffer = buffer;
           }
@@ -648,9 +638,8 @@ describe('CheckpointService', () => {
         const frontier = createFrontier();
         updateFrontier(frontier, 'alice', makeOid('sha1'));
 
-        /** @type {any} */
-        let capturedStateBuffer;
-        mockPersistence.writeBlob.mockImplementation((/** @type {any} */ buffer) => {
+                let capturedStateBuffer: any;
+        mockPersistence.writeBlob.mockImplementation((buffer) => {
           if (!capturedStateBuffer) {
             capturedStateBuffer = buffer;
           }
@@ -769,7 +758,7 @@ describe('CheckpointService', () => {
         });
 
         const treeEntries = mockPersistence.writeTree.mock.calls[0][0];
-        const contentEntries = treeEntries.filter((/** @type {string} */ entry) => entry.includes('\t_content_'));
+        const contentEntries = treeEntries.filter((entry) => entry.includes('\t_content_'));
         expect(contentEntries).toHaveLength(300);
         expect(contentEntries[0]).toBe(`040000 tree ${makeSequentialOid(0)}\t_content_${makeSequentialOid(0)}`);
         expect(contentEntries[299]).toBe(`040000 tree ${makeSequentialOid(299)}\t_content_${makeSequentialOid(299)}`);
@@ -823,7 +812,7 @@ describe('CheckpointService', () => {
         });
 
         const treeEntries = mockPersistence.writeTree.mock.calls[0][0];
-        const contentEntries = treeEntries.filter((/** @type {string} */ entry) => entry.includes('\t_content_'));
+        const contentEntries = treeEntries.filter((entry) => entry.includes('\t_content_'));
         expect(contentEntries[0]).toBe(`040000 tree ${makeSequentialOid(0)}\t_content_${makeSequentialOid(0)}`);
         expect(contentEntries[9]).toBe(`040000 tree ${makeSequentialOid(9)}\t_content_${makeSequentialOid(9)}`);
         expect(contentEntries[10]).toBe(`040000 tree ${makeSequentialOid(300)}\t_content_${makeSequentialOid(300)}`);
@@ -874,15 +863,14 @@ describe('CheckpointService', () => {
           'frontier.cbor': frontierBlobOid,
           'appliedVV.cbor': appliedVVBlobOid,
         });
-        mockPersistence.readBlob.mockImplementation((/** @type {string} */ oid) => {
+        mockPersistence.readBlob.mockImplementation((oid) => {
           if (oid === stateBlobOid) return Promise.resolve(stateBuffer);
           if (oid === frontierBlobOid) return Promise.resolve(frontierBuffer);
           if (oid === appliedVVBlobOid) return Promise.resolve(appliedVVBuffer);
           throw new Error(`Unknown oid: ${oid}`);
         });
 
-        /** @type {any} */
-        const result = await loadCheckpoint(mockPersistence, makeOid('checkpoint'));
+        const result: any = await loadCheckpoint(mockPersistence, makeOid('checkpoint'));
 
         // Verify schema
         expect(result.schema).toBe(2);
@@ -937,7 +925,7 @@ describe('CheckpointService', () => {
           'frontier.cbor': frontierBlobOid,
           'appliedVV.cbor': appliedVVBlobOid,
         });
-        mockPersistence.readBlob.mockImplementation((/** @type {string} */ oid) => {
+        mockPersistence.readBlob.mockImplementation((oid) => {
           if (oid === stateBlobOid) return Promise.resolve(stateBuffer);
           if (oid === frontierBlobOid) return Promise.resolve(frontierBuffer);
           if (oid === appliedVVBlobOid) return Promise.resolve(appliedVVBuffer);
@@ -981,14 +969,13 @@ describe('CheckpointService', () => {
           'frontier.cbor': frontierBlobOid,
           // No appliedVV.cbor
         });
-        mockPersistence.readBlob.mockImplementation((/** @type {string} */ oid) => {
+        mockPersistence.readBlob.mockImplementation((oid) => {
           if (oid === stateBlobOid) return Promise.resolve(stateBuffer);
           if (oid === frontierBlobOid) return Promise.resolve(frontierBuffer);
           throw new Error(`Unknown oid: ${oid}`);
         });
 
-        /** @type {any} */
-        const result = await loadCheckpoint(mockPersistence, makeOid('checkpoint'));
+        const result: any = await loadCheckpoint(mockPersistence, makeOid('checkpoint'));
 
         expect(result.schema).toBe(2);
         expect(result.state.nodeAlive.entries.has('a')).toBe(true);
@@ -1020,14 +1007,13 @@ describe('CheckpointService', () => {
         updateFrontier(frontier, 'bob', makeOid('sha2'));
 
         // Capture written data during create
-        /** @type {any} */ let writtenStateBlob;
-        /** @type {any} */ let writtenFrontierBlob;
-        /** @type {any} */ let writtenAppliedVVBlob;
-        /** @type {any} */
-        let writtenMessage;
+        let writtenStateBlob;
+        let writtenFrontierBlob;
+        let writtenAppliedVVBlob;
+                let writtenMessage: any;
         let blobIndex = 0;
 
-        mockPersistence.writeBlob.mockImplementation((/** @type {any} */ buffer) => {
+        mockPersistence.writeBlob.mockImplementation((buffer) => {
           switch (blobIndex++) {
             case 0:
               writtenStateBlob = buffer;
@@ -1049,7 +1035,7 @@ describe('CheckpointService', () => {
         });
 
         // Create checkpoint
-        await create(/** @type {any} */ ({
+        await create(({
           persistence: mockPersistence,
           graphName: 'roundtrip-v5',
           state,
@@ -1057,7 +1043,7 @@ describe('CheckpointService', () => {
           schema: 2,
           compact: false, // Don't compact to preserve all state
           crypto,
-        }));
+        } as any));
 
         // Setup mocks for loading
         mockPersistence.showNode.mockResolvedValue(writtenMessage);
@@ -1067,7 +1053,7 @@ describe('CheckpointService', () => {
           'frontier.cbor': makeOid('frontierOid'),
           'appliedVV.cbor': makeOid('appliedVVOid'),
         });
-        mockPersistence.readBlob.mockImplementation((/** @type {string} */ oid) => {
+        mockPersistence.readBlob.mockImplementation((oid) => {
           if (oid === makeOid('stateOid')) return Promise.resolve(writtenStateBlob);
           if (oid === makeOid('frontierOid')) return Promise.resolve(writtenFrontierBlob);
           if (oid === makeOid('appliedVVOid')) return Promise.resolve(writtenAppliedVVBlob);
@@ -1075,8 +1061,7 @@ describe('CheckpointService', () => {
         });
 
         // Load checkpoint
-        /** @type {any} */
-        const loaded = await loadCheckpoint(mockPersistence, makeOid('checkpointSha'));
+        const loaded: any = await loadCheckpoint(mockPersistence, makeOid('checkpointSha'));
 
         // Verify schema
         expect(loaded.schema).toBe(2);
@@ -1124,10 +1109,9 @@ describe('CheckpointService', () => {
         updateFrontier(frontier, 'alice', makeOid('sha1'));
         updateFrontier(frontier, 'bob', makeOid('sha2'));
 
-        /** @type {any} */
-        let capturedAppliedVVBlob;
+                let capturedAppliedVVBlob: any;
         let blobIndex = 0;
-        mockPersistence.writeBlob.mockImplementation((/** @type {any} */ buffer) => {
+        mockPersistence.writeBlob.mockImplementation((buffer) => {
           if (blobIndex === 2) {
             capturedAppliedVVBlob = buffer;
           }
@@ -1165,7 +1149,7 @@ describe('CheckpointService', () => {
 
       const blobStore = new Map();
       let blobCounter = 0;
-      mockPersistence.writeBlob.mockImplementation((/** @type {any} */ buf) => {
+      mockPersistence.writeBlob.mockImplementation((buf) => {
         const oid = makeOid(`b${String(blobCounter++).padStart(3, '0')}`);
         blobStore.set(oid, buf);
         return Promise.resolve(oid);
@@ -1173,7 +1157,7 @@ describe('CheckpointService', () => {
 
       const treeOids = new Map();
       let treeCounter = 0;
-      mockPersistence.writeTree.mockImplementation((/** @type {any} */ entries) => {
+      mockPersistence.writeTree.mockImplementation((entries) => {
         const oid = makeOid(`t${String(treeCounter++).padStart(3, '0')}`);
         treeOids.set(oid, entries);
         return Promise.resolve(oid);
@@ -1208,7 +1192,7 @@ describe('CheckpointService', () => {
 
       // Second call = main tree containing 040000 tree entry for index
       const mainEntries = mockPersistence.writeTree.mock.calls[1][0];
-      const indexEntry = mainEntries.find((/** @type {string} */ e) => e.includes('\tindex'));
+      const indexEntry = mainEntries.find((e) => e.includes('\tindex'));
       expect(indexEntry).toBeDefined();
       expect(indexEntry).toMatch(/^040000 tree/);
 
@@ -1250,7 +1234,7 @@ describe('CheckpointService', () => {
         'index/fwd_cd.cbor': makeOid('idxfwd'),
       });
 
-      mockPersistence.readBlob.mockImplementation((/** @type {string} */ oid) => {
+      mockPersistence.readBlob.mockImplementation((oid) => {
         if (oid === makeOid('state')) { return Promise.resolve(stateBlob); }
         if (oid === makeOid('frontier')) { return Promise.resolve(frontierBlob); }
         if (oid === makeOid('appliedvv')) { return Promise.resolve(appliedVVBlob); }
@@ -1295,7 +1279,7 @@ describe('CheckpointService', () => {
         'appliedVV.cbor': makeOid('appliedvv'),
       });
 
-      mockPersistence.readBlob.mockImplementation((/** @type {string} */ oid) => {
+      mockPersistence.readBlob.mockImplementation((oid) => {
         if (oid === makeOid('state')) { return Promise.resolve(stateBlob); }
         if (oid === makeOid('frontier')) { return Promise.resolve(frontierBlob); }
         if (oid === makeOid('appliedvv')) { return Promise.resolve(appliedVVBlob); }

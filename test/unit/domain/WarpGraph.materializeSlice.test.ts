@@ -486,7 +486,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
         writerId: 'alice',
       });
 
-      const fullState = /** @type {any} */ (await graph.materialize());
+      const fullState = (await graph.materialize()) as any;
 
       const slice = await graph.materializeSlice('target');
 
@@ -528,9 +528,9 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
       await graph.materialize();
 
       const slice = await graph.materializeSlice('user:alice', { receipts: true });
-      expect(/** @type {any} */ (slice.receipts)).toBeDefined();
-      expect(Array.isArray(/** @type {any} */ (slice.receipts))).toBe(true);
-      expect(/** @type {any} */ (/** @type {any} */ (slice.receipts)).length).toBe(1);
+      expect((slice.receipts as any)).toBeDefined();
+      expect(Array.isArray((slice.receipts as any))).toBe(true);
+      expect((/** @type {any} */ (slice.receipts as any)).length).toBe(1);
     });
 
     it('does not include receipts when not requested', async () => {
@@ -563,7 +563,7 @@ describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
       await graph.materialize();
 
       const slice = await graph.materializeSlice('user:alice');
-      expect(/** @type {any} */ (slice.receipts)).toBeUndefined();
+      expect((slice.receipts as any)).toBeUndefined();
     });
   });
 

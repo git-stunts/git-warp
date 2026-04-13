@@ -49,7 +49,7 @@ describe('WarpRuntime.subscribe() (PL/SUB/1)', () => {
       await graph.materialize();
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
+      const diff = (onChange.mock.calls[0] as any)[0];
       expect(diff.nodes.added).toContain('user:alice');
     });
 
@@ -81,7 +81,7 @@ describe('WarpRuntime.subscribe() (PL/SUB/1)', () => {
       await graph.materialize();
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
+      const diff = (onChange.mock.calls[0] as any)[0];
       expect(diff.nodes.added).toContain('user:alice');
       expect(diff.nodes.added).toContain('user:bob');
       expect(diff.edges.added).toContainEqual({
@@ -145,8 +145,8 @@ describe('WarpRuntime.subscribe() (PL/SUB/1)', () => {
       expect(onChange3).toHaveBeenCalledTimes(1);
 
       // All receive the same diff
-      expect(/** @type {any} */ (onChange1.mock.calls[0])[0]).toEqual(/** @type {any} */ (onChange2.mock.calls[0])[0]);
-      expect(/** @type {any} */ (onChange2.mock.calls[0])[0]).toEqual(/** @type {any} */ (onChange3.mock.calls[0])[0]);
+      expect((onChange1.mock.calls[0] as any)[0]).toEqual((onChange2.mock.calls[0] as any)[0]);
+      expect((onChange2.mock.calls[0] as any)[0]).toEqual((onChange3.mock.calls[0] as any)[0]);
     });
 
     it('unsubscribing one does not affect others', async () => {
@@ -233,7 +233,7 @@ describe('WarpRuntime.subscribe() (PL/SUB/1)', () => {
       await graph.materialize();
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
+      const diff = (onChange.mock.calls[0] as any)[0];
       expect(diff.nodes.added).toContain('user:alice');
       expect(diff.nodes.removed).toEqual([]);
     });
@@ -252,7 +252,7 @@ describe('WarpRuntime.subscribe() (PL/SUB/1)', () => {
       await graph.materialize();
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
+      const diff = (onChange.mock.calls[0] as any)[0];
       expect(diff.nodes.removed).toContain('user:alice');
     });
 
@@ -326,7 +326,7 @@ describe('WarpRuntime.subscribe() (PL/SUB/1)', () => {
 
       expect(onChangeA).toHaveBeenCalledTimes(2);
       expect(onChangeC).toHaveBeenCalledTimes(1);
-      expect(/** @type {any} */ (onChangeC.mock.calls[0])[0].nodes.added).toContain('user:bob');
+      expect((onChangeC.mock.calls[0] as any)[0].nodes.added).toContain('user:bob');
     });
   });
 });
@@ -363,7 +363,7 @@ describe('WarpRuntime.subscribe() with replay option (PL/SUB/2)', () => {
 
       // Should be called immediately (synchronously)
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
+      const diff = (onChange.mock.calls[0] as any)[0];
       expect(diff.nodes.added).toContain('user:alice');
       expect(diff.nodes.added).toContain('user:bob');
       expect(diff.nodes.removed).toEqual([]);
@@ -382,7 +382,7 @@ describe('WarpRuntime.subscribe() with replay option (PL/SUB/2)', () => {
       graph.subscribe({ onChange, replay: true });
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
+      const diff = (onChange.mock.calls[0] as any)[0];
       expect(diff.nodes.added).toContain('user:alice');
       expect(diff.nodes.added).toContain('user:bob');
       expect(diff.edges.added).toContainEqual({
@@ -422,7 +422,7 @@ describe('WarpRuntime.subscribe() with replay option (PL/SUB/2)', () => {
 
       // Should receive full state as additions (deferred replay)
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
+      const diff = (onChange.mock.calls[0] as any)[0];
       expect(diff.nodes.added).toContain('user:alice');
     });
 
@@ -446,7 +446,7 @@ describe('WarpRuntime.subscribe() with replay option (PL/SUB/2)', () => {
 
       // Should receive full state (both nodes as additions)
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
+      const diff = (onChange.mock.calls[0] as any)[0];
       expect(diff.nodes.added).toContain('user:alice');
       expect(diff.nodes.added).toContain('user:bob');
     });
@@ -462,7 +462,7 @@ describe('WarpRuntime.subscribe() with replay option (PL/SUB/2)', () => {
 
       expect(onChange).toHaveBeenCalledTimes(1);
       // First call is replay (full state)
-      expect(/** @type {any} */ (onChange.mock.calls[0])[0].nodes.added).toContain('user:alice');
+      expect((onChange.mock.calls[0] as any)[0].nodes.added).toContain('user:alice');
 
       // Second commit + materialize
       await (await graph.createPatch()).addNode('user:bob').commit();
@@ -470,7 +470,7 @@ describe('WarpRuntime.subscribe() with replay option (PL/SUB/2)', () => {
 
       expect(onChange).toHaveBeenCalledTimes(2);
       // Second call is incremental (only bob)
-      const secondDiff = /** @type {any} */ (onChange.mock.calls[1])[0];
+      const secondDiff = (onChange.mock.calls[1] as any)[0];
       expect(secondDiff.nodes.added).toContain('user:bob');
       expect(secondDiff.nodes.added).not.toContain('user:alice');
     });
@@ -574,8 +574,8 @@ describe('WarpRuntime.subscribe() with replay option (PL/SUB/2)', () => {
       expect(onChange2).toHaveBeenCalledTimes(1);
 
       // Both received the same state
-      expect(/** @type {any} */ (onChange1.mock.calls[0])[0].nodes.added).toContain('user:alice');
-      expect(/** @type {any} */ (onChange2.mock.calls[0])[0].nodes.added).toContain('user:alice');
+      expect((onChange1.mock.calls[0] as any)[0].nodes.added).toContain('user:alice');
+      expect((onChange2.mock.calls[0] as any)[0].nodes.added).toContain('user:alice');
     });
   });
 });

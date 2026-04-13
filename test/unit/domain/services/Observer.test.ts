@@ -78,8 +78,7 @@ describe('Observer', () => {
         }),
       };
 
-      /** @type {any} */
-      const fakeGraph = {
+            const fakeGraph: any = {
         hasNode: async () => true,
         getNodes: async () => visibleNodes,
         getNodeProps: async () => null,
@@ -97,7 +96,7 @@ describe('Observer', () => {
         graph: fakeGraph,
       });
 
-      await /** @type {any} */ (view)._materializeGraph();
+      await (view as any)._materializeGraph();
 
       expect(provider.getNeighbors).toHaveBeenCalledTimes(visibleNodes.length);
       expect(maxInFlight).toBeLessThanOrEqual(64);
@@ -472,7 +471,7 @@ describe('Observer', () => {
           expose: ['name'],
           redact: ['secret'],
         },
-        graph: /** @type {any} */ (graphStub),
+        graph: (graphStub as any),
         source: {
           kind: 'coordinate',
           frontier: { 'writer-1': 'abc123' },
@@ -485,7 +484,7 @@ describe('Observer', () => {
       expect(result).toBe('next-observer');
       expect(graphStub.observer).toHaveBeenCalledTimes(1);
 
-      const [name, config, options] = /** @type {any[]} */ (graphStub.observer.mock.calls[0]);
+      const [name, config, options] = (graphStub.observer.mock.calls[0] as any[]);
       expect(name).toBe('focused');
       expect(config).toEqual({
         match: ['user:*'],
@@ -493,9 +492,9 @@ describe('Observer', () => {
         redact: ['secret'],
       });
       expect(options).toEqual({ source: { kind: 'live' } });
-      expect(config.match).not.toBe(/** @type {any} */ (view)._matchPattern);
-      expect(config.expose).not.toBe(/** @type {any} */ (view)._expose);
-      expect(config.redact).not.toBe(/** @type {any} */ (view)._redact);
+      expect(config.match).not.toBe((view as any)._matchPattern);
+      expect(config.expose).not.toBe((view as any)._expose);
+      expect(config.redact).not.toBe((view as any)._redact);
     });
 
     it('throws when a live backing graph is required but absent', () => {
@@ -506,7 +505,7 @@ describe('Observer', () => {
         snapshot: { state, stateHash: 'hash-1' },
       });
 
-      expect(() => /** @type {any} */ (view)._requireGraph())
+      expect(() => (view as any)._requireGraph())
         .toThrow('Observer has no live backing graph');
     });
 
@@ -532,10 +531,10 @@ describe('Observer', () => {
       const view = new Observer({
         name: 'fallback',
         config: { match: 'user:*' },
-        graph: /** @type {any} */ (graphStub),
+        graph: (graphStub as any),
       });
 
-      const materialized = await /** @type {any} */ (view)._materializeGraph();
+      const materialized = await (view as any)._materializeGraph();
 
       expect(graphStub._materializeGraph).toHaveBeenCalledTimes(1);
       expect(materialized.stateHash).toBe('live-hash');
@@ -587,10 +586,10 @@ describe('Observer', () => {
       const view = new Observer({
         name: 'provider',
         config: { match: 'user:*' },
-        graph: /** @type {any} */ (graphStub),
+        graph: (graphStub as any),
       });
 
-      const materialized = await /** @type {any} */ (view)._materializeGraph();
+      const materialized = await (view as any)._materializeGraph();
 
       expect(provider.getNeighbors).toHaveBeenCalledTimes(3);
       expect(provider.getNeighbors).toHaveBeenCalledWith('user:alice', 'out');
@@ -630,7 +629,7 @@ describe('Observer', () => {
           expose: ['name'],
           redact: ['secret'],
         },
-        graph: /** @type {any} */ (graphStub),
+        graph: (graphStub as any),
       });
 
       expect(await view.hasNode('user:alice')).toBe(true);

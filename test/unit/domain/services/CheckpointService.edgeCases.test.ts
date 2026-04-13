@@ -37,14 +37,13 @@ import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCrypt
 const crypto = new NodeCryptoAdapter();
 
 /** Creates a valid 40-char hex OID for testing. */
-const makeOid = (/** @type {string} */ prefix) => {
+const makeOid = (prefix) => {
   const base = prefix.replace(/[^0-9a-f]/gi, '0').toLowerCase();
   return (base + '0'.repeat(40)).slice(0, 40);
 };
 
 describe('CheckpointService edge cases', () => {
-  /** @type {any} */
-  let mockPersistence;
+    let mockPersistence: any;
 
   beforeEach(() => {
     mockPersistence = {
@@ -123,7 +122,7 @@ describe('CheckpointService edge cases', () => {
         'appliedVV.cbor': makeOid('appliedvv'),
       });
       mockPersistence.readBlob.mockImplementation(
-        (/** @type {string} */ oid) => {
+        (oid) => {
           if (oid === makeOid('state')) {
             return Promise.resolve(stateBuffer);
           }
@@ -156,13 +155,11 @@ describe('CheckpointService edge cases', () => {
       const frontier = createFrontier();
 
       // Capture written blobs
-      /** @type {any[]} */
-      const writtenBlobs = [];
-      /** @type {any} */
-      let writtenMessage;
+            const writtenBlobs: any[] = [];
+            let writtenMessage: any;
 
       mockPersistence.writeBlob.mockImplementation(
-        (/** @type {any} */ buffer) => {
+        (buffer) => {
           writtenBlobs.push(buffer);
           const names = ['state', 'frontier', 'appliedvv'];
           return Promise.resolve(makeOid(names[writtenBlobs.length - 1] ?? 'blob'));
@@ -192,7 +189,7 @@ describe('CheckpointService edge cases', () => {
         'appliedVV.cbor': makeOid('appliedvv'),
       });
       mockPersistence.readBlob.mockImplementation(
-        (/** @type {string} */ oid) => {
+        (oid) => {
           if (oid === makeOid('state')) {
             return Promise.resolve(writtenBlobs[0]);
           }
@@ -225,14 +222,14 @@ describe('CheckpointService edge cases', () => {
 
   describe('deserializeFullState edge cases', () => {
     it('returns empty state for null buffer', () => {
-      const state = deserializeFullState(/** @type {any} */ (null));
+      const state = deserializeFullState((null as any));
       expect(state.nodeAlive.elements()).toHaveLength(0);
       expect(state.edgeAlive.elements()).toHaveLength(0);
       expect(state.prop.size).toBe(0);
     });
 
     it('returns empty state for undefined buffer', () => {
-      const state = deserializeFullState(/** @type {any} */ (undefined));
+      const state = deserializeFullState((undefined as any));
       expect(state.nodeAlive.elements()).toHaveLength(0);
     });
 
@@ -278,7 +275,7 @@ describe('CheckpointService edge cases', () => {
         // No appliedVV.cbor
       });
       mockPersistence.readBlob.mockImplementation(
-        (/** @type {string} */ oid) => {
+        (oid) => {
           if (oid === makeOid('state')) {
             return Promise.resolve(stateBuffer);
           }
@@ -331,7 +328,7 @@ describe('CheckpointService edge cases', () => {
         'appliedVV.cbor': makeOid('appliedvv'),
       });
       mockPersistence.readBlob.mockImplementation(
-        (/** @type {string} */ oid) => {
+        (oid) => {
           if (oid === makeOid('state')) {
             return Promise.resolve(stateBuffer);
           }
@@ -388,7 +385,7 @@ describe('CheckpointService edge cases', () => {
         'appliedVV.cbor': makeOid('appliedvv'),
       });
       mockPersistence.readBlob.mockImplementation(
-        (/** @type {string} */ oid) => {
+        (oid) => {
           if (oid === makeOid('state')) {
             return Promise.resolve(stateBuffer);
           }
@@ -448,7 +445,7 @@ describe('CheckpointService edge cases', () => {
         'appliedVV.cbor': makeOid('appliedvv'),
       });
       mockPersistence.readBlob.mockImplementation(
-        (/** @type {string} */ oid) => {
+        (oid) => {
           if (oid === makeOid('state')) {
             return Promise.resolve(stateBuffer);
           }
@@ -484,7 +481,7 @@ describe('CheckpointService edge cases', () => {
         graphName: 'test',
         checkpointSha: makeOid('checkpoint'),
         targetFrontier,
-        patchLoader: /** @type {any} */ (patchLoader),
+        patchLoader: (patchLoader as any),
       });
 
       expect(result.nodeAlive.contains('base')).toBe(true);
@@ -521,7 +518,7 @@ describe('CheckpointService edge cases', () => {
       expect(state.nodeAlive.contains('solo')).toBe(true);
       const propKey = encodePropKeyV5('solo', 'name');
       expect(state.prop.has(propKey)).toBe(true);
-      expect(/** @type {any} */ (state.prop.get(propKey)).value).toBe('alone');
+      expect((state.prop.get(propKey as any))!.value).toBe('alone');
     });
 
     it('uses synthetic dot for all elements (shared identity)', () => {
@@ -536,10 +533,10 @@ describe('CheckpointService edge cases', () => {
       const dotsB = state.nodeAlive.entries.get('b');
       expect(dotsA).toBeDefined();
       expect(dotsB).toBeDefined();
-      expect([.../** @type {Set<string>} */ (dotsA)]).toEqual([
+      expect([...(dotsA as Set<string>)]).toEqual([
         '__checkpoint__:1',
       ]);
-      expect([.../** @type {Set<string>} */ (dotsB)]).toEqual([
+      expect([...(dotsB as Set<string>)]).toEqual([
         '__checkpoint__:1',
       ]);
     });
@@ -582,10 +579,9 @@ describe('CheckpointService edge cases', () => {
       const state = createEmptyState();
       const frontier = createFrontier();
 
-      /** @type {any} */
-      let capturedStateBuffer;
+            let capturedStateBuffer: any;
       mockPersistence.writeBlob.mockImplementation(
-        (/** @type {any} */ buffer) => {
+        (buffer) => {
           if (!capturedStateBuffer) {
             capturedStateBuffer = buffer;
           }
@@ -631,10 +627,9 @@ describe('CheckpointService edge cases', () => {
       const frontier = createFrontier();
       updateFrontier(frontier, 'w1', makeOid('sha1'));
 
-      /** @type {any} */
-      let capturedStateBuffer;
+            let capturedStateBuffer: any;
       mockPersistence.writeBlob.mockImplementation(
-        (/** @type {any} */ buffer) => {
+        (buffer) => {
           if (!capturedStateBuffer) {
             capturedStateBuffer = buffer;
           }
@@ -729,7 +724,7 @@ describe('CheckpointService edge cases', () => {
         // No provenanceIndex.cbor
       });
       mockPersistence.readBlob.mockImplementation(
-        (/** @type {string} */ oid) => {
+        (oid) => {
           if (oid === makeOid('state')) {
             return Promise.resolve(stateBuffer);
           }
@@ -781,7 +776,7 @@ describe('CheckpointService edge cases', () => {
         'provenanceIndex.cbor': makeOid('prov'),
       });
       mockPersistence.readBlob.mockImplementation(
-        (/** @type {string} */ oid) => {
+        (oid) => {
           if (oid === makeOid('state')) {
             return Promise.resolve(stateBuffer);
           }
@@ -830,7 +825,7 @@ describe('CheckpointService edge cases', () => {
         graphName: 'test',
         state,
         frontier,
-        checkpointStore: /** @type {any} */ (checkpointStore),
+        checkpointStore: (checkpointStore as any),
         crypto,
       });
 

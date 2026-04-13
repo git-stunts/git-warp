@@ -20,8 +20,7 @@ import {
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
-/** @type {(...args: any[]) => any} */
-const reduceV5 = _reduceV5;
+const reduceV5: (...args: any[]) => any = _reduceV5;
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import {
   createNodeAddV2,
@@ -220,7 +219,7 @@ describe('WormholeService', () => {
       await expect(createWormhole({
         persistence,
         graphName: 'test-graph',
-        fromSha: /** @type {any} */ (null),
+        fromSha: (null as any),
         toSha: 'something',
       })).rejects.toThrow(WormholeError);
 
@@ -228,7 +227,7 @@ describe('WormholeService', () => {
         persistence,
         graphName: 'test-graph',
         fromSha: 'something',
-        toSha: /** @type {any} */ (undefined),
+        toSha: (undefined as any),
       })).rejects.toThrow(WormholeError);
     });
 
@@ -250,7 +249,7 @@ describe('WormholeService', () => {
       };
 
       await expect(createWormhole({
-        persistence: /** @type {any} */ (persistence),
+        persistence: (persistence as any),
         graphName: 'test-graph',
         fromSha: sha,
         toSha: sha,
@@ -283,7 +282,7 @@ describe('WormholeService', () => {
       };
 
       await expect(createWormhole({
-        persistence: /** @type {any} */ (persistence),
+        persistence: (persistence as any),
         graphName: 'test-graph',
         fromSha: sha,
         toSha: sha,
@@ -313,7 +312,7 @@ describe('WormholeService', () => {
       };
 
       await expect(createWormhole({
-        persistence: /** @type {any} */ (persistence),
+        persistence: (persistence as any),
         graphName: 'test-graph',
         fromSha: sha,
         toSha: sha,
@@ -352,11 +351,11 @@ describe('WormholeService', () => {
       };
 
       const wormhole = await createWormhole({
-        persistence: /** @type {any} */ (persistence),
+        persistence: (persistence as any),
         graphName: 'test-graph',
         fromSha: sha,
         toSha: sha,
-        patchBlobStorage: /** @type {any} */ (patchBlobStorage),
+        patchBlobStorage: (patchBlobStorage as any),
       });
 
       expect(wormhole.patchCount).toBe(1);
@@ -382,7 +381,7 @@ describe('WormholeService', () => {
       };
 
       await expect(createWormhole({
-        persistence: /** @type {any} */ (persistence),
+        persistence: (persistence as any),
         graphName: 'test-graph',
         fromSha: sha,
         toSha: sha,
@@ -587,9 +586,9 @@ describe('WormholeService', () => {
       };
 
       await expect(composeWormholes(
-        /** @type {any} */ (wormhole1),
-        /** @type {any} */ (wormhole2),
-        { persistence: /** @type {any} */ (persistence) },
+        (wormhole1 as any),
+        (wormhole2 as any),
+        { persistence: (persistence as any) },
       )).rejects.toMatchObject({
         code: 'E_WORMHOLE_INVALID_RANGE',
         context: {
@@ -600,7 +599,7 @@ describe('WormholeService', () => {
     });
 
     it('composition is associative (monoid property)', async () => {
-      const patches = [];
+      const patches: any[] = [];
       for (let i = 1; i <= 6; i++) {
         patches.push(createPatch({
           writer: 'alice',
@@ -714,9 +713,9 @@ describe('WormholeService', () => {
     });
 
     it('throws on null/undefined input', () => {
-      expect(() => deserializeWormhole(/** @type {any} */ (null))).toThrow(WormholeError);
-      expect(() => deserializeWormhole(/** @type {any} */ (null))).toThrow('expected object');
-      expect(() => deserializeWormhole(/** @type {any} */ (undefined))).toThrow(WormholeError);
+      expect(() => deserializeWormhole((null as any))).toThrow(WormholeError);
+      expect(() => deserializeWormhole((null as any))).toThrow('expected object');
+      expect(() => deserializeWormhole((undefined as any))).toThrow(WormholeError);
     });
 
     it('throws on missing required fields', () => {
@@ -730,8 +729,7 @@ describe('WormholeService', () => {
 
       // Test each required field
       for (const field of ['fromSha', 'toSha', 'writerId', 'patchCount', 'payload']) {
-        /** @type {any} */
-        const incomplete = { ...validBase };
+        const incomplete: any = { ...validBase };
         delete incomplete[field];
         expect(() => deserializeWormhole(incomplete)).toThrow(`missing required field '${field}'`);
       }
@@ -769,7 +767,7 @@ describe('WormholeService', () => {
   describe('materialization equivalence', () => {
     it('wormhole + remaining patches produces same state as all patches', async () => {
       // Create 10 patches
-      const patches = [];
+      const patches: any[] = [];
       for (let i = 1; i <= 10; i++) {
         patches.push(createPatch({
           writer: 'alice',
@@ -829,7 +827,7 @@ describe('WormholeService', () => {
 
     it('multiple wormholes produce same state as all patches', async () => {
       // Create 20 patches
-      const patches = [];
+      const patches: any[] = [];
       for (let i = 1; i <= 20; i++) {
         patches.push(createPatch({
           writer: 'alice',

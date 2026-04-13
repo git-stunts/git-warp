@@ -17,8 +17,7 @@ import TraversalError from '../../../../src/domain/errors/TraversalError.ts';
  * Reverse edges: B->A, C->A, D->B, D->C, E->D
  */
 function createMockIndexReader() {
-  /** @type {Record<string, string[]>} */
-  const forwardEdges = {
+    const forwardEdges = {
     A: ['B', 'C'],
     B: ['D'],
     C: ['D'],
@@ -26,8 +25,7 @@ function createMockIndexReader() {
     E: [],
   };
 
-  /** @type {Record<string, string[]>} */
-  const reverseEdges = {
+    const reverseEdges = {
     A: [],
     B: ['A'],
     C: ['A'],
@@ -36,13 +34,13 @@ function createMockIndexReader() {
   };
 
   return {
-    getChildren: vi.fn(async (/** @type {string} */ sha) => forwardEdges[sha] || []),
-    getParents: vi.fn(async (/** @type {string} */ sha) => reverseEdges[sha] || []),
+    getChildren: vi.fn(async (sha) => forwardEdges[sha] || []),
+    getParents: vi.fn(async (sha) => reverseEdges[sha] || []),
   };
 }
 
-async function collectAll(/** @type {AsyncIterable<any>} */ generator) {
-  const results = [];
+async function collectAll(generator: AsyncIterable<any>) {
+  const results: any[] = [];
   for await (const item of generator) {
     results.push(item);
   }
@@ -50,19 +48,17 @@ async function collectAll(/** @type {AsyncIterable<any>} */ generator) {
 }
 
 describe('CommitDagTraversalService', () => {
-  /** @type {any} */
-  let service;
-  /** @type {any} */
-  let mockIndexReader;
+    let service: any;
+    let mockIndexReader: any;
 
   beforeEach(() => {
     mockIndexReader = createMockIndexReader();
-    service = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: mockIndexReader }));
+    service = new CommitDagTraversalService(({ indexReader: mockIndexReader } as any));
   });
 
   describe('constructor validation', () => {
     it('throws when indexReader is not provided', () => {
-      expect(() => new CommitDagTraversalService(/** @type {any} */ ({})))
+      expect(() => new CommitDagTraversalService(({} as any)))
         .toThrow('CommitDagTraversalService requires an indexReader');
     });
 
@@ -300,18 +296,16 @@ describe('CommitDagTraversalService', () => {
     it('detects cycles and yields partial results', async () => {
       // Create a cycle: A -> B -> C -> A
       const cyclicReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = { A: ['B'], B: ['C'], C: ['A'] };
+        getChildren: vi.fn(async (sha) => {
+                    const edges = { A: ['B'], B: ['C'], C: ['A'] };
           return edges[sha] || [];
         }),
-        getParents: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = { B: ['A'], C: ['B'], A: ['C'] };
+        getParents: vi.fn(async (sha) => {
+                    const edges = { B: ['A'], C: ['B'], A: ['C'] };
           return edges[sha] || [];
         }),
       };
-      const cyclicService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: cyclicReader }));
+      const cyclicService = new CommitDagTraversalService(({ indexReader: cyclicReader } as any));
 
       const nodes = await collectAll(cyclicService.topologicalSort({ start: 'A' }));
 
@@ -322,9 +316,8 @@ describe('CommitDagTraversalService', () => {
 
     it('logs warning when cycle is detected', async () => {
       const cyclicReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = { A: ['B'], B: ['C'], C: ['A'] };
+        getChildren: vi.fn(async (sha) => {
+                    const edges = { A: ['B'], B: ['C'], C: ['A'] };
           return edges[sha] || [];
         }),
         getParents: vi.fn(async () => []),
@@ -336,10 +329,10 @@ describe('CommitDagTraversalService', () => {
         error: vi.fn(),
           child: vi.fn(),
       };
-      const cyclicService = new CommitDagTraversalService(/** @type {any} */ ({
+      const cyclicService = new CommitDagTraversalService(({
         indexReader: cyclicReader,
         logger: mockLogger,
-      }));
+      } as any));
 
       await collectAll(cyclicService.topologicalSort({ start: 'A' }));
 
@@ -355,14 +348,13 @@ describe('CommitDagTraversalService', () => {
 
     it('throws TraversalError when throwOnCycle is true and cycle detected', async () => {
       const cyclicReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = { A: ['B'], B: ['C'], C: ['A'] };
+        getChildren: vi.fn(async (sha) => {
+                    const edges = { A: ['B'], B: ['C'], C: ['A'] };
           return edges[sha] || [];
         }),
         getParents: vi.fn(async () => []),
       };
-      const cyclicService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: cyclicReader }));
+      const cyclicService = new CommitDagTraversalService(({ indexReader: cyclicReader } as any));
 
       await expect(
         collectAll(cyclicService.topologicalSort({ start: 'A', throwOnCycle: true }))
@@ -371,7 +363,7 @@ describe('CommitDagTraversalService', () => {
       // Verify the error has the expected properties
       try {
         await collectAll(cyclicService.topologicalSort({ start: 'A', throwOnCycle: true }));
-      } catch (/** @type {any} */ error) {
+      } catch (error: any) {
         expect(error.code).toBe('CYCLE_DETECTED');
         expect(error.context).toMatchObject({
           start: 'A',
@@ -391,18 +383,16 @@ describe('CommitDagTraversalService', () => {
     it('detects self-loop cycle (node is its own parent)', async () => {
       // Create a self-loop: A -> A (node A points to itself)
       const selfLoopReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = { A: ['A'] }; // A is its own child
+        getChildren: vi.fn(async (sha) => {
+                    const edges = { A: ['A'] }; // A is its own child
           return edges[sha] || [];
         }),
-        getParents: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = { A: ['A'] }; // A is its own parent
+        getParents: vi.fn(async (sha) => {
+                    const edges = { A: ['A'] }; // A is its own parent
           return edges[sha] || [];
         }),
       };
-      const selfLoopService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: selfLoopReader }));
+      const selfLoopService = new CommitDagTraversalService(({ indexReader: selfLoopReader } as any));
 
       // With throwOnCycle: true, it should throw TraversalError
       await expect(
@@ -412,7 +402,7 @@ describe('CommitDagTraversalService', () => {
       // Verify the error details
       try {
         await collectAll(selfLoopService.topologicalSort({ start: 'A', throwOnCycle: true }));
-      } catch (/** @type {any} */ error) {
+      } catch (error: any) {
         expect(error.code).toBe('CYCLE_DETECTED');
         expect(error.context).toMatchObject({
           start: 'A',
@@ -425,14 +415,13 @@ describe('CommitDagTraversalService', () => {
     it('handles self-loop gracefully without throwOnCycle (yields no nodes)', async () => {
       // Create a self-loop: A -> A
       const selfLoopReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = { A: ['A'] };
+        getChildren: vi.fn(async (sha) => {
+                    const edges = { A: ['A'] };
           return edges[sha] || [];
         }),
         getParents: vi.fn(async () => []),
       };
-      const selfLoopService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: selfLoopReader }));
+      const selfLoopService = new CommitDagTraversalService(({ indexReader: selfLoopReader } as any));
 
       // Without throwOnCycle, it should complete without hanging
       // and yield partial results (the node cannot be yielded because its in-degree is never 0)
@@ -447,9 +436,8 @@ describe('CommitDagTraversalService', () => {
 
     it('logs warning for self-loop cycle', async () => {
       const selfLoopReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = { A: ['A'] };
+        getChildren: vi.fn(async (sha) => {
+                    const edges = { A: ['A'] };
           return edges[sha] || [];
         }),
         getParents: vi.fn(async () => []),
@@ -461,10 +449,10 @@ describe('CommitDagTraversalService', () => {
         error: vi.fn(),
           child: vi.fn(),
       };
-      const selfLoopService = new CommitDagTraversalService(/** @type {any} */ ({
+      const selfLoopService = new CommitDagTraversalService(({
         indexReader: selfLoopReader,
         logger: mockLogger,
-      }));
+      } as any));
 
       await collectAll(selfLoopService.topologicalSort({ start: 'A' }));
 
@@ -482,9 +470,8 @@ describe('CommitDagTraversalService', () => {
       // Island 1: A -> B -> C (connected)
       // Island 2: X -> Y -> Z (disconnected from Island 1)
       const disconnectedReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getChildren: vi.fn(async (sha) => {
+                    const edges = {
             A: ['B'],
             B: ['C'],
             C: [],
@@ -494,9 +481,8 @@ describe('CommitDagTraversalService', () => {
           };
           return edges[sha] || [];
         }),
-        getParents: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getParents: vi.fn(async (sha) => {
+                    const edges = {
             A: [],
             B: ['A'],
             C: ['B'],
@@ -507,7 +493,7 @@ describe('CommitDagTraversalService', () => {
           return edges[sha] || [];
         }),
       };
-      const disconnectedService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: disconnectedReader }));
+      const disconnectedService = new CommitDagTraversalService(({ indexReader: disconnectedReader } as any));
 
       // Start traversal from node A - should only visit Island 1
       const nodes = await collectAll(disconnectedService.topologicalSort({ start: 'A' }));
@@ -557,9 +543,8 @@ describe('CommitDagTraversalService', () => {
       // Shortest hop: A->B (2 hops via B->D)
       // Cheapest: A->C->D (cost 2) vs A->B->D (cost 11)
       const weightedReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getChildren: vi.fn(async (sha) => {
+                    const edges = {
             A: ['B', 'C'],
             B: ['D'],
             C: ['D'],
@@ -567,9 +552,8 @@ describe('CommitDagTraversalService', () => {
           };
           return edges[sha] || [];
         }),
-        getParents: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getParents: vi.fn(async (sha) => {
+                    const edges = {
             A: [],
             B: ['A'],
             C: ['A'],
@@ -579,10 +563,10 @@ describe('CommitDagTraversalService', () => {
         }),
       };
 
-      const weightedService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: weightedReader }));
+      const weightedService = new CommitDagTraversalService(({ indexReader: weightedReader } as any));
 
       // Weight provider: A->B is expensive (10), everything else is cheap (1)
-      const weightProvider = (/** @type {string} */ from, /** @type {string} */ to) => {
+      const weightProvider = (from, to) => {
         if (from === 'A' && to === 'B') return 10;
         return 1;
       };
@@ -610,7 +594,7 @@ describe('CommitDagTraversalService', () => {
       // Should have been called for each edge explored
       expect(weightProvider).toHaveBeenCalled();
       // Verify it was called with (fromSha, toSha) arguments
-      const calls = /** @type {any[][]} */ (weightProvider.mock.calls);
+      const calls = (weightProvider.mock.calls as any[][]);
       for (const [fromSha, toSha] of calls) {
         expect(typeof fromSha).toBe('string');
         expect(typeof toSha).toBe('string');
@@ -640,7 +624,7 @@ describe('CommitDagTraversalService', () => {
 
       try {
         await service.weightedShortestPath({ from: 'E', to: 'A', direction: 'children' });
-      } catch (/** @type {any} */ error) {
+      } catch (error: any) {
         expect(error.code).toBe('NO_PATH');
         expect(error.context).toMatchObject({
           from: 'E',
@@ -653,9 +637,8 @@ describe('CommitDagTraversalService', () => {
     it('handles disconnected nodes', async () => {
       // Create a graph with disconnected components
       const disconnectedReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getChildren: vi.fn(async (sha) => {
+                    const edges = {
             A: ['B'],
             B: [],
             X: ['Y'],
@@ -663,9 +646,8 @@ describe('CommitDagTraversalService', () => {
           };
           return edges[sha] || [];
         }),
-        getParents: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getParents: vi.fn(async (sha) => {
+                    const edges = {
             A: [],
             B: ['A'],
             X: [],
@@ -674,7 +656,7 @@ describe('CommitDagTraversalService', () => {
           return edges[sha] || [];
         }),
       };
-      const disconnectedService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: disconnectedReader }));
+      const disconnectedService = new CommitDagTraversalService(({ indexReader: disconnectedReader } as any));
 
       // Try to find path between disconnected components
       await expect(
@@ -683,7 +665,7 @@ describe('CommitDagTraversalService', () => {
 
       try {
         await disconnectedService.weightedShortestPath({ from: 'A', to: 'X' });
-      } catch (/** @type {any} */ error) {
+      } catch (error: any) {
         expect(error.code).toBe('NO_PATH');
       }
     });
@@ -715,9 +697,8 @@ describe('CommitDagTraversalService', () => {
       //
       // Shortest path A->E: A->B->E (cost 2) or A->D->E (cost 3) or A->C->E (cost 6)
       const complexReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getChildren: vi.fn(async (sha) => {
+                    const edges = {
             A: ['B', 'C', 'D'],
             B: ['E'],
             C: ['E'],
@@ -728,10 +709,9 @@ describe('CommitDagTraversalService', () => {
         }),
         getParents: vi.fn(async () => []),
       };
-      const complexService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: complexReader }));
+      const complexService = new CommitDagTraversalService(({ indexReader: complexReader } as any));
 
-      /** @type {Record<string, number>} */
-
+      
       const weights = {
         'A-B': 1,
         'A-C': 5,
@@ -740,7 +720,7 @@ describe('CommitDagTraversalService', () => {
         'C-E': 1,
         'D-E': 1,
       };
-      const weightProvider = (/** @type {string} */ from, /** @type {string} */ to) => weights[`${from}-${to}`] || 1;
+      const weightProvider = (from, to) => weights[`${from}-${to}`] || 1;
 
       const result = await complexService.weightedShortestPath({
         from: 'A',
@@ -754,9 +734,8 @@ describe('CommitDagTraversalService', () => {
 
     it('handles zero-weight edges', async () => {
       const zeroWeightReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getChildren: vi.fn(async (sha) => {
+                    const edges = {
             A: ['B', 'C'],
             B: ['D'],
             C: ['D'],
@@ -766,10 +745,10 @@ describe('CommitDagTraversalService', () => {
         }),
         getParents: vi.fn(async () => []),
       };
-      const zeroWeightService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: zeroWeightReader }));
+      const zeroWeightService = new CommitDagTraversalService(({ indexReader: zeroWeightReader } as any));
 
       // A->C has zero weight, A->B has weight 1
-      const weightProvider = (/** @type {string} */ from, /** @type {string} */ to) => {
+      const weightProvider = (from, to) => {
         if (from === 'A' && to === 'C') return 0;
         return 1;
       };
@@ -793,10 +772,10 @@ describe('CommitDagTraversalService', () => {
         error: vi.fn(),
           child: vi.fn(),
       };
-      const loggingService = new CommitDagTraversalService(/** @type {any} */ ({
+      const loggingService = new CommitDagTraversalService(({
         indexReader: mockIndexReader,
         logger: mockLogger,
-      }));
+      } as any));
 
       await loggingService.weightedShortestPath({ from: 'A', to: 'D' });
 
@@ -812,10 +791,10 @@ describe('CommitDagTraversalService', () => {
         error: vi.fn(),
           child: vi.fn(),
       };
-      const loggingService = new CommitDagTraversalService(/** @type {any} */ ({
+      const loggingService = new CommitDagTraversalService(({
         indexReader: mockIndexReader,
         logger: mockLogger,
-      }));
+      } as any));
 
       try {
         await loggingService.weightedShortestPath({ from: 'E', to: 'A', direction: 'children' });
@@ -852,9 +831,8 @@ describe('CommitDagTraversalService', () => {
       // Path A->F can go A->B->C->F (cost 3) or A->D->E->F (cost 3)
       // With a good heuristic, A* should explore fewer nodes
       const gridReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getChildren: vi.fn(async (sha) => {
+                    const edges = {
             A: ['B', 'D'],
             B: ['C'],
             C: ['F'],
@@ -866,7 +844,7 @@ describe('CommitDagTraversalService', () => {
         }),
         getParents: vi.fn(async () => []),
       };
-      const gridService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: gridReader }));
+      const gridService = new CommitDagTraversalService(({ indexReader: gridReader } as any));
 
       // Heuristic: estimate based on "distance" to F
       // A=2, B=2, C=1, D=2, E=1, F=0 (admissible - never overestimates)
@@ -882,7 +860,7 @@ describe('CommitDagTraversalService', () => {
       const result = await gridService.aStarSearch({
         from: 'A',
         to: 'F',
-        heuristicProvider: (/** @type {string} */ sha) => /** @type {any} */ (heuristic)[sha] || 0,
+        heuristicProvider: (sha) => (heuristic as any)[sha] || 0,
       });
 
       // Should find optimal path with cost 3
@@ -905,9 +883,8 @@ describe('CommitDagTraversalService', () => {
       // Goal is J. With no heuristic, Dijkstra explores many nodes.
       // With heuristic pointing toward C->G->J path, fewer nodes explored.
       const wideReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getChildren: vi.fn(async (sha) => {
+                    const edges = {
             A: ['B', 'C', 'D'],
             B: ['E', 'F'],
             C: ['G'],
@@ -923,7 +900,7 @@ describe('CommitDagTraversalService', () => {
         }),
         getParents: vi.fn(async () => []),
       };
-      const wideService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: wideReader }));
+      const wideService = new CommitDagTraversalService(({ indexReader: wideReader } as any));
 
       // Run Dijkstra (zero heuristic)
       const dijkstraResult = await wideService.aStarSearch({
@@ -949,7 +926,7 @@ describe('CommitDagTraversalService', () => {
       const aStarResult = await wideService.aStarSearch({
         from: 'A',
         to: 'J',
-        heuristicProvider: (/** @type {string} */ sha) => /** @type {any} */ (heuristic)[sha] || 0,
+        heuristicProvider: (sha) => (heuristic as any)[sha] || 0,
       });
 
       // Both should find path with same cost
@@ -972,7 +949,7 @@ describe('CommitDagTraversalService', () => {
       expect(heuristicProvider).toHaveBeenCalled();
 
       // Verify it was called with (sha, targetSha) arguments
-      const calls = /** @type {any[][]} */ (heuristicProvider.mock.calls);
+      const calls = (heuristicProvider.mock.calls as any[][]);
       for (const [sha, targetSha] of calls) {
         expect(typeof sha).toBe('string');
         expect(targetSha).toBe('D'); // Target should always be 'D'
@@ -1002,7 +979,7 @@ describe('CommitDagTraversalService', () => {
 
       try {
         await service.aStarSearch({ from: 'E', to: 'A', direction: 'children' });
-      } catch (/** @type {any} */ error) {
+      } catch (error: any) {
         expect(error.code).toBe('NO_PATH');
         expect(error.context).toMatchObject({
           from: 'E',
@@ -1023,9 +1000,8 @@ describe('CommitDagTraversalService', () => {
     it('with zero heuristic behaves like Dijkstra', async () => {
       // Create a weighted graph
       const weightedReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getChildren: vi.fn(async (sha) => {
+                    const edges = {
             A: ['B', 'C'],
             B: ['D'],
             C: ['D'],
@@ -1035,10 +1011,10 @@ describe('CommitDagTraversalService', () => {
         }),
         getParents: vi.fn(async () => []),
       };
-      const weightedService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: weightedReader }));
+      const weightedService = new CommitDagTraversalService(({ indexReader: weightedReader } as any));
 
       // A->B is expensive (10), A->C is cheap (1), both ->D is 1
-      const weightProvider = (/** @type {string} */ from, /** @type {string} */ to) => {
+      const weightProvider = (from, to) => {
         if (from === 'A' && to === 'B') return 10;
         return 1;
       };
@@ -1086,9 +1062,8 @@ describe('CommitDagTraversalService', () => {
       // With tie-breaking favoring higher g, B should be explored first
       // because it has made more "actual progress" (g=2 > g=1)
       const tieBreakReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getChildren: vi.fn(async (sha) => {
+                    const edges = {
             START: ['A', 'B'],
             A: ['END'],
             B: ['END'],
@@ -1099,7 +1074,7 @@ describe('CommitDagTraversalService', () => {
         getParents: vi.fn(async () => []),
       };
       // Weight provider: START->A is 1, START->B is 2, A->END is 2, B->END is 1
-      const weightProvider = (/** @type {string} */ from, /** @type {string} */ to) => {
+      const weightProvider = (from, to) => {
         if (from === 'START' && to === 'A') return 1;
         if (from === 'START' && to === 'B') return 2;
         if (from === 'A' && to === 'END') return 2;
@@ -1109,9 +1084,8 @@ describe('CommitDagTraversalService', () => {
 
       // Heuristic: A has h=2 (far from goal), B has h=1 (close to goal)
       // This makes f(A) = 1 + 2 = 3 and f(B) = 2 + 1 = 3 (equal f values!)
-      const heuristicProvider = (/** @type {string} */ sha) => {
-        /** @type {Record<string, number>} */
-        const heuristics = {
+      const heuristicProvider = (sha) => {
+                const heuristics = {
           START: 3,
           A: 2,
           B: 1,
@@ -1121,16 +1095,15 @@ describe('CommitDagTraversalService', () => {
       };
 
       // Track exploration order
-      /** @type {string[]} */
-      const explorationOrder = [];
+            const explorationOrder: string[] = [];
       const trackingReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
+        getChildren: vi.fn(async (sha) => {
           explorationOrder.push(sha);
           return tieBreakReader.getChildren(sha);
         }),
         getParents: vi.fn(async () => []),
       };
-      const trackingService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: trackingReader }));
+      const trackingService = new CommitDagTraversalService(({ indexReader: trackingReader } as any));
 
       const result = await trackingService.aStarSearch({
         from: 'START',
@@ -1164,9 +1137,9 @@ describe('CommitDagTraversalService', () => {
      * Creates a mock index reader for a long chain graph:
      * N0 -> N1 -> N2 -> ... -> N(length-1)
      */
-    function createChainReader(/** @type {number} */ length) {
+    function createChainReader(length) {
       return {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
+        getChildren: vi.fn(async (sha) => {
           const match = sha.match(/^N(\d+)$/);
           if (!match) return [];
           const idx = parseInt(match[1] ?? '0', 10);
@@ -1175,7 +1148,7 @@ describe('CommitDagTraversalService', () => {
           }
           return [];
         }),
-        getParents: vi.fn(async (/** @type {string} */ sha) => {
+        getParents: vi.fn(async (sha) => {
           const match = sha.match(/^N(\d+)$/);
           if (!match) return [];
           const idx = parseInt(match[1] ?? '0', 10);
@@ -1201,9 +1174,8 @@ describe('CommitDagTraversalService', () => {
     it('returns same optimal path as unidirectional A*', async () => {
       // Create a graph with weighted edges where path choice matters
       const weightedReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getChildren: vi.fn(async (sha) => {
+                    const edges = {
             A: ['B', 'C'],
             B: ['D'],
             C: ['D'],
@@ -1212,9 +1184,8 @@ describe('CommitDagTraversalService', () => {
           };
           return edges[sha] || [];
         }),
-        getParents: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getParents: vi.fn(async (sha) => {
+                    const edges = {
             A: [],
             B: ['A'],
             C: ['A'],
@@ -1224,10 +1195,10 @@ describe('CommitDagTraversalService', () => {
           return edges[sha] || [];
         }),
       };
-      const weightedService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: weightedReader }));
+      const weightedService = new CommitDagTraversalService(({ indexReader: weightedReader } as any));
 
       // A->B is expensive (10), everything else is cheap (1)
-      const weightProvider = (/** @type {string} */ from, /** @type {string} */ to) => {
+      const weightProvider = (from, to) => {
         if (from === 'A' && to === 'B') return 10;
         return 1;
       };
@@ -1263,7 +1234,7 @@ describe('CommitDagTraversalService', () => {
       // Create a long chain where bidirectional search should meet in the middle
       const chainLength = 20;
       const chainReader = createChainReader(chainLength);
-      const chainService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: chainReader }));
+      const chainService = new CommitDagTraversalService(({ indexReader: chainReader } as any));
 
       // Run unidirectional A* from start to end
       const uniResult = await chainService.aStarSearch({
@@ -1303,7 +1274,7 @@ describe('CommitDagTraversalService', () => {
       // Forward heuristic should be called for nodes in forward search
       expect(forwardHeuristic).toHaveBeenCalled();
       // Verify forward heuristic was called with (sha, targetSha='E')
-      const forwardCalls = /** @type {any[][]} */ (forwardHeuristic.mock.calls);
+      const forwardCalls = (forwardHeuristic.mock.calls as any[][]);
       for (const [sha, target] of forwardCalls) {
         expect(typeof sha).toBe('string');
         expect(target).toBe('E');
@@ -1312,7 +1283,7 @@ describe('CommitDagTraversalService', () => {
       // Backward heuristic should be called for nodes in backward search
       expect(backwardHeuristic).toHaveBeenCalled();
       // Verify backward heuristic was called with (sha, targetSha='A')
-      const backwardCalls = /** @type {any[][]} */ (backwardHeuristic.mock.calls);
+      const backwardCalls = (backwardHeuristic.mock.calls as any[][]);
       for (const [sha, target] of backwardCalls) {
         expect(typeof sha).toBe('string');
         expect(target).toBe('A');
@@ -1327,7 +1298,7 @@ describe('CommitDagTraversalService', () => {
 
       try {
         await service.bidirectionalAStar({ from: 'E', to: 'A' });
-      } catch (/** @type {any} */ error) {
+      } catch (error: any) {
         expect(error.code).toBe('NO_PATH');
         expect(error.context).toMatchObject({
           from: 'E',
@@ -1347,9 +1318,8 @@ describe('CommitDagTraversalService', () => {
     it('works with weighted edges', async () => {
       // Create a graph with different edge weights
       const weightedReader = {
-        getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getChildren: vi.fn(async (sha) => {
+                    const edges = {
             A: ['B', 'C'],
             B: ['D'],
             C: ['D'],
@@ -1357,9 +1327,8 @@ describe('CommitDagTraversalService', () => {
           };
           return edges[sha] || [];
         }),
-        getParents: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
-          const edges = {
+        getParents: vi.fn(async (sha) => {
+                    const edges = {
             A: [],
             B: ['A'],
             C: ['A'],
@@ -1368,12 +1337,12 @@ describe('CommitDagTraversalService', () => {
           return edges[sha] || [];
         }),
       };
-      const weightedService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: weightedReader }));
+      const weightedService = new CommitDagTraversalService(({ indexReader: weightedReader } as any));
 
       // Make A->C->D path cheaper than A->B->D
       // A->B: 5, B->D: 5 (total 10)
       // A->C: 1, C->D: 1 (total 2)
-      const weightProvider = (/** @type {string} */ from, /** @type {string} */ to) => {
+      const weightProvider = (from, to) => {
         if (from === 'A' && to === 'B') return 5;
         if (from === 'B' && to === 'D') return 5;
         if (from === 'A' && to === 'C') return 1;
@@ -1396,7 +1365,7 @@ describe('CommitDagTraversalService', () => {
       // Create a chain: N0 -> N1 -> N2 -> N3 -> N4 -> N5 -> N6 -> N7 -> N8 -> N9
       const chainLength = 10;
       const chainReader = createChainReader(chainLength);
-      const chainService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: chainReader }));
+      const chainService = new CommitDagTraversalService(({ indexReader: chainReader } as any));
 
       const result = await chainService.bidirectionalAStar({
         from: 'N0',
@@ -1430,10 +1399,10 @@ describe('CommitDagTraversalService', () => {
         error: vi.fn(),
           child: vi.fn(),
       };
-      const loggingService = new CommitDagTraversalService(/** @type {any} */ ({
+      const loggingService = new CommitDagTraversalService(({
         indexReader: mockIndexReader,
         logger: mockLogger,
-      }));
+      } as any));
 
       await collectAll(loggingService.bfs({ start: 'A', maxNodes: 2 }));
 

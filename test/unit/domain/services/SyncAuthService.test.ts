@@ -201,7 +201,7 @@ describe('verify() reject paths', () => {
   it('rejects missing x-warp-sig-version -> 400 INVALID_VERSION', async () => {
     const svc = makeService();
     const req = await buildSignedRequest();
-    delete req.headers['x-warp-sig-version'];
+    delete (req.headers as any)['x-warp-sig-version'];
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: false, reason: 'INVALID_VERSION', status: 400 });
   });
@@ -216,7 +216,7 @@ describe('verify() reject paths', () => {
   it('rejects missing signature -> 401 MISSING_AUTH', async () => {
     const svc = makeService();
     const req = await buildSignedRequest();
-    delete req.headers['x-warp-signature'];
+    delete (req.headers as any)['x-warp-signature'];
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: false, reason: 'MISSING_AUTH', status: 401 });
   });
@@ -224,7 +224,7 @@ describe('verify() reject paths', () => {
   it('rejects missing timestamp -> 401 MISSING_AUTH', async () => {
     const svc = makeService();
     const req = await buildSignedRequest();
-    delete req.headers['x-warp-timestamp'];
+    delete (req.headers as any)['x-warp-timestamp'];
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: false, reason: 'MISSING_AUTH', status: 401 });
   });
@@ -232,7 +232,7 @@ describe('verify() reject paths', () => {
   it('rejects missing nonce -> 401 MISSING_AUTH', async () => {
     const svc = makeService();
     const req = await buildSignedRequest();
-    delete req.headers['x-warp-nonce'];
+    delete (req.headers as any)['x-warp-nonce'];
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: false, reason: 'MISSING_AUTH', status: 401 });
   });
@@ -240,7 +240,7 @@ describe('verify() reject paths', () => {
   it('rejects missing key-id -> 401 MISSING_AUTH', async () => {
     const svc = makeService();
     const req = await buildSignedRequest();
-    delete req.headers['x-warp-key-id'];
+    delete (req.headers as any)['x-warp-key-id'];
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: false, reason: 'MISSING_AUTH', status: 401 });
   });
@@ -716,11 +716,11 @@ describe('Constructor', () => {
   });
 
   it('rejects missing keys option', () => {
-    expect(() => new SyncAuthService(/** @type {{ keys: Record<string, string> }} */ ({}))).toThrow('non-empty keys map');
+    expect(() => new SyncAuthService({} as any)).toThrow('non-empty keys map');
   });
 
   it('rejects undefined options', () => {
-    expect(() => new SyncAuthService(/** @type {any} */ (undefined))).toThrow('non-empty keys map');
+    expect(() => new SyncAuthService((undefined as any))).toThrow('non-empty keys map');
   });
 
   it('defaults optional params without throwing', () => {

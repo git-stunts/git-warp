@@ -725,10 +725,10 @@ eg-schema: 1`;
     });
 
     it('returns null for non-string input', () => {
-      expect(detectMessageKind(/** @type {any} */ (null))).toBeNull();
-      expect(detectMessageKind(/** @type {any} */ (undefined))).toBeNull();
-      expect(detectMessageKind(/** @type {any} */ (123))).toBeNull();
-      expect(detectMessageKind(/** @type {any} */ ({}))).toBeNull();
+      expect(detectMessageKind(null as any)).toBeNull();
+      expect(detectMessageKind(undefined as any)).toBeNull();
+      expect(detectMessageKind(123 as any)).toBeNull();
+      expect(detectMessageKind({} as any)).toBeNull();
     });
 
     it('returns null for empty string', () => {
