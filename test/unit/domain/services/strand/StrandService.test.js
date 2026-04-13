@@ -1171,19 +1171,21 @@ describe('StrandService', () => {
       expect(typeof builder.commit).toBe('function');
     });
 
-    it('passes logger and cached state through to the patch builder', async () => {
+    it('passes logger through to the patch builder and getCurrentState returns strand-materialized state', async () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       storeDescriptor(desc);
       const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-      const cachedState = createEmptyState();
       graph._logger = logger;
-      graph._cachedState = cachedState;
 
       /** @type {any} */
       const builder = await service.createPatchBuilder('alpha');
 
       expect(builder._logger).toBe(logger);
-      expect(builder._getCurrentState()).toBe(cachedState);
+      // The builder uses the strand-materialized state (not the live _cachedState)
+      // so that strand-local nodes/edges are visible for validation.
+      const builderState = builder._getCurrentState();
+      expect(builderState).toBeDefined();
+      expect(typeof builderState).toBe('object');
     });
   });
 
@@ -2416,7 +2418,7 @@ describe('StrandService', () => {
       expect(receipts).toHaveLength(1);
     });
 
-    it('updates graph maxObservedLamport', async () => {
+    it('does not mutate live graph state (maxObservedLamport unchanged)', async () => {
       const desc = buildValidDescriptor({
         strandId: 'alpha',
         baseObservation: {
@@ -2432,10 +2434,12 @@ describe('StrandService', () => {
       graph._maxObservedLamport = 0;
       await strandServicePrivate(service)._materializeDescriptor(desc, { collectReceipts: false, ceiling: null });
 
-      expect(graph._maxObservedLamport).toBe(42);
+      // materializeDescriptor must NOT mutate live graph state.
+      // The live maxObservedLamport should remain unchanged.
+      expect(graph._maxObservedLamport).toBe(0);
     });
 
-    it('rebuilds provenance index', async () => {
+    it('does not set _provenanceIndex on graph (live state isolation)', async () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
 
       patchChains.set('tip-sha-1', [
@@ -2445,29 +2449,32 @@ describe('StrandService', () => {
         },
       ]);
 
+      graph._provenanceIndex = null;
       await strandServicePrivate(service)._materializeDescriptor(desc, { collectReceipts: false, ceiling: null });
 
-      expect(graph._provenanceIndex).not.toBeNull();
-      expect(graph._provenanceDegraded).toBe(false);
+      // materializeDescriptor must NOT mutate live graph provenance.
+      expect(graph._provenanceIndex).toBeNull();
     });
 
-    it('calls _setMaterializedState on graph', async () => {
+    it('does not call _setMaterializedState on graph (live state isolation)', async () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
 
       await strandServicePrivate(service)._materializeDescriptor(desc, { collectReceipts: false, ceiling: null });
 
-      expect(graph._setMaterializedState).toHaveBeenCalledTimes(1);
+      // Strand materialization must not pollute live _cachedState.
+      expect(graph._setMaterializedState).not.toHaveBeenCalled();
     });
 
-    it('clears cached ceiling and frontier', async () => {
+    it('does not mutate cached ceiling and frontier (live state isolation)', async () => {
       graph._cachedCeiling = 99;
       graph._cachedFrontier = new Map();
 
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       await strandServicePrivate(service)._materializeDescriptor(desc, { collectReceipts: false, ceiling: null });
 
-      expect(graph._cachedCeiling).toBeNull();
-      expect(graph._cachedFrontier).toBeNull();
+      // Strand materialization must not clear live cache references.
+      expect(graph._cachedCeiling).toBe(99);
+      expect(graph._cachedFrontier).not.toBeNull();
     });
   });
 

@@ -1,24 +1,26 @@
 import { describe, it, expect, vi } from 'vitest';
-import MaterializeController from '../../../../src/domain/services/controllers/MaterializeController.js';
+import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
 import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 
-describe('_buildView', () => {
+describe('_buildViewFromResult', () => {
   it('logs warning when index build fails (H7)', () => {
     const warn = vi.fn();
     const host = {
       _cachedViewHash: null,
       _viewService: {
         build: () => { throw new Error('test build failure'); },
+        applyDiff: () => { throw new Error('test build failure'); },
       },
       _logger: { warn },
       _logicalIndex: 'before',
       _propertyReader: 'before',
       _cachedIndexTree: 'before',
-      _materializedGraph: {},
+      _materializedGraph: null,
+      _indexDegraded: false,
     };
 
-    const ctrl = /** @type {MaterializeController} */ (/** @type {unknown} */ ({ _host: host }));
-    /** @type {any} */ (MaterializeController.prototype)._buildView.call(ctrl, createEmptyState(), 'hash123');
+    const state = createEmptyState();
+    /** @type {any} */ (WarpRuntime.prototype)._buildViewFromResult.call(host, { state, stateHash: 'hash123' });
 
     expect(warn).toHaveBeenCalledOnce();
     const firstCall = warn.mock.calls[0];
@@ -34,17 +36,19 @@ describe('_buildView', () => {
       _cachedViewHash: null,
       _viewService: {
         build: () => { throw new Error('test build failure'); },
+        applyDiff: () => { throw new Error('test build failure'); },
       },
       _logger: null,
       _logicalIndex: 'before',
       _propertyReader: 'before',
       _cachedIndexTree: 'before',
-      _materializedGraph: {},
+      _materializedGraph: null,
+      _indexDegraded: false,
     };
 
-    const ctrl = /** @type {MaterializeController} */ (/** @type {unknown} */ ({ _host: host }));
+    const state = createEmptyState();
     // Should not throw
-    /** @type {any} */ (MaterializeController.prototype)._buildView.call(ctrl, createEmptyState(), 'hash456');
+    /** @type {any} */ (WarpRuntime.prototype)._buildViewFromResult.call(host, { state, stateHash: 'hash456' });
     expect(host._logicalIndex).toBeNull();
   });
 });

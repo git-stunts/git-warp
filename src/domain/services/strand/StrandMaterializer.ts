@@ -1,20 +1,11 @@
 import { createEmptyState, reduceV5, type WarpState } from '../JoinReducer.ts';
-import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
-import { isNonEmptyString, maxPatchLamport } from './strandShared.ts';
+import { isNonEmptyString } from './strandShared.ts';
 import type Patch from '../../types/Patch.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { StrandDescriptor } from './strandTypes.ts';
 
 type WarpRuntime = {
-  _maxObservedLamport: number;
-  _provenanceIndex: ProvenanceIndex | null;
-  _provenanceDegraded: boolean;
-  _cachedCeiling: number | null;
-  _cachedFrontier: Map<string, string> | null;
-  _lastFrontier: Map<string, string> | null;
   _loadPatchChainFromSha(sha: string): Promise<Array<{ patch: Patch; sha: string }>>;
-  _setMaterializedState(state: WarpState): Promise<void>;
-  getFrontier(): Promise<Map<string, string>>;
 };
 
 export default class StrandMaterializer {
@@ -97,12 +88,6 @@ export default class StrandMaterializer {
   }> {
     const allPatches = await this.collectPatchEntries(descriptor, { ceiling });
     const { state, receipts } = this._reduceCollectedPatches(allPatches, collectReceipts);
-    this._syncGraphMaterialization(allPatches, state);
-    await this._graph._setMaterializedState(state);
-    this._graph._cachedCeiling = null;
-    this._graph._cachedFrontier = null;
-    this._graph._lastFrontier = await this._graph.getFrontier();
-
     return { state, receipts, allPatches };
   }
 
@@ -157,23 +142,4 @@ export default class StrandMaterializer {
     };
   }
 
-  private _syncGraphMaterialization(
-    allPatches: Array<{ patch: Patch; sha: string }>,
-    _state: WarpState,
-  ): void {
-    const maxLamport = maxPatchLamport(allPatches);
-    if (maxLamport > this._graph._maxObservedLamport) {
-      this._graph._maxObservedLamport = maxLamport;
-    }
-
-    this._graph._provenanceIndex = new ProvenanceIndex();
-    for (const { patch, sha } of allPatches) {
-      this._graph._provenanceIndex.addPatch(
-        sha,
-        patch.reads,
-        patch.writes,
-      );
-    }
-    this._graph._provenanceDegraded = false;
-  }
 }

@@ -498,14 +498,14 @@ describe('WarpRuntime coverage gaps', () => {
       };
 
       const buildViewSpy = vi
-        .spyOn(graph, /** @type {any} */ ('_buildView'))
+        .spyOn(graph, /** @type {any} */ ('_buildViewFromResult'))
         .mockImplementation(() => {});
 
       await /** @type {any} */ (graph)._setMaterializedState(state, diff);
 
       expect(buildViewSpy).toHaveBeenCalledTimes(1);
-      const [, , appliedDiff] = /** @type {unknown[]} */ (buildViewSpy.mock.calls[0]);
-      expect(appliedDiff).toBe(diff);
+      const [resultArg] = /** @type {[{state: unknown, stateHash: unknown, diff: unknown}]} */ (buildViewSpy.mock.calls[0]);
+      expect(resultArg.diff).toBe(diff);
     });
 
     it('accepts options object with diff', async () => {
@@ -526,14 +526,14 @@ describe('WarpRuntime coverage gaps', () => {
       };
 
       const buildViewSpy = vi
-        .spyOn(graph, /** @type {any} */ ('_buildView'))
+        .spyOn(graph, /** @type {any} */ ('_buildViewFromResult'))
         .mockImplementation(() => {});
 
       await /** @type {any} */ (graph)._setMaterializedState(state, { diff });
 
       expect(buildViewSpy).toHaveBeenCalledTimes(1);
-      const [, , appliedDiff] = /** @type {unknown[]} */ (buildViewSpy.mock.calls[0]);
-      expect(appliedDiff).toBe(diff);
+      const [resultArg] = /** @type {[{state: unknown, stateHash: unknown, diff: unknown}]} */ (buildViewSpy.mock.calls[0]);
+      expect(resultArg.diff).toBe(diff);
     });
   });
 
@@ -935,7 +935,7 @@ describe('WarpRuntime coverage gaps', () => {
         writerId: 'writer-1',
         lamport: 1,
         patchOid,
-        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: 'writer-1:1' }],
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: { writerId: 'writer-1', counter: 1 } }],
       });
 
       persistence.getNodeInfo.mockResolvedValue(mockPatch.nodeInfo);

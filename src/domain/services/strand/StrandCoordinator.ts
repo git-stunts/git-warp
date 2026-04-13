@@ -328,7 +328,7 @@ export default class StrandCoordinator {
     // Fetch the current frontier via persistence refs
     const prefix = buildStrandsPrefix(this._deps.graphName);
     // Use the graph's getFrontier if available (test seam)
-    if (this._deps.graph && typeof (this._deps.graph as Record<string, unknown>)['getFrontier'] === 'function') {
+    if (this._deps.graph && typeof this._deps.graph['getFrontier'] === 'function') {
       return await (this._deps.graph as Record<string, unknown> & { getFrontier(): Promise<Map<string, string>> }).getFrontier();
     }
     // Fallback: return empty frontier

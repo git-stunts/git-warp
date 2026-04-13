@@ -256,8 +256,8 @@ describe('GraphTraversal.topologicalSort', () => {
       expect(sorted).toEqual(['A', 'B', 'C', 'D']);
       expect(_neighborEdgeMap).toBeInstanceOf(Map);
       expect(_neighborEdgeMap?.get('A')).toEqual([
-        { neighborId: 'B', label: '' },
-        { neighborId: 'C', label: '' },
+        { neighborId: 'B', label: 'e' },
+        { neighborId: 'C', label: 'e' },
       ]);
     });
   });

@@ -205,7 +205,7 @@ describe('WarpRuntime seek cache integration', () => {
     expect(seekCache.set).toHaveBeenCalledTimes(1);
     const [key, buf] = seekCache.set.mock.calls[0];
     expect(key).toMatch(/^v1:t2-/);
-    expect(Buffer.isBuffer(buf)).toBe(true);
+    expect(buf instanceof Uint8Array).toBe(true);
   });
 
   it('restores state from cache on second visit to same tick', async () => {

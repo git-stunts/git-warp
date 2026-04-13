@@ -126,7 +126,7 @@ class TrustRecordService {
    * Reads the chain tip (commit SHA + recordId).
    */
   async readTip(graphName: string): Promise<{ tipSha: string; recordId: string | null } | null> {
-    return this._chain.readTip(graphName);
+    return await this._chain.readTip(graphName);
   }
 }
 

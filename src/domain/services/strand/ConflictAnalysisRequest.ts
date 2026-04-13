@@ -228,7 +228,10 @@ export default class ConflictAnalysisRequest {
     fields: TargetSelectorField[],
     message: string,
   ): void {
-    const valid = fields.every((field) => typeof target[field] === 'string' && (target[field] as string).length > 0);
+    const valid = fields.every((field) => {
+      const val = target[field];
+      return typeof val === 'string' && val.length > 0;
+    });
     if (!valid) {
       throw new QueryError(`analyzeConflicts(): ${message}`, {
         code: 'unsupported_target_selector',

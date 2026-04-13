@@ -357,11 +357,14 @@ export default class StrandPatchService {
     allPatches: Array<{ patch: Patch; sha: string }>,
   ): ConstructorParameters<typeof PatchBuilder>[0] {
     const overlayRef = this._buildOverlayRef(descriptor.strandId);
+    // Use the strand-materialized state (not the live _cachedState) so that
+    // PatchBuilder can see strand-local nodes/edges when validating operations.
+    const strandState = state;
     return this._buildPatchBuilderOptions({
       descriptor,
       lamport: maxPatchLamport(allPatches) + 1,
       versionVector: state.observedFrontier,
-      getCurrentState: () => this._graph._cachedState,
+      getCurrentState: () => strandState,
       expectedParentSha: descriptor.overlay.headPatchSha ?? null,
       targetRefPath: overlayRef,
       onCommitSuccess: async (result: CommittedPatchResult) => {

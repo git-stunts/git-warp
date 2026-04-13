@@ -440,7 +440,7 @@ const strands = createStrandCoordinator(graph as unknown as Parameters<typeof cr
 // ── Selector normalization ───────────────────────────────────────────
 
 function extractSelectorKind(raw: Record<string, unknown>): string {
-  const kind = (raw as { kind?: unknown }).kind;
+  const { kind } = raw as { kind?: unknown };
   if (typeof kind !== 'string') {
     throw new QueryError('selector.kind must be a string', { code: 'invalid_coordinate' });
   }

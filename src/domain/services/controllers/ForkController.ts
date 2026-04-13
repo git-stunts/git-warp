@@ -78,7 +78,7 @@ export default class ForkController {
         });
       }
 
-      const isInChain = await this._isAncestor(at, tipSha as string);
+      const isInChain = await this._isAncestor(at, tipSha);
       if (!isInChain) {
         throw new ForkError(`Patch SHA '${at}' is not in writer '${from}' chain`, {
           code: 'E_FORK_PATCH_NOT_IN_CHAIN',

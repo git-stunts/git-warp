@@ -100,9 +100,11 @@ export function wireRuntime(cls: RuntimeClass): void {
     return createImmutableWarpState(result.state);
   });
 
+  // materializeCoordinate() returns a snapshot at a specific frontier coordinate.
+  // It must NOT call _onMaterialized — that would overwrite the live graph's
+  // cached state with the coordinate result, breaking any subsequent live queries.
   wireMaterialize(cls, 'materializeCoordinate', async function (this: WiringHost, options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts?: boolean }) {
     const result = await this._materializeController.materializeCoordinate(options);
-    await this._onMaterialized(result);
     if (options.receipts === true) {
       return Object.freeze({ state: createImmutableWarpState(result.state), receipts: createImmutableValue(result.receipts ?? []) });
     }

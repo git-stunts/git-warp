@@ -90,9 +90,9 @@ function tripwireSuite(suiteName, files) {
  * remain (return IndexShard domain objects).
  */
 const INDEX_FILES = [
-  'src/domain/services/index/LogicalBitmapIndexBuilder.js',
-  'src/domain/services/index/PropertyIndexBuilder.js',
-  'src/domain/services/index/LogicalIndexBuildService.js',
+  'src/domain/services/index/LogicalBitmapIndexBuilder.ts',
+  'src/domain/services/index/PropertyIndexBuilder.ts',
+  'src/domain/services/index/LogicalIndexBuildService.ts',
 ];
 
 tripwireSuite('P5 tripwire: patch files must not touch codec/bytes', PATCH_FILES);

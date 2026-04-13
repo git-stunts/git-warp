@@ -310,7 +310,8 @@ export default class WarpRuntime {
       codec: this._codec,
       crypto: this._crypto,
       persistence: this._persistence,
-      seekCache: this._seekCache ?? null,
+      // Getter so setSeekCache() on the host is immediately visible to the controller.
+      getSeekCache: () => this._seekCache ?? null,
       patches: new RuntimePatchCollector(this),
       graphCloner: new RuntimeDetachedFactory(this),
       graphName: this._graphName,
@@ -740,11 +741,12 @@ export default class WarpRuntime {
       if (this._materializedGraph) {
         this._materializedGraph.provider = new BitmapNeighborProvider({ logicalIndex: viewResult.logicalIndex });
       }
-    } catch {
+    } catch (err) {
       this._indexDegraded = true;
       this._logicalIndex = null;
       this._propertyReader = null;
       this._cachedIndexTree = null;
+      this._logger?.warn('index build failed', { error: err instanceof Error ? err.message : String(err) });
     }
   }
 

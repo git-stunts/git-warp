@@ -21,7 +21,7 @@ export function freezePublicState(state: WarpState): WarpState {
 export function freezeWithReceipts(state: WarpState, receipts: TickReceipt[]): { state: WarpState; receipts: TickReceipt[] } {
   return Object.freeze({
     state: freezePublicState(state),
-    receipts: createImmutableValue(receipts) as TickReceipt[],
+    receipts: createImmutableValue(receipts),
   });
 }
 

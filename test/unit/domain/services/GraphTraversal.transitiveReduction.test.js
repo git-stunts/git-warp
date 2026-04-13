@@ -22,8 +22,8 @@ describe('GraphTraversal.transitiveReduction()', () => {
       expect(removed).toBe(1);
       // A→B and B→C should remain; A→C removed
       expect(edges).toEqual([
-        { from: 'A', to: 'B', label: '' },
-        { from: 'B', to: 'C', label: '' },
+        { from: 'A', to: 'B', label: 'e' },
+        { from: 'B', to: 'C', label: 'e' },
       ]);
     });
   });
@@ -37,10 +37,10 @@ describe('GraphTraversal.transitiveReduction()', () => {
       // A→B, A→C, B→D, C→D — none redundant
       expect(removed).toBe(0);
       expect(edges).toEqual([
-        { from: 'A', to: 'B', label: '' },
-        { from: 'A', to: 'C', label: '' },
-        { from: 'B', to: 'D', label: '' },
-        { from: 'C', to: 'D', label: '' },
+        { from: 'A', to: 'B', label: 'e' },
+        { from: 'A', to: 'C', label: 'e' },
+        { from: 'B', to: 'D', label: 'e' },
+        { from: 'C', to: 'D', label: 'e' },
       ]);
     });
   });
@@ -60,8 +60,8 @@ describe('GraphTraversal.transitiveReduction()', () => {
 
       expect(removed).toBe(0);
       expect(edges).toEqual([
-        { from: 'A', to: 'B', label: '' },
-        { from: 'B', to: 'C', label: '' },
+        { from: 'A', to: 'B', label: 'e' },
+        { from: 'B', to: 'C', label: 'e' },
       ]);
     });
   });
@@ -86,9 +86,9 @@ describe('GraphTraversal.transitiveReduction()', () => {
 
       expect(removed).toBe(3); // A→C, A→D, B→D
       expect(edges).toEqual([
-        { from: 'A', to: 'B', label: '' },
-        { from: 'B', to: 'C', label: '' },
-        { from: 'C', to: 'D', label: '' },
+        { from: 'A', to: 'B', label: 'e' },
+        { from: 'B', to: 'C', label: 'e' },
+        { from: 'C', to: 'D', label: 'e' },
       ]);
     });
   });
@@ -112,11 +112,11 @@ describe('GraphTraversal.transitiveReduction()', () => {
 
       expect(removed).toBe(1);
       expect(edges).toEqual([
-        { from: 'A', to: 'B', label: '' },
-        { from: 'A', to: 'C', label: '' },
-        { from: 'B', to: 'D', label: '' },
-        { from: 'C', to: 'D', label: '' },
-        { from: 'D', to: 'E', label: '' },
+        { from: 'A', to: 'B', label: 'e' },
+        { from: 'A', to: 'C', label: 'e' },
+        { from: 'B', to: 'D', label: 'e' },
+        { from: 'C', to: 'D', label: 'e' },
+        { from: 'D', to: 'E', label: 'e' },
       ]);
     });
   });
