@@ -11,7 +11,10 @@ import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
-import { encodeEdgeKey, encodePropKey, encodeEdgePropKey } from '../../../../../src/domain/services/KeyCodec.ts';
+import { encodeEdgeKey, encodePropKey } from '../../../../../src/domain/services/KeyCodec.ts';
+import { LWWRegister } from '../../../../../src/domain/crdt/LWW.ts';
+import { EventId } from '../../../../../src/domain/utils/EventId.ts';
+import Patch from '../../../../../src/domain/types/Patch.ts';
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────
 
@@ -45,7 +48,17 @@ vi.mock('../../../../../src/domain/services/comparison/VisibleStateComparison.ts
 
 const { planVisibleStateTransferMock } = vi.hoisted(() => ({
   planVisibleStateTransferMock: vi.fn(async () => ({
-    summary: { opCount: 0, nodeAdds: 0, nodeRemoves: 0, edgeAdds: 0, edgeRemoves: 0, propSets: 0 },
+    transferVersion: 'visible-state-transfer-plan/v1',
+    summary: {
+      opCount: 0,
+      addNodeCount: 0, removeNodeCount: 0,
+      setNodePropertyCount: 0, clearNodePropertyCount: 0,
+      addEdgeCount: 0, removeEdgeCount: 0,
+      setEdgePropertyCount: 0, clearEdgePropertyCount: 0,
+      attachNodeContentCount: 0, clearNodeContentCount: 0,
+      attachEdgeContentCount: 0, clearEdgeContentCount: 0,
+    },
+    /** @type {import('../../../../../src/domain/types/CoordinateComparison.ts').VisibleStateTransferOperationV1[]} */
     ops: [],
   })),
 }));
@@ -124,7 +137,10 @@ vi.mock('../../../../../src/domain/services/state/StateSerializer.js', async (im
 function orsetWith(elements) {
   const set = ORSet.empty();
   for (let i = 0; i < elements.length; i++) {
-    set.add(elements[i], new Dot('w', i + 1));
+    const elem = elements[i];
+    if (elem !== undefined) {
+      set.add(elem, new Dot('w', i + 1));
+    }
   }
   return set;
 }
@@ -138,10 +154,14 @@ function orsetWith(elements) {
 function makeState(opts = {}) {
   const { nodes = [], edges = [], props = [] } = opts;
   const edgeKeys = edges.map((e) => encodeEdgeKey(e.from, e.to, e.label));
-  /** @type {Map<string, { value: unknown, eventId: null }>} */
+  /** @type {Map<string, LWWRegister<import('../../../../../src/domain/types/PropValue.ts').PropValue>>} */
   const propMap = new Map();
-  for (const p of props) {
-    propMap.set(encodePropKey(p.nodeId, p.key), { value: p.value, eventId: null });
+  for (let pi = 0; pi < props.length; pi++) {
+    const p = props[pi];
+    if (p !== undefined) {
+      const eventId = new EventId(pi + 1, 'test', 'aaaa', 0);
+      propMap.set(encodePropKey(p.nodeId, p.key), new LWWRegister(eventId, /** @type {string} */ (p.value)));
+    }
   }
   return new WarpState({
     nodeAlive: orsetWith(nodes),
@@ -156,13 +176,19 @@ function makeState(opts = {}) {
  * Creates a mock patch entry.
  *
  * @param {{ writer: string, lamport?: number, sha?: string, reads?: string[], writes?: string[] }} opts
- * @returns {{ patch: { writer: string, lamport: number, reads: string[], writes: string[] }, sha: string }}
+ * @returns {import('../../../../../src/domain/services/controllers/ComparisonSelector.ts').PatchEntry}
  */
 function makePatchEntry({ writer, lamport = 1, sha, reads = [], writes = [] }) {
-  return {
-    patch: { writer, lamport, reads, writes },
-    sha: sha ?? `sha-${writer}-${lamport}`,
-  };
+  const resolvedSha = sha ?? `sha-${writer}-${lamport}`;
+  const patch = new Patch({
+    writer,
+    lamport,
+    context: VersionVector.empty(),
+    ops: [],
+    reads: reads.length > 0 ? reads : undefined,
+    writes: writes.length > 0 ? writes : undefined,
+  });
+  return { patch, sha: resolvedSha };
 }
 
 /**
@@ -212,11 +238,11 @@ describe('ComparisonController', () => {
       const entries = [makePatchEntry({ writer: 'alice', lamport: 1, sha: 'aaa' })];
       const result = controller.buildPatchDivergence(entries, entries, null);
 
-      expect(result.sharedCount).toBe(1);
-      expect(result.leftOnlyCount).toBe(0);
-      expect(result.rightOnlyCount).toBe(0);
-      expect(result.leftOnlyPatchShas).toEqual([]);
-      expect(result.rightOnlyPatchShas).toEqual([]);
+      expect(result['sharedCount']).toBe(1);
+      expect(result['leftOnlyCount']).toBe(0);
+      expect(result['rightOnlyCount']).toBe(0);
+      expect(result['leftOnlyPatchShas']).toEqual([]);
+      expect(result['rightOnlyPatchShas']).toEqual([]);
     });
 
     it('detects patches unique to each side', () => {
@@ -230,19 +256,19 @@ describe('ComparisonController', () => {
       ];
       const result = controller.buildPatchDivergence(left, right, null);
 
-      expect(result.sharedCount).toBe(1);
-      expect(result.leftOnlyCount).toBe(1);
-      expect(result.rightOnlyCount).toBe(1);
-      expect(result.leftOnlyPatchShas).toEqual(['bbb']);
-      expect(result.rightOnlyPatchShas).toEqual(['ccc']);
+      expect(result['sharedCount']).toBe(1);
+      expect(result['leftOnlyCount']).toBe(1);
+      expect(result['rightOnlyCount']).toBe(1);
+      expect(result['leftOnlyPatchShas']).toEqual(['bbb']);
+      expect(result['rightOnlyPatchShas']).toEqual(['ccc']);
     });
 
     it('returns empty divergence for empty entry sets', () => {
       const result = controller.buildPatchDivergence([], [], null);
 
-      expect(result.sharedCount).toBe(0);
-      expect(result.leftOnlyCount).toBe(0);
-      expect(result.rightOnlyCount).toBe(0);
+      expect(result['sharedCount']).toBe(0);
+      expect(result['leftOnlyCount']).toBe(0);
+      expect(result['rightOnlyCount']).toBe(0);
     });
 
     it('deduplicates patch SHAs within a side', () => {
@@ -250,11 +276,12 @@ describe('ComparisonController', () => {
         makePatchEntry({ writer: 'alice', lamport: 1, sha: 'aaa' }),
         makePatchEntry({ writer: 'bob', lamport: 1, sha: 'aaa' }),
       ];
+      /** @type {import('../../../../../src/domain/services/controllers/ComparisonSelector.ts').PatchEntry[]} */
       const right = [];
       const result = controller.buildPatchDivergence(left, right, null);
 
-      expect(result.leftOnlyCount).toBe(1);
-      expect(result.leftOnlyPatchShas).toEqual(['aaa']);
+      expect(result['leftOnlyCount']).toBe(1);
+      expect(result['leftOnlyPatchShas']).toEqual(['aaa']);
     });
 
     it('sorts patch SHAs deterministically', () => {
@@ -265,7 +292,7 @@ describe('ComparisonController', () => {
       ];
       const result = controller.buildPatchDivergence(left, [], null);
 
-      expect(result.leftOnlyPatchShas).toEqual(['aaa', 'bbb', 'ccc']);
+      expect(result['leftOnlyPatchShas']).toEqual(['aaa', 'bbb', 'ccc']);
     });
 
     it('includes target divergence when targetId is provided', () => {
@@ -278,20 +305,20 @@ describe('ComparisonController', () => {
       ];
       const result = controller.buildPatchDivergence(left, right, 'node:1');
 
-      expect(result.target).toBeDefined();
-      const target = /** @type {Record<string, unknown>} */ (result.target);
-      expect(target.targetId).toBe('node:1');
-      expect(target.leftCount).toBe(1);
-      expect(target.rightCount).toBe(1);
-      expect(target.leftOnlyPatchShas).toEqual(['aaa']);
-      expect(target.rightOnlyPatchShas).toEqual(['ccc']);
+      expect(result['target']).toBeDefined();
+      const target = /** @type {Record<string, unknown>} */ (result['target']);
+      expect(target['targetId']).toBe('node:1');
+      expect(target['leftCount']).toBe(1);
+      expect(target['rightCount']).toBe(1);
+      expect(target['leftOnlyPatchShas']).toEqual(['aaa']);
+      expect(target['rightOnlyPatchShas']).toEqual(['ccc']);
     });
 
     it('does not include target when targetId is null', () => {
       const entries = [makePatchEntry({ writer: 'alice', sha: 'aaa', writes: ['node:1'] })];
       const result = controller.buildPatchDivergence(entries, entries, null);
 
-      expect(result.target).toBeUndefined();
+      expect(result['target']).toBeUndefined();
     });
 
     it('considers reads when determining target patches', () => {
@@ -300,8 +327,8 @@ describe('ComparisonController', () => {
       ];
       const result = controller.buildPatchDivergence(left, [], 'node:1');
 
-      const target = /** @type {Record<string, unknown>} */ (result.target);
-      expect(target.leftCount).toBe(1);
+      const target = /** @type {Record<string, unknown>} */ (result['target']);
+      expect(target['leftCount']).toBe(1);
     });
   });
 
@@ -327,8 +354,8 @@ describe('ComparisonController', () => {
 
     it('compares two live selectors', async () => {
       const state = makeState({ nodes: ['a', 'b'] });
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([
         makePatchEntry({ writer: 'alice', lamport: 1, sha: 'sha-alice-1' }),
       ]);
 
@@ -338,14 +365,14 @@ describe('ComparisonController', () => {
       });
 
       expect(result).toBeDefined();
-      expect(result.comparisonDigest).toBe('checksum-abc123');
+      expect(result['comparisonDigest']).toBe('checksum-abc123');
       expect(compareVisibleStateMock).toHaveBeenCalled();
     });
 
     it('compares two explicit coordinate selectors', async () => {
       const state = makeState({ nodes: ['x'] });
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
 
       const result = await controller.compareCoordinates({
         left: { kind: 'coordinate', frontier: { alice: 'sha1' } },
@@ -353,23 +380,23 @@ describe('ComparisonController', () => {
       });
 
       expect(result).toBeDefined();
-      expect(result.comparisonDigest).toBe('checksum-abc123');
-      expect(/** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate)).toHaveBeenCalled();
+      expect(result['comparisonDigest']).toBe('checksum-abc123');
+      expect(/** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate'])).toHaveBeenCalled();
     });
 
     it('passes lamport ceiling to materializeCoordinate', async () => {
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
 
       await controller.compareCoordinates({
         left: { kind: 'coordinate', frontier: { alice: 'sha1' }, ceiling: 5 },
         right: { kind: 'coordinate', frontier: { bob: 'sha2' }, ceiling: 10 },
       });
 
-      const calls = /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mock.calls;
-      expect(calls[0][0]).toEqual(expect.objectContaining({ ceiling: 5 }));
-      expect(calls[1][0]).toEqual(expect.objectContaining({ ceiling: 10 }));
+      const calls = /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mock.calls;
+      expect(calls[0]?.[0]).toEqual(expect.objectContaining({ ceiling: 5 }));
+      expect(calls[1]?.[0]).toEqual(expect.objectContaining({ ceiling: 10 }));
     });
 
     it('rejects invalid lamport ceiling (negative)', async () => {
@@ -402,8 +429,8 @@ describe('ComparisonController', () => {
 
     it('includes targetId in divergence when provided', async () => {
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
 
       await controller.compareCoordinates({
         left: { kind: 'live' },
@@ -428,8 +455,8 @@ describe('ComparisonController', () => {
 
     it('passes scope through normalization', async () => {
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
 
       const scope = { nodeIdPrefixes: { include: ['user:'] } };
       normalizeVisibleStateScopeMock.mockReturnValue(scope);
@@ -446,8 +473,8 @@ describe('ComparisonController', () => {
 
     it('captures live frontier once for both sides', async () => {
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
 
       await controller.compareCoordinates({
         left: { kind: 'live' },
@@ -455,26 +482,26 @@ describe('ComparisonController', () => {
       });
 
       // getFrontier should be called exactly once for both sides
-      expect(/** @type {ReturnType<typeof vi.fn>} */ (host.getFrontier)).toHaveBeenCalledTimes(1);
+      expect(/** @type {ReturnType<typeof vi.fn>} */ (host['getFrontier'])).toHaveBeenCalledTimes(1);
     });
 
     it('does not call getFrontier when neither side is live', async () => {
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
 
       await controller.compareCoordinates({
         left: { kind: 'coordinate', frontier: { alice: 'sha1' } },
         right: { kind: 'coordinate', frontier: { bob: 'sha2' } },
       });
 
-      expect(/** @type {ReturnType<typeof vi.fn>} */ (host.getFrontier)).not.toHaveBeenCalled();
+      expect(/** @type {ReturnType<typeof vi.fn>} */ (host['getFrontier'])).not.toHaveBeenCalled();
     });
 
     it('accepts frontier as Map', async () => {
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
 
       const frontier = new Map([['alice', 'sha1']]);
       const result = await controller.compareCoordinates({
@@ -491,8 +518,8 @@ describe('ComparisonController', () => {
   describe('compareStrand', () => {
     beforeEach(() => {
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
 
       const descriptor = {
         baseObservation: {
@@ -531,7 +558,7 @@ describe('ComparisonController', () => {
       const result = await controller.compareStrand('my-strand', { against: 'live' });
 
       expect(result).toBeDefined();
-      expect(/** @type {ReturnType<typeof vi.fn>} */ (host.getFrontier)).toHaveBeenCalled();
+      expect(/** @type {ReturnType<typeof vi.fn>} */ (host['getFrontier'])).toHaveBeenCalled();
     });
 
     it('compares strand against another strand', async () => {
@@ -577,9 +604,9 @@ describe('ComparisonController', () => {
       await controller.compareStrand('my-strand', { againstCeiling: 3 });
 
       // The against side is strand_base which combines ceilings (min of 10, 3 = 3)
-      const calls = /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mock.calls;
+      const calls = /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mock.calls;
       const strandBaseCall = calls.find(
-        (/** @type {unknown[]} */ c) => /** @type {Record<string, unknown>} */ (c[0]).ceiling === 3,
+        (/** @type {unknown[]} */ c) => /** @type {Record<string, unknown>} */ (c[0])['ceiling'] === 3,
       );
       expect(strandBaseCall).toBeDefined();
     });
@@ -590,8 +617,8 @@ describe('ComparisonController', () => {
   describe('planCoordinateTransfer', () => {
     beforeEach(() => {
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
     });
 
     it('rejects null options', async () => {
@@ -611,9 +638,9 @@ describe('ComparisonController', () => {
       });
 
       expect(result).toBeDefined();
-      expect(result.transferVersion).toBe('coordinate-transfer-plan/v1');
-      expect(result.transferDigest).toBe('checksum-abc123');
-      expect(result.changed).toBe(false);
+      expect(result['transferVersion']).toBe('coordinate-transfer-plan/v1');
+      expect(result['transferDigest']).toBe('checksum-abc123');
+      expect(result['changed']).toBe(false);
     });
 
     it('plans transfer between coordinate selectors', async () => {
@@ -628,8 +655,20 @@ describe('ComparisonController', () => {
 
     it('reports changed=true when transfer has ops', async () => {
       planVisibleStateTransferMock.mockResolvedValueOnce({
-        summary: { opCount: 2, nodeAdds: 1, nodeRemoves: 1, edgeAdds: 0, edgeRemoves: 0, propSets: 0 },
-        ops: [{ kind: 'node-add', nodeId: 'x' }, { kind: 'node-remove', nodeId: 'y' }],
+        transferVersion: 'visible-state-transfer-plan/v1',
+        summary: {
+          opCount: 2,
+          addNodeCount: 1, removeNodeCount: 1,
+          setNodePropertyCount: 0, clearNodePropertyCount: 0,
+          addEdgeCount: 0, removeEdgeCount: 0,
+          setEdgePropertyCount: 0, clearEdgePropertyCount: 0,
+          attachNodeContentCount: 0, clearNodeContentCount: 0,
+          attachEdgeContentCount: 0, clearEdgeContentCount: 0,
+        },
+        ops: /** @type {import('../../../../../src/domain/types/CoordinateComparison.ts').VisibleStateTransferOperationV1[]} */ ([
+          { op: 'add_node', nodeId: 'x' },
+          { op: 'remove_node', nodeId: 'y' },
+        ]),
       });
 
       const result = await controller.planCoordinateTransfer({
@@ -637,7 +676,7 @@ describe('ComparisonController', () => {
         target: { kind: 'live' },
       });
 
-      expect(result.changed).toBe(true);
+      expect(result['changed']).toBe(true);
     });
 
     it('includes scope in result when provided', async () => {
@@ -650,20 +689,23 @@ describe('ComparisonController', () => {
         scope,
       });
 
-      expect(result.scope).toEqual(scope);
+      expect(result['scope']).toEqual(scope);
     });
 
     it('loads content blobs via blobStorage when available', async () => {
       const blobStorageRetrieve = vi.fn(async () => new Uint8Array([10, 20]));
-      host._blobStorage = { retrieve: blobStorageRetrieve };
+      host['_blobStorage'] = { retrieve: blobStorageRetrieve };
 
-      planVisibleStateTransferMock.mockImplementationOnce(async (_src, _tgt, loaders) => {
-        // Simulate the planner calling loadNodeContent
-        if (loaders.loadNodeContent) {
-          await loaders.loadNodeContent('n1', { oid: 'blob-oid' });
+      planVisibleStateTransferMock.mockImplementationOnce(/** @type {any} */ (
+        /** @param {unknown} _src @param {unknown} _tgt @param {{ loadNodeContent?: (id: string, meta: unknown) => Promise<unknown> }} loaders */
+        async (_src, _tgt, loaders) => {
+          // Simulate the planner calling loadNodeContent
+          if (loaders.loadNodeContent) {
+            await loaders.loadNodeContent('n1', { oid: 'blob-oid' });
+          }
+          return { summary: { opCount: 0 }, ops: [] };
         }
-        return { summary: { opCount: 0 }, ops: [] };
-      });
+      ));
 
       await controller.planCoordinateTransfer({
         source: { kind: 'live' },
@@ -674,14 +716,17 @@ describe('ComparisonController', () => {
     });
 
     it('falls back to persistence.readBlob when blobStorage is null', async () => {
-      host._blobStorage = null;
+      host['_blobStorage'] = null;
 
-      planVisibleStateTransferMock.mockImplementationOnce(async (_src, _tgt, loaders) => {
-        if (loaders.loadEdgeContent) {
-          await loaders.loadEdgeContent('e1', { oid: 'blob-oid-2' });
+      planVisibleStateTransferMock.mockImplementationOnce(/** @type {any} */ (
+        /** @param {unknown} _src @param {unknown} _tgt @param {{ loadEdgeContent?: (id: string, meta: unknown) => Promise<unknown> }} loaders */
+        async (_src, _tgt, loaders) => {
+          if (loaders.loadEdgeContent) {
+            await loaders.loadEdgeContent('e1', { oid: 'blob-oid-2' });
+          }
+          return { summary: { opCount: 0 }, ops: [] };
         }
-        return { summary: { opCount: 0 }, ops: [] };
-      });
+      ));
 
       await controller.planCoordinateTransfer({
         source: { kind: 'live' },
@@ -689,7 +734,7 @@ describe('ComparisonController', () => {
       });
 
       expect(/** @type {ReturnType<typeof vi.fn>} */ (
-        /** @type {{ readBlob: ReturnType<typeof vi.fn> }} */ (host._persistence).readBlob
+        /** @type {{ readBlob: ReturnType<typeof vi.fn> }} */ (host['_persistence']).readBlob
       )).toHaveBeenCalledWith('blob-oid-2');
     });
   });
@@ -699,8 +744,8 @@ describe('ComparisonController', () => {
   describe('planStrandTransfer', () => {
     beforeEach(() => {
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
 
       const descriptor = {
         baseObservation: { frontier: new Map([['alice', 'sha-base']]), lamportCeiling: null },
@@ -719,7 +764,7 @@ describe('ComparisonController', () => {
       const result = await controller.planStrandTransfer('my-strand');
 
       expect(result).toBeDefined();
-      expect(result.transferVersion).toBe('coordinate-transfer-plan/v1');
+      expect(result['transferVersion']).toBe('coordinate-transfer-plan/v1');
     });
 
     it('plans transfer into base', async () => {
@@ -752,8 +797,8 @@ describe('ComparisonController', () => {
   describe('selector normalization', () => {
     beforeEach(() => {
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
     });
 
     it('rejects coordinate selector without frontier', async () => {
@@ -786,8 +831,8 @@ describe('ComparisonController', () => {
 
     it('normalizes frontier record by sorting writer IDs', async () => {
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
 
       await controller.compareCoordinates({
         left: { kind: 'coordinate', frontier: { bob: 'sha2', alice: 'sha1' } },
@@ -795,10 +840,10 @@ describe('ComparisonController', () => {
       });
 
       // Verify materializeCoordinate was called with sorted frontier Maps
-      const calls = /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mock.calls;
+      const calls = /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mock.calls;
       expect(calls.length).toBeGreaterThan(0);
       const firstFrontier = /** @type {Map<string, string>} */ (
-        /** @type {Record<string, unknown>} */ (calls[0][0]).frontier
+        /** @type {Record<string, unknown>} */ (calls[0]?.[0])?.['frontier']
       );
       expect([...firstFrontier.keys()]).toEqual(['alice', 'bob']);
     });
@@ -818,8 +863,8 @@ describe('ComparisonController', () => {
 
     beforeEach(() => {
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
       strandServiceGetOrThrowMock.mockResolvedValue(strandDescriptor);
       callInternalRuntimeMethodMock.mockResolvedValue(state);
     });
@@ -844,7 +889,7 @@ describe('ComparisonController', () => {
         right: { kind: 'live' },
       });
 
-      expect(/** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate)).toHaveBeenCalled();
+      expect(/** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate'])).toHaveBeenCalled();
     });
 
     it('combines base observation ceiling with selector ceiling using min', async () => {
@@ -854,9 +899,9 @@ describe('ComparisonController', () => {
         right: { kind: 'live' },
       });
 
-      const calls = /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mock.calls;
+      const calls = /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mock.calls;
       const strandBaseCall = calls.find(
-        (/** @type {unknown[]} */ c) => /** @type {Record<string, unknown>} */ (c[0]).ceiling === 3,
+        (/** @type {unknown[]} */ c) => /** @type {Record<string, unknown>} */ (c[0])['ceiling'] === 3,
       );
       expect(strandBaseCall).toBeDefined();
     });
@@ -867,10 +912,10 @@ describe('ComparisonController', () => {
   describe('state hash computation', () => {
     it('uses StateHashService when available on host', async () => {
       const stateHashCompute = vi.fn(async () => 'svc-hash');
-      host._stateHashService = { compute: stateHashCompute };
+      host['_stateHashService'] = { compute: stateHashCompute };
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
 
       await controller.compareCoordinates({
         left: { kind: 'live' },
@@ -882,10 +927,10 @@ describe('ComparisonController', () => {
     });
 
     it('falls back to computeStateHash when StateHashService is null', async () => {
-      host._stateHashService = null;
+      host['_stateHashService'] = null;
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
 
       await controller.compareCoordinates({
         left: { kind: 'live' },
@@ -901,8 +946,8 @@ describe('ComparisonController', () => {
   describe('patch collection with ceiling', () => {
     it('filters patches above the ceiling', async () => {
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([
         makePatchEntry({ writer: 'alice', lamport: 1, sha: 'sha1' }),
         makePatchEntry({ writer: 'alice', lamport: 5, sha: 'sha5' }),
         makePatchEntry({ writer: 'alice', lamport: 10, sha: 'sha10' }),
@@ -925,9 +970,9 @@ describe('ComparisonController', () => {
     it('handles multi-writer frontier with multiple tips', async () => {
       const state = makeState();
       const frontier = new Map([['alice', 'sha-a'], ['bob', 'sha-b'], ['carol', 'sha-c']]);
-      /** @type {ReturnType<typeof vi.fn>} */ (host.getFrontier).mockResolvedValue(frontier);
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['getFrontier']).mockResolvedValue(frontier);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
 
       const result = await controller.compareCoordinates({
         left: { kind: 'live' },
@@ -936,7 +981,7 @@ describe('ComparisonController', () => {
 
       expect(result).toBeDefined();
       // Should have loaded chains for each writer tip
-      expect(/** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha)).toHaveBeenCalledTimes(6);
+      expect(/** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha'])).toHaveBeenCalledTimes(6);
       // 3 writers x 2 sides = 6 calls
     });
 
@@ -946,8 +991,8 @@ describe('ComparisonController', () => {
         edges: [{ from: 'a', to: 'b', label: 'knows' }],
         props: [{ nodeId: 'a', key: 'name', value: 'Alice' }],
       });
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([]);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([]);
 
       const result = await controller.compareCoordinates({
         left: { kind: 'live' },
@@ -959,8 +1004,8 @@ describe('ComparisonController', () => {
 
     it('ceiling 0 is valid (filters all patches with lamport > 0)', async () => {
       const state = makeState();
-      /** @type {ReturnType<typeof vi.fn>} */ (host.materializeCoordinate).mockResolvedValue(state);
-      /** @type {ReturnType<typeof vi.fn>} */ (host._loadPatchChainFromSha).mockResolvedValue([
+      /** @type {ReturnType<typeof vi.fn>} */ (host['materializeCoordinate']).mockResolvedValue(state);
+      /** @type {ReturnType<typeof vi.fn>} */ (host['_loadPatchChainFromSha']).mockResolvedValue([
         makePatchEntry({ writer: 'alice', lamport: 0, sha: 'sha0' }),
         makePatchEntry({ writer: 'alice', lamport: 1, sha: 'sha1' }),
       ]);
