@@ -1,8 +1,7 @@
-import { createEmptyState, reduceV5 } from '../JoinReducer.ts';
+import { createEmptyState, reduceV5, type WarpState } from '../JoinReducer.ts';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import { isNonEmptyString, maxPatchLamport } from './strandShared.ts';
 import type Patch from '../../types/Patch.ts';
-import type { WarpState } from '../JoinReducer.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { StrandDescriptor } from './strandTypes.ts';
 
@@ -171,8 +170,8 @@ export default class StrandMaterializer {
     for (const { patch, sha } of allPatches) {
       this._graph._provenanceIndex.addPatch(
         sha,
-        patch.reads as string[] | undefined,
-        patch.writes as string[] | undefined,
+        patch.reads,
+        patch.writes,
       );
     }
     this._graph._provenanceDegraded = false;

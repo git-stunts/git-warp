@@ -7,24 +7,20 @@
  * @module domain/services/controllers/CheckpointController
  */
 
-import { QueryError, E_NO_STATE_MSG } from '../../warp/_internal.ts';
+import { QueryError, E_NO_STATE_MSG, type WarpGraphWithMixins } from '../../warp/_internal.ts';
 import { SchemaUnsupportedError } from '../../errors/index.ts';
 import { buildWriterRef, buildCheckpointRef, buildCoverageRef } from '../../utils/RefLayout.ts';
 import { createFrontier, updateFrontier, frontierFingerprint } from '../Frontier.ts';
 import { isV5CheckpointSchema } from '../state/checkpointHelpers.ts';
-import { loadCheckpoint } from '../state/checkpointLoad.ts';
+import { loadCheckpoint, type LoadedCheckpoint } from '../state/checkpointLoad.ts';
 import { create as createCheckpointCommit } from '../state/checkpointCreate.ts';
 import { decodePatchMessage, detectMessageKind, encodeAnchorMessage } from '../codec/WarpMessageCodec.ts';
 import executeGC from '../executeGC.ts';
 import GCMetrics from '../GCMetrics.ts';
 import { computeAppliedVV } from '../state/CheckpointSerializer.ts';
-import { cloneState } from '../JoinReducer.ts';
+import { cloneState, type WarpState } from '../JoinReducer.ts';
 import type WarpRuntime from '../../WarpRuntime.ts';
-import type { WarpState } from '../JoinReducer.ts';
-import type { LoadedCheckpoint } from '../state/checkpointLoad.ts';
 import type Patch from '../../types/Patch.ts';
-import type { WarpGraphWithMixins } from '../../warp/_internal.ts';
-import type GCPolicy from '../GCPolicy.ts';
 import type GCExecuteResult from '../GCExecuteResult.ts';
 
 type CheckpointHost = WarpRuntime;
@@ -59,8 +55,8 @@ export default class CheckpointController {
       let state: WarpState;
       try {
         state = (h._cachedState && !h._stateDirty)
-          ? h._cachedState as WarpState
-          : await h.materialize() as WarpState;
+          ? h._cachedState
+          : await h.materialize();
       } finally {
         h._checkpointing = prevCheckpointing;
       }
@@ -225,7 +221,7 @@ export default class CheckpointController {
     const h = this._host;
     try {
       const metrics = GCMetrics.fromState(state);
-      const policy = h._gcPolicy as GCPolicy;
+      const policy = h._gcPolicy;
       const { shouldRun, reasons } = policy.evaluate({
         tombstoneRatio: metrics.tombstoneRatio,
         totalEntries: metrics.totalEntries,
@@ -283,8 +279,8 @@ export default class CheckpointController {
       return { ran: false, result: null, reasons: [] };
     }
 
-    const rawMetrics = GCMetrics.fromState(h._cachedState as WarpState);
-    const policy = h._gcPolicy as GCPolicy;
+    const rawMetrics = GCMetrics.fromState(h._cachedState);
+    const policy = h._gcPolicy;
     const { shouldRun, reasons } = policy.evaluate({
       tombstoneRatio: rawMetrics.tombstoneRatio,
       totalEntries: rawMetrics.totalEntries,
@@ -312,7 +308,7 @@ export default class CheckpointController {
         ? frontierFingerprint(h._lastFrontier)
         : null;
 
-      const clonedState = cloneState(h._cachedState as WarpState);
+      const clonedState = cloneState(h._cachedState);
       const appliedVV = computeAppliedVV(clonedState);
       const result = executeGC(clonedState, appliedVV);
 
@@ -351,7 +347,7 @@ export default class CheckpointController {
     const h = this._host;
     if (!h._cachedState) { return null; }
 
-    const rawMetrics = GCMetrics.fromState(h._cachedState as WarpState);
+    const rawMetrics = GCMetrics.fromState(h._cachedState);
     return {
       nodeCount: rawMetrics.nodeLiveDots,
       edgeCount: rawMetrics.edgeLiveDots,

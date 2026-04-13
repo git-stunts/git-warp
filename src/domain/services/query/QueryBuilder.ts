@@ -6,10 +6,8 @@
  */
 
 import QueryError from '../../errors/QueryError.ts';
-import QueryPlan from './QueryPlan.ts';
-import QueryRunner from './QueryRunner.ts';
-import type { AggregateSpec, QueryNodeSnapshot, QueryOperation } from './QueryPlan.ts';
-import type { QueryGraph, QueryResult, AggregateResult } from './QueryRunner.ts';
+import QueryPlan, { type AggregateSpec, type QueryNodeSnapshot, type QueryOperation } from './QueryPlan.ts';
+import QueryRunner, { type QueryGraph, type QueryResult, type AggregateResult } from './QueryRunner.ts';
 
 const DEFAULT_PATTERN = '*';
 

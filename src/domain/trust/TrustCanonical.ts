@@ -8,8 +8,7 @@
  * @see docs/specs/TRUST_V1_CRYPTO.md
  */
 
-import type { TrustRecordFields } from './canonical.ts';
-import { recordIdPayload, signaturePayload } from './canonical.ts';
+import { recordIdPayload, signaturePayload, type TrustRecordFields } from './canonical.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import defaultCrypto from '../utils/defaultCrypto.ts';
 import { textEncode } from '../utils/bytes.ts';
@@ -26,7 +25,7 @@ async function computeRecordId(
   deps: CryptoDeps = {},
 ): Promise<string> {
   const c = deps.crypto ?? defaultCrypto;
-  return c.hash('sha256', recordIdPayload(record));
+  return await c.hash('sha256', recordIdPayload(record));
 }
 
 /**

@@ -11,8 +11,7 @@
 import type { Direction, NeighborEdge, NeighborOptions } from '../../../ports/NeighborProviderPort.ts';
 import TraversalError from '../../errors/TraversalError.ts';
 import { checkAborted } from '../../utils/cancellation.ts';
-import type TraversalContext from './TraversalContext.ts';
-import {
+import TraversalContext, {
   type BfsFn,
   type TopoSortFn,
   type RunStats,

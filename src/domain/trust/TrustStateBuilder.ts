@@ -11,8 +11,7 @@
  * @see docs/specs/TRUST_V1_CRYPTO.md Section 11
  */
 
-import { TrustRecord } from './TrustRecord.ts';
-import type { KeyAddSubject, KeyRevokeSubject, WriterBindAddSubject, WriterBindRevokeSubject } from './TrustRecord.ts';
+import { TrustRecord, type KeyAddSubject, type KeyRevokeSubject, type WriterBindAddSubject, type WriterBindRevokeSubject } from './TrustRecord.ts';
 
 // -- Domain types for trust state ---------------------------------------------
 
@@ -209,7 +208,7 @@ function processRecord(rec: TrustRecord, ctx: TrustBuildContext): void {
 type RecordSource = readonly TrustRecord[] | Iterable<TrustRecord> | AsyncIterable<TrustRecord>;
 
 function isAsyncIterable(v: RecordSource): v is AsyncIterable<TrustRecord> {
-  return v != null && Symbol.asyncIterator in Object(v);
+  return v !== null && v !== undefined && Symbol.asyncIterator in Object(v);
 }
 
 /**

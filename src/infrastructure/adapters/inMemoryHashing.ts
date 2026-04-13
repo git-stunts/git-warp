@@ -68,7 +68,7 @@ export function defaultHash(data: Uint8Array): string {
  * Returns a promise that resolves when the probe completes.
  */
 export function initCryptoReady(hash: HashFn | undefined): Promise<CreateHashFn | null> {
-  if (hash != null) {
+  if (hash !== null && hash !== undefined) {
     return Promise.resolve(null);
   }
   return probeNodeCrypto();

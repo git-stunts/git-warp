@@ -95,8 +95,8 @@ function errorSearchText(err: GitError): string {
  * like "Git command failed with code 1" that carry no object-lookup semantics.
  */
 export function gitDiagnosticText(err: GitError): string {
-  const stderr = err.details?.stderr != null ? String(err.details.stderr) : '';
-  const stdout = err.details?.stdout != null ? String(err.details.stdout) : '';
+  const stderr = err.details?.stderr !== null && err.details?.stderr !== undefined ? String(err.details.stderr) : '';
+  const stdout = err.details?.stdout !== null && err.details?.stdout !== undefined ? String(err.details.stdout) : '';
   return `${stderr} ${stdout}`.trim().toLowerCase();
 }
 

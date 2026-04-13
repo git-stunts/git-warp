@@ -15,8 +15,7 @@ import defaultCodec from '../../utils/defaultCodec.ts';
 import { hexEncode, hexDecode } from '../../utils/bytes.ts';
 import CryptoError from '../../errors/CryptoError.ts';
 import WarpError from '../../errors/WarpError.ts';
-import { BTR, VerificationResult, BTR_VERSION, validateBTRStructure } from './BTR.ts';
-import type { PatchEntryJSON } from './BTR.ts';
+import { BTR, VerificationResult, BTR_VERSION, validateBTRStructure, type PatchEntryJSON } from './BTR.ts';
 import { ProvenancePayload } from './ProvenancePayload.ts';
 import { serializeFullState, deserializeFullState, computeStateHash } from '../state/StateSerializer.ts';
 

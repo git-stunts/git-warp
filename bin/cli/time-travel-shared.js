@@ -1,6 +1,10 @@
 import { stableStringify } from '../presenters/json.js';
 
-/** @param {Array<{ type: string }>} ops @returns {Record<string, number>} */
+/**
+ * Counts each op type found in a patch operation list.
+ *
+ * @param {Array<{ type: string }>} ops @returns {Record<string, number>}
+ */
 function summarizeOps(ops) {
   /** @type {Record<string, number>} */
   const summary = { NodeAdd: 0, EdgeAdd: 0, PropSet: 0, NodeTombstone: 0, EdgeTombstone: 0, BlobValue: 0 };

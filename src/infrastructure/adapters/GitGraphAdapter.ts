@@ -6,8 +6,7 @@
  * RefPort + ConfigPort).
  */
 import type { Readable } from 'node:stream';
-import { retry } from '@git-stunts/alfred';
-import type { RetryOptions } from '@git-stunts/alfred';
+import { retry, type RetryOptions } from '@git-stunts/alfred';
 import type { CommitNodeOptions, CommitNodeWithTreeOptions, LogNodesOptions, NodeInfo, PingResult } from '../../ports/CommitPort.ts';
 import type { ListRefsOptions } from '../../ports/RefPort.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
@@ -40,7 +39,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
 
   constructor({ plumbing, retryOptions = {} }: GitGraphAdapterOptions) {
     super();
-    if (plumbing == null) {
+    if (plumbing === null || plumbing === undefined) {
       throw new AdapterValidationError('plumbing is required');
     }
     this.plumbing = plumbing;
@@ -210,7 +209,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
       for (let j = 0; j < batch.length; j++) {
         const entry = batch[j];
         const result = results[j];
-        if (entry != null && result != null) {
+        if (entry !== null && entry !== undefined && result !== null && result !== undefined) {
           files[entry[0]] = result;
         }
       }
@@ -288,7 +287,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     validateRef(ref);
     validateOid(newOid);
     const oldArg = expectedOid ?? '0'.repeat(40);
-    if (expectedOid != null) {
+    if (expectedOid !== null && expectedOid !== undefined) {
       validateOid(expectedOid);
     }
     // Direct call — CAS failures must NOT be retried.
@@ -325,7 +324,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     validateRef(prefix);
     const limit = options?.limit;
     const args = ['for-each-ref', '--format=%(refname)'];
-    if (limit != null && limit !== 0) {
+    if (limit !== null && limit !== undefined && limit !== 0) {
       validateLimit(limit);
       args.push(`--count=${limit}`);
     }

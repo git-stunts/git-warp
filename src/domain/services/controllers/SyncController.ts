@@ -133,8 +133,8 @@ export default class SyncController {
     return await processSyncRequestImpl(
       request, localFrontier, persistence, this._host._graphName,
       {
-        ...(this._host._patchJournal != null ? { patchJournal: this._host._patchJournal } : {}),
-        ...(this._host._logger != null ? { logger: this._host._logger } : {}),
+        ...(this._host._patchJournal !== null && this._host._patchJournal !== undefined ? { patchJournal: this._host._patchJournal } : {}),
+        ...(this._host._logger !== null && this._host._logger !== undefined ? { logger: this._host._logger } : {}),
       },
     );
   }

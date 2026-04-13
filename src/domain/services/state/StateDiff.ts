@@ -8,10 +8,9 @@
  * @see ROADMAP.md PL/DIFF/1
  */
 
-import { lwwValue } from '../../crdt/LWW.ts';
+import { lwwValue, type LWWRegister } from '../../crdt/LWW.ts';
 import { decodeEdgeKey, decodePropKey, isEdgePropKey } from '../KeyCodec.ts';
 import type { WarpState } from '../JoinReducer.ts';
-import type { LWWRegister } from '../../crdt/LWW.ts';
 
 export interface EdgeChange {
   from: string;
@@ -141,7 +140,7 @@ function diffProps(
 ): { propsSet: PropSet[]; propsRemoved: PropRemoved[] } {
   const propsSet: PropSet[] = [];
   const propsRemoved: PropRemoved[] = [];
-  const beforeProps: Map<string, unknown> = before ? before.prop : new Map();
+  const beforeProps: Map<string, unknown> = before ? (before.prop as Map<string, unknown>) : new Map<string, unknown>();
   const afterProps: Map<string, unknown> = after.prop;
   const allPropKeys = new Set([...beforeProps.keys(), ...afterProps.keys()]);
 
@@ -164,9 +163,9 @@ function accumulatePropChange(key: string, ctx: PropAccumCtx): void {
   const change = classifyPropChange(key, ctx.beforeProps, ctx.afterProps);
   if (change === undefined) { return; }
   if ('newValue' in change) {
-    ctx.propsSet.push(change as PropSet);
+    ctx.propsSet.push(change);
   } else {
-    ctx.propsRemoved.push(change as PropRemoved);
+    ctx.propsRemoved.push(change);
   }
 }
 

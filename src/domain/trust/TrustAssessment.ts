@@ -9,9 +9,8 @@
  * @see docs/specs/TRUST_V1_CRYPTO.md Section 12
  */
 
-import type { TrustVerdict, VerdictInput } from './verdict.ts';
+import { deriveTrustVerdict, type TrustVerdict, type VerdictInput } from './verdict.ts';
 import type { TrustExplanation, EvidenceSummary } from './schemas.ts';
-import { deriveTrustVerdict } from './verdict.ts';
 
 // -- Trust status types -------------------------------------------------------
 

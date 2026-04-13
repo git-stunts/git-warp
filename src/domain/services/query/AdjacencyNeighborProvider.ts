@@ -8,9 +8,8 @@
  * @module domain/services/query/AdjacencyNeighborProvider
  */
 
-import NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
+import NeighborProviderPort, { type Direction, type NeighborOptions, type NeighborEdge, type LatencyClass } from '../../../ports/NeighborProviderPort.ts';
 import QueryError from '../../errors/QueryError.ts';
-import type { Direction, NeighborOptions, NeighborEdge, LatencyClass } from '../../../ports/NeighborProviderPort.ts';
 
 type AdjEdge = { neighborId: string; label: string };
 type AdjMap = Map<string, AdjEdge[]>;

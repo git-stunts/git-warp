@@ -7,10 +7,9 @@
  * @module domain/services/provenance/ProvenancePayload
  */
 
-import { reduceV5, createEmptyState, cloneState } from '../JoinReducer.ts';
+import { reduceV5, createEmptyState, cloneState, type WarpState } from '../JoinReducer.ts';
 import WarpError from '../../errors/WarpError.ts';
 import type Patch from '../../types/Patch.ts';
-import type { WarpState } from '../JoinReducer.ts';
 
 export interface PatchEntry {
   patch: Patch;

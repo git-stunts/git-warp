@@ -8,11 +8,10 @@
  */
 
 import QueryError from '../../errors/QueryError.ts';
-import { createEmptyState, reduceV5 } from '../JoinReducer.ts';
+import { createEmptyState, reduceV5, type WarpState } from '../JoinReducer.ts';
 import { ProvenancePayload } from '../provenance/ProvenancePayload.ts';
 import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.ts';
 import { hydrateDecodedPatch } from '../PatchHydrator.ts';
-import type { WarpState } from '../JoinReducer.ts';
 import type Patch from '../../types/Patch.ts';
 import type { WarpGraphWithMixins } from '../../warp/_internal.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';

@@ -8,11 +8,9 @@
  * @see docs/specs/TRUST_V1_CRYPTO.md Section 12
  */
 
-import { TrustPolicySchema } from './schemas.ts';
-import type { TrustExplanation, EvidenceSummary, TrustPolicy } from './schemas.ts';
+import { TrustPolicySchema, type TrustExplanation, type EvidenceSummary, type TrustPolicy } from './schemas.ts';
 import { TRUST_REASON_CODES } from './reasonCodes.ts';
-import { TrustAssessment } from './TrustAssessment.ts';
-import type { TrustDetail, TrustSource } from './TrustAssessment.ts';
+import { TrustAssessment, type TrustDetail, type TrustSource } from './TrustAssessment.ts';
 import type { TrustState, RevokedBindingInfo } from './TrustStateBuilder.ts';
 
 // -- Evidence summary builder -------------------------------------------------

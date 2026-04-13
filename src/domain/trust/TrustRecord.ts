@@ -111,6 +111,9 @@ function validateSubject(recordType: RecordType, subj: Readonly<Record<string, s
     case 'KEY_REVOKE': { return validateKeyRevokeSubject(subj); }
     case 'WRITER_BIND_ADD': { return validateBindAddSubject(subj); }
     case 'WRITER_BIND_REVOKE': { return validateBindRevokeSubject(subj); }
+    default: {
+      throw new TrustError(`Unknown record type: ${recordType as string}`, { code: 'E_TRUST_RECORD_INVALID' });
+    }
   }
 }
 

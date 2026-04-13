@@ -47,6 +47,7 @@ class InMemoryBlobStorage extends BlobStoragePort {
   }
 
   async *retrieveStream(/** @type {string} */ _oid) {
+    yield* /** @type {Uint8Array[]} */ ([]);
     throw new Error('retrieveStream not implemented');
   }
 }

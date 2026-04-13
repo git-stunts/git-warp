@@ -15,7 +15,7 @@ class Frontier {
   private readonly _entries: Map<string, string>;
 
   constructor(entries?: Iterable<[string, string]>) {
-    this._entries = entries ? new Map(entries) : new Map();
+    this._entries = entries ? new Map<string, string>(entries) : new Map<string, string>();
   }
 
   /** Updates the frontier with a new writer→patchSha mapping. */

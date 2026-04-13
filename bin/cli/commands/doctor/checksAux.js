@@ -126,6 +126,8 @@ export async function checkHooksInstalled(ctx) {
 }
 
 /**
+ * Builds a hook finding based on hook installation status.
+ *
  * @param {{ installed: boolean, version?: string, current?: boolean, foreign?: boolean, hookPath: string }} s
  * @returns {DoctorFinding}
  */
@@ -137,6 +139,8 @@ function buildHookFinding(s) {
 }
 
 /**
+ * Builds a finding for an installed hook, flagging if it is outdated.
+ *
  * @param {{ version?: string, current?: boolean }} s
  * @returns {DoctorFinding}
  */
@@ -156,6 +160,8 @@ function buildInstalledHookFinding(s) {
 }
 
 /**
+ * Builds a finding for a missing hook, distinguishing foreign hooks.
+ *
  * @param {boolean} isForeign
  * @returns {DoctorFinding}
  */

@@ -5,8 +5,7 @@
  * programs against PatchCollector; this adapter provides the runtime backing.
  */
 
-import PatchCollector from '../capabilities/PatchCollector.ts';
-import type { PatchWithSha, CheckpointData } from '../capabilities/PatchCollector.ts';
+import PatchCollector, { type PatchWithSha, type CheckpointData } from '../capabilities/PatchCollector.ts';
 import type WarpRuntime from '../WarpRuntime.ts';
 
 export default class RuntimePatchCollector extends PatchCollector {

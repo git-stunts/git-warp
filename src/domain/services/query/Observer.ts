@@ -20,6 +20,8 @@ import LiveSelector from '../../types/LiveSelector.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type WarpRuntime from '../../WarpRuntime.ts';
 import type { WorldlineSource } from '../../capabilities/QueryCapability.ts';
+import type { VisibleStateReader } from '../../../../index.js';
+import type NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
 
 interface NeighborEntry {
   neighborId: string;
@@ -109,8 +111,7 @@ function collectNodeEdges(
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- provider type is unresolved at this layer
-async function buildAdjacencyViaProvider(provider: any, visibleNodes: string[]): Promise<AdjacencyMaps> {
+async function buildAdjacencyViaProvider(provider: NeighborProviderPort, visibleNodes: string[]): Promise<AdjacencyMaps> {
   const visibleSet = new Set(visibleNodes);
   const outgoing = new Map<string, NeighborEntry[]>();
   const incoming = new Map<string, NeighborEntry[]>();
@@ -156,8 +157,7 @@ export default class Observer {
   private _graph!: WarpRuntime | null;
   private _snapshot!: { state: WarpState; stateHash: string } | null;
   private _source!: WorldlineSelector | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- StateReader type not exported directly
-  private _stateReader: any;
+  private _stateReader: VisibleStateReader | null;
   private _snapshotAdjacency!: AdjacencyMaps | null;
   // Public traversal API — duck-typed by LogicalTraversal constructor
   traverse: LogicalTraversal;

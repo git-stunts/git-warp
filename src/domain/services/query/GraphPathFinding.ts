@@ -12,8 +12,7 @@ import type { Direction, NeighborOptions } from '../../../ports/NeighborProvider
 import TraversalError from '../../errors/TraversalError.ts';
 import MinHeap from '../../utils/MinHeap.ts';
 import { checkAborted } from '../../utils/cancellation.ts';
-import type TraversalContext from './TraversalContext.ts';
-import {
+import TraversalContext, {
   type RunStats,
   type TraversalStats,
   type WeightFn,

@@ -13,8 +13,7 @@
  * @module infrastructure/adapters/GitTrustChainAdapter
  */
 
-import TrustChainPort from '../../ports/TrustChainPort.ts';
-import type { TrustChainTip } from '../../ports/TrustChainPort.ts';
+import TrustChainPort, { type TrustChainTip } from '../../ports/TrustChainPort.ts';
 import { TrustRecord } from '../../domain/trust/TrustRecord.ts';
 import { recordIdPayload, signaturePayload } from '../../domain/trust/canonical.ts';
 import { textEncode } from '../../domain/utils/bytes.ts';
@@ -149,7 +148,7 @@ async function computeRecordIdHash(
   record: Record<string, string | number | boolean | null | object>,
   crypto: CryptoPort,
 ): Promise<string> {
-  return crypto.hash('sha256', recordIdPayload(record));
+  return await crypto.hash('sha256', recordIdPayload(record));
 }
 
 function computeSignaturePayloadBytes(
@@ -247,7 +246,7 @@ export default class GitTrustChainAdapter extends TrustChainPort {
       return decoded['recordId'] ?? null;
     } catch {
       // Fallback: try reading as raw blob (pre-CAS migration)
-      return this._readRecordIdRawFallback(manifestOid);
+      return await this._readRecordIdRawFallback(manifestOid);
     }
   }
 

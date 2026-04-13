@@ -58,7 +58,7 @@ export default class MaterializedViewService {
   private readonly _indexStore: IndexStorePort | null;
 
   constructor(options?: MaterializedViewServiceOptions) {
-    const { codec, logger: _logger, indexStore } = options ?? {};
+    const { codec, indexStore } = options ?? {};
     this._codec = codec ?? defaultCodec;
     this._indexStore = indexStore ?? null;
   }

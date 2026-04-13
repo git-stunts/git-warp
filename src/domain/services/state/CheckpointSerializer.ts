@@ -16,13 +16,12 @@ import defaultCodec from '../../utils/defaultCodec.ts';
 import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { decodeDot } from '../../crdt/Dot.ts';
-import { createEmptyState } from '../JoinReducer.ts';
+import { createEmptyState, type WarpState as WarpStateType } from '../JoinReducer.ts';
 import WarpState from './WarpState.ts';
 import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type { LWWRegister } from '../../crdt/LWW.ts';
 import type { EventId } from '../../utils/EventId.ts';
-import type { WarpState as WarpStateType } from '../JoinReducer.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 
 interface SerializedLWWRegister {

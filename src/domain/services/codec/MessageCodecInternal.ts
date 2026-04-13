@@ -54,8 +54,10 @@ export function getCodec(): TrailerCodecShape {
   if (_codec !== null) {
     return _codec;
   }
-  const service = new TrailerCodecService();
-  _codec = new TrailerCodec({ service }) as TrailerCodecShape;
+  const TrailerCodecServiceCtor = TrailerCodecService as new () => unknown;
+  const TrailerCodecCtor = TrailerCodec as new (opts: { service: unknown }) => TrailerCodecShape;
+  const service: unknown = new TrailerCodecServiceCtor();
+  _codec = new TrailerCodecCtor({ service });
   return _codec;
 }
 

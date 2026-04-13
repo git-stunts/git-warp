@@ -92,7 +92,7 @@ const TrustRecordSchema = z.object({
       message: `Invalid ${record.recordType} subject: ${result.error.message}`,
     });
   } else {
-    record.subject = result.data;
+    record.subject = result.data as Record<string, unknown>;
   }
 });
 

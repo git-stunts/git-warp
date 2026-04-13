@@ -7,11 +7,10 @@
  * @module domain/services/controllers/SubscriptionController
  */
 
-import { diffStates, isEmptyDiff } from '../state/StateDiff.ts';
+import { diffStates, isEmptyDiff, type StateDiffResult, type EdgeChange, type PropSet, type PropRemoved } from '../state/StateDiff.ts';
 import { matchGlob } from '../../utils/matchGlob.ts';
 import WarpError from '../../errors/WarpError.ts';
 import type { WarpState } from '../JoinReducer.ts';
-import type { StateDiffResult, EdgeChange, PropSet, PropRemoved } from '../state/StateDiff.ts';
 
 interface Subscriber {
   onChange: (diff: StateDiffResult) => void;
