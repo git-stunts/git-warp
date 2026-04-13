@@ -205,7 +205,7 @@ describe('ProvenanceController — materializeSlice', () => {
       expect.arrayContaining([
         expect.objectContaining({
           sha: 'sha1',
-          patch: expect.objectContaining({ writer: patch['writer'], lamport: patch.lamport }),
+          patch: expect.objectContaining({ writer: patch['writer'], lamport: (patch as any).lamport }),
         }),
       ]),
     );
@@ -304,7 +304,7 @@ describe('ProvenanceController — _computeBackwardCone', () => {
     const cone = await ctrl._computeBackwardCone('node:x');
 
     expect(cone.size).toBe(1);
-    expect(cone.get('sha1')).toEqual(expect.objectContaining({ writer: patch['writer'], lamport: patch.lamport }));
+    expect(cone.get('sha1')).toEqual(expect.objectContaining({ writer: patch['writer'], lamport: (patch as any).lamport }));
   });
 
   it('follows reads transitively via BFS', async () => {
@@ -496,7 +496,7 @@ describe('ProvenanceController — _sortPatchesCausally', () => {
 
     const sorted = ctrl._sortPatchesCausally((entries));
 
-    expect(sorted.map((e) => e.patch.lamport)).toEqual([1, 2, 3]);
+    expect(sorted.map((e) => (e as any).patch.lamport)).toEqual([1, 2, 3]);
   });
 
   it('breaks lamport ties by writer ID', () => {

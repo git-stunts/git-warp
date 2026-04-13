@@ -119,7 +119,7 @@ describe('TemporalQuery checkpoint acceleration', () => {
       // since=2 and checkpoint maxLamport=1 <= 2 => use checkpoint
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (n: any) => n.props.status === 'active',
         { since: 2 },
       );
 
@@ -166,12 +166,12 @@ describe('TemporalQuery checkpoint acceleration', () => {
       for (const since of [0, 1, 2, 3, 4, 5]) {
         const plain = await tqPlain.always(
           'X',
-          (/** @type {any} */ n) => n.props.status === 'active',
+          (n: any) => n.props.status === 'active',
           { since },
         );
         const accel = await tqAccel.always(
           'X',
-          (/** @type {any} */ n) => n.props.status === 'active',
+          (n: any) => n.props.status === 'active',
           { since },
         );
         expect(accel).toBe(plain);
@@ -196,7 +196,7 @@ describe('TemporalQuery checkpoint acceleration', () => {
 
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (n: any) => n.props.status === 'active',
         { since: 1 },
       );
 
@@ -225,7 +225,7 @@ describe('TemporalQuery checkpoint acceleration', () => {
 
       await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (n: any) => n.props.status === 'active',
         { since: 0 },
       );
 
@@ -247,7 +247,7 @@ describe('TemporalQuery checkpoint acceleration', () => {
 
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (n: any) => n.props.status === 'active',
         { since: 1 },
       );
 
@@ -288,7 +288,7 @@ describe('TemporalQuery checkpoint acceleration', () => {
 
       const result = await tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'merged',
+        (n: any) => n.props.status === 'merged',
         { since: 2 },
       );
 
@@ -328,12 +328,12 @@ describe('TemporalQuery checkpoint acceleration', () => {
       for (const since of [0, 1, 2, 3, 4]) {
         const plain = await tqPlain.eventually(
           'X',
-          (/** @type {any} */ n) => n.props.status === 'merged',
+          (n: any) => n.props.status === 'merged',
           { since },
         );
         const accel = await tqAccel.eventually(
           'X',
-          (/** @type {any} */ n) => n.props.status === 'merged',
+          (n: any) => n.props.status === 'merged',
           { since },
         );
         expect(accel).toBe(plain);
@@ -358,7 +358,7 @@ describe('TemporalQuery checkpoint acceleration', () => {
 
       const result = await tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'merged',
+        (n: any) => n.props.status === 'merged',
         { since: 1 },
       );
 
@@ -387,7 +387,7 @@ describe('TemporalQuery checkpoint acceleration', () => {
 
       await tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'merged',
+        (n: any) => n.props.status === 'merged',
         { since: 0 },
       );
 
@@ -423,14 +423,14 @@ describe('TemporalQuery checkpoint acceleration', () => {
       // First query replays lamport 2 and must not mutate shared checkpoint state.
       await expect(tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (n: any) => n.props.status === 'active',
         { since: 2 },
       )).resolves.toBe(true);
 
       // Second query depends on checkpoint boundary snapshot still being "draft".
       await expect(tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'draft',
+        (n: any) => n.props.status === 'draft',
         { since: 1 },
       )).resolves.toBe(true);
 
@@ -465,7 +465,7 @@ describe('TemporalQuery checkpoint acceleration', () => {
 
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (n: any) => n.props.status === 'active',
         { since: 1 },
       );
 
@@ -500,7 +500,7 @@ describe('TemporalQuery checkpoint acceleration', () => {
 
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (n: any) => n.props.status === 'active',
         { since: 1 },
       );
 
@@ -531,7 +531,7 @@ describe('TemporalQuery checkpoint acceleration', () => {
       // since=1 matches checkpoint maxLamport; node exists with status=active
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (n: any) => n.props.status === 'active',
         { since: 1 },
       );
 
@@ -557,7 +557,7 @@ describe('TemporalQuery checkpoint acceleration', () => {
 
       const result = await tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'found',
+        (n: any) => n.props.status === 'found',
         { since: 1 },
       );
 
@@ -588,7 +588,7 @@ describe('TemporalQuery checkpoint acceleration', () => {
 
       const result = await tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'draft',
+        (n: any) => n.props.status === 'draft',
         { since: 1 },
       );
 

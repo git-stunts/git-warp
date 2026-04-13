@@ -13,10 +13,7 @@ vi.mock('../../../../src/domain/services/sync/SyncProtocol.js', async (importOri
   };
 });
 
-const { applySyncResponse: applySyncResponseMock } =
-  /** @type {{ applySyncResponse: import('vitest').Mock }} */ (
-    ((await import('../../../../src/domain/services/sync/SyncProtocol.js')) as unknown)
-  );
+const { applySyncResponse: applySyncResponseMock } = (await import('../../../../src/domain/services/sync/SyncProtocol.js') as any);
 
 /**
  * Creates a minimal SyncHost mock satisfying the SyncController contract.
@@ -54,7 +51,7 @@ function createMockHost(overrides = {}) {
     host['_setMaterializedState'] = vi.fn(async (/** @type {unknown} */ state) => {
       host['_cachedState'] = state;
       host['_stateDirty'] = false;
-      host['_materializedGraph'] = { state, stateHash: 'mock-hash', adjacency: {} };
+      host['_materializedGraph'] = ({ state, stateHash: 'mock-hash', adjacency: {} } as any);
     });
   }
   return host;
@@ -121,7 +118,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
     });
 
     const host = createMockHost({ _cachedState: createEmptyState() });
-    const ctrl = new SyncController((host), { trustGate: gate });
+    const ctrl = new SyncController((host as any), { trustGate: gate });
     const response = buildSyncResponse(['untrusted-writer']);
 
     await expect(ctrl.applySyncResponse(response)).rejects.toThrow(SyncError);
@@ -129,8 +126,8 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
     try {
       await ctrl.applySyncResponse(response);
     } catch (err) {
-      expect(err).toBeInstanceOf(SyncError);
-      expect((err).code).toBe('E_SYNC_UNTRUSTED_WRITER');
+      expect(err as any).toBeInstanceOf(SyncError);
+      expect((err as any).code).toBe('E_SYNC_UNTRUSTED_WRITER');
     }
 
     // applySyncResponseImpl must NOT have been called
@@ -162,7 +159,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
     const gcBefore = host['_patchesSinceGC'];
     const dirtyBefore = host['_stateDirty'];
 
-    const ctrl = new SyncController((host), { trustGate: gate });
+    const ctrl = new SyncController((host as any), { trustGate: gate });
     const response = buildSyncResponse(['evil-writer']);
 
     try {
@@ -188,7 +185,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
       });
 
       const host = createMockHost({ _cachedState: createEmptyState() });
-      const ctrl = new SyncController((host), { trustGate: gate });
+      const ctrl = new SyncController((host as any), { trustGate: gate });
 
       await expect(ctrl.applySyncResponse(buildSyncResponse(['x'])))
         .rejects.toMatchObject({ code: 'E_SYNC_UNTRUSTED_WRITER' });
@@ -199,7 +196,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
       const gate = new SyncTrustGate({
         trustEvaluator: (createTrustEvaluator([]) as any),
         trustMode: 'log-only',
-        logger: (logger),
+        logger: (logger as any),
       });
 
       const host = createMockHost({
@@ -208,7 +205,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
       });
       stubApplySuccess(host);
 
-      const ctrl = new SyncController((host), { trustGate: gate });
+      const ctrl = new SyncController((host as any), { trustGate: gate });
       const result = await ctrl.applySyncResponse(buildSyncResponse(['untrusted']));
 
       // Patches applied despite untrusted writer
@@ -233,7 +230,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
       });
       stubApplySuccess(host);
 
-      const ctrl = new SyncController((host), { trustGate: gate });
+      const ctrl = new SyncController((host as any), { trustGate: gate });
       const result = await ctrl.applySyncResponse(buildSyncResponse(['anyone']));
 
       // Patches applied, evaluator NOT called
@@ -266,7 +263,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
     });
     stubApplySuccess(host);
 
-    const ctrl = new SyncController((host), { trustGate: gate });
+    const ctrl = new SyncController((host as any), { trustGate: gate });
     const result = await ctrl.applySyncResponse(response);
 
     // Trust evaluator received ['C'], not ['A', 'B']
@@ -286,7 +283,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
         trustMode: trust?.mode || 'off',
       })),
     });
-    const ctrl = new SyncController((host));
+    const ctrl = new SyncController((host as any));
     const remotePeer = {
       processSyncRequest: vi.fn().mockResolvedValue(buildSyncResponse(['mallory'])),
     };
@@ -316,7 +313,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
     stubApplySuccess(host);
 
     // No trust gate — simple success path
-    const ctrl = new SyncController((host));
+    const ctrl = new SyncController((host as any));
     await ctrl.applySyncResponse(buildSyncResponse(['writer-a']));
 
     // _setMaterializedState should have been called to rebuild caches

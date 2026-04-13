@@ -37,9 +37,8 @@ const PROP_VALUES = ['Alice', 'Bob', 42, true, null, 'active', 'red', 0, ''];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-/** @template T @param {() => number} nextFn @param {T[]} arr @returns {T} */
-function pick(nextFn, arr) {
-  return (arr[Math.floor(nextFn() * arr.length)] as T);
+function pick<T>(nextFn: () => number, arr: T[]): T {
+  return arr[Math.floor(nextFn() * arr.length)] as T;
 }
 
 /** @param {number} seed @param {number} lamport @returns {string} */
@@ -57,7 +56,7 @@ function generatePatches(seed) {
   const rng = createRng(seed).next;
   const patchCount = 10 + Math.floor(rng() * 41); // 10-50
   const writer = `w${seed}`;
-  const patches = [];
+  const patches: any[] = [];
   const trackState = createEmptyState();
   let lamport = 0;
 
@@ -65,11 +64,11 @@ function generatePatches(seed) {
     lamport++;
     const sha = makeSha(seed, lamport);
     const opCount = 1 + Math.floor(rng() * 5); // 1-5
-    const ops = [];
+    const ops: any[] = [];
 
     for (let o = 0; o < opCount; o++) {
       const roll = rng();
-      const aliveNodes = trackState.nodeAlive.elements();
+      const aliveNodes: any[] = trackState.nodeAlive.elements();
       const aliveEdgeKeys = trackState.edgeAlive.elements();
 
       if (roll < 0.3) {
@@ -236,7 +235,7 @@ describe('MaterializedView equivalence', () => {
 
       // ── Adjacency provider (ground truth from state) ──────────────
       const { outgoing, incoming } = buildAdjacency(fullState);
-      const aliveNodeSet = new Set(fullState.nodeAlive.elements());
+      const aliveNodeSet = new Set<string>(fullState.nodeAlive.elements() as string[]);
       const adjacencyProvider = new AdjacencyNeighborProvider({
         outgoing,
         incoming,
@@ -281,7 +280,7 @@ describe('MaterializedView equivalence', () => {
       // ── Incremental (patch-by-patch) ──────────────────────────────
       let incrState = createEmptyState();
       let currentTree = service.build(createEmptyState()).tree;
-      let lastResult = null;
+      let lastResult: any = null;
 
       for (const { patch, sha } of patches) {
         const { diff } = applyWithDiff(incrState, patch, sha);

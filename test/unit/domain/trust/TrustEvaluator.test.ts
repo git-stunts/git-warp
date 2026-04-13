@@ -30,13 +30,13 @@ function tr(/** @type {Record<string, unknown>} */ fields) {
 }
 
 const VALID_POLICY = {
-  schemaVersion: 1,
+  schemaVersion: 1 as const,
   mode: ('enforce' as 'enforce'),
   writerPolicy: ('all_writers_must_be_trusted' as 'all_writers_must_be_trusted'),
 };
 
 const WARN_POLICY = {
-  schemaVersion: 1,
+  schemaVersion: 1 as const,
   mode: ('warn' as 'warn'),
   writerPolicy: ('all_writers_must_be_trusted' as 'all_writers_must_be_trusted'),
 };
@@ -181,7 +181,7 @@ describe('evaluateWriters — mixed trusted/untrusted', () => {
 
     const aliceExpl = assessment.trust.explanations.find(/** @param {Record<string, unknown>} e */ (e) => e['writerId'] === 'alice');
     const malloryExpl = assessment.trust.explanations.find(/** @param {Record<string, unknown>} e */ (e) => e['writerId'] === 'mallory');
-    expect((aliceExpl)['trusted']).toBe(true);
-    expect((malloryExpl)['trusted']).toBe(false);
+    expect((aliceExpl as any)['trusted']).toBe(true);
+    expect((malloryExpl as any)['trusted']).toBe(false);
   });
 });

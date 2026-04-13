@@ -7,10 +7,10 @@ import AdjacencyNeighborProvider from '../../../../src/domain/services/query/Adj
  * Each edge: { from, to, label? }
  */
 /** @param {Array<{from: string, to: string, label?: string}>} edges */
-function buildProvider(edges) {
+function buildProvider(edges: Array<{from: string; to: string; label?: string}>) {
   const outgoing = new Map();
   const incoming = new Map();
-  const allNodes = new Set();
+  const allNodes = new Set<string>();
 
   for (const { from, to, label = '' } of edges) {
     allNodes.add(from);
@@ -215,9 +215,9 @@ describe('GraphTraversal.dfs', () => {
 
   it('calls DFS hooks for visits and expansions', async () => {
     /** @type {Array<{nodeId: string, depth: number}>} */
-    const visited = [];
+    const visited: any[] = [];
     /** @type {Array<{nodeId: string, count: number}>} */
-    const expanded = [];
+    const expanded: any[] = [];
     const engine = new GraphTraversal({ provider: diamondProvider() });
     await engine.dfs({
       start: 'a',
@@ -287,7 +287,7 @@ describe('GraphTraversal.shortestPath', () => {
   });
 
   it('checks AbortSignal every thousand visited nodes', async () => {
-    const edges = [];
+    const edges: any[] = [];
     for (let i = 0; i < 999; i += 1) {
       edges.push({ from: 'root', to: `n${String(i).padStart(3, '0')}` });
     }
@@ -323,7 +323,7 @@ describe('GraphTraversal.isReachable', () => {
   });
 
   it('checks AbortSignal every thousand visited nodes', async () => {
-    const edges = [];
+    const edges: any[] = [];
     for (let i = 0; i < 999; i += 1) {
       edges.push({ from: 'root', to: `n${String(i).padStart(3, '0')}` });
     }
@@ -604,8 +604,8 @@ describe('GraphTraversal.topologicalSort', () => {
       await engine.topologicalSort({ start: 'a', throwOnCycle: true });
       expect.fail('should have thrown');
     } catch (err) {
-      expect((err).code).toBe('ERR_GRAPH_HAS_CYCLES');
-      expect((err).context.cycleWitness).toBeDefined();
+      expect((err as any).code).toBe('ERR_GRAPH_HAS_CYCLES');
+      expect((err as any).context.cycleWitness).toBeDefined();
     }
   });
 
@@ -663,7 +663,7 @@ describe('GraphTraversal.topologicalSort', () => {
   });
 
   it('checks AbortSignal during discovery every thousand nodes', async () => {
-    const edges = [];
+    const edges: any[] = [];
     for (let i = 0; i < 999; i += 1) {
       edges.push({ from: 'root', to: `n${String(i).padStart(3, '0')}` });
     }
@@ -846,7 +846,7 @@ describe('GraphTraversal stats', () => {
       get latencyClass() { return 'async-local'; },
     };
 
-    const engine = new GraphTraversal({ provider: asyncProvider, neighborCacheSize: 10 });
+    const engine = new GraphTraversal({ provider: (asyncProvider as any), neighborCacheSize: 10 });
     const { stats } = await engine.bfs({ start: 'a' });
     // First calls are all misses
     expect(stats.cacheMisses).toBeGreaterThan(0);
@@ -884,7 +884,7 @@ describe('GraphTraversal stats', () => {
       get latencyClass() { return 'async-local'; },
     };
 
-    const engine = new GraphTraversal({ provider, neighborCacheSize: 16 });
+    const engine = new GraphTraversal({ provider: (provider as any), neighborCacheSize: 16 });
     const first = await engine.bfs({
       start: 's',
       options: { labels: new Set(['a,b', 'c']) },
@@ -906,7 +906,7 @@ describe('GraphTraversal stats', () => {
 describe('GraphTraversal hooks', () => {
   it('calls onVisit for each visited node', async () => {
     /** @type {Array<{nodeId: string, depth: number}>} */
-    const visited = [];
+    const visited: any[] = [];
     const engine = new GraphTraversal({ provider: chainProvider() });
     await engine.bfs({
       start: 'a',
@@ -919,7 +919,7 @@ describe('GraphTraversal hooks', () => {
 
   it('calls onExpand with neighbors', async () => {
     /** @type {Array<{nodeId: string, count: number}>} */
-    const expanded = [];
+    const expanded: any[] = [];
     const engine = new GraphTraversal({ provider: diamondProvider() });
     await engine.bfs({
       start: 'a',
@@ -1003,8 +1003,7 @@ describe('GraphTraversal private helpers', () => {
   });
 
   it('_biAStarExpand skips neighbors that are already visited on this side', async () => {
-    /** @type {Array<{nodeId: string, priority: number}>} */
-    const inserts = [];
+    const inserts: Array<{nodeId: string; priority: number}> = [];
     const engine = new GraphTraversal({
       provider: buildProvider([
         { from: 'a', to: 'b' },

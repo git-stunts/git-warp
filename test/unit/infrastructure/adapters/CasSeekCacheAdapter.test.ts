@@ -14,7 +14,12 @@ let exposeRestoreStream = false;
 let lastConstructorArgs = {};
 
 class MockContentAddressableStore {
-  constructor(/** @type {any} */ opts) {
+  readManifest: any;
+  restore: any;
+  store: any;
+  createTree: any;
+  restoreStream?: any;
+  constructor(opts: any) {
     lastConstructorArgs = opts;
     this.readManifest = mockReadManifest;
     this.restore = mockRestore;
@@ -383,7 +388,7 @@ describe('CasSeekCacheAdapter', () => {
       const result = await streamAdapter.get(SAMPLE_KEY);
 
       expect(result).not.toBeNull();
-      expect(new TextDecoder().decode((result).buffer)).toBe('hello-world');
+      expect(new TextDecoder().decode((result!).buffer)).toBe('hello-world');
       expect(mockRestoreStream).toHaveBeenCalledWith({ manifest });
       // Should NOT fall back to cas.restore()
       expect(mockRestore).not.toHaveBeenCalled();
@@ -650,7 +655,7 @@ describe('CasSeekCacheAdapter', () => {
         },
       };
 
-      const result = (smallAdapter)._enforceMaxEntries(index);
+      const result = (smallAdapter as any)._enforceMaxEntries(index);
       expect(Object.keys(result.entries)).toHaveLength(2);
     });
 
@@ -672,7 +677,7 @@ describe('CasSeekCacheAdapter', () => {
         },
       };
 
-      const result = (smallAdapter)._enforceMaxEntries(index);
+      const result = (smallAdapter as any)._enforceMaxEntries(index);
       const remaining = Object.keys(result.entries);
       expect(remaining).toHaveLength(2);
       expect(remaining).toContain('v1:t3-newest');
@@ -700,7 +705,7 @@ describe('CasSeekCacheAdapter', () => {
         },
       };
 
-      const result = (smallAdapter)._enforceMaxEntries(index);
+      const result = (smallAdapter as any)._enforceMaxEntries(index);
       expect(Object.keys(result.entries)).toHaveLength(3);
     });
 
@@ -731,7 +736,7 @@ describe('CasSeekCacheAdapter', () => {
         },
       };
 
-      const result = (smallAdapter)._enforceMaxEntries(index);
+      const result = (smallAdapter as any)._enforceMaxEntries(index);
       const remaining = Object.keys(result.entries);
       expect(remaining).toHaveLength(2);
       // The old-but-recently-used entry should survive (LRU)
@@ -756,7 +761,7 @@ describe('CasSeekCacheAdapter', () => {
         },
       };
 
-      const result = (smallAdapter)._enforceMaxEntries(index);
+      const result = (smallAdapter as any)._enforceMaxEntries(index);
       expect(Object.keys(result.entries)).toHaveLength(1);
     });
 

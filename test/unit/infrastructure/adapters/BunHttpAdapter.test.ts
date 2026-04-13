@@ -9,13 +9,13 @@ import HttpServerPort from '../../../../src/ports/HttpServerPort.ts';
  * @returns {{ serve: any, mockServer: any }}
  */
 function createMockBunServe() {
-    const mockServer = {
+    const mockServer: any = {
     port: 0,
     hostname: '0.0.0.0',
     stop: vi.fn(),
   };
 
-  const serve = vi.fn((/** @type {any} */ options) => {
+  const serve = vi.fn((options: any) => {
     mockServer.port = options.port || 0;
     mockServer.hostname = options.hostname || '0.0.0.0';
     // Stash fetch so tests can invoke it directly
@@ -32,7 +32,7 @@ function createMockBunServe() {
  * @param {{ method?: string, url?: string, headers?: Record<string, string>, body?: string }} opts
  * @returns {any}
  */
-function createMockRequest(opts = {}) {
+function createMockRequest(opts: { method?: string; url?: string; headers?: Record<string, string>; body?: string } = {}) {
   const method = opts.method || 'GET';
   const url = opts.url || 'http://localhost:3000/test?q=1';
   const headerMap = new Map(Object.entries(opts.headers || {}));
@@ -86,7 +86,7 @@ describe('BunHttpAdapter', () => {
 
   afterEach(() => {
     if (savedBun === undefined) {
-      delete (globalThis).Bun;
+      delete (globalThis as any).Bun;
     } else {
       (globalThis).Bun = savedBun;
     }
@@ -140,7 +140,7 @@ describe('BunHttpAdapter', () => {
       server.listen(8080, cb);
 
       expect(serve).toHaveBeenCalledOnce();
-      expect(serve.mock.calls[0][0].port).toBe(8080);
+      expect((serve.mock.calls as any)[0][0].port).toBe(8080);
       expect(cb).toHaveBeenCalledWith(null);
     });
 
@@ -155,8 +155,8 @@ describe('BunHttpAdapter', () => {
       server.listen(9090, '127.0.0.1', cb);
 
       expect(serve).toHaveBeenCalledOnce();
-      expect(serve.mock.calls[0][0].port).toBe(9090);
-      expect(serve.mock.calls[0][0].hostname).toBe('127.0.0.1');
+      expect((serve.mock.calls as any)[0][0].port).toBe(9090);
+      expect((serve.mock.calls as any)[0][0].hostname).toBe('127.0.0.1');
       expect(cb).toHaveBeenCalledWith(null);
     });
 
@@ -170,7 +170,7 @@ describe('BunHttpAdapter', () => {
 
       server.listen(7070, cb);
 
-      expect(serve.mock.calls[0][0].hostname).toBeUndefined();
+      expect((serve.mock.calls as any)[0][0].hostname).toBeUndefined();
       expect(cb).toHaveBeenCalledWith(null);
     });
 
@@ -285,7 +285,7 @@ describe('BunHttpAdapter', () => {
       const response = await mockServer._fetch(mockReq);
 
       expect(handler).toHaveBeenCalledOnce();
-      const portReq = (handler).mock.calls[0][0];
+      const portReq = (handler as any).mock.calls[0][0];
       expect(portReq!.method).toBe('GET');
       expect(portReq!.url).toBe('/api/nodes?limit=10');
       expect(portReq!.headers.accept).toBe('application/json');
@@ -348,7 +348,7 @@ describe('BunHttpAdapter', () => {
 
       await mockServer._fetch(mockReq);
 
-      const portReq = (handler).mock.calls[0][0];
+      const portReq = (handler as any).mock.calls[0][0];
       expect(portReq!.body).toBeUndefined();
     });
 

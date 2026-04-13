@@ -15,7 +15,7 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       // Create 5 patches: A, B, C (introduces 'bug'), D, E
-      const shas = [];
+      const shas: any[] = [];
       shas.push(await graph.patch(p => { p.addNode('n:1'); }));        // A
       shas.push(await graph.patch(p => { p.addNode('n:2'); }));        // B
       shas.push(await graph.patch(p => { p.addNode('bug'); }));        // C — first bad
@@ -34,10 +34,10 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('found');
-      expect((result).firstBadPatch).toBe(shas[2]); // C
-      expect((result).writerId).toBe('w1');
-      expect((result).steps).toBeLessThanOrEqual(2);
-      expect((result).totalCandidates).toBe(4); // B, C, D, E
+      expect((result as any).firstBadPatch).toBe(shas[2]); // C
+      expect((result as any).writerId).toBe('w1');
+      expect((result as any).steps).toBeLessThanOrEqual(2);
+      expect((result as any).totalCandidates).toBe(4); // B, C, D, E
     } finally {
       await repo.cleanup();
     }
@@ -64,7 +64,7 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('range-error');
-      expect((result).message).toBe('good and bad SHAs are the same');
+      expect((result as any).message).toBe('good and bad SHAs are the same');
     } finally {
       await repo.cleanup();
     }
@@ -94,10 +94,10 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('found');
-      expect((result).firstBadPatch).toBe(shaB);
-      expect((result).writerId).toBe('w1');
-      expect((result).steps).toBe(0);
-      expect((result).totalCandidates).toBe(1);
+      expect((result as any).firstBadPatch).toBe(shaB);
+      expect((result as any).writerId).toBe('w1');
+      expect((result as any).steps).toBe(0);
+      expect((result as any).totalCandidates).toBe(1);
     } finally {
       await repo.cleanup();
     }
@@ -126,7 +126,7 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('range-error');
-      expect((result).message).toBe('good is not an ancestor of bad');
+      expect((result as any).message).toBe('good is not an ancestor of bad');
     } finally {
       await repo.cleanup();
     }
@@ -154,7 +154,7 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('range-error');
-      expect((result).message).toBe('good or bad SHA not found in writer chain');
+      expect((result as any).message).toBe('good or bad SHA not found in writer chain');
     } finally {
       await repo.cleanup();
     }
@@ -170,13 +170,13 @@ describe('BisectService', { timeout: 30000 }, () => {
         autoMaterialize: true,
       });
 
-      const shas = [];
+      const shas: any[] = [];
       shas.push(await graph.patch(p => { p.addNode('n:1'); }));   // A — good
       shas.push(await graph.patch(p => { p.addNode('n:2'); }));   // B
       shas.push(await graph.patch(p => { p.addNode('bug'); }));   // C — first bad
       shas.push(await graph.patch(p => { p.addNode('n:3'); }));   // D — bad
 
-      /** @type {string[]} */ const observedShas = [];
+      const observedShas: string[] = [];
 
       const bisect = new BisectService({ graph });
       const result = await bisect.run({
@@ -190,7 +190,7 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('found');
-      expect((result).firstBadPatch).toBe(shas[2]); // C
+      expect((result as any).firstBadPatch).toBe(shas[2]); // C
       // Every SHA passed to testFn must be a real candidate SHA
       for (const observed of observedShas) {
         expect(shas.slice(1)).toContain(observed);
@@ -210,7 +210,7 @@ describe('BisectService', { timeout: 30000 }, () => {
         autoMaterialize: true,
       });
 
-      const shas = [];
+      const shas: any[] = [];
       shas.push(await graph.patch(p => { p.addNode('n:1'); }));  // A — good
       shas.push(await graph.patch(p => { p.addNode('n:2'); }));  // B — bad
       shas.push(await graph.patch(p => { p.addNode('n:3'); }));  // C — bad
@@ -225,7 +225,7 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('found');
-      expect((result).firstBadPatch).toBe(shas[1]); // B — first candidate after good
+      expect((result as any).firstBadPatch).toBe(shas[1]); // B — first candidate after good
     } finally {
       await repo.cleanup();
     }
@@ -241,7 +241,7 @@ describe('BisectService', { timeout: 30000 }, () => {
         autoMaterialize: true,
       });
 
-      const shas = [];
+      const shas: any[] = [];
       shas.push(await graph.patch(p => { p.addNode('n:1'); }));
       shas.push(await graph.patch(p => { p.addNode('n:2'); }));
       shas.push(await graph.patch(p => { p.addNode('n:3'); }));
@@ -284,7 +284,7 @@ describe('BisectService', { timeout: 30000 }, () => {
       });
 
       expect(result.result).toBe('range-error');
-      expect((result).message).toBe('good or bad SHA not found in writer chain');
+      expect((result as any).message).toBe('good or bad SHA not found in writer chain');
     } finally {
       await repo.cleanup();
     }

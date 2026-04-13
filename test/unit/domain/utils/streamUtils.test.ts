@@ -33,7 +33,7 @@ describe('streamUtils', () => {
   });
 
   it('returns false for readable streams when the global constructor is unavailable', () => {
-    globalThis.ReadableStream = (undefined);
+    globalThis.ReadableStream = (undefined as any);
 
     const streamLike = {
       getReader() {
@@ -74,7 +74,9 @@ describe('streamUtils', () => {
 
   it('adapts readable streams without Symbol.asyncIterator via getReader()', async () => {
     class FakeReadableStream {
-      constructor(/** @type {Uint8Array[]} */ chunks) {
+      _chunks: Uint8Array[];
+      released: boolean;
+      constructor(chunks: Uint8Array[]) {
         this._chunks = [...chunks];
         this.released = false;
       }
@@ -94,10 +96,10 @@ describe('streamUtils', () => {
       }
     }
 
-    globalThis.ReadableStream = (FakeReadableStream);
+    globalThis.ReadableStream = (FakeReadableStream as any);
 
     const stream = new FakeReadableStream([new Uint8Array([3, 4])]);
-    const iterator = normalizeToAsyncIterable((stream))[Symbol.asyncIterator]();
+    const iterator = normalizeToAsyncIterable((stream as any))[Symbol.asyncIterator]();
 
     expect(await iterator.next()).toEqual({
       value: new Uint8Array([3, 4]),
@@ -112,7 +114,9 @@ describe('streamUtils', () => {
 
   it('releases the reader when iteration is terminated early', async () => {
     class FakeReadableStream {
-      constructor(/** @type {Uint8Array[]} */ chunks) {
+      _chunks: Uint8Array[];
+      released: boolean;
+      constructor(chunks: Uint8Array[]) {
         this._chunks = [...chunks];
         this.released = false;
       }
@@ -127,10 +131,10 @@ describe('streamUtils', () => {
       }
     }
 
-    globalThis.ReadableStream = (FakeReadableStream);
+    globalThis.ReadableStream = (FakeReadableStream as any);
 
     const stream = new FakeReadableStream([new Uint8Array([9])]);
-    const iterator = normalizeToAsyncIterable((stream))[Symbol.asyncIterator]();
+    const iterator = normalizeToAsyncIterable((stream as any))[Symbol.asyncIterator]();
 
     expect(await iterator.next()).toEqual({
       value: new Uint8Array([9]),

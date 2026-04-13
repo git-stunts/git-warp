@@ -6,18 +6,18 @@ import AdjacencyNeighborProvider from '../../../../src/domain/services/query/Adj
  * Each edge: { from, to, label }
  */
 /** @param {Array<{from: string, to: string, label: string}>} edges */
-function buildMaps(edges) {
-  const outgoing = new Map();
-  const incoming = new Map();
-  const allNodes = new Set();
+function buildMaps(edges: Array<{from: string; to: string; label: string}>) {
+  const outgoing = new Map<string, any[]>();
+  const incoming = new Map<string, any[]>();
+  const allNodes = new Set<string>();
 
   for (const { from, to, label } of edges) {
     allNodes.add(from);
     allNodes.add(to);
     if (!outgoing.has(from)) outgoing.set(from, []);
-    outgoing.get(from).push({ neighborId: to, label });
+    outgoing.get(from)!.push({ neighborId: to, label });
     if (!incoming.has(to)) incoming.set(to, []);
-    incoming.get(to).push({ neighborId: from, label });
+    incoming.get(to)!.push({ neighborId: from, label });
   }
   return { outgoing, incoming, aliveNodes: allNodes };
 }

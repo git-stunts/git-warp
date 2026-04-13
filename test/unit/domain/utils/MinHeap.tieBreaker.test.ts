@@ -4,7 +4,7 @@ import MinHeap from '../../../../src/domain/utils/MinHeap.ts';
 describe('MinHeap tie-breaking', () => {
   it('breaks ties using tieBreaker comparator', () => {
     const heap = new MinHeap({
-      tieBreaker: (a, b) => ((a as any) < b ? -1 : a > b ? 1 : 0),
+      tieBreaker: (a: any, b: any) => (a < b ? -1 : a > b ? 1 : 0),
     });
 
     heap.insert('charlie', 1);
@@ -18,7 +18,7 @@ describe('MinHeap tie-breaking', () => {
 
   it('uses priority first, tieBreaker only when equal', () => {
     const heap = new MinHeap({
-      tieBreaker: (a, b) => ((a as any) < b ? -1 : a > b ? 1 : 0),
+      tieBreaker: (a: any, b: any) => (a < b ? -1 : a > b ? 1 : 0),
     });
 
     heap.insert('z-low', 0);
@@ -46,7 +46,7 @@ describe('MinHeap tie-breaking', () => {
 
   it('handles numeric tie-breaking', () => {
     const heap = new MinHeap({
-      tieBreaker: (a, b) => (a as any) - b,
+      tieBreaker: (a: any, b: any) => (a as any) - b,
     });
 
     heap.insert(30, 5);
@@ -60,7 +60,7 @@ describe('MinHeap tie-breaking', () => {
 
   it('maintains heap invariant through mixed inserts and extracts', () => {
     const heap = new MinHeap({
-      tieBreaker: (a, b) => ((a as any) < b ? -1 : a > b ? 1 : 0),
+      tieBreaker: (a: any, b: any) => (a < b ? -1 : a > b ? 1 : 0),
     });
 
     heap.insert('d', 2);
@@ -77,7 +77,7 @@ describe('MinHeap tie-breaking', () => {
 
   it('handles single-element heap with tieBreaker', () => {
     const heap = new MinHeap({
-      tieBreaker: (a, b) => ((a as any) < b ? -1 : a > b ? 1 : 0),
+      tieBreaker: (a: any, b: any) => (a < b ? -1 : a > b ? 1 : 0),
     });
 
     heap.insert('only', 0);

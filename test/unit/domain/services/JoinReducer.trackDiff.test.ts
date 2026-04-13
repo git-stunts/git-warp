@@ -48,7 +48,7 @@ function propSet(node, key, value) {
  * @param {any[]} [params.ops]
  * @param {any} [params.context]
  */
-function makePatch({ writer = 'w1', lamport = 1, ops = [], context = undefined }) {
+function makePatch({ writer = 'w1', lamport = 1, ops = [] as any[], context = undefined }: { writer?: string; lamport?: number; ops?: any[]; context?: any } = {}) {
   return {
     schema: 2,
     writer,

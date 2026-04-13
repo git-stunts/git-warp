@@ -18,8 +18,8 @@ vi.mock('../../../../../src/domain/services/state/StateDiff.js', () => ({
 import { diffStates, isEmptyDiff } from '../../../../../src/domain/services/state/StateDiff.js';
 
 // Cast mocked functions so .mockImplementation/.mockReturnValue are available
-const mockDiffStates = (diffStates);
-const mockIsEmptyDiff = (isEmptyDiff);
+const mockDiffStates = (diffStates as any);
+const mockIsEmptyDiff = (isEmptyDiff as any);
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -34,7 +34,7 @@ const mockIsEmptyDiff = (isEmptyDiff);
  *   propsRemoved?: import('../../../../../src/domain/services/state/StateDiff.js').PropRemoved[];
  * }} [opts]
  */
-function makeDiff({ nodesAdded = [], nodesRemoved = [], edgesAdded = [], edgesRemoved = [], propsSet = [], propsRemoved = [] } = {}) {
+function makeDiff({ nodesAdded = [] as any[], nodesRemoved = [] as any[], edgesAdded = [] as any[], edgesRemoved = [] as any[], propsSet = [] as any[], propsRemoved = [] as any[] } = {}) {
   return {
     nodes: { added: nodesAdded, removed: nodesRemoved },
     edges: { added: edgesAdded, removed: edgesRemoved },

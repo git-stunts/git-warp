@@ -58,7 +58,7 @@ async function createAuditService(persistence, graphName, writerId) {
  * @param {string} [patchSha]
  * @param {string} [writer]
  */
-async function commitReceipt(service, lamport, patchSha, writer = 'alice') {
+async function commitReceipt(service: any, lamport: any, patchSha?: string, writer = 'alice') {
   const sha = patchSha || `${lamport.toString(16).padStart(2, '0')}${'a'.repeat(38)}`;
   return await service.commit(Object.freeze({
     patchSha: sha,

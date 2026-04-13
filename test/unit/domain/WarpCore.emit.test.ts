@@ -27,7 +27,7 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
       const core = await openCore();
             let effectId = ('') as string;
       await core.patch((p) => {
-        effectId = (p).emitEffect('notification', { text: 'hello' });
+        effectId = (p as any).emitEffect('notification', { text: 'hello' });
       });
 
       expect(effectId.startsWith(EFFECT_NODE_PREFIX)).toBe(true);
@@ -41,7 +41,7 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
       const core = await openCore();
             let effectId = ('') as string;
       await core.patch((p) => {
-        effectId = (p).emitEffect('diagnostic', null);
+        effectId = (p as any).emitEffect('diagnostic', null);
       });
 
       await core.materialize();
@@ -54,7 +54,7 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
       const core = await openCore();
             let effectId = ('') as string;
       await core.patch((p) => {
-        effectId = (p).emitEffect('test', null);
+        effectId = (p as any).emitEffect('test', null);
       });
 
       await core.materialize();
@@ -67,7 +67,7 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
       const core = await openCore();
             let effectId = ('') as string;
       await core.patch((p) => {
-        effectId = (p).emitEffect('export', { format: 'csv', rows: 100 });
+        effectId = (p as any).emitEffect('export', { format: 'csv', rows: 100 });
       });
 
       await core.materialize();
@@ -81,7 +81,7 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
       const core = await openCore();
             let effectId = ('') as string;
       await core.patch((p) => {
-        effectId = (p).emitEffect('ping', null);
+        effectId = (p as any).emitEffect('ping', null);
       });
 
       await core.materialize();
@@ -94,9 +94,9 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
       const core = await openCore();
             const ids = ([]) as string[];
       await core.patch((p) => {
-        ids.push((p).emitEffect('a', null));
-        ids.push((p).emitEffect('b', null));
-        ids.push((p).emitEffect('c', null));
+        ids.push((p as any).emitEffect('a', null));
+        ids.push((p as any).emitEffect('b', null));
+        ids.push((p as any).emitEffect('c', null));
       });
 
       expect(new Set(ids).size).toBe(3);
@@ -106,7 +106,7 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
       const core = await openCore();
       const customId = `${EFFECT_NODE_PREFIX}my-custom-id`;
       await core.patch((p) => {
-        (p).emitEffect('test', null, { effectId: customId });
+        (p as any).emitEffect('test', null, { effectId: customId });
       });
 
       await core.materialize();
@@ -118,7 +118,7 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
       const core = await openCore();
       await expect(
         core.patch((p) => {
-          (p).emitEffect('', null);
+          (p as any).emitEffect('', null);
         }),
       ).rejects.toThrow('emitEffect: kind must be a non-empty string');
     });
@@ -134,7 +134,7 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
       const patchSha = await core.patch((p) => {
         p.addNode('user:alice');
         p.setProperty('user:alice', 'name', 'Alice');
-        effectId = (p).emitEffect('user-created', { userId: 'user:alice' });
+        effectId = (p as any).emitEffect('user-created', { userId: 'user:alice' });
       });
 
       await core.materialize();
@@ -158,7 +158,7 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
       const core = await openCore();
             let effectId = ('') as string;
       await core.patch((p) => {
-        effectId = (p).emitEffect('test', null);
+        effectId = (p as any).emitEffect('test', null);
       });
 
       await core.materialize();
@@ -179,10 +179,10 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
       const sharedId = `${EFFECT_NODE_PREFIX}determinism-check`;
 
       await core1.patch((p) => {
-        (p).emitEffect('test', payload, { effectId: sharedId });
+        (p as any).emitEffect('test', payload, { effectId: sharedId });
       });
       await core2.patch((p) => {
-        (p).emitEffect('test', payload, { effectId: sharedId });
+        (p as any).emitEffect('test', payload, { effectId: sharedId });
       });
 
       await core1.materialize();

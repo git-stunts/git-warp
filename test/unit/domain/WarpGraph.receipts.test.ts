@@ -84,13 +84,13 @@ function createMockPersistence() {
  *
  * Returns the commit SHA.
  */
-async function simulatePatchCommit(/** @type {any} */ persistence, /** @type {any} */ {
+async function simulatePatchCommit(persistence: any, {
   graphName,
   writerId,
   lamport,
   ops,
   context,
-}) {
+}: { graphName: any; writerId: any; lamport: any; ops: any; context?: any }) {
   const { encode } = await import('../../../src/infrastructure/codecs/CborCodec.js');
   const { encodePatchMessage } = await import('../../../src/domain/services/codec/WarpMessageCodec.ts');
   const { buildWriterRef } = await import('../../../src/domain/utils/RefLayout.ts');

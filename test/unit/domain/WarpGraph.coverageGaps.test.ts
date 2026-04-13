@@ -35,7 +35,7 @@ function createMockPersistence() {
  * @param {any} options
  * @returns {any}
  */
-function createMockPatch({ sha, graphName, writerId, lamport, patchOid, ops, parentSha = null, context = null }) {
+function createMockPatch({ sha, graphName, writerId, lamport, patchOid, ops, parentSha = null as string | null, context = null as any }) {
   const patch = {
     schema: 2,
     writer: writerId,
@@ -169,9 +169,9 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      (graph)._cachedState = createEmptyState();
+      (graph as any)._cachedState = createEmptyState();
 
-      expect(() => graph.join((null))).toThrow('Invalid state');
+      expect(() => graph.join((null as any))).toThrow('Invalid state');
     });
 
     it('throws when otherState is missing nodeAlive', async () => {
@@ -182,7 +182,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      (graph)._cachedState = createEmptyState();
+      (graph as any)._cachedState = createEmptyState();
 
       expect(() => graph.join(({ edgeAlive: ORSet.empty() } as any))).toThrow('Invalid state');
     });
@@ -195,7 +195,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      (graph)._cachedState = createEmptyState();
+      (graph as any)._cachedState = createEmptyState();
 
       expect(() => graph.join(({ nodeAlive: ORSet.empty() } as any))).toThrow('Invalid state');
     });
@@ -208,7 +208,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      (graph)._cachedState = createEmptyState();
+      (graph as any)._cachedState = createEmptyState();
       const otherState = createEmptyState();
 
       const { state, receipt } = graph.join(otherState);
@@ -230,7 +230,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      (graph)._cachedState = createEmptyState();
+      (graph as any)._cachedState = createEmptyState();
 
       const otherState = createEmptyState();
       const dot = Dot.create('writer-2', 1);
@@ -252,8 +252,8 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      (graph)._cachedState = createEmptyState();
-      (graph)._stateDirty = false;
+      (graph as any)._cachedState = createEmptyState();
+      (graph as any)._stateDirty = false;
 
       const otherState = createEmptyState();
       const dot = Dot.create('writer-2', 1);
@@ -261,11 +261,11 @@ describe('WarpRuntime coverage gaps', () => {
 
       graph.join(otherState);
 
-      expect((graph)._stateDirty).toBe(false);
+      expect((graph as any)._stateDirty).toBe(false);
       expect((graph)._materializedGraph).not.toBeNull();
-      expect((graph)._materializedGraph.state).toBeDefined();
-      expect((graph)._materializedGraph.adjacency).toBeDefined();
-      expect((graph)._materializedGraph.stateHash).toBeNull();
+      expect((graph as any)._materializedGraph?.state).toBeDefined();
+      expect((graph as any)._materializedGraph?.adjacency).toBeDefined();
+      expect((graph as any)._materializedGraph?.stateHash).toBeNull();
     });
 
     it('preserves merged state — _ensureFreshState() does not throw or rematerialize', async () => {
@@ -277,8 +277,8 @@ describe('WarpRuntime coverage gaps', () => {
         autoMaterialize: false,
       });
 
-      (graph)._cachedState = createEmptyState();
-      (graph)._stateDirty = false;
+      (graph as any)._cachedState = createEmptyState();
+      (graph as any)._stateDirty = false;
 
       const otherState = createEmptyState();
       const dot = Dot.create('writer-2', 1);
@@ -305,8 +305,8 @@ describe('WarpRuntime coverage gaps', () => {
       baseState.nodeAlive.add('user:bob', dotB);
       const edgeDot = Dot.create('writer-1', 3);
       baseState.edgeAlive.add('user:alice\0user:bob\0knows', edgeDot);
-      (graph)._cachedState = baseState;
-      (graph)._stateDirty = false;
+      (graph as any)._cachedState = baseState;
+      (graph as any)._stateDirty = false;
 
       const otherState = createEmptyState();
       const dotC = Dot.create('writer-2', 1);
@@ -317,7 +317,7 @@ describe('WarpRuntime coverage gaps', () => {
 
       graph.join(otherState);
 
-      const adj = (graph)._materializedGraph.adjacency;
+      const adj = (graph as any)._materializedGraph?.adjacency;
       expect(adj.outgoing.has('user:alice')).toBe(true);
       expect(adj.incoming.has('user:bob')).toBe(true);
     });
@@ -330,8 +330,8 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      (graph)._cachedState = createEmptyState();
-      (graph)._stateDirty = false;
+      (graph as any)._cachedState = createEmptyState();
+      (graph as any)._stateDirty = false;
       (graph)._cachedViewHash = 'stale-hash-value';
 
       const otherState = createEmptyState();
@@ -350,8 +350,8 @@ describe('WarpRuntime coverage gaps', () => {
 
       const baseState = createEmptyState();
       baseState.observedFrontier.set('writer-1', 3);
-      (graph)._cachedState = baseState;
-      (graph)._stateDirty = false;
+      (graph as any)._cachedState = baseState;
+      (graph as any)._stateDirty = false;
 
       const otherState = createEmptyState();
       otherState.observedFrontier.set('writer-2', 5);
@@ -378,10 +378,10 @@ describe('WarpRuntime coverage gaps', () => {
       // No cached state → dirty path
       (graph)._cachedViewHash = 'stale-hash';
 
-      await (graph)._onPatchCommitted('writer-1', {});
+      await (graph as any)._onPatchCommitted('writer-1', {});
 
       expect((graph)._cachedViewHash).toBeNull();
-      expect((graph)._stateDirty).toBe(true);
+      expect((graph as any)._stateDirty).toBe(true);
     });
   });
 
@@ -394,10 +394,10 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      (graph)._cachedState = createEmptyState();
-      (graph)._stateDirty = false;
-      (graph)._provenanceIndex = null;
-      (graph)._lastFrontier = null;
+      (graph as any)._cachedState = createEmptyState();
+      (graph as any)._stateDirty = false;
+      (graph as any)._provenanceIndex = null;
+      (graph as any)._lastFrontier = null;
 
       const setStateSpy = vi
         .spyOn(graph, ('_setMaterializedState' as any))
@@ -417,7 +417,7 @@ describe('WarpRuntime coverage gaps', () => {
         ],
       };
 
-      await (graph)._onPatchCommitted('writer-1', {
+      await (graph as any)._onPatchCommitted('writer-1', {
         patch: committedPatch,
         sha: 'a'.repeat(40),
       });
@@ -437,12 +437,12 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      (graph)._cachedState = createEmptyState();
-      (graph)._stateDirty = false;
-      (graph)._provenanceIndex = null;
-      (graph)._lastFrontier = null;
+      (graph as any)._cachedState = createEmptyState();
+      (graph as any)._stateDirty = false;
+      (graph as any)._provenanceIndex = null;
+      (graph as any)._lastFrontier = null;
       const commitSpy = vi.fn().mockResolvedValue(undefined);
-      (graph)._auditService = { commit: commitSpy };
+      (graph as any)._auditService = { commit: commitSpy };
 
       const setStateSpy = vi
         .spyOn(graph, ('_setMaterializedState' as any))
@@ -462,7 +462,7 @@ describe('WarpRuntime coverage gaps', () => {
         ],
       };
 
-      await (graph)._onPatchCommitted('writer-1', {
+      await (graph as any)._onPatchCommitted('writer-1', {
         patch: committedPatch,
         sha: 'b'.repeat(40),
       });
@@ -499,7 +499,7 @@ describe('WarpRuntime coverage gaps', () => {
       await (graph)._setMaterializedState(state, diff);
 
       expect(buildViewSpy).toHaveBeenCalledTimes(1);
-      const [resultArg] = /** @type {[{state: unknown, stateHash: unknown, diff: unknown}]} */ (buildViewSpy.mock.calls[0]);
+      const [resultArg]: any[] = (buildViewSpy.mock.calls[0] as any) ?? [];
       expect(resultArg.diff).toBe(diff);
     });
 
@@ -527,7 +527,7 @@ describe('WarpRuntime coverage gaps', () => {
       await (graph)._setMaterializedState(state, { diff });
 
       expect(buildViewSpy).toHaveBeenCalledTimes(1);
-      const [resultArg] = /** @type {[{state: unknown, stateHash: unknown, diff: unknown}]} */ (buildViewSpy.mock.calls[0]);
+      const [resultArg]: any[] = (buildViewSpy.mock.calls[0] as any) ?? [];
       expect(resultArg.diff).toBe(diff);
     });
   });
@@ -558,7 +558,7 @@ describe('WarpRuntime coverage gaps', () => {
       });
 
       // Set up a minimal cached state — empty state has no tombstones
-      (graph)._cachedState = createEmptyState();
+      (graph as any)._cachedState = createEmptyState();
 
       const result = graph.maybeRunGC();
 
@@ -585,7 +585,7 @@ describe('WarpRuntime coverage gaps', () => {
       const state = createEmptyState();
       const dot = Dot.create('writer-1', 1);
       state.nodeAlive.add('user:alice', dot);
-      (graph)._cachedState = state;
+      (graph as any)._cachedState = state;
 
       // Force high patchesSinceGC and time since GC to trigger thresholds
       (graph)._patchesSinceGC = 10000;
@@ -625,7 +625,7 @@ describe('WarpRuntime coverage gaps', () => {
       const state = createEmptyState();
       const dot = Dot.create('writer-1', 1);
       state.nodeAlive.add('user:alice', dot);
-      (graph)._cachedState = state;
+      (graph as any)._cachedState = state;
 
             const metrics = (graph.getGCMetrics()) as any;
 
@@ -644,7 +644,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      (graph)._cachedState = createEmptyState();
+      (graph as any)._cachedState = createEmptyState();
       (graph)._patchesSinceGC = 42;
       (graph)._lastGCTime = 1234567890;
 
@@ -711,7 +711,7 @@ describe('WarpRuntime coverage gaps', () => {
       // any attempt to mutate the returned instance throws under
       // strict mode (which modules run in by default).
       expect(() => {
-        (policy1).enabled = true;
+        (policy1 as any).enabled = true;
       }).toThrow(TypeError);
 
       const policy2 = graph.gcPolicy;
@@ -824,7 +824,7 @@ describe('WarpRuntime coverage gaps', () => {
         crypto,
       });
 
-      (graph)._cachedState = createEmptyState();
+      (graph as any)._cachedState = createEmptyState();
 
       const count = await graph.getPropertyCount();
 
@@ -843,7 +843,7 @@ describe('WarpRuntime coverage gaps', () => {
       state.prop.set('user:alice\0name', { value: 'Alice', eventId: ('writer-1:1' as any) });
       state.prop.set('user:alice\0age', { value: 30, eventId: ('writer-1:2' as any) });
       state.prop.set('user:bob\0name', { value: 'Bob', eventId: ('writer-1:3' as any) });
-      (graph)._cachedState = state;
+      (graph as any)._cachedState = state;
 
       const count = await graph.getPropertyCount();
 
@@ -1096,7 +1096,7 @@ describe('WarpRuntime coverage gaps', () => {
       const checkpointState = createEmptyState();
       const loadLatestCheckpointSpy = vi
         .spyOn((graph), '_loadLatestCheckpoint')
-        .mockResolvedValue({ state: checkpointState });
+        .mockResolvedValue({ state: checkpointState } as any);
       const maxLamportSpy = vi
         .spyOn((graph), '_maxLamportFromState')
         .mockReturnValue(1);

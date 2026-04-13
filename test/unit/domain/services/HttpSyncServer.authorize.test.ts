@@ -49,7 +49,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
     });
 
     // Replace the constructed auth with our mock
-    (server)._auth = mockAuth;
+    (server as any)._auth = mockAuth;
 
     const request = {
       method: 'POST',
@@ -63,7 +63,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
       frontier: { w1: SHA_A, w2: 'b'.repeat(40) },
     };
 
-    const result = await (server)._authorize(request, parsed);
+    const result = await (server as any)._authorize(request, parsed);
     expect(result).toBeNull(); // No error
 
     // Verify enforceWriters was called with frontier keys, not patches
@@ -86,7 +86,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
         mode: 'enforce',
       },
     });
-    (server)._auth = mockAuth;
+    (server as any)._auth = mockAuth;
 
     const request = {
       method: 'POST',
@@ -96,7 +96,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
     };
     const parsed = { type: 'sync-request', frontier: {} };
 
-    await (server)._authorize(request, parsed);
+    await (server as any)._authorize(request, parsed);
 
     // enforceWriters should not be called for empty frontier
     expect(enforceWriters).not.toHaveBeenCalled();
@@ -121,7 +121,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
         mode: 'enforce',
       },
     });
-    (server)._auth = mockAuth;
+    (server as any)._auth = mockAuth;
 
     const request = {
       method: 'POST',
@@ -131,7 +131,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
     };
     const parsed = { type: 'sync-request', frontier: { untrusted: SHA_A } };
 
-    const result = await (server)._authorize(request, parsed);
+    const result = await (server as any)._authorize(request, parsed);
     expect(result).not.toBeNull();
     expect(result.status).toBe(403);
   });

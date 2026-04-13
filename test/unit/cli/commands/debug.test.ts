@@ -6,7 +6,9 @@ vi.mock('../../../../bin/cli/shared.js', () => ({
   emitCursorWarning: vi.fn(),
 }));
 
-const { openGraph, readActiveCursor, emitCursorWarning } = await import('../../../../bin/cli/shared.js');
+const { openGraph: _openGraph, readActiveCursor: _readActiveCursor, emitCursorWarning } = await import('../../../../bin/cli/shared.js');
+const openGraph = _openGraph as any;
+const readActiveCursor = _readActiveCursor as any;
 const handleDebug = (await import('../../../../bin/cli/commands/debug.js')).default;
 
 /**
@@ -23,7 +25,7 @@ const handleDebug = (await import('../../../../bin/cli/commands/debug.js')).defa
 /**
  * @param {StrandDescriptorOverrides} [overrides]
  */
-function makeStrandDescriptor(overrides = {}) {
+function makeStrandDescriptor(overrides: any = {}) {
   return {
     strandId: overrides.strandId ?? 'ws_review',
     baseObservation: {

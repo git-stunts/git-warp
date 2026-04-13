@@ -10,11 +10,11 @@ import EffectSinkPort from '../../../../src/ports/EffectSinkPort.ts';
 import { createDeliveryObservation } from '../../../../src/domain/types/DeliveryObservation.ts';
 
 class RecordingSink extends EffectSinkPort {
-  /** @param {string} sinkId */
-  constructor(sinkId) {
+  _id: string;
+  delivered: Array<{emission: unknown; lens: unknown}>;
+  constructor(sinkId: string) {
     super();
     this._id = sinkId;
-    /** @type {Array<{emission: unknown, lens: unknown}>} */
     this.delivered = [];
   }
 
@@ -22,8 +22,7 @@ class RecordingSink extends EffectSinkPort {
     return this._id;
   }
 
-  /** @param {any} emission @param {any} lens */
-  async deliver(emission, lens) {
+  async deliver(emission: any, lens: any) {
     this.delivered.push({ emission, lens });
     return createDeliveryObservation({
       emissionId: emission.id,
@@ -100,14 +99,14 @@ describe('EffectPipeline', () => {
     it('passes the current lens to sinks', async () => {
       const { pipeline, sink } = setup(LIVE_LENS);
       await pipeline.emit('test', null);
-      const d0 = /** @type {{ lens: unknown }} */ (sink.delivered[0]);
+      const d0 = sink.delivered[0] as any;
       expect(d0.lens).toBe(LIVE_LENS);
     });
 
     it('in replay mode, sink receives replay lens', async () => {
       const { pipeline, sink } = setup(REPLAY_LENS);
       await pipeline.emit('test', null);
-      const d0 = /** @type {{ lens: unknown }} */ (sink.delivered[0]);
+      const d0 = sink.delivered[0] as any;
       expect(d0.lens).toBe(REPLAY_LENS);
     });
 
@@ -117,8 +116,8 @@ describe('EffectPipeline', () => {
       pipeline.lens = REPLAY_LENS;
       await pipeline.emit('after', null);
 
-      const d0 = /** @type {{ lens: { mode: string } }} */ (sink.delivered[0]);
-      const d1 = /** @type {{ lens: { mode: string } }} */ (sink.delivered[1]);
+      const d0 = sink.delivered[0] as any;
+      const d1 = sink.delivered[1] as any;
       expect(d0.lens.mode).toBe('live');
       expect(d1.lens.mode).toBe('replay');
     });

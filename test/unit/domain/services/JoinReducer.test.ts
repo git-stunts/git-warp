@@ -30,8 +30,7 @@ import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 function createInlineValue(value) { return { type: 'inline', value }; }
 
 
-/** @param {any} params */
-function createPatch({ writer, lamport, ops, context }) {
+function createPatch({ writer, lamport, ops, context }: { writer: any; lamport: any; ops: any; context?: any }) {
   return {
     schema: 2,
     writer,
@@ -771,7 +770,7 @@ describe('JoinReducer', () => {
       const result = join(state, patch, 'aaaa1234', true);
 
       expect('state' in result).toBe(true);
-      const { state: s, receipt } = /** @type {{state: import('../../../../src/domain/services/JoinReducer.ts').WarpState, receipt: *}} */ (result);
+      const { state: s, receipt } = (result as any);
       expect(s.observedFrontier.get('A')).toBe(5);
       expect(s.observedFrontier.get('C')).toBe(1);
       expect(receipt).toBeDefined();
@@ -917,7 +916,7 @@ describe('JoinReducer', () => {
       const originalReceiptName = strategy.receiptName;
 
       try {
-        ((strategy)).receiptName = 'FutureBlobValue';
+        ((strategy as any)).receiptName = 'FutureBlobValue';
         const result = applyWithReceipt(state, createPatch({
           writer: 'w1',
           lamport: 1,
@@ -927,7 +926,7 @@ describe('JoinReducer', () => {
 
         expect(result.receipt.ops).toEqual([]);
       } finally {
-        ((strategy)).receiptName = originalReceiptName;
+        ((strategy as any)).receiptName = originalReceiptName;
       }
     });
 
@@ -987,7 +986,7 @@ describe('JoinReducer', () => {
         ops: [new NodeAdd('n1', dot)],
         context: VersionVector.empty(),
       });
-      const result = /** @type {{state: *, receipt: *}} */ (join(state, patch, 'd15a07c1', true));
+      const result = (join(state, patch, 'd15a07c1', true) as any);
       expect(result.state).toBe(state);
       expect(result.receipt).toBeDefined();
       expect(result.receipt.patchSha).toBe('d15a07c1');

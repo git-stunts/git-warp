@@ -44,7 +44,7 @@ describe('DenoHttpAdapter', () => {
     getCapturedHandler = mock.getCapturedHandler;
     getCapturedOptions = mock.getCapturedOptions;
 
-    (globalThis).Deno = { serve: mockServe };
+    (globalThis as any).Deno = { serve: mockServe };
 
     // Dynamic import to pick up the globalThis.Deno we just set
     const mod = await import('../../../../src/infrastructure/adapters/DenoHttpAdapter.js');
@@ -53,7 +53,7 @@ describe('DenoHttpAdapter', () => {
 
   afterEach(() => {
     if (originalDeno === undefined) {
-      delete (globalThis).Deno;
+      delete (globalThis as any).Deno;
     } else {
       (globalThis).Deno = originalDeno;
     }
@@ -185,7 +185,7 @@ describe('DenoHttpAdapter', () => {
       const response = await denoHandler(request);
 
       expect(handler).toHaveBeenCalledTimes(1);
-      const arg = (handler).mock.calls[0][0];
+      const arg = (handler as any).mock.calls[0]![0];
       expect(arg!.method).toBe('POST');
       expect(arg!.url).toBe('/api/test?q=1');
       expect(arg!.headers['content-type']).toBe('text/plain');
@@ -213,7 +213,7 @@ describe('DenoHttpAdapter', () => {
 
       await denoHandler(request);
 
-      const arg = (handler).mock.calls[0][0];
+      const arg = (handler as any).mock.calls[0]![0];
       expect(arg!.body).toBeUndefined();
     });
 

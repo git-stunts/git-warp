@@ -17,29 +17,28 @@ async function* asyncOf(...items) {
 
 /**
  * A simple counting Sink that counts elements and returns the total.
- * @extends {Sink<unknown, number>}
  */
-class CountSink extends Sink {
+class CountSink extends Sink<any, number> {
+  _count: number;
   constructor() {
     super();
-        this._count = 0;
+    this._count = 0;
   }
-  _accept() { this._count++; }
-  _finalize() { return this._count; }
+  protected _accept() { this._count++; }
+  protected _finalize() { return this._count; }
 }
 
 /**
  * A collecting Sink that accumulates items into an array.
- * @extends {Sink<unknown, unknown[]>}
  */
-class ArraySink extends Sink {
+class ArraySink extends Sink<any, any[]> {
+  _items: any[];
   constructor() {
     super();
-        this._items = [];
+    this._items = [];
   }
-  /** @param {unknown} item */
-  _accept(item) { this._items.push(item); }
-  _finalize() { return this._items; }
+  protected _accept(item: any) { this._items.push(item); }
+  protected _finalize() { return this._items; }
 }
 
 // ── WarpStream Construction ───────────────────────────────────────────
@@ -52,11 +51,11 @@ describe('WarpStream', () => {
     });
 
     it('rejects null source', () => {
-      expect(() => new WarpStream((null))).toThrow('requires an async iterable');
+      expect(() => new WarpStream((null as any))).toThrow('requires an async iterable');
     });
 
     it('rejects undefined source', () => {
-      expect(() => new WarpStream((undefined))).toThrow('requires an async iterable');
+      expect(() => new WarpStream((undefined as any))).toThrow('requires an async iterable');
     });
 
     it('rejects non-iterable source', () => {
@@ -101,7 +100,7 @@ describe('WarpStream', () => {
 
   describe('Symbol.asyncIterator', () => {
     it('works with for-await', async () => {
-      const results = [];
+      const results: number[] = [];
       for await (const item of WarpStream.of(1, 2, 3)) {
         results.push(item);
       }
@@ -134,7 +133,7 @@ describe('WarpStream', () => {
     });
 
     it('rejects null transform', () => {
-      expect(() => WarpStream.of(1).pipe((null))).toThrow('requires a Transform');
+      expect(() => WarpStream.of(1).pipe((null as any))).toThrow('requires a Transform');
     });
   });
 
@@ -152,7 +151,7 @@ describe('WarpStream', () => {
     });
 
     it('rejects null sink', async () => {
-      await expect(WarpStream.of(1).drain((null))).rejects.toThrow('requires a Sink');
+      await expect(WarpStream.of(1).drain((null as any))).rejects.toThrow('requires a Sink');
     });
   });
 
@@ -364,12 +363,8 @@ describe('Transform', () => {
   });
 
   it('subclass can override apply()', async () => {
-    /**
-     * @extends {Transform<number, number>}
-     */
-    class DoubleTransform extends Transform {
-      /** @param {AsyncIterable<number>} source */
-      async *apply(source) {
+    class DoubleTransform extends Transform<number, number> {
+      async *apply(source: AsyncIterable<number>) {
         for await (const item of source) {
           yield item;
           yield item;
@@ -388,13 +383,13 @@ describe('Transform', () => {
 
 describe('Sink', () => {
   it('_accept throws if not overridden', () => {
-    const s = new Sink();
-    expect(() => ((s))._accept(1)).toThrow('not implemented');
+    const s = new (Sink as any)();
+    expect(() => (s as any)._accept(1)).toThrow('not implemented');
   });
 
   it('_finalize throws if not overridden', () => {
-    const s = new Sink();
-    expect(() => ((s))._finalize()).toThrow('not implemented');
+    const s = new (Sink as any)();
+    expect(() => (s as any)._finalize()).toThrow('not implemented');
   });
 
   it('consume() calls _accept for each item and _finalize at end', async () => {
@@ -405,7 +400,7 @@ describe('Sink', () => {
 
   it('consume() rejects nullish sources', async () => {
     const sink = new ArraySink();
-    await expect((sink as any).consume(((undefined) as AsyncIterable<unknown>)))
+    await expect((sink as any).consume(undefined))
       .rejects.toThrow('Sink.consume() requires a source');
   });
 });

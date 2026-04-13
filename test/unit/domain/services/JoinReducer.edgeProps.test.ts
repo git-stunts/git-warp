@@ -25,8 +25,7 @@ function createInlineValue(value) { return { type: 'inline', value }; }
 
 
 
-/** @param {any} params */
-function createPatch({ writer, lamport, ops, context }) {
+function createPatch({ writer, lamport, ops, context }: { writer: any; lamport: any; ops: any; context?: any }) {
   return {
     schema: 2,
     writer,
@@ -310,9 +309,9 @@ describe('JoinReducer — edge property LWW', () => {
 
       // Generate all 24 permutations of 4 elements
       /** @param {any[]} arr @returns {any[][]} */
-      function permutations(arr) {
+      function permutations(arr: any[]): any[][] {
         if (arr.length <= 1) return [arr];
-        const result = [];
+        const result: any[][] = [];
         for (let i = 0; i < arr.length; i++) {
           const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
           for (const perm of permutations(rest)) {
