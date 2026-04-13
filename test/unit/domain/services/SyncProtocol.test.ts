@@ -12,8 +12,7 @@ import {
   createEmptyState,
   reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.ts';
-/** @type {(...args: any[]) => any} */
-const reduceV5 = _reduceV5;
+const reduceV5: (...args: any[]) => any = _reduceV5;
 import { createFrontier } from '../../../../src/domain/services/Frontier.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
@@ -40,7 +39,7 @@ const OID_C = '3'.repeat(40);
  * Creates a test patch with the given operations.
  */
 /** @returns {any} */
-function createTestPatch({ writer = /** @type {any} */ (undefined), lamport = /** @type {any} */ (undefined), ops = /** @type {any} */ (undefined), context = /** @type {any} */ (undefined) }) {
+function createTestPatch({ writer = undefined as any, lamport = undefined as any, ops = undefined as unknown as any[], context = undefined as any } = {}): any {
   return {
     schema: 2,
     writer,
@@ -54,7 +53,7 @@ function createTestPatch({ writer = /** @type {any} */ (undefined), lamport = /*
  * Creates a NodeAdd operation.
  */
 /** @param {any} node @param {any} dot */
-function createNodeAddOp(node, dot) {
+function createNodeAddOp(node: any, dot: any) {
   return { type: 'NodeAdd', node, dot };
 }
 
@@ -62,7 +61,7 @@ function createNodeAddOp(node, dot) {
  * Creates a mock persistence layer for testing.
  */
 /** @returns {any} */
-function createMockPersistence(commits = /** @type {any} */ ({}), blobs = /** @type {any} */ ({})) {
+function createMockPersistence(commits: any = {}, blobs: any = {}): any {
   return {
     showNode: vi.fn(async sha => {
       if (commits[sha]?.message) {
@@ -98,7 +97,7 @@ function createMockPersistence(commits = /** @type {any} */ ({}), blobs = /** @t
  * @param {ReturnType<typeof createMockPersistence>} persistence
  * @returns {CborPatchJournalAdapter}
  */
-function createPatchJournal(persistence) {
+function createPatchJournal(persistence: any) {
   return new CborPatchJournalAdapter({
     codec: new CborCodec(),
     blobPort: persistence,
@@ -110,7 +109,7 @@ function createPatchJournal(persistence) {
  * Creates a commit message and blob for a test patch.
  */
 /** @param {any} commits @param {any} blobs @param {any} sha @param {any} patch @param {any} patchOid @param {any[]} parents */
-function setupCommit(commits, blobs, sha, patch, patchOid, parents = []) {
+function setupCommit(commits: any, blobs: any, sha: any, patch: any, patchOid: any, parents: any[] = []) {
   const message = encodePatchMessage({
     graph: 'events',
     writer: patch.writer,
@@ -225,10 +224,10 @@ describe('SyncProtocol', () => {
       const patches = await loadPatchRange(persistence, 'events', 'w1', SHA_A, SHA_C, { patchJournal: createPatchJournal(persistence) });
 
       expect(patches).toHaveLength(2);
-      expect(/** @type {any} */ (patches)[0].sha).toBe(SHA_B);
-      expect(/** @type {any} */ (patches)[0].patch.lamport).toBe(2);
-      expect(/** @type {any} */ (patches)[1].sha).toBe(SHA_C);
-      expect(/** @type {any} */ (patches)[1].patch.lamport).toBe(3);
+      expect((patches as any)[0].sha).toBe(SHA_B);
+      expect((patches as any)[0].patch.lamport).toBe(2);
+      expect((patches as any)[1].sha).toBe(SHA_C);
+      expect((patches as any)[1].patch.lamport).toBe(3);
     });
 
     it('returns all patches when fromSha is null', async () => {
@@ -247,8 +246,8 @@ describe('SyncProtocol', () => {
       const patches = await loadPatchRange(persistence, 'events', 'w1', null, SHA_B, { patchJournal: createPatchJournal(persistence) });
 
       expect(patches).toHaveLength(2);
-      expect(/** @type {any} */ (patches)[0].sha).toBe(SHA_A);
-      expect(/** @type {any} */ (patches)[1].sha).toBe(SHA_B);
+      expect((patches as any)[0].sha).toBe(SHA_A);
+      expect((patches as any)[1].sha).toBe(SHA_B);
     });
 
     it('detects divergence when fromSha is not an ancestor', async () => {
@@ -284,7 +283,7 @@ describe('SyncProtocol', () => {
       const patches = await loadPatchRange(persistence, 'events', 'w1', SHA_A, SHA_B, { patchJournal: createPatchJournal(persistence) });
 
       expect(patches).toHaveLength(1);
-      expect(/** @type {any} */ (patches)[0].sha).toBe(SHA_B);
+      expect((patches as any)[0].sha).toBe(SHA_B);
     });
   });
 
@@ -339,12 +338,12 @@ describe('SyncProtocol', () => {
       const request = { type: 'sync-request', frontier: { w1: SHA_A } };
       const localFrontier = new Map([['w1', SHA_B]]);
 
-      const response = await processSyncRequest(/** @type {any} */ (request), localFrontier, persistence, 'events', { patchJournal: createPatchJournal(persistence) });
+      const response = await processSyncRequest((request as any), localFrontier, persistence, 'events', { patchJournal: createPatchJournal(persistence) });
 
       expect(response.type).toBe('sync-response');
       expect(response.patches).toHaveLength(1);
-      expect(/** @type {any} */ (response.patches)[0].sha).toBe(SHA_B);
-      expect(/** @type {any} */ (response.patches)[0].writerId).toBe('w1');
+      expect((response.patches as any)[0].sha).toBe(SHA_B);
+      expect((response.patches as any)[0].writerId).toBe('w1');
     });
 
     it('includes local frontier in response', async () => {
@@ -367,7 +366,7 @@ describe('SyncProtocol', () => {
         ['w2', SHA_B],
       ]);
 
-      const response = await processSyncRequest(/** @type {any} */ (request), localFrontier, persistence, 'events', { patchJournal: createPatchJournal(persistence) });
+      const response = await processSyncRequest((request as any), localFrontier, persistence, 'events', { patchJournal: createPatchJournal(persistence) });
 
       // Response should include complete local frontier
       expect(response.frontier).toEqual({
@@ -376,7 +375,7 @@ describe('SyncProtocol', () => {
       });
       // And should include patch from w2 that requester is missing
       expect(response.patches).toHaveLength(1);
-      expect(/** @type {any} */ (response.patches)[0].writerId).toBe('w2');
+      expect((response.patches as any)[0].writerId).toBe('w2');
     });
 
     it('returns empty patches when already in sync', async () => {
@@ -385,7 +384,7 @@ describe('SyncProtocol', () => {
       const request = { type: 'sync-request', frontier: { w1: SHA_A } };
       const localFrontier = new Map([['w1', SHA_A]]);
 
-      const response = await processSyncRequest(/** @type {any} */ (request), localFrontier, persistence, 'events', { patchJournal: createPatchJournal(persistence) });
+      const response = await processSyncRequest((request as any), localFrontier, persistence, 'events', { patchJournal: createPatchJournal(persistence) });
 
       expect(response.patches).toHaveLength(0);
     });
@@ -408,7 +407,7 @@ describe('SyncProtocol', () => {
         patches: [{ writerId: 'w1', sha: SHA_A, patch: patch1 }],
       };
 
-      const result = /** @type {any} */ (applySyncResponse(/** @type {any} */ (response), state, frontier));
+      const result = /** @type {any} */ (applySyncResponse((response as any), state, frontier));
 
       expect(result.applied).toBe(1);
       expect(result.state.nodeAlive.contains('x')).toBe(true);
@@ -440,7 +439,7 @@ describe('SyncProtocol', () => {
         ],
       };
 
-      const result = /** @type {any} */ (applySyncResponse(/** @type {any} */ (response), state, frontier));
+      const result = /** @type {any} */ (applySyncResponse((response as any), state, frontier));
 
       expect(result.applied).toBe(2);
       expect(result.state.nodeAlive.contains('x')).toBe(true);
@@ -464,7 +463,7 @@ describe('SyncProtocol', () => {
         patches: [{ writerId: 'w1', sha: SHA_A, patch }],
       };
 
-      applySyncResponse(/** @type {any} */ (response), state, frontier);
+      applySyncResponse((response as any), state, frontier);
 
       // Original state should be unchanged
       expect(state.nodeAlive.contains('x')).toBe(false);
@@ -496,7 +495,7 @@ describe('SyncProtocol', () => {
         ],
       };
 
-      const result = /** @type {any} */ (applySyncResponse(/** @type {any} */ (response), state, frontier));
+      const result = /** @type {any} */ (applySyncResponse((response as any), state, frontier));
 
       expect(result.applied).toBe(2);
       expect(result.state.nodeAlive.contains('x')).toBe(true);
@@ -515,7 +514,7 @@ describe('SyncProtocol', () => {
         patches: [],
       };
 
-      const result = /** @type {any} */ (applySyncResponse(/** @type {any} */ (response), state, frontier));
+      const result = /** @type {any} */ (applySyncResponse((response as any), state, frontier));
 
       expect(result.applied).toBe(0);
     });
@@ -683,7 +682,7 @@ describe('SyncProtocol', () => {
         frontier: { w1: SHA_A },
         patches: [{ writerId: 'w1', sha: SHA_A, patch }],
       };
-      const result2 = /** @type {any} */ (applySyncResponse(/** @type {any} */ (response2), result1.state, result1.frontier));
+      const result2 = /** @type {any} */ (applySyncResponse((response2 as any), result1.state, result1.frontier));
 
       // State should be the same (idempotent)
       // Note: Due to OR-Set semantics, applying the same add twice adds a new dot
@@ -709,7 +708,7 @@ describe('SyncProtocol', () => {
       });
 
       const response = {
-        type: /** @type {'sync-response'} */ ('sync-response'),
+        type: ('sync-response' as any),
         frontier: { alice: SHA_A },
         patches: [{ writerId: 'alice', sha: SHA_A, patch }],
       };
@@ -731,7 +730,7 @@ describe('SyncProtocol', () => {
       });
 
       const response = {
-        type: /** @type {'sync-response'} */ ('sync-response'),
+        type: ('sync-response' as any),
         frontier: { alice: SHA_A },
         patches: [{ writerId: 'alice', sha: SHA_A, patch }],
       };
@@ -774,9 +773,9 @@ describe('SyncProtocol', () => {
       const localFrontier = new Map([['w1', SHA_B], ['w2', SHA_C]]);
 
       const response = /** @type {any} */ (await processSyncRequest(
-        /** @type {*} */ (request),
+        (request as any),
         localFrontier,
-        /** @type {any} */ (persistence),
+        (persistence as any),
         'events',
         { logger, patchJournal: createPatchJournal(persistence) },
       ));
@@ -817,16 +816,16 @@ describe('SyncProtocol', () => {
       const localFrontier = new Map([['w1', SHA_B]]);
 
       const response = /** @type {any} */ (await processSyncRequest(
-        /** @type {*} */ (request),
+        (request as any),
         localFrontier,
-        /** @type {any} */ (persistence),
+        (persistence as any),
         'events',
         { patchJournal: createPatchJournal(persistence) },
       ));
 
       expect(persistence.isAncestor).toHaveBeenCalledWith(SHA_A, SHA_B);
       expect(response.patches).toHaveLength(1);
-      expect(response.patches[0].sha).toBe(SHA_B);
+      expect(response.patches[0]!.sha).toBe(SHA_B);
     });
 
     it('falls back to chain walk when isAncestor is not available', async () => {
@@ -845,16 +844,16 @@ describe('SyncProtocol', () => {
       const localFrontier = new Map([['w1', SHA_B]]);
 
       const response = /** @type {any} */ (await processSyncRequest(
-        /** @type {*} */ (request),
+        (request as any),
         localFrontier,
-        /** @type {any} */ (persistence),
+        (persistence as any),
         'events',
         { patchJournal: createPatchJournal(persistence) },
       ));
 
       // Should still work via chain walk
       expect(response.patches).toHaveLength(1);
-      expect(response.patches[0].sha).toBe(SHA_B);
+      expect(response.patches[0]!.sha).toBe(SHA_B);
     });
   });
 });

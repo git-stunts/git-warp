@@ -15,9 +15,9 @@ import {
  * @returns {TemporalQuery}
  */
 function createTemporalWithPatches(patches) {
-  return new TemporalQuery(/** @type {any} */ ({
+  return new TemporalQuery(({
     loadAllPatches: async () => patches,
-  }));
+  } as any));
 }
 
 /**
@@ -42,7 +42,7 @@ function createNodeWithPropPatch({
   sha,
   addNode = true,
 }) {
-  const ops = [];
+  const ops: any[] = [];
   if (addNode) {
     ops.push(createNodeAddV2(nodeId, Dot.create(writer, lamport)));
   }
@@ -56,7 +56,7 @@ function createNodeWithPropPatch({
 /**
  * Creates a property-only patch (no NodeAdd).
  */
-function createPropOnlyPatch({ nodeId = /** @type {any} */ (undefined), writer = /** @type {any} */ (undefined), lamport = /** @type {any} */ (undefined), propKey = /** @type {any} */ (undefined), propValue = /** @type {any} */ (undefined), sha = /** @type {any} */ (undefined) }) {
+function createPropOnlyPatch({ nodeId = (undefined as any), writer = (undefined as any), lamport = (undefined as any), propKey = (undefined as any), propValue = (undefined as any), sha = (undefined as any) }) {
   return {
     patch: createPatch({
       writer,
@@ -93,7 +93,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (/** @type {any} */ n) => n.props['status'] === 'active',
         { since: 0 }
       );
 
@@ -124,7 +124,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (/** @type {any} */ n) => n.props['status'] === 'active',
         { since: 0 }
       );
 
@@ -148,7 +148,7 @@ describe('TemporalQuery', () => {
       // Query for a node that was never created
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (/** @type {any} */ n) => n.props['status'] === 'active',
         { since: 0 }
       );
 
@@ -193,7 +193,7 @@ describe('TemporalQuery', () => {
       // where it appears, and the predicate holds at those ticks.
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (/** @type {any} */ n) => n.props['status'] === 'active',
         { since: 0 }
       );
 
@@ -233,7 +233,7 @@ describe('TemporalQuery', () => {
       // Since 0: draft at tick 1 fails the predicate
       const resultAll = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (/** @type {any} */ n) => n.props['status'] === 'active',
         { since: 0 }
       );
       expect(resultAll).toBe(false);
@@ -241,7 +241,7 @@ describe('TemporalQuery', () => {
       // Since 2: only ticks 2 and 3 are checked, both active
       const resultSince2 = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (/** @type {any} */ n) => n.props['status'] === 'active',
         { since: 2 }
       );
       expect(resultSince2).toBe(true);
@@ -263,7 +263,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (/** @type {any} */ n) => n.props['status'] === 'active',
         { since: 0 }
       );
 
@@ -275,7 +275,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (/** @type {any} */ n) => n.props['status'] === 'active',
         { since: 0 }
       );
 
@@ -297,7 +297,7 @@ describe('TemporalQuery', () => {
       const tq = createTemporalWithPatches(patches);
 
       // Call without options
-      const result = await tq.always('X', (/** @type {any} */ n) => n.props.status === 'active');
+      const result = await tq.always('X', (/** @type {any} */ n) => n.props['status'] === 'active');
 
       expect(result).toBe(true);
     });
@@ -316,21 +316,21 @@ describe('TemporalQuery', () => {
 
       const tq = createTemporalWithPatches(patches);
       /** @type {any[]} */
-      const snapshots = [];
+      const snapshots: any[] = [];
 
       await tq.always('X', (/** @type {any} */ n) => {
         snapshots.push({
           id: n.id,
           exists: n.exists,
-          name: n.props.name,
+          name: n.props['name'],
         });
         return true;
       });
 
       expect(snapshots).toHaveLength(1);
-      expect(snapshots[0].id).toBe('X');
-      expect(snapshots[0].exists).toBe(true);
-      expect(snapshots[0].name).toBe('Alice');
+      expect(snapshots[0]!.id).toBe('X');
+      expect(snapshots[0]!.exists).toBe(true);
+      expect(snapshots[0]!.name).toBe('Alice');
     });
   });
 
@@ -367,7 +367,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'merged'
+        (/** @type {any} */ n) => n.props['status'] === 'merged'
       );
 
       expect(result).toBe(true);
@@ -397,7 +397,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'merged'
+        (/** @type {any} */ n) => n.props['status'] === 'merged'
       );
 
       expect(result).toBe(false);
@@ -419,7 +419,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active'
+        (/** @type {any} */ n) => n.props['status'] === 'active'
       );
 
       expect(result).toBe(false);
@@ -430,7 +430,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'merged'
+        (/** @type {any} */ n) => n.props['status'] === 'merged'
       );
 
       expect(result).toBe(false);
@@ -470,7 +470,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.eventually('X', (/** @type {any} */ n) => {
         callCount++;
-        return n.props.status === 'target';
+        return n.props['status'] === 'target';
       });
 
       expect(result).toBe(true);
@@ -503,7 +503,7 @@ describe('TemporalQuery', () => {
       // Since 2: only tick 2 is checked, which has 'other' not 'target'
       const result = await tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'target',
+        (/** @type {any} */ n) => n.props['status'] === 'target',
         { since: 2 }
       );
 
@@ -526,7 +526,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'merged'
+        (/** @type {any} */ n) => n.props['status'] === 'merged'
       );
 
       expect(result).toBe(true);
@@ -548,7 +548,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'merged'
+        (/** @type {any} */ n) => n.props['status'] === 'merged'
       );
 
       expect(result).toBe(false);
@@ -570,7 +570,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'merged'
+        (/** @type {any} */ n) => n.props['status'] === 'merged'
       );
 
       expect(result).toBe(true);
@@ -578,7 +578,7 @@ describe('TemporalQuery', () => {
   });
 
   describe('acceptance criteria', () => {
-    it('always(X, n => n.props.status === "active", { since: 0 }) returns true if always active', async () => {
+    it(`always(X, n => n.props.status === "active", { since: 0 }) returns true if always active`, async () => {
       const patches = [
         createNodeWithPropPatch({
           nodeId: 'X',
@@ -610,7 +610,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (/** @type {any} */ n) => n.props['status'] === 'active',
         { since: 0 }
       );
 
@@ -641,14 +641,14 @@ describe('TemporalQuery', () => {
 
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (/** @type {any} */ n) => n.props['status'] === 'active',
         { since: 0 }
       );
 
       expect(result).toBe(false);
     });
 
-    it('eventually(X, n => n.props.status === "merged") returns true if ever merged', async () => {
+    it(`eventually(X, n => n.props.status === "merged") returns true if ever merged`, async () => {
       const patches = [
         createNodeWithPropPatch({
           nodeId: 'X',
@@ -680,7 +680,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.eventually(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'merged'
+        (/** @type {any} */ n) => n.props['status'] === 'merged'
       );
 
       expect(result).toBe(true);
@@ -720,7 +720,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (/** @type {any} */ n) => n.props['status'] === 'active',
         { since: 0 }
       );
 
@@ -752,7 +752,7 @@ describe('TemporalQuery', () => {
 
       const result = await tq.always(
         'X',
-        (/** @type {any} */ n) => n.props.status === 'active',
+        (/** @type {any} */ n) => n.props['status'] === 'active',
         { since: 0 }
       );
 

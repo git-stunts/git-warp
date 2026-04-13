@@ -19,7 +19,7 @@ const { timeoutMock, retryMock, httpSyncServerMock } = vi.hoisted(() => {
 });
 
 vi.mock('../../../../src/domain/services/sync/SyncProtocol.js', async (importOriginal) => {
-  const original = /** @type {Record<string, unknown>} */ (await importOriginal());
+  const original = (await importOriginal() as Record<string, unknown>);
   return {
     ...original,
     applySyncResponse: vi.fn(),
@@ -29,7 +29,7 @@ vi.mock('../../../../src/domain/services/sync/SyncProtocol.js', async (importOri
 });
 
 vi.mock('@git-stunts/alfred', async (importOriginal) => {
-  const original = /** @type {Record<string, unknown>} */ (await importOriginal());
+  const original = (await importOriginal() as Record<string, unknown>);
   return {
     ...original,
     timeout: timeoutMock,
@@ -43,7 +43,7 @@ vi.mock('../../../../src/domain/services/sync/HttpSyncServer.ts', () => ({
 
 // Import after mock setup so we get the mocked versions
 const { applySyncResponse: applySyncResponseMock, syncNeeded: syncNeededMock, processSyncRequest: processSyncRequestMock } =
-  /** @type {{ applySyncResponse: import('vitest').Mock, syncNeeded: import('vitest').Mock, processSyncRequest: import('vitest').Mock }} */ (/** @type {unknown} */ (await import('../../../../src/domain/services/sync/SyncProtocol.js')));
+  (await import('../../../../src/domain/services/sync/SyncProtocol.js')) as any;
 
 /**
  * Creates a mock WarpRuntime host for SyncController tests.
@@ -51,9 +51,8 @@ const { applySyncResponse: applySyncResponseMock, syncNeeded: syncNeededMock, pr
  * @param {Record<string, unknown>} [overrides]
  * @returns {Record<string, unknown>}
  */
-function createMockHost(overrides = {}) {
-  /** @type {Record<string, unknown>} */
-  const host = {
+function createMockHost(overrides: Record<string, unknown> = {}): any {
+  const host: any = {
     _cachedState: null,
     _lastFrontier: null,
     _stateDirty: false,
@@ -80,7 +79,7 @@ function createMockHost(overrides = {}) {
   };
   // Wire default _setMaterializedState after spread so it can reference `host`
   if (!host['_setMaterializedState']) {
-    host['_setMaterializedState'] = vi.fn(async (/** @type {unknown} */ state) => {
+    host['_setMaterializedState'] = vi.fn(async (state: unknown) => {
       host['_cachedState'] = state;
       host['_stateDirty'] = false;
       host['_materializedGraph'] = { state, stateHash: 'mock-hash', adjacency: {} };
@@ -97,7 +96,7 @@ describe('SyncController', () => {
   describe('constructor', () => {
     it('stores host reference', () => {
       const host = createMockHost();
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
       expect(ctrl._host).toBe(host);
     });
@@ -106,7 +105,7 @@ describe('SyncController', () => {
   describe('getFrontier', () => {
     it('returns empty frontier when no writers exist', async () => {
       const host = createMockHost();
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
       const frontier = await ctrl.getFrontier();
 
@@ -125,14 +124,14 @@ describe('SyncController', () => {
           listRefs: vi.fn().mockResolvedValue([]),
         },
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
       const frontier = await ctrl.getFrontier();
 
       expect(frontier.size).toBe(2);
       expect(frontier.get('alice')).toBe('sha-alice');
       expect(frontier.get('bob')).toBe('sha-bob');
-      expect(/** @type {*} */ (host['_persistence']).readRef).toHaveBeenCalledTimes(2);
+      expect((host['_persistence'] as any).readRef).toHaveBeenCalledTimes(2);
     });
 
     it('skips writers with null tip SHA', async () => {
@@ -145,7 +144,7 @@ describe('SyncController', () => {
           listRefs: vi.fn().mockResolvedValue([]),
         },
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
       const frontier = await ctrl.getFrontier();
 
@@ -157,7 +156,7 @@ describe('SyncController', () => {
   describe('hasFrontierChanged', () => {
     it('returns true when _lastFrontier is null', async () => {
       const host = createMockHost({ _lastFrontier: null });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
       const changed = await ctrl.hasFrontierChanged();
 
@@ -174,7 +173,7 @@ describe('SyncController', () => {
           listRefs: vi.fn().mockResolvedValue([]),
         },
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
       const changed = await ctrl.hasFrontierChanged();
 
@@ -193,7 +192,7 @@ describe('SyncController', () => {
           listRefs: vi.fn().mockResolvedValue([]),
         },
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
       const changed = await ctrl.hasFrontierChanged();
 
@@ -210,7 +209,7 @@ describe('SyncController', () => {
           listRefs: vi.fn().mockResolvedValue([]),
         },
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
       const changed = await ctrl.hasFrontierChanged();
 
@@ -224,7 +223,7 @@ describe('SyncController', () => {
         _cachedState: null,
         discoverWriters: vi.fn().mockResolvedValue([]),
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
       const result = await ctrl.status();
 
@@ -248,7 +247,7 @@ describe('SyncController', () => {
         _lastFrontier: new Map(),
         discoverWriters: vi.fn().mockResolvedValue([]),
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
       const result = await ctrl.status();
 
@@ -266,7 +265,7 @@ describe('SyncController', () => {
         _lastFrontier: new Map(),
         discoverWriters: vi.fn().mockResolvedValue([]),
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
       const result = await ctrl.status();
 
@@ -277,9 +276,9 @@ describe('SyncController', () => {
   describe('applySyncResponse', () => {
     it('throws QueryError when no cached state', async () => {
       const host = createMockHost({ _cachedState: null });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
-      await expect(ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] }))
+      await expect(ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] as any[] }))
         .rejects.toThrow(/No materialized state/);
     });
 
@@ -298,9 +297,9 @@ describe('SyncController', () => {
         _lastFrontier: new Map([['alice', 'sha-1']]),
         _patchesSinceGC: 2,
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
       /** @type {{type: 'sync-response', frontier: Record<string, string>, patches: *[]}} */
-      const response = { type: 'sync-response', frontier: {}, patches: [] };
+      const response = { type: 'sync-response', frontier: {}, patches: [] as any[] } as any;
 
       const result = await ctrl.applySyncResponse(response);
 
@@ -330,9 +329,9 @@ describe('SyncController', () => {
         _lastFrontier: null,
         _patchesSinceGC: 0,
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
-      await ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] });
+      await ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] as any[] });
 
       // Should have passed an empty Map (from createFrontier()) as the frontier arg
       const call = applySyncResponseMock.mock.calls[0];
@@ -358,9 +357,9 @@ describe('SyncController', () => {
         _cachedState: fakeState,
         _lastFrontier: lastFrontier,
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
-      await ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] });
+      await ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] as any[] });
 
       const call2 = applySyncResponseMock.mock.calls[0];
       if (call2 == null) { throw new Error('expected at least one call'); }
@@ -384,9 +383,9 @@ describe('SyncController', () => {
         _cachedState: fakeState,
         _lastFrontier: new Map([['alice', 'sha-1']]),
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
-      await ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] });
+      await ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] as any[] });
 
       expect(/** @type {import('vitest').Mock} */ (host['_setMaterializedState'])).toHaveBeenCalledOnce();
       expect(/** @type {import('vitest').Mock} */ (host['_setMaterializedState'])).toHaveBeenCalledWith(newState);
@@ -411,9 +410,9 @@ describe('SyncController', () => {
         _patchesSinceGC: 5,
         _setMaterializedState: vi.fn().mockRejectedValue(new Error('install failed')),
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
-      await expect(ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] }))
+      await expect(ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] as any[] }))
         .rejects.toThrow('install failed');
       expect(host['_lastFrontier']).toBe(previousFrontier);
       expect(host['_patchesSinceGC']).toBe(5);
@@ -432,13 +431,13 @@ describe('SyncController', () => {
         _cachedState: fakeState,
         _lastFrontier: new Map(),
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
       const skippedWriters = [{ writerId: 'bob', reason: 'E_SYNC_DIVERGENCE', localSha: 'sha-b1', remoteSha: 'sha-b0' }];
       const result = await ctrl.applySyncResponse({
         type: 'sync-response',
         frontier: {},
-        patches: [],
+        patches: [] as any[],
         skippedWriters,
       });
 
@@ -458,12 +457,12 @@ describe('SyncController', () => {
         _cachedState: fakeState,
         _lastFrontier: new Map(),
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
       const result = await ctrl.applySyncResponse({
         type: 'sync-response',
         frontier: {},
-        patches: [],
+        patches: [] as any[],
       });
 
       expect(result.skippedWriters).toEqual([]);
@@ -480,7 +479,7 @@ describe('SyncController', () => {
           listRefs: vi.fn().mockResolvedValue([]),
         },
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
       const remoteFrontier = new Map([['bob', 'sha-bob']]);
 
       const result = await ctrl.syncNeeded(remoteFrontier);
@@ -500,7 +499,7 @@ describe('SyncController', () => {
 
   describe('processSyncRequest', () => {
     it('delegates to SyncProtocol.processSyncRequest with correct args', async () => {
-      const mockResponse = { type: 'sync-response', frontier: {}, patches: [] };
+      const mockResponse = { type: 'sync-response', frontier: {}, patches: [] as any[] };
       processSyncRequestMock.mockResolvedValue(mockResponse);
       const mockPatchJournal = { writePatch: vi.fn(), readPatch: vi.fn() };
       const host = createMockHost({
@@ -511,10 +510,10 @@ describe('SyncController', () => {
           listRefs: vi.fn().mockResolvedValue([]),
         },
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
       const request = { type: 'sync-request', frontier: {} };
 
-      const result = await ctrl.processSyncRequest(/** @type {*} */ (request));
+      const result = await ctrl.processSyncRequest((request as any));
 
       expect(result).toBe(mockResponse);
       expect(processSyncRequestMock).toHaveBeenCalledWith(
@@ -560,9 +559,9 @@ describe('SyncController', () => {
           listRefs: vi.fn().mockResolvedValue([]),
         },
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
-      const result = await ctrl.syncWith(/** @type {*} */ (remotePeer));
+      const result = await ctrl.syncWith((remotePeer as any));
 
       expect(result.applied).toBe(2);
       expect(result.attempts).toBe(1);
@@ -582,7 +581,7 @@ describe('SyncController', () => {
       const peerResponse = {
         type: 'sync-response',
         frontier: {},
-        patches: [],
+        patches: [] as any[],
       };
       const remotePeer = {
         processSyncRequest: vi.fn().mockResolvedValue(peerResponse),
@@ -597,9 +596,9 @@ describe('SyncController', () => {
           host['_cachedState'] = materializedState;
         }),
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
-      await ctrl.syncWith(/** @type {*} */ (remotePeer));
+      await ctrl.syncWith((remotePeer as any));
 
       expect(host['materialize']).toHaveBeenCalledOnce();
     });
@@ -616,7 +615,7 @@ describe('SyncController', () => {
       const peerResponse = {
         type: 'sync-response',
         frontier: {},
-        patches: [],
+        patches: [] as any[],
       };
       const remotePeer = {
         processSyncRequest: vi.fn().mockResolvedValue(peerResponse),
@@ -628,9 +627,9 @@ describe('SyncController', () => {
         _lastFrontier: new Map(),
         discoverWriters: vi.fn().mockResolvedValue([]),
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
-      const result = await ctrl.syncWith(/** @type {*} */ (remotePeer), { materialize: true });
+      const result = await ctrl.syncWith((remotePeer as any), { materialize: true });
 
       expect(result.state).toBe(fakeState);
       expect(result.applied).toBe(1);
@@ -649,7 +648,7 @@ describe('SyncController', () => {
       const peerResponse = {
         type: 'sync-response',
         frontier: { alice: 'sha-a2' },
-        patches: [],
+        patches: [] as any[],
         skippedWriters,
       };
       const remotePeer = {
@@ -662,9 +661,9 @@ describe('SyncController', () => {
         _lastFrontier: new Map(),
         discoverWriters: vi.fn().mockResolvedValue([]),
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
-      const result = await ctrl.syncWith(/** @type {*} */ (remotePeer));
+      const result = await ctrl.syncWith((remotePeer as any));
 
       expect(result.skippedWriters).toEqual(skippedWriters);
     });
@@ -679,7 +678,7 @@ describe('SyncController', () => {
           listRefs: vi.fn().mockResolvedValue([]),
         },
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
       const request = await ctrl.createSyncRequest();
 
@@ -692,32 +691,32 @@ describe('SyncController', () => {
   describe('serve', () => {
     it('throws when port is not a number', async () => {
       const host = createMockHost();
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
-      await expect(ctrl.serve(/** @type {*} */ ({ port: 'bad', httpPort: {} })))
+      await expect(ctrl.serve(({ port: 'bad', httpPort: {} } as any)))
         .rejects.toThrow('serve() requires a numeric port');
     });
 
     it('throws when httpPort is missing', async () => {
       const host = createMockHost();
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
-      await expect(ctrl.serve(/** @type {*} */ ({ port: 3000 })))
+      await expect(ctrl.serve(({ port: 3000 } as any)))
         .rejects.toThrow('serve() requires an httpPort adapter');
     });
 
     it('instantiates HttpSyncServer with correct args', async () => {
       httpSyncServerMock.mockClear();
       const host = createMockHost();
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
       const httpPort = { listen: vi.fn() };
 
-      await ctrl.serve(/** @type {*} */ ({
+      await ctrl.serve(({
         port: 3000,
         httpPort,
         path: '/custom',
         maxRequestBytes: 1024,
-      }));
+      } as any));
 
       expect(httpSyncServerMock).toHaveBeenCalledOnce();
       const httpCall = httpSyncServerMock.mock.calls[0];
@@ -737,13 +736,13 @@ describe('SyncController', () => {
         _crypto: mockCrypto,
         _logger: mockLogger,
       });
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
-      await ctrl.serve(/** @type {*} */ ({
+      await ctrl.serve(({
         port: 3000,
         httpPort: { listen: vi.fn() },
         auth: { keys: { k: 's' } },
-      }));
+      } as any));
 
       const httpCall = httpSyncServerMock.mock.calls[0];
       if (httpCall == null) { throw new Error('expected at least one call'); }
@@ -756,12 +755,12 @@ describe('SyncController', () => {
     it('passes graph host as graph argument to HttpSyncServer', async () => {
       httpSyncServerMock.mockClear();
       const host = createMockHost();
-      const ctrl = new SyncController(/** @type {*} */ (host));
+      const ctrl = new SyncController((host as any));
 
-      await ctrl.serve(/** @type {*} */ ({
+      await ctrl.serve(({
         port: 3000,
         httpPort: { listen: vi.fn() },
-      }));
+      } as any));
 
       const httpCall = httpSyncServerMock.mock.calls[0];
       if (httpCall == null) { throw new Error('expected at least one call'); }
@@ -792,7 +791,7 @@ describe('SyncController', () => {
         _lastFrontier: new Map(),
         discoverWriters: vi.fn().mockResolvedValue([]),
       });
-      ctrl = new SyncController(/** @type {*} */ (host));
+      ctrl = new SyncController((host as any));
 
       // Default: retry calls fn once, timeout passes through
       retryMock.mockImplementation(async (fn) => await fn());
@@ -810,7 +809,7 @@ describe('SyncController', () => {
       const validResponse = {
         type: 'sync-response',
         frontier: { alice: 'sha-a' },
-        patches: [],
+        patches: [] as any[],
       };
       fetchMock.mockResolvedValue({
         status: 200,
@@ -897,7 +896,7 @@ describe('SyncController', () => {
       // Capture shouldRetry from retry mock
       /** @type {((err: unknown) => boolean) | undefined} */
       let capturedShouldRetry;
-      /** @type {*} */ (retryMock).mockImplementation(async (/** @type {Function} */ fn, /** @type {*} */ opts) => {
+      (retryMock as any).mockImplementation(async (/** @type {Function} */ fn, /** @type {*} */ opts) => {
         capturedShouldRetry = opts.shouldRetry;
         return await fn();
       });
@@ -928,7 +927,7 @@ describe('SyncController', () => {
       const validResponse = {
         type: 'sync-response',
         frontier: {},
-        patches: [],
+        patches: [] as any[],
       };
       fetchMock.mockResolvedValue({
         status: 200,

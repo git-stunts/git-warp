@@ -23,11 +23,8 @@ import {
 
 /**
  * Typed wrapper for reduceV5 that returns WarpState (no receipts in these tests).
- * @param {any[]} patches
- * @param {any} [initialState]
- * @returns {any}
  */
-const reduceV5 = (patches, initialState) => _reduceV5(patches, initialState);
+const reduceV5 = (patches: any[], initialState?: any): any => _reduceV5(patches, initialState);
 
 // v4 reducer helpers (local test helpers for migration tests)
 import { compareEventIds, EventId } from '../../../../src/domain/utils/EventId.ts';
@@ -52,11 +49,11 @@ function createEmptyState() {
  * @param {Array<{patch: any, sha: string}>} patches
  * @returns {{nodeAlive: Map<string, any>, edgeAlive: Map<string, any>, prop: Map<string, any>}}
  */
-function reduce(patches) {
+function reduce(patches: any[]) {
   const state = createEmptyState();
 
   // Expand all patches to (EventId, Op) tuples
-  const tuples = [];
+  const tuples: any[] = [];
   for (const { patch, sha } of patches) {
     for (let index = 0; index < patch.ops.length; index++) {
       tuples.push({
@@ -132,7 +129,7 @@ import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 import NodeRemove from '../../../../src/domain/types/ops/NodeRemove.ts';
 
 /** @param {Record<string, unknown>} opts */
-function createPatch(opts) { return new Patch(/** @type {any} */ (opts)); }
+function createPatch(opts) { return new Patch((opts as any)); }
 
 // v1 op types (for migration tests) — inlined after WarpTypes.ts deletion
 /** @param {string} node */
@@ -156,9 +153,8 @@ function createInlineValue(value) { return { type: 'inline', value }; }
  * @param {string} [options.baseCheckpoint] - Optional base checkpoint OID
  * @returns {any} PatchV1 object
  */
-function createPatchV1({ writer, lamport, ops, baseCheckpoint }) {
-  /** @type {any} */
-  const patch = {
+function createPatchV1({ writer, lamport, ops, baseCheckpoint }: { writer: any; lamport: any; ops: any; baseCheckpoint?: any }) {
+  const patch: any = {
     schema: 1,
     writer,
     lamport,
@@ -209,13 +205,13 @@ function randomHex(length = 8) {
  * @param {number} n
  * @param {{ writers?: string[], maxOpsPerPatch?: number }} options
  */
-function generatePatches(n, options = {}) {
+function generatePatches(n: number, options: { writers?: string[], maxOpsPerPatch?: number } = {}) {
   const { writers = ['writerA', 'writerB', 'writerC', 'writerD'], maxOpsPerPatch = 3 } = options;
-  const patches = [];
+  const patches: any[] = [];
   const writerCounters = new Map();
 
   for (let i = 0; i < n; i++) {
-    const writer = /** @type {string} */ (writers[Math.floor(Math.random() * writers.length)]);
+    const writer = writers[Math.floor(Math.random() * writers.length)] as string;
     const lamport = i + 1;
     // SHA must be hex only, at least 4 chars - no prefix!
     const sha = randomHex(12);
@@ -225,7 +221,7 @@ function generatePatches(n, options = {}) {
     const newCounter = currentCounter + 1;
     writerCounters.set(writer, newCounter);
 
-    const ops = [];
+    const ops: any[] = [];
     const numOps = Math.floor(Math.random() * maxOpsPerPatch) + 1;
 
     for (let j = 0; j < numOps; j++) {
@@ -259,7 +255,7 @@ function generatePatches(n, options = {}) {
       writer,
       lamport,
       context: /** @type {any} */ (VersionVector.empty()),
-      ops: /** @type {any[]} */ (ops),
+      ops: (ops as any),
     });
 
     patches.push({ patch, sha });
@@ -273,8 +269,8 @@ function generatePatches(n, options = {}) {
  * Note: SHA must be 4-64 hex chars, so we use 'aaaa' prefix + number in hex
  * @param {number} n
  */
-function generateV2Patches(n) {
-  const patches = [];
+function generateV2Patches(n: number) {
+  const patches: any[] = [];
 
   for (let i = 0; i < n; i++) {
     const writer = `writer${i % 5}`;
@@ -283,8 +279,7 @@ function generateV2Patches(n) {
     const sha = `aaaa${i.toString(16).padStart(4, '0')}`;
     const dot = Dot.create(writer, i + 1);
 
-    /** @type {any[]} */
-    const ops = [
+    const ops: any[] = [
       new NodeAdd(`node:${i}`, dot),
     ];
 
@@ -318,7 +313,7 @@ function generateV2Patches(n) {
  * (max counter per writer across all patches)
  * @param {any[]} patches
  */
-function computeIncludedVV(patches) {
+function computeIncludedVV(patches: any[]) {
   const vv = VersionVector.empty();
 
   for (const { patch } of patches) {
@@ -339,8 +334,8 @@ function computeIncludedVV(patches) {
  * Gets visible nodes from a v4 state
  * @param {any} v4State
  */
-function getVisibleNodes(v4State) {
-  const visible = [];
+function getVisibleNodes(v4State: any) {
+  const visible: any[] = [];
   for (const [nodeId, reg] of v4State.nodeAlive) {
     if (reg.value === true) {
       visible.push(nodeId);
@@ -767,7 +762,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
         writer: 'B',
         lamport: 10,
         context: /** @type {any} */ (VersionVector.empty()),
-        ops: [/** @type {any} */ ({ type: 'EdgeRemove', observedDots: new Set() })],
+        ops: [({ type: 'EdgeRemove', observedDots: new Set() })],
       }),
       sha: 'edbb0011',
     };
@@ -1146,7 +1141,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     const patches = generateV2Patches(100);
 
     // 5 distinct permutations
-    const hashes = [];
+    const hashes: any[] = [] as any[];
     for (let i = 0; i < 5; i++) {
       const shuffled = shuffle(patches);
       const state = reduceV5(shuffled);
@@ -1160,7 +1155,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
 
   it('chaos test with interleaved add/remove operations', async () => {
     // Generate patches with a mix of adds and removes
-    const patches = [];
+    const patches: any[] = [] as any[];
     const writerCounters = new Map();
 
     for (let i = 0; i < 100; i++) {
@@ -1172,8 +1167,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
       const newCounter = currentCounter + 1;
       writerCounters.set(writer, newCounter);
 
-      /** @type {any[]} */
-      const ops = [];
+      const ops: any[] = [] as any[];
       const nodeId = `chaos-node-${i % 20}`;
 
       if (i % 4 === 0) {
@@ -1204,7 +1198,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     }
 
     // Shuffle into 5 permutations and reduce
-    const hashes = [];
+    const hashes: any[] = [] as any[];
     for (let i = 0; i < 5; i++) {
       const shuffled = shuffle(patches);
       const state = reduceV5(shuffled);
@@ -1220,7 +1214,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     const patches = generatePatches(100);
 
     // Create 5 permutations
-    const permutations = [];
+    const permutations: any[] = [];
     for (let i = 0; i < 5; i++) {
       permutations.push(shuffle(patches));
     }
@@ -1373,7 +1367,7 @@ describe('Additional WARP v5 Integration Tests', () => {
           patch: createPatch({
             writer: 'A',
             lamport: 1,
-            context: /** @type {any} */ (ctx1),
+            context: (ctx1 as any),
             ops: [new NodeAdd('n1', Dot.create('A', 1))],
           }),
           sha: 'aaaa1111',
@@ -1382,7 +1376,7 @@ describe('Additional WARP v5 Integration Tests', () => {
           patch: createPatch({
             writer: 'B',
             lamport: 2,
-            context: /** @type {any} */ (ctx2),
+            context: (ctx2 as any),
             ops: [new NodeAdd('n2', Dot.create('B', 1))],
           }),
           sha: 'bbbb2222',
