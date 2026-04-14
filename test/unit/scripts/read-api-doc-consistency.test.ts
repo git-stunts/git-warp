@@ -46,7 +46,9 @@ describe('public read API docs stay aligned with observer geometry', () => {
   });
 
   it('keeps the legacy WarpGraph noun out of the public read-surface docs', () => {
-    expect(readme).not.toContain('WarpGraph');
+    // The README uses openWarpGraph() as the entry point — that is fine.
+    // The old standalone WarpGraph class should not appear as a noun.
+    expect(readme).not.toMatch(/(?<![a-zA-Z])WarpGraph(?![\w(])/);
     expect(gettingStarted).not.toContain('WarpGraph');
     expect(guide).not.toContain('WarpGraph');
     expect(advancedGuide).not.toContain('WarpGraph');

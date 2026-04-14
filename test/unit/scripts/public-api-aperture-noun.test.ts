@@ -21,8 +21,8 @@ describe('Aperture is a first-class public noun', () => {
   });
 
   it('teaches Aperture in the README glossary and observer example', () => {
-    expect(readme).toContain('| **Aperture** | The aperture definition that shapes what an observer can see. |');
-    expect(readme).toContain('| **Observer** | A filtered, read-only projection over a worldline through an aperture. |');
+    expect(readme).toContain('| **Aperture** | The boundary that shapes what an observer can see. |');
+    expect(readme).toContain('| **Observer** | Filtered read-only projection through an aperture. |');
   });
 
   it('uses Aperture language in the guide observer walkthrough', () => {

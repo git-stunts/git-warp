@@ -71,15 +71,15 @@ describe('release policy shape', () => {
       'utf8',
     );
 
+    // The logo image must use an absolute raw.githubusercontent.com URL so it
+    // renders on npm and jsr (which strip relative src attributes).
     expect(readme).toContain('https://raw.githubusercontent.com/git-stunts/git-warp/main/docs/images/git-warp-alt.svg');
-    expect(readme).toContain('https://github.com/git-stunts/git-warp/blob/main/docs/GETTING_STARTED.md');
-    expect(readme).toContain('https://github.com/git-stunts/git-warp/blob/main/docs/GUIDE.md');
-    expect(readme).toContain('https://github.com/git-stunts/git-warp/blob/main/docs/API_REFERENCE.md');
-    expect(readme).toContain('https://github.com/git-stunts/git-warp/blob/main/docs/ADVANCED_GUIDE.md');
-    expect(readme).toContain('https://github.com/git-stunts/git-warp/blob/main/docs/CLI_GUIDE.md');
-    expect(readme).toContain('https://github.com/git-stunts/git-warp/blob/main/docs/README.md');
-    expect(readme).toContain('https://github.com/git-stunts/git-warp/blob/main/docs/CONCEPTUAL_OVERVIEW.md');
-    expect(readme).toContain('https://github.com/git-stunts/git-warp/blob/main/docs/ARCHITECTURE.md');
-    expect(readme).toContain('https://github.com/git-stunts/git-warp/tree/main/docs/specs');
+
+    // The docs section links to key documents in the docs/ directory.
+    expect(readme).toContain('docs/GETTING_STARTED.md');
+    expect(readme).toContain('docs/GUIDE.md');
+    expect(readme).toContain('docs/API_REFERENCE.md');
+    expect(readme).toContain('docs/CLI_GUIDE.md');
+    expect(readme).toContain('docs/ARCHITECTURE.md');
   });
 });

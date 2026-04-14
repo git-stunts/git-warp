@@ -33,7 +33,7 @@ function hasFile(relativePath) {
 
 describe('documentation corpus taxonomy', () => {
   it('exposes a docs index and links to it from the root README', () => {
-    expect(readme).toContain('**[Documentation index](https://github.com/git-stunts/git-warp/blob/main/docs/README.md)**');
+    expect(readme).toContain('## Documentation');
     expect(hasFile('docs/GETTING_STARTED.md')).toBe(true);
     expect(hasFile('docs/API_REFERENCE.md')).toBe(true);
     expect(hasFile('docs/ADVANCED_GUIDE.md')).toBe(true);

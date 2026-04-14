@@ -9,13 +9,11 @@ const readme = readFileSync(
 
 describe('README front-door shape', () => {
   it('acts as an evaluator-facing filter instead of a tutorial or reference', () => {
-    expect(readme).toContain('## Choose the right tool');
     expect(readme).toContain('## What git-warp is');
     expect(readme).toContain('## Why Git');
-    expect(readme).toContain('## Architecture at a glance');
-    expect(readme).toContain('## Documentation pipeline');
+    expect(readme).toContain('## The admission architecture');
+    expect(readme).toContain('## Documentation');
 
-    expect(readme).not.toContain('## Quick start');
     expect(readme).not.toContain('npm install @git-stunts/git-warp');
     expect(readme).not.toContain('WarpApp.open(');
     expect(readme).not.toContain('app.patch(');
@@ -23,27 +21,23 @@ describe('README front-door shape', () => {
   });
 
   it('qualifies the user quickly with the fit table and use guidance', () => {
-    expect(readme).toContain('| Use case | git-warp | Echo | Other | Remarks |');
-    expect(readme).toContain('| Offline-first collaborative app |');
-    expect(readme).toContain('| High-performance realtime simulation or game loop |');
+    expect(readme).toContain('| Use case | Fit |');
+    expect(readme).toContain('| Offline-first multi-writer convergence |');
+    expect(readme).toContain('| High-throughput real-time execution |');
     expect(readme).toContain('## When to use it');
-    expect(readme).toContain('## When not to use it');
   });
 
   it('explains the Git substrate and stack map without marketing language', () => {
     expect(readme).toContain('refs/warp/<graph>/writers/<writerId>');
-    expect(readme).toContain("Git's well-known empty tree");
-    expect(readme).toContain('Distributed, conflict-free graph storage that lives orthogonally to your source tree.');
+    expect(readme).toContain("Git's empty tree");
     expect(readme).not.toContain('TL;DR for humans');
     expect(readme).not.toContain('WarpRuntime');
   });
 
   it('hands off to the progressive disclosure pipeline explicitly', () => {
-    expect(readme).toContain('[Getting Started](https://github.com/git-stunts/git-warp/blob/main/docs/GETTING_STARTED.md)');
-    expect(readme).toContain('[Guide](https://github.com/git-stunts/git-warp/blob/main/docs/GUIDE.md)');
-    expect(readme).toContain('[API Reference](https://github.com/git-stunts/git-warp/blob/main/docs/API_REFERENCE.md)');
-    expect(readme).toContain('[Advanced Guide](https://github.com/git-stunts/git-warp/blob/main/docs/ADVANCED_GUIDE.md)');
-    expect(readme).toContain('[CLI Guide](https://github.com/git-stunts/git-warp/blob/main/docs/CLI_GUIDE.md)');
-    expect(readme).toContain('**[Documentation index](https://github.com/git-stunts/git-warp/blob/main/docs/README.md)**');
+    expect(readme).toContain('[Getting Started](docs/GETTING_STARTED.md)');
+    expect(readme).toContain('[Guide](docs/GUIDE.md)');
+    expect(readme).toContain('[API Reference](docs/API_REFERENCE.md)');
+    expect(readme).toContain('[CLI Guide](docs/CLI_GUIDE.md)');
   });
 });

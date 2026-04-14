@@ -10,18 +10,17 @@ const architecture = readFileSync(
 describe('architecture doc shape', () => {
   it('describes the current public surfaces and internal engine clearly', () => {
     expect(architecture).toContain('# git-warp architecture');
-    expect(architecture).toContain('## Public surfaces');
-    expect(architecture).toContain('### `WarpApp`');
-    expect(architecture).toContain('### `WarpCore`');
-    expect(architecture).toContain('### Internal engine');
-    expect(architecture).toContain('`src/domain/WarpRuntime.ts`');
+    expect(architecture).toContain('## Public API surface');
+    expect(architecture).toContain('### `openWarpGraph()` (v17+)');
+    expect(architecture).toContain('### `WarpApp` / `WarpCore` (legacy, v16 compat)');
+    expect(architecture).toContain('## Internal engine');
   });
 
   it('teaches the current read and speculative-lane nouns', () => {
-    expect(architecture).toContain('`Worldline`');
-    expect(architecture).toContain('`Aperture`');
-    expect(architecture).toContain('`Observer`');
-    expect(architecture).toContain('`Strand`');
+    expect(architecture).toContain('graph.strands.*');
+    expect(architecture).toContain('observers, worldlines');
+    expect(architecture).toContain('StrandController');
+    expect(architecture).toContain('Admission architecture');
     expect(architecture).not.toContain('# WarpGraph Architecture');
     expect(architecture).not.toContain('## Strand Boundary');
   });
