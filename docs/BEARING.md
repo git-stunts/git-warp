@@ -2,6 +2,18 @@
 
 Updated at cycle boundaries. Not mid-cycle.
 
+## Where are we
+
+v17.0.0 release candidate. Source and tests are 100% TypeScript.
+All gates at zero (tsc, lint, tests). `openWarpGraph()` ships as the
+new public entry point with 9 capability namespaces organized around
+the admission architecture (commitment / folding / revelation /
+governance).
+
+WarpRuntime (773 LOC) and _wiredMethods.d.ts (708 LOC) remain as the
+last pre-admission-kernel artifacts. They die when consumers migrate
+to `openWarpGraph()` capabilities (v18 target).
+
 ## Invariants
 
 Compact list here; full derivations with paper grounding, codebase
@@ -38,37 +50,33 @@ mapping, and concrete checks live in `docs/invariants/`.
 15. **SUFFIX-TRANSPORT** — sync at tip, not replay from frontier
     (OG-4 Thm 9) → `suffix-transport-correctness.md`
 
-Legacy shorthand (subsumed by the above):
-- HEXAGONAL → DOMAIN-PURITY
-- DETERMINISTIC → TICK-CONFLUENCE
-- MULTI-WRITER → WRITER-ISOLATION
-- RUNTIME-TRUTH → retained as engineering doctrine (SSJS P1)
-- BOUNDARY-HONESTY → retained as engineering doctrine (SSJS P2)
+## What just shipped
 
-## Where are we going?
+v17.0.0 cycle (Claudius Maximus I → II: DEATHBRINGER → III: WORLDBUILDER THE TRIUMPHANT):
 
-Structural decomposition of `domain/services/` — 83 files in a flat
-directory becoming 10 cohesive subdirectories. 10 extraction backlog
-items queued in `up-next/` under the CC legend.
+- 100% TypeScript source (374 .ts / 0 .js in src/)
+- 100% TypeScript tests (378 .test.ts / 0 .test.js)
+- Zero tsc errors, zero lint errors, zero test failures
+- `openWarpGraph()` factory with admission architecture surface
+- 30+ god objects slain, all source files under 500 LOC
+- 4 design cycles opened and closed (0014-0017)
+- Migration guide and automated migration scripts
 
-## What just shipped?
+## What feels wrong
 
-Cycle 0004 (domain-services-audit). Design-only cycle — import graph
-analysis, 10 cohesive groups identified, no circular dependencies.
+- WarpRuntime is a 773-LOC devil that wires 30+ methods via
+  defineProperty. It must die (Design 0017 Phase 2+).
+- `collapseBraid()` does not exist. The runtime spec (§12) defines
+  it, Paper VII (§3) requires it, Graft needs it. Filed as
+  `PROTO_strand-collapse-implementation`.
+- 42 CLI files remain as JavaScript. Deferred to v17.1 alongside
+  the agent-native output pattern (Design 0014).
+- The admission kernel (Design 0017) is designed but not implemented.
+  The code applies operations; Paper VII says it should admit claims.
 
-## What feels wrong?
+## What comes next
 
-- ~~WorldlineSource~~ Shipped as WorldlineSelector hierarchy (cycle 0007).
-- 20 domain services do serialization directly (`codec.encode()`/
-  `codec.decode()`). The fix is a two-stage boundary: artifact-level
-  ports (PatchJournalPort, CheckpointStorePort, etc.) that speak
-  domain types, backed by codec-owning adapters over the raw Git
-  ports. Strangler refactor, patches first.
-  See `NDNM_defaultcodec-to-infrastructure.md`.
-- The two legends (CLEAN_CODE, NO_DOGS_NO_MASTERS) overlap
-  significantly. May need consolidation or clearer boundaries.
-- JoinReducer is imported by 8 of 10 service clusters — it is the
-  gravitational center. Any structural change to JoinReducer has
-  wide blast radius.
-- The shared kernel (~24 files in services/ root after extraction)
-  is still a big drawer. Revisit after the 10 extractions stabilize.
+- **v17.0.0**: Ship. The fortress is built.
+- **v17.1**: CLI TS conversion + agent-native output + missing commands
+- **v17.2**: MCP server (`git warp mcp`)
+- **v18**: The exorcism (API_kill-warpruntime) + admission kernel Phase 1
