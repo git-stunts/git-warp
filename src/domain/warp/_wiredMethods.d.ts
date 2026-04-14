@@ -552,13 +552,35 @@ declare module '../WarpRuntime.ts' {
   export default interface WarpRuntime {
     // ── query.methods.js ──────────────────────────────────────────────────
     hasNode(nodeId: string): Promise<boolean>;
+    /**
+     * Inspection API: reads one node from the current materialized state.
+     *
+     * Prefer `worldline().query()` for stable product reads, or
+     * `worldline().observer(...).query()` when you need a filtered aperture.
+     */
     getNodeProps(nodeId: string): Promise<Record<string, unknown> | null>;
     getEdgeProps(from: string, to: string, label: string): Promise<Record<string, unknown> | null>;
     getContentMeta(nodeId: string): Promise<ContentMeta | null>;
     getEdgeContentMeta(from: string, to: string, label: string): Promise<ContentMeta | null>;
+    /**
+     * Inspection API: walks visible neighbors from the current materialized state.
+     *
+     * For application-facing reads, prefer `Observer` query/traverse helpers over direct materialization.
+     */
     neighbors(nodeId: string, direction?: 'outgoing' | 'incoming' | 'both', edgeLabel?: string): Promise<Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>>;
     getStateSnapshot(): Promise<WarpState | null>;
+    /**
+     * Inspection API: enumerates all visible nodes in the current materialized state.
+     *
+     * Prefer `worldline().query()` for stable product reads, or
+     * `worldline().observer(...).query()` when you need a filtered aperture.
+     */
     getNodes(): Promise<string[]>;
+    /**
+     * Inspection API: enumerates all visible edges in the current materialized state.
+     *
+     * For application-facing reads, prefer `Observer` query/traverse helpers over direct materialization.
+     */
     getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
     getPropertyCount(): Promise<number>;
     query(): import('../services/QueryBuilder.js').default;
@@ -645,7 +667,9 @@ declare module '../WarpRuntime.ts' {
     _frontierEquals(a: import('../crdt/VersionVector.ts').default, b: import('../crdt/VersionVector.ts').default): boolean;
 
     // ── MaterializeController ─────────────────────────────────────────────
+    /** Advanced substrate replay primitive over the live frontier. */
     materialize(options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+    /** Advanced substrate replay primitive over the live frontier. */
     materialize(options?: { receipts?: false; ceiling?: number | null }): Promise<WarpState>;
     _materializeGraph(): Promise<{ state: WarpState; stateHash: string; adjacency: unknown }>;
 
@@ -654,12 +678,15 @@ declare module '../WarpRuntime.ts' {
     _buildAdjacency(state: WarpState): { outgoing: Map<string, Array<{ neighborId: string; label: string }>>; incoming: Map<string, Array<{ neighborId: string; label: string }>> };
     _buildView(state: WarpState, stateHash: string, diff?: import('../types/PatchDiff.js').PatchDiff): void;
     _setMaterializedState(state: WarpState, optionsOrDiff?: import('../types/PatchDiff.js').PatchDiff | { diff?: import('../types/PatchDiff.js').PatchDiff | null }): Promise<{ state: WarpState; stateHash: string; adjacency: unknown }>;
+    /** Advanced substrate replay primitive against an explicit pinned frontier. */
     materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts: true }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+    /** Advanced substrate replay primitive against an explicit pinned frontier. */
     materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts?: false }): Promise<WarpState>;
     _materializeWithCeiling(ceiling: number, collectReceipts: boolean, t0: number): Promise<WarpState | { state: WarpState; receipts: TickReceipt[] }>;
     _materializeWithCoordinate(frontier: Map<string, string>, ceiling: number | null, collectReceipts: boolean, t0: number): Promise<WarpState | { state: WarpState; receipts: TickReceipt[] }>;
     _persistSeekCacheEntry(cacheKey: string, buf: Uint8Array, state: WarpState): Promise<void>;
     _restoreIndexFromCache(indexTreeOid: string): Promise<void>;
+    /** Advanced substrate replay primitive for this pinned source. */
     materializeAt(checkpointSha: string): Promise<WarpState>;
     verifyIndex(options?: { seed?: number; sampleRate?: number }): { passed: number; failed: number; errors: Array<{ nodeId: string; direction: string; expected: string[]; actual: string[] }> };
     invalidateIndex(): void;
@@ -670,7 +697,9 @@ declare module '../WarpRuntime.ts' {
     getStrand(strandId: string): Promise<StrandDescriptor | null>;
     listStrands(): Promise<StrandDescriptor[]>;
     dropStrand(strandId: string): Promise<boolean>;
+    /** Advanced substrate replay primitive for a strand's pinned base observation plus overlay. */
     materializeStrand(strandId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+    /** Advanced substrate replay primitive for a strand's pinned base observation plus overlay. */
     materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpState>;
     getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: Patch; sha: string }>>;
     patchesForStrand(strandId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;

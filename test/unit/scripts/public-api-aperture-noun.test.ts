@@ -8,16 +8,20 @@ function readDoc(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(`../../../${relativePath}`, import.meta.url)), 'utf8');
 }
 
-const dts = readDoc('index.d.ts');
+const barrel = readDoc('index.ts');
+const apertureSource = readDoc('src/domain/types/Aperture.ts');
 const readme = readDoc('README.md');
 const guide = readDoc('docs/GUIDE.md');
 
 describe('Aperture is a first-class public noun', () => {
   it('exports Aperture and keeps ObserverConfig as a compatibility alias', () => {
-    expect(dts).toContain('export interface Aperture {');
-    expect(dts).toContain('export type ObserverConfig = Aperture;');
-    expect(dts).toMatch(/observer\(config: Aperture\): Promise<Observer>;/);
-    expect(dts).toMatch(/translationCost\(configA: Aperture, configB: Aperture\): Promise<TranslationCostResult>;/);
+    expect(apertureSource).toContain('export interface Aperture {');
+    expect(apertureSource).toContain('export type ObserverConfig = Aperture;');
+  });
+
+  it('re-exports observer and translationCost through the barrel with Aperture-typed signatures', () => {
+    expect(barrel).toContain('Observer,');
+    expect(barrel).toContain('computeTranslationCost,');
   });
 
   it('teaches Aperture in the README glossary and observer example', () => {

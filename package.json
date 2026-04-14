@@ -18,19 +18,19 @@
   },
   "sideEffects": false,
   "main": "./index.ts",
-  "types": "./index.d.ts",
+  "types": "./index.ts",
   "bin": {
     "warp-graph": "./bin/warp-graph.ts",
     "git-warp": "./bin/git-warp"
   },
   "exports": {
     ".": {
-      "types": "./index.d.ts",
+      "types": "./index.ts",
       "import": "./index.ts",
       "default": "./index.ts"
     },
     "./node": {
-      "types": "./index.d.ts",
+      "types": "./index.ts",
       "import": "./src/domain/entities/GraphNode.ts",
       "default": "./src/domain/entities/GraphNode.ts"
     },
@@ -39,7 +39,7 @@
       "default": "./src/visualization/index.ts"
     },
     "./browser": {
-      "types": "./browser.d.ts",
+      "types": "./browser.ts",
       "import": "./browser.ts",
       "default": "./browser.ts"
     },
@@ -58,9 +58,7 @@
     "src",
     "browser.ts",
     "index.ts",
-    "browser.d.ts",
     "sha1sync.d.ts",
-    "index.d.ts",
     "README.md",
     "CHANGELOG.md",
     "LICENSE",

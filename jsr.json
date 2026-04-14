@@ -14,12 +14,9 @@
   "publish": {
     "include": [
       "index.ts",
-      "index.d.ts",
       "browser.ts",
-      "browser.d.ts",
       "sha1sync.d.ts",
       "src/**/*.ts",
-      "src/**/*.js",
       "src/**/*.d.ts",
       "README.md",
       "CHANGELOG.md",
