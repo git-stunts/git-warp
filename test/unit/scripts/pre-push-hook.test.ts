@@ -148,6 +148,7 @@ describe('scripts/hooks/pre-push', () => {
       'typecheck:policy',
       'typecheck:src',
       'typecheck:surface',
+      'typecheck:test',
     ]);
     expect(result.lycheeCalls).toEqual(['--config .lychee.toml **/*.md']);
   });
@@ -174,6 +175,7 @@ describe('scripts/hooks/pre-push', () => {
       'typecheck:policy',
       'typecheck:src',
       'typecheck:surface',
+      'typecheck:test',
     ]);
   });
 
