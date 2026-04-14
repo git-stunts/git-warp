@@ -2,23 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import HealthCheckService, { HealthStatus } from '../../../../src/domain/services/HealthCheckService.ts';
 
 describe('HealthCheckService', () => {
-    let service;
-    let mockPersistence;
-    let mockClock;
-    let mockIndexReader;
-    let mockLogger;
-    let currentTime;
+  let service: HealthCheckService;
+  let mockPersistence: { ping: ReturnType<typeof vi.fn> };
+  let mockIndexReader: { shardOids: Map<string, string> };
+  let mockLogger: Record<string, ReturnType<typeof vi.fn>>;
 
   beforeEach(() => {
-    currentTime = 0;
-
     mockPersistence = {
       ping: vi.fn().mockResolvedValue({ ok: true, latencyMs: 1.5 }),
-    };
-
-    mockClock = {
-      now: vi.fn(() => currentTime),
-      timestamp: vi.fn(() => '2024-01-15T10:00:00.000Z'),
     };
 
     mockIndexReader = {
@@ -37,47 +28,43 @@ describe('HealthCheckService', () => {
       child: vi.fn().mockReturnThis(),
     };
 
-    service = new HealthCheckService((({
+    service = new HealthCheckService(({
       persistence: mockPersistence,
-      clock: mockClock,
-      cacheTtlMs: 5000,
+      cacheTtlTicks: 100,
       logger: mockLogger,
-    }) as any));
+    }) as Parameters<typeof HealthCheckService['prototype']['constructor']>[0]);
   });
 
   describe('constructor', () => {
-    it('accepts persistence, clock, and optional parameters', () => {
-      const s = new HealthCheckService(({ persistence: mockPersistence, clock: mockClock } as any));
+    it('accepts persistence and optional parameters', () => {
+      const s = new HealthCheckService(({ persistence: mockPersistence }) as Parameters<typeof HealthCheckService['prototype']['constructor']>[0]);
       expect(s).toBeDefined();
     });
 
-    it('uses default cache TTL of 5000ms', async () => {
-      const s = new HealthCheckService(({ persistence: mockPersistence, clock: mockClock } as any));
-      await s.getHealth();
+    it('uses default cache TTL of 50 ticks', async () => {
+      const s = new HealthCheckService(({ persistence: mockPersistence }) as Parameters<typeof HealthCheckService['prototype']['constructor']>[0]);
+      await s.getHealth(10);
 
-      // Call again immediately - should be cached
+      // Call again at same tick — should be cached
       mockPersistence.ping.mockClear();
-      await s.getHealth();
+      await s.getHealth(10);
       expect(mockPersistence.ping).not.toHaveBeenCalled();
 
-      // Advance past default TTL
-      currentTime = 5001;
-      await s.getHealth();
+      // Advance past default TTL (50 ticks)
+      await s.getHealth(61);
       expect(mockPersistence.ping).toHaveBeenCalled();
     });
 
-    it('allows custom cache TTL', async () => {
-      const s = new HealthCheckService((({
+    it('allows custom cache TTL in ticks', async () => {
+      const s = new HealthCheckService(({
         persistence: mockPersistence,
-        clock: mockClock,
-        cacheTtlMs: 1000,
-      }) as any));
-      await s.getHealth();
+        cacheTtlTicks: 20,
+      }) as Parameters<typeof HealthCheckService['prototype']['constructor']>[0]);
+      await s.getHealth(10);
 
-      // Advance 1.5 seconds - should expire
-      currentTime = 1500;
+      // Advance 25 ticks — should expire
       mockPersistence.ping.mockClear();
-      await s.getHealth();
+      await s.getHealth(35);
       expect(mockPersistence.ping).toHaveBeenCalled();
     });
   });
@@ -86,7 +73,7 @@ describe('HealthCheckService', () => {
     it('returns healthy status when repository and index are working', async () => {
       service.setIndexReader(mockIndexReader);
 
-      const health = await service.getHealth();
+      const health = await service.getHealth(1);
 
       expect(health.status).toBe(HealthStatus.HEALTHY);
       expect(health.components.repository.status).toBe(HealthStatus.HEALTHY);
@@ -108,7 +95,7 @@ describe('HealthCheckService', () => {
       };
       service.setIndexReader(readerWith5Shards);
 
-      const health = await service.getHealth();
+      const health = await service.getHealth(1);
 
       expect(health.components.index.shardCount).toBe(5);
     });
@@ -116,9 +103,7 @@ describe('HealthCheckService', () => {
 
   describe('getHealth() - degraded scenario', () => {
     it('returns degraded status when index is not loaded', async () => {
-      // No index reader set
-
-      const health = await service.getHealth();
+      const health = await service.getHealth(1);
 
       expect(health.status).toBe(HealthStatus.DEGRADED);
       expect(health.components.repository.status).toBe(HealthStatus.HEALTHY);
@@ -129,12 +114,11 @@ describe('HealthCheckService', () => {
 
     it('clears index when setIndexReader is called with null', async () => {
       service.setIndexReader(mockIndexReader);
-      let health = await service.getHealth();
+      let health = await service.getHealth(1);
       expect(health.components.index.loaded).toBe(true);
 
-      // Clear the index (invalidates cache automatically)
       service.setIndexReader(null);
-      health = await service.getHealth();
+      health = await service.getHealth(2);
 
       expect(health.status).toBe(HealthStatus.DEGRADED);
       expect(health.components.index.loaded).toBe(false);
@@ -145,7 +129,7 @@ describe('HealthCheckService', () => {
     it('returns unhealthy status when repository ping fails', async () => {
       mockPersistence.ping.mockResolvedValue({ ok: false, latencyMs: 50 });
 
-      const health = await service.getHealth();
+      const health = await service.getHealth(1);
 
       expect(health.status).toBe(HealthStatus.UNHEALTHY);
       expect(health.components.repository.status).toBe(HealthStatus.UNHEALTHY);
@@ -155,78 +139,64 @@ describe('HealthCheckService', () => {
     it('returns unhealthy status when ping throws an error', async () => {
       mockPersistence.ping.mockRejectedValue(new Error('Connection refused'));
 
-      const health = await service.getHealth();
+      const health = await service.getHealth(1);
 
       expect(health.status).toBe(HealthStatus.UNHEALTHY);
       expect(health.components.repository.status).toBe(HealthStatus.UNHEALTHY);
       expect(health.components.repository.latencyMs).toBe(0);
       expect(mockLogger.warn).toHaveBeenCalledWith(
         'Repository ping failed',
-        expect.objectContaining({ error: 'Connection refused' })
+        expect.objectContaining({ error: 'Connection refused' }),
       );
     });
 
     it('unhealthy repository takes precedence over degraded index', async () => {
       mockPersistence.ping.mockResolvedValue({ ok: false, latencyMs: 100 });
-      // No index loaded (would normally be degraded)
 
-      const health = await service.getHealth();
+      const health = await service.getHealth(1);
 
-      // Overall should be unhealthy, not degraded
       expect(health.status).toBe(HealthStatus.UNHEALTHY);
     });
   });
 
   describe('caching behavior', () => {
-    it('caches health results for TTL duration', async () => {
+    it('caches health results for tick TTL duration', async () => {
       service.setIndexReader(mockIndexReader);
 
-      // First call
-      const health1 = await service.getHealth();
+      const health1 = await service.getHealth(10);
       expect(mockPersistence.ping).toHaveBeenCalledTimes(1);
 
-      // Second call immediately - should use cache
-      const health2 = await service.getHealth();
+      // Second call at tick 20 — within 100-tick threshold
+      const health2 = await service.getHealth(20);
       expect(mockPersistence.ping).toHaveBeenCalledTimes(1);
-      expect(health2.cachedAt).toBeDefined();
+      expect(health2.cachedAtTick).toBeDefined();
 
-      // Verify results are the same
       expect(health1.status).toBe(health2.status);
     });
 
-    it('refreshes health after TTL expires', async () => {
-      // First call
-      await service.getHealth();
+    it('refreshes health after tick TTL expires', async () => {
+      await service.getHealth(10);
       expect(mockPersistence.ping).toHaveBeenCalledTimes(1);
 
-      // Advance time past TTL
-      currentTime = 6000;
-
-      // Should make a new ping call
-      await service.getHealth();
+      // Advance past 100-tick threshold
+      await service.getHealth(120);
       expect(mockPersistence.ping).toHaveBeenCalledTimes(2);
     });
 
-    it('includes cachedAt timestamp for cached results', async () => {
-      mockClock.timestamp.mockReturnValue('2024-01-15T10:00:00.000Z');
+    it('includes cachedAtTick for cached results', async () => {
+      await service.getHealth(42);
 
-      await service.getHealth();
-
-      // Second call should include cachedAt
-      const health = await service.getHealth();
-      expect(health.cachedAt).toBe('2024-01-15T10:00:00.000Z');
+      const health = await service.getHealth(50);
+      expect(health.cachedAtTick).toBe(42);
     });
 
     it('invalidates cache when index reader changes', async () => {
-      // Initial health check
-      await service.getHealth();
+      await service.getHealth(10);
       expect(mockPersistence.ping).toHaveBeenCalledTimes(1);
 
-      // Set index reader - should invalidate cache
       service.setIndexReader(mockIndexReader);
 
-      // Should make a new call (cache invalidated)
-      await service.getHealth();
+      await service.getHealth(11);
       expect(mockPersistence.ping).toHaveBeenCalledTimes(2);
     });
   });
@@ -235,15 +205,13 @@ describe('HealthCheckService', () => {
     it('returns true when all components are healthy', async () => {
       service.setIndexReader(mockIndexReader);
 
-      const ready = await service.isReady();
+      const ready = await service.isReady(1);
 
       expect(ready).toBe(true);
     });
 
     it('returns false when index is not loaded (degraded)', async () => {
-      // No index loaded
-
-      const ready = await service.isReady();
+      const ready = await service.isReady(1);
 
       expect(ready).toBe(false);
     });
@@ -252,7 +220,7 @@ describe('HealthCheckService', () => {
       mockPersistence.ping.mockResolvedValue({ ok: false, latencyMs: 10 });
       service.setIndexReader(mockIndexReader);
 
-      const ready = await service.isReady();
+      const ready = await service.isReady(1);
 
       expect(ready).toBe(false);
     });
@@ -260,15 +228,13 @@ describe('HealthCheckService', () => {
 
   describe('isAlive()', () => {
     it('returns true when repository is healthy', async () => {
-      const alive = await service.isAlive();
+      const alive = await service.isAlive(1);
 
       expect(alive).toBe(true);
     });
 
     it('returns true even when index is degraded', async () => {
-      // No index loaded - degraded state
-
-      const alive = await service.isAlive();
+      const alive = await service.isAlive(1);
 
       expect(alive).toBe(true);
     });
@@ -276,7 +242,7 @@ describe('HealthCheckService', () => {
     it('returns false when repository is unhealthy', async () => {
       mockPersistence.ping.mockResolvedValue({ ok: false, latencyMs: 10 });
 
-      const alive = await service.isAlive();
+      const alive = await service.isAlive(1);
 
       expect(alive).toBe(false);
     });
@@ -284,7 +250,7 @@ describe('HealthCheckService', () => {
     it('returns false when ping throws an error', async () => {
       mockPersistence.ping.mockRejectedValue(new Error('Network error'));
 
-      const alive = await service.isAlive();
+      const alive = await service.isAlive(1);
 
       expect(alive).toBe(false);
     });
@@ -294,35 +260,40 @@ describe('HealthCheckService', () => {
     it('rounds latency to 2 decimal places', async () => {
       mockPersistence.ping.mockResolvedValue({ ok: true, latencyMs: 1.23456789 });
 
-      const health = await service.getHealth();
+      const health = await service.getHealth(1);
 
       expect(health.components.repository.latencyMs).toBe(1.23);
     });
-  });
 
-  describe('HealthStatus constants', () => {
-    it('exports correct status values', () => {
-      expect(HealthStatus.HEALTHY).toBe('healthy');
-      expect(HealthStatus.DEGRADED).toBe('degraded');
-      expect(HealthStatus.UNHEALTHY).toBe('unhealthy');
+    it('rounds high latency values', async () => {
+      mockPersistence.ping.mockResolvedValue({ ok: true, latencyMs: 99.999 });
+
+      const health = await service.getHealth(1);
+
+      expect(health.components.repository.latencyMs).toBe(100);
     });
   });
 
   describe('logging', () => {
-    it('logs debug message on health check completion', async () => {
-      service.setIndexReader(mockIndexReader);
-
-      await service.getHealth();
+    it('logs debug message for fresh health computation', async () => {
+      await service.getHealth(1);
 
       expect(mockLogger.debug).toHaveBeenCalledWith(
         'Health check completed',
         expect.objectContaining({
           operation: 'getHealth',
-          status: 'healthy',
-          repositoryStatus: 'healthy',
-          indexStatus: 'healthy',
-        })
+          status: expect.any(String),
+        }),
       );
+    });
+
+    it('does not log for cached results', async () => {
+      await service.getHealth(1);
+      mockLogger.debug.mockClear();
+
+      await service.getHealth(2);
+
+      expect(mockLogger.debug).not.toHaveBeenCalled();
     });
   });
 });

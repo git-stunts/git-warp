@@ -1,13 +1,13 @@
 import nullLogger from '../utils/nullLogger.ts';
 import CachedValue from '../utils/CachedValue.ts';
 import type CommitPort from '../../ports/CommitPort.ts';
-import type ClockPort from '../../ports/ClockPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 
 /**
- * Default TTL for health check cache in milliseconds.
+ * Default TTL for health check cache in lamport ticks.
+ * Invalidates after 50 patches have been observed.
  */
-const DEFAULT_CACHE_TTL_MS = 5000;
+const DEFAULT_CACHE_TTL_TICKS = 50;
 
 /**
  * Health status constants.
@@ -37,7 +37,7 @@ export interface HealthResult {
     repository: RepositoryHealth;
     index: IndexHealth;
   };
-  cachedAt?: string;
+  cachedAtTick?: number;
 }
 
 interface IndexReaderLike {
@@ -53,19 +53,18 @@ interface IndexReaderLike {
  * @example
  * const healthService = new HealthCheckService({
  *   persistence,
- *   clock,
- *   cacheTtlMs: 10000,
+ *   cacheTtlTicks: 100,
  *   logger,
  * });
  *
  * // K8s liveness probe - am I running?
- * const alive = await healthService.isAlive();
+ * const alive = await healthService.isAlive(currentLamport);
  *
  * // K8s readiness probe - can I serve requests?
- * const ready = await healthService.isReady();
+ * const ready = await healthService.isReady(currentLamport);
  *
  * // Detailed health breakdown
- * const health = await healthService.getHealth();
+ * const health = await healthService.getHealth(currentLamport);
  * console.log(health.status); // 'healthy' | 'degraded' | 'unhealthy'
  */
 export default class HealthCheckService {
@@ -82,13 +81,11 @@ export default class HealthCheckService {
    */
   constructor({
     persistence,
-    clock,
-    cacheTtlMs = DEFAULT_CACHE_TTL_MS,
+    cacheTtlTicks = DEFAULT_CACHE_TTL_TICKS,
     logger = nullLogger,
   }: {
     persistence: CommitPort;
-    clock: ClockPort;
-    cacheTtlMs?: number;
+    cacheTtlTicks?: number;
     logger?: LoggerPort;
   }) {
     this._persistence = persistence;
@@ -96,8 +93,7 @@ export default class HealthCheckService {
     this._indexReader = null;
 
     this._healthCache = new CachedValue({
-      clock,
-      ttlMs: cacheTtlMs,
+      ttlTicks: cacheTtlTicks,
       compute: () => this._computeHealth(),
     });
   }
@@ -119,8 +115,8 @@ export default class HealthCheckService {
    * Returns true if the repository is accessible.
    * A failed liveness check typically triggers a container restart.
    */
-  async isAlive(): Promise<boolean> {
-    const health = await this.getHealth();
+  async isAlive(currentTick: number): Promise<boolean> {
+    const health = await this.getHealth(currentTick);
     // Alive if repository is reachable (even if degraded)
     return health.components.repository.status !== HealthStatus.UNHEALTHY;
   }
@@ -131,23 +127,23 @@ export default class HealthCheckService {
    * Returns true if all critical components are healthy.
    * A failed readiness check removes the pod from load balancer.
    */
-  async isReady(): Promise<boolean> {
-    const health = await this.getHealth();
+  async isReady(currentTick: number): Promise<boolean> {
+    const health = await this.getHealth(currentTick);
     return health.status === HealthStatus.HEALTHY;
   }
 
   /**
    * Gets detailed health information for all components.
    *
-   * Results are cached for the configured TTL to prevent
+   * Results are cached for the configured tick TTL to prevent
    * excessive health check calls under load.
    */
-  async getHealth(): Promise<HealthResult> {
-    const { value, cachedAt, fromCache } = await this._healthCache.getWithMetadata();
+  async getHealth(currentTick: number): Promise<HealthResult> {
+    const { value, cachedAtTick, fromCache } = await this._healthCache.getWithMetadata(currentTick);
     const result = value as HealthResult;
 
-    if (typeof cachedAt === 'string' && cachedAt.length > 0) {
-      return { ...result, cachedAt };
+    if (fromCache && cachedAtTick > 0) {
+      return { ...result, cachedAtTick };
     }
 
     // Log only for fresh computations

@@ -1,65 +1,40 @@
 import { describe, it, expect, vi } from 'vitest';
-import CachedValue_ from '../../../../src/domain/utils/CachedValue.ts';
-
-const CachedValue = (CachedValue_) as any;
-
-/**
- * Creates a mock clock for testing.
- * @returns {any} Mock clock with controllable time
- */
-function createMockClock() {
-  let currentTime = 0;
-  return {
-    now: () => currentTime,
-    timestamp: () => new Date(currentTime).toISOString(),
-    advance: (/** @type {number} */ ms) => {
-      currentTime += ms;
-    },
-    setTime: (/** @type {number} */ ms) => {
-      currentTime = ms;
-    },
-  };
-}
+import CachedValue from '../../../../src/domain/utils/CachedValue.ts';
 
 describe('CachedValue', () => {
   describe('constructor', () => {
     it('creates cache with valid options', () => {
-      const clock = createMockClock();
       const cache = new CachedValue({
-        clock,
-        ttlMs: 5000,
+        ttlTicks: 100,
         compute: () => 'value',
       });
 
       expect(cache.hasValue).toBe(false);
-      expect(cache.cachedAt).toBeNull();
+      expect(cache.cachedAtTick).toBe(0);
     });
 
-    it('throws when ttlMs is not a positive number', () => {
-      const clock = createMockClock();
+    it('throws when ttlTicks is not a positive number', () => {
       const compute = () => 'value';
 
-      expect(() => new CachedValue({ clock, ttlMs: 0, compute })).toThrow(
-        'CachedValue ttlMs must be a positive number',
+      expect(() => new CachedValue({ ttlTicks: 0, compute })).toThrow(
+        'CachedValue ttlTicks must be a positive number',
       );
-      expect(() => new CachedValue({ clock, ttlMs: -1, compute })).toThrow(
-        'CachedValue ttlMs must be a positive number',
+      expect(() => new CachedValue({ ttlTicks: -1, compute })).toThrow(
+        'CachedValue ttlTicks must be a positive number',
       );
-      expect(() => new CachedValue({ clock, ttlMs: 'invalid', compute })).toThrow(
-        'CachedValue ttlMs must be a positive number',
+      expect(() => new CachedValue({ ttlTicks: 'invalid' as unknown as number, compute })).toThrow(
+        'CachedValue ttlTicks must be a positive number',
       );
-      expect(() => new CachedValue({ clock, ttlMs: null, compute })).toThrow(
-        'CachedValue ttlMs must be a positive number',
+      expect(() => new CachedValue({ ttlTicks: null as unknown as number, compute })).toThrow(
+        'CachedValue ttlTicks must be a positive number',
       );
     });
 
     it('throws when compute is not a function', () => {
-      const clock = createMockClock();
-
-      expect(() => new CachedValue({ clock, ttlMs: 5000, compute: 'not a function' })).toThrow(
+      expect(() => new CachedValue({ ttlTicks: 100, compute: 'not a function' as unknown as () => string })).toThrow(
         'CachedValue compute must be a function',
       );
-      expect(() => new CachedValue({ clock, ttlMs: 5000, compute: null })).toThrow(
+      expect(() => new CachedValue({ ttlTicks: 100, compute: null as unknown as () => string })).toThrow(
         'CachedValue compute must be a function',
       );
     });
@@ -67,37 +42,32 @@ describe('CachedValue', () => {
 
   describe('get', () => {
     it('computes value on first call', async () => {
-      const clock = createMockClock();
       const compute = vi.fn().mockResolvedValue('computed');
-      const cache = new CachedValue({ clock, ttlMs: 5000, compute });
+      const cache = new CachedValue({ ttlTicks: 100, compute });
 
-      const value = await cache.get();
+      const value = await cache.get(1);
 
       expect(value).toBe('computed');
       expect(compute).toHaveBeenCalledTimes(1);
     });
 
-    it('returns cached value within TTL', async () => {
-      const clock = createMockClock();
+    it('returns cached value within tick threshold', async () => {
       const compute = vi.fn().mockResolvedValue('computed');
-      const cache = new CachedValue({ clock, ttlMs: 5000, compute });
+      const cache = new CachedValue({ ttlTicks: 100, compute });
 
-      await cache.get();
-      clock.advance(4999); // Just under TTL
-      const value = await cache.get();
+      await cache.get(10);
+      const value = await cache.get(109); // Just under threshold
 
       expect(value).toBe('computed');
       expect(compute).toHaveBeenCalledTimes(1);
     });
 
-    it('recomputes value after TTL expires', async () => {
-      const clock = createMockClock();
+    it('recomputes value after tick threshold exceeded', async () => {
       const compute = vi.fn().mockResolvedValueOnce('first').mockResolvedValueOnce('second');
-      const cache = new CachedValue({ clock, ttlMs: 5000, compute });
+      const cache = new CachedValue({ ttlTicks: 100, compute });
 
-      const first = await cache.get();
-      clock.advance(5001); // Just over TTL
-      const second = await cache.get();
+      const first = await cache.get(10);
+      const second = await cache.get(111); // Past threshold
 
       expect(first).toBe('first');
       expect(second).toBe('second');
@@ -105,45 +75,40 @@ describe('CachedValue', () => {
     });
 
     it('supports synchronous compute functions', async () => {
-      const clock = createMockClock();
       const cache = new CachedValue({
-        clock,
-        ttlMs: 5000,
+        ttlTicks: 100,
         compute: () => 'sync value',
       });
 
-      const value = await cache.get();
+      const value = await cache.get(1);
 
       expect(value).toBe('sync value');
     });
 
     it('supports async compute functions', async () => {
-      const clock = createMockClock();
       const cache = new CachedValue({
-        clock,
-        ttlMs: 5000,
+        ttlTicks: 100,
         compute: async () => {
           return 'async value';
         },
       });
 
-      const value = await cache.get();
+      const value = await cache.get(1);
 
       expect(value).toBe('async value');
     });
 
     it('memoizes in-flight compute for concurrent get calls', async () => {
-      const clock = createMockClock();
-      let resolveCompute: (value: any) => void = () => {};
+      let resolveCompute: (value: string) => void = () => {};
       const compute = vi.fn().mockImplementation(() => {
         return new Promise((resolve) => {
           resolveCompute = resolve;
         });
       });
-      const cache = new CachedValue({ clock, ttlMs: 5000, compute });
+      const cache = new CachedValue({ ttlTicks: 100, compute });
 
-      const first = cache.get();
-      const second = cache.get();
+      const first = cache.get(1);
+      const second = cache.get(1);
 
       expect(compute).toHaveBeenCalledTimes(1);
       resolveCompute('computed');
@@ -157,60 +122,52 @@ describe('CachedValue', () => {
 
   describe('getWithMetadata', () => {
     it('returns fromCache false on first call', async () => {
-      const clock = createMockClock();
       const cache = new CachedValue({
-        clock,
-        ttlMs: 5000,
+        ttlTicks: 100,
         compute: () => 'value',
       });
 
-      const result = await cache.getWithMetadata();
+      const result = await cache.getWithMetadata(1);
 
       expect(result.value).toBe('value');
       expect(result.fromCache).toBe(false);
-      expect(result.cachedAt).toBeNull();
+      expect(result.cachedAtTick).toBe(0);
     });
 
-    it('returns fromCache true and cachedAt for cached results', async () => {
-      const clock = createMockClock();
-      clock.setTime(1000);
+    it('returns fromCache true and cachedAtTick for cached results', async () => {
       const cache = new CachedValue({
-        clock,
-        ttlMs: 5000,
+        ttlTicks: 100,
         compute: () => 'value',
       });
 
-      await cache.get();
-      clock.advance(1000);
-      const result = await cache.getWithMetadata();
+      await cache.get(10);
+      const result = await cache.getWithMetadata(20);
 
       expect(result.value).toBe('value');
       expect(result.fromCache).toBe(true);
-      expect(result.cachedAt).toBe(new Date(1000).toISOString());
+      expect(result.cachedAtTick).toBe(10);
     });
   });
 
   describe('invalidate', () => {
     it('clears cached value', async () => {
-      const clock = createMockClock();
       const compute = vi.fn().mockResolvedValue('computed');
-      const cache = new CachedValue({ clock, ttlMs: 5000, compute });
+      const cache = new CachedValue({ ttlTicks: 100, compute });
 
-      await cache.get();
+      await cache.get(1);
       cache.invalidate();
 
       expect(cache.hasValue).toBe(false);
-      expect(cache.cachedAt).toBeNull();
+      expect(cache.cachedAtTick).toBe(0);
     });
 
     it('forces recomputation on next get', async () => {
-      const clock = createMockClock();
       const compute = vi.fn().mockResolvedValueOnce('first').mockResolvedValueOnce('second');
-      const cache = new CachedValue({ clock, ttlMs: 5000, compute });
+      const cache = new CachedValue({ ttlTicks: 100, compute });
 
-      const first = await cache.get();
+      const first = await cache.get(1);
       cache.invalidate();
-      const second = await cache.get();
+      const second = await cache.get(2);
 
       expect(first).toBe('first');
       expect(second).toBe('second');
@@ -218,8 +175,7 @@ describe('CachedValue', () => {
     });
 
     it('does not re-cache stale in-flight result after invalidate', async () => {
-      const clock = createMockClock();
-      let resolveCompute: (value: any) => void = () => {};
+      let resolveCompute: (value: string) => void = () => {};
       const compute = vi.fn()
         .mockImplementationOnce(() => {
           return new Promise((resolve) => {
@@ -227,16 +183,16 @@ describe('CachedValue', () => {
           });
         })
         .mockResolvedValueOnce('fresh');
-      const cache = new CachedValue({ clock, ttlMs: 5000, compute });
+      const cache = new CachedValue({ ttlTicks: 100, compute });
 
-      const first = cache.get();
+      const first = cache.get(1);
       cache.invalidate();
       resolveCompute('stale');
 
       expect(await first).toBe('stale');
       expect(cache.hasValue).toBe(false);
 
-      const second = await cache.get();
+      const second = await cache.get(2);
       expect(second).toBe('fresh');
       expect(cache.hasValue).toBe(true);
       expect(compute).toHaveBeenCalledTimes(2);
@@ -245,10 +201,8 @@ describe('CachedValue', () => {
 
   describe('hasValue', () => {
     it('returns false before first computation', () => {
-      const clock = createMockClock();
       const cache = new CachedValue({
-        clock,
-        ttlMs: 5000,
+        ttlTicks: 100,
         compute: () => 'value',
       });
 
@@ -256,102 +210,85 @@ describe('CachedValue', () => {
     });
 
     it('returns true after computation', async () => {
-      const clock = createMockClock();
       const cache = new CachedValue({
-        clock,
-        ttlMs: 5000,
+        ttlTicks: 100,
         compute: () => 'value',
       });
 
-      await cache.get();
+      await cache.get(1);
 
       expect(cache.hasValue).toBe(true);
     });
 
-    it('returns true even after TTL expires (value is stale but still cached)', async () => {
-      const clock = createMockClock();
+    it('returns true even after tick threshold expires (value is stale but still cached)', async () => {
       const cache = new CachedValue({
-        clock,
-        ttlMs: 5000,
+        ttlTicks: 100,
         compute: () => 'value',
       });
 
-      await cache.get();
-      clock.advance(10000); // Way past TTL
+      await cache.get(1);
 
       // Value is stale but still present
       expect(cache.hasValue).toBe(true);
     });
 
     it('returns false after invalidate', async () => {
-      const clock = createMockClock();
       const cache = new CachedValue({
-        clock,
-        ttlMs: 5000,
+        ttlTicks: 100,
         compute: () => 'value',
       });
 
-      await cache.get();
+      await cache.get(1);
       cache.invalidate();
 
       expect(cache.hasValue).toBe(false);
     });
   });
 
-  describe('cachedAt', () => {
-    it('returns null before first computation', () => {
-      const clock = createMockClock();
+  describe('cachedAtTick', () => {
+    it('returns 0 before first computation', () => {
       const cache = new CachedValue({
-        clock,
-        ttlMs: 5000,
+        ttlTicks: 100,
         compute: () => 'value',
       });
 
-      expect(cache.cachedAt).toBeNull();
+      expect(cache.cachedAtTick).toBe(0);
     });
 
-    it('returns ISO timestamp after computation', async () => {
-      const clock = createMockClock();
-      clock.setTime(1609459200000); // 2021-01-01T00:00:00.000Z
+    it('returns the tick at which the value was cached', async () => {
       const cache = new CachedValue({
-        clock,
-        ttlMs: 5000,
+        ttlTicks: 100,
         compute: () => 'value',
       });
 
-      await cache.get();
+      await cache.get(42);
 
-      expect(cache.cachedAt).toBe('2021-01-01T00:00:00.000Z');
+      expect(cache.cachedAtTick).toBe(42);
     });
 
-    it('updates timestamp after recomputation', async () => {
-      const clock = createMockClock();
-      clock.setTime(1000);
+    it('updates tick after recomputation', async () => {
       const cache = new CachedValue({
-        clock,
-        ttlMs: 5000,
+        ttlTicks: 100,
         compute: () => 'value',
       });
 
-      await cache.get();
-      const firstCachedAt = cache.cachedAt;
+      await cache.get(10);
+      const firstTick = cache.cachedAtTick;
 
-      clock.advance(6000); // Past TTL
-      await cache.get();
-      const secondCachedAt = cache.cachedAt;
+      await cache.get(200); // Past threshold, recomputes
+      const secondTick = cache.cachedAtTick;
 
-      expect(firstCachedAt).not.toBe(secondCachedAt);
-      expect(secondCachedAt).toBe(new Date(7000).toISOString());
+      expect(firstTick).toBe(10);
+      expect(secondTick).toBe(200);
     });
   });
 
   describe('edge cases', () => {
     it('handles null return value from compute', async () => {
-      const clock = createMockClock();
       const compute = vi.fn().mockResolvedValue(null);
-      const cache = new CachedValue({ clock, ttlMs: 5000, compute });
+      const cache = new CachedValue({ ttlTicks: 100, compute });
 
-      const value = await cache.get();
+      const value = await cache.get(1);
 
       expect(value).toBeNull();
       // Note: hasValue returns false for null since we check _value === null
@@ -359,49 +296,42 @@ describe('CachedValue', () => {
     });
 
     it('handles compute function that throws', async () => {
-      const clock = createMockClock();
       const compute = vi.fn().mockRejectedValue(new Error('compute failed'));
-      const cache = new CachedValue({ clock, ttlMs: 5000, compute });
+      const cache = new CachedValue({ ttlTicks: 100, compute });
 
-      await expect(cache.get()).rejects.toThrow('compute failed');
+      await expect(cache.get(1)).rejects.toThrow('compute failed');
       expect(cache.hasValue).toBe(false);
     });
 
-    it('handles very small TTL', async () => {
-      const clock = createMockClock();
+    it('handles very small tick threshold', async () => {
       const compute = vi.fn().mockResolvedValueOnce('first').mockResolvedValueOnce('second');
-      const cache = new CachedValue({ clock, ttlMs: 1, compute });
+      const cache = new CachedValue({ ttlTicks: 1, compute });
 
-      await cache.get();
-      clock.advance(2);
-      const second = await cache.get();
+      await cache.get(1);
+      const second = await cache.get(3);
 
       expect(second).toBe('second');
       expect(compute).toHaveBeenCalledTimes(2);
     });
 
-    it('handles very large TTL', async () => {
-      const clock = createMockClock();
+    it('handles very large tick threshold', async () => {
       const compute = vi.fn().mockResolvedValue('value');
-      const cache = new CachedValue({ clock, ttlMs: Number.MAX_SAFE_INTEGER, compute });
+      const cache = new CachedValue({ ttlTicks: Number.MAX_SAFE_INTEGER, compute });
 
-      await cache.get();
-      clock.advance(1000000000);
-      await cache.get();
+      await cache.get(1);
+      await cache.get(1000000);
 
       expect(compute).toHaveBeenCalledTimes(1);
     });
 
     it('caches object values correctly', async () => {
-      const clock = createMockClock();
       const obj = { nested: { deeply: true }, array: [1, 2, 3] };
       const cache = new CachedValue({
-        clock,
-        ttlMs: 5000,
+        ttlTicks: 100,
         compute: () => obj,
       });
 
-      const value = await cache.get();
+      const value = await cache.get(1);
 
       expect(value).toBe(obj);
       expect(value.nested.deeply).toBe(true);
@@ -420,12 +350,11 @@ describe('CachedValue', () => {
   // -----------------------------------------------------------------------
   describe('null-payload semantics', () => {
     it('null return triggers recomputation on every get()', async () => {
-      const clock = createMockClock();
       const compute = vi.fn().mockResolvedValue(null);
-      const cache = new CachedValue({ clock, ttlMs: 5000, compute });
+      const cache = new CachedValue({ ttlTicks: 100, compute });
 
-      const first = await cache.get();
-      const second = await cache.get();
+      const first = await cache.get(1);
+      const second = await cache.get(2);
 
       expect(first).toBeNull();
       expect(second).toBeNull();
@@ -433,23 +362,21 @@ describe('CachedValue', () => {
     });
 
     it('getWithMetadata returns fromCache=false for null', async () => {
-      const clock = createMockClock();
       const compute = vi.fn().mockResolvedValue(null);
-      const cache = new CachedValue({ clock, ttlMs: 5000, compute });
+      const cache = new CachedValue({ ttlTicks: 100, compute });
 
-      await cache.get();
-      const result = await cache.getWithMetadata();
+      await cache.get(1);
+      const result = await cache.getWithMetadata(2);
 
       expect(result.value).toBeNull();
       expect(result.fromCache).toBe(false);
     });
 
     it('hasValue returns false when compute returned null', async () => {
-      const clock = createMockClock();
       const compute = vi.fn().mockResolvedValue(null);
-      const cache = new CachedValue({ clock, ttlMs: 5000, compute });
+      const cache = new CachedValue({ ttlTicks: 100, compute });
 
-      await cache.get();
+      await cache.get(1);
 
       expect(cache.hasValue).toBe(false);
     });
