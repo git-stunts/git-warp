@@ -4,7 +4,7 @@ import {
   toAdjacencyMaps,
   runCrossProvider,
   fixtureToState,
-} from '../../helpers/fixtureDsl.js';
+} from '../../helpers/fixtureDsl.ts';
 import MaterializedViewService from '../../../src/domain/services/MaterializedViewService.ts';
 
 describe('fixtureDsl helpers', () => {

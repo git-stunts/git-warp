@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import BlobStoragePort from '../../../src/ports/BlobStoragePort.ts';
 import EncryptionError from '../../../src/domain/errors/EncryptionError.ts';
-import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.js';
+import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 // ---------------------------------------------------------------------------
 // Mock BlobStoragePort — stores/retrieves from an in-memory Map

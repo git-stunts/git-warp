@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
-import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
+import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
     let repo;

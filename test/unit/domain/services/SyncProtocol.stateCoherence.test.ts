@@ -9,7 +9,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   applySyncResponse,
   processSyncRequest,
-} from '../../../../src/domain/services/sync/SyncProtocol.js';
+} from '../../../../src/domain/services/sync/SyncProtocol.ts';
 import {
   createEmptyState,
 } from '../../../../src/domain/services/JoinReducer.ts';

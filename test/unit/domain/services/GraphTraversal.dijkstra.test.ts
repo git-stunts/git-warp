@@ -11,7 +11,7 @@ import {
   F3_DIAMOND_EQUAL_PATHS,
   F4_DIJKSTRA_EQUAL_COST_PREDECESSOR,
   F4_WEIGHTS,
-} from '../../../helpers/fixtureDsl.js';
+} from '../../../helpers/fixtureDsl.ts';
 
 describe('GraphTraversal.weightedShortestPath (Dijkstra)', () => {
   // F4 — "you only catch it if you wrote the spec"

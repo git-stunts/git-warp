@@ -24,7 +24,7 @@ import {
   F17_MULTI_ROOT_DAG,
   F18_TRANSITIVE_CLOSURE_CHAIN,
   makeWeightFn,
-} from '../../../helpers/fixtureDsl.js';
+} from '../../../helpers/fixtureDsl.ts';
 
 const PROVIDERS = [
   { name: 'Adjacency', make: makeAdjacencyProvider },

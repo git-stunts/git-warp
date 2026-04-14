@@ -9,7 +9,7 @@ import {
   F2_DFS_LEFTMOST_REVERSE_PUSH,
   F3_DIAMOND_EQUAL_PATHS,
   F9_UNICODE_CODEPOINT_ORDER,
-} from '../../../helpers/fixtureDsl.js';
+} from '../../../helpers/fixtureDsl.ts';
 
 describe('GraphTraversal.dfs', () => {
   // F2 — the leftmost-first reverse-push test

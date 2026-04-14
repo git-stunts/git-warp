@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
-import { describeAdapterConformance } from './AdapterConformance.js';
+import { describeAdapterConformance } from './AdapterConformance.ts';
 
 // ── Conformance suite ───────────────────────────────────────────────────
 

@@ -14,7 +14,7 @@ const indexDts = readFileSync(
 
 describe('public observer noun', () => {
   it('exports Observer as the public read-handle noun at runtime', async () => {
-    const pkg = await import('../../../index.js') as Record<string, unknown>;
+    const pkg = await import('../../../index.ts') as Record<string, unknown>;
     expect(pkg['Observer']).toBeDefined();
     expect(pkg['ObserverView']).toBeUndefined();
     expect(indexJs).toContain('Observer,');

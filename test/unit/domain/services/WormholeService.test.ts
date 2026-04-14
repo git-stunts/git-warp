@@ -6,7 +6,7 @@ import {
   serializeWormhole,
   deserializeWormhole,
 } from '../../../../src/domain/services/WormholeService.ts';
-import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.js';
+import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.ts';
 import WormholeError from '../../../../src/domain/errors/WormholeError.ts';
 import EncryptionError from '../../../../src/domain/errors/EncryptionError.ts';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
@@ -31,7 +31,7 @@ import {
   createPopulatedMockPersistence as createMockPersistence,
   Dot,
   createInlineValue,
-} from '../../../helpers/warpGraphTestUtils.js';
+} from '../../../helpers/warpGraphTestUtils.ts';
 
 describe('WormholeService', () => {
   describe('createWormhole', () => {

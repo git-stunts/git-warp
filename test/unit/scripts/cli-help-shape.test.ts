@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { HELP_TEXT } from '../../../bin/cli/infrastructure.js';
+import { HELP_TEXT } from '../../../bin/cli/infrastructure.ts';
 
 const LEGACY_FLAG = 'working' + '-' + 'set';
 const LEGACY_LABEL = 'Working' + ' ' + 'Set';

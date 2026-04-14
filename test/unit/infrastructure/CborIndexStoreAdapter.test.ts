@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CborIndexStoreAdapter } from '../../../src/infrastructure/adapters/CborIndexStoreAdapter.ts';
 import IndexStorePort from '../../../src/ports/IndexStorePort.ts';
-import MockBlobPort from '../../helpers/MockBlobPort.js';
-import MockTreePort from '../../helpers/MockTreePort.js';
+import MockBlobPort from '../../helpers/MockBlobPort.ts';
+import MockTreePort from '../../helpers/MockTreePort.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import WarpStream from '../../../src/domain/stream/WarpStream.ts';
 import { MetaShard } from '../../../src/domain/artifacts/MetaShard.ts';
@@ -62,7 +62,7 @@ describe('CborIndexStoreAdapter', () => {
 
   /**
    * Creates a representative set of IndexShard instances for testing.
-   * @returns {import('../../../src/domain/artifacts/IndexShard.js').IndexShard[]}
+   * @returns {import('../../../src/domain/artifacts/IndexShard.ts').IndexShard[]}
    */
   function createTestShards() {
     return [

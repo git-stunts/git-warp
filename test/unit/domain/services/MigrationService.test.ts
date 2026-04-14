@@ -121,7 +121,7 @@ function reduce(patches: Array<{patch: any; sha: string}>) {
 // ============================================================================
 // End of v4 test helpers
 // ============================================================================
-import { computeStateHash, nodeVisibleV5, edgeVisible } from '../../../../src/domain/services/state/StateSerializer.js';
+import { computeStateHash, nodeVisibleV5, edgeVisible } from '../../../../src/domain/services/state/StateSerializer.ts';
 import { lwwSet, lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';

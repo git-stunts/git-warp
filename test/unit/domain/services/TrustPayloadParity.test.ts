@@ -55,7 +55,7 @@ const REQUIRED_EVIDENCE_KEYS = [
 
 /**
  * Simulates the CLI trust handler's payload construction from an
- * evaluator result, mirroring `handleTrust` in `bin/cli/commands/trust.js`.
+ * evaluator result, mirroring `handleTrust` in `bin/cli/commands/trust.ts`.
  *
  * @param {ReturnType<typeof evaluateWriters>} assessment
  * @param {{ graph: string, status: string, source: string, sourceDetail: string|null }} overrides

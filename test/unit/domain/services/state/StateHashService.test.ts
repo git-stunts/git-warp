@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import StateHashService from '../../../../../src/domain/services/state/StateHashService.js';
+import StateHashService from '../../../../../src/domain/services/state/StateHashService.ts';
 import { createEmptyState } from '../../../../../src/domain/services/JoinReducer.ts';
 import { CborCodec } from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import CryptoPort from '../../../../../src/ports/CryptoPort.ts';

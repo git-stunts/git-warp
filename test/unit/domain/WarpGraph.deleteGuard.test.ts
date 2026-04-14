@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
-import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
+import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
 describe('WarpRuntime onDeleteWithData option', () => {
   it('defaults to warn when not specified', async () => {

@@ -11,7 +11,7 @@ import {
   makeFixture, makeAdjacencyProvider,
   F3_DIAMOND_EQUAL_PATHS,
   F8_TOPO_CYCLE_3,
-} from '../../../helpers/fixtureDsl.js';
+} from '../../../helpers/fixtureDsl.ts';
 
 describe('GraphTraversal.topologicalSort', () => {
   // F3 — deterministic zero-indegree order

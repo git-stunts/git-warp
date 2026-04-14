@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
-import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
+import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 describe('WarpRuntime.patchMany()', { timeout: 30000 }, () => {
   it('returns empty array when called with no arguments', async () => {

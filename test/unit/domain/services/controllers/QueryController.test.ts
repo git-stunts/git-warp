@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import QueryController from '../../../../../src/domain/services/controllers/QueryController.js';
+import QueryController from '../../../../../src/domain/services/controllers/QueryController.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';

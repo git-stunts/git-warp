@@ -7,7 +7,7 @@ import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
 } from '../../../src/domain/services/CoordinateFactExport.ts';
-import { createStateReader } from '../../../src/domain/services/state/StateReader.js';
+import { createStateReader } from '../../../src/domain/services/state/StateReader.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import { buildStrandBraidRef, buildStrandOverlayRef } from '../../../src/domain/utils/RefLayout.ts';
@@ -1156,7 +1156,7 @@ describe('WarpCore strand foundation', () => {
       key: 'obsolete',
       value: null,
     });
-    const attachOp = /** @type {import('../../../index.js').VisibleStateTransferOperationV1 & { op: 'attach_node_content', nodeId: string, content: Uint8Array, contentOid: string, mime?: string|null, size?: number|null }} */ (
+    const attachOp = /** @type {import('../../../index.ts').VisibleStateTransferOperationV1 & { op: 'attach_node_content', nodeId: string, content: Uint8Array, contentOid: string, mime?: string|null, size?: number|null }} */ (
       transferPlan.ops.find((op) => op.op === 'attach_node_content' && op.nodeId === 'doc:1')
     );
     expect(attachOp).toMatchObject({

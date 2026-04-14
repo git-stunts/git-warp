@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import CheckpointController from '../../../../../src/domain/services/controllers/CheckpointController.js';
+import CheckpointController from '../../../../../src/domain/services/controllers/CheckpointController.ts';
 import { QueryError } from '../../../../../src/domain/warp/_internal.ts';
 import SchemaUnsupportedError from '../../../../../src/domain/errors/SchemaUnsupportedError.ts';
 import GCPolicy from '../../../../../src/domain/services/GCPolicy.ts';
@@ -92,7 +92,7 @@ vi.mock('../../../../../src/domain/services/GCMetrics.ts', () => ({
   default: { fromState: collectGCMetricsMock },
 }));
 
-vi.mock('../../../../../src/domain/services/state/CheckpointSerializer.js', () => ({
+vi.mock('../../../../../src/domain/services/state/CheckpointSerializer.ts', () => ({
   computeAppliedVV: computeAppliedVVMock,
 }));
 
@@ -100,7 +100,7 @@ vi.mock('../../../../../src/domain/services/JoinReducer.ts', () => ({
   cloneState: cloneStateMock,
 }));
 
-vi.mock('../../../../../src/domain/services/Frontier.js', () => ({
+vi.mock('../../../../../src/domain/services/Frontier.ts', () => ({
   createFrontier: createFrontierMock,
   updateFrontier: updateFrontierMock,
   frontierFingerprint: frontierFingerprintMock,

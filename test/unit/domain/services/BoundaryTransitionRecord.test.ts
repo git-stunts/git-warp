@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createBTR, verifyBTR, replayBTR } from '../../../../src/domain/services/provenance/btrOperations.ts';
 import { BTR } from '../../../../src/domain/services/provenance/BTR.ts';
-import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.js';
+import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import {
   createEmptyState,
@@ -10,7 +10,7 @@ import {
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.ts';
 const reduceV5 = (_reduceV5) as (...args: any[]) => any;
-import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.js';
+import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
@@ -23,7 +23,7 @@ import {
   createSamplePatches,
   Dot,
   createInlineValue,
-} from '../../../helpers/warpGraphTestUtils.js';
+} from '../../../helpers/warpGraphTestUtils.ts';
 
 describe('BoundaryTransitionRecord', () => {
   const testKey = 'test-secret-key-for-hmac';

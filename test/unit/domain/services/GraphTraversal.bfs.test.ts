@@ -11,7 +11,7 @@ import {
   F9_UNICODE_CODEPOINT_ORDER,
   F13_BFS_MULTI_PARENT_DEDUP,
   F17_MULTI_ROOT_DAG,
-} from '../../../helpers/fixtureDsl.js';
+} from '../../../helpers/fixtureDsl.ts';
 
 describe('GraphTraversal.bfs', () => {
   // F1 — the trap that catches fake BFS determinism

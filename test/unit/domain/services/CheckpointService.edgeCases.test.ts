@@ -19,8 +19,8 @@ import {
   deserializeFullState,
   computeAppliedVV,
   serializeAppliedVV,
-} from '../../../../src/domain/services/state/CheckpointSerializer.js';
-import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.js';
+} from '../../../../src/domain/services/state/CheckpointSerializer.ts';
+import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import {
   createEmptyState,
   encodeEdgeKey as encodeEdgeKeyV5,
@@ -31,7 +31,7 @@ import {
   decodeCheckpointMessage,
 } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
-import { ProvenanceIndex } from '../../../../src/domain/services/provenance/ProvenanceIndex.js';
+import { ProvenanceIndex } from '../../../../src/domain/services/provenance/ProvenanceIndex.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
 const crypto = new NodeCryptoAdapter();

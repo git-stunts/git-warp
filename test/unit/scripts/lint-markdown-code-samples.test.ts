@@ -10,7 +10,7 @@ import {
   lintMarkdownCodeSamples,
   parseFenceLanguage,
   resolveRepoScriptTarget,
-} from '../../../scripts/lint-markdown-code-samples.js';
+} from '../../../scripts/lint-markdown-code-samples.ts';
 
 const tempDirs = ([]) as string[];
 

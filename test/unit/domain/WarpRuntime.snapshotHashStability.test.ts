@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import WarpCore from '../../../src/domain/WarpCore.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
-import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.js';
+import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
 type WarpCoreRuntime = any;

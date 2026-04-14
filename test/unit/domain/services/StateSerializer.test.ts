@@ -7,8 +7,8 @@ import {
   serializeStateV5,
   computeStateHash,
   deserializeStateV5,
-} from '../../../../src/domain/services/state/StateSerializer.js';
-import { createStateReader } from '../../../../src/domain/services/state/StateReader.js';
+} from '../../../../src/domain/services/state/StateSerializer.ts';
+import { createStateReader } from '../../../../src/domain/services/state/StateReader.ts';
 import { compareVisibleState } from '../../../../src/domain/services/comparison/VisibleStateComparison.ts';
 import {
   createEmptyState,

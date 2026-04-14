@@ -7,7 +7,7 @@ import {
   applySyncResponse,
   syncNeeded,
   createEmptySyncResponse,
-} from '../../../../src/domain/services/sync/SyncProtocol.js';
+} from '../../../../src/domain/services/sync/SyncProtocol.ts';
 import {
   createEmptyState,
   reduceV5 as _reduceV5,

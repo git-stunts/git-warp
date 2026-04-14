@@ -11,7 +11,7 @@ vi.mock('../../../bin/cli/shared.ts', () => ({
 }));
 
 // Mock HealthCheckService
-vi.mock('../../../src/domain/services/HealthCheckService.js', () => ({
+vi.mock('../../../src/domain/services/HealthCheckService.ts', () => ({
   default: vi.fn().mockImplementation(function () {
     return {
       getHealth: vi.fn().mockResolvedValue({

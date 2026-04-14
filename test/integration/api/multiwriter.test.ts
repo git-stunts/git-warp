@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createTestRepo } from './helpers/setup.js';
-import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.js';
+import { createTestRepo } from './helpers/setup.ts';
+import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.ts';
 
 describe('API: Multi-Writer', () => {
     let repo;

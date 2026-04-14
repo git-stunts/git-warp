@@ -53,7 +53,7 @@ describe('WriterError', () => {
 
 describe('WriterError backward compat re-export from Writer.js', () => {
   it('import { WriterError } from Writer.js still works', async () => {
-    const mod = await import('../../../../src/domain/warp/Writer.js');
+    const mod = await import('../../../../src/domain/warp/Writer.ts');
     expect(mod.WriterError).toBe(WriterError);
   });
 });

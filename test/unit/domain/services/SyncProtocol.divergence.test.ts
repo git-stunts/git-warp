@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { processSyncRequest } from '../../../../src/domain/services/sync/SyncProtocol.js';
+import { processSyncRequest } from '../../../../src/domain/services/sync/SyncProtocol.ts';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';

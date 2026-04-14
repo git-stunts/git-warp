@@ -6,7 +6,7 @@ import {
   createPatch,
   Dot,
   createInlineValue,
-} from '../../../helpers/warpGraphTestUtils.js';
+} from '../../../helpers/warpGraphTestUtils.ts';
 
 /**
  * Creates a TemporalQuery with the given patches preloaded.

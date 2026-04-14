@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import MaterializeController from '../../../../../src/domain/services/controllers/MaterializeController.js';
+import MaterializeController from '../../../../../src/domain/services/controllers/MaterializeController.ts';
 import { createEmptyState } from '../../../../../src/domain/services/JoinReducer.ts';
-import { ProvenanceIndex } from '../../../../../src/domain/services/provenance/ProvenanceIndex.js';
+import { ProvenanceIndex } from '../../../../../src/domain/services/provenance/ProvenanceIndex.ts';
 import { encodeEdgeKey } from '../../../../../src/domain/services/KeyCodec.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import AdjacencyMap from '../../../../../src/domain/capabilities/AdjacencyMap.ts';

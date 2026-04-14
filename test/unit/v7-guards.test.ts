@@ -84,24 +84,24 @@ describe('V7 Contract Guards', () => {
     const exportTestFn = SCHEMA1_EXTERMINATION_COMPLETE ? it : it.skip;
 
     exportTestFn('should export PatchBuilder (schema:2, renamed from PatchBuilderV2)', async () => {
-      const indexModule = (await import('../../index.js') as any);
+      const indexModule = (await import('../../index.ts') as any);
       expect(indexModule.PatchBuilder).toBeDefined();
     });
 
     exportTestFn('should not export Reducer (schema:1)', async () => {
-      const indexModule = (await import('../../index.js') as any);
+      const indexModule = (await import('../../index.ts') as any);
       expect(indexModule.Reducer).toBeUndefined();
     });
 
     exportTestFn('should not export createPatch with schema:1 support', async () => {
-      const indexModule = (await import('../../index.js') as any);
+      const indexModule = (await import('../../index.ts') as any);
       // If createPatch exists, it should only support schema:2
       // This is tested elsewhere; here we just ensure no explicit schema:1 export
       expect(indexModule.createPatchV1).toBeUndefined();
     });
 
     exportTestFn('should not export StateSerializer (schema:1)', async () => {
-      const indexModule = (await import('../../index.js') as any);
+      const indexModule = (await import('../../index.ts') as any);
       expect(indexModule.StateSerializer).toBeUndefined();
     });
   });

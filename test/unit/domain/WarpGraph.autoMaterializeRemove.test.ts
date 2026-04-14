@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
-import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
+import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 describe('Auto-materialize on remove (DX/AUTOMAT/1)', { timeout: 15000 }, () => {
   it('removeNode works without explicit materialize when autoMaterialize is true', async () => {

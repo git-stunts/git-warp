@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
-import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
+import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 describe('syncWith({ materialize }) option', { timeout: 20000 }, () => {
   it('syncWith(peer, { materialize: true }) returns fresh state in result', async () => {

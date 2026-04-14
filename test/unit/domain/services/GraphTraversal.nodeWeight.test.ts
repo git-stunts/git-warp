@@ -5,7 +5,7 @@ import {
   F14_NODE_WEIGHTS,
   makeAdjacencyProvider,
   makeNodeWeightFn,
-} from '../../../helpers/fixtureDsl.js';
+} from '../../../helpers/fixtureDsl.ts';
 
 describe('GraphTraversal — nodeWeightFn', () => {
   /** @returns {GraphTraversal} */

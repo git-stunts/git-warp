@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { encodeEdgeKey, createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
-import { serializeFullState, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializer.js';
+import { serializeFullState, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializer.ts';
 import { serializeFrontier } from '../../../src/domain/services/Frontier.ts';
-import { ProvenanceIndex } from '../../../src/domain/services/provenance/ProvenanceIndex.js';
+import { ProvenanceIndex } from '../../../src/domain/services/provenance/ProvenanceIndex.ts';
 
 // Shared test utilities - generators are designed for parallel-safety
 // (each test gets its own generator instance to avoid cross-test interference)
@@ -14,7 +14,7 @@ import {
   createMockPersistence,
   createMockPatchWithIO,
   Dot,
-} from '../../helpers/warpGraphTestUtils.js';
+} from '../../helpers/warpGraphTestUtils.ts';
 
 describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
     let persistence;

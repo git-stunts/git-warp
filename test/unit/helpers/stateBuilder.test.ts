@@ -4,7 +4,7 @@ import {
   encodeEdgePropKey,
   encodePropKey,
 } from '../../../src/domain/services/JoinReducer.ts';
-import { createStateBuilder } from '../../helpers/stateBuilder.js';
+import { createStateBuilder } from '../../helpers/stateBuilder.ts';
 
 describe('StateBuilder', () => {
   it('builds nodes, edges, properties, and observed frontier fluently', () => {

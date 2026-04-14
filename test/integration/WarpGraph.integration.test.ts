@@ -5,7 +5,7 @@ import { tmpdir } from 'os';
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.ts';
 import WarpRuntime from '../../src/domain/WarpRuntime.ts';
-import { computeStateHash, nodeVisibleV5, edgeVisible } from '../../src/domain/services/state/StateSerializer.js';
+import { computeStateHash, nodeVisibleV5, edgeVisible } from '../../src/domain/services/state/StateSerializer.ts';
 import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { buildWriterRef } from '../../src/domain/utils/RefLayout.ts';

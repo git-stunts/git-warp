@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.js';
+import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import { reduceV5 as _reduceV5, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
 const reduceV5 = (_reduceV5) as (...args: any[]) => any;
@@ -12,7 +12,7 @@ import {
   createSamplePatches,
   Dot,
   createInlineValue,
-} from '../../../helpers/warpGraphTestUtils.js';
+} from '../../../helpers/warpGraphTestUtils.ts';
 
 describe('ProvenancePayload', () => {
   describe('constructor', () => {

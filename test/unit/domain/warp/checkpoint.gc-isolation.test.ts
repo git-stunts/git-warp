@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import CheckpointController from '../../../../src/domain/services/controllers/CheckpointController.js';
+import CheckpointController from '../../../../src/domain/services/controllers/CheckpointController.ts';
 import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.ts';

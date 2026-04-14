@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   stripInlineComments,
   findDeclarationAnyViolations,
-} from '../../../scripts/ts-policy-check.js';
+} from '../../../scripts/ts-policy-check.ts';
 
 describe('stripInlineComments', () => {
   it('removes trailing double-slash comments', () => {

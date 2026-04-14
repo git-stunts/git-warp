@@ -7,7 +7,7 @@ import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
-import MockBlobPort from '../../../helpers/MockBlobPort.js';
+import MockBlobPort from '../../../helpers/MockBlobPort.ts';
 
 /**
  * Builds a small but representative checkpoint state.
@@ -95,7 +95,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         codec: new CborCodec(), blobPort,
       });
 
-      const { ProvenanceIndex } = await import('../../../../src/domain/services/provenance/ProvenanceIndex.js');
+      const { ProvenanceIndex } = await import('../../../../src/domain/services/provenance/ProvenanceIndex.ts');
       const provIndex = new ProvenanceIndex();
 
       const vv = VersionVector.empty();

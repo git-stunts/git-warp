@@ -3,7 +3,7 @@ import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
-import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
+import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
 /**
  * Creates a minimal schema:2 patch object.

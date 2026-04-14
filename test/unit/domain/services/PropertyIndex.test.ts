@@ -4,7 +4,7 @@ import PropertyIndexReader from '../../../../src/domain/services/index/PropertyI
 import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
-import { F10_PROTO_POLLUTION } from '../../../helpers/fixtureDsl.js';
+import { F10_PROTO_POLLUTION } from '../../../helpers/fixtureDsl.ts';
 
 const codec = new CborCodec();
 

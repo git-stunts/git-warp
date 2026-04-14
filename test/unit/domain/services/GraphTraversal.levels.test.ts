@@ -9,7 +9,7 @@ import {
   F3_DIAMOND_EQUAL_PATHS,
   F8_TOPO_CYCLE_3,
   F15_WIDE_DAG_FOR_LEVELS,
-} from '../../../helpers/fixtureDsl.js';
+} from '../../../helpers/fixtureDsl.ts';
 
 describe('GraphTraversal.levels()', () => {
   describe('F15 — wide DAG level assignment', () => {

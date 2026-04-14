@@ -7,7 +7,7 @@ import {
   makeFixture,
   F7_MULTILABEL_SAME_NEIGHBOR,
   F10_PROTO_POLLUTION,
-} from '../../../helpers/fixtureDsl.js';
+} from '../../../helpers/fixtureDsl.ts';
 import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
-import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
+import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
 /**
  * AP/INVAL/1 + AP/INVAL/2 — Dirty flag tracking and eager re-materialize.

@@ -26,7 +26,7 @@ const {
   buildCoordinateTransferPlanFactMock: vi.fn((input) => ({ ...input, _factExported: true })),
 }));
 
-vi.mock('../../../../../src/domain/services/CoordinateFactExport.js', () => ({
+vi.mock('../../../../../src/domain/services/CoordinateFactExport.ts', () => ({
   buildCoordinateComparisonFact: buildCoordinateComparisonFactMock,
   buildCoordinateTransferPlanFact: buildCoordinateTransferPlanFactMock,
 }));
@@ -76,7 +76,7 @@ const {
   scopePatchEntriesV1Mock: vi.fn((entries) => entries),
 }));
 
-vi.mock('../../../../../src/domain/services/VisibleStateScope.js', () => ({
+vi.mock('../../../../../src/domain/services/VisibleStateScope.ts', () => ({
   normalizeVisibleStateScope: normalizeVisibleStateScopeMock,
   scopeMaterializedState: scopeMaterializedStateMock,
   scopePatchEntriesV1: scopePatchEntriesV1Mock,
@@ -117,7 +117,7 @@ const { computeStateHashMock } = vi.hoisted(() => ({
   computeStateHashMock: vi.fn(async () => 'state-hash-deadbeef'),
 }));
 
-vi.mock('../../../../../src/domain/services/state/StateSerializer.js', async (importOriginal) => {
+vi.mock('../../../../../src/domain/services/state/StateSerializer.ts', async (importOriginal) => {
   const original = (await importOriginal() as Record<string, unknown>);
   return {
     ...original,

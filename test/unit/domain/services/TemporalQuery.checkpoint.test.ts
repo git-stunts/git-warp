@@ -7,7 +7,7 @@ import {
   createPatch,
   Dot,
   createInlineValue,
-} from '../../../helpers/warpGraphTestUtils.js';
+} from '../../../helpers/warpGraphTestUtils.ts';
 
 /**
  * @typedef {import('../../../../src/domain/types/Patch.ts').default} TestPatch

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   applySyncResponse,
-} from '../../../../src/domain/services/sync/SyncProtocol.js';
+} from '../../../../src/domain/services/sync/SyncProtocol.ts';
 import {
   createEmptyState,
 } from '../../../../src/domain/services/JoinReducer.ts';

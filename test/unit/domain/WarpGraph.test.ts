@@ -8,7 +8,7 @@ import { encode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
-import { serializeFullState, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializer.js';
+import { serializeFullState, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializer.ts';
 import { serializeFrontier } from '../../../src/domain/services/Frontier.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 

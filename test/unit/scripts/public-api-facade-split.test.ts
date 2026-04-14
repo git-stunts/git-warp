@@ -31,14 +31,14 @@ function extractClassBlock(source, marker) {
 
 describe('public facade split', () => {
   it('exports WarpApp as the default product-facing entrypoint', async () => {
-    const pkg = /** @type {{ default?: unknown; WarpApp?: unknown }} */ (await import('../../../index.js'));
+    const pkg = /** @type {{ default?: unknown; WarpApp?: unknown }} */ (await import('../../../index.ts'));
     expect(pkg.default).toBe(pkg.WarpApp);
     expect(indexJs).toContain('export default WarpApp;');
     expect(indexDts).toContain('export default WarpApp;');
   });
 
   it('exposes WarpCore and does not export WarpRuntime anymore', async () => {
-    const pkg = /** @type {{ WarpCore?: unknown; WarpRuntime?: unknown }} */ (await import('../../../index.js'));
+    const pkg = /** @type {{ WarpCore?: unknown; WarpRuntime?: unknown }} */ (await import('../../../index.ts'));
     expect(pkg.WarpCore).toBeDefined();
     expect((pkg as any).WarpRuntime).toBeUndefined();
     expect(indexJs).not.toContain('WarpCore as WarpRuntime,');

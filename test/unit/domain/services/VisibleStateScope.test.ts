@@ -7,7 +7,7 @@ import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { encodeEdgeKey, encodeEdgePropKey, encodePropKey } from '../../../../src/domain/services/KeyCodec.ts';
-import { createStateReader } from '../../../../src/domain/services/state/StateReader.js';
+import { createStateReader } from '../../../../src/domain/services/state/StateReader.ts';
 import {
   normalizeVisibleStateScope,
   nodeIdInVisibleStateScope,

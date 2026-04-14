@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
-import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
+import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
 describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
   it('stores flag when opened with autoMaterialize: true', async () => {

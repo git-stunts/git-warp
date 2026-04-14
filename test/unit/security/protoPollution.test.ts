@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest';
 import {
   makeAdjacencyProvider, toAdjacencyMaps,
   F10_PROTO_POLLUTION,
-} from '../../helpers/fixtureDsl.js';
+} from '../../helpers/fixtureDsl.ts';
 import GraphTraversal from '../../../src/domain/services/query/GraphTraversal.ts';
 
 describe('F10 — PROTO_POLLUTION_IDS', () => {

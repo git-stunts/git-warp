@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.js';
+import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { createEmptyState, join as joinState } from '../../../src/domain/services/JoinReducer.ts';

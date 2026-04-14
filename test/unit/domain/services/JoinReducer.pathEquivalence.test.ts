@@ -23,7 +23,7 @@ import { lwwValue } from '../../../../src/domain/crdt/LWW.ts';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** @param {string} node @param {import('../../../../src/domain/crdt/Dot.js').Dot} dot */
+/** @param {string} node @param {import('../../../../src/domain/crdt/Dot.ts').Dot} dot */
 function nodeAdd(node, dot) {
   return { type: 'NodeAdd', node, dot };
 }
@@ -33,7 +33,7 @@ function nodeRemove(node, observedDots) {
   return { type: 'NodeRemove', node, observedDots };
 }
 
-/** @param {string} from @param {string} to @param {string} label @param {import('../../../../src/domain/crdt/Dot.js').Dot} dot */
+/** @param {string} from @param {string} to @param {string} label @param {import('../../../../src/domain/crdt/Dot.ts').Dot} dot */
 function edgeAdd(from, to, label, dot) {
   return { type: 'EdgeAdd', from, to, label, dot };
 }

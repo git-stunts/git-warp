@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import SyncController from '../../../../src/domain/services/controllers/SyncController.ts';
-import SyncTrustGate from '../../../../src/domain/services/sync/SyncTrustGate.js';
+import SyncTrustGate from '../../../../src/domain/services/sync/SyncTrustGate.ts';
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
 import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.ts';
 
-vi.mock('../../../../src/domain/services/sync/SyncProtocol.js', async (importOriginal) => {
+vi.mock('../../../../src/domain/services/sync/SyncProtocol.ts', async (importOriginal) => {
   const original = (await importOriginal() as Record<string, unknown>);
   return {
     ...original,
@@ -13,7 +13,7 @@ vi.mock('../../../../src/domain/services/sync/SyncProtocol.js', async (importOri
   };
 });
 
-const { applySyncResponse: applySyncResponseMock } = (await import('../../../../src/domain/services/sync/SyncProtocol.js') as any);
+const { applySyncResponse: applySyncResponseMock } = (await import('../../../../src/domain/services/sync/SyncProtocol.ts') as any);
 
 /**
  * Creates a minimal SyncHost mock satisfying the SyncController contract.

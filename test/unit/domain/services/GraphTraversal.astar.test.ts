@@ -11,7 +11,7 @@ import {
   F5_ASTAR_TIE_BREAK,
   F5_WEIGHTS,
   F3_DIAMOND_EQUAL_PATHS,
-} from '../../../helpers/fixtureDsl.js';
+} from '../../../helpers/fixtureDsl.ts';
 
 describe('GraphTraversal.aStarSearch', () => {
   // F5 — expansion order with equal f-scores

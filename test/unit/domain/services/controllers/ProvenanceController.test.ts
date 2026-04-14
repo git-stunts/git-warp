@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import ProvenanceController from '../../../../../src/domain/services/controllers/ProvenanceController.js';
+import ProvenanceController from '../../../../../src/domain/services/controllers/ProvenanceController.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
 import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
@@ -31,7 +31,7 @@ const mockDecodePatchMessage = (decodePatchMessage);
 
 const mockReplay = vi.fn();
 
-vi.mock('../../../../../src/domain/services/provenance/ProvenancePayload.js', () => {
+vi.mock('../../../../../src/domain/services/provenance/ProvenancePayload.ts', () => {
   const MockPayload = vi.fn(function (this: any) {
     this.replay = mockReplay;
   });

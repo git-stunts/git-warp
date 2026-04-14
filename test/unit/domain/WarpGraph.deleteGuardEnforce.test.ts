@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
-import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
+import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000 }, () => {
     let repo;

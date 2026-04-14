@@ -7,15 +7,15 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import SubscriptionController from '../../../../../src/domain/services/controllers/SubscriptionController.js';
+import SubscriptionController from '../../../../../src/domain/services/controllers/SubscriptionController.ts';
 
 // Mock StateDiff — we test SubscriptionController logic, not diff computation
-vi.mock('../../../../../src/domain/services/state/StateDiff.js', () => ({
+vi.mock('../../../../../src/domain/services/state/StateDiff.ts', () => ({
   diffStates: vi.fn(),
   isEmptyDiff: vi.fn(),
 }));
 
-import { diffStates, isEmptyDiff } from '../../../../../src/domain/services/state/StateDiff.js';
+import { diffStates, isEmptyDiff } from '../../../../../src/domain/services/state/StateDiff.ts';
 
 // Cast mocked functions so .mockImplementation/.mockReturnValue are available
 const mockDiffStates = (diffStates as any);
@@ -28,10 +28,10 @@ const mockIsEmptyDiff = (isEmptyDiff as any);
  * @param {{
  *   nodesAdded?: string[];
  *   nodesRemoved?: string[];
- *   edgesAdded?: import('../../../../../src/domain/services/state/StateDiff.js').EdgeChange[];
- *   edgesRemoved?: import('../../../../../src/domain/services/state/StateDiff.js').EdgeChange[];
- *   propsSet?: import('../../../../../src/domain/services/state/StateDiff.js').PropSet[];
- *   propsRemoved?: import('../../../../../src/domain/services/state/StateDiff.js').PropRemoved[];
+ *   edgesAdded?: import('../../../../../src/domain/services/state/StateDiff.ts').EdgeChange[];
+ *   edgesRemoved?: import('../../../../../src/domain/services/state/StateDiff.ts').EdgeChange[];
+ *   propsSet?: import('../../../../../src/domain/services/state/StateDiff.ts').PropSet[];
+ *   propsRemoved?: import('../../../../../src/domain/services/state/StateDiff.ts').PropRemoved[];
  * }} [opts]
  */
 function makeDiff({ nodesAdded = [] as any[], nodesRemoved = [] as any[], edgesAdded = [] as any[], edgesRemoved = [] as any[], propsSet = [] as any[], propsRemoved = [] as any[] } = {}) {

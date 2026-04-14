@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
-import { createStateBuilder } from '../../helpers/stateBuilder.js';
-import { createMockPersistence, createMockLogger } from '../../helpers/warpGraphTestUtils.js';
+import { createStateBuilder } from '../../helpers/stateBuilder.ts';
+import { createMockPersistence, createMockLogger } from '../../helpers/warpGraphTestUtils.ts';
 
 /**
  * GK/GC/1 — Wire GC into post-materialize (opt-in, warn-by-default).

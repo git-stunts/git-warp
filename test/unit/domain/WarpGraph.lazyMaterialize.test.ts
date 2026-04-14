@@ -22,7 +22,7 @@ import QueryError from '../../../src/domain/errors/QueryError.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState, encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
-import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
+import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
 const FAKE_BLOB_OID = 'a'.repeat(40);
 const FAKE_TREE_OID = 'b'.repeat(40);

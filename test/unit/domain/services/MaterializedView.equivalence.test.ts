@@ -21,9 +21,9 @@ import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { decodeEdgeKey } from '../../../../src/domain/services/KeyCodec.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
 import BitmapNeighborProvider from '../../../../src/domain/services/index/BitmapNeighborProvider.ts';
-import AdjacencyNeighborProvider from '../../../../src/domain/services/query/AdjacencyNeighborProvider.js';
+import AdjacencyNeighborProvider from '../../../../src/domain/services/query/AdjacencyNeighborProvider.ts';
 import { createEmptyDiff } from '../../../../src/domain/types/PatchDiff.ts';
-import { createRng } from '../../../helpers/seededRng.js';
+import { createRng } from '../../../helpers/seededRng.ts';
 
 // ── Constants ───────────────────────────────────────────────────────────────
 

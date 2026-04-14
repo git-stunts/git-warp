@@ -1,12 +1,12 @@
 import { describe, it } from 'vitest';
 import fc from 'fast-check';
-import { createRng } from '../../../helpers/seededRng.js';
+import { createRng } from '../../../helpers/seededRng.ts';
 import {
   createEmptyState,
   joinStates as _joinStates,
   reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.ts';
-import { computeStateHash as _computeStateHash } from '../../../../src/domain/services/state/StateSerializer.js';
+import { computeStateHash as _computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
 const joinStates = (_joinStates) as any;

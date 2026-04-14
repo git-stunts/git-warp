@@ -7,7 +7,7 @@ import {
   createMockPersistence,
   createMockPatchWithIO,
   Dot,
-} from '../../helpers/warpGraphTestUtils.js';
+} from '../../helpers/warpGraphTestUtils.ts';
 
 describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
     let persistence;

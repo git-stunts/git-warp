@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { shouldAutoUpdateCoverageRatchet } from '../../../scripts/coverage-ratchet.js';
+import { shouldAutoUpdateCoverageRatchet } from '../../../scripts/coverage-ratchet.ts';
 
 describe('coverage ratchet policy', () => {
   it('enables threshold writes only for explicit full-suite coverage runs', () => {

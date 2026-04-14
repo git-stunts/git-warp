@@ -43,10 +43,10 @@ function countLines(content) {
 async function listRatchetScriptPaths() {
   const entries = await readdir(repoPath('scripts/ratchet'), { withFileTypes: true });
   return [
-    'scripts/ratchet-snapshot.js',
-    'scripts/ratchet-delta.js',
+    'scripts/ratchet-snapshot.ts',
+    'scripts/ratchet-delta.ts',
     ...entries
-      .filter(entry => entry.isFile() && entry.name.endsWith('.js'))
+      .filter(entry => entry.isFile() && entry.name.endsWith('.ts'))
       .map(entry => `scripts/ratchet/${entry.name}`),
   ];
 }

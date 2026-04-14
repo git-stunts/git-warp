@@ -1,11 +1,11 @@
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
-import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.js';
+import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.ts';
 import {
   createDetachedReadBenchmarkPlan,
   DETACHED_READ_BENCHMARK_KINDS,
   DETACHED_READ_BENCHMARK_SCALES,
   seedDetachedReadBenchmarkFixture,
-} from '../../benchmark/detachedReadBenchmark.fixture.js';
+} from '../../benchmark/detachedReadBenchmark.fixture.ts';
 import { describe, expect, it } from 'vitest';
 
 const crypto = new NodeCryptoAdapter();
@@ -48,7 +48,7 @@ describe('detached read benchmark fixture', () => {
       patchCount: 24,
       writerCount: 3,
       overlayPatchCount: 4,
-    });
+    }) as { graph: any; coordinateSource: any; strandId: any; captureAt: number; overlayPatchCount: number };
 
     const liveState = await fixture.graph.materialize();
     const coordinateState = await fixture.graph.materializeCoordinate(fixture.coordinateSource);

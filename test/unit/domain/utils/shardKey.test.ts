@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
-import { F11_SHARDKEY_VECTORS } from '../../../helpers/fixtureDsl.js';
+import { F11_SHARDKEY_VECTORS } from '../../../helpers/fixtureDsl.ts';
 
 describe('computeShardKey', () => {
   it('matches F11 shard key vectors', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import GraphTraversal from '../../../../src/domain/services/query/GraphTraversal.ts';
-import AdjacencyNeighborProvider from '../../../../src/domain/services/query/AdjacencyNeighborProvider.js';
+import AdjacencyNeighborProvider from '../../../../src/domain/services/query/AdjacencyNeighborProvider.ts';
 
 /**
  * Helper: build adjacency maps + provider from edge list.

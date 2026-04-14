@@ -15,7 +15,7 @@ import {
   F7_MULTILABEL_SAME_NEIGHBOR,
   F9_UNICODE_CODEPOINT_ORDER,
   F10_PROTO_POLLUTION,
-} from '../helpers/fixtureDsl.js';
+} from '../helpers/fixtureDsl.ts';
 import BitmapNeighborProvider from '../../src/domain/services/index/BitmapNeighborProvider.ts';
 
 // ── Build providers ─────────────────────────────────────────────────────────

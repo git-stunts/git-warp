@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
-import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
+import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
   it('cascade delete generates EdgeRemove ops for 3 connected edges + NodeRemove', async () => {

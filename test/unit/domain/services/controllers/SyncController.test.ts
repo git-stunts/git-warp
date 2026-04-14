@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import SyncController from '../../../../../src/domain/services/controllers/SyncController.ts';
 import SyncError from '../../../../../src/domain/errors/SyncError.ts';
 import OperationAbortedError from '../../../../../src/domain/errors/OperationAbortedError.ts';
-import SyncTrustGate from '../../../../../src/domain/services/sync/SyncTrustGate.js';
+import SyncTrustGate from '../../../../../src/domain/services/sync/SyncTrustGate.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ const { timeoutMock, retryMock, RetryExhaustedErrorClass, httpSyncServerMock } =
   return { timeoutMock, retryMock, RetryExhaustedErrorClass, httpSyncServerMock };
 });
 
-vi.mock('../../../../../src/domain/services/sync/SyncProtocol.js', async (importOriginal) => {
+vi.mock('../../../../../src/domain/services/sync/SyncProtocol.ts', async (importOriginal) => {
   const original = (await importOriginal() as Record<string, unknown>);
   return {
     ...original,
@@ -65,7 +65,7 @@ const {
   applySyncResponse: applySyncResponseMock,
   syncNeeded: syncNeededMock,
   processSyncRequest: processSyncRequestMock,
-} = (await import('../../../../../src/domain/services/sync/SyncProtocol.js')) as any;
+} = (await import('../../../../../src/domain/services/sync/SyncProtocol.ts')) as any;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

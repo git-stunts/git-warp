@@ -4,7 +4,7 @@ import {
   extractJsExports,
   extractDtsExports,
   classifyManifestExports,
-} from '../../../scripts/check-dts-surface.js';
+} from '../../../scripts/check-dts-surface.ts';
 
 // ---------------------------------------------------------------------------
 // parseExportBlock
@@ -72,8 +72,8 @@ describe('extractJsExports', () => {
 
   it('handles multiple export blocks', () => {
     const src = `
-      export { Foo } from './foo.js';
-      export { Bar } from './bar.js';
+      export { Foo } from './foo.ts';
+      export { Bar } from './bar.ts';
     `;
     const result = extractJsExports(src);
     expect(result).toEqual(new Set(['Foo', 'Bar']));

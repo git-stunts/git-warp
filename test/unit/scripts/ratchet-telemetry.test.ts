@@ -4,17 +4,17 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { buildSnapshotPath } from '../../../scripts/ratchet/buildSnapshotPath.js';
-import { createSnapshot } from '../../../scripts/ratchet/createSnapshot.js';
-import { diffSnapshots } from '../../../scripts/ratchet/diffSnapshots.js';
-import { extractEslintCounts } from '../../../scripts/ratchet/extractEslintCounts.js';
-import { extractTypecheckErrorCount } from '../../../scripts/ratchet/extractTypecheckErrorCount.js';
-import { extractVitestCounts } from '../../../scripts/ratchet/extractVitestCounts.js';
-import { formatDelta } from '../../../scripts/ratchet/formatDelta.js';
-import { listSnapshotPaths } from '../../../scripts/ratchet/listSnapshotPaths.js';
-import { readSnapshot } from '../../../scripts/ratchet/readSnapshot.js';
-import { sanitizeBranchName } from '../../../scripts/ratchet/sanitizeBranchName.js';
-import { writeSnapshot } from '../../../scripts/ratchet/writeSnapshot.js';
+import { buildSnapshotPath } from '../../../scripts/ratchet/buildSnapshotPath.ts';
+import { createSnapshot } from '../../../scripts/ratchet/createSnapshot.ts';
+import { diffSnapshots } from '../../../scripts/ratchet/diffSnapshots.ts';
+import { extractEslintCounts } from '../../../scripts/ratchet/extractEslintCounts.ts';
+import { extractTypecheckErrorCount } from '../../../scripts/ratchet/extractTypecheckErrorCount.ts';
+import { extractVitestCounts } from '../../../scripts/ratchet/extractVitestCounts.ts';
+import { formatDelta } from '../../../scripts/ratchet/formatDelta.ts';
+import { listSnapshotPaths } from '../../../scripts/ratchet/listSnapshotPaths.ts';
+import { readSnapshot } from '../../../scripts/ratchet/readSnapshot.ts';
+import { sanitizeBranchName } from '../../../scripts/ratchet/sanitizeBranchName.ts';
+import { writeSnapshot } from '../../../scripts/ratchet/writeSnapshot.ts';
 
 describe('ratchet telemetry', () => {
   it('counts TypeScript errors from compiler output', () => {

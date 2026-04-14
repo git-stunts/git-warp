@@ -18,7 +18,7 @@ const { timeoutMock, retryMock, httpSyncServerMock } = vi.hoisted(() => {
   return { timeoutMock, retryMock, httpSyncServerMock };
 });
 
-vi.mock('../../../../src/domain/services/sync/SyncProtocol.js', async (importOriginal) => {
+vi.mock('../../../../src/domain/services/sync/SyncProtocol.ts', async (importOriginal) => {
   const original = (await importOriginal() as Record<string, unknown>);
   return {
     ...original,
@@ -43,7 +43,7 @@ vi.mock('../../../../src/domain/services/sync/HttpSyncServer.ts', () => ({
 
 // Import after mock setup so we get the mocked versions
 const { applySyncResponse: applySyncResponseMock, syncNeeded: syncNeededMock, processSyncRequest: processSyncRequestMock } =
-  (await import('../../../../src/domain/services/sync/SyncProtocol.js')) as any;
+  (await import('../../../../src/domain/services/sync/SyncProtocol.ts')) as any;
 
 /**
  * Creates a mock WarpRuntime host for SyncController tests.

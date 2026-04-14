@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import ProvenanceIndex from '../../../../src/domain/services/provenance/ProvenanceIndex.js';
+import ProvenanceIndex from '../../../../src/domain/services/provenance/ProvenanceIndex.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
 
 describe('ProvenanceIndex', () => {

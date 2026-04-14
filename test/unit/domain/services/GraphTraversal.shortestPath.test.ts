@@ -8,7 +8,7 @@ import {
   makeAdjacencyProvider,
   F1_BFS_LEVEL_SORT_TRAP,
   F3_DIAMOND_EQUAL_PATHS,
-} from '../../../helpers/fixtureDsl.js';
+} from '../../../helpers/fixtureDsl.ts';
 
 describe('GraphTraversal.shortestPath', () => {
   describe('F3 — DIAMOND_EQUAL_PATHS', () => {

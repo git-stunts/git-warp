@@ -690,7 +690,7 @@ import {
   WarpError as BrowserWarpError,
   VersionVector as BrowserVersionVector,
   generateWriterId as browserGenWriterId,
-} from '../../browser.js';
+} from '../../browser.ts';
 
 const _browserErr: BrowserWarpError = new BrowserWarpError('test', { code: 'TEST' });
 const _browserVV: BrowserVersionVector = BrowserVersionVector.empty();

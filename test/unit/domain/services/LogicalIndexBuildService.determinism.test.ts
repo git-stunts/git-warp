@@ -42,7 +42,7 @@ function buildState(nodes, edges) {
 /**
  * Extracts nodeToGlobal mappings from all MetaShards.
  *
- * @param {import('../../../../src/domain/artifacts/IndexShard.js').IndexShard[]} shards
+ * @param {import('../../../../src/domain/artifacts/IndexShard.ts').IndexShard[]} shards
  * @returns {Map<string, number>}
  */
 function extractNodeMappings(shards) {
@@ -60,7 +60,7 @@ function extractNodeMappings(shards) {
 /**
  * Extracts label registry from shards.
  *
- * @param {import('../../../../src/domain/artifacts/IndexShard.js').IndexShard[]} shards
+ * @param {import('../../../../src/domain/artifacts/IndexShard.ts').IndexShard[]} shards
  * @returns {Array<[string, number]>}
  */
 function extractLabelRegistry(shards) {
@@ -72,7 +72,7 @@ function extractLabelRegistry(shards) {
 /**
  * Extracts edge shard payloads keyed by direction+shardKey.
  *
- * @param {import('../../../../src/domain/artifacts/IndexShard.js').IndexShard[]} shards
+ * @param {import('../../../../src/domain/artifacts/IndexShard.ts').IndexShard[]} shards
  * @returns {Record<string, Record<string, Record<string, Uint8Array>>>}
  */
 function extractEdgeShards(shards) {

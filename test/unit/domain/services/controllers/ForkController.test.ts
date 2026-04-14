@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import ForkController from '../../../../../src/domain/services/controllers/ForkController.js';
+import ForkController from '../../../../../src/domain/services/controllers/ForkController.ts';
 import ForkError from '../../../../../src/domain/errors/ForkError.ts';
 import { CHECKPOINT_SCHEMA_STANDARD, CHECKPOINT_SCHEMA_V5_INTERMEDIATE } from '../../../../../src/domain/services/state/checkpointHelpers.ts';
 import { buildWriterRef, buildWritersPrefix } from '../../../../../src/domain/utils/RefLayout.ts';
@@ -7,7 +7,7 @@ import { buildWriterRef, buildWritersPrefix } from '../../../../../src/domain/ut
 // ---------------------------------------------------------------------------
 // WormholeService mock
 // ---------------------------------------------------------------------------
-vi.mock('../../../../../src/domain/services/WormholeService.js', () => ({
+vi.mock('../../../../../src/domain/services/WormholeService.ts', () => ({
   createWormhole: vi.fn(),
 }));
 
@@ -440,7 +440,7 @@ describe('ForkController', () => {
   // =========================================================================
   describe('createWormhole()', () => {
     it('delegates to WormholeService.createWormhole', async () => {
-      const { createWormhole: mockCreateWormhole } = await import('../../../../../src/domain/services/WormholeService.js');
+      const { createWormhole: mockCreateWormhole } = await import('../../../../../src/domain/services/WormholeService.ts');
 
       const wormholeResult = { fromSha: 'sha-a', toSha: 'sha-b', writerId: 'w1', payload: {}, patchCount: 5 };
       (mockCreateWormhole as any).mockResolvedValue(wormholeResult);
@@ -459,7 +459,7 @@ describe('ForkController', () => {
     });
 
     it('re-throws WormholeService errors and logs timing', async () => {
-      const { createWormhole: mockCreateWormhole } = await import('../../../../../src/domain/services/WormholeService.js');
+      const { createWormhole: mockCreateWormhole } = await import('../../../../../src/domain/services/WormholeService.ts');
       (mockCreateWormhole as any).mockRejectedValue(new Error('wormhole boom'));
 
       await expect(ctrl.createWormhole('sha-a', 'sha-b')).rejects.toThrow('wormhole boom');

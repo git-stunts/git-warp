@@ -10,7 +10,7 @@ import {
   F3_DIAMOND_EQUAL_PATHS,
   F8_TOPO_CYCLE_3,
   F16_TRANSITIVE_REDUCTION,
-} from '../../../helpers/fixtureDsl.js';
+} from '../../../helpers/fixtureDsl.ts';
 
 describe('GraphTraversal.transitiveReduction()', () => {
   describe('F16 — redundant edge removal', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
 import BisectService from '../../../../src/domain/services/BisectService.ts';
-import { createGitRepo } from '../../../helpers/warpGraphTestUtils.js';
+import { createGitRepo } from '../../../helpers/warpGraphTestUtils.ts';
 
 describe('BisectService', { timeout: 30000 }, () => {
   it('vector 1: linear chain — finds first bad patch', async () => {

@@ -4,7 +4,7 @@ import ForkError from '../../../src/domain/errors/ForkError.ts';
 import {
   createMockPersistence,
   createMockPatch,
-} from '../../helpers/warpGraphTestUtils.js';
+} from '../../helpers/warpGraphTestUtils.ts';
 
 // Valid 40-char hex SHAs for testing
 const SHA1 = '1111111111111111111111111111111111111111';

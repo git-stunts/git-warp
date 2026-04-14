@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import MaterializeController from '../../../../src/domain/services/controllers/MaterializeController.js';
+import MaterializeController from '../../../../src/domain/services/controllers/MaterializeController.ts';
 import { createEmptyState, applyOpV2 } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';

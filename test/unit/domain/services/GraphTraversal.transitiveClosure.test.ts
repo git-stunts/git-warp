@@ -10,7 +10,7 @@ import {
   F3_DIAMOND_EQUAL_PATHS,
   F8_TOPO_CYCLE_3,
   F18_TRANSITIVE_CLOSURE_CHAIN,
-} from '../../../helpers/fixtureDsl.js';
+} from '../../../helpers/fixtureDsl.ts';
 
 describe('GraphTraversal.transitiveClosure()', () => {
   describe('F18 — linear chain A→B→C→D', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createTestRepo } from './helpers/setup.js';
+import { createTestRepo } from './helpers/setup.ts';
 
 describe('API: Writer Discovery', () => {
     let repo;

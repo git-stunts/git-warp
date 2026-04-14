@@ -2,14 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { create, createV5 } from '../../../../src/domain/services/state/checkpointCreate.ts';
 import { loadCheckpoint, reconstructStateFromCheckpoint } from '../../../../src/domain/services/state/checkpointLoad.ts';
 import { createFrontier, updateFrontier, serializeFrontier } from '../../../../src/domain/services/Frontier.ts';
-import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.js';
+import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import {
   serializeFullState,
   deserializeFullState,
   computeAppliedVV,
   serializeAppliedVV,
   deserializeAppliedVV,
-} from '../../../../src/domain/services/state/CheckpointSerializer.js';
+} from '../../../../src/domain/services/state/CheckpointSerializer.ts';
 import { createEmptyState, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.ts';
 import { encodeCheckpointMessage, decodeCheckpointMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';

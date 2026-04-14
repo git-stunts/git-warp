@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
-import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
+import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
 describe('WarpRuntime checkpointPolicy (AP/CKPT/1)', () => {
   it('stores checkpointPolicy when opened with { every: 500 }', async () => {

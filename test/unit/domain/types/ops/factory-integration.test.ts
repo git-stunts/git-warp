@@ -12,11 +12,11 @@ import EdgeRemove from '../../../../../src/domain/types/ops/EdgeRemove.ts';
 import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.ts';
 import EdgePropSet from '../../../../../src/domain/types/ops/EdgePropSet.ts';
 import PropSetClass from '../../../../../src/domain/types/ops/PropSet.ts';
-/** @param {string} node @param {import('../../../../../src/domain/crdt/Dot.js').Dot} dot */
+/** @param {string} node @param {import('../../../../../src/domain/crdt/Dot.ts').Dot} dot */
 function createNodeAddV2(node, dot) { return new NodeAdd(node, dot); }
 /** @param {string} node @param {string[]} observedDots */
 function createNodeRemoveV2(node, observedDots) { return new NodeRemove(node, observedDots); }
-/** @param {string} from @param {string} to @param {string} label @param {import('../../../../../src/domain/crdt/Dot.js').Dot} dot */
+/** @param {string} from @param {string} to @param {string} label @param {import('../../../../../src/domain/crdt/Dot.ts').Dot} dot */
 function createEdgeAddV2(from, to, label, dot) { return new EdgeAdd({ from, to, label, dot }); }
 /** @param {string} from @param {string} to @param {string} label @param {string[]} observedDots */
 function createEdgeRemoveV2(from, to, label, observedDots) { return new EdgeRemove({ from, to, label, observedDots }); }

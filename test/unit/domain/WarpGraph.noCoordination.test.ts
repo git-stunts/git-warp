@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import fc from 'fast-check';
 import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
-import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
+import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 async function assertLinearWriterChain(/** @type {any} */ persistence, /** @type {any} */ graphName, /** @type {any} */ writerId) {
   const writerRef = buildWriterRef(graphName, writerId);
@@ -55,8 +55,8 @@ describe('No-coordination regression suite', () => {
         buildWriterRef('shared', 'bob')
       );
 
-      const aliceInfo = await repoA.persistence.getNodeInfo(aliceHeadAfter);
-      const bobInfo = await repoB.persistence.getNodeInfo(bobHeadAfter);
+      const aliceInfo = await repoA.persistence.getNodeInfo(aliceHeadAfter!);
+      const bobInfo = await repoB.persistence.getNodeInfo(bobHeadAfter!);
 
       expect(aliceInfo.parents).toEqual(aliceHeadBefore ? [aliceHeadBefore] : []);
       expect(bobInfo.parents).toEqual(bobHeadBefore ? [bobHeadBefore] : []);

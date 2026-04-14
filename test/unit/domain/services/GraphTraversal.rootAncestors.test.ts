@@ -10,7 +10,7 @@ import {
   F3_DIAMOND_EQUAL_PATHS,
   F8_TOPO_CYCLE_3,
   F17_MULTI_ROOT_DAG,
-} from '../../../helpers/fixtureDsl.js';
+} from '../../../helpers/fixtureDsl.ts';
 
 describe('GraphTraversal.rootAncestors()', () => {
   describe('F17 — multi-root DAG', () => {
