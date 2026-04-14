@@ -1,5 +1,3 @@
-/* @ts-self-types="./browser.d.ts" */
-
 /**
  * Browser entry point for @git-stunts/git-warp.
  *

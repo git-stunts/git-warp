@@ -40,8 +40,8 @@
     },
     "./browser": {
       "types": "./browser.d.ts",
-      "import": "./browser.js",
-      "default": "./browser.js"
+      "import": "./browser.ts",
+      "default": "./browser.ts"
     },
     "./sha1sync": {
       "types": "./sha1sync.d.ts",
@@ -56,7 +56,7 @@
     "bin/cli",
     "bin/git-warp",
     "src",
-    "browser.js",
+    "browser.ts",
     "index.ts",
     "browser.d.ts",
     "sha1sync.d.ts",

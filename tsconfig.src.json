@@ -2,6 +2,7 @@
   "extends": "./tsconfig.base.json",
   "include": [
     "index.ts",
+    "browser.ts",
     "src/**/*.js",
     "src/**/*.ts",
     "src/globals.d.ts",

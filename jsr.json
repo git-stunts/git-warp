@@ -8,14 +8,14 @@
     ".": "./index.ts",
     "./node": "./src/domain/entities/GraphNode.ts",
     "./visualization": "./src/visualization/index.ts",
-    "./browser": "./browser.js",
+    "./browser": "./browser.ts",
     "./sha1sync": "./src/infrastructure/adapters/sha1sync.ts"
   },
   "publish": {
     "include": [
       "index.ts",
       "index.d.ts",
-      "browser.js",
+      "browser.ts",
       "browser.d.ts",
       "sha1sync.d.ts",
       "src/**/*.ts",
