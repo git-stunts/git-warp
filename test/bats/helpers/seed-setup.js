@@ -12,7 +12,7 @@ const projectRoot = process.env['PROJECT_ROOT'] || resolve(import.meta.dirname, 
 const repoPath = process.env['REPO_PATH'];
 
 const warpGraphUrl = pathToFileURL(resolve(projectRoot, 'src/domain/WarpRuntime.ts')).href;
-const adapterUrl = pathToFileURL(resolve(projectRoot, 'src/infrastructure/adapters/GitGraphAdapter.js')).href;
+const adapterUrl = pathToFileURL(resolve(projectRoot, 'src/infrastructure/adapters/GitGraphAdapter.ts')).href;
 const cryptoUrl = pathToFileURL(resolve(projectRoot, 'src/infrastructure/adapters/NodeCryptoAdapter.ts')).href;
 const { default: WarpRuntime } = await import(warpGraphUrl);
 const { default: GitGraphAdapter } = await import(adapterUrl);

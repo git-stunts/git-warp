@@ -25,7 +25,7 @@ export function getEnvVar(name) {
     return process.env[name];
   }
   if (typeof Deno !== 'undefined') {
-    // eslint-disable-next-line no-undef
+     
     try { return Deno.env.get(name); } catch { return undefined; }
   }
   return undefined;

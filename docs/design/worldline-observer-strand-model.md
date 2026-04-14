@@ -529,6 +529,7 @@ The public speculative story should look like:
 const strand = await worldline.forkStrand({
   strandId: 'plan-rewrite',
   atTick: 42,
+  retention: 'scratch',
 });
 
 await strand.queueIntent(intentA);
@@ -536,6 +537,7 @@ await strand.queueIntent(intentB);
 
 const tick = await strand.tick();
 const nextGraph = await strand.materialize();
+await strand.promote({ visibility: 'shared' });
 ```
 
 This note does **not** fix the exact method names. It fixes the noun model and
@@ -734,6 +736,8 @@ informal design preferences.
 5. Observer-specific filtered caches are derived, non-authoritative views.
 6. Observer projection must not become a second hidden graph system above the
    canonical snapshot.
+7. Observation, replay, and seek do not by themselves create strands or any
+   other new causal lanes.
 
 ### G. Strand invariants
 
@@ -746,6 +750,11 @@ informal design preferences.
    future suffixes.
 6. Transfer/collapse remains an explicit later move; it is not implied by
    ticking.
+7. Explicit debugger-created counterfactuals create real strands rooted at
+   exact fork bases; observation alone does not.
+8. TTD-created strands should default to scratch or author-only speculative
+   retention, not silent shared publication.
+9. Promotion into shared admitted history remains a later explicit act.
 
 ### H. Intent and footprint invariants
 
@@ -823,6 +832,8 @@ informal design preferences.
    forking a child worldline, not by destructively rewinding a canonical one.
 4. If administrative rewind ever exists, it must be explicit, privileged, and
    clearly separated from ordinary observer/playback APIs.
+5. Debugger-created continuations should carry explicit fork provenance and,
+   when retained, explicit retention or revelation posture.
 
 ### N. Deletion and liveness
 

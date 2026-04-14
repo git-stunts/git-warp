@@ -65,7 +65,9 @@ echo "[Gates 1-7] Running lint + typecheck + policy + consumer type test + surfa
 run_tool "$NPM_LAUNCHER" "$NPM_BIN" run lint &
 LINT_PID=$!
 run_tool "$NPM_LAUNCHER" "$NPM_BIN" run typecheck:src &
-TC_PID=$!
+TC_SRC_PID=$!
+run_tool "$NPM_LAUNCHER" "$NPM_BIN" run typecheck:test &
+TC_TEST_PID=$!
 run_tool "$NPM_LAUNCHER" "$NPM_BIN" run typecheck:policy &
 POLICY_PID=$!
 run_tool "$NPM_LAUNCHER" "$NPM_BIN" run typecheck:consumer &

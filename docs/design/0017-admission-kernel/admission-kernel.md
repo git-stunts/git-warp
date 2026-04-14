@@ -62,9 +62,23 @@ interface AdmissionResult<R> {
   witness: WitnessCore;
 }
 
+interface PluralArtifact<R> {
+  /** The common basis over which plurality was judged. */
+  basis: Frontier;
+  /** The participant identities or claims that remain lawful together. */
+  participants: ReadonlyArray<R>;
+  /** Optional refined local structure for cellwise plurality. */
+  cells?: ReadonlyArray<PluralCell<R>>;
+}
+
+interface PluralCell<R> {
+  site: BoundedSite;
+  claims: ReadonlyArray<R>;
+}
+
 type Outcome<R> =
   | { kind: 'derived'; value: R }
-  | { kind: 'plural'; claims: R[] }
+  | { kind: 'plural'; artifact: PluralArtifact<R> }
   | { kind: 'conflict'; artifact: ConflictArtifact }
   | { kind: 'obstruction'; reason: ObstructionReason };
 
@@ -78,8 +92,10 @@ interface WitnessCore {
 }
 
 function pack<R>(result: AdmissionResult<R>): Shell {
-  // Serialize the outcome + witness into a replay/audit artifact
-  return new BoundaryTransitionRecord(result);
+  // Serialize the outcome + witness into the appropriate shell family.
+  // Local tick admission may emit a BTR; braid collapse or suffix transport
+  // may emit different shell families.
+  return Shell.fromAdmission(result);
 }
 ```
 
@@ -122,6 +138,13 @@ The site computation is deterministic from the op. A
 `closeSite(state, rawFocus)` function expands a raw focus to the
 least semantically closed site.
 
+This should not become a second competing vocabulary beside the
+existing footprint/focus-boundary work. In git-warp terms, a
+`BoundedSite` should be the admission-kernel cash-out of the same
+underlying structure the runtime already tracks as read/write footprint,
+semantic affect region, and reintegration boundary. The kernel should
+absorb that work, not fork it.
+
 ## Three instantiations
 
 ### Scale 1: Local tick admission
@@ -141,6 +164,10 @@ The default policy is the CRDT coexistence law: LWW for properties,
 OR-Set for membership, causal ordering for timestamps. This is what
 JoinReducer already does — but wrapped in admission vocabulary with
 an explicit witness of what was admitted and why.
+
+The packed shell for this scale will often be a `BoundaryTransitionRecord`,
+but that is a local-tick shell family, not the universal meaning of
+`Pack(R, W) = theta`.
 
 ### Scale 2: Braid-local admission (collapse)
 
@@ -192,7 +219,7 @@ class Derived<R> {
 
 class Plural<R> {
   readonly kind = 'plural' as const;
-  constructor(readonly claims: ReadonlyArray<R>, readonly witness: WitnessCore) {
+  constructor(readonly artifact: PluralArtifact<R>, readonly witness: WitnessCore) {
     Object.freeze(this);
   }
 }
@@ -232,7 +259,7 @@ The implementation must never conflate them:
 ```typescript
 // Observer collapse — projection, not admission
 function observerCollapse(braid: BraidView, aperture: Aperture): ProjectedView {
-  // Lossy projection. No witness. No governance.
+  // Lossy projection. No admission witness. No governance.
 }
 
 // Canonical collapse — admission with witness
@@ -257,6 +284,11 @@ Wrap `JoinReducer.applyFast()` in a `LocalTickAdmission` that
 computes sites, checks policy, and produces witnesses. The reducer
 is unchanged — admission sits above it.
 
+This phase is only honest if `BoundedSite` is derived from the same
+footprint/focus-boundary logic that already constrains rewrite
+application. A wrapper that leaves site semantics implicit would only
+rename the old reducer path.
+
 ### Phase 3: Transport normalization for sync
 
 Add a common-basis normalization step before `applySyncResponse()`.
@@ -271,8 +303,10 @@ is a named, versioned, inspectable runtime object.
 
 ### Phase 5: Witness enrichment
 
-Enrich TickReceipt and BTR to carry full witnesses — not just what
-happened, but why it was lawful under the governing policy.
+Enrich TickReceipt and local-tick BTRs to carry fuller witnesses — not
+just what happened, but why it was lawful under the governing policy.
+Other admission scales should emit shell families native to their
+domain rather than being coerced into the BTR type.
 
 ### Phase 6: Upper stack (trust + privacy)
 
@@ -330,5 +364,6 @@ The database doesn't go away. It gets a soul.
    "admitted" with a default policy?
 
 6. **The plurality question**: When collapse returns `Plural`, what
-   does the consumer DO with it? The paper says plurality is lawful,
-   but the UX of plurality needs design.
+   does the consumer DO with the plural artifact? The paper says
+   plurality is lawful, but the runtime and UX of a first-class plural
+   carrier still need design.
