@@ -1,6 +1,6 @@
 import { performance } from 'perf_hooks';
 import GitPlumbing from '@git-stunts/plumbing';
-import EmptyGraph from '../index.js';
+import EmptyGraph from '../index.ts';
 import { mkdtempSync, rmSync, writeFileSync, createWriteStream } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';

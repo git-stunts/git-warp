@@ -6,10 +6,8 @@
     "noUnusedParameters": false
   },
   "include": [
-    "test/**/*.js",
     "test/**/*.ts",
     "src/**/*.ts",
-    "src/**/*.js",
     "src/globals.d.ts",
     "src/domain/warp/_wiredMethods.d.ts"
   ],
