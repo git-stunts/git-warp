@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **100% TypeScript** — All 100 remaining `.js` files converted to `.ts`. The repo ships TypeScript source directly via jsr and `--experimental-strip-types`. No `.js` files remain except `eslint.config.js` and `vitest.config.js` (config files).
+
+### Breaking
+
+- **`index.d.ts` deleted** — The 4,199-line hand-maintained type declaration file is gone. `index.ts` is now both the runtime entry point and the type surface. Consumers must use TypeScript-aware module resolution (`bundler`, `NodeNext`, or Deno).
+- **`browser.d.ts` deleted** — Same: `browser.ts` is the source of truth.
+- **`contracts/type-surface.m8.json` deleted** — The Ironclad manifest is redundant when the barrel IS the contract.
+- **Entry points renamed** — `index.js` → `index.ts`, `browser.js` → `browser.ts`, `bin/warp-graph.js` → `bin/warp-graph.ts`. All `package.json` exports and `jsr.json` exports updated.
+
 ## [17.0.0] — 2026-04-14
 
 ### Changed
