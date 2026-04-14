@@ -4,7 +4,7 @@
  * @module domain/services/transfer/transferOps
  */
 
-import type { VisibleStateTransferOperationV1, VisibleStateTransferPlanSummaryV1 } from '../../../../index.js';
+import type { VisibleStateTransferOperationV1, VisibleStateTransferPlanSummaryV1 } from '../../types/CoordinateComparison.ts';
 import {
   contentMetaKey,
   valueKey,

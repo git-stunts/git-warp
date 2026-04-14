@@ -8,7 +8,9 @@
  * @module domain/services/comparison/diffStructure
  */
 
-import type { VisibleNodeView, VisibleStateNeighbor, VisibleStateReader } from '../../../../index.js';
+import type { VisibleNodeView } from '../../types/VisibleNodeView.ts';
+import type { VisibleStateNeighbor } from '../../types/VisibleStateNeighbor.ts';
+import type { VisibleStateReader } from '../../types/VisibleStateReader.ts';
 import {
   compareStrings,
   compareNeighbors,

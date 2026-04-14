@@ -20,7 +20,7 @@ import LiveSelector from '../../types/LiveSelector.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type WarpRuntime from '../../WarpRuntime.ts';
 import type { WorldlineSource } from '../../capabilities/QueryCapability.ts';
-import type { VisibleStateReader } from '../../../../index.js';
+import type { VisibleStateReader } from '../../types/VisibleStateReader.ts';
 import type NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
 
 interface NeighborEntry {

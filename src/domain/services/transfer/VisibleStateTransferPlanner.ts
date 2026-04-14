@@ -9,7 +9,7 @@
 import type {
   VisibleStateTransferOperationV1,
   VisibleStateTransferPlanSummaryV1,
-} from '../../../../index.js';
+} from '../../types/CoordinateComparison.ts';
 import {
   compareStrings,
   type ContentMeta,

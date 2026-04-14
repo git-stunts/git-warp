@@ -10,7 +10,8 @@ import {
   CONTENT_SIZE_PROPERTY_KEY,
 } from '../KeyCodec.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
-import type { ContentMeta, VisibleStateReader } from '../../../../index.js';
+import type { ContentMeta } from '../../types/ContentMeta.ts';
+import type { VisibleStateReader } from '../../types/VisibleStateReader.ts';
 
 export type { ContentMeta, VisibleStateReader };
 

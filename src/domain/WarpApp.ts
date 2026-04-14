@@ -3,7 +3,9 @@ import WarpError from './errors/WarpError.ts';
 import { callInternalRuntimeMethod } from './utils/callInternalRuntimeMethod.ts';
 
 import type WarpRuntime from './WarpRuntime.ts';
-import type { Aperture, Observer, ObserverOptions } from '../../index.js';
+import type { Aperture } from './types/Aperture.ts';
+import type { ObserverOptions } from './capabilities/QueryCapability.ts';
+import type Observer from './services/query/Observer.ts';
 
 type RuntimeBackedCore = WarpCore & {
   graphName: WarpRuntime['graphName'];

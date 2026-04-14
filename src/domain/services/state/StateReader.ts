@@ -18,7 +18,7 @@ import {
   edgeKeyFromRef,
   populateVisibleProps,
 } from './StateReaderContext.ts';
-import type { VisibleStateReader } from '../../../../index.js';
+import type { VisibleStateReader } from '../../types/VisibleStateReader.ts';
 
 // Re-export types that external code may need directly from this module.
 export type { ContentMeta, NeighborEntry, VisibleEdgeRef, VisibleEdgeView };

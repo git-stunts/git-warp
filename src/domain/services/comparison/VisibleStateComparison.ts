@@ -7,7 +7,7 @@
  * @module domain/services/comparison/VisibleStateComparison
  */
 
-import type { VisibleStateComparison } from '../../../../index.js';
+import type { VisibleStateComparison } from '../../types/CoordinateComparison.ts';
 import type WarpState from '../state/WarpState.ts';
 import { createStateReader } from '../state/StateReader.js';
 import { summarizeReader, collectNodeProperties, collectEdgeProperties } from './diffKeys.ts';

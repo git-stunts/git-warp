@@ -22,11 +22,8 @@ import {
 import type { WarpState } from '../JoinReducer.ts';
 import type Patch from '../../types/Patch.ts';
 
-// Re-export index types used by callers
-import type {
-  VisibleStateScope,
-  StrandDescriptor as StrandDescriptorV1,
-} from '../../../../index.js';
+import type { VisibleStateScope } from '../../types/CoordinateComparison.ts';
+import type { StrandDescriptor as StrandDescriptorV1 } from '../../types/StrandDescriptor.ts';
 
 // ── Shared types ─────────────────────────────────────────────────────
 

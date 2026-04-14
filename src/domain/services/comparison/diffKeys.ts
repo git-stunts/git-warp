@@ -7,7 +7,8 @@
  */
 
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
-import type { VisibleStateNeighbor, VisibleStateReader } from '../../../../index.js';
+import type { VisibleStateNeighbor } from '../../types/VisibleStateNeighbor.ts';
+import type { VisibleStateReader } from '../../types/VisibleStateReader.ts';
 
 // ── Key encoding ────────────────────────────────────────────────────────────
 

@@ -4,7 +4,7 @@
  * @module domain/services/transfer/transferShape
  */
 
-import type { VisibleStateTransferOperationV1 } from '../../../../index.js';
+import type { VisibleStateTransferOperationV1 } from '../../types/CoordinateComparison.ts';
 import {
   compareStrings,
   collectEdgeRefs,
