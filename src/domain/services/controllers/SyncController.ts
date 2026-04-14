@@ -183,7 +183,6 @@ export default class SyncController {
 
   /** Syncs with a remote peer (HTTP or direct graph instance). */
   async syncWith(remote: string | object, options: SyncWithOptions = {}): Promise<SyncWithResult> {
-    const t0 = this._host._clock.now();
     const {
       path = '/sync',
       retries = DEFAULT_SYNC_WITH_RETRIES,
@@ -221,7 +220,6 @@ export default class SyncController {
     }> => {
       checkAborted(signal, 'syncWith');
       attempt += 1;
-      const attemptStart = this._host._clock.now();
       emit('connecting');
       const request = await this.createSyncRequest();
       emit('requestBuilt');
@@ -248,8 +246,7 @@ export default class SyncController {
         ? await this.applySyncResponse(response)
         : await this._applySyncResponseWithGate(response, trustGate);
       emit('applied', { applied: result.applied });
-      const durationMs = this._host._clock.now() - attemptStart;
-      emit('complete', { durationMs, applied: result.applied });
+      emit('complete', { applied: result.applied });
       const skippedWriters = Array.isArray(result.skippedWriters) ? result.skippedWriters : [];
       return { applied: result.applied, attempts: attempt, skippedWriters };
     };
@@ -264,14 +261,12 @@ export default class SyncController {
           }
         },
       } as RetryOptions);
-      this._host._logTiming('syncWith', t0, { metrics: `${syncResult.applied} patches applied` });
       if (materializeAfterSync) {
         if (!this._host._cachedState) { await this._host.materialize(); }
         return { ...syncResult, state: this._host._cachedState as WarpState };
       }
       return syncResult;
     } catch (err) {
-      this._host._logTiming('syncWith', t0, { error: err as Error });
       if (isError(err) && err.name === 'AbortError') {
         const abortedError = new OperationAbortedError('syncWith', { reason: 'Signal received' });
         if (typeof onStatus === 'function') { onStatus({ type: 'failed', attempt, error: abortedError }); }
@@ -298,6 +293,7 @@ export default class SyncController {
     const bodyStr = JSON.stringify(request);
     const authHeaders = await buildSyncAuthHeaders({
       auth, bodyStr, targetUrl, crypto: this._host._crypto,
+      lamport: this._host._maxObservedLamport,
     });
     let res: Response;
     try {

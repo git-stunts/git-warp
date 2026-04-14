@@ -8,7 +8,6 @@
  */
 
 import HealthCheckService from '../../../../src/domain/services/HealthCheckService.ts';
-import ClockAdapter from '../../../../src/infrastructure/adapters/ClockAdapter.ts';
 import {
   buildCheckpointRef,
   buildCoverageRef,
@@ -48,9 +47,8 @@ function internalError(id, err) {
  */
 export async function checkRepoAccessible(ctx) {
   try {
-    const clock = ClockAdapter.global();
-    const svc = new HealthCheckService({ persistence: /** @type {import('../../../../src/domain/types/WarpPersistence.ts').CorePersistence} */ (/** @type {unknown} */ (ctx.persistence)), clock });
-    const health = await svc.getHealth();
+    const svc = new HealthCheckService({ persistence: /** @type {import('../../../../src/domain/types/WarpPersistence.ts').CorePersistence} */ (/** @type {unknown} */ (ctx.persistence)) });
+    const health = await svc.getHealth(0);
     if (health.components.repository.status === 'unhealthy') {
       return {
         id: 'repo-accessible', status: 'fail', code: CODES.REPO_UNREACHABLE,

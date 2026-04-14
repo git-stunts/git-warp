@@ -107,7 +107,6 @@ interface GCExecuteResult {
   nodesCompacted: number;
   edgesCompacted: number;
   tombstonesRemoved: number;
-  durationMs: number;
 }
 
 /**
@@ -119,7 +118,7 @@ interface GCMetrics {
   tombstoneCount: number;
   tombstoneRatio: number;
   patchesSinceCompaction: number;
-  lastCompactionTime: number;
+  lastCompactionLamport: number;
 }
 
 /**

@@ -16,19 +16,6 @@ import type { ExternalizationPolicy } from '../types/ExternalizationPolicy.ts';
 import type { DeliveryObservation } from '../types/DeliveryObservation.ts';
 import type EffectSinkPort from '../../ports/EffectSinkPort.ts';
 
-/** Prefix for auto-generated emission IDs. */
-const EMISSION_ID_PREFIX = 'eff-';
-
-let _counter = 0;
-
-/**
- * Generates a unique emission ID using the provided clock.
- */
-function generateId(clock: { now: () => number }): string {
-  _counter += 1;
-  return `${EMISSION_ID_PREFIX}${clock.now()}-${_counter}`;
-}
-
 const NULL_COORDINATE: { frontier: Record<string, string> | null; ceiling: number | null } = {
   frontier: null,
   ceiling: null,
@@ -70,21 +57,18 @@ function resolveCoordinate(options?: {
 export class EffectPipeline {
   private _sink: EffectSinkPort;
   private _lens: Readonly<ExternalizationPolicy>;
-  private readonly _clock: { now: () => number };
   private _emissions: EffectEmission[];
   private _observations: DeliveryObservation[];
 
   /**
-   * Constructs a pipeline bound to a delivery sink, an externalization lens, and a clock source.
+   * Constructs a pipeline bound to a delivery sink and an externalization lens.
    */
   constructor(options: {
     sink: EffectSinkPort;
     lens: Readonly<ExternalizationPolicy>;
-    clock: { now: () => number };
   }) {
     this._sink = options.sink;
     this._lens = options.lens;
-    this._clock = options.clock;
     this._emissions = [];
     this._observations = [];
   }
@@ -124,15 +108,17 @@ export class EffectPipeline {
     kind: string,
     payload: unknown,
     options?: {
+      id: string;
+      timestamp: number;
       writer?: string | null;
       coordinate?: { frontier?: Record<string, string> | null; ceiling?: number | null };
     },
   ): Promise<{ emission: EffectEmission; observations: DeliveryObservation | DeliveryObservation[] }> {
     const emission = createEffectEmission({
-      id: generateId(this._clock),
+      id: options?.id ?? '',
       kind,
       payload,
-      timestamp: this._clock.now(),
+      timestamp: options?.timestamp ?? 0,
       writer: resolveWriter(options),
       coordinate: resolveCoordinate(options),
     });

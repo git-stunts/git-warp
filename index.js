@@ -42,12 +42,10 @@ import CommitDagTraversalService from './src/domain/services/dag/CommitDagTraver
 import GraphPersistencePort from './src/ports/GraphPersistencePort.ts';
 import IndexStoragePort from './src/ports/IndexStoragePort.ts';
 import LoggerPort from './src/ports/LoggerPort.ts';
-import ClockPort from './src/ports/ClockPort.ts';
 import SeekCachePort from './src/ports/SeekCachePort.ts';
 import InMemoryGraphAdapter from './src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import NoOpLogger from './src/infrastructure/adapters/NoOpLogger.ts';
 import ConsoleLogger, { LogLevel } from './src/infrastructure/adapters/ConsoleLogger.ts';
-import ClockAdapter from './src/infrastructure/adapters/ClockAdapter.ts';
 import {
   AuditError,
   EncryptionError,
@@ -198,12 +196,8 @@ export {
   ConsoleLogger,
   LogLevel,
 
-  // Clock infrastructure
-  ClockPort,
-
   // Seek cache (RECALL)
   SeekCachePort,
-  ClockAdapter,
 
   // Port contracts
   BlobStoragePort,

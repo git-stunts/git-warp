@@ -130,8 +130,9 @@ export async function buildSyncAuthHeaders(params: {
   bodyStr: string;
   targetUrl: URL;
   crypto: CryptoPort;
+  lamport: number;
 }): Promise<Record<string, string>> {
-  const { auth, bodyStr, targetUrl, crypto } = params;
+  const { auth, bodyStr, targetUrl, crypto, lamport } = params;
   if (auth === undefined || auth.secret === undefined || auth.secret === '') {
     return {};
   }
@@ -144,6 +145,7 @@ export async function buildSyncAuthHeaders(params: {
       body: bodyBuf,
       secret: auth.secret,
       keyId: auth.keyId !== undefined && auth.keyId !== '' ? auth.keyId : 'default',
+      lamport,
     },
     { crypto },
   );

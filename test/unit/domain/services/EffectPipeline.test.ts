@@ -36,14 +36,20 @@ class RecordingSink extends EffectSinkPort {
 }
 
 describe('EffectPipeline', () => {
+  let emitCounter = 0;
   /** @returns {{ pipeline: EffectPipeline, sink: RecordingSink }} */
   function setup(lens = LIVE_LENS) {
     const mux = new MultiplexSink();
     const sink = new RecordingSink('recorder');
     mux.addSink(sink);
-    const clock = { now: vi.fn(() => 42) };
-    const pipeline = new EffectPipeline({ sink: mux, lens, clock });
+    const pipeline = new EffectPipeline({ sink: mux, lens });
+    emitCounter = 0;
     return { pipeline, sink };
+  }
+
+  function emitOpts() {
+    emitCounter += 1;
+    return { id: `emit-${emitCounter}`, timestamp: 42 };
   }
 
   // -----------------------------------------------------------------------
@@ -52,7 +58,7 @@ describe('EffectPipeline', () => {
   describe('emit()', () => {
     it('creates an emission and delivers through the sink', async () => {
       const { pipeline, sink } = setup();
-      const result = await pipeline.emit('notification', { text: 'hi' });
+      const result = await pipeline.emit('notification', { text: 'hi' }, emitOpts());
 
       expect(result.emission.kind).toBe('notification');
       expect(result.emission.payload).toEqual({ text: 'hi' });
@@ -65,14 +71,15 @@ describe('EffectPipeline', () => {
 
     it('assigns unique emission IDs', async () => {
       const { pipeline } = setup();
-      const r1 = await pipeline.emit('a', null);
-      const r2 = await pipeline.emit('b', null);
+      const r1 = await pipeline.emit('a', null, emitOpts());
+      const r2 = await pipeline.emit('b', null, emitOpts());
       expect(r1.emission.id).not.toBe(r2.emission.id);
     });
 
     it('accepts optional writer and coordinate', async () => {
       const { pipeline } = setup();
       const result = await pipeline.emit('test', null, {
+        ...emitOpts(),
         writer: 'alice',
         coordinate: { frontier: { alice: 'sha1' }, ceiling: 10 },
       });
@@ -84,7 +91,7 @@ describe('EffectPipeline', () => {
 
     it('defaults writer to null and coordinate to nulls', async () => {
       const { pipeline } = setup();
-      const result = await pipeline.emit('test', null);
+      const result = await pipeline.emit('test', null, emitOpts());
 
       expect(result.emission.writer).toBeNull();
       expect(result.emission.coordinate.frontier).toBeNull();
@@ -98,23 +105,23 @@ describe('EffectPipeline', () => {
   describe('externalization policy', () => {
     it('passes the current lens to sinks', async () => {
       const { pipeline, sink } = setup(LIVE_LENS);
-      await pipeline.emit('test', null);
+      await pipeline.emit('test', null, emitOpts());
       const d0 = sink.delivered[0] as any;
       expect(d0.lens).toBe(LIVE_LENS);
     });
 
     it('in replay mode, sink receives replay lens', async () => {
       const { pipeline, sink } = setup(REPLAY_LENS);
-      await pipeline.emit('test', null);
+      await pipeline.emit('test', null, emitOpts());
       const d0 = sink.delivered[0] as any;
       expect(d0.lens).toBe(REPLAY_LENS);
     });
 
     it('lens can be changed after construction', async () => {
       const { pipeline, sink } = setup(LIVE_LENS);
-      await pipeline.emit('before', null);
+      await pipeline.emit('before', null, emitOpts());
       pipeline.lens = REPLAY_LENS;
-      await pipeline.emit('after', null);
+      await pipeline.emit('after', null, emitOpts());
 
       const d0 = sink.delivered[0] as any;
       const d1 = sink.delivered[1] as any;
@@ -134,7 +141,7 @@ describe('EffectPipeline', () => {
   describe('replay determinism', () => {
     it('still creates emissions during replay', async () => {
       const { pipeline } = setup(REPLAY_LENS);
-      const result = await pipeline.emit('notification', { msg: 'hi' });
+      const result = await pipeline.emit('notification', { msg: 'hi' }, emitOpts());
 
       expect(result.emission.kind).toBe('notification');
       expect(result.emission.payload).toEqual({ msg: 'hi' });
@@ -142,7 +149,7 @@ describe('EffectPipeline', () => {
 
     it('observations record suppression during replay', async () => {
       const { pipeline } = setup(REPLAY_LENS);
-      const result = await pipeline.emit('notification', null);
+      const result = await pipeline.emit('notification', null, emitOpts());
 
       const obs0 = /** @type {{ outcome: string, reason: string }} */ (Array.isArray(result.observations) ? result.observations[0] : result.observations);
       expect(obs0!.outcome).toBe('suppressed');
@@ -156,9 +163,9 @@ describe('EffectPipeline', () => {
   describe('logs', () => {
     it('accumulates emissions in order', async () => {
       const { pipeline } = setup();
-      await pipeline.emit('a', 1);
-      await pipeline.emit('b', 2);
-      await pipeline.emit('c', 3);
+      await pipeline.emit('a', 1, emitOpts());
+      await pipeline.emit('b', 2, emitOpts());
+      await pipeline.emit('c', 3, emitOpts());
 
       expect(pipeline.emissions).toHaveLength(3);
       expect(pipeline.emissions.map((/** @type {any} */ e) => e.kind)).toEqual([
@@ -170,17 +177,17 @@ describe('EffectPipeline', () => {
 
     it('accumulates observations in order', async () => {
       const { pipeline } = setup();
-      await pipeline.emit('x', null);
-      await pipeline.emit('y', null);
+      await pipeline.emit('x', null, emitOpts());
+      await pipeline.emit('y', null, emitOpts());
 
       expect(pipeline.observations).toHaveLength(2);
     });
 
     it('emissions log is a copy (not aliased)', async () => {
       const { pipeline } = setup();
-      await pipeline.emit('a', null);
+      await pipeline.emit('a', null, emitOpts());
       const log = pipeline.emissions;
-      await pipeline.emit('b', null);
+      await pipeline.emit('b', null, emitOpts());
       expect(log).toHaveLength(1);
       expect(pipeline.emissions).toHaveLength(2);
     });
@@ -192,9 +199,8 @@ describe('EffectPipeline', () => {
   describe('edge cases', () => {
     it('works with no sinks (empty multiplex)', async () => {
       const mux = new MultiplexSink();
-      const clock = { now: () => 0 };
-      const pipeline = new EffectPipeline({ sink: mux, lens: LIVE_LENS, clock });
-      const result = await pipeline.emit('orphan', null);
+      const pipeline = new EffectPipeline({ sink: mux, lens: LIVE_LENS });
+      const result = await pipeline.emit('orphan', null, { id: 'orphan-1', timestamp: 0 });
 
       expect(result.emission.kind).toBe('orphan');
       expect(result.observations).toEqual([]);
@@ -202,9 +208,8 @@ describe('EffectPipeline', () => {
 
     it('works with a direct sink (not a multiplex)', async () => {
       const sink = new RecordingSink('direct');
-      const clock = { now: () => 0 };
-      const pipeline = new EffectPipeline({ sink, lens: LIVE_LENS, clock });
-      const result = await pipeline.emit('test', null);
+      const pipeline = new EffectPipeline({ sink, lens: LIVE_LENS });
+      const result = await pipeline.emit('test', null, { id: 'direct-1', timestamp: 0 });
 
       const obs = /** @type {{ outcome: string }} */ (result.observations);
       expect((obs as any).outcome).toBe('delivered');

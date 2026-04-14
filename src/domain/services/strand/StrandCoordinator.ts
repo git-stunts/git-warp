@@ -28,7 +28,6 @@ import type StrandDescriptorStore from './StrandDescriptorStore.ts';
 import type StrandMaterializer from './StrandMaterializer.ts';
 import type StrandPatchService from './StrandPatchService.ts';
 import type StrandIntentService from './StrandIntentService.ts';
-import type ClockPort from '../../../ports/ClockPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
 import type { StrandDescriptor as ParsedStrandDescriptor } from '../../utils/parseStrandBlob.ts';
@@ -40,7 +39,7 @@ export { STRAND_SCHEMA_VERSION, STRAND_COORDINATE_VERSION, STRAND_OVERLAY_KIND }
 /** Dependencies for StrandCoordinator. */
 export type StrandCoordinatorDeps = {
   graphName: string;
-  clock: ClockPort;
+  maxObservedLamport: () => number;
   crypto: CryptoPort;
   persistence: GraphPersistencePort;
   descriptors: StrandDescriptorStore;
@@ -148,7 +147,7 @@ export default class StrandCoordinator {
     const frontier = await this._getFrontier();
     const frontierRecord = frontierToRecord(frontier);
     const frontierDigest = await computeChecksum(frontierRecord as Record<string, unknown>, this._deps.crypto);
-    const now = this._deps.clock.timestamp();
+    const now = String(this._deps.maxObservedLamport());
     const descriptor = buildStrandDescriptor({
       graphName: this._deps.graphName,
       now,
@@ -171,7 +170,7 @@ export default class StrandCoordinator {
 
     const nextDescriptor: StrandDescriptor = {
       ...target,
-      updatedAt: this._deps.clock.timestamp(),
+      updatedAt: String(this._deps.maxObservedLamport()),
       overlay: {
         ...target.overlay,
         writable: writableOverride !== null ? writableOverride : target.overlay.writable,

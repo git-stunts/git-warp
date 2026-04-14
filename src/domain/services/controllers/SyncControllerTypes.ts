@@ -3,7 +3,6 @@
  */
 import type { WarpState } from '../JoinReducer.ts';
 import type { CorePersistence } from '../../types/WarpPersistence.ts';
-import type ClockPort from '../../../ports/ClockPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
@@ -24,14 +23,13 @@ export interface SyncHost {
   _patchesSinceGC: number;
   _graphName: string;
   _persistence: CorePersistence;
-  _clock: ClockPort;
   _codec: CodecPort;
   _crypto: CryptoPort;
   _logger: LoggerPort | null;
   _patchJournal?: PatchJournalPort | null;
   _patchBlobStorage?: BlobStoragePort | null;
   _patchesSinceCheckpoint: number;
-  _logTiming: (op: string, t0: number, opts?: { metrics?: string; error?: Error }) => void;
+  _maxObservedLamport: number;
   materialize: (options?: Record<string, unknown>) => Promise<unknown>;
   _setMaterializedState: (state: WarpState) => Promise<unknown>;
   discoverWriters: () => Promise<string[]>;

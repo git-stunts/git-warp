@@ -9,7 +9,6 @@ export type GCExecuteResult = {
   nodesCompacted: number;
   edgesCompacted: number;
   tombstonesRemoved: number;
-  durationMs: number;
 };
 
 /** GC metrics for the current state. */
@@ -19,7 +18,7 @@ export type GCMetrics = {
   tombstoneCount: number;
   tombstoneRatio: number;
   patchesSinceCompaction: number;
-  lastCompactionTime: number;
+  lastCompactionLamport: number;
 };
 
 /** Result of maybeRunGC(). */

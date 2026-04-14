@@ -34,74 +34,66 @@ export default class CheckpointController {
 
   async createCheckpoint(): Promise<string> {
     const h = this._host;
-    const t0 = h._clock.now();
-    try {
-      const writers = await h.discoverWriters();
+    const writers = await h.discoverWriters();
 
-      const frontier = createFrontier();
-      const parents: string[] = [];
+    const frontier = createFrontier();
+    const parents: string[] = [];
 
-      for (const writerId of writers) {
-        const writerRef = buildWriterRef(h._graphName, writerId);
-        const sha = await h._persistence.readRef(writerRef);
-        if (typeof sha === 'string' && sha.length > 0) {
-          updateFrontier(frontier, writerId, sha);
-          parents.push(sha);
-        }
+    for (const writerId of writers) {
+      const writerRef = buildWriterRef(h._graphName, writerId);
+      const sha = await h._persistence.readRef(writerRef);
+      if (typeof sha === 'string' && sha.length > 0) {
+        updateFrontier(frontier, writerId, sha);
+        parents.push(sha);
       }
-
-      const prevCheckpointing = h._checkpointing;
-      h._checkpointing = true;
-      let state: WarpState;
-      try {
-        state = (h._cachedState && !h._stateDirty)
-          ? h._cachedState
-          : await h.materialize();
-      } finally {
-        h._checkpointing = prevCheckpointing;
-      }
-
-      let indexTree = h._cachedIndexTree;
-      if ((indexTree === null || indexTree === undefined) && h._viewService !== null && h._viewService !== undefined) {
-        try {
-          const { tree } = h._viewService.build(state);
-          indexTree = tree;
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          h._logger?.warn('[warp] checkpoint index build failed; saving checkpoint without index', {
-            error: message,
-          });
-          indexTree = null;
-        }
-      }
-
-      const persistence = h._persistence;
-      const checkpointStore = h._checkpointStore ?? null;
-      const stateHashService = h._stateHashService ?? null;
-      const checkpointSha = await createCheckpointCommit({
-        persistence,
-        graphName: h._graphName,
-        state,
-        frontier,
-        parents,
-        ...(h._provenanceIndex ? { provenanceIndex: h._provenanceIndex } : {}),
-        crypto: h._crypto,
-        codec: h._codec,
-        ...(indexTree ? { indexTree } : {}),
-        checkpointStore,
-        ...(stateHashService ? { stateHashService } : {}),
-      });
-
-      const checkpointRef = buildCheckpointRef(h._graphName);
-      await h._persistence.updateRef(checkpointRef, checkpointSha);
-
-      h._logTiming('createCheckpoint', t0);
-
-      return checkpointSha;
-    } catch (err) {
-      h._logTiming('createCheckpoint', t0, { error: err as Error });
-      throw err;
     }
+
+    const prevCheckpointing = h._checkpointing;
+    h._checkpointing = true;
+    let state: WarpState;
+    try {
+      state = (h._cachedState && !h._stateDirty)
+        ? h._cachedState
+        : await h.materialize();
+    } finally {
+      h._checkpointing = prevCheckpointing;
+    }
+
+    let indexTree = h._cachedIndexTree;
+    if ((indexTree === null || indexTree === undefined) && h._viewService !== null && h._viewService !== undefined) {
+      try {
+        const { tree } = h._viewService.build(state);
+        indexTree = tree;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        h._logger?.warn('[warp] checkpoint index build failed; saving checkpoint without index', {
+          error: message,
+        });
+        indexTree = null;
+      }
+    }
+
+    const persistence = h._persistence;
+    const checkpointStore = h._checkpointStore ?? null;
+    const stateHashService = h._stateHashService ?? null;
+    const checkpointSha = await createCheckpointCommit({
+      persistence,
+      graphName: h._graphName,
+      state,
+      frontier,
+      parents,
+      ...(h._provenanceIndex ? { provenanceIndex: h._provenanceIndex } : {}),
+      crypto: h._crypto,
+      codec: h._codec,
+      ...(indexTree ? { indexTree } : {}),
+      checkpointStore,
+      ...(stateHashService ? { stateHashService } : {}),
+    });
+
+    const checkpointRef = buildCheckpointRef(h._graphName);
+    await h._persistence.updateRef(checkpointRef, checkpointSha);
+
+    return checkpointSha;
   }
 
   async syncCoverage(): Promise<void> {
@@ -226,7 +218,7 @@ export default class CheckpointController {
         tombstoneRatio: metrics.tombstoneRatio,
         totalEntries: metrics.totalEntries,
         patchesSinceCompaction: h._patchesSinceGC,
-        timeSinceCompaction: h._lastGCTime > 0 ? h._clock.now() - h._lastGCTime : 0,
+        ticksSinceCompaction: h._lastGCLamport > 0 ? h._maxObservedLamport - h._lastGCLamport : 0,
       });
 
       if (!shouldRun) { return; }
@@ -257,7 +249,7 @@ export default class CheckpointController {
         }
 
         h._cachedState = clonedState;
-        h._lastGCTime = h._clock.now();
+        h._lastGCLamport = h._maxObservedLamport;
         h._patchesSinceGC = 0;
         if (h._logger) {
           h._logger.info('Auto-GC completed', { ...result, reasons });
@@ -285,7 +277,7 @@ export default class CheckpointController {
       tombstoneRatio: rawMetrics.tombstoneRatio,
       totalEntries: rawMetrics.totalEntries,
       patchesSinceCompaction: h._patchesSinceGC,
-      timeSinceCompaction: h._lastGCTime > 0 ? h._clock.now() - h._lastGCTime : 0,
+      ticksSinceCompaction: h._lastGCLamport > 0 ? h._maxObservedLamport - h._lastGCLamport : 0,
     });
 
     if (!shouldRun) {
@@ -298,42 +290,34 @@ export default class CheckpointController {
 
   runGC(): GCExecuteResult {
     const h = this._host;
-    const t0 = h._clock.now();
-    try {
-      if (!h._cachedState) {
-        throw new QueryError(E_NO_STATE_MSG, { code: 'E_NO_STATE' });
-      }
-
-      const preGcFingerprint = h._lastFrontier
-        ? frontierFingerprint(h._lastFrontier)
-        : null;
-
-      const clonedState = cloneState(h._cachedState);
-      const appliedVV = computeAppliedVV(clonedState);
-      const result = executeGC(clonedState, appliedVV);
-
-      const postGcFingerprint = h._lastFrontier
-        ? frontierFingerprint(h._lastFrontier)
-        : null;
-
-      if (preGcFingerprint !== postGcFingerprint) {
-        throw new QueryError(
-          'GC aborted: frontier changed during compaction (concurrent write detected)',
-          { code: 'E_GC_STALE' },
-        );
-      }
-
-      h._cachedState = clonedState;
-      h._lastGCTime = h._clock.now();
-      h._patchesSinceGC = 0;
-
-      h._logTiming('runGC', t0, { metrics: `${result.tombstonesRemoved} tombstones removed` });
-
-      return result;
-    } catch (err) {
-      h._logTiming('runGC', t0, { error: err as Error });
-      throw err;
+    if (!h._cachedState) {
+      throw new QueryError(E_NO_STATE_MSG, { code: 'E_NO_STATE' });
     }
+
+    const preGcFingerprint = h._lastFrontier
+      ? frontierFingerprint(h._lastFrontier)
+      : null;
+
+    const clonedState = cloneState(h._cachedState);
+    const appliedVV = computeAppliedVV(clonedState);
+    const result = executeGC(clonedState, appliedVV);
+
+    const postGcFingerprint = h._lastFrontier
+      ? frontierFingerprint(h._lastFrontier)
+      : null;
+
+    if (preGcFingerprint !== postGcFingerprint) {
+      throw new QueryError(
+        'GC aborted: frontier changed during compaction (concurrent write detected)',
+        { code: 'E_GC_STALE' },
+      );
+    }
+
+    h._cachedState = clonedState;
+    h._lastGCLamport = h._maxObservedLamport;
+    h._patchesSinceGC = 0;
+
+    return result;
   }
 
   getGCMetrics(): {
@@ -342,7 +326,7 @@ export default class CheckpointController {
     tombstoneCount: number;
     tombstoneRatio: number;
     patchesSinceCompaction: number;
-    lastCompactionTime: number;
+    lastCompactionLamport: number;
   } | null {
     const h = this._host;
     if (!h._cachedState) { return null; }
@@ -354,7 +338,7 @@ export default class CheckpointController {
       tombstoneCount: rawMetrics.totalTombstones,
       tombstoneRatio: rawMetrics.tombstoneRatio,
       patchesSinceCompaction: h._patchesSinceGC,
-      lastCompactionTime: h._lastGCTime,
+      lastCompactionLamport: h._lastGCLamport,
     };
   }
 }

@@ -27,11 +27,6 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
-  "_emitTimingMessage": {
-    "configurable": true,
-    "enumerable": false,
-    "type": "method",
-  },
   "_ensureFreshState": {
     "configurable": true,
     "enumerable": false,
@@ -83,11 +78,6 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "type": "method",
   },
   "_loadWriterPatches": {
-    "configurable": true,
-    "enumerable": false,
-    "type": "method",
-  },
-  "_logTiming": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -595,7 +585,7 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
 }
 `;
 
-exports[`WarpRuntime API surface > prototype method count matches snapshot 1`] = `118`;
+exports[`WarpRuntime API surface > prototype method count matches snapshot 1`] = `116`;
 
 exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
 [
@@ -604,7 +594,6 @@ exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
   "_buildView",
   "_buildViewFromResult",
   "_computeBackwardCone",
-  "_emitTimingMessage",
   "_ensureFreshState",
   "_extractTrustedWriters",
   "_frontierEquals",
@@ -616,7 +605,6 @@ exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
   "_loadPatchesBySha",
   "_loadPatchesSince",
   "_loadWriterPatches",
-  "_logTiming",
   "_materializeGraph",
   "_maxLamportFromState",
   "_maybeRunGC",

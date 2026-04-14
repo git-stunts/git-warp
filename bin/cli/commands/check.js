@@ -1,5 +1,4 @@
 import HealthCheckService from '../../../src/domain/services/HealthCheckService.ts';
-import ClockAdapter from '../../../src/infrastructure/adapters/ClockAdapter.ts';
 import { buildCheckpointRef, buildCoverageRef } from '../../../src/domain/utils/RefLayout.ts';
 import { EXIT_CODES } from '../infrastructure.js';
 import { openGraph, applyCursorCeiling, emitCursorWarning, readCheckpointDate, createHookInstaller } from '../shared.js';
@@ -15,10 +14,9 @@ import { openGraph, applyCursorCeiling, emitCursorWarning, readCheckpointDate, c
  * @returns {Promise<{status: string, components: {repository: {status: string, latencyMs: number}, index: {status: string, loaded: boolean, shardCount?: number}}, cachedAt?: string}>}
  */
 async function getHealth(persistence) {
-  const clock = ClockAdapter.global();
   const corePersistence = /** @type {import('../../../src/domain/types/WarpPersistence.ts').CorePersistence} */ (/** @type {unknown} */ (persistence));
-  const healthService = new HealthCheckService({ persistence: corePersistence, clock });
-  return await healthService.getHealth();
+  const healthService = new HealthCheckService({ persistence: corePersistence });
+  return await healthService.getHealth(0);
 }
 
 /**

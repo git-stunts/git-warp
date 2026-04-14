@@ -42,7 +42,7 @@ describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
       gcPolicy: {
         tombstoneRatioThreshold: 0.01, // Very low threshold to trigger
         minPatchesSinceCompaction: 0,
-        maxTimeSinceCompaction: 0,
+        maxTicksSinceCompaction: 0,
         entryCountThreshold: 0,
       },
     });
@@ -80,7 +80,7 @@ describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
         enabled: true,
         tombstoneRatioThreshold: 0.01,
         minPatchesSinceCompaction: 0,
-        maxTimeSinceCompaction: 0,
+        maxTicksSinceCompaction: 0,
         entryCountThreshold: 0,
       },
     });
@@ -107,8 +107,8 @@ describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
       logger,
     });
 
-    // Set recent GC time so time-since-compaction doesn't trigger
-    (graph)._lastGCTime = Date.now();
+    // Set recent GC lamport so ticks-since-compaction doesn't trigger
+    (graph)._lastGCLamport = (graph)._maxObservedLamport;
     (graph)._patchesSinceGC = 0;
 
     await graph.materialize();
@@ -133,7 +133,7 @@ describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
         enabled: true,
         tombstoneRatioThreshold: 0.01,
         minPatchesSinceCompaction: 0,
-        maxTimeSinceCompaction: 0,
+        maxTicksSinceCompaction: 0,
         entryCountThreshold: 0,
       },
     });
@@ -147,7 +147,7 @@ describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
     expect(() => (graph)._maybeRunGC(badState)).not.toThrow();
   });
 
-  it('_lastGCTime and _patchesSinceGC reset after GC', async () => {
+  it('_lastGCLamport and _patchesSinceGC reset after GC', async () => {
     const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
@@ -157,19 +157,19 @@ describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
         enabled: true,
         tombstoneRatioThreshold: 0.01,
         minPatchesSinceCompaction: 0,
-        maxTimeSinceCompaction: 0,
+        maxTicksSinceCompaction: 0,
         entryCountThreshold: 0,
       },
     });
 
     (graph)._patchesSinceGC = 999;
-    (graph)._lastGCTime = 0;
+    (graph)._lastGCLamport = 0;
 
     await graph.materialize();
     (graph)._maybeRunGC(createHighTombstoneState());
 
     expect((graph)._patchesSinceGC).toBe(0);
-    expect((graph)._lastGCTime).toBeGreaterThan(0);
+    expect((graph)._lastGCLamport).toBeGreaterThanOrEqual(0);
   });
 
   it('no logger provided → no crash', async () => {
@@ -180,7 +180,7 @@ describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
       gcPolicy: {
         tombstoneRatioThreshold: 0.01,
         minPatchesSinceCompaction: 0,
-        maxTimeSinceCompaction: 0,
+        maxTicksSinceCompaction: 0,
         entryCountThreshold: 0,
       },
     });

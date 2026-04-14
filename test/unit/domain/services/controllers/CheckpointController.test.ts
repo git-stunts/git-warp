@@ -22,7 +22,7 @@ function policyWithTombstoneThreshold(ratio, { enabled }) {
     tombstoneRatioThreshold: ratio,
     entryCountThreshold: Number.MAX_SAFE_INTEGER,
     minPatchesSinceCompaction: Number.MAX_SAFE_INTEGER,
-    maxTimeSinceCompaction: Number.MAX_SAFE_INTEGER,
+    maxTicksSinceCompaction: Number.MAX_SAFE_INTEGER,
     compactOnCheckpoint: true,
   });
 }
@@ -117,7 +117,7 @@ function stubState() {
 
 /** Minimal GC result stub. */
 function stubGCResult() {
-  return new GCExecuteResult({ nodesCompacted: 1, edgesCompacted: 2, tombstonesRemoved: 3, durationMs: 4 });
+  return new GCExecuteResult({ nodesCompacted: 1, edgesCompacted: 2, tombstonesRemoved: 3 });
 }
 
 /**
@@ -127,9 +127,7 @@ function stubGCResult() {
  * @returns {Record<string, unknown>}
  */
 function createMockHost(overrides = {}) {
-  let clockTick = 0;
   return {
-    _clock: { now: () => clockTick++ },
     _graphName: 'test-graph',
     _persistence: {
       readRef: vi.fn().mockResolvedValue(null),
@@ -149,7 +147,8 @@ function createMockHost(overrides = {}) {
     _logger: null,
     _gcPolicy: permissivePolicy(false),
     _patchesSinceGC: 0,
-    _lastGCTime: 0,
+    _lastGCLamport: 0,
+    _maxObservedLamport: 0,
     _lastFrontier: null,
     _cachedViewHash: null,
     _cachedIndexTree: null,
@@ -157,7 +156,6 @@ function createMockHost(overrides = {}) {
     materialize: vi.fn().mockResolvedValue(stubState()),
     _loadWriterPatches: vi.fn().mockResolvedValue([]),
     _validatePatchAgainstCheckpoint: vi.fn().mockResolvedValue(undefined),
-    _logTiming: vi.fn(),
     _autoMaterialize: false,
     ...overrides,
   };
@@ -513,7 +511,7 @@ describe('CheckpointController', () => {
     it('returns metrics from cached state', () => {
       host['_cachedState'] = stubState();
       host['_patchesSinceGC'] = 7;
-      host['_lastGCTime'] = 42;
+      host['_lastGCLamport'] = 42;
 
       const result = ctrl.getGCMetrics();
 
@@ -523,7 +521,7 @@ describe('CheckpointController', () => {
         tombstoneCount: 2,
         tombstoneRatio: 0.1,
         patchesSinceCompaction: 7,
-        lastCompactionTime: 42,
+        lastCompactionLamport: 42,
       });
     });
 

@@ -36,7 +36,6 @@ vi.mock('../../../../../src/domain/utils/WriterId.ts', () => ({
  */
 function createMockHost(overrides = {}) {
   return {
-    _clock: { now: () => 0 },
     _graphName: 'test-graph',
     _persistence: {
       readRef: vi.fn().mockResolvedValue('tip-sha'),
@@ -48,7 +47,6 @@ function createMockHost(overrides = {}) {
       commitNode: vi.fn(),
     },
     discoverWriters: vi.fn().mockResolvedValue(['alice']),
-    _logTiming: vi.fn(),
     _gcPolicy: null,
     _autoMaterialize: false,
     _onDeleteWithData: 'throw',
@@ -122,9 +120,6 @@ describe('ForkController', () => {
 
       // Returns the opened runtime
       expect(result).toEqual({ _graphName: 'fork-graph' });
-
-      // Timing logged
-      expect(host._logTiming).toHaveBeenCalledWith('fork', 0, expect.objectContaining({ metrics: expect.any(String) }));
     });
 
     it('generates fork name and writer ID when not provided', async () => {
@@ -460,7 +455,7 @@ describe('ForkController', () => {
         codec: host._codec,
       });
       expect(result).toEqual(wormholeResult);
-      expect(host._logTiming).toHaveBeenCalledWith('createWormhole', 0, expect.objectContaining({ metrics: expect.any(String) }));
+      expect(result).toBeDefined();
     });
 
     it('re-throws WormholeService errors and logs timing', async () => {
@@ -468,7 +463,6 @@ describe('ForkController', () => {
       (mockCreateWormhole as any).mockRejectedValue(new Error('wormhole boom'));
 
       await expect(ctrl.createWormhole('sha-a', 'sha-b')).rejects.toThrow('wormhole boom');
-      expect(host._logTiming).toHaveBeenCalledWith('createWormhole', 0, expect.objectContaining({ error: expect.any(Error) }));
     });
   });
 });

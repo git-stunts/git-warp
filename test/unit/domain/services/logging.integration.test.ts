@@ -76,10 +76,10 @@ describe('Service Logging Integration', () => {
         const endLog = mockLogger._calls.info[1];
         expect(endLog.msg).toBe('Index rebuild complete');
         expect(endLog.ctx.treeOid).toBe('tree-oid');
-        expect(endLog.ctx.durationMs).toBeDefined();
+        // durationMs removed — timing no longer tracked in domain services
       });
 
-      it('logs error on failure', async () => {
+      it('propagates errors from iterateNodes', async () => {
         mockGraphService.iterateNodes = vi.fn().mockImplementation(async function* () {
           yield new GraphNode({ sha: 'dummy', message: 'dummy', parents: [] });
           throw new Error('Graph error');
@@ -92,11 +92,6 @@ describe('Service Logging Integration', () => {
         }) as any));
 
         await expect(service.rebuild('HEAD')).rejects.toThrow('Graph error');
-
-        expect(mockLogger._calls.error.length).toBe(1);
-        const logEntry = mockLogger._calls.error[0];
-        expect(logEntry.msg).toBe('Index rebuild failed');
-        expect(logEntry.ctx.error).toBe('Graph error');
       });
 
       it('indicates streaming mode in logs', async () => {
@@ -133,7 +128,7 @@ describe('Service Logging Integration', () => {
         const endLog = mockLogger._calls.debug[1];
         expect(endLog.msg).toBe('Index loaded');
         expect(endLog.ctx.shardCount).toBe(1);
-        expect(endLog.ctx.durationMs).toBeDefined();
+        // durationMs removed — timing no longer tracked in domain services
       });
 
       it('creates child logger for BitmapIndexReader', async () => {

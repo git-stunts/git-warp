@@ -27,7 +27,6 @@ import type ComparisonCapability from './capabilities/ComparisonCapability.ts';
 import type SubscriptionCapability from './capabilities/SubscriptionCapability.ts';
 import type { CorePersistence } from './types/WarpPersistence.ts';
 import type LoggerPort from '../ports/LoggerPort.ts';
-import type ClockPort from '../ports/ClockPort.ts';
 import type CryptoPort from '../ports/CryptoPort.ts';
 import type CodecPort from '../ports/CodecPort.ts';
 import type SeekCachePort from '../ports/SeekCachePort.ts';
@@ -154,7 +153,6 @@ export interface WarpGraphDeps {
   // Witness infrastructure
   readonly crypto?: CryptoPort;
   readonly codec?: CodecPort;
-  readonly clock?: ClockPort;
   readonly audit?: boolean;
 
   // Revelation regime

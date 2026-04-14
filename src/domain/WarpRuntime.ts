@@ -15,7 +15,6 @@ import { AuditReceiptService } from './services/audit/AuditReceiptService.ts';
 import { TemporalQuery } from './services/TemporalQuery.ts';
 import defaultCodec from './utils/defaultCodec.ts';
 import defaultCrypto from './utils/defaultCrypto.ts';
-import defaultClock from './utils/defaultClock.ts';
 import LogicalTraversal from './services/query/LogicalTraversal.ts';
 import LRUCache from './utils/LRUCache.ts';
 import SyncController from './services/controllers/SyncController.ts';
@@ -41,7 +40,6 @@ import WarpError from './errors/WarpError.ts';
 
 import type { CorePersistence } from './types/WarpPersistence.ts';
 import type LoggerPort from '../ports/LoggerPort.ts';
-import type ClockPort from '../ports/ClockPort.ts';
 import type CryptoPort from '../ports/CryptoPort.ts';
 import type CodecPort from '../ports/CodecPort.ts';
 import type SeekCachePort from '../ports/SeekCachePort.ts';
@@ -102,7 +100,6 @@ type WarpRuntimeOptions = {
   autoMaterialize?: boolean;
   onDeleteWithData?: 'reject' | 'cascade' | 'warn';
   logger?: LoggerPort;
-  clock?: ClockPort;
   crypto?: CryptoPort;
   codec?: CodecPort;
   seekCache?: SeekCachePort;
@@ -129,7 +126,6 @@ type WarpRuntimeOpenOptions = {
   autoMaterialize?: boolean;
   onDeleteWithData?: 'reject' | 'cascade' | 'warn';
   logger?: LoggerPort;
-  clock?: ClockPort;
   crypto?: CryptoPort;
   codec?: CodecPort;
   seekCache?: SeekCachePort;
@@ -156,7 +152,7 @@ export default class WarpRuntime {
   _cachedState: WarpState | null;
   _stateDirty: boolean;
   _gcPolicy: GCPolicy;
-  _lastGCTime: number;
+  _lastGCLamport: number;
   _patchesSinceGC: number;
   _patchesSinceCheckpoint: number;
   _maxObservedLamport: number;
@@ -168,7 +164,6 @@ export default class WarpRuntime {
   _adjacencyCache: LRUCache<string, AdjacencyMapShape> | null;
   _lastFrontier: Map<string, string> | null;
   _logger: LoggerPort | null;
-  _clock: ClockPort;
   _crypto: CryptoPort;
   _codec: CodecPort;
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
@@ -228,7 +223,6 @@ export default class WarpRuntime {
       autoMaterialize = true,
       onDeleteWithData = 'warn',
       logger,
-      clock,
       crypto,
       codec,
       seekCache,
@@ -252,7 +246,7 @@ export default class WarpRuntime {
     this._cachedState = null;
     this._stateDirty = false;
     this._gcPolicy = new GCPolicy({ ...GCPolicy.DEFAULT, ...gcPolicy });
-    this._lastGCTime = 0;
+    this._lastGCLamport = 0;
     this._patchesSinceGC = 0;
     this._patchesSinceCheckpoint = 0;
     this._maxObservedLamport = 0;
@@ -264,7 +258,6 @@ export default class WarpRuntime {
     this._adjacencyCache = adjacencyCacheSize > 0 ? new LRUCache(adjacencyCacheSize) : null;
     this._lastFrontier = null;
     this._logger = logger || null;
-    this._clock = clock || defaultClock;
     this._crypto = crypto || defaultCrypto;
     this._codec = codec || defaultCodec;
     this._onDeleteWithData = onDeleteWithData;
@@ -305,7 +298,6 @@ export default class WarpRuntime {
     this._patchController = new PatchController(this);
     this._checkpointController = new CheckpointController(this);
     this._materializeController = new MaterializeController({
-      clock: this._clock,
       logger: this._logger ?? { info() {}, warn() {}, error() {}, debug() {} } as unknown as LoggerPort,
       codec: this._codec,
       crypto: this._crypto,
@@ -342,29 +334,6 @@ export default class WarpRuntime {
    */
   setSeekCache(cache: SeekCachePort): void {
     this._seekCache = cache;
-  }
-
-  /**
-   * Logs a timing message for a completed or failed operation.
-   */
-  _logTiming(op: string, t0: number, { metrics, error }: { metrics?: string; error?: Error } = {}): void {
-    if (!this._logger) {
-      return;
-    }
-    const elapsed = Math.round(this._clock.now() - t0);
-    this._emitTimingMessage(op, { elapsed, ...(metrics !== undefined ? { metrics } : {}), ...(error !== undefined ? { error } : {}) });
-  }
-
-  /**
-   * Emits a formatted timing log message for a completed or failed operation.
-   */
-  _emitTimingMessage(op: string, { elapsed, metrics, error }: { elapsed: number; metrics?: string; error?: Error }): void {
-    if (error) {
-      (this._logger as LoggerPort).info(`[warp] ${op} failed in ${elapsed}ms`, { error: error.message });
-    } else {
-      const suffix = (typeof metrics === 'string' && metrics.length > 0) ? ` (${metrics})` : '';
-      (this._logger as LoggerPort).info(`[warp] ${op} completed in ${elapsed}ms${suffix}`);
-    }
   }
 
   /**
@@ -440,7 +409,6 @@ export default class WarpRuntime {
     autoMaterialize,
     onDeleteWithData,
     logger,
-    clock,
     crypto,
     codec,
     seekCache,
@@ -500,10 +468,9 @@ export default class WarpRuntime {
     // Auto-construct blob storage when none provided (OG-014: CAS is mandatory)
     const resolvedBlobStorage = blobStorage || await autoConstructBlobStorage(persistence);
 
-    // Resolve codec/crypto/clock defaults for adapter construction
+    // Resolve codec/crypto defaults for adapter construction
     const resolvedCodec = codec || defaultCodec;
     const resolvedCrypto = crypto || defaultCrypto;
-    const resolvedClock = clock || defaultClock;
 
     // ── Build port adapters before constructing the runtime ──────────────
     // Runtime-validated capability extraction: no casts, no fake contracts.
@@ -581,7 +548,7 @@ export default class WarpRuntime {
     if (effectPipeline !== null && effectPipeline !== undefined) {
       resolvedEffectPipeline = effectPipeline;
     } else if (effectSinks !== null && effectSinks !== undefined && effectSinks.length > 0) {
-      resolvedEffectPipeline = await buildEffectPipeline(effectSinks, externalizationPolicy, resolvedClock);
+      resolvedEffectPipeline = await buildEffectPipeline(effectSinks, externalizationPolicy);
     }
 
     // ── Construct the runtime with all dependencies resolved ────────────
@@ -595,7 +562,6 @@ export default class WarpRuntime {
       ...(autoMaterialize !== undefined ? { autoMaterialize } : {}),
       ...(onDeleteWithData !== undefined ? { onDeleteWithData } : {}),
       ...(logger !== undefined ? { logger } : {}),
-      ...(clock !== undefined ? { clock } : {}),
       ...(crypto !== undefined ? { crypto } : {}),
       ...(codec !== undefined ? { codec } : {}),
       ...(seekCache !== undefined ? { seekCache } : {}),

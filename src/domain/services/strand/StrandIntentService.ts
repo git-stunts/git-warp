@@ -14,7 +14,6 @@ import type {
   StrandTickRecord,
   StrandEvolution,
 } from './strandTypes.ts';
-import type ClockPort from '../../../ports/ClockPort.ts';
 
 type StrandCommittedTickSummary = {
   overlayHeadPatchSha: string | null;
@@ -28,7 +27,6 @@ type StrandAdmittedIntent = StrandQueuedIntent & {
 };
 
 type WarpRuntime = {
-  _clock: ClockPort;
   _patchInProgress: boolean;
   _maxObservedLamport: number;
   _stateDirty: boolean;
@@ -262,7 +260,7 @@ export default class StrandIntentService {
     queuedIntent: StrandQueuedIntent,
   ): Promise<void> {
     const intentQueue = this._normalizeIntentQueue(descriptor.intentQueue);
-    const now = this._graph._clock.timestamp();
+    const now = String(this._graph._maxObservedLamport);
     await this._writeDescriptor({
       ...descriptor,
       updatedAt: now,
@@ -298,7 +296,7 @@ export default class StrandIntentService {
       intentQueue,
       queuedIntents: [...intentQueue.intents].sort((left, right) => compareStrings(left.intentId, right.intentId)),
       tickIndex: evolution.tickCount + 1,
-      now: this._graph._clock.timestamp(),
+      now: String(this._graph._maxObservedLamport),
     };
   }
 

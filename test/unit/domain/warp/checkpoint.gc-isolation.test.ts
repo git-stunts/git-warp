@@ -36,9 +36,9 @@ function createMockHost(overrides = {}) {
     _lastFrontier: frontier,
     _stateDirty: false,
     _patchesSinceGC: 2000,
-    _lastGCTime: 0,
+    _lastGCLamport: 0,
+    _maxObservedLamport: 0,
     _gcPolicy: new GCPolicy({ ...GCPolicy.DEFAULT, enabled: true }),
-    _clock: { now: () => performance.now() },
     _logger: {
       debug: vi.fn(),
       info: vi.fn(),
@@ -46,7 +46,6 @@ function createMockHost(overrides = {}) {
       error: vi.fn(),
       child: vi.fn(),
     },
-    _logTiming: vi.fn(),
     ...overrides,
   };
 }
@@ -100,14 +99,15 @@ describe('B63 — GC snapshot isolation', () => {
     it('does nothing when thresholds are not exceeded', () => {
       const host = createMockHost({
         _patchesSinceGC: 0,
-        _lastGCTime: performance.now(),
+        _lastGCLamport: 0,
+        _maxObservedLamport: 0,
         _gcPolicy: new GCPolicy({
           ...GCPolicy.DEFAULT,
           enabled: true,
           tombstoneRatioThreshold: 0.99,
           entryCountThreshold: 999999,
           minPatchesSinceCompaction: 99999,
-          maxTimeSinceCompaction: 999999999,
+          maxTicksSinceCompaction: 999999999,
         }),
       });
       const originalState = host._cachedState;
@@ -138,7 +138,6 @@ describe('B63 — GC snapshot isolation', () => {
       expect(host._cachedState).not.toBe(originalState);
       expect(host._patchesSinceGC).toBe(0);
       expect(result).toHaveProperty('tombstonesRemoved');
-      expect(result).toHaveProperty('durationMs');
     });
 
     it('throws E_GC_STALE when frontier changes during GC', () => {

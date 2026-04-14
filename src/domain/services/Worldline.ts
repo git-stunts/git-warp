@@ -1,6 +1,5 @@
 import BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
-import ClockPort from '../../ports/ClockPort.ts';
 import CodecPort from '../../ports/CodecPort.ts';
 import CryptoPort from '../../ports/CryptoPort.ts';
 import LoggerPort from '../../ports/LoggerPort.ts';
@@ -53,7 +52,6 @@ type DetachedOpenOptions = {
   gcPolicy: WarpRuntime['gcPolicy'];
   autoMaterialize: false;
   onDeleteWithData: WarpRuntime['onDeleteWithData'];
-  clock: ClockPort;
   crypto: CryptoPort;
   codec: CodecPort;
   audit: false;
@@ -69,7 +67,6 @@ type DetachedOpenOptions = {
 type WorldlineGraph = WarpRuntime & {
   _checkpointPolicy?: CheckpointPolicy;
   _logger?: LoggerPort | null;
-  _clock?: ClockPort;
   _crypto?: CryptoPort;
   _codec?: CodecPort;
   _seekCache?: SeekCachePort | null;
@@ -138,7 +135,6 @@ function buildDetachedOpenOptions(graph: WorldlineGraph): DetachedOpenOptions {
     gcPolicy: graph.gcPolicy,
     autoMaterialize: false,
     onDeleteWithData: graph.onDeleteWithData,
-    clock: requireRuntimePort('clock', graph._clock, ClockPort),
     crypto: requireRuntimePort('crypto', graph._crypto, CryptoPort),
     codec: requireRuntimePort('codec', graph._codec, CodecPort),
     audit: false,

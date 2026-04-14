@@ -5,20 +5,18 @@
  *   import { createMockHost, createMockPersistence, patch, nodeAdd } from '../../test/helpers/index.ts';
  */
 
-// Mock ports (persistence, codec, crypto, clock, logger)
+// Mock ports (persistence, codec, crypto, logger)
 export {
   createMockPersistence,
   createMockCodec,
   createStubCodec,
   createMockCrypto,
-  createMockClock,
   createMockLogger,
   MOCK_OID,
   MOCK_HASH,
   type MockPersistence,
   type MockCodec,
   type MockCrypto,
-  type MockClock,
   type MockLogger,
 } from './mockPorts.ts';
 

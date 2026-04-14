@@ -13,7 +13,7 @@ describe('GCPolicy', () => {
       expect(GCPolicy.DEFAULT.tombstoneRatioThreshold).toBe(0.3);
       expect(GCPolicy.DEFAULT.entryCountThreshold).toBe(50000);
       expect(GCPolicy.DEFAULT.minPatchesSinceCompaction).toBe(1000);
-      expect(GCPolicy.DEFAULT.maxTimeSinceCompaction).toBe(86400000);
+      expect(GCPolicy.DEFAULT.maxTicksSinceCompaction).toBe(10000);
       expect(GCPolicy.DEFAULT.compactOnCheckpoint).toBe(true);
       expect(GCPolicy.DEFAULT.enabled).toBe(false);
     });
@@ -25,7 +25,7 @@ describe('GCPolicy', () => {
       tombstoneRatioThreshold: 0.3,
       entryCountThreshold: 1000,
       minPatchesSinceCompaction: 100,
-      maxTimeSinceCompaction: 3600000, // 1 hour
+      maxTicksSinceCompaction: 3600000, // 1 hour
       compactOnCheckpoint: true,
     });
 
@@ -34,7 +34,7 @@ describe('GCPolicy', () => {
         tombstoneRatio: 0.4, // 40% > 30%
         totalEntries: 500,
         patchesSinceCompaction: 50,
-        timeSinceCompaction: 1000,
+        ticksSinceCompaction: 1000,
       });
 
       expect(result.shouldRun).toBe(true);
@@ -48,7 +48,7 @@ describe('GCPolicy', () => {
         tombstoneRatio: 0.1,
         totalEntries: 1500, // > 1000
         patchesSinceCompaction: 50,
-        timeSinceCompaction: 1000,
+        ticksSinceCompaction: 1000,
       });
 
       expect(result.shouldRun).toBe(true);
@@ -62,7 +62,7 @@ describe('GCPolicy', () => {
         tombstoneRatio: 0.1,
         totalEntries: 500,
         patchesSinceCompaction: 150, // > 100
-        timeSinceCompaction: 1000,
+        ticksSinceCompaction: 1000,
       });
 
       expect(result.shouldRun).toBe(true);
@@ -76,12 +76,12 @@ describe('GCPolicy', () => {
         tombstoneRatio: 0.1,
         totalEntries: 500,
         patchesSinceCompaction: 50,
-        timeSinceCompaction: 4000000, // > 3600000
+        ticksSinceCompaction: 4000000, // > 3600000
       });
 
       expect(result.shouldRun).toBe(true);
       expect(result.reasons).toHaveLength(1);
-      expect(result.reasons[0]).toContain('Time since compaction');
+      expect(result.reasons[0]).toContain('Ticks since compaction');
     });
 
     it('returns false when under all thresholds', () => {
@@ -89,7 +89,7 @@ describe('GCPolicy', () => {
         tombstoneRatio: 0.1,
         totalEntries: 500,
         patchesSinceCompaction: 50,
-        timeSinceCompaction: 1000,
+        ticksSinceCompaction: 1000,
       });
 
       expect(result.shouldRun).toBe(false);
@@ -101,7 +101,7 @@ describe('GCPolicy', () => {
         tombstoneRatio: 0.5,
         totalEntries: 2000,
         patchesSinceCompaction: 200,
-        timeSinceCompaction: 5000000,
+        ticksSinceCompaction: 5000000,
       });
 
       expect(result.shouldRun).toBe(true);
@@ -190,7 +190,7 @@ describe('GCPolicy', () => {
       expect(result.edgesCompacted).toBe(1);
       expect(result.nodesCompacted).toBe(0);
       expect(result.tombstonesRemoved).toBe(1);
-      expect(result.durationMs).toBeGreaterThanOrEqual(0);
+      expect(result.tombstonesRemoved).toBe(1);
     });
 
     it('throws E_GC_INVALID_VV when appliedVV is not a VersionVector', () => {

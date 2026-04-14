@@ -85,7 +85,6 @@ function createMockHost(overrides: Record<string, unknown> = {}): any {
       readRef: vi.fn().mockResolvedValue(null),
       listRefs: vi.fn().mockResolvedValue([]),
     },
-    _clock: { now: vi.fn().mockReturnValue(0) },
     _codec: {},
     _crypto: {
       hash: vi.fn().mockResolvedValue('abcdef'.repeat(10) + 'abcd'),
@@ -95,7 +94,6 @@ function createMockHost(overrides: Record<string, unknown> = {}): any {
     _patchJournal: null,
     _patchBlobStorage: null,
     _patchesSinceCheckpoint: 0,
-    _logTiming: vi.fn(),
     materialize: vi.fn(),
     discoverWriters: vi.fn().mockResolvedValue([]),
     _materializedGraph: null,
@@ -1115,39 +1113,6 @@ describe('SyncController', () => {
       expect(perCallCreator).toHaveBeenCalledWith({ mode: 'off' });
     });
 
-    // ── Timing ───────────────────────────────────────────────────────────
-
-    it('calls _logTiming on success', async () => {
-      fetchMock.mockResolvedValue({
-        status: 200,
-        json: () => Promise.resolve(validSyncResponse()),
-      });
-      applySyncResponseMock.mockReturnValue({ state: fakeState(), frontier: new Map(), applied: 3 });
-
-      await ctrl.syncWith('http://peer:3000/sync');
-
-      expect((host['_logTiming'] as any)).toHaveBeenCalledWith(
-        'syncWith',
-        expect.any(Number),
-        expect.objectContaining({ metrics: '3 patches applied' }),
-      );
-    });
-
-    it('calls _logTiming with error on failure', async () => {
-      fetchMock.mockResolvedValue({ status: 502 });
-
-      try {
-        await ctrl.syncWith('http://peer:3000/sync');
-      } catch {
-        // expected
-      }
-
-      expect((host['_logTiming'] as any)).toHaveBeenCalledWith(
-        'syncWith',
-        expect.any(Number),
-        expect.objectContaining({ error: expect.any(Error) }),
-      );
-    });
   });
 
   // ── serve ──────────────────────────────────────────────────────────────

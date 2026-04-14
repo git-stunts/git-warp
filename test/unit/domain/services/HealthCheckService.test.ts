@@ -32,17 +32,17 @@ describe('HealthCheckService', () => {
       persistence: mockPersistence,
       cacheTtlTicks: 100,
       logger: mockLogger,
-    }) as Parameters<typeof HealthCheckService['prototype']['constructor']>[0]);
+    }) as ConstructorParameters<typeof HealthCheckService>[0]);
   });
 
   describe('constructor', () => {
     it('accepts persistence and optional parameters', () => {
-      const s = new HealthCheckService(({ persistence: mockPersistence }) as Parameters<typeof HealthCheckService['prototype']['constructor']>[0]);
+      const s = new HealthCheckService(({ persistence: mockPersistence }) as ConstructorParameters<typeof HealthCheckService>[0]);
       expect(s).toBeDefined();
     });
 
     it('uses default cache TTL of 50 ticks', async () => {
-      const s = new HealthCheckService(({ persistence: mockPersistence }) as Parameters<typeof HealthCheckService['prototype']['constructor']>[0]);
+      const s = new HealthCheckService(({ persistence: mockPersistence }) as ConstructorParameters<typeof HealthCheckService>[0]);
       await s.getHealth(10);
 
       // Call again at same tick — should be cached
@@ -59,7 +59,7 @@ describe('HealthCheckService', () => {
       const s = new HealthCheckService(({
         persistence: mockPersistence,
         cacheTtlTicks: 20,
-      }) as Parameters<typeof HealthCheckService['prototype']['constructor']>[0]);
+      }) as ConstructorParameters<typeof HealthCheckService>[0]);
       await s.getHealth(10);
 
       // Advance 25 ticks — should expire

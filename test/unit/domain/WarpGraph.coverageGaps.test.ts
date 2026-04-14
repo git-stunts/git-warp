@@ -577,7 +577,7 @@ describe('WarpRuntime coverage gaps', () => {
           tombstoneRatioThreshold: 0.0,
           entryCountThreshold: 0,
           minPatchesSinceCompaction: 0,
-          maxTimeSinceCompaction: 0,
+          maxTicksSinceCompaction: 0,
         },
       });
 
@@ -589,7 +589,7 @@ describe('WarpRuntime coverage gaps', () => {
 
       // Force high patchesSinceGC and time since GC to trigger thresholds
       (graph)._patchesSinceGC = 10000;
-      (graph)._lastGCTime = 0;
+      (graph)._lastGCLamport = 0;
 
       const result = graph.maybeRunGC();
 
@@ -636,7 +636,7 @@ describe('WarpRuntime coverage gaps', () => {
       expect(metrics.tombstoneRatio).toBe(0);
     });
 
-    it('includes patchesSinceCompaction and lastCompactionTime', async () => {
+    it('includes patchesSinceCompaction and lastCompactionLamport', async () => {
       const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
@@ -646,12 +646,12 @@ describe('WarpRuntime coverage gaps', () => {
 
       (graph as any)._cachedState = createEmptyState();
       (graph)._patchesSinceGC = 42;
-      (graph)._lastGCTime = 1234567890;
+      (graph)._lastGCLamport = 1234567890;
 
             const metrics = (graph.getGCMetrics()) as any;
 
       expect(metrics.patchesSinceCompaction).toBe(42);
-      expect(metrics.lastCompactionTime).toBe(1234567890);
+      expect(metrics.lastCompactionLamport).toBe(1234567890);
     });
   });
 
@@ -673,7 +673,7 @@ describe('WarpRuntime coverage gaps', () => {
       expect(policy.tombstoneRatioThreshold).toBe(0.3);
       expect(policy.entryCountThreshold).toBe(50000);
       expect(policy.minPatchesSinceCompaction).toBe(1000);
-      expect(policy.maxTimeSinceCompaction).toBe(86400000);
+      expect(policy.maxTicksSinceCompaction).toBe(10000);
       expect(policy.compactOnCheckpoint).toBe(true);
     });
 

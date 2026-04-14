@@ -4,7 +4,6 @@ import {
   createMockPersistence,
   createMockPatch,
   createMockLogger,
-  createMockClock,
 } from '../../helpers/warpGraphTestUtils.js';
 
 // Valid 40-char hex SHAs for testing
@@ -32,7 +31,6 @@ describe('WarpRuntime.fork crypto/codec propagation', () => {
       graphName: 'test-graph',
       writerId: 'test-writer',
       logger: createMockLogger(),
-      clock: createMockClock(),
       crypto: mockCrypto,
       codec: mockCodec,
     });

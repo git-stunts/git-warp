@@ -11,8 +11,6 @@ import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type BlobPort from '../../../ports/BlobPort.ts';
 import type TreePort from '../../../ports/TreePort.ts';
-import type ClockPort from '../../../ports/ClockPort.ts';
-import defaultClock from '../../utils/defaultClock.ts';
 
 type GraphService = {
   iterateNodes(opts: { ref: string; limit: number }): AsyncIterable<{ sha: string; parents: string[] }>;
@@ -68,7 +66,6 @@ export default class IndexRebuildService {
   private readonly storage: IndexStoragePort & BlobPort & TreePort;
   private readonly logger: LoggerPort;
   private readonly _codec: CodecPort;
-  private readonly _clock: ClockPort;
 
   constructor(options: {
     graphService: GraphService;
@@ -76,9 +73,8 @@ export default class IndexRebuildService {
     logger?: LoggerPort;
     codec?: CodecPort;
     crypto?: unknown;
-    clock?: ClockPort;
   }) {
-    const { graphService, storage, logger = nullLogger, codec, crypto, clock } = options ?? {};
+    const { graphService, storage, logger = nullLogger, codec, crypto } = options ?? {};
     if (graphService === undefined || graphService === null) {
       throw new IndexError(
         'IndexRebuildService requires a graphService',
@@ -95,7 +91,6 @@ export default class IndexRebuildService {
     this.storage = storage;
     this.logger = logger;
     this._codec = codec ?? defaultCodec;
-    this._clock = clock ?? defaultClock;
     void crypto; // reserved for future use
   }
 
@@ -121,45 +116,29 @@ export default class IndexRebuildService {
       maxMemoryBytes: maxMemoryBytes ?? null,
     });
 
-    const startTime = this._clock.now();
-
-    try {
-      let treeOid: string;
-      if (maxMemoryBytes !== undefined) {
-        // Build the required fields first, then attach optional ones only when present
-        // to satisfy exactOptionalPropertyTypes.
-        treeOid = await this._rebuildStreaming(ref, this._buildStreamOpts(
-          limit, maxMemoryBytes, onFlush, onProgress, signal, frontier,
-        ));
-      } else {
-        const memOpts: InMemoryOptions = { limit };
-        if (onProgress) { memOpts.onProgress = onProgress; }
-        if (signal) { memOpts.signal = signal; }
-        if (frontier) { memOpts.frontier = frontier; }
-        treeOid = await this._rebuildInMemory(ref, memOpts);
-      }
-
-      const durationMs = this._clock.now() - startTime;
-      this.logger.info('Index rebuild complete', {
-        operation: 'rebuild',
-        ref,
-        mode,
-        treeOid,
-        durationMs,
-      });
-
-      return treeOid;
-    } catch (err) {
-      const durationMs = this._clock.now() - startTime;
-      this.logger.error('Index rebuild failed', {
-        operation: 'rebuild',
-        ref,
-        mode,
-        error: err instanceof Error ? err.message : String(err),
-        durationMs,
-      });
-      throw err;
+    let treeOid: string;
+    if (maxMemoryBytes !== undefined) {
+      // Build the required fields first, then attach optional ones only when present
+      // to satisfy exactOptionalPropertyTypes.
+      treeOid = await this._rebuildStreaming(ref, this._buildStreamOpts(
+        limit, maxMemoryBytes, onFlush, onProgress, signal, frontier,
+      ));
+    } else {
+      const memOpts: InMemoryOptions = { limit };
+      if (onProgress) { memOpts.onProgress = onProgress; }
+      if (signal) { memOpts.signal = signal; }
+      if (frontier) { memOpts.frontier = frontier; }
+      treeOid = await this._rebuildInMemory(ref, memOpts);
     }
+
+    this.logger.info('Index rebuild complete', {
+      operation: 'rebuild',
+      ref,
+      mode,
+      treeOid,
+    });
+
+    return treeOid;
   }
 
   private _buildStreamOpts(
@@ -270,7 +249,6 @@ export default class IndexRebuildService {
       );
     }
 
-    const startTime = this._clock.now();
     const shardOids = await this.storage.readTreeOids(treeOid);
     const shardCount = Object.keys(shardOids).length;
 
@@ -308,12 +286,10 @@ export default class IndexRebuildService {
     });
     reader.setup(shardOids);
 
-    const durationMs = this._clock.now() - startTime;
     this.logger.debug('Index loaded', {
       operation: 'load',
       treeOid,
       shardCount,
-      durationMs,
     });
 
     return reader;

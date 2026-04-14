@@ -550,43 +550,6 @@ export function createMockLogger() {
 }
 
 // ============================================================================
-// Mock Clock
-// ============================================================================
-
-/**
- * Creates a deterministic mock clock for testing timed operations.
- * Each call to now() advances by `step` milliseconds.
- *
- * @param {number} [step=42] - Milliseconds to advance per now() call
- * @returns {any} Mock clock with now() and timestamp() methods
- *
- * @example
- * const clock = createMockClock(10);
- * clock.now(); // 1000
- * clock.now(); // 1010
- */
-export function createMockClock(step = 42) {
-  let time = 1000;
-  return {
-    now: vi.fn(() => {
-      const t = time;
-      time += step;
-      return t;
-    }),
-    timestamp: vi.fn(() => {
-      const t = time;
-      time += step;
-      return new Date(t).toISOString();
-    }),
-    epochMs: vi.fn(() => {
-      const t = time;
-      time += step;
-      return t;
-    }),
-  };
-}
-
-// ============================================================================
 // Git Repository Setup
 // ============================================================================
 

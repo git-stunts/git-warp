@@ -75,13 +75,11 @@ function createHost(overrides = {}) {
     _provenanceIndex: {
       patchesFor: vi.fn(() => []),
     },
-    _clock: { now: () => 0 },
     _persistence: {
       getNodeInfo: vi.fn(async () => ({ message: 'patch-message' })),
     },
     _readPatchBlob: vi.fn(async () => new Uint8Array([1, 2, 3])),
     _codec: { decode: vi.fn(() => ({ ops: [], writer: 'w1', lamport: 1 })) },
-    _logTiming: vi.fn(),
     ...overrides,
   };
 }
@@ -181,11 +179,6 @@ describe('ProvenanceController — materializeSlice', () => {
 
     expect(result.patchCount).toBe(0);
     expect(mockCreateEmptyState).toHaveBeenCalledOnce();
-    expect(host._logTiming).toHaveBeenCalledWith(
-      'materializeSlice',
-      expect.any(Number),
-      expect.objectContaining({ metrics: '0 patches (empty cone)' }),
-    );
   });
 
   it('replays patches via ProvenancePayload by default', async () => {
@@ -254,12 +247,6 @@ describe('ProvenanceController — materializeSlice', () => {
     host._provenanceDegraded = true;
 
     await expect(ctrl.materializeSlice('node:x')).rejects.toThrow();
-
-    expect(host._logTiming).toHaveBeenCalledWith(
-      'materializeSlice',
-      expect.any(Number),
-      expect.objectContaining({ error: expect.any(QueryError) }),
-    );
   });
 });
 

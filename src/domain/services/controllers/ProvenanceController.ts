@@ -44,62 +44,54 @@ export default class ProvenanceController {
 
   async materializeSlice(nodeId: string, options?: { receipts?: boolean }): Promise<{ state: WarpState; patchCount: number; receipts?: TickReceipt[] }> {
     const host = this._host;
-    const t0 = host._clock.now();
     const collectReceipts = options?.receipts === true;
 
-    try {
-      await host._ensureFreshState();
+    await host._ensureFreshState();
 
-      if (host._provenanceDegraded) {
-        throw new QueryError('Provenance unavailable for cached seek. Re-seek with --no-persistent-cache or call materialize({ ceiling }) directly.', {
-          code: 'E_PROVENANCE_DEGRADED',
-        });
-      }
-
-      if (!host._provenanceIndex) {
-        throw new QueryError('No provenance index. Call materialize() first.', {
-          code: 'E_NO_STATE',
-        });
-      }
-
-      const conePatchMap = await this._computeBackwardCone(nodeId);
-
-      if (conePatchMap.size === 0) {
-        const emptyState = createEmptyState();
-        host._logTiming('materializeSlice', t0, { metrics: '0 patches (empty cone)' });
-        return {
-          state: emptyState,
-          patchCount: 0,
-          ...(collectReceipts ? { receipts: [] } : {}),
-        };
-      }
-
-      const patchEntries: Array<{ patch: Patch; sha: string }> = [];
-      for (const [sha, patch] of conePatchMap) {
-        patchEntries.push({ patch, sha });
-      }
-
-      const sortedPatches = this._sortPatchesCausally(patchEntries);
-      host._logTiming('materializeSlice', t0, { metrics: `${sortedPatches.length} patches` });
-
-      if (collectReceipts) {
-        const result = reduceV5(sortedPatches, undefined, { receipts: true }) as { state: WarpState; receipts: TickReceipt[] };
-        return {
-          state: result.state,
-          patchCount: sortedPatches.length,
-          receipts: result.receipts,
-        };
-      }
-
-      const payload = new ProvenancePayload(sortedPatches);
-      return {
-        state: payload.replay(),
-        patchCount: sortedPatches.length,
-      };
-    } catch (err) {
-      host._logTiming('materializeSlice', t0, { error: err as Error });
-      throw err;
+    if (host._provenanceDegraded) {
+      throw new QueryError('Provenance unavailable for cached seek. Re-seek with --no-persistent-cache or call materialize({ ceiling }) directly.', {
+        code: 'E_PROVENANCE_DEGRADED',
+      });
     }
+
+    if (!host._provenanceIndex) {
+      throw new QueryError('No provenance index. Call materialize() first.', {
+        code: 'E_NO_STATE',
+      });
+    }
+
+    const conePatchMap = await this._computeBackwardCone(nodeId);
+
+    if (conePatchMap.size === 0) {
+      const emptyState = createEmptyState();
+      return {
+        state: emptyState,
+        patchCount: 0,
+        ...(collectReceipts ? { receipts: [] } : {}),
+      };
+    }
+
+    const patchEntries: Array<{ patch: Patch; sha: string }> = [];
+    for (const [sha, patch] of conePatchMap) {
+      patchEntries.push({ patch, sha });
+    }
+
+    const sortedPatches = this._sortPatchesCausally(patchEntries);
+
+    if (collectReceipts) {
+      const result = reduceV5(sortedPatches, undefined, { receipts: true }) as { state: WarpState; receipts: TickReceipt[] };
+      return {
+        state: result.state,
+        patchCount: sortedPatches.length,
+        receipts: result.receipts,
+      };
+    }
+
+    const payload = new ProvenancePayload(sortedPatches);
+    return {
+      state: payload.replay(),
+      patchCount: sortedPatches.length,
+    };
   }
 
   async _computeBackwardCone(nodeId: string): Promise<Map<string, Patch>> {

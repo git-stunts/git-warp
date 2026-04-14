@@ -37,7 +37,6 @@ function baseObservationsEqual(left: BaseObservation, right: BaseObservation): b
 type GraphRuntime = {
   _graphName: string;
   _persistence: import('../../../ports/GraphPersistencePort.ts').default;
-  _clock: import('../../../ports/ClockPort.ts').default;
   _crypto: import('../../../ports/CryptoPort.ts').default;
   // Required by StrandDescriptorStore and StrandMaterializer
   _loadPatchChainFromSha(sha: string): Promise<Array<{ patch: Patch; sha: string }>>;
@@ -117,7 +116,7 @@ export default function createStrandCoordinator(graph: GraphRuntime): StrandCoor
 
   ref.coordinator = new StrandCoordinator({
     graphName: graph._graphName,
-    clock: graph._clock,
+    maxObservedLamport: () => graph._maxObservedLamport,
     crypto: graph._crypto,
     persistence: graph._persistence,
     descriptors,

@@ -10,7 +10,6 @@
 import type BlobStoragePort from '../ports/BlobStoragePort.ts';
 import type IndexStorePort from '../ports/IndexStorePort.ts';
 import type CodecPort from '../ports/CodecPort.ts';
-import type ClockPort from '../ports/ClockPort.ts';
 import type EffectSinkPort from '../ports/EffectSinkPort.ts';
 import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
@@ -78,7 +77,6 @@ export async function resolveIndexStore(
 export async function buildEffectPipeline(
   sinks: EffectSinkPort[],
   lens: ExternalizationPolicy | undefined,
-  clock: ClockPort,
 ): Promise<EffectPipeline> {
   const multMod = await import('./services/MultiplexSink.ts') as {
     MultiplexSink: typeof import('./services/MultiplexSink.ts').MultiplexSink;
@@ -99,7 +97,7 @@ export async function buildEffectPipeline(
     };
     resolvedLens = mod.LIVE_LENS;
   }
-  return new effMod.EffectPipeline({ sink: mux, lens: resolvedLens, clock });
+  return new effMod.EffectPipeline({ sink: mux, lens: resolvedLens });
 }
 
 const VALID_TRUST_MODES = ['off', 'log-only', 'enforce'] as const;

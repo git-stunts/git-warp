@@ -220,6 +220,9 @@ describe('WarpRuntime syncAuth (real HTTP)', () => {
       });
       expect(result1.applied).toBe(0);
 
+      // Advance lamport so the second request has a fresh timestamp
+      (clientGraph)._maxObservedLamport += 1;
+
       const result2 = await clientGraph.syncWith(handle.url, {
         auth: { secret, keyId: 'default' },
         timeoutMs: 5000,

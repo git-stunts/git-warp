@@ -282,7 +282,7 @@ function storeDescriptor(descriptor) {
  *     commitNodeWithTree: ReturnType<typeof vi.fn>,
  *   },
  *   _crypto: { hash: ReturnType<typeof vi.fn> },
- *   _clock: { timestamp: ReturnType<typeof vi.fn> },
+ *   _maxObservedLamport: number,
  *   _cachedState: import('../../../../../src/domain/services/JoinReducer.ts').WarpState|null,
  *   _patchInProgress: boolean,
  *   _maxObservedLamport: number,
@@ -334,9 +334,6 @@ function createMockGraph() {
     },
     _crypto: {
       hash: vi.fn(async (_algo, data) => `sha256:${typeof data === 'string' ? data.slice(0, 16) : 'bytes'}`),
-    },
-    _clock: {
-      timestamp: vi.fn(() => nextTimestamp()),
     },
     _cachedState: null,
     _patchInProgress: false,
@@ -654,11 +651,11 @@ describe('StrandService', () => {
       expect(graph._crypto.hash).toHaveBeenCalledWith('sha256', expect.any(String));
     });
 
-    it('uses clock for timestamps', async () => {
+    it('uses lamport for timestamps', async () => {
+      graph._maxObservedLamport = 42;
       const descriptor = await service.create({ strandId: 'alpha' });
 
-      expect(graph._clock.timestamp).toHaveBeenCalled();
-      expect(descriptor.createdAt).toBeTruthy();
+      expect(descriptor.createdAt).toBe('42');
       expect(descriptor.updatedAt).toBe(descriptor.createdAt);
     });
 

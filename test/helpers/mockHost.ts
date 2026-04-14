@@ -11,11 +11,9 @@ import {
   createMockPersistence,
   createMockCrypto,
   createMockCodec,
-  createMockClock,
   type MockPersistence,
   type MockCrypto,
   type MockCodec,
-  type MockClock,
 } from './mockPorts.ts';
 
 // ---------------------------------------------------------------------------
@@ -29,7 +27,6 @@ export interface MockHost {
 
   // Ports
   _persistence: MockPersistence;
-  _clock: MockClock;
   _codec: MockCodec;
   _crypto: MockCrypto;
   _logger: null | { debug: Mock; info: Mock; warn: Mock; error: Mock; child: Mock };
@@ -86,7 +83,6 @@ export interface MockHost {
   // Methods (vi.fn mocks)
   materialize: Mock;
   _setMaterializedState: Mock;
-  _logTiming: Mock;
   discoverWriters: Mock;
 
   // Dynamic — allows controller-specific extras
@@ -97,7 +93,6 @@ export interface MockHostOptions {
   writerId?: string;
   graphName?: string;
   persistence?: Partial<MockPersistence>;
-  clock?: MockClock;
   codec?: MockCodec;
   crypto?: MockCrypto;
   overrides?: Record<string, unknown>;
@@ -108,7 +103,6 @@ export function createMockHost(options: MockHostOptions = {}): MockHost {
     writerId = 'alice',
     graphName = 'test-graph',
     persistence: persistenceOverrides,
-    clock,
     codec,
     crypto,
     overrides = {},
@@ -123,7 +117,6 @@ export function createMockHost(options: MockHostOptions = {}): MockHost {
 
     // Ports
     _persistence: mockPersistence,
-    _clock: clock ?? createMockClock(),
     _codec: codec ?? createMockCodec(),
     _crypto: crypto ?? createMockCrypto(),
     _logger: null,
@@ -180,7 +173,6 @@ export function createMockHost(options: MockHostOptions = {}): MockHost {
     // Methods
     materialize: vi.fn(),
     _setMaterializedState: vi.fn(async (state: unknown) => { host._cachedState = state; }),
-    _logTiming: vi.fn(),
     discoverWriters: vi.fn().mockResolvedValue([]),
 
     // Overrides

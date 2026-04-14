@@ -20,7 +20,6 @@ import { buildSeekCacheKey } from '../../utils/seekCacheKey.ts';
 import { createFrontier, updateFrontier } from '../Frontier.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import { normalizeFrontierInput, normalizeExplicitCeiling, buildAdjacency, maxLamportInPatches } from './MaterializeHelpers.ts';
-import type ClockPort from '../../../ports/ClockPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
@@ -39,7 +38,6 @@ import AdjacencyMap from '../../capabilities/AdjacencyMap.ts';
 
 /** Constructor dependencies for MaterializeController. */
 export type MaterializeDeps = {
-  clock: ClockPort;
   logger: LoggerPort;
   codec: CodecPort;
   crypto: CryptoPort;

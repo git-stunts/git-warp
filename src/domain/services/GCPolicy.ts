@@ -19,7 +19,7 @@ export type GCPolicyInput = {
   readonly tombstoneRatio: number;
   readonly totalEntries: number;
   readonly patchesSinceCompaction: number;
-  readonly timeSinceCompaction: number;
+  readonly ticksSinceCompaction: number;
 };
 
 /**
@@ -32,14 +32,14 @@ export type GCPolicyConfig = {
   readonly tombstoneRatioThreshold?: number;
   readonly entryCountThreshold?: number;
   readonly minPatchesSinceCompaction?: number;
-  readonly maxTimeSinceCompaction?: number;
+  readonly maxTicksSinceCompaction?: number;
   readonly compactOnCheckpoint?: boolean;
 };
 
 const DEFAULT_TOMBSTONE_RATIO_THRESHOLD = 0.3;
 const DEFAULT_ENTRY_COUNT_THRESHOLD = 50_000;
 const DEFAULT_MIN_PATCHES_SINCE_COMPACTION = 1_000;
-const DEFAULT_MAX_TIME_SINCE_COMPACTION_MS = 86_400_000; // 24 hours
+const DEFAULT_MAX_TICKS_SINCE_COMPACTION = 10_000;
 
 export default class GCPolicy {
   /** When false, automatic GC is disabled even if thresholds are met. */
@@ -54,8 +54,8 @@ export default class GCPolicy {
   /** Minimum patches between GCs. */
   readonly minPatchesSinceCompaction: number;
 
-  /** Maximum time (ms) between GCs. */
-  readonly maxTimeSinceCompaction: number;
+  /** Maximum lamport ticks between GCs. */
+  readonly maxTicksSinceCompaction: number;
 
   /** Whether to auto-compact on checkpoint. */
   readonly compactOnCheckpoint: boolean;
@@ -65,14 +65,14 @@ export default class GCPolicy {
     readonly tombstoneRatioThreshold: number;
     readonly entryCountThreshold: number;
     readonly minPatchesSinceCompaction: number;
-    readonly maxTimeSinceCompaction: number;
+    readonly maxTicksSinceCompaction: number;
     readonly compactOnCheckpoint: boolean;
   }) {
     this.enabled = fields.enabled;
     this.tombstoneRatioThreshold = fields.tombstoneRatioThreshold;
     this.entryCountThreshold = fields.entryCountThreshold;
     this.minPatchesSinceCompaction = fields.minPatchesSinceCompaction;
-    this.maxTimeSinceCompaction = fields.maxTimeSinceCompaction;
+    this.maxTicksSinceCompaction = fields.maxTicksSinceCompaction;
     this.compactOnCheckpoint = fields.compactOnCheckpoint;
     Object.freeze(this);
   }
@@ -83,7 +83,7 @@ export default class GCPolicy {
     tombstoneRatioThreshold: DEFAULT_TOMBSTONE_RATIO_THRESHOLD,
     entryCountThreshold: DEFAULT_ENTRY_COUNT_THRESHOLD,
     minPatchesSinceCompaction: DEFAULT_MIN_PATCHES_SINCE_COMPACTION,
-    maxTimeSinceCompaction: DEFAULT_MAX_TIME_SINCE_COMPACTION_MS,
+    maxTicksSinceCompaction: DEFAULT_MAX_TICKS_SINCE_COMPACTION,
     compactOnCheckpoint: true,
   });
 
@@ -111,10 +111,10 @@ export default class GCPolicy {
         `exceeds minimum ${this.minPatchesSinceCompaction}`,
       );
     }
-    if (input.timeSinceCompaction > this.maxTimeSinceCompaction) {
+    if (input.ticksSinceCompaction > this.maxTicksSinceCompaction) {
       reasons.push(
-        `Time since compaction ${input.timeSinceCompaction}ms ` +
-        `exceeds maximum ${this.maxTimeSinceCompaction}ms`,
+        `Ticks since compaction ${input.ticksSinceCompaction} ` +
+        `exceeds maximum ${this.maxTicksSinceCompaction}`,
       );
     }
     return new GCShouldRunResult(reasons);

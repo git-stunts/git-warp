@@ -120,7 +120,7 @@ describe('WarpCore — effect pipeline (host-domain infra)', () => {
       });
 
       const pipeline = (core.effectPipeline as EffectPipeline);
-      const result = await pipeline.emit('notification', { text: 'hi' });
+      const result = await pipeline.emit('notification', { text: 'hi' }, { id: 'emit-1', timestamp: 42 });
 
       expect(result.emission.kind).toBe('notification');
       expect(result.observations).toHaveLength(1);
@@ -133,9 +133,9 @@ describe('WarpCore — effect pipeline (host-domain infra)', () => {
       });
 
       const pipeline = (core.effectPipeline as EffectPipeline);
-      await pipeline.emit('a', 1);
-      await pipeline.emit('b', 2);
-      await pipeline.emit('c', 3);
+      await pipeline.emit('a', 1, { id: 'emit-a', timestamp: 1 });
+      await pipeline.emit('b', 2, { id: 'emit-b', timestamp: 2 });
+      await pipeline.emit('c', 3, { id: 'emit-c', timestamp: 3 });
 
       expect(core.effectEmissions).toHaveLength(3);
       expect(core.deliveryObservations).toHaveLength(3);
@@ -148,7 +148,7 @@ describe('WarpCore — effect pipeline (host-domain infra)', () => {
       });
 
       const pipeline = (core.effectPipeline as EffectPipeline);
-      const result = await pipeline.emit('test', null);
+      const result = await pipeline.emit('test', null, { id: 'emit-replay', timestamp: 0 });
 
       const obs = Array.isArray(result.observations) ? result.observations[0] : result.observations;
       expect(obs?.outcome).toBe('suppressed');

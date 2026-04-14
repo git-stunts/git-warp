@@ -13,7 +13,6 @@ import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
-import type ClockPort from '../../../ports/ClockPort.ts';
 
 export type CommittedPatchResult = { patch: Patch; sha: string };
 export type PatchCommitSuccessHandler = (result: CommittedPatchResult) => Promise<void>;
@@ -31,7 +30,6 @@ type PatchBuilderOptionsParams = {
 type WarpRuntime = {
   _graphName: string;
   _persistence: GraphPersistencePort;
-  _clock: ClockPort;
   _patchInProgress: boolean;
   _maxObservedLamport: number;
   _stateDirty: boolean;
@@ -144,7 +142,7 @@ export default class StrandPatchService {
    * Update the strand descriptor and graph caches after a successful overlay commit.
    */
   async syncOverlayDescriptor(descriptor: StrandDescriptor, { patch, sha }: CommittedPatchResult): Promise<void> {
-    const now = this._graph._clock.timestamp();
+    const now = String(this._graph._maxObservedLamport);
     const nextDescriptor: StrandDescriptor = {
       ...descriptor,
       updatedAt: now,
@@ -284,7 +282,7 @@ export default class StrandPatchService {
     }
     return Object.freeze({
       intentId: this._buildIntentId(descriptor.strandId, intentQueue.nextIntentSeq),
-      enqueuedAt: this._graph._clock.timestamp(),
+      enqueuedAt: String(this._graph._maxObservedLamport),
       patch,
       reads: normalizeStringArray(patch.reads, 'reads[]'),
       writes: normalizeStringArray(patch.writes, 'writes[]'),

@@ -14,19 +14,14 @@ export default class GCExecuteResult {
   /** Total tombstones removed across both alive sets. */
   readonly tombstonesRemoved: number;
 
-  /** Wall-clock time spent in the GC run, in milliseconds. */
-  readonly durationMs: number;
-
   constructor(fields: {
     readonly nodesCompacted: number;
     readonly edgesCompacted: number;
     readonly tombstonesRemoved: number;
-    readonly durationMs: number;
   }) {
     this.nodesCompacted = fields.nodesCompacted;
     this.edgesCompacted = fields.edgesCompacted;
     this.tombstonesRemoved = fields.tombstonesRemoved;
-    this.durationMs = fields.durationMs;
     Object.freeze(this);
   }
 }

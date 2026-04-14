@@ -15,8 +15,6 @@ import type BlobPort from '../../../ports/BlobPort.ts';
 import type TreePort from '../../../ports/TreePort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type TrustChainPort from '../../../ports/TrustChainPort.ts';
-import type ClockPort from '../../../ports/ClockPort.ts';
-import defaultClock from '../../utils/defaultClock.ts';
 import { buildAuditPrefix } from '../../utils/RefLayout.ts';
 import AuditChainVerifier, { type ChainResult } from './AuditChainVerifier.ts';
 import TrustEvaluationService, { type TrustEvaluationOptions } from './TrustEvaluationService.ts';
@@ -52,7 +50,6 @@ export default class AuditVerifierService {
   private readonly _chainVerifier: AuditChainVerifier;
   private readonly _trustService: TrustEvaluationService;
   private readonly _persistence: Persistence;
-  private readonly _clock: ClockPort;
   readonly logger: LoggerPort | null;
 
   constructor(opts: {
@@ -61,10 +58,8 @@ export default class AuditVerifierService {
     logger?: LoggerPort;
     trustCrypto?: TrustCrypto;
     trustChain?: TrustChainPort;
-    clock?: ClockPort;
   }) {
     this._persistence = opts.persistence;
-    this._clock = opts.clock ?? defaultClock;
     this.logger = opts.logger ?? null;
     this._chainVerifier = new AuditChainVerifier(opts.persistence, opts.codec);
     this._trustService = new TrustEvaluationService({
@@ -77,26 +72,36 @@ export default class AuditVerifierService {
   /** Verifies all audit chains for a graph. */
   async verifyAll(
     graphName: string,
-    options: { since?: string; trustWarning?: TrustWarning | null } = {},
+    options: { since?: string; trustWarning?: TrustWarning | null; verifiedAt?: string } = {},
   ): Promise<VerifyResult> {
+    const chains = await this._verifyAllChains(graphName, options.since);
+    return this._buildVerifyResult(graphName, chains, options);
+  }
+
+  private async _verifyAllChains(graphName: string, since: string | undefined): Promise<ChainResult[]> {
     const writerIds = await this._listWriterIds(graphName);
     const chains: ChainResult[] = [];
     for (const writerId of writerIds.sort()) {
       const result = await this._chainVerifier.verifyChain(
         graphName, writerId,
-        options.since !== undefined ? { since: options.since } : {},
+        since !== undefined ? { since } : {},
       );
       chains.push(result);
     }
+    return chains;
+  }
 
+  private _buildVerifyResult(
+    graphName: string,
+    chains: ChainResult[],
+    options: { trustWarning?: TrustWarning | null; verifiedAt?: string },
+  ): VerifyResult {
     const valid = chains.filter((c) => c.status === 'VALID').length;
     const partial = chains.filter((c) => c.status === 'PARTIAL').length;
-    const invalid = chains.length - valid - partial;
-
     return {
       graph: graphName,
-      verifiedAt: this._clock.timestamp(),
-      summary: { total: chains.length, valid, partial, invalid },
+      verifiedAt: options.verifiedAt ?? '',
+      summary: { total: chains.length, valid, partial, invalid: chains.length - valid - partial },
       chains,
       trustWarning: options.trustWarning ?? null,
     };

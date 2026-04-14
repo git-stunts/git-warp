@@ -10,8 +10,6 @@
 
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
-import type ClockPort from '../../../ports/ClockPort.ts';
-import defaultClock from '../../utils/defaultClock.ts';
 import type WarpState from '../state/WarpState.ts';
 import defaultCodec from '../../utils/defaultCodec.ts';
 import { hexEncode, hexDecode } from '../../utils/bytes.ts';
@@ -77,10 +75,9 @@ async function createBTR(
   payload: ProvenancePayload,
   opts: {
     key: string | Uint8Array;
-    timestamp?: string;
+    timestamp: string;
     crypto: CryptoPort;
     codec?: CodecPort;
-    clock?: ClockPort;
   },
 ): Promise<BTR> {
   if (!(payload instanceof ProvenancePayload)) {
@@ -89,7 +86,7 @@ async function createBTR(
 
   validateHmacKey(opts.key);
 
-  const timestamp = opts.timestamp ?? (opts.clock ?? defaultClock).timestamp();
+  const { timestamp } = opts;
   const deps: CryptoDeps = opts.codec ? { crypto: opts.crypto, codec: opts.codec } : { crypto: opts.crypto };
   const codecOpt = opts.codec ? { codec: opts.codec } : {};
 

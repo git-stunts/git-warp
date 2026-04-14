@@ -47,151 +47,127 @@ export default class ForkController {
 
   async fork({ from, at, forkName, forkWriterId }: { from: string; at: string; forkName?: string; forkWriterId?: string }): Promise<WarpRuntime> {
     const host = this._host;
-    const t0 = host._clock.now();
 
-    try {
-      if (!from || typeof from !== 'string') {
-        throw new ForkError("Required parameter 'from' is missing or not a string", {
-          code: 'E_FORK_INVALID_ARGS',
-          context: { from },
-        });
-      }
-
-      if (!at || typeof at !== 'string') {
-        throw new ForkError("Required parameter 'at' is missing or not a string", {
-          code: 'E_FORK_INVALID_ARGS',
-          context: { at },
-        });
-      }
-
-      const writers = await host.discoverWriters();
-      if (!writers.includes(from)) {
-        throw new ForkError(`Writer '${from}' does not exist in graph '${host._graphName}'`, {
-          code: 'E_FORK_WRITER_NOT_FOUND',
-          context: { writerId: from, graphName: host._graphName, existingWriters: writers },
-        });
-      }
-
-      const nodeExists = await host._persistence.nodeExists(at);
-      if (!nodeExists) {
-        throw new ForkError(`Patch SHA '${at}' does not exist`, {
-          code: 'E_FORK_PATCH_NOT_FOUND',
-          context: { patchSha: at, writerId: from },
-        });
-      }
-
-      const writerRef = buildWriterRef(host._graphName, from);
-      const tipSha = await host._persistence.readRef(writerRef);
-
-      if (tipSha === null || tipSha === undefined || tipSha === '') {
-        throw new ForkError(`Writer '${from}' has no commits`, {
-          code: 'E_FORK_WRITER_NOT_FOUND',
-          context: { writerId: from },
-        });
-      }
-
-      const isInChain = await this._isAncestor(at, tipSha);
-      if (!isInChain) {
-        throw new ForkError(`Patch SHA '${at}' is not in writer '${from}' chain`, {
-          code: 'E_FORK_PATCH_NOT_IN_CHAIN',
-          context: { patchSha: at, writerId: from, tipSha },
-        });
-      }
-
-      const resolvedForkName =
-        forkName ?? `${host._graphName}-fork-${randomSuffix()}`;
-      try {
-        validateGraphName(resolvedForkName);
-      } catch (err) {
-        throw new ForkError(`Invalid fork name: ${(err as Error).message}`, {
-          code: 'E_FORK_NAME_INVALID',
-          context: { forkName: resolvedForkName, originalError: (err as Error).message },
-        });
-      }
-
-      const forkWritersPrefix = buildWritersPrefix(resolvedForkName);
-      const existingForkRefs = await host._persistence.listRefs(forkWritersPrefix);
-      if (existingForkRefs.length > 0) {
-        throw new ForkError(`Graph '${resolvedForkName}' already exists`, {
-          code: 'E_FORK_ALREADY_EXISTS',
-          context: { forkName: resolvedForkName, existingRefs: existingForkRefs },
-        });
-      }
-
-      const resolvedForkWriterId = (forkWriterId !== undefined && forkWriterId !== null && forkWriterId !== '') ? forkWriterId : generateWriterId();
-      try {
-        validateWriterId(resolvedForkWriterId);
-      } catch (err) {
-        throw new ForkError(`Invalid fork writer ID: ${(err as Error).message}`, {
-          code: 'E_FORK_WRITER_ID_INVALID',
-          context: { forkWriterId: resolvedForkWriterId, originalError: (err as Error).message },
-        });
-      }
-
-      const forkWriterRef = buildWriterRef(resolvedForkName, resolvedForkWriterId);
-      await host._persistence.updateRef(forkWriterRef, at);
-
-      // Dynamic import to avoid circular dependency
-      const { default: WarpRuntime } = await import('../../WarpRuntime.ts');
-
-      let forkGraph: WarpRuntime;
-      try {
-        forkGraph = await WarpRuntime.open({
-          persistence: host._persistence,
-          graphName: resolvedForkName,
-          writerId: resolvedForkWriterId,
-          gcPolicy: host._gcPolicy,
-          adjacencyCacheSize: (host._adjacencyCache as { maxSize?: number })?.maxSize ?? DEFAULT_ADJACENCY_CACHE_SIZE,
-          ...(host._checkpointPolicy ? { checkpointPolicy: host._checkpointPolicy } : {}),
-          autoMaterialize: host._autoMaterialize,
-          onDeleteWithData: host._onDeleteWithData,
-          ...(host._logger ? { logger: host._logger } : {}),
-          clock: host._clock,
-          crypto: host._crypto,
-          codec: host._codec,
-        });
-      } catch (openErr) {
-        try {
-          await host._persistence.deleteRef(forkWriterRef);
-        } catch {
-          // Best-effort rollback
-        }
-        throw openErr;
-      }
-
-      host._logTiming('fork', t0, {
-        metrics: `from=${from} at=${at.slice(0, 7)} name=${resolvedForkName}`,
+    if (!from || typeof from !== 'string') {
+      throw new ForkError("Required parameter 'from' is missing or not a string", {
+        code: 'E_FORK_INVALID_ARGS',
+        context: { from },
       });
-
-      return forkGraph;
-    } catch (err) {
-      host._logTiming('fork', t0, { error: err as Error });
-      throw err;
     }
+
+    if (!at || typeof at !== 'string') {
+      throw new ForkError("Required parameter 'at' is missing or not a string", {
+        code: 'E_FORK_INVALID_ARGS',
+        context: { at },
+      });
+    }
+
+    const writers = await host.discoverWriters();
+    if (!writers.includes(from)) {
+      throw new ForkError(`Writer '${from}' does not exist in graph '${host._graphName}'`, {
+        code: 'E_FORK_WRITER_NOT_FOUND',
+        context: { writerId: from, graphName: host._graphName, existingWriters: writers },
+      });
+    }
+
+    const nodeExists = await host._persistence.nodeExists(at);
+    if (!nodeExists) {
+      throw new ForkError(`Patch SHA '${at}' does not exist`, {
+        code: 'E_FORK_PATCH_NOT_FOUND',
+        context: { patchSha: at, writerId: from },
+      });
+    }
+
+    const writerRef = buildWriterRef(host._graphName, from);
+    const tipSha = await host._persistence.readRef(writerRef);
+
+    if (tipSha === null || tipSha === undefined || tipSha === '') {
+      throw new ForkError(`Writer '${from}' has no commits`, {
+        code: 'E_FORK_WRITER_NOT_FOUND',
+        context: { writerId: from },
+      });
+    }
+
+    const isInChain = await this._isAncestor(at, tipSha);
+    if (!isInChain) {
+      throw new ForkError(`Patch SHA '${at}' is not in writer '${from}' chain`, {
+        code: 'E_FORK_PATCH_NOT_IN_CHAIN',
+        context: { patchSha: at, writerId: from, tipSha },
+      });
+    }
+
+    const resolvedForkName =
+      forkName ?? `${host._graphName}-fork-${randomSuffix()}`;
+    try {
+      validateGraphName(resolvedForkName);
+    } catch (err) {
+      throw new ForkError(`Invalid fork name: ${(err as Error).message}`, {
+        code: 'E_FORK_NAME_INVALID',
+        context: { forkName: resolvedForkName, originalError: (err as Error).message },
+      });
+    }
+
+    const forkWritersPrefix = buildWritersPrefix(resolvedForkName);
+    const existingForkRefs = await host._persistence.listRefs(forkWritersPrefix);
+    if (existingForkRefs.length > 0) {
+      throw new ForkError(`Graph '${resolvedForkName}' already exists`, {
+        code: 'E_FORK_ALREADY_EXISTS',
+        context: { forkName: resolvedForkName, existingRefs: existingForkRefs },
+      });
+    }
+
+    const resolvedForkWriterId = (forkWriterId !== undefined && forkWriterId !== null && forkWriterId !== '') ? forkWriterId : generateWriterId();
+    try {
+      validateWriterId(resolvedForkWriterId);
+    } catch (err) {
+      throw new ForkError(`Invalid fork writer ID: ${(err as Error).message}`, {
+        code: 'E_FORK_WRITER_ID_INVALID',
+        context: { forkWriterId: resolvedForkWriterId, originalError: (err as Error).message },
+      });
+    }
+
+    const forkWriterRef = buildWriterRef(resolvedForkName, resolvedForkWriterId);
+    await host._persistence.updateRef(forkWriterRef, at);
+
+    // Dynamic import to avoid circular dependency
+    const { default: WarpRuntime } = await import('../../WarpRuntime.ts');
+
+    let forkGraph: WarpRuntime;
+    try {
+      forkGraph = await WarpRuntime.open({
+        persistence: host._persistence,
+        graphName: resolvedForkName,
+        writerId: resolvedForkWriterId,
+        gcPolicy: host._gcPolicy,
+        adjacencyCacheSize: (host._adjacencyCache as { maxSize?: number })?.maxSize ?? DEFAULT_ADJACENCY_CACHE_SIZE,
+        ...(host._checkpointPolicy ? { checkpointPolicy: host._checkpointPolicy } : {}),
+        autoMaterialize: host._autoMaterialize,
+        onDeleteWithData: host._onDeleteWithData,
+        ...(host._logger ? { logger: host._logger } : {}),
+        crypto: host._crypto,
+        codec: host._codec,
+      });
+    } catch (openErr) {
+      try {
+        await host._persistence.deleteRef(forkWriterRef);
+      } catch {
+        // Best-effort rollback
+      }
+      throw openErr;
+    }
+
+    return forkGraph;
   }
 
   async createWormhole(fromSha: string, toSha: string): Promise<{ fromSha: string; toSha: string; writerId: string; payload: ProvenancePayload; patchCount: number }> {
     const host = this._host;
-    const t0 = host._clock.now();
-
-    try {
-      const wormhole = await createWormholeImpl({
-        persistence: host._persistence,
-        graphName: host._graphName,
-        fromSha,
-        toSha,
-        codec: host._codec,
-      });
-
-      host._logTiming('createWormhole', t0, {
-        metrics: `${wormhole.patchCount} patches from=${fromSha.slice(0, 7)} to=${toSha.slice(0, 7)}`,
-      });
-
-      return wormhole;
-    } catch (err) {
-      host._logTiming('createWormhole', t0, { error: err as Error });
-      throw err;
-    }
+    return await createWormholeImpl({
+      persistence: host._persistence,
+      graphName: host._graphName,
+      fromSha,
+      toSha,
+      codec: host._codec,
+    });
   }
 
   async _isAncestor(ancestorSha: string, descendantSha: string): Promise<boolean> {

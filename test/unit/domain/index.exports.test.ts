@@ -29,10 +29,6 @@ import WarpAppDefault, {
   ConsoleLogger,
   LogLevel,
 
-  // Clock infrastructure
-  ClockPort,
-  ClockAdapter,
-
   // Error types
   ForkError,
   WormholeError,
@@ -201,19 +197,6 @@ describe('index.js exports', () => {
       expect(LogLevel.WARN).toBeDefined();
       expect(LogLevel.ERROR).toBeDefined();
     });
-  });
-
-  describe('clock infrastructure', () => {
-    it('exports ClockPort', () => {
-      expect(ClockPort).toBeDefined();
-      expect(typeof ClockPort).toBe('function');
-    });
-
-    it('exports ClockAdapter', () => {
-      expect(ClockAdapter).toBeDefined();
-      expect(typeof ClockAdapter).toBe('function');
-    });
-
   });
 
   describe('error types', () => {

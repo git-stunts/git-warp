@@ -17,7 +17,6 @@ function coreOptions(graph: WarpRuntime): DetachedOpenOptions {
     gcPolicy: graph._gcPolicy,
     autoMaterialize: false,
     onDeleteWithData: graph._onDeleteWithData,
-    clock: graph._clock,
     crypto: graph._crypto,
     codec: graph._codec,
     audit: false,

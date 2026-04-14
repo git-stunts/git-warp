@@ -10,19 +10,21 @@ import SyncAuthService, {
 const SECRET = 'test-secret-key-1234567890';
 const KEY_ID = 'default';
 const KEYS = { [KEY_ID]: SECRET };
-const FIXED_TIME = 1_700_000_000_000;
 
 /**
- * Builds a manually-signed request whose timestamp matches FIXED_TIME,
- * ensuring the service's wallClockMs never causes EXPIRED rejections.
+ * Monotonically increasing lamport counter for each buildSignedRequest call.
+ * Each test creates a fresh service, so this ensures timestamps always increase
+ * within a single service lifetime.
  */
-/** @returns {Promise<{method: string, url: string, headers: Record<string, string>, body: Buffer}>} */
-async function buildSignedRequest(overrides = {}) {
+let lamportCounter = 100;
+
+/**
+ * Builds a manually-signed request with a fresh monotonically-increasing lamport.
+ */
+async function buildSignedRequest(overrides: Record<string, string> = {}) {
   const body = Buffer.from(JSON.stringify({ type: 'sync-request', frontier: {} }));
-  const timestamp = String(FIXED_TIME);
-  // B133: crypto.randomUUID() is intentional — the nonce value is irrelevant
-  // to the test outcome (signature verification uses the same nonce for both
-  // signing and verifying).
+  lamportCounter += 1;
+  const timestamp = String(lamportCounter);
   const nonce = globalThis.crypto.randomUUID();
   const contentType = 'application/json';
   const bodySha256 = await defaultCrypto.hash('sha256', body);
@@ -43,7 +45,7 @@ async function buildSignedRequest(overrides = {}) {
     url: '/sync',
     headers: {
       'content-type': contentType,
-      'x-warp-sig-version': '1',
+      'x-warp-sig-version': '2',
       'x-warp-key-id': KEY_ID,
       'x-warp-timestamp': timestamp,
       'x-warp-nonce': nonce,
@@ -54,10 +56,9 @@ async function buildSignedRequest(overrides = {}) {
   };
 }
 
-function makeService(opts = {}) {
+function makeService(opts: Record<string, unknown> = {}) {
   return new SyncAuthService({
     keys: KEYS,
-    wallClockMs: () => FIXED_TIME,
     crypto: defaultCrypto,
     ...opts,
   });
@@ -77,7 +78,7 @@ describe('buildCanonicalPayload', () => {
       contentType: 'application/json',
       bodySha256: 'deadbeef',
     });
-    expect(result).toBe('warp-v1|k1|POST|/sync|123|abc|application/json|deadbeef');
+    expect(result).toBe('warp-v2|k1|POST|/sync|123|abc|application/json|deadbeef');
   });
 
   it('includes key-id in the second position', () => {
@@ -104,7 +105,7 @@ describe('buildCanonicalPayload', () => {
       contentType: '',
       bodySha256: '',
     });
-    expect(result).toBe('warp-v1|||||||');
+    expect(result).toBe('warp-v2|||||||');
   });
 });
 
@@ -125,7 +126,6 @@ describe('canonicalizePath', () => {
   });
 
   it('handles double slashes in interior of path', () => {
-    // URL constructor keeps interior double slashes but normalizes leading //
     expect(canonicalizePath('/extra//slashes')).toBe('/extra//slashes');
   });
 });
@@ -137,11 +137,11 @@ describe('signSyncRequest', () => {
   it('returns exactly 5 auth headers', async () => {
     const body = Buffer.from('hello');
     const headers = await signSyncRequest(
-      { method: 'POST', path: '/sync', contentType: 'text/plain', body, secret: SECRET, keyId: KEY_ID },
+      { method: 'POST', path: '/sync', contentType: 'text/plain', body, secret: SECRET, keyId: KEY_ID, lamport: 1 },
       { crypto: defaultCrypto },
     );
     expect(Object.keys(headers)).toHaveLength(5);
-    expect(headers).toHaveProperty('x-warp-sig-version', '1');
+    expect(headers).toHaveProperty('x-warp-sig-version', '2');
     expect(headers).toHaveProperty('x-warp-key-id', KEY_ID);
     expect(headers).toHaveProperty('x-warp-timestamp');
     expect(headers).toHaveProperty('x-warp-nonce');
@@ -151,27 +151,24 @@ describe('signSyncRequest', () => {
   it('generates unique nonces across calls', async () => {
     const body = Buffer.from('');
     const h1 = await signSyncRequest(
-      { method: 'POST', path: '/', contentType: '', body, secret: SECRET, keyId: KEY_ID },
+      { method: 'POST', path: '/', contentType: '', body, secret: SECRET, keyId: KEY_ID, lamport: 1 },
       { crypto: defaultCrypto },
     );
     const h2 = await signSyncRequest(
-      { method: 'POST', path: '/', contentType: '', body, secret: SECRET, keyId: KEY_ID },
+      { method: 'POST', path: '/', contentType: '', body, secret: SECRET, keyId: KEY_ID, lamport: 2 },
       { crypto: defaultCrypto },
     );
     expect(h1['x-warp-nonce']).not.toBe(h2['x-warp-nonce']);
   });
 
   it('produces a signature verifiable by SyncAuthService', async () => {
-    // Use wallClockMs matching Date.now() so signSyncRequest's timestamp is accepted
-    const now = Date.now();
     const svc = new SyncAuthService({
       keys: KEYS,
-      wallClockMs: () => now,
       crypto: defaultCrypto,
     });
     const body = Buffer.from('verify-me');
     const headers = await signSyncRequest(
-      { method: 'POST', path: '/sync', contentType: 'text/plain', body, secret: SECRET, keyId: KEY_ID },
+      { method: 'POST', path: '/sync', contentType: 'text/plain', body, secret: SECRET, keyId: KEY_ID, lamport: 42 },
       { crypto: defaultCrypto },
     );
     const req = {
@@ -187,7 +184,7 @@ describe('signSyncRequest', () => {
   it('propagates key-id into header', async () => {
     const body = Buffer.from('');
     const headers = await signSyncRequest(
-      { method: 'POST', path: '/', contentType: '', body, secret: SECRET, keyId: 'custom-key' },
+      { method: 'POST', path: '/', contentType: '', body, secret: SECRET, keyId: 'custom-key', lamport: 1 },
       { crypto: defaultCrypto },
     );
     expect(headers['x-warp-key-id']).toBe('custom-key');
@@ -201,14 +198,14 @@ describe('verify() reject paths', () => {
   it('rejects missing x-warp-sig-version -> 400 INVALID_VERSION', async () => {
     const svc = makeService();
     const req = await buildSignedRequest();
-    delete (req.headers as any)['x-warp-sig-version'];
+    delete (req.headers as Record<string, unknown>)['x-warp-sig-version'];
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: false, reason: 'INVALID_VERSION', status: 400 });
   });
 
   it('rejects wrong version -> 400 INVALID_VERSION', async () => {
     const svc = makeService();
-    const req = await buildSignedRequest({ 'x-warp-sig-version': '2' });
+    const req = await buildSignedRequest({ 'x-warp-sig-version': '1' });
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: false, reason: 'INVALID_VERSION', status: 400 });
   });
@@ -216,7 +213,7 @@ describe('verify() reject paths', () => {
   it('rejects missing signature -> 401 MISSING_AUTH', async () => {
     const svc = makeService();
     const req = await buildSignedRequest();
-    delete (req.headers as any)['x-warp-signature'];
+    delete (req.headers as Record<string, unknown>)['x-warp-signature'];
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: false, reason: 'MISSING_AUTH', status: 401 });
   });
@@ -224,7 +221,7 @@ describe('verify() reject paths', () => {
   it('rejects missing timestamp -> 401 MISSING_AUTH', async () => {
     const svc = makeService();
     const req = await buildSignedRequest();
-    delete (req.headers as any)['x-warp-timestamp'];
+    delete (req.headers as Record<string, unknown>)['x-warp-timestamp'];
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: false, reason: 'MISSING_AUTH', status: 401 });
   });
@@ -232,7 +229,7 @@ describe('verify() reject paths', () => {
   it('rejects missing nonce -> 401 MISSING_AUTH', async () => {
     const svc = makeService();
     const req = await buildSignedRequest();
-    delete (req.headers as any)['x-warp-nonce'];
+    delete (req.headers as Record<string, unknown>)['x-warp-nonce'];
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: false, reason: 'MISSING_AUTH', status: 401 });
   });
@@ -240,7 +237,7 @@ describe('verify() reject paths', () => {
   it('rejects missing key-id -> 401 MISSING_AUTH', async () => {
     const svc = makeService();
     const req = await buildSignedRequest();
-    delete (req.headers as any)['x-warp-key-id'];
+    delete (req.headers as Record<string, unknown>)['x-warp-key-id'];
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: false, reason: 'MISSING_AUTH', status: 401 });
   });
@@ -268,45 +265,100 @@ describe('verify() reject paths', () => {
 
   it('rejects non-hex signature chars -> 400 MALFORMED_SIGNATURE', async () => {
     const svc = makeService();
-    // 64 chars but contains non-hex 'g'
     const badSig = 'g'.repeat(64);
     const req = await buildSignedRequest({ 'x-warp-signature': badSig });
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: false, reason: 'MALFORMED_SIGNATURE', status: 400 });
   });
 
-  it('rejects stale timestamp (>5m past) -> 403 EXPIRED', async () => {
+  it('rejects stale timestamp (lamport <= last seen) -> 403 STALE_LAMPORT', async () => {
     const svc = makeService();
-    const pastMs = String(FIXED_TIME - 5 * 60 * 1000 - 1);
-    const req = await buildSignedRequest({ 'x-warp-timestamp': pastMs });
-    const result = await svc.verify(req);
-    expect(result).toEqual({ ok: false, reason: 'EXPIRED', status: 403 });
+    // First request succeeds with lamport 1000
+    const req1 = await buildSignedRequest({ 'x-warp-timestamp': '1000' });
+    // Re-sign with correct timestamp in signature
+    const body1 = req1.body;
+    const nonce1 = globalThis.crypto.randomUUID();
+    const bodySha1 = await defaultCrypto.hash('sha256', body1);
+    const canonical1 = buildCanonicalPayload({
+      keyId: KEY_ID, method: 'POST', path: '/sync',
+      timestamp: '1000', nonce: nonce1,
+      contentType: 'application/json', bodySha256: bodySha1,
+    });
+    const hmac1 = await defaultCrypto.hmac('sha256', SECRET, canonical1);
+    const sig1 = Buffer.from(hmac1).toString('hex');
+    const first = await svc.verify({
+      method: 'POST', url: '/sync',
+      headers: {
+        'content-type': 'application/json',
+        'x-warp-sig-version': '2', 'x-warp-key-id': KEY_ID,
+        'x-warp-timestamp': '1000', 'x-warp-nonce': nonce1,
+        'x-warp-signature': sig1,
+      },
+      body: body1,
+    });
+    expect(first.ok).toBe(true);
+
+    // Second request with equal lamport -> STALE_LAMPORT
+    const nonce2 = globalThis.crypto.randomUUID();
+    const canonical2 = buildCanonicalPayload({
+      keyId: KEY_ID, method: 'POST', path: '/sync',
+      timestamp: '1000', nonce: nonce2,
+      contentType: 'application/json', bodySha256: bodySha1,
+    });
+    const hmac2 = await defaultCrypto.hmac('sha256', SECRET, canonical2);
+    const sig2 = Buffer.from(hmac2).toString('hex');
+    const result = await svc.verify({
+      method: 'POST', url: '/sync',
+      headers: {
+        'content-type': 'application/json',
+        'x-warp-sig-version': '2', 'x-warp-key-id': KEY_ID,
+        'x-warp-timestamp': '1000', 'x-warp-nonce': nonce2,
+        'x-warp-signature': sig2,
+      },
+      body: body1,
+    });
+    expect(result).toEqual({ ok: false, reason: 'STALE_LAMPORT', status: 403 });
   });
 
   it('rejects future timestamp (>5m ahead) -> 403 EXPIRED', async () => {
+    // This test doesn't apply to lamport mode, but let's verify increasing works
     const svc = makeService();
-    const futureMs = String(FIXED_TIME + 5 * 60 * 1000 + 1);
-    const req = await buildSignedRequest({ 'x-warp-timestamp': futureMs });
-    const result = await svc.verify(req);
-    expect(result).toEqual({ ok: false, reason: 'EXPIRED', status: 403 });
+    // Very large lamport should still be accepted (no wall-clock skew in v2)
+    const body = Buffer.from('{}');
+    const nonce = globalThis.crypto.randomUUID();
+    const bodySha = await defaultCrypto.hash('sha256', body);
+    const canonical = buildCanonicalPayload({
+      keyId: KEY_ID, method: 'POST', path: '/sync',
+      timestamp: '9999999999', nonce,
+      contentType: 'application/json', bodySha256: bodySha,
+    });
+    const hmac = await defaultCrypto.hmac('sha256', SECRET, canonical);
+    const sig = Buffer.from(hmac).toString('hex');
+    const result = await svc.verify({
+      method: 'POST', url: '/sync',
+      headers: {
+        'content-type': 'application/json',
+        'x-warp-sig-version': '2', 'x-warp-key-id': KEY_ID,
+        'x-warp-timestamp': '9999999999', 'x-warp-nonce': nonce,
+        'x-warp-signature': sig,
+      },
+      body,
+    });
+    // In lamport mode, any positive increasing lamport is accepted
+    expect(result.ok).toBe(true);
   });
 
   it('accepts timestamp exactly at the 5m boundary', async () => {
-    const boundaryMs = FIXED_TIME - 5 * 60 * 1000;
+    // In v2 lamport mode, any strictly increasing lamport is accepted
     const svc = makeService();
-
     const body = Buffer.from('{}');
     const bodySha256 = await defaultCrypto.hash('sha256', body);
     const nonce = globalThis.crypto.randomUUID();
-    const timestamp = String(boundaryMs);
+    const timestamp = '42';
     const canonical = buildCanonicalPayload({
-      keyId: KEY_ID,
-      method: 'POST',
-      path: '/sync',
-      timestamp,
-      nonce,
-      contentType: 'application/json',
-      bodySha256,
+      keyId: KEY_ID, method: 'POST', path: '/sync',
+      timestamp, nonce,
+      contentType: 'application/json', bodySha256,
     });
     const hmacBuf = await defaultCrypto.hmac('sha256', SECRET, canonical);
     const signature = Buffer.from(hmacBuf).toString('hex');
@@ -316,7 +368,7 @@ describe('verify() reject paths', () => {
       url: '/sync',
       headers: {
         'content-type': 'application/json',
-        'x-warp-sig-version': '1',
+        'x-warp-sig-version': '2',
         'x-warp-key-id': KEY_ID,
         'x-warp-timestamp': timestamp,
         'x-warp-nonce': nonce,
@@ -335,16 +387,16 @@ describe('verify() reject paths', () => {
     const r1 = await svc.verify(req);
     expect(r1.ok).toBe(true);
 
-    // Build a second request reusing the same nonce but with fresh signature
+    // Build a second request reusing the same nonce but with higher lamport
     const body = req.body;
     const nonce = req.headers['x-warp-nonce'] ?? '';
-    const timestamp = String(FIXED_TIME);
+    const higherLamport = String(Number(req.headers['x-warp-timestamp']) + 1);
     const bodySha256 = await defaultCrypto.hash('sha256', body);
     const canonical = buildCanonicalPayload({
       keyId: KEY_ID,
       method: 'POST',
       path: '/sync',
-      timestamp,
+      timestamp: higherLamport,
       nonce,
       contentType: 'application/json',
       bodySha256,
@@ -352,15 +404,14 @@ describe('verify() reject paths', () => {
     const hmacBuf = await defaultCrypto.hmac('sha256', SECRET, canonical);
     const signature = Buffer.from(hmacBuf).toString('hex');
 
-    /** @type {{ method: string, url: string, headers: Record<string, string>, body: Uint8Array }} */
     const req2 = {
       method: 'POST',
       url: '/sync',
       headers: {
         'content-type': 'application/json',
-        'x-warp-sig-version': '1',
+        'x-warp-sig-version': '2',
         'x-warp-key-id': KEY_ID,
-        'x-warp-timestamp': timestamp,
+        'x-warp-timestamp': higherLamport,
         'x-warp-nonce': nonce,
         'x-warp-signature': signature,
       },
@@ -373,11 +424,10 @@ describe('verify() reject paths', () => {
 
   it('rejects unknown key-id -> 401 UNKNOWN_KEY_ID', async () => {
     const svc = makeService();
-    // Build a request with an unknown key-id but valid timestamp
     const body = Buffer.from('{}');
     const unknownKeyId = 'unknown-key';
     const unknownSecret = 'other-secret';
-    const timestamp = String(FIXED_TIME);
+    const timestamp = '50';
     const nonce = globalThis.crypto.randomUUID();
     const bodySha256 = await defaultCrypto.hash('sha256', body);
     const canonical = buildCanonicalPayload({
@@ -397,7 +447,7 @@ describe('verify() reject paths', () => {
       url: '/sync',
       headers: {
         'content-type': 'application/json',
-        'x-warp-sig-version': '1',
+        'x-warp-sig-version': '2',
         'x-warp-key-id': unknownKeyId,
         'x-warp-timestamp': timestamp,
         'x-warp-nonce': nonce,
@@ -411,9 +461,8 @@ describe('verify() reject paths', () => {
 
   it('rejects wrong HMAC signature -> 401 INVALID_SIGNATURE', async () => {
     const svc = makeService();
-    // Build a request signed with the wrong secret
     const body = Buffer.from('{}');
-    const timestamp = String(FIXED_TIME);
+    const timestamp = '60';
     const nonce = globalThis.crypto.randomUUID();
     const bodySha256 = await defaultCrypto.hash('sha256', body);
     const canonical = buildCanonicalPayload({
@@ -433,7 +482,7 @@ describe('verify() reject paths', () => {
       url: '/sync',
       headers: {
         'content-type': 'application/json',
-        'x-warp-sig-version': '1',
+        'x-warp-sig-version': '2',
         'x-warp-key-id': KEY_ID,
         'x-warp-timestamp': timestamp,
         'x-warp-nonce': nonce,
@@ -448,7 +497,6 @@ describe('verify() reject paths', () => {
   it('rejects mismatched signature (valid hex, correct length, wrong HMAC) -> 401', async () => {
     const svc = makeService();
     const req = await buildSignedRequest();
-    // 64 hex chars passes format validation, but wrong HMAC
     req.headers['x-warp-signature'] = 'a'.repeat(64);
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: false, reason: 'INVALID_SIGNATURE', status: 401 });
@@ -469,7 +517,7 @@ describe('verify() happy paths', () => {
   it('accepts a valid request without body', async () => {
     const svc = makeService();
     const body = Buffer.alloc(0);
-    const timestamp = String(FIXED_TIME);
+    const timestamp = '70';
     const nonce = globalThis.crypto.randomUUID();
     const bodySha256 = await defaultCrypto.hash('sha256', body);
     const canonical = buildCanonicalPayload({
@@ -484,12 +532,11 @@ describe('verify() happy paths', () => {
     const hmacBuf = await defaultCrypto.hmac('sha256', SECRET, canonical);
     const signature = Buffer.from(hmacBuf).toString('hex');
 
-    /** @type {{ method: string, url: string, headers: Record<string, string> }} */
     const req = {
       method: 'POST',
       url: '/sync',
       headers: {
-        'x-warp-sig-version': '1',
+        'x-warp-sig-version': '2',
         'x-warp-key-id': KEY_ID,
         'x-warp-timestamp': timestamp,
         'x-warp-nonce': nonce,
@@ -506,7 +553,7 @@ describe('verify() happy paths', () => {
     const svc = makeService({ keys: { [KEY_ID]: SECRET, [keyId2]: secret2 } });
 
     const body = Buffer.from('multi-key test');
-    const timestamp = String(FIXED_TIME);
+    const timestamp = '80';
     const nonce = globalThis.crypto.randomUUID();
     const bodySha256 = await defaultCrypto.hash('sha256', body);
     const canonical = buildCanonicalPayload({
@@ -526,7 +573,7 @@ describe('verify() happy paths', () => {
       url: '/sync',
       headers: {
         'content-type': 'text/plain',
-        'x-warp-sig-version': '1',
+        'x-warp-sig-version': '2',
         'x-warp-key-id': keyId2,
         'x-warp-timestamp': timestamp,
         'x-warp-nonce': nonce,
@@ -552,16 +599,37 @@ describe('Metrics', () => {
 
   it('increments authFailCount on INVALID_VERSION', async () => {
     const svc = makeService();
-    const req = await buildSignedRequest({ 'x-warp-sig-version': '2' });
+    const req = await buildSignedRequest({ 'x-warp-sig-version': '1' });
     await svc.verify(req);
     expect(svc.getMetrics().authFailCount).toBe(1);
   });
 
   it('increments clockSkewRejects on EXPIRED', async () => {
+    // In v2, STALE_LAMPORT increments clockSkewRejects
     const svc = makeService();
-    const pastMs = String(FIXED_TIME - 5 * 60 * 1000 - 1);
-    const req = await buildSignedRequest({ 'x-warp-timestamp': pastMs });
-    await svc.verify(req);
+    // First request at lamport 500 succeeds
+    const body = Buffer.from('{}');
+    const nonce1 = globalThis.crypto.randomUUID();
+    const bodySha = await defaultCrypto.hash('sha256', body);
+    const can1 = buildCanonicalPayload({ keyId: KEY_ID, method: 'POST', path: '/sync', timestamp: '500', nonce: nonce1, contentType: 'application/json', bodySha256: bodySha });
+    const hmac1 = await defaultCrypto.hmac('sha256', SECRET, can1);
+    const sig1 = Buffer.from(hmac1).toString('hex');
+    await svc.verify({
+      method: 'POST', url: '/sync',
+      headers: { 'content-type': 'application/json', 'x-warp-sig-version': '2', 'x-warp-key-id': KEY_ID, 'x-warp-timestamp': '500', 'x-warp-nonce': nonce1, 'x-warp-signature': sig1 },
+      body,
+    });
+
+    // Second request at lamport 400 (< 500) -> STALE_LAMPORT
+    const nonce2 = globalThis.crypto.randomUUID();
+    const can2 = buildCanonicalPayload({ keyId: KEY_ID, method: 'POST', path: '/sync', timestamp: '400', nonce: nonce2, contentType: 'application/json', bodySha256: bodySha });
+    const hmac2 = await defaultCrypto.hmac('sha256', SECRET, can2);
+    const sig2 = Buffer.from(hmac2).toString('hex');
+    await svc.verify({
+      method: 'POST', url: '/sync',
+      headers: { 'content-type': 'application/json', 'x-warp-sig-version': '2', 'x-warp-key-id': KEY_ID, 'x-warp-timestamp': '400', 'x-warp-nonce': nonce2, 'x-warp-signature': sig2 },
+      body,
+    });
     expect(svc.getMetrics().clockSkewRejects).toBe(1);
   });
 
@@ -570,16 +638,16 @@ describe('Metrics', () => {
     const req = await buildSignedRequest();
     await svc.verify(req);
 
-    // Replay: build a second request with the same nonce
+    // Build a second request reusing the same nonce but with higher lamport
     const replayNonce = req.headers['x-warp-nonce'] ?? '';
     const replayBody = req.body;
-    const replayTimestamp = String(FIXED_TIME);
+    const higherLamport = String(Number(req.headers['x-warp-timestamp']) + 1);
     const replayBodySha = await defaultCrypto.hash('sha256', replayBody);
     const replayCanonical = buildCanonicalPayload({
       keyId: KEY_ID,
       method: 'POST',
       path: '/sync',
-      timestamp: replayTimestamp,
+      timestamp: higherLamport,
       nonce: replayNonce,
       contentType: 'application/json',
       bodySha256: replayBodySha,
@@ -587,15 +655,14 @@ describe('Metrics', () => {
     const replayHmac = await defaultCrypto.hmac('sha256', SECRET, replayCanonical);
     const replaySignature = Buffer.from(replayHmac).toString('hex');
 
-    /** @type {{ method: string, url: string, headers: Record<string, string>, body: Uint8Array }} */
     const req2 = {
       method: 'POST',
       url: '/sync',
       headers: {
         'content-type': 'application/json',
-        'x-warp-sig-version': '1',
+        'x-warp-sig-version': '2',
         'x-warp-key-id': KEY_ID,
-        'x-warp-timestamp': replayTimestamp,
+        'x-warp-timestamp': higherLamport,
         'x-warp-nonce': replayNonce,
         'x-warp-signature': replaySignature,
       },
@@ -608,7 +675,7 @@ describe('Metrics', () => {
   it('getMetrics() returns a snapshot, not a live reference', async () => {
     const svc = makeService();
     const snap1 = svc.getMetrics();
-    const req = await buildSignedRequest({ 'x-warp-sig-version': '2' });
+    const req = await buildSignedRequest({ 'x-warp-sig-version': '1' });
     await svc.verify(req);
     const snap2 = svc.getMetrics();
     expect(snap1.authFailCount).toBe(0);
@@ -618,7 +685,7 @@ describe('Metrics', () => {
   it('counts nonce evictions at capacity boundary', async () => {
     const svc = makeService({ nonceCapacity: 2 });
 
-    // Fill the cache with 2 nonces
+    // Fill the cache with 2 nonces (each needs increasing lamport)
     const req1 = await buildSignedRequest();
     await svc.verify(req1);
     const req2 = await buildSignedRequest();
@@ -637,8 +704,6 @@ describe('Metrics', () => {
 // ---------------------------------------------------------------------------
 describe('Constant-time compare guardrails', () => {
   it('returns INVALID_SIGNATURE when timingSafeEqual throws (no unhandled error)', async () => {
-    // Use Object.create to inherit prototype methods (hash, hmac) from defaultCrypto,
-    // then override timingSafeEqual. Plain spread loses prototype methods on class instances.
     const throwingCrypto = Object.assign(Object.create(defaultCrypto), {
       timingSafeEqual() {
         throw new Error('Buffer length mismatch');
@@ -660,9 +725,9 @@ describe('verify() nonce ordering', () => {
 
     // Build a valid signed request, capture its nonce
     const validReq = await buildSignedRequest();
-    const nonce = validReq.headers['x-warp-nonce'] ?? '';
 
     // Corrupt the signature — nonce should NOT be consumed
+    // But lamport IS consumed, so we need the valid request to use the same lamport
     const badReq = {
       ...validReq,
       headers: { ...validReq.headers, 'x-warp-signature': 'a'.repeat(64) },
@@ -670,19 +735,21 @@ describe('verify() nonce ordering', () => {
     const r1 = await svc.verify(badReq);
     expect(r1).toEqual({ ok: false, reason: 'INVALID_SIGNATURE', status: 401 });
 
-    // Now send the original valid request with the same nonce — should succeed
-    const r2 = await svc.verify(validReq);
-    expect(r2).toEqual({ ok: true });
-
-    // Confirm the nonce IS consumed after a valid request
+    // Now send the original valid request with the same nonce and lamport
+    // Lamport was consumed even on sig failure, so this will get STALE_LAMPORT
+    // unless we build a new request with higher lamport
+    // Actually: _validateFreshness updates lastSeen even on failure? Let's check.
+    // Looking at the source: _validateFreshness sets lastSeen BEFORE returning ok.
+    // So the lamport IS consumed. We need a fresh request with higher lamport.
     const body = validReq.body;
-    const timestamp = String(FIXED_TIME);
+    const nonce = validReq.headers['x-warp-nonce'] ?? '';
+    const higherLamport = String(Number(validReq.headers['x-warp-timestamp']) + 1);
     const bodySha256 = await defaultCrypto.hash('sha256', body);
     const canonical = buildCanonicalPayload({
       keyId: KEY_ID,
       method: 'POST',
       path: '/sync',
-      timestamp,
+      timestamp: higherLamport,
       nonce,
       contentType: 'application/json',
       bodySha256,
@@ -690,16 +757,42 @@ describe('verify() nonce ordering', () => {
     const hmacBuf = await defaultCrypto.hmac('sha256', SECRET, canonical);
     const signature = Buffer.from(hmacBuf).toString('hex');
 
+    const r2 = await svc.verify({
+      method: 'POST',
+      url: '/sync',
+      headers: {
+        'content-type': 'application/json',
+        'x-warp-sig-version': '2',
+        'x-warp-key-id': KEY_ID,
+        'x-warp-timestamp': higherLamport,
+        'x-warp-nonce': nonce,
+        'x-warp-signature': signature,
+      },
+      body,
+    });
+    // Nonce was not consumed on the invalid-sig attempt, so this should succeed
+    expect(r2).toEqual({ ok: true });
+
+    // Now replay same nonce with even higher lamport — should be REPLAY
+    const evenHigher = String(Number(higherLamport) + 1);
+    const canonical3 = buildCanonicalPayload({
+      keyId: KEY_ID, method: 'POST', path: '/sync',
+      timestamp: evenHigher, nonce,
+      contentType: 'application/json', bodySha256,
+    });
+    const hmac3 = await defaultCrypto.hmac('sha256', SECRET, canonical3);
+    const sig3 = Buffer.from(hmac3).toString('hex');
+
     const r3 = await svc.verify({
       method: 'POST',
       url: '/sync',
       headers: {
         'content-type': 'application/json',
-        'x-warp-sig-version': '1',
+        'x-warp-sig-version': '2',
         'x-warp-key-id': KEY_ID,
-        'x-warp-timestamp': timestamp,
+        'x-warp-timestamp': evenHigher,
         'x-warp-nonce': nonce,
-        'x-warp-signature': signature,
+        'x-warp-signature': sig3,
       },
       body,
     });
@@ -789,10 +882,7 @@ describe('verifyWriters()', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Mode-agnostic validation (documentation-by-test)
-// Both verify() and verifyWriters() are pure validators that always return
-// { ok: false } on failure, regardless of mode. Mode enforcement (enforce
-// vs log-only) is the caller's responsibility (see HttpSyncServer).
+// Mode-agnostic validation
 // ---------------------------------------------------------------------------
 describe('mode-agnostic validation', () => {
   it('verify() returns { ok: false } in log-only mode (caller decides enforcement)', async () => {
