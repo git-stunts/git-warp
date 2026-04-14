@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseVerifyAuditArgs } from '../../../bin/cli/commands/verify-audit.js';
+import { parseVerifyAuditArgs } from '../../../bin/cli/commands/verify-audit.ts';
 
 describe('parseVerifyAuditArgs', () => {
   it('parses --since with a value', () => {

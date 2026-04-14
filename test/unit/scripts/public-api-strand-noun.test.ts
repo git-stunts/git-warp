@@ -23,7 +23,7 @@ const guide = readFileSync(
 );
 
 const cliHelp = readFileSync(
-  fileURLToPath(new URL('../../../bin/cli/infrastructure.js', import.meta.url)),
+  fileURLToPath(new URL('../../../bin/cli/infrastructure.ts', import.meta.url)),
   'utf8',
 );
 

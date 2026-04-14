@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseArgs, KNOWN_COMMANDS } from '../../../bin/cli/infrastructure.js';
-import { COMMANDS } from '../../../bin/cli/commands/registry.js';
+import { parseArgs, KNOWN_COMMANDS } from '../../../bin/cli/infrastructure.ts';
+import { COMMANDS } from '../../../bin/cli/commands/registry.ts';
 
 describe('parseArgs (base)', () => {
   it('parses command as first positional', () => {

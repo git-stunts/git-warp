@@ -1,17 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { EXIT_CODES } from '../../../bin/cli/infrastructure.js';
+import { EXIT_CODES } from '../../../bin/cli/infrastructure.ts';
 
-vi.mock('../../../bin/cli/shared.js', () => ({
+vi.mock('../../../bin/cli/shared.ts', () => ({
   openGraph: vi.fn(),
   applyCursorCeiling: vi.fn().mockResolvedValue(null),
   emitCursorWarning: vi.fn(),
 }));
 
-const shared = await import('../../../bin/cli/shared.js');
+const shared = await import('../../../bin/cli/shared.ts');
 const openGraph = ((shared.openGraph as unknown) as any);
 const applyCursorCeiling = ((shared.applyCursorCeiling as unknown) as any);
 const emitCursorWarning = ((shared.emitCursorWarning as unknown) as any);
-const { default: handleVerifyIndex } = await import('../../../bin/cli/commands/verify-index.js');
+const { default: handleVerifyIndex } = await import('../../../bin/cli/commands/verify-index.ts');
 
 const CLI_OPTIONS = (({
   repo: '/tmp/repo',

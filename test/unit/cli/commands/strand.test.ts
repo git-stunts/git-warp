@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../../../bin/cli/shared.js', () => ({
+vi.mock('../../../../bin/cli/shared.ts', () => ({
   openGraph: vi.fn(),
 }));
 
-const { openGraph } = await import('../../../../bin/cli/shared.js') as any;
-const handleStrand = (await import('../../../../bin/cli/commands/strand.js')).default;
+const { openGraph } = await import('../../../../bin/cli/shared.ts') as any;
+const handleStrand = (await import('../../../../bin/cli/commands/strand.ts')).default;
 
 describe('handleStrand strand braid command', () => {
   beforeEach(() => {

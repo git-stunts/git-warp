@@ -30,12 +30,14 @@ describe('WarpApp facade', () => {
 
     const core = app.core();
     expect(core).toBeInstanceOf(WarpCore);
-    expect(core.graphName).toBe('app-facade');
-    expect(core.writerId).toBe('writer-app');
-    expect(typeof core.materialize).toBe('function');
-    expect(typeof core.getNodes).toBe('function');
-    expect(typeof core.query).toBe('function');
-    expect(typeof core.traverse).toBe('object');
+    // WarpCore adopts WarpRuntime's prototype; wired methods are visible at runtime
+    const coreRuntime = core as unknown as Record<string, unknown>;
+    expect(coreRuntime['graphName']).toBe('app-facade');
+    expect(coreRuntime['writerId']).toBe('writer-app');
+    expect(typeof coreRuntime['materialize']).toBe('function');
+    expect(typeof coreRuntime['getNodes']).toBe('function');
+    expect(typeof coreRuntime['query']).toBe('function');
+    expect(typeof coreRuntime['traverse']).toBe('object');
   });
 
   it('unwraps another WarpApp when syncing', async () => {
@@ -51,7 +53,8 @@ describe('WarpApp facade', () => {
     });
 
     const coreB = appB.core();
-    const syncSpy = vi.spyOn(coreB, 'syncWith').mockResolvedValue({
+    // syncWith is wired onto WarpRuntime.prototype; spyOn needs a cast
+    const syncSpy = vi.spyOn(coreB as unknown as Record<string, (...args: unknown[]) => unknown>, 'syncWith').mockResolvedValue({
       applied: 0,
       attempts: 1,
       skippedWriters: [],

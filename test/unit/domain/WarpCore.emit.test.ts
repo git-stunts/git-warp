@@ -4,18 +4,18 @@ import {
   InMemoryGraphAdapter,
 } from '../../../index.ts';
 import { EFFECT_NODE_PREFIX } from '../../../src/domain/services/KeyCodec.ts';
+import type WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 
-/**
- * @param {Record<string, unknown>} [extra]
- * @returns {Promise<WarpCore>}
- */
-async function openCore(extra = {}) {
+/** WarpCore with wired WarpRuntime methods visible. */
+type WarpCoreWired = WarpCore & WarpRuntime;
+
+async function openCore(extra = {}): Promise<WarpCoreWired> {
   return await WarpCore.open({
     persistence: new InMemoryGraphAdapter(),
     graphName: 'emit-test',
     writerId: 'writer-1',
     ...extra,
-  });
+  }) as WarpCoreWired;
 }
 
 describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
@@ -173,7 +173,7 @@ describe('PatchBuilder.emitEffect() — graph entity behavior', () => {
         persistence: new InMemoryGraphAdapter(),
         graphName: 'emit-test-2',
         writerId: 'writer-1',
-      });
+      }) as WarpCoreWired;
 
       const payload = { z: 1, a: 2, m: { b: 3, a: 4 } };
       const sharedId = `${EFFECT_NODE_PREFIX}determinism-check`;

@@ -8,7 +8,7 @@ import {
   pathSchema,
   querySchema,
   seekSchema,
-} from '../../../bin/cli/schemas.js';
+} from '../../../bin/cli/schemas.ts';
 
 describe('bisectSchema', () => {
   const VALID_SHA = 'a'.repeat(40);

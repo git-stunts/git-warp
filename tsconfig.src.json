@@ -7,7 +7,7 @@
     "src/**/*.ts",
     "src/globals.d.ts",
     "src/domain/warp/_wiredMethods.d.ts",
-    "bin/warp-graph.js",
+    "bin/warp-graph.ts",
     "bin/**/*.ts",
     "scripts/**/*.js",
     "scripts/**/*.ts"

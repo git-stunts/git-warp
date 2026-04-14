@@ -32,17 +32,17 @@ describe('HealthCheckService', () => {
       persistence: mockPersistence,
       cacheTtlTicks: 100,
       logger: mockLogger,
-    }) as ConstructorParameters<typeof HealthCheckService>[0]);
+    }) as unknown as ConstructorParameters<typeof HealthCheckService>[0]);
   });
 
   describe('constructor', () => {
     it('accepts persistence and optional parameters', () => {
-      const s = new HealthCheckService(({ persistence: mockPersistence }) as ConstructorParameters<typeof HealthCheckService>[0]);
+      const s = new HealthCheckService(({ persistence: mockPersistence }) as unknown as ConstructorParameters<typeof HealthCheckService>[0]);
       expect(s).toBeDefined();
     });
 
     it('uses default cache TTL of 50 ticks', async () => {
-      const s = new HealthCheckService(({ persistence: mockPersistence }) as ConstructorParameters<typeof HealthCheckService>[0]);
+      const s = new HealthCheckService(({ persistence: mockPersistence }) as unknown as ConstructorParameters<typeof HealthCheckService>[0]);
       await s.getHealth(10);
 
       // Call again at same tick — should be cached
@@ -59,7 +59,7 @@ describe('HealthCheckService', () => {
       const s = new HealthCheckService(({
         persistence: mockPersistence,
         cacheTtlTicks: 20,
-      }) as ConstructorParameters<typeof HealthCheckService>[0]);
+      }) as unknown as ConstructorParameters<typeof HealthCheckService>[0]);
       await s.getHealth(10);
 
       // Advance 25 ticks — should expire
@@ -144,7 +144,7 @@ describe('HealthCheckService', () => {
       expect(health.status).toBe(HealthStatus.UNHEALTHY);
       expect(health.components.repository.status).toBe(HealthStatus.UNHEALTHY);
       expect(health.components.repository.latencyMs).toBe(0);
-      expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect(mockLogger['warn']).toHaveBeenCalledWith(
         'Repository ping failed',
         expect.objectContaining({ error: 'Connection refused' }),
       );
@@ -278,7 +278,7 @@ describe('HealthCheckService', () => {
     it('logs debug message for fresh health computation', async () => {
       await service.getHealth(1);
 
-      expect(mockLogger.debug).toHaveBeenCalledWith(
+      expect(mockLogger['debug']).toHaveBeenCalledWith(
         'Health check completed',
         expect.objectContaining({
           operation: 'getHealth',
@@ -289,11 +289,11 @@ describe('HealthCheckService', () => {
 
     it('does not log for cached results', async () => {
       await service.getHealth(1);
-      mockLogger.debug.mockClear();
+      mockLogger['debug']!.mockClear();
 
       await service.getHealth(2);
 
-      expect(mockLogger.debug).not.toHaveBeenCalled();
+      expect(mockLogger['debug']).not.toHaveBeenCalled();
     });
   });
 });

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { parseTrustArgs } from '../../../bin/cli/commands/trust.js';
+import { parseTrustArgs } from '../../../bin/cli/commands/trust.ts';
 
 describe('trust CLI pin precedence', () => {
   it('parses --trust-pin from CLI args', () => {

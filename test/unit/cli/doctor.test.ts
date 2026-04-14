@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CODES } from '../../../bin/cli/commands/doctor/codes.js';
-import { DOCTOR_EXIT_CODES } from '../../../bin/cli/commands/doctor/types.js';
-import { checkCoverageComplete, checkClockSkew, checkRefsConsistent } from '../../../bin/cli/commands/doctor/checks.js';
+import { CODES } from '../../../bin/cli/commands/doctor/codes.ts';
+import { DOCTOR_EXIT_CODES } from '../../../bin/cli/commands/doctor/types.ts';
+import { checkCoverageComplete, checkClockSkew, checkRefsConsistent } from '../../../bin/cli/commands/doctor/checks.ts';
 
 // Mock shared.js to avoid real git operations
-vi.mock('../../../bin/cli/shared.js', () => ({
+vi.mock('../../../bin/cli/shared.ts', () => ({
   createPersistence: vi.fn(),
   resolveGraphName: vi.fn(),
   createHookInstaller: vi.fn(),
@@ -27,7 +27,7 @@ vi.mock('../../../src/infrastructure/adapters/ClockAdapter.ts', () => ({
   default: { global: vi.fn().mockReturnValue({}) },
 }));
 
-const _shared = await import('../../../bin/cli/shared.js');
+const _shared = await import('../../../bin/cli/shared.ts');
 const createPersistence = ((_shared.createPersistence as unknown) as any);
 const resolveGraphName = ((_shared.resolveGraphName as unknown) as any);
 const createHookInstaller = ((_shared.createHookInstaller as unknown) as any);
@@ -103,7 +103,7 @@ describe('doctor command', () => {
     });
 
     // ESM caches the module after first import; vi.mock hoisting ensures mocks are in place
-    const mod = await import('../../../bin/cli/commands/doctor/index.js');
+    const mod = await import('../../../bin/cli/commands/doctor/index.ts');
     handleDoctor = mod.default;
   });
 

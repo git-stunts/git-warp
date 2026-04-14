@@ -9,11 +9,7 @@ import {
   REPLAY_LENS,
 } from '../../../index.ts';
 
-/**
- * @param {Record<string, unknown>} [extra]
- * @returns {Promise<WarpCore>}
- */
-async function openCore(extra = {}) {
+async function openCore(extra = {}): Promise<WarpCore> {
   return await WarpCore.open({
     persistence: new InMemoryGraphAdapter(),
     graphName: 'effect-test',
@@ -38,7 +34,6 @@ describe('WarpCore — effect pipeline (host-domain infra)', () => {
       const pipeline = new EffectPipeline({
         sink: ((mux) as any),
         lens: LIVE_LENS,
-        clock: { now: () => 42 },
       });
 
       const core = await openCore({ effectPipeline: pipeline });
@@ -64,7 +59,6 @@ describe('WarpCore — effect pipeline (host-domain infra)', () => {
       core.effectPipeline = new EffectPipeline({
         sink: ((mux) as any),
         lens: LIVE_LENS,
-        clock: { now: () => 99 },
       });
 
       expect(core.effectPipeline).toBeInstanceOf(EffectPipeline);

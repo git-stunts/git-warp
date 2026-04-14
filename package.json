@@ -20,7 +20,7 @@
   "main": "./index.ts",
   "types": "./index.d.ts",
   "bin": {
-    "warp-graph": "./bin/warp-graph.js",
+    "warp-graph": "./bin/warp-graph.ts",
     "git-warp": "./bin/git-warp"
   },
   "exports": {
@@ -51,7 +51,7 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "bin/warp-graph.js",
+    "bin/warp-graph.ts",
     "bin/presenters",
     "bin/cli",
     "bin/git-warp",

@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../../../bin/cli/shared.js', () => ({
+vi.mock('../../../../bin/cli/shared.ts', () => ({
   openGraph: vi.fn(),
   readActiveCursor: vi.fn(),
   emitCursorWarning: vi.fn(),
 }));
 
-const { openGraph: _openGraph, readActiveCursor: _readActiveCursor, emitCursorWarning } = await import('../../../../bin/cli/shared.js');
+const { openGraph: _openGraph, readActiveCursor: _readActiveCursor, emitCursorWarning } = await import('../../../../bin/cli/shared.ts');
 const openGraph = _openGraph as any;
 const readActiveCursor = _readActiveCursor as any;
-const handleDebug = (await import('../../../../bin/cli/commands/debug.js')).default;
+const handleDebug = (await import('../../../../bin/cli/commands/debug.ts')).default;
 
 /**
  * @typedef {{

@@ -6,7 +6,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const dir = dirname(fileURLToPath(import.meta.url));
-const cliPath = resolve(dir, 'warp-graph.js');
+const cliPath = resolve(dir, 'warp-graph.ts');
 const args = process.argv.slice(2);
 let result;
 
