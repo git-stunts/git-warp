@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   WarpCore,
   InMemoryGraphAdapter,
-} from '../../../index.js';
+} from '../../../index.ts';
 import { EFFECT_NODE_PREFIX } from '../../../src/domain/services/KeyCodec.ts';
 
 /**

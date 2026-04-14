@@ -5,19 +5,20 @@
     "roaring": "npm:roaring@^2.7.0"
   },
   "exports": {
-    ".": "./index.js",
-    "./node": "./src/domain/entities/GraphNode.js",
-    "./visualization": "./src/visualization/index.js",
+    ".": "./index.ts",
+    "./node": "./src/domain/entities/GraphNode.ts",
+    "./visualization": "./src/visualization/index.ts",
     "./browser": "./browser.js",
-    "./sha1sync": "./src/infrastructure/adapters/sha1sync.js"
+    "./sha1sync": "./src/infrastructure/adapters/sha1sync.ts"
   },
   "publish": {
     "include": [
-      "index.js",
+      "index.ts",
       "index.d.ts",
       "browser.js",
       "browser.d.ts",
       "sha1sync.d.ts",
+      "src/**/*.ts",
       "src/**/*.js",
       "src/**/*.d.ts",
       "README.md",

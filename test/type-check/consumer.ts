@@ -85,7 +85,7 @@ import WarpApp, {
   decodeEdgePropKey,
   isEdgePropKey,
   CONTENT_PROPERTY_KEY,
-} from '../../index.js';
+} from '../../index.ts';
 
 import type {
   WarpState,
@@ -154,7 +154,7 @@ import type {
   ConflictAnalysis,
   ConflictKind,
   ConflictTargetSelector,
-} from '../../index.js';
+} from '../../index.ts';
 
 // ---------------------------------------------------------------------------
 // Positive tests -- must compile
@@ -200,7 +200,7 @@ import type {
   FoldingSurface,
   RevelationSurface,
   GovernanceSurface,
-} from '../../index.js';
+} from '../../index.ts';
 
 const wgDeps: WarpGraphDeps = {
   persistence,
@@ -628,7 +628,7 @@ const memEmptyTree: string = memAdapter.emptyTree;
 // ---------------------------------------------------------------------------
 // Classes — GitGraphAdapter
 // ---------------------------------------------------------------------------
-declare const plumbing: import('../../index.js').GitPlumbing;
+declare const plumbing: import('../../index.ts').GitPlumbing;
 const gitAdapter = new GitGraphAdapter({ plumbing });
 const gitEmptyTree: string = gitAdapter.emptyTree;
 

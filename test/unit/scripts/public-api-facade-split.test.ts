@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const indexJs = readFileSync(
-  fileURLToPath(new URL('../../../index.js', import.meta.url)),
+  fileURLToPath(new URL('../../../index.ts', import.meta.url)),
   'utf8',
 );
 

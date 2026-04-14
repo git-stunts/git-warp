@@ -17,7 +17,7 @@
     "node": ">=22.0.0"
   },
   "sideEffects": false,
-  "main": "./index.js",
+  "main": "./index.ts",
   "types": "./index.d.ts",
   "bin": {
     "warp-graph": "./bin/warp-graph.js",
@@ -26,17 +26,17 @@
   "exports": {
     ".": {
       "types": "./index.d.ts",
-      "import": "./index.js",
-      "default": "./index.js"
+      "import": "./index.ts",
+      "default": "./index.ts"
     },
     "./node": {
       "types": "./index.d.ts",
-      "import": "./src/domain/entities/GraphNode.js",
-      "default": "./src/domain/entities/GraphNode.js"
+      "import": "./src/domain/entities/GraphNode.ts",
+      "default": "./src/domain/entities/GraphNode.ts"
     },
     "./visualization": {
-      "import": "./src/visualization/index.js",
-      "default": "./src/visualization/index.js"
+      "import": "./src/visualization/index.ts",
+      "default": "./src/visualization/index.ts"
     },
     "./browser": {
       "types": "./browser.d.ts",
@@ -45,8 +45,8 @@
     },
     "./sha1sync": {
       "types": "./sha1sync.d.ts",
-      "import": "./src/infrastructure/adapters/sha1sync.js",
-      "default": "./src/infrastructure/adapters/sha1sync.js"
+      "import": "./src/infrastructure/adapters/sha1sync.ts",
+      "default": "./src/infrastructure/adapters/sha1sync.ts"
     },
     "./package.json": "./package.json"
   },
@@ -57,7 +57,7 @@
     "bin/git-warp",
     "src",
     "browser.js",
-    "index.js",
+    "index.ts",
     "browser.d.ts",
     "sha1sync.d.ts",
     "index.d.ts",

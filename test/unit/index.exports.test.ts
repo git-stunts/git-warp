@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import * as api from '../../index.js';
+import * as api from '../../index.ts';
 
 describe('public runtime exports', () => {
   it('does not export the retired browser viewer service', () => {

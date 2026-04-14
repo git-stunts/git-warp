@@ -1,5 +1,3 @@
-/* @ts-self-types="./index.d.ts" */
-
 /**
  * @module
  *
@@ -34,9 +32,9 @@
 
 import GitGraphAdapter from './src/infrastructure/adapters/GitGraphAdapter.ts';
 import GraphNode from './src/domain/entities/GraphNode.ts';
-import BitmapIndexBuilder from './src/domain/services/index/BitmapIndexBuilder.js';
-import BitmapIndexReader from './src/domain/services/index/BitmapIndexReader.js';
-import IndexRebuildService from './src/domain/services/index/IndexRebuildService.js';
+import BitmapIndexBuilder from './src/domain/services/index/BitmapIndexBuilder.ts';
+import BitmapIndexReader from './src/domain/services/index/BitmapIndexReader.ts';
+import IndexRebuildService from './src/domain/services/index/IndexRebuildService.ts';
 import HealthCheckService, { HealthStatus } from './src/domain/services/HealthCheckService.ts';
 import CommitDagTraversalService from './src/domain/services/dag/CommitDagTraversalService.ts';
 import GraphPersistencePort from './src/ports/GraphPersistencePort.ts';
@@ -79,23 +77,17 @@ import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellati
 import WarpCore from './src/domain/WarpCore.ts';
 import WarpApp from './src/domain/WarpApp.ts';
 // V1 op factories — inlined after WarpTypes.ts deletion (deprecated, kept for backward compat)
-/** @param {string} node */
-function createNodeAdd(node) { return { type: 'NodeAdd', node }; }
-/** @param {string} node */
-function createNodeTombstone(node) { return { type: 'NodeTombstone', node }; }
-/** @param {string} from @param {string} to @param {string} label */
-function createEdgeAdd(from, to, label) { return { type: 'EdgeAdd', from, to, label }; }
-/** @param {string} from @param {string} to @param {string} label */
-function createEdgeTombstone(from, to, label) { return { type: 'EdgeTombstone', from, to, label }; }
-/** @param {string} node @param {string} key @param {{ type: 'inline', value: unknown } | { type: 'blob', oid: string }} value */
-function createPropSet(node, key, value) { return { type: 'PropSet', node, key, value }; }
-/** @param {unknown} value */
-function createInlineValue(value) { return { type: 'inline', value }; }
-/** @param {string} oid */
-function createBlobValue(oid) { return { type: 'blob', oid }; }
+function createNodeAdd(node: string) { return { type: 'NodeAdd' as const, node }; }
+function createNodeTombstone(node: string) { return { type: 'NodeTombstone' as const, node }; }
+function createEdgeAdd(from: string, to: string, label: string) { return { type: 'EdgeAdd' as const, from, to, label }; }
+function createEdgeTombstone(from: string, to: string, label: string) { return { type: 'EdgeTombstone' as const, from, to, label }; }
+type PropSetValue = { type: 'inline'; value: unknown } | { type: 'blob'; oid: string };
+function createPropSet(node: string, key: string, value: PropSetValue) { return { type: 'PropSet' as const, node, key, value }; }
+function createInlineValue(value: unknown) { return { type: 'inline' as const, value }; }
+function createBlobValue(oid: string) { return { type: 'blob' as const, oid }; }
 import { migrateV4toV5 } from './src/domain/services/MigrationService.ts';
-import QueryBuilder from './src/domain/services/query/QueryBuilder.js';
-import Observer from './src/domain/services/query/Observer.js';
+import QueryBuilder from './src/domain/services/query/QueryBuilder.ts';
+import Observer from './src/domain/services/query/Observer.ts';
 import Worldline from './src/domain/services/Worldline.ts';
 import WorldlineSelector from './src/domain/types/WorldlineSelector.ts';
 import LiveSelector from './src/domain/types/LiveSelector.ts';
@@ -116,7 +108,7 @@ import {
 } from './src/domain/types/TickReceipt.ts';
 
 // Provenance payload (HOLOGRAM)
-import ProvenancePayload from './src/domain/services/provenance/ProvenancePayload.js';
+import ProvenancePayload from './src/domain/services/provenance/ProvenancePayload.ts';
 
 // Boundary Transition Records (HOLOGRAM)
 import {
@@ -162,10 +154,10 @@ import { openWarpGraph } from './src/domain/WarpGraph.ts';
 import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
 import { PatchSession } from './src/domain/warp/PatchSession.ts';
 import { Writer } from './src/domain/warp/Writer.ts';
-import { ProvenanceIndex } from './src/domain/services/provenance/ProvenanceIndex.js';
-import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/services/index/WarpStateIndexBuilder.js';
-import { computeStateHash, projectState } from './src/domain/services/state/StateSerializer.js';
-import { createStateReader } from './src/domain/services/state/StateReader.js';
+import { ProvenanceIndex } from './src/domain/services/provenance/ProvenanceIndex.ts';
+import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/services/index/WarpStateIndexBuilder.ts';
+import { computeStateHash, projectState } from './src/domain/services/state/StateSerializer.ts';
+import { createStateReader } from './src/domain/services/state/StateReader.ts';
 import { compareVisibleState } from './src/domain/services/comparison/VisibleStateComparison.ts';
 import {
   normalizeVisibleStateScope,

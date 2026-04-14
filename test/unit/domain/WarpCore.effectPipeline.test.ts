@@ -7,7 +7,7 @@ import {
   NoOpEffectSink,
   LIVE_LENS,
   REPLAY_LENS,
-} from '../../../index.js';
+} from '../../../index.ts';
 
 /**
  * @param {Record<string, unknown>} [extra]

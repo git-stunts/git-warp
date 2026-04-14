@@ -1,5 +1,5 @@
 /**
- * Tests for the main index.js exports.
+ * Tests for the main index.ts exports.
  *
  * Verifies that all expected exports are available from the package entry point,
  * supporting both ESM and CommonJS import styles.
@@ -57,11 +57,11 @@ import WarpAppDefault, {
   compareVisibleState,
   normalizeVisibleStateScope,
   scopeMaterializedState,
-} from '../../../index.js';
+} from '../../../index.ts';
 
-const { WarpGraph, WarpRuntime, Worldline, ObserverView } = (await import('../../../index.js') as any);
+const { WarpGraph, WarpRuntime, Worldline, ObserverView } = (await import('../../../index.ts') as any);
 
-describe('index.js exports', () => {
+describe('index.ts exports', () => {
   describe('default export', () => {
     it('exports WarpApp as default', () => {
       expect(WarpAppDefault).toBeDefined();
