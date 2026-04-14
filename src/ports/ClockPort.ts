@@ -18,4 +18,11 @@ export default abstract class ClockPort {
    * Used for timestamps in logs and cached results.
    */
   abstract timestamp(): string;
+
+  /**
+   * Returns the current wall-clock time as Unix epoch milliseconds.
+   * Used for audit receipts, HMAC replay protection, and other
+   * contexts requiring a numeric wall-clock timestamp.
+   */
+  abstract epochMs(): number;
 }

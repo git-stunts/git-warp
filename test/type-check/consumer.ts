@@ -8,6 +8,7 @@
  */
 
 import WarpApp, {
+  openWarpGraph,
   WarpApp as WarpAppNamed,
   WarpCore,
   GraphPersistencePort,
@@ -190,6 +191,53 @@ const app: WarpApp = await WarpApp.open({
   trust: { mode: 'off' },
 });
 const graph: WarpCore = app.core();
+
+// ═══ openWarpGraph() — v17 capability bag surface ═══
+import type {
+  WarpGraph,
+  WarpGraphDeps,
+  CommitmentSurface,
+  FoldingSurface,
+  RevelationSurface,
+  GovernanceSurface,
+} from '../../index.js';
+
+const wgDeps: WarpGraphDeps = {
+  persistence,
+  graphName: 'test',
+  writerId: 'w1',
+  trust: { mode: 'off' },
+};
+
+// Factory returns WarpGraph
+const wg: WarpGraph = await openWarpGraph(wgDeps);
+
+// Architectural moments
+const commitment: CommitmentSurface = wg.commitment;
+const folding: FoldingSurface = wg.folding;
+const revelation: RevelationSurface = wg.revelation;
+const governance: GovernanceSurface = wg.governance;
+
+// Flat aliases — each resolves to a capability
+const _wgQuery: WarpCore = wg.query;
+const _wgPatches: WarpCore = wg.patches;
+const _wgMaterialize: WarpCore = wg.materialize;
+const _wgSync: WarpCore = wg.sync;
+const _wgStrands: WarpCore = wg.strands;
+const _wgCheckpoint: WarpCore = wg.checkpoint;
+const _wgProvenance: WarpCore = wg.provenance;
+const _wgComparison: WarpCore = wg.comparison;
+const _wgSubscriptions: WarpCore = wg.subscriptions;
+
+// Structural access through moments
+const _commitPatches: WarpCore = commitment.patches;
+const _foldMaterialize: WarpCore = folding.materialize;
+const _revealQuery: WarpCore = revelation.query;
+const _governSync: WarpCore = governance.sync;
+
+// Identity
+const _wgName: string = wg.graphName;
+const _wgWriter: string = wg.writerId;
 
 // ---- additional type-only surface coverage ----
 const ping: PingResult = { ok: true, latencyMs: 1 };

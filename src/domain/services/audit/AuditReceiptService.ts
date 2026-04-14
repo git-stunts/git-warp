@@ -11,6 +11,8 @@ import type RefPort from '../../../ports/RefPort.ts';
 import type BlobPort from '../../../ports/BlobPort.ts';
 import type TreePort from '../../../ports/TreePort.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';
+import type ClockPort from '../../../ports/ClockPort.ts';
+import defaultClock from '../../utils/defaultClock.ts';
 
 // Constants
 
@@ -201,6 +203,7 @@ export interface AuditReceiptServiceOptions {
   codec: CodecPort;
   crypto: CryptoPort;
   logger?: LoggerPort;
+  clock?: ClockPort;
 }
 
 export interface AuditStats {
@@ -229,6 +232,7 @@ export class AuditReceiptService {
   private readonly _writerId: string;
   private readonly _codec: CodecPort;
   private readonly _crypto: CryptoPort;
+  private readonly _clock: ClockPort;
   private readonly _logger: LoggerPort | null;
   private readonly _auditRef: string;
 
@@ -249,12 +253,13 @@ export class AuditReceiptService {
   private _failed: number;
 
   /** Constructs an AuditReceiptService for the given writer audit chain. */
-  constructor({ persistence, graphName, writerId, codec, crypto, logger }: AuditReceiptServiceOptions) {
+  constructor({ persistence, graphName, writerId, codec, crypto, logger, clock }: AuditReceiptServiceOptions) {
     this._persistence = persistence;
     this._graphName = graphName;
     this._writerId = writerId;
     this._codec = codec;
     this._crypto = crypto;
+    this._clock = clock ?? defaultClock;
     this._logger = logger ?? null;
     this._auditRef = buildAuditRef(graphName, writerId);
 
@@ -361,8 +366,7 @@ export class AuditReceiptService {
     const opsDigest = await computeOpsDigest(ops, this._crypto);
 
     // Wall-clock timestamp for audit receipt (not a perf timer)
-    // eslint-disable-next-line no-restricted-syntax
-    const timestamp = Date.now();
+    const timestamp = this._clock.epochMs();
 
     // Determine prevAuditCommit
     const oidLen = patchSha.length;

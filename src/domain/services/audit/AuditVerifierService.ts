@@ -15,6 +15,8 @@ import type BlobPort from '../../../ports/BlobPort.ts';
 import type TreePort from '../../../ports/TreePort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type TrustChainPort from '../../../ports/TrustChainPort.ts';
+import type ClockPort from '../../../ports/ClockPort.ts';
+import defaultClock from '../../utils/defaultClock.ts';
 import { buildAuditPrefix } from '../../utils/RefLayout.ts';
 import AuditChainVerifier, { type ChainResult } from './AuditChainVerifier.ts';
 import TrustEvaluationService, { type TrustEvaluationOptions } from './TrustEvaluationService.ts';
@@ -50,6 +52,7 @@ export default class AuditVerifierService {
   private readonly _chainVerifier: AuditChainVerifier;
   private readonly _trustService: TrustEvaluationService;
   private readonly _persistence: Persistence;
+  private readonly _clock: ClockPort;
   readonly logger: LoggerPort | null;
 
   constructor(opts: {
@@ -58,8 +61,10 @@ export default class AuditVerifierService {
     logger?: LoggerPort;
     trustCrypto?: TrustCrypto;
     trustChain?: TrustChainPort;
+    clock?: ClockPort;
   }) {
     this._persistence = opts.persistence;
+    this._clock = opts.clock ?? defaultClock;
     this.logger = opts.logger ?? null;
     this._chainVerifier = new AuditChainVerifier(opts.persistence, opts.codec);
     this._trustService = new TrustEvaluationService({
@@ -90,8 +95,7 @@ export default class AuditVerifierService {
 
     return {
       graph: graphName,
-      // eslint-disable-next-line no-restricted-syntax -- wall-clock timestamp for audit report
-      verifiedAt: new Date().toISOString(),
+      verifiedAt: this._clock.timestamp(),
       summary: { total: chains.length, valid, partial, invalid },
       chains,
       trustWarning: options.trustWarning ?? null,

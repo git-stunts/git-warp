@@ -44,7 +44,7 @@ describe('Guide builder-shape', () => {
   });
 
   it('keeps the core escape hatch explicit and points deep detail to API reference and advanced guide', () => {
-    expect(guide).toContain('## When to drop to WarpCore');
+    expect(guide).toContain('## When to use lower-level capabilities');
     expect(guide).toContain('The thing to avoid is exporting that data into a second app-local graph');
     expect(guide).toContain('[API Reference](API_REFERENCE.md)');
     expect(guide).toContain('[Advanced Guide](ADVANCED_GUIDE.md)');

@@ -45,12 +45,12 @@ describe('public read API docs stay aligned with observer geometry', () => {
     expect(readme).not.toContain('worldline.query()');
   });
 
-  it('keeps the legacy WarpGraph noun out of the public read-surface docs', () => {
-    // The README uses openWarpGraph() as the entry point — that is fine.
-    // The old standalone WarpGraph class should not appear as a noun.
-    expect(readme).not.toMatch(/(?<![a-zA-Z])WarpGraph(?![\w(])/);
-    expect(gettingStarted).not.toContain('WarpGraph');
-    expect(guide).not.toContain('WarpGraph');
-    expect(advancedGuide).not.toContain('WarpGraph');
+  it('keeps the legacy WarpCore/WarpApp nouns out of the public read-surface docs', () => {
+    // v17: WarpGraph is the official interface returned by openWarpGraph().
+    // WarpCore and WarpApp are legacy nouns that should not appear in
+    // the primary learning path.
+    expect(gettingStarted).not.toContain('WarpCore');
+    expect(gettingStarted).not.toContain('WarpApp');
+    expect(guide).not.toContain('WarpCore');
   });
 });

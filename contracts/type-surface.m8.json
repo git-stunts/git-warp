@@ -144,193 +144,6 @@
     "OperationAbortedError": {
       "kind": "class"
     },
-    "PatchBuilderV2": {
-      "kind": "class",
-      "note": "Not directly exported from index.js but referenced as return type of createPatch()",
-      "instance": {
-        "addNode": {
-          "params": [
-            {
-              "name": "nodeId",
-              "type": "string"
-            }
-          ],
-          "returns": "PatchBuilderV2"
-        },
-        "removeNode": {
-          "params": [
-            {
-              "name": "nodeId",
-              "type": "string"
-            }
-          ],
-          "returns": "PatchBuilderV2"
-        },
-        "addEdge": {
-          "params": [
-            {
-              "name": "from",
-              "type": "string"
-            },
-            {
-              "name": "to",
-              "type": "string"
-            },
-            {
-              "name": "label",
-              "type": "string"
-            }
-          ],
-          "returns": "PatchBuilderV2"
-        },
-        "removeEdge": {
-          "params": [
-            {
-              "name": "from",
-              "type": "string"
-            },
-            {
-              "name": "to",
-              "type": "string"
-            },
-            {
-              "name": "label",
-              "type": "string"
-            }
-          ],
-          "returns": "PatchBuilderV2"
-        },
-        "setProperty": {
-          "params": [
-            {
-              "name": "nodeId",
-              "type": "string"
-            },
-            {
-              "name": "key",
-              "type": "string"
-            },
-            {
-              "name": "value",
-              "type": "unknown"
-            }
-          ],
-          "returns": "PatchBuilderV2"
-        },
-        "setEdgeProperty": {
-          "params": [
-            {
-              "name": "from",
-              "type": "string"
-            },
-            {
-              "name": "to",
-              "type": "string"
-            },
-            {
-              "name": "label",
-              "type": "string"
-            },
-            {
-              "name": "key",
-              "type": "string"
-            },
-            {
-              "name": "value",
-              "type": "unknown"
-            }
-          ],
-          "returns": "PatchBuilderV2"
-        },
-        "attachContent": {
-          "async": true,
-          "params": [
-            {
-              "name": "nodeId",
-              "type": "string"
-            },
-            {
-              "name": "content",
-              "type": "Buffer | string"
-            },
-            {
-              "name": "metadata",
-              "type": "ContentAttachmentOptions",
-              "optional": true
-            }
-          ],
-          "returns": "Promise<PatchBuilderV2>"
-        },
-        "clearContent": {
-          "params": [
-            {
-              "name": "nodeId",
-              "type": "string"
-            }
-          ],
-          "returns": "PatchBuilderV2"
-        },
-        "attachEdgeContent": {
-          "async": true,
-          "params": [
-            {
-              "name": "from",
-              "type": "string"
-            },
-            {
-              "name": "to",
-              "type": "string"
-            },
-            {
-              "name": "label",
-              "type": "string"
-            },
-            {
-              "name": "content",
-              "type": "Buffer | string"
-            },
-            {
-              "name": "metadata",
-              "type": "ContentAttachmentOptions",
-              "optional": true
-            }
-          ],
-          "returns": "Promise<PatchBuilderV2>"
-        },
-        "clearEdgeContent": {
-          "params": [
-            {
-              "name": "from",
-              "type": "string"
-            },
-            {
-              "name": "to",
-              "type": "string"
-            },
-            {
-              "name": "label",
-              "type": "string"
-            }
-          ],
-          "returns": "PatchBuilderV2"
-        },
-        "build": {
-          "params": [],
-          "returns": "PatchV2"
-        },
-        "commit": {
-          "async": true,
-          "params": [],
-          "returns": "Promise<string>"
-        }
-      },
-      "properties": {
-        "opCount": {
-          "type": "number",
-          "readonly": true
-        }
-      }
-    },
     "PatchError": {
       "kind": "class"
     },
@@ -1314,9 +1127,6 @@
     "createEdgeTombstone": {
       "kind": "function"
     },
-    "createEventId": {
-      "kind": "function"
-    },
     "createInlineValue": {
       "kind": "function"
     },
@@ -1355,9 +1165,6 @@
         }
       ],
       "returns": "{ from: string; to: string; label: string; propKey: string }"
-    },
-    "deserializeBTR": {
-      "kind": "function"
     },
     "deserializeWormhole": {
       "kind": "function"
@@ -1402,9 +1209,6 @@
       "async": true
     },
     "replayWormhole": {
-      "kind": "function"
-    },
-    "serializeBTR": {
       "kind": "function"
     },
     "serializeWormhole": {
@@ -1464,6 +1268,199 @@
     },
     "ChunkEffectSink": {
       "kind": "class"
+    },
+    "PatchBuilder": {
+      "kind": "class",
+      "note": "Renamed from PatchBuilderV2 in v17",
+      "instance": {
+        "addNode": {
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
+        "removeNode": {
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
+        "addEdge": {
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
+        "removeEdge": {
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
+        "setProperty": {
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            },
+            {
+              "name": "key",
+              "type": "string"
+            },
+            {
+              "name": "value",
+              "type": "unknown"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
+        "setEdgeProperty": {
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            },
+            {
+              "name": "key",
+              "type": "string"
+            },
+            {
+              "name": "value",
+              "type": "unknown"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
+        "attachContent": {
+          "async": true,
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            },
+            {
+              "name": "content",
+              "type": "Buffer | string"
+            },
+            {
+              "name": "metadata",
+              "type": "ContentAttachmentOptions",
+              "optional": true
+            }
+          ],
+          "returns": "Promise<PatchBuilderV2>"
+        },
+        "clearContent": {
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
+        "attachEdgeContent": {
+          "async": true,
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            },
+            {
+              "name": "content",
+              "type": "Buffer | string"
+            },
+            {
+              "name": "metadata",
+              "type": "ContentAttachmentOptions",
+              "optional": true
+            }
+          ],
+          "returns": "Promise<PatchBuilderV2>"
+        },
+        "clearEdgeContent": {
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
+        "build": {
+          "params": [],
+          "returns": "PatchV2"
+        },
+        "commit": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<string>"
+        }
+      },
+      "properties": {
+        "opCount": {
+          "type": "number",
+          "readonly": true
+        }
+      }
+    },
+    "openWarpGraph": {
+      "kind": "function"
+    },
+    "BTR": {
+      "kind": "class"
     }
   },
   "typeExports": {
@@ -1477,9 +1474,6 @@
       "kind": "interface"
     },
     "ApplySyncResult": {
-      "kind": "interface"
-    },
-    "BTR": {
       "kind": "interface"
     },
     "BTRVerificationResult": {
@@ -1879,6 +1873,24 @@
       "kind": "interface"
     },
     "DeliveryObservation": {
+      "kind": "interface"
+    },
+    "WarpGraph": {
+      "kind": "interface"
+    },
+    "WarpGraphDeps": {
+      "kind": "interface"
+    },
+    "CommitmentSurface": {
+      "kind": "interface"
+    },
+    "FoldingSurface": {
+      "kind": "interface"
+    },
+    "RevelationSurface": {
+      "kind": "interface"
+    },
+    "GovernanceSurface": {
       "kind": "interface"
     }
   }

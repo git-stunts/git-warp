@@ -16,6 +16,18 @@ import type WarpRuntime from '../../WarpRuntime.ts';
 import type ProvenancePayload from '../provenance/ProvenancePayload.ts';
 
 const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
+const HEX_CHARS = '0123456789abcdef';
+
+/** Generates an 8-char hex suffix using crypto-grade randomness. */
+function randomSuffix(): string {
+  const bytes = new Uint8Array(4);
+  globalThis.crypto.getRandomValues(bytes);
+  let out = '';
+  for (const b of bytes) {
+    out += HEX_CHARS.charAt(b >>> 4) + HEX_CHARS.charAt(b & 0x0f);
+  }
+  return out;
+}
 
 type ForkHost = WarpRuntime;
 
@@ -87,8 +99,7 @@ export default class ForkController {
       }
 
       const resolvedForkName =
-        // eslint-disable-next-line no-restricted-syntax -- legacy: use seeded PRNG (tracked in backlog)
-        forkName ?? `${host._graphName}-fork-${Math.random().toString(36).slice(2, 10).padEnd(8, '0')}`;
+        forkName ?? `${host._graphName}-fork-${randomSuffix()}`;
       try {
         validateGraphName(resolvedForkName);
       } catch (err) {

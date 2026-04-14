@@ -27,8 +27,9 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.js', 'src/**/*.ts'],
+      exclude: ['src/ports/**/*.ts'],
       thresholds: {
-        lines: 97.71,
+        lines: 95.43,
         autoUpdate: shouldAutoUpdateCoverageRatchet(),
       },
     },

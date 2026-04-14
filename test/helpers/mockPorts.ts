@@ -128,15 +128,25 @@ export function createMockCrypto(overrides: Partial<MockCrypto> = {}): MockCrypt
 
 export interface MockClock {
   now: Mock;
+  timestamp: Mock;
+  epochMs: Mock;
 }
 
 /** Creates a clock mock. Optionally auto-increments on each call. */
 export function createMockClock(startMs = 0, { autoIncrement = false, step = 1 } = {}): MockClock {
   if (autoIncrement) {
     let tick = startMs;
-    return { now: vi.fn(() => tick += step) };
+    return {
+      now: vi.fn(() => tick += step),
+      timestamp: vi.fn(() => '2026-01-01T00:00:00.000Z'),
+      epochMs: vi.fn(() => tick),
+    };
   }
-  return { now: vi.fn().mockReturnValue(startMs) };
+  return {
+    now: vi.fn().mockReturnValue(startMs),
+    timestamp: vi.fn().mockReturnValue('2026-01-01T00:00:00.000Z'),
+    epochMs: vi.fn().mockReturnValue(startMs),
+  };
 }
 
 // ---------------------------------------------------------------------------

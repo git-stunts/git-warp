@@ -41,10 +41,10 @@ The domain layer has no direct Node.js built-in imports. Runtime-specific adapte
 | Bun | `WebCryptoAdapter` | `BunHttpAdapter` |
 | Browser | `WebCryptoAdapter` | N/A |
 
-```javascript
-import WarpApp, { WebCryptoAdapter } from '@git-stunts/git-warp';
+```typescript
+import { openWarpGraph, WebCryptoAdapter } from '@git-stunts/git-warp';
 
-const app = await WarpApp.open({
+const graph = await openWarpGraph({
   persistence,
   graphName: 'demo',
   writerId: 'writer-1',
@@ -56,25 +56,119 @@ If no crypto adapter is provided, checksum computation gracefully returns `null`
 
 ---
 
+## openWarpGraph()
+
+`openWarpGraph()` is the public entry point — the composition root for the admission architecture. It accepts typed ports for persistence, governing policy, witness infrastructure, and revelation regime, wires controllers, and returns a frozen `WarpGraph` capability bag.
+
+```typescript
+import { openWarpGraph, GitGraphAdapter } from '@git-stunts/git-warp';
+import GitPlumbing from '@git-stunts/plumbing';
+
+const plumbing = new GitPlumbing({ cwd: './my-repo' });
+const persistence = new GitGraphAdapter({ plumbing });
+
+const graph = await openWarpGraph({
+  persistence,
+  graphName: 'todos',
+  writerId: 'local',
+});
+```
+
+### WarpGraphDeps
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `persistence` | `CorePersistence` | Yes | Git storage adapter |
+| `graphName` | `string` | Yes | Graph identity |
+| `writerId` | `string` | Yes | Writer identity |
+| `trust` | `{ mode?: 'off' \| 'log-only' \| 'enforce'; pin?: string \| null }` | No | Trust verification |
+| `gcPolicy` | `GCPolicyConfig` | No | Garbage collection thresholds |
+| `checkpointPolicy` | `{ every: number }` | No | Auto-checkpoint interval |
+| `onDeleteWithData` | `'reject' \| 'cascade' \| 'warn'` | No | Node delete behavior (default: `'warn'`) |
+| `autoMaterialize` | `boolean` | No | Auto-materialize on read (default: `true`) |
+| `crypto` | `CryptoPort` | No | Crypto adapter |
+| `codec` | `CodecPort` | No | Serialization adapter |
+| `clock` | `ClockPort` | No | Clock adapter |
+| `audit` | `boolean` | No | Enable audit receipts |
+| `logger` | `LoggerPort` | No | Logger adapter |
+| `effectPipeline` | `EffectPipeline` | No | Effect processing pipeline |
+| `effectSinks` | `EffectSinkPort[]` | No | Effect output sinks |
+| `externalizationPolicy` | `ExternalizationPolicy` | No | Content externalization rules |
+| `seekCache` | `SeekCachePort` | No | Seek cache accelerator |
+| `blobStorage` | `BlobStoragePort` | No | Blob storage accelerator |
+| `patchBlobStorage` | `BlobStoragePort` | No | Patch blob storage |
+| `patchJournal` | `PatchJournalPort \| null` | No | Patch journal |
+| `checkpointStore` | `CheckpointStorePort \| null` | No | Checkpoint store |
+| `indexStore` | `IndexStorePort \| null` | No | Index store |
+| `adjacencyCacheSize` | `number` | No | Adjacency cache size |
+
+### WarpGraph interface
+
+The returned `WarpGraph` is a frozen object with these capability namespaces:
+
+| Namespace | Capability | Description |
+|---|---|---|
+| `graph.patches` | `PatchCapability` | Create patches, commit CRDT ops |
+| `graph.query` | `QueryCapability` | Read nodes, edges, properties; worldlines; observers |
+| `graph.materialize` | `MaterializeCapability` | Fold patches into state |
+| `graph.sync` | `SyncCapability` | Distributed sync, serve |
+| `graph.strands` | `StrandCapability` | Speculative lanes |
+| `graph.checkpoint` | `CheckpointCapability` | Create/restore checkpoints, GC |
+| `graph.provenance` | `ProvenanceCapability` | Audit, BTR, provenance |
+| `graph.comparison` | `ComparisonCapability` | Compare coordinates, plan transfers |
+| `graph.subscriptions` | `SubscriptionCapability` | Reactive subscriptions |
+
+Additionally, `graph.graphName` and `graph.writerId` expose the identity.
+
+#### Architectural moments
+
+The capabilities are also grouped by architectural moment for callers who prefer the admission-oriented organization:
+
+| Moment | Surface | Capabilities |
+|---|---|---|
+| **Commitment** | `graph.commitment` | `patches`, `strands`, `comparison` |
+| **Folding** | `graph.folding` | `materialize`, `checkpoint` |
+| **Revelation** | `graph.revelation` | `query`, `subscriptions`, `provenance` |
+| **Governance** | `graph.governance` | `sync` |
+
+The flat aliases (`graph.patches`) and the moment-scoped accessors (`graph.commitment.patches`) refer to the same objects.
+
+### @deprecated WarpApp / WarpCore
+
+`WarpApp.open()` and `WarpCore.open()` remain exported for backward compatibility. They return the legacy facade objects. **Both are deprecated and will be removed in v18.**
+
+To migrate:
+- Replace `WarpApp.open(deps)` or `WarpCore.open(deps)` with `openWarpGraph(deps)`.
+- Replace `app.patch(...)` with `graph.patches.patch(...)`.
+- Replace `app.worldline()` with `graph.query.worldline()`.
+- Replace `app.createStrand(...)` with `graph.strands.createStrand(...)`.
+- Replace `app.core().materialize(...)` with `graph.materialize.materialize(...)`.
+- Replace `graph.createPatch()` with `graph.patches.createPatch()`.
+- Replace `graph.hasNode(...)` with `graph.query.hasNode(...)`.
+- Replace `graph.subscribe(...)` with `graph.subscriptions.subscribe(...)`.
+- Replace `graph.syncWith(...)` with `graph.sync.syncWith(...)`.
+
+---
+
 ## Quick Start
 
-```javascript
-import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
-import Plumbing from '@git-stunts/plumbing';
+```typescript
+import { openWarpGraph, GitGraphAdapter } from '@git-stunts/git-warp';
+import GitPlumbing from '@git-stunts/plumbing';
 
 // 1. Point at a Git repo
-const plumbing = new Plumbing({ cwd: './my-repo' });
+const plumbing = new GitPlumbing({ cwd: './my-repo' });
 const persistence = new GitGraphAdapter({ plumbing });
 
 // 2. Open a graph
-const app = await WarpApp.open({
+const graph = await openWarpGraph({
   persistence,
   graphName: 'todos',
   writerId: 'local',
 });
 
 // 3. Write some data
-await app.patch(p => {
+await graph.patches.patch((p) => {
   p.addNode('list:shopping')
     .addNode('todo:1')
     .setProperty('todo:1', 'title', 'Buy groceries')
@@ -83,7 +177,7 @@ await app.patch(p => {
 });
 
 // 4. Create a pinned read handle
-const worldline = app.worldline();
+const worldline = graph.query.worldline();
 
 // 5. Read, query, and traverse through that worldline
 const props = await worldline.getNodeProps('todo:1');
@@ -120,7 +214,7 @@ flowchart TB
             sp["SeekCachePort"]
 
             subgraph domain["Domain Core"]
-                wg["WarpCore — plumbing/tooling facade"]
+                wg["WarpGraph — frozen capability bag"]
                 jr["JoinReducer"]
                 pb["PatchBuilderV2"]
                 cs["CheckpointService"]
@@ -152,8 +246,8 @@ There are three main ways to write:
 
 | API | Do you call `commit()` yourself? | What gets committed? |
 |---|---|---|
-| `app.patch(build)` / `graph.patch(build)` | No | One atomic WARP patch after the callback finishes |
-| `createPatch()` | Yes | One atomic WARP patch when you call `commit()` |
+| `graph.patches.patch(build)` | No | One atomic WARP patch after the callback finishes |
+| `graph.patches.createPatch()` | Yes | One atomic WARP patch when you call `commit()` |
 | `writer.beginPatch()` | Yes | One atomic WARP patch when you call `commit()` |
 
 In every case, the commit updates `refs/warp/<graph>/writers/<writerId>`. It
@@ -162,8 +256,8 @@ source-tree commit on your current branch.
 
 ### Creating Patches
 
-```javascript
-await (await graph.createPatch())
+```typescript
+await (await graph.patches.createPatch())
   .addNode('user:alice')
   .addNode('user:bob')
   .setProperty('user:alice', 'name', 'Alice')
@@ -191,23 +285,23 @@ Property values must be JSON-serializable (strings, numbers, booleans, null, arr
 
 When you remove a node, its edges and properties become invisible automatically (tombstone cascading):
 
-```javascript
-await (await graph.createPatch())
+```typescript
+await (await graph.patches.createPatch())
   .addNode('temp')
   .setProperty('temp', 'data', 'value')
   .addEdge('temp', 'other', 'link')
   .commit();
 
-await (await graph.createPatch())
+await (await graph.patches.createPatch())
   .removeNode('temp')
   .commit();
 
-await graph.materialize();
-await graph.hasNode('temp');    // false
-await graph.getEdges();         // [] — edge is hidden too
+await graph.materialize.materialize({});
+await graph.query.hasNode('temp');    // false
+await graph.query.getEdges();         // [] — edge is hidden too
 ```
 
-The `onDeleteWithData` option (set on `WarpApp.open()` or `WarpCore.open()`) controls what happens when you remove a node that has attached edges or properties:
+The `onDeleteWithData` option (set on `openWarpGraph()`) controls what happens when you remove a node that has attached edges or properties:
 
 | Policy | Behavior |
 |---|---|
@@ -219,8 +313,8 @@ The `onDeleteWithData` option (set on `WarpApp.open()` or `WarpCore.open()`) con
 
 Edges can carry properties just like nodes:
 
-```javascript
-await (await graph.createPatch())
+```typescript
+await (await graph.patches.createPatch())
   .addEdge('user:alice', 'org:acme', 'works-at')
   .setEdgeProperty('user:alice', 'org:acme', 'works-at', 'since', '2024-06')
   .setEdgeProperty('user:alice', 'org:acme', 'works-at', 'role', 'engineer')
@@ -233,11 +327,11 @@ Edge properties follow the same conflict resolution rules as node properties (se
 
 For repeated writes, the `Writer` API is more ergonomic than `createPatch()`:
 
-```javascript
-const writer = await graph.writer();
+```typescript
+const writer = await graph.patches.writer();
 
 // Option 1: One-shot build-and-commit
-const sha = await writer.commitPatch(p => {
+const sha = await writer.commitPatch((p) => {
   p.addNode('user:carol');
   p.setProperty('user:carol', 'name', 'Carol');
 });
@@ -261,12 +355,12 @@ rather than silently losing data.
 
 ### Writer ID Resolution
 
-When you call `graph.writer()` without arguments, the ID is resolved from git config (`warp.writerId.<graphName>`). If no config exists, a new canonical ID is generated and persisted. This gives each clone a stable, unique identity.
+When you call `graph.patches.writer()` without arguments, the ID is resolved from git config (`warp.writerId.<graphName>`). If no config exists, a new canonical ID is generated and persisted. This gives each clone a stable, unique identity.
 
 To use an explicit ID:
 
-```javascript
-const writer = await graph.writer('machine-a');
+```typescript
+const writer = await graph.patches.writer('machine-a');
 ```
 
 **Writer ID best practices:**
@@ -278,7 +372,7 @@ const writer = await graph.writer('machine-a');
 
 ## Reading Data
 
-For application-facing reads, start from `worldline()`.
+For application-facing reads, start from `graph.query.worldline()`.
 
 `Worldline` pins the read source and gives you stable direct reads, query, and
 traversal without forcing application code to preload the whole visible graph
@@ -286,8 +380,8 @@ or manage replay details itself.
 
 ### Product Reads
 
-```javascript
-const worldline = graph.worldline();
+```typescript
+const worldline = graph.query.worldline();
 
 await worldline.hasNode('user:alice');      // true
 await worldline.getNodes();                 // ['user:alice', 'user:bob']
@@ -306,7 +400,7 @@ const path = await worldline.traverse.shortestPath('user:alice', 'user:bob', {
 When you need a filtered or redacted aperture, define a lens and create an
 observer on top of the worldline:
 
-```javascript
+```typescript
 const publicUserLens = {
   match: 'user:*',
   redact: ['ssn', 'password'],
@@ -317,7 +411,7 @@ const publicUsers = await worldline.observer('public-users', publicUserLens);
 
 ### Inspection And Materialization
 
-Use runtime-wide enumeration and direct materialization when you intentionally
+Use `graph.materialize` and `graph.query` when you intentionally
 want whole-visible-state reads, admin views, bounded inspection, debugging,
 migration, or lower-level substrate work.
 
@@ -325,7 +419,7 @@ What you should avoid is exporting that data into a second app-local graph
 layer or custom traversal engine when `Worldline`, `Observer`, `query()`, and
 `traverse` already cover the read path you need.
 
-`materialize()` replays all visible patches from all writers and computes the
+`graph.materialize.materialize()` replays all visible patches from all writers and computes the
 current cached `WarpState` for the runtime.
 
 ### Materialization
@@ -343,8 +437,8 @@ flowchart TB
     complexity["O(P) — P = total patches across all writers"] ~~~ state
 ```
 
-```javascript
-const state = await graph.materialize();
+```typescript
+const state = await graph.materialize.materialize({});
 
 // state = WarpState
 // {
@@ -356,29 +450,29 @@ const state = await graph.materialize();
 // }
 ```
 
-After materializing, runtime-wide inspection methods work against the cached
+After materializing, `graph.query` methods work against the cached
 state:
 
-```javascript
+```typescript
 // Check existence
-await graph.hasNode('user:alice');           // true
+await graph.query.hasNode('user:alice');           // true
 
 // Get all nodes
-await graph.getNodes();                      // ['user:alice', 'user:bob']
+await graph.query.getNodes();                      // ['user:alice', 'user:bob']
 
 // Get node properties
-await graph.getNodeProps('user:alice');       // { name: 'Alice' }
+await graph.query.getNodeProps('user:alice');       // { name: 'Alice' }
 
 // Get all edges (with their properties)
-await graph.getEdges();
+await graph.query.getEdges();
 // [{ from: 'user:alice', to: 'user:bob', label: 'follows', props: {} }]
 
 // Get edge properties
-await graph.getEdgeProps('user:alice', 'user:bob', 'follows');
+await graph.query.getEdgeProps('user:alice', 'user:bob', 'follows');
 // { since: '2024-01' } or null if edge doesn't exist
 
 // Get neighbors
-await graph.neighbors('user:alice', 'outgoing');
+await graph.query.neighbors('user:alice', 'outgoing');
 // [{ nodeId: 'user:bob', label: 'follows', direction: 'outgoing' }]
 ```
 
@@ -386,8 +480,8 @@ await graph.neighbors('user:alice', 'outgoing');
 
 By default, `autoMaterialize` is `true` — query methods transparently call `materialize()` when no cached state exists or when the state is stale. To opt out:
 
-```javascript
-const graph = await WarpCore.open({
+```typescript
+const graph = await openWarpGraph({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
@@ -395,23 +489,23 @@ const graph = await WarpCore.open({
 });
 
 // Must call materialize() explicitly before queries
-await graph.materialize();
-const nodes = await graph.getNodes();
+await graph.materialize.materialize({});
+const nodes = await graph.query.getNodes();
 ```
 
 ### Eager Re-Materialize
 
 After a local `commit()`, the patch is applied eagerly to the cached state. Queries immediately reflect local writes without calling `materialize()` again:
 
-```javascript
-await graph.materialize();
+```typescript
+await graph.materialize.materialize({});
 
-await (await graph.createPatch())
+await (await graph.patches.createPatch())
   .addNode('user:carol')
   .commit();
 
 // Already reflected — no re-materialize needed
-await graph.hasNode('user:carol'); // true
+await graph.query.hasNode('user:carol'); // true
 ```
 
 When audit is disabled, the eager path computes a `PatchDiff` and passes it through state install, so bitmap indexes can be updated incrementally from the diff. When audit is enabled, the eager path still collects a receipt and installs state with `diff: null` (safe fallback to full view rebuild for that patch).
@@ -433,11 +527,11 @@ Tombstoning a node automatically hides its edges and properties without explicit
 ### Query Builder
 
 The same `QueryBuilder` surface is available on `Worldline`, `Observer`, and
-`WarpCore`. For stable product reads, prefer a pinned `Worldline` and query
-through that handle from `WarpApp`.
+directly via `graph.query.query()`. For stable product reads, prefer a pinned `Worldline` and query
+through that handle.
 
-```javascript
-const worldline = graph.worldline();
+```typescript
+const worldline = graph.query.worldline();
 
 const result = await worldline.query()
   .match('user:*')             // glob pattern (* = wildcard)
@@ -481,7 +575,7 @@ const result = await worldline.query()
 
 Both forms can be chained:
 
-```javascript
+```typescript
 const result = await worldline.query()
   .match('user:*')
   .where({ role: 'admin' })
@@ -516,7 +610,7 @@ Traversal is cycle-safe and results are deterministically sorted.
 
 **Example — Org chart:**
 
-```javascript
+```typescript
 // All reports up to 3 levels deep
 const reports = await worldline.query()
   .match('user:ceo')
@@ -534,7 +628,7 @@ const chain = await worldline.query()
 
 `aggregate()` computes numeric summaries. It is a terminal operation — calling `select()`, `outgoing()`, or `incoming()` after it throws.
 
-```javascript
+```typescript
 const stats = await worldline.query()
   .match('order:*')
   .where({ status: 'paid' })
@@ -556,7 +650,7 @@ The `props.` prefix is optional — `'total'` and `'props.total'` are equivalent
 
 Steps compose left-to-right, each narrowing the strand:
 
-```javascript
+```typescript
 const result = await worldline.query()
   .match('user:*')
   .where({ role: 'admin' })
@@ -567,8 +661,8 @@ const result = await worldline.query()
 
 ### Graph Traversals
 
-`LogicalTraversal` is available on `Worldline`, `Observer`, and `WarpCore`.
-For stable product reads, prefer `worldline.traverse` or `observer.traverse`.
+`LogicalTraversal` is available on `Worldline`, `Observer`, and
+via `graph.query`. For stable product reads, prefer `worldline.traverse` or `observer.traverse`.
 
 All traversal methods accept:
 - `dir` — `'out'`, `'in'`, or `'both'` (default: `'out'`)
@@ -577,7 +671,7 @@ All traversal methods accept:
 
 #### BFS
 
-```javascript
+```typescript
 const visited = await worldline.traverse.bfs('user:alice', {
   dir: 'out',
   labelFilter: 'follows',
@@ -588,13 +682,13 @@ const visited = await worldline.traverse.bfs('user:alice', {
 
 #### DFS
 
-```javascript
+```typescript
 const visited = await worldline.traverse.dfs('user:alice', { dir: 'out' });
 ```
 
 #### Shortest Path
 
-```javascript
+```typescript
 const result = await worldline.traverse.shortestPath('user:alice', 'user:dave', {
   dir: 'out',
 });
@@ -604,7 +698,7 @@ const result = await worldline.traverse.shortestPath('user:alice', 'user:dave', 
 
 #### Connected Component
 
-```javascript
+```typescript
 const component = await worldline.traverse.connectedComponent('user:alice');
 // All nodes reachable from user:alice in either direction
 ```
@@ -613,7 +707,7 @@ const component = await worldline.traverse.connectedComponent('user:alice');
 
 Fast reachability check — returns `true`/`false` without reconstructing the path:
 
-```javascript
+```typescript
 const canReach = await worldline.traverse.isReachable('user:alice', 'user:bob', {
   dir: 'out',
   labelFilter: 'follows',
@@ -625,7 +719,7 @@ const canReach = await worldline.traverse.isReachable('user:alice', 'user:bob', 
 
 Dijkstra's algorithm with a custom edge weight function:
 
-```javascript
+```typescript
 const result = await worldline.traverse.weightedShortestPath('city:a', 'city:z', {
   dir: 'out',
   weightFn: (from, to, label) => distances.get(`${from}->${to}`) ?? 1,
@@ -635,7 +729,7 @@ const result = await worldline.traverse.weightedShortestPath('city:a', 'city:z',
 
 Use `nodeWeightFn` to add per-node traversal costs (e.g., node processing delays):
 
-```javascript
+```typescript
 const result = await worldline.traverse.weightedShortestPath('city:a', 'city:z', {
   dir: 'out',
   weightFn: (from, to, label) => distances.get(`${from}->${to}`) ?? 1,
@@ -647,7 +741,7 @@ const result = await worldline.traverse.weightedShortestPath('city:a', 'city:z',
 
 A* with a heuristic function for guided search:
 
-```javascript
+```typescript
 const result = await worldline.traverse.aStarSearch('city:a', 'city:z', {
   dir: 'out',
   heuristic: (nodeId) => euclideanDistance(coords[nodeId], coords['city:z']),
@@ -659,7 +753,7 @@ const result = await worldline.traverse.aStarSearch('city:a', 'city:z', {
 
 A* search from both endpoints simultaneously — faster for large graphs:
 
-```javascript
+```typescript
 const result = await worldline.traverse.bidirectionalAStar('city:a', 'city:z', {
   dir: 'out',
   heuristic: (nodeId) => euclideanDistance(coords[nodeId], coords['city:z']),
@@ -670,7 +764,7 @@ const result = await worldline.traverse.bidirectionalAStar('city:a', 'city:z', {
 
 Kahn's algorithm with cycle detection — useful for dependency graphs:
 
-```javascript
+```typescript
 const sorted = await worldline.traverse.topologicalSort('task:root', {
   dir: 'out',
   labelFilter: 'depends-on',
@@ -683,7 +777,7 @@ const sorted = await worldline.traverse.topologicalSort('task:root', {
 
 Find shared ancestors of multiple nodes:
 
-```javascript
+```typescript
 const ancestors = await worldline.traverse.commonAncestors(
   ['user:carol', 'user:dave'],
   { dir: 'in', labelFilter: 'manages' },
@@ -695,7 +789,7 @@ const ancestors = await worldline.traverse.commonAncestors(
 
 Find the longest (most expensive) path on a DAG — useful for critical path analysis:
 
-```javascript
+```typescript
 const result = await worldline.traverse.weightedLongestPath('task:start', 'task:end', {
   dir: 'out',
   weightFn: (from, to, label) => durations.get(to) ?? 1,
@@ -708,7 +802,7 @@ const result = await worldline.traverse.weightedLongestPath('task:start', 'task:
 
 ## Multi-Writer Collaboration
 
-WarpCore's core strength is coordination-free multi-writer collaboration. Each writer maintains an independent chain of patches. Materialization deterministically merges all writers into a single consistent view.
+git-warp's core strength is coordination-free multi-writer collaboration. Each writer maintains an independent chain of patches. Materialization deterministically merges all writers into a single consistent view.
 
 ### How It Works
 
@@ -727,34 +821,34 @@ flowchart TB
     reducer --> state["WarpState<br/>nodeAlive · edgeAlive · prop · frontier"]
 ```
 
-```javascript
+```typescript
 // === Machine A ===
-const graphA = await WarpCore.open({
+const graphA = await openWarpGraph({
   persistence: persistenceA,
   graphName: 'shared-doc',
   writerId: 'machine-a',
 });
 
-await (await graphA.createPatch())
+await (await graphA.patches.createPatch())
   .addNode('section:intro')
   .setProperty('section:intro', 'text', 'Hello World')
   .commit();
 
 // === Machine B ===
-const graphB = await WarpCore.open({
+const graphB = await openWarpGraph({
   persistence: persistenceB,
   graphName: 'shared-doc',
   writerId: 'machine-b',
 });
 
-await (await graphB.createPatch())
+await (await graphB.patches.createPatch())
   .addNode('section:conclusion')
   .setProperty('section:conclusion', 'text', 'The End')
   .commit();
 
 // === After git sync (push/pull) ===
-const stateA = await graphA.materialize();
-const stateB = await graphB.materialize();
+const stateA = await graphA.materialize.materialize({});
+const stateB = await graphB.materialize.materialize({});
 // stateA and stateB are identical
 ```
 
@@ -787,7 +881,7 @@ When two writers modify the same property concurrently, the conflict is resolved
 2. Tie → lexicographically greater writer ID wins
 3. Tie → greater patch SHA wins
 
-```javascript
+```typescript
 // Writer A at lamport=1: sets name to "Alice"
 // Writer B at lamport=2: sets name to "Alicia"
 // Result: "Alicia" (lamport 2 > 1)
@@ -803,8 +897,8 @@ For the full details, see [Appendix A](#appendix-a-conflict-resolution-internals
 
 ### Discovering Writers
 
-```javascript
-const writers = await graph.discoverWriters();
+```typescript
+const writers = await graph.patches.discoverWriters();
 // ['alice', 'bob', 'charlie']
 ```
 
@@ -817,19 +911,22 @@ history.
 
 For programmatic sync without Git remotes:
 
-```javascript
+```typescript
 // Direct sync between two graph instances
-const result = await graphA.syncWith(graphB);
+const result = await graphA.sync.syncWith(graphB._runtime);
 console.log(`Applied ${result.applied} patches`);
 
 // HTTP sync
-const result = await graph.syncWith('http://peer:3000', {
+const result = await graph.sync.syncWith('http://peer:3000', {
   retries: 3,
   timeoutMs: 10000,
 });
 
 // Serve a sync endpoint
-const { close, url } = await graph.serve({ port: 3000 });
+const { close, url } = await graph.sync.serve({
+  port: 3000,
+  httpPort: nodeHttpAdapter,
+});
 // Peers can now POST to http://localhost:3000/sync
 ```
 
@@ -839,17 +936,17 @@ For details on the sync protocol, see [Appendix F](#appendix-f-sync-protocol).
 
 Ensure all writers are reachable from a single ref (useful for cloning):
 
-```javascript
-await graph.syncCoverage();
+```typescript
+await graph.checkpoint.syncCoverage();
 // Creates octopus anchor at refs/warp/<graph>/coverage/head
 ```
 
 ### Checking for Remote Changes
 
-```javascript
-const changed = await graph.hasFrontierChanged();
+```typescript
+const changed = await graph.sync.hasFrontierChanged();
 if (changed) {
-  await graph.materialize();
+  await graph.materialize.materialize({});
 }
 ```
 
@@ -875,20 +972,20 @@ A **checkpoint** is a snapshot of materialized state at a known point in history
 
 During checkpoint-based replay, ancestry validation is done once per writer tip. If a writer tip descends from the checkpoint frontier, the intervening writer-local patch chain is accepted transitively.
 
-```javascript
+```typescript
 // Create a checkpoint manually
-const sha = await graph.createCheckpoint();
+const sha = await graph.checkpoint.createCheckpoint();
 
 // Later: fast recovery from checkpoint
-const state = await graph.materializeAt(sha);
+const state = await graph.materialize.materializeAt(sha);
 ```
 
 ### Auto-Checkpoint
 
 Configure automatic checkpointing so you never have to think about it:
 
-```javascript
-const graph = await WarpCore.open({
+```typescript
+const graph = await openWarpGraph({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
@@ -896,7 +993,7 @@ const graph = await WarpCore.open({
 });
 
 // After 500+ patches, materialize() creates a checkpoint automatically
-await graph.materialize();
+await graph.materialize.materialize({});
 ```
 
 Checkpoint failures are swallowed — they never break materialization.
@@ -904,7 +1001,7 @@ Checkpoint failures are swallowed — they never break materialization.
 ### Performance Tips
 
 1. **Batch operations** — group related changes into single patches
-2. **Checkpoint regularly** — use `checkpointPolicy: { every: 500 }` or call `createCheckpoint()` manually
+2. **Checkpoint regularly** — use `checkpointPolicy: { every: 500 }` or call `graph.checkpoint.createCheckpoint()` manually
 3. **Use auto-materialize** for read-heavy workloads — avoids manual `materialize()` calls
 4. **Limit concurrent writers** — more writers = more merge overhead at materialization time
 5. **Build bitmap indexes** for large graphs — enables O(1) neighbor lookups (see [Appendix H](#appendix-h-bitmap-indexes))
@@ -921,12 +1018,12 @@ Checkpoint failures are swallowed — they never break materialization.
 
 ## Subscriptions & Reactivity
 
-### `graph.subscribe()`
+### `graph.subscriptions.subscribe()`
 
 Subscribe to all graph changes. Handlers fire after `materialize()` when state differs from the previous materialization.
 
-```javascript
-const { unsubscribe } = graph.subscribe({
+```typescript
+const { unsubscribe } = graph.subscriptions.subscribe({
   onChange: (diff) => {
     // diff.nodes.added    — string[] of added node IDs
     // diff.nodes.removed  — string[] of removed node IDs
@@ -941,8 +1038,8 @@ const { unsubscribe } = graph.subscribe({
   },
 });
 
-await (await graph.createPatch()).addNode('item:new').commit();
-await graph.materialize();  // onChange fires
+await (await graph.patches.createPatch()).addNode('item:new').commit();
+await graph.materialize.materialize({});  // onChange fires
 
 unsubscribe();
 ```
@@ -951,8 +1048,8 @@ unsubscribe();
 
 Get the current state immediately when subscribing:
 
-```javascript
-const { unsubscribe } = graph.subscribe({
+```typescript
+const { unsubscribe } = graph.subscriptions.subscribe({
   onChange: (diff) => {
     // First call: diff from empty to current state (all adds)
     // Subsequent calls: incremental diffs
@@ -961,12 +1058,12 @@ const { unsubscribe } = graph.subscribe({
 });
 ```
 
-### `graph.watch()`
+### `graph.subscriptions.watch()`
 
 Watch for changes matching a specific glob pattern:
 
-```javascript
-const { unsubscribe } = graph.watch('user:*', {
+```typescript
+const { unsubscribe } = graph.subscriptions.watch('user:*', {
   onChange: (diff) => {
     // Only contains changes where node IDs match 'user:*'
     // Edges included when from OR to matches
@@ -979,8 +1076,8 @@ const { unsubscribe } = graph.watch('user:*', {
 
 Automatically detect and materialize remote changes:
 
-```javascript
-const { unsubscribe } = graph.watch('order:*', {
+```typescript
+const { unsubscribe } = graph.subscriptions.watch('order:*', {
   onChange: (diff) => {
     console.log('Order updated:', diff);
   },
@@ -994,11 +1091,11 @@ Minimum poll interval is 1000ms. Cleaned up automatically on `unsubscribe()`.
 
 Multiple handlers coexist. Errors in one don't affect others:
 
-```javascript
-graph.subscribe({ onChange: handleAuditLog });
-graph.subscribe({ onChange: updateCache });
-graph.watch('user:*', { onChange: notifyUserService });
-graph.watch('order:*', { onChange: updateDashboard, poll: 3000 });
+```typescript
+graph.subscriptions.subscribe({ onChange: handleAuditLog });
+graph.subscriptions.subscribe({ onChange: updateCache });
+graph.subscriptions.watch('user:*', { onChange: notifyUserService });
+graph.subscriptions.watch('order:*', { onChange: updateDashboard, poll: 3000 });
 ```
 
 ---
@@ -1009,13 +1106,13 @@ graph.watch('order:*', { onChange: updateDashboard, poll: 3000 });
 
 The intended substrate boundary is:
 
-- `WarpCore` is the low-level substrate/session facade
+- `graph.query` and `graph.materialize` are the read-side capabilities
 - observers are the preferred read-side abstraction
 - strands are the preferred speculative write abstraction
 
-That boundary is not about hiding `WarpCore`. It is about keeping higher layers
+That boundary is not about hiding capabilities. It is about keeping higher layers
 from rebuilding their own graph engine above git-warp. Reach for
-`WarpCore`-level materialization and patch APIs when you are working on
+`graph.materialize` and `graph.patches` when you are working on
 substrate plumbing. Reach for observers and strands when you are building
 application-facing behavior.
 
@@ -1024,14 +1121,14 @@ application-facing behavior.
 Observers project the graph through a filtered lens — restricting which nodes,
 edges, and properties are visible.
 
-```javascript
-const liveWorldline = graph.worldline();
+```typescript
+const liveWorldline = graph.query.worldline();
 const view = await liveWorldline.observer('userView', {
   match: 'user:*',              // only user:* nodes visible
   redact: ['ssn', 'password'],  // these properties are hidden
 });
 
-const historicalWorldline = graph.worldline({
+const historicalWorldline = graph.query.worldline({
   source: {
     kind: 'coordinate',
     frontier: { writerA: 'abc123...' },
@@ -1042,7 +1139,7 @@ const historical = await historicalWorldline.observer('userViewAtTick12', {
   match: 'user:*',
 });
 
-const reviewLane = graph.worldline({
+const reviewLane = graph.query.worldline({
   source: {
     kind: 'strand',
     strandId: 'review-auth',
@@ -1056,7 +1153,7 @@ const reviewView = await reviewLane.observer('reviewUsers', {
 
 The returned `Observer` is read-only and supports the same query/traverse API:
 
-```javascript
+```typescript
 const nodes = await view.getNodes();
 const props = await view.getNodeProps('user:alice');  // { name: 'Alice', ... } without 'ssn' or 'password'
 const admins = await view.query().match('user:*').where({ role: 'admin' }).run();
@@ -1071,11 +1168,11 @@ Observers are pinned read handles. By default they capture the current
 materialized coordinate at creation time. They can also bind directly to an
 explicit coordinate or a pinned strand instead of following live truth.
 
-`graph.observer(..., { source })` remains available as a convenience entry
+`graph.query.observer(...)` remains available as a convenience entry
 point, but `worldline()` is the clearer public noun when the caller wants to pin
 history explicitly.
 
-`materializeCoordinate()` and `materializeStrand()` each return a detached
+`graph.materialize.materializeCoordinate()` and `graph.strands.materializeStrand()` each return a detached
 immutable snapshot and does not retarget the caller runtime. Use them when you
 want raw replay output for `projectStateV5()`, `createStateReaderV5()`, or
 lower-level inspection rather than an application-facing read handle.
@@ -1090,17 +1187,17 @@ lower-level inspection rather than an application-facing read handle.
 
 Edges are only visible when **both** endpoints pass the match filter:
 
-```javascript
+```typescript
 // Graph has: user:alice --manages--> server:prod
-const liveWorldline = graph.worldline();
+const liveWorldline = graph.query.worldline();
 const view = await liveWorldline.observer('users', { match: 'user:*' });
 const edges = await view.getEdges(); // [] — server:prod doesn't match
 ```
 
 Multiple observers can coexist with different projections:
 
-```javascript
-const liveWorldline = graph.worldline();
+```typescript
+const liveWorldline = graph.query.worldline();
 
 const publicView = await liveWorldline.observer('public', {
   match: '*',
@@ -1112,7 +1209,7 @@ const hrView = await liveWorldline.observer('hr', {
   expose: ['name', 'department', 'salary'],
 });
 
-const adminView = await graph.observer('admin', {
+const adminView = await graph.query.observer('admin', {
   match: '*',   // sees everything
 });
 ```
@@ -1121,10 +1218,10 @@ const adminView = await graph.observer('admin', {
 
 Estimate the information loss when translating between two observer views.
 
-```javascript
-await graph.materialize();
+```typescript
+await graph.materialize.materialize({});
 
-const result = await graph.translationCost(
+const result = await graph.query.translationCost(
   { match: 'user:*' },                        // observer A
   { match: 'user:*', redact: ['ssn'] },       // observer B
 );
@@ -1135,9 +1232,9 @@ console.log(result.breakdown);  // { nodeLoss: 0, edgeLoss: 0, propLoss: 0.2 }
 
 The cost is **directed** — it measures what A can see that B cannot:
 
-```javascript
-await graph.translationCost({ match: '*' }, { match: 'user:*' });  // high cost
-await graph.translationCost({ match: 'user:*' }, { match: '*' });  // 0 (nothing lost)
+```typescript
+await graph.query.translationCost({ match: '*' }, { match: 'user:*' });  // high cost
+await graph.query.translationCost({ match: 'user:*' }, { match: '*' });  // 0 (nothing lost)
 ```
 
 | Scenario | Cost |
@@ -1157,7 +1254,7 @@ Query properties across a node's history using built-in temporal operators.
 
 Returns `true` if the predicate held at every tick where the node existed:
 
-```javascript
+```typescript
 const alwaysActive = await graph.temporal.always(
   'user:alice',
   (snapshot) => snapshot.props.status === 'active',
@@ -1169,7 +1266,7 @@ const alwaysActive = await graph.temporal.always(
 
 Returns `true` if the predicate held at any tick (short-circuits on first match):
 
-```javascript
+```typescript
 const wasMerged = await graph.temporal.eventually(
   'pr:42',
   (snapshot) => snapshot.props.status === 'merged',
@@ -1189,7 +1286,7 @@ The `since` option filters to ticks at or after a Lamport timestamp. Patches bef
 
 Create a fork of a graph at a specific point in a writer's history:
 
-```javascript
+```typescript
 const forked = await graph.fork({
   from: 'alice',        // writer to fork from
   at: 'abc123...',      // patch SHA to fork at
@@ -1197,8 +1294,8 @@ const forked = await graph.fork({
   forkWriterId: 'fork-writer',
 });
 
-// forked is a new WarpCore sharing history up to the fork point
-await (await forked.createPatch()).addNode('new:node').commit();
+// forked is a new graph sharing history up to the fork point
+await (await forked.patches.createPatch()).addNode('new:node').commit();
 ```
 
 Due to Git's content-addressed storage, shared history is automatically deduplicated.
@@ -1207,7 +1304,7 @@ Due to Git's content-addressed storage, shared history is automatically deduplic
 
 Compress a contiguous range of patches into a single wormhole edge:
 
-```javascript
+```typescript
 const wormhole = await graph.createWormhole('oldest-sha', 'newest-sha');
 // { fromSha, toSha, writerId, payload, patchCount }
 ```
@@ -1218,9 +1315,9 @@ Wormholes preserve provenance — the payload can be replayed to recover the exa
 
 After materialization, query which patches affected a given entity:
 
-```javascript
-await graph.materialize();
-const shas = await graph.patchesFor('user:alice');
+```typescript
+await graph.materialize.materialize({});
+const shas = await graph.provenance.patchesFor('user:alice');
 // ['abc123...', 'def456...'] — sorted alphabetically
 ```
 
@@ -1228,9 +1325,9 @@ const shas = await graph.patchesFor('user:alice');
 
 Materialize only the backward causal cone for a specific node — useful when you only care about one entity's state and want to skip irrelevant patches:
 
-```javascript
-await graph.materialize(); // builds provenance index
-const { state, patchCount } = await graph.materializeSlice('user:alice');
+```typescript
+await graph.materialize.materialize({}); // builds provenance index
+const { state, patchCount } = await graph.provenance.materializeSlice('user:alice');
 // patchCount shows how many patches were in the cone vs full history
 ```
 
@@ -1238,13 +1335,13 @@ const { state, patchCount } = await graph.materializeSlice('user:alice');
 
 When a higher layer needs a deterministic artifact for audit, attestation, review workflows, or machine-to-machine exchange, export the comparison or transfer plan as a canonical fact envelope instead of inventing a custom JSON shape.
 
-```javascript
+```typescript
 import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
 } from '@git-stunts/git-warp';
 
-const comparison = await graph.compareCoordinates({
+const comparison = await graph.comparison.compareCoordinates({
   left: { kind: 'live' },
   right: {
     kind: 'coordinate',
@@ -1267,7 +1364,7 @@ const comparisonFact = exportCoordinateComparisonFact(comparison);
 //   },
 // }
 
-const transferPlan = await graph.planCoordinateTransfer({
+const transferPlan = await graph.comparison.planCoordinateTransfer({
   source: { kind: 'live' },
   target: {
     kind: 'coordinate',
@@ -1423,37 +1520,37 @@ git warp strand drop review-auth
 
 Programmatically:
 
-```javascript
-const strand = await graph.createStrand({
+```typescript
+const strand = await graph.strands.createStrand({
   strandId: 'review-auth',
   owner: 'alice',
   scope: 'OAuth review',
   lamportCeiling: 12,
 });
 
-const state = await graph.materializeStrand(strand.strandId); // detached immutable snapshot
-const reviewLane = graph.worldline({
+const state = await graph.strands.materializeStrand(strand.strandId); // detached immutable snapshot
+const reviewLane = graph.query.worldline({
   source: { kind: 'strand', strandId: strand.strandId },
 });
 const reviewView = await reviewLane.observer('review-auth-view', {
   match: 'task:*',
 });
 
-await graph.patchStrand(strand.strandId, (p) => {
+await graph.strands.patchStrand(strand.strandId, (p) => {
   p.setProperty('task:oauth', 'status', 'needs-review');
 });
 
-await graph.queueStrandIntent(strand.strandId, (p) => {
+await graph.strands.queueStrandIntent(strand.strandId, (p) => {
   p.setProperty('task:oauth', 'owner', 'alice');
 });
 
-const queuedIntents = await graph.listStrandIntents(strand.strandId);
-const tick = await graph.tickStrand(strand.strandId);
+const queuedIntents = await graph.strands.listStrandIntents(strand.strandId);
+const tick = await graph.strands.tickStrand(strand.strandId);
 ```
 
 That raw strand materialization call returns a detached immutable snapshot
 and does not retarget the caller runtime. When you want a pinned application-
-facing read handle over the same speculative lane, prefer `worldline(...)` plus
+facing read handle over the same speculative lane, prefer `graph.query.worldline(...)` plus
 `observer(...)` as shown above.
 
 Use the [Advanced Guide](ADVANCED_GUIDE.md) for the dedicated strand model and the [CLI Guide](CLI_GUIDE.md) for the full CLI flags.
@@ -1477,21 +1574,21 @@ See the [CLI Guide](CLI_GUIDE.md) for complete command flags and debugger workfl
 
 **Programmatic API:**
 
-```javascript
+```typescript
 // Discover all ticks without expensive deserialization
-const { ticks, maxTick, perWriter } = await graph.discoverTicks();
+const { ticks, maxTick, perWriter } = await graph.patches.discoverTicks();
 
 // Materialize at a specific point in time
-const state = await graph.materialize({ ceiling: 3 });
+const state = await graph.materialize.materialize({ ceiling: 3 });
 
 // Inspect a pinned strand through substrate APIs
-const conflicts = await graph.analyzeConflicts({ strandId: 'review-auth' });
-const provenance = await graph.patchesForStrand('review-auth', 'task:auth');
+const conflicts = await graph.strands.analyzeConflicts({ strandId: 'review-auth' });
+const provenance = await graph.strands.patchesForStrand('review-auth', 'task:auth');
 ```
 
 ### Git Hooks
 
-WarpCore ships a `post-merge` hook that runs after `git merge` or `git pull`. If warp refs changed, it prints:
+git-warp ships a `post-merge` hook that runs after `git merge` or `git pull`. If warp refs changed, it prints:
 
 ```text
 [warp] Writer refs changed during merge. Call materialize() to see updates.
@@ -1515,8 +1612,8 @@ If a hook already exists, you're offered three options: **Append** (keeps existi
 
 ### Graph Status
 
-```javascript
-const status = await graph.status();
+```typescript
+const status = await graph.sync.status();
 // {
 //   cachedState: 'fresh',           // 'fresh' | 'stale' | 'none'
 //   patchesSinceCheckpoint: 12,
@@ -1767,17 +1864,17 @@ The dashboard shows:
 
 Inject a logger for structured timing output:
 
-```javascript
-import { ConsoleLogger } from '@git-stunts/git-warp';
+```typescript
+import { openWarpGraph, ConsoleLogger } from '@git-stunts/git-warp';
 
-const graph = await WarpCore.open({
+const graph = await openWarpGraph({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
   logger: new ConsoleLogger(),
 });
 
-await graph.materialize();
+await graph.materialize.materialize({});
 // [warp] materialize completed in 142ms (23 patches)
 ```
 
@@ -1792,7 +1889,7 @@ Timed operations: `materialize()`, `syncWith()`, `createCheckpoint()`, `runGC()`
 1. Verify `commit()` was called on the patch
 2. Check the writer ref exists: `git show-ref | grep warp`
 3. Ensure you're materializing the same `graphName`
-4. If using `autoMaterialize: false`, call `materialize()` after writing
+4. If using `autoMaterialize: false`, call `graph.materialize.materialize({})` after writing
 
 ### "State differs between machines"
 
@@ -1803,15 +1900,15 @@ Timed operations: `materialize()`, `syncWith()`, `createCheckpoint()`, `runGC()`
 ### "Materialization is slow"
 
 1. Enable auto-checkpointing: `checkpointPolicy: { every: 500 }`
-2. Or create checkpoints manually: `await graph.createCheckpoint()`
-3. Use `materializeAt(sha)` for incremental recovery
+2. Or create checkpoints manually: `await graph.checkpoint.createCheckpoint()`
+3. Use `graph.materialize.materializeAt(sha)` for incremental recovery
 4. Batch operations into fewer, larger patches
 
 ### "Deleted node still appears"
 
 This can happen when a concurrent add has higher priority than the remove:
 
-```javascript
+```typescript
 // Writer A adds node at lamport=5
 // Writer B removes node at lamport=3
 // Result: node is VISIBLE (add at 5 beats remove at 3)
@@ -1822,12 +1919,12 @@ This is correct OR-Set behavior — a remove only affects add events it has *obs
 ### "QueryError: E_NO_STATE"
 
 You're trying to read without materializing first and `autoMaterialize` is disabled. Either:
-- Call `await graph.materialize()` before queries
+- Call `await graph.materialize.materialize({})` before queries
 - Use the default `autoMaterialize: true` (remove any explicit `autoMaterialize: false`)
 
 ### "QueryError: E_STALE_STATE"
 
-The frontier has changed since the last materialization (e.g., after a `git pull`). Call `materialize()` again.
+The frontier has changed since the last materialization (e.g., after a `git pull`). Call `graph.materialize.materialize({})` again.
 
 ---
 
@@ -2037,10 +2134,10 @@ Six operation types (schema v3):
 
 ### Appendix E: Tick Receipts
 
-When debugging multi-writer conflicts, `materialize({ receipts: true })` returns per-patch decision records:
+When debugging multi-writer conflicts, `graph.materialize.materialize({ receipts: true })` returns per-patch decision records:
 
-```javascript
-const { state, receipts } = await graph.materialize({ receipts: true });
+```typescript
+const { state, receipts } = await graph.materialize.materialize({ receipts: true });
 
 for (const receipt of receipts) {
   console.log(`Patch ${receipt.patchSha} (writer: ${receipt.writer}, lamport: ${receipt.lamport})`);
@@ -2068,17 +2165,17 @@ PropSet user:alice.name: superseded
 
 **Zero-cost when disabled:** When receipts are not requested (the default), there is strictly zero overhead — no arrays allocated, no strings constructed.
 
-```javascript
+```typescript
 // Default — returns state directly, no overhead
-const state = await graph.materialize();
+const state = await graph.materialize.materialize({});
 
 // With receipts — returns { state, receipts }
-const { state, receipts } = await graph.materialize({ receipts: true });
+const { state, receipts } = await graph.materialize.materialize({ receipts: true });
 ```
 
 ### Appendix F: Sync Protocol
 
-WarpCore provides a request/response sync protocol for programmatic synchronization without Git remotes.
+git-warp provides a request/response sync protocol for programmatic synchronization without Git remotes.
 
 #### Protocol Flow
 
@@ -2088,29 +2185,29 @@ WarpCore provides a request/response sync protocol for programmatic synchronizat
 
 #### Programmatic API
 
-```javascript
+```typescript
 // Client side
-const request = await graph.createSyncRequest();
+const request = await graph.sync.createSyncRequest();
 // Send request to server...
 
 // Server side
-const response = await graph.processSyncRequest(request);
+const response = await graph.sync.processSyncRequest(request);
 // Send response to client...
 
 // Client side
-const { applied } = graph.applySyncResponse(response);
+const { applied } = await graph.sync.applySyncResponse(response);
 ```
 
 #### High-Level API
 
 For most use cases, use `syncWith()` which handles the full round-trip:
 
-```javascript
+```typescript
 // Direct sync (in-process)
-const result = await graphA.syncWith(graphB);
+const result = await graphA.sync.syncWith(graphB._runtime);
 
 // HTTP sync
-const result = await graph.syncWith('http://peer:3000/sync', {
+const result = await graph.sync.syncWith('http://peer:3000/sync', {
   retries: 3,
   baseDelayMs: 250,
   maxDelayMs: 2000,
@@ -2125,12 +2222,13 @@ const result = await graph.syncWith('http://peer:3000/sync', {
 
 #### Sync Server
 
-```javascript
-const { close, url } = await graph.serve({
+```typescript
+const { close, url } = await graph.sync.serve({
   port: 3000,
   host: '127.0.0.1',
   path: '/sync',
   maxRequestBytes: 4 * 1024 * 1024,
+  httpPort: nodeHttpAdapter,
   auth: {                          // optional HMAC-SHA256 auth
     keys: { default: 'shared-secret' },
     mode: 'enforce',               // or 'log-only'
@@ -2138,7 +2236,7 @@ const { close, url } = await graph.serve({
 });
 
 // Peers sync with:
-// await peerGraph.syncWith(url, { auth: { secret: 'shared-secret', keyId: 'default' } });
+// await peerGraph.sync.syncWith(url, { auth: { secret: 'shared-secret', keyId: 'default' } });
 
 await close(); // shut down
 ```
@@ -2149,10 +2247,10 @@ Over time, tombstoned entries accumulate in ORSets. Garbage collection compacts 
 
 #### Automatic GC
 
-Configure GC policy on `WarpCore.open()`:
+Configure GC policy on `openWarpGraph()`:
 
-```javascript
-const graph = await WarpCore.open({
+```typescript
+const graph = await openWarpGraph({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
@@ -2171,16 +2269,16 @@ Automatic GC runs during `materialize()` when thresholds are exceeded.
 
 #### Manual GC
 
-```javascript
+```typescript
 // Check if GC is needed
-const { ran, result, reasons } = await graph.maybeRunGC();
+const { ran, result, reasons } = graph.checkpoint.maybeRunGC();
 
 // Force GC
-const result = await graph.runGC();
+const result = graph.checkpoint.runGC();
 // { nodesCompacted, edgesCompacted, tombstonesRemoved, durationMs }
 
 // Inspect metrics
-const metrics = graph.getGCMetrics();
+const metrics = graph.checkpoint.getGCMetrics();
 // { nodeCount, edgeCount, tombstoneCount, tombstoneRatio, ... }
 ```
 
@@ -2219,12 +2317,12 @@ What GC does **not** remove:
 
 That means time-travel still works:
 
-```javascript
-const live = app.worldline();
+```typescript
+const live = graph.query.worldline();
 await live.hasNode('task:123');
 // false
 
-const beforeRemoval = app.worldline({
+const beforeRemoval = graph.query.worldline({
   source: {
     kind: 'coordinate',
     frontier: { alice: 'A1', bob: 'B1' },
@@ -2253,7 +2351,7 @@ For large graphs, bitmap indexes provide O(1) neighbor lookups instead of scanni
 
 Indexes are built via `IndexRebuildService`:
 
-```javascript
+```typescript
 import { IndexRebuildService } from '@git-stunts/git-warp';
 
 const service = new IndexRebuildService({
@@ -2273,7 +2371,7 @@ const treeOid = await service.rebuild('HEAD', {
 
 #### Loading an Index
 
-```javascript
+```typescript
 const reader = await service.load(treeOid, {
   strict: true,          // validate shard integrity (default)
   currentFrontier,       // for staleness detection
@@ -2297,12 +2395,12 @@ Memory: initial load near-zero (lazy); single shard 0.5–2 MB; full index at 1M
 
 ### Appendix I: Audit Receipts
 
-When `audit: true` is set on `WarpCore.open()`, every data commit produces a corresponding **audit commit** — a tamper-evident record of what happened when the patch was materialized.
+When `audit: true` is set on `openWarpGraph()`, every data commit produces a corresponding **audit commit** — a tamper-evident record of what happened when the patch was materialized.
 
 #### Enabling Audit Mode
 
-```javascript
-const graph = await WarpCore.open({
+```typescript
+const graph = await openWarpGraph({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
@@ -2393,26 +2491,26 @@ The full specification — including canonical serialization rules, field constr
 As of v11.0.0, `autoMaterialize` defaults to `true`. If you relied on the previous default of `false`, either:
 
 **Option A:** Accept the new default (recommended for most users):
-```js
+```typescript
 // Before: required explicit materialize()
-const graph = await WarpCore.open({ persistence, graphName, writerId });
-await graph.materialize();
-const nodes = await graph.getNodes();
+const graph = await openWarpGraph({ persistence, graphName, writerId });
+await graph.materialize.materialize({});
+const nodes = await graph.query.getNodes();
 
 // After: just works
-const graph = await WarpCore.open({ persistence, graphName, writerId });
-const nodes = await graph.getNodes();
+const graph = await openWarpGraph({ persistence, graphName, writerId });
+const nodes = await graph.query.getNodes();
 ```
 
 **Option B:** Opt out explicitly:
-```js
-const graph = await WarpCore.open({
+```typescript
+const graph = await openWarpGraph({
   persistence, graphName, writerId,
   autoMaterialize: false, // preserve pre-v11 behavior
 });
 ```
 
-For very large graphs, consider warming `materialize()` on startup rather than taking the hit on first query.
+For very large graphs, consider warming `graph.materialize.materialize({})` on startup rather than taking the hit on first query.
 
 ---
 

@@ -19,6 +19,11 @@ class DefaultClock extends ClockPort {
     // eslint-disable-next-line no-restricted-syntax -- ClockPort implementation
     return new Date().toISOString();
   }
+
+  epochMs(): number {
+    // eslint-disable-next-line no-restricted-syntax -- ClockPort implementation
+    return Date.now();
+  }
 }
 
 const defaultClock = new DefaultClock();

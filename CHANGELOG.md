@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0] — 2026-04-14
+
 ### Changed
 
 - **WarpRuntime.js → TypeScript** — The LAST `.js` file in `src/domain/` is dead. 1234 LOC monolith split into `runtimeHelpers.ts` (150 LOC, factory helpers + trust config), `WarpRuntime.ts` (771 LOC, class + constructor + open), and `runtimeWiring.ts` (262 LOC, delegation wiring). Zero `.js` files remain in the domain. 100% TypeScript.

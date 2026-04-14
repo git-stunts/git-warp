@@ -38,4 +38,9 @@ export default class ClockAdapter extends ClockPort {
   timestamp(): string {
     return new Date().toISOString();
   }
+
+  /** Returns the current wall-clock time as Unix epoch milliseconds. */
+  epochMs(): number {
+    return Date.now();
+  }
 }

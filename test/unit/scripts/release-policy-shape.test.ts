@@ -30,7 +30,7 @@ const roadmap = readFileSync(
 describe('release policy shape', () => {
   it('keeps package and jsr versions aligned on the release branch', () => {
     expect(packageJson.version).toBe(jsrJson.version);
-    expect(packageJson.version).toBe('16.0.0');
+    expect(packageJson.version).toBe('17.0.0');
   });
 
   it('does not require a README release feed anymore', () => {

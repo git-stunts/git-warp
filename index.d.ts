@@ -535,6 +535,8 @@ export abstract class ClockPort {
   abstract now(): number;
   /** Returns the current wall-clock time as an ISO string */
   abstract timestamp(): string;
+  /** Returns the current wall-clock time as Unix epoch milliseconds */
+  abstract epochMs(): number;
 }
 
 /**
@@ -550,6 +552,7 @@ export class ClockAdapter extends ClockPort {
   static global(): ClockAdapter;
   now(): number;
   timestamp(): string;
+  epochMs(): number;
 }
 
 /**
@@ -4068,6 +4071,129 @@ export class ChunkEffectSink extends EffectSinkPort {
   constructor(options: { dir: string; id?: string; maxBytes?: number });
   get id(): string;
 }
+
+// ---------------------------------------------------------------------------
+// WarpGraph — v17+ public API surface (capability bag)
+// ---------------------------------------------------------------------------
+
+/**
+ * Commitment capabilities — admitting claims into frontier-relative truth.
+ */
+export interface CommitmentSurface {
+  readonly patches: WarpCore;
+  readonly strands: WarpCore;
+  readonly comparison: WarpCore;
+}
+
+/**
+ * Folding capabilities — re-expressing admitted history.
+ */
+export interface FoldingSurface {
+  readonly materialize: WarpCore;
+  readonly checkpoint: WarpCore;
+}
+
+/**
+ * Revelation capabilities — bounded observer access to admitted truth.
+ */
+export interface RevelationSurface {
+  readonly query: WarpCore;
+  readonly subscriptions: WarpCore;
+  readonly provenance: WarpCore;
+}
+
+/**
+ * Governance capabilities — distributed suffix admission and transport.
+ */
+export interface GovernanceSurface {
+  readonly sync: WarpCore;
+}
+
+/**
+ * The public API surface returned by `openWarpGraph()`.
+ *
+ * A frozen capability bag organized by architectural moment, with flat
+ * aliases for ergonomic access.
+ */
+export interface WarpGraph {
+  readonly graphName: string;
+  readonly writerId: string;
+
+  // Architectural moments
+  readonly commitment: CommitmentSurface;
+  readonly folding: FoldingSurface;
+  readonly revelation: RevelationSurface;
+  readonly governance: GovernanceSurface;
+
+  // Flat aliases — each is the same WarpCore instance viewed through
+  // a capability lens
+  readonly query: WarpCore;
+  readonly patches: WarpCore;
+  readonly materialize: WarpCore;
+  readonly sync: WarpCore;
+  readonly strands: WarpCore;
+  readonly checkpoint: WarpCore;
+  readonly provenance: WarpCore;
+  readonly comparison: WarpCore;
+  readonly subscriptions: WarpCore;
+
+  /** @internal Temporary bridge — removed in v18. */
+  readonly _runtime: WarpCore;
+}
+
+type TrustMode = 'off' | 'log-only' | 'enforce';
+
+/**
+ * Dependencies for `openWarpGraph()`.
+ */
+export interface WarpGraphDeps {
+  readonly persistence: GraphPersistencePort;
+  readonly graphName: string;
+  readonly writerId: string;
+  readonly trust?: { mode?: TrustMode; pin?: string | null };
+  readonly gcPolicy?: GCPolicyConfig;
+  readonly checkpointPolicy?: { every: number };
+  readonly onDeleteWithData?: 'reject' | 'cascade' | 'warn';
+  readonly autoMaterialize?: boolean;
+  readonly crypto?: CryptoPort;
+  readonly clock?: ClockPort;
+  readonly audit?: boolean;
+  readonly logger?: LoggerPort;
+  readonly effectPipeline?: EffectPipeline;
+  readonly effectSinks?: EffectSinkPort[];
+  readonly externalizationPolicy?: ExternalizationPolicy;
+  readonly seekCache?: SeekCachePort;
+  readonly blobStorage?: BlobStoragePort;
+  readonly patchBlobStorage?: BlobStoragePort;
+  readonly adjacencyCacheSize?: number;
+}
+
+/**
+ * Opens a WARP multi-writer graph and returns a frozen capability bag.
+ *
+ * This is the v17+ composition root. It accepts the governing policy,
+ * witness infrastructure, and revelation regime as typed ports, wires
+ * controllers, and returns a frozen `WarpGraph`.
+ *
+ * @example
+ * ```ts
+ * import { openWarpGraph } from '@git-stunts/git-warp';
+ *
+ * const graph = await openWarpGraph({
+ *   persistence,
+ *   graphName: 'events',
+ *   writerId: 'node-1',
+ * });
+ *
+ * const patch = await graph.patches.createPatch();
+ * patch.addNode('user:alice');
+ * await patch.commit();
+ *
+ * await graph.materialize.materialize({});
+ * const props = await graph.query.getNodeProps('user:alice');
+ * ```
+ */
+export function openWarpGraph(deps: WarpGraphDeps): Promise<WarpGraph>;
 
 /** Default package export — the curated product-facing WARP surface. */
 export default WarpApp;

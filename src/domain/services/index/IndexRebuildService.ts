@@ -11,6 +11,8 @@ import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type BlobPort from '../../../ports/BlobPort.ts';
 import type TreePort from '../../../ports/TreePort.ts';
+import type ClockPort from '../../../ports/ClockPort.ts';
+import defaultClock from '../../utils/defaultClock.ts';
 
 type GraphService = {
   iterateNodes(opts: { ref: string; limit: number }): AsyncIterable<{ sha: string; parents: string[] }>;
@@ -66,6 +68,7 @@ export default class IndexRebuildService {
   private readonly storage: IndexStoragePort & BlobPort & TreePort;
   private readonly logger: LoggerPort;
   private readonly _codec: CodecPort;
+  private readonly _clock: ClockPort;
 
   constructor(options: {
     graphService: GraphService;
@@ -73,8 +76,9 @@ export default class IndexRebuildService {
     logger?: LoggerPort;
     codec?: CodecPort;
     crypto?: unknown;
+    clock?: ClockPort;
   }) {
-    const { graphService, storage, logger = nullLogger, codec, crypto } = options ?? {};
+    const { graphService, storage, logger = nullLogger, codec, crypto, clock } = options ?? {};
     if (graphService === undefined || graphService === null) {
       throw new IndexError(
         'IndexRebuildService requires a graphService',
@@ -91,6 +95,7 @@ export default class IndexRebuildService {
     this.storage = storage;
     this.logger = logger;
     this._codec = codec ?? defaultCodec;
+    this._clock = clock ?? defaultClock;
     void crypto; // reserved for future use
   }
 
@@ -116,8 +121,7 @@ export default class IndexRebuildService {
       maxMemoryBytes: maxMemoryBytes ?? null,
     });
 
-    // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
-    const startTime = performance.now();
+    const startTime = this._clock.now();
 
     try {
       let treeOid: string;
@@ -135,8 +139,7 @@ export default class IndexRebuildService {
         treeOid = await this._rebuildInMemory(ref, memOpts);
       }
 
-      // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
-      const durationMs = performance.now() - startTime;
+      const durationMs = this._clock.now() - startTime;
       this.logger.info('Index rebuild complete', {
         operation: 'rebuild',
         ref,
@@ -147,8 +150,7 @@ export default class IndexRebuildService {
 
       return treeOid;
     } catch (err) {
-      // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
-      const durationMs = performance.now() - startTime;
+      const durationMs = this._clock.now() - startTime;
       this.logger.error('Index rebuild failed', {
         operation: 'rebuild',
         ref,
@@ -268,8 +270,7 @@ export default class IndexRebuildService {
       );
     }
 
-    // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
-    const startTime = performance.now();
+    const startTime = this._clock.now();
     const shardOids = await this.storage.readTreeOids(treeOid);
     const shardCount = Object.keys(shardOids).length;
 
@@ -307,8 +308,7 @@ export default class IndexRebuildService {
     });
     reader.setup(shardOids);
 
-    // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
-    const durationMs = performance.now() - startTime;
+    const durationMs = this._clock.now() - startTime;
     this.logger.debug('Index loaded', {
       operation: 'load',
       treeOid,

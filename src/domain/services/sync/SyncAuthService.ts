@@ -17,6 +17,8 @@ import { hexEncode, hexDecode } from '../../utils/bytes.ts';
 import SyncError from '../../errors/SyncError.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
+import type ClockPort from '../../../ports/ClockPort.ts';
+import defaultClock from '../../utils/defaultClock.ts';
 
 const SIG_VERSION = '1';
 const SIG_PREFIX = 'warp-v1';
@@ -60,12 +62,12 @@ export function buildCanonicalPayload(params: {
  */
 export async function signSyncRequest(
   params: { method: string; path: string; contentType: string; body: Uint8Array; secret: string; keyId: string },
-  deps: { crypto?: CryptoPort } = {},
+  deps: { crypto?: CryptoPort; clock?: ClockPort } = {},
 ): Promise<Record<string, string>> {
   const c = deps.crypto ?? defaultCrypto;
+  const clk = deps.clock ?? defaultClock;
   // Wall-clock timestamp required for HMAC replay protection (not a perf timer)
-  // eslint-disable-next-line no-restricted-syntax
-  const timestamp = String(Date.now());
+  const timestamp = String(clk.epochMs());
   const nonce = globalThis.crypto.randomUUID();
 
   const bodySha256 = await c.hash('sha256', params.body);
@@ -161,6 +163,7 @@ export interface SyncAuthServiceOptions {
   crypto?: CryptoPort;
   logger?: LoggerPort;
   wallClockMs?: () => number;
+  clock?: ClockPort;
   allowedWriters?: string[];
 }
 
@@ -176,14 +179,14 @@ export default class SyncAuthService {
   private readonly _metrics: AuthMetrics;
 
   constructor(options: SyncAuthServiceOptions) {
-    const { keys, mode = 'enforce', nonceCapacity, maxClockSkewMs, crypto, logger, wallClockMs, allowedWriters } = options ?? {};
+    const { keys, mode = 'enforce', nonceCapacity, maxClockSkewMs, crypto, logger, wallClockMs, clock, allowedWriters } = options ?? {};
     _validateKeys(keys);
     this._keys = keys;
     this._mode = mode;
     this._crypto = crypto ?? defaultCrypto;
     this._logger = logger ?? nullLogger;
-    // eslint-disable-next-line no-restricted-syntax -- wall-clock fallback for HMAC verification
-    this._wallClockMs = wallClockMs ?? (() => Date.now());
+    const resolvedClock = clock ?? defaultClock;
+    this._wallClockMs = wallClockMs ?? (() => resolvedClock.epochMs());
     this._maxClockSkewMs = typeof maxClockSkewMs === 'number' ? maxClockSkewMs : MAX_CLOCK_SKEW_MS;
     this._nonceCache = new LRUCache(typeof nonceCapacity === 'number' && nonceCapacity > 0 ? nonceCapacity : DEFAULT_NONCE_CAPACITY);
     this._metrics = _freshMetrics();

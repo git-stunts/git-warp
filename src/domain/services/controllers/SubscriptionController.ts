@@ -25,11 +25,20 @@ interface SubscriptionHost {
   materialize(options?: Record<string, unknown>): Promise<unknown>;
 }
 
+type SchedulerFn = (callback: () => void, ms: number) => ReturnType<typeof setInterval>;
+
 export default class SubscriptionController {
   _host: SubscriptionHost;
+  private readonly _scheduler: SchedulerFn | null;
 
-  constructor(host: SubscriptionHost) {
+  constructor(host: SubscriptionHost, options?: { scheduler?: SchedulerFn }) {
     this._host = host;
+    this._scheduler = options?.scheduler ?? null;
+  }
+
+  /** Returns the scheduler, falling back to globalThis.setInterval at call time. */
+  private _resolveScheduler(): SchedulerFn {
+    return this._scheduler ?? globalThis.setInterval.bind(globalThis);
   }
 
   subscribe({ onChange, onError, replay = false }: {
@@ -141,8 +150,7 @@ export default class SubscriptionController {
     let pollIntervalId: ReturnType<typeof setInterval> | null = null;
     let pollInFlight = false;
     if (poll !== undefined) {
-      // eslint-disable-next-line no-restricted-syntax -- legacy: inject scheduler (tracked in backlog)
-      pollIntervalId = setInterval(() => {
+      pollIntervalId = this._resolveScheduler()(() => {
         if (pollInFlight) { return; }
         pollInFlight = true;
         host.hasFrontierChanged()

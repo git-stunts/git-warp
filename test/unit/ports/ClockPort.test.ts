@@ -11,6 +11,7 @@ describe('ClockPort', () => {
     class TestClock extends ClockPort {
       now() { return 42; }
       timestamp() { return '2026-01-01T00:00:00.000Z'; }
+      epochMs() { return 1735689600000; }
     }
     const clock = new TestClock();
     expect(clock).toBeInstanceOf(ClockPort);

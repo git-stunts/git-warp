@@ -12,6 +12,8 @@
 import VersionVector from '../crdt/VersionVector.ts';
 import WarpError from '../errors/WarpError.ts';
 import type WarpState from './state/WarpState.ts';
+import type ClockPort from '../../ports/ClockPort.ts';
+import defaultClock from '../utils/defaultClock.ts';
 import GCMetrics from './GCMetrics.ts';
 import GCExecuteResult from './GCExecuteResult.ts';
 
@@ -44,6 +46,7 @@ function compactORSets(state: WarpState, appliedVV: VersionVector): void {
 export default function executeGC(
   state: WarpState,
   appliedVV: VersionVector,
+  options?: { clock?: ClockPort },
 ): GCExecuteResult {
   if (!(appliedVV instanceof VersionVector)) {
     throw new WarpError(
@@ -52,8 +55,8 @@ export default function executeGC(
     );
   }
 
-  // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
-  const startTime = performance.now();
+  const clock = options?.clock ?? defaultClock;
+  const startTime = clock.now();
   const beforeMetrics = GCMetrics.fromState(state);
   compactORSets(state, appliedVV);
   const afterMetrics = GCMetrics.fromState(state);
@@ -62,7 +65,6 @@ export default function executeGC(
     nodesCompacted: beforeMetrics.nodeEntries - afterMetrics.nodeEntries,
     edgesCompacted: beforeMetrics.edgeEntries - afterMetrics.edgeEntries,
     tombstonesRemoved: beforeMetrics.totalTombstones - afterMetrics.totalTombstones,
-    // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
-    durationMs: performance.now() - startTime,
+    durationMs: clock.now() - startTime,
   });
 }

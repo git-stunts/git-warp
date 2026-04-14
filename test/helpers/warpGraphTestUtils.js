@@ -578,6 +578,11 @@ export function createMockClock(step = 42) {
       time += step;
       return new Date(t).toISOString();
     }),
+    epochMs: vi.fn(() => {
+      const t = time;
+      time += step;
+      return t;
+    }),
   };
 }
 

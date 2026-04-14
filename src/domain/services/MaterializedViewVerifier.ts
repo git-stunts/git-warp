@@ -195,6 +195,15 @@ function verifySampledNodes(
   return acc;
 }
 
+// ── Crypto-grade seed ─────────────────────────────────────────────────────
+
+/** Generates a 31-bit unsigned seed from crypto-grade randomness. */
+function cryptoSeed(): number {
+  const buf = new Uint8Array(4);
+  globalThis.crypto.getRandomValues(buf);
+  return ((buf[0]! << 24) | (buf[1]! << 16) | (buf[2]! << 8) | buf[3]!) >>> 1;
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export interface VerifyIndexParams {
@@ -208,8 +217,7 @@ export interface VerifyIndexParams {
  * bitmap neighbor queries against adjacency-based ground truth.
  */
 export function verifyIndex({ state, logicalIndex, options = {} }: VerifyIndexParams): VerifyResult {
-  // eslint-disable-next-line no-restricted-syntax -- legacy: use seeded PRNG (tracked in backlog)
-  const seed = options.seed ?? (Math.random() * 0x7FFFFFFF >>> 0);
+  const seed = options.seed ?? cryptoSeed();
   const sampleRate = options.sampleRate ?? 0.1;
   const allNodes = [...state.nodeAlive.elements()].sort();
   const sampled = sampleNodes(allNodes, sampleRate, seed);
