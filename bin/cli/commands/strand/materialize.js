@@ -40,8 +40,8 @@ function buildMaterializePayload(graphName, strand, materialized) {
       state,
       receipts,
       summary: {
-        nodeCount: /** @type {any} */ (state.nodeAlive).elements().length,
-        edgeCount: /** @type {any} */ (state.edgeAlive).elements().length,
+        nodeCount: /** @type {{elements: () => Array<number>}} */ (state.nodeAlive).elements().length,
+        edgeCount: /** @type {{elements: () => Array<number>}} */ (state.edgeAlive).elements().length,
         propertyCount: state.prop.size,
         receiptCount: receipts?.length ?? 0,
       },

@@ -17,9 +17,9 @@ import { CODES } from './codes.js';
 function internalError(id, err) {
   return /** @type {DoctorFinding} */ ({
     id,
-    status: /** @type {any} */ ('error'),
+    status: /** @type {'ok'|'warn'|'fail'} */ ('fail'),
     code: 'CHECK_INTERNAL_ERROR',
-    impact: /** @type {any} */ ('unknown'),
+    impact: /** @type {'data_integrity'|'security'|'operability'|'hygiene'} */ ('operability'),
     message: err instanceof Error ? err.message : String(err),
   });
 }
