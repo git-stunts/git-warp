@@ -52,6 +52,52 @@ LAYER 5:
   [ ] INFRA_substrate-upgrade-tool
 ```
 
+## Shadow-Trie ORSet + package reorg (Design 0018)
+
+Replace memory-resident ORSet with a bounded-residency trie stored as
+native Git objects. Extract `warp-orset` package early; `warp-kernel`
+and `warp-adapters` extract later once the ORSet line proves its seams.
+
+```
+ST-0 (planning + workspace shells):
+  [ ] DX_design-0018-flesh-out
+  [ ] DX_v17-lane-readme-update
+  [ ] INFRA_npm-workspaces-scaffold
+  [ ] INFRA_extract-warp-orset-package
+
+ST-1 (ORSet seam + storage contracts):
+  [ ] PROTO_orsetlike-contract
+  [ ] PROTO_blake3-route-key
+  [ ] PROTO_git-trie-store-port
+  [ ] INFRA_git-trie-store-adapter
+
+ST-2 (trie foundation):
+  [ ] PROTO_trie-codec-and-geometry
+  [ ] PROTO_trie-cursor
+  [ ] PERF_lru-page-cache
+  [ ] PROTO_trie-flush
+  [ ] PROTO_checkpoint-envelope-publication
+
+ST-3 (ShadowTrieORSet):
+  [ ] PROTO_shadow-trie-orset
+  [ ] PROTO_trie-compaction
+  [ ] TRUST_shadow-trie-semilattice-pbt
+
+ST-4 (async firewall):
+  [ ] PROTO_state-session-async
+  [ ] PROTO_joinreducer-state-session
+  [ ] PROTO_gc-state-session
+
+ST-5 (kernel integration):
+  [ ] PROTO_materialize-integration
+  [ ] PROTO_index-builder-trie-iteration
+  [ ] PERF_trie-geometry-and-memory-profile
+
+ST-6 (broader package extraction):
+  [ ] INFRA_extract-warp-kernel-package
+  [ ] INFRA_extract-warp-adapters-package
+```
+
 ## Status key
 
 - `[ ]` not started
