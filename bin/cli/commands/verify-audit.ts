@@ -82,7 +82,7 @@ export default async function handleVerifyAudit({ options, args }: { options: Cl
   }
 
   // Attach trust assessment only when explicitly requested via --trust-mode
-  if (trustMode) {
+  if (trustMode !== undefined && trustMode !== null && trustMode.length > 0) {
     try {
       const trustAssessment = await verifier.evaluateTrust(graphName, {
         ...(trustPin !== undefined ? { pin: trustPin } : {}),

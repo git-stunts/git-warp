@@ -69,7 +69,7 @@ function stripInternalKeys(rec: Record<string, unknown>): Record<string, unknown
  * These are internal rendering artifacts (e.g. _renderedSvg, _renderedAscii)
  * that should not leak into JSON/NDJSON output.
  */
-export function sanitizePayload(payload: Record<string, unknown> | unknown): Record<string, unknown> | unknown {
+export function sanitizePayload(payload: unknown): unknown {
   if (!isFilterableObject(payload)) {
     return payload;
   }

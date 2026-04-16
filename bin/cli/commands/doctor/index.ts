@@ -13,9 +13,8 @@ import { doctorSchema } from '../../schemas.ts';
 import { createPersistence, resolveGraphName } from '../../shared.ts';
 import { ALL_CHECKS } from './checks.ts';
 import { CODES } from './codes.ts';
-import { DOCTOR_EXIT_CODES } from './types.ts';
+import { DOCTOR_EXIT_CODES, type DoctorFinding, type DoctorPolicy, type DoctorPayload, type DoctorContext } from './types.ts';
 import type { CliOptions, Persistence } from '../../types.ts';
-import type { DoctorFinding, DoctorPolicy, DoctorPayload, DoctorContext } from './types.ts';
 
 const DOCTOR_OPTIONS = {
   strict: { type: 'boolean', default: false },

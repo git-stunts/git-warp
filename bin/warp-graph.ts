@@ -12,79 +12,114 @@ import { COMMANDS } from './cli/commands/registry.ts';
 const hasJsonFlag = process.argv.includes('--json');
 const hasNdjsonFlag = process.argv.includes('--ndjson');
 
-/**
- * CLI entry point. Parses arguments, dispatches to the appropriate command handler,
- * and emits the result to stdout (JSON or human-readable).
- * @returns {Promise<void>}
- */
-async function main() {
-  const { options, command, commandArgs } = parseArgs(process.argv.slice(2));
+interface NormalizedCommandResult {
+  readonly payload: unknown;
+  readonly exitCode: number;
+}
 
+/** Runtime guard: does this value carry a `payload` field? */
+function hasPayload(value: unknown): value is { payload: unknown; exitCode?: number } {
+  return typeof value === 'object' && value !== null && 'payload' in value;
+}
+
+/** Runtime guard: does this value carry an async `close` function? */
+function hasCloseFn(value: unknown): value is { close: () => Promise<void> } {
+  if (typeof value !== 'object' || value === null) { return false; }
+  const rec = value as Record<string, unknown>;
+  return typeof rec['close'] === 'function';
+}
+
+/** Normalizes any handler return shape into { payload, exitCode }. */
+function normalizeResult(result: unknown): NormalizedCommandResult {
+  if (hasPayload(result)) {
+    return {
+      payload: result.payload,
+      exitCode: typeof result.exitCode === 'number' ? result.exitCode : EXIT_CODES.OK,
+    };
+  }
+  return { payload: result, exitCode: EXIT_CODES.OK };
+}
+
+type ParsedInvocation = ReturnType<typeof parseArgs>;
+
+/** Short-circuit the various early-exit conditions (help, removed
+ *  flags, mutual exclusion, empty command). Returns true iff the
+ *  caller should stop. */
+function handleEarlyExits(parsed: ParsedInvocation): boolean {
+  const { options, command } = parsed;
   if (options.help) {
     process.stdout.write(HELP_TEXT);
     process.exitCode = EXIT_CODES.OK;
-    return;
+    return true;
   }
-
   if (options.view !== null && options.view !== '') {
     throw usageError('--view has been removed. Use warp-ttd for visualization.');
   }
   if (options.json && options.ndjson) {
     throw usageError('--json and --ndjson are mutually exclusive');
   }
-
   if (command === undefined || command === '') {
     process.stderr.write(HELP_TEXT);
     process.exitCode = EXIT_CODES.USAGE;
-    return;
+    return true;
   }
+  return false;
+}
+
+/** Registers SIGINT/SIGTERM handlers that shut down a long-running
+ *  command gracefully. */
+function installShutdownHandlers(close: () => Promise<void>): void {
+  let closing = false;
+  const shutdown = async (): Promise<void> => {
+    if (closing) { return; }
+    closing = true;
+    await close();
+    process.exit(EXIT_CODES.OK);
+  };
+  process.on('SIGINT', () => { shutdown().catch(() => process.exit(1)); });
+  process.on('SIGTERM', () => { shutdown().catch(() => process.exit(1)); });
+}
+
+/** Writes the payload (when present) in the requested stringify
+ *  format. */
+function emitPayload(payload: unknown, ndjson: boolean): void {
+  if (payload === undefined) { return; }
+  const stringify = ndjson ? compactStringify : stableStringify;
+  process.stdout.write(`${stringify(payload)}\n`);
+}
+
+/**
+ * CLI entry point. Parses arguments, dispatches to the appropriate command handler,
+ * and emits the result to stdout (JSON or human-readable).
+ */
+async function main(): Promise<void> {
+  const parsed = parseArgs(process.argv.slice(2));
+  if (handleEarlyExits(parsed)) { return; }
+
+  const { options, command, commandArgs } = parsed;
+  // handleEarlyExits already returned for empty/undefined commands.
+  // Re-narrow here for the compiler since early-exit propagation
+  // doesn't survive the function boundary.
+  if (command === undefined || command === '') { return; }
 
   const handler = COMMANDS.get(command);
   if (!handler) {
     throw usageError(`Unknown command: ${command}`);
   }
 
-  /** @type {(opts: {command: string, args: string[], options: Record<string, unknown>}) => Promise<unknown>} */
-  const typedHandler = /** @type {(opts: {command: string, args: string[], options: Record<string, unknown>}) => Promise<unknown>} */ (handler);
-  const result = await typedHandler({
-    command,
-    args: commandArgs,
-    options,
-  });
-
-  /** @type {{payload: unknown, exitCode: number}} */
-  const normalized = result !== null && result !== undefined && typeof result === 'object' && 'payload' in /** @type {Record<string, unknown>} */ (result)
-    ? /** @type {{payload: unknown, exitCode: number}} */ (result)
-    : { payload: result, exitCode: EXIT_CODES.OK };
-
-  if (normalized.payload !== undefined) {
-    const stringify = options.ndjson ? compactStringify : stableStringify;
-    process.stdout.write(`${stringify(normalized.payload)}\n`);
-  }
+  const result = await handler({ args: commandArgs, options });
+  const normalized = normalizeResult(result);
+  emitPayload(normalized.payload, options.ndjson);
 
   // Long-running commands may return a `close` function.
   // Wait for SIGINT/SIGTERM instead of exiting immediately.
-  const close = result !== null && result !== undefined && typeof result === 'object' && 'close' in /** @type {Record<string, unknown>} */ (result)
-    // eslint-disable-next-line @typescript-eslint/dot-notation -- Record<string,unknown> requires bracket access (TS4111)
-    ? /** @type {() => Promise<void>} */ (/** @type {Record<string, unknown>} */ (result)['close'])
-    : null;
-
-  if (close) {
-    let closing = false;
-    /** Gracefully shuts down long-running commands on signal. */
-    const shutdown = async () => {
-      if (closing) { return; }
-      closing = true;
-      await close();
-      process.exit(EXIT_CODES.OK);
-    };
-    process.on('SIGINT', () => { shutdown().catch(() => process.exit(1)); });
-    process.on('SIGTERM', () => { shutdown().catch(() => process.exit(1)); });
+  if (hasCloseFn(result)) {
+    installShutdownHandlers(result.close);
     return; // Keep the process alive
   }
 
   // Use process.exit() to avoid waiting for fire-and-forget I/O (e.g. seek cache writes).
-  process.exit(normalized.exitCode ?? EXIT_CODES.OK);
+  process.exit(normalized.exitCode);
 }
 
 main().catch((error: unknown) => {

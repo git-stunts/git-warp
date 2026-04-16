@@ -82,7 +82,7 @@ function readHookContent(hookPath: string): string | null {
   try {
     return fs.readFileSync(hookPath, 'utf8');
   } catch (err) {
-    if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+    if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
       return null;
     }
     throw err;

@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
-import { OP_TYPES, RESULT_TYPES } from '../../../../src/domain/types/TickReceipt.ts';
-import type { TickReceipt, OpOutcome } from '../../../../src/domain/types/TickReceipt.ts';
+import { OP_TYPES, RESULT_TYPES, type TickReceipt, type OpOutcome } from '../../../../src/domain/types/TickReceipt.ts';
 import { EXIT_CODES, parseCommandArgs } from '../../infrastructure.ts';
 
 import {
@@ -182,16 +181,29 @@ async function loadReceipts({ graph, lamportCeiling, strandId }: {
   return materialized.receipts;
 }
 
+interface ReceiptsPayloadContext {
+  readonly graphName: string;
+  readonly values: ReceiptFilter;
+  readonly strand: unknown;
+  readonly lamportCeiling: number | null;
+  readonly sortedReceipts: TickReceipt[];
+  readonly returnedReceipts: Array<{ ops: OpOutcome[] }>;
+  readonly filteredCount: number;
+}
+
+/** Collects the filter parameters from a receipt filter context. */
+function receiptPayloadFilters(values: ReceiptFilter): Record<string, unknown> {
+  return {
+    writerId: values.writerId,
+    patch: values.patch,
+    target: values.target,
+    results: values.results,
+    opTypes: values.opTypes,
+  };
+}
+
 /** Build the JSON payload for the receipts debug topic. */
-function buildReceiptsPayload(ctx: {
-  graphName: string;
-  values: ReceiptFilter;
-  strand: unknown;
-  lamportCeiling: number | null;
-  sortedReceipts: TickReceipt[];
-  returnedReceipts: Array<{ ops: OpOutcome[] }>;
-  filteredCount: number;
-}): Record<string, unknown> {
+function buildReceiptsPayload(ctx: ReceiptsPayloadContext): Record<string, unknown> {
   const flattenedOps = ctx.returnedReceipts.flatMap((r) => r.ops);
   return {
     graph: ctx.graphName,
@@ -199,13 +211,7 @@ function buildReceiptsPayload(ctx: {
     ...(ctx.values.strandId !== null ? { strandId: ctx.values.strandId } : {}),
     ...(ctx.strand !== null ? { strand: ctx.strand } : {}),
     lamportCeiling: ctx.lamportCeiling,
-    filters: {
-      writerId: ctx.values.writerId,
-      patch: ctx.values.patch,
-      target: ctx.values.target,
-      results: ctx.values.results,
-      opTypes: ctx.values.opTypes,
-    },
+    filters: receiptPayloadFilters(ctx.values),
     totalReceipts: ctx.sortedReceipts.length,
     matchedReceipts: ctx.filteredCount,
     returnedReceipts: ctx.returnedReceipts.length,

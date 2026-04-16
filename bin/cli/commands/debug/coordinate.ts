@@ -55,25 +55,30 @@ function summarizePerWriterCoordinate({ tick, perWriter }: { tick: number; perWr
   );
 }
 
+interface ResolvedCoordinateInput {
+  readonly graph: WarpGraphInstance;
+  readonly lamportCeiling: number | null;
+  readonly maxTick: number;
+  readonly tickCount: number;
+  readonly perWriter: Map<string, WriterTickInfo>;
+}
+
+interface ResolvedCoordinate {
+  readonly tick: number;
+  readonly lamportCeiling: number | null;
+  readonly maxTick: number;
+  readonly tickCount: number;
+  readonly frontierDigest: string;
+  readonly patchCount: number;
+  readonly nodes: number;
+  readonly edges: number;
+  readonly properties: number;
+  readonly perWriter: Record<string, { tipSha: string | null; totalPatchCount: number; visiblePatchCount: number }>;
+}
+
 /** Materializes state at the resolved coordinate and collects summary metrics. */
-async function buildResolvedCoordinate({ graph, lamportCeiling, maxTick, tickCount, perWriter }: {
-  graph: WarpGraphInstance;
-  lamportCeiling: number | null;
-  maxTick: number;
-  tickCount: number;
-  perWriter: Map<string, WriterTickInfo>;
-}): Promise<{
-  tick: number;
-  lamportCeiling: number | null;
-  maxTick: number;
-  tickCount: number;
-  frontierDigest: string;
-  patchCount: number;
-  nodes: number;
-  edges: number;
-  properties: number;
-  perWriter: Record<string, { tipSha: string | null; totalPatchCount: number; visiblePatchCount: number }>;
-}> {
+async function buildResolvedCoordinate(input: ResolvedCoordinateInput): Promise<ResolvedCoordinate> {
+  const { graph, lamportCeiling, maxTick, tickCount, perWriter } = input;
   const frontierDigest = await computeFrontierHash(perWriter);
   await materializeForDebug(graph, {
     lamportCeiling,
@@ -131,7 +136,7 @@ function buildCoordinatePayload({ graphName, coordinateSource, values, activeCur
   coordinateSource: string;
   values: { lamportCeiling: number | null };
   activeCursor: CursorBlob | null;
-  resolvedCoordinate: Record<string, unknown>;
+  resolvedCoordinate: ResolvedCoordinate;
   tickReceipt: unknown;
 }): { payload: unknown; exitCode: number } {
   return {

@@ -1,3 +1,5 @@
+import type { CliOptions } from '../types.ts';
+
 import handleInfo from './info.ts';
 import handleCheck from './check.ts';
 import handleDoctor from './doctor/index.ts';
@@ -14,7 +16,18 @@ import handlePatch from './patch.ts';
 import handleTree from './tree.ts';
 import handleBisect from './bisect.ts';
 
-export const COMMANDS: Map<string, Function> = new Map<string, Function>([
+/** Opaque handler return value. The entry point normalizes any shape
+ *  into `{ payload, exitCode, close? }` at runtime via type guards. */
+export type CommandHandlerResult = unknown;
+
+/** Common signature every CLI command handler satisfies. Extra keys
+ *  beyond `options`/`args` are ignored by handlers that don't need them. */
+export type CommandHandler = (opts: {
+  readonly options: CliOptions;
+  readonly args: string[];
+}) => Promise<CommandHandlerResult>;
+
+export const COMMANDS: ReadonlyMap<string, CommandHandler> = new Map<string, CommandHandler>([
   ['info', handleInfo],
   ['check', handleCheck],
   ['doctor', handleDoctor],

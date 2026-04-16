@@ -1,5 +1,4 @@
-import { diffStates } from '../../../src/domain/services/state/StateDiff.ts';
-import type { StateDiffResult } from '../../../src/domain/services/state/StateDiff.ts';
+import { diffStates, type StateDiffResult } from '../../../src/domain/services/state/StateDiff.ts';
 import {
   clearActiveCursor,
   readSavedCursor,

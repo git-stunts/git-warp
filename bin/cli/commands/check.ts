@@ -82,27 +82,20 @@ async function findMissingWriters(persistence: Persistence, writerHeads: Array<{
 }
 
 /** Builds the structured payload for the check command result. */
-function buildCheckPayload({
-  repo,
-  graphName,
-  health,
-  checkpoint,
-  writerHeads,
-  coverage,
-  gcMetrics,
-  hook,
-  status,
-}: {
-  repo: string;
-  graphName: string;
-  health: unknown;
-  checkpoint: unknown;
-  writerHeads: Array<{ writerId: string; sha: string }>;
-  coverage: unknown;
-  gcMetrics: unknown;
-  hook: unknown | null;
-  status: unknown | null;
-}): Record<string, unknown> {
+interface CheckPayloadInput {
+  readonly repo: string;
+  readonly graphName: string;
+  readonly health: unknown;
+  readonly checkpoint: unknown;
+  readonly writerHeads: Array<{ writerId: string; sha: string }>;
+  readonly coverage: unknown;
+  readonly gcMetrics: unknown;
+  readonly hook: unknown;
+  readonly status: unknown;
+}
+
+function buildCheckPayload(input: CheckPayloadInput): Record<string, unknown> {
+  const { repo, graphName, health, checkpoint, writerHeads, coverage, gcMetrics, hook, status } = input;
   return {
     repo,
     graph: graphName,

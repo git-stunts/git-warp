@@ -1,7 +1,6 @@
 import path from 'node:path';
 import process from 'node:process';
-import { parseArgs as nodeParseArgs } from 'node:util';
-import type { ParseArgsConfig } from 'node:util';
+import { parseArgs as nodeParseArgs, type ParseArgsConfig } from 'node:util';
 import type { ZodType, ZodTypeDef } from 'zod';
 
 import type { CliOptions } from './types.ts';
