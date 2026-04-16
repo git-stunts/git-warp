@@ -108,9 +108,16 @@ const FAMILIES: readonly FamilyDefinition[] = [
         //   these are the narrow boundary decoders the 0025B exit
         //   criteria explicitly allows. They are the only way to
         //   cross from `unknown` into typed code without a cast.
+        // - named transport DTO aliases that pair with those guards:
+        //   `type Foo = { readonly [key: string]: unknown }` and
+        //   `type Foo = ReadonlyArray<unknown>`. These are the
+        //   declarative backbone of the guard family; the guards
+        //   are only useful if the alias itself can be spelled.
         skipPatterns: [
           /\bcatch\s*\(\s*\w+\s*:\s*unknown\s*\)/,
           /\(\s*\w+\s*:\s*unknown\s*\)\s*:\s*\w+\s+is\s+/,
+          /\btype\s+\w+\s*=\s*\{[^}]*:\s*unknown\s*\}/,
+          /\btype\s+\w+\s*=\s*ReadonlyArray\s*<\s*unknown\s*>/,
         ],
       },
       { id: 'record-string-unknown', pattern: /Record\s*<\s*string\s*,\s*unknown\s*>/, scope: 'core-only' },

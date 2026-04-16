@@ -14,7 +14,7 @@ import WarpError, { type WarpErrorOptions } from "./WarpError.ts";
  * | `E_TRIE_LEAF_ENTRY_SHAPE`      | An entry's runtime shape is invalid (missing or    |
  * |                                | wrongly-typed field).                               |
  * | `E_TRIE_LEAF_UNSORTED`         | Entries are not sorted by `routeKeySuffix`.         |
- * | `E_TRIE_LEAF_VERSION`          | CBOR envelope carries an unknown or missing         |
+ * | `E_TRIE_LEAF_VERSION`          | CBOR envelope carries an unrecognized or missing    |
  * |                                | version value.                                      |
  * | `E_TRIE_LEAF_WIRE_SHAPE`       | Decoded wire bytes do not match the expected        |
  * |                                | leaf envelope shape.                                |

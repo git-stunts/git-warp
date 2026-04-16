@@ -7,7 +7,8 @@ import type TrieGeometry from "./TrieGeometry.ts";
  * The wire-format version this codec emits and accepts.
  *
  * A breaking change to the leaf layout bumps this number; the
- * deserializer rejects unknown values with `E_TRIE_LEAF_VERSION`.
+ * deserializer rejects unrecognized values with
+ * `E_TRIE_LEAF_VERSION`.
  */
 export const TRIE_LEAF_WIRE_VERSION = 1;
 
@@ -167,7 +168,7 @@ export default class TrieLeaf {
     geometry: TrieGeometry,
     codec: CodecPort,
   ): TrieLeaf {
-    const decoded: unknown = codec.decode<unknown>(bytes);
+    const decoded = codec.decode(bytes);
     if (!isLeafWireFormat(decoded)) {
       throw new TrieLeafError(
         "TrieLeaf.deserialize received bytes that do not match the leaf envelope shape",
@@ -176,7 +177,7 @@ export default class TrieLeaf {
     }
     if (decoded.version !== TRIE_LEAF_WIRE_VERSION) {
       throw new TrieLeafError(
-        `TrieLeaf.deserialize saw unknown wire version ${String(decoded.version)}; expected ${String(TRIE_LEAF_WIRE_VERSION)}`,
+        `TrieLeaf.deserialize saw unrecognized wire version ${String(decoded.version)}; expected ${String(TRIE_LEAF_WIRE_VERSION)}`,
         { code: "E_TRIE_LEAF_VERSION" },
       );
     }
@@ -237,33 +238,48 @@ function compareBytes(left: Uint8Array, right: Uint8Array): number {
   return left.length - right.length;
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
+/**
+ * Opaque decoded-record alias used by the leaf's boundary decoder.
+ *
+ * Named so the type-guard predicates below can read
+ * `value is DecodedRecord` on one line each — the raw shape stays
+ * colocated with the parser and does not leak into the rest of the
+ * domain.
+ */
+type DecodedRecord = { readonly [key: string]: unknown };
+
+/**
+ * Opaque decoded-array alias used by the leaf's boundary decoder.
+ */
+type DecodedArray = ReadonlyArray<unknown>;
+
+function isDecodedRecord(value: unknown): value is DecodedRecord {
   return value !== null && typeof value === "object";
 }
 
-function isUnknownArray(value: unknown): value is ReadonlyArray<unknown> {
+function isDecodedArray(value: unknown): value is DecodedArray {
   return Array.isArray(value);
 }
 
 function isLeafWireFormat(value: unknown): value is LeafWireFormat {
-  if (!isObject(value)) {
+  if (!isDecodedRecord(value)) {
     return false;
   }
   const { version, entries } = value;
-  if (typeof version !== "number" || !isUnknownArray(entries)) {
+  if (typeof version !== "number" || !isDecodedArray(entries)) {
     return false;
   }
   return entries.every(isLeafWireEntry);
 }
 
 function isLeafWireEntry(value: unknown): value is LeafWireEntry {
-  if (!isUnknownArray(value) || value.length !== 4) {
+  if (!isDecodedArray(value) || value.length !== 4) {
     return false;
   }
   return isLeafWireEntryFields(value);
 }
 
-function isLeafWireEntryFields(value: ReadonlyArray<unknown>): boolean {
+function isLeafWireEntryFields(value: DecodedArray): boolean {
   const [suffix, element, dots, tombstoned] = value;
   if (!(suffix instanceof Uint8Array) || typeof element !== "string") {
     return false;
@@ -272,5 +288,5 @@ function isLeafWireEntryFields(value: ReadonlyArray<unknown>): boolean {
 }
 
 function isStringArray(value: unknown): value is ReadonlyArray<string> {
-  return isUnknownArray(value) && value.every((v) => typeof v === "string");
+  return isDecodedArray(value) && value.every((v) => typeof v === "string");
 }
