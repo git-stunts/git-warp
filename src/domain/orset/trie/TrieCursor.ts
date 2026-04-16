@@ -255,16 +255,30 @@ export default class TrieCursor {
     path: readonly number[],
   ): Promise<TrieLeaf | null> {
     const bytes = await this.#readLeafBytesAllowingMissing(oid, path);
-    if (bytes === null) {
+    if (bytes === null || bytes.length === 0) {
+      // A zero-length `readLeaf` result is the adapter's
+      // ambiguous signal that the OID is actually a tree — fall
+      // through to `readBranch`. Some adapters error instead of
+      // returning empty; both paths converge here.
       return null;
     }
+    return this.#decodeBytesAsLeafOrFallThrough(bytes);
+  }
+
+  #decodeBytesAsLeafOrFallThrough(bytes: Uint8Array): TrieLeaf | null {
     try {
       return TrieLeaf.deserialize(bytes, this.#geometry, this.#codec);
     } catch (raw) {
       if (!(raw instanceof Error)) {
         throw nonErrorCaught(String(raw));
       }
-      throw wrapDecodeError({ raw, op: "readLeaf", path, oid });
+      // Ambiguous: the bytes may be a malformed leaf (data
+      // corruption) or a branch tree whose shape does not match
+      // the leaf envelope. The cursor cannot distinguish without
+      // a port-level kind probe, so it falls through to
+      // `readBranch`. If that also fails the caller surfaces an
+      // `E_TRIE_CURSOR_STORE`.
+      return null;
     }
   }
 

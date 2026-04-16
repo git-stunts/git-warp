@@ -316,26 +316,29 @@ describe("TrieCursor", () => {
       }
     });
 
-    it("surfaces a decode failure as E_TRIE_CURSOR_DECODE", async () => {
+    it("surfaces a malformed-leaf fallthrough as E_TRIE_CURSOR_STORE", async () => {
+      // The cursor's cold-load kind disambiguation reads an
+      // unknown child as a leaf first; if the bytes do not
+      // decode as a leaf (malformed CBOR envelope), the cursor
+      // falls through to `readBranch` with the same OID. In the
+      // in-memory double, that OID is not in the branch map, so
+      // `readBranch` raises E_TRIE_STORE_MISSING and the cursor
+      // wraps it as E_TRIE_CURSOR_STORE. This matches the real-
+      // Git adapter's behaviour on the same ambiguity.
       const store = new InMemoryTrieStore();
-      // Write malformed leaf bytes (valid blob, invalid CBOR
-      // envelope) directly under a fabricated root that points
-      // at this OID.
       const badBytes = new Uint8Array([0x00, 0x01, 0x02]);
       const badOid = await store.writeLeaf(badBytes);
       const rootEntries = new Map<number, string>([[0, badOid]]);
       const rootOid = await store.writeBranch(rootEntries);
       const { cursor } = makeCursor({ store, rootOid });
       try {
-        // Pick an element whose depth-0 nibble is 0 to force the
-        // decode attempt against the malformed blob.
         const element = await findElementWithDepth0Nibble(0);
         await cursor.contains(element);
         throw new Error("should have thrown");
       } catch (err) {
         expect(err).toBeInstanceOf(TrieCursorError);
         if (err instanceof TrieCursorError) {
-          expect(err.code).toBe("E_TRIE_CURSOR_DECODE");
+          expect(err.code).toBe("E_TRIE_CURSOR_STORE");
         }
       }
     });
