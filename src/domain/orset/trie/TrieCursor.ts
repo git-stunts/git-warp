@@ -254,19 +254,34 @@ export default class TrieCursor {
     oid: string,
     path: readonly number[],
   ): Promise<TrieLeaf | null> {
-    let bytes;
-    try {
-      bytes = await this.#store.readLeaf(oid);
-    } catch (raw) {
-      if (isMissingStoreError(raw)) {
-        return null;
-      }
-      throw wrapStoreError({ raw, op: "readLeaf", path, oid });
+    const bytes = await this.#readLeafBytesAllowingMissing(oid, path);
+    if (bytes === null) {
+      return null;
     }
     try {
       return TrieLeaf.deserialize(bytes, this.#geometry, this.#codec);
     } catch (raw) {
+      if (!(raw instanceof Error)) {
+        throw nonErrorCaught(String(raw));
+      }
       throw wrapDecodeError({ raw, op: "readLeaf", path, oid });
+    }
+  }
+
+  async #readLeafBytesAllowingMissing(
+    oid: string,
+    path: readonly number[],
+  ): Promise<Uint8Array | null> {
+    try {
+      return await this.#store.readLeaf(oid);
+    } catch (raw) {
+      if (!(raw instanceof Error)) {
+        throw nonErrorCaught(String(raw));
+      }
+      if (isMissingStoreError(raw)) {
+        return null;
+      }
+      throw wrapStoreError({ raw, op: "readLeaf", path, oid });
     }
   }
 
@@ -278,11 +293,17 @@ export default class TrieCursor {
     try {
       entries = await this.#store.readBranch(oid);
     } catch (raw) {
+      if (!(raw instanceof Error)) {
+        throw nonErrorCaught(String(raw));
+      }
       throw wrapStoreError({ raw, op: "readBranch", path, oid });
     }
     try {
       return new TrieBranch(entries, this.#geometry);
     } catch (raw) {
+      if (!(raw instanceof Error)) {
+        throw nonErrorCaught(String(raw));
+      }
       throw wrapDecodeError({ raw, op: "readBranch", path, oid });
     }
   }
@@ -506,7 +527,7 @@ export default class TrieCursor {
     for (const [childNibble, childEntriesList] of partitions) {
       const childPath = [...leafPath, childNibble];
       const childLeaf = new TrieLeaf(
-        shortenEntries(childEntriesList),
+        shortenEntries(childEntriesList, nibbleBitsOf(this.#geometry.nibbleBits)),
         this.#geometry,
       );
       this.#markLeafDirty(childPath, childLeaf);
@@ -660,3 +681,22 @@ type LookupStep =
   | { readonly kind: "missing" }
   | { readonly kind: "leaf"; readonly leaf: TrieLeaf }
   | { readonly kind: "branch"; readonly nextPath: readonly number[] };
+
+// -- non-Error catch escape hatch ------------------------------------------
+
+/**
+ * Build the error to throw when a catch block encounters a value
+ * that is not an `Error` instance. All throw sites in this module
+ * (and every `WarpError` subclass) throw real `Error`s, so this
+ * is strictly a defensive path for host-level oddities (a thrown
+ * string, a rejected promise with a primitive, etc.).
+ *
+ * The `repr` argument is always produced via `String(raw)` at the
+ * call site, so the helper's signature stays tight.
+ */
+function nonErrorCaught(repr: string): TrieCursorError {
+  return new TrieCursorError(
+    `TrieCursor caught a non-Error value: ${repr}`,
+    { code: "E_TRIE_CURSOR_STRUCTURE", context: { raw: repr } },
+  );
+}

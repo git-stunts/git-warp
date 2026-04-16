@@ -68,10 +68,10 @@ export function suffixOfRouteKey(
   depth: number,
   nibbleBits: 1 | 2 | 4 | 8,
 ): Uint8Array {
-  const totalBits = depth * nibbleBits;
-  if (totalBits % 8 === 0) {
-    return routeKey.bytes.slice(totalBits / 8);
-  }
+  // Always pack MSB-first so the representation is consistent
+  // across byte-aligned and sub-byte-aligned depths. A consistent
+  // format lets `shortenEntries` shift by one nibble without
+  // changing format mid-flight.
   return packSuffixMsbFirst(routeKey, depth, nibbleBits);
 }
 
@@ -355,15 +355,40 @@ function firstNibbleOfSuffix(
 
 export function shortenEntries(
   entries: readonly TrieLeafEntry[],
+  nibbleBits: 1 | 2 | 4 | 8,
 ): TrieLeafEntry[] {
   const shortened = entries.map((entry) => ({
-    routeKeySuffix: entry.routeKeySuffix.slice(1),
+    routeKeySuffix: shiftSuffixLeftByOneNibble(entry.routeKeySuffix, nibbleBits),
     element: entry.element,
     dots: entry.dots,
     tombstonedDots: entry.tombstonedDots,
   }));
   shortened.sort((a, b) => compareBytes(a.routeKeySuffix, b.routeKeySuffix));
   return shortened;
+}
+
+/**
+ * Shifts a suffix byte array left by `nibbleBits` bits, producing
+ * the suffix at the next depth. The last (now-empty) nibble is
+ * discarded; if that empties a whole byte, the resulting array is
+ * one byte shorter.
+ */
+export function shiftSuffixLeftByOneNibble(
+  suffix: Uint8Array,
+  nibbleBits: 1 | 2 | 4 | 8,
+): Uint8Array {
+  const totalBits = suffix.length * 8 - nibbleBits;
+  if (totalBits <= 0) {
+    return new Uint8Array(0);
+  }
+  const newLength = Math.ceil(totalBits / 8);
+  const out = new Uint8Array(newLength);
+  for (let i = 0; i < newLength; i += 1) {
+    const hi = (suffix[i] ?? 0) << nibbleBits;
+    const lo = (suffix[i + 1] ?? 0) >>> (8 - nibbleBits);
+    out[i] = (hi | lo) & 0xff;
+  }
+  return out;
 }
 
 export function tombstoneEntry(
@@ -399,12 +424,12 @@ export function pendingChildOid(
   return `pending:${encodeDirtyPath([...parentPath, childNibble])}`;
 }
 
-export function isMissingStoreError(raw: unknown): boolean {
+export function isMissingStoreError(raw: Error): raw is TrieStoreError {
   return raw instanceof TrieStoreError && raw.code === "E_TRIE_STORE_MISSING";
 }
 
 export interface WrapErrorArgs {
-  readonly raw: unknown;
+  readonly raw: Error;
   readonly op: string;
   readonly path: readonly number[];
   readonly oid: string;
@@ -414,7 +439,7 @@ export function wrapStoreError(args: WrapErrorArgs): TrieCursorError {
   if (args.raw instanceof TrieCursorError) {
     return args.raw;
   }
-  const message = extractErrorMessage(args.raw);
+  const {message} = args.raw;
   return new TrieCursorError(
     `TrieCursor ${args.op} failed at path=${encodeDirtyPath(args.path)} oid=${args.oid}: ${message}`,
     {
@@ -433,7 +458,7 @@ export function wrapDecodeError(args: WrapErrorArgs): TrieCursorError {
   if (args.raw instanceof TrieCursorError) {
     return args.raw;
   }
-  const message = extractErrorMessage(args.raw);
+  const {message} = args.raw;
   return new TrieCursorError(
     `TrieCursor ${args.op} decode failed at path=${encodeDirtyPath(args.path)} oid=${args.oid}: ${message}`,
     {
@@ -446,8 +471,4 @@ export function wrapDecodeError(args: WrapErrorArgs): TrieCursorError {
       },
     },
   );
-}
-
-function extractErrorMessage(raw: unknown): string {
-  return raw instanceof Error ? raw.message : String(raw);
 }
