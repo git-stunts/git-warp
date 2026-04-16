@@ -1,4 +1,5 @@
 import CheckpointStorePort, { type CheckpointRecord, type CheckpointWriteResult, type CheckpointData } from '../../ports/CheckpointStorePort.ts';
+import type CodecPort from '../../ports/CodecPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import ORSet from '../../domain/crdt/ORSet.ts';
 import VersionVector from '../../domain/crdt/VersionVector.ts';
@@ -8,11 +9,6 @@ import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceInde
 import type { LWWRegister } from '../../domain/crdt/LWW.ts';
 import type { PropValue } from '../../domain/types/PropValue.ts';
 import type { EventId } from '../../domain/utils/EventId.ts';
-
-interface Codec {
-  encode(value: unknown): Uint8Array;
-  decode(bytes: Uint8Array): unknown;
-}
 
 interface BlobPort {
   readBlob(oid: string): Promise<Uint8Array>;
@@ -27,10 +23,10 @@ interface BlobPort {
  * encodes each artifact and writes blobs.
  */
 export class CborCheckpointStoreAdapter extends CheckpointStorePort {
-  private readonly _codec: Codec;
+  private readonly _codec: CodecPort;
   private readonly _blobPort: BlobPort;
 
-  constructor({ codec, blobPort }: { codec: Codec; blobPort: BlobPort }) {
+  constructor({ codec, blobPort }: { codec: CodecPort; blobPort: BlobPort }) {
     super();
     if (codec === null || codec === undefined) {
       throw new WarpError('CborCheckpointStoreAdapter requires a codec', 'E_INVALID_DEPENDENCY');
@@ -157,29 +153,27 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     if (buffer === null || buffer === undefined) {
       return createEmptyState();
     }
-    const obj = this._codec.decode(buffer) as Record<string, unknown>;
+    const obj = this._codec.decode<DecodedFullState | null | undefined>(buffer);
     if (obj === null || obj === undefined) {
       return createEmptyState();
     }
-    if (obj['version'] !== undefined && obj['version'] !== 'full-v5') {
+    if (obj.version !== undefined && obj.version !== 'full-v5') {
       throw new WarpError(
-        `Unsupported full state version: expected 'full-v5', got '${JSON.stringify(obj['version'])}'`,
+        `Unsupported full state version: expected 'full-v5', got '${JSON.stringify(obj.version)}'`,
         'E_UNSUPPORTED_VERSION',
       );
     }
     return new WarpState({
-      nodeAlive: ORSet.deserialize(obj['nodeAlive'] ?? {}),
-      edgeAlive: ORSet.deserialize(obj['edgeAlive'] ?? {}),
-      prop: _deserializeProps(obj['prop'] as [string, unknown][]),
-      observedFrontier: VersionVector.from(
-        (obj['observedFrontier'] ?? {}) as { [x: string]: number },
-      ),
+      nodeAlive: ORSet.deserialize(obj.nodeAlive ?? {}),
+      edgeAlive: ORSet.deserialize(obj.edgeAlive ?? {}),
+      prop: _deserializeProps(obj.prop ?? []),
+      observedFrontier: VersionVector.from(obj.observedFrontier ?? {}),
       edgeBirthEvent: _deserializeEdgeBirthEvent(obj),
     });
   }
 
   private _decodeFrontier(buffer: Uint8Array): Map<string, string> {
-    const obj = this._codec.decode(buffer) as Record<string, string>;
+    const obj = this._codec.decode<Record<string, string>>(buffer);
     const frontier = new Map<string, string>();
     for (const [k, v] of Object.entries(obj)) {
       frontier.set(k, v);
@@ -188,9 +182,19 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
   }
 
   private _decodeAppliedVV(buffer: Uint8Array): VersionVector {
-    const obj = this._codec.decode(buffer) as { [x: string]: number };
+    const obj = this._codec.decode<Record<string, number>>(buffer);
     return VersionVector.from(obj);
   }
+}
+
+interface DecodedFullState {
+  version?: string;
+  nodeAlive?: { [x: string]: string[] };
+  edgeAlive?: { [x: string]: string[] };
+  prop?: Array<[string, unknown]>;
+  observedFrontier?: { [x: string]: number };
+  edgeBirthEvent?: Array<[string, { writerId?: string; lamport?: number }]>;
+  edgeBirthLamport?: Array<[string, number]>;
 }
 
 // ── Private Helpers ───────────────────────────────────────────────────
@@ -230,17 +234,21 @@ function _deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWW
   return prop;
 }
 
-function _deserializeEdgeBirthEvent(obj: Record<string, unknown>): Map<string, EventId> {
+function _deserializeEdgeBirthEvent(obj: DecodedFullState): Map<string, EventId> {
   const result = new Map<string, EventId>();
-  const birthData = obj['edgeBirthEvent'] ?? obj['edgeBirthLamport'];
+  const birthData = obj.edgeBirthEvent ?? obj.edgeBirthLamport;
   if (!Array.isArray(birthData)) { return result; }
-  const typedData = birthData as Array<[string, unknown]>;
-  for (const [key, val] of typedData) {
+  for (const [key, val] of birthData) {
     if (typeof val === 'number') {
       result.set(key, { lamport: val, writerId: '', patchSha: '0000', opIndex: 0 });
     } else {
-      const ev = val as { lamport: number; writerId: string; patchSha: string; opIndex: number };
-      result.set(key, { lamport: ev.lamport, writerId: ev.writerId, patchSha: ev.patchSha, opIndex: ev.opIndex });
+      const ev = val;
+      result.set(key, {
+        lamport: ev.lamport ?? 0,
+        writerId: ev.writerId ?? '',
+        patchSha: (ev as { patchSha?: string }).patchSha ?? '0000',
+        opIndex: (ev as { opIndex?: number }).opIndex ?? 0,
+      });
     }
   }
   return result;

@@ -188,15 +188,18 @@ export class CborCodec extends CodecPort {
   /**
    * Encodes data to canonical CBOR bytes with sorted keys.
    */
-  encode(data: unknown): Uint8Array {
+  override encode<TEncoded = unknown>(data: TEncoded): Uint8Array {
     return encode(data);
   }
 
   /**
-   * Decodes CBOR bytes to a JavaScript value.
+   * Decodes CBOR bytes to a typed JavaScript value. The caller
+   * supplies the expected `TDecoded` at the call site; the
+   * adapter's cbor-x round-trip returns whatever shape the bytes
+   * encoded to, cast to the caller's declared type.
    */
-  decode(buffer: Uint8Array): unknown {
-    return decode(buffer);
+  override decode<TDecoded = unknown>(buffer: Uint8Array): TDecoded {
+    return decode(buffer) as TDecoded;
   }
 }
 

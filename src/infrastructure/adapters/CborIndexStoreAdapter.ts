@@ -1,4 +1,6 @@
 import IndexStorePort from '../../ports/IndexStorePort.ts';
+import type CodecPort from '../../ports/CodecPort.ts';
+import type CodecValue from '../../domain/types/codec/CodecValue.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import { MetaShard } from '../../domain/artifacts/MetaShard.ts';
@@ -10,11 +12,6 @@ import type { IndexShard } from '../../domain/artifacts/IndexShard.ts';
 import { IndexShardEncodeTransform } from './IndexShardEncodeTransform.ts';
 import { GitBlobWriteTransform } from './GitBlobWriteTransform.ts';
 import { TreeAssemblerSink } from './TreeAssemblerSink.ts';
-
-interface Codec {
-  encode(value: unknown): Uint8Array;
-  decode(bytes: Uint8Array): unknown;
-}
 
 interface BlobPort {
   readBlob(oid: string): Promise<Uint8Array>;
@@ -90,11 +87,11 @@ const SHARD_CLASSIFIERS: ReadonlyArray<{ pattern: RegExp; classify: (match: RegE
  *     → TreeAssemblerSink         → tree OID
  */
 export class CborIndexStoreAdapter extends IndexStorePort {
-  private readonly _codec: Codec;
+  private readonly _codec: CodecPort;
   private readonly _blobPort: BlobPort;
   private readonly _treePort: TreePort;
 
-  constructor({ codec, blobPort, treePort }: { codec: Codec; blobPort: BlobPort; treePort: TreePort }) {
+  constructor({ codec, blobPort, treePort }: { codec: CodecPort; blobPort: BlobPort; treePort: TreePort }) {
     super();
     _requireDep(codec, 'codec');
     _requireDep(blobPort, 'blobPort');
@@ -134,9 +131,9 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     return await this._treePort.readTreeOids(treeOid);
   }
 
-  override async decodeShard(blobOid: string): Promise<unknown> {
+  override async decodeShard<TDecoded extends CodecValue = CodecValue>(blobOid: string): Promise<TDecoded> {
     const bytes = await this._blobPort.readBlob(blobOid);
-    return this._codec.decode(bytes);
+    return this._codec.decode<TDecoded>(bytes);
   }
 }
 
