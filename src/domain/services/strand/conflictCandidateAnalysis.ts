@@ -10,7 +10,7 @@
 
 import { normalizeRawOp } from '../JoinReducer.ts';
 import { EventId } from '../../utils/EventId.ts';
-import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
+import ConflictDiagnostic, { type ConflictDiagnosticData } from '../../types/conflict/ConflictDiagnostic.ts';
 import ConflictResolution from '../../types/conflict/ConflictResolution.ts';
 import { type TickReceipt, type OpOutcome } from '../../types/TickReceipt.ts';
 import type Patch from '../../types/Patch.ts';
@@ -105,7 +105,7 @@ export function pushDiagnostic(
     code: string;
     message: string;
     severity?: 'warning' | 'error';
-    data?: Record<string, unknown>;
+    data?: ConflictDiagnosticData;
   },
 ): void {
   diagnostics.push(

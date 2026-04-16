@@ -4,10 +4,22 @@
  * @module domain/types/conflict/ConflictDiagnostic
  */
 
-import { requireNonEmptyString, requireEnum, freezeOptionalObject } from './validation.ts';
+import type { HashablePayload } from './HashablePayload.ts';
+import { requireNonEmptyString, requireEnum, freezeOptionalDiagnosticData } from './validation.ts';
 
 const CTX = 'ConflictDiagnostic';
 const VALID_SEVERITIES = new Set(['warning', 'error']);
+
+/**
+ * Structural carrier for heterogeneous diagnostic metadata. Keys
+ * are named; values are any hashable payload (primitive, nested
+ * record, array, or already-constructed domain class instance such
+ * as `ConflictAnchor`). Diagnostics are purely informational, so a
+ * named structural bag — not a runtime class — is the right model.
+ */
+export type ConflictDiagnosticData = {
+  readonly [key: string]: HashablePayload | undefined;
+};
 
 /**
  * A runtime-backed diagnostic emitted during conflict analysis.
@@ -18,7 +30,7 @@ export default class ConflictDiagnostic {
   readonly code: string;
   readonly severity: string;
   readonly message: string;
-  readonly data: Record<string, unknown> | undefined;
+  readonly data: ConflictDiagnosticData | undefined;
 
   /**
    * Creates a frozen ConflictDiagnostic.
@@ -27,12 +39,12 @@ export default class ConflictDiagnostic {
     code: string;
     severity: 'warning' | 'error';
     message: string;
-    data?: Record<string, unknown>;
+    data?: ConflictDiagnosticData;
   }) {
     this.code = requireNonEmptyString(code, 'code', CTX);
     this.severity = requireEnum(severity, VALID_SEVERITIES, { name: 'severity', context: CTX });
     this.message = requireNonEmptyString(message, 'message', CTX);
-    this.data = freezeOptionalObject(data);
+    this.data = freezeOptionalDiagnosticData(data);
     Object.freeze(this);
   }
 }
