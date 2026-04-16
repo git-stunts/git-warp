@@ -22,7 +22,13 @@ export interface GitErrorDetails {
 export interface GitError extends Error {
   readonly details?: GitErrorDetails;
   readonly exitCode?: number;
-  readonly code?: number;
+  /**
+   * Upstream plumbing commands use `code` for a numeric exit/errno
+   * value. When a non-Error throwable is wrapped into a PersistenceError
+   * by `toGitError`, the WarpError inheritance surfaces `code` as a
+   * string — accept both at the boundary so the union narrows cleanly.
+   */
+  readonly code?: number | string;
 }
 
 /** Shape of a stream with a collect() method from plumbing. */
@@ -80,7 +86,8 @@ const REF_IO_PATTERNS: readonly string[] = [
 
 /** Extracts the exit code from a Git command error. */
 export function getExitCode(err: GitError): number | undefined {
-  return err.details?.code ?? err.exitCode ?? err.code;
+  const raw = err.details?.code ?? err.exitCode ?? err.code;
+  return typeof raw === 'number' ? raw : undefined;
 }
 
 /** Builds a lowercase search string from an error's message and stderr. */
@@ -206,15 +213,21 @@ export const DEFAULT_RETRY_OPTIONS: RetryOptions = {
 /**
  * Narrows a caught unknown to GitError for classification functions.
  * This is the single boundary parser for Git plumbing errors.
+ *
+ * Non-`Error` throwables are wrapped in a `PersistenceError` with
+ * `E_MISSING_OBJECT` — the adapter-boundary representation of an
+ * opaque git failure. The return type is `GitError | PersistenceError`
+ * so downstream classifiers can read `details` / `exitCode` / `code`
+ * defensively on the git-surface branch and `instanceof
+ * PersistenceError` on the wrapped branch.
  */
-export function toGitError(err: unknown): GitError {
+export function toGitError(err: unknown): GitError | PersistenceError {
   if (err instanceof Error) {
     return err as GitError;
   }
-  // Adapter boundary: PersistenceError is the infrastructure representation of GitError
   return new PersistenceError(
     String(err),
     PersistenceError.E_MISSING_OBJECT,
     {},
-  ) as unknown as GitError;
+  );
 }
