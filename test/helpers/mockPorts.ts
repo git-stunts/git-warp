@@ -6,6 +6,7 @@
  * sensible defaults that can be overridden per-test.
  */
 import { vi, type Mock } from 'vitest';
+import WarpStream from '../../src/domain/stream/WarpStream.ts';
 
 // ---------------------------------------------------------------------------
 // Mock Persistence (GraphPersistencePort surface)
@@ -58,7 +59,7 @@ export function createMockPersistence(overrides: Partial<MockPersistence> = {}):
     getNodeInfo: vi.fn().mockResolvedValue({ sha: MOCK_OID, message: '', author: '', date: '', parents: [] }),
     getCommitTree: vi.fn().mockResolvedValue(MOCK_OID),
     logNodes: vi.fn().mockResolvedValue(''),
-    logNodesStream: vi.fn().mockResolvedValue({ [Symbol.asyncIterator]: async function* () {} }),
+    logNodesStream: vi.fn().mockResolvedValue(WarpStream.from<Uint8Array | string>({ [Symbol.asyncIterator]: async function* () { /* empty */ } })),
     countNodes: vi.fn().mockResolvedValue(0),
     nodeExists: vi.fn().mockResolvedValue(true),
     isAncestor: vi.fn().mockResolvedValue(false),

@@ -209,9 +209,12 @@ describe('GitGraphAdapter', () => {
         emptyTree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
         executeStream: vi.fn().mockImplementation(async ({ args }) => {
           capturedArgs = args;
-          // Return a mock stream
+          // Return a mock stream — an AsyncIterable producing zero chunks
+          // (satisfies WarpStream.from() source validation) with the
+          // collect() method CollectableStream defines.
           return {
-            collect: vi.fn().mockResolvedValue('')
+            [Symbol.asyncIterator]: async function* () { /* empty stream */ },
+            collect: vi.fn().mockResolvedValue(''),
           };
         })
       };

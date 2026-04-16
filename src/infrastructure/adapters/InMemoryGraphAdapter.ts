@@ -5,10 +5,10 @@
  * Implements the same GraphPersistencePort contract as GitGraphAdapter
  * but stores all data in Maps. Designed for fast unit/integration tests.
  */
-import type { Readable } from 'node:stream';
-import type { CommitNodeOptions, CommitNodeWithTreeOptions, LogNodesOptions, NodeInfo, PingResult } from '../../ports/CommitPort.ts';
+import type { CommitLogChunk, CommitNodeOptions, CommitNodeWithTreeOptions, LogNodesOptions, NodeInfo, PingResult } from '../../ports/CommitPort.ts';
 import type { ListRefsOptions } from '../../ports/RefPort.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
+import WarpStream from '../../domain/stream/WarpStream.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.ts';
@@ -194,13 +194,12 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return records.map(c => this._formatCommitRecord(c)).join('\0') + (records.length > 0 ? '\0' : '');
   }
 
-  async logNodesStream({ ref, limit = 1000000, format: _format }: LogNodesOptions): Promise<Readable> {
+  async logNodesStream({ ref, limit = 1000000, format: _format }: LogNodesOptions): Promise<WarpStream<CommitLogChunk>> {
     validateRef(ref);
     validateLimit(limit);
     const records = this._walkLog(ref, limit);
     const formatted = records.map(c => this._formatCommitRecord(c)).join('\0') + (records.length > 0 ? '\0' : '');
-    const { Readable } = await import('node:stream');
-    return Readable.from([formatted]);
+    return WarpStream.of<CommitLogChunk>(formatted);
   }
 
   async ping(): Promise<PingResult> {

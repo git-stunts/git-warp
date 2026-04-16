@@ -1,5 +1,6 @@
-import type { Readable } from 'node:stream';
+import type WarpStream from '../domain/stream/WarpStream.ts';
 import type {
+  CommitLogChunk,
   CommitNodeOptions,
   CommitNodeWithTreeOptions,
   LogNodesOptions,
@@ -44,7 +45,7 @@ export default abstract class GraphPersistencePort {
   abstract logNodes(_options: LogNodesOptions): Promise<string>;
 
   /** Streams git log output for a ref. */
-  abstract logNodesStream(_options: LogNodesOptions): Promise<Readable>;
+  abstract logNodesStream(_options: LogNodesOptions): Promise<WarpStream<CommitLogChunk>>;
 
   /** Counts nodes reachable from a ref without loading them into memory. */
   abstract countNodes(_ref: string): Promise<number>;

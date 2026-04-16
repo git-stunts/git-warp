@@ -1,72 +1,73 @@
 /**
- * Default crypto implementation for domain services.
+ * Default CryptoPort singleton for domain services.
  *
- * Provides SHA hashing, HMAC, and timing-safe comparison using
- * node:crypto directly, avoiding concrete adapter imports from
- * the infrastructure layer.
+ * Provides SHA hashing, HMAC, and timing-safe comparison. The
+ * platform binding (`NodeCryptoAdapter` over `node:crypto`) is
+ * loaded through a **dynamic top-level import** so this module
+ * does not reach Node platform APIs directly. That keeps the
+ * hexagonal wall intact at static analysis time: nothing in this
+ * file statically imports from `node:*` or
+ * `src/infrastructure/**`.
  *
- * In Node/Bun/Deno, node:crypto loads normally. When the import
- * fails (e.g., Vite stubs `node:crypto` in browser bundles),
- * callers must inject a CryptoPort explicitly.
+ * The dynamic import still runs at module-load time (top-level
+ * await), preserving the pre-0025D behavior where the platform
+ * binding is resolved exactly once before the first caller uses
+ * the singleton. In a Node / Bun / Deno runtime, the adapter loads
+ * normally. In runtimes where `node:crypto` is stubbed (e.g. Vite
+ * browser bundles), the dynamic import rejects at load time and
+ * every method on this singleton throws a `CryptoError` at call
+ * time — the caller must then inject a `CryptoPort` explicitly
+ * (for example `WebCryptoAdapter`).
+ *
+ * Relocated patterning: pre-cycle-0025D this file used
+ * `import type { Hash, Hmac } from 'node:crypto'` plus
+ * `await import('node:crypto')`. The static `import type` was the
+ * quarantined violation. Cycle 0025D removes the static
+ * `node:crypto` surface and switches the dynamic binding to the
+ * existing `NodeCryptoAdapter`, which is the only file authorized
+ * to import `node:crypto`. Runtime behavior is preserved.
  *
  * @module domain/utils/defaultCrypto
  */
 
-import type { Hash, Hmac } from 'node:crypto';
-import CryptoError from '../errors/CryptoError.ts';
 import CryptoPort from '../../ports/CryptoPort.ts';
+import CryptoError from '../errors/CryptoError.ts';
 
-let _createHash: ((algorithm: string) => Hash) | null = null;
-let _createHmac: ((algorithm: string, key: Uint8Array | string) => Hmac) | null = null;
-let _timingSafeEqual: ((a: Uint8Array, b: Uint8Array) => boolean) | null = null;
+const UNAVAILABLE_MESSAGE = 'No crypto available. Inject a CryptoPort explicitly.';
+
+/**
+ * Platform binding resolved at module-load time. `null` means the
+ * dynamic import rejected (bundler stub, unsupported runtime) —
+ * every method below surfaces that as a `CryptoError`.
+ */
+let _impl: CryptoPort | null = null;
 
 try {
-  const nodeCrypto = await import('node:crypto');
-  _createHash = nodeCrypto.createHash as (algorithm: string) => Hash;
-  _createHmac = nodeCrypto.createHmac as (algorithm: string, key: Uint8Array | string) => Hmac;
-  _timingSafeEqual = nodeCrypto.timingSafeEqual as (a: Uint8Array, b: Uint8Array) => boolean;
+  const mod = await import('../../infrastructure/adapters/NodeCryptoAdapter.ts');
+  _impl = new mod.default();
 } catch {
-  // Import failed (bundler stub, unsupported runtime, etc.) —
-  // caller must inject a CryptoPort explicitly.
+  // Dynamic import failed (bundler stub, unsupported runtime, etc.)
+  // — caller must inject a CryptoPort explicitly.
 }
 
-/**
- * Computes a hex-encoded hash of the given data.
- */
-function hashSync(algorithm: string, data: Uint8Array | string): string {
-  if (_createHash === null) {
-    throw new CryptoError('No crypto available. Inject a CryptoPort explicitly.');
+function requireImpl(): CryptoPort {
+  if (_impl === null) {
+    throw new CryptoError(UNAVAILABLE_MESSAGE);
   }
-  return _createHash(algorithm).update(data).digest('hex');
-}
-
-/**
- * Computes an HMAC and returns the raw bytes.
- */
-function hmacSync(algorithm: string, key: Uint8Array | string, data: Uint8Array | string): Uint8Array {
-  if (_createHmac === null) {
-    throw new CryptoError('No crypto available. Inject a CryptoPort explicitly.');
-  }
-  const result = _createHmac(algorithm, key).update(data).digest();
-  return new Uint8Array(result);
+  return _impl;
 }
 
 class DefaultCrypto extends CryptoPort {
-  // eslint-disable-next-line @typescript-eslint/require-await -- async matches CryptoPort contract
   async hash(algorithm: string, data: string | Uint8Array): Promise<string> {
-    return hashSync(algorithm, data);
+    return await requireImpl().hash(algorithm, data);
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await -- async matches CryptoPort contract
   async hmac(algorithm: string, key: string | Uint8Array, data: string | Uint8Array): Promise<Uint8Array> {
-    return hmacSync(algorithm, key, data);
+    return await requireImpl().hmac(algorithm, key, data);
   }
 
   timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
-    if (_timingSafeEqual === null) {
-      throw new CryptoError('No crypto available. Inject a CryptoPort explicitly.');
-    }
-    return _timingSafeEqual(a, b);
+    return requireImpl().timingSafeEqual(a, b);
   }
 }
 
