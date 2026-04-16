@@ -39,3 +39,15 @@ same — only the adapter implementation changes.
 - Strong dedup via CDC chunking
 - Uniform access pattern across the codebase
 - Already used by CasBlobAdapter and CasSeekCacheAdapter
+
+## Carve-out: core trie publication is native Git
+
+The Shadow-Trie ORSet (Design 0018) stores its trie state as native
+Git trees and blobs for `git gc` reachability. Checkpoint envelopes
+are published as Git commits with real tree entries pointing at trie
+roots. This is explicitly **out of scope** for the git-cas unification.
+
+Core trie publication must NOT be routed through git-cas. The
+reachability model depends on native Git tree traversal, which git-cas
+tree OIDs would break. See PROTO_checkpoint-envelope-publication and
+PROTO_git-trie-store-port for the native-Git publication path.

@@ -19,7 +19,7 @@ implementation.
 ## Fix
 
 Define an `ORSetLike` abstract class or interface in `warp-orset` that
-captures the contract used by all current consumers: `add`, `remove`,
+captures the **synchronous, in-memory** contract: `add`, `remove`,
 `contains`, `elements`, `getDots`, `countEntries`, `countLiveDots`,
 `countTombstones`, `compact`, `clone`. The existing `ORSet` class
 implements this contract. Retype all consumer call sites to accept
@@ -31,14 +31,30 @@ implements this contract. Retype all consumer call sites to accept
 change from `ORSet` to `ORSetLike`. All existing tests must pass
 unchanged.
 
-**Out:** No async changes yet. No new ORSet implementations. The
-contract is the seam; the async boundary comes later in
-PROTO_state-session-async.
+**Out:** No async changes. No new ORSet implementations yet.
+
+## Role clarification
+
+`ORSetLike` is the **in-memory seam only**. It captures the synchronous
+contract that the existing in-memory `ORSet` satisfies. `ShadowTrieORSet`
+does NOT implement `ORSetLike` directly — it is an async, storage-backed
+engine that lives behind `StateSession`.
+
+`StateSession` (PROTO_state-session-async) is the true **domain-facing
+contract** for trie-backed state access. Domain code (Ops, reducer, GC)
+goes through the session's async interface when operating on trie-backed
+state. The session may internally use `ORSetLike` for in-memory fallback
+or may use `ShadowTrieORSet` directly — that is an implementation detail
+behind the session boundary.
+
+This split avoids the contradiction of a synchronous interface promising
+to wrap async I/O. The in-memory path stays synchronous. The trie path
+stays honestly async. The session is the arbiter.
 
 ## Notes
 
 - The contract methods that touch internal state (`.entries`, `.tombstones`)
   must not leak. CheckpointSerializer currently reads these directly and
   must be updated to use contract methods or a serialization protocol.
-- This is the foundation that lets ShadowTrieORSet slide in without
-  changing callers.
+- This is the foundation seam, but it is NOT the seam that trie-backed
+  state uses. That seam is StateSession.

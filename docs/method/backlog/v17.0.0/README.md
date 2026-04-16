@@ -98,6 +98,15 @@ ST-6 (broader package extraction):
   [ ] INFRA_extract-warp-adapters-package
 ```
 
+**Seam architecture:** `ORSetLike` is the synchronous in-memory seam.
+`StateSession` is the async domain-facing contract for trie-backed
+state. `ShadowTrieORSet` is an internal engine behind the session —
+it does NOT implement `ORSetLike`.
+
+**git-cas carve-out:** Core trie publication uses native Git objects
+and is explicitly out of scope for INFRA_unify-persistence-on-git-cas.
+See Design 0018 for details.
+
 ## Status key
 
 - `[ ]` not started

@@ -58,16 +58,21 @@ Checkpoint publication model:
 refs/warp/checkpoint/<graph>
   → checkpoint commit
     → envelope tree
-      ├── nodeAlive trie root (tree OID)
-      ├── edgeAlive trie root (tree OID)
-      └── metadata blob (prop, edgeBirthEvent, observedFrontier)
+      ├── state/
+      │   ├── nodeAlive/   → trie root tree (real Git tree entry)
+      │   └── edgeAlive/   → trie root tree (real Git tree entry)
+      ├── descriptor.cbor  → graph identity, version, writer metadata
+      ├── frontier.cbor    → observedFrontier, edgeBirthEvent
+      └── appliedVV.cbor   → applied version vector (GC boundary)
 ```
 
-All trie pages are reachable from the checkpoint commit via the
-envelope tree. Native Git reachability handles garbage collection.
+The trie root entries are **real Git tree entries** pointing at the
+actual trie root trees. Git follows tree → tree → blob natively. All
+trie pages are reachable from the checkpoint commit through normal Git
+tree traversal.
 
-Do not serialize checkpoint truth as "trie root OID in CBOR". The
-truth is a ref-backed commit pointing at an envelope tree.
+Do not degrade into "roots in CBOR." That reintroduces the exact
+reachability bug this design exists to kill.
 
 ### 6. Patch envelopes are native Git trees
 
@@ -113,10 +118,15 @@ Does not scale to graphs exceeding available memory.
 ### Target state
 
 ```
-ShadowTrieORSet (implements ORSetLike)
+ORSetLike (synchronous in-memory seam)
+  ← implemented by ORSet (existing, in-memory)
+  ← NOT implemented by ShadowTrieORSet
+
+ShadowTrieORSet (async storage-backed engine)
   cursor: TrieCursor
   cache: PageCache (LRU, bounded residency)
   store: TrieStorePort (Git trees + blobs)
+  all methods async: add, remove, contains, getDots, scan, compact
 
 TrieCursor
   descends nibble path: blake3(element) → [n₀, n₁, n₂, ...]
@@ -127,11 +137,17 @@ PageCache
   bounded LRU over deserialized TriePage objects
   shared across nodeAlive + edgeAlive within a session
 
-StateSession
+StateSession (domain-facing contract for trie-backed state)
   async open() / close() lifecycle
   primes cache, manages cursors, flushes on close
   domain code goes through session, never raw trie
+  wraps ShadowTrieORSet internally
 ```
+
+**Seam architecture:** `ORSetLike` is the in-memory seam (synchronous).
+`StateSession` is the domain-facing contract for trie-backed state
+(async). `ShadowTrieORSet` is an internal engine behind the session.
+Domain code never touches `ShadowTrieORSet` directly.
 
 ### Trie structure
 
@@ -146,8 +162,11 @@ Root (Git tree)
 └── f → Leaf (Git blob) — entries for keys fxxx...
 ```
 
-Leaves contain CBOR-encoded arrays of `(element, liveDots[], tombstonedDots[])`
-tuples, sorted by route key for binary search.
+Leaves contain CBOR-encoded arrays of
+`(routeKeySuffix, element, liveDots[], tombstonedDots[])` tuples,
+sorted by route-key suffix for binary search. The suffix is the
+portion of the route key below the leaf's trie depth — the prefix is
+already encoded by the trie path.
 
 Leaves split when they exceed a capacity threshold and merge when they
 fall below a floor. Thresholds are constructor parameters, validated
@@ -187,8 +206,23 @@ All items live in `docs/method/backlog/v17.0.0/`. Layers:
 ## What this design explicitly does not do
 
 - Does not move LWW into warp-orset in the first cut
-- Does not make ORSetLike synchronous
+- Does not make ORSetLike async (it stays the synchronous in-memory seam)
+- Does not make ShadowTrieORSet implement ORSetLike (it has its own
+  async interface, exposed through StateSession)
 - Does not serialize checkpoint truth as "trie root OID in CBOR"
 - Does not switch to pnpm
 - Does not force core trie publication through git-cas
 - Does not replace all of WarpState in one shot
+- Does not move `src/ports/` into warp-adapters (ports stay with kernel)
+
+## git-cas carve-out
+
+The existing v17 item INFRA_unify-persistence-on-git-cas calls for
+GitGraphAdapter to delegate to git-cas. Core trie publication is
+explicitly **out of scope** for that unification. The trie
+reachability model depends on native Git tree traversal (tree entries
+pointing at tree entries), which git-cas tree OIDs would break.
+
+git-cas is still the right choice for user content blobs, seek cache,
+and trust records. But trie state, checkpoint envelopes, and trie
+root publication stay on native Git.

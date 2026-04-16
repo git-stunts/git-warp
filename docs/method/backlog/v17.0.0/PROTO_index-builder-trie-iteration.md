@@ -7,26 +7,34 @@ blocks:
   - INFRA_extract-warp-adapters-package
 ---
 
-# Index builders tolerate trie-backed ORSet iteration
+# Index builders consume async scan from trie-backed ORSet
 
 ## Problem
 
 `WarpStateIndexBuilder._registerNodes()` calls
-`state.nodeAlive.elements()` and `state.edgeAlive.contains()`. With
-trie-backed ORSets, `elements()` does a full trie scan. The index
-builder must work correctly with this and handle any performance
-implications.
+`state.nodeAlive.elements()` synchronously and
+`state.edgeAlive.contains()` synchronously. With trie-backed ORSets
+behind a StateSession, state access is async and iteration is an
+async iterable (`scan()`). The current synchronous iteration
+assumption is incompatible with out-of-core state.
 
 ## Fix
 
-Verify that `WarpStateIndexBuilder` and `MaterializeHelpers.buildAdjacency()`
-work correctly with `ShadowTrieORSet`. If full-scan performance through
-`elements()` is unacceptable, add an async streaming alternative and
-update the index builder to consume it.
+Rewrite `WarpStateIndexBuilder` and `MaterializeHelpers.buildAdjacency()`
+to consume async scan/cursor iteration from StateSession:
+
+- Replace `for (const nodeId of state.nodeAlive.elements())` with
+  `for await (const nodeId of session.scanNodes())`
+- Replace `state.edgeAlive.contains(key)` with
+  `await session.edgeContains(key)`
+- The builder methods become async
+
+This is not optional. Async scan is the honest shape of out-of-core
+state access, not a performance optimization to "maybe add later."
 
 ## Scope
 
-**In:** Index builder verification. Performance assessment.
-Streaming alternative if needed. All index tests must pass.
+**In:** Async index builder rewrite. All index tests must pass.
+Async iteration consumption.
 
 **Out:** Performance benchmarking (PERF_trie-geometry-and-memory-profile).

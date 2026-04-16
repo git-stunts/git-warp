@@ -5,40 +5,40 @@ blocked_by:
 blocks:
   - INFRA_git-trie-store-adapter
   - PROTO_state-session-async
-  - PROTO_checkpoint-envelope-publication
 ---
 
-# Git-native trie storage port for branch trees, leaf blobs, and checkpoint envelope publication
+# Git-native trie storage port for branch trees and leaf blobs
 
 ## Problem
 
 The Shadow-Trie ORSet stores its structure as native Git objects:
 branch nodes are Git trees, leaf nodes are Git blobs. There is no
-existing port that captures this specific storage contract. The
-trie cursor, flush, and checkpoint publication all need a common
-storage abstraction.
+existing port that captures this specific storage contract.
 
 ## Fix
 
 Define a `TrieStorePort` in the domain layer that provides:
 
 - `readLeaf(oid: string): Promise<Uint8Array>` — read a leaf blob
-- `readBranch(oid: string): Promise<Map<number, string>>` — read a
-  branch tree (16 nibble entries -> child OIDs)
+- `readBranch(oid: string): Promise<BranchEntries>` — read a branch
+  tree (nibble entries -> child OIDs)
 - `writeLeaf(data: Uint8Array): Promise<string>` — write a leaf blob,
   return OID
-- `writeBranch(children: Map<number, string>): Promise<string>` — write
-  a branch tree, return OID
-- `publishCheckpoint(rootOid: string, metadata: CheckpointMeta): Promise<string>` —
-  create checkpoint commit + update ref
+- `writeBranch(children: BranchEntries): Promise<string>` — write a
+  branch tree, return OID
+
+The branch entry type is geometry-parameterized (see Notes). The port
+does not assume a fixed fanout.
 
 ## Scope
 
 **In:** Port definition only. No implementation (that is
 INFRA_git-trie-store-adapter).
 
-**Out:** This is not a git-cas port. Core trie publication uses raw
-Git objects and refs for native reachability.
+**Out:** Checkpoint envelope publication belongs in kernel/adapters
+land (PROTO_checkpoint-envelope-publication), not in the ORSet storage
+port. The trie store is boring: read/write leaves and branches. That
+is all.
 
 ## Notes
 
@@ -46,3 +46,7 @@ Git objects and refs for native reachability.
   free. No custom ref pinning needed.
 - The port must be thin enough that an in-memory test double is trivial
   to build.
+- The branch entry type must be geometry-parameterized. v1 starts with
+  16-way (4-bit nibbles, entries `0`-`f`), but the port shape must not
+  hardcode 16. Use a `Map<number, string>` or equivalent that works
+  for any fanout the geometry benchmark settles on.
