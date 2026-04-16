@@ -21,9 +21,16 @@ rules:
       Placeholder `*Like` types are banned. Name the real concept.
       See docs/ANTI_SLUDGE_POLICY.md §2 and cycle 0023 retro for
       the cautionary tale that motivated this rule.
+      (TypeScript platform types `ArrayLike`, `ArrayBufferLike`,
+      and `PromiseLike` are allowed — they are real standard-library
+      contracts, not shape-trust placeholders.)
     severity: ERROR
     languages: [typescript]
-    pattern-regex: '\b[A-Z][A-Za-z0-9]*Like\b'
+    patterns:
+      - pattern-regex: '\b[A-Z][A-Za-z0-9]*Like\b'
+      - pattern-not-regex: '\bArrayLike\b'
+      - pattern-not-regex: '\bArrayBufferLike\b'
+      - pattern-not-regex: '\bPromiseLike\b'
     paths:
       include:
         - src/**/*.ts

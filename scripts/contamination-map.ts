@@ -41,7 +41,19 @@ interface DetectionRule {
   readonly id: string;
   readonly pattern: RegExp;
   readonly scope: Scope;
+  /** Optional token allowlist: tokens matching `pattern` whose text
+   *  is in `ignoreTokens` do not count as hits. */
+  readonly ignoreTokens?: ReadonlySet<string>;
 }
+
+/** TypeScript standard-library `*Like` types. These are real platform
+ *  contracts (`ArrayLike`, `ArrayBufferLike`, `PromiseLike`), not our
+ *  shape-trust placeholders. They are always allowed. */
+const PLATFORM_LIKE_TOKENS: ReadonlySet<string> = new Set([
+  'ArrayLike',
+  'ArrayBufferLike',
+  'PromiseLike',
+]);
 
 interface FamilyDefinition {
   readonly manifestId: string;
@@ -95,7 +107,12 @@ const FAMILIES: readonly FamilyDefinition[] = [
     rationale:
       'Pre-existing *Like placeholder types in src/**. Each *Like name is shape-talk hiding either (a) a missing boundary decoder, (b) a duck-typed narrow slice of a real type, or (c) a real domain concept that was never named. Cycle 0023 retro documents the cautionary tale. Graduate by giving the concept a real name (class with validated constructor) or removing the alias in favor of the real type.',
     detections: [
-      { id: 'like-suffix', pattern: /\b[A-Z][A-Za-z0-9]*Like\b/, scope: 'all-src' },
+      {
+        id: 'like-suffix',
+        pattern: /\b[A-Z][A-Za-z0-9]*Like\b/g,
+        scope: 'all-src',
+        ignoreTokens: PLATFORM_LIKE_TOKENS,
+      },
     ],
   },
   {
@@ -156,6 +173,27 @@ function lineIsCommentOnly(line: string): boolean {
   );
 }
 
+/** Returns true iff `line` contains at least one match for `detection.pattern`
+ *  whose captured text is NOT in `detection.ignoreTokens`. */
+function lineHasRealHit(line: string, detection: DetectionRule): boolean {
+  if (detection.ignoreTokens === undefined) {
+    return detection.pattern.test(line);
+  }
+  // Use a fresh RegExp so `lastIndex` state is local per call, even
+  // when the pattern has the `/g` flag.
+  const globalPattern = detection.pattern.flags.includes('g')
+    ? new RegExp(detection.pattern.source, detection.pattern.flags)
+    : new RegExp(detection.pattern.source, `${detection.pattern.flags}g`);
+  let match: RegExpExecArray | null;
+  while ((match = globalPattern.exec(line)) !== null) {
+    const token = match[0];
+    if (!detection.ignoreTokens.has(token)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function scanFile(absPath: string, relPath: string): Promise<ReadonlySet<string>> {
   const hits = new Set<string>();
   const content = await readFile(absPath, 'utf8');
@@ -173,7 +211,7 @@ async function scanFile(absPath: string, relPath: string): Promise<ReadonlySet<s
         if (lineIsCommentOnly(line)) {
           continue;
         }
-        if (detection.pattern.test(line)) {
+        if (lineHasRealHit(line, detection)) {
           hits.add(family.manifestId);
           break;
         }
