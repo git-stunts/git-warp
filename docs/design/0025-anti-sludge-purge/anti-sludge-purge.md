@@ -26,34 +26,52 @@ outside adapters, zero `*Like` types, zero direct `JSON.parse`,
 
 ## Structure: four sub-cycles
 
-This cycle is split into four sequential sub-cycles. The order is
-deliberate and load-bearing.
+This cycle is split into four sub-cycles. The order is deliberate
+and load-bearing. Sub-cycles 0025A and 0025B run in practice
+co-scheduled (B1 port fixes make many A casts vanish
+automatically).
 
-| # | Sub-cycle | Backlog item | Removes |
-|---|---|---|---|
-| 0025A | Cast purge | `PROTO_purge-cast-hacks` | `as unknown as`, `as any` |
-| 0025B | Boundary purge | `PROTO_purge-boundary-leaks` | `Record<string, unknown>`, `unknown` outside adapters, raw I/O in core |
-| 0025C | Fake-model purge | `PROTO_purge-fake-models` | `*Like` placeholder types |
-| 0025D | Import law | `PROTO_purge-import-law` | core→adapter and core→framework imports |
+| # | Sub-cycle | Backlog item | Starting count | Removes |
+|---|---|---|---:|---|
+| 0025A | Cast purge | `PROTO_purge-cast-hacks` | 33 | `as unknown as`, `as any` |
+| 0025B | Boundary purge | `PROTO_purge-boundary-leaks` | 167 | `Record<string, unknown>`, `unknown` outside adapters, raw I/O in core |
+| 0025C | Fake-model purge (Op-model introduction) | `PROTO_purge-fake-models` | 12 | `*Like` placeholder types, starting with the `Op` pipeline cluster |
+| 0025D | Import law (guardrail) | `PROTO_purge-import-law` | **0** | core→infrastructure and core→framework imports |
+
+**0025D starts at zero contamination** — the hexagonal wall is
+already maintained by convention. 0025D therefore closes
+immediately on P7 rule activation with outcome
+`guardrail-established`.
+
+**0025B is the mountain at 167 files** and is run as five
+sub-campaigns by cluster rather than file-by-file. See the
+backlog item for the B1..B5 breakdown.
+
+**0025C is one missing `Op` domain concept** rather than 12
+independent file graduations. See the backlog item for the
+model-introduction plan.
 
 ### Why this order
 
-1. **Casts first (0025A).** Casts are sludge concealment. A file
-   with `foo as unknown as SomeType` can hide any number of
-   downstream violations. Removing casts forces the real types to
-   surface and makes the other cleanups tractable.
-2. **Boundary leakage next (0025B).** `Record<string, unknown>` is
-   usually the *upstream* of casts — the boundary didn't decode,
-   so the domain either lives with the raw shape or casts to escape
-   it. Fix the boundary and the downstream casts go away.
-3. **Fake models (0025C).** `*Like` is usually decorative — it
-   tries to describe a shape that the boundary decoder should
-   already name. Most `*Like` types evaporate once 0025A and 0025B
-   are done. The remainder get real names.
-4. **Import law (0025D).** Once the types are honest and decoded at
-   boundaries, the wall between core and adapter/framework code is
-   meaningful. Enforcing it last prevents churn during the earlier
-   purges.
+1. **Casts first (0025A), co-scheduled with 0025B1 ports.** Casts
+   are sludge concealment. A file with `foo as unknown as SomeType`
+   can hide downstream violations. In practice, most casts are
+   downstream of port `unknown` returns (0025B1), so cast removal
+   and port fixing happen together.
+2. **Boundary leakage (0025B).** `Record<string, unknown>` is the
+   *upstream* of most casts — the boundary didn't decode, so the
+   domain either lives with the raw shape or casts to escape it.
+   Fix the boundary and the downstream casts go away. Run as five
+   sub-campaigns (B1 ports, B2 controllers/ingress, B3 strand
+   conflict-data, B4 JSON/env/fetch removal, B5 scattered leaves).
+3. **Fake models (0025C).** After B clears the boundary, remaining
+   `*Like` types are almost all in the `Op*` patch-pipeline cluster
+   — one missing domain concept bred eight adjacent placeholder
+   types. Fix is: introduce `Op` class hierarchy, collapse the
+   cluster, graduate the adjacent sites.
+4. **Import law (0025D).** Zero contamination today; codify the
+   wall now as a guardrail. Closes immediately on rule activation
+   — no remediation work.
 
 ## Playback Questions
 
