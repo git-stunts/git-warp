@@ -1,34 +1,52 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 
-const readme = readFileSync(
-  fileURLToPath(new URL('../../../README.md', import.meta.url)),
-  'utf8',
-);
-const docsIndex = readFileSync(
-  fileURLToPath(new URL('../../../docs/README.md', import.meta.url)),
-  'utf8',
-);
-const archiveIndex = readFileSync(
-  fileURLToPath(new URL('../../../docs/archive/README.md', import.meta.url)),
-  'utf8',
-);
+const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
+
+const readme = readFileSync(`${repoRoot}README.md`, 'utf8');
+const docsIndex = readFileSync(`${repoRoot}docs/README.md`, 'utf8');
+const archiveIndex = readFileSync(`${repoRoot}docs/archive/README.md`, 'utf8');
 const styleGuide = readFileSync(
-  fileURLToPath(new URL('../../../.github/maintainers/documentation/style-guide.md', import.meta.url)),
+  `${repoRoot}.github/maintainers/documentation/style-guide.md`,
   'utf8',
 );
 const maintainerDocsIndex = readFileSync(
-  fileURLToPath(new URL('../../../.github/maintainers/README.md', import.meta.url)),
+  `${repoRoot}.github/maintainers/README.md`,
   'utf8',
 );
 
 /**
- * @param {string} relativePath
- * @returns {boolean}
+ * Set of every path tracked by git, keyed by repo-relative POSIX path.
+ *
+ * Uses `git ls-files` rather than `existsSync`, so docs-shape assertions
+ * reflect what's in the repository, not the local filesystem. This makes
+ * the assertions stable against gitignored filesystem noise (e.g. macOS
+ * `.DS_Store` droppings) and meaningful: "is this path tracked?" is the
+ * question we actually want to answer.
  */
-function hasFile(relativePath) {
-  return existsSync(fileURLToPath(new URL(`../../../${relativePath}`, import.meta.url)));
+const trackedFiles: ReadonlySet<string> = new Set(
+  execFileSync('git', ['ls-files', '-z'], { cwd: repoRoot, encoding: 'utf8' })
+    .split('\0')
+    .filter((line) => line.length > 0),
+);
+
+/**
+ * Returns true iff `relativePath` (or any path below it, for directories)
+ * is tracked by git.
+ */
+function hasFile(relativePath: string): boolean {
+  if (trackedFiles.has(relativePath)) {
+    return true;
+  }
+  const dirPrefix = relativePath.endsWith('/') ? relativePath : `${relativePath}/`;
+  for (const tracked of trackedFiles) {
+    if (tracked.startsWith(dirPrefix)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 describe('documentation corpus taxonomy', () => {
