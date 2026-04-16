@@ -16,7 +16,6 @@ import {
   attachReceipts,
   ScanWindow,
   CONFLICT_ANALYSIS_VERSION,
-  type AnalyzerService,
 } from './ConflictFrameLoader.ts';
 import { ConflictCandidateCollector } from './ConflictCandidateCollector.ts';
 import {
@@ -36,7 +35,8 @@ export { CONFLICT_ANALYSIS_VERSION };
  * ConflictAnalyzerService analyzes read-only patch history for conflict traces.
  */
 export class ConflictAnalyzerService {
-  private readonly _graph: WarpRuntime;
+  /** @internal structural seam used by ConflictFrameLoader's strand-coordinator bridge. */
+  readonly _graph: WarpRuntime;
   private readonly _digestCache: Map<string, string>;
 
   /**
@@ -67,8 +67,10 @@ export class ConflictAnalyzerService {
   async analyze(options?: ConflictAnalyzeOptions): Promise<ConflictAnalysis> {
     const request = ConflictAnalysisRequest.from(options);
     const diagnostics: ConflictDiagnostic[] = [];
-    // Adapter boundary: ConflictAnalyzerService satisfies AnalyzerService structurally
-    const { patchFrames, resolvedCoordinate } = await resolveAnalysisContext(this as unknown as AnalyzerService, request);
+    // `this` structurally satisfies AnalyzerService: carries _graph
+    // (WarpRuntime ⊇ StrandCoordinatorGraphRuntime & _loadWriterPatches)
+    // and _hash(payload: HashablePayload).
+    const { patchFrames, resolvedCoordinate } = await resolveAnalysisContext(this, request);
     if (patchFrames.length === 0) {
       return await this._emptyResult(resolvedCoordinate, request, diagnostics);
     }

@@ -15,8 +15,8 @@ import StrandCoordinateMetadata from '../../types/conflict/StrandCoordinateMetad
 import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import { compareStrings } from '../../types/conflict/validation.ts';
 import { reduceV5 } from '../JoinReducer.ts';
-import createStrandCoordinator from './createStrandCoordinator.ts';
-import type { TickReceipt } from '../../types/TickReceipt.ts';
+import createStrandCoordinator, { type StrandCoordinatorGraphRuntime } from './createStrandCoordinator.ts';
+import { TickReceipt } from '../../types/TickReceipt.ts';
 import type Patch from '../../types/Patch.ts';
 import type ConflictAnalysisRequest from './ConflictAnalysisRequest.ts';
 
@@ -133,8 +133,20 @@ function describeLamportCeiling(lamportCeiling: number | null): string {
 
 // ── Frame construction ──────────────────────────────────────────────
 
+/**
+ * Builds a placeholder TickReceipt for frames whose receipts have
+ * not yet been attached by the reducer replay. The placeholder
+ * carries non-empty sentinel ids to satisfy TickReceipt's
+ * constructor invariants; consumers read only `ops` (empty) before
+ * `attachReceipts` overwrites the field with the real receipt.
+ */
 function emptyReceipt(): TickReceipt {
-  return { patchSha: '', writer: '', lamport: 0, ops: [] } as unknown as TickReceipt;
+  return new TickReceipt({
+    patchSha: CONFLICT_ANALYSIS_VERSION,
+    writer: CONFLICT_ANALYSIS_VERSION,
+    lamport: 0,
+    ops: [],
+  });
 }
 
 function buildPatchFrames(entries: Array<{ patch: Patch; sha: string }>): PatchFrame[] {
@@ -289,16 +301,13 @@ export type AnalyzerService = {
 };
 
 /**
- * Structural description of the graph-runtime surface the analyzer
- * reaches into. Keep this narrow; the analyzer only needs frontier
- * access and writer-patch enumeration.
- *
- * NOTE(0025A): the call-site passes a `GraphRuntime` through a cast
- * because the wider warp runtime carries many internal fields. The
- * cast is tracked in `policy/quarantines/0025A-casts.json`.
+ * The analyzer reaches into the shared strand-coordinator graph
+ * runtime (for strand-coordinate resolution) plus an additional
+ * `_loadWriterPatches` method (for frontier-coordinate enumeration).
+ * The intersection type lets the analyzer pass `service._graph`
+ * straight into `createStrandCoordinator` without a cast.
  */
-type AnalyzerGraphRuntime = {
-  getFrontier(): Promise<Map<string, string>>;
+type AnalyzerGraphRuntime = StrandCoordinatorGraphRuntime & {
   _loadWriterPatches(writerId: string): Promise<Array<{ patch: Patch; sha: string }>>;
 };
 
@@ -311,8 +320,8 @@ async function resolveStrandContext(
   service: AnalyzerService,
   request: ConflictAnalysisRequest,
 ): Promise<AnalysisContext> {
-  // Adapter boundary: _graph satisfies the structural subset that createStrandCoordinator uses
-  const strands = createStrandCoordinator(service._graph as unknown as Parameters<typeof createStrandCoordinator>[0]);
+  // AnalyzerGraphRuntime structurally extends StrandCoordinatorGraphRuntime.
+  const strands = createStrandCoordinator(service._graph);
   const descriptor = await strands.getOrThrow(request.strandId!);
   const entries = await strands.getPatchEntries(request.strandId!, {
     ceiling: request.lamportCeiling,
@@ -328,7 +337,7 @@ async function resolveStrandContext(
       lamportCeiling: request.lamportCeiling,
       maxPatches: request.maxPatches,
       frontierDigest: descriptor.baseObservation.frontierDigest,
-      strand: buildResolvedStrandMetadata(descriptor as unknown as ResolvedStrandDescriptor),
+      strand: buildResolvedStrandMetadata(descriptor),
     }),
   };
 }

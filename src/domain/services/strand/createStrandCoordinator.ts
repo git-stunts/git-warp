@@ -35,16 +35,21 @@ function baseObservationsEqual(left: BaseObservation, right: BaseObservation): b
 }
 
 /**
- * Opaque placeholder for miscellaneous runtime fields not read by
- * the strand sub-services. Replaces `[key: string]: unknown` in a
- * way the anti-sludge scanner tolerates.
- *
- * Note: `_codec.encode(v: HashablePayload)` narrows the codec signature
- * from the prior `v: unknown` surface. The concrete runtime codec
- * accepts arbitrary structural values; HashablePayload is a
- * structural superset of the call-site shapes (Patch, intent, etc.).
+ * Opaque diagnostic bag the wired warp runtime returns from
+ * `_setMaterializedState`. The strand sub-services ignore the
+ * return value; the type exists solely to let `WarpRuntime` satisfy
+ * the structural narrow below.
  */
-type GraphRuntime = {
+type StrandMaterializationDiagnosticBag = object;
+
+/**
+ * Structural description of the graph runtime the strand
+ * sub-services reach into. The wider warp runtime provides many
+ * more fields; this type narrows to the exact surface the strand
+ * coordinator needs and is re-exported so cross-module wiring can
+ * avoid `as unknown as` casts.
+ */
+export type StrandCoordinatorGraphRuntime = {
   _graphName: string;
   _persistence: import('../../../ports/GraphPersistencePort.ts').default;
   _crypto: import('../../../ports/CryptoPort.ts').default;
@@ -55,7 +60,11 @@ type GraphRuntime = {
   _cachedCeiling: number | null;
   _cachedFrontier: Map<string, string> | null;
   _lastFrontier: Map<string, string> | null;
-  _setMaterializedState(state: WarpState): Promise<void>;
+  // Return type widened to match the wired warp-runtime signature
+  // (which emits a materialization diagnostic bag) so that callers
+  // upstream of the strand coordinator can pass their full
+  // `_graph` directly without a cast.
+  _setMaterializedState(state: WarpState): Promise<void | StrandMaterializationDiagnosticBag>;
   getFrontier(): Promise<Map<string, string>>;
   _patchInProgress: boolean;
   _stateDirty: boolean;
@@ -69,7 +78,7 @@ type GraphRuntime = {
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
 };
 
-function wireDescriptors(graph: GraphRuntime, ref: { coordinator: StrandCoordinator | null }): StrandDescriptorStore {
+function wireDescriptors(graph: StrandCoordinatorGraphRuntime, ref: { coordinator: StrandCoordinator | null }): StrandDescriptorStore {
   return new StrandDescriptorStore({
     graph,
     loadStrandOrThrow: async (strandId: string) => await ref.coordinator!.getOrThrow(strandId),
@@ -82,7 +91,7 @@ type SubServices = {
   materializer: StrandMaterializer;
 };
 
-function wirePatches(graph: GraphRuntime, ref: { coordinator: StrandCoordinator | null }, subs: SubServices): StrandPatchService {
+function wirePatches(graph: StrandCoordinatorGraphRuntime, ref: { coordinator: StrandCoordinator | null }, subs: SubServices): StrandPatchService {
   return new StrandPatchService({
     graph,
     loadStrandOrThrow: async (strandId: string) => await ref.coordinator!.getOrThrow(strandId),
@@ -94,7 +103,7 @@ function wirePatches(graph: GraphRuntime, ref: { coordinator: StrandCoordinator 
   });
 }
 
-function wireIntents(graph: GraphRuntime, ref: { coordinator: StrandCoordinator | null }, subs: SubServices & { patches: StrandPatchService }): StrandIntentService {
+function wireIntents(graph: StrandCoordinatorGraphRuntime, ref: { coordinator: StrandCoordinator | null }, subs: SubServices & { patches: StrandPatchService }): StrandIntentService {
   return new StrandIntentService({
     graph,
     loadStrandOrThrow: async (strandId: string) => await ref.coordinator!.getOrThrow(strandId),
@@ -110,7 +119,7 @@ function wireIntents(graph: GraphRuntime, ref: { coordinator: StrandCoordinator 
 }
 
 /** Creates a StrandCoordinator wired to the given graph runtime. */
-export default function createStrandCoordinator(graph: GraphRuntime): StrandCoordinator {
+export default function createStrandCoordinator(graph: StrandCoordinatorGraphRuntime): StrandCoordinator {
   const ref: { coordinator: StrandCoordinator | null } = { coordinator: null };
   const descriptors = wireDescriptors(graph, ref);
   const materializer = new StrandMaterializer({ graph });
