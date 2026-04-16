@@ -11,7 +11,7 @@ describe('callInternalRuntimeMethod', () => {
     }
 
     class FacadeShim extends RuntimeBase {
-      async getContent(_value: unknown): Promise<string> {
+      override async getContent(_value: unknown): Promise<string> {
         throw new Error('shim should be skipped');
       }
     }

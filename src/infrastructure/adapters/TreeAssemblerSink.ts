@@ -28,7 +28,7 @@ export class TreeAssemblerSink extends Sink<[string, string], string> {
   /**
    * Accepts a [path, oid] entry and formats it for mktree.
    */
-  protected _accept(item: [string, string]): void {
+  protected override _accept(item: [string, string]): void {
     const [path, oid] = item;
     this._entries.push(`100644 blob ${oid}\t${path}`);
   }
@@ -36,7 +36,7 @@ export class TreeAssemblerSink extends Sink<[string, string], string> {
   /**
    * Builds the Git tree from accumulated entries.
    */
-  protected async _finalize(): Promise<string> {
+  protected override async _finalize(): Promise<string> {
     this._entries.sort();
     return await this._treePort.writeTree(this._entries);
   }

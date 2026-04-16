@@ -23,7 +23,7 @@ export class GitBlobWriteTransform extends Transform<[string, Uint8Array], [stri
     this._blobPort = blobPort;
   }
 
-  async *apply(source: AsyncIterable<[string, Uint8Array]>): AsyncIterable<[string, string]> {
+  override async *apply(source: AsyncIterable<[string, Uint8Array]>): AsyncIterable<[string, string]> {
     for await (const [path, bytes] of source) {
       const oid = await this._blobPort.writeBlob(bytes);
       yield [path, oid];

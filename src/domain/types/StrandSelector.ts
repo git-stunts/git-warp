@@ -38,14 +38,14 @@ class StrandSelector extends WorldlineSelector {
   /**
    * Deep-clone this selector.
    */
-  clone(): StrandSelector {
+  override clone(): StrandSelector {
     return new StrandSelector(this.strandId, this.ceiling);
   }
 
   /**
    * Convert to a plain DTO for the public API.
    */
-  toDTO(): { kind: 'strand'; strandId: string; ceiling: number | null } {
+  override toDTO(): { kind: 'strand'; strandId: string; ceiling: number | null } {
     return { kind: 'strand', strandId: this.strandId, ceiling: this.ceiling };
   }
 }

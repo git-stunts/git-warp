@@ -29,7 +29,7 @@ export class IndexShardEncodeTransform extends Transform<IndexShard, [string, Ui
     this._codec = codec;
   }
 
-  async *apply(source: AsyncIterable<IndexShard>): AsyncIterable<[string, Uint8Array]> {
+  override async *apply(source: AsyncIterable<IndexShard>): AsyncIterable<[string, Uint8Array]> {
     for await (const shard of source) {
       yield this._encode(shard);
     }

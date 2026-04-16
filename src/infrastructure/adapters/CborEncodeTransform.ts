@@ -19,7 +19,7 @@ export class CborEncodeTransform extends Transform<[string, unknown], [string, U
     this._codec = codec;
   }
 
-  async *apply(source: AsyncIterable<[string, unknown]>): AsyncIterable<[string, Uint8Array]> {
+  override async *apply(source: AsyncIterable<[string, unknown]>): AsyncIterable<[string, Uint8Array]> {
     for await (const [path, data] of source) {
       yield [path, this._codec.encode(data)];
     }

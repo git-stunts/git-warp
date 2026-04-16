@@ -24,8 +24,8 @@ class CountSink extends Sink<any, number> {
     super();
     this._count = 0;
   }
-  protected _accept() { this._count++; }
-  protected _finalize() { return this._count; }
+  protected override _accept() { this._count++; }
+  protected override _finalize() { return this._count; }
 }
 
 /**
@@ -37,8 +37,8 @@ class ArraySink extends Sink<any, any[]> {
     super();
     this._items = [];
   }
-  protected _accept(item: any) { this._items.push(item); }
-  protected _finalize() { return this._items; }
+  protected override _accept(item: any) { this._items.push(item); }
+  protected override _finalize() { return this._items; }
 }
 
 // ── WarpStream Construction ───────────────────────────────────────────
@@ -364,7 +364,7 @@ describe('Transform', () => {
 
   it('subclass can override apply()', async () => {
     class DoubleTransform extends Transform<number, number> {
-      async *apply(source: AsyncIterable<number>) {
+      override async *apply(source: AsyncIterable<number>) {
         for await (const item of source) {
           yield item;
           yield item;

@@ -28,7 +28,7 @@ class LiveSelector extends WorldlineSelector {
   /**
    * Deep-clone this selector.
    */
-  clone(): LiveSelector {
+  override clone(): LiveSelector {
     return new LiveSelector(this.ceiling);
   }
 
@@ -38,7 +38,7 @@ class LiveSelector extends WorldlineSelector {
    * Omits ceiling when null to match the legacy WorldlineSource shape
    * (consumers may check `'ceiling' in dto`).
    */
-  toDTO(): { kind: 'live'; ceiling?: number | null } {
+  override toDTO(): { kind: 'live'; ceiling?: number | null } {
     return this.ceiling !== null
       ? { kind: 'live', ceiling: this.ceiling }
       : { kind: 'live' };

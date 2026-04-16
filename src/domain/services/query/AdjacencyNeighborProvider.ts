@@ -93,7 +93,7 @@ export default class AdjacencyNeighborProvider extends NeighborProviderPort {
     return Promise.resolve(this._aliveNodes.has(nodeId));
   }
 
-  get latencyClass(): LatencyClass {
+  override get latencyClass(): LatencyClass {
     return 'sync';
   }
 }

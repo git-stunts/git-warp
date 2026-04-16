@@ -48,14 +48,14 @@ class CoordinateSelector extends WorldlineSelector {
   /**
    * Deep-clone this selector, copying the frontier.
    */
-  clone(): CoordinateSelector {
+  override clone(): CoordinateSelector {
     return new CoordinateSelector(new Map(this.#frontier), this.ceiling);
   }
 
   /**
    * Convert to a plain DTO for the public API.
    */
-  toDTO(): { kind: 'coordinate'; frontier: Map<string, string>; ceiling: number | null } {
+  override toDTO(): { kind: 'coordinate'; frontier: Map<string, string>; ceiling: number | null } {
     return { kind: 'coordinate', frontier: new Map(this.#frontier), ceiling: this.ceiling };
   }
 }
