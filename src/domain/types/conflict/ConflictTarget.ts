@@ -27,8 +27,8 @@ const SELECTOR_FIELDS = Object.freeze(['entityId', 'propertyKey', 'from', 'to', 
 /**
  * Validates that the given value is a recognized target kind.
  */
-function validateTargetKind(kind: unknown): void {
-  if (!VALID_TARGET_KINDS.has(kind as string)) {
+function validateTargetKind(kind: TargetKind): void {
+  if (!VALID_TARGET_KINDS.has(kind)) {
     throw new WarpError(`ConflictTarget: targetKind must be one of ${[...VALID_TARGET_KINDS].join(', ')}`, 'E_VALIDATION');
   }
 }
@@ -47,9 +47,9 @@ function selectorFieldsMatch(target: ConflictTarget, selector: ConflictTargetSel
 }
 
 /**
- * Validates that a value is a non-empty string.
+ * Validates that a string value is non-empty.
  */
-function requireNonEmptyString(value: unknown, name: string): string {
+function requireNonEmptyString(value: string, name: string): string {
   if (typeof value !== 'string' || value.length === 0) {
     throw new WarpError(`ConflictTarget: ${name} must be a non-empty string`, 'E_VALIDATION');
   }
@@ -59,7 +59,7 @@ function requireNonEmptyString(value: unknown, name: string): string {
 /**
  * Validates an optional string field — must be a non-empty string or absent.
  */
-function optionalString(value: unknown, name: string): string | undefined {
+function optionalString(value: string | null | undefined, name: string): string | undefined {
   if (value === undefined || value === null) {
     return undefined;
   }

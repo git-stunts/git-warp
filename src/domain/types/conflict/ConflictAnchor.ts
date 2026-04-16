@@ -13,9 +13,9 @@ import WarpError from '../../errors/WarpError.ts';
 const VALID_SHA_RE = /^[0-9a-f]{4,64}$/;
 
 /**
- * Validates that a value is a non-empty string.
+ * Validates that a string value is non-empty.
  */
-function requireNonEmptyString(value: unknown, name: string): string {
+function requireNonEmptyString(value: string, name: string): string {
   if (typeof value !== 'string' || value.length === 0) {
     throw new WarpError(`ConflictAnchor: ${name} must be a non-empty string`, 'E_VALIDATION');
   }
@@ -23,19 +23,19 @@ function requireNonEmptyString(value: unknown, name: string): string {
 }
 
 /**
- * Validates that a value is a non-negative integer.
+ * Validates that a numeric value is a non-negative integer.
  */
-function requireNonNegativeInt(value: unknown, name: string): number {
-  if (!Number.isInteger(value) || (value as number) < 0) {
+function requireNonNegativeInt(value: number, name: string): number {
+  if (!Number.isInteger(value) || value < 0) {
     throw new WarpError(`ConflictAnchor: ${name} must be a non-negative integer`, 'E_VALIDATION');
   }
-  return value as number;
+  return value;
 }
 
 /**
  * Validates an optional hex SHA string.
  */
-function optionalSha(value: unknown, name: string): string | undefined {
+function optionalSha(value: string | null | undefined, name: string): string | undefined {
   if (value === undefined || value === null) {
     return undefined;
   }
@@ -48,7 +48,7 @@ function optionalSha(value: unknown, name: string): string | undefined {
 /**
  * Validates an optional non-negative integer.
  */
-function optionalNonNegativeInt(value: unknown, name: string): number | undefined {
+function optionalNonNegativeInt(value: number | null | undefined, name: string): number | undefined {
   if (value === undefined || value === null) {
     return undefined;
   }
