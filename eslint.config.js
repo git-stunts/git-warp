@@ -14,6 +14,7 @@ export default tseslint.config(
   {
     ignores: [
       "node_modules/**",
+      "packages/**/node_modules/**",
       "coverage/**",
       "examples/html/assets/**",
       "scripts/**",

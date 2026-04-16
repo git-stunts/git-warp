@@ -34,5 +34,5 @@ fi
 # Scans ALL source files, not just staged — prevents partial-commit evasion.
 
 echo "[IRONCLAD] Running TS policy check..."
-node scripts/ts-policy-check.js
+node scripts/ts-policy-check.ts
 echo "[IRONCLAD] All gates passed."

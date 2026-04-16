@@ -157,5 +157,8 @@
     "invisible-storage",
     "empty-tree"
   ],
-  "packageManager": "npm@10"
+  "packageManager": "npm@10",
+  "workspaces": [
+    "packages/*"
+  ]
 }
