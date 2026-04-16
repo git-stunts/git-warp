@@ -1,31 +1,40 @@
+import type LogFields from '../domain/types/log/LogFields.ts';
+
 /**
- * Port interface for structured logging operations.
+ * LoggerPort — typed structured-logging contract.
  *
- * This port defines the contract for logging across the application.
- * Adapters implement this interface to provide different logging
- * backends (console, file, external services, no-op for testing).
+ * Adapters implement this port to provide concrete logging backends
+ * (console, file, no-op, external services). Each level accepts a
+ * message string and an optional `LogFields` context; child loggers
+ * inherit a base `LogFields` and merge per-call fields on top.
  *
- * All methods accept an optional context object for structured metadata.
- * Child loggers inherit and merge parent context.
+ * The context type is `LogFields`, not `Record<string, unknown>`:
+ * dumping decoded-reality blobs into the log stream is banned here
+ * by construction. A caller that wants to log an arbitrary value
+ * names the field and gives it a type-compatible value (see
+ * `LogFieldValue`).
+ *
+ * @module ports/LoggerPort
  */
 
 /** Port for structured logging operations. */
 export default abstract class LoggerPort {
   /** Log a debug-level message. */
-  abstract debug(_message: string, _context?: Record<string, unknown>): void;
+  abstract debug(_message: string, _context?: LogFields): void;
 
   /** Log an info-level message. */
-  abstract info(_message: string, _context?: Record<string, unknown>): void;
+  abstract info(_message: string, _context?: LogFields): void;
 
   /** Log a warning-level message. */
-  abstract warn(_message: string, _context?: Record<string, unknown>): void;
+  abstract warn(_message: string, _context?: LogFields): void;
 
   /** Log an error-level message. */
-  abstract error(_message: string, _context?: Record<string, unknown>): void;
+  abstract error(_message: string, _context?: LogFields): void;
 
   /**
-   * Create a child logger with additional base context.
-   * Child loggers inherit parent context and merge with their own.
+   * Create a child logger whose base context merges the parent's
+   * context with the one supplied here. Per-call fields override
+   * the child's base context at log time.
    */
-  abstract child(_context: Record<string, unknown>): LoggerPort;
+  abstract child(_context: LogFields): LoggerPort;
 }
