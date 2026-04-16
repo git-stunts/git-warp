@@ -116,23 +116,21 @@ export function deserializeFullState(
 
 /**
  * Computes appliedVV by scanning all dots in state.
- * Scans state.nodeAlive.entries and state.edgeAlive.entries for all dots.
+ * Walks `nodeAlive` and `edgeAlive` via the ORSet's entryDotsIter.
  * Returns Map<writerId, maxCounter>.
  *
- * CRITICAL: This scans ALL dots, including those that may be tombstoned.
+ * CRITICAL: This scans ALL entry dots, including tombstoned ones.
  * The appliedVV represents what operations have been applied, not what is visible.
  */
 export function computeAppliedVV(state: WarpStateType): VersionVector {
   const vv = VersionVector.empty();
 
   function scanORSet(orset: ORSet): void {
-    for (const dots of orset.entries.values()) {
-      for (const encodedDot of dots) {
-        const dot = decodeDot(encodedDot);
-        const current = vv.get(dot.writerId) ?? 0;
-        if (dot.counter > current) {
-          vv.set(dot.writerId, dot.counter);
-        }
+    for (const encodedDot of orset.entryDotsIter()) {
+      const dot = decodeDot(encodedDot);
+      const current = vv.get(dot.writerId) ?? 0;
+      if (dot.counter > current) {
+        vv.set(dot.writerId, dot.counter);
       }
     }
   }

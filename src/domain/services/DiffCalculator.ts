@@ -30,7 +30,7 @@ export default class DiffCalculator {
   ): Map<string, string> {
     const dotToElement = new Map<string, string>();
     let remaining = targetDots.size;
-    for (const [element, dots] of orset.entries) {
+    for (const [element, dots] of orset.entriesIter()) {
       if (remaining === 0) { break; }
       for (const d of dots) {
         if (targetDots.has(d)) {

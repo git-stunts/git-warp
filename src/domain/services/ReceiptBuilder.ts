@@ -19,7 +19,7 @@ import type { PropValue } from '../types/PropValue.ts';
 import { compareEventIds, type EventId } from '../utils/EventId.ts';
 import { encodeEdgeKey, encodePropKey, encodeEdgePropKey } from './KeyCodec.ts';
 import { OP_TYPES } from '../types/TickReceipt.ts';
-import OpOutcomeResult from '../types/ops/OpOutcomeResult.ts';
+import type OpOutcomeResult from '../types/ops/OpOutcomeResult.ts';
 import OpApplied from '../types/ops/OpApplied.ts';
 import OpSuperseded from '../types/ops/OpSuperseded.ts';
 import OpRedundant from '../types/ops/OpRedundant.ts';
@@ -49,7 +49,7 @@ function toDotSet(observedDots: Iterable<string>): Set<string> {
 function hasEffectiveRemoval(orset: ORSet, targetDots: ReadonlySet<string>): boolean {
   const dotToElement = DiffCalculator.buildDotToElement(orset, targetDots);
   for (const encodedDot of targetDots) {
-    if (!orset.tombstones.has(encodedDot) && dotToElement.has(encodedDot)) {
+    if (!orset.isTombstoned(encodedDot) && dotToElement.has(encodedDot)) {
       return true;
     }
   }
@@ -73,8 +73,7 @@ export default class ReceiptBuilder {
     op: { readonly node: string; readonly dot: Dot },
   ): OpApplied | OpRedundant {
     const encoded = encodeDot(op.dot);
-    const existingDots = orset.entries.get(op.node);
-    if (existingDots && existingDots.has(encoded)) {
+    if (orset.hasDot(op.node, encoded)) {
       return new OpRedundant(op.node);
     }
     return new OpApplied(op.node);
@@ -103,8 +102,7 @@ export default class ReceiptBuilder {
     edgeKey: string,
   ): OpApplied | OpRedundant {
     const encoded = encodeDot(op.dot);
-    const existingDots = orset.entries.get(edgeKey);
-    if (existingDots && existingDots.has(encoded)) {
+    if (orset.hasDot(edgeKey, encoded)) {
       return new OpRedundant(edgeKey);
     }
     return new OpApplied(edgeKey);

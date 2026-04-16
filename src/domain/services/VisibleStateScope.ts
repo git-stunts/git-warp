@@ -1,5 +1,5 @@
 import QueryError from '../errors/QueryError.ts';
-import ORSet from '../crdt/ORSet.ts';
+import type ORSet from '../crdt/ORSet.ts';
 import WarpState from './state/WarpState.ts';
 import { normalizeRawOp } from './OpNormalizer.ts';
 import {
@@ -192,30 +192,12 @@ function edgeInVisibleStateScope(
 }
 
 /**
- * Clones an ORSet, keeping only elements that pass the inclusion predicate.
- */
-function cloneScopedOrSet(
-  sourceEntries: Map<string, Set<string>>,
-  includeElement: (element: string) => boolean,
-  tombstones: Set<string>,
-): ORSet {
-  const scoped = ORSet.empty();
-  scoped.tombstones = new Set(tombstones);
-  for (const [element, dots] of sourceEntries.entries()) {
-    if (includeElement(element)) {
-      scoped.entries.set(element, new Set(dots));
-    }
-  }
-  return scoped;
-}
-
-/**
  * Collects node IDs that are alive and within the given scope.
  */
 function collectScopedNodeIds(state: WarpState, scope: VisibleStateScope): Set<string> {
   const scopedNodeIds = new Set<string>();
-  for (const nodeId of state.nodeAlive.entries.keys()) {
-    if (state.nodeAlive.contains(nodeId) && nodeIdInVisibleStateScope(nodeId, scope)) {
+  for (const nodeId of state.nodeAlive.elements()) {
+    if (nodeIdInVisibleStateScope(nodeId, scope)) {
       scopedNodeIds.add(nodeId);
     }
   }
@@ -227,10 +209,7 @@ function collectScopedNodeIds(state: WarpState, scope: VisibleStateScope): Set<s
  */
 function collectScopedEdgeKeys(state: WarpState, scopedNodeIds: Set<string>): Set<string> {
   const scopedEdgeKeys = new Set<string>();
-  for (const edgeKey of state.edgeAlive.entries.keys()) {
-    if (!state.edgeAlive.contains(edgeKey)) {
-      continue;
-    }
+  for (const edgeKey of state.edgeAlive.elements()) {
     const edge = decodeEdgeKey(edgeKey);
     if (scopedNodeIds.has(edge.from) && scopedNodeIds.has(edge.to)) {
       scopedEdgeKeys.add(edgeKey);
@@ -291,16 +270,12 @@ export function scopeMaterializedState(state: WarpState, scope: VisibleStateScop
   }
 
   const scopedNodeIds = collectScopedNodeIds(state, scope);
-  const scopedNodeAlive = cloneScopedOrSet(
-    state.nodeAlive.entries,
+  const scopedNodeAlive: ORSet = state.nodeAlive.scopedClone(
     (nodeId) => scopedNodeIds.has(nodeId),
-    state.nodeAlive.tombstones,
   );
   const scopedEdgeKeys = collectScopedEdgeKeys(state, scopedNodeIds);
-  const scopedEdgeAlive = cloneScopedOrSet(
-    state.edgeAlive.entries,
+  const scopedEdgeAlive: ORSet = state.edgeAlive.scopedClone(
     (edgeKey) => scopedEdgeKeys.has(edgeKey),
-    state.edgeAlive.tombstones,
   );
 
   return new WarpState({

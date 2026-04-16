@@ -234,6 +234,49 @@ export default class ORSet {
     return result;
   }
 
+  /**
+   * Returns true iff the element is tagged by the given encoded dot.
+   * Tombstone status is ignored — this tests raw entry membership.
+   */
+  hasDot(element: string, encodedDot: string): boolean {
+    const dots = this.entries.get(element);
+    return dots !== undefined && dots.has(encodedDot);
+  }
+
+  /**
+   * Returns true iff the given encoded dot has been tombstoned.
+   */
+  isTombstoned(encodedDot: string): boolean {
+    return this.tombstones.has(encodedDot);
+  }
+
+  /**
+   * Iterates `[element, dots]` pairs across all entries. The yielded
+   * `dots` set includes tombstoned and live dots alike.
+   */
+  entriesIter(): IterableIterator<[string, ReadonlySet<string>]> {
+    return this.entries.entries();
+  }
+
+  /**
+   * Iterates every encoded dot across all entries, tombstoned or not.
+   */
+  *entryDotsIter(): IterableIterator<string> {
+    for (const dots of this.entries.values()) {
+      for (const encodedDot of dots) {
+        yield encodedDot;
+      }
+    }
+  }
+
+  /**
+   * Iterates every tombstoned encoded dot, including floating
+   * tombstones that have no corresponding entry.
+   */
+  tombstonesIter(): IterableIterator<string> {
+    return this.tombstones.values();
+  }
+
   // ---------------------------------------------------------------------------
   // CRDT operations
   // ---------------------------------------------------------------------------
@@ -276,6 +319,24 @@ export default class ORSet {
     const result = ORSet.empty();
     for (const [element, dots] of this.entries) {
       result.entries.set(element, new Set(dots));
+    }
+    for (const dot of this.tombstones) {
+      result.tombstones.add(dot);
+    }
+    return result;
+  }
+
+  /**
+   * Returns a clone that retains only entries whose element matches
+   * the predicate. All tombstones are copied verbatim, regardless of
+   * whether their owning element survives the filter.
+   */
+  scopedClone(includeElement: (element: string) => boolean): ORSet {
+    const result = ORSet.empty();
+    for (const [element, dots] of this.entries) {
+      if (includeElement(element)) {
+        result.entries.set(element, new Set(dots));
+      }
     }
     for (const dot of this.tombstones) {
       result.tombstones.add(dot);
