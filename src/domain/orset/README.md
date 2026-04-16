@@ -40,7 +40,7 @@ eventual warp-orset package layout:
 | `src/domain/orset/trie/` | `TrieLeaf.ts`, `TrieBranch.ts`, `TrieCursor.ts`, `TrieGeometry.ts`, `PageCache.ts`, `TrieFlusher.ts` | `PROTO_trie-codec-and-geometry`, `PROTO_trie-cursor`, `PERF_lru-page-cache`, `PROTO_trie-flush` | pending |
 | `src/domain/orset/session/` | `StateSession.ts`, `SessionHandle.ts` | `PROTO_state-session-async` | pending |
 | `src/domain/orset/shadow/` | `ShadowTrieORSet.ts` | `PROTO_shadow-trie-orset` | pending |
-| `src/domain/orset/ORSetLike.ts` | The synchronous in-memory seam interface | `PROTO_orsetlike-contract` | pending |
+| (no ORSetLike) | Sync-only seam contract; premise was invalid — `ShadowTrieORSet` is async behind `StateSession`, so a sync "-Like" parent has a single impl forever. See cycle 0023 retro. | `PROTO_orsetlike-contract` | ✗ cycle 0023 (not-met) |
 
 The `crdt/` subdir lives at `src/domain/crdt/` (not under `orset/`)
 for historical reasons — moving it would force 208 import rewrites,
