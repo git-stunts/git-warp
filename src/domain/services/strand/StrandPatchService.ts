@@ -8,6 +8,7 @@ import {
 import type Patch from '../../types/Patch.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { WarpState } from '../JoinReducer.ts';
+import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import type { StrandDescriptor, StrandIntentQueue, StrandQueuedIntent } from './strandTypes.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
@@ -16,6 +17,27 @@ import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
 
 export type CommittedPatchResult = { patch: Patch; sha: string };
 export type PatchCommitSuccessHandler = (result: CommittedPatchResult) => Promise<void>;
+
+/**
+ * Typed structural view onto PatchBuilder's internal-by-convention
+ * `_contentBlobs` field. Used once in this module to assemble the
+ * content-blob OID list for a queued intent without widening the
+ * access surface to Record<string, unknown>.
+ */
+type PatchBuilderContentBlobView = { readonly _contentBlobs?: readonly string[] };
+
+function readBuilderContentBlobs(builder: PatchBuilder): readonly string[] {
+  const view = builder as unknown as PatchBuilderContentBlobView;
+  return Array.isArray(view._contentBlobs) ? view._contentBlobs : [];
+}
+
+/**
+ * The exact shape consumed by `new PatchBuilder(...)`. Keeping a
+ * named alias here avoids depending on `ConstructorParameters<>`
+ * which hides the field set.
+ */
+type PatchBuilderCtorOptions = ConstructorParameters<typeof PatchBuilder>[0];
+type MutablePatchBuilderCtorOptions = { -readonly [K in keyof PatchBuilderCtorOptions]: PatchBuilderCtorOptions[K] };
 
 type PatchBuilderOptionsParams = {
   descriptor: StrandDescriptor;
@@ -41,7 +63,7 @@ type WarpRuntime = {
   _patchBlobStorage: BlobStoragePort | null | undefined;
   _blobStorage: BlobStoragePort | null | undefined;
   _logger: LoggerPort | null | undefined;
-  _codec: { encode(v: unknown): Uint8Array };
+  _codec: { encode(v: HashablePayload): Uint8Array };
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
 };
 
@@ -58,7 +80,6 @@ type ServiceOptions = {
   }>;
   writeDescriptor: (descriptor: StrandDescriptor) => Promise<void>;
   buildOverlayRef: (strandId: string) => string;
-  normalizeIntentQueue: (value: unknown) => StrandIntentQueue;
   buildIntentId: (strandId: string, sequence: number) => string;
 };
 
@@ -68,7 +89,6 @@ export default class StrandPatchService {
   private readonly _materializeDescriptor: ServiceOptions['materializeDescriptor'];
   private readonly _writeDescriptor: (descriptor: StrandDescriptor) => Promise<void>;
   private readonly _buildOverlayRef: (strandId: string) => string;
-  private readonly _normalizeIntentQueue: (value: unknown) => StrandIntentQueue;
   private readonly _buildIntentId: (strandId: string, sequence: number) => string;
 
   /**
@@ -80,7 +100,6 @@ export default class StrandPatchService {
     materializeDescriptor,
     writeDescriptor,
     buildOverlayRef,
-    normalizeIntentQueue,
     buildIntentId,
   }: ServiceOptions) {
     this._graph = graph;
@@ -88,7 +107,6 @@ export default class StrandPatchService {
     this._materializeDescriptor = materializeDescriptor;
     this._writeDescriptor = writeDescriptor;
     this._buildOverlayRef = buildOverlayRef;
-    this._normalizeIntentQueue = normalizeIntentQueue;
     this._buildIntentId = buildIntentId;
   }
 
@@ -128,7 +146,8 @@ export default class StrandPatchService {
     build: (p: PatchBuilder) => void | Promise<void>,
   ): Promise<StrandQueuedIntent> {
     this._assertWritableDescriptor(descriptor);
-    const intentQueue = this._normalizeIntentQueue(descriptor.intentQueue);
+    // descriptor.intentQueue is already typed by the hydration path.
+    const intentQueue = descriptor.intentQueue;
     const { state, allPatches } = await this._materializeDescriptor(descriptor, {
       collectReceipts: false,
       ceiling: null,
@@ -222,8 +241,8 @@ export default class StrandPatchService {
     expectedParentSha,
     targetRefPath,
     onCommitSuccess,
-  }: PatchBuilderOptionsParams): ConstructorParameters<typeof PatchBuilder>[0] {
-    const pbOpts: Record<string, unknown> = {
+  }: PatchBuilderOptionsParams): PatchBuilderCtorOptions {
+    const pbOpts: MutablePatchBuilderCtorOptions = {
       persistence: this._graph._persistence,
       graphName: this._graph._graphName,
       writerId: descriptor.overlay.overlayId,
@@ -234,13 +253,13 @@ export default class StrandPatchService {
       onDeleteWithData: this._graph._onDeleteWithData,
     };
     if (targetRefPath !== undefined) {
-      pbOpts['targetRefPath'] = targetRefPath;
+      pbOpts.targetRefPath = targetRefPath;
     }
     if (onCommitSuccess !== undefined) {
-      pbOpts['onCommitSuccess'] = onCommitSuccess;
+      pbOpts.onCommitSuccess = onCommitSuccess;
     }
     this._attachOptionalPatchBuilderDeps(pbOpts);
-    return pbOpts as ConstructorParameters<typeof PatchBuilder>[0];
+    return pbOpts;
   }
 
   private _assertWritableDescriptor(descriptor: StrandDescriptor): void {
@@ -286,7 +305,11 @@ export default class StrandPatchService {
       patch,
       reads: normalizeStringArray(patch.reads, 'reads[]'),
       writes: normalizeStringArray(patch.writes, 'writes[]'),
-      contentBlobOids: normalizeStringArray((builder as unknown as { _contentBlobs: unknown })._contentBlobs, 'contentBlobOids[]'),
+      // Test-seam: PatchBuilder exposes `_contentBlobs` as an internal-
+      // by-convention field. Access it through a typed structural view
+      // rather than a wider Record<string, unknown> cast. The 0025A
+      // manifest still tracks the explicit 'as unknown as' here.
+      contentBlobOids: normalizeStringArray(readBuilderContentBlobs(builder), 'contentBlobOids[]'),
     });
   }
 
@@ -343,7 +366,7 @@ export default class StrandPatchService {
     });
   }
 
-  private _attachOptionalPatchBuilderDeps(pbOpts: Record<string, unknown>): void {
+  private _attachOptionalPatchBuilderDeps(pbOpts: MutablePatchBuilderCtorOptions): void {
     this._attachOptionalPatchJournal(pbOpts);
     this._attachOptionalLogger(pbOpts);
     this._attachOptionalBlobStorage(pbOpts);
@@ -353,7 +376,7 @@ export default class StrandPatchService {
     descriptor: StrandDescriptor,
     state: WarpState,
     allPatches: Array<{ patch: Patch; sha: string }>,
-  ): ConstructorParameters<typeof PatchBuilder>[0] {
+  ): PatchBuilderCtorOptions {
     const overlayRef = this._buildOverlayRef(descriptor.strandId);
     // Use the strand-materialized state (not the live _cachedState) so that
     // PatchBuilder can see strand-local nodes/edges when validating operations.
@@ -371,21 +394,21 @@ export default class StrandPatchService {
     });
   }
 
-  private _attachOptionalPatchJournal(pbOpts: Record<string, unknown>): void {
+  private _attachOptionalPatchJournal(pbOpts: MutablePatchBuilderCtorOptions): void {
     if (this._graph._patchJournal !== null && this._graph._patchJournal !== undefined) {
-      pbOpts['patchJournal'] = this._graph._patchJournal;
+      pbOpts.patchJournal = this._graph._patchJournal;
     }
   }
 
-  private _attachOptionalLogger(pbOpts: Record<string, unknown>): void {
+  private _attachOptionalLogger(pbOpts: MutablePatchBuilderCtorOptions): void {
     if (this._graph._logger !== null && this._graph._logger !== undefined) {
-      pbOpts['logger'] = this._graph._logger;
+      pbOpts.logger = this._graph._logger;
     }
   }
 
-  private _attachOptionalBlobStorage(pbOpts: Record<string, unknown>): void {
+  private _attachOptionalBlobStorage(pbOpts: MutablePatchBuilderCtorOptions): void {
     if (this._graph._blobStorage !== null && this._graph._blobStorage !== undefined) {
-      pbOpts['blobStorage'] = this._graph._blobStorage;
+      pbOpts.blobStorage = this._graph._blobStorage;
     }
   }
 }

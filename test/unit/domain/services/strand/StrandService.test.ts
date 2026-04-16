@@ -251,6 +251,11 @@ function buildValidDescriptor(overrides = {}) {
       writable: true,
     },
     braid: { readOverlays: [] },
+    // Cycle 0025B3: intentQueue + evolution are always typed post-
+    // hydration. The fixture mirrors that shape so direct buildQueuedIntent
+    // calls in tests see defaults rather than undefined fields.
+    intentQueue: { nextIntentSeq: 1, intents: [] },
+    evolution: { tickCount: 0, lastTick: null },
     materialization: { cacheAuthority: DERIVED_CACHE_AUTHORITY },
     ...overrides,
   }) as unknown as StrandDescriptorType);
