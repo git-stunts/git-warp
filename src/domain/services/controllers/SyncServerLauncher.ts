@@ -77,16 +77,27 @@ export async function launchSyncServer(
       }
     : undefined;
 
+  assertSyncHostProcessesRequests(host);
   const httpServer = new HttpSyncServer({
     httpPort,
-    graph: host as unknown as {
-      processSyncRequest: (req: SyncRequest) => Promise<SyncResponse>;
-    },
+    graph: host,
     path,
     host: hostname,
     maxRequestBytes,
     ...(authConfig !== undefined ? { auth: authConfig } : {}),
-  } as ConstructorParameters<typeof HttpSyncServer>[0]);
+  });
 
   return await httpServer.listen(port);
+}
+
+/**
+ * The runtime surface passed to HttpSyncServer expects a peer with a
+ * processSyncRequest method. SyncHost acquires that method through
+ * prototype wiring at WarpRuntime construction; this assertion
+ * declares the compatibility without a value-level cast.
+ */
+function assertSyncHostProcessesRequests(
+  host: SyncHost,
+): asserts host is SyncHost & { processSyncRequest: (req: SyncRequest) => Promise<SyncResponse> } {
+  void host;
 }

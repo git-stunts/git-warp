@@ -35,7 +35,6 @@ import type {
   ApplySyncResult,
   SyncWithResult,
   SyncWithOptions,
-  SyncStatusEvent,
 } from './SyncControllerTypes.ts';
 
 export type { SyncHost, SkippedWriter, ApplySyncResult, SyncWithResult, SyncWithOptions } from './SyncControllerTypes.ts';
@@ -44,6 +43,20 @@ const DEFAULT_SYNC_WITH_RETRIES = 3;
 const DEFAULT_SYNC_WITH_BASE_DELAY_MS = 250;
 const DEFAULT_SYNC_WITH_MAX_DELAY_MS = 2000;
 const DEFAULT_SYNC_WITH_TIMEOUT_MS = 10_000;
+
+/**
+ * Optional payload carried alongside `type` and `attempt` in the
+ * onStatus callback — the superset of fields every event kind might
+ * contribute. Narrower than `SyncStatusEvent` because `type` and
+ * `attempt` are injected at the emit site.
+ */
+type SyncStatusPayload = {
+  durationMs?: number;
+  status?: number;
+  error?: Error;
+  delayMs?: number;
+  applied?: number;
+};
 
 export default class SyncController {
   readonly _host: SyncHost;
@@ -201,13 +214,13 @@ export default class SyncController {
       ...(trust !== undefined ? { trust } : {}),
     });
 
-    const emit = (type: string, payload: Record<string, unknown> = {}): void => {
+    const emit = (type: string, payload: SyncStatusPayload = {}): void => {
       if (typeof onStatus === 'function') {
-        onStatus({ type, attempt, ...payload } as SyncStatusEvent);
+        onStatus({ type, attempt, ...payload });
       }
     };
 
-    const shouldRetry = (err: unknown): boolean => {
+    const shouldRetry = (err: Error): boolean => {
       if (isDirectPeer) { return false; }
       if (err instanceof SyncError) {
         return ['E_SYNC_REMOTE', 'E_SYNC_TIMEOUT', 'E_SYNC_NETWORK'].includes(err.code);
@@ -287,9 +300,14 @@ export default class SyncController {
     request: SyncRequest, targetUrl: URL, timeoutMs: number,
     signal: AbortSignal | undefined,
     auth: { secret: string; keyId?: string } | undefined,
-    emit: (type: string, payload?: Record<string, unknown>) => void,
+    emit: (type: string, payload?: SyncStatusPayload) => void,
   ): Promise<SyncResponse> {
     emit('requestSent');
+    // TODO(0025B4): JSON.stringify + fetch belong in an adapter. This
+    // method should be behind a SyncHttpClientPort. Blocked on the
+    // adapter wiring (port instantiation, WarpRuntime.open plumbing).
+    // For now this file remains in policy/quarantines/0025B-boundary.json
+    // on the fetch + JSON.stringify rules.
     const bodyStr = JSON.stringify(request);
     const authHeaders = await buildSyncAuthHeaders({
       auth, bodyStr, targetUrl, crypto: this._host._crypto,

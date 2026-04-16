@@ -46,6 +46,19 @@ export function normalizeSyncPath(path: string | undefined | null): string {
 }
 
 /**
+ * Checks whether a sync-remote handle is a direct in-process peer —
+ * an object carrying a callable processSyncRequest method.
+ */
+function isDirectPeerObject(
+  remote: string | object,
+): remote is { processSyncRequest: CallableFunction } {
+  if (remote === null || remote === undefined || typeof remote !== 'object') { return false; }
+  if (!('processSyncRequest' in remote)) { return false; }
+  const maybeFn = (remote as { processSyncRequest: CallableFunction | string | null }).processSyncRequest;
+  return typeof maybeFn === 'function';
+}
+
+/**
  * Resolves a sync remote into either a direct peer or an HTTP URL target.
  *
  * @param remote - URL string, URL object, or a peer graph instance
@@ -58,13 +71,7 @@ export function resolveSyncTarget(
   path: string,
   hasPathOverride: boolean,
 ): { isDirectPeer: boolean; targetUrl: URL | null } {
-  const isDirectPeer =
-    remote !== null &&
-    remote !== undefined &&
-    typeof remote === 'object' &&
-    typeof (remote as { processSyncRequest?: unknown }).processSyncRequest === 'function';
-
-  if (isDirectPeer) {
+  if (isDirectPeerObject(remote)) {
     return { isDirectPeer: true, targetUrl: null };
   }
 
