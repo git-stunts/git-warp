@@ -1,7 +1,6 @@
 ---
 id: PROTO_checkpoint-envelope-publication
 blocked_by:
-  - DX_design-0018-flesh-out
   - INFRA_git-trie-store-adapter
   - PROTO_trie-flush
 blocks:

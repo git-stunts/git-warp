@@ -1,7 +1,6 @@
 ---
 id: PROTO_git-trie-store-port
-blocked_by:
-  - DX_design-0018-flesh-out
+blocked_by: []
 blocks:
   - INFRA_git-trie-store-adapter
   - PROTO_state-session-async

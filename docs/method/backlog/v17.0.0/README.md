@@ -60,8 +60,8 @@ and `warp-adapters` extract later once the ORSet line proves its seams.
 
 ```
 ST-0 (planning + workspace shells):
-  [ ] DX_design-0018-flesh-out
-  [ ] DX_v17-lane-readme-update
+  [x] DX_design-0018-flesh-out          ← design doc fleshed out, retro closed
+  [x] DX_v17-lane-readme-update         ← this README updated
   [ ] INFRA_npm-workspaces-scaffold
   [ ] INFRA_extract-warp-orset-package
 
