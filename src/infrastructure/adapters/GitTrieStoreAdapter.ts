@@ -65,10 +65,12 @@ const TREE_TYPE = 'tree';
 
 const MISSING_OBJECT_HINTS: readonly string[] = [
   'bad object',
+  'bad file',
   'not a valid object name',
   'does not point to a valid object',
   'missing object',
   'could not read',
+  'not a tree object',
 ];
 
 // -- Dependencies ------------------------------------------------------------
@@ -147,6 +149,15 @@ export default class GitTrieStoreAdapter implements TrieStorePort {
     try {
       await this.plumbing.execute({ args: ['cat-file', '-e', oid] });
     } catch (raw) {
+      // `cat-file -e` exits 1 with no stderr for a missing object —
+      // that silent exit carries no diagnostic text the pattern
+      // classifier can match, so short-circuit here.
+      if (isSilentMissing(raw)) {
+        throw new TrieStoreError(`Git object ${oid} does not exist`, {
+          code: E_TRIE_STORE_MISSING,
+          context: { oid },
+        });
+      }
       throw classifyReadFailure(raw, { oid });
     }
   }
@@ -317,7 +328,18 @@ function isMissingObject(err: GitError): boolean {
     return false;
   }
   const diag = gitDiagnosticText(err);
-  const msg = (err.message ?? '').toLowerCase();
+  const msg = err.message.toLowerCase();
   const haystack = `${diag} ${msg}`;
   return MISSING_OBJECT_HINTS.some((hint) => haystack.includes(hint));
+}
+
+function isSilentMissing(raw: unknown): boolean {
+  const err = toGitError(raw);
+  if (err instanceof TrieStoreError) {
+    return false;
+  }
+  if (getExitCode(err) !== 1) {
+    return false;
+  }
+  return gitDiagnosticText(err) === '';
 }

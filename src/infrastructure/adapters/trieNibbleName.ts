@@ -35,9 +35,11 @@ const LOWERCASE_HEX_NAME = /^[0-9a-f]+$/;
 export function parseNibbleName(name: string): number {
   assertNonEmpty(name);
   assertLowercaseHex(name);
-  const parsed = Number.parseInt(name, 16);
-  assertNibbleValue(name, parsed);
-  return parsed;
+  // After the two guards above, `name` is a non-empty lowercase hex
+  // string. `Number.parseInt` over a hex digit-only string always
+  // yields a non-negative integer, so no further range check is
+  // needed — the regex already established the post-condition.
+  return Number.parseInt(name, 16);
 }
 
 function assertNonEmpty(name: string): void {
@@ -57,15 +59,5 @@ function assertLowercaseHex(name: string): void {
   throw new TrieStoreError(
     `tree entry name "${name}" is not a lowercase hex nibble`,
     { code: E_TRIE_STORE_CORRUPT, context: { name } },
-  );
-}
-
-function assertNibbleValue(name: string, parsed: number): void {
-  if (Number.isInteger(parsed) && parsed >= 0) {
-    return;
-  }
-  throw new TrieStoreError(
-    `tree entry name "${name}" parses to a non-nibble value`,
-    { code: E_TRIE_STORE_CORRUPT, context: { name, parsed } },
   );
 }
