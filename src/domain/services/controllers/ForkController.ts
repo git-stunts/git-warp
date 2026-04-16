@@ -14,6 +14,7 @@ import { generateWriterId } from '../../utils/WriterId.ts';
 import { createWormhole as createWormholeImpl } from '../WormholeService.js';
 import type WarpRuntime from '../../WarpRuntime.ts';
 import type ProvenancePayload from '../provenance/ProvenancePayload.ts';
+import type { LoadedCheckpoint } from '../state/checkpointLoad.ts';
 
 const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
 const HEX_CHARS = '0123456789abcdef';
@@ -30,13 +31,6 @@ function randomSuffix(): string {
 }
 
 type ForkHost = WarpRuntime;
-
-interface CheckpointLike {
-  state: unknown;
-  frontier: Map<string, string>;
-  stateHash: string;
-  schema: number;
-}
 
 export default class ForkController {
   _host: ForkHost;
@@ -199,7 +193,7 @@ export default class ForkController {
     return 'diverged';
   }
 
-  async _validatePatchAgainstCheckpoint(writerId: string, incomingSha: string, checkpoint: CheckpointLike): Promise<void> {
+  async _validatePatchAgainstCheckpoint(writerId: string, incomingSha: string, checkpoint: LoadedCheckpoint | null | undefined): Promise<void> {
     if (checkpoint === null || checkpoint === undefined || (checkpoint.schema !== CHECKPOINT_SCHEMA_STANDARD && checkpoint.schema !== CHECKPOINT_SCHEMA_V5_INTERMEDIATE)) {
       return;
     }
