@@ -71,9 +71,10 @@ function freezeBraid(braid: BraidInput | undefined): BraidSummary | undefined {
   if (!Array.isArray(braid.braidedStrandIds)) {
     throw new WarpError(`${CTX}: braid.braidedStrandIds must be an array`, 'E_VALIDATION');
   }
+  const ids: readonly string[] = braid.braidedStrandIds;
   return Object.freeze({
     readOverlayCount: braid.readOverlayCount,
-    braidedStrandIds: Object.freeze([...braid.braidedStrandIds].sort(compareStrings)),
+    braidedStrandIds: Object.freeze(ids.slice().sort(compareStrings)),
   });
 }
 

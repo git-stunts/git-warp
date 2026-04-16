@@ -12,6 +12,7 @@ import ConflictAnchor from '../../types/conflict/ConflictAnchor.ts';
 import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
 import ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.ts';
 import StrandCoordinateMetadata from '../../types/conflict/StrandCoordinateMetadata.ts';
+import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import { compareStrings } from '../../types/conflict/validation.ts';
 import { reduceV5 } from '../JoinReducer.ts';
 import createStrandCoordinator from './createStrandCoordinator.ts';
@@ -283,12 +284,22 @@ function buildResolvedCoordinate({
 // ── Context resolution ──────────────────────────────────────────────
 
 export type AnalyzerService = {
-  _graph: {
-    getFrontier(): Promise<Map<string, string>>;
-    _loadWriterPatches(writerId: string): Promise<Array<{ patch: Patch; sha: string }>>;
-    [key: string]: unknown;
-  };
-  _hash(payload: unknown): Promise<string>;
+  _graph: AnalyzerGraphRuntime;
+  _hash(payload: HashablePayload): Promise<string>;
+};
+
+/**
+ * Structural description of the graph-runtime surface the analyzer
+ * reaches into. Keep this narrow; the analyzer only needs frontier
+ * access and writer-patch enumeration.
+ *
+ * NOTE(0025A): the call-site passes a `GraphRuntime` through a cast
+ * because the wider warp runtime carries many internal fields. The
+ * cast is tracked in `policy/quarantines/0025A-casts.json`.
+ */
+type AnalyzerGraphRuntime = {
+  getFrontier(): Promise<Map<string, string>>;
+  _loadWriterPatches(writerId: string): Promise<Array<{ patch: Patch; sha: string }>>;
 };
 
 type AnalysisContext = {

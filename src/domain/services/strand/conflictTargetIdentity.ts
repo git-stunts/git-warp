@@ -10,6 +10,7 @@
 import { OP_STRATEGIES } from '../JoinReducer.ts';
 import { decodeEdgeKey } from '../KeyCodec.ts';
 import ConflictTarget from '../../types/conflict/ConflictTarget.ts';
+import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import { compareStrings } from '../../types/conflict/validation.ts';
 
 // ── Shared helpers ──────────────────────────────────────────────────
@@ -256,7 +257,7 @@ export function buildTargetIdentity(
 // ── Record building ─────────────────────────────────────────────────
 
 interface HashingService {
-  _hash(payload: unknown): Promise<string>;
+  _hash(payload: HashablePayload): Promise<string>;
 }
 
 /**

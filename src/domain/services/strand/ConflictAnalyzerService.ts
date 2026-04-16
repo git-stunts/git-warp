@@ -9,6 +9,7 @@
 
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
 import ConflictAnalysis from '../../types/conflict/ConflictAnalysis.ts';
+import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import ConflictAnalysisRequest, { type ConflictAnalyzeOptions } from './ConflictAnalysisRequest.ts';
 import {
   resolveAnalysisContext,
@@ -47,9 +48,10 @@ export class ConflictAnalyzerService {
   }
 
   /**
-   * Computes a cached SHA-256 digest of the canonical serialization of a payload.
+   * Computes a cached SHA-256 digest of the canonical serialization
+   * of a hashable payload.
    */
-  async _hash(payload: unknown): Promise<string> {
+  async _hash(payload: HashablePayload): Promise<string> {
     const canonical = canonicalStringify(payload);
     if (this._digestCache.has(canonical)) {
       return this._digestCache.get(canonical)!;

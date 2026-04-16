@@ -14,6 +14,7 @@ import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
 import ConflictResolution from '../../types/conflict/ConflictResolution.ts';
 import { type TickReceipt, type OpOutcome } from '../../types/TickReceipt.ts';
 import type Patch from '../../types/Patch.ts';
+import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import ConflictCandidate from './ConflictCandidate.ts';
 import OpRecord from './OpRecord.ts';
 import {
@@ -85,7 +86,7 @@ export interface CollectorState {
 }
 
 interface HashingService {
-  _hash(payload: unknown): Promise<string>;
+  _hash(payload: HashablePayload): Promise<string>;
 }
 
 // ── Diagnostics ──────────────────────────────────────────────────────
