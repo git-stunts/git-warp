@@ -36,12 +36,14 @@ automatically).
 | 0025A | Cast purge | `PROTO_purge-cast-hacks` | 33 | `as unknown as`, `as any` |
 | 0025B | Boundary purge | `PROTO_purge-boundary-leaks` | 167 | `Record<string, unknown>`, `unknown` outside adapters, raw I/O in core |
 | 0025C | Fake-model purge (Op-model introduction) | `PROTO_purge-fake-models` | 12 | `*Like` placeholder types, starting with the `Op` pipeline cluster |
-| 0025D | Import law (guardrail) | `PROTO_purge-import-law` | **0** | core→infrastructure and core→framework imports |
+| 0025D | Import law | `PROTO_purge-import-law` | 3 | core→infrastructure and core→framework imports |
 
-**0025D starts at zero contamination** — the hexagonal wall is
-already maintained by convention. 0025D therefore closes
-immediately on P7 rule activation with outcome
-`guardrail-established`.
+**0025D ended up at 3 files** (not zero as initially reported).
+The P6.5 scanner's `node:` protocol regex had a bug (required a
+trailing `/` or quote directly after the colon) which hid
+`'node:stream'` and `'node:crypto'` forms. Fixed at P7 landing;
+manifest regenerated. Two ports leak `node:stream` as a type
+surface; one domain utility reaches platform crypto directly.
 
 **0025B is the mountain at 167 files** and is run as five
 sub-campaigns by cluster rather than file-by-file. See the

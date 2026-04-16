@@ -7,7 +7,11 @@
     "no-restricted-imports:core-node-platform"
   ],
   "rationale": "Pre-existing domain/ports imports of forbidden paths: src/infrastructure/** (adapters — should be behind a port), Node platform APIs (node:*, fs, http, etc. — should be mediated by a port), or framework libraries. Graduate by routing the capability through a port instead of a direct import.",
-  "generated_at": "2026-04-16T09:19:25.653Z",
+  "generated_at": "2026-04-16T10:36:32.404Z",
   "generator": "scripts/contamination-map.ts v1",
-  "files": []
+  "files": [
+    "src/domain/utils/defaultCrypto.ts",
+    "src/ports/CommitPort.ts",
+    "src/ports/GraphPersistencePort.ts"
+  ]
 }

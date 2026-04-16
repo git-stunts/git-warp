@@ -6,23 +6,56 @@ blocked_by:
   - PROTO_purge-fake-models
 ---
 
-# 0025D — Import law (guardrail establishment)
+# 0025D — Import law
 
 ## Context from P6.5 contamination map
 
-**Zero files** matched the 0025D detection rules:
+**Three files** matched the 0025D detection rules after the P7
+scanner-regex fix:
 
-- `ts-no-imports-from-infrastructure-in-core`: 0 hits
-- `ts-no-imports-node-platform-in-core`: 0 hits
+- `src/ports/CommitPort.ts` — imports `type { Readable } from
+  'node:stream'`
+- `src/ports/GraphPersistencePort.ts` — imports
+  `type { Readable } from 'node:stream'`
+- `src/domain/utils/defaultCrypto.ts` — imports `node:crypto` or
+  `crypto` directly
 
-The hexagonal import wall between `src/domain/` / `src/ports/` and
-everything else is **already maintained by convention** in current
-code. This cycle is therefore a **guardrail-establishment** pass,
-not a remediation effort.
+The hexagonal import wall is **mostly** maintained by convention.
+Two ports leak `node:stream` as a type surface; one domain utility
+reaches directly for platform crypto.
 
-That's exactly the right moment to codify the rule: lock the
-invariant in before it ever gets violated, so it stays green
-forever.
+## Scanner-regex note
+
+Until the P7 scanner fix, these three files were false-negatives —
+the contamination scanner's `node:` protocol regex required a
+trailing `/` or quote immediately after the colon, missing the
+form `'node:stream'`. The fix extended the regex to match
+`node:<name>` and `node:<name>/<sub>` forms. The ESLint
+`no-restricted-imports` rule (which matches exact module names)
+caught the violations correctly; the scanner caught up.
+
+## Fix
+
+### CommitPort / GraphPersistencePort
+
+Define a domain stream abstraction at `src/domain/stream/` (or
+reuse `WarpStream`) that matches the `Readable` contract the ports
+need. Replace `type { Readable }` with that domain type. The
+adapter layer converts between `node:stream.Readable` and the
+domain type at the boundary.
+
+### defaultCrypto.ts
+
+Either:
+
+- Move the file into `src/infrastructure/adapters/` since its
+  entire purpose is boundary I/O against platform crypto.
+- Or expose a `CryptoPort` interface in `src/ports/` and an adapter
+  implementation in `src/infrastructure/adapters/`. Domain code
+  receives the port, not the module.
+
+The second option aligns with the existing port-driven
+architecture and is preferred.
 
 ## Fix
 
@@ -73,23 +106,14 @@ list):**
 ## Exit criteria
 
 - ESLint rule active on `src/domain/**` and `src/ports/**`.
-- `npm run lint` green (expected — zero pre-existing violations).
+- `npm run lint` green (new violations rejected).
 - `policy/quarantines/0025D-import-law.json` has `files: []`
-  (already true, confirmed by P6.5 contamination map).
+  (three files graduated).
 
 ## Retro expectations
 
-Cycle 0025D closes **immediately** on P7 rule activation:
-
-- Outcome: `guardrail-established` (new status, since no
-  remediation work was needed).
-- Duration: one commit. No sub-campaigns.
-- Purpose served: the rule is now mechanical policy, not
-  convention. Future violations fail CI.
-
-## Why codify now
-
-The pattern where "it's always been clean" becomes "it was clean
-until someone accidentally broke it" is how architectural
-invariants erode. A rule that passes on day one with zero work
-is the easiest rule to install and the most valuable one to keep.
+- Document the domain stream type introduced or reused.
+- Document the `CryptoPort` added (or decision to relocate
+  `defaultCrypto.ts` into adapters).
+- Note whether the scanner regex fix surfaced other false
+  negatives during the purge.

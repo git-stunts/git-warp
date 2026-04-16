@@ -139,8 +139,18 @@ const FAMILIES: readonly FamilyDefinition[] = [
     detections: [
       // from src/domain/ or src/ports/ importing from infrastructure
       { id: 'core-imports-infrastructure', pattern: /from\s+['"]\S*\/infrastructure\//, scope: 'core-only' },
-      // Node platform modules by name or node: protocol
-      { id: 'core-imports-node-platform', pattern: /from\s+['"](?:node:|fs|path|http|https|net|tls|stream|child_process|crypto|os|buffer)(?:\/|['"])/, scope: 'core-only' },
+      // Node `node:` protocol imports (e.g. `node:stream`, `node:fs/promises`)
+      {
+        id: 'core-imports-node-protocol',
+        pattern: /from\s+['"]node:[\w-]+(?:\/[\w-]+)?['"]/,
+        scope: 'core-only',
+      },
+      // Bare Node platform module imports (e.g. `'fs'`, `'path/posix'`)
+      {
+        id: 'core-imports-node-bare',
+        pattern: /from\s+['"](?:fs|path|http|https|net|tls|stream|child_process|crypto|os|buffer)(?:\/[\w-]+)?['"]/,
+        scope: 'core-only',
+      },
     ],
   },
 ] as const;

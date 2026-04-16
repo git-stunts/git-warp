@@ -2,9 +2,39 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import jsdoc from "eslint-plugin-jsdoc";
 import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// ── Anti-SLUDGE policy note ─────────────────────────────────────────────────
+// Anti-sludge patterns (as unknown as, Record<string, unknown>, unknown in
+// core, *Like types, JSON.parse in core, etc.) are enforced by Semgrep with
+// rule-scoped quarantines read from policy/quarantines/0025*.json. See
+// scripts/lint-semgrep-with-quarantines.ts and docs/ANTI_SLUDGE_POLICY.md.
+// ESLint here enforces the policy rules that ARE expressible in ESLint
+// (import boundaries, existing determinism/raw-error selectors).
+
+/**
+ * Loads a quarantine manifest's file list. Returns [] if the manifest is
+ * missing (bootstrap/first-run tolerance). Errors other than ENOENT throw so
+ * a corrupted manifest can't silently disable enforcement.
+ */
+function loadQuarantineFiles(manifestId) {
+  const manifestPath = join(__dirname, "policy", "quarantines", `${manifestId}.json`);
+  try {
+    const raw = readFileSync(manifestPath, "utf8");
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed.files)
+      ? parsed.files.filter((entry) => typeof entry === "string")
+      : [];
+  } catch (err) {
+    if (err && err.code === "ENOENT") { return []; }
+    throw err;
+  }
+}
+
+const QUARANTINE_0025D_IMPORT_LAW = loadQuarantineFiles("0025D-import-law");
 
 // ── Base: recommended + strict-type-checked + JSDoc for src/ and bin/ ────────
 // Every rule is "error". Zero warnings. Zero tolerance. Maximum pain.
@@ -109,6 +139,18 @@ export default tseslint.config(
       "@typescript-eslint/no-unnecessary-boolean-literal-compare": "error",
       "@typescript-eslint/return-await": ["error", "always"],
 
+      // ── ANTI-SLUDGE: bundle-derived hygiene rules (deferred) ─────────────
+      // `@typescript-eslint/consistent-type-imports` and
+      // `@typescript-eslint/restrict-template-expressions` were part of the
+      // bundle import list per ANTI_SLUDGE_DECISIONS.md, but hot-enabling
+      // them surfaces ~50 pre-existing hygiene violations — many with
+      // cascading autofix interactions (type-import splitting triggers
+      // no-duplicate-imports). These belong in a separate hygiene cycle;
+      // they are NOT anti-sludge in the 0025A/B/C/D sense.
+      //
+      // Tracked in: docs/method/backlog/v17.0.0/HYGIENE_type-import-and-
+      // template-expression-purge.md (filed at P7 landing).
+
       // ── JSDoc BRUTALITY ─────────────────────────────────────────────────
       "jsdoc/require-jsdoc": ["error", {
         require: { FunctionDeclaration: true, MethodDefinition: true, ArrowFunctionExpression: true },
@@ -137,6 +179,11 @@ export default tseslint.config(
           "selector": "MethodDefinition[kind='constructor'] > FunctionExpression > AssignmentPattern[left.type='ObjectPattern'][right.type='ObjectExpression'][right.properties.length=0]",
           "message": "Avoid `constructor({ ... } = {})`. Accept an `options` parameter and destructure inside the constructor body so optionality stays explicit in JSDoc and type checking.",
         },
+        // NOTE: `as unknown as` (double-cast) is enforced by Semgrep
+        // (ts-no-double-cast in semgrep/typescript-anti-sludge.yml) so the
+        // quarantine-aware wrapper can apply rule-scoped exclusions from
+        // policy/quarantines/0025A-casts.json. Keeping it out of ESLint
+        // avoids duplicating the quarantine-reading logic in two places.
       ],
 
       // ── Complexity & structure (MAXIMUM PAIN) ───────────────────────────
@@ -457,6 +504,83 @@ export default tseslint.config(
     },
   },
 
+  // ── ANTI-SLUDGE 0025D: import-law guardrail for core ──────────────────────
+  // Hexagonal wall: src/domain/** and src/ports/** must not import from
+  // adapters, Node platform APIs, or framework libraries. The P6.5
+  // contamination map found ZERO pre-existing violations — this block
+  // installs the guardrail for the future. See docs/design/0025-anti-sludge-
+  // purge/anti-sludge-purge.md and policy/quarantines/0025D-import-law.json.
+  {
+    files: ["src/domain/**/*.ts", "src/ports/**/*.ts"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        // `paths` matches the import specifier exactly. Use this for
+        // bare module names to avoid gitignore-style segment matching
+        // (e.g. bare "stream" would otherwise match any path segment
+        // named "stream").
+        "paths": [
+          { "name": "fs",            "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "node:fs",       "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "node:fs/promises", "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "path",          "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "node:path",     "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "http",          "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "node:http",     "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "https",         "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "node:https",    "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "net",           "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "node:net",      "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "tls",           "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "node:tls",      "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "stream",        "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "node:stream",   "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "child_process", "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "node:child_process", "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "crypto",        "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "node:crypto",   "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "os",            "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          { "name": "node:os",       "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
+          // NOTE: `buffer` / `node:buffer` already banned in src/domain/** by
+          // the existing domain-purity block. Adding here extends it to ports.
+          { "name": "buffer",        "message": "Anti-sludge: Use Uint8Array + helpers from domain/utils/bytes.js. Buffer is confined to adapters." },
+          { "name": "node:buffer",   "message": "Anti-sludge: Use Uint8Array + helpers from domain/utils/bytes.js. Buffer is confined to adapters." },
+          // Framework libraries (defensive)
+          { "name": "express",       "message": "Anti-sludge (0025D): transport/framework concerns belong in adapters." },
+          { "name": "fastify",       "message": "Anti-sludge (0025D): transport/framework concerns belong in adapters." },
+          { "name": "@prisma/client", "message": "Anti-sludge (0025D): persistence concerns belong in adapters." },
+          { "name": "pg",            "message": "Anti-sludge (0025D): persistence concerns belong in adapters." },
+          { "name": "mysql2",        "message": "Anti-sludge (0025D): persistence concerns belong in adapters." },
+          { "name": "mongodb",       "message": "Anti-sludge (0025D): persistence concerns belong in adapters." },
+          { "name": "axios",         "message": "Anti-sludge (0025D): HTTP clients belong in adapters." },
+          { "name": "ky",            "message": "Anti-sludge (0025D): HTTP clients belong in adapters." },
+          { "name": "zod",           "message": "Anti-sludge (0025D): validation libraries belong in adapters." },
+          { "name": "valibot",       "message": "Anti-sludge (0025D): validation libraries belong in adapters." },
+          { "name": "io-ts",         "message": "Anti-sludge (0025D): validation libraries belong in adapters." },
+        ],
+        // `patterns` uses gitignore-style globs. Safe to use here because
+        // infrastructure path matching needs a glob semantic.
+        "patterns": [
+          {
+            "group": ["**/infrastructure/**"],
+            "message": "Anti-sludge (0025D): core code (src/domain/** and src/ports/**) must not import adapters. Dependencies point inward only. Route the capability through a port.",
+          },
+        ],
+      }],
+    },
+  },
+
+  // ── ANTI-SLUDGE 0025D quarantine: files with pre-existing core->platform ──
+  // imports. The list comes from policy/quarantines/0025D-import-law.json.
+  // Touching any of these triggers the quarantine-graduate-check CI gate.
+  ...(QUARANTINE_0025D_IMPORT_LAW.length === 0 ? [] : [{
+    files: QUARANTINE_0025D_IMPORT_LAW,
+    rules: {
+      // Disable only the import-law rule for these specific files.
+      // All other rules continue to apply (rule-scoped quarantine).
+      "no-restricted-imports": "off",
+    },
+  }]),
+
   // ── Domain purity: ban Buffer — use Uint8Array + helpers from domain/utils/bytes.js ──
   {
     files: ["src/domain/**/*.js", "src/domain/**/*.ts"],
@@ -509,6 +633,9 @@ export default tseslint.config(
           "selector": "MethodDefinition[kind='constructor'] > FunctionExpression > AssignmentPattern[left.type='ObjectPattern'][right.type='ObjectExpression'][right.properties.length=0]",
           "message": "Avoid `constructor({ ... } = {})`. Accept an `options` parameter and destructure inside the constructor body so optionality stays explicit in JSDoc and type checking.",
         },
+        // NOTE: `as unknown as` (cycle 0025A) is enforced by Semgrep so the
+        // quarantine-aware wrapper has a single source of truth. See
+        // semgrep/typescript-anti-sludge.yml#ts-no-double-cast.
         // ── Wall clock ──
         {
           "selector": "CallExpression[callee.object.name='Date'][callee.property.name='now']",
