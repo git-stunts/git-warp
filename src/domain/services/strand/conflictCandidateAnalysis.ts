@@ -24,6 +24,7 @@ import {
   normalizeNoteCodes,
   buildConflictTarget,
   buildEffectDigest,
+  type CanonicalOpBlob,
 } from './conflictTargetIdentity.ts';
 
 // ── Structural types ─────────────────────────────────────────────────
@@ -192,7 +193,7 @@ interface ResolvedOpIdentity {
 
 type BuildOpRecordParams = {
   frame: PatchFrame; opIndex: number; receiptOpIndex: number;
-  canonOp: Record<string, unknown>; receiptOutcome: OpOutcome;
+  canonOp: CanonicalOpBlob; receiptOutcome: OpOutcome;
   receiptOpType: string; diagnostics: ConflictDiagnostic[];
 };
 
@@ -271,8 +272,12 @@ export async function analyzeOneOp(
 ): Promise<AnalyzeOneOpResult | null> {
   const rawOp = frame.patch.ops[opIndex];
   if (rawOp === undefined) { return null; }
-  const canonOp = cloneObject(normalizeRawOp(rawOp) as Record<string, unknown>);
-  const receiptOpType = receiptNameForOp(canonOp['type'] as string);
+  // TODO(0025C): normalizeRawOp returns the canonical op shape; once
+  // the Op class hierarchy lands in 0025C, replace this conversion
+  // with a direct Op-class construction. The `as unknown as` is
+  // tracked under 0025A casts manifest.
+  const canonOp = cloneObject(normalizeRawOp(rawOp) as unknown as CanonicalOpBlob);
+  const receiptOpType = receiptNameForOp(canonOp.type ?? '');
   if (typeof receiptOpType !== 'string' || receiptOpType.length === 0) { return null; }
   const receiptOutcome = receipt.ops[receiptOpIndex];
   if (receiptOutcome === undefined || receiptOutcome === null) {
