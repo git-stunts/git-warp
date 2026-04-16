@@ -9,7 +9,7 @@ import { encode, decode } from '../../../src/infrastructure/codecs/CborCodec.ts'
 
 describe('CRDT spec compliance (Phase 5 / Invariant 7 / Test 24)', () => {
   const crypto = new NodeCryptoAdapter();
-  const codec = { encode, decode };
+  const codec = { encode, decode } as any;
 
   // ---------------------------------------------------------------------------
   // 1. computeStateHash is deterministic

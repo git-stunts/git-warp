@@ -206,10 +206,10 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
           encode(value): Uint8Array {
             return (value as any);
           },
-          decode() {
-            return null;
+          decode(_bytes: Uint8Array) {
+            return null as any;
           },
-        },
+        } as any,
         blobPort: createMemoryBlobPort(),
       })) as any);
 
@@ -224,10 +224,10 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
           encode(value): Uint8Array {
             return (value as any);
           },
-          decode() {
-            return { version: 'full-v4' };
+          decode(_bytes: Uint8Array) {
+            return { version: 'full-v4' } as any;
           },
-        },
+        } as any,
         blobPort: createMemoryBlobPort(),
       })) as any);
 
@@ -299,16 +299,16 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
           encode(value): Uint8Array {
             return (value as any);
           },
-          decode() {
+          decode(_bytes: Uint8Array) {
             return {
               nodeAlive: {},
               edgeAlive: {},
               prop: [],
               observedFrontier: {},
               edgeBirthLamport: [['user:a\x00user:b\x00knows', 7]],
-            };
+            } as any;
           },
-        },
+        } as any,
         blobPort: createMemoryBlobPort(),
       })) as any);
 

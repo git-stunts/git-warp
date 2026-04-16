@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import IndexStorePort from '../../../src/ports/IndexStorePort.ts';
 import type WarpStream from '../../../src/domain/stream/WarpStream.ts';
 import type { IndexShard } from '../../../src/domain/artifacts/IndexShard.ts';
+import type CodecValue from '../../../src/domain/types/codec/CodecValue.ts';
 
 describe('IndexStorePort', () => {
   it('abstract methods are not callable on base prototype', () => {
@@ -16,7 +17,9 @@ describe('IndexStorePort', () => {
       async writeShards(_shardStream: WarpStream<IndexShard>) { return 'tree-oid'; }
       scanShards(_treeOid: string) { return null as unknown as WarpStream<IndexShard>; }
       async readShardOids(_treeOid: string) { return { 'shard.cbor': 'blob-oid' }; }
-      async decodeShard(_blobOid: string) { return {}; }
+      async decodeShard<TDecoded extends CodecValue = CodecValue>(_blobOid: string): Promise<TDecoded> {
+        return {} as TDecoded;
+      }
     }
     const store = new TestStore();
     expect(store).toBeInstanceOf(IndexStorePort);
