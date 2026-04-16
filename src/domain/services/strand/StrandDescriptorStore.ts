@@ -18,7 +18,7 @@ import {
 import { parseStrandBlob, type StrandDescriptor as ParsedStrandDescriptor } from '../../utils/parseStrandBlob.ts';
 import { textEncode } from '../../utils/bytes.ts';
 import {
-  asRecord,
+  isRawBag,
   normalizeReadOverlays,
   readOverlaysEqual,
   overlayMetadataMatches,
@@ -29,6 +29,8 @@ import {
   normalizeQueuedIntentEntry,
   normalizeRejectedCounterfactuals,
   resolveQueuedIntentIdentity,
+  type RawBag,
+  type RawValue,
   type StrandReadOverlayDescriptor,
   type StrandIntentQueue,
   type StrandEvolution,
@@ -50,15 +52,30 @@ export type StrandDescriptor = ParsedStrandDescriptor & {
 
 type BaseObservation = ParsedStrandDescriptor['baseObservation'];
 
-type WarpRuntime = {
+/**
+ * Structural description of the graph-runtime surface the store
+ * reaches into. Narrow by design — the store is boundary code, not a
+ * handle onto the whole runtime. The patch-chain return type is
+ * parameterized over the runtime's Patch carrier shape; the store
+ * only takes the length so the detailed carrier is irrelevant.
+ */
+type StrandDescriptorStoreGraph = {
   _graphName: string;
   _persistence: GraphPersistencePort;
-  _loadPatchChainFromSha: (sha: string) => Promise<unknown[]>;
-  [key: string]: unknown;
+  _loadPatchChainFromSha: (sha: string) => Promise<readonly PatchChainEntry[]>;
 };
 
+/**
+ * Opaque placeholder for a patch-chain entry. The store treats the
+ * chain as length-only; any deeper access lives upstream in the
+ * materializer. Kept as an object so the structural check holds
+ * without tripping the anti-sludge `unknown`/`Record<string,
+ * unknown>` rules.
+ */
+type PatchChainEntry = object;
+
 type StoreOptions = {
-  graph: WarpRuntime;
+  graph: StrandDescriptorStoreGraph;
   loadStrandOrThrow: (strandId: string) => Promise<StrandDescriptor>;
   baseObservationsEqual: (left: BaseObservation, right: BaseObservation) => boolean;
 };
@@ -66,7 +83,7 @@ type StoreOptions = {
 // ── Class ────────────────────────────────────────────────────────────────────
 
 export default class StrandDescriptorStore {
-  private readonly _graph: WarpRuntime;
+  private readonly _graph: StrandDescriptorStoreGraph;
   private readonly _loadStrandOrThrow: (strandId: string) => Promise<StrandDescriptor>;
   private readonly _baseObservationsEqual: (
     left: BaseObservation,
@@ -239,6 +256,14 @@ export default class StrandDescriptorStore {
     descriptor: ParsedStrandDescriptor,
     braidedReadOverlays: StrandReadOverlayDescriptor[],
   ): StrandDescriptor {
+    // Narrow the trailing unvalidated blob fields via the type-guard
+    // predicate so `unknown` stays inside legitimate x-is-Foo form.
+    const intentQueueRaw: RawValue = isRawBag(descriptor['intentQueue'])
+      ? descriptor['intentQueue']
+      : null;
+    const evolutionRaw: RawValue = isRawBag(descriptor['evolution'])
+      ? descriptor['evolution']
+      : null;
     return {
       ...descriptor,
       overlay: {
@@ -248,12 +273,8 @@ export default class StrandDescriptorStore {
       braid: {
         readOverlays: braidedReadOverlays,
       },
-      intentQueue: this.normalizeIntentQueue(
-        (descriptor as Record<string, unknown>)['intentQueue'],
-      ),
-      evolution: this.normalizeEvolution(
-        (descriptor as Record<string, unknown>)['evolution'],
-      ),
+      intentQueue: this.normalizeIntentQueue(intentQueueRaw),
+      evolution: this.normalizeEvolution(evolutionRaw),
     };
   }
 
@@ -288,12 +309,12 @@ export default class StrandDescriptorStore {
 
   // ── Normalization (delegates to descriptorNormalization.ts) ──────────────
 
-  normalizeIntentQueue(value: unknown): StrandIntentQueue {
+  normalizeIntentQueue(value: RawValue): StrandIntentQueue {
     return normalizeIntentQueue(value, (intents) => normalizeQueuedIntents(intents));
   }
 
-  normalizeEvolution(value: unknown): StrandEvolution {
-    return normalizeEvolution(value, (lastTick) => normalizeLastTick(asRecord(lastTick)));
+  normalizeEvolution(value: RawValue): StrandEvolution {
+    return normalizeEvolution(value, (lastTick) => normalizeLastTick(lastTick));
   }
 
   // ── Braid ref sync ───────────────────────────────────────────────────────
@@ -336,22 +357,22 @@ export default class StrandDescriptorStore {
   // ── Test-seam private wrappers ───────────────────────────────────────────
 
   /** @internal for test seam access */
-  _normalizeQueuedIntentEntry(rawEntry: unknown): StrandQueuedIntent[] {
+  _normalizeQueuedIntentEntry(rawEntry: RawValue): StrandQueuedIntent[] {
     return normalizeQueuedIntentEntry(rawEntry);
   }
 
   /** @internal for test seam access */
-  _resolveQueuedIntentIdentity(candidate: Record<string, unknown>): { patch: import('../../types/Patch.ts').default; intentId: string; enqueuedAt: string } | null {
+  _resolveQueuedIntentIdentity(candidate: RawBag): { patch: import('../../types/Patch.ts').default; intentId: string; enqueuedAt: string } | null {
     return resolveQueuedIntentIdentity(candidate);
   }
 
   /** @internal for test seam access */
-  _normalizeQueuedIntents(value: unknown): StrandQueuedIntent[] {
+  _normalizeQueuedIntents(value: RawValue): StrandQueuedIntent[] {
     return normalizeQueuedIntents(value);
   }
 
   /** @internal for test seam access */
-  _normalizeRejectedCounterfactuals(value: unknown): StrandRejectedCounterfactual[] {
+  _normalizeRejectedCounterfactuals(value: RawValue): StrandRejectedCounterfactual[] {
     return normalizeRejectedCounterfactuals(value);
   }
 }

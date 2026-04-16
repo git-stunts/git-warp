@@ -36,6 +36,16 @@ import type Patch from '../../types/Patch.ts';
 // Re-export constants that were on StrandService
 export { STRAND_SCHEMA_VERSION, STRAND_COORDINATE_VERSION, STRAND_OVERLAY_KIND };
 
+/**
+ * Structural description of the graph runtime as seen by the
+ * coordinator's test seam. Keep narrow: the coordinator only reads
+ * `getFrontier` off the wider runtime; everything else stays inside
+ * the sub-services.
+ */
+export type StrandCoordinatorGraph = {
+  getFrontier?: () => Promise<Map<string, string>>;
+};
+
 /** Dependencies for StrandCoordinator. */
 export type StrandCoordinatorDeps = {
   graphName: string;
@@ -47,10 +57,21 @@ export type StrandCoordinatorDeps = {
   patches: StrandPatchService;
   intents: StrandIntentService;
   /** The full graph runtime, stored for test-seam access and forward compatibility. */
-  graph?: Record<string, unknown>;
+  graph?: StrandCoordinatorGraph;
 };
 
 type StrandDescriptor = import('./strandTypes.ts').StrandDescriptor;
+
+/**
+ * The two shapes `materialize` can return. Either a frozen
+ * immutable WarpState alone, or a bundle carrying the state plus
+ * the replay receipts when the caller requested them.
+ */
+type ImmutableWarpState = ReturnType<typeof createImmutableWarpState>;
+type ImmutableValueTree = ReturnType<typeof createImmutableValue>;
+type MaterializedStrandResult =
+  | ImmutableWarpState
+  | Readonly<{ state: ImmutableWarpState; receipts: ImmutableValueTree }>;
 
 function buildStrandDescriptor({
   graphName,
@@ -114,7 +135,7 @@ export default class StrandCoordinator {
   }
 
   // ── Test seam accessors (private-by-convention) ─────────────────
-  get _graph(): Record<string, unknown> | undefined { return this._deps.graph; }
+  get _graph(): StrandCoordinatorGraph | undefined { return this._deps.graph; }
   get _descriptorStore(): StrandDescriptorStore { return this._deps.descriptors; }
   get _materializer(): StrandMaterializer { return this._deps.materializer; }
   get _patchService(): StrandPatchService { return this._deps.patches; }
@@ -128,7 +149,7 @@ export default class StrandCoordinator {
   _hydrateOverlayMetadata(descriptor: ParsedStrandDescriptor): Promise<StrandDescriptor> {
     return this._deps.descriptors.hydrateDescriptor(descriptor);
   }
-  _collectPatchEntries(descriptor: StrandDescriptor, options: { ceiling: number | null }): Promise<Array<{ patch: unknown; sha: string }>> {
+  _collectPatchEntries(descriptor: StrandDescriptor, options: { ceiling: number | null }): Promise<Array<{ patch: Patch; sha: string }>> {
     return this._deps.materializer.collectPatchEntries(descriptor, options);
   }
   _materializeDescriptor(descriptor: StrandDescriptor, options: { collectReceipts: boolean; ceiling: number | null }): ReturnType<StrandMaterializer['materializeDescriptor']> {
@@ -146,7 +167,7 @@ export default class StrandCoordinator {
 
     const frontier = await this._getFrontier();
     const frontierRecord = frontierToRecord(frontier);
-    const frontierDigest = await computeChecksum(frontierRecord as Record<string, unknown>, this._deps.crypto);
+    const frontierDigest = await computeChecksum(frontierRecord, this._deps.crypto);
     const now = String(this._deps.maxObservedLamport());
     const descriptor = buildStrandDescriptor({
       graphName: this._deps.graphName,
@@ -249,7 +270,7 @@ export default class StrandCoordinator {
 
   // ── Materialization (delegates) ─────────────────────────────────
 
-  async materialize(strandId: string, options: { receipts?: boolean; ceiling?: number | null } = {}): Promise<unknown> {
+  async materialize(strandId: string, options: { receipts?: boolean; ceiling?: number | null } = {}): Promise<MaterializedStrandResult> {
     const descriptor = await this.getOrThrow(strandId);
     const ceiling = normalizeLamportCeiling(options.ceiling);
     const { state, receipts } = await this._deps.materializer.materializeDescriptor(descriptor, {
@@ -264,11 +285,11 @@ export default class StrandCoordinator {
 
   // ── Patching (delegates) ────────────────────────────────────────
 
-  async createPatchBuilder(strandId: string): Promise<unknown> {
+  async createPatchBuilder(strandId: string): Promise<import('../PatchBuilder.ts').PatchBuilder> {
     return await this._deps.patches.createPatchBuilder(strandId);
   }
 
-  async patch(strandId: string, build: (p: unknown) => void | Promise<void>): Promise<string> {
+  async patch(strandId: string, build: (p: import('../PatchBuilder.ts').PatchBuilder) => void | Promise<void>): Promise<string> {
     return await this._deps.patches.patch(strandId, build);
   }
 
@@ -298,15 +319,15 @@ export default class StrandCoordinator {
 
   // ── Intents (delegates) ─────────────────────────────────────────
 
-  async queueIntent(strandId: string, build: (p: unknown) => void | Promise<void>): Promise<unknown> {
+  async queueIntent(strandId: string, build: (p: import('../PatchBuilder.ts').PatchBuilder) => void | Promise<void>): Promise<Awaited<ReturnType<StrandIntentService['queueIntent']>>> {
     return await this._deps.intents.queueIntent(strandId, build);
   }
 
-  async listIntents(strandId: string): Promise<unknown> {
+  async listIntents(strandId: string): Promise<Awaited<ReturnType<StrandIntentService['listIntents']>>> {
     return await this._deps.intents.listIntents(strandId);
   }
 
-  async tick(strandId: string): Promise<unknown> {
+  async tick(strandId: string): Promise<Awaited<ReturnType<StrandIntentService['tick']>>> {
     return await this._deps.intents.tick(strandId);
   }
 
@@ -327,8 +348,9 @@ export default class StrandCoordinator {
     // Fetch the current frontier via persistence refs
     const prefix = buildStrandsPrefix(this._deps.graphName);
     // Use the graph's getFrontier if available (test seam)
-    if (this._deps.graph && typeof this._deps.graph['getFrontier'] === 'function') {
-      return await (this._deps.graph as Record<string, unknown> & { getFrontier(): Promise<Map<string, string>> }).getFrontier();
+    const { graph } = this._deps;
+    if (graph !== undefined && typeof graph.getFrontier === 'function') {
+      return await graph.getFrontier();
     }
     // Fallback: return empty frontier
     void prefix;

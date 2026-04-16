@@ -5,16 +5,40 @@
  */
 
 import WarpError from '../../errors/WarpError.ts';
+import ConflictEventIdRef from './ConflictEventIdRef.ts';
 import { requireNonEmptyString, requireEnum } from './validation.ts';
 
 const CTX = 'ConflictResolution';
 const VALID_WINNER_MODES = new Set(['immediate', 'eventual']);
 
 type Basis = { code: string; reason?: string | undefined };
-type Comparator = { type: string; winnerEventId?: Readonly<Record<string, unknown>>; loserEventId?: Readonly<Record<string, unknown>> };
 
 /**
- * Deep-freezes the basis object.
+ * Input shape for a winner/loser event-id carrier on a comparator.
+ * Either an already-constructed ConflictEventIdRef or the matching
+ * field bag (the normalizer converts through ConflictEventIdRef.from).
+ */
+type EventIdInput = ConflictEventIdRef | {
+  lamport: number;
+  writerId: string;
+  patchSha: string;
+  opIndex: number;
+};
+
+export type ConflictComparatorInput = {
+  type: string;
+  winnerEventId?: EventIdInput;
+  loserEventId?: EventIdInput;
+};
+
+type Comparator = {
+  type: string;
+  winnerEventId?: ConflictEventIdRef;
+  loserEventId?: ConflictEventIdRef;
+};
+
+/**
+ * Validates that basis is a non-null object carrying a code.
  */
 function validateBasis(basis: Basis): void {
   if (basis === null || basis === undefined || typeof basis !== 'object') {
@@ -24,7 +48,7 @@ function validateBasis(basis: Basis): void {
 }
 
 /**
- * Deep-freezes the basis object after validation.
+ * Freezes the basis object after validation.
  */
 function freezeBasis(basis: Basis): Readonly<Basis> {
   validateBasis(basis);
@@ -33,27 +57,31 @@ function freezeBasis(basis: Basis): Readonly<Basis> {
 }
 
 /**
- * Freezes an optional event ID sub-object.
+ * Normalizes an optional event-id carrier to a ConflictEventIdRef
+ * instance.
  */
-function freezeEventId(eventId: Record<string, unknown> | undefined | null): Readonly<Record<string, unknown>> | undefined {
+function toEventIdRef(eventId: EventIdInput | undefined | null): ConflictEventIdRef | undefined {
   if (eventId === undefined || eventId === null) {
     return undefined;
   }
-  return Object.freeze({ ...eventId });
+  if (eventId instanceof ConflictEventIdRef) {
+    return eventId;
+  }
+  return ConflictEventIdRef.from(eventId);
 }
 
 /**
- * Deep-freezes the optional comparator object, including nested event IDs.
+ * Freezes the optional comparator, converting any plain event-id
+ * carriers into ConflictEventIdRef instances.
  */
-function freezeComparator(comparator: { type: string; winnerEventId?: Record<string, unknown>; loserEventId?: Record<string, unknown> } | undefined | null): Comparator | undefined {
+function freezeComparator(comparator: ConflictComparatorInput | undefined | null): Comparator | undefined {
   if (comparator === undefined || comparator === null) {
     return undefined;
   }
-  const raw = comparator;
-  requireNonEmptyString(raw.type, 'comparator.type', CTX);
-  const winnerEventId = freezeEventId(raw.winnerEventId);
-  const loserEventId = freezeEventId(raw.loserEventId);
-  const frozen: { type: string; winnerEventId?: Readonly<Record<string, unknown>>; loserEventId?: Readonly<Record<string, unknown>> } = { type: raw.type };
+  requireNonEmptyString(comparator.type, 'comparator.type', CTX);
+  const winnerEventId = toEventIdRef(comparator.winnerEventId);
+  const loserEventId = toEventIdRef(comparator.loserEventId);
+  const frozen: Comparator = { type: comparator.type };
   if (winnerEventId !== undefined) {
     frozen.winnerEventId = winnerEventId;
   }
@@ -81,7 +109,7 @@ export default class ConflictResolution {
     reducerId: string;
     basis: Basis;
     winnerMode: 'immediate' | 'eventual';
-    comparator?: { type: string; winnerEventId?: Record<string, unknown>; loserEventId?: Record<string, unknown> };
+    comparator?: ConflictComparatorInput;
   }) {
     this.reducerId = requireNonEmptyString(reducerId, 'reducerId', CTX);
     this.basis = freezeBasis(basis);
@@ -104,12 +132,12 @@ export default class ConflictResolution {
     if (typeof loser.receiptReason === 'string' && loser.receiptReason.length > 0) {
       basis.reason = loser.receiptReason;
     }
-    const comparator = kind === 'redundancy'
+    const comparator: ConflictComparatorInput = kind === 'redundancy'
       ? { type: 'effect_digest' }
       : {
         type: 'event_id',
-        winnerEventId: { ...winner.eventId },
-        loserEventId: { ...loser.eventId },
+        winnerEventId: ConflictEventIdRef.from(winner.eventId),
+        loserEventId: ConflictEventIdRef.from(loser.eventId),
       };
     return new ConflictResolution({
       reducerId,

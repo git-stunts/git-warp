@@ -31,6 +31,41 @@ export type ConflictTargetSelector = {
   label?: string;
 };
 
+/**
+ * The subset of a ConflictTargetSelector that survives snapshot
+ * hashing. Used by toSnapshotFilterRecord — explicit named type so
+ * the filter shape has an authoritative home.
+ */
+export type ConflictAnalysisFilterTarget = Readonly<{
+  readonly targetKind: ConflictTargetSelector['targetKind'];
+  readonly entityId?: string;
+  readonly propertyKey?: string;
+  readonly from?: string;
+  readonly to?: string;
+  readonly label?: string;
+}>;
+
+type ConflictAnalysisFilterTargetMut = {
+  targetKind: ConflictTargetSelector['targetKind'];
+  entityId?: string;
+  propertyKey?: string;
+  from?: string;
+  to?: string;
+  label?: string;
+};
+
+/**
+ * Runtime-backed snapshot carrier of the request's active filters.
+ * Each field is optional or nullable; consumers feed the whole
+ * record into the analyzer's canonical-JSON hasher.
+ */
+export type ConflictAnalysisFilterRecord = Readonly<{
+  readonly entityId: string | null;
+  readonly target: ConflictAnalysisFilterTarget | null;
+  readonly kind: readonly string[] | null;
+  readonly writerId: string | null;
+}>;
+
 /** Raw user-supplied analysis options accepted at the public API boundary. */
 export type ConflictAnalyzeOptions = {
   at?: { lamportCeiling?: number | null };
@@ -159,9 +194,9 @@ export default class ConflictAnalysisRequest {
   }
 
   /**
-   * Returns a serializable record of the active filters for snapshot hashing.
+   * Returns a structural record of the active filters for snapshot hashing.
    */
-  toSnapshotFilterRecord(): Record<string, unknown> {
+  toSnapshotFilterRecord(): ConflictAnalysisFilterRecord {
     return {
       entityId: this.entityId,
       target: ConflictAnalysisRequest._snapshotTarget(this.target),
@@ -170,7 +205,7 @@ export default class ConflictAnalysisRequest {
     };
   }
 
-  private static _normalizeOptionalString(field: string, value: unknown): string | null {
+  private static _normalizeOptionalString(field: string, value: string | null | undefined): string | null {
     if (value === undefined || value === null) {
       return null;
     }
@@ -183,7 +218,7 @@ export default class ConflictAnalysisRequest {
     return value;
   }
 
-  private static _normalizeLamportCeiling(lamportCeiling: unknown): number | null {
+  private static _normalizeLamportCeiling(lamportCeiling: number | null | undefined): number | null {
     if (lamportCeiling === undefined || lamportCeiling === null) {
       return null;
     }
@@ -203,10 +238,10 @@ export default class ConflictAnalysisRequest {
     if (typeof target !== 'object') {
       throw new QueryError('analyzeConflicts(): target selector must be an object', {
         code: 'unsupported_target_selector',
-        context: { target },
+        context: {},
       });
     }
-    const selector = { ...target } as ConflictTargetSelector;
+    const selector: ConflictTargetSelector = { ...target };
     ConflictAnalysisRequest._validateTarget(selector);
     return selector;
   }
@@ -249,19 +284,19 @@ export default class ConflictAnalysisRequest {
     return [...new Set(values)].sort();
   }
 
-  private static _normalizeEvidence(evidence: unknown): EvidenceLevel {
+  private static _normalizeEvidence(evidence: EvidenceLevel | null | undefined): EvidenceLevel {
     const normalized = evidence === undefined || evidence === null ? 'standard' : evidence;
     if (typeof normalized !== 'string' || !VALID_EVIDENCE_LEVELS.has(normalized)) {
       throw new QueryError('analyzeConflicts(): evidence must be summary, standard, or full', {
         code: 'unsupported_target_selector',
-        context: { evidence },
+        context: { evidence: String(evidence) },
       });
     }
-    return normalized as EvidenceLevel;
+    return normalized;
   }
 
-  private static _normalizeMaxPatches(maxPatches: unknown): number | null {
-    if (maxPatches === undefined) {
+  private static _normalizeMaxPatches(maxPatches: number | null | undefined): number | null {
+    if (maxPatches === undefined || maxPatches === null) {
       return null;
     }
     if (
@@ -277,20 +312,21 @@ export default class ConflictAnalysisRequest {
     return maxPatches;
   }
 
-  private static _snapshotTarget(selector: Readonly<ConflictTargetSelector> | null): Record<string, unknown> | null {
+  private static _snapshotTarget(selector: Readonly<ConflictTargetSelector> | null): ConflictAnalysisFilterTarget | null {
     if (selector === null) {
       return null;
     }
-    const result: Record<string, unknown> = { targetKind: selector.targetKind };
+    const result: ConflictAnalysisFilterTargetMut = { targetKind: selector.targetKind };
     for (const field of TARGET_SELECTOR_FIELDS) {
-      if (selector[field] !== undefined) {
-        result[field] = selector[field];
+      const value = selector[field];
+      if (value !== undefined) {
+        result[field] = value;
       }
     }
     return result;
   }
 
-  private static _isValidLamportCeiling(lamportCeiling: unknown): lamportCeiling is number {
+  private static _isValidLamportCeiling(lamportCeiling: number): boolean {
     return (
       typeof lamportCeiling === 'number' &&
       Number.isInteger(lamportCeiling) &&
@@ -298,20 +334,27 @@ export default class ConflictAnalysisRequest {
     );
   }
 
-  private static _validateKinds(values: unknown[], kind: ConflictAnalyzeOptions['kind']): void {
+  private static _validateKinds(values: string[], kind: ConflictAnalyzeOptions['kind']): void {
     if (values.length === 0) {
       throw new QueryError('analyzeConflicts(): kind filter must not be empty', {
         code: 'unsupported_target_selector',
-        context: { kind },
+        context: { kind: ConflictAnalysisRequest._kindToContext(kind) },
       });
     }
     for (const value of values) {
       if (typeof value !== 'string' || !VALID_KINDS.has(value)) {
         throw new QueryError('analyzeConflicts(): kind filter contains an unsupported value', {
           code: 'unsupported_target_selector',
-          context: { kind },
+          context: { kind: ConflictAnalysisRequest._kindToContext(kind) },
         });
       }
     }
+  }
+
+  private static _kindToContext(kind: ConflictAnalyzeOptions['kind']): readonly string[] {
+    if (kind === undefined) {
+      return [];
+    }
+    return Array.isArray(kind) ? [...kind] : [kind];
   }
 }

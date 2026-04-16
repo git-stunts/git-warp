@@ -34,22 +34,38 @@ function baseObservationsEqual(left: BaseObservation, right: BaseObservation): b
   );
 }
 
-type GraphRuntime = {
+/**
+ * Opaque diagnostic bag the wired warp runtime returns from
+ * `_setMaterializedState`. The strand sub-services ignore the
+ * return value; the type exists solely to let `WarpRuntime` satisfy
+ * the structural narrow below.
+ */
+type StrandMaterializationDiagnosticBag = object;
+
+/**
+ * Structural description of the graph runtime the strand
+ * sub-services reach into. The wider warp runtime provides many
+ * more fields; this type narrows to the exact surface the strand
+ * coordinator needs and is re-exported so cross-module wiring can
+ * avoid `as unknown as` casts.
+ */
+export type StrandCoordinatorGraphRuntime = {
   _graphName: string;
   _persistence: import('../../../ports/GraphPersistencePort.ts').default;
   _crypto: import('../../../ports/CryptoPort.ts').default;
-  // Required by StrandDescriptorStore and StrandMaterializer
   _loadPatchChainFromSha(sha: string): Promise<Array<{ patch: Patch; sha: string }>>;
-  // Required by StrandMaterializer
   _maxObservedLamport: number;
   _provenanceIndex: ProvenanceIndex | null;
   _provenanceDegraded: boolean;
   _cachedCeiling: number | null;
   _cachedFrontier: Map<string, string> | null;
   _lastFrontier: Map<string, string> | null;
-  _setMaterializedState(state: WarpState): Promise<void>;
+  // Return type widened to match the wired warp-runtime signature
+  // (which emits a materialization diagnostic bag) so that callers
+  // upstream of the strand coordinator can pass their full
+  // `_graph` directly without a cast.
+  _setMaterializedState(state: WarpState): Promise<void | StrandMaterializationDiagnosticBag>;
   getFrontier(): Promise<Map<string, string>>;
-  // Required by StrandPatchService
   _patchInProgress: boolean;
   _stateDirty: boolean;
   _cachedViewHash: string | null;
@@ -58,12 +74,11 @@ type GraphRuntime = {
   _patchBlobStorage: BlobStoragePort | null | undefined;
   _blobStorage: BlobStoragePort | null | undefined;
   _logger: LoggerPort | null | undefined;
-  _codec: { encode(v: unknown): Uint8Array };
+  _codec: { encode(v: import('../../types/conflict/HashablePayload.ts').HashablePayload): Uint8Array };
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
-  [key: string]: unknown;
 };
 
-function wireDescriptors(graph: GraphRuntime, ref: { coordinator: StrandCoordinator | null }): StrandDescriptorStore {
+function wireDescriptors(graph: StrandCoordinatorGraphRuntime, ref: { coordinator: StrandCoordinator | null }): StrandDescriptorStore {
   return new StrandDescriptorStore({
     graph,
     loadStrandOrThrow: async (strandId: string) => await ref.coordinator!.getOrThrow(strandId),
@@ -76,7 +91,7 @@ type SubServices = {
   materializer: StrandMaterializer;
 };
 
-function wirePatches(graph: GraphRuntime, ref: { coordinator: StrandCoordinator | null }, subs: SubServices): StrandPatchService {
+function wirePatches(graph: StrandCoordinatorGraphRuntime, ref: { coordinator: StrandCoordinator | null }, subs: SubServices): StrandPatchService {
   return new StrandPatchService({
     graph,
     loadStrandOrThrow: async (strandId: string) => await ref.coordinator!.getOrThrow(strandId),
@@ -84,19 +99,16 @@ function wirePatches(graph: GraphRuntime, ref: { coordinator: StrandCoordinator 
       await subs.materializer.materializeDescriptor(descriptor, options),
     writeDescriptor: async (descriptor: StrandDescriptor) => await subs.descriptors.writeDescriptor(descriptor),
     buildOverlayRef: (strandId: string) => subs.descriptors.buildOverlayRef(strandId),
-    normalizeIntentQueue: (value: unknown) => subs.descriptors.normalizeIntentQueue(value),
     buildIntentId,
   });
 }
 
-function wireIntents(graph: GraphRuntime, ref: { coordinator: StrandCoordinator | null }, subs: SubServices & { patches: StrandPatchService }): StrandIntentService {
+function wireIntents(graph: StrandCoordinatorGraphRuntime, ref: { coordinator: StrandCoordinator | null }, subs: SubServices & { patches: StrandPatchService }): StrandIntentService {
   return new StrandIntentService({
     graph,
     loadStrandOrThrow: async (strandId: string) => await ref.coordinator!.getOrThrow(strandId),
     buildQueuedIntent: async (descriptor: StrandDescriptor, build: (p: PatchBuilder) => void | Promise<void>) =>
       await subs.patches.buildQueuedIntent(descriptor, build),
-    normalizeIntentQueue: (value: unknown) => subs.descriptors.normalizeIntentQueue(value),
-    normalizeEvolution: (value: unknown) => subs.descriptors.normalizeEvolution(value),
     writeDescriptor: async (descriptor: StrandDescriptor) => await subs.descriptors.writeDescriptor(descriptor),
     commitQueuedPatch: async (params: Parameters<typeof subs.patches.commitQueuedPatch>[0]) =>
       await subs.patches.commitQueuedPatch(params),
@@ -107,7 +119,7 @@ function wireIntents(graph: GraphRuntime, ref: { coordinator: StrandCoordinator 
 }
 
 /** Creates a StrandCoordinator wired to the given graph runtime. */
-export default function createStrandCoordinator(graph: GraphRuntime): StrandCoordinator {
+export default function createStrandCoordinator(graph: StrandCoordinatorGraphRuntime): StrandCoordinator {
   const ref: { coordinator: StrandCoordinator | null } = { coordinator: null };
   const descriptors = wireDescriptors(graph, ref);
   const materializer = new StrandMaterializer({ graph });
@@ -123,7 +135,7 @@ export default function createStrandCoordinator(graph: GraphRuntime): StrandCoor
     materializer,
     patches,
     intents,
-    graph: graph as Record<string, unknown>,
+    graph,
   });
 
   return ref.coordinator;

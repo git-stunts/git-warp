@@ -17,10 +17,12 @@ import type OpRecord from './OpRecord.ts';
 import type ConflictTarget from '../../types/conflict/ConflictTarget.ts';
 import type ConflictResolution from '../../types/conflict/ConflictResolution.ts';
 import type ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
+import type ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.ts';
+import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import type ConflictAnalysisRequest from './ConflictAnalysisRequest.ts';
 
 type HashingService = {
-  _hash(payload: unknown): Promise<string>;
+  _hash(payload: HashablePayload): Promise<string>;
 };
 
 type ConflictKind = 'supersession' | 'redundancy' | 'eventual_override';
@@ -106,11 +108,20 @@ function buildTraceEvidence(
   return {
     level: evidence,
     patchRefs: [...new Set([group.winner.patchSha, ...group.losers.map((loser) => loser.patchSha)])].sort(compareStrings),
-    receiptRefs: [buildReceiptRef(group.winner), ...group.losers.map(buildReceiptRef)].sort(ConflictReceiptRef.compare),
+    receiptRefs: [buildReceiptRef(group.winner), ...group.losers.map(buildReceiptRef)].sort((a, b) => ConflictReceiptRef.compare(a, b)),
   };
 }
 
-function buildWhyFingerprintInput(group: GroupedConflict, losers: ConflictParticipant[]): Record<string, unknown> {
+type WhyFingerprintInput = {
+  readonly targetDigest: string;
+  readonly kind: string;
+  readonly reducerId: string;
+  readonly basis: string;
+  readonly winnerEffectDigest: string;
+  readonly loserEffectDigests: readonly string[];
+};
+
+function buildWhyFingerprintInput(group: GroupedConflict, losers: ConflictParticipant[]): WhyFingerprintInput {
   return {
     targetDigest: group.target.targetDigest,
     kind: group.kind,
@@ -121,6 +132,16 @@ function buildWhyFingerprintInput(group: GroupedConflict, losers: ConflictPartic
   };
 }
 
+type ConflictIdInput = {
+  readonly analysisVersion: string;
+  readonly resolvedCoordinate: ConflictResolvedCoordinate;
+  readonly kind: string;
+  readonly targetDigest: string;
+  readonly reducerId: string;
+  readonly winnerAnchor: string;
+  readonly loserAnchors: readonly string[];
+};
+
 function buildConflictIdInput({
   group,
   winner,
@@ -130,8 +151,8 @@ function buildConflictIdInput({
   group: GroupedConflict;
   winner: ConflictWinner;
   losers: ConflictParticipant[];
-  resolvedCoordinate: unknown;
-}): Record<string, unknown> {
+  resolvedCoordinate: ConflictResolvedCoordinate;
+}): ConflictIdInput {
   return {
     analysisVersion: CONFLICT_ANALYSIS_VERSION,
     resolvedCoordinate,
@@ -152,7 +173,7 @@ async function buildConflictTrace(
   }: {
     group: GroupedConflict;
     evidence: 'summary' | 'standard' | 'full';
-    resolvedCoordinate: unknown;
+    resolvedCoordinate: ConflictResolvedCoordinate;
   },
 ): Promise<ConflictTrace> {
   const winner = ConflictWinner.fromRecord(group.winner);
@@ -185,7 +206,7 @@ export async function buildConflictTraces(
   }: {
     grouped: Iterable<GroupedConflict>;
     evidence: 'summary' | 'standard' | 'full';
-    resolvedCoordinate: unknown;
+    resolvedCoordinate: ConflictResolvedCoordinate;
   },
 ): Promise<ConflictTrace[]> {
   const traces: ConflictTrace[] = [];
@@ -223,7 +244,7 @@ export async function buildAnalysisSnapshotHash(
     diagnostics,
     traces,
   }: {
-    resolvedCoordinate: unknown;
+    resolvedCoordinate: ConflictResolvedCoordinate;
     request: ConflictAnalysisRequest;
     truncated: boolean;
     diagnostics: ConflictDiagnostic[];
@@ -249,7 +270,7 @@ export async function buildEmptySnapshotHash(
     resolvedCoordinate,
     request,
   }: {
-    resolvedCoordinate: unknown;
+    resolvedCoordinate: ConflictResolvedCoordinate;
     request: ConflictAnalysisRequest;
   },
 ): Promise<string> {

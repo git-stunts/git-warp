@@ -12,7 +12,6 @@ import type {
   StrandQueuedIntent,
   StrandRejectedCounterfactual,
   StrandTickRecord,
-  StrandEvolution,
 } from './strandTypes.ts';
 
 type StrandCommittedTickSummary = {
@@ -42,8 +41,6 @@ type ServiceOptions = {
     descriptor: StrandDescriptor,
     build: (p: PatchBuilder) => void | Promise<void>,
   ) => Promise<StrandQueuedIntent>;
-  normalizeIntentQueue: (value: unknown) => StrandIntentQueue;
-  normalizeEvolution: (value: unknown) => StrandEvolution;
   writeDescriptor: (descriptor: StrandDescriptor) => Promise<void>;
   commitQueuedPatch: (params: {
     strandId: string;
@@ -77,8 +74,6 @@ export default class StrandIntentService {
   private readonly _graph: WarpRuntime;
   private readonly _loadStrandOrThrow: (strandId: string) => Promise<StrandDescriptor>;
   private readonly _buildQueuedIntent: ServiceOptions['buildQueuedIntent'];
-  private readonly _normalizeIntentQueue: (value: unknown) => StrandIntentQueue;
-  private readonly _normalizeEvolution: (value: unknown) => StrandEvolution;
   private readonly _writeDescriptor: (descriptor: StrandDescriptor) => Promise<void>;
   private readonly _commitQueuedPatch: ServiceOptions['commitQueuedPatch'];
   private readonly _collectPatchEntries: ServiceOptions['collectPatchEntries'];
@@ -92,8 +87,6 @@ export default class StrandIntentService {
     graph,
     loadStrandOrThrow,
     buildQueuedIntent,
-    normalizeIntentQueue,
-    normalizeEvolution,
     writeDescriptor,
     commitQueuedPatch,
     collectPatchEntries,
@@ -102,8 +95,6 @@ export default class StrandIntentService {
     this._graph = graph;
     this._loadStrandOrThrow = loadStrandOrThrow;
     this._buildQueuedIntent = buildQueuedIntent;
-    this._normalizeIntentQueue = normalizeIntentQueue;
-    this._normalizeEvolution = normalizeEvolution;
     this._writeDescriptor = writeDescriptor;
     this._commitQueuedPatch = commitQueuedPatch;
     this._collectPatchEntries = collectPatchEntries;
@@ -137,9 +128,9 @@ export default class StrandIntentService {
    */
   async listIntents(strandId: string): Promise<ReadonlyArray<StrandQueuedIntent>> {
     const descriptor = await this._loadStrandOrThrow(strandId);
-    return this._freezeQueuedIntentSnapshots(
-      this._normalizeIntentQueue(descriptor.intentQueue).intents,
-    );
+    // descriptor.intentQueue is already typed by the hydration path;
+    // no need to re-normalize.
+    return this._freezeQueuedIntentSnapshots(descriptor.intentQueue.intents);
   }
 
   /**
@@ -259,7 +250,7 @@ export default class StrandIntentService {
     descriptor: StrandDescriptor,
     queuedIntent: StrandQueuedIntent,
   ): Promise<void> {
-    const intentQueue = this._normalizeIntentQueue(descriptor.intentQueue);
+    const { intentQueue } = descriptor;
     const now = String(this._graph._maxObservedLamport);
     await this._writeDescriptor({
       ...descriptor,
@@ -289,8 +280,7 @@ export default class StrandIntentService {
     now: string;
   }> {
     const descriptor = await this._loadStrandOrThrow(strandId);
-    const intentQueue = this._normalizeIntentQueue(descriptor.intentQueue);
-    const evolution = this._normalizeEvolution(descriptor.evolution);
+    const { intentQueue, evolution } = descriptor;
     return {
       descriptor,
       intentQueue,

@@ -24,12 +24,15 @@ type ConflictCandidateFields = {
   noteCodes: string[];
 };
 
+type ConstructorOf<T> = new (...args: never[]) => T;
+
 /**
- * Asserts that an instance matches its expected constructor, else throws StrandError.
+ * Asserts that a value is an instance of the given constructor, else
+ * throws a StrandError with the supplied field descriptor.
  */
-function assertInstance(
-  value: unknown,
-  expectedClass: Function,
+function assertInstance<T>(
+  value: T,
+  expectedClass: ConstructorOf<T>,
   options: { fieldName: string; code: string; expectedLabel: string },
 ): void {
   if (!(value instanceof expectedClass)) {
@@ -59,7 +62,8 @@ export default class ConflictCandidate {
     assertInstance(loser, OpRecord, { fieldName: 'loser', code: 'E_CANDIDATE_INVALID_LOSER', expectedLabel: 'an OpRecord instance' });
     assertInstance(resolution, ConflictResolution, { fieldName: 'resolution', code: 'E_CANDIDATE_INVALID_RESOLUTION', expectedLabel: 'a ConflictResolution instance' });
     // requireEnum validates kind is one of VALID_KINDS
-    this.kind = requireEnum(kind, VALID_KINDS, { name: 'kind', context: CTX }) as 'supersession' | 'redundancy' | 'eventual_override';
+    requireEnum(kind, VALID_KINDS, { name: 'kind', context: CTX });
+    this.kind = kind;
     this.target = target;
     this.winner = winner;
     this.loser = loser;

@@ -10,10 +10,11 @@
 
 import { normalizeRawOp } from '../JoinReducer.ts';
 import { EventId } from '../../utils/EventId.ts';
-import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
+import ConflictDiagnostic, { type ConflictDiagnosticData } from '../../types/conflict/ConflictDiagnostic.ts';
 import ConflictResolution from '../../types/conflict/ConflictResolution.ts';
 import { type TickReceipt, type OpOutcome } from '../../types/TickReceipt.ts';
 import type Patch from '../../types/Patch.ts';
+import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import ConflictCandidate from './ConflictCandidate.ts';
 import OpRecord from './OpRecord.ts';
 import {
@@ -23,6 +24,7 @@ import {
   normalizeNoteCodes,
   buildConflictTarget,
   buildEffectDigest,
+  type CanonicalOpBlob,
 } from './conflictTargetIdentity.ts';
 
 // ── Structural types ─────────────────────────────────────────────────
@@ -85,7 +87,7 @@ export interface CollectorState {
 }
 
 interface HashingService {
-  _hash(payload: unknown): Promise<string>;
+  _hash(payload: HashablePayload): Promise<string>;
 }
 
 // ── Diagnostics ──────────────────────────────────────────────────────
@@ -104,7 +106,7 @@ export function pushDiagnostic(
     code: string;
     message: string;
     severity?: 'warning' | 'error';
-    data?: Record<string, unknown>;
+    data?: ConflictDiagnosticData;
   },
 ): void {
   diagnostics.push(
@@ -191,7 +193,7 @@ interface ResolvedOpIdentity {
 
 type BuildOpRecordParams = {
   frame: PatchFrame; opIndex: number; receiptOpIndex: number;
-  canonOp: Record<string, unknown>; receiptOutcome: OpOutcome;
+  canonOp: CanonicalOpBlob; receiptOutcome: OpOutcome;
   receiptOpType: string; diagnostics: ConflictDiagnostic[];
 };
 
@@ -270,8 +272,11 @@ export async function analyzeOneOp(
 ): Promise<AnalyzeOneOpResult | null> {
   const rawOp = frame.patch.ops[opIndex];
   if (rawOp === undefined) { return null; }
-  const canonOp = cloneObject(normalizeRawOp(rawOp) as Record<string, unknown>);
-  const receiptOpType = receiptNameForOp(canonOp['type'] as string);
+  // TODO(0025C): normalizeRawOp returns OpLike; CanonicalOpBlob is a
+  // type alias over OpLike for the 0025C transition. Once the Op
+  // class hierarchy lands, this reads instanceof directly.
+  const canonOp: CanonicalOpBlob = cloneObject(normalizeRawOp(rawOp));
+  const receiptOpType = receiptNameForOp(canonOp.type);
   if (typeof receiptOpType !== 'string' || receiptOpType.length === 0) { return null; }
   const receiptOutcome = receipt.ops[receiptOpIndex];
   if (receiptOutcome === undefined || receiptOutcome === null) {

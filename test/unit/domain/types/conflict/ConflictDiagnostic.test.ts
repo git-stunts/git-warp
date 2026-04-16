@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import ConflictDiagnostic from '../../../../../src/domain/types/conflict/ConflictDiagnostic.ts';
+import ConflictDiagnostic, { type ConflictDiagnosticData } from '../../../../../src/domain/types/conflict/ConflictDiagnostic.ts';
 
 describe('ConflictDiagnostic', () => {
   it('creates a frozen diagnostic', () => {
@@ -18,7 +18,7 @@ describe('ConflictDiagnostic', () => {
   });
 
   it('treats null data as undefined', () => {
-    const d = new ConflictDiagnostic({ code: 'x', severity: 'warning', message: 'y', data: null as unknown as Record<string, unknown> });
+    const d = new ConflictDiagnostic({ code: 'x', severity: 'warning', message: 'y', data: null as unknown as ConflictDiagnosticData });
     expect(d.data).toBeUndefined();
   });
 

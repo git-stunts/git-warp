@@ -104,7 +104,14 @@ const FAMILIES: readonly FamilyDefinition[] = [
         // Legitimate safety contexts that are not modeling surfaces:
         // - `catch (err: unknown)` — TS useUnknownInCatchVariables
         //   forces this annotation; narrowing happens inside the block.
-        skipPatterns: [/\bcatch\s*\(\s*\w+\s*:\s*unknown\s*\)/],
+        // - type-guard predicate signature `(v: unknown): v is Foo` —
+        //   these are the narrow boundary decoders the 0025B exit
+        //   criteria explicitly allows. They are the only way to
+        //   cross from `unknown` into typed code without a cast.
+        skipPatterns: [
+          /\bcatch\s*\(\s*\w+\s*:\s*unknown\s*\)/,
+          /\(\s*\w+\s*:\s*unknown\s*\)\s*:\s*\w+\s+is\s+/,
+        ],
       },
       { id: 'record-string-unknown', pattern: /Record\s*<\s*string\s*,\s*unknown\s*>/, scope: 'core-only' },
       { id: 'json-parse', pattern: /\bJSON\.parse\s*\(/, scope: 'core-only' },

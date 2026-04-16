@@ -10,7 +10,43 @@
 import { OP_STRATEGIES } from '../JoinReducer.ts';
 import { decodeEdgeKey } from '../KeyCodec.ts';
 import ConflictTarget from '../../types/conflict/ConflictTarget.ts';
+import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import { compareStrings } from '../../types/conflict/validation.ts';
+
+// ── Op blob (0025C-bridge) ──────────────────────────────────────────
+
+/**
+ * TODO(0025C): when cycle 0025C introduces the full `Op` class
+ * hierarchy, this alias folds into it. Until then, `CanonicalOpBlob`
+ * is a `type` alias for the `OpLike` shape produced by
+ * `normalizeRawOp(...)`. Once the Op hierarchy lands, both names
+ * collapse into the real class hierarchy and the conflict-target
+ * builders swap to `instanceof` dispatch.
+ */
+export type CanonicalOpBlob = import('../OpLike.ts').OpLike;
+
+/**
+ * Effect payload produced by normalizeEffectPayload — the
+ * per-op-type canonical shape that flows into the effect digest.
+ * Structurally hashable.
+ */
+export type ConflictEffectPayload = {
+  readonly dot?: HashablePayload;
+  readonly observedDots?: readonly string[];
+  readonly value?: HashablePayload;
+  readonly oid?: HashablePayload;
+};
+
+/**
+ * Hashable wrapper around the effect payload, carrying the target
+ * coordinates and op-type tag.
+ */
+export type ConflictEffectEnvelope = {
+  readonly targetKind: string;
+  readonly targetDigest: string;
+  readonly opType: string;
+  readonly payload: ConflictEffectPayload;
+};
 
 // ── Shared helpers ──────────────────────────────────────────────────
 
@@ -23,9 +59,9 @@ export function receiptNameForOp(opType: string): string | undefined {
 }
 
 /**
- * Shallow-clones a raw object.
+ * Shallow-clones a canonical-op blob.
  */
-export function cloneObject(raw: Record<string, unknown>): Record<string, unknown> {
+export function cloneObject(raw: CanonicalOpBlob): CanonicalOpBlob {
   return { ...raw };
 }
 
@@ -37,13 +73,14 @@ export function effectKey(target: ConflictTarget, effectDigest: string): string 
 }
 
 /**
- * Wraps a normalized effect payload with target and op-type metadata for hashing.
+ * Wraps a normalized effect payload with target and op-type metadata
+ * for hashing.
  */
 export function buildEffectPayload(
   target: ConflictTarget,
   opType: string,
-  payload: Record<string, unknown>,
-): Record<string, unknown> {
+  payload: ConflictEffectPayload,
+): ConflictEffectEnvelope {
   return { targetKind: target.targetKind, targetDigest: target.targetDigest, opType, payload };
 }
 
@@ -57,13 +94,15 @@ export function normalizeNoteCodes(noteCodes: string[]): string[] {
 // ── Effect normalization ────────────────────────────────────────────
 
 /**
- * Normalizes observed dots into a sorted array of strings.
+ * Normalizes observed dots into a sorted array of strings. Accepts
+ * any iterable of strings (OpLike declares Iterable<string>) and
+ * yields a sorted array.
  */
-export function normalizeObservedDots(observedDots: unknown): string[] {
+export function normalizeObservedDots(observedDots: Iterable<string> | null | undefined): string[] {
   if (observedDots === null || observedDots === undefined) {
     return [];
   }
-  return [...(observedDots as Iterable<string>)].sort(compareStrings);
+  return [...observedDots].sort(compareStrings);
 }
 
 /**
@@ -72,17 +111,17 @@ export function normalizeObservedDots(observedDots: unknown): string[] {
 export function normalizeEffectPayload(
   _target: ConflictTarget,
   opType: string,
-  canonOp: Record<string, unknown>,
-): Record<string, unknown> | null {
-  const effectFactories: Record<string, () => Record<string, unknown>> = {
-    NodeAdd: () => ({ dot: canonOp['dot'] ?? null }),
-    NodeTombstone: () => ({ observedDots: normalizeObservedDots(canonOp['observedDots']) }),
-    EdgeAdd: () => ({ dot: canonOp['dot'] ?? null }),
-    EdgeTombstone: () => ({ observedDots: normalizeObservedDots(canonOp['observedDots']) }),
-    PropSet: () => ({ value: canonOp['value'] ?? null }),
-    NodePropSet: () => ({ value: canonOp['value'] ?? null }),
-    EdgePropSet: () => ({ value: canonOp['value'] ?? null }),
-    BlobValue: () => ({ oid: canonOp['oid'] ?? null }),
+  canonOp: CanonicalOpBlob,
+): ConflictEffectPayload | null {
+  const effectFactories: Record<string, () => ConflictEffectPayload> = {
+    NodeAdd: () => ({ dot: canonOp.dot ?? null }),
+    NodeTombstone: () => ({ observedDots: normalizeObservedDots(canonOp.observedDots) }),
+    EdgeAdd: () => ({ dot: canonOp.dot ?? null }),
+    EdgeTombstone: () => ({ observedDots: normalizeObservedDots(canonOp.observedDots) }),
+    PropSet: () => ({ value: canonOp.value ?? null }),
+    NodePropSet: () => ({ value: canonOp.value ?? null }),
+    EdgePropSet: () => ({ value: canonOp.value ?? null }),
+    BlobValue: () => ({ oid: canonOp.oid ?? null }),
   };
   const factory = effectFactories[opType];
   return factory !== undefined ? factory() : null;
@@ -128,10 +167,10 @@ type TargetIdentity =
  * Builds a node-level target identity.
  */
 export function buildNodeTargetIdentity(
-  canonOp: Record<string, unknown>,
+  canonOp: CanonicalOpBlob,
   receiptTarget: string,
 ): NodeTargetIdentity | null {
-  const nodeVal = canonOp['node'];
+  const nodeVal = canonOp.node;
   const entityId =
     typeof nodeVal === 'string' && nodeVal.length > 0
       ? nodeVal
@@ -144,10 +183,10 @@ export function buildNodeTargetIdentity(
 /**
  * Builds an edge target from canonical op fields.
  */
-export function buildEdgeTargetFromOp(canonOp: Record<string, unknown>): EdgeTargetIdentity | null {
-  const fromVal = canonOp['from'];
-  const toVal = canonOp['to'];
-  const labelVal = canonOp['label'];
+export function buildEdgeTargetFromOp(canonOp: CanonicalOpBlob): EdgeTargetIdentity | null {
+  const fromVal = canonOp.from;
+  const toVal = canonOp.to;
+  const labelVal = canonOp.label;
   if (typeof fromVal === 'string' && typeof toVal === 'string' && typeof labelVal === 'string') {
     return {
       targetKind: 'edge',
@@ -184,7 +223,7 @@ export function buildEdgeTargetFromReceipt(receiptTarget: string): EdgeTargetIde
  * Builds an edge-level target identity.
  */
 export function buildEdgeTargetIdentity(
-  canonOp: Record<string, unknown>,
+  canonOp: CanonicalOpBlob,
   receiptTarget: string,
 ): EdgeTargetIdentity | null {
   return buildEdgeTargetFromOp(canonOp) ?? buildEdgeTargetFromReceipt(receiptTarget);
@@ -194,10 +233,10 @@ export function buildEdgeTargetIdentity(
  * Builds a node-property target identity.
  */
 export function buildNodePropertyTargetIdentity(
-  canonOp: Record<string, unknown>,
+  canonOp: CanonicalOpBlob,
 ): NodePropertyTargetIdentity | null {
-  const nodeVal = canonOp['node'];
-  const keyVal = canonOp['key'];
+  const nodeVal = canonOp.node;
+  const keyVal = canonOp.key;
   if (typeof nodeVal !== 'string' || typeof keyVal !== 'string') {
     return null;
   }
@@ -208,12 +247,12 @@ export function buildNodePropertyTargetIdentity(
  * Builds an edge-property target identity.
  */
 export function buildEdgePropertyTargetIdentity(
-  canonOp: Record<string, unknown>,
+  canonOp: CanonicalOpBlob,
 ): EdgePropertyTargetIdentity | null {
-  const fromVal = canonOp['from'];
-  const toVal = canonOp['to'];
-  const labelVal = canonOp['label'];
-  const keyVal = canonOp['key'];
+  const fromVal = canonOp.from;
+  const toVal = canonOp.to;
+  const labelVal = canonOp.label;
+  const keyVal = canonOp.key;
   if (
     typeof fromVal !== 'string' ||
     typeof toVal !== 'string' ||
@@ -236,10 +275,10 @@ export function buildEdgePropertyTargetIdentity(
  * Dispatches to the appropriate target identity builder.
  */
 export function buildTargetIdentity(
-  canonOp: Record<string, unknown>,
+  canonOp: CanonicalOpBlob,
   receiptTarget: string,
 ): TargetIdentity | null {
-  const opType = canonOp['type'] as string;
+  const opType = canonOp.type ?? '';
   const targetBuilders: Record<string, () => TargetIdentity | null> = {
     NodeAdd: () => buildNodeTargetIdentity(canonOp, receiptTarget),
     NodeRemove: () => buildNodeTargetIdentity(canonOp, receiptTarget),
@@ -256,7 +295,7 @@ export function buildTargetIdentity(
 // ── Record building ─────────────────────────────────────────────────
 
 interface HashingService {
-  _hash(payload: unknown): Promise<string>;
+  _hash(payload: HashablePayload): Promise<string>;
 }
 
 /**
@@ -264,7 +303,7 @@ interface HashingService {
  */
 export async function buildConflictTarget(
   service: HashingService,
-  { canonOp, receiptTarget }: { canonOp: Record<string, unknown>; receiptTarget: string },
+  { canonOp, receiptTarget }: { canonOp: CanonicalOpBlob; receiptTarget: string },
 ): Promise<ConflictTarget | null> {
   const targetIdentity = buildTargetIdentity(canonOp, receiptTarget);
   if (targetIdentity === null || targetIdentity === undefined) {
@@ -285,7 +324,7 @@ export async function buildEffectDigest(
     target,
     receiptOpType,
     canonOp,
-  }: { target: ConflictTarget; receiptOpType: string; canonOp: Record<string, unknown> },
+  }: { target: ConflictTarget; receiptOpType: string; canonOp: CanonicalOpBlob },
 ): Promise<string | null> {
   const effectPayload = normalizeEffectPayload(target, receiptOpType, canonOp);
   if (effectPayload === null || effectPayload === undefined) {

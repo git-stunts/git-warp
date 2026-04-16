@@ -61,23 +61,66 @@ export function normalizeOptionalString(value: string | null | undefined, field:
 }
 
 /**
- * Coerce an unknown value into a deduplicated, sorted array of non-empty strings.
+ * Loose structural value accepted by normalizeStringArray.
+ *
+ * Represents the JSON-decoded leaves (or arrays of them) that may
+ * appear on strand-descriptor fields, including nested arrays and
+ * nested bags. Non-array top-level inputs yield an empty array;
+ * inside an array, non-string entries are dropped.
  */
-export function normalizeStringArray(value: unknown, field: string): string[] {
+export type MaybeStringArrayLeaf =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | readonly MaybeStringArrayLeaf[]
+  | { readonly [key: string]: MaybeStringArrayLeaf };
+
+export type MaybeStringArray =
+  | readonly MaybeStringArrayLeaf[]
+  | MaybeStringArrayLeaf;
+
+/**
+ * Coerce a raw value into a deduplicated, sorted array of non-empty
+ * strings. Non-array inputs yield an empty array. Throws StrandError
+ * when an array entry is present but not a string — preserving the
+ * pre-0025B3 defensive boundary contract.
+ */
+export function normalizeStringArray(value: MaybeStringArray, field: string): string[] {
   if (!Array.isArray(value)) {
     return [];
   }
   const normalized: string[] = [];
   for (const entry of value) {
-    const maybeString = normalizeOptionalString(
-      entry as string | null | undefined,
-      field,
-    );
-    if (maybeString !== null) {
-      normalized.push(maybeString);
+    const stringOrNull = requireStringArrayEntry(entry, field);
+    if (stringOrNull === null) {
+      continue;
+    }
+    const trimmed = normalizeOptionalString(stringOrNull, field);
+    if (trimmed !== null) {
+      normalized.push(trimmed);
     }
   }
   return [...new Set(normalized)].sort(compareStrings);
+}
+
+/**
+ * Narrows an array entry to `string | null`, throwing StrandError
+ * when the runtime type disagrees. Null/undefined entries are
+ * tolerated (dropped upstream); everything else must be a string.
+ */
+function requireStringArrayEntry(entry: MaybeStringArrayLeaf, field: string): string | null {
+  if (entry === null || entry === undefined) {
+    return null;
+  }
+  if (typeof entry !== 'string') {
+    throw new StrandError(`${field} must be a string`, {
+      code: 'E_STRAND_INVALID_ARGS',
+      context: { field, valueType: typeof entry },
+    });
+  }
+  return entry;
 }
 
 /**
