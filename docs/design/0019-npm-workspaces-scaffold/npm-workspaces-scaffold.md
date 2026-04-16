@@ -1,13 +1,54 @@
 ---
-id: INFRA_npm-workspaces-scaffold
-blocked_by: []
-blocks:
-  - INFRA_extract-warp-orset-package
-  - INFRA_extract-warp-kernel-package
-  - INFRA_extract-warp-adapters-package
+title: "Add npm workspace scaffolding for git-warp, warp-kernel, warp-adapters, warp-orset"
+legend: "INFRA"
+cycle: "0019-npm-workspaces-scaffold"
+source_backlog: "docs/method/backlog/v17.0.0/INFRA_npm-workspaces-scaffold.md"
 ---
 
 # Add npm workspace scaffolding for git-warp, warp-kernel, warp-adapters, warp-orset
+
+Source backlog item: `docs/method/backlog/v17.0.0/INFRA_npm-workspaces-scaffold.md`
+Legend: INFRA
+
+## Sponsors
+
+- Human: Backlog operator
+- Agent: Implementation agent
+
+## Hill
+
+TBD
+
+## Playback Questions
+
+### Human
+
+- [ ] TBD
+
+### Agent
+
+- [ ] TBD
+
+## Accessibility and Assistive Reading
+
+- Linear truth / reduced-complexity posture: TBD
+- Non-visual or alternate-reading expectations: TBD
+
+## Localization and Directionality
+
+- Locale / wording / formatting assumptions: TBD
+- Logical direction / layout assumptions: TBD
+
+## Agent Inspectability and Explainability
+
+- What must be explicit and deterministic for agents: TBD
+- What must be attributable, evidenced, or governed: TBD
+
+## Non-goals
+
+- [ ] TBD
+
+## Backlog Context
 
 ## Problem
 
