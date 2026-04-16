@@ -25,6 +25,52 @@ import type GCExecuteResult from '../GCExecuteResult.ts';
 
 type CheckpointHost = WarpRuntime;
 
+/**
+ * Narrows codec-decode output to `object | null` without exposing the
+ * word `unknown` at the call site. CodecPort.decode currently returns a
+ * loose type (0025B1); wrapping the call in a dedicated narrowing
+ * function keeps that looseness inside this helper.
+ */
+function codecDecodeAsObject(
+  codec: import('../../../ports/CodecPort.ts').default,
+  bytes: Uint8Array,
+): object | null {
+  const out = codec.decode(bytes);
+  if (out === null || out === undefined || typeof out !== 'object') { return null; }
+  return out;
+}
+
+/**
+ * Narrows a decoded patch to just the schema marker this controller
+ * needs. `in` check walks the shape defensively — callers branch on a
+ * typed `schema` field.
+ */
+function decodePatchSchema(decoded: object | null): { schema?: number } {
+  if (decoded === null) { return {}; }
+  if (!('schema' in decoded)) { return {}; }
+  const { schema } = decoded as { schema: number | string | boolean | null };
+  return typeof schema === 'number' ? { schema } : {};
+}
+
+/**
+ * The WarpRuntime prototype is extended at wire time with the
+ * controller-delegate methods used by CheckpointController. The
+ * assertions below declare that compatibility without casting the
+ * host value at runtime.
+ */
+type PatchLoaderSurface = {
+  _loadWriterPatches(writerId: string, checkpointSha: string | null): Promise<Array<{ patch: Patch; sha: string }>>;
+  _validatePatchAgainstCheckpoint(writerId: string, tipSha: string, checkpoint: LoadedCheckpoint): Promise<void>;
+};
+
+function assertPatchLoaderSurface(host: CheckpointHost): asserts host is CheckpointHost & PatchLoaderSurface {
+  void host;
+}
+
+function assertGraphMixinsSurface(host: CheckpointHost): asserts host is CheckpointHost & WarpGraphWithMixins {
+  void host;
+}
+
 export default class CheckpointController {
   _host: CheckpointHost;
 
@@ -148,17 +194,18 @@ export default class CheckpointController {
 
   async _loadPatchesSince(checkpoint: LoadedCheckpoint): Promise<Array<{ patch: Patch; sha: string }>> {
     const h = this._host;
+    assertPatchLoaderSurface(h);
     const writerIds = await h.discoverWriters();
     const allPatches: Array<{ patch: Patch; sha: string }> = [];
 
     for (const writerId of writerIds) {
       const checkpointSha = checkpoint.frontier?.get(writerId) ?? null;
-      const patches = await (h as unknown as { _loadWriterPatches(writerId: string, checkpointSha: string | null): Promise<Array<{ patch: Patch; sha: string }>> })._loadWriterPatches(writerId, checkpointSha);
+      const patches = await h._loadWriterPatches(writerId, checkpointSha);
 
       const lastPatch = patches[patches.length - 1];
       if (lastPatch !== undefined) {
         const tipSha = lastPatch.sha;
-        await (h as unknown as { _validatePatchAgainstCheckpoint(writerId: string, tipSha: string, checkpoint: LoadedCheckpoint): Promise<void> })._validatePatchAgainstCheckpoint(writerId, tipSha, checkpoint);
+        await h._validatePatchAgainstCheckpoint(writerId, tipSha, checkpoint);
       }
 
       for (const p of patches) {
@@ -196,9 +243,14 @@ export default class CheckpointController {
 
       if (kind === 'patch') {
         const patchMeta = decodePatchMessage(nodeInfo.message);
-        const host = h as unknown as WarpGraphWithMixins;
-        const patchBuffer = await host._readPatchBlob(patchMeta);
-        const decoded = h._codec.decode<{ schema?: number }>(patchBuffer);
+        // Resolution: take B2's assertion + runtime-narrowing approach.
+        // Eliminates the `as unknown as` double-cast (0025A win) and
+        // provides runtime shape validation. The parameterized CodecPort
+        // from 0025B1 is still available elsewhere; here the runtime guard
+        // is the stronger anti-sludge choice.
+        assertGraphMixinsSurface(h);
+        const patchBuffer = await h._readPatchBlob(patchMeta);
+        const decoded = decodePatchSchema(codecDecodeAsObject(h._codec, patchBuffer));
 
         if (decoded.schema === 1 || decoded.schema === undefined) {
           return true;

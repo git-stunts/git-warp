@@ -35,7 +35,11 @@ import {
 
 // ── Observer source helpers ─────────────────────────────────────────
 
-type ObserverSource = { kind: string; [key: string]: unknown };
+/**
+ * The raw selector input accepted by callers of `observer()` and
+ * `worldline()`. Mirrors the parameter shape of `WorldlineSelector.from`.
+ */
+export type ObserverSource = Exclude<Parameters<typeof WorldlineSelector.from>[0], WorldlineSelector | null | undefined>;
 
 function toSelector(source: WorldlineSelector | ObserverSource | undefined): WorldlineSelector | undefined {
   if (!source) { return undefined; }
@@ -44,17 +48,31 @@ function toSelector(source: WorldlineSelector | ObserverSource | undefined): Wor
 
 // ── Snapshot helpers ────────────────────────────────────────────────
 
+/**
+ * Assertion narrowing WarpRuntime to its _materializeGraph internal.
+ * _materializeGraph is defined on WarpRuntime but typed loosely at
+ * this boundary; the assertion narrows without a value-level cast.
+ */
+type MaterializableHost = { _materializeGraph: () => Promise<{ state: WarpState; stateHash: string | null }> };
+
+function assertMaterializableHost(graph: WarpRuntime): asserts graph is WarpRuntime & MaterializableHost {
+  void graph;
+}
+
 async function snapshotCurrent(graph: WarpRuntime): Promise<{ state: WarpState; stateHash: string }> {
-  type Materializable = { _materializeGraph: () => Promise<{ state: WarpState; stateHash: string | null }> };
-  const materialized = await (graph as unknown as Materializable)._materializeGraph();
-  return { state: cloneState(materialized.state), stateHash: materialized.stateHash as string };
+  assertMaterializableHost(graph);
+  const materialized = await graph._materializeGraph();
+  if (materialized.stateHash === null) {
+    throw new QueryError('_materializeGraph returned a null stateHash', {
+      code: 'E_NO_STATE',
+    });
+  }
+  return { state: cloneState(materialized.state), stateHash: materialized.stateHash };
 }
 
 async function snapshotWith(graph: WarpRuntime, state: WarpState): Promise<{ state: WarpState; stateHash: string }> {
-  type HashHost = { _stateHashService?: { compute(s: WarpState): Promise<string> } | null; _crypto: unknown; _codec: unknown };
-  const h = graph as unknown as HashHost;
-  const stateHash = h._stateHashService
-    ? await h._stateHashService.compute(state)
+  const stateHash = graph._stateHashService
+    ? await graph._stateHashService.compute(state)
     : await computeStateHash(state, { crypto: graph._crypto, codec: graph._codec });
   return { state: cloneState(state), stateHash };
 }
@@ -82,7 +100,7 @@ async function resolveSourceSnapshot(graph: WarpRuntime, source: WorldlineSelect
   if (source instanceof StrandSelector) {
     return await resolveStrandSnapshot(graph, source);
   }
-  throw new QueryError(`unknown observer source kind: ${source.constructor.name}`, {
+  throw new QueryError(`unrecognized observer source kind: ${source.constructor.name}`, {
     code: 'E_OBSERVER_SOURCE_UNKNOWN',
     context: { sourceKind: source.constructor.name },
   });
@@ -124,7 +142,7 @@ function normalizeObserverArgs(nameOrConfig: string | ObserverConfig, configOrOp
   return { name: 'observer', config: nameOrConfig, options: configOrOptions as ObserverOptions | undefined };
 }
 
-function isValidMatch(m: unknown): boolean {
+function isValidMatch(m: string | string[]): boolean {
   if (typeof m === 'string') { return true; }
   return Array.isArray(m) && m.length > 0 && m.every((i) => typeof i === 'string');
 }
@@ -143,14 +161,20 @@ export default class QueryController {
 
 function host(ctrl: QueryController): WarpGraphWithMixins { return ctrl._host; }
 
- 
-function wire(name: string, fn: Function): void {
+/**
+ * CallableFunction is the least-information return shape for a
+ * dispatch wrapper — the actual per-method types live on the
+ * declaration-file surface exposed to callers.
+ */
+function wire(name: string, fn: CallableFunction): void {
   Object.defineProperty(QueryController.prototype, name, {
     value: fn, writable: true, configurable: true, enumerable: false,
   });
 }
 
-function wireEdge(name: string, impl: (h: WarpGraphWithMixins, edge: { from: string; to: string; label: string }) => Promise<unknown>): void {
+type EdgeImplResult<T> = (h: WarpGraphWithMixins, edge: { from: string; to: string; label: string }) => Promise<T>;
+
+function wireEdge<T>(name: string, impl: EdgeImplResult<T>): void {
   wire(name, function (this: QueryController, from: string, to: string, label: string) { return impl(host(this), { from, to, label }); });
 }
 

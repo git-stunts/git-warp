@@ -166,11 +166,11 @@ function resolveBlobStream(host: WarpGraphWithMixins, oid: string): AsyncIterabl
 
 export function singleChunkIterable(buf: Uint8Array): AsyncIterable<Uint8Array> {
   return {
-    [Symbol.asyncIterator]() {
+    [Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
       let done = false;
       return {
-        next() {
-          if (done) { return Promise.resolve({ value: undefined as unknown as Uint8Array, done: true }); }
+        next(): Promise<IteratorResult<Uint8Array>> {
+          if (done) { return Promise.resolve({ value: undefined, done: true }); }
           done = true;
           return Promise.resolve({ value: buf, done: false });
         },

@@ -13,7 +13,7 @@ import {
   type SyncRequest,
   type SyncResponse,
 } from '../sync/SyncProtocol.ts';
-import { retry, timeout, RetryExhaustedError, TimeoutError, type RetryOptions } from '@git-stunts/alfred';
+import { retry, RetryExhaustedError, TimeoutError, type RetryOptions } from '@git-stunts/alfred';
 import { checkAborted } from '../../utils/cancellation.ts';
 import { createFrontier, updateFrontier } from '../Frontier.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
@@ -23,11 +23,11 @@ import { launchSyncServer, type ServeOptions, type ServerHandle } from './SyncSe
 import { isError } from '../../types/WarpErrors.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type { CorePersistence } from '../../types/WarpPersistence.ts';
+import type SyncHttpClientPort from '../../../ports/SyncHttpClientPort.ts';
 import {
   mapsEqual,
   resolveSyncTarget,
   resolveSyncTrustGate,
-  buildSyncAuthHeaders,
 } from './syncHelpers.ts';
 import type {
   SyncHost,
@@ -35,7 +35,6 @@ import type {
   ApplySyncResult,
   SyncWithResult,
   SyncWithOptions,
-  SyncStatusEvent,
 } from './SyncControllerTypes.ts';
 
 export type { SyncHost, SkippedWriter, ApplySyncResult, SyncWithResult, SyncWithOptions } from './SyncControllerTypes.ts';
@@ -45,13 +44,101 @@ const DEFAULT_SYNC_WITH_BASE_DELAY_MS = 250;
 const DEFAULT_SYNC_WITH_MAX_DELAY_MS = 2000;
 const DEFAULT_SYNC_WITH_TIMEOUT_MS = 10_000;
 
+/**
+ * Optional payload carried alongside `type` and `attempt` in the
+ * onStatus callback — the superset of fields every event kind might
+ * contribute. Narrower than `SyncStatusEvent` because `type` and
+ * `attempt` are injected at the emit site.
+ */
+type SyncStatusPayload = {
+  durationMs?: number;
+  status?: number;
+  error?: Error;
+  delayMs?: number;
+  applied?: number;
+};
+
+/**
+ * Translates an optional caller auth shape into the SyncHttpAuth
+ * carried on the transport port. Returns undefined when auth is not
+ * configured (adapter skips signing).
+ */
+function resolveAuth(
+  auth: { secret: string; keyId?: string } | undefined,
+  crypto: import('../../../ports/CryptoPort.ts').default,
+  lamport: number,
+): import('../../../ports/SyncHttpClientPort.ts').SyncHttpAuth | undefined {
+  if (auth === undefined || auth.secret === undefined || auth.secret === '') { return undefined; }
+  return {
+    secret: auth.secret,
+    ...(auth.keyId !== undefined && auth.keyId !== '' ? { keyId: auth.keyId } : {}),
+    lamport,
+    crypto,
+  };
+}
+
+/**
+ * Translates a typed SyncHttpClientResult into the SyncController's
+ * throw-based idiom. Success returns the decoded body; failures throw
+ * the original SyncError / OperationAbortedError codes that the
+ * retry harness understands.
+ */
+function interpretHttpResult(
+  result: import('../../../ports/SyncHttpClientPort.ts').SyncHttpClientResult,
+  timeoutMs: number,
+): SyncResponse {
+  if (result.kind === 'success') {
+    return result.response;
+  }
+  if (result.kind === 'timeout') {
+    throw new SyncError('Sync request timed out', { code: 'E_SYNC_TIMEOUT', context: { timeoutMs } });
+  }
+  if (result.kind === 'aborted') {
+    throw new OperationAbortedError('syncWith', { reason: 'Signal received' });
+  }
+  if (result.kind === 'network-failure') {
+    throw new SyncError('Network error', {
+      code: 'E_SYNC_NETWORK', context: { message: result.message },
+    });
+  }
+  if (result.kind === 'status-failure') {
+    if (result.status >= 500) {
+      throw new SyncError(`Remote error: ${result.status}`, {
+        code: 'E_SYNC_REMOTE', context: { status: result.status },
+      });
+    }
+    throw new SyncError(`Protocol error: ${result.status}`, {
+      code: 'E_SYNC_PROTOCOL', context: { status: result.status },
+    });
+  }
+  // decode-failure
+  throw new SyncError('Invalid JSON response', {
+    code: 'E_SYNC_PROTOCOL', context: { status: result.status },
+  });
+}
+
 export default class SyncController {
   readonly _host: SyncHost;
   readonly _trustGate: SyncTrustGate | null;
+  private _httpClient: SyncHttpClientPort | null;
 
-  constructor(host: SyncHost, options: { trustGate?: SyncTrustGate } = {}) {
+  constructor(host: SyncHost, options: { trustGate?: SyncTrustGate; httpClient?: SyncHttpClientPort } = {}) {
     this._host = host;
     this._trustGate = options.trustGate ?? null;
+    this._httpClient = options.httpClient ?? null;
+  }
+
+  /**
+   * Lazily resolves the sync HTTP client. Defaults to the platform
+   * fetch-based adapter, loaded via dynamic import to keep the
+   * `from 'infrastructure/*'` wall clean at the module graph level.
+   */
+  private async _resolveHttpClient(): Promise<SyncHttpClientPort> {
+    if (this._httpClient !== null) { return this._httpClient; }
+    const mod = await import('../../../infrastructure/adapters/FetchSyncHttpClientAdapter.ts');
+    const adapter = new mod.default();
+    this._httpClient = adapter;
+    return adapter;
   }
 
   /** Returns the current frontier — a Map of writerId → tip SHA. */
@@ -201,13 +288,13 @@ export default class SyncController {
       ...(trust !== undefined ? { trust } : {}),
     });
 
-    const emit = (type: string, payload: Record<string, unknown> = {}): void => {
+    const emit = (type: string, payload: SyncStatusPayload = {}): void => {
       if (typeof onStatus === 'function') {
-        onStatus({ type, attempt, ...payload } as SyncStatusEvent);
+        onStatus({ type, attempt, ...payload });
       }
     };
 
-    const shouldRetry = (err: unknown): boolean => {
+    const shouldRetry = (err: Error): boolean => {
       if (isDirectPeer) { return false; }
       if (err instanceof SyncError) {
         return ['E_SYNC_REMOTE', 'E_SYNC_TIMEOUT', 'E_SYNC_NETWORK'].includes(err.code);
@@ -282,52 +369,36 @@ export default class SyncController {
     }
   }
 
-  /** Extracted HTTP fetch logic for sync requests. */
+  /**
+   * Performs one sync HTTP exchange via the SyncHttpClientPort.
+   *
+   * Serialization, signing, network I/O, and response decoding all
+   * live inside the adapter — this method just converts the port's
+   * typed result back into the controller's throw-based idiom (used
+   * by the retry loop to decide whether to back off).
+   */
   private async _fetchSyncResponse(
     request: SyncRequest, targetUrl: URL, timeoutMs: number,
     signal: AbortSignal | undefined,
     auth: { secret: string; keyId?: string } | undefined,
-    emit: (type: string, payload?: Record<string, unknown>) => void,
+    emit: (type: string, payload?: SyncStatusPayload) => void,
   ): Promise<SyncResponse> {
-    emit('requestSent');
-    const bodyStr = JSON.stringify(request);
-    const authHeaders = await buildSyncAuthHeaders({
-      auth, bodyStr, targetUrl, crypto: this._host._crypto,
-      lamport: this._host._maxObservedLamport,
-    });
-    let res: Response;
-    try {
-      res = await timeout(timeoutMs, (timeoutSignal: AbortSignal) => {
-        const combinedSignal = signal ? AbortSignal.any([timeoutSignal, signal]) : timeoutSignal;
-        return fetch(targetUrl.toString(), {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', 'accept': 'application/json', ...authHeaders },
-          body: bodyStr, signal: combinedSignal,
-        });
-      });
-    } catch (err) {
-      if (isError(err) && err.name === 'AbortError') {
-        throw new OperationAbortedError('syncWith', { reason: 'Signal received' });
-      }
-      if (err instanceof TimeoutError) {
-        throw new SyncError('Sync request timed out', { code: 'E_SYNC_TIMEOUT', context: { timeoutMs } });
-      }
-      throw new SyncError('Network error', {
-        code: 'E_SYNC_NETWORK', context: { message: isError(err) ? err.message : String(err) },
-      });
-    }
-    emit('responseReceived', { status: res.status });
-    if (res.status >= 500) {
-      throw new SyncError(`Remote error: ${res.status}`, { code: 'E_SYNC_REMOTE', context: { status: res.status } });
-    }
-    if (res.status >= 400) {
-      throw new SyncError(`Protocol error: ${res.status}`, { code: 'E_SYNC_PROTOCOL', context: { status: res.status } });
-    }
-    try {
-      return await res.json() as SyncResponse;
-    } catch {
-      throw new SyncError('Invalid JSON response', { code: 'E_SYNC_PROTOCOL', context: { status: res.status } });
-    }
+    const httpClient = await this._resolveHttpClient();
+    const result = await httpClient.exchange(
+      {
+        targetUrl, body: request, timeoutMs,
+        headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+        ...(signal !== undefined ? { signal } : {}),
+        ...(resolveAuth(auth, this._host._crypto, this._host._maxObservedLamport) !== undefined
+          ? { auth: resolveAuth(auth, this._host._crypto, this._host._maxObservedLamport)! }
+          : {}),
+      },
+      {
+        onRequestSent: () => emit('requestSent'),
+        onResponseReceived: (status) => emit('responseReceived', { status }),
+      },
+    );
+    return interpretHttpResult(result, timeoutMs);
   }
 
   /** Starts a built-in sync server for this graph. */

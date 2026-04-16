@@ -7,6 +7,16 @@
  * @module domain/services/controllers/ComparisonController
  */
 
+import type {
+  CoordinateComparisonV1,
+  CoordinateTransferPlanV1,
+} from '../../types/CoordinateComparison.ts';
+import type {
+  CompareStrandOptions,
+  PlanStrandTransferOptions,
+  CompareCoordinatesOptions,
+  PlanCoordinateTransferOptions,
+} from '../../capabilities/ComparisonCapability.ts';
 import type { ComparisonHost, PatchEntry } from './ComparisonSelector.ts';
 import {
   buildPatchDivergenceImpl,
@@ -14,6 +24,7 @@ import {
   planStrandTransferImpl,
   planCoordinateTransferImpl,
   compareCoordinatesImpl,
+  type VisiblePatchDivergenceV1,
 } from './ComparisonEngine.ts';
 
 export default class ComparisonController {
@@ -27,33 +38,33 @@ export default class ComparisonController {
     leftEntries: PatchEntry[],
     rightEntries: PatchEntry[],
     targetId?: string | null,
-  ): Record<string, unknown> {
+  ): VisiblePatchDivergenceV1 {
     return buildPatchDivergenceImpl(leftEntries, rightEntries, targetId ?? null);
   }
 
   async compareStrand(
     strandId: string,
-    options: Record<string, unknown> = {},
-  ): Promise<Record<string, unknown>> {
+    options: CompareStrandOptions = {},
+  ): Promise<CoordinateComparisonV1> {
     return await compareStrandImpl(this._host, strandId, options);
   }
 
   async planStrandTransfer(
     strandId: string,
-    options: Record<string, unknown> = {},
-  ): Promise<Record<string, unknown>> {
+    options: PlanStrandTransferOptions = {},
+  ): Promise<CoordinateTransferPlanV1> {
     return await planStrandTransferImpl(this._host, strandId, options);
   }
 
   async planCoordinateTransfer(
-    options: Record<string, unknown>,
-  ): Promise<Record<string, unknown>> {
+    options: PlanCoordinateTransferOptions,
+  ): Promise<CoordinateTransferPlanV1> {
     return await planCoordinateTransferImpl(this._host, options);
   }
 
   async compareCoordinates(
-    options: Record<string, unknown>,
-  ): Promise<Record<string, unknown>> {
+    options: CompareCoordinatesOptions,
+  ): Promise<CoordinateComparisonV1> {
     return await compareCoordinatesImpl(this._host, options);
   }
 }

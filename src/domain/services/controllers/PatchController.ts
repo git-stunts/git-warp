@@ -26,6 +26,8 @@ import {
   type PatchEntry,
   type DiscoverTicksResult,
 } from './PatchDiscovery.ts';
+import type WarpRuntime from '../../WarpRuntime.ts';
+import type AdjacencyMap from '../../capabilities/AdjacencyMap.ts';
 import type VersionVector from '../../crdt/VersionVector.ts';
 import type Patch from '../../types/Patch.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
@@ -33,6 +35,8 @@ import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 import type ConfigPort from '../../../ports/ConfigPort.ts';
 import type { PatchDiff } from '../../types/PatchDiff.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
+import type { LogicalIndex } from '../index/logicalIndexHelpers.ts';
+import type PropertyIndexReader from '../index/PropertyIndexReader.ts';
 
 // ── PatchHost ─────────────────────────────────────────────────────────────────
 
@@ -66,19 +70,36 @@ export interface PatchHost extends PatchDiscoveryHost {
   } | null | undefined;
   _auditSkipCount: number;
   _cachedViewHash: string | null;
-  _materializedGraph: { state: WarpState; stateHash: string | null; adjacency: unknown } | null;
-  _logicalIndex: unknown;
-  _propertyReader: unknown;
-  _cachedIndexTree: unknown;
-  materialize: (options?: Record<string, unknown>) => Promise<unknown>;
-  _setMaterializedState: (
-    state: WarpState,
-    opts?: { diff?: PatchDiff | null },
-  ) => Promise<unknown>;
+  _materializedGraph: { state: WarpState; stateHash: string | null; adjacency: AdjacencyMap } | null;
+  _logicalIndex: LogicalIndex | null;
+  _propertyReader: PropertyIndexReader | null;
+  _cachedIndexTree: Record<string, Uint8Array> | null;
+  materialize: {
+    (options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+    (options?: { receipts?: false; ceiling?: number | null }): Promise<WarpState>;
+  };
+  // TODO(0025B1): _wiredMethods.d.ts declares the return with a loose
+  // adjacency slot. Derive the full call signature from WarpRuntime
+  // through `_wiredMethods` — the controller only reads the side-effect
+  // of this call, so matching the wiring surface keeps this honest
+  // without duplicating its looseness textually here.
+  _setMaterializedState: WarpRuntime['_setMaterializedState'];
   _buildAdjacency: (state: WarpState) => {
     outgoing: Map<string, Array<{ neighborId: string; label: string }>>;
     incoming: Map<string, Array<{ neighborId: string; label: string }>>;
   };
+}
+
+/**
+ * PatchController-level assertion that _persistence implements ConfigPort.
+ * The underlying adapter provides ConfigPort methods (configGet/configSet)
+ * but the narrow CorePersistence type doesn't carry them. This assertion
+ * declares the runtime compatibility without a value-level cast.
+ */
+function assertConfigPortPersistence(
+  host: PatchHost,
+): asserts host is PatchHost & { _persistence: PatchHost['_persistence'] & ConfigPort } {
+  void host;
 }
 
 // ── JoinReceipt ───────────────────────────────────────────────────────────────
@@ -297,9 +318,9 @@ export default class PatchController {
    */
   async writer(writerId: string): Promise<Writer> {
     const h = this._host;
-    const config = h._persistence as unknown as ConfigPort;
-    const configGet = async (key: string): Promise<string | null> => await config.configGet(key);
-    const configSet = async (key: string, value: string): Promise<void> => await config.configSet(key, value);
+    assertConfigPortPersistence(h);
+    const configGet = async (key: string): Promise<string | null> => await h._persistence.configGet(key);
+    const configSet = async (key: string, value: string): Promise<void> => await h._persistence.configSet(key, value);
 
     const resolvedWriterId = await resolveWriterId({
       graphName: h._graphName,

@@ -11,19 +11,47 @@ import { diffStates, isEmptyDiff, type StateDiffResult, type EdgeChange, type Pr
 import { matchGlob } from '../../utils/matchGlob.ts';
 import WarpError from '../../errors/WarpError.ts';
 import type { WarpState } from '../JoinReducer.ts';
+import type { MaterializeResult } from './MaterializeController.ts';
+
+/**
+ * Callback shape for subscriber errors. Errors flow through the catch
+ * binding and land here as `Error` — both WarpError (domain) and raw
+ * Error instances propagated from infrastructure callbacks surface as
+ * Error subtypes.
+ */
+export type SubscriberErrorHandler = (error: Error) => void;
+
+/**
+ * Change callback shape shared by `subscribe()` and `watch()`.
+ */
+export type SubscriberChangeHandler = (diff: StateDiffResult) => void;
 
 interface Subscriber {
-  onChange: (diff: StateDiffResult) => void;
-  onError?: (error: unknown) => void;
+  onChange: SubscriberChangeHandler;
+  onError?: SubscriberErrorHandler;
   pendingReplay: boolean;
 }
 
+/**
+ * Options passed through to WarpRuntime.materialize when the polling
+ * path calls into materialization.
+ */
+export type SubscriptionMaterializeOptions = {
+  receipts?: boolean;
+  ceiling?: number | null;
+};
+
 interface SubscriptionHost {
   _cachedState: WarpState | null;
-  _subscribers: Array<{ onChange: (diff: StateDiffResult) => void; onError?: (error: unknown) => void; pendingReplay?: boolean }>;
+  _subscribers: Array<{
+    onChange: SubscriberChangeHandler;
+    onError?: SubscriberErrorHandler;
+    pendingReplay?: boolean;
+  }>;
   hasFrontierChanged(): Promise<boolean>;
-  materialize(options?: Record<string, unknown>): Promise<unknown>;
+  materialize(options?: SubscriptionMaterializeOptions): Promise<MaterializeResult>;
 }
+
 
 type SchedulerFn = (callback: () => void, ms: number) => ReturnType<typeof setInterval>;
 
@@ -42,8 +70,8 @@ export default class SubscriptionController {
   }
 
   subscribe({ onChange, onError, replay = false }: {
-    onChange: (diff: StateDiffResult) => void;
-    onError?: (error: unknown) => void;
+    onChange: SubscriberChangeHandler;
+    onError?: SubscriberErrorHandler;
     replay?: boolean;
   }): { unsubscribe: () => void } {
     if (typeof onChange !== 'function') {
@@ -66,7 +94,7 @@ export default class SubscriptionController {
         } catch (err) {
           if (onError) {
             try {
-              onError(err);
+              onError(err instanceof Error ? err : new WarpError(String(err), 'E_SUBSCRIBE_NON_ERROR'));
             } catch {
               // onError itself threw — swallow to prevent cascade
             }
@@ -88,8 +116,8 @@ export default class SubscriptionController {
   watch(
     pattern: string | string[],
     { onChange, onError, poll }: {
-      onChange: (diff: StateDiffResult) => void;
-      onError?: (error: unknown) => void;
+      onChange: SubscriberChangeHandler;
+      onError?: SubscriberErrorHandler;
       poll?: number;
     },
   ): { unsubscribe: () => void } {
@@ -160,7 +188,7 @@ export default class SubscriptionController {
           .catch((err) => {
             if (onError) {
               try {
-                onError(err);
+                onError(err instanceof Error ? err : new WarpError(String(err), 'E_SUBSCRIBE_NON_ERROR'));
               } catch {
                 // onError itself threw — swallow
               }
@@ -199,7 +227,7 @@ export default class SubscriptionController {
       } catch (err) {
         if (typeof subscriber.onError === 'function') {
           try {
-            subscriber.onError(err);
+            subscriber.onError(err instanceof Error ? err : new WarpError(String(err), 'E_SUBSCRIBE_NON_ERROR'));
           } catch {
             // onError itself threw — swallow
           }
