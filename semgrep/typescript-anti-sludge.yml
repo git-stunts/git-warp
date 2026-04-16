@@ -1,0 +1,143 @@
+# Semgrep pattern policy — anti-sludge rules for git-warp.
+#
+# Reference: docs/ANTI_SLUDGE_POLICY.md
+# Owning cycle: 0025 (paydown split into 0025A..0025D sub-cycles)
+#
+# Adapted from the anti-sludge policy bundle for git-warp's layout:
+#   - src/domain/       — pure domain, no host APIs
+#   - src/ports/        — capability interfaces
+#   - src/infrastructure/ — adapters (equivalent to bundle's src/adapters/)
+#
+# The "core" paths for rule scoping are src/domain + src/ports.
+# src/infrastructure/adapters/** is the boundary and has narrower carve-outs.
+
+rules:
+  # ────────────────────────────────────────────────────────────
+  # 0025C — Fake-model purge
+  # ────────────────────────────────────────────────────────────
+
+  - id: ts-no-like-types
+    message: |
+      Placeholder `*Like` types are banned. Name the real concept.
+      See docs/ANTI_SLUDGE_POLICY.md §2 and cycle 0023 retro for
+      the cautionary tale that motivated this rule.
+    severity: ERROR
+    languages: [typescript]
+    pattern-regex: '\b[A-Z][A-Za-z0-9]*Like\b'
+    paths:
+      include:
+        - src/**/*.ts
+
+  # ────────────────────────────────────────────────────────────
+  # 0025B — Boundary purge
+  # ────────────────────────────────────────────────────────────
+
+  - id: ts-no-unknown-outside-adapters
+    message: |
+      `unknown` is boundary-local. Keep it inside
+      src/infrastructure/adapters/** and decode immediately.
+    severity: ERROR
+    languages: [typescript]
+    pattern-regex: '\bunknown\b'
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+
+  - id: ts-no-record-string-unknown-outside-adapters
+    message: |
+      `Record<string, unknown>` is boundary-local. Do not let raw
+      transport shapes into core code. Define a runtime-backed
+      domain type or a transport DTO.
+    severity: ERROR
+    languages: [typescript]
+    pattern-regex: 'Record\s*<\s*string\s*,\s*unknown\s*>'
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+
+  - id: ts-no-json-parse-in-core
+    message: 'Decode raw input only in adapters. See docs/ANTI_SLUDGE_POLICY.md §4.'
+    severity: ERROR
+    languages: [typescript]
+    pattern: JSON.parse(...)
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+
+  - id: ts-no-json-stringify-in-core
+    message: 'Encode output only in adapters. See docs/ANTI_SLUDGE_POLICY.md §4.'
+    severity: ERROR
+    languages: [typescript]
+    pattern: JSON.stringify(...)
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+
+  - id: ts-no-fetch-in-core
+    message: 'HTTP calls belong in adapters.'
+    severity: ERROR
+    languages: [typescript]
+    pattern: fetch(...)
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+
+  - id: ts-no-process-env-in-core
+    message: 'Environment reads belong in adapters. See docs/ANTI_SLUDGE_POLICY.md §9.'
+    severity: ERROR
+    languages: [typescript]
+    pattern: process.env
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+
+  - id: ts-no-date-now-in-core
+    message: 'Use a ClockPort in core code. Date.now() is banned in src/domain/**.'
+    severity: ERROR
+    languages: [typescript]
+    pattern: Date.now()
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+
+  - id: ts-no-new-date-in-core
+    message: 'Use a ClockPort in core code. new Date(...) is banned in src/domain/**.'
+    severity: ERROR
+    languages: [typescript]
+    pattern: new Date(...)
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+
+  - id: ts-no-math-random-in-core
+    message: 'Use a seeded PRNG or RandomPort. Math.random() is banned in src/domain/**.'
+    severity: ERROR
+    languages: [typescript]
+    pattern: Math.random()
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+
+  # ────────────────────────────────────────────────────────────
+  # 0025A — Cast purge
+  # ────────────────────────────────────────────────────────────
+
+  - id: ts-no-double-cast
+    message: |
+      `as unknown as` is banned. Replace with a decoder, a type guard,
+      or a narrower port return type. See docs/ANTI_SLUDGE_POLICY.md §2.
+    severity: ERROR
+    languages: [typescript]
+    pattern-regex: 'as\s+unknown\s+as'
+    paths:
+      include:
+        - src/**/*.ts

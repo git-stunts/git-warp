@@ -36,6 +36,16 @@ jobs:
         run: npm run lint
       - name: 'Gate 4b: Lint ratchet (zero-error invariant)'
         run: npm run lint:ratchet
+      - name: 'Gate 4c: Anti-sludge shell checks (junk-drawer filenames)'
+        run: npm run lint:sludge
+      - name: 'Gate 4d: Semgrep anti-sludge policy (*Like, as unknown as, Record<string, unknown>, JSON.parse in core, etc.)'
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: semgrep/typescript-anti-sludge.yml
+      - name: 'Gate 4e: Contamination map matches checked-in manifests (no stale quarantines)'
+        run: |
+          npm run lint:contamination
+          git diff --exit-code -- policy/quarantines/
       - name: 'Gate 5: Declaration surface validator (manifest vs index.d.ts vs index.js)'
         run: npm run typecheck:surface
       - name: 'Gate 6: Markdown lint (fenced code blocks require language)'
