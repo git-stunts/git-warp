@@ -6,7 +6,7 @@
     "ts-no-like-types"
   ],
   "rationale": "Pre-existing *Like placeholder types in src/**. Each *Like name is shape-talk hiding either (a) a missing boundary decoder, (b) a duck-typed narrow slice of a real type, or (c) a real domain concept that was never named. Cycle 0023 retro documents the cautionary tale. Graduate by giving the concept a real name (class with validated constructor) or removing the alias in favor of the real type.",
-  "generated_at": "2026-04-16T09:21:11.219Z",
+  "generated_at": "2026-04-16T14:06:11.246Z",
   "generator": "scripts/contamination-map.ts v1",
   "files": [
     "src/domain/services/HealthCheckService.ts",
@@ -18,8 +18,6 @@
     "src/domain/services/PatchHydrator.ts",
     "src/domain/services/codec/MessageSchemaDetector.ts",
     "src/domain/services/controllers/ForkController.ts",
-    "src/domain/services/index/IncrementalIndexUpdater.ts",
-    "src/infrastructure/adapters/GitGraphAdapter.ts",
-    "src/infrastructure/adapters/gitErrorClassification.ts"
+    "src/domain/services/index/IncrementalIndexUpdater.ts"
   ]
 }

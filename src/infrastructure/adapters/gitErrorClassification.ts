@@ -31,7 +31,7 @@ export interface CollectableStream extends AsyncIterable<Uint8Array> {
 }
 
 /** Minimal contract for the plumbing dependency injected into adapters. */
-export interface GitPlumbingLike {
+export interface GitPlumbing {
   readonly emptyTree: string;
   execute(options: { args: string[]; input?: string | Buffer }): Promise<string>;
   executeStream(options: { args: string[] }): Promise<CollectableStream>;

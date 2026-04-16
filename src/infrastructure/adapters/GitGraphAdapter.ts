@@ -14,7 +14,7 @@ import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.ts';
 import {
-  type GitPlumbingLike,
+  type GitPlumbing,
   type GitError,
   getExitCode,
   isDanglingObjectError,
@@ -25,16 +25,16 @@ import {
 } from './gitErrorClassification.ts';
 
 // Re-export for downstream consumers that reference these types via the adapter module.
-export type { GitPlumbingLike, GitError } from './gitErrorClassification.ts';
+export type { GitPlumbing, GitError } from './gitErrorClassification.ts';
 export type { CollectableStream } from './gitErrorClassification.ts';
 
 interface GitGraphAdapterOptions {
-  readonly plumbing: GitPlumbingLike;
+  readonly plumbing: GitPlumbing;
   readonly retryOptions?: Partial<RetryOptions>;
 }
 
 export default class GitGraphAdapter extends GraphPersistencePort {
-  private readonly plumbing: GitPlumbingLike;
+  private readonly plumbing: GitPlumbing;
   private readonly _retryOptions: RetryOptions;
 
   constructor({ plumbing, retryOptions = {} }: GitGraphAdapterOptions) {
