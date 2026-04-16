@@ -18,7 +18,7 @@ import type TrustChainPort from '../../../ports/TrustChainPort.ts';
 import { buildAuditPrefix } from '../../utils/RefLayout.ts';
 import AuditChainVerifier, { type ChainResult } from './AuditChainVerifier.ts';
 import TrustEvaluationService, { type TrustEvaluationOptions } from './TrustEvaluationService.ts';
-import { TrustAssessment } from '../../trust/TrustAssessment.ts';
+import type { TrustAssessment } from '../../trust/TrustAssessment.ts';
 
 type TrustWarning = {
   code: string;

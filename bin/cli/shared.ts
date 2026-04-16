@@ -65,7 +65,7 @@ export async function listGraphNames(persistence: Persistence): Promise<string[]
     }
   }
 
-  return ([...names].sort()) as string[];
+  return ([...names].sort());
 }
 
 /**

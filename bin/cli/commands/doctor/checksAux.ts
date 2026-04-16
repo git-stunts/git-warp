@@ -27,7 +27,7 @@ async function collectWriterDates(ctx: DoctorContext): Promise<Array<{ writerId:
     if (typeof head.sha !== 'string' || head.sha.length === 0) {
       continue;
     }
-    const entry = await parseWriterDate(ctx.persistence, { writerId: head.writerId, sha: head.sha as string });
+    const entry = await parseWriterDate(ctx.persistence, { writerId: head.writerId, sha: head.sha });
     if (entry !== null) {
       dates.push(entry);
     }

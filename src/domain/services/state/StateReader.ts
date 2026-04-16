@@ -1,5 +1,5 @@
 import { projectState } from './StateSerializer.ts';
-import WarpState from './WarpState.ts';
+import type WarpState from './WarpState.ts';
 import {
   type ContentMeta,
   type NeighborEntry,

@@ -9,7 +9,7 @@
 
 import SyncError from '../../errors/SyncError.ts';
 import { signSyncRequest, canonicalizePath } from '../sync/SyncAuthService.ts';
-import SyncTrustGate from '../sync/SyncTrustGate.ts';
+import type SyncTrustGate from '../sync/SyncTrustGate.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type { SyncHost } from './SyncController.ts';
 

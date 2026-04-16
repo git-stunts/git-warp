@@ -7,9 +7,9 @@
  * @module domain/services/strand/ConflictCandidateCollector
  */
 
-import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
-import ConflictCandidate from './ConflictCandidate.ts';
-import OpRecord from './OpRecord.ts';
+import type ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
+import type ConflictCandidate from './ConflictCandidate.ts';
+import type OpRecord from './OpRecord.ts';
 import { analyzeFrameOps, addEventualOverrideCandidates, type PatchFrame } from './conflictCandidateAnalysis.ts';
 
 export { inferCausalRelation } from './conflictCandidateAnalysis.ts';

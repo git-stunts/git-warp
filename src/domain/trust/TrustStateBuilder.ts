@@ -11,7 +11,7 @@
  * @see docs/specs/TRUST_V1_CRYPTO.md Section 11
  */
 
-import { TrustRecord, type KeyAddSubject, type KeyRevokeSubject, type WriterBindAddSubject, type WriterBindRevokeSubject } from './TrustRecord.ts';
+import { type TrustRecord, type KeyAddSubject, type KeyRevokeSubject, type WriterBindAddSubject, type WriterBindRevokeSubject } from './TrustRecord.ts';
 
 // -- Domain types for trust state ---------------------------------------------
 

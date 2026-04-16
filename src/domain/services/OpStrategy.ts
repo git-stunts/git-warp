@@ -4,7 +4,7 @@ import type OpOutcomeResult from '../types/ops/OpOutcomeResult.ts';
 import type { EventId } from '../utils/EventId.ts';
 import type { OpLike } from './OpLike.ts';
 import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
-import WarpState from './state/WarpState.ts';
+import type WarpState from './state/WarpState.ts';
 import type { PropValue } from '../types/PropValue.ts';
 
 /**

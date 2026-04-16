@@ -89,7 +89,7 @@ function buildProvenancePayload({ graphName, strandId, strand, entityId, lamport
 /** Handles the `debug provenance` topic: inspects causal patch provenance for a graph entity. */
 export async function handleDebugTopic({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: unknown; exitCode: number }> {
   const { values: rawValues } = parseCommandArgs(args, DEBUG_PROVENANCE_OPTIONS, debugProvenanceSchema);
-  const values = rawValues as ReturnType<typeof debugProvenanceSchema.parse>;
+  const values = rawValues;
   const { graph, graphName, activeCursor } = await openDebugContext(options);
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
   const strandId = typeof values.strandId === 'string' && values.strandId.length > 0 ? values.strandId : null;

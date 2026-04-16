@@ -30,7 +30,7 @@ import {
 } from './KeyCodec.ts';
 import { OP_TYPES } from '../types/TickReceipt.ts';
 import PatchError from '../errors/PatchError.ts';
-import WarpState from './state/WarpState.ts';
+import type WarpState from './state/WarpState.ts';
 import type { PatchDiff } from '../types/PatchDiff.ts';
 import OpApplied from '../types/ops/OpApplied.ts';
 import type OpOutcomeResult from '../types/ops/OpOutcomeResult.ts';

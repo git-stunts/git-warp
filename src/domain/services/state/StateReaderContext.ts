@@ -12,7 +12,7 @@ import {
   isEdgePropKey,
 } from '../KeyCodec.ts';
 import type { PropValue } from '../../types/PropValue.ts';
-import WarpState from './WarpState.ts';
+import type WarpState from './WarpState.ts';
 
 // ── Public types ────────────────────────────────────────────────────────────
 

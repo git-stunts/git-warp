@@ -188,7 +188,7 @@ function collectTouchedIds(ops: DebugOpLike[] | undefined): string[] {
     addIfNonEmptyString(ids, op.to);
   }
 
-  return ([...ids].sort(compareStrings)) as string[];
+  return ([...ids].sort(compareStrings));
 }
 
 /**

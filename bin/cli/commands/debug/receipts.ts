@@ -221,7 +221,7 @@ function buildReceiptsPayload(ctx: {
 /** Handle the 'receipts' debug topic — load, filter, and format tick receipts. */
 export async function handleDebugTopic({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: unknown; exitCode: number }> {
   const { values: rawValues } = parseCommandArgs(args, DEBUG_RECEIPT_OPTIONS, debugReceiptsSchema);
-  const values = rawValues as ReceiptFilter;
+  const values = rawValues;
   const { graph, graphName, activeCursor } = await openDebugContext(options);
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
   const strand = values.strandId !== null

@@ -105,7 +105,7 @@ async function buildResolvedCoordinate({ graph, lamportCeiling, maxTick, tickCou
 /** Handles the 'coordinate' debug topic — resolves and displays the observation coordinate. */
 export async function handleDebugTopic({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: unknown; exitCode: number }> {
   const { values: rawValues } = parseCommandArgs(args, DEBUG_COORDINATE_OPTIONS, debugCoordinateSchema);
-  const values = rawValues as ReturnType<typeof debugCoordinateSchema.parse>;
+  const values = rawValues;
   const { graph, graphName, activeCursor } = await openDebugContext(options);
 
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);

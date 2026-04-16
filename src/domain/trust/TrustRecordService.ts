@@ -10,7 +10,7 @@
  */
 
 import type TrustChainPort from '../../ports/TrustChainPort.ts';
-import { TrustRecord } from './TrustRecord.ts';
+import type { TrustRecord } from './TrustRecord.ts';
 import TrustError from '../errors/TrustError.ts';
 
 // -- Append options -----------------------------------------------------------

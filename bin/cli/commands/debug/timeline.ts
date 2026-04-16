@@ -254,7 +254,7 @@ function buildDebugTimelinePayload({ graphName, coordinateSource, values, strand
 /** Handles the 'debug timeline' CLI command. */
 export async function handleDebugTopic({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: unknown; exitCode: number }> {
   const { values: rawValues } = parseCommandArgs(args, DEBUG_TIMELINE_OPTIONS, debugTimelineSchema);
-  const values = rawValues as TimelineValues;
+  const values = rawValues;
   const { graph, graphName, activeCursor } = await openDebugContext(options);
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
   const entries = await resolveTimelineEntries({ graph, values, lamportCeiling });
