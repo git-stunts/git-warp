@@ -192,7 +192,7 @@ function collectEdgeProps(state: WarpState, edge: { from: string; to: string; la
 }
 
 function isStaleEdgeProp(register: PropRegister, birthEvent: EventId | undefined): boolean {
-  if (!birthEvent || !register.eventId) { return false; }
+  if (birthEvent === undefined || register.eventId === null) { return false; }
   return compareEventIds(register.eventId, birthEvent) < 0;
 }
 

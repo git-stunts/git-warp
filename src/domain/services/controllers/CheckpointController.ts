@@ -48,7 +48,7 @@ function codecDecodeAsObject(
 function decodePatchSchema(decoded: object | null): { schema?: number } {
   if (decoded === null) { return {}; }
   if (!('schema' in decoded)) { return {}; }
-  const schema = (decoded as { schema: number | string | boolean | null }).schema;
+  const { schema } = decoded as { schema: number | string | boolean | null };
   return typeof schema === 'number' ? { schema } : {};
 }
 
