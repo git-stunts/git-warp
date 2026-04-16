@@ -12,12 +12,15 @@ import {
   encodeEdgeKey,
   decodeEdgeKey,
 } from '../KeyCodec.ts';
-import { compareEventIds } from '../../utils/EventId.ts';
+import { compareEventIds, type EventId } from '../../utils/EventId.ts';
 import { createImmutableWarpState } from '../ImmutableSnapshot.ts';
+import QueryError from '../../errors/QueryError.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { WarpGraphWithMixins } from '../../warp/_internal.ts';
 import type NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
 import type { NeighborOptions } from '../../../ports/NeighborProviderPort.ts';
+import type { LWWRegister } from '../../crdt/LWW.ts';
+import type { PropValue } from '../../types/PropValue.ts';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -28,6 +31,15 @@ type NeighborEntry = {
 };
 
 type DirectionTag = 'outgoing' | 'incoming';
+
+/**
+ * A node or edge property bag: keys are user-supplied prop names and
+ * values are decoded domain `PropValue`s (the type CBOR decode produces).
+ */
+type PropertyBag = Record<string, PropValue>;
+
+/** A property register stored on the CRDT state map. */
+type PropRegister = LWWRegister<PropValue>;
 
 // ── Neighbor helpers ────────────────────────────────────────────────
 
@@ -88,7 +100,10 @@ function filterByDirection(both: { out: NeighborEntry[]; in: NeighborEntry[] }, 
 
 async function ensureAndGetState(host: WarpGraphWithMixins): Promise<WarpState> {
   await host._ensureFreshState();
-  return host._cachedState as WarpState;
+  if (host._cachedState === null) {
+    throw new QueryError('host state is null after _ensureFreshState', { code: 'E_NO_STATE' });
+  }
+  return host._cachedState;
 }
 
 // ── Read implementations ────────────────────────────────────────────
@@ -98,30 +113,35 @@ export async function hasNodeImpl(host: WarpGraphWithMixins, nodeId: string): Pr
   return state.nodeAlive.contains(nodeId);
 }
 
-export async function getNodePropsImpl(host: WarpGraphWithMixins, nodeId: string): Promise<Record<string, unknown> | null> {
+export async function getNodePropsImpl(host: WarpGraphWithMixins, nodeId: string): Promise<PropertyBag | null> {
   await host._ensureFreshState();
   const indexed = await tryIndexedNodeProps(host, nodeId);
   if (indexed !== undefined) { return indexed; }
-  return linearNodeProps(host._cachedState as WarpState, nodeId);
+  if (host._cachedState === null) { return null; }
+  return linearNodeProps(host._cachedState, nodeId);
 }
 
 function hasIndexForNode(host: WarpGraphWithMixins, nodeId: string): boolean {
   return Boolean(host._propertyReader) && host._logicalIndex?.isAlive(nodeId) === true;
 }
 
-async function tryIndexedNodeProps(host: WarpGraphWithMixins, nodeId: string): Promise<Record<string, unknown> | null | undefined> {
+async function tryIndexedNodeProps(host: WarpGraphWithMixins, nodeId: string): Promise<PropertyBag | null | undefined> {
   if (!hasIndexForNode(host, nodeId)) { return undefined; }
   try {
     const record = await host._propertyReader!.getNodeProps(nodeId);
-    return record ?? undefined; // null → fall through to linear scan
+    if (record === null || record === undefined) { return undefined; }
+    // TODO(0025B5): PropertyIndexReader (index/ cluster) returns a loose
+    // Record shape; the decoded values are always PropValue. The
+    // narrow-cast below goes away when the index cluster graduates.
+    return record as PropertyBag;
   } catch {
     return undefined;
   }
 }
 
-function linearNodeProps(state: WarpState, nodeId: string): Record<string, unknown> | null {
+function linearNodeProps(state: WarpState, nodeId: string): PropertyBag | null {
   if (!state.nodeAlive.contains(nodeId)) { return null; }
-  const props: Record<string, unknown> = {};
+  const props: PropertyBag = {};
   for (const [propKey, register] of state.prop) {
     const decoded = decodePropKey(propKey);
     if (decoded.nodeId === nodeId) {
@@ -131,12 +151,12 @@ function linearNodeProps(state: WarpState, nodeId: string): Record<string, unkno
   return props;
 }
 
-export async function getEdgePropsImpl(host: WarpGraphWithMixins, edge: { from: string; to: string; label: string }): Promise<Record<string, unknown> | null> {
+export async function getEdgePropsImpl(host: WarpGraphWithMixins, edge: { from: string; to: string; label: string }): Promise<PropertyBag | null> {
   const state = await ensureAndGetState(host);
   return edgePropsFromState(state, edge);
 }
 
-function edgePropsFromState(state: WarpState, edge: { from: string; to: string; label: string }): Record<string, unknown> | null {
+function edgePropsFromState(state: WarpState, edge: { from: string; to: string; label: string }): PropertyBag | null {
   const edgeKey = encodeEdgeKey(edge.from, edge.to, edge.label);
   if (!state.edgeAlive.contains(edgeKey)) { return null; }
   if (!state.nodeAlive.contains(edge.from) || !state.nodeAlive.contains(edge.to)) { return null; }
@@ -147,7 +167,12 @@ function isMatchingEdgeProp(d: { from: string; to: string; label: string }, edge
   return d.from === edge.from && d.to === edge.to && d.label === edge.label;
 }
 
-function visibleEdgePropValue(params: { propKey: string; register: { eventId: unknown; value: unknown }; edge: { from: string; to: string; label: string }; birthEvent: import('../../utils/EventId.ts').EventId | undefined }): { key: string; value: unknown } | null {
+function visibleEdgePropValue(params: {
+  propKey: string;
+  register: PropRegister;
+  edge: { from: string; to: string; label: string };
+  birthEvent: EventId | undefined;
+}): { key: string; value: PropValue } | null {
   const { propKey, register, edge, birthEvent } = params;
   if (!isEdgePropKey(propKey)) { return null; }
   const d = decodeEdgePropKey(propKey);
@@ -156,9 +181,9 @@ function visibleEdgePropValue(params: { propKey: string; register: { eventId: un
   return { key: d.propKey, value: register.value };
 }
 
-function collectEdgeProps(state: WarpState, edge: { from: string; to: string; label: string }, edgeKey: string): Record<string, unknown> {
+function collectEdgeProps(state: WarpState, edge: { from: string; to: string; label: string }, edgeKey: string): PropertyBag {
   const birthEvent = state.edgeBirthEvent?.get(edgeKey);
-  const props: Record<string, unknown> = {};
+  const props: PropertyBag = {};
   for (const [propKey, register] of state.prop) {
     const entry = visibleEdgePropValue({ propKey, register, edge, birthEvent });
     if (entry) { props[entry.key] = entry.value; }
@@ -166,16 +191,17 @@ function collectEdgeProps(state: WarpState, edge: { from: string; to: string; la
   return props;
 }
 
-function isStaleEdgeProp(register: { eventId: unknown }, birthEvent: unknown): boolean {
+function isStaleEdgeProp(register: PropRegister, birthEvent: EventId | undefined): boolean {
   if (!birthEvent || !register.eventId) { return false; }
-  return compareEventIds(register.eventId as import('../../utils/EventId.ts').EventId, birthEvent as import('../../utils/EventId.ts').EventId) < 0;
+  return compareEventIds(register.eventId, birthEvent) < 0;
 }
 
 export async function neighborsImpl(host: WarpGraphWithMixins, params: { nodeId: string; direction: 'outgoing' | 'incoming' | 'both'; edgeLabel?: string }): Promise<NeighborEntry[]> {
   await host._ensureFreshState();
   const indexed = await tryIndexedNeighbors(host, params);
   if (indexed !== undefined) { return indexed; }
-  const both = linearNeighborsForNode(host._cachedState as WarpState, params.nodeId, params.edgeLabel);
+  if (host._cachedState === null) { return []; }
+  const both = linearNeighborsForNode(host._cachedState, params.nodeId, params.edgeLabel);
   return filterByDirection(both, params.direction);
 }
 
@@ -218,14 +244,14 @@ export async function getNodesImpl(host: WarpGraphWithMixins): Promise<string[]>
   return [...state.nodeAlive.elements()];
 }
 
-export async function getEdgesImpl(host: WarpGraphWithMixins): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>> {
+export async function getEdgesImpl(host: WarpGraphWithMixins): Promise<Array<{ from: string; to: string; label: string; props: PropertyBag }>> {
   const state = await ensureAndGetState(host);
   const edgeProps = buildEdgePropsByKey(state);
   return buildEdgeList(state, edgeProps);
 }
 
-function buildEdgePropsByKey(state: WarpState): Map<string, Record<string, unknown>> {
-  const result = new Map<string, Record<string, unknown>>();
+function buildEdgePropsByKey(state: WarpState): Map<string, PropertyBag> {
+  const result = new Map<string, PropertyBag>();
   for (const [propKey, register] of state.prop) {
     if (!isEdgePropKey(propKey)) { continue; }
     addEdgePropEntry({ state, propKey, register, result });
@@ -233,7 +259,12 @@ function buildEdgePropsByKey(state: WarpState): Map<string, Record<string, unkno
   return result;
 }
 
-function addEdgePropEntry(params: { state: WarpState; propKey: string; register: { eventId: unknown; value: unknown }; result: Map<string, Record<string, unknown>> }): void {
+function addEdgePropEntry(params: {
+  state: WarpState;
+  propKey: string;
+  register: PropRegister;
+  result: Map<string, PropertyBag>;
+}): void {
   const { state, propKey, register, result } = params;
   const d = decodeEdgePropKey(propKey);
   const ek = encodeEdgeKey(d.from, d.to, d.label);
@@ -246,8 +277,8 @@ function addEdgePropEntry(params: { state: WarpState; propKey: string; register:
   bag[d.propKey] = register.value;
 }
 
-function buildEdgeList(state: WarpState, edgeProps: Map<string, Record<string, unknown>>): Array<{ from: string; to: string; label: string; props: Record<string, unknown> }> {
-  const edges: Array<{ from: string; to: string; label: string; props: Record<string, unknown> }> = [];
+function buildEdgeList(state: WarpState, edgeProps: Map<string, PropertyBag>): Array<{ from: string; to: string; label: string; props: PropertyBag }> {
+  const edges: Array<{ from: string; to: string; label: string; props: PropertyBag }> = [];
   for (const edgeKey of state.edgeAlive.elements()) {
     const { from, to, label } = decodeEdgeKey(edgeKey);
     if (!state.nodeAlive.contains(from) || !state.nodeAlive.contains(to)) { continue; }
