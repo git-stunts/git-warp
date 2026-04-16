@@ -18,7 +18,19 @@ import { createStateReader } from '../state/StateReader.js';
 import { compareVisibleState } from '../comparison/VisibleStateComparison.ts';
 import { planVisibleStateTransfer } from '../transfer/VisibleStateTransferPlanner.ts';
 import { normalizeVisibleStateScope } from '../VisibleStateScope.ts';
-import type { VisibleStateScope } from '../../types/CoordinateComparison.ts';
+import type {
+  VisibleStateScope,
+  CoordinateComparisonSelectorV1,
+  CoordinateTransferPlanSelectorV1,
+  CoordinateComparisonV1,
+  CoordinateTransferPlanV1,
+} from '../../types/CoordinateComparison.ts';
+import type {
+  CompareStrandOptions,
+  PlanStrandTransferOptions,
+  CompareCoordinatesOptions,
+  PlanCoordinateTransferOptions,
+} from '../../capabilities/ComparisonCapability.ts';
 import type Patch from '../../types/Patch.ts';
 import {
   type ComparisonHost,
@@ -35,6 +47,11 @@ import {
 
 const COORDINATE_COMPARISON_VERSION = 'coordinate-compare/v1';
 const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
+
+// ── Result shapes ────────────────────────────────────────────────────
+
+export type VisiblePatchDivergenceV1 = CoordinateComparisonV1['visiblePatchDivergence'];
+export type VisiblePatchDivergenceTargetV1 = NonNullable<VisiblePatchDivergenceV1['target']>;
 
 // ── Divergence ───────────────────────────────────────────────────────
 
@@ -53,7 +70,7 @@ function buildTargetDivergence(
   leftEntries: PatchEntry[],
   rightEntries: PatchEntry[],
   targetId: string,
-): Record<string, unknown> {
+): VisiblePatchDivergenceTargetV1 {
   const leftTarget = targetPatchShas(leftEntries, targetId);
   const rightTarget = targetPatchShas(rightEntries, targetId);
   const rightTargetSet = new Set(rightTarget);
@@ -75,7 +92,7 @@ export function buildPatchDivergenceImpl(
   leftEntries: PatchEntry[],
   rightEntries: PatchEntry[],
   targetId: string | null,
-): Record<string, unknown> {
+): VisiblePatchDivergenceV1 {
   const leftShas = uniqueSortedPatchShas(leftEntries);
   const rightShas = uniqueSortedPatchShas(rightEntries);
   const rightSet = new Set(rightShas);
@@ -83,7 +100,7 @@ export function buildPatchDivergenceImpl(
   const leftOnly = leftShas.filter((sha) => !rightSet.has(sha));
   const rightOnly = rightShas.filter((sha) => !leftSet.has(sha));
 
-  const result: Record<string, unknown> = {
+  const base: VisiblePatchDivergenceV1 = {
     sharedCount: leftShas.filter((sha) => rightSet.has(sha)).length,
     leftOnlyCount: leftOnly.length,
     rightOnlyCount: rightOnly.length,
@@ -92,78 +109,94 @@ export function buildPatchDivergenceImpl(
   };
 
   if (targetId !== null && targetId !== undefined && targetId !== '') {
-    result['target'] = buildTargetDivergence(leftEntries, rightEntries, targetId);
+    return { ...base, target: buildTargetDivergence(leftEntries, rightEntries, targetId) };
   }
 
-  return result;
+  return base;
 }
 
-// ── Validation helpers ───────────────────────────────────────────────
+// ── Option-object validation ─────────────────────────────────────────
 
-function assertOptionsObject(options: unknown, callerName: string): void {
-  if (options !== null && options !== undefined && (typeof options !== 'object' || Array.isArray(options))) {
-    throw new QueryError(`${callerName} options must be an object`, { code: 'invalid_coordinate' });
+function assertOptionsObject<T extends object>(
+  options: T | null | undefined,
+  callerName: string,
+): asserts options is T {
+  if (options === null || options === undefined
+      || typeof options !== 'object' || Array.isArray(options)) {
+    throw new QueryError(`${callerName} options must be an object`, {
+      code: 'invalid_coordinate',
+    });
   }
 }
 
-function assertComparisonOptions(options: unknown): asserts options is Record<string, unknown> {
-  if (options === null || options === undefined || typeof options !== 'object' || Array.isArray(options)) {
-    throw new QueryError('compareCoordinates() requires an options object', { code: 'invalid_coordinate' });
-  }
-}
-
-function assertTransferOptions(options: unknown): asserts options is Record<string, unknown> {
-  if (options === null || options === undefined || typeof options !== 'object' || Array.isArray(options)) {
-    throw new QueryError('planCoordinateTransfer() requires an options object', { code: 'invalid_coordinate' });
+function assertRequiredOptions<T extends object>(
+  options: T | null | undefined,
+  callerName: string,
+): asserts options is T {
+  if (options === null || options === undefined
+      || typeof options !== 'object' || Array.isArray(options)) {
+    throw new QueryError(`${callerName} requires an options object`, {
+      code: 'invalid_coordinate',
+    });
   }
 }
 
 // ── Strand option normalization ──────────────────────────────────────
 
-function isStrandObject(value: unknown): value is { kind: 'strand'; strandId: unknown } {
-  return value !== null && typeof value === 'object' && (value as { kind?: unknown }).kind === 'strand';
+type CompareAgainst = NonNullable<CompareStrandOptions['against']>;
+type PlanTransferInto = NonNullable<PlanStrandTransferOptions['into']>;
+
+function isStrandLiteralKind(
+  value: CompareAgainst | PlanTransferInto,
+): value is { kind: 'strand'; strandId: string } {
+  return value !== null && typeof value === 'object'
+    && 'kind' in value && value.kind === 'strand';
 }
 
 function normalizeAgainstSelector(
   normalizedStrandId: string,
-  against: unknown,
+  against: CompareAgainst,
   againstCeiling: number | null,
-): Record<string, unknown> {
+): CoordinateComparisonSelectorV1 {
   if (against === 'base') {
     return { kind: 'strand_base', strandId: normalizedStrandId, ceiling: againstCeiling };
   }
   if (against === 'live') {
     return { kind: 'live', ceiling: againstCeiling };
   }
-  if (isStrandObject(against)) {
+  if (isStrandLiteralKind(against)) {
     return {
       kind: 'strand',
-      strandId: normalizeRequiredString((against as { strandId?: unknown }).strandId, 'against.strandId'),
+      strandId: normalizeRequiredString(against.strandId, 'against.strandId'),
       ceiling: againstCeiling,
     };
   }
-  throw new QueryError('against must be base, live, or { kind: "strand", strandId }', { code: 'invalid_coordinate' });
+  throw new QueryError('against must be base, live, or { kind: "strand", strandId }', {
+    code: 'invalid_coordinate',
+  });
 }
 
 function normalizeIntoSelector(
   normalizedStrandId: string,
-  into: unknown,
+  into: PlanTransferInto,
   intoCeiling: number | null,
-): Record<string, unknown> {
+): CoordinateTransferPlanSelectorV1 {
   if (into === 'base') {
     return { kind: 'strand_base', strandId: normalizedStrandId, ceiling: intoCeiling };
   }
   if (into === 'live') {
     return { kind: 'live', ceiling: intoCeiling };
   }
-  if (isStrandObject(into)) {
+  if (isStrandLiteralKind(into)) {
     return {
       kind: 'strand',
-      strandId: normalizeRequiredString((into as { strandId?: unknown }).strandId, 'into.strandId'),
+      strandId: normalizeRequiredString(into.strandId, 'into.strandId'),
       ceiling: intoCeiling,
     };
   }
-  throw new QueryError('into must be base, live, or { kind: "strand", strandId }', { code: 'invalid_coordinate' });
+  throw new QueryError('into must be base, live, or { kind: "strand", strandId }', {
+    code: 'invalid_coordinate',
+  });
 }
 
 // ── Blob reading ─────────────────────────────────────────────────────
@@ -182,33 +215,25 @@ async function readContentBlobByOid(graph: ComparisonHost, oid: string): Promise
 
 // ── Core comparison ──────────────────────────────────────────────────
 
-function extractComparisonInputs(options: Record<string, unknown>): {
+function extractComparisonInputs(options: CompareCoordinatesOptions): {
   normalizedLeft: NormalizedSelector;
   normalizedRight: NormalizedSelector;
   targetId: string | null;
   scope: VisibleStateScope | null;
 } {
-  assertComparisonOptions(options);
   return {
-    normalizedLeft: normalizeSelector(
-      (options as { left: Record<string, unknown> }).left, 'left',
-    ),
-    normalizedRight: normalizeSelector(
-      (options as { right: Record<string, unknown> }).right, 'right',
-    ),
-    targetId: normalizeOptionalString(
-      (options as { targetId?: unknown }).targetId, 'targetId',
-    ),
-    scope: normalizeVisibleStateScope(
-      (options as { scope?: unknown }).scope, 'scope',
-    ),
+    normalizedLeft: normalizeSelector(options.left, 'left'),
+    normalizedRight: normalizeSelector(options.right, 'right'),
+    targetId: normalizeOptionalString(options.targetId, 'targetId'),
+    scope: normalizeVisibleStateScope(options.scope, 'scope'),
   };
 }
 
 export async function compareCoordinatesImpl(
   graph: ComparisonHost,
-  options: Record<string, unknown>,
-): Promise<Record<string, unknown>> {
+  options: CompareCoordinatesOptions,
+): Promise<CoordinateComparisonV1> {
+  assertRequiredOptions(options, 'compareCoordinates()');
   const { normalizedLeft, normalizedRight, targetId, scope } = extractComparisonInputs(options);
 
   const liveFrontier = (normalizedLeft.kind === 'live' || normalizedRight.kind === 'live')
@@ -228,26 +253,37 @@ export async function compareCoordinatesImpl(
     visibleState,
   });
   const digest = await computeChecksum(fact, graph._crypto);
-  return { ...fact, comparisonDigest: digest };
+  return {
+    comparisonVersion: COORDINATE_COMPARISON_VERSION,
+    comparisonDigest: digest,
+    ...(scope !== null && scope !== undefined ? { scope } : {}),
+    left: { requested: left.requested, resolved: left.resolved },
+    right: { requested: right.requested, resolved: right.resolved },
+    visiblePatchDivergence,
+    visibleState,
+  };
 }
 
 export async function compareStrandImpl(
   graph: ComparisonHost,
   strandId: string,
-  options: Record<string, unknown> = {},
-): Promise<Record<string, unknown>> {
+  options: CompareStrandOptions = {},
+): Promise<CoordinateComparisonV1> {
   assertOptionsObject(options, 'compareStrand()');
   const normalizedStrandId = normalizeRequiredString(strandId, 'strandId');
-  const ceiling = normalizeLamportCeiling(options['ceiling'], 'ceiling');
-  const againstCeiling = normalizeLamportCeiling(options['againstCeiling'], 'againstCeiling');
-  const targetId = normalizeOptionalString(options['targetId'], 'targetId');
-  const scope = normalizeVisibleStateScope(options['scope'], 'scope');
+  const ceiling = normalizeLamportCeiling(options.ceiling, 'ceiling');
+  const againstCeiling = normalizeLamportCeiling(options.againstCeiling, 'againstCeiling');
+  const targetId = normalizeOptionalString(options.targetId, 'targetId');
+  const scope = normalizeVisibleStateScope(options.scope, 'scope');
 
-  const left = { kind: 'strand', strandId: normalizedStrandId, ceiling };
-  const right = normalizeAgainstSelector(normalizedStrandId, options['against'] ?? 'base', againstCeiling);
+  const left: CoordinateComparisonSelectorV1 = { kind: 'strand', strandId: normalizedStrandId, ceiling };
+  const right = normalizeAgainstSelector(normalizedStrandId, options.against ?? 'base', againstCeiling);
 
   return await compareCoordinatesImpl(graph, {
-    left, right, targetId, ...(scope ? { scope } : {}),
+    left,
+    right,
+    targetId,
+    ...(scope ? { scope } : {}),
   });
 }
 
@@ -260,7 +296,7 @@ async function finalizeTransferPlan(params: {
   transfer: Awaited<ReturnType<typeof planVisibleStateTransfer>>;
   comparisonDigest: string;
   scope: VisibleStateScope | null;
-}): Promise<Record<string, unknown>> {
+}): Promise<CoordinateTransferPlanV1> {
   const { graph, sourceSide, targetSide, transfer, comparisonDigest, scope } = params;
   const changed = transfer.summary.opCount > 0;
   const sides = {
@@ -273,44 +309,42 @@ async function finalizeTransferPlan(params: {
     summary: transfer.summary, ops: transfer.ops,
   });
   const digest = await computeChecksum(fact, graph._crypto);
-  const plan: Record<string, unknown> = {
+  return {
     transferVersion: COORDINATE_TRANSFER_PLAN_VERSION,
     transferDigest: digest,
-    comparisonDigest, changed, ...sides,
-    summary: transfer.summary, ops: transfer.ops,
+    comparisonDigest,
+    changed,
+    ...sides,
+    summary: transfer.summary,
+    ops: transfer.ops,
+    ...(scope ? { scope } : {}),
   };
-  if (scope) { plan['scope'] = scope; }
-  return plan;
 }
 
 export async function planCoordinateTransferImpl(
   graph: ComparisonHost,
-  options: Record<string, unknown>,
-): Promise<Record<string, unknown>> {
-  assertTransferOptions(options);
-
-  const normalizedSource = normalizeSelector(
-    options['source'] as Record<string, unknown>, 'source',
-  );
-  const normalizedTarget = normalizeSelector(
-    options['target'] as Record<string, unknown>, 'target',
-  );
-  const scope = normalizeVisibleStateScope(
-    options['scope'], 'scope',
-  );
+  options: PlanCoordinateTransferOptions,
+): Promise<CoordinateTransferPlanV1> {
+  assertRequiredOptions(options, 'planCoordinateTransfer()');
+  const normalizedSource = normalizeSelector(options.source, 'source');
+  const normalizedTarget = normalizeSelector(options.target, 'target');
+  const scope = normalizeVisibleStateScope(options.scope, 'scope');
   const liveFrontier = (normalizedSource.kind === 'live' || normalizedTarget.kind === 'live')
     ? await graph.getFrontier()
     : null;
   const comp = await compareCoordinatesImpl(graph, {
-    left: options['source'] as Record<string, unknown>,
-    right: options['target'] as Record<string, unknown>,
+    left: options.source,
+    right: options.target,
     ...(scope !== null && scope !== undefined ? { scope } : {}),
   });
   const sourceSide = await normalizedSource.resolve(graph, scope, liveFrontier);
   const targetSide = await normalizedTarget.resolve(graph, scope, liveFrontier);
   const loadNodeContent = async (_nodeId: string, meta: { oid: string }) =>
     await readContentBlobByOid(graph, meta.oid);
-  const loadEdgeContent = async (_edge: unknown, meta: { oid: string }) =>
+  const loadEdgeContent = async (
+    _edge: { from: string; to: string; label: string },
+    meta: { oid: string },
+  ) =>
     await readContentBlobByOid(graph, meta.oid);
   const transfer = await planVisibleStateTransfer(
     createStateReader(sourceSide.state),
@@ -319,25 +353,27 @@ export async function planCoordinateTransferImpl(
   );
   return await finalizeTransferPlan({
     graph, sourceSide, targetSide, transfer,
-    comparisonDigest: comp['comparisonDigest'] as string, scope,
+    comparisonDigest: comp.comparisonDigest, scope,
   });
 }
 
 export async function planStrandTransferImpl(
   graph: ComparisonHost,
   strandId: string,
-  options: Record<string, unknown> = {},
-): Promise<Record<string, unknown>> {
+  options: PlanStrandTransferOptions = {},
+): Promise<CoordinateTransferPlanV1> {
   assertOptionsObject(options, 'planStrandTransfer()');
   const normalizedStrandId = normalizeRequiredString(strandId, 'strandId');
-  const ceiling = normalizeLamportCeiling(options['ceiling'], 'ceiling');
-  const intoCeiling = normalizeLamportCeiling(options['intoCeiling'], 'intoCeiling');
-  const scope = normalizeVisibleStateScope(options['scope'], 'scope');
+  const ceiling = normalizeLamportCeiling(options.ceiling, 'ceiling');
+  const intoCeiling = normalizeLamportCeiling(options.intoCeiling, 'intoCeiling');
+  const scope = normalizeVisibleStateScope(options.scope, 'scope');
 
-  const source = { kind: 'strand', strandId: normalizedStrandId, ceiling };
-  const target = normalizeIntoSelector(normalizedStrandId, options['into'] ?? 'live', intoCeiling);
+  const source: CoordinateTransferPlanSelectorV1 = { kind: 'strand', strandId: normalizedStrandId, ceiling };
+  const target = normalizeIntoSelector(normalizedStrandId, options.into ?? 'live', intoCeiling);
 
   return await planCoordinateTransferImpl(graph, {
-    source, target, ...(scope ? { scope } : {}),
+    source,
+    target,
+    ...(scope ? { scope } : {}),
   });
 }

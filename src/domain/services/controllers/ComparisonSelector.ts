@@ -22,23 +22,75 @@ import {
 import type { WarpState } from '../JoinReducer.ts';
 import type Patch from '../../types/Patch.ts';
 
-import type { VisibleStateScope } from '../../types/CoordinateComparison.ts';
+import type {
+  VisibleStateScope,
+  CoordinateComparisonSelectorV1,
+  CoordinateComparisonSideV1,
+} from '../../types/CoordinateComparison.ts';
 import type { StrandDescriptor as StrandDescriptorV1 } from '../../types/StrandDescriptor.ts';
+import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type CodecPort from '../../../ports/CodecPort.ts';
 
 // ── Shared types ─────────────────────────────────────────────────────
 
 export type PatchEntry = { patch: Patch; sha: string };
 
+/**
+ * Materialize options for the coordinate materialization path.
+ *
+ * This mirrors the options accepted by the WarpRuntime materialize
+ * controller — a frontier record and an optional lamport ceiling.
+ */
+export type MaterializeCoordinateOptions = {
+  frontier: Map<string, string>;
+  ceiling?: number | null;
+};
+
+/**
+ * Host surface exposed to comparison helpers.
+ *
+ * TODO(0025B1): `_codec` points at `CodecPort` which currently
+ * parameterizes encode/decode as `unknown`. When cycle 0025B1 lands
+ * a `CodecPort<T>`/`DecoderPort<T>`, tighten downstream callers that
+ * rely on the decoded return type (the port surface itself is
+ * imported by reference here, so no `unknown` appears textually in
+ * this file — but the downstream ergonomics are waiting on B1).
+ */
 export type ComparisonHost = {
   getFrontier(): Promise<Map<string, string>>;
-  materializeCoordinate(opts: Record<string, unknown>): Promise<WarpState>;
+  materializeCoordinate(opts: MaterializeCoordinateOptions): Promise<WarpState>;
   _loadPatchChainFromSha(sha: string): Promise<PatchEntry[]>;
-  _crypto: { hash(alg: string, data: string | Uint8Array): Promise<string>; hmac(alg: string, key: string | Uint8Array, data: string | Uint8Array): Promise<Uint8Array>; timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean };
-  _codec: { encode(data: unknown): Uint8Array; decode(bytes: Uint8Array): unknown };
+  _crypto: CryptoPort;
+  _codec: CodecPort;
   _blobStorage: { retrieve(oid: string): Promise<Uint8Array> } | null;
   _persistence: { readBlob(oid: string): Promise<Uint8Array> };
   _stateHashService: { compute(state: WarpState): Promise<string> } | null;
 };
+
+// ── Requested-side shapes ────────────────────────────────────────────
+
+/**
+ * The `requested` payload captured for each resolved comparison side,
+ * discriminated by selector kind. Carries enough context to replay the
+ * resolution deterministically and to show back to the caller.
+ */
+export type ComparisonRequestedSideV1 =
+  | { kind: 'live'; ceiling?: number | null }
+  | { kind: 'coordinate'; frontier: Record<string, string>; ceiling: number | null }
+  | { kind: 'strand'; strandId: string; ceiling?: number | null }
+  | {
+      kind: 'strand_base';
+      strandId: string;
+      frontier: Record<string, string>;
+      baseLamportCeiling: number | null;
+      ceiling?: number | null;
+    };
+
+/** Strand metadata attached to a strand-kind resolved side. */
+export type StrandComparisonMetadataV1 = NonNullable<CoordinateComparisonSideV1['resolved']['strand']>;
+
+/** Resolved payload shape for a finalized comparison side. */
+export type ComparisonResolvedSideV1 = CoordinateComparisonSideV1['resolved'];
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -46,21 +98,27 @@ export function compareStrings(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-export function normalizeLamportCeiling(value: unknown, field: string): number | null {
+export function normalizeLamportCeiling(
+  value: number | null | undefined,
+  field: string,
+): number | null {
   if (value === undefined || value === null) { return null; }
   assertValidLamport(value, field);
   return value;
 }
 
-function assertValidLamport(value: unknown, field: string): asserts value is number {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+function assertValidLamport(value: number, field: string): void {
+  if (!Number.isInteger(value) || value < 0) {
     throw new QueryError(`${field} must be a non-negative integer or null`, {
       code: 'invalid_coordinate', context: { field, value },
     });
   }
 }
 
-export function normalizeOptionalString(value: unknown, field: string): string | null {
+export function normalizeOptionalString(
+  value: string | null | undefined,
+  field: string,
+): string | null {
   if (value === undefined || value === null) { return null; }
   if (typeof value !== 'string' || value.trim().length === 0) {
     throw new QueryError(`${field} must be a non-empty string when provided`, {
@@ -70,7 +128,10 @@ export function normalizeOptionalString(value: unknown, field: string): string |
   return value.trim();
 }
 
-export function normalizeRequiredString(value: unknown, field: string): string {
+export function normalizeRequiredString(
+  value: string | null | undefined,
+  field: string,
+): string {
   const normalized = normalizeOptionalString(value, field);
   if (normalized === null) {
     throw new QueryError(`${field} must be a non-empty string`, {
@@ -80,14 +141,11 @@ export function normalizeRequiredString(value: unknown, field: string): string {
   return normalized;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value);
-}
-
-function frontierEntries(frontier: unknown): Array<[string, string]> | null {
+function frontierEntries(
+  frontier: Map<string, string> | Record<string, string>,
+): Array<[string, string]> {
   if (frontier instanceof Map) { return [...frontier.entries()]; }
-  if (!isPlainObject(frontier)) { return null; }
-  return Object.entries(frontier) as Array<[string, string]>;
+  return Object.entries(frontier);
 }
 
 function assertFrontierEntry(writerId: string, sha: string, field: string): void {
@@ -107,12 +165,13 @@ export function normalizeFrontierRecord(
   frontier: Map<string, string> | Record<string, string>,
   field: string,
 ): Record<string, string> {
-  const entries = frontierEntries(frontier);
-  if (entries === null) {
+  if (frontier === null || frontier === undefined
+      || (typeof frontier !== 'object')) {
     throw new QueryError(`${field} must be a frontier map or record`, {
       code: 'invalid_coordinate', context: { field },
     });
   }
+  const entries = frontierEntries(frontier);
   const record: Record<string, string> = {};
   for (const [writerId, sha] of entries.sort(([a], [b]) => compareStrings(a, b))) {
     assertFrontierEntry(writerId, sha, field);
@@ -216,7 +275,7 @@ export async function collectPatchEntriesForFrontier(
 function buildStrandMetadata(
   strandId: string,
   descriptor: StrandDescriptorV1,
-): Record<string, unknown> {
+): StrandComparisonMetadataV1 {
   const readOverlays = descriptor.braid?.readOverlays ?? [];
   return {
     strandId,
@@ -243,16 +302,16 @@ export async function computeStateHashForGraph(graph: ComparisonHost, state: War
 // ── ResolvedComparisonSide ───────────────────────────────────────────
 
 export class ResolvedComparisonSide {
-  readonly requested: Record<string, unknown>;
-  readonly resolved: Record<string, unknown>;
+  readonly requested: ComparisonRequestedSideV1;
+  readonly resolved: ComparisonResolvedSideV1;
   readonly state: WarpState;
   readonly patchEntries: PatchEntry[];
 
   constructor(params: {
-    requested: Record<string, unknown>;
+    requested: ComparisonRequestedSideV1;
     state: WarpState;
     patchEntries: PatchEntry[];
-    resolved: Record<string, unknown>;
+    resolved: ComparisonResolvedSideV1;
   }) {
     this.requested = params.requested;
     this.resolved = params.resolved;
@@ -267,12 +326,12 @@ export class ResolvedComparisonSide {
 export async function finalizeSide(
   graph: ComparisonHost,
   params: {
-    requested: Record<string, unknown>;
+    requested: ComparisonRequestedSideV1;
     state: WarpState;
     patchEntries: PatchEntry[];
-    coordinateKind: string;
+    coordinateKind: 'frontier' | 'strand' | 'strand_base';
     lamportCeiling: number | null;
-    strand?: Record<string, unknown>;
+    strand?: StrandComparisonMetadataV1;
   },
   scope: VisibleStateScope | null,
 ): Promise<ResolvedComparisonSide> {
@@ -320,10 +379,13 @@ function summarizeVisibleState(reader: ReturnType<typeof createStateReader>, pat
 // ── Selector hierarchy ───────────────────────────────────────────────
 
 export abstract class NormalizedSelector {
-  readonly kind: string;
+  readonly kind: 'live' | 'coordinate' | 'strand' | 'strand_base';
   readonly ceiling: number | null;
 
-  constructor(kind: string, ceiling: number | null) {
+  constructor(
+    kind: 'live' | 'coordinate' | 'strand' | 'strand_base',
+    ceiling: number | null,
+  ) {
     this.kind = kind;
     this.ceiling = ceiling;
   }
@@ -374,6 +436,30 @@ export class CoordinateComparisonSelector extends NormalizedSelector {
   }
 }
 
+/**
+ * Assertion narrowing ComparisonHost to the strand coordinator's
+ * parameter type.
+ *
+ * ComparisonHost is the structural subset of WarpRuntime that
+ * comparison needs. The strand coordinator's parameter type
+ * (exported only by inference) wants a wider WarpRuntime surface.
+ * At runtime WarpRuntime is passed (it satisfies both), so the
+ * assertion narrows the type without a value-level cast.
+ */
+function assertStrandCoordinatorHost(
+  graph: ComparisonHost,
+): asserts graph is ComparisonHost & Parameters<typeof createStrandCoordinator>[0] {
+  void graph;
+}
+
+/**
+ * Helper: obtain a strand coordinator for a ComparisonHost.
+ */
+function strandCoordinatorFor(graph: ComparisonHost): ReturnType<typeof createStrandCoordinator> {
+  assertStrandCoordinatorHost(graph);
+  return createStrandCoordinator(graph);
+}
+
 export class StrandComparisonSelector extends NormalizedSelector {
   readonly strandId: string;
 
@@ -383,8 +469,7 @@ export class StrandComparisonSelector extends NormalizedSelector {
   }
 
   async resolve(graph: ComparisonHost, scope: VisibleStateScope | null) {
-    // Adapter boundary: ComparisonHost is a structural subset of GraphRuntime
-const strands = createStrandCoordinator(graph as unknown as Parameters<typeof createStrandCoordinator>[0]);
+    const strands = strandCoordinatorFor(graph);
     const descriptor = await strands.getOrThrow(this.strandId);
     const state = await callInternalRuntimeMethod<WarpState>(
       graph, 'materializeStrand', this.strandId,
@@ -410,56 +495,55 @@ export class StrandBaseComparisonSelector extends NormalizedSelector {
   }
 
   async resolve(graph: ComparisonHost, scope: VisibleStateScope | null) {
-    // Adapter boundary: ComparisonHost is a structural subset of GraphRuntime
-const strands = createStrandCoordinator(graph as unknown as Parameters<typeof createStrandCoordinator>[0]);
+    const strands = strandCoordinatorFor(graph);
     const descriptor = await strands.getOrThrow(this.strandId);
     const effectiveCeiling = combineCeilings(descriptor.baseObservation.lamportCeiling, this.ceiling);
+    const frontierRecord = normalizeFrontierRecord(descriptor.baseObservation.frontier, 'strand_base.frontier');
     const state = await graph.materializeCoordinate({
-      frontier: descriptor.baseObservation.frontier,
+      frontier: frontierRecordToMap(frontierRecord),
       ...optionalCeiling(effectiveCeiling),
     });
     const patchEntries = await collectPatchEntriesForFrontier(
-      graph, descriptor.baseObservation.frontier, effectiveCeiling,
+      graph, frontierRecord,
+      effectiveCeiling,
     );
     return await finalizeSide(graph, {
       requested: {
         kind: 'strand_base', strandId: this.strandId,
-        frontier: { ...descriptor.baseObservation.frontier },
+        frontier: frontierRecord,
         baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
         ...optionalCeiling(this.ceiling),
       },
       state, patchEntries, coordinateKind: 'strand_base', lamportCeiling: effectiveCeiling,
-      strand: buildStrandMetadata(this.strandId, descriptor as StrandDescriptorV1),
+      strand: buildStrandMetadata(this.strandId, descriptor),
     }, scope);
   }
 }
 
 // ── Selector normalization ───────────────────────────────────────────
 
-function extractSelectorKind(raw: Record<string, unknown>): string {
-  const { kind } = raw as { kind?: unknown };
-  if (typeof kind !== 'string') {
-    throw new QueryError('selector.kind must be a string', { code: 'invalid_coordinate' });
+export function normalizeSelector(
+  selector: CoordinateComparisonSelectorV1,
+  field: string,
+): NormalizedSelector {
+  if (selector === null || selector === undefined || typeof selector !== 'object') {
+    throw new QueryError(`${field} must be a selector object`, {
+      code: 'invalid_coordinate', context: { field },
+    });
   }
-  return kind;
-}
-
-export function normalizeSelector(selector: Record<string, unknown>, field: string): NormalizedSelector {
-  const kind = extractSelectorKind(selector);
+  const { kind } = selector;
   if (kind === 'live') {
-    return new LiveComparisonSelector(normalizeLamportCeiling((selector as { ceiling?: unknown }).ceiling, `${field}.ceiling`));
+    return new LiveComparisonSelector(normalizeLamportCeiling(selector.ceiling, `${field}.ceiling`));
   }
   if (kind === 'coordinate') {
-    const r = selector as { frontier?: unknown; ceiling?: unknown };
     return new CoordinateComparisonSelector(
-      normalizeFrontierRecord(r.frontier as Map<string, string> | Record<string, string>, `${field}.frontier`),
-      normalizeLamportCeiling(r.ceiling, `${field}.ceiling`),
+      normalizeFrontierRecord(selector.frontier, `${field}.frontier`),
+      normalizeLamportCeiling(selector.ceiling, `${field}.ceiling`),
     );
   }
   if (kind === 'strand' || kind === 'strand_base') {
-    const r = selector as { strandId?: unknown; ceiling?: unknown };
-    const strandId = normalizeRequiredString(r.strandId, `${field}.strandId`);
-    const ceiling = normalizeLamportCeiling(r.ceiling, `${field}.ceiling`);
+    const strandId = normalizeRequiredString(selector.strandId, `${field}.strandId`);
+    const ceiling = normalizeLamportCeiling(selector.ceiling, `${field}.ceiling`);
     return kind === 'strand_base'
       ? new StrandBaseComparisonSelector(strandId, ceiling)
       : new StrandComparisonSelector(strandId, ceiling);
