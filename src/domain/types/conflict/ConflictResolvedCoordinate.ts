@@ -5,18 +5,24 @@
  */
 
 import WarpError from '../../errors/WarpError.ts';
+import StrandCoordinateMetadata from './StrandCoordinateMetadata.ts';
 import { requireNonEmptyString, requireEnum } from './validation.ts';
 
 const CTX = 'ConflictResolvedCoordinate';
 const VALID_COORDINATE_KINDS = new Set(['frontier', 'strand']);
 
-type BraidData = {
-  readOverlayCount: number;
-  braidedStrandIds: readonly string[];
-};
-
-type StrandData = Record<string, unknown> & {
-  braid?: BraidData;
+/**
+ * Input shape for the strand field — either an existing
+ * StrandCoordinateMetadata instance or a matching carrier bag the
+ * constructor normalizes through the class.
+ */
+type StrandInput = StrandCoordinateMetadata | {
+  strandId: string;
+  baseLamportCeiling: number | null;
+  overlayHeadPatchSha: string | null;
+  overlayPatchCount: number;
+  overlayWritable: boolean;
+  braid?: { readOverlayCount: number; braidedStrandIds: readonly string[] };
 };
 
 /**
@@ -40,22 +46,17 @@ function freezeScanBudget(budget: { maxPatches: number | null }): Readonly<{ max
 }
 
 /**
- * Deep-freezes the optional strand metadata object, including nested braid.
+ * Normalizes the optional strand input into a
+ * StrandCoordinateMetadata instance.
  */
-function freezeStrand(strand: StrandData | undefined | null): StrandData | undefined {
+function toStrandMetadata(strand: StrandInput | undefined | null): StrandCoordinateMetadata | undefined {
   if (strand === undefined || strand === null) {
     return undefined;
   }
-  const raw = strand;
-  const { braid, ...rest } = raw;
-  const frozen: Record<string, unknown> = { ...rest };
-  if (braid !== undefined && braid !== null) {
-    frozen['braid'] = Object.freeze({
-      readOverlayCount: braid.readOverlayCount,
-      braidedStrandIds: Object.freeze(braid.braidedStrandIds.slice()),
-    });
+  if (strand instanceof StrandCoordinateMetadata) {
+    return strand;
   }
-  return Object.freeze(frozen) as StrandData;
+  return new StrandCoordinateMetadata(strand);
 }
 
 /**
@@ -71,7 +72,7 @@ export default class ConflictResolvedCoordinate {
   readonly lamportCeiling: number | null;
   readonly scanBudgetApplied: Readonly<{ maxPatches: number | null }>;
   readonly truncationPolicy: string;
-  readonly strand: StrandData | undefined;
+  readonly strand: StrandCoordinateMetadata | undefined;
 
   /**
    * Creates a frozen ConflictResolvedCoordinate.
@@ -84,7 +85,7 @@ export default class ConflictResolvedCoordinate {
     lamportCeiling: number | null;
     scanBudgetApplied: { maxPatches: number | null };
     truncationPolicy: string;
-    strand?: StrandData;
+    strand?: StrandInput;
   }) {
     this.analysisVersion = requireNonEmptyString(analysisVersion, 'analysisVersion', CTX);
     this.coordinateKind = requireEnum(coordinateKind, VALID_COORDINATE_KINDS, { name: 'coordinateKind', context: CTX });
@@ -93,7 +94,7 @@ export default class ConflictResolvedCoordinate {
     this.lamportCeiling = lamportCeiling;
     this.scanBudgetApplied = freezeScanBudget(scanBudgetApplied);
     this.truncationPolicy = requireNonEmptyString(truncationPolicy, 'truncationPolicy', CTX);
-    this.strand = freezeStrand(strand);
+    this.strand = toStrandMetadata(strand);
     Object.freeze(this);
   }
 }

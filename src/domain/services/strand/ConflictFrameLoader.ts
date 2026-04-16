@@ -11,6 +11,7 @@ import VersionVector from '../../crdt/VersionVector.ts';
 import ConflictAnchor from '../../types/conflict/ConflictAnchor.ts';
 import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
 import ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.ts';
+import StrandCoordinateMetadata from '../../types/conflict/StrandCoordinateMetadata.ts';
 import { compareStrings } from '../../types/conflict/validation.ts';
 import { reduceV5 } from '../JoinReducer.ts';
 import createStrandCoordinator from './createStrandCoordinator.ts';
@@ -236,8 +237,8 @@ type ResolvedStrandDescriptor = {
   braid: { readOverlays: Array<{ strandId: string }> };
 };
 
-function buildResolvedStrandMetadata(descriptor: ResolvedStrandDescriptor): Record<string, unknown> {
-  return {
+function buildResolvedStrandMetadata(descriptor: ResolvedStrandDescriptor): StrandCoordinateMetadata {
+  return new StrandCoordinateMetadata({
     strandId: descriptor.strandId,
     baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
     overlayHeadPatchSha: descriptor.overlay.headPatchSha,
@@ -249,7 +250,7 @@ function buildResolvedStrandMetadata(descriptor: ResolvedStrandDescriptor): Reco
         .map((overlay) => overlay.strandId)
         .sort(compareStrings),
     },
-  };
+  });
 }
 
 function buildResolvedCoordinate({
@@ -265,7 +266,7 @@ function buildResolvedCoordinate({
   maxPatches: number | null;
   frontierDigest: string;
   coordinateKind?: 'frontier' | 'strand';
-  strand?: Record<string, unknown>;
+  strand?: StrandCoordinateMetadata;
 }): ConflictResolvedCoordinate {
   return new ConflictResolvedCoordinate({
     analysisVersion: CONFLICT_ANALYSIS_VERSION,
