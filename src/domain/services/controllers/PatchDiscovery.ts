@@ -16,6 +16,7 @@ import type Patch from '../../types/Patch.ts';
 import type { CorePersistence } from '../../types/WarpPersistence.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
+import type CodecPort from '../../../ports/CodecPort.ts';
 
 // ── PatchDiscoveryHost ────────────────────────────────────────────────────────
 
@@ -24,12 +25,17 @@ import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
  *
  * Documents the exact WarpRuntime fields accessed during patch-chain
  * traversal, enabling lightweight mocks in unit tests.
+ *
+ * TODO(0025B1): `_codec` points at `CodecPort` which today parameterizes
+ * decode as `unknown`. When cycle 0025B1 lands `CodecPort<T>` /
+ * `DecoderPort<T>`, the downstream callers that hydrate a Patch out
+ * of the decoded value can drop their parser indirection.
  */
 export interface PatchDiscoveryHost {
   readonly _graphName: string;
   readonly _persistence: CorePersistence;
   readonly _maxObservedLamport: number;
-  readonly _codec: { decode: (raw: Uint8Array) => unknown };
+  readonly _codec: CodecPort;
   readonly _logger: LoggerPort | null;
   readonly _patchJournal: PatchJournalPort | null | undefined;
 }
