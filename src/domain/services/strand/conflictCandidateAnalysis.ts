@@ -272,12 +272,11 @@ export async function analyzeOneOp(
 ): Promise<AnalyzeOneOpResult | null> {
   const rawOp = frame.patch.ops[opIndex];
   if (rawOp === undefined) { return null; }
-  // TODO(0025C): normalizeRawOp returns the canonical op shape; once
-  // the Op class hierarchy lands in 0025C, replace this conversion
-  // with a direct Op-class construction. The `as unknown as` is
-  // tracked under 0025A casts manifest.
-  const canonOp = cloneObject(normalizeRawOp(rawOp) as unknown as CanonicalOpBlob);
-  const receiptOpType = receiptNameForOp(canonOp.type ?? '');
+  // TODO(0025C): normalizeRawOp returns OpLike; CanonicalOpBlob is a
+  // type alias over OpLike for the 0025C transition. Once the Op
+  // class hierarchy lands, this reads instanceof directly.
+  const canonOp: CanonicalOpBlob = cloneObject(normalizeRawOp(rawOp));
+  const receiptOpType = receiptNameForOp(canonOp.type);
   if (typeof receiptOpType !== 'string' || receiptOpType.length === 0) { return null; }
   const receiptOutcome = receipt.ops[receiptOpIndex];
   if (receiptOutcome === undefined || receiptOutcome === null) {

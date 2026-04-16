@@ -18,7 +18,7 @@ import {
 import { parseStrandBlob, type StrandDescriptor as ParsedStrandDescriptor } from '../../utils/parseStrandBlob.ts';
 import { textEncode } from '../../utils/bytes.ts';
 import {
-  asRecord,
+  isRawBag,
   normalizeReadOverlays,
   readOverlaysEqual,
   overlayMetadataMatches,
@@ -256,12 +256,14 @@ export default class StrandDescriptorStore {
     descriptor: ParsedStrandDescriptor,
     braidedReadOverlays: StrandReadOverlayDescriptor[],
   ): StrandDescriptor {
-    // `parseStrandBlob` leaves `intentQueue` and `evolution` as
-    // trailing unvalidated fields on its StrandDescriptor return
-    // type (index signature to unknown). Pull them through asRecord
-    // which narrows to a typed RawBag before normalization.
-    const intentQueueRaw: RawValue = asRecord(descriptor['intentQueue']);
-    const evolutionRaw: RawValue = asRecord(descriptor['evolution']);
+    // Narrow the trailing unvalidated blob fields via the type-guard
+    // predicate so `unknown` stays inside legitimate x-is-Foo form.
+    const intentQueueRaw: RawValue = isRawBag(descriptor['intentQueue'])
+      ? descriptor['intentQueue']
+      : null;
+    const evolutionRaw: RawValue = isRawBag(descriptor['evolution'])
+      ? descriptor['evolution']
+      : null;
     return {
       ...descriptor,
       overlay: {

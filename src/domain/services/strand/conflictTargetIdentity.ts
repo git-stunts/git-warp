@@ -18,30 +18,12 @@ import { compareStrings } from '../../types/conflict/validation.ts';
 /**
  * TODO(0025C): when cycle 0025C introduces the full `Op` class
  * hierarchy, this alias folds into it. Until then, `CanonicalOpBlob`
- * is the structural shape produced by `normalizeRawOp(...)` and
- * consumed by the conflict-target builders in this module.
- *
- * Fields accessed by the builders below are:
- *   type, node, from, to, label, key, dot, observedDots, value, oid
- *
- * Every value is hashable JSON (primitive, array, nested record) or
- * absent. The `readonly [key: string]` catch-all admits future ops
- * without forcing a fan-out here; behavior reads only the
- * properties it knows about.
+ * is a `type` alias for the `OpLike` shape produced by
+ * `normalizeRawOp(...)`. Once the Op hierarchy lands, both names
+ * collapse into the real class hierarchy and the conflict-target
+ * builders swap to `instanceof` dispatch.
  */
-export type CanonicalOpBlob = {
-  readonly type?: string;
-  readonly node?: string;
-  readonly from?: string;
-  readonly to?: string;
-  readonly label?: string;
-  readonly key?: string;
-  readonly dot?: HashablePayload;
-  readonly observedDots?: readonly string[];
-  readonly value?: HashablePayload;
-  readonly oid?: string;
-  readonly [key: string]: HashablePayload | undefined;
-};
+export type CanonicalOpBlob = import('../OpLike.ts').OpLike;
 
 /**
  * Effect payload produced by normalizeEffectPayload — the
@@ -112,9 +94,11 @@ export function normalizeNoteCodes(noteCodes: string[]): string[] {
 // ── Effect normalization ────────────────────────────────────────────
 
 /**
- * Normalizes observed dots into a sorted array of strings.
+ * Normalizes observed dots into a sorted array of strings. Accepts
+ * any iterable of strings (OpLike declares Iterable<string>) and
+ * yields a sorted array.
  */
-export function normalizeObservedDots(observedDots: readonly string[] | null | undefined): string[] {
+export function normalizeObservedDots(observedDots: Iterable<string> | null | undefined): string[] {
   if (observedDots === null || observedDots === undefined) {
     return [];
   }

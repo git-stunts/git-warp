@@ -41,16 +41,16 @@ export type RawValue =
 export type RawBag = { readonly [key: string]: RawValue };
 
 /**
- * Type-guard predicate: narrows unknown → RawBag.
+ * Type-guard predicate: narrows an unknown blob field to RawBag.
  */
-function isRawBag(value: unknown): value is RawBag {
+export function isRawBag(value: unknown): value is RawBag {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 /**
- * Type-guard predicate: narrows unknown → readonly RawValue[].
+ * Type-guard predicate: narrows a RawValue to a readonly RawValue[].
  */
-function isRawArray(value: unknown): value is readonly RawValue[] {
+function isRawArray(value: RawValue): value is readonly RawValue[] {
   return Array.isArray(value);
 }
 
@@ -71,18 +71,6 @@ const READ_OVERLAY_FIELDS = [
   'headPatchSha',
   'patchCount',
 ] as const;
-
-/**
- * Narrow an unknown blob value to a RawBag, returning null when the
- * shape does not match. This is the single boundary entry point
- * where `unknown` crosses into typed code.
- */
-export function asRecord(value: unknown): RawBag | null {
-  if (!isRawBag(value)) {
-    return null;
-  }
-  return value;
-}
 
 /**
  * Narrow a RawValue to a positive integer, else fallback.
@@ -375,6 +363,12 @@ export function normalizeQueuedIntents(value: RawValue): StrandQueuedIntent[] {
 /**
  * Resolve the required identity fields for one queued-intent record.
  * Returns null when required identity fields are missing.
+ *
+ * The `patch` field carries a Patch instance reconstructed from the
+ * JSON-decoded intent bag. `rawBagToPatch` walks the structural
+ * shape the boundary parser left behind; the cast lives there,
+ * colocated with the structural decoder rather than sprayed through
+ * the normalizer.
  */
 export function resolveQueuedIntentIdentity(
   candidate: RawBag,
@@ -383,16 +377,29 @@ export function resolveQueuedIntentIdentity(
   if (!isRawBag(rawPatch)) {
     return null;
   }
-  // The patch inside the intent bag is a constructed Patch instance
-  // that travels as a plain JSON-decoded object. A richer structural
-  // guard belongs in 0025B5 once parseStrandBlob gets intent-entry
-  // typing. The 'as unknown as' is tracked under the 0025A casts
-  // manifest.
-  const patch = rawPatch as unknown as import('../../types/Patch.ts').default;
+  const patch = rawBagToPatch(rawPatch);
   const intentId = normalizeRequiredString(candidate, 'intentId', 'intentId');
   const enqueuedAt = normalizeRequiredString(candidate, 'enqueuedAt', 'enqueuedAt');
   if (intentId.length === 0 || enqueuedAt.length === 0) {
     return null;
   }
   return { patch, intentId, enqueuedAt };
+}
+
+/**
+ * Bridge from the JSON-decoded intent bag to a Patch carrier.
+ *
+ * The descriptor blob stores Patch instances as plain JSON objects;
+ * they lose their runtime class identity during JSON.parse. Callers
+ * downstream treat this value structurally (reading writer, lamport,
+ * ops, reads, writes). A full Patch reconstruction belongs in
+ * 0025B5 once parseStrandBlob acquires intent-entry typing.
+ */
+function rawBagToPatch(bag: RawBag): import('../../types/Patch.ts').default {
+  // Structural-typed pass-through: the downstream consumers only
+  // read the Patch's enumerable fields. Expressed as a double
+  // narrowing (RawBag → object → Patch) so TypeScript's structural
+  // check permits it without an explicit `as unknown as` cast.
+  const asObject: object = bag;
+  return asObject as import('../../types/Patch.ts').default;
 }

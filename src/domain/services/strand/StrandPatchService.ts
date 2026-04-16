@@ -18,17 +18,8 @@ import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
 export type CommittedPatchResult = { patch: Patch; sha: string };
 export type PatchCommitSuccessHandler = (result: CommittedPatchResult) => Promise<void>;
 
-/**
- * Typed structural view onto PatchBuilder's internal-by-convention
- * `_contentBlobs` field. Used once in this module to assemble the
- * content-blob OID list for a queued intent without widening the
- * access surface to Record<string, unknown>.
- */
-type PatchBuilderContentBlobView = { readonly _contentBlobs?: readonly string[] };
-
 function readBuilderContentBlobs(builder: PatchBuilder): readonly string[] {
-  const view = builder as unknown as PatchBuilderContentBlobView;
-  return Array.isArray(view._contentBlobs) ? view._contentBlobs : [];
+  return builder.contentBlobs;
 }
 
 /**
@@ -305,10 +296,6 @@ export default class StrandPatchService {
       patch,
       reads: normalizeStringArray(patch.reads, 'reads[]'),
       writes: normalizeStringArray(patch.writes, 'writes[]'),
-      // Test-seam: PatchBuilder exposes `_contentBlobs` as an internal-
-      // by-convention field. Access it through a typed structural view
-      // rather than a wider Record<string, unknown> cast. The 0025A
-      // manifest still tracks the explicit 'as unknown as' here.
       contentBlobOids: normalizeStringArray(readBuilderContentBlobs(builder), 'contentBlobOids[]'),
     });
   }

@@ -419,4 +419,11 @@ export class PatchBuilder {
   get versionVector(): VersionVector { return this._vv; }
   get reads(): ReadonlySet<string> { return new Set(this._observedOperands); }
   get writes(): ReadonlySet<string> { return new Set(this._writes); }
+
+  /**
+   * Content-blob OIDs captured via `attachNodeContent` / `attachEdgeContent`.
+   * Exposed for strand-overlay queued-intent assembly, which needs the
+   * snapshot of blob OIDs to persist alongside the patch entry.
+   */
+  get contentBlobs(): readonly string[] { return [...this._contentBlobs]; }
 }

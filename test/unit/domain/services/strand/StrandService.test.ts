@@ -68,7 +68,7 @@ const OVERLAY_KIND = (STRAND_OVERLAY_KIND);
  *   _freezeQueuedIntent(
  *     descriptor: StrandDescriptor,
  *     intentQueue: StrandDescriptor['intentQueue'],
- *     builder: { build(): Patch, _contentBlobs: unknown[] }
+ *     builder: { build(): Patch, contentBlobs: unknown[] }
  *   ): StrandQueuedIntent
  * }} PatchServicePrivate
  */
@@ -540,7 +540,7 @@ describe('StrandService', () => {
             reads: [undefined, 'node:b', 'node:a'],
             writes: [null, 'node:c', 'node:a'],
           })) as PatchType),
-          _contentBlobs: [undefined, 'blob:b', 'blob:a'],
+          contentBlobs: [undefined, 'blob:b', 'blob:a'],
         },
       );
 
@@ -564,7 +564,7 @@ describe('StrandService', () => {
             reads: [42],
             writes: [],
           })) as unknown as PatchType),
-          _contentBlobs: [],
+          contentBlobs: [],
         },
       )).toThrow(StrandError);
     });
@@ -582,7 +582,7 @@ describe('StrandService', () => {
             reads: ['   '],
             writes: [],
           }))) as PatchType),
-          _contentBlobs: [],
+          contentBlobs: [],
         },
       )).toThrow(StrandError);
     });
