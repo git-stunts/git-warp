@@ -93,21 +93,34 @@ export function normalizeStringArray(value: MaybeStringArray, field: string): st
   }
   const normalized: string[] = [];
   for (const entry of value) {
-    if (entry === null || entry === undefined) {
+    const stringOrNull = requireStringArrayEntry(entry, field);
+    if (stringOrNull === null) {
       continue;
     }
-    if (typeof entry !== 'string') {
-      throw new StrandError(`${field} must be a string`, {
-        code: 'E_STRAND_INVALID_ARGS',
-        context: { field, valueType: typeof entry },
-      });
-    }
-    const maybeString = normalizeOptionalString(entry, field);
-    if (maybeString !== null) {
-      normalized.push(maybeString);
+    const trimmed = normalizeOptionalString(stringOrNull, field);
+    if (trimmed !== null) {
+      normalized.push(trimmed);
     }
   }
   return [...new Set(normalized)].sort(compareStrings);
+}
+
+/**
+ * Narrows an array entry to `string | null`, throwing StrandError
+ * when the runtime type disagrees. Null/undefined entries are
+ * tolerated (dropped upstream); everything else must be a string.
+ */
+function requireStringArrayEntry(entry: MaybeStringArrayLeaf, field: string): string | null {
+  if (entry === null || entry === undefined) {
+    return null;
+  }
+  if (typeof entry !== 'string') {
+    throw new StrandError(`${field} must be a string`, {
+      code: 'E_STRAND_INVALID_ARGS',
+      context: { field, valueType: typeof entry },
+    });
+  }
+  return entry;
 }
 
 /**

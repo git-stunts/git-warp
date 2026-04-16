@@ -102,10 +102,10 @@ export function freezeOptionalDiagnosticData(value: ConflictDiagnosticData | nul
  * Freezes an array of strings, returning an empty frozen array when absent.
  */
 export function freezeStringArray(value: readonly string[] | null | undefined): readonly string[] {
-  if (!Array.isArray(value)) {
-    return Object.freeze([]);
+  if (value === null || value === undefined) {
+    return Object.freeze<readonly string[]>([]);
   }
-  return Object.freeze(value.slice());
+  return Object.freeze([...value]);
 }
 
 /**

@@ -114,9 +114,16 @@ export function normalizeRequiredString(
   key: string,
   field: string,
 ): string {
-  const value = record[key];
+  return normalizeOptionalString(requireStringOrNull(record[key], field), field) ?? '';
+}
+
+/**
+ * Narrows a RawValue to `string | null`, throwing StrandError when
+ * the runtime type disagrees.
+ */
+function requireStringOrNull(value: RawValue, field: string): string | null {
   if (value === undefined || value === null) {
-    return normalizeOptionalString(null, field) ?? '';
+    return null;
   }
   if (typeof value !== 'string') {
     throw new StrandError(`${field} must be a string`, {
@@ -124,7 +131,7 @@ export function normalizeRequiredString(
       context: { field, valueType: typeof value },
     });
   }
-  return normalizeOptionalString(value, field) ?? '';
+  return value;
 }
 
 /**
@@ -141,12 +148,32 @@ export function normalizeReadOverlays(value: RawValue): StrandReadOverlayDescrip
 
 function readOverlayFromRaw(entry: RawValue): StrandReadOverlayDescriptor {
   const overlay: RawBag = isRawBag(entry) ? entry : {};
-  const strandId = typeof overlay['strandId'] === 'string' ? overlay['strandId'] : '';
-  const overlayId = typeof overlay['overlayId'] === 'string' ? overlay['overlayId'] : '';
-  const kind = typeof overlay['kind'] === 'string' ? overlay['kind'] : '';
-  const headPatchSha = typeof overlay['headPatchSha'] === 'string' ? overlay['headPatchSha'] : null;
-  const patchCount = typeof overlay['patchCount'] === 'number' ? overlay['patchCount'] : 0;
-  return { strandId, overlayId, kind, headPatchSha, patchCount };
+  return {
+    strandId: stringAt(overlay, 'strandId', ''),
+    overlayId: stringAt(overlay, 'overlayId', ''),
+    kind: stringAt(overlay, 'kind', ''),
+    headPatchSha: stringAt(overlay, 'headPatchSha', null),
+    patchCount: numberAt(overlay, 'patchCount', 0),
+  };
+}
+
+/**
+ * Reads an optional string field from a raw bag, defaulting to the
+ * given fallback (either empty string or null) when the field is
+ * missing or not a string.
+ */
+function stringAt<T extends string | null>(bag: RawBag, key: string, fallback: T): string | T {
+  const value = bag[key];
+  return typeof value === 'string' ? value : fallback;
+}
+
+/**
+ * Reads a numeric field from a raw bag, defaulting to the given
+ * fallback when the field is missing or not a number.
+ */
+function numberAt(bag: RawBag, key: string, fallback: number): number {
+  const value = bag[key];
+  return typeof value === 'number' ? value : fallback;
 }
 
 /**
@@ -319,25 +346,32 @@ export function normalizeLastTick(lastTick: RawBag | null): StrandTickRecord | n
  * Parse one queued-intent entry, dropping malformed records.
  */
 export function normalizeQueuedIntentEntry(rawEntry: RawValue): StrandQueuedIntent[] {
-  const candidate = isRawBag(rawEntry) ? rawEntry : null;
-  if (candidate === null) {
+  if (!isRawBag(rawEntry)) {
     return [];
   }
-  const identity = resolveQueuedIntentIdentity(candidate);
-  if (identity === null) {
-    return [];
-  }
+  const identity = resolveQueuedIntentIdentity(rawEntry);
+  return identity === null ? [] : [buildQueuedIntentFromIdentity(rawEntry, identity)];
+}
+
+/**
+ * Assemble a StrandQueuedIntent record from the resolved identity
+ * plus the raw bag's optional footprint overrides.
+ */
+function buildQueuedIntentFromIdentity(
+  candidate: RawBag,
+  identity: { patch: import('../../types/Patch.ts').default; intentId: string; enqueuedAt: string },
+): StrandQueuedIntent {
   const { patch, intentId, enqueuedAt } = identity;
   const patchReads = readsFromPatch(patch);
   const patchWrites = writesFromPatch(patch);
-  return [{
+  return {
     intentId,
     enqueuedAt,
     patch,
     reads: normalizeStringArray(candidate['reads'] ?? patchReads ?? null, 'reads[]'),
     writes: normalizeStringArray(candidate['writes'] ?? patchWrites ?? null, 'writes[]'),
     contentBlobOids: normalizeStringArray(candidate['contentBlobOids'], 'contentBlobOids[]'),
-  }];
+  };
 }
 
 function readsFromPatch(patch: import('../../types/Patch.ts').default): readonly string[] | null {

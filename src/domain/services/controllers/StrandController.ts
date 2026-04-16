@@ -73,35 +73,25 @@ export default class StrandController {
   // ── Strand patching ─────────────────────────────────────────────────────
 
   async createStrandPatch(strandId: string): Promise<PatchBuilder> {
-    // StrandCoordinator.createPatchBuilder() returns Promise<unknown> to avoid circular imports.
-    // The concrete return type is PatchBuilder, known at this controller boundary.
-    return await this._strandService.createPatchBuilder(strandId) as PatchBuilder;
+    return await this._strandService.createPatchBuilder(strandId);
   }
 
   async patchStrand(strandId: string, build: (p: PatchBuilder) => void | Promise<void>): Promise<string> {
-    // StrandCoordinator.patch() accepts (p: unknown) to avoid circular imports.
-    // The build callback is typed as (p: PatchBuilder) here; cast aligns the signatures.
-    return await this._strandService.patch(strandId, build as (p: unknown) => void | Promise<void>);
+    return await this._strandService.patch(strandId, build);
   }
 
   // ── Speculative intents ─────────────────────────────────────────────────
 
   async queueStrandIntent(strandId: string, build: (p: PatchBuilder) => void | Promise<void>): Promise<StrandQueuedIntent> {
-    // StrandCoordinator.queueIntent() uses (p: unknown) and returns Promise<unknown> to avoid
-    // circular imports. The concrete types are PatchBuilder and StrandQueuedIntent.
-    return await this._strandService.queueIntent(strandId, build as (p: unknown) => void | Promise<void>) as StrandQueuedIntent;
+    return await this._strandService.queueIntent(strandId, build);
   }
 
   async listStrandIntents(strandId: string): Promise<ReadonlyArray<StrandQueuedIntent>> {
-    // StrandCoordinator.listIntents() returns Promise<unknown> to avoid circular imports.
-    // The concrete type is ReadonlyArray<StrandQueuedIntent>.
-    return await this._strandService.listIntents(strandId) as ReadonlyArray<StrandQueuedIntent>;
+    return await this._strandService.listIntents(strandId);
   }
 
   async tickStrand(strandId: string): Promise<StrandTickRecord> {
-    // StrandCoordinator.tick() returns Promise<unknown> to avoid circular imports.
-    // The concrete type is StrandTickRecord.
-    return await this._strandService.tick(strandId) as StrandTickRecord;
+    return await this._strandService.tick(strandId);
   }
 
   // ── Conflict analysis ───────────────────────────────────────────────────

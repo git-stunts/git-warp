@@ -250,7 +250,7 @@ export default class StrandIntentService {
     descriptor: StrandDescriptor,
     queuedIntent: StrandQueuedIntent,
   ): Promise<void> {
-    const intentQueue = descriptor.intentQueue;
+    const { intentQueue } = descriptor;
     const now = String(this._graph._maxObservedLamport);
     await this._writeDescriptor({
       ...descriptor,
@@ -280,8 +280,7 @@ export default class StrandIntentService {
     now: string;
   }> {
     const descriptor = await this._loadStrandOrThrow(strandId);
-    const intentQueue = descriptor.intentQueue;
-    const evolution = descriptor.evolution;
+    const { intentQueue, evolution } = descriptor;
     return {
       descriptor,
       intentQueue,

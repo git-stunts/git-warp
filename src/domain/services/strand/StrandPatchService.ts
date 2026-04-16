@@ -138,7 +138,7 @@ export default class StrandPatchService {
   ): Promise<StrandQueuedIntent> {
     this._assertWritableDescriptor(descriptor);
     // descriptor.intentQueue is already typed by the hydration path.
-    const intentQueue = descriptor.intentQueue;
+    const { intentQueue } = descriptor;
     const { state, allPatches } = await this._materializeDescriptor(descriptor, {
       collectReceipts: false,
       ceiling: null,
