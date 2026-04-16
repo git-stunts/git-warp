@@ -11,7 +11,17 @@ warp-orset (ORSet engine).
 ## Status
 
 Design approved. Backlog decomposed into 24 items across 7 layers
-(ST-0 through ST-6) in `docs/method/backlog/v17.0.0/`.
+(ST-0 through ST-7) in `docs/method/backlog/v17.0.0/`. Cycle 0020
+(extract-warp-orset-package) closed as `not-met` — publish pipeline
+must exist first. The work is now split: build the seam inside root
+(ST-1), then extract via the publish pipeline (ST-7).
+
+## Seam in root
+
+Root-local home for warp-orset-destined code is documented in
+[`src/domain/orset/README.md`](../../../src/domain/orset/README.md).
+Until the multi-package publish pipeline exists, all warp-orset
+code stays in root behind the seam.
 
 ## Locked decisions
 
