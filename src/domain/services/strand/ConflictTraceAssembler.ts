@@ -6,6 +6,7 @@
 
 import ConflictAnchor from '../../types/conflict/ConflictAnchor.ts';
 import ConflictParticipant from '../../types/conflict/ConflictParticipant.ts';
+import ConflictReceiptRef from '../../types/conflict/ConflictReceiptRef.ts';
 import ConflictTrace from '../../types/conflict/ConflictTrace.ts';
 import ConflictWinner from '../../types/conflict/ConflictWinner.ts';
 import { compareStrings } from '../../types/conflict/validation.ts';
@@ -90,22 +91,22 @@ function buildLosers(
 
 // ── Trace building ──────────────────────────────────────────────────
 
-function buildReceiptRef(record: OpRecord): { patchSha: string; lamport: number; opIndex: number } {
-  return { patchSha: record.patchSha, lamport: record.lamport, opIndex: record.receiptOpIndex };
-}
-
-function compareReceiptRefs(a: { patchSha: string; opIndex: number }, b: { patchSha: string; opIndex: number }): number {
-  return compareStrings(`${a.patchSha}:${a.opIndex}`, `${b.patchSha}:${b.opIndex}`);
+function buildReceiptRef(record: OpRecord): ConflictReceiptRef {
+  return new ConflictReceiptRef({
+    patchSha: record.patchSha,
+    lamport: record.lamport,
+    opIndex: record.receiptOpIndex,
+  });
 }
 
 function buildTraceEvidence(
   group: GroupedConflict,
   evidence: 'summary' | 'standard' | 'full',
-): { level: string; patchRefs: string[]; receiptRefs: Array<{ patchSha: string; lamport: number; opIndex: number }> } {
+): { level: string; patchRefs: string[]; receiptRefs: ConflictReceiptRef[] } {
   return {
     level: evidence,
     patchRefs: [...new Set([group.winner.patchSha, ...group.losers.map((loser) => loser.patchSha)])].sort(compareStrings),
-    receiptRefs: [buildReceiptRef(group.winner), ...group.losers.map(buildReceiptRef)].sort(compareReceiptRefs),
+    receiptRefs: [buildReceiptRef(group.winner), ...group.losers.map(buildReceiptRef)].sort(ConflictReceiptRef.compare),
   };
 }
 

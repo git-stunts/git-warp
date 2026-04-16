@@ -6,6 +6,7 @@
 
 import WarpError from '../../errors/WarpError.ts';
 import ConflictAnchor from './ConflictAnchor.ts';
+import ConflictReceiptRef from './ConflictReceiptRef.ts';
 import type ConflictTarget from './ConflictTarget.ts';
 import type ConflictWinner from './ConflictWinner.ts';
 import type ConflictParticipant from './ConflictParticipant.ts';
@@ -16,20 +17,45 @@ const CTX = 'ConflictTrace';
 const VALID_KINDS = new Set(['supersession', 'eventual_override', 'redundancy']);
 const VALID_EVIDENCE_LEVELS = new Set(['summary', 'standard', 'full']);
 
+/**
+ * The fields accepted for a receipt reference. Either a
+ * ConflictReceiptRef instance, or a plain carrier with the same
+ * three fields — the evidence builder constructs the class around it.
+ */
+type ReceiptRefInput = ConflictReceiptRef | {
+  patchSha: string;
+  lamport: number;
+  opIndex: number;
+};
+
+export type ConflictEvidenceInput = {
+  level: string;
+  patchRefs: string[];
+  receiptRefs: ReceiptRefInput[];
+};
+
 type EvidencePayload = {
   level: string;
   patchRefs: readonly string[];
-  receiptRefs: ReadonlyArray<Readonly<Record<string, unknown>>>;
+  receiptRefs: readonly ConflictReceiptRef[];
 };
 
 /**
- * Deep-freezes the evidence object.
+ * Normalizes any receipt-ref input into a ConflictReceiptRef
+ * instance. Accepts either an already-constructed class or a plain
+ * carrier object — the class absorbs both.
  */
-function freezeEvidence(evidence: {
-  level: string;
-  patchRefs: string[];
-  receiptRefs: Array<Record<string, unknown>>;
-}): Readonly<EvidencePayload> {
+function toReceiptRef(ref: ReceiptRefInput): ConflictReceiptRef {
+  return ref instanceof ConflictReceiptRef
+    ? ref
+    : ConflictReceiptRef.from(ref);
+}
+
+/**
+ * Deep-freezes the evidence object, converting each receiptRef
+ * carrier into a ConflictReceiptRef instance.
+ */
+function freezeEvidence(evidence: ConflictEvidenceInput): Readonly<EvidencePayload> {
   if (evidence === null || evidence === undefined || typeof evidence !== 'object') {
     throw new WarpError(`${CTX}: evidence must be an object`, 'E_VALIDATION');
   }
@@ -37,7 +63,7 @@ function freezeEvidence(evidence: {
   return Object.freeze({
     level: evidence.level,
     patchRefs: Object.freeze([...evidence.patchRefs]),
-    receiptRefs: Object.freeze(evidence.receiptRefs.map((ref) => Object.freeze({ ...ref }))),
+    receiptRefs: Object.freeze(evidence.receiptRefs.map(toReceiptRef)),
   });
 }
 
@@ -69,7 +95,7 @@ export default class ConflictTrace {
     resolution: ConflictResolution;
     whyFingerprint: string;
     classificationNotes?: string[];
-    evidence: { level: string; patchRefs: string[]; receiptRefs: Array<Record<string, unknown>> };
+    evidence: ConflictEvidenceInput;
   }) {
     this.conflictId = requireNonEmptyString(conflictId, 'conflictId', CTX);
     this.kind = requireEnum(kind, VALID_KINDS, { name: 'kind', context: CTX });
