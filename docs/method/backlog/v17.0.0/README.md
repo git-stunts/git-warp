@@ -62,11 +62,14 @@ and `warp-adapters` extract later once the ORSet line proves its seams.
 ST-0 (planning + workspace shells):
   [x] DX_design-0018-flesh-out          ← design doc fleshed out, retro closed
   [x] DX_v17-lane-readme-update         ← this README updated
-  [ ] INFRA_npm-workspaces-scaffold
-  [ ] INFRA_extract-warp-orset-package
+  [x] INFRA_npm-workspaces-scaffold     ← cycle 0019 hill-met
+  [✗] INFRA_extract-warp-orset-package  ← cycle 0020 not-met (publish-surface
+                                          blocker). Split into the 3 items in
+                                          ST-1 (seam) and ST-7 (publish+extract).
 
-ST-1 (ORSet seam + storage contracts):
-  [ ] PROTO_orsetlike-contract
+ST-1 (ORSet seam in root + storage contracts):
+  [ ] PROTO_orset-seam-in-root          ← NEW: seam inside root, no code moves
+  [ ] PROTO_orsetlike-contract          ← interface extraction, consumer retyping
   [ ] PROTO_blake3-route-key
   [ ] PROTO_git-trie-store-port
   [ ] INFRA_git-trie-store-adapter
@@ -96,7 +99,20 @@ ST-5 (kernel integration):
 ST-6 (broader package extraction):
   [ ] INFRA_extract-warp-kernel-package
   [ ] INFRA_extract-warp-adapters-package
+
+ST-7 (multi-package publish + real extraction):
+  [ ] INFRA_multipackage-publish-pipeline           ← blocked_by TS_publish-pipeline
+  [ ] INFRA_extract-warp-orset-package-post-publish ← deferred successor to 0020
 ```
+
+**Cycle 0020 note:** The original `INFRA_extract-warp-orset-package`
+was closed as `not-met` because warp-orset was private (per 0019),
+and extracting into it would produce either a private-package import
+bomb in published source or a fake package boundary. The work is now
+split: seam organization (ST-1) does not require publishing changes;
+actual extraction (ST-7) depends on a real multi-package publish
+pipeline. The new extraction item deliberately has a new ID
+(`-post-publish` suffix) to preserve history.
 
 **Seam architecture:** `ORSetLike` is the synchronous in-memory seam.
 `StateSession` is the async domain-facing contract for trie-backed

@@ -1,7 +1,7 @@
 ---
 id: PROTO_orsetlike-contract
 blocked_by:
-  - INFRA_extract-warp-orset-package
+  - PROTO_orset-seam-in-root
 blocks:
   - PROTO_shadow-trie-orset
   - PROTO_state-session-async
@@ -18,12 +18,17 @@ implementation.
 
 ## Fix
 
-Define an `ORSetLike` abstract class or interface in `warp-orset` that
+Define an `ORSetLike` abstract class or interface in root (under
+the seam layout established by `PROTO_orset-seam-in-root`) that
 captures the **synchronous, in-memory** contract: `add`, `remove`,
 `contains`, `elements`, `getDots`, `countEntries`, `countLiveDots`,
 `countTombstones`, `compact`, `clone`. The existing `ORSet` class
 implements this contract. Retype all consumer call sites to accept
 `ORSetLike` instead of concrete `ORSet`.
+
+The contract will eventually move into `packages/warp-orset/` via
+`INFRA_extract-warp-orset-package-post-publish`. For now, it stays
+in root. No cross-package imports.
 
 ## Scope
 
