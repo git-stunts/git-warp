@@ -17,6 +17,7 @@ import { hexEncode, hexDecode } from '../../utils/bytes.ts';
 import SyncError from '../../errors/SyncError.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
+import type LogFields from '../../types/log/LogFields.ts';
 const SIG_VERSION = '2';
 const SIG_PREFIX = 'warp-v2';
 const HMAC_ALGO = 'sha256';
@@ -305,7 +306,7 @@ export default class SyncAuthService {
 
     const keyResult = this._resolveKey(keyId);
     if (!keyResult.ok) {
-      return this._fail('unknown key-id', { keyId }, keyResult);
+      return this._fail('unrecognized key-id', { keyId }, keyResult);
     }
 
     const sigResult = await this._verifySignature({
@@ -343,7 +344,7 @@ export default class SyncAuthService {
     return result;
   }
 
-  private _fail(message: string, context: Record<string, unknown>, result: FailResult): FailResult {
+  private _fail(message: string, context: LogFields, result: FailResult): FailResult {
     this._metrics.authFailCount += 1;
     this._logger.warn(`sync auth: ${message}`, context);
     return result;

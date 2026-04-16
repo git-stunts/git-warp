@@ -21,6 +21,7 @@ import {
 } from '../VisibleStateScope.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type Patch from '../../types/Patch.ts';
+import type CodecPort from '../../../ports/CodecPort.ts';
 
 import type { VisibleStateScope } from '../../types/CoordinateComparison.ts';
 import type { StrandDescriptor as StrandDescriptorV1 } from '../../types/StrandDescriptor.ts';
@@ -34,7 +35,7 @@ export type ComparisonHost = {
   materializeCoordinate(opts: Record<string, unknown>): Promise<WarpState>;
   _loadPatchChainFromSha(sha: string): Promise<PatchEntry[]>;
   _crypto: { hash(alg: string, data: string | Uint8Array): Promise<string>; hmac(alg: string, key: string | Uint8Array, data: string | Uint8Array): Promise<Uint8Array>; timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean };
-  _codec: { encode(data: unknown): Uint8Array; decode(bytes: Uint8Array): unknown };
+  _codec: CodecPort;
   _blobStorage: { retrieve(oid: string): Promise<Uint8Array> } | null;
   _persistence: { readBlob(oid: string): Promise<Uint8Array> };
   _stateHashService: { compute(state: WarpState): Promise<string> } | null;

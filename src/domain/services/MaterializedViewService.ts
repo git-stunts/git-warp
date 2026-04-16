@@ -180,7 +180,7 @@ export default class MaterializedViewService {
     // reflects the state at the time of the original full build, not the current
     // incremental update. Consumers should not rely on it for incremental accuracy.
     const receiptBytes = tree['receipt.cbor'];
-    const receipt = receiptBytes ? (this._codec.decode(receiptBytes) as Record<string, unknown>) : {};
+    const receipt = receiptBytes ? this._codec.decode<Record<string, unknown>>(receiptBytes) : {};
 
     return { tree, logicalIndex, propertyReader, receipt };
   }

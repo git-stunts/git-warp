@@ -121,7 +121,7 @@ export async function computeStateHash(state: WarpState, { crypto, codec }: Stat
  */
 export function deserializeStateV5(buffer: Uint8Array, { codec }: { codec?: CodecPort } = {}): StateProjection {
   const c = codec ?? defaultCodec;
-  return c.decode(buffer) as StateProjection;
+  return c.decode(buffer);
 }
 
 // ============================================================================

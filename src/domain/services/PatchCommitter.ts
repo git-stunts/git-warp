@@ -147,7 +147,8 @@ export async function commitPatch(state: CommitState): Promise<string> {
     try {
       await state.onCommitSuccess({ patch, sha: newCommitSha });
     } catch (err) {
-      state.logger.warn(`[warp] onCommitSuccess callback failed (sha=${newCommitSha}):`, { error: err });
+      const errValue = err instanceof Error ? err : String(err);
+      state.logger.warn(`[warp] onCommitSuccess callback failed (sha=${newCommitSha}):`, { error: errValue });
     }
   }
 

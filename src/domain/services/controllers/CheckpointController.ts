@@ -198,7 +198,7 @@ export default class CheckpointController {
         const patchMeta = decodePatchMessage(nodeInfo.message);
         const host = h as unknown as WarpGraphWithMixins;
         const patchBuffer = await host._readPatchBlob(patchMeta);
-        const decoded = h._codec.decode(patchBuffer) as { schema?: number };
+        const decoded = h._codec.decode<{ schema?: number }>(patchBuffer);
 
         if (decoded.schema === 1 || decoded.schema === undefined) {
           return true;

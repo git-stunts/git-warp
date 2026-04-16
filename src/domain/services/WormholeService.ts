@@ -163,7 +163,7 @@ async function processCommit({
       { context: { oid: patchMeta.patchOid } },
     );
   }
-  const patch = codec.decode(patchBuffer) as Patch;
+  const patch = codec.decode<Patch>(patchBuffer);
 
   return {
     patch,

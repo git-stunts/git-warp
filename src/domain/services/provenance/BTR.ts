@@ -88,7 +88,7 @@ class BTR {
    */
   static deserialize(bytes: Uint8Array, codec?: CodecPort): BTR {
     const c = codec ?? defaultCodec;
-    const obj = c.decode(bytes) as Record<string, string | number | Uint8Array | PatchEntryJSON[]>;
+    const obj = c.decode<Record<string, string | number | Uint8Array | PatchEntryJSON[]>>(bytes);
     const missing = findMissingField(obj);
     if (missing !== null) {
       throw new CryptoError(`Invalid BTR: missing field ${missing}`, { code: 'E_BTR_INVALID' });

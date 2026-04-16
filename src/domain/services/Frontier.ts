@@ -110,7 +110,7 @@ class Frontier {
    */
   static deserialize(buffer: Uint8Array, codec?: CodecPort): Frontier {
     const c = codec ?? defaultCodec;
-    const obj = c.decode(buffer) as Record<string, string>;
+    const obj = c.decode<Record<string, string>>(buffer);
     const frontier = new Frontier();
     for (const [writerId, patchSha] of Object.entries(obj)) {
       frontier.set(writerId, patchSha);

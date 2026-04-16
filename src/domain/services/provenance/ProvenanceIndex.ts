@@ -121,7 +121,7 @@ class ProvenanceIndex {
 
   static deserialize(buffer: Uint8Array, { codec }: { codec?: CodecPort } = {}): ProvenanceIndex {
     const c = codec ?? defaultCodec;
-    const obj = c.decode(buffer) as { version?: number; entries?: Array<[string, string[]]> };
+    const obj = c.decode<{ version?: number; entries?: Array<[string, string[]]> }>(buffer);
     ProvenanceIndex.#validateSerialized(obj);
     return new ProvenanceIndex(ProvenanceIndex.#buildIndex(obj.entries ?? []));
   }

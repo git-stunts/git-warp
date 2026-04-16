@@ -395,7 +395,7 @@ export default class AuditChainVerifier {
 
     let receipt: AuditReceipt;
     try {
-      receipt = this._codec.decode(blobContent) as AuditReceipt;
+      receipt = this._codec.decode(blobContent);
     } catch (err) {
       this._addError(result, 'CBOR_DECODE_FAILED',
         `CBOR decode failed: ${err instanceof Error ? err.message : String(err)}`, commitSha);

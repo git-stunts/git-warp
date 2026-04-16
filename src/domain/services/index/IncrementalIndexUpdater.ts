@@ -286,11 +286,11 @@ export default class IncrementalIndexUpdater {
         nodeToGlobalMap: new Map(),
       };
     }
-    const raw = this._codec.decode(buf) as {
+    const raw = this._codec.decode<{
       nodeToGlobal: Array<[string, number]> | Record<string, number>;
-      alive: Uint8Array | number[];
       nextLocalId: number;
-    };
+      alive?: Uint8Array;
+    }>(buf);
     const entries: Array<[string, number]> = Array.isArray(raw.nodeToGlobal)
       ? raw.nodeToGlobal
       : Object.entries(raw.nodeToGlobal);
@@ -347,7 +347,7 @@ export default class IncrementalIndexUpdater {
     if (!buf) {
       return {};
     }
-    return this._codec.decode(buf) as EdgeShardData;
+    return this._codec.decode(buf);
   }
 
   private _flushEdgeShards(
@@ -372,7 +372,7 @@ export default class IncrementalIndexUpdater {
     if (!buf) {
       return createNullProto<number>();
     }
-    const decoded = this._codec.decode(buf) as Record<string, number> | Array<[string, number]>;
+    const decoded = this._codec.decode<Record<string, number> | Array<[string, number]>>(buf);
     const labels: Record<string, number> = createNullProto();
     const entries = Array.isArray(decoded) ? decoded : Object.entries(decoded);
     for (const [label, id] of entries) {
@@ -395,7 +395,7 @@ export default class IncrementalIndexUpdater {
     if (!buf) {
       return map;
     }
-    const decoded = this._codec.decode(buf) as Array<[string, Record<string, unknown>]>;
+    const decoded = this._codec.decode<Array<[string, Record<string, unknown>]>>(buf);
     if (Array.isArray(decoded)) {
       for (const [nodeId, props] of decoded) {
         const source = (props !== null && props !== undefined && typeof props === 'object') ? props : {};

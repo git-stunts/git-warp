@@ -56,7 +56,7 @@ export default class ConflictReceiptRef {
    * then by operation index. Used for stable ordering in evidence
    * arrays.
    */
-  static compare(a: ConflictReceiptRef, b: ConflictReceiptRef): number {
+  static compare(this: void, a: ConflictReceiptRef, b: ConflictReceiptRef): number {
     const shaCmp = compareStrings(a.patchSha, b.patchSha);
     if (shaCmp !== 0) {
       return shaCmp;

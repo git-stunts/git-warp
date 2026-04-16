@@ -260,7 +260,7 @@ export default class StreamingBitmapIndexBuilder {
     for (const oid of oids) {
       checkAborted(signal, 'mergeChunks');
       const buffer = await this._storage.readBlob(oid);
-      const chunk = this._codec.decode(buffer) as Record<string, Uint8Array>;
+      const chunk = this._codec.decode<Record<string, Uint8Array | number[]>>(buffer);
       for (const [sha, bitmapBytes] of Object.entries(chunk)) {
         const bytes = bitmapBytes instanceof Uint8Array ? bitmapBytes : new Uint8Array(bitmapBytes);
         const bitmap = RoaringBitmap32.deserialize(bytes, true);

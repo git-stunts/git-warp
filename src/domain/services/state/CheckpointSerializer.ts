@@ -91,23 +91,33 @@ export function deserializeFullState(
   if (buffer === null || buffer === undefined) {
     return createEmptyState();
   }
-  const obj = codec.decode(buffer) as Record<string, unknown>;
+  const obj = codec.decode<DeserializedFullState | null | undefined>(buffer);
   if (obj === null || obj === undefined) {
     return createEmptyState();
   }
-  if (obj['version'] !== undefined && obj['version'] !== 'full-v5') {
+  if (obj.version !== undefined && obj.version !== 'full-v5') {
     throw new SchemaUnsupportedError(
-      `Unsupported full state version: expected 'full-v5', got '${JSON.stringify(obj['version'])}'`,
-      { context: { version: obj['version'] } },
+      `Unsupported full state version: expected 'full-v5', got '${JSON.stringify(obj.version)}'`,
+      { context: { version: obj.version } },
     );
   }
   return new WarpState({
-    nodeAlive: ORSet.deserialize(obj['nodeAlive'] ?? {}),
-    edgeAlive: ORSet.deserialize(obj['edgeAlive'] ?? {}),
-    prop: deserializeProps(obj['prop'] as [string, unknown][]),
-    observedFrontier: VersionVector.from((obj['observedFrontier'] ?? {}) as { [x: string]: number }),
-    edgeBirthEvent: deserializeEdgeBirthEvent(obj) as Map<string, EventId>,
+    nodeAlive: ORSet.deserialize(obj.nodeAlive ?? {}),
+    edgeAlive: ORSet.deserialize(obj.edgeAlive ?? {}),
+    prop: deserializeProps(obj.prop ?? []),
+    observedFrontier: VersionVector.from(obj.observedFrontier ?? {}),
+    edgeBirthEvent: deserializeEdgeBirthEvent(obj),
   });
+}
+
+interface DeserializedFullState {
+  version?: string;
+  nodeAlive?: { [x: string]: string[] };
+  edgeAlive?: { [x: string]: string[] };
+  prop?: Array<[string, unknown]>;
+  observedFrontier?: { [x: string]: number };
+  edgeBirthEvent?: Array<[string, unknown]>;
+  edgeBirthLamport?: Array<[string, number]>;
 }
 
 // ============================================================================
@@ -161,7 +171,7 @@ export function deserializeAppliedVV(
   { codec }: { codec?: CodecPort } = {},
 ): VersionVector {
   const c = codec ?? defaultCodec;
-  const obj = c.decode(buffer) as { [x: string]: number };
+  const obj = c.decode<Record<string, number>>(buffer);
   return VersionVector.from(obj);
 }
 
@@ -181,11 +191,11 @@ function deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWR
   return prop;
 }
 
-function deserializeEdgeBirthEvent(obj: Record<string, unknown>): Map<string, unknown> {
-  const edgeBirthEvent = new Map<string, unknown>();
-  const birthData = obj['edgeBirthEvent'] ?? obj['edgeBirthLamport'];
+function deserializeEdgeBirthEvent(obj: DeserializedFullState): Map<string, EventId> {
+  const edgeBirthEvent = new Map<string, EventId>();
+  const birthData = obj.edgeBirthEvent ?? obj.edgeBirthLamport;
   if (!Array.isArray(birthData)) { return edgeBirthEvent; }
-  for (const [key, val] of birthData as [string, unknown][]) {
+  for (const [key, val] of birthData) {
     edgeBirthEvent.set(key, deserializeSingleBirthEvent(val));
   }
   return edgeBirthEvent;

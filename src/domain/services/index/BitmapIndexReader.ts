@@ -214,7 +214,7 @@ export default class BitmapIndexReader {
 
   private _decodeAndCacheShard(buffer: Uint8Array, path: string, oid: string): LoadedShard {
     try {
-      const data = this._codec.decode(buffer) as LoadedShard;
+      const data = this._codec.decode<LoadedShard>(buffer);
       this.loadedShards.set(path, data);
       return data;
     } catch (err) {
