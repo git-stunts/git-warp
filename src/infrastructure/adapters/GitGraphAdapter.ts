@@ -5,13 +5,13 @@
  * composite GraphPersistencePort (CommitPort + BlobPort + TreePort +
  * RefPort + ConfigPort).
  */
-import type { Readable } from 'node:stream';
 import { retry, type RetryOptions } from '@git-stunts/alfred';
-import type { CommitNodeOptions, CommitNodeWithTreeOptions, LogNodesOptions, NodeInfo, PingResult } from '../../ports/CommitPort.ts';
+import type { CommitLogChunk, CommitNodeOptions, CommitNodeWithTreeOptions, LogNodesOptions, NodeInfo, PingResult } from '../../ports/CommitPort.ts';
 import type { ListRefsOptions } from '../../ports/RefPort.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
+import WarpStream from '../../domain/stream/WarpStream.ts';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.ts';
 import {
   type GitPlumbingLike,
@@ -168,7 +168,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     }
   }
 
-  async logNodesStream({ ref, limit = 1000000, format }: LogNodesOptions): Promise<Readable> {
+  async logNodesStream({ ref, limit = 1000000, format }: LogNodesOptions): Promise<WarpStream<CommitLogChunk>> {
     validateRef(ref);
     validateLimit(limit);
     const args = ['log', '-z', `-${limit}`];
@@ -179,7 +179,8 @@ export default class GitGraphAdapter extends GraphPersistencePort {
       args.push(`--format=${cleanFormat}`);
     }
     args.push(ref);
-    return await this.plumbing.executeStream({ args }) as unknown as Readable;
+    const rawStream = await this.plumbing.executeStream({ args });
+    return WarpStream.from<CommitLogChunk>(rawStream);
   }
 
   async writeBlob(content: Uint8Array | string): Promise<string> {

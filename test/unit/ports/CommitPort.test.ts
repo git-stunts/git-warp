@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import CommitPort, {
+  type CommitLogChunk,
   type CommitNodeOptions,
   type CommitNodeWithTreeOptions,
   type LogNodesOptions,
 } from '../../../src/ports/CommitPort.ts';
-import type { Readable } from 'node:stream';
+import WarpStream from '../../../src/domain/stream/WarpStream.ts';
 
 describe('CommitPort', () => {
   const abstractMethods = [
@@ -25,7 +26,9 @@ describe('CommitPort', () => {
       async showNode(_sha: string) { return 'msg'; }
       async getNodeInfo(_sha: string) { return { sha: 'a', message: 'm', author: 'x', date: 'd', parents: [] }; }
       async logNodes(_options: LogNodesOptions) { return 'log'; }
-      async logNodesStream(_options: LogNodesOptions) { return null as unknown as Readable; }
+      async logNodesStream(_options: LogNodesOptions): Promise<WarpStream<CommitLogChunk>> {
+        return WarpStream.of<CommitLogChunk>();
+      }
       async countNodes(_ref: string) { return 5; }
       async commitNodeWithTree(_options: CommitNodeWithTreeOptions) { return 'sha2'; }
       async nodeExists(_sha: string) { return true; }

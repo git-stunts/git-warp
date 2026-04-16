@@ -1,4 +1,4 @@
-import type { Readable } from 'node:stream';
+import type WarpStream from '../domain/stream/WarpStream.ts';
 
 /**
  * Port for Git commit operations.
@@ -6,8 +6,19 @@ import type { Readable } from 'node:stream';
  * Defines the contract for creating, reading, and querying Git commits.
  * This is one of five focused ports extracted from GraphPersistencePort.
  *
+ * The log-stream surface speaks the repo's portable
+ * `WarpStream<Uint8Array | string>` abstraction — NOT `node:stream`.
+ * Adapters bridge their native stream (Node `Readable`, in-memory
+ * arrays, etc.) into a `WarpStream` at the boundary. See cycle
+ * `docs/design/0025D-import-law/import-law.md`.
+ *
  * @see GraphPersistencePort - Composite port implementing all five focused ports
  */
+
+/** Chunk type yielded by `logNodesStream`. Byte chunks for native git
+ *  subprocess output; string chunks for in-memory formatted records.
+ *  `GitLogParser` accepts either. */
+export type CommitLogChunk = Uint8Array | string;
 
 export interface CommitNodeOptions {
   message: string;
@@ -56,7 +67,7 @@ export default abstract class CommitPort {
   abstract logNodes(_options: LogNodesOptions): Promise<string>;
 
   /** Streams git log output for a ref. */
-  abstract logNodesStream(_options: LogNodesOptions): Promise<Readable>;
+  abstract logNodesStream(_options: LogNodesOptions): Promise<WarpStream<CommitLogChunk>>;
 
   /** Counts nodes reachable from a ref without loading them into memory. */
   abstract countNodes(_ref: string): Promise<number>;
