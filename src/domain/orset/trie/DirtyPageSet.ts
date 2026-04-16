@@ -226,10 +226,16 @@ function compareByDepthDescendingThenNibbleAscending(
   if (left.path.length !== right.path.length) {
     return right.path.length - left.path.length;
   }
-  const len = left.path.length;
-  for (let i = 0; i < len; i += 1) {
-    const a = left.path[i] ?? 0;
-    const b = right.path[i] ?? 0;
+  return comparePathsLexicographically(left.path, right.path);
+}
+
+function comparePathsLexicographically(
+  left: readonly number[],
+  right: readonly number[],
+): number {
+  for (let i = 0; i < left.length; i += 1) {
+    const a = left[i] ?? 0;
+    const b = right[i] ?? 0;
     if (a !== b) {
       return a - b;
     }
