@@ -117,7 +117,7 @@ export default class ProvenanceController {
         const patch = await this._loadPatchBySha(sha);
         cone.set(sha, patch);
 
-        const patchReads = (patch as unknown as { reads?: string[] }).reads;
+        const patchReads = patch.reads;
         if (patchReads) {
           for (const readEntity of patchReads) {
             if (!visited.has(readEntity)) { queue.push(readEntity); }
