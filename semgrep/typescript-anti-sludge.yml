@@ -34,6 +34,10 @@ rules:
     paths:
       include:
         - src/**/*.ts
+      exclude:
+        # Declaration files are ambient, not runtime. They carry
+        # their own discipline via IRONCLAD M9.
+        - '**/*.d.ts'
 
   # ────────────────────────────────────────────────────────────
   # 0025B — Boundary purge
@@ -43,13 +47,23 @@ rules:
     message: |
       `unknown` is boundary-local. Keep it inside
       src/infrastructure/adapters/** and decode immediately.
+
+      Exception — `catch (err: unknown)` is legitimate: TypeScript's
+      `useUnknownInCatchVariables` flag forces this annotation, and
+      narrowing happens inside the block. This rule excludes that
+      one context.
     severity: ERROR
     languages: [typescript]
-    pattern-regex: '\bunknown\b'
+    patterns:
+      - pattern-regex: '\bunknown\b'
+      # Skip the catch-variable case — it is NOT a modeling surface.
+      - pattern-not-regex: '\bcatch\s*\(\s*\w+\s*:\s*unknown\s*\)'
     paths:
       include:
         - src/domain/**/*.ts
         - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
 
   - id: ts-no-record-string-unknown-outside-adapters
     message: |
@@ -63,6 +77,8 @@ rules:
       include:
         - src/domain/**/*.ts
         - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
 
   - id: ts-no-json-parse-in-core
     message: 'Decode raw input only in adapters. See docs/ANTI_SLUDGE_POLICY.md §4.'
@@ -73,6 +89,8 @@ rules:
       include:
         - src/domain/**/*.ts
         - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
 
   - id: ts-no-json-stringify-in-core
     message: 'Encode output only in adapters. See docs/ANTI_SLUDGE_POLICY.md §4.'
@@ -83,6 +101,8 @@ rules:
       include:
         - src/domain/**/*.ts
         - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
 
   - id: ts-no-fetch-in-core
     message: 'HTTP calls belong in adapters.'
@@ -93,6 +113,8 @@ rules:
       include:
         - src/domain/**/*.ts
         - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
 
   - id: ts-no-process-env-in-core
     message: 'Environment reads belong in adapters. See docs/ANTI_SLUDGE_POLICY.md §9.'
@@ -103,6 +125,8 @@ rules:
       include:
         - src/domain/**/*.ts
         - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
 
   - id: ts-no-date-now-in-core
     message: 'Use a ClockPort in core code. Date.now() is banned in src/domain/**.'
@@ -113,6 +137,8 @@ rules:
       include:
         - src/domain/**/*.ts
         - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
 
   - id: ts-no-new-date-in-core
     message: 'Use a ClockPort in core code. new Date(...) is banned in src/domain/**.'
@@ -123,6 +149,8 @@ rules:
       include:
         - src/domain/**/*.ts
         - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
 
   - id: ts-no-math-random-in-core
     message: 'Use a seeded PRNG or RandomPort. Math.random() is banned in src/domain/**.'
@@ -133,6 +161,8 @@ rules:
       include:
         - src/domain/**/*.ts
         - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
 
   # ────────────────────────────────────────────────────────────
   # 0025A — Cast purge
@@ -148,3 +178,5 @@ rules:
     paths:
       include:
         - src/**/*.ts
+      exclude:
+        - '**/*.d.ts'

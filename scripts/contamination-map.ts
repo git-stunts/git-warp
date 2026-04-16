@@ -44,6 +44,12 @@ interface DetectionRule {
   /** Optional token allowlist: tokens matching `pattern` whose text
    *  is in `ignoreTokens` do not count as hits. */
   readonly ignoreTokens?: ReadonlySet<string>;
+  /** Optional per-line exclusion patterns. A line matching ANY of
+   *  these skip patterns does not contribute a hit for this rule,
+   *  regardless of whether the main pattern matches. Used to allow
+   *  safety contexts (e.g. `catch (err: unknown)`) without carving
+   *  the whole token out of the rule. */
+  readonly skipPatterns?: readonly RegExp[];
 }
 
 /** TypeScript standard-library `*Like` types. These are real platform
@@ -91,7 +97,15 @@ const FAMILIES: readonly FamilyDefinition[] = [
     rationale:
       'Pre-existing raw-shape or I/O leaks in core (src/domain/** and src/ports/**). Root cause: the boundary did not decode into a runtime-backed domain type. Graduate by moving decode/encode to src/infrastructure/adapters/** and by introducing domain types for what was previously passed as `unknown` or `Record<string, unknown>`.',
     detections: [
-      { id: 'unknown-keyword', pattern: /\bunknown\b/, scope: 'core-only' },
+      {
+        id: 'unknown-keyword',
+        pattern: /\bunknown\b/,
+        scope: 'core-only',
+        // Legitimate safety contexts that are not modeling surfaces:
+        // - `catch (err: unknown)` — TS useUnknownInCatchVariables
+        //   forces this annotation; narrowing happens inside the block.
+        skipPatterns: [/\bcatch\s*\(\s*\w+\s*:\s*unknown\s*\)/],
+      },
       { id: 'record-string-unknown', pattern: /Record\s*<\s*string\s*,\s*unknown\s*>/, scope: 'core-only' },
       { id: 'json-parse', pattern: /\bJSON\.parse\s*\(/, scope: 'core-only' },
       { id: 'json-stringify', pattern: /\bJSON\.stringify\s*\(/, scope: 'core-only' },
@@ -142,10 +156,26 @@ async function* walkTs(dir: string): AsyncGenerator<string> {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
       yield* walkTs(full);
-    } else if (entry.isFile() && (full.endsWith('.ts') || full.endsWith('.tsx'))) {
+    } else if (entry.isFile() && isScannableSource(full)) {
       yield full;
     }
   }
+}
+
+/** Runtime TypeScript sources that anti-sludge rules apply to.
+ *
+ *  Declaration files (`.d.ts`) are **not** runtime code; they are
+ *  ambient type declarations, often generated or describing external
+ *  shapes. Applying runtime anti-sludge rules to them produces false
+ *  positives and poisons trust in the gate. They are excluded here
+ *  and must stay excluded from the matching Semgrep rules. Declaration
+ *  hygiene is a separate concern with its own tooling (IRONCLAD M9
+ *  already enforces no-`any` in index.d.ts). */
+function isScannableSource(absPath: string): boolean {
+  if (absPath.endsWith('.d.ts')) {
+    return false;
+  }
+  return absPath.endsWith('.ts') || absPath.endsWith('.tsx');
 }
 
 function inScope(relPath: string, scope: Scope): boolean {
@@ -174,8 +204,24 @@ function lineIsCommentOnly(line: string): boolean {
 }
 
 /** Returns true iff `line` contains at least one match for `detection.pattern`
- *  whose captured text is NOT in `detection.ignoreTokens`. */
+ *  that is NOT filtered by `ignoreTokens` or `skipPatterns`.
+ *
+ *  `skipPatterns` match line-level: if ANY skip pattern matches the
+ *  line, the entire line is treated as a non-hit (used for safety
+ *  contexts like `catch (err: unknown)`).
+ *
+ *  `ignoreTokens` match match-level: individual regex matches whose
+ *  captured text is in the set are filtered out (used for platform
+ *  types like `ArrayLike`).
+ */
 function lineHasRealHit(line: string, detection: DetectionRule): boolean {
+  if (detection.skipPatterns !== undefined) {
+    for (const skip of detection.skipPatterns) {
+      if (skip.test(line)) {
+        return false;
+      }
+    }
+  }
   if (detection.ignoreTokens === undefined) {
     return detection.pattern.test(line);
   }

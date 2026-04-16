@@ -11,7 +11,7 @@
     "ts-no-process-env-in-core"
   ],
   "rationale": "Pre-existing raw-shape or I/O leaks in core (src/domain/** and src/ports/**). Root cause: the boundary did not decode into a runtime-backed domain type. Graduate by moving decode/encode to src/infrastructure/adapters/** and by introducing domain types for what was previously passed as `unknown` or `Record<string, unknown>`.",
-  "generated_at": "2026-04-16T09:19:25.653Z",
+  "generated_at": "2026-04-16T10:19:05.305Z",
   "generator": "scripts/contamination-map.ts v1",
   "files": [
     "src/domain/WarpCore.ts",
@@ -160,7 +160,6 @@
     "src/domain/types/conflict/ConflictTarget.ts",
     "src/domain/types/conflict/ConflictTrace.ts",
     "src/domain/types/conflict/validation.ts",
-    "src/domain/types/git-cas.d.ts",
     "src/domain/types/ops/EdgePropSet.ts",
     "src/domain/types/ops/NodePropSet.ts",
     "src/domain/types/ops/PropSet.ts",
@@ -179,7 +178,6 @@
     "src/domain/utils/streamUtils.ts",
     "src/domain/warp/PatchSession.ts",
     "src/domain/warp/Writer.ts",
-    "src/domain/warp/_wiredMethods.d.ts",
     "src/ports/CodecPort.ts",
     "src/ports/IndexStorePort.ts",
     "src/ports/LoggerPort.ts"
