@@ -34,13 +34,13 @@ New ORSet-related code that is NOT a CRDT primitive lands here in
 `src/domain/orset/`, organized into subdirectories that mirror the
 eventual warp-orset package layout:
 
-| Planned subdir | What goes there | Backlog item |
-|----------------|-----------------|--------------|
-| `src/domain/orset/route/` | `RouteKey.ts`, `nibbleAt()`, blake3 helpers | `PROTO_blake3-route-key` |
-| `src/domain/orset/trie/` | `TrieLeaf.ts`, `TrieBranch.ts`, `TrieCursor.ts`, `TrieGeometry.ts`, `PageCache.ts`, `TrieFlusher.ts` | `PROTO_trie-codec-and-geometry`, `PROTO_trie-cursor`, `PERF_lru-page-cache`, `PROTO_trie-flush` |
-| `src/domain/orset/session/` | `StateSession.ts`, `SessionHandle.ts` | `PROTO_state-session-async` |
-| `src/domain/orset/shadow/` | `ShadowTrieORSet.ts` | `PROTO_shadow-trie-orset` |
-| `src/domain/orset/ORSetLike.ts` | The synchronous in-memory seam interface | `PROTO_orsetlike-contract` |
+| Planned subdir | What goes there | Backlog item | Status |
+|----------------|-----------------|--------------|--------|
+| `src/domain/orset/route/` | `RouteKey.ts`, `nibbleAt()`, blake3 helpers | `PROTO_blake3-route-key` | ✅ cycle 0022 |
+| `src/domain/orset/trie/` | `TrieLeaf.ts`, `TrieBranch.ts`, `TrieCursor.ts`, `TrieGeometry.ts`, `PageCache.ts`, `TrieFlusher.ts` | `PROTO_trie-codec-and-geometry`, `PROTO_trie-cursor`, `PERF_lru-page-cache`, `PROTO_trie-flush` | pending |
+| `src/domain/orset/session/` | `StateSession.ts`, `SessionHandle.ts` | `PROTO_state-session-async` | pending |
+| `src/domain/orset/shadow/` | `ShadowTrieORSet.ts` | `PROTO_shadow-trie-orset` | pending |
+| `src/domain/orset/ORSetLike.ts` | The synchronous in-memory seam interface | `PROTO_orsetlike-contract` | pending |
 
 The `crdt/` subdir lives at `src/domain/crdt/` (not under `orset/`)
 for historical reasons — moving it would force 208 import rewrites,

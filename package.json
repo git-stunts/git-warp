@@ -113,6 +113,7 @@
     "@git-stunts/git-cas": "^5.3.2",
     "@git-stunts/plumbing": "^2.8.0",
     "@git-stunts/trailer-codec": "^2.1.1",
+    "@noble/hashes": "^2.2.0",
     "boxen": "^7.1.1",
     "cbor-x": "^1.6.0",
     "chalk": "^5.3.0",
