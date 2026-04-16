@@ -8,10 +8,10 @@ import type CodecValue from '../domain/types/codec/CodecValue.ts';
  * name the shape they are putting in or pulling out. Defaults fall
  * back to the shared `CodecValue` transport union — the named set of
  * values a structured codec can round-trip — so polymorphic call
- * sites have a concrete type, not `unknown`.
+ * sites have a concrete named type.
  *
- * Per `docs/ANTI_SLUDGE_POLICY.md`, a decoder that returns `unknown`
- * is a shrug, not a contract. This port's return type is always a
+ * Per `docs/ANTI_SLUDGE_POLICY.md`, a decoder that returns a shrug
+ * type is not a contract. This port's return type is always a
  * named type, even when the caller does not narrow further.
  *
  * Adapters implementing this port live in

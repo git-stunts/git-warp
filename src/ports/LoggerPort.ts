@@ -8,11 +8,11 @@ import type LogFields from '../domain/types/log/LogFields.ts';
  * message string and an optional `LogFields` context; child loggers
  * inherit a base `LogFields` and merge per-call fields on top.
  *
- * The context type is `LogFields`, not `Record<string, unknown>`:
- * dumping decoded-reality blobs into the log stream is banned here
- * by construction. A caller that wants to log an arbitrary value
- * names the field and gives it a type-compatible value (see
- * `LogFieldValue`).
+ * The context type is `LogFields` — a bounded union of serializable
+ * field values. Dumping an any-shaped blob into the log stream is
+ * banned here by construction. A caller that wants to log an
+ * arbitrary value names the field and gives it a type-compatible
+ * value (see `LogFieldValue`).
  *
  * @module ports/LoggerPort
  */
