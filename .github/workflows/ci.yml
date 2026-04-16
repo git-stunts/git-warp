@@ -38,14 +38,23 @@ jobs:
         run: npm run lint:ratchet
       - name: 'Gate 4c: Anti-sludge shell checks (junk-drawer filenames)'
         run: npm run lint:sludge
-      - name: 'Gate 4d: Semgrep anti-sludge policy (*Like, as unknown as, Record<string, unknown>, JSON.parse in core, etc.)'
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: semgrep/typescript-anti-sludge.yml
-      - name: 'Gate 4e: Contamination map matches checked-in manifests (no stale quarantines)'
+      - name: 'Gate 4d: Install semgrep'
+        run: python -m pip install --upgrade pip semgrep
+      - name: 'Gate 4e: Semgrep anti-sludge with rule-scoped quarantines'
+        run: npm run lint:semgrep
+      - name: 'Gate 4f: Contamination map matches checked-in manifests (no stale quarantines)'
         run: |
           npm run lint:contamination
           git diff --exit-code -- policy/quarantines/
+      - name: 'Gate 4g: Fetch base branch for quarantine-graduate-check'
+        # Required for `git merge-base origin/main HEAD` on shallow
+        # CI clones. If the fetch fails (e.g. PR from a fork with
+        # limited perms), the graduate-check will skip gracefully.
+        run: git fetch --no-tags --depth=1 origin main || true
+      - name: 'Gate 4h: Quarantine graduate-check (touched quarantined files must graduate or narrow)'
+        env:
+          GIT_WARP_QUARANTINE_BASE: origin/main
+        run: npm run lint:quarantine-graduate
       - name: 'Gate 5: Declaration surface validator (manifest vs index.d.ts vs index.js)'
         run: npm run typecheck:surface
       - name: 'Gate 6: Markdown lint (fenced code blocks require language)'
