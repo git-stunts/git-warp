@@ -10,8 +10,8 @@ import { PropertyShard } from '../../domain/artifacts/PropertyShard.ts';
 import { ReceiptShard } from '../../domain/artifacts/ReceiptShard.ts';
 import type { IndexShard } from '../../domain/artifacts/IndexShard.ts';
 import { IndexShardEncodeTransform } from './IndexShardEncodeTransform.ts';
-import { GitBlobWriteTransform } from './GitBlobWriteTransform.ts';
-import { TreeAssemblerSink } from './TreeAssemblerSink.ts';
+import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import { readPayloadBlob, writePayloadBlob } from './CasPayloadPointer.ts';
 
 interface BlobPort {
   readBlob(oid: string): Promise<Uint8Array>;
@@ -90,8 +90,14 @@ export class CborIndexStoreAdapter extends IndexStorePort {
   private readonly _codec: CodecPort;
   private readonly _blobPort: BlobPort;
   private readonly _treePort: TreePort;
+  private readonly _blobStorage: BlobStoragePort | null;
 
-  constructor({ codec, blobPort, treePort }: { codec: CodecPort; blobPort: BlobPort; treePort: TreePort }) {
+  constructor({ codec, blobPort, treePort, blobStorage }: {
+    codec: CodecPort;
+    blobPort: BlobPort;
+    treePort: TreePort;
+    blobStorage?: BlobStoragePort | null;
+  }) {
     super();
     _requireDep(codec, 'codec');
     _requireDep(blobPort, 'blobPort');
@@ -99,13 +105,23 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     this._codec = codec;
     this._blobPort = blobPort;
     this._treePort = treePort;
+    this._blobStorage = blobStorage ?? null;
   }
 
   override async writeShards(shardStream: WarpStream<IndexShard>): Promise<string> {
-    return await shardStream
+    const entries: string[] = [];
+    await shardStream
       .pipe(new IndexShardEncodeTransform(this._codec))
-      .pipe(new GitBlobWriteTransform(this._blobPort))
-      .drain(new TreeAssemblerSink(this._treePort));
+      .forEach(async ([path, bytes]) => {
+        const oid = await writePayloadBlob(this._blobPort, this._blobStorage, bytes, {
+          slug: path,
+          mime: 'application/cbor',
+          size: bytes.length,
+        });
+        entries.push(`100644 blob ${oid}\t${path}`);
+      });
+    entries.sort();
+    return await this._treePort.writeTree(entries);
   }
 
   override scanShards(treeOid: string): WarpStream<IndexShard> {
@@ -120,7 +136,7 @@ export class CborIndexStoreAdapter extends IndexStorePort {
           continue;
         }
         const blobOid = oids[path] as string;
-        const bytes = await adapter._blobPort.readBlob(blobOid);
+        const bytes = await readPayloadBlob(adapter._blobPort, adapter._blobStorage, blobOid);
         const data = adapter._codec.decode(bytes);
         yield shard(data);
       }
@@ -132,7 +148,7 @@ export class CborIndexStoreAdapter extends IndexStorePort {
   }
 
   override async decodeShard<TDecoded extends CodecValue = CodecValue>(blobOid: string): Promise<TDecoded> {
-    const bytes = await this._blobPort.readBlob(blobOid);
+    const bytes = await readPayloadBlob(this._blobPort, this._blobStorage, blobOid);
     return this._codec.decode<TDecoded>(bytes);
   }
 }

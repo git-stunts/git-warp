@@ -508,12 +508,13 @@ export default class WarpRuntime {
       resolvedCheckpointStore = new CborCheckpointStoreAdapter({
         codec: resolvedCodec,
         blobPort,
+        blobStorage: resolvedBlobStorage,
       });
     }
 
     // IndexStore
     const resolvedIndexStore = await resolveIndexStore(indexStore, {
-      codec: resolvedCodec, blobPort, treePort,
+      codec: resolvedCodec, blobPort, treePort, blobStorage: resolvedBlobStorage,
     });
 
     // StateHashService -- crypto is always resolved (defaultCrypto fallback)

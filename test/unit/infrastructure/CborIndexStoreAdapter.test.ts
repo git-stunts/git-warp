@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CborIndexStoreAdapter } from '../../../src/infrastructure/adapters/CborIndexStoreAdapter.ts';
+import { decodeCasPayloadPointer } from '../../../src/infrastructure/adapters/CasPayloadPointer.ts';
 import IndexStorePort from '../../../src/ports/IndexStorePort.ts';
+import BlobStoragePort from '../../../src/ports/BlobStoragePort.ts';
 import MockBlobPort from '../../helpers/MockBlobPort.ts';
 import MockTreePort from '../../helpers/MockTreePort.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
@@ -10,6 +12,56 @@ import { EdgeShard } from '../../../src/domain/artifacts/EdgeShard.ts';
 import { LabelShard } from '../../../src/domain/artifacts/LabelShard.ts';
 import { PropertyShard } from '../../../src/domain/artifacts/PropertyShard.ts';
 import { ReceiptShard } from '../../../src/domain/artifacts/ReceiptShard.ts';
+
+class MemoryBlobStorage extends BlobStoragePort {
+  private readonly _store: Map<string, Uint8Array>;
+  private _counter: number;
+
+  constructor() {
+    super();
+    this._store = new Map();
+    this._counter = 0;
+  }
+
+  override async store(content: Uint8Array | string): Promise<string> {
+    const bytes = typeof content === 'string' ? new TextEncoder().encode(content) : content;
+    const oid = `storage_${String(this._counter++).padStart(4, '0')}`;
+    this._store.set(oid, bytes);
+    return oid;
+  }
+
+  override async retrieve(oid: string): Promise<Uint8Array> {
+    const bytes = this._store.get(oid);
+    if (bytes === undefined) {
+      throw new Error(`Storage OID not found: ${oid}`);
+    }
+    return bytes;
+  }
+
+  override async storeStream(source: AsyncIterable<Uint8Array>): Promise<string> {
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of source) {
+      chunks.push(chunk);
+    }
+    const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const merged = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return await this.store(merged);
+  }
+
+  override retrieveStream(oid: string): AsyncIterable<Uint8Array> {
+    const self = this;
+    return {
+      async *[Symbol.asyncIterator]() {
+        yield await self.retrieve(oid);
+      },
+    };
+  }
+}
 
 describe('CborIndexStoreAdapter', () => {
     let blobPort;
@@ -134,6 +186,26 @@ describe('CborIndexStoreAdapter', () => {
         'rev_a0.cbor',
       ]);
     });
+
+    it('stores shard payloads behind CAS pointer blobs when blobStorage is configured', async () => {
+      const blobStorage = new MemoryBlobStorage();
+      const casBackedAdapter = new CborIndexStoreAdapter({
+        codec: defaultCodec,
+        blobPort,
+        treePort,
+        blobStorage,
+      });
+
+      const treeOid = await casBackedAdapter.writeShards(WarpStream.from(createTestShards()));
+      const oidMap = await treePort.readTreeOids(treeOid);
+
+      expect(Object.keys(oidMap)).toHaveLength(6);
+
+      for (const oid of Object.values(oidMap)) {
+        const pointerBytes = await blobPort.readBlob(oid);
+        expect(decodeCasPayloadPointer(pointerBytes)).not.toBeNull();
+      }
+    });
   });
 
   // ── writeShards → scanShards round-trip ─────────────────────────
@@ -239,6 +311,24 @@ describe('CborIndexStoreAdapter', () => {
       expect(receipt.nodeCount).toBe(1000);
       expect(receipt.labelCount).toBe(50);
       expect(receipt.shardCount).toBe(256);
+    });
+
+    it('round-trips CAS-backed pointer blobs through blobStorage', async () => {
+      const blobStorage = new MemoryBlobStorage();
+      const casBackedAdapter = new CborIndexStoreAdapter({
+        codec: defaultCodec,
+        blobPort,
+        treePort,
+        blobStorage,
+      });
+
+      const original = createTestShards();
+      const treeOid = await casBackedAdapter.writeShards(WarpStream.from(original));
+      const recovered = await casBackedAdapter.scanShards(treeOid).collect();
+
+      expect(recovered).toHaveLength(original.length);
+      expect(recovered.find((shard) => shard instanceof MetaShard)).toBeDefined();
+      expect(recovered.find((shard) => shard instanceof ReceiptShard)).toBeDefined();
     });
   });
 

@@ -9,6 +9,8 @@ import { ProvenanceIndex } from '../../domain/services/provenance/ProvenanceInde
 import type { LWWRegister } from '../../domain/crdt/LWW.ts';
 import type { PropValue } from '../../domain/types/PropValue.ts';
 import type { EventId } from '../../domain/utils/EventId.ts';
+import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import { readPayloadBlob, writePayloadBlob } from './CasPayloadPointer.ts';
 
 interface BlobPort {
   readBlob(oid: string): Promise<Uint8Array>;
@@ -25,8 +27,13 @@ interface BlobPort {
 export class CborCheckpointStoreAdapter extends CheckpointStorePort {
   private readonly _codec: CodecPort;
   private readonly _blobPort: BlobPort;
+  private readonly _blobStorage: BlobStoragePort | null;
 
-  constructor({ codec, blobPort }: { codec: CodecPort; blobPort: BlobPort }) {
+  constructor({ codec, blobPort, blobStorage }: {
+    codec: CodecPort;
+    blobPort: BlobPort;
+    blobStorage?: BlobStoragePort | null;
+  }) {
     super();
     if (codec === null || codec === undefined) {
       throw new WarpError('CborCheckpointStoreAdapter requires a codec', 'E_INVALID_DEPENDENCY');
@@ -36,6 +43,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     }
     this._codec = codec;
     this._blobPort = blobPort;
+    this._blobStorage = blobStorage ?? null;
   }
 
   override async writeCheckpoint(record: CheckpointRecord): Promise<CheckpointWriteResult> {
@@ -49,12 +57,28 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     }
 
     const writes: Array<Promise<string>> = [
-      this._blobPort.writeBlob(stateBytes),
-      this._blobPort.writeBlob(frontierBytes),
-      this._blobPort.writeBlob(appliedVVBytes),
+      writePayloadBlob(this._blobPort, this._blobStorage, stateBytes, {
+        slug: 'checkpoint-state',
+        mime: 'application/cbor',
+        size: stateBytes.length,
+      }),
+      writePayloadBlob(this._blobPort, this._blobStorage, frontierBytes, {
+        slug: 'checkpoint-frontier',
+        mime: 'application/cbor',
+        size: frontierBytes.length,
+      }),
+      writePayloadBlob(this._blobPort, this._blobStorage, appliedVVBytes, {
+        slug: 'checkpoint-applied-vv',
+        mime: 'application/cbor',
+        size: appliedVVBytes.length,
+      }),
     ];
     if (provenanceBytes !== null) {
-      writes.push(this._blobPort.writeBlob(provenanceBytes));
+      writes.push(writePayloadBlob(this._blobPort, this._blobStorage, provenanceBytes, {
+        slug: 'checkpoint-provenance-index',
+        mime: 'application/cbor',
+        size: provenanceBytes.length,
+      }));
     }
 
     const oids = await Promise.all(writes);
@@ -80,14 +104,14 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     }
 
     const reads: Array<Promise<Uint8Array>> = [
-      this._blobPort.readBlob(stateOid),
-      this._blobPort.readBlob(frontierOid),
+      readPayloadBlob(this._blobPort, this._blobStorage, stateOid),
+      readPayloadBlob(this._blobPort, this._blobStorage, frontierOid),
     ];
     if (appliedVVOid !== undefined) {
-      reads.push(this._blobPort.readBlob(appliedVVOid));
+      reads.push(readPayloadBlob(this._blobPort, this._blobStorage, appliedVVOid));
     }
     if (provenanceOid !== undefined) {
-      reads.push(this._blobPort.readBlob(provenanceOid));
+      reads.push(readPayloadBlob(this._blobPort, this._blobStorage, provenanceOid));
     }
 
     const buffers = await Promise.all(reads);

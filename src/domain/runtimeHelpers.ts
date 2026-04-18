@@ -52,6 +52,7 @@ type IndexStoreDeps = {
     readTreeOids(treeOid: string): Promise<Record<string, string>>;
     writeTree(entries: string[]): Promise<string>;
   };
+  blobStorage?: BlobStoragePort | null;
 };
 
 /**

@@ -1,7 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { CborCheckpointStoreAdapter } from '../../../../src/infrastructure/adapters/CborCheckpointStoreAdapter.ts';
+import { decodeCasPayloadPointer } from '../../../../src/infrastructure/adapters/CasPayloadPointer.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import CheckpointStorePort from '../../../../src/ports/CheckpointStorePort.ts';
+import BlobStoragePort from '../../../../src/ports/BlobStoragePort.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
@@ -39,6 +41,56 @@ function createGoldenState() {
  */
 function createMemoryBlobPort() {
   return new MockBlobPort();
+}
+
+class MemoryBlobStorage extends BlobStoragePort {
+  private readonly _store: Map<string, Uint8Array>;
+  private _counter: number;
+
+  constructor() {
+    super();
+    this._store = new Map();
+    this._counter = 0;
+  }
+
+  override store = vi.fn(async (content: Uint8Array | string) => {
+    const bytes = typeof content === 'string' ? new TextEncoder().encode(content) : content;
+    const oid = `storage_${String(this._counter++).padStart(4, '0')}`;
+    this._store.set(oid, bytes);
+    return oid;
+  });
+
+  override retrieve = vi.fn(async (oid: string) => {
+    const bytes = this._store.get(oid);
+    if (bytes === undefined) {
+      throw new Error(`Storage OID not found: ${oid}`);
+    }
+    return bytes;
+  });
+
+  override async storeStream(source: AsyncIterable<Uint8Array>): Promise<string> {
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of source) {
+      chunks.push(chunk);
+    }
+    const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const merged = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return await this.store(merged);
+  }
+
+  override retrieveStream(oid: string): AsyncIterable<Uint8Array> {
+    const self = this;
+    return {
+      async *[Symbol.asyncIterator]() {
+        yield await self.retrieve(oid);
+      },
+    };
+  }
 }
 
 describe('CborCheckpointStoreAdapter (collapsed)', () => {
@@ -110,6 +162,36 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
 
       expect(result.provenanceIndexBlobOid).not.toBeNull();
       expect(blobPort.writeBlob).toHaveBeenCalledTimes(4);
+    });
+
+    it('stores checkpoint payloads behind CAS pointer blobs when blobStorage is configured', async () => {
+      const blobPort = createMemoryBlobPort();
+      const blobStorage = new MemoryBlobStorage();
+      const adapter = new CborCheckpointStoreAdapter({
+        codec: new CborCodec(),
+        blobPort,
+        blobStorage,
+      });
+
+      const vv = VersionVector.empty();
+      vv.set('w1', 3);
+
+      const result = await adapter.writeCheckpoint({
+        state: createGoldenState(),
+        frontier: new Map([['w1', 'abc123']]),
+        appliedVV: vv,
+        stateHash: 'deadbeef',
+      });
+
+      expect(blobStorage.store).toHaveBeenCalledTimes(3);
+
+      const statePointer = await blobPort.readBlob(result.stateBlobOid);
+      const frontierPointer = await blobPort.readBlob(result.frontierBlobOid);
+      const appliedVVPointer = await blobPort.readBlob(result.appliedVVBlobOid);
+
+      expect(decodeCasPayloadPointer(statePointer)).toBe('storage_0000');
+      expect(decodeCasPayloadPointer(frontierPointer)).toBe('storage_0001');
+      expect(decodeCasPayloadPointer(appliedVVPointer)).toBe('storage_0002');
     });
   });
 
@@ -187,6 +269,33 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         'meta_aa.cbor': 'oid-meta',
         'props_aa.cbor': 'oid-props',
       });
+    });
+
+    it('round-trips CAS-backed pointer blobs via blobStorage', async () => {
+      const blobPort = createMemoryBlobPort();
+      const blobStorage = new MemoryBlobStorage();
+      const codec = new CborCodec();
+      const adapter = new CborCheckpointStoreAdapter({ codec, blobPort, blobStorage });
+
+      const vv = VersionVector.empty();
+      vv.set('w1', 3);
+
+      const writeResult = await adapter.writeCheckpoint({
+        state: createGoldenState(),
+        frontier: new Map([['w1', 'abc123']]),
+        appliedVV: vv,
+        stateHash: 'deadbeef',
+      });
+
+      const data = await adapter.readCheckpoint({
+        'state.cbor': writeResult.stateBlobOid,
+        'frontier.cbor': writeResult.frontierBlobOid,
+        'appliedVV.cbor': writeResult.appliedVVBlobOid,
+      });
+
+      expect(data.frontier.get('w1')).toBe('abc123');
+      expect(data.appliedVV?.get('w1')).toBe(3);
+      expect(blobStorage.retrieve).toHaveBeenCalledTimes(3);
     });
   });
 
