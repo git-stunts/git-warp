@@ -218,7 +218,7 @@ function makeStream(bytes: Uint8Array): CollectableStream {
         },
       };
     },
-    async collect(collectOpts?: { asString?: boolean }): Promise<Buffer | string> {
+    async collect(collectOpts?: { asString?: boolean; maxBytes?: number }): Promise<Buffer | string> {
       if (collectOpts?.asString === true) {
         return Buffer.from(bytes).toString('utf8');
       }

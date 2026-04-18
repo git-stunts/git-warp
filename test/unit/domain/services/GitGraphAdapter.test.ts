@@ -71,14 +71,17 @@ describe('GitGraphAdapter', () => {
     });
 
     it('returns empty blob bytes when the object exists', async () => {
-      mockPlumbing.executeStream.mockResolvedValue({
-        collect: vi.fn().mockResolvedValue(Buffer.alloc(0)),
-      });
+      const collect = vi.fn().mockResolvedValue(Buffer.alloc(0));
+      mockPlumbing.executeStream.mockResolvedValue({ collect });
       mockPlumbing.execute.mockResolvedValue('');
 
       const result = await adapter.readBlob('abcd');
 
       expect(result).toEqual(Buffer.alloc(0));
+      expect(collect).toHaveBeenCalledWith({
+        asString: false,
+        maxBytes: Number.POSITIVE_INFINITY,
+      });
       expect(mockPlumbing.execute).toHaveBeenCalledWith({
         args: ['cat-file', '-e', 'abcd'],
       });

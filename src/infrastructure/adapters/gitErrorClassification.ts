@@ -33,7 +33,7 @@ export interface GitError extends Error {
 
 /** Shape of a stream with a collect() method from plumbing. */
 export interface CollectableStream extends AsyncIterable<Uint8Array> {
-  collect(opts?: { asString?: boolean }): Promise<Buffer | string>;
+  collect(opts?: { asString?: boolean; maxBytes?: number }): Promise<Buffer | string>;
 }
 
 /** Minimal contract for the plumbing dependency injected into adapters. */

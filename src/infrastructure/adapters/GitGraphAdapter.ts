@@ -247,7 +247,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     validateOid(oid);
     try {
       const stream = await this.plumbing.executeStream({ args: ['cat-file', 'blob', oid] });
-      const raw = await stream.collect({ asString: false });
+      const raw = await stream.collect({ asString: false, maxBytes: Number.POSITIVE_INFINITY });
       if ((raw as Uint8Array).length === 0) {
         await this._assertBlobExistsForEmptyRead(oid);
       }

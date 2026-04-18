@@ -24,7 +24,7 @@ interface PlumbingRuntime {
   execute(opts: { args: string[]; input?: string | Buffer }): Promise<string>;
   executeStream(opts: {
     args: string[];
-  }): Promise<{ collect(opts: { asString: boolean }): Promise<Buffer | string> }>;
+  }): Promise<{ collect(opts: { asString: boolean; maxBytes?: number }): Promise<Buffer | string> }>;
 }
 
 interface Harness {

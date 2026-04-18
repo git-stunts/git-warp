@@ -134,7 +134,10 @@ export default class GitTrieStoreAdapter implements TrieStorePort {
       const stream = await this.plumbing.executeStream({
         args: ['cat-file', BLOB_TYPE, oid],
       });
-      const collected = await stream.collect({ asString: false });
+      const collected = await stream.collect({
+        asString: false,
+        maxBytes: Number.POSITIVE_INFINITY,
+      });
       const bytes = bufferToUint8Array(collected);
       if (bytes.length === 0) {
         await this._assertObjectExists(oid);
