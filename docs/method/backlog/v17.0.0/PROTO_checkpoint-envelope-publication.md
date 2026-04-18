@@ -48,11 +48,15 @@ update ref.
 ## Scope
 
 **In:** Envelope tree format with real tree entries. Commit creation.
-Ref update. Backward compatibility: v5 checkpoints (single state.cbor
-blob) still readable via existing deserialization path.
+Ref update. Hard version boundary in shipped runtime: checkpoint
+publication and runtime reads support only the envelope-tree substrate.
+Legacy v5 checkpoints are upgraded offline by
+`scripts/migrations/v17.0.0/migrate.ts`, not by a shipped fallback
+reader in `src/`.
 
-**Out:** No migration of existing checkpoints. Old checkpoints are
-cache-only and can be rebuilt.
+**Out:** No runtime fallback for legacy checkpoints. No dual-path
+materialize logic in shipped code. Legacy checkpoint import lives in the
+versioned migration tool.
 
 ## Notes
 
@@ -66,3 +70,6 @@ cache-only and can be rebuilt.
   TrieStorePort stays boring (read/write leaves and branches). The
   checkpoint publication logic uses the flushed trie root OIDs to
   build the envelope tree.
+- Old-format checkpoint readers belong in
+  `scripts/migrations/v17.0.0/legacy/` (or equivalent migration-tool
+  internals), not in the main shipping runtime.

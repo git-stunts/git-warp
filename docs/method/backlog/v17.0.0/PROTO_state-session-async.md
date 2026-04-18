@@ -38,8 +38,9 @@ Implement `StateSession` as the domain-facing contract:
 ## Role in the seam architecture
 
 - `ORSetLike` is the **in-memory seam** — synchronous, satisfied by the
-  existing `ORSet` class. Used when operating on in-memory state
-  (e.g., in-memory tests, legacy checkpoint deserialization).
+  existing `ORSet` class. Used when operating on in-memory state in
+  tests and migration-tool internals only. It is NOT a production
+  runtime fallback path for old checkpoints or old ORSet-backed graphs.
 - `StateSession` is the **domain-facing contract** for trie-backed
   state. It wraps `ShadowTrieORSet` internally. Domain code (reducer,
   GC, Ops) goes through the session when operating on trie-backed
@@ -71,3 +72,5 @@ GC integration (PROTO_gc-state-session).
   sync methods.
 - The session is a short-lived boundary, not a long-lived connection.
   Open before a materialization pass, close after.
+- Legacy substrate readers belong in `scripts/migrations/v17.0.0/`,
+  not behind hidden branches inside `StateSession`.

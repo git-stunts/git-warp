@@ -30,20 +30,25 @@ Update MaterializeController:
    all patches, closes the session
 3. Checkpoint creation uses the envelope publication path (commit +
    ref) instead of serializing full state to a single blob
-4. Backward compatibility: v5 checkpoints (single state.cbor blob)
-   still loadable via the existing deserialization path
+4. If a caller points runtime code at a legacy v5 checkpoint
+   (`state.cbor` blob substrate), runtime fails fast with an explicit
+   upgrade-required error. Legacy import happens offline through
+   `scripts/migrations/v17.0.0/migrate.ts`.
 
 ## Scope
 
 **In:** MaterializeController session integration. Checkpoint
-envelope publication. v5 backward compatibility. All materialization
-tests must pass.
+envelope publication. Current-substrate runtime reads only. All
+materialization tests for the supported substrate must pass.
 
 **Out:** Index builder changes (PROTO_index-builder-trie-iteration).
 Performance validation (PERF_trie-geometry-and-memory-profile).
+Legacy checkpoint fallback in shipped runtime.
 
 ## Existing v17 links
 
 - GOD_materialize-controller — the god kill decomposed
   MaterializeController into smaller pieces. This item works with
   whatever shape the controller has after that decomposition.
+- INFRA_substrate-upgrade-tool — legacy checkpoint and state import live
+  in the offline upgrader, not in MaterializeController.

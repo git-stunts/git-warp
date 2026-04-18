@@ -19,6 +19,11 @@ fallbacks or abandon old data.
 `git warp upgrade` runs offline, walks all existing objects in a WARP
 graph, and migrates them to the current substrate version.
 
+For the v17.0.0 ORSet/checkpoint break, the concrete repo-local entry
+point is `scripts/migrations/v17.0.0/migrate.ts`. Old checkpoint
+readers, old ORSet-backed materializers, and one-shot translation logic
+live there (and under its private helper modules), not in `src/`.
+
 ### What it migrates
 
 - Hand-rolled blobs → git-cas (chunked, CDC, manifest-backed)
@@ -40,12 +45,15 @@ graph, and migrates them to the current substrate version.
 - **Offline**: requires no concurrent writers. Could enforce via a lock
   ref that blocks `createPatch` during migration
 
-### Complements the gradual approach
+### Hard version boundary for major substrate shifts
 
-The runtime can also do gradual migration (write new → git-cas, read
-old → fallback, same as CasBlobAdapter). The upgrade tool is for
-deliberate version bumps where you want a clean break and immediate
-space reclaim.
+For major substrate shifts such as the v17 trie-backed ORSet and
+checkpoint-envelope move, the upgrade tool is not a convenience. It is
+the compatibility boundary. Shipped runtime code supports the current
+substrate only, and the upgrader carries the legacy readers.
+
+This keeps the production runtime single-path, inspectable, and free of
+permanent fallback branches.
 
 ### Substrate version storage
 
