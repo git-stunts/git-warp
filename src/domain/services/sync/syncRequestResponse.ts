@@ -215,7 +215,7 @@ export async function processSyncRequest(
       if (patchJournal !== undefined && patchJournal !== null && typeof patchJournal.scanPatchRange === 'function') {
         const stream = patchJournal.scanPatchRange(writerId, range.from, range.to);
         for await (const entry of stream) {
-          patches.push({ writerId, sha: entry.sha, patch: entry.patch as unknown as DecodedPatch });
+          patches.push({ writerId, sha: entry.sha, patch: entry.patch });
         }
       } else {
         const writerPatches = await loadPatchRange(
@@ -328,14 +328,14 @@ export function applySyncResponse(
       for (const op of normalizedPatch.ops) {
         if (!isKnownRawOp(op)) {
           throw new SchemaUnsupportedError(
-            `Patch ${sha} contains unknown op type: ${(op as { type?: string }).type}`,
+            `Patch ${sha} contains unknown op type: ${op.type}`,
           );
         }
       }
       // Guard: reject patches exceeding our maximum supported schema version.
-      assertOpsCompatible(normalizedPatch.ops as Parameters<typeof assertOpsCompatible>[0], SCHEMA_V3);
+      assertOpsCompatible(normalizedPatch.ops, SCHEMA_V3);
       // Apply patch to state (applyFast mutates in-place; return value is the same reference)
-      applyFast(newState, normalizedPatch as Parameters<typeof applyFast>[1], sha);
+      applyFast(newState, normalizedPatch, sha);
       applied++;
     }
 

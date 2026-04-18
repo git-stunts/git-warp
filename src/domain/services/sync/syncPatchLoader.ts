@@ -8,39 +8,33 @@
  * @see SyncProtocol — WARP V5 Spec Section 11 (Network Sync)
  */
 
-import { decodePatchMessage } from '../codec/WarpMessageCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../codec/WarpMessageCodec.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
 import SyncError from '../../errors/SyncError.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
+import type { OpV2 } from '../../types/ops/unions.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';
 import type BlobPort from '../../../ports/BlobPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
+import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-/**
- * A decoded patch object after CBOR deserialization.
- *
- * CBOR maps deserialize to plain objects; the `context` field is
- * converted to a VersionVector by `normalizePatch()` before use.
- */
 export interface DecodedPatch {
-  /** VersionVector (Map after normalization, plain object before) */
-  context?: VersionVector | Map<string, number> | Record<string, number> | null;
-  /** Ordered array of operations */
-  ops: Array<{ type: string; [key: string]: unknown }>;
-  /** Writer ID */
-  writer?: string;
-  /** Lamport timestamp */
-  lamport?: number;
-  /** Schema version */
-  schema?: number;
+  context: VersionVector | Map<string, number> | Record<string, number> | null | undefined;
+  ops: OpV2[];
+  writer: string;
+  lamport: number;
+  schema?: 2 | 3;
+  reads?: string[] | undefined;
+  writes?: string[] | undefined;
 }
 
 export interface LoadPatchRangeOptions {
   patchJournal?: PatchJournalPort;
+  commitMessageCodec?: CommitMessageCodecPort;
 }
 
 // ---------------------------------------------------------------------------
@@ -57,8 +51,12 @@ export interface LoadPatchRangeOptions {
  * **Mutation**: This function mutates the input patch object for efficiency.
  */
 export function normalizePatch(patch: DecodedPatch): DecodedPatch {
-  if (patch.context !== null && patch.context !== undefined && !(patch.context instanceof VersionVector)) {
-    patch.context = VersionVector.from(patch.context as Record<string, number>);
+  if (patch.context === null || patch.context === undefined) {
+    patch.context = VersionVector.empty();
+    return patch;
+  }
+  if (!(patch.context instanceof VersionVector)) {
+    patch.context = VersionVector.from(patch.context);
   }
   return patch;
 }
@@ -86,7 +84,7 @@ export function normalizePatch(patch: DecodedPatch): DecodedPatch {
 export async function loadPatchFromCommit(
   persistence: CommitPort & BlobPort,
   sha: string,
-  { patchJournal }: LoadPatchRangeOptions = {},
+  { patchJournal, commitMessageCodec = DEFAULT_COMMIT_MESSAGE_CODEC }: LoadPatchRangeOptions = {},
 ): Promise<DecodedPatch> {
   if (!patchJournal) {
     throw new PersistenceError(
@@ -98,10 +96,10 @@ export async function loadPatchFromCommit(
 
   // Read commit message to extract patch OID and encrypted flag
   const message = await persistence.showNode(sha);
-  const decoded = decodePatchMessage(message);
+  const decoded = commitMessageCodec.decodePatch(message);
 
   // Read and decode the patch blob via PatchJournalPort (adapter owns the codec)
-  const patch = await patchJournal.readPatch(decoded.patchOid, { encrypted: decoded.encrypted }) as unknown as DecodedPatch;
+  const patch = await patchJournal.readPatch(decoded.patchOid, { storage: decoded.storage });
 
   return normalizePatch(patch);
 }
@@ -144,7 +142,7 @@ export async function loadPatchRange(
   writerId: string,
   fromSha: string | null,
   toSha: string,
-  { patchJournal }: LoadPatchRangeOptions = {},
+  { patchJournal, commitMessageCodec }: LoadPatchRangeOptions = {},
 ): Promise<Array<{ patch: DecodedPatch; sha: string }>> {
   const patches: Array<{ patch: DecodedPatch; sha: string }> = [];
   let cur: string | null = toSha;
@@ -157,7 +155,10 @@ export async function loadPatchRange(
     const patch = await loadPatchFromCommit(
       persistence,
       cur,
-      patchJournal !== undefined ? { patchJournal } : {},
+      {
+        ...(patchJournal !== undefined ? { patchJournal } : {}),
+        ...(commitMessageCodec !== undefined ? { commitMessageCodec } : {}),
+      },
     );
     patches.unshift({ patch, sha: cur }); // Prepend for chronological order
 

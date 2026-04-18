@@ -18,7 +18,7 @@ import nullLogger from '../utils/nullLogger.ts';
 import { validateWriterId, buildWriterRef } from '../utils/RefLayout.ts';
 import { PatchSession } from './PatchSession.ts';
 import { PatchBuilder } from '../services/PatchBuilder.ts';
-import { decodePatchMessage, detectMessageKind } from '../services/codec/WarpMessageCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../services/codec/WarpMessageCodec.ts';
 import WriterError from '../errors/WriterError.ts';
 import type VersionVector from '../crdt/VersionVector.ts';
 import type Patch from '../types/Patch.ts';
@@ -29,6 +29,7 @@ import type RefPort from '../../ports/RefPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type { WarpState } from '../services/JoinReducer.ts';
 
 // Re-export for backward compatibility — consumers importing from Writer.ts
@@ -40,7 +41,7 @@ type PersistencePorts = CommitPort & BlobPort & TreePort & RefPort;
 /**
  * Asserts that a Lamport timestamp is a valid positive finite integer.
  */
-function _assertValidLamport(lamport: unknown, commitSha: string): asserts lamport is number {
+function _assertValidLamport(lamport: number, commitSha: string): void {
   if (typeof lamport !== 'number' || !Number.isFinite(lamport) || lamport < 1) {
     throw new WriterError(
       'E_LAMPORT_CORRUPT',
@@ -70,6 +71,7 @@ interface WriterOptions {
   onCommitSuccess?: (result: { patch: Patch; sha: string }) => void | Promise<void>;
   onDeleteWithData?: OnDeleteWithData;
   patchJournal: PatchJournalPort;
+  commitMessageCodec?: CommitMessageCodecPort;
   logger?: LoggerPort;
   blobStorage?: BlobStoragePort;
 }
@@ -86,6 +88,7 @@ export class Writer {
   private _onCommitSuccess: ((result: { patch: Patch; sha: string }) => void | Promise<void>) | undefined;
   private _onDeleteWithData: OnDeleteWithData;
   private _patchJournal: PatchJournalPort;
+  private _commitMessageCodec: CommitMessageCodecPort;
   private _logger: LoggerPort;
   private _blobStorage: BlobStoragePort | null;
   private _commitInProgress: boolean;
@@ -101,6 +104,7 @@ export class Writer {
     this._onCommitSuccess = opts.onCommitSuccess;
     this._onDeleteWithData = opts.onDeleteWithData ?? 'warn';
     this._patchJournal = opts.patchJournal;
+    this._commitMessageCodec = opts.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
     this._logger = opts.logger ?? nullLogger;
     this._blobStorage = opts.blobStorage ?? null;
     this._commitInProgress = false;
@@ -156,17 +160,18 @@ export class Writer {
     lamport: number;
     expectedParentSha: string | null;
   }): ConstructorParameters<typeof PatchBuilder>[0] {
-    const opts: Record<string, unknown> = {
+    const opts: ConstructorParameters<typeof PatchBuilder>[0] = {
       ...core,
       versionVector: this._versionVector.clone(),
       getCurrentState: this._getCurrentState,
       onDeleteWithData: this._onDeleteWithData,
+      patchJournal: this._patchJournal,
+      commitMessageCodec: this._commitMessageCodec,
+      logger: this._logger,
     };
-    opts['patchJournal'] = this._patchJournal;
-    opts['logger'] = this._logger;
-    if (this._onCommitSuccess) { opts['onCommitSuccess'] = this._onCommitSuccess; }
-    if (this._blobStorage) { opts['blobStorage'] = this._blobStorage; }
-    return opts as ConstructorParameters<typeof PatchBuilder>[0];
+    if (this._onCommitSuccess) { opts.onCommitSuccess = this._onCommitSuccess; }
+    if (this._blobStorage) { opts.blobStorage = this._blobStorage; }
+    return opts;
   }
 
   /**
@@ -177,10 +182,10 @@ export class Writer {
       return 1;
     }
     const commitMessage = await this._persistence.showNode(headSha);
-    if (detectMessageKind(commitMessage) !== 'patch') {
+    if (this._commitMessageCodec.detectKind(commitMessage) !== 'patch') {
       return 1;
     }
-    const { lamport } = decodePatchMessage(commitMessage);
+    const { lamport } = this._commitMessageCodec.decodePatch(commitMessage);
     _assertValidLamport(lamport, headSha);
     return lamport + 1;
   }

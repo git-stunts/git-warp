@@ -25,11 +25,12 @@ import ProvenancePayload from './provenance/ProvenancePayload.ts';
 import WormholeError from '../errors/WormholeError.ts';
 import EncryptionError from '../errors/EncryptionError.ts';
 import PersistenceError from '../errors/PersistenceError.ts';
-import { detectMessageKind, decodePatchMessage } from './codec/WarpMessageCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from './codec/WarpMessageCodec.ts';
 import type CommitPort from '../../ports/CommitPort.ts';
 import type BlobPort from '../../ports/BlobPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type Patch from '../types/Patch.ts';
 import type WarpState from './state/WarpState.ts';
 
@@ -100,7 +101,9 @@ interface ProcessCommitOptions {
   sha: string;
   graphName: string;
   expectedWriter: string | null;
+  commitMessageCodec?: CommitMessageCodecPort;
   codec?: CodecPort;
+  blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
 }
 
@@ -114,14 +117,17 @@ async function processCommit({
   sha,
   graphName,
   expectedWriter,
+  commitMessageCodec,
   codec: codecOpt,
+  blobStorage,
   patchBlobStorage,
 }: ProcessCommitOptions): Promise<PatchEntry> {
   const codec = codecOpt ?? defaultCodec;
+  const messageCodec = commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
   const nodeInfo = await persistence.getNodeInfo(sha);
   const { message, parents } = nodeInfo;
 
-  const kind = detectMessageKind(message);
+  const kind = messageCodec.detectKind(message);
   if (kind !== 'patch') {
     throw new WormholeError(`Commit '${sha}' is not a patch commit (kind: ${kind})`, {
       code: 'E_WORMHOLE_NOT_PATCH',
@@ -129,7 +135,7 @@ async function processCommit({
     });
   }
 
-  const patchMeta = decodePatchMessage(message);
+  const patchMeta = messageCodec.decodePatch(message);
 
   if (patchMeta.graph !== graphName) {
     throw new WormholeError(`Patch '${sha}' belongs to graph '${patchMeta.graph}', not '${graphName}'`, {
@@ -146,10 +152,17 @@ async function processCommit({
   }
 
   let patchBuffer: Uint8Array;
-  if (patchMeta.encrypted) {
+  if (patchMeta.storage.strategy === 'git-cas') {
+    if (!blobStorage) {
+      throw new EncryptionError(
+        'This graph contains git-cas patches; provide blobStorage for CAS restore',
+      );
+    }
+    patchBuffer = await blobStorage.retrieve(patchMeta.patchOid);
+  } else if (patchMeta.storage.strategy === 'legacy-external-storage') {
     if (!patchBlobStorage) {
       throw new EncryptionError(
-        'This graph contains encrypted patches; provide patchBlobStorage with an encryption key',
+        'This graph contains encrypted patches in legacy external storage; provide patchBlobStorage with an encryption key',
       );
     }
     patchBuffer = await patchBlobStorage.retrieve(patchMeta.patchOid);
@@ -178,7 +191,9 @@ interface CollectPatchRangeOptions {
   graphName: string;
   fromSha: string;
   toSha: string;
+  commitMessageCodec?: CommitMessageCodecPort;
   codec?: CodecPort;
+  blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
 }
 
@@ -196,7 +211,9 @@ async function collectPatchRange({
   graphName,
   fromSha,
   toSha,
+  commitMessageCodec,
   codec,
+  blobStorage,
   patchBlobStorage,
 }: CollectPatchRangeOptions): Promise<Array<{ patch: Patch; sha: string; writerId: string }>> {
   const patches: Array<{ patch: Patch; sha: string; writerId: string }> = [];
@@ -209,7 +226,9 @@ async function collectPatchRange({
       sha: currentSha,
       graphName,
       expectedWriter: writerId,
+      ...(commitMessageCodec !== undefined ? { commitMessageCodec } : {}),
       ...(codec !== undefined ? { codec } : {}),
+      ...(blobStorage !== undefined ? { blobStorage } : {}),
       ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),
     });
     writerId = result.writerId;
@@ -250,7 +269,9 @@ interface CreateWormholeOptions {
   graphName: string;
   fromSha: string;
   toSha: string;
+  commitMessageCodec?: CommitMessageCodecPort;
   codec?: CodecPort;
+  blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
 }
 
@@ -272,7 +293,9 @@ export async function createWormhole({
   graphName,
   fromSha,
   toSha,
+  commitMessageCodec,
   codec,
+  blobStorage,
   patchBlobStorage,
 }: CreateWormholeOptions): Promise<WormholeEdge> {
   validateSha(fromSha, 'fromSha');
@@ -285,7 +308,9 @@ export async function createWormhole({
     graphName,
     fromSha,
     toSha,
+    ...(commitMessageCodec !== undefined ? { commitMessageCodec } : {}),
     ...(codec !== undefined ? { codec } : {}),
+    ...(blobStorage !== undefined ? { blobStorage } : {}),
     ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),
   });
 

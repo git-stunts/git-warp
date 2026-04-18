@@ -73,7 +73,7 @@ vi.mock('../../../../../src/domain/utils/WriterId.ts', () => ({
  * @returns {Record<string, unknown>}
  */
 function createMockHost(overrides = {}) {
-    const host = {
+  const host = {
     _writerId: 'alice',
     _graphName: 'test-graph',
     _persistence: createMockPersistence(),
@@ -87,6 +87,28 @@ function createMockHost(overrides = {}) {
     _blobStorage: null,
     _effectSink: null,
     _logger: null,
+    _commitMessageCodec: {
+      detectKind: detectMessageKindMock,
+      decodePatch: vi.fn((message: string) => {
+        const decoded = decodePatchMessageMock(message) as {
+          storage?: { strategy: string; version: string | null; schema: string | null; encrypted: boolean };
+          encrypted?: boolean;
+        };
+        return {
+          ...decoded,
+          storage: decoded.storage ?? (
+            decoded.encrypted === true
+              ? { strategy: 'legacy-external-storage', version: null, schema: null, encrypted: true }
+              : { strategy: 'legacy-git-blob', version: null, schema: null, encrypted: false }
+          ),
+        };
+      }),
+      encodePatch: vi.fn(),
+      decodeCheckpoint: vi.fn(),
+      encodeCheckpoint: vi.fn(),
+      decodeAnchor: vi.fn(),
+      encodeAnchor: vi.fn(),
+    },
     _patchesSinceCheckpoint: 0,
     _onDeleteWithData: 'reject',
     _patchJournal: null,
@@ -969,9 +991,9 @@ describe('PatchController', () => {
         .mockResolvedValueOnce({ message: 'msg-b1', parents: [] });  // bob sha-b1
 
       detectMessageKindMock.mockReturnValue('patch');
-      decodePatchMessageMock
-        .mockReturnValueOnce({ lamport: 2 })  // alice
-        .mockReturnValueOnce({ lamport: 1 }); // bob
+      decodePatchMessageMock.mockImplementation((message: string) => (
+        message === 'msg-a1' ? { lamport: 2 } : { lamport: 1 }
+      ));
 
       const result = await ctrl.discoverTicks();
 
@@ -1013,9 +1035,9 @@ describe('PatchController', () => {
         .mockResolvedValueOnce({ message: 'msg1', parents: [] });
 
       detectMessageKindMock.mockReturnValue('patch');
-      decodePatchMessageMock
-        .mockReturnValueOnce({ lamport: 1 })
-        .mockReturnValueOnce({ lamport: 3 });
+      decodePatchMessageMock.mockImplementation((message: string) => (
+        message === 'msg2' ? { lamport: 1 } : { lamport: 3 }
+      ));
 
       await ctrl.discoverTicks();
 

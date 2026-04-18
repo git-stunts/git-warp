@@ -17,7 +17,7 @@ export { default as StrandError } from '../errors/StrandError.ts';
  * Use this as the `this` type in method files that call other mixin methods.
  */
 export type WarpGraphWithMixins = import('../WarpRuntime.ts').default & {
-  _readPatchBlob(patchMeta: { patchOid: string; encrypted: boolean }): Promise<Uint8Array>;
+  _readPatchBlob(patchMeta: { patchOid: string; storage: import('../../ports/CommitMessageCodecPort.ts').PatchStorageRoute }): Promise<Uint8Array>;
 };
 
 // ── Shared constants ────────────────────────────────────────────────────────

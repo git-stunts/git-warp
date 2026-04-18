@@ -2,17 +2,21 @@ import PatchJournalPort, { type ReadPatchOptions } from '../../ports/PatchJourna
 import WarpError from '../../domain/errors/WarpError.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import PatchEntry from '../../domain/artifacts/PatchEntry.ts';
-import { decodePatchMessage, detectMessageKind } from '../../domain/services/codec/WarpMessageCodec.ts';
 import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
 import SyncError from '../../domain/errors/SyncError.ts';
 import EncryptionError from '../../domain/errors/EncryptionError.ts';
 import type Patch from '../../domain/types/Patch.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
-
-interface Codec {
-  encode(value: unknown): Uint8Array;
-  decode(bytes: Uint8Array): unknown;
-}
+import type CodecPort from '../../ports/CodecPort.ts';
+import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
+import {
+  DEFAULT_COMMIT_MESSAGE_CODEC,
+} from './TrailerCommitMessageCodecAdapter.ts';
+import {
+  LEGACY_EXTERNAL_PATCH_STORAGE,
+  LEGACY_GIT_BLOB_PATCH_STORAGE,
+  type PatchStorageRoute,
+} from '../../ports/CommitMessageCodecPort.ts';
 
 interface BlobPort {
   readBlob(oid: string): Promise<Uint8Array>;
@@ -34,16 +38,23 @@ interface CommitPort {
  * storage (BlobStoragePort) via the optional `patchBlobStorage` parameter.
  */
 export class CborPatchJournalAdapter extends PatchJournalPort {
-  private readonly _codec: Codec;
+  private readonly _codec: CodecPort;
   private readonly _blobPort: BlobPort;
   private readonly _commitPort: CommitPort | null;
-  private readonly _patchBlobStorage: BlobStoragePort | null;
+  private readonly _blobStorage: BlobStoragePort | null;
+  private readonly _legacyPatchBlobStorage: BlobStoragePort | null;
+  private readonly _writeStorage: PatchStorageRoute;
+  private readonly _commitMessageCodec: CommitMessageCodecPort;
 
-  constructor({ codec, blobPort, commitPort, patchBlobStorage }: {
-    codec: Codec;
+  constructor({ codec, blobPort, commitPort, patchBlobStorage, blobStorage, legacyPatchBlobStorage, writeStorage, commitMessageCodec }: {
+    codec: CodecPort;
     blobPort: BlobPort;
     commitPort?: CommitPort;
     patchBlobStorage?: BlobStoragePort | null;
+    blobStorage?: BlobStoragePort | null;
+    legacyPatchBlobStorage?: BlobStoragePort | null;
+    writeStorage?: PatchStorageRoute;
+    commitMessageCodec?: CommitMessageCodecPort;
   }) {
     super();
     if (codec === null || codec === undefined) {
@@ -55,33 +66,61 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     this._codec = codec;
     this._blobPort = blobPort;
     this._commitPort = commitPort ?? null;
-    this._patchBlobStorage = patchBlobStorage ?? null;
+    this._blobStorage = blobStorage ?? null;
+    this._legacyPatchBlobStorage = legacyPatchBlobStorage ?? patchBlobStorage ?? null;
+    this._writeStorage = writeStorage ?? (patchBlobStorage !== null && patchBlobStorage !== undefined
+      ? LEGACY_EXTERNAL_PATCH_STORAGE
+      : LEGACY_GIT_BLOB_PATCH_STORAGE);
+    this._commitMessageCodec = commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
   }
 
   override async writePatch(patch: Patch): Promise<string> {
     const bytes = this._codec.encode(patch);
-    if (this._patchBlobStorage) {
-      return await this._patchBlobStorage.store(bytes);
+    if (this._writeStorage.strategy === 'git-cas') {
+      if (this._blobStorage === null) {
+        throw new WarpError('CborPatchJournalAdapter requires blobStorage for git-cas patch writes', 'E_INVALID_DEPENDENCY');
+      }
+      return await this._blobStorage.store(bytes, {
+        slug: `patch-${patch.writer}-${patch.lamport}`,
+      });
+    }
+    if (this._writeStorage.strategy === 'legacy-external-storage') {
+      if (this._legacyPatchBlobStorage === null) {
+        throw new WarpError('CborPatchJournalAdapter requires legacyPatchBlobStorage for external patch writes', 'E_INVALID_DEPENDENCY');
+      }
+      return await this._legacyPatchBlobStorage.store(bytes);
     }
     return await this._blobPort.writeBlob(bytes);
   }
 
-  override async readPatch(patchOid: string, { encrypted = false }: ReadPatchOptions = {}): Promise<Patch> {
+  override async readPatch(
+    patchOid: string,
+    { storage, encrypted = false }: ReadPatchOptions = {},
+  ): Promise<Patch> {
+    const resolvedStorage = storage ?? (encrypted ? LEGACY_EXTERNAL_PATCH_STORAGE : LEGACY_GIT_BLOB_PATCH_STORAGE);
     let bytes: Uint8Array;
-    if (encrypted && this._patchBlobStorage) {
-      bytes = await this._patchBlobStorage.retrieve(patchOid);
-    } else if (encrypted) {
-      throw new EncryptionError(
-        `Patch ${patchOid} is encrypted but no patchBlobStorage is configured`,
-      );
+    if (resolvedStorage.strategy === 'git-cas') {
+      if (this._blobStorage === null) {
+        throw new EncryptionError(
+          `Patch ${patchOid} is stored via git-cas but no blobStorage is configured`,
+        );
+      }
+      bytes = await this._blobStorage.retrieve(patchOid);
+    } else if (resolvedStorage.strategy === 'legacy-external-storage') {
+      if (this._legacyPatchBlobStorage === null) {
+        throw new EncryptionError(
+          `Patch ${patchOid} is encrypted but no legacy patchBlobStorage is configured`,
+        );
+      }
+      bytes = await this._legacyPatchBlobStorage.retrieve(patchOid);
     } else {
       bytes = await this._blobPort.readBlob(patchOid);
     }
     return hydrateDecodedPatch(this._codec.decode(bytes));
   }
 
-  override get usesExternalStorage(): boolean {
-    return this._patchBlobStorage !== null;
+  override get writeStorage(): PatchStorageRoute {
+    return this._writeStorage;
   }
 
   /**
@@ -100,20 +139,20 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
         }
         const commitPort = adapter._commitPort;
 
-        const stack: Array<{ sha: string; patchOid: string; encrypted: boolean }> = [];
+        const stack: Array<{ sha: string; patchOid: string; storage: PatchStorageRoute }> = [];
         let cur: string | null = toSha;
 
         while (cur !== null && cur !== fromSha) {
           const nodeInfo = await commitPort.getNodeInfo(cur);
-          const kind = detectMessageKind(nodeInfo.message);
+          const kind = adapter._commitMessageCodec.detectKind(nodeInfo.message);
           if (kind !== 'patch') {
             break;
           }
-          const meta = decodePatchMessage(nodeInfo.message);
-          stack.push({ sha: cur, patchOid: meta.patchOid, encrypted: meta.encrypted });
+          const meta = adapter._commitMessageCodec.decodePatch(nodeInfo.message);
+          stack.push({ sha: cur, patchOid: meta.patchOid, storage: meta.storage });
 
-          const parent: string | null = (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0)
-            ? (nodeInfo.parents[0] as string)
+          const parent = Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0
+            ? (nodeInfo.parents[0] ?? null)
             : null;
           cur = parent;
         }
@@ -126,9 +165,12 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
         }
 
         for (let i = stack.length - 1; i >= 0; i--) {
-          const { sha, patchOid, encrypted } = stack[i] as { sha: string; patchOid: string; encrypted: boolean };
-          const patch = await adapter.readPatch(patchOid, { encrypted });
-          yield new PatchEntry({ patch, sha });
+          const entry = stack[i];
+          if (entry === undefined) {
+            continue;
+          }
+          const patch = await adapter.readPatch(entry.patchOid, { storage: entry.storage });
+          yield new PatchEntry({ patch, sha: entry.sha });
         }
       })(),
     );

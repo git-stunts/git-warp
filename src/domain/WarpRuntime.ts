@@ -37,6 +37,7 @@ import BitmapNeighborProvider, { type LogicalIndex } from './services/index/Bitm
 import { cloneState } from './services/JoinReducer.ts';
 import { diffStates, isEmptyDiff } from './services/state/StateDiff.ts';
 import WarpError from './errors/WarpError.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from './services/codec/WarpMessageCodec.ts';
 
 import type { CorePersistence } from './types/WarpPersistence.ts';
 import type LoggerPort from '../ports/LoggerPort.ts';
@@ -45,6 +46,7 @@ import type CodecPort from '../ports/CodecPort.ts';
 import type SeekCachePort from '../ports/SeekCachePort.ts';
 import type BlobStoragePort from '../ports/BlobStoragePort.ts';
 import type PatchJournalPort from '../ports/PatchJournalPort.ts';
+import type CommitMessageCodecPort from '../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../ports/CheckpointStorePort.ts';
 import type IndexStorePort from '../ports/IndexStorePort.ts';
 import type EffectSinkPort from '../ports/EffectSinkPort.ts';
@@ -69,6 +71,11 @@ import {
 import { wireRuntime } from './runtimeWiring.ts';
 
 import type { NeighborEdge } from '../ports/NeighborProviderPort.ts';
+import {
+  createGitCasPatchStorage,
+  LEGACY_EXTERNAL_PATCH_STORAGE,
+  LEGACY_GIT_BLOB_PATCH_STORAGE,
+} from '../ports/CommitMessageCodecPort.ts';
 
 type AdjacencyMapShape = {
   outgoing: Map<string, NeighborEdge[]> | ReadonlyMap<string, readonly NeighborEdge[]>;
@@ -106,6 +113,7 @@ type WarpRuntimeOptions = {
   audit?: boolean;
   blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
+  commitMessageCodec?: CommitMessageCodecPort;
   trust?: { mode?: TrustMode; pin?: string | null };
   patchJournal: PatchJournalPort;
   checkpointStore: CheckpointStorePort;
@@ -132,6 +140,7 @@ type WarpRuntimeOpenOptions = {
   audit?: boolean;
   blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
+  commitMessageCodec?: CommitMessageCodecPort;
   patchJournal?: PatchJournalPort | null;
   checkpointStore?: CheckpointStorePort | null;
   indexStore?: IndexStorePort | null;
@@ -177,6 +186,7 @@ export default class WarpRuntime {
   _seekCache: SeekCachePort | null;
   _blobStorage: BlobStoragePort | null;
   _patchBlobStorage: BlobStoragePort | null;
+  _commitMessageCodec: CommitMessageCodecPort;
   _patchInProgress: boolean;
   _provenanceDegraded: boolean;
   _audit: boolean;
@@ -229,6 +239,7 @@ export default class WarpRuntime {
       audit = false,
       blobStorage,
       patchBlobStorage,
+      commitMessageCodec,
       trust,
       patchJournal,
       checkpointStore,
@@ -271,6 +282,7 @@ export default class WarpRuntime {
     this._seekCache = seekCache || null;
     this._blobStorage = blobStorage || null;
     this._patchBlobStorage = patchBlobStorage || null;
+    this._commitMessageCodec = commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
     this._patchInProgress = false;
     this._provenanceDegraded = false;
     this._audit = !!audit;
@@ -415,6 +427,7 @@ export default class WarpRuntime {
     audit,
     blobStorage,
     patchBlobStorage,
+    commitMessageCodec,
     patchJournal,
     checkpointStore,
     indexStore,
@@ -467,10 +480,13 @@ export default class WarpRuntime {
 
     // Auto-construct blob storage when none provided (OG-014: CAS is mandatory)
     const resolvedBlobStorage = blobStorage || await autoConstructBlobStorage(persistence);
+    const resolvedCommitMessageCodec = commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
 
     // Resolve codec/crypto defaults for adapter construction
     const resolvedCodec = codec || defaultCodec;
     const resolvedCrypto = crypto || defaultCrypto;
+    const persistencePlumbing = Reflect.get(persistence, 'plumbing');
+    const hasGitCasPlumbing = persistencePlumbing !== undefined && persistencePlumbing !== null;
 
     // ── Build port adapters before constructing the runtime ──────────────
     // Runtime-validated capability extraction: no casts, no fake contracts.
@@ -493,7 +509,21 @@ export default class WarpRuntime {
         codec: resolvedCodec,
         blobPort,
         commitPort,
-        ...(patchBlobStorage !== undefined && patchBlobStorage !== null ? { patchBlobStorage } : {}),
+        commitMessageCodec: resolvedCommitMessageCodec,
+        ...(hasGitCasPlumbing
+          ? {
+            blobStorage: resolvedBlobStorage,
+            writeStorage: createGitCasPatchStorage(false),
+            ...(patchBlobStorage !== undefined && patchBlobStorage !== null ? { legacyPatchBlobStorage: patchBlobStorage } : {}),
+          }
+          : (patchBlobStorage !== undefined && patchBlobStorage !== null
+            ? {
+              legacyPatchBlobStorage: patchBlobStorage,
+              writeStorage: LEGACY_EXTERNAL_PATCH_STORAGE,
+            }
+            : {
+              writeStorage: LEGACY_GIT_BLOB_PATCH_STORAGE,
+            })),
       });
     }
 
@@ -569,6 +599,7 @@ export default class WarpRuntime {
       ...(audit !== undefined ? { audit } : {}),
       blobStorage: resolvedBlobStorage,
       ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),
+      commitMessageCodec: resolvedCommitMessageCodec,
       ...(trust !== undefined ? { trust } : {}),
       patchJournal: resolvedPatchJournal,
       checkpointStore: resolvedCheckpointStore,

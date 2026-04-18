@@ -1,6 +1,10 @@
 import type Patch from '../domain/types/Patch.ts';
 import type WarpStream from '../domain/stream/WarpStream.ts';
 import type PatchEntry from '../domain/artifacts/PatchEntry.ts';
+import {
+  LEGACY_GIT_BLOB_PATCH_STORAGE,
+  type PatchStorageRoute,
+} from './CommitMessageCodecPort.ts';
 
 /**
  * Port for patch journal persistence.
@@ -17,6 +21,7 @@ import type PatchEntry from '../domain/artifacts/PatchEntry.ts';
  */
 
 export interface ReadPatchOptions {
+  storage?: PatchStorageRoute;
   encrypted?: boolean;
 }
 
@@ -28,6 +33,11 @@ export default abstract class PatchJournalPort {
   /** Reads a patch by its storage OID. */
   abstract readPatch(_patchOid: string, _options?: ReadPatchOptions): Promise<Patch>;
 
+  /** Describes the storage route used for newly written patches. */
+  get writeStorage(): PatchStorageRoute {
+    return LEGACY_GIT_BLOB_PATCH_STORAGE;
+  }
+
   /**
    * Whether this journal uses external blob storage.
    *
@@ -36,7 +46,7 @@ export default abstract class PatchJournalPort {
    * reading them directly from Git.
    */
   get usesExternalStorage(): boolean {
-    return false;
+    return this.writeStorage.strategy !== 'legacy-git-blob';
   }
 
   /**

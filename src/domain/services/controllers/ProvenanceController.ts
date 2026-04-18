@@ -10,7 +10,6 @@
 import QueryError from '../../errors/QueryError.ts';
 import { createEmptyState, reduceV5, type WarpState } from '../JoinReducer.ts';
 import { ProvenancePayload } from '../provenance/ProvenancePayload.ts';
-import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.ts';
 import { hydrateDecodedPatch } from '../PatchHydrator.ts';
 import type Patch from '../../types/Patch.ts';
 import type { WarpGraphWithMixins } from '../../warp/_internal.ts';
@@ -136,7 +135,7 @@ export default class ProvenanceController {
   async _loadPatchBySha(sha: string): Promise<Patch> {
     const host = this._host;
     const nodeInfo = await host._persistence.getNodeInfo(sha);
-    const kind = detectMessageKind(nodeInfo.message);
+    const kind = host._commitMessageCodec.detectKind(nodeInfo.message);
 
     if (kind !== 'patch') {
       throw new QueryError(`Commit ${sha} is not a patch`, {
@@ -145,7 +144,7 @@ export default class ProvenanceController {
       });
     }
 
-    const patchMeta = decodePatchMessage(nodeInfo.message);
+    const patchMeta = host._commitMessageCodec.decodePatch(nodeInfo.message);
     const patchBuffer = await host._readPatchBlob(patchMeta);
     return hydrateDecodedPatch(host._codec.decode(patchBuffer));
   }

@@ -143,6 +143,24 @@ function createMockHost(overrides = {}) {
     _stateHashService: null,
     _provenanceIndex: null,
     _codec: { decode: vi.fn() },
+    _commitMessageCodec: {
+      detectKind: detectMessageKindMock,
+      decodePatch: vi.fn((message: string) => {
+        const decoded = decodePatchMessageMock(message) as {
+          storage?: { strategy: string; version: string | null; schema: string | null; encrypted: boolean };
+          encrypted?: boolean;
+        };
+        return {
+          ...decoded,
+          storage: decoded.storage ?? (
+            decoded.encrypted === true
+              ? { strategy: 'legacy-external-storage', version: null, schema: null, encrypted: true }
+              : { strategy: 'legacy-git-blob', version: null, schema: null, encrypted: false }
+          ),
+        };
+      }),
+      encodeAnchor: encodeAnchorMessageMock,
+    },
     _crypto: {},
     _logger: null,
     _gcPolicy: permissivePolicy(false),

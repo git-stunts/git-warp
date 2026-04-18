@@ -9,14 +9,16 @@
  */
 
 import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../../utils/RefLayout.ts';
-import { decodePatchMessage, detectMessageKind } from '../codec/WarpMessageCodec.ts';
 import { hydrateDecodedPatch } from '../PatchHydrator.ts';
 import PatchError from '../../errors/PatchError.ts';
+import EncryptionError from '../../errors/EncryptionError.ts';
 import type Patch from '../../types/Patch.ts';
 import type { CorePersistence } from '../../types/WarpPersistence.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
+import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
+import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 
 // ── PatchDiscoveryHost ────────────────────────────────────────────────────────
 
@@ -38,6 +40,9 @@ export interface PatchDiscoveryHost {
   readonly _codec: CodecPort;
   readonly _logger: LoggerPort | null;
   readonly _patchJournal: PatchJournalPort | null | undefined;
+  readonly _blobStorage: BlobStoragePort | null | undefined;
+  readonly _patchBlobStorage: BlobStoragePort | null | undefined;
+  readonly _commitMessageCodec: CommitMessageCodecPort;
 }
 
 // ── Result types ──────────────────────────────────────────────────────────────
@@ -94,11 +99,11 @@ export class PatchDiscovery {
 
     if (typeof currentRefSha === 'string' && currentRefSha.length > 0) {
       const commitMessage = await persistence.showNode(currentRefSha);
-      const kind = detectMessageKind(commitMessage);
+      const kind = this._host._commitMessageCodec.detectKind(commitMessage);
 
       if (kind === 'patch') {
         try {
-          const patchInfo = decodePatchMessage(commitMessage);
+          const patchInfo = this._host._commitMessageCodec.decodePatch(commitMessage);
           ownTick = patchInfo.lamport;
         } catch (err) {
           throw new PatchError(
@@ -139,20 +144,32 @@ export class PatchDiscovery {
     while (currentSha && currentSha !== stopAtSha) {
       const nodeInfo = await h._persistence.getNodeInfo(currentSha);
       const { message } = nodeInfo;
-      const kind = detectMessageKind(message);
+      const kind = h._commitMessageCodec.detectKind(message);
       if (kind !== 'patch') {
         break;
       }
 
-      const patchMeta = decodePatchMessage(message);
+      const patchMeta = h._commitMessageCodec.decodePatch(message);
       const journal = h._patchJournal;
       if (journal === null || journal === undefined) {
-        // Legacy fallback: read the patch blob directly and decode with the codec
-        const raw = await h._persistence.readBlob(patchMeta.patchOid);
+        let raw: Uint8Array;
+        if (patchMeta.storage.strategy === 'git-cas') {
+          if (h._blobStorage === null || h._blobStorage === undefined) {
+            throw new EncryptionError('This graph contains git-cas patches; provide blobStorage for CAS restore');
+          }
+          raw = await h._blobStorage.retrieve(patchMeta.patchOid);
+        } else if (patchMeta.storage.strategy === 'legacy-external-storage') {
+          if (h._patchBlobStorage === null || h._patchBlobStorage === undefined) {
+            throw new EncryptionError('This graph contains encrypted patches in legacy external storage; provide patchBlobStorage with an encryption key');
+          }
+          raw = await h._patchBlobStorage.retrieve(patchMeta.patchOid);
+        } else {
+          raw = await h._persistence.readBlob(patchMeta.patchOid);
+        }
         const decoded = hydrateDecodedPatch(h._codec.decode(raw));
         patches.push({ patch: decoded, sha: currentSha });
       } else {
-        const decoded = await journal.readPatch(patchMeta.patchOid, { encrypted: patchMeta.encrypted });
+        const decoded = await journal.readPatch(patchMeta.patchOid, { storage: patchMeta.storage });
         patches.push({ patch: decoded, sha: currentSha });
       }
 
@@ -219,12 +236,12 @@ export class PatchDiscovery {
 
         while (currentSha) {
           const nodeInfo = await h._persistence.getNodeInfo(currentSha);
-          const kind = detectMessageKind(nodeInfo.message);
+          const kind = h._commitMessageCodec.detectKind(nodeInfo.message);
           if (kind !== 'patch') {
             break;
           }
 
-          const patchMeta = decodePatchMessage(nodeInfo.message);
+          const patchMeta = h._commitMessageCodec.decodePatch(nodeInfo.message);
           globalTickSet.add(patchMeta.lamport);
           writerTicks.push(patchMeta.lamport);
           tickShas[patchMeta.lamport] = currentSha;

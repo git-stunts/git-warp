@@ -14,7 +14,7 @@ import {
   serializeAppliedVV,
 } from './CheckpointSerializer.ts';
 import { serializeFrontier } from '../Frontier.ts';
-import { encodeCheckpointMessage } from '../codec/WarpMessageCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../codec/WarpMessageCodec.ts';
 import { cloneState } from '../JoinReducer.ts';
 import {
   writeIndexSubtree,
@@ -28,6 +28,7 @@ import type CommitPort from '../../../ports/CommitPort.ts';
 import type BlobPort from '../../../ports/BlobPort.ts';
 import type TreePort from '../../../ports/TreePort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
+import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
 import type StateHashService from './StateHashService.ts';
@@ -46,6 +47,7 @@ export interface CreateCheckpointOptions {
   compact?: boolean;
   provenanceIndex?: ProvenanceIndex;
   codec?: CodecPort;
+  commitMessageCodec?: CommitMessageCodecPort;
   crypto?: CryptoPort;
   indexTree?: Record<string, Uint8Array>;
   checkpointStore?: CheckpointStorePort;
@@ -95,6 +97,7 @@ export async function createV5({
   compact = true,
   provenanceIndex,
   codec,
+  commitMessageCodec = DEFAULT_COMMIT_MESSAGE_CODEC,
   crypto,
   indexTree,
   checkpointStore,
@@ -199,14 +202,14 @@ export async function createV5({
   const treeOid = await persistence.writeTree(treeEntries);
 
   // 8. Create checkpoint commit message with v5 trailer
-  const message = encodeCheckpointMessage({
+  const message = commitMessageCodec.encodeCheckpoint({
+    kind: 'checkpoint',
     graph: graphName,
     stateHash,
     frontierOid: frontierBlobOid,
     indexOid: treeOid,
-    // Schema 3 was used for edge-property-aware patches but is never emitted
-    // by checkpoint creation. Schema 4 indicates an index tree is present.
     schema: indexTree ? CHECKPOINT_SCHEMA_INDEX_TREE : CHECKPOINT_SCHEMA_STANDARD,
+    checkpointVersion: null,
   });
 
   // 9. Create the checkpoint commit

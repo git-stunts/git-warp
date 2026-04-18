@@ -78,6 +78,23 @@ function createHost(overrides = {}) {
     _persistence: {
       getNodeInfo: vi.fn(async () => ({ message: 'patch-message' })),
     },
+    _commitMessageCodec: {
+      detectKind: mockDetectMessageKind,
+      decodePatch: vi.fn((message: string) => {
+        const decoded = mockDecodePatchMessage(message) as {
+          storage?: { strategy: string; version: string | null; schema: string | null; encrypted: boolean };
+          encrypted?: boolean;
+        };
+        return {
+          ...decoded,
+          storage: decoded.storage ?? (
+            decoded.encrypted === true
+              ? { strategy: 'legacy-external-storage', version: null, schema: null, encrypted: true }
+              : { strategy: 'legacy-git-blob', version: null, schema: null, encrypted: false }
+          ),
+        };
+      }),
+    },
     _readPatchBlob: vi.fn(async () => new Uint8Array([1, 2, 3])),
     _codec: { decode: vi.fn(() => ({ ops: [], writer: 'w1', lamport: 1 })) },
     ...overrides,

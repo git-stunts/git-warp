@@ -1,6 +1,5 @@
 import StrandError from '../../errors/StrandError.ts';
 import { PatchBuilder } from '../PatchBuilder.ts';
-import { encodePatchMessage } from '../codec/WarpMessageCodec.ts';
 import {
   maxPatchLamport,
   normalizeStringArray,
@@ -14,6 +13,13 @@ import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
+import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
+import {
+  isGitCasPatchStorage,
+  LEGACY_EXTERNAL_PATCH_STORAGE,
+  LEGACY_GIT_BLOB_PATCH_STORAGE,
+  type PatchStorageRoute,
+} from '../../../ports/CommitMessageCodecPort.ts';
 
 export type CommittedPatchResult = { patch: Patch; sha: string };
 export type PatchCommitSuccessHandler = (result: CommittedPatchResult) => Promise<void>;
@@ -53,6 +59,7 @@ type WarpRuntime = {
   _patchJournal: PatchJournalPort | null | undefined;
   _patchBlobStorage: BlobStoragePort | null | undefined;
   _blobStorage: BlobStoragePort | null | undefined;
+  _commitMessageCodec: CommitMessageCodecPort;
   _logger: LoggerPort | null | undefined;
   _codec: { encode(v: HashablePayload): Uint8Array };
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
@@ -198,13 +205,15 @@ export default class StrandPatchService {
       lamport,
     };
     const patchBlobOid = await this._writeCommittedPatchBlob(committedPatch, overlayId);
-    const treeEntries = this._buildPatchTreeEntries(patchBlobOid, contentBlobOids);
+    const patchStorage = this._resolveCommittedPatchStorage();
+    const treeEntries = this._buildPatchTreeEntries(patchBlobOid, contentBlobOids, patchStorage);
     const treeOid = await this._graph._persistence.writeTree(treeEntries);
     const sha = await this._commitPatchTree({
       treeOid,
       overlayId,
       lamport,
       patchBlobOid,
+      patchStorage,
       schema: committedPatch.schema,
       parentSha,
     });
@@ -313,11 +322,27 @@ export default class StrandPatchService {
       : await this._graph._persistence.writeBlob(patchCbor);
   }
 
-  private _buildPatchTreeEntries(patchBlobOid: string, contentBlobOids: string[]): string[] {
-    const treeEntries = [`100644 blob ${patchBlobOid}\tpatch.cbor`];
+  private _resolveCommittedPatchStorage(): PatchStorageRoute {
+    const journal = this._graph._patchJournal;
+    if (journal !== undefined && journal !== null) {
+      return journal.writeStorage ?? LEGACY_GIT_BLOB_PATCH_STORAGE;
+    }
+    return this._graph._patchBlobStorage
+      ? LEGACY_EXTERNAL_PATCH_STORAGE
+      : LEGACY_GIT_BLOB_PATCH_STORAGE;
+  }
+
+  private _buildPatchTreeEntries(
+    patchBlobOid: string,
+    contentBlobOids: string[],
+    patchStorage: PatchStorageRoute,
+  ): string[] {
+    const treeEntries = [isGitCasPatchStorage(patchStorage)
+      ? `040000 tree ${patchBlobOid}\tpatch`
+      : `100644 blob ${patchBlobOid}\tpatch.cbor`];
     const uniqueBlobOids = [...new Set(contentBlobOids)];
     for (const blobOid of uniqueBlobOids) {
-      treeEntries.push(`100644 blob ${blobOid}\t_content_${blobOid}`);
+      treeEntries.push(`040000 tree ${blobOid}\t_content_${blobOid}`);
     }
     return treeEntries;
   }
@@ -327,6 +352,7 @@ export default class StrandPatchService {
     overlayId,
     lamport,
     patchBlobOid,
+    patchStorage,
     schema,
     parentSha,
   }: {
@@ -334,16 +360,18 @@ export default class StrandPatchService {
     overlayId: string;
     lamport: number;
     patchBlobOid: string;
+    patchStorage: PatchStorageRoute;
     schema: number;
     parentSha: string | null;
   }): Promise<string> {
-    const commitMessage = encodePatchMessage({
+    const commitMessage = this._graph._commitMessageCodec.encodePatch({
+      kind: 'patch',
       graph: this._graph._graphName,
       writer: overlayId,
       lamport,
       patchOid: patchBlobOid,
       schema,
-      encrypted: !!this._graph._patchBlobStorage,
+      storage: patchStorage,
     });
     const parents = parentSha !== null ? [parentSha] : [];
     return await this._graph._persistence.commitNodeWithTree({
@@ -355,6 +383,7 @@ export default class StrandPatchService {
 
   private _attachOptionalPatchBuilderDeps(pbOpts: MutablePatchBuilderCtorOptions): void {
     this._attachOptionalPatchJournal(pbOpts);
+    this._attachOptionalCommitMessageCodec(pbOpts);
     this._attachOptionalLogger(pbOpts);
     this._attachOptionalBlobStorage(pbOpts);
   }
@@ -385,6 +414,10 @@ export default class StrandPatchService {
     if (this._graph._patchJournal !== null && this._graph._patchJournal !== undefined) {
       pbOpts.patchJournal = this._graph._patchJournal;
     }
+  }
+
+  private _attachOptionalCommitMessageCodec(pbOpts: MutablePatchBuilderCtorOptions): void {
+    pbOpts.commitMessageCodec = this._graph._commitMessageCodec;
   }
 
   private _attachOptionalLogger(pbOpts: MutablePatchBuilderCtorOptions): void {

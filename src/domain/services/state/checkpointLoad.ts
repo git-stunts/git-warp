@@ -13,7 +13,7 @@ import {
   deserializeAppliedVV,
 } from './CheckpointSerializer.ts';
 import { deserializeFrontier } from '../Frontier.ts';
-import { decodeCheckpointMessage } from '../codec/WarpMessageCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../codec/WarpMessageCodec.ts';
 import ORSet from '../../crdt/ORSet.ts';
 import { Dot } from '../../crdt/Dot.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
@@ -30,6 +30,7 @@ import type CommitPort from '../../../ports/CommitPort.ts';
 import type BlobPort from '../../../ports/BlobPort.ts';
 import type TreePort from '../../../ports/TreePort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
+import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
 import type Patch from '../../types/Patch.ts';
 
@@ -51,6 +52,7 @@ export interface LoadedCheckpoint {
 export interface LoadCheckpointOptions {
   codec?: CodecPort;
   checkpointStore?: CheckpointStorePort;
+  commitMessageCodec?: CommitMessageCodecPort;
 }
 
 /**
@@ -70,11 +72,11 @@ export interface LoadCheckpointOptions {
 export async function loadCheckpoint(
   persistence: LoadPersistence,
   checkpointSha: string,
-  { codec, checkpointStore }: LoadCheckpointOptions = {},
+  { codec, checkpointStore, commitMessageCodec = DEFAULT_COMMIT_MESSAGE_CODEC }: LoadCheckpointOptions = {},
 ): Promise<LoadedCheckpoint> {
   // 1. Read commit message and decode
   const message = await persistence.showNode(checkpointSha);
-  const decoded = decodeCheckpointMessage(message) as { schema: number; stateHash: string; indexOid: string };
+  const decoded = commitMessageCodec.decodeCheckpoint(message);
 
   // 2. Reject unsupported schemas - migration required for schema:1
   if (!isV5CheckpointSchema(decoded.schema)) {

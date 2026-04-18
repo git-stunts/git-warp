@@ -30,8 +30,8 @@ import type WarpRuntime from '../../WarpRuntime.ts';
 import type AdjacencyMap from '../../capabilities/AdjacencyMap.ts';
 import type VersionVector from '../../crdt/VersionVector.ts';
 import type Patch from '../../types/Patch.ts';
-import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
+import type { PatchStorageRoute } from '../../../ports/CommitMessageCodecPort.ts';
 import type ConfigPort from '../../../ports/ConfigPort.ts';
 import type { PatchDiff } from '../../types/PatchDiff.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
@@ -60,7 +60,8 @@ export interface PatchHost extends PatchDiscoveryHost {
   _patchesSinceCheckpoint: number;
   _onDeleteWithData: DeletePolicy;
   _blobStorage: BlobStoragePort | null | undefined;
-  _patchBlobStorage: { retrieve: (oid: string) => Promise<Uint8Array> } | null | undefined;
+  _patchBlobStorage: BlobStoragePort | null | undefined;
+  _commitMessageCodec: WarpRuntime['_commitMessageCodec'];
   _provenanceIndex: {
     addPatch: (sha: string, reads: string[] | undefined, writes: string[] | undefined) => void;
   } | null | undefined;
@@ -157,6 +158,7 @@ export default class PatchController {
       expectedParentSha: parentSha,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: (commitOpts) => this._onPatchCommitted(h._writerId, commitOpts),
+      commitMessageCodec: h._commitMessageCodec,
     };
 
     if (h._patchJournal !== null && h._patchJournal !== undefined) {
@@ -330,6 +332,10 @@ export default class PatchController {
     });
 
     const persistence = h._persistence;
+    const patchJournal = h._patchJournal;
+    if (patchJournal === null || patchJournal === undefined) {
+      throw new PatchError('patchJournal is required for writer()', { code: 'E_MISSING_JOURNAL' });
+    }
     const writerOpts: ConstructorParameters<typeof Writer>[0] = {
       persistence,
       graphName: h._graphName,
@@ -338,7 +344,8 @@ export default class PatchController {
       getCurrentState: () => h._cachedState,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: (opts) => this._onPatchCommitted(resolvedWriterId, opts),
-      patchJournal: h._patchJournal as PatchJournalPort,
+      patchJournal,
+      commitMessageCodec: h._commitMessageCodec,
     };
     if (h._logger !== null && h._logger !== undefined) {
       writerOpts.logger = h._logger;
@@ -371,12 +378,27 @@ export default class PatchController {
   /**
    * Reads a patch blob, using patchBlobStorage for encrypted patches.
    */
-  async _readPatchBlob(patchMeta: { patchOid: string; encrypted: boolean }): Promise<Uint8Array> {
+  async _readPatchBlob(
+    patchMeta: { patchOid: string; storage?: PatchStorageRoute; encrypted?: boolean },
+  ): Promise<Uint8Array> {
     const h = this._host;
-    if (patchMeta.encrypted) {
+    const storage = patchMeta.storage ?? (
+      patchMeta.encrypted === true
+        ? { strategy: 'legacy-external-storage', version: null, schema: null, encrypted: true }
+        : { strategy: 'legacy-git-blob', version: null, schema: null, encrypted: false }
+    );
+    if (storage.strategy === 'git-cas') {
+      if (!h._blobStorage) {
+        throw new EncryptionError(
+          'This graph contains git-cas patches; provide blobStorage for CAS restore',
+        );
+      }
+      return await h._blobStorage.retrieve(patchMeta.patchOid);
+    }
+    if (storage.strategy === 'legacy-external-storage') {
       if (!h._patchBlobStorage) {
         throw new EncryptionError(
-          'This graph contains encrypted patches; provide patchBlobStorage with an encryption key',
+          'This graph contains encrypted patches in legacy external storage; provide patchBlobStorage with an encryption key',
         );
       }
       return await h._patchBlobStorage.retrieve(patchMeta.patchOid);

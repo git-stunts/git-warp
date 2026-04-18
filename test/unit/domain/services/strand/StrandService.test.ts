@@ -353,6 +353,9 @@ function createMockGraph() {
     _logger: /** @type {{ info: ReturnType<typeof vi.fn>, warn: ReturnType<typeof vi.fn>, error: ReturnType<typeof vi.fn> }|null} */ (null),
     _blobStorage: null,
     _patchBlobStorage: /** @type {{ store(data: Uint8Array, options: { slug: string }): Promise<string> }|null} */ (null),
+    _commitMessageCodec: {
+      encodePatch: vi.fn(({ writer, lamport, patchOid }) => `patch:${writer}:${lamport}:${patchOid}`),
+    },
     _codec: { encode: vi.fn((patch) => textEncode(JSON.stringify(patch))) },
     _onDeleteWithData: undefined,
     _lastFrontier: new Map(),

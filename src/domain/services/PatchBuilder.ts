@@ -26,6 +26,7 @@ import { isStreamingInput, normalizeToAsyncIterable } from '../utils/streamUtils
 import { canonicalStringify } from '../utils/canonicalStringify.ts';
 import { findAttachedData, assertNoReservedBytes, normalizeContentMetadata } from './PatchBuilderValidation.ts';
 import { commitPatch } from './PatchCommitter.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from './codec/WarpMessageCodec.ts';
 import type { WarpState } from './JoinReducer.ts';
 import type CommitPort from '../../ports/CommitPort.ts';
 import type BlobPort from '../../ports/BlobPort.ts';
@@ -34,6 +35,7 @@ import type RefPort from '../../ports/RefPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 
 type PersistencePorts = CommitPort & BlobPort & TreePort & RefPort;
 type DeletePolicy = 'reject' | 'cascade' | 'warn';
@@ -50,6 +52,7 @@ type PatchBuilderOptions = {
   onCommitSuccess?: ((result: { patch: Patch; sha: string }) => void | Promise<void>) | null;
   onDeleteWithData?: DeletePolicy;
   patchJournal?: PatchJournalPort;
+  commitMessageCodec?: CommitMessageCodecPort;
   logger?: LoggerPort;
   blobStorage?: BlobStoragePort;
 };
@@ -66,6 +69,7 @@ export class PatchBuilder {
   private readonly _onCommitSuccess: ((result: { patch: Patch; sha: string }) => void | Promise<void>) | null;
   private readonly _onDeleteWithData: DeletePolicy;
   private readonly _patchJournal: PatchJournalPort | null;
+  private readonly _commitMessageCodec: CommitMessageCodecPort;
   private readonly _logger: LoggerPort;
   private readonly _blobStorage: BlobStoragePort | null;
   private readonly _ops: OpV2[] = [];
@@ -92,6 +96,7 @@ export class PatchBuilder {
     this._onCommitSuccess = options.onCommitSuccess ?? null;
     this._onDeleteWithData = options.onDeleteWithData ?? 'warn';
     this._patchJournal = options.patchJournal ?? null;
+    this._commitMessageCodec = options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
     this._logger = options.logger ?? nullLogger;
     this._blobStorage = options.blobStorage ?? null;
   }
@@ -403,6 +408,7 @@ export class PatchBuilder {
         targetRefPath: this._targetRefPath,
         contentBlobs: this._contentBlobs,
         patchJournal: this._patchJournal,
+        commitMessageCodec: this._commitMessageCodec,
         logger: this._logger,
         onCommitSuccess: this._onCommitSuccess,
       });

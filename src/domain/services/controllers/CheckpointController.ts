@@ -14,7 +14,6 @@ import { createFrontier, updateFrontier, frontierFingerprint } from '../Frontier
 import { isV5CheckpointSchema } from '../state/checkpointHelpers.ts';
 import { loadCheckpoint, type LoadedCheckpoint } from '../state/checkpointLoad.ts';
 import { create as createCheckpointCommit } from '../state/checkpointCreate.ts';
-import { decodePatchMessage, detectMessageKind, encodeAnchorMessage } from '../codec/WarpMessageCodec.ts';
 import executeGC from '../executeGC.ts';
 import GCMetrics from '../GCMetrics.ts';
 import { computeAppliedVV } from '../state/CheckpointSerializer.ts';
@@ -131,6 +130,7 @@ export default class CheckpointController {
       ...(h._provenanceIndex ? { provenanceIndex: h._provenanceIndex } : {}),
       crypto: h._crypto,
       codec: h._codec,
+      commitMessageCodec: h._commitMessageCodec,
       ...(indexTree ? { indexTree } : {}),
       checkpointStore,
       ...(stateHashService ? { stateHashService } : {}),
@@ -159,7 +159,11 @@ export default class CheckpointController {
 
     if (parents.length === 0) { return; }
 
-    const message = encodeAnchorMessage({ graph: h._graphName });
+    const message = h._commitMessageCodec.encodeAnchor({
+      kind: 'anchor',
+      graph: h._graphName,
+      schema: 2,
+    });
     const anchorSha = await h._persistence.commitNode({ message, parents });
 
     const coverageRef = buildCoverageRef(h._graphName);
@@ -177,7 +181,11 @@ export default class CheckpointController {
 
     try {
       const checkpointStore = h._checkpointStore ?? null;
-      return await loadCheckpoint(h._persistence, checkpointSha, { codec: h._codec, checkpointStore });
+      return await loadCheckpoint(h._persistence, checkpointSha, {
+        codec: h._codec,
+        checkpointStore,
+        commitMessageCodec: h._commitMessageCodec,
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (
@@ -239,10 +247,10 @@ export default class CheckpointController {
       if (typeof tipSha !== 'string' || tipSha.length === 0) { continue; }
 
       const nodeInfo = await h._persistence.getNodeInfo(tipSha);
-      const kind = detectMessageKind(nodeInfo.message);
+      const kind = h._commitMessageCodec.detectKind(nodeInfo.message);
 
       if (kind === 'patch') {
-        const patchMeta = decodePatchMessage(nodeInfo.message);
+        const patchMeta = h._commitMessageCodec.decodePatch(nodeInfo.message);
         // Resolution: take B2's assertion + runtime-narrowing approach.
         // Eliminates the `as unknown as` double-cast (0025A win) and
         // provides runtime shape validation. The parameterized CodecPort

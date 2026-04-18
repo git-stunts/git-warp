@@ -11,11 +11,11 @@
 import VersionVector from '../crdt/VersionVector.ts';
 import Patch from '../types/Patch.ts';
 import { lowerCanonicalOp } from './OpNormalizer.ts';
-import { encodePatchMessage, decodePatchMessage, detectMessageKind } from './codec/WarpMessageCodec.ts';
 import { buildWriterRef } from '../utils/RefLayout.ts';
 import WriterError from '../errors/WriterError.ts';
 import PatchError from '../errors/PatchError.ts';
 import PersistenceError from '../errors/PersistenceError.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from './codec/WarpMessageCodec.ts';
 import type { OpV2, CanonicalOpV2 } from '../types/ops/unions.ts';
 import type CommitPort from '../../ports/CommitPort.ts';
 import type BlobPort from '../../ports/BlobPort.ts';
@@ -23,6 +23,8 @@ import type TreePort from '../../ports/TreePort.ts';
 import type RefPort from '../../ports/RefPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
+import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
+import { isGitCasPatchStorage } from '../../ports/CommitMessageCodecPort.ts';
 
 type PersistencePorts = CommitPort & BlobPort & TreePort & RefPort;
 
@@ -40,6 +42,7 @@ export type CommitState = {
   targetRefPath: string | null;
   contentBlobs: string[];
   patchJournal: PatchJournalPort | null;
+  commitMessageCodec: CommitMessageCodecPort;
   logger: LoggerPort;
   onCommitSuccess: ((result: { patch: Patch; sha: string }) => void | Promise<void>) | null;
 };
@@ -78,12 +81,12 @@ export async function commitPatch(state: CommitState): Promise<string> {
   if (currentRefSha !== null && currentRefSha !== undefined && currentRefSha !== '') {
     parentCommit = currentRefSha;
     const commitMessage = await state.persistence.showNode(currentRefSha);
-    const kind = detectMessageKind(commitMessage);
+    const kind = state.commitMessageCodec.detectKind(commitMessage);
 
     if (kind === 'patch') {
       let patchInfo;
       try {
-        patchInfo = decodePatchMessage(commitMessage);
+        patchInfo = state.commitMessageCodec.decodePatch(commitMessage);
       } catch (err) {
         throw new PatchError(
           `Failed to parse lamport from writer ref ${writerRef}: ` +
@@ -116,9 +119,12 @@ export async function commitPatch(state: CommitState): Promise<string> {
     throw new PersistenceError('patchJournal is required for committing patches', 'E_MISSING_JOURNAL');
   }
   const patchBlobOid = await state.patchJournal.writePatch(patch);
+  const patchStorage = state.patchJournal.writeStorage;
 
   // Build tree with patch blob + content blobs
-  const treeEntries = [`100644 blob ${patchBlobOid}\tpatch.cbor`];
+  const treeEntries = [isGitCasPatchStorage(patchStorage)
+    ? `040000 tree ${patchBlobOid}\tpatch`
+    : `100644 blob ${patchBlobOid}\tpatch.cbor`];
   const uniqueBlobs = [...new Set(state.contentBlobs)];
   for (const blobOid of uniqueBlobs) {
     treeEntries.push(`040000 tree ${blobOid}\t_content_${blobOid}`);
@@ -126,13 +132,15 @@ export async function commitPatch(state: CommitState): Promise<string> {
   const treeOid = await state.persistence.writeTree(treeEntries);
 
   // Create commit
-  const message = encodePatchMessage({
+  const messageCodec = state.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
+  const message = messageCodec.encodePatch({
+    kind: 'patch',
     graph: state.graphName,
     writer: state.writerId,
     lamport,
     patchOid: patchBlobOid,
     schema,
-    encrypted: state.patchJournal.usesExternalStorage,
+    storage: patchStorage,
   });
   const parents = (parentCommit !== null && parentCommit !== '') ? [parentCommit] : [];
   const newCommitSha = await state.persistence.commitNodeWithTree({

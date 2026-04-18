@@ -19,6 +19,7 @@ import type Patch from '../../types/Patch.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
+import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 
 type BaseObservation = {
   coordinateVersion: string;
@@ -73,6 +74,7 @@ export type StrandCoordinatorGraphRuntime = {
   _patchJournal: PatchJournalPort | null | undefined;
   _patchBlobStorage: BlobStoragePort | null | undefined;
   _blobStorage: BlobStoragePort | null | undefined;
+  _commitMessageCodec: CommitMessageCodecPort;
   _logger: LoggerPort | null | undefined;
   _codec: { encode(v: import('../../types/conflict/HashablePayload.ts').HashablePayload): Uint8Array };
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';

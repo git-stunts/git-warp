@@ -160,7 +160,10 @@ export default class ForkController {
       graphName: host._graphName,
       fromSha,
       toSha,
+      commitMessageCodec: host._commitMessageCodec,
       codec: host._codec,
+      ...(host._blobStorage ? { blobStorage: host._blobStorage } : {}),
+      ...(host._patchBlobStorage ? { patchBlobStorage: host._patchBlobStorage } : {}),
     });
   }
 

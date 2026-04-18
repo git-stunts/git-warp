@@ -1,22 +1,16 @@
-/**
- * WARP Message Codec — facade re-exporting all message encoding, decoding,
- * and schema utilities.
- *
- * Split across focused sub-modules:
- * - PatchMessageCodec
- * - CheckpointMessageCodec
- * - AnchorMessageCodec
- * - AuditMessageCodec
- * - MessageSchemaDetector
- */
-
-export { encodePatchMessage, decodePatchMessage } from './PatchMessageCodec.ts';
-export { encodeCheckpointMessage, decodeCheckpointMessage } from './CheckpointMessageCodec.ts';
-export { encodeAnchorMessage, decodeAnchorMessage } from './AnchorMessageCodec.ts';
+export {
+  DEFAULT_COMMIT_MESSAGE_CODEC,
+  decodeAnchorMessage,
+  decodeCheckpointMessage,
+  decodePatchMessage,
+  detectMessageKind,
+  encodeAnchorMessage,
+  encodeCheckpointMessage,
+  encodePatchMessage,
+} from '../../../infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 export { encodeAuditMessage, decodeAuditMessage } from './AuditMessageCodec.ts';
 export {
   detectSchemaVersion,
-  detectMessageKind,
   assertOpsCompatible,
   SCHEMA_V2,
   SCHEMA_V3,
