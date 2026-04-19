@@ -21,16 +21,16 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 
 ### Hex Boundary (`HEX`) — 17
 
-- [CC_btr-audit-ambient-timestamps.md](CC_btr-audit-ambient-timestamps.md)
-- [CC_domain-hex-defaults.md](CC_domain-hex-defaults.md)
-- [CC_domain-utils-misplaced.md](CC_domain-utils-misplaced.md)
-- [CC_index-rebuild-profiling-in-domain.md](CC_index-rebuild-profiling-in-domain.md)
-- [CC_message-codec-hex.md](CC_message-codec-hex.md)
-- [CC_sync-no-rate-limiting.md](CC_sync-no-rate-limiting.md)
-- [CC_sync-secret-plain-string.md](CC_sync-secret-plain-string.md)
-- [CC_sync-server-no-graceful-shutdown.md](CC_sync-server-no-graceful-shutdown.md)
-- [CC_syncauth-ambient-entropy.md](CC_syncauth-ambient-entropy.md)
-- [CC_wall-clock-eslint-suppressions.md](CC_wall-clock-eslint-suppressions.md)
+- [HEX_btr-audit-ambient-timestamps.md](HEX_btr-audit-ambient-timestamps.md)
+- [HEX_domain-hex-defaults.md](HEX_domain-hex-defaults.md)
+- [HEX_domain-utils-misplaced.md](HEX_domain-utils-misplaced.md)
+- [HEX_index-rebuild-profiling-in-domain.md](HEX_index-rebuild-profiling-in-domain.md)
+- [HEX_message-codec-hex.md](HEX_message-codec-hex.md)
+- [HEX_sync-no-rate-limiting.md](HEX_sync-no-rate-limiting.md)
+- [HEX_sync-secret-plain-string.md](HEX_sync-secret-plain-string.md)
+- [HEX_sync-server-no-graceful-shutdown.md](HEX_sync-server-no-graceful-shutdown.md)
+- [HEX_syncauth-ambient-entropy.md](HEX_syncauth-ambient-entropy.md)
+- [HEX_wall-clock-eslint-suppressions.md](HEX_wall-clock-eslint-suppressions.md)
 - [CC_writerid-ambient-entropy.md](CC_writerid-ambient-entropy.md)
 - [PROTO_cli-hook-installer-raw-git-bypass.md](PROTO_cli-hook-installer-raw-git-bypass.md)
 - [PROTO_runtimehelpers-plumbing-composition-leak.md](PROTO_runtimehelpers-plumbing-composition-leak.md)
@@ -181,4 +181,3 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 - [PROTO_inmemory-graph-adapter-default-hash-unavailable-branch.md](PROTO_inmemory-graph-adapter-default-hash-unavailable-branch.md)
 - [PROTO_js-test-typecheck-drift.md](PROTO_js-test-typecheck-drift.md)
 - [PROTO_state-diff-private-helper-residue.md](PROTO_state-diff-private-helper-residue.md)
-
