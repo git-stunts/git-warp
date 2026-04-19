@@ -15,6 +15,7 @@
 import BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import { createLazyCas } from './lazyCasInit.ts';
+import { loadGitCasConstructors } from './gitCasModule.ts';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import { Readable } from 'node:stream';
@@ -30,6 +31,14 @@ interface CasStore {
   store(opts: { source: unknown; slug: string; filename: string; encryptionKey?: Uint8Array }): Promise<CasManifest>;
   createTree(opts: { manifest: CasManifest }): Promise<string>;
 }
+
+type CasCodecInstance = object;
+type CasStoreOptions = {
+  plumbing: unknown;
+  codec: CasCodecInstance;
+  chunking: { strategy: string };
+  observability?: unknown;
+};
 
 export interface BlobPersistence {
   readBlob(oid: string): Promise<Uint8Array | null | undefined>;
@@ -91,14 +100,14 @@ export default class CasBlobAdapter extends BlobStoragePort {
   }
 
   private async _initCas(): Promise<CasStore> {
-    const casModule = await import(/* webpackIgnore: true */ '@git-stunts/git-cas') as unknown as {
-      default: new (opts: unknown) => CasStore;
-      CborCodec: new () => unknown;
-    };
-    const { default: ContentAddressableStore, CborCodec } = casModule;
-    const opts: { plumbing: unknown; codec: unknown; chunking: { strategy: string }; observability?: unknown } = {
+    const { ContentAddressableStore, CborCodecCtor } = await loadGitCasConstructors<
+      CasStoreOptions,
+      CasStore,
+      CasCodecInstance
+    >();
+    const opts: CasStoreOptions = {
       plumbing: this._plumbing,
-      codec: new CborCodec(),
+      codec: new CborCodecCtor(),
       chunking: { strategy: 'cdc' },
     };
     if (this._logger) {
@@ -187,19 +196,25 @@ export default class CasBlobAdapter extends BlobStoragePort {
   override retrieveStream(oid: string): AsyncIterable<Uint8Array> {
     const self = this;
     return {
-      [Symbol.asyncIterator]() {
+      [Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
         let inner: AsyncIterator<Uint8Array> | null = null;
         let initialized = false;
         return {
-          async next() {
+          async next(): Promise<IteratorResult<Uint8Array>> {
             if (!initialized) {
               initialized = true;
               inner = await self._resolveStreamIterator(oid);
             }
-            return await (inner as AsyncIterator<Uint8Array>).next();
+            if (inner === null) {
+              return doneIteratorResult();
+            }
+            return await inner.next();
           },
-          return() {
-            return Promise.resolve({ value: undefined as unknown as Uint8Array, done: true as const });
+          async return(): Promise<IteratorResult<Uint8Array>> {
+            if (inner !== null && typeof inner.return === 'function') {
+              return await inner.return();
+            }
+            return doneIteratorResult();
           },
         };
       },
@@ -237,16 +252,20 @@ export default class CasBlobAdapter extends BlobStoragePort {
 function singleChunkIterator(buf: Uint8Array): AsyncIterator<Uint8Array> {
   let done = false;
   return {
-    next() {
+    next(): Promise<IteratorResult<Uint8Array>> {
       if (done) {
-        return Promise.resolve({ value: undefined as unknown as Uint8Array, done: true as const });
+        return Promise.resolve(doneIteratorResult());
       }
       done = true;
       return Promise.resolve({ value: buf, done: false });
     },
-    return() {
+    return(): Promise<IteratorResult<Uint8Array>> {
       done = true;
-      return Promise.resolve({ value: undefined as unknown as Uint8Array, done: true as const });
+      return Promise.resolve(doneIteratorResult());
     },
   };
+}
+
+function doneIteratorResult(): IteratorResult<Uint8Array> {
+  return { value: new Uint8Array(0), done: true };
 }

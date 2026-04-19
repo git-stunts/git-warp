@@ -20,6 +20,7 @@ import { textEncode } from '../../domain/utils/bytes.ts';
 import { buildTrustRecordRef } from '../../domain/utils/RefLayout.ts';
 import TrustError from '../../domain/errors/TrustError.ts';
 import { createLazyCas } from './lazyCasInit.ts';
+import { loadGitCasConstructors } from './gitCasModule.ts';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
@@ -52,6 +53,13 @@ type CasStore = {
   restore(opts: { manifest: CasManifest }): Promise<{ buffer: Buffer }>;
   readManifest(opts: { treeOid: string }): Promise<CasManifest>;
   createTree(opts: { manifest: CasManifest }): Promise<string>;
+};
+
+type CasStoreOptions = {
+  plumbing: Plumbing;
+  codec: CborCodecInstance;
+  chunking: { strategy: string };
+  observability?: LoggerObservabilityBridge;
 };
 
 // -- Adapter deps -------------------------------------------------------------
@@ -165,9 +173,12 @@ type CborCodecInstance = {
 };
 
 async function loadCborCodec(): Promise<CborCodecInstance> {
-  // Adapter boundary: @git-stunts/git-cas exports CborCodec but TS resolution misses it
-  const mod = await import('@git-stunts/git-cas') as unknown as Record<string, new () => CborCodecInstance>;
-  return new mod['CborCodec']!();
+  const { CborCodecCtor } = await loadGitCasConstructors<
+    CasStoreOptions,
+    CasStore,
+    CborCodecInstance
+  >();
+  return new CborCodecCtor();
 }
 
 // -- Adapter ------------------------------------------------------------------
@@ -188,16 +199,12 @@ export default class GitTrustChainAdapter extends TrustChainPort {
   }
 
   private async _initCas(): Promise<CasStore> {
-    // Adapter boundary: @git-stunts/git-cas exports are accessed via dynamic import
-    const casModule = await import('@git-stunts/git-cas') as unknown as Record<string, new (...args: unknown[]) => unknown>;
-    const ContentAddressableStore = casModule['default'] as unknown as new (opts: unknown) => CasStore;
-    const CborCodecCtor = casModule['CborCodec'] as unknown as new () => CborCodecInstance;
-    const opts: {
-      plumbing: Plumbing;
-      codec: CborCodecInstance;
-      chunking: { strategy: string };
-      observability?: LoggerObservabilityBridge;
-    } = {
+    const { ContentAddressableStore, CborCodecCtor } = await loadGitCasConstructors<
+      CasStoreOptions,
+      CasStore,
+      CborCodecInstance
+    >();
+    const opts: CasStoreOptions = {
       plumbing: this._plumbing,
       codec: new CborCodecCtor(),
       chunking: { strategy: 'cdc' },

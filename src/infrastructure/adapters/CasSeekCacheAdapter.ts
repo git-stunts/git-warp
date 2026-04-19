@@ -19,6 +19,7 @@
 import SeekCachePort, { type SeekCacheEntry, type SeekCacheSetOptions } from '../../ports/SeekCachePort.ts';
 import { buildSeekCacheRef } from '../../domain/utils/RefLayout.ts';
 import { createLazyCas } from './lazyCasInit.ts';
+import { loadGitCasConstructors } from './gitCasModule.ts';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.ts';
 import CacheError from '../../domain/errors/CacheError.ts';
 import { textEncode, textDecode, concatBytes } from '../../domain/utils/bytes.ts';
@@ -32,6 +33,14 @@ interface CasStore {
   store(opts: { source: Readable; slug: string; filename: string; encryptionKey?: Uint8Array }): Promise<unknown>;
   createTree(opts: { manifest: unknown }): Promise<string>;
 }
+
+type CasCodecInstance = object;
+type CasStoreOptions = {
+  plumbing: unknown;
+  codec: CasCodecInstance;
+  chunking: { strategy: string };
+  observability?: unknown;
+};
 
 interface CachePersistence {
   readRef(ref: string): Promise<string | null>;
@@ -106,10 +115,12 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
   }
 
   private async _initCas(): Promise<CasStore> {
-    const casModule = await import(/* webpackIgnore: true */ '@git-stunts/git-cas') as unknown as Record<string, new (...args: unknown[]) => unknown>;
-    const ContentAddressableStore = casModule['default'] as new (opts: unknown) => CasStore;
-    const CborCodecCtor = casModule['CborCodec'] as new () => unknown;
-    const opts: { plumbing: unknown; codec: unknown; chunking: { strategy: string }; observability?: unknown } = {
+    const { ContentAddressableStore, CborCodecCtor } = await loadGitCasConstructors<
+      CasStoreOptions,
+      CasStore,
+      CasCodecInstance
+    >();
+    const opts: CasStoreOptions = {
       plumbing: this._plumbing,
       codec: new CborCodecCtor(),
       chunking: { strategy: 'cdc' },
