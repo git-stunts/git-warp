@@ -131,9 +131,14 @@ Legend prefix if applicable. No numeric IDs.
 
 ```text
 PROTO_strand-lifecycle.md
-CC_raw-error-purge.md
+HEX_raw-git-bypass.md
+MODEL_patch-v2-validation.md
 debt-trailer-codec-dts.md
 ```
+
+Historical prefixes may survive in older backlog identities. New
+backlog notes should prefer the current legend family for the lane they
+live in.
 
 ### Promoting
 
@@ -188,14 +193,25 @@ documents.
 
 The current legends in this repo are:
 
-- `CC` (CLEAN_CODE) - structural quality: god object decomposition,
-  raw error replacement, type boundary cleanup, file size limits, lint
-  ratchets.
-- `NDNM` (NO_DOGS_NO_MASTERS) - god object decomposition and
-  phantom-type liberation. Break up the gods. Free their vassals.
+- **Program legends** — feature or release work grouped by initiative
+  or surface. Active examples in this repo include `API`, `DX`,
+  `HYGIENE`, `INFRA`, `PERF`, `PROTO`, `SLUDGE`, `TRUST`, `TS`,
+  `TUI`, and `VIZ`.
+- **Invariant legends** — debt grouped by the law it violates. These
+  are the canonical legends for `docs/method/backlog/bad-code/`:
+  - `HEX` — hex boundary honesty
+  - `BND` — boundary decode and validation honesty
+  - `MODEL` — runtime-backed model honesty
+  - `CAST` — no cast-cosplay or escape-hatch lies
+  - `PORT` — capability and port-surface honesty
+  - `OWN` — ownership and cohesion
+  - `SUB` — substrate/storage/streaming integrity
+  - `SPEC` — executable-spec honesty (tests, docs, mocks, residue)
 
-Other legend codes in active use: `PROTO`, `TRUST`, `VIZ`, `TUI`,
-`DX`, `PERF`.
+Historical umbrella prefixes such as `CC` and `NDNM` remain in older
+filenames and retros, but they are legacy identities rather than the
+preferred current taxonomy. `docs/method/backlog/bad-code/README.md`
+is the canonical index for the new invariant grouping.
 
 Not every METHOD repo needs these exact legends. Legends are local to
 the repo and should reflect the domains that actually organize its
