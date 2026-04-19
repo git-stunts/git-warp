@@ -11,35 +11,56 @@ import type BlobStoragePort from '../ports/BlobStoragePort.ts';
 import type IndexStorePort from '../ports/IndexStorePort.ts';
 import type CodecPort from '../ports/CodecPort.ts';
 import type EffectSinkPort from '../ports/EffectSinkPort.ts';
+import type { CorePersistence } from './types/WarpPersistence.ts';
 import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
+import type RuntimeStorageCapabilityPort from '../ports/RuntimeStorageCapabilityPort.ts';
 
 import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.ts';
 import WarpError from './errors/WarpError.ts';
+import {
+  LEGACY_EXTERNAL_PATCH_STORAGE,
+  LEGACY_GIT_BLOB_PATCH_STORAGE,
+  type PatchStorageRoute,
+} from '../ports/CommitMessageCodecPort.ts';
 
 export const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
 
 /**
- * Auto-constructs a BlobStoragePort when none is explicitly provided.
- *
- * When persistence has `plumbing` (Git-backed), constructs a CasBlobAdapter
- * for CDC chunking and Git-native GC reachability. Otherwise uses
- * InMemoryBlobStorageAdapter for browser/test paths.
+ * Persistence accepted by runtime helper resolution.
  */
-export async function autoConstructBlobStorage(
-  persistence: unknown,
+type RuntimeStoragePersistence = CorePersistence & Partial<RuntimeStorageCapabilityPort>;
+
+/**
+ * Resolves blob storage from an explicit injection, an adapter capability,
+ * or the in-memory fallback used by browser/test paths.
+ */
+export async function resolveBlobStorage(
+  blobStorage: BlobStoragePort | undefined | null,
+  persistence: RuntimeStoragePersistence,
 ): Promise<BlobStoragePort> {
-  const p = persistence as { plumbing?: unknown };
-  if (p.plumbing !== null && p.plumbing !== undefined) {
-    const { default: CasBlobAdapter } = await import(
-      /* webpackIgnore: true */ '../infrastructure/adapters/CasBlobAdapter.ts'
-    );
-    return new CasBlobAdapter({
-      plumbing: p.plumbing,
-      persistence: persistence as import('../infrastructure/adapters/CasBlobAdapter.ts').BlobPersistence,
-    });
+  if (blobStorage !== undefined && blobStorage !== null) {
+    return blobStorage;
+  }
+  if (typeof persistence.createRuntimeBlobStorage === 'function') {
+    return await persistence.createRuntimeBlobStorage();
   }
   return new InMemoryBlobStorageAdapter();
+}
+
+/**
+ * Resolves the default storage route for newly written patches.
+ */
+export function resolvePatchWriteStorage(
+  persistence: RuntimeStoragePersistence,
+  patchBlobStorage: BlobStoragePort | undefined | null,
+): PatchStorageRoute {
+  if (typeof persistence.defaultPatchWriteStorage === 'function') {
+    return persistence.defaultPatchWriteStorage();
+  }
+  return patchBlobStorage !== undefined && patchBlobStorage !== null
+    ? LEGACY_EXTERNAL_PATCH_STORAGE
+    : LEGACY_GIT_BLOB_PATCH_STORAGE;
 }
 
 type IndexStoreDeps = {

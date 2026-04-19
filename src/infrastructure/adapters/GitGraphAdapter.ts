@@ -8,9 +8,12 @@
 import { retry, type RetryOptions } from '@git-stunts/alfred';
 import type { CommitLogChunk, CommitNodeOptions, CommitNodeWithTreeOptions, LogNodesOptions, NodeInfo, PingResult } from '../../ports/CommitPort.ts';
 import type { ListRefsOptions } from '../../ports/RefPort.ts';
+import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabilityPort.ts';
+import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
+import CasBlobAdapter from './CasBlobAdapter.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.ts';
 import {
@@ -23,6 +26,7 @@ import {
   toGitError,
   DEFAULT_RETRY_OPTIONS,
 } from './gitErrorClassification.ts';
+import { createGitCasPatchStorage, type PatchStorageRoute } from '../../ports/CommitMessageCodecPort.ts';
 
 // Re-export for downstream consumers that reference these types via the adapter module.
 export type { GitPlumbing, GitError } from './gitErrorClassification.ts';
@@ -33,7 +37,7 @@ interface GitGraphAdapterOptions {
   readonly retryOptions?: Partial<RetryOptions>;
 }
 
-export default class GitGraphAdapter extends GraphPersistencePort {
+export default class GitGraphAdapter extends GraphPersistencePort implements RuntimeStorageCapabilityPort {
   private readonly plumbing: GitPlumbing;
   private readonly _retryOptions: RetryOptions;
 
@@ -76,6 +80,17 @@ export default class GitGraphAdapter extends GraphPersistencePort {
 
   get emptyTree(): string {
     return this.plumbing.emptyTree;
+  }
+
+  async createRuntimeBlobStorage(): Promise<BlobStoragePort> {
+    return new CasBlobAdapter({
+      plumbing: this.plumbing,
+      persistence: this,
+    });
+  }
+
+  defaultPatchWriteStorage(): PatchStorageRoute {
+    return createGitCasPatchStorage(false);
   }
 
   private async _createCommit(opts: {

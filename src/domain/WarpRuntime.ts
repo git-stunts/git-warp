@@ -50,6 +50,7 @@ import type CommitMessageCodecPort from '../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../ports/CheckpointStorePort.ts';
 import type IndexStorePort from '../ports/IndexStorePort.ts';
 import type EffectSinkPort from '../ports/EffectSinkPort.ts';
+import type RuntimeStorageCapabilityPort from '../ports/RuntimeStorageCapabilityPort.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
 import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
 import type WarpState from './services/state/WarpState.ts';
@@ -61,7 +62,8 @@ import type { WarpGraphWithMixins } from './warp/_internal.ts';
 
 import {
   DEFAULT_ADJACENCY_CACHE_SIZE,
-  autoConstructBlobStorage,
+  resolveBlobStorage,
+  resolvePatchWriteStorage,
   resolveIndexStore,
   buildEffectPipeline,
   normalizeTrustConfig,
@@ -72,9 +74,6 @@ import { wireRuntime } from './runtimeWiring.ts';
 
 import type { NeighborEdge } from '../ports/NeighborProviderPort.ts';
 import {
-  createGitCasPatchStorage,
-  LEGACY_EXTERNAL_PATCH_STORAGE,
-  LEGACY_GIT_BLOB_PATCH_STORAGE,
 } from '../ports/CommitMessageCodecPort.ts';
 
 type AdjacencyMapShape = {
@@ -98,7 +97,7 @@ type Subscriber = {
 // ── Constructor options ──────────────────────────────────────────────
 
 type WarpRuntimeOptions = {
-  persistence: CorePersistence;
+  persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
   graphName: string;
   writerId: string;
   gcPolicy?: GCPolicyConfig | GCPolicy;
@@ -125,7 +124,7 @@ type WarpRuntimeOptions = {
 };
 
 type WarpRuntimeOpenOptions = {
-  persistence: CorePersistence;
+  persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
   graphName: string;
   writerId: string;
   gcPolicy?: GCPolicyConfig | GCPolicy;
@@ -154,7 +153,7 @@ type WarpRuntimeOpenOptions = {
  * WarpRuntime class for interacting with a WARP multi-writer graph.
  */
 export default class WarpRuntime {
-  _persistence: CorePersistence;
+  _persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
   _graphName: string;
   _writerId: string;
   _versionVector: VersionVector;
@@ -479,23 +478,18 @@ export default class WarpRuntime {
     }
 
     // Auto-construct blob storage when none provided (OG-014: CAS is mandatory)
-    const resolvedBlobStorage = blobStorage || await autoConstructBlobStorage(persistence);
+    const resolvedBlobStorage = await resolveBlobStorage(blobStorage, persistence);
     const resolvedCommitMessageCodec = commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
 
     // Resolve codec/crypto defaults for adapter construction
     const resolvedCodec = codec || defaultCodec;
     const resolvedCrypto = crypto || defaultCrypto;
-    const persistencePlumbing = Reflect.get(persistence, 'plumbing');
-    const hasGitCasPlumbing = persistencePlumbing !== undefined && persistencePlumbing !== null;
+    const patchWriteStorage = resolvePatchWriteStorage(persistence, patchBlobStorage);
 
     // ── Build port adapters before constructing the runtime ──────────────
-    // Runtime-validated capability extraction: no casts, no fake contracts.
-    const { requireBlobPort, requireCommitPort, requireTreePort } = await import(
-      /* webpackIgnore: true */ '../infrastructure/adapters/requireCapabilities.ts'
-    );
-    const blobPort = requireBlobPort(persistence);
-    const commitPort = requireCommitPort(persistence);
-    const treePort = requireTreePort(persistence);
+    const blobPort = persistence;
+    const commitPort = persistence;
+    const treePort = persistence;
 
     // PatchJournal
     let resolvedPatchJournal: PatchJournalPort;
@@ -510,20 +504,9 @@ export default class WarpRuntime {
         blobPort,
         commitPort,
         commitMessageCodec: resolvedCommitMessageCodec,
-        ...(hasGitCasPlumbing
-          ? {
-            blobStorage: resolvedBlobStorage,
-            writeStorage: createGitCasPatchStorage(false),
-            ...(patchBlobStorage !== undefined && patchBlobStorage !== null ? { legacyPatchBlobStorage: patchBlobStorage } : {}),
-          }
-          : (patchBlobStorage !== undefined && patchBlobStorage !== null
-            ? {
-              legacyPatchBlobStorage: patchBlobStorage,
-              writeStorage: LEGACY_EXTERNAL_PATCH_STORAGE,
-            }
-            : {
-              writeStorage: LEGACY_GIT_BLOB_PATCH_STORAGE,
-            })),
+        ...(patchWriteStorage.strategy === 'git-cas' ? { blobStorage: resolvedBlobStorage } : {}),
+        ...(patchBlobStorage !== undefined && patchBlobStorage !== null ? { legacyPatchBlobStorage: patchBlobStorage } : {}),
+        writeStorage: patchWriteStorage,
       });
     }
 
