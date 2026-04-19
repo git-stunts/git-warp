@@ -40,10 +40,10 @@ dependency graph and likely write-surface overlap.
 | `1` | `B1` | 4 | 31 | Root backlog classification and maintenance |
 | `2` | `B2` | 8 | 139 | Invariant debt paydown |
 | `3.0` | `B3` | 9 | 34 | Ready-now release and immediate-delivery foundations |
-| `3.1` | `B3` | 3 | 24 | Downstream release workstreams |
+| `3.1` | `B3` | 3 | 31 | Downstream release workstreams |
 | `4` | `B4` | 8 | 53 | Near-term queue |
 | `5` | `B5` | 8 | 93 | Speculative orbit |
-| Total | all | 41 | 379 | Subtotal before parked workloads |
+| Total | all | 41 | 386 | Subtotal before parked workloads |
 | `3.x` parked | `B3` | 1 | 4 | External-check package tail |
 | Grand total | all | 42 | 383 | Full live backlog |
 
@@ -86,7 +86,7 @@ parallel without crossing a **live** backlog edge.
 | Workload | Count | Items | Agent surface |
 |----------|------:|-------|---------------|
 | `WL-30-v17-capability-provider-seams` | 2 | `API_capability-interfaces`, `CROSS_shared-provider-interfaces` | Provider interfaces, capability surfaces, shared runtime seams |
-| `WL-31-v17-cas-substrate-foundation` | 4 | `INFRA_unify-persistence-on-git-cas`, `INFRA_plumbing-violations`, `INFRA_index-builder-on-git-cas`, `INFRA_substrate-upgrade-tool` | CAS, plumbing, substrate migration |
+| `WL-31-v17-cas-substrate-foundation` | 5 | `INFRA_unify-persistence-on-git-cas`, `INFRA_plumbing-violations`, `INFRA_index-builder-on-git-cas`, `INFRA_substrate-upgrade-tool`, `INFRA_uniform-git-cas` | CAS, plumbing, substrate migration |
 | `WL-32-v17-purge-chain` | 4 | `PROTO_purge-cast-hacks`, `PROTO_purge-boundary-leaks`, `PROTO_purge-fake-models`, `PROTO_purge-import-law` | Anti-sludge purge chain; one agent, serial internal order |
 | `WL-33-v17-ts-publish-pipeline` | 5 | `TS_convert-remaining-js`, `TS_infrastructure-adapters`, `TS_cli-viz-scripts`, `TS_publish-pipeline`, `TS_ssts-conformance-suite` | TypeScript conversion and package publish pipeline |
 | `WL-34-v17-ts-wave-sweep` | 9 | `TS_wave-01-codec`, `TS_wave-02-trust`, `TS_wave-03-dag-provenance`, `TS_wave-04-state-query`, `TS_wave-05-controllers`, `TS_wave-06-sync`, `TS_wave-07-index-small`, `TS_wave-08-strand-index-big`, `TS_wave-09-gods-and-monsters` | Wave-based TS migration sequence |
@@ -104,17 +104,7 @@ dependency check before staffing.
 |----------|------:|-------|---------------|
 | `WL-36-v17-cross-residue-sludge` | 2 | `SLUDGE_host-bag-injection`, `SLUDGE_detached-graph-duplication` | Follows `WL-30-v17-capability-provider-seams` |
 | `WL-37-v17-god-to-api-runtime-split` | 10 | `GOD_query-builder`, `GOD_query-controller`, `GOD_materialize-controller`, `GOD_strand-service`, `GOD_incremental-index-updater`, `GOD_remaining-big-files`, `API_warpgraph-factory`, `API_migrate-consumers-to-capabilities`, `API_observer-readable-receipts`, `API_kill-warpruntime` | Follows `WL-30`, `WL-33`, and `WL-34` |
-| `WL-38-v17-shadow-trie-materialization-core` | 12 | `PROTO_git-trie-store-port`, `PROTO_shadow-trie-orset`, `PROTO_trie-compaction`, `PROTO_state-session-async`, `PROTO_gc-state-session`, `PROTO_joinreducer-state-session`, `PROTO_materialize-integration`, `PROTO_index-builder-trie-iteration`, `PROTO_checkpoint-envelope-publication`, `PERF_lru-page-cache`, `PERF_trie-geometry-and-memory-profile`, `TRUST_shadow-trie-semilattice-pbt` | `external-check`: some prerequisites are not live backlog notes |
-
-### External-check refs for `WL-38`
-
-Before assigning `WL-38`, verify repo truth for these non-live blockers:
-
-- `PROTO_orsetlike-contract`
-- `PROTO_blake3-route-key`
-- `PROTO_trie-flush`
-- `INFRA_git-trie-store-adapter`
-- `PROTO_trie-cursor`
+| `WL-38-v17-shadow-trie-materialization-core` | 19 | `PROTO_orset-seam-in-root`, `PROTO_orsetlike-contract`, `PROTO_blake3-route-key`, `PROTO_git-trie-store-port`, `INFRA_git-trie-store-adapter`, `PROTO_trie-codec-and-geometry`, `PROTO_trie-cursor`, `PROTO_trie-flush`, `PROTO_shadow-trie-orset`, `PROTO_trie-compaction`, `PROTO_state-session-async`, `PROTO_gc-state-session`, `PROTO_joinreducer-state-session`, `PROTO_materialize-integration`, `PROTO_index-builder-trie-iteration`, `PROTO_checkpoint-envelope-publication`, `PERF_lru-page-cache`, `PERF_trie-geometry-and-memory-profile`, `TRUST_shadow-trie-semilattice-pbt` | Trie seam, trie foundation, shadow-trie engine, and kernel integration trunk |
 
 ## Wave 3.x — Parked `B3` Tail
 
@@ -124,7 +114,7 @@ confirmed ready.
 
 | Workload | Count | Items | Preconditions |
 |----------|------:|-------|---------------|
-| `WL-39-v17-package-extraction-tail` | 4 | `INFRA_extract-warp-kernel-package`, `INFRA_extract-warp-adapters-package`, `INFRA_multipackage-publish-pipeline`, `INFRA_extract-warp-orset-package-post-publish` | Follows `WL-33` and `WL-38`; also `external-check` for `PROTO_orset-seam-in-root` and `PROTO_orsetlike-contract` |
+| `WL-39-v17-package-extraction-tail` | 4 | `INFRA_extract-warp-kernel-package`, `INFRA_extract-warp-adapters-package`, `INFRA_multipackage-publish-pipeline`, `INFRA_extract-warp-orset-package-post-publish` | Follows `WL-33` and `WL-38` |
 
 ## Wave 4 — `up-next/` Antichain
 
@@ -163,14 +153,14 @@ The partition is exhaustive and non-overlapping:
 - Wave `1`: `31`
 - Wave `2`: `139`
 - Wave `3.0`: `34`
-- Wave `3.1`: `24`
+- Wave `3.1`: `31`
 - Wave `3.x`: `4`
 - Wave `4`: `53`
 - Wave `5`: `93`
 
 Total:
 
-- `5 + 31 + 139 + 34 + 24 + 4 + 53 + 93 = 383`
+- `5 + 31 + 139 + 34 + 31 + 4 + 53 + 93 = 390`
 
 Every live backlog note is covered exactly once.
 

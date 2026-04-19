@@ -19,19 +19,19 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 
 | Metric | Count |
 |--------|------:|
-| Live backlog items | 383 |
+| Live backlog items | 390 |
 | Root backlog items | 31 |
-| `asap/` | 4 |
+| `asap/` | 0 |
 | `bad-code/` | 139 |
 | `cool-ideas/` | 93 |
 | `inbox/` | 5 |
 | `up-next/` | 53 |
-| `v17.0.0/` | 58 |
-| Items with YAML frontmatter | 90 |
-| Items without YAML frontmatter | 293 |
-| Items with explicit `id` | 75 |
-| Items declaring dependency fields | 63 |
-| Items with non-empty explicit dependency edges | 47 |
+| `v17.0.0/` | 69 |
+| Items with YAML frontmatter | 101 |
+| Items without YAML frontmatter | 289 |
+| Items with explicit `id` | 86 |
+| Items declaring dependency fields | 74 |
+| Items with non-empty explicit dependency edges | 54 |
 
 ## Dependency Law
 
@@ -88,9 +88,9 @@ small number of nodes in `up-next/`, `cool-ideas/`, and `bad-code/`.
 
 Current explicit-graph totals:
 
-- `75` notes define an `id`
-- `63` notes declare `blocks` or `blocked_by` fields
-- `47` notes currently name at least one non-empty upstream or
+- `86` notes define an `id`
+- `74` notes declare `blocks` or `blocked_by` fields
+- `54` notes currently name at least one non-empty upstream or
   downstream edge
 
 ### Current Top Outbound Blockers
@@ -234,9 +234,9 @@ Prefix counts:
 | `CROSS` | 1 |
 | `GOD` | 6 |
 | `HYGIENE` | 3 |
-| `INFRA` | 8 |
+| `INFRA` | 9 |
 | `PERF` | 2 |
-| `PROTO` | 13 |
+| `PROTO` | 20 |
 | `SLUDGE` | 5 |
 | `TRUST` | 1 |
 | `TS` | 14 |
@@ -250,10 +250,7 @@ Dependency posture:
 
 Items:
 
-- [INFRA_uniform-git-cas.md](asap/INFRA_uniform-git-cas.md)
-- [PROTO_live-holographic-strands.md](asap/PROTO_live-holographic-strands.md)
-- [PROTO_observer-plan-reading-envelopes.md](asap/PROTO_observer-plan-reading-envelopes.md)
-- [PROTO_witnessed-suffix-admission-shells.md](asap/PROTO_witnessed-suffix-admission-shells.md)
+- none currently parked in `asap/`
 
 ### `up-next/` — `B4` Near-Term Queue
 

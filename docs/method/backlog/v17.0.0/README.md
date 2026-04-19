@@ -47,9 +47,19 @@ LAYER 5:
 
 ```
   [ ] INFRA_unify-persistence-on-git-cas
+  [ ] INFRA_uniform-git-cas
   [ ] INFRA_index-builder-on-git-cas
   [ ] INFRA_plumbing-violations
   [ ] INFRA_substrate-upgrade-tool
+```
+
+## WARP drift reconciliation (ship blocker)
+
+```
+  [ ] HYGIENE_warp-doctrine-runtime-alignment
+  [ ] PROTO_live-holographic-strands
+  [ ] PROTO_observer-plan-reading-envelopes
+  [ ] PROTO_witnessed-suffix-admission-shells
 ```
 
 ## Shadow-Trie ORSet + package reorg (Design 0018)
