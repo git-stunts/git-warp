@@ -90,8 +90,8 @@ export async function checkClockSkew(ctx: DoctorContext): Promise<DoctorFinding>
 export async function checkHooksInstalled(ctx: DoctorContext): Promise<DoctorFinding> {
   try {
     const installer = createHookInstaller();
-    const s = installer.getHookStatus(ctx.repoPath);
-    return await Promise.resolve(buildHookFinding(s));
+    const s = await installer.getHookStatus(ctx.repoPath);
+    return buildHookFinding(s);
   } catch (err) {
     return internalError('hooks-installed', err);
   }

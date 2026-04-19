@@ -110,10 +110,10 @@ function buildCheckPayload(input: CheckPayloadInput): Record<string, unknown> {
 }
 
 /** Returns the status of WARP git hooks for a repository. */
-function getHookStatusForCheck(repoPath: string): { installed: boolean; version?: string; current?: boolean; foreign?: boolean; hookPath: string } | null {
+async function getHookStatusForCheck(repoPath: string): Promise<{ installed: boolean; version?: string; current?: boolean; foreign?: boolean; hookPath: string } | null> {
   try {
     const installer = createHookInstaller();
-    return installer.getHookStatus(repoPath);
+    return await installer.getHookStatus(repoPath);
   } catch {
     return null;
   }
@@ -130,7 +130,7 @@ export async function handleCheck({ options }: { options: CliOptions }): Promise
   const writerHeads = await collectWriterHeads(graph);
   const checkpoint = await loadCheckpointInfo(persistence, graphName);
   const coverage = await loadCoverageInfo(persistence, graphName, writerHeads);
-  const hook = getHookStatusForCheck(options.repo);
+  const hook = await getHookStatusForCheck(options.repo);
 
   return {
     payload: buildCheckPayload({

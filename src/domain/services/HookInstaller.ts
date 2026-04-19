@@ -8,6 +8,7 @@
  */
 
 import WarpError from '../errors/WarpError.ts';
+import type HookPathPort from '../../ports/HookPathPort.ts';
 
 export interface FsAdapter {
   writeFileSync(path: string, content: string | Uint8Array, options?: { mode?: number }): void;
@@ -95,7 +96,7 @@ export interface HookStatus {
 
 export class HookInstaller {
   private readonly _fs: FsAdapter;
-  private readonly _execGitConfig: (repoPath: string, key: string) => string | null;
+  private readonly _hookPathPort: HookPathPort;
   private readonly _templateDir: string;
   private readonly _version: string;
   private readonly _path: PathUtils;
@@ -105,19 +106,19 @@ export class HookInstaller {
    */
   constructor({
     fs,
-    execGitConfig,
+    hookPathPort,
     version,
     templateDir,
     path,
   }: {
     fs: FsAdapter;
-    execGitConfig: (repoPath: string, key: string) => string | null;
+    hookPathPort: HookPathPort;
     version: string;
     templateDir: string;
     path: PathUtils;
   }) {
     this._fs = fs;
-    this._execGitConfig = execGitConfig;
+    this._hookPathPort = hookPathPort;
     this._templateDir = templateDir;
     this._version = version;
     this._path = path;
@@ -133,8 +134,8 @@ export class HookInstaller {
   /**
    * Get the current hook status for a repo.
    */
-  getHookStatus(repoPath: string): HookStatus {
-    const hookPath = this._resolveHookPath(repoPath);
+  async getHookStatus(repoPath: string): Promise<HookStatus> {
+    const hookPath = await this._resolveHookPath(repoPath);
     const content = this._readFile(hookPath);
     const classification = classifyExistingHook(content);
 
@@ -162,8 +163,8 @@ export class HookInstaller {
    * @param opts - Install options
    * @throws {WarpError} If the strategy is unknown
    */
-  install(repoPath: string, { strategy }: { strategy: InstallStrategy }): InstallResult {
-    const hooksDir = this._resolveHooksDir(repoPath);
+  async install(repoPath: string, { strategy }: { strategy: InstallStrategy }): Promise<InstallResult> {
+    const hooksDir = await this._resolveHooksDir(repoPath);
     const hookPath = this._path.join(hooksDir, 'post-merge');
     const template = this._loadTemplate();
     const stamped = this._stampVersion(template);
@@ -286,25 +287,16 @@ export class HookInstaller {
   /**
    * Resolves the hooks directory, respecting core.hooksPath and custom git-dir config.
    */
-  private _resolveHooksDir(repoPath: string): string {
-    const customPath = this._execGitConfig(repoPath, 'core.hooksPath');
-    if (customPath !== null && customPath.length > 0) {
-      return resolveHooksPath(customPath, repoPath, this._path);
-    }
-
-    const gitDir = this._execGitConfig(repoPath, '--git-dir');
-    if (gitDir !== null && gitDir.length > 0) {
-      return this._path.join(this._path.resolve(repoPath, gitDir), 'hooks');
-    }
-
-    return this._path.join(repoPath, '.git', 'hooks');
+  private async _resolveHooksDir(repoPath: string): Promise<string> {
+    return await this._hookPathPort.resolveHooksDir(repoPath);
   }
 
   /**
    * Resolves the full path to the post-merge hook file.
    */
-  private _resolveHookPath(repoPath: string): string {
-    return this._path.join(this._resolveHooksDir(repoPath), 'post-merge');
+  private async _resolveHookPath(repoPath: string): Promise<string> {
+    const hooksDir = await this._resolveHooksDir(repoPath);
+    return this._path.join(hooksDir, 'post-merge');
   }
 
   /**
@@ -326,21 +318,6 @@ export class HookInstaller {
       this._fs.mkdirSync(dirPath, { recursive: true });
     }
   }
-}
-
-/**
- * Resolves a hooks path, handling both absolute and relative paths.
- *
- * @param customPath - The custom hooks path from git config
- * @param repoPath - The repo root path for resolving relative paths
- * @param pathUtils - Path utilities
- * @returns Resolved absolute hooks directory path
- */
-function resolveHooksPath(customPath: string, repoPath: string, pathUtils: { resolve: (...segments: string[]) => string }): string {
-  if (customPath.startsWith('/')) {
-    return customPath;
-  }
-  return pathUtils.resolve(repoPath, customPath);
 }
 
 /**

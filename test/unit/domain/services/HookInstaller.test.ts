@@ -19,25 +19,19 @@ function makeFs(files = {}) {
   };
 }
 
-function makeExecGitConfig(overrides = ({} as any)) {
-  return vi.fn((_repoPath, key) => {
-    if (key === '--git-dir') return overrides.gitDir || '.git';
-    if (key === 'core.hooksPath') return overrides.hooksPath || null;
-    return null;
-  });
-}
-
-function makeInstaller(fsFiles = {}, gitOverrides = {}) {
+function makeInstaller(fsFiles = {}, hooksDir = '/repo/.git/hooks') {
   const fs = makeFs(fsFiles);
-  const execGitConfig = makeExecGitConfig(gitOverrides);
+  const hookPathPort = {
+    resolveHooksDir: vi.fn(async (_repoPath: string) => hooksDir),
+  };
   const installer = new HookInstaller({
     fs: (fs as any),
-    execGitConfig,
+    hookPathPort,
     version: VERSION,
     templateDir: '/tmpl',
     path,
   });
-  return { installer, fs, execGitConfig };
+  return { installer, fs, hookPathPort };
 }
 
 const TEMPLATE = `#!/bin/sh
@@ -112,12 +106,12 @@ describe('classifyExistingHook', () => {
 // ── install() ───────────────────────────────────────────────────────────────
 
 describe('HookInstaller.install', () => {
-  it('fresh install writes hook with correct version', () => {
+  it('fresh install writes hook with correct version', async () => {
     const { installer, fs } = makeInstaller({
       '/tmpl/post-merge.sh': TEMPLATE,
     });
 
-    const result = installer.install('/repo', { strategy: 'install' });
+    const result = await installer.install('/repo', { strategy: 'install' });
 
     expect(result.action).toBe('installed');
     expect(result.version).toBe(VERSION);
@@ -129,30 +123,30 @@ describe('HookInstaller.install', () => {
     expect(written).not.toContain('__WARP_HOOK_VERSION__');
   });
 
-  it('creates hooks directory if missing', () => {
+  it('creates hooks directory if missing', async () => {
     const { installer, fs } = makeInstaller({
       '/tmpl/post-merge.sh': TEMPLATE,
     });
 
-    installer.install('/repo', { strategy: 'install' });
+    await installer.install('/repo', { strategy: 'install' });
     expect(fs.mkdirSync).toHaveBeenCalled();
   });
 
-  it('upgrade replaces standalone hook', () => {
+  it('upgrade replaces standalone hook', async () => {
     const oldHook = TEMPLATE.replaceAll('__WARP_HOOK_VERSION__', '7.0.0');
     const { installer, fs } = makeInstaller({
       '/tmpl/post-merge.sh': TEMPLATE,
       '/repo/.git/hooks/post-merge': oldHook,
     });
 
-    const result = installer.install('/repo', { strategy: 'upgrade' });
+    const result = await installer.install('/repo', { strategy: 'upgrade' });
     expect(result.action).toBe('upgraded');
 
     const written = fs._store.get(result.hookPath);
     expect(written).toContain(`# warp-hook-version: ${VERSION}`);
   });
 
-  it('upgrade replaces delimited section in appended hook', () => {
+  it('upgrade replaces delimited section in appended hook', async () => {
     const appended = [
       '#!/bin/sh',
       'echo "foreign"',
@@ -168,7 +162,7 @@ describe('HookInstaller.install', () => {
       '/repo/.git/hooks/post-merge': appended,
     });
 
-    const result = installer.install('/repo', { strategy: 'upgrade' });
+    const result = await installer.install('/repo', { strategy: 'upgrade' });
     expect(result.action).toBe('upgraded');
 
     const written = fs._store.get(result.hookPath);
@@ -177,14 +171,14 @@ describe('HookInstaller.install', () => {
     expect(written).not.toContain('7.0.0');
   });
 
-  it('append adds delimited section to foreign hook', () => {
+  it('append adds delimited section to foreign hook', async () => {
     const foreign = '#!/bin/sh\necho "existing hook"\n';
     const { installer, fs } = makeInstaller({
       '/tmpl/post-merge.sh': TEMPLATE,
       '/repo/.git/hooks/post-merge': foreign,
     });
 
-    const result = installer.install('/repo', { strategy: 'append' });
+    const result = await installer.install('/repo', { strategy: 'append' });
     expect(result.action).toBe('appended');
 
     const written = fs._store.get(result.hookPath);
@@ -193,14 +187,14 @@ describe('HookInstaller.install', () => {
     expect(written).toContain('# --- end @git-stunts/git-warp ---');
   });
 
-  it('replace backs up existing hook', () => {
+  it('replace backs up existing hook', async () => {
     const foreign = '#!/bin/sh\necho "existing"\n';
     const { installer, fs } = makeInstaller({
       '/tmpl/post-merge.sh': TEMPLATE,
       '/repo/.git/hooks/post-merge': foreign,
     });
 
-    const result = installer.install('/repo', { strategy: 'replace' });
+    const result = await installer.install('/repo', { strategy: 'replace' });
     expect(result.action).toBe('replaced');
     expect(result.backupPath).toContain('.backup');
 
@@ -211,99 +205,64 @@ describe('HookInstaller.install', () => {
     expect(written).toContain(`# warp-hook-version: ${VERSION}`);
   });
 
-  it('replace with no existing hook skips backup', () => {
+  it('replace with no existing hook skips backup', async () => {
     const { installer } = makeInstaller({
       '/tmpl/post-merge.sh': TEMPLATE,
     });
 
-    const result = installer.install('/repo', { strategy: 'replace' });
+    const result = await installer.install('/repo', { strategy: 'replace' });
     expect(result.action).toBe('replaced');
     expect(result.backupPath).toBeUndefined();
   });
 
-  it('throws on unknown strategy', () => {
+  it('throws on unknown strategy', async () => {
     const { installer } = makeInstaller({
       '/tmpl/post-merge.sh': TEMPLATE,
     });
 
-    expect(() => installer.install('/repo', { strategy: ('bogus' as any) }))
-      .toThrow('Unknown install strategy: bogus');
+    await expect(installer.install('/repo', { strategy: ('bogus' as any) }))
+      .rejects.toThrow('Unknown install strategy: bogus');
   });
 });
 
 // ── getHookStatus ───────────────────────────────────────────────────────────
 
 describe('HookInstaller.getHookStatus', () => {
-  it('not installed when hook file missing', () => {
+  it('not installed when hook file missing', async () => {
     const { installer } = makeInstaller({});
-    const status = installer.getHookStatus('/repo');
+    const status = await installer.getHookStatus('/repo');
     expect(status.installed).toBe(false);
     expect(status.hookPath).toContain('post-merge');
   });
 
-  it('installed and current', () => {
+  it('installed and current', async () => {
     const { installer } = makeInstaller({
       '/repo/.git/hooks/post-merge': STAMPED,
     });
-    const status = installer.getHookStatus('/repo');
+    const status = await installer.getHookStatus('/repo');
     expect(status.installed).toBe(true);
     expect(status.version).toBe(VERSION);
     expect(status.current).toBe(true);
   });
 
-  it('installed but outdated', () => {
+  it('installed but outdated', async () => {
     const old = TEMPLATE.replaceAll('__WARP_HOOK_VERSION__', '7.0.0');
     const { installer } = makeInstaller({
       '/repo/.git/hooks/post-merge': old,
     });
-    const status = installer.getHookStatus('/repo');
+    const status = await installer.getHookStatus('/repo');
     expect(status.installed).toBe(true);
     expect(status.version).toBe('7.0.0');
     expect(status.current).toBe(false);
   });
 
-  it('foreign hook shows as not installed', () => {
+  it('foreign hook shows as not installed', async () => {
     const { installer } = makeInstaller({
       '/repo/.git/hooks/post-merge': '#!/bin/sh\necho "other"\n',
     });
-    const status = installer.getHookStatus('/repo');
+    const status = await installer.getHookStatus('/repo');
     expect(status.installed).toBe(false);
     expect(status.foreign).toBe(true);
-  });
-});
-
-// ── Hooks directory resolution ──────────────────────────────────────────────
-
-describe('hooks directory resolution', () => {
-  it('uses core.hooksPath when set (absolute)', () => {
-    const { installer, execGitConfig } = makeInstaller(
-      { '/tmpl/post-merge.sh': TEMPLATE },
-      { hooksPath: '/custom/hooks' },
-    );
-
-    const result = installer.install('/repo', { strategy: 'install' });
-    expect(result.hookPath).toBe('/custom/hooks/post-merge');
-    expect(execGitConfig).toHaveBeenCalledWith('/repo', 'core.hooksPath');
-  });
-
-  it('resolves relative core.hooksPath against repo root', () => {
-    const { installer } = makeInstaller(
-      { '/tmpl/post-merge.sh': TEMPLATE },
-      { hooksPath: 'my-hooks' },
-    );
-
-    const result = installer.install('/repo', { strategy: 'install' });
-    expect(result.hookPath).toBe('/repo/my-hooks/post-merge');
-  });
-
-  it('falls back to gitDir/hooks when no core.hooksPath', () => {
-    const { installer } = makeInstaller(
-      { '/tmpl/post-merge.sh': TEMPLATE },
-      { gitDir: '.git' },
-    );
-
-    const result = installer.install('/repo', { strategy: 'install' });
-    expect(result.hookPath).toContain('.git/hooks/post-merge');
   });
 });
 

@@ -3,7 +3,6 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import readline from 'node:readline';
-import { execFileSync } from 'node:child_process';
 import { textEncode } from '../../src/domain/utils/bytes.ts';
 import _GitPlumbing, { ShellRunnerFactory as _ShellRunnerFactory } from '@git-stunts/plumbing';
 
@@ -21,19 +20,24 @@ import {
 } from '../../src/domain/utils/RefLayout.ts';
 import CasSeekCacheAdapter from '../../src/infrastructure/adapters/CasSeekCacheAdapter.ts';
 import { HookInstaller, type FsAdapter } from '../../src/domain/services/HookInstaller.ts';
+import PlumbingHookPathAdapter from '../../src/infrastructure/adapters/PlumbingHookPathAdapter.ts';
 import { parseCursorBlob } from '../../src/domain/utils/parseCursorBlob.ts';
 import { usageError, notFoundError } from './infrastructure.ts';
 
 import type { Persistence, WarpGraphInstance, CursorBlob, CliOptions, SeekSpec } from './types.ts';
 import type { CorePersistence } from '../../src/domain/types/WarpPersistence.ts';
 
+function createPlumbing(repoPath: string): GitPlumbing {
+  const runner = TypedShellRunnerFactory.create();
+  const plumbing = new TypedGitPlumbing({ cwd: repoPath, runner });
+  return plumbing as GitPlumbing;
+}
+
 /**
  * Creates a persistence adapter for the given repository path.
  */
 export async function createPersistence(repoPath: string): Promise<{ persistence: Persistence }> {
-  const runner = TypedShellRunnerFactory.create();
-  const plumbing = new TypedGitPlumbing({ cwd: repoPath, runner });
-  const persistence = new GitGraphAdapter({ plumbing: plumbing as GitPlumbing }) as unknown as Persistence;
+  const persistence = new GitGraphAdapter({ plumbing: createPlumbing(repoPath) }) as unknown as Persistence;
   const ping = await persistence.ping();
   if (!ping.ok) {
     throw usageError(`Repository not accessible: ${repoPath}`);
@@ -171,29 +175,14 @@ export function createHookInstaller(): HookInstaller {
   const version = readPackageVersion(rawJson);
   return new HookInstaller({
     fs: fs as unknown as FsAdapter,
-    execGitConfig: execGitConfigValue,
+    hookPathPort: new PlumbingHookPathAdapter({
+      plumbingFactory: { create: createPlumbing },
+      path,
+    }),
     version,
     templateDir,
     path,
   });
-}
-
-/**
- * Reads a single Git config value from the given repository.
- */
-function execGitConfigValue(repoPath: string, key: string): string | null {
-  try {
-    if (key === '--git-dir') {
-      return execFileSync('git', ['-C', repoPath, 'rev-parse', '--git-dir'], {
-        encoding: 'utf8',
-      }).trim();
-    }
-    return execFileSync('git', ['-C', repoPath, 'config', key], {
-      encoding: 'utf8',
-    }).trim();
-  } catch {
-    return null;
-  }
 }
 
 /**

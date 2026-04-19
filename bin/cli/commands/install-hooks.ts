@@ -107,7 +107,7 @@ function buildNoOpResponse(strategy: string, status: { hookPath: string }, insta
 export default async function handleInstallHooks({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: unknown; exitCode: number }> {
   const hookOptions = parseInstallHooksArgs(args);
   const installer = createHookInstaller();
-  const status = installer.getHookStatus(options.repo);
+  const status = await installer.getHookStatus(options.repo);
   const content = readHookContent(status.hookPath);
   const classification = classifyExistingHook(content);
   const strategy = await resolveStrategy(classification, hookOptions);
@@ -117,6 +117,6 @@ export default async function handleInstallHooks({ options, args }: { options: C
     return noOp;
   }
 
-  const result = installer.install(options.repo, { strategy: strategy as 'install' | 'upgrade' | 'append' | 'replace' });
+  const result = await installer.install(options.repo, { strategy: strategy as 'install' | 'upgrade' | 'append' | 'replace' });
   return { payload: result, exitCode: EXIT_CODES.OK };
 }

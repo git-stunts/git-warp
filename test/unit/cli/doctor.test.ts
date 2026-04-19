@@ -94,7 +94,7 @@ describe('doctor command', () => {
     createPersistence.mockResolvedValue({ persistence: mockPersistence });
     resolveGraphName.mockResolvedValue('demo');
     createHookInstaller.mockReturnValue({
-      getHookStatus: vi.fn().mockReturnValue({
+      getHookStatus: vi.fn().mockResolvedValue({
         installed: true,
         current: true,
         version: '10.8.0',
