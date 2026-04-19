@@ -1,0 +1,181 @@
+# backlog workloads
+
+This document partitions the entire live backlog into **MECE**
+workloads that can be handed to agents as ownership units.
+
+The partition is built from the dependency bands in
+[README.md](README.md):
+
+- workloads in the same wave form an antichain with respect to the
+  **live** backlog graph
+- any serial dependency chain that would break the antichain is kept
+  **inside** one workload
+- every live backlog note belongs to **exactly one** workload
+
+If a workload is too large, refine it only after re-checking both the
+dependency graph and likely write-surface overlap.
+
+## Rules
+
+1. One agent owns one workload at a time.
+2. Do not split a workload mid-flight unless you also rewrite this
+   partition.
+3. If a note has an explicit `blocks` or `blocked_by` edge, that edge
+   wins over lane inheritance.
+4. If a note has no explicit edge, the lane band from
+   [README.md](README.md) is its dependency posture.
+5. A workload marked `external-check` needs a human or repo-truth check
+   before assigning it, because one or more prerequisites are not live
+   backlog notes.
+
+## Wave Summary
+
+| Wave | Band | Workloads | Notes | Purpose |
+|------|------|----------:|------:|---------|
+| `0` | `B0` | 1 | 5 | Intake and triage |
+| `1` | `B1` | 4 | 31 | Root backlog classification and maintenance |
+| `2` | `B2` | 8 | 139 | Invariant debt paydown |
+| `3.0` | `B3` | 9 | 33 | Ready-now release and immediate-delivery foundations |
+| `3.1` | `B3` | 3 | 24 | Downstream release workstreams |
+| `4` | `B4` | 8 | 53 | Near-term queue |
+| `5` | `B5` | 8 | 93 | Speculative orbit |
+| Total | all | 41 | 378 | Subtotal before parked workloads |
+| `3.x` parked | `B3` | 1 | 4 | External-check package tail |
+| Grand total | all | 42 | 382 | Full live backlog |
+
+## Wave 0 — Intake Antichain
+
+| Workload | Count | Selector | Agent surface |
+|----------|------:|----------|---------------|
+| `WL-00-inbox-triage` | 5 | `docs/method/backlog/inbox/*.md` | Triage, classify, promote, or retire intake notes |
+
+## Wave 1 — Root Backlog Antichain
+
+| Workload | Count | Selector | Agent surface |
+|----------|------:|----------|---------------|
+| `WL-10-root-dx` | 21 | root `DX_*.md` | Docs, examples, guides, contributor experience |
+| `WL-11-root-trust` | 5 | root `TRUST_*.md` | Trust schemas, fuzzing, and record validation |
+| `WL-12-root-perf` | 2 | root `PERF_*.md` | Benchmark policy and out-of-core materialization |
+| `WL-13-root-viz` | 3 | root `VIZ_*.md` | Mermaid and diagram validation |
+
+## Wave 2 — `bad-code/` Antichain
+
+These are parallel by invariant. Each workload is already canonical in
+[bad-code/README.md](bad-code/README.md).
+
+| Workload | Count | Selector | Invariant owner |
+|----------|------:|----------|-----------------|
+| `WL-20-bad-hex` | 17 | `bad-code/HEX_*.md` | Hex boundary honesty |
+| `WL-21-bad-bnd` | 7 | `bad-code/BND_*.md` | Boundary decode and validation honesty |
+| `WL-22-bad-model` | 22 | `bad-code/MODEL_*.md` | Runtime-backed model honesty |
+| `WL-23-bad-cast` | 9 | `bad-code/CAST_*.md` | No cast-cosplay or escape hatches |
+| `WL-24-bad-port` | 12 | `bad-code/PORT_*.md` | Capability and port-surface honesty |
+| `WL-25-bad-own` | 31 | `bad-code/OWN_*.md` | Ownership and cohesion |
+| `WL-26-bad-sub` | 10 | `bad-code/SUB_*.md` | Substrate, streaming, and storage integrity |
+| `WL-27-bad-spec` | 31 | `bad-code/SPEC_*.md` | Executable-spec honesty |
+
+## Wave 3.0 — Ready-Now `B3` Antichain
+
+These are the current-delivery workloads that can be staffed in
+parallel without crossing a **live** backlog edge.
+
+| Workload | Count | Items | Agent surface |
+|----------|------:|-------|---------------|
+| `WL-30-v17-capability-provider-seams` | 2 | `API_capability-interfaces`, `CROSS_shared-provider-interfaces` | Provider interfaces, capability surfaces, shared runtime seams |
+| `WL-31-v17-cas-substrate-foundation` | 4 | `INFRA_unify-persistence-on-git-cas`, `INFRA_plumbing-violations`, `INFRA_index-builder-on-git-cas`, `INFRA_substrate-upgrade-tool` | CAS, plumbing, substrate migration |
+| `WL-32-v17-purge-chain` | 4 | `PROTO_purge-cast-hacks`, `PROTO_purge-boundary-leaks`, `PROTO_purge-fake-models`, `PROTO_purge-import-law` | Anti-sludge purge chain; one agent, serial internal order |
+| `WL-33-v17-ts-publish-pipeline` | 5 | `TS_convert-remaining-js`, `TS_infrastructure-adapters`, `TS_cli-viz-scripts`, `TS_publish-pipeline`, `TS_ssts-conformance-suite` | TypeScript conversion and package publish pipeline |
+| `WL-34-v17-ts-wave-sweep` | 9 | `TS_wave-01-codec`, `TS_wave-02-trust`, `TS_wave-03-dag-provenance`, `TS_wave-04-state-query`, `TS_wave-05-controllers`, `TS_wave-06-sync`, `TS_wave-07-index-small`, `TS_wave-08-strand-index-big`, `TS_wave-09-gods-and-monsters` | Wave-based TS migration sequence |
+| `WL-35-v17-hygiene-sludge-seed` | 5 | `HYGIENE_contamination-scanner-dynamic-imports`, `HYGIENE_type-import-and-template-expression-purge`, `SLUDGE_content-access-duplication`, `SLUDGE_dead-code-cleanup`, `SLUDGE_factory-functions-in-tests` | Cleanup that does not wait on capability-provider work |
+| `WL-3A-asap-uniform-cas` | 1 | `INFRA_uniform-git-cas` | Immediate CAS standardization |
+| `WL-3B-asap-observer-envelopes` | 2 | `PROTO_observer-plan-reading-envelopes`, `PROTO_witnessed-suffix-admission-shells` | Observer and witness envelope contracts |
+| `WL-3C-asap-live-strands` | 1 | `PROTO_live-holographic-strands` | Strand/live-read experimentation |
+
+## Wave 3.1 — Downstream `B3` Antichain
+
+These are still `B3`, but they sit behind wave `3.0` or need a live
+dependency check before staffing.
+
+| Workload | Count | Items | Preconditions |
+|----------|------:|-------|---------------|
+| `WL-36-v17-cross-residue-sludge` | 2 | `SLUDGE_host-bag-injection`, `SLUDGE_detached-graph-duplication` | Follows `WL-30-v17-capability-provider-seams` |
+| `WL-37-v17-god-to-api-runtime-split` | 10 | `GOD_query-builder`, `GOD_query-controller`, `GOD_materialize-controller`, `GOD_strand-service`, `GOD_incremental-index-updater`, `GOD_remaining-big-files`, `API_warpgraph-factory`, `API_migrate-consumers-to-capabilities`, `API_observer-readable-receipts`, `API_kill-warpruntime` | Follows `WL-30`, `WL-33`, and `WL-34` |
+| `WL-38-v17-shadow-trie-materialization-core` | 12 | `PROTO_git-trie-store-port`, `PROTO_shadow-trie-orset`, `PROTO_trie-compaction`, `PROTO_state-session-async`, `PROTO_gc-state-session`, `PROTO_joinreducer-state-session`, `PROTO_materialize-integration`, `PROTO_index-builder-trie-iteration`, `PROTO_checkpoint-envelope-publication`, `PERF_lru-page-cache`, `PERF_trie-geometry-and-memory-profile`, `TRUST_shadow-trie-semilattice-pbt` | `external-check`: some prerequisites are not live backlog notes |
+
+### External-check refs for `WL-38`
+
+Before assigning `WL-38`, verify repo truth for these non-live blockers:
+
+- `PROTO_orsetlike-contract`
+- `PROTO_blake3-route-key`
+- `PROTO_trie-flush`
+- `INFRA_git-trie-store-adapter`
+- `PROTO_trie-cursor`
+
+## Wave 3.x — Parked `B3` Tail
+
+This workload is MECE with the rest of `B3`, but it should stay parked
+until both the publish pipeline and the ORSet/materialization tail are
+confirmed ready.
+
+| Workload | Count | Items | Preconditions |
+|----------|------:|-------|---------------|
+| `WL-39-v17-package-extraction-tail` | 4 | `INFRA_extract-warp-kernel-package`, `INFRA_extract-warp-adapters-package`, `INFRA_multipackage-publish-pipeline`, `INFRA_extract-warp-orset-package-post-publish` | Follows `WL-33` and `WL-38`; also `external-check` for `PROTO_orset-seam-in-root` and `PROTO_orsetlike-contract` |
+
+## Wave 4 — `up-next/` Antichain
+
+| Workload | Count | Items | Agent surface |
+|----------|------:|-------|---------------|
+| `WL-40-upnext-execution-shells` | 3 | `CLI_agent-native-output`, `CLI_missing-commands`, `MCP_warp-server` | CLI and MCP surface; internal serial edge stays inside workload |
+| `WL-41-upnext-dx-docs` | 17 | all `up-next/DX_*.md` | Documentation, review guidance, package metadata, audits |
+| `WL-42-upnext-streaming-audit` | 5 | `CORE_streaming-memory-audit`, all `up-next/PERF_*.md` | Streaming memory, traversal, read cleanup |
+| `WL-43-upnext-merge-observer-contracts` | 8 | `PROTO_WESLEY_lane-coordinate-capability-boundary`, `PROTO_WESLEY_receipt-envelope-boundary`, `PROTO_merge-classifier`, `PROTO_merge-runtime-noun-family`, `PROTO_tickpatch-tickreceipt-witness-ladder-audit`, `PROTO_ttd-merge-inspector`, `PROTO_wesley-merge-contracts`, `VIZ_cut-git-warp-visualization-surface-in-favor-of-warp-ttd` | Merge and observer contracts |
+| `WL-44-upnext-runtime-boundaries` | 10 | `CC_conflict-pipeline-god-context`, `PROTO_cbor-op-hydration`, `PROTO_controller-capability-interfaces`, `PROTO_local-site-object-for-neighborhoods`, `PROTO_op-consumer-instanceof-migration`, `PROTO_patch-commit-visibility-contract`, `PROTO_playback-head-alignment`, `PROTO_warpkernel-port-cleanup`, `PROTO_warpruntime-open-options-class`, `PROTO_wire-format-migration-edgepropset` | Runtime boundary cleanup |
+| `WL-45-upnext-strand-materialize` | 4 | `PROTO_materialize-strategy-decomposition`, `PROTO_same-writer-concurrent-patch-race`, `PROTO_strand-collapse-implementation`, `PROTO_strand-collapse-optic-for-causal-slicing` | Materialization and strand collapse |
+| `WL-46-upnext-ndnm` | 4 | all `up-next/NDNM_*.md` | Legacy pattern removal |
+| `WL-47-upnext-tail-edges` | 2 | `TRUST_sync-auth-ed25519`, `TS_eliminate-remaining-js-and-dts` | Small tail tasks with isolated surfaces |
+
+## Wave 5 — `cool-ideas/` Antichain
+
+These are speculative by prefix. They do not block committed lanes until
+promotion.
+
+| Workload | Count | Selector | Agent surface |
+|----------|------:|----------|---------------|
+| `WL-50-cool-dx` | 43 | `cool-ideas/DX_*.md` | Developer-experience experiments |
+| `WL-51-cool-idea` | 6 | `cool-ideas/IDEA_*.md` | General concept proposals |
+| `WL-52-cool-infra` | 1 | `cool-ideas/INFRA_*.md` | Infrastructure speculation |
+| `WL-53-cool-perf` | 8 | `cool-ideas/PERF_*.md` | Performance experiments |
+| `WL-54-cool-proto` | 23 | `cool-ideas/PROTO_*.md` | Protocol and architecture experiments |
+| `WL-55-cool-theory` | 1 | `cool-ideas/THEORY_*.md` | Theory and model notes |
+| `WL-56-cool-trust` | 3 | `cool-ideas/TRUST_*.md` | Trust and witness experiments |
+| `WL-57-cool-viz` | 8 | `cool-ideas/VIZ_*.md` | Visualization experiments |
+
+## MECE Proof
+
+The partition is exhaustive and non-overlapping:
+
+- Wave `0`: `5`
+- Wave `1`: `31`
+- Wave `2`: `139`
+- Wave `3.0`: `33`
+- Wave `3.1`: `24`
+- Wave `3.x`: `4`
+- Wave `4`: `53`
+- Wave `5`: `93`
+
+Total:
+
+- `5 + 31 + 139 + 33 + 24 + 4 + 53 + 93 = 382`
+
+Every live backlog note is covered exactly once.
+
+## Practical Assignment Order
+
+If you want to staff agents immediately, start here:
+
+1. Fill Wave `3.0` first if the goal is shipping.
+2. Run Wave `2` in parallel when a release slice hits the same
+   invariant.
+3. Use Wave `4` only after active `B3` workloads stop starving it.
+4. Keep Wave `5` parked unless you explicitly want exploration.

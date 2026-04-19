@@ -3,6 +3,8 @@
 This README is the canonical dependency map for the repo-visible
 backlog.
 
+Parallel agent staffing lives in [WORKLOADS.md](WORKLOADS.md).
+
 It exists because the METHOD MCP surface is currently inconsistent on
 this repo: `method_doctor` recognizes the workspace and returns
 diagnostics, while `method_status` and
