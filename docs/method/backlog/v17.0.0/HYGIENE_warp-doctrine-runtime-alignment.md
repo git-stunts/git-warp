@@ -2,7 +2,7 @@
 
 ## Problem
 
-`docs/WARP_DRIFT.md` makes the core issue explicit: the repo's best
+`docs/audits/WARP_DRIFT.md` makes the core issue explicit: the repo's best
 papers and design notes now teach a stronger WARP ontology than the
 runtime actually ships.
 
@@ -36,7 +36,7 @@ filed.
   - `PROTO_live-holographic-strands`
   - `PROTO_observer-plan-reading-envelopes`
   - `PROTO_witnessed-suffix-admission-shells`
-- Keep `docs/WARP_DRIFT.md` as the explicit ledger of where doctrine
+- Keep `docs/audits/WARP_DRIFT.md` as the explicit ledger of where doctrine
   is ahead of implementation until the runtime catches up
 
 ## Done looks like
@@ -55,7 +55,7 @@ filed.
 
 ## Why this is separate from the semantic cuts
 
-The three ASAP protocol cuts change code and boundaries.
+The three protocol cuts change code and boundaries.
 
 This task changes the repo's teaching contract while those code cuts
 are still landing. It is documentation and doctrine hygiene, not a
@@ -63,7 +63,7 @@ replacement for the implementation work.
 
 ## Sources
 
-- `docs/WARP_DRIFT.md`
+- `docs/audits/WARP_DRIFT.md`
 - `docs/design/worldline-observer-strand-model.md`
 - `docs/design/worldline-observer-api-phasing.md`
 - `docs/design/observer-strand-boundary.md`
