@@ -3,6 +3,10 @@
 This document partitions the entire live backlog into **MECE**
 workloads that can be handed to agents as ownership units.
 
+Counts in this document refer to live backlog notes only and exclude
+backlog meta docs such as `README.md`, `SCORECARD.md`, and this
+`WORKLOADS.md` file itself.
+
 The partition is built from the dependency bands in
 [README.md](README.md):
 
@@ -37,11 +41,11 @@ dependency graph and likely write-surface overlap.
 | `2` | `B2` | 8 | 139 | Invariant debt paydown |
 | `3.0` | `B3` | 9 | 33 | Ready-now release and immediate-delivery foundations |
 | `3.1` | `B3` | 3 | 24 | Downstream release workstreams |
-| `4` | `B4` | 8 | 53 | Near-term queue |
+| `4` | `B4` | 8 | 54 | Near-term queue |
 | `5` | `B5` | 8 | 93 | Speculative orbit |
 | Total | all | 41 | 378 | Subtotal before parked workloads |
 | `3.x` parked | `B3` | 1 | 4 | External-check package tail |
-| Grand total | all | 42 | 382 | Full live backlog |
+| Grand total | all | 42 | 383 | Full live backlog |
 
 ## Wave 0 — Intake Antichain
 
@@ -127,7 +131,7 @@ confirmed ready.
 | Workload | Count | Items | Agent surface |
 |----------|------:|-------|---------------|
 | `WL-40-upnext-execution-shells` | 3 | `CLI_agent-native-output`, `CLI_missing-commands`, `MCP_warp-server` | CLI and MCP surface; internal serial edge stays inside workload |
-| `WL-41-upnext-dx-docs` | 17 | all `up-next/DX_*.md` | Documentation, review guidance, package metadata, audits |
+| `WL-41-upnext-dx-docs` | 18 | all `up-next/DX_*.md` | Documentation, review guidance, package metadata, audits |
 | `WL-42-upnext-streaming-audit` | 5 | `CORE_streaming-memory-audit`, all `up-next/PERF_*.md` | Streaming memory, traversal, read cleanup |
 | `WL-43-upnext-merge-observer-contracts` | 8 | `PROTO_WESLEY_lane-coordinate-capability-boundary`, `PROTO_WESLEY_receipt-envelope-boundary`, `PROTO_merge-classifier`, `PROTO_merge-runtime-noun-family`, `PROTO_tickpatch-tickreceipt-witness-ladder-audit`, `PROTO_ttd-merge-inspector`, `PROTO_wesley-merge-contracts`, `VIZ_cut-git-warp-visualization-surface-in-favor-of-warp-ttd` | Merge and observer contracts |
 | `WL-44-upnext-runtime-boundaries` | 10 | `CC_conflict-pipeline-god-context`, `PROTO_cbor-op-hydration`, `PROTO_controller-capability-interfaces`, `PROTO_local-site-object-for-neighborhoods`, `PROTO_op-consumer-instanceof-migration`, `PROTO_patch-commit-visibility-contract`, `PROTO_playback-head-alignment`, `PROTO_warpkernel-port-cleanup`, `PROTO_warpruntime-open-options-class`, `PROTO_wire-format-migration-edgepropset` | Runtime boundary cleanup |
@@ -161,12 +165,12 @@ The partition is exhaustive and non-overlapping:
 - Wave `3.0`: `33`
 - Wave `3.1`: `24`
 - Wave `3.x`: `4`
-- Wave `4`: `53`
+- Wave `4`: `54`
 - Wave `5`: `93`
 
 Total:
 
-- `5 + 31 + 139 + 33 + 24 + 4 + 53 + 93 = 382`
+- `5 + 31 + 139 + 33 + 24 + 4 + 54 + 93 = 383`
 
 Every live backlog note is covered exactly once.
 

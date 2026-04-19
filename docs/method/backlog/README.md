@@ -14,20 +14,21 @@ workspace." Until that drift is fixed, repo-truth parsing of
 
 ## Snapshot
 
-Current repo truth after adding the METHOD tooling note:
+Current repo truth for live backlog notes, excluding backlog meta docs
+such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 
 | Metric | Count |
 |--------|------:|
-| Live backlog items | 382 |
+| Live backlog items | 383 |
 | Root backlog items | 31 |
 | `asap/` | 4 |
 | `bad-code/` | 139 |
 | `cool-ideas/` | 93 |
 | `inbox/` | 5 |
-| `up-next/` | 53 |
+| `up-next/` | 54 |
 | `v17.0.0/` | 57 |
 | Items with YAML frontmatter | 90 |
-| Items without YAML frontmatter | 292 |
+| Items without YAML frontmatter | 293 |
 | Items with explicit `id` | 75 |
 | Items declaring dependency fields | 63 |
 | Items with non-empty explicit dependency edges | 47 |
@@ -269,7 +270,7 @@ Prefix counts:
 | `CC` | 1 |
 | `CLI` | 2 |
 | `CORE` | 1 |
-| `DX` | 17 |
+| `DX` | 18 |
 | `MCP` | 1 |
 | `NDNM` | 4 |
 | `PERF` | 4 |
