@@ -1,21 +1,26 @@
 import HealthCheckService from '../../../src/domain/services/HealthCheckService.ts';
 import { buildCheckpointRef, buildCoverageRef } from '../../../src/domain/utils/RefLayout.ts';
-import type { CorePersistence } from '../../../src/domain/types/WarpPersistence.ts';
 import { EXIT_CODES } from '../infrastructure.ts';
 import { openGraph, applyCursorCeiling, emitCursorWarning, readCheckpointDate, createHookInstaller } from '../shared.ts';
 import type { CliOptions, Persistence, WarpGraphInstance } from '../types.ts';
 
 /** Performs a health check on the graph persistence. */
 async function getHealth(persistence: Persistence): Promise<{ status: string; components: { repository: { status: string; latencyMs: number }; index: { status: string; loaded: boolean; shardCount?: number } }; cachedAt?: string }> {
-  const corePersistence = persistence as unknown as CorePersistence;
-  const healthService = new HealthCheckService({ persistence: corePersistence });
+  const healthService = new HealthCheckService({ persistence });
   return await healthService.getHealth(0);
 }
 
 /** Collects garbage collection metrics for the graph. */
 async function getGcMetrics(graph: WarpGraphInstance): Promise<{ totalTombstones: number; tombstoneRatio: number } | null> {
   await graph.materialize();
-  return graph.getGCMetrics();
+  const metrics = graph.getGCMetrics();
+  if (metrics === null) {
+    return null;
+  }
+  return {
+    totalTombstones: metrics.tombstoneCount,
+    tombstoneRatio: metrics.tombstoneRatio,
+  };
 }
 
 /** Collects current head SHAs for all writers in the graph. */

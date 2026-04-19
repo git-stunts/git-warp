@@ -3,13 +3,15 @@ import { z } from 'zod';
 import { EXIT_CODES, parseCommandArgs } from '../../infrastructure.ts';
 
 import { openDebugContext, resolveLamportCeiling } from './shared.ts';
-import type { CliOptions } from '../../types.ts';
-import type { ConflictAnalyzeOptions } from '../../../../src/domain/services/strand/ConflictAnalysisRequest.ts';
+import type { CliOptions, WarpGraphInstance } from '../../types.ts';
 
 export const DEBUG_TOPIC = Object.freeze({
   name: 'conflicts',
   summary: 'Analyze conflict provenance at the current frontier',
 });
+
+const CONFLICT_KINDS = ['supersession', 'eventual_override', 'redundancy'] as const;
+type ConflictKind = typeof CONFLICT_KINDS[number];
 
 const DEBUG_CONFLICT_OPTIONS = {
   'strand': { type: 'string' },
@@ -123,11 +125,11 @@ function validateEdgeIdentity({ from, to, label, ctx }: { from: unknown; to: unk
 }
 
 /** Normalize the kind option into an array of conflict kind strings. */
-function normalizeKinds(kind: string | string[] | undefined): string[] {
+function normalizeKinds(kind: ConflictKind | ConflictKind[] | undefined): ConflictKind[] {
   if (Array.isArray(kind)) {
     return kind;
   }
-  if (kind !== undefined && kind !== '') {
+  if (kind !== undefined) {
     return [kind];
   }
   return [];
@@ -158,7 +160,7 @@ type ConflictSpec = {
   strandId: string | null;
   entityId: string | null;
   target: { targetKind: 'node' | 'edge' | 'node_property' | 'edge_property'; entityId?: string; propertyKey?: string; from?: string; to?: string; label?: string } | null;
-  kinds: string[];
+  kinds: ConflictKind[];
   writerId: string | null;
   lamportCeiling: number | null;
   evidence: 'full' | 'summary' | 'standard';
@@ -167,7 +169,7 @@ type ConflictSpec = {
 
 /** Transform raw parsed conflict CLI values into the internal conflict filter shape. */
 function transformConflictValues(val: Record<string, unknown>): ConflictSpec {
-  const typed = val as { strand?: string; 'entity-id'?: string; kind?: string | string[]; 'writer-id'?: string; 'lamport-ceiling'?: number; evidence?: string; 'max-patches'?: number };
+  const typed = val as { strand?: string; 'entity-id'?: string; kind?: ConflictKind | ConflictKind[]; 'writer-id'?: string; 'lamport-ceiling'?: number; evidence?: string; 'max-patches'?: number };
   return {
     strandId: orNull(typed.strand),
     entityId: orNull(typed['entity-id']),
@@ -205,7 +207,10 @@ function spreadNonNull<T>(key: string, value: T | null): Record<string, T> {
 }
 
 /** Build ConflictAnalyzeOptions from the parsed CLI spec and resolved lamport ceiling. */
-function buildConflictAnalyzeOptions(spec: ConflictSpec, lamportCeiling: number | null): ConflictAnalyzeOptions {
+function buildConflictAnalyzeOptions(
+  spec: ConflictSpec,
+  lamportCeiling: number | null,
+): Parameters<WarpGraphInstance['analyzeConflicts']>[0] {
   return {
     ...spreadNonNull('strandId', spec.strandId),
     ...(lamportCeiling !== null ? { at: { lamportCeiling } } : {}),

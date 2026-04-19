@@ -155,11 +155,18 @@ export default async function handleTree({ options, args }: { options: CliOption
   emitCursorWarning(cursorInfo, null);
 
   const queryResult = await graph.query().run();
+  if (!('nodes' in queryResult)) {
+    throw usageError('Tree query must return node rows');
+  }
   const edges = await graph.getEdges();
   const rootArg = positionals[0] ?? null;
 
-  const nodeIds = queryResult.nodes.map((n: { id: string }) => n.id);
-  const propsMap = new Map(queryResult.nodes.map((n: { id: string; props?: Record<string, unknown> }) => [n.id, n.props ?? {}]));
+  const rows: Array<{ id: string; props?: Record<string, unknown> }> = queryResult.nodes
+    .filter((node: { id?: string; props?: Record<string, unknown> }): node is { id: string; props?: Record<string, unknown> } => typeof node.id === 'string');
+  const nodeIds = rows.map((node) => node.id);
+  const propsMap = new Map<string, Record<string, unknown>>(
+    rows.map((node): [string, Record<string, unknown>] => [node.id, node.props ?? {}]),
+  );
   const childMap = buildChildMap(edges, values.edgeLabel);
 
   const roots = rootArg !== null ? [rootArg] : findRoots(nodeIds, edges, values.edgeLabel);

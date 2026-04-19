@@ -11,7 +11,7 @@ const TypedShellRunnerFactory = _sfRaw as { create: () => unknown };
 
 const _gpRaw: unknown = _GitPlumbing;
 const TypedGitPlumbing = _gpRaw as new (opts: { cwd: string; runner: unknown }) => unknown;
-import WarpCore from '../../src/domain/WarpCore.ts';
+import WarpRuntime from '../../src/domain/WarpRuntime.ts';
 import GitGraphAdapter, { type GitPlumbing } from '../../src/infrastructure/adapters/GitGraphAdapter.ts';
 import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 import {
@@ -25,7 +25,6 @@ import { parseCursorBlob } from '../../src/domain/utils/parseCursorBlob.ts';
 import { usageError, notFoundError } from './infrastructure.ts';
 
 import type { Persistence, WarpGraphInstance, CursorBlob, CliOptions, SeekSpec } from './types.ts';
-import type { CorePersistence } from '../../src/domain/types/WarpPersistence.ts';
 
 function createPlumbing(repoPath: string): GitPlumbing {
   const runner = TypedShellRunnerFactory.create();
@@ -36,13 +35,14 @@ function createPlumbing(repoPath: string): GitPlumbing {
 /**
  * Creates a persistence adapter for the given repository path.
  */
-export async function createPersistence(repoPath: string): Promise<{ persistence: Persistence }> {
-  const persistence = new GitGraphAdapter({ plumbing: createPlumbing(repoPath) }) as unknown as Persistence;
+export async function createPersistence(repoPath: string): Promise<{ persistence: Persistence; plumbing: GitPlumbing }> {
+  const plumbing = createPlumbing(repoPath);
+  const persistence = new GitGraphAdapter({ plumbing });
   const ping = await persistence.ping();
   if (!ping.ok) {
     throw usageError(`Repository not accessible: ${repoPath}`);
   }
-  return { persistence };
+  return { persistence, plumbing };
 }
 
 /**
@@ -90,8 +90,8 @@ export async function resolveGraphName(persistence: Persistence, explicitGraph: 
 /**
  * Opens a WarpCore for the given CLI options.
  */
-export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraphInstance; graphName: string; persistence: Persistence }> {
-  const { persistence } = await createPersistence(options.repo);
+export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraphInstance; graphName: string; persistence: Persistence; plumbing: GitPlumbing }> {
+  const { persistence, plumbing } = await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.graph);
   if (typeof options.graph === 'string' && options.graph.length > 0) {
     const graphNames = await listGraphNames(persistence);
@@ -99,13 +99,13 @@ export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraph
       throw notFoundError(`Graph not found: ${options.graph}`);
     }
   }
-  const graph = await WarpCore.open({
-    persistence: persistence as unknown as CorePersistence,
+  const graph = await WarpRuntime.open({
+    persistence,
     graphName,
     writerId: options.writer,
     crypto: new WebCryptoAdapter(),
-  }) as unknown as WarpGraphInstance;
-  return { graph, graphName, persistence };
+  });
+  return { graph, graphName, persistence, plumbing };
 }
 
 /**
@@ -220,13 +220,19 @@ function readPackageVersion(rawJson: string): string {
 /**
  * Attaches a persistent seek cache to a graph instance unless disabled by flags.
  */
-export function wireSeekCache({ graph, persistence, graphName, seekSpec }: { graph: WarpGraphInstance; persistence: Persistence; graphName: string; seekSpec: SeekSpec }): void {
+export function wireSeekCache({ graph, persistence, plumbing, graphName, seekSpec }: {
+  graph: WarpGraphInstance;
+  persistence: Persistence;
+  plumbing: GitPlumbing;
+  graphName: string;
+  seekSpec: SeekSpec;
+}): void {
   if (seekSpec.noPersistentCache) {
     return;
   }
   graph.setSeekCache(new CasSeekCacheAdapter({
     persistence,
-    plumbing: persistence.plumbing,
+    plumbing,
     graphName,
   }));
 }

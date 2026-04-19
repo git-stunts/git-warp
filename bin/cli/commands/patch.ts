@@ -13,10 +13,16 @@ const patchSchema = z.object({
   limit: z.coerce.number().int().positive().optional(),
 }).strict();
 
+type WriterPatchEntry = Awaited<ReturnType<WarpGraphInstance['getWriterPatches']>>[number];
+type PatchOp = WriterPatchEntry['patch']['ops'][number];
+
 /** Collects all patches across all writers (or a single writer). */
-async function collectPatches(graph: WarpGraphInstance, writerFilter: string | null): Promise<Array<{ sha: string; writer: string; patch: { schema?: number; lamport: number; ops?: Array<Record<string, unknown>>; context?: Record<string, unknown> } }>> {
+async function collectPatches(
+  graph: WarpGraphInstance,
+  writerFilter: string | null,
+): Promise<Array<WriterPatchEntry & { writer: string }>> {
   const writers = (writerFilter !== null && writerFilter !== undefined && writerFilter.length > 0) ? [writerFilter] : await graph.discoverWriters();
-  const all: Array<{ sha: string; writer: string; patch: { schema?: number; lamport: number; ops?: Array<Record<string, unknown>>; context?: Record<string, unknown> } }> = [];
+  const all: Array<WriterPatchEntry & { writer: string }> = [];
   for (const writerId of writers) {
     const patches = await graph.getWriterPatches(writerId);
     for (const { patch, sha } of patches) {
@@ -102,20 +108,17 @@ async function handlePatchList({ options, args }: { options: CliOptions; args: s
 }
 
 /** Extracts unique node IDs touched by a patch's operations. */
-function extractNodeIds(ops: Array<Record<string, unknown>>): string[] {
-  if (!Array.isArray(ops)) {
-    return [];
-  }
+function extractNodeIds(ops: PatchOp[]): string[] {
   const ids: Set<string> = new Set();
   for (const op of ops) {
-    if (typeof op['node'] === 'string' && op['node'].length > 0) {
-      ids.add(op['node']);
+    if ('node' in op && typeof op.node === 'string' && op.node.length > 0) {
+      ids.add(op.node);
     }
-    if (typeof op['from'] === 'string' && op['from'].length > 0) {
-      ids.add(op['from']);
+    if ('from' in op && typeof op.from === 'string' && op.from.length > 0) {
+      ids.add(op.from);
     }
-    if (typeof op['to'] === 'string' && op['to'].length > 0) {
-      ids.add(op['to']);
+    if ('to' in op && typeof op.to === 'string' && op.to.length > 0) {
+      ids.add(op.to);
     }
   }
   return [...ids].sort();
