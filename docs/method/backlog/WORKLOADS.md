@@ -39,11 +39,11 @@ dependency graph and likely write-surface overlap.
 | `0` | `B0` | 1 | 5 | Intake and triage |
 | `1` | `B1` | 4 | 31 | Root backlog classification and maintenance |
 | `2` | `B2` | 8 | 139 | Invariant debt paydown |
-| `3.0` | `B3` | 9 | 33 | Ready-now release and immediate-delivery foundations |
+| `3.0` | `B3` | 9 | 34 | Ready-now release and immediate-delivery foundations |
 | `3.1` | `B3` | 3 | 24 | Downstream release workstreams |
-| `4` | `B4` | 8 | 54 | Near-term queue |
+| `4` | `B4` | 8 | 53 | Near-term queue |
 | `5` | `B5` | 8 | 93 | Speculative orbit |
-| Total | all | 41 | 378 | Subtotal before parked workloads |
+| Total | all | 41 | 379 | Subtotal before parked workloads |
 | `3.x` parked | `B3` | 1 | 4 | External-check package tail |
 | Grand total | all | 42 | 383 | Full live backlog |
 
@@ -90,7 +90,7 @@ parallel without crossing a **live** backlog edge.
 | `WL-32-v17-purge-chain` | 4 | `PROTO_purge-cast-hacks`, `PROTO_purge-boundary-leaks`, `PROTO_purge-fake-models`, `PROTO_purge-import-law` | Anti-sludge purge chain; one agent, serial internal order |
 | `WL-33-v17-ts-publish-pipeline` | 5 | `TS_convert-remaining-js`, `TS_infrastructure-adapters`, `TS_cli-viz-scripts`, `TS_publish-pipeline`, `TS_ssts-conformance-suite` | TypeScript conversion and package publish pipeline |
 | `WL-34-v17-ts-wave-sweep` | 9 | `TS_wave-01-codec`, `TS_wave-02-trust`, `TS_wave-03-dag-provenance`, `TS_wave-04-state-query`, `TS_wave-05-controllers`, `TS_wave-06-sync`, `TS_wave-07-index-small`, `TS_wave-08-strand-index-big`, `TS_wave-09-gods-and-monsters` | Wave-based TS migration sequence |
-| `WL-35-v17-hygiene-sludge-seed` | 5 | `HYGIENE_contamination-scanner-dynamic-imports`, `HYGIENE_type-import-and-template-expression-purge`, `SLUDGE_content-access-duplication`, `SLUDGE_dead-code-cleanup`, `SLUDGE_factory-functions-in-tests` | Cleanup that does not wait on capability-provider work |
+| `WL-35-v17-hygiene-sludge-seed` | 6 | `HYGIENE_contamination-scanner-dynamic-imports`, `HYGIENE_type-import-and-template-expression-purge`, `HYGIENE_warp-doctrine-runtime-alignment`, `SLUDGE_content-access-duplication`, `SLUDGE_dead-code-cleanup`, `SLUDGE_factory-functions-in-tests` | Cleanup, doctrine alignment, and residue that do not wait on capability-provider work |
 | `WL-3A-asap-uniform-cas` | 1 | `INFRA_uniform-git-cas` | Immediate CAS standardization |
 | `WL-3B-asap-observer-envelopes` | 2 | `PROTO_observer-plan-reading-envelopes`, `PROTO_witnessed-suffix-admission-shells` | Observer and witness envelope contracts |
 | `WL-3C-asap-live-strands` | 1 | `PROTO_live-holographic-strands` | Strand/live-read experimentation |
@@ -131,7 +131,7 @@ confirmed ready.
 | Workload | Count | Items | Agent surface |
 |----------|------:|-------|---------------|
 | `WL-40-upnext-execution-shells` | 3 | `CLI_agent-native-output`, `CLI_missing-commands`, `MCP_warp-server` | CLI and MCP surface; internal serial edge stays inside workload |
-| `WL-41-upnext-dx-docs` | 18 | all `up-next/DX_*.md` | Documentation, review guidance, package metadata, audits |
+| `WL-41-upnext-dx-docs` | 17 | all `up-next/DX_*.md` | Documentation, review guidance, package metadata, audits |
 | `WL-42-upnext-streaming-audit` | 5 | `CORE_streaming-memory-audit`, all `up-next/PERF_*.md` | Streaming memory, traversal, read cleanup |
 | `WL-43-upnext-merge-observer-contracts` | 8 | `PROTO_WESLEY_lane-coordinate-capability-boundary`, `PROTO_WESLEY_receipt-envelope-boundary`, `PROTO_merge-classifier`, `PROTO_merge-runtime-noun-family`, `PROTO_tickpatch-tickreceipt-witness-ladder-audit`, `PROTO_ttd-merge-inspector`, `PROTO_wesley-merge-contracts`, `VIZ_cut-git-warp-visualization-surface-in-favor-of-warp-ttd` | Merge and observer contracts |
 | `WL-44-upnext-runtime-boundaries` | 10 | `CC_conflict-pipeline-god-context`, `PROTO_cbor-op-hydration`, `PROTO_controller-capability-interfaces`, `PROTO_local-site-object-for-neighborhoods`, `PROTO_op-consumer-instanceof-migration`, `PROTO_patch-commit-visibility-contract`, `PROTO_playback-head-alignment`, `PROTO_warpkernel-port-cleanup`, `PROTO_warpruntime-open-options-class`, `PROTO_wire-format-migration-edgepropset` | Runtime boundary cleanup |
@@ -162,15 +162,15 @@ The partition is exhaustive and non-overlapping:
 - Wave `0`: `5`
 - Wave `1`: `31`
 - Wave `2`: `139`
-- Wave `3.0`: `33`
+- Wave `3.0`: `34`
 - Wave `3.1`: `24`
 - Wave `3.x`: `4`
-- Wave `4`: `54`
+- Wave `4`: `53`
 - Wave `5`: `93`
 
 Total:
 
-- `5 + 31 + 139 + 33 + 24 + 4 + 54 + 93 = 383`
+- `5 + 31 + 139 + 34 + 24 + 4 + 53 + 93 = 383`
 
 Every live backlog note is covered exactly once.
 

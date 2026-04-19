@@ -25,8 +25,8 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 | `bad-code/` | 139 |
 | `cool-ideas/` | 93 |
 | `inbox/` | 5 |
-| `up-next/` | 54 |
-| `v17.0.0/` | 57 |
+| `up-next/` | 53 |
+| `v17.0.0/` | 58 |
 | Items with YAML frontmatter | 90 |
 | Items without YAML frontmatter | 293 |
 | Items with explicit `id` | 75 |
@@ -233,7 +233,7 @@ Prefix counts:
 | `API` | 5 |
 | `CROSS` | 1 |
 | `GOD` | 6 |
-| `HYGIENE` | 2 |
+| `HYGIENE` | 3 |
 | `INFRA` | 8 |
 | `PERF` | 2 |
 | `PROTO` | 13 |
@@ -270,7 +270,7 @@ Prefix counts:
 | `CC` | 1 |
 | `CLI` | 2 |
 | `CORE` | 1 |
-| `DX` | 18 |
+| `DX` | 17 |
 | `MCP` | 1 |
 | `NDNM` | 4 |
 | `PERF` | 4 |
