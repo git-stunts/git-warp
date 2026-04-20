@@ -62,6 +62,117 @@ describe('CheckpointService edge cases', () => {
   // --------------------------------------------------------------------------
 
   describe('unsupported schema versions', () => {
+    it('rejects schema:2 with migration error in shipped runtime', async () => {
+      const state = createEmptyState();
+      const stateBuffer = serializeFullState(state);
+      const frontierBuffer = serializeFrontier(createFrontier());
+      const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(state));
+      const message = encodeCheckpointMessage({
+        graph: 'test',
+        stateHash: 'a'.repeat(64),
+        frontierOid: 'a'.repeat(40),
+        indexOid: 'b'.repeat(40),
+        schema: 2,
+      });
+
+      mockPersistence.showNode.mockResolvedValue(message);
+      mockPersistence.readTreeOids.mockResolvedValue({
+        'state.cbor': makeOid('state'),
+        'frontier.cbor': makeOid('frontier'),
+        'appliedVV.cbor': makeOid('appliedvv'),
+      });
+      mockPersistence.readBlob.mockImplementation((oid) => {
+        if (oid === makeOid('state')) {
+          return Promise.resolve(stateBuffer);
+        }
+        if (oid === makeOid('frontier')) {
+          return Promise.resolve(frontierBuffer);
+        }
+        if (oid === makeOid('appliedvv')) {
+          return Promise.resolve(appliedVVBuffer);
+        }
+        throw new Error(`Unknown oid: ${oid}`);
+      });
+
+      await expect(
+        loadCheckpoint(mockPersistence, makeOid('legacy2'))
+      ).rejects.toThrow(/schema:2/i);
+    });
+
+    it('rejects schema:3 with migration error in shipped runtime', async () => {
+      const state = createEmptyState();
+      const stateBuffer = serializeFullState(state);
+      const frontierBuffer = serializeFrontier(createFrontier());
+      const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(state));
+      const message = encodeCheckpointMessage({
+        graph: 'test',
+        stateHash: 'a'.repeat(64),
+        frontierOid: 'a'.repeat(40),
+        indexOid: 'b'.repeat(40),
+        schema: 3,
+      });
+
+      mockPersistence.showNode.mockResolvedValue(message);
+      mockPersistence.readTreeOids.mockResolvedValue({
+        'state.cbor': makeOid('state'),
+        'frontier.cbor': makeOid('frontier'),
+        'appliedVV.cbor': makeOid('appliedvv'),
+      });
+      mockPersistence.readBlob.mockImplementation((oid) => {
+        if (oid === makeOid('state')) {
+          return Promise.resolve(stateBuffer);
+        }
+        if (oid === makeOid('frontier')) {
+          return Promise.resolve(frontierBuffer);
+        }
+        if (oid === makeOid('appliedvv')) {
+          return Promise.resolve(appliedVVBuffer);
+        }
+        throw new Error(`Unknown oid: ${oid}`);
+      });
+
+      await expect(
+        loadCheckpoint(mockPersistence, makeOid('legacy3'))
+      ).rejects.toThrow(/schema:3/i);
+    });
+
+    it('rejects schema:4 with migration error in shipped runtime', async () => {
+      const state = createEmptyState();
+      const stateBuffer = serializeFullState(state);
+      const frontierBuffer = serializeFrontier(createFrontier());
+      const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(state));
+      const message = encodeCheckpointMessage({
+        graph: 'test',
+        stateHash: 'a'.repeat(64),
+        frontierOid: 'a'.repeat(40),
+        indexOid: 'b'.repeat(40),
+        schema: 4,
+      });
+
+      mockPersistence.showNode.mockResolvedValue(message);
+      mockPersistence.readTreeOids.mockResolvedValue({
+        'state.cbor': makeOid('state'),
+        'frontier.cbor': makeOid('frontier'),
+        'appliedVV.cbor': makeOid('appliedvv'),
+      });
+      mockPersistence.readBlob.mockImplementation((oid) => {
+        if (oid === makeOid('state')) {
+          return Promise.resolve(stateBuffer);
+        }
+        if (oid === makeOid('frontier')) {
+          return Promise.resolve(frontierBuffer);
+        }
+        if (oid === makeOid('appliedvv')) {
+          return Promise.resolve(appliedVVBuffer);
+        }
+        throw new Error(`Unknown oid: ${oid}`);
+      });
+
+      await expect(
+        loadCheckpoint(mockPersistence, makeOid('legacy4'))
+      ).rejects.toThrow(/schema:4/i);
+    });
+
     it('rejects schema:5 with migration error', async () => {
       const message = encodeCheckpointMessage({
         graph: 'test',
