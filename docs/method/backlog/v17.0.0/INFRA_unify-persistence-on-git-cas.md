@@ -49,5 +49,5 @@ roots. This is explicitly **out of scope** for the git-cas unification.
 
 Core trie publication must NOT be routed through git-cas. The
 reachability model depends on native Git tree traversal, which git-cas
-tree OIDs would break. See PROTO_checkpoint-envelope-publication and
-PROTO_git-trie-store-port for the native-Git publication path.
+tree OIDs would break. See `docs/design/0034-unify-seek-cache-and-checkpoints.md`
+and `PROTO_git-trie-store-port` for the native-Git publication path.
