@@ -1,7 +1,6 @@
 ---
 id: PROTO_state-session-async
 blocked_by:
-  - PROTO_orsetlike-contract
   - PROTO_shadow-trie-orset
   - PROTO_trie-compaction
 blocks:
@@ -14,9 +13,10 @@ blocks:
 ## Problem
 
 The trie-backed ORSet has async I/O under the hood (page loads, flushes).
-Domain code (Ops, reducer, GC) currently accesses ORSet synchronously
-through `ORSetLike`. The async boundary must be explicit, and the domain
-must have a single contract for trie-backed state access.
+Today the synchronous in-memory side is just concrete `ORSet`, while the
+trie-backed side must cross an explicit async boundary. The domain needs
+one truthful contract for trie-backed state access rather than pretending
+the async engine fits behind a synchronous parent type.
 
 ## Fix
 
@@ -42,10 +42,10 @@ Implement `StateSession` as the domain-facing contract:
 
 ## Role in the seam architecture
 
-- `ORSetLike` is the **in-memory seam** — synchronous, satisfied by the
-  existing `ORSet` class. Used when operating on in-memory state in
-  tests and migration-tool internals only. It is NOT a production
-  runtime fallback path for old checkpoints or old ORSet-backed graphs.
+- Concrete `ORSet` is the **in-memory form** — synchronous and used
+  where state genuinely stays in memory, such as current runtime paths,
+  tests, and migration-tool internals. It is NOT a production runtime
+  fallback path for old checkpoints or old ORSet-backed graphs.
 - `StateSession` is the **domain-facing contract** for trie-backed
   state. It wraps `ShadowTrieORSet` internally. Domain code (reducer,
   GC, Ops) goes through the session when operating on trie-backed

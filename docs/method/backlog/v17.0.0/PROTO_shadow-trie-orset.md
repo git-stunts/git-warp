@@ -1,7 +1,6 @@
 ---
 id: PROTO_shadow-trie-orset
 blocked_by:
-  - PROTO_orsetlike-contract
   - PERF_lru-page-cache
 blocks:
   - PROTO_trie-compaction
@@ -22,8 +21,9 @@ to the trie cursor, cache, and flusher.
 
 Implement `ShadowTrieORSet` in `warp-orset`:
 
-- Does NOT implement `ORSetLike` (which is the synchronous in-memory
-  seam). Instead, `ShadowTrieORSet` has its own async interface.
+- Does NOT pretend to satisfy the concrete synchronous `ORSet` surface.
+  `ShadowTrieORSet` is its own async engine with its own truthful
+  interface.
 - Delegates to `TrieCursor` + `PageCache` internally
 - Routes elements to trie paths via `routeKey(element)`
 - `add(element, dot): Promise<void>` — descend to leaf, insert, dirty

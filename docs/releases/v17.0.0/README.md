@@ -79,7 +79,11 @@ ST-0 (planning + workspace shells):
 
 ST-1 (ORSet seam in root + storage contracts):
   [x] PROTO_orset-seam-in-root          ← cycle 0021 hill-met
-  [ ] PROTO_orsetlike-contract          ← interface extraction, consumer retyping
+  [ ] PROTO_orsetlike-contract          ← retained as a reality-check
+                                          artifact after cycle 0032;
+                                          downstream planning now uses
+                                          concrete `ORSet` / `StateSession`
+                                          nouns instead of `ORSetLike`
   [x] PROTO_blake3-route-key            ← cycle 0022 hill-met
   [x] PROTO_git-trie-store-port         ← cycle 0026 hill-met
   [x] INFRA_git-trie-store-adapter      ← cycle 0028 hill-met
@@ -124,10 +128,11 @@ actual extraction (ST-7) depends on a real multi-package publish
 pipeline. The new extraction item deliberately has a new ID
 (`-post-publish` suffix) to preserve history.
 
-**Seam architecture:** `ORSetLike` is the synchronous in-memory seam.
-`StateSession` is the async domain-facing contract for trie-backed
-state. `ShadowTrieORSet` is an internal engine behind the session —
-it does NOT implement `ORSetLike`.
+**Seam architecture:** concrete `ORSet` is the synchronous in-memory
+form. `StateSession` is the async domain-facing contract for
+trie-backed state. `ShadowTrieORSet` is an internal engine behind the
+session — it does NOT pretend to implement the synchronous concrete
+surface.
 
 **git-cas carve-out:** Core trie publication uses native Git objects
 and is explicitly out of scope for INFRA_unify-persistence-on-git-cas.

@@ -210,18 +210,26 @@ dependency graph even without code debt.
 
 4. *Do the live backlog and release docs consistently agree with the
    cycle 0023 / 0024 outcome?*
-   No.
+   Not fully.
 
-   Conflicts still present in live planning docs:
+   Initial playback found conflicts in:
    - `docs/method/backlog/v17.0.0/PROTO_orsetlike-contract.md`
    - `docs/method/backlog/v17.0.0/PROTO_state-session-async.md`
    - `docs/method/backlog/v17.0.0/PROTO_shadow-trie-orset.md`
    - `docs/method/backlog/v17.0.0/PROTO_gc-state-session.md`
    - `docs/releases/v17.0.0/README.md`
 
-   These files still describe `ORSetLike` as the synchronous seam even
-   though the repository's prior cycles, seam README, and anti-sludge
-   policy all say the premise was invalid.
+   During cycle close, the downstream backlog items and release ledger
+   were updated to use the truthful nouns:
+   - concrete `ORSet` on the synchronous in-memory side
+   - `StateSession` as the async domain-facing seam
+   - `ShadowTrieORSet` as an internal engine
+
+   The remaining contradiction is the source backlog note itself:
+   - `docs/method/backlog/v17.0.0/PROTO_orsetlike-contract.md`
+
+   That note was intentionally left in place for historical continuity
+   in this cycle, per operator direction.
 
 ### Human
 
@@ -229,24 +237,24 @@ Deferred to review.
 
 ## Result
 
-**Playback status: FAIL**
+**Playback status: PARTIAL**
 
-The failure is **not** missing TypeScript implementation work.
+The unresolved issue is **not** missing TypeScript implementation work.
 
-The failure is that live planning docs still encode a seam model the
-repository has already rejected and replaced.
+Most downstream planning docs now use the correct nouns. The remaining
+inconsistency is that the source backlog note still encodes the rejected
+`ORSetLike` seam premise.
 
 ## What work remains if we honor repo truth
 
-1. Retire or rewrite `PROTO_orsetlike-contract` so it stops blocking
-   downstream `v17` work under a false premise.
-2. Rewrite successor planning docs to speak in the current truthful
-   model:
+1. Rewrite or reclassify `PROTO_orsetlike-contract` itself when the
+   operator wants the lane graph to fully align with repo truth.
+2. Keep successor planning docs on the current truthful model:
    - concrete `ORSet` on the sync side
    - `StateSession` as the domain-facing async seam
    - `ShadowTrieORSet` as an internal engine behind the session
 3. Remove any remaining dependency edges that treat `ORSetLike` as an
-   unlock.
+   unlock once the source note is reconciled.
 
 ## Drift
 
@@ -254,3 +262,5 @@ repository has already rejected and replaced.
   validate whether implementation should exist at all.
 - The backlog note turned out to be a graph-truth problem, not a code
   problem.
+- The cycle closed with downstream noun cleanup landed, while the
+  source note itself was intentionally preserved.

@@ -19,15 +19,18 @@ that handles page loading and dirty-page flushing.
 Wrap `executeGC` to:
 
 1. Open a StateSession
-2. Call `compact()` through the ORSetLike interface
+2. Call `compact()` through the session-owned trie-backed state access
+   path
 3. Close the session (flush compacted pages)
 
-`GCMetrics.fromState` uses the ORSetLike counting methods, which may
-require a trie scan. Keep the existing `GCExecuteResult` return type.
+`GCMetrics.fromState` currently relies on synchronous concrete `ORSet`
+counting methods. The trie-backed path must obtain the equivalent counts
+through `StateSession`, even when that requires a trie scan. Keep the
+existing `GCExecuteResult` return type.
 
 ## Scope
 
-**In:** GC session integration. Metrics collection through ORSetLike.
-Existing GC tests must pass.
+**In:** GC session integration. Metrics collection through
+`StateSession` / trie-backed state access. Existing GC tests must pass.
 
 **Out:** MaterializeController wiring (PROTO_materialize-integration).
