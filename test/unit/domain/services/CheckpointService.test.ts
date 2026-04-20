@@ -160,6 +160,48 @@ describe('CheckpointService', () => {
       expect(decoded.graph).toBe('my-graph');
       expect(decoded.schema).toBe(2);
     });
+
+    it('creates schema:5 envelope tree with state subtree instead of state.cbor', async () => {
+      const state = createEmptyState();
+      const frontier = createFrontier();
+
+      let blobIndex = 0;
+      const blobOids = [
+        makeOid('prop'),
+        makeOid('observed'),
+        makeOid('edgebirth'),
+        makeOid('frontier'),
+        makeOid('appliedvv'),
+      ];
+      mockPersistence.writeBlob.mockImplementation(() => Promise.resolve(blobOids[blobIndex++]));
+      mockPersistence.writeTree
+        .mockResolvedValueOnce(makeOid('state-tree'))
+        .mockResolvedValueOnce(makeOid('envelope-tree'));
+      mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
+
+      await create({
+        persistence: mockPersistence,
+        graphName: 'test',
+        state,
+        frontier,
+        crypto,
+      });
+
+      expect(mockPersistence.writeTree).toHaveBeenCalledTimes(2);
+
+      const stateEntries = mockPersistence.writeTree.mock.calls[0][0];
+      expect(stateEntries.some((entry) => entry.includes('\tprop.cbor'))).toBe(true);
+      expect(stateEntries.some((entry) => entry.includes('\tobservedFrontier.cbor'))).toBe(true);
+      expect(stateEntries.some((entry) => entry.includes('\tedgeBirthEvent.cbor'))).toBe(true);
+
+      const envelopeEntries = mockPersistence.writeTree.mock.calls[1][0];
+      expect(envelopeEntries.some((entry) => entry.includes('\tstate'))).toBe(true);
+      expect(envelopeEntries.some((entry) => entry.includes('\tstate.cbor'))).toBe(false);
+
+      const messageArg = mockPersistence.commitNodeWithTree.mock.calls[0][0].message;
+      const decoded = decodeCheckpointMessage(messageArg);
+      expect(decoded.schema).toBe(5);
+    });
   });
 
   describe('loadCheckpoint', () => {
@@ -280,6 +322,54 @@ describe('CheckpointService', () => {
 
       await expect(loadCheckpoint(mockPersistence, makeOid('v1checkpoint')))
         .rejects.toThrow(/schema:1.*migration/i);
+    });
+
+    it('loads schema:5 checkpoint envelope without requiring state.cbor', async () => {
+      const frontier = createFrontier();
+      updateFrontier(frontier, 'writer1', makeOid('sha111'));
+
+      const emptyState = createEmptyState();
+      const stateHash = await computeStateHash(emptyState, { crypto });
+      const frontierBuffer = serializeFrontier(frontier);
+      const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(emptyState));
+
+      const frontierBlobOid = makeOid('frontier');
+      const appliedVVBlobOid = makeOid('appliedvv');
+
+      const message = encodeCheckpointMessage({
+        graph: 'test',
+        stateHash,
+        frontierOid: frontierBlobOid,
+        indexOid: makeOid('envelope'),
+        schema: 5,
+      });
+
+      mockPersistence.showNode.mockResolvedValue(message);
+      mockPersistence.getNodeInfo.mockResolvedValue({ sha: makeOid('checkpoint') });
+      mockPersistence.readTreeOids.mockResolvedValue({
+        'state': makeOid('state-tree'),
+        'state/nodeAlive': makeOid('node-root'),
+        'state/edgeAlive': makeOid('edge-root'),
+        'state/prop.cbor': makeOid('prop'),
+        'state/observedFrontier.cbor': makeOid('observed'),
+        'state/edgeBirthEvent.cbor': makeOid('edgebirth'),
+        'frontier.cbor': frontierBlobOid,
+        'appliedVV.cbor': appliedVVBlobOid,
+      });
+      mockPersistence.readBlob.mockImplementation((oid) => {
+        if (oid === frontierBlobOid) {
+          return Promise.resolve(frontierBuffer);
+        }
+        if (oid === appliedVVBlobOid) {
+          return Promise.resolve(appliedVVBuffer);
+        }
+        return Promise.resolve(new Uint8Array());
+      });
+
+      const result = await loadCheckpoint(mockPersistence, makeOid('checkpoint'));
+
+      expect(result.schema).toBe(5);
+      expect(result.frontier.get('writer1')).toBe(makeOid('sha111'));
     });
   });
 
