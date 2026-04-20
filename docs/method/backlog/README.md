@@ -19,19 +19,21 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 
 | Metric | Count |
 |--------|------:|
-| Live backlog items | 390 |
+| Live backlog items | 398 |
 | Root backlog items | 31 |
 | `asap/` | 0 |
 | `bad-code/` | 139 |
 | `cool-ideas/` | 93 |
 | `inbox/` | 5 |
 | `up-next/` | 53 |
-| `v17.0.0/` | 69 |
-| Items with YAML frontmatter | 101 |
+| `v17.0.0/` | 64 |
+| `v18.0.0/` | 8 |
+| `v19.0.0/` | 5 |
+| Items with YAML frontmatter | 109 |
 | Items without YAML frontmatter | 289 |
-| Items with explicit `id` | 86 |
-| Items declaring dependency fields | 74 |
-| Items with non-empty explicit dependency edges | 54 |
+| Items with explicit `id` | 94 |
+| Items declaring dependency fields | 82 |
+| Items with non-empty explicit dependency edges | 62 |
 
 ## Dependency Law
 
@@ -52,9 +54,9 @@ edges.
 | `B0` | `inbox/` | Raw capture. No commitment, no scheduling, no downstream guarantees. | Triage only. |
 | `B1` | backlog root | Unlaned maintenance and reference work. Needs classification or direct pull before it should block committed work. | `B0` or direct human pull. |
 | `B2` | `bad-code/` | Foundational debt and invariant repair. This lane can legitimately block release or execution work. | `B0`, `B1`, or lower-level debt in `B2`. |
-| `B3` | `v17.0.0/`, `asap/` | Current committed delivery work. Explicit per-note edges win here. | `B2`, same-band work, or explicit edges. |
-| `B4` | `up-next/` | Near-term follow-through after current committed work. | `B2`, `B3`, or explicit same-lane edges. |
-| `B5` | `cool-ideas/` | Speculative orbit. These notes do not block committed lanes until promoted. | Promotion into another lane. |
+| `B3` | `v17.0.0/` | Current committed release work. Explicit per-note edges win here. | `B2`, same-band work, or explicit edges. |
+| `B4` | `v18.0.0/`, `up-next/` | Next-major substrate work plus near-term follow-through after the active release. | `B2`, `B3`, or explicit same-band edges. |
+| `B5` | `v19.0.0/`, `cool-ideas/` | Doctrine/parity follow-through and speculative orbit. These notes do not block committed lanes until promoted. | Promotion into another lane. |
 
 ### Lane Contracts
 
@@ -62,11 +64,13 @@ edges.
 |------|------|----------|
 | `inbox/` | `B0` | Anything here is blocked on triage, not implementation. |
 | backlog root | `B1` | These notes are real work, but still need lane assignment or an explicit pull decision. |
-| `bad-code/` | `B2` | Invariant debt can block `v17.0.0`, `asap`, and `up-next`. |
-| `v17.0.0/` | `B3` | This is the active release graph. Use explicit frontmatter edges where present. |
-| `asap/` | `B3` | Immediate pull candidates; may depend on `bad-code` or `v17.0.0` substrate work. |
-| `up-next/` | `B4` | Queue behind active release and immediate work unless explicitly promoted. |
+| `bad-code/` | `B2` | Invariant debt can block `v17.0.0`, `v18.0.0`, and `up-next`. |
+| `v17.0.0/` | `B3` | This is the active release graph for TypeScript migration and streaming ORSets. |
+| `v18.0.0/` | `B4` | This is the next-major graph-substrate convergence lane. |
+| `up-next/` | `B4` | Queue behind the active release and next-major substrate work unless explicitly promoted. |
+| `v19.0.0/` | `B5` | Doctrine, observer, and admission convergence after the substrate cut. |
 | `cool-ideas/` | `B5` | Never blocks committed lanes until moved into a committed lane. |
+| `asap/` | dormant | Presently unused. Do not treat it as a scheduling source while numbered release lanes are active. |
 
 ### Interpretation Rule
 
@@ -88,44 +92,14 @@ small number of nodes in `up-next/`, `cool-ideas/`, and `bad-code/`.
 
 Current explicit-graph totals:
 
-- `86` notes define an `id`
-- `74` notes declare `blocks` or `blocked_by` fields
-- `54` notes currently name at least one non-empty upstream or
+- `94` notes define an `id`
+- `82` notes declare `blocks` or `blocked_by` fields
+- `62` notes currently name at least one non-empty upstream or
   downstream edge
 
-### Current Top Outbound Blockers
-
-These notes currently block the most explicitly linked downstream work:
-
-| Note ID | Explicit `blocks` Count |
-|---------|------------------------:|
-| `CROSS_shared-provider-interfaces` | 6 |
-| `API_capability-interfaces` | 3 |
-| `PROTO_materialize-integration` | 3 |
-| `PROTO_shadow-trie-orset` | 3 |
-| `GOD_incremental-index-updater` | 2 |
-| `PERF_trie-geometry-and-memory-profile` | 2 |
-| `PROTO_git-trie-store-port` | 2 |
-| `PROTO_index-builder-trie-iteration` | 2 |
-| `PROTO_state-session-async` | 2 |
-| `TS_convert-remaining-js` | 2 |
-
-### Current Most-Blocked Nodes
-
-These notes currently accumulate the most explicit prerequisites:
-
-| Note ID | Explicit `blocked_by` Count |
-|---------|----------------------------:|
-| `API_migrate-consumers-to-capabilities` | 7 |
-| `INFRA_extract-warp-orset-package-post-publish` | 4 |
-| `PROTO_shadow-trie-orset` | 4 |
-| `PROTO_state-session-async` | 4 |
-| `API_observer-readable-receipts` | 3 |
-| `PERF_trie-geometry-and-memory-profile` | 3 |
-| `PROTO_materialize-integration` | 3 |
-| `TS_publish-pipeline` | 3 |
-| `API_warpgraph-factory` | 2 |
-| `GOD_query-controller` | 2 |
+The explicit graph is still concentrated in `v17.0.0/`, but the new
+`v18.0.0/` lane now carries its own real dependency spine instead of
+living as hand-waved future work.
 
 ## Lane Inventory And Inherited Dependencies
 
@@ -193,7 +167,7 @@ Items:
 
 Dependency posture:
 
-- may legitimately block `v17.0.0/`, `asap/`, and `up-next/`
+- may legitimately block `v17.0.0/`, `v18.0.0/`, and `up-next/`
 - should be treated as prerequisite work when a release note touches the
   same invariant
 
@@ -221,6 +195,8 @@ Dependency posture:
 - explicit frontmatter edges override lane inheritance
 - release notes may be blocked by `bad-code/` debt when they touch the
   same invariant or subsystem
+- this lane is intentionally limited to TypeScript migration,
+  streaming ORSets, and current-substrate modernization
 
 Canonical lane readme:
 
@@ -230,27 +206,63 @@ Prefix counts:
 
 | Prefix | Count |
 |--------|------:|
-| `API` | 5 |
+| `API` | 4 |
 | `CROSS` | 1 |
 | `GOD` | 6 |
-| `HYGIENE` | 3 |
-| `INFRA` | 9 |
+| `HYGIENE` | 2 |
+| `INFRA` | 10 |
 | `PERF` | 2 |
-| `PROTO` | 20 |
+| `PROTO` | 19 |
 | `SLUDGE` | 5 |
 | `TRUST` | 1 |
 | `TS` | 14 |
 
-### `asap/` — `B3` Immediate Pull Candidates
+### `v18.0.0/` — `B4` Graph-Substrate Convergence
 
 Dependency posture:
 
-- same band as `v17.0.0/`
-- may depend on release substrate work or foundational `bad-code/`
+- downstream of `v17.0.0/`
+- explicit frontmatter edges carry the actual substrate cut order
+- this lane is the Echo-shaped graph-model cut, not full repo parity
 
-Items:
+Canonical lane readme:
 
-- none currently parked in `asap/`
+- [v18.0.0/README.md](v18.0.0/README.md)
+
+Prefix counts:
+
+| Prefix | Count |
+|--------|------:|
+| `INFRA` | 1 |
+| `PROTO` | 6 |
+| `TRUST` | 1 |
+
+### `v19.0.0/` — `B5` Doctrine And Runtime Convergence
+
+Dependency posture:
+
+- follows the substrate cut in `v18.0.0/`
+- holds observer, admission, strand, and teaching-contract work that
+  should not muddy the substrate migration
+
+Canonical lane readme:
+
+- [v19.0.0/README.md](v19.0.0/README.md)
+
+Prefix counts:
+
+| Prefix | Count |
+|--------|------:|
+| `API` | 1 |
+| `HYGIENE` | 1 |
+| `PROTO` | 3 |
+
+### `asap/` — dormant
+
+Dependency posture:
+
+- no live items
+- keep empty unless a human explicitly wants a temporary pull lane
 
 ### `up-next/` — `B4` Near-Term Queue
 
@@ -258,7 +270,8 @@ Dependency posture:
 
 - queue behind active release and immediate work unless explicit edges
   say otherwise
-- can be unblocked by `bad-code/` paydown or `v17.0.0/` completion
+- can be unblocked by `bad-code/` paydown, `v17.0.0/` completion, or
+  selective promotion into `v18.0.0/`
 
 Prefix counts:
 
@@ -302,11 +315,13 @@ Prefix counts:
 The dependency map above is enough to reason across the full backlog
 today, but it also makes the cleanup sequence clear:
 
-1. Normalize frontmatter on `inbox/`, `asap/`, and backlog-root notes.
-2. Keep `v17.0.0/` as the most explicit hand-authored dependency graph.
+1. Normalize frontmatter on `inbox/`, backlog-root notes, and any new
+   release-lane promotions.
+2. Keep `v17.0.0/` and `v18.0.0/` as the most explicit hand-authored
+   dependency graphs.
 3. Add `id` fields to `bad-code/` in invariant bundles instead of one
    giant sweep.
-4. Promote `up-next/` notes into explicit edges only when they become
-   current-cycle blockers.
+4. Promote `up-next/` or `v19.0.0/` notes into explicit edges only when
+   they become current-cycle blockers.
 5. Leave `cool-ideas/` mostly lane-inherited until promotion to avoid
    graph theater.

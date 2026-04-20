@@ -39,13 +39,13 @@ dependency graph and likely write-surface overlap.
 | `0` | `B0` | 1 | 5 | Intake and triage |
 | `1` | `B1` | 4 | 31 | Root backlog classification and maintenance |
 | `2` | `B2` | 8 | 139 | Invariant debt paydown |
-| `3.0` | `B3` | 9 | 34 | Ready-now release and immediate-delivery foundations |
-| `3.1` | `B3` | 3 | 31 | Downstream release workstreams |
-| `4` | `B4` | 8 | 53 | Near-term queue |
-| `5` | `B5` | 8 | 93 | Speculative orbit |
-| Total | all | 41 | 386 | Subtotal before parked workloads |
+| `3.0` | `B3` | 6 | 30 | Ready-now release foundations |
+| `3.1` | `B3` | 3 | 30 | Downstream release workstreams |
+| `4` | `B4` | 9 | 61 | Next-major substrate cut plus near-term queue |
+| `5` | `B5` | 9 | 98 | Doctrine follow-through plus speculative orbit |
+| Total | all | 40 | 394 | Subtotal before parked workloads |
 | `3.x` parked | `B3` | 1 | 4 | External-check package tail |
-| Grand total | all | 42 | 383 | Full live backlog |
+| Grand total | all | 41 | 398 | Full live backlog |
 
 ## Wave 0 — Intake Antichain
 
@@ -90,10 +90,7 @@ parallel without crossing a **live** backlog edge.
 | `WL-32-v17-purge-chain` | 4 | `PROTO_purge-cast-hacks`, `PROTO_purge-boundary-leaks`, `PROTO_purge-fake-models`, `PROTO_purge-import-law` | Anti-sludge purge chain; one agent, serial internal order |
 | `WL-33-v17-ts-publish-pipeline` | 5 | `TS_convert-remaining-js`, `TS_infrastructure-adapters`, `TS_cli-viz-scripts`, `TS_publish-pipeline`, `TS_ssts-conformance-suite` | TypeScript conversion and package publish pipeline |
 | `WL-34-v17-ts-wave-sweep` | 9 | `TS_wave-01-codec`, `TS_wave-02-trust`, `TS_wave-03-dag-provenance`, `TS_wave-04-state-query`, `TS_wave-05-controllers`, `TS_wave-06-sync`, `TS_wave-07-index-small`, `TS_wave-08-strand-index-big`, `TS_wave-09-gods-and-monsters` | Wave-based TS migration sequence |
-| `WL-35-v17-hygiene-sludge-seed` | 6 | `HYGIENE_contamination-scanner-dynamic-imports`, `HYGIENE_type-import-and-template-expression-purge`, `HYGIENE_warp-doctrine-runtime-alignment`, `SLUDGE_content-access-duplication`, `SLUDGE_dead-code-cleanup`, `SLUDGE_factory-functions-in-tests` | Cleanup, doctrine alignment, and residue that do not wait on capability-provider work |
-| `WL-3A-asap-uniform-cas` | 1 | `INFRA_uniform-git-cas` | Immediate CAS standardization |
-| `WL-3B-asap-observer-envelopes` | 2 | `PROTO_observer-plan-reading-envelopes`, `PROTO_witnessed-suffix-admission-shells` | Observer and witness envelope contracts |
-| `WL-3C-asap-live-strands` | 1 | `PROTO_live-holographic-strands` | Strand/live-read experimentation |
+| `WL-35-v17-hygiene-sludge-seed` | 5 | `HYGIENE_contamination-scanner-dynamic-imports`, `HYGIENE_type-import-and-template-expression-purge`, `SLUDGE_content-access-duplication`, `SLUDGE_dead-code-cleanup`, `SLUDGE_factory-functions-in-tests` | Cleanup and residue that do not wait on capability-provider work |
 
 ## Wave 3.1 — Downstream `B3` Antichain
 
@@ -103,7 +100,7 @@ dependency check before staffing.
 | Workload | Count | Items | Preconditions |
 |----------|------:|-------|---------------|
 | `WL-36-v17-cross-residue-sludge` | 2 | `SLUDGE_host-bag-injection`, `SLUDGE_detached-graph-duplication` | Follows `WL-30-v17-capability-provider-seams` |
-| `WL-37-v17-god-to-api-runtime-split` | 10 | `GOD_query-builder`, `GOD_query-controller`, `GOD_materialize-controller`, `GOD_strand-service`, `GOD_incremental-index-updater`, `GOD_remaining-big-files`, `API_warpgraph-factory`, `API_migrate-consumers-to-capabilities`, `API_observer-readable-receipts`, `API_kill-warpruntime` | Follows `WL-30`, `WL-33`, and `WL-34` |
+| `WL-37-v17-god-to-api-runtime-split` | 9 | `GOD_query-builder`, `GOD_query-controller`, `GOD_materialize-controller`, `GOD_strand-service`, `GOD_incremental-index-updater`, `GOD_remaining-big-files`, `API_warpgraph-factory`, `API_migrate-consumers-to-capabilities`, `API_kill-warpruntime` | Follows `WL-30`, `WL-33`, and `WL-34` |
 | `WL-38-v17-shadow-trie-materialization-core` | 19 | `PROTO_orset-seam-in-root`, `PROTO_orsetlike-contract`, `PROTO_blake3-route-key`, `PROTO_git-trie-store-port`, `INFRA_git-trie-store-adapter`, `PROTO_trie-codec-and-geometry`, `PROTO_trie-cursor`, `PROTO_trie-flush`, `PROTO_shadow-trie-orset`, `PROTO_trie-compaction`, `PROTO_state-session-async`, `PROTO_gc-state-session`, `PROTO_joinreducer-state-session`, `PROTO_materialize-integration`, `PROTO_index-builder-trie-iteration`, `PROTO_checkpoint-envelope-publication`, `PERF_lru-page-cache`, `PERF_trie-geometry-and-memory-profile`, `TRUST_shadow-trie-semilattice-pbt` | Trie seam, trie foundation, shadow-trie engine, and kernel integration trunk |
 
 ## Wave 3.x — Parked `B3` Tail
@@ -116,10 +113,14 @@ confirmed ready.
 |----------|------:|-------|---------------|
 | `WL-39-v17-package-extraction-tail` | 4 | `INFRA_extract-warp-kernel-package`, `INFRA_extract-warp-adapters-package`, `INFRA_multipackage-publish-pipeline`, `INFRA_extract-warp-orset-package-post-publish` | Follows `WL-33` and `WL-38` |
 
-## Wave 4 — `up-next/` Antichain
+## Wave 4 — `B4` Antichain
+
+This wave now mixes the next-major graph-substrate lane with the
+existing `up-next/` queue.
 
 | Workload | Count | Items | Agent surface |
 |----------|------:|-------|---------------|
+| `WL-4A-v18-graph-substrate-convergence` | 8 | `PROTO_echo-shaped-node-records`, `PROTO_echo-shaped-edge-records`, `PROTO_attachment-plane-substrate`, `PROTO_graph-op-algebra-convergence`, `PROTO_content-attachment-plane-cutover`, `PROTO_legacy-props-as-projection`, `INFRA_graph-model-migration-tool`, `TRUST_genesis-replay-equivalence` | Echo-shaped graph model cut, migration tooling, and replay proof |
 | `WL-40-upnext-execution-shells` | 3 | `CLI_agent-native-output`, `CLI_missing-commands`, `MCP_warp-server` | CLI and MCP surface; internal serial edge stays inside workload |
 | `WL-41-upnext-dx-docs` | 17 | all `up-next/DX_*.md` | Documentation, review guidance, package metadata, audits |
 | `WL-42-upnext-streaming-audit` | 5 | `CORE_streaming-memory-audit`, all `up-next/PERF_*.md` | Streaming memory, traversal, read cleanup |
@@ -129,13 +130,14 @@ confirmed ready.
 | `WL-46-upnext-ndnm` | 4 | all `up-next/NDNM_*.md` | Legacy pattern removal |
 | `WL-47-upnext-tail-edges` | 2 | `TRUST_sync-auth-ed25519`, `TS_eliminate-remaining-js-and-dts` | Small tail tasks with isolated surfaces |
 
-## Wave 5 — `cool-ideas/` Antichain
+## Wave 5 — `B5` Antichain
 
-These are speculative by prefix. They do not block committed lanes until
-promotion.
+This wave mixes deferred doctrine-parity work with the speculative
+orbit.
 
 | Workload | Count | Selector | Agent surface |
 |----------|------:|----------|---------------|
+| `WL-5A-v19-doctrine-runtime-convergence` | 5 | `v19.0.0/API_observer-readable-receipts.md`, `v19.0.0/HYGIENE_warp-doctrine-runtime-alignment.md`, `v19.0.0/PROTO_live-holographic-strands.md`, `v19.0.0/PROTO_observer-plan-reading-envelopes.md`, `v19.0.0/PROTO_witnessed-suffix-admission-shells.md` | Observer, admission, strand, and teaching-contract convergence after the substrate cut |
 | `WL-50-cool-dx` | 43 | `cool-ideas/DX_*.md` | Developer-experience experiments |
 | `WL-51-cool-idea` | 6 | `cool-ideas/IDEA_*.md` | General concept proposals |
 | `WL-52-cool-infra` | 1 | `cool-ideas/INFRA_*.md` | Infrastructure speculation |
@@ -152,15 +154,15 @@ The partition is exhaustive and non-overlapping:
 - Wave `0`: `5`
 - Wave `1`: `31`
 - Wave `2`: `139`
-- Wave `3.0`: `34`
-- Wave `3.1`: `31`
+- Wave `3.0`: `30`
+- Wave `3.1`: `30`
 - Wave `3.x`: `4`
-- Wave `4`: `53`
-- Wave `5`: `93`
+- Wave `4`: `61`
+- Wave `5`: `98`
 
 Total:
 
-- `5 + 31 + 139 + 34 + 31 + 4 + 53 + 93 = 390`
+- `5 + 31 + 139 + 30 + 30 + 4 + 61 + 98 = 398`
 
 Every live backlog note is covered exactly once.
 
@@ -168,8 +170,10 @@ Every live backlog note is covered exactly once.
 
 If you want to staff agents immediately, start here:
 
-1. Fill Wave `3.0` first if the goal is shipping.
+1. Fill Wave `3.0` first if the goal is shipping `v17.0.0`.
 2. Run Wave `2` in parallel when a release slice hits the same
    invariant.
-3. Use Wave `4` only after active `B3` workloads stop starving it.
-4. Keep Wave `5` parked unless you explicitly want exploration.
+3. Use Wave `4` for `v18.0.0` planning or selective substrate prep
+   without starving active `B3` work.
+4. Keep Wave `5` parked unless you are deliberately working doctrine
+   or exploration follow-through.

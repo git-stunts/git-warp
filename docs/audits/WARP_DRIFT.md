@@ -190,15 +190,20 @@ The reconciliation work should tighten both together.
 
 ## Backlog capture status
 
-This audit has now been captured as tracked release work in
-[`docs/method/backlog/v17.0.0/`](../method/backlog/v17.0.0/README.md).
+This audit has now been captured as tracked doctrine follow-through in
+[`docs/method/backlog/v19.0.0/`](../method/backlog/v19.0.0/README.md).
+
+The graph-substrate convergence cut intentionally lives in
+[`docs/method/backlog/v18.0.0/`](../method/backlog/v18.0.0/README.md)
+so the repo can separate "make the graph shape honest" from "finish
+observer, admission, and strand doctrine convergence."
 
 The concrete backlog items derived from this audit are:
 
-- [HYGIENE_warp-doctrine-runtime-alignment](../method/backlog/v17.0.0/HYGIENE_warp-doctrine-runtime-alignment.md)
-- [PROTO_live-holographic-strands](../method/backlog/v17.0.0/PROTO_live-holographic-strands.md)
-- [PROTO_observer-plan-reading-envelopes](../method/backlog/v17.0.0/PROTO_observer-plan-reading-envelopes.md)
-- [PROTO_witnessed-suffix-admission-shells](../method/backlog/v17.0.0/PROTO_witnessed-suffix-admission-shells.md)
+- [HYGIENE_warp-doctrine-runtime-alignment](../method/backlog/v19.0.0/HYGIENE_warp-doctrine-runtime-alignment.md)
+- [PROTO_live-holographic-strands](../method/backlog/v19.0.0/PROTO_live-holographic-strands.md)
+- [PROTO_observer-plan-reading-envelopes](../method/backlog/v19.0.0/PROTO_observer-plan-reading-envelopes.md)
+- [PROTO_witnessed-suffix-admission-shells](../method/backlog/v19.0.0/PROTO_witnessed-suffix-admission-shells.md)
 
 This audit should remain the ledger for doctrine/runtime drift. The
 backlog items own the implementation work.

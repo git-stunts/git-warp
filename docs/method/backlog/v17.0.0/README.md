@@ -1,8 +1,10 @@
-# v17.0.0 — TypeScript Migration & API Redesign
+# v17.0.0 — TypeScript Migration & Streaming ORSets
 
 The hill: ship as a TypeScript project with no gods, no sludge, and a
-capability-namespaced public API. Every `.js` becomes `.ts`. Every god
-object is decomposed. SSTS is the active standard.
+bounded-residency streaming ORSet line. Every `.js` becomes `.ts`.
+Every god object is decomposed. SSTS is the active standard. `v17`
+keeps the current graph substrate; Echo-shaped graph-model convergence
+is explicitly deferred to the next major.
 
 ## Critical path
 
@@ -53,14 +55,12 @@ LAYER 5:
   [ ] INFRA_substrate-upgrade-tool
 ```
 
-## WARP drift reconciliation (ship blocker)
+## Explicitly deferred past `v17`
 
-```
-  [ ] HYGIENE_warp-doctrine-runtime-alignment
-  [ ] PROTO_live-holographic-strands
-  [ ] PROTO_observer-plan-reading-envelopes
-  [ ] PROTO_witnessed-suffix-admission-shells
-```
+- Echo-shaped graph-substrate convergence now lives in
+  [`../v18.0.0/README.md`](../v18.0.0/README.md)
+- observer, admission, and doctrine convergence now live in
+  [`../v19.0.0/README.md`](../v19.0.0/README.md)
 
 ## Shadow-Trie ORSet + package reorg (Design 0018)
 
