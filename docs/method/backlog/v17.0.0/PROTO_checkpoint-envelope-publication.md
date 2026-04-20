@@ -1,8 +1,6 @@
 ---
 id: PROTO_checkpoint-envelope-publication
-blocked_by:
-  - INFRA_git-trie-store-adapter
-  - PROTO_trie-flush
+blocked_by: []
 blocks:
   - PROTO_materialize-integration
 ---

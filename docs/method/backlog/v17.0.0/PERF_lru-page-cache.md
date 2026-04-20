@@ -1,7 +1,6 @@
 ---
 id: PERF_lru-page-cache
-blocked_by:
-  - PROTO_trie-cursor
+blocked_by: []
 blocks:
   - PROTO_shadow-trie-orset
 ---

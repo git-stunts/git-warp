@@ -1,7 +1,6 @@
 ---
 id: PROTO_orsetlike-contract
-blocked_by:
-  - PROTO_orset-seam-in-root
+blocked_by: []
 blocks:
   - PROTO_shadow-trie-orset
   - PROTO_state-session-async

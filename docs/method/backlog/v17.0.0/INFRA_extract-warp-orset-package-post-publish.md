@@ -2,7 +2,6 @@
 id: INFRA_extract-warp-orset-package-post-publish
 blocked_by:
   - INFRA_multipackage-publish-pipeline
-  - PROTO_orset-seam-in-root
   - PROTO_orsetlike-contract
   - PROTO_shadow-trie-orset
 blocks: []

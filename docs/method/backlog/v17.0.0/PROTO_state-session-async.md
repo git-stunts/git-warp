@@ -2,7 +2,6 @@
 id: PROTO_state-session-async
 blocked_by:
   - PROTO_orsetlike-contract
-  - PROTO_git-trie-store-port
   - PROTO_shadow-trie-orset
   - PROTO_trie-compaction
 blocks:

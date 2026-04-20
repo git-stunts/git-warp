@@ -2,9 +2,7 @@
 id: PROTO_shadow-trie-orset
 blocked_by:
   - PROTO_orsetlike-contract
-  - PROTO_blake3-route-key
   - PERF_lru-page-cache
-  - PROTO_trie-flush
 blocks:
   - PROTO_trie-compaction
   - TRUST_shadow-trie-semilattice-pbt

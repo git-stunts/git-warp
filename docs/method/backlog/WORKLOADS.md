@@ -40,12 +40,12 @@ dependency graph and likely write-surface overlap.
 | `1` | `B1` | 4 | 31 | Root backlog classification and maintenance |
 | `2` | `B2` | 8 | 139 | Invariant debt paydown |
 | `3.0` | `B3` | 6 | 30 | Ready-now release foundations |
-| `3.1` | `B3` | 3 | 30 | Downstream release workstreams |
+| `3.1` | `B3` | 3 | 23 | Downstream release workstreams |
 | `4` | `B4` | 9 | 61 | Next-major substrate cut plus near-term queue |
 | `5` | `B5` | 9 | 98 | Doctrine follow-through plus speculative orbit |
-| Total | all | 40 | 394 | Subtotal before parked workloads |
+| Total | all | 40 | 387 | Subtotal before parked workloads |
 | `3.x` parked | `B3` | 1 | 4 | External-check package tail |
-| Grand total | all | 41 | 398 | Full live backlog |
+| Grand total | all | 41 | 391 | Full live backlog |
 
 ## Wave 0 — Intake Antichain
 
@@ -101,7 +101,7 @@ dependency check before staffing.
 |----------|------:|-------|---------------|
 | `WL-36-v17-cross-residue-sludge` | 2 | `SLUDGE_host-bag-injection`, `SLUDGE_detached-graph-duplication` | Follows `WL-30-v17-capability-provider-seams` |
 | `WL-37-v17-god-to-api-runtime-split` | 9 | `GOD_query-builder`, `GOD_query-controller`, `GOD_materialize-controller`, `GOD_strand-service`, `GOD_incremental-index-updater`, `GOD_remaining-big-files`, `API_warpgraph-factory`, `API_migrate-consumers-to-capabilities`, `API_kill-warpruntime` | Follows `WL-30`, `WL-33`, and `WL-34` |
-| `WL-38-v17-shadow-trie-materialization-core` | 19 | `PROTO_orset-seam-in-root`, `PROTO_orsetlike-contract`, `PROTO_blake3-route-key`, `PROTO_git-trie-store-port`, `INFRA_git-trie-store-adapter`, `PROTO_trie-codec-and-geometry`, `PROTO_trie-cursor`, `PROTO_trie-flush`, `PROTO_shadow-trie-orset`, `PROTO_trie-compaction`, `PROTO_state-session-async`, `PROTO_gc-state-session`, `PROTO_joinreducer-state-session`, `PROTO_materialize-integration`, `PROTO_index-builder-trie-iteration`, `PROTO_checkpoint-envelope-publication`, `PERF_lru-page-cache`, `PERF_trie-geometry-and-memory-profile`, `TRUST_shadow-trie-semilattice-pbt` | Trie seam, trie foundation, shadow-trie engine, and kernel integration trunk |
+| `WL-38-v17-shadow-trie-materialization-core` | 12 | `PROTO_orsetlike-contract`, `PERF_lru-page-cache`, `PROTO_shadow-trie-orset`, `PROTO_trie-compaction`, `PROTO_state-session-async`, `PROTO_gc-state-session`, `PROTO_joinreducer-state-session`, `PROTO_checkpoint-envelope-publication`, `PROTO_materialize-integration`, `PROTO_index-builder-trie-iteration`, `PERF_trie-geometry-and-memory-profile`, `TRUST_shadow-trie-semilattice-pbt` | Remaining shadow-trie engine, async firewall, and kernel integration trunk after consumed foundation cycles were removed from backlog |
 
 ## Wave 3.x — Parked `B3` Tail
 
@@ -155,14 +155,14 @@ The partition is exhaustive and non-overlapping:
 - Wave `1`: `31`
 - Wave `2`: `139`
 - Wave `3.0`: `30`
-- Wave `3.1`: `30`
+- Wave `3.1`: `23`
 - Wave `3.x`: `4`
 - Wave `4`: `61`
 - Wave `5`: `98`
 
 Total:
 
-- `5 + 31 + 139 + 30 + 30 + 4 + 61 + 98 = 398`
+- `5 + 31 + 139 + 30 + 23 + 4 + 61 + 98 = 391`
 
 Every live backlog note is covered exactly once.
 

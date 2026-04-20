@@ -78,17 +78,17 @@ ST-0 (planning + workspace shells):
                                           ST-1 (seam) and ST-7 (publish+extract).
 
 ST-1 (ORSet seam in root + storage contracts):
-  [ ] PROTO_orset-seam-in-root          ← NEW: seam inside root, no code moves
+  [x] PROTO_orset-seam-in-root          ← cycle 0021 hill-met
   [ ] PROTO_orsetlike-contract          ← interface extraction, consumer retyping
-  [ ] PROTO_blake3-route-key
-  [ ] PROTO_git-trie-store-port
-  [ ] INFRA_git-trie-store-adapter
+  [x] PROTO_blake3-route-key            ← cycle 0022 hill-met
+  [x] PROTO_git-trie-store-port         ← cycle 0026 hill-met
+  [x] INFRA_git-trie-store-adapter      ← cycle 0028 hill-met
 
 ST-2 (trie foundation):
-  [ ] PROTO_trie-codec-and-geometry
-  [ ] PROTO_trie-cursor
+  [x] PROTO_trie-codec-and-geometry     ← cycle 0027 hill-met
+  [x] PROTO_trie-cursor                 ← cycle 0029 hill-met
   [ ] PERF_lru-page-cache
-  [ ] PROTO_trie-flush
+  [x] PROTO_trie-flush                  ← cycle 0030 hill-met
   [ ] PROTO_checkpoint-envelope-publication
 
 ST-3 (ShadowTrieORSet):

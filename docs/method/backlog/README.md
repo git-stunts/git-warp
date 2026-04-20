@@ -19,21 +19,21 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 
 | Metric | Count |
 |--------|------:|
-| Live backlog items | 398 |
+| Live backlog items | 391 |
 | Root backlog items | 31 |
 | `asap/` | 0 |
 | `bad-code/` | 139 |
 | `cool-ideas/` | 93 |
 | `inbox/` | 5 |
 | `up-next/` | 53 |
-| `v17.0.0/` | 64 |
+| `v17.0.0/` | 57 |
 | `v18.0.0/` | 8 |
 | `v19.0.0/` | 5 |
-| Items with YAML frontmatter | 109 |
+| Items with YAML frontmatter | 102 |
 | Items without YAML frontmatter | 289 |
-| Items with explicit `id` | 94 |
-| Items declaring dependency fields | 82 |
-| Items with non-empty explicit dependency edges | 62 |
+| Items with explicit `id` | 87 |
+| Items declaring dependency fields | 75 |
+| Items with non-empty explicit dependency edges | 55 |
 
 ## Dependency Law
 
@@ -92,9 +92,9 @@ small number of nodes in `up-next/`, `cool-ideas/`, and `bad-code/`.
 
 Current explicit-graph totals:
 
-- `94` notes define an `id`
-- `82` notes declare `blocks` or `blocked_by` fields
-- `62` notes currently name at least one non-empty upstream or
+- `87` notes define an `id`
+- `75` notes declare `blocks` or `blocked_by` fields
+- `55` notes currently name at least one non-empty upstream or
   downstream edge
 
 The explicit graph is still concentrated in `v17.0.0/`, but the new
@@ -212,9 +212,9 @@ Prefix counts:
 | `CROSS` | 1 |
 | `GOD` | 6 |
 | `HYGIENE` | 2 |
-| `INFRA` | 10 |
+| `INFRA` | 9 |
 | `PERF` | 2 |
-| `PROTO` | 19 |
+| `PROTO` | 13 |
 | `SLUDGE` | 5 |
 | `TRUST` | 1 |
 | `TS` | 14 |
