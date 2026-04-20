@@ -201,6 +201,8 @@ Dependency posture:
 Canonical lane readme:
 
 - [v17.0.0/README.md](v17.0.0/README.md)
+- Historical release ledger:
+  [../../releases/v17.0.0/README.md](../../releases/v17.0.0/README.md)
 
 Prefix counts:
 
