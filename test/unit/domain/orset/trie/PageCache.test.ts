@@ -56,9 +56,11 @@ function makeCursor(opts?: {
 async function flushRootWithElements(args: {
   readonly store: InMemoryTrieStore;
   readonly elements: readonly string[];
+  readonly geometry?: TrieGeometry;
 }): Promise<string> {
   const { cursor } = makeCursor({
     store: args.store,
+    geometry: args.geometry,
     pageCache: new PageCache({ maxResident: 8 }),
   });
   for (let i = 0; i < args.elements.length; i += 1) {
@@ -157,6 +159,44 @@ describe("TrieCursor + PageCache", () => {
 
     const second = makeCursor({ rootOid, store, pageCache: sharedCache }).cursor;
     expect(await second.contains("node:1")).toBe(true);
+    expect(store.readCounts()).toEqual(afterFirst);
+  });
+
+  it("pays the branch fallback probe on first deep read and then serves later reads from cache", async () => {
+    const tiny = new TrieGeometry({
+      fanout: 16,
+      nibbleBits: 4,
+      leafCapacity: 2,
+      leafFloor: 1,
+    });
+    const store = new InMemoryTrieStore();
+    const rootOid = await flushRootWithElements({
+      store,
+      geometry: tiny,
+      elements: Array.from({ length: 20 }, (_, i) => `node:${i}`),
+    });
+    const sharedCache = new PageCache({ maxResident: 64 });
+
+    const first = makeCursor({
+      rootOid,
+      store,
+      geometry: tiny,
+      pageCache: sharedCache,
+    }).cursor;
+    await first.elements();
+    const afterFirst = store.readCounts();
+
+    expect(afterFirst.leaf).toBeGreaterThan(0);
+    expect(afterFirst.branch).toBeGreaterThan(1);
+
+    const second = makeCursor({
+      rootOid,
+      store,
+      geometry: tiny,
+      pageCache: sharedCache,
+    }).cursor;
+    await second.elements();
+
     expect(store.readCounts()).toEqual(afterFirst);
   });
 

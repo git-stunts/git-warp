@@ -405,11 +405,11 @@ Recorded after implementation commit `e09b0d75` and red-test commit
   and falls back to an internal default cache to avoid broad call-site
   churn in this slice. This preserves behavior and keeps tests green,
   but it weakens the explicit ownership story described above.
-- **The branch-fallback playback is proven by code path, not a
-  dedicated assertion.** Shared-cache tests prove zero additional
-  reads on cache hit, but there is not yet a dedicated unit asserting
-  "first branch miss pays the ambiguous probe once, second read is a
-  cache hit."
+- **The branch-fallback playback now has a dedicated assertion.**
+  `test/unit/domain/orset/trie/PageCache.test.ts` exercises a deep
+  trie where the first traversal incurs both `readLeaf` and
+  `readBranch` work, and the second traversal on the shared cache
+  incurs no additional reads.
 
 ## Downstream effects
 
