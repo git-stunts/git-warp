@@ -361,6 +361,56 @@ that later owner.
   objects, so it belongs above `TrieStorePort`, not inside a Git
   adapter.
 
+## Playback results
+
+Recorded after implementation commit `e09b0d75` and red-test commit
+`589dc413`.
+
+### Human
+
+- **Is the ownership split obvious?** Yes. `PageCache` owns persisted
+  OID-addressed pages and counters; `TrieCursor` still owns dirty
+  working maps and pending child OIDs.
+- **Is the cache small enough for later `StateSession` ownership?**
+  Yes. The public surface stayed at three methods (`get`, `put`,
+  `stats`) plus a constructor.
+
+### Agent
+
+- **Does a cache hit avoid both `store.readLeaf` and
+  `store.readBranch` for the resolved OID?** Yes, for the exercised
+  shared-cache path. `test/unit/domain/orset/trie/PageCache.test.ts`
+  proves the second cursor does not increase read counts.
+- **Does touching a resident page promote it to MRU?** Yes. The pure
+  LRU unit tests show hit promotion and least-recently-used eviction.
+- **Does `put` bound residency strictly by page count?** Yes.
+  `PageCache` tracks only resident-entry count; no byte-based logic
+  was introduced.
+- **Are dirty pages excluded until they receive a real OID?** Yes.
+  The cache rejects pending OIDs and the cursor does not insert dirty
+  working pages into it.
+- **Can two cursors share one cache without sharing dirty state?**
+  Yes. The shared-cache cursor test passes while each cursor keeps its
+  own working maps.
+- **Does the first cold read of a branch still pay the existing
+  leaf-then-branch probe cost, with later reads served from cache?**
+  Code-truth yes: the miss path in `TrieCursor.#loadChildFromStore`
+  still falls through the existing leaf-read / branch-read logic
+  before caching the resolved page.
+
+## Drift check
+
+- **Design said `TrieCursorInit.pageCache` was required; implementation
+  made it optional.** The code currently allows omitted `pageCache`
+  and falls back to an internal default cache to avoid broad call-site
+  churn in this slice. This preserves behavior and keeps tests green,
+  but it weakens the explicit ownership story described above.
+- **The branch-fallback playback is proven by code path, not a
+  dedicated assertion.** Shared-cache tests prove zero additional
+  reads on cache hit, but there is not yet a dedicated unit asserting
+  "first branch miss pays the ambiguous probe once, second read is a
+  cache hit."
+
 ## Downstream effects
 
 - **`PROTO_shadow-trie-orset`** — gains the bounded residency owner
