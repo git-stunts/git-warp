@@ -18,6 +18,7 @@ import GitTrieStoreAdapter from "../../../../../src/infrastructure/adapters/GitT
 import TrieCursor from "../../../../../src/domain/orset/trie/TrieCursor.ts";
 import TrieFlusher from "../../../../../src/domain/orset/trie/TrieFlusher.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
+import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import cborCodec from "../../../../../src/infrastructure/codecs/CborCodec.ts";
 
 interface PlumbingRuntime {
@@ -32,6 +33,10 @@ interface Harness {
   readonly plumbing: PlumbingRuntime;
   readonly adapter: GitTrieStoreAdapter;
   cleanup(): Promise<void>;
+}
+
+function newPageCache(): PageCache {
+  return new PageCache({ maxResident: 64 });
 }
 
 async function createHarness(): Promise<Harness> {
@@ -74,6 +79,7 @@ describe("TrieCursor + TrieFlusher integration (real Git)", () => {
       store: harness.adapter,
       geometry,
       codec: cborCodec,
+      pageCache: newPageCache(),
     });
     await cursor.add("node:1", new Dot("alice", 1));
     const flusher = new TrieFlusher({ store: harness.adapter, codec: cborCodec });
@@ -85,6 +91,7 @@ describe("TrieCursor + TrieFlusher integration (real Git)", () => {
       store: harness.adapter,
       geometry,
       codec: cborCodec,
+      pageCache: newPageCache(),
     });
     expect(await replay.contains("node:1")).toBe(true);
   });
@@ -101,6 +108,7 @@ describe("TrieCursor + TrieFlusher integration (real Git)", () => {
       store: harness.adapter,
       geometry: tiny,
       codec: cborCodec,
+      pageCache: newPageCache(),
     });
     const ids = Array.from({ length: 20 }, (_, i) => `node:${i}`);
     for (let i = 0; i < ids.length; i += 1) {
@@ -126,6 +134,7 @@ describe("TrieCursor + TrieFlusher integration (real Git)", () => {
       store: harness.adapter,
       geometry: tiny,
       codec: cborCodec,
+      pageCache: newPageCache(),
     });
     for (const id of ids) {
       expect(await replay.contains(id)).toBe(true);
@@ -141,6 +150,7 @@ describe("TrieCursor + TrieFlusher integration (real Git)", () => {
       store: harness.adapter,
       geometry,
       codec: cborCodec,
+      pageCache: newPageCache(),
     });
     for (let i = 0; i < 5; i += 1) {
       await first.add(`node:${i}`, new Dot("w", i + 1));
@@ -152,6 +162,7 @@ describe("TrieCursor + TrieFlusher integration (real Git)", () => {
       store: harness.adapter,
       geometry,
       codec: cborCodec,
+      pageCache: newPageCache(),
     });
     await second.add("node:new", new Dot("w", 100));
     const next = await flusher.flush(second.snapshot());
@@ -162,6 +173,7 @@ describe("TrieCursor + TrieFlusher integration (real Git)", () => {
       store: harness.adapter,
       geometry,
       codec: cborCodec,
+      pageCache: newPageCache(),
     });
     for (let i = 0; i < 5; i += 1) {
       expect(await replay.contains(`node:${i}`)).toBe(true);
@@ -176,6 +188,7 @@ describe("TrieCursor + TrieFlusher integration (real Git)", () => {
       store: harness.adapter,
       geometry,
       codec: cborCodec,
+      pageCache: newPageCache(),
     });
     const flusher = new TrieFlusher({ store: harness.adapter, codec: cborCodec });
     const result = await flusher.flush(cursor.snapshot());

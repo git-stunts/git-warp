@@ -58,9 +58,10 @@ async function flushRootWithElements(args: {
   readonly elements: readonly string[];
   readonly geometry?: TrieGeometry;
 }): Promise<string> {
+  const geometry = args.geometry ?? GEOMETRY_16;
   const { cursor } = makeCursor({
     store: args.store,
-    geometry: args.geometry,
+    geometry,
     pageCache: new PageCache({ maxResident: 8 }),
   });
   for (let i = 0; i < args.elements.length; i += 1) {

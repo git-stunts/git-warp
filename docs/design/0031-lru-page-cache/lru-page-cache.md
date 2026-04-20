@@ -202,7 +202,9 @@ already preserves insertion order.
 
 ## Cursor integration
 
-`TrieCursorInit` gains a required `pageCache: PageCache`.
+`TrieCursorInit` gains a required `pageCache: PageCache`. The owner
+chooses cache lifetime and residency budget; `TrieCursor` never
+silently allocates its own cache.
 
 ```typescript
 export interface TrieCursorInit {
@@ -401,10 +403,9 @@ Recorded after implementation commit `e09b0d75` and red-test commit
 ## Drift check
 
 - **Design said `TrieCursorInit.pageCache` was required; implementation
-  made it optional.** The code currently allows omitted `pageCache`
-  and falls back to an internal default cache to avoid broad call-site
-  churn in this slice. This preserves behavior and keeps tests green,
-  but it weakens the explicit ownership story described above.
+  made it optional.** Resolved. `TrieCursorInit.pageCache` is now
+  required in code as designed, so cache lifetime and capacity are
+  explicit at the composition site.
 - **The branch-fallback playback now has a dedicated assertion.**
   `test/unit/domain/orset/trie/PageCache.test.ts` exercises a deep
   trie where the first traversal incurs both `readLeaf` and

@@ -4,6 +4,7 @@ import { Dot } from "../../../../../src/domain/crdt/Dot.ts";
 import TrieCursor from "../../../../../src/domain/orset/trie/TrieCursor.ts";
 import TrieCursorError from "../../../../../src/domain/errors/TrieCursorError.ts";
 import TrieStoreError from "../../../../../src/domain/errors/TrieStoreError.ts";
+import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
 import TrieLeaf from "../../../../../src/domain/orset/trie/TrieLeaf.ts";
 import TrieBranch from "../../../../../src/domain/orset/trie/TrieBranch.ts";
@@ -20,6 +21,7 @@ function makeCursor(opts?: {
   readonly rootOid?: string | null;
   readonly store?: InMemoryTrieStore | NeverCallStore | FaultyTrieStore;
   readonly geometry?: TrieGeometry;
+  readonly pageCache?: PageCache;
 }): {
   readonly cursor: TrieCursor;
   readonly store: InMemoryTrieStore | NeverCallStore | FaultyTrieStore;
@@ -30,12 +32,19 @@ function makeCursor(opts?: {
     store,
     geometry: opts?.geometry ?? GEOMETRY_16,
     codec: cborCodec,
+    pageCache: opts?.pageCache ?? new PageCache({ maxResident: 64 }),
   });
   return { cursor, store };
 }
 
 function dotOf(writer: string, counter: number): Dot {
   return new Dot(writer, counter);
+}
+
+function malformedDot(writerId: string, counter: number): Dot {
+  const candidate = { writerId, counter };
+  Object.setPrototypeOf(candidate, Dot.prototype);
+  return candidate;
 }
 
 describe("TrieCursor", () => {
@@ -85,8 +94,7 @@ describe("TrieCursor", () => {
     it("rejects an add dot with zero counter", async () => {
       const { cursor } = makeCursor();
       try {
-        // Build by hand to bypass Dot's constructor validation.
-        const badDot = Object.freeze({ writerId: "w", counter: 0 }) as unknown as Dot;
+        const badDot = malformedDot("w", 0);
         await cursor.add("node:1", badDot);
         throw new Error("should have thrown");
       } catch (err) {
@@ -99,7 +107,7 @@ describe("TrieCursor", () => {
 
     it("rejects an add dot with empty writerId", async () => {
       const { cursor } = makeCursor();
-      const badDot = Object.freeze({ writerId: "", counter: 1 }) as unknown as Dot;
+      const badDot = malformedDot("", 1);
       await expect(cursor.add("node:1", badDot)).rejects.toBeInstanceOf(
         TrieCursorError,
       );

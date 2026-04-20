@@ -35,7 +35,7 @@ export interface TrieCursorInit {
   readonly store: TrieStorePort;
   readonly geometry: TrieGeometry;
   readonly codec: CodecPort;
-  readonly pageCache?: PageCache;
+  readonly pageCache: PageCache;
 }
 
 interface InsertContext {
@@ -64,8 +64,6 @@ interface SplitContext {
  * contract, split semantics, and error codes.
  */
 export default class TrieCursor {
-  static readonly DEFAULT_PAGE_CACHE_RESIDENT = 64;
-
   readonly #initialRootOid: string | null;
   readonly #store: TrieStorePort;
   readonly #geometry: TrieGeometry;
@@ -84,11 +82,7 @@ export default class TrieCursor {
     this.#store = init.store;
     this.#geometry = init.geometry;
     this.#codec = init.codec;
-    this.#pageCache =
-      init.pageCache
-      ?? new PageCache({
-        maxResident: TrieCursor.DEFAULT_PAGE_CACHE_RESIDENT,
-      });
+    this.#pageCache = init.pageCache;
   }
 
   async contains(element: string): Promise<boolean> {
