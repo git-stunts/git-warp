@@ -87,7 +87,7 @@ ST-1 (ORSet seam in root + storage contracts):
 ST-2 (trie foundation):
   [x] PROTO_trie-codec-and-geometry     ← cycle 0027 hill-met
   [x] PROTO_trie-cursor                 ← cycle 0029 hill-met
-  [ ] PERF_lru-page-cache
+  [x] PERF_lru-page-cache               ← cycle 0031 hill-met
   [x] PROTO_trie-flush                  ← cycle 0030 hill-met
   [ ] PROTO_checkpoint-envelope-publication
 

@@ -35,7 +35,10 @@ Implement `ShadowTrieORSet` in `warp-orset`:
 - `compact(vv): Promise<void>` — delegates to PROTO_trie-compaction
 
 `StateSession` (PROTO_state-session-async) wraps this engine and
-presents it to domain code as the domain-facing contract.
+presents it to domain code as the domain-facing contract. Cache
+lifetime and cursor creation stay above this engine at the session
+owner seam; `ShadowTrieORSet` consumes those internals rather than
+publishing them as ports.
 
 ## Scope
 
@@ -52,3 +55,5 @@ against in-memory store double.
 - LWW stays out of this package.
 - `scan()` is an async iterable, not a synchronous `elements()` call.
   This is the honest shape of out-of-core state access.
+- `TrieCursor` and `PageCache` remain implementation details below the
+  session seam. Do not grow a public `TrieCursorPort`.
