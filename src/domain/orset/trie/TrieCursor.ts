@@ -4,6 +4,7 @@ import type CodecPort from "../../../ports/CodecPort.ts";
 import RouteKey from "../route/RouteKey.ts";
 
 import DirtyPageSet, { encodeDirtyPath } from "./DirtyPageSet.ts";
+import PageCache from "./PageCache.ts";
 import TrieBranch from "./TrieBranch.ts";
 import type TrieGeometry from "./TrieGeometry.ts";
 import TrieLeaf, { type TrieLeafEntry } from "./TrieLeaf.ts";
@@ -34,6 +35,7 @@ export interface TrieCursorInit {
   readonly store: TrieStorePort;
   readonly geometry: TrieGeometry;
   readonly codec: CodecPort;
+  readonly pageCache?: PageCache;
 }
 
 interface InsertContext {
@@ -62,10 +64,13 @@ interface SplitContext {
  * contract, split semantics, and error codes.
  */
 export default class TrieCursor {
+  static readonly DEFAULT_PAGE_CACHE_RESIDENT = 64;
+
   readonly #initialRootOid: string | null;
   readonly #store: TrieStorePort;
   readonly #geometry: TrieGeometry;
   readonly #codec: CodecPort;
+  readonly #pageCache: PageCache;
 
   readonly #dirtyLeaves = new Map<string, TrieLeaf>();
   readonly #dirtyBranches = new Map<string, TrieBranch>();
@@ -79,6 +84,11 @@ export default class TrieCursor {
     this.#store = init.store;
     this.#geometry = init.geometry;
     this.#codec = init.codec;
+    this.#pageCache =
+      init.pageCache
+      ?? new PageCache({
+        maxResident: TrieCursor.DEFAULT_PAGE_CACHE_RESIDENT,
+      });
   }
 
   async contains(element: string): Promise<boolean> {
@@ -164,7 +174,22 @@ export default class TrieCursor {
     if (this.#initialRootOid === null) {
       return;
     }
+    const cachedRoot = this.#pageCache.get(this.#initialRootOid);
+    if (cachedRoot !== null) {
+      if (!(cachedRoot instanceof TrieBranch)) {
+        throw new TrieCursorError(
+          `TrieCursor expected cached branch at root oid=${this.#initialRootOid}`,
+          {
+            code: "E_TRIE_CURSOR_STRUCTURE",
+            context: { oid: this.#initialRootOid, kind: "leaf" },
+          },
+        );
+      }
+      this.#workingBranches.set("", cachedRoot);
+      return;
+    }
     const rootBranch = await this.#readBranchStrict(this.#initialRootOid, []);
+    this.#pageCache.put(this.#initialRootOid, rootBranch);
     this.#workingBranches.set("", rootBranch);
   }
 
@@ -238,13 +263,26 @@ export default class TrieCursor {
     childPath: readonly number[],
     childOid: string,
   ): Promise<"leaf" | "branch" | null> {
+    const cachedPage = this.#pageCache.get(childOid);
+    if (cachedPage !== null) {
+      if (cachedPage instanceof TrieLeaf) {
+        this.#workingLeaves.set(encodeDirtyPath(childPath), cachedPage);
+        this.#cleanChildren.set(encodeDirtyPath(childPath), childOid);
+        return "leaf";
+      }
+      this.#workingBranches.set(encodeDirtyPath(childPath), cachedPage);
+      this.#cleanChildren.set(encodeDirtyPath(childPath), childOid);
+      return "branch";
+    }
     const leaf = await this.#tryReadLeaf(childOid, childPath);
     if (leaf !== null) {
+      this.#pageCache.put(childOid, leaf);
       this.#workingLeaves.set(encodeDirtyPath(childPath), leaf);
       this.#cleanChildren.set(encodeDirtyPath(childPath), childOid);
       return "leaf";
     }
     const branch = await this.#readBranchStrict(childOid, childPath);
+    this.#pageCache.put(childOid, branch);
     this.#workingBranches.set(encodeDirtyPath(childPath), branch);
     this.#cleanChildren.set(encodeDirtyPath(childPath), childOid);
     return "branch";
