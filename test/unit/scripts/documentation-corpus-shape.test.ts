@@ -59,7 +59,8 @@ describe('documentation corpus taxonomy', () => {
     expect(hasFile('docs/ROADMAP.md')).toBe(true);
     expect(hasFile('ARCHITECTURE.md')).toBe(false);
     expect(hasFile('ROADMAP.md')).toBe(false);
-    expect(hasFile('adr/ADR-0004-folds.md')).toBe(true);
+    expect(hasFile('docs/archive/adr/ADR-0004-folds.md')).toBe(true);
+    expect(hasFile('adr/ADR-0004-folds.md')).toBe(false);
     expect(hasFile('docs/ADR-001-Folds.md')).toBe(false);
     expect(hasFile('examples')).toBe(false);
     expect(hasFile('GRAVEYARD.md')).toBe(false);

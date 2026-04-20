@@ -1,11 +1,223 @@
 # METHOD
 
-The canonical METHOD document now lives at
-[docs/METHOD.md](docs/METHOD.md).
+A backlog, a loop, and honest bookkeeping.
 
-This root file remains as a compatibility signpost for older links,
-agent instructions, and historical docs that still point at
-`/METHOD.md`.
+## Principles
+
+### Stances
+
+**The agent and the human sit at the same table.** They see different
+things. Both are named in every design. Both must agree before work
+ships.
+
+**Default to building the agent surface first** - it is the foundation
+the human experience stands on. If the work is human-first exploratory
+design, say so in the design doc.
+
+**Agent surfaces must be explicit and inspectable.** If work is
+agent-mediated, say what is agent-generated, why it exists, what
+evidence it relies on, and what action it expects next.
+
+**The filesystem is the database.** A directory is a priority. A
+filename is an identity. Moving a file is a decision. `ls` is the
+query.
+
+**Process should be calm.** No sprints. No velocity. No burndown. A
+backlog tiered by judgment, and a loop for doing it well.
+
+### Design constraints
+
+**Meaning must survive without decoration.** If the work only makes
+sense with color, layout, motion, or shared visual context, the design
+is unfinished. Rich interaction is valuable, but the underlying truth
+must stand on its own.
+
+**Accessibility is a product concern, not a fallback string path.**
+Designs must name the linear reading model and reduced-complexity
+experience, not assume the default operator.
+
+**Localization is not translation after the fact.** Wording, wrapping,
+formatting, and directionality are design constraints from the start.
+Prefer logical `start`/`end` thinking over hardcoded left/right
+assumptions.
+
+### Quality gates
+
+**Everything traces to a playback question.** If you cannot say which
+question your work answers, you are drifting. Stop. Reconnect to the
+design, or change it.
+
+**Tests are the executable spec.** Design names the hill and the
+playback questions. Tests prove the answers. No ceremonial prose
+between intent and proof.
+
+**If a claimed result cannot be reproduced, it is not done.**
+Witnesses are not victory photos. They are rerunnable proof.
+
+---
+
+## Structure
+
+```text
+docs/
+  method/
+    backlog/
+      inbox/                        raw ideas, anyone, anytime
+      asap/                         do this now
+      up-next/                      do this soon
+      cool-ideas/                   experiments, wild thoughts
+      bad-code/                     tech debt
+      *.md                          everything else
+    legends/                        named domains
+    retro/<cycle>/<task>.md         retrospectives
+    graveyard/                      rejected ideas
+    guide.md                        operator advice and non-doctrinal practice notes
+    process.md                      how cycles run
+    release.md                      how releases work
+  design/
+    <cycle>/<task>.md               cycle design docs
+    *.md                            living documents
+```
+
+Repo signposts live at root or one level into `docs/`. `README.md` is
+the standing root exception; every other signpost uses `ALL_CAPS.md`.
+Deeper than that, it is not a signpost.
+
+---
+
+## Signposts
+
+METHOD expects a few bounded repo-level signposts. They summarize the
+state of the repo; they do not create commitments.
+
+| Signpost | Role |
+|----------|------|
+| `README.md` | The operating doctrine and filesystem shape. |
+| `docs/BEARING.md` | Current direction, last shipped cycle, and tensions at cycle boundaries. |
+| `docs/VISION.md` | A bounded executive synthesis grounded in repo-visible sources. |
+
+Generated signposts should carry generation metadata and a source
+manifest. Unless they say otherwise explicitly, they are making
+artifact-history claims, not semantic-provenance claims.
+
+---
+
+## Backlog
+
+Markdown files. Each describes work worth doing. The filesystem is
+the index.
+
+### Inbox
+
+Anyone - human or agent - drops ideas in at any time. A sentence is
+enough. No legend, no scope, no ceremony. Capture it. Keep moving.
+The inbox is processed during maintenance.
+
+### Lanes
+
+| Lane | Purpose |
+|------|---------|
+| `inbox/` | Unprocessed. |
+| `asap/` | Pull into a cycle soon. |
+| `up-next/` | Next in line. |
+| `cool-ideas/` | Not commitments. |
+| `bad-code/` | It works, but it bothers you. |
+
+Anything else sits in the backlog root.
+
+### Naming
+
+Legend prefix if applicable. No numeric IDs.
+
+```text
+PROTO_strand-lifecycle.md
+HEX_raw-git-bypass.md
+MODEL_patch-v2-validation.md
+debt-trailer-codec-dts.md
+```
+
+Historical prefixes may survive in older backlog identities. New
+backlog notes should prefer the current legend family for the lane they
+live in.
+
+### Promoting
+
+When a backlog item is pulled into a cycle, it becomes a design doc:
+
+```text
+backlog/asap/CC_strand-service-decomposition.md -> design/<cycle>/strand-service-decomposition.md
+```
+
+The backlog file is removed. Work does not live in two places.
+
+### Commitment
+
+Pull it and you own it - "you" meaning the named sponsors (human and
+agent) in the design doc. It does not go back.
+
+- **Finish** - hill met.
+- **Pivot** - end early, write the retro. Remaining work re-enters
+  the backlog as a new item with fresh scope.
+
+### Maintenance
+
+End of cycle:
+
+- Process inbox. Promote, flesh out, or bury.
+- Re-prioritize. What you learned changes what matters.
+- Clean up. Merge duplicates, kill the dead.
+
+Do not reorganize mid-cycle.
+
+### Cycle types
+
+Same loop regardless:
+
+- **Feature** - design, test, build, ship.
+- **Design** - the deliverable is docs, not code.
+- **Debt** - pull from `bad-code/`. The hill is "this no longer
+  bothers us."
+
+---
+
+## Legends
+
+A named domain that spans many cycles. Legends organize attention, not
+timelines - they are reference frames, not milestones. A legend never
+starts or finishes. It describes what it covers, who cares, what
+success looks like, and how you know.
+
+A legend code prefixes backlog filenames so that `ls` reveals domain
+load at a glance. Legends live in `docs/method/legends/` as standalone
+documents.
+
+The current legends in this repo are:
+
+- **Program legends** — feature or release work grouped by initiative
+  or surface. Active examples in this repo include `API`, `DX`,
+  `HYGIENE`, `INFRA`, `PERF`, `PROTO`, `SLUDGE`, `TRUST`, `TS`,
+  `TUI`, and `VIZ`.
+- **Invariant legends** — debt grouped by the law it violates. These
+  are the canonical legends for `docs/method/backlog/bad-code/`:
+  - `HEX` — hex boundary honesty
+  - `BND` — boundary decode and validation honesty
+  - `MODEL` — runtime-backed model honesty
+  - `CAST` — no cast-cosplay or escape-hatch lies
+  - `PORT` — capability and port-surface honesty
+  - `OWN` — ownership and cohesion
+  - `SUB` — substrate/storage/streaming integrity
+  - `SPEC` — executable-spec honesty (tests, docs, mocks, residue)
+
+Historical umbrella prefixes such as `CC` and `NDNM` remain in older
+filenames and retros, but they are legacy identities rather than the
+preferred current taxonomy. `docs/method/backlog/bad-code/README.md`
+is the canonical index for the new invariant grouping.
+
+Not every METHOD repo needs these exact legends. Legends are local to
+the repo and should reflect the domains that actually organize its
+work.
+
+---
 
 ## Cycles
 

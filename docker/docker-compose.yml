@@ -1,7 +1,7 @@
 services:
   test:
     build:
-      context: ..
+      context: ../..
       dockerfile: git-warp/docker/Dockerfile.node22-slim
     environment:
       - GIT_STUNTS_DOCKER=1
@@ -9,9 +9,9 @@ services:
   benchmark:
     build:
       context: ..
-      dockerfile: git-warp/docker/Dockerfile.benchmark
+      dockerfile: docker/Dockerfile.benchmark
     volumes:
-      - ./benchmarks:/app/benchmarks
+      - ../benchmarks:/app/benchmarks
     environment:
       - GIT_STUNTS_DOCKER=1
     command: ["node", "benchmarks/benchmark.js"]

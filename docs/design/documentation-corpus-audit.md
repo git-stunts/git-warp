@@ -159,7 +159,7 @@ The target live structure should move toward explicit homes for:
 - `docs/release.md`
 - `docs/specs/`
 - `docs/trust/`
-- `adr/`
+- `docs/archive/adr/`
 
 ### Process and historical design docs
 

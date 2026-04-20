@@ -1,6 +1,6 @@
 # How cycles run
 
-See [METHOD.md](../../METHOD.md) for the full philosophy. This file is
+See [METHOD](../METHOD.md) for the full philosophy. This file is
 the quick-reference for operating a cycle.
 
 ## Starting a cycle

@@ -108,14 +108,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Run Bun integration tests
-        run: docker compose -f docker-compose.test.yml run --rm test-bun
+        run: docker compose -f docker/docker-compose.test.yml run --rm test-bun
 
   test-deno:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - name: Run Deno integration tests
-        run: docker compose -f docker-compose.test.yml run --rm test-deno
+        run: docker compose -f docker/docker-compose.test.yml run --rm test-deno
 
   coverage-threshold:
     runs-on: ubuntu-latest

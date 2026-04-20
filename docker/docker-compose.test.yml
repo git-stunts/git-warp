@@ -1,8 +1,8 @@
 # Multi-runtime test matrix.
 #
 # Usage:
-#   docker compose -f docker-compose.test.yml --profile node22 up --build   # Node 22 only
-#   docker compose -f docker-compose.test.yml --profile full up --build     # All runtimes
+#   docker compose -f docker/docker-compose.test.yml --profile node22 up --build   # Node 22 only
+#   docker compose -f docker/docker-compose.test.yml --profile full up --build     # All runtimes
 #
 # Profiles:
 #   node20  — Node 20 (unit + integration + BATS CLI)
@@ -15,7 +15,7 @@ services:
   # Node 20 (LTS maintenance): unit + API integration + BATS CLI
   test-node20:
     build:
-      context: ..
+      context: ../..
       dockerfile: git-warp/docker/Dockerfile.node20
     environment:
       - GIT_STUNTS_DOCKER=1
@@ -25,7 +25,7 @@ services:
   # Node 22 (LTS active): unit + API integration + BATS CLI
   test-node22:
     build:
-      context: ..
+      context: ../..
       dockerfile: git-warp/docker/Dockerfile.node22
     environment:
       - GIT_STUNTS_DOCKER=1
@@ -37,7 +37,7 @@ services:
   # V8 C++ API, incompatible with Bun's JSC runtime).
   test-bun:
     build:
-      context: ..
+      context: ../..
       dockerfile: git-warp/docker/Dockerfile.bun
     environment:
       - GIT_STUNTS_DOCKER=1
@@ -47,7 +47,7 @@ services:
   # Deno: API integration tests via Deno.test() wrappers
   test-deno:
     build:
-      context: ..
+      context: ../..
       dockerfile: git-warp/docker/Dockerfile.deno
     environment:
       - GIT_STUNTS_DOCKER=1

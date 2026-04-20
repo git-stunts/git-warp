@@ -38,6 +38,8 @@ when you need that level of detail.
 
 ## Operational And Normative Docs
 
+- [Method](METHOD.md)
+  The canonical process, backlog law, and signpost contract.
 - [Architecture](ARCHITECTURE.md)
   System structure, public/core boundaries, and internal layering.
 - [Roadmap](ROADMAP.md)
@@ -51,7 +53,7 @@ when you need that level of detail.
 - [Protocol Specs](specs/)
   Normative specs such as audit receipts, bisect, content attachment, and trust
   crypto.
-- [ADR Registry](../adr/)
+- [ADR Archive](archive/adr/README.md)
   Formal architectural decisions.
 
 ## Process And History

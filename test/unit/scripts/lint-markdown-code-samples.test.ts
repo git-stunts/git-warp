@@ -144,7 +144,7 @@ describe('lintMarkdownCodeSample', () => {
 
   it('accepts documentation-style top-level await TypeScript snippets', () => {
     const sample = {
-      filePath: 'adr/ADR-0004-folds.md',
+      filePath: 'docs/archive/adr/ADR-0004-folds.md',
       language: ('ts' as 'ts'),
       code: [
         "const view = graph.view({ fold: { mode: 'shallow', maxDepth: 1 } });",
