@@ -292,6 +292,61 @@ that later owner.
 - cache seeding from `TrieFlusher` writes
 - byte-budget heuristics or cache tuning policy
 
+## Test matrix
+
+### Happy path
+
+- **`PageCache` pure behavior**
+  - cache miss returns `null`, increments `misses`, leaves
+    `resident` unchanged
+  - `put(oid, leaf)` and `put(oid, branch)` make the page resident
+    and visible through `get`
+  - repeated `get(oid)` on a resident entry increments `hits`
+  - re-`put` of an existing OID refreshes MRU without increasing
+    `resident`
+- **Cursor integration**
+  - cached root branch avoids `store.readBranch`
+  - repeated read of the same leaf OID through one cursor hits the
+    store once, then the cache
+  - two cursors sharing one cache instance observe reduced store
+    reads on the second cursor
+
+### Edge cases
+
+- `maxResident = 1` still honors MRU promotion and evicts exactly the
+  previous LRU page
+- mixed `TrieLeaf` and `TrieBranch` entries compete in the same
+  residency pool
+- first cold read of a branch OID still pays the current
+  `readLeaf -> decode fallthrough -> readBranch` cost once, then
+  becomes a cache hit
+- root-path loading and child-path loading both consult the cache
+- dirty copy after cache hit remains copy-on-write: mutating through
+  the cursor leaves the cached persisted page object unchanged
+
+### Known failure cases
+
+- invalid cache construction rejects:
+  - zero `maxResident`
+  - negative `maxResident`
+  - non-integer `maxResident`
+- cache kind mismatch is surfaced explicitly:
+  - cached `TrieLeaf` returned where root load requires
+    `TrieBranch`
+  - cached `TrieLeaf` / `TrieBranch` mismatch at a branch-only read
+    site
+- cache pollution is forbidden:
+  - pending OIDs like `pending:0/a/f` never become resident
+  - dirty pages never enter the cache before flush gives them a real
+    OID
+- store and decode failures on cache miss still surface through the
+  existing cursor error path; cache integration must not swallow,
+  reclassify, or convert them into fake cache misses
+- stats honesty:
+  - `put` does not increment `hits` or `misses`
+  - failed loads do not count as hits
+  - `evictions` increments only on real overflow
+
 ## Notes
 
 - `TrieLeaf` and `TrieBranch` are already runtime-backed immutable-ish
