@@ -19,3 +19,11 @@ Work:
   reinterpreting substrate semantics
 - coordinate with `PROTO_playback-head-alignment` so external consumers follow
   stable read nouns instead of inventing them early
+
+## Release home
+
+Primary release home: `v19`, with fuller distributed follow-through in `v21`.
+
+The boundary freeze belongs in `v19` because the repo needs one honest receipt
+and provenance seam. The richer plural/distributed consequences of that seam
+can extend into `v21`.

@@ -36,6 +36,13 @@ Work:
 - define how `LoweringWitness` differs from causal witness
 - define when `PolicyRequirement` is emitted instead of forced resolution
 
+## Release home
+
+Likely release home: `v21`.
+
+This noun family lives on the plural/distributed merge side of the horizon, not
+on the near-term observer/read-side cleanup path.
+
 ## Source
 
 - `docs/design/causal-lifting-and-merge-conflicts.tex`

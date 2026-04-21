@@ -36,6 +36,13 @@ Work:
 - decide which parts belong to authored contract vs host policy
 - generate at least one compiled merge helper family from a schema-owned source
 
+## Release home
+
+Likely release home: `v21`.
+
+This should not be mistaken for `v19` doctrine/runtime cleanup. It depends on
+the later merge/plurality contract story hardening first.
+
 ## Source
 
 - `docs/design/continuum-categories.tex`

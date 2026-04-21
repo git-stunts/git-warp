@@ -68,4 +68,13 @@ spec §12 is the implementation contract. Both agree:
 Graft requested strand collapse work. This item provides the
 runtime implementation that Graft (and Echo, Continuum) can consume.
 
-Target: v17.x or v18.0.0 (depending on API_kill-warpruntime timeline)
+## Release home
+
+Likely release home: `v21`, with possible seam work earlier.
+
+The old `v17.x or v18.0.0` target is stale. After `0037`, this is clearly on
+the plural/distributed side of the ladder:
+
+- `v19` should establish honest observer/admission seams
+- `v20` should make slice-first runtime execution real
+- `v21` should carry braid-collapse and common-basis plurality semantics

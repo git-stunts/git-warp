@@ -70,6 +70,14 @@ The missing feature is a causal-slice collapse:
 - Collapse preserves enough witness information to answer "why did this
   committed file change happen?" using pre-commit activity.
 
+## Release home
+
+Likely release home: `v20` to `v21`.
+
+The causal-slicing optic belongs after the `v19` read/runtime noun cleanup. The
+slice-first execution side is `v20`; the fuller strand-collapse and
+plurality-preserving semantics likely extend into `v21`.
+
 ## Source
 
 - Graft design discussion, 2026-04-09

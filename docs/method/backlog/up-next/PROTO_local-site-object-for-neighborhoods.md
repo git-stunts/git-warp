@@ -41,6 +41,19 @@ Why this matters:
 - gives future merge and collapse work one stable site noun instead of repeated
   shape inference
 
+## Release home
+
+Likely release home: `v21`.
+
+This note now sits on the plural/distributed side of the ladder:
+
+- `v19` should establish the read/runtime noun law
+- `v20` should make slice-first execution real
+- `v21` should carry local-site and common-basis semantics as runtime truth
+
+Do not promote this as ordinary near-term runtime cleanup just because it has a
+local-sounding name.
+
 ## Source
 
 - `PROTO_strand-collapse-optic-for-causal-slicing`
