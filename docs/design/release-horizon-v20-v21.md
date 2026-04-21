@@ -161,6 +161,36 @@ The medium-term rule should be:
 - **global questions** remain global in scope, but should not automatically
   imply whole-graph in-memory residency
 
+### What "external-memory global operators" means
+
+Some questions are honestly global:
+
+- graph-wide aggregates
+- whole-graph discovery queries
+- connected-component or SCC style analysis
+- topological or ordering-style passes over the whole graph
+
+Those questions may require considering the whole graph, but they do **not**
+automatically require materializing the whole graph into RAM at once.
+
+In this note, **external-memory global operators** means implementations that
+answer global questions using techniques like:
+
+- streaming passes
+- paging
+- on-disk or rebuildable indexes
+- chunked merges
+- spill files
+- external sorting
+- multi-pass scans over persisted state
+
+The important distinction is:
+
+- **global scope** is a property of the question
+- **whole-graph in-memory residency** is an implementation choice
+
+The long-term goal is to stop conflating those two things.
+
 That means the real future split is:
 
 - `v20`: make bounded reads and large local result sets scale honestly
