@@ -135,7 +135,7 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 - [OWN_trust-evaluator-coupling.md](OWN_trust-evaluator-coupling.md)
 - [OWN_trust-record-service-smells.md](OWN_trust-record-service-smells.md)
 
-### Substrate (`SUB`) — 10
+### Substrate (`SUB`) — 11
 
 - [SUB_bitmap-index-trio-coupling.md](SUB_bitmap-index-trio-coupling.md)
 - [SUB_bitmap-reader-silent-corruption.md](SUB_bitmap-reader-silent-corruption.md)
@@ -146,6 +146,7 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 - [SUB_bitmap-neighbor-provider-dead-false-branch.md](SUB_bitmap-neighbor-provider-dead-false-branch.md)
 - [SUB_gc-stale-cache-invalidation.md](SUB_gc-stale-cache-invalidation.md)
 - [SUB_incremental-index-updater-null-proto-rewrap-dead-branch.md](SUB_incremental-index-updater-null-proto-rewrap-dead-branch.md)
+- [SUB_legacy-seek-cache-key-drops-frontier.md](SUB_legacy-seek-cache-key-drops-frontier.md)
 - [SUB_streaming-bitmap-index-builder-serialization-tail.md](SUB_streaming-bitmap-index-builder-serialization-tail.md)
 
 ### Spec Honesty (`SPEC`) — 31
