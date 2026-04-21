@@ -44,6 +44,7 @@ import type LoggerPort from '../ports/LoggerPort.ts';
 import type CryptoPort from '../ports/CryptoPort.ts';
 import type CodecPort from '../ports/CodecPort.ts';
 import type SeekCachePort from '../ports/SeekCachePort.ts';
+import type WarpStateCachePort from '../ports/WarpStateCachePort.ts';
 import type BlobStoragePort from '../ports/BlobStoragePort.ts';
 import type PatchJournalPort from '../ports/PatchJournalPort.ts';
 import type CommitMessageCodecPort from '../ports/CommitMessageCodecPort.ts';
@@ -109,6 +110,7 @@ type WarpRuntimeOptions = {
   crypto?: CryptoPort;
   codec?: CodecPort;
   seekCache?: SeekCachePort;
+  stateCache?: WarpStateCachePort;
   audit?: boolean;
   blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
@@ -136,6 +138,7 @@ type WarpRuntimeOpenOptions = {
   crypto?: CryptoPort;
   codec?: CodecPort;
   seekCache?: SeekCachePort;
+  stateCache?: WarpStateCachePort;
   audit?: boolean;
   blobStorage?: BlobStoragePort;
   patchBlobStorage?: BlobStoragePort;
@@ -183,6 +186,7 @@ export default class WarpRuntime {
   _cachedCeiling: number | null;
   _cachedFrontier: Map<string, string> | null;
   _seekCache: SeekCachePort | null;
+  _stateCache: WarpStateCachePort | null;
   _blobStorage: BlobStoragePort | null;
   _patchBlobStorage: BlobStoragePort | null;
   _commitMessageCodec: CommitMessageCodecPort;
@@ -235,6 +239,7 @@ export default class WarpRuntime {
       crypto,
       codec,
       seekCache,
+      stateCache,
       audit = false,
       blobStorage,
       patchBlobStorage,
@@ -279,6 +284,7 @@ export default class WarpRuntime {
     this._cachedCeiling = null;
     this._cachedFrontier = null;
     this._seekCache = seekCache || null;
+    this._stateCache = stateCache || null;
     this._blobStorage = blobStorage || null;
     this._patchBlobStorage = patchBlobStorage || null;
     this._commitMessageCodec = commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
@@ -315,6 +321,7 @@ export default class WarpRuntime {
       persistence: this._persistence,
       // Getter so setSeekCache() on the host is immediately visible to the controller.
       getSeekCache: () => this._seekCache ?? null,
+      getStateCache: () => this._stateCache ?? null,
       patches: new RuntimePatchCollector(this),
       graphCloner: new RuntimeDetachedFactory(this),
       graphName: this._graphName,
@@ -423,6 +430,7 @@ export default class WarpRuntime {
     crypto,
     codec,
     seekCache,
+    stateCache,
     audit,
     blobStorage,
     patchBlobStorage,
@@ -579,6 +587,7 @@ export default class WarpRuntime {
       ...(crypto !== undefined ? { crypto } : {}),
       ...(codec !== undefined ? { codec } : {}),
       ...(seekCache !== undefined ? { seekCache } : {}),
+      ...(stateCache !== undefined ? { stateCache } : {}),
       ...(audit !== undefined ? { audit } : {}),
       blobStorage: resolvedBlobStorage,
       ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),

@@ -34,6 +34,14 @@ export default abstract class PatchCollector {
     _ceiling: number | null,
   ): Promise<PatchWithSha[]>;
 
+  collectForFrontierSinceCoordinate(
+    frontier: Map<string, string>,
+    ceiling: number | null,
+    _baseCoordinate: { frontier: Map<string, string>; ceiling: number | null },
+  ): Promise<PatchWithSha[]> {
+    return this.collectForFrontier(frontier, ceiling);
+  }
+
   /** Load the latest checkpoint, or null if none. */
   abstract loadCheckpoint(): Promise<CheckpointData | null>;
 

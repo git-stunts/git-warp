@@ -12,7 +12,7 @@
 
 import { reduceV5, createEmptyState } from '../JoinReducer.ts';
 import { isV5CheckpointSchema } from '../state/checkpointHelpers.ts';
-import { materializeIncremental } from '../state/checkpointLoad.ts';
+import { materializeIncremental, type LoadPersistence } from '../state/checkpointLoad.ts';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import { computeStateHash } from '../state/StateSerializer.ts';
 import { serializeFullState, deserializeFullState } from '../state/CheckpointSerializer.ts';
@@ -24,15 +24,25 @@ import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type SeekCachePort from '../../../ports/SeekCachePort.ts';
-import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
+import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
+import type {
+  WarpStateCoordinate,
+  WarpStateSnapshotRecord,
+} from '../../../ports/WarpStateCachePort.ts';
 import type PatchCollector from '../../capabilities/PatchCollector.ts';
 import type { PatchWithSha, CheckpointData } from '../../capabilities/PatchCollector.ts';
 import type DetachedGraphFactory from '../../capabilities/DetachedGraphFactory.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { PatchDiff } from '../../types/PatchDiff.ts';
-import type { CorePersistence } from '../../types/WarpPersistence.ts';
 import AdjacencyMap from '../../capabilities/AdjacencyMap.ts';
+
+type MaterializePersistence = {
+  readRef(ref: string): Promise<string | null>;
+  showNode(sha: string): Promise<string>;
+  readTreeOids(treeOid: string): Promise<Record<string, string>>;
+  readBlob(oid: string): Promise<Uint8Array>;
+};
 
 // ── Deps ────────────────────────────────────────────────────────────
 
@@ -41,12 +51,13 @@ export type MaterializeDeps = {
   logger: LoggerPort;
   codec: CodecPort;
   crypto: CryptoPort;
-  persistence: GraphPersistencePort;
+  persistence: MaterializePersistence;
   /**
    * Returns the current seek cache. Called at each materialize() invocation
    * so that setSeekCache() on the host is immediately reflected.
    */
   getSeekCache: () => SeekCachePort | null;
+  getStateCache?: () => WarpStateCachePort | null;
   patches: PatchCollector;
   graphCloner: DetachedGraphFactory;
   graphName: string;
@@ -271,12 +282,92 @@ export default class MaterializeController {
     if (opts.frontier.size === 0 || (opts.ceiling !== null && opts.ceiling <= 0)) {
       return await this._emptyResult(opts.ceiling, opts.frontier);
     }
+    const coordinate = this._snapshotCoordinate(opts.frontier, opts.ceiling);
+    const cacheResolved = await this._tryResolveSnapshotCache({
+      coordinate,
+      receipts: opts.receipts,
+    });
+    if (cacheResolved !== null) {
+      return cacheResolved;
+    }
     const patches = await this._deps.patches.collectForFrontier(opts.frontier, opts.ceiling);
     if (patches.length === 0) {
       return await this._emptyResult(opts.ceiling, opts.frontier);
     }
     const reduced = reducePatches(patches, undefined, { receipts: opts.receipts, wantDiff: false });
     return await this._buildResult({ reduced, patches, provenance: buildProvenance(patches), degraded: false, ceiling: opts.ceiling, frontier: opts.frontier });
+  }
+
+  private _snapshotCoordinate(frontier: Map<string, string>, ceiling: number | null): WarpStateCoordinate {
+    return {
+      frontier,
+      ceiling,
+    };
+  }
+
+  private async _tryResolveSnapshotCache(opts: {
+    coordinate: WarpStateCoordinate;
+    receipts: boolean;
+  }): Promise<MaterializeResult | null> {
+    const stateCache = this._deps.getStateCache?.() ?? null;
+    if (stateCache === null) {
+      return null;
+    }
+
+    const exact = await stateCache.getExact(opts.coordinate);
+    if (this._canUseSnapshot(exact, opts.receipts)) {
+      return await this._snapshotToResult(exact!);
+    }
+
+    const predecessor = await stateCache.getBestCompatiblePredecessor(opts.coordinate);
+    if (!this._canUseSnapshot(predecessor, opts.receipts)) {
+      return null;
+    }
+    if (predecessor === null || predecessor.state === undefined) {
+      return null;
+    }
+
+    const patches = await this._deps.patches.collectForFrontierSinceCoordinate(
+      opts.coordinate.frontier,
+      opts.coordinate.ceiling,
+      predecessor.coordinate,
+    );
+    const reduced = reducePatches(patches, predecessor.state, {
+      receipts: false,
+      wantDiff: false,
+    });
+    return await this._buildResult({
+      reduced,
+      patches,
+      provenance: buildProvenance(patches),
+      degraded: predecessor.provenancePosture === 'degraded',
+      ceiling: opts.coordinate.ceiling,
+      frontier: opts.coordinate.frontier,
+    });
+  }
+
+  private _canUseSnapshot(
+    snapshot: WarpStateSnapshotRecord | null,
+    receipts: boolean,
+  ): boolean {
+    if (snapshot === null || snapshot.state === undefined) {
+      return false;
+    }
+    if (receipts && snapshot.provenancePosture === 'degraded') {
+      return false;
+    }
+    return true;
+  }
+
+  private async _snapshotToResult(snapshot: WarpStateSnapshotRecord): Promise<MaterializeResult> {
+    return await this._buildResult({
+      reduced: { state: snapshot.state! },
+      patches: [],
+      provenance: new ProvenanceIndex(),
+      degraded: snapshot.provenancePosture === 'degraded',
+      ceiling: snapshot.coordinate.ceiling,
+      frontier: snapshot.coordinate.frontier,
+    });
   }
 
   // ── Checkpoint SHA pipeline ───────────────────────────────────────
@@ -287,7 +378,7 @@ export default class MaterializeController {
       await this._deps.patches.loadPatchChain(to, from);
 
     const state = await materializeIncremental({
-      persistence: this._deps.persistence as CorePersistence,
+      persistence: this._loadPersistence(),
       graphName: this._deps.graphName,
       checkpointSha,
       targetFrontier: frontier,
@@ -308,6 +399,18 @@ export default class MaterializeController {
       }
     }
     return frontier;
+  }
+
+  private _assertLoadPersistence(
+    persistence: MaterializePersistence,
+  ): asserts persistence is MaterializePersistence & LoadPersistence {
+    void persistence;
+  }
+
+  private _loadPersistence(): MaterializePersistence & LoadPersistence {
+    const persistence = this._deps.persistence;
+    this._assertLoadPersistence(persistence);
+    return persistence;
   }
 
   // ── Result building ───────────────────────────────────────────────

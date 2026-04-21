@@ -21,8 +21,52 @@ import { cloneState, type WarpState } from '../JoinReducer.ts';
 import type WarpRuntime from '../../WarpRuntime.ts';
 import type Patch from '../../types/Patch.ts';
 import type GCExecuteResult from '../GCExecuteResult.ts';
+import type {
+  WarpStateCoordinate,
+  WarpStateSnapshotProvenancePosture,
+  WarpStateSnapshotRecord,
+} from '../../../ports/WarpStateCachePort.ts';
+import type CodecPort from '../../../ports/CodecPort.ts';
+import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
+import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type LoggerPort from '../../../ports/LoggerPort.ts';
+import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
+import type StateHashService from '../state/StateHashService.ts';
+import type MaterializedViewService from '../MaterializedViewService.ts';
+import type GCPolicy from '../GCPolicy.ts';
+import type { CheckpointPersistence } from '../state/checkpointCreate.ts';
+import type { LoadPersistence } from '../state/checkpointLoad.ts';
 
-type CheckpointHost = WarpRuntime;
+type CheckpointHost = Pick<WarpRuntime, never> & {
+  _graphName: string;
+  _persistence: {
+    readRef(ref: string): Promise<string | null>;
+    updateRef(ref: string, oid: string): Promise<void>;
+    commitNode(options: { message: string; parents: string[] }): Promise<string>;
+    getNodeInfo(sha: string): Promise<{ message: string }>;
+  };
+  _cachedState: WarpState | null;
+  _stateDirty: boolean;
+  _checkpointing: boolean;
+  _viewService: MaterializedViewService | null;
+  _checkpointStore: CheckpointStorePort | null;
+  _stateHashService: StateHashService | null;
+  _provenanceIndex: WarpRuntime['_provenanceIndex'];
+  _cachedIndexTree: Record<string, Uint8Array> | null;
+  _codec: CodecPort;
+  _commitMessageCodec: CommitMessageCodecPort;
+  _crypto: CryptoPort;
+  _logger: LoggerPort | null;
+  _gcPolicy: GCPolicy;
+  _patchesSinceGC: number;
+  _lastGCLamport: number;
+  _maxObservedLamport: number;
+  _lastFrontier: Map<string, string> | null;
+  _cachedViewHash: string | null;
+  _stateCache: WarpRuntime['_stateCache'];
+  discoverWriters(): Promise<string[]>;
+  materialize(): Promise<WarpState>;
+};
 
 /**
  * Narrows codec-decode output to `object | null` without exposing the
@@ -93,6 +137,18 @@ export default class CheckpointController {
       }
     }
 
+    const stateCache = h._stateCache ?? null;
+    const coordinate = this._coordinateForCheckpoint(frontier);
+    if (stateCache !== null) {
+      const exactSnapshot = await stateCache.getExact(coordinate);
+      if (exactSnapshot !== null) {
+        const pinned = exactSnapshot.retention === 'pinned'
+          ? exactSnapshot
+          : await stateCache.pin(exactSnapshot.snapshotId);
+        return pinned.snapshotId;
+      }
+    }
+
     const prevCheckpointing = h._checkpointing;
     h._checkpointing = true;
     let state: WarpState;
@@ -102,6 +158,16 @@ export default class CheckpointController {
         : await h.materialize();
     } finally {
       h._checkpointing = prevCheckpointing;
+    }
+
+    if (stateCache !== null) {
+      const stored = await stateCache.put(await this._buildSnapshotRecord({
+        state,
+        coordinate,
+        provenancePosture: 'full',
+      }));
+      const pinned = await stateCache.pin(stored.snapshotId);
+      return pinned.snapshotId;
     }
 
     let indexTree = h._cachedIndexTree;
@@ -119,7 +185,8 @@ export default class CheckpointController {
     }
 
     const persistence = h._persistence;
-    const checkpointStore = h._checkpointStore ?? null;
+    this._assertCheckpointCreatePersistence(persistence);
+    const checkpointStore = h._checkpointStore ?? undefined;
     const stateHashService = h._stateHashService ?? null;
     const checkpointSha = await createCheckpointCommit({
       persistence,
@@ -132,7 +199,7 @@ export default class CheckpointController {
       codec: h._codec,
       commitMessageCodec: h._commitMessageCodec,
       ...(indexTree ? { indexTree } : {}),
-      checkpointStore,
+      ...(checkpointStore ? { checkpointStore } : {}),
       ...(stateHashService ? { stateHashService } : {}),
     });
 
@@ -140,6 +207,51 @@ export default class CheckpointController {
     await h._persistence.updateRef(checkpointRef, checkpointSha);
 
     return checkpointSha;
+  }
+
+  private _coordinateForCheckpoint(frontier: Map<string, string>): WarpStateCoordinate {
+    return {
+      frontier,
+      ceiling: null,
+    };
+  }
+
+  private async _buildSnapshotRecord(params: {
+    state: WarpState;
+    coordinate: WarpStateCoordinate;
+    provenancePosture: WarpStateSnapshotProvenancePosture;
+  }): Promise<WarpStateSnapshotRecord> {
+    const stateHash = await this._computeStateHash(params.state, params.coordinate);
+    return {
+      snapshotId: `snapshot:${stateHash}`,
+      coordinate: params.coordinate,
+      retention: 'evictable',
+      provenancePosture: params.provenancePosture,
+      stateHash,
+      payloadRef: `snapshot:${stateHash}`,
+      createdAt: 'checkpoint-create',
+      state: params.state,
+    };
+  }
+
+  private async _computeStateHash(state: WarpState, coordinate: WarpStateCoordinate): Promise<string> {
+    const h = this._host;
+    if (h._stateHashService !== null && h._stateHashService !== undefined) {
+      return await h._stateHashService.compute(state);
+    }
+    return `frontier:${frontierFingerprint(coordinate.frontier)}:${coordinate.ceiling === null ? 'head' : String(coordinate.ceiling)}`;
+  }
+
+  private _assertCheckpointCreatePersistence(
+    persistence: CheckpointHost['_persistence'],
+  ): asserts persistence is CheckpointHost['_persistence'] & CheckpointPersistence {
+    void persistence;
+  }
+
+  private _assertLoadPersistence(
+    persistence: CheckpointHost['_persistence'],
+  ): asserts persistence is CheckpointHost['_persistence'] & LoadPersistence {
+    void persistence;
   }
 
   async syncCoverage(): Promise<void> {
@@ -180,10 +292,11 @@ export default class CheckpointController {
     }
 
     try {
-      const checkpointStore = h._checkpointStore ?? null;
+      const checkpointStore = h._checkpointStore ?? undefined;
+      this._assertLoadPersistence(h._persistence);
       return await loadCheckpoint(h._persistence, checkpointSha, {
         codec: h._codec,
-        checkpointStore,
+        ...(checkpointStore ? { checkpointStore } : {}),
         commitMessageCodec: h._commitMessageCodec,
       });
     } catch (err) {

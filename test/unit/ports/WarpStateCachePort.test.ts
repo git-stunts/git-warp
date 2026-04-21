@@ -13,6 +13,7 @@ type SnapshotRecord = {
   provenancePosture: 'full' | 'degraded';
   stateHash: string;
   payloadRef: string;
+  createdAt: string;
 };
 
 describe('WarpStateCachePort', () => {
@@ -49,6 +50,7 @@ describe('WarpStateCachePort', () => {
           provenancePosture: 'full',
           stateHash: 'state-hash-1',
           payloadRef: 'payload-1',
+          createdAt: '2026-04-21T02:00:00.000Z',
         };
       }
 
@@ -74,6 +76,7 @@ describe('WarpStateCachePort', () => {
         provenancePosture: 'degraded',
         stateHash: 'state-hash-1',
         payloadRef: 'payload-1',
+        createdAt: '2026-04-21T02:00:00.000Z',
       }),
     ).toMatchObject({ snapshotId: 'snapshot-1' });
     expect(await cache.pin('snapshot-1')).toMatchObject({

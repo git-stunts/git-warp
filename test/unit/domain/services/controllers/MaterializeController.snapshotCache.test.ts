@@ -13,6 +13,9 @@ type SnapshotRecord = {
   state: ReturnType<typeof createEmptyState>;
   retention: 'evictable' | 'pinned';
   provenancePosture: 'full' | 'degraded';
+  stateHash: string;
+  payloadRef: string;
+  createdAt: string;
 };
 
 type PatchRecord = {
@@ -54,6 +57,9 @@ function snapshotRecord(
     state: createEmptyState(),
     retention: 'evictable',
     provenancePosture,
+    stateHash: `${snapshotId}-hash`,
+    payloadRef: `${snapshotId}-payload`,
+    createdAt: `${snapshotId}-created-at`,
   };
 }
 
@@ -78,7 +84,13 @@ function createControllerFixtures() {
   };
 
   const deps = {
-    logger: { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() },
+    logger: {
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn(),
+    },
     codec: {
       encode: vi.fn().mockReturnValue(new Uint8Array([1])),
       decode: vi.fn().mockReturnValue({}),
@@ -86,11 +98,13 @@ function createControllerFixtures() {
     crypto: {
       hash: vi.fn().mockResolvedValue('state-hash-1'),
       hmac: vi.fn().mockResolvedValue(new Uint8Array([1])),
+      timingSafeEqual: vi.fn().mockReturnValue(false),
     },
     persistence: {
       readRef: vi.fn().mockResolvedValue(null),
       readTreeOids: vi.fn().mockResolvedValue({}),
       showNode: vi.fn().mockResolvedValue(''),
+      readBlob: vi.fn().mockResolvedValue(new Uint8Array([1])),
     },
     getSeekCache: () => null,
     getStateCache: () => stateCache,
