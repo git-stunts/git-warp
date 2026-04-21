@@ -341,3 +341,103 @@ From this cycle forward:
   [docs/GLOSSARY.md](../GLOSSARY.md)
 - public-facing docs should point readers there when they teach the core read
   model
+
+## Playback
+
+### Witness
+
+The cycle witness is concrete and repo-local:
+
+- the canonical glossary now exists at `docs/GLOSSARY.md`
+- the architecture ladder exists at `docs/design/0035-observer-geometry-architecture-ladder.md`
+- the release horizon exists at `docs/design/release-horizon-v20-v21.md`
+- the promoted runtime-ladder notes now live in `docs/method/backlog/v19.0.0/`
+- `docs/GUIDE.md` and `docs/CONCEPTUAL_OVERVIEW.md` point readers to the
+  glossary
+- the doc-shape contract is ratcheted by:
+  - `test/unit/scripts/glossary-shape.test.ts`
+  - `test/unit/scripts/observer-geometry-ladder-shape.test.ts`
+
+Verification command:
+
+```sh
+npm exec vitest run \
+  test/unit/scripts/glossary-shape.test.ts \
+  test/unit/scripts/observer-geometry-ladder-shape.test.ts
+```
+
+### Agent playback
+
+Question:
+
+> Can I explain how a read should flow from optic to observer without
+> appealing to whole-graph default materialization?
+
+Answer:
+
+Yes. The glossary and ladder now make the flow explicit:
+
+1. an app asks an `Observer` to answer an `Optic`
+2. the read is bounded by an `Aperture` at a `Coordinate`
+3. the runtime derives a `bounded support rule`
+4. `causal indexes` and `support fragments` help find and reuse support
+5. a `materialization plan` fills the remaining gap
+6. the observer returns the read, optionally with `TickReceipt`,
+   `Witness`, or `GraphDiff`
+
+Question:
+
+> Can I name which nouns are shipped, transitional, and target-only?
+
+Answer:
+
+Yes. `docs/GLOSSARY.md` now marks each noun with exactly that status model.
+
+Question:
+
+> Can I point to the specific backlog items that implement the ladder?
+
+Answer:
+
+Yes. The ladder now points directly at:
+
+- `HYGIENE_warp-doctrine-runtime-alignment`
+- `PROTO_bounded-support-rules-for-query-surfaces`
+- `PROTO_causal-indexes-for-sliced-queries`
+- `PROTO_support-scoped-fragment-materialization`
+- `PROTO_tick-range-graph-diff-api`
+
+Verdict: pass.
+
+### Human playback
+
+Question:
+
+> Does the glossary feel like the right wall-chart for future design work?
+
+Answer:
+
+Yes. It gives one canonical answer for what the core nouns mean and whether
+they are shipped, transitional, or target-only.
+
+Question:
+
+> Does the architecture ladder feel like repo reality, not theory cosplay?
+
+Answer:
+
+Yes, with one important limit: it is a planning and noun-discipline success,
+not a runtime implementation success. The ladder is honest because it names the
+missing runtime machinery instead of pretending it already exists.
+
+Question:
+
+> Do the promoted backlog items look like the right path toward the ideal
+> runtime?
+
+Answer:
+
+Yes. They form a coherent read-side ladder: support rules, indexes, fragments,
+and diff surfaces.
+
+Verdict: pass.
