@@ -441,3 +441,56 @@ Yes. They form a coherent read-side ladder: support rules, indexes, fragments,
 and diff surfaces.
 
 Verdict: pass.
+
+## Drift check
+
+### Core hill drift
+
+No negative drift on the main hill.
+
+The cycle promised:
+
+- one canonical glossary
+- one architecture ladder
+- one promoted backlog ladder for the read-side/runtime follow-through
+
+Those all landed as designed.
+
+### Additive drift
+
+Two useful things were added beyond the original narrow design statement:
+
+1. A separate release-horizon note:
+   - `docs/design/release-horizon-v20-v21.md`
+
+   This is additive drift, not contradiction. It gave the ladder a clearer
+   place in the longer major-version story without muddying the glossary.
+
+2. Two `up-next/` follow-through notes:
+   - `DX_warp-drift-ledger-crosslinks`
+   - `PROTO_remaining-warp-drift-release-slotting`
+
+   These were not part of the initial hill, but they are coherent cycle-end
+   consequences of the design work and help prevent the new docs from becoming
+   a dead end.
+
+### Test-plan drift
+
+The original test plan said later implementation cycles should verify the
+ladder, not this doc alone.
+
+What actually happened:
+
+- this cycle added immediate doc-shape ratchet tests for the glossary and
+  architecture ladder
+
+That is a helpful tightening, not a violation. It means the new doc surfaces
+are now protected by an explicit contract instead of relying only on prose.
+
+### Verdict
+
+Acceptable drift only.
+
+The cycle expanded slightly in scope, but it expanded in the direction of
+making the glossary/ladder work more durable and more connected to repo
+planning. No part of the implementation undercut the design claim.
