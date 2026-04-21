@@ -637,3 +637,82 @@ By the end of cycle 0034 we should have:
 4. one migration/compatibility posture for current schema 2/3/4 and
    current seek-cache entries
 5. one exact-match + predecessor lookup law for materialize-at
+
+## Playback questions
+
+1. Does `materializeCoordinate()` now have one truthful resolver path:
+   exact snapshot first, then best compatible predecessor, then replay
+   remainder?
+2. Does `createCheckpoint()` now behave like "pin an existing snapshot
+   or materialize once and then pin" rather than inventing a second
+   checkpoint artifact?
+3. Is the migration posture honest about legacy seek-cache entries that
+   only persist `ceiling + frontierHash`?
+4. Does the greened implementation preserve the public checkpoint
+   contract, including stable checkpoint discoverability, when the
+   snapshot path is used?
+
+## Playback results
+
+### Agent view
+
+Questions 1, 2, and 3 pass.
+
+- `MaterializeController` now resolves through one snapshot-aware path:
+  exact snapshot hit first, then best compatible predecessor, then
+  replay suffix.
+- `CheckpointController` now pins an exact snapshot when present, or
+  materializes once, stores one snapshot record, and then pins it.
+- The compatibility posture is explicit and honest:
+  legacy named checkpoints can be imported into unified snapshot
+  descriptors, while legacy seek-cache entries require the missing
+  frontier to be supplied out-of-band.
+
+Question 4 fails.
+
+- The snapshot-backed `createCheckpoint()` path returns a pinned
+  snapshot id, but it does not yet publish a stable checkpoint ref/name
+  the way the legacy checkpoint path does.
+- That means the internal promotion story is substantially correct, but
+  the public checkpoint contract is still incomplete.
+
+### Human view
+
+From a user/operator perspective, the important new behavior is real:
+
+- a cache hit can now satisfy coordinate materialization directly
+- a near predecessor snapshot can shorten replay
+- a checkpoint request can reuse an existing snapshot instead of
+  serializing a second copy of the world
+
+But the user-visible checkpoint story is not fully settled yet.
+
+If the system pins a snapshot without also publishing the usual stable
+checkpoint handle, the repo still has two different notions of
+"checkpoint" at the discovery layer even though the storage/control
+plane is being unified underneath.
+
+### Witness
+
+Implementation witness:
+
+- commit `1c2bb1c2` — `feat(snapshot): green unified cache path`
+
+Verification witness:
+
+- `npm run typecheck`
+- `npm exec vitest run test/unit/ports/WarpStateCachePort.test.ts test/unit/domain/services/state/WarpStateSnapshotIndex.test.ts test/unit/domain/services/state/LegacyWarpStateSnapshotImporter.test.ts test/unit/domain/services/controllers/MaterializeController.snapshotCache.test.ts test/unit/domain/services/controllers/CheckpointController.snapshotCache.test.ts test/integration/api/checkpoint.snapshotCache.test.ts`
+
+Observed result:
+
+- typecheck passed
+- unified snapshot test matrix passed (`6` files, `16` tests)
+
+### Playback verdict
+
+Partial pass.
+
+The core unification law is now executable in the controller path, but
+the snapshot-backed checkpoint path still owes the repo a stable
+checkpoint publication step before this cycle can claim the public
+contract is fully met.
