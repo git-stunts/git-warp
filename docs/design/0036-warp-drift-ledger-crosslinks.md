@@ -152,3 +152,94 @@ This is a docs-only cycle. The red/green contract should be:
 - rewrite the audit so heavily that it duplicates `0035`
 - add release-horizon claims to the audit without keeping the horizon note as
   the authoritative source
+
+## Playback
+
+### Witness
+
+The witness for this cycle is small and explicit:
+
+- `docs/audits/WARP_DRIFT.md` now points to:
+  - `docs/GLOSSARY.md`
+  - `docs/design/0035-observer-geometry-architecture-ladder.md`
+  - `docs/design/release-horizon-v20-v21.md`
+- the audit now says directly that it is the drift ledger rather than the
+  canonical wall-chart
+- the ratchet test exists at
+  `test/unit/scripts/warp-drift-crosslinks-shape.test.ts`
+
+Verification command:
+
+```sh
+npm exec vitest run \
+  test/unit/scripts/warp-drift-crosslinks-shape.test.ts \
+  test/unit/scripts/glossary-shape.test.ts \
+  test/unit/scripts/observer-geometry-ladder-shape.test.ts
+```
+
+### Agent playback
+
+Question:
+
+> If I start at `WARP_DRIFT.md`, can I find the canonical noun wall-chart in
+> one hop?
+
+Answer:
+
+Yes.
+
+Question:
+
+> Can I find the runtime architecture ladder in one hop?
+
+Answer:
+
+Yes.
+
+Question:
+
+> Can I tell the difference between the audit, the glossary, and the ladder?
+
+Answer:
+
+Yes. The audit now says explicitly that it is the drift ledger, while the
+glossary and ladder own the noun/runtime explanation surfaces.
+
+Verdict: pass.
+
+### Human playback
+
+Question:
+
+> Does the audit now feel connected to the newer design work instead of frozen
+> before it?
+
+Answer:
+
+Yes.
+
+Question:
+
+> Does the crosslinking improve discoverability without turning the audit into a
+> duplicate of the design docs?
+
+Answer:
+
+Yes. The change stayed small and left the audit readable as a ledger instead of
+  a glossary dump.
+
+Verdict: pass.
+
+## Drift check
+
+No meaningful drift.
+
+This cycle did exactly what it said it would:
+
+- add the crosslinks
+- preserve the audit’s role
+- ratchet the doc contract
+
+The only mild additive drift is that the ratchet test landed immediately,
+turning the small docs hygiene slice into a protected docs hygiene slice. That
+is a net improvement, not a contradiction.
