@@ -416,6 +416,217 @@ If we follow the plan above, the first concrete decisions should be:
    That is the implementation escape hatch that keeps the public model
    clean without lying about GC/reachability guarantees.
 
+## Chosen direction for this cycle
+
+This cycle should choose the following direction unless repo truth
+forces a contradiction:
+
+1. **One descriptor/index model**
+   All persisted snapshots, whether evictable or pinned, are described
+   through one descriptor family and one index.
+
+2. **One resolver path**
+   Materialization should use one snapshot resolver for:
+   - exact hit
+   - best compatible predecessor
+   - replay remainder
+
+3. **Checkpoint = pin**
+   Checkpoint creation should be implemented as "pin this snapshot" or
+   "materialize then pin", not "invent a second snapshot system."
+
+4. **Storage promotion is allowed**
+   A pinned snapshot may upgrade its payload backing if the current
+   evictable form is not durable enough.
+
+5. **Pinned snapshots are excluded from ordinary eviction**
+   No special clustering policy in the initial cut.
+
+## Proposed descriptor shape
+
+The initial descriptor can stay boring and explicit.
+
+```ts
+type SnapshotRetention = 'evictable' | 'pinned';
+type SnapshotStorageKind = 'cas' | 'git-envelope';
+type SnapshotProvenancePosture = 'full' | 'degraded';
+
+type SnapshotDescriptor = {
+  snapshotId: string;
+  coordinateKey: string;
+  frontier: Record<string, string>;
+  ceiling: number | null;
+  stateHash: string;
+  appliedVVHash?: string;
+  storageKind: SnapshotStorageKind;
+  payloadRef: string;
+  provenancePosture: SnapshotProvenancePosture;
+  indexTreeOid?: string;
+  retention: SnapshotRetention;
+  createdAt: string;
+  lastAccessedAt: string;
+};
+```
+
+This should be read as structure, not final syntax.
+
+Important decisions embedded in that shape:
+
+- **frontier is stored explicitly**
+  because predecessor compatibility cannot be checked from frontier hash
+  alone
+- **retention is explicit**
+  because checkpoint vs cache is now policy
+- **storage kind is explicit**
+  because promotion may strengthen backing storage
+- **provenance posture is explicit**
+  because the resolver must know whether a snapshot is safe for
+  provenance-rich paths
+
+## Proposed index shape
+
+The first index should optimize for correctness and simplicity, not
+cleverness.
+
+Suggested shape:
+
+- `byId`: descriptor map
+- `byCoordinateKey`: exact lookup map
+- `byCeiling`: ordered snapshot id list or ordered entries for
+  predecessor scan
+
+That is enough to support:
+
+- exact lookup
+- descending predecessor scan
+- pin / unpin / delete
+
+Do **not** start with a custom tree or interval index.
+
+## Resolve algorithm
+
+The snapshot resolver should behave like this:
+
+### Resolve exact
+
+1. Build canonical coordinate key from `(frontier, ceiling)`
+2. Look up exact descriptor
+3. If present:
+   - restore payload
+   - return snapshot result
+
+### Resolve predecessor
+
+If exact lookup misses:
+
+1. Enumerate candidate snapshots by descending ceiling
+2. Skip any candidate with:
+   - `candidate.ceiling > target.ceiling`
+   - frontier incomparable to or later than target frontier
+3. Pick the first compatible candidate
+4. Restore and replay forward to the target
+
+### Resolve provenance-sensitive requests
+
+If the caller requires receipts or provenance-rich replay:
+
+- degraded snapshots must not silently satisfy the request
+- either:
+  - skip degraded snapshots during predecessor selection, or
+  - restore them only as replay starting points and rebuild the missing
+    provenance before returning
+
+The cycle should choose one of those explicitly.
+
+## Pin / promote algorithm
+
+`createCheckpoint()` should use this flow:
+
+1. Build target coordinate
+2. Try exact snapshot resolve without replay
+3. If exact descriptor exists:
+   - if already pinned, return/publish it
+   - if evictable, promote it to pinned
+4. If no exact descriptor exists:
+   - materialize from exact/predecessor resolution
+   - persist resulting snapshot
+   - mark it pinned
+
+### Promotion semantics
+
+Promotion should be descriptor-first:
+
+- set `retention = 'pinned'`
+- publish stable checkpoint ref/name
+
+If backing storage is too weak for durable checkpoint semantics:
+
+- rewrite payload into stronger storage
+- update descriptor
+- then mark pinned
+
+So "pin" is the logical operation; storage rewrite is an implementation
+detail of pinning when necessary.
+
+## Initial storage stance
+
+The cycle does **not** need to decide that every snapshot immediately
+becomes a native Git envelope.
+
+The better initial stance is:
+
+- unify descriptor/index/control plane first
+- permit both `cas` and `git-envelope` payloads under one descriptor
+  family
+- make promotion responsible for moving into stronger storage when the
+  retention contract demands it
+
+That keeps the design honest about current code while still moving
+toward one snapshot system.
+
+## Test plan
+
+### Unit — descriptor and index
+
+- exact lookup hits by full coordinate, not by ceiling alone
+- predecessor scan chooses greatest compatible earlier ceiling
+- predecessor scan skips newer snapshots
+- predecessor scan skips frontier-incompatible snapshots
+- pinned snapshots remain excluded from ordinary eviction
+- evictable snapshots still obey age/count/LRU policy
+
+### Unit — promotion
+
+- promoting an exact evictable snapshot marks it pinned
+- promoting an already pinned snapshot is idempotent
+- promotion can rewrite payload backing when storage kind upgrade is
+  required
+- promotion preserves snapshot identity / coordinate identity
+
+### Unit — provenance posture
+
+- degraded snapshot descriptors are marked explicitly
+- provenance-sensitive resolution does not silently return degraded
+  snapshots as if they were full-fidelity
+
+### Controller / integration
+
+- `materializeCoordinate()` exact snapshot hit avoids replay
+- `materializeCoordinate()` miss reuses best compatible predecessor
+- `createCheckpoint()` pins an existing exact snapshot when available
+- `createCheckpoint()` materializes once and then pins when exact
+  snapshot is absent
+- pinned snapshots survive ordinary cache cleanup
+
+### Migration / compatibility
+
+- legacy checkpoint descriptors can be imported into the unified
+  descriptor model
+- old seek-cache entries can be imported or wrapped into the unified
+  descriptor model
+- runtime fails explicitly when it sees a legacy artifact the upgrader
+  has not converted yet
+
 ## Output expected from this cycle
 
 By the end of cycle 0034 we should have:
