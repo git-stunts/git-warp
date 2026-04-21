@@ -96,7 +96,7 @@ ST-2 (trie foundation):
   [x] DESIGN_0034_unify-seek-cache-and-checkpoints  ← cycle 0034 hill-met
 
 ST-3 (ShadowTrieORSet):
-  [ ] PROTO_shadow-trie-orset
+  [x] PROTO_shadow-trie-orset         ← cycle 0038 hill-met
   [ ] PROTO_trie-compaction
   [ ] TRUST_shadow-trie-semilattice-pbt
 

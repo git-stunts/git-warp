@@ -308,3 +308,102 @@ One narrow integration assertion should prove:
 
 That is enough for this cycle. Session lifecycle and later controller wiring can
 build on top of that.
+
+## Playback
+
+### Witness
+
+The witness for this cycle is:
+
+- [ShadowTrieORSet.ts](../src/domain/orset/shadow/ShadowTrieORSet.ts)
+- [ShadowTrieORSetError.ts](../src/domain/errors/ShadowTrieORSetError.ts)
+- [ShadowTrieORSet.test.ts](../test/unit/domain/orset/shadow/ShadowTrieORSet.test.ts)
+- the cursor scan follow-through in
+  [TrieCursor.ts](../src/domain/orset/trie/TrieCursor.ts)
+
+Verification:
+
+```sh
+npm exec vitest run \
+  test/unit/domain/orset/shadow/ShadowTrieORSet.test.ts \
+  test/unit/domain/orset/trie/TrieCursor.test.ts \
+  test/unit/domain/orset/trie/TrieFlusher.test.ts \
+  test/unit/domain/orset/trie/PageCache.test.ts
+
+npm run typecheck
+```
+
+### Agent playback
+
+Question:
+
+> Can I explain why `ShadowTrieORSet` is not a subtype of the synchronous
+> `ORSet`?
+
+Answer:
+
+Yes.
+
+Question:
+
+> Can I point to exactly one owner for cache lifetime and cursor construction?
+
+Answer:
+
+Yes. `StateSession` remains that owner; `ShadowTrieORSet` only consumes the
+already-built cursor/flusher pair.
+
+Question:
+
+> Can I explain why `scan()` is async-shaped and backed by a real async cursor
+> walk?
+
+Answer:
+
+Yes.
+
+Verdict: pass.
+
+### Human playback
+
+Question:
+
+> Does this feel like a truthful async engine instead of a fake compatibility
+> wrapper?
+
+Answer:
+
+Yes.
+
+Question:
+
+> Is the `StateSession` handoff clear enough that the next cycle knows what it
+> owns?
+
+Answer:
+
+Yes.
+
+Question:
+
+> Does the design keep trie implementation details below the right seam?
+
+Answer:
+
+Yes.
+
+Verdict: pass.
+
+## Drift check
+
+No negative drift.
+
+One additive drift did occur:
+
+- the design said “avoid a dedicated `ShadowTrieORSetError` unless the engine
+  truly owns new invariants”
+- the implementation did introduce
+  [ShadowTrieORSetError.ts](../src/domain/errors/ShadowTrieORSetError.ts)
+  because constructor validation is in fact an engine-owned invariant
+
+That drift is acceptable and clarifies ownership instead of smearing it.
