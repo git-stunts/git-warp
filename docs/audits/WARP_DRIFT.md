@@ -4,6 +4,15 @@ This audit captures where git-warp currently drifts from the stronger
 WARP doctrine now stabilized across the papers and cross-repo design
 work.
 
+This file is the **drift ledger**, not the canonical noun wall-chart or
+the full runtime architecture guide.
+
+For those roles, use:
+
+- [GLOSSARY](../GLOSSARY.md)
+- [observer-geometry-architecture-ladder](../design/0035-observer-geometry-architecture-ladder.md)
+- [release-horizon-v20-v21](../design/release-horizon-v20-v21.md)
+
 The key pattern is simple:
 
 - the public docs are often ahead of the code
@@ -193,6 +202,12 @@ The reconciliation work should tighten both together.
 This audit has now been captured as tracked doctrine follow-through in
 [`docs/method/backlog/v19.0.0/`](../method/backlog/v19.0.0/README.md).
 
+The canonical noun and runtime-planning surfaces for this drift now live in:
+
+- [GLOSSARY](../GLOSSARY.md)
+- [observer-geometry-architecture-ladder](../design/0035-observer-geometry-architecture-ladder.md)
+- [release-horizon-v20-v21](../design/release-horizon-v20-v21.md)
+
 The graph-substrate convergence cut intentionally lives in
 [`docs/method/backlog/v18.0.0/`](../method/backlog/v18.0.0/README.md)
 so the repo can separate "make the graph shape honest" from "finish
@@ -210,6 +225,9 @@ backlog items own the implementation work.
 
 ## Relevant design context
 
+- [GLOSSARY](../GLOSSARY.md)
+- [observer-geometry-architecture-ladder](../design/0035-observer-geometry-architecture-ladder.md)
+- [release-horizon-v20-v21](../design/release-horizon-v20-v21.md)
 - [worldline-observer-strand-model](../design/worldline-observer-strand-model.md)
 - [observer-strand-boundary](../design/observer-strand-boundary.md)
 - [worldline-observer-api-phasing](../design/worldline-observer-api-phasing.md)
@@ -220,6 +238,10 @@ backlog items own the implementation work.
 
 git-warp does not need a new worldview. It needs the implementation to
 stop teaching older substrate assumptions.
+
+The glossary and ladder now name the target read/runtime nouns and the
+major-version path toward them. This audit should remain the problem
+ledger that points readers at those canonical surfaces.
 
 The important corrections are:
 
