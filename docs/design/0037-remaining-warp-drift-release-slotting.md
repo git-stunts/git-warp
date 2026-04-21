@@ -252,3 +252,104 @@ This is a docs-only design cycle.
   doctrine work
 - produce a horizon note that sounds clean but cannot be mapped back to the
   actual drift ledger
+
+## Playback
+
+### Witness
+
+The witness for this cycle is the alignment across four surfaces:
+
+- this design doc names the unresolved drift families and their release homes
+- [WARP_DRIFT.md](../audits/WARP_DRIFT.md) now points readers at this slotting
+  note as part of the relevant design context
+- [release-horizon-v20-v21.md](./release-horizon-v20-v21.md) now states the
+  explicit `v20` / `v21` slotting rule
+- [docs/method/backlog/v19.0.0/README.md](../method/backlog/v19.0.0/README.md)
+  now records the `v19` / `v20` / `v21` release handoff
+
+Ratchet test:
+
+- `test/unit/scripts/warp-drift-release-slotting-shape.test.ts`
+
+Verification command:
+
+```sh
+npm exec vitest run \
+  test/unit/scripts/warp-drift-release-slotting-shape.test.ts \
+  test/unit/scripts/warp-drift-crosslinks-shape.test.ts \
+  test/unit/scripts/glossary-shape.test.ts \
+  test/unit/scripts/observer-geometry-ladder-shape.test.ts
+```
+
+### Agent playback
+
+Question:
+
+> If I re-read `WARP_DRIFT.md`, can I now tell which unresolved items are
+> `v19`, `v20`, and `v21` work?
+
+Answer:
+
+Yes.
+
+Question:
+
+> Does the split keep `v19` from becoming a mushy “finish everything later”
+> bucket?
+
+Answer:
+
+Yes.
+
+Question:
+
+> Does the slotting preserve the existing `v18` / `v19` release law?
+
+Answer:
+
+Yes.
+
+Verdict: pass.
+
+### Human playback
+
+Question:
+
+> Does the release horizon now feel believable instead of vague?
+
+Answer:
+
+Yes.
+
+Question:
+
+> Can I explain why strand/braid/admission work does not all belong in one
+> major?
+
+Answer:
+
+Yes.
+
+Question:
+
+> Does the release split feel like it reduces confusion rather than just
+> spreading future work across more labels?
+
+Answer:
+
+Yes.
+
+Verdict: pass.
+
+## Drift check
+
+No negative drift.
+
+The main additive drift is that the slotting law did not stay isolated in this
+design doc. The cycle propagated it into:
+
+- the drift ledger
+- the release horizon note
+- the `v19` lane README
+
+That is exactly the right kind of additive drift for a release-slotting cycle.
