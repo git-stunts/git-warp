@@ -120,13 +120,19 @@ export default class TrieCursor {
   }
 
   async elements(): Promise<readonly string[]> {
+    const out: string[] = [];
+    for await (const element of this.scan()) {
+      out.push(element);
+    }
+    return out;
+  }
+
+  async *scan(): AsyncIterable<string> {
     await this.#loadRootIfNeeded();
     if (!this.#hasRoot()) {
-      return [];
+      return;
     }
-    const out: string[] = [];
-    await this.#visitLeaves([], (leaf) => collectLiveElements(leaf, out));
-    return out;
+    yield* this.#scanBelow([]);
   }
 
   snapshot(): DirtyPageSet {
@@ -645,29 +651,25 @@ export default class TrieCursor {
     this.#markLeafDirty(leafPath, new TrieLeaf(next, this.#geometry));
   }
 
-  // -- leaf walk (elements) --------------------------------------------------
+  // -- leaf walk (scan/elements) ---------------------------------------------
 
-  async #visitLeaves(
-    path: readonly number[],
-    visit: (leaf: TrieLeaf) => void,
-  ): Promise<void> {
+  async *#scanBelow(path: readonly number[]): AsyncIterable<string> {
     const leaf = this.#leafAt(path);
     if (leaf !== null) {
-      visit(leaf);
+      yield* liveElementsOf(leaf);
       return;
     }
     const branch = this.#branchAt(path);
     if (branch === null) {
       return;
     }
-    await this.#descendVisit(path, branch, visit);
+    yield* this.#descendScan(path, branch);
   }
 
-  async #descendVisit(
+  async *#descendScan(
     path: readonly number[],
     branch: TrieBranch,
-    visit: (leaf: TrieLeaf) => void,
-  ): Promise<void> {
+  ): AsyncIterable<string> {
     const nibbles = [...branch.entries().keys()].sort((a, b) => a - b);
     for (const nibble of nibbles) {
       const childOid = branch.get(nibble);
@@ -675,7 +677,7 @@ export default class TrieCursor {
         continue;
       }
       await this.#ensureChildLoaded(path, nibble, childOid);
-      await this.#visitLeaves([...path, nibble], visit);
+      yield* this.#scanBelow([...path, nibble]);
     }
   }
 }
@@ -711,12 +713,12 @@ function rewriteLeafWithTombstones(
   return changed ? out : null;
 }
 
-// -- helper: collect elements from a leaf -----------------------------------
+// -- helper: yield elements from a leaf -------------------------------------
 
-function collectLiveElements(leaf: TrieLeaf, out: string[]): void {
+function* liveElementsOf(leaf: TrieLeaf): Iterable<string> {
   for (const entry of leaf.entries()) {
     if (entry.dots.size > 0) {
-      out.push(entry.element);
+      yield entry.element;
     }
   }
 }

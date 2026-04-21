@@ -55,10 +55,7 @@ export default class ShadowTrieORSet {
   }
 
   async *scan(): AsyncIterable<string> {
-    const elements = await this.#cursor.elements();
-    for (const element of elements) {
-      yield element;
-    }
+    yield* this.#cursor.scan();
   }
 
   async flush(): Promise<FlushResult> {
