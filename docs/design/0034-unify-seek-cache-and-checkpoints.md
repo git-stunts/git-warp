@@ -716,3 +716,65 @@ The core unification law is now executable in the controller path, but
 the snapshot-backed checkpoint path still owes the repo a stable
 checkpoint publication step before this cycle can claim the public
 contract is fully met.
+
+## Drift check
+
+### Drift found
+
+1. **Two snapshot resolver paths still exist at runtime**
+
+   The design called for one resolver path under one snapshot/cache
+   system. The greened implementation added the unified
+   `WarpStateCache` resolver for coordinate materialization, but
+   `MaterializeController.materialize({ ceiling })` still keeps the
+   legacy seek-cache fast path alive through:
+
+   - `getSeekCache()`
+   - `buildSeekCacheKey(...)`
+   - `_materializeWithCeilingCached(...)`
+
+   So the repo still has:
+
+   - unified snapshot resolution for coordinate materialization
+   - legacy seek-cache restoration for ceiling materialization
+
+   That is real drift from the intended "one snapshot substrate" law.
+
+2. **Checkpoint pinning does not yet publish the stable checkpoint ref**
+
+   The design said checkpoint creation should become pin/promotion while
+   still preserving the public checkpoint contract. The greened
+   snapshot-backed path pins or creates-and-pins a snapshot, but it
+   does not yet publish the stable checkpoint ref/name used by the
+   legacy checkpoint path.
+
+3. **The descriptor is still thinner than the design’s proposed shape**
+
+   The implementation chose a minimal descriptor:
+
+   - coordinate
+   - retention
+   - provenance posture
+   - state hash
+   - payload ref
+
+   It does **not** yet carry:
+
+   - `appliedVV`
+   - `storageKind`
+   - `lastAccessedAt`
+
+   This is an intentional simplification for the green cut, but it is
+   still drift from the fuller descriptor shape discussed in the design.
+
+### Drift assessment
+
+The drift is acceptable for this cycle only because the green cut was
+meant to land the control-plane unification first.
+
+What is *not* acceptable to leave indefinite:
+
+- the surviving legacy seek-cache fast path
+- the missing stable checkpoint publication step
+
+Those keep the repo in a half-unified state.

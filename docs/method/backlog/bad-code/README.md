@@ -14,7 +14,7 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 | [CAST](../../legends/CAST.md) | No cast-cosplay, escape hatches, or type lies. | 9 |
 | [PORT](../../legends/PORT.md) | Capability and port surfaces must tell the runtime truth. | 13 |
 | [OWN](../../legends/OWNERSHIP.md) | One owner per behavior: no gods, no duplication corridors, no mixed-concern facades. | 31 |
-| [SUB](../../legends/SUBSTRATE.md) | Substrate integrity: streaming, CAS, checkpoint, index, and versioned storage stay explicit. | 10 |
+| [SUB](../../legends/SUBSTRATE.md) | Substrate integrity: streaming, CAS, checkpoint, index, and versioned storage stay explicit. | 12 |
 | [SPEC](../../legends/SPEC.md) | Tests, docs, mocks, and coverage residue must reflect the real contract. | 31 |
 
 ## Index
@@ -136,7 +136,7 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 - [OWN_trust-evaluator-coupling.md](OWN_trust-evaluator-coupling.md)
 - [OWN_trust-record-service-smells.md](OWN_trust-record-service-smells.md)
 
-### Substrate (`SUB`) — 11
+### Substrate (`SUB`) — 12
 
 - [SUB_bitmap-index-trio-coupling.md](SUB_bitmap-index-trio-coupling.md)
 - [SUB_bitmap-reader-silent-corruption.md](SUB_bitmap-reader-silent-corruption.md)
@@ -148,6 +148,7 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 - [SUB_gc-stale-cache-invalidation.md](SUB_gc-stale-cache-invalidation.md)
 - [SUB_incremental-index-updater-null-proto-rewrap-dead-branch.md](SUB_incremental-index-updater-null-proto-rewrap-dead-branch.md)
 - [SUB_legacy-seek-cache-key-drops-frontier.md](SUB_legacy-seek-cache-key-drops-frontier.md)
+- [SUB_materialize-controller-retains-legacy-seek-cache-path.md](SUB_materialize-controller-retains-legacy-seek-cache-path.md)
 - [SUB_streaming-bitmap-index-builder-serialization-tail.md](SUB_streaming-bitmap-index-builder-serialization-tail.md)
 
 ### Spec Honesty (`SPEC`) — 31
