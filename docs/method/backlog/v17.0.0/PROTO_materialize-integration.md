@@ -3,7 +3,6 @@ id: PROTO_materialize-integration
 blocked_by:
   - PROTO_joinreducer-state-session
   - PROTO_gc-state-session
-  - DESIGN_0034_unify-seek-cache-and-checkpoints
 blocks:
   - PROTO_index-builder-trie-iteration
   - PERF_trie-geometry-and-memory-profile

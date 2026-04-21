@@ -93,7 +93,7 @@ ST-2 (trie foundation):
   [x] PROTO_trie-cursor                 ← cycle 0029 hill-met
   [x] PERF_lru-page-cache               ← cycle 0031 hill-met
   [x] PROTO_trie-flush                  ← cycle 0030 hill-met
-  [ ] DESIGN_0034_unify-seek-cache-and-checkpoints  ← cycle 0033 pivot
+  [x] DESIGN_0034_unify-seek-cache-and-checkpoints  ← cycle 0034 hill-met
 
 ST-3 (ShadowTrieORSet):
   [ ] PROTO_shadow-trie-orset
