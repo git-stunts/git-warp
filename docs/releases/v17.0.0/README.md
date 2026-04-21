@@ -97,7 +97,7 @@ ST-2 (trie foundation):
 
 ST-3 (ShadowTrieORSet):
   [x] PROTO_shadow-trie-orset         ← cycle 0038 hill-met
-  [ ] PROTO_trie-compaction
+  [x] PROTO_trie-compaction           ← cycle 0039 hill-met
   [ ] TRUST_shadow-trie-semilattice-pbt
 
 ST-4 (async firewall):

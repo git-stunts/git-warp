@@ -213,3 +213,64 @@ One narrow reopen assertion should prove:
 - flush
 - reopen
 - observe only the stable surviving set
+
+## Playback
+
+### Witness
+
+Implementation landed in:
+
+- `src/domain/orset/shadow/ShadowTrieORSet.ts`
+- `src/domain/orset/trie/TrieCursor.ts`
+- `src/domain/orset/trie/TrieCompactor.ts`
+- `test/unit/domain/orset/shadow/ShadowTrieORSet.compaction.test.ts`
+
+Verification:
+
+- `npm exec vitest run test/unit/domain/orset/shadow/ShadowTrieORSet.compaction.test.ts test/unit/domain/orset/shadow/ShadowTrieORSet.test.ts test/unit/domain/orset/trie/TrieCursor.test.ts test/unit/domain/orset/trie/TrieFlusher.test.ts test/unit/domain/orset/trie/PageCache.test.ts`
+- `npm run typecheck`
+- `git diff --check`
+
+### Agent answers
+
+- Yes. Trie compaction preserves the in-memory ORSet law by only deleting dots
+  that are both tombstoned and included in the stable frontier.
+- Yes. An undersized leaf may merge only with a sibling leaf under the same
+  parent branch when the combined entry count still fits the geometry capacity.
+- Yes. `TrieCompactor` owns compaction policy; `ShadowTrieORSet` delegates to
+  the cursor and the cursor delegates to the helper.
+
+### Human answers
+
+- Yes. The resulting behavior feels like honest GC compaction, not arbitrary
+  shape rewriting: only stable tombstones disappear, and structure changes are
+  geometry-driven.
+- Yes. Session lifecycle and GC scheduling remain outside this slice. The
+  engine compacts; it does not decide when compaction should happen.
+- Yes. Merge and collapse are deterministic and backed by stored-shape tests,
+  not just by visible-element assertions.
+
+## Drift check
+
+Verdict: acceptable additive drift only.
+
+The main design-to-code adjustment is the helper constructor shape.
+
+The design sketch said:
+
+```ts
+new TrieCompactor({ cursor, geometry })
+```
+
+The shipped helper instead takes a narrow callback bundle from `TrieCursor`.
+That is the more honest shape in the real codebase because `TrieCursor` uses
+hard private fields and should not leak its whole mutable interior just to make
+the helper convenient.
+
+No negative drift was found against the cycle hill:
+
+- `ShadowTrieORSet.compact(includedVV)` exists
+- stable tombstones compact correctly
+- undersized-leaf merge and branch collapse are real
+- compaction stays below `StateSession`
+- flush/reopen playback is evidenced by tests

@@ -2,7 +2,6 @@
 id: PROTO_state-session-async
 blocked_by:
   - PROTO_shadow-trie-orset
-  - PROTO_trie-compaction
 blocks:
   - PROTO_joinreducer-state-session
   - PROTO_gc-state-session
