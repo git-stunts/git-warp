@@ -15,6 +15,7 @@ import { AuditReceiptService } from './services/audit/AuditReceiptService.ts';
 import { TemporalQuery } from './services/TemporalQuery.ts';
 import defaultCodec from './utils/defaultCodec.ts';
 import defaultCrypto from './utils/defaultCrypto.ts';
+import nullLogger from './utils/nullLogger.ts';
 import LogicalTraversal from './services/query/LogicalTraversal.ts';
 import LRUCache from './utils/LRUCache.ts';
 import SyncController from './services/controllers/SyncController.ts';
@@ -315,7 +316,7 @@ export default class WarpRuntime {
     this._patchController = new PatchController(this);
     this._checkpointController = new CheckpointController(this);
     this._materializeController = new MaterializeController({
-      logger: this._logger ?? { info() {}, warn() {}, error() {}, debug() {} } as unknown as LoggerPort,
+      logger: this._logger ?? nullLogger,
       codec: this._codec,
       crypto: this._crypto,
       persistence: this._persistence,
