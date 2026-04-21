@@ -30,6 +30,8 @@ This cycle supplies those artifacts.
 - [docs/GLOSSARY.md](../GLOSSARY.md) is the canonical noun source of truth.
 - This design doc is the canonical architecture ladder from current runtime
   behavior to the intended observer/optic runtime.
+- [release-horizon-v20-v21.md](./release-horizon-v20-v21.md) sketches how
+  the ladder likely hardens into later majors once `v18` and `v19` land.
 
 ## Hill
 
