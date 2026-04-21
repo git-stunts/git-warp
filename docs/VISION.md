@@ -2,6 +2,17 @@
 
 Status: current truth for `git-warp`.
 
+Scope note:
+
+- `VISION` is the directional north star for what `git-warp` is for.
+- For canonical noun meanings, use [GLOSSARY.md](GLOSSARY.md).
+- For the current observer/read-side architecture ladder, use
+  [0035-observer-geometry-architecture-ladder.md](design/0035-observer-geometry-architecture-ladder.md).
+- For later-major horizon planning, use
+  [release-horizon-v20-v21.md](design/release-horizon-v20-v21.md).
+- For current position and tensions at the cycle boundary, use
+  [BEARING.md](BEARING.md).
+
 ## One sentence
 
 `git-warp` is a recursive, witnessed admission architecture over
@@ -29,6 +40,15 @@ The architecture decomposes into three moments:
 - **Folding** — admitted history is re-expressed in boundary-equivalent form
 - **Revelation** — admitted truth is exposed under bounded rights
 
+The read-side correction now matters just as much as the admission-side one:
+
+- the substrate is witnessed causal history, not a canonical materialized graph
+- observers should become lawful read objects rather than “filtered snapshot”
+  aliases
+- the long-term runtime should answer local questions through bounded support,
+  indexes, and reusable support fragments instead of defaulting to whole-state
+  materialization
+
 ## What git-warp owns
 
 - Offline-first graph storage without a central server
@@ -39,6 +59,10 @@ The architecture decomposes into three moments:
 - Speculative causal lanes (strands) with fork provenance
 - Observer-first read surfaces through worldlines and apertures
 - Decentralized sync through Git transport
+
+In other words: `git-warp` owns the cold causal substrate and the lawful
+read/folding surfaces over it. It should not have to pretend that a giant
+in-memory graph is the ontology.
 
 ## What git-warp does not own
 
@@ -75,28 +99,21 @@ history:
 This three-tier thinking room is the privacy model that makes
 provenance-complete collaboration socially viable.
 
-## Public API surface
+## Current architectural ladder
 
-`openWarpGraph()` is the composition root. It returns a frozen
-capability bag:
+The runtime is not finished just because the doctrine is clearer.
 
-```typescript
-const graph = await openWarpGraph({
-  persistence,
-  graphName: 'events',
-  writerId: 'agent-1',
-});
+The current major-version ladder is:
 
-graph.commitment.patches    // local tick admission
-graph.commitment.strands    // speculative lane management
-graph.commitment.comparison // braid presentation and transfer planning
-graph.folding.materialize   // frontier-relative state
-graph.folding.checkpoint    // history folding
-graph.revelation.query      // bounded observer reads
-graph.revelation.subscriptions // reactive state changes
-graph.revelation.provenance // witness access
-graph.governance.sync       // distributed suffix admission
-```
+- `v18.0.0`: make the graph substrate honest
+- `v19.0.0`: make observer/runtime doctrine honest
+- `v20.0.0`: make slice-first read execution ordinary runtime behavior
+- `v21.0.0`: make distributed/plural admission semantics runtime-real
+
+The canonical articulation of that ladder lives in:
+
+- [0035-observer-geometry-architecture-ladder.md](design/0035-observer-geometry-architecture-ladder.md)
+- [release-horizon-v20-v21.md](design/release-horizon-v20-v21.md)
 
 ## Engineering doctrine
 

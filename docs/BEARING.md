@@ -2,17 +2,39 @@
 
 Updated at cycle boundaries. Not mid-cycle.
 
+Scope note:
+
+- `BEARING` says where the repo stands now, what feels wrong now, and what is
+  next.
+- For canonical noun meanings, use [GLOSSARY.md](GLOSSARY.md).
+- For the runtime architecture ladder, use
+  [0035-observer-geometry-architecture-ladder.md](design/0035-observer-geometry-architecture-ladder.md).
+- For later-major horizon planning, use
+  [release-horizon-v20-v21.md](design/release-horizon-v20-v21.md).
+
 ## Where are we
 
-v17.0.0 release candidate. Source and tests are 100% TypeScript.
-All gates at zero (tsc, lint, tests). `openWarpGraph()` ships as the
-new public entry point with 9 capability namespaces organized around
-the admission architecture (commitment / folding / revelation /
-governance).
+`git-warp` is in a transitional but much better-named place.
 
-WarpRuntime (773 LOC) and _wiredMethods.d.ts (708 LOC) remain as the
-last pre-admission-kernel artifacts. They die when consumers migrate
-to `openWarpGraph()` capabilities (v18 target).
+The current release ladder is now explicit:
+
+- `v17.0.0`: TypeScript migration and bounded-residency ORSet groundwork
+- `v18.0.0`: graph substrate convergence
+- `v19.0.0`: observation, doctrine, and slice-first runtime convergence
+- `v20.0.0`: slice-first read execution
+- `v21.0.0`: distributed observer geometry and admission reality
+
+The biggest change this cycle is not runtime behavior yet. It is
+architecture truthfulness:
+
+- [GLOSSARY.md](GLOSSARY.md) now names the canonical meaning of the core nouns
+- [0035-observer-geometry-architecture-ladder.md](design/0035-observer-geometry-architecture-ladder.md)
+  now states the target read/runtime architecture
+- [release-horizon-v20-v21.md](design/release-horizon-v20-v21.md) now says
+  how later majors likely harden
+
+The runtime is still partially state-first in important places, but the repo no
+longer has to guess what “better” means.
 
 ## Invariants
 
@@ -52,31 +74,38 @@ mapping, and concrete checks live in `docs/invariants/`.
 
 ## What just shipped
 
-v17.0.0 cycle (Claudius Maximus I → II: DEATHBRINGER → III: WORLDBUILDER THE TRIUMPHANT):
+Cycle `0035-observer-geometry-architecture-ladder`:
 
-- 100% TypeScript source (374 .ts / 0 .js in src/)
-- 100% TypeScript tests (378 .test.ts / 0 .test.js)
-- Zero tsc errors, zero lint errors, zero test failures
-- `openWarpGraph()` factory with admission architecture surface
-- 30+ god objects slain, all source files under 500 LOC
-- 4 design cycles opened and closed (0014-0017)
-- Migration guide and automated migration scripts
+- canonical glossary of core read/runtime nouns
+- observer-geometry architecture ladder
+- `v20` / `v21` release horizon note
+- promoted `v19.0.0` backlog ladder for:
+  - bounded support rules
+  - causal indexes
+  - support-scoped fragments
+  - first-class diff/change surfaces
+- doc ratchet tests protecting the new glossary and ladder artifacts
+- cycle-boundary refresh of `BEARING` and `VISION`
 
 ## What feels wrong
 
-- WarpRuntime is a 773-LOC devil that wires 30+ methods via
-  defineProperty. It must die (Design 0017 Phase 2+).
-- `collapseBraid()` does not exist. The runtime spec (§12) defines
-  it, Paper VII (§3) requires it, Graft needs it. Filed as
-  `PROTO_strand-collapse-implementation`.
-- 42 CLI files remain as JavaScript. Deferred to v17.1 alongside
-  the agent-native output pattern (Design 0014).
-- The admission kernel (Design 0017) is designed but not implemented.
-  The code applies operations; Paper VII says it should admit claims.
+- The runtime still teaches older assumptions in too many code paths:
+  materialize substantial state, then project/filter/query.
+- `Observer` is still thinner than the noun the glossary now defines.
+- `Aperture` is still closer to a visibility policy than a full read boundary.
+- `Worldline` is still a pinned read handle, not the fuller history/basis noun.
+- Strands and sync/admission still lag the stronger WARP line tracked in
+  [WARP_DRIFT.md](audits/WARP_DRIFT.md).
+- `WarpRuntime` still survives as transitional scaffolding, even though the
+  repo now has a much clearer ladder for what should replace its assumptions.
 
 ## What comes next
 
-- **v17.0.0**: Ship. The fortress is built.
-- **v17.1**: CLI TS conversion + agent-native output + missing commands
-- **v17.2**: MCP server (`git warp mcp`)
-- **v18**: The exorcism (API_kill-warpruntime) + admission kernel Phase 1
+- **Next cycle:** add glossary/ladder crosslinks to
+  [WARP_DRIFT.md](audits/WARP_DRIFT.md)
+- **Cycle after that:** re-slot the remaining drift against `v19`, `v20`, and
+  `v21`
+- **v18.0.0:** graph substrate convergence
+- **v19.0.0:** observer/doctrine/runtime convergence
+- **v20.0.0:** slice-first read execution
+- **v21.0.0:** distributed observer geometry and admission reality
