@@ -11,6 +11,7 @@ For those roles, use:
 
 - [GLOSSARY](../GLOSSARY.md)
 - [observer-geometry-architecture-ladder](../design/0035-observer-geometry-architecture-ladder.md)
+- [remaining-warp-drift-release-slotting](../design/0037-remaining-warp-drift-release-slotting.md)
 - [release-horizon-v20-v21](../design/release-horizon-v20-v21.md)
 
 The key pattern is simple:
@@ -227,6 +228,7 @@ backlog items own the implementation work.
 
 - [GLOSSARY](../GLOSSARY.md)
 - [observer-geometry-architecture-ladder](../design/0035-observer-geometry-architecture-ladder.md)
+- [remaining-warp-drift-release-slotting](../design/0037-remaining-warp-drift-release-slotting.md)
 - [release-horizon-v20-v21](../design/release-horizon-v20-v21.md)
 - [worldline-observer-strand-model](../design/worldline-observer-strand-model.md)
 - [observer-strand-boundary](../design/observer-strand-boundary.md)

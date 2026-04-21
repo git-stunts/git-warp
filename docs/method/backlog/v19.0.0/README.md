@@ -38,6 +38,12 @@ operational instead of decorative:
 - `up-next/PROTO_merge-runtime-noun-family.md`
 - `up-next/PROTO_wesley-merge-contracts.md`
 
+## Release handoff
+
+- `v19` owns doctrine/runtime correction and the first honest observer/admission surfaces
+- `v20` owns operational slice-first runtime realization
+- `v21` owns plural/distributed semantics such as common-basis braid and fuller admission reality
+
 ## Practical rule
 
 Do not drag these doctrine and protocol tasks back into `v18.0.0`

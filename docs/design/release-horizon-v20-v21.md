@@ -22,8 +22,10 @@ Read this note together with:
 
 - [docs/GLOSSARY.md](../GLOSSARY.md)
 - [0035-observer-geometry-architecture-ladder.md](./0035-observer-geometry-architecture-ladder.md)
+- [0037-remaining-warp-drift-release-slotting.md](./0037-remaining-warp-drift-release-slotting.md)
 
 `0035` defines the canonical noun model and the architectural ladder.
+`0037` sorts the unresolved WARP drift across later majors.
 This note says how that ladder likely hardens into later majors.
 
 ## Current ladder recap
@@ -196,6 +198,20 @@ That means the real future split is:
 - `v20`: make bounded reads and large local result sets scale honestly
 - `v21`: make plural/distributed semantics ride on top of that honest read
   substrate
+
+## Slotting rule
+
+Read the horizon with this explicit release law:
+
+- `v20` = operational slice-first runtime
+- `v21` = plural/distributed observer geometry and admission reality
+
+That means:
+
+- `v19` should establish the right doctrine and runtime seams
+- `v20` should make those seams govern ordinary execution
+- `v21` should carry the heavier common-basis, braid, and fuller distributed
+  admission semantics
 
 ## Practical planning rule
 
