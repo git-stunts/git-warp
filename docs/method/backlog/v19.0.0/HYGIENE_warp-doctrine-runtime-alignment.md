@@ -20,6 +20,10 @@ Without a bounded reconciliation pass, git-warp will keep teaching the
 wrong ontology even when individual implementation tasks are correctly
 filed.
 
+The canonical noun source for this reconciliation is:
+
+- `docs/GLOSSARY.md`
+
 ## What this should do
 
 - Audit the main teaching surfaces:
@@ -38,6 +42,8 @@ filed.
   - `PROTO_witnessed-suffix-admission-shells`
 - Keep `docs/audits/WARP_DRIFT.md` as the explicit ledger of where doctrine
   is ahead of implementation until the runtime catches up
+- Point teaching docs at `docs/GLOSSARY.md` when they define or refine core
+  read/runtime nouns
 
 ## Done looks like
 
@@ -67,3 +73,4 @@ replacement for the implementation work.
 - `docs/design/worldline-observer-strand-model.md`
 - `docs/design/worldline-observer-api-phasing.md`
 - `docs/design/observer-strand-boundary.md`
+- `docs/GLOSSARY.md`

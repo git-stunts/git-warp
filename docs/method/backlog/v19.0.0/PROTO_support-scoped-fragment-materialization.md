@@ -70,3 +70,9 @@ Instead:
 3. keep full `_cachedState` as compatibility/runtime fallback
 4. shrink the set of APIs that require full materialization
 5. only then consider replacing the singular runtime state model
+
+## Why this is now a real backlog item
+
+Cycle 0035 ("Observer geometry architecture ladder") promotes this out of
+`cool-ideas/` and into `v19.0.0/` because fragment reuse is part of the
+declared target runtime, not a side thought.

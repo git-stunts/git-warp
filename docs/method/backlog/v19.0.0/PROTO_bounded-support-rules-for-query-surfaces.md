@@ -83,3 +83,9 @@ The fragment cache is only honest if the runtime can say:
 
 So bounded support rules are the contract layer that makes fragment
 materialization possible.
+
+## Why this is now a real backlog item
+
+Cycle 0035 ("Observer geometry architecture ladder") promotes this out of
+`cool-ideas/` and into `v19.0.0/` because the repo now treats support rules as
+part of the real target runtime, not just a speculative aside.

@@ -70,3 +70,10 @@ Start with a bounded `tick-range -> changed-entities` index or an
 `entity -> patch SHAs` index promotion of the existing provenance
 surface, then see whether that is enough to support a real
 `graph.diff({ from, to })` API efficiently.
+
+## Why this is now a real backlog item
+
+Cycle 0035 ("Observer geometry architecture ladder") promotes this out of
+`cool-ideas/` and into `v19.0.0/` because slice-first reads need an actual
+index family, not just the hope that replay and query scans will be good
+enough.

@@ -19,6 +19,17 @@ shape honest. Then align the read, admission, and teaching surfaces.
   [ ] PROTO_live-holographic-strands
 ```
 
+## Architecture ladder
+
+These are the runtime-shaping notes that make the observer/optic target model
+operational instead of decorative:
+
+- `HYGIENE_warp-doctrine-runtime-alignment`
+- `PROTO_bounded-support-rules-for-query-surfaces`
+- `PROTO_causal-indexes-for-sliced-queries`
+- `PROTO_support-scoped-fragment-materialization`
+- `PROTO_tick-range-graph-diff-api`
+
 ## Candidate promotions after substrate cut
 
 - `up-next/PROTO_local-site-object-for-neighborhoods.md`

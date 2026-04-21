@@ -8,6 +8,8 @@ Use it when you are writing an app, an agent workflow, or a local-first tool on 
 - If you want exhaustive method-by-method detail, use the [API Reference](API_REFERENCE.md).
 - If you want replay, trust, performance, and substrate internals, use the [Advanced Guide](ADVANCED_GUIDE.md).
 - If you want terminal workflows, use the [CLI Guide](CLI_GUIDE.md).
+- If you want the canonical meaning of core nouns like `Worldline`,
+  `Observer`, `Aperture`, or `Coordinate`, use [GLOSSARY.md](GLOSSARY.md).
 
 ## Mental model
 

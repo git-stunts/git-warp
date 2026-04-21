@@ -4,6 +4,8 @@ This document explains the core ideas behind `git-warp` in plain language.
 
 Use it when you understand what the package does and want a deeper conceptual model before diving into the implementation specs or the formal AIΩN papers.
 
+For canonical noun definitions, use [GLOSSARY.md](GLOSSARY.md).
+
 ## The Core Idea
 
 git-warp is a graph database that doesn't need a database server. It stores all its data inside a Git repository by abusing a clever trick: every piece of data is a Git commit that points to the **empty tree** — a special object that exists in every Git repo. Because the commits don't reference any actual files, they're completely invisible to normal Git operations like `git log`, `git diff`, or `git status`. Your codebase stays untouched, but there's a full graph database living alongside it.

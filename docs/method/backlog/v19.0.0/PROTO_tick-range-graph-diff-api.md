@@ -69,3 +69,10 @@ API likely needs either:
 
 - a stronger range-diff type than `StateDiffResult`, or
 - a corrected `StateDiff` substrate that includes edge-property deltas
+
+## Why this is now a real backlog item
+
+Cycle 0035 ("Observer geometry architecture ladder") promotes this out of
+`cool-ideas/` and into `v19.0.0/` because a slice-first runtime needs a
+first-class change surface instead of forcing clients to synthesize diffs from
+whole-state reads.
