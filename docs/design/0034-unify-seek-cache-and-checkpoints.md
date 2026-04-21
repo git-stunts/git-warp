@@ -255,6 +255,167 @@ shared artifact should be:
 - envelope tree with trie-root reachability
 - hybrid descriptor + payload split
 
+## Real plan
+
+The plan should separate **logical unification** from **physical
+storage unification**.
+
+That means:
+
+1. unify the noun and control plane first
+2. unify lookup and promotion semantics next
+3. only then finish substrate convergence
+
+This avoids cementing two snapshot systems while still leaving room to
+handle native-Git reachability honestly.
+
+### Step 1 — define one snapshot descriptor
+
+Introduce one runtime-backed snapshot descriptor concept, for example:
+
+- `WarpStateSnapshot`
+
+And one owning system noun, for example:
+
+- `WarpStateCache`
+
+The repo should stop modeling:
+
+- seek cache metadata over here
+- checkpoint metadata over there
+
+Instead, every persisted materialization result becomes a
+`WarpStateSnapshot` with:
+
+- coordinate
+- state hash
+- payload location
+- provenance posture
+- retention mode
+
+### Step 2 — exact lookup + predecessor lookup
+
+`MaterializeController` should stop talking directly in terms of
+"seek-cache fast path".
+
+Instead it should ask one snapshot resolver:
+
+1. find exact snapshot for coordinate
+2. if absent, find best compatible predecessor
+3. restore and replay from there
+
+Start with a simple truthful index:
+
+- exact map by coordinate hash
+- secondary ordering by descending ceiling
+
+Each descriptor must store the full frontier, not just a frontier hash,
+because predecessor search needs real compatibility checks.
+
+Compatibility rule:
+
+- candidate ceiling `<=` target ceiling
+- candidate frontier causally no later than target frontier
+
+Selection rule:
+
+- choose greatest compatible ceiling
+- break ties by frontier specificity / closeness
+
+This can be implemented with a simple descending scan first. No need to
+invent a fancy index before the repo proves it needs one.
+
+### Step 3 — make checkpoint creation a pin operation
+
+`createCheckpoint()` should stop meaning "serialize a second species of
+artifact."
+
+It should mean:
+
+1. resolve or create the snapshot for the requested coordinate
+2. mark that snapshot as pinned
+3. publish any stable name / ref needed for checkpoint discovery
+
+So the happy-path checkpoint flow becomes:
+
+- exact snapshot already exists -> pin it
+- exact snapshot missing -> materialize once, persist once, pin it
+
+This is the key simplification:
+
+> checkpoint creation is snapshot promotion, not separate snapshot
+> invention.
+
+### Step 4 — allow storage-class promotion when pinning
+
+Logical unification does **not** require pretending the current CAS
+seek-cache payload is already sufficient for durable checkpoints.
+
+If the current evictable snapshot substrate cannot satisfy checkpoint
+durability or reachability requirements, pinning may need to promote the
+payload into a stronger storage class.
+
+So the descriptor likely needs a field like:
+
+- `storageKind: 'evictable-cas' | 'durable-git' | 'durable-cas'`
+
+Then "checkpoint = safe from removal" remains true at the policy level,
+while the implementation is free to strengthen storage on promotion.
+
+This is still one snapshot system. It just acknowledges that not every
+payload backing has the same retention guarantees.
+
+### Step 5 — retention policy
+
+Retention should become policy on one artifact family.
+
+Initial rule set:
+
+- **evictable snapshots**
+  - subject to LRU / age / count limits
+- **pinned snapshots**
+  - excluded from ordinary eviction
+  - removed only by explicit user action or explicit checkpoint policy
+
+Do **not** start by auto-dropping pinned snapshots because they are
+"too clustered." That can come later, but only after the pinning law is
+trusted. Otherwise "safe from removal" stops meaning what it says.
+
+### Step 6 — staged rollout
+
+The rollout should be:
+
+1. define unified snapshot nouns and descriptor
+2. introduce exact + predecessor lookup
+3. route coordinate materialization through the unified snapshot resolver
+4. make `createCheckpoint()` pin/promote snapshots
+5. retire the old split vocabulary (`seek cache` vs `checkpoint`) where
+   it no longer reflects real behavior
+6. migrate legacy checkpoint schemas and old seek-cache entries into the
+   new descriptor/index model
+
+This order matters. It lets the repo stop lying about the two systems
+before every last payload/storage detail is perfect.
+
+## Immediate decisions
+
+If we follow the plan above, the first concrete decisions should be:
+
+1. **Use coordinate, not tick, as identity**
+   "tick = t" is not enough in a multi-writer graph. The identity has
+   to include frontier + ceiling.
+
+2. **Use one snapshot descriptor**
+   The system should not maintain separate checkpoint and seek-cache
+   descriptor/index formats.
+
+3. **Treat checkpoints as pinned snapshots**
+   That is the public semantic contract.
+
+4. **Allow promotion to rewrite backing storage if needed**
+   That is the implementation escape hatch that keeps the public model
+   clean without lying about GC/reachability guarantees.
+
 ## Output expected from this cycle
 
 By the end of cycle 0034 we should have:
