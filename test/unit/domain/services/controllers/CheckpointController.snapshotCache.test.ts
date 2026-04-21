@@ -35,6 +35,8 @@ type SnapshotCacheFixture = {
   getBestCompatiblePredecessor: (_coordinate: Coordinate) => Promise<SnapshotRecord | null>;
   put: (_record: SnapshotRecord) => Promise<SnapshotRecord>;
   pin: (_snapshotId: string) => Promise<SnapshotRecord>;
+  publishCheckpointHead: (_graphName: string, _snapshotId: string) => Promise<void>;
+  resolveCheckpointHead: (_graphName: string) => Promise<SnapshotRecord | null>;
   pruneEvictable: () => Promise<void>;
 };
 
@@ -142,6 +144,8 @@ describe('CheckpointController — unified snapshot cache', () => {
       getBestCompatiblePredecessor: vi.fn(),
       put: vi.fn(),
       pin: vi.fn().mockResolvedValue(snapshotRecord('snapshot-exact', 'pinned')),
+      publishCheckpointHead: vi.fn().mockResolvedValue(undefined),
+      resolveCheckpointHead: vi.fn().mockResolvedValue(null),
       pruneEvictable: vi.fn(),
     };
     const host = createHost(snapshotCache);
@@ -151,6 +155,7 @@ describe('CheckpointController — unified snapshot cache', () => {
 
     expect(snapshotCache.getExact).toHaveBeenCalledTimes(1);
     expect(snapshotCache.pin).toHaveBeenCalledWith('snapshot-exact');
+    expect(snapshotCache.publishCheckpointHead).toHaveBeenCalledWith('test-graph', 'snapshot-exact');
     expect(createCheckpointCommitMock).not.toHaveBeenCalled();
   });
 
@@ -162,6 +167,8 @@ describe('CheckpointController — unified snapshot cache', () => {
       getBestCompatiblePredecessor: vi.fn(),
       put: vi.fn().mockResolvedValue(snapshotRecord('snapshot-new', 'evictable')),
       pin: vi.fn().mockResolvedValue(snapshotRecord('snapshot-new', 'pinned')),
+      publishCheckpointHead: vi.fn().mockResolvedValue(undefined),
+      resolveCheckpointHead: vi.fn().mockResolvedValue(null),
       pruneEvictable: vi.fn(),
     };
     const host = createHost(snapshotCache);
@@ -174,6 +181,35 @@ describe('CheckpointController — unified snapshot cache', () => {
     expect(host.materialize).toHaveBeenCalledTimes(1);
     expect(snapshotCache.put).toHaveBeenCalledTimes(1);
     expect(snapshotCache.pin).toHaveBeenCalledWith('snapshot-new');
+    expect(snapshotCache.publishCheckpointHead).toHaveBeenCalledWith('test-graph', 'snapshot-new');
     expect(createCheckpointCommitMock).not.toHaveBeenCalled();
+  });
+
+  it('loads the published checkpoint head from the unified state cache before legacy git checkpoint refs', async () => {
+    const snapshotCache = {
+      getExact: vi.fn().mockResolvedValue(null),
+      getBestCompatiblePredecessor: vi.fn(),
+      put: vi.fn(),
+      pin: vi.fn(),
+      publishCheckpointHead: vi.fn().mockResolvedValue(undefined),
+      resolveCheckpointHead: vi.fn().mockResolvedValue({
+        ...snapshotRecord('snapshot-head', 'pinned'),
+        coordinate: {
+          frontier: new Map([['alice', 'sha-alice']]),
+          ceiling: null,
+        },
+      }),
+      pruneEvictable: vi.fn(),
+    };
+    const host = createHost(snapshotCache);
+    host._persistence.readRef = vi.fn().mockResolvedValue('legacy-checkpoint-sha');
+    const controller = new CheckpointController(host);
+
+    const loaded = await controller._loadLatestCheckpoint();
+
+    expect(snapshotCache.resolveCheckpointHead).toHaveBeenCalledWith('test-graph');
+    expect(host._persistence.readRef).not.toHaveBeenCalled();
+    expect(loaded?.stateHash).toBe('snapshot-head-hash');
+    expect(loaded?.frontier).toEqual(new Map([['alice', 'sha-alice']]));
   });
 });

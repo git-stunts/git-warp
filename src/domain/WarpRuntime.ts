@@ -319,8 +319,6 @@ export default class WarpRuntime {
       codec: this._codec,
       crypto: this._crypto,
       persistence: this._persistence,
-      // Getter so setSeekCache() on the host is immediately visible to the controller.
-      getSeekCache: () => this._seekCache ?? null,
       getStateCache: () => this._stateCache ?? null,
       patches: new RuntimePatchCollector(this),
       graphCloner: new RuntimeDetachedFactory(this),

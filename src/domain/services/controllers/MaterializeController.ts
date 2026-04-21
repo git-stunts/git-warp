@@ -15,15 +15,12 @@ import { isV5CheckpointSchema } from '../state/checkpointHelpers.ts';
 import { materializeIncremental, type LoadPersistence } from '../state/checkpointLoad.ts';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import { computeStateHash } from '../state/StateSerializer.ts';
-import { serializeFullState, deserializeFullState } from '../state/CheckpointSerializer.ts';
-import { buildSeekCacheKey } from '../../utils/seekCacheKey.ts';
 import { createFrontier, updateFrontier } from '../Frontier.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import { normalizeFrontierInput, normalizeExplicitCeiling, buildAdjacency, maxLamportInPatches } from './MaterializeHelpers.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
-import type SeekCachePort from '../../../ports/SeekCachePort.ts';
 import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
 import type {
   WarpStateCoordinate,
@@ -52,11 +49,6 @@ export type MaterializeDeps = {
   codec: CodecPort;
   crypto: CryptoPort;
   persistence: MaterializePersistence;
-  /**
-   * Returns the current seek cache. Called at each materialize() invocation
-   * so that setSeekCache() on the host is immediately reflected.
-   */
-  getSeekCache: () => SeekCachePort | null;
   getStateCache?: () => WarpStateCachePort | null;
   patches: PatchCollector;
   graphCloner: DetachedGraphFactory;
@@ -199,83 +191,7 @@ export default class MaterializeController {
 
   private async _materializeWithCeiling(opts: { ceiling: number; receipts: boolean }): Promise<MaterializeResult> {
     const frontier = await this._deps.patches.getFrontier();
-    // Seek cache is skipped when collecting receipts (provenance must be intact).
-    if (this._deps.getSeekCache() !== null && !opts.receipts) {
-      return await this._materializeWithCeilingCached({ ceiling: opts.ceiling, frontier });
-    }
     return await this._materializeCoordinate({ frontier, ceiling: opts.ceiling, receipts: opts.receipts });
-  }
-
-  private async _materializeWithCeilingCached(opts: { ceiling: number; frontier: Map<string, string> }): Promise<MaterializeResult> {
-    if (opts.frontier.size === 0 || opts.ceiling <= 0) {
-      return await this._materializeCoordinate({ frontier: opts.frontier, ceiling: opts.ceiling, receipts: false });
-    }
-    const cacheKey = await buildSeekCacheKey(opts.ceiling, opts.frontier);
-    // Try cache read.
-    const restored = await this._tryRestoreFromCache(cacheKey, opts.ceiling, opts.frontier);
-    if (restored !== null) { return restored; }
-    // Cache miss — full materialize, then persist async.
-    const result = await this._materializeCoordinate({ frontier: opts.frontier, ceiling: opts.ceiling, receipts: false });
-    if (result.patchCount > 0) {
-      void this._persistToSeekCache(cacheKey, result.state);
-    }
-    return result;
-  }
-
-  private async _tryRestoreFromCache(cacheKey: string, ceiling: number, frontier: Map<string, string>): Promise<MaterializeResult | null> {
-    const seekCache = this._deps.getSeekCache();
-    if (seekCache === null) { return null; }
-    const entry = await this._readCacheEntry(seekCache, cacheKey);
-    if (entry === null) { return null; }
-    return await this._deserializeCacheEntry({ entry, seekCache, cacheKey, ceiling, frontier });
-  }
-
-  private async _readCacheEntry(seekCache: SeekCachePort, cacheKey: string): Promise<Awaited<ReturnType<SeekCachePort['get']>>> {
-    try {
-      return await seekCache.get(cacheKey);
-    } catch {
-      return null;
-    }
-  }
-
-  // eslint-disable-next-line max-lines-per-function -- deserialize + build result object + corruption cleanup is necessarily verbose
-  private async _deserializeCacheEntry(
-    opts: {
-      entry: NonNullable<Awaited<ReturnType<SeekCachePort['get']>>>;
-      seekCache: SeekCachePort;
-      cacheKey: string;
-      ceiling: number;
-      frontier: Map<string, string>;
-    },
-  ): Promise<MaterializeResult | null> {
-    const { entry, seekCache, cacheKey, ceiling, frontier } = opts;
-    try {
-      const state = deserializeFullState(entry.buffer, { codec: this._deps.codec });
-      const stateHash = await computeHash(this._deps, state);
-      const adjacency = buildAdjacency(state);
-      return {
-        state,
-        stateHash,
-        adjacency: new AdjacencyMap({ outgoing: adjacency.outgoing, incoming: adjacency.incoming }),
-        patchCount: 0,
-        maxObservedLamport: 0,
-        provenanceIndex: new ProvenanceIndex(),
-        provenanceDegraded: true,
-        frontier,
-        ceiling,
-      };
-    } catch {
-      // Corrupted entry — delete and fall through to full materialize.
-      try { await seekCache.delete(cacheKey); } catch { /* non-fatal */ }
-      return null;
-    }
-  }
-
-  private _persistToSeekCache(cacheKey: string, state: WarpState): Promise<void> {
-    const seekCache = this._deps.getSeekCache();
-    if (seekCache === null) { return Promise.resolve(); }
-    const serialized = serializeFullState(state, { codec: this._deps.codec });
-    return seekCache.set(cacheKey, serialized).catch(() => { /* non-fatal */ });
   }
 
   private async _materializeCoordinate(opts: { frontier: Map<string, string>; ceiling: number | null; receipts: boolean }): Promise<MaterializeResult> {

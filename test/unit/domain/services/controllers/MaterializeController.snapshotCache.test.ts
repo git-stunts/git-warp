@@ -69,6 +69,8 @@ function createControllerFixtures() {
     getBestCompatiblePredecessor: vi.fn<(_coordinate: Coordinate) => Promise<SnapshotRecord | null>>(),
     put: vi.fn(),
     pin: vi.fn(),
+    publishCheckpointHead: vi.fn(),
+    resolveCheckpointHead: vi.fn(),
     pruneEvictable: vi.fn(),
   };
 
@@ -106,7 +108,6 @@ function createControllerFixtures() {
       showNode: vi.fn().mockResolvedValue(''),
       readBlob: vi.fn().mockResolvedValue(new Uint8Array([1])),
     },
-    getSeekCache: () => null,
     getStateCache: () => stateCache,
     patches,
     graphCloner: { openReadOnly: vi.fn() },

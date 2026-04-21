@@ -22,6 +22,8 @@ describe('WarpStateCachePort', () => {
     expect(WarpStateCachePort.prototype.getBestCompatiblePredecessor).toBeUndefined();
     expect(WarpStateCachePort.prototype.put).toBeUndefined();
     expect(WarpStateCachePort.prototype.pin).toBeUndefined();
+    expect(WarpStateCachePort.prototype.publishCheckpointHead).toBeUndefined();
+    expect(WarpStateCachePort.prototype.resolveCheckpointHead).toBeUndefined();
     expect(WarpStateCachePort.prototype.pruneEvictable).toBeUndefined();
   });
 
@@ -54,6 +56,14 @@ describe('WarpStateCachePort', () => {
         };
       }
 
+      async publishCheckpointHead(_graphName: string, _snapshotId: string): Promise<void> {
+        return;
+      }
+
+      async resolveCheckpointHead(_graphName: string): Promise<SnapshotRecord | null> {
+        return null;
+      }
+
       async pruneEvictable(): Promise<void> {
         return;
       }
@@ -83,5 +93,7 @@ describe('WarpStateCachePort', () => {
       snapshotId: 'snapshot-1',
       retention: 'pinned',
     });
+    await expect(cache.publishCheckpointHead('graph-1', 'snapshot-1')).resolves.toBeUndefined();
+    await expect(cache.resolveCheckpointHead('graph-1')).resolves.toBeNull();
   });
 });

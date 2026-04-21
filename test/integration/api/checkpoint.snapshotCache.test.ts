@@ -18,6 +18,8 @@ describe('API: snapshot cache unification', () => {
       getBestCompatiblePredecessor: vi.fn().mockResolvedValue(null),
       put: vi.fn(),
       pin: vi.fn(),
+      publishCheckpointHead: vi.fn(),
+      resolveCheckpointHead: vi.fn().mockResolvedValue(null),
       pruneEvictable: vi.fn(),
     };
 
@@ -41,6 +43,8 @@ describe('API: snapshot cache unification', () => {
         snapshotId: 'snapshot-1',
         retention: 'pinned',
       }),
+      publishCheckpointHead: vi.fn().mockResolvedValue(undefined),
+      resolveCheckpointHead: vi.fn().mockResolvedValue(null),
       pruneEvictable: vi.fn(),
     };
 
@@ -51,5 +55,6 @@ describe('API: snapshot cache unification', () => {
 
     expect(stateCache.put).toHaveBeenCalled();
     expect(stateCache.pin).toHaveBeenCalledWith('snapshot-1');
+    expect(stateCache.publishCheckpointHead).toHaveBeenCalledWith('test', 'snapshot-1');
   });
 });

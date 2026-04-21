@@ -32,5 +32,9 @@ export default abstract class WarpStateCachePort {
 
   abstract pin(_snapshotId: string): Promise<WarpStateSnapshotRecord>;
 
+  abstract publishCheckpointHead(_graphName: string, _snapshotId: string): Promise<void>;
+
+  abstract resolveCheckpointHead(_graphName: string): Promise<WarpStateSnapshotRecord | null>;
+
   abstract pruneEvictable(): Promise<void>;
 }

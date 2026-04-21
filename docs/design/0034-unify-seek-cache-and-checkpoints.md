@@ -663,18 +663,18 @@ Questions 1, 2, and 3 pass.
   replay suffix.
 - `CheckpointController` now pins an exact snapshot when present, or
   materializes once, stores one snapshot record, and then pins it.
-- The compatibility posture is explicit and honest:
-  legacy named checkpoints can be imported into unified snapshot
-  descriptors, while legacy seek-cache entries require the missing
-  frontier to be supplied out-of-band.
+- The migration posture is explicit and honest:
+  legacy named checkpoints remain migratable into the unified snapshot
+  model, while legacy seek-cache entries still require the missing
+  frontier to be supplied out-of-band and therefore do not belong in
+  the live runtime path.
 
-Question 4 fails.
+Question 4 now passes after the in-cycle drift fix.
 
-- The snapshot-backed `createCheckpoint()` path returns a pinned
-  snapshot id, but it does not yet publish a stable checkpoint ref/name
-  the way the legacy checkpoint path does.
-- That means the internal promotion story is substantially correct, but
-  the public checkpoint contract is still incomplete.
+- The snapshot-backed `createCheckpoint()` path now publishes a stable
+  checkpoint head through the unified `WarpStateCache` contract.
+- `_loadLatestCheckpoint()` now resolves that published checkpoint head
+  before falling back to the legacy Git checkpoint ref path.
 
 ### Human view
 
@@ -685,70 +685,43 @@ From a user/operator perspective, the important new behavior is real:
 - a checkpoint request can reuse an existing snapshot instead of
   serializing a second copy of the world
 
-But the user-visible checkpoint story is not fully settled yet.
+The user-visible checkpoint story is now coherent at the control-plane
+level:
 
-If the system pins a snapshot without also publishing the usual stable
-checkpoint handle, the repo still has two different notions of
-"checkpoint" at the discovery layer even though the storage/control
-plane is being unified underneath.
+- snapshot pinning publishes a stable checkpoint head
+- latest-checkpoint discovery can resolve that published head
+- legacy Git checkpoint refs remain as the compatibility fallback
 
 ### Witness
 
 Implementation witness:
 
 - commit `1c2bb1c2` — `feat(snapshot): green unified cache path`
+- same-cycle drift remediation
 
 Verification witness:
 
 - `npm run typecheck`
-- `npm exec vitest run test/unit/ports/WarpStateCachePort.test.ts test/unit/domain/services/state/WarpStateSnapshotIndex.test.ts test/unit/domain/services/state/LegacyWarpStateSnapshotImporter.test.ts test/unit/domain/services/controllers/MaterializeController.snapshotCache.test.ts test/unit/domain/services/controllers/CheckpointController.snapshotCache.test.ts test/integration/api/checkpoint.snapshotCache.test.ts`
+- `npm exec vitest run test/unit/ports/WarpStateCachePort.test.ts test/unit/domain/services/controllers/MaterializeController.snapshotCache.test.ts test/unit/domain/services/controllers/CheckpointController.snapshotCache.test.ts test/integration/api/checkpoint.snapshotCache.test.ts test/unit/domain/seekCache.test.ts`
 
 Observed result:
 
 - typecheck passed
-- unified snapshot test matrix passed (`6` files, `16` tests)
+- targeted unified snapshot + compatibility matrix passed (`5` files, `19` tests)
 
 ### Playback verdict
 
-Partial pass.
+Pass after same-cycle drift remediation.
 
-The core unification law is now executable in the controller path, but
-the snapshot-backed checkpoint path still owes the repo a stable
-checkpoint publication step before this cycle can claim the public
-contract is fully met.
+The core unification law is now executable in the controller path, and
+the snapshot-backed checkpoint path publishes and resolves a stable
+checkpoint head without reviving the legacy seek-cache runtime path.
 
 ## Drift check
 
 ### Drift found
 
-1. **Two snapshot resolver paths still exist at runtime**
-
-   The design called for one resolver path under one snapshot/cache
-   system. The greened implementation added the unified
-   `WarpStateCache` resolver for coordinate materialization, but
-   `MaterializeController.materialize({ ceiling })` still keeps the
-   legacy seek-cache fast path alive through:
-
-   - `getSeekCache()`
-   - `buildSeekCacheKey(...)`
-   - `_materializeWithCeilingCached(...)`
-
-   So the repo still has:
-
-   - unified snapshot resolution for coordinate materialization
-   - legacy seek-cache restoration for ceiling materialization
-
-   That is real drift from the intended "one snapshot substrate" law.
-
-2. **Checkpoint pinning does not yet publish the stable checkpoint ref**
-
-   The design said checkpoint creation should become pin/promotion while
-   still preserving the public checkpoint contract. The greened
-   snapshot-backed path pins or creates-and-pins a snapshot, but it
-   does not yet publish the stable checkpoint ref/name used by the
-   legacy checkpoint path.
-
-3. **The descriptor is still thinner than the design’s proposed shape**
+1. **The descriptor is still thinner than the design’s proposed shape**
 
    The implementation chose a minimal descriptor:
 
@@ -769,12 +742,19 @@ contract is fully met.
 
 ### Drift assessment
 
-The drift is acceptable for this cycle only because the green cut was
-meant to land the control-plane unification first.
+The critical runtime drift found during playback has been addressed in
+the same cycle:
 
-What is *not* acceptable to leave indefinite:
+- `MaterializeController` now uses one live snapshot resolver path
+- checkpoint pinning now publishes a stable checkpoint head through the
+  unified cache contract
 
-- the surviving legacy seek-cache fast path
-- the missing stable checkpoint publication step
+The remaining drift is the deliberately thinner descriptor shape:
 
-Those keep the repo in a half-unified state.
+- no `appliedVV`
+- no `storageKind`
+- no `lastAccessedAt`
+
+That remaining drift is acceptable for this cycle because it keeps the
+control plane honest without inventing more substrate than the repo is
+ready to enforce yet.

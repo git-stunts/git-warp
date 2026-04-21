@@ -11,7 +11,11 @@ import { QueryError, E_NO_STATE_MSG, type WarpGraphWithMixins } from '../../warp
 import { SchemaUnsupportedError } from '../../errors/index.ts';
 import { buildWriterRef, buildCheckpointRef, buildCoverageRef } from '../../utils/RefLayout.ts';
 import { createFrontier, updateFrontier, frontierFingerprint } from '../Frontier.ts';
-import { isV5CheckpointSchema } from '../state/checkpointHelpers.ts';
+import {
+  CHECKPOINT_SCHEMA_INDEX_TREE,
+  CHECKPOINT_SCHEMA_STANDARD,
+  isV5CheckpointSchema,
+} from '../state/checkpointHelpers.ts';
 import { loadCheckpoint, type LoadedCheckpoint } from '../state/checkpointLoad.ts';
 import { create as createCheckpointCommit } from '../state/checkpointCreate.ts';
 import executeGC from '../executeGC.ts';
@@ -145,6 +149,7 @@ export default class CheckpointController {
         const pinned = exactSnapshot.retention === 'pinned'
           ? exactSnapshot
           : await stateCache.pin(exactSnapshot.snapshotId);
+        await stateCache.publishCheckpointHead(h._graphName, pinned.snapshotId);
         return pinned.snapshotId;
       }
     }
@@ -167,6 +172,7 @@ export default class CheckpointController {
         provenancePosture: 'full',
       }));
       const pinned = await stateCache.pin(stored.snapshotId);
+      await stateCache.publishCheckpointHead(h._graphName, pinned.snapshotId);
       return pinned.snapshotId;
     }
 
@@ -284,6 +290,23 @@ export default class CheckpointController {
 
   async _loadLatestCheckpoint(): Promise<LoadedCheckpoint | null> {
     const h = this._host;
+    const stateCache = h._stateCache ?? null;
+    if (stateCache !== null) {
+      const snapshotHead = await stateCache.resolveCheckpointHead(h._graphName);
+      if (snapshotHead !== null && snapshotHead.state !== undefined) {
+        return {
+          state: snapshotHead.state,
+          frontier: snapshotHead.coordinate.frontier,
+          stateHash: snapshotHead.stateHash,
+          schema: snapshotHead.indexTreeOid === undefined
+            ? CHECKPOINT_SCHEMA_STANDARD
+            : CHECKPOINT_SCHEMA_INDEX_TREE,
+          appliedVV: null,
+          indexShardOids: null,
+        };
+      }
+    }
+
     const checkpointRef = buildCheckpointRef(h._graphName);
     const checkpointSha = await h._persistence.readRef(checkpointRef);
 

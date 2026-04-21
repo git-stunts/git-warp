@@ -168,26 +168,22 @@ describe('buildSeekCacheKey', () => {
   });
 });
 
-/** Flush microtask queue so fire-and-forget promises settle. */
-const flush = () => new Promise((r) => { setTimeout(r, 0); });
-
 // ===========================================================================
-// WarpRuntime seek cache integration (mock cache)
+// WarpRuntime seek cache compatibility surface
 // ===========================================================================
 
-describe('WarpRuntime seek cache integration', () => {
-    let persistence;
-    let seekCache;
+describe('WarpRuntime seek cache compatibility surface', () => {
+  let persistence;
+  let seekCache;
 
   beforeEach(() => {
     persistence = createMockPersistence();
-    // Ensure writeBlob/writeTree resolve for index tree persistence
     persistence.writeBlob.mockResolvedValue('mock-blob-oid');
     persistence.writeTree.mockResolvedValue('mock-tree-oid');
     seekCache = createMockSeekCache();
   });
 
-  it('stores state to cache on first ceiling materialize', async () => {
+  it('accepts a seekCache option without consulting it during materialization', async () => {
     setupPersistence(persistence, { w1: 3 });
     const graph = await WarpRuntime.open({
       persistence,
@@ -196,171 +192,15 @@ describe('WarpRuntime seek cache integration', () => {
       seekCache,
     });
 
-    await graph.materialize({ ceiling: 2 });
-    await flush();
+    const result = await graph.materialize({ ceiling: 2 });
 
-    expect(seekCache.set).toHaveBeenCalledTimes(1);
-    const [key, buf] = seekCache.set.mock.calls[0];
-    expect(key).toMatch(/^v1:t2-/);
-    expect(buf instanceof Uint8Array).toBe(true);
-  });
-
-  it('restores state from cache on second visit to same tick', async () => {
-    setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpRuntime.open({
-      persistence,
-      graphName: 'test',
-      writerId: 'w1',
-      seekCache,
-    });
-
-    // First visit — full materialize, stores to cache
-    await graph.materialize({ ceiling: 2 });
-    await flush();
-    const getCallsBefore = seekCache.get.mock.calls.length;
-
-    // Clear in-memory cache to force persistent cache path
-    graph._cachedState = null;
-    graph._cachedCeiling = null;
-    graph._cachedFrontier = null;
-
-    // Second visit — should hit persistent cache
-    await graph.materialize({ ceiling: 2 });
-
-    // get() called at least once more
-    expect(seekCache.get.mock.calls.length).toBeGreaterThan(getCallsBefore);
-    // No additional set() call (already cached)
-    expect(seekCache.set).toHaveBeenCalledTimes(1);
-  });
-
-  it('skips cache when collectReceipts is true', async () => {
-    setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpRuntime.open({
-      persistence,
-      graphName: 'test',
-      writerId: 'w1',
-      seekCache,
-    });
-
-    await graph.materialize({ ceiling: 2, receipts: true });
-
+    expect(result).toBeDefined();
+    expect(graph.seekCache).toBe(seekCache);
     expect(seekCache.get).not.toHaveBeenCalled();
     expect(seekCache.set).not.toHaveBeenCalled();
   });
 
-  it('does not store when no patches match ceiling', async () => {
-    setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpRuntime.open({
-      persistence,
-      graphName: 'test',
-      writerId: 'w1',
-      seekCache,
-    });
-
-    await graph.materialize({ ceiling: 0 });
-
-    expect(seekCache.set).not.toHaveBeenCalled();
-  });
-
-  it('sets _provenanceDegraded on cache hit', async () => {
-    setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpRuntime.open({
-      persistence,
-      graphName: 'test',
-      writerId: 'w1',
-      seekCache,
-    });
-
-    // First materialize — populates cache
-    await graph.materialize({ ceiling: 2 });
-    await flush();
-    expect(graph._provenanceDegraded).toBe(false);
-
-    // Force persistent cache path
-    graph._cachedState = null;
-    graph._cachedCeiling = null;
-    graph._cachedFrontier = null;
-
-    // Second materialize — hits cache
-    await graph.materialize({ ceiling: 2 });
-    expect(graph._provenanceDegraded).toBe(true);
-  });
-
-  it('throws E_PROVENANCE_DEGRADED on patchesFor after cache hit', async () => {
-    setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpRuntime.open({
-      persistence,
-      graphName: 'test',
-      writerId: 'w1',
-      seekCache,
-    });
-
-    await graph.materialize({ ceiling: 2 });
-    await flush();
-
-    // Force cache hit
-    graph._cachedState = null;
-    graph._cachedCeiling = null;
-    graph._cachedFrontier = null;
-    await graph.materialize({ ceiling: 2 });
-
-    await expect(graph.patchesFor('n:w1:1')).rejects.toThrow(/Provenance unavailable/);
-  });
-
-  it('clears _provenanceDegraded on full materialize', async () => {
-    setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpRuntime.open({
-      persistence,
-      graphName: 'test',
-      writerId: 'w1',
-      seekCache,
-    });
-
-    await graph.materialize({ ceiling: 2 });
-    await flush();
-    graph._cachedState = null;
-    graph._cachedCeiling = null;
-    graph._cachedFrontier = null;
-    await graph.materialize({ ceiling: 2 });
-    expect(graph._provenanceDegraded).toBe(true);
-
-    // Full materialize without ceiling clears degraded flag
-    await graph.materialize();
-    expect(graph._provenanceDegraded).toBe(false);
-  });
-
-  it('gracefully handles cache get() failure', async () => {
-    setupPersistence(persistence, { w1: 3 });
-    seekCache.get.mockRejectedValue(new Error('storage error'));
-    const graph = await WarpRuntime.open({
-      persistence,
-      graphName: 'test',
-      writerId: 'w1',
-      seekCache,
-    });
-
-    // Should not throw — falls through to full materialize
-    const state = (await graph.materialize({ ceiling: 2 }) as any);
-    expect(state).toBeDefined();
-    expect(state.nodeAlive).toBeDefined();
-  });
-
-  it('gracefully handles cache set() failure', async () => {
-    setupPersistence(persistence, { w1: 3 });
-    seekCache.set.mockRejectedValue(new Error('storage error'));
-    const graph = await WarpRuntime.open({
-      persistence,
-      graphName: 'test',
-      writerId: 'w1',
-      seekCache,
-    });
-
-    // Should not throw — cache write failure is non-fatal
-    const state = await graph.materialize({ ceiling: 2 });
-    expect(state).toBeDefined();
-  });
-
-  it('works without seekCache (null)', async () => {
+  it('works without seekCache', async () => {
     setupPersistence(persistence, { w1: 3 });
     const graph = await WarpRuntime.open({
       persistence,
@@ -368,12 +208,13 @@ describe('WarpRuntime seek cache integration', () => {
       writerId: 'w1',
     });
 
-    const state = await graph.materialize({ ceiling: 2 });
-    expect(state).toBeDefined();
-    expect(graph._seekCache).toBeNull();
+    const result = await graph.materialize({ ceiling: 2 });
+
+    expect(result).toBeDefined();
+    expect(graph.seekCache).toBeNull();
   });
 
-  it('setSeekCache(null) detaches the cache', async () => {
+  it('setSeekCache(null) detaches the compatibility surface', async () => {
     setupPersistence(persistence, { w1: 3 });
     const graph = await WarpRuntime.open({
       persistence,
@@ -386,40 +227,10 @@ describe('WarpRuntime seek cache integration', () => {
     graph.setSeekCache((null as any));
     expect(graph.seekCache).toBeNull();
 
-    // Materialize should still work without cache
-    const state = await graph.materialize({ ceiling: 2 });
-    expect(state).toBeDefined();
+    const result = await graph.materialize({ ceiling: 2 });
+
+    expect(result).toBeDefined();
     expect(seekCache.get).not.toHaveBeenCalled();
     expect(seekCache.set).not.toHaveBeenCalled();
-  });
-
-  it('deletes corrupted cache entry on deserialize failure', async () => {
-    setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpRuntime.open({
-      persistence,
-      graphName: 'test',
-      writerId: 'w1',
-      seekCache,
-    });
-
-    // First materialize populates cache
-    await graph.materialize({ ceiling: 2 });
-    await flush();
-    expect(seekCache.set).toHaveBeenCalledTimes(1);
-    const [cacheKey] = seekCache.set.mock.calls[0];
-
-    // Corrupt the cached data (store object with bad buffer)
-    seekCache._store.set(cacheKey, { buffer: Buffer.from('corrupted-data') });
-
-    // Clear in-memory cache
-    graph._cachedState = null;
-    graph._cachedCeiling = null;
-    graph._cachedFrontier = null;
-
-    // Second materialize should self-heal: delete bad entry and re-materialize
-    const state = (await graph.materialize({ ceiling: 2 }) as any);
-    expect(state).toBeDefined();
-    expect(state.nodeAlive).toBeDefined();
-    expect(seekCache.delete).toHaveBeenCalledWith(cacheKey);
   });
 });
