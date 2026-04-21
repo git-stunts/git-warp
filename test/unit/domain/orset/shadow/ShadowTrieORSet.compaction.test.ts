@@ -33,14 +33,14 @@ class ToggleReadFaultTrieStore extends InMemoryTrieStore {
     this.#failReads = true;
   }
 
-  async readLeaf(oid: string): Promise<Uint8Array> {
+  override async readLeaf(oid: string): Promise<Uint8Array> {
     if (this.#failReads) {
       throw new TrieStoreError("boom", { code: "E_TRIE_STORE_READ" });
     }
     return await super.readLeaf(oid);
   }
 
-  async readBranch(oid: string) {
+  override async readBranch(oid: string) {
     if (this.#failReads) {
       throw new TrieStoreError("boom", { code: "E_TRIE_STORE_READ" });
     }
@@ -50,11 +50,11 @@ class ToggleReadFaultTrieStore extends InMemoryTrieStore {
 
 function makeEngine(opts?: {
   readonly rootOid?: string | null;
-  readonly store?: InMemoryTrieStore | NeverCallStore | ToggleReadFaultTrieStore;
+  readonly store?: InMemoryTrieStore | ToggleReadFaultTrieStore;
   readonly geometry?: TrieGeometry;
 }): {
   readonly engine: ShadowTrieORSet;
-  readonly store: InMemoryTrieStore | NeverCallStore | ToggleReadFaultTrieStore;
+  readonly store: InMemoryTrieStore | ToggleReadFaultTrieStore;
 } {
   const store = opts?.store ?? new InMemoryTrieStore();
   const geometry = opts?.geometry ?? DEFAULT_GEOMETRY;
@@ -70,6 +70,19 @@ function makeEngine(opts?: {
     engine: new ShadowTrieORSet({ cursor, flusher }),
     store,
   };
+}
+
+function makeNeverCallEngine(): ShadowTrieORSet {
+  const store = new NeverCallStore();
+  const cursor = new TrieCursor({
+    rootOid: null,
+    store,
+    geometry: DEFAULT_GEOMETRY,
+    codec: cborCodec,
+    pageCache: new PageCache({ maxResident: 32 }),
+  });
+  const flusher = new TrieFlusher({ store, codec: cborCodec });
+  return new ShadowTrieORSet({ cursor, flusher });
 }
 
 async function scanAll(engine: ShadowTrieORSet): Promise<readonly string[]> {
@@ -89,11 +102,16 @@ async function flushAndReopen(args: {
   readonly reopened: ShadowTrieORSet;
 }> {
   const result = await args.engine.flush();
-  const reopened = makeEngine({
-    rootOid: result.rootOid,
-    store: args.store,
-    geometry: args.geometry,
-  }).engine;
+  const reopened = args.geometry === undefined
+    ? makeEngine({
+        rootOid: result.rootOid,
+        store: args.store,
+      }).engine
+    : makeEngine({
+        rootOid: result.rootOid,
+        store: args.store,
+        geometry: args.geometry,
+      }).engine;
   return { rootOid: result.rootOid, reopened };
 }
 
@@ -149,7 +167,8 @@ async function rootChildPage(args: {
 }
 
 function firstNibble(element: string, geometry: TrieGeometry): number {
-  return RouteKey.fromElement(element).nibbleAt(0, geometry.nibbleBits as 4);
+  void geometry;
+  return RouteKey.fromElement(element).nibbleAt(0, 4);
 }
 
 function leafElements(leaf: TrieLeaf): readonly string[] {
@@ -220,8 +239,7 @@ describe("ShadowTrieORSet.compact", () => {
 
   describe("edge cases", () => {
     it("is a no-op on an empty trie", async () => {
-      const store = new NeverCallStore();
-      const { engine } = makeEngine({ store });
+      const engine = makeNeverCallEngine();
 
       await engine.compact(VersionVector.empty());
 
@@ -263,7 +281,7 @@ describe("ShadowTrieORSet.compact", () => {
 
     it("merges undersized sibling leaves when the combined size fits geometry", async () => {
       const { engine, store } = makeEngine({ geometry: MERGE_GEOMETRY });
-      const ids = ["node:19", "node:278", "node:20", "node:234"] as const;
+      const ids: readonly string[] = ["node:19", "node:278", "node:20", "node:234"];
 
       for (let i = 0; i < ids.length; i += 1) {
         const id = ids[i];
@@ -304,13 +322,13 @@ describe("ShadowTrieORSet.compact", () => {
 
     it("keeps sibling leaves separate when the combined size would exceed capacity", async () => {
       const { engine, store } = makeEngine({ geometry: MERGE_GEOMETRY });
-      const ids = [
+      const ids: readonly string[] = [
         "node:19",
         "node:278",
         "node:20",
         "node:234",
         "node:372",
-      ] as const;
+      ];
 
       for (let i = 0; i < ids.length; i += 1) {
         const id = ids[i];
@@ -346,7 +364,7 @@ describe("ShadowTrieORSet.compact", () => {
 
     it("collapses a single-child branch into its parent leaf path", async () => {
       const { engine, store } = makeEngine({ geometry: MERGE_GEOMETRY });
-      const ids = ["node:19", "node:278", "node:20", "node:234"] as const;
+      const ids: readonly string[] = ["node:19", "node:278", "node:20", "node:234"];
 
       for (let i = 0; i < ids.length; i += 1) {
         const id = ids[i];
@@ -391,7 +409,7 @@ describe("ShadowTrieORSet.compact", () => {
   describe("known failure modes", () => {
     it("keeps merged leaf suffixes strictly sorted", async () => {
       const { engine, store } = makeEngine({ geometry: MERGE_GEOMETRY });
-      const ids = ["node:19", "node:278", "node:20", "node:234"] as const;
+      const ids: readonly string[] = ["node:19", "node:278", "node:20", "node:234"];
 
       for (let i = 0; i < ids.length; i += 1) {
         const id = ids[i];

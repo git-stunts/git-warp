@@ -1,4 +1,5 @@
 import { Dot as DotClass, type Dot } from "../../crdt/Dot.ts";
+import type VersionVector from "../../crdt/VersionVector.ts";
 import TrieCursorError from "../../errors/TrieCursorError.ts";
 import type CodecPort from "../../../ports/CodecPort.ts";
 import RouteKey from "../route/RouteKey.ts";
@@ -6,6 +7,7 @@ import RouteKey from "../route/RouteKey.ts";
 import DirtyPageSet, { encodeDirtyPath } from "./DirtyPageSet.ts";
 import PageCache from "./PageCache.ts";
 import TrieBranch from "./TrieBranch.ts";
+import TrieCompactor from "./TrieCompactor.ts";
 import type TrieGeometry from "./TrieGeometry.ts";
 import TrieLeaf, { type TrieLeafEntry } from "./TrieLeaf.ts";
 import type TrieStorePort from "./TrieStorePort.ts";
@@ -119,6 +121,24 @@ export default class TrieCursor {
     await this.#tombstoneBelow([], observedDots);
   }
 
+  async compact(includedVV: VersionVector): Promise<void> {
+    const compactor = new TrieCompactor({
+      geometry: this.#geometry,
+      nibbleBits: nibbleBitsOf(this.#geometry.nibbleBits),
+      loadRootIfNeeded: async () => await this.#loadRootIfNeeded(),
+      hasRoot: () => this.#hasRoot(),
+      leafAt: (path) => this.#leafAt(path),
+      branchAt: (path) => this.#branchAt(path),
+      ensureChildLoaded: async (parentPath, nibble, childOid) =>
+        await this.#ensureChildLoaded(parentPath, nibble, childOid),
+      markLeafDirty: (path, leaf) => this.#markLeafDirty(path, leaf),
+      markBranchDirty: (path, branch) => this.#markBranchDirty(path, branch),
+      clearLeafAt: (path) => this.#clearLeafAt(path),
+      clearBranchAt: (path) => this.#clearBranchAt(path),
+    });
+    await compactor.compact(includedVV);
+  }
+
   async elements(): Promise<readonly string[]> {
     const out: string[] = [];
     for await (const element of this.scan()) {
@@ -225,6 +245,12 @@ export default class TrieCursor {
     const key = encodeDirtyPath(path);
     this.#dirtyLeaves.delete(key);
     this.#workingLeaves.delete(key);
+  }
+
+  #clearBranchAt(path: readonly number[]): void {
+    const key = encodeDirtyPath(path);
+    this.#dirtyBranches.delete(key);
+    this.#workingBranches.delete(key);
   }
 
   #rebindParentBranch(parentPath: readonly number[], nibble: number): void {

@@ -1,4 +1,5 @@
 import { type Dot } from "../../crdt/Dot.ts";
+import type VersionVector from "../../crdt/VersionVector.ts";
 import ShadowTrieORSetError from "../../errors/ShadowTrieORSetError.ts";
 import TrieCursor from "../trie/TrieCursor.ts";
 import TrieFlusher from "../trie/TrieFlusher.ts";
@@ -52,6 +53,10 @@ export default class ShadowTrieORSet {
 
   async remove(observedDots: ReadonlySet<string>): Promise<void> {
     await this.#cursor.remove(observedDots);
+  }
+
+  async compact(includedVV: VersionVector): Promise<void> {
+    await this.#cursor.compact(includedVV);
   }
 
   async *scan(): AsyncIterable<string> {
