@@ -18,6 +18,11 @@ import { computeStateHash } from '../state/StateSerializer.ts';
 import { createFrontier, updateFrontier } from '../Frontier.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import { normalizeFrontierInput, normalizeExplicitCeiling, buildAdjacency, maxLamportInPatches } from './MaterializeHelpers.ts';
+import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
+import {
+  reduceSessionBackedState,
+  type MaterializeSessionOpener,
+} from './MaterializeSessionBridge.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
@@ -50,6 +55,7 @@ export type MaterializeDeps = {
   crypto: CryptoPort;
   persistence: MaterializePersistence;
   getStateCache?: () => WarpStateCachePort | null;
+  openStateSession?: MaterializeSessionOpener;
   patches: PatchCollector;
   graphCloner: DetachedGraphFactory;
   graphName: string;
@@ -160,7 +166,7 @@ export default class MaterializeController {
 
   private async _fromCheckpoint(ck: CheckpointData, opts: { receipts: boolean; wantDiff: boolean }): Promise<MaterializeResult> {
     const patches = await this._deps.patches.loadPatchesSince(ck);
-    const reduced = reducePatches(patches, ck.state, opts);
+    const reduced = await this._reducePatches(patches, ck.state, opts);
     const provenance = buildProvenance(patches, ck.provenanceIndex as ProvenanceIndex | undefined);
     return await this._buildResult({ reduced, patches, provenance, degraded: false, ceiling: null, frontier: null });
   }
@@ -174,7 +180,7 @@ export default class MaterializeController {
     if (patches.length === 0) {
       return await this._emptyResult();
     }
-    const reduced = reducePatches(patches, undefined, opts);
+    const reduced = await this._reducePatches(patches, undefined, opts);
     return await this._buildResult({ reduced, patches, provenance: buildProvenance(patches), degraded: false, ceiling: null, frontier: null });
   }
 
@@ -210,7 +216,10 @@ export default class MaterializeController {
     if (patches.length === 0) {
       return await this._emptyResult(opts.ceiling, opts.frontier);
     }
-    const reduced = reducePatches(patches, undefined, { receipts: opts.receipts, wantDiff: false });
+    const reduced = await this._reducePatches(patches, undefined, {
+      receipts: opts.receipts,
+      wantDiff: false,
+    });
     return await this._buildResult({ reduced, patches, provenance: buildProvenance(patches), degraded: false, ceiling: opts.ceiling, frontier: opts.frontier });
   }
 
@@ -248,7 +257,7 @@ export default class MaterializeController {
       opts.coordinate.ceiling,
       predecessor.coordinate,
     );
-    const reduced = reducePatches(patches, predecessor.state, {
+    const reduced = await this._reducePatches(patches, predecessor.state, {
       receipts: false,
       wantDiff: false,
     });
@@ -289,6 +298,11 @@ export default class MaterializeController {
   // ── Checkpoint SHA pipeline ───────────────────────────────────────
 
   private async _materializeAtCheckpoint(checkpointSha: string): Promise<MaterializeResult> {
+    if (this._deps.openStateSession !== undefined) {
+      throw new SchemaUnsupportedError(
+        'materializeAt() is not supported on the session-backed runtime line. Run the offline checkpoint migration first.',
+      );
+    }
     const frontier = await this._buildTargetFrontier();
     const patchLoader = async (_w: string, from: string | null, to: string) =>
       await this._deps.patches.loadPatchChain(to, from);
@@ -338,6 +352,13 @@ export default class MaterializeController {
   private async _wrapState(state: WarpState, ceiling: number | null, frontier: Map<string, string> | null): Promise<MaterializeResult> {
     const stateHash = await computeHash(this._deps, state);
     const adjacency = buildAdjacency(state);
+    await this._publishSnapshot({
+      state,
+      stateHash,
+      degraded: false,
+      ceiling,
+      frontier,
+    });
     return {
       state,
       stateHash,
@@ -361,6 +382,13 @@ export default class MaterializeController {
   }): Promise<MaterializeResult> {
     const stateHash = await computeHash(this._deps, params.reduced.state);
     const adjacency = buildAdjacency(params.reduced.state);
+    await this._publishSnapshot({
+      state: params.reduced.state,
+      stateHash,
+      degraded: params.degraded,
+      ceiling: params.ceiling,
+      frontier: params.frontier,
+    });
     return {
       state: params.reduced.state,
       stateHash,
@@ -374,5 +402,50 @@ export default class MaterializeController {
       frontier: params.frontier,
       ceiling: params.ceiling,
     };
+  }
+
+  private async _reducePatches(
+    patches: PatchWithSha[],
+    base: WarpState | undefined,
+    opts: { receipts: boolean; wantDiff: boolean },
+  ): Promise<ReduceOutput> {
+    const openStateSession = this._deps.openStateSession;
+    if (openStateSession === undefined) {
+      return reducePatches(patches, base, opts);
+    }
+    const sessionArgs = {
+      openStateSession,
+      patches,
+      receipts: opts.receipts,
+      wantDiff: opts.wantDiff,
+      ...(base === undefined ? {} : { baseState: base }),
+    };
+    return await reduceSessionBackedState(sessionArgs);
+  }
+
+  private async _publishSnapshot(args: {
+    state: WarpState;
+    stateHash: string;
+    degraded: boolean;
+    ceiling: number | null;
+    frontier: Map<string, string> | null;
+  }): Promise<void> {
+    const stateCache = this._deps.getStateCache?.() ?? null;
+    if (stateCache === null || args.frontier === null) {
+      return;
+    }
+    await stateCache.put({
+      snapshotId: `snapshot:${args.stateHash}`,
+      coordinate: {
+        frontier: args.frontier,
+        ceiling: args.ceiling,
+      },
+      retention: 'evictable',
+      provenancePosture: args.degraded ? 'degraded' : 'full',
+      stateHash: args.stateHash,
+      payloadRef: `snapshot:${args.stateHash}`,
+      createdAt: 'materialize-controller',
+      state: args.state,
+    });
   }
 }

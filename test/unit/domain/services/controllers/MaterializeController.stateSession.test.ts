@@ -189,6 +189,13 @@ describe("MaterializeController — state session integration", () => {
       nodeAliveRootOid: null,
       edgeAliveRootOid: null,
     });
+    expect(stateCache.put).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coordinate: target,
+        retention: "evictable",
+        provenancePosture: "full",
+      }),
+    );
     expect(result.state.nodeAlive.contains("node:base")).toBe(true);
     expect(result.state.nodeAlive.contains("node:suffix")).toBe(true);
   });
