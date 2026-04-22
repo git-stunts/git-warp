@@ -1,3 +1,9 @@
+---
+id: CORE_streaming-memory-audit
+blocked_by: []
+blocks: []
+---
+
 # Streaming memory audit — eliminate fits-in-memory assumptions
 
 ## Summary

@@ -1,11 +1,14 @@
 ---
+id: PROTO_local-site-object-for-neighborhoods
 title: Local site object for neighborhoods
 rank: 1
-lane: up-next
+lane: v21.0.0
 cluster: continuum-witness
 impact: high
 effort: medium
 confidence: medium
+blocked_by: []
+blocks: []
 ---
 
 # Local site object for neighborhoods

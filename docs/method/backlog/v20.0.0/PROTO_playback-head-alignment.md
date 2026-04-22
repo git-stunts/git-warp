@@ -1,3 +1,10 @@
+---
+id: PROTO_playback-head-alignment
+blocked_by:
+  - PROTO_WESLEY_receipt-envelope-boundary
+blocks: []
+---
+
 # Align Playback-Head And TTD Consumers After Read Nouns Stabilize
 
 

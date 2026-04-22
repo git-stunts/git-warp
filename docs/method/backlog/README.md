@@ -25,15 +25,17 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 | `bad-code/` | 142 |
 | `cool-ideas/` | 94 |
 | `inbox/` | 5 |
-| `up-next/` | 54 |
-| `v17.0.0/` | 51 |
+| `up-next/` | 43 |
+| `v17.0.0/` | 55 |
 | `v18.0.0/` | 8 |
-| `v19.0.0/` | 10 |
-| Items with YAML frontmatter | 100 |
-| Items without YAML frontmatter | 295 |
-| Items with explicit `id` | 85 |
-| Items declaring dependency fields | 70 |
-| Items with non-empty explicit dependency edges | 49 |
+| `v19.0.0/` | 11 |
+| `v20.0.0/` | 2 |
+| `v21.0.0/` | 4 |
+| Items with YAML frontmatter | 104 |
+| Items without YAML frontmatter | 291 |
+| Items with explicit `id` | 92 |
+| Items declaring dependency fields | 77 |
+| Items with non-empty explicit dependency edges | 51 |
 
 ## Dependency Law
 
@@ -55,8 +57,9 @@ edges.
 | `B1` | backlog root | Unlaned maintenance and reference work. Needs classification or direct pull before it should block committed work. | `B0` or direct human pull. |
 | `B2` | `bad-code/` | Foundational debt and invariant repair. This lane can legitimately block release or execution work. | `B0`, `B1`, or lower-level debt in `B2`. |
 | `B3` | `v17.0.0/` | Current committed release work. Explicit per-note edges win here. | `B2`, same-band work, or explicit edges. |
-| `B4` | `v18.0.0/`, `up-next/` | Next-major substrate work plus near-term follow-through after the active release. | `B2`, `B3`, or explicit same-band edges. |
-| `B5` | `v19.0.0/`, `cool-ideas/` | Doctrine/parity follow-through and speculative orbit. These notes do not block committed lanes until promoted. | Promotion into another lane. |
+| `B4` | `v18.0.0/`, `up-next/` | Next-major substrate work plus unslotted near-term follow-through after the active release. | `B2`, `B3`, or explicit same-band edges. |
+| `B5` | `v19.0.0/` | Doctrine/runtime follow-through after the substrate cut. | `B2`, `B3`, `B4`, or explicit same-band edges. |
+| `B6` | `v20.0.0/`, `v21.0.0/`, `cool-ideas/` | Far-horizon slice-first/runtime and distributed/plural follow-through plus speculative orbit. | Promotion into another lane or completion of lower numbered bands. |
 
 ### Lane Contracts
 
@@ -69,7 +72,9 @@ edges.
 | `v18.0.0/` | `B4` | This is the next-major graph-substrate convergence lane. |
 | `up-next/` | `B4` | Queue behind the active release and next-major substrate work unless explicitly promoted. |
 | `v19.0.0/` | `B5` | Doctrine, observer, and admission convergence after the substrate cut. |
-| `cool-ideas/` | `B5` | Never blocks committed lanes until moved into a committed lane. |
+| `v20.0.0/` | `B6` | Slice-first runtime realization after `v19.0.0/` hardens the noun and support law. |
+| `v21.0.0/` | `B6` | Common-basis, braid, and fuller distributed observer geometry after `v20.0.0/`. |
+| `cool-ideas/` | `B6` | Never blocks committed lanes until moved into a committed lane. |
 | `asap/` | dormant | Presently unused. Do not treat it as a scheduling source while numbered release lanes are active. |
 
 ### Interpretation Rule
@@ -92,14 +97,14 @@ small number of nodes in `up-next/`, `cool-ideas/`, and `bad-code/`.
 
 Current explicit-graph totals:
 
-- `84` notes define an `id`
-- `70` notes declare `blocks` or `blocked_by` fields
-- `49` notes currently name at least one non-empty upstream or
+- `92` notes define an `id`
+- `77` notes declare `blocks` or `blocked_by` fields
+- `51` notes currently name at least one non-empty upstream or
   downstream edge
 
-The explicit graph is still concentrated in `v17.0.0/`, but the new
-`v18.0.0/` lane now carries its own real dependency spine instead of
-living as hand-waved future work.
+The explicit graph is still concentrated in `v17.0.0/`, but the numbered
+future lanes now extend through `v21.0.0/` instead of forcing every promoted
+note to linger in `up-next/`.
 
 ## Lane Inventory And Inherited Dependencies
 
@@ -209,10 +214,13 @@ Prefix counts:
 | Prefix | Count |
 |--------|------:|
 | `API` | 4 |
+| `CLI` | 2 |
+| `CORE` | 1 |
 | `CROSS` | 1 |
 | `GOD` | 6 |
 | `HYGIENE` | 2 |
 | `INFRA` | 9 |
+| `MCP` | 1 |
 | `PERF` | 1 |
 | `PROTO` | 8 |
 | `SLUDGE` | 5 |
@@ -257,7 +265,44 @@ Prefix counts:
 |--------|------:|
 | `API` | 1 |
 | `HYGIENE` | 2 |
-| `PROTO` | 7 |
+| `PROTO` | 8 |
+
+### `v20.0.0/` — `B6` Slice-First Runtime Realization
+
+Dependency posture:
+
+- downstream of `v19.0.0/`
+- use this lane only for notes that already name `v20` as their release home
+- keep broader speculative work in `up-next/` or `cool-ideas/` until it stops
+  hand-waving
+
+Canonical lane readme:
+
+- [v20.0.0/README.md](v20.0.0/README.md)
+
+Prefix counts:
+
+| Prefix | Count |
+|--------|------:|
+| `PROTO` | 2 |
+
+### `v21.0.0/` — `B6` Distributed And Plural Runtime Follow-Through
+
+Dependency posture:
+
+- downstream of `v20.0.0/`
+- holds notes that already name `v21` as their release home
+- use explicit edges only when the notes themselves defend them
+
+Canonical lane readme:
+
+- [v21.0.0/README.md](v21.0.0/README.md)
+
+Prefix counts:
+
+| Prefix | Count |
+|--------|------:|
+| `PROTO` | 4 |
 
 ### `asap/` — dormant
 
@@ -270,28 +315,25 @@ Dependency posture:
 
 Dependency posture:
 
-- queue behind active release and immediate work unless explicit edges
-  say otherwise
-- can be unblocked by `bad-code/` paydown, `v17.0.0/` completion, or
-  selective promotion into `v18.0.0/`
+- queue for notes that still need an explicit release home
+- can be promoted into numbered release lanes once a note stops hand-waving
+- can still be unblocked by `bad-code/` paydown, `v17.0.0/` completion, or
+  selective promotion into `v18.0.0/` through `v21.0.0/`
 
 Prefix counts:
 
 | Prefix | Count |
 |--------|------:|
 | `CC` | 1 |
-| `CLI` | 2 |
-| `CORE` | 1 |
 | `DX` | 17 |
-| `MCP` | 1 |
 | `NDNM` | 4 |
 | `PERF` | 4 |
-| `PROTO` | 21 |
+| `PROTO` | 14 |
 | `TRUST` | 1 |
 | `TS` | 1 |
 | `VIZ` | 1 |
 
-### `cool-ideas/` — `B5` Speculative Orbit
+### `cool-ideas/` — `B6` Speculative Orbit
 
 Dependency posture:
 
@@ -323,7 +365,8 @@ today, but it also makes the cleanup sequence clear:
    dependency graphs.
 3. Add `id` fields to `bad-code/` in invariant bundles instead of one
    giant sweep.
-4. Promote `up-next/` or `v19.0.0/` notes into explicit edges only when
-   they become current-cycle blockers.
+4. Promote `up-next/` notes into numbered release lanes as soon as they name
+   a real release home, then add explicit edges only when the note itself
+   justifies them.
 5. Leave `cool-ideas/` mostly lane-inherited until promotion to avoid
    graph theater.

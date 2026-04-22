@@ -1,3 +1,9 @@
+---
+id: PROTO_strand-collapse-optic-for-causal-slicing
+blocked_by: []
+blocks: []
+---
+
 # Strand Collapse Optic For Causal Slicing
 
 **Effort:** L

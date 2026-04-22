@@ -1,3 +1,10 @@
+---
+id: PROTO_WESLEY_receipt-envelope-boundary
+blocked_by: []
+blocks:
+  - PROTO_playback-head-alignment
+---
+
 # WESLEY Receipt Envelope Boundary
 
 Coordination: `WESLEY_protocol_surface_cutover`

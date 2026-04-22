@@ -1,11 +1,14 @@
 ---
+id: PROTO_wesley-merge-contracts
 title: Wesley merge contracts
 rank: 4
-lane: up-next
+lane: v21.0.0
 cluster: merge-geometry
 impact: high
 effort: high
 confidence: medium
+blocked_by: []
+blocks: []
 ---
 
 # Wesley merge contracts
