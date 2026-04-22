@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Dot } from "../../../../../src/domain/crdt/Dot.ts";
 import MaterializeController from "../../../../../src/domain/services/controllers/MaterializeController.ts";
 import NodeAdd from "../../../../../src/domain/types/ops/NodeAdd.ts";
+import EdgeAdd from "../../../../../src/domain/types/ops/EdgeAdd.ts";
 import StateSession from "../../../../../src/domain/orset/session/StateSession.ts";
 import PageCache from "../../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
@@ -24,7 +25,7 @@ type PatchRecord = {
     writer: string;
     lamport: number;
     context: Record<string, number>;
-    ops: readonly NodeAdd[];
+    ops: readonly (NodeAdd | EdgeAdd)[];
     reads: readonly string[];
     writes: readonly string[];
   };
@@ -46,6 +47,35 @@ function nodeAddPatchRecord(args: {
       ops: [new NodeAdd(args.node, Dot.create(args.writer, args.lamport))],
       reads: [],
       writes: [args.node],
+    },
+    sha: args.sha,
+  };
+}
+
+function edgeAddPatchRecord(args: {
+  readonly writer: string;
+  readonly lamport: number;
+  readonly sha: string;
+  readonly from: string;
+  readonly to: string;
+  readonly label: string;
+}): PatchRecord {
+  return {
+    patch: {
+      schema: 2,
+      writer: args.writer,
+      lamport: args.lamport,
+      context: {},
+      ops: [
+        new EdgeAdd({
+          from: args.from,
+          to: args.to,
+          label: args.label,
+          dot: Dot.create(args.writer, args.lamport),
+        }),
+      ],
+      reads: [],
+      writes: [`${args.from}\0${args.to}\0${args.label}`],
     },
     sha: args.sha,
   };
@@ -149,6 +179,20 @@ describe("MaterializeController — state session integration", () => {
         sha: "a1b2",
         node: "node:session",
       }),
+      nodeAddPatchRecord({
+        writer: "writer-1",
+        lamport: 2,
+        sha: "b2c3",
+        node: "node:peer",
+      }),
+      edgeAddPatchRecord({
+        writer: "writer-1",
+        lamport: 3,
+        sha: "c3d4",
+        from: "node:session",
+        to: "node:peer",
+        label: "follows",
+      }),
     ]);
 
     const result = await controller.materialize({});
@@ -158,7 +202,10 @@ describe("MaterializeController — state session integration", () => {
       edgeAliveRootOid: null,
     });
     expect(result.state.nodeAlive.contains("node:session")).toBe(true);
-    expect(result.patchCount).toBe(1);
+    expect(result.patchCount).toBe(3);
+    expect(result.adjacency.outgoing.get("node:session")).toEqual([
+      { neighborId: "node:peer", label: "follows" },
+    ]);
   });
 
   it("hydrates a predecessor snapshot into StateSession before replaying the suffix", async () => {
