@@ -114,12 +114,14 @@ ST-5 (kernel integration):
 ST-6 (broader package extraction):
   [✗] INFRA_extract-warp-kernel-package      ← cycle 0047 not-met (same
                                                 publish-surface trap as 0020)
-  [ ] INFRA_extract-warp-adapters-package
+  [✗] INFRA_extract-warp-adapters-package    ← cycle 0048 not-met (downstream
+                                                of the same trap)
 
 ST-7 (multi-package publish + real extraction):
   [ ] INFRA_multipackage-publish-pipeline           ← blocked_by TS_publish-pipeline
   [ ] INFRA_extract-warp-kernel-package-post-publish ← deferred successor to 0047
   [ ] INFRA_extract-warp-orset-package-post-publish ← deferred successor to 0020
+  [ ] INFRA_extract-warp-adapters-package-post-publish ← deferred successor to 0048
 ```
 
 **Cycle 0020 note:** The original `INFRA_extract-warp-orset-package`

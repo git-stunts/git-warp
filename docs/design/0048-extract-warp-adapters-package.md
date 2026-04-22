@@ -66,3 +66,38 @@ It is another premise-validation cycle.
 - design doc and retro record the blocked premise honestly
 - replacement backlog item or dependency updates make the extraction tail more
   truthful
+
+## Playback
+
+### Witness
+
+The premise check is backed by:
+
+- [package.json](/Users/james/git/git-stunts/git-warp/package.json)
+- [packages/warp-adapters/package.json](/Users/james/git/git-stunts/git-warp/packages/warp-adapters/package.json)
+- [packages/warp-kernel/package.json](/Users/james/git/git-stunts/git-warp/packages/warp-kernel/package.json)
+- [0047 retro](/Users/james/git/git-stunts/git-warp/docs/method/retro/0047-extract-warp-kernel-package/extract-warp-kernel-package.md)
+
+### Agent
+
+1. *Can I explain why adapters cannot extract before the publish-safe kernel boundary exists?*
+   Yes. Adapters depend on kernel ports and contracts, so extracting adapters
+   before kernel is publish-safe would only move the costume boundary one layer
+   down.
+
+2. *Can I point to the backlog successor that makes the extraction sequence truthful?*
+   Yes. The successor is
+   `INFRA_extract-warp-adapters-package-post-publish`, blocked by the
+   multi-package publish pipeline and the post-publish kernel extraction.
+
+### Human
+
+1. *Is it clear why adapters extraction is later than kernel extraction, not just parallel package cleanup?*
+   Yes. The adapter package cannot be honest until the kernel package is already
+   a real dependency surface.
+
+Verdict: not met. Premise invalid.
+
+## Drift check
+
+No accidental drift. The cycle simply corrected the backlog sequence.
