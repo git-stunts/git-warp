@@ -2,6 +2,7 @@
 id: PORT_warpgraph-runtime-exposed
 blocked_by: []
 blocks: []
+feature: api-capabilities
 ---
 
 # `_runtime` exposed on public WarpGraph interface

@@ -9,6 +9,7 @@ cluster: merge-geometry
 impact: medium
 effort: high
 confidence: medium
+feature: merge-strands-worldlines
 ---
 
 # Aperture-relative merge

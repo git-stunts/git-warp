@@ -9,6 +9,7 @@ cluster: merge-geometry
 impact: high
 effort: high
 confidence: medium
+feature: browser-viz
 ---
 
 # Braid Studio

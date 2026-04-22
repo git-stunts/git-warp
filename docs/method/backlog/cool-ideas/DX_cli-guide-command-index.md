@@ -2,6 +2,7 @@
 id: DX_cli-guide-command-index
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # Expand CLI_GUIDE.md with complete command reference

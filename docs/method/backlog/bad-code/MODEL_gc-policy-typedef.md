@@ -2,6 +2,7 @@
 id: MODEL_gc-policy-typedef
 blocked_by: []
 blocks: []
+feature: runtime-boundaries
 ---
 
 # GCPolicy and related types are typedef-only

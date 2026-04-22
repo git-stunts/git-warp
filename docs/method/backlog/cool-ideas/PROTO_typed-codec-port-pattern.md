@@ -2,6 +2,7 @@
 id: PROTO_typed-codec-port-pattern
 blocked_by: []
 blocks: []
+feature: runtime-boundaries
 ---
 
 # Typed codec port pattern — domain never touches raw bytes for serde

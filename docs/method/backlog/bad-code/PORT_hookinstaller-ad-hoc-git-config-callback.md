@@ -2,6 +2,7 @@
 id: PORT_hookinstaller-ad-hoc-git-config-callback
 blocked_by: []
 blocks: []
+feature: api-capabilities
 ---
 
 # HookInstaller uses an ad hoc git config callback instead of a typed port

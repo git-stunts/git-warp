@@ -2,6 +2,7 @@
 id: SPEC_undocumented-stream-architecture
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # WarpStream architecture has no user-facing documentation

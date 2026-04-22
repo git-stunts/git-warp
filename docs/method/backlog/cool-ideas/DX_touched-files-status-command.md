@@ -2,6 +2,7 @@
 id: DX_touched-files-status-command
 blocked_by: []
 blocks: []
+feature: api-capabilities
 ---
 
 # `touched-files-status` — one command to show every file changed on a branch

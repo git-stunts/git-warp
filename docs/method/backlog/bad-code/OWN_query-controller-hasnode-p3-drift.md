@@ -2,6 +2,7 @@
 id: OWN_query-controller-hasnode-p3-drift
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # QueryController.hasNode assigned via external prototype mutation

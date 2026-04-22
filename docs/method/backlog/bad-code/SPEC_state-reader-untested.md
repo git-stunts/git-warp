@@ -2,6 +2,7 @@
 id: SPEC_state-reader-untested
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # StateReaderV5.js (599 LOC) has zero tests

@@ -2,6 +2,7 @@
 id: MODEL_writer-error-inverted-params
 blocked_by: []
 blocks: []
+feature: runtime-boundaries
 ---
 
 # WriterError constructor has inverted parameter order

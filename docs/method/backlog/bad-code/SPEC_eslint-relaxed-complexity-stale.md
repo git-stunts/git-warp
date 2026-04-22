@@ -2,6 +2,7 @@
 id: SPEC_eslint-relaxed-complexity-stale
 blocked_by: []
 blocks: []
+feature: trie-state-storage
 ---
 
 # ESLint relaxed-complexity overrides may contain stale entries

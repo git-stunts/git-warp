@@ -2,6 +2,7 @@
 id: OWN_comparison-controller-shadow-selectors
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # ComparisonController contains 4 shadow selector classes

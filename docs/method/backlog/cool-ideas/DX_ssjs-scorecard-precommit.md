@@ -2,6 +2,7 @@
 id: DX_ssjs-scorecard-precommit
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # Automated SSJS scorecard in pre-commit hook

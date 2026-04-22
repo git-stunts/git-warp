@@ -2,6 +2,7 @@
 id: DX_agent-ratchet-telemetry
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # Agent ratchet telemetry — per-commit snapshot of tsc/lint/tests

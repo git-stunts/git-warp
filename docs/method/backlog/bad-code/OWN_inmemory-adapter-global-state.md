@@ -2,6 +2,7 @@
 id: OWN_inmemory-adapter-global-state
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # InMemoryGraphAdapter has module-level mutable global state

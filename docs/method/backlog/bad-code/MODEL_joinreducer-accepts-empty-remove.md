@@ -2,6 +2,7 @@
 id: MODEL_joinreducer-accepts-empty-remove
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # JoinReducer accepts NodeRemove/EdgeRemove with empty observedDots and no node/edge fields

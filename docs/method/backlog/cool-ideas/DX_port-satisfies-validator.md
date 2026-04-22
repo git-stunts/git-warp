@@ -2,6 +2,7 @@
 id: DX_port-satisfies-validator
 blocked_by: []
 blocks: []
+feature: observer-admission-runtime
 ---
 
 # satisfies-based port validation for plain-object adapters

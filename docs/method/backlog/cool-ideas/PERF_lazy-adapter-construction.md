@@ -2,6 +2,7 @@
 id: PERF_lazy-adapter-construction
 blocked_by: []
 blocks: []
+feature: api-capabilities
 ---
 
 # Lazy adapter construction for cold-start optimization

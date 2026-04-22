@@ -2,6 +2,7 @@
 blocked_by: []
 blocks: []
 id: TRUST_content-addressed-witnesses
+feature: docs-dx
 ---
 
 # Content-addressed witnesses in git-cas

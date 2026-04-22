@@ -2,6 +2,7 @@
 id: SUB_toposort-full-adjacency
 blocked_by: []
 blocks: []
+feature: materialization-query-index
 ---
 
 # topologicalSort always materializes full adjacency

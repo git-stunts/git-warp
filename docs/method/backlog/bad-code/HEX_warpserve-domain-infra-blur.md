@@ -2,6 +2,7 @@
 id: HEX_warpserve-domain-infra-blur
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # WarpServeService domain/infra boundary blur

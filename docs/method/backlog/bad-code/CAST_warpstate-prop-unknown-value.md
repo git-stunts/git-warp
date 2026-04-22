@@ -2,6 +2,7 @@
 id: CAST_warpstate-prop-unknown-value
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # WarpState.prop carries `LWWRegister<unknown>` — the value type is a lie

@@ -2,6 +2,7 @@
 id: PROTO_warp-fuse_worldline-strand-braid-mount
 blocked_by: []
 blocks: []
+feature: browser-viz
 ---
 
 # WARP FUSE mount for worldlines, strands, and braids

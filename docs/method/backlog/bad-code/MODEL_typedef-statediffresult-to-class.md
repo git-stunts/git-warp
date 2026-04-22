@@ -2,6 +2,7 @@
 id: MODEL_typedef-statediffresult-to-class
 blocked_by: []
 blocks: []
+feature: runtime-boundaries
 ---
 
 # Promote StateDiffResult from @typedef to class

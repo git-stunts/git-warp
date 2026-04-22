@@ -2,6 +2,7 @@
 blocked_by: []
 blocks: []
 id: TRUST_property-certificates-cli
+feature: merge-strands-worldlines
 ---
 
 # `git warp certify` — property certificates as CLI output

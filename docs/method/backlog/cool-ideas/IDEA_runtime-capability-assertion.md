@@ -2,6 +2,7 @@
 id: IDEA_runtime-capability-assertion
 blocked_by: []
 blocks: []
+feature: api-capabilities
 ---
 
 # Runtime capability assertion in openWarpGraph()

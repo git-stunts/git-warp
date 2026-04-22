@@ -2,6 +2,7 @@
 id: HEX_scripts-raw-git-subprocess-policy-gap
 blocked_by: []
 blocks: []
+feature: sync-trust-security
 ---
 
 # Repo maintenance scripts still shell out to raw git instead of plumbing

@@ -2,6 +2,7 @@
 id: PORT_effect-sink-union-return
 blocked_by: []
 blocks: []
+feature: runtime-boundaries
 ---
 
 # EffectSinkPort.deliver() has union return type

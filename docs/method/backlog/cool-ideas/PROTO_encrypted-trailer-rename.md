@@ -2,6 +2,7 @@
 id: PROTO_encrypted-trailer-rename
 blocked_by: []
 blocks: []
+feature: sync-trust-security
 ---
 
 # Rename `encrypted` trailer to `eg-encrypted`

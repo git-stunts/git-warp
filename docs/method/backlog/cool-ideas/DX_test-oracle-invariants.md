@@ -2,6 +2,7 @@
 id: DX_test-oracle-invariants
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # Test oracle invariants — assert what MUST be true, not what IS true

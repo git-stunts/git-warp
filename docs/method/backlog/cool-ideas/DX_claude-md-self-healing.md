@@ -2,6 +2,7 @@
 id: DX_claude-md-self-healing
 blocked_by: []
 blocks: []
+feature: observer-admission-runtime
 ---
 
 # Self-healing CLAUDE.md — generated from codebase truth

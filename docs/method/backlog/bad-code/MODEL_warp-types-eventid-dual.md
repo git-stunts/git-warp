@@ -2,6 +2,7 @@
 id: MODEL_warp-types-eventid-dual
 blocked_by: []
 blocks: []
+feature: sync-trust-security
 ---
 
 # EventId defined as both typedef and class

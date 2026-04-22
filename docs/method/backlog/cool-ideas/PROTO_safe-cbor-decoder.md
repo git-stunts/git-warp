@@ -2,6 +2,7 @@
 id: PROTO_safe-cbor-decoder
 blocked_by: []
 blocks: []
+feature: sync-trust-security
 ---
 
 # Safe CBOR decoder with depth/size/allocation limits

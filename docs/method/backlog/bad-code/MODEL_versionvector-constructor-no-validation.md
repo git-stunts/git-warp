@@ -2,6 +2,7 @@
 id: MODEL_versionvector-constructor-no-validation
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # VersionVector constructor accepts undefined entries

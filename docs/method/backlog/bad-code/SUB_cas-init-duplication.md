@@ -2,6 +2,7 @@
 id: SUB_cas-init-duplication
 blocked_by: []
 blocks: []
+feature: runtime-boundaries
 ---
 
 # CasBlobAdapter and CasSeekCacheAdapter duplicate _initCas()

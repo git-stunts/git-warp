@@ -2,6 +2,7 @@
 id: SUB_incremental-index-updater-null-proto-rewrap-dead-branch
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # PROTO_incremental-index-updater-null-proto-rewrap-dead-branch

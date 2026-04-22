@@ -2,6 +2,7 @@
 id: DX_real-git-integration-tests
 blocked_by: []
 blocks: []
+feature: api-capabilities
 ---
 
 # Add integration test suite against real Git repositories

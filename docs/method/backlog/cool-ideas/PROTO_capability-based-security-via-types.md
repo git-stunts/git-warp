@@ -2,6 +2,7 @@
 id: PROTO_capability-based-security-via-types
 blocked_by: []
 blocks: []
+feature: api-capabilities
 ---
 
 # Capability-based security via TypeScript narrowing

@@ -2,6 +2,7 @@
 id: DX_mock-persistence-factory
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # MockPersistenceFactory — typed, complete, safe

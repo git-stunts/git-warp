@@ -2,6 +2,7 @@
 id: HEX_domain-hex-defaults
 blocked_by: []
 blocks: []
+feature: sync-trust-security
 ---
 
 # defaultCodec/defaultCrypto/defaultTrustCrypto import infrastructure in domain

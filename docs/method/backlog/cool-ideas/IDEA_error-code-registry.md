@@ -2,6 +2,7 @@
 id: IDEA_error-code-registry
 blocked_by: []
 blocks: []
+feature: runtime-boundaries
 ---
 
 # Error code registry as importable constants

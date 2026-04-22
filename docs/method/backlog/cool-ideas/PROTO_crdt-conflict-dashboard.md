@@ -2,6 +2,7 @@
 id: PROTO_crdt-conflict-dashboard
 blocked_by: []
 blocks: []
+feature: browser-viz
 ---
 
 # CRDT conflict resolution dashboard

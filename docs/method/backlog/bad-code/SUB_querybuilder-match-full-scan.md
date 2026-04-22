@@ -2,6 +2,7 @@
 id: SUB_querybuilder-match-full-scan
 blocked_by: []
 blocks: []
+feature: observer-admission-runtime
 ---
 
 # QueryBuilder match() does a full node scan

@@ -2,6 +2,7 @@
 id: DX_hex-tripwire-test
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # Hex Tripwire Test

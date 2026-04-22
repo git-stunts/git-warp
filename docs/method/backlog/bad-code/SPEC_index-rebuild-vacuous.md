@@ -2,6 +2,7 @@
 id: SPEC_index-rebuild-vacuous
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # IndexRebuildService tests check method existence, not correctness

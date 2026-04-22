@@ -2,6 +2,7 @@
 id: HEX_message-codec-hex
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # MessageCodecInternal imports @git-stunts/trailer-codec in domain

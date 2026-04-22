@@ -2,6 +2,7 @@
 id: HEX_sync-secret-plain-string
 blocked_by: []
 blocks: []
+feature: sync-trust-security
 ---
 
 # Sync auth HMAC secrets passed as plain strings through domain

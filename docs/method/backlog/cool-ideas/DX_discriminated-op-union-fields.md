@@ -2,6 +2,7 @@
 id: DX_discriminated-op-union-fields
 blocked_by: []
 blocks: []
+feature: sync-trust-security
 ---
 
 # Full discriminated unions for RawOpV2 / CanonicalOpV2 with typed fields

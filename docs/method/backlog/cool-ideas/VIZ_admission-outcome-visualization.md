@@ -2,6 +2,7 @@
 blocked_by: []
 blocks: []
 id: VIZ_admission-outcome-visualization
+feature: browser-viz
 ---
 
 # Visualize braid collapse outcomes in warp-ttd

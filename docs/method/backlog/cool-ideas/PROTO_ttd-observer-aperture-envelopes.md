@@ -2,6 +2,7 @@
 id: PROTO_ttd-observer-aperture-envelopes
 blocked_by: []
 blocks: []
+feature: browser-viz
 ---
 
 # First-class observer and aperture envelopes in warp-ttd protocol

@@ -2,6 +2,7 @@
 id: MODEL_lwwmax-null-return-awkward
 blocked_by: []
 blocks: []
+feature: runtime-boundaries
 ---
 
 # `lwwMax` returns `LWWRegister<T> | null` — awkward null in the happy path

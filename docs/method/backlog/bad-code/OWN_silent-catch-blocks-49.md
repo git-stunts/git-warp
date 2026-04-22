@@ -2,6 +2,7 @@
 id: OWN_silent-catch-blocks-49
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # 49 silent catch blocks across the codebase

@@ -35,7 +35,7 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 | Items without YAML frontmatter | 0 |
 | Items with explicit `id` | 395 |
 | Items declaring dependency fields | 395 |
-| Items with explicit `feature` | 154 |
+| Items with explicit `feature` | 390 |
 | Distinct explicit feature values | 12 |
 | Items with non-empty explicit dependency edges | 78 |
 
@@ -50,7 +50,7 @@ Every live note now declares:
 That makes the graph repo-inspectable without special-casing lanes that
 still lack frontmatter.
 
-Some notes now also declare:
+Every live note outside `inbox/` now also declares:
 
 - `feature`
 
@@ -74,11 +74,14 @@ Lane inheritance still matters, but in a narrower way:
 The current cleanup pass stamps `feature:` onto:
 
 - backlog root notes
+- `bad-code/` notes
+- `cool-ideas/` notes
 - `up-next/` notes
 - all numbered release-lane notes in `v17.0.0/`, `v18.0.0/`, and
   `v19.0.0/`
 - selected numbered-lane trunk notes in later lanes where cross-feature
   seams are already real
+- `inbox/` remains intentionally unscoped until triage or promotion
 
 That gives the repo enough structure to build stronger internal chains
 inside a feature before inventing broad cross-feature blockers.
@@ -142,7 +145,7 @@ Current explicit-graph totals:
 
 - `395` notes define an `id`
 - `395` notes declare `blocks` and `blocked_by` fields
-- `154` notes currently declare an explicit `feature`
+- `390` notes currently declare an explicit `feature`
 - `78` notes currently name at least one non-empty upstream or
   downstream edge
 

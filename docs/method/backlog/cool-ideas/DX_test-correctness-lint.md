@@ -2,6 +2,7 @@
 id: DX_test-correctness-lint
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # ESLint rule for vacuous test assertions

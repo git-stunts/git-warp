@@ -2,6 +2,7 @@
 id: HEX_domain-utils-misplaced
 blocked_by: []
 blocks: []
+feature: trie-state-storage
 ---
 
 # Adapter and native bindings living in src/domain/utils/

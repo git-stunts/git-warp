@@ -2,6 +2,7 @@
 id: PERF_streaming-graph-traversal
 blocked_by: []
 blocks: []
+feature: sync-trust-security
 ---
 
 # Streaming GraphTraversal — async generators

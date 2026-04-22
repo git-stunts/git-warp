@@ -2,6 +2,7 @@
 id: SPEC_test-mock-persistence-incomplete
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # 20+ test files create incomplete persistence mocks

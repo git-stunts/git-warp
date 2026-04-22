@@ -2,6 +2,7 @@
 id: SUB_legacy-seek-cache-key-drops-frontier
 blocked_by: []
 blocks: []
+feature: materialization-query-index
 ---
 
 # Legacy seek-cache key drops frontier

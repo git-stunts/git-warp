@@ -2,6 +2,7 @@
 id: MODEL_patchv2-no-validation
 blocked_by: []
 blocks: []
+feature: materialization-query-index
 ---
 
 # PatchV2 class has zero constructor validation

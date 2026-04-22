@@ -2,6 +2,7 @@
 id: IDEA_opaque-secret-type
 blocked_by: []
 blocks: []
+feature: sync-trust-security
 ---
 
 # Opaque SyncSecret type with redaction protection

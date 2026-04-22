@@ -2,6 +2,7 @@
 id: DX_claudespeed-session-handoff
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # CLAUDESPEED session handoff protocol

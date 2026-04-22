@@ -2,6 +2,7 @@
 id: SUB_p5-serialization-on-types
 blocked_by: []
 blocks: []
+feature: observer-admission-runtime
 ---
 
 # Domain types own their own serialization (P5 violation)

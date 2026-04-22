@@ -2,6 +2,7 @@
 id: CAST_worldline-detached-double-cast
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # Worldline double-casts itself to WarpRuntime in 3 places

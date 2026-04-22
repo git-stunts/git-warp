@@ -2,6 +2,7 @@
 id: SUB_bitmap-index-trio-coupling
 blocked_by: []
 blocks: []
+feature: materialization-query-index
 ---
 
 # BitmapIndexBuilder/Reader/Streaming always change together (22x in 3 months)

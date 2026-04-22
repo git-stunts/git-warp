@@ -2,6 +2,7 @@
 id: SPEC_untested-strand-services
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # CC_untested-strand-services

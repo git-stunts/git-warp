@@ -2,6 +2,7 @@
 id: OWN_join-reducer-import-time-strategy-validation-residue
 blocked_by: []
 blocks: []
+feature: observer-admission-runtime
 ---
 
 # PROTO_join-reducer-import-time-strategy-validation-residue

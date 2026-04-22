@@ -2,6 +2,7 @@
 id: DX_advanced-guide-expansion
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # Expand ADVANCED_GUIDE.md with trust, performance, and checkpoints

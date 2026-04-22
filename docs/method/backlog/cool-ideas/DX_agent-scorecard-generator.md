@@ -2,6 +2,7 @@
 id: DX_agent-scorecard-generator
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # Auto-generate the SSTS scorecard from git diff

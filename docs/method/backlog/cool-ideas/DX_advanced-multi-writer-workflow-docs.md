@@ -2,6 +2,7 @@
 id: DX_advanced-multi-writer-workflow-docs
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # Advanced multi-writer workflow documentation

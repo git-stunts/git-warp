@@ -2,6 +2,7 @@
 id: CAST_callInternalRuntimeMethod-escape-hatch
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # callInternalRuntimeMethod is a runtime access-control escape hatch

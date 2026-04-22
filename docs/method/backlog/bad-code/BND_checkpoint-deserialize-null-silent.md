@@ -2,6 +2,7 @@
 id: BND_checkpoint-deserialize-null-silent
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # CheckpointSerializerV5 returns empty state for null/undefined input

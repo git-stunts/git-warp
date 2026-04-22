@@ -2,6 +2,7 @@
 id: OWN_patchbuilder-churn-risk
 blocked_by: []
 blocks: []
+feature: api-capabilities
 ---
 
 # CC_patchbuilder-churn-risk

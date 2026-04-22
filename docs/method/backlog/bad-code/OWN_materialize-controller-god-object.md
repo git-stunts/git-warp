@@ -2,6 +2,7 @@
 id: OWN_materialize-controller-god-object
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # MaterializeController is a god object (~1009 LOC)

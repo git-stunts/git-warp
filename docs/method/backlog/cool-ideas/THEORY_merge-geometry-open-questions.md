@@ -9,6 +9,7 @@ cluster: merge-geometry
 impact: high
 effort: high
 confidence: medium
+feature: merge-strands-worldlines
 ---
 
 # Merge geometry open questions

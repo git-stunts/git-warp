@@ -2,6 +2,7 @@
 id: IDEA_subpath-exports-bundle-size
 blocked_by: []
 blocks: []
+feature: trie-state-storage
 ---
 
 # Sub-path exports to reduce default bundle size

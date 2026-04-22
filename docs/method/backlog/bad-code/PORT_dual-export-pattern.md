@@ -2,6 +2,7 @@
 id: PORT_dual-export-pattern
 blocked_by: []
 blocks: []
+feature: browser-viz
 ---
 
 # Visualization modules mix named and default exports

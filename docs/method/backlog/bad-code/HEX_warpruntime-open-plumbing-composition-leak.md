@@ -2,6 +2,7 @@
 id: HEX_warpruntime-open-plumbing-composition-leak
 blocked_by: []
 blocks: []
+feature: materialization-query-index
 ---
 
 # WarpRuntime.open constructs infrastructure adapters by peeking at plumbing

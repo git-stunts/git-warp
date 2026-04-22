@@ -2,6 +2,7 @@
 id: DX_golden-blob-museum
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # Golden Blob Museum

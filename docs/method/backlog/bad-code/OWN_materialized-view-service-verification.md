@@ -2,6 +2,7 @@
 id: OWN_materialized-view-service-verification
 blocked_by: []
 blocks: []
+feature: materialization-query-index
 ---
 
 # MaterializedViewService carries index verification concern

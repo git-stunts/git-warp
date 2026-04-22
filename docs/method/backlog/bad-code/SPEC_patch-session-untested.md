@@ -2,6 +2,7 @@
 id: SPEC_patch-session-untested
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # PatchSession.js (349 LOC) has zero tests and parses error messages

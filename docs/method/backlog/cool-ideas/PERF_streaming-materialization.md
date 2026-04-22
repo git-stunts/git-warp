@@ -2,6 +2,7 @@
 blocked_by: []
 blocks: []
 id: PERF_streaming-materialization
+feature: materialization-query-index
 ---
 
 # Streaming materialization with progressive state

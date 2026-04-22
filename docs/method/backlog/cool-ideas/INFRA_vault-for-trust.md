@@ -2,6 +2,7 @@
 id: INFRA_vault-for-trust
 blocks: []
 blocked_by: []
+feature: docs-dx
 ---
 
 # Use @git-stunts/vault for trust signing keys

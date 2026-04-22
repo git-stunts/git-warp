@@ -2,6 +2,7 @@
 id: DX_op-hydration-at-cbor-boundary
 blocked_by: []
 blocks: []
+feature: sync-trust-security
 ---
 
 # Op hydration at the CBOR decode boundary

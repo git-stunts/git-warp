@@ -2,6 +2,7 @@
 id: PORT_cli-persistence-plumbing-leak
 blocked_by: []
 blocks: []
+feature: runtime-boundaries
 ---
 
 # CLI persistence shape leaks plumbing into application wiring

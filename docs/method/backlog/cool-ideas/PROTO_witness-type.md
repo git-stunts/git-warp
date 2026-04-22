@@ -2,6 +2,7 @@
 id: PROTO_witness-type
 blocked_by: []
 blocks: []
+feature: observer-admission-runtime
 ---
 
 # First-class Witness type

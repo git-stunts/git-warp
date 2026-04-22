@@ -2,6 +2,7 @@
 id: PORT_git-adapter-encapsulation
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # GitGraphAdapter exposes this.plumbing as public

@@ -9,6 +9,7 @@ cluster: merge-geometry
 impact: medium
 effort: medium
 confidence: high
+feature: docs-dx
 ---
 
 # Canonicalization optics

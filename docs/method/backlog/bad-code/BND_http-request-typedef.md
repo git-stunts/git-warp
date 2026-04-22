@@ -2,6 +2,7 @@
 id: BND_http-request-typedef
 blocked_by: []
 blocks: []
+feature: runtime-boundaries
 ---
 
 # HttpRequest/HttpResponse are typedef-only port boundary types

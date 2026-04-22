@@ -2,6 +2,7 @@
 id: SPEC_js-test-typecheck-drift
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # PROTO_js-test-typecheck-drift

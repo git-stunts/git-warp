@@ -2,6 +2,7 @@
 id: IDEA_doc-as-test-pipeline
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # Doc-as-test pipeline: run code snippets from docs as tests

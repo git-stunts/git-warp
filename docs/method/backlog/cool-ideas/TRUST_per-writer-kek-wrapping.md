@@ -2,6 +2,7 @@
 id: TRUST_per-writer-kek-wrapping
 blocked_by: []
 blocks: []
+feature: sync-trust-security
 ---
 
 # Per-writer key envelope encryption (KEK wrapping)

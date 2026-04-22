@@ -2,6 +2,7 @@
 id: OWN_warpruntime-delegation-boilerplate
 blocked_by: []
 blocks: []
+feature: runtime-boundaries
 ---
 
 # WarpRuntime's 10 Object.defineProperty blocks should be a shared helper

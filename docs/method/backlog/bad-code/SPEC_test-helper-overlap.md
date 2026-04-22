@@ -2,6 +2,7 @@
 blocked_by: []
 blocks: []
 id: DX_test-helper-overlap
+feature: merge-strands-worldlines
 ---
 
 # Test helper overlap — consolidate fixture DSLs

@@ -2,6 +2,7 @@
 id: OWN_joinreducer-coupling-hotspot
 blocked_by: []
 blocks: []
+feature: api-capabilities
 ---
 
 # CC_joinreducer-coupling-hotspot

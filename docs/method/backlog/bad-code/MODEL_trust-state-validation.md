@@ -2,6 +2,7 @@
 id: MODEL_trust-state-validation
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # TrustState constructor validates nothing and exposes mutable Maps

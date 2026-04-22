@@ -2,6 +2,7 @@
 id: OWN_effect-pipeline-global-counter
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # EffectPipeline uses module-level mutable counter

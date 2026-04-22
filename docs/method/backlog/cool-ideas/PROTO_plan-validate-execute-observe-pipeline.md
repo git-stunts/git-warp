@@ -2,6 +2,7 @@
 id: PROTO_plan-validate-execute-observe-pipeline
 blocked_by: []
 blocks: []
+feature: api-capabilities
 ---
 
 # Plan → Validate → Execute → Observe pipeline

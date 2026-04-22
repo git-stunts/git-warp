@@ -2,6 +2,7 @@
 id: CAST_reducer-silent-unknown-op-type
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # Reducer silently no-ops unknown op types — typos become silent data loss

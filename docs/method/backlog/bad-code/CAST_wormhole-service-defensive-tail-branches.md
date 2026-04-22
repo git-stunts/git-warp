@@ -2,6 +2,7 @@
 id: CAST_wormhole-service-defensive-tail-branches
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # PROTO_wormhole-service-defensive-tail-branches

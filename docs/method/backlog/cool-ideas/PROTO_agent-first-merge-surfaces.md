@@ -9,6 +9,7 @@ cluster: merge-geometry
 impact: high
 effort: medium
 confidence: high
+feature: docs-dx
 ---
 
 # Agent-first merge surfaces

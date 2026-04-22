@@ -2,6 +2,7 @@
 id: MODEL_frontier-typedef-to-class
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # Frontier is a typedef alias for Map with 9 free functions

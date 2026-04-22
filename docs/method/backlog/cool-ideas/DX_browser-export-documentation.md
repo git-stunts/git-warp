@@ -2,6 +2,7 @@
 id: DX_browser-export-documentation
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # Document the browser.js / browser.d.ts export path

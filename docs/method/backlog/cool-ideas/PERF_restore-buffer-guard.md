@@ -2,6 +2,7 @@
 id: PERF_restore-buffer-guard
 blocked_by: []
 blocks: []
+feature: materialization-query-index
 ---
 
 # Restore buffer guard for seek cache + blob adapter

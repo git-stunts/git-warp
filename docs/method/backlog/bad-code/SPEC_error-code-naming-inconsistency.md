@@ -2,6 +2,7 @@
 id: SPEC_error-code-naming-inconsistency
 blocked_by: []
 blocks: []
+feature: tooling-release
 ---
 
 # Error code naming inconsistency across throw sites

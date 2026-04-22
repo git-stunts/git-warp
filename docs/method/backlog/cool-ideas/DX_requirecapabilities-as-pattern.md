@@ -2,6 +2,7 @@
 id: DX_requirecapabilities-as-pattern
 blocked_by: []
 blocks: []
+feature: api-capabilities
 ---
 
 # requireCapabilities as a universal adapter wiring pattern

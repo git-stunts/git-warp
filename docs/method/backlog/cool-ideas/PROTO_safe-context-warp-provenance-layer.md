@@ -2,6 +2,7 @@
 id: PROTO_safe-context-warp-provenance-layer
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # WARP provenance layer for safe-context

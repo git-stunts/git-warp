@@ -2,6 +2,7 @@
 id: OWN_trust-record-service-unreachable-exhausted-tails
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # PROTO_trust-record-service-unreachable-exhausted-tails

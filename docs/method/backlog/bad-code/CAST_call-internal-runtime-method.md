@@ -2,6 +2,7 @@
 id: CAST_call-internal-runtime-method
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # callInternalRuntimeMethod walks prototype chains

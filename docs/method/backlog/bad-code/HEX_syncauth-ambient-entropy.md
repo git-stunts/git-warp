@@ -2,6 +2,7 @@
 id: HEX_syncauth-ambient-entropy
 blocked_by: []
 blocks: []
+feature: sync-trust-security
 ---
 
 # SyncAuthService uses crypto.randomUUID for HMAC nonce

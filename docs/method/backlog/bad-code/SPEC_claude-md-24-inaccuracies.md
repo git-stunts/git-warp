@@ -2,6 +2,7 @@
 id: SPEC_claude-md-24-inaccuracies
 blocked_by: []
 blocks: []
+feature: browser-viz
 ---
 
 # CLAUDE.md has 24 factual inaccuracies (3 critical)

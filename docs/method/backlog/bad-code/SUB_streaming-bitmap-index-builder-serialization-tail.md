@@ -2,6 +2,7 @@
 id: SUB_streaming-bitmap-index-builder-serialization-tail
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # PROTO_streaming-bitmap-index-builder-serialization-tail

@@ -2,6 +2,7 @@
 id: OWN_always-true-null-checks
 blocked_by: []
 blocks: []
+feature: sync-trust-security
 ---
 
 # Always-true null/undefined checks on non-nullable values

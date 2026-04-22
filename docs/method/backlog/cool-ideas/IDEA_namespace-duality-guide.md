@@ -2,6 +2,7 @@
 id: IDEA_namespace-duality-guide
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # Namespace duality guide: flat vs architectural access

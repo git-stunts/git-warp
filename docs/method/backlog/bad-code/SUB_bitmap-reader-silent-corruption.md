@@ -2,6 +2,7 @@
 id: SUB_bitmap-reader-silent-corruption
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # BitmapIndexReader returns empty array for corrupted shards (silent data loss)

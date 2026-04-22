@@ -2,6 +2,7 @@
 id: DX_code-of-conduct
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # Add CODE_OF_CONDUCT.md

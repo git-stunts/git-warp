@@ -2,6 +2,7 @@
 id: SPEC_untested-controllers
 blocked_by: []
 blocks: []
+feature: api-capabilities
 ---
 
 # CC_untested-controllers

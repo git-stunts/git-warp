@@ -2,6 +2,7 @@
 id: DX_tsc-autofix-tool
 blocked_by: []
 blocks: []
+feature: tooling-release
 ---
 
 # Mechanical tsc autofix tool

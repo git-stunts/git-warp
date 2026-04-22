@@ -9,6 +9,7 @@ cluster: merge-geometry
 impact: medium
 effort: medium
 confidence: medium
+feature: merge-strands-worldlines
 ---
 
 # Conflict distance

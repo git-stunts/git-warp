@@ -2,6 +2,7 @@
 id: MODEL_bun-deno-phantom-types
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # BunHttpAdapter/DenoHttpAdapter reference undeclared global types

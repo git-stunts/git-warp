@@ -2,6 +2,7 @@
 id: DX_dead-code-cemetery
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # Dead code cemetery — automated detection

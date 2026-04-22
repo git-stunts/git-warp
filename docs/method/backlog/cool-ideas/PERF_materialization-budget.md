@@ -2,6 +2,7 @@
 id: PERF_materialization-budget
 blocked_by: []
 blocks: []
+feature: sync-trust-security
 ---
 
 # Materialization budget — O(P) with a ceiling

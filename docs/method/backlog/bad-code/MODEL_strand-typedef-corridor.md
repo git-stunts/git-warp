@@ -2,6 +2,7 @@
 id: MODEL_strand-typedef-corridor
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # Strand model still lives as a typedef corridor across collaborator files

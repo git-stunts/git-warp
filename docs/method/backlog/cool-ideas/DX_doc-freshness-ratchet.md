@@ -2,6 +2,7 @@
 id: DX_doc-freshness-ratchet
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # Documentation freshness ratchet

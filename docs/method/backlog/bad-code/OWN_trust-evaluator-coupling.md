@@ -2,6 +2,7 @@
 id: OWN_trust-evaluator-coupling
 blocked_by: []
 blocks: []
+feature: sync-trust-security
 ---
 
 # TrustEvaluator couples to TrustStateBuilder key encoding

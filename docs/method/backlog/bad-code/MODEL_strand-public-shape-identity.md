@@ -2,6 +2,7 @@
 id: MODEL_strand-public-shape-identity
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # strandPublicShape.js is a complex identity transform

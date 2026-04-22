@@ -2,6 +2,7 @@
 id: VIZ_levels-lightweight-layout
 blocked_by: []
 blocks: []
+feature: browser-viz
 ---
 
 # `levels()` as Lightweight `--view` Layout

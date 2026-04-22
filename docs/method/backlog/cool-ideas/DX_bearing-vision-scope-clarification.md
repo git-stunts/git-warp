@@ -2,6 +2,7 @@
 id: DX_bearing-vision-scope-clarification
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # Clarify scope boundaries between BEARING.md and VISION.md

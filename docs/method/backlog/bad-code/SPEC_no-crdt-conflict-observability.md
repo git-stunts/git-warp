@@ -2,6 +2,7 @@
 id: SPEC_no-crdt-conflict-observability
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # No observability for CRDT conflict resolution rates

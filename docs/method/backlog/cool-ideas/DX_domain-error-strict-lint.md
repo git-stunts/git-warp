@@ -2,6 +2,7 @@
 id: DX_domain-error-strict-lint
 blocked_by: []
 blocks: []
+feature: testing-quality
 ---
 
 # ESLint rule: `throw new Error(...)` is banned; require domain error subclass

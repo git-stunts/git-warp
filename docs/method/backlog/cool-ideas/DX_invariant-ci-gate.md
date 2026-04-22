@@ -2,6 +2,7 @@
 id: DX_invariant-ci-gate
 blocked_by: []
 blocks: []
+feature: api-capabilities
 ---
 
 # CI gate that audits all invariants on every PR

@@ -2,6 +2,7 @@
 id: DX_serializer-exorcism-commit-series
 blocked_by: []
 blocks: []
+feature: materialization-query-index
 ---
 
 # Serializer Exorcism Commit Series

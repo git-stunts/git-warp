@@ -2,6 +2,7 @@
 id: PORT_cbor-codec-triple-export
 blocked_by: []
 blocks: []
+feature: runtime-boundaries
 ---
 
 # CborCodec.js exports bare functions, class, and singleton

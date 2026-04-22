@@ -3,6 +3,7 @@ blocked_by: []
 blocks: []
 id: BAD_IncrementalIndexUpdater-shape-sludge
 file: src/domain/services/index/IncrementalIndexUpdater.ts
+feature: trie-state-storage
 ---
 
 # IncrementalIndexUpdater leans on `Record<string, unknown>` and a duck-typed `WarpStateLike`

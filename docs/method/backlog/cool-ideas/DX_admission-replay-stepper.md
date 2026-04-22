@@ -2,6 +2,7 @@
 blocked_by: []
 blocks: []
 id: DX_admission-replay-stepper
+feature: browser-viz
 ---
 
 # Admission replay stepper

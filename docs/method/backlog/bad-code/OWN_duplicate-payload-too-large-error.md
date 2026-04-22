@@ -2,6 +2,7 @@
 id: OWN_duplicate-payload-too-large-error
 blocked_by: []
 blocks: []
+feature: runtime-boundaries
 ---
 
 # PayloadTooLargeError defined in two files independently

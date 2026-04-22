@@ -2,6 +2,7 @@
 id: OWN_conflict-analyzer-dead-branches
 blocked_by: []
 blocks: []
+feature: merge-strands-worldlines
 ---
 
 # ConflictAnalyzerService has dead and self-cancelling branches
