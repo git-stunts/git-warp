@@ -9,6 +9,7 @@
  * @module domain/services/GCMetrics
  */
 
+import StateSession from "../orset/session/StateSession.ts";
 import type WarpState from './state/WarpState.ts';
 
 /**
@@ -83,4 +84,43 @@ export default class GCMetrics {
       edgeLiveDots: state.edgeAlive.countLiveDots(),
     });
   }
+
+  /**
+   * Collects a GCMetrics snapshot from a trie-backed state session.
+   */
+  static async fromSession(session: StateSession): Promise<GCMetrics> {
+    const nodeCounts = await collectCounts(session.scanNodeElementStates());
+    const edgeCounts = await collectCounts(session.scanEdgeElementStates());
+    return new GCMetrics({
+      nodeEntries: nodeCounts.entries,
+      edgeEntries: edgeCounts.entries,
+      nodeTombstones: nodeCounts.tombstones,
+      edgeTombstones: edgeCounts.tombstones,
+      nodeLiveDots: nodeCounts.liveDots,
+      edgeLiveDots: edgeCounts.liveDots,
+    });
+  }
+}
+
+async function collectCounts(
+  states: AsyncIterable<{
+    readonly dots: ReadonlySet<string>;
+    readonly tombstonedDots: ReadonlySet<string>;
+  }>,
+): Promise<{
+  readonly entries: number;
+  readonly tombstones: number;
+  readonly liveDots: number;
+}> {
+  let entries = 0;
+  let tombstones = 0;
+  let liveDots = 0;
+
+  for await (const state of states) {
+    liveDots += state.dots.size;
+    tombstones += state.tombstonedDots.size;
+  }
+
+  entries = liveDots + tombstones;
+  return { entries, tombstones, liveDots };
 }
