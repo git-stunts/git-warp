@@ -10,10 +10,12 @@ import type { CommitLogChunk, CommitNodeOptions, CommitNodeWithTreeOptions, LogN
 import type { ListRefsOptions } from '../../ports/RefPort.ts';
 import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabilityPort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import type TrieStorePort from '../../domain/orset/trie/TrieStorePort.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import CasBlobAdapter from './CasBlobAdapter.ts';
+import GitTrieStoreAdapter from './GitTrieStoreAdapter.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.ts';
 import {
@@ -86,6 +88,12 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     return new CasBlobAdapter({
       plumbing: this.plumbing,
       persistence: this,
+    });
+  }
+
+  async createRuntimeTrieStore(): Promise<TrieStorePort> {
+    return new GitTrieStoreAdapter({
+      plumbing: this.plumbing,
     });
   }
 

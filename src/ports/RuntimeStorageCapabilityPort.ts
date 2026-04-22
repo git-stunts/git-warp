@@ -1,5 +1,6 @@
 import type BlobStoragePort from './BlobStoragePort.ts';
 import type { PatchStorageRoute } from './CommitMessageCodecPort.ts';
+import type TrieStorePort from '../domain/orset/trie/TrieStorePort.ts';
 
 /**
  * Optional composition capability exposed by persistence adapters that
@@ -7,5 +8,6 @@ import type { PatchStorageRoute } from './CommitMessageCodecPort.ts';
  */
 export default interface RuntimeStorageCapabilityPort {
   createRuntimeBlobStorage(): Promise<BlobStoragePort>;
+  createRuntimeTrieStore(): Promise<TrieStorePort>;
   defaultPatchWriteStorage(): PatchStorageRoute;
 }

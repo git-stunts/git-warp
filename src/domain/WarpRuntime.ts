@@ -32,6 +32,7 @@ import AuditVerifierService from './services/audit/AuditVerifierService.ts';
 import MaterializedViewService from './services/MaterializedViewService.ts';
 import StateHashService from './services/state/StateHashService.ts';
 import MaterializeController, { type MaterializeResult } from './services/controllers/MaterializeController.ts';
+import type { MaterializeSessionOpener } from './services/controllers/MaterializeSessionBridge.ts';
 import RuntimePatchCollector from './warp/RuntimePatchCollector.ts';
 import RuntimeDetachedFactory from './warp/RuntimeDetachedFactory.ts';
 import BitmapNeighborProvider, { type LogicalIndex } from './services/index/BitmapNeighborProvider.ts';
@@ -61,6 +62,9 @@ import type Patch from './types/Patch.ts';
 import type { PatchDiff } from './types/PatchDiff.ts';
 import type PropertyIndexReader from './services/index/PropertyIndexReader.ts';
 import type { WarpGraphWithMixins } from './warp/_internal.ts';
+import StateSession from './orset/session/StateSession.ts';
+import PageCache from './orset/trie/PageCache.ts';
+import TrieGeometry from './orset/trie/TrieGeometry.ts';
 
 import {
   DEFAULT_ADJACENCY_CACHE_SIZE,
@@ -124,6 +128,7 @@ type WarpRuntimeOptions = {
   stateHashService?: StateHashService;
   auditService?: AuditReceiptService;
   effectPipeline?: EffectPipeline;
+  openStateSession?: MaterializeSessionOpener;
 };
 
 type WarpRuntimeOpenOptions = {
@@ -151,6 +156,7 @@ type WarpRuntimeOpenOptions = {
   effectPipeline?: EffectPipeline;
   effectSinks?: EffectSinkPort[];
   externalizationPolicy?: ExternalizationPolicy;
+  openStateSession?: MaterializeSessionOpener;
 };
 
 /**
@@ -253,6 +259,7 @@ export default class WarpRuntime {
       stateHashService,
       auditService,
       effectPipeline,
+      openStateSession,
     } = options;
 
     this._persistence = persistence;
@@ -321,6 +328,7 @@ export default class WarpRuntime {
       crypto: this._crypto,
       persistence: this._persistence,
       getStateCache: () => this._stateCache ?? null,
+      ...(openStateSession === undefined ? {} : { openStateSession }),
       patches: new RuntimePatchCollector(this),
       graphCloner: new RuntimeDetachedFactory(this),
       graphName: this._graphName,
@@ -441,6 +449,7 @@ export default class WarpRuntime {
     effectPipeline,
     effectSinks,
     externalizationPolicy,
+    openStateSession,
   }: WarpRuntimeOpenOptions): Promise<WarpRuntime> {
     // Validate inputs
     validateGraphName(graphName);
@@ -572,6 +581,24 @@ export default class WarpRuntime {
       resolvedEffectPipeline = await buildEffectPipeline(effectSinks, externalizationPolicy);
     }
 
+    let resolvedOpenStateSession: MaterializeSessionOpener | undefined;
+    if (openStateSession !== undefined) {
+      resolvedOpenStateSession = openStateSession;
+    } else if (typeof persistence.createRuntimeTrieStore === 'function') {
+      const store = await persistence.createRuntimeTrieStore();
+      const pageCache = new PageCache({ maxResident: 256 });
+      const geometry = TrieGeometry.default16way();
+      resolvedOpenStateSession = async (roots) =>
+        await StateSession.open({
+          nodeAliveRootOid: roots.nodeAliveRootOid,
+          edgeAliveRootOid: roots.edgeAliveRootOid,
+          store,
+          codec: resolvedCodec,
+          geometry,
+          pageCache,
+        });
+    }
+
     // ── Construct the runtime with all dependencies resolved ────────────
     const graph = new WarpRuntime({
       persistence,
@@ -599,6 +626,7 @@ export default class WarpRuntime {
       stateHashService: resolvedStateHashService,
       ...(resolvedAuditService !== undefined ? { auditService: resolvedAuditService } : {}),
       ...(resolvedEffectPipeline !== undefined && resolvedEffectPipeline !== null ? { effectPipeline: resolvedEffectPipeline } : {}),
+      ...(resolvedOpenStateSession === undefined ? {} : { openStateSession: resolvedOpenStateSession }),
     });
 
     // Validate migration boundary
