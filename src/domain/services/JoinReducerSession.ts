@@ -513,6 +513,9 @@ async function mergeLiveNodesInto(
     for (const encodedDot of nodeState.dots) {
       await target.addNode(nodeState.element, Dot.decode(encodedDot));
     }
+    for (const encodedDot of nodeState.tombstonedDots) {
+      await target.addNode(nodeState.element, Dot.decode(encodedDot));
+    }
     if (nodeState.tombstonedDots.size > 0) {
       await target.removeNodes(nodeState.tombstonedDots);
     }
@@ -525,6 +528,9 @@ async function mergeLiveEdgesInto(
 ): Promise<void> {
   for await (const edgeState of source.scanEdgeElementStates()) {
     for (const encodedDot of edgeState.dots) {
+      await target.addEdge(edgeState.element, Dot.decode(encodedDot));
+    }
+    for (const encodedDot of edgeState.tombstonedDots) {
       await target.addEdge(edgeState.element, Dot.decode(encodedDot));
     }
     if (edgeState.tombstonedDots.size > 0) {
