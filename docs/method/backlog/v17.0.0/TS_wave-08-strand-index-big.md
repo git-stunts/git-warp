@@ -4,6 +4,7 @@ blocks: []
 blocked_by:
   - TS_wave-05-controllers
   - TS_wave-07-index-small
+feature: merge-strands-worldlines
 ---
 
 # Wave 8: big strand + big index files (10 files, 5756 LOC)

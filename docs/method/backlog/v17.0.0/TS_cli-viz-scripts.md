@@ -4,6 +4,7 @@ blocks:
   - TS_publish-pipeline
 blocked_by:
   - TS_convert-remaining-js
+feature: runtime-boundaries
 ---
 
 # Convert CLI, visualization, and scripts to TypeScript

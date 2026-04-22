@@ -3,6 +3,7 @@ id: SLUDGE_content-access-duplication
 blocks: []
 blocked_by: []
 status: partial
+feature: materialization-query-index
 ---
 
 # De-duplicate content access methods (8 → 2 objects)

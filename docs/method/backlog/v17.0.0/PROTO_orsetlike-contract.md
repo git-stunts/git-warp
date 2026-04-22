@@ -5,6 +5,7 @@ blocks:
   - PROTO_shadow-trie-orset
   - PROTO_state-session-async
   - INFRA_extract-warp-orset-package-post-publish
+feature: trie-state-storage
 ---
 
 # Extract ORSetLike contract and retype consumers

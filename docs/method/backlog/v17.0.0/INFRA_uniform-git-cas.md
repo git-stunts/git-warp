@@ -2,6 +2,7 @@
 id: INFRA_uniform-git-cas
 blocked_by: []
 blocks: []
+feature: runtime-boundaries
 ---
 
 # Uniform git-cas for all CAS operations

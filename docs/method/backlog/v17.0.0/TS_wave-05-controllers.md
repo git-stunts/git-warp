@@ -3,6 +3,7 @@ id: TS_wave-05-controllers
 blocks: []
 blocked_by:
   - TS_wave-04-state-query
+feature: runtime-boundaries
 ---
 
 # Wave 5: controllers/ + small strand files (10 files, 2823 LOC)

@@ -5,6 +5,7 @@ cycle: 0025D
 parent_cycle: 0025
 blocked_by:
   - PROTO_purge-fake-models
+feature: runtime-boundaries
 ---
 
 # 0025D — Import law

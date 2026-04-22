@@ -4,6 +4,7 @@ blocks:
   - TS_publish-pipeline
 blocked_by:
   - API_migrate-consumers-to-capabilities
+feature: api-capabilities
 ---
 
 # Delete WarpRuntime and all defineProperty sludge

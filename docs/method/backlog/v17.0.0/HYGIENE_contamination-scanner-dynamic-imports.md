@@ -3,6 +3,7 @@ blocked_by: []
 blocks: []
 id: HYGIENE_contamination-scanner-dynamic-imports
 parent_cycle: 0025
+feature: runtime-boundaries
 ---
 
 # Contamination scanner misses dynamic `node:*` imports

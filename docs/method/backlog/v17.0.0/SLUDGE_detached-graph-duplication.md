@@ -3,6 +3,7 @@ id: SLUDGE_detached-graph-duplication
 blocks: []
 blocked_by:
   - CROSS_shared-provider-interfaces
+feature: materialization-query-index
 ---
 
 # Deduplicate openDetachedReadGraph / openDetachedObserverGraph

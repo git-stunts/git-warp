@@ -7,6 +7,7 @@ blocked_by:
 blocks:
   - INFRA_graph-model-migration-tool
   - TRUST_genesis-replay-equivalence
+feature: graph-model-substrate
 ---
 
 # Graph-op algebra convergence

@@ -2,6 +2,7 @@
 id: CLI_agent-native-output
 blocks: []
 blocked_by: []
+feature: api-capabilities
 ---
 
 # CLI agent-native output (Design 0014)

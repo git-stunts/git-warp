@@ -4,6 +4,7 @@ blocked_by:
   - PROTO_index-builder-trie-iteration
   - PERF_trie-geometry-and-memory-profile
 blocks: []
+feature: runtime-boundaries
 ---
 
 # Extract Git/CAS/runtime adapters into packages/warp-adapters

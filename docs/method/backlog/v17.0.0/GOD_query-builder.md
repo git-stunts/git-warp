@@ -3,6 +3,7 @@ id: GOD_query-builder
 blocks:
   - API_migrate-consumers-to-capabilities
 blocked_by: []
+feature: materialization-query-index
 ---
 
 # Slay QueryBuilder (904 LOC)

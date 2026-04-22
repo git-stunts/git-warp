@@ -2,6 +2,7 @@
 id: TS_wave-07-index-small
 blocks: []
 blocked_by: []
+feature: materialization-query-index
 ---
 
 # Wave 7: index/ small files + services (10 files, 2803 LOC)

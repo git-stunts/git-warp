@@ -3,6 +3,7 @@ id: CLI_missing-commands
 blocks: []
 blocked_by:
   - CLI_agent-native-output
+feature: api-capabilities
 ---
 
 # Missing CLI commands (Design 0015)

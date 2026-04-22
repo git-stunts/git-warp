@@ -5,6 +5,7 @@ cycle: 0025A
 parent_cycle: 0025
 blocks:
   - PROTO_purge-boundary-leaks
+feature: runtime-boundaries
 ---
 
 # 0025A — Cast purge

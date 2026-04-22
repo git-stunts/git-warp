@@ -4,6 +4,7 @@ blocks:
   - API_migrate-consumers-to-capabilities
 blocked_by:
   - CROSS_shared-provider-interfaces
+feature: materialization-query-index
 ---
 
 # Slay MaterializeController (1009 LOC)

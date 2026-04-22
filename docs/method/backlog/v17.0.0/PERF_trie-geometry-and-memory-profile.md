@@ -7,6 +7,7 @@ blocked_by:
 blocks:
   - INFRA_extract-warp-kernel-package
   - INFRA_extract-warp-adapters-package
+feature: trie-state-storage
 ---
 
 # Benchmark fanout, leaf size, cache size, heap/RSS, and wall-clock on real graphs

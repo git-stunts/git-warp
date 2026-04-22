@@ -5,6 +5,7 @@ blocks:
 blocked_by:
   - TS_wave-08-strand-index-big
   - GOD_incremental-index-updater
+feature: runtime-boundaries
 ---
 
 # Wave 9: gods and monsters (13 files, 10987 LOC)

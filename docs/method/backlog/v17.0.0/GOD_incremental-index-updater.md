@@ -5,6 +5,7 @@ blocks:
   - GOD_remaining-big-files
 blocked_by:
   - CROSS_shared-provider-interfaces
+feature: materialization-query-index
 ---
 
 # Slay IncrementalIndexUpdater (955 LOC)

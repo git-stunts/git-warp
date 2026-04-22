@@ -2,6 +2,7 @@
 id: TS_wave-01-codec
 blocks: []
 blocked_by: []
+feature: runtime-boundaries
 ---
 
 # Wave 1: codec/ (8 files, 933 LOC)

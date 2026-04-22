@@ -4,6 +4,7 @@ blocked_by:
   - TS_publish-pipeline
 blocks:
   - INFRA_extract-warp-orset-package-post-publish
+feature: tooling-release
 ---
 
 # Design and implement the multi-package release pipeline

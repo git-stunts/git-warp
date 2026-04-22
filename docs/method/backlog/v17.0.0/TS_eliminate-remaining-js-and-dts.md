@@ -2,6 +2,7 @@
 id: TS_eliminate-remaining-js-and-dts
 blocks: []
 blocked_by: []
+feature: runtime-boundaries
 ---
 
 # Eliminate remaining .js and .d.ts files

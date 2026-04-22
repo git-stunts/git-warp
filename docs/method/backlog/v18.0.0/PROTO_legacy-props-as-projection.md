@@ -4,6 +4,7 @@ blocked_by:
   - PROTO_attachment-plane-substrate
 blocks:
   - TRUST_genesis-replay-equivalence
+feature: graph-model-substrate
 ---
 
 # Legacy props as projection

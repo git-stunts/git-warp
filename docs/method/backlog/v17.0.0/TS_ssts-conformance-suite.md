@@ -3,6 +3,7 @@ id: TS_ssts-conformance-suite
 blocks: []
 blocked_by:
   - TS_publish-pipeline
+feature: testing-quality
 ---
 
 # SSTS conformance suite

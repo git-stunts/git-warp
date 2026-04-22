@@ -2,6 +2,7 @@
 id: DX_architecture-md-js-extensions
 blocked_by: []
 blocks: []
+feature: docs-dx
 ---
 
 # Update ARCHITECTURE.md file references from .js to .ts

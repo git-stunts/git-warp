@@ -2,6 +2,7 @@
 id: CORE_streaming-memory-audit
 blocked_by: []
 blocks: []
+feature: materialization-query-index
 ---
 
 # Streaming memory audit — eliminate fits-in-memory assumptions

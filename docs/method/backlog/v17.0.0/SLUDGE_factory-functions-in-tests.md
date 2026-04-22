@@ -3,6 +3,7 @@ id: SLUDGE_factory-functions-in-tests
 blocks: []
 blocked_by: []
 status: done
+feature: testing-quality
 ---
 
 # Kill factory sludge in test suite

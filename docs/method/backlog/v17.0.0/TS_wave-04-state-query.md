@@ -3,6 +3,7 @@ id: TS_wave-04-state-query
 blocks: []
 blocked_by:
   - TS_wave-01-codec
+feature: materialization-query-index
 ---
 
 # Wave 4: state/ + query/ remaining (10 files, 3767 LOC)

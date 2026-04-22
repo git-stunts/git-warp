@@ -5,6 +5,7 @@ blocked_by:
   - PROTO_orsetlike-contract
   - PROTO_shadow-trie-orset
 blocks: []
+feature: trie-state-storage
 ---
 
 # Extract warp-orset as a real published workspace package (post-publish)

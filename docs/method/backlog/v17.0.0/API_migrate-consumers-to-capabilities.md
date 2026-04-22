@@ -10,6 +10,7 @@ blocked_by:
   - GOD_query-builder
   - GOD_incremental-index-updater
   - GOD_remaining-big-files
+feature: api-capabilities
 ---
 
 # Migrate internal consumers from WarpRuntime to capabilities

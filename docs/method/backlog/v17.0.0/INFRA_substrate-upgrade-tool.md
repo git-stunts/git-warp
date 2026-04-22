@@ -3,6 +3,7 @@ id: INFRA_substrate-upgrade-tool
 blocks: []
 blocked_by:
   - INFRA_unify-persistence-on-git-cas
+feature: runtime-boundaries
 ---
 
 # `git warp upgrade` — substrate migration tool

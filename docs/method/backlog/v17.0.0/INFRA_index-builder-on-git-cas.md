@@ -2,6 +2,7 @@
 id: INFRA_index-builder-on-git-cas
 blocks: []
 blocked_by: []
+feature: materialization-query-index
 ---
 
 # Migrate StreamingBitmapIndexBuilder to git-cas

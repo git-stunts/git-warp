@@ -4,6 +4,7 @@ id: HYGIENE_type-import-and-template-expression-purge
 blocked_by: []
 related:
   - docs/ANTI_SLUDGE_DECISIONS.md
+feature: runtime-boundaries
 ---
 
 # Hygiene: enforce consistent-type-imports and restrict-template-expressions

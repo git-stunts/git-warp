@@ -5,6 +5,7 @@ blocked_by:
   - PERF_trie-geometry-and-memory-profile
 blocks:
   - INFRA_extract-warp-adapters-package
+feature: runtime-boundaries
 ---
 
 # Extract engine into packages/warp-kernel once ORSet and materialization seams are real

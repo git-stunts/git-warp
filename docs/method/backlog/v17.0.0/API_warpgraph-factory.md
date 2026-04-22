@@ -5,6 +5,7 @@ blocks:
 blocked_by:
   - API_capability-interfaces
   - CROSS_shared-provider-interfaces
+feature: api-capabilities
 ---
 
 # Ship openWarpGraph() factory

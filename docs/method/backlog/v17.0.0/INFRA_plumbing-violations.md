@@ -2,6 +2,7 @@
 id: INFRA_plumbing-violations
 blocks: []
 blocked_by: []
+feature: runtime-boundaries
 ---
 
 # Fix raw git command violations

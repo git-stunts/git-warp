@@ -2,6 +2,7 @@
 id: DX_package-json-description-alignment
 blocked_by: []
 blocks: []
+feature: tooling-release
 ---
 
 # Align package.json description with v17 positioning

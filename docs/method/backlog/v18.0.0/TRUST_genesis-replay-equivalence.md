@@ -6,6 +6,7 @@ blocked_by:
   - PROTO_legacy-props-as-projection
   - INFRA_graph-model-migration-tool
 blocks: []
+feature: graph-model-substrate
 ---
 
 # Genesis replay equivalence

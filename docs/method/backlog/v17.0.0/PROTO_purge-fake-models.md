@@ -6,6 +6,7 @@ blocked_by:
   - PROTO_purge-boundary-leaks
 blocks:
   - PROTO_purge-import-law
+feature: runtime-boundaries
 ---
 
 # 0025C — Fake-model purge (Op-model introduction)

@@ -3,6 +3,7 @@ id: PROTO_gc-state-session
 blocked_by: []
 blocks:
   - PROTO_materialize-integration
+feature: trie-state-storage
 ---
 
 # GC operates through StateSession lifecycle

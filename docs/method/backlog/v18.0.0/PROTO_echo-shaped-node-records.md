@@ -5,6 +5,7 @@ blocks:
   - PROTO_attachment-plane-substrate
   - PROTO_graph-op-algebra-convergence
   - INFRA_graph-model-migration-tool
+feature: graph-model-substrate
 ---
 
 # Echo-shaped node records

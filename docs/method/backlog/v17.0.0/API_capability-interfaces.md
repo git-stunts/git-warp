@@ -5,6 +5,7 @@ blocks:
   - GOD_query-controller
   - GOD_strand-service
 blocked_by: []
+feature: api-capabilities
 ---
 
 # Write capability interfaces for WarpGraph API

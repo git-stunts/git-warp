@@ -3,6 +3,7 @@ id: TS_wave-06-sync
 blocks: []
 blocked_by:
   - TS_wave-01-codec
+feature: sync-trust-security
 ---
 
 # Wave 6: sync/ + medium services (10 files, 3596 LOC)

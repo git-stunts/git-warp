@@ -2,6 +2,7 @@
 id: TS_wave-02-trust
 blocks: []
 blocked_by: []
+feature: sync-trust-security
 ---
 
 # Wave 2: trust/ (8 files, 1441 LOC)

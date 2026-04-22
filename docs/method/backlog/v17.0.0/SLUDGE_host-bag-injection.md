@@ -3,6 +3,7 @@ id: SLUDGE_host-bag-injection
 blocks: []
 blocked_by:
   - CROSS_shared-provider-interfaces
+feature: runtime-boundaries
 ---
 
 # Kill the _host bag pattern across all controllers

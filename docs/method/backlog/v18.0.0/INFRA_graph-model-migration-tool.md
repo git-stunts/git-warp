@@ -8,6 +8,7 @@ blocked_by:
   - PROTO_content-attachment-plane-cutover
 blocks:
   - TRUST_genesis-replay-equivalence
+feature: graph-model-substrate
 ---
 
 # Graph-model migration tool

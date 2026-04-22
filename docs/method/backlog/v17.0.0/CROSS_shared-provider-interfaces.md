@@ -8,6 +8,7 @@ blocks:
   - SLUDGE_host-bag-injection
   - SLUDGE_detached-graph-duplication
 blocked_by: []
+feature: runtime-boundaries
 ---
 
 # Define shared provider interfaces

@@ -8,6 +8,7 @@ blocks:
   - PROTO_content-attachment-plane-cutover
   - PROTO_legacy-props-as-projection
   - INFRA_graph-model-migration-tool
+feature: graph-model-substrate
 ---
 
 # Attachment-plane substrate

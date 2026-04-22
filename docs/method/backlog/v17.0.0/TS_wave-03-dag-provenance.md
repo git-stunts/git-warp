@@ -2,6 +2,7 @@
 id: TS_wave-03-dag-provenance
 blocks: []
 blocked_by: []
+feature: materialization-query-index
 ---
 
 # Wave 3: dag/ + provenance/ + small services (10 files, 2884 LOC)

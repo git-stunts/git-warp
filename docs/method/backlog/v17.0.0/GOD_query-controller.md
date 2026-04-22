@@ -5,6 +5,7 @@ blocks:
 blocked_by:
   - API_capability-interfaces
   - CROSS_shared-provider-interfaces
+feature: materialization-query-index
 ---
 
 # Slay QueryController (951 LOC)

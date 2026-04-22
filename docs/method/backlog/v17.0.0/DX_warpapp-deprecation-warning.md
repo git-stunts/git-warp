@@ -2,6 +2,7 @@
 id: DX_warpapp-deprecation-warning
 blocked_by: []
 blocks: []
+feature: api-capabilities
 ---
 
 # Add deprecation warning to WarpApp default export

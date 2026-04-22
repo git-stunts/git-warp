@@ -6,6 +6,7 @@ blocked_by:
   - PROTO_purge-cast-hacks
 blocks:
   - PROTO_purge-fake-models
+feature: runtime-boundaries
 ---
 
 # 0025B — Boundary purge

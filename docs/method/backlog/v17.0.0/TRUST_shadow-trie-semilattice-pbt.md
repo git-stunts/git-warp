@@ -4,6 +4,7 @@ blocked_by:
   - PROTO_shadow-trie-orset
 blocks:
   - PERF_trie-geometry-and-memory-profile
+feature: trie-state-storage
 ---
 
 # Property-based tests for semilattice laws, structural sharing, and merge invariants

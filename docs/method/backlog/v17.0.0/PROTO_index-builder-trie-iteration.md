@@ -5,6 +5,7 @@ blocked_by:
 blocks:
   - PERF_trie-geometry-and-memory-profile
   - INFRA_extract-warp-adapters-package
+feature: trie-state-storage
 ---
 
 # Index builders consume async scan from trie-backed ORSet

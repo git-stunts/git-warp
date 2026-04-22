@@ -3,6 +3,7 @@ id: MCP_warp-server
 blocks: []
 blocked_by:
   - CLI_agent-native-output
+feature: api-capabilities
 ---
 
 # git-warp MCP server (Design 0016)
