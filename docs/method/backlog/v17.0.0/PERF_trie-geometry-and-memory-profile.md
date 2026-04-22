@@ -1,7 +1,6 @@
 ---
 id: PERF_trie-geometry-and-memory-profile
-blocked_by:
-  - TRUST_shadow-trie-semilattice-pbt
+blocked_by: []
 blocks:
   - INFRA_extract-warp-kernel-package
   - INFRA_extract-warp-adapters-package

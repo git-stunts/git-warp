@@ -151,3 +151,64 @@ rewriting the whole trie.
 - compact removes dots that are still causally unsafe to drop
 - reopened follow-up writes rewrite whole subtrees instead of preserving
   structural sharing
+
+## Playback
+
+### Witness
+
+The shadow-trie trust proof is backed by:
+
+- [StateSession.semilattice.property.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/orset/session/StateSession.semilattice.property.test.ts)
+- [JoinReducer.stateSession.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/JoinReducer.stateSession.test.ts)
+- [ShadowTrieORSet.compaction.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/orset/shadow/ShadowTrieORSet.compaction.test.ts)
+- `npm exec vitest run test/unit/domain/orset/session/StateSession.semilattice.property.test.ts test/unit/domain/services/JoinReducer.stateSession.test.ts test/unit/domain/orset/shadow/ShadowTrieORSet.compaction.test.ts`
+- `npm run typecheck`
+- `git diff --check`
+
+### Agent
+
+1. *Can I point to the exact session-backed join seam being proven?*
+   Yes. The law proof now runs through
+   [joinFrames](/Users/james/git/git-stunts/git-warp/src/domain/services/JoinReducerSession.ts)
+   over session-backed alive sets, and the results are projected only for
+   comparison against in-memory ORSet truth.
+
+2. *Can I explain why the proof compares against `ORSet` without pretending `ORSet` is still the owning runtime substrate?*
+   Yes. `ORSet` is the reference semilattice implementation. The runtime seam
+   under proof is still `StateSession` plus `joinFrames`; the projection exists
+   only to compare the async line against the established CRDT law.
+
+3. *Can I point to the direct structural-sharing proof and explain why it is not a pure semilattice property?*
+   Yes. The session reopen/follow-up write regression in
+   [StateSession.semilattice.property.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/orset/session/StateSession.semilattice.property.test.ts)
+   proves structural sharing as a persistence/runtime property, not as a
+   lattice axiom.
+
+### Human
+
+1. *Does the trust story now feel mathematically honest rather than hand-wavy?*
+   Yes. The cycle now proves the join laws, compact safety, and a concrete
+   add-wins case under randomized comparison with the in-memory ORSet.
+
+2. *Is it clear why `ShadowTrieORSet` itself does not need a new public `join()`?*
+   Yes. The semilattice proof targets the actual public async join seam instead
+   of inventing a fake engine API that the runtime does not use.
+
+3. *Is it clear which parts are law proofs and which parts are persistence/runtime regressions?*
+   Yes. The property tests prove CRDT laws; the structural-sharing regression
+   proves a storage/runtime guarantee.
+
+Verdict: pass.
+
+## Drift check
+
+No negative drift.
+
+Positive drift only:
+
+- the cycle proved the laws at the session-backed join seam rather than on a
+  hypothetical `ShadowTrieORSet.join()` surface, which is more honest than the
+  original backlog wording
+- the red matrix exposed and fixed one real law bug: pure tombstone state was
+  still disappearing during session join when the target replica had never seen
+  the raw dot entry
