@@ -37,10 +37,10 @@ LAYER 2 (the exorcism):
 LAYER 3:
   [ ] API_kill-warpruntime               ← THE DEVIL DIES
 
-LAYER 4:
+LAYER 4 (launch-prep only; park until the repo is otherwise ready to ship):
   [ ] TS_publish-pipeline
 
-LAYER 5:
+LAYER 5 (launch-prep proof and release hardening tail):
   [ ] TS_ssts-conformance-suite
   [ ] SCORECARD
 ```
@@ -142,6 +142,11 @@ surface.
 **git-cas carve-out:** Core trie publication uses native Git objects
 and is explicitly out of scope for INFRA_unify-persistence-on-git-cas.
 See Design 0018 for details.
+
+**Launch-prep rule:** `TS_publish-pipeline`,
+`INFRA_multipackage-publish-pipeline`, and the post-publish extraction
+items are intentionally late. Keep them parked until `v17` is
+otherwise essentially release-candidate ready.
 
 ## Status key
 

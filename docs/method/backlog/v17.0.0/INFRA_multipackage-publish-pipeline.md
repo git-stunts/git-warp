@@ -9,6 +9,15 @@ feature: tooling-release
 
 # Design and implement the multi-package release pipeline
 
+## Sequencing
+
+This is **endgame launch-prep work**.
+
+Do not staff this while `v17` still has substantive runtime, API, or
+substrate work open. The right time for this slice is when the repo is
+otherwise essentially ready to launch and the remaining job is to make
+the release machinery honest.
+
 ## Problem
 
 Current release/preflight/tag-guard/verify workflows are rooted in the

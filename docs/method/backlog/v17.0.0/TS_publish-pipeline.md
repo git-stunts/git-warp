@@ -11,6 +11,20 @@ feature: tooling-release
 
 # Publish pipeline for v17.0.0
 
+## Sequencing
+
+This is **launch-prep work**, not an active engineering trunk.
+
+Do not pull this early just because it is visible in `v17.0.0/`.
+The correct posture is:
+
+- finish the remaining product/runtime work first
+- get the repo essentially release-candidate ready
+- then do the publish/declaration surface hardening at the very end
+
+That keeps release mechanics from stealing time from shipping-critical
+engine and API work.
+
 Phase 6 of cycle 0013. After all `.js` files are `.ts` and the API
 redesign is complete, configure the build to emit declarations, verify
 the public surface, and ship to npm + JSR.

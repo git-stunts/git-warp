@@ -39,12 +39,12 @@ dependency graph and likely write-surface overlap.
 | `0` | `B0` | 1 | 5 | Intake and triage |
 | `1` | `B1` | 4 | 31 | Root backlog classification and maintenance |
 | `2` | `B2` | 8 | 139 | Invariant debt paydown |
-| `3.0` | `B3` | 6 | 30 | Ready-now release foundations |
+| `3.0` | `B3` | 6 | 28 | Ready-now release foundations |
 | `3.1` | `B3` | 3 | 23 | Downstream release workstreams |
 | `4` | `B4` | 9 | 61 | Next-major substrate cut plus near-term queue |
 | `5` | `B5` | 9 | 98 | Doctrine follow-through plus speculative orbit |
-| Total | all | 40 | 387 | Subtotal before parked workloads |
-| `3.x` parked | `B3` | 1 | 4 | External-check package tail |
+| Total | all | 40 | 385 | Subtotal before parked workloads |
+| `3.x` parked | `B3` | 1 | 6 | Launch-prep proof and package tail |
 | Grand total | all | 41 | 391 | Full live backlog |
 
 ## Wave 0 — Intake Antichain
@@ -88,7 +88,7 @@ parallel without crossing a **live** backlog edge.
 | `WL-30-v17-capability-provider-seams` | 2 | `API_capability-interfaces`, `CROSS_shared-provider-interfaces` | Provider interfaces, capability surfaces, shared runtime seams |
 | `WL-31-v17-cas-substrate-foundation` | 5 | `INFRA_unify-persistence-on-git-cas`, `INFRA_plumbing-violations`, `INFRA_index-builder-on-git-cas`, `INFRA_substrate-upgrade-tool`, `INFRA_uniform-git-cas` | CAS, plumbing, substrate migration |
 | `WL-32-v17-purge-chain` | 4 | `PROTO_purge-cast-hacks`, `PROTO_purge-boundary-leaks`, `PROTO_purge-fake-models`, `PROTO_purge-import-law` | Anti-sludge purge chain; one agent, serial internal order |
-| `WL-33-v17-ts-publish-pipeline` | 5 | `TS_convert-remaining-js`, `TS_infrastructure-adapters`, `TS_cli-viz-scripts`, `TS_publish-pipeline`, `TS_ssts-conformance-suite` | TypeScript conversion and package publish pipeline |
+| `WL-33-v17-ts-tail-conversion` | 3 | `TS_convert-remaining-js`, `TS_infrastructure-adapters`, `TS_cli-viz-scripts` | Remaining TypeScript conversion work needed before launch-prep |
 | `WL-34-v17-ts-wave-sweep` | 9 | `TS_wave-01-codec`, `TS_wave-02-trust`, `TS_wave-03-dag-provenance`, `TS_wave-04-state-query`, `TS_wave-05-controllers`, `TS_wave-06-sync`, `TS_wave-07-index-small`, `TS_wave-08-strand-index-big`, `TS_wave-09-gods-and-monsters` | Wave-based TS migration sequence |
 | `WL-35-v17-hygiene-sludge-seed` | 5 | `HYGIENE_contamination-scanner-dynamic-imports`, `HYGIENE_type-import-and-template-expression-purge`, `SLUDGE_content-access-duplication`, `SLUDGE_dead-code-cleanup`, `SLUDGE_factory-functions-in-tests` | Cleanup and residue that do not wait on capability-provider work |
 
@@ -106,12 +106,13 @@ dependency check before staffing.
 ## Wave 3.x — Parked `B3` Tail
 
 This workload is MECE with the rest of `B3`, but it should stay parked
-until both the publish pipeline and the ORSet/materialization tail are
-confirmed ready.
+until the repo is otherwise essentially ready to launch `v17.0.0`.
+These are launch-prep mechanics and proof surfaces, not active product
+engineering trunks.
 
 | Workload | Count | Items | Preconditions |
 |----------|------:|-------|---------------|
-| `WL-39-v17-package-extraction-tail` | 4 | `INFRA_extract-warp-kernel-package-post-publish`, `INFRA_extract-warp-adapters-package-post-publish`, `INFRA_multipackage-publish-pipeline`, `INFRA_extract-warp-orset-package-post-publish` | Follows `WL-33` and `WL-38` |
+| `WL-39-v17-launch-prep-tail` | 6 | `TS_publish-pipeline`, `TS_ssts-conformance-suite`, `INFRA_multipackage-publish-pipeline`, `INFRA_extract-warp-kernel-package-post-publish`, `INFRA_extract-warp-adapters-package-post-publish`, `INFRA_extract-warp-orset-package-post-publish` | Launch-prep only. Keep parked until the repo is otherwise essentially ready to launch `v17.0.0`. Internal order follows `WL-33`, `WL-37`, and `WL-38`. |
 
 ## Wave 4 — `B4` Antichain
 
@@ -154,15 +155,15 @@ The partition is exhaustive and non-overlapping:
 - Wave `0`: `5`
 - Wave `1`: `31`
 - Wave `2`: `139`
-- Wave `3.0`: `30`
+- Wave `3.0`: `28`
 - Wave `3.1`: `23`
-- Wave `3.x`: `4`
+- Wave `3.x`: `6`
 - Wave `4`: `61`
 - Wave `5`: `98`
 
 Total:
 
-- `5 + 31 + 139 + 30 + 23 + 4 + 61 + 98 = 391`
+- `5 + 31 + 139 + 28 + 23 + 6 + 61 + 98 = 391`
 
 Every live backlog note is covered exactly once.
 
@@ -171,9 +172,11 @@ Every live backlog note is covered exactly once.
 If you want to staff agents immediately, start here:
 
 1. Fill Wave `3.0` first if the goal is shipping `v17.0.0`.
-2. Run Wave `2` in parallel when a release slice hits the same
+2. Keep `WL-39-v17-launch-prep-tail` parked until the repo is
+   otherwise essentially ready to launch `v17.0.0`.
+3. Run Wave `2` in parallel when a release slice hits the same
    invariant.
-3. Use Wave `4` for `v18.0.0` planning or selective substrate prep
+4. Use Wave `4` for `v18.0.0` planning or selective substrate prep
    without starving active `B3` work.
-4. Keep Wave `5` parked unless you are deliberately working doctrine
+5. Keep Wave `5` parked unless you are deliberately working doctrine
    or exploration follow-through.
