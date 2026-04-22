@@ -39,6 +39,34 @@ async function scanAll(scan: AsyncIterable<string>): Promise<readonly string[]> 
   return out;
 }
 
+async function scanElementStates(
+  scan: AsyncIterable<{
+    readonly element: string;
+    readonly dots: ReadonlySet<string>;
+    readonly tombstonedDots: ReadonlySet<string>;
+  }>,
+): Promise<
+  readonly {
+    readonly element: string;
+    readonly dots: readonly string[];
+    readonly tombstonedDots: readonly string[];
+  }[]
+> {
+  const out: Array<{
+    readonly element: string;
+    readonly dots: readonly string[];
+    readonly tombstonedDots: readonly string[];
+  }> = [];
+  for await (const state of scan) {
+    out.push({
+      element: state.element,
+      dots: [...state.dots].sort(),
+      tombstonedDots: [...state.tombstonedDots].sort(),
+    });
+  }
+  return out;
+}
+
 describe("StateSession", () => {
   describe("construction", () => {
     it("rejects an empty nodeAlive root oid", async () => {
@@ -190,6 +218,45 @@ describe("StateSession", () => {
       expect(await reopened.edgeContains("edge:1")).toBe(false);
       expect(await scanAll(reopened.scanNodes())).toEqual([]);
       expect(await scanAll(reopened.scanEdges())).toEqual([]);
+    });
+
+    it("surfaces tombstoned element state without pretending removed entries vanished", async () => {
+      const { session } = await openSession();
+      const nodeDot = new Dot("alice", 1);
+      const edgeDot = new Dot("alice", 2);
+
+      await session.addNode("node:1", nodeDot);
+      await session.addEdge("edge:1", edgeDot);
+      await session.removeNodes(new Set([Dot.encode(nodeDot)]));
+      await session.removeEdges(new Set([Dot.encode(edgeDot)]));
+
+      expect(await session.nodeContains("node:1")).toBe(false);
+      expect(await session.edgeContains("edge:1")).toBe(false);
+
+      const nodeState = await session.nodeElementState("node:1");
+      const edgeState = await session.edgeElementState("edge:1");
+
+      expect(nodeState?.element).toBe("node:1");
+      expect([...nodeState?.dots ?? []]).toEqual([]);
+      expect([...nodeState?.tombstonedDots ?? []]).toEqual([Dot.encode(nodeDot)]);
+      expect(edgeState?.element).toBe("edge:1");
+      expect([...edgeState?.dots ?? []]).toEqual([]);
+      expect([...edgeState?.tombstonedDots ?? []]).toEqual([Dot.encode(edgeDot)]);
+
+      expect(await scanElementStates(session.scanNodeElementStates())).toEqual([
+        {
+          element: "node:1",
+          dots: [],
+          tombstonedDots: [Dot.encode(nodeDot)],
+        },
+      ]);
+      expect(await scanElementStates(session.scanEdgeElementStates())).toEqual([
+        {
+          element: "edge:1",
+          dots: [],
+          tombstonedDots: [Dot.encode(edgeDot)],
+        },
+      ]);
     });
 
     it("keeps scan methods as async iterables instead of arrays", async () => {

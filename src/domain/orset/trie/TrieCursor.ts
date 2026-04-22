@@ -1,6 +1,7 @@
 import { Dot as DotClass, type Dot } from "../../crdt/Dot.ts";
 import type VersionVector from "../../crdt/VersionVector.ts";
 import TrieCursorError from "../../errors/TrieCursorError.ts";
+import ORSetElementState from "../ORSetElementState.ts";
 import type CodecPort from "../../../ports/CodecPort.ts";
 import RouteKey from "../route/RouteKey.ts";
 
@@ -102,6 +103,12 @@ export default class TrieCursor {
     return new Set(entry.dots);
   }
 
+  async getElementState(element: string): Promise<ORSetElementState | null> {
+    validateElement(element);
+    const entry = await this.#lookupEntry(element);
+    return entry === null ? null : elementStateOfEntry(entry);
+  }
+
   async add(element: string, dot: Dot): Promise<void> {
     validateElement(element);
     validateDot(dot);
@@ -153,6 +160,14 @@ export default class TrieCursor {
       return;
     }
     yield* this.#scanBelow([]);
+  }
+
+  async *scanElementStates(): AsyncIterable<ORSetElementState> {
+    await this.#loadRootIfNeeded();
+    if (!this.#hasRoot()) {
+      return;
+    }
+    yield* this.#scanElementStatesBelow([]);
   }
 
   snapshot(): DirtyPageSet {
@@ -706,6 +721,38 @@ export default class TrieCursor {
       yield* this.#scanBelow([...path, nibble]);
     }
   }
+
+  async *#scanElementStatesBelow(
+    path: readonly number[],
+  ): AsyncIterable<ORSetElementState> {
+    const leaf = this.#leafAt(path);
+    if (leaf !== null) {
+      for (const entry of leaf.entries()) {
+        yield elementStateOfEntry(entry);
+      }
+      return;
+    }
+    const branch = this.#branchAt(path);
+    if (branch === null) {
+      return;
+    }
+    yield* this.#descendScanElementStates(path, branch);
+  }
+
+  async *#descendScanElementStates(
+    path: readonly number[],
+    branch: TrieBranch,
+  ): AsyncIterable<ORSetElementState> {
+    const nibbles = [...branch.entries().keys()].sort((a, b) => a - b);
+    for (const nibble of nibbles) {
+      const childOid = branch.get(nibble);
+      if (childOid === undefined) {
+        continue;
+      }
+      await this.#ensureChildLoaded(path, nibble, childOid);
+      yield* this.#scanElementStatesBelow([...path, nibble]);
+    }
+  }
 }
 
 // -- helper: advance insert context ----------------------------------------
@@ -747,6 +794,14 @@ function* liveElementsOf(leaf: TrieLeaf): Iterable<string> {
       yield entry.element;
     }
   }
+}
+
+function elementStateOfEntry(entry: TrieLeafEntry): ORSetElementState {
+  return new ORSetElementState({
+    element: entry.element,
+    dots: entry.dots,
+    tombstonedDots: entry.tombstonedDots,
+  });
 }
 
 // -- discriminated union for descent step ----------------------------------

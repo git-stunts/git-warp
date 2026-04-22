@@ -430,5 +430,48 @@ describe("JoinReducer session-backed path", () => {
         Object.fromEntries(syncJoined.observedFrontier),
       );
     });
+
+    it("preserves tombstoned dots when joining session-backed frames", async () => {
+      const { ReducerSessionFrame, joinFrames } =
+        await loadJoinReducerSessionModule();
+      const leftOpen = await openSession();
+      const rightOpen = await openSession();
+      const sharedNodeDot = new Dot("alice", 1);
+      const sharedEdgeDot = new Dot("alice", 2);
+
+      await leftOpen.session.addNode("node:shared", sharedNodeDot);
+      await leftOpen.session.addEdge("node:a\x00node:b\x00knows", sharedEdgeDot);
+
+      await rightOpen.session.addNode("node:shared", sharedNodeDot);
+      await rightOpen.session.addEdge("node:a\x00node:b\x00knows", sharedEdgeDot);
+      await rightOpen.session.removeNodes(new Set([Dot.encode(sharedNodeDot)]));
+      await rightOpen.session.removeEdges(new Set([Dot.encode(sharedEdgeDot)]));
+
+      const left = new ReducerSessionFrame({
+        session: leftOpen.session,
+        prop: new Map(),
+        observedFrontier: VersionVector.from({ alice: 1 }),
+        edgeBirthEvent: new Map(),
+      });
+      const right = new ReducerSessionFrame({
+        session: rightOpen.session,
+        prop: new Map(),
+        observedFrontier: VersionVector.from({ alice: 2 }),
+        edgeBirthEvent: new Map(),
+      });
+
+      const merged = await joinFrames(left, right);
+
+      expect(await merged.session.nodeContains("node:shared")).toBe(false);
+      expect(
+        await merged.session.edgeContains("node:a\x00node:b\x00knows"),
+      ).toBe(false);
+      expect(
+        [...(await merged.session.nodeElementState("node:shared"))?.tombstonedDots ?? []],
+      ).toEqual([Dot.encode(sharedNodeDot)]);
+      expect(
+        [...(await merged.session.edgeElementState("node:a\x00node:b\x00knows"))?.tombstonedDots ?? []],
+      ).toEqual([Dot.encode(sharedEdgeDot)]);
+    });
   });
 });

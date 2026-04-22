@@ -1,6 +1,7 @@
 import { type Dot } from "../../crdt/Dot.ts";
 import type VersionVector from "../../crdt/VersionVector.ts";
 import ShadowTrieORSetError from "../../errors/ShadowTrieORSetError.ts";
+import ORSetElementState from "../ORSetElementState.ts";
 import TrieCursor from "../trie/TrieCursor.ts";
 import TrieFlusher from "../trie/TrieFlusher.ts";
 import FlushResult from "../trie/FlushResult.ts";
@@ -47,6 +48,10 @@ export default class ShadowTrieORSet {
     return await this.#cursor.getDots(element);
   }
 
+  async getElementState(element: string): Promise<ORSetElementState | null> {
+    return await this.#cursor.getElementState(element);
+  }
+
   async add(element: string, dot: Dot): Promise<void> {
     await this.#cursor.add(element, dot);
   }
@@ -61,6 +66,10 @@ export default class ShadowTrieORSet {
 
   async *scan(): AsyncIterable<string> {
     yield* this.#cursor.scan();
+  }
+
+  async *scanElementStates(): AsyncIterable<ORSetElementState> {
+    yield* this.#cursor.scanElementStates();
   }
 
   async flush(): Promise<FlushResult> {

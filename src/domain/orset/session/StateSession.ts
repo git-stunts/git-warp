@@ -1,6 +1,7 @@
 import { type Dot } from "../../crdt/Dot.ts";
 import type VersionVector from "../../crdt/VersionVector.ts";
 import StateSessionError from "../../errors/StateSessionError.ts";
+import ORSetElementState from "../ORSetElementState.ts";
 import type CodecPort from "../../../ports/CodecPort.ts";
 import type TrieStorePort from "../trie/TrieStorePort.ts";
 import PageCache from "../trie/PageCache.ts";
@@ -87,6 +88,11 @@ export default class StateSession {
     return await this.#nodeAlive.getDots(id);
   }
 
+  async nodeElementState(id: string): Promise<ORSetElementState | null> {
+    this.#assertOpen();
+    return await this.#nodeAlive.getElementState(id);
+  }
+
   async edgeContains(key: string): Promise<boolean> {
     this.#assertOpen();
     return await this.#edgeAlive.contains(key);
@@ -95,6 +101,11 @@ export default class StateSession {
   async edgeDots(key: string): Promise<ReadonlySet<string>> {
     this.#assertOpen();
     return await this.#edgeAlive.getDots(key);
+  }
+
+  async edgeElementState(key: string): Promise<ORSetElementState | null> {
+    this.#assertOpen();
+    return await this.#edgeAlive.getElementState(key);
   }
 
   async addNode(id: string, dot: Dot): Promise<void> {
@@ -122,9 +133,19 @@ export default class StateSession {
     return this.#nodeAlive.scan();
   }
 
+  scanNodeElementStates(): AsyncIterable<ORSetElementState> {
+    this.#assertOpen();
+    return this.#nodeAlive.scanElementStates();
+  }
+
   scanEdges(): AsyncIterable<string> {
     this.#assertOpen();
     return this.#edgeAlive.scan();
+  }
+
+  scanEdgeElementStates(): AsyncIterable<ORSetElementState> {
+    this.#assertOpen();
+    return this.#edgeAlive.scanElementStates();
   }
 
   async compact(includedVV: VersionVector): Promise<void> {
