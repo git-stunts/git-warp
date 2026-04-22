@@ -1,3 +1,9 @@
+---
+id: SPEC_no-crdt-conflict-observability
+blocked_by: []
+blocks: []
+---
+
 # No observability for CRDT conflict resolution rates
 
 **Effort:** S

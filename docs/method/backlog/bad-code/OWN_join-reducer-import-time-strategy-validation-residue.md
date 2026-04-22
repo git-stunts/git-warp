@@ -1,3 +1,9 @@
+---
+id: OWN_join-reducer-import-time-strategy-validation-residue
+blocked_by: []
+blocks: []
+---
+
 # PROTO_join-reducer-import-time-strategy-validation-residue
 
 ## What stinks

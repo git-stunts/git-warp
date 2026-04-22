@@ -1,3 +1,9 @@
+---
+id: PERF_streaming-graph-traversal
+blocked_by: []
+blocks: []
+---
+
 # Streaming GraphTraversal — async generators
 
 Every traversal algorithm could offer a streaming variant:

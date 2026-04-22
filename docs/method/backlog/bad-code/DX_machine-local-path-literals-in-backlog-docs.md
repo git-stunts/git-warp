@@ -1,4 +1,6 @@
 ---
+blocked_by: []
+blocks: []
 id: DX_machine-local-path-literals-in-backlog-docs
 ---
 
@@ -33,4 +35,4 @@ examples of machine-local absolute paths in docs under `docs/method/backlog/`.
 ## Starting points
 
 - `docs/method/backlog/inbox/DX_method-mcp-workspace-detection-drift.md`
-- `docs/method/backlog/up-next/PROTO_strand-collapse-optic-for-causal-slicing.md`
+- `docs/method/backlog/v20.0.0/PROTO_strand-collapse-optic-for-causal-slicing.md`

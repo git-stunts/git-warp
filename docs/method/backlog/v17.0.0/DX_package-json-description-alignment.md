@@ -1,3 +1,9 @@
+---
+id: DX_package-json-description-alignment
+blocked_by: []
+blocks: []
+---
+
 # Align package.json description with v17 positioning
 
 **Audit ref:** DQ01-H-05

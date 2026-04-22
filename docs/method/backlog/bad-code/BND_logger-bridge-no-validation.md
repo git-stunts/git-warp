@@ -1,3 +1,9 @@
+---
+id: BND_logger-bridge-no-validation
+blocked_by: []
+blocks: []
+---
+
 # LoggerObservabilityBridge has no constructor validation
 
 **Effort:** XS

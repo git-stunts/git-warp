@@ -1,3 +1,9 @@
+---
+id: PROTO_orset-compaction-receipt
+blocked_by: []
+blocks: []
+---
+
 # ORSet.compact() returns CompactionReceipt
 
 **Effort:** S

@@ -44,6 +44,6 @@ blocked_by:
 
 ## Related
 
-- `docs/method/backlog/up-next/PROTO_WESLEY_receipt-envelope-boundary.md`
+- `docs/method/backlog/v19.0.0/PROTO_WESLEY_receipt-envelope-boundary.md`
 - `docs/method/backlog/v17.0.0/GOD_materialize-controller.md`
 - `docs/method/backlog/v17.0.0/GOD_query-controller.md`

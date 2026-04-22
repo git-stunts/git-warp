@@ -1,3 +1,9 @@
+---
+id: CAST_wormhole-service-defensive-tail-branches
+blocked_by: []
+blocks: []
+---
+
 # PROTO_wormhole-service-defensive-tail-branches
 
 ## What stinks

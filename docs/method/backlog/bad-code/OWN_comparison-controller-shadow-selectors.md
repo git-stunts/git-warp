@@ -1,3 +1,9 @@
+---
+id: OWN_comparison-controller-shadow-selectors
+blocked_by: []
+blocks: []
+---
+
 # ComparisonController contains 4 shadow selector classes
 
 **Effort:** M

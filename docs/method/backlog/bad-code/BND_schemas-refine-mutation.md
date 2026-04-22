@@ -1,3 +1,9 @@
+---
+id: BND_schemas-refine-mutation
+blocked_by: []
+blocks: []
+---
+
 # TrustRecordSchema superRefine mutates record during validation
 
 **Effort:** S

@@ -1,3 +1,9 @@
+---
+id: CAST_call-internal-runtime-method
+blocked_by: []
+blocks: []
+---
+
 # callInternalRuntimeMethod walks prototype chains
 
 **Effort:** M

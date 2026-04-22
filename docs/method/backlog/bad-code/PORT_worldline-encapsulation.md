@@ -1,3 +1,9 @@
+---
+id: PORT_worldline-encapsulation
+blocked_by: []
+blocks: []
+---
+
 # Worldline reaches into 13+ WarpRuntime private fields
 
 **Effort:** M

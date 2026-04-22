@@ -1,3 +1,9 @@
+---
+id: PROTO_warpruntime-open-options-class
+blocked_by: []
+blocks: []
+---
+
 # PROTO: WarpRuntime.open() options → WarpOpenOptions class
 
 ## Legend

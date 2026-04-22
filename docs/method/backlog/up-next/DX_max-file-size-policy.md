@@ -1,3 +1,9 @@
+---
+id: DX_max-file-size-policy
+blocked_by: []
+blocks: []
+---
+
 # Enforce Max File Size + One-Thing-Per-File Policy
 
 **Effort:** L

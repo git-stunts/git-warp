@@ -1,3 +1,9 @@
+---
+id: SUB_cas-init-duplication
+blocked_by: []
+blocks: []
+---
+
 # CasBlobAdapter and CasSeekCacheAdapter duplicate _initCas()
 
 **Effort:** S

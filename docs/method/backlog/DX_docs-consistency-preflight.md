@@ -1,3 +1,9 @@
+---
+id: DX_docs-consistency-preflight
+blocked_by: []
+blocks: []
+---
+
 # Docs Consistency Preflight
 
 **Effort:** S

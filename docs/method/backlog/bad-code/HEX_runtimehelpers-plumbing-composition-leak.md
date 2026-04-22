@@ -1,3 +1,9 @@
+---
+id: HEX_runtimehelpers-plumbing-composition-leak
+blocked_by: []
+blocks: []
+---
+
 # runtimeHelpers imports infrastructure adapters and branches on plumbing presence
 
 **Effort:** M

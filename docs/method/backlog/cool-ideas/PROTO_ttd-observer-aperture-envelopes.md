@@ -1,3 +1,9 @@
+---
+id: PROTO_ttd-observer-aperture-envelopes
+blocked_by: []
+blocks: []
+---
+
 # First-class observer and aperture envelopes in warp-ttd protocol
 
 The stack now treats observers as the primary read surface and apertures as the

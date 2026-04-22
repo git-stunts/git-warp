@@ -1,4 +1,7 @@
 ---
+id: THEORY_merge-geometry-open-questions
+blocked_by: []
+blocks: []
 title: Merge geometry open questions
 rank: 13
 lane: cool-ideas

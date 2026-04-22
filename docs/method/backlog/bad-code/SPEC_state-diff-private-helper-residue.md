@@ -1,3 +1,9 @@
+---
+id: SPEC_state-diff-private-helper-residue
+blocked_by: []
+blocks: []
+---
+
 # PROTO_state-diff-private-helper-residue
 
 ## What stinks

@@ -1,3 +1,9 @@
+---
+id: PORT_dual-export-pattern
+blocked_by: []
+blocks: []
+---
+
 # Visualization modules mix named and default exports
 
 **Effort:** XS

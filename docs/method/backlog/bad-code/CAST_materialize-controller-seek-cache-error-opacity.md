@@ -1,3 +1,9 @@
+---
+id: CAST_materialize-controller-seek-cache-error-opacity
+blocked_by: []
+blocks: []
+---
+
 # PROTO_materialize-controller-seek-cache-error-opacity
 
 ## What stinks

@@ -1,3 +1,9 @@
+---
+id: DX_vision-readme-namespace-consistency
+blocked_by: []
+blocks: []
+---
+
 # Reconcile namespace notation across VISION.md, README.md, ARCHITECTURE.md
 
 **Audit ref:** DQ01-H-02

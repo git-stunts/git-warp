@@ -1,3 +1,9 @@
+---
+id: BND_http-request-typedef
+blocked_by: []
+blocks: []
+---
+
 # HttpRequest/HttpResponse are typedef-only port boundary types
 
 **Effort:** S

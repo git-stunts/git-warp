@@ -1,3 +1,9 @@
+---
+id: PROTO_braid-composite-read
+blocked_by: []
+blocks: []
+---
+
 # Braid — composite read presentation across lanes
 
 The WARP Optics working note defines:

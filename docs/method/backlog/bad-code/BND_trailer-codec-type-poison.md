@@ -1,3 +1,9 @@
+---
+id: BND_trailer-codec-type-poison
+blocked_by: []
+blocks: []
+---
+
 # @git-stunts/trailer-codec type poison at the boundary
 
 **Effort:** M

@@ -1,3 +1,9 @@
+---
+id: OWN_silent-catch-blocks-49
+blocked_by: []
+blocks: []
+---
+
 # 49 silent catch blocks across the codebase
 
 **Effort:** M

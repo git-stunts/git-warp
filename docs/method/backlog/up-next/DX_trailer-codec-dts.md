@@ -1,3 +1,9 @@
+---
+id: DX_trailer-codec-dts
+blocked_by: []
+blocks: []
+---
+
 # `@git-stunts/trailer-codec` Type Declarations
 
 **Effort:** M

@@ -1,3 +1,9 @@
+---
+id: DX_pure-typescript-example-app
+blocked_by: []
+blocks: []
+---
+
 # Pure TypeScript Example App
 
 **Effort:** M

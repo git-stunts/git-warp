@@ -1,3 +1,9 @@
+---
+id: SPEC_capability-interfaces-no-jsdoc
+blocked_by: []
+blocks: []
+---
+
 # Capability interfaces lack JSDoc on individual methods
 
 **Effort:** M

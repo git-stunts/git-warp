@@ -1,3 +1,9 @@
+---
+id: SUB_cbor-checkpoint-crdt-serialization
+blocked_by: []
+blocks: []
+---
+
 # CborCheckpointStoreAdapter owns general CRDT serialization
 
 **Effort:** M

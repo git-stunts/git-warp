@@ -1,3 +1,9 @@
+---
+id: PROTO_wire-format-migration-edgepropset
+blocked_by: []
+blocks: []
+---
+
 # Persisted Wire-Format Migration (ADR 2) — EdgePropSet
 
 **Effort:** XL

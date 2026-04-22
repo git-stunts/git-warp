@@ -1,3 +1,9 @@
+---
+id: SPEC_deno-adapter-tautology
+blocked_by: []
+blocks: []
+---
+
 # DenoHttpAdapter test has literal expect(true).toBe(true) assertion
 
 **Effort:** XS

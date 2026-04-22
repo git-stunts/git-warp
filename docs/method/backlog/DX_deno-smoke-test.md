@@ -1,3 +1,9 @@
+---
+id: DX_deno-smoke-test
+blocked_by: []
+blocks: []
+---
+
 # Deno Smoke Test
 
 **Effort:** S

@@ -1,3 +1,9 @@
+---
+id: PROTO_writer-isolated-bisect
+blocked_by: []
+blocks: []
+---
+
 # Writer-isolated bisect mode
 
 A `--isolated` flag on bisect that materializes only the target

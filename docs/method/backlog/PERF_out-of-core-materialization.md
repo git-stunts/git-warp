@@ -1,3 +1,9 @@
+---
+id: PERF_out-of-core-materialization
+blocked_by: []
+blocks: []
+---
+
 # Out-of-core materialization and streaming reads
 
 

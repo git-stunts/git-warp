@@ -1,3 +1,9 @@
+---
+id: DX_agent-code-audit
+blocked_by: []
+blocks: []
+---
+
 # TSC Campaign Agent-Authored Code Audit
 
 **Effort:** L

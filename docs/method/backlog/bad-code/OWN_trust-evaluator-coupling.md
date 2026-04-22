@@ -1,3 +1,9 @@
+---
+id: OWN_trust-evaluator-coupling
+blocked_by: []
+blocks: []
+---
+
 # TrustEvaluator couples to TrustStateBuilder key encoding
 
 **Effort:** S

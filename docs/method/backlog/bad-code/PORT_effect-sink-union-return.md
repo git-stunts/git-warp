@@ -1,3 +1,9 @@
+---
+id: PORT_effect-sink-union-return
+blocked_by: []
+blocks: []
+---
+
 # EffectSinkPort.deliver() has union return type
 
 **Effort:** S

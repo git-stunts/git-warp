@@ -1,3 +1,9 @@
+---
+id: OWN_conflict-analyzer-god-object
+blocked_by: []
+blocks: []
+---
+
 # ConflictAnalyzerService is a god object (2582 LOC)
 
 **Effort:** L

@@ -1,3 +1,9 @@
+---
+id: DX_npm-audit-fix-vite
+blocked_by: []
+blocks: []
+---
+
 # Run npm audit fix for vite CVEs
 
 **Audit ref:** CQ01-4.1, SR01-V1

@@ -1,3 +1,9 @@
+---
+id: SUB_bitmap-index-trio-coupling
+blocked_by: []
+blocks: []
+---
+
 # BitmapIndexBuilder/Reader/Streaming always change together (22x in 3 months)
 
 **Effort:** M

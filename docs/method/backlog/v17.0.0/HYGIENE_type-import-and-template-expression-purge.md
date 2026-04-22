@@ -1,4 +1,5 @@
 ---
+blocks: []
 id: HYGIENE_type-import-and-template-expression-purge
 blocked_by: []
 related:

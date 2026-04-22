@@ -1,4 +1,7 @@
 ---
+id: PROTO_aperture-relative-merge
+blocked_by: []
+blocks: []
 title: Aperture-relative merge
 rank: 8
 lane: cool-ideas

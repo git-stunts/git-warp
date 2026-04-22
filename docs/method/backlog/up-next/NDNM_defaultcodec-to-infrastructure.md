@@ -1,3 +1,9 @@
+---
+id: NDNM_defaultcodec-to-infrastructure
+blocked_by: []
+blocks: []
+---
+
 # Dissolve serialization from domain (P5)
 
 **Effort:** L

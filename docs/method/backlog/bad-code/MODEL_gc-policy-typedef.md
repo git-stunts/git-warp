@@ -1,3 +1,9 @@
+---
+id: MODEL_gc-policy-typedef
+blocked_by: []
+blocks: []
+---
+
 # GCPolicy and related types are typedef-only
 
 **Effort:** S

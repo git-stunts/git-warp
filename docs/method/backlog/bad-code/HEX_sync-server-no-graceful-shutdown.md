@@ -1,3 +1,9 @@
+---
+id: HEX_sync-server-no-graceful-shutdown
+blocked_by: []
+blocks: []
+---
+
 # HTTP sync server has no graceful shutdown
 
 **Effort:** M

@@ -1,3 +1,9 @@
+---
+id: DX_method-v2-upgrade
+blocked_by: []
+blocks: []
+---
+
 # Upgrade METHOD.md to v2 draft
 
 Incorporate improvements from the pre-0002 draft review:

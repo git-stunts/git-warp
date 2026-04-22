@@ -1,3 +1,9 @@
+---
+id: DX_observer-first-guide
+blocked_by: []
+blocks: []
+---
+
 # Guide: Observer-First Client Pattern
 
 **Effort:** M

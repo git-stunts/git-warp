@@ -1,3 +1,9 @@
+---
+id: SUB_querybuilder-match-full-scan
+blocked_by: []
+blocks: []
+---
+
 # QueryBuilder match() does a full node scan
 
 **Effort:** M

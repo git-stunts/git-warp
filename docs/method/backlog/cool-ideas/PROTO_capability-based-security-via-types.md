@@ -1,3 +1,9 @@
+---
+id: PROTO_capability-based-security-via-types
+blocked_by: []
+blocks: []
+---
+
 # Capability-based security via TypeScript narrowing
 
 The capability-namespaced API (`graph.query.*`, `graph.patches.*`)

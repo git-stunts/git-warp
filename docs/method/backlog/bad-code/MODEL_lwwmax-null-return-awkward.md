@@ -1,3 +1,9 @@
+---
+id: MODEL_lwwmax-null-return-awkward
+blocked_by: []
+blocks: []
+---
+
 # `lwwMax` returns `LWWRegister<T> | null` — awkward null in the happy path
 
 **Effort:** S

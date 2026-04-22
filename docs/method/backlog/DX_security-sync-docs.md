@@ -1,3 +1,9 @@
+---
+id: DX_security-sync-docs
+blocked_by: []
+blocks: []
+---
+
 # Docs: SECURITY_SYNC.md
 
 **Effort:** M

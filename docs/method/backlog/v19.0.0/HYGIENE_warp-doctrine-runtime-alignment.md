@@ -1,3 +1,10 @@
+---
+id: HYGIENE_warp-doctrine-runtime-alignment
+blocked_by: []
+blocks:
+  - PROTO_bounded-support-rules-for-query-surfaces
+---
+
 # Keep WARP doctrine and shipped runtime teaching aligned
 
 ## Problem

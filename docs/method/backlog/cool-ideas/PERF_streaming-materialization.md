@@ -1,4 +1,6 @@
 ---
+blocked_by: []
+blocks: []
 id: PERF_streaming-materialization
 ---
 

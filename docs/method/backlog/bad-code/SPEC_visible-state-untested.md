@@ -1,3 +1,9 @@
+---
+id: SPEC_visible-state-untested
+blocked_by: []
+blocks: []
+---
+
 # VisibleStateComparisonV5 (808 LOC) and VisibleStateTransferPlannerV5 (692 LOC) have zero tests
 
 **Effort:** M

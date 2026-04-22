@@ -1,3 +1,9 @@
+---
+id: PROTO_frontier-as-class
+blocked_by: []
+blocks: []
+---
+
 # Frontier as a proper class — the last great typedef
 
 **Effort:** M

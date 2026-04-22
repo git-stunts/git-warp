@@ -1,3 +1,9 @@
+---
+id: OWN_always-true-null-checks
+blocked_by: []
+blocks: []
+---
+
 # Always-true null/undefined checks on non-nullable values
 
 **Effort:** XS

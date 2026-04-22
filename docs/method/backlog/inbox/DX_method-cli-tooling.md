@@ -1,3 +1,9 @@
+---
+id: DX_method-cli-tooling
+blocked_by: []
+blocks: []
+---
+
 # METHOD CLI tooling
 
 Small CLI for METHOD workspace operations: `method inbox`,

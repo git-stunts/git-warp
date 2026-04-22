@@ -1,3 +1,9 @@
+---
+id: CC_conflict-pipeline-god-context
+blocked_by: []
+blocks: []
+---
+
 # Conflict Pipeline God-Context
 
 All three conflict pipeline modules (`ConflictFrameLoader`,

@@ -1,3 +1,9 @@
+---
+id: MODEL_patchdiff-no-validation
+blocked_by: []
+blocks: []
+---
+
 # PatchDiff class has no validation and typedef-only entries
 
 **Effort:** S

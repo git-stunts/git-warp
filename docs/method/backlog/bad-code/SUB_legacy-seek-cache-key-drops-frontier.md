@@ -1,3 +1,9 @@
+---
+id: SUB_legacy-seek-cache-key-drops-frontier
+blocked_by: []
+blocks: []
+---
+
 # Legacy seek-cache key drops frontier
 
 `src/domain/utils/seekCacheKey.ts` only stores:

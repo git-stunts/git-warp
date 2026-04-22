@@ -1,3 +1,9 @@
+---
+id: DX_invariant-ci-gate
+blocked_by: []
+blocks: []
+---
+
 # CI gate that audits all invariants on every PR
 
 Every invariant in docs/invariants/ has a "How do you check?"

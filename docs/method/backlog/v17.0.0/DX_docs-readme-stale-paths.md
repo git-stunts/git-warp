@@ -1,3 +1,9 @@
+---
+id: DX_docs-readme-stale-paths
+blocked_by: []
+blocks: []
+---
+
 # Fix docs/README.md stale paths and add migration guide link
 
 **Audit ref:** DQ01-M-03

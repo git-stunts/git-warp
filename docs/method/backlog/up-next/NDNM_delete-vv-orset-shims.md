@@ -1,3 +1,9 @@
+---
+id: NDNM_delete-vv-orset-shims
+blocked_by: []
+blocks: []
+---
+
 # Delete VersionVector and ORSet backward-compat shims
 
 **Effort:** M

@@ -1,3 +1,11 @@
+---
+id: PROTO_support-scoped-fragment-materialization
+blocked_by:
+  - PROTO_bounded-support-rules-for-query-surfaces
+  - PROTO_causal-indexes-for-sliced-queries
+blocks: []
+---
+
 # Support-scoped fragment materialization
 
 **Effort:** L

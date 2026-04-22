@@ -1,3 +1,9 @@
+---
+id: DX_security-md-v17-api
+blocked_by: []
+blocks: []
+---
+
 # Update SECURITY.md code examples to v17 API
 
 **Audit ref:** DQ01-M-05

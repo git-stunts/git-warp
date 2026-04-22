@@ -1,3 +1,9 @@
+---
+id: DX_bearing-md
+blocked_by: []
+blocks: []
+---
+
 # Create BEARING.md
 
 Single living signpost at `docs/BEARING.md`. Updated at cycle

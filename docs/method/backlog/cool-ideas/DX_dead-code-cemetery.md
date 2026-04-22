@@ -1,3 +1,9 @@
+---
+id: DX_dead-code-cemetery
+blocked_by: []
+blocks: []
+---
+
 # Dead code cemetery — automated detection
 
 **Effort:** M

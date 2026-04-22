@@ -1,3 +1,9 @@
+---
+id: HEX_message-codec-hex
+blocked_by: []
+blocks: []
+---
+
 # MessageCodecInternal imports @git-stunts/trailer-codec in domain
 
 **Effort:** M

@@ -1,3 +1,9 @@
+---
+id: PORT_wiredMethods-dts-signature-drift-risk
+blocked_by: []
+blocks: []
+---
+
 # _wiredMethods.d.ts has no automated verification against controllers
 
 **Effort:** M

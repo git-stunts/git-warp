@@ -1,3 +1,9 @@
+---
+id: DX_consumer-test-type-import-coverage
+blocked_by: []
+blocks: []
+---
+
 # Consumer Test Type-Only Import Coverage
 
 **Effort:** M

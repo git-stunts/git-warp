@@ -1,3 +1,10 @@
+---
+id: PROTO_tick-range-graph-diff-api
+blocked_by:
+  - PROTO_bounded-support-rules-for-query-surfaces
+blocks: []
+---
+
 # Tick-range graph diff API
 
 **Effort:** M

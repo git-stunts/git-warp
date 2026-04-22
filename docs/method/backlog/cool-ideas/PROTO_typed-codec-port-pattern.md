@@ -1,3 +1,9 @@
+---
+id: PROTO_typed-codec-port-pattern
+blocked_by: []
+blocks: []
+---
+
 # Typed codec port pattern — domain never touches raw bytes for serde
 
 The ShardPort pattern (domain works with typed shard objects, port

@@ -1,3 +1,9 @@
+---
+id: DX_dependency-hygiene-audit
+blocked_by: []
+blocks: []
+---
+
 # Audit dependency hygiene: tar override, zod pin, patch-package
 
 **Audit ref:** CQ01-4.3

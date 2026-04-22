@@ -1,3 +1,9 @@
+---
+id: PERF_benchmark-budgets-ci-gate
+blocked_by: []
+blocks: []
+---
+
 # Benchmark Budgets + CI Regression Gate
 
 **Effort:** L

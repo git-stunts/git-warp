@@ -1,3 +1,9 @@
+---
+id: MODEL_warp-types-eventid-dual
+blocked_by: []
+blocks: []
+---
+
 # EventId defined as both typedef and class
 
 **Effort:** S

@@ -1,3 +1,9 @@
+---
+id: DX_browser-export-documentation
+blocked_by: []
+blocks: []
+---
+
 # Document the browser.js / browser.d.ts export path
 
 **Audit ref:** CQ01-2.1

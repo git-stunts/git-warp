@@ -1,3 +1,9 @@
+---
+id: DX_ssjs-scorecard-precommit
+blocked_by: []
+blocks: []
+---
+
 # Automated SSJS scorecard in pre-commit hook
 
 **Effort:** S

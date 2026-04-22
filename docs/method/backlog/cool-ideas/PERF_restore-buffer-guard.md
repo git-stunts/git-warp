@@ -1,3 +1,9 @@
+---
+id: PERF_restore-buffer-guard
+blocked_by: []
+blocks: []
+---
+
 # Restore buffer guard for seek cache + blob adapter
 
 git-cas 5.3.0 added `maxRestoreBufferSize` (default 512 MiB).

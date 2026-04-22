@@ -1,3 +1,9 @@
+---
+id: DX_golden-blob-museum
+blocked_by: []
+blocks: []
+---
+
 # Golden Blob Museum
 
 Check in canonical patch/checkpoint/index fixtures extracted from real

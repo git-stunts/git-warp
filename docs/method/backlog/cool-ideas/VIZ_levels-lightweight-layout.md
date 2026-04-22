@@ -1,3 +1,9 @@
+---
+id: VIZ_levels-lightweight-layout
+blocked_by: []
+blocks: []
+---
+
 # `levels()` as Lightweight `--view` Layout
 
 **Effort:** M

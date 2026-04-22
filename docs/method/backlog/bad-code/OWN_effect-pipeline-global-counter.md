@@ -1,3 +1,9 @@
+---
+id: OWN_effect-pipeline-global-counter
+blocked_by: []
+blocks: []
+---
+
 # EffectPipeline uses module-level mutable counter
 
 **Effort:** XS

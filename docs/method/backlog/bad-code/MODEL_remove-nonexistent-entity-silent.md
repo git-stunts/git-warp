@@ -1,3 +1,9 @@
+---
+id: MODEL_remove-nonexistent-entity-silent
+blocked_by: []
+blocks: []
+---
+
 # removeNode/removeEdge on a non-existent entity silently produces no-op
 
 **Effort:** S

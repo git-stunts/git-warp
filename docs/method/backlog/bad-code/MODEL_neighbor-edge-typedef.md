@@ -1,3 +1,9 @@
+---
+id: MODEL_neighbor-edge-typedef
+blocked_by: []
+blocks: []
+---
+
 # NeighborEdge and Direction are typedef-only domain concepts
 
 **Effort:** S

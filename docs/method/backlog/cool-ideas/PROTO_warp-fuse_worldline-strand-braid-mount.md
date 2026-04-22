@@ -1,3 +1,9 @@
+---
+id: PROTO_warp-fuse_worldline-strand-braid-mount
+blocked_by: []
+blocks: []
+---
+
 # WARP FUSE mount for worldlines, strands, and braids
 
 The stack now has a coherent causal model, but ordinary developer tools still

@@ -1,3 +1,9 @@
+---
+id: PROTO_plan-validate-execute-observe-pipeline
+blocked_by: []
+blocks: []
+---
+
 # Plan → Validate → Execute → Observe pipeline
 
 The QueryPlan pattern (builder accumulates immutable plan, runner

@@ -1,3 +1,9 @@
+---
+id: DX_op-hydration-at-cbor-boundary
+blocked_by: []
+blocks: []
+---
+
 # Op hydration at the CBOR decode boundary
 
 **Effort:** M-L

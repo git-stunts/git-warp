@@ -1,3 +1,9 @@
+---
+id: SPEC_index-rebuild-vacuous
+blocked_by: []
+blocks: []
+---
+
 # IndexRebuildService tests check method existence, not correctness
 
 **Effort:** S

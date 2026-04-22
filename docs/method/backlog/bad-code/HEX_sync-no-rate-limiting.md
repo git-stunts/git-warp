@@ -1,3 +1,9 @@
+---
+id: HEX_sync-no-rate-limiting
+blocked_by: []
+blocks: []
+---
+
 # Sync endpoint has no rate limiting
 
 **Effort:** M

@@ -1,4 +1,5 @@
 ---
+blocks: []
 id: PROTO_purge-import-law
 cycle: 0025D
 parent_cycle: 0025

@@ -1,3 +1,9 @@
+---
+id: SPEC_inmemory-graph-adapter-default-hash-unavailable-branch
+blocked_by: []
+blocks: []
+---
+
 # PROTO_inmemory-graph-adapter-default-hash-unavailable-branch
 
 ## What stinks

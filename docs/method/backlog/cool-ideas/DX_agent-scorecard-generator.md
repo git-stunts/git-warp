@@ -1,3 +1,9 @@
+---
+id: DX_agent-scorecard-generator
+blocked_by: []
+blocks: []
+---
+
 # Auto-generate the SSTS scorecard from git diff
 
 **Effort:** S

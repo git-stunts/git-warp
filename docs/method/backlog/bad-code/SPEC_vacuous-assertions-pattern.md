@@ -1,3 +1,9 @@
+---
+id: SPEC_vacuous-assertions-pattern
+blocked_by: []
+blocks: []
+---
+
 # Codebase has a pattern of vacuous assertions
 
 **Effort:** M

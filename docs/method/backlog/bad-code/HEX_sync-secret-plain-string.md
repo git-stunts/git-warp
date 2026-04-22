@@ -1,3 +1,9 @@
+---
+id: HEX_sync-secret-plain-string
+blocked_by: []
+blocks: []
+---
+
 # Sync auth HMAC secrets passed as plain strings through domain
 
 **Effort:** M

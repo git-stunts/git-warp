@@ -1,3 +1,9 @@
+---
+id: NDNM_observer-full-structural
+blocked_by: []
+blocks: []
+---
+
 # Grow Observer toward full structural observer
 
 **Effort:** L

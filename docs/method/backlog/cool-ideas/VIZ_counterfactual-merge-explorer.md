@@ -1,4 +1,7 @@
 ---
+id: VIZ_counterfactual-merge-explorer
+blocked_by: []
+blocks: []
 title: Counterfactual merge explorer
 rank: 7
 lane: cool-ideas

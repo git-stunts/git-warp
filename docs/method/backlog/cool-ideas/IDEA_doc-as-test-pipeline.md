@@ -1,3 +1,9 @@
+---
+id: IDEA_doc-as-test-pipeline
+blocked_by: []
+blocks: []
+---
+
 # Doc-as-test pipeline: run code snippets from docs as tests
 
 Create `test/examples/` that imports and executes every code snippet

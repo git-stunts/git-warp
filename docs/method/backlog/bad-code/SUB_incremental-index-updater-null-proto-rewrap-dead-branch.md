@@ -1,3 +1,9 @@
+---
+id: SUB_incremental-index-updater-null-proto-rewrap-dead-branch
+blocked_by: []
+blocks: []
+---
+
 # PROTO_incremental-index-updater-null-proto-rewrap-dead-branch
 
 ## What stinks

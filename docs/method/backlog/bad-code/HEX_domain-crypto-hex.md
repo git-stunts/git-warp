@@ -1,3 +1,9 @@
+---
+id: HEX_domain-crypto-hex
+blocked_by: []
+blocks: []
+---
+
 # TrustCanonical.js imports defaultCrypto (node:crypto in domain)
 
 **Effort:** M

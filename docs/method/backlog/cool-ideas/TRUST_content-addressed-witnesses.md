@@ -1,4 +1,6 @@
 ---
+blocked_by: []
+blocks: []
 id: TRUST_content-addressed-witnesses
 ---
 

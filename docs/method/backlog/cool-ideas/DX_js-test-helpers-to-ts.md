@@ -1,3 +1,9 @@
+---
+id: DX_js-test-helpers-to-ts
+blocked_by: []
+blocks: []
+---
+
 # Convert 29 remaining JS test helper files to TypeScript
 
 **Audit ref:** CQ01-4.4

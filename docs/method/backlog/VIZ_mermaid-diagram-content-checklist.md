@@ -1,3 +1,9 @@
+---
+id: VIZ_mermaid-diagram-content-checklist
+blocked_by: []
+blocks: []
+---
+
 # Mermaid Diagram Content Checklist
 
 **Effort:** XS

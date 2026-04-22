@@ -1,3 +1,9 @@
+---
+id: SPEC_state-reader-untested
+blocked_by: []
+blocks: []
+---
+
 # StateReaderV5.js (599 LOC) has zero tests
 
 **Effort:** S

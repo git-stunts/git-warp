@@ -1,3 +1,9 @@
+---
+id: MODEL_strand-public-shape-identity
+blocked_by: []
+blocks: []
+---
+
 # strandPublicShape.js is a complex identity transform
 
 **Effort:** S

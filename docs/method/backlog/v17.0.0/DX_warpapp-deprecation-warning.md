@@ -1,3 +1,9 @@
+---
+id: DX_warpapp-deprecation-warning
+blocked_by: []
+blocks: []
+---
+
 # Add deprecation warning to WarpApp default export
 
 **Audit ref:** CQ01-1.2

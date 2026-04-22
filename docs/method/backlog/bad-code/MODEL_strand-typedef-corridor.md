@@ -1,3 +1,9 @@
+---
+id: MODEL_strand-typedef-corridor
+blocked_by: []
+blocks: []
+---
+
 # Strand model still lives as a typedef corridor across collaborator files
 
 **Severity:** medium

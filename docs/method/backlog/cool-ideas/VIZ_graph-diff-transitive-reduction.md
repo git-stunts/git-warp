@@ -1,3 +1,9 @@
+---
+id: VIZ_graph-diff-transitive-reduction
+blocked_by: []
+blocks: []
+---
+
 # Graph diff via transitive reduction comparison
 
 Compute `transitiveReduction(graphA)` and

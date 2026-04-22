@@ -1,3 +1,9 @@
+---
+id: HEX_btr-audit-ambient-timestamps
+blocked_by: []
+blocks: []
+---
+
 # BoundaryTransitionRecord and AuditService use ambient wall-clock
 
 **Effort:** S

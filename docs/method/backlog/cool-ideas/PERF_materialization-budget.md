@@ -1,3 +1,9 @@
+---
+id: PERF_materialization-budget
+blocked_by: []
+blocks: []
+---
+
 # Materialization budget — O(P) with a ceiling
 
 Materialization is O(P) where P is total patches. No upper bound.

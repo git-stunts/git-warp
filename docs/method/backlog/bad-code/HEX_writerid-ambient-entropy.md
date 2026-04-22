@@ -1,3 +1,9 @@
+---
+id: HEX_writerid-ambient-entropy
+blocked_by: []
+blocks: []
+---
+
 # WriterId.js uses crypto.getRandomValues in domain
 
 **Effort:** S

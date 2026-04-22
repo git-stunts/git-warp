@@ -1,3 +1,9 @@
+---
+id: DX_docs-version-sync-precommit
+blocked_by: []
+blocks: []
+---
+
 # Docs-Version-Sync Pre-Commit Check
 
 **Effort:** S

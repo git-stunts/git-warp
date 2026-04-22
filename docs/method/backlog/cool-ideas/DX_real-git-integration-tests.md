@@ -1,3 +1,9 @@
+---
+id: DX_real-git-integration-tests
+blocked_by: []
+blocks: []
+---
+
 # Add integration test suite against real Git repositories
 
 **Audit ref:** SR01-G3

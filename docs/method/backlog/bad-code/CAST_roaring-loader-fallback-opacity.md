@@ -1,3 +1,9 @@
+---
+id: CAST_roaring-loader-fallback-opacity
+blocked_by: []
+blocks: []
+---
+
 # PROTO_roaring-loader-fallback-opacity
 
 ## What stinks

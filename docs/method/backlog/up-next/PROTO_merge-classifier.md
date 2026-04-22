@@ -1,4 +1,7 @@
 ---
+id: PROTO_merge-classifier
+blocked_by: []
+blocks: []
 title: Merge classifier
 rank: 2
 lane: up-next

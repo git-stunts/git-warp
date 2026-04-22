@@ -1,3 +1,9 @@
+---
+id: HEX_warpruntime-open-plumbing-composition-leak
+blocked_by: []
+blocks: []
+---
+
 # WarpRuntime.open constructs infrastructure adapters by peeking at plumbing
 
 **Effort:** M

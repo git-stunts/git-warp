@@ -1,3 +1,9 @@
+---
+id: SPEC_querybuilder-untested
+blocked_by: []
+blocks: []
+---
+
 # QueryBuilder.js has 852 LOC and zero dedicated tests
 
 **Effort:** M

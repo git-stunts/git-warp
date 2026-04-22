@@ -1,3 +1,9 @@
+---
+id: IDEA_runtime-capability-assertion
+blocked_by: []
+blocks: []
+---
+
 # Runtime capability assertion in openWarpGraph()
 
 Instead of 9 `as unknown as` casts in the capability bag construction,

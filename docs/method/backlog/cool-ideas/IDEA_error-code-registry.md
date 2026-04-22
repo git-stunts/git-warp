@@ -1,3 +1,9 @@
+---
+id: IDEA_error-code-registry
+blocked_by: []
+blocks: []
+---
+
 # Error code registry as importable constants
 
 Expose error codes as importable constants so consumers can do

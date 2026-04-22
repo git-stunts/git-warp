@@ -1,3 +1,9 @@
+---
+id: DX_touched-files-status-command
+blocked_by: []
+blocks: []
+---
+
 # `touched-files-status` — one command to show every file changed on a branch
 
 **Effort:** XS

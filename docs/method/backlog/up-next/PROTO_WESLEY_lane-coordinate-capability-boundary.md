@@ -1,3 +1,9 @@
+---
+id: PROTO_WESLEY_lane-coordinate-capability-boundary
+blocked_by: []
+blocks: []
+---
+
 # WESLEY lane / coordinate / capability boundary
 
 `PROTO_WESLEY_receipt-envelope-boundary` covers receipts and nearby provenance

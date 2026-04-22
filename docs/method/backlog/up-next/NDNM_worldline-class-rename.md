@@ -1,3 +1,9 @@
+---
+id: NDNM_worldline-class-rename
+blocked_by: []
+blocks: []
+---
+
 # Rename Worldline class to match theory
 
 **Effort:** M

@@ -1,3 +1,9 @@
+---
+id: DX_architecture-md-js-extensions
+blocked_by: []
+blocks: []
+---
+
 # Update ARCHITECTURE.md file references from .js to .ts
 
 **Audit ref:** DQ01-M-06

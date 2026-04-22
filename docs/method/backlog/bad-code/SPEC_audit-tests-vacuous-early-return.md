@@ -1,3 +1,9 @@
+---
+id: SPEC_audit-tests-vacuous-early-return
+blocked_by: []
+blocks: []
+---
+
 # WarpGraph.audit.test.js has vacuous tests with conditional early returns
 
 **Effort:** S

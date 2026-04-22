@@ -1,3 +1,9 @@
+---
+id: PORT_cli-persistence-plumbing-leak
+blocked_by: []
+blocks: []
+---
+
 # CLI persistence shape leaks plumbing into application wiring
 
 **Effort:** S

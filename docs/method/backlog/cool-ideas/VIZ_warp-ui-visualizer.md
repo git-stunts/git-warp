@@ -1,3 +1,9 @@
+---
+id: VIZ_warp-ui-visualizer
+blocked_by: []
+blocks: []
+---
+
 # WARP UI Visualizer
 
 **Effort:** L

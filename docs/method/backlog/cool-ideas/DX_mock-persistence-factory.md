@@ -1,3 +1,9 @@
+---
+id: DX_mock-persistence-factory
+blocked_by: []
+blocks: []
+---
+
 # MockPersistenceFactory — typed, complete, safe
 
 **Effort:** S

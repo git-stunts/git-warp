@@ -1,3 +1,9 @@
+---
+id: CAST_reducer-silent-unknown-op-type
+blocked_by: []
+blocks: []
+---
+
 # Reducer silently no-ops unknown op types — typos become silent data loss
 
 **Effort:** XS

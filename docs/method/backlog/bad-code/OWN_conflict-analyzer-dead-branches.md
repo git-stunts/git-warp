@@ -1,3 +1,9 @@
+---
+id: OWN_conflict-analyzer-dead-branches
+blocked_by: []
+blocks: []
+---
+
 # ConflictAnalyzerService has dead and self-cancelling branches
 
 **Effort:** S

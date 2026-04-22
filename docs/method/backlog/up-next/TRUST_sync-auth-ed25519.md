@@ -1,3 +1,9 @@
+---
+id: TRUST_sync-auth-ed25519
+blocked_by: []
+blocks: []
+---
+
 # Sync Auth: Migrate from Symmetric HMAC to Ed25519 Asymmetric Signatures
 
 **Effort:** L

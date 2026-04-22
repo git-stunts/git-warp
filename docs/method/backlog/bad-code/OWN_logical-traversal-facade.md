@@ -1,3 +1,9 @@
+---
+id: OWN_logical-traversal-facade
+blocked_by: []
+blocks: []
+---
+
 # LogicalTraversal.js (590 LOC) is a deprecated facade with zero tests
 
 **Effort:** S

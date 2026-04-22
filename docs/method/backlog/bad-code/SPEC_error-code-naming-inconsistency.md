@@ -1,3 +1,9 @@
+---
+id: SPEC_error-code-naming-inconsistency
+blocked_by: []
+blocks: []
+---
+
 # Error code naming inconsistency across throw sites
 
 **Effort:** M

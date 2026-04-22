@@ -1,3 +1,9 @@
+---
+id: PROTO_encrypted-trailer-rename
+blocked_by: []
+blocks: []
+---
+
 # Rename `encrypted` trailer to `eg-encrypted`
 
 The Git commit trailer key `encrypted` should be namespaced to avoid

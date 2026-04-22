@@ -1,3 +1,9 @@
+---
+id: PROTO_safe-cbor-decoder
+blocked_by: []
+blocks: []
+---
+
 # Safe CBOR decoder with depth/size/allocation limits
 
 The CBOR deserialization attack surface is real but the fix is

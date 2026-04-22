@@ -1,3 +1,9 @@
+---
+id: MODEL_op-wire-pojo-class-duality
+blocked_by: []
+blocks: []
+---
+
 # Op wire POJOs and Op class instances flow through the same pipeline
 
 **Effort:** L

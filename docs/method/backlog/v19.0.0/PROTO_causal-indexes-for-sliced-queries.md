@@ -1,3 +1,11 @@
+---
+id: PROTO_causal-indexes-for-sliced-queries
+blocked_by:
+  - PROTO_bounded-support-rules-for-query-surfaces
+blocks:
+  - PROTO_support-scoped-fragment-materialization
+---
+
 # Causal indexes for sliced queries
 
 **Effort:** L

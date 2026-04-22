@@ -1,3 +1,9 @@
+---
+id: MODEL_frontier-typedef-to-class
+blocked_by: []
+blocks: []
+---
+
 # Frontier is a typedef alias for Map with 9 free functions
 
 **Effort:** M

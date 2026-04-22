@@ -1,3 +1,9 @@
+---
+id: MODEL_versionvector-constructor-no-validation
+blocked_by: []
+blocks: []
+---
+
 # VersionVector constructor accepts undefined entries
 
 **Effort:** S

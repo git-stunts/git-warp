@@ -1,3 +1,9 @@
+---
+id: SPEC_readtreeoids-mock-returns-array
+blocked_by: []
+blocks: []
+---
+
 # readTreeOids mocks returned [] instead of {} (type contract violation)
 
 **Effort:** XS

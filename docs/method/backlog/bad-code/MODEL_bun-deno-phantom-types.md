@@ -1,3 +1,9 @@
+---
+id: MODEL_bun-deno-phantom-types
+blocked_by: []
+blocks: []
+---
+
 # BunHttpAdapter/DenoHttpAdapter reference undeclared global types
 
 **Effort:** S

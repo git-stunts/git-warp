@@ -1,3 +1,9 @@
+---
+id: HEX_domain-utils-misplaced
+blocked_by: []
+blocks: []
+---
+
 # Adapter and native bindings living in src/domain/utils/
 
 **Effort:** M

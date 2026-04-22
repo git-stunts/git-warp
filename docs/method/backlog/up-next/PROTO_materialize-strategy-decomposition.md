@@ -1,3 +1,9 @@
+---
+id: PROTO_materialize-strategy-decomposition
+blocked_by: []
+blocks: []
+---
+
 # MaterializeController strategy decomposition
 
 **Effort:** L

@@ -1,3 +1,9 @@
+---
+id: SUB_streaming-bitmap-index-builder-serialization-tail
+blocked_by: []
+blocks: []
+---
+
 # PROTO_streaming-bitmap-index-builder-serialization-tail
 
 ## What stinks

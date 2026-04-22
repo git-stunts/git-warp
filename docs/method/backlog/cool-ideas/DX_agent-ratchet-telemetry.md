@@ -1,3 +1,9 @@
+---
+id: DX_agent-ratchet-telemetry
+blocked_by: []
+blocks: []
+---
+
 # Agent ratchet telemetry — per-commit snapshot of tsc/lint/tests
 
 **Effort:** S

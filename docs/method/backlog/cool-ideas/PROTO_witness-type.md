@@ -1,3 +1,9 @@
+---
+id: PROTO_witness-type
+blocked_by: []
+blocks: []
+---
+
 # First-class Witness type
 
 The WARP Optics working note distinguishes Witness from TickReceipt:

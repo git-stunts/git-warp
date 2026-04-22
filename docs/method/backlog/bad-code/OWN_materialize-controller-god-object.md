@@ -1,3 +1,9 @@
+---
+id: OWN_materialize-controller-god-object
+blocked_by: []
+blocks: []
+---
+
 # MaterializeController is a god object (~1009 LOC)
 
 **Effort:** L

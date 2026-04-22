@@ -1,3 +1,9 @@
+---
+id: DX_cli-guide-command-index
+blocked_by: []
+blocks: []
+---
+
 # Expand CLI_GUIDE.md with complete command reference
 
 **Audit ref:** DQ01-L-03

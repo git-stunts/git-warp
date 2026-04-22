@@ -1,3 +1,9 @@
+---
+id: HEX_domain-hex-defaults
+blocked_by: []
+blocks: []
+---
+
 # defaultCodec/defaultCrypto/defaultTrustCrypto import infrastructure in domain
 
 **Effort:** M

@@ -1,3 +1,9 @@
+---
+id: OWN_exact-optional-conditional-spread
+blocked_by: []
+blocks: []
+---
+
 # exactOptionalPropertyTypes conditional spread boilerplate
 
 **Effort:** M

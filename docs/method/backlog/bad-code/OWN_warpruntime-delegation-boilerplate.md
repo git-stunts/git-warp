@@ -1,3 +1,9 @@
+---
+id: OWN_warpruntime-delegation-boilerplate
+blocked_by: []
+blocks: []
+---
+
 # WarpRuntime's 10 Object.defineProperty blocks should be a shared helper
 
 **Effort:** S

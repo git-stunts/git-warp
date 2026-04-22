@@ -1,3 +1,9 @@
+---
+id: PERF_async-generator-traversal
+blocked_by: []
+blocks: []
+---
+
 # Async Generator Traversal API
 
 **Effort:** L

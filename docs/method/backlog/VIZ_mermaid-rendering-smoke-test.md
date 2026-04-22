@@ -1,3 +1,9 @@
+---
+id: VIZ_mermaid-rendering-smoke-test
+blocked_by: []
+blocks: []
+---
+
 # Mermaid Rendering Smoke Test
 
 **Effort:** S

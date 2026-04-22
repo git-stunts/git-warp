@@ -1,4 +1,7 @@
 ---
+id: PROTO_conflict-distance
+blocked_by: []
+blocks: []
 title: Conflict distance
 rank: 9
 lane: cool-ideas

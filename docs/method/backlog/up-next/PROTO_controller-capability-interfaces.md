@@ -1,3 +1,9 @@
+---
+id: PROTO_controller-capability-interfaces
+blocked_by: []
+blocks: []
+---
+
 # Typed capability interfaces per controller
 
 **Effort:** L

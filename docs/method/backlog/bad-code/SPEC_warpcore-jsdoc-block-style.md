@@ -1,3 +1,9 @@
+---
+id: SPEC_warpcore-jsdoc-block-style
+blocked_by: []
+blocks: []
+---
+
 # WarpCore content methods use single-line JSDoc
 
 **Effort:** XS

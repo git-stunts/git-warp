@@ -1,3 +1,9 @@
+---
+id: MODEL_wormhole-edge-typedef
+blocked_by: []
+blocks: []
+---
+
 # WormholeEdge is a typedef with external serialize behavior
 
 **Effort:** S

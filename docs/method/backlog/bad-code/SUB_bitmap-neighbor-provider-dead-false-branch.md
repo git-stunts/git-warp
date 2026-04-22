@@ -1,3 +1,9 @@
+---
+id: SUB_bitmap-neighbor-provider-dead-false-branch
+blocked_by: []
+blocks: []
+---
+
 # PROTO_bitmap-neighbor-provider-dead-false-branch
 
 ## What stinks

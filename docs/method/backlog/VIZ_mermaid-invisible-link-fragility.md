@@ -1,3 +1,9 @@
+---
+id: VIZ_mermaid-invisible-link-fragility
+blocked_by: []
+blocks: []
+---
+
 # Mermaid `~~~` Invisible-Link Fragility
 
 **Effort:** XS

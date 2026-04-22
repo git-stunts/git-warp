@@ -1,3 +1,9 @@
+---
+id: PROTO_crdt-conflict-dashboard
+blocked_by: []
+blocks: []
+---
+
 # CRDT conflict resolution dashboard
 
 Multi-writer CRDTs resolve conflicts silently by design. That's the

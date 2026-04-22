@@ -1,3 +1,9 @@
+---
+id: PORT_cbor-codec-triple-export
+blocked_by: []
+blocks: []
+---
+
 # CborCodec.js exports bare functions, class, and singleton
 
 **Effort:** S

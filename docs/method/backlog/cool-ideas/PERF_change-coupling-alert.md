@@ -1,3 +1,9 @@
+---
+id: PERF_change-coupling-alert
+blocked_by: []
+blocks: []
+---
+
 # CI alert when change-coupling score increases
 
 ## Idea

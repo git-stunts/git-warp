@@ -1,3 +1,9 @@
+---
+id: PROTO_patch-commit-visibility-contract
+blocked_by: []
+blocks: []
+---
+
 # Patch Commit Visibility Contract
 
 **Effort:** S

@@ -1,3 +1,9 @@
+---
+id: DX_alfred-resilience-policy
+blocked_by: []
+blocks: []
+---
+
 # User-Supplied Resilience Policies via Alfred
 
 ## Idea

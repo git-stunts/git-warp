@@ -1,3 +1,9 @@
+---
+id: DX_discriminated-op-union-fields
+blocked_by: []
+blocks: []
+---
+
 # Full discriminated unions for RawOpV2 / CanonicalOpV2 with typed fields
 
 **Effort:** M

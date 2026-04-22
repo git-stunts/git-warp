@@ -1,3 +1,9 @@
+---
+id: CAST_openWarpGraph-cast-cosplay
+blocked_by: []
+blocks: []
+---
+
 # openWarpGraph() uses 9 `as unknown as` casts at trust boundary
 
 **Effort:** M

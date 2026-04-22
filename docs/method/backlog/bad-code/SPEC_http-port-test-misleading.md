@@ -1,3 +1,9 @@
+---
+id: SPEC_http-port-test-misleading
+blocked_by: []
+blocks: []
+---
+
 # HttpServerPort test says "request/response cycle" but only tests interface shape
 
 **Effort:** XS

@@ -1,3 +1,9 @@
+---
+id: MODEL_trust-state-validation
+blocked_by: []
+blocks: []
+---
+
 # TrustState constructor validates nothing and exposes mutable Maps
 
 **Effort:** M

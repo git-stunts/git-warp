@@ -1,3 +1,13 @@
+---
+id: PROTO_bounded-support-rules-for-query-surfaces
+blocked_by:
+  - HYGIENE_warp-doctrine-runtime-alignment
+blocks:
+  - PROTO_causal-indexes-for-sliced-queries
+  - PROTO_support-scoped-fragment-materialization
+  - PROTO_tick-range-graph-diff-api
+---
+
 # Bounded support rules for query surfaces
 
 **Effort:** M

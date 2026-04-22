@@ -1,3 +1,9 @@
+---
+id: HEX_cli-hook-installer-raw-git-bypass
+blocked_by: []
+blocks: []
+---
+
 # CLI hook installer bypasses ports with raw git subprocesses
 
 **Effort:** S

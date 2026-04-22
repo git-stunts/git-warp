@@ -1,3 +1,9 @@
+---
+id: OWN_warpruntime-delegation-dry
+blocked_by: []
+blocks: []
+---
+
 # DRY up WarpRuntime delegation boilerplate
 
 **Effort:** XS

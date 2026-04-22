@@ -1,3 +1,9 @@
+---
+id: PERF_stream-read-migration
+blocked_by: []
+blocks: []
+---
+
 # Migrate read paths + unbounded scans to streams
 
 **Effort:** L

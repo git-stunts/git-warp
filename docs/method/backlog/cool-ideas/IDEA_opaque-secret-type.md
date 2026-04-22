@@ -1,3 +1,9 @@
+---
+id: IDEA_opaque-secret-type
+blocked_by: []
+blocks: []
+---
+
 # Opaque SyncSecret type with redaction protection
 
 A `SyncSecret` class with a private `#value` field and `toString()`/

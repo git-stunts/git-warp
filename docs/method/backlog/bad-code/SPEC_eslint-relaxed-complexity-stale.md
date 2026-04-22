@@ -1,3 +1,9 @@
+---
+id: SPEC_eslint-relaxed-complexity-stale
+blocked_by: []
+blocks: []
+---
+
 # ESLint relaxed-complexity overrides may contain stale entries
 
 **Effort:** S

@@ -1,3 +1,9 @@
+---
+id: BND_patch-session-message-parsing
+blocked_by: []
+blocks: []
+---
+
 # PatchSession classifies errors by parsing err.message
 
 **Effort:** S

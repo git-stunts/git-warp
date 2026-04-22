@@ -1,3 +1,9 @@
+---
+id: CAST_warpstate-prop-unknown-value
+blocked_by: []
+blocks: []
+---
+
 # WarpState.prop carries `LWWRegister<unknown>` — the value type is a lie
 
 **Effort:** M

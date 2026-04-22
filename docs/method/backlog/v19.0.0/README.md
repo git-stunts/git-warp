@@ -32,11 +32,11 @@ operational instead of decorative:
 
 ## Candidate promotions after substrate cut
 
-- `up-next/PROTO_playback-head-alignment.md` (`v20`)
-- `up-next/PROTO_WESLEY_receipt-envelope-boundary.md` (`v19` seam, `v21` follow-through)
-- `up-next/PROTO_local-site-object-for-neighborhoods.md` (`v21`)
-- `up-next/PROTO_merge-runtime-noun-family.md` (`v21`)
-- `up-next/PROTO_wesley-merge-contracts.md` (`v21`)
+- [`../v20.0.0/PROTO_playback-head-alignment.md`](../v20.0.0/PROTO_playback-head-alignment.md) (`v20`)
+- [`PROTO_WESLEY_receipt-envelope-boundary.md`](PROTO_WESLEY_receipt-envelope-boundary.md) (`v19` seam, `v21` follow-through)
+- [`../v21.0.0/PROTO_local-site-object-for-neighborhoods.md`](../v21.0.0/PROTO_local-site-object-for-neighborhoods.md) (`v21`)
+- [`../v21.0.0/PROTO_merge-runtime-noun-family.md`](../v21.0.0/PROTO_merge-runtime-noun-family.md) (`v21`)
+- [`../v21.0.0/PROTO_wesley-merge-contracts.md`](../v21.0.0/PROTO_wesley-merge-contracts.md) (`v21`)
 
 ## Release handoff
 

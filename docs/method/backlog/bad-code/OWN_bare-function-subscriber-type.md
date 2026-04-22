@@ -1,3 +1,9 @@
+---
+id: OWN_bare-function-subscriber-type
+blocked_by: []
+blocks: []
+---
+
 # Subscriber type uses bare `Function` instead of typed callback
 
 **Effort:** S

@@ -1,3 +1,9 @@
+---
+id: DX_controller-test-harness
+blocked_by: []
+blocks: []
+---
+
 # Controller test harness — mock host with typed capability surface
 
 ## Idea

@@ -1,3 +1,9 @@
+---
+id: DX_pr-ready-merge-cli
+blocked_by: []
+blocks: []
+---
+
 # `scripts/pr-ready` Merge-Readiness CLI
 
 **Effort:** M

@@ -1,3 +1,9 @@
+---
+id: MODEL_writer-error-inverted-params
+blocked_by: []
+blocks: []
+---
+
 # WriterError constructor has inverted parameter order
 
 **Effort:** S

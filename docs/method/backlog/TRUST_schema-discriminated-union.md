@@ -1,3 +1,9 @@
+---
+id: TRUST_schema-discriminated-union
+blocked_by: []
+blocks: []
+---
+
 # Trust Schema Discriminated Union
 
 **Effort:** S

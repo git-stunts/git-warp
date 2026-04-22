@@ -1,3 +1,9 @@
+---
+id: VIZ_cut-git-warp-visualization-surface-in-favor-of-warp-ttd
+blocked_by: []
+blocks: []
+---
+
 # VIZ: cut git-warp visualization surface in favor of warp-ttd
 
 ## Legend

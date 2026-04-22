@@ -1,3 +1,9 @@
+---
+id: DX_vitest-runtime-excludes
+blocked_by: []
+blocks: []
+---
+
 # Vitest Explicit Runtime Excludes
 
 **Effort:** S

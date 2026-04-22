@@ -1,3 +1,9 @@
+---
+id: SPEC_index-js-stale-jsdoc-example
+blocked_by: []
+blocks: []
+---
+
 # index.js JSDoc example uses deprecated WarpApp API
 
 **Effort:** S

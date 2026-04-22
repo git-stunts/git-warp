@@ -1,3 +1,9 @@
+---
+id: IDEA_subpath-exports-bundle-size
+blocked_by: []
+blocks: []
+---
+
 # Sub-path exports to reduce default bundle size
 
 Add granular `exports` entries in `package.json` so consumers can

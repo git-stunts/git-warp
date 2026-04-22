@@ -1,4 +1,7 @@
 ---
+id: PROTO_canonicalization-optics
+blocked_by: []
+blocks: []
 title: Canonicalization optics
 rank: 10
 lane: cool-ideas

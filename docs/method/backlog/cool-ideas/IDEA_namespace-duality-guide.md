@@ -1,3 +1,9 @@
+---
+id: IDEA_namespace-duality-guide
+blocked_by: []
+blocks: []
+---
+
 # Namespace duality guide: flat vs architectural access
 
 The `WarpGraph` capability bag supports two access patterns:

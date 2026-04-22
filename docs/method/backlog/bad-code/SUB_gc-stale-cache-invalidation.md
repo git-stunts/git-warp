@@ -1,3 +1,9 @@
+---
+id: SUB_gc-stale-cache-invalidation
+blocked_by: []
+blocks: []
+---
+
 # GC swap does not invalidate derived caches
 
 **Effort:** S

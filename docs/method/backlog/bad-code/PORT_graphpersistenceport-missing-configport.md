@@ -1,3 +1,9 @@
+---
+id: PORT_graphpersistenceport-missing-configport
+blocked_by: []
+blocks: []
+---
+
 # GraphPersistencePort drops ConfigPort capability and forces side channels
 
 **Effort:** M

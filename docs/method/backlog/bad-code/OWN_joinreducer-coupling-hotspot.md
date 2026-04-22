@@ -1,3 +1,9 @@
+---
+id: OWN_joinreducer-coupling-hotspot
+blocked_by: []
+blocks: []
+---
+
 # CC_joinreducer-coupling-hotspot
 
 **Title:** JoinReducer is the highest-coupling hotspot in the codebase

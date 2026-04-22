@@ -1,3 +1,9 @@
+---
+id: DX_conceptual-overview-query-pseudocode
+blocked_by: []
+blocks: []
+---
+
 # Fix CONCEPTUAL_OVERVIEW.md query example
 
 **Audit ref:** DQ01-M-02

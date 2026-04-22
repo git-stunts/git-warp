@@ -1,3 +1,9 @@
+---
+id: TRUST_unsigned-record-edge-cases
+blocked_by: []
+blocks: []
+---
+
 # `unsignedRecordForId` Edge-Case Tests
 
 **Effort:** S

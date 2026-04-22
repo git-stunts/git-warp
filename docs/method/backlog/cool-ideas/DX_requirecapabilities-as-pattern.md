@@ -1,3 +1,9 @@
+---
+id: DX_requirecapabilities-as-pattern
+blocked_by: []
+blocks: []
+---
+
 # requireCapabilities as a universal adapter wiring pattern
 
 **Effort:** S

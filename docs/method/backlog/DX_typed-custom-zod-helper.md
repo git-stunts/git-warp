@@ -1,3 +1,9 @@
+---
+id: DX_typed-custom-zod-helper
+blocked_by: []
+blocks: []
+---
+
 # `typedCustom()` Zod Helper
 
 **Effort:** S

@@ -1,3 +1,9 @@
+---
+id: OWN_trust-record-service-smells
+blocked_by: []
+blocks: []
+---
+
 # TrustRecordService has multiple code smells
 
 **Effort:** M

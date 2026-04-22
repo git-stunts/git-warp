@@ -25,29 +25,35 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 | `bad-code/` | 142 |
 | `cool-ideas/` | 94 |
 | `inbox/` | 5 |
-| `up-next/` | 43 |
-| `v17.0.0/` | 55 |
+| `up-next/` | 35 |
+| `v17.0.0/` | 64 |
 | `v18.0.0/` | 8 |
 | `v19.0.0/` | 11 |
 | `v20.0.0/` | 2 |
 | `v21.0.0/` | 4 |
-| Items with YAML frontmatter | 104 |
-| Items without YAML frontmatter | 291 |
-| Items with explicit `id` | 92 |
-| Items declaring dependency fields | 77 |
-| Items with non-empty explicit dependency edges | 51 |
+| Items with YAML frontmatter | 395 |
+| Items without YAML frontmatter | 0 |
+| Items with explicit `id` | 395 |
+| Items declaring dependency fields | 395 |
+| Items with non-empty explicit dependency edges | 56 |
 
 ## Dependency Law
 
-The backlog currently mixes two systems:
+Every live note now declares:
 
-- **Explicit graph edges** on a minority of notes via `id`, `blocks`,
-  and `blocked_by`.
-- **Lane inheritance** for everything else.
+- `id`
+- `blocked_by`
+- `blocks`
 
-Until frontmatter is normalized repo-wide, lane inheritance is the
-canonical rule for all notes that do not already declare explicit
-edges.
+That makes the graph repo-inspectable without special-casing lanes that
+still lack frontmatter.
+
+Lane inheritance still matters, but in a narrower way:
+
+- **Explicit graph edges** win when a note names real upstream or downstream
+  work.
+- **Lane inheritance** supplies the default sequencing when a note's
+  dependency arrays are empty.
 
 ### Dependency Bands
 
@@ -79,7 +85,7 @@ edges.
 
 ### Interpretation Rule
 
-For any note without explicit `blocked_by` metadata:
+For any note whose `blocked_by` list is empty:
 
 1. Inherit the dependency band of its lane.
 2. Treat lower-numbered bands as eligible prerequisites.
@@ -87,24 +93,22 @@ For any note without explicit `blocked_by` metadata:
 4. If a note is promoted into a new lane, it inherits the new lane's
    band immediately.
 
-This gives every live note a dependency posture today without pretending
-that the current frontmatter coverage is complete.
+This gives every live note a dependency posture today while still
+allowing note-local edges to override band inheritance when the text
+justifies a stronger sequencing rule.
 
 ## Explicit Graph Already In Files
 
-The existing frontmatter graph is concentrated in `v17.0.0/`, with a
-small number of nodes in `up-next/`, `cool-ideas/`, and `bad-code/`.
-
 Current explicit-graph totals:
 
-- `92` notes define an `id`
-- `77` notes declare `blocks` or `blocked_by` fields
-- `51` notes currently name at least one non-empty upstream or
+- `395` notes define an `id`
+- `395` notes declare `blocks` and `blocked_by` fields
+- `56` notes currently name at least one non-empty upstream or
   downstream edge
 
-The explicit graph is still concentrated in `v17.0.0/`, but the numbered
-future lanes now extend through `v21.0.0/` instead of forcing every promoted
-note to linger in `up-next/`.
+Most notes still rely on empty dependency arrays plus lane inheritance.
+That is intentional: the cleanup pass made every note explicit without
+inventing fake blockers where the note text does not justify them.
 
 ## Lane Inventory And Inherited Dependencies
 

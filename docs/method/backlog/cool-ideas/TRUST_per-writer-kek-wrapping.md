@@ -1,3 +1,9 @@
+---
+id: TRUST_per-writer-kek-wrapping
+blocked_by: []
+blocks: []
+---
+
 # Per-writer key envelope encryption (KEK wrapping)
 
 Each writer gets their own DEK wrapped by a shared KEK. git-cas

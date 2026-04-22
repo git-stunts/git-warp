@@ -1,3 +1,9 @@
+---
+id: DX_port-satisfies-validator
+blocked_by: []
+blocks: []
+---
+
 # satisfies-based port validation for plain-object adapters
 
 **Audit ref:** CQ01-2.2

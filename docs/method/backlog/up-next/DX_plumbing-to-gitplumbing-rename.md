@@ -1,3 +1,9 @@
+---
+id: DX_plumbing-to-gitplumbing-rename
+blocked_by: []
+blocks: []
+---
+
 # DX: Document Plumbing → GitPlumbing rename as breaking change
 
 The `Plumbing` class was renamed to `GitPlumbing` in the `@git-stunts/plumbing` package, but this rename is not documented as a breaking change in the git-warp CHANGELOG or migration guide.

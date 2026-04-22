@@ -1,3 +1,9 @@
+---
+id: HEX_index-rebuild-profiling-in-domain
+blocked_by: []
+blocks: []
+---
+
 # IndexRebuildService has 5 performance.now() calls for profiling
 
 **Effort:** S

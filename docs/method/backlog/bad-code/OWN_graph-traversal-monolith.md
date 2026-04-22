@@ -1,3 +1,9 @@
+---
+id: OWN_graph-traversal-monolith
+blocked_by: []
+blocks: []
+---
+
 # GraphTraversal.js has 11 algorithms in 1617 LOC
 
 **Effort:** L

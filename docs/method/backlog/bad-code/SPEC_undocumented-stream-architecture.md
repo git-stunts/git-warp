@@ -1,3 +1,9 @@
+---
+id: SPEC_undocumented-stream-architecture
+blocked_by: []
+blocks: []
+---
+
 # WarpStream architecture has no user-facing documentation
 
 **Effort:** S

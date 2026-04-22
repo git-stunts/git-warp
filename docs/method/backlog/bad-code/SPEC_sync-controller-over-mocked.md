@@ -1,3 +1,9 @@
+---
+id: SPEC_sync-controller-over-mocked
+blocked_by: []
+blocks: []
+---
+
 # SyncController tests mock 3 modules — test only proves wiring
 
 **Effort:** M

@@ -1,3 +1,9 @@
+---
+id: MODEL_patchv2-no-validation
+blocked_by: []
+blocks: []
+---
+
 # PatchV2 class has zero constructor validation
 
 **Effort:** S

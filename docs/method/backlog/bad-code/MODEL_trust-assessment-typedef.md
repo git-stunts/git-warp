@@ -1,3 +1,9 @@
+---
+id: MODEL_trust-assessment-typedef
+blocked_by: []
+blocks: []
+---
+
 # TrustAssessment is a typedef-only domain concept
 
 **Effort:** M

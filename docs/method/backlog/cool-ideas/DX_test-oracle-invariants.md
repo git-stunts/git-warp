@@ -1,3 +1,9 @@
+---
+id: DX_test-oracle-invariants
+blocked_by: []
+blocks: []
+---
+
 # Test oracle invariants — assert what MUST be true, not what IS true
 
 The removeNode tests asked: "what does removeNode return when state

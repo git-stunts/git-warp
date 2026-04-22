@@ -1,3 +1,9 @@
+---
+id: PORT_persistence-port-instanceof
+blocked_by: []
+blocks: []
+---
+
 # GraphPersistencePort uses Object.defineProperty breaking instanceof
 
 **Effort:** M

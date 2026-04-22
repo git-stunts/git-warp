@@ -1,3 +1,9 @@
+---
+id: MODEL_crdt-constructor-validation
+blocked_by: []
+blocks: []
+---
+
 # ORSet and LWW have no constructor validation
 
 **Effort:** M

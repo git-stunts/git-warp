@@ -1,3 +1,9 @@
+---
+id: SPEC_gc-tests-bless-silent-swallow
+blocked_by: []
+blocks: []
+---
+
 # GC tests bless silent error swallowing
 
 **Effort:** S

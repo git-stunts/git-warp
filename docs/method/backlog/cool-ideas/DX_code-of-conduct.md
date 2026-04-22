@@ -1,3 +1,9 @@
+---
+id: DX_code-of-conduct
+blocked_by: []
+blocks: []
+---
+
 # Add CODE_OF_CONDUCT.md
 
 **Audit ref:** DQ01 Section 2.2

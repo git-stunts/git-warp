@@ -1,3 +1,9 @@
+---
+id: PERF_stream-cleanup
+blocked_by: []
+blocks: []
+---
+
 # Remove per-artifact ports + defaultCodec
 
 **Effort:** M

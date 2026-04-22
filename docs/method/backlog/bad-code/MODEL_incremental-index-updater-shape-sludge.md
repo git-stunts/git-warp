@@ -1,4 +1,6 @@
 ---
+blocked_by: []
+blocks: []
 id: BAD_IncrementalIndexUpdater-shape-sludge
 file: src/domain/services/index/IncrementalIndexUpdater.ts
 ---

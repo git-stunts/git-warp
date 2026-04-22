@@ -1,3 +1,9 @@
+---
+id: SPEC_dag-pathfinding-untested
+blocked_by: []
+blocks: []
+---
+
 # DagPathFinding.js (705 LOC) has zero tests and 5 functions >50 LOC
 
 **Effort:** M

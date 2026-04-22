@@ -1,3 +1,9 @@
+---
+id: SUB_toposort-full-adjacency
+blocked_by: []
+blocks: []
+---
+
 # topologicalSort always materializes full adjacency
 
 **Effort:** M

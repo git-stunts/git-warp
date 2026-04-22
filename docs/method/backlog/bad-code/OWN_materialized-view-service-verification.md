@@ -1,3 +1,9 @@
+---
+id: OWN_materialized-view-service-verification
+blocked_by: []
+blocks: []
+---
+
 # MaterializedViewService carries index verification concern
 
 **Effort:** S

@@ -1,3 +1,9 @@
+---
+id: DX_test-correctness-lint
+blocked_by: []
+blocks: []
+---
+
 # ESLint rule for vacuous test assertions
 
 The removeNode bug survived 5500+ tests because 6 tests asserted

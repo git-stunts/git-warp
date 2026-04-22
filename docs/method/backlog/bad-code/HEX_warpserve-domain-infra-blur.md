@@ -1,3 +1,9 @@
+---
+id: HEX_warpserve-domain-infra-blur
+blocked_by: []
+blocks: []
+---
+
 # WarpServeService domain/infra boundary blur
 
 **Effort:** S

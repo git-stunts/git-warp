@@ -1,3 +1,9 @@
+---
+id: MODEL_typedef-statediffresult-to-class
+blocked_by: []
+blocks: []
+---
+
 # Promote StateDiffResult from @typedef to class
 
 **Effort:** S

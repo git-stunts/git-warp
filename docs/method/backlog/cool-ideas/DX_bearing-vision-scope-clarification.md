@@ -1,3 +1,9 @@
+---
+id: DX_bearing-vision-scope-clarification
+blocked_by: []
+blocks: []
+---
+
 # Clarify scope boundaries between BEARING.md and VISION.md
 
 **Audit ref:** DQ01-L-04

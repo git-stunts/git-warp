@@ -1,3 +1,9 @@
+---
+id: HEX_wall-clock-eslint-suppressions
+blocked_by: []
+blocks: []
+---
+
 # 5 eslint-disable suppressions bypass the wall-clock ban in domain
 
 **Effort:** S

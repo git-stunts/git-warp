@@ -1,3 +1,9 @@
+---
+id: OWN_detached-graph-option-drift
+blocked_by: []
+blocks: []
+---
+
 # Detached graph openers duplicate and drift from WarpRuntime.open()
 
 **Effort:** M

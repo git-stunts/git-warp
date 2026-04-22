@@ -1,3 +1,9 @@
+---
+id: PORT_git-adapter-encapsulation
+blocked_by: []
+blocks: []
+---
+
 # GitGraphAdapter exposes this.plumbing as public
 
 **Effort:** XS

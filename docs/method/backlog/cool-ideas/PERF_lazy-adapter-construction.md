@@ -1,3 +1,9 @@
+---
+id: PERF_lazy-adapter-construction
+blocked_by: []
+blocks: []
+---
+
 # Lazy adapter construction for cold-start optimization
 
 **Effort:** M

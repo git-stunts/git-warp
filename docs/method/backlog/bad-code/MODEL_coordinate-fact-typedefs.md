@@ -1,3 +1,9 @@
+---
+id: MODEL_coordinate-fact-typedefs
+blocked_by: []
+blocks: []
+---
+
 # CoordinateFactExport has 11 typedef-only domain concepts
 
 **Effort:** L

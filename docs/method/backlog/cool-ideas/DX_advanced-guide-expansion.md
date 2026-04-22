@@ -1,3 +1,9 @@
+---
+id: DX_advanced-guide-expansion
+blocked_by: []
+blocks: []
+---
+
 # Expand ADVANCED_GUIDE.md with trust, performance, and checkpoints
 
 **Audit ref:** DQ01-L-02

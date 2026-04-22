@@ -1,3 +1,9 @@
+---
+id: SPEC_js-test-typecheck-drift
+blocked_by: []
+blocks: []
+---
+
 # PROTO_js-test-typecheck-drift
 
 ## Problem

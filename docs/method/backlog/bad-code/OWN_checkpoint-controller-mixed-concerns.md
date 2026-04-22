@@ -1,3 +1,9 @@
+---
+id: OWN_checkpoint-controller-mixed-concerns
+blocked_by: []
+blocks: []
+---
+
 # CheckpointController mixes checkpoint, GC, and migration
 
 **Effort:** M

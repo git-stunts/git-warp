@@ -1,3 +1,9 @@
+---
+id: CAST_callInternalRuntimeMethod-escape-hatch
+blocked_by: []
+blocks: []
+---
+
 # callInternalRuntimeMethod is a runtime access-control escape hatch
 
 ## Smell

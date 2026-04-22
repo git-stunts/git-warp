@@ -1,3 +1,9 @@
+---
+id: OWN_inmemory-adapter-global-state
+blocked_by: []
+blocks: []
+---
+
 # InMemoryGraphAdapter has module-level mutable global state
 
 **Effort:** S
