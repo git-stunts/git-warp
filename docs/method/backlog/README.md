@@ -19,26 +19,26 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 
 | Metric | Count |
 |--------|------:|
-| Live backlog items | 393 |
+| Live backlog items | 392 |
 | Root backlog items | 31 |
 | `asap/` | 0 |
 | `bad-code/` | 142 |
 | `cool-ideas/` | 94 |
 | `inbox/` | 5 |
 | `up-next/` | 35 |
-| `v17.0.0/` | 62 |
+| `v17.0.0/` | 61 |
 | `v18.0.0/` | 8 |
 | `v19.0.0/` | 11 |
 | `v20.0.0/` | 2 |
 | `v21.0.0/` | 4 |
-| Items with YAML frontmatter | 393 |
+| Items with YAML frontmatter | 392 |
 | Items without YAML frontmatter | 0 |
-| Items with explicit `id` | 393 |
-| Items declaring dependency fields | 393 |
-| Items with explicit `feature` | 388 |
+| Items with explicit `id` | 392 |
+| Items declaring dependency fields | 392 |
+| Items with explicit `feature` | 387 |
 | Distinct explicit feature values | 12 |
 | `bad-code/` items with explicit `release_home` | 142 |
-| Items with non-empty explicit dependency edges | 76 |
+| Items with non-empty explicit dependency edges | 75 |
 
 ## Dependency Law
 
