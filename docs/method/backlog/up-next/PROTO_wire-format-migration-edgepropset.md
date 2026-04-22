@@ -1,5 +1,6 @@
 ---
 id: PROTO_wire-format-migration-edgepropset
+feature: runtime-boundaries
 blocked_by: []
 blocks: []
 ---

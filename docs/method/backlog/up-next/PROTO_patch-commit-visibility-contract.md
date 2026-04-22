@@ -1,5 +1,6 @@
 ---
 id: PROTO_patch-commit-visibility-contract
+feature: api-capabilities
 blocked_by: []
 blocks: []
 ---

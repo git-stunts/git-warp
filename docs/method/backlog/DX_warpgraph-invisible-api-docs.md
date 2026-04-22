@@ -1,5 +1,6 @@
 ---
 id: DX_warpgraph-invisible-api-docs
+feature: api-capabilities
 blocked_by: []
 blocks: []
 ---

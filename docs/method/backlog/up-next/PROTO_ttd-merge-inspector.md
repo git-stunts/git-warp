@@ -1,6 +1,9 @@
 ---
 id: PROTO_ttd-merge-inspector
-blocked_by: []
+feature: merge-strands-worldlines
+blocked_by:
+  - PROTO_merge-classifier
+  - PROTO_merge-runtime-noun-family
 blocks: []
 title: TTD merge inspector
 rank: 3

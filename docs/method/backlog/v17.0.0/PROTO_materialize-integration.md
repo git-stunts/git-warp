@@ -1,11 +1,13 @@
 ---
 id: PROTO_materialize-integration
+feature: materialization-query-index
 blocked_by:
   - PROTO_gc-state-session
 blocks:
   - PROTO_index-builder-trie-iteration
   - PERF_trie-geometry-and-memory-profile
   - INFRA_extract-warp-kernel-package
+  - PROTO_materialize-strategy-decomposition
 ---
 
 # Wire MaterializeController to StateSession and unified snapshot publication

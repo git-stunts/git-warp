@@ -1,5 +1,6 @@
 ---
 id: PROTO_wesley-merge-contracts
+feature: merge-strands-worldlines
 title: Wesley merge contracts
 rank: 4
 lane: v21.0.0
@@ -7,7 +8,8 @@ cluster: merge-geometry
 impact: high
 effort: high
 confidence: medium
-blocked_by: []
+blocked_by:
+  - PROTO_merge-runtime-noun-family
 blocks: []
 ---
 

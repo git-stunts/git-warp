@@ -1,7 +1,11 @@
 ---
 id: PROTO_observer-plan-reading-envelopes
+feature: observer-admission-runtime
 blocked_by: []
-blocks: []
+blocks:
+  - API_observer-readable-receipts
+  - DX_observer-first-guide
+  - PROTO_live-holographic-strands
 ---
 
 # Observer plans and reading envelopes

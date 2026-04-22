@@ -1,5 +1,6 @@
 ---
 id: TRUST_sync-auth-ed25519
+feature: sync-trust-security
 blocked_by: []
 blocks: []
 ---

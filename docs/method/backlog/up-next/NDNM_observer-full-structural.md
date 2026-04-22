@@ -1,5 +1,6 @@
 ---
 id: NDNM_observer-full-structural
+feature: observer-admission-runtime
 blocked_by: []
 blocks: []
 ---

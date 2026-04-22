@@ -1,10 +1,12 @@
 ---
 id: API_observer-readable-receipts
+feature: observer-admission-runtime
 blocks: []
 blocked_by:
   - API_capability-interfaces
   - GOD_query-controller
   - GOD_materialize-controller
+  - PROTO_observer-plan-reading-envelopes
 ---
 
 # Make receipts observer-readable or replace them with observer-readable truth

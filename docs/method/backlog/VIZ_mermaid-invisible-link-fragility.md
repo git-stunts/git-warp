@@ -1,5 +1,6 @@
 ---
 id: VIZ_mermaid-invisible-link-fragility
+feature: browser-viz
 blocked_by: []
 blocks: []
 ---

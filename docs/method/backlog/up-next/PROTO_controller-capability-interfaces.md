@@ -1,5 +1,6 @@
 ---
 id: PROTO_controller-capability-interfaces
+feature: api-capabilities
 blocked_by: []
 blocks: []
 ---

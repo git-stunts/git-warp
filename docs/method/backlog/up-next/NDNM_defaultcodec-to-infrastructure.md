@@ -1,7 +1,9 @@
 ---
 id: NDNM_defaultcodec-to-infrastructure
+feature: runtime-boundaries
 blocked_by: []
-blocks: []
+blocks:
+  - PERF_stream-cleanup
 ---
 
 # Dissolve serialization from domain (P5)

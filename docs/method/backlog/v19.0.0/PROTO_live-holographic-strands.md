@@ -1,6 +1,9 @@
 ---
 id: PROTO_live-holographic-strands
-blocked_by: []
+feature: observer-admission-runtime
+blocked_by:
+  - PROTO_observer-plan-reading-envelopes
+  - PROTO_witnessed-suffix-admission-shells
 blocks: []
 ---
 

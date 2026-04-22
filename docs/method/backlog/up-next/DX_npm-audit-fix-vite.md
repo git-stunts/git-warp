@@ -1,5 +1,6 @@
 ---
 id: DX_npm-audit-fix-vite
+feature: tooling-release
 blocked_by: []
 blocks: []
 ---

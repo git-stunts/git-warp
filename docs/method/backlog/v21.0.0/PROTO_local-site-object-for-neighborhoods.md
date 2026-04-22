@@ -1,5 +1,6 @@
 ---
 id: PROTO_local-site-object-for-neighborhoods
+feature: merge-strands-worldlines
 title: Local site object for neighborhoods
 rank: 1
 lane: v21.0.0
@@ -7,8 +8,10 @@ cluster: continuum-witness
 impact: high
 effort: medium
 confidence: medium
-blocked_by: []
-blocks: []
+blocked_by:
+  - PROTO_strand-collapse-optic-for-causal-slicing
+blocks:
+  - PROTO_strand-collapse-implementation
 ---
 
 # Local site object for neighborhoods

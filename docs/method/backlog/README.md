@@ -35,7 +35,9 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 | Items without YAML frontmatter | 0 |
 | Items with explicit `id` | 395 |
 | Items declaring dependency fields | 395 |
-| Items with non-empty explicit dependency edges | 56 |
+| Items with explicit `feature` | 83 |
+| Distinct explicit feature values | 10 |
+| Items with non-empty explicit dependency edges | 78 |
 
 ## Dependency Law
 
@@ -48,12 +50,47 @@ Every live note now declares:
 That makes the graph repo-inspectable without special-casing lanes that
 still lack frontmatter.
 
+Some notes now also declare:
+
+- `feature`
+
+That field names the subsystem home of the task. It does not replace
+release-lane sequencing; it clarifies it.
+
 Lane inheritance still matters, but in a narrower way:
 
 - **Explicit graph edges** win when a note names real upstream or downstream
   work.
 - **Lane inheritance** supplies the default sequencing when a note's
   dependency arrays are empty.
+
+### Feature Tags
+
+`feature` is for subsystem identity, not release planning.
+
+- **Lane** answers: "When should this ship?"
+- **Feature** answers: "What body of work does this belong to?"
+
+The current cleanup pass stamps `feature:` onto:
+
+- backlog root notes
+- `up-next/` notes
+- selected numbered-lane trunk notes where cross-feature seams are
+  already real
+
+That gives the repo enough structure to build stronger internal chains
+inside a feature before inventing broad cross-feature blockers.
+
+### Feature-First Sequencing Rule
+
+When a note has a `feature:` home:
+
+1. Build the feature's internal spine first.
+2. Prefer trunk-to-trunk dependencies over leaf-to-leaf chatter.
+3. Add cross-feature edges only where one feature produces an artifact
+   another feature cannot honestly proceed without.
+4. Keep `blocked_by` / `blocks` as the source of truth. The feature graph
+   is derived from task edges, not duplicated in separate metadata.
 
 ### Dependency Bands
 
@@ -63,7 +100,7 @@ Lane inheritance still matters, but in a narrower way:
 | `B1` | backlog root | Unlaned maintenance and reference work. Needs classification or direct pull before it should block committed work. | `B0` or direct human pull. |
 | `B2` | `bad-code/` | Foundational debt and invariant repair. This lane can legitimately block release or execution work. | `B0`, `B1`, or lower-level debt in `B2`. |
 | `B3` | `v17.0.0/` | Current committed release work. Explicit per-note edges win here. | `B2`, same-band work, or explicit edges. |
-| `B4` | `v18.0.0/`, `up-next/` | Next-major substrate work plus unslotted near-term follow-through after the active release. | `B2`, `B3`, or explicit same-band edges. |
+| `B4` | `v18.0.0/`, `up-next/` | Next-major substrate work plus unslotted near-term feature overflow after the active release. | `B2`, `B3`, or explicit same-band edges. |
 | `B5` | `v19.0.0/` | Doctrine/runtime follow-through after the substrate cut. | `B2`, `B3`, `B4`, or explicit same-band edges. |
 | `B6` | `v20.0.0/`, `v21.0.0/`, `cool-ideas/` | Far-horizon slice-first/runtime and distributed/plural follow-through plus speculative orbit. | Promotion into another lane or completion of lower numbered bands. |
 
@@ -72,11 +109,11 @@ Lane inheritance still matters, but in a narrower way:
 | Lane | Band | Contract |
 |------|------|----------|
 | `inbox/` | `B0` | Anything here is blocked on triage, not implementation. |
-| backlog root | `B1` | These notes are real work, but still need lane assignment or an explicit pull decision. |
+| backlog root | `B1` | These notes are real work, but still need lane assignment or an explicit pull decision. When `feature:` is present, treat that as the subsystem home while release-home remains undecided. |
 | `bad-code/` | `B2` | Invariant debt can block `v17.0.0`, `v18.0.0`, and `up-next`. |
 | `v17.0.0/` | `B3` | This is the active release graph for TypeScript migration and streaming ORSets. |
 | `v18.0.0/` | `B4` | This is the next-major graph-substrate convergence lane. |
-| `up-next/` | `B4` | Queue behind the active release and next-major substrate work unless explicitly promoted. |
+| `up-next/` | `B4` | Feature-overflow queue behind the active release and next-major substrate work unless explicitly promoted into a numbered lane. |
 | `v19.0.0/` | `B5` | Doctrine, observer, and admission convergence after the substrate cut. |
 | `v20.0.0/` | `B6` | Slice-first runtime realization after `v19.0.0/` hardens the noun and support law. |
 | `v21.0.0/` | `B6` | Common-basis, braid, and fuller distributed observer geometry after `v20.0.0/`. |
@@ -103,12 +140,14 @@ Current explicit-graph totals:
 
 - `395` notes define an `id`
 - `395` notes declare `blocks` and `blocked_by` fields
-- `56` notes currently name at least one non-empty upstream or
+- `83` notes currently declare an explicit `feature`
+- `78` notes currently name at least one non-empty upstream or
   downstream edge
 
 Most notes still rely on empty dependency arrays plus lane inheritance.
-That is intentional: the cleanup pass made every note explicit without
-inventing fake blockers where the note text does not justify them.
+That is intentional: the cleanup pass made every note explicit, then
+started feature-first spine wiring without inventing fake blockers where
+the note text does not justify them.
 
 ## Lane Inventory And Inherited Dependencies
 

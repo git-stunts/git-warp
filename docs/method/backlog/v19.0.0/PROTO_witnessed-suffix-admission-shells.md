@@ -1,7 +1,9 @@
 ---
 id: PROTO_witnessed-suffix-admission-shells
+feature: observer-admission-runtime
 blocked_by: []
-blocks: []
+blocks:
+  - PROTO_live-holographic-strands
 ---
 
 # Witnessed suffix admission shells

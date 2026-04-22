@@ -1,7 +1,9 @@
 ---
 id: PERF_out-of-core-materialization
+feature: materialization-query-index
 blocked_by: []
-blocks: []
+blocks:
+  - PERF_stream-read-migration
 ---
 
 # Out-of-core materialization and streaming reads

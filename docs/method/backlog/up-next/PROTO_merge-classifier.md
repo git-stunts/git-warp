@@ -1,7 +1,10 @@
 ---
 id: PROTO_merge-classifier
+feature: merge-strands-worldlines
 blocked_by: []
-blocks: []
+blocks:
+  - PROTO_merge-runtime-noun-family
+  - PROTO_ttd-merge-inspector
 title: Merge classifier
 rank: 2
 lane: up-next

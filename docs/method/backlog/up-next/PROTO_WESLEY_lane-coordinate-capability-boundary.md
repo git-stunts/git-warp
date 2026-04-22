@@ -1,7 +1,10 @@
 ---
 id: PROTO_WESLEY_lane-coordinate-capability-boundary
+feature: merge-strands-worldlines
 blocked_by: []
-blocks: []
+blocks:
+  - PROTO_playback-head-alignment
+  - NDNM_worldline-class-rename
 ---
 
 # WESLEY lane / coordinate / capability boundary

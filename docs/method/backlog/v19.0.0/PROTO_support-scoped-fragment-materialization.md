@@ -1,5 +1,6 @@
 ---
 id: PROTO_support-scoped-fragment-materialization
+feature: observer-admission-runtime
 blocked_by:
   - PROTO_bounded-support-rules-for-query-surfaces
   - PROTO_causal-indexes-for-sliced-queries

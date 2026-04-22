@@ -1,5 +1,6 @@
 ---
 id: PROTO_causal-indexes-for-sliced-queries
+feature: observer-admission-runtime
 blocked_by:
   - PROTO_bounded-support-rules-for-query-surfaces
 blocks:

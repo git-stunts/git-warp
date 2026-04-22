@@ -1,5 +1,6 @@
 ---
 id: VIZ_mermaid-diagram-content-checklist
+feature: browser-viz
 blocked_by: []
 blocks: []
 ---

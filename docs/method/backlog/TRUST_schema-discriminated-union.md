@@ -1,5 +1,6 @@
 ---
 id: TRUST_schema-discriminated-union
+feature: sync-trust-security
 blocked_by: []
 blocks: []
 ---

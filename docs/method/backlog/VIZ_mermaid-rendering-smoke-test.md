@@ -1,5 +1,6 @@
 ---
 id: VIZ_mermaid-rendering-smoke-test
+feature: browser-viz
 blocked_by: []
 blocks: []
 ---

@@ -1,5 +1,6 @@
 ---
 id: TRUST_unsigned-record-edge-cases
+feature: sync-trust-security
 blocked_by: []
 blocks: []
 ---

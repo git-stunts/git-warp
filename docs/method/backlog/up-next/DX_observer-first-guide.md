@@ -1,6 +1,9 @@
 ---
 id: DX_observer-first-guide
-blocked_by: []
+feature: observer-admission-runtime
+blocked_by:
+  - HYGIENE_warp-doctrine-runtime-alignment
+  - PROTO_observer-plan-reading-envelopes
 blocks: []
 ---
 

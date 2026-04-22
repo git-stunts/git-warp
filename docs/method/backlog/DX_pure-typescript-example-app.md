@@ -1,5 +1,6 @@
 ---
 id: DX_pure-typescript-example-app
+feature: testing-quality
 blocked_by: []
 blocks: []
 ---

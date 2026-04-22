@@ -1,5 +1,6 @@
 ---
 id: DX_merge-conflict-corpus
+feature: merge-strands-worldlines
 blocked_by: []
 blocks: []
 title: Merge conflict corpus and benchmark

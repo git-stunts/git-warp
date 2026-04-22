@@ -1,5 +1,6 @@
 ---
 id: DX_readme-install-section
+feature: docs-dx
 blocked_by: []
 blocks: []
 ---

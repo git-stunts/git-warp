@@ -1,7 +1,9 @@
 ---
 id: PROTO_playback-head-alignment
+feature: merge-strands-worldlines
 blocked_by:
   - PROTO_WESLEY_receipt-envelope-boundary
+  - PROTO_WESLEY_lane-coordinate-capability-boundary
 blocks: []
 ---
 

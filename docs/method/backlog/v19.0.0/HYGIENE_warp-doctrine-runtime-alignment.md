@@ -1,8 +1,9 @@
 ---
 id: HYGIENE_warp-doctrine-runtime-alignment
+feature: observer-admission-runtime
 blocked_by: []
 blocks:
-  - PROTO_bounded-support-rules-for-query-surfaces
+  - DX_observer-first-guide
 ---
 
 # Keep WARP doctrine and shipped runtime teaching aligned

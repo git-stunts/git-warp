@@ -1,7 +1,9 @@
 ---
 id: PROTO_tickpatch-tickreceipt-witness-ladder-audit
+feature: observer-admission-runtime
 blocked_by: []
-blocks: []
+blocks:
+  - PROTO_WESLEY_receipt-envelope-boundary
 title: TickPatch TickReceipt witness ladder audit
 rank: 1
 lane: up-next

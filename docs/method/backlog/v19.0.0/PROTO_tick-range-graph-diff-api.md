@@ -1,5 +1,6 @@
 ---
 id: PROTO_tick-range-graph-diff-api
+feature: observer-admission-runtime
 blocked_by:
   - PROTO_bounded-support-rules-for-query-surfaces
 blocks: []

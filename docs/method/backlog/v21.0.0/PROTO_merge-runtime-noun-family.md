@@ -1,5 +1,6 @@
 ---
 id: PROTO_merge-runtime-noun-family
+feature: merge-strands-worldlines
 title: Merge runtime noun family
 rank: 1
 lane: v21.0.0
@@ -7,8 +8,11 @@ cluster: merge-geometry
 impact: high
 effort: medium
 confidence: high
-blocked_by: []
-blocks: []
+blocked_by:
+  - PROTO_merge-classifier
+blocks:
+  - PROTO_ttd-merge-inspector
+  - PROTO_wesley-merge-contracts
 ---
 
 # Merge runtime noun family

@@ -1,6 +1,8 @@
 ---
 id: PROTO_WESLEY_receipt-envelope-boundary
-blocked_by: []
+feature: observer-admission-runtime
+blocked_by:
+  - PROTO_tickpatch-tickreceipt-witness-ladder-audit
 blocks:
   - PROTO_playback-head-alignment
 ---

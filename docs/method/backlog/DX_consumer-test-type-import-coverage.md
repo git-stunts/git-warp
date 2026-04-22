@@ -1,5 +1,6 @@
 ---
 id: DX_consumer-test-type-import-coverage
+feature: testing-quality
 blocked_by: []
 blocks: []
 ---

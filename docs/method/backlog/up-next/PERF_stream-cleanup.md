@@ -1,7 +1,11 @@
 ---
 id: PERF_stream-cleanup
-blocked_by: []
-blocks: []
+feature: materialization-query-index
+blocked_by:
+  - PERF_stream-read-migration
+  - NDNM_defaultcodec-to-infrastructure
+blocks:
+  - PERF_stream-memory-tests
 ---
 
 # Remove per-artifact ports + defaultCodec

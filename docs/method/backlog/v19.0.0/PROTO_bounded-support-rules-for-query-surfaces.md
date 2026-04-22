@@ -1,7 +1,7 @@
 ---
 id: PROTO_bounded-support-rules-for-query-surfaces
-blocked_by:
-  - HYGIENE_warp-doctrine-runtime-alignment
+feature: observer-admission-runtime
+blocked_by: []
 blocks:
   - PROTO_causal-indexes-for-sliced-queries
   - PROTO_support-scoped-fragment-materialization

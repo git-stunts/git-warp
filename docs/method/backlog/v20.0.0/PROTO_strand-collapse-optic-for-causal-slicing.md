@@ -1,7 +1,10 @@
 ---
 id: PROTO_strand-collapse-optic-for-causal-slicing
+feature: merge-strands-worldlines
 blocked_by: []
-blocks: []
+blocks:
+  - PROTO_local-site-object-for-neighborhoods
+  - PROTO_strand-collapse-implementation
 ---
 
 # Strand Collapse Optic For Causal Slicing

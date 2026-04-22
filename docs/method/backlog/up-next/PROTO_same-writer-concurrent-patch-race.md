@@ -1,6 +1,8 @@
 ---
 id: PROTO_same-writer-concurrent-patch-race
-blocked_by: []
+feature: merge-strands-worldlines
+blocked_by:
+  - PROTO_patch-commit-visibility-contract
 blocks: []
 ---
 

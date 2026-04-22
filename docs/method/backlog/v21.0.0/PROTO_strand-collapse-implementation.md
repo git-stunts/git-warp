@@ -1,7 +1,10 @@
 ---
 id: PROTO_strand-collapse-implementation
+feature: merge-strands-worldlines
 blocks: []
-blocked_by: []
+blocked_by:
+  - PROTO_strand-collapse-optic-for-causal-slicing
+  - PROTO_local-site-object-for-neighborhoods
 ---
 
 # Implement collapseBraid() per runtime spec

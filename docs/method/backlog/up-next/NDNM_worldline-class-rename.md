@@ -1,6 +1,8 @@
 ---
 id: NDNM_worldline-class-rename
-blocked_by: []
+feature: merge-strands-worldlines
+blocked_by:
+  - PROTO_WESLEY_lane-coordinate-capability-boundary
 blocks: []
 ---
 

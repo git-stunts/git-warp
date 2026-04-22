@@ -1,5 +1,6 @@
 ---
 id: TRUST_property-based-fuzz-test
+feature: sync-trust-security
 blocked_by: []
 blocks: []
 ---

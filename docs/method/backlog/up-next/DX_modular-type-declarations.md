@@ -1,5 +1,6 @@
 ---
 id: DX_modular-type-declarations
+feature: api-capabilities
 blocked_by: []
 blocks: []
 ---

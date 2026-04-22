@@ -1,6 +1,9 @@
 ---
 id: PERF_stream-memory-tests
-blocked_by: []
+feature: testing-quality
+blocked_by:
+  - PERF_stream-read-migration
+  - PERF_stream-cleanup
 blocks: []
 ---
 
