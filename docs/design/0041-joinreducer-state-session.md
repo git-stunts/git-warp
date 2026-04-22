@@ -276,3 +276,79 @@ Likely first red surfaces:
 - existing JoinReducer equivalence suites, extended to compare sync and
   session-backed replay
 - state-session trie helpers and in-memory trie doubles from cycle `0040`
+
+## Playback
+
+### Witness
+
+- session-backed reducer module:
+  - `src/domain/services/JoinReducerSession.ts`
+- session seam widened for truthful join support:
+  - `src/domain/orset/session/StateSession.ts`
+  - `src/domain/orset/ORSetElementState.ts`
+- witness tests:
+  - `test/unit/domain/services/JoinReducer.stateSession.test.ts`
+  - `test/unit/domain/orset/session/StateSession.test.ts`
+  - `test/unit/domain/services/JoinReducer.pathEquivalence.test.ts`
+  - `test/unit/domain/services/JoinReducer.trackDiff.test.ts`
+  - `test/unit/domain/orset/shadow/ShadowTrieORSet.test.ts`
+  - `test/unit/domain/orset/shadow/ShadowTrieORSet.compaction.test.ts`
+  - `test/unit/domain/orset/trie/TrieCursor.test.ts`
+  - `test/unit/domain/orset/trie/TrieFlusher.test.ts`
+  - `test/unit/domain/orset/trie/PageCache.test.ts`
+- commands:
+  - `npm exec vitest run test/unit/domain/services/JoinReducer.stateSession.test.ts test/unit/domain/orset/session/StateSession.test.ts test/unit/domain/services/JoinReducer.pathEquivalence.test.ts test/unit/domain/services/JoinReducer.trackDiff.test.ts test/unit/domain/orset/shadow/ShadowTrieORSet.test.ts test/unit/domain/orset/shadow/ShadowTrieORSet.compaction.test.ts test/unit/domain/orset/trie/TrieCursor.test.ts test/unit/domain/orset/trie/TrieFlusher.test.ts test/unit/domain/orset/trie/PageCache.test.ts`
+  - `npm run typecheck`
+  - `git diff --check`
+
+### Agent
+
+- Can I explain why making `reduceV5()` secretly async would be the wrong seam?
+  - Yes. The shipped shape keeps legacy `reduceV5()` synchronous and adds
+    `reduceV5InSession()` as the truthful async path.
+- Can I point to the truthful mixed reducer frame for session-backed replay?
+  - Yes. `ReducerSessionFrame` carries `StateSession` plus `prop`,
+    `observedFrontier`, and `edgeBirthEvent`.
+- Can I explain why current `Op.mutate(state)` cannot simply be reused on the
+  session-backed path?
+  - Yes. The session-backed path dispatches directly on canonical op classes and
+    mutates the mixed frame instead of fabricating a fake full `WarpState`.
+
+### Human
+
+- Does this feel like a real transition step instead of a substrate lie?
+  - Yes. The async path is separate, explicit, and does not smuggle sync
+    `WarpState` back in as the real owner.
+- Is it clear which fields live in `StateSession` and which still live beside
+  it for now?
+  - Yes. Alive sets live in `StateSession`; `prop`, `observedFrontier`, and
+    `edgeBirthEvent` remain companion metadata in the frame.
+- Does the boundary with later materialization wiring stay explicit?
+  - Yes. Controller rewiring is still deferred to
+    `PROTO_materialize-integration`.
+
+### Verdict
+
+Hill met.
+
+## Drift check
+
+### What drifted
+
+- The initial design language said session widening might stop at live-id
+  iteration for join support.
+- In practice, that was not truthful enough: join needs tombstoned dots as well
+  as live dots to preserve OR-Set semilattice behavior.
+
+### Landed drift
+
+- Added `ORSetElementState` as a runtime-backed carrier for one element's live
+  and tombstoned dots.
+- Added `nodeElementState()` / `edgeElementState()` and
+  `scanNodeElementStates()` / `scanEdgeElementStates()` on `StateSession`.
+- Updated `joinFrames()` to merge full element state instead of replaying only
+  live ids.
+
+### Verdict
+
+Acceptable positive drift only.

@@ -1,7 +1,6 @@
 ---
 id: PROTO_materialize-integration
 blocked_by:
-  - PROTO_joinreducer-state-session
   - PROTO_gc-state-session
 blocks:
   - PROTO_index-builder-trie-iteration
