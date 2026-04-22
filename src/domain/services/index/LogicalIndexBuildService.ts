@@ -10,12 +10,24 @@
 import LogicalBitmapIndexBuilder from './LogicalBitmapIndexBuilder.ts';
 import PropertyIndexBuilder from './PropertyIndexBuilder.ts';
 import { decodeEdgeKey, decodePropKey, isEdgePropKey } from '../KeyCodec.ts';
-import { nodeVisibleV5, edgeVisible } from '../state/StateSerializer.ts';
 import WarpStream from '../../stream/WarpStream.ts';
 import { ReceiptShard } from '../../artifacts/ReceiptShard.ts';
 import IndexError from '../../errors/IndexError.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { IndexShard } from '../../artifacts/IndexShard.ts';
+import type { LWWRegister } from '../../crdt/LWW.ts';
+import type { PropValue } from '../../types/PropValue.ts';
+import StateSession from '../../orset/session/StateSession.ts';
+import {
+  collectAliveNodeIdsFromSession,
+  collectAliveNodeSetFromSession,
+  collectVisibleEdgesFromSession,
+  type VisibleEdgeRecord,
+} from '../state/SessionVisibleGraph.ts';
+
+type ExistingMeta = Record<string, { nodeToGlobal: Record<string, number>; nextLocalId: number }>;
+type ExistingLabels = Record<string, number> | Array<[string, number]>;
+type PropertyRegisters = Map<string, LWWRegister<PropValue>>;
 
 export default class LogicalIndexBuildService {
   /**
@@ -28,21 +40,22 @@ export default class LogicalIndexBuildService {
   buildShards(
     state: WarpState,
     options: {
-      existingMeta?: Record<string, { nodeToGlobal: Record<string, number>; nextLocalId: number }>;
-      existingLabels?: Record<string, number> | Array<[string, number]>;
+      existingMeta?: ExistingMeta;
+      existingLabels?: ExistingLabels;
     } = {},
   ): { shards: IndexShard[]; receipt: ReceiptShard } {
     const { indexBuilder, propBuilder } = this._populateBuilders(state, options);
-    const indexShards = [...indexBuilder.yieldShards()];
-    const propShards = [...propBuilder.yieldShards()];
-    const receiptShardBase = indexShards.find((s) => s instanceof ReceiptShard);
-    if (!(receiptShardBase instanceof ReceiptShard)) {
-      throw new IndexError(
-        'LogicalIndexBuildService: index builder did not emit a ReceiptShard',
-        { code: 'E_INDEX_NO_RECEIPT_SHARD' },
-      );
-    }
-    return { shards: [...indexShards, ...propShards], receipt: receiptShardBase };
+    return this._collectShards(indexBuilder, propBuilder);
+  }
+
+  async buildShardsFromSession(args: {
+    session: StateSession;
+    prop: PropertyRegisters;
+    existingMeta?: ExistingMeta;
+    existingLabels?: ExistingLabels;
+  }): Promise<{ shards: IndexShard[]; receipt: ReceiptShard }> {
+    const { indexBuilder, propBuilder } = await this._populateBuildersFromSession(args);
+    return this._collectShards(indexBuilder, propBuilder);
   }
 
   /**
@@ -56,23 +69,13 @@ export default class LogicalIndexBuildService {
   buildStream(
     state: WarpState,
     options: {
-      existingMeta?: Record<string, { nodeToGlobal: Record<string, number>; nextLocalId: number }>;
-      existingLabels?: Record<string, number> | Array<[string, number]>;
+      existingMeta?: ExistingMeta;
+      existingLabels?: ExistingLabels;
     } = {},
   ): { stream: WarpStream<IndexShard>; receipt: ReceiptShard } {
     const { indexBuilder, propBuilder } = this._populateBuilders(state, options);
-
-    // Collect shards once — generators yield fresh iterators on each call,
-    // so calling yieldShards() twice would re-iterate all bitmaps.
     const indexShards = [...indexBuilder.yieldShards()];
-    const receiptShardBase = indexShards.find((s) => s instanceof ReceiptShard);
-    if (!(receiptShardBase instanceof ReceiptShard)) {
-      throw new IndexError(
-        'LogicalIndexBuildService: index builder did not emit a ReceiptShard',
-        { code: 'E_INDEX_NO_RECEIPT_SHARD' },
-      );
-    }
-
+    const receiptShardBase = findReceiptShard(indexShards);
     // Merge both builders' shard streams
     const stream = WarpStream.mux(
       WarpStream.from(indexShards),
@@ -85,54 +88,125 @@ export default class LogicalIndexBuildService {
   private _populateBuilders(
     state: WarpState,
     options: {
-      existingMeta?: Record<string, { nodeToGlobal: Record<string, number>; nextLocalId: number }>;
-      existingLabels?: Record<string, number> | Array<[string, number]>;
+      existingMeta?: ExistingMeta;
+      existingLabels?: ExistingLabels;
     },
   ): { indexBuilder: LogicalBitmapIndexBuilder; propBuilder: PropertyIndexBuilder } {
+    const { indexBuilder, propBuilder } = this._createBuilders(options);
+    const aliveNodes = [...state.nodeAlive.elements()].sort();
+    const visibleEdges = collectVisibleEdges(state);
+    const aliveNodeSet = new Set(aliveNodes);
+    this._populateVisibleData({
+      indexBuilder,
+      propBuilder,
+      aliveNodes,
+      aliveNodeSet,
+      visibleEdges,
+      prop: state.prop,
+    });
+    return { indexBuilder, propBuilder };
+  }
+
+  private async _populateBuildersFromSession(args: {
+    session: StateSession;
+    prop: PropertyRegisters;
+    existingMeta?: ExistingMeta;
+    existingLabels?: ExistingLabels;
+  }): Promise<{ indexBuilder: LogicalBitmapIndexBuilder; propBuilder: PropertyIndexBuilder }> {
+    const { indexBuilder, propBuilder } = this._createBuilders(args);
+    const aliveNodes = await collectAliveNodeIdsFromSession(args.session);
+    const aliveNodeSet = await collectAliveNodeSetFromSession(args.session);
+    const visibleEdges = await collectVisibleEdgesFromSession(
+      args.session,
+      aliveNodeSet,
+    );
+    this._populateVisibleData({
+      indexBuilder,
+      propBuilder,
+      aliveNodes,
+      aliveNodeSet,
+      visibleEdges,
+      prop: args.prop,
+    });
+    return { indexBuilder, propBuilder };
+  }
+
+  private _createBuilders(options: {
+    existingMeta?: ExistingMeta;
+    existingLabels?: ExistingLabels;
+  }): { indexBuilder: LogicalBitmapIndexBuilder; propBuilder: PropertyIndexBuilder } {
     const indexBuilder = new LogicalBitmapIndexBuilder();
     const propBuilder = new PropertyIndexBuilder();
 
-    if (options.existingMeta) {
+    if (options.existingMeta !== undefined) {
       for (const [shardKey, meta] of Object.entries(options.existingMeta)) {
         indexBuilder.loadExistingMeta(shardKey, meta);
       }
     }
-    if (options.existingLabels) {
+    if (options.existingLabels !== undefined) {
       indexBuilder.loadExistingLabels(options.existingLabels);
     }
 
-    const aliveNodes = [...state.nodeAlive.elements()].sort();
-    for (const nodeId of aliveNodes) {
-      indexBuilder.registerNode(nodeId);
-      indexBuilder.markAlive(nodeId);
+    return { indexBuilder, propBuilder };
+  }
+
+  private _populateVisibleData(args: {
+    indexBuilder: LogicalBitmapIndexBuilder;
+    propBuilder: PropertyIndexBuilder;
+    aliveNodes: ReadonlyArray<string>;
+    aliveNodeSet: ReadonlySet<string>;
+    visibleEdges: ReadonlyArray<VisibleEdgeRecord>;
+    prop: PropertyRegisters;
+  }): void {
+    for (const nodeId of args.aliveNodes) {
+      args.indexBuilder.registerNode(nodeId);
+      args.indexBuilder.markAlive(nodeId);
     }
 
-    const visibleEdges = collectVisibleEdges(state);
-    const uniqueLabels = [...new Set(visibleEdges.map((e) => e.label))].sort();
+    const uniqueLabels = [...new Set(args.visibleEdges.map((edge) => edge.label))].sort();
     for (const label of uniqueLabels) {
-      indexBuilder.registerLabel(label);
+      args.indexBuilder.registerLabel(label);
     }
-    for (const { from, to, label } of visibleEdges) {
-      indexBuilder.addEdge(from, to, label);
+    for (const edge of args.visibleEdges) {
+      args.indexBuilder.addEdge(edge.from, edge.to, edge.label);
     }
 
-    for (const [propKey, register] of state.prop) {
-      if (isEdgePropKey(propKey)) { continue; }
-      const { nodeId, propKey: key } = decodePropKey(propKey) as { nodeId: string; propKey: string };
-      if (nodeVisibleV5(state, nodeId)) {
-        propBuilder.addProperty(nodeId, key, register.value);
+    for (const [propKey, register] of args.prop) {
+      if (isEdgePropKey(propKey)) {
+        continue;
+      }
+      const decodedProp = decodePropKey(propKey);
+      if (args.aliveNodeSet.has(decodedProp.nodeId)) {
+        args.propBuilder.addProperty(
+          decodedProp.nodeId,
+          decodedProp.propKey,
+          register.value,
+        );
       }
     }
+  }
 
-    return { indexBuilder, propBuilder };
+  private _collectShards(
+    indexBuilder: LogicalBitmapIndexBuilder,
+    propBuilder: PropertyIndexBuilder,
+  ): { shards: IndexShard[]; receipt: ReceiptShard } {
+    const indexShards = [...indexBuilder.yieldShards()];
+    const propShards = [...propBuilder.yieldShards()];
+    const receipt = findReceiptShard(indexShards);
+    return {
+      shards: [...indexShards, ...propShards],
+      receipt,
+    };
   }
 }
 
 function collectVisibleEdges(state: WarpState): Array<{ from: string; to: string; label: string }> {
   const visibleEdges: Array<{ from: string; to: string; label: string }> = [];
+  const aliveNodeSet = new Set(state.nodeAlive.elements());
   for (const edgeKey of state.edgeAlive.elements()) {
-    if (edgeVisible(state, edgeKey)) {
-      visibleEdges.push(decodeEdgeKey(edgeKey) as { from: string; to: string; label: string });
+    const edge = decodeEdgeKey(edgeKey);
+    if (aliveNodeSet.has(edge.from) && aliveNodeSet.has(edge.to)) {
+      visibleEdges.push(edge);
     }
   }
   visibleEdges.sort((a, b) => {
@@ -142,4 +216,15 @@ function collectVisibleEdges(state: WarpState): Array<{ from: string; to: string
     return 0;
   });
   return visibleEdges;
+}
+
+function findReceiptShard(indexShards: ReadonlyArray<IndexShard>): ReceiptShard {
+  const receiptShardBase = indexShards.find((shard) => shard instanceof ReceiptShard);
+  if (!(receiptShardBase instanceof ReceiptShard)) {
+    throw new IndexError(
+      'LogicalIndexBuildService: index builder did not emit a ReceiptShard',
+      { code: 'E_INDEX_NO_RECEIPT_SHARD' },
+    );
+  }
+  return receiptShardBase;
 }

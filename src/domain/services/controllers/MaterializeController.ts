@@ -17,7 +17,13 @@ import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import { computeStateHash } from '../state/StateSerializer.ts';
 import { createFrontier, updateFrontier } from '../Frontier.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
-import { normalizeFrontierInput, normalizeExplicitCeiling, buildAdjacency, maxLamportInPatches } from './MaterializeHelpers.ts';
+import {
+  normalizeFrontierInput,
+  normalizeExplicitCeiling,
+  buildAdjacency,
+  maxLamportInPatches,
+  type MaterializeAdjacency,
+} from './MaterializeHelpers.ts';
 import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 import {
   reduceSessionBackedState,
@@ -86,7 +92,12 @@ function toReducerInput(patches: PatchWithSha[]): ReducerInput {
   return patches as ReducerInput;
 }
 
-type ReduceOutput = { state: WarpState; receipts?: TickReceipt[]; diff?: PatchDiff };
+type ReduceOutput = {
+  state: WarpState;
+  adjacency?: MaterializeAdjacency;
+  receipts?: TickReceipt[];
+  diff?: PatchDiff;
+};
 
 function reduceWithReceipts(patches: PatchWithSha[], base?: WarpState): ReduceOutput {
   const r = reduceV5(toReducerInput(patches), base, { receipts: true }) as { state: WarpState; receipts: TickReceipt[] };
@@ -381,7 +392,7 @@ export default class MaterializeController {
     frontier: Map<string, string> | null;
   }): Promise<MaterializeResult> {
     const stateHash = await computeHash(this._deps, params.reduced.state);
-    const adjacency = buildAdjacency(params.reduced.state);
+    const adjacency = params.reduced.adjacency ?? buildAdjacency(params.reduced.state);
     await this._publishSnapshot({
       state: params.reduced.state,
       stateHash,

@@ -13,27 +13,22 @@
 import BitmapIndexBuilder from './BitmapIndexBuilder.ts';
 import { decodeEdgeKey } from '../KeyCodec.ts';
 import IndexError from '../../errors/IndexError.ts';
-import type WarpState from '../state/WarpState.ts';
+import WarpState from '../state/WarpState.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
+import StateSession from '../../orset/session/StateSession.ts';
+import {
+  collectAliveNodeIdsFromSession,
+  collectVisibleEdgesFromSession,
+} from '../state/SessionVisibleGraph.ts';
 
-function isNullish(value: unknown): value is null | undefined {
-  return value === null || value === undefined;
-}
-
-function validateWarpState(state: unknown): asserts state is WarpState {
-  if (isNullish(state)) {
+function validateWarpState(state: WarpState | null | undefined): WarpState {
+  if (!(state instanceof WarpState)) {
     throw new IndexError(
       'Invalid state: must be a valid WarpState object',
       { code: 'E_INDEX_INVALID_STATE' },
     );
   }
-  const s = state as Record<string, unknown>;
-  if (isNullish(s['nodeAlive']) || isNullish(s['edgeAlive'])) {
-    throw new IndexError(
-      'Invalid state: must be a valid WarpState object',
-      { code: 'E_INDEX_INVALID_STATE' },
-    );
-  }
+  return state;
 }
 
 /**
@@ -64,11 +59,29 @@ export default class WarpStateIndexBuilder {
    * @returns The populated builder and stats
    * @throws {IndexError} If state is null or missing nodeAlive/edgeAlive fields
    */
-  buildFromState(state: unknown): { builder: BitmapIndexBuilder; stats: { nodes: number; edges: number } } {
-    validateWarpState(state);
+  buildFromState(state: WarpState | null | undefined): { builder: BitmapIndexBuilder; stats: { nodes: number; edges: number } } {
+    const validState = validateWarpState(state);
 
-    const nodeCount = this._registerNodes(state);
-    const edgeCount = this._indexEdges(state);
+    const nodeCount = this._registerNodes(validState);
+    const edgeCount = this._indexEdges(validState);
+
+    return {
+      builder: this._builder,
+      stats: { nodes: nodeCount, edges: edgeCount },
+    };
+  }
+
+  async buildFromSession(
+    session: StateSession,
+  ): Promise<{ builder: BitmapIndexBuilder; stats: { nodes: number; edges: number } }> {
+    const aliveNodes = await collectAliveNodeIdsFromSession(session);
+    const visibleEdges = await collectVisibleEdgesFromSession(
+      session,
+      new Set(aliveNodes),
+    );
+
+    const nodeCount = this._registerNodeIds(aliveNodes);
+    const edgeCount = this._indexVisibleEdges(visibleEdges);
 
     return {
       builder: this._builder,
@@ -77,22 +90,39 @@ export default class WarpStateIndexBuilder {
   }
 
   private _registerNodes(state: WarpState): number {
+    return this._registerNodeIds(state.nodeAlive.elements());
+  }
+
+  private _indexEdges(state: WarpState): number {
+    const aliveNodes = state.nodeAlive.elements();
+    const aliveNodeSet = new Set(aliveNodes);
+    const visibleEdges: Array<{ from: string; to: string; label: string }> = [];
+    for (const edgeKey of state.edgeAlive.elements()) {
+      const edge = decodeEdgeKey(edgeKey);
+      if (!aliveNodeSet.has(edge.from) || !aliveNodeSet.has(edge.to)) {
+        continue;
+      }
+      visibleEdges.push(edge);
+    }
+    return this._indexVisibleEdges(visibleEdges);
+  }
+
+  private _registerNodeIds(nodeIds: Iterable<string>): number {
     let count = 0;
-    for (const nodeId of state.nodeAlive.elements()) {
+    for (const nodeId of nodeIds) {
       this._builder.registerNode(nodeId);
-      count++;
+      count += 1;
     }
     return count;
   }
 
-  private _indexEdges(state: WarpState): number {
+  private _indexVisibleEdges(
+    edges: Iterable<{ readonly from: string; readonly to: string }>,
+  ): number {
     let count = 0;
-    for (const edgeKey of state.edgeAlive.elements()) {
-      const { from, to } = decodeEdgeKey(edgeKey) as { from: string; to: string };
-      if (state.nodeAlive.contains(from) && state.nodeAlive.contains(to)) {
-        this._builder.addEdge(from, to);
-        count++;
-      }
+    for (const edge of edges) {
+      this._builder.addEdge(edge.from, edge.to);
+      count += 1;
     }
     return count;
   }
@@ -116,11 +146,21 @@ export default class WarpStateIndexBuilder {
  * Convenience function to build and serialize a WARP state index.
  */
 export function buildWarpStateIndex(
-  state: unknown,
+  state: WarpState | null | undefined,
   options?: { crypto?: CryptoPort },
 ): { tree: Record<string, Uint8Array>; stats: { nodes: number; edges: number } } {
   const indexBuilder = new WarpStateIndexBuilder(options !== undefined ? options : {});
   const { stats } = indexBuilder.buildFromState(state);
+  const tree = indexBuilder.serialize();
+  return { tree, stats };
+}
+
+export async function buildWarpStateIndexFromSession(
+  session: StateSession,
+  options?: { crypto?: CryptoPort },
+): Promise<{ tree: Record<string, Uint8Array>; stats: { nodes: number; edges: number } }> {
+  const indexBuilder = new WarpStateIndexBuilder(options !== undefined ? options : {});
+  const { stats } = await indexBuilder.buildFromSession(session);
   const tree = indexBuilder.serialize();
   return { tree, stats };
 }

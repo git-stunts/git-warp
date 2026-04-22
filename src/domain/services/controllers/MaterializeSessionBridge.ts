@@ -14,6 +14,10 @@ import {
   ReducerSessionFrame,
   reduceV5InSession,
 } from "../JoinReducerSession.ts";
+import {
+  buildAdjacencyFromSession,
+  type MaterializeAdjacency,
+} from "./MaterializeHelpers.ts";
 
 export type MaterializeSessionOpen = {
   readonly nodeAliveRootOid: string | null;
@@ -35,6 +39,7 @@ export async function reduceSessionBackedState(args: {
   readonly wantDiff: boolean;
 }): Promise<{
   readonly state: WarpState;
+  readonly adjacency: MaterializeAdjacency;
   readonly receipts?: TickReceipt[];
   readonly diff?: PatchDiff;
 }> {
@@ -47,8 +52,10 @@ export async function reduceSessionBackedState(args: {
       const result = await reduceV5InSession(args.patches, frame, {
         receipts: true,
       });
+      const adjacency = await buildAdjacencyFromSession(result.frame.session);
       return {
         state: await projectFrameToState(result.frame),
+        adjacency,
         receipts: result.receipts,
       };
     }
@@ -56,14 +63,18 @@ export async function reduceSessionBackedState(args: {
       const result = await reduceV5InSession(args.patches, frame, {
         trackDiff: true,
       });
+      const adjacency = await buildAdjacencyFromSession(result.frame.session);
       return {
         state: await projectFrameToState(result.frame),
+        adjacency,
         diff: result.diff,
       };
     }
     const result = await reduceV5InSession(args.patches, frame);
+    const adjacency = await buildAdjacencyFromSession(result.session);
     return {
       state: await projectFrameToState(result),
+      adjacency,
     };
   } finally {
     await frame.session.close();

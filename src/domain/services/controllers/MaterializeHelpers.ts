@@ -9,6 +9,11 @@ import { QueryError } from '../../warp/_internal.ts';
 import { decodeEdgeKey } from '../KeyCodec.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
+import StateSession from '../../orset/session/StateSession.ts';
+import {
+  collectAliveNodeSetFromSession,
+  collectVisibleEdgesFromSession,
+} from '../state/SessionVisibleGraph.ts';
 
 // ── Public state freezing ───────────────────────────────────────────
 
@@ -101,6 +106,10 @@ export function maxLamportInPatches(patches: Array<{ patch: { lamport?: number }
 // ── Adjacency building ──────────────────────────────────────────────
 
 type NeighborEdge = { neighborId: string; label: string };
+export type MaterializeAdjacency = {
+  outgoing: Map<string, NeighborEdge[]>;
+  incoming: Map<string, NeighborEdge[]>;
+};
 
 function ensureList(map: Map<string, NeighborEdge[]>, key: string): NeighborEdge[] {
   let list = map.get(key);
@@ -121,7 +130,7 @@ function sortNeighborList(list: NeighborEdge[]): void {
 }
 
 /** Builds a deterministic adjacency map from the alive edge set. */
-export function buildAdjacency(state: WarpState): { outgoing: Map<string, NeighborEdge[]>; incoming: Map<string, NeighborEdge[]> } {
+export function buildAdjacency(state: WarpState): MaterializeAdjacency {
   const outgoing = new Map<string, NeighborEdge[]>();
   const incoming = new Map<string, NeighborEdge[]>();
 
@@ -131,6 +140,31 @@ export function buildAdjacency(state: WarpState): { outgoing: Map<string, Neighb
     if (!state.nodeAlive.contains(to)) { continue; }
     ensureList(outgoing, from).push({ neighborId: to, label });
     ensureList(incoming, to).push({ neighborId: from, label });
+  }
+
+  for (const list of outgoing.values()) { sortNeighborList(list); }
+  for (const list of incoming.values()) { sortNeighborList(list); }
+  return { outgoing, incoming };
+}
+
+/** Builds a deterministic adjacency map from session-backed alive sets. */
+export async function buildAdjacencyFromSession(
+  session: StateSession,
+): Promise<MaterializeAdjacency> {
+  const outgoing = new Map<string, NeighborEdge[]>();
+  const incoming = new Map<string, NeighborEdge[]>();
+  const aliveNodes = await collectAliveNodeSetFromSession(session);
+  const visibleEdges = await collectVisibleEdgesFromSession(session, aliveNodes);
+
+  for (const edge of visibleEdges) {
+    ensureList(outgoing, edge.from).push({
+      neighborId: edge.to,
+      label: edge.label,
+    });
+    ensureList(incoming, edge.to).push({
+      neighborId: edge.from,
+      label: edge.label,
+    });
   }
 
   for (const list of outgoing.values()) { sortNeighborList(list); }
