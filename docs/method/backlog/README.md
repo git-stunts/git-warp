@@ -19,19 +19,19 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 
 | Metric | Count |
 |--------|------:|
-| Live backlog items | 394 |
+| Live backlog items | 395 |
 | Root backlog items | 31 |
 | `asap/` | 0 |
 | `bad-code/` | 142 |
 | `cool-ideas/` | 94 |
 | `inbox/` | 5 |
-| `up-next/` | 53 |
+| `up-next/` | 54 |
 | `v17.0.0/` | 51 |
 | `v18.0.0/` | 8 |
 | `v19.0.0/` | 10 |
-| Items with YAML frontmatter | 99 |
+| Items with YAML frontmatter | 100 |
 | Items without YAML frontmatter | 295 |
-| Items with explicit `id` | 84 |
+| Items with explicit `id` | 85 |
 | Items declaring dependency fields | 70 |
 | Items with non-empty explicit dependency edges | 49 |
 
@@ -286,7 +286,7 @@ Prefix counts:
 | `MCP` | 1 |
 | `NDNM` | 4 |
 | `PERF` | 4 |
-| `PROTO` | 20 |
+| `PROTO` | 21 |
 | `TRUST` | 1 |
 | `TS` | 1 |
 | `VIZ` | 1 |
