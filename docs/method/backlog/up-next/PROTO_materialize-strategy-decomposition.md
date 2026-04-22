@@ -1,8 +1,7 @@
 ---
 id: PROTO_materialize-strategy-decomposition
 feature: materialization-query-index
-blocked_by:
-  - PROTO_materialize-integration
+blocked_by: []
 blocks: []
 ---
 

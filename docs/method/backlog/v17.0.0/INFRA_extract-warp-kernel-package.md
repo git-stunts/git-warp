@@ -1,7 +1,6 @@
 ---
 id: INFRA_extract-warp-kernel-package
 blocked_by:
-  - PROTO_materialize-integration
   - PERF_trie-geometry-and-memory-profile
 blocks:
   - INFRA_extract-warp-adapters-package

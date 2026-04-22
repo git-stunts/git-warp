@@ -106,7 +106,7 @@ ST-4 (async firewall):
   [x] PROTO_gc-state-session          ← cycle 0042 hill-met
 
 ST-5 (kernel integration):
-  [ ] PROTO_materialize-integration
+  [x] PROTO_materialize-integration     ← cycle 0043 hill-met
   [ ] PROTO_index-builder-trie-iteration
   [ ] PERF_trie-geometry-and-memory-profile
 

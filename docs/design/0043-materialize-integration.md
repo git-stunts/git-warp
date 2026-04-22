@@ -184,3 +184,71 @@ The bridge must be deliberate, not accidental.
 - snapshot publication failures fail loudly instead of silently dropping back to
   old checkpoint formats
 - session lifecycle misuse does not leak partially published runtime state
+
+## Playback
+
+### Witness
+
+The session-backed materialization seam is backed by:
+
+- [MaterializeController.stateSession.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/controllers/MaterializeController.stateSession.test.ts)
+- [MaterializeController.snapshotCache.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/controllers/MaterializeController.snapshotCache.test.ts)
+- [WarpRuntime.stateSessionAutoConstruct.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/WarpRuntime.stateSessionAutoConstruct.test.ts)
+- [WarpRuntime.blobAutoConstruct.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/WarpRuntime.blobAutoConstruct.test.ts)
+- `npm exec vitest run test/unit/domain/services/controllers/MaterializeController.stateSession.test.ts test/unit/domain/services/controllers/MaterializeController.snapshotCache.test.ts test/unit/domain/WarpRuntime.stateSessionAutoConstruct.test.ts test/unit/domain/WarpRuntime.blobAutoConstruct.test.ts`
+- `npm run typecheck`
+- `git diff --check`
+
+### Agent
+
+1. *Can I explain where session lifecycle now lives during materialization?*
+   Yes. `MaterializeController` now owns the replay seam through
+   [MaterializeSessionBridge.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/MaterializeSessionBridge.ts),
+   and `WarpRuntime.open()` now provisions the session opener when runtime trie
+   storage is available.
+
+2. *Can I point to the exact compatibility bridge, if one still exists?*
+   Yes. The compatibility bridge is explicit and narrow: session-backed replay
+   projects the mixed reducer frame back into a
+   [WarpState](/Users/james/git/git-stunts/git-warp/src/domain/services/state/WarpState.ts)
+   for the current `MaterializeResult` contract instead of pretending
+   `WarpState` is still the owning substrate.
+
+3. *Can I explain why legacy checkpoint blob fallback is no longer allowed in
+   the shipped runtime path?*
+   Yes. `materializeAt()` now rejects on the session-backed runtime line with
+   [SchemaUnsupportedError](/Users/james/git/git-stunts/git-warp/src/domain/errors/SchemaUnsupportedError.ts)
+   instead of silently routing into the old checkpoint-blob loader.
+
+### Human
+
+1. *Does the controller now feel like it owns a truthful session-backed
+   materialization flow?*
+   Yes. Live replay, coordinate replay, and predecessor-snapshot replay now all
+   go through the same session-backed reducer bridge when the opener is
+   available.
+
+2. *Is it clear where the runtime still carries a transitional compatibility
+   bridge?*
+   Yes. The projection back to `MaterializeResult.state` is explicit, localized,
+   and backed by dedicated tests rather than hidden in controller internals.
+
+3. *Is the boundary between shipped runtime and offline migration explicit?*
+   Yes. The shipped runtime no longer pretends it can materialize legacy
+   checkpoint blobs once the session-backed line is active.
+
+Verdict: pass.
+
+## Drift check
+
+No negative drift.
+
+Positive drift only:
+
+- the cycle grew a small runtime capability addition,
+  `createRuntimeTrieStore()`, so the shipped `WarpRuntime.open()` path could
+  actually provision the controller seam instead of leaving session-backed
+  materialization as test-only injection
+- coordinate materialization now explicitly republishes unified snapshots from
+  the session-backed path through the existing state-cache compatibility record
+  rather than leaving snapshot publication implicit

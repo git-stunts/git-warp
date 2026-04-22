@@ -1,7 +1,6 @@
 ---
 id: PROTO_index-builder-trie-iteration
-blocked_by:
-  - PROTO_materialize-integration
+blocked_by: []
 blocks:
   - PERF_trie-geometry-and-memory-profile
   - INFRA_extract-warp-adapters-package
