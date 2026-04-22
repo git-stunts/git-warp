@@ -146,9 +146,9 @@ Treat this as a reality-check cycle, not a coding cycle.
 ### Live planning truth
 
 - `docs/method/backlog/v17.0.0/PROTO_orsetlike-contract.md`
-- `docs/method/backlog/v17.0.0/PROTO_state-session-async.md`
-- `docs/method/backlog/v17.0.0/PROTO_shadow-trie-orset.md`
-- `docs/method/backlog/v17.0.0/PROTO_gc-state-session.md`
+- `docs/design/0040-state-session-async.md`
+- `docs/design/0038-shadow-trie-orset.md`
+- `docs/design/0042-gc-state-session.md`
 - `docs/releases/v17.0.0/README.md`
 
 ## Expected pass/fail semantics
@@ -214,9 +214,9 @@ dependency graph even without code debt.
 
    Initial playback found conflicts in:
    - `docs/method/backlog/v17.0.0/PROTO_orsetlike-contract.md`
-   - `docs/method/backlog/v17.0.0/PROTO_state-session-async.md`
-   - `docs/method/backlog/v17.0.0/PROTO_shadow-trie-orset.md`
-   - `docs/method/backlog/v17.0.0/PROTO_gc-state-session.md`
+   - `docs/design/0040-state-session-async.md`
+   - `docs/design/0038-shadow-trie-orset.md`
+   - `docs/design/0042-gc-state-session.md`
    - `docs/releases/v17.0.0/README.md`
 
    During cycle close, the downstream backlog items and release ledger

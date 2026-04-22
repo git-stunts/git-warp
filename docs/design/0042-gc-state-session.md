@@ -220,3 +220,72 @@ for validation and compaction failure reporting.
 - invalid `appliedVV` still fails with `E_GC_INVALID_VV`
 - calling the session-native GC path on a closed session fails loudly
 - session compaction failures surface as `E_GC_COMPACT_FAILED`
+
+## Playback
+
+### Witness
+
+The session-native GC seam is backed by:
+
+- [GCSession.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/GCSession.test.ts)
+- [GCPolicy.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/GCPolicy.test.ts)
+- [StateSession.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/orset/session/StateSession.test.ts)
+- `npm exec vitest run test/unit/domain/services/GCSession.test.ts test/unit/domain/services/GCPolicy.test.ts test/unit/domain/orset/session/StateSession.test.ts`
+- `npm run typecheck`
+- `git diff --check`
+
+### Agent
+
+1. *Can I explain why `executeGC()` should not quietly become async over
+   `WarpState`?*
+   Yes. The old sync seam is still truthful for in-memory callers, but it is
+   the wrong owner for trie-backed compaction and metrics. `executeGCInSession`
+   gives later materialization work a real async entry point without faking a
+   sync `WarpState` wrapper.
+
+2. *Can I point to the truthful session-native GC surface later materialization
+   work should call?*
+   Yes. The new surface is
+   [executeGCInSession.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/executeGCInSession.ts),
+   backed by
+   [GCMetrics.fromSession()](/Users/james/git/git-stunts/git-warp/src/domain/services/GCMetrics.ts).
+
+3. *Can I explain why `GCMetrics.fromSession()` can match the current count
+   laws without adding report-specific counting methods to `StateSession`?*
+   Yes. `StateSession` already exposes truthful element-state scans. Those
+   scans contain the exact live/tombstoned entry-dot sets needed to reconstruct
+   `countEntries()`, `countLiveDots()`, and `countTombstones()` without widening
+   the session API.
+
+### Human
+
+1. *Does this feel like a real transition seam rather than async paint over the
+   old sync substrate?*
+   Yes. The old sync API is still present, but the trie-backed line now has its
+   own explicit async GC surface.
+
+2. *Is it clear why session open/close wiring is still deferred?*
+   Yes. This cycle adds the GC primitive over an already-open session; later
+   materialization work remains responsible for root ownership and session
+   lifecycle.
+
+3. *Is it clear how trie-backed metrics remain honest without full graph
+   materialization?*
+   Yes. Metrics are derived from session element-state scans, not from a fake
+   all-at-once graph rebuild.
+
+Verdict: pass.
+
+## Drift check
+
+No negative drift.
+
+Positive drift only:
+
+- the implementation stayed narrower than the backlog note's phrasing by
+  adding the session-native GC primitive, not a fake open/compact/close helper
+  with controller assumptions baked in
+- metrics reuse the existing element-state scan surface instead of adding
+  special-purpose counting methods to `StateSession`
+
+That drift sharpens the seam instead of smearing it.

@@ -103,7 +103,7 @@ ST-3 (ShadowTrieORSet):
 ST-4 (async firewall):
   [x] PROTO_state-session-async       ← cycle 0040 hill-met
   [x] PROTO_joinreducer-state-session ← cycle 0041 hill-met
-  [ ] PROTO_gc-state-session
+  [x] PROTO_gc-state-session          ← cycle 0042 hill-met
 
 ST-5 (kernel integration):
   [ ] PROTO_materialize-integration
