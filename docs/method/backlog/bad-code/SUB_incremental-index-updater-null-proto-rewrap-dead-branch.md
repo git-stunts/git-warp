@@ -3,6 +3,7 @@ id: SUB_incremental-index-updater-null-proto-rewrap-dead-branch
 blocked_by: []
 blocks: []
 feature: merge-strands-worldlines
+release_home: v20.0.0+
 ---
 
 # PROTO_incremental-index-updater-null-proto-rewrap-dead-branch

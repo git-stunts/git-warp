@@ -37,6 +37,7 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 | Items declaring dependency fields | 395 |
 | Items with explicit `feature` | 390 |
 | Distinct explicit feature values | 12 |
+| `bad-code/` items with explicit `release_home` | 142 |
 | Items with non-empty explicit dependency edges | 78 |
 
 ## Dependency Law
@@ -56,6 +57,14 @@ Every live note outside `inbox/` now also declares:
 
 That field names the subsystem home of the task. It does not replace
 release-lane sequencing; it clarifies it.
+
+`bad-code/` notes also declare:
+
+- `release_home`
+
+That field answers which release is expected to absorb, retire, or
+otherwise burn down the debt note. The note stays in `bad-code/`; the
+release home is a second planning axis, not a lane move.
 
 Lane inheritance still matters, but in a narrower way:
 
@@ -96,6 +105,19 @@ When a note has a `feature:` home:
    another feature cannot honestly proceed without.
 4. Keep `blocked_by` / `blocks` as the source of truth. The feature graph
    is derived from task edges, not duplicated in separate metadata.
+
+### Debt Release Homes
+
+`bad-code/` stays a debt ledger, not a release lane.
+
+- **Lane** still answers where the note lives.
+- **Feature** answers which subsystem owns the smell.
+- **Release home** answers which release is supposed to make the note
+  disappear.
+
+Use `release_home` to answer "what debt must this release actually
+burn down?" without dumping debt notes wholesale into numbered release
+lanes.
 
 ### Dependency Bands
 
@@ -146,6 +168,7 @@ Current explicit-graph totals:
 - `395` notes define an `id`
 - `395` notes declare `blocks` and `blocked_by` fields
 - `390` notes currently declare an explicit `feature`
+- `142` `bad-code/` notes currently declare an explicit `release_home`
 - `78` notes currently name at least one non-empty upstream or
   downstream edge
 

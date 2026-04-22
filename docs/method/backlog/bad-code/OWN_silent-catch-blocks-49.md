@@ -3,6 +3,7 @@ id: OWN_silent-catch-blocks-49
 blocked_by: []
 blocks: []
 feature: docs-dx
+release_home: v17.0.0
 ---
 
 # 49 silent catch blocks across the codebase

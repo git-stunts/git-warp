@@ -3,6 +3,7 @@ id: MODEL_remove-nonexistent-entity-silent
 blocked_by: []
 blocks: []
 feature: trie-state-storage
+release_home: v17.0.0
 ---
 
 # removeNode/removeEdge on a non-existent entity silently produces no-op

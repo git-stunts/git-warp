@@ -3,6 +3,7 @@ id: PORT_cli-persistence-plumbing-leak
 blocked_by: []
 blocks: []
 feature: runtime-boundaries
+release_home: v17.0.0
 ---
 
 # CLI persistence shape leaks plumbing into application wiring

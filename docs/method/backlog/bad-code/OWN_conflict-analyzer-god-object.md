@@ -3,6 +3,7 @@ id: OWN_conflict-analyzer-god-object
 blocked_by: []
 blocks: []
 feature: merge-strands-worldlines
+release_home: v20.0.0+
 ---
 
 # ConflictAnalyzerService is a god object (2582 LOC)

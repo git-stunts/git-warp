@@ -3,6 +3,7 @@ id: OWN_patchbuilder-12-param-constructor
 blocked_by: []
 blocks: []
 feature: materialization-query-index
+release_home: v17.0.0
 ---
 
 # PatchBuilderV2 12-parameter constructor

@@ -3,6 +3,7 @@ id: MODEL_patchdiff-no-validation
 blocked_by: []
 blocks: []
 feature: trie-state-storage
+release_home: v17.0.0
 ---
 
 # PatchDiff class has no validation and typedef-only entries

@@ -3,6 +3,7 @@ id: MODEL_wormhole-edge-typedef
 blocked_by: []
 blocks: []
 feature: merge-strands-worldlines
+release_home: v20.0.0+
 ---
 
 # WormholeEdge is a typedef with external serialize behavior

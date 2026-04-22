@@ -17,6 +17,19 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 | [SUB](../../legends/SUBSTRATE.md) | Substrate integrity: streaming, CAS, checkpoint, index, and versioned storage stay explicit. | 12 |
 | [SPEC](../../legends/SPEC.md) | Tests, docs, mocks, and coverage residue must reflect the real contract. | 31 |
 
+## Release Homes
+
+`bad-code/` remains the debt ledger even when a note has an expected
+release home. The note stays here so debt is still visibly debt;
+`release_home` only answers which release should absorb, retire, or
+otherwise burn it down.
+
+| Release Home | Count |
+|--------------|------:|
+| `v17.0.0` | 104 |
+| `v19.0.0` | 9 |
+| `v20.0.0+` | 29 |
+
 ## Index
 
 ### Hex Boundary (`HEX`) — 17

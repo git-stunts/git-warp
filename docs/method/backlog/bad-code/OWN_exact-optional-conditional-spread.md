@@ -3,6 +3,7 @@ id: OWN_exact-optional-conditional-spread
 blocked_by: []
 blocks: []
 feature: merge-strands-worldlines
+release_home: v20.0.0+
 ---
 
 # exactOptionalPropertyTypes conditional spread boilerplate

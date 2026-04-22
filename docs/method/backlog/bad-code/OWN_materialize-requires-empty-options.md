@@ -3,6 +3,7 @@ id: OWN_materialize-requires-empty-options
 blocked_by: []
 blocks: []
 feature: tooling-release
+release_home: v17.0.0
 ---
 
 # materialize() requires empty options object — DX friction

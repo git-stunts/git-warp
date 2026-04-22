@@ -3,6 +3,7 @@ id: PORT_persistence-port-instanceof
 blocked_by: []
 blocks: []
 feature: materialization-query-index
+release_home: v17.0.0
 ---
 
 # GraphPersistencePort uses Object.defineProperty breaking instanceof

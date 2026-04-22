@@ -3,6 +3,7 @@ id: HEX_domain-crypto-hex
 blocked_by: []
 blocks: []
 feature: sync-trust-security
+release_home: v17.0.0
 ---
 
 # TrustCanonical.js imports defaultCrypto (node:crypto in domain)

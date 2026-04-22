@@ -3,6 +3,7 @@ id: SPEC_warpcore-jsdoc-block-style
 blocked_by: []
 blocks: []
 feature: docs-dx
+release_home: v17.0.0
 ---
 
 # WarpCore content methods use single-line JSDoc

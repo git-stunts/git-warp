@@ -3,6 +3,7 @@ id: SUB_querybuilder-match-full-scan
 blocked_by: []
 blocks: []
 feature: observer-admission-runtime
+release_home: v19.0.0
 ---
 
 # QueryBuilder match() does a full node scan

@@ -3,6 +3,7 @@ id: PORT_worldline-encapsulation
 blocked_by: []
 blocks: []
 feature: merge-strands-worldlines
+release_home: v20.0.0+
 ---
 
 # Worldline reaches into 13+ WarpRuntime private fields

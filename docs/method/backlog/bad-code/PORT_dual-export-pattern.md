@@ -3,6 +3,7 @@ id: PORT_dual-export-pattern
 blocked_by: []
 blocks: []
 feature: browser-viz
+release_home: v17.0.0
 ---
 
 # Visualization modules mix named and default exports

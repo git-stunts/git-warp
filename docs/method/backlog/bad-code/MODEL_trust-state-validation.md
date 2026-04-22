@@ -3,6 +3,7 @@ id: MODEL_trust-state-validation
 blocked_by: []
 blocks: []
 feature: testing-quality
+release_home: v17.0.0
 ---
 
 # TrustState constructor validates nothing and exposes mutable Maps

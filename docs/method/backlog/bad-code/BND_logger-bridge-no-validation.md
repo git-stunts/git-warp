@@ -3,6 +3,7 @@ id: BND_logger-bridge-no-validation
 blocked_by: []
 blocks: []
 feature: runtime-boundaries
+release_home: v17.0.0
 ---
 
 # LoggerObservabilityBridge has no constructor validation

@@ -3,6 +3,7 @@ id: BND_trailer-codec-type-poison
 blocked_by: []
 blocks: []
 feature: tooling-release
+release_home: v17.0.0
 ---
 
 # @git-stunts/trailer-codec type poison at the boundary

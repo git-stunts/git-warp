@@ -3,6 +3,7 @@ id: SPEC_deno-adapter-tautology
 blocked_by: []
 blocks: []
 feature: testing-quality
+release_home: v17.0.0
 ---
 
 # DenoHttpAdapter test has literal expect(true).toBe(true) assertion

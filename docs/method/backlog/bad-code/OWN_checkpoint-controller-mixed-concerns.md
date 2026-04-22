@@ -3,6 +3,7 @@ id: OWN_checkpoint-controller-mixed-concerns
 blocked_by: []
 blocks: []
 feature: testing-quality
+release_home: v17.0.0
 ---
 
 # CheckpointController mixes checkpoint, GC, and migration

@@ -3,6 +3,7 @@ id: OWN_bare-function-subscriber-type
 blocked_by: []
 blocks: []
 feature: materialization-query-index
+release_home: v17.0.0
 ---
 
 # Subscriber type uses bare `Function` instead of typed callback

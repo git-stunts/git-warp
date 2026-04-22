@@ -3,6 +3,7 @@ id: SUB_cbor-checkpoint-crdt-serialization
 blocked_by: []
 blocks: []
 feature: trie-state-storage
+release_home: v17.0.0
 ---
 
 # CborCheckpointStoreAdapter owns general CRDT serialization

@@ -3,6 +3,7 @@ id: SPEC_vacuous-assertions-pattern
 blocked_by: []
 blocks: []
 feature: api-capabilities
+release_home: v17.0.0
 ---
 
 # Codebase has a pattern of vacuous assertions

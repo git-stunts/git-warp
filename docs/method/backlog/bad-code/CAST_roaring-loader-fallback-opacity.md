@@ -3,6 +3,7 @@ id: CAST_roaring-loader-fallback-opacity
 blocked_by: []
 blocks: []
 feature: trie-state-storage
+release_home: v17.0.0
 ---
 
 # PROTO_roaring-loader-fallback-opacity

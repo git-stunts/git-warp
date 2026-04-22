@@ -3,6 +3,7 @@ id: HEX_sync-no-rate-limiting
 blocked_by: []
 blocks: []
 feature: sync-trust-security
+release_home: v17.0.0
 ---
 
 # Sync endpoint has no rate limiting

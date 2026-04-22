@@ -3,6 +3,7 @@ id: MODEL_op-wire-pojo-class-duality
 blocked_by: []
 blocks: []
 feature: observer-admission-runtime
+release_home: v19.0.0
 ---
 
 # Op wire POJOs and Op class instances flow through the same pipeline

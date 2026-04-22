@@ -3,6 +3,7 @@ id: SPEC_gc-tests-bless-silent-swallow
 blocked_by: []
 blocks: []
 feature: api-capabilities
+release_home: v17.0.0
 ---
 
 # GC tests bless silent error swallowing

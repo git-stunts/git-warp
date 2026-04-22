@@ -3,6 +3,7 @@ id: HEX_index-rebuild-profiling-in-domain
 blocked_by: []
 blocks: []
 feature: tooling-release
+release_home: v17.0.0
 ---
 
 # IndexRebuildService has 5 performance.now() calls for profiling

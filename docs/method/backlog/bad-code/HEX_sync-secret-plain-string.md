@@ -3,6 +3,7 @@ id: HEX_sync-secret-plain-string
 blocked_by: []
 blocks: []
 feature: sync-trust-security
+release_home: v17.0.0
 ---
 
 # Sync auth HMAC secrets passed as plain strings through domain

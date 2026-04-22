@@ -3,6 +3,7 @@ id: SUB_gc-stale-cache-invalidation
 blocked_by: []
 blocks: []
 feature: materialization-query-index
+release_home: v17.0.0
 ---
 
 # GC swap does not invalidate derived caches

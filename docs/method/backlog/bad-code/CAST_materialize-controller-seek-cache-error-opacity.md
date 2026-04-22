@@ -3,6 +3,7 @@ id: CAST_materialize-controller-seek-cache-error-opacity
 blocked_by: []
 blocks: []
 feature: testing-quality
+release_home: v17.0.0
 ---
 
 # PROTO_materialize-controller-seek-cache-error-opacity

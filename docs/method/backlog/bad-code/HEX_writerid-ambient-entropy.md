@@ -3,6 +3,7 @@ id: HEX_writerid-ambient-entropy
 blocked_by: []
 blocks: []
 feature: sync-trust-security
+release_home: v17.0.0
 ---
 
 # WriterId.js uses crypto.getRandomValues in domain

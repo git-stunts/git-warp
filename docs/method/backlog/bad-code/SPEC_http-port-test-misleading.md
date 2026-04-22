@@ -3,6 +3,7 @@ id: SPEC_http-port-test-misleading
 blocked_by: []
 blocks: []
 feature: testing-quality
+release_home: v17.0.0
 ---
 
 # HttpServerPort test says "request/response cycle" but only tests interface shape

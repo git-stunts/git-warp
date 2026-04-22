@@ -3,6 +3,7 @@ id: SPEC_querybuilder-untested
 blocked_by: []
 blocks: []
 feature: api-capabilities
+release_home: v17.0.0
 ---
 
 # QueryBuilder.js has 852 LOC and zero dedicated tests

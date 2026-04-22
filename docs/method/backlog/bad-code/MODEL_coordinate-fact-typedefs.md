@@ -3,6 +3,7 @@ id: MODEL_coordinate-fact-typedefs
 blocked_by: []
 blocks: []
 feature: materialization-query-index
+release_home: v17.0.0
 ---
 
 # CoordinateFactExport has 11 typedef-only domain concepts

@@ -3,6 +3,7 @@ id: SPEC_sync-controller-over-mocked
 blocked_by: []
 blocks: []
 feature: testing-quality
+release_home: v17.0.0
 ---
 
 # SyncController tests mock 3 modules — test only proves wiring

@@ -3,6 +3,7 @@ id: BND_patch-session-message-parsing
 blocked_by: []
 blocks: []
 feature: observer-admission-runtime
+release_home: v19.0.0
 ---
 
 # PatchSession classifies errors by parsing err.message

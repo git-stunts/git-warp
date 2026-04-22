@@ -3,6 +3,7 @@ id: HEX_btr-audit-ambient-timestamps
 blocked_by: []
 blocks: []
 feature: observer-admission-runtime
+release_home: v19.0.0
 ---
 
 # BoundaryTransitionRecord and AuditService use ambient wall-clock

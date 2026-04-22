@@ -3,6 +3,7 @@ id: OWN_trust-record-service-smells
 blocked_by: []
 blocks: []
 feature: sync-trust-security
+release_home: v17.0.0
 ---
 
 # TrustRecordService has multiple code smells

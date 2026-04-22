@@ -3,6 +3,7 @@ id: HEX_cli-hook-installer-raw-git-bypass
 blocked_by: []
 blocks: []
 feature: sync-trust-security
+release_home: v17.0.0
 ---
 
 # CLI hook installer bypasses ports with raw git subprocesses

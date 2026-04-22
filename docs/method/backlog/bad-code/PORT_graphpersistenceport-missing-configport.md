@@ -3,6 +3,7 @@ id: PORT_graphpersistenceport-missing-configport
 blocked_by: []
 blocks: []
 feature: api-capabilities
+release_home: v17.0.0
 ---
 
 # GraphPersistencePort drops ConfigPort capability and forces side channels

@@ -3,6 +3,7 @@ id: MODEL_crdt-constructor-validation
 blocked_by: []
 blocks: []
 feature: merge-strands-worldlines
+release_home: v20.0.0+
 ---
 
 # ORSet and LWW have no constructor validation

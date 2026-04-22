@@ -3,6 +3,7 @@ id: SUB_bitmap-neighbor-provider-dead-false-branch
 blocked_by: []
 blocks: []
 feature: testing-quality
+release_home: v17.0.0
 ---
 
 # PROTO_bitmap-neighbor-provider-dead-false-branch

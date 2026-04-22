@@ -3,6 +3,7 @@ id: BND_schemas-refine-mutation
 blocked_by: []
 blocks: []
 feature: merge-strands-worldlines
+release_home: v20.0.0+
 ---
 
 # TrustRecordSchema superRefine mutates record during validation

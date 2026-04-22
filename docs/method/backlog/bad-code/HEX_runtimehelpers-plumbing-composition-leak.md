@@ -3,6 +3,7 @@ id: HEX_runtimehelpers-plumbing-composition-leak
 blocked_by: []
 blocks: []
 feature: materialization-query-index
+release_home: v17.0.0
 ---
 
 # runtimeHelpers imports infrastructure adapters and branches on plumbing presence

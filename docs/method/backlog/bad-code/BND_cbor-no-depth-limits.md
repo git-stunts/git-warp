@@ -3,6 +3,7 @@ id: BND_cbor-no-depth-limits
 blocked_by: []
 blocks: []
 feature: sync-trust-security
+release_home: v17.0.0
 ---
 
 # CBOR deserialization has no depth or size limits

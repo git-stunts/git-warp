@@ -3,6 +3,7 @@ blocked_by: []
 blocks: []
 id: DX_index-dts-hand-maintained
 feature: tooling-release
+release_home: v17.0.0
 ---
 
 # index.d.ts is hand-maintained — should be generated

@@ -3,6 +3,7 @@ id: HEX_wall-clock-eslint-suppressions
 blocked_by: []
 blocks: []
 feature: observer-admission-runtime
+release_home: v19.0.0
 ---
 
 # 5 eslint-disable suppressions bypass the wall-clock ban in domain

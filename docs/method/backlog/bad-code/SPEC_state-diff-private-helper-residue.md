@@ -3,6 +3,7 @@ id: SPEC_state-diff-private-helper-residue
 blocked_by: []
 blocks: []
 feature: api-capabilities
+release_home: v17.0.0
 ---
 
 # PROTO_state-diff-private-helper-residue

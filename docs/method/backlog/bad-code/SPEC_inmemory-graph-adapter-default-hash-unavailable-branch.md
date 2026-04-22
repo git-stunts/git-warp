@@ -3,6 +3,7 @@ id: SPEC_inmemory-graph-adapter-default-hash-unavailable-branch
 blocked_by: []
 blocks: []
 feature: api-capabilities
+release_home: v17.0.0
 ---
 
 # PROTO_inmemory-graph-adapter-default-hash-unavailable-branch

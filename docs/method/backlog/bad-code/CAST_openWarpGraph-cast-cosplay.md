@@ -3,6 +3,7 @@ id: CAST_openWarpGraph-cast-cosplay
 blocked_by: []
 blocks: []
 feature: api-capabilities
+release_home: v17.0.0
 ---
 
 # openWarpGraph() uses 9 `as unknown as` casts at trust boundary

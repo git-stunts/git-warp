@@ -3,6 +3,7 @@ id: HEX_sync-server-no-graceful-shutdown
 blocked_by: []
 blocks: []
 feature: api-capabilities
+release_home: v17.0.0
 ---
 
 # HTTP sync server has no graceful shutdown

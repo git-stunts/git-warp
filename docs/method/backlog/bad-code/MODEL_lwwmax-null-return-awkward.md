@@ -3,6 +3,7 @@ id: MODEL_lwwmax-null-return-awkward
 blocked_by: []
 blocks: []
 feature: runtime-boundaries
+release_home: v17.0.0
 ---
 
 # `lwwMax` returns `LWWRegister<T> | null` — awkward null in the happy path

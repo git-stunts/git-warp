@@ -3,6 +3,7 @@ id: MODEL_trust-assessment-typedef
 blocked_by: []
 blocks: []
 feature: docs-dx
+release_home: v17.0.0
 ---
 
 # TrustAssessment is a typedef-only domain concept
