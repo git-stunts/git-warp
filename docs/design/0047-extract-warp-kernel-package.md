@@ -81,3 +81,49 @@ That makes this cycle a premise-validation slice first, not a blind move.
 - cycle forces a code move even though the root package cannot ship the new
   imports
 - cycle closes without leaving a clearer successor path than it started with
+
+## Playback
+
+### Witness
+
+The premise check is backed by:
+
+- [package.json](/Users/james/git/git-stunts/git-warp/package.json)
+- [packages/warp-kernel/package.json](/Users/james/git/git-stunts/git-warp/packages/warp-kernel/package.json)
+- [src/domain/orset/README.md](/Users/james/git/git-stunts/git-warp/src/domain/orset/README.md)
+- [0020 retro](/Users/james/git/git-stunts/git-warp/docs/method/retro/0020-extract-warp-orset-package/extract-warp-orset-package.md)
+
+### Agent
+
+1. *Can I explain exactly why a naive extraction would break the publish surface?*
+   Yes. Root shipped `.ts` cannot import a private workspace package safely, and
+   relative imports into `packages/warp-kernel` would only costume the package
+   boundary.
+
+2. *Can I point to the evidence that `warp-kernel` is still a private workspace shell rather than a publish-safe dependency?*
+   Yes. The package is still `private: true`, and root publish config does not
+   treat it as a shipped dependency surface.
+
+3. *If the premise is invalid, can I point to the replacement backlog shape?*
+   Yes. The successor is
+   `INFRA_extract-warp-kernel-package-post-publish`, blocked by the
+   multi-package publish pipeline and the real `warp-orset` extraction.
+
+### Human
+
+1. *Is it clear whether kernel extraction is real work or just package cosplay right now?*
+   Yes. Without a publish-safe boundary, it is cosplay.
+
+2. *If the move is deferred, is the reason concrete rather than hand-wavy?*
+   Yes. The blocker is the same publish-surface trap already documented by cycle
+   `0020`, not a vague lack of readiness.
+
+Verdict: not met. Premise invalid.
+
+## Drift check
+
+Negative drift from the original backlog wording, but truthful drift.
+
+The original note framed this as a mechanical move after the ORSet/materialize
+seams were proven. That skipped the publish-surface requirement. This cycle
+corrects the sequencing instead of forcing a fake extraction.

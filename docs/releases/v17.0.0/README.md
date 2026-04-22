@@ -112,11 +112,13 @@ ST-5 (kernel integration):
                                               1M stress caveat
 
 ST-6 (broader package extraction):
-  [ ] INFRA_extract-warp-kernel-package
+  [✗] INFRA_extract-warp-kernel-package      ← cycle 0047 not-met (same
+                                                publish-surface trap as 0020)
   [ ] INFRA_extract-warp-adapters-package
 
 ST-7 (multi-package publish + real extraction):
   [ ] INFRA_multipackage-publish-pipeline           ← blocked_by TS_publish-pipeline
+  [ ] INFRA_extract-warp-kernel-package-post-publish ← deferred successor to 0047
   [ ] INFRA_extract-warp-orset-package-post-publish ← deferred successor to 0020
 ```
 

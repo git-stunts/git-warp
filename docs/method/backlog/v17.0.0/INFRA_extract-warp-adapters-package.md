@@ -1,6 +1,8 @@
 ---
 id: INFRA_extract-warp-adapters-package
-blocked_by: []
+blocked_by:
+  - INFRA_multipackage-publish-pipeline
+  - INFRA_extract-warp-kernel-package-post-publish
 blocks: []
 feature: runtime-boundaries
 ---

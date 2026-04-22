@@ -111,7 +111,7 @@ confirmed ready.
 
 | Workload | Count | Items | Preconditions |
 |----------|------:|-------|---------------|
-| `WL-39-v17-package-extraction-tail` | 4 | `INFRA_extract-warp-kernel-package`, `INFRA_extract-warp-adapters-package`, `INFRA_multipackage-publish-pipeline`, `INFRA_extract-warp-orset-package-post-publish` | Follows `WL-33` and `WL-38` |
+| `WL-39-v17-package-extraction-tail` | 4 | `INFRA_extract-warp-kernel-package-post-publish`, `INFRA_extract-warp-adapters-package`, `INFRA_multipackage-publish-pipeline`, `INFRA_extract-warp-orset-package-post-publish` | Follows `WL-33` and `WL-38` |
 
 ## Wave 4 — `B4` Antichain
 
