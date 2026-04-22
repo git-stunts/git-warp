@@ -164,3 +164,73 @@ But they should now be visibly compatibility paths, not the only builder truth.
 - session-backed materialization does not silently fall back to sync adjacency
   scans
 - compatibility sync paths still work for existing state-only callers
+
+## Playback
+
+### Witness
+
+The session-backed builder and adjacency seam is backed by:
+
+- [MaterializeHelpers.stateSession.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/controllers/MaterializeHelpers.stateSession.test.ts)
+- [WarpStateIndexBuilder.stateSession.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/WarpStateIndexBuilder.stateSession.test.ts)
+- [LogicalIndexBuildService.stateSession.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/LogicalIndexBuildService.stateSession.test.ts)
+- [MaterializeController.stateSession.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/controllers/MaterializeController.stateSession.test.ts)
+- [WarpStateIndexBuilder.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/WarpStateIndexBuilder.test.ts)
+- [LogicalIndexBuildService.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/LogicalIndexBuildService.test.ts)
+- [MaterializeController.snapshotCache.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/controllers/MaterializeController.snapshotCache.test.ts)
+- [WarpRuntime.stateSessionAutoConstruct.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/WarpRuntime.stateSessionAutoConstruct.test.ts)
+- `npm exec vitest run test/unit/domain/services/controllers/MaterializeHelpers.stateSession.test.ts test/unit/domain/services/WarpStateIndexBuilder.stateSession.test.ts test/unit/domain/services/LogicalIndexBuildService.stateSession.test.ts test/unit/domain/services/controllers/MaterializeController.stateSession.test.ts test/unit/domain/services/WarpStateIndexBuilder.test.ts test/unit/domain/services/LogicalIndexBuildService.test.ts test/unit/domain/services/controllers/MaterializeController.snapshotCache.test.ts test/unit/domain/WarpRuntime.stateSessionAutoConstruct.test.ts`
+- `npm run typecheck`
+- `git diff --check`
+
+### Agent
+
+1. *Can I point to the exact async builder/adjacency surfaces that now consume `StateSession`?*
+   Yes. `buildAdjacencyFromSession(...)`,
+   `WarpStateIndexBuilder.buildFromSession(...)`, and
+   `LogicalIndexBuildService.buildShardsFromSession(...)` are now explicit
+   async seams over [StateSession](/Users/james/git/git-stunts/git-warp/src/domain/orset/session/StateSession.ts).
+
+2. *Can I explain why the sync builder surfaces still exist after this cycle?*
+   Yes. They are compatibility paths for callers that still hold a projected
+   [WarpState](/Users/james/git/git-stunts/git-warp/src/domain/services/state/WarpState.ts)
+   instead of a live session. The async seams now own the trie-backed line; the
+   sync seams are no longer the only truthful source.
+
+3. *Can I explain which runtime/materialize path now uses the async seam directly?*
+   Yes. Session-backed replay in
+   [MaterializeSessionBridge.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/MaterializeSessionBridge.ts)
+   now computes adjacency before session close and hands it through
+   [MaterializeController.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/MaterializeController.ts)
+   instead of rebuilding adjacency from projected sync state.
+
+### Human
+
+1. *Does the builder line now feel consistent with the session-backed replay and GC line?*
+   Yes. The async scan surface now exists for adjacency, bitmap indexes, and
+   logical index shard builds, so the runtime no longer teaches
+   `WarpState`-only iteration as the sole builder truth.
+
+2. *Is the compatibility bridge explicit rather than accidental?*
+   Yes. The state-based builders still exist, but they are visibly the
+   compatibility surfaces next to the new session-backed entry points.
+
+3. *Is it clear that `prop` is the remaining mixed-state holdout?*
+   Yes. The async logical index build still accepts synchronous `prop` data
+   explicitly, which makes the remaining mixed-state boundary inspectable.
+
+Verdict: pass.
+
+## Drift check
+
+No negative drift.
+
+Positive drift only:
+
+- the cycle grew a small shared helper,
+  [SessionVisibleGraph.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/state/SessionVisibleGraph.ts),
+  so adjacency and index builders could consume the same deterministic session
+  scan surface instead of each inventing a slightly different scan law
+- `LogicalIndexBuildService` gained only the shard-building session seam, not a
+  full async stream rewrite, which is acceptable because the design explicitly
+  scoped the cycle away from a complete `MaterializedViewService` conversion

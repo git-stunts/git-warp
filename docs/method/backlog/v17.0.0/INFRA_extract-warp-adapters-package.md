@@ -1,7 +1,6 @@
 ---
 id: INFRA_extract-warp-adapters-package
 blocked_by:
-  - PROTO_index-builder-trie-iteration
   - PERF_trie-geometry-and-memory-profile
 blocks: []
 feature: runtime-boundaries

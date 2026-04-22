@@ -1,7 +1,6 @@
 ---
 id: PERF_trie-geometry-and-memory-profile
 blocked_by:
-  - PROTO_index-builder-trie-iteration
   - TRUST_shadow-trie-semilattice-pbt
 blocks:
   - INFRA_extract-warp-kernel-package
