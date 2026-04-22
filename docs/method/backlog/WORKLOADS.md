@@ -101,7 +101,7 @@ dependency check before staffing.
 |----------|------:|-------|---------------|
 | `WL-36-v17-cross-residue-sludge` | 2 | `SLUDGE_host-bag-injection`, `SLUDGE_detached-graph-duplication` | Follows `WL-30-v17-capability-provider-seams` |
 | `WL-37-v17-god-to-api-runtime-split` | 9 | `GOD_query-builder`, `GOD_query-controller`, `GOD_materialize-controller`, `GOD_strand-service`, `GOD_incremental-index-updater`, `GOD_remaining-big-files`, `API_warpgraph-factory`, `API_migrate-consumers-to-capabilities`, `API_kill-warpruntime` | Follows `WL-30`, `WL-33`, and `WL-34` |
-| `WL-38-v17-shadow-trie-materialization-core` | 6 | `PROTO_orsetlike-contract`, `PROTO_shadow-trie-orset`, `PROTO_trie-compaction`, `PROTO_state-session-async`, `PROTO_gc-state-session`, `PERF_trie-geometry-and-memory-profile` | Remaining shadow-trie engine, async firewall, and post-materialization kernel follow-through after the checkpoint/snapshot unification cycle landed |
+| `WL-38-v17-shadow-trie-materialization-core` | 5 | `PROTO_orsetlike-contract`, `PROTO_shadow-trie-orset`, `PROTO_trie-compaction`, `PROTO_state-session-async`, `PROTO_gc-state-session` | Remaining shadow-trie engine and async-firewall follow-through after the checkpoint/snapshot unification cycle landed |
 
 ## Wave 3.x — Parked `B3` Tail
 

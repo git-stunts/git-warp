@@ -108,7 +108,8 @@ ST-4 (async firewall):
 ST-5 (kernel integration):
   [x] PROTO_materialize-integration     ← cycle 0043 hill-met
   [x] PROTO_index-builder-trie-iteration ← cycle 0044 hill-met
-  [ ] PERF_trie-geometry-and-memory-profile
+  [x] PERF_trie-geometry-and-memory-profile ← cycle 0046 hill-met with explicit
+                                              1M stress caveat
 
 ST-6 (broader package extraction):
   [ ] INFRA_extract-warp-kernel-package

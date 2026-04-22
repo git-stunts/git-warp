@@ -14,7 +14,7 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 | [CAST](../../legends/CAST.md) | No cast-cosplay, escape hatches, or type lies. | 9 |
 | [PORT](../../legends/PORT.md) | Capability and port surfaces must tell the runtime truth. | 12 |
 | [OWN](../../legends/OWNERSHIP.md) | One owner per behavior: no gods, no duplication corridors, no mixed-concern facades. | 31 |
-| [SUB](../../legends/SUBSTRATE.md) | Substrate integrity: streaming, CAS, checkpoint, index, and versioned storage stay explicit. | 12 |
+| [SUB](../../legends/SUBSTRATE.md) | Substrate integrity: streaming, CAS, checkpoint, index, and versioned storage stay explicit. | 13 |
 | [SPEC](../../legends/SPEC.md) | Tests, docs, mocks, and coverage residue must reflect the real contract. | 31 |
 
 ## Release Homes
@@ -26,7 +26,7 @@ otherwise burn it down.
 
 | Release Home | Count |
 |--------------|------:|
-| `v17.0.0` | 104 |
+| `v17.0.0` | 105 |
 | `v19.0.0` | 9 |
 | `v20.0.0+` | 29 |
 
@@ -148,7 +148,7 @@ otherwise burn it down.
 - [OWN_trust-evaluator-coupling.md](OWN_trust-evaluator-coupling.md)
 - [OWN_trust-record-service-smells.md](OWN_trust-record-service-smells.md)
 
-### Substrate (`SUB`) — 12
+### Substrate (`SUB`) — 13
 
 - [SUB_bitmap-index-trio-coupling.md](SUB_bitmap-index-trio-coupling.md)
 - [SUB_bitmap-reader-silent-corruption.md](SUB_bitmap-reader-silent-corruption.md)
@@ -162,6 +162,7 @@ otherwise burn it down.
 - [SUB_legacy-seek-cache-key-drops-frontier.md](SUB_legacy-seek-cache-key-drops-frontier.md)
 - [SUB_querybuilder-match-full-scan.md](SUB_querybuilder-match-full-scan.md)
 - [SUB_streaming-bitmap-index-builder-serialization-tail.md](SUB_streaming-bitmap-index-builder-serialization-tail.md)
+- [SUB_trie-geometry-profile-contract-and-scale-gaps.md](SUB_trie-geometry-profile-contract-and-scale-gaps.md)
 
 ### Spec Honesty (`SPEC`) — 31
 

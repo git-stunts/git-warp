@@ -1,7 +1,6 @@
 ---
 id: INFRA_extract-warp-kernel-package
-blocked_by:
-  - PERF_trie-geometry-and-memory-profile
+blocked_by: []
 blocks:
   - INFRA_extract-warp-adapters-package
 feature: runtime-boundaries
