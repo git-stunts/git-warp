@@ -101,7 +101,7 @@ ST-3 (ShadowTrieORSet):
   [ ] TRUST_shadow-trie-semilattice-pbt
 
 ST-4 (async firewall):
-  [ ] PROTO_state-session-async
+  [x] PROTO_state-session-async       ← cycle 0040 hill-met
   [ ] PROTO_joinreducer-state-session
   [ ] PROTO_gc-state-session
 

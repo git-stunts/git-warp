@@ -1,7 +1,6 @@
 ---
 id: PROTO_joinreducer-state-session
-blocked_by:
-  - PROTO_state-session-async
+blocked_by: []
 blocks:
   - PROTO_materialize-integration
 ---

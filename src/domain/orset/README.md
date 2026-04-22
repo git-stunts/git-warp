@@ -38,7 +38,7 @@ eventual warp-orset package layout:
 |----------------|-----------------|--------------|--------|
 | `src/domain/orset/route/` | `RouteKey.ts`, `nibbleAt()`, blake3 helpers | `PROTO_blake3-route-key` | ✅ cycle 0022 |
 | `src/domain/orset/trie/` | `TrieStorePort.ts`, `TrieBranchEntries.ts` (cycle 0026); `TrieGeometry.ts`, `TrieLeaf.ts`, `TrieBranch.ts` (cycle 0027); `GitTrieStoreAdapter.ts` lives under `src/infrastructure/adapters/` (cycle 0028); `TrieCursor.ts`, `DirtyPageSet.ts` (cycle 0029); `TrieFlusher.ts`, `FlushResult.ts` (cycle 0030); `PageCache.ts`, `PageCacheStats.ts` (cycle 0031); `TrieCompactor.ts` (cycle 0039) | `PROTO_git-trie-store-port`, `PROTO_trie-codec-and-geometry`, `INFRA_git-trie-store-adapter`, `PROTO_trie-cursor`, `PERF_lru-page-cache`, `PROTO_trie-flush`, `PROTO_trie-compaction` | port: cycle 0026; codec+geometry: cycle 0027; adapter: cycle 0028; cursor: cycle 0029; flush: cycle 0030; LRU: cycle 0031; compaction: cycle 0039 |
-| `src/domain/orset/session/` | `StateSession.ts`, `SessionHandle.ts` | `PROTO_state-session-async` | pending |
+| `src/domain/orset/session/` | `StateSession.ts`, `StateSessionCloseResult.ts` | `PROTO_state-session-async` | ✅ cycle 0040 |
 | `src/domain/orset/shadow/` | `ShadowTrieORSet.ts` | `PROTO_shadow-trie-orset` | ✅ cycle 0038 |
 | (no ORSetLike) | Sync-only seam contract; premise was invalid — `ShadowTrieORSet` is async behind `StateSession`, so a sync "-Like" parent has a single impl forever. See cycle 0023 retro. | `PROTO_orsetlike-contract` | ✗ cycle 0023 (not-met) |
 

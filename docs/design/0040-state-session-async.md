@@ -263,3 +263,62 @@ Likely first red surfaces:
 
 - `test/unit/domain/orset/session/StateSession.test.ts`
 - existing shadow-trie helpers and in-memory trie store doubles
+
+## Playback
+
+### Witness
+
+Implementation landed in:
+
+- `src/domain/errors/StateSessionError.ts`
+- `src/domain/orset/session/StateSession.ts`
+- `src/domain/orset/session/StateSessionCloseResult.ts`
+- `test/unit/domain/orset/session/StateSession.test.ts`
+
+Verification:
+
+- `npm exec vitest run test/unit/domain/orset/session/StateSession.test.ts test/unit/domain/orset/shadow/ShadowTrieORSet.test.ts test/unit/domain/orset/shadow/ShadowTrieORSet.compaction.test.ts test/unit/domain/orset/trie/TrieCursor.test.ts test/unit/domain/orset/trie/TrieFlusher.test.ts test/unit/domain/orset/trie/PageCache.test.ts`
+- `npm run typecheck`
+- `git diff --check`
+
+### Agent answers
+
+- Yes. `WarpState` is a synchronous fully materialized state object; opening a
+  trie-backed session from it would blur two different substrate meanings.
+- Yes. `StateSession` is now the one owner for the shared `PageCache`, the two
+  internal cursors, the two internal flushers, and the two internal
+  `ShadowTrieORSet` engines.
+- Yes. `close()` returns both trie root OIDs, and that is enough for later
+  JoinReducer, GC, and materialization work to reopen the trie-backed state.
+
+### Human answers
+
+- Yes. The session feels like a truthful async firewall, not a synchronous
+  wrapper with `Promise` paint.
+- Yes. The boundary between `StateSession` and the internal trie machinery is
+  clear; broader code talks to the session, not to raw cursors.
+- Yes. The cycle stops at the right seam. It does not prematurely wire reducer,
+  GC, or materialization logic.
+
+## Drift check
+
+Verdict: acceptable additive drift only.
+
+The design said "session owns the shared cache lifetime and capacity choice."
+The shipped shape keeps the stronger ownership on lifetime and sharing, but
+still accepts a caller-supplied `PageCache` instance at `open()`.
+
+That is acceptable for this cycle because:
+
+- the session still composes one shared cache across nodeAlive and edgeAlive
+- the session still keeps cache plumbing below the domain-facing seam
+- later integration work can decide whether cache capacity becomes a session
+  option or a higher-level runtime policy
+
+No negative drift was found against the cycle hill:
+
+- `StateSession` exists as the async firewall
+- `StateSession` opens from trie roots, not from synchronous `WarpState`
+- node/edge operations delegate through the session surface
+- `close()` returns both root OIDs
+- closed-session misuse rejects with a typed session error
