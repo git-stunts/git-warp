@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vitest";
 
 import { Dot } from "../../../../src/domain/crdt/Dot.ts";
+import { LWWRegister } from "../../../../src/domain/crdt/LWW.ts";
 import VersionVector from "../../../../src/domain/crdt/VersionVector.ts";
 import PageCache from "../../../../src/domain/orset/trie/PageCache.ts";
 import TrieGeometry from "../../../../src/domain/orset/trie/TrieGeometry.ts";
 import StateSession from "../../../../src/domain/orset/session/StateSession.ts";
+import type WarpState from "../../../../src/domain/services/state/WarpState.ts";
 import {
   reduceV5,
   joinStates,
   type PatchLike,
 } from "../../../../src/domain/services/JoinReducer.ts";
+import type { TickReceipt } from "../../../../src/domain/types/TickReceipt.ts";
+import type { PatchDiff } from "../../../../src/domain/types/PatchDiff.ts";
+import { EventId } from "../../../../src/domain/utils/EventId.ts";
 import cborCodec from "../../../../src/infrastructure/codecs/CborCodec.ts";
 import { InMemoryTrieStore } from "../../../helpers/trieHelpers.ts";
 
@@ -70,6 +75,45 @@ async function openSession(args?: {
 
 async function loadJoinReducerSessionModule() {
   return await import("../../../../src/domain/services/JoinReducerSession.ts");
+}
+
+function expectReduceV5ReceiptResult(
+  result: ReturnType<typeof reduceV5>,
+): { readonly state: WarpState; readonly receipts: readonly TickReceipt[] } {
+  if (
+    result !== null &&
+    typeof result === "object" &&
+    "state" in result &&
+    "receipts" in result
+  ) {
+    return result;
+  }
+  throw new Error("Expected reduceV5 receipts result");
+}
+
+function expectReduceV5DiffResult(
+  result: ReturnType<typeof reduceV5>,
+): { readonly state: WarpState; readonly diff: PatchDiff } {
+  if (
+    result !== null &&
+    typeof result === "object" &&
+    "state" in result &&
+    "diff" in result
+  ) {
+    return result;
+  }
+  throw new Error("Expected reduceV5 diff result");
+}
+
+function expectReduceV5State(result: ReturnType<typeof reduceV5>) {
+  if (
+    result !== null &&
+    typeof result === "object" &&
+    !("state" in result)
+  ) {
+    return result;
+  }
+  throw new Error("Expected plain WarpState result");
 }
 
 describe("JoinReducer session-backed path", () => {
@@ -146,7 +190,9 @@ describe("JoinReducer session-backed path", () => {
         },
       ] as const;
 
-      const syncResult = reduceV5(patches, undefined, { receipts: true });
+      const syncResult = expectReduceV5ReceiptResult(
+        reduceV5(patches, undefined, { receipts: true }),
+      );
       const sessionResult = await reduceV5InSession(patches, frame, {
         receipts: true,
       });
@@ -187,7 +233,9 @@ describe("JoinReducer session-backed path", () => {
         },
       ] as const;
 
-      const syncResult = reduceV5(patches, undefined, { trackDiff: true });
+      const syncResult = expectReduceV5DiffResult(
+        reduceV5(patches, undefined, { trackDiff: true }),
+      );
       const sessionResult = await reduceV5InSession(patches, frame, {
         trackDiff: true,
       });
@@ -275,13 +323,23 @@ describe("JoinReducer session-backed path", () => {
 
       const left = new ReducerSessionFrame({
         session: leftOpen.session,
-        prop: new Map([["node:left\x00name", { value: "Left" }]]),
+        prop: new Map([
+          [
+            "node:left\x00name",
+            LWWRegister.set(new EventId(1, "alice", "a".repeat(40), 0), "Left"),
+          ],
+        ]),
         observedFrontier: VersionVector.from({ alice: 1 }),
         edgeBirthEvent: new Map(),
       });
       const right = new ReducerSessionFrame({
         session: rightOpen.session,
-        prop: new Map([["node:right\x00name", { value: "Right" }]]),
+        prop: new Map([
+          [
+            "node:right\x00name",
+            LWWRegister.set(new EventId(1, "bob", "b".repeat(40), 0), "Right"),
+          ],
+        ]),
         observedFrontier: VersionVector.from({ bob: 1 }),
         edgeBirthEvent: new Map(),
       });
@@ -350,22 +408,22 @@ describe("JoinReducer session-backed path", () => {
 
       const merged = await joinFrames(left, right);
       const syncJoined = joinStates(
-        reduceV5([
+        expectReduceV5State(reduceV5([
           {
             patch: makePatch("alice", 1, [
               nodeAdd("node:left", new Dot("alice", 1)),
             ]),
             sha: "3".repeat(40),
           },
-        ]),
-        reduceV5([
+        ])),
+        expectReduceV5State(reduceV5([
           {
             patch: makePatch("bob", 1, [
               nodeAdd("node:right", new Dot("bob", 1)),
             ]),
             sha: "4".repeat(40),
           },
-        ]),
+        ])),
       );
 
       expect(Object.fromEntries(merged.observedFrontier)).toEqual(

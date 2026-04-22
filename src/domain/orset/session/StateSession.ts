@@ -82,9 +82,19 @@ export default class StateSession {
     return await this.#nodeAlive.contains(id);
   }
 
+  async nodeDots(id: string): Promise<ReadonlySet<string>> {
+    this.#assertOpen();
+    return await this.#nodeAlive.getDots(id);
+  }
+
   async edgeContains(key: string): Promise<boolean> {
     this.#assertOpen();
     return await this.#edgeAlive.contains(key);
+  }
+
+  async edgeDots(key: string): Promise<ReadonlySet<string>> {
+    this.#assertOpen();
+    return await this.#edgeAlive.getDots(key);
   }
 
   async addNode(id: string, dot: Dot): Promise<void> {
