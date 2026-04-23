@@ -15,6 +15,16 @@ non-TS tail in `v17` is much smaller and much sharper:
 - one large WarpRuntime augmentation artifact,
   `src/domain/warp/_wiredMethods.d.ts`
 
+Repo truth after the pull is:
+
+- `eslint.config.js`
+- `vitest.config.js`
+- `sha1sync.d.ts`
+- `src/domain/types/git-cas.d.ts`
+- `src/domain/types/trailer-codec-facade.d.ts`
+- `src/globals.d.ts`
+- `src/domain/warp/_wiredMethods.d.ts`
+
 This cycle exists to burn down the tractable non-TS tail without pretending
 that the `_wiredMethods.d.ts` file can disappear before the runtime-wiring
 story is actually fixed.
@@ -51,8 +61,9 @@ The original backlog note bundled together two different categories of work:
 - `eslint.config.js`
 - `vitest.config.js`
 - `sha1sync.d.ts`
-- `src/globals.d.ts`
 - `src/domain/types/git-cas.d.ts`
+- `src/domain/types/trailer-codec-facade.d.ts`
+- the `@git-stunts/trailer-codec` portion of `src/globals.d.ts`
 
 ### Structurally blocked
 
@@ -100,10 +111,10 @@ rename is free.
 If this file remains separate after the cycle, there needs to be a concrete
 reason rooted in publish/tooling truth.
 
-### 4. Shrink ambient declaration shims where repo truth allows
+### 4. Merge declaration shards where repo truth allows
 
-`src/globals.d.ts` and `src/domain/types/git-cas.d.ts` are boundary honesty
-problems:
+`src/globals.d.ts`, `src/domain/types/git-cas.d.ts`, and
+`src/domain/types/trailer-codec-facade.d.ts` are boundary honesty problems:
 
 - ambient globals
 - substrate shim declarations
@@ -111,6 +122,18 @@ problems:
 
 This cycle should reduce or relocate those declarations where possible without
 faking upstream typing that does not exist yet.
+
+The target shape after the cycle is:
+
+- `src/globals.d.ts`
+- `src/domain/warp/_wiredMethods.d.ts`
+
+That means:
+
+- delete `sha1sync.d.ts`
+- delete `src/domain/types/git-cas.d.ts`
+- absorb the trailer-codec facade into `src/globals.d.ts`
+- leave `_wiredMethods.d.ts` as the only blocked runtime-wiring artifact
 
 ## Playback questions
 
@@ -134,6 +157,9 @@ faking upstream typing that does not exist yet.
 ### Golden path
 
 - targeted non-TS files are converted or removed
+- the remaining tracked non-TS tail outside `.obsidian/` is exactly:
+  - `src/globals.d.ts`
+  - `src/domain/warp/_wiredMethods.d.ts`
 - `npm run typecheck` still passes
 - targeted tool/config tests still pass after config conversion
 - release/package references to touched declaration files stay honest
