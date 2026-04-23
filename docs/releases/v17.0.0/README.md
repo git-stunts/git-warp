@@ -34,7 +34,10 @@ LAYER 1 (god kills + conversions):
                                           infrastructure adapters are `.ts`
   [x] TS_cli-viz-scripts                 ← repo truth already satisfied;
                                           CLI / viz / scripts are `.ts` or `.sh`
-  [ ] TS_eliminate-remaining-js-and-dts ← config + ambient declaration tail
+  [x] TS_eliminate-remaining-js-and-dts ← cycle 0050 hill-met;
+                                          tail now only
+                                          `src/globals.d.ts` and
+                                          `src/domain/warp/_wiredMethods.d.ts`
 
 LAYER 2 (the exorcism):
   [ ] API_migrate-consumers-to-capabilities

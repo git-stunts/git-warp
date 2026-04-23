@@ -176,3 +176,52 @@ That means:
   runtime pattern that requires it
 - tool configs are renamed to `.ts` but no longer load in local or CI flows
 - declaration cleanup silently breaks package/export references
+
+## Playback
+
+### Witness
+
+- `npm exec vitest run test/unit/scripts/non-ts-tail-shape.test.ts`
+- `npm run typecheck`
+- `npx eslint test/unit/scripts/non-ts-tail-shape.test.ts`
+- `git diff --check`
+- `rg --files -g '*.js' -g '*.d.ts' . | sort | grep -v '^\\.obsidian/'`
+
+### Agent
+
+- Yes. `_wiredMethods.d.ts` remains because the runtime-wiring / capability
+  kill path has not landed; the cycle does not pretend file-extension cleanup
+  can solve that.
+- Yes. The cycle removed `sha1sync.d.ts`, `src/domain/types/git-cas.d.ts`,
+  and `src/domain/types/trailer-codec-facade.d.ts`, and moved the root config
+  pair to `eslint.config.ts` / `vitest.config.ts`.
+- Yes. The only config caveat is explicit and satisfied: `eslint.config.ts`
+  required the loader ESLint itself expects for TS config files, so `jiti`
+  was added as a dev dependency instead of silently backing out the rename.
+
+### Human
+
+- Yes. The remaining tracked non-TS tail is now just:
+  - `src/globals.d.ts`
+  - `src/domain/warp/_wiredMethods.d.ts`
+- Yes. It is obvious that `_wiredMethods.d.ts` is the blocked runtime artifact,
+  while `src/globals.d.ts` is the remaining ambient boundary shim.
+
+### Verdict
+
+`hill met`
+
+## Drift check
+
+No negative drift against the hill.
+
+Acceptable additive drift:
+
+- `src/domain/types/trailer-codec-facade.d.ts` turned out to be part of the
+  real tail even though the original pull doc omitted it.
+- Converting `eslint.config.js` truthfully required adding `jiti`, because
+  ESLint 9 expects that loader for TS config files in this repo posture.
+- A probe against `npm run typecheck:consumer` surfaced broader pre-existing
+  public-surface debt around `index.ts`, `WarpCore`, and `_wiredMethods.d.ts`;
+  that probe was intentionally left out of the cycle pass criteria rather than
+  letting `0050` smuggle in a fake runtime-surface cleanup.
