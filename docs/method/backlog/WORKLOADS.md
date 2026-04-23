@@ -39,13 +39,13 @@ dependency graph and likely write-surface overlap.
 | `0` | `B0` | 1 | 5 | Intake and triage |
 | `1` | `B1` | 4 | 31 | Root backlog classification and maintenance |
 | `2` | `B2` | 8 | 139 | Invariant debt paydown |
-| `3.0` | `B3` | 5 | 24 | Ready-now release foundations |
+| `3.0` | `B3` | 5 | 23 | Ready-now release foundations |
 | `3.1` | `B3` | 3 | 23 | Downstream release workstreams |
 | `4` | `B4` | 9 | 60 | Next-major substrate cut plus near-term queue |
 | `5` | `B5` | 9 | 98 | Doctrine follow-through plus speculative orbit |
-| Total | all | 39 | 380 | Subtotal before parked workloads |
+| Total | all | 39 | 379 | Subtotal before parked workloads |
 | `3.x` parked | `B3` | 1 | 6 | Launch-prep proof and package tail |
-| Grand total | all | 40 | 386 | Full live backlog |
+| Grand total | all | 40 | 385 | Full live backlog |
 
 ## Wave 0 — Intake Antichain
 
@@ -89,7 +89,7 @@ parallel without crossing a **live** backlog edge.
 | `WL-31-v17-cas-substrate-foundation` | 5 | `INFRA_unify-persistence-on-git-cas`, `INFRA_plumbing-violations`, `INFRA_index-builder-on-git-cas`, `INFRA_substrate-upgrade-tool`, `INFRA_uniform-git-cas` | CAS, plumbing, substrate migration |
 | `WL-32-v17-purge-chain` | 4 | `PROTO_purge-cast-hacks`, `PROTO_purge-boundary-leaks`, `PROTO_purge-fake-models`, `PROTO_purge-import-law` | Anti-sludge purge chain; one agent, serial internal order |
 | `WL-34-v17-ts-wave-sweep` | 9 | `TS_wave-01-codec`, `TS_wave-02-trust`, `TS_wave-03-dag-provenance`, `TS_wave-04-state-query`, `TS_wave-05-controllers`, `TS_wave-06-sync`, `TS_wave-07-index-small`, `TS_wave-08-strand-index-big`, `TS_wave-09-gods-and-monsters` | Wave-based TS migration sequence |
-| `WL-35-v17-hygiene-sludge-seed` | 4 | `HYGIENE_contamination-scanner-dynamic-imports`, `HYGIENE_type-import-and-template-expression-purge`, `SLUDGE_dead-code-cleanup`, `SLUDGE_factory-functions-in-tests` | Cleanup and residue that do not wait on capability-provider work |
+| `WL-35-v17-hygiene-sludge-seed` | 3 | `HYGIENE_contamination-scanner-dynamic-imports`, `HYGIENE_type-import-and-template-expression-purge`, `SLUDGE_factory-functions-in-tests` | Cleanup and residue that do not wait on capability-provider work |
 
 ## Wave 3.1 — Downstream `B3` Antichain
 
@@ -154,7 +154,7 @@ The partition is exhaustive and non-overlapping:
 - Wave `0`: `5`
 - Wave `1`: `31`
 - Wave `2`: `139`
-- Wave `3.0`: `24`
+- Wave `3.0`: `23`
 - Wave `3.1`: `23`
 - Wave `3.x`: `6`
 - Wave `4`: `60`
@@ -162,7 +162,7 @@ The partition is exhaustive and non-overlapping:
 
 Total:
 
-- `5 + 31 + 139 + 24 + 23 + 6 + 60 + 98 = 386`
+- `5 + 31 + 139 + 23 + 23 + 6 + 60 + 98 = 385`
 
 Every live backlog note is covered exactly once.
 
