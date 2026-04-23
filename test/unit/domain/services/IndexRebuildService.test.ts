@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import IndexRebuildService from '../../../../src/domain/services/index/IndexRebuildService.ts';
 import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.ts';
+import MockStreamingIndexStorage from '../../../helpers/MockStreamingIndexStorage.ts';
 
 describe('IndexRebuildService', () => {
     let service;
@@ -9,12 +10,10 @@ describe('IndexRebuildService', () => {
     let mockGraphService;
 
   beforeEach(() => {
-    mockStorage = {
-      writeBlob: vi.fn().mockResolvedValue('blob-oid'),
-      writeTree: vi.fn().mockResolvedValue('tree-oid'),
-      readTreeOids: vi.fn().mockResolvedValue({}),
-      readBlob: vi.fn().mockResolvedValue(Buffer.from('{}')),
-    };
+    mockStorage = new MockStreamingIndexStorage();
+    mockStorage.writeTree.mockResolvedValue('tree-oid');
+    mockStorage.readTreeOids.mockResolvedValue({});
+    mockStorage.readBlob.mockResolvedValue(Buffer.from('{}'));
 
     // Mock iterateNodes as an async generator
     mockGraphService = {

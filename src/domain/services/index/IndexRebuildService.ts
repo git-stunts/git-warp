@@ -7,6 +7,7 @@ import nullLogger from '../../utils/nullLogger.ts';
 import { checkAborted } from '../../utils/cancellation.ts';
 import IndexError from '../../errors/IndexError.ts';
 import type IndexStoragePort from '../../../ports/IndexStoragePort.ts';
+import type StreamingIndexStoragePort from '../../../ports/StreamingIndexStoragePort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type BlobPort from '../../../ports/BlobPort.ts';
@@ -14,6 +15,11 @@ import type TreePort from '../../../ports/TreePort.ts';
 
 type GraphService = {
   iterateNodes(opts: { ref: string; limit: number }): AsyncIterable<{ sha: string; parents: string[] }>;
+};
+
+type MaybeStreamingStorage = IndexStoragePort & {
+  writeBlobStream?: (source: AsyncIterable<Uint8Array>) => Promise<string>;
+  readBlobStream?: (oid: string) => AsyncIterable<Uint8Array>;
 };
 
 type RebuildOptions = {
@@ -47,6 +53,11 @@ type LoadOptions = {
   autoRebuild?: boolean;
   rebuildRef?: string;
 };
+
+function isStreamingStorage(storage: MaybeStreamingStorage): storage is StreamingIndexStoragePort {
+  return typeof storage.writeBlobStream === 'function'
+    && typeof storage.readBlobStream === 'function';
+}
 
 /**
  * Service for building and loading the bitmap index from the graph.
@@ -159,6 +170,17 @@ export default class IndexRebuildService {
     return base;
   }
 
+  private _requireStreamingStorage(): StreamingIndexStoragePort {
+    const storage: MaybeStreamingStorage = this.storage;
+    if (!isStreamingStorage(storage)) {
+      throw new IndexError(
+        'streaming rebuild requires a streaming index storage adapter',
+        { code: 'E_INDEX_STREAMING_STORAGE_REQUIRED' },
+      );
+    }
+    return storage;
+  }
+
   private async _rebuildInMemory(ref: string, options: InMemoryOptions): Promise<string> {
     const { limit, onProgress, signal, frontier } = options;
     const builder = new BitmapIndexBuilder();
@@ -185,7 +207,7 @@ export default class IndexRebuildService {
   private async _rebuildStreaming(ref: string, options: StreamingOptions): Promise<string> {
     const { limit, maxMemoryBytes, onFlush, onProgress, signal, frontier } = options;
     const streamOpts: ConstructorParameters<typeof StreamingBitmapIndexBuilder>[0] = {
-      storage: this.storage,
+      storage: this._requireStreamingStorage(),
       maxMemoryBytes,
     };
     if (onFlush) { streamOpts.onFlush = onFlush; }

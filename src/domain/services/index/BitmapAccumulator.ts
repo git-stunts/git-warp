@@ -126,6 +126,35 @@ export default class BitmapAccumulator {
     return shards;
   }
 
+  /**
+   * Yields bounded meta-shard chunks grouped by SHA prefix.
+   *
+   * This avoids building a second full nested shard object during finalize.
+   */
+  *iterateMetaShardChunks(maxEntriesPerChunk: number): Iterable<{ prefix: string; entries: Array<[string, number]> }> {
+    if (maxEntriesPerChunk <= 0) {
+      throw new Error('maxEntriesPerChunk must be a positive number');
+    }
+    const active = new Map<string, Array<[string, number]>>();
+    for (const [sha, id] of this.shaToId) {
+      const prefix = sha.substring(0, 2);
+      const bucket = active.get(prefix) ?? [];
+      bucket.push([sha, id]);
+      if (bucket.length >= maxEntriesPerChunk) {
+        yield { prefix, entries: bucket };
+        active.set(prefix, []);
+        continue;
+      }
+      active.set(prefix, bucket);
+    }
+    for (const [prefix, entries] of active) {
+      if (entries.length === 0) {
+        continue;
+      }
+      yield { prefix, entries };
+    }
+  }
+
   private _getOrCreateId(sha: string): number {
     const existing = this.shaToId.get(sha);
     if (existing !== undefined) {

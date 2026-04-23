@@ -19,7 +19,8 @@ describe('StreamingBitmapIndexBuilder chunked finalize', () => {
 
     const entries = storage.writeTree.mock.calls[0]?.[0];
     expect(entries).toBeDefined();
-    expect(entries.some((entry: string) => entry.includes('shards_fwd_aa.chunk-000000.cbor'))).toBe(true);
-    expect(entries.some((entry: string) => entry.includes('shards_rev_bb.chunk-000000.cbor'))).toBe(true);
+    const safeEntries = entries ?? [];
+    expect(safeEntries.some((entry: string) => entry.includes('shards_fwd_aa.chunk-000000.cbor'))).toBe(true);
+    expect(safeEntries.some((entry: string) => entry.includes('shards_rev_bb.chunk-000000.cbor'))).toBe(true);
   });
 });

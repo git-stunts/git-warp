@@ -3,6 +3,7 @@ import IndexRebuildService from '../../../../src/domain/services/index/IndexRebu
 import BitmapIndexReader from '../../../../src/domain/services/index/BitmapIndexReader.ts';
 import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import MockStreamingIndexStorage from '../../../helpers/MockStreamingIndexStorage.ts';
 
 const crypto = new NodeCryptoAdapter();
 
@@ -47,11 +48,10 @@ describe('Service Logging Integration', () => {
           yield new GraphNode({ sha: 'sha2', message: 'msg2', parents: ['sha1'] });
         })
       };
-      mockStorage = {
-        writeBlob: vi.fn().mockResolvedValue('blob-oid'),
-        writeTree: vi.fn().mockResolvedValue('tree-oid'),
-        readTreeOids: vi.fn().mockResolvedValue({ 'meta_ab.json': 'aaa1bbb2ccc3ddd4eee5fff6aaa1bbb2ccc3ddd4' }),
-      };
+      mockStorage = new MockStreamingIndexStorage();
+      mockStorage.writeBlob.mockResolvedValue('blob-oid');
+      mockStorage.writeTree.mockResolvedValue('tree-oid');
+      mockStorage.readTreeOids.mockResolvedValue({ 'meta_ab.json': 'aaa1bbb2ccc3ddd4eee5fff6aaa1bbb2ccc3ddd4' });
       mockLogger = createMockLogger();
     });
 

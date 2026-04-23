@@ -16,8 +16,9 @@ function encodeBitmap(ids: number[]): Uint8Array {
 describe('BitmapIndexReader chunked shard support', () => {
   it('looks up IDs and unions edge bitmaps across chunked shard paths', async () => {
     const storage = new MockStreamingIndexStorage();
-    const metaChunk0 = await storage.writeBlob(defaultCodec.encode({ aa0001: 0, bb0001: 1 }));
-    const metaChunk1 = await storage.writeBlob(defaultCodec.encode({ bb0002: 2 }));
+    const metaAaChunk0 = await storage.writeBlob(defaultCodec.encode({ aa0001: 0 }));
+    const metaBbChunk0 = await storage.writeBlob(defaultCodec.encode({ bb0001: 1 }));
+    const metaBbChunk1 = await storage.writeBlob(defaultCodec.encode({ bb0002: 2 }));
     const edgeChunk0 = await storage.writeBlob(defaultCodec.encode({ aa0001: encodeBitmap([1]) }));
     const edgeChunk1 = await storage.writeBlob(defaultCodec.encode({ aa0001: encodeBitmap([2]) }));
     const revChunk0 = await storage.writeBlob(defaultCodec.encode({ bb0001: encodeBitmap([0]) }));
@@ -25,8 +26,9 @@ describe('BitmapIndexReader chunked shard support', () => {
 
     const reader = new BitmapIndexReader({ storage });
     reader.setup({
-      'meta_aa.chunk-000000.cbor': metaChunk0,
-      'meta_aa.chunk-000001.cbor': metaChunk1,
+      'meta_aa.chunk-000000.cbor': metaAaChunk0,
+      'meta_bb.chunk-000000.cbor': metaBbChunk0,
+      'meta_bb.chunk-000001.cbor': metaBbChunk1,
       'shards_fwd_aa.chunk-000000.cbor': edgeChunk0,
       'shards_fwd_aa.chunk-000001.cbor': edgeChunk1,
       'shards_rev_bb.chunk-000000.cbor': revChunk0,

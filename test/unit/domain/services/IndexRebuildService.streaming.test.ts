@@ -1,29 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import IndexRebuildService from '../../../../src/domain/services/index/IndexRebuildService.ts';
 import GraphNode from '../../../../src/domain/entities/GraphNode.ts';
+import MockStreamingIndexStorage from '../../../helpers/MockStreamingIndexStorage.ts';
 
 describe('IndexRebuildService streaming mode', () => {
     let service;
     let mockStorage;
     let mockGraphService;
-    let writtenBlobs;
 
   beforeEach(() => {
-    writtenBlobs = new Map();
-    let blobCounter = 0;
-
-    mockStorage = {
-      writeBlob: vi.fn().mockImplementation(async (buffer) => {
-        const oid = `b10b${String(blobCounter++).padStart(36, '0')}`;
-        writtenBlobs.set(oid, buffer);
-        return oid;
-      }),
-      writeTree: vi.fn().mockResolvedValue('tree-oid'),
-      readTreeOids: vi.fn().mockResolvedValue({}),
-      readBlob: vi.fn().mockImplementation(async (oid) => {
-        return writtenBlobs.get(oid) || Buffer.from('{}');
-      }),
-    };
+    mockStorage = new MockStreamingIndexStorage();
   });
 
   describe('rebuild with maxMemoryBytes', () => {
@@ -39,7 +25,7 @@ describe('IndexRebuildService streaming mode', () => {
 
       const treeOid = await service.rebuild('main', { maxMemoryBytes: 50 * 1024 * 1024 });
 
-      expect(treeOid).toBe('tree-oid');
+      expect(treeOid).toMatch(/^tree_/);
       expect(mockStorage.writeTree).toHaveBeenCalled();
     });
 
@@ -143,7 +129,7 @@ describe('IndexRebuildService streaming mode', () => {
       // Without maxMemoryBytes, should use in-memory builder (original behavior)
       const treeOid = await service.rebuild('main');
 
-      expect(treeOid).toBe('tree-oid');
+      expect(treeOid).toMatch(/^tree_/);
       expect(mockStorage.writeTree).toHaveBeenCalled();
     });
 

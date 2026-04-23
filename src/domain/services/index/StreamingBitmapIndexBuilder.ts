@@ -12,14 +12,14 @@
  */
 
 import type CodecPort from '../../../ports/CodecPort.ts';
-import type IndexStoragePort from '../../../ports/IndexStoragePort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
+import type StreamingIndexStoragePort from '../../../ports/StreamingIndexStoragePort.ts';
 import defaultCodec from '../../utils/defaultCodec.ts';
 import nullLogger from '../../utils/nullLogger.ts';
 import { checkAborted } from '../../utils/cancellation.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
 import { textEncode } from '../../utils/bytes.ts';
-import { getRoaringBitmap32, type RoaringBitmapSubset } from '../../utils/roaring.ts';
+import { normalizeToAsyncIterable } from '../../utils/streamUtils.ts';
 import IndexError from '../../errors/IndexError.ts';
 import BitmapAccumulator from './BitmapAccumulator.ts';
 
@@ -33,7 +33,7 @@ export type FlushStats = {
 };
 
 export type BuilderOptions = {
-  storage: IndexStoragePort;
+  storage: StreamingIndexStoragePort;
   maxMemoryBytes?: number;
   onFlush?: (stats: FlushStats) => void;
   logger?: LoggerPort;
@@ -41,7 +41,7 @@ export type BuilderOptions = {
 };
 
 export default class StreamingBitmapIndexBuilder {
-  private readonly _storage: IndexStoragePort;
+  private readonly _storage: StreamingIndexStoragePort;
   private readonly _codec: CodecPort;
   private readonly _logger: LoggerPort;
   private readonly _maxMemoryBytes: number;
@@ -61,17 +61,24 @@ export default class StreamingBitmapIndexBuilder {
     this._accumulator = new BitmapAccumulator();
   }
 
-  private static _validate(options: BuilderOptions): { storage: IndexStoragePort; maxMemoryBytes: number } {
+  private static _validate(options: BuilderOptions): { storage: StreamingIndexStoragePort; maxMemoryBytes: number } {
     StreamingBitmapIndexBuilder._assertStorage(options.storage);
     const maxMem = options.maxMemoryBytes ?? DEFAULT_MAX_MEMORY_BYTES;
     StreamingBitmapIndexBuilder._assertMaxMemory(maxMem);
     return { storage: options.storage, maxMemoryBytes: maxMem };
   }
 
-  private static _assertStorage(storage: IndexStoragePort | null | undefined): asserts storage is IndexStoragePort {
-    if (storage === null || storage === undefined) {
+  private static _assertStorage(
+    storage: StreamingIndexStoragePort | null | undefined,
+  ): asserts storage is StreamingIndexStoragePort {
+    if (
+      storage === null
+      || storage === undefined
+      || typeof storage.writeBlobStream !== 'function'
+      || typeof storage.readBlobStream !== 'function'
+    ) {
       throw new IndexError(
-        'StreamingBitmapIndexBuilder requires a storage adapter',
+        'StreamingBitmapIndexBuilder requires a streaming storage adapter',
         { code: 'E_INDEX_INVALID_OPTIONS', context: { field: 'storage' } },
       );
     }
@@ -202,7 +209,10 @@ export default class StreamingBitmapIndexBuilder {
         tasks.push(
           (async (): Promise<void> => {
             const encoded = this._codec.encode(data);
-            const oid = await this._storage.writeBlob(encoded);
+            const oid = await this._storage.writeBlobStream(
+              normalizeToAsyncIterable(encoded),
+              { slug: path, mime: 'application/cbor', size: encoded.length },
+            );
             if (!this._flushedChunks.has(path)) {
               this._flushedChunks.set(path, []);
             }
@@ -215,63 +225,39 @@ export default class StreamingBitmapIndexBuilder {
   }
 
   private async _writeMetaShards(): Promise<string[]> {
-    const metaShards = this._accumulator.buildMetaShards();
-    return await Promise.all(
-      Object.entries(metaShards).map(async ([prefix, map]) => {
-        const encoded = this._codec.encode(map);
-        const oid = await this._storage.writeBlob(encoded);
-        return `100644 blob ${oid}\tmeta_${prefix}.cbor`;
-      }),
-    );
+    const entries: string[] = [];
+    const chunkOrdinal = new Map<string, number>();
+    const chunkLimit = Math.max(1, Math.floor(this._maxMemoryBytes / 256));
+    for (const { prefix, entries: shardEntries } of this._accumulator.iterateMetaShardChunks(chunkLimit)) {
+      const chunkIndex = chunkOrdinal.get(prefix) ?? 0;
+      const encoded = this._codec.encode(Object.fromEntries(shardEntries));
+      const chunkPath = this._chunkPath(`meta_${prefix}.cbor`, chunkIndex);
+      const oid = await this._storage.writeBlobStream(
+        normalizeToAsyncIterable(encoded),
+        { slug: chunkPath, mime: 'application/cbor', size: encoded.length },
+      );
+      entries.push(`100644 blob ${oid}\t${chunkPath}`);
+      chunkOrdinal.set(prefix, chunkIndex + 1);
+    }
+    return entries;
   }
 
   private async _processBitmapShards(
     signal?: AbortSignal,
   ): Promise<string[]> {
-    return await Promise.all(
-      Array.from(this._flushedChunks.entries()).map(async ([path, oids]) => {
-        checkAborted(signal, 'processBitmapShards');
-        const finalOid = oids.length === 1
-          ? oids[0]
-          : await this._mergeChunks(oids, signal);
-        return `100644 blob ${finalOid}\t${path}`;
-      }),
-    );
-  }
-
-  private async _mergeChunks(
-    oids: string[],
-    signal?: AbortSignal,
-  ): Promise<string> {
-    const merged = await this._loadAndMergeAllChunks(oids, signal);
-    const result: Record<string, Uint8Array> = {};
-    for (const [sha, bitmap] of Object.entries(merged)) {
-      result[sha] = new Uint8Array(bitmap.serialize(true));
-    }
-    return await this._storage.writeBlob(this._codec.encode(result));
-  }
-
-  private async _loadAndMergeAllChunks(
-    oids: string[],
-    signal?: AbortSignal,
-  ): Promise<Record<string, RoaringBitmapSubset>> {
-    const RoaringBitmap32 = getRoaringBitmap32();
-    const merged: Record<string, RoaringBitmapSubset> = {};
-    for (const oid of oids) {
-      checkAborted(signal, 'mergeChunks');
-      const buffer = await this._storage.readBlob(oid);
-      const chunk = this._codec.decode<Record<string, Uint8Array | number[]>>(buffer);
-      for (const [sha, bitmapBytes] of Object.entries(chunk)) {
-        const bytes = bitmapBytes instanceof Uint8Array ? bitmapBytes : new Uint8Array(bitmapBytes);
-        const bitmap = RoaringBitmap32.deserialize(bytes, true);
-        if (!merged[sha]) {
-          merged[sha] = bitmap;
-        } else {
-          merged[sha].orInPlace(bitmap);
-        }
+    const entries: string[] = [];
+    for (const [path, oids] of this._flushedChunks.entries()) {
+      checkAborted(signal, 'processBitmapShards');
+      for (const [index, oid] of oids.entries()) {
+        entries.push(`100644 blob ${oid}\t${this._chunkPath(path, index)}`);
       }
     }
-    return merged;
+    return entries;
+  }
+
+  private _chunkPath(path: string, index: number): string {
+    const base = path.endsWith('.cbor') ? path.slice(0, -5) : path;
+    return `${base}.chunk-${String(index).padStart(6, '0')}.cbor`;
   }
 
   private async _writeFrontierEntries(

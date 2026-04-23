@@ -18,7 +18,7 @@ export default class MockStreamingIndexStorage extends StreamingIndexStoragePort
   private _treeCounter: number = 0;
 
   writeBlob = vi.fn(async (content: Uint8Array | string) => {
-    const oid = `blob_${String(this._blobCounter++).padStart(40, '0')}`;
+    const oid = String(this._blobCounter++).padStart(40, '0');
     const bytes = typeof content === 'string' ? new TextEncoder().encode(content) : content;
     this._blobStore.set(oid, cloneBytes(bytes));
     return oid;

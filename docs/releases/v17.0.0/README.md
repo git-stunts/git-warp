@@ -72,7 +72,13 @@ LAYER 5 (launch-prep proof and release hardening tail):
 ```
   [ ] INFRA_unify-persistence-on-git-cas
   [ ] INFRA_uniform-git-cas
-  [ ] INFRA_index-builder-on-git-cas
+  [x] INFRA_index-builder-on-git-cas     ← cycle 0057 hill-met; streaming
+                                          rebuilds now require a real
+                                          streaming storage seam,
+                                          shard payloads write through
+                                          git-cas-backed storage, and
+                                          finalize keeps chunked shard
+                                          paths instead of readback-merge
   [ ] INFRA_plumbing-violations
   [ ] INFRA_substrate-upgrade-tool
 ```

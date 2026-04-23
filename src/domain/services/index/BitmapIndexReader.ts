@@ -20,7 +20,12 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function isMetaShardPath(path: string): boolean {
-  return path.startsWith('meta_') && path.endsWith('.cbor');
+  return /^meta_[0-9a-f]{2}(?:\.chunk-\d{6})?\.cbor$/.test(path);
+}
+
+function isChunkedVariant(path: string, basePath: string): boolean {
+  const base = basePath.endsWith('.cbor') ? basePath.slice(0, -5) : basePath;
+  return path.startsWith(`${base}.chunk-`) && path.endsWith('.cbor');
 }
 
 /**
@@ -109,8 +114,14 @@ export default class BitmapIndexReader {
   async lookupId(sha: string): Promise<number | undefined> {
     const prefix = sha.substring(0, 2);
     const path = `meta_${prefix}.cbor`;
-    const idMap = await this._getOrLoadShard(path) as Record<string, number>;
-    return idMap[sha];
+    for (const actualPath of this._resolveShardPaths(path)) {
+      const idMap = await this._getOrLoadShard(actualPath) as Record<string, number>;
+      const id = idMap[sha];
+      if (typeof id === 'number') {
+        return id;
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -130,15 +141,27 @@ export default class BitmapIndexReader {
   private async _getEdges(sha: string, type: string): Promise<string[]> {
     const prefix = sha.substring(0, 2);
     const shardPath = `shards_${type}_${prefix}.cbor`;
-    const shard = await this._getOrLoadShard(shardPath) as Record<string, Uint8Array>;
-
-    const bitmapBytes = shard[sha];
-    if (!bitmapBytes || !(bitmapBytes instanceof Uint8Array) || bitmapBytes.length === 0) {
-      return [];
+    const neighborIds = new Set<number>();
+    for (const actualPath of this._resolveShardPaths(shardPath)) {
+      const shard = await this._getOrLoadShard(actualPath) as Record<string, Uint8Array>;
+      const bitmapBytes = shard[sha];
+      if (!bitmapBytes || !(bitmapBytes instanceof Uint8Array) || bitmapBytes.length === 0) {
+        continue;
+      }
+      const ids = this._deserializeBitmapIds(bitmapBytes, actualPath);
+      for (const id of ids) {
+        neighborIds.add(id);
+      }
     }
-    const ids = this._deserializeBitmapIds(bitmapBytes, shardPath);
     const idToSha = await this._buildIdToShaMapping();
-    return ids.filter((id) => typeof idToSha[id] === 'string').map((id) => idToSha[id] as string);
+    const result: string[] = [];
+    for (const id of neighborIds) {
+      const neighbor = idToSha[id];
+      if (typeof neighbor === 'string') {
+        result.push(neighbor);
+      }
+    }
+    return result;
   }
 
   private _deserializeBitmapIds(bitmapBytes: Uint8Array, shardPath: string): number[] {
@@ -210,6 +233,14 @@ export default class BitmapIndexReader {
     }
     const buffer = await this._loadShardBuffer(path, oid);
     return this._decodeAndCacheShard(buffer, path, oid);
+  }
+
+  private _resolveShardPaths(basePath: string): string[] {
+    const exact = this.shardOids.has(basePath) ? [basePath] : [];
+    const chunked = Array.from(this.shardOids.keys())
+      .filter((path) => isChunkedVariant(path, basePath))
+      .sort();
+    return [...exact, ...chunked];
   }
 
   private _decodeAndCacheShard(buffer: Uint8Array, path: string, oid: string): LoadedShard {
