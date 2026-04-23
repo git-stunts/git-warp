@@ -3,7 +3,6 @@ id: API_migrate-consumers-to-capabilities
 blocks:
   - API_kill-warpruntime
 blocked_by:
-  - API_warpgraph-factory
   - GOD_query-controller
   - GOD_materialize-controller
   - GOD_strand-service
@@ -27,6 +26,26 @@ Key consumers:
 
 Each consumer should accept the narrowest capability it needs, not the
 full WarpGraph. This is the hexagonal architecture payoff.
+
+## 0059 public seam tranche
+
+Cycle `0059` began this migration at the public factory and sync seam:
+
+- `openWarpGraph()` now binds frozen capability bags without
+  `as unknown as`
+- `WarpGraph` no longer exposes `_runtime`
+- direct sync now accepts the public capability bag
+  (`graph.sync.syncWith(peerGraph)`)
+- the API reference no longer teaches `graphB._runtime`
+
+That means this note is no longer blocked on `API_warpgraph-factory`. The
+remaining work is the internal consumer tail:
+
+- `Observer` / `LogicalTraversal` runtime coupling
+- `QueryController` and detached graph runtime coupling
+- `WarpApp` / `WarpCore` bridge residue
+- other internal files that still name `WarpRuntime` where a narrower
+  capability should exist instead
 
 ## Deferred content accessor surface
 

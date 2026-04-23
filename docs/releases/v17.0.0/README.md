@@ -60,7 +60,17 @@ LAYER 1 (god kills + conversions):
                                           `src/domain/warp/_wiredMethods.d.ts`
 
 LAYER 2 (the exorcism):
-  [ ] API_migrate-consumers-to-capabilities
+  [~] API_migrate-consumers-to-capabilities ← cycle 0059 hill-met for the public
+                                          factory + sync seam:
+                                          `openWarpGraph()` now binds
+                                          runtime-checked capability bags,
+                                          `_runtime` is gone from
+                                          `WarpGraph`, and direct peer sync
+                                          accepts `graph.sync.syncWith(peerGraph)`;
+                                          remaining work is the internal
+                                          consumer tail (`Observer`,
+                                          `QueryController`, detached graph,
+                                          `WarpApp` / `WarpCore` bridge residue)
 
 LAYER 3:
   [ ] API_kill-warpruntime               ← THE DEVIL DIES
