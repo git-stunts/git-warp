@@ -125,3 +125,37 @@ Add a doc-shape ratchet that fails until:
 
 - `npm exec vitest run test/unit/scripts/factory-functions-in-tests-shape.test.ts`
 - `git diff --check`
+
+## Playback
+
+### Agent
+
+- Yes. The real constructor-wrapper sludge was already closed in commit
+  `2e99c0cb`, and the old backlog note itself already recorded that repo truth.
+- Yes. The live backlog and workload graph no longer present
+  `SLUDGE_factory-functions-in-tests` or `WL-35-v17-hygiene-sludge-seed` as
+  pending work.
+- Yes. The `v17` release ledger now explains that the remaining wire-format
+  helpers are intentional test transport fixtures, not constructor-wrapper
+  sludge.
+
+### Human
+
+- Yes. It is now clear why this cycle did not delete more test helpers.
+- Yes. It is clear that the remaining wire-format builders exist to exercise
+  decode -> reduce paths rather than bypass them.
+
+### Verdict
+
+`hill met`
+
+## Drift check
+
+No negative drift.
+
+Positive drift only:
+
+- the cycle also removed the stale `WL-35` workload row instead of leaving a
+  dead queue behind
+- the cycle repaired the `0054` retro breadcrumb so the most recent hygiene
+  closeout no longer points at a workload that does not exist
