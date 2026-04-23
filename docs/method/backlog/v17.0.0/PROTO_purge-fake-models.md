@@ -90,6 +90,20 @@ With `Op` as a real class hierarchy:
   the type that owns it).
 - `OpLike` file disappears entirely.
 
+This step explicitly owns the residue that used to sit in the separate
+`SLUDGE_dead-code-cleanup` card:
+
+- `src/domain/services/strand/conflictTargetIdentity.ts` still imports
+  `OP_STRATEGIES` from `JoinReducer.ts`
+- conflict analysis still depends on the old strategy registry rather
+  than op-class dispatch
+- `ConflictCandidateCollector` therefore keeps `OpStrategies.ts`,
+  `OpStrategy.ts`, and `OpLike.ts` live
+
+Until `ConflictCandidateCollector` / conflict-target analysis move onto
+real op-class dispatch, those files are not dead code. They are active
+fake-model residue owned here.
+
 ### Step 4 — Graduate the adjacent cluster
 
 `PatchHydrator`, `MessageSchemaDetector`, `ForkController`,

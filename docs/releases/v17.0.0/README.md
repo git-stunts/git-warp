@@ -15,7 +15,10 @@ LAYER 0 (foundation):
   [x] GOD_query-builder
   [x] SLUDGE_factory-functions-in-tests
   [x] TS_wave-01-codec through TS_wave-09-gods-and-monsters  ← DEATHBRINGER
-  [!] SLUDGE_dead-code-cleanup           ← BLOCKED (ConflictCandidateCollector)
+  [✗] SLUDGE_dead-code-cleanup           ← cycle 0052 not-met; code is still live
+                                          through `conflictTargetIdentity.ts` /
+                                          conflict analysis dispatch; owning trunk
+                                          is `PROTO_purge-fake-models`
   [x] SLUDGE_content-access-duplication  ← cycle 0051 hill-met; implementation duplication already
                                           reduced into `QueryContent.ts`; remaining
                                           `NodeContent` / `EdgeContent` surface belongs

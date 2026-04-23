@@ -132,3 +132,34 @@ Add a docs ratchet that fails until:
 - `npm exec vitest run test/unit/scripts/dead-code-cleanup-shape.test.ts`
 - `git diff --check`
 
+## Playback
+
+### Agent
+
+- Yes. `src/domain/services/strand/conflictTargetIdentity.ts` still imports
+  `OP_STRATEGIES` from `JoinReducer.ts`, which proves the strategy registry and
+  adjacent files are not dead.
+- Yes. `docs/method/backlog/v17.0.0/PROTO_purge-fake-models.md` now explicitly
+  owns the `ConflictCandidateCollector` / conflict-target dispatch residue.
+- Yes. The `v17` release ledger no longer presents
+  `SLUDGE_dead-code-cleanup` as a standalone pending cleanup.
+
+### Human
+
+- Yes. It is clear why the cycle closed as `not met`: the files are still live,
+  so deleting them here would have been fake progress.
+- Yes. It is clear that the real owner is `PROTO_purge-fake-models`, not a
+  separate deletions card.
+
+### Verdict
+
+`not met`
+
+## Drift check
+
+No negative drift.
+
+Positive drift only:
+
+- the cycle converted a blocked residue card into explicit ownership under the
+  fake-model purge trunk instead of minting yet another follow-up note
