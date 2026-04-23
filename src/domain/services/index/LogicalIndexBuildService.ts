@@ -17,7 +17,7 @@ import type WarpState from '../state/WarpState.ts';
 import type { IndexShard } from '../../artifacts/IndexShard.ts';
 import type { LWWRegister } from '../../crdt/LWW.ts';
 import type { PropValue } from '../../types/PropValue.ts';
-import StateSession from '../../orset/session/StateSession.ts';
+import type StateSession from '../../orset/session/StateSession.ts';
 import {
   collectAliveNodeIdsFromSession,
   collectAliveNodeSetFromSession,

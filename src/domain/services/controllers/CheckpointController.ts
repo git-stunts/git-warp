@@ -16,8 +16,8 @@ import {
   CHECKPOINT_SCHEMA_STANDARD,
   isV5CheckpointSchema,
 } from '../state/checkpointHelpers.ts';
-import { loadCheckpoint, type LoadedCheckpoint } from '../state/checkpointLoad.ts';
-import { create as createCheckpointCommit } from '../state/checkpointCreate.ts';
+import { loadCheckpoint, type LoadedCheckpoint, type LoadPersistence } from '../state/checkpointLoad.ts';
+import { create as createCheckpointCommit, type CheckpointPersistence } from '../state/checkpointCreate.ts';
 import executeGC from '../executeGC.ts';
 import GCMetrics from '../GCMetrics.ts';
 import { computeAppliedVV } from '../state/CheckpointSerializer.ts';
@@ -38,8 +38,6 @@ import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
 import type StateHashService from '../state/StateHashService.ts';
 import type MaterializedViewService from '../MaterializedViewService.ts';
 import type GCPolicy from '../GCPolicy.ts';
-import type { CheckpointPersistence } from '../state/checkpointCreate.ts';
-import type { LoadPersistence } from '../state/checkpointLoad.ts';
 
 type CheckpointHost = Pick<WarpRuntime, never> & {
   _graphName: string;

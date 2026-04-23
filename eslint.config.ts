@@ -35,6 +35,8 @@ function loadQuarantineFiles(manifestId) {
 }
 
 const QUARANTINE_0025D_IMPORT_LAW = loadQuarantineFiles("0025D-import-law");
+const QUARANTINE_HYGIENE_CONSISTENT_TYPE_IMPORTS = loadQuarantineFiles("HYGIENE-consistent-type-imports");
+const QUARANTINE_HYGIENE_RESTRICT_TEMPLATE_EXPRESSIONS = loadQuarantineFiles("HYGIENE-restrict-template-expressions");
 
 // ── Base: recommended + strict-type-checked + JSDoc for src/ and bin/ ────────
 // Every rule is "error". Zero warnings. Zero tolerance. Maximum pain.
@@ -139,17 +141,19 @@ export default tseslint.config(
       "@typescript-eslint/no-unnecessary-boolean-literal-compare": "error",
       "@typescript-eslint/return-await": ["error", "always"],
 
-      // ── ANTI-SLUDGE: bundle-derived hygiene rules (deferred) ─────────────
-      // `@typescript-eslint/consistent-type-imports` and
-      // `@typescript-eslint/restrict-template-expressions` were part of the
-      // bundle import list per ANTI_SLUDGE_DECISIONS.md, but hot-enabling
-      // them surfaces ~50 pre-existing hygiene violations — many with
-      // cascading autofix interactions (type-import splitting triggers
-      // no-duplicate-imports). These belong in a separate hygiene cycle;
-      // they are NOT anti-sludge in the 0025A/B/C/D sense.
-      //
-      // Tracked in: docs/method/backlog/v17.0.0/HYGIENE_type-import-and-
-      // template-expression-purge.md (filed at P7 landing).
+      // ── Hygiene rules with rule-scoped quarantines ───────────────────────
+      "@typescript-eslint/consistent-type-imports": ["error", {
+        prefer: "type-imports",
+        fixStyle: "inline-type-imports",
+      }],
+      "@typescript-eslint/restrict-template-expressions": ["error", {
+        allowAny: false,
+        allowBoolean: false,
+        allowNever: false,
+        allowNullish: false,
+        allowNumber: true,
+        allowRegExp: false,
+      }],
 
       // ── JSDoc BRUTALITY ─────────────────────────────────────────────────
       "jsdoc/require-jsdoc": ["error", {
@@ -576,6 +580,18 @@ export default tseslint.config(
       // Disable only the import-law rule for these specific files.
       // All other rules continue to apply (rule-scoped quarantine).
       "no-restricted-imports": "off",
+    },
+  }]),
+  ...(QUARANTINE_HYGIENE_CONSISTENT_TYPE_IMPORTS.length === 0 ? [] : [{
+    files: QUARANTINE_HYGIENE_CONSISTENT_TYPE_IMPORTS,
+    rules: {
+      "@typescript-eslint/consistent-type-imports": "off",
+    },
+  }]),
+  ...(QUARANTINE_HYGIENE_RESTRICT_TEMPLATE_EXPRESSIONS.length === 0 ? [] : [{
+    files: QUARANTINE_HYGIENE_RESTRICT_TEMPLATE_EXPRESSIONS,
+    rules: {
+      "@typescript-eslint/restrict-template-expressions": "off",
     },
   }]),
 

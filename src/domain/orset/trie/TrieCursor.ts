@@ -6,7 +6,7 @@ import type CodecPort from "../../../ports/CodecPort.ts";
 import RouteKey from "../route/RouteKey.ts";
 
 import DirtyPageSet, { encodeDirtyPath } from "./DirtyPageSet.ts";
-import PageCache from "./PageCache.ts";
+import type PageCache from "./PageCache.ts";
 import TrieBranch from "./TrieBranch.ts";
 import TrieCompactor from "./TrieCompactor.ts";
 import type TrieGeometry from "./TrieGeometry.ts";

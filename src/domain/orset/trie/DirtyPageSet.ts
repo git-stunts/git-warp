@@ -1,7 +1,7 @@
 import TrieCursorError from "../../errors/TrieCursorError.ts";
 
-import TrieBranch from "./TrieBranch.ts";
-import TrieLeaf from "./TrieLeaf.ts";
+import type TrieBranch from "./TrieBranch.ts";
+import type TrieLeaf from "./TrieLeaf.ts";
 
 /**
  * Path-key encoding used throughout the dirty snapshot.

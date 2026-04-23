@@ -11,13 +11,14 @@
 import type { Direction, NeighborEdge, NeighborOptions } from '../../../ports/NeighborProviderPort.ts';
 import TraversalError from '../../errors/TraversalError.ts';
 import { checkAborted } from '../../utils/cancellation.ts';
-import TraversalContext, {
+import {
   type BfsFn,
   type TopoSortFn,
   type RunStats,
   type TraversalStats,
   DEFAULT_MAX_NODES,
   DEFAULT_MAX_DEPTH,
+  type default as TraversalContext,
 } from './TraversalContext.ts';
 
 export default class GraphAnalysis {

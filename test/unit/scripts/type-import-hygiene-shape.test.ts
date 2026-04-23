@@ -20,12 +20,27 @@ describe('type-import/template-expression hygiene posture', () => {
     expect(eslintConfig).toContain('allowNullish: false');
     expect(eslintConfig).toContain('allowNumber: true');
     expect(eslintConfig).toContain('allowRegExp: false');
+    expect(eslintConfig).toContain('HYGIENE-consistent-type-imports');
+    expect(eslintConfig).toContain('HYGIENE-restrict-template-expressions');
   });
 
   it('records the rules as active rather than deferred in the decisions doc', () => {
     const decisions = readUtf8('docs/ANTI_SLUDGE_DECISIONS.md');
 
-    expect(decisions).toContain('`@typescript-eslint/consistent-type-imports` | ESLint | active hygiene rule');
-    expect(decisions).toContain('`@typescript-eslint/restrict-template-expressions` | ESLint | active hygiene rule');
+    expect(decisions).toContain('`@typescript-eslint/consistent-type-imports` | ESLint (active hygiene rule; quarantine-backed paydown) | bundle |');
+    expect(decisions).toContain('`@typescript-eslint/restrict-template-expressions` | ESLint (active hygiene rule; quarantine-backed paydown) | bundle |');
+  });
+
+  it('keeps the hygiene quarantine manifests explicit and legible', () => {
+    const consistentManifest = readUtf8('policy/quarantines/HYGIENE-consistent-type-imports.json');
+    const templateManifest = readUtf8('policy/quarantines/HYGIENE-restrict-template-expressions.json');
+
+    expect(consistentManifest).toContain('"rule_id": "@typescript-eslint/consistent-type-imports"');
+    expect(consistentManifest).toContain('src/domain/WarpCore.ts');
+    expect(consistentManifest).toContain('src/domain/services/strand/descriptorNormalization.ts');
+
+    expect(templateManifest).toContain('"rule_id": "@typescript-eslint/restrict-template-expressions"');
+    expect(templateManifest).toContain('bin/cli/commands/doctor/checksAux.ts');
+    expect(templateManifest).toContain('src/domain/utils/bytes.ts');
   });
 });

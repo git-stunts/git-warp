@@ -132,9 +132,9 @@ stabilizes the above).
 | `ts-no-fetch-in-core` | Semgrep + ESLint | bundle |
 | `ts-no-process-env-in-core` | Semgrep + ESLint | already ours (strengthen) |
 | `ts-no-date-now-in-core` | ESLint | already ours — keep stricter form |
-| `@typescript-eslint/consistent-type-imports` | ESLint | bundle |
+| `@typescript-eslint/consistent-type-imports` | ESLint (active hygiene rule; quarantine-backed paydown) | bundle |
 | `@typescript-eslint/no-unnecessary-condition` | ESLint | bundle |
-| `@typescript-eslint/restrict-template-expressions` | ESLint | bundle |
+| `@typescript-eslint/restrict-template-expressions` | ESLint (active hygiene rule; quarantine-backed paydown) | bundle |
 | `noImplicitOverride` | tsconfig | bundle |
 | `isolatedModules` | tsconfig | bundle |
 | Core→adapter import ban (adapted to our layout) | ESLint `no-restricted-imports` | bundle, adapted |
@@ -184,3 +184,4 @@ stabilizes the above).
 | Date | Change |
 |---|---|
 | 2026-04-16 | Initial adoption. Decisions 1–5 locked. |
+| 2026-04-23 | Activated `consistent-type-imports` and `restrict-template-expressions` as quarantine-backed hygiene rules. |

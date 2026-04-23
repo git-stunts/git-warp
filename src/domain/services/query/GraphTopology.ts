@@ -12,7 +12,7 @@ import type { Direction, NeighborEdge, NeighborOptions } from '../../../ports/Ne
 import TraversalError from '../../errors/TraversalError.ts';
 import MinHeap from '../../utils/MinHeap.ts';
 import { checkAborted } from '../../utils/cancellation.ts';
-import TraversalContext, {
+import {
   type BfsFn,
   type RunStats,
   type TraversalStats,
@@ -22,6 +22,7 @@ import TraversalContext, {
   lexTieBreaker,
   stripUndefined,
   computeTopoHasCycle,
+  type default as TraversalContext,
 } from './TraversalContext.ts';
 
 export default class GraphTopology {

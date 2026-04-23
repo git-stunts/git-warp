@@ -1,7 +1,7 @@
 import TrieCursorError from "../../errors/TrieCursorError.ts";
 import TrieStoreError from "../../errors/TrieStoreError.ts";
 import type { Dot } from "../../crdt/Dot.ts";
-import RouteKey from "../route/RouteKey.ts";
+import type RouteKey from "../route/RouteKey.ts";
 
 import { encodeDirtyPath } from "./DirtyPageSet.ts";
 import TrieLeaf, { type TrieLeafEntry } from "./TrieLeaf.ts";

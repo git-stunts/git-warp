@@ -15,7 +15,7 @@ import { decodeEdgeKey } from '../KeyCodec.ts';
 import IndexError from '../../errors/IndexError.ts';
 import WarpState from '../state/WarpState.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
-import StateSession from '../../orset/session/StateSession.ts';
+import type StateSession from '../../orset/session/StateSession.ts';
 import {
   collectAliveNodeIdsFromSession,
   collectVisibleEdgesFromSession,

@@ -1,7 +1,7 @@
 import { type Dot } from "../../crdt/Dot.ts";
 import type VersionVector from "../../crdt/VersionVector.ts";
 import StateSessionError from "../../errors/StateSessionError.ts";
-import ORSetElementState from "../ORSetElementState.ts";
+import type ORSetElementState from "../ORSetElementState.ts";
 import type CodecPort from "../../../ports/CodecPort.ts";
 import type TrieStorePort from "../trie/TrieStorePort.ts";
 import PageCache from "../trie/PageCache.ts";

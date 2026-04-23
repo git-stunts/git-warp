@@ -8,7 +8,6 @@ import EncryptionError from '../../domain/errors/EncryptionError.ts';
 import type Patch from '../../domain/types/Patch.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
-import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
 } from './TrailerCommitMessageCodecAdapter.ts';
@@ -16,6 +15,7 @@ import {
   LEGACY_EXTERNAL_PATCH_STORAGE,
   LEGACY_GIT_BLOB_PATCH_STORAGE,
   type PatchStorageRoute,
+  type default as CommitMessageCodecPort,
 } from '../../ports/CommitMessageCodecPort.ts';
 
 interface BlobPort {

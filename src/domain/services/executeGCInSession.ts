@@ -10,7 +10,7 @@
 
 import VersionVector from "../crdt/VersionVector.ts";
 import WarpError from "../errors/WarpError.ts";
-import StateSession from "../orset/session/StateSession.ts";
+import type StateSession from "../orset/session/StateSession.ts";
 
 import GCMetrics from "./GCMetrics.ts";
 import GCExecuteResult from "./GCExecuteResult.ts";

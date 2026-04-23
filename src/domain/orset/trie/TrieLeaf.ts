@@ -1,4 +1,4 @@
-import CodecPort from "../../../ports/CodecPort.ts";
+import type CodecPort from "../../../ports/CodecPort.ts";
 import TrieLeafError from "../../errors/TrieLeafError.ts";
 
 import type TrieGeometry from "./TrieGeometry.ts";

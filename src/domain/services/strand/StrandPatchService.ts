@@ -13,12 +13,12 @@ import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
-import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import {
   isGitCasPatchStorage,
   LEGACY_EXTERNAL_PATCH_STORAGE,
   LEGACY_GIT_BLOB_PATCH_STORAGE,
   type PatchStorageRoute,
+  type default as CommitMessageCodecPort,
 } from '../../../ports/CommitMessageCodecPort.ts';
 
 export type CommittedPatchResult = { patch: Patch; sha: string };

@@ -2,12 +2,11 @@ import type { LWWRegister } from "../../crdt/LWW.ts";
 import ORSet from "../../crdt/ORSet.ts";
 import VersionVector from "../../crdt/VersionVector.ts";
 import { Dot } from "../../crdt/Dot.ts";
-import StateSession from "../../orset/session/StateSession.ts";
+import type StateSession from "../../orset/session/StateSession.ts";
 import type { PropValue } from "../../types/PropValue.ts";
 import type { EventId } from "../../utils/EventId.ts";
 import type { PatchDiff } from "../../types/PatchDiff.ts";
 import type { TickReceipt } from "../../types/TickReceipt.ts";
-import type WarpState from "../state/WarpState.ts";
 import WarpStateClass from "../state/WarpState.ts";
 import type { PatchLike } from "../JoinReducer.ts";
 import {
@@ -34,11 +33,11 @@ export async function reduceSessionBackedState(args: {
     readonly patch: PatchLike;
     readonly sha: string;
   }>;
-  readonly baseState?: WarpState;
+  readonly baseState?: WarpStateClass;
   readonly receipts: boolean;
   readonly wantDiff: boolean;
 }): Promise<{
-  readonly state: WarpState;
+  readonly state: WarpStateClass;
   readonly adjacency: MaterializeAdjacency;
   readonly receipts?: TickReceipt[];
   readonly diff?: PatchDiff;
@@ -149,7 +148,7 @@ async function seedSessionWithORSet(args: {
 
 async function projectFrameToState(
   frame: ReducerSessionFrame,
-): Promise<WarpState> {
+): Promise<WarpStateClass> {
   return new WarpStateClass({
     nodeAlive: await projectORSet(frame.session.scanNodeElementStates()),
     edgeAlive: await projectORSet(frame.session.scanEdgeElementStates()),

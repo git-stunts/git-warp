@@ -38,8 +38,7 @@ type ReducerPropValue =
 
 type ReducerPropInput =
   | PropSet["value"]
-  | NodePropSet["value"]
-  | EdgePropSet["value"];
+  ;
 
 type ReplayDiffSnapshot =
   | { readonly kind: "node-add"; readonly target: string; readonly aliveBefore: boolean }
@@ -407,7 +406,7 @@ async function accumulateDiff(
 }
 
 function foldPatchIntoFrame(frame: ReducerSessionFrame, patch: PatchLike): void {
-  const context = patch.context;
+  const {context} = patch;
   const contextVV = context instanceof VersionVector
     ? context.clone()
     : VersionVector.from(context instanceof Map ? context : context ?? {});

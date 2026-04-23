@@ -9,7 +9,7 @@
  * @module domain/services/GCMetrics
  */
 
-import StateSession from "../orset/session/StateSession.ts";
+import type StateSession from "../orset/session/StateSession.ts";
 import type WarpState from './state/WarpState.ts';
 
 /**

@@ -349,7 +349,7 @@ export default class MaterializeController {
   }
 
   private _loadPersistence(): MaterializePersistence & LoadPersistence {
-    const persistence = this._deps.persistence;
+    const {persistence} = this._deps;
     this._assertLoadPersistence(persistence);
     return persistence;
   }
@@ -420,7 +420,7 @@ export default class MaterializeController {
     base: WarpState | undefined,
     opts: { receipts: boolean; wantDiff: boolean },
   ): Promise<ReduceOutput> {
-    const openStateSession = this._deps.openStateSession;
+    const {openStateSession} = this._deps;
     if (openStateSession === undefined) {
       return reducePatches(patches, base, opts);
     }

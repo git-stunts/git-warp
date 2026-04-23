@@ -1,12 +1,13 @@
 import TrieFlushError from "../../errors/TrieFlushError.ts";
 import type CodecPort from "../../../ports/CodecPort.ts";
 
-import DirtyPageSet, {
+import {
   encodeDirtyPath,
   type DirtyPageEntry,
+  type default as DirtyPageSet,
 } from "./DirtyPageSet.ts";
 import FlushResult from "./FlushResult.ts";
-import TrieBranch from "./TrieBranch.ts";
+import type TrieBranch from "./TrieBranch.ts";
 import type { TrieBranchEntries } from "./TrieBranchEntries.ts";
 import TrieLeaf from "./TrieLeaf.ts";
 import type TrieStorePort from "./TrieStorePort.ts";

@@ -275,7 +275,7 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
   }
 
   override decodePatch(message: string): PatchCommitMessage {
-    const trailers = decodedMessageSchema.parse(this._codec.decode(message)).trailers;
+    const {trailers} = decodedMessageSchema.parse(this._codec.decode(message));
     if (trailers[TRAILER_KEYS.kind] !== 'patch') {
       throw messageCodecError(`${TRAILER_KEYS.kind} must be 'patch'`);
     }
@@ -317,7 +317,7 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
   }
 
   override decodeCheckpoint(message: string): CheckpointCommitMessage {
-    const trailers = decodedMessageSchema.parse(this._codec.decode(message)).trailers;
+    const {trailers} = decodedMessageSchema.parse(this._codec.decode(message));
     if (trailers[TRAILER_KEYS.kind] !== 'checkpoint') {
       throw messageCodecError(`${TRAILER_KEYS.kind} must be 'checkpoint'`);
     }
@@ -352,7 +352,7 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
   }
 
   override decodeAnchor(message: string): AnchorCommitMessage {
-    const trailers = decodedMessageSchema.parse(this._codec.decode(message)).trailers;
+    const {trailers} = decodedMessageSchema.parse(this._codec.decode(message));
     if (trailers[TRAILER_KEYS.kind] !== 'anchor') {
       throw messageCodecError(`${TRAILER_KEYS.kind} must be 'anchor'`);
     }
@@ -369,7 +369,7 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
 
   override detectKind(message: string): CommitMessageKind | null {
     try {
-      const trailers = decodedMessageSchema.parse(this._codec.decode(message)).trailers;
+      const {trailers} = decodedMessageSchema.parse(this._codec.decode(message));
       const kind = trailers[TRAILER_KEYS.kind];
       if (kind === 'patch' || kind === 'checkpoint' || kind === 'anchor' || kind === 'audit') {
         return kind;

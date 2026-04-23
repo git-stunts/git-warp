@@ -1,10 +1,10 @@
 import { type Dot } from "../../crdt/Dot.ts";
 import type VersionVector from "../../crdt/VersionVector.ts";
 import ShadowTrieORSetError from "../../errors/ShadowTrieORSetError.ts";
-import ORSetElementState from "../ORSetElementState.ts";
+import type ORSetElementState from "../ORSetElementState.ts";
 import TrieCursor from "../trie/TrieCursor.ts";
 import TrieFlusher from "../trie/TrieFlusher.ts";
-import FlushResult from "../trie/FlushResult.ts";
+import type FlushResult from "../trie/FlushResult.ts";
 
 export interface ShadowTrieORSetInit {
   readonly cursor: TrieCursor;

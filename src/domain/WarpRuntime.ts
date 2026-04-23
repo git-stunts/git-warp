@@ -79,8 +79,6 @@ import {
 import { wireRuntime } from './runtimeWiring.ts';
 
 import type { NeighborEdge } from '../ports/NeighborProviderPort.ts';
-import {
-} from '../ports/CommitMessageCodecPort.ts';
 
 type AdjacencyMapShape = {
   outgoing: Map<string, NeighborEdge[]> | ReadonlyMap<string, readonly NeighborEdge[]>;

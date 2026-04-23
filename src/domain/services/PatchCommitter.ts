@@ -23,8 +23,10 @@ import type TreePort from '../../ports/TreePort.ts';
 import type RefPort from '../../ports/RefPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
-import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
-import { isGitCasPatchStorage } from '../../ports/CommitMessageCodecPort.ts';
+import {
+  isGitCasPatchStorage,
+  type default as CommitMessageCodecPort,
+} from '../../ports/CommitMessageCodecPort.ts';
 
 type PersistencePorts = CommitPort & BlobPort & TreePort & RefPort;
 

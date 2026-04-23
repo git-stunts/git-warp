@@ -1,4 +1,4 @@
-import StateSession from "../../orset/session/StateSession.ts";
+import type StateSession from "../../orset/session/StateSession.ts";
 import { decodeEdgeKey } from "../KeyCodec.ts";
 
 export type VisibleEdgeRecord = {

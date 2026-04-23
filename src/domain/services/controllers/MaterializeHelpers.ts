@@ -9,7 +9,7 @@ import { QueryError } from '../../warp/_internal.ts';
 import { decodeEdgeKey } from '../KeyCodec.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
-import StateSession from '../../orset/session/StateSession.ts';
+import type StateSession from '../../orset/session/StateSession.ts';
 import {
   collectAliveNodeSetFromSession,
   collectVisibleEdgesFromSession,
