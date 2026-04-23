@@ -12,6 +12,8 @@ import type Patch from '../types/Patch.ts';
 import type { StateDiffResult } from '../services/state/StateDiff.ts';
 import type { TickReceipt } from '../types/TickReceipt.ts';
 import type { ObserverOptions, WorldlineOptions } from '../capabilities/QueryCapability.ts';
+import type { SyncPeer, SyncRequestProcessor } from '../capabilities/SyncCapability.ts';
+import type { DecodedPatch } from '../services/sync/syncPatchLoader.ts';
 
 /**
  * Observer configuration for view creation and translation cost.
@@ -61,7 +63,7 @@ interface SyncRequest {
 interface SyncResponse {
   type: 'sync-response';
   frontier: Record<string, string>;
-  patches: Array<{ writerId: string; sha: string; patch: unknown }>;
+  patches: Array<{ writerId: string; sha: string; patch: DecodedPatch }>;
 }
 
 /**
@@ -71,6 +73,8 @@ interface ApplySyncResult {
   state: WarpState;
   frontier: Map<string, number>;
   applied: number;
+  writersApplied?: string[];
+  skippedWriters: Array<{ writerId: string; reason: string; localSha: string; remoteSha: string | null }>;
 }
 
 /**
@@ -561,8 +565,14 @@ declare module '../WarpRuntime.ts' {
      */
     getNodeProps(nodeId: string): Promise<Record<string, unknown> | null>;
     getEdgeProps(from: string, to: string, label: string): Promise<Record<string, unknown> | null>;
+    getContentOid(nodeId: string): Promise<string | null>;
     getContentMeta(nodeId: string): Promise<ContentMeta | null>;
+    getContent(nodeId: string): Promise<Uint8Array | null>;
+    getContentStream(nodeId: string): Promise<AsyncIterable<Uint8Array> | null>;
+    getEdgeContentOid(from: string, to: string, label: string): Promise<string | null>;
     getEdgeContentMeta(from: string, to: string, label: string): Promise<ContentMeta | null>;
+    getEdgeContent(from: string, to: string, label: string): Promise<Uint8Array | null>;
+    getEdgeContentStream(from: string, to: string, label: string): Promise<AsyncIterable<Uint8Array> | null>;
     /**
      * Inspection API: walks visible neighbors from the current materialized state.
      *
@@ -626,9 +636,14 @@ declare module '../WarpRuntime.ts' {
     status(): Promise<WarpStatus>;
     createSyncRequest(): Promise<SyncRequest>;
     processSyncRequest(request: SyncRequest): Promise<SyncResponse>;
-    applySyncResponse(response: SyncResponse): ApplySyncResult;
+    applySyncResponse(response: SyncResponse): Promise<ApplySyncResult>;
     syncNeeded(remoteFrontier: Map<string, string>): Promise<boolean>;
-    syncWith(remote: string | WarpRuntime, options?: SyncWithOptions): Promise<{ applied: number; attempts: number; state?: WarpState }>;
+    syncWith(remote: string | SyncRequestProcessor | SyncPeer, options?: SyncWithOptions): Promise<{
+      applied: number;
+      attempts: number;
+      skippedWriters: Array<{ writerId: string; reason: string; localSha: string; remoteSha: string | null }>;
+      state?: WarpState;
+    }>;
     serve(options: {
       port: number;
       host?: string;
@@ -728,6 +743,11 @@ declare module '../WarpRuntime.ts' {
       targetId?: string | null;
       scope?: VisibleStateScope | null;
     }): Promise<CoordinateComparisonV1>;
+    buildPatchDivergence(
+      leftEntries: Array<{ patch: Patch; sha: string }>,
+      rightEntries: Array<{ patch: Patch; sha: string }>,
+      targetId?: string | null,
+    ): Record<string, unknown>;
     planCoordinateTransfer(options: {
       source: CoordinateTransferPlanSelectorV1;
       target: CoordinateTransferPlanSelectorV1;

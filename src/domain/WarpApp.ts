@@ -14,6 +14,7 @@ type RuntimeBackedCore = WarpCore & {
   createPatch: WarpRuntime['createPatch'];
   patch: WarpRuntime['patch'];
   patchMany: WarpRuntime['patchMany'];
+  processSyncRequest: WarpRuntime['processSyncRequest'];
   syncWith(
     remote: string | RuntimeBackedCore,
     options?: Parameters<WarpRuntime['syncWith']>[1],

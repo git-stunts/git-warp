@@ -10,6 +10,7 @@
 import SyncError from '../../errors/SyncError.ts';
 import { signSyncRequest, canonicalizePath } from '../sync/SyncAuthService.ts';
 import type SyncTrustGate from '../sync/SyncTrustGate.ts';
+import type { SyncPeer, SyncRequestProcessor } from '../../capabilities/SyncCapability.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type { SyncHost } from './SyncController.ts';
 
@@ -45,17 +46,28 @@ export function normalizeSyncPath(path: string | undefined | null): string {
   return path.startsWith('/') ? path : `/${path}`;
 }
 
-/**
- * Checks whether a sync-remote handle is a direct in-process peer —
- * an object carrying a callable processSyncRequest method.
- */
-function isDirectPeerObject(
-  remote: string | object,
-): remote is { processSyncRequest: CallableFunction } {
-  if (remote === null || remote === undefined || typeof remote !== 'object') { return false; }
-  if (!('processSyncRequest' in remote)) { return false; }
-  const maybeFn = (remote as { processSyncRequest: CallableFunction | string | null }).processSyncRequest;
-  return typeof maybeFn === 'function';
+function hasProcessSyncRequest(value: object): value is SyncRequestProcessor {
+  return typeof Reflect.get(value, 'processSyncRequest') === 'function';
+}
+
+function isSyncRequestProcessor(
+  remote: string | SyncRequestProcessor | SyncPeer,
+): remote is SyncRequestProcessor {
+  if (typeof remote !== 'object' || remote === null) {
+    return false;
+  }
+  return hasProcessSyncRequest(remote);
+}
+
+function isSyncPeer(remote: string | SyncRequestProcessor | SyncPeer): remote is SyncPeer {
+  if (typeof remote !== 'object' || remote === null) {
+    return false;
+  }
+  const sync = Reflect.get(remote, 'sync');
+  if (typeof sync !== 'object' || sync === null) {
+    return false;
+  }
+  return hasProcessSyncRequest(sync);
 }
 
 /**
@@ -67,17 +79,21 @@ function isDirectPeerObject(
  * @returns An object indicating peer type and resolved URL
  */
 export function resolveSyncTarget(
-  remote: string | object,
+  remote: string | SyncRequestProcessor | SyncPeer,
   path: string,
   hasPathOverride: boolean,
-): { isDirectPeer: boolean; targetUrl: URL | null } {
-  if (isDirectPeerObject(remote)) {
-    return { isDirectPeer: true, targetUrl: null };
+): { kind: 'peer'; peer: SyncRequestProcessor } | { kind: 'url'; targetUrl: URL } {
+  if (isSyncRequestProcessor(remote)) {
+    return { kind: 'peer', peer: remote };
+  }
+
+  if (isSyncPeer(remote)) {
+    return { kind: 'peer', peer: remote.sync };
   }
 
   let targetUrl: URL;
   try {
-    targetUrl = remote instanceof URL ? new URL(remote.toString()) : new URL(remote as string);
+    targetUrl = new URL(remote);
   } catch {
     throw new SyncError('Invalid remote URL', {
       code: 'E_SYNC_REMOTE_URL',
@@ -100,7 +116,7 @@ export function resolveSyncTarget(
   }
   targetUrl.hash = '';
 
-  return { isDirectPeer: false, targetUrl };
+  return { kind: 'url', targetUrl };
 }
 
 /**

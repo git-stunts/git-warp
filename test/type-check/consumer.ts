@@ -211,6 +211,12 @@ const wgDeps: WarpGraphDeps = {
 
 // Factory returns WarpGraph
 const wg: WarpGraph = await openWarpGraph(wgDeps);
+const wgPeer: WarpGraph = await openWarpGraph({
+  persistence,
+  graphName: 'test',
+  writerId: 'w2',
+  trust: { mode: 'off' },
+});
 
 // Architectural moments
 const commitment: CommitmentSurface = wg.commitment;
@@ -234,6 +240,12 @@ const _commitPatches: WarpCore = commitment.patches;
 const _foldMaterialize: WarpCore = folding.materialize;
 const _revealQuery: WarpCore = revelation.query;
 const _governSync: WarpCore = governance.sync;
+
+await wg.sync.syncWith(wgPeer);
+await governance.sync.syncWith(wgPeer);
+
+// @ts-expect-error WarpGraph does not expose the runtime bridge publicly
+wg._runtime;
 
 // Identity
 const _wgName: string = wg.graphName;

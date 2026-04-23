@@ -9,6 +9,7 @@ import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 import type SyncTrustGate from '../sync/SyncTrustGate.ts';
+import type SyncCapability from '../../capabilities/SyncCapability.ts';
 import type WarpRuntime from '../../WarpRuntime.ts';
 
 /**
@@ -65,6 +66,8 @@ export interface SyncWithResult {
   skippedWriters: SkippedWriter[];
   state?: WarpState;
 }
+
+export type SyncRemote = Parameters<SyncCapability['syncWith']>[0];
 
 export interface SyncStatusEvent {
   type: string;

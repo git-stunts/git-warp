@@ -913,7 +913,7 @@ For programmatic sync without Git remotes:
 
 ```typescript
 // Direct sync between two graph instances
-const result = await graphA.sync.syncWith(graphB._runtime);
+const result = await graphA.sync.syncWith(graphB);
 console.log(`Applied ${result.applied} patches`);
 
 // HTTP sync
@@ -2204,7 +2204,7 @@ For most use cases, use `syncWith()` which handles the full round-trip:
 
 ```typescript
 // Direct sync (in-process)
-const result = await graphA.sync.syncWith(graphB._runtime);
+const result = await graphA.sync.syncWith(graphB);
 
 // HTTP sync
 const result = await graph.sync.syncWith('http://peer:3000/sync', {

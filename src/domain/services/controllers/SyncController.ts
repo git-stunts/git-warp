@@ -33,6 +33,7 @@ import type {
   SyncHost,
   SkippedWriter,
   ApplySyncResult,
+  SyncRemote,
   SyncWithResult,
   SyncWithOptions,
 } from './SyncControllerTypes.ts';
@@ -269,7 +270,7 @@ export default class SyncController {
   }
 
   /** Syncs with a remote peer (HTTP or direct graph instance). */
-  async syncWith(remote: string | object, options: SyncWithOptions = {}): Promise<SyncWithResult> {
+  async syncWith(remote: SyncRemote, options: SyncWithOptions = {}): Promise<SyncWithResult> {
     const {
       path = '/sync',
       retries = DEFAULT_SYNC_WITH_RETRIES,
@@ -282,7 +283,7 @@ export default class SyncController {
     } = options;
 
     const hasPathOverride = Object.prototype.hasOwnProperty.call(options, 'path');
-    const { isDirectPeer, targetUrl } = resolveSyncTarget(remote, path, hasPathOverride);
+    const target = resolveSyncTarget(remote, path, hasPathOverride);
     let attempt = 0;
     const trustGate = resolveSyncTrustGate(this._host, this._trustGate, {
       ...(trust !== undefined ? { trust } : {}),
@@ -295,7 +296,7 @@ export default class SyncController {
     };
 
     const shouldRetry = (err: Error): boolean => {
-      if (isDirectPeer) { return false; }
+      if (target.kind === 'peer') { return false; }
       if (err instanceof SyncError) {
         return ['E_SYNC_REMOTE', 'E_SYNC_TIMEOUT', 'E_SYNC_NETWORK'].includes(err.code);
       }
@@ -312,13 +313,12 @@ export default class SyncController {
       emit('requestBuilt');
 
       let response: SyncResponse;
-      if (isDirectPeer) {
-        const peer = remote as { processSyncRequest: (req: SyncRequest) => Promise<SyncResponse> };
+      if (target.kind === 'peer') {
         emit('requestSent');
-        response = await peer.processSyncRequest(request);
+        response = await target.peer.processSyncRequest(request);
         emit('responseReceived');
       } else {
-        response = await this._fetchSyncResponse(request, targetUrl as URL, timeoutMs, signal, auth, emit);
+        response = await this._fetchSyncResponse(request, target.targetUrl, timeoutMs, signal, auth, emit);
       }
 
       const validation = validateSyncResponse(response);
@@ -350,7 +350,13 @@ export default class SyncController {
       } as RetryOptions);
       if (materializeAfterSync) {
         if (!this._host._cachedState) { await this._host.materialize(); }
-        return { ...syncResult, state: this._host._cachedState as WarpState };
+        const state = this._host._cachedState;
+        if (state === null) {
+          throw new SyncError('Materialize completed without cached state', {
+            code: 'E_SYNC_NO_STATE',
+          });
+        }
+        return { ...syncResult, state };
       }
       return syncResult;
     } catch (err) {

@@ -16,10 +16,12 @@
  * architectural moment.
  */
 import WarpRuntime from './WarpRuntime.ts';
+import WarpError from './errors/WarpError.ts';
 import type QueryCapability from './capabilities/QueryCapability.ts';
 import type PatchCapability from './capabilities/PatchCapability.ts';
 import type MaterializeCapability from './capabilities/MaterializeCapability.ts';
 import type SyncCapability from './capabilities/SyncCapability.ts';
+import type { SyncRemote, SyncWithOptions } from './capabilities/SyncCapability.ts';
 import type StrandCapability from './capabilities/StrandCapability.ts';
 import type CheckpointCapability from './capabilities/CheckpointCapability.ts';
 import type ProvenanceCapability from './capabilities/ProvenanceCapability.ts';
@@ -113,9 +115,6 @@ export interface WarpGraph {
   readonly provenance: ProvenanceCapability;
   readonly comparison: ComparisonCapability;
   readonly subscriptions: SubscriptionCapability;
-
-  /** The underlying runtime — TEMPORARY bridge. Removed when API_kill-warpruntime ships. */
-  readonly _runtime: WarpRuntime;
 }
 
 // ---------------------------------------------------------------------------
@@ -206,19 +205,204 @@ export interface WarpGraphDeps {
  * const props = await graph.query.getNodeProps('user:alice');
  * ```
  */
+type SyncCapabilitySurface = Pick<
+  SyncCapability,
+  'getFrontier' |
+  'hasFrontierChanged' |
+  'status' |
+  'createSyncRequest' |
+  'processSyncRequest' |
+  'applySyncResponse' |
+  'syncNeeded' |
+  'syncWith' |
+  'serve'
+>;
+
+function requireCapabilityMethod(owner: object, capabilityName: string, methodName: string): void {
+  if (typeof Reflect.get(owner, methodName) === 'function') {
+    return;
+  }
+  throw new WarpError(
+    `${capabilityName} is missing required method: ${methodName}()`,
+    `E_WARPGRAPH_${capabilityName.toUpperCase()}_MISSING_METHOD`,
+  );
+}
+
+function requireCapability(owner: object, capabilityName: string, methodNames: readonly string[]): void {
+  for (const methodName of methodNames) {
+    requireCapabilityMethod(owner, capabilityName, methodName);
+  }
+}
+
+function bindQueryCapability(runtime: WarpRuntime): QueryCapability {
+  requireCapability(runtime, 'query', [
+    'hasNode', 'getNodeProps', 'getEdgeProps', 'neighbors',
+    'getStateSnapshot', 'getNodes', 'getEdges', 'getPropertyCount',
+    'query', 'worldline', 'observer', 'translationCost',
+    'getContentOid', 'getContentMeta', 'getContent',
+    'getEdgeContentOid', 'getEdgeContentMeta', 'getEdgeContent',
+    'getContentStream', 'getEdgeContentStream',
+  ]);
+  return Object.freeze({
+    hasNode: runtime.hasNode.bind(runtime),
+    getNodeProps: runtime.getNodeProps.bind(runtime),
+    getEdgeProps: runtime.getEdgeProps.bind(runtime),
+    neighbors: runtime.neighbors.bind(runtime),
+    getStateSnapshot: runtime.getStateSnapshot.bind(runtime),
+    getNodes: runtime.getNodes.bind(runtime),
+    getEdges: runtime.getEdges.bind(runtime),
+    getPropertyCount: runtime.getPropertyCount.bind(runtime),
+    query: runtime.query.bind(runtime),
+    worldline: runtime.worldline.bind(runtime),
+    observer: runtime.observer.bind(runtime),
+    translationCost: runtime.translationCost.bind(runtime),
+    getContentOid: runtime.getContentOid.bind(runtime),
+    getContentMeta: runtime.getContentMeta.bind(runtime),
+    getContent: runtime.getContent.bind(runtime),
+    getEdgeContentOid: runtime.getEdgeContentOid.bind(runtime),
+    getEdgeContentMeta: runtime.getEdgeContentMeta.bind(runtime),
+    getEdgeContent: runtime.getEdgeContent.bind(runtime),
+    getContentStream: runtime.getContentStream.bind(runtime),
+    getEdgeContentStream: runtime.getEdgeContentStream.bind(runtime),
+  });
+}
+
+function bindPatchCapability(runtime: WarpRuntime): PatchCapability {
+  requireCapability(runtime, 'patch', [
+    'createPatch', 'patch', 'patchMany', 'getWriterPatches',
+    'writer', 'discoverWriters', 'discoverTicks', 'join',
+  ]);
+  return Object.freeze({
+    createPatch: runtime.createPatch.bind(runtime),
+    patch: runtime.patch.bind(runtime),
+    patchMany: runtime.patchMany.bind(runtime),
+    getWriterPatches: runtime.getWriterPatches.bind(runtime),
+    writer: runtime.writer.bind(runtime),
+    discoverWriters: runtime.discoverWriters.bind(runtime),
+    discoverTicks: runtime.discoverTicks.bind(runtime),
+    join: runtime.join.bind(runtime),
+  });
+}
+
+function bindMaterializeCapability(runtime: WarpRuntime): MaterializeCapability {
+  requireCapability(runtime, 'materialize', [
+    'materialize', 'materializeCoordinate', 'materializeAt',
+    'verifyIndex', 'invalidateIndex',
+  ]);
+  return Object.freeze({
+    materialize: runtime.materialize.bind(runtime),
+    materializeCoordinate: runtime.materializeCoordinate.bind(runtime),
+    materializeAt: runtime.materializeAt.bind(runtime),
+    verifyIndex: runtime.verifyIndex.bind(runtime),
+    invalidateIndex: runtime.invalidateIndex.bind(runtime),
+  });
+}
+
+function bindSyncCapability(runtime: WarpRuntime): SyncCapability {
+  const syncSurface: SyncCapabilitySurface = runtime;
+  requireCapability(runtime, 'sync', [
+    'getFrontier', 'hasFrontierChanged', 'status', 'createSyncRequest',
+    'processSyncRequest', 'applySyncResponse', 'syncNeeded',
+    'syncWith', 'serve',
+  ]);
+  return Object.freeze({
+    getFrontier: syncSurface.getFrontier.bind(runtime),
+    hasFrontierChanged: syncSurface.hasFrontierChanged.bind(runtime),
+    status: syncSurface.status.bind(runtime),
+    createSyncRequest: syncSurface.createSyncRequest.bind(runtime),
+    processSyncRequest: syncSurface.processSyncRequest.bind(runtime),
+    applySyncResponse: syncSurface.applySyncResponse.bind(runtime),
+    syncNeeded: syncSurface.syncNeeded.bind(runtime),
+    async syncWith(remote: SyncRemote, options?: SyncWithOptions) {
+      return await syncSurface.syncWith.call(runtime, remote, options);
+    },
+    serve: syncSurface.serve.bind(runtime),
+  });
+}
+
+function bindStrandCapability(runtime: WarpRuntime): StrandCapability {
+  requireCapability(runtime, 'strand', [
+    'createStrand', 'braidStrand', 'getStrand', 'listStrands', 'dropStrand',
+    'materializeStrand', 'getStrandPatches', 'patchesForStrand',
+    'createStrandPatch', 'patchStrand', 'queueStrandIntent',
+    'listStrandIntents', 'tickStrand', 'analyzeConflicts',
+  ]);
+  return Object.freeze({
+    createStrand: runtime.createStrand.bind(runtime),
+    braidStrand: runtime.braidStrand.bind(runtime),
+    getStrand: runtime.getStrand.bind(runtime),
+    listStrands: runtime.listStrands.bind(runtime),
+    dropStrand: runtime.dropStrand.bind(runtime),
+    materializeStrand: runtime.materializeStrand.bind(runtime),
+    getStrandPatches: runtime.getStrandPatches.bind(runtime),
+    patchesForStrand: runtime.patchesForStrand.bind(runtime),
+    createStrandPatch: runtime.createStrandPatch.bind(runtime),
+    patchStrand: runtime.patchStrand.bind(runtime),
+    queueStrandIntent: runtime.queueStrandIntent.bind(runtime),
+    listStrandIntents: runtime.listStrandIntents.bind(runtime),
+    tickStrand: runtime.tickStrand.bind(runtime),
+    analyzeConflicts: runtime.analyzeConflicts.bind(runtime),
+  });
+}
+
+function bindCheckpointCapability(runtime: WarpRuntime): CheckpointCapability {
+  requireCapability(runtime, 'checkpoint', [
+    'createCheckpoint', 'syncCoverage', 'maybeRunGC', 'runGC', 'getGCMetrics',
+  ]);
+  return Object.freeze({
+    createCheckpoint: runtime.createCheckpoint.bind(runtime),
+    syncCoverage: runtime.syncCoverage.bind(runtime),
+    maybeRunGC: runtime.maybeRunGC.bind(runtime),
+    runGC: runtime.runGC.bind(runtime),
+    getGCMetrics: runtime.getGCMetrics.bind(runtime),
+  });
+}
+
+function bindProvenanceCapability(runtime: WarpRuntime): ProvenanceCapability {
+  requireCapability(runtime, 'provenance', [
+    'patchesFor', 'materializeSlice', 'loadPatchBySha',
+  ]);
+  return Object.freeze({
+    patchesFor: runtime.patchesFor.bind(runtime),
+    materializeSlice: runtime.materializeSlice.bind(runtime),
+    loadPatchBySha: runtime.loadPatchBySha.bind(runtime),
+  });
+}
+
+function bindComparisonCapability(runtime: WarpRuntime): ComparisonCapability {
+  requireCapability(runtime, 'comparison', [
+    'buildPatchDivergence', 'compareStrand', 'planStrandTransfer',
+    'compareCoordinates', 'planCoordinateTransfer',
+  ]);
+  return Object.freeze({
+    buildPatchDivergence: runtime.buildPatchDivergence.bind(runtime),
+    compareStrand: runtime.compareStrand.bind(runtime),
+    planStrandTransfer: runtime.planStrandTransfer.bind(runtime),
+    compareCoordinates: runtime.compareCoordinates.bind(runtime),
+    planCoordinateTransfer: runtime.planCoordinateTransfer.bind(runtime),
+  });
+}
+
+function bindSubscriptionCapability(runtime: WarpRuntime): SubscriptionCapability {
+  requireCapability(runtime, 'subscription', ['subscribe', 'watch']);
+  return Object.freeze({
+    subscribe: runtime.subscribe.bind(runtime),
+    watch: runtime.watch.bind(runtime),
+  });
+}
+
 export async function openWarpGraph(deps: WarpGraphDeps): Promise<WarpGraph> {
   const runtime = await WarpRuntime.open(deps);
 
-  // Bind capabilities from the runtime's wired methods
-  const query = runtime as unknown as QueryCapability;
-  const patches = runtime as unknown as PatchCapability;
-  const materialize = runtime as unknown as MaterializeCapability;
-  const sync = runtime as unknown as SyncCapability;
-  const strands = runtime as unknown as StrandCapability;
-  const checkpoint = runtime as unknown as CheckpointCapability;
-  const provenance = runtime as unknown as ProvenanceCapability;
-  const comparison = runtime as unknown as ComparisonCapability;
-  const subscriptions = runtime as unknown as SubscriptionCapability;
+  const query = bindQueryCapability(runtime);
+  const patches = bindPatchCapability(runtime);
+  const materialize = bindMaterializeCapability(runtime);
+  const sync = bindSyncCapability(runtime);
+  const strands = bindStrandCapability(runtime);
+  const checkpoint = bindCheckpointCapability(runtime);
+  const provenance = bindProvenanceCapability(runtime);
+  const comparison = bindComparisonCapability(runtime);
+  const subscriptions = bindSubscriptionCapability(runtime);
 
   const graph: WarpGraph = {
     graphName: runtime.graphName,
@@ -233,8 +417,6 @@ export async function openWarpGraph(deps: WarpGraphDeps): Promise<WarpGraph> {
     // Flat aliases
     query, patches, materialize, sync, strands,
     checkpoint, provenance, comparison, subscriptions,
-
-    _runtime: runtime,
   };
 
   return Object.freeze(graph);

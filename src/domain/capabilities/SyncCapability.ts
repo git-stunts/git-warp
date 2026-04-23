@@ -5,8 +5,8 @@
  */
 
 import type { WarpState } from '../services/JoinReducer.ts';
+import type { DecodedPatch } from '../services/sync/syncPatchLoader.ts';
 import type HttpServerPort from '../../ports/HttpServerPort.ts';
-import type WarpRuntime from '../WarpRuntime.ts';
 
 /** Lightweight status snapshot. */
 export type WarpStatus = {
@@ -27,7 +27,7 @@ export type SyncRequest = {
 export type SyncResponse = {
   type: 'sync-response';
   frontier: Record<string, string>;
-  patches: Array<{ writerId: string; sha: string; patch: unknown }>;
+  patches: Array<{ writerId: string; sha: string; patch: DecodedPatch }>;
 };
 
 /** Trust options for sync verification. */
@@ -35,6 +35,19 @@ export type SyncTrustOptions = {
   mode?: 'off' | 'log-only' | 'enforce';
   pin?: string | null;
 };
+
+/** Direct in-process sync peer. */
+export type SyncRequestProcessor = {
+  processSyncRequest(_request: SyncRequest): Promise<SyncResponse>;
+};
+
+/** Public capability bag peer that carries a sync processor. */
+export type SyncPeer = {
+  readonly sync: SyncRequestProcessor;
+};
+
+/** Remote accepted by syncWith(). */
+export type SyncRemote = string | SyncRequestProcessor | SyncPeer;
 
 /** Options for syncWith(). */
 export type SyncWithOptions = {
@@ -90,7 +103,6 @@ export type ServeHandle = {
   url: string;
 };
 
-// TODO: remote parameter will change from WarpRuntime to WarpGraph
 export default abstract class SyncCapability {
   abstract getFrontier(): Promise<Map<string, string>>;
   abstract hasFrontierChanged(): Promise<boolean>;
@@ -99,6 +111,6 @@ export default abstract class SyncCapability {
   abstract processSyncRequest(_request: SyncRequest): Promise<SyncResponse>;
   abstract applySyncResponse(_response: SyncResponse): Promise<ApplySyncResult>;
   abstract syncNeeded(_remoteFrontier: Map<string, string>): Promise<boolean>;
-  abstract syncWith(_remote: string | WarpRuntime, _options?: SyncWithOptions): Promise<SyncWithResult>;
+  abstract syncWith(_remote: SyncRemote, _options?: SyncWithOptions): Promise<SyncWithResult>;
   abstract serve(_options: ServeOptions): Promise<ServeHandle>;
 }
