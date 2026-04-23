@@ -89,7 +89,7 @@ parallel without crossing a **live** backlog edge.
 | `WL-31-v17-cas-substrate-foundation` | 5 | `INFRA_unify-persistence-on-git-cas`, `INFRA_plumbing-violations`, `INFRA_index-builder-on-git-cas`, `INFRA_substrate-upgrade-tool`, `INFRA_uniform-git-cas` | CAS, plumbing, substrate migration |
 | `WL-32-v17-purge-chain` | 4 | `PROTO_purge-cast-hacks`, `PROTO_purge-boundary-leaks`, `PROTO_purge-fake-models`, `PROTO_purge-import-law` | Anti-sludge purge chain; one agent, serial internal order |
 | `WL-34-v17-ts-wave-sweep` | 9 | `TS_wave-01-codec`, `TS_wave-02-trust`, `TS_wave-03-dag-provenance`, `TS_wave-04-state-query`, `TS_wave-05-controllers`, `TS_wave-06-sync`, `TS_wave-07-index-small`, `TS_wave-08-strand-index-big`, `TS_wave-09-gods-and-monsters` | Wave-based TS migration sequence |
-| `WL-35-v17-hygiene-sludge-seed` | 2 | `HYGIENE_type-import-and-template-expression-purge`, `SLUDGE_factory-functions-in-tests` | Cleanup and residue that do not wait on capability-provider work |
+| `WL-35-v17-hygiene-sludge-seed` | 1 | `SLUDGE_factory-functions-in-tests` | Cleanup and residue that do not wait on capability-provider work |
 
 ## Wave 3.1 — Downstream `B3` Antichain
 
