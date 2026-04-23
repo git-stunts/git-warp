@@ -137,3 +137,41 @@ Add a doc-shape ratchet that fails until:
 
 - `npm exec vitest run test/unit/scripts/remaining-big-files-closeout-shape.test.ts`
 - `git diff --check`
+
+## Playback
+
+### Agent
+
+- Yes. The current repo now makes the card's obsolescence explicit:
+  `StreamingBitmapIndexBuilder.ts` is `277` LOC, `AuditVerifierService.ts` is
+  `136` LOC, `VisibleStateComparison.ts` is `172` LOC, `TrustAssessment.ts` is
+  `52` LOC, and the only still-serious index-builder residue already closed in
+  `0057`.
+- Yes. `API_migrate-consumers-to-capabilities` and
+  `CROSS_shared-provider-interfaces` no longer teach
+  `GOD_remaining-big-files` as a live blocker.
+- Yes. The `v17` release ledger, wave doc, and scorecard now point at
+  `CORE_streaming-memory-audit` and `PROTO_purge-boundary-leaks` instead of
+  keeping a fake god card alive.
+
+### Human
+
+- Yes. It is now obvious why this cycle closes a god card without another
+  refactor pass.
+- Yes. It is obvious that the remaining work is narrower than "big files" and
+  already tracked elsewhere.
+
+### Verdict
+
+`hill met`
+
+## Drift check
+
+No negative drift.
+
+Positive drift only:
+
+- the cycle also cleaned an older `0056` ratchet that still treated
+  `GOD_remaining-big-files.md` as a required downstream evidence file
+- the backlog snapshot in `docs/method/backlog/README.md` was refreshed in the
+  same slice so repo-truth counts stayed honest after the delete
