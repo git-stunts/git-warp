@@ -163,3 +163,53 @@ Add red coverage that fails until:
 - targeted streaming/index tests
 - `npm run typecheck`
 - `git diff --check`
+
+## Playback
+
+### Witness
+
+- `npm exec vitest run test/unit/domain/services/StreamingBitmapIndexBuilder.test.ts test/unit/domain/services/StreamingBitmapIndexBuilder.chunked.test.ts test/unit/domain/services/BitmapIndexReader.chunked.test.ts test/unit/domain/services/IndexRebuildService.test.ts test/unit/domain/services/IndexRebuildService.streaming.test.ts test/unit/domain/services/logging.integration.test.ts test/unit/infrastructure/CasIndexStorageAdapter.test.ts test/unit/scripts/index-builder-on-git-cas-shape.test.ts`
+- `npm exec vitest run test/unit/domain/services/BitmapIndexReader.test.ts test/unit/domain/services/IndexRebuildService.deep.test.ts test/unit/domain/services/IndexStalenessChecker.test.ts test/unit/infrastructure/CborIndexStoreAdapter.test.ts test/unit/ports/GraphPersistencePort.test.ts`
+- `npm run typecheck`
+- `git diff --check`
+
+### Agent answers
+
+- Yes. The old in-memory assumptions were explicit in
+  `_loadAndMergeAllChunks()` and the whole-blob-only `IndexStoragePort`
+  contract.
+- Yes. The design remains explicit that whole-blob reads are themselves a
+  blocker on a truthful streaming rebuild path.
+- Yes. The delivered seam is phrased in streaming terms:
+  `StreamingIndexStoragePort`, `CasIndexStorageAdapter`, chunked shard paths,
+  and no finalize-time chunk readback merge.
+
+### Human answers
+
+- Yes. Repo truth now shows why “already uses a storage port” was not enough:
+  streaming rebuilds require a stronger storage contract than
+  `IndexStoragePort`.
+- Yes. Repo truth also shows why “git-cas somewhere” was incomplete:
+  the cycle only counts because it pairs CAS-backed payload storage with
+  bounded finalize behavior.
+
+## Drift check
+
+Acceptable additive drift only.
+
+The design initially allowed either a bounded streaming merge or a spillable
+merge plan. The implementation landed a better answer to the same hill:
+
+- do not collapse flushed shard chunks back into one blob at all
+- keep chunked shard entries in the index tree
+- teach `BitmapIndexReader` to resolve chunked shard variants lazily
+
+That is additive drift in the implementation strategy, not drift in the hill.
+
+Residual scale truth remains:
+
+- `BitmapAccumulator` still retains the global SHA→ID mapping for the build
+- `BitmapIndexReader` still materializes the reverse ID→SHA cache on demand
+
+Those edges remain in scope for the broader `CORE_streaming-memory-audit`
+trunk and are not undocumented residue from this cycle.
