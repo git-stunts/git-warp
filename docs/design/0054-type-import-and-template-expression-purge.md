@@ -146,7 +146,46 @@ Add a docs/config shape test that fails until:
 
 ### Witness
 
-- `npm run lint`
+- `npx eslint src bin --format json > /tmp/full-lint-report-0054.json || true`
+- parse `/tmp/full-lint-report-0054.json` and confirm:
+  - `@typescript-eslint/consistent-type-imports` => `0`
+  - `@typescript-eslint/restrict-template-expressions` => `0`
 - `npm run typecheck`
 - targeted docs/config ratchet test
 - `git diff --check`
+
+## Playback
+
+### Agent
+
+- Yes. `eslint.config.ts` and `docs/ANTI_SLUDGE_DECISIONS.md` now agree that
+  both rules are active hygiene rules.
+- Yes. The remaining residue is explicit, rule-scoped, and legible in:
+  - `policy/quarantines/HYGIENE-consistent-type-imports.json`
+  - `policy/quarantines/HYGIENE-restrict-template-expressions.json`
+- Yes. The full lint report now shows zero live violations for these two rules
+  outside the quarantine bridge.
+
+### Human
+
+- Yes. It is now obvious from repo truth that the rules are active.
+- Yes. If a contributor wants the remaining residue, the quarantine manifests
+  give the exact file list instead of leaving the rules half-deferred in prose.
+
+### Verdict
+
+`hill met`
+
+## Drift check
+
+No negative drift against the hill.
+
+One explicit witness drift:
+
+- `npm run lint` is not a truthful cycle gate right now because the repo
+  already carries unrelated baseline lint failures outside this hygiene slice
+- the cycle therefore used the full ESLint JSON report filtered to these two
+  rules as the real witness
+
+That drift is acceptable because it makes the verification target more honest,
+not less.
