@@ -38,14 +38,14 @@ dependency graph and likely write-surface overlap.
 |------|------|----------:|------:|---------|
 | `0` | `B0` | 1 | 5 | Intake and triage |
 | `1` | `B1` | 4 | 31 | Root backlog classification and maintenance |
-| `2` | `B2` | 8 | 140 | Invariant debt paydown |
+| `2` | `B2` | 8 | 139 | Invariant debt paydown |
 | `3.0` | `B3` | 5 | 25 | Ready-now release foundations |
 | `3.1` | `B3` | 3 | 23 | Downstream release workstreams |
 | `4` | `B4` | 9 | 60 | Next-major substrate cut plus near-term queue |
 | `5` | `B5` | 9 | 98 | Doctrine follow-through plus speculative orbit |
-| Total | all | 39 | 382 | Subtotal before parked workloads |
+| Total | all | 39 | 381 | Subtotal before parked workloads |
 | `3.x` parked | `B3` | 1 | 6 | Launch-prep proof and package tail |
-| Grand total | all | 40 | 388 | Full live backlog |
+| Grand total | all | 40 | 387 | Full live backlog |
 
 ## Wave 0 — Intake Antichain
 
@@ -73,7 +73,7 @@ These are parallel by invariant. Each workload is already canonical in
 | `WL-21-bad-bnd` | 7 | `bad-code/BND_*.md` | Boundary decode and validation honesty |
 | `WL-22-bad-model` | 22 | `bad-code/MODEL_*.md` | Runtime-backed model honesty |
 | `WL-23-bad-cast` | 9 | `bad-code/CAST_*.md` | No cast-cosplay or escape hatches |
-| `WL-24-bad-port` | 13 | `bad-code/PORT_*.md` | Capability and port-surface honesty |
+| `WL-24-bad-port` | 12 | `bad-code/PORT_*.md` | Capability and port-surface honesty |
 | `WL-25-bad-own` | 31 | `bad-code/OWN_*.md` | Ownership and cohesion |
 | `WL-26-bad-sub` | 10 | `bad-code/SUB_*.md` | Substrate, streaming, and storage integrity |
 | `WL-27-bad-spec` | 31 | `bad-code/SPEC_*.md` | Executable-spec honesty |
@@ -153,7 +153,7 @@ The partition is exhaustive and non-overlapping:
 
 - Wave `0`: `5`
 - Wave `1`: `31`
-- Wave `2`: `140`
+- Wave `2`: `139`
 - Wave `3.0`: `25`
 - Wave `3.1`: `23`
 - Wave `3.x`: `6`
@@ -162,7 +162,7 @@ The partition is exhaustive and non-overlapping:
 
 Total:
 
-- `5 + 31 + 140 + 25 + 23 + 6 + 60 + 98 = 388`
+- `5 + 31 + 139 + 25 + 23 + 6 + 60 + 98 = 387`
 
 Every live backlog note is covered exactly once.
 

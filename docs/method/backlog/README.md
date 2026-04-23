@@ -19,10 +19,10 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 
 | Metric | Count |
 |--------|------:|
-| Live backlog items | 388 |
+| Live backlog items | 387 |
 | Root backlog items | 31 |
 | `asap/` | 0 |
-| `bad-code/` | 144 |
+| `bad-code/` | 143 |
 | `cool-ideas/` | 94 |
 | `inbox/` | 5 |
 | `up-next/` | 35 |
@@ -31,13 +31,13 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 | `v19.0.0/` | 11 |
 | `v20.0.0/` | 2 |
 | `v21.0.0/` | 4 |
-| Items with YAML frontmatter | 388 |
+| Items with YAML frontmatter | 387 |
 | Items without YAML frontmatter | 0 |
-| Items with explicit `id` | 388 |
-| Items declaring dependency fields | 388 |
-| Items with explicit `feature` | 383 |
+| Items with explicit `id` | 387 |
+| Items declaring dependency fields | 387 |
+| Items with explicit `feature` | 382 |
 | Distinct explicit feature values | 12 |
-| `bad-code/` items with explicit `release_home` | 144 |
+| `bad-code/` items with explicit `release_home` | 143 |
 | Items with non-empty explicit dependency edges | 70 |
 
 ## Dependency Law
@@ -165,10 +165,10 @@ justifies a stronger sequencing rule.
 
 Current explicit-graph totals:
 
-- `388` notes define an `id`
-- `388` notes declare `blocks` and `blocked_by` fields
-- `383` notes currently declare an explicit `feature`
-- `144` `bad-code/` notes currently declare an explicit `release_home`
+- `387` notes define an `id`
+- `387` notes declare `blocks` and `blocked_by` fields
+- `382` notes currently declare an explicit `feature`
+- `143` `bad-code/` notes currently declare an explicit `release_home`
 - `70` notes currently name at least one non-empty upstream or
   downstream edge
 

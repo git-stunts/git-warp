@@ -12,7 +12,7 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 | [BND](../../legends/BOUNDARY.md) | Decode, validate, and schema-check at the boundary; raw transport shapes do not leak inward. | 7 |
 | [MODEL](../../legends/MODEL.md) | Runtime truth wins: real classes, constructor invariants, and honest domain forms. | 22 |
 | [CAST](../../legends/CAST.md) | No cast-cosplay, escape hatches, or type lies. | 9 |
-| [PORT](../../legends/PORT.md) | Capability and port surfaces must tell the runtime truth. | 13 |
+| [PORT](../../legends/PORT.md) | Capability and port surfaces must tell the runtime truth. | 12 |
 | [OWN](../../legends/OWNERSHIP.md) | One owner per behavior: no gods, no duplication corridors, no mixed-concern facades. | 31 |
 | [SUB](../../legends/SUBSTRATE.md) | Substrate integrity: streaming, CAS, checkpoint, index, and versioned storage stay explicit. | 13 |
 | [SPEC](../../legends/SPEC.md) | Tests, docs, mocks, and coverage residue must reflect the real contract. | 31 |
@@ -26,7 +26,7 @@ otherwise burn it down.
 
 | Release Home | Count |
 |--------------|------:|
-| `v17.0.0` | 106 |
+| `v17.0.0` | 105 |
 | `v19.0.0` | 9 |
 | `v20.0.0+` | 29 |
 
@@ -99,7 +99,7 @@ otherwise burn it down.
 - [CAST_wormhole-service-defensive-tail-branches.md](CAST_wormhole-service-defensive-tail-branches.md)
 - [CAST_callInternalRuntimeMethod-escape-hatch.md](CAST_callInternalRuntimeMethod-escape-hatch.md)
 
-### Capability Surface (`PORT`) — 13
+### Capability Surface (`PORT`) — 12
 
 - [PORT_cbor-codec-triple-export.md](PORT_cbor-codec-triple-export.md)
 - [PORT_git-adapter-encapsulation.md](PORT_git-adapter-encapsulation.md)
@@ -107,7 +107,6 @@ otherwise burn it down.
 - [PORT_worldline-encapsulation.md](PORT_worldline-encapsulation.md)
 - [PORT_dual-export-pattern.md](PORT_dual-export-pattern.md)
 - [PORT_wiredMethods-dts-signature-drift-risk.md](PORT_wiredMethods-dts-signature-drift-risk.md)
-- [PORT_wiredMethods-dts-stale-js-imports.md](PORT_wiredMethods-dts-stale-js-imports.md)
 - [PORT_cli-persistence-plumbing-leak.md](PORT_cli-persistence-plumbing-leak.md)
 - [PORT_commit-port-isp.md](PORT_commit-port-isp.md)
 - [PORT_effect-sink-union-return.md](PORT_effect-sink-union-return.md)

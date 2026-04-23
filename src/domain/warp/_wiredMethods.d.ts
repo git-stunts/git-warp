@@ -8,9 +8,10 @@
 import type { PatchBuilder } from '../services/PatchBuilder.ts';
 import type { Writer } from './Writer.ts';
 import type { WarpState } from '../services/JoinReducer.ts';
-import type Patch from '../types/Patch.js';
+import type Patch from '../types/Patch.ts';
 import type { StateDiffResult } from '../services/state/StateDiff.ts';
-import type { TickReceipt } from '../types/TickReceipt.js';
+import type { TickReceipt } from '../types/TickReceipt.ts';
+import type { ObserverOptions, WorldlineOptions } from '../capabilities/QueryCapability.ts';
 
 /**
  * Observer configuration for view creation and translation cost.
@@ -583,9 +584,9 @@ declare module '../WarpRuntime.ts' {
      */
     getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
     getPropertyCount(): Promise<number>;
-    query(): import('../services/QueryBuilder.js').default;
-    worldline(options?: import('../../../index.js').WorldlineOptions): import('../services/Worldline.ts').default;
-    observer(nameOrConfig: string | ObserverConfig, configOrOptions?: ObserverConfig | import('../../../index.js').ObserverOptions, options?: import('../../../index.js').ObserverOptions): Promise<import('../services/Observer.js').default>;
+    query(): import('../services/query/QueryBuilder.ts').default;
+    worldline(options?: WorldlineOptions): import('../services/Worldline.ts').default;
+    observer(nameOrConfig: string | ObserverConfig, configOrOptions?: ObserverConfig | ObserverOptions, options?: ObserverOptions): Promise<import('../services/query/Observer.ts').default>;
     translationCost(configA: ObserverConfig, configB: ObserverConfig): Promise<TranslationCostResult>;
 
     // ── subscribe.methods.js ──────────────────────────────────────────────
@@ -676,8 +677,8 @@ declare module '../WarpRuntime.ts' {
     // ── MaterializeController (advanced) ──────────────────────────────────
     _resolveCeiling(options?: { ceiling?: number | null }): number | null;
     _buildAdjacency(state: WarpState): { outgoing: Map<string, Array<{ neighborId: string; label: string }>>; incoming: Map<string, Array<{ neighborId: string; label: string }>> };
-    _buildView(state: WarpState, stateHash: string, diff?: import('../types/PatchDiff.js').PatchDiff): void;
-    _setMaterializedState(state: WarpState, optionsOrDiff?: import('../types/PatchDiff.js').PatchDiff | { diff?: import('../types/PatchDiff.js').PatchDiff | null }): Promise<{ state: WarpState; stateHash: string; adjacency: unknown }>;
+    _buildView(state: WarpState, stateHash: string, diff?: import('../types/PatchDiff.ts').PatchDiff): void;
+    _setMaterializedState(state: WarpState, optionsOrDiff?: import('../types/PatchDiff.ts').PatchDiff | { diff?: import('../types/PatchDiff.ts').PatchDiff | null }): Promise<{ state: WarpState; stateHash: string; adjacency: unknown }>;
     /** Advanced substrate replay primitive against an explicit pinned frontier. */
     materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts: true }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
     /** Advanced substrate replay primitive against an explicit pinned frontier. */

@@ -19,3 +19,9 @@ imports immediately.
 
 This should be fixed as part of the runtime/capability cleanup path, not by
 pretending the file can stay hand-maintained forever.
+
+---
+
+**Graveyarded:** 2026-04-23 — fixed by updating `_wiredMethods.d.ts` module
+specifiers to the actual `.ts` owner files and adding
+`test/unit/scripts/wired-methods-imports.test.ts` as a regression ratchet.
