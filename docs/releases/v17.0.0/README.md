@@ -27,9 +27,14 @@ LAYER 1 (god kills + conversions):
   [x] SLUDGE_detached-graph-duplication
   [~] SLUDGE_host-bag-injection          ← ongoing per-god-kill
   [ ] GOD_incremental-index-updater
-  [ ] TS_convert-remaining-js            ← 29 infra .js + 42 CLI .js
-  [ ] TS_infrastructure-adapters
-  [ ] TS_cli-viz-scripts
+  [x] TS_convert-remaining-js            ← cycle 0049 premise invalid;
+                                          no live `.js` remain in
+                                          `src/`, `bin/`, or `scripts/`
+  [x] TS_infrastructure-adapters         ← repo truth already satisfied;
+                                          infrastructure adapters are `.ts`
+  [x] TS_cli-viz-scripts                 ← repo truth already satisfied;
+                                          CLI / viz / scripts are `.ts` or `.sh`
+  [ ] TS_eliminate-remaining-js-and-dts ← config + ambient declaration tail
 
 LAYER 2 (the exorcism):
   [ ] API_migrate-consumers-to-capabilities

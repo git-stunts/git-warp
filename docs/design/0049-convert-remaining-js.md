@@ -7,19 +7,13 @@ cycle: "0049-convert-remaining-js"
 
 ## Why this exists
 
-`v17` still has a live JavaScript tail sitting directly on the shipping path:
+The pulled backlog note claimed `v17` still had a live JavaScript tail across
+`src/`, `bin/`, and `scripts/`.
 
-- infrastructure adapters
-- CLI / visualization / scripts
-- remaining domain/service families
+This cycle existed to turn that census into a truthful execution slice.
 
-The backlog note
-[TS_convert-remaining-js](/Users/james/git/git-stunts/git-warp/docs/method/backlog/v17.0.0/TS_convert-remaining-js.md)
-captured the census honestly, but it is too large to execute as one fake
-"convert 93 files" swing without recreating the exact sludge the migration is
-meant to remove.
-
-This cycle exists to turn that census into a truthful execution slice.
+Repo truth proved the premise false: the active tree already has no live `.js`
+files under those paths.
 
 ## Hill
 
@@ -34,162 +28,146 @@ A contributor can now answer:
 
 ## Design goals
 
-1. Keep the remaining JS conversion on the active `v17` trunk.
-2. Preserve the batch ordering already captured in the backlog note.
-3. Refuse any "convert everything" approach that would hide over-ceiling files
-   or cast-heavy transitional sludge.
-4. Make the first executable conversion slice explicit enough to test and green.
-5. Leave the downstream conversion tasks
-   [TS_infrastructure-adapters](/Users/james/git/git-stunts/git-warp/docs/method/backlog/v17.0.0/TS_infrastructure-adapters.md)
-   and
-   [TS_cli-viz-scripts](/Users/james/git/git-stunts/git-warp/docs/method/backlog/v17.0.0/TS_cli-viz-scripts.md)
-   intact as real successors rather than blurring their boundaries.
+1. Validate the pulled JS-census premise against repo truth before doing fake
+   migration work.
+2. Refuse any "convert everything" approach that would hide already-completed
+   conversion work behind stale backlog notes.
+3. Leave the backlog more truthful than it was before the pull.
 
 ## Non-goals
 
-- No attempt to finish every remaining `.js` file in a single cycle.
-- No waiver on the anti-sludge policy just because files are mid-migration.
-- No hidden "just rename to .ts" conversions on files that still need splits or
-  runtime-backed types.
+- No fake RED/GREEN cycle against files that are already `.ts`.
+- No attempt to preserve stale backlog notes just because they once described
+  real work.
 - No launch-prep declaration or publish work in this cycle.
 
 ## Core diagnosis
 
-The backlog note names eleven conversion batches, but those batches are not
-equally executable:
+The backlog note was stale.
 
-- some are clean boundary or leaf conversions
-- some are over-ceiling and need structural cuts first
-- some overlap with god-kill or runtime-boundary work already tracked elsewhere
+Direct repo inspection showed:
+
+- `find src bin scripts -type f -name '*.js'` returns nothing
+- the only tracked `.js` files left in the active tree are config/plugin files
+  such as `eslint.config.js` and `vitest.config.js`
+- the sibling notes `TS_infrastructure-adapters` and `TS_cli-viz-scripts`
+  describe already-converted paths, not live work
 
 So the real problem is not "convert all the JS." The real problem is:
 
-> execute the remaining JS migration in bounded batches without lying about file
-> size, ownership, or runtime truth.
-
-This cycle should therefore treat the census note as an execution map, not as a
-literal one-shot hill.
+> remove stale TS-migration planning notes and move the actual remaining non-TS
+> tail into the active release plan.
 
 ## Design
 
-### 1. Keep the backlog census as the migration map
+### 1. Treat the pulled note as a premise check
 
-The batch ordering from the original note remains the source of truth for the
-remaining JS tail:
+The only honest first move was to compare the note against the active tree.
 
-- codec
-- trust
-- state
-- dag
-- strand
-- index
-- query
-- sync
-- controllers
-- flat services
-- provenance
+Once the premise failed, the cycle stopped being an implementation slice and
+became a backlog-correction slice.
 
-This cycle does not re-invent that map. It operationalizes it.
+### 2. Remove sibling notes that describe already-finished conversion work
 
-### 2. First executable slice must be bounded and leaf-heavy
+`TS_infrastructure-adapters` and `TS_cli-viz-scripts` were describing paths
+that are already `.ts` or `.sh` in the active tree.
 
-The first green slice should prefer:
+Those notes should not remain live backlog items after this cycle.
 
-- small leaf files
-- boundary files that already have obvious DTO/transport shapes
-- files that do not depend on unresolved god kills
-- files that do not require over-ceiling structural surgery
+### 3. Promote the actual remaining non-TS tail
 
-That means the early green path should begin with the smallest direct
-conversions in the front of the batch order, not the largest or most entangled
-files.
+The remaining honest TS-adjacent cleanup is
+`TS_eliminate-remaining-js-and-dts`:
 
-### 3. Structural cuts are part of the migration, not follow-up theater
+- config files
+- ambient declaration files
+- the `_wiredMethods.d.ts` compatibility artifact
 
-Any file already known to violate the source ceiling or to carry obvious
-ownership sludge must be split during the migration path that touches it.
-
-Examples already called out by the backlog census:
-
-- `StateReaderV5.js`
-- `CheckpointService.js`
-- `DagPathFinding.js`
-- `StrandDescriptorStore.js`
-- `ConflictCandidateCollector.js`
-- `BitmapIndexReader.js`
-- `LogicalIndexReader.js`
-- `SyncProtocol.js`
-- `BoundaryTransitionRecord.js`
-
-If a touched file still needs one of those cuts, the cycle must either:
-
-- perform the cut in the same slice, or
-- stop before touching that file and keep the slice bounded
-
-### 4. Runtime truth beats rename progress
-
-Every converted file must end more honest than it started:
-
-- named return/result types where boundary records are appropriate
-- runtime-backed classes where identity or invariants matter
-- no cast-cosplay
-- no fake `Function` surfaces
-- no unowned helper puddles
-
-The migration is not complete when a file compiles. It is complete when the
-file compiles without carrying forward the old shape lies.
-
-### 5. This cycle should establish the execution seam for the rest of the tail
-
-The end state of `0049` should make the next steps obvious:
-
-- the first converted batch lands cleanly
-- the remaining batches are still sequenced clearly
-- downstream backlog items still have truthful boundaries
-
-So the cycle is successful if it proves the JS tail can be burned down in clean,
-green batches without collapsing into a giant migration blob.
+That is the next real slice after this cycle.
 
 ## Playback questions
 
 ### Agent
 
-- Can I explain why `TS_convert-remaining-js` is an execution map rather than a
-  one-cycle mega-slice?
-- Can I point to the exact first bounded tranche this cycle is allowed to green?
-- Can I explain which over-ceiling files must be split on contact instead of
-  simply renamed?
+- Can I explain why `TS_convert-remaining-js` was a stale premise rather than a
+  real execution slice?
+- Can I point to the evidence that `src/`, `bin/`, and `scripts/` no longer
+  contain live `.js` files?
+- Can I identify the next honest non-TS cleanup slice after deleting the stale
+  notes?
 
 ### Human
 
-- Does this feel like a disciplined migration path rather than a catch-all TS
-  bucket?
-- Is it clear why some JS files can convert directly while others must wait for
-  structural cuts?
-- Is the first green slice small enough to trust?
+- Is it clear why this cycle closed early instead of inventing fake migration
+  work?
+- Is it clear which remaining note is the real non-TS tail after the stale
+  cards are removed?
 
 ## Test plan
 
 ### Golden path
 
-- the chosen first tranche converts from `.js` to `.ts`
-- the converted tranche passes `npm run typecheck`
-- targeted tests covering the touched tranche pass
-- no touched file exceeds the repo file-size ceilings without an accompanying
-  split
+- repo inspection proves there are no live `.js` files in `src/`, `bin/`, or
+  `scripts/`
+- stale conversion backlog notes are removed
+- the release/workload ledgers now point at the real remaining non-TS tail
 
 ### Edge cases
 
-- public barrels still resolve after conversion
-- compile-only surfaces and CLI entrypoints still typecheck after extension
-  changes
-- boundary record files use named result types instead of anonymous object
-  sludge
+- root config `.js` files stay out of scope for this cycle
+- `.d.ts` cleanup work is preserved as a separate honest follow-up
 
 ### Known failure modes
 
-- a touched file compiles only because of casts or fake `Function` surfaces
-- a known over-ceiling file gets renamed without being split
-- a slice spills across unrelated batches and becomes another migration god
-- downstream tasks become fuzzy because this cycle consumes their actual scope
+- stale conversion notes stay live and keep lying about `v17`
+- the cycle pretends to green conversion work that is already present
 
+## Playback
+
+### Witness
+
+The premise check is backed by:
+
+- `find src bin scripts -type f -name '*.js'`
+- `find . -path './.git' -prune -o -path './node_modules' -prune -o -path './.claude' -prune -o -type f -name '*.js' -print`
+- [README.md](/Users/james/git/git-stunts/git-warp/docs/releases/v17.0.0/README.md)
+- [WORKLOADS.md](/Users/james/git/git-stunts/git-warp/docs/method/backlog/WORKLOADS.md)
+
+### Agent
+
+1. *Can I explain why `TS_convert-remaining-js` was a stale premise rather than
+   a real execution slice?*
+   Yes. The active tree already has no live `.js` files under `src/`, `bin/`,
+   or `scripts/`, so the pulled backlog note no longer described repo truth.
+
+2. *Can I point to the evidence that `src/`, `bin/`, and `scripts/` no longer
+   contain live `.js` files?*
+   Yes. Direct `find` output shows zero matching files under those paths.
+
+3. *Can I identify the next honest non-TS cleanup slice after deleting the
+   stale notes?*
+   Yes. The remaining live note is `TS_eliminate-remaining-js-and-dts`.
+
+### Human
+
+1. *Is it clear why this cycle closed early instead of inventing fake migration
+   work?*
+   Yes. The repo already satisfies the premise the cycle would have been trying
+   to prove.
+
+2. *Is it clear which remaining note is the real non-TS tail after the stale
+   cards are removed?*
+   Yes. The real tail is no longer JS conversion; it is config and `.d.ts`
+   elimination.
+
+Verdict: not met. Premise invalid.
+
+## Drift check
+
+Positive drift only:
+
+- the cycle removed two additional stale sibling backlog notes,
+  `TS_infrastructure-adapters` and `TS_cli-viz-scripts`, because the same
+  premise check proved their scope already satisfied as well
+- the workload partition now carries `TS_eliminate-remaining-js-and-dts` on the
+  active `v17` trunk instead of leaving it mis-slotted in a later wave

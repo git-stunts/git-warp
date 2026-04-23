@@ -39,13 +39,13 @@ dependency graph and likely write-surface overlap.
 | `0` | `B0` | 1 | 5 | Intake and triage |
 | `1` | `B1` | 4 | 31 | Root backlog classification and maintenance |
 | `2` | `B2` | 8 | 139 | Invariant debt paydown |
-| `3.0` | `B3` | 6 | 27 | Ready-now release foundations |
+| `3.0` | `B3` | 6 | 26 | Ready-now release foundations |
 | `3.1` | `B3` | 3 | 23 | Downstream release workstreams |
-| `4` | `B4` | 9 | 61 | Next-major substrate cut plus near-term queue |
+| `4` | `B4` | 9 | 60 | Next-major substrate cut plus near-term queue |
 | `5` | `B5` | 9 | 98 | Doctrine follow-through plus speculative orbit |
-| Total | all | 40 | 384 | Subtotal before parked workloads |
+| Total | all | 40 | 382 | Subtotal before parked workloads |
 | `3.x` parked | `B3` | 1 | 6 | Launch-prep proof and package tail |
-| Grand total | all | 41 | 390 | Full live backlog |
+| Grand total | all | 41 | 388 | Full live backlog |
 
 ## Wave 0 — Intake Antichain
 
@@ -88,7 +88,7 @@ parallel without crossing a **live** backlog edge.
 | `WL-30-v17-capability-provider-seams` | 2 | `API_capability-interfaces`, `CROSS_shared-provider-interfaces` | Provider interfaces, capability surfaces, shared runtime seams |
 | `WL-31-v17-cas-substrate-foundation` | 5 | `INFRA_unify-persistence-on-git-cas`, `INFRA_plumbing-violations`, `INFRA_index-builder-on-git-cas`, `INFRA_substrate-upgrade-tool`, `INFRA_uniform-git-cas` | CAS, plumbing, substrate migration |
 | `WL-32-v17-purge-chain` | 4 | `PROTO_purge-cast-hacks`, `PROTO_purge-boundary-leaks`, `PROTO_purge-fake-models`, `PROTO_purge-import-law` | Anti-sludge purge chain; one agent, serial internal order |
-| `WL-33-v17-ts-tail-conversion` | 2 | `TS_infrastructure-adapters`, `TS_cli-viz-scripts` | Remaining TypeScript conversion work needed before launch-prep |
+| `WL-33-v17-non-ts-tail` | 1 | `TS_eliminate-remaining-js-and-dts` | Remaining non-TS config and declaration cleanup on the active `v17` trunk |
 | `WL-34-v17-ts-wave-sweep` | 9 | `TS_wave-01-codec`, `TS_wave-02-trust`, `TS_wave-03-dag-provenance`, `TS_wave-04-state-query`, `TS_wave-05-controllers`, `TS_wave-06-sync`, `TS_wave-07-index-small`, `TS_wave-08-strand-index-big`, `TS_wave-09-gods-and-monsters` | Wave-based TS migration sequence |
 | `WL-35-v17-hygiene-sludge-seed` | 5 | `HYGIENE_contamination-scanner-dynamic-imports`, `HYGIENE_type-import-and-template-expression-purge`, `SLUDGE_content-access-duplication`, `SLUDGE_dead-code-cleanup`, `SLUDGE_factory-functions-in-tests` | Cleanup and residue that do not wait on capability-provider work |
 
@@ -129,7 +129,7 @@ existing `up-next/` queue.
 | `WL-44-upnext-runtime-boundaries` | 10 | `CC_conflict-pipeline-god-context`, `PROTO_cbor-op-hydration`, `PROTO_controller-capability-interfaces`, `PROTO_local-site-object-for-neighborhoods`, `PROTO_op-consumer-instanceof-migration`, `PROTO_patch-commit-visibility-contract`, `PROTO_playback-head-alignment`, `PROTO_warpkernel-port-cleanup`, `PROTO_warpruntime-open-options-class`, `PROTO_wire-format-migration-edgepropset` | Runtime boundary cleanup |
 | `WL-45-upnext-strand-materialize` | 4 | `PROTO_materialize-strategy-decomposition`, `PROTO_same-writer-concurrent-patch-race`, `PROTO_strand-collapse-implementation`, `PROTO_strand-collapse-optic-for-causal-slicing` | Materialization and strand collapse |
 | `WL-46-upnext-ndnm` | 4 | all `up-next/NDNM_*.md` | Legacy pattern removal |
-| `WL-47-upnext-tail-edges` | 2 | `TRUST_sync-auth-ed25519`, `TS_eliminate-remaining-js-and-dts` | Small tail tasks with isolated surfaces |
+| `WL-47-upnext-tail-edges` | 1 | `TRUST_sync-auth-ed25519` | Small tail task with isolated surface |
 
 ## Wave 5 — `B5` Antichain
 
@@ -155,15 +155,15 @@ The partition is exhaustive and non-overlapping:
 - Wave `0`: `5`
 - Wave `1`: `31`
 - Wave `2`: `139`
-- Wave `3.0`: `27`
+- Wave `3.0`: `26`
 - Wave `3.1`: `23`
 - Wave `3.x`: `6`
-- Wave `4`: `61`
+- Wave `4`: `60`
 - Wave `5`: `98`
 
 Total:
 
-- `5 + 31 + 139 + 27 + 23 + 6 + 61 + 98 = 390`
+- `5 + 31 + 139 + 26 + 23 + 6 + 60 + 98 = 388`
 
 Every live backlog note is covered exactly once.
 
