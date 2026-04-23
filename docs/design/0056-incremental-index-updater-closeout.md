@@ -131,3 +131,37 @@ Add a doc-shape ratchet that fails until:
 
 - `npm exec vitest run test/unit/scripts/incremental-index-updater-closeout-shape.test.ts`
 - `git diff --check`
+
+## Playback
+
+### Agent
+
+- Yes. The current repo already shows the god split landed:
+  `IncrementalIndexUpdater.ts` is 495 LOC, `IndexNodeUpdater.ts` and
+  `IndexEdgeUpdater.ts` already own the split behavior, and `ShardPort.ts`
+  already exists.
+- Yes. Downstream blocker lists now stop naming
+  `GOD_incremental-index-updater` as if it were still a live prerequisite.
+- Yes. The `v17` ledger now explains that the remaining updater residue belongs
+  to `PROTO_purge-boundary-leaks` and
+  `MODEL_incremental-index-updater-shape-sludge`.
+
+### Human
+
+- Yes. It is now clear why this cycle closed a god card without another big
+  refactor.
+- Yes. It is clear that the remaining work is shard-I/O and raw-shape cleanup,
+  not a file-size emergency.
+
+### Verdict
+
+`hill met`
+
+## Drift check
+
+No negative drift.
+
+Positive drift only:
+
+- the cycle also corrected the historical wave and scorecard surfaces so they
+  stop teaching the obsolete 955-LOC god story
