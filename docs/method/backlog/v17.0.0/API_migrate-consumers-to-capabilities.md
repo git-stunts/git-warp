@@ -30,6 +30,24 @@ Key consumers:
 Each consumer should accept the narrowest capability it needs, not the
 full WarpGraph. This is the hexagonal architecture payoff.
 
+## Deferred content accessor surface
+
+Cycle `0051` closed `SLUDGE_content-access-duplication` as already
+materially satisfied at the implementation seam:
+`src/domain/services/controllers/QueryContent.ts` now owns the shared
+node/edge content lookup and blob-access logic.
+
+The remaining part of that old sludge card is not implementation
+deduplication. It is a public capability surface change:
+
+- `query.nodeContent(nodeId)` returning a `NodeContent` accessor
+- `query.edgeContent(from, to, label)` returning an `EdgeContent`
+  accessor
+
+If that surface still ships in `v17`, it belongs here as part of the
+capability migration and consumer cutover, not as a separate sludge
+task.
+
 ## Consumer migration signatures
 
 ### Worldline.ts

@@ -142,3 +142,34 @@ Add a small doc-shape ratchet that fails until:
 - `npm exec vitest run test/unit/scripts/content-access-duplication-shape.test.ts`
 - `git diff --check`
 
+## Playback
+
+### Agent
+
+- Yes. `src/domain/services/controllers/QueryContent.ts` is the shared seam
+  that already collapsed the worst node/edge duplication into one owner.
+- Yes. `docs/method/backlog/v17.0.0/API_migrate-consumers-to-capabilities.md`
+  now explicitly owns the remaining `NodeContent` / `EdgeContent` accessor
+  surface.
+- Yes. `docs/releases/v17.0.0/README.md` now marks
+  `SLUDGE_content-access-duplication` closed with the correct explanation.
+
+### Human
+
+- Yes. The cycle closed the stale card without pretending another content
+  refactor was needed.
+- Yes. The remaining accessor-object API work is clearly re-homed under the
+  capability migration trunk.
+
+### Verdict
+
+`hill met`
+
+## Drift check
+
+No negative drift.
+
+Positive drift only:
+
+- the cycle hardened the re-home with a small docs ratchet so the stale card
+  does not quietly reappear in the release ledger later
