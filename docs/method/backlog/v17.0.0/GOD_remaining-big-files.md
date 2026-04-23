@@ -4,7 +4,6 @@ blocks:
   - API_migrate-consumers-to-capabilities
 blocked_by:
   - CROSS_shared-provider-interfaces
-  - GOD_incremental-index-updater
 feature: materialization-query-index
 ---
 
@@ -17,13 +16,14 @@ which patches existing ones).
 
 ### Boundary violation
 
-Same as IncrementalIndexUpdater: the "serialize phase" is domain code
-encoding typed objects to `Uint8Array`. Serialization is the port's
-job (SSTS P5).
+Same residue that remains after cycle `0056`: the "serialize phase" is
+domain code encoding typed objects to `Uint8Array`. Serialization is
+the port's job (SSTS P5).
 
 ### The fix
 
-Uses the same `ShardPort` from the IncrementalIndexUpdater split.
+Uses the same `ShardPort` that already exists after the
+`IncrementalIndexUpdater` split.
 The builder constructs typed shard objects (`MetaShard`, `EdgeShard`,
 `LabelMap`). The port adapter serializes them.
 

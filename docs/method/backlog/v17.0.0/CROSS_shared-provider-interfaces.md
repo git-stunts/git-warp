@@ -3,7 +3,6 @@ id: CROSS_shared-provider-interfaces
 blocks:
   - GOD_query-controller
   - GOD_materialize-controller
-  - GOD_incremental-index-updater
   - GOD_remaining-big-files
   - SLUDGE_host-bag-injection
   - SLUDGE_detached-graph-duplication

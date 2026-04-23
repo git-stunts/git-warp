@@ -4,14 +4,13 @@ blocks:
   - API_kill-warpruntime
 blocked_by:
   - TS_wave-08-strand-index-big
-  - GOD_incremental-index-updater
 feature: runtime-boundaries
 ---
 
 # Wave 9: gods and monsters (13 files, 10987 LOC)
 
 The final wave. Every file here is a god or near-god. Each one
-needs splitting during conversion. This is the hardest wave.
+needed splitting during conversion. This was the hardest wave.
 
 | # | File | LOC | Notes |
 |---|------|-----|-------|
@@ -26,7 +25,11 @@ needs splitting during conversion. This is the hardest wave.
 | 9 | VisibleStateTransferPlannerV5.js | 692 | Transfer planning (ceiling!) |
 | 10 | AuditVerifierService.js | 824 | Audit verification (god!) |
 | 11 | StreamingBitmapIndexBuilder.js | 835 | Full bitmap build (god!) |
-| 12 | IncrementalIndexUpdater.js | 955 | Incremental index (god!) |
+| 12 | IncrementalIndexUpdater.ts | 495 | Split already landed; remaining boundary/model cleanup lives elsewhere |
 | 13 | WarpRuntime.js | 1234 | THE god — dies last |
 
-**SSTS focus:** Every file here violates the 500 LOC ceiling. Each needs a split plan + ShardPort/DI treatment. StrandService.js is dead code once StrandController migrates to StrandCoordinator — just delete it. WarpRuntime.js dies in API_kill-warpruntime after all consumers migrate.
+**SSTS focus:** This wave carried the largest conversion monsters. Some are now
+below the 500 LOC ceiling or already split, but the remaining survivors still
+need the same sharp treatment. StrandService.js is dead code once
+StrandController migrates to StrandCoordinator — just delete it. WarpRuntime.js
+dies in API_kill-warpruntime after all consumers migrate.

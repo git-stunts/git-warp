@@ -8,7 +8,6 @@ blocked_by:
   - GOD_materialize-controller
   - GOD_strand-service
   - GOD_query-builder
-  - GOD_incremental-index-updater
   - GOD_remaining-big-files
 feature: api-capabilities
 ---

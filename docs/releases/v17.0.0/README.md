@@ -35,7 +35,12 @@ LAYER 1 (god kills + conversions):
   [x] GOD_remaining-big-files            ← WORLDBUILDER (9 gods slain)
   [x] SLUDGE_detached-graph-duplication
   [~] SLUDGE_host-bag-injection          ← ongoing per-god-kill
-  [ ] GOD_incremental-index-updater
+  [x] GOD_incremental-index-updater     ← cycle 0056 hill-met; god split already landed
+                                          into `IndexNodeUpdater` /
+                                          `IndexEdgeUpdater`, and the remaining
+                                          shard-I/O / raw-shape cleanup belongs to
+                                          `PROTO_purge-boundary-leaks` +
+                                          `MODEL_incremental-index-updater-shape-sludge`
   [x] TS_convert-remaining-js            ← cycle 0049 premise invalid;
                                           no live `.js` remain in
                                           `src/`, `bin/`, or `scripts/`

@@ -104,14 +104,15 @@ Each plan scored against SSTS principles (P1–P7) and practices.
 
 | Rule | Score | Note |
 |------|-------|------|
-| P1: Runtime-backed forms | ✅ | IndexNodeUpdater, IndexEdgeUpdater are classes. ShardIO is a port. |
-| P2: Boundary validation | ⚠️ | The shard data comes from disk. Who validates it after load? Plan is silent. |
-| P3: Behavior on owning type | ✅ | Node updater owns node index logic. Edge updater owns edge logic. |
-| interface for ports only | ✅ | ShardIO is a port. |
-| 500 LOC | ✅ | All ~250–350. |
+| P1: Runtime-backed forms | ✅ | `IndexNodeUpdater` and `IndexEdgeUpdater` already own the split behavior. |
+| P2: Boundary validation | ⚠️ | Remaining live residue is shard-I/O and raw-shape cleanup, now owned by `PROTO_purge-boundary-leaks`. |
+| P3: Behavior on owning type | ✅ | The god split already happened; behavior moved to the owning helpers. |
+| interface for ports only | ✅ | `ShardPort` already exists. |
+| 500 LOC | ✅ | `IncrementalIndexUpdater.ts` is now 495 LOC. |
 
-**Amendments needed:**
-1. State that shard data is validated after deserialization (boundary).
+**Remaining owner notes:**
+1. `PROTO_purge-boundary-leaks`
+2. `MODEL_incremental-index-updater-shape-sludge`
 
 ---
 
