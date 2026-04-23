@@ -65,7 +65,7 @@ export default tseslint.config(
 
   // ── Source + CLI: typed linting (the nuclear option) ────────────────────────
   {
-    files: ["src/**/*.js", "src/**/*.ts", "bin/**/*.js", "bin/**/*.ts"],
+    files: ["src/**/*.ts", "bin/**/*.ts"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
@@ -164,7 +164,7 @@ export default tseslint.config(
       // matching block wins per rule. The domain purity block below
       // (at files: src/domain/**) MUST re-list every selector from
       // this block plus its own Date/Math/timer bans, or the bans here
-      // will silently disappear in domain code. See eslint.config.js
+      // will silently disappear in domain code. See eslint.config.ts
       // lines ~385 onward.
       "no-restricted-syntax": ["error",
         {
@@ -341,19 +341,19 @@ export default tseslint.config(
   {
     files: [
       "src/domain/WarpGraph.ts",
-      "src/domain/services/controllers/QueryController.js",
-      "src/domain/services/controllers/SubscriptionController.js",
-      "src/domain/services/controllers/ProvenanceController.js",
-      "src/domain/services/controllers/ForkController.js",
+      "src/domain/services/controllers/QueryController.ts",
+      "src/domain/services/controllers/SubscriptionController.ts",
+      "src/domain/services/controllers/ProvenanceController.ts",
+      "src/domain/services/controllers/ForkController.ts",
       "src/domain/services/controllers/PatchController.ts",
       "src/domain/services/controllers/PatchDiscovery.ts",
-      "src/domain/services/controllers/CheckpointController.js",
-      "src/domain/services/controllers/MaterializeController.js",
-      "src/domain/services/dag/CommitDagTraversalService.js",
+      "src/domain/services/controllers/CheckpointController.ts",
+      "src/domain/services/controllers/MaterializeController.ts",
+      "src/domain/services/dag/CommitDagTraversalService.ts",
       "src/domain/services/state/checkpointHelpers.ts",
       "src/domain/services/state/checkpointCreate.ts",
       "src/domain/services/state/checkpointLoad.ts",
-      "src/domain/services/query/QueryBuilder.js",
+      "src/domain/services/query/QueryBuilder.ts",
       "src/domain/services/codec/WarpMessageCodec.ts",
       "src/domain/services/codec/PatchMessageCodec.ts",
       "src/domain/services/codec/CheckpointMessageCodec.ts",
@@ -399,11 +399,11 @@ export default tseslint.config(
       "src/domain/services/dag/DagTraversal.ts",
       "src/domain/services/dag/pathReconstruction.ts",
       // Index
-      "src/domain/services/index/BitmapIndexBuilder.js",
-      "src/domain/services/index/BitmapNeighborProvider.js",
+      "src/domain/services/index/BitmapIndexBuilder.ts",
+      "src/domain/services/index/BitmapNeighborProvider.ts",
       "src/domain/services/index/IncrementalIndexUpdater.ts",
-      "src/domain/services/index/LogicalBitmapIndexBuilder.js",
-      "src/domain/services/index/LogicalIndexBuildService.js",
+      "src/domain/services/index/LogicalBitmapIndexBuilder.ts",
+      "src/domain/services/index/LogicalIndexBuildService.ts",
       // Provenance
       "src/domain/services/provenance/btrOperations.ts",
       // Query
@@ -424,7 +424,7 @@ export default tseslint.config(
       // Strand
       "src/domain/services/strand/conflictCandidateAnalysis.ts",
       "src/domain/services/strand/ConflictAnalysisRequest.ts",
-      "src/domain/services/strand/ConflictCandidateCollector.js",
+      "src/domain/services/strand/ConflictCandidateCollector.ts",
       "src/domain/services/strand/ConflictFrameLoader.ts",
       "src/domain/services/strand/ConflictTraceAssembler.ts",
       "src/domain/services/strand/OpRecord.ts",
@@ -432,7 +432,6 @@ export default tseslint.config(
       "src/domain/services/strand/StrandIntentService.ts",
       "src/domain/services/strand/StrandMaterializer.ts",
       "src/domain/services/strand/StrandPatchService.ts",
-      "src/domain/services/strand/StrandService.js",
       // Sync
       "src/domain/services/sync/SyncAuthService.ts",
       "src/domain/services/sync/syncPatchLoader.ts",
@@ -464,7 +463,7 @@ export default tseslint.config(
       "src/infrastructure/adapters/gitErrorClassification.ts",
       "src/infrastructure/adapters/inMemoryHashing.ts",
       // CLI
-      "bin/warp-graph.js",
+      "bin/warp-graph.ts",
       "bin/warp-graph.ts",
       "bin/cli/infrastructure.ts",
       "bin/cli/shared.ts",
@@ -497,7 +496,7 @@ export default tseslint.config(
 
   // ── Port contracts: async is the interface, not the implementation ──────────
   {
-    files: ["src/ports/**/*.js", "src/ports/**/*.ts"],
+    files: ["src/ports/**/*.ts"],
     rules: {
       "@typescript-eslint/require-await": "off",
     },
@@ -541,8 +540,8 @@ export default tseslint.config(
           { "name": "node:os",       "message": "Anti-sludge (0025D): Node platform APIs belong in adapters. Use a port." },
           // NOTE: `buffer` / `node:buffer` already banned in src/domain/** by
           // the existing domain-purity block. Adding here extends it to ports.
-          { "name": "buffer",        "message": "Anti-sludge: Use Uint8Array + helpers from domain/utils/bytes.js. Buffer is confined to adapters." },
-          { "name": "node:buffer",   "message": "Anti-sludge: Use Uint8Array + helpers from domain/utils/bytes.js. Buffer is confined to adapters." },
+          { "name": "buffer",        "message": "Anti-sludge: Use Uint8Array + helpers from domain/utils/bytes.ts. Buffer is confined to adapters." },
+          { "name": "node:buffer",   "message": "Anti-sludge: Use Uint8Array + helpers from domain/utils/bytes.ts. Buffer is confined to adapters." },
           // Framework libraries (defensive)
           { "name": "express",       "message": "Anti-sludge (0025D): transport/framework concerns belong in adapters." },
           { "name": "fastify",       "message": "Anti-sludge (0025D): transport/framework concerns belong in adapters." },
@@ -580,22 +579,22 @@ export default tseslint.config(
     },
   }]),
 
-  // ── Domain purity: ban Buffer — use Uint8Array + helpers from domain/utils/bytes.js ──
+  // ── Domain purity: ban Buffer — use Uint8Array + helpers from domain/utils/bytes.ts ──
   {
-    files: ["src/domain/**/*.js", "src/domain/**/*.ts"],
+    files: ["src/domain/**/*.ts"],
     rules: {
       "no-restricted-globals": ["error",
-        { "name": "Buffer", "message": "Use Uint8Array + helpers from domain/utils/bytes.js. Buffer is confined to infrastructure adapters." },
+        { "name": "Buffer", "message": "Use Uint8Array + helpers from domain/utils/bytes.ts. Buffer is confined to infrastructure adapters." },
       ],
       "no-restricted-imports": ["error", {
         "paths": [
           {
             "name": "node:buffer",
-            "message": "Use Uint8Array + helpers from domain/utils/bytes.js. Buffer is confined to infrastructure adapters.",
+            "message": "Use Uint8Array + helpers from domain/utils/bytes.ts. Buffer is confined to infrastructure adapters.",
           },
           {
             "name": "buffer",
-            "message": "Use Uint8Array + helpers from domain/utils/bytes.js. Buffer is confined to infrastructure adapters.",
+            "message": "Use Uint8Array + helpers from domain/utils/bytes.ts. Buffer is confined to infrastructure adapters.",
           },
         ],
       }],
@@ -616,7 +615,7 @@ export default tseslint.config(
   // block, add it here too. See docs/method/backlog/cool-ideas/
   // DX_domain-error-strict-lint.md for history.
   {
-    files: ["src/domain/**/*.js", "src/domain/**/*.ts"],
+    files: ["src/domain/**/*.ts"],
     rules: {
       "no-restricted-syntax": ["error",
         // ── Raw Errors (inherited from generic src/** block) ──
@@ -673,7 +672,7 @@ export default tseslint.config(
 
   // ── JoinReducer: the algorithm from hell ───────────────────────────────────
   {
-    files: ["src/domain/services/JoinReducer.js", "src/domain/services/JoinReducer.ts"],
+    files: ["src/domain/services/JoinReducer.ts", "src/domain/services/JoinReducer.ts"],
     rules: {
       "complexity": ["error", 35],
       "max-lines-per-function": ["error", 200],
@@ -685,7 +684,7 @@ export default tseslint.config(
 
   // ── Test files: keep strict but relax structure rules ──────────────────────
   {
-    files: ["test/**/*.js", "test/**/*.ts", "test/**/*.test.js", "test/**/*.test.ts"],
+    files: ["test/**/*.ts", "test/**/*.test.ts"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
@@ -753,7 +752,7 @@ export default tseslint.config(
 
   // ── Benchmarks ─────────────────────────────────────────────────────────────
   {
-    files: ["benchmarks/**/*.js", "test/benchmark/**/*.js"],
+    files: ["test/benchmark/**/*.ts"],
     languageOptions: {
       globals: {
         process: "readonly",
@@ -779,7 +778,7 @@ export default tseslint.config(
 
   // ── Example scripts ────────────────────────────────────────────────────────
   {
-    files: ["examples/**/*.js"],
+    files: ["examples/**/*.ts"],
     languageOptions: {
       globals: {
         process: "readonly",
@@ -801,7 +800,7 @@ export default tseslint.config(
 
   // ── Browser globals for HTML example assets ────────────────────────────────
   {
-    files: ["examples/html/assets/**/*.js"],
+    files: ["examples/html/assets/**/*.ts"],
     languageOptions: {
       globals: {
         window: "readonly",

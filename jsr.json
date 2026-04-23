@@ -15,7 +15,6 @@
     "include": [
       "index.ts",
       "browser.ts",
-      "sha1sync.d.ts",
       "src/**/*.ts",
       "src/**/*.d.ts",
       "README.md",

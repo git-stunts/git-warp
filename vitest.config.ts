@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import { shouldAutoUpdateCoverageRatchet } from './scripts/coverage-ratchet.js';
+import { shouldAutoUpdateCoverageRatchet } from './scripts/coverage-ratchet.ts';
 
 export default defineConfig({
   // Externalize the roaring native module from Vite's transform pipeline.
@@ -10,7 +10,7 @@ export default defineConfig({
   test: {
     include: [
       '**/*.{test,spec}.?(c|m)[jt]s?(x)',
-      '**/benchmark/*.benchmark.js',
+      '**/benchmark/*.benchmark.ts',
     ],
     exclude: [
       '**/node_modules/**',
@@ -26,7 +26,7 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.js', 'src/**/*.ts'],
+      include: ['src/**/*.ts'],
       exclude: ['src/ports/**/*.ts'],
       thresholds: {
         lines: 95.43,
