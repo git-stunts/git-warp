@@ -152,3 +152,43 @@ Add a ratchet that fails until:
 - `npm run lint:contamination`
 - `git diff --check`
 
+## Playback
+
+### Agent
+
+- Yes. The scanner now names dynamic import-law violations explicitly through
+  `core-imports-node-protocol-dynamic`,
+  `core-imports-node-bare-dynamic`, and
+  `core-imports-infrastructure-dynamic` in
+  `scripts/contamination-map.ts`, with matching Semgrep rules in
+  `semgrep/typescript-anti-sludge.yml`.
+- Yes. `src/domain/utils/defaultTrustCrypto.ts` no longer reaches for
+  `node:crypto`; it lazy-loads `TrustCryptoAdapter.ts`. Likewise
+  `src/domain/utils/roaring.ts` no longer owns `node:module` /
+  package-fallback logic; that now lives in
+  `src/infrastructure/adapters/RoaringLoaderAdapter.ts`.
+- Yes. The sanctioned dynamic adapter-loader carve-out is explicit and narrow in
+  `docs/ANTI_SLUDGE_POLICY.md`.
+
+### Human
+
+- Yes. The policy now lists the exact dynamic loader files and says no other
+  core file inherits that escape hatch by implication.
+- Yes. The hidden `defaultTrustCrypto` / `roaring` violations were fixed, not
+  ignored.
+
+### Verdict
+
+`hill met`
+
+## Drift check
+
+No negative drift against the hill.
+
+Positive drift only:
+
+- tightening the scanner surfaced four pre-existing static import-law leaks in
+  the domain message codec wrapper files
+- that residue is now tracked explicitly in
+  `HEX_domain-message-codec-wrapper-imports-infrastructure` instead of staying
+  hidden behind a scanner blindspot
