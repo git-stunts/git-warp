@@ -131,17 +131,16 @@ Each plan scored against SSTS principles (P1–P7) and practices.
 
 ---
 
-## GOD_remaining-big-files
+## Former remaining-big-files residue
 
-| Rule | Score | Note |
-|------|-------|------|
-| P1: Runtime-backed forms | ⚠️ | AuditVerifier assessment results — are they classes or plain objects? Plan says "Types (~125 LOC)" but doesn't commit. If assessments have behavior (e.g., `isValid()`, `trustLevel()`), they're classes. |
-| P3: Behavior on owning type | ⚠️ | VisibleStateComparison diff results — do they have behavior or are they data? If they're just `{ added: [], removed: [] }`, plain objects are fine. If consumers switch on fields, behavior should live on the result. |
-| 500 LOC | ✅ | All splits under 500. |
+`GOD_remaining-big-files` closed in cycle `0058`. The named files are now
+already below the 500 LOC ceiling, and the only still-serious index-builder
+residue was closed in `0057`.
 
-**Amendments needed:**
-1. Decide: are assessment results classes or records? If they have behavior, classes.
-2. Decide: are diff results classes or records? Same criterion.
+The real remaining owner notes are:
+
+1. `CORE_streaming-memory-audit`
+2. `PROTO_purge-boundary-leaks`
 
 ---
 

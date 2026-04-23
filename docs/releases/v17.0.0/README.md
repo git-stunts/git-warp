@@ -32,7 +32,13 @@ LAYER 1 (god kills + conversions):
   [x] GOD_query-controller
   [x] GOD_materialize-controller
   [x] GOD_strand-service                 ← dissolved → coordinator + validation
-  [x] GOD_remaining-big-files            ← WORLDBUILDER (9 gods slain)
+  [x] GOD_remaining-big-files            ← cycle 0058 hill-met; named files are already
+                                          below the ceiling, the only serious
+                                          index-builder residue died in `0057`,
+                                          and the remaining streaming / boundary
+                                          truth lives under
+                                          `CORE_streaming-memory-audit` +
+                                          `PROTO_purge-boundary-leaks`
   [x] SLUDGE_detached-graph-duplication
   [~] SLUDGE_host-bag-injection          ← ongoing per-god-kill
   [x] GOD_incremental-index-updater     ← cycle 0056 hill-met; god split already landed

@@ -3,7 +3,6 @@ id: CROSS_shared-provider-interfaces
 blocks:
   - GOD_query-controller
   - GOD_materialize-controller
-  - GOD_remaining-big-files
   - SLUDGE_host-bag-injection
   - SLUDGE_detached-graph-duplication
 blocked_by: []
@@ -29,7 +28,10 @@ interface ShardPort {
   saveLabels(labels: LabelMap): void;
 }
 ```
-Used by: IncrementalIndexUpdater, StreamingBitmapIndexBuilder.
+Used by: IncrementalIndexUpdater. The earlier
+`StreamingBitmapIndexBuilder` split originally depended on this seam,
+but cycle `0057` moved full rebuilds onto the stronger
+`StreamingIndexStoragePort` path.
 
 ### `src/domain/capabilities/MaterializedStateProvider.ts`
 ```typescript
