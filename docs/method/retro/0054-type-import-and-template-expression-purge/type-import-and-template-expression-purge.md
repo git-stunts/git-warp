@@ -40,7 +40,7 @@ without reconstructing history from chat or stale backlog prose.
 
 ## Next
 
-Keep burning down `WL-35-v17-hygiene-sludge-seed` with
-`SLUDGE_factory-functions-in-tests`, and let future slices graduate the two
-hygiene quarantine manifests file by file instead of reopening the same
-"are these rules real?" question.
+Let future slices graduate the two hygiene quarantine manifests file by file
+instead of reopening the same "are these rules real?" question, and keep the
+`v17` cleanup line focused on live runtime and API debt rather than stale sludge
+cards.

@@ -13,7 +13,10 @@ LAYER 0 (foundation):
   [x] CROSS_shared-provider-interfaces
   [x] API_capability-interfaces          ← 10 interfaces shipped
   [x] GOD_query-builder
-  [x] SLUDGE_factory-functions-in-tests
+  [x] SLUDGE_factory-functions-in-tests  ← cycle 0055 hill-met; constructor-wrapper
+                                          sludge already died in `2e99c0cb`;
+                                          wire-format helpers remain intentional test
+                                          transport fixtures
   [x] TS_wave-01-codec through TS_wave-09-gods-and-monsters  ← DEATHBRINGER
   [✗] SLUDGE_dead-code-cleanup           ← cycle 0052 not-met; code is still live
                                           through `conflictTargetIdentity.ts` /
