@@ -6,7 +6,7 @@
     "ts-no-double-cast"
   ],
   "rationale": "Pre-existing `as unknown as` uses discovered at anti-sludge policy adoption time. Each entry grants file-level exemption from ts-no-double-cast ONLY. Graduate by removing the cast (prefer decoder / type guard / narrower port), not by adding an inline suppression unless the specific line has a documented reason that cannot be refactored away.",
-  "generated_at": "2026-04-16T17:34:16.887Z",
+  "generated_at": "2026-04-23T08:05:17.718Z",
   "generator": "scripts/contamination-map.ts v1",
   "files": [
     "src/domain/WarpGraph.ts",
@@ -23,12 +23,6 @@
     "src/domain/services/query/Observer.ts",
     "src/domain/services/state/checkpointLoad.ts",
     "src/domain/services/sync/HttpSyncServer.ts",
-    "src/domain/services/sync/syncPatchLoader.ts",
-    "src/domain/services/sync/syncRequestResponse.ts",
-    "src/domain/stream/WarpStream.ts",
-    "src/domain/utils/roaring.ts",
-    "src/infrastructure/adapters/CasBlobAdapter.ts",
-    "src/infrastructure/adapters/CasSeekCacheAdapter.ts",
-    "src/infrastructure/adapters/GitTrustChainAdapter.ts"
+    "src/domain/stream/WarpStream.ts"
   ]
 }

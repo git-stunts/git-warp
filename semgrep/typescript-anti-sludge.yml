@@ -185,6 +185,43 @@ rules:
         - '**/*.d.ts'
 
   # ────────────────────────────────────────────────────────────
+  # 0025D — Dynamic import-law mirror
+  # ────────────────────────────────────────────────────────────
+
+  - id: ts-no-dynamic-node-imports-in-core
+    message: |
+      Dynamic `node:*` imports are still Node platform imports. Keep them in
+      adapters.
+    severity: ERROR
+    languages: [typescript]
+    pattern-regex: '(?:typeof\s+)?import\s*\(\s*[''"](node:[\w-]+(?:/[\w-]+)?|fs(?:/[\w-]+)?|path(?:/[\w-]+)?|http(?:/[\w-]+)?|https(?:/[\w-]+)?|net(?:/[\w-]+)?|tls(?:/[\w-]+)?|stream(?:/[\w-]+)?|child_process(?:/[\w-]+)?|crypto(?:/[\w-]+)?|os(?:/[\w-]+)?|buffer(?:/[\w-]+)?)[''"]\s*\)'
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
+
+  - id: ts-no-dynamic-infrastructure-imports-in-core
+    message: |
+      Dynamic imports of infrastructure adapters are banned in core code except
+      for the narrow sanctioned adapter-loader files documented in
+      docs/ANTI_SLUDGE_POLICY.md.
+    severity: ERROR
+    languages: [typescript]
+    pattern-regex: '(?:typeof\s+)?import\s*\(\s*[''"][^''"]*/infrastructure/[^''"]*[''"]\s*\)'
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
+        - src/domain/utils/defaultCrypto.ts
+        - src/domain/utils/defaultTrustCrypto.ts
+        - src/domain/utils/roaring.ts
+        - src/domain/services/controllers/SyncController.ts
+
+  # ────────────────────────────────────────────────────────────
   # 0025A — Cast purge
   # ────────────────────────────────────────────────────────────
 

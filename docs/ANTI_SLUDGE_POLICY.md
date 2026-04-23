@@ -88,6 +88,28 @@ Time, randomness, and environment flow through ports instead:
 - `RandomPort` / seeded PRNG for randomness
 - Parameters or configuration objects for environment-derived values
 
+### Dynamic import law
+
+Dynamic imports are **not** a loophole around the hex wall.
+
+- Dynamic `node:*` imports in `src/domain/**` and `src/ports/**` are banned.
+- Dynamic imports of `src/infrastructure/**` from core are banned by default.
+
+There is one narrow carve-out for sanctioned adapter-loader files that bind a
+default platform implementation without statically importing the adapter at the
+module graph level.
+
+Authorized dynamic adapter-loader files:
+
+- `src/domain/utils/defaultCrypto.ts`
+- `src/domain/utils/defaultTrustCrypto.ts`
+- `src/domain/utils/roaring.ts`
+- `src/domain/services/controllers/SyncController.ts`
+
+Those files may lazy-load adapters. No other core file inherits this carve-out
+implicitly. If another file needs it, document the case first and update this
+policy explicitly.
+
 ---
 
 ## 2. Banned sludge types

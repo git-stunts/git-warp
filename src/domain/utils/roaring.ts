@@ -1,279 +1,73 @@
 import WarpError from '../errors/WarpError.ts';
 
-/**
- * Lazy-loading wrapper for the roaring-wasm/roaring native bitmap library.
- *
- * This module provides deferred loading of the `roaring` npm package to avoid
- * incurring the startup cost of loading native C++ bindings until they are
- * actually needed. The roaring package provides highly efficient compressed
- * bitmap data structures used by the bitmap index system for O(1) neighbor lookups.
- *
- * ## Why Lazy Loading?
- *
- * The `roaring` package includes native C++ bindings that can take 50-100ms to
- * initialize on cold start. By deferring the load until first use,
- * applications that don't use bitmap indexes avoid this overhead entirely.
- *
- * ## Module Caching
- *
- * Once loaded, the module reference is cached in `roaringModule` and reused
- * for all subsequent calls. Similarly, native availability is cached after
- * the first check to avoid repeated introspection.
- *
- * @module roaring
- * @see BitmapIndexBuilder - Primary consumer of roaring bitmaps
- * @see StreamingBitmapIndexBuilder - Memory-bounded variant
- */
-
-/**
- * Sentinel indicating availability has not been checked yet.
- */
-const NOT_CHECKED: unique symbol = Symbol('NOT_CHECKED');
-
-/**
- * Shape of the lazily-loaded roaring module after ESM/CJS unwrapping.
- * Uses Function instead of typeof import('roaring').RoaringBitmap32 to avoid
- * duplicate import() references that crash Deno's JSR rewriter (deno_ast
- * overlapping TextChange bug). The single import() reference lives on
- * getRoaringBitmap32()'s @returns tag.
- */
-interface RoaringModule {
-  RoaringBitmap32: (Function & { isNativelyInstalled?: () => boolean });
-  default?: { RoaringBitmap32: Function };
-  isNativelyInstalled?: boolean;
-}
-
-/**
- * Minimum structural contract of a RoaringBitmap32 as used by bitmap index code.
- * Named "Subset" because it only covers methods actually called by index builders/readers.
- * Using import('roaring').RoaringBitmap32 directly fails under checkJs + skipLibCheck
- * because tsc doesn't fully resolve inherited methods from ReadonlyRoaringBitmap32.
- */
-export interface RoaringBitmapSubset {
+export type RoaringBitmapSubset = {
   readonly size: number;
   add(value: number): void;
+  clear(): void;
   remove(value: number): void;
   has(value: number): boolean;
   orInPlace(other: Iterable<number>): void;
   serialize(portable: boolean): Uint8Array;
   toArray(): number[];
-}
+  [Symbol.iterator](): Iterator<number>;
+};
 
-/** Cached reference to the loaded roaring module. */
-let roaringModule: RoaringModule | null = null;
+export type RoaringBitmap32Constructor = {
+  new(values?: Iterable<number>): RoaringBitmapSubset;
+  deserialize(data: Uint8Array | ArrayLike<number>, portable: boolean): RoaringBitmapSubset;
+  isNativelyInstalled?: () => boolean;
+};
 
-/** Captures module initialization failure so callers can see the root cause. */
-let initError: unknown = null;
+type RoaringModuleOverride = {
+  readonly RoaringBitmap32: RoaringBitmap32Constructor;
+  readonly default?: { readonly RoaringBitmap32?: RoaringBitmap32Constructor };
+  readonly isNativelyInstalled?: boolean;
+};
 
-/**
- * Cached result of native availability check.
- * `NOT_CHECKED` means not yet checked, `null` means indeterminate.
- */
-let nativeAvailability: boolean | typeof NOT_CHECKED | null = NOT_CHECKED;
+export type RoaringModuleInput = RoaringModuleOverride | object;
 
-/**
- * Lazily loads and caches the roaring module.
- *
- * Uses a top-level-await-friendly pattern with dynamic import.
- * The module is cached after first load.
- *
- * @throws {Error} If the roaring package is not installed or fails to load
- */
-function loadRoaring(): RoaringModule {
-  if (!roaringModule) {
-    const cause = initError instanceof Error ? ` Caused by: ${initError.message}` : '';
-    throw new WarpError(`Roaring module not loaded. Call initRoaring() first or ensure top-level await import completed.${cause}`, 'E_ROARING_NOT_LOADED');
-  }
-  return roaringModule;
-}
+type RoaringLoaderModule = {
+  readonly initRoaring: (mod?: RoaringModuleInput) => Promise<void>;
+  readonly getRoaringBitmap32: () => RoaringBitmap32Constructor;
+  readonly getNativeRoaringAvailable: () => boolean | null;
+};
 
-/**
- * Adapts the `roaring-wasm` module to match the `roaring` native API surface.
- *
- * The WASM module is already largely compatible (serialize/deserialize accept
- * booleans), but it lacks `isNativelyInstalled` which `getNativeRoaringAvailable()`
- * probes. This shim adds it so downstream code works without branching.
- */
-function adaptWasmApi(wasmMod: RoaringModule): RoaringModule {
-  wasmMod.RoaringBitmap32.isNativelyInstalled = (): boolean => false;
-  return wasmMod;
-}
+let roaringLoader: RoaringLoaderModule | null = null;
+let loaderError: Error | null = null;
 
-/**
- * Tier 1: ESM dynamic import of native roaring.
- */
-async function tryNativeImport(errors: Error[]): Promise<RoaringModule | null> {
-  try {
-    return await import('roaring') as RoaringModule;
-  } catch (err) {
-    errors.push(err instanceof Error ? err : new WarpError(String(err), 'E_ROARING_LOAD'));
-    return null;
-  }
-}
-
-/**
- * Tier 2: CJS require() — works when Vite intercepts import() but can't
- * transform native C++ addons.
- */
-async function tryCjsRequire(errors: Error[]): Promise<RoaringModule | null> {
-  try {
-    const { createRequire } = await import('node:module');
-    const req = createRequire(import.meta.url) as (id: string) => unknown;
-    const mod = req('roaring') as RoaringModule;
-    return mod;
-  } catch (err) {
-    errors.push(err instanceof Error ? err : new WarpError(String(err), 'E_ROARING_LOAD'));
-    return null;
-  }
-}
-
-/**
- * Tier 3: WASM fallback — works on Bun (JSC) and Deno without native bindings.
- */
-async function tryWasmFallback(errors: Error[]): Promise<RoaringModule | null> {
-  try {
-    const wasmMod = await import('roaring-wasm');
-    if (typeof (wasmMod as Record<string, unknown>)['roaringLibraryInitialize'] === 'function') {
-      await (wasmMod as { roaringLibraryInitialize: () => Promise<void> }).roaringLibraryInitialize();
-    }
-    return adaptWasmApi(wasmMod as RoaringModule);
-  } catch (err) {
-    errors.push(err instanceof Error ? err : new WarpError(String(err), 'E_ROARING_LOAD'));
-    return null;
-  }
-}
-
-/**
- * Unwraps ESM default-export wrappers on a loaded roaring module.
- * Handles both ESM `{ default: { RoaringBitmap32 } }` and CJS `module.exports`.
- */
-function unwrapDefault(mod: RoaringModule): RoaringModule {
-  if (mod.default !== null && mod.default !== undefined && typeof mod.default.RoaringBitmap32 === 'function') {
-    return mod.default as unknown as RoaringModule;
-  }
-  return mod;
-}
-
-/**
- * Initializes the roaring module. Must be called before getRoaringBitmap32().
- * This is called automatically via top-level await when the module is imported,
- * but can also be called manually with a pre-loaded module for testing.
- *
- * Fallback chain:
- *   Tier 1: await import('roaring')       — ESM native V8 bindings
- *   Tier 2: createRequire('roaring')      — CJS native (Vite workaround)
- *   Tier 3: await import('roaring-wasm')  — WASM portable fallback
- */
-export async function initRoaring(mod?: RoaringModule): Promise<void> {
-  if (mod !== null && mod !== undefined) {
-    roaringModule = unwrapDefault(mod);
-    nativeAvailability = NOT_CHECKED;
-    initError = null;
-    return;
-  }
-  if (roaringModule !== null) {
-    return;
-  }
-  await _loadFallbackChain();
-}
-
-/**
- * Attempts each roaring tier in order, throwing AggregateError if all fail.
- */
-async function _loadFallbackChain(): Promise<void> {
-  const loadErrors: Error[] = [];
-  roaringModule =
-    (await tryNativeImport(loadErrors)) ??
-    (await tryCjsRequire(loadErrors)) ??
-    (await tryWasmFallback(loadErrors));
-  if (roaringModule === null) {
-    throw new AggregateError(
-      loadErrors,
-      'Failed to load roaring via import(), require(), and roaring-wasm',
-    );
-  }
-  roaringModule = unwrapDefault(roaringModule);
-  nativeAvailability = NOT_CHECKED;
-  initError = null;
-}
-
-// Auto-initialize on module load (top-level await)
 try {
-  await initRoaring();
+  const mod = await import('../../infrastructure/adapters/RoaringLoaderAdapter.ts');
+  roaringLoader = {
+    initRoaring: mod.initRoaring,
+    getRoaringBitmap32: mod.getRoaringBitmap32,
+    getNativeRoaringAvailable: mod.getNativeRoaringAvailable,
+  };
 } catch (err) {
-  // Roaring may not be installed; keep root cause for downstream diagnostics.
-  initError = err;
+  loaderError = err instanceof Error ? err : new WarpError(String(err), 'E_ROARING_LOAD');
 }
 
-/**
- * Returns the RoaringBitmap32 class from the roaring library.
- *
- * RoaringBitmap32 is a compressed bitmap implementation that provides
- * efficient set operations (union, intersection, difference) on large
- * sets of 32-bit integers. It's used by the bitmap index system to
- * store edge adjacency lists in a highly compressed format.
- *
- * @returns The RoaringBitmap32 constructor
- * @throws {Error} If the roaring package is not installed
- *
- * @example
- * const RoaringBitmap32 = getRoaringBitmap32();
- * const bitmap = new RoaringBitmap32([1, 2, 3, 100, 1000]);
- * bitmap.has(100); // true
- * bitmap.size; // 5
- *
- * @example
- * // Set operations
- * const a = new RoaringBitmap32([1, 2, 3]);
- * const b = new RoaringBitmap32([2, 3, 4]);
- * const union = RoaringBitmap32.or(a, b); // [1, 2, 3, 4]
- * const intersection = RoaringBitmap32.and(a, b); // [2, 3]
- */
-export function getRoaringBitmap32(): typeof import('roaring').RoaringBitmap32 {
-  return loadRoaring().RoaringBitmap32 as typeof import('roaring').RoaringBitmap32;
+function requireLoader(): RoaringLoaderModule {
+  if (roaringLoader !== null) {
+    return roaringLoader;
+  }
+  const cause = loaderError === null ? '' : ` Caused by: ${loaderError.message}`;
+  throw new WarpError(
+    `Roaring loader adapter not available.${cause}`,
+    'E_ROARING_NOT_LOADED',
+  );
 }
 
-/**
- * Checks whether the native C++ roaring implementation is available.
- *
- * The `roaring` package can operate in two modes:
- * - **Native mode**: Uses prebuilt C++ bindings for maximum performance
- * - **WASM fallback**: Uses WebAssembly when native bindings aren't available
- *
- * This function checks which mode is active by introspecting the loaded
- * module. The result is cached after the first call.
- *
- * @returns `true` if native bindings are installed,
- *   `false` if using WASM fallback or if loading failed,
- *   `null` if the installation status could not be determined
- */
+export async function initRoaring(mod?: RoaringModuleInput): Promise<void> {
+  await requireLoader().initRoaring(mod);
+}
+
+export function getRoaringBitmap32(): RoaringBitmap32Constructor {
+  return requireLoader().getRoaringBitmap32();
+}
+
 export function getNativeRoaringAvailable(): boolean | null {
-  if (nativeAvailability !== NOT_CHECKED) {
-    return nativeAvailability;
+  if (roaringLoader === null) {
+    return false;
   }
-
-  try {
-    const roaring = loadRoaring();
-    const { RoaringBitmap32 } = roaring;
-
-    // Try the method-based API first (roaring >= 2.x)
-    if (typeof RoaringBitmap32.isNativelyInstalled === 'function') {
-      nativeAvailability = RoaringBitmap32.isNativelyInstalled();
-      return nativeAvailability;
-    }
-
-    // Fall back to property-based API (roaring 1.x)
-    if (roaring.isNativelyInstalled !== undefined) {
-      nativeAvailability = roaring.isNativelyInstalled;
-      return nativeAvailability;
-    }
-
-    // Could not determine - leave as null (indeterminate)
-    nativeAvailability = null;
-    return nativeAvailability;
-  } catch {
-    // Loading failed entirely - definitely not available
-    nativeAvailability = false;
-    return nativeAvailability;
-  }
+  return roaringLoader.getNativeRoaringAvailable();
 }

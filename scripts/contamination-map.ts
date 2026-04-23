@@ -41,6 +41,8 @@ interface DetectionRule {
   readonly id: string;
   readonly pattern: RegExp;
   readonly scope: Scope;
+  /** Optional path allowlist for narrow sanctioned call sites. */
+  readonly allowedPaths?: ReadonlySet<string>;
   /** Optional token allowlist: tokens matching `pattern` whose text
    *  is in `ignoreTokens` do not count as hits. */
   readonly ignoreTokens?: ReadonlySet<string>;
@@ -59,6 +61,13 @@ const PLATFORM_LIKE_TOKENS: ReadonlySet<string> = new Set([
   'ArrayLike',
   'ArrayBufferLike',
   'PromiseLike',
+]);
+
+const AUTHORIZED_DYNAMIC_ADAPTER_LOADERS: ReadonlySet<string> = new Set([
+  'src/domain/utils/defaultCrypto.ts',
+  'src/domain/utils/defaultTrustCrypto.ts',
+  'src/domain/utils/roaring.ts',
+  'src/domain/services/controllers/SyncController.ts',
 ]);
 
 interface FamilyDefinition {
@@ -153,16 +162,32 @@ const FAMILIES: readonly FamilyDefinition[] = [
     detections: [
       // from src/domain/ or src/ports/ importing from infrastructure
       { id: 'core-imports-infrastructure', pattern: /from\s+['"]\S*\/infrastructure\//, scope: 'core-only' },
+      {
+        id: 'core-imports-infrastructure-dynamic',
+        pattern: /(?:typeof\s+)?import\s*\(\s*['"]\S*\/infrastructure\/[^'"]*['"]\s*\)/,
+        scope: 'core-only',
+        allowedPaths: AUTHORIZED_DYNAMIC_ADAPTER_LOADERS,
+      },
       // Node `node:` protocol imports (e.g. `node:stream`, `node:fs/promises`)
       {
         id: 'core-imports-node-protocol',
         pattern: /from\s+['"]node:[\w-]+(?:\/[\w-]+)?['"]/,
         scope: 'core-only',
       },
+      {
+        id: 'core-imports-node-protocol-dynamic',
+        pattern: /(?:typeof\s+)?import\s*\(\s*['"]node:[\w-]+(?:\/[\w-]+)?['"]\s*\)/,
+        scope: 'core-only',
+      },
       // Bare Node platform module imports (e.g. `'fs'`, `'path/posix'`)
       {
         id: 'core-imports-node-bare',
         pattern: /from\s+['"](?:fs|path|http|https|net|tls|stream|child_process|crypto|os|buffer)(?:\/[\w-]+)?['"]/,
+        scope: 'core-only',
+      },
+      {
+        id: 'core-imports-node-bare-dynamic',
+        pattern: /(?:typeof\s+)?import\s*\(\s*['"](?:fs|path|http|https|net|tls|stream|child_process|crypto|os|buffer)(?:\/[\w-]+)?['"]\s*\)/,
         scope: 'core-only',
       },
     ],
@@ -272,6 +297,9 @@ async function scanFile(absPath: string, relPath: string): Promise<ReadonlySet<s
   for (const family of FAMILIES) {
     for (const detection of family.detections) {
       if (!inScope(relPath, detection.scope)) {
+        continue;
+      }
+      if (detection.allowedPaths?.has(relPath)) {
         continue;
       }
       if (hits.has(family.manifestId)) {

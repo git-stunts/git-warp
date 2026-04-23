@@ -1,20 +1,81 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type {
+  RoaringBitmap32Constructor,
+  RoaringBitmapSubset,
+} from '../../../../src/domain/utils/roaring.ts';
 
-/**
- * @returns {Promise<typeof import('../../../../src/domain/utils/roaring.ts')>}
- */
-async function importFreshRoaring() {
+async function importFreshRoaring(): Promise<typeof import('../../../../src/domain/utils/roaring.ts')> {
   return import('../../../../src/domain/utils/roaring.ts');
 }
 
-/**
- * @param {boolean} value
- * @returns {Function & { isNativelyInstalled: () => boolean }}
- */
-function createMethodBitmap(value) {
-  return Object.assign(function FakeBitmap() {}, {
-    isNativelyInstalled: () => value,
+class FakeBitmap implements RoaringBitmapSubset {
+  readonly _values: Set<number>;
+
+  constructor(values?: Iterable<number>) {
+    this._values = new Set(values ?? []);
+  }
+
+  get size(): number {
+    return this._values.size;
+  }
+
+  add(value: number): void {
+    this._values.add(value);
+  }
+
+  clear(): void {
+    this._values.clear();
+  }
+
+  remove(value: number): void {
+    this._values.delete(value);
+  }
+
+  has(value: number): boolean {
+    return this._values.has(value);
+  }
+
+  orInPlace(other: Iterable<number>): void {
+    for (const value of other) {
+      this._values.add(value);
+    }
+  }
+
+  serialize(_portable: boolean): Uint8Array {
+    return new Uint8Array(this.toArray());
+  }
+
+  toArray(): number[] {
+    return [...this._values];
+  }
+
+  [Symbol.iterator](): Iterator<number> {
+    return this._values[Symbol.iterator]();
+  }
+}
+
+function createBitmapConstructor(options: {
+  readonly nativeAvailability?: boolean;
+  readonly label: string;
+}): RoaringBitmap32Constructor {
+  class BitmapCtor extends FakeBitmap {
+    static deserialize(data: Uint8Array | ArrayLike<number>): RoaringBitmapSubset {
+      return new BitmapCtor(Array.from(data));
+    }
+  }
+
+  Object.defineProperty(BitmapCtor, 'name', {
+    value: options.label,
   });
+
+  if (options.nativeAvailability !== undefined) {
+    const nativeAvailability = options.nativeAvailability;
+    return Object.assign(BitmapCtor, {
+      isNativelyInstalled: (): boolean => nativeAvailability,
+    });
+  }
+
+  return BitmapCtor;
 }
 
 beforeEach(() => {
@@ -37,7 +98,7 @@ describe('initRoaring', () => {
     expect([true, false, null]).toContain(first);
 
     await initRoaring({
-      RoaringBitmap32: createMethodBitmap(false),
+      RoaringBitmap32: createBitmapConstructor({ nativeAvailability: false, label: 'FakeBitmapFalse' }),
     });
 
     expect(getNativeRoaringAvailable()).toBe(false);
@@ -50,12 +111,12 @@ describe('initRoaring', () => {
     getNativeRoaringAvailable();
 
     await initRoaring({
-      RoaringBitmap32: createMethodBitmap(true),
+      RoaringBitmap32: createBitmapConstructor({ nativeAvailability: true, label: 'FakeBitmapTrue' }),
     });
     expect(getNativeRoaringAvailable()).toBe(true);
 
     await initRoaring({
-      RoaringBitmap32: createMethodBitmap(false),
+      RoaringBitmap32: createBitmapConstructor({ nativeAvailability: false, label: 'FakeBitmapFalseAgain' }),
     });
     expect(getNativeRoaringAvailable()).toBe(false);
   });
@@ -64,12 +125,10 @@ describe('initRoaring', () => {
     const roaringMod = await importFreshRoaring();
     const { initRoaring, getRoaringBitmap32 } = roaringMod;
 
-    const innerBitmap = createMethodBitmap(false);
-    const wrappedMod = (({
-        default: { RoaringBitmap32: innerBitmap },
-        RoaringBitmap32: undefined,
-      }) as any);
-    await initRoaring(wrappedMod);
+    const innerBitmap = createBitmapConstructor({ nativeAvailability: false, label: 'WrappedBitmap' });
+    await initRoaring({
+      default: { RoaringBitmap32: innerBitmap },
+    });
 
     expect(getRoaringBitmap32()).toBe(innerBitmap);
   });
@@ -84,7 +143,7 @@ describe('initRoaring', () => {
       },
     }));
     vi.doMock('roaring-wasm', () => ({
-      RoaringBitmap32: (function WasmBitmap() {} as Function),
+      RoaringBitmap32: createBitmapConstructor({ label: 'WasmBitmap' }),
       roaringLibraryInitialize: vi.fn(async () => {}),
     }));
 
@@ -108,7 +167,7 @@ describe('initRoaring', () => {
     });
 
     const roaringMod = await importFreshRoaring();
-    const injectedBitmap = createMethodBitmap(false);
+    const injectedBitmap = createBitmapConstructor({ nativeAvailability: false, label: 'InjectedBitmap' });
 
     expect(roaringMod.getNativeRoaringAvailable()).toBe(false);
     await roaringMod.initRoaring({ RoaringBitmap32: injectedBitmap });
@@ -119,21 +178,20 @@ describe('initRoaring', () => {
 
   it('returns early when initRoaring is called after a module is already loaded', async () => {
     const roaringMod = await importFreshRoaring();
-    const bitmap = createMethodBitmap(true);
+    const bitmap = createBitmapConstructor({ nativeAvailability: true, label: 'EarlyBitmap' });
 
     await roaringMod.initRoaring({ RoaringBitmap32: bitmap });
     await expect(roaringMod.initRoaring()).resolves.toBeUndefined();
 
     expect(roaringMod.getRoaringBitmap32()).toBe(bitmap);
   });
-
 });
 
 describe('getNativeRoaringAvailable', () => {
   it('uses the property-based API when no method is available', async () => {
     const roaringMod = await importFreshRoaring();
     await roaringMod.initRoaring({
-      RoaringBitmap32: (function PropertyBitmap() {} as Function),
+      RoaringBitmap32: createBitmapConstructor({ label: 'PropertyBitmap' }),
       isNativelyInstalled: true,
     });
 
@@ -143,7 +201,7 @@ describe('getNativeRoaringAvailable', () => {
   it('returns null when installation type is indeterminate', async () => {
     const roaringMod = await importFreshRoaring();
     await roaringMod.initRoaring({
-      RoaringBitmap32: (function UnknownBitmap() {} as Function),
+      RoaringBitmap32: createBitmapConstructor({ label: 'UnknownBitmap' }),
     });
 
     expect(roaringMod.getNativeRoaringAvailable()).toBeNull();
@@ -151,7 +209,7 @@ describe('getNativeRoaringAvailable', () => {
 
   it('returns false when the loaded module is malformed', async () => {
     const roaringMod = await importFreshRoaring();
-    await roaringMod.initRoaring(({} as any));
+    await roaringMod.initRoaring({});
 
     expect(roaringMod.getNativeRoaringAvailable()).toBe(false);
   });
