@@ -99,10 +99,10 @@ LAYER 3:
                                           completed the helper-wrapper seam
                                           cut, and cycle 0069 deleted the
                                           runtime wiring / `_wiredMethods`
-                                          blocker. The remaining kill is now
-                                          explicitly ordered as:
-                                          `API_openwarpgraph-composition-root`
-                                          → `PORT_delete-runtime-controller-host-types`
+                                          blocker. Cycle 0071 then completed
+                                          the public composition-root cut.
+                                          The remaining kill order is now:
+                                          `PORT_delete-runtime-controller-host-types`
                                           → `PORT_delete-internal-runtime-shim`
 
 LAYER 4 (launch-prep only; park until the repo is otherwise ready to ship):

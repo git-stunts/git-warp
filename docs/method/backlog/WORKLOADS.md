@@ -98,7 +98,7 @@ dependency check before staffing.
 | Workload | Count | Items | Preconditions |
 |----------|------:|-------|---------------|
 | `WL-36-v17-cross-residue-sludge` | 1 | `SLUDGE_host-bag-injection` | Follows `WL-30-v17-capability-provider-seams` |
-| `WL-37-v17-god-to-api-runtime-split` | 10 | `GOD_query-builder`, `GOD_query-controller`, `GOD_materialize-controller`, `GOD_strand-service`, `API_warpgraph-factory`, `API_migrate-consumers-to-capabilities`, `API_openwarpgraph-composition-root`, `PORT_delete-runtime-controller-host-types`, `PORT_delete-internal-runtime-shim`, `API_kill-warpruntime` | Follows `WL-30`, `WL-33`, and `WL-34` |
+| `WL-37-v17-god-to-api-runtime-split` | 9 | `GOD_query-builder`, `GOD_query-controller`, `GOD_materialize-controller`, `GOD_strand-service`, `API_warpgraph-factory`, `API_migrate-consumers-to-capabilities`, `PORT_delete-runtime-controller-host-types`, `PORT_delete-internal-runtime-shim`, `API_kill-warpruntime` | Follows `WL-30`, `WL-33`, and `WL-34` |
 | `WL-38-v17-shadow-trie-materialization-core` | 5 | `PROTO_orsetlike-contract`, `PROTO_shadow-trie-orset`, `PROTO_trie-compaction`, `PROTO_state-session-async`, `PROTO_gc-state-session` | Remaining shadow-trie engine and async-firewall follow-through after the checkpoint/snapshot unification cycle landed |
 
 ## Wave 3.x — Parked `B3` Tail

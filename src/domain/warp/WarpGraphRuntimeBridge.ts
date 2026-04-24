@@ -1,4 +1,5 @@
-import WarpRuntime from '../WarpRuntime.ts';
+import { openWarpRuntime } from '../WarpRuntime.ts';
+import type { WarpRuntimeOpenOptions } from './WarpRuntimeBoot.ts';
 
 import type QueryCapability from '../capabilities/QueryCapability.ts';
 import type PatchCapability from '../capabilities/PatchCapability.ts';
@@ -21,7 +22,7 @@ type RuntimeCapabilitySurface =
   ComparisonCapability &
   SubscriptionCapability;
 
-export type WarpGraphRuntimeOpenOptions = Parameters<typeof WarpRuntime.open>[0];
+export type WarpGraphRuntimeOpenOptions = WarpRuntimeOpenOptions;
 
 export type WarpGraphRuntimeSurface = RuntimeCapabilitySurface & {
   readonly graphName: string;
@@ -31,5 +32,5 @@ export type WarpGraphRuntimeSurface = RuntimeCapabilitySurface & {
 export async function openWarpGraphRuntime(
   options: WarpGraphRuntimeOpenOptions,
 ): Promise<WarpGraphRuntimeSurface> {
-  return await WarpRuntime.open(options);
+  return await openWarpRuntime(options);
 }
