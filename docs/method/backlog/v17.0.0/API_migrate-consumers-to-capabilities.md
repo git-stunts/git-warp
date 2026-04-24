@@ -82,6 +82,21 @@ That means the remaining tail is now:
 - other internal files that still name `WarpRuntime` where a narrower
   capability should exist instead
 
+## 0062 worldline tranche
+
+Cycle `0062` moved `Worldline.ts` onto the same detached-read seam:
+
+- `Worldline.ts` now depends on `DetachedGraphFactory`
+- the file no longer imports `WarpRuntime`
+- the runtime observer cast corridor is gone
+- `SLUDGE_detached-graph-duplication` is now materially satisfied
+
+That means the remaining migration tail is:
+
+- `WarpApp` / `WarpCore` bridge residue
+- other internal files that still name `WarpRuntime` where a narrower
+  capability should exist instead
+
 ## Deferred content accessor surface
 
 Cycle `0051` closed `SLUDGE_content-access-duplication` as already

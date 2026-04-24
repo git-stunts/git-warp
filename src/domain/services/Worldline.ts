@@ -1,19 +1,11 @@
-import BlobStoragePort from '../../ports/BlobStoragePort.ts';
-import CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
-import CodecPort from '../../ports/CodecPort.ts';
-import CryptoPort from '../../ports/CryptoPort.ts';
-import LoggerPort from '../../ports/LoggerPort.ts';
-import PatchJournalPort from '../../ports/PatchJournalPort.ts';
-import SeekCachePort from '../../ports/SeekCachePort.ts';
 import type { Aperture } from '../types/Aperture.ts';
 import type { WorldlineOptions, WorldlineSource } from '../capabilities/QueryCapability.ts';
-import WarpRuntime from '../WarpRuntime.ts';
+import type DetachedGraphFactory from '../capabilities/DetachedGraphFactory.ts';
 import type { TickReceipt } from '../types/TickReceipt.ts';
 import CoordinateSelector from '../types/CoordinateSelector.ts';
 import LiveSelector from '../types/LiveSelector.ts';
 import StrandSelector from '../types/StrandSelector.ts';
 import WorldlineSelector from '../types/WorldlineSelector.ts';
-import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.ts';
 import { toInternalStrandShape } from '../utils/strandPublicShape.ts';
 import type { WarpState } from './JoinReducer.ts';
 import type Observer from './query/Observer.ts';
@@ -22,12 +14,8 @@ import QueryBuilder from './query/QueryBuilder.ts';
 import QueryError from '../errors/QueryError.ts';
 
 type AdjacencyEntry = { neighborId: string; label: string };
-type VisibleEdge = {
-  from: string;
-  to: string;
-  label: string;
-  props: Record<string, unknown>;
-};
+type VisibleNodeProps = NonNullable<Awaited<ReturnType<Observer['getNodeProps']>>>;
+type VisibleEdge = Awaited<ReturnType<Observer['getEdges']>>[number];
 type MaterializedStateWithReceipts = { state: WarpState; receipts: TickReceipt[] };
 type MaterializedSourceResult = WarpState | MaterializedStateWithReceipts;
 type WorldlineMaterializedGraph = {
@@ -41,41 +29,21 @@ type WorldlineMaterializedGraph = {
 type WorldlineMaterializedDelegate = Pick<Observer, 'hasNode' | 'getNodes' | 'getNodeProps' | 'getEdges'> & {
   _materializeGraph(): Promise<WorldlineMaterializedGraph>;
 };
-type TrustConfig = {
-  mode: 'off' | 'log-only' | 'enforce';
-  pin: string | null;
+type WorldlineObserverFactory = {
+  observer(config: Aperture, options?: { source: WorldlineSource }): Promise<Observer>;
+  observer(name: string, config: Aperture, options?: { source: WorldlineSource }): Promise<Observer>;
 };
-type CheckpointPolicy = { every: number } | null;
-type DetachedOpenOptions = {
-  persistence: WarpRuntime['persistence'];
-  graphName: WarpRuntime['graphName'];
-  writerId: WarpRuntime['writerId'];
-  gcPolicy: WarpRuntime['gcPolicy'];
-  autoMaterialize: false;
-  onDeleteWithData: WarpRuntime['onDeleteWithData'];
-  crypto: CryptoPort;
-  codec: CodecPort;
-  audit: false;
-  trust: TrustConfig;
-  checkpointPolicy?: Exclude<CheckpointPolicy, null>;
-  logger?: LoggerPort;
-  seekCache?: SeekCachePort;
-  blobStorage?: BlobStoragePort;
-  patchBlobStorage?: BlobStoragePort;
-  patchJournal?: PatchJournalPort;
-  checkpointStore?: CheckpointStorePort;
-};
-type WorldlineGraph = WarpRuntime & {
-  _checkpointPolicy?: CheckpointPolicy;
-  _logger?: LoggerPort | null;
-  _crypto?: CryptoPort;
-  _codec?: CodecPort;
-  _seekCache?: SeekCachePort | null;
-  _blobStorage?: BlobStoragePort | null;
-  _patchBlobStorage?: BlobStoragePort | null;
-  _patchJournal?: PatchJournalPort | null;
-  _checkpointStore?: CheckpointStorePort | null;
-  _trustConfig?: TrustConfig;
+type WorldlineDetachedGraph = {
+  materialize(options: { ceiling: number | null; receipts?: boolean }): Promise<MaterializedSourceResult>;
+  materializeCoordinate(options: {
+    frontier: Map<string, string> | Record<string, string>;
+    ceiling: number | null;
+    receipts?: boolean;
+  }): Promise<MaterializedSourceResult>;
+  materializeStrand(strandId: string, options: {
+    receipts?: boolean;
+    ceiling: number | null;
+  }): Promise<MaterializedSourceResult>;
 };
 
 function toSelector(source?: WorldlineSelector | WorldlineSource | null): WorldlineSelector {
@@ -87,21 +55,23 @@ function toSelector(source?: WorldlineSelector | WorldlineSource | null): Worldl
     return new LiveSelector();
   }
 
-  if (source.kind === 'live') {
+  const sourceKind = source.kind;
+
+  if (sourceKind === 'live') {
     return new LiveSelector(source.ceiling);
   }
 
-  if (source.kind === 'coordinate') {
+  if (sourceKind === 'coordinate') {
     return new CoordinateSelector(source.frontier, source.ceiling);
   }
 
-  if (source.kind === 'strand') {
+  if (sourceKind === 'strand') {
     return new StrandSelector(source.strandId, source.ceiling);
   }
 
   throw new QueryError('unknown worldline source kind', {
     code: 'E_WORLDLINE_SOURCE',
-    context: { kind: String((source as { kind?: unknown }).kind) },
+    context: { kind: sourceKind },
   });
 }
 
@@ -124,59 +94,51 @@ function toWorldlineSource(source: WorldlineSelector): WorldlineSource {
   });
 }
 
-async function openDetachedReadGraph(graph: WorldlineGraph): Promise<WorldlineGraph> {
-  return await WarpRuntime.open(buildDetachedOpenOptions(graph));
-}
-
-function buildDetachedOpenOptions(graph: WorldlineGraph): DetachedOpenOptions {
+async function openDetachedReadGraph(
+  graphCloner: DetachedGraphFactory,
+): Promise<WorldlineDetachedGraph> {
+  const detached = await graphCloner.openReadOnly();
   return {
-    persistence: graph.persistence,
-    graphName: graph.graphName,
-    writerId: graph.writerId,
-    gcPolicy: graph.gcPolicy,
-    autoMaterialize: false,
-    onDeleteWithData: graph.onDeleteWithData,
-    crypto: requireRuntimePort('crypto', graph._crypto, CryptoPort),
-    codec: requireRuntimePort('codec', graph._codec, CodecPort),
-    audit: false,
-    trust: requireTrustConfig(graph._trustConfig),
-    ...nullableOpenFields(graph),
-  };
-}
-
-function nullableOpenFields(
-  graph: WorldlineGraph,
-): Pick<
-  DetachedOpenOptions,
-  | 'checkpointPolicy'
-  | 'logger'
-  | 'seekCache'
-  | 'blobStorage'
-  | 'patchBlobStorage'
-  | 'patchJournal'
-  | 'checkpointStore'
-> {
-  const checkpointPolicy = optionalCheckpointPolicy(graph._checkpointPolicy);
-  const logger = optionalRuntimePort('logger', graph._logger, LoggerPort);
-  const seekCache = optionalRuntimePort('seekCache', graph._seekCache, SeekCachePort);
-  const blobStorage = optionalRuntimePort('blobStorage', graph._blobStorage, BlobStoragePort);
-  const patchBlobStorage = optionalRuntimePort('patchBlobStorage', graph._patchBlobStorage, BlobStoragePort);
-  const patchJournal = optionalRuntimePort('patchJournal', graph._patchJournal, PatchJournalPort);
-  const checkpointStore = optionalRuntimePort('checkpointStore', graph._checkpointStore, CheckpointStorePort);
-
-  return {
-    ...(checkpointPolicy !== undefined ? { checkpointPolicy } : {}),
-    ...(logger !== undefined ? { logger } : {}),
-    ...(seekCache !== undefined ? { seekCache } : {}),
-    ...(blobStorage !== undefined ? { blobStorage } : {}),
-    ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),
-    ...(patchJournal !== undefined ? { patchJournal } : {}),
-    ...(checkpointStore !== undefined ? { checkpointStore } : {}),
+    materialize: async (options) => {
+      if (options.receipts === true) {
+        return await detached.materialize({
+          receipts: true,
+          ceiling: options.ceiling,
+        });
+      }
+      return await detached.materialize({
+        ceiling: options.ceiling,
+      });
+    },
+    materializeCoordinate: async (options) => {
+      if (options.receipts === true) {
+        return await detached.materializeCoordinate({
+          frontier: options.frontier,
+          ceiling: options.ceiling,
+          receipts: true,
+        });
+      }
+      return await detached.materializeCoordinate({
+        frontier: options.frontier,
+        ceiling: options.ceiling,
+      });
+    },
+    materializeStrand: async (strandId, options) => {
+      if (options.receipts === true) {
+        return await detached.materializeStrand(strandId, {
+          receipts: true,
+          ceiling: options.ceiling,
+        });
+      }
+      return await detached.materializeStrand(strandId, {
+        ceiling: options.ceiling,
+      });
+    },
   };
 }
 
 async function materializeLiveSource(
-  graph: WorldlineGraph,
+  graph: WorldlineDetachedGraph,
   source: LiveSelector,
   collectReceipts: boolean,
 ): Promise<MaterializedSourceResult> {
@@ -193,7 +155,7 @@ async function materializeLiveSource(
 }
 
 async function materializeCoordinateSource(
-  graph: WorldlineGraph,
+  graph: WorldlineDetachedGraph,
   source: CoordinateSelector,
   collectReceipts: boolean,
 ): Promise<MaterializedSourceResult> {
@@ -213,15 +175,13 @@ async function materializeCoordinateSource(
 }
 
 async function materializeStrandSource(
-  graph: WorldlineGraph,
+  graph: WorldlineDetachedGraph,
   source: StrandSelector,
   collectReceipts: boolean,
 ): Promise<MaterializedSourceResult> {
   const internalSource = toInternalStrandShape(source.toDTO());
   if (collectReceipts) {
-    return await callInternalRuntimeMethod<MaterializedStateWithReceipts>(
-      graph,
-      'materializeStrand',
+    return await graph.materializeStrand(
       internalSource.strandId,
       {
         receipts: true,
@@ -230,9 +190,7 @@ async function materializeStrandSource(
     );
   }
 
-  return await callInternalRuntimeMethod<MaterializedSourceResult>(
-    graph,
-    'materializeStrand',
+  return await graph.materializeStrand(
     internalSource.strandId,
     {
       ceiling: internalSource.ceiling,
@@ -241,7 +199,7 @@ async function materializeStrandSource(
 }
 
 async function materializeSource(
-  graph: WorldlineGraph,
+  graph: WorldlineDetachedGraph,
   source: WorldlineSelector,
   collectReceipts: boolean,
 ): Promise<MaterializedSourceResult> {
@@ -264,19 +222,23 @@ async function materializeSource(
 }
 
 export default class Worldline {
-  private readonly _graph: WorldlineGraph;
+  private readonly _graph: WorldlineObserverFactory;
+  private readonly _graphCloner: DetachedGraphFactory;
   private readonly _source: WorldlineSelector;
   private _delegateObserverPromise: Promise<WorldlineMaterializedDelegate> | null;
   readonly traverse: LogicalTraversal;
 
   constructor({
     graph,
+    graphCloner,
     source,
   }: {
-    graph: WorldlineGraph;
+    graph: WorldlineObserverFactory;
+    graphCloner: DetachedGraphFactory;
     source?: WorldlineSelector | WorldlineSource | null;
   }) {
     this._graph = graph;
+    this._graphCloner = graphCloner;
     this._source = toSelector(source);
     this._delegateObserverPromise = null;
     this.traverse = new LogicalTraversal(this);
@@ -290,6 +252,7 @@ export default class Worldline {
     return await Promise.resolve(
       new Worldline({
         graph: this._graph,
+        graphCloner: this._graphCloner,
         source: options?.source ?? this._source,
       }),
     );
@@ -298,7 +261,7 @@ export default class Worldline {
   async materialize(options: { receipts: true }): Promise<MaterializedStateWithReceipts>;
   async materialize(options?: { receipts?: false }): Promise<WarpState>;
   async materialize(options?: { receipts?: boolean }): Promise<MaterializedSourceResult> {
-    const detached = await openDetachedReadGraph(this._graph);
+    const detached = await openDetachedReadGraph(this._graphCloner);
     return await materializeSource(detached, this._source, options?.receipts === true);
   }
 
@@ -326,7 +289,7 @@ export default class Worldline {
     return await (await this._delegateObserver()).getNodes();
   }
 
-  async getNodeProps(nodeId: string): Promise<Record<string, unknown> | null> {
+  async getNodeProps(nodeId: string): Promise<VisibleNodeProps | null> {
     return await (await this._delegateObserver()).getNodeProps(nodeId);
   }
 
@@ -341,14 +304,11 @@ export default class Worldline {
   async observer(config: Aperture): Promise<Observer>;
   async observer(name: string, config: Aperture): Promise<Observer>;
   async observer(nameOrConfig: string | Aperture, config?: Aperture): Promise<Observer> {
-    // observer() is a dynamically-wired method on WarpRuntime. Cast through unknown.
-    type ObserverFn = (...args: unknown[]) => Promise<Observer>;
-    const observerFn = (this._graph.observer as unknown as ObserverFn).bind(this._graph);
     if (typeof nameOrConfig === 'string') {
-      return await observerFn(nameOrConfig, config, { source: this.source });
+      return await this._graph.observer(nameOrConfig, config!, { source: this.source });
     }
 
-    return await observerFn(nameOrConfig, { source: this.source });
+    return await this._graph.observer(nameOrConfig, { source: this.source });
   }
 }
 
@@ -371,72 +331,4 @@ function hasWorldlineMaterializedDelegate(
   }
 
   return typeof observer._materializeGraph === 'function';
-}
-
-function optionalCheckpointPolicy(
-  checkpointPolicy: WorldlineGraph['_checkpointPolicy'],
-): Exclude<CheckpointPolicy, null> | undefined {
-  if (checkpointPolicy === null || checkpointPolicy === undefined) {
-    return undefined;
-  }
-
-  if (typeof checkpointPolicy.every !== 'number' || !Number.isFinite(checkpointPolicy.every)) {
-    throw new QueryError('worldline graph has invalid checkpoint policy', {
-      code: 'E_WORLDLINE_RUNTIME',
-    });
-  }
-
-  return checkpointPolicy;
-}
-
-function requireTrustConfig(trustConfig: WorldlineGraph['_trustConfig']): TrustConfig {
-  if (trustConfig === undefined) {
-    throw new QueryError('worldline graph is missing trust configuration', {
-      code: 'E_WORLDLINE_RUNTIME',
-    });
-  }
-
-  if (
-    trustConfig.mode !== 'off' &&
-    trustConfig.mode !== 'log-only' &&
-    trustConfig.mode !== 'enforce'
-  ) {
-    throw new QueryError('worldline graph has invalid trust mode', {
-      code: 'E_WORLDLINE_RUNTIME',
-    });
-  }
-
-  if (trustConfig.pin !== null && typeof trustConfig.pin !== 'string') {
-    throw new QueryError('worldline graph has invalid trust pin', {
-      code: 'E_WORLDLINE_RUNTIME',
-    });
-  }
-
-  return trustConfig;
-}
-
-function requireRuntimePort<T>(
-  name: string,
-  value: T | undefined,
-  PortClass: abstract new (...args: never[]) => T,
-): T {
-  if (value instanceof PortClass) {
-    return value;
-  }
-
-  throw new QueryError(`worldline graph is missing ${name}`, {
-    code: 'E_WORLDLINE_RUNTIME',
-  });
-}
-
-function optionalRuntimePort<T>(
-  name: string,
-  value: T | null | undefined,
-  PortClass: abstract new (...args: never[]) => T,
-): T | undefined {
-  if (value === null || value === undefined) {
-    return undefined;
-  }
-
-  return requireRuntimePort(name, value, PortClass);
 }

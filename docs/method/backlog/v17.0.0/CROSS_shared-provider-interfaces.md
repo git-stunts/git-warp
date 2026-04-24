@@ -4,7 +4,6 @@ blocks:
   - GOD_query-controller
   - GOD_materialize-controller
   - SLUDGE_host-bag-injection
-  - SLUDGE_detached-graph-duplication
 blocked_by: []
 feature: runtime-boundaries
 ---
@@ -109,7 +108,7 @@ Used by: QueryController (observer), MaterializeController
 (coordinate materialize), Worldline.
 
 Replaces 3 duplicated `openDetachedReadGraph` / `openDetachedObserverGraph`
-functions. See `SLUDGE_detached-graph-duplication.md`.
+functions. That residue closed in cycle `0062`.
 
 ## Execution
 

@@ -57,7 +57,6 @@
     "src/domain/services/TemporalQuery.ts",
     "src/domain/services/TranslationCost.ts",
     "src/domain/services/VisibleStateScope.ts",
-    "src/domain/services/Worldline.ts",
     "src/domain/services/WormholeService.ts",
     "src/domain/services/audit/AuditChainVerifier.ts",
     "src/domain/services/audit/AuditReceiptService.ts",

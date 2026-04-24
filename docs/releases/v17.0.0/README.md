@@ -39,7 +39,10 @@ LAYER 1 (god kills + conversions):
                                           truth lives under
                                           `CORE_streaming-memory-audit` +
                                           `PROTO_purge-boundary-leaks`
-  [x] SLUDGE_detached-graph-duplication
+  [x] SLUDGE_detached-graph-duplication  ← cycle 0062 hill-met; detached
+                                          reads now flow through
+                                          `DetachedGraphFactory` in both
+                                          `QueryController` and `Worldline`
   [~] SLUDGE_host-bag-injection          ← ongoing per-god-kill
   [x] GOD_incremental-index-updater     ← cycle 0056 hill-met; god split already landed
                                           into `IndexNodeUpdater` /
@@ -74,9 +77,8 @@ LAYER 2 (the exorcism):
                                           `QueryController.ts` onto explicit
                                           detached-read + hash-state seams.
                                           Remaining work is now the
-                                          detached/runtime tail
-                                          (`Worldline`, `WarpApp` /
-                                          `WarpCore` bridge residue)
+                                          runtime bridge residue
+                                          (`WarpApp` / `WarpCore`)
 
 LAYER 3:
   [ ] API_kill-warpruntime               ← THE DEVIL DIES

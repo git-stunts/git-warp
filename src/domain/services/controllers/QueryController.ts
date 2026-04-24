@@ -248,7 +248,11 @@ wireEdge('getEdgeContentStream', getEdgeContentStreamImpl);
 // Factory methods
 wire('query', function (this: QueryController) { return new QueryBuilder(host(this)); });
 wire('worldline', function (this: QueryController, options?: ObserverOptions) {
-  return new Worldline({ graph: host(this), source: toSelector(options?.source) ?? new LiveSelector() });
+  return new Worldline({
+    graph: host(this),
+    graphCloner: this._graphCloner,
+    source: toSelector(options?.source) ?? new LiveSelector(),
+  });
 });
 
 wire('observer', async function (this: QueryController, nameOrConfig: string | ObserverConfig, configOrOptions?: ObserverConfig | ObserverOptions, maybeOptions?: ObserverOptions) {

@@ -16,7 +16,6 @@
     "src/domain/services/MaterializedViewService.ts",
     "src/domain/services/TemporalQuery.ts",
     "src/domain/services/VisibleStateScope.ts",
-    "src/domain/services/Worldline.ts",
     "src/domain/services/controllers/StrandController.ts",
     "src/domain/services/provenance/BTR.ts",
     "src/domain/services/provenance/btrOperations.ts",
