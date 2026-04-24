@@ -11,7 +11,7 @@ import PatchController from '../../../../../src/domain/services/controllers/Patc
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
-import { QueryError } from '../../../../../src/domain/warp/_internal.ts';
+import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import EncryptionError from '../../../../../src/domain/errors/EncryptionError.ts';
 import PersistenceError from '../../../../../src/domain/errors/PersistenceError.ts';
 

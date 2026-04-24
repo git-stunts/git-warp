@@ -16,11 +16,11 @@ import { compareEventIds, type EventId } from '../../utils/EventId.ts';
 import { createImmutableWarpState } from '../ImmutableSnapshot.ts';
 import QueryError from '../../errors/QueryError.ts';
 import type WarpState from '../state/WarpState.ts';
-import type { WarpGraphWithMixins } from '../../warp/_internal.ts';
 import type NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
 import type { NeighborOptions } from '../../../ports/NeighborProviderPort.ts';
 import type { LWWRegister } from '../../crdt/LWW.ts';
 import type { PropValue } from '../../types/PropValue.ts';
+import type { QueryReadHost } from './ReadGraphHost.ts';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -98,7 +98,7 @@ function filterByDirection(both: { out: NeighborEntry[]; in: NeighborEntry[] }, 
 
 // ── State access ────────────────────────────────────────────────────
 
-async function ensureAndGetState(host: WarpGraphWithMixins): Promise<WarpState> {
+async function ensureAndGetState(host: QueryReadHost): Promise<WarpState> {
   await host._ensureFreshState();
   if (host._cachedState === null) {
     throw new QueryError('host state is null after _ensureFreshState', { code: 'E_NO_STATE' });
@@ -108,12 +108,12 @@ async function ensureAndGetState(host: WarpGraphWithMixins): Promise<WarpState> 
 
 // ── Read implementations ────────────────────────────────────────────
 
-export async function hasNodeImpl(host: WarpGraphWithMixins, nodeId: string): Promise<boolean> {
+export async function hasNodeImpl(host: QueryReadHost, nodeId: string): Promise<boolean> {
   const state = await ensureAndGetState(host);
   return state.nodeAlive.contains(nodeId);
 }
 
-export async function getNodePropsImpl(host: WarpGraphWithMixins, nodeId: string): Promise<PropertyBag | null> {
+export async function getNodePropsImpl(host: QueryReadHost, nodeId: string): Promise<PropertyBag | null> {
   await host._ensureFreshState();
   const indexed = await tryIndexedNodeProps(host, nodeId);
   if (indexed !== undefined) { return indexed; }
@@ -121,11 +121,11 @@ export async function getNodePropsImpl(host: WarpGraphWithMixins, nodeId: string
   return linearNodeProps(host._cachedState, nodeId);
 }
 
-function hasIndexForNode(host: WarpGraphWithMixins, nodeId: string): boolean {
+function hasIndexForNode(host: QueryReadHost, nodeId: string): boolean {
   return Boolean(host._propertyReader) && host._logicalIndex?.isAlive(nodeId) === true;
 }
 
-async function tryIndexedNodeProps(host: WarpGraphWithMixins, nodeId: string): Promise<PropertyBag | null | undefined> {
+async function tryIndexedNodeProps(host: QueryReadHost, nodeId: string): Promise<PropertyBag | null | undefined> {
   if (!hasIndexForNode(host, nodeId)) { return undefined; }
   try {
     const record = await host._propertyReader!.getNodeProps(nodeId);
@@ -151,7 +151,7 @@ function linearNodeProps(state: WarpState, nodeId: string): PropertyBag | null {
   return props;
 }
 
-export async function getEdgePropsImpl(host: WarpGraphWithMixins, edge: { from: string; to: string; label: string }): Promise<PropertyBag | null> {
+export async function getEdgePropsImpl(host: QueryReadHost, edge: { from: string; to: string; label: string }): Promise<PropertyBag | null> {
   const state = await ensureAndGetState(host);
   return edgePropsFromState(state, edge);
 }
@@ -196,7 +196,7 @@ function isStaleEdgeProp(register: PropRegister, birthEvent: EventId | undefined
   return compareEventIds(register.eventId, birthEvent) < 0;
 }
 
-export async function neighborsImpl(host: WarpGraphWithMixins, params: { nodeId: string; direction: 'outgoing' | 'incoming' | 'both'; edgeLabel?: string }): Promise<NeighborEntry[]> {
+export async function neighborsImpl(host: QueryReadHost, params: { nodeId: string; direction: 'outgoing' | 'incoming' | 'both'; edgeLabel?: string }): Promise<NeighborEntry[]> {
   await host._ensureFreshState();
   const indexed = await tryIndexedNeighbors(host, params);
   if (indexed !== undefined) { return indexed; }
@@ -205,13 +205,13 @@ export async function neighborsImpl(host: WarpGraphWithMixins, params: { nodeId:
   return filterByDirection(both, params.direction);
 }
 
-function hasNeighborIndex(host: WarpGraphWithMixins, nodeId: string): NeighborProviderPort | null {
+function hasNeighborIndex(host: QueryReadHost, nodeId: string): NeighborProviderPort | null {
   const provider = host._materializedGraph?.provider;
   if (!provider || host._logicalIndex?.isAlive(nodeId) !== true) { return null; }
   return provider;
 }
 
-async function tryIndexedNeighbors(host: WarpGraphWithMixins, params: { nodeId: string; direction: 'outgoing' | 'incoming' | 'both'; edgeLabel?: string }): Promise<NeighborEntry[] | undefined> {
+async function tryIndexedNeighbors(host: QueryReadHost, params: { nodeId: string; direction: 'outgoing' | 'incoming' | 'both'; edgeLabel?: string }): Promise<NeighborEntry[] | undefined> {
   const provider = hasNeighborIndex(host, params.nodeId);
   if (!provider) { return undefined; }
   try {
@@ -232,19 +232,19 @@ function buildNeighborOpts(edgeLabel?: string): NeighborOptions | undefined {
   return undefined;
 }
 
-export async function getStateSnapshotImpl(host: WarpGraphWithMixins): Promise<WarpState | null> {
+export async function getStateSnapshotImpl(host: QueryReadHost): Promise<WarpState | null> {
   if (!host._cachedState && !host._autoMaterialize) { return null; }
   await host._ensureFreshState();
   if (!host._cachedState) { return null; }
   return createImmutableWarpState(host._cachedState);
 }
 
-export async function getNodesImpl(host: WarpGraphWithMixins): Promise<string[]> {
+export async function getNodesImpl(host: QueryReadHost): Promise<string[]> {
   const state = await ensureAndGetState(host);
   return [...state.nodeAlive.elements()];
 }
 
-export async function getEdgesImpl(host: WarpGraphWithMixins): Promise<Array<{ from: string; to: string; label: string; props: PropertyBag }>> {
+export async function getEdgesImpl(host: QueryReadHost): Promise<Array<{ from: string; to: string; label: string; props: PropertyBag }>> {
   const state = await ensureAndGetState(host);
   const edgeProps = buildEdgePropsByKey(state);
   return buildEdgeList(state, edgeProps);
@@ -287,7 +287,7 @@ function buildEdgeList(state: WarpState, edgeProps: Map<string, PropertyBag>): A
   return edges;
 }
 
-export async function getPropertyCountImpl(host: WarpGraphWithMixins): Promise<number> {
+export async function getPropertyCountImpl(host: QueryReadHost): Promise<number> {
   const state = await ensureAndGetState(host);
   return state.prop.size;
 }

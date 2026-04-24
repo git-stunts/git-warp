@@ -2,8 +2,7 @@
 id: API_kill-warpruntime
 blocks:
   - TS_publish-pipeline
-blocked_by:
-  - PORT_delete-internal-runtime-shim
+blocked_by: []
 feature: api-capabilities
 ---
 
@@ -12,9 +11,9 @@ feature: api-capabilities
 Final step of the API redesign. Remove:
 
 - the remaining `WarpRuntime` class as a bridge/composition-root carrier
-- the remaining `_internal.ts` shim
-- any host typing that still teaches controllers and helpers to name
-  `WarpRuntime` directly
+- the remaining internal bridge exports that keep it alive as the repo's
+  de facto runtime root
+- the remaining tests and internal adapters that still consume it directly
 
 Cycles `0067` through `0069` already removed the old public/runtime helper
 surface:
@@ -26,9 +25,9 @@ surface:
 
 What remains is smaller and more structural:
 
-- composition-root boot still lives on `WarpRuntime.open()`
-- controller/service host types still name `WarpRuntime` in a few places
-- `_internal.ts` still exists as a compatibility alias
+- `WarpRuntime` still exists as a concrete class and async boot surface
+- `openWarpRuntime()` still returns it as the internal runtime product
+- internal tests and adapter seams still treat it as the primary graph object
 
 ## Boot migration: WarpRuntime → openWarpGraph()
 
@@ -55,10 +54,11 @@ The following construction steps currently split across
 frozen capability bag — no `defineProperty` loops, no `_internal`
 shim, no god object.
 
-Cycle `0066` proved this is not one slice. Cycle `0070` rewrote the remaining
-kill around the actual final order, and cycle `0071` then completed the public
-composition-root cut.
+Cycle `0066` proved this is not one slice. Cycles `0070` through `0073`
+cleared the prerequisite residue:
 
-The remaining kill order is now:
+- `0071` completed the public composition-root cut
+- `0072` completed the controller/service host-type cut
+- `0073` deleted the `_internal.ts` compatibility shim
 
-- `PORT_delete-internal-runtime-shim`
+This note is now the live remaining runtime-kill cut.

@@ -73,6 +73,7 @@ type HostFixture = {
   _lastFrontier: null;
   _cachedViewHash: null;
   _stateCache: SnapshotCacheFixture;
+  _readPatchBlob: (_patchMeta: ReturnType<typeof DEFAULT_COMMIT_MESSAGE_CODEC.decodePatch>) => Promise<Uint8Array>;
   discoverWriters: () => Promise<string[]>;
   materialize: () => Promise<WarpState>;
 };
@@ -130,6 +131,7 @@ function createHost(snapshotCache: SnapshotCacheFixture): HostFixture {
     _lastFrontier: null,
     _cachedViewHash: null,
     _stateCache: snapshotCache,
+    _readPatchBlob: vi.fn().mockResolvedValue(new Uint8Array()),
     discoverWriters: vi.fn().mockResolvedValue(['alice']),
     materialize: vi.fn().mockResolvedValue(WarpState.empty()),
   };

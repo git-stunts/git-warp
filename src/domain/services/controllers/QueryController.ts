@@ -20,7 +20,7 @@ import QueryError from '../../errors/QueryError.ts';
 import type DetachedGraphFactory from '../../capabilities/DetachedGraphFactory.ts';
 import type QueryCapability from '../../capabilities/QueryCapability.ts';
 import type WarpState from '../state/WarpState.ts';
-import type { WarpGraphWithMixins } from '../../warp/_internal.ts';
+import type { MaterializedReadGraph, QueryContentHost, QueryReadHost } from './ReadGraphHost.ts';
 
 import {
   hasNodeImpl, getNodePropsImpl, getEdgePropsImpl, neighborsImpl,
@@ -47,8 +47,13 @@ function toSelector(source: WorldlineSelector | ObserverSource | undefined): Wor
 
 // ── Snapshot helpers ────────────────────────────────────────────────
 
-type MaterializableHost = WarpGraphWithMixins & {
-  _materializeGraph(): Promise<{ state: WarpState; stateHash: string | null }>;
+type QueryObserverFactoryHost = {
+  observer(config: ObserverConfig, options?: ObserverOptions): Promise<Observer>;
+  observer(name: string, config: ObserverConfig, options?: ObserverOptions): Promise<Observer>;
+};
+
+type MaterializableHost = QueryReadHost & QueryContentHost & QueryObserverFactoryHost & Pick<QueryCapability, 'hasNode' | 'getNodes' | 'getNodeProps' | 'getEdges'> & {
+  _materializeGraph(): Promise<MaterializedReadGraph>;
 };
 
 type QueryStateHasher = (state: WarpState) => Promise<string>;
@@ -61,11 +66,6 @@ type QueryControllerDeps = {
 
 async function snapshotCurrent(graph: MaterializableHost): Promise<{ state: WarpState; stateHash: string }> {
   const materialized = await graph._materializeGraph();
-  if (materialized.stateHash === null) {
-    throw new QueryError('_materializeGraph returned a null stateHash', {
-      code: 'E_NO_STATE',
-    });
-  }
   return { state: cloneState(materialized.state), stateHash: materialized.stateHash };
 }
 
@@ -209,7 +209,7 @@ export default class QueryController {
 
 // ── Wire methods via defineProperty ──────────────────────────────────
 
-function host(ctrl: QueryController): WarpGraphWithMixins { return ctrl._host; }
+function host(ctrl: QueryController): MaterializableHost { return ctrl._host; }
 function snapshotDeps(ctrl: QueryController): QueryControllerDeps {
   return {
     hostGraph: ctrl._host,
@@ -229,7 +229,7 @@ function wire(name: string, fn: CallableFunction): void {
   });
 }
 
-type EdgeImplResult<T> = (h: WarpGraphWithMixins, edge: { from: string; to: string; label: string }) => Promise<T>;
+type EdgeImplResult<T> = (h: MaterializableHost, edge: { from: string; to: string; label: string }) => Promise<T>;
 
 function wireEdge<T>(name: string, impl: EdgeImplResult<T>): void {
   wire(name, function (this: QueryController, from: string, to: string, label: string) { return impl(host(this), { from, to, label }); });

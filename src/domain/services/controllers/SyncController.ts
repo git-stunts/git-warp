@@ -3,7 +3,7 @@
  */
 import SyncError from '../../errors/SyncError.ts';
 import OperationAbortedError from '../../errors/OperationAbortedError.ts';
-import { QueryError, E_NO_STATE_MSG } from '../../warp/_internal.ts';
+import QueryError from '../../errors/QueryError.ts';
 import { validateSyncResponse } from '../sync/SyncPayloadSchema.ts';
 import {
   createSyncRequest as createSyncRequestImpl,
@@ -37,6 +37,7 @@ import type {
   SyncWithResult,
   SyncWithOptions,
 } from './SyncControllerTypes.ts';
+import { E_NO_STATE_MSG } from './QueryStateMessages.ts';
 
 export type { SyncHost, SkippedWriter, ApplySyncResult, SyncWithResult, SyncWithOptions } from './SyncControllerTypes.ts';
 

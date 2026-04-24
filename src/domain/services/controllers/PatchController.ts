@@ -18,7 +18,7 @@ import { resolveWriterId } from '../../utils/WriterId.ts';
 import EncryptionError from '../../errors/EncryptionError.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
 import PatchError from '../../errors/PatchError.ts';
-import { QueryError, E_NO_STATE_MSG, E_STALE_STATE_MSG } from '../../warp/_internal.ts';
+import QueryError from '../../errors/QueryError.ts';
 import {
   PatchDiscovery,
   type PatchDiscoveryHost,
@@ -37,6 +37,7 @@ import type { PatchDiff } from '../../types/PatchDiff.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { LogicalIndex } from '../index/logicalIndexHelpers.ts';
 import type PropertyIndexReader from '../index/PropertyIndexReader.ts';
+import { E_NO_STATE_MSG, E_STALE_STATE_MSG } from './QueryStateMessages.ts';
 
 // ── PatchHost ─────────────────────────────────────────────────────────────────
 

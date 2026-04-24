@@ -12,10 +12,10 @@ import { createEmptyState, reduceV5, type WarpState } from '../JoinReducer.ts';
 import { ProvenancePayload } from '../provenance/ProvenancePayload.ts';
 import { hydrateDecodedPatch } from '../PatchHydrator.ts';
 import type Patch from '../../types/Patch.ts';
-import type { WarpGraphWithMixins } from '../../warp/_internal.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
+import type { ProvenanceReadHost } from './ReadGraphHost.ts';
 
-type ProvenanceHost = WarpGraphWithMixins;
+type ProvenanceHost = ProvenanceReadHost;
 
 export default class ProvenanceController {
   _host: ProvenanceHost;

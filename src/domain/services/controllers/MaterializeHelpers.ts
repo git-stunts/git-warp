@@ -5,7 +5,7 @@
  */
 
 import { createImmutableValue, createImmutableWarpState } from '../ImmutableSnapshot.ts';
-import { QueryError } from '../../warp/_internal.ts';
+import QueryError from '../../errors/QueryError.ts';
 import { decodeEdgeKey } from '../KeyCodec.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';

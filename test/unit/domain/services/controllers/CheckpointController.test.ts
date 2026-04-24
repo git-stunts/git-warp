@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CheckpointController from '../../../../../src/domain/services/controllers/CheckpointController.ts';
-import { QueryError } from '../../../../../src/domain/warp/_internal.ts';
+import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import SchemaUnsupportedError from '../../../../../src/domain/errors/SchemaUnsupportedError.ts';
 import GCPolicy from '../../../../../src/domain/services/GCPolicy.ts';
 import GCExecuteResult from '../../../../../src/domain/services/GCExecuteResult.ts';

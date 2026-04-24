@@ -103,8 +103,10 @@ LAYER 3:
                                           the public composition-root cut, and
                                           cycle 0072 then completed the
                                           controller/service host-type cut.
-                                          The remaining kill order is now:
-                                          `PORT_delete-internal-runtime-shim`
+                                          Cycle 0073 then deleted the
+                                          `_internal.ts` compatibility shim.
+                                          `API_kill-warpruntime` is now the
+                                          exposed remaining runtime-deletion cut
 
 LAYER 4 (launch-prep only; park until the repo is otherwise ready to ship):
   [ ] TS_publish-pipeline

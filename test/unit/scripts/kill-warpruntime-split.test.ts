@@ -12,15 +12,16 @@ const releaseLedger = readFileSync(
 );
 
 describe('kill warpruntime split', () => {
-  it('blocks the umbrella on the remaining explicit successor cuts', () => {
-    expect(runtimeKillNote).toContain('- PORT_delete-internal-runtime-shim');
+  it('records that the umbrella is no longer blocked by successor shim cuts', () => {
+    expect(runtimeKillNote).toContain('This note is now the live remaining runtime-kill cut.');
+    expect(runtimeKillNote).not.toContain('- PORT_delete-internal-runtime-shim');
     expect(runtimeKillNote).not.toContain('- PORT_delete-runtime-controller-host-types');
     expect(runtimeKillNote).not.toContain('- API_openwarpgraph-composition-root');
   });
 
-  it('records the same split in the v17 release ledger', () => {
-    expect(releaseLedger).toContain('cycle 0072 then completed');
-    expect(releaseLedger).toContain('PORT_delete-internal-runtime-shim');
+  it('records the shim closeout in the v17 release ledger', () => {
+    expect(releaseLedger).toContain('Cycle 0073 then deleted the');
+    expect(releaseLedger).toContain('`_internal.ts` compatibility shim');
     expect(releaseLedger).not.toContain('PORT_delete-runtime-controller-host-types');
   });
 });

@@ -14,9 +14,10 @@ import {
   CONTENT_SIZE_PROPERTY_KEY,
 } from '../KeyCodec.ts';
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
+import QueryError from '../../errors/QueryError.ts';
 import type WarpState from '../state/WarpState.ts';
-import type { WarpGraphWithMixins } from '../../warp/_internal.ts';
 import type { PropValue } from '../../types/PropValue.ts';
+import type { QueryContentHost } from './ReadGraphHost.ts';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -150,14 +151,14 @@ export function extractContentMeta(regs: ContentRegisters): ContentMeta {
 
 // ── Blob resolution ─────────────────────────────────────────────────
 
-async function resolveBlob(host: WarpGraphWithMixins, oid: string): Promise<Uint8Array> {
+async function resolveBlob(host: QueryContentHost, oid: string): Promise<Uint8Array> {
   if (host._blobStorage) {
     return await host._blobStorage.retrieve(oid);
   }
   return await host._persistence.readBlob(oid);
 }
 
-function resolveBlobStream(host: WarpGraphWithMixins, oid: string): AsyncIterable<Uint8Array> | null {
+function resolveBlobStream(host: QueryContentHost, oid: string): AsyncIterable<Uint8Array> | null {
   if (host._blobStorage && typeof host._blobStorage.retrieveStream === 'function') {
     return host._blobStorage.retrieveStream(oid);
   }
@@ -181,31 +182,34 @@ export function singleChunkIterable(buf: Uint8Array): AsyncIterable<Uint8Array> 
 
 // ── Host-dependent node content ─────────────────────────────────────
 
-async function ensureAndGetState(host: WarpGraphWithMixins): Promise<WarpState> {
+async function ensureAndGetState(host: QueryContentHost): Promise<WarpState> {
   await host._ensureFreshState();
-  return host._cachedState as WarpState;
+  if (host._cachedState === null) {
+    throw new QueryError('host state is null after _ensureFreshState', { code: 'E_NO_STATE' });
+  }
+  return host._cachedState;
 }
 
-export async function getContentOidImpl(host: WarpGraphWithMixins, nodeId: string): Promise<string | null> {
+export async function getContentOidImpl(host: QueryContentHost, nodeId: string): Promise<string | null> {
   const state = await ensureAndGetState(host);
   const regs = getNodeContentRegisters(state, nodeId);
   return regs?.contentRegister.value ?? null;
 }
 
-export async function getContentMetaImpl(host: WarpGraphWithMixins, nodeId: string): Promise<ContentMeta | null> {
+export async function getContentMetaImpl(host: QueryContentHost, nodeId: string): Promise<ContentMeta | null> {
   const state = await ensureAndGetState(host);
   const regs = getNodeContentRegisters(state, nodeId);
   return regs ? extractContentMeta(regs) : null;
 }
 
-export async function getContentImpl(host: WarpGraphWithMixins, nodeId: string): Promise<Uint8Array | null> {
+export async function getContentImpl(host: QueryContentHost, nodeId: string): Promise<Uint8Array | null> {
   const state = await ensureAndGetState(host);
   const regs = getNodeContentRegisters(state, nodeId);
   if (!regs) { return null; }
   return await resolveBlob(host, regs.contentRegister.value);
 }
 
-export async function getContentStreamImpl(host: WarpGraphWithMixins, nodeId: string): Promise<AsyncIterable<Uint8Array> | null> {
+export async function getContentStreamImpl(host: QueryContentHost, nodeId: string): Promise<AsyncIterable<Uint8Array> | null> {
   const state = await ensureAndGetState(host);
   const regs = getNodeContentRegisters(state, nodeId);
   if (!regs) { return null; }
@@ -216,26 +220,26 @@ export async function getContentStreamImpl(host: WarpGraphWithMixins, nodeId: st
 
 // ── Host-dependent edge content ─────────────────────────────────────
 
-export async function getEdgeContentOidImpl(host: WarpGraphWithMixins, edge: EdgeId): Promise<string | null> {
+export async function getEdgeContentOidImpl(host: QueryContentHost, edge: EdgeId): Promise<string | null> {
   const state = await ensureAndGetState(host);
   const regs = getEdgeContentRegisters(state, edge);
   return regs?.contentRegister.value ?? null;
 }
 
-export async function getEdgeContentMetaImpl(host: WarpGraphWithMixins, edge: EdgeId): Promise<ContentMeta | null> {
+export async function getEdgeContentMetaImpl(host: QueryContentHost, edge: EdgeId): Promise<ContentMeta | null> {
   const state = await ensureAndGetState(host);
   const regs = getEdgeContentRegisters(state, edge);
   return regs ? extractContentMeta(regs) : null;
 }
 
-export async function getEdgeContentImpl(host: WarpGraphWithMixins, edge: EdgeId): Promise<Uint8Array | null> {
+export async function getEdgeContentImpl(host: QueryContentHost, edge: EdgeId): Promise<Uint8Array | null> {
   const state = await ensureAndGetState(host);
   const regs = getEdgeContentRegisters(state, edge);
   if (!regs) { return null; }
   return await resolveBlob(host, regs.contentRegister.value);
 }
 
-export async function getEdgeContentStreamImpl(host: WarpGraphWithMixins, edge: EdgeId): Promise<AsyncIterable<Uint8Array> | null> {
+export async function getEdgeContentStreamImpl(host: QueryContentHost, edge: EdgeId): Promise<AsyncIterable<Uint8Array> | null> {
   const state = await ensureAndGetState(host);
   const regs = getEdgeContentRegisters(state, edge);
   if (!regs) { return null; }

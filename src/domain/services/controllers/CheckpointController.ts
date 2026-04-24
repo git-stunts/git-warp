@@ -7,7 +7,7 @@
  * @module domain/services/controllers/CheckpointController
  */
 
-import { QueryError, E_NO_STATE_MSG, type WarpGraphWithMixins } from '../../warp/_internal.ts';
+import QueryError from '../../errors/QueryError.ts';
 import { SchemaUnsupportedError } from '../../errors/index.ts';
 import { buildWriterRef, buildCheckpointRef, buildCoverageRef } from '../../utils/RefLayout.ts';
 import { createFrontier, updateFrontier, frontierFingerprint } from '../Frontier.ts';
@@ -39,6 +39,7 @@ import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
 import type StateHashService from '../state/StateHashService.ts';
 import type MaterializedViewService from '../MaterializedViewService.ts';
 import type GCPolicy from '../GCPolicy.ts';
+import { E_NO_STATE_MSG } from './QueryStateMessages.ts';
 
 type CheckpointFrontier = Pick<LoadedCheckpoint, 'schema' | 'frontier'>;
 
@@ -69,6 +70,7 @@ type CheckpointHost = {
   _lastFrontier: Map<string, string> | null;
   _cachedViewHash: string | null;
   _stateCache: WarpStateCachePort | null;
+  _readPatchBlob(patchMeta: ReturnType<CommitMessageCodecPort['decodePatch']>): Promise<Uint8Array>;
   discoverWriters(): Promise<string[]>;
   materialize(): Promise<WarpState>;
 };
@@ -111,10 +113,6 @@ type PatchLoaderSurface = {
 };
 
 function assertPatchLoaderSurface(host: CheckpointHost): asserts host is CheckpointHost & PatchLoaderSurface {
-  void host;
-}
-
-function assertGraphMixinsSurface(host: CheckpointHost): asserts host is CheckpointHost & WarpGraphWithMixins {
   void host;
 }
 
@@ -392,7 +390,6 @@ export default class CheckpointController {
         // provides runtime shape validation. The parameterized CodecPort
         // from 0025B1 is still available elsewhere; here the runtime guard
         // is the stronger anti-sludge choice.
-        assertGraphMixinsSurface(h);
         const patchBuffer = await h._readPatchBlob(patchMeta);
         const decoded = decodePatchSchema(codecDecodeAsObject(h._codec, patchBuffer));
 
