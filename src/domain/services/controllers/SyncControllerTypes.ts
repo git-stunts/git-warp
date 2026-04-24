@@ -10,12 +10,11 @@ import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 import type SyncTrustGate from '../sync/SyncTrustGate.ts';
 import type SyncCapability from '../../capabilities/SyncCapability.ts';
-import type WarpRuntime from '../../WarpRuntime.ts';
 
 /**
  * The host interface that SyncController depends on.
  *
- * Documents the exact WarpRuntime surface the controller accesses,
+ * Documents the exact host surface the controller accesses,
  * making the coupling explicit and enabling lightweight mock hosts.
  */
 export interface SyncHost {
@@ -32,16 +31,12 @@ export interface SyncHost {
   _patchBlobStorage?: BlobStoragePort | null;
   _patchesSinceCheckpoint: number;
   _maxObservedLamport: number;
-  // TODO(0025B1): derive from WarpRuntime via prototype-wired signatures.
-  // The wiring surface types these with the same loose shape; mirroring
-  // it here keeps SyncHost structurally compatible without duplicating
-  // the looseness textually in this file.
-  materialize: WarpRuntime['materialize'];
-  _setMaterializedState: WarpRuntime['_setMaterializedState'];
+  materialize: () => Promise<WarpState>;
+  _setMaterializedState: (state: WarpState) => Promise<object>;
   discoverWriters: () => Promise<string[]>;
   _createSyncTrustGate?: (
     trust: { mode?: 'off' | 'log-only' | 'enforce'; pin?: string | null } | undefined | null,
-  ) => SyncTrustGate | null;
+    ) => SyncTrustGate | null;
 }
 
 export interface SkippedWriter {

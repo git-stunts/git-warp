@@ -25,9 +25,9 @@ import {
   buildAnalysisSnapshotHash,
   buildEmptySnapshotHash,
 } from './ConflictTraceAssembler.ts';
-import type WarpRuntime from '../../WarpRuntime.ts';
 import type ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
 import type ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.ts';
+import type { AnalyzerService } from './ConflictFrameLoader.ts';
 
 export { CONFLICT_ANALYSIS_VERSION };
 
@@ -36,13 +36,13 @@ export { CONFLICT_ANALYSIS_VERSION };
  */
 export class ConflictAnalyzerService {
   /** @internal structural seam used by ConflictFrameLoader's strand-coordinator bridge. */
-  readonly _graph: WarpRuntime;
+  readonly _graph: AnalyzerService['_graph'];
   private readonly _digestCache: Map<string, string>;
 
   /**
    * Initializes the analyzer with a warp runtime graph instance.
    */
-  constructor({ graph }: { graph: WarpRuntime }) {
+  constructor({ graph }: { graph: AnalyzerService['_graph'] }) {
     this._graph = graph;
     this._digestCache = new Map();
   }

@@ -12,12 +12,21 @@ import { CHECKPOINT_SCHEMA_STANDARD, CHECKPOINT_SCHEMA_V5_INTERMEDIATE } from '.
 import { validateGraphName, validateWriterId, buildWriterRef, buildWritersPrefix } from '../../utils/RefLayout.ts';
 import { generateWriterId } from '../../utils/WriterId.ts';
 import { createWormhole as createWormholeImpl } from '../WormholeService.js';
-import type WarpRuntime from '../../WarpRuntime.ts';
 import type ProvenancePayload from '../provenance/ProvenancePayload.ts';
 import type { LoadedCheckpoint } from '../state/checkpointLoad.ts';
+import type { openWarpRuntime as openWarpRuntimeSurface } from '../../WarpRuntime.ts';
+import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
+import type CodecPort from '../../../ports/CodecPort.ts';
+import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type LoggerPort from '../../../ports/LoggerPort.ts';
+import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
+import type GCPolicy from '../GCPolicy.ts';
 
 const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
 const HEX_CHARS = '0123456789abcdef';
+type ForkRuntimeOpenOptions = Parameters<typeof openWarpRuntimeSurface>[0];
+type ForkedGraph = Awaited<ReturnType<typeof openWarpRuntimeSurface>>;
+type ForkPersistence = ForkRuntimeOpenOptions['persistence'];
 
 /** Generates an 8-char hex suffix using crypto-grade randomness. */
 function randomSuffix(): string {
@@ -30,7 +39,22 @@ function randomSuffix(): string {
   return out;
 }
 
-type ForkHost = WarpRuntime;
+type ForkHost = {
+  _persistence: ForkPersistence;
+  _graphName: string;
+  _gcPolicy: GCPolicy;
+  _adjacencyCache: { maxSize?: number } | null;
+  _checkpointPolicy: { every: number } | null;
+  _autoMaterialize: boolean;
+  _onDeleteWithData: 'reject' | 'cascade' | 'warn';
+  _logger: LoggerPort | null;
+  _crypto: CryptoPort;
+  _codec: CodecPort;
+  _blobStorage: BlobStoragePort | null;
+  _patchBlobStorage: BlobStoragePort | null;
+  _commitMessageCodec: CommitMessageCodecPort;
+  discoverWriters(): Promise<string[]>;
+};
 
 export default class ForkController {
   _host: ForkHost;
@@ -39,7 +63,7 @@ export default class ForkController {
     this._host = host;
   }
 
-  async fork({ from, at, forkName, forkWriterId }: { from: string; at: string; forkName?: string; forkWriterId?: string }): Promise<WarpRuntime> {
+  async fork({ from, at, forkName, forkWriterId }: { from: string; at: string; forkName?: string; forkWriterId?: string }): Promise<ForkedGraph> {
     const host = this._host;
 
     if (!from || typeof from !== 'string') {
@@ -123,12 +147,13 @@ export default class ForkController {
     const forkWriterRef = buildWriterRef(resolvedForkName, resolvedForkWriterId);
     await host._persistence.updateRef(forkWriterRef, at);
 
-    // Dynamic import to avoid circular dependency
-    const { default: WarpRuntime } = await import('../../WarpRuntime.ts');
+    // Dynamic import keeps the controller off the runtime class while
+    // still avoiding the constructor-time module cycle.
+    const runtimeModule = await import('../../WarpRuntime.ts');
 
-    let forkGraph: WarpRuntime;
+    let forkGraph: ForkedGraph;
     try {
-      forkGraph = await WarpRuntime.open({
+      forkGraph = await runtimeModule.openWarpRuntime({
         persistence: host._persistence,
         graphName: resolvedForkName,
         writerId: resolvedForkWriterId,

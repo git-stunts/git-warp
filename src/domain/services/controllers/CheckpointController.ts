@@ -22,14 +22,15 @@ import executeGC from '../executeGC.ts';
 import GCMetrics from '../GCMetrics.ts';
 import { computeAppliedVV } from '../state/CheckpointSerializer.ts';
 import { cloneState, type WarpState } from '../JoinReducer.ts';
-import type WarpRuntime from '../../WarpRuntime.ts';
 import type Patch from '../../types/Patch.ts';
 import type GCExecuteResult from '../GCExecuteResult.ts';
+import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import type {
   WarpStateCoordinate,
   WarpStateSnapshotProvenancePosture,
   WarpStateSnapshotRecord,
 } from '../../../ports/WarpStateCachePort.ts';
+import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
@@ -41,7 +42,7 @@ import type GCPolicy from '../GCPolicy.ts';
 
 type CheckpointFrontier = Pick<LoadedCheckpoint, 'schema' | 'frontier'>;
 
-type CheckpointHost = Pick<WarpRuntime, never> & {
+type CheckpointHost = {
   _graphName: string;
   _persistence: {
     readRef(ref: string): Promise<string | null>;
@@ -55,7 +56,7 @@ type CheckpointHost = Pick<WarpRuntime, never> & {
   _viewService: MaterializedViewService | null;
   _checkpointStore: CheckpointStorePort | null;
   _stateHashService: StateHashService | null;
-  _provenanceIndex: WarpRuntime['_provenanceIndex'];
+  _provenanceIndex: ProvenanceIndex | null;
   _cachedIndexTree: Record<string, Uint8Array> | null;
   _codec: CodecPort;
   _commitMessageCodec: CommitMessageCodecPort;
@@ -67,7 +68,7 @@ type CheckpointHost = Pick<WarpRuntime, never> & {
   _maxObservedLamport: number;
   _lastFrontier: Map<string, string> | null;
   _cachedViewHash: string | null;
-  _stateCache: WarpRuntime['_stateCache'];
+  _stateCache: WarpStateCachePort | null;
   discoverWriters(): Promise<string[]>;
   materialize(): Promise<WarpState>;
 };
@@ -100,10 +101,9 @@ function decodePatchSchema(decoded: object | null): { schema?: number } {
 }
 
 /**
- * The WarpRuntime prototype is extended at wire time with the
- * controller-delegate methods used by CheckpointController. The
- * assertions below declare that compatibility without casting the
- * host value at runtime.
+ * CheckpointController expects the host to expose the patch-loader and
+ * compatibility-mixin surfaces below. The assertions keep that contract
+ * explicit without widening the host through casts.
  */
 type PatchLoaderSurface = {
   _loadWriterPatches(writerId: string, checkpointSha: string | null): Promise<Array<{ patch: Patch; sha: string }>>;

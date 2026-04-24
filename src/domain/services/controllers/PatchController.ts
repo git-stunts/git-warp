@@ -26,11 +26,11 @@ import {
   type PatchEntry,
   type DiscoverTicksResult,
 } from './PatchDiscovery.ts';
-import type WarpRuntime from '../../WarpRuntime.ts';
 import type AdjacencyMap from '../../capabilities/AdjacencyMap.ts';
 import type VersionVector from '../../crdt/VersionVector.ts';
 import type Patch from '../../types/Patch.ts';
 import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
+import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type { PatchStorageRoute } from '../../../ports/CommitMessageCodecPort.ts';
 import type ConfigPort from '../../../ports/ConfigPort.ts';
 import type { PatchDiff } from '../../types/PatchDiff.ts';
@@ -41,11 +41,23 @@ import type PropertyIndexReader from '../index/PropertyIndexReader.ts';
 // ── PatchHost ─────────────────────────────────────────────────────────────────
 
 type DeletePolicy = 'reject' | 'cascade' | 'warn';
+type MaterializedAdjacency = {
+  outgoing: ReadonlyMap<string, readonly { neighborId: string; label: string }[]>;
+  incoming: ReadonlyMap<string, readonly { neighborId: string; label: string }[]>;
+};
+type SetMaterializedState = (
+  state: WarpState,
+  optionsOrDiff?: PatchDiff | { diff?: PatchDiff | null },
+) => Promise<{
+  state: WarpState;
+  stateHash: string;
+  adjacency: MaterializedAdjacency;
+}>;
 
 /**
  * The host interface that PatchController depends on.
  *
- * Documents the exact WarpRuntime surface the controller accesses,
+ * Documents the exact host surface the controller accesses,
  * making the coupling explicit and enabling lightweight mock hosts
  * in unit tests.
  */
@@ -61,7 +73,7 @@ export interface PatchHost extends PatchDiscoveryHost {
   _onDeleteWithData: DeletePolicy;
   _blobStorage: BlobStoragePort | null | undefined;
   _patchBlobStorage: BlobStoragePort | null | undefined;
-  _commitMessageCodec: WarpRuntime['_commitMessageCodec'];
+  _commitMessageCodec: CommitMessageCodecPort;
   _provenanceIndex: {
     addPatch: (sha: string, reads: string[] | undefined, writes: string[] | undefined) => void;
   } | null | undefined;
@@ -79,16 +91,8 @@ export interface PatchHost extends PatchDiscoveryHost {
     (options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
     (options?: { receipts?: false; ceiling?: number | null }): Promise<WarpState>;
   };
-  // TODO(0025B1): _wiredMethods.d.ts declares the return with a loose
-  // adjacency slot. Derive the full call signature from WarpRuntime
-  // through `_wiredMethods` — the controller only reads the side-effect
-  // of this call, so matching the wiring surface keeps this honest
-  // without duplicating its looseness textually here.
-  _setMaterializedState: WarpRuntime['_setMaterializedState'];
-  _buildAdjacency: (state: WarpState) => {
-    outgoing: ReadonlyMap<string, readonly { neighborId: string; label: string }[]>;
-    incoming: ReadonlyMap<string, readonly { neighborId: string; label: string }[]>;
-  };
+  _setMaterializedState: SetMaterializedState;
+  _buildAdjacency: (state: WarpState) => MaterializedAdjacency;
 }
 
 /**

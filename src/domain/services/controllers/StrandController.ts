@@ -9,17 +9,17 @@
 
 import createStrandCoordinator from '../strand/createStrandCoordinator.ts';
 import { ConflictAnalyzerService } from '../strand/ConflictAnalyzerService.ts';
-import type WarpRuntime from '../../WarpRuntime.ts';
 import type StrandCoordinator from '../strand/StrandCoordinator.ts';
 import type { StrandDescriptor, StrandQueuedIntent, StrandTickRecord } from '../strand/strandTypes.ts';
 import type { ConflictAnalyzeOptions } from '../strand/ConflictAnalysisRequest.ts';
+import type { AnalyzerService } from '../strand/ConflictFrameLoader.ts';
 import type ConflictAnalysis from '../../types/conflict/ConflictAnalysis.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { PatchBuilder } from '../PatchBuilder.js';
 import type Patch from '../../types/Patch.ts';
 
-type StrandHost = WarpRuntime;
+type StrandHost = AnalyzerService['_graph'];
 
 export default class StrandController {
   _host: StrandHost;
@@ -27,7 +27,7 @@ export default class StrandController {
 
   constructor(host: StrandHost) {
     this._host = host;
-    this._strandService = createStrandCoordinator(host as unknown as Parameters<typeof createStrandCoordinator>[0]);
+    this._strandService = createStrandCoordinator(host);
   }
 
   // ── Strand lifecycle ────────────────────────────────────────────────────
