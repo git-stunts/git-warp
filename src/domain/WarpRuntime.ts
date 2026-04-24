@@ -78,6 +78,10 @@ import {
 } from './runtimeHelpers.ts';
 import { wireRuntime } from './runtimeWiring.ts';
 
+function hasQueryControllerHostShape(value: WarpRuntime): value is WarpGraphWithMixins {
+  return typeof Reflect.get(value, '_readPatchBlob') === 'function';
+}
+
 import type { NeighborEdge } from '../ports/NeighborProviderPort.ts';
 
 type AdjacencyMapShape = {
@@ -299,6 +303,7 @@ export default class WarpRuntime {
     this._audit = !!audit;
     this._auditSkipCount = 0;
     this._trustConfig = normalizeTrustConfig(trust);
+    this._stateHashService = stateHashService || null;
 
     this._createSyncTrustGate = (override) => {
       const config = normalizeTrustConfig(override ?? this._trustConfig);
@@ -317,7 +322,22 @@ export default class WarpRuntime {
     this._subscriptionController = new SubscriptionController(this as unknown as ConstructorParameters<typeof SubscriptionController>[0]);
     this._provenanceController = new ProvenanceController(this as unknown as WarpGraphWithMixins);
     this._forkController = new ForkController(this);
-    this._queryController = new QueryController(this as unknown as WarpGraphWithMixins);
+    if (!hasQueryControllerHostShape(this)) {
+      throw new WarpError('runtime is missing query controller host methods', 'E_RUNTIME_QUERY_HOST');
+    }
+    this._queryController = new QueryController({
+      hostGraph: this,
+      graphCloner: new RuntimeDetachedFactory(this),
+      hashState: async (state) => {
+        if (this._stateHashService !== null) {
+          return await this._stateHashService.compute(state);
+        }
+        return await new StateHashService({
+          crypto: this._crypto,
+          codec: this._codec,
+        }).compute(state);
+      },
+    });
     this._patchController = new PatchController(this);
     this._checkpointController = new CheckpointController(this);
     this._materializeController = new MaterializeController({
@@ -341,7 +361,6 @@ export default class WarpRuntime {
     this._patchJournal = patchJournal;
     this._checkpointStore = checkpointStore;
     this._indexStore = indexStore;
-    this._stateHashService = stateHashService || null;
     this._auditService = auditService || null;
   }
 

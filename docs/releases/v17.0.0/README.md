@@ -70,10 +70,13 @@ LAYER 2 (the exorcism):
                                           accepts `graph.sync.syncWith(peerGraph)`,
                                           and `Observer.ts` now depends on
                                           `ObserverBacking` instead of
-                                          `WarpRuntime`; remaining work is the
-                                          detached/query/runtime tail
-                                          (`QueryController`, detached graph,
-                                          `WarpApp` / `WarpCore` bridge residue)
+                                          `WarpRuntime`; cycle 0061 then moved
+                                          `QueryController.ts` onto explicit
+                                          detached-read + hash-state seams.
+                                          Remaining work is now the
+                                          detached/runtime tail
+                                          (`Worldline`, `WarpApp` /
+                                          `WarpCore` bridge residue)
 
 LAYER 3:
   [ ] API_kill-warpruntime               ← THE DEVIL DIES

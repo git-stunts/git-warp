@@ -66,6 +66,22 @@ detached graph migration. The remaining work is now:
 - other internal files that still name `WarpRuntime` where a narrower
   capability should exist instead
 
+## 0061 query-controller seam tranche
+
+Cycle `0061` moved `QueryController` off direct `WarpRuntime` typing:
+
+- `QueryController.ts` now receives a detached read factory and a state-hash
+  callback explicitly
+- observer snapshot resolution no longer imports `openDetachedGraph`
+- the touched query seam no longer imports `WarpRuntime`
+
+That means the remaining tail is now:
+
+- detached graph / `Worldline` duplication
+- `WarpApp` / `WarpCore` bridge residue
+- other internal files that still name `WarpRuntime` where a narrower
+  capability should exist instead
+
 ## Deferred content accessor surface
 
 Cycle `0051` closed `SLUDGE_content-access-duplication` as already

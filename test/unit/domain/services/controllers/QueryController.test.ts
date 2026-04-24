@@ -120,6 +120,16 @@ function createHost(state, overrides = {}) {
   };
 }
 
+function createController(host) {
+  return new QueryController({
+    hostGraph: host,
+    graphCloner: {
+      openReadOnly: vi.fn(async () => host),
+    },
+    hashState: vi.fn(async () => 'state-hash'),
+  });
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe('QueryController', () => {
@@ -141,7 +151,7 @@ describe('QueryController', () => {
       ],
     });
     host = createHost(state);
-    ctrl = new QueryController((host));
+    ctrl = createController(host);
   });
 
   // ── hasNode ──────────────────────────────────────────────────────────────

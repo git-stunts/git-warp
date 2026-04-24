@@ -8,19 +8,16 @@
 import { cloneState } from '../JoinReducer.ts';
 import QueryBuilder from '../query/QueryBuilder.ts';
 import Observer from '../query/Observer.ts';
-import { openDetachedGraph } from './detachedOpen.ts';
 import Worldline from '../Worldline.ts';
 import { computeTranslationCost } from '../TranslationCost.ts';
-import { computeStateHash } from '../state/StateSerializer.ts';
 import { toInternalStrandShape } from '../../utils/strandPublicShape.ts';
-import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod.ts';
 import WorldlineSelector from '../../types/WorldlineSelector.ts';
 import LiveSelector from '../../types/LiveSelector.ts';
 import CoordinateSelector from '../../types/CoordinateSelector.ts';
 import StrandSelector from '../../types/StrandSelector.ts';
 import QueryError from '../../errors/QueryError.ts';
+import type DetachedGraphFactory from '../../capabilities/DetachedGraphFactory.ts';
 import type WarpState from '../state/WarpState.ts';
-import type WarpRuntime from '../../WarpRuntime.ts';
 import type { WarpGraphWithMixins } from '../../warp/_internal.ts';
 
 import {
@@ -48,19 +45,30 @@ function toSelector(source: WorldlineSelector | ObserverSource | undefined): Wor
 
 // ── Snapshot helpers ────────────────────────────────────────────────
 
-/**
- * Assertion narrowing WarpRuntime to its _materializeGraph internal.
- * _materializeGraph is defined on WarpRuntime but typed loosely at
- * this boundary; the assertion narrows without a value-level cast.
- */
-type MaterializableHost = { _materializeGraph: () => Promise<{ state: WarpState; stateHash: string | null }> };
+type MaterializableHost = WarpGraphWithMixins & {
+  _materializeGraph(): Promise<{ state: WarpState; stateHash: string | null }>;
+};
 
-function assertMaterializableHost(graph: WarpRuntime): asserts graph is WarpRuntime & MaterializableHost {
-  void graph;
-}
+type DetachedObserverGraph = {
+  materialize(options: { ceiling: number | null }): Promise<WarpState>;
+  materializeCoordinate(options: {
+    frontier: Map<string, string> | Record<string, string>;
+    ceiling: number | null;
+  }): Promise<WarpState>;
+  materializeStrand(strandId: string, options: {
+    ceiling: number | null;
+  }): Promise<WarpState>;
+};
 
-async function snapshotCurrent(graph: WarpRuntime): Promise<{ state: WarpState; stateHash: string }> {
-  assertMaterializableHost(graph);
+type QueryStateHasher = (state: WarpState) => Promise<string>;
+
+type QueryControllerDeps = {
+  hostGraph: MaterializableHost;
+  graphCloner: DetachedGraphFactory;
+  hashState: QueryStateHasher;
+};
+
+async function snapshotCurrent(graph: MaterializableHost): Promise<{ state: WarpState; stateHash: string }> {
   const materialized = await graph._materializeGraph();
   if (materialized.stateHash === null) {
     throw new QueryError('_materializeGraph returned a null stateHash', {
@@ -70,35 +78,44 @@ async function snapshotCurrent(graph: WarpRuntime): Promise<{ state: WarpState; 
   return { state: cloneState(materialized.state), stateHash: materialized.stateHash };
 }
 
-async function snapshotWith(graph: WarpRuntime, state: WarpState): Promise<{ state: WarpState; stateHash: string }> {
-  const stateHash = graph._stateHashService
-    ? await graph._stateHashService.compute(state)
-    : await computeStateHash(state, { crypto: graph._crypto, codec: graph._codec });
-  return { state: cloneState(state), stateHash };
+async function snapshotWith(
+  hashState: QueryStateHasher,
+  state: WarpState,
+): Promise<{ state: WarpState; stateHash: string }> {
+  return {
+    state: cloneState(state),
+    stateHash: await hashState(state),
+  };
 }
 
 // ── Observer snapshot resolution ────────────────────────────────────
 
 type ObserverOptions = { source?: ObserverSource };
 
-async function resolveSnapshot(graph: WarpRuntime, options: ObserverOptions | undefined): Promise<{ state: WarpState; stateHash: string }> {
+async function resolveSnapshot(
+  deps: QueryControllerDeps,
+  options: ObserverOptions | undefined,
+): Promise<{ state: WarpState; stateHash: string }> {
   const source = toSelector(options?.source);
   if (!source) {
-    await (graph as WarpGraphWithMixins)._ensureFreshState();
-    return await snapshotCurrent(graph);
+    await deps.hostGraph._ensureFreshState();
+    return await snapshotCurrent(deps.hostGraph);
   }
-  return await resolveSourceSnapshot(graph, source);
+  return await resolveSourceSnapshot(deps, source);
 }
 
-async function resolveSourceSnapshot(graph: WarpRuntime, source: WorldlineSelector): Promise<{ state: WarpState; stateHash: string }> {
+async function resolveSourceSnapshot(
+  deps: QueryControllerDeps,
+  source: WorldlineSelector,
+): Promise<{ state: WarpState; stateHash: string }> {
   if (source instanceof LiveSelector) {
-    return await resolveLiveSnapshot(graph, source);
+    return await resolveLiveSnapshot(deps, source);
   }
   if (source instanceof CoordinateSelector) {
-    return await resolveCoordinateSnapshot(graph, source);
+    return await resolveCoordinateSnapshot(deps, source);
   }
   if (source instanceof StrandSelector) {
-    return await resolveStrandSnapshot(graph, source);
+    return await resolveStrandSnapshot(deps, source);
   }
   throw new QueryError(`unrecognized observer source kind: ${source.constructor.name}`, {
     code: 'E_OBSERVER_SOURCE_UNKNOWN',
@@ -106,23 +123,40 @@ async function resolveSourceSnapshot(graph: WarpRuntime, source: WorldlineSelect
   });
 }
 
-async function resolveLiveSnapshot(graph: WarpRuntime, source: LiveSelector): Promise<{ state: WarpState; stateHash: string }> {
-  const detached = await openDetachedGraph(graph);
+async function openDetachedObserverGraph(
+  deps: QueryControllerDeps,
+): Promise<DetachedObserverGraph> {
+  return await deps.graphCloner.openReadOnly();
+}
+
+async function resolveLiveSnapshot(
+  deps: QueryControllerDeps,
+  source: LiveSelector,
+): Promise<{ state: WarpState; stateHash: string }> {
+  const detached = await openDetachedObserverGraph(deps);
   const state = await detached.materialize({ ceiling: source.ceiling ?? null });
-  return await snapshotWith(detached, state);
+  return await snapshotWith(deps.hashState, state);
 }
 
-async function resolveCoordinateSnapshot(graph: WarpRuntime, source: CoordinateSelector): Promise<{ state: WarpState; stateHash: string }> {
-  const detached = await openDetachedGraph(graph);
+async function resolveCoordinateSnapshot(
+  deps: QueryControllerDeps,
+  source: CoordinateSelector,
+): Promise<{ state: WarpState; stateHash: string }> {
+  const detached = await openDetachedObserverGraph(deps);
   const state = await detached.materializeCoordinate({ frontier: source.frontier, ceiling: source.ceiling ?? null });
-  return await snapshotWith(detached, state);
+  return await snapshotWith(deps.hashState, state);
 }
 
-async function resolveStrandSnapshot(graph: WarpRuntime, source: StrandSelector): Promise<{ state: WarpState; stateHash: string }> {
-  const detached = await openDetachedGraph(graph);
+async function resolveStrandSnapshot(
+  deps: QueryControllerDeps,
+  source: StrandSelector,
+): Promise<{ state: WarpState; stateHash: string }> {
+  const detached = await openDetachedObserverGraph(deps);
   const internal = toInternalStrandShape(source.toDTO());
-  const state = await callInternalRuntimeMethod<WarpState>(detached, 'materializeStrand', internal.strandId, { ceiling: internal.ceiling ?? null });
-  return await snapshotWith(detached, state);
+  const state = await detached.materializeStrand(internal.strandId, {
+    ceiling: internal.ceiling ?? null,
+  });
+  return await snapshotWith(deps.hashState, state);
 }
 
 // ── Observer argument normalization ─────────────────────────────────
@@ -150,16 +184,27 @@ function isValidMatch(m: string | string[]): boolean {
 // ── Controller class ────────────────────────────────────────────────
 
 export default class QueryController {
-  _host: WarpGraphWithMixins;
+  _host: MaterializableHost;
+  _graphCloner: DetachedGraphFactory;
+  _hashState: QueryStateHasher;
 
-  constructor(hostGraph: WarpGraphWithMixins) {
-    this._host = hostGraph;
+  constructor(deps: QueryControllerDeps) {
+    this._host = deps.hostGraph;
+    this._graphCloner = deps.graphCloner;
+    this._hashState = deps.hashState;
   }
 }
 
 // ── Wire methods via defineProperty ──────────────────────────────────
 
 function host(ctrl: QueryController): WarpGraphWithMixins { return ctrl._host; }
+function snapshotDeps(ctrl: QueryController): QueryControllerDeps {
+  return {
+    hostGraph: ctrl._host,
+    graphCloner: ctrl._graphCloner,
+    hashState: ctrl._hashState,
+  };
+}
 
 /**
  * CallableFunction is the least-information return shape for a
@@ -214,7 +259,7 @@ wire('observer', async function (this: QueryController, nameOrConfig: string | O
     });
   }
   const h = host(this);
-  const snapshot = await resolveSnapshot(h as WarpRuntime, options);
+  const snapshot = await resolveSnapshot(snapshotDeps(this), options);
   const sourceSelector = options?.source !== undefined ? toSelector(options.source) : undefined;
   return new Observer({
     name, config, graph: h, snapshot,
