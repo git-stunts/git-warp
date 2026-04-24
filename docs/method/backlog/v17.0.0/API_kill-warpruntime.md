@@ -3,7 +3,6 @@ id: API_kill-warpruntime
 blocks:
   - TS_publish-pipeline
 blocked_by:
-  - PORT_delete-runtime-controller-host-types
   - PORT_delete-internal-runtime-shim
 feature: api-capabilities
 ---
@@ -62,5 +61,4 @@ composition-root cut.
 
 The remaining kill order is now:
 
-- `PORT_delete-runtime-controller-host-types`
 - `PORT_delete-internal-runtime-shim`

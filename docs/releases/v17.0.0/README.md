@@ -100,10 +100,11 @@ LAYER 3:
                                           cut, and cycle 0069 deleted the
                                           runtime wiring / `_wiredMethods`
                                           blocker. Cycle 0071 then completed
-                                          the public composition-root cut.
+                                          the public composition-root cut, and
+                                          cycle 0072 then completed the
+                                          controller/service host-type cut.
                                           The remaining kill order is now:
-                                          `PORT_delete-runtime-controller-host-types`
-                                          → `PORT_delete-internal-runtime-shim`
+                                          `PORT_delete-internal-runtime-shim`
 
 LAYER 4 (launch-prep only; park until the repo is otherwise ready to ship):
   [ ] TS_publish-pipeline

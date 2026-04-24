@@ -1,7 +1,6 @@
 ---
 id: PORT_delete-internal-runtime-shim
-blocked_by:
-  - PORT_delete-runtime-controller-host-types
+blocked_by: []
 blocks:
   - API_kill-warpruntime
 feature: runtime-boundaries

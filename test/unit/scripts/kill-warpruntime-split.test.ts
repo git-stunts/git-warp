@@ -13,14 +13,14 @@ const releaseLedger = readFileSync(
 
 describe('kill warpruntime split', () => {
   it('blocks the umbrella on the remaining explicit successor cuts', () => {
-    expect(runtimeKillNote).toContain('- PORT_delete-runtime-controller-host-types');
     expect(runtimeKillNote).toContain('- PORT_delete-internal-runtime-shim');
+    expect(runtimeKillNote).not.toContain('- PORT_delete-runtime-controller-host-types');
     expect(runtimeKillNote).not.toContain('- API_openwarpgraph-composition-root');
   });
 
   it('records the same split in the v17 release ledger', () => {
-    expect(releaseLedger).toContain('Cycle 0071 then completed');
-    expect(releaseLedger).toContain('PORT_delete-runtime-controller-host-types');
+    expect(releaseLedger).toContain('cycle 0072 then completed');
     expect(releaseLedger).toContain('PORT_delete-internal-runtime-shim');
+    expect(releaseLedger).not.toContain('PORT_delete-runtime-controller-host-types');
   });
 });
