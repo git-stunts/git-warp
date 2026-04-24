@@ -53,7 +53,7 @@ describe('WarpApp facade', () => {
     });
 
     const coreB = appB.core();
-    // syncWith is wired onto WarpRuntime.prototype; spyOn needs a cast
+    // syncWith is wired onto the adopted core surface; spyOn needs a cast
     const syncSpy = vi.spyOn(coreB as unknown as Record<string, (...args: unknown[]) => unknown>, 'syncWith').mockResolvedValue({
       applied: 0,
       attempts: 1,

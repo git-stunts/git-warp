@@ -63,10 +63,10 @@ describe('WarpApp delegation', () => {
     mockRuntime = createMockRuntime();
     mockCore = createMockCore();
 
-    // Construct WarpApp with a mock core that also acts as runtime
+    // Construct WarpApp with a mock core that also acts as the app surface
     app = new WarpApp((mockCore));
-    // Override _runtime() to return our mock runtime (which has all the methods)
-    app._runtime = () => mockRuntime;
+    // Override _surface() to return our mock app surface (which has all the methods)
+    app._surface = () => mockRuntime;
     // Override core() to return our mock core
     app.core = () => mockCore;
   });
@@ -85,27 +85,27 @@ describe('WarpApp delegation', () => {
       open.mockRestore();
     });
 
-    it('graphName and writerId read through the runtime-backed core', () => {
+    it('graphName and writerId read through the capability-backed core surface', () => {
       const runtimeBackedCore = createRuntimeBackedCore();
       const runtimeBackedApp = new WarpApp((runtimeBackedCore as any));
 
       expect(runtimeBackedApp.graphName).toBe('test-graph');
       expect(runtimeBackedApp.writerId).toBe('writer-1');
       expect(runtimeBackedApp.core()).toBe(runtimeBackedCore);
-      expect(runtimeBackedApp._runtime()).toBe(runtimeBackedCore);
+      expect(runtimeBackedApp._surface()).toBe(runtimeBackedCore);
     });
 
     it('throws when the wrapped core is not runtime-backed', () => {
       const runtimeBackedApp = new WarpApp((createMockCore() as any));
 
-      expect(() => runtimeBackedApp._runtime()).toThrow('WarpApp requires a runtime-backed WarpCore');
+      expect(() => runtimeBackedApp._surface()).toThrow('WarpApp requires a capability-backed WarpCore surface');
     });
   });
 
   // ── Patch building & writing ────────────────────────────────────────────
 
   describe('writer', () => {
-    it('delegates to _runtime().writer()', async () => {
+    it('delegates to the app surface writer()', async () => {
       const result = await app.writer('custom-writer');
 
       expect(mockRuntime.writer).toHaveBeenCalledWith('custom-writer');
@@ -120,7 +120,7 @@ describe('WarpApp delegation', () => {
   });
 
   describe('createPatch', () => {
-    it('delegates to _runtime().createPatch()', async () => {
+    it('delegates to the app surface createPatch()', async () => {
       const result = await app.createPatch();
 
       expect(mockRuntime.createPatch).toHaveBeenCalledWith();
@@ -129,7 +129,7 @@ describe('WarpApp delegation', () => {
   });
 
   describe('patch', () => {
-    it('delegates to _runtime().patch()', async () => {
+    it('delegates to the app surface patch()', async () => {
       const buildFn = vi.fn();
       const result = await app.patch(buildFn);
 
@@ -139,7 +139,7 @@ describe('WarpApp delegation', () => {
   });
 
   describe('patchMany', () => {
-    it('delegates to _runtime().patchMany()', async () => {
+    it('delegates to the app surface patchMany()', async () => {
       const build1 = vi.fn();
       const build2 = vi.fn();
       const result = await app.patchMany(build1, build2);
@@ -174,15 +174,15 @@ describe('WarpApp delegation', () => {
       expect(mockRuntime.syncWith).toHaveBeenCalledWith(remoteCore, undefined);
     });
 
-    it('rejects non-runtime-backed WarpCore peers', async () => {
-      await expect(app.syncWith((createMockCore() as any))).rejects.toThrow('runtime-backed WarpCore peer');
+    it('rejects non-capability-backed WarpCore peers', async () => {
+      await expect(app.syncWith((createMockCore() as any))).rejects.toThrow('capability-backed WarpCore peer');
     });
   });
 
   // ── Querying ────────────────────────────────────────────────────────────
 
   describe('worldline', () => {
-    it('delegates to _runtime().worldline()', () => {
+    it('delegates to the app surface worldline()', () => {
       const opts = ({ ceiling: 5 } as any);
       const result = app.worldline(opts);
 
@@ -210,7 +210,7 @@ describe('WarpApp delegation', () => {
   });
 
   describe('translationCost', () => {
-    it('delegates to _runtime().translationCost()', async () => {
+    it('delegates to the app surface translationCost()', async () => {
       const configA = ({ nodes: 'a' } as any);
       const configB = ({ nodes: 'b' } as any);
       const result = await app.translationCost(configA, configB);
@@ -221,7 +221,7 @@ describe('WarpApp delegation', () => {
   });
 
   describe('subscribe', () => {
-    it('delegates to _runtime().subscribe()', () => {
+    it('delegates to the app surface subscribe()', () => {
       const opts = { onChange: vi.fn() };
       const result = app.subscribe(opts);
 
@@ -231,7 +231,7 @@ describe('WarpApp delegation', () => {
   });
 
   describe('watch', () => {
-    it('delegates to _runtime().watch()', () => {
+    it('delegates to the app surface watch()', () => {
       const result = app.watch('user:*', { onChange: vi.fn() });
 
       expect(mockRuntime.watch).toHaveBeenCalledWith('user:*', { onChange: expect.any(Function) });

@@ -1,45 +1,58 @@
 import WarpCore from './WarpCore.ts';
 import WarpError from './errors/WarpError.ts';
-import { callInternalRuntimeMethod } from './utils/callInternalRuntimeMethod.ts';
 
-import type WarpRuntime from './WarpRuntime.ts';
 import type { Aperture } from './types/Aperture.ts';
-import type { ObserverOptions } from './capabilities/QueryCapability.ts';
+import type {
+  ObserverOptions,
+  WorldlineOptions,
+  TranslationCostResult,
+} from './capabilities/QueryCapability.ts';
+import type {
+  SyncWithOptions,
+  SyncWithResult,
+} from './capabilities/SyncCapability.ts';
+import type {
+  SubscribeOptions,
+  SubscriptionHandle,
+  WatchOptions,
+} from './capabilities/SubscriptionCapability.ts';
 import type Observer from './services/query/Observer.ts';
+import type Worldline from './services/Worldline.ts';
+import type { Writer } from './warp/Writer.ts';
+import type { PatchBuilder } from './services/PatchBuilder.ts';
 
-type RuntimeBackedCore = WarpCore & {
-  graphName: WarpRuntime['graphName'];
-  writerId: WarpRuntime['writerId'];
-  writer: WarpRuntime['writer'];
-  createPatch: WarpRuntime['createPatch'];
-  patch: WarpRuntime['patch'];
-  patchMany: WarpRuntime['patchMany'];
-  processSyncRequest: WarpRuntime['processSyncRequest'];
-  syncWith(
-    remote: string | RuntimeBackedCore,
-    options?: Parameters<WarpRuntime['syncWith']>[1],
-  ): ReturnType<WarpRuntime['syncWith']>;
-  worldline: WarpRuntime['worldline'];
+type ContentMeta = Awaited<ReturnType<WarpCore['getContentMeta']>>;
+type PatchBuild = (patch: PatchBuilder) => void | Promise<void>;
+type AppSurface = {
+  graphName: string;
+  writerId: string;
+  writer(writerId?: string): Promise<Writer>;
+  createPatch(): Promise<PatchBuilder>;
+  patch(build: PatchBuild): Promise<string>;
+  patchMany(...builds: PatchBuild[]): Promise<string[]>;
+  syncWith(remote: string | AppSurface, options?: SyncWithOptions): Promise<SyncWithResult>;
+  worldline(options?: WorldlineOptions): Worldline;
   observer(
     nameOrConfig: string | Aperture,
     configOrOptions?: Aperture | ObserverOptions,
     options?: ObserverOptions,
   ): Promise<Observer>;
-  translationCost: WarpRuntime['translationCost'];
-  subscribe: WarpRuntime['subscribe'];
-  watch: WarpRuntime['watch'];
+  translationCost(configA: Aperture, configB: Aperture): Promise<TranslationCostResult>;
+  subscribe(options: SubscribeOptions): SubscriptionHandle;
+  watch(pattern: string | string[], options: WatchOptions): SubscriptionHandle;
+  getContent(nodeId: string): Promise<Uint8Array | null>;
+  getContentStream(nodeId: string): Promise<AsyncIterable<Uint8Array> | null>;
+  getContentOid(nodeId: string): Promise<string | null>;
+  getContentMeta(nodeId: string): Promise<ContentMeta>;
+  getEdgeContent(from: string, to: string, label: string): Promise<Uint8Array | null>;
+  getEdgeContentStream(from: string, to: string, label: string): Promise<AsyncIterable<Uint8Array> | null>;
+  getEdgeContentOid(from: string, to: string, label: string): Promise<string | null>;
+  getEdgeContentMeta(from: string, to: string, label: string): Promise<ContentMeta>;
 };
 
-type ContentMeta = Awaited<ReturnType<WarpCore['getContentMeta']>>;
-type AppSyncOptions = Parameters<RuntimeBackedCore['syncWith']>[1];
-type AppWorldlineOptions = Parameters<RuntimeBackedCore['worldline']>[0];
-type AppWorldline = ReturnType<RuntimeBackedCore['worldline']>;
-type AppTranslationCost = ReturnType<RuntimeBackedCore['translationCost']>;
-type AppSubscription = ReturnType<RuntimeBackedCore['subscribe']>;
-type AppWatch = ReturnType<RuntimeBackedCore['watch']>;
-type UnwrappedSyncRemote = string | RuntimeBackedCore;
+type UnwrappedSyncRemote = string | AppSurface;
 
-const RUNTIME_METHOD_NAMES = Object.freeze([
+const APP_SURFACE_METHOD_NAMES = Object.freeze([
   'writer',
   'createPatch',
   'patch',
@@ -60,20 +73,20 @@ function hasString(value: object, name: string): boolean {
   return typeof Reflect.get(value, name) === 'string';
 }
 
-function isRuntimeBackedCore(value: object): value is RuntimeBackedCore {
+function isAppSurface(value: object): value is AppSurface {
   return (
     hasString(value, 'graphName') &&
     hasString(value, 'writerId') &&
-    RUNTIME_METHOD_NAMES.every((name) => hasFunction(value, name))
+    APP_SURFACE_METHOD_NAMES.every((name) => hasFunction(value, name))
   );
 }
 
-function requireRuntimeBackedCore(core: WarpCore, code: string): RuntimeBackedCore {
-  if (isRuntimeBackedCore(core)) {
+function requireAppSurface(core: WarpCore, code: string): AppSurface {
+  if (isAppSurface(core)) {
     return core;
   }
 
-  throw new WarpError('WarpApp requires a runtime-backed WarpCore', code);
+  throw new WarpError('WarpApp requires a capability-backed WarpCore surface', code);
 }
 
 /**
@@ -95,50 +108,50 @@ export default class WarpApp {
   }
 
   get graphName(): string {
-    return this._runtime().graphName;
+    return this._surface().graphName;
   }
 
   get writerId(): string {
-    return this._runtime().writerId;
+    return this._surface().writerId;
   }
 
   core(): WarpCore {
     return this._core;
   }
 
-  _runtime(): RuntimeBackedCore {
-    return requireRuntimeBackedCore(this._core, 'E_WARP_APP_RUNTIME');
+  _surface(): AppSurface {
+    return requireAppSurface(this._core, 'E_WARP_APP_SURFACE');
   }
 
-  async writer(writerId?: string): Promise<Awaited<ReturnType<RuntimeBackedCore['writer']>>> {
-    return await this._runtime().writer(writerId);
+  async writer(writerId?: string): Promise<Writer> {
+    return await this._surface().writer(writerId);
   }
 
-  async createPatch(): Promise<Awaited<ReturnType<RuntimeBackedCore['createPatch']>>> {
-    return await this._runtime().createPatch();
+  async createPatch(): Promise<PatchBuilder> {
+    return await this._surface().createPatch();
   }
 
   async patch(
-    build: Parameters<RuntimeBackedCore['patch']>[0],
-  ): Promise<Awaited<ReturnType<RuntimeBackedCore['patch']>>> {
-    return await this._runtime().patch(build);
+    build: PatchBuild,
+  ): Promise<string> {
+    return await this._surface().patch(build);
   }
 
   async patchMany(
-    ...builds: Parameters<RuntimeBackedCore['patchMany']>
-  ): Promise<Awaited<ReturnType<RuntimeBackedCore['patchMany']>>> {
-    return await this._runtime().patchMany(...builds);
+    ...builds: PatchBuild[]
+  ): Promise<string[]> {
+    return await this._surface().patchMany(...builds);
   }
 
   async syncWith(
     remote: string | WarpApp | WarpCore,
-    options?: AppSyncOptions,
-  ): Promise<Awaited<ReturnType<RuntimeBackedCore['syncWith']>>> {
-    return await this._runtime().syncWith(unwrapSyncRemote(remote), options);
+    options?: SyncWithOptions,
+  ): Promise<SyncWithResult> {
+    return await this._surface().syncWith(unwrapSyncRemote(remote), options);
   }
 
-  worldline(options?: AppWorldlineOptions): AppWorldline {
-    return this._runtime().worldline(options);
+  worldline(options?: WorldlineOptions): Worldline {
+    return this._surface().worldline(options);
   }
 
   async observer(config: Aperture, options?: ObserverOptions): Promise<Observer>;
@@ -149,57 +162,57 @@ export default class WarpApp {
     maybeOptions?: ObserverOptions,
   ): Promise<Observer> {
     if (typeof nameOrConfig === 'string') {
-      return await this._runtime().observer(nameOrConfig, configOrOptions, maybeOptions);
+      return await this._surface().observer(nameOrConfig, configOrOptions, maybeOptions);
     }
 
-    return await this._runtime().observer(nameOrConfig, configOrOptions);
+    return await this._surface().observer(nameOrConfig, configOrOptions);
   }
 
   async translationCost(
-    configA: Parameters<RuntimeBackedCore['translationCost']>[0],
-    configB: Parameters<RuntimeBackedCore['translationCost']>[1],
-  ): Promise<Awaited<AppTranslationCost>> {
-    return await this._runtime().translationCost(configA, configB);
+    configA: Aperture,
+    configB: Aperture,
+  ): Promise<TranslationCostResult> {
+    return await this._surface().translationCost(configA, configB);
   }
 
-  subscribe(options: Parameters<RuntimeBackedCore['subscribe']>[0]): AppSubscription {
-    return this._runtime().subscribe(options);
+  subscribe(options: SubscribeOptions): SubscriptionHandle {
+    return this._surface().subscribe(options);
   }
 
-  watch(pattern: string | string[], options: Parameters<RuntimeBackedCore['watch']>[1]): AppWatch {
-    return this._runtime().watch(pattern, options);
+  watch(pattern: string | string[], options: WatchOptions): SubscriptionHandle {
+    return this._surface().watch(pattern, options);
   }
 
   async getContent(nodeId: string): Promise<Uint8Array | null> {
-    return await callInternalRuntimeMethod<Uint8Array | null>(this._runtime(), 'getContent', nodeId);
+    return await this._surface().getContent(nodeId);
   }
 
   async getContentStream(nodeId: string): Promise<AsyncIterable<Uint8Array> | null> {
-    return await callInternalRuntimeMethod<AsyncIterable<Uint8Array> | null>(this._runtime(), 'getContentStream', nodeId);
+    return await this._surface().getContentStream(nodeId);
   }
 
   async getContentOid(nodeId: string): Promise<string | null> {
-    return await callInternalRuntimeMethod<string | null>(this._runtime(), 'getContentOid', nodeId);
+    return await this._surface().getContentOid(nodeId);
   }
 
   async getContentMeta(nodeId: string): Promise<ContentMeta> {
-    return await callInternalRuntimeMethod<ContentMeta>(this._runtime(), 'getContentMeta', nodeId);
+    return await this._surface().getContentMeta(nodeId);
   }
 
   async getEdgeContent(from: string, to: string, label: string): Promise<Uint8Array | null> {
-    return await callInternalRuntimeMethod<Uint8Array | null>(this._runtime(), 'getEdgeContent', from, to, label);
+    return await this._surface().getEdgeContent(from, to, label);
   }
 
   async getEdgeContentStream(from: string, to: string, label: string): Promise<AsyncIterable<Uint8Array> | null> {
-    return await callInternalRuntimeMethod<AsyncIterable<Uint8Array> | null>(this._runtime(), 'getEdgeContentStream', from, to, label);
+    return await this._surface().getEdgeContentStream(from, to, label);
   }
 
   async getEdgeContentOid(from: string, to: string, label: string): Promise<string | null> {
-    return await callInternalRuntimeMethod<string | null>(this._runtime(), 'getEdgeContentOid', from, to, label);
+    return await this._surface().getEdgeContentOid(from, to, label);
   }
 
   async getEdgeContentMeta(from: string, to: string, label: string): Promise<ContentMeta> {
-    return await callInternalRuntimeMethod<ContentMeta>(this._runtime(), 'getEdgeContentMeta', from, to, label);
+    return await this._surface().getEdgeContentMeta(from, to, label);
   }
 
   async createStrand(options?: Parameters<WarpCore['createStrand']>[0]): Promise<Awaited<ReturnType<WarpCore['createStrand']>>> {
@@ -260,12 +273,12 @@ function unwrapSyncRemote(remote: string | WarpApp | WarpCore): UnwrappedSyncRem
   }
 
   if (remote instanceof WarpApp) {
-    return remote._runtime();
+    return remote._surface();
   }
 
-  if (isRuntimeBackedCore(remote)) {
+  if (isAppSurface(remote)) {
     return remote;
   }
 
-  throw new WarpError('WarpApp sync requires a runtime-backed WarpCore peer', 'E_WARP_APP_SYNC_REMOTE');
+  throw new WarpError('WarpApp sync requires a capability-backed WarpCore peer', 'E_WARP_APP_SYNC_REMOTE');
 }

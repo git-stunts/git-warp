@@ -97,6 +97,21 @@ That means the remaining migration tail is:
 - other internal files that still name `WarpRuntime` where a narrower
   capability should exist instead
 
+## 0063 warpapp tranche
+
+Cycle `0063` moved `WarpApp.ts` off direct runtime typing:
+
+- `WarpApp.ts` now defines an explicit app-surface contract
+- the file no longer imports `WarpRuntime`
+- content reads now route through that surface instead of
+  `callInternalRuntimeMethod(...)`
+
+That means the remaining migration tail is now centered on:
+
+- `WarpCore` bridge residue
+- other internal files that still name `WarpRuntime` where a narrower
+  capability should exist instead
+
 ## Deferred content accessor surface
 
 Cycle `0051` closed `SLUDGE_content-access-duplication` as already

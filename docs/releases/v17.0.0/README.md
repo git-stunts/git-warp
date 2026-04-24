@@ -76,9 +76,12 @@ LAYER 2 (the exorcism):
                                           `WarpRuntime`; cycle 0061 then moved
                                           `QueryController.ts` onto explicit
                                           detached-read + hash-state seams.
-                                          Remaining work is now the
-                                          runtime bridge residue
-                                          (`WarpApp` / `WarpCore`)
+                                          Cycle 0062 then moved
+                                          `Worldline.ts` onto the same
+                                          detached-read seam, and cycle 0063
+                                          moved `WarpApp.ts` onto an explicit
+                                          app-surface contract. Remaining work
+                                          is now the `WarpCore` bridge residue
 
 LAYER 3:
   [ ] API_kill-warpruntime               ← THE DEVIL DIES
