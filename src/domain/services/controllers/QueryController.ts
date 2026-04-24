@@ -11,6 +11,7 @@ import Observer from '../query/Observer.ts';
 import Worldline from '../Worldline.ts';
 import { computeTranslationCost } from '../TranslationCost.ts';
 import { toInternalStrandShape } from '../../utils/strandPublicShape.ts';
+import type { DetachedGraphReadSurface } from '../../capabilities/DetachedGraphFactory.ts';
 import WorldlineSelector from '../../types/WorldlineSelector.ts';
 import LiveSelector from '../../types/LiveSelector.ts';
 import CoordinateSelector from '../../types/CoordinateSelector.ts';
@@ -47,17 +48,6 @@ function toSelector(source: WorldlineSelector | ObserverSource | undefined): Wor
 
 type MaterializableHost = WarpGraphWithMixins & {
   _materializeGraph(): Promise<{ state: WarpState; stateHash: string | null }>;
-};
-
-type DetachedObserverGraph = {
-  materialize(options: { ceiling: number | null }): Promise<WarpState>;
-  materializeCoordinate(options: {
-    frontier: Map<string, string> | Record<string, string>;
-    ceiling: number | null;
-  }): Promise<WarpState>;
-  materializeStrand(strandId: string, options: {
-    ceiling: number | null;
-  }): Promise<WarpState>;
 };
 
 type QueryStateHasher = (state: WarpState) => Promise<string>;
@@ -125,7 +115,7 @@ async function resolveSourceSnapshot(
 
 async function openDetachedObserverGraph(
   deps: QueryControllerDeps,
-): Promise<DetachedObserverGraph> {
+): Promise<DetachedGraphReadSurface> {
   return await deps.graphCloner.openReadOnly();
 }
 
