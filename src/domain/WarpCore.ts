@@ -1,7 +1,10 @@
-import WarpRuntime from './WarpRuntime.ts';
 import WarpError from './errors/WarpError.ts';
 import { callInternalRuntimeMethod } from './utils/callInternalRuntimeMethod.ts';
 import { toInternalStrandShape, toPublicStrandShape } from './utils/strandPublicShape.ts';
+import {
+  linkWarpCorePrototype,
+  openWarpCoreRuntime,
+} from './warp/WarpCoreRuntimeBridge.ts';
 import {
   buildCoordinateComparisonFact,
   buildCoordinateTransferPlanFact,
@@ -11,35 +14,38 @@ import { computeChecksum } from './utils/checksumUtils.ts';
 import type CryptoPort from '../ports/CryptoPort.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
 import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
+import type {
+  CompareCoordinatesOptions,
+  CompareStrandOptions,
+  ConflictAnalysis,
+  ConflictAnalyzeOptions,
+  CoordinateComparisonV1,
+  CoordinateTransferPlanV1,
+  InternalBraidStrandOptions,
+  InternalCompareCoordinatesOptions,
+  InternalCompareStrandOptions,
+  InternalConflictAnalyzeOptions,
+  InternalPlanCoordinateTransferOptions,
+  InternalPlanStrandTransferOptions,
+  PlanCoordinateTransferOptions,
+  PlanStrandTransferOptions,
+  StrandBraidOptions,
+  StrandCreateOptions,
+  StrandDescriptor,
+  StrandIntentDescriptor,
+  StrandMaterializeOptions,
+  StrandMaterializeResult,
+  StrandPatchEntry,
+  StrandPatchListOptions,
+  StrandTickRecord,
+  WarpCoreOpenOptions,
+} from './warp/WarpCoreRuntimeBridge.ts';
 
 type ContentMeta = {
   oid: string;
   mime: string | null;
   size: number | null;
 };
-
-type StrandCreateOptions = Parameters<WarpRuntime['createStrand']>[0];
-type StrandDescriptor = Awaited<ReturnType<WarpRuntime['createStrand']>>;
-type StrandBraidOptions = Parameters<WarpRuntime['braidStrand']>[1];
-type StrandMaterializeOptions = Parameters<WarpRuntime['materializeStrand']>[1];
-type StrandMaterializeResult = Awaited<ReturnType<WarpRuntime['materializeStrand']>>;
-type StrandPatchEntry = Awaited<ReturnType<WarpRuntime['getStrandPatches']>>[number];
-type StrandIntentDescriptor = Awaited<ReturnType<WarpRuntime['queueStrandIntent']>>;
-type StrandTickRecord = Awaited<ReturnType<WarpRuntime['tickStrand']>>;
-type CompareStrandOptions = Parameters<WarpRuntime['compareStrand']>[1];
-type CoordinateComparisonV1 = Awaited<ReturnType<WarpRuntime['compareCoordinates']>>;
-type PlanStrandTransferOptions = Parameters<WarpRuntime['planStrandTransfer']>[1];
-type CoordinateTransferPlanV1 = Awaited<ReturnType<WarpRuntime['planCoordinateTransfer']>>;
-type CompareCoordinatesOptions = Parameters<WarpRuntime['compareCoordinates']>[0];
-type PlanCoordinateTransferOptions = Parameters<WarpRuntime['planCoordinateTransfer']>[0];
-type ConflictAnalyzeOptions = Parameters<WarpRuntime['analyzeConflicts']>[0];
-type ConflictAnalysis = Awaited<ReturnType<WarpRuntime['analyzeConflicts']>>;
-type InternalBraidStrandOptions = Parameters<WarpRuntime['braidStrand']>[1];
-type InternalCompareStrandOptions = Parameters<WarpRuntime['compareStrand']>[1];
-type InternalPlanStrandTransferOptions = Parameters<WarpRuntime['planStrandTransfer']>[1];
-type InternalCompareCoordinatesOptions = Parameters<WarpRuntime['compareCoordinates']>[0];
-type InternalPlanCoordinateTransferOptions = Parameters<WarpRuntime['planCoordinateTransfer']>[0];
-type InternalConflictAnalyzeOptions = Parameters<WarpRuntime['analyzeConflicts']>[0];
 
 async function refreshPublicComparisonDigest(
   graph: WarpCore,
@@ -74,15 +80,15 @@ export default class WarpCore {
   declare _effectPipeline: EffectPipeline | null;
   declare _crypto: CryptoPort;
 
-  static async open(options: Parameters<typeof WarpRuntime.open>[0]): Promise<WarpCore> {
-    const runtime = await WarpRuntime.open(options);
+  static async open(options: WarpCoreOpenOptions): Promise<WarpCore> {
+    const runtime = await openWarpCoreRuntime(options);
     return WarpCore._adopt(runtime);
   }
 
   /**
    * Adopts an existing runtime instance as a WarpCore.
    */
-  static _adopt(runtime: WarpRuntime | WarpCore): WarpCore {
+  static _adopt(runtime: object | WarpCore): WarpCore {
     if (runtime instanceof WarpCore) {
       return runtime;
     }
@@ -155,61 +161,65 @@ export default class WarpCore {
 
   async createStrand(options?: StrandCreateOptions): Promise<StrandDescriptor> {
     return toPublicStrandShape(
-      await WarpRuntime.prototype.createStrand.call(this, toInternalStrandShape(options)),
+      await callInternalRuntimeMethod<StrandDescriptor>(this, 'createStrand', toInternalStrandShape(options)),
     );
   }
 
   async getStrand(strandId: string): Promise<StrandDescriptor | null> {
     return toPublicStrandShape(
-      await WarpRuntime.prototype.getStrand.call(this, strandId),
+      await callInternalRuntimeMethod<StrandDescriptor | null>(this, 'getStrand', strandId),
     );
   }
 
   async listStrands(): Promise<StrandDescriptor[]> {
     return toPublicStrandShape(
-      await WarpRuntime.prototype.listStrands.call(this),
+      await callInternalRuntimeMethod<StrandDescriptor[]>(this, 'listStrands'),
     );
   }
 
   async braidStrand(strandId: string, options?: StrandBraidOptions): Promise<StrandDescriptor> {
     const internalOptions: InternalBraidStrandOptions | undefined = toInternalStrandShape(options);
     return toPublicStrandShape(
-      await WarpRuntime.prototype.braidStrand.call(this, strandId, internalOptions),
+      await callInternalRuntimeMethod<StrandDescriptor>(this, 'braidStrand', strandId, internalOptions),
     );
   }
 
   async dropStrand(strandId: string): Promise<boolean> {
-    return await WarpRuntime.prototype.dropStrand.call(this, strandId);
+    return await callInternalRuntimeMethod<boolean>(this, 'dropStrand', strandId);
   }
 
   async materializeStrand(strandId: string, options?: StrandMaterializeOptions): Promise<StrandMaterializeResult> {
-    return await WarpRuntime.prototype.materializeStrand.call(this, strandId, options);
+    return await callInternalRuntimeMethod<StrandMaterializeResult>(this, 'materializeStrand', strandId, options);
   }
 
   async getStrandPatches(
     strandId: string,
-    options?: Record<string, unknown>,
+    options?: StrandPatchListOptions,
   ): Promise<StrandPatchEntry[]> {
-    return await WarpRuntime.prototype.getStrandPatches.call(this, strandId, options);
+    return await callInternalRuntimeMethod<StrandPatchEntry[]>(this, 'getStrandPatches', strandId, options);
   }
 
   async patchesForStrand(
     strandId: string,
     entityId: string,
-    options?: Record<string, unknown>,
+    options?: StrandPatchListOptions,
   ): Promise<string[]> {
-    return await WarpRuntime.prototype.patchesForStrand.call(this, strandId, entityId, options);
+    return await callInternalRuntimeMethod<string[]>(this, 'patchesForStrand', strandId, entityId, options);
   }
 
   async createStrandPatch(strandId: string): Promise<import('./services/PatchBuilder.js').PatchBuilder> {
-    return await WarpRuntime.prototype.createStrandPatch.call(this, strandId);
+    return await callInternalRuntimeMethod<import('./services/PatchBuilder.js').PatchBuilder>(
+      this,
+      'createStrandPatch',
+      strandId,
+    );
   }
 
   async patchStrand(
     strandId: string,
     build: (patch: import('./services/PatchBuilder.js').PatchBuilder) => void | Promise<void>,
   ): Promise<string> {
-    return await WarpRuntime.prototype.patchStrand.call(this, strandId, build);
+    return await callInternalRuntimeMethod<string>(this, 'patchStrand', strandId, build);
   }
 
   async queueStrandIntent(
@@ -217,19 +227,19 @@ export default class WarpCore {
     build: (patch: import('./services/PatchBuilder.js').PatchBuilder) => void | Promise<void>,
   ): Promise<StrandIntentDescriptor> {
     return toPublicStrandShape(
-      await WarpRuntime.prototype.queueStrandIntent.call(this, strandId, build),
+      await callInternalRuntimeMethod<StrandIntentDescriptor>(this, 'queueStrandIntent', strandId, build),
     );
   }
 
   async listStrandIntents(strandId: string): Promise<StrandIntentDescriptor[]> {
     return toPublicStrandShape(
-      await WarpRuntime.prototype.listStrandIntents.call(this, strandId),
+      await callInternalRuntimeMethod<StrandIntentDescriptor[]>(this, 'listStrandIntents', strandId),
     );
   }
 
   async tickStrand(strandId: string): Promise<StrandTickRecord> {
     return toPublicStrandShape(
-      await WarpRuntime.prototype.tickStrand.call(this, strandId),
+      await callInternalRuntimeMethod<StrandTickRecord>(this, 'tickStrand', strandId),
     );
   }
 
@@ -239,7 +249,7 @@ export default class WarpCore {
   ): Promise<CoordinateComparisonV1> {
     const internalOptions: InternalCompareStrandOptions | undefined = toInternalStrandShape(options);
     const comparison = toPublicStrandShape(
-      await WarpRuntime.prototype.compareStrand.call(this, strandId, internalOptions),
+      await callInternalRuntimeMethod<CoordinateComparisonV1>(this, 'compareStrand', strandId, internalOptions),
     );
     return await refreshPublicComparisonDigest(this, comparison);
   }
@@ -250,7 +260,7 @@ export default class WarpCore {
   ): Promise<CoordinateTransferPlanV1> {
     const internalOptions: InternalPlanStrandTransferOptions | undefined = toInternalStrandShape(options);
     const transferPlan = toPublicStrandShape(
-      await WarpRuntime.prototype.planStrandTransfer.call(this, strandId, internalOptions),
+      await callInternalRuntimeMethod<CoordinateTransferPlanV1>(this, 'planStrandTransfer', strandId, internalOptions),
     );
     return await refreshPublicTransferDigest(this, transferPlan);
   }
@@ -258,7 +268,7 @@ export default class WarpCore {
   async compareCoordinates(options: CompareCoordinatesOptions): Promise<CoordinateComparisonV1> {
     const internalOptions: InternalCompareCoordinatesOptions = toInternalStrandShape(options);
     const comparison = toPublicStrandShape(
-      await WarpRuntime.prototype.compareCoordinates.call(this, internalOptions),
+      await callInternalRuntimeMethod<CoordinateComparisonV1>(this, 'compareCoordinates', internalOptions),
     );
     return await refreshPublicComparisonDigest(this, comparison);
   }
@@ -266,7 +276,7 @@ export default class WarpCore {
   async planCoordinateTransfer(options: PlanCoordinateTransferOptions): Promise<CoordinateTransferPlanV1> {
     const internalOptions: InternalPlanCoordinateTransferOptions = toInternalStrandShape(options);
     const transferPlan = toPublicStrandShape(
-      await WarpRuntime.prototype.planCoordinateTransfer.call(this, internalOptions),
+      await callInternalRuntimeMethod<CoordinateTransferPlanV1>(this, 'planCoordinateTransfer', internalOptions),
     );
     return await refreshPublicTransferDigest(this, transferPlan);
   }
@@ -274,9 +284,9 @@ export default class WarpCore {
   async analyzeConflicts(options?: ConflictAnalyzeOptions): Promise<ConflictAnalysis> {
     const internalOptions: InternalConflictAnalyzeOptions | undefined = toInternalStrandShape(options);
     return toPublicStrandShape(
-      await WarpRuntime.prototype.analyzeConflicts.call(this, internalOptions),
+      await callInternalRuntimeMethod<ConflictAnalysis>(this, 'analyzeConflicts', internalOptions),
     );
   }
 }
 
-Object.setPrototypeOf(WarpCore.prototype, WarpRuntime.prototype);
+linkWarpCorePrototype(WarpCore.prototype);

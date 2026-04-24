@@ -14,7 +14,6 @@
   "generated_at": "2026-04-23T08:05:17.718Z",
   "generator": "scripts/contamination-map.ts v1",
   "files": [
-    "src/domain/WarpCore.ts",
     "src/domain/WarpGraph.ts",
     "src/domain/WarpRuntime.ts",
     "src/domain/artifacts/CheckpointArtifact.ts",

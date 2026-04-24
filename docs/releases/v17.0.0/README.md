@@ -81,7 +81,13 @@ LAYER 2 (the exorcism):
                                           detached-read seam, and cycle 0063
                                           moved `WarpApp.ts` onto an explicit
                                           app-surface contract. Remaining work
-                                          is now the `WarpCore` bridge residue
+                                          was then reduced further by cycle
+                                          0064: `WarpCore.ts` no longer imports
+                                          `WarpRuntime` directly and no longer
+                                          calls `WarpRuntime.prototype.*`.
+                                          The remaining work is now the
+                                          `openWarpGraph()` / `WarpRuntime`
+                                          composition-root residue
 
 LAYER 3:
   [ ] API_kill-warpruntime               ← THE DEVIL DIES

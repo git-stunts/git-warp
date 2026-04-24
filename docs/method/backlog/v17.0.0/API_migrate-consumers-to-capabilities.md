@@ -112,6 +112,25 @@ That means the remaining migration tail is now centered on:
 - other internal files that still name `WarpRuntime` where a narrower
   capability should exist instead
 
+## 0064 warpcore tranche
+
+Cycle `0064` moved `WarpCore.ts` off direct runtime typing:
+
+- `WarpCore.ts` now depends on `warp/WarpCoreRuntimeBridge.ts` instead of
+  importing `WarpRuntime` directly
+- strand and comparison methods now route through
+  `callInternalRuntimeMethod(...)` instead of `WarpRuntime.prototype.*`
+- strand patch list options now use an explicit
+  `{ ceiling?: number | null }` shape instead of a raw
+  `Record<string, unknown>` bag
+
+That means the remaining migration tail is now:
+
+- `openWarpGraph()` still builds frozen capability bags by binding a live
+  `WarpRuntime`
+- runtime helper wrappers and wiring surfaces still name `WarpRuntime`
+- `API_kill-warpruntime` is now the focused remaining bridge cut
+
 ## Deferred content accessor surface
 
 Cycle `0051` closed `SLUDGE_content-access-duplication` as already
