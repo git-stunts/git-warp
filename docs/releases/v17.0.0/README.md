@@ -91,7 +91,12 @@ LAYER 2 (the exorcism):
                                           `WarpRuntime` composition-root residue
 
 LAYER 3:
-  [ ] API_kill-warpruntime               ← THE DEVIL DIES
+  [~] API_kill-warpruntime               ← cycle 0066 not-met as a one-shot kill;
+                                          the remaining work is now split into:
+                                          `API_warpgraph-runtime-bridge`,
+                                          `PORT_runtime-helper-wrapper-seams`,
+                                          and
+                                          `PROTO_delete-runtime-wiring-surface`
 
 LAYER 4 (launch-prep only; park until the repo is otherwise ready to ship):
   [ ] TS_publish-pipeline
