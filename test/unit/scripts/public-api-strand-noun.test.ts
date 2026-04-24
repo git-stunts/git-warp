@@ -7,8 +7,12 @@ const barrel = readFileSync(
   'utf8',
 );
 
-const wiredMethods = readFileSync(
-  fileURLToPath(new URL('../../../src/domain/warp/_wiredMethods.d.ts', import.meta.url)),
+const runtimeSource = readFileSync(
+  fileURLToPath(new URL('../../../src/domain/WarpRuntime.ts', import.meta.url)),
+  'utf8',
+);
+const coordinateComparisonSource = readFileSync(
+  fileURLToPath(new URL('../../../src/domain/types/CoordinateComparison.ts', import.meta.url)),
   'utf8',
 );
 
@@ -50,25 +54,25 @@ describe('Strand is the public speculative-lane noun', () => {
   });
 
   it('exposes Strand methods and types on the public surface', () => {
-    expect(wiredMethods).toContain('createStrand(options?: StrandCreateOptions): Promise<StrandDescriptor>;');
-    expect(wiredMethods).toContain('getStrand(strandId: string): Promise<StrandDescriptor | null>;');
-    expect(wiredMethods).toContain('listStrands(): Promise<StrandDescriptor[]>;');
-    expect(wiredMethods).toContain('braidStrand(strandId: string, options?: StrandBraidOptions): Promise<StrandDescriptor>;');
-    expect(wiredMethods).toContain('materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpState>;');
-    expect(wiredMethods).toContain('compareStrand(strandId: string, options?: {');
-    expect(wiredMethods).toContain('planStrandTransfer(strandId: string, options?: {');
+    expect(runtimeSource).toContain("createStrand: StrandController['createStrand']");
+    expect(runtimeSource).toContain("getStrand: StrandController['getStrand']");
+    expect(runtimeSource).toContain("listStrands: StrandController['listStrands']");
+    expect(runtimeSource).toContain("braidStrand: StrandController['braidStrand']");
+    expect(runtimeSource).toContain('async materializeStrand(');
+    expect(runtimeSource).toContain("compareStrand: ComparisonController['compareStrand']");
+    expect(runtimeSource).toContain("planStrandTransfer: ComparisonController['planStrandTransfer']");
 
-    expect(wiredMethods).not.toContain(LEGACY_METHOD_CREATE);
-    expect(wiredMethods).not.toContain(LEGACY_METHOD_GET);
-    expect(wiredMethods).not.toContain(LEGACY_DESCRIPTOR);
+    expect(runtimeSource).not.toContain(LEGACY_METHOD_CREATE);
+    expect(runtimeSource).not.toContain(LEGACY_METHOD_GET);
+    expect(runtimeSource).not.toContain(LEGACY_DESCRIPTOR);
   });
 
   it('uses strand selector vocabulary rather than the legacy selector vocabulary', () => {
-    expect(wiredMethods).toContain("kind: 'strand';");
-    expect(wiredMethods).toContain("kind: 'strand_base';");
-    expect(wiredMethods).toContain("coordinateKind: 'frontier' | 'strand' | 'strand_base';");
-    expect(wiredMethods).not.toContain(LEGACY_SELECTOR);
-    expect(wiredMethods).not.toContain(LEGACY_BASE_SELECTOR);
+    expect(coordinateComparisonSource).toContain("kind: 'strand';");
+    expect(coordinateComparisonSource).toContain("kind: 'strand_base';");
+    expect(coordinateComparisonSource).toContain("coordinateKind: 'frontier' | 'strand' | 'strand_base';");
+    expect(coordinateComparisonSource).not.toContain(LEGACY_SELECTOR);
+    expect(coordinateComparisonSource).not.toContain(LEGACY_BASE_SELECTOR);
   });
 
   it('teaches Strand in the README and guide', () => {

@@ -7,7 +7,6 @@
   "files": [
     "src/domain/WarpCore.ts",
     "src/domain/runtimeHelpers.ts",
-    "src/domain/runtimeWiring.ts",
     "src/domain/services/controllers/CheckpointController.ts",
     "src/domain/services/controllers/SyncController.ts",
     "src/domain/services/provenance/btrOperations.ts",

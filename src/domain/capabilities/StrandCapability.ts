@@ -15,10 +15,8 @@ import type {
   StrandIntentDescriptor,
   StrandTickRecord,
 } from '../types/StrandDescriptor.ts';
-import type {
-  ConflictAnalysis,
-  AnalyzeConflictsOptions,
-} from '../types/ConflictAnalysis.ts';
+import type ConflictAnalysis from '../types/conflict/ConflictAnalysis.ts';
+import type { ConflictAnalyzeOptions as AnalyzeConflictsOptions } from '../services/strand/ConflictAnalysisRequest.ts';
 
 /** Patch with its content-addressable SHA. */
 export type StrandPatchEntry = {

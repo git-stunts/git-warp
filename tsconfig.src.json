@@ -5,7 +5,6 @@
     "browser.ts",
     "src/**/*.ts",
     "src/globals.d.ts",
-    "src/domain/warp/_wiredMethods.d.ts",
     "bin/warp-graph.ts",
     "bin/**/*.ts",
     "scripts/**/*.ts"

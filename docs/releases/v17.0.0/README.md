@@ -59,8 +59,9 @@ LAYER 1 (god kills + conversions):
                                           CLI / viz / scripts are `.ts` or `.sh`
   [x] TS_eliminate-remaining-js-and-dts ← cycle 0050 hill-met;
                                           tail now only
-                                          `src/globals.d.ts` and
-                                          `src/domain/warp/_wiredMethods.d.ts`
+                                          `src/globals.d.ts`; cycle 0069 then
+                                          deleted the blocked
+                                          `_wiredMethods.d.ts` runtime shim
 
 LAYER 2 (the exorcism):
   [x] API_migrate-consumers-to-capabilities ← cycles 0059-0064 hill-met across the public
@@ -92,19 +93,21 @@ LAYER 2 (the exorcism):
 
 LAYER 3:
   [~] API_kill-warpruntime               ← cycle 0066 not-met as a one-shot kill;
-                                          the remaining work was split into:
+                                          the remaining work was first split
+                                          into:
                                           `API_warpgraph-runtime-bridge`,
                                           `PORT_runtime-helper-wrapper-seams`,
                                           and
-                                          `PROTO_delete-runtime-wiring-surface`
-                                          and cycle 0067 then completed the
-                                          `WarpGraph` composition-root cut, so
-                                          the remaining blockers were the
-                                          helper-wrapper and runtime-wiring
-                                          surfaces. Cycle 0068 then completed
-                                          the helper-wrapper seam cut, so the
-                                          only remaining blocker is now
-                                          `PROTO_delete-runtime-wiring-surface`
+                                          `PROTO_delete-runtime-wiring-surface`.
+                                          Cycle 0067 completed the public
+                                          `WarpGraph` bridge cut, cycle 0068
+                                          completed the helper-wrapper seam
+                                          cut, and cycle 0069 then deleted the
+                                          runtime wiring / `_wiredMethods`
+                                          blocker. The umbrella is now free for
+                                          a second reality-check split around
+                                          the remaining composition-root and
+                                          host-type residue.
 
 LAYER 4 (launch-prep only; park until the repo is otherwise ready to ship):
   [ ] TS_publish-pipeline

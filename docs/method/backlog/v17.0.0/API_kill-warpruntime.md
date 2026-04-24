@@ -2,22 +2,32 @@
 id: API_kill-warpruntime
 blocks:
   - TS_publish-pipeline
-blocked_by:
-  - PROTO_delete-runtime-wiring-surface
+blocked_by: []
 feature: api-capabilities
 ---
 
-# Delete WarpRuntime and all defineProperty sludge
+# Delete WarpRuntime and the remaining bridge residue
 
 Final step of the API redesign. Remove:
 
-- `src/domain/WarpRuntime.js` (1041 LOC god object)
-- `src/domain/warp/_wiredMethods.d.ts` (708 LOC hand-maintained lies)
-- All 9 `defineProperty` loops (~230 LOC of identical boilerplate)
-- The `_internal.ts` shim
+- the remaining `WarpRuntime` class as a bridge/composition-root carrier
+- the remaining `_internal.ts` shim
+- any host typing that still teaches controllers and helpers to name
+  `WarpRuntime` directly
 
-Boot logic (constructor, `open()`) migrates into `openWarpGraph()`.
-Controller instantiation moves into the factory.
+Cycles `0067` through `0069` already removed the old public/runtime helper
+surface:
+
+- `WarpGraph.ts` no longer imports `WarpRuntime` directly
+- helper-wrapper seams no longer name `WarpRuntime`
+- `runtimeWiring.ts` and `_wiredMethods.d.ts` are gone
+- the old defineProperty delegation surface is gone
+
+What remains is smaller and more structural:
+
+- composition-root boot still lives on `WarpRuntime.open()`
+- controller/service host types still name `WarpRuntime` in a few places
+- `_internal.ts` still exists as a compatibility alias
 
 ## Boot migration: WarpRuntime → openWarpGraph()
 
@@ -44,9 +54,6 @@ The following construction steps currently split across
 frozen capability bag — no `defineProperty` loops, no `_internal`
 shim, no god object.
 
-Cycle `0066` proved this is not one slice anymore. The remaining kill now
-breaks into three explicit cuts:
-
-- `API_warpgraph-runtime-bridge`
-- `PORT_runtime-helper-wrapper-seams`
-- `PROTO_delete-runtime-wiring-surface`
+Cycle `0066` proved this is not one slice. Cycles `0067` through `0069`
+removed the first residue, and the next cycle must now rewrite this umbrella
+around the remaining explicit cuts.

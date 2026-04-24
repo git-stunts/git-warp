@@ -10,7 +10,6 @@
   "generator": "scripts/contamination-map.ts v1",
   "files": [
     "src/domain/WarpGraph.ts",
-    "src/domain/WarpRuntime.ts",
     "src/domain/services/ImmutableSnapshot.ts",
     "src/domain/services/MaterializedViewHelpers.ts",
     "src/domain/services/MaterializedViewService.ts",

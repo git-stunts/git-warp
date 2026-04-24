@@ -18,6 +18,7 @@ import CoordinateSelector from '../../types/CoordinateSelector.ts';
 import StrandSelector from '../../types/StrandSelector.ts';
 import QueryError from '../../errors/QueryError.ts';
 import type DetachedGraphFactory from '../../capabilities/DetachedGraphFactory.ts';
+import type QueryCapability from '../../capabilities/QueryCapability.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { WarpGraphWithMixins } from '../../warp/_internal.ts';
 
@@ -177,6 +178,27 @@ export default class QueryController {
   _host: MaterializableHost;
   _graphCloner: DetachedGraphFactory;
   _hashState: QueryStateHasher;
+
+  declare hasNode: QueryCapability['hasNode'];
+  declare getNodeProps: QueryCapability['getNodeProps'];
+  declare getEdgeProps: QueryCapability['getEdgeProps'];
+  declare neighbors: QueryCapability['neighbors'];
+  declare getStateSnapshot: QueryCapability['getStateSnapshot'];
+  declare getNodes: QueryCapability['getNodes'];
+  declare getEdges: QueryCapability['getEdges'];
+  declare getPropertyCount: QueryCapability['getPropertyCount'];
+  declare query: QueryCapability['query'];
+  declare worldline: QueryCapability['worldline'];
+  declare observer: QueryCapability['observer'];
+  declare translationCost: QueryCapability['translationCost'];
+  declare getContentOid: QueryCapability['getContentOid'];
+  declare getContentMeta: QueryCapability['getContentMeta'];
+  declare getContent: QueryCapability['getContent'];
+  declare getEdgeContentOid: QueryCapability['getEdgeContentOid'];
+  declare getEdgeContentMeta: QueryCapability['getEdgeContentMeta'];
+  declare getEdgeContent: QueryCapability['getEdgeContent'];
+  declare getContentStream: QueryCapability['getContentStream'];
+  declare getEdgeContentStream: QueryCapability['getEdgeContentStream'];
 
   constructor(deps: QueryControllerDeps) {
     this._host = deps.hostGraph;

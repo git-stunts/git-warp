@@ -196,7 +196,7 @@ export default class ForkController {
     return 'diverged';
   }
 
-  async _validatePatchAgainstCheckpoint(writerId: string, incomingSha: string, checkpoint: LoadedCheckpoint | null | undefined): Promise<void> {
+  async _validatePatchAgainstCheckpoint(writerId: string, incomingSha: string, checkpoint: CheckpointFrontier | null | undefined): Promise<void> {
     if (checkpoint === null || checkpoint === undefined || (checkpoint.schema !== CHECKPOINT_SCHEMA_STANDARD && checkpoint.schema !== CHECKPOINT_SCHEMA_V5_INTERMEDIATE)) {
       return;
     }
@@ -221,3 +221,4 @@ export default class ForkController {
     }
   }
 }
+type CheckpointFrontier = Pick<LoadedCheckpoint, 'schema' | 'frontier'>;

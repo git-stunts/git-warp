@@ -72,7 +72,7 @@ export type SyncWithOptions = {
 /** Result of applySyncResponse(). */
 export type ApplySyncResult = {
   state: WarpState;
-  frontier: Map<string, number>;
+  frontier: Map<string, string>;
   applied: number;
   writersApplied?: string[];
   skippedWriters: Array<{ writerId: string; reason: string; localSha: string; remoteSha: string | null }>;

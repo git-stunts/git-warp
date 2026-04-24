@@ -11,7 +11,7 @@ import { diffStates, isEmptyDiff, type StateDiffResult, type EdgeChange, type Pr
 import { matchGlob } from '../../utils/matchGlob.ts';
 import WarpError from '../../errors/WarpError.ts';
 import type { WarpState } from '../JoinReducer.ts';
-import type { MaterializeResult } from './MaterializeController.ts';
+import type { TickReceipt } from '../../types/TickReceipt.ts';
 
 /**
  * Callback shape for subscriber errors. Errors flow through the catch
@@ -49,7 +49,7 @@ interface SubscriptionHost {
     pendingReplay?: boolean;
   }>;
   hasFrontierChanged(): Promise<boolean>;
-  materialize(options?: SubscriptionMaterializeOptions): Promise<MaterializeResult>;
+  materialize(options?: SubscriptionMaterializeOptions): Promise<WarpState | { state: WarpState; receipts: readonly TickReceipt[] }>;
 }
 
 

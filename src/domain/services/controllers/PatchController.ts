@@ -86,8 +86,8 @@ export interface PatchHost extends PatchDiscoveryHost {
   // without duplicating its looseness textually here.
   _setMaterializedState: WarpRuntime['_setMaterializedState'];
   _buildAdjacency: (state: WarpState) => {
-    outgoing: Map<string, Array<{ neighborId: string; label: string }>>;
-    incoming: Map<string, Array<{ neighborId: string; label: string }>>;
+    outgoing: ReadonlyMap<string, readonly { neighborId: string; label: string }[]>;
+    incoming: ReadonlyMap<string, readonly { neighborId: string; label: string }[]>;
   };
 }
 
@@ -318,7 +318,7 @@ export default class PatchController {
   /**
    * Creates a Writer bound to an existing (or resolved) writer ID.
    */
-  async writer(writerId: string): Promise<Writer> {
+  async writer(writerId?: string): Promise<Writer> {
     const h = this._host;
     assertConfigPortPersistence(h);
     const configGet = async (key: string): Promise<string | null> => await h._persistence.configGet(key);

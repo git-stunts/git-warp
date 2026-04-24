@@ -25,6 +25,7 @@ Rule 0 warns against.
 
 Add a type-level test that asserts `WarpRuntime` (with wired methods)
 satisfies all 9 capability interfaces:
+
 ```ts
 // test/type-check/wired-methods.ts
 import type { WarpRuntime } from '../../src/domain/WarpRuntime';
@@ -33,3 +34,11 @@ type _assert = WarpRuntime extends QueryCapability ? true : never;
 ```
 
 This catches signature drift at compile time.
+
+---
+
+**Graveyarded:** 2026-04-24 — fixed more directly by cycle `0069`, which
+deleted `src/domain/runtimeWiring.ts` and
+`src/domain/warp/_wiredMethods.d.ts` entirely and moved the live runtime
+surface onto `WarpRuntime.ts`.
+

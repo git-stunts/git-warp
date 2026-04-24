@@ -39,6 +39,8 @@ import type StateHashService from '../state/StateHashService.ts';
 import type MaterializedViewService from '../MaterializedViewService.ts';
 import type GCPolicy from '../GCPolicy.ts';
 
+type CheckpointFrontier = Pick<LoadedCheckpoint, 'schema' | 'frontier'>;
+
 type CheckpointHost = Pick<WarpRuntime, never> & {
   _graphName: string;
   _persistence: {
@@ -105,7 +107,7 @@ function decodePatchSchema(decoded: object | null): { schema?: number } {
  */
 type PatchLoaderSurface = {
   _loadWriterPatches(writerId: string, checkpointSha: string | null): Promise<Array<{ patch: Patch; sha: string }>>;
-  _validatePatchAgainstCheckpoint(writerId: string, tipSha: string, checkpoint: LoadedCheckpoint): Promise<void>;
+  _validatePatchAgainstCheckpoint(writerId: string, tipSha: string, checkpoint: CheckpointFrontier): Promise<void>;
 };
 
 function assertPatchLoaderSurface(host: CheckpointHost): asserts host is CheckpointHost & PatchLoaderSurface {
@@ -334,7 +336,7 @@ export default class CheckpointController {
     }
   }
 
-  async _loadPatchesSince(checkpoint: LoadedCheckpoint): Promise<Array<{ patch: Patch; sha: string }>> {
+  async _loadPatchesSince(checkpoint: CheckpointFrontier): Promise<Array<{ patch: Patch; sha: string }>> {
     const h = this._host;
     assertPatchLoaderSurface(h);
     const writerIds = await h.discoverWriters();

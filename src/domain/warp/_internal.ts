@@ -13,12 +13,10 @@ export { default as ForkError } from '../errors/ForkError.ts';
 export { default as StrandError } from '../errors/StrandError.ts';
 
 /**
- * Extended WarpRuntime type that includes mixin methods wired at runtime.
- * Use this as the `this` type in method files that call other mixin methods.
+ * Compatibility alias for the runtime-backed graph surface while the
+ * remaining WarpRuntime cleanup finishes landing.
  */
-export type WarpGraphWithMixins = import('../WarpRuntime.ts').default & {
-  _readPatchBlob(patchMeta: { patchOid: string; storage: import('../../ports/CommitMessageCodecPort.ts').PatchStorageRoute }): Promise<Uint8Array>;
-};
+export type WarpGraphWithMixins = import('../WarpRuntime.ts').default;
 
 // ── Shared constants ────────────────────────────────────────────────────────
 export const DEFAULT_ADJACENCY_CACHE_SIZE = 3;

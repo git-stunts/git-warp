@@ -1,21 +1,32 @@
-import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const backlogRoot = `${repoRoot}docs/method/backlog/`;
 
-const backlogNotePaths = execFileSync('git', ['ls-files', '-z', 'docs/method/backlog/**/*.md'], {
-  cwd: repoRoot,
-  encoding: 'utf8',
-})
-  .split('\0')
-  .filter((path) => path.length > 0)
-  .filter((path) => {
-    const basename = path.split('/').at(-1);
-    return basename !== 'README.md' && basename !== 'WORKLOADS.md' && basename !== 'SCORECARD.md';
-  });
+function listBacklogNotes(dir: string): string[] {
+  const paths: string[] = [];
+
+  for (const name of readdirSync(dir)) {
+    const absolutePath = `${dir}${name}`;
+    if (statSync(absolutePath).isDirectory()) {
+      paths.push(...listBacklogNotes(`${absolutePath}/`));
+      continue;
+    }
+    if (!name.endsWith('.md')) {
+      continue;
+    }
+    if (name === 'README.md' || name === 'WORKLOADS.md' || name === 'SCORECARD.md') {
+      continue;
+    }
+    paths.push(absolutePath.slice(repoRoot.length));
+  }
+
+  return paths;
+}
+
+const backlogNotePaths = listBacklogNotes(backlogRoot);
 
 function readFrontmatter(path: string): string {
   const text = readFileSync(`${repoRoot}${path}`, 'utf8');

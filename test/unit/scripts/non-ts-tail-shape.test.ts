@@ -24,9 +24,8 @@ function trackedNonTypeScriptTail(): string[] {
 }
 
 describe('non-TS tail shape', () => {
-  it('reduces the tracked non-TS tail to the two explicit blockers', () => {
+  it('reduces the tracked non-TS tail to the one explicit blocker', () => {
     expect(trackedNonTypeScriptTail()).toEqual([
-      'src/domain/warp/_wiredMethods.d.ts',
       'src/globals.d.ts',
     ]);
   });

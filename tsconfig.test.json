@@ -8,8 +8,7 @@
   "include": [
     "test/**/*.ts",
     "src/**/*.ts",
-    "src/globals.d.ts",
-    "src/domain/warp/_wiredMethods.d.ts"
+    "src/globals.d.ts"
   ],
   "exclude": [
     "node_modules",

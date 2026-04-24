@@ -15,7 +15,6 @@
   "generator": "scripts/contamination-map.ts v1",
   "files": [
     "src/domain/WarpGraph.ts",
-    "src/domain/WarpRuntime.ts",
     "src/domain/artifacts/CheckpointArtifact.ts",
     "src/domain/artifacts/EdgeShard.ts",
     "src/domain/artifacts/IndexShard.ts",
@@ -35,7 +34,6 @@
     "src/domain/errors/ShardValidationError.ts",
     "src/domain/errors/StorageError.ts",
     "src/domain/errors/WarpError.ts",
-    "src/domain/runtimeWiring.ts",
     "src/domain/services/CoordinateFactExport.ts",
     "src/domain/services/EffectPipeline.ts",
     "src/domain/services/Frontier.ts",

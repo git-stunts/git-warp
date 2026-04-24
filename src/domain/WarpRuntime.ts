@@ -13,6 +13,7 @@ import VersionVector from './crdt/VersionVector.ts';
 import GCPolicy, { type GCPolicyConfig } from './services/GCPolicy.ts';
 import { AuditReceiptService } from './services/audit/AuditReceiptService.ts';
 import { TemporalQuery } from './services/TemporalQuery.ts';
+import { createImmutableWarpState, createImmutableValue } from './services/ImmutableSnapshot.ts';
 import defaultCodec from './utils/defaultCodec.ts';
 import defaultCrypto from './utils/defaultCrypto.ts';
 import nullLogger from './utils/nullLogger.ts';
@@ -37,8 +38,10 @@ import RuntimePatchCollector from './warp/RuntimePatchCollector.ts';
 import RuntimeDetachedFactory from './warp/RuntimeDetachedFactory.ts';
 import BitmapNeighborProvider, { type LogicalIndex } from './services/index/BitmapNeighborProvider.ts';
 import { cloneState } from './services/JoinReducer.ts';
-import { diffStates, isEmptyDiff } from './services/state/StateDiff.ts';
+import { diffStates, isEmptyDiff, type StateDiffResult } from './services/state/StateDiff.ts';
+import { buildAdjacency } from './services/controllers/MaterializeHelpers.ts';
 import WarpError from './errors/WarpError.ts';
+import QueryError from './errors/QueryError.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from './services/codec/WarpMessageCodec.ts';
 
 import type { CorePersistence } from './types/WarpPersistence.ts';
@@ -60,8 +63,9 @@ import type WarpState from './services/state/WarpState.ts';
 import type { ProvenanceIndex } from './services/provenance/ProvenanceIndex.ts';
 import type Patch from './types/Patch.ts';
 import type { PatchDiff } from './types/PatchDiff.ts';
+import type { TickReceipt } from './types/TickReceipt.ts';
 import type PropertyIndexReader from './services/index/PropertyIndexReader.ts';
-import type { WarpGraphWithMixins } from './warp/_internal.ts';
+import type QueryCapability from './capabilities/QueryCapability.ts';
 import StateSession from './orset/session/StateSession.ts';
 import PageCache from './orset/trie/PageCache.ts';
 import TrieGeometry from './orset/trie/TrieGeometry.ts';
@@ -76,17 +80,12 @@ import {
   type TrustMode,
   type NormalizedTrustConfig,
 } from './runtimeHelpers.ts';
-import { wireRuntime } from './runtimeWiring.ts';
-
-function hasQueryControllerHostShape(value: WarpRuntime): value is WarpGraphWithMixins {
-  return typeof Reflect.get(value, '_readPatchBlob') === 'function';
-}
 
 import type { NeighborEdge } from '../ports/NeighborProviderPort.ts';
 
 type AdjacencyMapShape = {
-  outgoing: Map<string, NeighborEdge[]> | ReadonlyMap<string, readonly NeighborEdge[]>;
-  incoming: Map<string, NeighborEdge[]> | ReadonlyMap<string, readonly NeighborEdge[]>;
+  outgoing: Map<string, readonly NeighborEdge[]> | ReadonlyMap<string, readonly NeighborEdge[]>;
+  incoming: Map<string, readonly NeighborEdge[]> | ReadonlyMap<string, readonly NeighborEdge[]>;
 };
 
 export type MaterializedGraph = {
@@ -96,9 +95,14 @@ export type MaterializedGraph = {
   provider?: BitmapNeighborProvider;
 };
 
+type MaterializeReceiptsResult = {
+  state: WarpState;
+  receipts: TickReceipt[];
+};
+
 type Subscriber = {
-  onChange: Function;
-  onError?: Function;
+  onChange: (diff: StateDiffResult) => void;
+  onError?: (error: Error) => void;
   pendingReplay?: boolean;
 };
 
@@ -319,12 +323,9 @@ export default class WarpRuntime {
     });
     this._strandController = new StrandController(this);
     this._comparisonController = new ComparisonController(this);
-    this._subscriptionController = new SubscriptionController(this as unknown as ConstructorParameters<typeof SubscriptionController>[0]);
-    this._provenanceController = new ProvenanceController(this as unknown as WarpGraphWithMixins);
+    this._subscriptionController = new SubscriptionController(this);
+    this._provenanceController = new ProvenanceController(this);
     this._forkController = new ForkController(this);
-    if (!hasQueryControllerHostShape(this)) {
-      throw new WarpError('runtime is missing query controller host methods', 'E_RUNTIME_QUERY_HOST');
-    }
     this._queryController = new QueryController({
       hostGraph: this,
       graphCloner: new RuntimeDetachedFactory(this),
@@ -365,6 +366,299 @@ export default class WarpRuntime {
   }
 
   /**
+   * Advanced substrate replay primitive over the live frontier.
+   */
+  materialize(options: { receipts: true; ceiling?: number | null }): Promise<MaterializeReceiptsResult>;
+  materialize(options?: { receipts?: false; ceiling?: number | null }): Promise<WarpState>;
+  async materialize(options?: { receipts?: boolean; ceiling?: number | null }): Promise<WarpState | MaterializeReceiptsResult> {
+    const wantDiff = options?.receipts !== true && this._cachedIndexTree !== null;
+    const result = await this._materializeController.materialize({
+      ...(options?.receipts !== undefined ? { receipts: options.receipts } : {}),
+      ...(options?.ceiling !== undefined ? { ceiling: options.ceiling } : {}),
+      wantDiff,
+    });
+    await this._onMaterialized(result);
+    if (options?.receipts === true) {
+      return Object.freeze({
+        state: createImmutableWarpState(result.state),
+        receipts: createImmutableValue(result.receipts ?? []),
+      });
+    }
+    return createImmutableWarpState(result.state);
+  }
+
+  /**
+   * Advanced substrate replay primitive against an explicit pinned frontier.
+   */
+  materializeCoordinate(
+    options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts: true },
+  ): Promise<MaterializeReceiptsResult>;
+  materializeCoordinate(
+    options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts?: false },
+  ): Promise<WarpState>;
+  async materializeCoordinate(
+    options: Parameters<MaterializeController['materializeCoordinate']>[0],
+  ): Promise<WarpState | MaterializeReceiptsResult> {
+    const result = await this._materializeController.materializeCoordinate(options);
+    if (options.receipts === true) {
+      return Object.freeze({
+        state: createImmutableWarpState(result.state),
+        receipts: createImmutableValue(result.receipts ?? []),
+      });
+    }
+    return createImmutableWarpState(result.state);
+  }
+
+  async materializeAt(checkpointSha: string): Promise<WarpState> {
+    const result = await this._materializeController.materializeAt(checkpointSha);
+    await this._onMaterialized(result);
+    return createImmutableWarpState(result.state);
+  }
+
+  async _materializeGraph(): Promise<MaterializedGraph> {
+    if (!this._stateDirty && this._materializedGraph) {
+      return this._materializedGraph;
+    }
+    const materialized = await this.materialize();
+    if (this._materializedGraph) {
+      return this._materializedGraph;
+    }
+    if ('state' in materialized) {
+      throw new WarpError('materialize({ receipts: true }) cannot satisfy _materializeGraph()', 'E_MATERIALIZE_GRAPH_RECEIPTS');
+    }
+    const state = this._cachedState ?? materialized;
+    if (state === null) {
+      throw new QueryError('No materialized state. Call materialize() before querying.', {
+        code: 'E_NO_STATE',
+      });
+    }
+    this._cachedState = state;
+    this._stateDirty = false;
+    this._versionVector = state.observedFrontier.clone();
+    const adjacency = this._buildAdjacency(state);
+    const { computeStateHash } = await import('./services/state/StateSerializer.ts');
+    const stateHash = await computeStateHash(state, { crypto: this._crypto, codec: this._codec });
+    this._materializedGraph = { state, stateHash, adjacency };
+    return this._materializedGraph;
+  }
+
+  _buildAdjacency(state: WarpState): import('./capabilities/AdjacencyMap.ts').default {
+    return buildAdjacency(state);
+  }
+
+  async _setMaterializedState(
+    state: WarpState,
+    optionsOrDiff?: PatchDiff | { diff?: PatchDiff | null },
+  ): Promise<MaterializedGraph> {
+    const { computeStateHash } = await import('./services/state/StateSerializer.ts');
+    const stateHash = await computeStateHash(state, { crypto: this._crypto, codec: this._codec });
+    const adjacency = this._buildAdjacency(state);
+    let diff: PatchDiff | undefined;
+    if (
+      optionsOrDiff !== null
+      && optionsOrDiff !== undefined
+      && typeof optionsOrDiff === 'object'
+      && !('edgesAdded' in optionsOrDiff)
+    ) {
+      diff = optionsOrDiff.diff ?? undefined;
+    } else {
+      diff = optionsOrDiff;
+    }
+    this._cachedState = state;
+    this._stateDirty = false;
+    this._versionVector = state.observedFrontier.clone();
+    this._materializedGraph = { state, stateHash, adjacency };
+    this._buildViewFromResult({ state, stateHash, diff });
+    return this._materializedGraph;
+  }
+
+  _buildView(): void {
+    // handled by _onMaterialized()
+  }
+
+  _resolveCeiling(): null {
+    return null;
+  }
+
+  async _persistSeekCacheEntry(): Promise<void> {
+    // handled by MaterializeController
+  }
+
+  async _restoreIndexFromCache(): Promise<void> {
+    // handled by MaterializeController
+  }
+
+  verifyIndex(options?: { seed?: number; sampleRate?: number }) {
+    if (this._logicalIndex === null || this._cachedState === null || this._viewService === null) {
+      throw new QueryError('Cannot verify index: graph not materialized or index not built', { code: 'E_QUERY_NO_STATE' });
+    }
+    return this._viewService.verifyIndex({
+      state: this._cachedState,
+      logicalIndex: this._logicalIndex,
+      ...(options !== undefined ? { options } : {}),
+    });
+  }
+
+  invalidateIndex(): void {
+    this._cachedIndexTree = null;
+    this._cachedViewHash = null;
+  }
+
+  /**
+   * Inspection API: reads one node from the current materialized state.
+   *
+   * Prefer `worldline().query()` for stable product reads, or
+   * `worldline().observer(...).query()` when you need a filtered aperture.
+   */
+  getNodeProps: QueryCapability['getNodeProps'] = (...args) => this._queryController.getNodeProps(...args);
+
+  /**
+   * Inspection API: walks visible neighbors from the current materialized state.
+   *
+   * For application-facing reads, prefer `Observer` query/traverse helpers over direct materialization.
+   */
+  neighbors: QueryCapability['neighbors'] = (...args) => this._queryController.neighbors(...args);
+
+  /**
+   * Inspection API: enumerates all visible nodes in the current materialized state.
+   *
+   * Prefer `worldline().query()` for stable product reads, or
+   * `worldline().observer(...).query()` when you need a filtered aperture.
+   */
+  getNodes: QueryCapability['getNodes'] = (...args) => this._queryController.getNodes(...args);
+
+  /**
+   * Inspection API: enumerates all visible edges in the current materialized state.
+   */
+  getEdges: QueryCapability['getEdges'] = (...args) => this._queryController.getEdges(...args);
+
+  /**
+   * Advanced substrate replay primitive for this pinned source.
+   */
+  materializeSlice: ProvenanceController['materializeSlice'] = (...args) => this._provenanceController.materializeSlice(...args);
+
+  /**
+   * Advanced substrate replay primitive for a strand's pinned base observation plus overlay.
+   */
+  materializeStrand(
+    strandId: string,
+    options: { receipts: true; ceiling?: number | null },
+  ): Promise<MaterializeReceiptsResult>;
+  materializeStrand(
+    strandId: string,
+    options?: { receipts?: false; ceiling?: number | null },
+  ): Promise<WarpState>;
+  async materializeStrand(
+    strandId: string,
+    options?: { receipts?: boolean; ceiling?: number | null },
+  ): Promise<WarpState | MaterializeReceiptsResult> {
+    const result = await this._strandController.materializeStrand(strandId, options);
+    if (options?.receipts === true) {
+      if ('state' in result) {
+        return result;
+      }
+      throw new WarpError('strand materialization requested receipts but returned plain state', 'E_STRAND_RECEIPTS_MISSING');
+    }
+    if ('state' in result) {
+      throw new WarpError('strand materialization returned receipts without requesting them', 'E_STRAND_RECEIPTS_UNEXPECTED');
+    }
+    return result;
+  }
+
+  createCheckpoint: CheckpointController['createCheckpoint'] = (...args) => this._checkpointController.createCheckpoint(...args);
+  syncCoverage: CheckpointController['syncCoverage'] = (...args) => this._checkpointController.syncCoverage(...args);
+  _loadLatestCheckpoint: CheckpointController['_loadLatestCheckpoint'] = (...args) => this._checkpointController._loadLatestCheckpoint(...args);
+  _loadPatchesSince: CheckpointController['_loadPatchesSince'] = (...args) => this._checkpointController._loadPatchesSince(...args);
+  _validateMigrationBoundary: CheckpointController['_validateMigrationBoundary'] = (...args) => this._checkpointController._validateMigrationBoundary(...args);
+  _hasSchema1Patches: CheckpointController['_hasSchema1Patches'] = (...args) => this._checkpointController._hasSchema1Patches(...args);
+  _maybeRunGC: CheckpointController['_maybeRunGC'] = (...args) => this._checkpointController._maybeRunGC(...args);
+  maybeRunGC: CheckpointController['maybeRunGC'] = (...args) => this._checkpointController.maybeRunGC(...args);
+  runGC: CheckpointController['runGC'] = (...args) => this._checkpointController.runGC(...args);
+  getGCMetrics: CheckpointController['getGCMetrics'] = (...args) => this._checkpointController.getGCMetrics(...args);
+
+  createPatch: PatchController['createPatch'] = (...args) => this._patchController.createPatch(...args);
+  patch: PatchController['patch'] = (...args) => this._patchController.patch(...args);
+  patchMany: PatchController['patchMany'] = (...args) => this._patchController.patchMany(...args);
+  _nextLamport: PatchController['_nextLamport'] = (...args) => this._patchController._nextLamport(...args);
+  _loadPatchChainFromSha: PatchController['_loadPatchChainFromSha'] = (...args) => this._patchController._loadPatchChainFromSha(...args);
+  _loadWriterPatches: PatchController['_loadWriterPatches'] = (...args) => this._patchController._loadWriterPatches(...args);
+  getWriterPatches: PatchController['getWriterPatches'] = (...args) => this._patchController.getWriterPatches(...args);
+  _onPatchCommitted: PatchController['_onPatchCommitted'] = (...args) => this._patchController._onPatchCommitted(...args);
+  writer: PatchController['writer'] = (...args) => this._patchController.writer(...args);
+  _ensureFreshState: PatchController['_ensureFreshState'] = (...args) => this._patchController._ensureFreshState(...args);
+  _readPatchBlob: PatchController['_readPatchBlob'] = (...args) => this._patchController._readPatchBlob(...args);
+  discoverWriters: PatchController['discoverWriters'] = (...args) => this._patchController.discoverWriters(...args);
+  discoverTicks: PatchController['discoverTicks'] = (...args) => this._patchController.discoverTicks(...args);
+  join: PatchController['join'] = (...args) => this._patchController.join(...args);
+  _frontierEquals: PatchController['_frontierEquals'] = (...args) => this._patchController._frontierEquals(...args);
+
+  createStrand: StrandController['createStrand'] = (...args) => this._strandController.createStrand(...args);
+  braidStrand: StrandController['braidStrand'] = (...args) => this._strandController.braidStrand(...args);
+  getStrand: StrandController['getStrand'] = (...args) => this._strandController.getStrand(...args);
+  listStrands: StrandController['listStrands'] = (...args) => this._strandController.listStrands(...args);
+  dropStrand: StrandController['dropStrand'] = (...args) => this._strandController.dropStrand(...args);
+  getStrandPatches: StrandController['getStrandPatches'] = (...args) => this._strandController.getStrandPatches(...args);
+  patchesForStrand: StrandController['patchesForStrand'] = (...args) => this._strandController.patchesForStrand(...args);
+  createStrandPatch: StrandController['createStrandPatch'] = (...args) => this._strandController.createStrandPatch(...args);
+  patchStrand: StrandController['patchStrand'] = (...args) => this._strandController.patchStrand(...args);
+  queueStrandIntent: StrandController['queueStrandIntent'] = (...args) => this._strandController.queueStrandIntent(...args);
+  async listStrandIntents(strandId: string) {
+    return [...await this._strandController.listStrandIntents(strandId)];
+  }
+  tickStrand: StrandController['tickStrand'] = (...args) => this._strandController.tickStrand(...args);
+  analyzeConflicts: StrandController['analyzeConflicts'] = (...args) => this._strandController.analyzeConflicts(...args);
+
+  hasNode: QueryCapability['hasNode'] = (...args) => this._queryController.hasNode(...args);
+  getEdgeProps: QueryCapability['getEdgeProps'] = (...args) => this._queryController.getEdgeProps(...args);
+  getStateSnapshot: QueryCapability['getStateSnapshot'] = (...args) => this._queryController.getStateSnapshot(...args);
+  getPropertyCount: QueryCapability['getPropertyCount'] = (...args) => this._queryController.getPropertyCount(...args);
+  query: QueryCapability['query'] = (...args) => this._queryController.query(...args);
+  worldline: QueryCapability['worldline'] = (...args) => this._queryController.worldline(...args);
+  observer: QueryCapability['observer'] = (...args) => this._queryController.observer(...args);
+  translationCost: QueryCapability['translationCost'] = (...args) => this._queryController.translationCost(...args);
+  getContentOid: QueryCapability['getContentOid'] = (...args) => this._queryController.getContentOid(...args);
+  getContentMeta: QueryCapability['getContentMeta'] = (...args) => this._queryController.getContentMeta(...args);
+  getContent: QueryCapability['getContent'] = (...args) => this._queryController.getContent(...args);
+  getEdgeContentOid: QueryCapability['getEdgeContentOid'] = (...args) => this._queryController.getEdgeContentOid(...args);
+  getEdgeContentMeta: QueryCapability['getEdgeContentMeta'] = (...args) => this._queryController.getEdgeContentMeta(...args);
+  getEdgeContent: QueryCapability['getEdgeContent'] = (...args) => this._queryController.getEdgeContent(...args);
+  getContentStream: QueryCapability['getContentStream'] = (...args) => this._queryController.getContentStream(...args);
+  getEdgeContentStream: QueryCapability['getEdgeContentStream'] = (...args) => this._queryController.getEdgeContentStream(...args);
+
+  fork: ForkController['fork'] = (...args) => this._forkController.fork(...args);
+  createWormhole: ForkController['createWormhole'] = (...args) => this._forkController.createWormhole(...args);
+  _isAncestor: ForkController['_isAncestor'] = (...args) => this._forkController._isAncestor(...args);
+  _relationToCheckpointHead: ForkController['_relationToCheckpointHead'] = (...args) => this._forkController._relationToCheckpointHead(...args);
+  _validatePatchAgainstCheckpoint: ForkController['_validatePatchAgainstCheckpoint'] = (...args) => this._forkController._validatePatchAgainstCheckpoint(...args);
+
+  patchesFor: ProvenanceController['patchesFor'] = (...args) => this._provenanceController.patchesFor(...args);
+  _computeBackwardCone: ProvenanceController['_computeBackwardCone'] = (...args) => this._provenanceController._computeBackwardCone(...args);
+  loadPatchBySha: ProvenanceController['loadPatchBySha'] = (...args) => this._provenanceController.loadPatchBySha(...args);
+  _loadPatchBySha: ProvenanceController['_loadPatchBySha'] = (...args) => this._provenanceController._loadPatchBySha(...args);
+  _loadPatchesBySha: ProvenanceController['_loadPatchesBySha'] = (...args) => this._provenanceController._loadPatchesBySha(...args);
+  _sortPatchesCausally: ProvenanceController['_sortPatchesCausally'] = (...args) => this._provenanceController._sortPatchesCausally(...args);
+
+  subscribe: SubscriptionController['subscribe'] = (...args) => this._subscriptionController.subscribe(...args);
+  watch: SubscriptionController['watch'] = (...args) => this._subscriptionController.watch(...args);
+  _notifySubscribers: SubscriptionController['_notifySubscribers'] = (...args) => this._subscriptionController._notifySubscribers(...args);
+
+  buildPatchDivergence: ComparisonController['buildPatchDivergence'] = (...args) => this._comparisonController.buildPatchDivergence(...args);
+  compareStrand: ComparisonController['compareStrand'] = (...args) => this._comparisonController.compareStrand(...args);
+  planStrandTransfer: ComparisonController['planStrandTransfer'] = (...args) => this._comparisonController.planStrandTransfer(...args);
+  planCoordinateTransfer: ComparisonController['planCoordinateTransfer'] = (...args) => this._comparisonController.planCoordinateTransfer(...args);
+  compareCoordinates: ComparisonController['compareCoordinates'] = (...args) => this._comparisonController.compareCoordinates(...args);
+
+  getFrontier: SyncController['getFrontier'] = (...args) => this._syncController.getFrontier(...args);
+  hasFrontierChanged: SyncController['hasFrontierChanged'] = (...args) => this._syncController.hasFrontierChanged(...args);
+  status: SyncController['status'] = (...args) => this._syncController.status(...args);
+  createSyncRequest: SyncController['createSyncRequest'] = (...args) => this._syncController.createSyncRequest(...args);
+  processSyncRequest: SyncController['processSyncRequest'] = (...args) => this._syncController.processSyncRequest(...args);
+  applySyncResponse: SyncController['applySyncResponse'] = (...args) => this._syncController.applySyncResponse(...args);
+  syncNeeded: SyncController['syncNeeded'] = (...args) => this._syncController.syncNeeded(...args);
+  syncWith: SyncController['syncWith'] = (...args) => this._syncController.syncWith(...args);
+  serve: SyncController['serve'] = (...args) => this._syncController.serve(...args);
+
+  /**
    * Returns the attached seek cache, or null if none is set.
    */
   get seekCache(): SeekCachePort | null {
@@ -399,7 +693,7 @@ export default class WarpRuntime {
             mode: config.mode === 'enforce' ? 'enforce' : 'warn',
             writerIds,
           });
-          return this._extractTrustedWriters(assessment as unknown as { trust: { explanations: Array<{ trusted: boolean; writerId: string }> } });
+          return this._extractTrustedWriters(assessment);
         },
       },
     });
@@ -408,7 +702,9 @@ export default class WarpRuntime {
   /**
    * Extracts trusted writer IDs from a trust assessment result.
    */
-  _extractTrustedWriters(assessment: { trust: { explanations: Array<{ trusted: boolean; writerId: string }> } }): { trusted: Set<string> } {
+  _extractTrustedWriters(assessment: {
+    trust: { explanations: ReadonlyArray<{ trusted: boolean; writerId: string }> };
+  }): { trusted: Set<string> } {
     return {
       trusted: new Set(
         assessment.trust.explanations
@@ -647,7 +943,7 @@ export default class WarpRuntime {
     });
 
     // Validate migration boundary
-    await (graph as unknown as { _validateMigrationBoundary(): Promise<void> })._validateMigrationBoundary();
+    await graph._validateMigrationBoundary();
 
     return graph;
   }
@@ -687,19 +983,16 @@ export default class WarpRuntime {
     if (!this._temporalQuery) {
       this._temporalQuery = new TemporalQuery({
         loadAllPatches: async () => {
-          type PatchEntry = { patch: Patch; sha: string };
-          type WiredPatch = { discoverWriters(): Promise<string[]>; _loadWriterPatches(w: string): Promise<PatchEntry[]>; _sortPatchesCausally(p: PatchEntry[]): PatchEntry[] };
-          const self = this as unknown as WiredPatch;
-          const writerIds = await self.discoverWriters();
-          const allPatches: PatchEntry[] = [];
+          const writerIds = await this.discoverWriters();
+          const allPatches: Array<{ patch: Patch; sha: string }> = [];
           for (const wid of writerIds) {
-            const writerPatches = await self._loadWriterPatches(wid);
+            const writerPatches = await this._loadWriterPatches(wid);
             allPatches.push(...writerPatches);
           }
-          return self._sortPatchesCausally(allPatches);
+          return this._sortPatchesCausally(allPatches);
         },
         loadCheckpoint: async () => {
-          const ck = await (this as unknown as { _loadLatestCheckpoint(): Promise<{ state: WarpState } | null> })._loadLatestCheckpoint();
+          const ck = await this._loadLatestCheckpoint();
           if (!ck) { return null; }
           return { state: ck.state, maxLamport: this._maxLamportFromState(ck.state) };
         },
@@ -733,8 +1026,8 @@ export default class WarpRuntime {
       state: result.state,
       stateHash: result.stateHash,
       adjacency: {
-        outgoing: new Map(result.adjacency.outgoing) as Map<string, NeighborEdge[]>,
-        incoming: new Map(result.adjacency.incoming) as Map<string, NeighborEdge[]>,
+        outgoing: new Map(result.adjacency.outgoing),
+        incoming: new Map(result.adjacency.incoming),
       },
     };
     this._provenanceIndex = result.provenanceIndex;
@@ -747,10 +1040,10 @@ export default class WarpRuntime {
 
     // 3. Side effects (live frontier only)
     if (result.ceiling === null) {
-      this._lastFrontier = await (this as unknown as { getFrontier(): Promise<Map<string, string>> }).getFrontier();
+      this._lastFrontier = await this.getFrontier();
       this._patchesSinceCheckpoint = result.patchCount;
       await this._tryAutoCheckpoint(result.patchCount);
-      (this as unknown as { _maybeRunGC(s: WarpState): void })._maybeRunGC(result.state);
+      this._maybeRunGC(result.state);
     }
 
     // 4. Notify subscribers
@@ -787,7 +1080,7 @@ export default class WarpRuntime {
   async _tryAutoCheckpoint(patchCount: number): Promise<void> {
     if (!this._checkpointPolicy || this._checkpointing) { return; }
     if (patchCount < this._checkpointPolicy.every) { return; }
-    try { await (this as unknown as { createCheckpoint(): Promise<void> }).createCheckpoint(); this._patchesSinceCheckpoint = 0; } catch { /* non-fatal */ }
+    try { await this.createCheckpoint(); this._patchesSinceCheckpoint = 0; } catch { /* non-fatal */ }
   }
 
   _notifyAfterMaterialize(state: WarpState): void {
@@ -795,13 +1088,9 @@ export default class WarpRuntime {
       const hasPendingReplay = this._subscribers.some((s) => s.pendingReplay === true);
       const delta = diffStates(this._lastNotifiedState, state);
       if (!isEmptyDiff(delta) || hasPendingReplay) {
-        (this as unknown as { _notifySubscribers(d: unknown, s: WarpState): void })._notifySubscribers(delta, state);
+        this._notifySubscribers(delta, state);
       }
     }
     this._lastNotifiedState = cloneState(state);
   }
 }
-
-// Wire delegation methods onto WarpRuntime.prototype.
-// Must run after the class definition so the prototype exists.
-wireRuntime(WarpRuntime);

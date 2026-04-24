@@ -1,5 +1,4 @@
-import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -7,13 +6,10 @@ const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const backlogReadme = readFileSync(`${repoRoot}docs/method/backlog/README.md`, 'utf8');
 const badCodeReadme = readFileSync(`${repoRoot}docs/method/backlog/bad-code/README.md`, 'utf8');
 
-const badCodePaths = execFileSync('git', ['ls-files', '-z', 'docs/method/backlog/bad-code/*.md'], {
-  cwd: repoRoot,
-  encoding: 'utf8',
-})
-  .split('\0')
-  .filter((path) => path.length > 0)
-  .filter((path) => !path.endsWith('/README.md'));
+const badCodePaths = readdirSync(`${repoRoot}docs/method/backlog/bad-code/`)
+  .filter((name) => name.endsWith('.md'))
+  .filter((name) => name !== 'README.md')
+  .map((name) => `docs/method/backlog/bad-code/${name}`);
 
 const releaseHomeByFeature = new Map<string, string>([
   ['api-capabilities', 'v17.0.0'],
@@ -86,7 +82,7 @@ describe('bad-code release homes', () => {
 
     expect(badCodeReadme).toContain('## Release Homes');
     expect(badCodeReadme).toContain('`bad-code/` remains the debt ledger');
-    expect(badCodeReadme).toContain('| `v17.0.0` | 104 |');
+    expect(badCodeReadme).toContain('| `v17.0.0` | 105 |');
     expect(badCodeReadme).toContain('| `v19.0.0` | 9 |');
     expect(badCodeReadme).toContain('| `v20.0.0+` | 29 |');
   });
