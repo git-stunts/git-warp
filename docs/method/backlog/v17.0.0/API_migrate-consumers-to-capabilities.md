@@ -2,11 +2,7 @@
 id: API_migrate-consumers-to-capabilities
 blocks:
   - API_kill-warpruntime
-blocked_by:
-  - GOD_query-controller
-  - GOD_materialize-controller
-  - GOD_strand-service
-  - GOD_query-builder
+blocked_by: []
 feature: api-capabilities
 ---
 
@@ -130,6 +126,26 @@ That means the remaining migration tail is now:
   `WarpRuntime`
 - runtime helper wrappers and wiring surfaces still name `WarpRuntime`
 - `API_kill-warpruntime` is now the focused remaining bridge cut
+
+## 0065 closeout
+
+Cycles `0059` through `0064` finished the consumer migration task itself:
+
+- public capability bag + sync seam
+- `Observer`
+- `QueryController`
+- `Worldline`
+- `WarpApp`
+- `WarpCore`
+
+That means this note is now materially satisfied. The remaining runtime work is
+no longer “migrate internal consumers from `WarpRuntime`.” It is:
+
+- move the `openWarpGraph()` composition root off direct `WarpRuntime` binding
+- remove runtime helper wrapper residue
+- delete runtime wiring / `_wiredMethods` / `WarpRuntime` itself
+
+Those cuts now belong under `API_kill-warpruntime`.
 
 ## Deferred content accessor surface
 

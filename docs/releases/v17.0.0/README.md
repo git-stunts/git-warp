@@ -63,7 +63,7 @@ LAYER 1 (god kills + conversions):
                                           `src/domain/warp/_wiredMethods.d.ts`
 
 LAYER 2 (the exorcism):
-  [~] API_migrate-consumers-to-capabilities ← cycle 0059 hill-met for the public
+  [x] API_migrate-consumers-to-capabilities ← cycles 0059-0064 hill-met across the public
                                           factory + sync seam, and cycle 0060
                                           hill-met for the internal observer seam:
                                           `openWarpGraph()` now binds
@@ -85,9 +85,10 @@ LAYER 2 (the exorcism):
                                           0064: `WarpCore.ts` no longer imports
                                           `WarpRuntime` directly and no longer
                                           calls `WarpRuntime.prototype.*`.
-                                          The remaining work is now the
-                                          `openWarpGraph()` / `WarpRuntime`
-                                          composition-root residue
+                                          The consumer migration task is now
+                                          materially satisfied. The remaining
+                                          work is the `openWarpGraph()` /
+                                          `WarpRuntime` composition-root residue
 
 LAYER 3:
   [ ] API_kill-warpruntime               ← THE DEVIL DIES
