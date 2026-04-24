@@ -99,9 +99,12 @@ LAYER 3:
                                           `PROTO_delete-runtime-wiring-surface`
                                           and cycle 0067 then completed the
                                           `WarpGraph` composition-root cut, so
-                                          the remaining blockers are now the
+                                          the remaining blockers were the
                                           helper-wrapper and runtime-wiring
-                                          surfaces
+                                          surfaces. Cycle 0068 then completed
+                                          the helper-wrapper seam cut, so the
+                                          only remaining blocker is now
+                                          `PROTO_delete-runtime-wiring-surface`
 
 LAYER 4 (launch-prep only; park until the repo is otherwise ready to ship):
   [ ] TS_publish-pipeline

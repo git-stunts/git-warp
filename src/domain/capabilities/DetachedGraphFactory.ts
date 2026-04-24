@@ -1,6 +1,35 @@
-// TODO: Return type will change from WarpRuntime to WarpGraph when
-// API_capability-interfaces lands the capability-namespaced API.
-import type WarpRuntime from '../WarpRuntime.ts';
+import type WarpState from '../services/state/WarpState.ts';
+import type { TickReceipt } from '../types/TickReceipt.ts';
+
+export type DetachedGraphMaterializeResult =
+  | WarpState
+  | {
+      state: WarpState;
+      receipts: TickReceipt[];
+    };
+
+export type DetachedGraphReadSurface = {
+  materialize(options: { ceiling: number | null; receipts: true }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+  materialize(options: { ceiling: number | null; receipts?: false }): Promise<WarpState>;
+  materializeCoordinate(options: {
+    frontier: Map<string, string> | Record<string, string>;
+    ceiling: number | null;
+    receipts: true;
+  }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+  materializeCoordinate(options: {
+    frontier: Map<string, string> | Record<string, string>;
+    ceiling: number | null;
+    receipts?: false;
+  }): Promise<WarpState>;
+  materializeStrand(strandId: string, options: {
+    receipts: true;
+    ceiling: number | null;
+  }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+  materializeStrand(strandId: string, options: {
+    receipts?: false;
+    ceiling: number | null;
+  }): Promise<WarpState>;
+};
 
 /**
  * Creates read-only, detached graph instances for isolated traversal.
@@ -13,5 +42,5 @@ import type WarpRuntime from '../WarpRuntime.ts';
  * for snapshot queries that must not mutate the primary graph.
  */
 export default abstract class DetachedGraphFactory {
-  abstract openReadOnly(): Promise<WarpRuntime>;
+  abstract openReadOnly(): Promise<DetachedGraphReadSurface>;
 }

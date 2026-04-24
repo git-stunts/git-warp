@@ -3,7 +3,6 @@ id: API_kill-warpruntime
 blocks:
   - TS_publish-pipeline
 blocked_by:
-  - PORT_runtime-helper-wrapper-seams
   - PROTO_delete-runtime-wiring-surface
 feature: api-capabilities
 ---

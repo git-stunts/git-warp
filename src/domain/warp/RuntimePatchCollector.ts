@@ -6,12 +6,68 @@
  */
 
 import PatchCollector, { type PatchWithSha, type CheckpointData } from '../capabilities/PatchCollector.ts';
-import type WarpRuntime from '../WarpRuntime.ts';
+import type WarpState from '../services/state/WarpState.ts';
+
+type RuntimeCheckpointData = {
+  state: WarpState;
+  frontier: Map<string, string>;
+  stateHash: string;
+  schema: number;
+  provenanceIndex?: unknown;
+  indexShardOids?: Record<string, string> | null | undefined;
+};
+
+type RuntimePatchCollectorHost = {
+  discoverWriters(): Promise<string[]>;
+  _loadWriterPatches(writerId: string): Promise<PatchWithSha[]>;
+  _loadPatchChainFromSha(toSha: string, fromSha?: string | null): Promise<PatchWithSha[]>;
+  _loadLatestCheckpoint(): Promise<RuntimeCheckpointData | null>;
+  _loadPatchesSince(checkpoint: RuntimeCheckpointData): Promise<PatchWithSha[]>;
+  getFrontier(): Promise<Map<string, string>>;
+};
+
+function isProvenanceIndexShape(value: unknown): value is NonNullable<CheckpointData['provenanceIndex']> {
+  if (value === null || value === undefined || typeof value !== 'object') {
+    return false;
+  }
+  return (
+    typeof Reflect.get(value, 'clone') === 'function' &&
+    typeof Reflect.get(value, 'addPatch') === 'function'
+  );
+}
+
+function toCheckpointData(checkpoint: RuntimeCheckpointData | null): CheckpointData | null {
+  if (checkpoint === null) {
+    return null;
+  }
+
+  return {
+    state: checkpoint.state,
+    frontier: checkpoint.frontier,
+    stateHash: checkpoint.stateHash,
+    schema: checkpoint.schema,
+    ...(isProvenanceIndexShape(checkpoint.provenanceIndex)
+      ? { provenanceIndex: checkpoint.provenanceIndex }
+      : {}),
+    ...(checkpoint.indexShardOids !== undefined ? { indexShardOids: checkpoint.indexShardOids } : {}),
+  };
+}
+
+function toRuntimeCheckpointData(checkpoint: CheckpointData): RuntimeCheckpointData {
+  return {
+    state: checkpoint.state,
+    frontier: checkpoint.frontier,
+    stateHash: checkpoint.stateHash,
+    schema: checkpoint.schema,
+    ...(checkpoint.provenanceIndex !== undefined ? { provenanceIndex: checkpoint.provenanceIndex } : {}),
+    ...(checkpoint.indexShardOids !== undefined ? { indexShardOids: checkpoint.indexShardOids } : {}),
+  };
+}
 
 export default class RuntimePatchCollector extends PatchCollector {
-  private readonly _runtime: WarpRuntime;
+  private readonly _runtime: RuntimePatchCollectorHost;
 
-  constructor(runtime: WarpRuntime) {
+  constructor(runtime: RuntimePatchCollectorHost) {
     super();
     this._runtime = runtime;
   }
@@ -40,13 +96,11 @@ export default class RuntimePatchCollector extends PatchCollector {
   }
 
   async loadCheckpoint(): Promise<CheckpointData | null> {
-    // Adapter boundary: _wiredMethods.CheckpointData is structurally identical to PatchCollector.CheckpointData
-    return await this._runtime._loadLatestCheckpoint() as CheckpointData | null;
+    return toCheckpointData(await this._runtime._loadLatestCheckpoint());
   }
 
   async loadPatchesSince(checkpoint: CheckpointData): Promise<PatchWithSha[]> {
-    // Adapter boundary: same type identity difference as loadCheckpoint
-    return await this._runtime._loadPatchesSince(checkpoint as Parameters<typeof this._runtime._loadPatchesSince>[0]);
+    return await this._runtime._loadPatchesSince(toRuntimeCheckpointData(checkpoint));
   }
 
   async loadPatchChain(toSha: string, fromSha?: string | null): Promise<PatchWithSha[]> {

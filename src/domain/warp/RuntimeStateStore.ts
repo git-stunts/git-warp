@@ -9,12 +9,29 @@ import MaterializedStateStore from '../capabilities/MaterializedStateStore.ts';
 import MaterializedSnapshot from '../capabilities/MaterializedSnapshot.ts';
 import AdjacencyMap from '../capabilities/AdjacencyMap.ts';
 import type { WarpState } from '../services/JoinReducer.ts';
-import type WarpRuntime from '../WarpRuntime.ts';
+import type { NeighborEdge } from '../../ports/NeighborProviderPort.ts';
+
+type RuntimeAdjacencyShape = {
+  outgoing: Map<string, NeighborEdge[]> | ReadonlyMap<string, readonly NeighborEdge[]>;
+  incoming: Map<string, NeighborEdge[]> | ReadonlyMap<string, readonly NeighborEdge[]>;
+};
+
+type RuntimeMaterializedGraph = {
+  state: WarpState;
+  stateHash: string;
+  adjacency: RuntimeAdjacencyShape;
+};
+
+type RuntimeStateStoreHost = {
+  _cachedState: WarpState | null;
+  _stateDirty: boolean;
+  _materializedGraph: RuntimeMaterializedGraph | null;
+};
 
 export default class RuntimeStateStore extends MaterializedStateStore {
-  private readonly _runtime: WarpRuntime;
+  private readonly _runtime: RuntimeStateStoreHost;
 
-  constructor(runtime: WarpRuntime) {
+  constructor(runtime: RuntimeStateStoreHost) {
     super();
     this._runtime = runtime;
   }

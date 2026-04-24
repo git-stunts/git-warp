@@ -6,17 +6,18 @@
 
 import DetachedGraphFactory from '../capabilities/DetachedGraphFactory.ts';
 import { openDetachedGraph } from '../services/controllers/detachedOpen.ts';
-import type WarpRuntime from '../WarpRuntime.ts';
+import type { DetachedGraphReadSurface } from '../capabilities/DetachedGraphFactory.ts';
+import type { DetachedOpenHost } from '../services/controllers/detachedOpen.ts';
 
 export default class RuntimeDetachedFactory extends DetachedGraphFactory {
-  private readonly _runtime: WarpRuntime;
+  private readonly _runtime: DetachedOpenHost;
 
-  constructor(runtime: WarpRuntime) {
+  constructor(runtime: DetachedOpenHost) {
     super();
     this._runtime = runtime;
   }
 
-  async openReadOnly(): Promise<WarpRuntime> {
+  async openReadOnly(): Promise<DetachedGraphReadSurface> {
     return await openDetachedGraph(this._runtime);
   }
 }
