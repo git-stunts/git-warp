@@ -12,16 +12,17 @@ const releaseLedger = readFileSync(
 );
 
 describe('kill warpruntime split', () => {
-  it('records that the umbrella is no longer blocked by successor shim cuts', () => {
-    expect(runtimeKillNote).toContain('This note is now the live remaining runtime-kill cut.');
-    expect(runtimeKillNote).not.toContain('- PORT_delete-internal-runtime-shim');
-    expect(runtimeKillNote).not.toContain('- PORT_delete-runtime-controller-host-types');
-    expect(runtimeKillNote).not.toContain('- API_openwarpgraph-composition-root');
+  it('rewrites the umbrella around the remaining explicit successor cuts', () => {
+    expect(runtimeKillNote).toContain('- `API_delete-openwarpruntime-bridge`');
+    expect(runtimeKillNote).toContain('- `PORT_delete-warpcore-runtime-bridge`');
+    expect(runtimeKillNote).toContain('- `API_delete-warpruntime-class`');
+    expect(runtimeKillNote).not.toContain('This note is now the live remaining runtime-kill cut.');
   });
 
-  it('records the shim closeout in the v17 release ledger', () => {
-    expect(releaseLedger).toContain('Cycle 0073 then deleted the');
-    expect(releaseLedger).toContain('`_internal.ts` compatibility shim');
-    expect(releaseLedger).not.toContain('PORT_delete-runtime-controller-host-types');
+  it('records the same final order in the v17 release ledger', () => {
+    expect(releaseLedger).toContain('Cycle 0074 resplit the exposed');
+    expect(releaseLedger).toContain('`API_delete-openwarpruntime-bridge`');
+    expect(releaseLedger).toContain('`PORT_delete-warpcore-runtime-bridge`');
+    expect(releaseLedger).toContain('`API_delete-warpruntime-class`');
   });
 });

@@ -2,18 +2,16 @@
 id: API_kill-warpruntime
 blocks:
   - TS_publish-pipeline
-blocked_by: []
+blocked_by:
+  - API_delete-warpruntime-class
 feature: api-capabilities
 ---
 
 # Delete WarpRuntime and the remaining bridge residue
 
-Final step of the API redesign. Remove:
-
-- the remaining `WarpRuntime` class as a bridge/composition-root carrier
-- the remaining internal bridge exports that keep it alive as the repo's
-  de facto runtime root
-- the remaining tests and internal adapters that still consume it directly
+Final umbrella for the runtime-deletion sequence. This note no longer means
+"delete the class right now." It now means "close the remaining runtime kill
+chain and then land the final delete."
 
 Cycles `0067` through `0069` already removed the old public/runtime helper
 surface:
@@ -23,11 +21,11 @@ surface:
 - `runtimeWiring.ts` and `_wiredMethods.d.ts` are gone
 - the old defineProperty delegation surface is gone
 
-What remains is smaller and more structural:
+What remains is now explicitly split:
 
-- `WarpRuntime` still exists as a concrete class and async boot surface
-- `openWarpRuntime()` still returns it as the internal runtime product
-- internal tests and adapter seams still treat it as the primary graph object
+- `API_delete-openwarpruntime-bridge`
+- `PORT_delete-warpcore-runtime-bridge`
+- `API_delete-warpruntime-class`
 
 ## Boot migration: WarpRuntime → openWarpGraph()
 
@@ -61,4 +59,11 @@ cleared the prerequisite residue:
 - `0072` completed the controller/service host-type cut
 - `0073` deleted the `_internal.ts` compatibility shim
 
-This note is now the live remaining runtime-kill cut.
+Cycle `0074` then resplit the remaining kill around the three real remaining
+surfaces:
+
+1. delete the `openWarpRuntime()` bridge under `openWarpGraph()`
+2. delete the `WarpCore` runtime bridge and escape hatch
+3. delete the `WarpRuntime` class and exports
+
+This umbrella closes only after those three cuts land.

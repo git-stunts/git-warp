@@ -105,8 +105,13 @@ LAYER 3:
                                           controller/service host-type cut.
                                           Cycle 0073 then deleted the
                                           `_internal.ts` compatibility shim.
-                                          `API_kill-warpruntime` is now the
-                                          exposed remaining runtime-deletion cut
+                                          Cycle 0074 resplit the exposed
+                                          remainder around the actual final
+                                          order:
+                                          `API_delete-openwarpruntime-bridge`
+                                          → `PORT_delete-warpcore-runtime-bridge`
+                                          → `API_delete-warpruntime-class`
+                                          → `API_kill-warpruntime`
 
 LAYER 4 (launch-prep only; park until the repo is otherwise ready to ship):
   [ ] TS_publish-pipeline
