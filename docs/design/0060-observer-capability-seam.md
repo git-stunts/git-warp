@@ -166,3 +166,34 @@ Add tests that fail until:
 - `npm exec vitest run test/unit/domain/services/Observer.test.ts test/unit/scripts/observer-capability-seam.test.ts`
 - `npm run typecheck`
 - `git diff --check`
+
+## Playback
+
+### Agent
+
+- Yes. `Observer.ts` no longer imports `WarpRuntime`.
+- Yes. Traversal is now constructed as `new LogicalTraversal(this)`.
+- Yes. The live observer seam is now explicit as `ObserverBacking`.
+
+### Human
+
+- Yes. `Observer.ts` now reads like a small explicit contract instead of a
+  hidden runtime dependency.
+- Yes. Detached graph and `QueryController` work remain clearly separate
+  follow-through items.
+
+### Verdict
+
+`hill met`
+
+## Drift check
+
+No negative drift.
+
+Positive drift only:
+
+- the cycle also corrected stale source references in the live backlog note
+  (`LogicalTraversal.js`, `QueryBuilder.js`, `warpGraphTestUtils.js`)
+- the witness stayed bounded to observer behavior, the seam ratchet, and
+  `typecheck`; no detached/query tests were needed because this cycle did not
+  move that code
