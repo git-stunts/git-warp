@@ -92,11 +92,16 @@ LAYER 2 (the exorcism):
 
 LAYER 3:
   [~] API_kill-warpruntime               ← cycle 0066 not-met as a one-shot kill;
-                                          the remaining work is now split into:
+                                          the remaining work was split into:
                                           `API_warpgraph-runtime-bridge`,
                                           `PORT_runtime-helper-wrapper-seams`,
                                           and
                                           `PROTO_delete-runtime-wiring-surface`
+                                          and cycle 0067 then completed the
+                                          `WarpGraph` composition-root cut, so
+                                          the remaining blockers are now the
+                                          helper-wrapper and runtime-wiring
+                                          surfaces
 
 LAYER 4 (launch-prep only; park until the repo is otherwise ready to ship):
   [ ] TS_publish-pipeline

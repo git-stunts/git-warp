@@ -13,6 +13,11 @@ const apiReference = readFileSync(
 );
 
 describe('WarpGraph public capability seam', () => {
+  it('does not import WarpRuntime directly', () => {
+    expect(warpGraphSource).not.toContain("import type WarpRuntime");
+    expect(warpGraphSource).not.toContain("import WarpRuntime");
+  });
+
   it('does not expose _runtime on the public WarpGraph surface', () => {
     expect(warpGraphSource).not.toContain('readonly _runtime:');
   });

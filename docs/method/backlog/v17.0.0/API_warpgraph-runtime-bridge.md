@@ -20,3 +20,9 @@ part of the runtime bridge. The next honest cut is:
 
 This does not delete `WarpRuntime`; it isolates the composition-root residue so
 the final kill is smaller and more truthful.
+
+Cycle `0067` satisfied this cut:
+
+- `WarpGraph.ts` no longer imports `WarpRuntime`
+- `openWarpGraph()` now opens through `warp/WarpGraphRuntimeBridge.ts`
+- the runtime-kill umbrella no longer waits on this successor

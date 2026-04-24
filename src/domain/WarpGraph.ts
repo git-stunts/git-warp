@@ -15,8 +15,8 @@
  * wires controllers, and returns a frozen capability bag organized by
  * architectural moment.
  */
-import WarpRuntime from './WarpRuntime.ts';
 import WarpError from './errors/WarpError.ts';
+import { openWarpGraphRuntime } from './warp/WarpGraphRuntimeBridge.ts';
 import type QueryCapability from './capabilities/QueryCapability.ts';
 import type PatchCapability from './capabilities/PatchCapability.ts';
 import type MaterializeCapability from './capabilities/MaterializeCapability.ts';
@@ -28,6 +28,7 @@ import type ProvenanceCapability from './capabilities/ProvenanceCapability.ts';
 import type ComparisonCapability from './capabilities/ComparisonCapability.ts';
 import type SubscriptionCapability from './capabilities/SubscriptionCapability.ts';
 import type { CorePersistence } from './types/WarpPersistence.ts';
+import type { WarpGraphRuntimeSurface } from './warp/WarpGraphRuntimeBridge.ts';
 import type LoggerPort from '../ports/LoggerPort.ts';
 import type CryptoPort from '../ports/CryptoPort.ts';
 import type CodecPort from '../ports/CodecPort.ts';
@@ -234,7 +235,7 @@ function requireCapability(owner: object, capabilityName: string, methodNames: r
   }
 }
 
-function bindQueryCapability(runtime: WarpRuntime): QueryCapability {
+function bindQueryCapability(runtime: WarpGraphRuntimeSurface): QueryCapability {
   requireCapability(runtime, 'query', [
     'hasNode', 'getNodeProps', 'getEdgeProps', 'neighbors',
     'getStateSnapshot', 'getNodes', 'getEdges', 'getPropertyCount',
@@ -267,7 +268,7 @@ function bindQueryCapability(runtime: WarpRuntime): QueryCapability {
   });
 }
 
-function bindPatchCapability(runtime: WarpRuntime): PatchCapability {
+function bindPatchCapability(runtime: WarpGraphRuntimeSurface): PatchCapability {
   requireCapability(runtime, 'patch', [
     'createPatch', 'patch', 'patchMany', 'getWriterPatches',
     'writer', 'discoverWriters', 'discoverTicks', 'join',
@@ -284,7 +285,7 @@ function bindPatchCapability(runtime: WarpRuntime): PatchCapability {
   });
 }
 
-function bindMaterializeCapability(runtime: WarpRuntime): MaterializeCapability {
+function bindMaterializeCapability(runtime: WarpGraphRuntimeSurface): MaterializeCapability {
   requireCapability(runtime, 'materialize', [
     'materialize', 'materializeCoordinate', 'materializeAt',
     'verifyIndex', 'invalidateIndex',
@@ -298,7 +299,7 @@ function bindMaterializeCapability(runtime: WarpRuntime): MaterializeCapability 
   });
 }
 
-function bindSyncCapability(runtime: WarpRuntime): SyncCapability {
+function bindSyncCapability(runtime: WarpGraphRuntimeSurface): SyncCapability {
   const syncSurface: SyncCapabilitySurface = runtime;
   requireCapability(runtime, 'sync', [
     'getFrontier', 'hasFrontierChanged', 'status', 'createSyncRequest',
@@ -320,7 +321,7 @@ function bindSyncCapability(runtime: WarpRuntime): SyncCapability {
   });
 }
 
-function bindStrandCapability(runtime: WarpRuntime): StrandCapability {
+function bindStrandCapability(runtime: WarpGraphRuntimeSurface): StrandCapability {
   requireCapability(runtime, 'strand', [
     'createStrand', 'braidStrand', 'getStrand', 'listStrands', 'dropStrand',
     'materializeStrand', 'getStrandPatches', 'patchesForStrand',
@@ -345,7 +346,7 @@ function bindStrandCapability(runtime: WarpRuntime): StrandCapability {
   });
 }
 
-function bindCheckpointCapability(runtime: WarpRuntime): CheckpointCapability {
+function bindCheckpointCapability(runtime: WarpGraphRuntimeSurface): CheckpointCapability {
   requireCapability(runtime, 'checkpoint', [
     'createCheckpoint', 'syncCoverage', 'maybeRunGC', 'runGC', 'getGCMetrics',
   ]);
@@ -358,7 +359,7 @@ function bindCheckpointCapability(runtime: WarpRuntime): CheckpointCapability {
   });
 }
 
-function bindProvenanceCapability(runtime: WarpRuntime): ProvenanceCapability {
+function bindProvenanceCapability(runtime: WarpGraphRuntimeSurface): ProvenanceCapability {
   requireCapability(runtime, 'provenance', [
     'patchesFor', 'materializeSlice', 'loadPatchBySha',
   ]);
@@ -369,7 +370,7 @@ function bindProvenanceCapability(runtime: WarpRuntime): ProvenanceCapability {
   });
 }
 
-function bindComparisonCapability(runtime: WarpRuntime): ComparisonCapability {
+function bindComparisonCapability(runtime: WarpGraphRuntimeSurface): ComparisonCapability {
   requireCapability(runtime, 'comparison', [
     'buildPatchDivergence', 'compareStrand', 'planStrandTransfer',
     'compareCoordinates', 'planCoordinateTransfer',
@@ -383,7 +384,7 @@ function bindComparisonCapability(runtime: WarpRuntime): ComparisonCapability {
   });
 }
 
-function bindSubscriptionCapability(runtime: WarpRuntime): SubscriptionCapability {
+function bindSubscriptionCapability(runtime: WarpGraphRuntimeSurface): SubscriptionCapability {
   requireCapability(runtime, 'subscription', ['subscribe', 'watch']);
   return Object.freeze({
     subscribe: runtime.subscribe.bind(runtime),
@@ -392,7 +393,7 @@ function bindSubscriptionCapability(runtime: WarpRuntime): SubscriptionCapabilit
 }
 
 export async function openWarpGraph(deps: WarpGraphDeps): Promise<WarpGraph> {
-  const runtime = await WarpRuntime.open(deps);
+  const runtime = await openWarpGraphRuntime(deps);
 
   const query = bindQueryCapability(runtime);
   const patches = bindPatchCapability(runtime);
