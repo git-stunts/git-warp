@@ -92,22 +92,18 @@ LAYER 2 (the exorcism):
                                           `WarpRuntime` composition-root residue
 
 LAYER 3:
-  [~] API_kill-warpruntime               ← cycle 0066 not-met as a one-shot kill;
-                                          the remaining work was first split
-                                          into:
-                                          `API_warpgraph-runtime-bridge`,
-                                          `PORT_runtime-helper-wrapper-seams`,
-                                          and
-                                          `PROTO_delete-runtime-wiring-surface`.
+  [~] API_kill-warpruntime               ← cycles 0066 and 0070 both proved
+                                          the runtime kill is not one slice.
                                           Cycle 0067 completed the public
                                           `WarpGraph` bridge cut, cycle 0068
                                           completed the helper-wrapper seam
-                                          cut, and cycle 0069 then deleted the
+                                          cut, and cycle 0069 deleted the
                                           runtime wiring / `_wiredMethods`
-                                          blocker. The umbrella is now free for
-                                          a second reality-check split around
-                                          the remaining composition-root and
-                                          host-type residue.
+                                          blocker. The remaining kill is now
+                                          explicitly ordered as:
+                                          `API_openwarpgraph-composition-root`
+                                          → `PORT_delete-runtime-controller-host-types`
+                                          → `PORT_delete-internal-runtime-shim`
 
 LAYER 4 (launch-prep only; park until the repo is otherwise ready to ship):
   [ ] TS_publish-pipeline

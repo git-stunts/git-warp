@@ -2,7 +2,10 @@
 id: API_kill-warpruntime
 blocks:
   - TS_publish-pipeline
-blocked_by: []
+blocked_by:
+  - API_openwarpgraph-composition-root
+  - PORT_delete-runtime-controller-host-types
+  - PORT_delete-internal-runtime-shim
 feature: api-capabilities
 ---
 
@@ -54,6 +57,9 @@ The following construction steps currently split across
 frozen capability bag — no `defineProperty` loops, no `_internal`
 shim, no god object.
 
-Cycle `0066` proved this is not one slice. Cycles `0067` through `0069`
-removed the first residue, and the next cycle must now rewrite this umbrella
-around the remaining explicit cuts.
+Cycle `0066` proved this is not one slice. Cycle `0070` then rewrote the
+remaining kill around the actual final order:
+
+- `API_openwarpgraph-composition-root`
+- `PORT_delete-runtime-controller-host-types`
+- `PORT_delete-internal-runtime-shim`

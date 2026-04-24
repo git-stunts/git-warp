@@ -12,16 +12,16 @@ const releaseLedger = readFileSync(
 );
 
 describe('kill warpruntime split', () => {
-  it('blocks the umbrella on the three explicit successor cuts', () => {
-    expect(runtimeKillNote).toContain('- API_warpgraph-runtime-bridge');
-    expect(runtimeKillNote).toContain('- PORT_runtime-helper-wrapper-seams');
-    expect(runtimeKillNote).toContain('- PROTO_delete-runtime-wiring-surface');
+  it('blocks the umbrella on the remaining explicit successor cuts', () => {
+    expect(runtimeKillNote).toContain('- API_openwarpgraph-composition-root');
+    expect(runtimeKillNote).toContain('- PORT_delete-runtime-controller-host-types');
+    expect(runtimeKillNote).toContain('- PORT_delete-internal-runtime-shim');
   });
 
   it('records the same split in the v17 release ledger', () => {
-    expect(releaseLedger).toContain('cycle 0066 not-met');
-    expect(releaseLedger).toContain('API_warpgraph-runtime-bridge');
-    expect(releaseLedger).toContain('PORT_runtime-helper-wrapper-seams');
-    expect(releaseLedger).toContain('PROTO_delete-runtime-wiring-surface');
+    expect(releaseLedger).toContain('cycles 0066 and 0070 both proved');
+    expect(releaseLedger).toContain('API_openwarpgraph-composition-root');
+    expect(releaseLedger).toContain('PORT_delete-runtime-controller-host-types');
+    expect(releaseLedger).toContain('PORT_delete-internal-runtime-shim');
   });
 });

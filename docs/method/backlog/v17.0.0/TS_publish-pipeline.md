@@ -108,7 +108,6 @@ the generated `.d.ts` files.
 Types to mark `@internal`:
 
 - `_internal.ts` shim (dies with WarpRuntime kill, but if remnants exist)
-- `_wiredMethods.d.ts` (dies with WarpRuntime kill)
 - All `OpStrategy` implementations (internal reducer machinery)
 - `SnapshotBeforeOp` (internal reducer state)
 - `ReceiptBuilder` (internal)
@@ -361,10 +360,11 @@ After all the above is verified and green:
 - Delete `index.d.ts` (4,080 LOC)
 - Delete `browser.d.ts` (42 LOC)
 - Delete `sha1sync.d.ts` (14 LOC)
-- Delete `src/domain/warp/_wiredMethods.d.ts` (dies with WarpRuntime)
 - Delete `src/visualization/index.d.ts` (41 LOC)
 
-Total: ~4,189 LOC of hand-maintained type declarations deleted.
+Total: ~4,189 LOC of hand-maintained type declarations deleted across the full
+TS migration path. The blocked `_wiredMethods.d.ts` runtime shim already died
+in cycle `0069`.
 
 ## Step 13: Tag v17.0.0
 
