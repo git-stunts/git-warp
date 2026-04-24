@@ -61,15 +61,18 @@ LAYER 1 (god kills + conversions):
 
 LAYER 2 (the exorcism):
   [~] API_migrate-consumers-to-capabilities ← cycle 0059 hill-met for the public
-                                          factory + sync seam:
+                                          factory + sync seam, and cycle 0060
+                                          hill-met for the internal observer seam:
                                           `openWarpGraph()` now binds
                                           runtime-checked capability bags,
                                           `_runtime` is gone from
-                                          `WarpGraph`, and direct peer sync
-                                          accepts `graph.sync.syncWith(peerGraph)`;
-                                          remaining work is the internal
-                                          consumer tail (`Observer`,
-                                          `QueryController`, detached graph,
+                                          `WarpGraph`, direct peer sync
+                                          accepts `graph.sync.syncWith(peerGraph)`,
+                                          and `Observer.ts` now depends on
+                                          `ObserverBacking` instead of
+                                          `WarpRuntime`; remaining work is the
+                                          detached/query/runtime tail
+                                          (`QueryController`, detached graph,
                                           `WarpApp` / `WarpCore` bridge residue)
 
 LAYER 3:

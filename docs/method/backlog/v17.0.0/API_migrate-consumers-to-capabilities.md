@@ -18,11 +18,11 @@ coupling breaks.
 
 Key consumers:
 - `Worldline.ts` — uses query + materialize capabilities
-- `LogicalTraversal.js` — uses query capability
-- `QueryBuilder.js` — uses query capability
+- `Observer.ts` — still needs a narrow live backing instead of `WarpRuntime`
+- `QueryController.ts` — still owns detached/runtime migration residue
 - `ComparisonSelector.ts` — uses materialize + sync capabilities
 - CLI commands — use various capabilities
-- Test helpers — `warpGraphTestUtils.js`
+- Test helpers — `warpGraphTestUtils.ts`
 
 Each consumer should accept the narrowest capability it needs, not the
 full WarpGraph. This is the hexagonal architecture payoff.
@@ -42,6 +42,25 @@ That means this note is no longer blocked on `API_warpgraph-factory`. The
 remaining work is the internal consumer tail:
 
 - `Observer` / `LogicalTraversal` runtime coupling
+- `QueryController` and detached graph runtime coupling
+- `WarpApp` / `WarpCore` bridge residue
+- other internal files that still name `WarpRuntime` where a narrower
+  capability should exist instead
+
+## 0060 observer seam tranche
+
+Cycle `0060` moved the observer/traversal seam off `WarpRuntime`:
+
+- `Observer.ts` now depends on an explicit `ObserverBacking` contract
+  instead of importing `WarpRuntime`
+- traversal is now constructed directly from the observer seam instead of
+  `this as unknown as WarpRuntime`
+- the touched observer path no longer carries the stale `StateReader.js`
+  import
+
+That removes the smallest internal read-side lie without smearing into
+detached graph migration. The remaining work is now:
+
 - `QueryController` and detached graph runtime coupling
 - `WarpApp` / `WarpCore` bridge residue
 - other internal files that still name `WarpRuntime` where a narrower
@@ -79,16 +98,16 @@ constructor({ query, materialize }: {
 })
 ```
 
-### LogicalTraversal.js
+### Observer.ts / LogicalTraversal.ts
 ```typescript
 // BEFORE
 constructor({ graph }: { graph: WarpRuntime })
 
 // AFTER
-constructor({ query }: { query: QueryCapability })
+constructor({ graph }: { graph: ObserverBacking })
 ```
 
-### QueryBuilder.js
+### QueryBuilder.ts
 ```typescript
 // BEFORE
 constructor({ graph }: { graph: WarpRuntime })

@@ -1,5 +1,5 @@
 /**
- * Observer - Read-only filtered view of a materialized WarpRuntime.
+ * Observer - Read-only filtered view of a materialized graph snapshot.
  *
  * Provides an observer that sees only nodes matching a glob pattern,
  * with property visibility controlled by expose/redact lists.
@@ -11,14 +11,15 @@
 
 import QueryBuilder from './QueryBuilder.ts';
 import LogicalTraversal from './LogicalTraversal.ts';
-import { createStateReader } from '../state/StateReader.js';
+import { createStateReader } from '../state/StateReader.ts';
 import { decodeEdgeKey } from '../KeyCodec.ts';
 import { matchGlob } from '../../utils/matchGlob.ts';
 import QueryError from '../../errors/QueryError.ts';
 import WorldlineSelector from '../../types/WorldlineSelector.ts';
 import LiveSelector from '../../types/LiveSelector.ts';
+import CoordinateSelector from '../../types/CoordinateSelector.ts';
+import StrandSelector from '../../types/StrandSelector.ts';
 import type { WarpState } from '../JoinReducer.ts';
-import type WarpRuntime from '../../WarpRuntime.ts';
 import type { WorldlineSource } from '../../capabilities/QueryCapability.ts';
 import type { VisibleStateReader } from '../../types/VisibleStateReader.ts';
 import type NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
@@ -33,9 +34,50 @@ type AdjacencyMaps = {
   incoming: Map<string, NeighborEntry[]>;
 };
 
-function toSelector(source: WorldlineSelector | { kind: string; [key: string]: unknown } | null | undefined): WorldlineSelector | null {
+type VisibleNodeProps = Record<string, unknown>;
+type VisibleEdge = { from: string; to: string; label: string; props: VisibleNodeProps };
+type ObserverSnapshot = { state: WarpState; stateHash: string };
+type ObserverBackingMaterializedGraph = ObserverSnapshot & {
+  adjacency: unknown;
+  provider?: NeighborProviderPort;
+};
+type ObserverMaterializedGraph = ObserverSnapshot & {
+  adjacency: AdjacencyMaps;
+  provider?: NeighborProviderPort;
+};
+
+export interface ObserverBacking {
+  hasNode(nodeId: string): Promise<boolean>;
+  getNodes(): Promise<string[]>;
+  getNodeProps(nodeId: string): Promise<VisibleNodeProps | null>;
+  getEdges(): Promise<VisibleEdge[]>;
+  observer(
+    name: string,
+    config: ObserverConfig,
+    options: { source: WorldlineSource },
+  ): Promise<Observer>;
+  _materializeGraph(): Promise<ObserverBackingMaterializedGraph>;
+}
+
+function toSelector(source: WorldlineSelector | WorldlineSource | null | undefined): WorldlineSelector | null {
   if (source === null || source === undefined) { return null; }
-  return WorldlineSelector.from(source as Parameters<typeof WorldlineSelector.from>[0]).clone();
+  return WorldlineSelector.from(source).clone();
+}
+
+function selectorToSource(source: WorldlineSelector): WorldlineSource {
+  if (source instanceof LiveSelector) {
+    return source.toDTO();
+  }
+  if (source instanceof CoordinateSelector) {
+    return source.toDTO();
+  }
+  if (source instanceof StrandSelector) {
+    return source.toDTO();
+  }
+  throw new QueryError(`unrecognized observer source kind: ${source.constructor.name}`, {
+    code: 'E_OBSERVER_SOURCE_UNKNOWN',
+    context: { sourceKind: source.constructor.name },
+  });
 }
 
 function toFilterSet(list: string[] | undefined): Set<string> | null {
@@ -141,33 +183,31 @@ export interface ObserverConfig {
 interface ObserverOptions {
   name: string;
   config: ObserverConfig;
-  graph?: WarpRuntime;
-  snapshot?: { state: WarpState; stateHash: string };
+  graph?: ObserverBacking;
+  snapshot?: ObserverSnapshot;
   source?: WorldlineSelector | WorldlineSource;
 }
 
 /**
- * Read-only observer view of a materialized WarpRuntime state.
+ * Read-only observer view of a materialized graph state.
  */
 export default class Observer {
   private _name!: string;
   private _matchPattern!: string | string[];
   private _expose: string[] | undefined;
   private _redact: string[] | undefined;
-  private _graph!: WarpRuntime | null;
-  private _snapshot!: { state: WarpState; stateHash: string } | null;
+  private _graph!: ObserverBacking | null;
+  private _snapshot!: ObserverSnapshot | null;
   private _source!: WorldlineSelector | null;
   private _stateReader!: VisibleStateReader | null;
   private _snapshotAdjacency!: AdjacencyMaps | null;
-  // Public traversal API — duck-typed by LogicalTraversal constructor
   traverse: LogicalTraversal;
 
   constructor({ name, config, graph, snapshot, source }: ObserverOptions) {
     this._initIdentity(name, config);
     this._initBacking(graph, snapshot, source);
     void this._materializeGraph;
-
-    this.traverse = new LogicalTraversal(this as unknown as WarpRuntime);
+    this.traverse = new LogicalTraversal(this);
   }
 
   private _initIdentity(name: string, config: ObserverConfig): void {
@@ -178,13 +218,13 @@ export default class Observer {
   }
 
   private _initBacking(
-    graph: WarpRuntime | undefined,
-    snapshot: { state: WarpState; stateHash: string } | undefined,
+    graph: ObserverBacking | undefined,
+    snapshot: ObserverSnapshot | undefined,
     source: WorldlineSelector | WorldlineSource | undefined,
   ): void {
     this._graph = graph ?? null;
     this._snapshot = snapshot ?? null;
-    this._source = toSelector(source as WorldlineSelector | { kind: string; [key: string]: unknown } | undefined ?? new LiveSelector());
+    this._source = toSelector(source ?? new LiveSelector());
     this._stateReader = snapshot ? createStateReader(snapshot.state) : null;
     this._snapshotAdjacency = null;
   }
@@ -194,14 +234,14 @@ export default class Observer {
   }
 
   get source(): WorldlineSource | null {
-    return this._source ? this._source.toDTO() as WorldlineSource : null;
+    return this._source ? selectorToSource(this._source) : null;
   }
 
   get stateHash(): string | null {
     return this._snapshot ? this._snapshot.stateHash : null;
   }
 
-  private _requireGraph(): WarpRuntime {
+  private _requireGraph(): ObserverBacking {
     if (!this._graph) {
       throw new QueryError(
         'Observer has no live backing graph',
@@ -224,18 +264,16 @@ export default class Observer {
     const graph = this._requireGraph();
     const config = this._buildConfigSnapshot();
     const nextSource: WorldlineSelector = options?.source
-      ? WorldlineSelector.from(options.source as Parameters<typeof WorldlineSelector.from>[0]).clone()
+      ? WorldlineSelector.from(options.source).clone()
       : new LiveSelector();
-
-    return await (graph as unknown as { observer(name: string, config: ObserverConfig, opts: { source: WorldlineSource }): Promise<Observer> })
-      .observer(this._name, config, { source: nextSource.toDTO() as WorldlineSource });
+    return await graph.observer(this._name, config, { source: selectorToSource(nextSource) });
   }
 
   // ===========================================================================
   // Internal: State access (used by QueryBuilder and LogicalTraversal)
   // ===========================================================================
 
-  async _materializeGraph(): Promise<{ state: unknown; stateHash: string; adjacency: AdjacencyMaps }> {
+  async _materializeGraph(): Promise<ObserverMaterializedGraph> {
     if (this._snapshot) {
       if (!this._snapshotAdjacency) {
         this._snapshotAdjacency = buildAdjacencyFromEdges(this._snapshot.state, this._matchPattern);
@@ -248,14 +286,7 @@ export default class Observer {
     }
 
     const graph = this._requireGraph();
-    const materialized = await (graph as unknown as {
-      _materializeGraph(): Promise<{
-        state: WarpState;
-        stateHash: string;
-        provider?: NeighborProviderPort;
-        adjacency: AdjacencyMaps;
-      }>;
-    })._materializeGraph();
+    const materialized = await graph._materializeGraph();
     const { state, stateHash } = materialized;
 
     let adjacency: AdjacencyMaps;
@@ -288,9 +319,9 @@ export default class Observer {
     return allNodes.filter((id) => matchGlob(this._matchPattern, id));
   }
 
-  async getNodeProps(nodeId: string): Promise<Record<string, unknown> | null> {
+  async getNodeProps(nodeId: string): Promise<VisibleNodeProps | null> {
     if (!matchGlob(this._matchPattern, nodeId)) { return null; }
-    const propsRecord: Record<string, unknown> | null = this._stateReader
+    const propsRecord: VisibleNodeProps | null = this._stateReader
       ? this._stateReader.getNodeProps(nodeId)
       : await this._requireGraph().getNodeProps(nodeId);
     if (!propsRecord) { return null; }
@@ -301,8 +332,8 @@ export default class Observer {
   // Edge API
   // ===========================================================================
 
-  async getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>> {
-    const allEdges: Array<{ from: string; to: string; label: string; props: Record<string, unknown> }> = this._stateReader
+  async getEdges(): Promise<VisibleEdge[]> {
+    const allEdges: VisibleEdge[] = this._stateReader
       ? this._stateReader.getEdges()
       : await this._requireGraph().getEdges();
     return allEdges
@@ -320,6 +351,6 @@ export default class Observer {
   // ===========================================================================
 
   query(): QueryBuilder {
-    return new QueryBuilder(this as unknown as ConstructorParameters<typeof QueryBuilder>[0]);
+    return new QueryBuilder(this);
   }
 }
