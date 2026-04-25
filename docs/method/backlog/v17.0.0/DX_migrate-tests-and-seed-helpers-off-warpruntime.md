@@ -14,11 +14,9 @@ helper surfaces, but it is no longer one executable patch.
 
 The real remaining chain is now:
 
-- `DX_migrate-seed-and-runtime-helpers-off-warpruntime`
 - `DX_migrate-runtime-suites-off-warpruntime`
 
 Only after those land does the closeout gate become honest:
 
-- confirm helpers and seed surfaces no longer reopen `WarpRuntime`
 - confirm runtime-facing suites no longer import or assert against `WarpRuntime`
 - hand the class delete a file/export removal instead of a broad migration bomb

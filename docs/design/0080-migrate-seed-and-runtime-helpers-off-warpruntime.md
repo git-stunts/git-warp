@@ -90,3 +90,25 @@ Add a ratchet that fails while helper/seed paths contain:
 - `npm exec vitest run test/unit/domain/WarpCore.content.test.ts test/unit/domain/WarpCore.effectPipeline.test.ts test/unit/domain/WarpCore.emit.test.ts test/integration/api/fork.test.ts`
 - `npm run typecheck`
 - `git diff --check`
+
+## Playback
+
+### Agent
+
+- Yes. Helper and seed files now stop importing or dynamic-importing
+  `WarpRuntime.ts`.
+- Yes. Helper and seed openers now stop calling `WarpRuntime.open(...)`.
+- Yes. Helper contracts no longer document returned values as `WarpRuntime`.
+
+### Human
+
+- Yes. The test helper entrypoints now point at `WarpCore` or graph-facing
+  helpers instead of the runtime class.
+
+### Verdict
+
+`hill met`
+
+## Drift check
+
+No negative drift.

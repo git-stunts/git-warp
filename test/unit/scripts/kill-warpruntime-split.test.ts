@@ -16,6 +16,7 @@ describe('kill warpruntime split', () => {
     expect(runtimeKillNote).toContain('- `API_delete-warpruntime-class`');
     expect(runtimeKillNote).toContain('cycle\n`0078` then extracted the remaining source-side runtime host product');
     expect(runtimeKillNote).toContain('cycle\n`0079` then proved the test/helper blocker still needed an internal split');
+    expect(runtimeKillNote).toContain('cycle `0080` then completed the helper/seed half of that split');
     expect(runtimeKillNote).toContain('cycle `0076` then completed the `WarpCore` bridge cut');
     expect(runtimeKillNote).not.toContain('- `API_delete-openwarpruntime-bridge`');
     expect(runtimeKillNote).not.toContain('- `PORT_delete-warpcore-runtime-bridge`');
@@ -28,7 +29,8 @@ describe('kill warpruntime split', () => {
     expect(releaseLedger).toContain('Cycle 0076 then');
     expect(releaseLedger).toContain('Cycle 0078 then completed');
     expect(releaseLedger).toContain('Cycle 0079 then proved');
-    expect(releaseLedger).toContain('`DX_migrate-seed-and-runtime-helpers-off-warpruntime`');
+    expect(releaseLedger).toContain('Cycle 0080 then completed');
+    expect(releaseLedger).not.toContain('`DX_migrate-seed-and-runtime-helpers-off-warpruntime`');
     expect(releaseLedger).toContain('`DX_migrate-runtime-suites-off-warpruntime`');
     expect(releaseLedger).toContain('`API_delete-warpruntime-class`');
     expect(releaseLedger).toContain('`DX_migrate-tests-and-seed-helpers-off-warpruntime`');

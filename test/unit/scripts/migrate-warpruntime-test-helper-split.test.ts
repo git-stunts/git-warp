@@ -6,10 +6,6 @@ const umbrellaNote = readFileSync(
   join(process.cwd(), 'docs/method/backlog/v17.0.0/DX_migrate-tests-and-seed-helpers-off-warpruntime.md'),
   'utf8',
 );
-const helperNote = readFileSync(
-  join(process.cwd(), 'docs/method/backlog/v17.0.0/DX_migrate-seed-and-runtime-helpers-off-warpruntime.md'),
-  'utf8',
-);
 const suiteNote = readFileSync(
   join(process.cwd(), 'docs/method/backlog/v17.0.0/DX_migrate-runtime-suites-off-warpruntime.md'),
   'utf8',
@@ -20,23 +16,21 @@ const releaseLedger = readFileSync(
 );
 
 describe('migrate warpruntime test/helper split', () => {
-  it('rewrites the old blocker as a closeout gate over explicit successor cuts', () => {
-    expect(umbrellaNote).toContain('- `DX_migrate-seed-and-runtime-helpers-off-warpruntime`');
+  it('rewrites the old blocker as a closeout gate over the remaining successor cut', () => {
+    expect(umbrellaNote).not.toContain('- `DX_migrate-seed-and-runtime-helpers-off-warpruntime`');
     expect(umbrellaNote).toContain('- `DX_migrate-runtime-suites-off-warpruntime`');
   });
 
-  it('describes helper/seed migration separately from broad suite migration', () => {
-    expect(helperNote).toContain('test/helpers/*.ts');
-    expect(helperNote).toContain('test/bats/helpers/*.ts');
-    expect(helperNote).toContain('test/runtime/deno/helpers.ts');
-
+  it('keeps broad suite migration explicit after the helper migration landed', () => {
     expect(suiteNote).toContain('test/unit/domain/WarpGraph*.test.ts');
     expect(suiteNote).toContain('instanceof WarpRuntime');
     expect(suiteNote).toContain('WarpCore');
+    expect(suiteNote).toContain('Helper and seed surfaces no longer reopen the runtime class');
   });
 
-  it('records the new order in the v17 release ledger', () => {
-    expect(releaseLedger).toContain('`DX_migrate-seed-and-runtime-helpers-off-warpruntime`');
+  it('records the reduced order in the v17 release ledger', () => {
+    expect(releaseLedger).toContain('Cycle 0080 then completed');
+    expect(releaseLedger).not.toContain('`DX_migrate-seed-and-runtime-helpers-off-warpruntime`');
     expect(releaseLedger).toContain('`DX_migrate-runtime-suites-off-warpruntime`');
     expect(releaseLedger).toContain('`DX_migrate-tests-and-seed-helpers-off-warpruntime`');
   });

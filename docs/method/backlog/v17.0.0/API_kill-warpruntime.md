@@ -66,14 +66,14 @@ cleared the prerequisite residue:
 
 Cycle `0074` resplit the exposed remainder, cycle `0075` completed the public
 bridge cut, cycle `0076` then completed the `WarpCore` bridge cut, cycle
-`0078` then extracted the remaining source-side runtime host product, and cycle
-`0079` then proved the test/helper blocker still needed an internal split. The
-live remaining order is now:
+`0078` then extracted the remaining source-side runtime host product, cycle
+`0079` then proved the test/helper blocker still needed an internal split, and
+cycle `0080` then completed the helper/seed half of that split. The live
+remaining order is now:
 
-1. migrate seed and runtime helpers off `WarpRuntime`
-2. migrate runtime-facing suites off `WarpRuntime`
-3. close out the remaining test/helper migration umbrella
-4. delete the `WarpRuntime` class and exports
-5. close the umbrella
+1. migrate runtime-facing suites off `WarpRuntime`
+2. close out the remaining test/helper migration umbrella
+3. delete the `WarpRuntime` class and exports
+4. close the umbrella
 
 This umbrella closes only after that executable delete lands.

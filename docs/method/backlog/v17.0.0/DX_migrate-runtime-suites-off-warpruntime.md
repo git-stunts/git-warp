@@ -1,7 +1,6 @@
 ---
 id: DX_migrate-runtime-suites-off-warpruntime
-blocked_by:
-  - DX_migrate-seed-and-runtime-helpers-off-warpruntime
+blocked_by: []
 blocks:
   - DX_migrate-tests-and-seed-helpers-off-warpruntime
 feature: testing-quality
@@ -9,8 +8,8 @@ feature: testing-quality
 
 # Migrate runtime-facing suites off WarpRuntime
 
-After helper and seed surfaces stop reopening the runtime class, the remaining
-residue is the broad test suite itself:
+Helper and seed surfaces no longer reopen the runtime class. The remaining
+residue is now the broad test suite itself:
 
 - `test/unit/domain/WarpGraph*.test.ts`
 - runtime-facing service and infrastructure tests
