@@ -40,12 +40,12 @@ dependency graph and likely write-surface overlap.
 | `1` | `B1` | 4 | 31 | Root backlog classification and maintenance |
 | `2` | `B2` | 9 | 143 | Invariant debt paydown |
 | `3.0` | `B3` | 7 | 30 | Ready-now v17 foundations and independent release hygiene |
-| `3.1` | `B3` | 2 | 8 | Downstream v17 runtime split work |
+| `3.1` | `B3` | 2 | 7 | Downstream v17 runtime split work |
 | `3.x` parked | `B3` | 1 | 6 | Launch-prep proof and package tail |
 | `4` | `B4` | 9 | 43 | v18 substrate cut plus current `up-next/` queue |
 | `5` | `B5` | 3 | 11 | v19 observer/admission/runtime convergence |
 | `6` | `B6` | 10 | 100 | v20/v21 horizon plus speculative orbit |
-| Grand total | all | 46 | 377 | Full live backlog |
+| Grand total | all | 46 | 376 | Full live backlog |
 
 ## Wave 0 — Intake
 
@@ -102,7 +102,7 @@ work above.
 
 | Workload | Count | Items | Agent surface | Preconditions |
 |----------|------:|-------|---------------|---------------|
-| `WL-37-v17-god-to-api-runtime-split` | 6 | `GOD_query-builder`, `GOD_query-controller`, `GOD_materialize-controller`, `GOD_strand-service`, `API_migrate-consumers-to-capabilities`, `DX_warpapp-deprecation-warning` | God-object decomposition and final `WarpRuntime` kill chain | `WL-30`, `WL-33` |
+| `WL-37-v17-god-to-api-runtime-split` | 5 | `GOD_query-controller`, `GOD_materialize-controller`, `GOD_strand-service`, `API_migrate-consumers-to-capabilities`, `DX_warpapp-deprecation-warning` | God-object decomposition and final runtime/API split cleanup | `WL-30`, `WL-33` |
 | `WL-38-v17-host-bag-residue` | 2 | `SLUDGE_host-bag-injection`, `PORT_runtime-helper-wrapper-seams` | Host-bag and runtime-helper wrapper residue | `WL-30` |
 
 ## Wave 3.x — Parked `v17.0.0` Tail
@@ -171,7 +171,7 @@ The partition is exhaustive and non-overlapping:
 - Wave `1`: `31`
 - Wave `2`: `143`
 - Wave `3.0`: `30`
-- Wave `3.1`: `8`
+- Wave `3.1`: `7`
 - Wave `3.x`: `6`
 - Wave `4`: `43`
 - Wave `5`: `11`
@@ -179,7 +179,7 @@ The partition is exhaustive and non-overlapping:
 
 Total:
 
-- `5 + 31 + 143 + 30 + 8 + 6 + 43 + 11 + 100 = 377`
+- `5 + 31 + 143 + 30 + 7 + 6 + 43 + 11 + 100 = 376`
 
 Every live backlog note is covered exactly once.
 
