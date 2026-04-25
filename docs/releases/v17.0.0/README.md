@@ -106,10 +106,11 @@ LAYER 3:
                                           Cycle 0073 then deleted the
                                           `_internal.ts` compatibility shim.
                                           Cycle 0074 resplit the exposed
-                                          remainder around the actual final
-                                          order:
-                                          `API_delete-openwarpruntime-bridge`
-                                          → `PORT_delete-warpcore-runtime-bridge`
+                                          remainder, and cycle 0075 then
+                                          completed the `openWarpGraph()`
+                                          bridge cut. The live remaining
+                                          order is now:
+                                          `PORT_delete-warpcore-runtime-bridge`
                                           → `API_delete-warpruntime-class`
                                           → `API_kill-warpruntime`
 

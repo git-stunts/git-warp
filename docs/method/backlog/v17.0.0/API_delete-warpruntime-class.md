@@ -1,7 +1,6 @@
 ---
 id: API_delete-warpruntime-class
 blocked_by:
-  - API_delete-openwarpruntime-bridge
   - PORT_delete-warpcore-runtime-bridge
 blocks:
   - API_kill-warpruntime
@@ -20,4 +19,3 @@ honest:
 - migrate tests, helpers, and adapters that still import `WarpRuntime`
 
 This is the final executable delete cut, not the old umbrella.
-

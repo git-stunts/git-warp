@@ -23,9 +23,15 @@ surface:
 
 What remains is now explicitly split:
 
-- `API_delete-openwarpruntime-bridge`
 - `PORT_delete-warpcore-runtime-bridge`
 - `API_delete-warpruntime-class`
+
+Cycle `0075` completed the first exposed cut:
+
+- `openWarpGraph()` no longer reaches `openWarpRuntime()`
+- `WarpGraphRuntimeBridge.ts` no longer imports `WarpRuntime`
+- the bridge now returns a structural runtime surface instead of the runtime
+  instance
 
 ## Boot migration: WarpRuntime → openWarpGraph()
 
@@ -59,11 +65,11 @@ cleared the prerequisite residue:
 - `0072` completed the controller/service host-type cut
 - `0073` deleted the `_internal.ts` compatibility shim
 
-Cycle `0074` then resplit the remaining kill around the three real remaining
-surfaces:
+Cycle `0074` resplit the exposed remainder, and cycle `0075` completed the
+first of those cuts. The live remaining order is now:
 
-1. delete the `openWarpRuntime()` bridge under `openWarpGraph()`
-2. delete the `WarpCore` runtime bridge and escape hatch
-3. delete the `WarpRuntime` class and exports
+1. delete the `WarpCore` runtime bridge and escape hatch
+2. delete the `WarpRuntime` class and exports
+3. close the umbrella
 
-This umbrella closes only after those three cuts land.
+This umbrella closes only after those two remaining cuts land.
