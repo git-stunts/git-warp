@@ -3,7 +3,7 @@ blocked_by: []
 blocks: []
 id: DX_test-gods-30-over-800
 feature: merge-strands-worldlines
-release_home: v20.0.0+
+release_home: v17.0.0
 ---
 
 # 30 test files over 800 LOC — test gods

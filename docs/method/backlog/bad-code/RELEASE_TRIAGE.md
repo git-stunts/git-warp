@@ -4,19 +4,22 @@ This note answers: when a bad-code card is paid down, which release
 lane should absorb it?
 
 The card-level `release_home` field is still the machine-readable
-metadata. This document is the human triage layer to use before the
-next metadata cleanup pass.
+metadata. This document is the human triage layer to use before future
+metadata cleanup passes.
 
 ## Current Metadata Snapshot
 
-As of this triage pass:
+After the first metadata cleanup pass:
 
 | Release Home | Count | Read |
 |--------------|------:|------|
-| `v17.0.0` | 105 | Current-engine cleanup bucket. Mostly valid, but some graph-substrate and streaming cards may move later. |
-| `v18.0.0` | 0 | No bad-code card is currently pinned here, but several graph-substrate cards fit this release thematically. |
-| `v19.0.0` | 9 | Observer/admission/runtime-doctrine cleanup. Mostly valid. |
-| `v20.0.0+` | 29 | Too vague. Split this into `v20.0.0`, `v21.0.0`, and a few earlier-release rechecks. |
+| `v17.0.0` | 100 | Current-engine cleanup bucket. Includes runtime-deletion fallout and stale-card rechecks. |
+| `v18.0.0` | 10 | Graph-substrate cards promoted out of generic v17 cleanup. |
+| `v19.0.0` | 11 | Observer/admission/runtime-doctrine cleanup. |
+| `v20.0.0` | 15 | Slice-first read, index, traversal, and materialization-cost work. |
+| `v21.0.0` | 7 | Strand, wormhole, conflict, and plural/distributed cleanup. |
+
+There should be no remaining `release_home: v20.0.0+` values.
 
 ## Triage Rule
 
@@ -44,8 +47,8 @@ v17 is the cleanup release that makes the current engine packageable:
 - current `materialization-query-index`
 - docs/DX debt needed for a credible v17 package
 
-Cards currently marked `v20.0.0+` that should be pulled forward or
-rechecked during the current `WarpRuntime` death line:
+Cards pulled forward from `v20.0.0+` for recheck during the current
+`WarpRuntime` death line:
 
 - `CAST_callInternalRuntimeMethod-escape-hatch`
 - `CAST_worldline-detached-double-cast`
@@ -67,12 +70,10 @@ Other v17 recheck candidates:
 
 ## `v18.0.0` Fit
 
-No bad-code card is currently pinned to `v18.0.0`, but that should not
-mean v18 has no debt. It means the current ledger was created before
-the graph-substrate lane hardened.
+The first metadata pass promoted only graph-substrate bad-code into
+`v18.0.0`. This should stay narrow.
 
-Candidate cards to move into v18 when we start the Echo-shaped graph
-substrate cycle:
+Cards now pinned to v18 for the Echo-shaped graph substrate cycle:
 
 - `CAST_warpstate-prop-unknown-value`: property value truth belongs with typed attachment/payload substrate decisions.
 - `MODEL_neighbor-edge-typedef`: neighbor edge shape should line up with stable edge identity and edge-record nouns.
@@ -102,14 +103,14 @@ The existing `v19.0.0` observer/admission population is mostly right:
 - `SPEC_audit-tests-vacuous-early-return`
 - `SUB_p5-serialization-on-types`
 
-Cards currently outside v19 that fit observer/admission/trust doctrine
-better than future merge/runtime work:
+Cards pulled into v19 because they fit observer/admission/trust
+doctrine better than future merge/runtime work:
 
 - `BND_schemas-refine-mutation`: trust/admission boundary validation should be pure and explicit.
 - `HEX_warpserve-domain-infra-blur`: serving/admission orchestration needs an application seam rather than domain owning I/O shape.
 - `OWN_trust-record-service-unreachable-exhausted-tails`: trust-record retry/admission tails should be proven or removed with the admission surface.
 
-Card currently in v19 that should move out:
+Card moved out of v19:
 
 - `SUB_querybuilder-match-full-scan` belongs in `v20.0.0`; it is a
   slice-first/streaming/query-cost problem, not an admission-doctrine
@@ -136,17 +137,15 @@ Cards that fit v20 clearly:
 - `SUB_incremental-index-updater-null-proto-rewrap-dead-branch`
 - `SUB_streaming-bitmap-index-builder-serialization-tail`
 
-Likely v20, but inspect before moving:
+Moved to v20 after inspection:
 
-- `SUB_bitmap-index-trio-coupling`: move to v20 if the fix is shared
-  index format and streaming/index execution; keep in v17 if it blocks
-  current index-store/package honesty.
-- `OWN_materialized-view-service-verification`: move to v20 if this
-  becomes index-verification architecture; keep in v17 if it is just a
-  current coverage/paydown slice.
-- `SPEC_dag-pathfinding-untested`: move to v20 if the test plan covers
-  external-memory/global-operator behavior; keep in v17 if it is just
-  basic correctness coverage for existing algorithms.
+- `SUB_bitmap-index-trio-coupling`: shared index format and
+  streaming/index execution should settle with the v20 cost model.
+- `OWN_materialized-view-service-verification`: index verification
+  architecture belongs with the materialized-view/read substrate.
+- `SPEC_dag-pathfinding-untested`: pathfinding is a global-operator
+  correctness surface; v20 should decide the in-memory versus
+  external-memory contract.
 
 Important distinction:
 
@@ -174,28 +173,28 @@ Cards that fit v21 clearly:
 - `OWN_conflict-analyzer-god-object`
 - `SPEC_untested-strand-services`
 
-Likely v21 after stale checks:
+Kept in v17 for stale checks before any later split:
 
-- `SPEC_test-helper-overlap`: v21 if the remaining overlap is strand,
-  braid, conflict, or wormhole fixture DSL overlap.
-- `SPEC_test-gods-30-over-800`: v21 for `StrandService`,
-  `ConflictAnalyzerService`, and merge/plurality test gods; otherwise
-  split by owning release.
+- `SPEC_test-helper-overlap`: move to v21 only if the remaining
+  overlap is strand, braid, conflict, or wormhole fixture DSL overlap.
+- `SPEC_test-gods-30-over-800`: split by owning release after the next
+  file-size inventory; `StrandService`, `ConflictAnalyzerService`, and
+  merge/plurality test gods likely belong in v21.
 
-## Recommended Metadata Pass
+## Metadata Pass Result
 
-Run the metadata cleanup in this order:
+The first metadata pass did this:
 
 1. Split every `release_home: v20.0.0+` card into a concrete release
-   or a recheck/graveyard decision. The `+` bucket is no longer useful.
-2. Move `SUB_querybuilder-match-full-scan` from `v19.0.0` to
+   or a recheck decision. The `+` bucket is no longer useful.
+2. Moved `SUB_querybuilder-match-full-scan` from `v19.0.0` to
    `v20.0.0`.
-3. Pull the direct `WarpRuntime`/Worldline escape-hatch cards forward
+3. Pulled the direct `WarpRuntime`/Worldline escape-hatch cards forward
    into v17 or graveyard them if the current runtime-deletion line
    already removed the smell.
-4. Promote only graph-substrate cards into v18. Do not move generic
+4. Promoted only graph-substrate cards into v18. Do not move generic
    typedef cleanup there just because v18 has room.
-5. Recompute bad-code release counts from frontmatter and update
+5. Recomputed bad-code release counts from frontmatter and updated
    `bad-code/README.md`.
 
 ## Attack Vector

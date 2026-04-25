@@ -3,7 +3,7 @@ id: OWN_graph-traversal-monolith
 blocked_by: []
 blocks: []
 feature: testing-quality
-release_home: v17.0.0
+release_home: v20.0.0
 ---
 
 # GraphTraversal.js has 11 algorithms in 1617 LOC

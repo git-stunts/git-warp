@@ -3,7 +3,7 @@ id: OWN_patchbuilder-churn-risk
 blocked_by: []
 blocks: []
 feature: api-capabilities
-release_home: v17.0.0
+release_home: v18.0.0
 ---
 
 # CC_patchbuilder-churn-risk

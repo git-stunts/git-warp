@@ -3,7 +3,7 @@ id: OWN_logical-traversal-facade
 blocked_by: []
 blocks: []
 feature: merge-strands-worldlines
-release_home: v20.0.0+
+release_home: v20.0.0
 ---
 
 # LogicalTraversal.js (590 LOC) is a deprecated facade with zero tests

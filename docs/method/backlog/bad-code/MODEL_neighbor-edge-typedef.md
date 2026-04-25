@@ -3,7 +3,7 @@ id: MODEL_neighbor-edge-typedef
 blocked_by: []
 blocks: []
 feature: materialization-query-index
-release_home: v17.0.0
+release_home: v18.0.0
 ---
 
 # NeighborEdge and Direction are typedef-only domain concepts

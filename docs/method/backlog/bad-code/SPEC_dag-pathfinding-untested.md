@@ -3,7 +3,7 @@ id: SPEC_dag-pathfinding-untested
 blocked_by: []
 blocks: []
 feature: testing-quality
-release_home: v17.0.0
+release_home: v20.0.0
 ---
 
 # DagPathFinding.js (705 LOC) has zero tests and 5 functions >50 LOC

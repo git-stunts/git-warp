@@ -3,7 +3,7 @@ id: OWN_warpruntime-delegation-dry
 blocked_by: []
 blocks: []
 feature: merge-strands-worldlines
-release_home: v20.0.0+
+release_home: v17.0.0
 ---
 
 # DRY up WarpRuntime delegation boilerplate
