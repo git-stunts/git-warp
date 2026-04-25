@@ -28,7 +28,8 @@ LAYER 0 (foundation):
                                           to `API_migrate-consumers-to-capabilities`
 
 LAYER 1 (god kills + conversions):
-  [x] API_warpgraph-factory              ← WORLDBUILDER (openWarpGraph + admission surface)
+  [x] API_warpgraph-factory              ← WORLDBUILDER (openWarpGraph + admission surface);
+                                          cycle 0089 retired stale live card
   [x] GOD_query-controller
   [x] GOD_materialize-controller
   [x] GOD_strand-service                 ← dissolved → coordinator + validation
@@ -91,9 +92,9 @@ LAYER 2 (the exorcism):
                                           card after the cycle 0067 bridge cut
                                           had already shipped.
                                           The consumer migration task is now
-                                          materially satisfied. The remaining
-                                          work is the `openWarpGraph()` /
-                                          `WarpRuntime` composition-root residue
+                                          materially satisfied, and the
+                                          runtime/composition-root residue
+                                          closed in the runtime-kill chain.
 
 LAYER 3:
   [x] API_kill-warpruntime               ← cycles 0066 and 0070 both proved

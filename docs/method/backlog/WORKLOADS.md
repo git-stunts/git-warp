@@ -39,13 +39,13 @@ dependency graph and likely write-surface overlap.
 | `0` | `B0` | 1 | 5 | Intake and triage |
 | `1` | `B1` | 4 | 31 | Root backlog classification and maintenance |
 | `2` | `B2` | 9 | 143 | Invariant debt paydown |
-| `3.0` | `B3` | 7 | 29 | Ready-now v17 foundations and independent release hygiene |
+| `3.0` | `B3` | 6 | 28 | Ready-now v17 foundations and independent release hygiene |
 | `3.1` | `B3` | 2 | 7 | Downstream v17 runtime split work |
 | `3.x` parked | `B3` | 1 | 6 | Launch-prep proof and package tail |
 | `4` | `B4` | 9 | 43 | v18 substrate cut plus current `up-next/` queue |
 | `5` | `B5` | 3 | 11 | v19 observer/admission/runtime convergence |
 | `6` | `B6` | 10 | 100 | v20/v21 horizon plus speculative orbit |
-| Grand total | all | 46 | 375 | Full live backlog |
+| Grand total | all | 45 | 374 | Full live backlog |
 
 ## Wave 0 — Intake
 
@@ -87,7 +87,6 @@ runtime-kill closeout chain.
 
 | Workload | Count | Items | Agent surface | Preconditions |
 |----------|------:|-------|---------------|---------------|
-| `WL-30-v17-provider-foundations` | 1 | `API_warpgraph-factory` | Provider interfaces, public factory, and runtime bridge seams | none |
 | `WL-31-v17-cas-substrate-foundation` | 4 | `INFRA_unify-persistence-on-git-cas`, `INFRA_plumbing-violations`, `INFRA_substrate-upgrade-tool`, `INFRA_uniform-git-cas` | CAS, plumbing, and substrate migration | none |
 | `WL-32-v17-purge-chain` | 4 | `PROTO_purge-cast-hacks`, `PROTO_purge-boundary-leaks`, `PROTO_purge-fake-models`, `PROTO_purge-import-law` | Anti-sludge purge chain; one owner, serial internal order | none |
 | `WL-33-v17-ts-wave-sweep` | 9 | `TS_wave-01-codec`, `TS_wave-02-trust`, `TS_wave-03-dag-provenance`, `TS_wave-04-state-query`, `TS_wave-05-controllers`, `TS_wave-06-sync`, `TS_wave-07-index-small`, `TS_wave-08-strand-index-big`, `TS_wave-09-gods-and-monsters` | Wave-based TS migration sequence | none |
@@ -97,13 +96,12 @@ runtime-kill closeout chain.
 
 ## Wave 3.1 — Downstream `v17.0.0`
 
-These are still `B3`, but they depend on the provider or TS foundation
-work above.
+These are still `B3`, but they depend on TS foundation work above.
 
 | Workload | Count | Items | Agent surface | Preconditions |
 |----------|------:|-------|---------------|---------------|
-| `WL-37-v17-god-to-api-runtime-split` | 5 | `GOD_query-controller`, `GOD_materialize-controller`, `GOD_strand-service`, `API_migrate-consumers-to-capabilities`, `DX_warpapp-deprecation-warning` | God-object decomposition and final runtime/API split cleanup | `WL-30`, `WL-33` |
-| `WL-38-v17-host-bag-residue` | 2 | `SLUDGE_host-bag-injection`, `PORT_runtime-helper-wrapper-seams` | Host-bag and runtime-helper wrapper residue | `WL-30` |
+| `WL-37-v17-god-to-api-runtime-split` | 5 | `GOD_query-controller`, `GOD_materialize-controller`, `GOD_strand-service`, `API_migrate-consumers-to-capabilities`, `DX_warpapp-deprecation-warning` | God-object decomposition and final runtime/API split cleanup | `WL-33` |
+| `WL-38-v17-host-bag-residue` | 2 | `SLUDGE_host-bag-injection`, `PORT_runtime-helper-wrapper-seams` | Host-bag and runtime-helper wrapper residue | none |
 
 ## Wave 3.x — Parked `v17.0.0` Tail
 
@@ -170,7 +168,7 @@ The partition is exhaustive and non-overlapping:
 - Wave `0`: `5`
 - Wave `1`: `31`
 - Wave `2`: `143`
-- Wave `3.0`: `29`
+- Wave `3.0`: `28`
 - Wave `3.1`: `7`
 - Wave `3.x`: `6`
 - Wave `4`: `43`
@@ -179,7 +177,7 @@ The partition is exhaustive and non-overlapping:
 
 Total:
 
-- `5 + 31 + 143 + 29 + 7 + 6 + 43 + 11 + 100 = 375`
+- `5 + 31 + 143 + 28 + 7 + 6 + 43 + 11 + 100 = 374`
 
 Every live backlog note is covered exactly once.
 

@@ -30,6 +30,7 @@ describe('capability consumer migration closeout', () => {
   it('marks consumer migration done in the v17 release ledger', () => {
     expect(releaseLedger).toContain('[x] API_migrate-consumers-to-capabilities');
     expect(releaseLedger).toContain('The consumer migration task is now');
-    expect(releaseLedger).toContain('composition-root residue');
+    expect(releaseLedger).toContain('runtime/composition-root residue');
+    expect(releaseLedger).not.toContain('`WarpRuntime` composition-root residue');
   });
 });

@@ -6,8 +6,8 @@ const capabilityNotePath = join(
   process.cwd(),
   'docs/method/backlog/v17.0.0/API_capability-interfaces.md',
 );
-const factoryNote = readFileSync(
-  join(process.cwd(), 'docs/method/backlog/v17.0.0/API_warpgraph-factory.md'),
+const factoryCycle = readFileSync(
+  join(process.cwd(), 'docs/design/0089-close-warpgraph-factory.md'),
   'utf8',
 );
 const queryControllerNote = readFileSync(
@@ -29,7 +29,8 @@ describe('capability interfaces closeout', () => {
   });
 
   it('unblocks downstream v17 notes from the stale foundation card', () => {
-    expect(factoryNote).not.toContain('API_capability-interfaces');
+    expect(factoryCycle).toContain('The stale `API_warpgraph-factory` card is removed');
+    expect(factoryCycle).not.toContain('API_capability-interfaces');
     expect(queryControllerNote).not.toContain('API_capability-interfaces');
     expect(strandServiceNote).not.toContain('API_capability-interfaces');
   });
