@@ -110,8 +110,12 @@ LAYER 3:
                                           completed the `openWarpGraph()`
                                           bridge cut. Cycle 0076 then
                                           completed the `WarpCore` bridge
-                                          cut. The live remaining order is now:
-                                          `API_delete-warpruntime-class`
+                                          cut. Cycle 0077 then proved the
+                                          class delete is still internally
+                                          split. The live remaining order is now:
+                                          `PORT_extract-runtime-host-product`
+                                          → `DX_migrate-tests-and-seed-helpers-off-warpruntime`
+                                          → `API_delete-warpruntime-class`
                                           → `API_kill-warpruntime`
 
 LAYER 4 (launch-prep only; park until the repo is otherwise ready to ship):
