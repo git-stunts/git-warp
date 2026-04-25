@@ -40,12 +40,12 @@ dependency graph and likely write-surface overlap.
 | `1` | `B1` | 4 | 31 | Root backlog classification and maintenance |
 | `2` | `B2` | 8 | 139 | Invariant debt paydown |
 | `3.0` | `B3` | 4 | 20 | Ready-now release foundations |
-| `3.1` | `B3` | 3 | 23 | Downstream release workstreams |
+| `3.1` | `B3` | 3 | 22 | Downstream release workstreams |
 | `4` | `B4` | 9 | 60 | Next-major substrate cut plus near-term queue |
 | `5` | `B5` | 9 | 98 | Doctrine follow-through plus speculative orbit |
-| Total | all | 38 | 376 | Subtotal before parked workloads |
+| Total | all | 38 | 375 | Subtotal before parked workloads |
 | `3.x` parked | `B3` | 1 | 6 | Launch-prep proof and package tail |
-| Grand total | all | 39 | 382 | Full live backlog |
+| Grand total | all | 39 | 381 | Full live backlog |
 
 ## Wave 0 — Intake Antichain
 
@@ -98,7 +98,7 @@ dependency check before staffing.
 | Workload | Count | Items | Preconditions |
 |----------|------:|-------|---------------|
 | `WL-36-v17-cross-residue-sludge` | 1 | `SLUDGE_host-bag-injection` | Follows `WL-30-v17-capability-provider-seams` |
-| `WL-37-v17-god-to-api-runtime-split` | 11 | `GOD_query-builder`, `GOD_query-controller`, `GOD_materialize-controller`, `GOD_strand-service`, `API_warpgraph-factory`, `API_migrate-consumers-to-capabilities`, `DX_migrate-seed-and-runtime-helpers-off-warpruntime`, `DX_migrate-runtime-suites-off-warpruntime`, `DX_migrate-tests-and-seed-helpers-off-warpruntime`, `API_delete-warpruntime-class`, `API_kill-warpruntime` | Follows `WL-30`, `WL-33`, and `WL-34` |
+| `WL-37-v17-god-to-api-runtime-split` | 10 | `GOD_query-builder`, `GOD_query-controller`, `GOD_materialize-controller`, `GOD_strand-service`, `API_warpgraph-factory`, `API_migrate-consumers-to-capabilities`, `DX_migrate-runtime-suites-off-warpruntime`, `DX_migrate-tests-and-seed-helpers-off-warpruntime`, `API_delete-warpruntime-class`, `API_kill-warpruntime` | Follows `WL-30`, `WL-33`, and `WL-34` |
 | `WL-38-v17-shadow-trie-materialization-core` | 5 | `PROTO_orsetlike-contract`, `PROTO_shadow-trie-orset`, `PROTO_trie-compaction`, `PROTO_state-session-async`, `PROTO_gc-state-session` | Remaining shadow-trie engine and async-firewall follow-through after the checkpoint/snapshot unification cycle landed |
 
 ## Wave 3.x — Parked `B3` Tail
@@ -154,14 +154,14 @@ The partition is exhaustive and non-overlapping:
 - Wave `1`: `31`
 - Wave `2`: `139`
 - Wave `3.0`: `20`
-- Wave `3.1`: `23`
+- Wave `3.1`: `22`
 - Wave `3.x`: `6`
 - Wave `4`: `60`
 - Wave `5`: `98`
 
 Total:
 
-- `5 + 31 + 139 + 20 + 23 + 6 + 60 + 98 = 382`
+- `5 + 31 + 139 + 20 + 22 + 6 + 60 + 98 = 381`
 
 Every live backlog note is covered exactly once.
 
