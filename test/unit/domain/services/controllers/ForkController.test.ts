@@ -12,11 +12,11 @@ vi.mock('../../../../../src/domain/services/WormholeService.ts', () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// WarpRuntime mock (dynamic import in fork())
+// Runtime host product mock
 // ---------------------------------------------------------------------------
 const mockRuntimeOpen = vi.fn();
-vi.mock('../../../../../src/domain/WarpRuntime.ts', () => ({
-  default: { open: (/** @type {any[]} */ ...args) => mockRuntimeOpen(...args) },
+vi.mock('../../../../../src/domain/warp/RuntimeHostProduct.ts', () => ({
+  openRuntimeHostProduct: (/** @type {any[]} */ ...args) => mockRuntimeOpen(...args),
 }));
 
 // ---------------------------------------------------------------------------
@@ -111,7 +111,7 @@ describe('ForkController', () => {
       const expectedRef = buildWriterRef('my-fork', 'fork-writer');
       expect(host._persistence.updateRef).toHaveBeenCalledWith(expectedRef, 'base-sha');
 
-      // WarpRuntime.open was called with correct graphName + writerId
+      // host-product opener was called with correct graphName + writerId
       expect(mockRuntimeOpen).toHaveBeenCalledOnce();
       const openArgs = (mockRuntimeOpen.mock.calls[0] as any)[0];
       expect(openArgs.graphName).toBe('my-fork');

@@ -12,9 +12,13 @@ import { CHECKPOINT_SCHEMA_STANDARD, CHECKPOINT_SCHEMA_V5_INTERMEDIATE } from '.
 import { validateGraphName, validateWriterId, buildWriterRef, buildWritersPrefix } from '../../utils/RefLayout.ts';
 import { generateWriterId } from '../../utils/WriterId.ts';
 import { createWormhole as createWormholeImpl } from '../WormholeService.js';
+import { openRuntimeHostProduct } from '../../warp/RuntimeHostProduct.ts';
 import type ProvenancePayload from '../provenance/ProvenancePayload.ts';
 import type { LoadedCheckpoint } from '../state/checkpointLoad.ts';
-import type { openWarpRuntime as openWarpRuntimeSurface } from '../../WarpRuntime.ts';
+import type {
+  RuntimeHostOpenOptions,
+  RuntimeHostProduct,
+} from '../../warp/RuntimeHostProduct.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
@@ -24,8 +28,8 @@ import type GCPolicy from '../GCPolicy.ts';
 
 const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
 const HEX_CHARS = '0123456789abcdef';
-type ForkRuntimeOpenOptions = Parameters<typeof openWarpRuntimeSurface>[0];
-type ForkedGraph = Awaited<ReturnType<typeof openWarpRuntimeSurface>>;
+type ForkRuntimeOpenOptions = RuntimeHostOpenOptions;
+type ForkedGraph = RuntimeHostProduct;
 type ForkPersistence = ForkRuntimeOpenOptions['persistence'];
 
 /** Generates an 8-char hex suffix using crypto-grade randomness. */
@@ -147,13 +151,9 @@ export default class ForkController {
     const forkWriterRef = buildWriterRef(resolvedForkName, resolvedForkWriterId);
     await host._persistence.updateRef(forkWriterRef, at);
 
-    // Dynamic import keeps the controller off the runtime class while
-    // still avoiding the constructor-time module cycle.
-    const runtimeModule = await import('../../WarpRuntime.ts');
-
     let forkGraph: ForkedGraph;
     try {
-      forkGraph = await runtimeModule.openWarpRuntime({
+      forkGraph = await openRuntimeHostProduct({
         persistence: host._persistence,
         graphName: resolvedForkName,
         writerId: resolvedForkWriterId,

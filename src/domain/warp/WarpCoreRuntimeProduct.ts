@@ -1,46 +1,45 @@
-import { openWarpRuntime } from '../WarpRuntime.ts';
-
 import type SeekCachePort from '../../ports/SeekCachePort.ts';
-import type CryptoPort from '../../ports/CryptoPort.ts';
 import type { EffectPipeline } from '../services/EffectPipeline.ts';
-import type { WarpRuntimeOpenOptions } from './WarpRuntimeBoot.ts';
 import type { WarpGraphRuntimeSurface } from './WarpGraphRuntimeProduct.ts';
+import { openRuntimeHostProduct } from './RuntimeHostProduct.ts';
+import type {
+  RuntimeHostOpenOptions,
+  RuntimeHostProduct,
+} from './RuntimeHostProduct.ts';
 
-type RuntimeBacker = Awaited<ReturnType<typeof openWarpRuntime>>;
-
-export type WarpCoreOpenOptions = WarpRuntimeOpenOptions;
-export type StrandCreateOptions = Parameters<RuntimeBacker['createStrand']>[0];
-export type StrandDescriptor = Awaited<ReturnType<RuntimeBacker['createStrand']>>;
-export type StrandBraidOptions = Parameters<RuntimeBacker['braidStrand']>[1];
-export type StrandMaterializeOptions = Parameters<RuntimeBacker['materializeStrand']>[1];
-export type StrandMaterializeResult = Awaited<ReturnType<RuntimeBacker['materializeStrand']>>;
-export type StrandPatchEntry = Awaited<ReturnType<RuntimeBacker['getStrandPatches']>>[number];
+export type WarpCoreOpenOptions = RuntimeHostOpenOptions;
+export type StrandCreateOptions = Parameters<RuntimeHostProduct['createStrand']>[0];
+export type StrandDescriptor = Awaited<ReturnType<RuntimeHostProduct['createStrand']>>;
+export type StrandBraidOptions = Parameters<RuntimeHostProduct['braidStrand']>[1];
+export type StrandMaterializeOptions = Parameters<RuntimeHostProduct['materializeStrand']>[1];
+export type StrandMaterializeResult = Awaited<ReturnType<RuntimeHostProduct['materializeStrand']>>;
+export type StrandPatchEntry = Awaited<ReturnType<RuntimeHostProduct['getStrandPatches']>>[number];
 export type StrandPatchListOptions = { ceiling?: number | null };
-export type StrandIntentDescriptor = Awaited<ReturnType<RuntimeBacker['queueStrandIntent']>>;
-export type StrandTickRecord = Awaited<ReturnType<RuntimeBacker['tickStrand']>>;
-export type CompareStrandOptions = Parameters<RuntimeBacker['compareStrand']>[1];
-export type CoordinateComparisonV1 = Awaited<ReturnType<RuntimeBacker['compareCoordinates']>>;
-export type PlanStrandTransferOptions = Parameters<RuntimeBacker['planStrandTransfer']>[1];
-export type CoordinateTransferPlanV1 = Awaited<ReturnType<RuntimeBacker['planCoordinateTransfer']>>;
-export type CompareCoordinatesOptions = Parameters<RuntimeBacker['compareCoordinates']>[0];
-export type PlanCoordinateTransferOptions = Parameters<RuntimeBacker['planCoordinateTransfer']>[0];
-export type ConflictAnalyzeOptions = Parameters<RuntimeBacker['analyzeConflicts']>[0];
-export type ConflictAnalysis = Awaited<ReturnType<RuntimeBacker['analyzeConflicts']>>;
+export type StrandIntentDescriptor = Awaited<ReturnType<RuntimeHostProduct['queueStrandIntent']>>;
+export type StrandTickRecord = Awaited<ReturnType<RuntimeHostProduct['tickStrand']>>;
+export type CompareStrandOptions = Parameters<RuntimeHostProduct['compareStrand']>[1];
+export type CoordinateComparisonV1 = Awaited<ReturnType<RuntimeHostProduct['compareCoordinates']>>;
+export type PlanStrandTransferOptions = Parameters<RuntimeHostProduct['planStrandTransfer']>[1];
+export type CoordinateTransferPlanV1 = Awaited<ReturnType<RuntimeHostProduct['planCoordinateTransfer']>>;
+export type CompareCoordinatesOptions = Parameters<RuntimeHostProduct['compareCoordinates']>[0];
+export type PlanCoordinateTransferOptions = Parameters<RuntimeHostProduct['planCoordinateTransfer']>[0];
+export type ConflictAnalyzeOptions = Parameters<RuntimeHostProduct['analyzeConflicts']>[0];
+export type ConflictAnalysis = Awaited<ReturnType<RuntimeHostProduct['analyzeConflicts']>>;
 
 export type WarpCoreRuntimeSurface = WarpGraphRuntimeSurface & {
-  readonly traverse: RuntimeBacker['traverse'];
-  readonly persistence: RuntimeBacker['persistence'];
-  readonly onDeleteWithData: RuntimeBacker['onDeleteWithData'];
-  readonly gcPolicy: RuntimeBacker['gcPolicy'];
+  readonly traverse: RuntimeHostProduct['traverse'];
+  readonly persistence: RuntimeHostProduct['persistence'];
+  readonly onDeleteWithData: RuntimeHostProduct['onDeleteWithData'];
+  readonly gcPolicy: RuntimeHostProduct['gcPolicy'];
   readonly seekCache: SeekCachePort | null;
   setSeekCache(cache: SeekCachePort | null): void;
-  readonly fork: RuntimeBacker['fork'];
-  readonly createWormhole: RuntimeBacker['createWormhole'];
+  readonly fork: RuntimeHostProduct['fork'];
+  readonly createWormhole: RuntimeHostProduct['createWormhole'];
   _effectPipeline: EffectPipeline | null;
-  readonly _crypto: CryptoPort;
+  readonly _crypto: RuntimeHostProduct['_crypto'];
 };
 
-export function buildWarpCoreRuntimeSurface(runtime: RuntimeBacker): WarpCoreRuntimeSurface {
+export function buildWarpCoreRuntimeSurface(runtime: RuntimeHostProduct): WarpCoreRuntimeSurface {
   const surface: WarpCoreRuntimeSurface = {
     graphName: runtime.graphName,
     writerId: runtime.writerId,
@@ -155,6 +154,6 @@ export function buildWarpCoreRuntimeSurface(runtime: RuntimeBacker): WarpCoreRun
 export async function openWarpCoreRuntimeProduct(
   options: WarpCoreOpenOptions,
 ): Promise<WarpCoreRuntimeSurface> {
-  const runtime = await openWarpRuntime(options);
+  const runtime = await openRuntimeHostProduct(options);
   return buildWarpCoreRuntimeSurface(runtime);
 }
