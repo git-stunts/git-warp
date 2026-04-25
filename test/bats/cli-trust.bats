@@ -61,10 +61,8 @@ PY
   # Add an untrusted writer "bob"
   cd "${PROJECT_ROOT}"
   REPO_PATH="${TEST_REPO}" node -e "
-    import('./test/bats/helpers/seed-setup.js').then(async ({ WarpRuntime, persistence, crypto }) => {
-      const g = await WarpRuntime.open({
-        persistence, graphName: 'demo', writerId: 'bob', crypto,
-      });
+    import('./test/bats/helpers/seed-setup.js').then(async ({ openGraph }) => {
+      const g = await openGraph('demo', 'bob');
       const p = await g.createPatch();
       await p.addNode('user:eve').commit();
     });
@@ -90,10 +88,8 @@ PY
   # Add an untrusted writer "bob"
   cd "${PROJECT_ROOT}"
   REPO_PATH="${TEST_REPO}" node -e "
-    import('./test/bats/helpers/seed-setup.js').then(async ({ WarpRuntime, persistence, crypto }) => {
-      const g = await WarpRuntime.open({
-        persistence, graphName: 'demo', writerId: 'bob', crypto,
-      });
+    import('./test/bats/helpers/seed-setup.js').then(async ({ openGraph }) => {
+      const g = await openGraph('demo', 'bob');
       const p = await g.createPatch();
       await p.addNode('user:eve').commit();
     });

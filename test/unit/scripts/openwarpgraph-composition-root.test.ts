@@ -22,13 +22,13 @@ const runtimeHostProductSource = readFileSync(
   'utf8',
 );
 
-const warpRuntimeSource = readFileSync(
-  fileURLToPath(new URL('../../../src/domain/WarpRuntime.ts', import.meta.url)),
+const runtimeHostSource = readFileSync(
+  fileURLToPath(new URL('../../../src/domain/RuntimeHost.ts', import.meta.url)),
   'utf8',
 );
 
-const warpRuntimeBootSource = readFileSync(
-  fileURLToPath(new URL('../../../src/domain/warp/WarpRuntimeBoot.ts', import.meta.url)),
+const runtimeHostBootSource = readFileSync(
+  fileURLToPath(new URL('../../../src/domain/warp/RuntimeHostBoot.ts', import.meta.url)),
   'utf8',
 );
 
@@ -48,14 +48,14 @@ describe('openWarpGraph composition root', () => {
   it('routes source-side runtime product boot through the shared host seam', () => {
     expect(warpGraphBridgeSource).not.toContain("from '../WarpRuntime.ts'");
     expect(warpCoreProductSource).not.toContain("from '../WarpRuntime.ts'");
-    expect(runtimeHostProductSource).toContain("await import('../WarpRuntime.ts')");
-    expect(runtimeHostProductSource).toContain('runtimeModule.openWarpRuntime(options)');
+    expect(runtimeHostProductSource).toContain("from '../RuntimeHost.ts'");
+    expect(runtimeHostProductSource).toContain('return await openRuntimeHost(options)');
   });
 
   it('routes boot orchestration through the dedicated runtime boot module', () => {
-    expect(warpRuntimeSource).toContain("from './warp/WarpRuntimeBoot.ts'");
-    expect(warpRuntimeSource).toContain('resolveWarpRuntimeConstructionOptions');
-    expect(warpRuntimeSource).toContain('return await openWarpRuntime(options);');
-    expect(warpRuntimeBootSource).toContain('export async function resolveWarpRuntimeConstructionOptions(');
+    expect(runtimeHostSource).toContain("from './warp/RuntimeHostBoot.ts'");
+    expect(runtimeHostSource).toContain('resolveRuntimeHostConstructionOptions');
+    expect(runtimeHostSource).toContain('return await openRuntimeHost(options);');
+    expect(runtimeHostBootSource).toContain('export async function resolveRuntimeHostConstructionOptions(');
   });
 });

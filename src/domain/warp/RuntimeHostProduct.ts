@@ -28,7 +28,8 @@ import type { CorePersistence } from '../types/WarpPersistence.ts';
 import type VersionVector from '../crdt/VersionVector.ts';
 import type Patch from '../types/Patch.ts';
 import type WarpState from '../services/state/WarpState.ts';
-import type { WarpRuntimeOpenOptions } from './WarpRuntimeBoot.ts';
+import type { RuntimeHostOpenOptions as RuntimeHostBootOpenOptions } from './RuntimeHostBoot.ts';
+import { openRuntimeHost } from '../RuntimeHost.ts';
 
 export type RuntimeCapabilitySurface =
   QueryCapability &
@@ -46,7 +47,7 @@ export type RuntimeGraphHostProduct = RuntimeCapabilitySurface & {
   readonly writerId: string;
 };
 
-export type RuntimeHostOpenOptions = WarpRuntimeOpenOptions;
+export type RuntimeHostOpenOptions = RuntimeHostBootOpenOptions;
 
 export type RuntimeForkRequest = {
   from: string;
@@ -142,6 +143,5 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
 export async function openRuntimeHostProduct(
   options: RuntimeHostOpenOptions,
 ): Promise<RuntimeHostProduct> {
-  const runtimeModule = await import('../WarpRuntime.ts');
-  return await runtimeModule.openWarpRuntime(options);
+  return await openRuntimeHost(options);
 }

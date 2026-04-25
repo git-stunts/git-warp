@@ -2,8 +2,7 @@
 id: API_kill-warpruntime
 blocks:
   - TS_publish-pipeline
-blocked_by:
-  - API_delete-warpruntime-class
+blocked_by: []
 feature: api-capabilities
 ---
 
@@ -21,9 +20,9 @@ surface:
 - `runtimeWiring.ts` and `_wiredMethods.d.ts` are gone
 - the old defineProperty delegation surface is gone
 
-What remains is now explicitly split:
-
-- `API_delete-warpruntime-class`
+The class-delete cut is done. Cycle `0083` renamed the remaining internal host
+to `RuntimeHost`, removed `openWarpRuntime()` / `getWarpRuntimePrototype()`,
+and routed CLI/runtime product boot through the explicit host-product seam.
 
 Cycle `0075` completed the first exposed cut:
 
@@ -71,10 +70,10 @@ bridge cut, cycle `0076` then completed the `WarpCore` bridge cut, cycle
 cycle `0080` then completed the helper/seed half of that split, and cycle
 `0081` then completed the runtime-facing suite half of that split. Finally,
 cycle `0082` then closed the test/helper migration umbrella by proving both
-ratchets and deleting the completed backlog card. The live remaining order is
-now:
+ratchets and deleting the completed backlog card. Cycle `0083` then deleted
+the old `WarpRuntime` class/file/open-function residue. The live remaining
+order is now:
 
-1. delete the `WarpRuntime` class and exports
-2. close the umbrella
+1. close the umbrella
 
-This umbrella closes only after that executable delete lands.
+This umbrella closes after the final ledger/count cleanup lands.

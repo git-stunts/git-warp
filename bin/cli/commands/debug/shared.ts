@@ -15,11 +15,11 @@ import { notFoundError } from '../../infrastructure.ts';
 
 import type { CliOptions, WarpGraphInstance, Persistence, CursorBlob } from '../../types.ts';
 import type WarpCore from '../../../../src/domain/WarpCore.ts';
-import type WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
+import type { RuntimeHostProduct } from '../../../../src/domain/warp/RuntimeHostProduct.ts';
 import type Patch from '../../../../src/domain/types/Patch.ts';
 import type { StrandDescriptor } from '../../../../src/domain/types/StrandDescriptor.ts';
 
-type WarpCoreRuntime = WarpCore & WarpRuntime;
+type WarpCoreRuntime = WarpCore & RuntimeHostProduct;
 
 /**
  * Opens a graph with debug context including cursor state for exploratory analysis.

@@ -1,6 +1,6 @@
 import WebCryptoAdapter from '../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import type { CorePersistence } from '../../../src/domain/types/WarpPersistence.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import {
   buildCheckpointRef,
   buildCoverageRef,
@@ -59,7 +59,7 @@ async function getGraphInfo(persistence: Persistence, graphName: string, {
   }
 
   if (includeWriterPatches && writerIds.length > 0) {
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence: persistence as unknown as CorePersistence,
       graphName,
       writerId: 'cli',

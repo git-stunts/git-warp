@@ -1,8 +1,8 @@
-import type WarpRuntime from '../../src/domain/WarpRuntime.ts';
 import type GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.ts';
+import type { RuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
 
 export type Persistence = GitGraphAdapter;
-export type WarpGraphInstance = WarpRuntime;
+export type WarpGraphInstance = RuntimeHostProduct;
 
 export type WriterTickInfo = {
   ticks: number[];

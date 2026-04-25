@@ -38,7 +38,7 @@ import type { GCPolicyConfig } from '../services/GCPolicy.ts';
 import type GCPolicy from '../services/GCPolicy.ts';
 import type { MaterializeSessionOpener } from '../services/controllers/MaterializeSessionBridge.ts';
 
-export type WarpRuntimeConstructionOptions = {
+export type RuntimeHostConstructionOptions = {
   persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
   graphName: string;
   writerId: string;
@@ -67,7 +67,7 @@ export type WarpRuntimeConstructionOptions = {
   openStateSession?: MaterializeSessionOpener;
 };
 
-export type WarpRuntimeOpenOptions = {
+export type RuntimeHostOpenOptions = {
   persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
   graphName: string;
   writerId: string;
@@ -104,7 +104,7 @@ export type RuntimeBooted<T extends RuntimeMigrationBoundary> = {
   normalizedTrust: NormalizedTrustConfig;
 };
 
-export async function resolveWarpRuntimeConstructionOptions({
+export async function resolveRuntimeHostConstructionOptions({
   persistence,
   graphName,
   writerId,
@@ -130,8 +130,8 @@ export async function resolveWarpRuntimeConstructionOptions({
   effectSinks,
   externalizationPolicy,
   openStateSession,
-}: WarpRuntimeOpenOptions): Promise<{
-  options: WarpRuntimeConstructionOptions;
+}: RuntimeHostOpenOptions): Promise<{
+  options: RuntimeHostConstructionOptions;
   normalizedTrust: NormalizedTrustConfig;
 }> {
   validateGraphName(graphName);

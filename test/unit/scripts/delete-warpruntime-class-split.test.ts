@@ -1,13 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const classDeleteNote = readFileSync(
-  join(process.cwd(), 'docs/method/backlog/v17.0.0/API_delete-warpruntime-class.md'),
+const classDeleteNotePath = join(
+  process.cwd(),
+  'docs/method/backlog/v17.0.0/API_delete-warpruntime-class.md',
+);
+const runtimeHostSource = readFileSync(
+  join(process.cwd(), 'src/domain/RuntimeHost.ts'),
   'utf8',
 );
-const closeoutCycle = readFileSync(
-  join(process.cwd(), 'docs/design/0082-close-warpruntime-test-helper-migration.md'),
+const runtimeFilePath = join(process.cwd(), 'src/domain/WarpRuntime.ts');
+const runtimeKillNote = readFileSync(
+  join(process.cwd(), 'docs/method/backlog/v17.0.0/API_kill-warpruntime.md'),
+  'utf8',
+);
+const classDeleteCycle = readFileSync(
+  join(process.cwd(), 'docs/design/0083-delete-runtime-host-class-name.md'),
   'utf8',
 );
 const releaseLedger = readFileSync(
@@ -16,17 +25,21 @@ const releaseLedger = readFileSync(
 );
 
 describe('delete warpruntime class split', () => {
-  it('unblocks the class delete note after the test/helper closeout', () => {
-    expect(classDeleteNote).toContain('blocked_by: []');
-    expect(classDeleteNote).not.toContain('- PORT_extract-runtime-host-product');
-    expect(classDeleteNote).not.toContain('DX_migrate-tests-and-seed-helpers-off-warpruntime');
-    expect(classDeleteNote).toContain('remove `WarpRuntime` as the public/internal graph product');
+  it('deletes the old class source and opener residue', () => {
+    expect(existsSync(runtimeFilePath)).toBe(false);
+    expect(existsSync(classDeleteNotePath)).toBe(false);
+    expect(runtimeHostSource).toContain('export default class RuntimeHost');
+    expect(runtimeHostSource).toContain('export async function openRuntimeHost(');
+    expect(runtimeHostSource).not.toContain('export default class WarpRuntime');
+    expect(runtimeHostSource).not.toContain('openWarpRuntime(');
+    expect(runtimeHostSource).not.toContain('getWarpRuntimePrototype');
   });
 
-  it('records that the test-helper closeout gate closed', () => {
-    expect(closeoutCycle).toContain('helper and suite ratchets prove test/helper surfaces');
-    expect(closeoutCycle).toContain('The next actionable v17 runtime-kill item is now');
-    expect(closeoutCycle).toContain('`API_delete-warpruntime-class`');
+  it('unblocks the umbrella closeout after the class delete', () => {
+    expect(runtimeKillNote).toContain('blocked_by: []');
+    expect(runtimeKillNote).toContain('Cycle `0083` renamed the remaining internal host');
+    expect(runtimeKillNote).not.toContain('- API_delete-warpruntime-class');
+    expect(classDeleteCycle).toContain('The active source tree no longer contains `src/domain/WarpRuntime.ts`');
   });
 
   it('records the reduced remaining order in the v17 release ledger', () => {
@@ -34,9 +47,11 @@ describe('delete warpruntime class split', () => {
     expect(releaseLedger).toContain('Cycle 0079 then proved');
     expect(releaseLedger).toContain('Cycle 0080 then completed');
     expect(releaseLedger).toMatch(/Cycle\s+0082 then closed/);
+    expect(releaseLedger).toMatch(/Cycle\s+0083 then deleted/);
     expect(releaseLedger).not.toContain('`DX_migrate-seed-and-runtime-helpers-off-warpruntime`');
     expect(releaseLedger).not.toContain('`DX_migrate-runtime-suites-off-warpruntime`');
-    expect(releaseLedger).toContain('`API_delete-warpruntime-class`');
+    expect(releaseLedger).not.toContain('`API_delete-warpruntime-class`');
+    expect(releaseLedger).toContain('`API_kill-warpruntime`');
     expect(releaseLedger).not.toContain('`PORT_extract-runtime-host-product`');
   });
 });

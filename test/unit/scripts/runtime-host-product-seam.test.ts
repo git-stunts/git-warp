@@ -20,8 +20,8 @@ const warpCoreProductSource = readFileSync(
 describe('runtime host product seam', () => {
   it('introduces one explicit host-product opener that owns the runtime boot call', () => {
     expect(runtimeHostProductSource).toContain('export async function openRuntimeHostProduct(');
-    expect(runtimeHostProductSource).toContain("await import('../WarpRuntime.ts')");
-    expect(runtimeHostProductSource).toContain('runtimeModule.openWarpRuntime(options)');
+    expect(runtimeHostProductSource).toContain("from '../RuntimeHost.ts'");
+    expect(runtimeHostProductSource).toContain('return await openRuntimeHost(options)');
   });
 
   it('moves the runtime product builders onto the shared host seam', () => {

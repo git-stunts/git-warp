@@ -24,7 +24,7 @@ export type GCPolicyInput = {
 
 /**
  * Partial configuration accepted at the API boundary
- * (`WarpRuntime.open({ gcPolicy })`). Any fields the caller omits are
+ * (`RuntimeHost.open({ gcPolicy })`). Any fields the caller omits are
  * filled from `GCPolicy.DEFAULT`.
  */
 export type GCPolicyConfig = {

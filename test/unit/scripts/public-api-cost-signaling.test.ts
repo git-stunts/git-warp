@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const runtimeSource = readFileSync(
-  fileURLToPath(new URL('../../../src/domain/WarpRuntime.ts', import.meta.url)),
+  fileURLToPath(new URL('../../../src/domain/RuntimeHost.ts', import.meta.url)),
   'utf8',
 );
 

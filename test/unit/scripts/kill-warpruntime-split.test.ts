@@ -13,14 +13,17 @@ const releaseLedger = readFileSync(
 
 describe('kill warpruntime split', () => {
   it('rewrites the umbrella around the live remaining successor cuts', () => {
-    expect(runtimeKillNote).toContain('- `API_delete-warpruntime-class`');
+    expect(runtimeKillNote).toContain('blocked_by: []');
     expect(runtimeKillNote).toContain('cycle\n`0078` then extracted the remaining source-side runtime host product');
     expect(runtimeKillNote).toContain('cycle\n`0079` then proved the test/helper blocker still needed an internal split');
     expect(runtimeKillNote).toContain('cycle `0080` then completed the helper/seed half of that split');
     expect(runtimeKillNote).toContain('cycle\n`0081` then completed the runtime-facing suite half');
     expect(runtimeKillNote).toContain('cycle `0082` then closed the test/helper migration umbrella');
+    expect(runtimeKillNote).toContain('Cycle `0083` renamed the remaining internal host');
     expect(runtimeKillNote).toContain('cycle `0076` then completed the `WarpCore` bridge cut');
-    expect(runtimeKillNote).toContain('delete the `WarpRuntime` class and exports');
+    expect(runtimeKillNote).toContain('close the umbrella');
+    expect(runtimeKillNote).not.toContain('- API_delete-warpruntime-class');
+    expect(runtimeKillNote).not.toContain('delete the `WarpRuntime` class and exports');
     expect(runtimeKillNote).not.toContain('close out the remaining test/helper migration umbrella');
     expect(runtimeKillNote).not.toContain('- `API_delete-openwarpruntime-bridge`');
     expect(runtimeKillNote).not.toContain('- `PORT_delete-warpcore-runtime-bridge`');
@@ -36,10 +39,11 @@ describe('kill warpruntime split', () => {
     expect(releaseLedger).toContain('Cycle 0080 then completed');
     expect(releaseLedger).toContain('cycle 0081 then completed');
     expect(releaseLedger).toMatch(/Cycle\s+0082 then closed/);
+    expect(releaseLedger).toMatch(/Cycle\s+0083 then deleted/);
     expect(releaseLedger).not.toContain('`DX_migrate-seed-and-runtime-helpers-off-warpruntime`');
     expect(releaseLedger).not.toContain('`DX_migrate-runtime-suites-off-warpruntime`');
-    expect(releaseLedger).toContain('`API_delete-warpruntime-class`');
-    expect(releaseLedger).toContain('→ `API_kill-warpruntime`');
+    expect(releaseLedger).not.toContain('`API_delete-warpruntime-class`');
+    expect(releaseLedger).toContain('`API_kill-warpruntime`');
     expect(releaseLedger).not.toContain('`API_delete-openwarpruntime-bridge`');
     expect(releaseLedger).not.toContain('`PORT_delete-warpcore-runtime-bridge`');
     expect(releaseLedger).not.toContain('`PORT_extract-runtime-host-product`');

@@ -1,10 +1,10 @@
 /**
- * WarpRuntime - Main API class for WARP multi-writer graph database.
+ * RuntimeHost - Internal host for WARP multi-writer graph database.
  *
  * Provides a factory for opening multi-writer graphs and methods for
  * creating patches, materializing state, and managing checkpoints.
  *
- * @module domain/WarpRuntime
+ * @module domain/RuntimeHost
  * @see WARP Spec Section 11
  */
 
@@ -70,10 +70,10 @@ import {
   type NormalizedTrustConfig,
 } from './runtimeHelpers.ts';
 import {
-  resolveWarpRuntimeConstructionOptions,
-  type WarpRuntimeConstructionOptions,
-  type WarpRuntimeOpenOptions,
-} from './warp/WarpRuntimeBoot.ts';
+  resolveRuntimeHostConstructionOptions,
+  type RuntimeHostConstructionOptions,
+  type RuntimeHostOpenOptions,
+} from './warp/RuntimeHostBoot.ts';
 
 import type { NeighborEdge } from '../ports/NeighborProviderPort.ts';
 
@@ -103,9 +103,9 @@ type Subscriber = {
 // ── Constructor options ──────────────────────────────────────────────
 
 /**
- * WarpRuntime class for interacting with a WARP multi-writer graph.
+ * RuntimeHost class for interacting with a WARP multi-writer graph.
  */
-export default class WarpRuntime {
+export default class RuntimeHost {
   _persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
   _graphName: string;
   _writerId: string;
@@ -170,12 +170,12 @@ export default class WarpRuntime {
   _auditService: AuditReceiptService | null;
 
   /**
-   * Constructs a WarpRuntime instance with injected dependencies and configuration.
+   * Constructs a RuntimeHost instance with injected dependencies and configuration.
    * @private
    */
   // TODO(OG): split constructor responsibilities; legacy hotspot kept explicit until the API redesign cycle.
   // eslint-disable-next-line max-lines-per-function, complexity
-  constructor(options: WarpRuntimeConstructionOptions) {
+  constructor(options: RuntimeHostConstructionOptions) {
     const {
       persistence,
       graphName,
@@ -666,7 +666,7 @@ export default class WarpRuntime {
    * Opens a multi-writer graph.
    *
    * @example
-   * const graph = await WarpRuntime.open({
+   * const graph = await RuntimeHost.open({
    *   persistence: gitAdapter,
    *   graphName: 'events',
    *   writerId: 'node-1'
@@ -674,8 +674,8 @@ export default class WarpRuntime {
    */
   // TODO(OG): split open() validation/bootstrapping; legacy hotspot kept explicit until the API redesign cycle.
   // eslint-disable-next-line max-lines-per-function, complexity
-  static async open(options: WarpRuntimeOpenOptions): Promise<WarpRuntime> {
-    return await openWarpRuntime(options);
+  static async open(options: RuntimeHostOpenOptions): Promise<RuntimeHost> {
+    return await openRuntimeHost(options);
   }
 
   /** Gets the graph name. */
@@ -825,13 +825,9 @@ export default class WarpRuntime {
   }
 }
 
-export async function openWarpRuntime(options: WarpRuntimeOpenOptions): Promise<WarpRuntime> {
-  const { options: resolvedOptions } = await resolveWarpRuntimeConstructionOptions(options);
-  const graph = new WarpRuntime(resolvedOptions);
+export async function openRuntimeHost(options: RuntimeHostOpenOptions): Promise<RuntimeHost> {
+  const { options: resolvedOptions } = await resolveRuntimeHostConstructionOptions(options);
+  const graph = new RuntimeHost(resolvedOptions);
   await graph._validateMigrationBoundary();
   return graph;
-}
-
-export function getWarpRuntimePrototype(): object {
-  return WarpRuntime.prototype;
 }

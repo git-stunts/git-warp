@@ -3,8 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
-const warpRuntimeSource = readFileSync(
-  fileURLToPath(new URL('../../../src/domain/WarpRuntime.ts', import.meta.url)),
+const runtimeHostSource = readFileSync(
+  fileURLToPath(new URL('../../../src/domain/RuntimeHost.ts', import.meta.url)),
   'utf8',
 );
 const tsconfig = readFileSync(
@@ -32,11 +32,11 @@ describe('runtime wiring surface closeout', () => {
     expect(tsconfigTest).not.toContain('src/domain/warp/_wiredMethods.d.ts');
   });
 
-  it('gives WarpRuntime a direct static method surface', () => {
-    expect(warpRuntimeSource).not.toContain("from './runtimeWiring.ts'");
-    expect(warpRuntimeSource).not.toContain('wireRuntime(WarpRuntime)');
-    expect(warpRuntimeSource).toContain("createCheckpoint: CheckpointController['createCheckpoint']");
-    expect(warpRuntimeSource).toContain("getFrontier: SyncController['getFrontier']");
-    expect(warpRuntimeSource).toContain("observer: QueryCapability['observer']");
+  it('gives RuntimeHost a direct static method surface', () => {
+    expect(runtimeHostSource).not.toContain("from './runtimeWiring.ts'");
+    expect(runtimeHostSource).not.toContain('wireRuntime(RuntimeHost)');
+    expect(runtimeHostSource).toContain("createCheckpoint: CheckpointController['createCheckpoint']");
+    expect(runtimeHostSource).toContain("getFrontier: SyncController['getFrontier']");
+    expect(runtimeHostSource).toContain("observer: QueryCapability['observer']");
   });
 });

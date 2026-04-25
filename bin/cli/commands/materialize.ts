@@ -1,13 +1,13 @@
 import WebCryptoAdapter from '../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 import type { CorePersistence } from '../../../src/domain/types/WarpPersistence.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { EXIT_CODES, notFoundError } from '../infrastructure.ts';
 import { createPersistence, listGraphNames, readActiveCursor, emitCursorWarning } from '../shared.ts';
 import type { CliOptions, Persistence } from '../types.ts';
 
 /** Materializes a single graph, creates a checkpoint, and returns summary stats. */
 async function materializeOneGraph({ persistence, graphName, writerId, ceiling }: { persistence: Persistence; graphName: string; writerId: string; ceiling?: number }): Promise<{ graph: string; nodes: number; edges: number; properties: number; checkpoint: string | null; writers: Record<string, number>; patchCount: number }> {
-  const graph = await WarpRuntime.open({
+  const graph = await openRuntimeHostProduct({
     persistence: persistence as unknown as CorePersistence,
     graphName,
     writerId,

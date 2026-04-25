@@ -1,7 +1,7 @@
 /**
- * Module-level helpers used by WarpRuntime.open() and the constructor.
+ * Module-level helpers used by RuntimeHost.open() and the constructor.
  *
- * Extracted from the monolithic WarpRuntime.ts as part of the
+ * Extracted from the monolithic runtime host as part of the
  * TypeScript migration.
  *
  * @module domain/runtimeHelpers

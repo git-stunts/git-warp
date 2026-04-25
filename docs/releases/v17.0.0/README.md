@@ -123,10 +123,11 @@ LAYER 3:
                                           runtime-facing suite half. Cycle
                                           0082 then closed the test/helper
                                           migration umbrella by proving both
-                                          ratchets. The live remaining order is
-                                          now:
-                                          `API_delete-warpruntime-class`
-                                          → `API_kill-warpruntime`
+                                          ratchets. Cycle 0083 then deleted
+                                          the old `WarpRuntime`
+                                          class/file/open-function residue.
+                                          The live remaining order is now:
+                                          `API_kill-warpruntime`
 
 LAYER 4 (launch-prep only; park until the repo is otherwise ready to ship):
   [ ] TS_publish-pipeline

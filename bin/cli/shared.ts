@@ -11,9 +11,9 @@ const TypedShellRunnerFactory = _sfRaw as { create: () => unknown };
 
 const _gpRaw: unknown = _GitPlumbing;
 const TypedGitPlumbing = _gpRaw as new (opts: { cwd: string; runner: unknown }) => unknown;
-import WarpRuntime from '../../src/domain/WarpRuntime.ts';
 import GitGraphAdapter, { type GitPlumbing } from '../../src/infrastructure/adapters/GitGraphAdapter.ts';
 import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter.ts';
+import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
 import {
   REF_PREFIX,
   buildCursorActiveRef,
@@ -99,7 +99,7 @@ export async function openGraph(options: CliOptions): Promise<{ graph: WarpGraph
       throw notFoundError(`Graph not found: ${options.graph}`);
     }
   }
-  const graph = await WarpRuntime.open({
+  const graph = await openRuntimeHostProduct({
     persistence,
     graphName,
     writerId: options.writer,
