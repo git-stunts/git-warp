@@ -4,7 +4,6 @@ blocks:
   - API_migrate-consumers-to-capabilities
 blocked_by:
   - API_capability-interfaces
-  - CROSS_shared-provider-interfaces
 feature: api-capabilities
 ---
 
@@ -17,8 +16,8 @@ Create `src/domain/WarpGraph.ts` with:
 - Factory wires existing controllers to capability interfaces
 - Returns `Object.freeze({ query, patches, materialize, ... })`
 
-Initially wraps `WarpRuntime.open()` internally.
-`WarpRuntime.open()` dies when `API_kill-warpruntime` ships.
+The old runtime host class died in the runtime-kill chain, which closed in
+cycle `0084`.
 
 ## SSTS amendments
 

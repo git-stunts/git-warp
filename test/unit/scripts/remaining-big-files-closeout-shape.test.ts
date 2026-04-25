@@ -28,10 +28,11 @@ describe('remaining-big-files closeout', () => {
 
   it('drops the dead god from downstream blocker lists', () => {
     const apiMigrate = readRepoFile('docs/method/backlog/v17.0.0/API_migrate-consumers-to-capabilities.md');
-    const sharedProviders = readRepoFile('docs/method/backlog/v17.0.0/CROSS_shared-provider-interfaces.md');
+    const sharedProviderCycle = readRepoFile('docs/design/0085-close-shared-provider-interfaces.md');
 
     expect(apiMigrate).not.toContain('GOD_remaining-big-files');
-    expect(sharedProviders).not.toContain('GOD_remaining-big-files');
+    expect(sharedProviderCycle).toContain('The stale `CROSS_shared-provider-interfaces` backlog card is removed');
+    expect(sharedProviderCycle).not.toContain('GOD_remaining-big-files');
   });
 
   it('updates the historical wave and scorecard surfaces to current repo truth', () => {

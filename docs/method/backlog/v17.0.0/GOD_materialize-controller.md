@@ -2,8 +2,7 @@
 id: GOD_materialize-controller
 blocks:
   - API_migrate-consumers-to-capabilities
-blocked_by:
-  - CROSS_shared-provider-interfaces
+blocked_by: []
 feature: materialization-query-index
 ---
 

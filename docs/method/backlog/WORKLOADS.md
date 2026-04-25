@@ -39,13 +39,13 @@ dependency graph and likely write-surface overlap.
 | `0` | `B0` | 1 | 5 | Intake and triage |
 | `1` | `B1` | 4 | 31 | Root backlog classification and maintenance |
 | `2` | `B2` | 9 | 143 | Invariant debt paydown |
-| `3.0` | `B3` | 7 | 32 | Ready-now v17 foundations and independent release hygiene |
+| `3.0` | `B3` | 7 | 31 | Ready-now v17 foundations and independent release hygiene |
 | `3.1` | `B3` | 2 | 8 | Downstream v17 runtime split work |
 | `3.x` parked | `B3` | 1 | 6 | Launch-prep proof and package tail |
 | `4` | `B4` | 9 | 43 | v18 substrate cut plus current `up-next/` queue |
 | `5` | `B5` | 3 | 11 | v19 observer/admission/runtime convergence |
 | `6` | `B6` | 10 | 100 | v20/v21 horizon plus speculative orbit |
-| Grand total | all | 46 | 379 | Full live backlog |
+| Grand total | all | 46 | 378 | Full live backlog |
 
 ## Wave 0 — Intake
 
@@ -87,7 +87,7 @@ runtime-kill closeout chain.
 
 | Workload | Count | Items | Agent surface | Preconditions |
 |----------|------:|-------|---------------|---------------|
-| `WL-30-v17-provider-foundations` | 4 | `API_capability-interfaces`, `API_warpgraph-factory`, `API_warpgraph-runtime-bridge`, `CROSS_shared-provider-interfaces` | Provider interfaces, public factory, and runtime bridge seams | none |
+| `WL-30-v17-provider-foundations` | 3 | `API_capability-interfaces`, `API_warpgraph-factory`, `API_warpgraph-runtime-bridge` | Provider interfaces, public factory, and runtime bridge seams | none |
 | `WL-31-v17-cas-substrate-foundation` | 4 | `INFRA_unify-persistence-on-git-cas`, `INFRA_plumbing-violations`, `INFRA_substrate-upgrade-tool`, `INFRA_uniform-git-cas` | CAS, plumbing, and substrate migration | none |
 | `WL-32-v17-purge-chain` | 4 | `PROTO_purge-cast-hacks`, `PROTO_purge-boundary-leaks`, `PROTO_purge-fake-models`, `PROTO_purge-import-law` | Anti-sludge purge chain; one owner, serial internal order | none |
 | `WL-33-v17-ts-wave-sweep` | 9 | `TS_wave-01-codec`, `TS_wave-02-trust`, `TS_wave-03-dag-provenance`, `TS_wave-04-state-query`, `TS_wave-05-controllers`, `TS_wave-06-sync`, `TS_wave-07-index-small`, `TS_wave-08-strand-index-big`, `TS_wave-09-gods-and-monsters` | Wave-based TS migration sequence | none |
@@ -170,7 +170,7 @@ The partition is exhaustive and non-overlapping:
 - Wave `0`: `5`
 - Wave `1`: `31`
 - Wave `2`: `143`
-- Wave `3.0`: `32`
+- Wave `3.0`: `31`
 - Wave `3.1`: `8`
 - Wave `3.x`: `6`
 - Wave `4`: `43`
@@ -179,7 +179,7 @@ The partition is exhaustive and non-overlapping:
 
 Total:
 
-- `5 + 31 + 143 + 32 + 8 + 6 + 43 + 11 + 100 = 379`
+- `5 + 31 + 143 + 31 + 8 + 6 + 43 + 11 + 100 = 378`
 
 Every live backlog note is covered exactly once.
 

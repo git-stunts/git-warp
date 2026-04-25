@@ -27,10 +27,11 @@ describe('incremental-index-updater closeout', () => {
 
   it('drops the dead god from downstream blocker lists', () => {
     const apiMigrate = readRepoFile('docs/method/backlog/v17.0.0/API_migrate-consumers-to-capabilities.md');
-    const sharedProviders = readRepoFile('docs/method/backlog/v17.0.0/CROSS_shared-provider-interfaces.md');
+    const sharedProviderCycle = readRepoFile('docs/design/0085-close-shared-provider-interfaces.md');
 
     expect(apiMigrate).not.toContain('GOD_incremental-index-updater');
-    expect(sharedProviders).not.toContain('GOD_incremental-index-updater');
+    expect(sharedProviderCycle).toContain('The stale `CROSS_shared-provider-interfaces` backlog card is removed');
+    expect(sharedProviderCycle).not.toContain('GOD_incremental-index-updater');
   });
 
   it('re-homes the historical wave and scorecard residue to the real remaining owners', () => {

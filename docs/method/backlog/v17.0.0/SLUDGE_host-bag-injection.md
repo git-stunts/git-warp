@@ -1,8 +1,7 @@
 ---
 id: SLUDGE_host-bag-injection
 blocks: []
-blocked_by:
-  - CROSS_shared-provider-interfaces
+blocked_by: []
 feature: runtime-boundaries
 ---
 
