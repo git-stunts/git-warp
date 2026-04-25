@@ -2,13 +2,9 @@
  * Seeds a graph with audit enabled: 3 patches under writer "alice".
  * Used by cli-verify-audit.bats. Expects REPO_PATH env var.
  */
-import { WarpRuntime, persistence, crypto } from './seed-setup.ts';
+import { openGraph } from './seed-setup.ts';
 
-const graph = await WarpRuntime.open({
-  persistence,
-  graphName: 'demo',
-  writerId: 'alice',
-  crypto,
+const graph = await openGraph('demo', 'alice', {
   audit: true,
 });
 

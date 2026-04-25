@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
 import CasBlobAdapter from '../../../../src/infrastructure/adapters/CasBlobAdapter.ts';
-import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
+import WarpCore from '../../../../src/domain/WarpCore.ts';
 import WebCryptoAdapter from '../../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 
 /**
@@ -31,11 +31,11 @@ export async function createTestRepo(label = 'api-test') {
     const persistence = new GitGraphAdapter({ plumbing });
 
     /**
-     * Opens a WarpRuntime with WebCryptoAdapter pre-configured.
+     * Opens a graph core with WebCryptoAdapter pre-configured.
      * @param {string} graphName - Name of the graph to open
      * @param {string} writerId - Writer identity
-     * @param {Object} [opts={}] - Additional options forwarded to WarpRuntime.open
-     * @returns {Promise<Object>} Opened WarpRuntime instance
+     * @param {Object} [opts={}] - Additional options forwarded to WarpCore.open
+     * @returns {Promise<Object>} Opened graph core
      */
     const blobStorage = new CasBlobAdapter({ plumbing, persistence });
 
@@ -45,7 +45,7 @@ export async function createTestRepo(label = 'api-test') {
      * @param {Object} [opts]
      */
     async function openGraph(graphName, writerId, opts = {}) {
-      return WarpRuntime.open({
+      return WarpCore.open({
         blobStorage,
         ...opts,
         persistence,

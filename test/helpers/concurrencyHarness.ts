@@ -33,8 +33,8 @@ export function createBarrier(): { promise: Promise<void>; release: () => void }
  * The returned hooks object has mutable properties that tests can set
  * to inject barriers at critical points.
  *
- * @param {import('../../src/domain/WarpRuntime.ts').default} graph
- * @returns {{ graph: import('../../src/domain/WarpRuntime.ts').default, hooks: ConcurrencyHooks }}
+ * @param {object} graph
+ * @returns {{ graph: object, hooks: ConcurrencyHooks }}
  */
 export function wrapWithHooks(graph) {
   /** @type {ConcurrencyHooks} */

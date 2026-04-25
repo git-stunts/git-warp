@@ -12,7 +12,7 @@ let Plumbing: any;
 // deno-lint-ignore no-explicit-any
 let GitGraphAdapter: any;
 // deno-lint-ignore no-explicit-any
-let WarpRuntime: any;
+let WarpCore: any;
 // deno-lint-ignore no-explicit-any
 let WebCryptoAdapter: any;
 
@@ -20,7 +20,7 @@ export async function loadModules() {
   const root = Deno.cwd();
   Plumbing = (await import(join(root, "node_modules/@git-stunts/plumbing/index.js"))).default;
   GitGraphAdapter = (await import(join(root, "src/infrastructure/adapters/GitGraphAdapter.ts"))).default;
-  WarpRuntime = (await import(join(root, "src/domain/WarpRuntime.ts"))).default;
+  WarpCore = (await import(join(root, "src/domain/WarpCore.ts"))).default;
   WebCryptoAdapter = (await import(join(root, "src/infrastructure/adapters/WebCryptoAdapter.ts"))).default;
 }
 
@@ -40,7 +40,7 @@ export async function createTestRepo(label = "deno-test") {
 
   // deno-lint-ignore no-explicit-any
   async function openGraph(graphName: string, writerId: string, opts: Record<string, any> = {}) {
-    return WarpRuntime.open({
+    return WarpCore.open({
       ...opts,
       persistence,
       graphName,

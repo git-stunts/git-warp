@@ -1,6 +1,6 @@
 /**
  * Shared setup for BATS seed scripts.
- * Resolves project root, dynamic-imports WarpRuntime + GitGraphAdapter +
+ * Resolves project root, dynamic-imports WarpCore + GitGraphAdapter +
  * NodeCryptoAdapter, and creates persistence/crypto adapters for the
  * repo at REPO_PATH.
  */
@@ -11,10 +11,10 @@ import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 const projectRoot = process.env['PROJECT_ROOT'] || resolve(import.meta.dirname, '../../..');
 const repoPath = process.env['REPO_PATH'];
 
-const warpGraphUrl = pathToFileURL(resolve(projectRoot, 'src/domain/WarpRuntime.ts')).href;
+const warpCoreUrl = pathToFileURL(resolve(projectRoot, 'src/domain/WarpCore.ts')).href;
 const adapterUrl = pathToFileURL(resolve(projectRoot, 'src/infrastructure/adapters/GitGraphAdapter.ts')).href;
 const cryptoUrl = pathToFileURL(resolve(projectRoot, 'src/infrastructure/adapters/NodeCryptoAdapter.ts')).href;
-const { default: WarpRuntime } = await import(warpGraphUrl);
+const { default: WarpCore } = await import(warpCoreUrl);
 const { default: GitGraphAdapter } = await import(adapterUrl);
 const { default: NodeCryptoAdapter } = await import(cryptoUrl);
 
@@ -23,4 +23,14 @@ const plumbing = new GitPlumbing({ cwd: repoPath, runner });
 const persistence = new GitGraphAdapter({ plumbing });
 const crypto = new NodeCryptoAdapter();
 
-export { WarpRuntime, persistence, crypto };
+async function openGraph(graphName: string, writerId: string, options = {}) {
+  return await WarpCore.open({
+    ...options,
+    persistence,
+    graphName,
+    writerId,
+    crypto,
+  });
+}
+
+export { openGraph, persistence, crypto, plumbing };

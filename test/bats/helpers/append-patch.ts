@@ -9,17 +9,11 @@
  *  - PROJECT_ROOT env var (set by setup.bash)
  */
 
-import { WarpRuntime, persistence, crypto } from './seed-setup.ts';
+import { openGraph } from './seed-setup.ts';
 
-const graph = await WarpRuntime.open({
-  persistence,
-  graphName: 'demo',
-  writerId: 'alice',
-  crypto,
-});
+const graph = await openGraph('demo', 'alice');
 
 const patch = await graph.createPatch();
 await patch
   .setProperty('user:alice', 'role', 'ops')
   .commit();
-

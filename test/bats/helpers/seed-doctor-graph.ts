@@ -1,16 +1,11 @@
 /**
  * Seeds a "healthy" demo graph for doctor BATS tests.
  * Creates patches and materializes (checkpoint + coverage).
- * Expects REPO_PATH env var (consumed by seed-setup.js).
+ * Expects REPO_PATH env var (consumed by seed-setup.ts).
  */
-import { WarpRuntime, persistence, crypto } from './seed-setup.ts';
+import { openGraph } from './seed-setup.ts';
 
-const graph = await WarpRuntime.open({
-  persistence,
-  graphName: 'demo',
-  writerId: 'alice',
-  crypto,
-});
+const graph = await openGraph('demo', 'alice');
 
 const patchOne = await graph.createPatch();
 await patchOne
