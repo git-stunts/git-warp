@@ -15,7 +15,9 @@ describe('remaining-big-files closeout', () => {
     expect(releaseReadme).toContain('[x] GOD_remaining-big-files');
     expect(releaseReadme).toContain('cycle 0058 hill-met');
     expect(releaseReadme).toContain('0057');
-    expect(releaseReadme).toContain('CORE_streaming-memory-audit');
+    expect(releaseReadme).toContain('immediate blob-read cap fix');
+    expect(releaseReadme).toContain('closed in cycle 0090');
+    expect(releaseReadme).toContain('PERF_out-of-core-materialization');
     expect(releaseReadme).toContain('PROTO_purge-boundary-leaks');
   });
 
@@ -42,7 +44,8 @@ describe('remaining-big-files closeout', () => {
     expect(wave).toContain('VisibleStateComparison.ts | 172');
     expect(wave).toContain('AuditVerifierService.ts | 136');
     expect(wave).toContain('StreamingBitmapIndexBuilder.ts | 277');
-    expect(scorecard).toContain('CORE_streaming-memory-audit');
+    expect(scorecard).toContain('PERF_out-of-core-materialization');
+    expect(scorecard).toContain('cycle `0090`');
     expect(scorecard).toContain('PROTO_purge-boundary-leaks');
     expect(scorecard).not.toContain('## GOD_remaining-big-files');
   });

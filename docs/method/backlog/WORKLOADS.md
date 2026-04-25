@@ -39,13 +39,13 @@ dependency graph and likely write-surface overlap.
 | `0` | `B0` | 1 | 5 | Intake and triage |
 | `1` | `B1` | 4 | 31 | Root backlog classification and maintenance |
 | `2` | `B2` | 9 | 143 | Invariant debt paydown |
-| `3.0` | `B3` | 6 | 28 | Ready-now v17 foundations and independent release hygiene |
+| `3.0` | `B3` | 6 | 27 | Ready-now v17 foundations and independent release hygiene |
 | `3.1` | `B3` | 2 | 7 | Downstream v17 runtime split work |
 | `3.x` parked | `B3` | 1 | 6 | Launch-prep proof and package tail |
 | `4` | `B4` | 9 | 43 | v18 substrate cut plus current `up-next/` queue |
 | `5` | `B5` | 3 | 11 | v19 observer/admission/runtime convergence |
 | `6` | `B6` | 10 | 100 | v20/v21 horizon plus speculative orbit |
-| Grand total | all | 45 | 374 | Full live backlog |
+| Grand total | all | 45 | 373 | Full live backlog |
 
 ## Wave 0 — Intake
 
@@ -92,7 +92,7 @@ runtime-kill closeout chain.
 | `WL-33-v17-ts-wave-sweep` | 9 | `TS_wave-01-codec`, `TS_wave-02-trust`, `TS_wave-03-dag-provenance`, `TS_wave-04-state-query`, `TS_wave-05-controllers`, `TS_wave-06-sync`, `TS_wave-07-index-small`, `TS_wave-08-strand-index-big`, `TS_wave-09-gods-and-monsters` | Wave-based TS migration sequence | none |
 | `WL-34-v17-cli-mcp-shell` | 3 | `CLI_agent-native-output`, `CLI_missing-commands`, `MCP_warp-server` | CLI and MCP command surface | none |
 | `WL-35-v17-docs-dx-sweep` | 6 | `DX_architecture-md-js-extensions`, `DX_conceptual-overview-query-pseudocode`, `DX_contributing-md-js-to-ts`, `DX_docs-readme-stale-paths`, `DX_package-json-description-alignment`, `DX_security-md-v17-api` | v17 docs, examples, and package-positioning cleanup | none |
-| `WL-36-v17-state-stream-core` | 2 | `CORE_streaming-memory-audit`, `PROTO_orsetlike-contract` | Streaming memory audit and ORSet seam cleanup | none |
+| `WL-36-v17-state-stream-core` | 1 | `PROTO_orsetlike-contract` | ORSet seam cleanup; broader streaming-read work remains in `PERF_out-of-core-materialization` and Wave 4 | none |
 
 ## Wave 3.1 — Downstream `v17.0.0`
 
@@ -168,7 +168,7 @@ The partition is exhaustive and non-overlapping:
 - Wave `0`: `5`
 - Wave `1`: `31`
 - Wave `2`: `143`
-- Wave `3.0`: `28`
+- Wave `3.0`: `27`
 - Wave `3.1`: `7`
 - Wave `3.x`: `6`
 - Wave `4`: `43`
@@ -177,7 +177,7 @@ The partition is exhaustive and non-overlapping:
 
 Total:
 
-- `5 + 31 + 143 + 28 + 7 + 6 + 43 + 11 + 100 = 374`
+- `5 + 31 + 143 + 27 + 7 + 6 + 43 + 11 + 100 = 373`
 
 Every live backlog note is covered exactly once.
 

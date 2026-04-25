@@ -36,9 +36,11 @@ LAYER 1 (god kills + conversions):
   [x] GOD_remaining-big-files            ← cycle 0058 hill-met; named files are already
                                           below the ceiling, the only serious
                                           index-builder residue died in `0057`,
-                                          and the remaining streaming / boundary
-                                          truth lives under
-                                          `CORE_streaming-memory-audit` +
+                                          the immediate blob-read cap fix
+                                          closed in cycle 0090, and broader
+                                          out-of-core read work remains under
+                                          `PERF_out-of-core-materialization`.
+                                          Boundary truth still lives under
                                           `PROTO_purge-boundary-leaks`
   [x] SLUDGE_detached-graph-duplication  ← cycle 0062 hill-met; detached
                                           reads now flow through

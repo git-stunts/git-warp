@@ -139,8 +139,9 @@ residue was closed in `0057`.
 
 The real remaining owner notes are:
 
-1. `CORE_streaming-memory-audit`
-2. `PROTO_purge-boundary-leaks`
+1. `PROTO_purge-boundary-leaks`
+2. `PERF_out-of-core-materialization` for broader streaming/out-of-core read
+   architecture beyond the immediate blob-read cap fix closed in cycle `0090`
 
 ---
 
