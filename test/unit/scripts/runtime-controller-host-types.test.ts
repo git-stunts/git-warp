@@ -45,8 +45,10 @@ describe('runtime controller host types', () => {
 
   it('reopens forks through the runtime boot function instead of the class surface', () => {
     expect(forkControllerSource).not.toContain('WarpRuntime.open(');
-    expect(forkControllerSource).not.toContain('{ default: WarpRuntime }');
-    expect(forkControllerSource).toContain('runtimeModule.openWarpRuntime({');
+    expect(forkControllerSource).not.toContain("import('../../WarpRuntime.ts')");
+    expect(forkControllerSource).not.toContain("from '../../WarpRuntime.ts'");
+    expect(forkControllerSource).toContain("from '../../warp/RuntimeHostProduct.ts'");
+    expect(forkControllerSource).toContain('openRuntimeHostProduct({');
   });
 
   it('constructs the strand coordinator without host adapter casts', () => {

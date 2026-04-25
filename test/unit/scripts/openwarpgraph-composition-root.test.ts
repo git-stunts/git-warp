@@ -17,6 +17,11 @@ const warpCoreProductSource = readFileSync(
   'utf8',
 );
 
+const runtimeHostProductSource = readFileSync(
+  fileURLToPath(new URL('../../../src/domain/warp/RuntimeHostProduct.ts', import.meta.url)),
+  'utf8',
+);
+
 const warpRuntimeSource = readFileSync(
   fileURLToPath(new URL('../../../src/domain/WarpRuntime.ts', import.meta.url)),
   'utf8',
@@ -38,6 +43,13 @@ describe('openWarpGraph composition root', () => {
     expect(warpCoreSource).not.toContain('./warp/WarpCoreRuntimeBridge.ts');
     expect(warpCoreSource).not.toContain('WarpRuntime.open(');
     expect(warpCoreProductSource).not.toContain('WarpRuntime.open(');
+  });
+
+  it('routes source-side runtime product boot through the shared host seam', () => {
+    expect(warpGraphBridgeSource).not.toContain("from '../WarpRuntime.ts'");
+    expect(warpCoreProductSource).not.toContain("from '../WarpRuntime.ts'");
+    expect(runtimeHostProductSource).toContain("await import('../WarpRuntime.ts')");
+    expect(runtimeHostProductSource).toContain('runtimeModule.openWarpRuntime(options)');
   });
 
   it('routes boot orchestration through the dedicated runtime boot module', () => {
