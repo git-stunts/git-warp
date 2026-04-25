@@ -2,8 +2,7 @@
 id: GOD_query-controller
 blocks:
   - API_migrate-consumers-to-capabilities
-blocked_by:
-  - API_capability-interfaces
+blocked_by: []
 feature: materialization-query-index
 ---
 

@@ -11,7 +11,7 @@ is explicitly deferred to the next major.
 ```
 LAYER 0 (foundation):
   [x] CROSS_shared-provider-interfaces  ← cycle 0085 retired stale live card
-  [x] API_capability-interfaces          ← 10 interfaces shipped
+  [x] API_capability-interfaces          ← 10 interfaces shipped; cycle 0086 retired stale live card
   [x] GOD_query-builder
   [x] SLUDGE_factory-functions-in-tests  ← cycle 0055 hill-met; constructor-wrapper
                                           sludge already died in `2e99c0cb`;
