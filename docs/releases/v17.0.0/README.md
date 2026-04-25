@@ -114,8 +114,12 @@ LAYER 3:
                                           class delete is still internally
                                           split. Cycle 0078 then completed
                                           the source-side runtime host
-                                          product cut. The live remaining
-                                          order is now:
+                                          product cut. Cycle 0079 then proved
+                                          the remaining test/helper blocker
+                                          also needs an internal split. The
+                                          live remaining order is now:
+                                          `DX_migrate-seed-and-runtime-helpers-off-warpruntime`
+                                          → `DX_migrate-runtime-suites-off-warpruntime`
                                           `DX_migrate-tests-and-seed-helpers-off-warpruntime`
                                           → `API_delete-warpruntime-class`
                                           → `API_kill-warpruntime`
