@@ -92,7 +92,7 @@ LAYER 2 (the exorcism):
                                           `WarpRuntime` composition-root residue
 
 LAYER 3:
-  [~] API_kill-warpruntime               ← cycles 0066 and 0070 both proved
+  [x] API_kill-warpruntime               ← cycles 0066 and 0070 both proved
                                           the runtime kill is not one slice.
                                           Cycle 0067 completed the public
                                           `WarpGraph` bridge cut, cycle 0068
@@ -126,8 +126,9 @@ LAYER 3:
                                           ratchets. Cycle 0083 then deleted
                                           the old `WarpRuntime`
                                           class/file/open-function residue.
-                                          The live remaining order is now:
-                                          `API_kill-warpruntime`
+                                          Cycle 0084 then closed the umbrella;
+                                          runtime-kill is no longer live
+                                          backlog work.
 
 LAYER 4 (launch-prep only; park until the repo is otherwise ready to ship):
   [ ] TS_publish-pipeline

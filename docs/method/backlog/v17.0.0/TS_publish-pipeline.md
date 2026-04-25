@@ -3,7 +3,6 @@ id: TS_publish-pipeline
 blocks:
   - TS_ssts-conformance-suite
 blocked_by:
-  - API_kill-warpruntime
   - TS_infrastructure-adapters
   - TS_cli-viz-scripts
 feature: tooling-release

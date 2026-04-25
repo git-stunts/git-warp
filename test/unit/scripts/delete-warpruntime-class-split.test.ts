@@ -11,8 +11,8 @@ const runtimeHostSource = readFileSync(
   'utf8',
 );
 const runtimeFilePath = join(process.cwd(), 'src/domain/WarpRuntime.ts');
-const runtimeKillNote = readFileSync(
-  join(process.cwd(), 'docs/method/backlog/v17.0.0/API_kill-warpruntime.md'),
+const runtimeKillCycle = readFileSync(
+  join(process.cwd(), 'docs/design/0084-close-warpruntime-umbrella.md'),
   'utf8',
 );
 const classDeleteCycle = readFileSync(
@@ -35,10 +35,10 @@ describe('delete warpruntime class split', () => {
     expect(runtimeHostSource).not.toContain('getWarpRuntimePrototype');
   });
 
-  it('unblocks the umbrella closeout after the class delete', () => {
-    expect(runtimeKillNote).toContain('blocked_by: []');
-    expect(runtimeKillNote).toContain('Cycle `0083` renamed the remaining internal host');
-    expect(runtimeKillNote).not.toContain('- API_delete-warpruntime-class');
+  it('feeds the umbrella closeout after the class delete', () => {
+    expect(runtimeKillCycle).toContain('Cycles `0067`');
+    expect(runtimeKillCycle).toContain('through `0083` removed the bridge');
+    expect(runtimeKillCycle).not.toContain('- API_delete-warpruntime-class');
     expect(classDeleteCycle).toContain('The active source tree no longer contains `src/domain/WarpRuntime.ts`');
   });
 
@@ -48,10 +48,11 @@ describe('delete warpruntime class split', () => {
     expect(releaseLedger).toContain('Cycle 0080 then completed');
     expect(releaseLedger).toMatch(/Cycle\s+0082 then closed/);
     expect(releaseLedger).toMatch(/Cycle\s+0083 then deleted/);
+    expect(releaseLedger).toMatch(/Cycle\s+0084 then closed/);
     expect(releaseLedger).not.toContain('`DX_migrate-seed-and-runtime-helpers-off-warpruntime`');
     expect(releaseLedger).not.toContain('`DX_migrate-runtime-suites-off-warpruntime`');
     expect(releaseLedger).not.toContain('`API_delete-warpruntime-class`');
-    expect(releaseLedger).toContain('`API_kill-warpruntime`');
+    expect(releaseLedger).toContain('[x] API_kill-warpruntime');
     expect(releaseLedger).not.toContain('`PORT_extract-runtime-host-product`');
   });
 });

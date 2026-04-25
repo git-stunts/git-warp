@@ -1,8 +1,7 @@
 ---
 id: API_warpgraph-runtime-bridge
 blocked_by: []
-blocks:
-  - API_kill-warpruntime
+blocks: []
 feature: api-capabilities
 ---
 

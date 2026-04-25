@@ -1,8 +1,7 @@
 ---
 id: PORT_runtime-helper-wrapper-seams
 blocked_by: []
-blocks:
-  - API_kill-warpruntime
+blocks: []
 feature: runtime-boundaries
 ---
 

@@ -1,7 +1,6 @@
 ---
 id: TS_wave-09-gods-and-monsters
-blocks:
-  - API_kill-warpruntime
+blocks: []
 blocked_by:
   - TS_wave-08-strand-index-big
 feature: runtime-boundaries
@@ -32,5 +31,5 @@ needed splitting during conversion. This was the hardest wave.
 gods are now already below the 500 LOC ceiling or materially split, so the
 remaining work has narrowed to the true survivors and to smaller residue owners.
 StrandService.js is dead code once StrandController migrates to
-StrandCoordinator. WarpRuntime.js dies in API_kill-warpruntime after all
-consumers migrate.
+StrandCoordinator. The old runtime host class died across the runtime-kill
+chain, which closed in cycle `0084`.

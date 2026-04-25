@@ -10,8 +10,12 @@ const closeoutCycle = readFileSync(
   join(process.cwd(), 'docs/design/0082-close-warpruntime-test-helper-migration.md'),
   'utf8',
 );
-const classDeleteNote = readFileSync(
-  join(process.cwd(), 'docs/method/backlog/v17.0.0/API_delete-warpruntime-class.md'),
+const classDeleteCycle = readFileSync(
+  join(process.cwd(), 'docs/design/0083-delete-runtime-host-class-name.md'),
+  'utf8',
+);
+const runtimeKillCycle = readFileSync(
+  join(process.cwd(), 'docs/design/0084-close-warpruntime-umbrella.md'),
   'utf8',
 );
 const suiteCycle = readFileSync(
@@ -31,9 +35,10 @@ describe('migrate warpruntime test/helper split', () => {
     expect(closeoutCycle).toContain('API_delete-warpruntime-class` is unblocked');
   });
 
-  it('unblocks the class delete after the test/helper closeout', () => {
-    expect(classDeleteNote).toContain('blocked_by: []');
-    expect(classDeleteNote).not.toContain('DX_migrate-tests-and-seed-helpers-off-warpruntime');
+  it('keeps the downstream class delete closed after the test/helper closeout', () => {
+    expect(classDeleteCycle).toContain('The active source tree no longer contains `src/domain/WarpRuntime.ts`');
+    expect(runtimeKillCycle).toContain('The runtime kill is done');
+    expect(runtimeKillCycle).not.toContain('DX_migrate-tests-and-seed-helpers-off-warpruntime');
   });
 
   it('keeps broad suite migration explicit after the helper migration landed', () => {
@@ -46,9 +51,11 @@ describe('migrate warpruntime test/helper split', () => {
   it('records the reduced order in the v17 release ledger', () => {
     expect(releaseLedger).toContain('Cycle 0080 then completed');
     expect(releaseLedger).toMatch(/Cycle\s+0082 then closed/);
+    expect(releaseLedger).toMatch(/Cycle\s+0083 then deleted/);
+    expect(releaseLedger).toMatch(/Cycle\s+0084 then closed/);
     expect(releaseLedger).not.toContain('`DX_migrate-seed-and-runtime-helpers-off-warpruntime`');
     expect(releaseLedger).not.toContain('`DX_migrate-runtime-suites-off-warpruntime`');
-    expect(releaseLedger).toContain('`API_delete-warpruntime-class`');
-    expect(releaseLedger).toContain('→ `API_kill-warpruntime`');
+    expect(releaseLedger).not.toContain('`API_delete-warpruntime-class`');
+    expect(releaseLedger).toContain('[x] API_kill-warpruntime');
   });
 });

@@ -1,7 +1,6 @@
 ---
 id: API_migrate-consumers-to-capabilities
-blocks:
-  - API_kill-warpruntime
+blocks: []
 blocked_by: []
 feature: api-capabilities
 ---
@@ -145,7 +144,8 @@ no longer “migrate internal consumers from `WarpRuntime`.” It is:
 - remove runtime helper wrapper residue
 - delete runtime wiring / `_wiredMethods` / `WarpRuntime` itself
 
-Those cuts now belong under `API_kill-warpruntime`.
+Those cuts were completed under the runtime-kill chain, which closed in cycle
+`0084`.
 
 ## Deferred content accessor surface
 

@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const runtimeKillNote = readFileSync(
-  join(process.cwd(), 'docs/method/backlog/v17.0.0/API_kill-warpruntime.md'),
+const runtimeKillNotePath = join(
+  process.cwd(),
+  'docs/method/backlog/v17.0.0/API_kill-warpruntime.md',
+);
+const runtimeKillCycle = readFileSync(
+  join(process.cwd(), 'docs/design/0084-close-warpruntime-umbrella.md'),
+  'utf8',
+);
+const publishPipelineNote = readFileSync(
+  join(process.cwd(), 'docs/method/backlog/v17.0.0/TS_publish-pipeline.md'),
   'utf8',
 );
 const releaseLedger = readFileSync(
@@ -12,22 +20,11 @@ const releaseLedger = readFileSync(
 );
 
 describe('kill warpruntime split', () => {
-  it('rewrites the umbrella around the live remaining successor cuts', () => {
-    expect(runtimeKillNote).toContain('blocked_by: []');
-    expect(runtimeKillNote).toContain('cycle\n`0078` then extracted the remaining source-side runtime host product');
-    expect(runtimeKillNote).toContain('cycle\n`0079` then proved the test/helper blocker still needed an internal split');
-    expect(runtimeKillNote).toContain('cycle `0080` then completed the helper/seed half of that split');
-    expect(runtimeKillNote).toContain('cycle\n`0081` then completed the runtime-facing suite half');
-    expect(runtimeKillNote).toContain('cycle `0082` then closed the test/helper migration umbrella');
-    expect(runtimeKillNote).toContain('Cycle `0083` renamed the remaining internal host');
-    expect(runtimeKillNote).toContain('cycle `0076` then completed the `WarpCore` bridge cut');
-    expect(runtimeKillNote).toContain('close the umbrella');
-    expect(runtimeKillNote).not.toContain('- API_delete-warpruntime-class');
-    expect(runtimeKillNote).not.toContain('delete the `WarpRuntime` class and exports');
-    expect(runtimeKillNote).not.toContain('close out the remaining test/helper migration umbrella');
-    expect(runtimeKillNote).not.toContain('- `API_delete-openwarpruntime-bridge`');
-    expect(runtimeKillNote).not.toContain('- `PORT_delete-warpcore-runtime-bridge`');
-    expect(runtimeKillNote).not.toContain('This note is now the live remaining runtime-kill cut.');
+  it('closes the umbrella and unblocks launch-prep from it', () => {
+    expect(existsSync(runtimeKillNotePath)).toBe(false);
+    expect(runtimeKillCycle).toContain('`API_kill-warpruntime` is removed from the live backlog');
+    expect(runtimeKillCycle).toContain('The runtime kill is done');
+    expect(publishPipelineNote).not.toContain('API_kill-warpruntime');
   });
 
   it('records the same remaining order in the v17 release ledger', () => {
@@ -40,10 +37,11 @@ describe('kill warpruntime split', () => {
     expect(releaseLedger).toContain('cycle 0081 then completed');
     expect(releaseLedger).toMatch(/Cycle\s+0082 then closed/);
     expect(releaseLedger).toMatch(/Cycle\s+0083 then deleted/);
+    expect(releaseLedger).toMatch(/Cycle\s+0084 then closed/);
     expect(releaseLedger).not.toContain('`DX_migrate-seed-and-runtime-helpers-off-warpruntime`');
     expect(releaseLedger).not.toContain('`DX_migrate-runtime-suites-off-warpruntime`');
     expect(releaseLedger).not.toContain('`API_delete-warpruntime-class`');
-    expect(releaseLedger).toContain('`API_kill-warpruntime`');
+    expect(releaseLedger).toContain('[x] API_kill-warpruntime');
     expect(releaseLedger).not.toContain('`API_delete-openwarpruntime-bridge`');
     expect(releaseLedger).not.toContain('`PORT_delete-warpcore-runtime-bridge`');
     expect(releaseLedger).not.toContain('`PORT_extract-runtime-host-product`');
