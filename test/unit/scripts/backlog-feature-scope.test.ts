@@ -7,6 +7,7 @@ const backlogRoot = `${repoRoot}docs/method/backlog/`;
 
 function listBacklogNotes(dir: string): string[] {
   const paths: string[] = [];
+  const supportDocs = new Set(['README.md', 'WORKLOADS.md', 'SCORECARD.md', 'RELEASE_TRIAGE.md']);
 
   for (const name of readdirSync(dir)) {
     const absolutePath = `${dir}${name}`;
@@ -17,7 +18,7 @@ function listBacklogNotes(dir: string): string[] {
     if (!name.endsWith('.md')) {
       continue;
     }
-    if (name === 'README.md' || name === 'WORKLOADS.md' || name === 'SCORECARD.md') {
+    if (supportDocs.has(name)) {
       continue;
     }
     paths.push(absolutePath.slice(repoRoot.length));

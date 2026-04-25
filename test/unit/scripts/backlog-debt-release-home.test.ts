@@ -5,26 +5,18 @@ import { describe, expect, it } from 'vitest';
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const backlogReadme = readFileSync(`${repoRoot}docs/method/backlog/README.md`, 'utf8');
 const badCodeReadme = readFileSync(`${repoRoot}docs/method/backlog/bad-code/README.md`, 'utf8');
+const badCodeReleaseTriage = readFileSync(
+  `${repoRoot}docs/method/backlog/bad-code/RELEASE_TRIAGE.md`,
+  'utf8',
+);
 
 const badCodePaths = readdirSync(`${repoRoot}docs/method/backlog/bad-code/`)
   .filter((name) => name.endsWith('.md'))
   .filter((name) => name !== 'README.md')
+  .filter((name) => name !== 'RELEASE_TRIAGE.md')
   .map((name) => `docs/method/backlog/bad-code/${name}`);
 
-const releaseHomeByFeature = new Map<string, string>([
-  ['api-capabilities', 'v17.0.0'],
-  ['runtime-boundaries', 'v17.0.0'],
-  ['materialization-query-index', 'v17.0.0'],
-  ['trie-state-storage', 'v17.0.0'],
-  ['sync-trust-security', 'v17.0.0'],
-  ['testing-quality', 'v17.0.0'],
-  ['docs-dx', 'v17.0.0'],
-  ['tooling-release', 'v17.0.0'],
-  ['browser-viz', 'v17.0.0'],
-  ['graph-model-substrate', 'v18.0.0'],
-  ['observer-admission-runtime', 'v19.0.0'],
-  ['merge-strands-worldlines', 'v20.0.0+'],
-]);
+const expectedReleaseHomes = new Set(['v17.0.0', 'v18.0.0', 'v19.0.0', 'v20.0.0', 'v21.0.0']);
 
 function readFrontmatter(path: string): string {
   const text = readFileSync(`${repoRoot}${path}`, 'utf8');
@@ -44,6 +36,23 @@ function readScalar(frontmatter: string, key: string): string | null {
   return null;
 }
 
+function countReleaseHomes(): Map<string, number> {
+  const counts = new Map<string, number>();
+
+  for (const path of badCodePaths) {
+    const releaseHome = readScalar(readFrontmatter(path), 'release_home');
+
+    if (releaseHome === null) {
+      continue;
+    }
+
+    const previousCount = counts.get(releaseHome);
+    counts.set(releaseHome, previousCount === undefined ? 1 : previousCount + 1);
+  }
+
+  return counts;
+}
+
 describe('bad-code release homes', () => {
   it('requires every bad-code note to declare release_home', () => {
     const missingReleaseHome = badCodePaths.filter(
@@ -53,26 +62,24 @@ describe('bad-code release homes', () => {
     expect(missingReleaseHome).toEqual([]);
   });
 
-  it('keeps release_home aligned with feature ownership', () => {
-    const mismatches: string[] = [];
+  it('keeps release_home values on current release lanes', () => {
+    const invalidReleaseHomes: string[] = [];
 
     for (const path of badCodePaths) {
       const frontmatter = readFrontmatter(path);
-      const feature = readScalar(frontmatter, 'feature');
       const releaseHome = readScalar(frontmatter, 'release_home');
 
-      if (feature === null || releaseHome === null) {
-        mismatches.push(path);
+      if (releaseHome === null) {
+        invalidReleaseHomes.push(path);
         continue;
       }
 
-      const expectedReleaseHome = releaseHomeByFeature.get(feature);
-      if (expectedReleaseHome === undefined || expectedReleaseHome !== releaseHome) {
-        mismatches.push(`${path} -> ${feature} => ${releaseHome}`);
+      if (!expectedReleaseHomes.has(releaseHome)) {
+        invalidReleaseHomes.push(`${path} -> ${releaseHome}`);
       }
     }
 
-    expect(mismatches).toEqual([]);
+    expect(invalidReleaseHomes).toEqual([]);
   });
 
   it('documents the debt release-home law in the backlog readmes', () => {
@@ -82,8 +89,18 @@ describe('bad-code release homes', () => {
 
     expect(badCodeReadme).toContain('## Release Homes');
     expect(badCodeReadme).toContain('`bad-code/` remains the debt ledger');
-    expect(badCodeReadme).toContain('| `v17.0.0` | 105 |');
-    expect(badCodeReadme).toContain('| `v19.0.0` | 9 |');
-    expect(badCodeReadme).toContain('| `v20.0.0+` | 29 |');
+    expect(badCodeReleaseTriage).toContain('## Current Metadata Snapshot');
+    expect(badCodeReleaseTriage).toContain(
+      'There should be no remaining `release_home: v20.0.0+` values.',
+    );
+
+    for (const [releaseHome, count] of countReleaseHomes()) {
+      const countRow = `| \`${releaseHome}\` | ${count} |`;
+
+      expect(badCodeReadme).toContain(countRow);
+      expect(badCodeReleaseTriage).toContain(countRow);
+    }
+
+    expect(badCodeReadme).not.toContain('`v20.0.0+`');
   });
 });

@@ -120,10 +120,12 @@ LAYER 3:
                                           Cycle 0080 then completed the
                                           helper/seed half of that split, and
                                           cycle 0081 then completed the
-                                          runtime-facing suite half. The live
-                                          remaining order is now:
-                                          `DX_migrate-tests-and-seed-helpers-off-warpruntime`
-                                          → `API_delete-warpruntime-class`
+                                          runtime-facing suite half. Cycle
+                                          0082 then closed the test/helper
+                                          migration umbrella by proving both
+                                          ratchets. The live remaining order is
+                                          now:
+                                          `API_delete-warpruntime-class`
                                           → `API_kill-warpruntime`
 
 LAYER 4 (launch-prep only; park until the repo is otherwise ready to ship):
