@@ -6,8 +6,8 @@ const umbrellaNote = readFileSync(
   join(process.cwd(), 'docs/method/backlog/v17.0.0/DX_migrate-tests-and-seed-helpers-off-warpruntime.md'),
   'utf8',
 );
-const suiteNote = readFileSync(
-  join(process.cwd(), 'docs/method/backlog/v17.0.0/DX_migrate-runtime-suites-off-warpruntime.md'),
+const suiteCycle = readFileSync(
+  join(process.cwd(), 'docs/design/0081-migrate-runtime-suites-off-warpruntime.md'),
   'utf8',
 );
 const releaseLedger = readFileSync(
@@ -22,10 +22,10 @@ describe('migrate warpruntime test/helper split', () => {
   });
 
   it('keeps broad suite migration explicit after the helper migration landed', () => {
-    expect(suiteNote).toContain('test/unit/domain/WarpGraph*.test.ts');
-    expect(suiteNote).toContain('instanceof WarpRuntime');
-    expect(suiteNote).toContain('WarpCore');
-    expect(suiteNote).toContain('Helper and seed surfaces no longer reopen the runtime class');
+    expect(suiteCycle).toContain('Runtime-facing test suites no longer import');
+    expect(suiteCycle).toContain('instanceof WarpRuntime');
+    expect(suiteCycle).toContain('WarpCore');
+    expect(suiteCycle).toContain('Cycle `0080` moved helper and seed entrypoints');
   });
 
   it('records the reduced order in the v17 release ledger', () => {
