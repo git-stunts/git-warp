@@ -24,7 +24,8 @@ describe('delete warpruntime class split', () => {
   it('keeps the remaining test-helper residue cut explicit', () => {
     expect(testsMigrationNote).toContain('WarpRuntime');
     expect(testsMigrationNote).not.toContain('DX_migrate-seed-and-runtime-helpers-off-warpruntime');
-    expect(testsMigrationNote).toContain('DX_migrate-runtime-suites-off-warpruntime');
+    expect(testsMigrationNote).not.toContain('DX_migrate-runtime-suites-off-warpruntime');
+    expect(testsMigrationNote).toContain('helper ratchet and suite ratchet both pass');
   });
 
   it('records the reduced remaining order in the v17 release ledger', () => {
@@ -32,7 +33,7 @@ describe('delete warpruntime class split', () => {
     expect(releaseLedger).toContain('Cycle 0079 then proved');
     expect(releaseLedger).toContain('Cycle 0080 then completed');
     expect(releaseLedger).not.toContain('`DX_migrate-seed-and-runtime-helpers-off-warpruntime`');
-    expect(releaseLedger).toContain('`DX_migrate-runtime-suites-off-warpruntime`');
+    expect(releaseLedger).not.toContain('`DX_migrate-runtime-suites-off-warpruntime`');
     expect(releaseLedger).toContain('`DX_migrate-tests-and-seed-helpers-off-warpruntime`');
     expect(releaseLedger).toContain('`API_delete-warpruntime-class`');
     expect(releaseLedger).not.toContain('`PORT_extract-runtime-host-product`');

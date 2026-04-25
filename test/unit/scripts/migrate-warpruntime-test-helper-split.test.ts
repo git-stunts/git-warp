@@ -16,9 +16,11 @@ const releaseLedger = readFileSync(
 );
 
 describe('migrate warpruntime test/helper split', () => {
-  it('rewrites the old blocker as a closeout gate over the remaining successor cut', () => {
+  it('rewrites the old blocker as an unblocked closeout gate', () => {
+    expect(umbrellaNote).toContain('blocked_by: []');
     expect(umbrellaNote).not.toContain('- `DX_migrate-seed-and-runtime-helpers-off-warpruntime`');
-    expect(umbrellaNote).toContain('- `DX_migrate-runtime-suites-off-warpruntime`');
+    expect(umbrellaNote).not.toContain('- `DX_migrate-runtime-suites-off-warpruntime`');
+    expect(umbrellaNote).toContain('cycle `0081`');
   });
 
   it('keeps broad suite migration explicit after the helper migration landed', () => {
@@ -31,7 +33,7 @@ describe('migrate warpruntime test/helper split', () => {
   it('records the reduced order in the v17 release ledger', () => {
     expect(releaseLedger).toContain('Cycle 0080 then completed');
     expect(releaseLedger).not.toContain('`DX_migrate-seed-and-runtime-helpers-off-warpruntime`');
-    expect(releaseLedger).toContain('`DX_migrate-runtime-suites-off-warpruntime`');
+    expect(releaseLedger).not.toContain('`DX_migrate-runtime-suites-off-warpruntime`');
     expect(releaseLedger).toContain('`DX_migrate-tests-and-seed-helpers-off-warpruntime`');
   });
 });

@@ -118,10 +118,11 @@ LAYER 3:
                                           the remaining test/helper blocker
                                           also needs an internal split.
                                           Cycle 0080 then completed the
-                                          helper/seed half of that split. The live
+                                          helper/seed half of that split, and
+                                          cycle 0081 then completed the
+                                          runtime-facing suite half. The live
                                           remaining order is now:
-                                          `DX_migrate-runtime-suites-off-warpruntime`
-                                          → `DX_migrate-tests-and-seed-helpers-off-warpruntime`
+                                          `DX_migrate-tests-and-seed-helpers-off-warpruntime`
                                           → `API_delete-warpruntime-class`
                                           → `API_kill-warpruntime`
 

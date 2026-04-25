@@ -87,3 +87,35 @@ Add a ratchet that fails while runtime-facing test suites contain:
 - `npm run typecheck`
 - `git diff --check`
 
+## Playback
+
+### Agent
+
+- Yes. Runtime-facing suites no longer import `WarpRuntime.ts`.
+- Yes. Runtime-facing suites no longer call `WarpRuntime.open(...)`.
+- Yes. Runtime-facing suites no longer assert `instanceof WarpRuntime`.
+- Yes. `warpruntime-suite-migration.test.ts` prevents those fragments from
+  returning.
+
+### Human
+
+- Yes. The next runtime-kill step is now the test/helper closeout gate, not a
+  broad suite migration.
+
+### Technical note
+
+The migration uses two honest surfaces:
+
+- `WarpCore` for core-surface tests
+- `openRuntimeHostProduct` for white-box legacy suites that still exercise host
+  internals until the class delete has a replacement owner for those members
+
+### Verdict
+
+`hill met`
+
+## Drift check
+
+No negative drift. The main discovered drift is useful: tests that mutate host
+internals should name the runtime host product, not pretend the frozen
+`WarpCore` surface owns those internals.
