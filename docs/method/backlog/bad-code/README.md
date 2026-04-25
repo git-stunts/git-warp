@@ -24,6 +24,10 @@ release home. The note stays here so debt is still visibly debt;
 `release_home` only answers which release should absorb, retire, or
 otherwise burn it down.
 
+Release-fit triage is tracked in
+[RELEASE_TRIAGE.md](RELEASE_TRIAGE.md). Use that note before rewriting
+card metadata or promoting bad-code into a release lane.
+
 | Release Home | Count |
 |--------------|------:|
 | `v17.0.0` | 105 |
