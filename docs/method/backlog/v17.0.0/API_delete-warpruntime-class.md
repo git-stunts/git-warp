@@ -1,7 +1,6 @@
 ---
 id: API_delete-warpruntime-class
-blocked_by:
-  - PORT_delete-warpcore-runtime-bridge
+blocked_by: []
 blocks:
   - API_kill-warpruntime
   - TS_publish-pipeline

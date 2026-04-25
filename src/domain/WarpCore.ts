@@ -1,101 +1,122 @@
 import WarpError from './errors/WarpError.ts';
-import { callInternalRuntimeMethod } from './utils/callInternalRuntimeMethod.ts';
-import { toInternalStrandShape, toPublicStrandShape } from './utils/strandPublicShape.ts';
-import {
-  linkWarpCorePrototype,
-  openWarpCoreRuntime,
-} from './warp/WarpCoreRuntimeBridge.ts';
-import {
-  buildCoordinateComparisonFact,
-  buildCoordinateTransferPlanFact,
-} from './services/CoordinateFactExport.ts';
-import { computeChecksum } from './utils/checksumUtils.ts';
+import { openWarpCoreRuntimeProduct } from './warp/WarpCoreRuntimeProduct.ts';
 
 import type CryptoPort from '../ports/CryptoPort.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
 import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
 import type {
-  CompareCoordinatesOptions,
-  CompareStrandOptions,
-  ConflictAnalysis,
-  ConflictAnalyzeOptions,
-  CoordinateComparisonV1,
-  CoordinateTransferPlanV1,
-  InternalBraidStrandOptions,
-  InternalCompareCoordinatesOptions,
-  InternalCompareStrandOptions,
-  InternalConflictAnalyzeOptions,
-  InternalPlanCoordinateTransferOptions,
-  InternalPlanStrandTransferOptions,
-  PlanCoordinateTransferOptions,
-  PlanStrandTransferOptions,
-  StrandBraidOptions,
-  StrandCreateOptions,
-  StrandDescriptor,
-  StrandIntentDescriptor,
-  StrandMaterializeOptions,
-  StrandMaterializeResult,
-  StrandPatchEntry,
-  StrandPatchListOptions,
-  StrandTickRecord,
   WarpCoreOpenOptions,
-} from './warp/WarpCoreRuntimeBridge.ts';
-
-type ContentMeta = {
-  oid: string;
-  mime: string | null;
-  size: number | null;
-};
-
-async function refreshPublicComparisonDigest(
-  graph: WarpCore,
-  comparison: CoordinateComparisonV1,
-): Promise<CoordinateComparisonV1> {
-  const fact = buildCoordinateComparisonFact(comparison);
-  return {
-    ...comparison,
-    comparisonDigest: await computeChecksum(fact, graph._crypto),
-  };
-}
-
-async function refreshPublicTransferDigest(
-  graph: WarpCore,
-  transferPlan: CoordinateTransferPlanV1,
-): Promise<CoordinateTransferPlanV1> {
-  const fact = buildCoordinateTransferPlanFact(transferPlan);
-  return {
-    ...transferPlan,
-    transferDigest: await computeChecksum(fact, graph._crypto),
-  };
-}
+  WarpCoreRuntimeSurface,
+} from './warp/WarpCoreRuntimeProduct.ts';
 
 /**
  * Full plumbing-facing WARP surface.
  *
  * `WarpCore` is the honest substrate/tooling entrypoint for replay,
  * materialization, provenance, comparison, and other low-level mechanics.
- * It adopts the existing runtime implementation rather than forking it.
+ * It now adopts an explicit structural core product rather than linking
+ * itself onto the `WarpRuntime` prototype.
  */
 export default class WarpCore {
+  declare readonly graphName: WarpCoreRuntimeSurface['graphName'];
+  declare readonly writerId: WarpCoreRuntimeSurface['writerId'];
+  declare readonly traverse: WarpCoreRuntimeSurface['traverse'];
+  declare readonly persistence: WarpCoreRuntimeSurface['persistence'];
+  declare readonly onDeleteWithData: WarpCoreRuntimeSurface['onDeleteWithData'];
+  declare readonly gcPolicy: WarpCoreRuntimeSurface['gcPolicy'];
+  declare readonly seekCache: WarpCoreRuntimeSurface['seekCache'];
+  declare readonly hasNode: WarpCoreRuntimeSurface['hasNode'];
+  declare readonly getNodeProps: WarpCoreRuntimeSurface['getNodeProps'];
+  declare readonly getEdgeProps: WarpCoreRuntimeSurface['getEdgeProps'];
+  declare readonly neighbors: WarpCoreRuntimeSurface['neighbors'];
+  declare readonly getStateSnapshot: WarpCoreRuntimeSurface['getStateSnapshot'];
+  declare readonly getNodes: WarpCoreRuntimeSurface['getNodes'];
+  declare readonly getEdges: WarpCoreRuntimeSurface['getEdges'];
+  declare readonly getPropertyCount: WarpCoreRuntimeSurface['getPropertyCount'];
+  declare readonly query: WarpCoreRuntimeSurface['query'];
+  declare readonly worldline: WarpCoreRuntimeSurface['worldline'];
+  declare readonly observer: WarpCoreRuntimeSurface['observer'];
+  declare readonly translationCost: WarpCoreRuntimeSurface['translationCost'];
+  declare readonly getContentOid: WarpCoreRuntimeSurface['getContentOid'];
+  declare readonly getContentMeta: WarpCoreRuntimeSurface['getContentMeta'];
+  declare readonly getContent: WarpCoreRuntimeSurface['getContent'];
+  declare readonly getEdgeContentOid: WarpCoreRuntimeSurface['getEdgeContentOid'];
+  declare readonly getEdgeContentMeta: WarpCoreRuntimeSurface['getEdgeContentMeta'];
+  declare readonly getEdgeContent: WarpCoreRuntimeSurface['getEdgeContent'];
+  declare readonly getContentStream: WarpCoreRuntimeSurface['getContentStream'];
+  declare readonly getEdgeContentStream: WarpCoreRuntimeSurface['getEdgeContentStream'];
+  declare readonly createPatch: WarpCoreRuntimeSurface['createPatch'];
+  declare readonly patch: WarpCoreRuntimeSurface['patch'];
+  declare readonly patchMany: WarpCoreRuntimeSurface['patchMany'];
+  declare readonly getWriterPatches: WarpCoreRuntimeSurface['getWriterPatches'];
+  declare readonly writer: WarpCoreRuntimeSurface['writer'];
+  declare readonly discoverWriters: WarpCoreRuntimeSurface['discoverWriters'];
+  declare readonly discoverTicks: WarpCoreRuntimeSurface['discoverTicks'];
+  declare readonly join: WarpCoreRuntimeSurface['join'];
+  declare readonly materialize: WarpCoreRuntimeSurface['materialize'];
+  declare readonly materializeCoordinate: WarpCoreRuntimeSurface['materializeCoordinate'];
+  declare readonly materializeAt: WarpCoreRuntimeSurface['materializeAt'];
+  declare readonly verifyIndex: WarpCoreRuntimeSurface['verifyIndex'];
+  declare readonly invalidateIndex: WarpCoreRuntimeSurface['invalidateIndex'];
+  declare readonly getFrontier: WarpCoreRuntimeSurface['getFrontier'];
+  declare readonly hasFrontierChanged: WarpCoreRuntimeSurface['hasFrontierChanged'];
+  declare readonly status: WarpCoreRuntimeSurface['status'];
+  declare readonly createSyncRequest: WarpCoreRuntimeSurface['createSyncRequest'];
+  declare readonly processSyncRequest: WarpCoreRuntimeSurface['processSyncRequest'];
+  declare readonly applySyncResponse: WarpCoreRuntimeSurface['applySyncResponse'];
+  declare readonly syncNeeded: WarpCoreRuntimeSurface['syncNeeded'];
+  declare readonly syncWith: WarpCoreRuntimeSurface['syncWith'];
+  declare readonly serve: WarpCoreRuntimeSurface['serve'];
+  declare readonly createStrand: WarpCoreRuntimeSurface['createStrand'];
+  declare readonly braidStrand: WarpCoreRuntimeSurface['braidStrand'];
+  declare readonly getStrand: WarpCoreRuntimeSurface['getStrand'];
+  declare readonly listStrands: WarpCoreRuntimeSurface['listStrands'];
+  declare readonly dropStrand: WarpCoreRuntimeSurface['dropStrand'];
+  declare readonly materializeStrand: WarpCoreRuntimeSurface['materializeStrand'];
+  declare readonly getStrandPatches: WarpCoreRuntimeSurface['getStrandPatches'];
+  declare readonly patchesForStrand: WarpCoreRuntimeSurface['patchesForStrand'];
+  declare readonly createStrandPatch: WarpCoreRuntimeSurface['createStrandPatch'];
+  declare readonly patchStrand: WarpCoreRuntimeSurface['patchStrand'];
+  declare readonly queueStrandIntent: WarpCoreRuntimeSurface['queueStrandIntent'];
+  declare readonly listStrandIntents: WarpCoreRuntimeSurface['listStrandIntents'];
+  declare readonly tickStrand: WarpCoreRuntimeSurface['tickStrand'];
+  declare readonly analyzeConflicts: WarpCoreRuntimeSurface['analyzeConflicts'];
+  declare readonly createCheckpoint: WarpCoreRuntimeSurface['createCheckpoint'];
+  declare readonly syncCoverage: WarpCoreRuntimeSurface['syncCoverage'];
+  declare readonly maybeRunGC: WarpCoreRuntimeSurface['maybeRunGC'];
+  declare readonly runGC: WarpCoreRuntimeSurface['runGC'];
+  declare readonly getGCMetrics: WarpCoreRuntimeSurface['getGCMetrics'];
+  declare readonly patchesFor: WarpCoreRuntimeSurface['patchesFor'];
+  declare readonly materializeSlice: WarpCoreRuntimeSurface['materializeSlice'];
+  declare readonly loadPatchBySha: WarpCoreRuntimeSurface['loadPatchBySha'];
+  declare readonly buildPatchDivergence: WarpCoreRuntimeSurface['buildPatchDivergence'];
+  declare readonly compareStrand: WarpCoreRuntimeSurface['compareStrand'];
+  declare readonly planStrandTransfer: WarpCoreRuntimeSurface['planStrandTransfer'];
+  declare readonly compareCoordinates: WarpCoreRuntimeSurface['compareCoordinates'];
+  declare readonly planCoordinateTransfer: WarpCoreRuntimeSurface['planCoordinateTransfer'];
+  declare readonly subscribe: WarpCoreRuntimeSurface['subscribe'];
+  declare readonly watch: WarpCoreRuntimeSurface['watch'];
+  declare readonly setSeekCache: WarpCoreRuntimeSurface['setSeekCache'];
+  declare readonly fork: WarpCoreRuntimeSurface['fork'];
+  declare readonly createWormhole: WarpCoreRuntimeSurface['createWormhole'];
   declare _effectPipeline: EffectPipeline | null;
-  declare _crypto: CryptoPort;
+  declare readonly _crypto: CryptoPort;
 
   static async open(options: WarpCoreOpenOptions): Promise<WarpCore> {
-    const runtime = await openWarpCoreRuntime(options);
-    return WarpCore._adopt(runtime);
+    return WarpCore._adopt(await openWarpCoreRuntimeProduct(options));
   }
 
   /**
-   * Adopts an existing runtime instance as a WarpCore.
+   * Adopts an explicit structural core surface as a WarpCore instance.
    */
-  static _adopt(runtime: object | WarpCore): WarpCore {
-    if (runtime instanceof WarpCore) {
-      return runtime;
+  static _adopt(surface: object | WarpCore): WarpCore {
+    if (surface instanceof WarpCore) {
+      return surface;
     }
 
-    Object.setPrototypeOf(runtime, WarpCore.prototype);
-    if (runtime instanceof WarpCore) {
-      return runtime;
+    Object.setPrototypeOf(surface, WarpCore.prototype);
+    if (surface instanceof WarpCore) {
+      return Object.freeze(surface);
     }
 
     throw new WarpError('failed to adopt runtime as WarpCore', 'E_WARP_CORE_ADOPT');
@@ -126,167 +147,4 @@ export default class WarpCore {
       this._effectPipeline.lens = newLens;
     }
   }
-
-  async getContent(nodeId: string): Promise<Uint8Array | null> {
-    return await callInternalRuntimeMethod<Uint8Array | null>(this, 'getContent', nodeId);
-  }
-
-  async getContentStream(nodeId: string): Promise<AsyncIterable<Uint8Array> | null> {
-    return await callInternalRuntimeMethod<AsyncIterable<Uint8Array> | null>(this, 'getContentStream', nodeId);
-  }
-
-  async getContentOid(nodeId: string): Promise<string | null> {
-    return await callInternalRuntimeMethod<string | null>(this, 'getContentOid', nodeId);
-  }
-
-  async getContentMeta(nodeId: string): Promise<ContentMeta | null> {
-    return await callInternalRuntimeMethod<ContentMeta | null>(this, 'getContentMeta', nodeId);
-  }
-
-  async getEdgeContent(from: string, to: string, label: string): Promise<Uint8Array | null> {
-    return await callInternalRuntimeMethod<Uint8Array | null>(this, 'getEdgeContent', from, to, label);
-  }
-
-  async getEdgeContentStream(from: string, to: string, label: string): Promise<AsyncIterable<Uint8Array> | null> {
-    return await callInternalRuntimeMethod<AsyncIterable<Uint8Array> | null>(this, 'getEdgeContentStream', from, to, label);
-  }
-
-  async getEdgeContentOid(from: string, to: string, label: string): Promise<string | null> {
-    return await callInternalRuntimeMethod<string | null>(this, 'getEdgeContentOid', from, to, label);
-  }
-
-  async getEdgeContentMeta(from: string, to: string, label: string): Promise<ContentMeta | null> {
-    return await callInternalRuntimeMethod<ContentMeta | null>(this, 'getEdgeContentMeta', from, to, label);
-  }
-
-  async createStrand(options?: StrandCreateOptions): Promise<StrandDescriptor> {
-    return toPublicStrandShape(
-      await callInternalRuntimeMethod<StrandDescriptor>(this, 'createStrand', toInternalStrandShape(options)),
-    );
-  }
-
-  async getStrand(strandId: string): Promise<StrandDescriptor | null> {
-    return toPublicStrandShape(
-      await callInternalRuntimeMethod<StrandDescriptor | null>(this, 'getStrand', strandId),
-    );
-  }
-
-  async listStrands(): Promise<StrandDescriptor[]> {
-    return toPublicStrandShape(
-      await callInternalRuntimeMethod<StrandDescriptor[]>(this, 'listStrands'),
-    );
-  }
-
-  async braidStrand(strandId: string, options?: StrandBraidOptions): Promise<StrandDescriptor> {
-    const internalOptions: InternalBraidStrandOptions | undefined = toInternalStrandShape(options);
-    return toPublicStrandShape(
-      await callInternalRuntimeMethod<StrandDescriptor>(this, 'braidStrand', strandId, internalOptions),
-    );
-  }
-
-  async dropStrand(strandId: string): Promise<boolean> {
-    return await callInternalRuntimeMethod<boolean>(this, 'dropStrand', strandId);
-  }
-
-  async materializeStrand(strandId: string, options?: StrandMaterializeOptions): Promise<StrandMaterializeResult> {
-    return await callInternalRuntimeMethod<StrandMaterializeResult>(this, 'materializeStrand', strandId, options);
-  }
-
-  async getStrandPatches(
-    strandId: string,
-    options?: StrandPatchListOptions,
-  ): Promise<StrandPatchEntry[]> {
-    return await callInternalRuntimeMethod<StrandPatchEntry[]>(this, 'getStrandPatches', strandId, options);
-  }
-
-  async patchesForStrand(
-    strandId: string,
-    entityId: string,
-    options?: StrandPatchListOptions,
-  ): Promise<string[]> {
-    return await callInternalRuntimeMethod<string[]>(this, 'patchesForStrand', strandId, entityId, options);
-  }
-
-  async createStrandPatch(strandId: string): Promise<import('./services/PatchBuilder.js').PatchBuilder> {
-    return await callInternalRuntimeMethod<import('./services/PatchBuilder.js').PatchBuilder>(
-      this,
-      'createStrandPatch',
-      strandId,
-    );
-  }
-
-  async patchStrand(
-    strandId: string,
-    build: (patch: import('./services/PatchBuilder.js').PatchBuilder) => void | Promise<void>,
-  ): Promise<string> {
-    return await callInternalRuntimeMethod<string>(this, 'patchStrand', strandId, build);
-  }
-
-  async queueStrandIntent(
-    strandId: string,
-    build: (patch: import('./services/PatchBuilder.js').PatchBuilder) => void | Promise<void>,
-  ): Promise<StrandIntentDescriptor> {
-    return toPublicStrandShape(
-      await callInternalRuntimeMethod<StrandIntentDescriptor>(this, 'queueStrandIntent', strandId, build),
-    );
-  }
-
-  async listStrandIntents(strandId: string): Promise<StrandIntentDescriptor[]> {
-    return toPublicStrandShape(
-      await callInternalRuntimeMethod<StrandIntentDescriptor[]>(this, 'listStrandIntents', strandId),
-    );
-  }
-
-  async tickStrand(strandId: string): Promise<StrandTickRecord> {
-    return toPublicStrandShape(
-      await callInternalRuntimeMethod<StrandTickRecord>(this, 'tickStrand', strandId),
-    );
-  }
-
-  async compareStrand(
-    strandId: string,
-    options?: CompareStrandOptions,
-  ): Promise<CoordinateComparisonV1> {
-    const internalOptions: InternalCompareStrandOptions | undefined = toInternalStrandShape(options);
-    const comparison = toPublicStrandShape(
-      await callInternalRuntimeMethod<CoordinateComparisonV1>(this, 'compareStrand', strandId, internalOptions),
-    );
-    return await refreshPublicComparisonDigest(this, comparison);
-  }
-
-  async planStrandTransfer(
-    strandId: string,
-    options?: PlanStrandTransferOptions,
-  ): Promise<CoordinateTransferPlanV1> {
-    const internalOptions: InternalPlanStrandTransferOptions | undefined = toInternalStrandShape(options);
-    const transferPlan = toPublicStrandShape(
-      await callInternalRuntimeMethod<CoordinateTransferPlanV1>(this, 'planStrandTransfer', strandId, internalOptions),
-    );
-    return await refreshPublicTransferDigest(this, transferPlan);
-  }
-
-  async compareCoordinates(options: CompareCoordinatesOptions): Promise<CoordinateComparisonV1> {
-    const internalOptions: InternalCompareCoordinatesOptions = toInternalStrandShape(options);
-    const comparison = toPublicStrandShape(
-      await callInternalRuntimeMethod<CoordinateComparisonV1>(this, 'compareCoordinates', internalOptions),
-    );
-    return await refreshPublicComparisonDigest(this, comparison);
-  }
-
-  async planCoordinateTransfer(options: PlanCoordinateTransferOptions): Promise<CoordinateTransferPlanV1> {
-    const internalOptions: InternalPlanCoordinateTransferOptions = toInternalStrandShape(options);
-    const transferPlan = toPublicStrandShape(
-      await callInternalRuntimeMethod<CoordinateTransferPlanV1>(this, 'planCoordinateTransfer', internalOptions),
-    );
-    return await refreshPublicTransferDigest(this, transferPlan);
-  }
-
-  async analyzeConflicts(options?: ConflictAnalyzeOptions): Promise<ConflictAnalysis> {
-    const internalOptions: InternalConflictAnalyzeOptions | undefined = toInternalStrandShape(options);
-    return toPublicStrandShape(
-      await callInternalRuntimeMethod<ConflictAnalysis>(this, 'analyzeConflicts', internalOptions),
-    );
-  }
 }
-
-linkWarpCorePrototype(WarpCore.prototype);

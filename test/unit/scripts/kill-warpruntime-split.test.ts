@@ -13,18 +13,19 @@ const releaseLedger = readFileSync(
 
 describe('kill warpruntime split', () => {
   it('rewrites the umbrella around the live remaining successor cuts', () => {
-    expect(runtimeKillNote).toContain('- `PORT_delete-warpcore-runtime-bridge`');
     expect(runtimeKillNote).toContain('- `API_delete-warpruntime-class`');
-    expect(runtimeKillNote).toContain('Cycle `0075` completed the first exposed cut');
+    expect(runtimeKillNote).toContain('cycle `0076` then completed the `WarpCore` bridge cut');
     expect(runtimeKillNote).not.toContain('- `API_delete-openwarpruntime-bridge`');
+    expect(runtimeKillNote).not.toContain('- `PORT_delete-warpcore-runtime-bridge`');
     expect(runtimeKillNote).not.toContain('This note is now the live remaining runtime-kill cut.');
   });
 
   it('records the same remaining order in the v17 release ledger', () => {
     expect(releaseLedger).toContain('Cycle 0074 resplit the exposed');
     expect(releaseLedger).toContain('cycle 0075 then');
-    expect(releaseLedger).toContain('`PORT_delete-warpcore-runtime-bridge`');
+    expect(releaseLedger).toContain('Cycle 0076 then');
     expect(releaseLedger).toContain('`API_delete-warpruntime-class`');
     expect(releaseLedger).not.toContain('`API_delete-openwarpruntime-bridge`');
+    expect(releaseLedger).not.toContain('`PORT_delete-warpcore-runtime-bridge`');
   });
 });

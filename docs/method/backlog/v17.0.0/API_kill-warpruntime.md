@@ -23,7 +23,6 @@ surface:
 
 What remains is now explicitly split:
 
-- `PORT_delete-warpcore-runtime-bridge`
 - `API_delete-warpruntime-class`
 
 Cycle `0075` completed the first exposed cut:
@@ -65,11 +64,11 @@ cleared the prerequisite residue:
 - `0072` completed the controller/service host-type cut
 - `0073` deleted the `_internal.ts` compatibility shim
 
-Cycle `0074` resplit the exposed remainder, and cycle `0075` completed the
-first of those cuts. The live remaining order is now:
+Cycle `0074` resplit the exposed remainder, cycle `0075` completed the public
+bridge cut, and cycle `0076` then completed the `WarpCore` bridge cut. The live
+remaining order is now:
 
-1. delete the `WarpCore` runtime bridge and escape hatch
-2. delete the `WarpRuntime` class and exports
-3. close the umbrella
+1. delete the `WarpRuntime` class and exports
+2. close the umbrella
 
-This umbrella closes only after those two remaining cuts land.
+This umbrella closes only after that executable delete lands.

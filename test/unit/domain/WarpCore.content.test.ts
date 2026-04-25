@@ -1,17 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpCore from '../../../src/domain/WarpCore.ts';
+import CryptoPort from '../../../src/ports/CryptoPort.ts';
+import { LIVE_LENS } from '../../../src/domain/types/ExternalizationPolicy.ts';
+import type { EffectPipeline } from '../../../src/domain/services/EffectPipeline.ts';
 
-// ── Mock runtime that WarpCore._adopt() can wrap ─────────────────────────────
+// ── Mock structural core surface that WarpCore._adopt() can wrap ────────────
 
 /**
- * Build a mock runtime where content methods live on the prototype (simulating
- * WarpRuntime's defineProperty-installed QueryController methods). This ensures
- * callInternalRuntimeMethod walks the prototype chain through WarpCore.prototype
- * and resolves to the grandparent (simulated WarpRuntime.prototype) methods.
+ * Build a mock core surface where content methods live on the product object
+ * itself. This ensures WarpCore adopts an explicit structural surface instead
+ * of relying on prototype walking.
  */
-function createMockRuntimeForAdopt() {
-  // Build a fake WarpRuntime prototype with content methods
-  const fakeRuntimeProto = {
+function createMockCoreSurfaceForAdopt() {
+  let effectPipeline: EffectPipeline | null = null;
+  const crypto = new TestCryptoPort();
+  return {
     getContent: vi.fn(async () => new Uint8Array([1, 2, 3])),
     getContentStream: vi.fn(async () => (async function* () { yield new Uint8Array([1]); })()),
     getContentOid: vi.fn(async () => 'a'.repeat(40)),
@@ -20,24 +23,30 @@ function createMockRuntimeForAdopt() {
     getEdgeContentStream: vi.fn(async () => (async function* () { yield new Uint8Array([2]); })()),
     getEdgeContentOid: vi.fn(async () => 'b'.repeat(40)),
     getEdgeContentMeta: vi.fn(async () => ({ oid: 'b'.repeat(40), mime: null, size: 10 })),
+    get _effectPipeline() {
+      return effectPipeline;
+    },
+    set _effectPipeline(pipeline: EffectPipeline | null) {
+      effectPipeline = pipeline;
+    },
+    get _crypto() {
+      return crypto;
+    },
   };
+}
 
-  // The runtime instance has NO own content methods — they're on its prototype.
-  // But WarpRuntime.prototype content methods delegate to _queryController,
-  // so we mock that controller with the same spies.
-  const runtime = Object.create(fakeRuntimeProto);
-  runtime._effectPipeline = null;
-  runtime._queryController = {
-    getContent: fakeRuntimeProto.getContent,
-    getContentStream: fakeRuntimeProto.getContentStream,
-    getContentOid: fakeRuntimeProto.getContentOid,
-    getContentMeta: fakeRuntimeProto.getContentMeta,
-    getEdgeContent: fakeRuntimeProto.getEdgeContent,
-    getEdgeContentStream: fakeRuntimeProto.getEdgeContentStream,
-    getEdgeContentOid: fakeRuntimeProto.getEdgeContentOid,
-    getEdgeContentMeta: fakeRuntimeProto.getEdgeContentMeta,
-  };
-  return runtime;
+class TestCryptoPort extends CryptoPort {
+  async hash(): Promise<string> {
+    return 'hash';
+  }
+
+  async hmac(): Promise<Uint8Array> {
+    return new Uint8Array([1]);
+  }
+
+  timingSafeEqual(): boolean {
+    return true;
+  }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -47,31 +56,28 @@ describe('WarpCore', () => {
 
   describe('_adopt', () => {
     it('returns the same instance if already a WarpCore', () => {
-      // Create a minimal WarpCore-like instance by adopting a mock runtime first
-      const core = WarpCore._adopt(createMockRuntimeForAdopt());
+      const core = WarpCore._adopt(createMockCoreSurfaceForAdopt());
       expect(core).toBeInstanceOf(WarpCore);
 
-      // Now adopt the same WarpCore — should return it unchanged
       const readopted = WarpCore._adopt(core);
       expect(readopted).toBe(core);
     });
 
-    it('sets prototype to WarpCore.prototype for non-WarpCore runtime', () => {
-      const runtime = createMockRuntimeForAdopt();
-      expect(runtime).not.toBeInstanceOf(WarpCore);
+    it('sets prototype to WarpCore.prototype for a structural core surface', () => {
+      const surface = createMockCoreSurfaceForAdopt();
+      expect(surface).not.toBeInstanceOf(WarpCore);
 
-      const core = WarpCore._adopt(runtime);
+      const core = WarpCore._adopt(surface);
 
       expect(core).toBeInstanceOf(WarpCore);
-      // Verify the original object was mutated, not cloned
-      expect(core).toBe(runtime);
+      expect(core).toBe(surface);
     });
 
-    it('throws when runtime adoption cannot install the WarpCore prototype', () => {
-      const runtime = createMockRuntimeForAdopt();
+    it('throws when surface adoption cannot install the WarpCore prototype', () => {
+      const surface = createMockCoreSurfaceForAdopt();
       const setPrototypeOf = vi.spyOn(Object, 'setPrototypeOf').mockImplementation((value) => value);
 
-      expect(() => WarpCore._adopt(runtime)).toThrow('failed to adopt runtime as WarpCore');
+      expect(() => WarpCore._adopt(surface)).toThrow('failed to adopt runtime as WarpCore');
 
       setPrototypeOf.mockRestore();
     });
@@ -81,47 +87,45 @@ describe('WarpCore', () => {
 
   describe('content methods (node)', () => {
         let core;
-    let runtime;
-        let runtimeProto;
+    let surface;
 
     beforeEach(() => {
-      runtime = createMockRuntimeForAdopt();
-      runtimeProto = Object.getPrototypeOf(runtime);
-      core = WarpCore._adopt(runtime);
+      surface = createMockCoreSurfaceForAdopt();
+      core = WarpCore._adopt(surface);
     });
 
-    it('getContent delegates to runtime prototype method', async () => {
+    it('getContent delegates to the adopted surface method', async () => {
       const result = await core.getContent('node:1');
 
-      expect(runtimeProto.getContent).toHaveBeenCalledWith('node:1');
+      expect(surface.getContent).toHaveBeenCalledWith('node:1');
       expect(result).toEqual(new Uint8Array([1, 2, 3]));
     });
 
     it('getContent returns null when content is absent', async () => {
-      runtimeProto.getContent.mockResolvedValue(null);
+      surface.getContent.mockResolvedValue(null);
 
       const result = await core.getContent('missing');
       expect(result).toBeNull();
     });
 
-    it('getContentStream delegates to runtime prototype method', async () => {
+    it('getContentStream delegates to the adopted surface method', async () => {
       const result = await core.getContentStream('node:1');
 
-      expect(runtimeProto.getContentStream).toHaveBeenCalledWith('node:1');
+      expect(surface.getContentStream).toHaveBeenCalledWith('node:1');
       expect(result).toBeDefined();
     });
 
-    it('getContentOid delegates to runtime prototype method', async () => {
+    it('getContentOid delegates to the adopted surface method', async () => {
       const result = await core.getContentOid('node:1');
 
-      expect(runtimeProto.getContentOid).toHaveBeenCalledWith('node:1');
+      expect(surface.getContentOid).toHaveBeenCalledWith('node:1');
       expect(result).toBe('a'.repeat(40));
     });
 
-    it('getContentMeta delegates to runtime prototype method', async () => {
+    it('getContentMeta delegates to the adopted surface method', async () => {
       const result = await core.getContentMeta('node:1');
 
-      expect(runtimeProto.getContentMeta).toHaveBeenCalledWith('node:1');
+      expect(surface.getContentMeta).toHaveBeenCalledWith('node:1');
       expect(result).toEqual({ oid: 'a'.repeat(40), mime: 'text/plain', size: 42 });
     });
   });
@@ -130,40 +134,38 @@ describe('WarpCore', () => {
 
   describe('content methods (edge)', () => {
         let core;
-    let runtime;
-        let runtimeProto;
+    let surface;
 
     beforeEach(() => {
-      runtime = createMockRuntimeForAdopt();
-      runtimeProto = Object.getPrototypeOf(runtime);
-      core = WarpCore._adopt(runtime);
+      surface = createMockCoreSurfaceForAdopt();
+      core = WarpCore._adopt(surface);
     });
 
-    it('getEdgeContent delegates to runtime prototype method', async () => {
+    it('getEdgeContent delegates to the adopted surface method', async () => {
       const result = await core.getEdgeContent('a', 'b', 'knows');
 
-      expect(runtimeProto.getEdgeContent).toHaveBeenCalledWith('a', 'b', 'knows');
+      expect(surface.getEdgeContent).toHaveBeenCalledWith('a', 'b', 'knows');
       expect(result).toEqual(new Uint8Array([4, 5, 6]));
     });
 
-    it('getEdgeContentStream delegates to runtime prototype method', async () => {
+    it('getEdgeContentStream delegates to the adopted surface method', async () => {
       const result = await core.getEdgeContentStream('a', 'b', 'knows');
 
-      expect(runtimeProto.getEdgeContentStream).toHaveBeenCalledWith('a', 'b', 'knows');
+      expect(surface.getEdgeContentStream).toHaveBeenCalledWith('a', 'b', 'knows');
       expect(result).toBeDefined();
     });
 
-    it('getEdgeContentOid delegates to runtime prototype method', async () => {
+    it('getEdgeContentOid delegates to the adopted surface method', async () => {
       const result = await core.getEdgeContentOid('a', 'b', 'knows');
 
-      expect(runtimeProto.getEdgeContentOid).toHaveBeenCalledWith('a', 'b', 'knows');
+      expect(surface.getEdgeContentOid).toHaveBeenCalledWith('a', 'b', 'knows');
       expect(result).toBe('b'.repeat(40));
     });
 
-    it('getEdgeContentMeta delegates to runtime prototype method', async () => {
+    it('getEdgeContentMeta delegates to the adopted surface method', async () => {
       const result = await core.getEdgeContentMeta('a', 'b', 'knows');
 
-      expect(runtimeProto.getEdgeContentMeta).toHaveBeenCalledWith('a', 'b', 'knows');
+      expect(surface.getEdgeContentMeta).toHaveBeenCalledWith('a', 'b', 'knows');
       expect(result).toEqual({ oid: 'b'.repeat(40), mime: null, size: 10 });
     });
   });
@@ -172,29 +174,28 @@ describe('WarpCore', () => {
 
   describe('effect pipeline', () => {
     it('effectPipeline getter returns null when no pipeline configured', () => {
-      const core = WarpCore._adopt(createMockRuntimeForAdopt());
+      const core = WarpCore._adopt(createMockCoreSurfaceForAdopt());
       expect(core.effectPipeline).toBeNull();
     });
 
     it('effectEmissions returns empty array when no pipeline', () => {
-      const core = WarpCore._adopt(createMockRuntimeForAdopt());
+      const core = WarpCore._adopt(createMockCoreSurfaceForAdopt());
       expect(core.effectEmissions).toEqual([]);
     });
 
     it('deliveryObservations returns empty array when no pipeline', () => {
-      const core = WarpCore._adopt(createMockRuntimeForAdopt());
+      const core = WarpCore._adopt(createMockCoreSurfaceForAdopt());
       expect(core.deliveryObservations).toEqual([]);
     });
 
     it('externalizationPolicy returns null when no pipeline', () => {
-      const core = WarpCore._adopt(createMockRuntimeForAdopt());
+      const core = WarpCore._adopt(createMockCoreSurfaceForAdopt());
       expect(core.externalizationPolicy).toBeNull();
     });
 
     it('externalizationPolicy setter is no-op when no pipeline', () => {
-      const core = WarpCore._adopt(createMockRuntimeForAdopt());
-      // Should not throw
-      core.externalizationPolicy = ('LIVE_LENS' as any);
+      const core = WarpCore._adopt(createMockCoreSurfaceForAdopt());
+      core.externalizationPolicy = LIVE_LENS;
       expect(core.externalizationPolicy).toBeNull();
     });
   });

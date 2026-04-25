@@ -7,8 +7,13 @@ const warpGraphBridgeSource = readFileSync(
   'utf8',
 );
 
-const warpCoreBridgeSource = readFileSync(
-  fileURLToPath(new URL('../../../src/domain/warp/WarpCoreRuntimeBridge.ts', import.meta.url)),
+const warpCoreSource = readFileSync(
+  fileURLToPath(new URL('../../../src/domain/WarpCore.ts', import.meta.url)),
+  'utf8',
+);
+
+const warpCoreProductSource = readFileSync(
+  fileURLToPath(new URL('../../../src/domain/warp/WarpCoreRuntimeProduct.ts', import.meta.url)),
   'utf8',
 );
 
@@ -23,14 +28,16 @@ const warpRuntimeBootSource = readFileSync(
 );
 
 describe('openWarpGraph composition root', () => {
-  it('keeps the bridge files off direct WarpRuntime imports and static open calls', () => {
+  it('keeps the public graph bridge off direct WarpRuntime imports and static open calls', () => {
     expect(warpGraphBridgeSource).not.toContain("import WarpRuntime");
     expect(warpGraphBridgeSource).not.toContain("import type WarpRuntime");
     expect(warpGraphBridgeSource).not.toContain('WarpRuntime.open(');
+  });
 
-    expect(warpCoreBridgeSource).not.toContain("import WarpRuntime");
-    expect(warpCoreBridgeSource).not.toContain("import type WarpRuntime");
-    expect(warpCoreBridgeSource).not.toContain('WarpRuntime.open(');
+  it('keeps WarpCore off the deleted runtime bridge and static open calls', () => {
+    expect(warpCoreSource).not.toContain('./warp/WarpCoreRuntimeBridge.ts');
+    expect(warpCoreSource).not.toContain('WarpRuntime.open(');
+    expect(warpCoreProductSource).not.toContain('WarpRuntime.open(');
   });
 
   it('routes boot orchestration through the dedicated runtime boot module', () => {

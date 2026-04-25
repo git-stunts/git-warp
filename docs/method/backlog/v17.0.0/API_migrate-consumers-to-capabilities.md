@@ -112,10 +112,10 @@ That means the remaining migration tail is now centered on:
 
 Cycle `0064` moved `WarpCore.ts` off direct runtime typing:
 
-- `WarpCore.ts` now depends on `warp/WarpCoreRuntimeBridge.ts` instead of
-  importing `WarpRuntime` directly
-- strand and comparison methods now route through
-  `callInternalRuntimeMethod(...)` instead of `WarpRuntime.prototype.*`
+- `WarpCore.ts` now depends on an explicit `warp/WarpCoreRuntimeProduct.ts`
+  seam instead of importing `WarpRuntime` directly
+- strand and comparison methods now route through that explicit product seam
+  instead of `WarpRuntime.prototype.*`
 - strand patch list options now use an explicit
   `{ ceiling?: number | null }` shape instead of a raw
   `Record<string, unknown>` bag

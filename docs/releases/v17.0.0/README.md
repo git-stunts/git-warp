@@ -108,10 +108,10 @@ LAYER 3:
                                           Cycle 0074 resplit the exposed
                                           remainder, and cycle 0075 then
                                           completed the `openWarpGraph()`
-                                          bridge cut. The live remaining
-                                          order is now:
-                                          `PORT_delete-warpcore-runtime-bridge`
-                                          → `API_delete-warpruntime-class`
+                                          bridge cut. Cycle 0076 then
+                                          completed the `WarpCore` bridge
+                                          cut. The live remaining order is now:
+                                          `API_delete-warpruntime-class`
                                           → `API_kill-warpruntime`
 
 LAYER 4 (launch-prep only; park until the repo is otherwise ready to ship):
