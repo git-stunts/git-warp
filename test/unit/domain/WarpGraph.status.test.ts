@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { encode as cborEncode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
@@ -34,13 +34,13 @@ function mockSingleWriter(/** @type {any} */ persistence, /** @type {any} */ { w
   persistence.showNode.mockResolvedValue(patchMessage);
 }
 
-describe('WarpRuntime.status() (LH/STATUS/1)', () => {
+describe('WarpCore.status() (LH/STATUS/1)', () => {
     let persistence;
     let graph;
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -303,7 +303,7 @@ describe('WarpRuntime.status() (LH/STATUS/1)', () => {
   });
 
   it('does NOT trigger materialization even when autoMaterialize is true', async () => {
-    const autoGraph = await WarpRuntime.open({
+    const autoGraph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',

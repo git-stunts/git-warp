@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
@@ -85,7 +85,7 @@ describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'w1',

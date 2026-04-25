@@ -1,15 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { addNodeToState, addEdgeToState, setupGraphState, createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
-describe('WarpRuntime logical traversal', () => {
+describe('WarpCore logical traversal', () => {
     let mockPersistence;
     let graph;
 
   beforeEach(async () => {
     mockPersistence = createMockPersistence();
 
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

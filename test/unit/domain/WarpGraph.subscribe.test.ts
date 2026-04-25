@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
-describe('WarpRuntime.subscribe() (PL/SUB/1)', () => {
+describe('WarpCore.subscribe() (PL/SUB/1)', () => {
     let repo;
     let graph;
 
   beforeEach(async () => {
     repo = await createGitRepo('subscribe');
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: repo.persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -327,13 +327,13 @@ describe('WarpRuntime.subscribe() (PL/SUB/1)', () => {
   });
 });
 
-describe('WarpRuntime.subscribe() with replay option (PL/SUB/2)', () => {
+describe('WarpCore.subscribe() with replay option (PL/SUB/2)', () => {
     let repo;
     let graph;
 
   beforeEach(async () => {
     repo = await createGitRepo('subscribe');
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: repo.persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -422,7 +422,7 @@ describe('WarpRuntime.subscribe() with replay option (PL/SUB/2)', () => {
 
     it('deferred replay shows full state, not incremental diff', async () => {
       // Use autoMaterialize: false to control exactly when materialize fires
-      const localGraph = await WarpRuntime.open({
+      const localGraph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test-replay',
         writerId: 'w1',

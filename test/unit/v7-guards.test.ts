@@ -23,7 +23,7 @@ const SCHEMA1_EXTERMINATION_COMPLETE = true;
 
 // Task 4 (Delete split engine) is COMPLETE:
 // - EmptyGraphWrapper.js, GraphService.js have been deleted
-// - WarpRuntime is the only supported API
+// - WarpCore is the only supported API
 const ENGINE_DELETION_COMPLETE = true;
 
 describe('V7 Contract Guards', () => {
@@ -117,7 +117,7 @@ describe('V7 Contract Guards', () => {
         reason: 'Schema:2 OR-Set reducer',
       },
       {
-        path: 'domain/WarpRuntime.ts',
+        path: 'domain/WarpCore.ts',
         reason: 'Main WARP API',
       },
       {

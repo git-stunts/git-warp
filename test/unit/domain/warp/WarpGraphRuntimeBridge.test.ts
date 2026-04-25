@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
 import { openWarpGraphRuntime } from '../../../../src/domain/warp/WarpGraphRuntimeBridge.ts';
 import { createInMemoryRepo } from '../../../helpers/warpGraphTestUtils.ts';
 
 describe('WarpGraphRuntimeBridge', () => {
-  it('returns a graph runtime surface that is not a WarpRuntime instance', async () => {
+  it('returns a graph runtime surface with the structural graph methods', async () => {
     const repo = createInMemoryRepo();
 
     try {
@@ -14,7 +13,6 @@ describe('WarpGraphRuntimeBridge', () => {
         writerId: 'alice',
       });
 
-      expect(runtimeSurface).not.toBeInstanceOf(WarpRuntime);
       expect(runtimeSurface.graphName).toBe('shared');
       expect(runtimeSurface.writerId).toBe('alice');
       expect(typeof runtimeSurface.hasNode).toBe('function');

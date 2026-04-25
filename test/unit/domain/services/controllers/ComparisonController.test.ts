@@ -190,7 +190,7 @@ function makePatchEntry({ writer, lamport = 1, sha, reads = [], writes = [] }: {
 }
 
 /**
- * Creates a mock host that mimics WarpRuntime fields used by ComparisonController.
+ * Creates a mock host that mimics WarpCore fields used by ComparisonController.
  *
  * @param {Record<string, unknown>} [overrides]
  * @returns {Record<string, unknown>}

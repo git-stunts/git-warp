@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
@@ -51,13 +51,13 @@ function mockSecondCommit(/** @type {any} */ persistence) {
   persistence.updateRef.mockResolvedValue(undefined);
 }
 
-describe('WarpRuntime dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2)', () => {
+describe('WarpCore dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2)', () => {
     let persistence;
     let graph;
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',

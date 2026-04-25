@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { buildSeekCacheKey } from '../../../src/domain/utils/seekCacheKey.ts';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
@@ -169,10 +169,10 @@ describe('buildSeekCacheKey', () => {
 });
 
 // ===========================================================================
-// WarpRuntime seek cache compatibility surface
+// WarpCore seek cache compatibility surface
 // ===========================================================================
 
-describe('WarpRuntime seek cache compatibility surface', () => {
+describe('WarpCore seek cache compatibility surface', () => {
   let persistence;
   let seekCache;
 
@@ -185,7 +185,7 @@ describe('WarpRuntime seek cache compatibility surface', () => {
 
   it('accepts a seekCache option without consulting it during materialization', async () => {
     setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -202,7 +202,7 @@ describe('WarpRuntime seek cache compatibility surface', () => {
 
   it('works without seekCache', async () => {
     setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -216,7 +216,7 @@ describe('WarpRuntime seek cache compatibility surface', () => {
 
   it('setSeekCache(null) detaches the compatibility surface', async () => {
     setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'w1',

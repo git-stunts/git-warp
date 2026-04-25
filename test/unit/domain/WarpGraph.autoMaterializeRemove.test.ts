@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 describe('Auto-materialize on remove (DX/AUTOMAT/1)', { timeout: 15000 }, () => {
   it('removeNode works without explicit materialize when autoMaterialize is true', async () => {
     const repo = await createGitRepo('automat-remove');
     try {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -41,7 +41,7 @@ describe('Auto-materialize on remove (DX/AUTOMAT/1)', { timeout: 15000 }, () => 
   it('removeEdge works without explicit materialize when autoMaterialize is true', async () => {
     const repo = await createGitRepo('automat-edge');
     try {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -71,7 +71,7 @@ describe('Auto-materialize on remove (DX/AUTOMAT/1)', { timeout: 15000 }, () => 
   it('still throws E_PATCH_NO_STATE when autoMaterialize is false', async () => {
     const repo = await createGitRepo('automat-off');
     try {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.ts';
 
 async function createGraph(writerId = 'writer-1') {
@@ -15,14 +15,14 @@ async function createGraph(writerId = 'writer-1') {
     readTreeOids: vi.fn(),
     writeTree: vi.fn(),
   };
-  return WarpRuntime.open({ persistence: (mockPersistence as any), graphName: 'test', writerId });
+  return openRuntimeHostProduct({ persistence: (mockPersistence as any), graphName: 'test', writerId });
 }
 
 /**
  * Mocks on _syncController — syncWith calls createSyncRequest/applySyncResponse
  * as this.method() inside SyncController, so instance-level mocks won't intercept.
  */
-function mockClientGraph(/** @type {WarpRuntime} */ graph) {
+function mockClientGraph(/** @type {WarpCore} */ graph) {
   const g = ((graph) as Record<string, unknown>);
   g['_cachedState'] = {};
   const sc = (g['_syncController'] as Record<string, unknown>);
@@ -34,7 +34,7 @@ function mockClientGraph(/** @type {WarpRuntime} */ graph) {
  * Mocks on _syncController — processSyncRequest is called by HttpSyncServer
  * via the host reference, which delegates to the controller.
  */
-function mockServerGraph(/** @type {WarpRuntime} */ graph) {
+function mockServerGraph(/** @type {WarpCore} */ graph) {
   const g = ((graph) as Record<string, unknown>);
   const sc = (g['_syncController'] as Record<string, unknown>);
   sc['processSyncRequest'] = vi.fn().mockResolvedValue({
@@ -44,7 +44,7 @@ function mockServerGraph(/** @type {WarpRuntime} */ graph) {
   });
 }
 
-describe('WarpRuntime syncAuth (real HTTP)', () => {
+describe('WarpCore syncAuth (real HTTP)', () => {
   it('serve(enforce) + syncWith(matching key) succeeds', async () => {
     const secret = 'shared-secret-123';
     const serverGraph = await createGraph('server-1');

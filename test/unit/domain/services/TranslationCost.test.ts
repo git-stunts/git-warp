@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createEmptyState, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { computeTranslationCost } from '../../../../src/domain/services/TranslationCost.ts';
@@ -48,7 +48,7 @@ describe('TranslationCost', () => {
       writeTree: vi.fn(),
     };
 
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createEmptyState, encodeEdgeKey } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
@@ -23,7 +23,7 @@ function createSeededState() {
   return state;
 }
 
-describe('WarpRuntime adjacency cache', () => {
+describe('WarpCore adjacency cache', () => {
     let mockPersistence;
     let graph;
 
@@ -41,7 +41,7 @@ describe('WarpRuntime adjacency cache', () => {
       writeTree: vi.fn(),
     };
 
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -69,7 +69,7 @@ describe('WarpRuntime adjacency cache', () => {
     // _materializeGraph() triggers _buildAdjacency whenever _stateDirty=true forces a
     // fresh materialize. The old _adjacencyCache LRU is initialised but not actively
     // used; state is stored in _materializedGraph instead.
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

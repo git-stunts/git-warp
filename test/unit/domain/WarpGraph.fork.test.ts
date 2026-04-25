@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import ForkError from '../../../src/domain/errors/ForkError.ts';
 import {
   createMockPersistence,
@@ -14,13 +14,13 @@ const POID1 = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const POID2 = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 const POID3 = 'cccccccccccccccccccccccccccccccccccccccc';
 
-describe('WarpRuntime.fork', () => {
+describe('WarpCore.fork', () => {
     let persistence;
     let graph;
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test-graph',
       writerId: 'test-writer',
@@ -189,7 +189,6 @@ describe('WarpRuntime.fork', () => {
 
       const fork = await graph.fork({ from: 'alice', at: SHA1 });
 
-      expect(fork).toBeInstanceOf(WarpRuntime);
       expect(fork.graphName).toMatch(/^test-graph-fork-[a-z0-9]{8}$/);
       expect(fork.writerId).toMatch(/^w_[0-9a-hjkmnp-tv-z]{26}$/);
 
@@ -225,7 +224,6 @@ describe('WarpRuntime.fork', () => {
         forkWriterId: 'experiment-writer',
       });
 
-      expect(fork).toBeInstanceOf(WarpRuntime);
       expect(fork.graphName).toBe('my-experiment');
       expect(fork.writerId).toBe('experiment-writer');
 
@@ -347,7 +345,7 @@ describe('WarpRuntime.fork', () => {
 
       const fork = await graph.fork({ from: 'alice', at: SHA2 });
 
-      expect(fork).toBeInstanceOf(WarpRuntime);
+      expect(fork.graphName).toMatch(/^test-graph-fork-[a-z0-9]{8}$/);
       expect(persistence.updateRef).toHaveBeenCalledWith(
         expect.stringContaining('writers/'),
         SHA2
@@ -382,7 +380,7 @@ describe('WarpRuntime.fork', () => {
       // Fork at sha1 (earliest commit)
       const fork = await graph.fork({ from: 'alice', at: SHA1 });
 
-      expect(fork).toBeInstanceOf(WarpRuntime);
+      expect(fork.graphName).toMatch(/^test-graph-fork-[a-z0-9]{8}$/);
       expect(persistence.updateRef).toHaveBeenCalledWith(
         expect.stringContaining('writers/'),
         SHA1

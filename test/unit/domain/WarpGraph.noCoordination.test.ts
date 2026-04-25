@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import fc from 'fast-check';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
@@ -21,12 +21,12 @@ describe('No-coordination regression suite', () => {
     const repoB = await createGitRepo('nocoord');
 
     try {
-      const alice = await WarpRuntime.open({
+      const alice = await openRuntimeHostProduct({
         persistence: repoA.persistence,
         graphName: 'shared',
         writerId: 'alice',
       });
-      const bob = await WarpRuntime.open({
+      const bob = await openRuntimeHostProduct({
         persistence: repoB.persistence,
         graphName: 'shared',
         writerId: 'bob',
@@ -72,7 +72,7 @@ describe('No-coordination regression suite', () => {
   it('does not enumerate other writer heads during commit', async () => {
     const repo = await createGitRepo('nocoord');
     try {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -101,12 +101,12 @@ describe('No-coordination regression suite', () => {
         const repoB = await createGitRepo('nocoord');
 
         try {
-          const alice = await WarpRuntime.open({
+          const alice = await openRuntimeHostProduct({
             persistence: repoA.persistence,
             graphName: 'shared',
             writerId: 'alice',
           });
-          const bob = await WarpRuntime.open({
+          const bob = await openRuntimeHostProduct({
             persistence: repoB.persistence,
             graphName: 'shared',
             writerId: 'bob',
@@ -148,7 +148,7 @@ describe('No-coordination regression suite', () => {
       const repo = await createGitRepo('lamport-mono');
       try {
         // Writer A seeds a node
-        const graphA = await WarpRuntime.open({
+        const graphA = await openRuntimeHostProduct({
           persistence: repo.persistence,
           graphName: 'test',
           writerId: 'writer-zzz', // alphabetically > writer-aaa so A would win ties
@@ -160,7 +160,7 @@ describe('No-coordination regression suite', () => {
         await pA.commit();
 
         // Writer B opens a fresh handle, materializes to observe A, then mutates
-        const graphB = await WarpRuntime.open({
+        const graphB = await openRuntimeHostProduct({
           persistence: repo.persistence,
           graphName: 'test',
           writerId: 'writer-aaa', // alphabetically < writer-zzz, would LOSE tick ties
@@ -178,7 +178,7 @@ describe('No-coordination regression suite', () => {
         expect(propsB?.['value']).toBe('from-B');
 
         // A fresh reader that sees both writers must also resolve to B's value
-        const graphReader = await WarpRuntime.open({
+        const graphReader = await openRuntimeHostProduct({
           persistence: repo.persistence,
           graphName: 'test',
           writerId: 'reader',
@@ -196,7 +196,7 @@ describe('No-coordination regression suite', () => {
     it('_maxObservedLamport is updated after each commit on the same instance', { timeout: 10000 }, async () => {
       const repo = await createGitRepo('lamport-mono');
       try {
-        const graph = await WarpRuntime.open({
+        const graph = await openRuntimeHostProduct({
           persistence: repo.persistence,
           graphName: 'test',
           writerId: 'writer-a',
@@ -231,7 +231,7 @@ describe('No-coordination regression suite', () => {
       const repo = await createGitRepo('lamport-lww');
       try {
         // Writer A: seed a node with many commits to push lamport high
-        const graphA = await WarpRuntime.open({
+        const graphA = await openRuntimeHostProduct({
           persistence: repo.persistence,
           graphName: 'test',
           writerId: 'writer-a',
@@ -250,7 +250,7 @@ describe('No-coordination regression suite', () => {
         // A is now at lamport=6
 
         // Writer B: observes Writer A's patches via materialize, then overrides
-        const graphB = await WarpRuntime.open({
+        const graphB = await openRuntimeHostProduct({
           persistence: repo.persistence,
           graphName: 'test',
           writerId: 'writer-b',
@@ -271,7 +271,7 @@ describe('No-coordination regression suite', () => {
         expect(propsB?.['type']).toBe('campaign');
 
         // A fresh reader materializing both chains must resolve to B's value
-        const reader = await WarpRuntime.open({
+        const reader = await openRuntimeHostProduct({
           persistence: repo.persistence,
           graphName: 'test',
           writerId: 'reader',
@@ -290,7 +290,7 @@ describe('No-coordination regression suite', () => {
       const repo = await createGitRepo('lamport-mono');
       try {
         // Seed with writer-z at tick 1
-        const graphZ = await WarpRuntime.open({
+        const graphZ = await openRuntimeHostProduct({
           persistence: repo.persistence,
           graphName: 'test',
           writerId: 'writer-z',
@@ -301,7 +301,7 @@ describe('No-coordination regression suite', () => {
         await p.commit();
 
         // Fresh writer-a: before materialize, max is 0
-        const graphA = await WarpRuntime.open({
+        const graphA = await openRuntimeHostProduct({
           persistence: repo.persistence,
           graphName: 'test',
           writerId: 'writer-a',

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.ts';
 
 /** @returns {any} */
@@ -21,7 +21,7 @@ function canonicalStringify(/** @type {any} */ value) {
   return JSON.stringify(canonicalizeJson(value));
 }
 
-describe('WarpRuntime serve', () => {
+describe('WarpCore serve', () => {
     let graph;
 
   beforeEach(async () => {
@@ -38,7 +38,7 @@ describe('WarpRuntime serve', () => {
       writeTree: vi.fn(),
     };
 
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: (mockPersistence as any),
       graphName: 'test',
       writerId: 'writer-1',

@@ -1,9 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
-import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
+import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
+import { openRuntimeHostProduct } from '../../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 
 describe('_buildViewFromResult', () => {
-  it('logs warning when index build fails (H7)', () => {
+  it('logs warning when index build fails (H7)', async () => {
+    const runtimeHost = await openRuntimeHostProduct({
+      persistence: new InMemoryGraphAdapter(),
+      graphName: 'build-view',
+      writerId: 'writer-1',
+    });
     const warn = vi.fn();
     const host = {
       _cachedViewHash: null,
@@ -20,7 +26,7 @@ describe('_buildViewFromResult', () => {
     };
 
     const state = createEmptyState();
-    (WarpRuntime.prototype as any)._buildViewFromResult.call(host, { state, stateHash: 'hash123' });
+    runtimeHost._buildViewFromResult.call(host, { state, stateHash: 'hash123' });
 
     expect(warn).toHaveBeenCalledOnce();
     const firstCall = warn.mock.calls[0];
@@ -31,7 +37,12 @@ describe('_buildViewFromResult', () => {
     expect(host._cachedIndexTree).toBeNull();
   });
 
-  it('does not log when no logger is set (H7 graceful)', () => {
+  it('does not log when no logger is set (H7 graceful)', async () => {
+    const runtimeHost = await openRuntimeHostProduct({
+      persistence: new InMemoryGraphAdapter(),
+      graphName: 'build-view',
+      writerId: 'writer-1',
+    });
     const host = {
       _cachedViewHash: null,
       _viewService: {
@@ -48,7 +59,7 @@ describe('_buildViewFromResult', () => {
 
     const state = createEmptyState();
     // Should not throw
-    (WarpRuntime.prototype as any)._buildViewFromResult.call(host, { state, stateHash: 'hash456' });
+    runtimeHost._buildViewFromResult.call(host, { state, stateHash: 'hash456' });
     expect(host._logicalIndex).toBeNull();
   });
 });

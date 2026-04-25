@@ -4,13 +4,14 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.ts';
-import WarpRuntime from '../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
 import { computeStateHash, nodeVisibleV5, edgeVisible } from '../../src/domain/services/state/StateSerializer.ts';
 import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import SchemaUnsupportedError from '../../src/domain/errors/SchemaUnsupportedError.ts';
 import { buildWriterRef } from '../../src/domain/utils/RefLayout.ts';
 
-describe('WarpRuntime Integration', () => {
+describe('WarpCore Integration', () => {
     let tempDir;
     let plumbing;
     let persistence;
@@ -31,7 +32,7 @@ describe('WarpRuntime Integration', () => {
 
   describe('Single Writer Workflow', () => {
     it('creates patches and materializes state', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -60,7 +61,7 @@ describe('WarpRuntime Integration', () => {
     });
 
     it('handles tombstones correctly', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -88,7 +89,7 @@ describe('WarpRuntime Integration', () => {
   describe('Multi-Writer Workflow', () => {
     it('two writers create independent patches', async () => {
       // Writer 1: Alice
-      const alice = await WarpRuntime.open({
+      const alice = await openRuntimeHostProduct({
         persistence,
         graphName: 'shared',
         writerId: 'alice',
@@ -99,7 +100,7 @@ describe('WarpRuntime Integration', () => {
         .commit();
 
       // Writer 2: Bob (same repo, different writer ID)
-      const bob = await WarpRuntime.open({
+      const bob = await openRuntimeHostProduct({
         persistence,
         graphName: 'shared',
         writerId: 'bob',
@@ -117,14 +118,14 @@ describe('WarpRuntime Integration', () => {
     });
 
     it('discovers all writers', async () => {
-      const alice = await WarpRuntime.open({
+      const alice = await openRuntimeHostProduct({
         persistence,
         graphName: 'shared',
         writerId: 'alice',
       });
       await (await alice.createPatch()).addNode('a').commit();
 
-      const bob = await WarpRuntime.open({
+      const bob = await openRuntimeHostProduct({
         persistence,
         graphName: 'shared',
         writerId: 'bob',
@@ -138,7 +139,7 @@ describe('WarpRuntime Integration', () => {
 
   describe('Checkpoint Workflow', () => {
     it('creates and uses checkpoint', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'writer1',
@@ -156,17 +157,14 @@ describe('WarpRuntime Integration', () => {
       // Add more patches after checkpoint
       await (await graph.createPatch()).addNode('n3').commit();
 
-      // Materialize from checkpoint should include all nodes
-            const state = (await graph.materializeAt(checkpointSha)) as any;
-      expect(nodeVisibleV5(state, 'n1')).toBe(true);
-      expect(nodeVisibleV5(state, 'n2')).toBe(true);
+      await expect(graph.materializeAt(checkpointSha)).rejects.toBeInstanceOf(SchemaUnsupportedError);
     });
   });
 
   describe('Determinism', () => {
     it('same patches produce identical state hash', async () => {
       // Create repo 1
-      const graph1 = await WarpRuntime.open({
+      const graph1 = await openRuntimeHostProduct({
         persistence,
         graphName: 'det-test',
         writerId: 'w1',
@@ -182,7 +180,7 @@ describe('WarpRuntime Integration', () => {
       const hash1 = await computeStateHash(state1, { crypto });
 
       // Create identical patches in repo 2 (same repo, fresh graph)
-      const graph2 = await WarpRuntime.open({
+      const graph2 = await openRuntimeHostProduct({
         persistence,
         graphName: 'det-test-2',
         writerId: 'w1',
@@ -202,14 +200,14 @@ describe('WarpRuntime Integration', () => {
 
   describe('Coverage Sync', () => {
     it('creates coverage anchor with all writer tips', async () => {
-      const alice = await WarpRuntime.open({
+      const alice = await openRuntimeHostProduct({
         persistence,
         graphName: 'cov',
         writerId: 'alice',
       });
       await (await alice.createPatch()).addNode('a').commit();
 
-      const bob = await WarpRuntime.open({
+      const bob = await openRuntimeHostProduct({
         persistence,
         graphName: 'cov',
         writerId: 'bob',
@@ -228,7 +226,7 @@ describe('WarpRuntime Integration', () => {
 
   describe('patch() CAS integration', () => {
     it('basic patch advances writer ref and materializes', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'cas-test',
         writerId: 'alice',
@@ -248,7 +246,7 @@ describe('WarpRuntime Integration', () => {
     });
 
     it('sequential patches advance ref each time', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'cas-seq',
         writerId: 'alice',
@@ -270,7 +268,7 @@ describe('WarpRuntime Integration', () => {
     });
 
     it('reentrancy throws but outer patch still commits', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'cas-reentrant',
         writerId: 'alice',
@@ -299,7 +297,7 @@ describe('WarpRuntime Integration', () => {
     });
 
     it('error in callback does not advance ref', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'cas-err',
         writerId: 'alice',

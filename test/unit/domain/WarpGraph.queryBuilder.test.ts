@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { encodePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import QueryError from '../../../src/domain/errors/QueryError.ts';
 import { addNodeToState, addEdgeToState, setupGraphState } from '../../helpers/warpGraphTestUtils.ts';
@@ -9,7 +9,7 @@ function addProp(/** @type {any} */ state, /** @type {any} */ nodeId, /** @type 
   state.prop.set(propKey, { value, lamport: 1, writerId: 'w1' });
 }
 
-describe('WarpRuntime QueryBuilder', () => {
+describe('WarpCore QueryBuilder', () => {
     let mockPersistence;
     let graph;
 
@@ -27,7 +27,7 @@ describe('WarpRuntime QueryBuilder', () => {
       writeTree: vi.fn(),
     };
 
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

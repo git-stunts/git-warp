@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
-describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
+describe('WarpCore.watch() (PL/WATCH/1)', () => {
     let repo;
     let graph;
 
   beforeEach(async () => {
     repo = await createGitRepo('watch');
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: repo.persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -464,14 +464,14 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
   });
 });
 
-describe('WarpRuntime.watch() polling (PL/WATCH/2)', () => {
+describe('WarpCore.watch() polling (PL/WATCH/2)', () => {
     let repo;
     let graph;
 
   beforeEach(async () => {
     vi.useFakeTimers();
     repo = await createGitRepo('watch');
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: repo.persistence,
       graphName: 'test',
       writerId: 'w1',

@@ -67,7 +67,7 @@ vi.mock('../../../../../src/domain/utils/WriterId.ts', () => ({
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
- * Creates a mock host that mimics WarpRuntime fields used by PatchController.
+ * Creates a mock host that mimics WarpCore fields used by PatchController.
  *
  * @param {Record<string, unknown>} [overrides]
  * @returns {Record<string, unknown>}

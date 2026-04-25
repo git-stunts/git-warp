@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createGitCasPatchStorage } from '../../../src/ports/CommitMessageCodecPort.ts';
 import type { CorePersistence } from '../../../src/domain/types/WarpPersistence.ts';
 import type RuntimeStorageCapabilityPort from '../../../src/ports/RuntimeStorageCapabilityPort.ts';
@@ -7,8 +7,8 @@ import type RuntimeStorageCapabilityPort from '../../../src/ports/RuntimeStorage
 /**
  * Spec tests for OG-014: auto-construction of blob storage.
  *
- * When no explicit `blobStorage` is provided to `WarpRuntime.open()`,
- * the runtime should auto-construct the appropriate adapter:
+ * When no explicit `blobStorage` is provided to `openRuntimeHostProduct()`,
+ * the core should auto-construct the appropriate adapter:
  * - `CasBlobAdapter` when persistence has plumbing (Git-backed)
  * - `InMemoryBlobStorageAdapter` when persistence lacks plumbing (in-memory)
  *
@@ -65,9 +65,9 @@ function makeMockPersistence({ hasPlumbing = false } = {}): MockPersistence {
   return persistence;
 }
 
-describe('WarpRuntime blob storage auto-construction (OG-014)', () => {
+describe('WarpCore blob storage auto-construction (OG-014)', () => {
   it('auto-constructs blob storage when none is provided', async () => {
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence: makeMockPersistence(),
       graphName: 'test',
       writerId: 'w1',
@@ -78,7 +78,7 @@ describe('WarpRuntime blob storage auto-construction (OG-014)', () => {
   });
 
   it('auto-constructs InMemoryBlobStorageAdapter when persistence lacks plumbing', async () => {
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence: makeMockPersistence({ hasPlumbing: false }),
       graphName: 'test',
       writerId: 'w1',
@@ -98,7 +98,7 @@ describe('WarpRuntime blob storage auto-construction (OG-014)', () => {
       storeStream: vi.fn(),
       retrieveStream: vi.fn(),
     };
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence: makeMockPersistence(),
       graphName: 'test',
       writerId: 'w1',
@@ -109,7 +109,7 @@ describe('WarpRuntime blob storage auto-construction (OG-014)', () => {
   });
 
   it('attachContent uses blob storage even when caller did not provide one', async () => {
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence: makeMockPersistence(),
       graphName: 'test',
       writerId: 'w1',

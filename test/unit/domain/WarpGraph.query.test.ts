@@ -1,5 +1,5 @@
 /**
- * Tests for WarpRuntime Query API (Task 7)
+ * Tests for WarpCore Query API (Task 7)
  *
  * Tests the query surface required by TECH-SPEC-V7.md:
  * - hasNode(nodeId)
@@ -10,12 +10,12 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import QueryError from '../../../src/domain/errors/QueryError.ts';
 import { encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 
-describe('WarpRuntime Query API', () => {
+describe('WarpCore Query API', () => {
     let mockPersistence;
     let graph;
 
@@ -33,7 +33,7 @@ describe('WarpRuntime Query API', () => {
       writeTree: vi.fn(),
     };
 
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

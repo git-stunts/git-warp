@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { encode as cborEncode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
@@ -34,13 +34,13 @@ function mockSingleWriter(/** @type {any} */ persistence, /** @type {any} */ { w
   persistence.showNode.mockResolvedValue(patchMessage);
 }
 
-describe('WarpRuntime.hasFrontierChanged() (GK/FRONTIER/1)', () => {
+describe('WarpCore.hasFrontierChanged() (GK/FRONTIER/1)', () => {
     let persistence;
     let graph;
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',

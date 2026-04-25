@@ -1,18 +1,18 @@
 /**
- * @fileoverview WarpRuntime — audit integration tests.
+ * @fileoverview WarpCore — audit integration tests.
  *
- * Tests that when `audit: true` is passed to WarpRuntime.open(),
+ * Tests that when `audit: true` is passed to openRuntimeHostProduct(),
  * audit commits are created after data commits.
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import InMemoryGraphAdapter from '../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 
-describe('WarpRuntime — audit mode', () => {
+describe('WarpCore — audit mode', () => {
   it('rejects audit: "yes" (non-boolean truthy)', async () => {
     await expect(
-      WarpRuntime.open({
+      openRuntimeHostProduct({
         persistence: new InMemoryGraphAdapter(),
         graphName: 'events',
         writerId: 'alice',
@@ -23,7 +23,7 @@ describe('WarpRuntime — audit mode', () => {
 
   it('rejects audit: 1 (number)', async () => {
     await expect(
-      WarpRuntime.open({
+      openRuntimeHostProduct({
         persistence: new InMemoryGraphAdapter(),
         graphName: 'events',
         writerId: 'alice',
@@ -34,7 +34,7 @@ describe('WarpRuntime — audit mode', () => {
 
   it('audit: false (default) → no audit commits', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'events',
       writerId: 'alice',
@@ -51,7 +51,7 @@ describe('WarpRuntime — audit mode', () => {
 
   it('audit: true → audit commit after data commit', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'events',
       writerId: 'alice',
@@ -73,7 +73,7 @@ describe('WarpRuntime — audit mode', () => {
 
   it('audit ref advances correctly on multiple commits', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'events',
       writerId: 'alice',
@@ -99,7 +99,7 @@ describe('WarpRuntime — audit mode', () => {
 
   it('multiple commits form valid chain (parent linking)', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'events',
       writerId: 'alice',
@@ -126,7 +126,7 @@ describe('WarpRuntime — audit mode', () => {
   it('dirty state → audit skipped, AUDIT_SKIPPED_DIRTY_STATE logged', async () => {
     const persistence = new InMemoryGraphAdapter();
     const logger = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn(), child: vi.fn(() => logger) };
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'events',
       writerId: 'alice',
@@ -162,7 +162,7 @@ describe('WarpRuntime — audit mode', () => {
 
   it('audit commit tree contains receipt.cbor with correct receipt data', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'events',
       writerId: 'alice',
@@ -202,7 +202,7 @@ describe('WarpRuntime — audit mode', () => {
   it('graph state is correct regardless of audit mode', async () => {
     // Ensure audit mode doesn't corrupt normal graph operations
     const persistence = new InMemoryGraphAdapter();
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'events',
       writerId: 'alice',

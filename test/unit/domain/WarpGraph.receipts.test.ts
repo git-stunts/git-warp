@@ -1,5 +1,5 @@
 /**
- * Tests for WarpRuntime.materialize({ receipts: true }) — LH/RECEIPTS/2
+ * Tests for WarpCore.materialize({ receipts: true }) — LH/RECEIPTS/2
  *
  * Verifies:
  * - Backward compatibility: default materialize() returns state directly
@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { encodePropKey, encodeEdgeKey } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot, encodeDot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
@@ -125,7 +125,7 @@ async function simulatePatchCommit(persistence: any, {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('WarpRuntime.materialize() with receipts', () => {
+describe('WarpCore.materialize() with receipts', () => {
     let persistence;
     let graph;
   const graphName = 'test';
@@ -133,7 +133,7 @@ describe('WarpRuntime.materialize() with receipts', () => {
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence,
       graphName,
       writerId,

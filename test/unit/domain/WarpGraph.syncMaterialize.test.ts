@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
 describe('syncWith({ materialize }) option', { timeout: 20000 }, () => {
@@ -8,12 +8,12 @@ describe('syncWith({ materialize }) option', { timeout: 20000 }, () => {
     const repoB = await createGitRepo('syncmat');
 
     try {
-      const alice = await WarpRuntime.open({
+      const alice = await openRuntimeHostProduct({
         persistence: repoA.persistence,
         graphName: 'shared',
         writerId: 'alice',
       });
-      const bob = await WarpRuntime.open({
+      const bob = await openRuntimeHostProduct({
         persistence: repoB.persistence,
         graphName: 'shared',
         writerId: 'bob',
@@ -45,12 +45,12 @@ describe('syncWith({ materialize }) option', { timeout: 20000 }, () => {
     const repoB = await createGitRepo('syncmat');
 
     try {
-      const alice = await WarpRuntime.open({
+      const alice = await openRuntimeHostProduct({
         persistence: repoA.persistence,
         graphName: 'shared',
         writerId: 'alice',
       });
-      const bob = await WarpRuntime.open({
+      const bob = await openRuntimeHostProduct({
         persistence: repoB.persistence,
         graphName: 'shared',
         writerId: 'bob',
@@ -76,12 +76,12 @@ describe('syncWith({ materialize }) option', { timeout: 20000 }, () => {
     const repoB = await createGitRepo('syncmat');
 
     try {
-      const alice = await WarpRuntime.open({
+      const alice = await openRuntimeHostProduct({
         persistence: repoA.persistence,
         graphName: 'shared',
         writerId: 'alice',
       });
-      const bob = await WarpRuntime.open({
+      const bob = await openRuntimeHostProduct({
         persistence: repoB.persistence,
         graphName: 'shared',
         writerId: 'bob',

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createEmptyState, encodeEdgeKey, encodeEdgePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 
@@ -25,7 +25,7 @@ function addEdgeProp(/** @type {any} */ state, /** @type {any} */ from, /** @typ
   state.prop.set(propKey, { eventId: { lamport: 1, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 }, value });
 }
 
-describe('WarpRuntime edge properties', () => {
+describe('WarpCore edge properties', () => {
     let mockPersistence;
     let graph;
 
@@ -43,7 +43,7 @@ describe('WarpRuntime edge properties', () => {
       writeTree: vi.fn(),
     };
 
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -184,7 +184,7 @@ describe('WarpRuntime edge properties', () => {
   });
 
   it('getEdgeProps throws E_NO_STATE when no cached state', async () => {
-    const noAutoGraph = await WarpRuntime.open({
+    const noAutoGraph = await openRuntimeHostProduct({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

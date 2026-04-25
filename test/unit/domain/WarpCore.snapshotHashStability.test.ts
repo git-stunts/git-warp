@@ -8,7 +8,7 @@ import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
-type WarpCoreRuntime = any;
+type WarpCoreHarness = any;
 
 const crypto = new NodeCryptoAdapter();
 
@@ -179,7 +179,7 @@ describe('WarpCore public snapshot hash stability', () => {
       graphName,
       writerId: 'tester',
       autoMaterialize: false,
-    })) as WarpCoreRuntime);
+    })) as WarpCoreHarness);
 
     await simulatePatchCommit(persistence, {
       graphName,

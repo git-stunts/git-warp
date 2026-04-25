@@ -86,7 +86,7 @@ describe('ForkController', () => {
     host = createMockHost();
     ctrl = new ForkController((host));
 
-    // Default: WarpRuntime.open succeeds
+    // Default: WarpCore.open succeeds
     mockRuntimeOpen.mockResolvedValue({ _graphName: 'fork-graph' });
   });
 
@@ -94,7 +94,7 @@ describe('ForkController', () => {
   // fork()
   // =========================================================================
   describe('fork()', () => {
-    it('happy path — creates fork ref, opens WarpRuntime, returns graph', async () => {
+    it('happy path — creates fork ref, opens WarpCore, returns graph', async () => {
       // Chain: base-sha <- tip-sha
       const chain = ['base-sha', 'tip-sha'];
       setupLinearChain(host, chain);
@@ -206,7 +206,7 @@ describe('ForkController', () => {
       expect(err.code).toBe('E_FORK_NAME_INVALID');
     });
 
-    it('rolls back ref on WarpRuntime.open failure', async () => {
+    it('rolls back ref on WarpCore.open failure', async () => {
       host._persistence.readRef.mockResolvedValue('sha-abc');
       mockRuntimeOpen.mockRejectedValue(new Error('open failed'));
 

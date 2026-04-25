@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
-describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000 }, () => {
+describe('WarpCore deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000 }, () => {
     let repo;
 
   afterEach(async () => {
@@ -19,7 +19,7 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
   describe('reject mode', () => {
     it('throws when deleting a node that has properties', async () => {
       repo = await createGitRepo('delguard');
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -43,7 +43,7 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
 
     it('throws when deleting a node that has edges', async () => {
       repo = await createGitRepo('delguard');
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -68,7 +68,7 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
 
     it('throws when deleting a node that is an edge target', async () => {
       repo = await createGitRepo('delguard');
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -93,7 +93,7 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
 
     it('succeeds when deleting a node with no attached data', async () => {
       repo = await createGitRepo('delguard');
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -118,7 +118,7 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
 
     it('mentions both edges and properties in error when both exist', async () => {
       repo = await createGitRepo('delguard');
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -143,7 +143,7 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
 
     it('error message suggests cascade mode', async () => {
       repo = await createGitRepo('delguard');
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -178,7 +178,7 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
     it('logs warning via logger when deleting node with properties', async () => {
       repo = await createGitRepo('delguard');
       const warnSpy = vi.fn();
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -211,7 +211,7 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
     it('logs warning via logger when deleting node with edges', async () => {
       repo = await createGitRepo('delguard');
       const warnSpy = vi.fn();
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -240,7 +240,7 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
     it('does not warn when deleting node with no attached data', async () => {
       repo = await createGitRepo('delguard');
       const warnSpy = vi.fn();
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -271,7 +271,7 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
   describe('Writer API', () => {
     it('reject mode works through writer().beginPatch()', async () => {
       repo = await createGitRepo('delguard');
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -297,7 +297,7 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
     it('warn mode works through writer().commitPatch()', async () => {
       repo = await createGitRepo('delguard');
       const warnSpy = vi.fn();
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -332,7 +332,7 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
     it('does not throw or warn when deleting node with attached data', async () => {
       repo = await createGitRepo('delguard');
       const warnSpy = vi.fn();
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -366,7 +366,7 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
   describe('no cached state', () => {
     it('reject mode throws E_PATCH_NO_STATE when autoMaterialize is off', async () => {
       repo = await createGitRepo('delguard');
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',

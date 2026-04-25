@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import QueryError from '../../../src/domain/errors/QueryError.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
@@ -35,7 +35,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -278,7 +278,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
     beforeEach(async () => {
       const autoPersistence = createMockPersistence();
-      autoGraph = await WarpRuntime.open({
+      autoGraph = await openRuntimeHostProduct({
         persistence: autoPersistence,
         graphName: 'test',
         writerId: 'writer-1',

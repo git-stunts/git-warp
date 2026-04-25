@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { encodePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import QueryError from '../../../src/domain/errors/QueryError.ts';
 import { addNodeToState, addEdgeToState, setupGraphState } from '../../helpers/warpGraphTestUtils.ts';
@@ -29,7 +29,7 @@ describe('COMPASS — CP/WHERE/1: Object shorthand in where()', () => {
       readTreeOids: vi.fn(),
       writeTree: vi.fn(),
     };
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -196,7 +196,7 @@ describe('COMPASS — CP/MULTIHOP/1: Multi-hop traversal', () => {
       readTreeOids: vi.fn(),
       writeTree: vi.fn(),
     };
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -403,7 +403,7 @@ describe('COMPASS — CP/AGG/1: Aggregation', () => {
       readTreeOids: vi.fn(),
       writeTree: vi.fn(),
     };
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import { sha1sync } from '../../../../src/infrastructure/adapters/sha1sync.ts';
-import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../../src/domain/warp/RuntimeHostProduct.ts';
 import WebCryptoAdapter from '../../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 
 describe('InMemoryGraphAdapter with injected hash (browser simulation)', () => {
@@ -29,10 +29,10 @@ describe('InMemoryGraphAdapter with injected hash (browser simulation)', () => {
     expect(sha1).toBe(sha2);
   });
 
-  it('WarpRuntime works with injected hash and WebCryptoAdapter', async () => {
+  it('WarpCore works with injected hash and WebCryptoAdapter', async () => {
     const persistence = new InMemoryGraphAdapter({ hash: sha1sync });
     const crypto = new WebCryptoAdapter();
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'browser-test',
       writerId: 'alice',

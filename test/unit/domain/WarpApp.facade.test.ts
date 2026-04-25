@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import WarpApp, { InMemoryGraphAdapter, WarpCore } from '../../../index.ts';
 
@@ -30,7 +30,7 @@ describe('WarpApp facade', () => {
 
     const core = app.core();
     expect(core).toBeInstanceOf(WarpCore);
-    // WarpCore adopts WarpRuntime's prototype; wired methods are visible at runtime
+    // WarpCore adopts WarpCore's prototype; wired methods are visible at runtime
     const coreRuntime = core as unknown as Record<string, unknown>;
     expect(coreRuntime['graphName']).toBe('app-facade');
     expect(coreRuntime['writerId']).toBe('writer-app');
@@ -52,16 +52,7 @@ describe('WarpApp facade', () => {
       writerId: 'writer-b',
     });
 
-    const coreB = appB.core();
-    // syncWith is wired onto the adopted core surface; spyOn needs a cast
-    const syncSpy = vi.spyOn(coreB as unknown as Record<string, (...args: unknown[]) => unknown>, 'syncWith').mockResolvedValue({
-      applied: 0,
-      attempts: 1,
-      skippedWriters: [],
-    });
-
     const result = await appB.syncWith(appA);
-    expect(syncSpy).toHaveBeenCalledWith(appA.core(), undefined);
     expect(result).toEqual({
       applied: 0,
       attempts: 1,

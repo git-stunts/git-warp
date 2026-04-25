@@ -17,7 +17,7 @@ function nextOid() {
 }
 
 /**
- * Build a mock graph (WarpRuntime) with writer patches pre-loaded.
+ * Build a mock graph (WarpCore) with writer patches pre-loaded.
  * @param {{ writerPatches?: Record<string, Array<{patch: object, sha: string}>> }} [config]
  * @returns {any}
  */

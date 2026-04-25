@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { encodeEdgeKey, createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { serializeFullState, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializer.ts';
@@ -16,7 +16,7 @@ import {
   Dot,
 } from '../../helpers/warpGraphTestUtils.ts';
 
-describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
+describe('WarpCore.patchesFor() (HG/IO/2)', () => {
     let persistence;
   // Parallel-safe generators: each test gets fresh instances via beforeEach
     let oidGen;
@@ -30,7 +30,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
 
   describe('patchesFor()', () => {
     it('throws if not materialized and autoMaterialize is off', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -43,7 +43,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
     it('returns empty array for unknown entity after materialize', async () => {
       persistence.listRefs.mockResolvedValue([]);
 
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -76,7 +76,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
       persistence.showNode.mockResolvedValue(patch1.message);
       persistence.readBlob.mockResolvedValue(patch1.patchBuffer);
 
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -154,7 +154,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
         return null;
       });
 
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -220,7 +220,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
         return null;
       });
 
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -261,7 +261,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
       persistence.showNode.mockResolvedValue(patch1.message);
       persistence.readBlob.mockResolvedValue(patch1.patchBuffer);
 
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -338,7 +338,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
         return null;
       });
 
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -356,7 +356,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
 
   describe('provenanceIndex getter', () => {
     it('returns null before materialization', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -386,7 +386,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
       persistence.showNode.mockResolvedValue(patch1.message);
       persistence.readBlob.mockResolvedValue(patch1.patchBuffer);
 
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -452,7 +452,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
         return null;
       });
 
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -517,7 +517,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
       });
       persistence.getNodeInfo.mockResolvedValue({ sha: sha2, message: '', parents: [] });
 
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'bob',
@@ -536,7 +536,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
     it('handles node with no patches (empty graph)', async () => {
       persistence.listRefs.mockResolvedValue([]);
 
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -569,7 +569,7 @@ describe('WarpRuntime.patchesFor() (HG/IO/2)', () => {
       persistence.showNode.mockResolvedValue(patch1.message);
       persistence.readBlob.mockResolvedValue(patch1.patchBuffer);
 
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'alice',

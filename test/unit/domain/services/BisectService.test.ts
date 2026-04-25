@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import WarpRuntime from '../../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../../src/domain/warp/RuntimeHostProduct.ts';
 import BisectService from '../../../../src/domain/services/BisectService.ts';
 import { createGitRepo } from '../../../helpers/warpGraphTestUtils.ts';
 
@@ -7,7 +7,7 @@ describe('BisectService', { timeout: 30000 }, () => {
   it('vector 1: linear chain — finds first bad patch', async () => {
     const repo = await createGitRepo('bisect-linear');
     try {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -46,7 +46,7 @@ describe('BisectService', { timeout: 30000 }, () => {
   it('vector 2: same good and bad — range-error', async () => {
     const repo = await createGitRepo('bisect-same');
     try {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -73,7 +73,7 @@ describe('BisectService', { timeout: 30000 }, () => {
   it('vector 3: single step — A→B, good=A bad=B → result=B, 0 steps', async () => {
     const repo = await createGitRepo('bisect-single');
     try {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -106,7 +106,7 @@ describe('BisectService', { timeout: 30000 }, () => {
   it('vector 4: good is not ancestor of bad — range-error', async () => {
     const repo = await createGitRepo('bisect-reversed');
     try {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -135,7 +135,7 @@ describe('BisectService', { timeout: 30000 }, () => {
   it('vector 5: SHA not found in chain — range-error', async () => {
     const repo = await createGitRepo('bisect-notfound');
     try {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -163,7 +163,7 @@ describe('BisectService', { timeout: 30000 }, () => {
   it('vector 6: testFn receives candidate SHA', async () => {
     const repo = await createGitRepo('bisect-sha-arg');
     try {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -203,7 +203,7 @@ describe('BisectService', { timeout: 30000 }, () => {
   it('vector 7: all-bad — first candidate after good is the first bad patch', async () => {
     const repo = await createGitRepo('bisect-all-bad');
     try {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -234,7 +234,7 @@ describe('BisectService', { timeout: 30000 }, () => {
   it('vector 8: testFn throws — promise rejects with same error', async () => {
     const repo = await createGitRepo('bisect-throws');
     try {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -263,7 +263,7 @@ describe('BisectService', { timeout: 30000 }, () => {
   it('vector 9: empty writer chain — range-error', async () => {
     const repo = await createGitRepo('bisect-empty-writer');
     try {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'w1',

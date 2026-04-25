@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createEmptyState, encodeEdgeKey, encodeEdgePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.ts';
@@ -31,7 +31,7 @@ function attachmentEvent(
   return { lamport, writerId, patchSha, opIndex };
 }
 
-describe('WarpRuntime content attachment (query methods)', () => {
+describe('WarpCore content attachment (query methods)', () => {
     let mockPersistence;
     let graph;
 
@@ -49,7 +49,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
       writeTree: vi.fn().mockResolvedValue('a'.repeat(40)),
     };
 
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

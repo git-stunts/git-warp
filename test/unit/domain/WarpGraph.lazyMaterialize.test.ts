@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import QueryError from '../../../src/domain/errors/QueryError.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState, encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.ts';
@@ -50,7 +50,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     beforeEach(async () => {
       persistence = createMockPersistence();
-      graph = await WarpRuntime.open({
+      graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -100,7 +100,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     beforeEach(async () => {
       persistence = createMockPersistence();
-      graph = await WarpRuntime.open({
+      graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -201,7 +201,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     beforeEach(async () => {
       persistence = createMockPersistence();
-      graph = await WarpRuntime.open({
+      graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -240,7 +240,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     beforeEach(async () => {
       persistence = createMockPersistence();
-      graph = await WarpRuntime.open({
+      graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -298,7 +298,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     beforeEach(async () => {
       persistence = createMockPersistence();
-      graph = await WarpRuntime.open({
+      graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -389,7 +389,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     beforeEach(async () => {
       persistence = createMockPersistence();
-      graph = await WarpRuntime.open({
+      graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -443,7 +443,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     beforeEach(async () => {
       persistence = createMockPersistence();
-      graph = await WarpRuntime.open({
+      graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -488,7 +488,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     beforeEach(async () => {
       persistence = createMockPersistence();
-      graph = await WarpRuntime.open({
+      graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -567,7 +567,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
   describe('Edge cases', () => {
     it('default autoMaterialize (undefined) behaves like true', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
@@ -580,7 +580,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     it('_ensureFreshState does not materialize when autoMaterialize is true and state is clean', async () => {
       const persistence = createMockPersistence();
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -602,7 +602,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     it('_ensureFreshState materializes when autoMaterialize is true and _stateDirty', async () => {
       const persistence = createMockPersistence();
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -620,7 +620,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     it('_ensureFreshState materializes when autoMaterialize is true and _cachedState is null', async () => {
       const persistence = createMockPersistence();
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -636,7 +636,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     it('autoMaterialize false with dirty state throws', async () => {
       const persistence = createMockPersistence();
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',

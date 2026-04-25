@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import {
   createMockPersistence,
   createMockPatch,
@@ -10,7 +10,7 @@ import {
 const SHA1 = '1111111111111111111111111111111111111111';
 const POID1 = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
-describe('WarpRuntime.fork crypto/codec propagation', () => {
+describe('WarpCore.fork crypto/codec propagation', () => {
     let persistence;
     let mockCrypto;
     let mockCodec;
@@ -26,7 +26,7 @@ describe('WarpRuntime.fork crypto/codec propagation', () => {
       decode: (/** @type {any} */ buf) => JSON.parse(buf.toString()),
     };
 
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test-graph',
       writerId: 'test-writer',
@@ -67,7 +67,7 @@ describe('WarpRuntime.fork crypto/codec propagation', () => {
       forkWriterId: 'fork-writer',
     });
 
-    expect(fork).toBeInstanceOf(WarpRuntime);
+    expect(fork.graphName).toBe('crypto-fork');
     expect(fork._crypto).toBe(mockCrypto);
   });
 
@@ -102,13 +102,13 @@ describe('WarpRuntime.fork crypto/codec propagation', () => {
       forkWriterId: 'fork-writer',
     });
 
-    expect(fork).toBeInstanceOf(WarpRuntime);
+    expect(fork.graphName).toBe('codec-fork');
     expect(fork._codec).toBe(mockCodec);
   });
 
   it('forked graph without crypto/codec uses parent defaults', async () => {
     // Create a graph without explicit crypto (uses defaultCrypto)
-    const plainGraph = await WarpRuntime.open({
+    const plainGraph = await openRuntimeHostProduct({
       persistence,
       graphName: 'plain-graph',
       writerId: 'plain-writer',
@@ -144,7 +144,7 @@ describe('WarpRuntime.fork crypto/codec propagation', () => {
       forkWriterId: 'fork-writer',
     });
 
-    expect(fork).toBeInstanceOf(WarpRuntime);
+    expect(fork.graphName).toBe('default-fork');
     // Both should share the same default codec
     expect(fork._codec).toBe(plainGraph._codec);
     // Both should share the same default crypto

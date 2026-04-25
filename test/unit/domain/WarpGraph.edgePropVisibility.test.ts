@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { encodeEdgePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import { createStateBuilder } from '../../helpers/stateBuilder.ts';
 
 // =============================================================================
 
-describe('WarpRuntime edge property visibility (WT/VIS/1)', () => {
+describe('WarpCore edge property visibility (WT/VIS/1)', () => {
     let mockPersistence;
     let graph;
 
@@ -23,7 +23,7 @@ describe('WarpRuntime edge property visibility (WT/VIS/1)', () => {
       writeTree: vi.fn(),
     };
 
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

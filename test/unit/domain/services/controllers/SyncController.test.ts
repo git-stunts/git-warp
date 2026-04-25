@@ -70,7 +70,7 @@ const {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 /**
- * Creates a mock WarpRuntime host for SyncController tests.
+ * Creates a mock WarpCore host for SyncController tests.
  * @param {Record<string, unknown>} [overrides]
  * @returns {Record<string, unknown>}
  */

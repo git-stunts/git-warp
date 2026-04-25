@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
@@ -8,7 +8,7 @@ import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
  * the same eager re-materialize as the low-level createPatch() API.
  *
  * The Writer and PatchSession are higher-level APIs that delegate to
- * PatchBuilder. The onCommitSuccess callback wired in WarpRuntime.writer()
+ * PatchBuilder. The onCommitSuccess callback wired in WarpCore.writer()
  * must trigger eager state update so that queries after a writer commit
  * reflect the new state immediately.
  */
@@ -59,13 +59,13 @@ function mockWriterSecondCommit(/** @type {any} */ persistence) {
   persistence.updateRef.mockResolvedValue(undefined);
 }
 
-describe('WarpRuntime Writer invalidation (AP/INVAL/3)', () => {
+describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
     let persistence;
     let graph;
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpRuntime.open({
+    graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',

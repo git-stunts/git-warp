@@ -46,7 +46,7 @@ const { applySyncResponse: applySyncResponseMock, syncNeeded: syncNeededMock, pr
   (await import('../../../../src/domain/services/sync/SyncProtocol.ts')) as any;
 
 /**
- * Creates a mock WarpRuntime host for SyncController tests.
+ * Creates a mock WarpCore host for SyncController tests.
  *
  * @param {Record<string, unknown>} [overrides]
  * @returns {Record<string, unknown>}

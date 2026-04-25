@@ -1,7 +1,9 @@
 import type SeekCachePort from '../../ports/SeekCachePort.ts';
+import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabilityPort.ts';
+import type { NeighborEdge } from '../../ports/NeighborProviderPort.ts';
 import type QueryCapability from '../capabilities/QueryCapability.ts';
 import type PatchCapability from '../capabilities/PatchCapability.ts';
 import type MaterializeCapability from '../capabilities/MaterializeCapability.ts';
@@ -13,9 +15,19 @@ import type ComparisonCapability from '../capabilities/ComparisonCapability.ts';
 import type SubscriptionCapability from '../capabilities/SubscriptionCapability.ts';
 import type { EffectPipeline } from '../services/EffectPipeline.ts';
 import type GCPolicy from '../services/GCPolicy.ts';
+import type BitmapNeighborProvider from '../services/index/BitmapNeighborProvider.ts';
+import type MaterializedViewService from '../services/MaterializedViewService.ts';
 import type LogicalTraversal from '../services/query/LogicalTraversal.ts';
+import type { LoadedCheckpoint } from '../services/state/checkpointLoad.ts';
+import type { PatchDiff } from '../types/PatchDiff.ts';
+import type { ProvenanceIndex } from '../services/provenance/ProvenanceIndex.ts';
 import type ProvenancePayload from '../services/provenance/ProvenancePayload.ts';
+import type SyncController from '../services/controllers/SyncController.ts';
+import type { TemporalQuery } from '../services/TemporalQuery.ts';
 import type { CorePersistence } from '../types/WarpPersistence.ts';
+import type VersionVector from '../crdt/VersionVector.ts';
+import type Patch from '../types/Patch.ts';
+import type WarpState from '../services/state/WarpState.ts';
 import type { WarpRuntimeOpenOptions } from './WarpRuntimeBoot.ts';
 
 export type RuntimeCapabilitySurface =
@@ -51,19 +63,80 @@ export type RuntimeWormholeRecord = {
   patchCount: number;
 };
 
+type RuntimeHostAdjacency = {
+  outgoing: Map<string, readonly NeighborEdge[]> | ReadonlyMap<string, readonly NeighborEdge[]>;
+  incoming: Map<string, readonly NeighborEdge[]> | ReadonlyMap<string, readonly NeighborEdge[]>;
+};
+
+export type RuntimeHostMaterializedGraph = {
+  state: WarpState;
+  stateHash: string;
+  adjacency: RuntimeHostAdjacency;
+  provider?: BitmapNeighborProvider;
+};
+
+type RuntimeHostCheckpointFrontier = Pick<LoadedCheckpoint, 'schema' | 'frontier'>;
+
+type RuntimeHostTrustAssessment = {
+  trust: {
+    explanations: ReadonlyArray<{
+      trusted: boolean;
+      writerId: string;
+    }>;
+  };
+};
+
 export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   readonly traverse: LogicalTraversal;
   readonly persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
+  _persistence: CorePersistence & Partial<RuntimeStorageCapabilityPort>;
   readonly onDeleteWithData: 'reject' | 'cascade' | 'warn';
   readonly gcPolicy: GCPolicy;
   readonly seekCache: SeekCachePort | null;
   _seekCache: SeekCachePort | null;
+  _cachedState: WarpState | null;
+  _stateDirty: boolean;
+  _materializedGraph: RuntimeHostMaterializedGraph | null;
+  _versionVector: VersionVector;
+  _cachedCeiling: number | null;
+  _seekCeiling: number | null;
+  _cachedViewHash: string | null;
+  _lastGCLamport: number;
+  _patchesSinceGC: number;
+  _patchesSinceCheckpoint: number;
+  _maxObservedLamport: number;
+  _checkpointPolicy: { every: number } | null;
+  _autoMaterialize: boolean;
+  _blobStorage: BlobStoragePort | null;
+  readonly _viewService: MaterializedViewService;
+  readonly _syncController: SyncController;
+  readonly provenanceIndex: ProvenanceIndex | null;
+  readonly temporal: TemporalQuery;
   setSeekCache(cache: SeekCachePort): void;
   readonly fork: (_request: RuntimeForkRequest) => Promise<RuntimeHostProduct>;
   readonly createWormhole: (_fromSha: string, _toSha: string) => Promise<RuntimeWormholeRecord>;
   _effectPipeline: EffectPipeline | null;
   readonly _crypto: CryptoPort;
   readonly _codec: CodecPort;
+  _setMaterializedState(
+    state: WarpState,
+    optionsOrDiff?: PatchDiff | { diff?: PatchDiff | null },
+  ): Promise<RuntimeHostMaterializedGraph>;
+  _buildViewFromResult(result: { state: WarpState; stateHash: string; diff?: PatchDiff | null | undefined }): void;
+  _loadLatestCheckpoint(): Promise<LoadedCheckpoint | null>;
+  _loadPatchesSince(checkpoint: RuntimeHostCheckpointFrontier): Promise<Array<{ patch: Patch; sha: string }>>;
+  _loadWriterPatches(writerId: string, stopAtSha?: string | null): Promise<Array<{ patch: Patch; sha: string }>>;
+  _ensureFreshState(): Promise<void>;
+  _maybeRunGC(state: WarpState): void;
+  _isAncestor(ancestorSha: string, descendantSha: string): Promise<boolean>;
+  _relationToCheckpointHead(ckHead: string, incomingSha: string): Promise<'same' | 'ahead' | 'behind' | 'diverged'>;
+  _validatePatchAgainstCheckpoint(
+    writerId: string,
+    incomingSha: string,
+    checkpoint: RuntimeHostCheckpointFrontier | null | undefined,
+  ): Promise<void>;
+  _extractTrustedWriters(assessment: RuntimeHostTrustAssessment): { trusted: Set<string> };
+  _maxLamportFromState(state: WarpState): number;
 };
 
 export async function openRuntimeHostProduct(

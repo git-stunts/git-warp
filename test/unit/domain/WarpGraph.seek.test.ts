@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
@@ -108,7 +108,7 @@ function setupMultiWriterPersistence(persistence, writerSpecs, graphName = 'test
   return writerTips;
 }
 
-describe('WarpRuntime.seek (time-travel)', () => {
+describe('WarpCore.seek (time-travel)', () => {
     let persistence;
 
   beforeEach(() => {
@@ -121,7 +121,7 @@ describe('WarpRuntime.seek (time-travel)', () => {
 
   describe('discoverTicks()', () => {
     it('returns correct sorted ticks for a multi-writer graph', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -139,7 +139,7 @@ describe('WarpRuntime.seek (time-travel)', () => {
       persistence.listRefs.mockResolvedValue([]);
       persistence.readRef.mockResolvedValue(null);
 
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -153,7 +153,7 @@ describe('WarpRuntime.seek (time-travel)', () => {
     });
 
     it('returns per-writer breakdown', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -175,7 +175,7 @@ describe('WarpRuntime.seek (time-travel)', () => {
 
   describe('materialize({ ceiling })', () => {
     it('includes only patches at or below the ceiling', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -193,7 +193,7 @@ describe('WarpRuntime.seek (time-travel)', () => {
     });
 
     it('ceiling of 0 returns empty state', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -207,7 +207,7 @@ describe('WarpRuntime.seek (time-travel)', () => {
     });
 
     it('ceiling above maxTick yields same as full materialization', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -228,7 +228,7 @@ describe('WarpRuntime.seek (time-travel)', () => {
     });
 
     it('multi-writer ceiling includes correct cross-writer patches', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -249,7 +249,7 @@ describe('WarpRuntime.seek (time-travel)', () => {
     });
 
     it('cache invalidation: different ceilings produce different states', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -271,7 +271,7 @@ describe('WarpRuntime.seek (time-travel)', () => {
       // materialize() delegates to MaterializeController which always loads fresh.
       // There is no ceiling-keyed cache at the runtime layer; identical ceiling
       // calls will hit persistence again on each invocation.
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -290,10 +290,10 @@ describe('WarpRuntime.seek (time-travel)', () => {
     });
 
     it('_seekCeiling field exists but is not applied automatically by materialize()', async () => {
-      // The _seekCeiling internal field is declared on WarpRuntime but is not
+      // The _seekCeiling internal field is declared on WarpCore but is not
       // currently consulted by materialize(). Passing ceiling must be done
       // explicitly via materialize({ ceiling }) rather than pre-setting _seekCeiling.
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -310,7 +310,7 @@ describe('WarpRuntime.seek (time-travel)', () => {
     });
 
     it('explicit ceiling overrides _seekCeiling', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -325,7 +325,7 @@ describe('WarpRuntime.seek (time-travel)', () => {
     });
 
     it('skips auto-checkpoint when ceiling is active', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -342,7 +342,7 @@ describe('WarpRuntime.seek (time-travel)', () => {
     });
 
     it('cache hit with collectReceipts bypasses cache and returns real receipts', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -365,7 +365,7 @@ describe('WarpRuntime.seek (time-travel)', () => {
     });
 
     it('cache is invalidated when frontier advances at the same ceiling', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -386,7 +386,7 @@ describe('WarpRuntime.seek (time-travel)', () => {
     });
 
     it('explicit ceiling: null overrides _seekCeiling and materializes latest', async () => {
-      const graph = await WarpRuntime.open({
+      const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'test',
         writerId: 'w1',

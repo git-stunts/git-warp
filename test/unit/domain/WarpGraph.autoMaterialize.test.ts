@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
-describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
+describe('WarpCore autoMaterialize option (AP/LAZY/1)', () => {
   it('stores flag when opened with autoMaterialize: true', async () => {
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
@@ -15,7 +15,7 @@ describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
   });
 
   it('stores flag when opened with autoMaterialize: false', async () => {
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
@@ -26,7 +26,7 @@ describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
   });
 
   it('defaults to true when autoMaterialize is not provided', async () => {
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
@@ -36,7 +36,7 @@ describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
   });
 
   it('defaults to true when autoMaterialize is explicitly undefined', async () => {
-    const graph = await WarpRuntime.open((({
+    const graph = await openRuntimeHostProduct((({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
@@ -48,7 +48,7 @@ describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
 
   it('rejects autoMaterialize: "yes" (string)', async () => {
     await expect(
-      WarpRuntime.open({
+      openRuntimeHostProduct({
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
@@ -59,7 +59,7 @@ describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
 
   it('rejects autoMaterialize: 1 (number)', async () => {
     await expect(
-      WarpRuntime.open({
+      openRuntimeHostProduct({
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
@@ -70,7 +70,7 @@ describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
 
   it('rejects autoMaterialize: null', async () => {
     await expect(
-      WarpRuntime.open({
+      openRuntimeHostProduct({
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',

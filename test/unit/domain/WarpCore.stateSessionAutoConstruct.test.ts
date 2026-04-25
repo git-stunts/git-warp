@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import WarpRuntime from "../../../src/domain/WarpRuntime.ts";
+import WarpCore from "../../../src/domain/WarpCore.ts";
 import SchemaUnsupportedError from "../../../src/domain/errors/SchemaUnsupportedError.ts";
 import { createGitCasPatchStorage } from "../../../src/ports/CommitMessageCodecPort.ts";
 import type { CorePersistence } from "../../../src/domain/types/WarpPersistence.ts";
@@ -54,10 +54,10 @@ function makeMockPersistence(): MockPersistence {
   };
 }
 
-describe("WarpRuntime state-session auto-construction", () => {
-  it("provisions a session-backed materialize controller when runtime trie storage is available", async () => {
+describe("WarpCore state-session auto-construction", () => {
+  it("provisions a session-backed materialize controller when core trie storage is available", async () => {
     const persistence = makeMockPersistence();
-    const graph = await WarpRuntime.open({
+    const graph = await WarpCore.open({
       persistence,
       graphName: "test",
       writerId: "w1",

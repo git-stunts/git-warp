@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpRuntime from '../../../src/domain/WarpRuntime.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.ts';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
@@ -83,7 +83,7 @@ function setupPersistence(/** @type {any} */ persistence, /** @type {any} */ wri
   });
 }
 
-describe('WarpRuntime.getStateSnapshot()', () => {
+describe('WarpCore.getStateSnapshot()', () => {
     let persistence;
 
   beforeEach(() => {
@@ -94,7 +94,7 @@ describe('WarpRuntime.getStateSnapshot()', () => {
     persistence.listRefs.mockResolvedValue([]);
     persistence.readRef.mockResolvedValue(null);
 
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -110,7 +110,7 @@ describe('WarpRuntime.getStateSnapshot()', () => {
       { lamport: 1, ops: [{ type: 'NodeAdd', node: 'n1', dot: { writerId: 'alice', counter: 1 } }] },
     ]);
 
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -134,7 +134,7 @@ describe('WarpRuntime.getStateSnapshot()', () => {
       },
     ]);
 
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -165,7 +165,7 @@ describe('WarpRuntime.getStateSnapshot()', () => {
       { lamport: 2, ops: [{ type: 'NodeAdd', node: 'n2', dot: { writerId: 'alice', counter: 2 } }] },
     ]);
 
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -196,7 +196,7 @@ describe('Structural seek diff (diffStates integration)', () => {
       { lamport: 2, ops: [{ type: 'NodeAdd', node: 'n2', dot: { writerId: 'alice', counter: 2 } }] },
     ]);
 
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -223,7 +223,7 @@ describe('Structural seek diff (diffStates integration)', () => {
       { lamport: 2, ops: [{ type: 'NodeAdd', node: 'n2', dot: { writerId: 'alice', counter: 2 } }] },
     ]);
 
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -252,7 +252,7 @@ describe('Structural seek diff (diffStates integration)', () => {
       ] },
     ]);
 
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -273,7 +273,7 @@ describe('Structural seek diff (diffStates integration)', () => {
       { lamport: 1, ops: [{ type: 'NodeAdd', node: 'n1', dot: { writerId: 'alice', counter: 1 } }] },
     ]);
 
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -302,7 +302,7 @@ describe('Structural seek diff (diffStates integration)', () => {
       ] },
     ]);
 
-    const graph = await WarpRuntime.open({
+    const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
       writerId: 'w1',

@@ -4,10 +4,8 @@ import {
   InMemoryGraphAdapter,
 } from '../../../index.ts';
 import { EFFECT_NODE_PREFIX } from '../../../src/domain/services/KeyCodec.ts';
-import type WarpRuntime from '../../../src/domain/WarpRuntime.ts';
 
-/** WarpCore with wired WarpRuntime methods visible. */
-type WarpCoreWired = WarpCore & WarpRuntime;
+type WarpCoreWired = Awaited<ReturnType<typeof WarpCore.open>>;
 
 async function openCore(extra = {}): Promise<WarpCoreWired> {
   return await WarpCore.open({
