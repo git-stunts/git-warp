@@ -1,7 +1,6 @@
 ---
 id: API_delete-warpruntime-class
 blocked_by:
-  - PORT_extract-runtime-host-product
   - DX_migrate-tests-and-seed-helpers-off-warpruntime
 blocks:
   - API_kill-warpruntime
@@ -11,11 +10,10 @@ feature: api-capabilities
 
 # Delete the WarpRuntime class and exports
 
-The `openWarpGraph()` bridge and the `WarpCore` runtime bridge are both gone,
-but the class delete is still not one patch. The remaining residue splits into
-two real prerequisites:
+The `openWarpGraph()` bridge, the `WarpCore` runtime bridge, and the internal
+runtime host-product extraction are all done. The class delete is still not one
+patch, but the remaining prerequisite is now singular:
 
-- `PORT_extract-runtime-host-product`
 - `DX_migrate-tests-and-seed-helpers-off-warpruntime`
 
 Only after those land does the remaining delete become honest:

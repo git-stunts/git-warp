@@ -6,10 +6,6 @@ const classDeleteNote = readFileSync(
   join(process.cwd(), 'docs/method/backlog/v17.0.0/API_delete-warpruntime-class.md'),
   'utf8',
 );
-const hostProductNote = readFileSync(
-  join(process.cwd(), 'docs/method/backlog/v17.0.0/PORT_extract-runtime-host-product.md'),
-  'utf8',
-);
 const testsMigrationNote = readFileSync(
   join(process.cwd(), 'docs/method/backlog/v17.0.0/DX_migrate-tests-and-seed-helpers-off-warpruntime.md'),
   'utf8',
@@ -20,25 +16,21 @@ const releaseLedger = readFileSync(
 );
 
 describe('delete warpruntime class split', () => {
-  it('rewrites the class delete note around the real successor blockers', () => {
-    expect(classDeleteNote).toContain('- PORT_extract-runtime-host-product');
+  it('rewrites the class delete note around the last real successor blocker', () => {
+    expect(classDeleteNote).not.toContain('- PORT_extract-runtime-host-product');
     expect(classDeleteNote).toContain('- DX_migrate-tests-and-seed-helpers-off-warpruntime');
   });
 
-  it('records the two new residue cuts explicitly', () => {
-    expect(hostProductNote).toContain('WarpGraphRuntimeProduct.ts');
-    expect(hostProductNote).toContain('WarpCoreRuntimeProduct.ts');
-    expect(hostProductNote).toContain('ForkController.ts');
-
+  it('keeps the remaining test-helper residue cut explicit', () => {
     expect(testsMigrationNote).toContain('WarpRuntime');
     expect(testsMigrationNote).toContain('WarpCore.open(...)');
     expect(testsMigrationNote).toContain('openWarpGraph(...)');
   });
 
-  it('records the new order in the v17 release ledger', () => {
-    expect(releaseLedger).toContain('Cycle 0077 then proved');
-    expect(releaseLedger).toContain('`PORT_extract-runtime-host-product`');
+  it('records the reduced remaining order in the v17 release ledger', () => {
+    expect(releaseLedger).toContain('Cycle 0078 then completed');
     expect(releaseLedger).toContain('`DX_migrate-tests-and-seed-helpers-off-warpruntime`');
     expect(releaseLedger).toContain('`API_delete-warpruntime-class`');
+    expect(releaseLedger).not.toContain('`PORT_extract-runtime-host-product`');
   });
 });

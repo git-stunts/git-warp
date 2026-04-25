@@ -92,7 +92,31 @@ Add ratchets that fail until:
 
 ### Witness
 
-- `npm exec vitest run test/unit/scripts/runtime-host-product-seam.test.ts test/unit/scripts/openwarpgraph-composition-root.test.ts test/unit/scripts/runtime-controller-host-types.test.ts test/unit/domain/services/controllers/ForkController.test.ts`
+- `npm exec vitest run test/unit/scripts/runtime-host-product-seam.test.ts test/unit/scripts/openwarpgraph-composition-root.test.ts test/unit/scripts/runtime-controller-host-types.test.ts test/unit/domain/services/controllers/ForkController.test.ts test/unit/domain/warp/WarpGraphRuntimeBridge.test.ts test/unit/domain/WarpCore.content.test.ts test/unit/scripts/delete-warpruntime-class-split.test.ts test/unit/scripts/kill-warpruntime-split.test.ts`
 - `npm run typecheck`
 - `git diff --check`
 
+## Playback
+
+### Agent
+
+- Yes. `WarpGraphRuntimeProduct.ts` and `WarpCoreRuntimeProduct.ts` now stop
+  importing `../WarpRuntime.ts`.
+- Yes. `ForkController.ts` now stops typing against or dynamically importing
+  `../../WarpRuntime.ts`.
+- Yes. There is now one explicit host-product seam,
+  [RuntimeHostProduct.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/RuntimeHostProduct.ts),
+  that owns the internal `openWarpRuntime(...)` call.
+
+### Human
+
+- Yes. The remaining source-side runtime boot path now reads as one named
+  internal host product instead of three separate `WarpRuntime` escape hatches.
+
+### Verdict
+
+`hill met`
+
+## Drift check
+
+No negative drift.

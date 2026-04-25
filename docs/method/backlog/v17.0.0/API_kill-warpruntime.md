@@ -65,10 +65,12 @@ cleared the prerequisite residue:
 - `0073` deleted the `_internal.ts` compatibility shim
 
 Cycle `0074` resplit the exposed remainder, cycle `0075` completed the public
-bridge cut, and cycle `0076` then completed the `WarpCore` bridge cut. The live
+bridge cut, cycle `0076` then completed the `WarpCore` bridge cut, and cycle
+`0078` then extracted the remaining source-side runtime host product. The live
 remaining order is now:
 
-1. delete the `WarpRuntime` class and exports
-2. close the umbrella
+1. migrate tests and seed helpers off `WarpRuntime`
+2. delete the `WarpRuntime` class and exports
+3. close the umbrella
 
 This umbrella closes only after that executable delete lands.
