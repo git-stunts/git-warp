@@ -86,6 +86,10 @@ LAYER 2 (the exorcism):
                                           0064: `WarpCore.ts` no longer imports
                                           `WarpRuntime` directly and no longer
                                           calls `WarpRuntime.prototype.*`.
+                                          Cycle 0088 retired the stale
+                                          `API_warpgraph-runtime-bridge` live
+                                          card after the cycle 0067 bridge cut
+                                          had already shipped.
                                           The consumer migration task is now
                                           materially satisfied. The remaining
                                           work is the `openWarpGraph()` /
