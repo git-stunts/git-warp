@@ -1,6 +1,6 @@
 # 0097 Sludge Atlas And Refactor Guide
 
-- Status: `GREEN`
+- Status: `hill met`
 - Release lane: `v17.0.0`
 - Source task: `ARCH_sludge-atlas-and-refactor-guide`
 - Source cycle blocked: `0096-purge-cast-hacks`
@@ -685,3 +685,24 @@ production source.
   canonical.
 - Snapshot defaults are changed without retention policy.
 - Port splitting creates one-method ports with no architectural meaning.
+
+## Cycle End
+
+0097 is closed with the hill met. The completed retrospective is:
+
+- [docs/method/retros/0097-sludge-atlas-and-refactor-guide.md](../method/retros/0097-sludge-atlas-and-refactor-guide.md)
+
+Follow-up backlog cards created by the retrospective:
+
+- `docs/method/backlog/bad-code/SLUDGE_map-json-schema.md`
+- `docs/method/backlog/bad-code/ARCH_policy-layer-label-decision.md`
+- `docs/method/backlog/bad-code/PROV_btr-signing-bytes-layer-ownership.md`
+- `docs/method/backlog/cool-ideas/ARCH_agent-source-change-guard-for-doc-only-cycles.md`
+
+Closeout confirmations:
+
+- `0096-purge-cast-hacks` remains blocked.
+- No production source under `src/**` changed during 0097.
+- The atlas conformance test remains green.
+- The next recommended cycle is
+  `PROV_btr-signing-bytes-layer-ownership`, not cast purge.
