@@ -269,7 +269,15 @@ Observed result: fail.
 The RED test constructs a `WarpState`, stores a `Uint8Array` in
 `state.prop`, creates a public snapshot with
 `createImmutableWarpStateSnapshot`, retrieves the byte value through
-`snapshot.prop.get(key)?.value`, and attempts to mutate the byte value.
+`snapshot.prop.get(key)?.value`, and attempts to mutate the byte value
+only when the public snapshot still exposes a `Uint8Array`.
+
+The test intentionally does not require future snapshots to expose
+`Uint8Array`. `Uint8Array` is today's mutable representation and part of
+the bug. Future GREEN may replace that public representation with a
+runtime-backed immutable byte value or read-only byte view. If GREEN
+changes the representation, the RED must be updated to assert that
+representation's immutable byte contract directly.
 
 Evidence that source detachment already holds:
 
@@ -285,6 +293,9 @@ AssertionError: expected [ 9, 2, 3 ] to deeply equal [ 1, 2, 3 ]
 This is the intended RED. It proves that the current behavior protects
 the live source but still exposes mutable byte state through the public
 snapshot.
+
+The RED must not force fake immutable `Uint8Array` theater. It fences
+off mutable public byte values, not a specific future representation.
 
 No production source was edited during RED.
 

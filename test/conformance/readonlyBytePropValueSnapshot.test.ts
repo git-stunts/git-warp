@@ -18,17 +18,21 @@ describe('readonly byte PropValue snapshot contract', () => {
     const snapshot = createImmutableWarpStateSnapshot(state);
     const snapshotValue = snapshot.prop.get(key)?.value;
 
-    expect(snapshotValue).toBeInstanceOf(Uint8Array);
-    if (!(snapshotValue instanceof Uint8Array)) {
-      throw new Error('expected byte PropValue snapshot');
+    expect(snapshotValue).toBeDefined();
+
+    if (snapshotValue instanceof Uint8Array) {
+      expect(snapshotValue).not.toBe(sourceBytes);
+      expect(Array.from(snapshotValue)).toEqual([1, 2, 3]);
+
+      snapshotValue[0] = 9;
+
+      expect(Array.from(sourceBytes)).toEqual([1, 2, 3]);
+      expect(Array.from(snapshotValue)).toEqual([1, 2, 3]);
+      return;
     }
 
-    expect(snapshotValue).not.toBe(sourceBytes);
-    expect(Array.from(snapshotValue)).toEqual([1, 2, 3]);
-
-    snapshotValue[0] = 9;
-
-    expect(Array.from(sourceBytes)).toEqual([1, 2, 3]);
-    expect(Array.from(snapshotValue)).toEqual([1, 2, 3]);
+    throw new Error(
+      'Snapshot byte PropValue no longer exposes Uint8Array; update this test to assert the immutable byte value contract directly.',
+    );
   });
 });
