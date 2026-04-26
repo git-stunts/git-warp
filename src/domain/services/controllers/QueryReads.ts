@@ -13,7 +13,7 @@ import {
   decodeEdgeKey,
 } from '../KeyCodec.ts';
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
-import { createImmutableWarpState } from '../ImmutableSnapshot.ts';
+import { createImmutableWarpStateSnapshot } from '../ImmutableSnapshot.ts';
 import QueryError from '../../errors/QueryError.ts';
 import type WarpState from '../state/WarpState.ts';
 import type NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
@@ -236,7 +236,7 @@ export async function getStateSnapshotImpl(host: QueryReadHost): Promise<WarpSta
   if (!host._cachedState && !host._autoMaterialize) { return null; }
   await host._ensureFreshState();
   if (!host._cachedState) { return null; }
-  return createImmutableWarpState(host._cachedState);
+  return createImmutableWarpStateSnapshot(host._cachedState);
 }
 
 export async function getNodesImpl(host: QueryReadHost): Promise<string[]> {

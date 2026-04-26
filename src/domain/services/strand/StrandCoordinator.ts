@@ -9,7 +9,10 @@
  */
 
 import StrandError from '../../errors/StrandError.ts';
-import { createImmutableValue, createImmutableWarpState } from '../ImmutableSnapshot.ts';
+import {
+  createImmutableTickReceiptArraySnapshot,
+  createImmutableWarpStateSnapshot,
+} from '../ImmutableSnapshot.ts';
 import {
   normalizeCreateOptions, normalizeLamportCeiling,
   normalizeWritable, normalizeBraidedStrandIds, patchTouchesEntity,
@@ -67,11 +70,11 @@ export type StrandCoordinatorDeps = {
  * immutable WarpState alone, or a bundle carrying the state plus
  * the replay receipts when the caller requested them.
  */
-type ImmutableWarpState = ReturnType<typeof createImmutableWarpState>;
-type ImmutableValueTree = ReturnType<typeof createImmutableValue>;
+type ImmutableWarpState = ReturnType<typeof createImmutableWarpStateSnapshot>;
+type ImmutableReceiptArray = ReturnType<typeof createImmutableTickReceiptArraySnapshot>;
 type MaterializedStrandResult =
   | ImmutableWarpState
-  | Readonly<{ state: ImmutableWarpState; receipts: ImmutableValueTree }>;
+  | Readonly<{ state: ImmutableWarpState; receipts: ImmutableReceiptArray }>;
 
 function buildStrandDescriptor({
   graphName,
@@ -278,9 +281,12 @@ export default class StrandCoordinator {
       ceiling,
     });
     if (options.receipts === true) {
-      return Object.freeze({ state: createImmutableWarpState(state), receipts: createImmutableValue(receipts) });
+      return Object.freeze({
+        state: createImmutableWarpStateSnapshot(state),
+        receipts: createImmutableTickReceiptArraySnapshot(receipts),
+      });
     }
-    return createImmutableWarpState(state);
+    return createImmutableWarpStateSnapshot(state);
   }
 
   // ── Patching (delegates) ────────────────────────────────────────

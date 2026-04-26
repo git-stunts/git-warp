@@ -54,10 +54,10 @@ export default class StrandController {
 
   // ── Strand materialization & queries ─────────────────────────────────────
 
-  async materializeStrand(strandId: string, options?: { receipts?: boolean; ceiling?: number | null }): Promise<WarpState | { state: WarpState; receipts: TickReceipt[] }> {
+  async materializeStrand(strandId: string, options?: { receipts?: boolean; ceiling?: number | null }): Promise<WarpState | { state: WarpState; receipts: readonly TickReceipt[] }> {
     // StrandCoordinator.materialize() returns Promise<unknown> to avoid circular imports.
     // This controller sits above the coordinator and knows the concrete type.
-    return await this._strandService.materialize(strandId, options) as WarpState | { state: WarpState; receipts: TickReceipt[] };
+    return await this._strandService.materialize(strandId, options) as WarpState | { state: WarpState; receipts: readonly TickReceipt[] };
   }
 
   async getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: Patch; sha: string }>> {

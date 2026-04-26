@@ -89,7 +89,7 @@ export interface PatchHost extends PatchDiscoveryHost {
   _propertyReader: PropertyIndexReader | null;
   _cachedIndexTree: Record<string, Uint8Array> | null;
   materialize: {
-    (options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+    (options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpState; receipts: readonly TickReceipt[] }>;
     (options?: { receipts?: false; ceiling?: number | null }): Promise<WarpState>;
   };
   _setMaterializedState: SetMaterializedState;

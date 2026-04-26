@@ -4,7 +4,10 @@
  * No host access. No ports. No side effects.
  */
 
-import { createImmutableValue, createImmutableWarpState } from '../ImmutableSnapshot.ts';
+import {
+  createImmutableTickReceiptArraySnapshot,
+  createImmutableWarpStateSnapshot,
+} from '../ImmutableSnapshot.ts';
 import QueryError from '../../errors/QueryError.ts';
 import { decodeEdgeKey } from '../KeyCodec.ts';
 import type WarpState from '../state/WarpState.ts';
@@ -19,14 +22,14 @@ import {
 
 /** Wraps materialized state in a frozen defensive copy. */
 export function freezePublicState(state: WarpState): WarpState {
-  return createImmutableWarpState(state);
+  return createImmutableWarpStateSnapshot(state);
 }
 
 /** Wraps state+receipts in a frozen result. */
-export function freezeWithReceipts(state: WarpState, receipts: TickReceipt[]): { state: WarpState; receipts: TickReceipt[] } {
+export function freezeWithReceipts(state: WarpState, receipts: TickReceipt[]): { state: WarpState; receipts: readonly TickReceipt[] } {
   return Object.freeze({
     state: freezePublicState(state),
-    receipts: createImmutableValue(receipts),
+    receipts: createImmutableTickReceiptArraySnapshot(receipts),
   });
 }
 

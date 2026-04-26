@@ -12,7 +12,10 @@ import VersionVector from './crdt/VersionVector.ts';
 import GCPolicy from './services/GCPolicy.ts';
 import { AuditReceiptService } from './services/audit/AuditReceiptService.ts';
 import { TemporalQuery } from './services/TemporalQuery.ts';
-import { createImmutableWarpState, createImmutableValue } from './services/ImmutableSnapshot.ts';
+import {
+  createImmutableTickReceiptArraySnapshot,
+  createImmutableWarpStateSnapshot,
+} from './services/ImmutableSnapshot.ts';
 import defaultCodec from './utils/defaultCodec.ts';
 import defaultCrypto from './utils/defaultCrypto.ts';
 import nullLogger from './utils/nullLogger.ts';
@@ -91,7 +94,7 @@ export type MaterializedGraph = {
 
 type MaterializeReceiptsResult = {
   state: WarpState;
-  receipts: TickReceipt[];
+  receipts: readonly TickReceipt[];
 };
 
 type Subscriber = {
@@ -317,11 +320,11 @@ export default class RuntimeHost {
     await this._onMaterialized(result);
     if (options?.receipts === true) {
       return Object.freeze({
-        state: createImmutableWarpState(result.state),
-        receipts: createImmutableValue(result.receipts ?? []),
+        state: createImmutableWarpStateSnapshot(result.state),
+        receipts: createImmutableTickReceiptArraySnapshot(result.receipts ?? []),
       });
     }
-    return createImmutableWarpState(result.state);
+    return createImmutableWarpStateSnapshot(result.state);
   }
 
   /**
@@ -339,17 +342,17 @@ export default class RuntimeHost {
     const result = await this._materializeController.materializeCoordinate(options);
     if (options.receipts === true) {
       return Object.freeze({
-        state: createImmutableWarpState(result.state),
-        receipts: createImmutableValue(result.receipts ?? []),
+        state: createImmutableWarpStateSnapshot(result.state),
+        receipts: createImmutableTickReceiptArraySnapshot(result.receipts ?? []),
       });
     }
-    return createImmutableWarpState(result.state);
+    return createImmutableWarpStateSnapshot(result.state);
   }
 
   async materializeAt(checkpointSha: string): Promise<WarpState> {
     const result = await this._materializeController.materializeAt(checkpointSha);
     await this._onMaterialized(result);
-    return createImmutableWarpState(result.state);
+    return createImmutableWarpStateSnapshot(result.state);
   }
 
   async _materializeGraph(): Promise<MaterializedGraph> {

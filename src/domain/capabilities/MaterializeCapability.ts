@@ -24,7 +24,7 @@ export type MaterializeCoordinateOptions = {
 /** Result when receipts are requested. */
 export type MaterializeWithReceipts = {
   state: WarpState;
-  receipts: TickReceipt[];
+  receipts: readonly TickReceipt[];
 };
 
 /** Index verification result. */

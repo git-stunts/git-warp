@@ -16,7 +16,7 @@ import QueryError from '../errors/QueryError.ts';
 type AdjacencyEntry = { neighborId: string; label: string };
 type VisibleNodeProps = NonNullable<Awaited<ReturnType<Observer['getNodeProps']>>>;
 type VisibleEdge = Awaited<ReturnType<Observer['getEdges']>>[number];
-type MaterializedStateWithReceipts = { state: WarpState; receipts: TickReceipt[] };
+type MaterializedStateWithReceipts = { state: WarpState; receipts: readonly TickReceipt[] };
 type MaterializedSourceResult = WarpState | MaterializedStateWithReceipts;
 type WorldlineMaterializedGraph = {
   state: WarpState;

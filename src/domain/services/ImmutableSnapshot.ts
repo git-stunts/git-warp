@@ -1,20 +1,155 @@
 /**
- * Immutable snapshot helpers for public read-side returns.
+ * Immutable snapshot builders for public read-side returns.
  *
- * Public materialization APIs should return detached snapshots that behave as
- * read-only values for normal callers. Plain `Object.freeze()` is insufficient
- * for `Map` and `Set`, so these helpers clone nested structures and wrap
- * collection mutators with throwing facades.
+ * Snapshot construction is source-specific. This module does not preserve
+ * unsupported class instances, clone prototypes, or reconstruct objects by
+ * copying descriptors.
  *
  * @module domain/services/ImmutableSnapshot
  */
 
+import ORSet from '../crdt/ORSet.ts';
 import VersionVector from '../crdt/VersionVector.ts';
+import { LWWRegister } from '../crdt/LWW.ts';
 import WarpError from '../errors/WarpError.ts';
-import type WarpState from './state/WarpState.ts';
+import { TickReceipt } from '../types/TickReceipt.ts';
+import type { PropValue } from '../types/PropValue.ts';
+import type { EventId } from '../utils/EventId.ts';
+import WarpState from './state/WarpState.ts';
 
-const MAP_MUTATORS = new Set(['set', 'delete', 'clear']);
-const SET_MUTATORS = new Set(['add', 'delete', 'clear']);
+type PropValueObject = { readonly [key: string]: PropValue };
+
+class ReadonlySnapshotStringSet extends Set<string> {
+  #sealed = false;
+
+  constructor(source: Iterable<string>) {
+    super();
+    for (const value of source) {
+      super.add(value);
+    }
+    this.#sealed = true;
+  }
+
+  override add(value: string): this {
+    if (this.#sealed) {
+      throw createReadonlyMutationError('Set', 'add');
+    }
+    return super.add(value);
+  }
+
+  override delete(value: string): boolean {
+    if (this.#sealed) {
+      throw createReadonlyMutationError('Set', 'delete');
+    }
+    return super.delete(value);
+  }
+
+  override clear(): void {
+    if (this.#sealed) {
+      throw createReadonlyMutationError('Set', 'clear');
+    }
+    super.clear();
+  }
+}
+
+class ReadonlySnapshotStringSetMap extends Map<string, Set<string>> {
+  #sealed = false;
+
+  constructor(source: Map<string, Set<string>>) {
+    super();
+    for (const [key, value] of source) {
+      super.set(key, createReadonlyStringSet(value));
+    }
+    this.#sealed = true;
+  }
+
+  override set(key: string, value: Set<string>): this {
+    if (this.#sealed) {
+      throw createReadonlyMutationError('Map', 'set');
+    }
+    return super.set(key, value);
+  }
+
+  override delete(key: string): boolean {
+    if (this.#sealed) {
+      throw createReadonlyMutationError('Map', 'delete');
+    }
+    return super.delete(key);
+  }
+
+  override clear(): void {
+    if (this.#sealed) {
+      throw createReadonlyMutationError('Map', 'clear');
+    }
+    super.clear();
+  }
+}
+
+class ReadonlySnapshotPropMap extends Map<string, LWWRegister<PropValue>> {
+  #sealed = false;
+
+  constructor(source: Map<string, LWWRegister<PropValue>>) {
+    super();
+    for (const [key, value] of source) {
+      super.set(key, createLwwRegisterSnapshot(value));
+    }
+    this.#sealed = true;
+  }
+
+  override set(key: string, value: LWWRegister<PropValue>): this {
+    if (this.#sealed) {
+      throw createReadonlyMutationError('Map', 'set');
+    }
+    return super.set(key, value);
+  }
+
+  override delete(key: string): boolean {
+    if (this.#sealed) {
+      throw createReadonlyMutationError('Map', 'delete');
+    }
+    return super.delete(key);
+  }
+
+  override clear(): void {
+    if (this.#sealed) {
+      throw createReadonlyMutationError('Map', 'clear');
+    }
+    super.clear();
+  }
+}
+
+class ReadonlySnapshotEventMap extends Map<string, EventId> {
+  #sealed = false;
+
+  constructor(source: Map<string, EventId>) {
+    super();
+    for (const [key, value] of source) {
+      super.set(key, value);
+    }
+    this.#sealed = true;
+  }
+
+  override set(key: string, value: EventId): this {
+    if (this.#sealed) {
+      throw createReadonlyMutationError('Map', 'set');
+    }
+    return super.set(key, value);
+  }
+
+  override delete(key: string): boolean {
+    if (this.#sealed) {
+      throw createReadonlyMutationError('Map', 'delete');
+    }
+    return super.delete(key);
+  }
+
+  override clear(): void {
+    if (this.#sealed) {
+      throw createReadonlyMutationError('Map', 'clear');
+    }
+    super.clear();
+  }
+}
 
 /**
  * Build a domain error for attempts to mutate a read-only collection snapshot.
@@ -27,157 +162,126 @@ function createReadonlyMutationError(kind: 'Map' | 'Set', method: string): WarpE
   );
 }
 
-/**
- * Wrap a Map or Set in a Proxy that throws on any mutation attempt.
- */
-function createReadonlyCollectionProxy<T extends Map<unknown, unknown> | Set<unknown>>(
-  target: T,
-  mutators: Set<string>,
-  kind: 'Map' | 'Set',
-): T {
-  const proxy = new Proxy(target, {
-    get(innerTarget, prop) {
-      if (typeof prop === 'string' && mutators.has(prop)) {
-        return () => {
-          throw createReadonlyMutationError(kind, prop);
-        };
-      }
+function createUnsupportedSnapshotSourceError(expected: string): WarpError {
+  return new WarpError(
+    `unsupported snapshot source: expected ${expected}`,
+    'E_IMMUTABLE_SNAPSHOT_UNSUPPORTED_SOURCE',
+    { context: { expected } },
+  );
+}
 
-      const val = Reflect.get(innerTarget, prop, innerTarget) as unknown;
-      return typeof val === 'function' ? (val as (...args: unknown[]) => unknown).bind(innerTarget) : val;
-    },
-    set() {
-      throw createReadonlyMutationError(kind, 'set');
-    },
-    defineProperty() {
-      throw createReadonlyMutationError(kind, 'defineProperty');
-    },
-    deleteProperty() {
-      throw createReadonlyMutationError(kind, 'deleteProperty');
-    },
+function createReadonlyStringSet(source: Set<string>): Set<string> {
+  const snapshot = new ReadonlySnapshotStringSet(source);
+  Object.freeze(snapshot);
+  return snapshot;
+}
+
+function createReadonlyStringSetMap(source: Map<string, Set<string>>): Map<string, Set<string>> {
+  const snapshot = new ReadonlySnapshotStringSetMap(source);
+  Object.freeze(snapshot);
+  return snapshot;
+}
+
+function createReadonlyPropMap(source: Map<string, LWWRegister<PropValue>>): Map<string, LWWRegister<PropValue>> {
+  const snapshot = new ReadonlySnapshotPropMap(source);
+  Object.freeze(snapshot);
+  return snapshot;
+}
+
+function createReadonlyEventMap(source: Map<string, EventId>): Map<string, EventId> {
+  const snapshot = new ReadonlySnapshotEventMap(source);
+  Object.freeze(snapshot);
+  return snapshot;
+}
+
+function createOrSetSnapshot(source: ORSet): ORSet {
+  const cloned = source.clone();
+  const snapshot = new ORSet(
+    createReadonlyStringSetMap(cloned.entries),
+    createReadonlyStringSet(cloned.tombstones),
+  );
+  Object.freeze(snapshot);
+  return snapshot;
+}
+
+function createVersionVectorSnapshot(source: VersionVector): VersionVector {
+  const snapshot = source.clone();
+  Object.freeze(snapshot);
+  return snapshot;
+}
+
+function createPropValueArraySnapshot(source: readonly PropValue[]): PropValue[] {
+  const snapshot: PropValue[] = [];
+  for (const value of source) {
+    snapshot.push(createPropValueSnapshot(value));
+  }
+  Object.freeze(snapshot);
+  return snapshot;
+}
+
+function createPropValueObjectSnapshot(source: PropValueObject): { [key: string]: PropValue } {
+  const snapshot: { [key: string]: PropValue } = {};
+  for (const [key, value] of Object.entries(source)) {
+    snapshot[key] = createPropValueSnapshot(value);
+  }
+  Object.freeze(snapshot);
+  return snapshot;
+}
+
+function createPropValueSnapshot(source: PropValue): PropValue {
+  if (source instanceof Uint8Array) {
+    return new Uint8Array(source);
+  }
+  if (Array.isArray(source)) {
+    return createPropValueArraySnapshot(source);
+  }
+  if (source !== null && typeof source === 'object') {
+    return createPropValueObjectSnapshot(source);
+  }
+  return source;
+}
+
+function createLwwRegisterSnapshot(source: LWWRegister<PropValue>): LWWRegister<PropValue> {
+  return new LWWRegister(source.eventId, createPropValueSnapshot(source.value));
+}
+
+/**
+ * Create a detached, read-only public snapshot of a WarpState instance.
+ */
+export function createImmutableWarpStateSnapshot(state: WarpState): WarpState {
+  if (!(state instanceof WarpState)) {
+    throw createUnsupportedSnapshotSourceError('WarpState');
+  }
+
+  const snapshot = new WarpState({
+    nodeAlive: createOrSetSnapshot(state.nodeAlive),
+    edgeAlive: createOrSetSnapshot(state.edgeAlive),
+    prop: createReadonlyPropMap(state.prop),
+    observedFrontier: createVersionVectorSnapshot(state.observedFrontier),
+    edgeBirthEvent: createReadonlyEventMap(state.edgeBirthEvent),
   });
 
-  return Object.freeze(proxy) as T;
+  Object.freeze(snapshot);
+  return snapshot;
 }
 
 /**
- * Deep-clone a Map into a read-only snapshot with immutable entries.
+ * Create a detached, frozen public snapshot of materialization receipts.
  */
-function cloneImmutableMap<T>(value: Map<unknown, unknown>, seen: WeakMap<object, unknown>): T {
-  const cloned = new Map<unknown, unknown>();
-  const proxy = createReadonlyCollectionProxy(cloned, MAP_MUTATORS, 'Map');
-  seen.set(value, proxy);
-  for (const [key, entryValue] of value.entries()) {
-    cloned.set(
-      cloneImmutableValue(key, seen),
-      cloneImmutableValue(entryValue, seen),
-    );
+export function createImmutableTickReceiptArraySnapshot(
+  receipts: readonly TickReceipt[],
+): readonly TickReceipt[] {
+  if (!Array.isArray(receipts)) {
+    throw createUnsupportedSnapshotSourceError('TickReceipt[]');
   }
-  return proxy as T;
-}
 
-/**
- * Deep-clone a Set into a read-only snapshot with immutable entries.
- */
-function cloneImmutableSet<T>(value: Set<unknown>, seen: WeakMap<object, unknown>): T {
-  const cloned = new Set<unknown>();
-  const proxy = createReadonlyCollectionProxy(cloned, SET_MUTATORS, 'Set');
-  seen.set(value, proxy);
-  for (const entryValue of value.values()) {
-    cloned.add(cloneImmutableValue(entryValue, seen));
-  }
-  return proxy as T;
-}
-
-/**
- * Deep-clone an array into a frozen snapshot with immutable entries.
- */
-function cloneImmutableArray<T>(value: unknown[], seen: WeakMap<object, unknown>): T {
-  const cloned: unknown[] = [];
-  seen.set(value, cloned);
-  for (const entryValue of value) {
-    cloned.push(cloneImmutableValue(entryValue, seen));
-  }
-  return Object.freeze(cloned) as T;
-}
-
-/**
- * Deep-clone a plain object into a frozen snapshot with immutable properties.
- */
-function cloneImmutableObject<T>(value: object, seen: WeakMap<object, unknown>): T {
-  const proto = Object.getPrototypeOf(value) as object | null;
-  const cloned = Object.create(proto ?? Object.prototype) as Record<string | symbol, unknown>;
-  seen.set(value, cloned);
-
-  for (const key of Reflect.ownKeys(value)) {
-    const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (descriptor === undefined) {
-      continue;
+  const snapshot: TickReceipt[] = [];
+  for (const receipt of receipts) {
+    if (!(receipt instanceof TickReceipt)) {
+      throw createUnsupportedSnapshotSourceError('TickReceipt[]');
     }
-
-    if ('value' in descriptor) {
-      descriptor.value = cloneImmutableValue(descriptor.value as unknown, seen);
-    }
-
-    Object.defineProperty(cloned, key, descriptor);
+    snapshot.push(receipt);
   }
 
-  return Object.freeze(cloned) as unknown as T;
-}
-
-/**
- * Dispatch an object value to the appropriate collection-specific cloner.
- */
-function cloneImmutableObjectValue<T extends object>(value: T, seen: WeakMap<object, unknown>): T {
-  // VersionVector uses private fields that Object.create cannot replicate.
-  // Clone via its own method and freeze the result.
-  if (value instanceof VersionVector) {
-    const cloned = value.clone();
-    seen.set(value, cloned);
-    return Object.freeze(cloned) as typeof value;
-  }
-
-  if (value instanceof Map) {
-    return cloneImmutableMap(value, seen);
-  }
-
-  if (value instanceof Set) {
-    return cloneImmutableSet(value, seen);
-  }
-
-  if (Array.isArray(value)) {
-    return cloneImmutableArray(value as unknown[], seen);
-  }
-
-  return cloneImmutableObject(value, seen);
-}
-
-/**
- * Recursively clone a value into a deeply frozen immutable snapshot.
- */
-function cloneImmutableValue<T>(value: T, seen: WeakMap<object, unknown>): T {
-  if (value === null || value === undefined || typeof value !== 'object') {
-    return value;
-  }
-
-  if (seen.has(value as object)) {
-    return seen.get(value as object) as T;
-  }
-
-  // After the typeof guard above, value is narrowed to T & object
-  return cloneImmutableObjectValue(value, seen);
-}
-
-/**
- * Create a deeply frozen immutable clone of the given value.
- */
-export function createImmutableValue<T>(value: T): T {
-  return cloneImmutableValue(value, new WeakMap());
-}
-
-/**
- * Create a deeply frozen immutable clone of a WarpState instance.
- */
-export function createImmutableWarpState(state: WarpState): WarpState {
-  return createImmutableValue(state);
+  return Object.freeze(snapshot);
 }

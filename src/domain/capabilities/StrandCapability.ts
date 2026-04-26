@@ -27,7 +27,7 @@ export type StrandPatchEntry = {
 /** Result when receipts are requested from strand materialization. */
 export type StrandMaterializeWithReceipts = {
   state: WarpState;
-  receipts: TickReceipt[];
+  receipts: readonly TickReceipt[];
 };
 
 export default abstract class StrandCapability {

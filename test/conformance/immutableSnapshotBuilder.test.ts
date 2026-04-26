@@ -2,9 +2,13 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { Dot } from '../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
 import { LWWRegister } from '../../src/domain/crdt/LWW.ts';
-import { createImmutableValue, createImmutableWarpState } from '../../src/domain/services/ImmutableSnapshot.ts';
+import {
+  createImmutableTickReceiptArraySnapshot,
+  createImmutableWarpStateSnapshot,
+} from '../../src/domain/services/ImmutableSnapshot.ts';
 import WarpState from '../../src/domain/services/state/WarpState.ts';
 import { createTickReceipt } from '../../src/domain/types/TickReceipt.ts';
 import { EventId } from '../../src/domain/utils/EventId.ts';
@@ -95,20 +99,31 @@ describe('immutable snapshot builder contract', () => {
     const guarded = new ConstructorGuardedValue('secret');
 
     expect(guarded.reveal()).toBe('secret');
-    expect(() => createImmutableValue(guarded)).toThrow(/unsupported|snapshot|source/i);
+    expect(() => Reflect.apply(createImmutableWarpStateSnapshot, null, [guarded])).toThrow(/unsupported|snapshot|source/i);
   });
 
   it('keeps WarpState snapshots detached and read-only for public state returns', () => {
     const state = WarpState.empty();
     const key = 'node-a:name';
+    state.nodeAlive.add('node-a', new Dot('writer-a', 1));
     state.prop.set(key, LWWRegister.set(testEvent(1, 'aaaa'), 'blue'));
 
-    const snapshot = createImmutableWarpState(state);
+    const snapshot = createImmutableWarpStateSnapshot(state);
 
+    state.nodeAlive.add('node-b', new Dot('writer-a', 2));
     state.prop.set(key, LWWRegister.set(testEvent(2, 'bbbb'), 'red'));
 
     expect(snapshot).not.toBe(state);
+    expect(snapshot.nodeAlive.contains('node-a')).toBe(true);
+    expect(snapshot.nodeAlive.contains('node-b')).toBe(false);
     expect(snapshot.prop.get(key)?.value).toBe('blue');
+
+    const nodeDots = snapshot.nodeAlive.entries.get('node-a');
+    expect(nodeDots).toBeDefined();
+    if (nodeDots !== undefined) {
+      expect(() => nodeDots.add('writer-a:3')).toThrow(/read-only/i);
+    }
+
     expect(() => snapshot.prop.set('node-b:name', LWWRegister.set(testEvent(3, 'cccc'), 'green'))).toThrow(/read-only/i);
   });
 
@@ -116,7 +131,7 @@ describe('immutable snapshot builder contract', () => {
     const state = WarpState.empty();
     state.observedFrontier = VersionVector.from(new Map([['writer-a', 1]]));
 
-    const snapshot = createImmutableWarpState(state);
+    const snapshot = createImmutableWarpStateSnapshot(state);
 
     state.observedFrontier.set('writer-a', 2);
 
@@ -127,11 +142,15 @@ describe('immutable snapshot builder contract', () => {
 
   it('copies receipt arrays and rejects non-TickReceipt entries', () => {
     const receipts = receiptArrayFixture();
-    const snapshot = createImmutableValue(receipts);
+    const snapshot = createImmutableTickReceiptArraySnapshot(receipts);
 
     expect(snapshot).not.toBe(receipts);
     expect(Object.isFrozen(snapshot)).toBe(true);
-    expect(() => snapshot.push(receipts[0])).toThrow();
-    expect(() => createImmutableValue([receipts[0], new ConstructorGuardedValue('not-a-receipt')])).toThrow(/TickReceipt/i);
+    expect(() => Object.defineProperty(snapshot, '1', { value: receipts[0] })).toThrow();
+    expect(() => Reflect.apply(
+      createImmutableTickReceiptArraySnapshot,
+      null,
+      [[receipts[0], new ConstructorGuardedValue('not-a-receipt')]],
+    )).toThrow(/TickReceipt/i);
   });
 });

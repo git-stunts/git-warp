@@ -5,17 +5,17 @@ export type DetachedGraphMaterializeResult =
   | WarpState
   | {
       state: WarpState;
-      receipts: TickReceipt[];
+      receipts: readonly TickReceipt[];
     };
 
 export type DetachedGraphReadSurface = {
-  materialize(options: { ceiling: number | null; receipts: true }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+  materialize(options: { ceiling: number | null; receipts: true }): Promise<{ state: WarpState; receipts: readonly TickReceipt[] }>;
   materialize(options: { ceiling: number | null; receipts?: false }): Promise<WarpState>;
   materializeCoordinate(options: {
     frontier: Map<string, string> | Record<string, string>;
     ceiling: number | null;
     receipts: true;
-  }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+  }): Promise<{ state: WarpState; receipts: readonly TickReceipt[] }>;
   materializeCoordinate(options: {
     frontier: Map<string, string> | Record<string, string>;
     ceiling: number | null;
@@ -24,7 +24,7 @@ export type DetachedGraphReadSurface = {
   materializeStrand(strandId: string, options: {
     receipts: true;
     ceiling: number | null;
-  }): Promise<{ state: WarpState; receipts: TickReceipt[] }>;
+  }): Promise<{ state: WarpState; receipts: readonly TickReceipt[] }>;
   materializeStrand(strandId: string, options: {
     receipts?: false;
     ceiling: number | null;
