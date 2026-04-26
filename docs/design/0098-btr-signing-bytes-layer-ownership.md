@@ -1,6 +1,6 @@
 # 0098 BTR Signing Bytes Layer Ownership
 
-- Status: `PULL`
+- Status: `RED`
 - Release lane: `v17.0.0`
 - Source backlog: `PROV_btr-signing-bytes-layer-ownership`
 - Blocks: `PROV_btr-provenance-codec-boundary-sludge`,
@@ -355,6 +355,32 @@ The test should assert:
 - This design doc states that HMAC consumes `BtrSigningBytes`.
 
 RED must not edit `src/**`.
+
+## RED Witness
+
+Command:
+
+```sh
+npx vitest run test/conformance/btrSigningBytesOwnership.test.ts
+```
+
+Result: failed as intended, 1 passed and 6 failed.
+
+The failing assertions show that the current repo still contradicts the
+0098 ownership decision:
+
+- the design text needs an exact doctrine phrase for port capability
+  ownership;
+- `policy/sludge/sludge-map.json` still marks `BtrSigningBytes.layer`
+  as `ports`;
+- the `BtrSigningBytes.constructs` proof does not yet name an adapter;
+- the `BtrSigningBytes.consumes` proof does not yet name `CryptoPort`;
+- the refactoring guide does not yet state that ports define
+  capabilities rather than owning returned values;
+- the design does not yet include the raw-byte construction guardrail
+  for `BtrSigningBytes`.
+
+No production implementation under `src/**` was edited.
 
 ## GREEN Plan
 
