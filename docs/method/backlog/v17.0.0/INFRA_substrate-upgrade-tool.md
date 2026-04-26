@@ -17,13 +17,19 @@ fallbacks or abandon old data.
 
 ## The tool
 
-`git warp upgrade` runs offline, walks all existing objects in a WARP
-graph, and migrates them to the current substrate version.
+`npm run upgrade` / `git warp upgrade` runs offline, walks all existing
+objects in a WARP graph, and migrates them to the current substrate version.
 
 For the v17.0.0 ORSet/checkpoint break, the concrete repo-local entry
 point is `scripts/migrations/v17.0.0/migrate.ts`. Old checkpoint
 readers, old ORSet-backed materializers, and one-shot translation logic
 live there (and under its private helper modules), not in `src/`.
+
+The package-level command is:
+
+```sh
+npm run upgrade -- --graph <name> [--repo <path>] [--dry-run]
+```
 
 ### What it migrates
 
@@ -55,6 +61,22 @@ substrate only, and the upgrader carries the legacy readers.
 
 This keeps the production runtime single-path, inspectable, and free of
 permanent fallback branches.
+
+### Mainline cleanup requirement
+
+This item must remove raw-substrate compatibility readers from `src/` once the
+migration script can carry them. Known mainline cleanup targets include:
+
+- `CasBlobAdapter` raw blob restore fallback
+- `CasPayloadPointer.readPayloadBlob()` returning non-pointer bytes as current
+  payload truth
+- `CborPatchJournalAdapter` legacy Git-blob and legacy external-storage read
+  routes
+- `GitTrustChainAdapter` raw record fallback reads
+
+Those readers may exist inside versioned migration helpers under
+`scripts/migrations/v17.0.0/`; they should not remain as production runtime
+branches after the upgrade tool ships.
 
 ### Substrate version storage
 

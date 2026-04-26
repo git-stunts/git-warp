@@ -63,6 +63,7 @@
     "LICENSE",
     "NOTICE",
     "scripts/install-git-warp.sh",
+    "scripts/migrations",
     "scripts/uninstall-git-warp.sh"
   ],
   "publishConfig": {
@@ -95,6 +96,7 @@
     "prepare": "patch-package && node scripts/setup-hooks.ts",
     "prepack": "npm run lint && npm run test:local && npm run typecheck:consumer",
     "release:preflight": "bash scripts/release-preflight.sh",
+    "upgrade": "node scripts/migrations/v17.0.0/migrate.ts",
     "install:git-warp": "bash scripts/install-git-warp.sh",
     "uninstall:git-warp": "bash scripts/uninstall-git-warp.sh",
     "test:node20": "docker compose -f docker/docker-compose.test.yml --profile node20 run --build --rm test-node20",

@@ -153,9 +153,10 @@ LAYER 5 (launch-prep proof and release hardening tail):
                                       default Git-backed runtime payloads route
                                       patches, checkpoints, indexes, and trust
                                       records through git-cas-backed storage;
-                                      legacy raw reads, pointer blobs, and
-                                      native trie publication remain intentional
-                                      carve-outs
+                                      pointer blobs and native trie publication
+                                      remain intentional carve-outs. Old raw
+                                      substrate readers belong to `npm run
+                                      upgrade`, not mainline runtime code
   [x] INFRA_index-builder-on-git-cas     ← cycle 0057 hill-met; streaming
                                           rebuilds now require a real
                                           streaming storage seam,

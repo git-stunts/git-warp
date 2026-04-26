@@ -23,8 +23,7 @@ default Git-backed runtime path:
 - `RuntimeHostBoot` resolves one runtime blob-storage surface and passes it to
   patch, checkpoint, and index adapters.
 - checkpoint and index adapters write payloads through `writePayloadBlob()`,
-  which stores payload bytes through `BlobStoragePort` when configured and
-  keeps legacy raw blob reads as fallback.
+  which stores payload bytes through `BlobStoragePort` when configured.
 - trust records persist through `GitTrustChainAdapter`, which stores record
   payloads via `@git-stunts/git-cas`.
 - core trie publication remains native Git by design; it is not part of the
@@ -41,9 +40,12 @@ The stale `INFRA_uniform-git-cas` card is removed from the live v17 queue, and
 the repo gains a ratchet that preserves the uniform payload-routing law while
 documenting the allowed exceptions:
 
-- legacy raw blobs may still be read
 - pointer blobs may still be written so Git trees can reference CAS payloads
 - core trie objects stay native Git for reachability
+
+Raw-blob compatibility readers are not an allowed mainline runtime carve-out.
+They belong in `scripts/migrations/v17.0.0/` and should be exposed through
+`npm run upgrade`, then deleted from `src/` as the substrate-upgrade tool lands.
 
 ## Playback questions
 
@@ -55,6 +57,8 @@ documenting the allowed exceptions:
   index adapters?
 - Do checkpoint and index adapters still use the CAS payload-pointer helpers?
 - Does trust-chain persistence still use git-cas for record payloads?
+- Does the repo expose `npm run upgrade` as the migration boundary for
+  old-substrate compatibility?
 - Is `INFRA_uniform-git-cas.md` removed from the live v17 lane?
 - Are workload and backlog counts updated after removing the stale card?
 

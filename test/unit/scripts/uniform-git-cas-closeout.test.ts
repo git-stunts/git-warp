@@ -65,6 +65,25 @@ describe('uniform git-cas closeout', () => {
     expect(releaseLedger).toContain('Core trie publication uses native Git objects');
   });
 
+  it('keeps raw-substrate compatibility behind the upgrade command, not mainline policy', () => {
+    const packageJson = readRepoFile('package.json');
+    const design = readRepoFile('docs/design/0092-close-uniform-git-cas.md');
+    const releaseLedger = readRepoFile('docs/releases/v17.0.0/README.md');
+    const upgradeTool = readRepoFile('docs/method/backlog/v17.0.0/INFRA_substrate-upgrade-tool.md');
+    const migrationEntrypoint = readRepoFile('scripts/migrations/v17.0.0/migrate.ts');
+
+    expect(packageJson).toContain('"upgrade": "node scripts/migrations/v17.0.0/migrate.ts"');
+    expect(packageJson).toContain('"scripts/migrations"');
+    expect(design).not.toContain('legacy raw blobs may still be read');
+    expect(releaseLedger).not.toContain('legacy raw reads');
+    expect(releaseLedger).toContain('Old raw\n                                      substrate readers belong to `npm run\n                                      upgrade`');
+    expect(upgradeTool).toContain('The package-level command is:');
+    expect(upgradeTool).toContain('npm run upgrade -- --graph <name>');
+    expect(upgradeTool).toContain('Mainline cleanup requirement');
+    expect(migrationEntrypoint).toContain('npm run upgrade -- --graph <name>');
+    expect(migrationEntrypoint).toContain('keep legacy graph readers out of shipped runtime code');
+  });
+
   it('keeps the broader persistence unification item live', () => {
     const backlogReadme = readRepoFile('docs/method/backlog/WORKLOADS.md');
     const releaseLedger = readRepoFile('docs/releases/v17.0.0/README.md');

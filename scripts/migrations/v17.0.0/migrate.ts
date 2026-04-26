@@ -16,7 +16,7 @@
  * - verify the migrated graph before exit
  *
  * Usage:
- *   node scripts/migrations/v17.0.0/migrate.js --graph <name> [--repo <path>] [--dry-run]
+ *   npm run upgrade -- --graph <name> [--repo <path>] [--dry-run]
  */
 
 import process from 'node:process';
