@@ -1,6 +1,6 @@
 # 0097 Sludge Atlas And Refactor Guide
 
-- Status: `RED`
+- Status: `GREEN`
 - Release lane: `v17.0.0`
 - Source task: `ARCH_sludge-atlas-and-refactor-guide`
 - Source cycle blocked: `0096-purge-cast-hacks`
@@ -422,6 +422,25 @@ git diff --check
 ```
 
 No `src/**` changes are allowed in GREEN.
+
+## GREEN Witness
+
+Commands:
+
+```sh
+npx vitest run test/conformance/sludgeAtlas.test.ts
+node -e "JSON.parse(require('node:fs').readFileSync('policy/sludge/sludge-map.json', 'utf8')); console.log('valid json')"
+npx markdownlint docs/design/0097-sludge-atlas-and-refactor-guide.md \
+  docs/method/refactoring-guides/anti-sludge-refactoring-guide.md
+git diff --check
+```
+
+Result: passed.
+
+The sludge map now includes machine-checkable `proposed_nouns` entries
+for the minimal blocker set. Each entry states who constructs the noun,
+who consumes it, what invariant it proves, what layer owns it, and what
+cast, boundary leak, object bag, or default behavior bug it eliminates.
 
 ## Edge Cases
 

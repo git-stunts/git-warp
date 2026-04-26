@@ -14,7 +14,17 @@
           "symptom": "Decoded BTR records and BTR instances are double-cast into structural field records.",
           "root_cause": "BoundaryTransitionRecord fields are not decoded through a runtime constructor or boundary codec.",
           "recommended_fix": "Introduce BoundaryTransitionRecord and a boundary codec that returns validated fields before domain construction.",
-          "blocks": ["0096-purge-cast-hacks"]
+          "blocks": ["0096-purge-cast-hacks"],
+          "proposed_nouns": [
+            {
+              "name": "BoundaryTransitionRecord",
+              "constructs": "BoundaryTransitionRecord constructor from validated BoundaryTransitionFields supplied by a boundary codec or domain factory.",
+              "consumes": "BTR verification, replay, and provenance use-cases consume it instead of structural field bags.",
+              "proves_invariant": "A BTR has the required version, input hash, output hash, initial-state bytes, provenance, timestamp, and authentication tag.",
+              "layer": "domain",
+              "eliminates": "src/domain/services/provenance/BTR.ts decoded-object-to-BTRFields double cast and BTR instance-to-record validation cast."
+            }
+          ]
         },
         {
           "path": "src/domain/services/provenance/btrOperations.ts",
@@ -22,7 +32,17 @@
           "symptom": "Provenance payload entries are double-cast between BTR payload shape and PatchEntry.",
           "root_cause": "BoundaryTransitionProvenance and BTR wire patch-entry shapes are not separated.",
           "recommended_fix": "Model domain PatchEntry and BoundaryTransitionProvenance separately from BtrWirePatchEntry.",
-          "blocks": ["0096-purge-cast-hacks"]
+          "blocks": ["0096-purge-cast-hacks"],
+          "proposed_nouns": [
+            {
+              "name": "BoundaryTransitionProvenance",
+              "constructs": "A provenance domain factory constructs it from already-decoded PatchEntry values.",
+              "consumes": "BoundaryTransitionRecord creation and replay consume it as the ordered provenance sequence.",
+              "proves_invariant": "Every provenance entry is a replayable domain PatchEntry with a patch and commit SHA, not a wire record.",
+              "layer": "domain",
+              "eliminates": "src/domain/services/provenance/btrOperations.ts payload.toJSON() and btr.P as unknown as PatchEntry[] bridges."
+            }
+          ]
         },
         {
           "path": "src/domain/services/ImmutableSnapshot.ts",
@@ -46,7 +66,17 @@
           "symptom": "BTR imports CodecPort/defaultCodec and owns serialize/deserialize behavior in domain code.",
           "root_cause": "BTR wire encoding is not owned by an adapter or codec boundary.",
           "recommended_fix": "Move BTR encoding and decoding to BoundaryTransitionRecordCodecPort or adapter-owned codec implementation.",
-          "blocks": ["0096-purge-cast-hacks", "0025B-boundary"]
+          "blocks": ["0096-purge-cast-hacks", "0025B-boundary"],
+          "proposed_nouns": [
+            {
+              "name": "BoundaryTransitionRecordCodecPort",
+              "constructs": "Adapter or codec implementations construct decoded BoundaryTransitionRecord values and canonical BTR byte products.",
+              "consumes": "Application/provenance use-cases depend on the port instead of importing defaultCodec in domain code.",
+              "proves_invariant": "Wire encode/decode and canonical byte production happen at the boundary, not inside the domain BTR model.",
+              "layer": "ports",
+              "eliminates": "src/domain/services/provenance/BTR.ts CodecPort/defaultCodec import, serialize(), and deserialize() boundary leakage."
+            }
+          ]
         },
         {
           "path": "src/domain/services/provenance/btrOperations.ts",
@@ -86,7 +116,17 @@
           "symptom": "computeHmac accepts inline primitive fields as the signing envelope.",
           "root_cause": "BtrSigningEnvelope is not modeled.",
           "recommended_fix": "Introduce BtrSigningEnvelope as a named value and produce BtrSigningBytes at the boundary.",
-          "blocks": ["0096-purge-cast-hacks"]
+          "blocks": ["0096-purge-cast-hacks"],
+          "proposed_nouns": [
+            {
+              "name": "BtrSigningEnvelope",
+              "constructs": "BoundaryTransitionRecord creates it from validated record fields excluding the authentication tag.",
+              "consumes": "BoundaryTransitionRecordCodecPort consumes it to produce canonical signing bytes.",
+              "proves_invariant": "The signed semantic fields are explicit, complete, ordered by concept, and do not include kappa.",
+              "layer": "domain",
+              "eliminates": "src/domain/services/provenance/btrOperations.ts inline fields object passed to computeHmac."
+            }
+          ]
         },
         {
           "path": "src/domain/services/index/PropertyIndexReader.ts",
@@ -94,7 +134,17 @@
           "symptom": "Decoded property shard state is represented as nested Record bags.",
           "root_cause": "DecodedPropertyShard or PropertyIndexShard is missing.",
           "recommended_fix": "Introduce a named decoded shard model with explicit node-property entries.",
-          "blocks": ["0096-purge-cast-hacks", "0025B-boundary"]
+          "blocks": ["0096-purge-cast-hacks", "0025B-boundary"],
+          "proposed_nouns": [
+            {
+              "name": "PropertyShard",
+              "constructs": "A property shard decoder or index store constructs it from encoded shard bytes or existing shard artifacts.",
+              "consumes": "PropertyIndexReader consumes it for node property lookup instead of nested record bags.",
+              "proves_invariant": "Decoded shard data contains explicit node ids and property entries in the property-index shard format.",
+              "layer": "domain",
+              "eliminates": "src/domain/services/index/PropertyIndexReader.ts Record<string, Record<string, unknown>> decoded shard model."
+            }
+          ]
         }
       ]
     },
@@ -110,7 +160,17 @@
           "symptom": "HMAC signs an anonymous semantic object through a codec-selected encoding path.",
           "root_cause": "Canonical BTR signing bytes are not modeled as a named boundary product.",
           "recommended_fix": "Introduce BtrSigningBytes produced by a boundary codec/adapter; crypto signs only those bytes.",
-          "blocks": ["0096-purge-cast-hacks"]
+          "blocks": ["0096-purge-cast-hacks"],
+          "proposed_nouns": [
+            {
+              "name": "BtrSigningBytes",
+              "constructs": "BoundaryTransitionRecordCodecPort implementation constructs it from a BtrSigningEnvelope using canonical encoding.",
+              "consumes": "Crypto/HMAC verification and creation consume it as bytes only.",
+              "proves_invariant": "The HMAC input is canonical bytes for the BTR signing envelope, not an arbitrary semantic object.",
+              "layer": "ports",
+              "eliminates": "src/domain/services/provenance/btrOperations.ts codec.encode(fields) signing path."
+            }
+          ]
         },
         {
           "path": "src/domain/services/provenance/btrOperations.ts",
@@ -134,7 +194,17 @@
           "symptom": "An object with readBlob only is cast to IndexStoragePort.",
           "root_cause": "Property shard blob reading is not modeled as its own capability.",
           "recommended_fix": "Design PropertyShardReaderPort or equivalent and wire PropertyIndexReader to the narrow capability.",
-          "blocks": ["0096-purge-cast-hacks"]
+          "blocks": ["0096-purge-cast-hacks"],
+          "proposed_nouns": [
+            {
+              "name": "PropertyShardReaderPort",
+              "constructs": "Adapter implementations construct the capability from blob storage, index storage, or CAS-backed shard storage.",
+              "consumes": "PropertyIndexReader consumes the narrow port for property shard reads.",
+              "proves_invariant": "The reader depends only on property-shard read capability and not on write/tree/ref index storage operations.",
+              "layer": "ports",
+              "eliminates": "src/domain/services/MaterializedViewHelpers.ts readBlob-only object cast to IndexStoragePort."
+            }
+          ]
         },
         {
           "path": "src/domain/services/MaterializedViewService.ts",
@@ -158,7 +228,25 @@
           "symptom": "Deep clone/freeze helpers promise to preserve arbitrary T through Object.create and descriptor copying.",
           "root_cause": "Immutable snapshots are implemented as generic object mechanics instead of a named snapshot model.",
           "recommended_fix": "Introduce ImmutableSnapshot/SnapshotMaterializer and stop returning arbitrary T unless a constructor or snapshot protocol proves it.",
-          "blocks": ["0096-purge-cast-hacks"]
+          "blocks": ["0096-purge-cast-hacks"],
+          "proposed_nouns": [
+            {
+              "name": "ImmutableSnapshot",
+              "constructs": "SnapshotBuilder constructs it from an explicit supported snapshot source such as WarpState.",
+              "consumes": "Public read-side materialization APIs consume and return it as a read-only snapshot value.",
+              "proves_invariant": "The value is detached from mutable runtime state and exposes only snapshot-safe read behavior.",
+              "layer": "domain",
+              "eliminates": "src/domain/services/ImmutableSnapshot.ts cloneImmutableObject<T>() arbitrary T preservation cast."
+            },
+            {
+              "name": "SnapshotBuilder",
+              "constructs": "Materialization code constructs it with explicit snapshot protocols for supported domain objects.",
+              "consumes": "ImmutableSnapshot construction consumes it as the only supported snapshot materialization path.",
+              "proves_invariant": "Snapshot creation is limited to known domain shapes or explicit snapshot protocols, not arbitrary objects.",
+              "layer": "domain",
+              "eliminates": "src/domain/services/ImmutableSnapshot.ts Object.create descriptor-copy generic clone path."
+            }
+          ]
         }
       ]
     },
@@ -174,7 +262,17 @@
           "symptom": "checkpointPolicy is optional and only validated when supplied.",
           "root_cause": "MaterializationSnapshotPolicy default-on behavior is not modeled.",
           "recommended_fix": "Introduce MaterializationSnapshotPolicy with default-on behavior and explicit opt-out.",
-          "blocks": ["v17.0.0-release"]
+          "blocks": ["v17.0.0-release"],
+          "proposed_nouns": [
+            {
+              "name": "MaterializationSnapshotPolicy",
+              "constructs": "Runtime/open option normalization constructs it with default-on behavior or explicit opt-out.",
+              "consumes": "Runtime materialization and checkpoint controllers consume it before deciding whether to write a snapshot.",
+              "proves_invariant": "Snapshot creation behavior is explicit and default-on instead of absent when checkpointPolicy is omitted.",
+              "layer": "policy",
+              "eliminates": "src/domain/warp/RuntimeHostBoot.ts optional checkpointPolicy default-off behavior."
+            }
+          ]
         },
         {
           "path": "src/domain/RuntimeHost.ts",
@@ -182,7 +280,17 @@
           "symptom": "Auto-checkpointing returns immediately when checkpoint policy is absent.",
           "root_cause": "Snapshot creation is treated as optional configuration rather than default graph behavior.",
           "recommended_fix": "Default to snapshot-on policy with retention and opt-out.",
-          "blocks": ["v17.0.0-release"]
+          "blocks": ["v17.0.0-release"],
+          "proposed_nouns": [
+            {
+              "name": "SnapshotRetentionPolicy",
+              "constructs": "Runtime/open option normalization constructs it from defaults or explicit retention options.",
+              "consumes": "Snapshot/checkpoint creation and cleanup paths consume it after writing materialization snapshots.",
+              "proves_invariant": "Default-on snapshotting has bounded retention semantics and does not imply unbounded repository growth.",
+              "layer": "policy",
+              "eliminates": "src/domain/RuntimeHost.ts checkpoint absence causing no snapshot write and no retention decision."
+            }
+          ]
         },
         {
           "path": "src/domain/services/Worldline.ts",
@@ -190,7 +298,17 @@
           "symptom": "seek creates a new worldline source but does not create a materialization snapshot by default.",
           "root_cause": "SeekSnapshotPolicy is not modeled.",
           "recommended_fix": "Introduce SeekSnapshotPolicy so seek snapshots by default according to retention thresholds.",
-          "blocks": ["v17.0.0-release"]
+          "blocks": ["v17.0.0-release"],
+          "proposed_nouns": [
+            {
+              "name": "SeekSnapshotPolicy",
+              "constructs": "Worldline or runtime seek option normalization constructs it from default materialization snapshot policy.",
+              "consumes": "Worldline.seek and seek-cache/materialization paths consume it when deciding whether to snapshot a sought coordinate.",
+              "proves_invariant": "Seek snapshot behavior is explicit, default-on, and governed by retention rather than hidden behind absent options.",
+              "layer": "policy",
+              "eliminates": "src/domain/services/Worldline.ts seek returning a new source without a default snapshot decision."
+            }
+          ]
         }
       ]
     },
