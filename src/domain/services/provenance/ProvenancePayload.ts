@@ -9,24 +9,19 @@
 
 import { reduceV5, createEmptyState, cloneState, type WarpState } from '../JoinReducer.ts';
 import WarpError from '../../errors/WarpError.ts';
-import type Patch from '../../types/Patch.ts';
-
-export interface PatchEntry {
-  patch: Patch;
-  sha: string;
-}
+import BoundaryTransitionProvenance, { type PatchEntry } from './BoundaryTransitionProvenance.ts';
 
 class ProvenancePayload {
-  readonly #patches: ReadonlyArray<PatchEntry>;
+  readonly #provenance: BoundaryTransitionProvenance;
 
-  constructor(patches: PatchEntry[] = []) {
+  constructor(patches: readonly PatchEntry[] = []) {
     if (!Array.isArray(patches)) {
       throw new WarpError(
         'ProvenancePayload requires an array of patches',
         'E_PROVENANCE_PAYLOAD_INVALID',
       );
     }
-    this.#patches = Object.freeze([...patches]);
+    this.#provenance = new BoundaryTransitionProvenance(patches);
     Object.freeze(this);
   }
 
@@ -35,7 +30,7 @@ class ProvenancePayload {
   }
 
   get length(): number {
-    return this.#patches.length;
+    return this.#provenance.length;
   }
 
   concat(other: ProvenancePayload): ProvenancePayload {
@@ -45,39 +40,43 @@ class ProvenancePayload {
         'E_PROVENANCE_PAYLOAD_CONCAT',
       );
     }
-    if (this.#patches.length === 0) { return other; }
-    if (other.#patches.length === 0) { return this; }
-    return new ProvenancePayload([...this.#patches, ...other.#patches]);
+    if (this.#provenance.length === 0) { return other; }
+    if (other.#provenance.length === 0) { return this; }
+    return new ProvenancePayload([...this.#provenance, ...other.#provenance]);
   }
 
   replay(initialState?: WarpState): WarpState {
-    if (this.#patches.length === 0) {
+    if (this.#provenance.length === 0) {
       return initialState ? cloneState(initialState) : createEmptyState();
     }
-    return reduceV5([...this.#patches], initialState) as WarpState;
+    return reduceV5(this.#provenance.entries(), initialState) as WarpState;
   }
 
   [Symbol.iterator](): Iterator<PatchEntry> {
-    return this.#patches[Symbol.iterator]();
+    return this.#provenance[Symbol.iterator]();
   }
 
   at(index: number): PatchEntry | undefined {
-    return this.#patches.at(index);
+    return this.#provenance.at(index);
   }
 
-  slice(start = 0, end: number = this.#patches.length): ProvenancePayload {
-    const sliced = this.#patches.slice(start, end);
-    return new ProvenancePayload([...sliced]);
+  slice(start = 0, end: number = this.#provenance.length): ProvenancePayload {
+    return new ProvenancePayload(this.#provenance.entries().slice(start, end));
   }
 
-  toJSON(): PatchEntry[] {
-    return [...this.#patches];
+  entries(): PatchEntry[] {
+    return this.#provenance.entries();
   }
 
-  static fromJSON(json: PatchEntry[]): ProvenancePayload {
-    return new ProvenancePayload(json);
+  get provenance(): BoundaryTransitionProvenance {
+    return this.#provenance;
+  }
+
+  static fromEntries(entries: readonly PatchEntry[]): ProvenancePayload {
+    return new ProvenancePayload(entries);
   }
 }
 
 export default ProvenancePayload;
 export { ProvenancePayload };
+export type { PatchEntry };

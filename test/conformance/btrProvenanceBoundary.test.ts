@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -8,11 +8,11 @@ const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const DESIGN_PATH = 'docs/design/0099-btr-provenance-codec-boundary-repair.md';
 const BTR_PATH = 'src/domain/services/provenance/BTR.ts';
 const BTR_OPERATIONS_PATH = 'src/domain/services/provenance/btrOperations.ts';
+const APPLICATION_BTR_OPERATIONS_PATH = 'src/application/provenance/BtrOperations.ts';
 const PROVENANCE_PAYLOAD_PATH = 'src/domain/services/provenance/ProvenancePayload.ts';
 
 const OFFENDER_FILES = [
   BTR_PATH,
-  BTR_OPERATIONS_PATH,
   PROVENANCE_PAYLOAD_PATH,
 ] as const;
 
@@ -25,6 +25,10 @@ function readRepoFile(path: string): string {
 
 function sourceFor(path: string): string {
   return readRepoFile(path);
+}
+
+function repoFileExists(path: string): boolean {
+  return existsSync(join(REPO_ROOT, path));
 }
 
 function expectNoPattern(source: string, pattern: RegExp, label: string): void {
@@ -58,6 +62,10 @@ describe('BTR provenance boundary repair contract', () => {
     }
   });
 
+  it('removes the legacy domain-side BTR operations module', () => {
+    expect(repoFileExists(BTR_OPERATIONS_PATH)).toBe(false);
+  });
+
   it('removes domain-owned wire API names from BTR/provenance values', () => {
     for (const path of OFFENDER_FILES) {
       const source = sourceFor(path);
@@ -88,8 +96,8 @@ describe('BTR provenance boundary repair contract', () => {
     }
   });
 
-  it('removes HMAC object-bag signing from btrOperations', () => {
-    const source = sourceFor(BTR_OPERATIONS_PATH);
+  it('removes HMAC object-bag signing from BTR orchestration', () => {
+    const source = sourceFor(APPLICATION_BTR_OPERATIONS_PATH);
 
     expectNoPattern(source, /\bcomputeHmac\s*\(\s*fields\b/, 'computeHmac(fields');
     expectNoPattern(source, /\bcodec\.encode\s*\(\s*fields\b/, 'codec.encode(fields)');

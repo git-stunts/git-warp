@@ -1,5 +1,5 @@
 /**
- * BTR — Boundary Transition Record.
+ * Boundary Transition Record.
  *
  * Tamper-evident provenance package binding initial state, provenance
  * payload, and output state hash. Implements the Boundary Transition
@@ -17,9 +17,8 @@
  * @see Paper III, Section 4
  */
 
-import type CodecPort from '../../../ports/CodecPort.ts';
-import defaultCodec from '../../utils/defaultCodec.ts';
-import CryptoError from '../../errors/CryptoError.ts';
+import BtrSigningEnvelope from './BtrSigningEnvelope.ts';
+import BoundaryTransitionProvenance, { type PatchEntry } from './BoundaryTransitionProvenance.ts';
 
 // -- Constants ----------------------------------------------------------------
 
@@ -33,68 +32,58 @@ type BTRFields = {
   readonly h_in: string;
   readonly h_out: string;
   readonly U_0: Uint8Array;
-  readonly P: readonly PatchEntryJSON[];
+  readonly P: BoundaryTransitionProvenance | readonly PatchEntry[];
   readonly t: string;
   readonly kappa: string;
 };
 
-/** JSON-safe patch entry as stored in the provenance payload. */
-type PatchEntryJSON = Record<string, string | number | boolean | null | readonly Record<string, string | number | boolean | null>[]>;
-
-// -- BTR class ----------------------------------------------------------------
-
-class BTR {
-  readonly version: number;
-  readonly h_in: string;
-  readonly h_out: string;
-  readonly U_0: Uint8Array;
-  readonly P: readonly PatchEntryJSON[];
-  readonly t: string;
+class BoundaryTransitionRecord {
   readonly kappa: string;
+  readonly #envelope: BtrSigningEnvelope;
 
   constructor(fields: BTRFields) {
-    this.version = fields.version;
-    this.h_in = fields.h_in;
-    this.h_out = fields.h_out;
-    this.U_0 = fields.U_0;
-    this.P = fields.P;
-    this.t = fields.t;
+    this.#envelope = new BtrSigningEnvelope({
+      version: fields.version,
+      h_in: fields.h_in,
+      h_out: fields.h_out,
+      U_0: fields.U_0,
+      P: fields.P,
+      t: fields.t,
+    });
     this.kappa = fields.kappa;
     Object.freeze(this);
   }
 
-  /**
-   * Serializes to CBOR bytes.
-   *
-   * NOTE: CBOR encoding in domain code is a known boundary violation.
-   * Kept here for backward compat. Will move to adapter.
-   */
-  serialize(codec?: CodecPort): Uint8Array {
-    const c = codec ?? defaultCodec;
-    return c.encode({
-      version: this.version,
-      h_in: this.h_in,
-      h_out: this.h_out,
-      U_0: this.U_0,
-      P: this.P,
-      t: this.t,
-      kappa: this.kappa,
-    });
+  get version(): number {
+    return this.#envelope.version;
   }
 
-  /**
-   * Deserializes from CBOR bytes.
-   * Same boundary violation note as serialize().
-   */
-  static deserialize(bytes: Uint8Array, codec?: CodecPort): BTR {
-    const c = codec ?? defaultCodec;
-    const obj = c.decode<Record<string, string | number | Uint8Array | PatchEntryJSON[]>>(bytes);
-    const missing = findMissingField(obj);
-    if (missing !== null) {
-      throw new CryptoError(`Invalid BTR: missing field ${missing}`, { code: 'E_BTR_INVALID' });
-    }
-    // Adapter boundary: validated by findMissingField above
-    return new BTR(obj as unknown as BTRFields);
+  get h_in(): string {
+    return this.#envelope.h_in;
+  }
+
+  get h_out(): string {
+    return this.#envelope.h_out;
+  }
+
+  get U_0(): Uint8Array {
+    return this.#envelope.U_0;
+  }
+
+  get P(): readonly PatchEntry[] {
+    return this.#envelope.P;
+  }
+
+  get t(): string {
+    return this.#envelope.t;
+  }
+
+  get envelope(): BtrSigningEnvelope {
+    return this.#envelope;
+  }
+
+  get provenance(): BoundaryTransitionProvenance {
+    return this.#envelope.provenance;
   }
 }
 
@@ -112,20 +101,20 @@ class VerificationResult {
 
 // -- Validation helpers -------------------------------------------------------
 
-function findMissingField(rec: Record<string, string | number | Uint8Array | PatchEntryJSON[]>): string | null {
+function findMissingField(candidate: object): string | null {
   for (const field of REQUIRED_FIELDS) {
-    if (!(field in rec)) {
+    if (!(field in candidate)) {
       return field;
     }
   }
   return null;
 }
 
-function validateBTRStructure(btr: BTR): string | null {
+function validateBTRStructure(btr: BoundaryTransitionRecord): string | null {
   if (typeof btr !== 'object') {
     return 'BTR must be an object';
   }
-  const missing = findMissingField(btr as unknown as Record<string, string | number | Uint8Array | PatchEntryJSON[]>);
+  const missing = findMissingField(btr);
   if (missing !== null) {
     return `Missing required field: ${missing}`;
   }
@@ -135,5 +124,16 @@ function validateBTRStructure(btr: BTR): string | null {
   return null;
 }
 
-export { BTR, VerificationResult, BTR_VERSION, REQUIRED_FIELDS, validateBTRStructure, findMissingField };
-export type { BTRFields, PatchEntryJSON };
+const BTR = BoundaryTransitionRecord;
+
+export {
+  BoundaryTransitionRecord,
+  BTR,
+  VerificationResult,
+  BTR_VERSION,
+  REQUIRED_FIELDS,
+  validateBTRStructure,
+  findMissingField,
+};
+export default BoundaryTransitionRecord;
+export type { BTRFields };

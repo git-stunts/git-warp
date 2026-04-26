@@ -401,7 +401,7 @@ export function serializeWormhole(wormhole: WormholeEdge): Record<string, unknow
     toSha: wormhole.toSha,
     writerId: wormhole.writerId,
     patchCount: wormhole.patchCount,
-    payload: wormhole.payload.toJSON(),
+    payload: wormhole.payload.entries(),
   };
 }
 
@@ -449,7 +449,7 @@ export function deserializeWormhole(json: Record<string, unknown>): WormholeEdge
     toSha: json['toSha'] as string,
     writerId: json['writerId'] as string,
     patchCount,
-    payload: ProvenancePayload.fromJSON(json['payload'] as Array<{ patch: Patch; sha: string }>),
+    payload: ProvenancePayload.fromEntries(json['payload'] as Array<{ patch: Patch; sha: string }>),
   };
 }
 

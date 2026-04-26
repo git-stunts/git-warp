@@ -531,34 +531,34 @@ describe('ProvenancePayload', () => {
     });
   });
 
-  describe('serialization', () => {
-    it('toJSON returns array of patches', () => {
+  describe('entries', () => {
+    it('entries returns array of patches', () => {
       const { patchA, patchB } = createSamplePatches();
       const payload = new ProvenancePayload([patchA, patchB]);
 
-      const json = payload.toJSON();
+      const entries = payload.entries();
 
-      expect(Array.isArray(json)).toBe(true);
-      expect(json.length).toBe(2);
-      expect(json[0]).toEqual(patchA);
-      expect(json[1]).toEqual(patchB);
+      expect(Array.isArray(entries)).toBe(true);
+      expect(entries.length).toBe(2);
+      expect(entries[0]).toEqual(patchA);
+      expect(entries[1]).toEqual(patchB);
     });
 
-    it('toJSON returns independent copy', () => {
+    it('entries returns independent copy', () => {
       const { patchA, patchB } = createSamplePatches();
       const payload = new ProvenancePayload([patchA, patchB]);
 
-      const json = payload.toJSON();
-      json.push(({ patch: {}, sha: 'extra' } as any));
+      const entries = payload.entries();
+      entries.pop();
 
       expect(payload.length).toBe(2);
     });
 
-    it('fromJSON creates payload from array', () => {
+    it('fromEntries creates payload from array', () => {
       const { patchA, patchB } = createSamplePatches();
-      const json = [patchA, patchB];
+      const entries = [patchA, patchB];
 
-      const payload = ProvenancePayload.fromJSON(json);
+      const payload = ProvenancePayload.fromEntries(entries);
 
       expect(payload.length).toBe(2);
       expect(payload.at(0)).toEqual(patchA);
@@ -569,8 +569,8 @@ describe('ProvenancePayload', () => {
       const { patchA, patchB, patchC } = createSamplePatches();
       const original = new ProvenancePayload([patchA, patchB, patchC]);
 
-      const json = original.toJSON();
-      const restored = ProvenancePayload.fromJSON(json);
+      const entries = original.entries();
+      const restored = ProvenancePayload.fromEntries(entries);
 
       expect(restored.length).toBe(original.length);
       expect(restored.at(0)).toEqual(original.at(0));

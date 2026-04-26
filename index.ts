@@ -115,7 +115,7 @@ import {
   createBTR,
   verifyBTR,
   replayBTR,
-} from './src/domain/services/provenance/btrOperations.ts';
+} from './src/application/provenance/BtrOperations.ts';
 import { BTR } from './src/domain/services/provenance/BTR.ts';
 
 // Wormhole compression (HOLOGRAM)

@@ -71,8 +71,6 @@
     "src/domain/services/index/PropertyIndexBuilder.ts",
     "src/domain/services/index/PropertyIndexReader.ts",
     "src/domain/services/index/logicalIndexHelpers.ts",
-    "src/domain/services/provenance/BTR.ts",
-    "src/domain/services/provenance/btrOperations.ts",
     "src/domain/services/query/LogicalTraversal.ts",
     "src/domain/services/query/Observer.ts",
     "src/domain/services/query/QueryBuilder.ts",
