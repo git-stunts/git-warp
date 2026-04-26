@@ -1,6 +1,6 @@
 # 0101 Readonly Byte PropValue Snapshot
 
-- Status: `RED`
+- Status: `GREEN blocked`
 - Release lane: `v17.0.0`
 - Source backlog: `IMM_readonly-byte-propvalue-snapshot`
 - Blocks: `0096-purge-cast-hacks`
@@ -87,6 +87,7 @@ import WarpState from './src/domain/services/state/WarpState.ts';
 import { createImmutableWarpStateSnapshot } from './src/domain/services/ImmutableSnapshot.ts';
 import { LWWRegister } from './src/domain/crdt/LWW.ts';
 import { EventId } from './src/domain/utils/EventId.ts';
+import WarpError from './src/domain/errors/WarpError.ts';
 
 const key = 'node-a:bytes';
 const source = new Uint8Array([1, 2, 3]);
@@ -95,7 +96,10 @@ state.prop.set(key, LWWRegister.set(new EventId(1, 'writer-a', 'aaaa', 0), sourc
 const snapshot = createImmutableWarpStateSnapshot(state);
 const bytes = snapshot.prop.get(key)?.value;
 if (!(bytes instanceof Uint8Array)) {
-  throw new Error('expected Uint8Array snapshot value');
+  throw new WarpError(
+    'expected Uint8Array snapshot value',
+    'E_READONLY_BYTE_SNAPSHOT_EVIDENCE',
+  );
 }
 console.log(JSON.stringify({ before: Array.from(bytes), sameReference: bytes === source }));
 bytes[0] = 9;
@@ -298,6 +302,65 @@ The RED must not force fake immutable `Uint8Array` theater. It fences
 off mutable public byte values, not a specific future representation.
 
 No production source was edited during RED.
+
+## GREEN Blocker
+
+The first GREEN attempt introduced a proxy-backed read-only `Uint8Array`
+facade and table-driven dispatch for scalar and method access. That
+implementation is rejected.
+
+Rejected implementation commits:
+
+- `42b8fc80` `refactor: make byte propvalue snapshots immutable`
+- `c614a40b` `docs: record readonly byte propvalue snapshot green`
+
+Why rejected:
+
+- A proxy-backed `Uint8Array` facade tries to preserve the wrong public
+  representation.
+- Method/scalar factory maps are dynamic dispatch sludge, not a domain
+  model.
+- The approach makes `Uint8Array` pretend to be an immutable class
+  instead of introducing an explicit immutable byte value.
+
+Correct model:
+
+- Storage `PropValue` may include mutable `Uint8Array`.
+- Snapshot byte values should be explicit immutable byte values such as
+  `ImmutableBytes` or `ReadonlyBytes`.
+- Snapshot value semantics therefore differ from storage value
+  semantics.
+
+Blocker:
+
+`createImmutableWarpStateSnapshot` currently returns `WarpState`, and
+`WarpState.prop` is typed as `Map<string, LWWRegister<PropValue>>`.
+`PropValue` is the storage/value-decoding union and includes
+`Uint8Array`, not `ImmutableBytes`.
+
+Introducing `ImmutableBytes` honestly means the snapshot property value
+type is no longer the same as storage `PropValue`. Returning `WarpState`
+would therefore be type theater unless `PropValue` were broadened to
+include snapshot-only values, which would collapse the storage/snapshot
+distinction this cycle is trying to make explicit.
+
+Required next design decision:
+
+- define `ImmutableBytes` or `ReadonlyBytes` as a runtime-backed domain
+  value;
+- define `SnapshotPropValue`;
+- decide whether immutable state snapshots need a distinct
+  `SnapshotWarpState` or equivalent public read-side state type;
+- update materialization/query APIs deliberately instead of forcing a
+  fake local patch into `WarpState`.
+
+Follow-up card:
+
+- `docs/method/backlog/bad-code/IMM_snapshot-propvalue-api-model.md`
+
+This cycle remains in GREEN blocked state. The RED still stands: public
+immutable snapshots must not expose mutable byte values. No accepted
+production implementation currently satisfies that contract.
 
 ## Playback Questions
 
