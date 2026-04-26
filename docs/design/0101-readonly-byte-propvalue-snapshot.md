@@ -1,6 +1,6 @@
 # 0101 Readonly Byte PropValue Snapshot
 
-- Status: `GREEN blocked`
+- Status: `blocked/not-met`
 - Release lane: `v17.0.0`
 - Source backlog: `IMM_readonly-byte-propvalue-snapshot`
 - Blocks: `0096-purge-cast-hacks`
@@ -358,9 +358,9 @@ Follow-up card:
 
 - `docs/method/backlog/bad-code/IMM_snapshot-propvalue-api-model.md`
 
-This cycle remains in GREEN blocked state. The RED still stands: public
-immutable snapshots must not expose mutable byte values. No accepted
-production implementation currently satisfies that contract.
+This cycle is blocked/not-met. The RED still stands: public immutable
+snapshots must not expose mutable byte values. No accepted production
+implementation currently satisfies that contract.
 
 ## Playback Questions
 
@@ -418,3 +418,30 @@ production implementation currently satisfies that contract.
 - Do not change snapshot persistence/default-on policy.
 - Do not fix arbitrary `PropValue` modeling beyond the byte snapshot
   question.
+
+## Cycle End
+
+0101 closes as blocked/not-met.
+
+The RED succeeded and remains valid:
+
+- public immutable snapshots must not expose mutable byte values;
+- byte-valued `PropValue` snapshots are detached from live source bytes;
+- the current public snapshot byte value remains mutable.
+
+GREEN did not produce an accepted implementation. The attempted
+proxy/table-dispatch `Uint8Array` facade was rejected as preserving the
+wrong public representation and was removed from local branch history
+before push.
+
+The real blocker is API/type modeling:
+
+- `ImmutableBytes` or `ReadonlyBytes`;
+- `SnapshotPropValue`;
+- possible `SnapshotWarpState`;
+- materialization API return types;
+- query/property-bag byte semantics.
+
+`docs/method/backlog/bad-code/IMM_snapshot-propvalue-api-model.md` owns
+the next design question. No production implementation should proceed
+until that model is designed.
