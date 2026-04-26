@@ -1,6 +1,6 @@
 # 0100 Immutable Snapshot Builder Domain Model
 
-- Status: `RED`
+- Status: `GREEN`
 - Release lane: `v17.0.0`
 - Source backlog: `IMM_snapshot-builder-domain-model`
 - Blocks: `0096-purge-cast-hacks`
@@ -312,6 +312,70 @@ Implementation constraints:
 - no `*Like` models;
 - no generic `clone<T>() -> T`;
 - no descriptor-copy reconstruction of arbitrary class instances.
+
+## GREEN Witness
+
+Implementation commit:
+
+`c8bf2b71 refactor: replace generic immutable snapshot cloning`
+
+Implementation summary:
+
+- Replaced generic `createImmutableValue<T>(value: T): T` and
+  `createImmutableWarpState(...)` with explicit supported-source APIs:
+  `createImmutableWarpStateSnapshot(...)` and
+  `createImmutableTickReceiptArraySnapshot(...)`.
+- Removed descriptor-copy object reconstruction from
+  `ImmutableSnapshot.ts`.
+- Removed `Object.create` from snapshot construction.
+- Removed the `as unknown as T` cast blocker from
+  `ImmutableSnapshot.ts`.
+- Added runtime guards so unsupported sources fail with an explicit
+  unsupported snapshot source error.
+- Snapshot construction now handles `WarpState` through known runtime
+  structures: `ORSet`, `VersionVector`, `Map`, `Set`, `LWWRegister`, and
+  `PropValue`.
+- Receipt arrays are copied, frozen, and checked so every entry is a
+  real `TickReceipt`.
+- Public materialization receipt surfaces now use
+  `readonly TickReceipt[]`.
+- Removed `src/domain/services/ImmutableSnapshot.ts` from
+  `policy/quarantines/0025A-casts.json`.
+- Left unrelated 0096 cast families untouched.
+
+Validation:
+
+- `npx vitest run test/conformance/immutableSnapshotBuilder.test.ts`
+  passed: 1 file, 5 tests.
+- `npx vitest run test/conformance/castQuarantineGraduation.test.ts`
+  still fails as expected for non-`ImmutableSnapshot` blockers.
+- `npm run typecheck` passed.
+- `npm run lint:sludge` passed.
+- `git diff --check` passed.
+- Targeted materialization/snapshot tests passed:
+  `npx vitest run test/unit/domain/services/controllers/MaterializeController.test.ts test/unit/domain/services/controllers/MaterializeController.snapshotCache.test.ts test/unit/domain/services/controllers/MaterializeHelpers.stateSession.test.ts test/unit/domain/services/controllers/StrandController.test.ts test/unit/domain/services/strand/StrandService.test.ts test/unit/domain/WarpCore.snapshotHashStability.test.ts test/unit/domain/WarpGraph.autoMaterialize.test.ts`
+  passed: 7 files, 255 tests.
+
+Expected remaining `castQuarantineGraduation.test.ts` blockers:
+
+- Manifest still contains non-0100 files, including `WarpGraph`,
+  `MaterializedViewHelpers`, `MaterializedViewService`, `TemporalQuery`,
+  `VisibleStateScope`, `StrandController`, `Observer`, `checkpointLoad`,
+  `HttpSyncServer`, and `WarpStream`.
+- Current double-cast hits remain in `MaterializedViewHelpers`,
+  `MaterializedViewService`, `checkpointLoad`, `HttpSyncServer`,
+  `TemporalQuery`, `VisibleStateScope`, and `WarpStream`.
+
+Known remaining debt:
+
+- `ImmutableSnapshot.ts` now contains several local read-only collection
+  wrapper classes in one file. This is acceptable for the 0100 slice, but
+  Playback should check whether those concepts should remain local or be
+  split after the snapshot model settles.
+- `PropValue` snapshots clone `Uint8Array` values for detachment but do
+  not make the returned byte arrays intrinsically immutable. This is not
+  a generic clone lie, but it is a read-only-byte limitation worth
+  reviewing during Playback.
 
 ## Playback Questions
 
