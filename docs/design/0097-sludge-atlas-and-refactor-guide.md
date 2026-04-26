@@ -1,6 +1,6 @@
 # 0097 Sludge Atlas And Refactor Guide
 
-- Status: `PULL`
+- Status: `RED`
 - Release lane: `v17.0.0`
 - Source task: `ARCH_sludge-atlas-and-refactor-guide`
 - Source cycle blocked: `0096-purge-cast-hacks`
@@ -392,6 +392,23 @@ Expected failures before GREEN:
 - `docs/design/0097-sludge-atlas-and-refactor-guide.md` is missing
   source-cycle blockage and dependency ordering.
 
+## RED Witness
+
+Command:
+
+```sh
+npx vitest run test/conformance/sludgeAtlas.test.ts
+```
+
+Result: failed for the intended reason.
+
+The executable atlas contract found the current PULL artifacts but
+rejected the map because no findings have machine-checkable
+`proposed_nouns` entries yet. That proves the atlas is not allowed to be
+ceremonial doctrine: proposed nouns must say who constructs them, who
+consumes them, what invariant they prove, what layer owns them, and what
+cast or boundary leak they eliminate.
+
 ## GREEN Plan
 
 GREEN for this cycle is documentation and map completion only:
@@ -430,4 +447,3 @@ No `src/**` changes are allowed in GREEN.
   canonical.
 - Snapshot defaults are changed without retention policy.
 - Port splitting creates one-method ports with no architectural meaning.
-
