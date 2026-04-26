@@ -149,7 +149,13 @@ LAYER 5 (launch-prep proof and release hardening tail):
 
 ```
   [ ] INFRA_unify-persistence-on-git-cas
-  [ ] INFRA_uniform-git-cas
+  [x] INFRA_uniform-git-cas        ← cycle 0092 retired stale live card;
+                                      default Git-backed runtime payloads route
+                                      patches, checkpoints, indexes, and trust
+                                      records through git-cas-backed storage;
+                                      legacy raw reads, pointer blobs, and
+                                      native trie publication remain intentional
+                                      carve-outs
   [x] INFRA_index-builder-on-git-cas     ← cycle 0057 hill-met; streaming
                                           rebuilds now require a real
                                           streaming storage seam,
