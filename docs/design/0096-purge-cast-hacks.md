@@ -1,6 +1,6 @@
 # 0096 Purge Cast Hacks
 
-- Status: `PULL`
+- Status: `RED`
 - Release lane: `v17.0.0`
 - Source backlog: `PROTO_purge-cast-hacks`
 - Source manifest: `policy/quarantines/0025A-casts.json`
@@ -258,3 +258,19 @@ Also run targeted tests for the changed domains:
   minimal boundary fix honestly, or document a pivot and file the
   remaining work explicitly.
 
+## RED Witness
+
+Command:
+
+```sh
+npx vitest run test/conformance/castQuarantineGraduation.test.ts
+```
+
+Result: failed for the intended reasons.
+
+- `policy/quarantines/0025A-casts.json.files` is not empty.
+- The AST-based scan found 13 real escape-hatch casts in `src/**/*.ts`.
+
+The test deliberately uses the TypeScript compiler AST rather than a
+plain text regex so prose like "has anything" or comment-only wording
+does not count as an `as any` cast.
