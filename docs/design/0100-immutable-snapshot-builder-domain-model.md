@@ -1,6 +1,6 @@
 # 0100 Immutable Snapshot Builder Domain Model
 
-- Status: `PULL`
+- Status: `RED`
 - Release lane: `v17.0.0`
 - Source backlog: `IMM_snapshot-builder-domain-model`
 - Blocks: `0096-purge-cast-hacks`
@@ -254,6 +254,35 @@ Expected RED result:
   `as unknown as T` remain;
 - unsupported-source behavior fails because current code attempts to
   preserve arbitrary objects.
+
+## RED Witness
+
+Command run:
+
+`npx vitest run test/conformance/immutableSnapshotBuilder.test.ts`
+
+Expected failure:
+
+- The source assertions fail because `ImmutableSnapshot.ts` still
+  contains generic object cloning, descriptor-copy allocation,
+  `as unknown as T`, `createImmutableValue<T>(value: T): T`, `proxy as
+  T`, `Object.freeze(cloned) as T`, and an arbitrary-object fallback.
+- The unsupported-source behavior fails because the current
+  `createImmutableValue(...)` path attempts to clone and freeze an
+  arbitrary constructor-guarded class instance instead of rejecting it as
+  an unsupported snapshot source.
+- The receipt-array behavior fails because the current generic snapshot
+  path accepts a mixed array containing a non-`TickReceipt` entry.
+
+Main failing categories:
+
+- generic preservation lies;
+- descriptor-copy class reconstruction;
+- cast theater;
+- unsupported source acceptance;
+- receipt-array source validation gap.
+
+No production implementation was attempted during RED.
 
 ## GREEN Plan
 
