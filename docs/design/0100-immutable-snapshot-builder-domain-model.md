@@ -1,6 +1,6 @@
 # 0100 Immutable Snapshot Builder Domain Model
 
-- Status: `GREEN`
+- Status: `hill met`
 - Release lane: `v17.0.0`
 - Source backlog: `IMM_snapshot-builder-domain-model`
 - Blocks: `0096-purge-cast-hacks`
@@ -646,3 +646,33 @@ Retrospective finds they are active blockers.
 - Do not create a generic snapshot protocol unless RED/GREEN discovers a
   real source-specific need that cannot be solved locally.
 - Do not preserve arbitrary class instances through descriptor copying.
+
+## Cycle End
+
+Closeout links:
+
+- Retrospective:
+  [docs/method/retros/0100-immutable-snapshot-builder-domain-model.md](../method/retros/0100-immutable-snapshot-builder-domain-model.md)
+- Release-note follow-up:
+  [docs/method/backlog/v17.0.0/API_readonly-receipts-release-note.md](../method/backlog/v17.0.0/API_readonly-receipts-release-note.md)
+
+Cycle-end confirmations:
+
+- 0100 repaired the immutable snapshot root lie.
+- `immutableSnapshotBuilder.test.ts` passes.
+- Targeted materialization and snapshot tests pass.
+- `npm run typecheck` passes.
+- `npm run lint:sludge` passes.
+- `castQuarantineGraduation.test.ts` still fails for non-0100 blockers.
+- `0096-purge-cast-hacks` remains blocked.
+- Next recommended cycle is `IDX_property-reader-capability-port`.
+
+Expected remaining non-0100 cast blockers:
+
+- `MaterializedViewHelpers`
+- `MaterializedViewService`
+- `checkpointLoad`
+- `HttpSyncServer`
+- `TemporalQuery`
+- `VisibleStateScope`
+- `WarpStream`
