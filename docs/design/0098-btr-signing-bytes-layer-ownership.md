@@ -1,6 +1,6 @@
 # 0098 BTR Signing Bytes Layer Ownership
 
-- Status: `GREEN`
+- Status: `hill met`
 - Release lane: `v17.0.0`
 - Source backlog: `PROV_btr-signing-bytes-layer-ownership`
 - Blocks: `PROV_btr-provenance-codec-boundary-sludge`,
@@ -677,3 +677,28 @@ GREEN must not implement BTR repair and must not resume cast purge.
 - Do not resume `0096-purge-cast-hacks`.
 - Do not add a sludge-map JSON schema; that is
   `SLUDGE_map-json-schema`.
+
+## Cycle End
+
+0098 is closed with the hill met. The completed retrospective is:
+
+- [docs/method/retros/0098-btr-signing-bytes-layer-ownership.md](../method/retros/0098-btr-signing-bytes-layer-ownership.md)
+
+The folded next-cycle acceptance criteria now live on:
+
+- [docs/method/backlog/bad-code/PROV_btr-provenance-codec-boundary-sludge.md](../method/backlog/bad-code/PROV_btr-provenance-codec-boundary-sludge.md)
+
+Closeout confirmations:
+
+- no separate backlog cards were created for
+  `PROV_btr-signing-bytes-construction-guard`,
+  `PROV_btr-canonical-encoding-determinism-tests`,
+  `PROV_crypto-port-typed-hmac-input`, or
+  `ARCH_move-provenance-orchestration-out-of-domain-services`;
+- `PROV_btr-provenance-codec-boundary-sludge` now carries the folded
+  construction-guard, deterministic-encoding-test, provenance
+  relocation, and `CryptoPort.hmac` design-check acceptance criteria;
+- `0096-purge-cast-hacks` remains blocked;
+- no production implementation under `src/**` changed during 0098;
+- the next recommended cycle is
+  `PROV_btr-provenance-codec-boundary-sludge`, design-first.
