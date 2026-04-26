@@ -13,7 +13,7 @@ type RuntimeCheckpointData = {
   frontier: Map<string, string>;
   stateHash: string;
   schema: number;
-  provenanceIndex?: unknown;
+  provenanceIndex?: object | null;
   indexShardOids?: Record<string, string> | null | undefined;
 };
 
@@ -26,7 +26,7 @@ type RuntimePatchCollectorHost = {
   getFrontier(): Promise<Map<string, string>>;
 };
 
-function isProvenanceIndexShape(value: unknown): value is NonNullable<CheckpointData['provenanceIndex']> {
+function isProvenanceIndexShape(value: object | null | undefined): value is NonNullable<CheckpointData['provenanceIndex']> {
   if (value === null || value === undefined || typeof value !== 'object') {
     return false;
   }

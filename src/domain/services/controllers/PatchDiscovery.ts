@@ -29,7 +29,7 @@ import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.t
  * traversal, enabling lightweight mocks in unit tests.
  *
  * TODO(0025B1): `_codec` points at `CodecPort` which today parameterizes
- * decode as `unknown`. When cycle 0025B1 lands `CodecPort<T>` /
+ * decode loosely. When cycle 0025B1 lands `CodecPort<T>` /
  * `DecoderPort<T>`, the downstream callers that hydrate a Patch out
  * of the decoded value can drop their parser indirection.
  */

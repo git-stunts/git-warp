@@ -161,7 +161,7 @@ export class HookInstaller {
    *
    * @param repoPath - Path to git repo
    * @param opts - Install options
-   * @throws {WarpError} If the strategy is unknown
+   * @throws {WarpError} If the strategy is not recognized
    */
   async install(repoPath: string, { strategy }: { strategy: InstallStrategy }): Promise<InstallResult> {
     const hooksDir = await this._resolveHooksDir(repoPath);
@@ -184,10 +184,11 @@ export class HookInstaller {
       return this._replaceInstall(hookPath, stamped);
     }
 
+    const unsupportedStrategy: never = strategy;
     throw new WarpError(
-      `Unknown install strategy: ${strategy}`,
+      'Unsupported install strategy',
       'E_HOOK_UNKNOWN_STRATEGY',
-      { context: { strategy } },
+      { context: { strategy: unsupportedStrategy } },
     );
   }
 

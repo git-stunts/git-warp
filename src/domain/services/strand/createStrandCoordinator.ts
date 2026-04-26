@@ -20,6 +20,9 @@ import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
+import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
+import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 
 type BaseObservation = {
   coordinateVersion: string;
@@ -48,12 +51,12 @@ type StrandMaterializationDiagnosticBag = object;
  * sub-services reach into. The wider warp runtime provides many
  * more fields; this type narrows to the exact surface the strand
  * coordinator needs and is re-exported so cross-module wiring can
- * avoid `as unknown as` casts.
+ * avoid double-cast escape hatches.
  */
 export type StrandCoordinatorGraphRuntime = {
   _graphName: string;
-  _persistence: import('../../../ports/GraphPersistencePort.ts').default;
-  _crypto: import('../../../ports/CryptoPort.ts').default;
+  _persistence: GraphPersistencePort;
+  _crypto: CryptoPort;
   _loadPatchChainFromSha(sha: string): Promise<Array<{ patch: Patch; sha: string }>>;
   _maxObservedLamport: number;
   _provenanceIndex: ProvenanceIndex | null;
@@ -76,7 +79,7 @@ export type StrandCoordinatorGraphRuntime = {
   _blobStorage: BlobStoragePort | null | undefined;
   _commitMessageCodec: CommitMessageCodecPort;
   _logger: LoggerPort | null | undefined;
-  _codec: { encode(v: import('../../types/conflict/HashablePayload.ts').HashablePayload): Uint8Array };
+  _codec: { encode(v: HashablePayload): Uint8Array };
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
 };
 

@@ -215,13 +215,13 @@ describe('HookInstaller.install', () => {
     expect(result.backupPath).toBeUndefined();
   });
 
-  it('throws on unknown strategy', async () => {
+  it('throws on unsupported strategy', async () => {
     const { installer } = makeInstaller({
       '/tmpl/post-merge.sh': TEMPLATE,
     });
 
     await expect(installer.install('/repo', { strategy: ('bogus' as any) }))
-      .rejects.toThrow('Unknown install strategy: bogus');
+      .rejects.toThrow('Unsupported install strategy');
   });
 });
 

@@ -9,7 +9,6 @@
     "bin/cli/commands/install-hooks.ts",
     "bin/cli/commands/tree.ts",
     "bin/cli/shared.ts",
-    "src/domain/services/HookInstaller.ts",
     "src/domain/services/MaterializedViewService.ts",
     "src/domain/services/WormholeService.ts",
     "src/domain/services/audit/AuditChainVerifier.ts",

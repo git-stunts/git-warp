@@ -15,6 +15,7 @@ import ConflictResolution from '../../types/conflict/ConflictResolution.ts';
 import { type TickReceipt, type OpOutcome } from '../../types/TickReceipt.ts';
 import type Patch from '../../types/Patch.ts';
 import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
+import type ConflictTarget from '../../types/conflict/ConflictTarget.ts';
 import ConflictCandidate from './ConflictCandidate.ts';
 import OpRecord from './OpRecord.ts';
 import {
@@ -187,7 +188,7 @@ export function inferRelationNote(winner: OpRecord, loser: OpRecord): string {
 // ── Record building ─────────────────────────────────────────────────
 
 interface ResolvedOpIdentity {
-  target: import('../../types/conflict/ConflictTarget.ts').default;
+  target: ConflictTarget;
   effectDigest: string;
 }
 
@@ -272,8 +273,8 @@ export async function analyzeOneOp(
 ): Promise<AnalyzeOneOpResult | null> {
   const rawOp = frame.patch.ops[opIndex];
   if (rawOp === undefined) { return null; }
-  // TODO(0025C): normalizeRawOp returns OpLike; CanonicalOpBlob is a
-  // type alias over OpLike for the 0025C transition. Once the Op
+  // TODO(0025C): normalizeRawOp returns the pre-class operation record;
+  // CanonicalOpBlob aliases that transitional shape. Once the Op
   // class hierarchy lands, this reads instanceof directly.
   const canonOp: CanonicalOpBlob = cloneObject(normalizeRawOp(rawOp));
   const receiptOpType = receiptNameForOp(canonOp.type);

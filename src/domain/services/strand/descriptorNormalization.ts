@@ -3,12 +3,9 @@
  *
  * The strand descriptor parser (`parseStrandBlob`) validates identity
  * and coordinate fields but leaves `intentQueue` and `evolution`
- * trailing fields as unvalidated `[key: string]: unknown`. This module
- * is the boundary decoder that converts those raw trailing bags into
- * the typed strand model (StrandIntentQueue, StrandEvolution, etc.).
- *
- * Only two type-guard predicates carry `unknown` — that is the local
- * boundary surface. Everything downstream is typed.
+ * trailing fields as raw JSON bags. This module is the boundary decoder
+ * that converts those trailing bags into the typed strand model
+ * (StrandIntentQueue, StrandEvolution, etc.).
  *
  * @module domain/services/strand/descriptorNormalization
  */
@@ -16,14 +13,15 @@
 import StrandError from '../../errors/StrandError.ts';
 import { compareStrings, normalizeOptionalString, normalizeStringArray } from './strandShared.ts';
 import type { StrandDescriptor } from '../../utils/parseStrandBlob.ts';
+import type Patch from '../../types/Patch.ts';
 
 // ── Raw blob shape (type-guard narrowed) ─────────────────────────────────────
 
 /**
  * Recursive hashable shape produced by JSON-decoded blob fields. The
  * strand descriptor blob was already JSON-parsed; the trailing
- * `intentQueue`/`evolution` fields carry values of this shape even
- * though parseStrandBlob leaves them typed as unknown.
+ * `intentQueue`/`evolution` fields carry values of this shape after
+ * descriptor parsing leaves them as raw trailing data.
  */
 export type RawValue =
   | string
@@ -41,7 +39,7 @@ export type RawValue =
 export type RawBag = { readonly [key: string]: RawValue };
 
 /**
- * Type-guard predicate: narrows an unknown blob field to RawBag.
+ * Type-guard predicate: narrows a blob field to RawBag.
  */
 export function isRawBag(value: unknown): value is RawBag {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -242,7 +240,7 @@ export type StrandTickRecord = {
 export type StrandQueuedIntent = {
   intentId: string;
   enqueuedAt: string;
-  patch: import('../../types/Patch.ts').default;
+  patch: Patch;
   reads: string[];
   writes: string[];
   contentBlobOids: string[];
@@ -359,7 +357,7 @@ export function normalizeQueuedIntentEntry(rawEntry: RawValue): StrandQueuedInte
  */
 function buildQueuedIntentFromIdentity(
   candidate: RawBag,
-  identity: { patch: import('../../types/Patch.ts').default; intentId: string; enqueuedAt: string },
+  identity: { patch: Patch; intentId: string; enqueuedAt: string },
 ): StrandQueuedIntent {
   const { patch, intentId, enqueuedAt } = identity;
   const patchReads = readsFromPatch(patch);
@@ -374,11 +372,11 @@ function buildQueuedIntentFromIdentity(
   };
 }
 
-function readsFromPatch(patch: import('../../types/Patch.ts').default): readonly string[] | null {
+function readsFromPatch(patch: Patch): readonly string[] | null {
   return Array.isArray(patch.reads) ? patch.reads : null;
 }
 
-function writesFromPatch(patch: import('../../types/Patch.ts').default): readonly string[] | null {
+function writesFromPatch(patch: Patch): readonly string[] | null {
   return Array.isArray(patch.writes) ? patch.writes : null;
 }
 
@@ -406,7 +404,7 @@ export function normalizeQueuedIntents(value: RawValue): StrandQueuedIntent[] {
  */
 export function resolveQueuedIntentIdentity(
   candidate: RawBag,
-): { patch: import('../../types/Patch.ts').default; intentId: string; enqueuedAt: string } | null {
+): { patch: Patch; intentId: string; enqueuedAt: string } | null {
   const rawPatch = candidate['patch'];
   if (!isRawBag(rawPatch)) {
     return null;
@@ -429,11 +427,10 @@ export function resolveQueuedIntentIdentity(
  * ops, reads, writes). A full Patch reconstruction belongs in
  * 0025B5 once parseStrandBlob acquires intent-entry typing.
  */
-function rawBagToPatch(bag: RawBag): import('../../types/Patch.ts').default {
+function rawBagToPatch(bag: RawBag): Patch {
   // Structural-typed pass-through: the downstream consumers only
-  // read the Patch's enumerable fields. Expressed as a double
-  // narrowing (RawBag → object → Patch) so TypeScript's structural
-  // check permits it without an explicit `as unknown as` cast.
+  // read the Patch's enumerable fields. Expressed through object first
+  // so TypeScript's structural check permits the Patch view.
   const asObject: object = bag;
-  return asObject as import('../../types/Patch.ts').default;
+  return asObject as Patch;
 }

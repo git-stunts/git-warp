@@ -50,11 +50,9 @@ export type MaterializeCoordinateOptions = {
  * Host surface exposed to comparison helpers.
  *
  * TODO(0025B1): `_codec` points at `CodecPort` which currently
- * parameterizes encode/decode as `unknown`. When cycle 0025B1 lands
- * a `CodecPort<T>`/`DecoderPort<T>`, tighten downstream callers that
- * rely on the decoded return type (the port surface itself is
- * imported by reference here, so no `unknown` appears textually in
- * this file — but the downstream ergonomics are waiting on B1).
+ * parameterizes encode/decode loosely. When cycle 0025B1 lands a
+ * `CodecPort<T>`/`DecoderPort<T>`, tighten downstream callers that
+ * rely on the decoded return type.
  */
 export type ComparisonHost = {
   getFrontier(): Promise<Map<string, string>>;

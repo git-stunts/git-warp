@@ -7,11 +7,11 @@
  * type system promises "string, number, boolean", but the runtime value
  * may still be empty, negative, or out of range.
  *
- * Every helper accepts the declared TS input type — no `unknown`. Cycle
- * 0025B3 removed the wide-net `value: unknown` signatures that used to
- * live here; validators that genuinely cross an untyped boundary live
- * inside type-guard predicates (`isFoo(value): value is Foo`) in the
- * modules that own the boundary.
+ * Every helper accepts the declared TS input type. Cycle 0025B3 removed
+ * the wide-net untyped signatures that used to live here; validators
+ * that genuinely cross an untyped boundary live inside type-guard
+ * predicates (`isFoo(value): value is Foo`) in the modules that own the
+ * boundary.
  *
  * @module domain/types/conflict/validation
  */

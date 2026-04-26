@@ -19,13 +19,12 @@
  * time — the caller must then inject a `CryptoPort` explicitly
  * (for example `WebCryptoAdapter`).
  *
- * Relocated patterning: pre-cycle-0025D this file used
- * `import type { Hash, Hmac } from 'node:crypto'` plus
- * `await import('node:crypto')`. The static `import type` was the
- * quarantined violation. Cycle 0025D removes the static
- * `node:crypto` surface and switches the dynamic binding to the
- * existing `NodeCryptoAdapter`, which is the only file authorized
- * to import `node:crypto`. Runtime behavior is preserved.
+ * Relocated patterning: pre-cycle-0025D this file imported Node crypto
+ * types directly and loaded the same platform module dynamically. The
+ * static type import was the quarantined violation. Cycle 0025D removes
+ * the static platform surface and switches the dynamic binding to the
+ * existing `NodeCryptoAdapter`, which is the only file authorized to
+ * import `node:crypto`. Runtime behavior is preserved.
  *
  * @module domain/utils/defaultCrypto
  */

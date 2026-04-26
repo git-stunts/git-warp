@@ -76,13 +76,12 @@ type CheckpointHost = {
 };
 
 /**
- * Narrows codec-decode output to `object | null` without exposing the
- * word `unknown` at the call site. CodecPort.decode currently returns a
- * loose type (0025B1); wrapping the call in a dedicated narrowing
- * function keeps that looseness inside this helper.
+ * Narrows codec-decode output to `object | null`. CodecPort.decode
+ * currently returns a loose type (0025B1); wrapping the call in a
+ * dedicated narrowing function keeps that looseness inside this helper.
  */
 function codecDecodeAsObject(
-  codec: import('../../../ports/CodecPort.ts').default,
+  codec: CodecPort,
   bytes: Uint8Array,
 ): object | null {
   const out = codec.decode(bytes);
@@ -385,11 +384,8 @@ export default class CheckpointController {
 
       if (kind === 'patch') {
         const patchMeta = h._commitMessageCodec.decodePatch(nodeInfo.message);
-        // Resolution: take B2's assertion + runtime-narrowing approach.
-        // Eliminates the `as unknown as` double-cast (0025A win) and
-        // provides runtime shape validation. The parameterized CodecPort
-        // from 0025B1 is still available elsewhere; here the runtime guard
-        // is the stronger anti-sludge choice.
+        // Runtime-narrow the decoded patch shape here rather than trusting
+        // the loose CodecPort return surface.
         const patchBuffer = await h._readPatchBlob(patchMeta);
         const decoded = decodePatchSchema(codecDecodeAsObject(h._codec, patchBuffer));
 

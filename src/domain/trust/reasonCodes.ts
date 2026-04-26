@@ -35,7 +35,7 @@ const TRUST_REASON_CODES = {
   TRUST_SIGNATURE_INVALID: 'TRUST_SIGNATURE_INVALID',
   /** Record chain linking is broken. */
   TRUST_RECORD_CHAIN_INVALID: 'TRUST_RECORD_CHAIN_INVALID',
-  /** Policy value is unknown or unsupported. */
+  /** Policy value is not recognized or is unsupported. */
   TRUST_POLICY_INVALID: 'TRUST_POLICY_INVALID',
 } as const;
 

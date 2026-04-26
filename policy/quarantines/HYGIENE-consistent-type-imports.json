@@ -7,16 +7,12 @@
   "files": [
     "src/domain/WarpCore.ts",
     "src/domain/runtimeHelpers.ts",
-    "src/domain/services/controllers/CheckpointController.ts",
     "src/domain/services/controllers/SyncController.ts",
     "src/domain/services/provenance/btrOperations.ts",
     "src/domain/services/strand/StrandCoordinator.ts",
     "src/domain/services/strand/StrandDescriptorStore.ts",
     "src/domain/services/strand/StrandPatchService.ts",
-    "src/domain/services/strand/conflictCandidateAnalysis.ts",
     "src/domain/services/strand/conflictTargetIdentity.ts",
-    "src/domain/services/strand/createStrandCoordinator.ts",
-    "src/domain/services/strand/descriptorNormalization.ts",
     "src/domain/warp/_internal.ts"
   ]
 }

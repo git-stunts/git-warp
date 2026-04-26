@@ -69,7 +69,7 @@ function toSelector(source?: WorldlineSelector | WorldlineSource | null): Worldl
     return new StrandSelector(source.strandId, source.ceiling);
   }
 
-  throw new QueryError('unknown worldline source kind', {
+  throw new QueryError('unrecognized worldline source kind', {
     code: 'E_WORLDLINE_SOURCE',
     context: { kind: sourceKind },
   });

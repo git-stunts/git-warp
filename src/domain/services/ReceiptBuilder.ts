@@ -29,7 +29,7 @@ import DiffCalculator from './DiffCalculator.ts';
 const VALID_RECEIPT_OPS: ReadonlySet<string> = new Set(OP_TYPES);
 
 /** Type guard: value is a string with length > 0. */
-function _isNonEmptyString(value: unknown): value is string {
+function _isNonEmptyString(value: string | null | undefined): value is string {
   return typeof value === 'string' && value.length > 0;
 }
 
@@ -59,7 +59,7 @@ function hasEffectiveRemoval(orset: ORSet, targetDots: ReadonlySet<string>): boo
 export default class ReceiptBuilder {
   /**
    * Valid receipt op types (the set accepted by TickReceipt). Exposed
-   * for filtering forward-compatible unknown ops out of receipt
+   * for filtering forward-compatible unrecognized ops out of receipt
    * entries.
    */
   static readonly VALID_RECEIPT_OPS: ReadonlySet<string> = VALID_RECEIPT_OPS;
@@ -111,7 +111,7 @@ export default class ReceiptBuilder {
   /**
    * EdgeRemove receipt outcome. Target is the encoded edge key when
    * (from, to, label) are all present, otherwise `'*'` for
-   * wildcard/unknown targets.
+   * wildcard/unresolved targets.
    */
   static edgeRemoveOutcome(
     orset: ORSet,
