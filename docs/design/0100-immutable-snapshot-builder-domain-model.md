@@ -377,6 +377,138 @@ Known remaining debt:
   a generic clone lie, but it is a read-only-byte limitation worth
   reviewing during Playback.
 
+## Playback Witness
+
+### Agent Playback
+
+Question: Can a future agent tell what an immutable snapshot is a
+snapshot of?
+
+Answer: Yes. 0100 defines immutable snapshots as detached, read-only
+public read-side values for supported materialization return shapes, not
+as arbitrary object clones.
+
+Question: Can a future agent tell which source shapes are supported?
+
+Answer: Yes. The supported source shapes are `WarpState`,
+`TickReceipt[]`, and materialization result objects composed from those
+values. The implementation exposes explicit builders for `WarpState`
+and receipt arrays.
+
+Question: Can a future agent tell that arbitrary `clone<T>() -> T` is
+forbidden?
+
+Answer: Yes. The design states that arbitrary `clone<T>() -> T` is
+forbidden, and GREEN removed `createImmutableValue<T>(value: T): T`.
+
+Question: Can a future agent tell where unsupported sources fail
+explicitly?
+
+Answer: Yes. Unsupported sources fail at the explicit builder boundary:
+`createImmutableWarpStateSnapshot(...)` rejects non-`WarpState` sources,
+and `createImmutableTickReceiptArraySnapshot(...)` rejects non-array and
+non-`TickReceipt` entries.
+
+Question: Can a future agent tell that this cycle chose source-specific
+builders rather than a generic protocol?
+
+Answer: Yes. 0100 explicitly chose source-specific builders first and
+did not introduce a generic snapshot protocol.
+
+Question: Can a future agent tell that unrelated 0096 blockers remain
+untouched?
+
+Answer: Yes. The GREEN witness and this Playback identify that
+`castQuarantineGraduation.test.ts` still fails for non-`ImmutableSnapshot`
+blockers.
+
+Question: Can a future agent tell that `ImmutableSnapshot.ts` graduated
+from the 0025A cast quarantine?
+
+Answer: Yes. GREEN removed `src/domain/services/ImmutableSnapshot.ts`
+from `policy/quarantines/0025A-casts.json`, and the remaining expected
+cast-quarantine failure no longer lists `ImmutableSnapshot`.
+
+### Human Playback
+
+Question: Can maintainers see why descriptor copying was the root lie?
+
+Answer: Yes. The design explains that descriptor copying through
+`Object.create` cannot prove constructor invariants, private field
+semantics, behavior preservation, or valid class identity for arbitrary
+domain objects.
+
+Question: Is the supported source list narrow enough?
+
+Answer: Yes for this cycle. It includes only the public read-side shapes
+already proven by call sites: `WarpState` and receipt arrays.
+
+Question: Is the public return-type honesty clear enough?
+
+Answer: Mostly yes. The cycle made receipt arrays public as
+`readonly TickReceipt[]`, which is more honest than returning a frozen
+array as mutable `TickReceipt[]`. This is a correct surface change, but
+it deserves release-note visibility.
+
+Question: Is it clear what 0100 fixed and what it left for later cycles?
+
+Answer: Yes. 0100 fixed the generic immutable clone lie and the
+`ImmutableSnapshot` 0025A cast blocker. It left materialized-view
+storage seam casts, snapshot persistence defaults, and any future generic
+snapshot protocol for separate cycles.
+
+Question: Is anything still suspicious or underspecified?
+
+Answer: Yes. `PropValue` byte snapshots are detached but not
+intrinsically immutable, and the local read-only collection wrappers may
+want file/concept splitting later if they grow.
+
+### Immutable Snapshot Repair Check
+
+Repair checks:
+
+- Generic `createImmutableValue<T>(value: T): T` removed: yes.
+- Arbitrary descriptor-copy object reconstruction removed: yes.
+- `Object.create` removed from `ImmutableSnapshot.ts`: yes.
+- `as unknown as T` removed from `ImmutableSnapshot.ts`: yes.
+- Unsupported arbitrary class instances rejected: yes.
+- Receipt arrays reject non-`TickReceipt` entries: yes.
+- `WarpState` snapshots detach from live source mutation: yes.
+- Read-only collection behavior preserved for supported snapshots: yes.
+- `ImmutableSnapshot.ts` removed from `0025A-casts.json`: yes.
+
+### Remaining 0096 Blockers
+
+`castQuarantineGraduation.test.ts` still fails for non-`ImmutableSnapshot`
+blockers.
+
+Remaining cast-hit files/families:
+
+- `MaterializedViewHelpers`
+- `MaterializedViewService`
+- `checkpointLoad`
+- `HttpSyncServer`
+- `TemporalQuery`
+- `VisibleStateScope`
+- `WarpStream`
+
+Stale or non-hit manifest entries also remain in `0025A-casts.json`,
+including `WarpGraph`, `StrandController`, and `Observer`. Those entries
+are outside 0100 and should be handled by their owning 0096 follow-up
+slices.
+
+## Playback Weak Spots
+
+- `ImmutableSnapshot.ts` now has several read-only collection wrapper
+  classes in one file.
+- `PropValue` snapshots clone `Uint8Array` values but do not make
+  returned byte arrays intrinsically immutable.
+- The `readonly TickReceipt[]` public surface change may need an API or
+  release-note mention.
+- The cycle did not address materialized-view storage seam casts.
+- The cycle did not address snapshot persistence or default-on policy.
+- The cycle did not introduce a generic snapshot protocol by design.
+
 ## Playback Questions
 
 ### Agent
