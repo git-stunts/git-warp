@@ -338,9 +338,16 @@ export default class AuditChainVerifier {
       result.status = STATUS_BROKEN_CHAIN;
       return false;
     }
-    if (commitInfo.parents[0] !== receipt.prevAuditCommit) {
+    const parent = commitInfo.parents[0];
+    if (parent === undefined) {
+      this._addError(result, 'CONTINUATION_NO_PARENT',
+        'Continuation commit has no git parent after parent-count validation', current);
+      result.status = STATUS_BROKEN_CHAIN;
+      return false;
+    }
+    if (parent !== receipt.prevAuditCommit) {
       this._addError(result, 'GIT_PARENT_MISMATCH',
-        `Git parent '${commitInfo.parents[0]}' !== prevAuditCommit '${receipt.prevAuditCommit}'`, current);
+        `Git parent '${parent}' !== prevAuditCommit '${receipt.prevAuditCommit}'`, current);
       result.status = STATUS_BROKEN_CHAIN;
       return false;
     }

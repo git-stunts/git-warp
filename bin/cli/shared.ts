@@ -126,8 +126,9 @@ export async function applyCursorCeiling(graph: WarpGraphInstance, persistence: 
  */
 export function emitCursorWarning(cursorInfo: { active: boolean; tick: number | null; maxTick: number | null }, maxTick: number | null): void {
   if (cursorInfo.active) {
+    const tickLabel = cursorInfo.tick !== null ? String(cursorInfo.tick) : 'not set';
     const maxLabel = maxTick !== null && maxTick !== undefined ? ` of ${maxTick}` : '';
-    process.stderr.write(`\u26A0 seek active (tick ${cursorInfo.tick}${maxLabel}) \u2014 run "git warp seek --latest" to return to present\n`);
+    process.stderr.write(`\u26A0 seek active (tick ${tickLabel}${maxLabel}) \u2014 run "git warp seek --latest" to return to present\n`);
   }
 }
 

@@ -121,7 +121,17 @@ export default class MaterializedViewService {
       }),
     );
 
-    const entries = paths.map((path, i) => `100644 blob ${oids[i]}\t${path}`);
+    const entries = paths.map((path, i) => {
+      const oid = oids[i];
+      if (oid === undefined) {
+        throw new WarpError(
+          `Missing blob OID for path: ${path}`,
+          'E_MATERIALIZED_VIEW_MISSING_BLOB_OID',
+          { context: { path } },
+        );
+      }
+      return `100644 blob ${oid}\t${path}`;
+    });
     return await persistence.writeTree(entries);
   }
 

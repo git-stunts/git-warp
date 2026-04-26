@@ -33,6 +33,14 @@ async function resolveStrategy(classification: { kind: string; version?: string;
   return await promptForForeignStrategy();
 }
 
+/** Formats a hook version for user-facing prompts. */
+function formatHookVersion(version: string | undefined): string {
+  if (version === undefined) {
+    return 'version unreported';
+  }
+  return `v${version}`;
+}
+
 /** Prompts the user to upgrade an existing warp-managed hook. */
 async function promptForOursStrategy(classification: { kind: string; version?: string; appended?: boolean }): Promise<string> {
   const installer = createHookInstaller();
@@ -44,8 +52,10 @@ async function promptForOursStrategy(classification: { kind: string; version?: s
     throw usageError('Existing hook found. Use --force or run interactively.');
   }
 
+  const installedVersion = formatHookVersion(classification.version);
+  const targetVersion = formatHookVersion(installer.version);
   const answer = await promptUser(
-    `Upgrade hook from v${classification.version} to v${installer.version}? [Y/n] `,
+    `Upgrade hook from ${installedVersion} to ${targetVersion}? [Y/n] `,
   );
   if (answer === '' || answer.toLowerCase() === 'y') {
     return 'upgrade';

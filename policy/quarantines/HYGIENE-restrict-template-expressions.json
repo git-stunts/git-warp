@@ -4,19 +4,5 @@
   "rationale": "Cycle 0054 activated restrict-template-expressions as a hygiene rule. The remaining violations are finite and pre-existing, mostly nullish/unknown interpolation sites that need narrower value normalization. Quarantine is rule-scoped and temporary.",
   "generated_at": "2026-04-23T08:30:00.000Z",
   "generator": "cycle 0054 manual quarantine",
-  "files": [
-    "bin/cli/commands/doctor/checksAux.ts",
-    "bin/cli/commands/install-hooks.ts",
-    "bin/cli/commands/tree.ts",
-    "bin/cli/shared.ts",
-    "src/domain/services/MaterializedViewService.ts",
-    "src/domain/services/WormholeService.ts",
-    "src/domain/services/audit/AuditChainVerifier.ts",
-    "src/domain/services/codec/TrailerValidation.ts",
-    "src/domain/services/index/StreamingBitmapIndexBuilder.ts",
-    "src/domain/services/provenance/ProvenanceIndex.ts",
-    "src/domain/services/state/checkpointHelpers.ts",
-    "src/domain/trust/TrustRecordService.ts",
-    "src/domain/utils/bytes.ts"
-  ]
+  "files": []
 }

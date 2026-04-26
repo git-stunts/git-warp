@@ -24,6 +24,11 @@ import { isError } from '../../types/WarpErrors.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type { CorePersistence } from '../../types/WarpPersistence.ts';
 import type SyncHttpClientPort from '../../../ports/SyncHttpClientPort.ts';
+import type {
+  SyncHttpAuth,
+  SyncHttpClientResult,
+} from '../../../ports/SyncHttpClientPort.ts';
+import type CryptoPort from '../../../ports/CryptoPort.ts';
 import {
   mapsEqual,
   resolveSyncTarget,
@@ -67,9 +72,9 @@ type SyncStatusPayload = {
  */
 function resolveAuth(
   auth: { secret: string; keyId?: string } | undefined,
-  crypto: import('../../../ports/CryptoPort.ts').default,
+  crypto: CryptoPort,
   lamport: number,
-): import('../../../ports/SyncHttpClientPort.ts').SyncHttpAuth | undefined {
+): SyncHttpAuth | undefined {
   if (auth === undefined || auth.secret === undefined || auth.secret === '') { return undefined; }
   return {
     secret: auth.secret,
@@ -86,7 +91,7 @@ function resolveAuth(
  * retry harness understands.
  */
 function interpretHttpResult(
-  result: import('../../../ports/SyncHttpClientPort.ts').SyncHttpClientResult,
+  result: SyncHttpClientResult,
   timeoutMs: number,
 ): SyncResponse {
   if (result.kind === 'success') {

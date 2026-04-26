@@ -36,11 +36,9 @@ describe('type-import/template-expression hygiene posture', () => {
     const templateManifest = readUtf8('policy/quarantines/HYGIENE-restrict-template-expressions.json');
 
     expect(consistentManifest).toContain('"rule_id": "@typescript-eslint/consistent-type-imports"');
-    expect(consistentManifest).toContain('src/domain/WarpCore.ts');
-    expect(consistentManifest).toContain('src/domain/services/strand/descriptorNormalization.ts');
+    expect(consistentManifest).toMatch(/"files"\s*:\s*\[\s*\]/u);
 
     expect(templateManifest).toContain('"rule_id": "@typescript-eslint/restrict-template-expressions"');
-    expect(templateManifest).toContain('bin/cli/commands/doctor/checksAux.ts');
-    expect(templateManifest).toContain('src/domain/utils/bytes.ts');
+    expect(templateManifest).toMatch(/"files"\s*:\s*\[\s*\]/u);
   });
 });

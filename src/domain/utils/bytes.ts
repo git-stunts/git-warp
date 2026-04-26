@@ -109,15 +109,22 @@ export function base64Encode(bytes: Uint8Array): string {
             + B64_CHARS[n & 0x3f]!;
   }
 
+  return result + encodeBase64Remainder(bytes, mainLen, remainder);
+}
+
+/**
+ * Encodes the one- or two-byte base64 tail.
+ */
+function encodeBase64Remainder(bytes: Uint8Array, mainLen: number, remainder: number): string {
   if (remainder === 1) {
     const n = bytes[mainLen]!;
-    result += `${B64_CHARS[(n >>> 2) & 0x3f]}${B64_CHARS[(n << 4) & 0x3f]}==`;
-  } else if (remainder === 2) {
-    const n = (bytes[mainLen]! << 8) | bytes[mainLen + 1]!;
-    result += `${B64_CHARS[(n >>> 10) & 0x3f]}${B64_CHARS[(n >>> 4) & 0x3f]}${B64_CHARS[(n << 2) & 0x3f]}=`;
+    return `${B64_CHARS[(n >>> 2) & 0x3f]!}${B64_CHARS[(n << 4) & 0x3f]!}==`;
   }
-
-  return result;
+  if (remainder === 2) {
+    const n = (bytes[mainLen]! << 8) | bytes[mainLen + 1]!;
+    return `${B64_CHARS[(n >>> 10) & 0x3f]!}${B64_CHARS[(n >>> 4) & 0x3f]!}${B64_CHARS[(n << 2) & 0x3f]!}=`;
+  }
+  return '';
 }
 
 /**

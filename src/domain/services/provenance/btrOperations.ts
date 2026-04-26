@@ -16,7 +16,7 @@ import { hexEncode, hexDecode } from '../../utils/bytes.ts';
 import CryptoError from '../../errors/CryptoError.ts';
 import WarpError from '../../errors/WarpError.ts';
 import { BTR, VerificationResult, BTR_VERSION, validateBTRStructure, type PatchEntryJSON } from './BTR.ts';
-import { ProvenancePayload } from './ProvenancePayload.ts';
+import { ProvenancePayload, type PatchEntry } from './ProvenancePayload.ts';
 import { serializeFullState, deserializeFullState, computeStateHash } from '../state/StateSerializer.ts';
 
 // -- Constants ----------------------------------------------------------------
@@ -188,7 +188,7 @@ async function replayBTR(
   const codecOpt = deps.codec ? { codec: deps.codec } : {};
   const initialState = deserializeFullState(btr.U_0, codecOpt);
   // Codec boundary: PatchEntryJSON is the JSON-safe form of PatchEntry
-  const payload = ProvenancePayload.fromJSON(btr.P as unknown as import('./ProvenancePayload.ts').PatchEntry[]);
+  const payload = ProvenancePayload.fromJSON(btr.P as unknown as PatchEntry[]);
   const finalState = payload.replay(initialState);
 
   if (!deps.crypto) {

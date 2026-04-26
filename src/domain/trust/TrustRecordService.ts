@@ -135,7 +135,7 @@ class TrustRecordService {
 function verifySignatureEnvelope(record: TrustRecord): void {
   if (record.signature.alg !== 'ed25519') {
     throw new TrustError(
-      `Unsupported signature algorithm: ${record.signature.alg}`,
+      'Unsupported signature algorithm',
       { code: 'E_TRUST_SIGNATURE_MISSING' },
     );
   }

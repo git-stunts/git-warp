@@ -1,13 +1,13 @@
 import WarpError from './errors/WarpError.ts';
-import { openWarpCoreRuntimeProduct } from './warp/WarpCoreRuntimeProduct.ts';
+import {
+  openWarpCoreRuntimeProduct,
+  type WarpCoreOpenOptions,
+  type WarpCoreRuntimeSurface,
+} from './warp/WarpCoreRuntimeProduct.ts';
 
 import type CryptoPort from '../ports/CryptoPort.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
 import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
-import type {
-  WarpCoreOpenOptions,
-  WarpCoreRuntimeSurface,
-} from './warp/WarpCoreRuntimeProduct.ts';
 
 /**
  * Full plumbing-facing WARP surface.

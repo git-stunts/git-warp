@@ -72,7 +72,8 @@ function formatAnnotation(nodeProps: Record<string, unknown>, propKeys: string[]
   const parts: string[] = [];
   for (const key of propKeys) {
     if (Object.prototype.hasOwnProperty.call(nodeProps, key)) {
-      parts.push(`${key}: ${nodeProps[key]}`);
+      const value = String(nodeProps[key]);
+      parts.push(`${key}: ${value}`);
     }
   }
   return parts.length > 0 ? `  [${parts.join(', ')}]` : '';

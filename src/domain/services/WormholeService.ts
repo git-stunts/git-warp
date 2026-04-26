@@ -129,7 +129,8 @@ async function processCommit({
 
   const kind = messageCodec.detectKind(message);
   if (kind !== 'patch') {
-    throw new WormholeError(`Commit '${sha}' is not a patch commit (kind: ${kind})`, {
+    const kindLabel = kind ?? 'none';
+    throw new WormholeError(`Commit '${sha}' is not a patch commit (kind: ${kindLabel})`, {
       code: 'E_WORMHOLE_NOT_PATCH',
       context: { sha, kind },
     });

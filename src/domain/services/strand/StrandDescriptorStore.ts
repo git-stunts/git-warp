@@ -39,6 +39,7 @@ import {
 } from './descriptorNormalization.ts';
 
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
+import type Patch from '../../types/Patch.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -362,7 +363,7 @@ export default class StrandDescriptorStore {
   }
 
   /** @internal for test seam access */
-  _resolveQueuedIntentIdentity(candidate: RawBag): { patch: import('../../types/Patch.ts').default; intentId: string; enqueuedAt: string } | null {
+  _resolveQueuedIntentIdentity(candidate: RawBag): { patch: Patch; intentId: string; enqueuedAt: string } | null {
     return resolveQueuedIntentIdentity(candidate);
   }
 

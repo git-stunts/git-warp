@@ -5,6 +5,7 @@
  */
 
 import { CONTENT_PROPERTY_KEY, decodePropKey, isEdgePropKey, decodeEdgePropKey } from '../KeyCodec.ts';
+import WarpError from '../../errors/WarpError.ts';
 import type BlobPort from '../../../ports/BlobPort.ts';
 import type TreePort from '../../../ports/TreePort.ts';
 
@@ -63,12 +64,30 @@ export async function writeIndexSubtree(
 ): Promise<string> {
   const paths = Object.keys(indexTree).sort();
   const oids = await Promise.all(
-    paths.map((p) => persistence.writeBlob(indexTree[p] as Uint8Array))
+    paths.map((path) => {
+      const blob = indexTree[path];
+      if (blob === undefined) {
+        throw new WarpError(
+          `Missing index blob for path: ${path}`,
+          'E_CHECKPOINT_MISSING_INDEX_BLOB',
+          { context: { path } },
+        );
+      }
+      return persistence.writeBlob(blob);
+    }),
   );
 
-  const entries = paths.map(
-    (path, i) => `100644 blob ${oids[i]}\t${path}`
-  );
+  const entries = paths.map((path, i) => {
+    const oid = oids[i];
+    if (oid === undefined) {
+      throw new WarpError(
+        `Missing index blob OID for path: ${path}`,
+        'E_CHECKPOINT_MISSING_INDEX_BLOB_OID',
+        { context: { path } },
+      );
+    }
+    return `100644 blob ${oid}\t${path}`;
+  });
   return await persistence.writeTree(entries);
 }
 
@@ -173,10 +192,10 @@ export function collectContentAnchorEntries(
 
   flushBatch();
 
-  for (let i = 0; i < sortedOids.length; i++) {
-    const oid = sortedOids[i];
-    sortedOids[i] = `040000 tree ${oid}\t_content_${oid}`;
+  const anchorEntries: string[] = [];
+  for (const oid of sortedOids) {
+    anchorEntries.push(`040000 tree ${oid}\t_content_${oid}`);
   }
 
-  return sortedOids;
+  return anchorEntries;
 }

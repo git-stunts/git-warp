@@ -14,6 +14,7 @@ import type EffectSinkPort from '../ports/EffectSinkPort.ts';
 import type { CorePersistence } from './types/WarpPersistence.ts';
 import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
+import type { MultiplexSink } from './services/MultiplexSink.ts';
 import type RuntimeStorageCapabilityPort from '../ports/RuntimeStorageCapabilityPort.ts';
 
 import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.ts';
@@ -100,12 +101,8 @@ export async function buildEffectPipeline(
   sinks: EffectSinkPort[],
   lens: ExternalizationPolicy | undefined,
 ): Promise<EffectPipeline> {
-  const multMod = await import('./services/MultiplexSink.ts') as {
-    MultiplexSink: typeof import('./services/MultiplexSink.ts').MultiplexSink;
-  };
-  const effMod = await import('./services/EffectPipeline.ts') as {
-    EffectPipeline: typeof import('./services/EffectPipeline.ts').EffectPipeline;
-  };
+  const multMod: { MultiplexSink: typeof MultiplexSink } = await import('./services/MultiplexSink.ts');
+  const effMod: { EffectPipeline: typeof EffectPipeline } = await import('./services/EffectPipeline.ts');
   const mux = new multMod.MultiplexSink();
   for (const sink of sinks) {
     mux.addSink(sink);
@@ -114,9 +111,7 @@ export async function buildEffectPipeline(
   if (lens !== null && lens !== undefined) {
     resolvedLens = lens;
   } else {
-    const mod = await import('./types/ExternalizationPolicy.ts') as {
-      LIVE_LENS: ExternalizationPolicy;
-    };
+    const mod = await import('./types/ExternalizationPolicy.ts');
     resolvedLens = mod.LIVE_LENS;
   }
   return new effMod.EffectPipeline({ sink: mux, lens: resolvedLens });

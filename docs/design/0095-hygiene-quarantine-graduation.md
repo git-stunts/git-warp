@@ -1,6 +1,6 @@
 # 0095 Hygiene Quarantine Graduation
 
-- Status: `PULL`
+- Status: `hill met`
 - Release lane: `v17.0.0`
 - Source: v17 branch quarantine-graduate blocker, cycle 0054 hygiene residue,
   and `policy/quarantines/HYGIENE-*.json`
@@ -246,3 +246,87 @@ call the failure external, false, or irrelevant.
   failure has zero HYGIENE accusations and names the remaining 0025
   blockers.
 
+## RED Witness
+
+Command:
+
+```sh
+npx vitest run test/conformance/hygieneQuarantineGraduation.test.ts
+```
+
+Result: failed for the intended reason. The test expected
+`"files": []`, but `HYGIENE-consistent-type-imports.json` still listed
+file entries.
+
+## GREEN Witness
+
+Commands:
+
+```sh
+npx vitest run test/conformance/hygieneQuarantineGraduation.test.ts test/unit/scripts/type-import-hygiene-shape.test.ts
+npx eslint <former HYGIENE manifest file set>
+npm run typecheck
+npm run lint:semgrep
+npm run lint:sludge
+npm run lint:quarantine-graduate
+git diff --check
+```
+
+Results:
+
+| Command | Result |
+|---|---|
+| `npx vitest run test/conformance/hygieneQuarantineGraduation.test.ts test/unit/scripts/type-import-hygiene-shape.test.ts` | pass, 2 files / 4 tests |
+| `npx eslint <former HYGIENE manifest file set>` | pass, zero messages |
+| `npm run typecheck` | pass |
+| `npm run lint:semgrep` | pass, 941 quarantined hits suppressed |
+| `npm run lint:sludge` | pass |
+| `npm run lint:quarantine-graduate` | expected fail, 144 non-HYGIENE accusations |
+| `git diff --check` | pass |
+
+The final quarantine-graduate family counts were:
+
+| Manifest | Accusations |
+|---|---:|
+| `0025A-casts` | 13 |
+| `0025B-boundary` | 115 |
+| `0025C-fake-models` | 12 |
+| `0025D-import-law` | 4 |
+| `HYGIENE-consistent-type-imports` | 0 |
+| `HYGIENE-restrict-template-expressions` | 0 |
+
+## Playback
+
+### Agent Answers
+
+- Yes. Both HYGIENE manifests still exist and have `files: []`.
+- Yes. With the manifests empty, targeted ESLint over the former
+  manifest file set reports zero messages.
+- Yes. `npm run lint:quarantine-graduate` fails only on non-HYGIENE
+  manifests.
+- Yes. The code changes are type-import graduation, template-expression
+  normalization, stale manifest cleanup, or strict-rule collateral that
+  became visible once file-level HYGIENE exemptions were removed.
+
+### Human Answers
+
+- Yes. The 0054 hygiene bridge is paid down in the manifest files
+  themselves, not hidden behind chat or broader 0025 work.
+- Yes. The full v17 branch blocker remains because 144 accusations
+  still exist across `0025A`, `0025B`, `0025C`, and `0025D`.
+- Yes. The next release blockers are now the four remaining 0025
+  quarantine families, with `0025B-boundary` dominating the count.
+
+## Drift Check
+
+No negative drift from the hill.
+
+One implementation drift improved the design: the former HYGIENE file
+set had collateral strict-rule failures (`no-duplicate-imports`,
+`require-await`, `complexity`, `max-lines-per-function`, and
+`prefer-template`) that became visible only after the file-level
+HYGIENE exemptions were removed. Those were fixed rather than hidden.
+
+`npm run lint:quarantine-graduate` still fails, but that is not drift:
+the cycle explicitly scoped the acceptable final failure to non-HYGIENE
+manifests.

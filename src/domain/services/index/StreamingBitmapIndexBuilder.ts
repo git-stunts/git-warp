@@ -183,7 +183,7 @@ export default class StreamingBitmapIndexBuilder {
     checkAborted(signal, 'finalize');
     const metaEntries = await this._writeMetaShards();
     checkAborted(signal, 'finalize');
-    const bitmapEntries = await this._processBitmapShards(signal);
+    const bitmapEntries = this._processBitmapShards(signal);
     return [...metaEntries, ...bitmapEntries];
   }
 
@@ -242,9 +242,9 @@ export default class StreamingBitmapIndexBuilder {
     return entries;
   }
 
-  private async _processBitmapShards(
+  private _processBitmapShards(
     signal?: AbortSignal,
-  ): Promise<string[]> {
+  ): string[] {
     const entries: string[] = [];
     for (const [path, oids] of this._flushedChunks.entries()) {
       checkAborted(signal, 'processBitmapShards');

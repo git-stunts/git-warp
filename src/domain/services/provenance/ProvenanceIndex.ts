@@ -128,8 +128,9 @@ class ProvenanceIndex {
 
   static #validateSerialized(obj: { version?: number; entries?: Array<[string, string[]]> }): void {
     if (obj.version !== 1) {
+      const versionLabel = obj.version === undefined ? 'missing' : String(obj.version);
       throw new SchemaUnsupportedError(
-        `Unsupported ProvenanceIndex version: ${obj.version}`,
+        `Unsupported ProvenanceIndex version: ${versionLabel}`,
         { context: { version: obj.version } },
       );
     }

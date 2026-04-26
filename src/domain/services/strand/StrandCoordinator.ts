@@ -32,6 +32,8 @@ import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
 import type { StrandDescriptor as ParsedStrandDescriptor } from '../../utils/parseStrandBlob.ts';
 import type Patch from '../../types/Patch.ts';
+import type { PatchBuilder } from '../PatchBuilder.ts';
+import type { StrandDescriptor } from './strandTypes.ts';
 
 // Re-export constants that were on StrandService
 export { STRAND_SCHEMA_VERSION, STRAND_COORDINATE_VERSION, STRAND_OVERLAY_KIND };
@@ -59,8 +61,6 @@ export type StrandCoordinatorDeps = {
   /** The full graph runtime, stored for test-seam access and forward compatibility. */
   graph?: StrandCoordinatorGraph;
 };
-
-type StrandDescriptor = import('./strandTypes.ts').StrandDescriptor;
 
 /**
  * The two shapes `materialize` can return. Either a frozen
@@ -285,11 +285,11 @@ export default class StrandCoordinator {
 
   // ── Patching (delegates) ────────────────────────────────────────
 
-  async createPatchBuilder(strandId: string): Promise<import('../PatchBuilder.ts').PatchBuilder> {
+  async createPatchBuilder(strandId: string): Promise<PatchBuilder> {
     return await this._deps.patches.createPatchBuilder(strandId);
   }
 
-  async patch(strandId: string, build: (p: import('../PatchBuilder.ts').PatchBuilder) => void | Promise<void>): Promise<string> {
+  async patch(strandId: string, build: (p: PatchBuilder) => void | Promise<void>): Promise<string> {
     return await this._deps.patches.patch(strandId, build);
   }
 
@@ -319,7 +319,7 @@ export default class StrandCoordinator {
 
   // ── Intents (delegates) ─────────────────────────────────────────
 
-  async queueIntent(strandId: string, build: (p: import('../PatchBuilder.ts').PatchBuilder) => void | Promise<void>): Promise<Awaited<ReturnType<StrandIntentService['queueIntent']>>> {
+  async queueIntent(strandId: string, build: (p: PatchBuilder) => void | Promise<void>): Promise<Awaited<ReturnType<StrandIntentService['queueIntent']>>> {
     return await this._deps.intents.queueIntent(strandId, build);
   }
 

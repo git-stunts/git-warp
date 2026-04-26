@@ -13,6 +13,7 @@ import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
+import type VersionVector from '../../crdt/VersionVector.ts';
 import {
   isGitCasPatchStorage,
   LEGACY_EXTERNAL_PATCH_STORAGE,
@@ -39,7 +40,7 @@ type MutablePatchBuilderCtorOptions = { -readonly [K in keyof PatchBuilderCtorOp
 type PatchBuilderOptionsParams = {
   descriptor: StrandDescriptor;
   lamport: number;
-  versionVector: import('../../crdt/VersionVector.ts').default;
+  versionVector: VersionVector;
   getCurrentState: () => WarpState | null;
   expectedParentSha: string | null;
   targetRefPath?: string;

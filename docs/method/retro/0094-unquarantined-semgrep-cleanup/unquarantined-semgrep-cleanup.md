@@ -23,9 +23,10 @@
 - `npx markdownlint docs/design/0094-unquarantined-semgrep-cleanup.md docs/method/retro/0094-unquarantined-semgrep-cleanup/unquarantined-semgrep-cleanup.md`
 - `git diff --check`
 
-## Known External Failure
+## Known Branch-Level Failure
 
 - `npm run lint:quarantine-graduate` still fails at the branch level
-  because the existing `release/v17.0.0` branch history touches many
-  quarantined files relative to `origin/main`. The files graduated in
-  this slice were removed from the relevant hygiene manifests.
+  because `release/v17.0.0` touches many quarantined files relative to
+  `origin/main`. This is a real v17 release blocker, not an external
+  failure. The files graduated in this slice were removed from the
+  relevant hygiene manifests.

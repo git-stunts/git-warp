@@ -38,6 +38,7 @@ export function parsePositiveIntTrailer(trailers: Record<string, string>, key: s
 export function validateKindDiscriminator(trailers: Record<string, string>, expected: string): void {
   const kind = trailers[String(KEYS['kind'])];
   if (kind !== expected) {
-    throw new MessageCodecError(`Invalid ${expected} message: eg-kind must be '${expected}', got '${kind}'`, { code: 'E_WRONG_KIND' });
+    const kindLabel = kind ?? 'missing';
+    throw new MessageCodecError(`Invalid ${expected} message: eg-kind must be '${expected}', got '${kindLabel}'`, { code: 'E_WRONG_KIND' });
   }
 }

@@ -12,6 +12,7 @@ import { decodeEdgeKey } from '../KeyCodec.ts';
 import ConflictTarget from '../../types/conflict/ConflictTarget.ts';
 import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 import { compareStrings } from '../../types/conflict/validation.ts';
+import type { OpLike } from '../OpLike.ts';
 
 // ── Op blob (0025C-bridge) ──────────────────────────────────────────
 
@@ -23,7 +24,7 @@ import { compareStrings } from '../../types/conflict/validation.ts';
  * collapse into the real class hierarchy and the conflict-target
  * builders swap to `instanceof` dispatch.
  */
-export type CanonicalOpBlob = import('../OpLike.ts').OpLike;
+export type CanonicalOpBlob = OpLike;
 
 /**
  * Effect payload produced by normalizeEffectPayload — the

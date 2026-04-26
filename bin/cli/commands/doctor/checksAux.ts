@@ -107,17 +107,18 @@ function buildHookFinding(s: { installed: boolean; version?: string; current?: b
 
 /** Builds a finding for an installed hook, flagging if it is outdated. */
 function buildInstalledHookFinding(s: { version?: string; current?: boolean }): DoctorFinding {
+  const versionLabel = s.version !== undefined ? `v${s.version}` : 'version unreported';
   if (s.current !== true) {
     return {
       id: 'hooks-installed', status: 'warn', code: CODES.HOOKS_OUTDATED,
-      impact: 'hygiene', message: `Hook is outdated (v${s.version})`,
+      impact: 'hygiene', message: `Hook is outdated (${versionLabel})`,
       fix: 'Run `git warp install-hooks` to upgrade',
       evidence: { version: s.version ?? null },
     };
   }
   return {
     id: 'hooks-installed', status: 'ok', code: CODES.HOOKS_OK,
-    impact: 'hygiene', message: `Hook is installed and current (v${s.version})`,
+    impact: 'hygiene', message: `Hook is installed and current (${versionLabel})`,
   };
 }
 

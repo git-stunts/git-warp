@@ -4,15 +4,5 @@
   "rationale": "Cycle 0054 activated consistent-type-imports as a hygiene rule and took the autofixable wins. The remaining violations are explicit inline import() type annotations or coupled runtime-boundary seams that need manual rewrite. Quarantine is rule-scoped and temporary.",
   "generated_at": "2026-04-23T08:30:00.000Z",
   "generator": "cycle 0054 manual quarantine",
-  "files": [
-    "src/domain/WarpCore.ts",
-    "src/domain/runtimeHelpers.ts",
-    "src/domain/services/controllers/SyncController.ts",
-    "src/domain/services/provenance/btrOperations.ts",
-    "src/domain/services/strand/StrandCoordinator.ts",
-    "src/domain/services/strand/StrandDescriptorStore.ts",
-    "src/domain/services/strand/StrandPatchService.ts",
-    "src/domain/services/strand/conflictTargetIdentity.ts",
-    "src/domain/warp/_internal.ts"
-  ]
+  "files": []
 }
