@@ -4,8 +4,8 @@
 - Release lane: `v17.0.0`
 - Source backlog: `IMM_snapshot-builder-domain-model`
 - Blocks: `0096-purge-cast-hacks`
-- Sponsor human: James Ross
-- Sponsor agent: Codex
+- Design role: active METHOD cycle
+- Review audience: maintainers and future agents
 
 ## Hill
 
