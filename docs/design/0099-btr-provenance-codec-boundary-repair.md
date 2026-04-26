@@ -102,6 +102,87 @@ security-sensitive signing.
 - `0096-purge-cast-hacks` remains blocked until these nouns and
   boundaries exist.
 
+## External Context Checkpoint
+
+This checkpoint incorporates the Aion Paper VII, warp-ttd, and
+Continuum schema context before continuing GREEN implementation.
+
+Scope rules:
+
+- BTR is one concrete tick-scale retained shell family.
+- BTR is not the generic hologram abstraction.
+- BTR is not Continuum `Receipt`.
+- BTR is not Continuum `Witness`.
+- BTR is not `SuffixShell`.
+- BTR is not `ImportOutcome`.
+- BTR is not `SettlementResult`.
+- Continuum-owned shared contract families belong to authored
+  GraphQL/Wesley schemas and generated artifacts, not hand-rolled
+  git-warp DTOs.
+- 0099 remains scoped to git-warp-local BTR/provenance boundary repair.
+- Any future alignment between BTR shells and Continuum
+  receipt/witness/suffix/settlement families must be a follow-up design
+  cycle, not smuggled into this GREEN.
+
+0099 must preserve BTR as a local shell repair. `BoundaryTransitionRecord`
+must not become a proto-super-object for receipts, witnesses, suffix
+shells, import outcomes, settlement results, or generic holograms.
+
+### Current Dirty Implementation Review
+
+Question: Does `BoundaryTransitionRecord` accidentally claim to be more
+than a tick-scale retained shell?
+
+Answer: The current implementation direction mostly names a BTR-specific
+record, but it now needs an explicit scope guard. The type should remain
+the runtime-backed value for a git-warp BTR shell at tick scale. It must
+not absorb Continuum receipt, witness, suffix shell, import outcome,
+settlement result, or generic hologram responsibilities.
+
+Question: Does `BtrWireRecord` look like a git-warp-local BTR wire DTO,
+or is it drifting toward a shared Continuum schema?
+
+Answer: The name and intended placement are local enough, but the DTO
+must stay git-warp-local. If it begins modeling receipt/witness/suffix or
+settlement concepts, it is drifting into shared Continuum schema
+ownership and should stop.
+
+Question: Does `BtrCodecAdapter` manually own too much
+patch/witness/schema decoding?
+
+Answer: Yes, the current dirty implementation appears at risk of owning
+too much patch-internal decoding, including context, ops, dots, schema,
+reads, and writes. That is acceptable only as narrow git-warp-local BTR
+wire repair if it is required to preserve existing data. It must not
+become a permanent hand-rolled substitute for Continuum/Wesley generated
+contract families.
+
+Question: Is the canonical signing envelope stable across
+encode/decode/verify?
+
+Answer: Not yet. The current failing serialized-verifies test shows that
+the rehydrated record does not currently reproduce the same signing
+bytes. That means the implementation is still encoding object shape or
+round-tripped representation rather than preserving a stable canonical
+signing envelope.
+
+Question: Does the failing serialized-verifies test indicate signing-byte
+instability?
+
+Answer: Yes. Treat the failure as a blocker, not a nuisance. If
+decode-then-re-encode changes verification material, the BTR shell is not
+canonical enough for HMAC verification.
+
+Question: Should the current dirty implementation be revised, partially
+reverted, or continued?
+
+Answer: Do not continue it unchanged. Keep the domain/port/application
+direction only where it still matches the narrowed BTR shell scope.
+Revise the codec adapter and canonical envelope handling before
+continuing GREEN. If a patch path requires broad Continuum-like schema
+ownership, split that into a follow-up design cycle instead of burying it
+inside 0099.
+
 ## Proposed Domain Nouns
 
 ### `BoundaryTransitionRecord`
