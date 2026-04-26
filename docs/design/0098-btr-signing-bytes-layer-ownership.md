@@ -548,6 +548,85 @@ implemented capability.
 - Domain/application separation may require moving provenance
   orchestration out of `src/domain/services`.
 
+## Drift Check
+
+Did the cycle stay within its non-goal of no production implementation
+changes under `src/**`?
+
+Yes. No `src/**` files changed during 0098. The cycle changed only the
+design doc, refactoring guide, sludge map, conformance test, and pulled
+backlog card.
+
+Did the cycle preserve the goal of deciding ownership rather than
+implementing BTR repair?
+
+Yes. The cycle decided ownership for `BtrSigningEnvelope`,
+`BtrSigningBytes`, `BoundaryTransitionRecordCodecPort`, and HMAC
+consumption. It did not implement BTR repair, create production nouns,
+move HMAC, or edit provenance source.
+
+Did RED match the PULL test plan?
+
+Yes. RED added `test/conformance/btrSigningBytesOwnership.test.ts`,
+which asserted that the design, sludge map, and refactoring guide must
+encode the ownership decision. It failed because the repo still labeled
+`BtrSigningBytes` as `ports` and lacked the guide/guardrail doctrine.
+
+Did GREEN satisfy RED without weakening the test?
+
+Yes. GREEN left the RED test intact and updated the doctrine artifacts
+until the test passed. The test still requires domain ownership, adapter
+construction proof, `CryptoPort` consumption proof, returned-value
+ownership doctrine, and the raw-byte construction guardrail.
+
+Did Playback reveal any new follow-up items?
+
+Yes. Playback identified future implementation requirements around
+construction guardrails, deterministic canonical encoding tests,
+streaming posture, possible typed HMAC input, and provenance
+orchestration relocation.
+
+Did any implementation drift occur?
+
+No. There was no production implementation work.
+
+Did any doctrine drift occur?
+
+Yes, beneficially. The doctrine became sharper than the original PULL by
+adding exact reusable language about port ownership and canonical-byte
+construction paths.
+
+Was any drift beneficial and worth keeping?
+
+Yes.
+
+- The exact guardrail was added: `BtrSigningBytes must not be
+  constructible from arbitrary raw bytes outside the canonical BTR
+  signing encoder path.`
+- The refactoring guide gained reusable doctrine: "Ports define
+  capabilities; they do not own the values they return."
+- Playback identified future implementation requirements:
+  construction guard, deterministic canonical encoding tests, possible
+  `CryptoPort.hmac` typed input, and provenance orchestration
+  relocation.
+
+Was any drift harmful and requiring correction?
+
+No harmful drift is known. The cycle remained doctrine-only and kept
+0096 blocked.
+
+### Follow-Up Candidates For Retrospective
+
+- `PROV_btr-signing-bytes-construction-guard`
+- `PROV_btr-canonical-encoding-determinism-tests`
+- `PROV_crypto-port-typed-hmac-input`
+- `ARCH_move-provenance-orchestration-out-of-domain-services`
+
+These should be considered during Retrospective. Most may be folded into
+`PROV_btr-provenance-codec-boundary-sludge` if that cycle is pulled
+next. `PROV_crypto-port-typed-hmac-input` may need its own card if it
+turns out broader than BTR.
+
 ## GREEN Plan
 
 Update only doctrine/process artifacts:
