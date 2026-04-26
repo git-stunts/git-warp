@@ -509,6 +509,75 @@ slices.
 - The cycle did not address snapshot persistence or default-on policy.
 - The cycle did not introduce a generic snapshot protocol by design.
 
+## Drift Check
+
+Question: Did the cycle stay within supported-source immutable snapshot
+construction?
+
+Answer: Yes. The implementation repaired only public read-side snapshot
+construction for `WarpState` and `TickReceipt[]`. It did not add
+arbitrary object snapshotting.
+
+Question: Did it avoid generic snapshot protocol work?
+
+Answer: Yes. GREEN introduced explicit source-specific builders and did
+not introduce a broad snapshot protocol.
+
+Question: Did it avoid unrelated 0096 cast families?
+
+Answer: Yes. The implementation did not edit the materialized-view
+storage seam, checkpoint loading, HTTP sync, temporal query, visible
+state scope, stream, or other non-0100 cast families.
+
+Question: Did GREEN satisfy RED without weakening the test?
+
+Answer: Yes. `immutableSnapshotBuilder.test.ts` now passes. The RED
+assertions still check for generic clone/freeze artifacts, descriptor
+copying, unsupported source rejection, receipt-array validation, source
+detachment, and read-only collection behavior.
+
+Question: Did GREEN introduce necessary adjacent type changes?
+
+Answer: Yes. The repaired receipt snapshot returns
+`readonly TickReceipt[]`, so immediate public materialization surfaces
+that expose frozen receipt arrays were updated to reflect that readonly
+contract.
+
+Question: Were those changes beneficial or harmful?
+
+Answer: Beneficial. The readonly type propagation made the public type
+more honest: callers receive frozen receipt arrays and should not treat
+them as mutable `TickReceipt[]`.
+
+Question: Is any correction needed before Retrospective?
+
+Answer: No correction is required before Retrospective. The weak spots
+are follow-up candidates rather than drift that invalidates 0100.
+
+Drift findings:
+
+- No harmful drift occurred.
+- Beneficial drift: `readonly TickReceipt[]` propagated through
+  immediate materialization surfaces.
+- Beneficial drift: unsupported sources now fail explicitly.
+- Beneficial drift: read-only collection behavior is source-specific
+  rather than generic clone magic.
+- Beneficial drift: remaining participant-specific wording in the
+  original PULL playback question list was made actor-neutral.
+- Expected remaining failure: `castQuarantineGraduation.test.ts` still
+  fails for non-0100 blockers.
+
+Follow-up candidates for Retrospective:
+
+- `IMM_snapshot-readonly-collection-wrapper-split`
+- `IMM_readonly-byte-propvalue-snapshot`
+- `API_readonly-receipts-release-note`
+
+Only the receipt-array public surface note appears release-relevant
+enough to consider as a separate backlog card. The wrapper split and
+readonly byte-array limitation look like future hardening unless
+Retrospective finds they are active blockers.
+
 ## Playback Questions
 
 ### Agent
@@ -524,7 +593,7 @@ slices.
 
 ### Human
 
-- Can James see why descriptor copying is the root lie?
+- Can maintainers see why descriptor copying is the root lie?
 - Is the supported source list narrow enough?
 - Is the public return-type honesty question visible enough to approve
   or challenge during GREEN?
