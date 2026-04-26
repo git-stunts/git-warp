@@ -85,5 +85,15 @@ itself.
 - No `as unknown as PatchEntry[]` bridge remains.
 - BTR HMAC code signs a named canonical byte value, not an anonymous
   object literal.
+- `BtrSigningBytes` has a construction guard; it is not constructible
+  from arbitrary raw bytes outside the canonical BTR signing encoder
+  path.
+- The boundary codec/adapter has deterministic canonical encoding tests
+  for BTR signing bytes.
+- Provenance orchestration moves out of `src/domain/services` if needed
+  to preserve domain/application separation.
+- The PULL decides whether `CryptoPort.hmac` needs a typed input shape,
+  or whether BTR should unwrap `BtrSigningBytes` at the application
+  boundary while keeping `CryptoPort` generic.
 - `0096-purge-cast-hacks` can remove the BTR cast sites by using the
   new nouns instead of suppressing the type system.
