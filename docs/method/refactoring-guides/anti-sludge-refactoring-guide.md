@@ -172,8 +172,17 @@ the domain, or accepting arbitrary objects in HMAC helpers.
 
 ### Correct Fix
 
-Introduce a canonical byte noun such as `BtrSigningBytes`. A boundary
-codec/adaptor produces it. Crypto signs bytes only.
+Introduce a canonical byte noun such as `BtrSigningBytes`.
+
+Domain owns semantic values. Adapters own concrete encoding. Ports define
+the capability boundary. Ports define capabilities; they do not own the
+values they return. Crypto signs typed canonical bytes, not object bags.
+
+Ports define capabilities; they do not own the values they return.
+
+A boundary codec/adapter produces the canonical byte value through the
+port. The value's layer is determined by the invariant it proves, not by
+the layer that produces it.
 
 ### Example Transformation
 
@@ -430,4 +439,3 @@ Hexagonal enforcement, import-law cleanup, package extraction.
 ### Usually Blocked By
 
 Concept ownership decisions, dependency graph inspection.
-

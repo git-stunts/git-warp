@@ -1,6 +1,6 @@
 # 0098 BTR Signing Bytes Layer Ownership
 
-- Status: `RED`
+- Status: `GREEN`
 - Release lane: `v17.0.0`
 - Source backlog: `PROV_btr-signing-bytes-layer-ownership`
 - Blocks: `PROV_btr-provenance-codec-boundary-sludge`,
@@ -27,6 +27,8 @@ define capabilities. Adapters implement those capabilities. Domain owns
 runtime-backed domain values and their invariants. Canonical BTR signing
 bytes sit at the seam: they are produced by boundary encoding, but they
 represent a semantic promise needed by provenance security.
+
+Ports define capabilities; they do not own the values they return.
 
 This cycle decides that seam before any BTR implementation changes.
 
@@ -107,6 +109,8 @@ are the canonical authentication input for a BTR signing envelope.
 
 `BtrSigningBytes` is therefore a domain value object whose construction
 path proves the bytes came from the canonical BTR signing encoder.
+
+BtrSigningBytes must not be constructible from arbitrary raw bytes outside the canonical BTR signing encoder path.
 
 ### 3. Who Constructs `BtrSigningBytes`?
 
@@ -381,6 +385,33 @@ The failing assertions show that the current repo still contradicts the
   for `BtrSigningBytes`.
 
 No production implementation under `src/**` was edited.
+
+## GREEN Witness
+
+Commands:
+
+```sh
+npx vitest run test/conformance/btrSigningBytesOwnership.test.ts
+npx vitest run test/conformance/sludgeAtlas.test.ts
+node -e "JSON.parse(require('node:fs').readFileSync('policy/sludge/sludge-map.json', 'utf8')); console.log('valid json')"
+npx markdownlint docs/design/0098-btr-signing-bytes-layer-ownership.md docs/method/refactoring-guides/anti-sludge-refactoring-guide.md
+git diff --check
+git status --short | rg '^.. src/' || true
+```
+
+Result: all validation passed. The source-status guard returned no
+`src/**` files.
+
+Doctrine now records:
+
+- `BtrSigningBytes.layer` is `domain`.
+- `BoundaryTransitionRecordCodecPort` adapter/implementation constructs
+  the domain value from `BtrSigningEnvelope`.
+- the application HMAC flow consumes `BtrSigningBytes` through
+  `CryptoPort`.
+- ports define capabilities; they do not own the values they return.
+- `BtrSigningBytes` must not be constructible from arbitrary raw bytes
+  outside the canonical BTR signing encoder path.
 
 ## GREEN Plan
 

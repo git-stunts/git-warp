@@ -164,10 +164,10 @@
           "proposed_nouns": [
             {
               "name": "BtrSigningBytes",
-              "constructs": "BoundaryTransitionRecordCodecPort implementation constructs it from a BtrSigningEnvelope using canonical encoding.",
-              "consumes": "Crypto/HMAC verification and creation consume it as bytes only.",
+              "constructs": "BoundaryTransitionRecordCodecPort adapter/implementation constructs this domain value from BtrSigningEnvelope using the canonical BTR signing encoder.",
+              "consumes": "The application HMAC flow consumes BtrSigningBytes through CryptoPort.",
               "proves_invariant": "The HMAC input is canonical bytes for the BTR signing envelope, not an arbitrary semantic object.",
-              "layer": "ports",
+              "layer": "domain",
               "eliminates": "src/domain/services/provenance/btrOperations.ts codec.encode(fields) signing path."
             }
           ]
