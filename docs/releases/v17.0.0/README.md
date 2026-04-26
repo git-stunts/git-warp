@@ -8,7 +8,7 @@ is explicitly deferred to the next major.
 
 ## Critical path
 
-```
+```text
 LAYER 0 (foundation):
   [x] CROSS_shared-provider-interfaces  ← cycle 0085 retired stale live card
   [x] API_capability-interfaces          ← 10 interfaces shipped; cycle 0086 retired stale live card
@@ -147,8 +147,15 @@ LAYER 5 (launch-prep proof and release hardening tail):
 
 ## Infrastructure modernization (parallel track)
 
-```
-  [ ] INFRA_unify-persistence-on-git-cas
+```text
+  [✗] INFRA_unify-persistence-on-git-cas ← cycle 0093 proved the broad
+                                          "delegate everything" premise
+                                          unsafe today; blob and tree
+                                          writes now delegate to git-cas,
+                                          while read/ref/commit parity was
+                                          split to
+                                          `INFRA_git-cas-adapter-parity`
+  [ ] INFRA_git-cas-adapter-parity
   [x] INFRA_uniform-git-cas        ← cycle 0092 retired stale live card;
                                       default Git-backed runtime payloads route
                                       patches, checkpoints, indexes, and trust
@@ -181,7 +188,7 @@ Replace memory-resident ORSet with a bounded-residency trie stored as
 native Git objects. Extract `warp-orset` package early; `warp-kernel`
 and `warp-adapters` extract later once the ORSet line proves its seams.
 
-```
+```text
 ST-0 (planning + workspace shells):
   [x] DX_design-0018-flesh-out          ← design doc fleshed out, retro closed
   [x] DX_v17-lane-readme-update         ← release ledger updated
@@ -253,8 +260,8 @@ session — it does NOT pretend to implement the synchronous concrete
 surface.
 
 **git-cas carve-out:** Core trie publication uses native Git objects
-and is explicitly out of scope for INFRA_unify-persistence-on-git-cas.
-See Design 0018 for details.
+and is explicitly out of scope for `INFRA_git-cas-adapter-parity`. See
+Design 0018 for details.
 
 **Launch-prep rule:** `TS_publish-pipeline`,
 `INFRA_multipackage-publish-pipeline`, and the post-publish extraction

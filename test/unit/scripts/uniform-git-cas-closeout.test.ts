@@ -20,10 +20,10 @@ describe('uniform git-cas closeout', () => {
   it('ratchets GitGraphAdapter as the Git-backed runtime CAS provider', () => {
     const adapter = readRepoFile('src/infrastructure/adapters/GitGraphAdapter.ts');
 
-    expect(adapter).toContain('return new CasBlobAdapter({');
+    expect(adapter).toContain('new CasBlobAdapter({');
     expect(adapter).toContain('persistence: this');
     expect(adapter).toContain('return createGitCasPatchStorage(false)');
-    expect(adapter).toContain('return new GitTrieStoreAdapter({');
+    expect(adapter).toContain('new GitTrieStoreAdapter({');
   });
 
   it('ratchets runtime boot to inject one blob-storage surface into payload adapters', () => {
@@ -84,12 +84,17 @@ describe('uniform git-cas closeout', () => {
     expect(migrationEntrypoint).toContain('keep legacy graph readers out of shipped runtime code');
   });
 
-  it('keeps the broader persistence unification item live', () => {
+  it('tracks broader adapter parity as a split successor', () => {
     const backlogReadme = readRepoFile('docs/method/backlog/WORKLOADS.md');
     const releaseLedger = readRepoFile('docs/releases/v17.0.0/README.md');
+    const successor = readRepoFile('docs/method/backlog/v17.0.0/INFRA_git-cas-adapter-parity.md');
 
     expect(backlogReadme).not.toContain('INFRA_uniform-git-cas');
-    expect(backlogReadme).toContain('INFRA_unify-persistence-on-git-cas');
-    expect(releaseLedger).toContain('[ ] INFRA_unify-persistence-on-git-cas');
+    expect(backlogReadme).not.toContain('INFRA_unify-persistence-on-git-cas');
+    expect(backlogReadme).toContain('INFRA_git-cas-adapter-parity');
+    expect(releaseLedger).toContain('INFRA_unify-persistence-on-git-cas');
+    expect(releaseLedger).toContain('[ ] INFRA_git-cas-adapter-parity');
+    expect(successor).toContain('GitPersistenceAdapter.readBlob');
+    expect(successor).toContain('GitRefAdapter.createCommit');
   });
 });

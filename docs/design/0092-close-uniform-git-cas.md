@@ -30,9 +30,11 @@ default Git-backed runtime path:
   git-cas unification law.
 
 The remaining live card makes this shipped substrate law look like open v17
-work. That obscures the real remaining item: `INFRA_unify-persistence-on-git-cas`,
-which is about making `GitGraphAdapter` itself a thinner wrapper over git-cas
-plumbing, not about payload routing.
+work. At the time, the real remaining item was
+`INFRA_unify-persistence-on-git-cas`, which was about making
+`GitGraphAdapter` itself a thinner wrapper over git-cas plumbing, not about
+payload routing. Cycle 0093 then proved that card too broad and split the
+remaining work into `INFRA_git-cas-adapter-parity`.
 
 ## Hill
 
@@ -65,8 +67,8 @@ They belong in `scripts/migrations/v17.0.0/` and should be exposed through
 ### Human
 
 - If I inspect the release ledger, is it clear that uniform payload routing is
-  shipped and that the remaining CAS item is the broader persistence-adapter
-  convergence?
+  shipped and that the remaining CAS item is the exact adapter-parity
+  convergence split?
 
 ## Test plan
 

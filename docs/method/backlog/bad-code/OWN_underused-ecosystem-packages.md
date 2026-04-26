@@ -33,5 +33,5 @@ release_home: v17.0.0
 ## Action
 
 - git-cas migration tracked as `INFRA_index-builder-on-git-cas` and
-  `INFRA_unify-persistence-on-git-cas`
+  `INFRA_git-cas-adapter-parity`
 - Alfred adoption and trailer-codec type integration are separate items

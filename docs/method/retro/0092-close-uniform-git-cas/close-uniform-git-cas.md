@@ -19,9 +19,10 @@
 
 - No storage implementation change was needed. The current default path already
   carries the uniform payload-routing law.
-- `INFRA_unify-persistence-on-git-cas` remains live because it is a different
-  slice: making `GitGraphAdapter` itself converge on git-cas/plumbing adapter
-  surfaces rather than raw command wrappers.
+- `INFRA_unify-persistence-on-git-cas` remained live at the end of cycle 0092
+  because it was a different slice: making `GitGraphAdapter` itself converge
+  on git-cas/plumbing adapter surfaces rather than raw command wrappers. Cycle
+  0093 later split that broad card into `INFRA_git-cas-adapter-parity`.
 - `INFRA_substrate-upgrade-tool` remains live and now owns deleting raw
   compatibility branches from `src/` after the upgrader can carry those readers.
 

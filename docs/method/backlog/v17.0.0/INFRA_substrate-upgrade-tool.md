@@ -2,7 +2,7 @@
 id: INFRA_substrate-upgrade-tool
 blocks: []
 blocked_by:
-  - INFRA_unify-persistence-on-git-cas
+  - INFRA_git-cas-adapter-parity
 feature: runtime-boundaries
 ---
 
@@ -61,6 +61,13 @@ substrate only, and the upgrader carries the legacy readers.
 
 This keeps the production runtime single-path, inspectable, and free of
 permanent fallback branches.
+
+### Adapter parity prerequisite
+
+This task depends on `INFRA_git-cas-adapter-parity`. The upgrader should
+target the actual current substrate boundary after git-cas parity gaps
+are named or closed, not a half-migrated `GitGraphAdapter` with hidden
+read/ref/commit semantic drift.
 
 ### Mainline cleanup requirement
 

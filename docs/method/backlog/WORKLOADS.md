@@ -87,7 +87,7 @@ runtime-kill closeout chain.
 
 | Workload | Count | Items | Agent surface | Preconditions |
 |----------|------:|-------|---------------|---------------|
-| `WL-31-v17-cas-substrate-foundation` | 3 | `INFRA_unify-persistence-on-git-cas`, `INFRA_plumbing-violations`, `INFRA_substrate-upgrade-tool` | CAS, plumbing, and substrate migration | none |
+| `WL-31-v17-cas-substrate-foundation` | 3 | `INFRA_git-cas-adapter-parity`, `INFRA_plumbing-violations`, `INFRA_substrate-upgrade-tool` | CAS, plumbing, and substrate migration | none |
 | `WL-32-v17-purge-chain` | 4 | `PROTO_purge-cast-hacks`, `PROTO_purge-boundary-leaks`, `PROTO_purge-fake-models`, `PROTO_purge-import-law` | Anti-sludge purge chain; one owner, serial internal order | none |
 | `WL-33-v17-ts-wave-sweep` | 9 | `TS_wave-01-codec`, `TS_wave-02-trust`, `TS_wave-03-dag-provenance`, `TS_wave-04-state-query`, `TS_wave-05-controllers`, `TS_wave-06-sync`, `TS_wave-07-index-small`, `TS_wave-08-strand-index-big`, `TS_wave-09-gods-and-monsters` | Wave-based TS migration sequence | none |
 | `WL-34-v17-cli-mcp-shell` | 3 | `CLI_agent-native-output`, `CLI_missing-commands`, `MCP_warp-server` | CLI and MCP command surface | none |

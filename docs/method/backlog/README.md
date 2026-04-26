@@ -38,7 +38,7 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 | Items with explicit `feature` | 366 |
 | Distinct explicit feature values | 12 |
 | `bad-code/` items with explicit `release_home` | 143 |
-| Items with non-empty explicit dependency edges | 58 |
+| Items with non-empty explicit dependency edges | 59 |
 
 ## Dependency Law
 
@@ -169,7 +169,7 @@ Current explicit-graph totals:
 - `371` notes declare `blocks` and `blocked_by` fields
 - `366` notes currently declare an explicit `feature`
 - `143` `bad-code/` notes currently declare an explicit `release_home`
-- `58` notes currently name at least one non-empty upstream or
+- `59` notes currently name at least one non-empty upstream or
   downstream edge
 
 Most notes still rely on empty dependency arrays plus lane inheritance.

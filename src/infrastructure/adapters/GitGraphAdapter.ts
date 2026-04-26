@@ -6,6 +6,7 @@
  * RefPort + ConfigPort).
  */
 import { retry, type RetryOptions } from '@git-stunts/alfred';
+import { GitPersistenceAdapter } from '@git-stunts/git-cas';
 import type { CommitLogChunk, CommitNodeOptions, CommitNodeWithTreeOptions, LogNodesOptions, NodeInfo, PingResult } from '../../ports/CommitPort.ts';
 import type { ListRefsOptions } from '../../ports/RefPort.ts';
 import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabilityPort.ts';
@@ -39,9 +40,35 @@ interface GitGraphAdapterOptions {
   readonly retryOptions?: Partial<RetryOptions>;
 }
 
+interface GitCasPolicy {
+  execute<T>(operation: () => Promise<T>): Promise<T>;
+}
+
+/**
+ * Normalizes graph blob writes to the content shape expected by git-cas.
+ */
+function toGitCasBlobContent(content: Uint8Array | string): Buffer | string {
+  if (typeof content === 'string') {
+    return content;
+  }
+  return Buffer.from(content);
+}
+
+/**
+ * Adapts git-warp retry options to git-cas's policy-shaped boundary.
+ */
+function createGitCasRetryPolicy(retryOptions: RetryOptions): GitCasPolicy {
+  return Object.freeze({
+    async execute<T>(operation: () => Promise<T>): Promise<T> {
+      return await retry(operation, retryOptions);
+    },
+  });
+}
+
 export default class GitGraphAdapter extends GraphPersistencePort implements RuntimeStorageCapabilityPort {
   private readonly plumbing: GitPlumbing;
   private readonly _retryOptions: RetryOptions;
+  private readonly _gitCasPersistence: GitPersistenceAdapter;
 
   constructor({ plumbing, retryOptions = {} }: GitGraphAdapterOptions) {
     super();
@@ -50,6 +77,10 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     }
     this.plumbing = plumbing;
     this._retryOptions = { ...DEFAULT_RETRY_OPTIONS, ...retryOptions };
+    this._gitCasPersistence = new GitPersistenceAdapter({
+      plumbing,
+      policy: createGitCasRetryPolicy(this._retryOptions),
+    });
   }
 
   private async _executeWithRetry(options: { args: string[]; input?: string | Buffer }): Promise<string> {
@@ -84,17 +115,17 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     return this.plumbing.emptyTree;
   }
 
-  async createRuntimeBlobStorage(): Promise<BlobStoragePort> {
-    return new CasBlobAdapter({
+  createRuntimeBlobStorage(): Promise<BlobStoragePort> {
+    return Promise.resolve(new CasBlobAdapter({
       plumbing: this.plumbing,
       persistence: this,
-    });
+    }));
   }
 
-  async createRuntimeTrieStore(): Promise<TrieStorePort> {
-    return new GitTrieStoreAdapter({
+  createRuntimeTrieStore(): Promise<TrieStorePort> {
+    return Promise.resolve(new GitTrieStoreAdapter({
       plumbing: this.plumbing,
-    });
+    }));
   }
 
   defaultPatchWriteStorage(): PatchStorageRoute {
@@ -207,18 +238,12 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
   }
 
   async writeBlob(content: Uint8Array | string): Promise<string> {
-    const oid = await this._executeWithRetry({
-      args: ['hash-object', '-w', '--stdin'],
-      input: content as string | Buffer,
-    });
+    const oid = await this._gitCasPersistence.writeBlob(toGitCasBlobContent(content));
     return oid.trim();
   }
 
   async writeTree(entries: string[]): Promise<string> {
-    const oid = await this._executeWithRetry({
-      args: ['mktree'],
-      input: `${entries.join('\n')}\n`,
-    });
+    const oid = await this._gitCasPersistence.writeTree(entries);
     return oid.trim();
   }
 
@@ -271,10 +296,10 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     try {
       const stream = await this.plumbing.executeStream({ args: ['cat-file', 'blob', oid] });
       const raw = await stream.collect({ asString: false, maxBytes: Number.POSITIVE_INFINITY });
-      if ((raw as Uint8Array).length === 0) {
+      if (raw.length === 0) {
         await this._assertBlobExistsForEmptyRead(oid);
       }
-      return raw as Uint8Array;
+      return typeof raw === 'string' ? Buffer.from(raw) : raw;
     } catch (raw) {
       throw wrapGitError(toGitError(raw), { oid });
     }
