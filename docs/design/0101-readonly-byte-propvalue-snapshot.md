@@ -1,6 +1,6 @@
 # 0101 Readonly Byte PropValue Snapshot
 
-- Status: `PULL`
+- Status: `RED`
 - Release lane: `v17.0.0`
 - Source backlog: `IMM_readonly-byte-propvalue-snapshot`
 - Blocks: `0096-purge-cast-hacks`
@@ -253,6 +253,40 @@ Outcome B GREEN:
    accepted design.
 3. Update 0100/0101 docs to describe byte snapshots as detached-only.
 4. Keep or create backlog tracking for true runtime-immutable bytes.
+
+## RED Witness
+
+Command run:
+
+```sh
+npx vitest run test/conformance/readonlyBytePropValueSnapshot.test.ts
+```
+
+Expected result: fail.
+
+Observed result: fail.
+
+The RED test constructs a `WarpState`, stores a `Uint8Array` in
+`state.prop`, creates a public snapshot with
+`createImmutableWarpStateSnapshot`, retrieves the byte value through
+`snapshot.prop.get(key)?.value`, and attempts to mutate the byte value.
+
+Evidence that source detachment already holds:
+
+- `snapshotValue` is not the same object as `sourceBytes`.
+- after `snapshotValue[0] = 9`, `sourceBytes` remains `[1, 2, 3]`.
+
+Evidence that snapshot byte mutation still succeeds:
+
+```txt
+AssertionError: expected [ 9, 2, 3 ] to deeply equal [ 1, 2, 3 ]
+```
+
+This is the intended RED. It proves that the current behavior protects
+the live source but still exposes mutable byte state through the public
+snapshot.
+
+No production source was edited during RED.
 
 ## Playback Questions
 
