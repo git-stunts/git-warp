@@ -1,6 +1,6 @@
 # 0096 Purge Cast Hacks
 
-- Status: `RED`
+- Status: `BLOCKED`
 - Release lane: `v17.0.0`
 - Source backlog: `PROTO_purge-cast-hacks`
 - Source manifest: `policy/quarantines/0025A-casts.json`
@@ -274,3 +274,29 @@ Result: failed for the intended reasons.
 The test deliberately uses the TypeScript compiler AST rather than a
 plain text regex so prose like "has anything" or comment-only wording
 does not count as an `as any` cast.
+
+## GREEN Blocker
+
+GREEN is intentionally paused. The RED test is valid, but several
+remaining cast sites are smoke from deeper architecture sludge. Removing
+those casts locally would create cleaner-looking sludge rather than a
+runtime-honest design.
+
+Blocked by:
+
+- `PROV_btr-provenance-codec-boundary-sludge`
+- `IMM_snapshot-builder-domain-model`
+- `IDX_property-reader-capability-port`
+- `MAT_snapshotting-defaults-off`
+- `CORE_canonical-byte-nouns`
+
+Do not continue 0096 by asking "how do I remove this cast?" Continue
+only after the relevant blocker has answered:
+
+- What runtime fact is the cast pretending has been proven?
+- Where should that fact actually be established?
+- Is that place an adapter, port, application use-case, or domain
+  constructor?
+- What named concept is missing?
+- Should this cycle fix it, or should this cycle block on a more
+  fundamental task?
