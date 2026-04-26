@@ -1,6 +1,6 @@
 # 0099 BTR Provenance Codec Boundary Repair
 
-- Status: `GREEN`
+- Status: `hill met`
 - Release lane: `v17.0.0`
 - Source backlog: `PROV_btr-provenance-codec-boundary-sludge`
 - Blocks: `0096-purge-cast-hacks`
@@ -940,3 +940,42 @@ GREEN is implementation work for the next phase, but the target shape is:
 - Do not preserve domain `serialize()` / `deserialize()` as compatibility
   seams.
 - Do not edit production implementation during PULL.
+
+## Cycle End
+
+Closeout links:
+
+- Retrospective:
+  [docs/method/retros/0099-btr-provenance-codec-boundary-repair.md](../method/retros/0099-btr-provenance-codec-boundary-repair.md)
+- Bad-code follow-up:
+  [docs/method/backlog/bad-code/PROV_btr-wire-dto-locality-guard.md](../method/backlog/bad-code/PROV_btr-wire-dto-locality-guard.md)
+- Cool-idea follow-up:
+  [docs/method/backlog/cool-ideas/PROTO_continuum-contract-alignment-for-btr-and-receipts.md](../method/backlog/cool-ideas/PROTO_continuum-contract-alignment-for-btr-and-receipts.md)
+
+Cycle-end confirmations:
+
+- BTR/provenance boundary repair is complete for 0099.
+- BTR stayed a git-warp-local tick-scale retained shell.
+- No Continuum `Receipt`, `Witness`, `SuffixShell`, `ImportOutcome`,
+  `SettlementResult`, or generic `Hologram` work was smuggled into
+  0099.
+- `btrProvenanceBoundary.test.ts` passes.
+- `btrSigningBytesOwnership.test.ts` passes.
+- `sludgeAtlas.test.ts` passes.
+- BTR unit and provenance unit tests pass.
+- `npm run typecheck` passes.
+- `npm run lint:sludge` passes.
+- `castQuarantineGraduation.test.ts` still fails for non-BTR blockers.
+- `0096-purge-cast-hacks` remains blocked.
+- Next recommended cycle is `IMM_snapshot-builder-domain-model`.
+
+Expected remaining 0096 blockers:
+
+- `ImmutableSnapshot`
+- `MaterializedViewHelpers`
+- `MaterializedViewService`
+- `checkpointLoad`
+- `HttpSyncServer`
+- `TemporalQuery`
+- `VisibleStateScope`
+- `WarpStream`
