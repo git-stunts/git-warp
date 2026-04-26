@@ -576,6 +576,170 @@ Branch/repo state at witness time:
 release/v17.0.0 ahead of origin by 4
 ```
 
+## Playback Witness
+
+### Agent Playback
+
+Question: Can a future agent identify every current BTR/provenance
+boundary violation that was repaired?
+
+Answer: Yes. The RED evidence and GREEN witness identify the repaired
+violations: domain codec/defaultCodec ownership, domain wire methods,
+provenance `toJSON`/`fromJSON` wire names, HMAC object-bag signing,
+BTR-specific double-cast bridges, and the domain-side
+`btrOperations.ts` orchestration seam.
+
+Question: Can a future agent tell which values are domain-owned and
+which values are boundary-only?
+
+Answer: Yes. `BoundaryTransitionRecord`, `BoundaryTransitionProvenance`,
+`BtrSigningEnvelope`, and `BtrSigningBytes` are domain values.
+`BtrWireRecord`, `BtrWireProvenanceEntry`, and the canonical BTR
+projection types are adapter-local boundary values.
+`BoundaryTransitionRecordCodecPort` is a port capability, not value
+ownership.
+
+Question: Can a future agent tell where canonical signing encoding
+happens?
+
+Answer: Yes. Canonical signing encoding happens in `BtrCodecAdapter`
+through an adapter-local deterministic BTR canonical projection before
+bytes are wrapped as `BtrSigningBytes`.
+
+Question: Can a future agent tell that `CryptoPort` stayed generic and
+byte-oriented?
+
+Answer: Yes. `CryptoPort` did not import BTR nouns. The application
+use-case unwraps `BtrSigningBytes` at the last responsible moment and
+passes bytes to generic HMAC.
+
+Question: Can a future agent tell why `BtrSigningBytes` cannot be a
+public raw-byte wrapper?
+
+Answer: Yes. 0098 and 0099 both require guarded construction through the
+canonical BTR signing encoder path. Arbitrary bytes do not prove
+canonicality.
+
+Question: Can a future agent tell that `0096-purge-cast-hacks` remains
+blocked for non-BTR files?
+
+Answer: Yes. The GREEN witness records the expected
+`castQuarantineGraduation.test.ts` failure and lists the remaining
+non-BTR files/families.
+
+Question: Can a future agent tell that BTR remains a git-warp-local
+tick-scale retained shell?
+
+Answer: Yes. The External Context Checkpoint and GREEN witness both state
+that BTR remains one git-warp-local tick-scale retained shell family.
+
+Question: Can a future agent tell that BTR is not Continuum `Receipt`,
+`Witness`, `SuffixShell`, `ImportOutcome`, `SettlementResult`, or generic
+Hologram?
+
+Answer: Yes. The checkpoint and GREEN witness explicitly reject those
+scope expansions.
+
+### Human Playback
+
+Question: Can James see the implementation sequence and why it was safe?
+
+Answer: Yes. The sequence was design-first, RED conformance, external
+context checkpoint, dirty implementation triage, then one committed GREEN
+slice. Safety came from repairing local BTR boundary seams without
+broadening into Continuum-owned contracts.
+
+Question: Is the line between domain nouns, adapter-local wire/canonical
+projection, port boundary, application orchestration, and generic crypto
+clear?
+
+Answer: Yes. Domain owns BTR meaning. The adapter owns deterministic
+encoding. The port defines the BTR codec capability. The application
+use-case orchestrates create/verify/replay and HMAC flow. Generic crypto
+only sees bytes.
+
+Question: Is it clear why the serialized-verifies failure was a real
+canonicality bug?
+
+Answer: Yes. The failure showed that the original record and decoded
+record signed different runtime shapes. That meant signing bytes were not
+canonical across encode/decode/verify.
+
+Question: Is it clear how GREEN fixed that bug?
+
+Answer: Yes. GREEN fixed the bug by making original and decoded records
+lower through the same deterministic adapter-local BTR canonical signing
+projection before HMAC.
+
+Question: Is it clear what remains outside 0099?
+
+Answer: Yes. 0099 did not repair non-BTR cast purge blockers, witness or
+receipt schema alignment, suffix/import/settlement schemas, or broader
+Continuum/Wesley generated-artifact adoption.
+
+Question: Is anything suspicious or underspecified?
+
+Answer: The main suspicious areas are contained in the weak spots below:
+the adapter-local canonical projection must stay narrow, BTR wire DTOs
+must not grow shared Continuum semantics, and the existing `Patch`
+dependency should remain stable enough for BTR provenance.
+
+### BTR Boundary Repair Check
+
+Repaired:
+
+- Domain BTR/provenance files no longer import `CodecPort`.
+- Domain BTR/provenance files no longer import `defaultCodec`.
+- Domain BTR/provenance values no longer own `serialize(...)` or
+  `deserialize(...)`.
+- Provenance domain API no longer exposes `toJSON(...)` or
+  `fromJSON(...)`.
+- HMAC no longer signs anonymous object bags.
+- BTR-specific `as unknown as` bridges were removed.
+- Legacy domain-side `btrOperations.ts` was deleted.
+
+### Canonical Signing Check
+
+Serialized BTR still verifies because original and decoded records lower
+through the same deterministic adapter-local canonical signing projection.
+
+### Scope Boundary Check
+
+0099 repaired one git-warp-local BTR shell family. It did not implement
+Continuum `Receipt`, `Witness`, `SuffixShell`, `ImportOutcome`,
+`SettlementResult`, or generic Hologram.
+
+### Remaining 0096 Blockers
+
+`castQuarantineGraduation.test.ts` still fails for non-BTR blockers.
+Remaining files/families:
+
+- `ImmutableSnapshot`
+- `MaterializedViewHelpers`
+- `MaterializedViewService`
+- `checkpointLoad`
+- `HttpSyncServer`
+- `TemporalQuery`
+- `VisibleStateScope`
+- `WarpStream`
+
+## Playback Weak Spots
+
+- `BtrCodecAdapter` now owns a local canonical BTR projection; it must
+  stay local and narrow.
+- `BtrWireRecord` and `BtrWireProvenanceEntry` must not grow shared
+  Continuum semantics.
+- `BoundaryTransitionProvenance` now depends on existing `Patch`; future
+  BTR work should verify that `Patch` is stable enough as the retained
+  shell provenance element.
+- `index.ts` imports BTR use-cases from application but did not export
+  new nouns; this is acceptable for the GREEN slice and avoids premature
+  public API expansion.
+- `WormholeService` received the minimal `entries`/`fromEntries` rename
+  because domain `toJSON`/`fromJSON` names were removed.
+- 0099 does not solve witness, receipt, suffix, import, or settlement
+  schema alignment.
+
 ## GREEN Plan
 
 GREEN is implementation work for the next phase, but the target shape is:
