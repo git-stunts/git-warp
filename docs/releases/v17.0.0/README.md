@@ -185,11 +185,11 @@ ST-0 (planning + workspace shells):
 
 ST-1 (ORSet seam in root + storage contracts):
   [x] PROTO_orset-seam-in-root          ← cycle 0021 hill-met
-  [ ] PROTO_orsetlike-contract          ← retained as a reality-check
-                                          artifact after cycle 0032;
-                                          downstream planning now uses
-                                          concrete `ORSet` / `StateSession`
-                                          nouns instead of `ORSetLike`
+  [x] PROTO_orsetlike-contract          ← cycle 0032 proved the premise
+                                          invalid; cycle 0091 retired stale
+                                          live card. Concrete `ORSet` and
+                                          async `StateSession` are the real
+                                          seams
   [x] PROTO_blake3-route-key            ← cycle 0022 hill-met
   [x] PROTO_git-trie-store-port         ← cycle 0026 hill-met
   [x] INFRA_git-trie-store-adapter      ← cycle 0028 hill-met

@@ -19,26 +19,26 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 
 | Metric | Count |
 |--------|------:|
-| Live backlog items | 373 |
+| Live backlog items | 372 |
 | Root backlog items | 31 |
 | `asap/` | 0 |
 | `bad-code/` | 143 |
 | `cool-ideas/` | 94 |
 | `inbox/` | 5 |
 | `up-next/` | 35 |
-| `v17.0.0/` | 40 |
+| `v17.0.0/` | 39 |
 | `v18.0.0/` | 8 |
 | `v19.0.0/` | 11 |
 | `v20.0.0/` | 2 |
 | `v21.0.0/` | 4 |
-| Items with YAML frontmatter | 373 |
+| Items with YAML frontmatter | 372 |
 | Items without YAML frontmatter | 0 |
-| Items with explicit `id` | 373 |
-| Items declaring dependency fields | 373 |
-| Items with explicit `feature` | 368 |
+| Items with explicit `id` | 372 |
+| Items declaring dependency fields | 372 |
+| Items with explicit `feature` | 367 |
 | Distinct explicit feature values | 12 |
 | `bad-code/` items with explicit `release_home` | 143 |
-| Items with non-empty explicit dependency edges | 59 |
+| Items with non-empty explicit dependency edges | 58 |
 
 ## Dependency Law
 
@@ -165,11 +165,11 @@ justifies a stronger sequencing rule.
 
 Current explicit-graph totals:
 
-- `373` notes define an `id`
-- `373` notes declare `blocks` and `blocked_by` fields
-- `368` notes currently declare an explicit `feature`
+- `372` notes define an `id`
+- `372` notes declare `blocks` and `blocked_by` fields
+- `367` notes currently declare an explicit `feature`
 - `143` `bad-code/` notes currently declare an explicit `release_home`
-- `59` notes currently name at least one non-empty upstream or
+- `58` notes currently name at least one non-empty upstream or
   downstream edge
 
 Most notes still rely on empty dependency arrays plus lane inheritance.
@@ -255,14 +255,15 @@ Invariant counts:
 
 | Legend | Count |
 |--------|------:|
-| `HEX` | 17 |
 | `BND` | 7 |
-| `MODEL` | 22 |
 | `CAST` | 9 |
-| `PORT` | 12 |
+| `DX` | 1 |
+| `HEX` | 18 |
+| `MODEL` | 22 |
 | `OWN` | 31 |
-| `SUB` | 10 |
+| `PORT` | 11 |
 | `SPEC` | 31 |
+| `SUB` | 13 |
 
 ### `v17.0.0/` — `B3` Active Release Graph
 
@@ -284,19 +285,16 @@ Prefix counts:
 
 | Prefix | Count |
 |--------|------:|
-| `API` | 4 |
+| `API` | 1 |
 | `CLI` | 2 |
-| `CORE` | 1 |
-| `CROSS` | 1 |
-| `GOD` | 6 |
-| `HYGIENE` | 2 |
-| `INFRA` | 9 |
+| `DX` | 7 |
+| `GOD` | 3 |
+| `INFRA` | 8 |
 | `MCP` | 1 |
-| `PERF` | 1 |
-| `PROTO` | 8 |
-| `SLUDGE` | 5 |
-| `TRUST` | 1 |
-| `TS` | 14 |
+| `PORT` | 1 |
+| `PROTO` | 4 |
+| `SLUDGE` | 1 |
+| `TS` | 11 |
 
 ### `v18.0.0/` — `B4` Graph-Substrate Convergence
 

@@ -128,9 +128,9 @@ Does not scale to graphs exceeding available memory.
 ### Target state
 
 ```
-ORSetLike (synchronous in-memory seam)
-  ← implemented by ORSet (existing, in-memory)
-  ← NOT implemented by ShadowTrieORSet
+Concrete ORSet (synchronous in-memory form)
+  ← owns in-memory ORSet behavior and representation
+  ← No ORSetLike parent
 
 ShadowTrieORSet (async storage-backed engine)
   cursor: TrieCursor
@@ -154,10 +154,10 @@ StateSession (domain-facing contract for trie-backed state)
   wraps ShadowTrieORSet internally
 ```
 
-**Seam architecture:** `ORSetLike` is the in-memory seam (synchronous).
-`StateSession` is the domain-facing contract for trie-backed state
-(async). `ShadowTrieORSet` is an internal engine behind the session.
-Domain code never touches `ShadowTrieORSet` directly.
+**Seam architecture:** concrete `ORSet` is the in-memory synchronous
+form. `StateSession` is the domain-facing contract for trie-backed
+state (async). `ShadowTrieORSet` is an internal engine behind the
+session. Domain code never touches `ShadowTrieORSet` directly.
 
 ### Trie structure
 
@@ -198,7 +198,7 @@ All items live in `docs/method/backlog/v17.0.0/`. Layers:
 
 - **ST-0** — DX_design-0018-flesh-out, DX_v17-lane-readme-update,
   INFRA_npm-workspaces-scaffold, INFRA_extract-warp-orset-package
-- **ST-1** — PROTO_orsetlike-contract, PROTO_blake3-route-key,
+- **ST-1** — PROTO_orset-seam-in-root, PROTO_blake3-route-key,
   PROTO_git-trie-store-port, INFRA_git-trie-store-adapter
 - **ST-2** — PROTO_trie-codec-and-geometry, PROTO_trie-cursor,
   PERF_lru-page-cache, PROTO_trie-flush,
@@ -216,9 +216,11 @@ All items live in `docs/method/backlog/v17.0.0/`. Layers:
 ## What this design explicitly does not do
 
 - Does not move LWW into warp-orset in the first cut
-- Does not make ORSetLike async (it stays the synchronous in-memory seam)
-- Does not make ShadowTrieORSet implement ORSetLike (it has its own
-  async interface, exposed through StateSession)
+- Does not introduce `ORSetLike`; cycles 0023, 0032, and 0091 rejected
+  that fake sync parent seam
+- Does not make `ShadowTrieORSet` implement the synchronous concrete
+  `ORSet` surface; it has its own async interface, exposed through
+  `StateSession`
 - Does not serialize checkpoint truth as "trie root OID in CBOR"
 - Does not switch to pnpm
 - Does not force core trie publication through git-cas

@@ -2,8 +2,6 @@
 id: INFRA_extract-warp-orset-package-post-publish
 blocked_by:
   - INFRA_multipackage-publish-pipeline
-  - PROTO_orsetlike-contract
-  - PROTO_shadow-trie-orset
 blocks: []
 feature: trie-state-storage
 ---
@@ -30,10 +28,11 @@ package to public, and make root declare it as a dependency.
 - `INFRA_multipackage-publish-pipeline` — multi-package release
   pipeline exists and works
 - `PROTO_orset-seam-in-root` — seam is organized inside root
-- `PROTO_orsetlike-contract` — interface is extracted, consumers
-  retyped
-- `PROTO_shadow-trie-orset` — the ORSet API is stable (the
-  implementation exists in root, passing its tests)
+- concrete `ORSet` encapsulation — the synchronous in-memory form owns
+  its representation without a fake sync parent
+- `StateSession` — the async trie-backed domain seam is present
+- `PROTO_shadow-trie-orset` — already satisfied in cycle `0038`; the
+  async trie engine exists in root and passes its tests
 
 **Work:**
 1. Remove `"private": true` from `packages/warp-orset/package.json`
@@ -58,9 +57,9 @@ warp-orset public.
 
 **Out:** Publish pipeline design (that's
 `INFRA_multipackage-publish-pipeline`). Seam organization (that's
-`PROTO_orset-seam-in-root`). Interface extraction (that's
-`PROTO_orsetlike-contract`). The ORSet implementation itself (that's
-`PROTO_shadow-trie-orset` and friends).
+`PROTO_orset-seam-in-root`). Fake sync parent extraction; concrete
+`ORSet` and async `StateSession` are the truthful seams. The ORSet
+implementation itself (that's `PROTO_shadow-trie-orset` and friends).
 
 ## Notes
 
