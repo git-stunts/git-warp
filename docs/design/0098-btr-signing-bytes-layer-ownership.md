@@ -413,6 +413,141 @@ Doctrine now records:
 - `BtrSigningBytes` must not be constructible from arbitrary raw bytes
   outside the canonical BTR signing encoder path.
 
+## Playback Witness
+
+Required ownership statement:
+
+Domain owns meaning. Adapters own encoding. Ports define capabilities.
+Crypto signs typed canonical bytes.
+
+### Agent Playback
+
+Can a future agent tell that `BtrSigningEnvelope` is domain-owned?
+
+Yes. The decision section states that `BtrSigningEnvelope` is owned by
+`domain`, that it is the semantic pre-authentication envelope for a BTR,
+and that it must not know how canonical bytes are produced.
+
+Can a future agent tell that `BtrSigningBytes` is domain-owned, not
+ports-owned?
+
+Yes. The design states that `BtrSigningBytes` is owned by `domain`, the
+sludge map now records `"layer": "domain"`, and the ownership test fails
+if a `BtrSigningBytes` proposed noun is labeled `ports`.
+
+Can a future agent tell that `BoundaryTransitionRecordCodecPort` is a
+port capability, not owner of the values it returns?
+
+Yes. The design names `BoundaryTransitionRecordCodecPort` as the port
+capability, and the guide now states: "Ports define capabilities; they
+do not own the values they return."
+
+Can a future agent tell that adapters perform canonical BTR signing
+encoding?
+
+Yes. The design says canonical BTR signing encoding happens in the
+adapter implementing `BoundaryTransitionRecordCodecPort`; the sludge map
+now says the `BoundaryTransitionRecordCodecPort` adapter/implementation
+constructs `BtrSigningBytes`.
+
+Can a future agent tell that the adapter/port construction path is what
+proves `BtrSigningBytes` is canonical?
+
+Yes. The design says `BtrSigningBytes` must not be constructible from
+arbitrary raw bytes outside the canonical BTR signing encoder path. The
+map's noun proof now ties construction to the adapter/implementation and
+canonical BTR signing encoder.
+
+Can a future agent tell that HMAC consumes `BtrSigningBytes` through
+`CryptoPort`?
+
+Yes. The sludge map says the application HMAC flow consumes
+`BtrSigningBytes` through `CryptoPort`, and the design's orchestration
+path shows `BtrSigningBytes -> CryptoPort.hmac(...)`.
+
+Can a future agent tell that raw `Uint8Array` is not an acceptable public
+substitute for `BtrSigningBytes`?
+
+Yes. The design says `BoundaryTransitionRecordCodecPort` must not return
+raw `Uint8Array` for signing bytes, and the construction guardrail bans
+arbitrary raw-byte construction.
+
+Can a future agent tell that domain must not call `codec.encode`,
+`defaultCodec`, or own wire encode/decode?
+
+Yes. The banned-from-domain section explicitly lists `CodecPort`
+imports, `defaultCodec` imports, `codec.encode(...)`,
+`codec.decode(...)`, and domain-owned `serialize()` / `deserialize()`
+wire methods.
+
+Can a future agent tell which sludge-map and guide entries were
+corrected?
+
+Yes. GREEN corrected the `BtrSigningBytes` proposed noun in
+`policy/sludge/sludge-map.json` and the canonical byte section in
+`docs/method/refactoring-guides/anti-sludge-refactoring-guide.md`.
+
+Can a future agent tell why `0096-purge-cast-hacks` remains blocked?
+
+Yes. The dependency order says cast purge must not resume until
+BTR/provenance repair has real nouns and boundary seams. Existing BTR
+casts are still symptoms of missing implementation, not local syntax.
+
+### Human Playback
+
+Can James review the artifacts and see the ownership line clearly?
+
+Yes. The line is stated directly: domain owns meaning, adapters own
+encoding, ports define capabilities, and crypto signs typed canonical
+bytes.
+
+Is it clear why `BtrSigningBytes` is domain-owned even though an adapter
+constructs it?
+
+Yes. The design states that a value is not owned by the layer that
+produces it. The adapter constructs `BtrSigningBytes` because it owns the
+canonical encoding operation; the domain owns the value because the value
+proves a provenance/security invariant.
+
+Is it clear why the port returns `BtrSigningBytes` instead of raw bytes?
+
+Yes. Returning raw bytes would force callers to trust an untyped claim
+that the bytes are canonical. Returning `BtrSigningBytes` carries the
+construction-path proof across the port boundary.
+
+Is it clear how this prevents canonical-byte cosplay?
+
+Yes. The guardrail blocks the obvious fake fix: a public constructor that
+wraps any `Uint8Array`. Canonical bytes must come from the canonical BTR
+signing encoder path, not from arbitrary caller-provided bytes.
+
+Is the next implementation order obvious?
+
+Yes. The next implementation-adjacent cycle should be
+`PROV_btr-provenance-codec-boundary-sludge`, still design-first. That
+cycle should introduce BTR/provenance nouns and boundary seams before
+resuming `0096-purge-cast-hacks`.
+
+Are any parts still suspicious or underspecified?
+
+Yes. The exact implementation mechanism that prevents arbitrary
+construction is not designed yet, the deterministic canonical encoding
+tests do not exist yet, and streaming HMAC remains posture rather than
+implemented capability.
+
+## Playback Weak Spots
+
+- The eventual `BtrSigningBytes` implementation must prevent arbitrary
+  raw-byte construction.
+- The adapter that constructs `BtrSigningBytes` will need tests proving
+  deterministic canonical encoding.
+- Streaming posture is not implemented yet.
+- `CryptoPort.hmac` may need a typed input shape or overload later.
+- Existing `btrOperations.ts` still violates the doctrine; this cycle
+  only settled ownership.
+- Domain/application separation may require moving provenance
+  orchestration out of `src/domain/services`.
+
 ## GREEN Plan
 
 Update only doctrine/process artifacts:
