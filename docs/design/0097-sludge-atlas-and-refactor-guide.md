@@ -442,6 +442,151 @@ for the minimal blocker set. Each entry states who constructs the noun,
 who consumes it, what invariant it proves, what layer owns it, and what
 cast, boundary leak, object bag, or default behavior bug it eliminates.
 
+## Playback Witness
+
+### Agent Perspective
+
+Can a future agent inspect `policy/sludge/sludge-map.json` and identify
+which casts are blocked by missing nouns rather than local syntax?
+
+Yes. Findings that block `0096-purge-cast-hacks` explicitly list the
+source file, symptom, root cause, recommended fix, and
+`blocks: ["0096-purge-cast-hacks"]`. The proposed noun entries then say
+which missing concept must exist before the cast can be removed honestly.
+
+Can a future agent tell which layer owns each proposed noun?
+
+Yes, mechanically. Every `proposed_nouns` entry has a non-empty `layer`.
+The current map uses `domain`, `ports`, and `policy`. The `policy` value
+needs later architecture review, but it is explicit rather than hidden.
+
+Can a future agent tell who constructs and consumes each proposed noun?
+
+Yes. The test requires `constructs` and `consumes` for every proposed
+noun. That prevents decorative noun entries that do not state ownership.
+
+Can a future agent tell what invariant each noun proves?
+
+Yes. The test requires `proves_invariant`. For example,
+`BoundaryTransitionRecord` proves the presence and validity of the BTR
+semantic fields, while `BtrSigningBytes` proves the HMAC input is
+canonical bytes rather than an arbitrary object.
+
+Can a future agent tell what cast, boundary leak, object bag, or default
+behavior bug each noun eliminates?
+
+Yes. The test requires `eliminates`, and entries point back to concrete
+files and symptoms such as BTR double-casts, `codec.encode(fields)`,
+nested property-shard `Record` bags, and default-off snapshot behavior.
+
+Can a future agent avoid implementation in grep order and instead follow
+dependency order?
+
+Yes. The design doc and sludge map both state dependency order. The
+explicit order starts with canonical byte nouns, then BTR/provenance
+domain nouns, then boundary codec/adapters, before returning to
+`0096-purge-cast-hacks`.
+
+Can a future agent tell why `0096-purge-cast-hacks` must remain blocked?
+
+Yes. `0096` is blocked because several remaining casts are symptoms of
+missing runtime facts: canonical signing bytes, BTR/provenance nouns,
+property-shard capability modeling, and snapshot construction/default
+policy. Removing the casts first would hide those missing facts.
+
+### Human Perspective
+
+Can James review the atlas and see the actual architecture blockers?
+
+Yes. The map groups blockers by sludge family and identifies source
+files, symptoms, root causes, and proposed repair concepts. The design
+also keeps representative evidence in a reviewable table.
+
+Is the distinction clear between domain nouns, transport/wire nouns,
+canonical byte nouns, ports, and policy/default nouns?
+
+Mostly. The BTR/provenance split is explicit: domain nouns do not carry
+JSON/wire names, while boundary/codec nouns do. Canonical byte nouns are
+named separately. Ports are separated by layer. Policy/default nouns are
+called out, but the `policy` layer label needs later decision.
+
+Is the next implementation sequence obvious?
+
+Yes. The sequence is:
+
+1. canonical byte nouns
+2. BTR/provenance domain nouns
+3. BTR boundary codec/adapters
+4. property shard/index capability split
+5. immutable snapshot builder/value model
+6. materialization snapshot policy defaults
+7. resume `0096-purge-cast-hacks`
+
+Does the atlas reduce the chance of whac-a-cast refactoring?
+
+Yes. Future work must satisfy the atlas test and noun-proof shape. That
+means a future agent cannot claim a noun is real unless it states
+construction, consumption, invariant, layer ownership, and eliminated
+sludge.
+
+Are any proposed nouns suspicious, over-broad, fake, or likely to become
+sludge?
+
+`CanonicalBytes` is intentionally broad and should be used carefully; a
+specific noun such as `BtrSigningBytes` is safer for BTR work.
+`SnapshotBuilder` could become generic clone sludge if it does not limit
+itself to explicit snapshot protocols and known domain sources.
+`PropertyShardReaderPort` is acceptable only if it represents a durable
+architectural capability, not a one-method port created to satisfy
+TypeScript.
+
+Are any layer labels questionable?
+
+Yes. `policy` is conceptually useful in the map, but the formal
+architecture layers are normally `domain`, `application`, `ports`, and
+`adapters`. Later cycles should decide whether snapshot policy nouns
+belong to domain/application configuration while retaining `policy` only
+as a feature category.
+
+### BTR Signing Ownership Story
+
+Current intended story:
+
+- Domain creates the semantic signing envelope.
+- Boundary codec/adapter produces canonical signing bytes.
+- Crypto/HMAC consumes canonical bytes.
+- Domain does not own wire encode/decode.
+
+The current map supports this story, with one nuance. `BtrSigningEnvelope`
+is marked `domain`, `BoundaryTransitionRecordCodecPort` is marked
+`ports`, and `BtrSigningBytes` is marked `ports`. That is enough to
+prevent domain-side `codec.encode(fields)` and object-bag signing.
+
+The nuance is ownership of `BtrSigningBytes`: it may be better modeled
+as a domain/application value produced by a port adapter rather than as a
+port-layer noun. That should be reviewed before implementation. The
+invariant is still correct: HMAC signs named canonical bytes only.
+
+## Playback Weak Spots
+
+- `layer: "policy"` is not a standard architecture layer. It may need to
+  become `domain` or `application` with `policy` retained as a feature
+  category.
+- `BoundaryTransitionRecordCodecPort` is clearly a port, but
+  `BtrSigningBytes` may belong in domain/application as a value returned
+  by that port rather than in `ports`.
+- `SnapshotBuilder` is at risk of becoming a new generic-clone dumping
+  ground unless its construction scope is explicitly limited.
+- `PropertyShardReaderPort` is acceptable only if tied to a durable
+  materialized-index capability; otherwise it becomes one-method port
+  theater.
+- Line numbers are useful evidence but not stable enough to be the only
+  contract. Future tests should key primarily on paths, family ids, and
+  required findings.
+- The sludge map is JSON-valid and conformance-tested, but it does not
+  yet have a formal JSON schema. A later cycle should add schema
+  validation when the format stabilizes.
+
 ## Edge Cases
 
 - A file can belong to multiple sludge families.
