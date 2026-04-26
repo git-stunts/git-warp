@@ -1,6 +1,6 @@
 # 0099 BTR Provenance Codec Boundary Repair
 
-- Status: `PULL`
+- Status: `RED`
 - Release lane: `v17.0.0`
 - Source backlog: `PROV_btr-provenance-codec-boundary-sludge`
 - Blocks: `0096-purge-cast-hacks`
@@ -383,6 +383,33 @@ exists. Candidate assertions:
 - `test/conformance/btrSigningBytesOwnership.test.ts` remains green.
 
 RED must not try to repair the source. It proves the wound still exists.
+
+## RED Witness
+
+Command:
+
+```sh
+npx vitest run test/conformance/btrProvenanceBoundary.test.ts
+```
+
+Result: failed as intended, 2 passed and 5 failed.
+
+The failing categories prove the current offender files still contain
+BTR/provenance boundary sludge:
+
+- boundary leakage: `CodecPort`, `defaultCodec`, and codec calls still
+  appear in domain-side BTR/provenance files;
+- domain-owned wire API names: `serialize(...)`, `deserialize(...)`,
+  `toJSON(...)`, and `fromJSON(...)` still appear in the offender set;
+- anonymous bags and fake wire models: `PatchEntryJSON` and
+  `Record<string, ...>` still stand in for provenance/BTR models;
+- cast theater: `as unknown as` bridges still exist for BTR/provenance
+  shapes;
+- HMAC object-bag signing: `computeHmac(fields...)` still signs
+  semantic object fields through codec-selected bytes.
+
+No production implementation repair was attempted, and no `src/**`
+files were edited during RED.
 
 ## GREEN Plan
 
