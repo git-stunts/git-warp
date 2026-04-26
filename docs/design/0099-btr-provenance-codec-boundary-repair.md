@@ -1,6 +1,6 @@
 # 0099 BTR Provenance Codec Boundary Repair
 
-- Status: `RED`
+- Status: `GREEN`
 - Release lane: `v17.0.0`
 - Source backlog: `PROV_btr-provenance-codec-boundary-sludge`
 - Blocks: `0096-purge-cast-hacks`
@@ -491,6 +491,90 @@ BTR/provenance boundary sludge:
 
 No production implementation repair was attempted, and no `src/**`
 files were edited during RED.
+
+## GREEN Witness
+
+Implementation commit:
+
+```txt
+fdb34a57 refactor: move btr provenance encoding to boundary
+```
+
+Implemented repair:
+
+- Introduced runtime-backed BTR/provenance domain nouns:
+  `BoundaryTransitionRecord`, `BoundaryTransitionProvenance`,
+  `BtrSigningEnvelope`, and `BtrSigningBytes`.
+- Moved BTR create/verify/replay orchestration to the
+  application/use-case layer.
+- Introduced `BoundaryTransitionRecordCodecPort`.
+- Introduced `BtrCodecAdapter`.
+- Introduced local BTR wire/canonical projection types.
+- Deleted legacy domain-side `btrOperations.ts`.
+- Removed BTR-specific entries from the `0025A` and `0025B`
+  quarantine manifests.
+- Updated tests away from domain `serialize(...)`, `deserialize(...)`,
+  `toJSON(...)`, and `fromJSON(...)` API names.
+
+Canonicality result:
+
+`serialized BTR still verifies` now passes because signing bytes are
+produced from one deterministic adapter-local BTR canonical projection.
+The implementation no longer signs whichever runtime object shape happens
+to be present.
+
+Scope guard result:
+
+BTR remains a git-warp-local tick-scale retained shell family. The GREEN
+slice did not broaden BTR into Continuum `Receipt`, Continuum `Witness`,
+`SuffixShell`, `ImportOutcome`, `SettlementResult`, or generic Hologram.
+
+Validation results:
+
+```txt
+npx vitest run test/unit/domain/services/BoundaryTransitionRecord.test.ts
+PASS: 42 tests
+
+npx vitest run test/unit/domain/services/ProvenancePayload.test.ts
+PASS: 50 tests
+
+npx vitest run test/conformance/btrProvenanceBoundary.test.ts test/conformance/btrSigningBytesOwnership.test.ts test/conformance/sludgeAtlas.test.ts
+PASS: 23 tests
+
+npm run typecheck
+PASS
+
+npm run lint:sludge
+PASS
+
+git diff --check
+PASS
+```
+
+Known expected failure:
+
+```txt
+npx vitest run test/conformance/castQuarantineGraduation.test.ts
+FAIL
+```
+
+The failure belongs to broader `0096-purge-cast-hacks` blockers outside
+BTR. Remaining blocker families/files include:
+
+- `ImmutableSnapshot`
+- `MaterializedViewHelpers`
+- `MaterializedViewService`
+- `checkpointLoad`
+- `HttpSyncServer`
+- `TemporalQuery`
+- `VisibleStateScope`
+- `WarpStream`
+
+Branch/repo state at witness time:
+
+```txt
+release/v17.0.0 ahead of origin by 4
+```
 
 ## GREEN Plan
 
