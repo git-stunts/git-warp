@@ -587,6 +587,80 @@ invariant is still correct: HMAC signs named canonical bytes only.
   yet have a formal JSON schema. A later cycle should add schema
   validation when the format stabilizes.
 
+## Drift Check
+
+Did the cycle stay within its non-goal of no production code changes
+under `src/**`?
+
+Yes. The completed 0097 work did not edit `src/**`. The changed files
+are design/process documents, the sludge map, and a conformance test.
+
+Did the cycle preserve `0096-purge-cast-hacks` as blocked instead of
+trying to fix casts?
+
+Yes. `0096` remains blocked. This cycle did not remove casts or attempt
+to green the cast-purge test.
+
+Did the cycle produce the required artifacts?
+
+Yes.
+
+- `docs/design/0097-sludge-atlas-and-refactor-guide.md`
+- `docs/method/refactoring-guides/anti-sludge-refactoring-guide.md`
+- `policy/sludge/sludge-map.json`
+- `test/conformance/sludgeAtlas.test.ts`
+
+Did RED match the design intent?
+
+Yes. RED added a read-only executable contract for the atlas and guide.
+It failed because the PULL sludge map did not yet include
+machine-checkable noun proofs.
+
+Did GREEN satisfy RED without weakening the test?
+
+Yes. GREEN updated the map with minimal `proposed_nouns` entries. The
+test remained intact and passed after the map recorded construction,
+consumption, invariants, layer ownership, and eliminated sludge for each
+proposed noun.
+
+Did Playback reveal any new follow-up items?
+
+Yes. Playback identified layer-label ambiguity, possible ownership drift
+for `BtrSigningBytes`, the need to prevent `SnapshotBuilder` and
+`PropertyShardReaderPort` from becoming theater, and future schema
+validation for the sludge map.
+
+Did any implementation drift occur?
+
+No harmful implementation drift occurred. No production source was
+changed.
+
+Is any drift beneficial and worth keeping?
+
+Yes.
+
+- RED added an executable noun-proof contract that is stronger than the
+  original PULL artifact.
+- Playback identified layer-label ambiguity around `policy`.
+- Playback identified possible ownership correction for
+  `BtrSigningBytes`.
+- Playback identified future JSON schema validation for the sludge map.
+
+Is any drift harmful and requiring correction?
+
+No harmful drift is known at this phase.
+
+### Follow-Up Candidates For Retrospective
+
+- `SLUDGE_map-json-schema`
+- `ARCH_policy-layer-label-decision`
+- `PROV_btr-signing-bytes-layer-ownership`
+- `ARCH_agent-source-change-guard-for-doc-only-cycles`
+
+The last candidate is optional, but it is likely worth making executable
+later: doc-only cycles should be able to prove they did not modify
+production source.
+
 ## Edge Cases
 
 - A file can belong to multiple sludge families.
