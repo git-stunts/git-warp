@@ -9,12 +9,12 @@
  */
 
 import ORSet from '../crdt/ORSet.ts';
-import VersionVector from '../crdt/VersionVector.ts';
 import { LWWRegister } from '../crdt/LWW.ts';
 import WarpError from '../errors/WarpError.ts';
 import { TickReceipt } from '../types/TickReceipt.ts';
 import type { PropValue } from '../types/PropValue.ts';
 import type { EventId } from '../utils/EventId.ts';
+import type VersionVector from '../crdt/VersionVector.ts';
 import WarpState from './state/WarpState.ts';
 
 type PropValueObject = { readonly [key: string]: PropValue };
