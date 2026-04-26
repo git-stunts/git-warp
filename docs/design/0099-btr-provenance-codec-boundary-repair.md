@@ -740,6 +740,100 @@ Remaining files/families:
 - 0099 does not solve witness, receipt, suffix, import, or settlement
   schema alignment.
 
+## Drift Check
+
+Question: Did the cycle stay within its scope of git-warp-local
+BTR/provenance boundary repair?
+
+Answer: Yes. The implementation repaired the local BTR retained-shell
+boundary: domain meaning, application orchestration, port capability,
+adapter encoding, and generic crypto stayed separated.
+
+Question: Did the implementation avoid becoming Continuum
+`Receipt`/`Witness`/`SuffixShell`/`ImportOutcome`/`SettlementResult`/
+generic Hologram work?
+
+Answer: Yes. No Continuum contract family was implemented, copied, or
+hand-rolled. BTR stayed one git-warp-local tick-scale retained shell
+family.
+
+Question: Did the implementation preserve the inherited doctrine?
+
+Answer: Yes. Domain owns meaning. Adapters own encoding. Ports define
+capabilities. Crypto signs typed canonical bytes.
+
+Question: Did RED match the PULL plan?
+
+Answer: Yes. RED created a conformance test around the planned BTR
+boundary violations and failed against the pre-repair source.
+
+Question: Did GREEN satisfy RED without weakening the test?
+
+Answer: Yes. GREEN satisfied RED by moving encoding to the boundary,
+deleting legacy domain-side BTR orchestration, and preserving the
+doctrine tests. The conformance test was updated only to reflect that the
+legacy domain-side operations module was deleted instead of left as an
+empty tombstone.
+
+Question: Did GREEN introduce implementation beyond the design?
+
+Answer: Slightly, but not harmfully. GREEN also updated
+`WormholeService` and `ProvenancePayload` tests for the
+`entries`/`fromEntries` naming change, and delayed public export
+expansion in `index.ts`. Those changes supported the intended removal of
+domain `toJSON`/`fromJSON` names and avoided premature API surface.
+
+Question: Did the external-context checkpoint change the implementation
+path?
+
+Answer: Yes. The checkpoint paused the dirty implementation before
+`BtrCodecAdapter` could grow into a broader hand-rolled schema owner. It
+forced the repair back to one local BTR shell family.
+
+Question: Was that drift beneficial?
+
+Answer: Yes. The checkpoint and dirty-implementation triage caught
+canonical signing instability before commit, narrowed BTR to a
+git-warp-local shell, and prevented accidental Continuum/Wesley contract
+work.
+
+Question: Did Playback reveal any remaining weak spots?
+
+Answer: Yes. `BtrCodecAdapter` must keep its canonical projection local
+and narrow, BTR wire DTOs must not grow shared Continuum semantics,
+`BoundaryTransitionProvenance` now depends on existing `Patch`, and 0099
+does not solve witness/receipt/suffix/settlement schema alignment.
+
+Question: Are any corrections required before Retrospective?
+
+Answer: No corrections are required before Retrospective. The remaining
+issues are follow-up candidates rather than drift that invalidates 0099.
+
+Drift findings:
+
+- No harmful scope drift occurred.
+- Beneficial drift: the External Context Checkpoint narrowed BTR to one
+  git-warp-local tick-scale retained shell family.
+- Beneficial drift: dirty implementation triage caught canonical signing
+  instability before commit.
+- Beneficial drift: `BtrCodecAdapter` was revised to use one
+  deterministic adapter-local canonical projection.
+- Beneficial drift: public API expansion in `index.ts` was delayed.
+- Beneficial drift: no separate Continuum/Wesley contract family was
+  invented.
+- Expected remaining failure: `castQuarantineGraduation.test.ts` still
+  fails for non-BTR `0096-purge-cast-hacks` blockers.
+
+Follow-up candidates for Retrospective:
+
+- `PROTO_continuum-contract-alignment-for-btr-and-receipts`
+- `PROV_btr-canonical-projection-test-vectors`
+- `PROV_btr-wire-dto-locality-guard`
+- `PROV_patch-stability-for-btr-provenance`
+
+Some of these may be cool-ideas or post-0099 hardening rather than
+immediate bad-code blockers.
+
 ## GREEN Plan
 
 GREEN is implementation work for the next phase, but the target shape is:
