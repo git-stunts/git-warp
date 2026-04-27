@@ -172,6 +172,86 @@ The test currently contains a placeholder `new Error(...)` for the
 future non-`Uint8Array` branch. RED for this cycle must replace that
 placeholder with direct assertions against the new snapshot byte model.
 
+## Strict Scope Validation
+
+### Original Failure
+
+The failing test is
+`test/conformance/readonlyBytePropValueSnapshot.test.ts`.
+
+Exact broken behavior:
+
+1. A live `WarpState` stores a `Uint8Array` in `state.prop`.
+2. `createImmutableWarpStateSnapshot(state)` creates a detached public
+   snapshot.
+3. The snapshot exposes `snapshot.prop.get(key)?.value`.
+4. That value is a copied `Uint8Array`.
+5. Caller mutation such as `snapshotValue[0] = 9` mutates the public
+   snapshot byte value.
+
+The live source bytes remain detached and unchanged. The bug is not
+source aliasing. The bug is that the public immutable snapshot exposes a
+mutable byte value.
+
+### Minimal Change Required
+
+The smallest honest fix is to stop exposing `Uint8Array` for byte-valued
+snapshot properties.
+
+That requires:
+
+- a runtime-backed immutable byte value;
+- a snapshot property-value union that can contain that immutable byte
+  value;
+- a public snapshot state type whose `prop` map can contain snapshot
+  property values without lying that it is still storage `WarpState`;
+- public property-bag APIs that project storage `PropValue` into the
+  same snapshot value family before returning byte values.
+
+It does not require:
+
+- a new generic snapshot protocol;
+- a dedicated snapshot register class;
+- new read-only OR-set or version-vector types;
+- content byte API changes;
+- storage/reducer/checkpoint/index model changes.
+
+### Concept Classification
+
+| Concept | Classification | Scope Decision |
+|---|---|---|
+| `ImmutableBytes` | MUST | Required because detached-only semantics, proxy-backed `Uint8Array`, and fake `Readonly<Uint8Array>` are rejected. |
+| `SnapshotPropValue` | MUST | Required because storage `PropValue` contains mutable `Uint8Array`, while snapshot byte values must be `ImmutableBytes`. |
+| `SnapshotWarpState` | MUST | Required because `WarpState.prop` is `Map<string, LWWRegister<PropValue>>`; returning `WarpState` after projecting bytes to `ImmutableBytes` would be type theater. |
+| `SnapshotPropertyBag` | MUST | Required because `getNodeProps`, `getEdgeProps`, visible edges, state readers, and observer/query paths expose property values publicly. |
+| `SnapshotPropRegister` | COULD | Not required. Existing `LWWRegister<T>` is already frozen and can carry `SnapshotPropValue` in snapshot maps. |
+| Read-only OR-set wrapper types | COULD | Not required for this byte bug. Existing 0100 runtime read-only snapshot construction can remain until a separate collection type cleanup is pulled. |
+| Read-only version-vector wrapper types | COULD | Not required for this byte bug. Existing 0100 snapshot behavior can remain. |
+
+### Removed Or Downgraded Concepts
+
+`SnapshotPropRegister` is removed from the MUST surface. The minimal
+snapshot state can use `ReadonlyMap<string, LWWRegister<SnapshotPropValue>>`.
+
+New read-only OR-set and version-vector wrapper types are downgraded to
+future hardening. This cycle must not redesign graph collection
+surfaces while fixing byte-valued property snapshots.
+
+### Final MUST-Only API Surface
+
+The implementation cycle should introduce only:
+
+- `ImmutableBytes`;
+- `SnapshotPropValue`;
+- `SnapshotPropertyBag`;
+- `SnapshotWarpState`;
+- source-specific projection functions from storage values to snapshot
+  values.
+
+The implementation cycle should not introduce `SnapshotPropRegister`,
+`ReadonlyOrSetSnapshot`, `ReadonlyVersionVectorSnapshot`, a generic
+snapshot protocol, or content byte API changes.
+
 ## Design Decision
 
 ### Decision Summary
@@ -304,24 +384,21 @@ Rules:
 - Objects are copied and frozen.
 - Byte values are represented by `ImmutableBytes`.
 
-### Snapshot Registers And Property Bags
+### Snapshot Property Bags And Registers
 
 Owner: domain read-side snapshot model.
 
 Decision:
 
-Introduce a snapshot register value for property maps:
+Do not introduce a dedicated snapshot register in this cycle.
 
 ```ts
-export class SnapshotPropRegister {
-  readonly eventId: EventId | null;
-  readonly value: SnapshotPropValue;
-}
+ReadonlyMap<string, LWWRegister<SnapshotPropValue>>
 ```
 
-The implementation may use a more specific name if the source suggests
-one, but it must not keep returning `LWWRegister<PropValue>` on public
-snapshot surfaces.
+`LWWRegister<T>` is already frozen and can carry `SnapshotPropValue`
+without creating another register noun. The bug is the mutable byte
+value, not the register runtime form.
 
 Introduce:
 
@@ -334,6 +411,10 @@ export type SnapshotPropertyBag = {
 Query and state-reader property APIs must return
 `SnapshotPropertyBag | null`, and visible edge views must carry
 `props: SnapshotPropertyBag`.
+
+Do not introduce `SnapshotPropRegister` unless RED or implementation
+proves `LWWRegister<SnapshotPropValue>` cannot satisfy the public
+snapshot map.
 
 ### SnapshotWarpState
 
@@ -351,23 +432,22 @@ Minimum required public shape:
 
 ```ts
 export default class SnapshotWarpState {
-  readonly nodeAlive: ReadonlyOrSetSnapshot;
-  readonly edgeAlive: ReadonlyOrSetSnapshot;
-  readonly prop: ReadonlyMap<string, SnapshotPropRegister>;
-  readonly observedFrontier: ReadonlyVersionVectorSnapshot;
+  readonly nodeAlive: ORSet;
+  readonly edgeAlive: ORSet;
+  readonly prop: ReadonlyMap<string, LWWRegister<SnapshotPropValue>>;
+  readonly observedFrontier: VersionVector;
   readonly edgeBirthEvent: ReadonlyMap<string, EventId>;
 }
 ```
 
-The exact names for the read-only OR-set and version-vector snapshots
-may be sharpened during implementation. The important rule is that the
-public snapshot state type must not expose mutable storage collections
-or `LWWRegister<PropValue>` values.
+This preserves the existing 0100 read-only runtime snapshot behavior
+for `ORSet` and `VersionVector` instead of inventing new collection
+types in this cycle. The required type correction is the `prop` value
+family.
 
-If preserving direct `.nodeAlive.contains(...)` and `.edgeAlive.elements()`
-read behavior is necessary for compatibility, those read methods should
-live on read-only snapshot wrappers. Do not return mutable `ORSet`
-instances as a shortcut.
+Future cycles may replace `ORSet` and `VersionVector` public snapshot
+types with narrower read-only classes if that becomes necessary. That
+is not required to block public byte mutation.
 
 ### Snapshot Builder Boundary
 
@@ -542,8 +622,7 @@ GREEN belongs to the next implementation cycle.
 Implementation order should be:
 
 1. Introduce `ImmutableBytes`.
-2. Introduce `SnapshotPropValue`, `SnapshotPropRegister`, and
-   `SnapshotPropertyBag`.
+2. Introduce `SnapshotPropValue` and `SnapshotPropertyBag`.
 3. Introduce `SnapshotWarpState` and source-specific snapshot builders.
 4. Change materialization capability return types to `SnapshotWarpState`.
 5. Change query/property-bag return types to `SnapshotPropertyBag`.
@@ -607,6 +686,9 @@ Implementation order should be:
   call.
 - `SnapshotPropertyBag` objects must not expose mutable nested arrays or
   objects.
+- `SnapshotWarpState.prop` may use `LWWRegister<SnapshotPropValue>`;
+  a new register class is unnecessary unless implementation proves
+  otherwise.
 - Indexed property reads currently use a loose property-reader seam; the
   public return must still be projected to snapshot values.
 - Consumers may compare old byte property values with
@@ -635,4 +717,3 @@ Implementation order should be:
 - Do not introduce a broad generic snapshot protocol.
 - Do not add proxy-backed fake immutable typed arrays.
 - Do not downgrade to detached-only byte semantics.
-
