@@ -252,6 +252,124 @@ The implementation cycle should not introduce `SnapshotPropRegister`,
 `ReadonlyOrSetSnapshot`, `ReadonlyVersionVectorSnapshot`, a generic
 snapshot protocol, or content byte API changes.
 
+## Final Reduction: SnapshotWarpState
+
+This pass challenges whether `SnapshotWarpState` is truly required.
+
+### Assumption
+
+Assume `SnapshotWarpState` does not exist.
+
+Can the bug be fixed by only changing:
+
+- `ImmutableBytes`;
+- `SnapshotPropValue`;
+- property-bag projections?
+
+Answer: not for direct public state snapshots.
+
+Those changes can fix `getNodeProps`, `getEdgeProps`, visible edge
+props, observers, and state-reader property bags. They cannot honestly
+fix `materialize()` or `getStateSnapshot()` while those methods still
+return `WarpState`, because direct public state access exposes
+`snapshot.prop`.
+
+### Option A: Keep WarpState As Public Return Type
+
+Shape:
+
+- keep `materialize(): Promise<WarpState>`;
+- keep `getStateSnapshot(): Promise<WarpState | null>`;
+- change only the values inside `state.prop` to `SnapshotPropValue`.
+
+Mutation result:
+
+- This can block byte mutation at runtime if byte values are actually
+  `ImmutableBytes`.
+
+Type result:
+
+- This introduces a type lie.
+- `WarpState.prop` is `Map<string, LWWRegister<PropValue>>`.
+- `PropValue` is storage-shaped and includes `Uint8Array`, not
+  `ImmutableBytes`.
+- Returning a `WarpState` whose `prop` contains
+  `LWWRegister<SnapshotPropValue>` contradicts the class contract.
+
+Ways to make the type checker accept it are all rejected:
+
+- add `ImmutableBytes` to storage `PropValue`, which collapses storage
+  and snapshot semantics;
+- cast the snapshot prop map into `Map<string, LWWRegister<PropValue>>`,
+  which is cast theater;
+- make `WarpState` generic over property value type, which turns the
+  live storage entity into a mixed storage/snapshot abstraction and
+  leaves mutation/join/reducer methods on a public snapshot value.
+
+Conclusion:
+
+Option A has less visible API surface but only by hiding the mismatch in
+`WarpState`. It fixes the runtime byte write while making the public
+state type dishonest.
+
+### Option B: Minimal Wrapper Around WarpState
+
+Shape:
+
+- keep a live/storage `WarpState` internally;
+- expose a read-side object with the same public fields, except `prop`
+  is projected to snapshot values.
+
+Mutation result:
+
+- This can block byte mutation at runtime.
+
+Type result:
+
+- If the wrapper is typed as `WarpState`, it repeats Option A's type
+  lie.
+- If the wrapper is typed honestly, it is a distinct public state type.
+
+Surface result:
+
+- The wrapper does not require less surface area than `SnapshotWarpState`
+  because it must still name the public return type and its `prop`
+  contract.
+- A wrapper with honest typing is `SnapshotWarpState` by another
+  implementation shape.
+
+Conclusion:
+
+Option B is acceptable only if its public type is `SnapshotWarpState`.
+It may be implemented as a minimal runtime wrapper, but the API must not
+pretend it returns `WarpState`.
+
+### Final SnapshotWarpState Decision
+
+`SnapshotWarpState` is MUST.
+
+Concrete contradiction:
+
+`WarpState` promises:
+
+```ts
+prop: Map<string, LWWRegister<PropValue>>;
+```
+
+The required immutable-byte fix needs public snapshot state to expose:
+
+```ts
+prop: ReadonlyMap<string, LWWRegister<SnapshotPropValue>>;
+```
+
+`SnapshotPropValue` must contain `ImmutableBytes`, and storage
+`PropValue` must not. Therefore the public state snapshot cannot
+honestly be typed as `WarpState`.
+
+The minimal honest API surface keeps `SnapshotWarpState`, but it does
+not add any extra snapshot register, OR-set wrapper, version-vector
+wrapper, or generic snapshot framework.
+
 ## Design Decision
 
 ### Decision Summary
