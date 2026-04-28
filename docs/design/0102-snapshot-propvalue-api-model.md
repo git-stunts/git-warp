@@ -465,18 +465,27 @@ class SnapshotORSet {
   countEntries(): number;
   countLiveDots(): number;
   countTombstones(): number;
-  getDots(element: string): ReadonlySet<string>;
+  getDots(element: string): readonly string[];
   hasDot(element: string, encodedDot: string): boolean;
   isTombstoned(encodedDot: string): boolean;
-  entriesIter(): IterableIterator<[string, ReadonlySet<string>]>;
-  entryDotsIter(): IterableIterator<string>;
-  tombstonesIter(): IterableIterator<string>;
+  entries(): readonly Readonly<{
+    element: string;
+    dots: readonly string[];
+  }>[];
+  entryDots(): readonly string[];
+  tombstones(): readonly string[];
 }
 ```
 
 `SnapshotORSet` is a read-side view type for public snapshots. It is not
 a new storage CRDT and must not include `add`, `remove`, `compact`,
 public mutable `entries`, or public mutable `tombstones`.
+
+It also must not return `Set` or `ReadonlySet`. `ReadonlySet` is only a
+compile-time view; if the runtime object is a `Set`, callers can still
+mutate it through normal JavaScript access or casts. Snapshot views
+return defensive readonly arrays unless a future cycle introduces a
+runtime-backed immutable set value.
 
 ### VersionVector Public API Check
 
@@ -895,6 +904,11 @@ Assertions should inspect source/type-surface files and fail while:
   and `edgeAlive`;
 - `SnapshotWarpState` does not expose `SnapshotVersionVector` for
   `observedFrontier`;
+- `SnapshotORSet` exposes `Set` or `ReadonlySet` in its public return
+  types instead of defensive readonly arrays;
+- `SnapshotORSet` exposes `add`, `remove`, `compact`, public `entries`,
+  or public `tombstones`;
+- `SnapshotVersionVector` exposes `set` or `increment`;
 - `QueryReads` returns a storage `PropertyBag = Record<string,
   PropValue>`;
 - `StateReaderContext` public visible property bags use
@@ -1006,6 +1020,8 @@ Implementation order should be:
   otherwise.
 - `SnapshotORSet` must not expose mutable `entries`, mutable
   `tombstones`, `add`, `remove`, or `compact`.
+- `SnapshotORSet` must not expose `Set` or `ReadonlySet` return values
+  unless a future cycle introduces a runtime-backed immutable set value.
 - `SnapshotVersionVector` must not expose `set` or `increment`.
 - Indexed property reads currently use a loose property-reader seam; the
   public return must still be projected to snapshot values.
