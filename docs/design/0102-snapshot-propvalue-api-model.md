@@ -205,6 +205,8 @@ That requires:
   value;
 - a public snapshot state type whose `prop` map can contain snapshot
   property values without lying that it is still storage `WarpState`;
+- read-side state field types for public graph/frontier fields that
+  currently advertise storage mutators;
 - public property-bag APIs that project storage `PropValue` into the
   same snapshot value family before returning byte values.
 
@@ -212,7 +214,6 @@ It does not require:
 
 - a new generic snapshot protocol;
 - a dedicated snapshot register class;
-- new read-only OR-set or version-vector types;
 - content byte API changes;
 - storage/reducer/checkpoint/index model changes.
 
@@ -225,8 +226,8 @@ It does not require:
 | `SnapshotWarpState` | MUST | Required because `WarpState.prop` is `Map<string, LWWRegister<PropValue>>`; returning `WarpState` after projecting bytes to `ImmutableBytes` would be type theater. |
 | `SnapshotPropertyBag` | COULD | The projection is required, but a named bag type is optional. Public APIs can return a readonly index shape over `SnapshotPropValue`. |
 | `SnapshotPropRegister` | COULD | Not required. Existing `LWWRegister<T>` is already frozen and can carry `SnapshotPropValue` in snapshot maps. |
-| Read-only OR-set wrapper types | COULD | Not required for this byte bug. Existing 0100 runtime read-only snapshot construction can remain until a separate collection type cleanup is pulled. |
-| Read-only version-vector wrapper types | COULD | Not required for this byte bug. Existing 0100 snapshot behavior can remain. |
+| `SnapshotORSet` | MUST | Required because `ORSet` exposes mutators and mutable public `entries` / `tombstones` fields. |
+| `SnapshotVersionVector` | MUST | Required because `VersionVector` exposes `set` and `increment`; frozen runtime traps are not an honest public type surface. |
 
 ### Removed Or Downgraded Concepts
 
@@ -236,9 +237,9 @@ property-bag projection is required, but the named alias is not.
 `SnapshotPropRegister` is removed from the MUST surface. The minimal
 snapshot state can use `ReadonlyMap<string, LWWRegister<SnapshotPropValue>>`.
 
-New read-only OR-set and version-vector wrapper types are downgraded to
-future hardening. This cycle must not redesign graph collection
-surfaces while fixing byte-valued property snapshots.
+Read-side OR-set and version-vector surfaces remain in scope because
+`SnapshotWarpState` is the public immutable snapshot type. It must not
+hand callers live-looking CRDT mutation APIs and rely on runtime traps.
 
 ### Final MUST-Only API Surface
 
@@ -246,14 +247,15 @@ The implementation cycle should introduce only:
 
 - `ImmutableBytes`;
 - `SnapshotPropValue`;
+- `SnapshotORSet`;
+- `SnapshotVersionVector`;
 - `SnapshotWarpState`;
 - source-specific projection functions from storage values to snapshot
   values.
 
 The implementation cycle should not introduce `SnapshotPropRegister`,
-`SnapshotPropertyBag` as a required public noun, `ReadonlyOrSetSnapshot`,
-`ReadonlyVersionVectorSnapshot`, a generic snapshot protocol, or content
-byte API changes.
+`SnapshotPropertyBag` as a required public noun, a generic snapshot
+protocol, or content byte API changes.
 
 ## Final Reduction: SnapshotWarpState
 
@@ -370,8 +372,9 @@ prop: ReadonlyMap<string, LWWRegister<SnapshotPropValue>>;
 honestly be typed as `WarpState`.
 
 The minimal honest API surface keeps `SnapshotWarpState`, but it does
-not add any extra snapshot register, OR-set wrapper, version-vector
-wrapper, or generic snapshot framework.
+not add any extra snapshot register or generic snapshot framework.
+The non-prop field audit below determines whether read-side CRDT field
+types are required.
 
 ## Final Reduction: Property Bags And Fields
 
@@ -424,25 +427,100 @@ is unsafe.
 
 | Field | Live/storage type | Minimal snapshot type | Existing evidence | Decision |
 |---|---|---|---|---|
-| `nodeAlive` | `ORSet` | `ORSet` snapshot instance | 0100 builds an `ORSet` clone whose internal maps/sets are read-only wrappers; mutation methods hit those wrappers and throw. | Keep existing runtime behavior. New read-only OR-set type is COULD, not MUST. |
-| `edgeAlive` | `ORSet` | `ORSet` snapshot instance | Same as `nodeAlive`. | Keep existing runtime behavior. New read-only OR-set type is COULD, not MUST. |
+| `nodeAlive` | `ORSet` | `SnapshotORSet` | `ORSet` exposes `add`, `remove`, `compact`, and public mutable `entries` / `tombstones` fields. Runtime traps are not type honesty. | MUST change. |
+| `edgeAlive` | `ORSet` | `SnapshotORSet` | Same as `nodeAlive`. | MUST change. |
 | `prop` | `Map<string, LWWRegister<PropValue>>` | `ReadonlyMap<string, LWWRegister<SnapshotPropValue>>` | This is the exact byte-value contradiction. | MUST change. |
-| `observedFrontier` | `VersionVector` | frozen `VersionVector` snapshot | 0100 clones and freezes the vector; `set` and `increment` check `Object.isFrozen(this)` and throw. | Keep existing runtime behavior. New read-only version-vector type is COULD, not MUST. |
-| `edgeBirthEvent` | `Map<string, EventId>` | `ReadonlyMap<string, EventId>` | 0100 uses a read-only map wrapper for public snapshots. | Use `ReadonlyMap`; no new noun required. |
+| `observedFrontier` | `VersionVector` | `SnapshotVersionVector` | `VersionVector` exposes `set` and `increment`. Runtime frozen errors are not an honest public read surface. | MUST change. |
+| `edgeBirthEvent` | `Map<string, EventId>` | `ReadonlyMap<string, EventId>` | 0100 uses a read-only map wrapper. `EventId` has readonly fields, freezes itself in the constructor, and exposes no mutators. | Use `ReadonlyMap`; no new noun required. |
 
 There are no other public fields on `WarpState`.
 
-Important limitation:
+### ORSet Public API Check
 
-Using `ORSet` and `VersionVector` as snapshot field types still exposes
-mutator methods at the type surface, even though the 0100 snapshot
-instances reject mutation at runtime. That is not ideal, but it is not
-the byte mutation bug. Fixing those type surfaces would require new
-read-only CRDT view types and is outside this minimal cycle.
+`ORSet` exposes:
 
-RED for 0102 should not require new OR-set or version-vector view
-classes. It may verify the existing 0100 runtime read-only behavior
-remains intact.
+- public mutable fields: `entries`, `tombstones`;
+- mutators: `add`, `remove`, `compact`;
+- read methods: `contains`, `elements`, `countEntries`,
+  `countLiveDots`, `countTombstones`, `getDots`, `hasDot`,
+  `isTombstoned`, `entriesIter`, `entryDotsIter`, `tombstonesIter`;
+- non-mutating derivations: `join`, `clone`, `scopedClone`,
+  `serialize`.
+
+If `SnapshotWarpState.nodeAlive` is typed as `ORSet`, callers are told
+they can call `add`, `remove`, `compact`, and mutate `entries` or
+`tombstones`. A frozen runtime error is a mousetrap, not an honest
+public read-side type.
+
+Decision:
+
+`SnapshotORSet` is MUST.
+
+Minimal read surface:
+
+```ts
+class SnapshotORSet {
+  contains(element: string): boolean;
+  elements(): readonly string[];
+  countEntries(): number;
+  countLiveDots(): number;
+  countTombstones(): number;
+  getDots(element: string): ReadonlySet<string>;
+  hasDot(element: string, encodedDot: string): boolean;
+  isTombstoned(encodedDot: string): boolean;
+  entriesIter(): IterableIterator<[string, ReadonlySet<string>]>;
+  entryDotsIter(): IterableIterator<string>;
+  tombstonesIter(): IterableIterator<string>;
+}
+```
+
+`SnapshotORSet` is a read-side view type for public snapshots. It is not
+a new storage CRDT and must not include `add`, `remove`, `compact`,
+public mutable `entries`, or public mutable `tombstones`.
+
+### VersionVector Public API Check
+
+`VersionVector` exposes:
+
+- mutators: `set`, `increment`;
+- read methods: `get`, `has`, `size`, iterator, `keys`, `values`,
+  `entries`, `descends`, `contains`, `equals`;
+- non-mutating derivations: `merge`, `clone`;
+- codec helper: static `serialize`.
+
+If `SnapshotWarpState.observedFrontier` is typed as `VersionVector`,
+callers are told they can call `set` and `increment`. A frozen runtime
+error is again weaker than type honesty.
+
+Decision:
+
+`SnapshotVersionVector` is MUST.
+
+Minimal read surface:
+
+```ts
+class SnapshotVersionVector {
+  get(writerId: string): number | undefined;
+  has(writerId: string): boolean;
+  get size(): number;
+  [Symbol.iterator](): IterableIterator<[string, number]>;
+  keys(): IterableIterator<string>;
+  values(): IterableIterator<number>;
+  entries(): IterableIterator<[string, number]>;
+  descends(other: SnapshotVersionVector): boolean;
+  contains(dot: Dot): boolean;
+  equals(other: SnapshotVersionVector): boolean;
+}
+```
+
+`SnapshotVersionVector` is a public read-side view type. It is not a new
+storage causal frontier and must not include `set` or `increment`.
+
+### EventId Check
+
+`EventId` has readonly fields, validates construction, freezes itself in
+the constructor, and exposes no mutators. Reusing `EventId` values in a
+`ReadonlyMap<string, EventId>` preserves snapshot semantics.
 
 ## Design Decision
 
@@ -610,6 +688,31 @@ snapshot map.
 Do not introduce `SnapshotPropertyBag` as a required public noun unless
 implementation proves the repeated inline shape is unclear or unstable.
 
+### SnapshotORSet
+
+Owner: domain read-side snapshot model.
+
+Decision:
+
+Introduce `SnapshotORSet` as the read-side view for `nodeAlive` and
+`edgeAlive`.
+
+`SnapshotORSet` exposes only read methods. It does not expose public
+mutable `entries` / `tombstones`, and it does not expose `add`,
+`remove`, or `compact`.
+
+### SnapshotVersionVector
+
+Owner: domain read-side snapshot model.
+
+Decision:
+
+Introduce `SnapshotVersionVector` as the read-side view for
+`observedFrontier`.
+
+`SnapshotVersionVector` exposes only read methods. It does not expose
+`set` or `increment`.
+
 ### SnapshotWarpState
 
 Owner: domain read-side snapshot model.
@@ -626,22 +729,17 @@ Minimum required public shape:
 
 ```ts
 export default class SnapshotWarpState {
-  readonly nodeAlive: ORSet;
-  readonly edgeAlive: ORSet;
+  readonly nodeAlive: SnapshotORSet;
+  readonly edgeAlive: SnapshotORSet;
   readonly prop: ReadonlyMap<string, LWWRegister<SnapshotPropValue>>;
-  readonly observedFrontier: VersionVector;
+  readonly observedFrontier: SnapshotVersionVector;
   readonly edgeBirthEvent: ReadonlyMap<string, EventId>;
 }
 ```
 
-This preserves the existing 0100 read-only runtime snapshot behavior
-for `ORSet` and `VersionVector` instead of inventing new collection
-types in this cycle. The required type correction is the `prop` value
-family.
-
-Future cycles may replace `ORSet` and `VersionVector` public snapshot
-types with narrower read-only classes if that becomes necessary. That
-is not required to block public byte mutation.
+This keeps `SnapshotWarpState` type-honest across all exposed public
+fields. It does not expose live-looking CRDT mutators with runtime
+freeze traps underneath.
 
 ### Snapshot Builder Boundary
 
@@ -654,6 +752,8 @@ Replace the public snapshot builder with a source-specific projection:
 ```ts
 createSnapshotWarpState(state: WarpState): SnapshotWarpState
 createSnapshotPropValue(value: PropValue): SnapshotPropValue
+createSnapshotORSet(value: ORSet): SnapshotORSet
+createSnapshotVersionVector(value: VersionVector): SnapshotVersionVector
 createImmutableTickReceiptArraySnapshot(
   receipts: readonly TickReceipt[],
 ): readonly TickReceipt[]
@@ -744,6 +844,12 @@ This is a public type correction:
 - code that expects byte properties to be `Uint8Array` must read them
   as `ImmutableBytes` and call `toUint8Array()` when a mutable copy is
   needed.
+- code that expects public snapshot `nodeAlive` / `edgeAlive` to expose
+  mutable `ORSet` internals must move to the `SnapshotORSet` read
+  surface.
+- code that expects public snapshot `observedFrontier` to expose
+  `VersionVector.set` or `VersionVector.increment` must move to the
+  `SnapshotVersionVector` read surface.
 
 The release notes for v17 should mention this if implementation lands
 in the release branch.
@@ -785,6 +891,10 @@ Assertions should inspect source/type-surface files and fail while:
 - `QueryCapability.getNodeProps` and `getEdgeProps` return
   `Record<string, unknown> | null`;
 - `VisibleEdge.props` is `Record<string, unknown>`;
+- `SnapshotWarpState` does not expose `SnapshotORSet` for `nodeAlive`
+  and `edgeAlive`;
+- `SnapshotWarpState` does not expose `SnapshotVersionVector` for
+  `observedFrontier`;
 - `QueryReads` returns a storage `PropertyBag = Record<string,
   PropValue>`;
 - `StateReaderContext` public visible property bags use
@@ -819,14 +929,15 @@ Implementation order should be:
 
 1. Introduce `ImmutableBytes`.
 2. Introduce `SnapshotPropValue`.
-3. Introduce `SnapshotWarpState` and source-specific snapshot builders.
-4. Change materialization capability return types to `SnapshotWarpState`.
-5. Change query/property-bag return types to readonly snapshot property
+3. Introduce `SnapshotORSet` and `SnapshotVersionVector`.
+4. Introduce `SnapshotWarpState` and source-specific snapshot builders.
+5. Change materialization capability return types to `SnapshotWarpState`.
+6. Change query/property-bag return types to readonly snapshot property
    bag shapes over `SnapshotPropValue`.
-6. Update runtime implementations to project storage values to snapshot
+7. Update runtime implementations to project storage values to snapshot
    values at public boundaries.
-7. Update type-check consumer tests and release/API notes.
-8. Keep storage reducers, patch builders, checkpoints, and index
+8. Update type-check consumer tests and release/API notes.
+9. Keep storage reducers, patch builders, checkpoints, and index
    builders on storage `PropValue` and live `WarpState`.
 
 ## Playback Questions
@@ -841,6 +952,11 @@ Implementation order should be:
   through the public API?
 - Can a future agent tell that public materialization returns
   `SnapshotWarpState`, not `WarpState`?
+- Can a future agent tell that public snapshot graph fields expose
+  `SnapshotORSet`, not mutable `ORSet` internals?
+- Can a future agent tell that public snapshot frontiers expose
+  `SnapshotVersionVector`, not `VersionVector.set` or
+  `VersionVector.increment`?
 - Can a future agent tell that query/property-bag APIs return readonly
   bags of `SnapshotPropValue`?
 - Can a future agent tell that content byte APIs are intentionally out
@@ -865,6 +981,8 @@ Implementation order should be:
 - Reintroducing `Uint8Array` as the public snapshot byte representation.
 - Adding `ImmutableBytes` to storage `PropValue`.
 - Returning `WarpState` while placing snapshot-only values inside it.
+- Returning `ORSet` or `VersionVector` from `SnapshotWarpState` and
+  relying on frozen-runtime mutation traps.
 - Keeping `Record<string, unknown>` property bags as a public escape
   hatch.
 - Fixing `materialize()` but forgetting `getNodeProps`,
@@ -886,6 +1004,9 @@ Implementation order should be:
 - `SnapshotWarpState.prop` may use `LWWRegister<SnapshotPropValue>`;
   a new register class is unnecessary unless implementation proves
   otherwise.
+- `SnapshotORSet` must not expose mutable `entries`, mutable
+  `tombstones`, `add`, `remove`, or `compact`.
+- `SnapshotVersionVector` must not expose `set` or `increment`.
 - Indexed property reads currently use a loose property-reader seam; the
   public return must still be projected to snapshot values.
 - Consumers may compare old byte property values with
@@ -896,6 +1017,8 @@ Implementation order should be:
 - Calling the snapshot immutable while exposing mutable byte values.
 - Preserving `WarpState` return types after public snapshot values stop
   being storage values.
+- Preserving live CRDT field types on `SnapshotWarpState` and relying on
+  runtime frozen errors as the public contract.
 - Making `ImmutableBytes` a fancy wrapper with a public mutable byte
   reference.
 - Hiding API breakage by casting.
