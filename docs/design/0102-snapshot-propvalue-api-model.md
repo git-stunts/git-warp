@@ -223,12 +223,15 @@ It does not require:
 | `ImmutableBytes` | MUST | Required because detached-only semantics, proxy-backed `Uint8Array`, and fake `Readonly<Uint8Array>` are rejected. |
 | `SnapshotPropValue` | MUST | Required because storage `PropValue` contains mutable `Uint8Array`, while snapshot byte values must be `ImmutableBytes`. |
 | `SnapshotWarpState` | MUST | Required because `WarpState.prop` is `Map<string, LWWRegister<PropValue>>`; returning `WarpState` after projecting bytes to `ImmutableBytes` would be type theater. |
-| `SnapshotPropertyBag` | MUST | Required because `getNodeProps`, `getEdgeProps`, visible edges, state readers, and observer/query paths expose property values publicly. |
+| `SnapshotPropertyBag` | COULD | The projection is required, but a named bag type is optional. Public APIs can return a readonly index shape over `SnapshotPropValue`. |
 | `SnapshotPropRegister` | COULD | Not required. Existing `LWWRegister<T>` is already frozen and can carry `SnapshotPropValue` in snapshot maps. |
 | Read-only OR-set wrapper types | COULD | Not required for this byte bug. Existing 0100 runtime read-only snapshot construction can remain until a separate collection type cleanup is pulled. |
 | Read-only version-vector wrapper types | COULD | Not required for this byte bug. Existing 0100 snapshot behavior can remain. |
 
 ### Removed Or Downgraded Concepts
+
+`SnapshotPropertyBag` is removed from the MUST surface. The public
+property-bag projection is required, but the named alias is not.
 
 `SnapshotPropRegister` is removed from the MUST surface. The minimal
 snapshot state can use `ReadonlyMap<string, LWWRegister<SnapshotPropValue>>`.
@@ -243,14 +246,14 @@ The implementation cycle should introduce only:
 
 - `ImmutableBytes`;
 - `SnapshotPropValue`;
-- `SnapshotPropertyBag`;
 - `SnapshotWarpState`;
 - source-specific projection functions from storage values to snapshot
   values.
 
 The implementation cycle should not introduce `SnapshotPropRegister`,
-`ReadonlyOrSetSnapshot`, `ReadonlyVersionVectorSnapshot`, a generic
-snapshot protocol, or content byte API changes.
+`SnapshotPropertyBag` as a required public noun, `ReadonlyOrSetSnapshot`,
+`ReadonlyVersionVectorSnapshot`, a generic snapshot protocol, or content
+byte API changes.
 
 ## Final Reduction: SnapshotWarpState
 
@@ -370,6 +373,77 @@ The minimal honest API surface keeps `SnapshotWarpState`, but it does
 not add any extra snapshot register, OR-set wrapper, version-vector
 wrapper, or generic snapshot framework.
 
+## Final Reduction: Property Bags And Fields
+
+### SnapshotPropertyBag Challenge
+
+Assume `SnapshotPropertyBag` does not exist.
+
+Can public property APIs return this instead?
+
+```ts
+Readonly<{ [key: string]: SnapshotPropValue }>
+```
+
+Answer: yes.
+
+The byte mutation bug is fixed by projecting values to
+`SnapshotPropValue`, not by naming the bag. A named bag alias may improve
+readability later, but it is not required to block public byte mutation.
+
+Decision:
+
+- Public property-bag projection is MUST.
+- `SnapshotPropertyBag` as a named public noun is COULD.
+- RED must not require the exact `SnapshotPropertyBag` name.
+
+### LWWRegister Safety
+
+`src/domain/crdt/LWW.ts` shows `LWWRegister<T>`:
+
+- has `readonly eventId`;
+- has `readonly value`;
+- freezes itself in the constructor;
+- exposes no instance mutators;
+- uses `T` generically and does not assume `PropValue`;
+- provides static constructors/helpers that create or select register
+  values rather than mutating an existing instance.
+
+Decision:
+
+`LWWRegister<SnapshotPropValue>` is safe to expose in
+`SnapshotWarpState.prop`.
+
+`SnapshotPropRegister` is not required. Introducing it would be a new
+register noun without evidence that the existing runtime-backed register
+is unsafe.
+
+### SnapshotWarpState Field Audit
+
+`WarpState` currently exposes these public fields:
+
+| Field | Live/storage type | Minimal snapshot type | Existing evidence | Decision |
+|---|---|---|---|---|
+| `nodeAlive` | `ORSet` | `ORSet` snapshot instance | 0100 builds an `ORSet` clone whose internal maps/sets are read-only wrappers; mutation methods hit those wrappers and throw. | Keep existing runtime behavior. New read-only OR-set type is COULD, not MUST. |
+| `edgeAlive` | `ORSet` | `ORSet` snapshot instance | Same as `nodeAlive`. | Keep existing runtime behavior. New read-only OR-set type is COULD, not MUST. |
+| `prop` | `Map<string, LWWRegister<PropValue>>` | `ReadonlyMap<string, LWWRegister<SnapshotPropValue>>` | This is the exact byte-value contradiction. | MUST change. |
+| `observedFrontier` | `VersionVector` | frozen `VersionVector` snapshot | 0100 clones and freezes the vector; `set` and `increment` check `Object.isFrozen(this)` and throw. | Keep existing runtime behavior. New read-only version-vector type is COULD, not MUST. |
+| `edgeBirthEvent` | `Map<string, EventId>` | `ReadonlyMap<string, EventId>` | 0100 uses a read-only map wrapper for public snapshots. | Use `ReadonlyMap`; no new noun required. |
+
+There are no other public fields on `WarpState`.
+
+Important limitation:
+
+Using `ORSet` and `VersionVector` as snapshot field types still exposes
+mutator methods at the type surface, even though the 0100 snapshot
+instances reject mutation at runtime. That is not ideal, but it is not
+the byte mutation bug. Fixing those type surfaces would require new
+read-only CRDT view types and is outside this minimal cycle.
+
+RED for 0102 should not require new OR-set or version-vector view
+classes. It may verify the existing 0100 runtime read-only behavior
+remains intact.
+
 ## Design Decision
 
 ### Decision Summary
@@ -385,8 +459,9 @@ Public immutable snapshots use `SnapshotPropValue`, whose byte member is
 Public materialization and state-snapshot APIs return
 `SnapshotWarpState`, not `WarpState`.
 
-Public node/edge property-bag APIs return `SnapshotPropertyBag`, not
-`Record<string, unknown>` and not storage `PropValue` bags.
+Public node/edge property-bag APIs return readonly bags of
+`SnapshotPropValue`, not `Record<string, unknown>` and not storage
+`PropValue` bags.
 
 ### Storage PropValue
 
@@ -521,18 +596,19 @@ value, not the register runtime form.
 Introduce:
 
 ```ts
-export type SnapshotPropertyBag = {
-  readonly [key: string]: SnapshotPropValue;
-};
+Readonly<{ [key: string]: SnapshotPropValue }>
 ```
 
 Query and state-reader property APIs must return
-`SnapshotPropertyBag | null`, and visible edge views must carry
-`props: SnapshotPropertyBag`.
+`Readonly<{ [key: string]: SnapshotPropValue }> | null`, and visible
+edge views must carry `props` with that same readonly shape.
 
 Do not introduce `SnapshotPropRegister` unless RED or implementation
 proves `LWWRegister<SnapshotPropValue>` cannot satisfy the public
 snapshot map.
+
+Do not introduce `SnapshotPropertyBag` as a required public noun unless
+implementation proves the repeated inline shape is unclear or unstable.
 
 ### SnapshotWarpState
 
@@ -622,14 +698,14 @@ Decision:
 Public property-bag APIs return snapshot property bags:
 
 ```ts
-getNodeProps(...): Promise<SnapshotPropertyBag | null>
-getEdgeProps(...): Promise<SnapshotPropertyBag | null>
+getNodeProps(...): Promise<Readonly<{ [key: string]: SnapshotPropValue }> | null>
+getEdgeProps(...): Promise<Readonly<{ [key: string]: SnapshotPropValue }> | null>
 getStateSnapshot(): Promise<SnapshotWarpState | null>
 getEdges(): Promise<Array<{
   from: string;
   to: string;
   label: string;
-  props: SnapshotPropertyBag;
+  props: Readonly<{ [key: string]: SnapshotPropValue }>;
 }>>
 ```
 
@@ -664,7 +740,7 @@ This is a public type correction:
 - code that expects `materialize()` to return `WarpState` must move to
   `SnapshotWarpState`;
 - code that expects property bags to be `Record<string, unknown>` must
-  move to `SnapshotPropertyBag`;
+  move to readonly snapshot property bags containing `SnapshotPropValue`;
 - code that expects byte properties to be `Uint8Array` must read them
   as `ImmutableBytes` and call `toUint8Array()` when a mutable copy is
   needed.
@@ -726,10 +802,12 @@ Add focused runtime tests when GREEN starts:
 - `materialize().prop.get(key)?.value` returns `ImmutableBytes` for byte
   properties;
 - `getStateSnapshot()` returns the same byte representation;
-- `getNodeProps()` returns `SnapshotPropertyBag` with `ImmutableBytes`;
-- `getEdgeProps()` returns `SnapshotPropertyBag` with `ImmutableBytes`;
-- `getEdges()[i].props` returns `SnapshotPropertyBag` with
+- `getNodeProps()` returns a readonly snapshot property bag shape with
   `ImmutableBytes`;
+- `getEdgeProps()` returns a readonly snapshot property bag shape with
+  `ImmutableBytes`;
+- `getEdges()[i].props` returns a readonly snapshot property bag shape
+  with `ImmutableBytes`;
 - `createStateReader(state).getNodeProps(...)` and
   `getEdgeProps(...)` return `ImmutableBytes` for byte values.
 
@@ -740,10 +818,11 @@ GREEN belongs to the next implementation cycle.
 Implementation order should be:
 
 1. Introduce `ImmutableBytes`.
-2. Introduce `SnapshotPropValue` and `SnapshotPropertyBag`.
+2. Introduce `SnapshotPropValue`.
 3. Introduce `SnapshotWarpState` and source-specific snapshot builders.
 4. Change materialization capability return types to `SnapshotWarpState`.
-5. Change query/property-bag return types to `SnapshotPropertyBag`.
+5. Change query/property-bag return types to readonly snapshot property
+   bag shapes over `SnapshotPropValue`.
 6. Update runtime implementations to project storage values to snapshot
    values at public boundaries.
 7. Update type-check consumer tests and release/API notes.
@@ -762,8 +841,8 @@ Implementation order should be:
   through the public API?
 - Can a future agent tell that public materialization returns
   `SnapshotWarpState`, not `WarpState`?
-- Can a future agent tell that query/property-bag APIs return
-  `SnapshotPropertyBag`?
+- Can a future agent tell that query/property-bag APIs return readonly
+  bags of `SnapshotPropValue`?
 - Can a future agent tell that content byte APIs are intentionally out
   of scope?
 - Can a future agent avoid proxy-backed fake typed-array immutability?
@@ -802,8 +881,8 @@ Implementation order should be:
   project to `SnapshotPropValue`.
 - `ImmutableBytes.toUint8Array()` must return a fresh copy on every
   call.
-- `SnapshotPropertyBag` objects must not expose mutable nested arrays or
-  objects.
+- readonly snapshot property bags must not expose mutable nested arrays
+  or objects.
 - `SnapshotWarpState.prop` may use `LWWRegister<SnapshotPropValue>`;
   a new register class is unnecessary unless implementation proves
   otherwise.
