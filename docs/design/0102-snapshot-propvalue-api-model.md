@@ -487,6 +487,17 @@ mutate it through normal JavaScript access or casts. Snapshot views
 return defensive readonly arrays unless a future cycle introduces a
 runtime-backed immutable set value.
 
+Contract note:
+
+- Returned arrays are read-result values, not live snapshot internals.
+- Implementations must return frozen arrays or fresh defensive copies.
+- Mutating a returned array or entry object must not mutate the
+  `SnapshotORSet`.
+- If GREEN chooses frozen arrays, tests must prove the returned arrays
+  and entry objects are frozen.
+- If GREEN chooses defensive-copy semantics, tests must prove mutation
+  of returned arrays or entry objects does not alter later reads.
+
 ### VersionVector Public API Check
 
 `VersionVector` exposes:
@@ -909,6 +920,9 @@ Assertions should inspect source/type-surface files and fail while:
 - `SnapshotORSet` exposes `add`, `remove`, `compact`, public `entries`,
   or public `tombstones`;
 - `SnapshotVersionVector` exposes `set` or `increment`;
+- mutation of arrays returned by `SnapshotORSet.elements()`,
+  `getDots(...)`, `entryDots()`, `tombstones()`, `entries()`, or nested
+  `entries()[i].dots` can mutate later `SnapshotORSet` reads;
 - `QueryReads` returns a storage `PropertyBag = Record<string,
   PropValue>`;
 - `StateReaderContext` public visible property bags use
@@ -1022,6 +1036,9 @@ Implementation order should be:
   `tombstones`, `add`, `remove`, or `compact`.
 - `SnapshotORSet` must not expose `Set` or `ReadonlySet` return values
   unless a future cycle introduces a runtime-backed immutable set value.
+- `SnapshotORSet` array return values must be frozen arrays or fresh
+  defensive copies; mutating returned arrays must not mutate snapshot
+  state.
 - `SnapshotVersionVector` must not expose `set` or `increment`.
 - Indexed property reads currently use a loose property-reader seam; the
   public return must still be projected to snapshot values.
