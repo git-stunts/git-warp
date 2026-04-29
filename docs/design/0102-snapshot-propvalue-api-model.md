@@ -1034,6 +1034,7 @@ Implementation commit:
 
 ```txt
 180eb2ca refactor: introduce snapshot propvalue api model
+d9070e48 refactor: tighten snapshot propvalue api surface
 ```
 
 Implementation summary:
@@ -1057,6 +1058,8 @@ Implementation summary:
   entrypoint: `ImmutableBytes`, `SnapshotORSet`,
   `SnapshotVersionVector`, `SnapshotWarpState`, and type
   `SnapshotPropValue`.
+- Exported `PropValue` intentionally because package-root factory
+  helpers accept storage property values as public input.
 - Did not export snapshot builder functions from the package
   entrypoint; they remain implementation builders rather than public
   API commitments.
@@ -1064,6 +1067,16 @@ Implementation summary:
   corrected the RED test so private `Set<string>` implementation
   storage is allowed while public `Set` / `ReadonlySet` exposure stays
   banned.
+- Removed raw `unknown` and `Record<string, unknown>` from touched
+  core/query files by replacing them with exact query adjacency,
+  aggregate, property, and projection value types.
+- Split the public detached graph read surface from the internal live
+  materialization surface so underscore live-state methods no longer
+  live on the public read-side type.
+- Added focused public API conformance coverage for the snapshot return
+  types exported from the package root.
+- Logged the broader red consumer type-check suite as
+  `API_consumer-typecheck-suite-red`.
 
 Exact public API changes:
 
@@ -1095,7 +1108,7 @@ npx eslint $(git diff --name-only -- '*.ts')
 npm run typecheck
 npm run lint:sludge
 git diff --check
-npx vitest run test/conformance/snapshotPropValueApiModel.test.ts test/conformance/readonlyBytePropValueSnapshot.test.ts test/conformance/immutableSnapshotBuilder.test.ts
+npx vitest run test/conformance/snapshotPublicApiSurface.test.ts test/conformance/snapshotPropValueApiModel.test.ts test/conformance/readonlyBytePropValueSnapshot.test.ts test/conformance/immutableSnapshotBuilder.test.ts
 npx vitest run \
   test/unit/domain/services/controllers/MaterializeController.test.ts \
   test/unit/domain/services/controllers/MaterializeController.snapshotCache.test.ts \
@@ -1111,10 +1124,27 @@ npx vitest run \
   test/unit/domain/WarpGraph.edgeProps.test.ts \
   test/unit/domain/WarpGraph.seekDiff.test.ts \
   test/unit/domain/WarpGraph.test.ts
+rg -n "unknown|Record<string, unknown>|\\bFunction\\b|as unknown as|as any|\\bany\\b|Readonly<Uint8Array>|ReadonlySet|globalThis\\.Set|Object\\.create|\\bProxy\\b" \
+  src/domain/services/query/QueryRunner.ts \
+  src/domain/services/state/StateReaderContext.ts \
+  src/domain/services/state/StateSerializer.ts \
+  src/domain/services/state/StateReader.ts \
+  src/domain/services/index/PropertyIndexReader.ts \
+  src/domain/types/PropValue.ts \
+  src/domain/capabilities/DetachedGraphFactory.ts \
+  src/domain/services/controllers/detachedOpen.ts \
+  src/domain/services/controllers/QueryController.ts \
+  src/domain/warp/RuntimeDetachedFactory.ts \
+  src/domain/RuntimeHost.ts
+rg -n "any|as any|as unknown as|Record<string, unknown>|unknown|Readonly<Uint8Array>|ReadonlySet|globalThis\\.Set|Object\\.create|\\bProxy\\b|JSON\\.parse|JSON\\.stringify" \
+  index.ts \
+  test/type-check/consumer.ts
+npm run typecheck:consumer
 ```
 
 Results:
 
+- `snapshotPublicApiSurface.test.ts` passed.
 - `snapshotPropValueApiModel.test.ts` passed.
 - `readonlyBytePropValueSnapshot.test.ts` passed.
 - `immutableSnapshotBuilder.test.ts` passed.
@@ -1123,10 +1153,14 @@ Results:
 - `npm run typecheck` passed.
 - `npm run lint:sludge` passed.
 - `git diff --check` passed.
+- Manual policy scans for touched core files, `index.ts`, and
+  `test/type-check/consumer.ts` found no matches for the checked
+  sludge patterns.
 - ESLint reported no errors for changed TypeScript files. It emitted
   ignored-file warnings for `index.ts` and
   `test/type-check/consumer.ts` because those files are outside the
-  matching lint config or ignored by pattern.
+  matching lint config or ignored by pattern; the manual policy scan
+  above covers those ignored changed files for this slice.
 
 Consumer type-check visibility:
 
@@ -1144,6 +1178,10 @@ Result:
   consumer fixture names them; no remaining consumer error is about
   missing `ImmutableBytes`, `SnapshotPropValue`, `SnapshotORSet`,
   `SnapshotVersionVector`, or `SnapshotWarpState`.
+- the broad red suite is now tracked by
+  `docs/method/backlog/bad-code/API_consumer-typecheck-suite-red.md`;
+  0102 relies on the focused snapshot public API conformance test for
+  this cycle rather than claiming the broad consumer suite is green.
 
 Known remaining debt:
 
