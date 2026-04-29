@@ -1352,6 +1352,90 @@ Known remaining debt:
   allocation behavior may need future profiling if it becomes hot.
 - 0102 does not resolve non-0102 0096 cast families.
 
+## Drift Check
+
+1. Did 0102 stay within the approved snapshot `PropValue` API model?
+
+   Yes. The cycle remained focused on the public immutable snapshot
+   value model: `ImmutableBytes`, `SnapshotPropValue`,
+   `SnapshotORSet`, `SnapshotVersionVector`, `SnapshotWarpState`, and
+   the source-specific snapshot builders required to expose those
+   values honestly.
+
+2. Did GREEN introduce any public API surface beyond the approved MUST
+   surface?
+
+   No harmful public surface drift was found. Public exports were added
+   only for types/classes now returned by public APIs:
+   `ImmutableBytes`, `SnapshotPropValue`, `SnapshotORSet`,
+   `SnapshotVersionVector`, and `SnapshotWarpState`. `PropValue` was
+   also exported because existing package-root property helper APIs
+   accept storage property values. Snapshot builder functions were not
+   exported from the package root.
+
+3. Did any public read-side API still expose storage `WarpState`,
+   storage `PropValue`, mutable `Uint8Array`, live `ORSet`, live
+   `VersionVector`, `Record<string, unknown>`, or `unknown`?
+
+   No checked 0102 public read-side surface still exposes those old
+   shapes. Focused conformance covers public materialization,
+   `getStateSnapshot`, node/edge property bags, edge lists, snapshot
+   bytes, `SnapshotORSet`, and `SnapshotVersionVector`.
+
+4. Did internal/live materialization seams remain internal?
+
+   Yes. Public detached read surfaces expose snapshot-returning read
+   APIs. Internal live materialization seams moved to an explicitly
+   internal surface used by controllers and detached runtime plumbing.
+
+5. Did package-root exports match the public types returned by APIs?
+
+   Yes. The package root exports the public snapshot runtime classes and
+   `SnapshotPropValue` type because public APIs now return those types.
+   It does not export snapshot builder functions.
+
+6. Did focused snapshot conformance cover the public API change for this
+   slice?
+
+   Yes. `snapshotPublicApiSurface.test.ts` proves the new public
+   snapshot return types are nameable from the package root. The
+   existing snapshot conformance tests prove byte immutability,
+   storage/snapshot value separation, snapshot CRDT read-side views, and
+   the reduced API model.
+
+7. Did any validation claim exceed the evidence collected?
+
+   Playback corrected the earlier overbroad framing. The supported claim
+   is evidence-scoped: no checked 0102 sludge patterns remain in the
+   scanned touched files after the manual policy scans.
+
+8. Is `typecheck:consumer` still framed as release-blocker candidate
+   debt rather than harmless background noise?
+
+   Yes. The design records that the broad consumer type-check suite
+   remains red and is a release-blocker candidate tracked by
+   `docs/method/backlog/bad-code/API_consumer-typecheck-suite-red.md`.
+   0102 GREEN is acceptable only because those failures are
+   pre-existing / unrelated to the new snapshot symbols and focused
+   snapshot public API conformance covers this slice.
+
+### Drift Findings
+
+- No harmful scope drift found.
+- Beneficial drift: `PropValue` was exported from the package root
+  because existing public property helper APIs accept storage property
+  values and should not use `unknown`.
+- Beneficial drift: the detached graph surface split made internal live
+  materialization seams explicit instead of leaving underscore methods
+  on a public read-side type.
+- Beneficial drift: focused public API conformance was added because the
+  broad consumer type-check suite is already red and cannot honestly
+  validate this slice.
+- Beneficial drift: the broad red consumer type-check suite was logged
+  as a bad-code card rather than buried.
+- No production code edits were needed during Drift Check.
+- No correction is required before Retrospective.
+
 ## Playback Questions
 
 ### Agent
