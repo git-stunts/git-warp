@@ -6,11 +6,12 @@
 
 import {
   createImmutableTickReceiptArraySnapshot,
-  createImmutableWarpStateSnapshot,
+  createSnapshotWarpState,
 } from '../ImmutableSnapshot.ts';
 import QueryError from '../../errors/QueryError.ts';
 import { decodeEdgeKey } from '../KeyCodec.ts';
 import type WarpState from '../state/WarpState.ts';
+import type SnapshotWarpState from '../snapshot/SnapshotWarpState.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type StateSession from '../../orset/session/StateSession.ts';
 import {
@@ -21,12 +22,12 @@ import {
 // ── Public state freezing ───────────────────────────────────────────
 
 /** Wraps materialized state in a frozen defensive copy. */
-export function freezePublicState(state: WarpState): WarpState {
-  return createImmutableWarpStateSnapshot(state);
+export function freezePublicState(state: WarpState): SnapshotWarpState {
+  return createSnapshotWarpState(state);
 }
 
 /** Wraps state+receipts in a frozen result. */
-export function freezeWithReceipts(state: WarpState, receipts: TickReceipt[]): { state: WarpState; receipts: readonly TickReceipt[] } {
+export function freezeWithReceipts(state: WarpState, receipts: TickReceipt[]): { state: SnapshotWarpState; receipts: readonly TickReceipt[] } {
   return Object.freeze({
     state: freezePublicState(state),
     receipts: createImmutableTickReceiptArraySnapshot(receipts),

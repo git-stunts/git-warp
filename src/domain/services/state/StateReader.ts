@@ -4,6 +4,7 @@ import {
   type ContentMeta,
   type NeighborEntry,
   type StateReaderContext,
+  type VisiblePropertyBag,
   type VisibleEdgeRef,
   type VisibleEdgeView,
   cloneBag,
@@ -59,18 +60,18 @@ function getVisibleEdges(context: StateReaderContext): VisibleEdgeView[] {
 function getVisibleNodeProps(
   context: StateReaderContext,
   nodeId: string,
-): Record<string, unknown> | null {
+): VisiblePropertyBag | null {
   if (!hasVisibleNode(context, nodeId)) {
     return null;
   }
-  return cloneBag(context.nodePropsById.get(nodeId) as Record<string, unknown>);
+  return cloneBag(context.nodePropsById.get(nodeId) ?? Object.freeze(Object.create(null)));
 }
 
 /** Returns cloned properties for a visible edge, or null if not found. */
 function getVisibleEdgeProps(
   context: StateReaderContext,
   edge: VisibleEdgeRef,
-): Record<string, unknown> | null {
+): VisiblePropertyBag | null {
   const props = context.edgePropsByKey.get(edgeKeyFromRef(edge));
   return props ? cloneBag(props) : null;
 }
@@ -125,13 +126,13 @@ function getVisibleEdgeContentMeta(
 function inspectVisibleNode(
   context: StateReaderContext,
   nodeId: string,
-): { nodeId: string; props: Record<string, unknown>; outgoing: NeighborEntry[]; incoming: NeighborEntry[]; content: ContentMeta | null } | null {
+): { nodeId: string; props: VisiblePropertyBag; outgoing: NeighborEntry[]; incoming: NeighborEntry[]; content: ContentMeta | null } | null {
   if (!hasVisibleNode(context, nodeId)) {
     return null;
   }
   return {
     nodeId,
-    props: cloneBag(context.nodePropsById.get(nodeId) as Record<string, unknown>),
+    props: cloneBag(context.nodePropsById.get(nodeId) ?? Object.freeze(Object.create(null))),
     outgoing: cloneNeighbors(context.outgoingByNode.get(nodeId) ?? []),
     incoming: cloneNeighbors(context.incomingByNode.get(nodeId) ?? []),
     content: cloneMeta(context.nodeContentMetaById.get(nodeId)),

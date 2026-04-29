@@ -10,11 +10,11 @@
 
 import VersionVector from './crdt/VersionVector.ts';
 import GCPolicy from './services/GCPolicy.ts';
-import { AuditReceiptService } from './services/audit/AuditReceiptService.ts';
+import type { AuditReceiptService } from './services/audit/AuditReceiptService.ts';
 import { TemporalQuery } from './services/TemporalQuery.ts';
 import {
   createImmutableTickReceiptArraySnapshot,
-  createImmutableWarpStateSnapshot,
+  createSnapshotWarpState,
 } from './services/ImmutableSnapshot.ts';
 import defaultCodec from './utils/defaultCodec.ts';
 import defaultCrypto from './utils/defaultCrypto.ts';
@@ -32,8 +32,9 @@ import PatchController from './services/controllers/PatchController.ts';
 import CheckpointController from './services/controllers/CheckpointController.ts';
 import SyncTrustGate from './services/sync/SyncTrustGate.ts';
 import AuditVerifierService from './services/audit/AuditVerifierService.ts';
-import MaterializedViewService from './services/MaterializedViewService.ts';
+import type MaterializedViewService from './services/MaterializedViewService.ts';
 import StateHashService from './services/state/StateHashService.ts';
+import { computeStateHash } from './services/state/StateSerializer.ts';
 import MaterializeController, { type MaterializeResult } from './services/controllers/MaterializeController.ts';
 import RuntimePatchCollector from './warp/RuntimePatchCollector.ts';
 import RuntimeDetachedFactory from './warp/RuntimeDetachedFactory.ts';
@@ -59,12 +60,14 @@ import type IndexStorePort from '../ports/IndexStorePort.ts';
 import type RuntimeStorageCapabilityPort from '../ports/RuntimeStorageCapabilityPort.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
 import type WarpState from './services/state/WarpState.ts';
+import type SnapshotWarpState from './services/snapshot/SnapshotWarpState.ts';
 import type { ProvenanceIndex } from './services/provenance/ProvenanceIndex.ts';
 import type Patch from './types/Patch.ts';
 import type { PatchDiff } from './types/PatchDiff.ts';
 import type { TickReceipt } from './types/TickReceipt.ts';
 import type PropertyIndexReader from './services/index/PropertyIndexReader.ts';
 import type QueryCapability from './capabilities/QueryCapability.ts';
+import type AdjacencyMap from './capabilities/AdjacencyMap.ts';
 
 import {
   DEFAULT_ADJACENCY_CACHE_SIZE,
@@ -93,9 +96,68 @@ export type MaterializedGraph = {
 };
 
 type MaterializeReceiptsResult = {
-  state: WarpState;
+  state: SnapshotWarpState;
   receipts: readonly TickReceipt[];
 };
+
+type SnapshotMaterializeOptions = {
+  receipts?: boolean;
+  ceiling?: number | null;
+};
+
+function wantsReceipts(options: SnapshotMaterializeOptions | undefined): boolean {
+  return options?.receipts === true;
+}
+
+function materializeControllerOptions(
+  options: SnapshotMaterializeOptions | undefined,
+  wantDiff: boolean,
+): Parameters<MaterializeController['materialize']>[0] {
+  const controllerOptions: Parameters<MaterializeController['materialize']>[0] = { wantDiff };
+  if (options?.receipts !== undefined) {
+    controllerOptions.receipts = options.receipts;
+  }
+  if (options?.ceiling !== undefined) {
+    controllerOptions.ceiling = options.ceiling;
+  }
+  return controllerOptions;
+}
+
+function materializeReceiptsResult(result: MaterializeResult): MaterializeReceiptsResult {
+  return Object.freeze({
+    state: createSnapshotWarpState(result.state),
+    receipts: createImmutableTickReceiptArraySnapshot(result.receipts ?? []),
+  });
+}
+
+function materializeSnapshotResult(
+  result: MaterializeResult,
+  includeReceipts: boolean,
+): SnapshotWarpState | MaterializeReceiptsResult {
+  return includeReceipts
+    ? materializeReceiptsResult(result)
+    : createSnapshotWarpState(result.state);
+}
+
+function canUseCachedMaterializedGraph(
+  options: { ceiling?: number | null },
+  stateDirty: boolean,
+  materializedGraph: MaterializedGraph | null,
+): materializedGraph is MaterializedGraph {
+  return options.ceiling === undefined && !stateDirty && materializedGraph !== null;
+}
+
+function resolveMaterializedStateDiff(
+  optionsOrDiff: PatchDiff | { diff?: PatchDiff | null } | undefined,
+): PatchDiff | undefined {
+  if (optionsOrDiff === null || optionsOrDiff === undefined) {
+    return undefined;
+  }
+  if ('edgesAdded' in optionsOrDiff) {
+    return optionsOrDiff;
+  }
+  return optionsOrDiff.diff ?? undefined;
+}
 
 type Subscriber = {
   onChange: (diff: StateDiffResult) => void;
@@ -309,22 +371,14 @@ export default class RuntimeHost {
    * Advanced substrate replay primitive over the live frontier.
    */
   materialize(options: { receipts: true; ceiling?: number | null }): Promise<MaterializeReceiptsResult>;
-  materialize(options?: { receipts?: false; ceiling?: number | null }): Promise<WarpState>;
-  async materialize(options?: { receipts?: boolean; ceiling?: number | null }): Promise<WarpState | MaterializeReceiptsResult> {
+  materialize(options?: { receipts?: false; ceiling?: number | null }): Promise<SnapshotWarpState>;
+  async materialize(options?: { receipts?: boolean; ceiling?: number | null }): Promise<SnapshotWarpState | MaterializeReceiptsResult> {
     const wantDiff = options?.receipts !== true && this._cachedIndexTree !== null;
-    const result = await this._materializeController.materialize({
-      ...(options?.receipts !== undefined ? { receipts: options.receipts } : {}),
-      ...(options?.ceiling !== undefined ? { ceiling: options.ceiling } : {}),
-      wantDiff,
-    });
+    const result = await this._materializeController.materialize(
+      materializeControllerOptions(options, wantDiff),
+    );
     await this._onMaterialized(result);
-    if (options?.receipts === true) {
-      return Object.freeze({
-        state: createImmutableWarpStateSnapshot(result.state),
-        receipts: createImmutableTickReceiptArraySnapshot(result.receipts ?? []),
-      });
-    }
-    return createImmutableWarpStateSnapshot(result.state);
+    return materializeSnapshotResult(result, wantsReceipts(options));
   }
 
   /**
@@ -335,38 +389,58 @@ export default class RuntimeHost {
   ): Promise<MaterializeReceiptsResult>;
   materializeCoordinate(
     options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts?: false },
-  ): Promise<WarpState>;
+  ): Promise<SnapshotWarpState>;
   async materializeCoordinate(
     options: Parameters<MaterializeController['materializeCoordinate']>[0],
-  ): Promise<WarpState | MaterializeReceiptsResult> {
+  ): Promise<SnapshotWarpState | MaterializeReceiptsResult> {
     const result = await this._materializeController.materializeCoordinate(options);
-    if (options.receipts === true) {
-      return Object.freeze({
-        state: createImmutableWarpStateSnapshot(result.state),
-        receipts: createImmutableTickReceiptArraySnapshot(result.receipts ?? []),
-      });
-    }
-    return createImmutableWarpStateSnapshot(result.state);
+    return materializeSnapshotResult(result, wantsReceipts(options));
   }
 
-  async materializeAt(checkpointSha: string): Promise<WarpState> {
+  async materializeAt(checkpointSha: string): Promise<SnapshotWarpState> {
     const result = await this._materializeController.materializeAt(checkpointSha);
     await this._onMaterialized(result);
-    return createImmutableWarpStateSnapshot(result.state);
+    return createSnapshotWarpState(result.state);
   }
 
-  async _materializeGraph(): Promise<MaterializedGraph> {
-    if (!this._stateDirty && this._materializedGraph) {
+  async _materializeGraph(options: { ceiling?: number | null } = {}): Promise<MaterializedGraph> {
+    if (canUseCachedMaterializedGraph(options, this._stateDirty, this._materializedGraph)) {
       return this._materializedGraph;
     }
-    const materialized = await this.materialize();
-    if (this._materializedGraph) {
+    const result = await this._materializeController.materialize({
+      ...(options.ceiling !== undefined ? { ceiling: options.ceiling } : {}),
+      wantDiff: this._cachedIndexTree !== null,
+    });
+    await this._onMaterialized(result);
+    if (this._materializedGraph !== null) {
       return this._materializedGraph;
     }
-    if ('state' in materialized) {
-      throw new WarpError('materialize({ receipts: true }) cannot satisfy _materializeGraph()', 'E_MATERIALIZE_GRAPH_RECEIPTS');
-    }
-    const state = this._cachedState ?? materialized;
+    return await this._materializedGraphFromCachedState();
+  }
+
+  async _materializeCoordinateGraph(
+    options: Parameters<MaterializeController['materializeCoordinate']>[0],
+  ): Promise<MaterializedGraph> {
+    const result = await this._materializeController.materializeCoordinate(options);
+    return await this._materializedGraphFromState(result.state);
+  }
+
+  async _materializeStrandGraph(
+    strandId: string,
+    options: { ceiling?: number | null } = {},
+  ): Promise<MaterializedGraph> {
+    const result = await this._strandController._materializeStrandLive(strandId, options);
+    return await this._materializedGraphFromState(result.state);
+  }
+
+  async _materializedGraphFromState(state: WarpState): Promise<MaterializedGraph> {
+    const adjacency = this._buildAdjacency(state);
+    const stateHash = await computeStateHash(state, { crypto: this._crypto, codec: this._codec });
+    return { state, stateHash, adjacency };
+  }
+
+  async _materializedGraphFromCachedState(): Promise<MaterializedGraph> {
+    const state = this._cachedState;
     if (state === null) {
       throw new QueryError('No materialized state. Call materialize() before querying.', {
         code: 'E_NO_STATE',
@@ -375,14 +449,11 @@ export default class RuntimeHost {
     this._cachedState = state;
     this._stateDirty = false;
     this._versionVector = state.observedFrontier.clone();
-    const adjacency = this._buildAdjacency(state);
-    const { computeStateHash } = await import('./services/state/StateSerializer.ts');
-    const stateHash = await computeStateHash(state, { crypto: this._crypto, codec: this._codec });
-    this._materializedGraph = { state, stateHash, adjacency };
+    this._materializedGraph = await this._materializedGraphFromState(state);
     return this._materializedGraph;
   }
 
-  _buildAdjacency(state: WarpState): import('./capabilities/AdjacencyMap.ts').default {
+  _buildAdjacency(state: WarpState): AdjacencyMap {
     return buildAdjacency(state);
   }
 
@@ -390,20 +461,9 @@ export default class RuntimeHost {
     state: WarpState,
     optionsOrDiff?: PatchDiff | { diff?: PatchDiff | null },
   ): Promise<MaterializedGraph> {
-    const { computeStateHash } = await import('./services/state/StateSerializer.ts');
     const stateHash = await computeStateHash(state, { crypto: this._crypto, codec: this._codec });
     const adjacency = this._buildAdjacency(state);
-    let diff: PatchDiff | undefined;
-    if (
-      optionsOrDiff !== null
-      && optionsOrDiff !== undefined
-      && typeof optionsOrDiff === 'object'
-      && !('edgesAdded' in optionsOrDiff)
-    ) {
-      diff = optionsOrDiff.diff ?? undefined;
-    } else {
-      diff = optionsOrDiff;
-    }
+    const diff = resolveMaterializedStateDiff(optionsOrDiff);
     this._cachedState = state;
     this._stateDirty = false;
     this._versionVector = state.observedFrontier.clone();
@@ -487,11 +547,11 @@ export default class RuntimeHost {
   materializeStrand(
     strandId: string,
     options?: { receipts?: false; ceiling?: number | null },
-  ): Promise<WarpState>;
+  ): Promise<SnapshotWarpState>;
   async materializeStrand(
     strandId: string,
     options?: { receipts?: boolean; ceiling?: number | null },
-  ): Promise<WarpState | MaterializeReceiptsResult> {
+  ): Promise<SnapshotWarpState | MaterializeReceiptsResult> {
     const result = await this._strandController.materializeStrand(strandId, options);
     if (options?.receipts === true) {
       if ('state' in result) {
@@ -675,8 +735,6 @@ export default class RuntimeHost {
    *   writerId: 'node-1'
    * });
    */
-  // TODO(OG): split open() validation/bootstrapping; legacy hotspot kept explicit until the API redesign cycle.
-  // eslint-disable-next-line max-lines-per-function, complexity
   static async open(options: RuntimeHostOpenOptions): Promise<RuntimeHost> {
     return await openRuntimeHost(options);
   }

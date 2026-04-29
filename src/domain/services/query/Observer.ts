@@ -22,6 +22,7 @@ import StrandSelector from '../../types/StrandSelector.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type { WorldlineSource } from '../../capabilities/QueryCapability.ts';
 import type { VisibleStateReader } from '../../types/VisibleStateReader.ts';
+import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
 import type NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
 
 interface NeighborEntry {
@@ -34,7 +35,7 @@ type AdjacencyMaps = {
   incoming: Map<string, NeighborEntry[]>;
 };
 
-type VisibleNodeProps = Record<string, unknown>;
+type VisibleNodeProps = Readonly<{ [key: string]: SnapshotPropValue }>;
 type VisibleEdge = { from: string; to: string; label: string; props: VisibleNodeProps };
 type ObserverSnapshot = { state: WarpState; stateHash: string };
 type ObserverBackingMaterializedGraph = ObserverSnapshot & {
@@ -90,16 +91,16 @@ function isKeyVisible(key: string, redactSet: Set<string> | null, exposeSet: Set
   return true;
 }
 
-function filterProps(propsRecord: Record<string, unknown>, expose: string[] | undefined, redact: string[] | undefined): Record<string, unknown> {
+function filterProps(propsRecord: VisibleNodeProps, expose: string[] | undefined, redact: string[] | undefined): VisibleNodeProps {
   const redactSet = toFilterSet(redact);
   const exposeSet = toFilterSet(expose);
-  const filtered: Record<string, unknown> = {};
+  const filtered: { [key: string]: SnapshotPropValue } = {};
   for (const [key, value] of Object.entries(propsRecord)) {
     if (isKeyVisible(key, redactSet, exposeSet)) {
       filtered[key] = value;
     }
   }
-  return filtered;
+  return Object.freeze(filtered);
 }
 
 function sortNeighbors(list: NeighborEntry[]): void {

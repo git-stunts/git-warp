@@ -14,6 +14,22 @@ import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAd
 
 const crypto = new NodeCryptoAdapter();
 
+type TestNeighborEdge = {
+  readonly neighborId: string;
+  readonly label: string;
+};
+
+function materializedGraphFor(state = createEmptyState()) {
+  return {
+    state,
+    stateHash: 'test-state-hash',
+    adjacency: {
+      outgoing: new Map<string, readonly TestNeighborEdge[]>(),
+      incoming: new Map<string, readonly TestNeighborEdge[]>(),
+    },
+  };
+}
+
 /**
  * Creates a mock persistence adapter for testing.
  * @returns {any} Mock persistence adapter
@@ -508,7 +524,7 @@ describe('WarpCore', () => {
       const state = (await graph.materialize());
 
       // V5 state uses ORSet - check using ORSet API
-      expect(state.nodeAlive.entries.has('user:alice')).toBe(true);
+      expect(state.nodeAlive.contains('user:alice')).toBe(true);
     });
 
     it('materializes state from multiple writers', async () => {
@@ -568,8 +584,8 @@ describe('WarpCore', () => {
       const state = (await graph.materialize());
 
       // V5 state uses ORSet
-      expect(state.nodeAlive.entries.has('user:alice')).toBe(true);
-      expect(state.nodeAlive.entries.has('user:bob')).toBe(true);
+      expect(state.nodeAlive.contains('user:alice')).toBe(true);
+      expect(state.nodeAlive.contains('user:bob')).toBe(true);
     });
 
     it('materializes chain of patches from single writer', async () => {
@@ -623,8 +639,8 @@ describe('WarpCore', () => {
       const state = (await graph.materialize());
 
       // V5 state uses ORSet
-      expect(state.nodeAlive.entries.has('user:alice')).toBe(true);
-      expect(state.nodeAlive.entries.has('user:bob')).toBe(true);
+      expect(state.nodeAlive.contains('user:alice')).toBe(true);
+      expect(state.nodeAlive.contains('user:bob')).toBe(true);
     });
 
     it('returns empty state when writer ref returns null', async () => {
@@ -642,7 +658,7 @@ describe('WarpCore', () => {
       const state = (await graph.materialize());
 
       // V5 state uses ORSet
-      expect(state.nodeAlive.entries.size).toBe(0);
+      expect(state.nodeAlive.countEntries()).toBe(0);
     });
   });
 
@@ -707,7 +723,7 @@ eg-schema: 2`;
       // Verify V5 state is returned
       expect(state).toBeDefined();
       expect(state.nodeAlive).toBeDefined();
-      expect(state.nodeAlive.entries).toBeDefined(); // V5 ORSet has entries property
+      expect(typeof state.nodeAlive.entries).toBe('function');
     });
   });
 
@@ -885,7 +901,7 @@ eg-schema: 2`;
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1']);
       // Mock materialize to return V5 state (with ORSet structure)
-      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyState());
+      vi.spyOn(graph, '_materializeGraph').mockResolvedValue(materializedGraphFor());
 
       persistence.readRef.mockResolvedValue(writerSha);
       persistence.writeBlob.mockResolvedValue(blobOid);
@@ -921,7 +937,7 @@ eg-schema: 2`;
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1']);
       // Mock materialize to return V5 state (with ORSet structure)
-      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyState());
+      vi.spyOn(graph, '_materializeGraph').mockResolvedValue(materializedGraphFor());
 
       persistence.readRef.mockResolvedValue(writerSha);
       persistence.writeBlob.mockResolvedValue(blobOid);
@@ -954,7 +970,7 @@ eg-schema: 2`;
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1']);
       // Mock materialize to return V5 state (with ORSet structure)
-      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyState());
+      vi.spyOn(graph, '_materializeGraph').mockResolvedValue(materializedGraphFor());
 
       persistence.readRef.mockResolvedValue(writerSha);
       persistence.writeBlob.mockResolvedValue(blobOid);
@@ -984,7 +1000,7 @@ eg-schema: 2`;
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1', 'writer-2']);
       // Mock materialize to return V5 state (with ORSet structure)
-      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyState());
+      vi.spyOn(graph, '_materializeGraph').mockResolvedValue(materializedGraphFor());
 
       persistence.readRef
         .mockResolvedValueOnce(writer1Sha)
@@ -1019,7 +1035,7 @@ eg-schema: 2`;
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1']);
       // Mock materialize to return V5 state (with ORSet structure)
-      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyState());
+      vi.spyOn(graph, '_materializeGraph').mockResolvedValue(materializedGraphFor());
 
       persistence.readRef.mockResolvedValue(null); // No refs exist
       persistence.writeBlob.mockResolvedValue(blobOid);
@@ -1054,7 +1070,7 @@ eg-schema: 2`;
       const warn = vi.fn();
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1']);
-      vi.spyOn(graph, 'materialize').mockResolvedValue(createEmptyState());
+      vi.spyOn(graph, '_materializeGraph').mockResolvedValue(materializedGraphFor());
 
       persistence.readRef.mockResolvedValue(writerSha);
       persistence.writeBlob.mockResolvedValue(blobOid);

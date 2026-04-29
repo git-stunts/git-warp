@@ -54,6 +54,9 @@ type SetMaterializedState = (
   stateHash: string;
   adjacency: MaterializedAdjacency;
 }>;
+type PatchMaterializedState = {
+  state: WarpState;
+};
 
 /**
  * The host interface that PatchController depends on.
@@ -88,10 +91,7 @@ export interface PatchHost extends PatchDiscoveryHost {
   _logicalIndex: LogicalIndex | null;
   _propertyReader: PropertyIndexReader | null;
   _cachedIndexTree: Record<string, Uint8Array> | null;
-  materialize: {
-    (options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpState; receipts: readonly TickReceipt[] }>;
-    (options?: { receipts?: false; ceiling?: number | null }): Promise<WarpState>;
-  };
+  _materializeGraph: () => Promise<PatchMaterializedState>;
   _setMaterializedState: SetMaterializedState;
   _buildAdjacency: (state: WarpState) => MaterializedAdjacency;
 }
@@ -150,7 +150,7 @@ export default class PatchController {
     // since there's nothing to materialize.
     const { lamport, parentSha } = await this._nextLamport();
     if (h._autoMaterialize && h._cachedState === null && parentSha !== null) {
-      await h.materialize();
+      await h._materializeGraph();
     }
 
     const opts: ConstructorParameters<typeof PatchBuilder>[0] = {
@@ -369,7 +369,7 @@ export default class PatchController {
   async _ensureFreshState(): Promise<void> {
     const h = this._host;
     if (h._autoMaterialize && (!h._cachedState || h._stateDirty)) {
-      await h.materialize();
+      await h._materializeGraph();
       return;
     }
     if (!h._cachedState) {

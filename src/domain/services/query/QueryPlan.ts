@@ -1,3 +1,13 @@
+import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
+
+export type QueryNodePropertyBag = Readonly<{ [key: string]: SnapshotPropValue }>;
+
+export type QueryNodeEdgeSnapshot = {
+  label: string;
+  to?: string;
+  from?: string;
+};
+
 /**
  * QueryPlan — frozen value object representing a fully accumulated query.
  *
@@ -8,9 +18,9 @@
 /** Frozen snapshot of a node for use in where() predicates. */
 export type QueryNodeSnapshot = {
   id: string;
-  props: Readonly<Record<string, unknown>>;
-  edgesOut: ReadonlyArray<{ label: string; to?: string; from?: string }>;
-  edgesIn: ReadonlyArray<{ label: string; to?: string; from?: string }>;
+  props: QueryNodePropertyBag;
+  edgesOut: ReadonlyArray<QueryNodeEdgeSnapshot>;
+  edgesIn: ReadonlyArray<QueryNodeEdgeSnapshot>;
 };
 
 /** Where-clause predicate operation. */

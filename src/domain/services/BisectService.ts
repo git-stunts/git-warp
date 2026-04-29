@@ -8,7 +8,7 @@
  * @module domain/services/BisectService
  */
 
-import type WarpState from './state/WarpState.ts';
+import type SnapshotWarpState from './snapshot/SnapshotWarpState.ts';
 
 // -- Types --------------------------------------------------------------------
 
@@ -20,7 +20,7 @@ type PatchEntry = {
 /** Port for the graph operations bisect needs. */
 type BisectGraph = {
   readonly getWriterPatches: (writerId: string) => Promise<PatchEntry[]>;
-  readonly materialize: (opts: { ceiling: number }) => Promise<WarpState>;
+  readonly materialize: (opts: { ceiling: number }) => Promise<SnapshotWarpState>;
 };
 
 type BisectFound = {
@@ -39,7 +39,7 @@ type BisectRangeError = {
 
 type BisectResult = BisectFound | BisectRangeError;
 
-type BisectTestFn = (state: WarpState, sha: string) => Promise<boolean>;
+type BisectTestFn = (state: SnapshotWarpState, sha: string) => Promise<boolean>;
 
 type BisectRunOptions = {
   readonly good: string;

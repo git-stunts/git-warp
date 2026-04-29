@@ -11,7 +11,6 @@ import { diffStates, isEmptyDiff, type StateDiffResult, type EdgeChange, type Pr
 import { matchGlob } from '../../utils/matchGlob.ts';
 import WarpError from '../../errors/WarpError.ts';
 import type { WarpState } from '../JoinReducer.ts';
-import type { TickReceipt } from '../../types/TickReceipt.ts';
 
 /**
  * Callback shape for subscriber errors. Errors flow through the catch
@@ -32,15 +31,6 @@ interface Subscriber {
   pendingReplay: boolean;
 }
 
-/**
- * Options passed through to WarpRuntime.materialize when the polling
- * path calls into materialization.
- */
-export type SubscriptionMaterializeOptions = {
-  receipts?: boolean;
-  ceiling?: number | null;
-};
-
 interface SubscriptionHost {
   _cachedState: WarpState | null;
   _subscribers: Array<{
@@ -49,8 +39,12 @@ interface SubscriptionHost {
     pendingReplay?: boolean;
   }>;
   hasFrontierChanged(): Promise<boolean>;
-  materialize(options?: SubscriptionMaterializeOptions): Promise<WarpState | { state: WarpState; receipts: readonly TickReceipt[] }>;
+  _materializeGraph(): Promise<SubscriptionMaterializedState>;
 }
+
+type SubscriptionMaterializedState = {
+  state: WarpState;
+};
 
 
 type SchedulerFn = (callback: () => void, ms: number) => ReturnType<typeof setInterval>;
@@ -183,7 +177,7 @@ export default class SubscriptionController {
         pollInFlight = true;
         host.hasFrontierChanged()
           .then(async (changed) => {
-            if (changed) { await host.materialize(); }
+            if (changed) { await host._materializeGraph(); }
           })
           .catch((err) => {
             if (onError) {

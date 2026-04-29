@@ -3,6 +3,9 @@ import type { VisibleEdgeViewV5 } from './VisibleEdgeViewV5.ts';
 import type { VisibleNodeView } from './VisibleNodeView.ts';
 import type { VisibleStateNeighbor } from './VisibleStateNeighbor.ts';
 import type { VisibleStateProjectionV5 } from './VisibleStateProjectionV5.ts';
+import type { SnapshotPropValue } from '../services/snapshot/SnapshotPropValue.ts';
+
+type VisibleStateProperties = Readonly<{ [key: string]: SnapshotPropValue }>;
 
 /**
  * Read-only accessor over materialized V5 state with entity-local inspection.
@@ -15,8 +18,8 @@ export interface VisibleStateReader {
   hasNode(nodeId: string): boolean;
   getNodes(): string[];
   getEdges(): VisibleEdgeViewV5[];
-  getNodeProps(nodeId: string): Record<string, unknown> | null;
-  getEdgeProps(from: string, to: string, label: string): Record<string, unknown> | null;
+  getNodeProps(nodeId: string): VisibleStateProperties | null;
+  getEdgeProps(from: string, to: string, label: string): VisibleStateProperties | null;
   neighbors(
     nodeId: string,
     direction?: 'outgoing' | 'incoming' | 'both',

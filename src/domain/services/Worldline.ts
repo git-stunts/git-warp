@@ -8,6 +8,7 @@ import StrandSelector from '../types/StrandSelector.ts';
 import WorldlineSelector from '../types/WorldlineSelector.ts';
 import { toInternalStrandShape } from '../utils/strandPublicShape.ts';
 import type { WarpState } from './JoinReducer.ts';
+import type SnapshotWarpState from './snapshot/SnapshotWarpState.ts';
 import type Observer from './query/Observer.ts';
 import LogicalTraversal from './query/LogicalTraversal.ts';
 import QueryBuilder from './query/QueryBuilder.ts';
@@ -16,8 +17,8 @@ import QueryError from '../errors/QueryError.ts';
 type AdjacencyEntry = { neighborId: string; label: string };
 type VisibleNodeProps = NonNullable<Awaited<ReturnType<Observer['getNodeProps']>>>;
 type VisibleEdge = Awaited<ReturnType<Observer['getEdges']>>[number];
-type MaterializedStateWithReceipts = { state: WarpState; receipts: readonly TickReceipt[] };
-type MaterializedSourceResult = WarpState | MaterializedStateWithReceipts;
+type MaterializedStateWithReceipts = { state: SnapshotWarpState; receipts: readonly TickReceipt[] };
+type MaterializedSourceResult = SnapshotWarpState | MaterializedStateWithReceipts;
 type WorldlineMaterializedGraph = {
   state: WarpState;
   stateHash: string;
@@ -259,7 +260,7 @@ export default class Worldline {
   }
 
   async materialize(options: { receipts: true }): Promise<MaterializedStateWithReceipts>;
-  async materialize(options?: { receipts?: false }): Promise<WarpState>;
+  async materialize(options?: { receipts?: false }): Promise<SnapshotWarpState>;
   async materialize(options?: { receipts?: boolean }): Promise<MaterializedSourceResult> {
     const detached = await openDetachedReadGraph(this._graphCloner);
     return await materializeSource(detached, this._source, options?.receipts === true);

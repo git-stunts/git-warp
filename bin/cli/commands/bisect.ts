@@ -76,7 +76,12 @@ export default async function handleBisect({ options, args }: { options: CliOpti
   const { graph, graphName } = await openGraph(options);
   const writerId = options.writer;
 
-  const bisect = new BisectService({ graph });
+  const bisect = new BisectService({
+    graph: {
+      getWriterPatches: (selectedWriterId) => graph.getWriterPatches(selectedWriterId),
+      materialize: async (opts) => await graph.materialize({ ...opts, receipts: false }),
+    },
+  });
 
   const result = await bisect.run({
     good,

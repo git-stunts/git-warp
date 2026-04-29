@@ -1,34 +1,68 @@
 import type WarpState from '../services/state/WarpState.ts';
+import type SnapshotWarpState from '../services/snapshot/SnapshotWarpState.ts';
 import type { TickReceipt } from '../types/TickReceipt.ts';
 
 export type DetachedGraphMaterializeResult =
-  | WarpState
-  | {
-      state: WarpState;
-      receipts: readonly TickReceipt[];
-    };
+  | SnapshotWarpState
+  | DetachedGraphSnapshotWithReceipts;
+
+type DetachedGraphSnapshotWithReceipts = {
+  state: SnapshotWarpState;
+  receipts: readonly TickReceipt[];
+};
+
+type DetachedGraphLiveMaterialization = {
+  state: WarpState;
+  stateHash: string;
+};
+
+type DetachedGraphMaterializeOptions = {
+  ceiling: number | null;
+};
+
+type DetachedGraphReceiptOptions = DetachedGraphMaterializeOptions & {
+  receipts: true;
+};
+
+type DetachedGraphSnapshotOptions = DetachedGraphMaterializeOptions & {
+  receipts?: false;
+};
+
+type DetachedGraphCoordinateOptions = {
+  frontier: Map<string, string> | Record<string, string>;
+  ceiling: number | null;
+};
+
+type DetachedGraphCoordinateReceiptOptions = DetachedGraphCoordinateOptions & {
+  receipts: true;
+};
+
+type DetachedGraphCoordinateSnapshotOptions = DetachedGraphCoordinateOptions & {
+  receipts?: false;
+};
+
+type DetachedGraphStrandOptions = {
+  ceiling: number | null;
+};
+
+type DetachedGraphStrandReceiptOptions = DetachedGraphStrandOptions & {
+  receipts: true;
+};
+
+type DetachedGraphStrandSnapshotOptions = DetachedGraphStrandOptions & {
+  receipts?: false;
+};
 
 export type DetachedGraphReadSurface = {
-  materialize(options: { ceiling: number | null; receipts: true }): Promise<{ state: WarpState; receipts: readonly TickReceipt[] }>;
-  materialize(options: { ceiling: number | null; receipts?: false }): Promise<WarpState>;
-  materializeCoordinate(options: {
-    frontier: Map<string, string> | Record<string, string>;
-    ceiling: number | null;
-    receipts: true;
-  }): Promise<{ state: WarpState; receipts: readonly TickReceipt[] }>;
-  materializeCoordinate(options: {
-    frontier: Map<string, string> | Record<string, string>;
-    ceiling: number | null;
-    receipts?: false;
-  }): Promise<WarpState>;
-  materializeStrand(strandId: string, options: {
-    receipts: true;
-    ceiling: number | null;
-  }): Promise<{ state: WarpState; receipts: readonly TickReceipt[] }>;
-  materializeStrand(strandId: string, options: {
-    receipts?: false;
-    ceiling: number | null;
-  }): Promise<WarpState>;
+  materialize(options: DetachedGraphReceiptOptions): Promise<DetachedGraphSnapshotWithReceipts>;
+  materialize(options: DetachedGraphSnapshotOptions): Promise<SnapshotWarpState>;
+  materializeCoordinate(options: DetachedGraphCoordinateReceiptOptions): Promise<DetachedGraphSnapshotWithReceipts>;
+  materializeCoordinate(options: DetachedGraphCoordinateSnapshotOptions): Promise<SnapshotWarpState>;
+  materializeStrand(strandId: string, options: DetachedGraphStrandReceiptOptions): Promise<DetachedGraphSnapshotWithReceipts>;
+  materializeStrand(strandId: string, options: DetachedGraphStrandSnapshotOptions): Promise<SnapshotWarpState>;
+  _materializeGraph(options?: DetachedGraphMaterializeOptions): Promise<DetachedGraphLiveMaterialization>;
+  _materializeCoordinateGraph(options: DetachedGraphCoordinateOptions): Promise<DetachedGraphLiveMaterialization>;
+  _materializeStrandGraph(strandId: string, options: DetachedGraphStrandOptions): Promise<DetachedGraphLiveMaterialization>;
 };
 
 /**

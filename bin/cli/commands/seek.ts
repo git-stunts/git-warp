@@ -110,13 +110,13 @@ async function computeStructuralDiff({ graph, prevTick, currentTick, diffLimit }
 
   if (prevTick !== null && prevTick > 0) {
     await graph.materialize({ ceiling: prevTick });
-    beforeState = await graph.getStateSnapshot();
+    beforeState = graph._cachedState;
     diffBaseline = 'tick';
     baselineTick = prevTick;
   }
 
   await graph.materialize({ ceiling: currentTick });
-  const afterState = await graph.getStateSnapshot();
+  const afterState = graph._cachedState;
   if (!afterState) {
     const empty = { nodes: { added: [], removed: [] }, edges: { added: [], removed: [] }, props: { set: [], removed: [] } };
     return applyDiffLimit(empty as StateDiffResult, diffBaseline, baselineTick, diffLimit);

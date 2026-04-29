@@ -42,6 +42,9 @@ import type GCPolicy from '../GCPolicy.ts';
 import { E_NO_STATE_MSG } from './QueryStateMessages.ts';
 
 type CheckpointFrontier = Pick<LoadedCheckpoint, 'schema' | 'frontier'>;
+type CheckpointMaterializedState = {
+  state: WarpState;
+};
 
 type CheckpointHost = {
   _graphName: string;
@@ -72,7 +75,7 @@ type CheckpointHost = {
   _stateCache: WarpStateCachePort | null;
   _readPatchBlob(patchMeta: ReturnType<CommitMessageCodecPort['decodePatch']>): Promise<Uint8Array>;
   discoverWriters(): Promise<string[]>;
-  materialize(): Promise<WarpState>;
+  _materializeGraph(): Promise<CheckpointMaterializedState>;
 };
 
 /**
@@ -157,7 +160,7 @@ export default class CheckpointController {
     try {
       state = (h._cachedState && !h._stateDirty)
         ? h._cachedState
-        : await h.materialize();
+        : (await h._materializeGraph()).state;
     } finally {
       h._checkpointing = prevCheckpointing;
     }

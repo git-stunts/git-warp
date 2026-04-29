@@ -37,6 +37,8 @@ import type { StrandDescriptor as ParsedStrandDescriptor } from '../../utils/par
 import type Patch from '../../types/Patch.ts';
 import type { PatchBuilder } from '../PatchBuilder.ts';
 import type { StrandDescriptor } from './strandTypes.ts';
+import type { WarpState } from '../JoinReducer.ts';
+import type { TickReceipt } from '../../types/TickReceipt.ts';
 
 // Re-export constants that were on StrandService
 export { STRAND_SCHEMA_VERSION, STRAND_COORDINATE_VERSION, STRAND_OVERLAY_KIND };
@@ -75,6 +77,14 @@ type ImmutableReceiptArray = ReturnType<typeof createImmutableTickReceiptArraySn
 type MaterializedStrandResult =
   | ImmutableWarpState
   | Readonly<{ state: ImmutableWarpState; receipts: ImmutableReceiptArray }>;
+type LiveMaterializedStrandResult = Readonly<{
+  state: WarpState;
+  receipts: readonly TickReceipt[];
+}>;
+type StrandPatchEntry = {
+  patch: Patch;
+  sha: string;
+};
 
 function buildStrandDescriptor({
   graphName,
@@ -152,7 +162,7 @@ export default class StrandCoordinator {
   _hydrateOverlayMetadata(descriptor: ParsedStrandDescriptor): Promise<StrandDescriptor> {
     return this._deps.descriptors.hydrateDescriptor(descriptor);
   }
-  _collectPatchEntries(descriptor: StrandDescriptor, options: { ceiling: number | null }): Promise<Array<{ patch: Patch; sha: string }>> {
+  _collectPatchEntries(descriptor: StrandDescriptor, options: { ceiling: number | null }): Promise<StrandPatchEntry[]> {
     return this._deps.materializer.collectPatchEntries(descriptor, options);
   }
   _materializeDescriptor(descriptor: StrandDescriptor, options: { collectReceipts: boolean; ceiling: number | null }): ReturnType<StrandMaterializer['materializeDescriptor']> {
@@ -273,13 +283,18 @@ export default class StrandCoordinator {
 
   // ── Materialization (delegates) ─────────────────────────────────
 
-  async materialize(strandId: string, options: { receipts?: boolean; ceiling?: number | null } = {}): Promise<MaterializedStrandResult> {
+  async materializeLiveState(strandId: string, options: { receipts?: boolean; ceiling?: number | null } = {}): Promise<LiveMaterializedStrandResult> {
     const descriptor = await this.getOrThrow(strandId);
     const ceiling = normalizeLamportCeiling(options.ceiling);
     const { state, receipts } = await this._deps.materializer.materializeDescriptor(descriptor, {
       collectReceipts: options.receipts === true,
       ceiling,
     });
+    return Object.freeze({ state, receipts });
+  }
+
+  async materialize(strandId: string, options: { receipts?: boolean; ceiling?: number | null } = {}): Promise<MaterializedStrandResult> {
+    const { state, receipts } = await this.materializeLiveState(strandId, options);
     if (options.receipts === true) {
       return Object.freeze({
         state: createImmutableWarpStateSnapshot(state),
@@ -299,7 +314,7 @@ export default class StrandCoordinator {
     return await this._deps.patches.patch(strandId, build);
   }
 
-  async getPatchEntries(strandId: string, options: { ceiling?: number | null } = {}): Promise<Array<{ patch: Patch; sha: string }>> {
+  async getPatchEntries(strandId: string, options: { ceiling?: number | null } = {}): Promise<StrandPatchEntry[]> {
     const descriptor = await this.getOrThrow(strandId);
     const ceiling = normalizeLamportCeiling(options.ceiling);
     return await this._deps.materializer.collectPatchEntries(descriptor, { ceiling });

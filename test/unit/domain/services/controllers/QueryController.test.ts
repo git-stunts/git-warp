@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import QueryController from '../../../../../src/domain/services/controllers/QueryController.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
+import SnapshotWarpState from '../../../../../src/domain/services/snapshot/SnapshotWarpState.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
@@ -492,7 +493,7 @@ describe('QueryController', () => {
     it('returns an immutable snapshot of the cached state', async () => {
       const snapshot = await ctrl.getStateSnapshot();
       expect(snapshot).not.toBeNull();
-      expect(snapshot).toBeInstanceOf(WarpState);
+      expect(snapshot).toBeInstanceOf(SnapshotWarpState);
     });
 
     it('returns null when no cached state and autoMaterialize is false', async () => {

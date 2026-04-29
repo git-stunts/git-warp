@@ -13,9 +13,28 @@ import IndexError from '../../errors/IndexError.ts';
 import type IndexStoragePort from '../../../ports/IndexStoragePort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
+import { isPropValue, type PropValue } from '../../types/PropValue.ts';
 
-function createNullRecord(): Record<string, Record<string, unknown>> {
-  return {} as Record<string, Record<string, unknown>>;
+type IndexedPropertyBag = { [key: string]: PropValue };
+type PropertyShard = { [nodeId: string]: IndexedPropertyBag };
+type PropertyShardEntry = readonly [string, IndexedPropertyBag];
+
+function createNullRecord(): PropertyShard {
+  return {};
+}
+
+function isIndexedPropertyBag(value: unknown): value is IndexedPropertyBag {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  return Object.values(value).every((entry) => isPropValue(entry));
+}
+
+function isPropertyShardEntry(value: unknown): value is PropertyShardEntry {
+  return Array.isArray(value)
+    && value.length === 2
+    && typeof value[0] === 'string'
+    && isIndexedPropertyBag(value[1]);
 }
 
 export default class PropertyIndexReader {
@@ -23,7 +42,7 @@ export default class PropertyIndexReader {
   private readonly _codec: CodecPort;
   private readonly _indexStore: IndexStorePort | null;
   private _shardOids: Map<string, string>;
-  private readonly _cache: LRUCache<string, Record<string, Record<string, unknown>>>;
+  private readonly _cache: LRUCache<string, PropertyShard>;
 
   constructor(options?: {
     storage?: IndexStoragePort;
@@ -50,7 +69,7 @@ export default class PropertyIndexReader {
   /**
    * Returns all properties for a node, or null if not found.
    */
-  async getNodeProps(nodeId: string): Promise<Record<string, unknown> | null> {
+  async getNodeProps(nodeId: string): Promise<IndexedPropertyBag | null> {
     const shard = await this._loadShard(nodeId);
     if (!shard) {
       return null;
@@ -61,7 +80,7 @@ export default class PropertyIndexReader {
   /**
    * Returns a single property value, or undefined.
    */
-  async getProperty(nodeId: string, key: string): Promise<unknown> {
+  async getProperty(nodeId: string, key: string): Promise<PropValue | undefined> {
     const props = await this.getNodeProps(nodeId);
     if (!props) {
       return undefined;
@@ -69,7 +88,7 @@ export default class PropertyIndexReader {
     return props[key];
   }
 
-  private async _loadShard(nodeId: string): Promise<Record<string, Record<string, unknown>> | null> {
+  private async _loadShard(nodeId: string): Promise<PropertyShard | null> {
     const shardKey = computeShardKey(nodeId);
     const path = `props_${shardKey}.cbor`;
 
@@ -97,7 +116,7 @@ export default class PropertyIndexReader {
     return oid;
   }
 
-  private async _fetchAndDecode(oid: string, path: string): Promise<Record<string, Record<string, unknown>>> {
+  private async _fetchAndDecode(oid: string, path: string): Promise<PropertyShard> {
     if (this._indexStore) {
       const decoded: unknown = await this._indexStore.decodeShard(oid);
       return this._parseShard(decoded, path);
@@ -114,7 +133,7 @@ export default class PropertyIndexReader {
     return this._parseShard(decoded, path);
   }
 
-  private _parseShard(decoded: unknown, path: string): Record<string, Record<string, unknown>> {
+  private _parseShard(decoded: unknown, path: string): PropertyShard {
     if (!Array.isArray(decoded)) {
       const shape = decoded === null ? 'null' : typeof decoded;
       throw new IndexError(
@@ -124,8 +143,14 @@ export default class PropertyIndexReader {
     }
 
     const data = createNullRecord();
-    for (const [nid, props] of decoded as Array<[string, Record<string, unknown>]>) {
-      data[nid] = props;
+    for (const entry of decoded) {
+      if (!isPropertyShardEntry(entry)) {
+        throw new IndexError(
+          `PropertyIndexReader: invalid shard property bag for '${path}'`,
+          { code: 'E_INDEX_SHARD_MALFORMED', context: { path } },
+        );
+      }
+      data[entry[0]] = entry[1];
     }
     this._cache.set(path, data);
     return data;

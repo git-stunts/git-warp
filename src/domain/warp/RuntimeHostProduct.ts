@@ -77,6 +77,22 @@ export type RuntimeHostMaterializedGraph = {
 };
 
 type RuntimeHostCheckpointFrontier = Pick<LoadedCheckpoint, 'schema' | 'frontier'>;
+type RuntimeHostCoordinateGraphOptions = {
+  frontier: Map<string, string> | Record<string, string>;
+  ceiling?: number | null;
+};
+type RuntimeHostStrandGraphOptions = {
+  ceiling?: number | null;
+};
+type RuntimeHostPatchEntry = {
+  patch: Patch;
+  sha: string;
+};
+type RuntimeHostBuildViewResult = {
+  state: WarpState;
+  stateHash: string;
+  diff?: PatchDiff | null | undefined;
+};
 
 type RuntimeHostTrustAssessment = {
   trust: {
@@ -123,10 +139,16 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
     state: WarpState,
     optionsOrDiff?: PatchDiff | { diff?: PatchDiff | null },
   ): Promise<RuntimeHostMaterializedGraph>;
-  _buildViewFromResult(result: { state: WarpState; stateHash: string; diff?: PatchDiff | null | undefined }): void;
+  _materializeGraph(options?: { ceiling?: number | null }): Promise<RuntimeHostMaterializedGraph>;
+  _materializeCoordinateGraph(options: RuntimeHostCoordinateGraphOptions): Promise<RuntimeHostMaterializedGraph>;
+  _materializeStrandGraph(
+    strandId: string,
+    options?: RuntimeHostStrandGraphOptions,
+  ): Promise<RuntimeHostMaterializedGraph>;
+  _buildViewFromResult(result: RuntimeHostBuildViewResult): void;
   _loadLatestCheckpoint(): Promise<LoadedCheckpoint | null>;
-  _loadPatchesSince(checkpoint: RuntimeHostCheckpointFrontier): Promise<Array<{ patch: Patch; sha: string }>>;
-  _loadWriterPatches(writerId: string, stopAtSha?: string | null): Promise<Array<{ patch: Patch; sha: string }>>;
+  _loadPatchesSince(checkpoint: RuntimeHostCheckpointFrontier): Promise<RuntimeHostPatchEntry[]>;
+  _loadWriterPatches(writerId: string, stopAtSha?: string | null): Promise<RuntimeHostPatchEntry[]>;
   _ensureFreshState(): Promise<void>;
   _maybeRunGC(state: WarpState): void;
   _isAncestor(ancestorSha: string, descendantSha: string): Promise<boolean>;

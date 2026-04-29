@@ -118,13 +118,18 @@ describe('immutable snapshot builder contract', () => {
     expect(snapshot.nodeAlive.contains('node-b')).toBe(false);
     expect(snapshot.prop.get(key)?.value).toBe('blue');
 
-    const nodeDots = snapshot.nodeAlive.entries.get('node-a');
-    expect(nodeDots).toBeDefined();
-    if (nodeDots !== undefined) {
-      expect(() => nodeDots.add('writer-a:3')).toThrow(/read-only/i);
-    }
+    const nodeDots = snapshot.nodeAlive.getDots('node-a');
+    expect(nodeDots).toEqual(['writer-a:1']);
+    expect(() => Reflect.apply(Array.prototype.push, nodeDots, ['writer-a:3'])).toThrow();
+    expect(snapshot.nodeAlive.getDots('node-a')).toEqual(['writer-a:1']);
 
-    expect(() => snapshot.prop.set('node-b:name', LWWRegister.set(testEvent(3, 'cccc'), 'green'))).toThrow(/read-only/i);
+    const propSet = Reflect.get(snapshot.prop, 'set');
+    expect(typeof propSet).toBe('function');
+    expect(() => Reflect.apply(
+      propSet,
+      snapshot.prop,
+      ['node-b:name', LWWRegister.set(testEvent(3, 'cccc'), 'green')],
+    )).toThrow(/read-only/i);
   });
 
   it('clones VersionVector through runtime behavior for supported WarpState snapshots', () => {
@@ -137,7 +142,7 @@ describe('immutable snapshot builder contract', () => {
 
     expect(snapshot.observedFrontier).not.toBe(state.observedFrontier);
     expect(snapshot.observedFrontier.get('writer-a')).toBe(1);
-    expect(() => snapshot.observedFrontier.set('writer-a', 3)).toThrow(/frozen/i);
+    expect(Reflect.get(snapshot.observedFrontier, 'set')).toBeUndefined();
   });
 
   it('copies receipt arrays and rejects non-TickReceipt entries', () => {

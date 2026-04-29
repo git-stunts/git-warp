@@ -34,6 +34,9 @@ import type CryptoPort from '../../../ports/CryptoPort.ts';
 // ── Shared types ─────────────────────────────────────────────────────
 
 export type PatchEntry = { patch: Patch; sha: string };
+type ComparisonMaterializedState = {
+  state: WarpState;
+};
 
 /**
  * Materialize options for the coordinate materialization path.
@@ -56,7 +59,7 @@ export type MaterializeCoordinateOptions = {
  */
 export type ComparisonHost = {
   getFrontier(): Promise<Map<string, string>>;
-  materializeCoordinate(opts: MaterializeCoordinateOptions): Promise<WarpState>;
+  _materializeCoordinateGraph(opts: MaterializeCoordinateOptions): Promise<ComparisonMaterializedState>;
   _loadPatchChainFromSha(sha: string): Promise<PatchEntry[]>;
   _crypto: CryptoPort;
   _codec: CodecPort;
@@ -401,7 +404,7 @@ export class LiveComparisonSelector extends NormalizedSelector {
   async resolve(graph: ComparisonHost, scope: VisibleStateScope | null, liveFrontier: Map<string, string> | null) {
     const requestedFrontier = liveFrontier ?? await graph.getFrontier();
     const requestedRecord = normalizeFrontierRecord(requestedFrontier, 'live.frontier');
-    const state = await graph.materializeCoordinate({
+    const { state } = await graph._materializeCoordinateGraph({
       frontier: frontierRecordToMap(requestedRecord),
       ...optionalCeiling(this.ceiling),
     });
@@ -422,7 +425,7 @@ export class CoordinateComparisonSelector extends NormalizedSelector {
   }
 
   async resolve(graph: ComparisonHost, scope: VisibleStateScope | null) {
-    const state = await graph.materializeCoordinate({
+    const { state } = await graph._materializeCoordinateGraph({
       frontier: frontierRecordToMap(this.frontier),
       ...optionalCeiling(this.ceiling),
     });
@@ -497,7 +500,7 @@ export class StrandBaseComparisonSelector extends NormalizedSelector {
     const descriptor = await strands.getOrThrow(this.strandId);
     const effectiveCeiling = combineCeilings(descriptor.baseObservation.lamportCeiling, this.ceiling);
     const frontierRecord = normalizeFrontierRecord(descriptor.baseObservation.frontier, 'strand_base.frontier');
-    const state = await graph.materializeCoordinate({
+    const { state } = await graph._materializeCoordinateGraph({
       frontier: frontierRecordToMap(frontierRecord),
       ...optionalCeiling(effectiveCeiling),
     });

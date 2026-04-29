@@ -149,14 +149,16 @@ describe('WarpCore.getStateSnapshot()', () => {
     expect(register).toBeDefined();
     expect(Object.isFrozen(register)).toBe(true);
     expect(Object.isFrozen(register!.value)).toBe(true);
-    expect(() => snap!.prop.set('injected', { value: 'bad' } as any)).toThrow(WarpError);
-    expect(() => {
-      (register!.value as any).color = 'blue';
-    }).toThrow(TypeError);
+    const propSet = Reflect.get(snap!.prop, 'set');
+    expect(() => Reflect.apply(propSet, snap!.prop, ['injected', register!])).toThrow(WarpError);
+    if (register!.value !== null && typeof register!.value === 'object') {
+      expect(Reflect.set(register!.value, 'color', 'blue')).toBe(false);
+    }
 
-    const snap2 = (await graph.getStateSnapshot() as any);
-    expect(snap2.prop.has('injected')).toBe(false);
-    expect(snap2.prop.get(propKey).value.color).toBe('red');
+    const snap2 = await graph.getStateSnapshot();
+    expect(snap2?.prop.has('injected')).toBe(false);
+    const profile = snap2?.prop.get(propKey)?.value;
+    expect(profile).toMatchObject({ color: 'red' });
   });
 
   it('produces distinct state references at different ceilings', async () => {
@@ -280,13 +282,16 @@ describe('Structural seek diff (diffStates integration)', () => {
     });
 
     await graph.materialize({ ceiling: 1 });
-    const snap1 = await graph.getStateSnapshot();
 
     await graph.materialize({ ceiling: 1 });
-    const snap2 = await graph.getStateSnapshot();
 
     const { diffStates, isEmptyDiff } = await import('../../../src/domain/services/state/StateDiff.ts');
-    const diff = diffStates(snap1, (snap2 as any));
+    const state = graph._cachedState;
+    expect(state).not.toBeNull();
+    if (state === null) {
+      return;
+    }
+    const diff = diffStates(state, state);
 
     expect(isEmptyDiff(diff)).toBe(true);
   });

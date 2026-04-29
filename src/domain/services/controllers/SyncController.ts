@@ -332,7 +332,7 @@ export default class SyncController {
         throw new SyncError(`Invalid sync response: ${validation.error}`, { code: 'E_SYNC_PAYLOAD_INVALID' });
       }
       if (!this._host._cachedState) {
-        await this._host.materialize();
+        await this._host._materializeGraph();
         emit('materialized');
       }
       const result = trustGate === this._trustGate
@@ -355,7 +355,7 @@ export default class SyncController {
         },
       } as RetryOptions);
       if (materializeAfterSync) {
-        if (!this._host._cachedState) { await this._host.materialize(); }
+        if (!this._host._cachedState) { await this._host._materializeGraph(); }
         const state = this._host._cachedState;
         if (state === null) {
           throw new SyncError('Materialize completed without cached state', {

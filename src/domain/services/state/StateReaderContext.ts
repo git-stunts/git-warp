@@ -11,28 +11,39 @@ import {
   encodePropKey,
   isEdgePropKey,
 } from '../KeyCodec.ts';
+import { createSnapshotPropValue } from '../ImmutableSnapshot.ts';
 import type { PropValue } from '../../types/PropValue.ts';
+import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
 import type WarpState from './WarpState.ts';
 
 // ── Public types ────────────────────────────────────────────────────────────
 
 export type ContentMeta = { oid: string; mime: string | null; size: number | null };
 export type NeighborEntry = { nodeId: string; label: string; direction: 'outgoing' | 'incoming' };
+type OutgoingNeighborEntry = { nodeId: string; label: string; direction: 'outgoing' };
+type IncomingNeighborEntry = { nodeId: string; label: string; direction: 'incoming' };
 export type VisibleEdgeRef = { from: string; to: string; label: string };
-export type VisibleEdgeView = { from: string; to: string; label: string; props: Record<string, unknown> };
+export type VisiblePropertyBag = Readonly<{ [key: string]: SnapshotPropValue }>;
+type MutableVisiblePropertyBag = { [key: string]: SnapshotPropValue };
+export type VisibleEdgeView = { from: string; to: string; label: string; props: VisiblePropertyBag };
+type VisibleProjectionProp = {
+  node: string;
+  key: string;
+  value: unknown;
+};
 
 export type StateReaderContext = {
   projection: {
     nodes: string[];
     edges: VisibleEdgeRef[];
-    props: Array<{ node: string; key: string; value: unknown }>;
+    props: VisibleProjectionProp[];
   };
   visibleNodeIds: Set<string>;
-  nodePropsById: Map<string, Record<string, unknown>>;
-  edgePropsByKey: Map<string, Record<string, unknown>>;
+  nodePropsById: Map<string, MutableVisiblePropertyBag>;
+  edgePropsByKey: Map<string, MutableVisiblePropertyBag>;
   edges: VisibleEdgeView[];
-  outgoingByNode: Map<string, Array<{ nodeId: string; label: string; direction: 'outgoing' }>>;
-  incomingByNode: Map<string, Array<{ nodeId: string; label: string; direction: 'incoming' }>>;
+  outgoingByNode: Map<string, OutgoingNeighborEntry[]>;
+  incomingByNode: Map<string, IncomingNeighborEntry[]>;
   nodeContentMetaById: Map<string, ContentMeta | null>;
   edgeContentMetaByKey: Map<string, ContentMeta | null>;
 };
@@ -176,8 +187,12 @@ export function extractContentMeta(
 // ── Cloning helpers ──────────────────────────────────────────────────────────
 
 /** Shallow-clones a property bag. */
-export function cloneBag(bag: Record<string, unknown>): Record<string, unknown> {
-  return { ...bag };
+export function cloneBag(bag: VisiblePropertyBag): VisiblePropertyBag {
+  const clone: MutableVisiblePropertyBag = {};
+  for (const [key, value] of Object.entries(bag)) {
+    clone[key] = value;
+  }
+  return Object.freeze(clone);
 }
 
 /** Shallow-clones content metadata or returns null. */
@@ -193,16 +208,16 @@ export function cloneNeighbors(entries: NeighborEntry[]): NeighborEntry[] {
 // ── Index builders ───────────────────────────────────────────────────────────
 
 /** Creates a map of node ID to empty property bags for population. */
-export function createNodePropIndex(nodeIds: string[]): Map<string, Record<string, unknown>> {
+export function createNodePropIndex(nodeIds: string[]): Map<string, MutableVisiblePropertyBag> {
   return new Map(
-    nodeIds.map((nodeId) => [nodeId, Object.create(null) as Record<string, unknown>]),
+    nodeIds.map((nodeId) => [nodeId, {}]),
   );
 }
 
 /** Creates a map of edge key to empty property bags for population. */
-export function createEdgePropIndex(edges: VisibleEdgeRef[]): Map<string, Record<string, unknown>> {
+export function createEdgePropIndex(edges: VisibleEdgeRef[]): Map<string, MutableVisiblePropertyBag> {
   return new Map(
-    edges.map((edge) => [edgeKeyFromRef(edge), Object.create(null) as Record<string, unknown>]),
+    edges.map((edge) => [edgeKeyFromRef(edge), {}]),
   );
 }
 
@@ -214,10 +229,10 @@ export function createNeighborIndex(
   outgoingByNode: StateReaderContext['outgoingByNode'];
   incomingByNode: StateReaderContext['incomingByNode'];
 } {
-  const outgoingByNode = new Map<string, Array<{ nodeId: string; label: string; direction: 'outgoing' }>>(
+  const outgoingByNode = new Map<string, OutgoingNeighborEntry[]>(
     nodeIds.map((nodeId) => [nodeId, []]),
   );
-  const incomingByNode = new Map<string, Array<{ nodeId: string; label: string; direction: 'incoming' }>>(
+  const incomingByNode = new Map<string, IncomingNeighborEntry[]>(
     nodeIds.map((nodeId) => [nodeId, []]),
   );
 
@@ -234,8 +249,8 @@ export function populateVisibleProps(
   state: WarpState,
   indexes: {
     visibleNodeIds: Set<string>;
-    nodePropsById: Map<string, Record<string, unknown>>;
-    edgePropsByKey: Map<string, Record<string, unknown>>;
+    nodePropsById: Map<string, MutableVisiblePropertyBag>;
+    edgePropsByKey: Map<string, MutableVisiblePropertyBag>;
   },
 ): void {
   const { visibleNodeIds, nodePropsById, edgePropsByKey } = indexes;
@@ -243,7 +258,7 @@ export function populateVisibleProps(
     if (!isEdgePropKey(propKey)) {
       const { nodeId, propKey: key } = decodePropKey(propKey);
       if (visibleNodeIds.has(nodeId)) {
-        (nodePropsById.get(nodeId) as Record<string, unknown>)[key] = register.value;
+        nodePropsById.get(nodeId)![key] = createSnapshotPropValue(register.value);
       }
       continue;
     }
@@ -262,18 +277,18 @@ export function populateVisibleProps(
     ) {
       continue;
     }
-    props[decoded.propKey] = register.value;
+    props[decoded.propKey] = createSnapshotPropValue(register.value);
   }
 }
 
 /** Creates visible edge views with cloned property bags. */
 export function createVisibleEdges(
   edges: VisibleEdgeRef[],
-  edgePropsByKey: Map<string, Record<string, unknown>>,
+  edgePropsByKey: Map<string, MutableVisiblePropertyBag>,
 ): VisibleEdgeView[] {
   return edges.map((edge) => ({
     ...edge,
-    props: cloneBag(edgePropsByKey.get(edgeKeyFromRef(edge)) as Record<string, unknown>),
+    props: cloneBag(edgePropsByKey.get(edgeKeyFromRef(edge)) ?? Object.freeze({})),
   }));
 }
 

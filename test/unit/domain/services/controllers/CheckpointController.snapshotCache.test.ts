@@ -40,13 +40,20 @@ type SnapshotCacheFixture = {
   pruneEvictable: () => Promise<void>;
 };
 
+type HostMaterializedState = {
+  state: WarpState;
+};
+type HostNodeInfo = {
+  message: string;
+};
+
 type HostFixture = {
   _graphName: string;
   _persistence: {
     readRef: (_ref: string) => Promise<string | null>;
     updateRef: (_ref: string, _oid: string) => Promise<void>;
     commitNode: (_options: { message: string; parents: string[] }) => Promise<string>;
-    getNodeInfo: (_sha: string) => Promise<{ message: string }>;
+    getNodeInfo: (_sha: string) => Promise<HostNodeInfo>;
   };
   _cachedState: WarpState | null;
   _stateDirty: boolean;
@@ -75,7 +82,7 @@ type HostFixture = {
   _stateCache: SnapshotCacheFixture;
   _readPatchBlob: (_patchMeta: ReturnType<typeof DEFAULT_COMMIT_MESSAGE_CODEC.decodePatch>) => Promise<Uint8Array>;
   discoverWriters: () => Promise<string[]>;
-  materialize: () => Promise<WarpState>;
+  _materializeGraph: () => Promise<HostMaterializedState>;
 };
 
 function snapshotRecord(snapshotId: string, retention: 'evictable' | 'pinned'): SnapshotRecord {
@@ -133,7 +140,7 @@ function createHost(snapshotCache: SnapshotCacheFixture): HostFixture {
     _stateCache: snapshotCache,
     _readPatchBlob: vi.fn().mockResolvedValue(new Uint8Array()),
     discoverWriters: vi.fn().mockResolvedValue(['alice']),
-    materialize: vi.fn().mockResolvedValue(WarpState.empty()),
+    _materializeGraph: vi.fn().mockResolvedValue({ state: WarpState.empty() }),
   };
 }
 
@@ -180,7 +187,7 @@ describe('CheckpointController — unified snapshot cache', () => {
 
     await controller.createCheckpoint();
 
-    expect(host.materialize).toHaveBeenCalledTimes(1);
+    expect(host._materializeGraph).toHaveBeenCalledTimes(1);
     expect(snapshotCache.put).toHaveBeenCalledTimes(1);
     expect(snapshotCache.pin).toHaveBeenCalledWith('snapshot-new');
     expect(snapshotCache.publishCheckpointHead).toHaveBeenCalledWith('test-graph', 'snapshot-new');

@@ -13,6 +13,8 @@ const MATERIALIZE_CAPABILITY_PATH = 'src/domain/capabilities/MaterializeCapabili
 const QUERY_CAPABILITY_PATH = 'src/domain/capabilities/QueryCapability.ts';
 const QUERY_READS_PATH = 'src/domain/services/controllers/QueryReads.ts';
 const STATE_READER_CONTEXT_PATH = 'src/domain/services/state/StateReaderContext.ts';
+const SNAPSHOT_OR_SET_PATH = 'src/domain/services/snapshot/SnapshotORSet.ts';
+const SNAPSHOT_WARP_STATE_PATH = 'src/domain/services/snapshot/SnapshotWarpState.ts';
 
 type SnapshotEntry = {
   readonly element: string;
@@ -153,17 +155,18 @@ describe('snapshot PropValue API model', () => {
 
   it('requires SnapshotWarpState fields to expose read-side types, not live mutable CRDT surfaces', () => {
     const domainSource = readDomainSource();
+    const snapshotWarpStateSource = readRepoFile(SNAPSHOT_WARP_STATE_PATH);
 
     expect(domainSource).toMatch(/class\s+SnapshotORSet\b/u);
     expect(domainSource).toMatch(/class\s+SnapshotVersionVector\b/u);
-    expect(domainSource).toMatch(/nodeAlive\s*:\s*SnapshotORSet/u);
-    expect(domainSource).toMatch(/edgeAlive\s*:\s*SnapshotORSet/u);
-    expect(domainSource).toMatch(/observedFrontier\s*:\s*SnapshotVersionVector/u);
-    expect(domainSource).toMatch(/prop\s*:\s*ReadonlyMap\s*<\s*string\s*,\s*LWWRegister\s*<\s*SnapshotPropValue\s*>\s*>/u);
-    expect(domainSource).toMatch(/edgeBirthEvent\s*:\s*ReadonlyMap\s*<\s*string\s*,\s*EventId\s*>/u);
-    expect(domainSource).not.toMatch(/nodeAlive\s*:\s*ORSet/u);
-    expect(domainSource).not.toMatch(/edgeAlive\s*:\s*ORSet/u);
-    expect(domainSource).not.toMatch(/observedFrontier\s*:\s*VersionVector/u);
+    expect(snapshotWarpStateSource).toMatch(/nodeAlive\s*:\s*SnapshotORSet/u);
+    expect(snapshotWarpStateSource).toMatch(/edgeAlive\s*:\s*SnapshotORSet/u);
+    expect(snapshotWarpStateSource).toMatch(/observedFrontier\s*:\s*SnapshotVersionVector/u);
+    expect(snapshotWarpStateSource).toMatch(/prop\s*:\s*ReadonlyMap\s*<\s*string\s*,\s*LWWRegister\s*<\s*SnapshotPropValue\s*>\s*>/u);
+    expect(snapshotWarpStateSource).toMatch(/edgeBirthEvent\s*:\s*ReadonlyMap\s*<\s*string\s*,\s*EventId\s*>/u);
+    expect(snapshotWarpStateSource).not.toMatch(/nodeAlive\s*:\s*ORSet/u);
+    expect(snapshotWarpStateSource).not.toMatch(/edgeAlive\s*:\s*ORSet/u);
+    expect(snapshotWarpStateSource).not.toMatch(/observedFrontier\s*:\s*VersionVector/u);
   });
 
   it('requires public property-bag APIs to project storage values to SnapshotPropValue', () => {
@@ -179,17 +182,17 @@ describe('snapshot PropValue API model', () => {
   });
 
   it('requires SnapshotORSet to avoid live mutators and fake readonly Set returns', () => {
-    const domainSource = readDomainSource();
-    const snapshotORSetSource = classSource(domainSource, 'SnapshotORSet');
+    const snapshotORSetSource = readRepoFile(SNAPSHOT_OR_SET_PATH);
 
-    expect(domainSource).toMatch(/class\s+SnapshotORSet\b/u);
+    expect(snapshotORSetSource).toMatch(/class\s+SnapshotORSet\b/u);
     expect(snapshotORSetSource).not.toMatch(/\badd\s*\(/u);
     expect(snapshotORSetSource).not.toMatch(/\bremove\s*\(/u);
     expect(snapshotORSetSource).not.toMatch(/\bcompact\s*\(/u);
-    expect(snapshotORSetSource).not.toMatch(/\bentries\s*:\s*Map\b/u);
-    expect(snapshotORSetSource).not.toMatch(/\btombstones\s*:\s*Set\b/u);
+    expect(snapshotORSetSource).not.toMatch(/(?:^|\n)\s*(?:readonly\s+)?entries\s*:\s*Map\b/u);
+    expect(snapshotORSetSource).not.toMatch(/(?:^|\n)\s*(?:readonly\s+)?tombstones\s*:\s*Set\b/u);
+    expect(snapshotORSetSource).not.toMatch(/\b\w+\s*\([^)]*\)\s*:\s*Set\s*</u);
+    expect(snapshotORSetSource).not.toMatch(/\b\w+\s*\([^)]*\)\s*:\s*ReadonlySet\s*</u);
     expect(snapshotORSetSource).not.toMatch(/ReadonlySet/u);
-    expect(snapshotORSetSource).not.toMatch(/:\s*Set\s*</u);
   });
 
   it('requires SnapshotVersionVector to avoid mutating frontier methods', () => {

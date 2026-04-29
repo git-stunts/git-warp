@@ -3,32 +3,53 @@
 import QueryError from '../../errors/QueryError.ts';
 import { matchGlob } from '../../utils/matchGlob.ts';
 import type QueryPlan from './QueryPlan.ts';
-import type { AggregateSpec, QueryNodeSnapshot, QueryOperation } from './QueryPlan.ts';
+import type { AggregateSpec, QueryNodeSnapshot, QueryNodeEdgeSnapshot, QueryOperation } from './QueryPlan.ts';
+import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
+
+type QueryPropertyBag = Readonly<{ [key: string]: SnapshotPropValue }>;
+type QueryVisibleEdge = {
+  from: string;
+  to: string;
+  label: string;
+  props: QueryPropertyBag;
+};
+type QueryResultNode = {
+  id?: string;
+  props?: QueryPropertyBag;
+};
+type QueryMaterializedGraph = {
+  adjacency: unknown;
+  stateHash: string | null;
+};
+type QueryAdjacencyEdge = {
+  label: string;
+  neighborId: string;
+};
 
 // ── Graph contract ──────────────────────────────────────────────────
 
 /** Structural interface for the graph handle needed by the runner. */
 export type QueryGraph = {
-  _materializeGraph: () => Promise<{ adjacency: unknown; stateHash: string | null }>;
+  _materializeGraph: () => Promise<QueryMaterializedGraph>;
   getNodes: () => Promise<string[]>;
-  getNodeProps: (nodeId: string) => Promise<Record<string, unknown> | null>;
-  getEdges: () => Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
+  getNodeProps: (nodeId: string) => Promise<QueryPropertyBag | null>;
+  getEdges: () => Promise<QueryVisibleEdge[]>;
 };
 
 // ── Adjacency types ─────────────────────────────────────────────────
 
 type AdjacencyMaps = {
-  outgoing: Map<string, Array<{ label: string; neighborId: string }>>;
-  incoming: Map<string, Array<{ label: string; neighborId: string }>>;
+  outgoing: Map<string, QueryAdjacencyEdge[]>;
+  incoming: Map<string, QueryAdjacencyEdge[]>;
 };
 
-type PropsFetcher = (nodeId: string) => Promise<Record<string, unknown>>;
+type PropsFetcher = (nodeId: string) => Promise<QueryPropertyBag>;
 
 // ── Result types ────────────────────────────────────────────────────
 
 export type QueryResult = {
   stateHash: string;
-  nodes: Array<{ id?: string; props?: Record<string, unknown> }>;
+  nodes: QueryResultNode[];
 };
 
 export type AggregateResult = {
@@ -38,6 +59,11 @@ export type AggregateResult = {
   avg?: number;
   min?: number;
   max?: number;
+};
+
+type AggregateAccumulator = {
+  segments: string[];
+  values: number[];
 };
 
 // ── Boundary validation ─────────────────────────────────────────────
@@ -100,35 +126,16 @@ function deepFreeze<T>(obj: T): T {
 
 // ── Cloning ─────────────────────────────────────────────────────────
 
-function cloneValue<T>(value: T): T {
-  if (value === null || typeof value !== 'object') {
-    return value;
-  }
-  try {
-    return globalThis.structuredClone(value);
-  } catch {
-    return jsonClone(value);
-  }
-}
-
-function jsonClone<T>(value: T): T {
-  try {
-    return JSON.parse(JSON.stringify(value)) as T;
-  } catch {
-    return value;
-  }
-}
-
 // ── Snapshot construction ───────────────────────────────────────────
 
 function sortIds(ids: Iterable<string>): string[] {
   return [...ids].sort();
 }
 
-function buildPropsSnapshot(propsRecord: Record<string, unknown>): Readonly<Record<string, unknown>> {
-  const props: Record<string, unknown> = {};
+function buildPropsSnapshot(propsRecord: QueryPropertyBag): QueryPropertyBag {
+  const props: { [key: string]: SnapshotPropValue } = {};
   for (const key of Object.keys(propsRecord).sort()) {
-    props[key] = cloneValue(propsRecord[key]);
+    props[key] = propsRecord[key]!;
   }
   return deepFreeze(props);
 }
@@ -147,12 +154,12 @@ function compareEdgeEntries(
 }
 
 function buildEdgesSnapshot(
-  edges: Array<{ label: string; neighborId?: string; to?: string; from?: string }>,
+  edges: QueryAdjacencyEdge[],
   directionKey: 'to' | 'from',
-): ReadonlyArray<{ label: string; to?: string; from?: string }> {
+): ReadonlyArray<QueryNodeEdgeSnapshot> {
   const list = edges.map((edge) => ({
     label: edge.label,
-    [directionKey]: edge.neighborId ?? edge[directionKey],
+    [directionKey]: edge.neighborId,
   }));
   list.sort((a, b) => compareEdgeEntries(a, b, directionKey));
   return deepFreeze(list);
@@ -160,9 +167,9 @@ function buildEdgesSnapshot(
 
 function createNodeSnapshot(params: {
   id: string;
-  propsRecord: Record<string, unknown>;
-  edgesOut: Array<{ label: string; neighborId: string }>;
-  edgesIn: Array<{ label: string; neighborId: string }>;
+  propsRecord: QueryPropertyBag;
+  edgesOut: QueryAdjacencyEdge[];
+  edgesIn: QueryAdjacencyEdge[];
 }): Readonly<QueryNodeSnapshot> {
   return deepFreeze({
     id: params.id,
@@ -174,12 +181,12 @@ function createNodeSnapshot(params: {
 
 // ── Traversal ───────────────────────────────────────────────────────
 
-function edgeSource(adjacency: AdjacencyMaps, direction: 'outgoing' | 'incoming'): Map<string, Array<{ label: string; neighborId: string }>> {
+function edgeSource(adjacency: AdjacencyMaps, direction: 'outgoing' | 'incoming'): Map<string, QueryAdjacencyEdge[]> {
   return direction === 'outgoing' ? adjacency.outgoing : adjacency.incoming;
 }
 
 function collectMatchingNeighbors(
-  edges: Array<{ label: string; neighborId: string }>,
+  edges: QueryAdjacencyEdge[],
   labelFilter: string | null,
 ): string[] {
   if (labelFilter === null) {
@@ -209,7 +216,7 @@ function applyHop(params: {
 type BfsLevelParams = {
   currentLevel: Set<string>;
   visited: Set<string>;
-  source: Map<string, Array<{ label: string; neighborId: string }>>;
+  source: Map<string, QueryAdjacencyEdge[]>;
   labelFilter: string | null;
 };
 
@@ -231,7 +238,7 @@ function addAllTo(source: Set<string>, target: Set<string>): void {
 }
 
 function runBfsLoop(params: {
-  source: Map<string, Array<{ label: string; neighborId: string }>>;
+  source: Map<string, QueryAdjacencyEdge[]>;
   labelFilter: string | null;
   strand: string[];
   depth: [number, number];
@@ -351,12 +358,12 @@ async function buildResultNodes(
   strand: string[],
   selectFields: string[] | null,
   getProps: PropsFetcher,
-): Promise<Array<{ id?: string; props?: Record<string, unknown> }>> {
+): Promise<QueryResultNode[]> {
   const includeId = !selectFields || selectFields.includes('id');
   const includeProps = !selectFields || selectFields.includes('props');
 
-  const nodes: Array<{ id?: string; props?: Record<string, unknown> }> = await batchMap(strand, async (nodeId) => {
-    const entry: { id?: string; props?: Record<string, unknown> } = {};
+  const nodes: QueryResultNode[] = await batchMap(strand, async (nodeId) => {
+    const entry: QueryResultNode = {};
     if (includeId) { entry.id = nodeId; }
     if (includeProps) {
       const props = buildPropsSnapshot(await getProps(nodeId));
@@ -415,8 +422,8 @@ async function runAggregate(params: AggregateParams): Promise<AggregateResult> {
   return await computeNumericAggregates({ strand, getProps, activeAggs, specRec, result });
 }
 
-function buildAggMap(activeAggs: readonly string[], specRec: Record<string, unknown>): Map<string, { segments: string[]; values: number[] }> {
-  const aggMap = new Map<string, { segments: string[]; values: number[] }>();
+function buildAggMap(activeAggs: readonly string[], specRec: Record<string, unknown>): Map<string, AggregateAccumulator> {
+  const aggMap = new Map<string, AggregateAccumulator>();
   for (const key of activeAggs) {
     aggMap.set(key, {
       segments: (specRec[key] as string).replace(/^props\./, '').split('.'),
@@ -426,7 +433,7 @@ function buildAggMap(activeAggs: readonly string[], specRec: Record<string, unkn
   return aggMap;
 }
 
-function collectAggValues(propsList: Record<string, unknown>[], aggMap: Map<string, { segments: string[]; values: number[] }>): void {
+function collectAggValues(propsList: Record<string, unknown>[], aggMap: Map<string, AggregateAccumulator>): void {
   for (const propsRecord of propsList) {
     for (const { segments, values } of aggMap.values()) {
       const value = resolvePropertyPath(propsRecord, segments);
@@ -459,7 +466,7 @@ async function computeNumericAggregates(params: {
 const DEFAULT_PATTERN = '*';
 
 function createPropsMemo(graph: QueryGraph): PropsFetcher {
-  const memo = new Map<string, Record<string, unknown>>();
+  const memo = new Map<string, QueryPropertyBag>();
   return async (nodeId: string) => {
     const cached = memo.get(nodeId);
     if (cached !== undefined) { return cached; }

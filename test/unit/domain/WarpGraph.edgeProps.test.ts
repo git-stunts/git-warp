@@ -1,13 +1,22 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createEmptyState, encodeEdgeKey, encodeEdgePropKey } from '../../../src/domain/services/JoinReducer.ts';
+import { createSnapshotWarpState } from '../../../src/domain/services/ImmutableSnapshot.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 
 function setupGraphState(/** @type {any} */ graph, /** @type {any} */ seedFn) {
   const state = createEmptyState();
-  (graph)._cachedState = state;
-  graph.materialize = vi.fn().mockResolvedValue(state);
   seedFn(state);
+  const materializedGraph = {
+    state,
+    stateHash: 'test-state-hash',
+    adjacency: graph._buildAdjacency(state),
+  };
+  (graph)._cachedState = state;
+  graph._stateDirty = false;
+  graph._materializedGraph = materializedGraph;
+  graph._materializeGraph = vi.fn().mockResolvedValue(materializedGraph);
+  graph.materialize = vi.fn().mockResolvedValue(createSnapshotWarpState(state));
 }
 
 function addNode(/** @type {any} */ state, /** @type {any} */ nodeId, /** @type {any} */ counter) {

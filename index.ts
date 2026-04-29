@@ -159,6 +159,11 @@ import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/service
 import { computeStateHash, projectState } from './src/domain/services/state/StateSerializer.ts';
 import { createStateReader } from './src/domain/services/state/StateReader.ts';
 import { compareVisibleState } from './src/domain/services/comparison/VisibleStateComparison.ts';
+import ImmutableBytes from './src/domain/services/snapshot/ImmutableBytes.ts';
+import SnapshotORSet from './src/domain/services/snapshot/SnapshotORSet.ts';
+import SnapshotVersionVector from './src/domain/services/snapshot/SnapshotVersionVector.ts';
+import SnapshotWarpState from './src/domain/services/snapshot/SnapshotWarpState.ts';
+import type { SnapshotPropValue } from './src/domain/services/snapshot/SnapshotPropValue.ts';
 import {
   normalizeVisibleStateScope,
   scopeMaterializedState,
@@ -269,6 +274,10 @@ export {
   projectState,
   createStateReader,
   compareVisibleState,
+  ImmutableBytes,
+  SnapshotORSet,
+  SnapshotVersionVector,
+  SnapshotWarpState,
   normalizeVisibleStateScope,
   scopeMaterializedState,
   exportCoordinateComparisonFact,
@@ -317,6 +326,8 @@ export {
   ConsoleEffectSink,
   ChunkEffectSink,
 };
+
+export type { SnapshotPropValue };
 
 // WarpApp is the primary product-facing API for v15.
 export default WarpApp;

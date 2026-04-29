@@ -2,6 +2,55 @@ import { EXIT_CODES, usageError, parseCommandArgs } from '../infrastructure.ts';
 import { openGraph, applyCursorCeiling, emitCursorWarning } from '../shared.ts';
 import { z } from 'zod';
 import type { CliOptions } from '../types.ts';
+import ImmutableBytes from '../../../src/domain/services/snapshot/ImmutableBytes.ts';
+import type { SnapshotPropValue } from '../../../src/domain/services/snapshot/SnapshotPropValue.ts';
+
+type TreeProps = Readonly<{ [key: string]: SnapshotPropValue }>;
+type TreeEdge = {
+  readonly from: string;
+  readonly to: string;
+  readonly label?: string;
+};
+type TreeChild = {
+  readonly id: string;
+  readonly label: string;
+};
+type TreeChildMap = Map<string, TreeChild[]>;
+type TreeRow = {
+  id: string;
+  props?: TreeProps;
+};
+type TreeCommandResult = {
+  payload: unknown;
+  exitCode: number;
+};
+type TreeRenderParams = {
+  nodeId: string;
+  childMap: TreeChildMap;
+  propsMap: Map<string, TreeProps>;
+  propKeys: string[];
+  prefix: string;
+  isLast: boolean;
+  visited: Set<string>;
+  depth: number;
+  maxDepth: number | undefined;
+  lines: string[];
+};
+
+function formatSnapshotPropValue(value: SnapshotPropValue): string {
+  if (value instanceof ImmutableBytes) {
+    return `bytes(${value.length})`;
+  }
+  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => formatSnapshotPropValue(entry)).join(', ')}]`;
+  }
+  return `{${Object.entries(value)
+    .map(([key, entry]) => `${key}: ${formatSnapshotPropValue(entry)}`)
+    .join(', ')}}`;
+}
 
 const TREE_OPTIONS = {
   edge: { type: 'string' },
@@ -20,8 +69,8 @@ const treeSchema = z.object({
 }));
 
 /** Builds a parent-to-children adjacency map from edges. */
-function buildChildMap(edges: Array<{ from: string; to: string; label?: string }>, labelFilter: string | null): Map<string, Array<{ id: string; label: string }>> {
-  const children: Map<string, Array<{ id: string; label: string }>> = new Map();
+function buildChildMap(edges: TreeEdge[], labelFilter: string | null): TreeChildMap {
+  const children: TreeChildMap = new Map();
   const hasParent: Set<string> = new Set();
 
   for (const edge of edges) {
@@ -42,7 +91,7 @@ function buildChildMap(edges: Array<{ from: string; to: string; label?: string }
 }
 
 /** Finds root nodes (nodes with outgoing edges but no incoming edges in the filtered set). */
-function findRoots(nodeIds: string[], edges: Array<{ from: string; to: string; label?: string }>, labelFilter: string | null): string[] {
+function findRoots(nodeIds: string[], edges: TreeEdge[], labelFilter: string | null): string[] {
   const hasParent = new Set<string>();
   const hasChild = new Set<string>();
 
@@ -65,33 +114,25 @@ function findRoots(nodeIds: string[], edges: Array<{ from: string; to: string; l
 }
 
 /** Formats annotation string for a node based on requested props. */
-function formatAnnotation(nodeProps: Record<string, unknown>, propKeys: string[]): string {
+function formatAnnotation(nodeProps: TreeProps, propKeys: string[]): string {
   if (propKeys.length === 0 || nodeProps === undefined || nodeProps === null) {
     return '';
   }
   const parts: string[] = [];
   for (const key of propKeys) {
     if (Object.prototype.hasOwnProperty.call(nodeProps, key)) {
-      const value = String(nodeProps[key]);
-      parts.push(`${key}: ${value}`);
+      const propValue = nodeProps[key];
+      if (propValue !== undefined) {
+        const value = formatSnapshotPropValue(propValue);
+        parts.push(`${key}: ${value}`);
+      }
     }
   }
   return parts.length > 0 ? `  [${parts.join(', ')}]` : '';
 }
 
 /** Renders a tree structure as lines with box-drawing characters. */
-function renderTreeNode({ nodeId, childMap, propsMap, propKeys, prefix, isLast, visited, depth, maxDepth, lines }: {
-  nodeId: string;
-  childMap: Map<string, Array<{ id: string; label: string }>>;
-  propsMap: Map<string, Record<string, unknown>>;
-  propKeys: string[];
-  prefix: string;
-  isLast: boolean;
-  visited: Set<string>;
-  depth: number;
-  maxDepth: number | undefined;
-  lines: string[];
-}): void {
+function renderTreeNode({ nodeId, childMap, propsMap, propKeys, prefix, isLast, visited, depth, maxDepth, lines }: TreeRenderParams): void {
   const connector = depth === 0 ? '' : (isLast ? '\u2514\u2500\u2500 ' : '\u251C\u2500\u2500 ');
   const annotation = formatAnnotation(propsMap.get(nodeId) ?? {}, propKeys);
   lines.push(`${prefix}${connector}${nodeId}${annotation}`);
@@ -131,7 +172,7 @@ function renderTreeNode({ nodeId, childMap, propsMap, propKeys, prefix, isLast, 
 }
 
 /** Collects all reachable node IDs via DFS from the given roots. */
-function collectReachable(roots: string[], childMap: Map<string, Array<{ id: string; label: string }>>, reachable: Set<string>): void {
+function collectReachable(roots: string[], childMap: TreeChildMap, reachable: Set<string>): void {
   const stack = [...roots];
   while (stack.length > 0) {
     const id = stack.pop() as string;
@@ -147,7 +188,7 @@ function collectReachable(roots: string[], childMap: Map<string, Array<{ id: str
 }
 
 /** Handles the `tree` command: renders an ASCII tree from graph edges. */
-export default async function handleTree({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: unknown; exitCode: number }> {
+export default async function handleTree({ options, args }: { options: CliOptions; args: string[] }): Promise<TreeCommandResult> {
   const { values, positionals } = parseCommandArgs(
     args, TREE_OPTIONS, treeSchema, { allowPositionals: true },
   );
@@ -162,11 +203,11 @@ export default async function handleTree({ options, args }: { options: CliOption
   const edges = await graph.getEdges();
   const rootArg = positionals[0] ?? null;
 
-  const rows: Array<{ id: string; props?: Record<string, unknown> }> = queryResult.nodes
-    .filter((node: { id?: string; props?: Record<string, unknown> }): node is { id: string; props?: Record<string, unknown> } => typeof node.id === 'string');
+  const rows: TreeRow[] = queryResult.nodes
+    .filter((node: { id?: string; props?: TreeProps }): node is TreeRow => typeof node.id === 'string');
   const nodeIds = rows.map((node) => node.id);
-  const propsMap = new Map<string, Record<string, unknown>>(
-    rows.map((node): [string, Record<string, unknown>] => [node.id, node.props ?? {}]),
+  const propsMap = new Map<string, TreeProps>(
+    rows.map((node): [string, TreeProps] => [node.id, node.props ?? {}]),
   );
   const childMap = buildChildMap(edges, values.edgeLabel);
 

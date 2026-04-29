@@ -6,7 +6,7 @@
 
 import type { PatchBuilder } from '../services/PatchBuilder.ts';
 import type Patch from '../types/Patch.ts';
-import type { WarpState } from '../services/JoinReducer.ts';
+import type SnapshotWarpState from '../services/snapshot/SnapshotWarpState.ts';
 import type { TickReceipt } from '../types/TickReceipt.ts';
 import type {
   StrandDescriptor,
@@ -26,7 +26,7 @@ export type StrandPatchEntry = {
 
 /** Result when receipts are requested from strand materialization. */
 export type StrandMaterializeWithReceipts = {
-  state: WarpState;
+  state: SnapshotWarpState;
   receipts: readonly TickReceipt[];
 };
 
@@ -38,7 +38,7 @@ export default abstract class StrandCapability {
   abstract dropStrand(_strandId: string): Promise<boolean>;
 
   abstract materializeStrand(_strandId: string, _options: { receipts: true; ceiling?: number | null }): Promise<StrandMaterializeWithReceipts>;
-  abstract materializeStrand(_strandId: string, _options?: { receipts?: false; ceiling?: number | null }): Promise<WarpState>;
+  abstract materializeStrand(_strandId: string, _options?: { receipts?: false; ceiling?: number | null }): Promise<SnapshotWarpState>;
 
   abstract getStrandPatches(_strandId: string, _options?: { ceiling?: number | null }): Promise<StrandPatchEntry[]>;
   abstract patchesForStrand(_strandId: string, _entityId: string, _options?: { ceiling?: number | null }): Promise<string[]>;

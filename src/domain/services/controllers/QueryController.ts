@@ -64,19 +64,14 @@ type QueryControllerDeps = {
   hashState: QueryStateHasher;
 };
 
-async function snapshotCurrent(graph: MaterializableHost): Promise<{ state: WarpState; stateHash: string }> {
+type QuerySnapshot = {
+  state: WarpState;
+  stateHash: string;
+};
+
+async function snapshotCurrent(graph: MaterializableHost): Promise<QuerySnapshot> {
   const materialized = await graph._materializeGraph();
   return { state: cloneState(materialized.state), stateHash: materialized.stateHash };
-}
-
-async function snapshotWith(
-  hashState: QueryStateHasher,
-  state: WarpState,
-): Promise<{ state: WarpState; stateHash: string }> {
-  return {
-    state: cloneState(state),
-    stateHash: await hashState(state),
-  };
 }
 
 // ── Observer snapshot resolution ────────────────────────────────────
@@ -86,7 +81,7 @@ type ObserverOptions = { source?: ObserverSource };
 async function resolveSnapshot(
   deps: QueryControllerDeps,
   options: ObserverOptions | undefined,
-): Promise<{ state: WarpState; stateHash: string }> {
+): Promise<QuerySnapshot> {
   const source = toSelector(options?.source);
   if (!source) {
     await deps.hostGraph._ensureFreshState();
@@ -98,7 +93,7 @@ async function resolveSnapshot(
 async function resolveSourceSnapshot(
   deps: QueryControllerDeps,
   source: WorldlineSelector,
-): Promise<{ state: WarpState; stateHash: string }> {
+): Promise<QuerySnapshot> {
   if (source instanceof LiveSelector) {
     return await resolveLiveSnapshot(deps, source);
   }
@@ -123,31 +118,40 @@ async function openDetachedObserverGraph(
 async function resolveLiveSnapshot(
   deps: QueryControllerDeps,
   source: LiveSelector,
-): Promise<{ state: WarpState; stateHash: string }> {
+): Promise<QuerySnapshot> {
   const detached = await openDetachedObserverGraph(deps);
-  const state = await detached.materialize({ ceiling: source.ceiling ?? null });
-  return await snapshotWith(deps.hashState, state);
+  const materialized = await detached._materializeGraph({ ceiling: source.ceiling ?? null });
+  return {
+    state: cloneState(materialized.state),
+    stateHash: materialized.stateHash,
+  };
 }
 
 async function resolveCoordinateSnapshot(
   deps: QueryControllerDeps,
   source: CoordinateSelector,
-): Promise<{ state: WarpState; stateHash: string }> {
+): Promise<QuerySnapshot> {
   const detached = await openDetachedObserverGraph(deps);
-  const state = await detached.materializeCoordinate({ frontier: source.frontier, ceiling: source.ceiling ?? null });
-  return await snapshotWith(deps.hashState, state);
+  const materialized = await detached._materializeCoordinateGraph({ frontier: source.frontier, ceiling: source.ceiling ?? null });
+  return {
+    state: cloneState(materialized.state),
+    stateHash: materialized.stateHash,
+  };
 }
 
 async function resolveStrandSnapshot(
   deps: QueryControllerDeps,
   source: StrandSelector,
-): Promise<{ state: WarpState; stateHash: string }> {
+): Promise<QuerySnapshot> {
   const detached = await openDetachedObserverGraph(deps);
   const internal = toInternalStrandShape(source.toDTO());
-  const state = await detached.materializeStrand(internal.strandId, {
+  const materialized = await detached._materializeStrandGraph(internal.strandId, {
     ceiling: internal.ceiling ?? null,
   });
-  return await snapshotWith(deps.hashState, state);
+  return {
+    state: cloneState(materialized.state),
+    stateHash: materialized.stateHash,
+  };
 }
 
 // ── Observer argument normalization ─────────────────────────────────

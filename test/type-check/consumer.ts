@@ -85,6 +85,10 @@ import WarpApp, {
   decodeEdgePropKey,
   isEdgePropKey,
   CONTENT_PROPERTY_KEY,
+  ImmutableBytes,
+  SnapshotORSet,
+  SnapshotVersionVector,
+  SnapshotWarpState,
 } from '../../index.ts';
 
 import type {
@@ -154,6 +158,7 @@ import type {
   ConflictAnalysis,
   ConflictKind,
   ConflictTargetSelector,
+  SnapshotPropValue,
 } from '../../index.ts';
 
 // ---------------------------------------------------------------------------
@@ -166,6 +171,9 @@ declare const logger: LoggerPort;
 declare const clock: ClockPort;
 declare const crypto: CryptoPort;
 declare const seekCache: SeekCachePort;
+
+type PublicPropBag = Readonly<{ [key: string]: SnapshotPropValue }>;
+type PublicVisibleEdge = { from: string; to: string; label: string; props: PublicPropBag };
 
 const _sameAppCtor: typeof WarpApp = WarpAppNamed;
 
@@ -332,20 +340,31 @@ const sha2: string = await graph.patch((p: PatchBuilder) => {
 });
 
 // ---- materialize overloads ----
-const state: WarpState = await graph.materialize();
-const stateReader: VisibleStateReader = createStateReader(state);
-const visibleComparison: VisibleStateComparison = compareVisibleState(state, state, { targetId: 'n1' });
+const state: SnapshotWarpState = await graph.materialize();
+const snapshotNodeAlive: SnapshotORSet = state.nodeAlive;
+const snapshotFrontier: SnapshotVersionVector = state.observedFrontier;
+const snapshotPropValue: SnapshotPropValue | undefined = [...state.prop.values()][0]?.value;
+if (snapshotPropValue instanceof ImmutableBytes) {
+  const snapshotBytes: Uint8Array = snapshotPropValue.toUint8Array();
+  const snapshotByteLength: number = snapshotPropValue.length;
+  const snapshotFirstByte: number | undefined = snapshotPropValue.at(0);
+  const _: [Uint8Array, number, number | undefined] = [snapshotBytes, snapshotByteLength, snapshotFirstByte];
+  void _;
+}
+declare const liveState: WarpState;
+const stateReader: VisibleStateReader = createStateReader(liveState);
+const visibleComparison: VisibleStateComparison = compareVisibleState(liveState, liveState, { targetId: 'n1' });
 const readerProjection = stateReader.project();
 const readerHasNode: boolean = stateReader.hasNode('n1');
 const readerNodes: string[] = stateReader.getNodes();
-const readerEdges: Array<{ from: string; to: string; label: string; props: Record<string, unknown> }> = stateReader.getEdges();
-const readerProps: Record<string, unknown> | null = stateReader.getNodeProps('n1');
-const readerEdgeProps: Record<string, unknown> | null = stateReader.getEdgeProps('n1', 'n2', 'knows');
+const readerEdges: PublicVisibleEdge[] = stateReader.getEdges();
+const readerProps: PublicPropBag | null = stateReader.getNodeProps('n1');
+const readerEdgeProps: PublicPropBag | null = stateReader.getEdgeProps('n1', 'n2', 'knows');
 const readerNeighbors: VisibleStateNeighbor[] = stateReader.neighbors('n1', 'outgoing');
 const readerContent: ContentMeta | null = stateReader.getNodeContentMeta('n1');
 const readerEdgeContent: ContentMeta | null = stateReader.getEdgeContentMeta('n1', 'n2', 'knows');
 const readerNodeView: VisibleNodeView | null = stateReader.inspectNode('n1');
-const withReceipts: { state: WarpState; receipts: readonly TickReceipt[] } = await graph.materialize({ receipts: true });
+const withReceipts: { state: SnapshotWarpState; receipts: readonly TickReceipt[] } = await graph.materialize({ receipts: true });
 const conflictKinds: ConflictKind[] = ['supersession', 'redundancy'];
 const conflictTarget: ConflictTargetSelector = { targetKind: 'node_property', entityId: 'user:alice', propertyKey: 'name' };
 const conflictAnalysis: ConflictAnalysis = await graph.analyzeConflicts({
@@ -419,17 +438,17 @@ const _transferPlanShape: [boolean, number, Uint8Array | undefined] = [
 ];
 
 // ---- materializeAt ----
-const atState: WarpState = await graph.materializeAt('abc123');
+const atState: SnapshotWarpState = await graph.materializeAt('abc123');
 
 // ---- query methods ----
 const nodes: string[] = await graph.getNodes();
 const hasIt: boolean = await graph.hasNode('n1');
-const props: Record<string, unknown> | null = await graph.getNodeProps('n1');
-const edgeProps: Record<string, unknown> | null = await graph.getEdgeProps('n1', 'n2', 'knows');
+const props: PublicPropBag | null = await graph.getNodeProps('n1');
+const edgeProps: PublicPropBag | null = await graph.getEdgeProps('n1', 'n2', 'knows');
 const neighbors: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }> = await graph.neighbors('n1');
 const propCount: number = await graph.getPropertyCount();
-const snapshot: WarpState | null = await graph.getStateSnapshot();
-const edges: Array<{ from: string; to: string; label: string; props: Record<string, unknown> }> = await graph.getEdges();
+const snapshot: SnapshotWarpState | null = await graph.getStateSnapshot();
+const edges: PublicVisibleEdge[] = await graph.getEdges();
 
 // ---- content attachment ----
 const contentOid: string | null = await graph.getContentOid('n1');
@@ -452,8 +471,8 @@ const obs: Observer = await graph.observer('obs1', { match: '*' });
 const obsDefault: Observer = await graph.observer({ match: '*' });
 const obsNodes: string[] = await obs.getNodes();
 const obsHas: boolean = await obs.hasNode('n1');
-const obsProps: Record<string, unknown> | null = await obs.getNodeProps('n1');
-const obsEdges: Array<{ from: string; to: string; label: string; props: Record<string, unknown> }> = await obs.getEdges();
+const obsProps: PublicPropBag | null = await obs.getNodeProps('n1');
+const obsEdges: PublicVisibleEdge[] = await obs.getEdges();
 const obsQb: QueryBuilder = obs.query();
 const obsTraverse: LogicalTraversal = obs.traverse;
 const obsName: string = obs.name;
@@ -541,7 +560,7 @@ const gcRun: GCExecuteResult = graph.runGC();
 const gcMetrics: GCMetrics | null = graph.getGCMetrics();
 
 // ---- join ----
-const joinResult: { state: WarpState; receipt: JoinReceipt } = graph.join(state);
+const joinResult: { state: WarpState; receipt: JoinReceipt } = graph.join(liveState);
 
 // ---- subscribe ----
 const sub = graph.subscribe({ onChange: (diff: StateDiffResult) => {} });
@@ -622,7 +641,7 @@ const wmBack: WormholeEdge = deserializeWormhole(wmSerialized);
 const costStandalone: TranslationCostResult = computeTranslationCost(
   { match: 'user:*' },
   { match: 'admin:*' },
-  state,
+  liveState,
 );
 declare const v4State: {
   nodeAlive: Map<string, { value: boolean }>;

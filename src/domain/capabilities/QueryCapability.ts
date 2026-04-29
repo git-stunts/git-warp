@@ -5,7 +5,8 @@
  * observers, worldlines, and traversal via QueryBuilder.
  */
 
-import type { WarpState } from '../services/JoinReducer.ts';
+import type SnapshotWarpState from '../services/snapshot/SnapshotWarpState.ts';
+import type { SnapshotPropValue } from '../services/snapshot/SnapshotPropValue.ts';
 import type { ContentMeta } from '../types/ContentMeta.ts';
 import type QueryBuilder from '../services/query/QueryBuilder.ts';
 import type Worldline from '../services/Worldline.ts';
@@ -23,6 +24,8 @@ export type TranslationCostResult = {
   cost: number;
   breakdown: { nodeLoss: number; edgeLoss: number; propLoss: number };
 };
+
+export type QueryPropertyBag = Readonly<{ [key: string]: SnapshotPropValue }>;
 
 /** Source selector for worldline/observer pinning. */
 export type WorldlineSource =
@@ -52,19 +55,19 @@ export type VisibleEdge = {
   from: string;
   to: string;
   label: string;
-  props: Record<string, unknown>;
+  props: QueryPropertyBag;
 };
 
 export default abstract class QueryCapability {
   abstract hasNode(_nodeId: string): Promise<boolean>;
-  abstract getNodeProps(_nodeId: string): Promise<Record<string, unknown> | null>;
-  abstract getEdgeProps(_from: string, _to: string, _label: string): Promise<Record<string, unknown> | null>;
+  abstract getNodeProps(_nodeId: string): Promise<QueryPropertyBag | null>;
+  abstract getEdgeProps(_from: string, _to: string, _label: string): Promise<QueryPropertyBag | null>;
   abstract neighbors(
     _nodeId: string,
     _direction?: 'outgoing' | 'incoming' | 'both',
     _edgeLabel?: string,
   ): Promise<NeighborEntry[]>;
-  abstract getStateSnapshot(): Promise<WarpState | null>;
+  abstract getStateSnapshot(): Promise<SnapshotWarpState | null>;
   abstract getNodes(): Promise<string[]>;
   abstract getEdges(): Promise<VisibleEdge[]>;
   abstract getPropertyCount(): Promise<number>;

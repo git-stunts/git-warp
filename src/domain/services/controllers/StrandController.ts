@@ -15,6 +15,7 @@ import type { ConflictAnalyzeOptions } from '../strand/ConflictAnalysisRequest.t
 import type { AnalyzerService } from '../strand/ConflictFrameLoader.ts';
 import type ConflictAnalysis from '../../types/conflict/ConflictAnalysis.ts';
 import type { WarpState } from '../JoinReducer.ts';
+import type SnapshotWarpState from '../snapshot/SnapshotWarpState.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { PatchBuilder } from '../PatchBuilder.js';
 import type Patch from '../../types/Patch.ts';
@@ -54,10 +55,12 @@ export default class StrandController {
 
   // ── Strand materialization & queries ─────────────────────────────────────
 
-  async materializeStrand(strandId: string, options?: { receipts?: boolean; ceiling?: number | null }): Promise<WarpState | { state: WarpState; receipts: readonly TickReceipt[] }> {
-    // StrandCoordinator.materialize() returns Promise<unknown> to avoid circular imports.
-    // This controller sits above the coordinator and knows the concrete type.
-    return await this._strandService.materialize(strandId, options) as WarpState | { state: WarpState; receipts: readonly TickReceipt[] };
+  async materializeStrand(strandId: string, options?: { receipts?: boolean; ceiling?: number | null }): Promise<SnapshotWarpState | { state: SnapshotWarpState; receipts: readonly TickReceipt[] }> {
+    return await this._strandService.materialize(strandId, options);
+  }
+
+  async _materializeStrandLive(strandId: string, options?: { receipts?: boolean; ceiling?: number | null }): Promise<{ state: WarpState; receipts: readonly TickReceipt[] }> {
+    return await this._strandService.materializeLiveState(strandId, options);
   }
 
   async getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: Patch; sha: string }>> {

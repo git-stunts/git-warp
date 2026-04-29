@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LWWRegister } from '../../src/domain/crdt/LWW.ts';
 import { createImmutableWarpStateSnapshot } from '../../src/domain/services/ImmutableSnapshot.ts';
+import ImmutableBytes from '../../src/domain/services/snapshot/ImmutableBytes.ts';
 import WarpState from '../../src/domain/services/state/WarpState.ts';
 import { EventId } from '../../src/domain/utils/EventId.ts';
 
@@ -19,20 +20,20 @@ describe('readonly byte PropValue snapshot contract', () => {
     const snapshotValue = snapshot.prop.get(key)?.value;
 
     expect(snapshotValue).toBeDefined();
+    expect(snapshotValue).toBeInstanceOf(ImmutableBytes);
 
-    if (snapshotValue instanceof Uint8Array) {
-      expect(snapshotValue).not.toBe(sourceBytes);
-      expect(Array.from(snapshotValue)).toEqual([1, 2, 3]);
-
-      snapshotValue[0] = 9;
-
-      expect(Array.from(sourceBytes)).toEqual([1, 2, 3]);
-      expect(Array.from(snapshotValue)).toEqual([1, 2, 3]);
+    if (!(snapshotValue instanceof ImmutableBytes)) {
       return;
     }
 
-    throw new Error(
-      'Snapshot byte PropValue no longer exposes Uint8Array; update this test to assert the immutable byte value contract directly.',
-    );
+    expect([...snapshotValue]).toEqual([1, 2, 3]);
+    expect(snapshotValue.at(0)).toBe(1);
+
+    const copy = snapshotValue.toUint8Array();
+    expect(copy).not.toBe(sourceBytes);
+    copy[0] = 9;
+
+    expect(Array.from(sourceBytes)).toEqual([1, 2, 3]);
+    expect([...snapshotValue]).toEqual([1, 2, 3]);
   });
 });

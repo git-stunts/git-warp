@@ -15,6 +15,7 @@ import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGrap
 import { encode } from '../../src/infrastructure/codecs/CborCodec.ts';
 import { encodePatchMessage } from '../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState, encodeEdgeKey } from '../../src/domain/services/JoinReducer.ts';
+import { createSnapshotWarpState } from '../../src/domain/services/ImmutableSnapshot.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
 import Patch from '../../src/domain/types/Patch.ts';
@@ -661,10 +662,18 @@ export function addEdgeToState(state, from, to, label, counter, writerId = 'w1')
  */
 export function setupGraphState(graph, seedFn) {
   const state = createEmptyState();
-  // COUPLING: relies on WarpRuntime internal field `_cachedState`
-  graph._cachedState = state;
-  graph.materialize = vi.fn().mockResolvedValue(state);
   seedFn(state);
+  const materializedGraph = {
+    state,
+    stateHash: 'test-state-hash',
+    adjacency: graph._buildAdjacency(state),
+  };
+  // COUPLING: relies on WarpRuntime internal fields for focused graph tests.
+  graph._cachedState = state;
+  graph._stateDirty = false;
+  graph._materializedGraph = materializedGraph;
+  graph._materializeGraph = vi.fn().mockResolvedValue(materializedGraph);
+  graph.materialize = vi.fn().mockResolvedValue(createSnapshotWarpState(state));
   return state;
 }
 
