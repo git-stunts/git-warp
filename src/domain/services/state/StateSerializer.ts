@@ -4,6 +4,7 @@ import { decodeEdgeKey, decodePropKey } from '../KeyCodec.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type { WarpState } from '../JoinReducer.ts';
+import type { PropValue } from '../../types/PropValue.ts';
 
 /**
  * State Serialization and Hashing for WARP v5
@@ -56,7 +57,7 @@ export function propVisibleV5(state: WarpState, propKey: string): boolean {
 export interface StateProjection {
   nodes: string[];
   edges: Array<{ from: string; to: string; label: string }>;
-  props: Array<{ node: string; key: string; value: unknown }>;
+  props: Array<{ node: string; key: string; value: PropValue }>;
 }
 
 /**
@@ -86,7 +87,7 @@ export function projectState(state: WarpState): StateProjection {
     return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
   });
 
-  const visibleProps: Array<{ node: string; key: string; value: unknown }> = [];
+  const visibleProps: Array<{ node: string; key: string; value: PropValue }> = [];
   for (const [propKey, register] of state.prop) {
     const { nodeId, propKey: key } = decodePropKey(propKey);
     if (nodeVisibleV5(state, nodeId)) {

@@ -4,9 +4,12 @@ import QueryError from '../../errors/QueryError.ts';
 import { matchGlob } from '../../utils/matchGlob.ts';
 import type QueryPlan from './QueryPlan.ts';
 import type { AggregateSpec, QueryNodeSnapshot, QueryNodeEdgeSnapshot, QueryOperation } from './QueryPlan.ts';
+import ImmutableBytes from '../snapshot/ImmutableBytes.ts';
 import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
 
 type QueryPropertyBag = Readonly<{ [key: string]: SnapshotPropValue }>;
+type MutableQueryPropertyBag = { [key: string]: SnapshotPropValue };
+type SnapshotPropObject = { readonly [key: string]: SnapshotPropValue };
 type QueryVisibleEdge = {
   from: string;
   to: string;
@@ -18,7 +21,7 @@ type QueryResultNode = {
   props?: QueryPropertyBag;
 };
 type QueryMaterializedGraph = {
-  adjacency: unknown;
+  adjacency: AdjacencyMaps;
   stateHash: string | null;
 };
 type QueryAdjacencyEdge = {
@@ -39,8 +42,8 @@ export type QueryGraph = {
 // ── Adjacency types ─────────────────────────────────────────────────
 
 type AdjacencyMaps = {
-  outgoing: Map<string, QueryAdjacencyEdge[]>;
-  incoming: Map<string, QueryAdjacencyEdge[]>;
+  outgoing: ReadonlyMap<string, readonly QueryAdjacencyEdge[]>;
+  incoming: ReadonlyMap<string, readonly QueryAdjacencyEdge[]>;
 };
 
 type PropsFetcher = (nodeId: string) => Promise<QueryPropertyBag>;
@@ -65,25 +68,9 @@ type AggregateAccumulator = {
   segments: string[];
   values: number[];
 };
+type NumericAggregateKey = 'sum' | 'avg' | 'min' | 'max';
 
 // ── Boundary validation ─────────────────────────────────────────────
-
-function isAdjacencyMaps(adjacency: unknown): adjacency is AdjacencyMaps {
-  if (adjacency === null || typeof adjacency !== 'object') {
-    return false;
-  }
-  const maps = adjacency as AdjacencyMaps;
-  return maps.outgoing instanceof Map && maps.incoming instanceof Map;
-}
-
-function requireAdjacencyMaps(adjacency: unknown): AdjacencyMaps {
-  if (!isAdjacencyMaps(adjacency)) {
-    throw new QueryError('materialized query adjacency is invalid', {
-      code: 'E_QUERY_ADJACENCY',
-    });
-  }
-  return adjacency;
-}
 
 function requireStateHash(stateHash: string | null): string {
   if (typeof stateHash !== 'string') {
@@ -106,26 +93,6 @@ async function batchMap<T, R>(items: T[], fn: (item: T) => Promise<R>, limit = 1
   return results;
 }
 
-// ── Freezing ────────────────────────────────────────────────────────
-
-function isFreezable(obj: unknown): obj is object {
-  return obj !== null && obj !== undefined && typeof obj === 'object' && !Object.isFrozen(obj);
-}
-
-function deepFreeze<T>(obj: T): T {
-  if (!isFreezable(obj)) {
-    return obj;
-  }
-  Object.freeze(obj);
-  const children = Array.isArray(obj) ? obj : Object.values(obj);
-  for (const child of children) {
-    deepFreeze(child);
-  }
-  return obj;
-}
-
-// ── Cloning ─────────────────────────────────────────────────────────
-
 // ── Snapshot construction ───────────────────────────────────────────
 
 function sortIds(ids: Iterable<string>): string[] {
@@ -133,28 +100,35 @@ function sortIds(ids: Iterable<string>): string[] {
 }
 
 function buildPropsSnapshot(propsRecord: QueryPropertyBag): QueryPropertyBag {
-  const props: { [key: string]: SnapshotPropValue } = {};
+  const props: MutableQueryPropertyBag = {};
   for (const key of Object.keys(propsRecord).sort()) {
     props[key] = propsRecord[key]!;
   }
-  return deepFreeze(props);
+  return Object.freeze(props);
+}
+
+function compareStrings(a: string, b: string): number {
+  if (a < b) { return -1; }
+  if (a > b) { return 1; }
+  return 0;
+}
+
+function edgePeer(edge: QueryNodeEdgeSnapshot, peerKey: 'to' | 'from'): string {
+  return peerKey === 'to' ? edge.to ?? '' : edge.from ?? '';
 }
 
 function compareEdgeEntries(
-  a: { label: string; [key: string]: unknown },
-  b: { label: string; [key: string]: unknown },
-  peerKey: string,
+  a: QueryNodeEdgeSnapshot,
+  b: QueryNodeEdgeSnapshot,
+  peerKey: 'to' | 'from',
 ): number {
-  if (a.label !== b.label) {
-    return a.label < b.label ? -1 : 1;
-  }
-  const aPeer = a[peerKey] as string;
-  const bPeer = b[peerKey] as string;
-  return aPeer < bPeer ? -1 : aPeer > bPeer ? 1 : 0;
+  const labelComparison = compareStrings(a.label, b.label);
+  if (labelComparison !== 0) { return labelComparison; }
+  return compareStrings(edgePeer(a, peerKey), edgePeer(b, peerKey));
 }
 
 function buildEdgesSnapshot(
-  edges: QueryAdjacencyEdge[],
+  edges: readonly QueryAdjacencyEdge[],
   directionKey: 'to' | 'from',
 ): ReadonlyArray<QueryNodeEdgeSnapshot> {
   const list = edges.map((edge) => ({
@@ -162,16 +136,19 @@ function buildEdgesSnapshot(
     [directionKey]: edge.neighborId,
   }));
   list.sort((a, b) => compareEdgeEntries(a, b, directionKey));
-  return deepFreeze(list);
+  for (const edge of list) {
+    Object.freeze(edge);
+  }
+  return Object.freeze(list);
 }
 
 function createNodeSnapshot(params: {
   id: string;
   propsRecord: QueryPropertyBag;
-  edgesOut: QueryAdjacencyEdge[];
-  edgesIn: QueryAdjacencyEdge[];
+  edgesOut: readonly QueryAdjacencyEdge[];
+  edgesIn: readonly QueryAdjacencyEdge[];
 }): Readonly<QueryNodeSnapshot> {
-  return deepFreeze({
+  return Object.freeze({
     id: params.id,
     props: buildPropsSnapshot(params.propsRecord),
     edgesOut: buildEdgesSnapshot(params.edgesOut, 'to'),
@@ -181,12 +158,15 @@ function createNodeSnapshot(params: {
 
 // ── Traversal ───────────────────────────────────────────────────────
 
-function edgeSource(adjacency: AdjacencyMaps, direction: 'outgoing' | 'incoming'): Map<string, QueryAdjacencyEdge[]> {
+function edgeSource(
+  adjacency: AdjacencyMaps,
+  direction: 'outgoing' | 'incoming',
+): ReadonlyMap<string, readonly QueryAdjacencyEdge[]> {
   return direction === 'outgoing' ? adjacency.outgoing : adjacency.incoming;
 }
 
 function collectMatchingNeighbors(
-  edges: QueryAdjacencyEdge[],
+  edges: readonly QueryAdjacencyEdge[],
   labelFilter: string | null,
 ): string[] {
   if (labelFilter === null) {
@@ -216,7 +196,7 @@ function applyHop(params: {
 type BfsLevelParams = {
   currentLevel: Set<string>;
   visited: Set<string>;
-  source: Map<string, QueryAdjacencyEdge[]>;
+  source: ReadonlyMap<string, readonly QueryAdjacencyEdge[]>;
   labelFilter: string | null;
 };
 
@@ -238,7 +218,7 @@ function addAllTo(source: Set<string>, target: Set<string>): void {
 }
 
 function runBfsLoop(params: {
-  source: Map<string, QueryAdjacencyEdge[]>;
+  source: ReadonlyMap<string, readonly QueryAdjacencyEdge[]>;
   labelFilter: string | null;
   strand: string[];
   depth: [number, number];
@@ -378,13 +358,21 @@ async function buildResultNodes(
 
 // ── Aggregation ─────────────────────────────────────────────────────
 
-function resolvePropertyPath(obj: Record<string, unknown>, segments: string[]): unknown {
-  let value: unknown = obj[segments[0] as string];
+function isSnapshotPropObject(value: SnapshotPropValue | undefined): value is SnapshotPropObject {
+  return value !== undefined
+    && value !== null
+    && typeof value === 'object'
+    && !(value instanceof ImmutableBytes)
+    && !Array.isArray(value);
+}
+
+function resolvePropertyPath(obj: QueryPropertyBag, segments: string[]): SnapshotPropValue | undefined {
+  let value = obj[segments[0] as string];
   for (let i = 1; i < segments.length; i++) {
-    if (value === null || value === undefined || typeof value !== 'object') {
+    if (!isSnapshotPropObject(value)) {
       return undefined;
     }
-    value = (value as Record<string, unknown>)[segments[i] as string];
+    value = value[segments[i] as string];
   }
   return value;
 }
@@ -404,36 +392,44 @@ type AggregateParams = {
   spec: AggregateSpec;
 };
 
+const NUMERIC_AGGREGATE_KEYS: readonly NumericAggregateKey[] = ['sum', 'avg', 'min', 'max'];
+
+function activeAggregateKeys(spec: AggregateSpec): NumericAggregateKey[] {
+  return NUMERIC_AGGREGATE_KEYS.filter((key) => spec[key] !== undefined && spec[key] !== null);
+}
+
 async function runAggregate(params: AggregateParams): Promise<AggregateResult> {
   const { strand, stateHash, getProps, spec } = params;
   const result: AggregateResult = { stateHash };
-  const specRec = spec as Record<string, unknown>;
 
   if (spec.count === true) {
     result.count = strand.length;
   }
 
-  const numericKeys = ['sum', 'avg', 'min', 'max'] as const;
-  const activeAggs = numericKeys.filter((k) => specRec[k] !== undefined && specRec[k] !== null);
+  const activeAggs = activeAggregateKeys(spec);
   if (activeAggs.length === 0) {
     return result;
   }
 
-  return await computeNumericAggregates({ strand, getProps, activeAggs, specRec, result });
+  return await computeNumericAggregates({ strand, getProps, activeAggs, spec, result });
 }
 
-function buildAggMap(activeAggs: readonly string[], specRec: Record<string, unknown>): Map<string, AggregateAccumulator> {
-  const aggMap = new Map<string, AggregateAccumulator>();
+function buildAggMap(activeAggs: readonly NumericAggregateKey[], spec: AggregateSpec): Map<NumericAggregateKey, AggregateAccumulator> {
+  const aggMap = new Map<NumericAggregateKey, AggregateAccumulator>();
   for (const key of activeAggs) {
+    const path = spec[key];
+    if (path === undefined) {
+      continue;
+    }
     aggMap.set(key, {
-      segments: (specRec[key] as string).replace(/^props\./, '').split('.'),
+      segments: path.replace(/^props\./, '').split('.'),
       values: [],
     });
   }
   return aggMap;
 }
 
-function collectAggValues(propsList: Record<string, unknown>[], aggMap: Map<string, AggregateAccumulator>): void {
+function collectAggValues(propsList: QueryPropertyBag[], aggMap: Map<NumericAggregateKey, AggregateAccumulator>): void {
   for (const propsRecord of propsList) {
     for (const { segments, values } of aggMap.values()) {
       const value = resolvePropertyPath(propsRecord, segments);
@@ -447,16 +443,16 @@ function collectAggValues(propsList: Record<string, unknown>[], aggMap: Map<stri
 async function computeNumericAggregates(params: {
   strand: string[];
   getProps: PropsFetcher;
-  activeAggs: readonly string[];
-  specRec: Record<string, unknown>;
+  activeAggs: readonly NumericAggregateKey[];
+  spec: AggregateSpec;
   result: AggregateResult;
 }): Promise<AggregateResult> {
-  const aggMap = buildAggMap(params.activeAggs, params.specRec);
+  const aggMap = buildAggMap(params.activeAggs, params.spec);
   const propsList = await batchMap(params.strand, params.getProps);
   collectAggValues(propsList, aggMap);
 
   for (const [key, { values }] of aggMap) {
-    (params.result as Record<string, unknown>)[key] = computeSingleAggregate(key, values);
+    params.result[key] = computeSingleAggregate(key, values);
   }
   return params.result;
 }
@@ -486,7 +482,7 @@ export default class QueryRunner {
 
   async run(plan: QueryPlan): Promise<QueryResult | AggregateResult> {
     const materialized = await this._graph._materializeGraph();
-    const adjacency = requireAdjacencyMaps(materialized.adjacency);
+    const { adjacency } = materialized;
     const stateHash = requireStateHash(materialized.stateHash);
     const getProps = createPropsMemo(this._graph);
 

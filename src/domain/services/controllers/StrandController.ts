@@ -64,8 +64,6 @@ export default class StrandController {
   }
 
   async getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: Patch; sha: string }>> {
-    // StrandCoordinator.getPatchEntries() returns Promise<Array<{ patch: unknown; sha: string }>>
-    // to avoid circular imports. The concrete patch type is known at this boundary.
     return await this._strandService.getPatchEntries(strandId, options) as Array<{ patch: Patch; sha: string }>;
   }
 

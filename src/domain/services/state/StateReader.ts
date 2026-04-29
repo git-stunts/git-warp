@@ -20,6 +20,7 @@ import {
   populateVisibleProps,
 } from './StateReaderContext.ts';
 import type { VisibleStateReader } from '../../types/VisibleStateReader.ts';
+import type { PropValue } from '../../types/PropValue.ts';
 
 // Re-export types that external code may need directly from this module.
 export type { ContentMeta, NeighborEntry, VisibleEdgeRef, VisibleEdgeView };
@@ -30,7 +31,7 @@ export type { ContentMeta, NeighborEntry, VisibleEdgeRef, VisibleEdgeView };
 function cloneProjection(context: StateReaderContext): {
   nodes: string[];
   edges: Array<{ from: string; to: string; label: string }>;
-  props: Array<{ node: string; key: string; value: unknown }>;
+  props: Array<{ node: string; key: string; value: PropValue }>;
 } {
   return {
     nodes: [...context.projection.nodes],
@@ -64,7 +65,7 @@ function getVisibleNodeProps(
   if (!hasVisibleNode(context, nodeId)) {
     return null;
   }
-  return cloneBag(context.nodePropsById.get(nodeId) ?? Object.freeze(Object.create(null)));
+  return cloneBag(context.nodePropsById.get(nodeId) ?? Object.freeze({}));
 }
 
 /** Returns cloned properties for a visible edge, or null if not found. */
@@ -132,7 +133,7 @@ function inspectVisibleNode(
   }
   return {
     nodeId,
-    props: cloneBag(context.nodePropsById.get(nodeId) ?? Object.freeze(Object.create(null))),
+    props: cloneBag(context.nodePropsById.get(nodeId) ?? Object.freeze({})),
     outgoing: cloneNeighbors(context.outgoingByNode.get(nodeId) ?? []),
     incoming: cloneNeighbors(context.incomingByNode.get(nodeId) ?? []),
     content: cloneMeta(context.nodeContentMetaById.get(nodeId)),

@@ -29,7 +29,7 @@ export type VisibleEdgeView = { from: string; to: string; label: string; props: 
 type VisibleProjectionProp = {
   node: string;
   key: string;
-  value: unknown;
+  value: PropValue;
 };
 
 export type StateReaderContext = {

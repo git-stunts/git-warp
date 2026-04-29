@@ -60,10 +60,17 @@ export type DetachedGraphReadSurface = {
   materializeCoordinate(options: DetachedGraphCoordinateSnapshotOptions): Promise<SnapshotWarpState>;
   materializeStrand(strandId: string, options: DetachedGraphStrandReceiptOptions): Promise<DetachedGraphSnapshotWithReceipts>;
   materializeStrand(strandId: string, options: DetachedGraphStrandSnapshotOptions): Promise<SnapshotWarpState>;
+};
+
+export type DetachedGraphInternalMaterializationSurface = {
   _materializeGraph(options?: DetachedGraphMaterializeOptions): Promise<DetachedGraphLiveMaterialization>;
   _materializeCoordinateGraph(options: DetachedGraphCoordinateOptions): Promise<DetachedGraphLiveMaterialization>;
   _materializeStrandGraph(strandId: string, options: DetachedGraphStrandOptions): Promise<DetachedGraphLiveMaterialization>;
 };
+
+export type DetachedGraphInternalReadSurface =
+  DetachedGraphReadSurface &
+  DetachedGraphInternalMaterializationSurface;
 
 /**
  * Creates read-only, detached graph instances for isolated traversal.
@@ -76,5 +83,5 @@ export type DetachedGraphReadSurface = {
  * for snapshot queries that must not mutate the primary graph.
  */
 export default abstract class DetachedGraphFactory {
-  abstract openReadOnly(): Promise<DetachedGraphReadSurface>;
+  abstract openReadOnly(): Promise<DetachedGraphInternalReadSurface>;
 }

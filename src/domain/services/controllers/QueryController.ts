@@ -11,7 +11,7 @@ import Observer from '../query/Observer.ts';
 import Worldline from '../Worldline.ts';
 import { computeTranslationCost } from '../TranslationCost.ts';
 import { toInternalStrandShape } from '../../utils/strandPublicShape.ts';
-import type { DetachedGraphReadSurface } from '../../capabilities/DetachedGraphFactory.ts';
+import type { DetachedGraphInternalReadSurface } from '../../capabilities/DetachedGraphFactory.ts';
 import WorldlineSelector from '../../types/WorldlineSelector.ts';
 import LiveSelector from '../../types/LiveSelector.ts';
 import CoordinateSelector from '../../types/CoordinateSelector.ts';
@@ -111,7 +111,7 @@ async function resolveSourceSnapshot(
 
 async function openDetachedObserverGraph(
   deps: QueryControllerDeps,
-): Promise<DetachedGraphReadSurface> {
+): Promise<DetachedGraphInternalReadSurface> {
   return await deps.graphCloner.openReadOnly();
 }
 

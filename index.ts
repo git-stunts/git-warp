@@ -81,9 +81,9 @@ function createNodeAdd(node: string) { return { type: 'NodeAdd' as const, node }
 function createNodeTombstone(node: string) { return { type: 'NodeTombstone' as const, node }; }
 function createEdgeAdd(from: string, to: string, label: string) { return { type: 'EdgeAdd' as const, from, to, label }; }
 function createEdgeTombstone(from: string, to: string, label: string) { return { type: 'EdgeTombstone' as const, from, to, label }; }
-type PropSetValue = { type: 'inline'; value: unknown } | { type: 'blob'; oid: string };
+type PropSetValue = { type: 'inline'; value: PropValue } | { type: 'blob'; oid: string };
 function createPropSet(node: string, key: string, value: PropSetValue) { return { type: 'PropSet' as const, node, key, value }; }
-function createInlineValue(value: unknown) { return { type: 'inline' as const, value }; }
+function createInlineValue(value: PropValue) { return { type: 'inline' as const, value }; }
 function createBlobValue(oid: string) { return { type: 'blob' as const, oid }; }
 import { migrateV4toV5 } from './src/domain/services/MigrationService.ts';
 import QueryBuilder from './src/domain/services/query/QueryBuilder.ts';
@@ -163,6 +163,7 @@ import ImmutableBytes from './src/domain/services/snapshot/ImmutableBytes.ts';
 import SnapshotORSet from './src/domain/services/snapshot/SnapshotORSet.ts';
 import SnapshotVersionVector from './src/domain/services/snapshot/SnapshotVersionVector.ts';
 import SnapshotWarpState from './src/domain/services/snapshot/SnapshotWarpState.ts';
+import type { PropValue } from './src/domain/types/PropValue.ts';
 import type { SnapshotPropValue } from './src/domain/services/snapshot/SnapshotPropValue.ts';
 import {
   normalizeVisibleStateScope,
@@ -327,7 +328,7 @@ export {
   ChunkEffectSink,
 };
 
-export type { SnapshotPropValue };
+export type { PropValue, SnapshotPropValue };
 
 // WarpApp is the primary product-facing API for v15.
 export default WarpApp;

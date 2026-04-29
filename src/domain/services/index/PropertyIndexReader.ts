@@ -14,6 +14,7 @@ import type IndexStoragePort from '../../../ports/IndexStoragePort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
 import { isPropValue, type PropValue } from '../../types/PropValue.ts';
+import type CodecValue from '../../types/codec/CodecValue.ts';
 
 type IndexedPropertyBag = { [key: string]: PropValue };
 type PropertyShard = { [nodeId: string]: IndexedPropertyBag };
@@ -23,14 +24,14 @@ function createNullRecord(): PropertyShard {
   return {};
 }
 
-function isIndexedPropertyBag(value: unknown): value is IndexedPropertyBag {
+function isIndexedPropertyBag(value: CodecValue): value is IndexedPropertyBag {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     return false;
   }
   return Object.values(value).every((entry) => isPropValue(entry));
 }
 
-function isPropertyShardEntry(value: unknown): value is PropertyShardEntry {
+function isPropertyShardEntry(value: CodecValue): value is PropertyShardEntry {
   return Array.isArray(value)
     && value.length === 2
     && typeof value[0] === 'string'
@@ -118,7 +119,7 @@ export default class PropertyIndexReader {
 
   private async _fetchAndDecode(oid: string, path: string): Promise<PropertyShard> {
     if (this._indexStore) {
-      const decoded: unknown = await this._indexStore.decodeShard(oid);
+      const decoded = await this._indexStore.decodeShard(oid);
       return this._parseShard(decoded, path);
     }
     const storage = this._storage as { readBlob(oid: string): Promise<Uint8Array | undefined | null> };
@@ -129,11 +130,11 @@ export default class PropertyIndexReader {
         { code: 'E_INDEX_SHARD_MISSING', context: { oid, path } },
       );
     }
-    const decoded: unknown = this._codec.decode(buffer);
+    const decoded = this._codec.decode(buffer);
     return this._parseShard(decoded, path);
   }
 
-  private _parseShard(decoded: unknown, path: string): PropertyShard {
+  private _parseShard(decoded: CodecValue, path: string): PropertyShard {
     if (!Array.isArray(decoded)) {
       const shape = decoded === null ? 'null' : typeof decoded;
       throw new IndexError(

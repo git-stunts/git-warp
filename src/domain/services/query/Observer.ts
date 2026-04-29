@@ -38,8 +38,12 @@ type AdjacencyMaps = {
 type VisibleNodeProps = Readonly<{ [key: string]: SnapshotPropValue }>;
 type VisibleEdge = { from: string; to: string; label: string; props: VisibleNodeProps };
 type ObserverSnapshot = { state: WarpState; stateHash: string };
+type ObserverBackingAdjacency = {
+  outgoing: ReadonlyMap<string, readonly NeighborEntry[]>;
+  incoming: ReadonlyMap<string, readonly NeighborEntry[]>;
+};
 type ObserverBackingMaterializedGraph = ObserverSnapshot & {
-  adjacency: unknown;
+  adjacency: ObserverBackingAdjacency;
   provider?: NeighborProviderPort;
 };
 type ObserverMaterializedGraph = ObserverSnapshot & {

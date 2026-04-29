@@ -158,6 +158,7 @@ import type {
   ConflictAnalysis,
   ConflictKind,
   ConflictTargetSelector,
+  PropValue,
   SnapshotPropValue,
 } from '../../index.ts';
 
@@ -646,7 +647,7 @@ const costStandalone: TranslationCostResult = computeTranslationCost(
 declare const v4State: {
   nodeAlive: Map<string, { value: boolean }>;
   edgeAlive: Map<string, { value: boolean }>;
-  prop: Map<string, unknown>;
+  prop: Map<string, { eventId: EventId; value: PropValue }>;
 };
 const migrated: WarpState = migrateV4toV5(v4State, 'migration-writer');
 

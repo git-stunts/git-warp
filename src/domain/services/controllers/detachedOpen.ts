@@ -15,10 +15,9 @@ import type SeekCachePort from '../../../ports/SeekCachePort.ts';
 import type { CorePersistence } from '../../types/WarpPersistence.ts';
 import type { NormalizedTrustConfig } from '../../runtimeHelpers.ts';
 import type GCPolicy from '../GCPolicy.ts';
-import type { DetachedGraphReadSurface } from '../../capabilities/DetachedGraphFactory.ts';
-import WarpError from '../../errors/WarpError.ts';
+import type { DetachedGraphInternalReadSurface } from '../../capabilities/DetachedGraphFactory.ts';
 
-type DetachedOpenOptions = {
+export type DetachedOpenOptions = {
   persistence: CorePersistence;
   graphName: string;
   writerId: string;
@@ -39,9 +38,7 @@ type DetachedOpenOptions = {
   indexStore?: IndexStorePort;
 };
 
-type DetachedGraphConstructor = {
-  open?: (options: DetachedOpenOptions) => Promise<DetachedGraphReadSurface>;
-};
+export type DetachedGraphOpen = (options: DetachedOpenOptions) => Promise<DetachedGraphInternalReadSurface>;
 
 export type DetachedOpenHost = {
   _persistence: CorePersistence;
@@ -60,7 +57,6 @@ export type DetachedOpenHost = {
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
   _crypto: CryptoPort;
   _codec: CodecPort;
-  constructor: Function & DetachedGraphConstructor;
 };
 
 function coreOptions(graph: DetachedOpenHost): DetachedOpenOptions {
@@ -99,15 +95,14 @@ function addStoresPorts(opts: DetachedOpenOptions, g: DetachedOpenHost): void {
 }
 
 /** Opens a detached read-only clone for snapshot queries. */
-export async function openDetachedGraph(graph: DetachedOpenHost): Promise<DetachedGraphReadSurface> {
+export async function openDetachedGraph(
+  graph: DetachedOpenHost,
+  open: DetachedGraphOpen,
+): Promise<DetachedGraphInternalReadSurface> {
   const opts = coreOptions(graph);
   addCachePorts(opts, graph);
   addStoragePorts(opts, graph);
   addConfigPorts(opts, graph);
   addStoresPorts(opts, graph);
-  const open = graph.constructor.open;
-  if (typeof open !== 'function') {
-    throw new WarpError('detached graph host is missing a static open() bridge', 'E_DETACHED_OPEN_BRIDGE');
-  }
   return await open(opts);
 }

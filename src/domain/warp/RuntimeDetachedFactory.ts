@@ -4,20 +4,25 @@
  * Creates read-only detached graph instances for isolated materialization.
  */
 
-import DetachedGraphFactory from '../capabilities/DetachedGraphFactory.ts';
-import { openDetachedGraph } from '../services/controllers/detachedOpen.ts';
-import type { DetachedGraphReadSurface } from '../capabilities/DetachedGraphFactory.ts';
-import type { DetachedOpenHost } from '../services/controllers/detachedOpen.ts';
+import DetachedGraphFactory, { type DetachedGraphInternalReadSurface } from '../capabilities/DetachedGraphFactory.ts';
+import {
+  openDetachedGraph,
+  type DetachedGraphOpen,
+  type DetachedOpenHost,
+} from '../services/controllers/detachedOpen.ts';
 
 export default class RuntimeDetachedFactory extends DetachedGraphFactory {
   private readonly _runtime: DetachedOpenHost;
 
-  constructor(runtime: DetachedOpenHost) {
+  private readonly _open: DetachedGraphOpen;
+
+  constructor(runtime: DetachedOpenHost, open: DetachedGraphOpen) {
     super();
     this._runtime = runtime;
+    this._open = open;
   }
 
-  async openReadOnly(): Promise<DetachedGraphReadSurface> {
-    return await openDetachedGraph(this._runtime);
+  async openReadOnly(): Promise<DetachedGraphInternalReadSurface> {
+    return await openDetachedGraph(this._runtime, this._open);
   }
 }

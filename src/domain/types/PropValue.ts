@@ -1,3 +1,5 @@
+import type CodecValue from './codec/CodecValue.ts';
+
 /**
  * PropValue — the set of values that can be stored in a CRDT property register.
  *
@@ -14,7 +16,7 @@ export type PropValue =
   | PropValue[]
   | { [key: string]: PropValue };
 
-function isScalarPropValue(value: unknown): value is string | number | boolean | null | Uint8Array {
+function isScalarPropValue(value: CodecValue): value is string | number | boolean | null | Uint8Array {
   return (
     value === null
     || typeof value === 'string'
@@ -24,19 +26,24 @@ function isScalarPropValue(value: unknown): value is string | number | boolean |
   );
 }
 
-function isPropValueArray(value: unknown): value is PropValue[] {
+function isPropValueArray(value: CodecValue): value is PropValue[] {
   return Array.isArray(value) && value.every((entry) => isPropValue(entry));
 }
 
-function isPropValueObject(value: unknown): value is { [key: string]: PropValue } {
+function isPropValueObjectCandidate(value: CodecValue): value is { readonly [key: string]: CodecValue } {
   return value !== null
     && typeof value === 'object'
     && !Array.isArray(value)
     && !(value instanceof Uint8Array)
+    && !(value instanceof Date);
+}
+
+function isPropValueObject(value: CodecValue): value is { [key: string]: PropValue } {
+  return isPropValueObjectCandidate(value)
     && Object.values(value).every((entry) => isPropValue(entry));
 }
 
-export function isPropValue(value: unknown): value is PropValue {
+export function isPropValue(value: CodecValue): value is PropValue {
   return isScalarPropValue(value)
     || isPropValueArray(value)
     || isPropValueObject(value);

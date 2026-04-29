@@ -330,7 +330,7 @@ export default class RuntimeHost {
     this._forkController = new ForkController(this);
     this._queryController = new QueryController({
       hostGraph: this,
-      graphCloner: new RuntimeDetachedFactory(this),
+      graphCloner: new RuntimeDetachedFactory(this, async (detachedOptions) => await RuntimeHost.open(detachedOptions)),
       hashState: async (state) => {
         if (this._stateHashService !== null) {
           return await this._stateHashService.compute(state);
@@ -351,7 +351,7 @@ export default class RuntimeHost {
       getStateCache: () => this._stateCache ?? null,
       ...(openStateSession === undefined ? {} : { openStateSession }),
       patches: new RuntimePatchCollector(this),
-      graphCloner: new RuntimeDetachedFactory(this),
+      graphCloner: new RuntimeDetachedFactory(this, async (detachedOptions) => await RuntimeHost.open(detachedOptions)),
       graphName: this._graphName,
     });
     this._viewService = viewService;
