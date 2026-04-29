@@ -1,6 +1,6 @@
 # 0102 Snapshot PropValue API Model
 
-- Status: `PULL`
+- Status: `RED`
 - Release lane: `v17.0.0`
 - Source backlog: `IMM_snapshot-propvalue-api-model`
 - Blocks: `0101-readonly-byte-propvalue-snapshot`
@@ -898,6 +898,58 @@ Expected RED today:
 
 - current snapshot byte values are still `Uint8Array`;
 - mutation of the snapshot byte value still succeeds.
+
+## RED Witness
+
+Commands run:
+
+```sh
+npx vitest run test/conformance/snapshotPropValueApiModel.test.ts
+npx vitest run test/conformance/readonlyBytePropValueSnapshot.test.ts
+npx eslint test/conformance/snapshotPropValueApiModel.test.ts test/conformance/readonlyBytePropValueSnapshot.test.ts
+npx markdownlint docs/design/0102-snapshot-propvalue-api-model.md
+git diff --check
+```
+
+Expected result:
+
+- `snapshotPropValueApiModel.test.ts` fails because the current source
+  does not yet define `ImmutableBytes`, `SnapshotPropValue`,
+  `SnapshotORSet`, `SnapshotVersionVector`, `SnapshotWarpState`, or the
+  source-specific projection functions.
+- `readonlyBytePropValueSnapshot.test.ts` still fails because public
+  byte-valued snapshots still expose mutable `Uint8Array`.
+- ESLint, markdownlint, and diff checks pass.
+
+The RED covers the final reduced API model:
+
+- storage `PropValue` remains separate from snapshot values;
+- snapshot bytes use `ImmutableBytes`;
+- public state snapshots use `SnapshotWarpState`, not `WarpState`;
+- public graph fields use `SnapshotORSet`, not live mutable `ORSet`;
+- public frontiers use `SnapshotVersionVector`, not mutable
+  `VersionVector`;
+- public property bags project to readonly shapes over
+  `SnapshotPropValue`;
+- `SnapshotORSet` does not expose `Set` / `ReadonlySet` return values;
+- returned `SnapshotORSet` arrays are frozen arrays or defensive copies
+  whose mutation cannot affect later reads.
+
+Observed RED result:
+
+- `snapshotPropValueApiModel.test.ts` failed seven of eight assertions,
+  covering the missing snapshot nouns, live `WarpState` return surface,
+  live CRDT field surface, property-bag projection gaps, missing
+  `SnapshotORSet`, missing `SnapshotVersionVector`, and missing
+  `createSnapshotORSet` defensive-copy/frozen-array contract.
+- `readonlyBytePropValueSnapshot.test.ts` failed because the copied
+  public snapshot `Uint8Array` still accepted mutation: source bytes
+  stayed detached, but the snapshot bytes changed from `[1, 2, 3]` to
+  `[9, 2, 3]`.
+- ESLint, markdownlint, and `git diff --check` passed for the RED
+  artifacts.
+
+No production implementation was attempted during RED.
 
 ### Public Type Surface Contract
 
