@@ -1187,9 +1187,170 @@ Known remaining debt:
 
 - Release/API notes should call out the public return-type correction
   from `WarpState` / `Uint8Array` to snapshot read-side types.
-- The existing consumer type-check suite remains broader public-surface
-  debt and is not repaired by 0102.
+- The broad consumer type-check suite remains red and is a
+  release-blocker candidate. 0102 GREEN is acceptable only because the
+  failures are pre-existing / unrelated to the new snapshot symbols, and
+  focused snapshot public API conformance covers this slice.
 - 0096 remains blocked by non-0102 cast families.
+
+## Playback Witness
+
+### Agent Playback
+
+1. Can a future agent tell that `PropValue` is storage-shaped and
+   remains separate from `SnapshotPropValue`?
+
+   Yes. The design and implementation keep storage `PropValue` in
+   `src/domain/types/PropValue.ts` and define read-side
+   `SnapshotPropValue` in
+   `src/domain/services/snapshot/SnapshotPropValue.ts`. Storage values
+   may contain `Uint8Array`; snapshot values project those bytes to
+   `ImmutableBytes`.
+
+2. Can a future agent tell that public snapshot byte values are
+   `ImmutableBytes`, not `Uint8Array`?
+
+   Yes. `readonlyBytePropValueSnapshot.test.ts` and
+   `snapshotPropValueApiModel.test.ts` require byte-valued public
+   snapshot properties to expose `ImmutableBytes`. The package root
+   exports `ImmutableBytes` because public APIs can return it through
+   `SnapshotPropValue`.
+
+3. Can a future agent explain why `ImmutableBytes` cannot be mutated
+   through the public API?
+
+   Yes. `ImmutableBytes` owns private copied bytes, exposes read methods,
+   and returns defensive copies from copy-out methods. It does not expose
+   raw mutable `Uint8Array` or `ArrayBuffer` state.
+
+4. Can a future agent tell that public materialization returns
+   `SnapshotWarpState`, not `WarpState`?
+
+   Yes. Public immutable read-side surfaces now return
+   `SnapshotWarpState`; internal reducers, caches, replay, checkpoints,
+   and construction APIs remain on live/storage `WarpState`.
+
+5. Can a future agent tell that public snapshot graph fields expose
+   `SnapshotORSet`, not mutable `ORSet` internals?
+
+   Yes. `SnapshotWarpState.nodeAlive` and
+   `SnapshotWarpState.edgeAlive` expose `SnapshotORSet`. The public
+   snapshot type does not expose `ORSet.add`, `ORSet.remove`,
+   `ORSet.compact`, mutable entries, mutable tombstones, `Set`, or
+   `ReadonlySet`.
+
+6. Can a future agent tell that public snapshot frontiers expose
+   `SnapshotVersionVector`, not `VersionVector.set` or
+   `VersionVector.increment`?
+
+   Yes. `SnapshotWarpState.observedFrontier` exposes
+   `SnapshotVersionVector`, a read-side view that does not expose
+   mutation methods.
+
+7. Can a future agent tell that query/property-bag APIs return readonly
+   bags of `SnapshotPropValue`?
+
+   Yes. Public property bags use readonly snapshot property bags over
+   `SnapshotPropValue`, and query helpers no longer use
+   `Record<string, unknown>` as property-bag shape.
+
+8. Can a future agent tell that content byte APIs are intentionally out
+   of scope?
+
+   Yes. The non-goals explicitly exclude content byte APIs. 0102 only
+   models property bytes exposed through public immutable snapshots.
+
+9. Can a future agent avoid proxy-backed fake typed-array immutability?
+
+   Yes. The design rejects proxy-backed `Uint8Array` facades and
+   `Readonly<Uint8Array>` theater. The accepted model is a concrete
+   `ImmutableBytes` value.
+
+10. Can a future agent avoid broad generic snapshot protocol work?
+
+   Yes. The design preserves source-specific snapshot builders and does
+   not introduce a generic snapshot protocol.
+
+11. Can a future agent tell why 0101 remains blocked until this model is
+    implemented?
+
+   Yes. 0101 proved detached byte copies were still mutable. 0102
+   supplies the missing API/type model needed for a correct 0101 GREEN:
+   storage values and public snapshot values are different concepts.
+
+### Human Playback
+
+1. Can maintainers see what public APIs return for byte-valued snapshot
+   properties?
+
+   Yes. Public snapshot property values use `SnapshotPropValue`; byte
+   branches are `ImmutableBytes`.
+
+2. Is it clear why mutation is impossible through those APIs?
+
+   Yes. Public byte values do not expose mutable `Uint8Array`. Copy-out
+   methods return defensive values, and snapshot collection views return
+   frozen arrays/entry objects or defensive read-result values.
+
+3. Is the storage/snapshot value split explicit enough?
+
+   Yes. Storage `PropValue` and read-side `SnapshotPropValue` are
+   separate nouns with separate files and public API roles.
+
+4. Is the public API migration cost visible?
+
+   Yes. The witness records public returns moving from `WarpState` /
+   mutable byte values to `SnapshotWarpState` / `ImmutableBytes`, and it
+   records release/API-note debt.
+
+5. Is the implementation sequence narrow enough?
+
+   Yes. The implementation changed public immutable read-side snapshot
+   surfaces and avoided checkpoint serialization, storage decode, patch
+   construction, reducers, content byte APIs, cool-ideas, and 0096
+   general cast work.
+
+6. Are any affected query or property-bag surfaces missing from the
+   plan?
+
+   No missing 0102 surfaces are known from the focused conformance and
+   targeted materialization/query/state tests. This is evidence-scoped:
+   no checked 0102 sludge patterns remain in the scanned touched files
+   after the manual policy scans.
+
+### Playback Checks
+
+- `PropValue` remains storage-shaped and does not import or mention
+  `ImmutableBytes`.
+- `SnapshotPropValue` includes `ImmutableBytes`.
+- Public materialization/snapshot APIs return `SnapshotWarpState`.
+- Public snapshot state exposes `SnapshotORSet` and
+  `SnapshotVersionVector`, not live CRDT mutator surfaces.
+- Public property bags expose `SnapshotPropValue`.
+- Snapshot builder functions are not exported from the package root.
+- Public snapshot runtime classes and types are exported because public
+  APIs return them.
+- No checked 0102 sludge patterns remain in the scanned touched files
+  after the manual policy scans.
+- `npm run typecheck:consumer` remains red and is a release-blocker
+  candidate tracked by
+  `docs/method/backlog/bad-code/API_consumer-typecheck-suite-red.md`.
+
+### Playback Weak Spots
+
+- The broad consumer type-check suite remains red. Focused snapshot
+  public API conformance covers 0102, but the broad suite is a
+  release-blocker candidate and must not be treated as harmless
+  background noise.
+- Release/API notes still need to call out public immutable read-side
+  return type changes.
+- `SnapshotPropValue` intentionally has a recursive object dictionary
+  branch for property values. That branch must not spread into entity
+  modeling or arbitrary domain bags.
+- `SnapshotORSet` currently returns frozen arrays/entry objects for
+  read-result methods. That is honest for public immutability, but
+  allocation behavior may need future profiling if it becomes hot.
+- 0102 does not resolve non-0102 0096 cast families.
 
 ## Playback Questions
 
