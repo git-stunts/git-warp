@@ -1,6 +1,6 @@
 # 0102 Snapshot PropValue API Model
 
-- Status: `GREEN`
+- Status: `hill met`
 - Release lane: `v17.0.0`
 - Source backlog: `IMM_snapshot-propvalue-api-model`
 - Blocks: `0101-readonly-byte-propvalue-snapshot`
@@ -1435,6 +1435,34 @@ Known remaining debt:
   as a bad-code card rather than buried.
 - No production code edits were needed during Drift Check.
 - No correction is required before Retrospective.
+
+## Cycle End
+
+Closeout links:
+
+- Retrospective:
+  `docs/method/retros/0102-snapshot-propvalue-api-model.md`
+- Active blocker:
+  `docs/method/backlog/bad-code/API_consumer-typecheck-suite-red.md`
+
+Confirmations:
+
+- 0102 is hill met for the focused snapshot public API model.
+- Broader release readiness is NOT met while
+  `npm run typecheck:consumer` remains red.
+- Public immutable read-side snapshot APIs use `SnapshotWarpState`,
+  `SnapshotPropValue`, `ImmutableBytes`, `SnapshotORSet`, and
+  `SnapshotVersionVector`.
+- Storage `PropValue` remains separate from `SnapshotPropValue`.
+- Public package exports were made deliberately for returned public
+  snapshot types.
+- Snapshot builder functions are not exported from the package root.
+- `npm run typecheck:consumer` remains red and is a release-blocker
+  candidate tracked by `API_consumer-typecheck-suite-red`.
+- 0096 remains blocked by non-0102 cast families.
+- Release/API-note debt remains.
+- Recommended next cycle: `API_consumer-typecheck-suite-red` if release
+  readiness matters most.
 
 ## Playback Questions
 
