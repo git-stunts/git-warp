@@ -949,6 +949,16 @@ Observed RED result:
 - ESLint, markdownlint, and `git diff --check` passed for the RED
   artifacts.
 
+RED scope clarification:
+
+- The `WarpState` return ban targets public immutable read-side
+  materialization/snapshot methods: `materialize`,
+  `materializeCoordinate`, `materializeAt`, receipt-result `state`, and
+  `getStateSnapshot`.
+- RED does not ban internal/live reducer, cache, checkpoint, or storage
+  APIs from using `WarpState` where they still represent live storage
+  state.
+
 No production implementation was attempted during RED.
 
 ### Public Type Surface Contract

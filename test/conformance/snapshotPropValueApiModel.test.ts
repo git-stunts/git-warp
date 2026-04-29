@@ -138,7 +138,16 @@ describe('snapshot PropValue API model', () => {
     expect(domainSource).toMatch(/class\s+SnapshotWarpState\b/u);
     expect(immutableSnapshotSource).toMatch(/createSnapshotWarpState\s*\(\s*state:\s*WarpState\s*\)\s*:\s*SnapshotWarpState/u);
     expect(immutableSnapshotSource).not.toMatch(/createImmutableWarpStateSnapshot\s*\(\s*state:\s*WarpState\s*\)\s*:\s*WarpState/u);
-    expect(materializeCapabilitySource).not.toMatch(/Promise\s*<\s*WarpState\b/u);
+
+    // MaterializeCapability is the public read-side materialization surface.
+    // This does not ban internal/live reducer or cache APIs from returning WarpState.
+    expect(materializeCapabilitySource).toContain('SnapshotWarpState');
+    expect(materializeCapabilitySource).not.toMatch(/type\s+MaterializeWithReceipts\s*=\s*\{[\s\S]*?\bstate\s*:\s*WarpState\b/u);
+    expect(materializeCapabilitySource).not.toMatch(/abstract\s+materialize\s*\([^;]*\):\s*Promise\s*<\s*WarpState\s*>/u);
+    expect(materializeCapabilitySource).not.toMatch(/abstract\s+materialize\s*\([^;]*\):\s*Promise\s*<\s*WarpState\s*\|/u);
+    expect(materializeCapabilitySource).not.toMatch(/abstract\s+materializeCoordinate\s*\([^;]*\):\s*Promise\s*<\s*WarpState\s*>/u);
+    expect(materializeCapabilitySource).not.toMatch(/abstract\s+materializeCoordinate\s*\([^;]*\):\s*Promise\s*<\s*WarpState\s*\|/u);
+    expect(materializeCapabilitySource).not.toMatch(/abstract\s+materializeAt\s*\([^;]*\):\s*Promise\s*<\s*WarpState\s*>/u);
     expect(queryCapabilitySource).not.toMatch(/getStateSnapshot\s*\([^)]*\)\s*:\s*Promise\s*<\s*WarpState\s*\|\s*null\s*>/u);
   });
 
