@@ -1,6 +1,6 @@
 # 0102 Snapshot PropValue API Model
 
-- Status: `RED`
+- Status: `GREEN`
 - Release lane: `v17.0.0`
 - Source backlog: `IMM_snapshot-propvalue-api-model`
 - Blocks: `0101-readonly-byte-propvalue-snapshot`
@@ -1013,9 +1013,7 @@ Add focused runtime tests when GREEN starts:
 
 ## GREEN Plan
 
-GREEN belongs to the next implementation cycle.
-
-Implementation order should be:
+Implementation order:
 
 1. Introduce `ImmutableBytes`.
 2. Introduce `SnapshotPropValue`.
@@ -1029,6 +1027,131 @@ Implementation order should be:
 8. Update type-check consumer tests and release/API notes.
 9. Keep storage reducers, patch builders, checkpoints, and index
    builders on storage `PropValue` and live `WarpState`.
+
+## GREEN Witness
+
+Implementation commit:
+
+```txt
+180eb2ca refactor: introduce snapshot propvalue api model
+```
+
+Implementation summary:
+
+- Introduced `ImmutableBytes` as a runtime-backed immutable public
+  snapshot byte value.
+- Introduced `SnapshotPropValue` so public snapshot property values are
+  separate from storage `PropValue`.
+- Introduced `SnapshotORSet` and `SnapshotVersionVector` read-side
+  views so `SnapshotWarpState` does not expose live CRDT mutator
+  surfaces.
+- Introduced `SnapshotWarpState` and changed public immutable
+  materialization/snapshot APIs to return it instead of storage
+  `WarpState`.
+- Kept internal reducers, caches, checkpoint seams, replay, and
+  construction APIs on live/storage `WarpState`.
+- Projected public node/edge property bags, visible views, observers,
+  query results, and state readers to readonly shapes over
+  `SnapshotPropValue`.
+- Exported the new public snapshot types intentionally from the package
+  entrypoint: `ImmutableBytes`, `SnapshotORSet`,
+  `SnapshotVersionVector`, `SnapshotWarpState`, and type
+  `SnapshotPropValue`.
+- Did not export snapshot builder functions from the package
+  entrypoint; they remain implementation builders rather than public
+  API commitments.
+- Removed the `globalThis.Set<string>` conformance appeasement and
+  corrected the RED test so private `Set<string>` implementation
+  storage is allowed while public `Set` / `ReadonlySet` exposure stays
+  banned.
+
+Exact public API changes:
+
+- `materialize()`, `materializeCoordinate()`, `materializeAt()`,
+  receipt-result `state`, `materializeStrand()`, and
+  `getStateSnapshot()` now expose `SnapshotWarpState`.
+- Public property bags now expose
+  `Readonly<{ [key: string]: SnapshotPropValue }>` or named local
+  aliases over that shape.
+- Byte-valued public snapshot properties now expose `ImmutableBytes`.
+- `ImmutableBytes.toUint8Array()` returns a mutable defensive copy;
+  mutating that copy does not mutate the snapshot.
+- `SnapshotORSet` returns frozen arrays/entry objects for read-result
+  methods. It keeps private `Set<string>` storage fully encapsulated.
+
+Why mutation is impossible through the public byte API:
+
+- snapshot byte values are not `Uint8Array`;
+- backing bytes are private;
+- the class exposes no mutation methods;
+- copy-out methods return defensive values;
+- nested snapshot arrays and objects recursively project byte values to
+  `ImmutableBytes`.
+
+Validation run after final cleanup:
+
+```sh
+npx eslint $(git diff --name-only -- '*.ts')
+npm run typecheck
+npm run lint:sludge
+git diff --check
+npx vitest run test/conformance/snapshotPropValueApiModel.test.ts test/conformance/readonlyBytePropValueSnapshot.test.ts test/conformance/immutableSnapshotBuilder.test.ts
+npx vitest run \
+  test/unit/domain/services/controllers/MaterializeController.test.ts \
+  test/unit/domain/services/controllers/MaterializeController.snapshotCache.test.ts \
+  test/unit/domain/services/controllers/MaterializeHelpers.stateSession.test.ts \
+  test/unit/domain/services/controllers/MaterializeController.stateSession.test.ts \
+  test/unit/domain/services/controllers/QueryController.test.ts \
+  test/unit/domain/services/controllers/StrandController.test.ts \
+  test/unit/domain/services/strand/StrandService.test.ts \
+  test/unit/domain/WarpCore.snapshotHashStability.test.ts \
+  test/unit/domain/WarpGraph.autoMaterialize.test.ts \
+  test/unit/domain/WarpGraph.autoMaterializeRemove.test.ts \
+  test/unit/domain/WarpGraph.query.test.ts \
+  test/unit/domain/WarpGraph.edgeProps.test.ts \
+  test/unit/domain/WarpGraph.seekDiff.test.ts \
+  test/unit/domain/WarpGraph.test.ts
+```
+
+Results:
+
+- `snapshotPropValueApiModel.test.ts` passed.
+- `readonlyBytePropValueSnapshot.test.ts` passed.
+- `immutableSnapshotBuilder.test.ts` passed.
+- Targeted materialization/query/state tests passed: 14 files, 455
+  tests.
+- `npm run typecheck` passed.
+- `npm run lint:sludge` passed.
+- `git diff --check` passed.
+- ESLint reported no errors for changed TypeScript files. It emitted
+  ignored-file warnings for `index.ts` and
+  `test/type-check/consumer.ts` because those files are outside the
+  matching lint config or ignored by pattern.
+
+Consumer type-check visibility:
+
+```sh
+npm run typecheck:consumer
+```
+
+Result:
+
+- still fails for broad pre-existing consumer-surface issues outside
+  this slice, including missing Bun/Deno globals,
+  `@git-stunts/trailer-codec` declarations, and many previously
+  unresolved root export/type-surface mismatches.
+- the new snapshot symbols are exported from `index.ts`, and the
+  consumer fixture names them; no remaining consumer error is about
+  missing `ImmutableBytes`, `SnapshotPropValue`, `SnapshotORSet`,
+  `SnapshotVersionVector`, or `SnapshotWarpState`.
+
+Known remaining debt:
+
+- Release/API notes should call out the public return-type correction
+  from `WarpState` / `Uint8Array` to snapshot read-side types.
+- The existing consumer type-check suite remains broader public-surface
+  debt and is not repaired by 0102.
+- 0096 remains blocked by non-0102 cast families.
 
 ## Playback Questions
 
@@ -1122,7 +1245,6 @@ Implementation order should be:
 
 ## Non-Goals
 
-- Do not implement `ImmutableBytes` in this design-only cycle.
 - Do not resume `0096-purge-cast-hacks`.
 - Do not clean unrelated bad-code files.
 - Do not touch cool-ideas.
