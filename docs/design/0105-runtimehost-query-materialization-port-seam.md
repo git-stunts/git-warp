@@ -77,7 +77,7 @@ instead of a query-owned materialization seam.
 ```ts
 type QueryMaterializedGraph = {
   adjacency: AdjacencyMaps;
-  stateHash: string | null;
+  stateHash: string;
 };
 
 type QueryExecutionSource = {
@@ -102,6 +102,12 @@ type QueryExecutionSource = {
 
 The current `QueryGraph` shape is therefore too broad and contains the
 wrong materialization name.
+
+`stateHash` should be non-null at this seam. `QueryRunner` immediately
+requires a string today, and a materialization source that cannot produce
+a query state hash is not a valid query materialization source. Keep
+`string | null` only if RED proves null is a real query-materialization
+state rather than a legacy leak from a broader runtime shape.
 
 ## Current Dependency Sludge
 
@@ -194,9 +200,38 @@ If it becomes a runtime object with behavior, it must get a precise file
 and name. It must not be called `RuntimeFacade`, `RuntimePort`,
 `QueryRuntimeManager`, or `MaterializationHelper`.
 
-## Public APIs That Must Not Change
+## Constructor Decision
 
-0105 must not change public query behavior or package exports.
+Do not preserve the old `QueryBuilder` constructor for compatibility
+theater. Constructors establish invariants and receive required
+dependencies explicitly. If `QueryBuilder` needs a narrower dependency
+to satisfy DI, then its constructor should change.
+
+Design rules:
+
+- Constructors establish invariants.
+- Constructors receive required dependencies explicitly.
+- Constructors may throw when given invalid dependencies.
+- Do not allow optional, partial, or host-bag dependencies just to avoid
+  changing call sites.
+- Do not hide dependency changes behind setters, `init()` methods,
+  globals, service locators, managers, or facades.
+
+If `QueryBuilder` is exported from the package root, a constructor
+change is an intentional public constructor correction, not accidental
+drift. The supported construction path for normal consumers remains
+`graph.query()`, `observer.query()`, `worldline.query()`, and related
+factory methods. Direct `new QueryBuilder(...)` remains possible only
+with the explicit query DI dependency object.
+
+RED should verify the constructor does not accept a broad runtime or
+host object. GREEN should make invalid construction impossible or fail
+immediately.
+
+## Public APIs That Must Not Accidentally Change
+
+0105 must not accidentally change public query behavior or package
+exports.
 
 These surfaces must remain stable:
 
@@ -213,6 +248,9 @@ These surfaces must remain stable:
 - `Observer.query()`
 - package-root `index.ts`
 
+The `QueryBuilder` constructor is the exception: it may change if that
+is the honest way to require the narrow query execution source.
+
 No `index.ts` export change is justified by this PULL.
 
 ## RED Plan
@@ -226,6 +264,10 @@ Recommended focused RED:
 - Assert `QueryRunner` does not export or consume a graph shape with
   `_materializeGraph`.
 - Assert `QueryRunner` does not require `getEdges`.
+- Assert `QueryBuilder` constructor does not accept a broad runtime or
+  host object.
+- Assert query materialization exposes `stateHash: string`, unless the
+  RED explicitly proves nullable query state hash is valid.
 - Assert a query-owned `QueryMaterializationPort` or equivalent named
   seam exists.
 - Assert banned names do not appear in the new seam:
@@ -281,6 +323,10 @@ This is not a RuntimeHost rewrite. It is one pipe cut.
   ban other internal materialization seams?
 - Does the GREEN remove `_materializeGraph` from `QueryRunner` without
   changing public query behavior?
+- Does `QueryBuilder` constructor require the narrow query dependency
+  instead of preserving broad host-bag compatibility?
+- Does query materialization expose a non-null `stateHash` unless null
+  was proven valid?
 - Does the new port name describe the query materialization need instead
   of hiding RuntimeHost behind a prettier facade?
 - Did any adapter object gain more than one reason to change?
@@ -310,6 +356,17 @@ git diff --check
   Why it is sludge: `QueryGraph` includes `getEdges()` even though the
   runner does not use it.
   Status: designed, not fixed.
+- Pattern: constructor compatibility theater.
+  Files: `src/domain/services/query/QueryBuilder.ts`.
+  Why it is sludge: preserving a constructor that accepts a broad
+  runtime/host object would hide the real DI dependency.
+  Status: rejected in design.
+- Pattern: nullable query state hash leak.
+  Files: `src/domain/services/query/QueryRunner.ts`.
+  Why it is sludge: `QueryRunner` requires a string state hash, so a
+  query materialization port should not advertise null unless null is
+  proven valid for queries.
+  Status: rejected unless RED proves otherwise.
 - Pattern: repeated hidden materialization shapes.
   Files: `QueryRunner.ts`, `QueryController.ts`,
   `DetachedGraphFactory.ts`, `RuntimeHostProduct.ts`,
@@ -331,6 +388,9 @@ the smallest honest design target.
 - Rejected `MaterializationHelper`.
 - Rejected broad RuntimeHost cleanup.
 - Rejected package-root export changes.
+- Rejected preserving sloppy constructors to avoid call-site changes.
+- Rejected optional dependency bags and init-after-construction patterns.
+- Rejected nullable query `stateHash` unless RED proves it is valid.
 - Rejected production edits during PULL.
 
 ### 4. Sludge Deferred / Tracked
