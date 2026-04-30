@@ -1,6 +1,6 @@
 # 0103 Consumer Typecheck Suite Repair
 
-- Status: `GREEN`
+- Status: `PLAYBACK`
 - Release lane: `v17.0.0`
 - Source backlog: `API_consumer-typecheck-suite-red`
 - Design role: active METHOD cycle
@@ -118,6 +118,179 @@ Results:
 
 ## Next Phase
 
-Stop at GREEN. Playback should verify that the consumer suite is now a
-trustworthy release gate and that the repaired fixture covers the
-current public package surface rather than stale expectations.
+Stop at PLAYBACK. Drift Check should verify that the playback evidence
+does not overclaim release readiness or hide fixture coverage loss.
+
+## Playback Witness
+
+### DESLUDGE Audit Questions
+
+1. Did the new consumer fixture preserve meaningful public API
+   coverage, or did it delete hard coverage to make the gate green?
+
+   It preserved meaningful coverage for the current package-root public
+   API gate, but it intentionally narrowed the old fixture. The old file
+   mixed current package-root coverage with stale historical exports and
+   API shapes. The new fixture still imports the current root runtime
+   surface, current root function surface, current root constants, public
+   snapshot types, the browser entrypoint, core graph construction,
+   materialization, query/property bags, patch/writer flows, BTR,
+   wormhole, state reader, index, HTTP serving, and negative compile
+   checks.
+
+   This is not the same as the old fixture's historical everything-file
+   coverage. That narrowing is acceptable for 0103 because the removed
+   expectations were stale or belonged to deeper API-specific tests, not
+   to the current package-root consumer smoke gate.
+
+2. Which old consumer expectations were truly stale?
+
+   Stale root exports included names that are not current intentional
+   root exports. The repair did not add them back to `index.ts` just to
+   satisfy the old fixture.
+
+   Stale BTR/provenance APIs included `serializeBTR`,
+   `deserializeBTR`, `ProvenancePayload.toJSON`, and
+   `ProvenancePayload.fromJSON`. The new fixture uses current BTR
+   creation, verification, replay, and `ProvenancePayload` entry APIs.
+
+   Stale option shapes included `clock` on `WarpApp.open`. The new
+   fixture uses the current product-facing open shape.
+
+   Stale adapter assumptions included old `BitmapIndexReader`
+   construction and old `BitmapIndexBuilder.serialize()` result typing.
+   The new fixture uses the current constructor and return shape.
+
+3. Which old expectations were still valuable and are still covered?
+
+   Current root exports are still imported and named through
+   `exportedRuntimeSurface`, `exportedFunctionSurface`, and
+   `exportedConstantSurface`.
+
+   Graph construction remains covered through both `WarpApp.open` and
+   `openWarpGraph`.
+
+   Materialization remains covered through `graph.materialize()`,
+   `graph.materialize({ receipts: true })`,
+   `graphBag.materialize.materialize()`, and
+   `graph.getStateSnapshot()`.
+
+   Query and property-bag APIs remain covered through `getNodeProps`,
+   `getEdgeProps`, `getEdges`, `neighbors`, `getPropertyCount`,
+   `query`, `observer`, `worldline`, `createStateReader`, and
+   `compareVisibleState`.
+
+   Patch/writer APIs remain covered through `createPatch`, chained
+   patch building, `commit`, `patch`, `writer`, and `PatchSession`.
+
+   BTR, wormhole, indexing, browser entrypoint, and negative compile
+   checks remain covered with current API shapes.
+
+4. Did the repair avoid export carpet?
+
+   Yes. `303f9275 test: repair consumer public api typecheck` changed
+   only files under `test/type-check/`. It did not edit `index.ts`.
+
+   The package root snapshot exports were introduced earlier by 0102
+   because public read-side APIs return those types. 0103 did not add
+   root exports for stale fixture names.
+
+5. Are Bun/Deno declarations properly test-only?
+
+   Yes. The Bun/Deno declarations live only in
+   `test/type-check/runtime-declarations.d.ts`, and the only project
+   that includes that file is `test/type-check/tsconfig.json`.
+
+   They do not modify production source, package root exports, or
+   production type declarations.
+
+6. Is the `@git-stunts/trailer-codec` declaration shim scoped and
+   honest?
+
+   Yes. The shim lives in
+   `test/type-check/trailer-codec.d.ts` and is included only by the
+   consumer type-check project. It supplies the minimal shape needed for
+   the consumer compiler to understand the otherwise untyped dependency.
+
+   It does not declare product-domain behavior and does not widen the
+   package root.
+
+7. Does the new fixture still cover the 0102 snapshot public API?
+
+   Yes. It imports and names `SnapshotWarpState`,
+   `SnapshotPropValue`, `ImmutableBytes`, `SnapshotORSet`, and
+   `SnapshotVersionVector`.
+
+   It asserts `materialize()`, materialize-with-receipts,
+   capability-bag materialization, and `getStateSnapshot()` expose
+   `SnapshotWarpState`. It also checks `SnapshotWarpState.nodeAlive` as
+   `SnapshotORSet`, `SnapshotWarpState.observedFrontier` as
+   `SnapshotVersionVector`, and byte branches through
+   `ImmutableBytes` methods.
+
+8. Does the new fixture still include negative compile checks?
+
+   Yes. It still uses `@ts-expect-error` checks for meaningful public
+   misuse:
+
+   - assigning `graph.materialize()` to `string`;
+   - calling `hasNode` with a number;
+   - calling `getEdgeProps` without all required identifiers;
+   - calling `createNodeAdd` with a number.
+
+9. Is `npm run typecheck:consumer` now a real gate again?
+
+   Yes, evidence-scoped to the current package-root public API smoke
+   surface. It is no longer red from stale fixture archaeology, missing
+   Bun/Deno globals, or the untyped trailer-codec dependency. It now
+   catches current root export drift, current public signature drift,
+   and the focused 0102 snapshot public API shape.
+
+   It is not a runtime immutability gate and it is not proof that every
+   historical export expectation should return. Runtime snapshot
+   behavior remains covered by conformance tests outside this
+   compile-only fixture.
+
+10. Are there any remaining release/API-note debts?
+
+    Yes. 0102 release/API-note debt remains because public read-side
+    APIs now return snapshot value/state types. 0103 also still needs
+    Drift Check, Retrospective, and Cycle End before it is closed.
+
+### Playback Validation
+
+Commands:
+
+```sh
+npm run typecheck:consumer
+npm run typecheck
+npm run lint:sludge
+git diff --check
+npx markdownlint docs/design/0103-consumer-typecheck-suite-repair.md
+rg -n "any|as any|as unknown as|Record<string, unknown>|unknown|Readonly<Uint8Array>|ReadonlySet|globalThis\\.Set|Object\\.create|\\bProxy\\b|JSON\\.parse|JSON\\.stringify|\\bFunction\\b|[A-Za-z0-9_]+Like\\b" \
+  test/type-check/consumer.ts \
+  test/type-check/runtime-declarations.d.ts \
+  test/type-check/trailer-codec.d.ts \
+  test/type-check/tsconfig.json
+```
+
+Results:
+
+- `npm run typecheck:consumer` passed.
+- `npm run typecheck` passed.
+- `npm run lint:sludge` passed.
+- `git diff --check` passed.
+- `npx markdownlint docs/design/0103-consumer-typecheck-suite-repair.md`
+  passed.
+- Manual policy scan of the changed type-check files returned no
+  matches.
+
+### Playback Finding
+
+The consumer type-check suite is a trustworthy current package-root
+public API gate again. It is not green theater from export carpet or
+test-only global pollution.
+
+The gate is evidence-scoped. It verifies current consumer compile-time
+surface, not runtime immutability and not every historical expectation
+that used to live in the stale fixture.
