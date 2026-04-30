@@ -8,5 +8,5 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false
   },
-  "include": ["consumer.ts"]
+  "include": ["consumer.ts", "runtime-declarations.d.ts", "trailer-codec.d.ts"]
 }
