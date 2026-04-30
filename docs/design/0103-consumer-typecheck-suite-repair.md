@@ -1,6 +1,6 @@
 # 0103 Consumer Typecheck Suite Repair
 
-- Status: `DRIFT CHECK`
+- Status: `hill met`
 - Release lane: `v17.0.0`
 - Source backlog: `API_consumer-typecheck-suite-red`
 - Design role: active METHOD cycle
@@ -421,3 +421,46 @@ type-check hill, and the green gate claim remains evidence-scoped.
 Stop at Drift Check. Retrospective should record the cost of rewriting
 the fixture, the useful coverage preserved, the stale coverage removed,
 and the remaining release/API-note debt.
+
+## Cycle End
+
+Retrospective:
+
+`docs/method/retros/0103-consumer-typecheck-suite-repair.md`
+
+Cycle-end confirmations:
+
+- 0103 is hill met for the focused consumer public API typecheck gate.
+- `npm run typecheck:consumer` passes and is a trustworthy current
+  package-root compile-time smoke gate again.
+- The gate is evidence-scoped. It checks current consumer-facing type
+  surface, not runtime immutability and not historical API restitution.
+- 0103 did not edit production implementation code.
+- 0103 did not widen `index.ts` to satisfy stale consumer fixture
+  expectations.
+- `index.ts` was changed earlier by 0102 for intentional public
+  snapshot return/input types, including `ImmutableBytes`,
+  `SnapshotORSet`, `SnapshotVersionVector`, `SnapshotWarpState`,
+  `SnapshotPropValue`, and `PropValue`.
+- Bun/Deno and trailer-codec declarations are test-only and included
+  only by the consumer type-check project.
+- The stale `API_consumer-typecheck-suite-red` backlog card was removed
+  when the gate was repaired.
+- Release/API-note debt remains for 0102 public read-side snapshot
+  return type changes.
+- 0096 remains blocked by non-0102 cast families.
+- Recommended next cycle: doc-only sludge screening and survey before
+  pulling another v17 implementation ticket.
+
+Closeout validation:
+
+```sh
+npx markdownlint docs/design/0103-consumer-typecheck-suite-repair.md \
+  docs/method/retros/0103-consumer-typecheck-suite-repair.md
+git diff --check
+```
+
+Results:
+
+- `npx markdownlint` passed.
+- `git diff --check` passed.
