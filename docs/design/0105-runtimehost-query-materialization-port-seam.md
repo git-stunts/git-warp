@@ -32,6 +32,7 @@ Files inspected:
 
 - `src/domain/services/query/QueryRunner.ts`
 - `src/domain/services/query/QueryBuilder.ts`
+- `src/domain/services/query/Observer.ts`
 - `src/domain/services/query/LogicalTraversal.ts`
 - `src/domain/services/controllers/QueryController.ts`
 - `src/domain/services/controllers/QueryReads.ts`
@@ -54,6 +55,12 @@ Files inspected:
 
 ```ts
 new QueryBuilder(host(this))
+```
+
+`Observer.query()` currently constructs:
+
+```ts
+new QueryBuilder(this)
 ```
 
 `QueryBuilder.run()` currently constructs:
@@ -110,6 +117,45 @@ requires a string today, and a query read model without a state hash is
 not a valid query read model. Keep `string | null` only if RED proves
 null is a real query read-model state rather than a legacy leak from a
 broader runtime shape.
+
+## Architectural Ownership
+
+The semantic owner of query execution is the Observer/read perspective,
+not `RuntimeHost`.
+
+When a caller queries, the model is:
+
+1. Select a read coordinate, scope, frontier, and aperture.
+2. Open a consistent read model for that observer perspective.
+3. Traverse the query adjacency projection.
+4. Read snapshot property bags.
+5. Filter, select, and aggregate.
+6. Return a deterministic result tied to `stateHash`.
+
+That is Observer territory. `RuntimeHost` owns live execution, writes,
+storage, replay, checkpointing, and materialization machinery. It should
+not be the semantic object that `QueryRunner` talks to.
+
+Architectural rule:
+
+- `Observer` owns or provides the query read model.
+- `QueryBuilder` is created from an observer/read perspective.
+- `QueryRunner` depends on `QueryReadModelProvider`.
+- `RuntimeHost`, detached graph paths, and worldline paths may adapt
+  themselves into observer-backed read perspectives.
+- `graph.query()` is ergonomic sugar, not the semantic owner.
+
+Preferred answer for 0105:
+
+```txt
+graph.query() is sugar for the default graph observer/read perspective.
+```
+
+Because `QueryCapability.query()` is synchronous today, the default
+observer/read perspective may be represented by a lazy
+`QueryReadModelProvider` that opens the actual read model during
+`QueryRunner.run()`. That preserves public ergonomics without letting
+`QueryRunner` depend on a host bag.
 
 ## Current Dependency Sludge
 
@@ -180,18 +226,24 @@ value file. Do not create `queryTypes.ts`.
 
 ## Implementation Ownership
 
-The implementation should be composed at `QueryController`, because
-`QueryController.query()` is the boundary that creates `QueryBuilder`.
+The semantic implementation owner is the observer/read perspective.
+`QueryController` may compose the graph-level sugar, but it should not
+make `RuntimeHost` the query source.
 
 Acceptable GREEN shape:
 
-- `QueryController` adapts its private `MaterializableHost` to the
-  query-owned read-model provider.
+- `Observer` implements or owns the observer-backed
+  `QueryReadModelProvider`.
+- `Observer.query()` passes that provider to `QueryBuilder`.
+- `QueryController.query()` creates a default observer/read perspective
+  provider and passes it to `QueryBuilder`.
 - `QueryBuilder` stores the narrow `QueryReadModelProvider`.
 - `QueryRunner` depends on `QueryReadModelProvider`, not `QueryGraph`.
 - `QueryRunner` calls `openQueryReadModel()`, not `_materializeGraph()`.
 - `QueryRunner` executes traversal, filtering, selection, and
   aggregation against `QueryReadModel`.
+- `Worldline.query()` stays observer/read-perspective centered; if it
+  needs adaptation, it must not become a runtime facade.
 
 The adapter may be a small private object literal if it is not repeated.
 If it becomes a runtime object with behavior, it must get a precise file
@@ -247,7 +299,7 @@ These surfaces must remain stable:
 - package-root `index.ts`
 
 The `QueryBuilder` constructor is the exception: it may change if that
-is the honest way to require the narrow query execution source.
+is the honest way to require the narrow query read-model provider.
 
 No `index.ts` export change is justified by this PULL.
 
@@ -264,6 +316,12 @@ Recommended focused RED:
 - Assert `QueryRunner` does not require `getEdges`.
 - Assert `QueryBuilder` constructor does not accept a broad runtime or
   host object.
+- Assert `QueryController.query()` does not pass its broad host directly
+  to `QueryBuilder`.
+- Assert `Observer.query()` is compatible with the query read-model
+  provider seam.
+- Assert `graph.query()` remains public sugar and does not become the
+  semantic owner of query execution.
 - Assert query read model exposes `stateHash: string`, unless the RED
   explicitly proves nullable query state hash is valid.
 - Assert a query-owned `QueryReadModelProvider` / `QueryReadModel` seam
@@ -293,10 +351,13 @@ GREEN should make the smallest seam change:
 4. Replace the runner boundary call from `_materializeGraph()` to
    `openQueryReadModel()`.
 5. Execute the runner against `QueryReadModel`.
-6. Compose the provider adapter in `QueryController.query()`.
-7. Keep `RuntimeHost._materializeGraph()` unchanged for other current
+6. Make `Observer.query()` construct `QueryBuilder` with an
+   observer-backed provider.
+7. Make `QueryController.query()` construct `QueryBuilder` through a
+   default observer/read-perspective provider, not the broad host.
+8. Keep `RuntimeHost._materializeGraph()` unchanged for other current
    seams.
-8. Keep public query behavior unchanged.
+9. Keep public query behavior unchanged.
 
 This is not a RuntimeHost rewrite. It is one pipe cut.
 
@@ -312,7 +373,8 @@ This is not a RuntimeHost rewrite. It is one pipe cut.
 - No mechanical file splitting.
 - No 0096 cast-family work.
 - No `LogicalTraversal` seam repair.
-- No `Observer` / `Worldline` materialization repair.
+- No broad `Observer` / `Worldline` materialization repair beyond the
+  query read-model provider boundary needed for this seam.
 - No `DetachedGraphFactory` redesign.
 - No package-root export changes.
 - No production edits during PULL.
@@ -325,6 +387,10 @@ This is not a RuntimeHost rewrite. It is one pipe cut.
   changing public query behavior?
 - Does `QueryBuilder` constructor require the narrow query dependency
   instead of preserving broad host-bag compatibility?
+- Does the design keep Observer/read perspective as the semantic owner
+  of query execution?
+- Is `graph.query()` still sugar rather than a separate graph-owned
+  query semantics path?
 - Does `QueryReadModel` expose a non-null `stateHash` unless null was
   proven valid?
 - Does the new port name describe the query read-model need instead of
@@ -356,6 +422,14 @@ git diff --check
   Why it is sludge: `QueryGraph` includes `getEdges()` even though the
   runner does not use it.
   Status: designed, not fixed.
+- Pattern: query ownership bypass.
+  Files: `src/domain/services/query/QueryRunner.ts`,
+  `src/domain/services/controllers/QueryController.ts`,
+  `src/domain/services/query/Observer.ts`.
+  Why it is sludge: graph-level query construction can skip the
+  observer/read perspective and feed RuntimeHost-shaped dependencies to
+  query execution.
+  Status: rejected in design.
 - Pattern: constructor compatibility theater.
   Files: `src/domain/services/query/QueryBuilder.ts`.
   Why it is sludge: preserving a constructor that accepts a broad
@@ -389,6 +463,7 @@ the smallest honest design target.
 - Rejected `MaterializationHelper`.
 - Rejected broad RuntimeHost cleanup.
 - Rejected package-root export changes.
+- Rejected graph-owned query semantics; `graph.query()` is sugar.
 - Rejected preserving sloppy constructors to avoid call-site changes.
 - Rejected optional dependency bags and init-after-construction patterns.
 - Rejected nullable query `stateHash` unless RED proves it is valid.
@@ -399,8 +474,8 @@ the smallest honest design target.
 - Other `_materializeGraph` seams remain deferred.
 - `LogicalTraversal` still uses a broad traversal graph with unknown
   materialization state.
-- `Observer` and `Worldline` materialization seams remain outside this
-  slice.
+- Broad `Observer` and `Worldline` materialization repairs remain
+  outside this slice.
 - Broader RuntimeHost host-bag sludge remains tracked by the 0104 survey
   and existing backlog cards.
 
