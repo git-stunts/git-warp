@@ -80,15 +80,19 @@ instead of a query-owned read-model seam.
 
 ## What QueryRunner Actually Needs
 
-`QueryRunner` needs a consistent query read model, not a graph-shaped
-runtime handle and not the act of materializing one.
+`QueryRunner` needs a consistent, bounded query read model, not a
+graph-shaped runtime handle, not a full adjacency map, and not the act of
+materializing a whole graph.
 
 ```ts
 export type QueryReadModel = {
-  stateHash: string;
-  adjacency: QueryAdjacency;
-  getNodes(): Promise<readonly string[]>;
-  getNodeProps(nodeId: string): Promise<QueryPropertyBag | null>;
+  readonly stateHash: string;
+  nodes(request: QueryNodeStreamRequest): AsyncIterable<QueryNodeSnapshot>;
+  neighbors(
+    nodeId: string,
+    options?: QueryNeighborOptions,
+  ): AsyncIterable<QueryNeighborEntry>;
+  nodeProps(nodeId: string): Promise<QueryPropertyBag | null>;
 };
 
 export type QueryReadModelProvider = {
@@ -100,6 +104,7 @@ export type QueryReadModelProvider = {
 
 - `getEdges()`
 - `hasNode()`
+- full `getNodes(): Promise<string[]>` as its primary query source
 - content methods
 - observer/worldline methods
 - `WarpState`
@@ -118,6 +123,10 @@ not a valid query read model. Keep `string | null` only if RED proves
 null is a real query read-model state rather than a legacy leak from a
 broader runtime shape.
 
+The read model must support huge graph and holographic read paths. A
+`QueryReadModel` that simply exposes full adjacency residency is
+`_materializeGraph()` with a better name.
+
 ## Architectural Ownership
 
 The semantic owner of query execution is the Observer/read perspective,
@@ -126,9 +135,9 @@ not `RuntimeHost`.
 When a caller queries, the model is:
 
 1. Select a read coordinate, scope, frontier, and aperture.
-2. Open a consistent read model for that observer perspective.
-3. Traverse the query adjacency projection.
-4. Read snapshot property bags.
+2. Open a bounded read model for that observer perspective.
+3. Traverse through cursor, slice, or streaming neighbor reads.
+4. Read snapshot property bags on demand.
 5. Filter, select, and aggregate.
 6. Return a deterministic result tied to `stateHash`.
 
@@ -195,15 +204,30 @@ Where `QueryReadModel` owns the facts the runner reads:
 ```ts
 export type QueryReadModel = {
   readonly stateHash: string;
-  readonly adjacency: QueryAdjacency;
-  getNodes(): Promise<readonly string[]>;
-  getNodeProps(nodeId: string): Promise<QueryPropertyBag | null>;
+  nodes(request: QueryNodeStreamRequest): AsyncIterable<QueryNodeSnapshot>;
+  neighbors(
+    nodeId: string,
+    options?: QueryNeighborOptions,
+  ): AsyncIterable<QueryNeighborEntry>;
+  nodeProps(nodeId: string): Promise<QueryPropertyBag | null>;
 };
 ```
 
-`QueryAdjacency` should name the adjacency projection used by query
-execution. This preserves interface segregation without inventing a
-generic runtime facade or graph port.
+This preserves interface segregation without inventing a generic runtime
+facade or graph port.
+
+No full graph materialization assumption:
+
+- no `QueryMaterializedGraph`;
+- no `adjacency: AdjacencyMaps` as the query contract;
+- no `fullAdjacency`;
+- no `getEdges(): Promise<...>` on the query read model;
+- no full `getNodes(): Promise<string[]>` as the primary query source;
+- no `materializeForQuery`;
+- no `Promise<QueryMaterializedGraph>`.
+
+The exact request/entry names may evolve, but the semantics must remain
+streaming, cursor-shaped, sliced, or otherwise bounded.
 
 ## Seam Location
 
@@ -219,10 +243,10 @@ implementation source, but the query package should own the query read
 contract.
 
 `QueryRunner.ts` may keep runner-local result types only if they do not
-become repeated seam shapes. If `QueryReadModel`, `QueryAdjacency`, or
-`QueryPropertyBag` need to be imported by both the read model and runner,
-they should move to `QueryReadModel.ts` or to a narrowly named query
-value file. Do not create `queryTypes.ts`.
+become repeated seam shapes. If `QueryReadModel`, query stream requests,
+neighbor entries, or `QueryPropertyBag` need to be imported by both the
+read model and runner, they should move to `QueryReadModel.ts` or to a
+narrowly named query value file. Do not create `queryTypes.ts`.
 
 ## Implementation Ownership
 
@@ -242,6 +266,8 @@ Acceptable GREEN shape:
 - `QueryRunner` calls `openQueryReadModel()`, not `_materializeGraph()`.
 - `QueryRunner` executes traversal, filtering, selection, and
   aggregation against `QueryReadModel`.
+- `QueryRunner` consumes `AsyncIterable` node and neighbor streams
+  rather than full node arrays or full adjacency maps.
 - `Worldline.query()` stays observer/read-perspective centered; if it
   needs adaptation, it must not become a runtime facade.
 
@@ -326,6 +352,13 @@ Recommended focused RED:
   explicitly proves nullable query state hash is valid.
 - Assert a query-owned `QueryReadModelProvider` / `QueryReadModel` seam
   exists.
+- Assert the query read model is streaming, cursor-shaped, sliced, or
+  otherwise bounded.
+- Assert the query seam does not expose `QueryMaterializedGraph`,
+  `adjacency: AdjacencyMaps`, `fullAdjacency`,
+  `getEdges(): Promise<...>`, full `getNodes(): Promise<string[]>` as
+  the primary query source, `materializeForQuery`, or
+  `Promise<QueryMaterializedGraph>`.
 - Assert banned names do not appear in the new seam:
   `RuntimeFacade`, `RuntimePort`, `GraphPort`, `QueryRuntimeManager`,
   `MaterializationHelper`, and `Like`.
@@ -357,6 +390,14 @@ The RED is intentionally scoped to the query seam:
 - It rejects `QueryRunner.QueryGraph` and unused `getEdges` as runner
   dependencies.
 - It requires `QueryReadModelProvider` / `QueryReadModel`.
+- It rejects full-graph-shaped query models such as
+  `QueryMaterializedGraph`, `adjacency: AdjacencyMaps`,
+  `fullAdjacency`, `getEdges(): Promise<...>`, full
+  `getNodes(): Promise<string[]>` as the primary query source,
+  `materializeForQuery`, and `Promise<QueryMaterializedGraph>`.
+- It requires streaming/cursor/slice-shaped read semantics through
+  `AsyncIterable`, `nodes(...)`, `neighbors(...)`, and
+  `nodeProps(...)` or equivalent.
 - It rejects `QueryBuilder` construction from a broad `QueryGraph`.
 - It rejects `QueryController.query()` passing `host(this)` directly to
   `QueryBuilder`.
@@ -376,10 +417,14 @@ RED validation result:
 
 - `npx vitest run test/conformance/queryReadModelSeam.test.ts` failed
   as expected.
-- Failure count: 5 failed, 2 passed.
+- Failure count: 7 failed, 2 passed.
 - The failures prove current production still has:
   - `QueryRunner` referencing `_materializeGraph`;
   - no query-owned `QueryReadModelProvider` seam in `QueryRunner`;
+  - full-graph-shaped query model assumptions such as
+    `QueryMaterializedGraph`, `adjacency: AdjacencyMaps`, and full
+    `getNodes(): Promise<string[]>`;
+  - no bounded streaming/cursor-shaped read model seam;
   - `QueryBuilder` constructed from `QueryGraph`;
   - `QueryController.query()` passing `host(this)` directly to
     `QueryBuilder`;
@@ -400,13 +445,15 @@ GREEN should make the smallest seam change:
 4. Replace the runner boundary call from `_materializeGraph()` to
    `openQueryReadModel()`.
 5. Execute the runner against `QueryReadModel`.
-6. Make `Observer.query()` construct `QueryBuilder` with an
+6. Consume node and neighbor reads through streaming/cursor/slice-shaped
+   read-model methods.
+7. Make `Observer.query()` construct `QueryBuilder` with an
    observer-backed provider.
-7. Make `QueryController.query()` construct `QueryBuilder` through a
+8. Make `QueryController.query()` construct `QueryBuilder` through a
    default observer/read-perspective provider, not the broad host.
-8. Keep `RuntimeHost._materializeGraph()` unchanged for other current
+9. Keep `RuntimeHost._materializeGraph()` unchanged for other current
    seams.
-9. Keep public query behavior unchanged.
+10. Keep public query behavior unchanged.
 
 This is not a RuntimeHost rewrite. It is one pipe cut.
 
@@ -442,6 +489,10 @@ This is not a RuntimeHost rewrite. It is one pipe cut.
   query semantics path?
 - Does `QueryReadModel` expose a non-null `stateHash` unless null was
   proven valid?
+- Does `QueryReadModel` avoid full graph materialization and full
+  adjacency residency as its contract?
+- Can the seam support huge graph, streaming, sliced, or holographic
+  read paths?
 - Does the new port name describe the query read-model need instead of
   hiding RuntimeHost behind a prettier facade?
 - Did any adapter object gain more than one reason to change?
@@ -481,6 +532,12 @@ git diff --check
   observer/read perspective and feed RuntimeHost-shaped dependencies to
   query execution.
   Status: rejected in design.
+- Pattern: renamed full-materialization seam.
+  Files: `src/domain/services/query/QueryRunner.ts`.
+  Why it is sludge: returning a full adjacency map or full node list
+  from `openQueryReadModel()` would preserve `_materializeGraph()`
+  semantics behind a better name.
+  Status: rejected by RED.
 - Pattern: constructor compatibility theater.
   Files: `src/domain/services/query/QueryBuilder.ts`.
   Why it is sludge: preserving a constructor that accepts a broad
@@ -515,6 +572,10 @@ the smallest honest design target.
 - Rejected broad RuntimeHost cleanup.
 - Rejected package-root export changes.
 - Rejected graph-owned query semantics; `graph.query()` is sugar.
+- Rejected `QueryMaterializedGraph` as the query read-model contract.
+- Rejected full adjacency residency as the query contract.
+- Rejected full node-list reads as the primary query source.
+- Rejected `materializeForQuery`.
 - Rejected preserving sloppy constructors to avoid call-site changes.
 - Rejected optional dependency bags and init-after-construction patterns.
 - Rejected nullable query `stateHash` unless RED proves it is valid.
