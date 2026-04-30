@@ -1,4 +1,4 @@
-# 0105 RuntimeHost Query Materialization Port Seam
+# 0105 RuntimeHost Query Read Model Seam
 
 - Status: `PULL`
 - Release lane: `v17.0.0`
@@ -17,15 +17,16 @@ Preferred seam:
 QueryRunner / _materializeGraph
 ```
 
-Expected model: a narrow `QueryMaterializationPort` or equivalent
-explicit seam. No `RuntimeFacade`, no generic `RuntimePort`, no manager,
-and no helper landfill.
+Expected model: a query-owned read-model seam:
+`QueryReadModelProvider.openQueryReadModel(): Promise<QueryReadModel>`.
+No `RuntimeFacade`, no generic `RuntimePort`, no `GraphPort`, no
+manager, and no helper landfill.
 
 ## PULL Scope
 
-This cycle inspected the query materialization path only. It did not
-start RED, implement GREEN, resume 0096, add the anti-sludge hook,
-change package exports, or push.
+This cycle inspected the query read-model path only. It did not start
+RED, implement GREEN, resume 0096, add the anti-sludge hook, change
+package exports, or push.
 
 Files inspected:
 
@@ -68,22 +69,23 @@ this._graph._materializeGraph()
 ```
 
 That means the query runner depends on a private-ish runtime method name
-instead of a query-owned materialization seam.
+instead of a query-owned read-model seam.
 
 ## What QueryRunner Actually Needs
 
-`QueryRunner` needs exactly these read capabilities:
+`QueryRunner` needs a consistent query read model, not a graph-shaped
+runtime handle and not the act of materializing one.
 
 ```ts
-type QueryMaterializedGraph = {
-  adjacency: AdjacencyMaps;
+export type QueryReadModel = {
   stateHash: string;
+  adjacency: QueryAdjacency;
+  getNodes(): Promise<readonly string[]>;
+  getNodeProps(nodeId: string): Promise<QueryPropertyBag | null>;
 };
 
-type QueryExecutionSource = {
-  materializeForQuery(): Promise<QueryMaterializedGraph>;
-  getNodes(): Promise<string[]>;
-  getNodeProps(nodeId: string): Promise<QueryPropertyBag | null>;
+export type QueryReadModelProvider = {
+  openQueryReadModel(): Promise<QueryReadModel>;
 };
 ```
 
@@ -104,10 +106,10 @@ The current `QueryGraph` shape is therefore too broad and contains the
 wrong materialization name.
 
 `stateHash` should be non-null at this seam. `QueryRunner` immediately
-requires a string today, and a materialization source that cannot produce
-a query state hash is not a valid query materialization source. Keep
-`string | null` only if RED proves null is a real query-materialization
-state rather than a legacy leak from a broader runtime shape.
+requires a string today, and a query read model without a state hash is
+not a valid query read model. Keep `string | null` only if RED proves
+null is a real query read-model state rather than a legacy leak from a
+broader runtime shape.
 
 ## Current Dependency Sludge
 
@@ -132,55 +134,49 @@ multiple structural shapes:
 0105 must only fix the `QueryRunner` seam. The other seams are real, but
 they are out of scope for this slice.
 
-## Smallest Honest Port
+## Smallest Honest Read-Model Seam
 
-The smallest honest port is query-owned and materialization-specific:
+The smallest honest seam is query-owned and read-model specific:
 
 ```ts
-export type QueryMaterializationPort = {
-  materializeForQuery(): Promise<QueryMaterializedGraph>;
+export type QueryReadModelProvider = {
+  openQueryReadModel(): Promise<QueryReadModel>;
 };
 ```
 
-`QueryRunner` also needs node reads, but those are not the hidden
-RuntimeHost materialization seam. The least-sludge implementation path
-is:
+Where `QueryReadModel` owns the facts the runner reads:
 
 ```ts
-export type QueryExecutionSource =
-  QueryMaterializationPort &
-  QueryNodeReadSource;
-```
-
-Where `QueryNodeReadSource` is limited to:
-
-```ts
-export type QueryNodeReadSource = {
-  getNodes(): Promise<string[]>;
+export type QueryReadModel = {
+  readonly stateHash: string;
+  readonly adjacency: QueryAdjacency;
+  getNodes(): Promise<readonly string[]>;
   getNodeProps(nodeId: string): Promise<QueryPropertyBag | null>;
 };
 ```
 
-This preserves interface segregation without inventing a generic runtime
-facade.
+`QueryAdjacency` should name the adjacency projection used by query
+execution. This preserves interface segregation without inventing a
+generic runtime facade or graph port.
 
-## Port Location
+## Seam Location
 
-The port should live under the query domain, not under RuntimeHost:
+The read-model seam should live under the query domain, not under
+RuntimeHost:
 
 ```txt
-src/domain/services/query/QueryMaterializationPort.ts
+src/domain/services/query/QueryReadModel.ts
 ```
 
 Reason: `QueryRunner` owns the need. RuntimeHost owns one possible
-implementation source, but the query package should own the query
-materialization contract.
+implementation source, but the query package should own the query read
+contract.
 
 `QueryRunner.ts` may keep runner-local result types only if they do not
-become repeated seam shapes. If `QueryMaterializedGraph`,
-`QueryAdjacencyMaps`, or `QueryPropertyBag` need to be imported by both
-the port and runner, they should move to the port file or to a narrowly
-named query value file. Do not create `queryTypes.ts`.
+become repeated seam shapes. If `QueryReadModel`, `QueryAdjacency`, or
+`QueryPropertyBag` need to be imported by both the read model and runner,
+they should move to `QueryReadModel.ts` or to a narrowly named query
+value file. Do not create `queryTypes.ts`.
 
 ## Implementation Ownership
 
@@ -190,15 +186,17 @@ The implementation should be composed at `QueryController`, because
 Acceptable GREEN shape:
 
 - `QueryController` adapts its private `MaterializableHost` to the
-  query-owned source.
-- `QueryBuilder` stores the narrow query execution source.
-- `QueryRunner` depends on `QueryExecutionSource`, not `QueryGraph`.
-- `QueryRunner` calls `materializeForQuery()`, not `_materializeGraph()`.
+  query-owned read-model provider.
+- `QueryBuilder` stores the narrow `QueryReadModelProvider`.
+- `QueryRunner` depends on `QueryReadModelProvider`, not `QueryGraph`.
+- `QueryRunner` calls `openQueryReadModel()`, not `_materializeGraph()`.
+- `QueryRunner` executes traversal, filtering, selection, and
+  aggregation against `QueryReadModel`.
 
 The adapter may be a small private object literal if it is not repeated.
 If it becomes a runtime object with behavior, it must get a precise file
 and name. It must not be called `RuntimeFacade`, `RuntimePort`,
-`QueryRuntimeManager`, or `MaterializationHelper`.
+`GraphPort`, `QueryRuntimeManager`, or `MaterializationHelper`.
 
 ## Constructor Decision
 
@@ -266,12 +264,12 @@ Recommended focused RED:
 - Assert `QueryRunner` does not require `getEdges`.
 - Assert `QueryBuilder` constructor does not accept a broad runtime or
   host object.
-- Assert query materialization exposes `stateHash: string`, unless the
-  RED explicitly proves nullable query state hash is valid.
-- Assert a query-owned `QueryMaterializationPort` or equivalent named
-  seam exists.
+- Assert query read model exposes `stateHash: string`, unless the RED
+  explicitly proves nullable query state hash is valid.
+- Assert a query-owned `QueryReadModelProvider` / `QueryReadModel` seam
+  exists.
 - Assert banned names do not appear in the new seam:
-  `RuntimeFacade`, `RuntimePort`, `QueryRuntimeManager`,
+  `RuntimeFacade`, `RuntimePort`, `GraphPort`, `QueryRuntimeManager`,
   `MaterializationHelper`, and `Like`.
 
 Runtime behavior tests should still run after GREEN:
@@ -289,15 +287,16 @@ the architecture.
 
 GREEN should make the smallest seam change:
 
-1. Add the query-owned materialization port.
-2. Replace `QueryGraph` with the narrow query execution source.
+1. Add the query-owned read-model seam.
+2. Replace `QueryGraph` with the narrow `QueryReadModelProvider`.
 3. Remove unused `getEdges()` from the runner dependency.
-4. Rename the materialization call from `_materializeGraph()` to
-   `materializeForQuery()` at the runner boundary.
-5. Compose the adapter in `QueryController.query()`.
-6. Keep `RuntimeHost._materializeGraph()` unchanged for other current
+4. Replace the runner boundary call from `_materializeGraph()` to
+   `openQueryReadModel()`.
+5. Execute the runner against `QueryReadModel`.
+6. Compose the provider adapter in `QueryController.query()`.
+7. Keep `RuntimeHost._materializeGraph()` unchanged for other current
    seams.
-7. Keep public query behavior unchanged.
+8. Keep public query behavior unchanged.
 
 This is not a RuntimeHost rewrite. It is one pipe cut.
 
@@ -306,6 +305,7 @@ This is not a RuntimeHost rewrite. It is one pipe cut.
 - No `RuntimeHost` mega-rewrite.
 - No generic `RuntimePort`.
 - No `RuntimeFacade`.
+- No `GraphPort`.
 - No `QueryRuntimeManager`.
 - No `MaterializationHelper` junk drawer.
 - No broad host-bag cleanup.
@@ -325,10 +325,10 @@ This is not a RuntimeHost rewrite. It is one pipe cut.
   changing public query behavior?
 - Does `QueryBuilder` constructor require the narrow query dependency
   instead of preserving broad host-bag compatibility?
-- Does query materialization expose a non-null `stateHash` unless null
-  was proven valid?
-- Does the new port name describe the query materialization need instead
-  of hiding RuntimeHost behind a prettier facade?
+- Does `QueryReadModel` expose a non-null `stateHash` unless null was
+  proven valid?
+- Does the new port name describe the query read-model need instead of
+  hiding RuntimeHost behind a prettier facade?
 - Did any adapter object gain more than one reason to change?
 - Did any public API or package export widen without a demonstrated
   public reason?
@@ -364,8 +364,8 @@ git diff --check
 - Pattern: nullable query state hash leak.
   Files: `src/domain/services/query/QueryRunner.ts`.
   Why it is sludge: `QueryRunner` requires a string state hash, so a
-  query materialization port should not advertise null unless null is
-  proven valid for queries.
+  query read model should not advertise null unless null is proven valid
+  for queries.
   Status: rejected unless RED proves otherwise.
 - Pattern: repeated hidden materialization shapes.
   Files: `QueryRunner.ts`, `QueryController.ts`,
@@ -384,6 +384,7 @@ the smallest honest design target.
 
 - Rejected `RuntimeFacade`.
 - Rejected generic `RuntimePort`.
+- Rejected broad `GraphPort`.
 - Rejected `QueryRuntimeManager`.
 - Rejected `MaterializationHelper`.
 - Rejected broad RuntimeHost cleanup.
