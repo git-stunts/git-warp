@@ -127,6 +127,10 @@ The read model must support huge graph and holographic read paths. A
 `QueryReadModel` that simply exposes full adjacency residency is
 `_materializeGraph()` with a better name.
 
+Streaming cannot be cosmetic. A `QueryReadModel` implementation must not
+satisfy the contract by first materializing a full graph, full adjacency
+map, or full node list and then yielding from it.
+
 ## Architectural Ownership
 
 The semantic owner of query execution is the Observer/read perspective,
@@ -354,6 +358,8 @@ Recommended focused RED:
   exists.
 - Assert the query read model is streaming, cursor-shaped, sliced, or
   otherwise bounded.
+- Assert `QueryRunner` can consume a lazy `QueryReadModelProvider`
+  without draining a bounded node stream.
 - Assert the query seam does not expose `QueryMaterializedGraph`,
   `adjacency: AdjacencyMaps`, `fullAdjacency`,
   `getEdges(): Promise<...>`, full `getNodes(): Promise<string[]>` as
@@ -398,6 +404,10 @@ The RED is intentionally scoped to the query seam:
 - It requires streaming/cursor/slice-shaped read semantics through
   `AsyncIterable`, `nodes(...)`, `neighbors(...)`, and
   `nodeProps(...)` or equivalent.
+- It adds a behavioral RED with a fake lazy `QueryReadModelProvider`.
+  The fake throws on full materialization, full node-list reads, full
+  edge-list reads, node-prop reads for an id-only query, and stream
+  draining beyond the first exact-match node.
 - It rejects `QueryBuilder` construction from a broad `QueryGraph`.
 - It rejects `QueryController.query()` passing `host(this)` directly to
   `QueryBuilder`.
@@ -417,7 +427,7 @@ RED validation result:
 
 - `npx vitest run test/conformance/queryReadModelSeam.test.ts` failed
   as expected.
-- Failure count: 7 failed, 2 passed.
+- Failure count: 8 failed, 2 passed.
 - The failures prove current production still has:
   - `QueryRunner` referencing `_materializeGraph`;
   - no query-owned `QueryReadModelProvider` seam in `QueryRunner`;
@@ -425,6 +435,8 @@ RED validation result:
     `QueryMaterializedGraph`, `adjacency: AdjacencyMaps`, and full
     `getNodes(): Promise<string[]>`;
   - no bounded streaming/cursor-shaped read model seam;
+  - no behavioral support for a lazy read model whose bounded exact-match
+    query does not fully drain the node stream;
   - `QueryBuilder` constructed from `QueryGraph`;
   - `QueryController.query()` passing `host(this)` directly to
     `QueryBuilder`;

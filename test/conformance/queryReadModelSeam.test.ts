@@ -2,6 +2,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import QueryPlan from '../../src/domain/services/query/QueryPlan.ts';
+import QueryRunner from '../../src/domain/services/query/QueryRunner.ts';
+import type { QueryNodeSnapshot } from '../../src/domain/services/query/QueryPlan.ts';
+import type { SnapshotPropValue } from '../../src/domain/services/snapshot/SnapshotPropValue.ts';
 
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -21,8 +25,80 @@ const FULL_GRAPH_QUERY_MODEL_PATTERNS = [
   /\bPromise\s*<\s*QueryMaterializedGraph\s*>/u,
 ];
 
+type QueryPropertyBag = Readonly<{ [key: string]: SnapshotPropValue }>;
+type QueryNodeStreamRequest = {
+  readonly pattern: string | readonly string[];
+  readonly select: readonly string[] | null;
+};
+type QueryNeighborOptions = {
+  readonly label?: string;
+  readonly direction: 'outgoing' | 'incoming';
+};
+type QueryNeighborEntry = {
+  readonly nodeId: string;
+  readonly label: string;
+};
+
 function readRepoFile(path: string): string {
   return readFileSync(join(REPO_ROOT, path), 'utf8');
+}
+
+class LazyQueryReadModelProvider {
+  nodesPulled = 0;
+  nodePropsCalls = 0;
+
+  async openQueryReadModel(): Promise<LazyQueryReadModel> {
+    return new LazyQueryReadModel(this);
+  }
+
+  async _materializeGraph(): Promise<never> {
+    throw new Error('full materialization is not allowed for query read model RED');
+  }
+
+  async getNodes(): Promise<string[]> {
+    throw new Error('full node list is not allowed for bounded query RED');
+  }
+
+  async getNodeProps(_nodeId: string): Promise<QueryPropertyBag | null> {
+    this.nodePropsCalls += 1;
+    throw new Error('id-only bounded query should not read node props');
+  }
+
+  async getEdges(): Promise<never[]> {
+    throw new Error('full edge list is not allowed for query read model RED');
+  }
+}
+
+class LazyQueryReadModel {
+  readonly stateHash = 'lazy-state-hash';
+
+  constructor(private readonly provider: LazyQueryReadModelProvider) {}
+
+  async *nodes(request: QueryNodeStreamRequest): AsyncIterable<QueryNodeSnapshot> {
+    expect(request.pattern).toBe('node:target');
+    expect(request.select).toEqual(['id']);
+    this.provider.nodesPulled += 1;
+    yield Object.freeze({
+      id: 'node:target',
+      props: Object.freeze({}),
+      edgesOut: Object.freeze([]),
+      edgesIn: Object.freeze([]),
+    });
+    this.provider.nodesPulled += 1;
+    throw new Error('bounded exact-match query drained beyond first matching node');
+  }
+
+  neighbors(
+    _nodeId: string,
+    _options?: QueryNeighborOptions,
+  ): AsyncIterable<QueryNeighborEntry> {
+    throw new Error('id-only bounded query should not traverse neighbors');
+  }
+
+  async nodeProps(_nodeId: string): Promise<QueryPropertyBag | null> {
+    this.provider.nodePropsCalls += 1;
+    throw new Error('id-only bounded query should not read node props');
+  }
 }
 
 describe('query read model seam', () => {
@@ -78,6 +154,29 @@ describe('query read model seam', () => {
     expect(querySeamSource).toMatch(/\bQueryNodeStreamRequest\b/u);
     expect(querySeamSource).toMatch(/\bQueryNeighborOptions\b/u);
     expect(querySeamSource).toMatch(/\bQueryNeighborEntry\b/u);
+  });
+
+  it('requires bounded QueryRunner consumption of a lazy read model', async () => {
+    const provider = new LazyQueryReadModelProvider();
+    const runner = new QueryRunner(provider);
+    const plan = new QueryPlan({
+      pattern: 'node:target',
+      operations: [],
+      select: ['id'],
+      aggregate: null,
+    });
+
+    const result = await runner.run(plan);
+
+    expect('nodes' in result).toBe(true);
+    if ('nodes' in result) {
+      expect(result).toEqual({
+        stateHash: 'lazy-state-hash',
+        nodes: [{ id: 'node:target' }],
+      });
+    }
+    expect(provider.nodesPulled).toBe(1);
+    expect(provider.nodePropsCalls).toBe(0);
   });
 
   it('requires QueryBuilder construction to receive the narrow provider dependency', () => {
