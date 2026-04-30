@@ -1,6 +1,6 @@
 # 0103 Consumer Typecheck Suite Repair
 
-- Status: `PLAYBACK`
+- Status: `DRIFT CHECK`
 - Release lane: `v17.0.0`
 - Source backlog: `API_consumer-typecheck-suite-red`
 - Design role: active METHOD cycle
@@ -294,3 +294,130 @@ test-only global pollution.
 The gate is evidence-scoped. It verifies current consumer compile-time
 surface, not runtime immutability and not every historical expectation
 that used to live in the stale fixture.
+
+## Drift Check
+
+1. Did 0103 stay within the consumer typecheck repair hill?
+
+   Yes. 0103 repaired `npm run typecheck:consumer` by updating only the
+   consumer type-check project and the design packet. It did not pull a
+   new feature, resume 0096, add the pre-commit hook, or start release
+   prep.
+
+2. Did it avoid production implementation changes?
+
+   Yes. The GREEN implementation commit
+   `303f9275 test: repair consumer public api typecheck` changed only:
+
+   - `test/type-check/consumer.ts`
+   - `test/type-check/runtime-declarations.d.ts`
+   - `test/type-check/trailer-codec.d.ts`
+   - `test/type-check/tsconfig.json`
+
+   The Playback and Drift Check commits are design documentation only.
+
+3. Did it avoid export carpet?
+
+   Yes. `index.ts` was changed earlier by 0102 to export public
+   snapshot return/input types, including `ImmutableBytes`,
+   `SnapshotORSet`, `SnapshotVersionVector`, `SnapshotWarpState`,
+   `SnapshotPropValue`, and `PropValue`.
+
+   0103 did not further widen `index.ts` to satisfy stale consumer
+   fixture expectations. Therefore 0103 avoided export carpet.
+
+4. Did it keep Bun/Deno/trailer-codec declarations test-only?
+
+   Yes. Bun/Deno declarations live in
+   `test/type-check/runtime-declarations.d.ts`; the trailer-codec shim
+   lives in `test/type-check/trailer-codec.d.ts`. Both are included only
+   by `test/type-check/tsconfig.json`.
+
+   No production source, package root exports, or production type
+   declaration file was changed to add those declarations.
+
+5. Did it preserve meaningful current public API coverage?
+
+   Yes, evidence-scoped to compile-time package-root smoke coverage. The
+   fixture still covers current imports, `WarpApp.open`, `openWarpGraph`,
+   materialization, materialization with receipts, capability-bag
+   materialization, `getStateSnapshot`, query/property bags, observer,
+   worldline, patch/writer flows, BTR, wormhole, state reader, indexing,
+   HTTP serving, browser entrypoint, and negative compile checks.
+
+   The fixture is intentionally not historical export archaeology and is
+   not runtime behavior coverage.
+
+6. Did it correctly remove stale historical expectations instead of
+   restoring them as public API?
+
+   Yes. Removed stale expectations include non-current root exports, old
+   BTR/provenance APIs such as `serializeBTR`, `deserializeBTR`,
+   `ProvenancePayload.toJSON`, and `ProvenancePayload.fromJSON`, the old
+   `clock` option on `WarpApp.open`, and old index adapter assumptions.
+
+   0103 did not restore those names by adding root exports or
+   compatibility aliases.
+
+7. Does `npm run typecheck:consumer` now pass honestly?
+
+   Yes. It passes after the repair and checks the current package-root
+   public API smoke surface. Its scope is explicit: compile-time current
+   consumer surface, not runtime immutability and not historical API
+   restitution.
+
+8. Does the new fixture's scope remain clearly described as compile-time
+   public API smoke coverage, not runtime immutability coverage?
+
+   Yes. Playback records that runtime snapshot behavior remains covered
+   by conformance tests outside the compile-only fixture.
+
+9. Are release/API-note debts still visible?
+
+   Yes. 0102 release/API-note debt remains visible because public
+   read-side APIs now return snapshot state/value types. 0103 itself
+   still needs Retrospective and Cycle End before it is closed.
+
+10. Is any correction required before Retrospective?
+
+    No code correction is required from this Drift Check. The only
+    wording correction was the export-scope distinction: 0102 changed
+    `index.ts` for intentional public snapshot types; 0103 did not
+    widen `index.ts` for stale consumer fixture expectations.
+
+### Drift Validation
+
+Commands:
+
+```sh
+npm run typecheck:consumer
+npm run typecheck
+npm run lint:sludge
+git diff --check
+npx markdownlint docs/design/0103-consumer-typecheck-suite-repair.md
+rg -n "any|as any|as unknown as|Record<string, unknown>|unknown|Readonly<Uint8Array>|ReadonlySet|globalThis\\.Set|Object\\.create|\\bProxy\\b|JSON\\.parse|JSON\\.stringify|\\bFunction\\b|[A-Za-z0-9_]+Like\\b" \
+  test/type-check/consumer.ts \
+  test/type-check/runtime-declarations.d.ts \
+  test/type-check/trailer-codec.d.ts \
+  test/type-check/tsconfig.json
+```
+
+Results:
+
+- `npm run typecheck:consumer` passed.
+- `npm run typecheck` passed.
+- `npm run lint:sludge` passed.
+- `git diff --check` passed.
+- `npx markdownlint docs/design/0103-consumer-typecheck-suite-repair.md`
+  passed.
+- Manual policy scan of the changed type-check files returned no
+  matches.
+
+### Drift Finding
+
+No 0103 drift was found. The repair remains within the consumer
+type-check hill, and the green gate claim remains evidence-scoped.
+
+Stop at Drift Check. Retrospective should record the cost of rewriting
+the fixture, the useful coverage preserved, the stale coverage removed,
+and the remaining release/API-note debt.
