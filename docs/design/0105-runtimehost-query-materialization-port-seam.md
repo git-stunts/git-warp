@@ -1,6 +1,6 @@
 # 0105 RuntimeHost Query Read Model Seam
 
-- Status: `PULL`
+- Status: `RED`
 - Release lane: `v17.0.0`
 - Source: `SLUDGE_runtimehost-controller-port-seam-one`
 - Design role: narrow seam extraction design
@@ -341,6 +341,55 @@ The RED may use source inspection for the seam boundary, but GREEN must
 also keep query runtime behavior passing. Do not let source regex become
 the architecture.
 
+## RED Witness
+
+RED test:
+
+```txt
+test/conformance/queryReadModelSeam.test.ts
+```
+
+The RED is intentionally scoped to the query seam:
+
+- It rejects `_materializeGraph` in `QueryRunner`.
+- It does not ban `_materializeGraph` in `RuntimeHost` or other internal
+  seams.
+- It rejects `QueryRunner.QueryGraph` and unused `getEdges` as runner
+  dependencies.
+- It requires `QueryReadModelProvider` / `QueryReadModel`.
+- It rejects `QueryBuilder` construction from a broad `QueryGraph`.
+- It rejects `QueryController.query()` passing `host(this)` directly to
+  `QueryBuilder`.
+- It rejects `Observer.query()` passing the whole `Observer` as the
+  runner dependency if the observer has not exposed the narrow read-model
+  provider seam.
+- It preserves the PULL decision that `graph.query()` is sugar and
+  Observer/read perspective is the semantic owner.
+- It rejects god-seam names: `RuntimePort`, `RuntimeFacade`,
+  `GraphPort`, `QueryRuntimeManager`, and `MaterializationHelper`.
+
+Expected current result: the test fails. That is correct because
+production still has `QueryRunner` calling `_materializeGraph()` through
+the broad `QueryGraph` shape.
+
+RED validation result:
+
+- `npx vitest run test/conformance/queryReadModelSeam.test.ts` failed
+  as expected.
+- Failure count: 5 failed, 2 passed.
+- The failures prove current production still has:
+  - `QueryRunner` referencing `_materializeGraph`;
+  - no query-owned `QueryReadModelProvider` seam in `QueryRunner`;
+  - `QueryBuilder` constructed from `QueryGraph`;
+  - `QueryController.query()` passing `host(this)` directly to
+    `QueryBuilder`;
+  - `Observer.query()` passing the whole `Observer` to `QueryBuilder`.
+- `npx eslint test/conformance/queryReadModelSeam.test.ts` passed.
+- `npx markdownlint
+  docs/design/0105-runtimehost-query-materialization-port-seam.md`
+  passed.
+- `git diff --check` passed.
+
 ## GREEN Plan
 
 GREEN should make the smallest seam change:
@@ -401,9 +450,11 @@ This is not a RuntimeHost rewrite. It is one pipe cut.
 
 ## Validation
 
-Required validation for this PULL-only doc:
+Required validation for this RED:
 
 ```sh
+npx vitest run test/conformance/queryReadModelSeam.test.ts
+npx eslint test/conformance/queryReadModelSeam.test.ts
 npx markdownlint docs/design/0105-runtimehost-query-materialization-port-seam.md
 git diff --check
 ```
