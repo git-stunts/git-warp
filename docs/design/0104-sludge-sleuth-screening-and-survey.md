@@ -69,9 +69,9 @@ runtime-backed concepts, recent snapshot API repair, and a now-green
 consumer typecheck gate.
 
 The codebase is not `GREEN` or `YELLOW`: the survey found a 894-line
-`RuntimeHost`, seven source/bin files over the 500 LOC source ceiling,
-30 test files over the 800 LOC test ceiling, 714 checked banned-pattern
-matches in core/app/ports/index/browser files, public/internal seams via
+`RuntimeHost`, seven source files over the 500 LOC source ceiling, 30
+test files over the 800 LOC test ceiling, 714 candidate banned-pattern
+hits in core/app/ports/index/browser files, public/internal seams via
 underscore runtime methods, and several multi-runtime-object files.
 
 The honest rating is ORANGE with RED pockets.
@@ -80,13 +80,20 @@ The honest rating is ORANGE with RED pockets.
 
 - TypeScript source/bin files scanned: 490.
 - TypeScript test files scanned: 503.
-- Source/bin files over 500 LOC: 7.
+- Source files over 500 LOC: 7.
 - Test files over 800 LOC: 30.
 - Class declarations found: 307 across 279 files.
 - Banned-pattern scan across `src test bin index.ts browser.ts`: 4,344
   matches across 539 files.
 - Banned-pattern scan across `src/domain src/application src/ports
   index.ts browser.ts`: 714 matches across 149 files.
+
+The 714 core/app/ports/index/browser matches are candidate sludge hits
+that require triage; they are not all confirmed violations. For example,
+some `unknown` hits may be valid true-boundary inputs, some
+`ReadonlySet` hits may be private implementation detail, and some
+`JSON.stringify` hits may be codec-adjacent. The survey is a map for
+targeted inspection, not permission for regex whack-a-mole.
 
 Core/app/ports/index/browser banned-pattern breakdown:
 
@@ -433,11 +440,12 @@ Backlog drift was already visible before this cycle:
 - Files: `OpStrategies.ts`, `PatchHydrator.ts`, `OpNormalizer.ts`,
   `CoordinateFactExport.ts`, `VisibleStateScope.ts`,
   `CoordinateComparison.ts`, plus others.
-- Evidence: 714 core/app/ports/index/browser banned-pattern matches;
+- Evidence: 714 core/app/ports/index/browser candidate banned-pattern hits;
   top breakdown includes 387 `unknown`, 124 `Record<string, unknown>`,
   and 146 `*Like` style matches.
-- Why it is sludge: some may be boundary-local, but volume indicates
-  unmodeled DTOs and domain nouns.
+- Why it is sludge: the count is a triage queue, not automatic guilt.
+  Some hits may be boundary-local or private implementation detail, but
+  the volume indicates likely unmodeled DTOs and domain nouns.
 - SOLID/DRY/DI impact: weakens contracts and moves validation into
   helper logic.
 - Runtime-object-per-file impact: unclear until per-file cycles.
@@ -450,7 +458,7 @@ Backlog drift was already visible before this cycle:
 ### SS-0104-06 Source Files Over Ceiling
 
 - Pattern name: source god-file watchlist.
-- Files: seven source/bin files over 500 LOC listed below.
+- Files: seven source files over 500 LOC listed below.
 - Evidence: size scan.
 - Why it is sludge: over-ceiling files hide multiple responsibilities
   even when class count is one.
@@ -531,6 +539,12 @@ Backlog drift was already visible before this cycle:
 | `src/domain/services/audit/AuditChainVerifier.ts` | 502 | audit receipt schema, chain walking, data verification | 1 | P2 | Split schema validation from chain walking if touched. |
 
 ## One Runtime Object Per File Violations
+
+Doctrine clarification: one public/runtime domain object per file is
+the default. Private implementation helper classes are allowed only when
+they are local, non-exported, sealed by the owning module, and do not
+carry independent domain ownership. Do not split files mechanically into
+file confetti.
 
 High-priority source violations:
 
@@ -748,6 +762,39 @@ follow-ups:
 - `OWN_multi-runtime-object-files`
 - `DX_ignored-tooling-manual-scan-gate`
 
+## Playback / Decision Note
+
+The survey is accepted as a screening map, not an implementation plan.
+Its raw grep counts are candidate sludge hits requiring triage; they are
+not all confirmed violations and must not be converted into regex
+whack-a-mole.
+
+The next implementation cycle must target exactly one seam. Do not start
+"fix `RuntimeHost`," do not resume broad 0096, do not attempt a
+god-object rewrite, and do not create helper landfills.
+
+Recommended next PULL:
+
+```txt
+SLUDGE_runtimehost-controller-port-seam-one
+```
+
+Goal: pick exactly one `RuntimeHost`/controller host-bag seam and design
+the first extraction.
+
+Candidate seams:
+
+- `QueryRunner` / `_materializeGraph`
+- `ComparisonSelector` / `_materializeCoordinateGraph`
+- `CheckpointController` / `_materializeGraph`
+- `PatchController` / `_cachedState` / `_persistence` host bag
+
+Preferred first target: `QueryRunner` / `_materializeGraph`, because it
+appears smaller than patch/checkpoint seams and is near the 0102
+snapshot API workstream. The expected shape is a narrow
+`QueryMaterializationPort` or equivalent explicit seam, not a general
+runtime facade.
+
 ## Validation
 
 Required validation for this doc-only survey:
@@ -790,8 +837,9 @@ Results are recorded after validation in the final turn report.
   Status: surveyed, not fixed.
 - Pattern: type theater and bag residues.
   Files: top banned-pattern files listed above.
-  Why it is sludge: high counts of `unknown`, `Record<string, unknown>`,
-  and `*Like` indicate unmodeled boundaries or missing domain nouns.
+  Why it is sludge: high candidate counts of `unknown`,
+  `Record<string, unknown>`, and `*Like` indicate likely unmodeled
+  boundaries or missing domain nouns, but every hit still needs triage.
   Status: surveyed, not fixed.
 
 ### 2. Sludge Fixed
