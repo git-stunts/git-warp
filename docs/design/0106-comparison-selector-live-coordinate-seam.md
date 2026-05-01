@@ -1,6 +1,6 @@
 # 0106 Comparison Selector Live Coordinate Seam
 
-- Status: `RED`
+- Status: `GREEN blocked`
 - Release lane: `v17.0.0`
 - Source: `SLUDGE_comparison-selector-live-coordinate-seam`
 - Design role: narrow seam extraction design
@@ -371,6 +371,49 @@ GREEN should remove one seam without creating a new god facade:
 If implementation cannot isolate live/coordinate resolution without
 touching strand comparison, stop and mark GREEN blocked. Do not drag the
 strand basement into this slice.
+
+## GREEN Blocker
+
+GREEN was attempted and stopped before commit because the required
+validation exposed a scope contradiction.
+
+The live/coordinate conformance fence can be satisfied with a narrow
+reader/finalizer seam, but the required controller suite still exercises
+strand-base selector paths in the same file:
+
+```sh
+npx vitest run test/unit/domain/services/controllers/ComparisonController.test.ts
+```
+
+Observed after the live/coordinate seam attempt:
+
+- `61` tests discovered
+- `55` passed
+- `6` failed
+- all remaining failures were strand-base paths calling
+  `_materializeCoordinateGraph`
+
+The remaining failures could be made green only by one of the following:
+
+- adding `_materializeCoordinateGraph` to the existing test fixture,
+  which this cycle explicitly forbids because it blesses the host-bag
+  seam;
+- changing strand-base selector resolution to use a new seam, which this
+  cycle explicitly excludes;
+- narrowing validation to only live/coordinate behavior, which would
+  weaken the requested GREEN validation.
+
+Therefore 0106 GREEN is blocked under the current rules. The next
+decision must either:
+
+1. keep 0106 scoped to live/coordinate and adjust the required validation
+   to avoid strand-base assertions;
+2. expand 0106 to include strand-base coordinate materialization as an
+   explicit scope change; or
+3. split a new follow-up PULL for strand-base comparison materialization
+   before retrying GREEN.
+
+No production code from the blocked attempt was kept.
 
 ## Public API
 
