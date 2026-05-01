@@ -8,12 +8,21 @@ const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const COMPARISON_SELECTOR_PATH = 'src/domain/services/controllers/ComparisonSelector.ts';
 const DESIGN_PATH = 'docs/design/0106-comparison-selector-live-coordinate-seam.md';
 const STRAND_HELPER_MARKER = '/**\n * Assertion narrowing ComparisonHost';
+const STRAND_COMPARISON_SELECTOR_MARKER = 'export class StrandComparisonSelector';
+const STRAND_BASE_SELECTOR_MARKER = 'export class StrandBaseComparisonSelector';
+const SELECTOR_NORMALIZATION_MARKER = '// ── Selector normalization';
 const HOST_SEAM_TERMS = [
   'ComparisonHost',
   '_materializeCoordinateGraph',
   '_loadPatchChainFromSha',
   '_blobStorage',
   '_persistence',
+] as const;
+const STRAND_RUNTIME_TERMS = [
+  'strandCoordinatorFor',
+  'createStrandCoordinator',
+  'callInternalRuntimeMethod',
+  'materializeStrand',
 ] as const;
 const REJECTED_SEAM_NAME_PATTERNS = [
   /\bRuntimePort\b/u,
@@ -47,26 +56,25 @@ function selectorClassSource(className: string, nextMarker: string): string {
   );
 }
 
-function liveCoordinateSeamSource(): string {
-  return sliceBetween(
-    readRepoFile(COMPARISON_SELECTOR_PATH),
-    'export type ComparisonHost',
-    STRAND_HELPER_MARKER,
-  );
+function coordinateBackedSeamSource(): string {
+  return [
+    selectorClassSource('LiveComparisonSelector', 'export class CoordinateComparisonSelector'),
+    selectorClassSource('CoordinateComparisonSelector', STRAND_HELPER_MARKER),
+    selectorClassSource('StrandBaseComparisonSelector', SELECTOR_NORMALIZATION_MARKER),
+  ].join('\n');
 }
 
-describe('comparison live/coordinate seam', () => {
-  it('keeps this RED scoped away from strand selector implementation', () => {
-    const scannedSource = liveCoordinateSeamSource();
+describe('comparison coordinate-backed side seam', () => {
+  it('keeps this RED scoped away from full strand selector implementation', () => {
+    const scannedSource = coordinateBackedSeamSource();
     const fullSource = readRepoFile(COMPARISON_SELECTOR_PATH);
     const strandSource = sliceBetween(
       fullSource,
-      'export class StrandComparisonSelector',
-      '// ── Selector normalization',
+      STRAND_COMPARISON_SELECTOR_MARKER,
+      STRAND_BASE_SELECTOR_MARKER,
     );
 
     expect(scannedSource).not.toContain('StrandComparisonSelector');
-    expect(scannedSource).not.toContain('StrandBaseComparisonSelector');
     expect(strandSource).toContain('callInternalRuntimeMethod');
   });
 
@@ -96,15 +104,34 @@ describe('comparison live/coordinate seam', () => {
     expect(coordinateSelectorSource).not.toContain('_persistence');
   });
 
-  it('rejects private runtime and storage seams from live/coordinate side resolution', () => {
-    const source = liveCoordinateSeamSource();
+  it('requires StrandBaseComparisonSelector to resolve base coordinates through a narrow seam', () => {
+    const strandBaseSelectorSource = selectorClassSource(
+      'StrandBaseComparisonSelector',
+      SELECTOR_NORMALIZATION_MARKER,
+    );
+
+    expect(strandBaseSelectorSource).not.toContain('ComparisonHost');
+    expect(strandBaseSelectorSource).not.toContain('_materializeCoordinateGraph');
+    expect(strandBaseSelectorSource).not.toContain('_loadPatchChainFromSha');
+    expect(strandBaseSelectorSource).not.toContain('_blobStorage');
+    expect(strandBaseSelectorSource).not.toContain('_persistence');
+    expect(strandBaseSelectorSource).not.toContain('strandCoordinatorFor');
+    expect(strandBaseSelectorSource).not.toContain('callInternalRuntimeMethod');
+    expect(strandBaseSelectorSource).not.toContain('materializeStrand');
+  });
+
+  it('rejects private runtime and storage seams from coordinate-backed side resolution', () => {
+    const source = coordinateBackedSeamSource();
 
     for (const term of HOST_SEAM_TERMS) {
       expect(source).not.toContain(term);
     }
+    for (const term of STRAND_RUNTIME_TERMS) {
+      expect(source).not.toContain(term);
+    }
   });
 
-  it('rejects god-seam names for the comparison live/coordinate boundary', () => {
+  it('rejects god-seam names for the comparison coordinate-backed boundary', () => {
     const source = readRepoFile(COMPARISON_SELECTOR_PATH);
 
     for (const pattern of REJECTED_SEAM_NAME_PATTERNS) {
@@ -120,11 +147,12 @@ describe('comparison live/coordinate seam', () => {
     expect(designSource).toContain('should not simply add `_materializeCoordinateGraph`');
   });
 
-  it('records that RED is live/coordinate only and strand remains out of scope', () => {
+  it('records that RED is coordinate-backed and full strand remains out of scope', () => {
     const designSource = readRepoFile(DESIGN_PATH);
 
-    expect(designSource).toContain('live and coordinate selector resolution');
-    expect(designSource).toContain('strand selector resolution');
+    expect(designSource).toContain('coordinate-backed comparison side resolution');
+    expect(designSource).toContain('StrandBaseComparisonSelector');
+    expect(designSource).toContain('StrandComparisonSelector');
     expect(designSource).toContain('Out of scope');
     expect(designSource).toContain('No whole-file demolition');
   });

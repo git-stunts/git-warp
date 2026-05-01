@@ -1,6 +1,6 @@
-# 0106 Comparison Selector Live Coordinate Seam
+# 0106 Comparison Selector Coordinate-Backed Side Seam
 
-- Status: `GREEN blocked`
+- Status: `RED`
 - Release lane: `v17.0.0`
 - Source: `SLUDGE_comparison-selector-live-coordinate-seam`
 - Design role: narrow seam extraction design
@@ -8,18 +8,18 @@
 
 ## Hill
 
-Design the first `ComparisonSelector` seam extraction for live and
-coordinate comparison-side resolution only.
+Design the first `ComparisonSelector` seam extraction for
+coordinate-backed comparison side resolution.
 
 The target is not to fix all comparison sludge. The target is to remove
-the broad `ComparisonHost` dependency thinking from live and coordinate
-selector resolution and replace it with a narrow, comparison-owned read
-or coordinate seam.
+the broad `ComparisonHost` dependency thinking from selectors that
+resolve coordinate-backed comparison sides and replace it with a narrow,
+comparison-owned read or coordinate seam.
 
-This PULL does not edit production code, start RED, touch strand
-comparison, split files mechanically, create backlog cards, edit
-`RuntimeHost`, edit `index.ts`, resume 0096, add the anti-sludge hook, or
-push.
+This PULL/RED correction does not edit production code, start GREEN,
+touch full strand overlay comparison, split files mechanically, create
+backlog cards, edit `RuntimeHost`, edit `index.ts`, resume 0096, add the
+anti-sludge hook, or push.
 
 ## Scope
 
@@ -27,6 +27,7 @@ In scope:
 
 - live selector side resolution
 - coordinate selector side resolution
+- strand-base selector side resolution
 - frontier normalization needed by those selectors
 - patch entries needed to finalize those sides
 - state hash and digest dependency shape used during side finalization
@@ -34,8 +35,7 @@ In scope:
 
 Out of scope:
 
-- strand selector resolution
-- strand-base selector resolution
+- full strand overlay selector resolution
 - `createStrandCoordinator`
 - `callInternalRuntimeMethod`
 - `materializeStrand`
@@ -44,6 +44,12 @@ Out of scope:
 - broad `RuntimeHost` cleanup
 - mechanical class-per-file splitting
 - 0096 cast-family cleanup
+
+`StrandBaseComparisonSelector` is now in scope because it resolves a
+base coordinate side. That is coordinate-backed side resolution, not full
+strand overlay materialization. `StrandComparisonSelector` remains out of
+scope because it still owns full strand overlay comparison and currently
+uses separate strand machinery.
 
 ## Evidence Inspected
 
@@ -106,8 +112,19 @@ the result.
 - patch entries for that frontier and optional ceiling
 - side finalization
 
-Both live and coordinate selectors call through `ComparisonHost`, whose
-current surface is too broad:
+`StrandBaseComparisonSelector.resolve()` currently needs:
+
+- a strand descriptor or equivalent base coordinate metadata
+- the strand base frontier
+- a coordinate state for that base frontier and optional ceiling
+- patch entries for that base frontier and optional ceiling
+- side finalization
+
+These needs make strand-base coordinate-backed. They do not require full
+strand overlay materialization.
+
+Live, coordinate, and strand-base selectors call through
+`ComparisonHost`, whose current surface is too broad:
 
 ```ts
 getFrontier(): Promise<Map<string, string>>;
@@ -120,15 +137,16 @@ _persistence: { readBlob(oid: string): Promise<Uint8Array> };
 _stateHashService: { compute(state: WarpState): Promise<string> } | null;
 ```
 
-For live and coordinate comparison-side resolution, `_blobStorage` and
+For coordinate-backed comparison-side resolution, `_blobStorage` and
 `_persistence` are not legitimate dependencies. They are transfer-plan
-content-loading dependencies and should not be in the first live or
-coordinate selector seam.
+content-loading dependencies and should not be in the first
+coordinate-backed selector seam.
 
-The strand fields and paths are also not part of the first seam. They
-remain separate because strand comparison currently pulls in
-`createStrandCoordinator`, `callInternalRuntimeMethod`, and strand
-materialization.
+Full strand overlay comparison remains separate because
+`StrandComparisonSelector` currently pulls in `createStrandCoordinator`,
+`callInternalRuntimeMethod`, and strand materialization. Strand-base is
+not full strand overlay comparison; it should receive only the narrow
+base-coordinate read seam it needs.
 
 ## Current Test Evidence
 
@@ -153,8 +171,10 @@ materialization seam name and shape.
 
 The future RED should not simply add `_materializeCoordinateGraph` to the
 test fixture. That would bless the host-shaped seam. RED should require
-live and coordinate side resolution to use a narrow comparison seam
-instead.
+coordinate-backed side resolution to use a narrow comparison seam
+instead. The fixture failure also showed that strand-base behavior uses
+the same coordinate-backed materialization path, so strand-base is now
+explicitly in scope.
 
 ## RED Witness
 
@@ -172,13 +192,19 @@ fence:
 - `LiveComparisonSelector` must not depend on broad `ComparisonHost`.
 - `CoordinateComparisonSelector` must not depend on broad
   `ComparisonHost`.
-- live/coordinate selector resolution must not reference
+- `StrandBaseComparisonSelector` must not depend on broad
+  `ComparisonHost` for coordinate-backed side materialization.
+- coordinate-backed selector resolution must not reference
   `_materializeCoordinateGraph`.
-- live/coordinate selector resolution must not reference
+- coordinate-backed selector resolution must not reference
   `_loadPatchChainFromSha`.
-- live/coordinate selector resolution must not require `_blobStorage` or
+- coordinate-backed selector resolution must not require `_blobStorage` or
   `_persistence`.
-- strand selectors are explicitly out of scope for this RED.
+- `StrandComparisonSelector` remains out of scope and may still use
+  existing strand machinery until a separate seam owns it.
+- coordinate-backed selector resolution must not route through
+  `strandCoordinatorFor`, `createStrandCoordinator`,
+  `callInternalRuntimeMethod`, or `materializeStrand`.
 - rejected seam names such as `RuntimePort`, `RuntimeFacade`,
   `GraphPort`, `ComparisonManager`, `ComparisonRuntimeManager`,
   `ComparisonHelper`, and placeholder suffix names are not acceptable.
@@ -189,29 +215,43 @@ Expected result before GREEN:
 npx vitest run test/conformance/comparisonLiveCoordinateSeam.test.ts
 ```
 
-Result during RED: failed, as expected:
+Result during original RED: failed, as expected:
 
 - `7` conformance tests discovered
 - `4` passed
 - `3` failed
-- failing assertions are the intended live/coordinate host-bag fence:
+- failing assertions are the original live/coordinate host-bag fence:
   `ComparisonHost`, `_materializeCoordinateGraph`, and related private
   runtime/storage seams are still present in the scanned live/coordinate
   selector source
 
-The failure is the fence. GREEN must remove the live/coordinate host-bag
-dependency by introducing a narrow comparison-owned seam. GREEN must not
-make the RED pass by adding `_materializeCoordinateGraph` to the stale
-controller fixture, renaming `ComparisonHost`, or creating a generic
-facade.
+Result during corrected RED: failed, as expected:
+
+- `8` conformance tests discovered
+- `4` passed
+- `4` failed
+- failing assertions are the intended coordinate-backed host-bag fence:
+  `LiveComparisonSelector`, `CoordinateComparisonSelector`, and
+  `StrandBaseComparisonSelector` still depend on `ComparisonHost`,
+  `_materializeCoordinateGraph`, and related private runtime/storage
+  seams
+
+The corrected RED expands the fence to coordinate-backed side resolution,
+including `StrandBaseComparisonSelector`. The failure is the fence. GREEN
+must remove the coordinate-backed host-bag dependency by introducing a
+narrow comparison-owned seam. GREEN must not make the RED pass by adding
+`_materializeCoordinateGraph` to the stale controller fixture, renaming
+`ComparisonHost`, or creating a generic facade.
 
 ## Legitimate Dependencies
 
-Live and coordinate side resolution legitimately need:
+Coordinate-backed side resolution legitimately needs:
 
 - current live frontier when at least one side is `live`
 - coordinate materialization for a requested frontier and ceiling
 - patch entries for each frontier tip, filtered by ceiling
+- strand base coordinate metadata when the requested side is
+  `strand_base`
 - visible-scope projection
 - state hash for the scoped state
 - deterministic checksums for visible patch frontier, lamport frontier,
@@ -219,7 +259,9 @@ Live and coordinate side resolution legitimately need:
 
 Those needs do not justify exposing persistence, blob storage, strand
 coordination, generic runtime host methods, or public graph APIs to the
-selector classes.
+selector classes. If strand-base needs a strand descriptor, that should
+enter through a narrow coordinate-backed side seam, not by giving the
+selector full strand coordination machinery.
 
 ## RuntimeHost Leakage
 
@@ -231,11 +273,15 @@ Confirmed leakage:
   `ComparisonHost`.
 - `_crypto`, `_codec`, and `_stateHashService` are dependency fields
   leaked through the same host bag.
-- `_blobStorage` and `_persistence` are unrelated to live/coordinate
+- `_blobStorage` and `_persistence` are unrelated to coordinate-backed
   side resolution but ride along on the same host surface.
+- `strandCoordinatorFor` drags strand coordination into
+  `StrandBaseComparisonSelector` even though strand-base only needs base
+  coordinate metadata and coordinate-backed side resolution.
 
 This is interface-segregation sludge. A selector that resolves a
-coordinate comparison side should not receive a runtime-shaped octopus.
+coordinate-backed comparison side should not receive a runtime-shaped
+octopus.
 
 ## Proposed Seam Direction
 
@@ -260,6 +306,11 @@ Where the named concepts should carry the repeated shapes:
 - `ComparisonPatchEntry`
 - `ComparisonSideDigestPort`, if digest/state-hash dependencies need a
   separate reason to change
+
+`ComparisonCoordinateSideRequest` must be capable of representing live,
+coordinate, and strand-base coordinate-backed reads without becoming a
+generic host bag. It must not absorb full strand overlay comparison,
+transfer planning, persistence, or blob storage.
 
 The exact names can change during RED/GREEN if evidence proves better
 ones. The required property is narrow ownership, not these spellings.
@@ -293,9 +344,9 @@ Rejected names:
 state, patch entries, requested side, resolved side, and constructor
 freezing.
 
-It should probably become its own file during GREEN if the live/coordinate
-seam needs to import it across modules. That movement should be ownership
-driven, not mechanical file splitting.
+It should probably become its own file during GREEN if the
+coordinate-backed seam needs to import it across modules. That movement
+should be ownership driven, not mechanical file splitting.
 
 Do not split all selector classes just because there are five exported
 classes today. Split only when the next seam needs a new owner and a
@@ -320,23 +371,27 @@ Do not create `comparisonHelpers.ts`, `frontierUtils.ts`, or
 
 ## RED Direction
 
-RED should prove the current live/coordinate selector seam is too broad.
+RED should prove the current coordinate-backed selector seam is too
+broad.
 
 Required RED constraints:
 
-- `LiveComparisonSelector` and `CoordinateComparisonSelector` must not
-  depend on `ComparisonHost`.
-- live and coordinate selector resolution must not reference
+- `LiveComparisonSelector`, `CoordinateComparisonSelector`, and
+  `StrandBaseComparisonSelector` must not depend on `ComparisonHost`.
+- coordinate-backed selector resolution must not reference
   `_materializeCoordinateGraph`.
-- live and coordinate selector resolution must not reference
+- coordinate-backed selector resolution must not reference
   `_loadPatchChainFromSha`.
-- live and coordinate selector resolution must not require `_blobStorage`
+- coordinate-backed selector resolution must not require `_blobStorage`
   or `_persistence`.
+- coordinate-backed selector resolution must not route through
+  `strandCoordinatorFor`, `createStrandCoordinator`,
+  `callInternalRuntimeMethod`, or `materializeStrand`.
 - tests must not make the suite green by adding host-bag fields to the
   fixture.
 - `compareCoordinates()` public API must remain unchanged.
-- strand selector resolution must be explicitly excluded from the RED
-  unless a separate strand seam is pulled.
+- full `StrandComparisonSelector` overlay resolution must be explicitly
+  excluded from the RED unless a separate strand seam is pulled.
 
 Possible RED artifact:
 
@@ -344,9 +399,9 @@ Possible RED artifact:
 test/conformance/comparisonLiveCoordinateSeam.test.ts
 ```
 
-The test should inspect source shape and/or instantiate live and
-coordinate resolution through a fake narrow seam. It should fail today
-because current selectors still resolve through `ComparisonHost`.
+The test should inspect source shape and/or instantiate coordinate-backed
+resolution through a fake narrow seam. It should fail today because
+current selectors still resolve through `ComparisonHost`.
 
 The existing red `ComparisonController.test.ts` is useful evidence but
 not sufficient as the seam RED. It fails because the fixture is stale,
@@ -357,10 +412,11 @@ not because it encodes the desired narrow seam.
 GREEN should remove one seam without creating a new god facade:
 
 - introduce a narrow comparison coordinate read seam;
-- have live and coordinate selector resolution depend on that seam;
+- have live, coordinate, and strand-base selector resolution depend on
+  that seam;
 - keep `compareCoordinates()` public API stable;
-- keep strand resolution behavior out of scope;
-- keep transfer content loading out of the live/coordinate selector
+- keep full strand overlay resolution behavior out of scope;
+- keep transfer content loading out of the coordinate-backed selector
   seam;
 - update `ComparisonController.test.ts` honestly so its fixture models
   the new seam, not `_materializeCoordinateGraph`;
@@ -368,18 +424,18 @@ GREEN should remove one seam without creating a new god facade:
   sorting, lamport ceiling, scope, patch divergence, state hash, and
   digest fields.
 
-If implementation cannot isolate live/coordinate resolution without
-touching strand comparison, stop and mark GREEN blocked. Do not drag the
-strand basement into this slice.
+If implementation cannot isolate coordinate-backed side resolution
+without touching full strand overlay comparison, stop and mark GREEN
+blocked. Do not drag the strand basement into this slice.
 
 ## GREEN Blocker
 
 GREEN was attempted and stopped before commit because the required
 validation exposed a scope contradiction.
 
-The live/coordinate conformance fence can be satisfied with a narrow
-reader/finalizer seam, but the required controller suite still exercises
-strand-base selector paths in the same file:
+The original live/coordinate conformance fence can be satisfied with a
+narrow reader/finalizer seam, but the required controller suite still
+exercises strand-base selector paths in the same file:
 
 ```sh
 npx vitest run test/unit/domain/services/controllers/ComparisonController.test.ts
@@ -398,20 +454,25 @@ The remaining failures could be made green only by one of the following:
 - adding `_materializeCoordinateGraph` to the existing test fixture,
   which this cycle explicitly forbids because it blesses the host-bag
   seam;
-- changing strand-base selector resolution to use a new seam, which this
-  cycle explicitly excludes;
+- changing strand-base selector resolution to use a new seam, which the
+  original scope explicitly excluded;
 - narrowing validation to only live/coordinate behavior, which would
   weaken the requested GREEN validation.
 
-Therefore 0106 GREEN is blocked under the current rules. The next
-decision must either:
+Therefore the original 0106 scope was wrong. It described selector class
+names instead of the architectural seam. The corrected scope is
+coordinate-backed comparison side resolution:
 
-1. keep 0106 scoped to live/coordinate and adjust the required validation
-   to avoid strand-base assertions;
-2. expand 0106 to include strand-base coordinate materialization as an
-   explicit scope change; or
-3. split a new follow-up PULL for strand-base comparison materialization
-   before retrying GREEN.
+- `LiveComparisonSelector`
+- `CoordinateComparisonSelector`
+- `StrandBaseComparisonSelector`
+
+This rejects validation shaving. The cycle should not make
+`ComparisonController.test.ts` pass by excluding strand-base assertions or
+by adding `_materializeCoordinateGraph` to the fixture.
+
+Full `StrandComparisonSelector` overlay materialization remains out of
+scope and should receive its own seam later.
 
 No production code from the blocked attempt was kept.
 
@@ -433,7 +494,7 @@ GREEN. Do not sneak a public API change into a seam cleanup.
 
 - No whole-file demolition.
 - No mechanical class splitting.
-- No strand seam work.
+- No full strand overlay seam work.
 - No `RuntimeHost` rewrite.
 - No root export changes.
 - No helper or utility dumping ground.
@@ -449,23 +510,29 @@ GREEN. Do not sneak a public API change into a seam cleanup.
 2. Coordinate comparison side resolution needs a normalized frontier,
    coordinate state for that frontier and ceiling, patch entries for that
    frontier, and side finalization.
-3. Legitimate dependencies are live frontier read, coordinate state read,
+3. Strand-base comparison side resolution needs strand base coordinate
+   metadata, coordinate state for that base frontier and ceiling, patch
+   entries for that base frontier, and side finalization. It does not
+   need full strand overlay materialization.
+4. Legitimate dependencies are live frontier read, strand-base coordinate
+   metadata read, coordinate state read,
    patch-entry read, state hash, checksum, and scope projection.
-4. RuntimeHost leakage includes `_materializeCoordinateGraph`,
+5. RuntimeHost leakage includes `_materializeCoordinateGraph`,
    `_loadPatchChainFromSha`, `_crypto`, `_codec`, `_stateHashService`,
-   `_blobStorage`, and `_persistence` riding together on
-   `ComparisonHost`.
-5. Live/coordinate extraction appears possible without touching strand
-   comparison if RED excludes strand selectors and GREEN routes only
-   live/coordinate selectors through the new seam.
-6. `ResolvedComparisonSide` should likely become its own runtime
+   `_blobStorage`, `_persistence`, and strand coordination machinery
+   riding together on `ComparisonHost`.
+6. Coordinate-backed extraction appears possible without touching full
+   strand overlay comparison if RED excludes `StrandComparisonSelector`
+   and GREEN routes only live, coordinate, and strand-base selectors
+   through the new seam.
+7. `ResolvedComparisonSide` should likely become its own runtime
    object/file if imported across the extracted seam.
-7. Frontier projection should remain local for the first slice unless
+8. Frontier projection should remain local for the first slice unless
    RED/GREEN would otherwise duplicate its shape. It is a likely follow-up
    owner, not a helper landfill.
-8. RED should prove live/coordinate selectors depend on a host-shaped
+9. RED should prove coordinate-backed selectors depend on a host-shaped
    seam and private-ish materialization method today.
-9. GREEN should introduce a narrow comparison coordinate read seam and
+10. GREEN should introduce a narrow comparison coordinate read seam and
    update tests to model that seam without touching public APIs.
 
 ## Validation
@@ -490,23 +557,35 @@ git diff --check
 The conformance test is expected to fail while the cycle is RED. ESLint,
 markdownlint, and diff hygiene are expected to pass.
 
+RED correction validation:
+
+- `npx vitest run test/conformance/comparisonLiveCoordinateSeam.test.ts`
+  failed as expected with `8` tests discovered, `4` passed, and `4`
+  failed.
+- `npx eslint test/conformance/comparisonLiveCoordinateSeam.test.ts`
+  passed.
+- `npx markdownlint
+  docs/design/0106-comparison-selector-live-coordinate-seam.md` passed.
+- `git diff --check` passed.
+
 ## SLUDGE STRIKER SUMMARY
 
 ### 1. Sludge Encountered
 
 - Pattern: broad comparison host bag.
   Files: `src/domain/services/controllers/ComparisonSelector.ts`.
-  Why it is sludge: live/coordinate selector resolution receives
+  Why it is sludge: coordinate-backed selector resolution receives
   materialization, patch loading, crypto, codec, persistence, blob
-  storage, and state-hash service through one host-shaped dependency.
-  Status: PULL-scoped, not fixed.
+  storage, state-hash service, and strand coordination through one
+  host-shaped dependency.
+  Status: RED-scoped, not fixed.
 - Pattern: private runtime seam leakage.
   Files: `src/domain/services/controllers/ComparisonSelector.ts`,
   `src/domain/RuntimeHost.ts`.
   Why it is sludge: `_materializeCoordinateGraph` and
   `_loadPatchChainFromSha` are internal machinery exposed as selector
   dependencies.
-  Status: PULL-scoped, not fixed.
+  Status: RED-scoped, not fixed.
 - Pattern: test fixture seam drift.
   Files: `test/unit/domain/services/controllers/ComparisonController.test.ts`.
   Why it is sludge: the test fixture exposes `materializeCoordinate`
@@ -518,30 +597,43 @@ markdownlint, and diff hygiene are expected to pass.
   Why it is sludge prevention: the new RED prevents GREEN from blessing
   the current broad host bag or private runtime seam as the comparison
   selector dependency.
-  Status: added, intentionally failing.
-- Pattern: strand scope trap.
+  Status: corrected, intentionally failing.
+- Pattern: class-name-driven scope.
+  Files: `docs/design/0106-comparison-selector-live-coordinate-seam.md`,
+  `test/conformance/comparisonLiveCoordinateSeam.test.ts`.
+  Why it is sludge: the original scope said live/coordinate by class
+  name, but the validation leak showed strand-base is part of the same
+  coordinate-backed side-resolution seam.
+  Status: fixed in RED scope.
+- Pattern: full strand overlay scope trap.
   Files: `src/domain/services/controllers/ComparisonSelector.ts`.
-  Why it is sludge: strand comparison pulls in `createStrandCoordinator`
-  and `callInternalRuntimeMethod`, which would explode the first seam.
+  Why it is sludge: full strand comparison pulls in
+  `createStrandCoordinator`, `callInternalRuntimeMethod`, and
+  `materializeStrand`, which would explode the first seam.
   Status: rejected from this cycle.
 
 ### 2. Sludge Fixed
 
-No production or test sludge was fixed. This is a PULL-only design
-artifact.
+- Replaced the old `live/coordinate` RED scope with
+  `coordinate-backed comparison side resolution`.
+- Added `StrandBaseComparisonSelector` to the deliberate RED fence.
+- Kept `StrandComparisonSelector` full overlay materialization out of
+  scope.
+- Kept production code untouched.
 
 ### 3. Sludge Rejected
 
 - Rejected whole-file demolition.
 - Rejected mechanical class splitting.
 - Rejected `RuntimeHost` rewrite.
-- Rejected strand comparison in the first seam.
+- Rejected full strand overlay comparison in the first seam.
 - Rejected facade, manager, helper, utility, and `*Like` names.
 - Rejected making stale tests green by adding more host-bag fields.
+- Rejected validation shaving by excluding strand-base assertions.
 
 ### 4. Sludge Deferred / Tracked
 
-- Strand comparison seam remains future work.
+- Full strand overlay comparison seam remains future work.
 - Transfer planning content-loading dependencies remain future work.
 - Frontier projection ownership remains a likely follow-up.
 - Public `CoordinateComparison` type-model sludge remains outside this
@@ -556,10 +648,19 @@ artifact.
 - `npx vitest run
   test/unit/domain/services/controllers/ComparisonController.test.ts`
   failed with `30` existing seam-drift failures.
+- `npx vitest run test/conformance/comparisonLiveCoordinateSeam.test.ts`
+  failed as expected with `8` tests discovered, `4` passed, and `4`
+  failed.
+- `npx eslint test/conformance/comparisonLiveCoordinateSeam.test.ts`
+  passed.
+- `npx markdownlint
+  docs/design/0106-comparison-selector-live-coordinate-seam.md` passed.
+- `git diff --check` passed.
 
 ### 6. Remaining Risk
 
 Remaining risk: `ComparisonSelector.ts` is tempting to overcut. The next
-turn must start with RED for live/coordinate selector resolution only.
-If strand comparison, transfer planning, or RuntimeHost cleanup enters
-the slice, the cycle is no longer narrow.
+GREEN must remove the coordinate-backed side seam without creating
+`ComparisonHost` under a new name. If full strand overlay comparison,
+transfer planning, or RuntimeHost cleanup enters the slice, the cycle is
+no longer narrow.
