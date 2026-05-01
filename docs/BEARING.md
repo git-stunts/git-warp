@@ -14,9 +14,23 @@ Scope note:
 
 ## Where are we
 
-`git-warp` is in a transitional but much better-named place.
+`git-warp` is in a v17 deslugging checkpoint after closing cycle
+`0105-runtimehost-query-materialization-port-seam`.
 
-The current release ladder is now explicit:
+Current branch state at handoff:
+
+- Branch: `release/v17.0.0`
+- Local state: clean working tree at closeout
+- Local commits: ahead of `origin/release/v17.0.0` by 35 commits
+- Push state: not pushed
+- Last closed cycle:
+  `0105-runtimehost-query-materialization-port-seam`
+- Latest closeout commit:
+  `5068468c docs: close query read model seam cycle`
+- Latest implementation commit:
+  `70ddb2bd refactor: introduce query read model seam`
+
+The current release ladder remains:
 
 - `v17.0.0`: TypeScript migration and bounded-residency ORSet groundwork
 - `v18.0.0`: graph substrate convergence
@@ -24,17 +38,15 @@ The current release ladder is now explicit:
 - `v20.0.0`: slice-first read execution
 - `v21.0.0`: distributed observer geometry and admission reality
 
-The biggest change this cycle is not runtime behavior yet. It is
-architecture truthfulness:
+Recent work shifted from release-speed card churn to explicit
+deslugging. Cycles `0102` through `0105` repaired the public snapshot
+value model, restored the consumer typecheck gate, surveyed structural
+sludge, and cut the first RuntimeHost/query seam.
 
-- [GLOSSARY.md](GLOSSARY.md) now names the canonical meaning of the core nouns
-- [0035-observer-geometry-architecture-ladder.md](design/0035-observer-geometry-architecture-ladder.md)
-  now states the target read/runtime architecture
-- [release-horizon-v20-v21.md](design/release-horizon-v20-v21.md) now says
-  how later majors likely harden
-
-The runtime is still partially state-first in important places, but the repo no
-longer has to guess what “better” means.
+The runtime is still partially state-first in important places. The
+important current truth is narrower: `QueryRunner` no longer owns a
+full-materialization contract, but other traversal, observer/worldline,
+storage, and RuntimeHost seams still do.
 
 ## Invariants
 
@@ -74,38 +86,65 @@ mapping, and concrete checks live in `docs/invariants/`.
 
 ## What just shipped
 
-Cycle `0035-observer-geometry-architecture-ladder`:
+Cycle `0105-runtimehost-query-materialization-port-seam`:
 
-- canonical glossary of core read/runtime nouns
-- observer-geometry architecture ladder
-- `v20` / `v21` release horizon note
-- promoted `v19.0.0` backlog ladder for:
-  - bounded support rules
-  - causal indexes
-  - support-scoped fragments
-  - first-class diff/change surfaces
-- doc ratchet tests protecting the new glossary and ladder artifacts
-- cycle-boundary refresh of `BEARING` and `VISION`
+- Added a query-owned `QueryReadModelProvider` / `QueryReadModel` seam.
+- Replaced `QueryRunner`'s RuntimeHost-shaped dependency with the narrow
+  read-model provider.
+- Removed `_materializeGraph`, full adjacency, full node-list, and
+  `getEdges()` as `QueryRunner` contract requirements.
+- Preserved `graph.query()`, `observer.query()`, and `worldline.query()`
+  as public ergonomic paths.
+- Kept Observer/read perspective as the semantic query owner.
+- Added behavioral RED coverage proving bounded exact-match id-only
+  queries do not drain a fake lazy node stream.
+- Closed the cycle with Playback, Drift Check, Retrospective, and Cycle
+  End in
+  [0105-runtimehost-query-materialization-port-seam.md](design/0105-runtimehost-query-materialization-port-seam.md)
+  and
+  [0105-runtimehost-query-materialization-port-seam.md](method/retros/0105-runtimehost-query-materialization-port-seam.md).
 
 ## What feels wrong
 
-- The runtime still teaches older assumptions in too many code paths:
-  materialize substantial state, then project/filter/query.
-- `Observer` is still thinner than the noun the glossary now defines.
-- `Aperture` is still closer to a visibility policy than a full read boundary.
-- `Worldline` is still a pinned read handle, not the fuller history/basis noun.
-- Strands and sync/admission still lag the stronger WARP line tracked in
-  [WARP_DRIFT.md](audits/WARP_DRIFT.md).
-- `WarpRuntime` still survives as transitional scaffolding, even though the
-  repo now has a much clearer ladder for what should replace its assumptions.
+- The branch has 35 local commits and is not pushed. That is a safety
+  risk until a push-readiness checkpoint and validation run happen.
+- 0105 fixed one seam only. It did not fix all query, traversal,
+  observer/worldline, storage, or RuntimeHost materialization seams.
+- `LogicalTraversal` remains a likely next seam because it still has
+  broad materialization and `unknown` / `Record<string, unknown>`
+  residue.
+- `TraversalContext.ts` and `traversalHelpers.ts` still contain existing
+  traversal boundary/modeling sludge.
+- Legacy query-builder tests still contain pre-existing `any` / `as any`
+  scaffolding.
+- v17 release readiness is not established. Recent focused validation is
+  green, but full branch validation has not been run after the closeout.
 
 ## What comes next
 
-- **Next cycle:** add glossary/ladder crosslinks to
-  [WARP_DRIFT.md](audits/WARP_DRIFT.md)
-- **Cycle after that:** re-slot the remaining drift against `v19`, `v20`, and
-  `v21`
-- **v18.0.0:** graph substrate convergence
-- **v19.0.0:** observer/doctrine/runtime convergence
-- **v20.0.0:** slice-first read execution
-- **v21.0.0:** distributed observer geometry and admission reality
+Do not start code next. Start with a branch safety checkpoint only.
+
+Required next-session checkpoint:
+
+1. Current branch and clean/dirty status.
+2. Commits ahead of origin.
+3. Latest 20 commits grouped by cycle.
+4. Current design cycle statuses from `0102` through `0105`.
+5. Whether all recent cycles are closed / hill met.
+6. Last known green validation for:
+   - `npm run typecheck`
+   - `npm run lint:sludge`
+   - `npm run typecheck:consumer`
+   - 0105 query seam conformance
+   - targeted query/controller tests
+7. Whether a full validation run is needed before push.
+8. Whether the branch is safe to push after validation.
+9. Recommended next action.
+
+Likely next action after checkpoint:
+
+- Run full validation before any push.
+- Push only after explicit approval.
+- If continuing deslugging after the branch is anchored, pull exactly one
+  narrow seam. Do not resume broad RuntimeHost cleanup or broad 0096 by
+  reflex.
