@@ -1,6 +1,6 @@
 # 0106 Comparison Selector Live Coordinate Seam
 
-- Status: `PULL`
+- Status: `RED`
 - Release lane: `v17.0.0`
 - Source: `SLUDGE_comparison-selector-live-coordinate-seam`
 - Design role: narrow seam extraction design
@@ -155,6 +155,55 @@ The future RED should not simply add `_materializeCoordinateGraph` to the
 test fixture. That would bless the host-shaped seam. RED should require
 live and coordinate side resolution to use a narrow comparison seam
 instead.
+
+## RED Witness
+
+RED artifact:
+
+```txt
+test/conformance/comparisonLiveCoordinateSeam.test.ts
+```
+
+The RED is deliberately separate from the existing
+`ComparisonController.test.ts` failure. The existing failure proves
+fixture/source seam drift. The conformance RED proves the architecture
+fence:
+
+- `LiveComparisonSelector` must not depend on broad `ComparisonHost`.
+- `CoordinateComparisonSelector` must not depend on broad
+  `ComparisonHost`.
+- live/coordinate selector resolution must not reference
+  `_materializeCoordinateGraph`.
+- live/coordinate selector resolution must not reference
+  `_loadPatchChainFromSha`.
+- live/coordinate selector resolution must not require `_blobStorage` or
+  `_persistence`.
+- strand selectors are explicitly out of scope for this RED.
+- rejected seam names such as `RuntimePort`, `RuntimeFacade`,
+  `GraphPort`, `ComparisonManager`, `ComparisonRuntimeManager`,
+  `ComparisonHelper`, and placeholder suffix names are not acceptable.
+
+Expected result before GREEN:
+
+```sh
+npx vitest run test/conformance/comparisonLiveCoordinateSeam.test.ts
+```
+
+Result during RED: failed, as expected:
+
+- `7` conformance tests discovered
+- `4` passed
+- `3` failed
+- failing assertions are the intended live/coordinate host-bag fence:
+  `ComparisonHost`, `_materializeCoordinateGraph`, and related private
+  runtime/storage seams are still present in the scanned live/coordinate
+  selector source
+
+The failure is the fence. GREEN must remove the live/coordinate host-bag
+dependency by introducing a narrow comparison-owned seam. GREEN must not
+make the RED pass by adding `_materializeCoordinateGraph` to the stale
+controller fixture, renaming `ComparisonHost`, or creating a generic
+facade.
 
 ## Legitimate Dependencies
 
@@ -389,9 +438,14 @@ Result: failed as evidence above. This PULL does not repair it.
 Required doc validation before committing this PULL:
 
 ```sh
+npx vitest run test/conformance/comparisonLiveCoordinateSeam.test.ts
+npx eslint test/conformance/comparisonLiveCoordinateSeam.test.ts
 npx markdownlint docs/design/0106-comparison-selector-live-coordinate-seam.md
 git diff --check
 ```
+
+The conformance test is expected to fail while the cycle is RED. ESLint,
+markdownlint, and diff hygiene are expected to pass.
 
 ## SLUDGE STRIKER SUMMARY
 
@@ -416,6 +470,12 @@ git diff --check
   while current source calls `_materializeCoordinateGraph`, so the suite
   is red for seam-name drift rather than a deliberate architecture RED.
   Status: surfaced, not fixed.
+- Pattern: deliberate RED fence.
+  Files: `test/conformance/comparisonLiveCoordinateSeam.test.ts`.
+  Why it is sludge prevention: the new RED prevents GREEN from blessing
+  the current broad host bag or private runtime seam as the comparison
+  selector dependency.
+  Status: added, intentionally failing.
 - Pattern: strand scope trap.
   Files: `src/domain/services/controllers/ComparisonSelector.ts`.
   Why it is sludge: strand comparison pulls in `createStrandCoordinator`
