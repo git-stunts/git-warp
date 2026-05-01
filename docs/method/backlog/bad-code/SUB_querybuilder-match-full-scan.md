@@ -12,17 +12,25 @@ release_home: v20.0.0
 
 ## Problem
 
-`src/domain/services/query/QueryRunner.ts` currently implements
-`match()` by materializing the full node id set and filtering it in
-memory:
+After 0105, `QueryRunner` no longer calls `getNodes()` or depends on a
+full node-list contract. That part improved.
 
-- `const allNodes = sortIds(await this._graph.getNodes());`
-- `const matched = allNodes.filter((id) => matchGlob(pattern, id));`
+The remaining substrate problem is still real: common glob/prefix
+queries are backed by scanning live node ids from the state-backed query
+read model:
 
-That means `query().match("sym:*")` is O(all live nodes) before any
-real narrowing happens. For symbol-heavy clients, this turns
-prefix-style lookups into full `nodeAlive` scans and makes query cost
-scale with total graph size, not with the number of matching symbols.
+```ts
+for (const element of alive.entries.keys()) {
+  if (alive.contains(element)) {
+    yield element;
+  }
+}
+```
+
+That means `query().match("sym:*")` can still be O(all live nodes)
+before any real narrowing happens. The shape is streaming now, not a
+full array contract, but the cost model is still full-scan for non-exact
+patterns.
 
 The same smell shows up in downstream removal detection when consumers
 materialize two ceilings and diff `sym:*` results client-side. The
@@ -31,7 +39,7 @@ but the query path ignores that cheaper delta surface.
 
 ## Why it matters
 
-- Prefix/pattern queries do not stream and do not bound residency by
+- Prefix/pattern queries now stream, but they do not yet bound work by
   the number of matches.
 - Consumers can accidentally pay two full graph scans to answer
   "what symbols were removed at tick t?"
@@ -42,8 +50,10 @@ but the query path ignores that cheaper delta surface.
 
 - Treat `match()` as a substrate/perf problem, not just a fluent-API
   nicety.
-- Add a streaming/prefix-capable query path for common id-pattern
-  cases instead of `getNodes()` + in-memory glob filtering.
+- Add an indexed, prefix-capable, or slice-native query path for common
+  id-pattern cases instead of scanning every live node id.
+- Keep the 0105 `QueryReadModel` seam; do not regress to full
+  materialization or `getNodes()` arrays.
 - For removal detection and similar "what changed at tick t?" reads,
   prefer receipt-driven deltas:
   - materialize with `{ receipts: true, ceiling: t }`
@@ -58,5 +68,7 @@ or all live nodes).
 ## Evidence
 
 - `src/domain/services/query/QueryRunner.ts`
+- `src/domain/services/query/StateQueryReadModel.ts`
 - `src/domain/services/controllers/MaterializeController.ts`
 - `src/domain/types/TickReceipt.ts`
+- `docs/design/0105-runtimehost-query-materialization-port-seam.md`
