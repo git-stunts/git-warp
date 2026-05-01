@@ -1,6 +1,6 @@
 # 0105 RuntimeHost Query Read Model Seam
 
-- Status: `GREEN`
+- Status: `hill met`
 - Release lane: `v17.0.0`
 - Source: `SLUDGE_runtimehost-controller-port-seam-one`
 - Design role: narrow seam extraction design
@@ -8,8 +8,9 @@
 
 ## Hill
 
-Design the first narrow `RuntimeHost`/controller seam extraction without
-editing production code.
+Extract the first narrow `RuntimeHost`/controller seam by removing
+`QueryRunner`'s direct dependency on runtime materialization and making
+query execution depend on an Observer/read-perspective query read model.
 
 Preferred seam:
 
@@ -24,9 +25,9 @@ manager, and no helper landfill.
 
 ## PULL Scope
 
-This cycle inspected the query read-model path only. It did not start
-RED, implement GREEN, resume 0096, add the anti-sludge hook, change
-package exports, or push.
+The initial PULL inspected the query read-model path only. RED/GREEN
+were later approved for the same seam. The cycle did not resume 0096,
+add the anti-sludge hook, change package exports, or push.
 
 Files inspected:
 
@@ -560,6 +561,80 @@ model without draining it for bounded queries.
 - Did any public API or package export widen without a demonstrated
   public reason?
 
+## Playback Witness
+
+Playback answers:
+
+1. The RED is scoped to the `QueryRunner` seam. It still allows
+   `_materializeGraph` in `RuntimeHost` and other internal seams until a
+   separate cycle owns those extractions.
+2. GREEN removed `_materializeGraph` from `QueryRunner` without changing
+   the public fluent query surface. Runtime tests for query builder and
+   query controller behavior passed after the seam change.
+3. `QueryBuilder` now requires the narrow `QueryReadModelProvider`
+   constructor dependency. This is an intentional DI correction rather
+   than constructor compatibility theater.
+4. Observer/read perspective remains the semantic owner. `Observer`
+   provides `queryReadModelProvider()`, and graph-level query sugar
+   routes through a default observer/read perspective.
+5. `graph.query()` remains ergonomic sugar. It does not become the
+   semantic owner of query execution.
+6. `QueryReadModel.stateHash` is a non-null `string`. No nullable query
+   read-model state hash was introduced.
+7. `QueryReadModel` does not expose full adjacency, full node-list, or
+   full edge-list contracts. It exposes `nodes(...)`, `neighbors(...)`,
+   and `nodeProps(...)`.
+8. The bounded lazy RED proves `QueryRunner` can consume a lazy read
+   model without draining beyond the first exact-match id-only result.
+9. The seam names describe query read-model needs. No `RuntimePort`,
+   `RuntimeFacade`, `GraphPort`, `QueryRuntimeManager`, or
+   `MaterializationHelper` was introduced.
+10. No package-root public exports changed during 0105.
+
+Playback limitation:
+
+0105 proves the query runner seam is no longer full-materialization
+shaped. It does not prove the whole storage substrate is cursor-native
+or holographic. The live provider still opens from current runtime state.
+
+## Drift Check
+
+Drift questions:
+
+1. Did 0105 stay within the approved seam?
+   Yes. The production changes are limited to query runner, query
+   builder, observer/worldline query construction, query controller graph
+   sugar, and narrowly named query read-model objects.
+2. Did GREEN introduce a new god object or facade?
+   No. The new runtime objects each have one narrow job:
+   `LiveQueryReadModelProvider` opens a live read model,
+   `StateQueryReadModel` adapts `WarpState` into the query read-model
+   contract, and `QueryAggregation` owns aggregate computation extracted
+   from `QueryRunner`.
+3. Did the cycle preserve DI?
+   Yes. `QueryRunner` receives `QueryReadModelProvider`; `QueryBuilder`
+   receives the same narrow dependency; `QueryController` composes the
+   live provider explicitly.
+4. Did the cycle hide materialization behind prettier names?
+   Not at the `QueryRunner` contract. The runner consumes a bounded read
+   model and the behavioral RED proves bounded exact-match id-only
+   queries do not drain the lazy node stream. Deeper runtime state
+   sourcing remains explicitly scoped out.
+5. Did public APIs widen?
+   No package-root exports changed. `graph.query()`, `observer.query()`,
+   `worldline.query()`, and fluent `QueryBuilder` methods remain the
+   supported consumer path.
+6. Did validation claims exceed evidence?
+   No. The supported claim is: the `QueryRunner` seam is repaired. The
+   unsupported claim would be: all traversal, observer, worldline,
+   runtime, or storage materialization seams are repaired.
+
+Drift finding:
+
+0105 stayed within the first pipe cut. It did not become a RuntimeHost
+rewrite, and it did not launder a full graph contract into the query
+runner seam.
+
 ## Validation
 
 Required validation for GREEN:
@@ -602,6 +677,46 @@ GREEN validation result:
   docs/design/0105-runtimehost-query-materialization-port-seam.md`
   passed.
 - `git diff --check` passed.
+
+## Cycle End
+
+Outcome:
+
+0105 is hill met for the focused `QueryRunner` read-model seam.
+
+Closeout links:
+
+- Retrospective:
+  `docs/method/retros/0105-runtimehost-query-materialization-port-seam.md`
+- Implementation commit:
+  `70ddb2bd refactor: introduce query read model seam`
+
+Cycle-end confirmations:
+
+- `QueryRunner` no longer depends on `RuntimeHost`,
+  `_materializeGraph`, a full adjacency map, a full node list, or
+  `getEdges()`.
+- `QueryRunner` depends on `QueryReadModelProvider` and executes against
+  `QueryReadModel`.
+- `QueryReadModel` exposes `stateHash`, `nodes(...)`, `neighbors(...)`,
+  and `nodeProps(...)`.
+- The behavioral RED proves bounded lazy node-stream consumption for the
+  exact-match id-only query case.
+- Observer/read perspective remains the semantic query owner.
+- `graph.query()` remains convenience sugar for the default read
+  perspective.
+- `QueryBuilder` constructor now requires the explicit DI dependency.
+- No package-root export changes were made.
+- No 0096 work, hook work, RuntimeHost rewrite, generic runtime facade,
+  or broad materialization cleanup was done.
+- Remaining traversal/runtime/storage materialization sludge is outside
+  0105 and remains tracked by the 0104 survey and future seam cycles.
+
+Recommended next cycle:
+
+Run 0105 Playback review if desired, then either choose the next single
+RuntimeHost/controller seam or stop for the day. Do not restart broad
+0096 or broad RuntimeHost cleanup without a new PULL.
 
 ## SLUDGE STRIKER SUMMARY
 
