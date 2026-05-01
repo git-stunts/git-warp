@@ -1,51 +1,28 @@
-/** QueryRunner — pure executor for QueryPlan instances. */
+/** QueryRunner - pure executor for QueryPlan instances. */
 
 import QueryError from '../../errors/QueryError.ts';
-import { matchGlob } from '../../utils/matchGlob.ts';
 import type QueryPlan from './QueryPlan.ts';
-import type { AggregateSpec, QueryNodeSnapshot, QueryNodeEdgeSnapshot, QueryOperation } from './QueryPlan.ts';
-import ImmutableBytes from '../snapshot/ImmutableBytes.ts';
+import type {
+  QueryNodeEdgeSnapshot,
+  QueryNodeSnapshot,
+  QueryOperation,
+} from './QueryPlan.ts';
 import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
+import { runAggregate, type AggregateResult } from './QueryAggregation.ts';
+import type {
+  QueryNeighborEntry,
+  QueryNeighborOptions,
+  QueryNodeStreamRequest,
+  QueryPropertyBag,
+  QueryReadModel,
+  QueryReadModelProvider,
+} from './QueryReadModelProvider.ts';
 
-type QueryPropertyBag = Readonly<{ [key: string]: SnapshotPropValue }>;
 type MutableQueryPropertyBag = { [key: string]: SnapshotPropValue };
-type SnapshotPropObject = { readonly [key: string]: SnapshotPropValue };
-type QueryVisibleEdge = {
-  from: string;
-  to: string;
-  label: string;
-  props: QueryPropertyBag;
-};
 type QueryResultNode = {
   id?: string;
   props?: QueryPropertyBag;
 };
-type QueryMaterializedGraph = {
-  adjacency: AdjacencyMaps;
-  stateHash: string | null;
-};
-type QueryAdjacencyEdge = {
-  label: string;
-  neighborId: string;
-};
-
-// ── Graph contract ──────────────────────────────────────────────────
-
-/** Structural interface for the graph handle needed by the runner. */
-export type QueryGraph = {
-  _materializeGraph: () => Promise<QueryMaterializedGraph>;
-  getNodes: () => Promise<string[]>;
-  getNodeProps: (nodeId: string) => Promise<QueryPropertyBag | null>;
-  getEdges: () => Promise<QueryVisibleEdge[]>;
-};
-
-// ── Adjacency types ─────────────────────────────────────────────────
-
-type AdjacencyMaps = {
-  outgoing: ReadonlyMap<string, readonly QueryAdjacencyEdge[]>;
-  incoming: ReadonlyMap<string, readonly QueryAdjacencyEdge[]>;
-};
-
 type PropsFetcher = (nodeId: string) => Promise<QueryPropertyBag>;
 
 // ── Result types ────────────────────────────────────────────────────
@@ -55,35 +32,13 @@ export type QueryResult = {
   nodes: QueryResultNode[];
 };
 
-export type AggregateResult = {
-  stateHash: string;
-  count?: number;
-  sum?: number;
-  avg?: number;
-  min?: number;
-  max?: number;
-};
-
-type AggregateAccumulator = {
-  segments: string[];
-  values: number[];
-};
-type NumericAggregateKey = 'sum' | 'avg' | 'min' | 'max';
-
-// ── Boundary validation ─────────────────────────────────────────────
-
-function requireStateHash(stateHash: string | null): string {
-  if (typeof stateHash !== 'string') {
-    throw new QueryError('materialized query state hash must be a string', {
-      code: 'E_QUERY_STATE_HASH',
-    });
-  }
-  return stateHash;
-}
-
 // ── Batch concurrency ───────────────────────────────────────────────
 
-async function batchMap<T, R>(items: T[], fn: (item: T) => Promise<R>, limit = 100): Promise<R[]> {
+async function batchMap<T, R>(
+  items: readonly T[],
+  fn: (item: T) => Promise<R>,
+  limit = 100,
+): Promise<R[]> {
   const results: R[] = [];
   for (let i = 0; i < items.length; i += limit) {
     const batch = items.slice(i, i + limit);
@@ -102,7 +57,10 @@ function sortIds(ids: Iterable<string>): string[] {
 function buildPropsSnapshot(propsRecord: QueryPropertyBag): QueryPropertyBag {
   const props: MutableQueryPropertyBag = {};
   for (const key of Object.keys(propsRecord).sort()) {
-    props[key] = propsRecord[key]!;
+    const value = propsRecord[key];
+    if (value !== undefined) {
+      props[key] = value;
+    }
   }
   return Object.freeze(props);
 }
@@ -127,66 +85,72 @@ function compareEdgeEntries(
   return compareStrings(edgePeer(a, peerKey), edgePeer(b, peerKey));
 }
 
-function buildEdgesSnapshot(
-  edges: readonly QueryAdjacencyEdge[],
-  directionKey: 'to' | 'from',
-): ReadonlyArray<QueryNodeEdgeSnapshot> {
-  const list = edges.map((edge) => ({
-    label: edge.label,
-    [directionKey]: edge.neighborId,
-  }));
-  list.sort((a, b) => compareEdgeEntries(a, b, directionKey));
-  for (const edge of list) {
-    Object.freeze(edge);
+async function collectNodeEdges(
+  readModel: QueryReadModel,
+  nodeId: string,
+  direction: 'outgoing' | 'incoming',
+): Promise<ReadonlyArray<QueryNodeEdgeSnapshot>> {
+  const peerKey = direction === 'outgoing' ? 'to' : 'from';
+  const list: QueryNodeEdgeSnapshot[] = [];
+  for await (const edge of readModel.neighbors(nodeId, { direction })) {
+    list.push(
+      Object.freeze(
+        peerKey === 'to'
+          ? { label: edge.label, to: edge.nodeId }
+          : { label: edge.label, from: edge.nodeId },
+      ),
+    );
   }
+  list.sort((a, b) => compareEdgeEntries(a, b, peerKey));
   return Object.freeze(list);
 }
 
-function createNodeSnapshot(params: {
-  id: string;
-  propsRecord: QueryPropertyBag;
-  edgesOut: readonly QueryAdjacencyEdge[];
-  edgesIn: readonly QueryAdjacencyEdge[];
-}): Readonly<QueryNodeSnapshot> {
+async function createNodeSnapshot(
+  readModel: QueryReadModel,
+  nodeId: string,
+): Promise<Readonly<QueryNodeSnapshot>> {
+  const [propsRecord, edgesOut, edgesIn] = await Promise.all([
+    readModel.nodeProps(nodeId),
+    collectNodeEdges(readModel, nodeId, 'outgoing'),
+    collectNodeEdges(readModel, nodeId, 'incoming'),
+  ]);
   return Object.freeze({
-    id: params.id,
-    props: buildPropsSnapshot(params.propsRecord),
-    edgesOut: buildEdgesSnapshot(params.edgesOut, 'to'),
-    edgesIn: buildEdgesSnapshot(params.edgesIn, 'from'),
+    id: nodeId,
+    props: buildPropsSnapshot(propsRecord ?? {}),
+    edgesOut,
+    edgesIn,
   });
 }
 
 // ── Traversal ───────────────────────────────────────────────────────
 
-function edgeSource(
-  adjacency: AdjacencyMaps,
-  direction: 'outgoing' | 'incoming',
-): ReadonlyMap<string, readonly QueryAdjacencyEdge[]> {
-  return direction === 'outgoing' ? adjacency.outgoing : adjacency.incoming;
-}
-
-function collectMatchingNeighbors(
-  edges: readonly QueryAdjacencyEdge[],
-  labelFilter: string | null,
-): string[] {
-  if (labelFilter === null) {
-    return edges.map((e) => e.neighborId);
+async function collectMatchingNeighbors(
+  readModel: QueryReadModel,
+  nodeId: string,
+  options: QueryNeighborOptions,
+): Promise<string[]> {
+  const result: string[] = [];
+  for await (const entry of readModel.neighbors(nodeId, options)) {
+    const neighbor: QueryNeighborEntry = entry;
+    result.push(neighbor.nodeId);
   }
-  return edges.filter((e) => e.label === labelFilter).map((e) => e.neighborId);
+  return result;
 }
 
-function applyHop(params: {
+async function applyHop(params: {
   direction: 'outgoing' | 'incoming';
   label: string | undefined;
-  strand: string[];
-  adjacency: AdjacencyMaps;
-}): string[] {
-  const source = edgeSource(params.adjacency, params.direction);
-  const labelFilter = params.label ?? null;
+  strand: readonly string[];
+  readModel: QueryReadModel;
+}): Promise<string[]> {
   const next = new Set<string>();
 
   for (const nodeId of params.strand) {
-    for (const id of collectMatchingNeighbors(source.get(nodeId) ?? [], labelFilter)) {
+    const options: QueryNeighborOptions = {
+      direction: params.direction,
+      ...(params.label !== undefined ? { label: params.label } : {}),
+    };
+    for (const id of await collectMatchingNeighbors(params.readModel, nodeId, options)) {
       next.add(id);
     }
   }
@@ -196,14 +160,19 @@ function applyHop(params: {
 type BfsLevelParams = {
   currentLevel: Set<string>;
   visited: Set<string>;
-  source: ReadonlyMap<string, readonly QueryAdjacencyEdge[]>;
-  labelFilter: string | null;
+  readModel: QueryReadModel;
+  options: QueryNeighborOptions;
 };
 
-function expandBfsLevel(params: BfsLevelParams): Set<string> {
+async function expandBfsLevel(params: BfsLevelParams): Promise<Set<string>> {
   const nextLevel = new Set<string>();
   for (const nodeId of params.currentLevel) {
-    for (const id of collectMatchingNeighbors(params.source.get(nodeId) ?? [], params.labelFilter)) {
+    const neighbors = await collectMatchingNeighbors(
+      params.readModel,
+      nodeId,
+      params.options,
+    );
+    for (const id of neighbors) {
       if (!params.visited.has(id)) {
         params.visited.add(id);
         nextLevel.add(id);
@@ -217,12 +186,12 @@ function addAllTo(source: Set<string>, target: Set<string>): void {
   for (const id of source) { target.add(id); }
 }
 
-function runBfsLoop(params: {
-  source: ReadonlyMap<string, readonly QueryAdjacencyEdge[]>;
-  labelFilter: string | null;
-  strand: string[];
+async function runBfsLoop(params: {
+  readModel: QueryReadModel;
+  options: QueryNeighborOptions;
+  strand: readonly string[];
   depth: [number, number];
-}): Set<string> {
+}): Promise<Set<string>> {
   const [minDepth, maxDepth] = params.depth;
   const result = new Set<string>();
   const visited = new Set<string>(params.strand);
@@ -230,24 +199,32 @@ function runBfsLoop(params: {
 
   if (minDepth === 0) { addAllTo(currentLevel, result); }
   for (let hop = 1; hop <= maxDepth; hop++) {
-    currentLevel = expandBfsLevel({ currentLevel, visited, source: params.source, labelFilter: params.labelFilter });
+    currentLevel = await expandBfsLevel({
+      currentLevel,
+      visited,
+      readModel: params.readModel,
+      options: params.options,
+    });
     if (hop >= minDepth) { addAllTo(currentLevel, result); }
     if (currentLevel.size === 0) { break; }
   }
   return result;
 }
 
-function applyMultiHop(params: {
+async function applyMultiHop(params: {
   direction: 'outgoing' | 'incoming';
   label: string | undefined;
-  strand: string[];
-  adjacency: AdjacencyMaps;
+  strand: readonly string[];
+  readModel: QueryReadModel;
   depth: [number, number];
-}): string[] {
-  const source = edgeSource(params.adjacency, params.direction);
-  const result = runBfsLoop({
-    source,
-    labelFilter: params.label ?? null,
+}): Promise<string[]> {
+  const options: QueryNeighborOptions = {
+    direction: params.direction,
+    ...(params.label !== undefined ? { label: params.label } : {}),
+  };
+  const result = await runBfsLoop({
+    readModel: params.readModel,
+    options,
     strand: params.strand,
     depth: params.depth,
   });
@@ -257,53 +234,65 @@ function applyMultiHop(params: {
 // ── Pipeline operations ─────────────────────────────────────────────
 
 type WhereOpParams = {
-  strand: string[];
+  strand: readonly string[];
   predicate: (node: QueryNodeSnapshot) => boolean;
-  adjacency: AdjacencyMaps;
-  getProps: PropsFetcher;
+  readModel: QueryReadModel;
 };
 
 async function applyWhereOp(params: WhereOpParams): Promise<string[]> {
-  const { strand, predicate, adjacency, getProps } = params;
+  const { strand, predicate, readModel } = params;
   const snapshots = await batchMap(strand, async (nodeId) => ({
     nodeId,
-    snapshot: createNodeSnapshot({
-      id: nodeId,
-      propsRecord: await getProps(nodeId),
-      edgesOut: adjacency.outgoing.get(nodeId) ?? [],
-      edgesIn: adjacency.incoming.get(nodeId) ?? [],
-    }),
+    snapshot: await createNodeSnapshot(readModel, nodeId),
   }));
-  return sortIds(snapshots.filter(({ snapshot }) => predicate(snapshot)).map(({ nodeId }) => nodeId));
+  return sortIds(
+    snapshots
+      .filter(({ snapshot }) => predicate(snapshot))
+      .map(({ nodeId }) => nodeId),
+  );
 }
 
-function applyTraversalOp(
-  strand: string[],
+async function applyTraversalOp(
+  strand: readonly string[],
   op: { type: 'outgoing' | 'incoming'; label?: string; depth: [number, number] },
-  adjacency: AdjacencyMaps,
-): string[] {
+  readModel: QueryReadModel,
+): Promise<string[]> {
   const [minD, maxD] = op.depth;
   if (minD === 1 && maxD === 1) {
-    return applyHop({ direction: op.type, label: op.label, strand, adjacency });
+    return await applyHop({
+      direction: op.type,
+      label: op.label,
+      strand,
+      readModel,
+    });
   }
-  return applyMultiHop({ direction: op.type, label: op.label, strand, adjacency, depth: op.depth });
+  return await applyMultiHop({
+    direction: op.type,
+    label: op.label,
+    strand,
+    readModel,
+    depth: op.depth,
+  });
 }
 
 type PipelineParams = {
   strand: string[];
   operations: readonly QueryOperation[];
-  adjacency: AdjacencyMaps;
-  getProps: PropsFetcher;
+  readModel: QueryReadModel;
 };
 
 async function applyOperations(params: PipelineParams): Promise<string[]> {
-  const { operations, adjacency, getProps } = params;
+  const { operations, readModel } = params;
   let current = params.strand;
   for (const op of operations) {
     if (op.type === 'where') {
-      current = await applyWhereOp({ strand: current, predicate: op.fn, adjacency, getProps });
+      current = await applyWhereOp({
+        strand: current,
+        predicate: op.fn,
+        readModel,
+      });
     } else {
-      current = applyTraversalOp(current, op, adjacency);
+      current = await applyTraversalOp(current, op, readModel);
     }
   }
   return current;
@@ -313,7 +302,7 @@ async function applyOperations(params: PipelineParams): Promise<string[]> {
 
 const ALLOWED_FIELDS = new Set(['id', 'props']);
 
-function assertAllFieldsKnown(fields: string[]): void {
+function assertAllFieldsKnown(fields: readonly string[]): void {
   for (const field of fields) {
     if (!ALLOWED_FIELDS.has(field)) {
       throw new QueryError(`Unknown select field: ${field}`, {
@@ -325,24 +314,23 @@ function assertAllFieldsKnown(fields: string[]): void {
 }
 
 function validateSelectFields(select: readonly string[] | null): string[] | null {
-  if (!Array.isArray(select) || select.length === 0) {
+  if (select === null || select.length === 0) {
     return null;
   }
-  const fields: string[] = [];
-  for (const f of select) { fields.push(f); }
+  const fields = select.slice();
   assertAllFieldsKnown(fields);
   return fields;
 }
 
 async function buildResultNodes(
-  strand: string[],
-  selectFields: string[] | null,
+  strand: readonly string[],
+  selectFields: readonly string[] | null,
   getProps: PropsFetcher,
 ): Promise<QueryResultNode[]> {
   const includeId = !selectFields || selectFields.includes('id');
   const includeProps = !selectFields || selectFields.includes('props');
 
-  const nodes: QueryResultNode[] = await batchMap(strand, async (nodeId) => {
+  return await batchMap(strand, async (nodeId) => {
     const entry: QueryResultNode = {};
     if (includeId) { entry.id = nodeId; }
     if (includeProps) {
@@ -353,150 +341,75 @@ async function buildResultNodes(
     }
     return entry;
   });
-  return nodes;
-}
-
-// ── Aggregation ─────────────────────────────────────────────────────
-
-function isSnapshotPropObject(value: SnapshotPropValue | undefined): value is SnapshotPropObject {
-  return value !== undefined
-    && value !== null
-    && typeof value === 'object'
-    && !(value instanceof ImmutableBytes)
-    && !Array.isArray(value);
-}
-
-function resolvePropertyPath(obj: QueryPropertyBag, segments: string[]): SnapshotPropValue | undefined {
-  let value = obj[segments[0] as string];
-  for (let i = 1; i < segments.length; i++) {
-    if (!isSnapshotPropObject(value)) {
-      return undefined;
-    }
-    value = value[segments[i] as string];
-  }
-  return value;
-}
-
-function computeSingleAggregate(key: string, values: number[]): number {
-  if (values.length === 0) { return 0; }
-  if (key === 'sum') { return values.reduce((a, b) => a + b, 0); }
-  if (key === 'avg') { return values.reduce((a, b) => a + b, 0) / values.length; }
-  if (key === 'min') { return Math.min(...values); }
-  return Math.max(...values);
-}
-
-type AggregateParams = {
-  strand: string[];
-  stateHash: string;
-  getProps: PropsFetcher;
-  spec: AggregateSpec;
-};
-
-const NUMERIC_AGGREGATE_KEYS: readonly NumericAggregateKey[] = ['sum', 'avg', 'min', 'max'];
-
-function activeAggregateKeys(spec: AggregateSpec): NumericAggregateKey[] {
-  return NUMERIC_AGGREGATE_KEYS.filter((key) => spec[key] !== undefined && spec[key] !== null);
-}
-
-async function runAggregate(params: AggregateParams): Promise<AggregateResult> {
-  const { strand, stateHash, getProps, spec } = params;
-  const result: AggregateResult = { stateHash };
-
-  if (spec.count === true) {
-    result.count = strand.length;
-  }
-
-  const activeAggs = activeAggregateKeys(spec);
-  if (activeAggs.length === 0) {
-    return result;
-  }
-
-  return await computeNumericAggregates({ strand, getProps, activeAggs, spec, result });
-}
-
-function buildAggMap(activeAggs: readonly NumericAggregateKey[], spec: AggregateSpec): Map<NumericAggregateKey, AggregateAccumulator> {
-  const aggMap = new Map<NumericAggregateKey, AggregateAccumulator>();
-  for (const key of activeAggs) {
-    const path = spec[key];
-    if (path === undefined) {
-      continue;
-    }
-    aggMap.set(key, {
-      segments: path.replace(/^props\./, '').split('.'),
-      values: [],
-    });
-  }
-  return aggMap;
-}
-
-function collectAggValues(propsList: QueryPropertyBag[], aggMap: Map<NumericAggregateKey, AggregateAccumulator>): void {
-  for (const propsRecord of propsList) {
-    for (const { segments, values } of aggMap.values()) {
-      const value = resolvePropertyPath(propsRecord, segments);
-      if (typeof value === 'number' && !Number.isNaN(value)) {
-        values.push(value);
-      }
-    }
-  }
-}
-
-async function computeNumericAggregates(params: {
-  strand: string[];
-  getProps: PropsFetcher;
-  activeAggs: readonly NumericAggregateKey[];
-  spec: AggregateSpec;
-  result: AggregateResult;
-}): Promise<AggregateResult> {
-  const aggMap = buildAggMap(params.activeAggs, params.spec);
-  const propsList = await batchMap(params.strand, params.getProps);
-  collectAggValues(propsList, aggMap);
-
-  for (const [key, { values }] of aggMap) {
-    params.result[key] = computeSingleAggregate(key, values);
-  }
-  return params.result;
 }
 
 // ── Runner ──────────────────────────────────────────────────────────
 
 const DEFAULT_PATTERN = '*';
 
-function createPropsMemo(graph: QueryGraph): PropsFetcher {
+function createPropsMemo(readModel: QueryReadModel): PropsFetcher {
   const memo = new Map<string, QueryPropertyBag>();
   return async (nodeId: string) => {
     const cached = memo.get(nodeId);
     if (cached !== undefined) { return cached; }
-    const raw = await graph.getNodeProps(nodeId);
+    const raw = await readModel.nodeProps(nodeId);
     const record = raw ?? {};
     memo.set(nodeId, record);
     return record;
   };
 }
 
-export default class QueryRunner {
-  private readonly _graph: QueryGraph;
+function isSingleExactPattern(pattern: string | readonly string[]): boolean {
+  return typeof pattern === 'string' && !pattern.includes('*');
+}
 
-  constructor(graph: QueryGraph) {
-    this._graph = graph;
+async function collectInitialStrand(
+  readModel: QueryReadModel,
+  request: QueryNodeStreamRequest,
+): Promise<string[]> {
+  const strand: string[] = [];
+  const nodes: AsyncIterable<QueryNodeSnapshot> = readModel.nodes(request);
+  for await (const node of nodes) {
+    strand.push(node.id);
+    if (isSingleExactPattern(request.pattern)) {
+      break;
+    }
+  }
+  return sortIds(strand);
+}
+
+export default class QueryRunner {
+  readonly #provider: QueryReadModelProvider;
+
+  constructor(provider: QueryReadModelProvider) {
+    this.#provider = provider;
   }
 
   async run(plan: QueryPlan): Promise<QueryResult | AggregateResult> {
-    const materialized = await this._graph._materializeGraph();
-    const { adjacency } = materialized;
-    const stateHash = requireStateHash(materialized.stateHash);
-    const getProps = createPropsMemo(this._graph);
-
-    const pattern = plan.pattern ?? DEFAULT_PATTERN;
-    const allNodes = sortIds(await this._graph.getNodes());
-    const matched = allNodes.filter((id) => matchGlob(pattern, id));
-    const strand = await applyOperations({ strand: matched, operations: plan.operations, adjacency, getProps });
+    const readModel = await this.#provider.openQueryReadModel();
+    const getProps = createPropsMemo(readModel);
+    const selectFields = validateSelectFields(plan.select);
+    const request: QueryNodeStreamRequest = {
+      pattern: plan.pattern ?? DEFAULT_PATTERN,
+      select: plan.select,
+    };
+    const matched = await collectInitialStrand(readModel, request);
+    const strand = await applyOperations({
+      strand: matched,
+      operations: plan.operations,
+      readModel,
+    });
 
     if (plan.aggregate) {
-      return await runAggregate({ strand, stateHash, getProps, spec: plan.aggregate });
+      return await runAggregate({
+        strand,
+        stateHash: readModel.stateHash,
+        getProps,
+        spec: plan.aggregate,
+      });
     }
 
-    const selectFields = validateSelectFields(plan.select);
     const nodes = await buildResultNodes(strand, selectFields, getProps);
-    return { stateHash, nodes };
+    return { stateHash: readModel.stateHash, nodes };
   }
 }

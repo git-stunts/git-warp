@@ -1,6 +1,6 @@
 # 0105 RuntimeHost Query Read Model Seam
 
-- Status: `RED`
+- Status: `GREEN`
 - Release lane: `v17.0.0`
 - Source: `SLUDGE_runtimehost-controller-port-seam-one`
 - Design role: narrow seam extraction design
@@ -469,6 +469,55 @@ GREEN should make the smallest seam change:
 
 This is not a RuntimeHost rewrite. It is one pipe cut.
 
+## GREEN Witness
+
+Implementation summary:
+
+- Added the query-owned `QueryReadModelProvider` / `QueryReadModel`
+  seam under `src/domain/services/query/`.
+- Replaced `QueryRunner.QueryGraph` with the narrow
+  `QueryReadModelProvider` constructor dependency.
+- `QueryRunner` no longer calls `_materializeGraph`, no longer accepts a
+  graph-shaped host, no longer depends on `getEdges()`, and no longer
+  requires a full adjacency map or full node list as its contract.
+- `QueryRunner` consumes `nodes(...)`, `neighbors(...)`, and
+  `nodeProps(...)` from the read model and explicitly supports bounded
+  lazy node-stream consumption for exact-match id-only queries.
+- Added a state-backed query read model that streams from live OR-Set
+  entries and resolves neighbors/properties on demand without building
+  a full adjacency map for the query runner.
+- `Observer` remains the semantic read-perspective owner. Its
+  `query()` path constructs `QueryBuilder` through
+  `queryReadModelProvider()` rather than passing the whole observer as
+  the runner dependency.
+- `QueryController.query()` now builds graph-level sugar through a
+  default observer/read-perspective provider instead of passing
+  `host(this)` directly to `QueryBuilder`.
+- `Worldline.query()` delegates through the observer-backed read model
+  provider seam.
+- No `RuntimeHost` rewrite, package-root export change, generic
+  `RuntimePort`, `RuntimeFacade`, `GraphPort`, manager, helper landfill,
+  0096 work, or hook work was introduced.
+
+Public API notes:
+
+- `graph.query()`, `observer.query()`, `worldline.query()`, and
+  `QueryBuilder` fluent methods remain public behavior.
+- Direct `new QueryBuilder(...)` now requires an explicit
+  `QueryReadModelProvider` dependency. This is an intentional DI
+  correction: constructors establish required dependencies.
+- No package-root exports were added for the internal query read-model
+  seam.
+
+Boundary note:
+
+0105 removes the full-materialization assumption from `QueryRunner`.
+It does not claim the storage layer is fully holographic yet. The live
+provider still opens a read model from the current runtime state source;
+the important GREEN boundary is that query execution no longer depends
+on a full graph/adjacency/node-list contract and can consume a lazy read
+model without draining it for bounded queries.
+
 ## Out Of Scope
 
 - No `RuntimeHost` mega-rewrite.
@@ -485,7 +534,7 @@ This is not a RuntimeHost rewrite. It is one pipe cut.
   query read-model provider boundary needed for this seam.
 - No `DetachedGraphFactory` redesign.
 - No package-root export changes.
-- No production edits during PULL.
+- No production edits outside the query read-model seam.
 
 ## Playback Questions
 
@@ -513,14 +562,46 @@ This is not a RuntimeHost rewrite. It is one pipe cut.
 
 ## Validation
 
-Required validation for this RED:
+Required validation for GREEN:
 
 ```sh
 npx vitest run test/conformance/queryReadModelSeam.test.ts
-npx eslint test/conformance/queryReadModelSeam.test.ts
+npx vitest run test/unit/domain/WarpGraph.queryBuilder.test.ts test/unit/domain/WarpGraph.queryBuilder.compass.test.ts test/integration/api/querybuilder.test.ts test/unit/domain/services/controllers/QueryController.test.ts
+npm run typecheck
+npm run lint:sludge
+npx eslint src/domain/services/query/QueryRunner.ts src/domain/services/query/QueryBuilder.ts src/domain/services/query/Observer.ts src/domain/services/controllers/QueryController.ts test/conformance/queryReadModelSeam.test.ts
+npx eslint src/domain/services/query/QueryReadModelProvider.ts src/domain/services/query/StateQueryReadModel.ts src/domain/services/query/LiveQueryReadModelProvider.ts src/domain/services/query/QueryAggregation.ts src/domain/services/Worldline.ts
+rg -n "as unknown as|as any|\\bany\\b|\\bunknown\\b|Record<string, unknown>|\\bFunction\\b|Readonly<Uint8Array>|ReadonlySet|globalThis\\.Set|Object\\.create|\\bProxy\\b|JSON\\.parse|JSON\\.stringify|[A-Za-z0-9_]+Like\\b" \
+  src/domain/services/query/QueryRunner.ts \
+  src/domain/services/query/QueryBuilder.ts \
+  src/domain/services/query/Observer.ts \
+  src/domain/services/query/QueryReadModelProvider.ts \
+  src/domain/services/query/StateQueryReadModel.ts \
+  src/domain/services/query/LiveQueryReadModelProvider.ts \
+  src/domain/services/query/QueryAggregation.ts \
+  src/domain/services/controllers/QueryController.ts \
+  src/domain/services/Worldline.ts \
+  test/conformance/queryReadModelSeam.test.ts
 npx markdownlint docs/design/0105-runtimehost-query-materialization-port-seam.md
 git diff --check
 ```
+
+GREEN validation result:
+
+- `npx vitest run test/conformance/queryReadModelSeam.test.ts` passed.
+- Targeted query/controller runtime tests passed.
+- `npm run typecheck` passed.
+- `npm run lint:sludge` passed.
+- ESLint passed for the required seam files and new read-model files.
+- Manual policy scan of changed production seam and conformance files
+  found no checked banned-pattern matches.
+- A broader scan of `src/domain/services/query` still finds existing
+  traversal sludge in `LogicalTraversal.ts`, `TraversalContext.ts`, and
+  `traversalHelpers.ts`; that is deferred and not claimed clean by 0105.
+- `npx markdownlint
+  docs/design/0105-runtimehost-query-materialization-port-seam.md`
+  passed.
+- `git diff --check` passed.
 
 ## SLUDGE STRIKER SUMMARY
 
@@ -530,12 +611,12 @@ git diff --check
   Files: `src/domain/services/query/QueryRunner.ts`.
   Why it is sludge: `QueryRunner` calls `_materializeGraph`, making an
   internal RuntimeHost method part of the query execution contract.
-  Status: designed, not fixed.
+  Status: fixed.
 - Pattern: over-broad query runner dependency.
   Files: `src/domain/services/query/QueryRunner.ts`.
   Why it is sludge: `QueryGraph` includes `getEdges()` even though the
   runner does not use it.
-  Status: designed, not fixed.
+  Status: fixed.
 - Pattern: query ownership bypass.
   Files: `src/domain/services/query/QueryRunner.ts`,
   `src/domain/services/controllers/QueryController.ts`,
@@ -543,7 +624,8 @@ git diff --check
   Why it is sludge: graph-level query construction can skip the
   observer/read perspective and feed RuntimeHost-shaped dependencies to
   query execution.
-  Status: rejected in design.
+  Status: fixed for `QueryRunner`; other RuntimeHost materialization
+  seams remain out of scope.
 - Pattern: renamed full-materialization seam.
   Files: `src/domain/services/query/QueryRunner.ts`.
   Why it is sludge: returning a full adjacency map or full node list
@@ -571,8 +653,17 @@ git diff --check
 
 ### 2. Sludge Fixed
 
-No production sludge was fixed. This PULL only names the first seam and
-the smallest honest design target.
+- Replaced `QueryRunner.QueryGraph` with `QueryReadModelProvider`.
+- Replaced `QueryRunner` `_materializeGraph()` dependency with
+  `openQueryReadModel()`.
+- Replaced query runner full-adjacency traversal with on-demand
+  `neighbors(...)`.
+- Replaced full node-list query runner initialization with
+  `nodes(...)` streaming consumption.
+- Replaced `QueryController.query()` passing `host(this)` into
+  `QueryBuilder` with default Observer/read-perspective sugar.
+- Replaced `Observer.query()` passing the whole observer directly into
+  `QueryBuilder` with the narrow provider-returning seam.
 
 ### 3. Sludge Rejected
 
@@ -598,19 +689,41 @@ the smallest honest design target.
 - Other `_materializeGraph` seams remain deferred.
 - `LogicalTraversal` still uses a broad traversal graph with unknown
   materialization state.
+- `TraversalContext.ts` and `traversalHelpers.ts` still contain
+  `unknown` / `Record<string, unknown>` traversal boundary checks.
 - Broad `Observer` and `Worldline` materialization repairs remain
   outside this slice.
+- `test/unit/domain/WarpGraph.queryBuilder.test.ts` still contains
+  pre-existing `any` / `as any` test scaffolding and one deterministic
+  `JSON.stringify` assertion; 0105 changed only stale clone fallback
+  expectations in that file.
 - Broader RuntimeHost host-bag sludge remains tracked by the 0104 survey
   and existing backlog cards.
 
 ### 5. Anti-Sludge Checks Actually Run
 
-PULL inspection commands read the named source, test, and design files.
-Validation commands are recorded by the final turn after this document is
-linted.
+- `npx vitest run test/conformance/queryReadModelSeam.test.ts`
+  passed.
+- `npx vitest run test/unit/domain/WarpGraph.queryBuilder.test.ts
+  test/unit/domain/WarpGraph.queryBuilder.compass.test.ts
+  test/integration/api/querybuilder.test.ts
+  test/unit/domain/services/controllers/QueryController.test.ts`
+  passed.
+- `npm run typecheck` passed.
+- `npm run lint:sludge` passed.
+- ESLint passed for the touched query seam files, new read-model files,
+  `Worldline.ts`, `QueryController.ts`, and the conformance RED file.
+- Manual policy scan of changed production seam and conformance files
+  found no checked banned-pattern matches.
+- `npx markdownlint
+  docs/design/0105-runtimehost-query-materialization-port-seam.md`
+  passed.
+- `git diff --check` passed.
 
 ### 6. Remaining Risk
 
-Remaining risk: this is only a PULL design. The hidden RuntimeHost seam
-still exists in production code until a later RED/GREEN cycle removes it
-from `QueryRunner`.
+Remaining risk: 0105 removes the RuntimeHost/full-materialization
+contract from `QueryRunner`, but deeper storage and traversal layers
+still contain broad materialization seams. The live query provider opens
+from the current runtime state source; it is not yet proof that every
+storage path is holographic or cursor-native.

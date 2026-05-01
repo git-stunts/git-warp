@@ -1,17 +1,29 @@
 /**
- * QueryBuilder — fluent query accumulator for materialized WARP state.
+ * QueryBuilder — fluent query accumulator for a query read model.
  *
  * Pure accumulator: builder methods accumulate query state into a
  * QueryPlan, then run() delegates execution to QueryRunner.
  */
 
 import QueryError from '../../errors/QueryError.ts';
+import ImmutableBytes from '../snapshot/ImmutableBytes.ts';
+import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
+import type { AggregateResult } from './QueryAggregation.ts';
 import QueryPlan, { type AggregateSpec, type QueryNodeSnapshot, type QueryOperation } from './QueryPlan.ts';
-import QueryRunner, { type QueryGraph, type QueryResult, type AggregateResult } from './QueryRunner.ts';
+import QueryRunner, { type QueryResult } from './QueryRunner.ts';
+import type { QueryReadModelProvider } from './QueryReadModelProvider.ts';
 
 const DEFAULT_PATTERN = '*';
 
-function assertMatchPattern(pattern: unknown): void {
+type NumericAggregateKey = 'sum' | 'avg' | 'min' | 'max';
+
+const NUMERIC_AGGREGATE_KEYS: readonly NumericAggregateKey[] = ['sum', 'avg', 'min', 'max'];
+
+type QueryWhereObject = Readonly<{ [key: string]: SnapshotPropValue }>;
+type QueryWhereCandidate = ((node: QueryNodeSnapshot) => boolean) | SnapshotPropValue;
+type QueryPrimitive = string | number | boolean | null;
+
+function assertMatchPattern(pattern: string | string[]): void {
   const isString = typeof pattern === 'string';
   const isStringArray = Array.isArray(pattern) && pattern.every((p) => typeof p === 'string');
   if (!isString && !isStringArray) {
@@ -22,24 +34,49 @@ function assertMatchPattern(pattern: unknown): void {
   }
 }
 
-function assertPredicate(fn: unknown): void {
-  if (typeof fn !== 'function' && !isPlainObject(fn)) {
-    throw new QueryError('where() expects a predicate function or object', {
-      code: 'E_QUERY_WHERE_TYPE',
-      context: { receivedType: typeof fn },
+function createPredicate(fn: QueryWhereCandidate): (node: QueryNodeSnapshot) => boolean {
+  if (isQueryWhereObject(fn)) {
+    return objectToPredicate(fn);
+  }
+  if (typeof fn === 'function') {
+    return fn;
+  }
+
+  throw new QueryError('where() expects a predicate function or object', {
+    code: 'E_QUERY_WHERE_TYPE',
+    context: { receivedType: typeof fn },
+  });
+}
+
+function isQueryWhereObject(value: QueryWhereCandidate): value is QueryWhereObject {
+  return value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    !(value instanceof ImmutableBytes);
+}
+
+function assertAggregateSpec(spec: AggregateSpec): void {
+  if (
+    spec === null ||
+    typeof spec !== 'object' ||
+    Array.isArray(spec) ||
+    spec instanceof ImmutableBytes
+  ) {
+    throw new QueryError('aggregate() expects an object', {
+      code: 'E_QUERY_AGGREGATE_TYPE',
+      context: { receivedType: typeof spec },
     });
   }
 }
 
-function isPlainObject(value: unknown): boolean {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+function isPrimitive(value: SnapshotPropValue): value is QueryPrimitive {
+  return value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean';
 }
 
-function isPrimitive(value: unknown): boolean {
-  return value === null || (typeof value !== 'object' && typeof value !== 'function');
-}
-
-function objectToPredicate(obj: Record<string, unknown>): (node: QueryNodeSnapshot) => boolean {
+function objectToPredicate(obj: QueryWhereObject): (node: QueryNodeSnapshot) => boolean {
   const entries = Object.entries(obj);
   for (const [key, value] of entries) {
     if (!isPrimitive(value)) {
@@ -60,7 +97,7 @@ function objectToPredicate(obj: Record<string, unknown>): (node: QueryNodeSnapsh
   };
 }
 
-function assertLabel(label: unknown): void {
+function assertLabel(label: string | undefined): void {
   if (label === undefined) { return; }
   if (typeof label !== 'string') {
     throw new QueryError('label must be a string', {
@@ -110,14 +147,14 @@ function normalizeDepth(depth: number | [number, number] | undefined): [number, 
  * execution to QueryRunner via run().
  */
 export default class QueryBuilder {
-  private readonly _graph: QueryGraph;
+  private readonly _provider: QueryReadModelProvider;
   private _pattern: string | string[] | null;
   private readonly _operations: QueryOperation[];
   private _select: string[] | null;
   private _aggregate: AggregateSpec | null;
 
-  constructor(graph: QueryGraph) {
-    this._graph = graph;
+  constructor(provider: QueryReadModelProvider) {
+    this._provider = provider;
     this._pattern = null;
     this._operations = [];
     this._select = null;
@@ -130,11 +167,8 @@ export default class QueryBuilder {
     return this;
   }
 
-  where(fn: ((node: QueryNodeSnapshot) => boolean) | Record<string, unknown>): QueryBuilder {
-    assertPredicate(fn);
-    const predicate = isPlainObject(fn)
-      ? objectToPredicate(fn as Record<string, unknown>)
-      : fn as (node: QueryNodeSnapshot) => boolean;
+  where(fn: QueryWhereCandidate): QueryBuilder {
+    const predicate = createPredicate(fn);
     this._operations.push({ type: 'where', fn: predicate });
     return this;
   }
@@ -184,19 +218,13 @@ export default class QueryBuilder {
   }
 
   aggregate(spec: AggregateSpec): QueryBuilder {
-    if (!isPlainObject(spec)) {
-      throw new QueryError('aggregate() expects an object', {
-        code: 'E_QUERY_AGGREGATE_TYPE',
-        context: { receivedType: typeof spec },
-      });
-    }
-    const numericKeys = ['sum', 'avg', 'min', 'max'] as const;
-    const specAny = spec as Record<string, unknown>;
-    for (const key of numericKeys) {
-      if (specAny[key] !== undefined && typeof specAny[key] !== 'string') {
+    assertAggregateSpec(spec);
+    for (const key of NUMERIC_AGGREGATE_KEYS) {
+      const value = spec[key];
+      if (value !== undefined && typeof value !== 'string') {
         throw new QueryError(`aggregate() expects ${key} to be a string path`, {
           code: 'E_QUERY_AGGREGATE_TYPE',
-          context: { key, receivedType: typeof specAny[key] },
+          context: { key, receivedType: typeof value },
         });
       }
     }
@@ -217,7 +245,7 @@ export default class QueryBuilder {
       select: this._select,
       aggregate: this._aggregate,
     });
-    const runner = new QueryRunner(this._graph);
+    const runner = new QueryRunner(this._provider);
     return await runner.run(plan);
   }
 }

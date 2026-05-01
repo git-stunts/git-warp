@@ -13,6 +13,10 @@ import type Observer from './query/Observer.ts';
 import LogicalTraversal from './query/LogicalTraversal.ts';
 import QueryBuilder from './query/QueryBuilder.ts';
 import QueryError from '../errors/QueryError.ts';
+import type {
+  QueryReadModel,
+  QueryReadModelProvider,
+} from './query/QueryReadModelProvider.ts';
 
 type AdjacencyEntry = { neighborId: string; label: string };
 type VisibleNodeProps = NonNullable<Awaited<ReturnType<Observer['getNodeProps']>>>;
@@ -27,7 +31,7 @@ type WorldlineMaterializedGraph = {
     incoming: Map<string, AdjacencyEntry[]>;
   };
 };
-type WorldlineMaterializedDelegate = Pick<Observer, 'hasNode' | 'getNodes' | 'getNodeProps' | 'getEdges'> & {
+type WorldlineMaterializedDelegate = Pick<Observer, 'hasNode' | 'getNodes' | 'getNodeProps' | 'getEdges' | 'openQueryReadModel'> & {
   _materializeGraph(): Promise<WorldlineMaterializedGraph>;
 };
 type WorldlineObserverFactory = {
@@ -298,8 +302,16 @@ export default class Worldline {
     return await (await this._delegateObserver()).getEdges();
   }
 
+  queryReadModelProvider(): QueryReadModelProvider {
+    return this;
+  }
+
+  async openQueryReadModel(): Promise<QueryReadModel> {
+    return await (await this._delegateObserver()).openQueryReadModel();
+  }
+
   query(): QueryBuilder {
-    return new QueryBuilder(this);
+    return new QueryBuilder(this.queryReadModelProvider());
   }
 
   async observer(config: Aperture): Promise<Observer>;

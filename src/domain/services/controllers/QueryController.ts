@@ -6,7 +6,7 @@
  */
 
 import { cloneState } from '../JoinReducer.ts';
-import QueryBuilder from '../query/QueryBuilder.ts';
+import LiveQueryReadModelProvider from '../query/LiveQueryReadModelProvider.ts';
 import Observer from '../query/Observer.ts';
 import Worldline from '../Worldline.ts';
 import { computeTranslationCost } from '../TranslationCost.ts';
@@ -21,6 +21,7 @@ import type DetachedGraphFactory from '../../capabilities/DetachedGraphFactory.t
 import type QueryCapability from '../../capabilities/QueryCapability.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { MaterializedReadGraph, QueryContentHost, QueryReadHost } from './ReadGraphHost.ts';
+import type { QueryReadModelProvider } from '../query/QueryReadModelProvider.ts';
 
 import {
   hasNodeImpl, getNodePropsImpl, getEdgePropsImpl, neighborsImpl,
@@ -164,11 +165,27 @@ type NormalizedObserverArgs = {
   options: ObserverOptions | undefined;
 };
 
+function isObserverConfig(value: ObserverConfig | ObserverOptions | undefined): value is ObserverConfig {
+  return value !== undefined && 'match' in value;
+}
+
+function observerOptions(value: ObserverConfig | ObserverOptions | undefined): ObserverOptions | undefined {
+  return isObserverConfig(value) ? undefined : value;
+}
+
 function normalizeObserverArgs(nameOrConfig: string | ObserverConfig, configOrOptions?: ObserverConfig | ObserverOptions, maybeOptions?: ObserverOptions): NormalizedObserverArgs {
   if (typeof nameOrConfig === 'string') {
-    return { name: nameOrConfig, config: configOrOptions as ObserverConfig | undefined, options: maybeOptions };
+    return {
+      name: nameOrConfig,
+      config: isObserverConfig(configOrOptions) ? configOrOptions : undefined,
+      options: maybeOptions,
+    };
   }
-  return { name: 'observer', config: nameOrConfig, options: configOrOptions as ObserverOptions | undefined };
+  return {
+    name: 'observer',
+    config: nameOrConfig,
+    options: observerOptions(configOrOptions),
+  };
 }
 
 function isValidMatch(m: string | string[]): boolean {
@@ -222,6 +239,16 @@ function snapshotDeps(ctrl: QueryController): QueryControllerDeps {
   };
 }
 
+function defaultQueryReadModelProvider(ctrl: QueryController): QueryReadModelProvider {
+  const h = host(ctrl);
+  return new LiveQueryReadModelProvider({
+    ensureFreshState: async () => { await h._ensureFreshState(); },
+    currentState: () => h._cachedState,
+    stateHash: ctrl._hashState,
+    neighborProvider: () => h._materializedGraph?.provider ?? null,
+  });
+}
+
 /**
  * CallableFunction is the least-information return shape for a
  * dispatch wrapper — the actual per-method types live on the
@@ -262,7 +289,13 @@ wireEdge('getEdgeContent', getEdgeContentImpl);
 wireEdge('getEdgeContentStream', getEdgeContentStreamImpl);
 
 // Factory methods
-wire('query', function (this: QueryController) { return new QueryBuilder(host(this)); });
+wire('query', function (this: QueryController) {
+  return new Observer({
+    name: 'observer',
+    config: { match: '*' },
+    readModelProvider: defaultQueryReadModelProvider(this),
+  }).query();
+});
 wire('worldline', function (this: QueryController, options?: ObserverOptions) {
   return new Worldline({
     graph: host(this),
@@ -290,5 +323,11 @@ wire('observer', async function (this: QueryController, nameOrConfig: string | O
 wire('translationCost', async function (this: QueryController, configA: ObserverConfig, configB: ObserverConfig) {
   const h = host(this);
   await h._ensureFreshState();
-  return computeTranslationCost(configA, configB, h._cachedState as WarpState);
+  const state = h._cachedState;
+  if (state === null) {
+    throw new QueryError('translation cost requires current graph state', {
+      code: 'E_QUERY_TRANSLATION_COST_STATE',
+    });
+  }
+  return computeTranslationCost(configA, configB, state);
 });

@@ -323,11 +323,11 @@ describe('WarpCore QueryBuilder', () => {
     expect(Object.isFrozen(result.nodes[0].props.meta)).toBe(true);
   });
 
-  it('falls back to JSON cloning when structuredClone throws', async () => {
+  it('freezes nested props when structuredClone is unavailable', async () => {
     const originalStructuredClone = globalThis.structuredClone;
     const meta = { nested: { score: 7 } };
     globalThis.structuredClone = () => {
-      throw new Error('force json clone');
+      throw new Error('force structuredClone failure');
     };
 
     try {
@@ -344,16 +344,13 @@ describe('WarpCore QueryBuilder', () => {
     }
   });
 
-  it('returns the original object when all clone strategies fail', async () => {
+  it('returns frozen snapshot props without JSON clone fallback', async () => {
     const originalStructuredClone = globalThis.structuredClone;
     const meta = {
       value: 7,
     };
     const originalPropertyReader = graph._propertyReader;
     const originalLogicalIndex = graph._logicalIndex;
-    const stringifySpy = vi.spyOn(JSON, 'stringify').mockImplementation(() => {
-      throw new Error('force json fallback failure');
-    });
     globalThis.structuredClone = () => {
       throw new Error('force fallback');
     };
@@ -367,14 +364,12 @@ describe('WarpCore QueryBuilder', () => {
       graph._logicalIndex = null;
 
       const result = await graph.query().match('user:alice').select(['props']).run();
-      expect(JSON.stringify).toHaveBeenCalled();
       expect(result.nodes[0].props.meta).toEqual(meta);
       expect(Object.isFrozen(result.nodes[0].props.meta)).toBe(true);
     } finally {
       globalThis.structuredClone = originalStructuredClone;
       graph._propertyReader = originalPropertyReader;
       graph._logicalIndex = originalLogicalIndex;
-      stringifySpy.mockRestore();
     }
   });
 
