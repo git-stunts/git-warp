@@ -85,10 +85,13 @@ Concrete blockers before release/tag:
    The concrete fixture at `/Users/james/.think/codex` can be opened and
    queried on this machine, but graph-level `graph.query()` still opens
    a state-backed read model by forcing `_ensureFreshState()` and
-   `_materializeGraph()`. v17 cannot claim the v16 full-buffering
-   blocker is fixed until that default query-provider path is repaired,
-   or the release notes explicitly narrow the claim to streaming
-   groundwork.
+   `_materializeGraph()`. 0110 proved the default query-provider path
+   cannot honestly be made GREEN with the current live sources: the
+   fixture's index-tree checkpoint is stale relative to the live writer
+   ref, and no live-tail bounded query/checksum source exists. v17
+   cannot claim the v16 full-buffering blocker is fixed unless that
+   substrate is added, or the release notes explicitly narrow the claim
+   to streaming groundwork.
 2. Release/API notes are not confirmed complete.
    Public-facing changes from the recent workstream must be explained,
    including snapshot public return/input types and any intentional direct
@@ -134,8 +137,8 @@ instead of becoming release scope.
 
 v17 has three concrete blockers before release/tag:
 
-1. Repair the default graph query-provider path that still reproduces
-   full-residency behavior, or narrow the release claim.
+1. Add an honest live-tail bounded query/checksum substrate behind the
+   default graph query provider, or narrow the release claim.
 2. Complete release/API notes.
 3. Run full release validation, including `npm run release:preflight`.
 

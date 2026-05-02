@@ -1,6 +1,6 @@
 # 0110 Graph Query Bounded Read Model Provider
 
-- Status: `RED`
+- Status: `GREEN blocked`
 - Release lane: `v17.0.0`
 - Source: `v17_graph-query-bounded-read-model-provider`
 - Design role: focused release-blocker repair
@@ -117,6 +117,56 @@ yet, GREEN is blocked. The correct outcome would be to narrow the v17
 release claim to streaming groundwork rather than pretending the
 buffering blocker is fixed.
 
+## GREEN Blocked Witness
+
+GREEN was attempted only as source and fixture inspection. No production
+code was changed.
+
+An honest bounded source exists only for a checkpoint coordinate when
+the checkpoint is current. The concrete fixture does have a schema `4`
+index-tree checkpoint:
+
+```txt
+checkpoint: 45340a46124aac7d3c9b6aba08532f21691bf718
+stateHash: f474464f054ca0ab49d119925f5d1670e58b7076d4e2471e060555060b5cc3a6
+indexShardCount: 1026
+```
+
+But that checkpoint is stale relative to the live writer ref:
+
+```txt
+writer: local.jamess-macbook-pro-2.local.cli
+checkpoint frontier tip: 17112a1deabdd03250a9fd316871d0b13c8eed58
+current writer tip: 45cd79ce492eac71d391a69704917c1c26744fbd
+matches: false
+```
+
+Therefore a checkpoint-index-backed provider would be honest only for a
+checkpoint-scoped read, not for live `graph.query()`.
+
+The current `QueryReadModel` contract also requires synchronous
+`stateHash: string` on the read model. For a stale checkpoint plus live
+tail, an honest live `stateHash` requires either:
+
+- applying and hashing the tail against the checkpoint state, which
+  re-enters full-state residency today; or
+- introducing a real incremental live query/checksum source that can
+  account for the tail without loading the full state.
+
+Neither source exists in the current implementation. Returning the
+checkpoint hash for live `graph.query()` would be a public API lie.
+Returning a made-up query-scope hash would also be a public API lie.
+
+Decision: 0110 is GREEN blocked.
+
+The release has two honest options:
+
+1. Add a deeper, explicit live-tail bounded query/checksum substrate
+   before claiming the v16 buffering blocker is fixed.
+2. Narrow the v17 claim to TypeScript plus streaming/bounded-query
+   groundwork, and state that live large-graph query bounded residency
+   remains future work.
+
 ## SLUDGE STRIKER SUMMARY
 
 ### 1. Sludge Encountered
@@ -128,13 +178,28 @@ buffering blocker is fixed.
   Why it is sludge: the public `graph.query()` path full-materializes
   before the query read model opens, even for bounded exact-id/id-only
   queries.
-  Status: fenced by RED.
+  Status: fenced by RED; GREEN blocked.
+- Pattern: stale checkpoint-index temptation.
+  Files: `/Users/james/.think/codex`, `src/domain/services/state/checkpointLoad.ts`,
+  `src/domain/services/MaterializedViewService.ts`.
+  Why it is sludge: the fixture has an index-tree checkpoint, but the
+  live writer ref is ahead of the checkpoint frontier. Using the
+  checkpoint index for live `graph.query()` would ignore the tail.
+  Status: rejected.
+- Pattern: fake `stateHash` pressure.
+  Files: `src/domain/services/query/QueryReadModelProvider.ts`.
+  Why it is sludge: the read model requires `stateHash: string`; a
+  bounded live provider cannot honestly populate that for a stale
+  checkpoint without a real live-tail checksum source.
+  Status: rejected.
 
 ### 2. Sludge Fixed
 
 - No production sludge fixed yet.
 - Added a focused RED that proves the exact seam instead of opening a
   broad RuntimeHost cleanup.
+- Added a GREEN-blocked witness that prevents a partial empty-graph fix
+  from being mistaken for the large-graph buffering repair.
 
 ### 3. Sludge Rejected
 
@@ -143,6 +208,11 @@ buffering blocker is fixed.
 - Rejected query-language redesign.
 - Rejected treating 0105's `QueryRunner` streaming shape as sufficient
   proof for the graph-level provider.
+- Rejected returning a checkpoint `stateHash` for a live query when the
+  checkpoint frontier is stale.
+- Rejected inventing a query-scope hash to satisfy the test shape.
+- Rejected passing the RED only for empty graphs while the concrete
+  fixture still lacks an honest live bounded source.
 
 ### 4. Sludge Deferred / Tracked
 
@@ -150,6 +220,8 @@ buffering blocker is fixed.
 - CLI `materialize` disposable-copy Git failure remains outside this
   cycle.
 - Observer/worldline source materialization remains outside this cycle.
+- Live-tail bounded query and checksum substrate remains the real
+  blocker if v17 keeps the full buffering-fix claim.
 
 ### 5. Anti-Sludge Checks Actually Run
 
@@ -163,9 +235,15 @@ buffering blocker is fixed.
 - `npx markdownlint
   docs/design/0110-graph-query-bounded-read-model-provider.md` passed.
 - `git diff --check` passed.
+- Inspected checkpoint metadata for `/Users/james/.think/codex` without
+  loading checkpoint `state.cbor`.
+- Confirmed fixture checkpoint schema `4` has index shards.
+- Confirmed fixture checkpoint frontier does not match the live writer
+  ref.
 
 ### 6. Remaining Risk
 
-Remaining risk: the RED may prove that no existing bounded storage/index
-source can honestly answer the query. If so, the cycle should stop as
-GREEN blocked rather than fake bounded reads.
+Remaining risk: v17 still cannot honestly claim live large-graph
+bounded-residency `graph.query()` behavior. The exact next blocker is no
+longer the default provider alone; it is the absence of an honest
+live-tail bounded query/checksum source behind that provider.
