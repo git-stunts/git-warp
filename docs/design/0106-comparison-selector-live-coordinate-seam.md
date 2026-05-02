@@ -1,6 +1,6 @@
 # 0106 Comparison Selector Coordinate-Backed Side Seam
 
-- Status: `GREEN`
+- Status: `hill met`
 - Release lane: `v17.0.0`
 - Source: `SLUDGE_comparison-selector-live-coordinate-seam`
 - Design role: narrow seam extraction design
@@ -695,7 +695,117 @@ Results:
 - `npm run typecheck` passed.
 - `npm run lint:sludge` passed.
 - ESLint on touched TypeScript files passed.
-- Markdownlint and diff hygiene must pass after this GREEN witness edit.
+- Markdownlint and diff hygiene passed during GREEN correction and will be
+  rerun for closeout.
+
+## Playback Witness
+
+0106 passes Playback for the corrected coordinate-backed comparison side
+seam.
+
+Playback answers:
+
+- 0106 fixed the coordinate-backed comparison side seam for
+  `LiveComparisonSelector`, `CoordinateComparisonSelector`, and
+  `StrandBaseComparisonSelector`.
+- 0106 did not fix full `StrandComparisonSelector` overlay
+  materialization.
+- 0106 did not fix transfer planning host dependencies.
+- 0106 did not clean all of `ComparisonSelector.ts`.
+- 0106 did not clean `RuntimeHost`.
+- 0106 did not establish v17 release readiness.
+- Public comparison APIs stayed stable.
+- Package-root exports were not changed.
+- `ComparisonController.test.ts` was made green by modeling the narrow
+  coordinate-backed side seam, not by adding `_materializeCoordinateGraph`
+  to the fixture.
+- `HostBackedComparisonCoordinateSideReader` now performs constructor
+  validation for its host-backed runtime capabilities. Compile-time type
+  tightening alone was rejected as RAII theater.
+
+Playback evidence:
+
+```sh
+npx vitest run test/conformance/comparisonLiveCoordinateSeam.test.ts
+npx vitest run test/unit/domain/services/controllers/ComparisonController.test.ts
+npm run typecheck
+npm run lint:sludge
+npx eslint src/domain/RuntimeHost.ts src/domain/services/controllers/ComparisonController.ts src/domain/services/controllers/ComparisonEngine.ts src/domain/services/controllers/ComparisonSelector.ts src/domain/services/controllers/ComparisonCoordinateSideReadPort.ts src/domain/services/controllers/ComparisonSideFinalizerPort.ts src/domain/services/controllers/HostBackedComparisonCoordinateSideReader.ts src/domain/services/controllers/HostBackedComparisonSideFinalizer.ts test/unit/domain/services/controllers/ComparisonController.test.ts
+npx markdownlint docs/design/0106-comparison-selector-live-coordinate-seam.md
+git diff --check
+```
+
+All listed GREEN-correction validations passed before closeout.
+
+## Drift Check
+
+0106 drifted once and corrected the drift before GREEN.
+
+The original phrase `live/coordinate selector resolution` was too narrow
+because `StrandBaseComparisonSelector` resolves a coordinate-backed base
+side. The scope was corrected to `coordinate-backed comparison side
+resolution`, which includes live, coordinate, and strand-base side
+resolution while still excluding full strand overlay materialization.
+
+Drift answers:
+
+- Stayed within the corrected coordinate-backed comparison side hill:
+  yes.
+- Avoided production implementation changes during closeout: yes.
+- Avoided package export carpet: yes.
+- Avoided public comparison API changes: yes.
+- Avoided full strand overlay materialization: yes.
+- Avoided transfer planning cleanup: yes.
+- Avoided broad `RuntimeHost` cleanup: yes.
+- Avoided 0096 and hook work: yes.
+- Avoided claiming all comparison sludge is fixed: yes.
+- Preserved the known helper debt in `ComparisonSelector.ts` as named
+  follow-up instead of hiding it: yes.
+
+Remaining drift risk is not in the closed slice. The risk is process
+drift: continuing to pull more cleanup seams as if cleanup itself were
+the product. That risk is deferred to the v17 reality-check cycle.
+
+## Retrospective
+
+Full retrospective:
+
+[docs/method/retros/0106-comparison-selector-live-coordinate-seam.md](../method/retros/0106-comparison-selector-live-coordinate-seam.md)
+
+Short retrospective:
+
+- What worked: RED separated accidental fixture drift from the real
+  architecture fence, and GREEN moved coordinate-backed selectors to an
+  explicit reader/finalizer seam.
+- What failed initially: the scope named selector classes instead of the
+  architectural seam, which incorrectly excluded strand-base behavior.
+- What was corrected: strand-base was included as coordinate-backed side
+  resolution, the no-op assertion was removed, the reader/finalizer ports
+  were split, and runtime constructor validation was added.
+- What remains: full strand overlay comparison, transfer planning host
+  dependencies, helper ownership in `ComparisonSelector.ts`, and broader
+  `RuntimeHost` gravity.
+
+## Cycle End
+
+0106 is hill met.
+
+The cycle ends with these bounded claims:
+
+- 0106 fixed the coordinate-backed comparison side seam.
+- 0106 did not fix full strand overlay comparison.
+- 0106 did not fix transfer planning host dependencies.
+- 0106 did not clean all of `ComparisonSelector.ts`.
+- 0106 did not clean `RuntimeHost`.
+- 0106 did not establish v17 release readiness.
+
+No production code was edited during closeout. No backlog cards were
+created or deleted during closeout. No 0096 work, hook work, package
+export work, release prep, or push happened during closeout.
+
+The next move is a doc-only v17 reality check. The goal is to decide what
+blocks shipping a trustworthy v17, not to pull another deslugging seam by
+default.
 
 ## SLUDGE STRIKER SUMMARY
 
