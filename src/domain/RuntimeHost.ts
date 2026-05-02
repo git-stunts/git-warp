@@ -24,6 +24,8 @@ import LRUCache from './utils/LRUCache.ts';
 import SyncController from './services/controllers/SyncController.ts';
 import StrandController from './services/controllers/StrandController.ts';
 import ComparisonController from './services/controllers/ComparisonController.ts';
+import HostBackedComparisonCoordinateSideReader from './services/controllers/HostBackedComparisonCoordinateSideReader.ts';
+import HostBackedComparisonSideFinalizer from './services/controllers/HostBackedComparisonSideFinalizer.ts';
 import SubscriptionController from './services/controllers/SubscriptionController.ts';
 import ProvenanceController from './services/controllers/ProvenanceController.ts';
 import ForkController from './services/controllers/ForkController.ts';
@@ -324,7 +326,14 @@ export default class RuntimeHost {
       ...(trustGate !== undefined ? { trustGate } : {}),
     });
     this._strandController = new StrandController(this);
-    this._comparisonController = new ComparisonController(this);
+    this._comparisonController = new ComparisonController({
+      host: this,
+      selectorContext: {
+        coordinateReader: new HostBackedComparisonCoordinateSideReader(this),
+        sideFinalizer: new HostBackedComparisonSideFinalizer(this),
+        strandGraph: this,
+      },
+    });
     this._subscriptionController = new SubscriptionController(this);
     this._provenanceController = new ProvenanceController(this);
     this._forkController = new ForkController(this);

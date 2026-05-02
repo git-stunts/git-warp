@@ -34,6 +34,7 @@ import type {
 import type Patch from '../../types/Patch.ts';
 import {
   type ComparisonHost,
+  type ComparisonSelectorContext,
   type PatchEntry,
   type NormalizedSelector,
   type ResolvedComparisonSide,
@@ -231,16 +232,17 @@ function extractComparisonInputs(options: CompareCoordinatesOptions): {
 
 export async function compareCoordinatesImpl(
   graph: ComparisonHost,
+  selectorContext: ComparisonSelectorContext,
   options: CompareCoordinatesOptions,
 ): Promise<CoordinateComparisonV1> {
   assertRequiredOptions(options, 'compareCoordinates()');
   const { normalizedLeft, normalizedRight, targetId, scope } = extractComparisonInputs(options);
 
   const liveFrontier = (normalizedLeft.kind === 'live' || normalizedRight.kind === 'live')
-    ? await graph.getFrontier()
+    ? await selectorContext.coordinateReader.liveFrontier()
     : null;
-  const left = await normalizedLeft.resolve(graph, scope, liveFrontier);
-  const right = await normalizedRight.resolve(graph, scope, liveFrontier);
+  const left = await normalizedLeft.resolve(selectorContext, scope, liveFrontier);
+  const right = await normalizedRight.resolve(selectorContext, scope, liveFrontier);
   const visiblePatchDivergence = buildPatchDivergenceImpl(left.patchEntries, right.patchEntries, targetId);
   const visibleState = compareVisibleState(left.state, right.state, { targetId });
 
@@ -266,6 +268,7 @@ export async function compareCoordinatesImpl(
 
 export async function compareStrandImpl(
   graph: ComparisonHost,
+  selectorContext: ComparisonSelectorContext,
   strandId: string,
   options: CompareStrandOptions = {},
 ): Promise<CoordinateComparisonV1> {
@@ -279,7 +282,7 @@ export async function compareStrandImpl(
   const left: CoordinateComparisonSelectorV1 = { kind: 'strand', strandId: normalizedStrandId, ceiling };
   const right = normalizeAgainstSelector(normalizedStrandId, options.against ?? 'base', againstCeiling);
 
-  return await compareCoordinatesImpl(graph, {
+  return await compareCoordinatesImpl(graph, selectorContext, {
     left,
     right,
     targetId,
@@ -323,6 +326,7 @@ async function finalizeTransferPlan(params: {
 
 export async function planCoordinateTransferImpl(
   graph: ComparisonHost,
+  selectorContext: ComparisonSelectorContext,
   options: PlanCoordinateTransferOptions,
 ): Promise<CoordinateTransferPlanV1> {
   assertRequiredOptions(options, 'planCoordinateTransfer()');
@@ -330,15 +334,15 @@ export async function planCoordinateTransferImpl(
   const normalizedTarget = normalizeSelector(options.target, 'target');
   const scope = normalizeVisibleStateScope(options.scope, 'scope');
   const liveFrontier = (normalizedSource.kind === 'live' || normalizedTarget.kind === 'live')
-    ? await graph.getFrontier()
+    ? await selectorContext.coordinateReader.liveFrontier()
     : null;
-  const comp = await compareCoordinatesImpl(graph, {
+  const comp = await compareCoordinatesImpl(graph, selectorContext, {
     left: options.source,
     right: options.target,
     ...(scope !== null && scope !== undefined ? { scope } : {}),
   });
-  const sourceSide = await normalizedSource.resolve(graph, scope, liveFrontier);
-  const targetSide = await normalizedTarget.resolve(graph, scope, liveFrontier);
+  const sourceSide = await normalizedSource.resolve(selectorContext, scope, liveFrontier);
+  const targetSide = await normalizedTarget.resolve(selectorContext, scope, liveFrontier);
   const loadNodeContent = async (_nodeId: string, meta: { oid: string }) =>
     await readContentBlobByOid(graph, meta.oid);
   const loadEdgeContent = async (
@@ -359,6 +363,7 @@ export async function planCoordinateTransferImpl(
 
 export async function planStrandTransferImpl(
   graph: ComparisonHost,
+  selectorContext: ComparisonSelectorContext,
   strandId: string,
   options: PlanStrandTransferOptions = {},
 ): Promise<CoordinateTransferPlanV1> {
@@ -371,7 +376,7 @@ export async function planStrandTransferImpl(
   const source: CoordinateTransferPlanSelectorV1 = { kind: 'strand', strandId: normalizedStrandId, ceiling };
   const target = normalizeIntoSelector(normalizedStrandId, options.into ?? 'live', intoCeiling);
 
-  return await planCoordinateTransferImpl(graph, {
+  return await planCoordinateTransferImpl(graph, selectorContext, {
     source,
     target,
     ...(scope ? { scope } : {}),

@@ -7,6 +7,17 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ComparisonController from '../../../../../src/domain/services/controllers/ComparisonController.ts';
+import HostBackedComparisonSideFinalizer from '../../../../../src/domain/services/controllers/HostBackedComparisonSideFinalizer.ts';
+import type { ComparisonCoordinateSideRead } from '../../../../../src/domain/services/controllers/ComparisonCoordinateSideReadPort.ts';
+import {
+  buildCoordinateRequest,
+  buildStrandMetadata,
+  collectPatchEntriesForFrontier,
+  combineCeilings,
+  frontierRecordToMap,
+  normalizeFrontierRecord,
+  optionalCeiling,
+} from '../../../../../src/domain/services/controllers/ComparisonSelector.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
@@ -207,11 +218,82 @@ function createMockHost(overrides = {}) {
       readBlob: vi.fn(async () => new Uint8Array([1, 2, 3])),
     },
     getFrontier: vi.fn(async () => new Map([['alice', 'sha-alice-1']])),
-    materializeCoordinate: vi.fn(async () => emptyState),
+    materializeCoordinate: vi.fn(async (_request?: { frontier: Map<string, string>; ceiling?: number }) => emptyState),
     _loadPatchChainFromSha: vi.fn(async () => []),
     ...overrides,
   };
   return host;
+}
+
+function createMockCoordinateReader(host: ReturnType<typeof createMockHost>) {
+  async function readFrontierSide(params: {
+    readonly frontierRecord: Record<string, string>;
+    readonly ceiling: number | null;
+    readonly requested: ComparisonCoordinateSideRead['requested'];
+    readonly coordinateKind: 'frontier' | 'strand_base';
+    readonly lamportCeiling: number | null;
+    readonly strand?: ComparisonCoordinateSideRead['strand'];
+  }) {
+    const state = await host.materializeCoordinate({
+      frontier: frontierRecordToMap(params.frontierRecord),
+      ...optionalCeiling(params.ceiling),
+    });
+    const patchEntries = await collectPatchEntriesForFrontier(
+      host,
+      params.frontierRecord,
+      params.ceiling,
+    );
+    return {
+      requested: params.requested,
+      state,
+      patchEntries,
+      coordinateKind: params.coordinateKind,
+      lamportCeiling: params.lamportCeiling,
+      ...(params.strand !== undefined ? { strand: params.strand } : {}),
+    };
+  }
+
+  return {
+    liveFrontier: async () => await host.getFrontier(),
+    readLiveSide: async (request: { readonly frontier: Map<string, string>; readonly ceiling: number | null }) => {
+      const frontierRecord = normalizeFrontierRecord(request.frontier, 'live.frontier');
+      return await readFrontierSide({
+        frontierRecord,
+        ceiling: request.ceiling,
+        requested: { kind: 'live', ...optionalCeiling(request.ceiling) },
+        coordinateKind: 'frontier',
+        lamportCeiling: request.ceiling,
+      });
+    },
+    readCoordinateSide: async (
+      request: { readonly frontier: Record<string, string>; readonly ceiling: number | null },
+    ) => await readFrontierSide({
+      frontierRecord: request.frontier,
+      ceiling: request.ceiling,
+      requested: { ...buildCoordinateRequest(request.frontier, request.ceiling), kind: 'coordinate' },
+      coordinateKind: 'frontier',
+      lamportCeiling: request.ceiling,
+    }),
+    readStrandBaseSide: async (request: { readonly strandId: string; readonly ceiling: number | null }) => {
+      const descriptor = await strandServiceGetOrThrowMock(request.strandId);
+      const effectiveCeiling = combineCeilings(descriptor.baseObservation.lamportCeiling, request.ceiling);
+      const frontierRecord = normalizeFrontierRecord(descriptor.baseObservation.frontier, 'strand_base.frontier');
+      return await readFrontierSide({
+        frontierRecord,
+        ceiling: effectiveCeiling,
+        requested: {
+          kind: 'strand_base',
+          strandId: request.strandId,
+          frontier: frontierRecord,
+          baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
+          ...optionalCeiling(request.ceiling),
+        },
+        coordinateKind: 'strand_base',
+        lamportCeiling: effectiveCeiling,
+        strand: buildStrandMetadata(request.strandId, descriptor),
+      });
+    },
+  };
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────────
@@ -223,7 +305,14 @@ describe('ComparisonController', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     host = createMockHost();
-    controller = new ComparisonController((host));
+    controller = new ComparisonController({
+      host,
+      selectorContext: {
+        coordinateReader: createMockCoordinateReader(host),
+        sideFinalizer: new HostBackedComparisonSideFinalizer(host),
+        strandGraph: host,
+      },
+    });
   });
 
   // ── buildPatchDivergence ─────────────────────────────────────────────────

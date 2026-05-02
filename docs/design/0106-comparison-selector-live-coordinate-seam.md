@@ -1,6 +1,6 @@
 # 0106 Comparison Selector Coordinate-Backed Side Seam
 
-- Status: `RED`
+- Status: `GREEN`
 - Release lane: `v17.0.0`
 - Source: `SLUDGE_comparison-selector-live-coordinate-seam`
 - Design role: narrow seam extraction design
@@ -428,7 +428,67 @@ If implementation cannot isolate coordinate-backed side resolution
 without touching full strand overlay comparison, stop and mark GREEN
 blocked. Do not drag the strand basement into this slice.
 
-## GREEN Blocker
+## GREEN Witness
+
+Implementation summary:
+
+- Added `ComparisonCoordinateSideReadPort` as the narrow
+  coordinate-backed side read seam.
+- Added `ComparisonSideFinalizer` as the separate finalization seam for
+  state hash, scope projection, frontier digests, and visible-state
+  summary construction.
+- Added `HostBackedComparisonCoordinateSideReader` as the runtime-backed
+  adapter for live, coordinate, and strand-base coordinate-backed reads.
+- Added `HostBackedComparisonSideFinalizer` as the runtime-backed
+  finalizer adapter.
+- Changed `ComparisonController` construction to require explicit
+  `host` and `selectorContext` dependencies.
+- Wired `RuntimeHost` with host-backed reader/finalizer adapters.
+- Updated `ComparisonController.test.ts` to model the new narrow reader
+  seam instead of adding `_materializeCoordinateGraph` to the fixture.
+
+Sludge killed:
+
+- `LiveComparisonSelector`, `CoordinateComparisonSelector`, and
+  `StrandBaseComparisonSelector` no longer depend on `ComparisonHost`.
+- Coordinate-backed selectors no longer call
+  `_materializeCoordinateGraph`.
+- Coordinate-backed selectors no longer call `_loadPatchChainFromSha`.
+- Coordinate-backed selectors no longer depend on `_blobStorage` or
+  `_persistence`.
+- `StrandBaseComparisonSelector` no longer routes through
+  `strandCoordinatorFor`, `createStrandCoordinator`,
+  `callInternalRuntimeMethod`, or `materializeStrand`.
+
+Sludge explicitly deferred:
+
+- `StrandComparisonSelector` full overlay materialization still uses the
+  existing strand machinery and remains out of scope.
+- Transfer planning still uses content-loading host dependencies.
+- Frontier projection ownership remains a likely follow-up.
+- `ComparisonSelector.ts` still contains multiple runtime classes and
+  remains a NO GODS watchlist file, but this GREEN did not mechanically
+  split it.
+
+Validation:
+
+```sh
+npx vitest run test/conformance/comparisonLiveCoordinateSeam.test.ts
+npx vitest run test/unit/domain/services/controllers/ComparisonController.test.ts
+npm run typecheck
+npm run lint:sludge
+npx eslint src/domain/RuntimeHost.ts src/domain/services/controllers/ComparisonController.ts src/domain/services/controllers/ComparisonEngine.ts src/domain/services/controllers/ComparisonSelector.ts src/domain/services/controllers/ComparisonCoordinateSideReadPort.ts src/domain/services/controllers/HostBackedComparisonCoordinateSideReader.ts src/domain/services/controllers/HostBackedComparisonSideFinalizer.ts test/unit/domain/services/controllers/ComparisonController.test.ts
+```
+
+Results:
+
+- `comparisonLiveCoordinateSeam.test.ts` passed: `8` tests.
+- `ComparisonController.test.ts` passed: `61` tests.
+- `npm run typecheck` passed.
+- `npm run lint:sludge` passed.
+- ESLint on touched TypeScript files passed.
+
+## Previous GREEN Blocker
 
 GREEN was attempted and stopped before commit because the required
 validation exposed a scope contradiction.
@@ -537,36 +597,28 @@ GREEN. Do not sneak a public API change into a seam cleanup.
 
 ## Validation
 
-PULL inspection commands run:
-
-```sh
-npx vitest run test/unit/domain/services/controllers/ComparisonController.test.ts
-```
-
-Result: failed as evidence above. This PULL does not repair it.
-
-Required doc validation before committing this PULL:
+PULL/RED inspection captured the original seam drift and intentional
+conformance failure. GREEN validation now covers the corrected
+coordinate-backed seam:
 
 ```sh
 npx vitest run test/conformance/comparisonLiveCoordinateSeam.test.ts
-npx eslint test/conformance/comparisonLiveCoordinateSeam.test.ts
+npx vitest run test/unit/domain/services/controllers/ComparisonController.test.ts
+npm run typecheck
+npm run lint:sludge
+npx eslint src/domain/RuntimeHost.ts src/domain/services/controllers/ComparisonController.ts src/domain/services/controllers/ComparisonEngine.ts src/domain/services/controllers/ComparisonSelector.ts src/domain/services/controllers/ComparisonCoordinateSideReadPort.ts src/domain/services/controllers/HostBackedComparisonCoordinateSideReader.ts src/domain/services/controllers/HostBackedComparisonSideFinalizer.ts test/unit/domain/services/controllers/ComparisonController.test.ts
 npx markdownlint docs/design/0106-comparison-selector-live-coordinate-seam.md
 git diff --check
 ```
 
-The conformance test is expected to fail while the cycle is RED. ESLint,
-markdownlint, and diff hygiene are expected to pass.
+Results:
 
-RED correction validation:
-
-- `npx vitest run test/conformance/comparisonLiveCoordinateSeam.test.ts`
-  failed as expected with `8` tests discovered, `4` passed, and `4`
-  failed.
-- `npx eslint test/conformance/comparisonLiveCoordinateSeam.test.ts`
-  passed.
-- `npx markdownlint
-  docs/design/0106-comparison-selector-live-coordinate-seam.md` passed.
-- `git diff --check` passed.
+- `comparisonLiveCoordinateSeam.test.ts` passed: `8` tests.
+- `ComparisonController.test.ts` passed: `61` tests.
+- `npm run typecheck` passed.
+- `npm run lint:sludge` passed.
+- ESLint on touched TypeScript files passed.
+- Markdownlint and diff hygiene must pass after this GREEN witness edit.
 
 ## SLUDGE STRIKER SUMMARY
 
@@ -574,30 +626,30 @@ RED correction validation:
 
 - Pattern: broad comparison host bag.
   Files: `src/domain/services/controllers/ComparisonSelector.ts`.
-  Why it is sludge: coordinate-backed selector resolution receives
+  Why it was sludge: coordinate-backed selector resolution received
   materialization, patch loading, crypto, codec, persistence, blob
   storage, state-hash service, and strand coordination through one
   host-shaped dependency.
-  Status: RED-scoped, not fixed.
+  Status: fixed for coordinate-backed selectors.
 - Pattern: private runtime seam leakage.
   Files: `src/domain/services/controllers/ComparisonSelector.ts`,
   `src/domain/RuntimeHost.ts`.
-  Why it is sludge: `_materializeCoordinateGraph` and
-  `_loadPatchChainFromSha` are internal machinery exposed as selector
-  dependencies.
-  Status: RED-scoped, not fixed.
+  Why it was sludge: `_materializeCoordinateGraph` and
+  `_loadPatchChainFromSha` were internal machinery exposed directly to
+  coordinate-backed selector classes.
+  Status: fixed for coordinate-backed selectors; still exists behind the
+  host-backed adapter.
 - Pattern: test fixture seam drift.
   Files: `test/unit/domain/services/controllers/ComparisonController.test.ts`.
-  Why it is sludge: the test fixture exposes `materializeCoordinate`
-  while current source calls `_materializeCoordinateGraph`, so the suite
-  is red for seam-name drift rather than a deliberate architecture RED.
-  Status: surfaced, not fixed.
-- Pattern: deliberate RED fence.
+  Why it was sludge: the test fixture exposed `materializeCoordinate`
+  while old production source called `_materializeCoordinateGraph`.
+  Status: fixed by modeling the new coordinate-side reader seam, not by
+  adding `_materializeCoordinateGraph` to the fixture.
+- Pattern: deliberate RED fence now GREEN.
   Files: `test/conformance/comparisonLiveCoordinateSeam.test.ts`.
-  Why it is sludge prevention: the new RED prevents GREEN from blessing
-  the current broad host bag or private runtime seam as the comparison
-  selector dependency.
-  Status: corrected, intentionally failing.
+  Why it matters: the conformance test prevents coordinate-backed
+  selectors from regressing to the broad host bag.
+  Status: passed.
 - Pattern: class-name-driven scope.
   Files: `docs/design/0106-comparison-selector-live-coordinate-seam.md`,
   `test/conformance/comparisonLiveCoordinateSeam.test.ts`.
@@ -616,10 +668,16 @@ RED correction validation:
 
 - Replaced the old `live/coordinate` RED scope with
   `coordinate-backed comparison side resolution`.
-- Added `StrandBaseComparisonSelector` to the deliberate RED fence.
+- Replaced coordinate-backed selector dependence on `ComparisonHost` with
+  `ComparisonSelectorContext`.
+- Replaced direct selector calls to `_materializeCoordinateGraph` and
+  `_loadPatchChainFromSha` with `ComparisonCoordinateSideReadPort`.
+- Replaced direct selector finalization through the host bag with
+  `ComparisonSideFinalizer`.
+- Replaced the controller fixture seam drift with a narrow fake
+  coordinate reader.
 - Kept `StrandComparisonSelector` full overlay materialization out of
   scope.
-- Kept production code untouched.
 
 ### 3. Sludge Rejected
 
@@ -628,8 +686,10 @@ RED correction validation:
 - Rejected `RuntimeHost` rewrite.
 - Rejected full strand overlay comparison in the first seam.
 - Rejected facade, manager, helper, utility, and `*Like` names.
-- Rejected making stale tests green by adding more host-bag fields.
+- Rejected making stale tests green by adding `_materializeCoordinateGraph`
+  to the fixture.
 - Rejected validation shaving by excluding strand-base assertions.
+- Rejected package-root export changes and public API changes.
 
 ### 4. Sludge Deferred / Tracked
 
@@ -637,30 +697,27 @@ RED correction validation:
 - Transfer planning content-loading dependencies remain future work.
 - Frontier projection ownership remains a likely follow-up.
 - Public `CoordinateComparison` type-model sludge remains outside this
-  PULL.
+  GREEN.
+- `ComparisonSelector.ts` remains a multi-runtime-object watchlist file.
 
 ### 5. Anti-Sludge Checks Actually Run
 
-- Graft path-scoped doctor on `ComparisonSelector.ts`.
-- Targeted source inspection of comparison selector, controller, engine,
-  fact export, coordinate comparison types, RuntimeHost seams, and
-  comparison tests.
+- `npx vitest run test/conformance/comparisonLiveCoordinateSeam.test.ts`
+  passed with `8` tests.
 - `npx vitest run
   test/unit/domain/services/controllers/ComparisonController.test.ts`
-  failed with `30` existing seam-drift failures.
-- `npx vitest run test/conformance/comparisonLiveCoordinateSeam.test.ts`
-  failed as expected with `8` tests discovered, `4` passed, and `4`
-  failed.
-- `npx eslint test/conformance/comparisonLiveCoordinateSeam.test.ts`
-  passed.
+  passed with `61` tests.
+- `npm run typecheck` passed.
+- `npm run lint:sludge` passed.
+- ESLint on touched TypeScript files passed.
 - `npx markdownlint
   docs/design/0106-comparison-selector-live-coordinate-seam.md` passed.
 - `git diff --check` passed.
 
 ### 6. Remaining Risk
 
-Remaining risk: `ComparisonSelector.ts` is tempting to overcut. The next
-GREEN must remove the coordinate-backed side seam without creating
-`ComparisonHost` under a new name. If full strand overlay comparison,
-transfer planning, or RuntimeHost cleanup enters the slice, the cycle is
-no longer narrow.
+Remaining risk: `ComparisonSelector.ts` is still structurally dense and
+full strand overlay comparison still uses the old strand machinery. This
+GREEN kills the coordinate-backed side-resolution host-bag seam only; it
+does not claim that comparison, transfer planning, frontier projection,
+or RuntimeHost are clean.
