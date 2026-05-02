@@ -81,7 +81,8 @@ v17 is not cleared to tag yet.
 
 Concrete blockers before release/tag:
 
-1. Large-graph bounded-residency validation found a real blocker.
+1. Large-graph bounded-residency validation found a real blocker, and
+   v17's release claim is narrowed.
    The concrete fixture at `/Users/james/.think/codex` can be opened and
    queried on this machine, but graph-level `graph.query()` still opens
    a state-backed read model by forcing `_ensureFreshState()` and
@@ -89,9 +90,10 @@ Concrete blockers before release/tag:
    cannot honestly be made GREEN with the current live sources: the
    fixture's index-tree checkpoint is stale relative to the live writer
    ref, and no live-tail bounded query/checksum source exists. v17
-   cannot claim the v16 full-buffering blocker is fixed unless that
-   substrate is added, or the release notes explicitly narrow the claim
-   to streaming groundwork.
+   will not claim the v16 full-buffering blocker is fixed. v17 may claim
+   TypeScript migration, public API honesty, and streaming/bounded-query
+   groundwork only. Live-tail bounded query/checksum substrate is
+   post-v17 scope.
 2. Release/API notes are not confirmed complete.
    Public-facing changes from the recent workstream must be explained,
    including snapshot public return/input types and any intentional direct
@@ -135,17 +137,21 @@ instead of becoming release scope.
 
 ## Decision
 
-v17 has three concrete blockers before release/tag:
+v17 has two concrete blockers before release/tag:
 
-1. Add an honest live-tail bounded query/checksum substrate behind the
-   default graph query provider, or narrow the release claim.
-2. Complete release/API notes.
-3. Run full release validation, including `npm run release:preflight`.
+1. Complete release/API notes, including the narrowed large-graph claim.
+2. Run full release validation, including `npm run release:preflight`.
 
 v17 should proceed toward release validation, not another general
 deslugging cycle. If release validation reveals a specific blocker, fix
 that blocker. Otherwise, remaining structural sludge is known post-v17
 debt.
+
+Release claim decision:
+
+- v17 ships TypeScript migration and streaming/bounded-query groundwork.
+- v17 does not claim live large-graph `graph.query()` bounded residency.
+- The live-tail bounded query/checksum substrate moves to post-v17 work.
 
 ## SLUDGE STRIKER SUMMARY
 
