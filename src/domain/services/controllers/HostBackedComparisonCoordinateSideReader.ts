@@ -1,5 +1,7 @@
 import QueryError from '../../errors/QueryError.ts';
-import createStrandCoordinator from '../strand/createStrandCoordinator.ts';
+import createStrandCoordinator, {
+  type StrandCoordinatorGraphRuntime,
+} from '../strand/createStrandCoordinator.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type {
   ComparisonCoordinateSideRead,
@@ -20,16 +22,13 @@ import {
   type PatchEntry,
 } from './ComparisonSelector.ts';
 
-function assertStrandCoordinatorSource(
-  source: ComparisonCoordinateSideReadSource,
-): asserts source is ComparisonCoordinateSideReadSource & Parameters<typeof createStrandCoordinator>[0] {
-  void source;
-}
+type HostBackedComparisonCoordinateSideReadSource =
+  ComparisonCoordinateSideReadSource & StrandCoordinatorGraphRuntime;
 
 export default class HostBackedComparisonCoordinateSideReader implements ComparisonCoordinateSideReadPort {
-  private readonly source: ComparisonCoordinateSideReadSource;
+  private readonly source: HostBackedComparisonCoordinateSideReadSource;
 
-  constructor(source: ComparisonCoordinateSideReadSource) {
+  constructor(source: HostBackedComparisonCoordinateSideReadSource) {
     if (source === null || source === undefined) {
       throw new QueryError('comparison coordinate side reader requires a source', {
         code: 'invalid_coordinate',
@@ -65,7 +64,6 @@ export default class HostBackedComparisonCoordinateSideReader implements Compari
   }
 
   async readStrandBaseSide(request: StrandBaseComparisonSideReadRequest): Promise<ComparisonCoordinateSideRead> {
-    assertStrandCoordinatorSource(this.source);
     const strands = createStrandCoordinator(this.source);
     const descriptor = await strands.getOrThrow(request.strandId);
     const effectiveCeiling = combineCeilings(descriptor.baseObservation.lamportCeiling, request.ceiling);

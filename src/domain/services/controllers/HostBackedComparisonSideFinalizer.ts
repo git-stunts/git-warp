@@ -2,8 +2,8 @@ import QueryError from '../../errors/QueryError.ts';
 import type { VisibleStateScope } from '../../types/CoordinateComparison.ts';
 import type {
   ComparisonCoordinateSideRead,
-  ComparisonSideFinalizer,
 } from './ComparisonCoordinateSideReadPort.ts';
+import type ComparisonSideFinalizer from './ComparisonSideFinalizerPort.ts';
 import {
   finalizeSide,
   type ComparisonDigestHost,

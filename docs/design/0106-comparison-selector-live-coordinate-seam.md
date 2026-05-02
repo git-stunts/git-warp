@@ -437,6 +437,8 @@ Implementation summary:
 - Added `ComparisonSideFinalizer` as the separate finalization seam for
   state hash, scope projection, frontier digests, and visible-state
   summary construction.
+- Split `ComparisonSideFinalizer` into `ComparisonSideFinalizerPort.ts`
+  so the coordinate reader and side finalizer ports do not share a file.
 - Added `HostBackedComparisonCoordinateSideReader` as the runtime-backed
   adapter for live, coordinate, and strand-base coordinate-backed reads.
 - Added `HostBackedComparisonSideFinalizer` as the runtime-backed
@@ -459,6 +461,9 @@ Sludge killed:
 - `StrandBaseComparisonSelector` no longer routes through
   `strandCoordinatorFor`, `createStrandCoordinator`,
   `callInternalRuntimeMethod`, or `materializeStrand`.
+- Removed the no-op `assertStrandCoordinatorSource()` type assertion from
+  the host-backed reader. The adapter constructor now requires the source
+  type to honestly include the strand coordinator runtime surface.
 
 Sludge explicitly deferred:
 
@@ -469,6 +474,73 @@ Sludge explicitly deferred:
 - `ComparisonSelector.ts` still contains multiple runtime classes and
   remains a NO GODS watchlist file, but this GREEN did not mechanically
   split it.
+- Helper ownership remains unresolved in `ComparisonSelector.ts`:
+  frontier normalization, coordinate request building, strand metadata
+  building, patch frontier collection, and finalization/checksum helpers
+  are still exported or consumed by the new adapters.
+
+## 0106 GREEN SLUDGE CORRECTION
+
+### 1. Sludge Found
+
+- Pattern: no-op assertion / type theater.
+  Files:
+  `src/domain/services/controllers/HostBackedComparisonCoordinateSideReader.ts`.
+  Why it was sludge: `assertStrandCoordinatorSource()` used `void source`
+  and claimed the source satisfied the strand coordinator runtime shape
+  without validating anything.
+  Status: fixed.
+- Pattern: mixed reader/finalizer port file.
+  Files:
+  `src/domain/services/controllers/ComparisonCoordinateSideReadPort.ts`.
+  Why it was sludge: coordinate side reading and side finalization are
+  separate reasons to change.
+  Status: fixed.
+- Pattern: helper landfill gravity.
+  Files: `src/domain/services/controllers/ComparisonSelector.ts`.
+  Why it remains sludge: the new adapters still consume helper concepts
+  from the selector file, including frontier normalization, coordinate
+  request building, strand metadata building, patch frontier collection,
+  and finalization/checksum helpers.
+  Status: deferred and named.
+
+### 2. Sludge Fixed
+
+- Replaced no-op `assertStrandCoordinatorSource()` with an honest
+  `HostBackedComparisonCoordinateSideReadSource` constructor dependency
+  type that includes `StrandCoordinatorGraphRuntime`.
+- Replaced one mixed port file with
+  `ComparisonCoordinateSideReadPort.ts` and
+  `ComparisonSideFinalizerPort.ts`.
+
+### 3. Sludge Deferred
+
+- `ComparisonSelector.ts` helper ownership remains unresolved:
+  frontier normalization, coordinate request building, strand metadata
+  building, patch frontier collection, and finalization/checksum helpers
+  need future ownership work.
+- Full `StrandComparisonSelector` overlay materialization remains out of
+  scope.
+- Transfer planning content-loading dependencies remain out of scope.
+
+### 4. Validation
+
+The validation commands below were rerun after the sludge correction:
+
+```sh
+npx vitest run test/conformance/comparisonLiveCoordinateSeam.test.ts
+npx vitest run test/unit/domain/services/controllers/ComparisonController.test.ts
+npm run typecheck
+npm run lint:sludge
+npx eslint src/domain/RuntimeHost.ts src/domain/services/controllers/ComparisonController.ts src/domain/services/controllers/ComparisonEngine.ts src/domain/services/controllers/ComparisonSelector.ts src/domain/services/controllers/ComparisonCoordinateSideReadPort.ts src/domain/services/controllers/ComparisonSideFinalizerPort.ts src/domain/services/controllers/HostBackedComparisonCoordinateSideReader.ts src/domain/services/controllers/HostBackedComparisonSideFinalizer.ts test/unit/domain/services/controllers/ComparisonController.test.ts
+npx markdownlint docs/design/0106-comparison-selector-live-coordinate-seam.md
+git diff --check
+```
+
+### 5. Decision
+
+0106 is ready for Playback. The remaining helper ownership debt is
+explicitly deferred, not treated as fixed.
 
 Validation:
 
@@ -663,6 +735,23 @@ Results:
   `createStrandCoordinator`, `callInternalRuntimeMethod`, and
   `materializeStrand`, which would explode the first seam.
   Status: rejected from this cycle.
+- Pattern: no-op assertion / type theater.
+  Files:
+  `src/domain/services/controllers/HostBackedComparisonCoordinateSideReader.ts`.
+  Why it was sludge: `assertStrandCoordinatorSource()` claimed runtime
+  validity with `void source` and performed no validation.
+  Status: fixed.
+- Pattern: mixed seam file.
+  Files:
+  `src/domain/services/controllers/ComparisonCoordinateSideReadPort.ts`.
+  Why it was sludge: coordinate side reading and side finalization are
+  different reasons to change but shared one port file.
+  Status: fixed.
+- Pattern: helper landfill gravity.
+  Files: `src/domain/services/controllers/ComparisonSelector.ts`.
+  Why it remains sludge: helper concepts used by the adapters still live
+  in the selector file.
+  Status: deferred and named.
 
 ### 2. Sludge Fixed
 
@@ -674,6 +763,11 @@ Results:
   `_loadPatchChainFromSha` with `ComparisonCoordinateSideReadPort`.
 - Replaced direct selector finalization through the host bag with
   `ComparisonSideFinalizer`.
+- Replaced mixed reader/finalizer port file with
+  `ComparisonCoordinateSideReadPort.ts` and
+  `ComparisonSideFinalizerPort.ts`.
+- Replaced no-op `assertStrandCoordinatorSource()` with an honest
+  constructor dependency type that includes `StrandCoordinatorGraphRuntime`.
 - Replaced the controller fixture seam drift with a narrow fake
   coordinate reader.
 - Kept `StrandComparisonSelector` full overlay materialization out of
@@ -696,6 +790,9 @@ Results:
 - Full strand overlay comparison seam remains future work.
 - Transfer planning content-loading dependencies remain future work.
 - Frontier projection ownership remains a likely follow-up.
+- Helper ownership remains unresolved in `ComparisonSelector.ts`:
+  frontier normalization, coordinate request building, strand metadata
+  building, patch frontier collection, and finalization/checksum helpers.
 - Public `CoordinateComparison` type-model sludge remains outside this
   GREEN.
 - `ComparisonSelector.ts` remains a multi-runtime-object watchlist file.

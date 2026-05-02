@@ -30,8 +30,8 @@ import type {
 } from '../../types/CoordinateComparison.ts';
 import type {
   ComparisonCoordinateSideReadPort,
-  ComparisonSideFinalizer,
 } from './ComparisonCoordinateSideReadPort.ts';
+import type ComparisonSideFinalizer from './ComparisonSideFinalizerPort.ts';
 import type { StrandDescriptor as StrandDescriptorV1 } from '../../types/StrandDescriptor.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 

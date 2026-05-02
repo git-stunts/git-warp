@@ -1,10 +1,8 @@
-import type { VisibleStateScope } from '../../types/CoordinateComparison.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type {
   ComparisonRequestedSideV1,
   ComparisonResolvedSideV1,
   PatchEntry,
-  ResolvedComparisonSide,
   StrandComparisonMetadataV1,
 } from './ComparisonSelector.ts';
 
@@ -37,11 +35,4 @@ export interface ComparisonCoordinateSideReadPort {
   readLiveSide(request: LiveComparisonSideReadRequest): Promise<ComparisonCoordinateSideRead>;
   readCoordinateSide(request: CoordinateComparisonSideReadRequest): Promise<ComparisonCoordinateSideRead>;
   readStrandBaseSide(request: StrandBaseComparisonSideReadRequest): Promise<ComparisonCoordinateSideRead>;
-}
-
-export interface ComparisonSideFinalizer {
-  finalize(
-    read: ComparisonCoordinateSideRead,
-    scope: VisibleStateScope | null,
-  ): Promise<ResolvedComparisonSide>;
 }
