@@ -81,11 +81,14 @@ v17 is not cleared to tag yet.
 
 Concrete blockers before release/tag:
 
-1. Large-graph bounded-residency validation is not complete.
-   The concrete fixture at `/Users/james/.think/codex` must be opened
-   and queried under v17 without reproducing the v16 full-buffering
-   failure, or the release notes must explicitly narrow the claim to
-   streaming groundwork.
+1. Large-graph bounded-residency validation found a real blocker.
+   The concrete fixture at `/Users/james/.think/codex` can be opened and
+   queried on this machine, but graph-level `graph.query()` still opens
+   a state-backed read model by forcing `_ensureFreshState()` and
+   `_materializeGraph()`. v17 cannot claim the v16 full-buffering
+   blocker is fixed until that default query-provider path is repaired,
+   or the release notes explicitly narrow the claim to streaming
+   groundwork.
 2. Release/API notes are not confirmed complete.
    Public-facing changes from the recent workstream must be explained,
    including snapshot public return/input types and any intentional direct
@@ -131,8 +134,8 @@ instead of becoming release scope.
 
 v17 has three concrete blockers before release/tag:
 
-1. Prove the concrete large graph fixture does not reproduce the v16
-   full-buffering failure, or narrow the release claim.
+1. Repair the default graph query-provider path that still reproduces
+   full-residency behavior, or narrow the release claim.
 2. Complete release/API notes.
 3. Run full release validation, including `npm run release:preflight`.
 
