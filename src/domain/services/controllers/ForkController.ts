@@ -11,14 +11,14 @@ import ForkError from '../../errors/ForkError.ts';
 import { CHECKPOINT_SCHEMA_STANDARD, CHECKPOINT_SCHEMA_V5_INTERMEDIATE } from '../state/checkpointHelpers.ts';
 import { validateGraphName, validateWriterId, buildWriterRef, buildWritersPrefix } from '../../utils/RefLayout.ts';
 import { generateWriterId } from '../../utils/WriterId.ts';
-import { createWormhole as createWormholeImpl } from '../WormholeService.js';
-import { openRuntimeHostProduct } from '../../warp/RuntimeHostProduct.ts';
+import { createWormhole as createWormholeImpl } from '../WormholeService.ts';
+import {
+  openRuntimeHostProduct,
+  type RuntimeHostOpenOptions,
+  type RuntimeHostProduct,
+} from '../../warp/RuntimeHostProduct.ts';
 import type ProvenancePayload from '../provenance/ProvenancePayload.ts';
 import type { LoadedCheckpoint } from '../state/checkpointLoad.ts';
-import type {
-  RuntimeHostOpenOptions,
-  RuntimeHostProduct,
-} from '../../warp/RuntimeHostProduct.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';

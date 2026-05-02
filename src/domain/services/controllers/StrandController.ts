@@ -17,7 +17,7 @@ import type ConflictAnalysis from '../../types/conflict/ConflictAnalysis.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type SnapshotWarpState from '../snapshot/SnapshotWarpState.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
-import type { PatchBuilder } from '../PatchBuilder.js';
+import type { PatchBuilder } from '../PatchBuilder.ts';
 import type Patch from '../../types/Patch.ts';
 
 type StrandHost = AnalyzerService['_graph'];

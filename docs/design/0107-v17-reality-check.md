@@ -81,17 +81,19 @@ v17 is not cleared to tag yet.
 
 Concrete blockers before release/tag:
 
-1. Release/API notes are not confirmed complete.
+1. Large-graph bounded-residency validation is not complete.
+   The concrete fixture at `/Users/james/.think/codex` must be opened
+   and queried under v17 without reproducing the v16 full-buffering
+   failure, or the release notes must explicitly narrow the claim to
+   streaming groundwork.
+2. Release/API notes are not confirmed complete.
    Public-facing changes from the recent workstream must be explained,
    including snapshot public return/input types and any intentional direct
    constructor corrections for exported query objects.
-2. Full release validation has not been run after the 0102 through 0106
+3. Full release validation has not been run after the 0102 through 0106
    sequence.
    The release runbook requires `npm run release:preflight` before
    tagging.
-3. Branch safety and push readiness have not been completed.
-   The branch has many local commits ahead of origin and must be checked
-   before push or PR work.
 
 These are release-confidence blockers. They are not a mandate to pull
 another deslugging seam.
@@ -129,9 +131,10 @@ instead of becoming release scope.
 
 v17 has three concrete blockers before release/tag:
 
-1. Complete release/API notes.
-2. Run full release validation, including `npm run release:preflight`.
-3. Run a branch safety / push-readiness checkpoint.
+1. Prove the concrete large graph fixture does not reproduce the v16
+   full-buffering failure, or narrow the release claim.
+2. Complete release/API notes.
+3. Run full release validation, including `npm run release:preflight`.
 
 v17 should proceed toward release validation, not another general
 deslugging cycle. If release validation reveals a specific blocker, fix

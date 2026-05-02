@@ -14,7 +14,7 @@ import {
   buildCoordinateComparisonFact,
   buildCoordinateTransferPlanFact,
 } from '../CoordinateFactExport.ts';
-import { createStateReader } from '../state/StateReader.js';
+import { createStateReader } from '../state/StateReader.ts';
 import { compareVisibleState } from '../comparison/VisibleStateComparison.ts';
 import { planVisibleStateTransfer } from '../transfer/VisibleStateTransferPlanner.ts';
 import { normalizeVisibleStateScope } from '../VisibleStateScope.ts';

@@ -9,7 +9,7 @@
 
 import type { VisibleStateComparison } from '../../types/CoordinateComparison.ts';
 import type WarpState from '../state/WarpState.ts';
-import { createStateReader } from '../state/StateReader.js';
+import { createStateReader } from '../state/StateReader.ts';
 import { summarizeReader, collectNodeProperties, collectEdgeProperties } from './diffKeys.ts';
 import { compareNodePropertyMaps, compareEdgePropertyMaps } from './diffProperties.ts';
 import {
