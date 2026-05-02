@@ -509,6 +509,11 @@ Sludge explicitly deferred:
 - Replaced no-op `assertStrandCoordinatorSource()` with an honest
   `HostBackedComparisonCoordinateSideReadSource` constructor dependency
   type that includes `StrandCoordinatorGraphRuntime`.
+- Added runtime constructor validation for the host-backed reader source.
+  Compile-time type tightening was not enough; invalid construction now
+  fails in the constructor when required coordinate read, patch loading,
+  materialization, live frontier, or strand coordinator runtime
+  capabilities are missing.
 - Replaced one mixed port file with
   `ComparisonCoordinateSideReadPort.ts` and
   `ComparisonSideFinalizerPort.ts`.
@@ -768,6 +773,9 @@ Results:
   `ComparisonSideFinalizerPort.ts`.
 - Replaced no-op `assertStrandCoordinatorSource()` with an honest
   constructor dependency type that includes `StrandCoordinatorGraphRuntime`.
+- Added runtime constructor validation to
+  `HostBackedComparisonCoordinateSideReader`; compile-time type
+  tightening alone was not accepted as RAII.
 - Replaced the controller fixture seam drift with a narrow fake
   coordinate reader.
 - Kept `StrandComparisonSelector` full overlay materialization out of

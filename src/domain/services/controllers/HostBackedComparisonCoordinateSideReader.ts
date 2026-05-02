@@ -25,6 +25,112 @@ import {
 type HostBackedComparisonCoordinateSideReadSource =
   ComparisonCoordinateSideReadSource & StrandCoordinatorGraphRuntime;
 
+type RuntimeCapabilityName =
+  | 'getFrontier'
+  | '_materializeCoordinateGraph'
+  | '_loadPatchChainFromSha'
+  | '_setMaterializedState';
+
+type RuntimeFieldName =
+  | '_graphName'
+  | '_persistence'
+  | '_crypto'
+  | '_maxObservedLamport'
+  | '_provenanceDegraded'
+  | '_patchInProgress'
+  | '_stateDirty'
+  | '_commitMessageCodec'
+  | '_codec'
+  | '_onDeleteWithData';
+
+const REQUIRED_RUNTIME_CAPABILITIES: readonly RuntimeCapabilityName[] = Object.freeze([
+  'getFrontier',
+  '_materializeCoordinateGraph',
+  '_loadPatchChainFromSha',
+  '_setMaterializedState',
+]);
+
+const REQUIRED_RUNTIME_FIELDS: readonly RuntimeFieldName[] = Object.freeze([
+  '_graphName',
+  '_persistence',
+  '_crypto',
+  '_maxObservedLamport',
+  '_provenanceDegraded',
+  '_patchInProgress',
+  '_stateDirty',
+  '_commitMessageCodec',
+  '_codec',
+  '_onDeleteWithData',
+]);
+
+const OPTIONAL_RUNTIME_FIELDS = Object.freeze([
+  '_cachedCeiling',
+  '_cachedFrontier',
+  '_lastFrontier',
+  '_cachedViewHash',
+  '_cachedState',
+] as const);
+
+const VALID_DELETE_WITH_DATA_VALUES = Object.freeze([
+  'reject',
+  'cascade',
+  'warn',
+] as const);
+
+function assertFunctionCapability(
+  source: HostBackedComparisonCoordinateSideReadSource,
+  name: RuntimeCapabilityName,
+): void {
+  if (typeof source[name] !== 'function') {
+    throw new QueryError(`comparison coordinate side reader source requires ${name}()`, {
+      code: 'invalid_coordinate',
+      context: { dependency: name },
+    });
+  }
+}
+
+function assertRuntimeField(
+  source: HostBackedComparisonCoordinateSideReadSource,
+  name: RuntimeFieldName,
+): void {
+  if (source[name] === undefined || source[name] === null) {
+    throw new QueryError(`comparison coordinate side reader source requires ${name}`, {
+      code: 'invalid_coordinate',
+      context: { dependency: name },
+    });
+  }
+}
+
+function assertOptionalRuntimeField(
+  source: HostBackedComparisonCoordinateSideReadSource,
+  name: typeof OPTIONAL_RUNTIME_FIELDS[number],
+): void {
+  if (!(name in source)) {
+    throw new QueryError(`comparison coordinate side reader source requires ${name}`, {
+      code: 'invalid_coordinate',
+      context: { dependency: name },
+    });
+  }
+}
+
+function validateCoordinateSideReadSource(source: HostBackedComparisonCoordinateSideReadSource): void {
+  for (const capability of REQUIRED_RUNTIME_CAPABILITIES) {
+    assertFunctionCapability(source, capability);
+  }
+  for (const field of REQUIRED_RUNTIME_FIELDS) {
+    assertRuntimeField(source, field);
+  }
+  for (const field of OPTIONAL_RUNTIME_FIELDS) {
+    assertOptionalRuntimeField(source, field);
+  }
+  if (!VALID_DELETE_WITH_DATA_VALUES.includes(source._onDeleteWithData)) {
+    throw new QueryError('comparison coordinate side reader source has invalid _onDeleteWithData', {
+      code: 'invalid_coordinate',
+      context: { dependency: '_onDeleteWithData' },
+    });
+  }
+}
+
 export default class HostBackedComparisonCoordinateSideReader implements ComparisonCoordinateSideReadPort {
   private readonly source: HostBackedComparisonCoordinateSideReadSource;
 
@@ -34,6 +140,7 @@ export default class HostBackedComparisonCoordinateSideReader implements Compari
         code: 'invalid_coordinate',
       });
     }
+    validateCoordinateSideReadSource(source);
     this.source = source;
     Object.freeze(this);
   }
