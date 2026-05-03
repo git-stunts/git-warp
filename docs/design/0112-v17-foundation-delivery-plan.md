@@ -17,6 +17,7 @@ v17 delivers:
 - 100% TypeScript.
 - Bounded reads for `/Users/james/.think/codex`.
 - A minimal Optic API.
+- A minimal `CheckpointTailWitnessLocator` read basis.
 - A visible Plumber boundary.
 - No public read path that calls `_materializeGraph()`.
 - `readIdentity` for optic results instead of fake `stateHash`.
@@ -29,6 +30,7 @@ This document controls v17 implementation scope after human approval.
 v17 does not ship:
 
 - full Roaring bitmap index system unless required for minimal bounded reads
+- full temporal inverted index architecture
 - CAS slice cache
 - braid holograms as first-class product APIs
 - merge holograms as first-class product APIs
@@ -153,6 +155,15 @@ The minimal honest identity includes:
 - reducer or law version
 - projection version
 
+For the v17 `CheckpointTailWitnessLocator`, the honest basis is:
+
+- checkpoint/index shard identity
+- checkpoint frontier
+- tail witness set
+- entity/aspect key
+- reducer version
+- projection version
+
 Rules:
 
 - Do not return checkpoint `stateHash` for stale live reads.
@@ -185,6 +196,74 @@ The ban also rejects:
 `_materializeGraph()` may survive temporarily for explicit Plumber,
 checkpoint, export, prewarm, or legacy internal operations while v17 cuts the
 public read path away from it.
+
+## Minimal Witness Locator
+
+v17 does not ship the full temporal inverted index, Roaring/CAS slice cache, or
+Continuum witness exchange.
+
+v17 does require one minimal bounded locator:
+
+```text
+CheckpointTailWitnessLocator
+```
+
+It answers exact entity/aspect reads by combining:
+
+1. a retained checkpoint/index shard reading at the latest usable checkpoint
+   frontier; and
+2. a live tail scan after that checkpoint frontier, filtered to the requested
+   entity/aspect.
+
+The checkpoint side is a retained read basis, not necessarily raw historical
+witnesses. The live tail side is actual tail witness evidence. The result
+identity must name both.
+
+The v17 locator pipeline is:
+
+```text
+optic intent
+  -> entity/aspect key
+  -> entity shard key
+  -> load checkpoint index shard for that key
+  -> scan writer tail after checkpoint frontier
+  -> collect only tail patches touching entity/aspect
+  -> reduce checkpoint reading + tail witnesses
+  -> return value + readIdentity
+```
+
+Rules:
+
+- Load only the checkpoint shard or shards needed for the requested
+  entity/aspect.
+- Scan only patches after the checkpoint frontier.
+- Collect only tail patches touching the requested entity/aspect.
+- Do not full-materialize the graph-like reading.
+- Do not use checkpoint `stateHash` as live result identity.
+- If no usable checkpoint/index basis exists, fail closed with
+  `E_OPTIC_NO_BOUNDED_BASIS`.
+- If tail scan exceeds budget, fail closed with
+  `E_OPTIC_TAIL_BUDGET_EXCEEDED`.
+- Recovery is an explicit Plumber operation, never hidden materialization.
+
+Tail scan budgets are named release parameters:
+
+```text
+maxTailPatches
+maxTailBytes
+maxTailMs
+```
+
+If a budget is exceeded, the recovery is explicit operational work such as:
+
+```ts
+await worldline.plumber().prewarmIndexes().run();
+await worldline.plumber().createCheckpoint().run();
+```
+
+If `createCheckpoint()` is not part of the v17 Plumber surface, the
+implementation must name the existing checkpoint creation operation in the
+error recovery text. It must not silently call `_materializeGraph()`.
 
 ## Bounded RSS Acceptance Bar
 
@@ -257,8 +336,11 @@ Pass criteria:
 - fixture refs remain unchanged for read-only probes
 - max RSS is at or below `268435456` bytes
 - no public read path calls `_materializeGraph()`
+- no optic read falls back to full materialization when the bounded basis is
+  missing
 - optic results contain `readIdentity`
 - no result returns a fake `stateHash`
+- missing basis and exceeded tail budget failures are explicit, typed failures
 
 If codex-think requires write-side behavior, that write smoke must use a
 disposable copy or a clearly approved mutable fixture. Do not mutate the
@@ -266,19 +348,38 @@ canonical fixture as part of a read acceptance test.
 
 ## Implementation Slice After Approval
 
-The first implementation slice should be narrow:
+The first implementation hill should be:
+
+```text
+0113-v17-checkpoint-tail-optic-read-basis
+```
+
+The hill:
+
+```text
+worldline.optic().node(id).read()
+uses CheckpointTailWitnessLocator
+does not call _materializeGraph()
+returns honest readIdentity
+fails closed if no bounded basis exists
+```
+
+That first implementation slice should be narrow:
 
 1. Introduce the minimal public optic entrypoint on worldlines.
-2. Add node exact-read and property exact-read slice plumbing.
-3. Replace the public read provider path that currently enters
+2. Implement `CheckpointTailWitnessLocator` for exact entity/aspect reads.
+3. Add node exact-read and property exact-read slice plumbing.
+4. Replace the public read provider path that currently enters
    `_ensureFreshState()` and `_materializeGraph()`.
-4. Return honest `readIdentity` from the new read result.
-5. Add the bounded fixture acceptance coverage.
-6. Update release notes for the breaking read API change.
+5. Return honest `readIdentity` from the new read result.
+6. Fail closed when no bounded checkpoint/tail basis exists.
+7. Add the bounded fixture acceptance coverage.
+8. Update release notes for the breaking read API change.
 
 Do not start by building:
 
 - the full Roaring index system
+- the full temporal inverted index system
 - the CAS slice cache
 - recursive WARP optics
 - merge or braid hologram product APIs
@@ -308,6 +409,45 @@ to implement full traversal algebra.
 minimal indexed source. They are not a mandate to ship the full Roaring
 architecture.
 
+The checkpoint/index side of `CheckpointTailWitnessLocator` may use a retained
+checkpoint reading rather than raw historical witnesses. That is acceptable only
+if `readIdentity` names the checkpoint/index shard identity and checkpoint
+frontier separately from tail witnesses.
+
+## Doctrine Compliance Audit
+
+After every major v17 cycle, run a doctrine audit.
+
+Materialization audit:
+
+- no new Optic or public read path calls `_materializeGraph()`
+- no hidden full-materialization fallback
+
+Identity audit:
+
+- optic results do not expose fake `stateHash`
+- slice and read results use `readIdentity`, `sliceHash`, or `witnessSetHash`
+
+Ontology audit:
+
+- no Continuum-core docs introduce graph, node, or edge ontology
+- graph-like language is confined to observer-relative readings or `git-warp`
+  compatibility docs
+
+Fixture audit:
+
+- read-only probe against `/Users/james/.think/codex`
+- refs unchanged after read-only probes
+- RSS measured with `/usr/bin/time -l`
+
+Scope audit:
+
+- no IPA, Continuum wire protocol, Echo interop, full Roaring/CAS cache, or
+  hologram product API enters v17 foundation unless explicitly approved
+
+This can be manual for the first implementation slice. It should become a
+scripted release check once the new optic paths exist.
+
 ## Release Notes Obligations
 
 Release notes must say:
@@ -319,6 +459,8 @@ Release notes must say:
 - Slice reads return `readIdentity`.
 - `stateHash` is reserved for full visible materialized readings.
 - Plumber operations may be expensive.
+- Bounded read basis failures are explicit and recover through Plumber, not
+  hidden materialization.
 - Upgrade scripts exist if internal representation changes require migration.
 
 ## v17 Acceptance Criteria
@@ -328,11 +470,18 @@ v17 is acceptable only if:
 - TypeScript migration is complete.
 - Public API centers the minimal optic surface.
 - `worldline.optic().node(id).read()` does not call `_materializeGraph()`.
+- `worldline.optic().node(id).read()` uses `CheckpointTailWitnessLocator` or an
+  approved equivalent bounded basis.
 - `worldline.optic().node(id).prop(key).read()` reads a property-level slice.
 - `neighbors().read()` is bounded if it ships.
 - `/Users/james/.think/codex` can be read through optics within the RSS bar.
 - No public read path uses full materialization.
 - Optic results expose `readIdentity`, not fake `stateHash`.
+- Missing bounded basis returns `E_OPTIC_NO_BOUNDED_BASIS` or an approved
+  equivalent typed failure.
+- Tail budget exhaustion returns `E_OPTIC_TAIL_BUDGET_EXCEEDED` or an approved
+  equivalent typed failure.
+- The doctrine compliance audit is run after major v17 implementation cycles.
 - Release notes explain breaking API changes.
 - Upgrade scripts exist if internal data representation changes require
   migration.
@@ -348,16 +497,24 @@ The post-v17 roadmap is:
 - v22 Proof-Carrying Execution
 
 v17 ships the foundation. Later phases ship the larger architecture.
+v17 is not the Continuum release. v17 is the release that makes Continuum
+possible.
+
+If v17 ships and codex-think works against the fixture, the doctrine is no
+longer only philosophical. It is executable enough for the rest of the roadmap
+to be credible.
 
 ## Risks And Open Questions
 
-- The stale checkpoint plus live writer tail may still require a deeper
-  live-tail bounded source for honest reads.
+- The stale checkpoint plus live writer tail requires careful budget design for
+  `CheckpointTailWitnessLocator`.
 - codex-think may need neighbor slices earlier than expected.
 - The current public API may have more materialize-first read paths than the
   query/provider path already identified.
 - The minimal `readIdentity` shape must be honest without pretending to be a
   future cryptographic commitment.
+- Current checkpoint indexes may be retained readings rather than raw witness
+  sets; the identity model must not call them full historical witness sets.
 - Moving materialization behind Plumber may expose product assumptions that
   currently depend on full `WarpState`.
 - Release notes must be blunt about breaking changes so compatibility pressure
@@ -377,11 +534,15 @@ v17 ships the foundation. Later phases ship the larger architecture.
 - Pattern: architecture over-scope.
   Files: design planning.
   Status: split into 0111 architecture and 0112 delivery.
+- Pattern: bounded basis handwave.
+  Files: future optic read implementation.
+  Status: name `CheckpointTailWitnessLocator` as the v17 implementation hinge.
 
 ### 2. Sludge Fixed
 
 - No production sludge fixed in this design cycle.
 - The delivery scope is narrowed to the foundation slice.
+- The v17 read basis is named as checkpoint/index shard plus live tail scan.
 - Roaring, CAS cache, holograms, IPA, Continuum protocol, Echo interop, and
   full traversal algebra are explicitly moved out of v17.
 
@@ -394,6 +555,8 @@ v17 ships the foundation. Later phases ship the larger architecture.
 - Rejected assuming indexes fit in memory.
 - Rejected a full `RuntimeHost` rewrite in this spec.
 - Rejected a bolted-on bounded query fast path.
+- Rejected treating a checkpoint `stateHash` as live read identity.
+- Rejected falling back to materialization when no bounded basis exists.
 - Rejected legacy read API compatibility as a v17 requirement.
 
 ### 4. Sludge Deferred
@@ -413,3 +576,6 @@ npx markdownlint docs/design/0111-v17-optics-causal-slice-architecture.md docs/d
 git diff --check
 npm run lint:sludge
 ```
+
+Also run the manual doctrine compliance audit above for any implementation
+cycle that touches public read paths.

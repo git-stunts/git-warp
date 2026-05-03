@@ -601,6 +601,8 @@ The architecture roadmap is:
 - v22 Proof-Carrying Execution
 
 v17 ships the foundation slice. Later phases ship more of the architecture.
+v17 is not the Continuum release. v17 is the release that makes Continuum
+possible.
 
 ## Open Questions
 
