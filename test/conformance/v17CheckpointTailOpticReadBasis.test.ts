@@ -153,6 +153,22 @@ describe('v17 checkpoint-tail optic read basis', () => {
     expect(materializeGraph).not.toHaveBeenCalled();
   });
 
+  it('requires tail node removes to fail closed without materialization', async () => {
+    const graph = await openGraphWithIndexedCheckpoint('v17-optic-node-remove-tail-red');
+    await graph.patch((patch) => {
+      patch.removeNode(CHECKPOINT_NODE_ID);
+    });
+    const materializeGraph = vi.spyOn(graph, '_materializeGraph');
+    materializeGraph.mockRejectedValue(
+      new Error('tail node remove must not fall back to materialization'),
+    );
+
+    await expect(readNode(graph.worldline(), CHECKPOINT_NODE_ID))
+      .rejects
+      .toMatchObject({ code: 'E_OPTIC_NO_BOUNDED_BASIS' });
+    expect(materializeGraph).not.toHaveBeenCalled();
+  });
+
   it('keeps checkpoint tail semantics causal rather than scalar', () => {
     const deliveryPlan = collapseWhitespace(readRepoFile(DELIVERY_PLAN_PATH));
 
