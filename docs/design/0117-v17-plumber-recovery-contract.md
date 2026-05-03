@@ -222,7 +222,7 @@ Non-effect:
 
 These are deliberately separate hills:
 
-- `PROTO_v17-optic-error-contract.md`
+- `0118-v17-optic-error-contract.md`
 - `PROTO_v17-tail-budget-semantics.md`
 - `PROTO_v17-reducer-capability-boundary.md`
 
