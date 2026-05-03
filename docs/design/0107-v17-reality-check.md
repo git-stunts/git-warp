@@ -29,6 +29,14 @@ What blocks shipping a trustworthy v17?
 The scoreboard is not issue count, bad-code card count, or Graft
 candidate signal count.
 
+## Follow-On Architecture Spec
+
+`docs/design/0111-v17-optics-causal-slice-spec.md` is the controlling
+architecture spec for the v17 optics and causal-slice mental model after human
+approval. It supersedes the narrow bounded-query-provider framing for future
+implementation planning; this 0107 document remains the historical release
+reality check that led to that pivot.
+
 ## v17 Ships If
 
 - Core typecheck passes.
