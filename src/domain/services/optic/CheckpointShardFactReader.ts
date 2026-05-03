@@ -1,5 +1,8 @@
 import type { PropValue } from '../../types/PropValue.ts';
 import computeShardKey from '../../utils/shardKey.ts';
+import IndexError from '../../errors/IndexError.ts';
+import PersistenceError from '../../errors/PersistenceError.ts';
+import QueryError from '../../errors/QueryError.ts';
 import LogicalIndexReader from '../index/LogicalIndexReader.ts';
 import PropertyIndexReader from '../index/PropertyIndexReader.ts';
 import type { CheckpointTailIndexBasis } from './CheckpointTailBasisLoader.ts';
@@ -7,10 +10,20 @@ import type CheckpointTailOpticSource from './CheckpointTailOpticSource.ts';
 import type { ReadIdentityIndexShard } from './ReadIdentity.ts';
 
 const MAX_CACHED_CHECKPOINT_PROPERTY_SHARDS = 1;
+const INDEX_SHARD_MISSING_CODE = 'E_INDEX_SHARD_MISSING';
+const INDEX_SHARD_MALFORMED_CODE = 'E_INDEX_SHARD_MALFORMED';
+const CHECKPOINT_SHARD_UNAVAILABLE_CAUSE = 'checkpoint-shard-unavailable';
+const CHECKPOINT_SHARD_INVALID_CAUSE = 'checkpoint-shard-invalid';
 
 type CheckpointShardIdentityCandidate = {
   readonly path: string;
   readonly oid: string | undefined;
+};
+
+type CheckpointShardReadFailureContext = {
+  readonly graphName: string;
+  readonly path: string;
+  readonly oid: string;
 };
 
 export default class CheckpointShardFactReader {
@@ -51,7 +64,14 @@ export default class CheckpointShardFactReader {
       maxCachedShards: MAX_CACHED_CHECKPOINT_PROPERTY_SHARDS,
     });
     reader.setup({ [path]: oid });
-    return await reader.getProperty(nodeId, propertyKey);
+    try {
+      return await reader.getProperty(nodeId, propertyKey);
+    } catch (error) {
+      const context = { graphName: this._source.graphName, path, oid };
+      const failure = error instanceof Error ? checkpointShardReadFailure(error, context) : null;
+      if (failure !== null) { throw failure; }
+      throw error;
+    }
   }
 
   nodeLivenessShardIdentities(
@@ -89,4 +109,43 @@ function shardIdentities(
     }
   }
   return Object.freeze(identities);
+}
+
+function checkpointShardReadFailure(
+  error: Error,
+  context: CheckpointShardReadFailureContext,
+): QueryError | null {
+  const reason = checkpointShardFailureReason(error);
+  if (reason === null) {
+    return null;
+  }
+  return new QueryError('No bounded checkpoint-tail property shard is available.', {
+    code: 'E_OPTIC_NO_BOUNDED_BASIS',
+    context: {
+      graphName: context.graphName,
+      reason,
+      path: context.path,
+      oid: context.oid,
+    },
+  });
+}
+
+function checkpointShardFailureReason(error: Error): string | null {
+  if (error instanceof IndexError) {
+    return indexShardFailureReason(error);
+  }
+  if (error instanceof PersistenceError && error.code === PersistenceError.E_MISSING_OBJECT) {
+    return CHECKPOINT_SHARD_UNAVAILABLE_CAUSE;
+  }
+  return null;
+}
+
+function indexShardFailureReason(error: IndexError): string | null {
+  if (error.code === INDEX_SHARD_MISSING_CODE) {
+    return CHECKPOINT_SHARD_UNAVAILABLE_CAUSE;
+  }
+  if (error.code === INDEX_SHARD_MALFORMED_CODE) {
+    return CHECKPOINT_SHARD_INVALID_CAUSE;
+  }
+  return null;
 }

@@ -5,6 +5,11 @@ import { describe, expect, it, vi } from 'vitest';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
 import Patch from '../../src/domain/types/Patch.ts';
+import PersistenceError from '../../src/domain/errors/PersistenceError.ts';
+import computeShardKey from '../../src/domain/utils/shardKey.ts';
+import { buildCheckpointRef } from '../../src/domain/utils/RefLayout.ts';
+import { partitionShardOids } from '../../src/domain/services/MaterializedViewHelpers.ts';
+import { partitionTreeOids } from '../../src/domain/services/state/checkpointHelpers.ts';
 
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const DELIVERY_PLAN_PATH = 'docs/design/0112-v17-foundation-delivery-plan.md';
@@ -26,6 +31,19 @@ const RETRY_WITH_EXTENDED_BUDGET_HINT = Object.freeze({
   retryMaySucceedAfterRecovery: true,
   requiresCallerConsent: true,
 });
+const PREWARM_INDEX_HINT = Object.freeze({
+  operation: 'plumber.checkpoint.prewarmIndex',
+  retryMaySucceedAfterRecovery: true,
+  requiresCallerConsent: true,
+});
+
+type ExpectedRecoveryHint = {
+  readonly operation: string;
+  readonly retryMaySucceedAfterRecovery: boolean;
+  readonly requiresCallerConsent: boolean;
+};
+
+type IndexedCheckpointGraph = Awaited<ReturnType<typeof openGraphWithIndexedCheckpoint>>;
 
 function readRepoFile(path: string): string {
   return readFileSync(join(REPO_ROOT, path), 'utf8');
@@ -97,6 +115,7 @@ function expectNoBoundedBasisFailure(options: {
   readonly opticKind: 'node' | 'node-property';
   readonly target: object;
   readonly cause: string;
+  readonly recoveryHints?: readonly ExpectedRecoveryHint[];
 }): Promise<void> {
   return expect(options.read)
     .rejects
@@ -108,7 +127,7 @@ function expectNoBoundedBasisFailure(options: {
         target: options.target,
         cause: options.cause,
         reason: options.cause,
-        recoveryHints: [CREATE_INDEXED_BASIS_HINT],
+        recoveryHints: options.recoveryHints ?? [CREATE_INDEXED_BASIS_HINT],
       },
     });
 }
@@ -162,6 +181,43 @@ async function openGraphWithIndexedCheckpoint(graphName: string) {
   await graph.materialize();
   await graph.createCheckpoint();
   return graph;
+}
+
+async function checkpointPropertyShardOid(
+  graph: IndexedCheckpointGraph,
+  nodeId: string,
+): Promise<string> {
+  const checkpointSha = await graph._persistence.readRef(buildCheckpointRef(graph.graphName));
+  if (checkpointSha === null) {
+    throw new Error('indexed checkpoint fixture must publish a checkpoint ref');
+  }
+  const checkpointMessage = graph._commitMessageCodec.decodeCheckpoint(
+    await graph._persistence.showNode(checkpointSha),
+  );
+  const { treeOids, indexShardOids } = partitionTreeOids(
+    await graph._persistence.readTreeOids(checkpointMessage.indexOid),
+  );
+  const shardOids = Object.keys(indexShardOids).length > 0
+    ? indexShardOids
+    : await nestedIndexShardOids(graph, treeOids);
+  const { propOids } = partitionShardOids(shardOids);
+  const path = `props_${computeShardKey(nodeId)}.cbor`;
+  const oid = propOids[path];
+  if (oid === undefined) {
+    throw new Error(`indexed checkpoint fixture must include ${path}`);
+  }
+  return oid;
+}
+
+async function nestedIndexShardOids(
+  graph: IndexedCheckpointGraph,
+  treeOids: Record<string, string>,
+): Promise<Record<string, string>> {
+  const indexTreeOid = treeOids['index'];
+  if (indexTreeOid === undefined) {
+    throw new Error('indexed checkpoint fixture must include index subtree');
+  }
+  return await graph._persistence.readTreeOids(indexTreeOid);
 }
 
 describe('v17 checkpoint-tail optic read basis', () => {
@@ -287,6 +343,62 @@ describe('v17 checkpoint-tail optic read basis', () => {
       graphName,
       opticKind: 'node',
       target: { nodeId: CHECKPOINT_NODE_ID },
+    });
+    expect(materializeGraph).not.toHaveBeenCalled();
+  });
+
+  it('requires unavailable checkpoint property shards to fail closed without materialization', async () => {
+    const graphName = 'v17-optic-prop-shard-missing-red';
+    const graph = await openGraphWithIndexedCheckpoint(graphName);
+    const propertyShardOid = await checkpointPropertyShardOid(graph, CHECKPOINT_NODE_ID);
+    const originalReadBlob = graph._persistence.readBlob.bind(graph._persistence);
+    vi.spyOn(graph._persistence, 'readBlob').mockImplementation(async (oid: string) => {
+      if (oid === propertyShardOid) {
+        throw new PersistenceError(
+          `Blob not found: ${oid}`,
+          PersistenceError.E_MISSING_OBJECT,
+        );
+      }
+      return await originalReadBlob(oid);
+    });
+    const materializeGraph = vi.spyOn(graph, '_materializeGraph');
+    materializeGraph.mockRejectedValue(
+      new Error('unavailable checkpoint property shard must not fall back to materialization'),
+    );
+
+    await expectNoBoundedBasisFailure({
+      read: readNodeProperty(graph.worldline(), CHECKPOINT_NODE_ID, PROPERTY_KEY),
+      graphName,
+      opticKind: 'node-property',
+      target: { nodeId: CHECKPOINT_NODE_ID, propertyKey: PROPERTY_KEY },
+      cause: 'checkpoint-shard-unavailable',
+      recoveryHints: [PREWARM_INDEX_HINT],
+    });
+    expect(materializeGraph).not.toHaveBeenCalled();
+  });
+
+  it('requires invalid checkpoint property shards to fail closed without materialization', async () => {
+    const graphName = 'v17-optic-prop-shard-invalid-red';
+    const graph = await openGraphWithIndexedCheckpoint(graphName);
+    const propertyShardOid = await checkpointPropertyShardOid(graph, CHECKPOINT_NODE_ID);
+    const originalReadBlob = graph._persistence.readBlob.bind(graph._persistence);
+    vi.spyOn(graph._persistence, 'readBlob').mockImplementation(async (oid: string) => {
+      if (oid === propertyShardOid) {
+        return graph._codec.encode(Object.freeze({ invalid: true }));
+      }
+      return await originalReadBlob(oid);
+    });
+    const materializeGraph = vi.spyOn(graph, '_materializeGraph');
+    materializeGraph.mockRejectedValue(
+      new Error('invalid checkpoint property shard must not fall back to materialization'),
+    );
+
+    await expectNoBoundedBasisFailure({
+      read: readNodeProperty(graph.worldline(), CHECKPOINT_NODE_ID, PROPERTY_KEY),
+      graphName,
+      opticKind: 'node-property',
+      target: { nodeId: CHECKPOINT_NODE_ID, propertyKey: PROPERTY_KEY },
+      cause: 'checkpoint-shard-invalid',
     });
     expect(materializeGraph).not.toHaveBeenCalled();
   });
