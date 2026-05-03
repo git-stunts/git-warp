@@ -212,12 +212,17 @@ It answers exact entity/aspect reads by combining:
 
 1. a retained checkpoint/index shard reading at the latest usable checkpoint
    frontier; and
-2. a live tail scan after that checkpoint frontier, filtered to the requested
-   entity/aspect.
+2. a live suffix scan after that checkpoint frontier across all relevant
+   writers and lanes, filtered to the requested entity/aspect.
 
 The checkpoint side is a retained read basis, not necessarily raw historical
 witnesses. The live tail side is actual tail witness evidence. The result
 identity must name both.
+
+The tail after a checkpoint frontier is a causal frontier problem, not a scalar
+writer-tip subtraction. For the codex fixture, the visible stale-checkpoint
+case is one writer ahead of the checkpoint. The implementation still must mean
+all lane and writer suffixes not covered by the checkpoint frontier.
 
 The v17 locator pipeline is:
 
@@ -226,7 +231,7 @@ optic intent
   -> entity/aspect key
   -> entity shard key
   -> load checkpoint index shard for that key
-  -> scan writer tail after checkpoint frontier
+  -> scan live suffix after checkpoint frontier across relevant writers/lanes
   -> collect only tail patches touching entity/aspect
   -> reduce checkpoint reading + tail witnesses
   -> return value + readIdentity
@@ -236,7 +241,9 @@ Rules:
 
 - Load only the checkpoint shard or shards needed for the requested
   entity/aspect.
-- Scan only patches after the checkpoint frontier.
+- Scan only patches after the checkpoint frontier across relevant writers and
+  lanes.
+- Do not assume one writer, one lane, or one scalar tail.
 - Collect only tail patches touching the requested entity/aspect.
 - Do not full-materialize the graph-like reading.
 - Do not use checkpoint `stateHash` as live result identity.
@@ -362,6 +369,7 @@ uses CheckpointTailWitnessLocator
 does not call _materializeGraph()
 returns honest readIdentity
 fails closed if no bounded basis exists
+does not assume one writer or one scalar tail
 ```
 
 That first implementation slice should be narrow:
