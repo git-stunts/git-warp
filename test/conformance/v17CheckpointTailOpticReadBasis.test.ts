@@ -8,6 +8,10 @@ import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const DELIVERY_PLAN_PATH = 'docs/design/0112-v17-foundation-delivery-plan.md';
 const MISSING_NODE_ID = 'node:missing';
+const CHECKPOINT_NODE_ID = 'node:checkpoint-basis';
+const PROPERTY_KEY = 'title';
+const CHECKPOINT_PROPERTY_VALUE = 'checkpoint title';
+const TAIL_PROPERTY_VALUE = 'tail title';
 
 function readRepoFile(path: string): string {
   return readFileSync(join(REPO_ROOT, path), 'utf8');
@@ -68,39 +72,68 @@ function expectReadIdentity(result: object): void {
   expect(result).not.toHaveProperty('stateHash');
 }
 
+function expectTailWitnessCount(result: object, count: number): void {
+  const readIdentity = Reflect.get(result, 'readIdentity');
+  expect(Reflect.get(readIdentity, 'tailWitnesses')).toHaveLength(count);
+}
+
+async function openGraphWithIndexedCheckpoint(graphName: string) {
+  const graph = await openRuntimeHostProduct({
+    persistence: new InMemoryGraphAdapter(),
+    graphName,
+    writerId: 'reader',
+  });
+  await graph.patch((patch) => {
+    patch.addNode(CHECKPOINT_NODE_ID);
+    patch.setProperty(CHECKPOINT_NODE_ID, PROPERTY_KEY, CHECKPOINT_PROPERTY_VALUE);
+  });
+  await graph.materialize();
+  await graph.createCheckpoint();
+  return graph;
+}
+
 describe('v17 checkpoint-tail optic read basis', () => {
   it('requires exact node optic reads to avoid _materializeGraph()', async () => {
-    const graph = await openRuntimeHostProduct({
-      persistence: new InMemoryGraphAdapter(),
-      graphName: 'v17-optic-node-red',
-      writerId: 'reader',
+    const graph = await openGraphWithIndexedCheckpoint('v17-optic-node-red');
+    await graph.patch((patch) => {
+      patch.setProperty(CHECKPOINT_NODE_ID, 'ignoredByNodeRead', 'not a liveness fact');
     });
     const materializeGraph = vi.spyOn(graph, '_materializeGraph');
     materializeGraph.mockRejectedValue(
       new Error('worldline optic node read must not full-materialize'),
     );
 
-    const result = await readNode(graph.worldline(), MISSING_NODE_ID);
+    const result = await readNode(graph.worldline(), CHECKPOINT_NODE_ID);
 
     expect(materializeGraph).not.toHaveBeenCalled();
     expectReadIdentity(result);
+    expect(result).toMatchObject({
+      nodeId: CHECKPOINT_NODE_ID,
+      alive: true,
+    });
+    expectTailWitnessCount(result, 0);
   });
 
-  it('requires property optic reads to avoid _materializeGraph()', async () => {
-    const graph = await openRuntimeHostProduct({
-      persistence: new InMemoryGraphAdapter(),
-      graphName: 'v17-optic-prop-red',
-      writerId: 'reader',
+  it('requires property optic reads to fold live tail without _materializeGraph()', async () => {
+    const graph = await openGraphWithIndexedCheckpoint('v17-optic-prop-red');
+    await graph.patch((patch) => {
+      patch.setProperty(CHECKPOINT_NODE_ID, PROPERTY_KEY, TAIL_PROPERTY_VALUE);
     });
     const materializeGraph = vi.spyOn(graph, '_materializeGraph');
     materializeGraph.mockRejectedValue(
       new Error('worldline optic property read must not full-materialize'),
     );
 
-    const result = await readNodeProperty(graph.worldline(), MISSING_NODE_ID, 'title');
+    const result = await readNodeProperty(graph.worldline(), CHECKPOINT_NODE_ID, PROPERTY_KEY);
 
     expect(materializeGraph).not.toHaveBeenCalled();
     expectReadIdentity(result);
+    expect(result).toMatchObject({
+      nodeId: CHECKPOINT_NODE_ID,
+      key: PROPERTY_KEY,
+      value: TAIL_PROPERTY_VALUE,
+    });
+    expectTailWitnessCount(result, 1);
   });
 
   it('requires missing bounded basis to fail closed without materialization', async () => {

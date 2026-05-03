@@ -1,6 +1,6 @@
 # 0113 v17 Checkpoint Tail Optic Read Basis
 
-- Status: `RED`
+- Status: `GREEN foundation slice`
 - Release lane: `v17.0.0`
 - Source: `0113-v17-checkpoint-tail-optic-read-basis`
 - Design role: first implementation hill for v17 foundation optics
@@ -24,7 +24,9 @@ fails closed if no bounded basis exists
 does not assume one writer or one scalar tail
 ```
 
-This cycle starts RED/design. It does not implement production optics yet.
+This cycle started RED/design, then landed the smallest GREEN foundation slice.
+It implements minimal live-worldline node and property optics backed by the
+checkpoint-tail basis.
 
 ## Why This Exists
 
@@ -63,6 +65,29 @@ The RED is expected to fail today because `Worldline` does not expose
 `optic()` yet. That is the point. GREEN should add the smallest real optic read
 path and bounded basis; it must not hide a materialization fallback under the
 new method.
+
+## GREEN Slice
+
+The GREEN implementation adds:
+
+- `worldline.optic().node(id).read()`
+- `worldline.optic().node(id).prop(key).read()`
+- `CheckpointTailWitnessLocator`
+- `readIdentity` for slice results
+- fail-closed `E_OPTIC_NO_BOUNDED_BASIS`
+
+The locator reads:
+
+```text
+checkpoint head commit message
+checkpoint frontier payload
+targeted checkpoint index shard
+targeted checkpoint property shard
+all writer suffixes after the checkpoint frontier
+```
+
+It does not read `state.cbor` and does not call `_materializeGraph()` on the
+optic read path.
 
 ## Minimal Locator Contract
 
@@ -120,9 +145,13 @@ E_OPTIC_TAIL_BUDGET_EXCEEDED
 Recovery is explicit Plumber work such as prewarming indexes or creating a new
 indexed checkpoint. Recovery is never a hidden `_materializeGraph()` call.
 
+The current GREEN fails closed for tail node removals because the retained
+checkpoint index basis does not carry raw node liveness dots. It also fails
+closed for non-scalar tail property values until that parser boundary is
+explicitly widened.
+
 ## Non-Goals
 
-- No production implementation in this RED/design cycle.
 - No full Roaring bitmap index system.
 - No CAS slice cache.
 - No Continuum wire protocol.
@@ -137,14 +166,22 @@ Run:
 
 ```sh
 npx vitest run test/conformance/v17CheckpointTailOpticReadBasis.test.ts
-npx eslint test/conformance/v17CheckpointTailOpticReadBasis.test.ts
+npx eslint test/conformance/v17CheckpointTailOpticReadBasis.test.ts \
+  src/domain/services/optic/CheckpointTailWitnessLocator.ts \
+  src/domain/services/optic/WorldlineOptic.ts \
+  src/domain/services/optic/NodeOptic.ts \
+  src/domain/services/optic/NodePropertyOptic.ts \
+  src/domain/services/optic/ReadIdentity.ts \
+  src/domain/services/optic/NodeOpticReadResult.ts \
+  src/domain/services/optic/NodePropertyOpticReadResult.ts \
+  src/domain/services/Worldline.ts \
+  src/domain/services/controllers/QueryController.ts \
+  src/domain/warp/RuntimeHostProduct.ts
+npm run typecheck
 npx markdownlint docs/design/0113-v17-checkpoint-tail-optic-read-basis.md
 git diff --check
 npm run lint:sludge
 ```
-
-The vitest command is expected to fail for the RED reason until GREEN
-implements the optic read basis.
 
 Observed RED:
 
@@ -167,13 +204,20 @@ Current failure reason:
 optic() must exist for v17 optic RED
 ```
 
+Observed GREEN:
+
+```text
+test/conformance/v17CheckpointTailOpticReadBasis.test.ts
+  4 passed
+```
+
 ## SLUDGE STRIKER SUMMARY
 
 ### 1. Sludge Encountered
 
 - Pattern: materialize-first read surface.
   Files: `Worldline`, `Observer`, query/provider paths.
-  Status: pinned by RED; not fixed here.
+  Status: fixed for the new minimal live-worldline optic path only.
 - Pattern: bounded basis handwave.
   Files: future optic read implementation.
   Status: replaced by `CheckpointTailWitnessLocator`.
@@ -183,10 +227,13 @@ optic() must exist for v17 optic RED
 
 ### 2. Sludge Fixed
 
-- No production sludge fixed in this cycle.
-- The next implementation hill is named and bounded.
-- RED now protects the no-materialization, honest-identity, and fail-closed
-  requirements.
+- Added a minimal live-worldline optic path that does not call
+  `_materializeGraph()`.
+- Added checkpoint-tail bounded-basis reads for node liveness and property
+  slices.
+- Added `readIdentity` for optic results instead of `stateHash`.
+- RED now protects the no-materialization, honest-identity, fail-closed, and
+  causal-tail requirements.
 
 ### 3. Sludge Rejected
 
@@ -198,8 +245,8 @@ optic() must exist for v17 optic RED
 
 ### 4. Sludge Deferred
 
-- Implement `CheckpointTailWitnessLocator`.
-- Add minimal worldline optic surface.
-- Add property-level slice reduction.
 - Calibrate `maxTailPatches`, `maxTailBytes`, and `maxTailMs`.
+- Broaden property tail parsing beyond scalar and byte values.
+- Support tail node removals without guessing when checkpoint liveness dots are
+  unavailable.
 - Decide the explicit Plumber recovery operation names.

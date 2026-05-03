@@ -13,6 +13,8 @@ import type Observer from './query/Observer.ts';
 import LogicalTraversal from './query/LogicalTraversal.ts';
 import QueryBuilder from './query/QueryBuilder.ts';
 import QueryError from '../errors/QueryError.ts';
+import WorldlineOptic from './optic/WorldlineOptic.ts';
+import type CheckpointTailOpticSource from './optic/CheckpointTailOpticSource.ts';
 import type {
   QueryReadModel,
   QueryReadModelProvider,
@@ -230,6 +232,7 @@ export default class Worldline {
   private readonly _graph: WorldlineObserverFactory;
   private readonly _graphCloner: DetachedGraphFactory;
   private readonly _source: WorldlineSelector;
+  private readonly _opticSource: CheckpointTailOpticSource | null;
   private _delegateObserverPromise: Promise<WorldlineMaterializedDelegate> | null;
   readonly traverse: LogicalTraversal;
 
@@ -237,14 +240,17 @@ export default class Worldline {
     graph,
     graphCloner,
     source,
+    opticSource,
   }: {
     graph: WorldlineObserverFactory;
     graphCloner: DetachedGraphFactory;
     source?: WorldlineSelector | WorldlineSource | null;
+    opticSource?: CheckpointTailOpticSource | null;
   }) {
     this._graph = graph;
     this._graphCloner = graphCloner;
     this._source = toSelector(source);
+    this._opticSource = opticSource ?? null;
     this._delegateObserverPromise = null;
     this.traverse = new LogicalTraversal(this);
   }
@@ -259,8 +265,25 @@ export default class Worldline {
         graph: this._graph,
         graphCloner: this._graphCloner,
         source: options?.source ?? this._source,
+        opticSource: this._opticSource,
       }),
     );
+  }
+
+  optic(): WorldlineOptic {
+    if (this._opticSource === null) {
+      throw new QueryError('worldline optic requires a checkpoint-tail bounded basis source', {
+        code: 'E_OPTIC_NO_BOUNDED_BASIS',
+        context: { reason: 'missing-optic-source' },
+      });
+    }
+    if (!(this._source instanceof LiveSelector)) {
+      throw new QueryError('v17 foundation optics support live worldlines only', {
+        code: 'E_OPTIC_NO_BOUNDED_BASIS',
+        context: { selector: this._source.constructor.name },
+      });
+    }
+    return new WorldlineOptic({ source: this._opticSource });
   }
 
   async materialize(options: { receipts: true }): Promise<MaterializedStateWithReceipts>;

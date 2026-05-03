@@ -3,6 +3,7 @@ import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type RuntimeStorageCapabilityPort from '../../ports/RuntimeStorageCapabilityPort.ts';
+import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type { NeighborEdge } from '../../ports/NeighborProviderPort.ts';
 import type QueryCapability from '../capabilities/QueryCapability.ts';
 import type PatchCapability from '../capabilities/PatchCapability.ts';
@@ -135,6 +136,7 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   _effectPipeline: EffectPipeline | null;
   readonly _crypto: CryptoPort;
   readonly _codec: CodecPort;
+  readonly _commitMessageCodec: CommitMessageCodecPort;
   _setMaterializedState(
     state: WarpState,
     optionsOrDiff?: PatchDiff | { diff?: PatchDiff | null },

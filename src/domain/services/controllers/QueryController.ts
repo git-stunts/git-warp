@@ -9,6 +9,7 @@ import { cloneState } from '../JoinReducer.ts';
 import LiveQueryReadModelProvider from '../query/LiveQueryReadModelProvider.ts';
 import Observer from '../query/Observer.ts';
 import Worldline from '../Worldline.ts';
+import type CheckpointTailOpticSource from '../optic/CheckpointTailOpticSource.ts';
 import { computeTranslationCost } from '../TranslationCost.ts';
 import { toInternalStrandShape } from '../../utils/strandPublicShape.ts';
 import type { DetachedGraphInternalReadSurface } from '../../capabilities/DetachedGraphFactory.ts';
@@ -53,7 +54,7 @@ type QueryObserverFactoryHost = {
   observer(name: string, config: ObserverConfig, options?: ObserverOptions): Promise<Observer>;
 };
 
-type MaterializableHost = QueryReadHost & QueryContentHost & QueryObserverFactoryHost & Pick<QueryCapability, 'hasNode' | 'getNodes' | 'getNodeProps' | 'getEdges'> & {
+type MaterializableHost = QueryReadHost & QueryContentHost & QueryObserverFactoryHost & Pick<QueryCapability, 'hasNode' | 'getNodes' | 'getNodeProps' | 'getEdges'> & Partial<CheckpointTailOpticSource> & {
   _materializeGraph(): Promise<MaterializedReadGraph>;
 };
 
@@ -249,6 +250,23 @@ function defaultQueryReadModelProvider(ctrl: QueryController): QueryReadModelPro
   });
 }
 
+function hasWorldlineOpticSource(
+  graph: MaterializableHost,
+): graph is MaterializableHost & CheckpointTailOpticSource {
+  return typeof graph.graphName === 'string'
+    && graph._persistence !== undefined
+    && graph._codec !== undefined
+    && graph._blobStorage !== undefined
+    && graph._commitMessageCodec !== undefined
+    && typeof graph.discoverWriters === 'function'
+    && typeof graph._loadWriterPatches === 'function'
+    && typeof graph._validatePatchAgainstCheckpoint === 'function';
+}
+
+function worldlineOpticSource(graph: MaterializableHost): CheckpointTailOpticSource | null {
+  return hasWorldlineOpticSource(graph) ? graph : null;
+}
+
 /**
  * CallableFunction is the least-information return shape for a
  * dispatch wrapper — the actual per-method types live on the
@@ -301,6 +319,7 @@ wire('worldline', function (this: QueryController, options?: ObserverOptions) {
     graph: host(this),
     graphCloner: this._graphCloner,
     source: toSelector(options?.source) ?? new LiveSelector(),
+    opticSource: worldlineOpticSource(host(this)),
   });
 });
 
