@@ -3,6 +3,7 @@ import QueryError from '../../errors/QueryError.ts';
 const CREATE_INDEXED_BASIS_OPERATION = 'plumber.checkpoint.createIndexedBasis';
 const PREWARM_INDEX_OPERATION = 'plumber.checkpoint.prewarmIndex';
 const RETRY_WITH_EXTENDED_BUDGET_OPERATION = 'plumber.optic.retryWithExtendedBudget';
+const REASON_CONTEXT_FIELD = 'reason';
 const CREATE_INDEXED_BASIS_CAUSES = Object.freeze([
   'missing-checkpoint',
   'checkpoint-without-index-tree',
@@ -97,12 +98,8 @@ function hasReason(error: QueryError): boolean {
 }
 
 function reasonForError(error: QueryError): string | null {
-  const reason = errorContextField(error, 'reason');
+  const reason = error.context[REASON_CONTEXT_FIELD];
   return typeof reason === 'string' ? reason : null;
-}
-
-function errorContextField(error: QueryError, field: string) {
-  return error.context[field];
 }
 
 function recoveryHintsForCause(cause: string): readonly OpticRecoveryHint[] {
