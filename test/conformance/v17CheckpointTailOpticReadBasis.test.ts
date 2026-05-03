@@ -12,6 +12,7 @@ const CHECKPOINT_NODE_ID = 'node:checkpoint-basis';
 const PROPERTY_KEY = 'title';
 const CHECKPOINT_PROPERTY_VALUE = 'checkpoint title';
 const TAIL_PROPERTY_VALUE = 'tail title';
+const UNSUPPORTED_TAIL_PROPERTY_VALUE = Object.freeze({ nested: TAIL_PROPERTY_VALUE });
 
 function readRepoFile(path: string): string {
   return readFileSync(join(REPO_ROOT, path), 'utf8');
@@ -164,6 +165,22 @@ describe('v17 checkpoint-tail optic read basis', () => {
     );
 
     await expect(readNode(graph.worldline(), CHECKPOINT_NODE_ID))
+      .rejects
+      .toMatchObject({ code: 'E_OPTIC_NO_BOUNDED_BASIS' });
+    expect(materializeGraph).not.toHaveBeenCalled();
+  });
+
+  it('requires unsupported tail property values to fail closed without materialization', async () => {
+    const graph = await openGraphWithIndexedCheckpoint('v17-optic-prop-object-tail-red');
+    await graph.patch((patch) => {
+      patch.setProperty(CHECKPOINT_NODE_ID, PROPERTY_KEY, UNSUPPORTED_TAIL_PROPERTY_VALUE);
+    });
+    const materializeGraph = vi.spyOn(graph, '_materializeGraph');
+    materializeGraph.mockRejectedValue(
+      new Error('unsupported tail property value must not fall back to materialization'),
+    );
+
+    await expect(readNodeProperty(graph.worldline(), CHECKPOINT_NODE_ID, PROPERTY_KEY))
       .rejects
       .toMatchObject({ code: 'E_OPTIC_NO_BOUNDED_BASIS' });
     expect(materializeGraph).not.toHaveBeenCalled();
