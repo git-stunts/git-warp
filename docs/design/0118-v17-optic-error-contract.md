@@ -51,6 +51,12 @@ and recovery hint identifiers. It does not require a new top-level error
 property or a new error subclass before a later implementation hill explicitly
 chooses one.
 
+Cause identifiers use the existing kebab-case reason vocabulary as the source
+of truth. Future implementation must not grow parallel `reason` and `cause`
+vocabularies. If both fields appear during migration, they must carry the same
+stable identifier until one is retired or aliased by an explicit contract
+update.
+
 ## Why This Exists
 
 0117 named recovery operations:
@@ -300,7 +306,7 @@ when the evidence is incomplete.
 | Field | Required | Meaning |
 | --- | --- | --- |
 | `operation` | yes | Recovery operation identifier from 0117. |
-| `safeToRetry` | yes | Whether retrying after that recovery can be meaningful. |
+| `retryMaySucceedAfterRecovery` | yes | Whether retrying after completed recovery can be meaningful. |
 | `requiresCallerConsent` | yes | Whether the caller must explicitly request it. |
 
 Allowed `operation` identifiers:
@@ -335,9 +341,9 @@ Errors that must not be auto-retried:
 - all `E_OPTIC_TAIL_BUDGET_EXCEEDED` causes
 - all `E_OPTIC_READ_IDENTITY` causes
 
-`safeToRetry` never means "retry now in a loop." It means "a retry can be
-meaningful after the named recovery operation has completed with caller
-consent."
+`retryMaySucceedAfterRecovery` never means "retry now in a loop." It means "a
+retry can be meaningful after the named recovery operation has completed with
+caller consent."
 
 ## Partial Evidence Identity
 
@@ -413,7 +419,7 @@ future implementation hill should preserve or migrate them deliberately:
 Implementation must be pulled separately after this design is accepted. The
 next design hills remain:
 
-- `PROTO_v17-tail-budget-semantics.md`
+- `0119-v17-tail-budget-semantics.md`
 - `PROTO_v17-reducer-capability-boundary.md`
 
 ## Validation
@@ -423,7 +429,7 @@ Run for this design-only cycle:
 ```sh
 npx markdownlint docs/design/0117-v17-plumber-recovery-contract.md \
   docs/design/0118-v17-optic-error-contract.md \
-  docs/method/backlog/up-next/PROTO_v17-tail-budget-semantics.md \
+  docs/design/0119-v17-tail-budget-semantics.md \
   docs/method/backlog/up-next/PROTO_v17-reducer-capability-boundary.md
 git diff --check
 npm run lint:sludge

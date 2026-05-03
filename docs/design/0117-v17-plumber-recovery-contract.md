@@ -223,7 +223,7 @@ Non-effect:
 These are deliberately separate hills:
 
 - `0118-v17-optic-error-contract.md`
-- `PROTO_v17-tail-budget-semantics.md`
+- `0119-v17-tail-budget-semantics.md`
 - `PROTO_v17-reducer-capability-boundary.md`
 
 ## Validation
@@ -232,8 +232,8 @@ Run for this design-only cycle:
 
 ```sh
 npx markdownlint docs/design/0117-v17-plumber-recovery-contract.md \
-  docs/method/backlog/up-next/PROTO_v17-optic-error-contract.md \
-  docs/method/backlog/up-next/PROTO_v17-tail-budget-semantics.md \
+  docs/design/0118-v17-optic-error-contract.md \
+  docs/design/0119-v17-tail-budget-semantics.md \
   docs/method/backlog/up-next/PROTO_v17-reducer-capability-boundary.md
 git diff --check
 npm run lint:sludge
