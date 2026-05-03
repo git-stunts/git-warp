@@ -3,7 +3,9 @@ import CheckpointTailBasisLoader, {
 } from './CheckpointTailBasisLoader.ts';
 import CheckpointShardFactReader from './CheckpointShardFactReader.ts';
 import CheckpointTailFactReducer from './CheckpointTailFactReducer.ts';
+import CheckpointTailReadFailure from './CheckpointTailReadFailure.ts';
 import CheckpointTailReadIdentityBuilder from './CheckpointTailReadIdentityBuilder.ts';
+import QueryError from '../../errors/QueryError.ts';
 import NodeOpticReadResult from './NodeOpticReadResult.ts';
 import NodePropertyOpticReadResult from './NodePropertyOpticReadResult.ts';
 import type CheckpointTailOpticSource from './CheckpointTailOpticSource.ts';
@@ -12,6 +14,7 @@ import CheckpointTailWitnessScan, { type TailWitnessScan } from './CheckpointTai
 const DEFAULT_MAX_TAIL_PATCHES = 10_000;
 
 export default class CheckpointTailWitnessLocator {
+  private readonly _graphName: string;
   private readonly _basisLoader: CheckpointTailBasisLoader;
   private readonly _shardReader: CheckpointShardFactReader;
   private readonly _factReducer: CheckpointTailFactReducer;
@@ -22,6 +25,7 @@ export default class CheckpointTailWitnessLocator {
     readonly source: CheckpointTailOpticSource;
     readonly maxTailPatches?: number;
   }) {
+    this._graphName = options.source.graphName;
     this._basisLoader = new CheckpointTailBasisLoader({ source: options.source });
     this._shardReader = new CheckpointShardFactReader({ source: options.source });
     this._factReducer = new CheckpointTailFactReducer({ graphName: options.source.graphName });
@@ -36,6 +40,40 @@ export default class CheckpointTailWitnessLocator {
   }
 
   async readNode(nodeId: string): Promise<NodeOpticReadResult> {
+    try {
+      return await this._readNodeResult(nodeId);
+    } catch (error) {
+      if (error instanceof QueryError) {
+        throw new CheckpointTailReadFailure({
+          graphName: this._graphName,
+          opticKind: 'node',
+          nodeId,
+        }).enrich(error);
+      }
+      throw error;
+    }
+  }
+
+  async readNodeProperty(
+    nodeId: string,
+    propertyKey: string,
+  ): Promise<NodePropertyOpticReadResult> {
+    try {
+      return await this._readNodePropertyResult(nodeId, propertyKey);
+    } catch (error) {
+      if (error instanceof QueryError) {
+        throw new CheckpointTailReadFailure({
+          graphName: this._graphName,
+          opticKind: 'node-property',
+          nodeId,
+          propertyKey,
+        }).enrich(error);
+      }
+      throw error;
+    }
+  }
+
+  private async _readNodeResult(nodeId: string): Promise<NodeOpticReadResult> {
     const basis = await this._basisLoader.load();
     const baseAlive = await this._shardReader.readNodeAlive(basis, nodeId);
     const tail = await this._scanTailForNode(basis, nodeId);
@@ -52,7 +90,7 @@ export default class CheckpointTailWitnessLocator {
     });
   }
 
-  async readNodeProperty(
+  private async _readNodePropertyResult(
     nodeId: string,
     propertyKey: string,
   ): Promise<NodePropertyOpticReadResult> {

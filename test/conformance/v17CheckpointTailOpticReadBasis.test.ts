@@ -13,6 +13,11 @@ const PROPERTY_KEY = 'title';
 const CHECKPOINT_PROPERTY_VALUE = 'checkpoint title';
 const TAIL_PROPERTY_VALUE = 'tail title';
 const UNSUPPORTED_TAIL_PROPERTY_VALUE = Object.freeze({ nested: TAIL_PROPERTY_VALUE });
+const CREATE_INDEXED_BASIS_HINT = Object.freeze({
+  operation: 'plumber.checkpoint.createIndexedBasis',
+  retryMaySucceedAfterRecovery: true,
+  requiresCallerConsent: true,
+});
 
 function readRepoFile(path: string): string {
   return readFileSync(join(REPO_ROOT, path), 'utf8');
@@ -78,6 +83,28 @@ function expectTailWitnessCount(result: object, count: number): void {
   expect(Reflect.get(readIdentity, 'tailWitnesses')).toHaveLength(count);
 }
 
+function expectNoBoundedBasisFailure(options: {
+  readonly read: Promise<object>;
+  readonly graphName: string;
+  readonly opticKind: 'node' | 'node-property';
+  readonly target: object;
+  readonly cause: string;
+}): Promise<void> {
+  return expect(options.read)
+    .rejects
+    .toMatchObject({
+      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+      context: {
+        graphName: options.graphName,
+        opticKind: options.opticKind,
+        target: options.target,
+        cause: options.cause,
+        reason: options.cause,
+        recoveryHints: [CREATE_INDEXED_BASIS_HINT],
+      },
+    });
+}
+
 async function openGraphWithIndexedCheckpoint(graphName: string) {
   const graph = await openRuntimeHostProduct({
     persistence: new InMemoryGraphAdapter(),
@@ -138,9 +165,10 @@ describe('v17 checkpoint-tail optic read basis', () => {
   });
 
   it('requires missing bounded basis to fail closed without materialization', async () => {
+    const graphName = 'v17-optic-no-basis-red';
     const graph = await openRuntimeHostProduct({
       persistence: new InMemoryGraphAdapter(),
-      graphName: 'v17-optic-no-basis-red',
+      graphName,
       writerId: 'reader',
     });
     const materializeGraph = vi.spyOn(graph, '_materializeGraph');
@@ -148,14 +176,19 @@ describe('v17 checkpoint-tail optic read basis', () => {
       new Error('missing bounded basis must not fall back to materialization'),
     );
 
-    await expect(readNode(graph.worldline(), MISSING_NODE_ID))
-      .rejects
-      .toMatchObject({ code: 'E_OPTIC_NO_BOUNDED_BASIS' });
+    await expectNoBoundedBasisFailure({
+      read: readNode(graph.worldline(), MISSING_NODE_ID),
+      graphName,
+      opticKind: 'node',
+      target: { nodeId: MISSING_NODE_ID },
+      cause: 'missing-checkpoint',
+    });
     expect(materializeGraph).not.toHaveBeenCalled();
   });
 
   it('requires tail node removes to fail closed without materialization', async () => {
-    const graph = await openGraphWithIndexedCheckpoint('v17-optic-node-remove-tail-red');
+    const graphName = 'v17-optic-node-remove-tail-red';
+    const graph = await openGraphWithIndexedCheckpoint(graphName);
     await graph.patch((patch) => {
       patch.removeNode(CHECKPOINT_NODE_ID);
     });
@@ -164,14 +197,19 @@ describe('v17 checkpoint-tail optic read basis', () => {
       new Error('tail node remove must not fall back to materialization'),
     );
 
-    await expect(readNode(graph.worldline(), CHECKPOINT_NODE_ID))
-      .rejects
-      .toMatchObject({ code: 'E_OPTIC_NO_BOUNDED_BASIS' });
+    await expectNoBoundedBasisFailure({
+      read: readNode(graph.worldline(), CHECKPOINT_NODE_ID),
+      graphName,
+      opticKind: 'node',
+      target: { nodeId: CHECKPOINT_NODE_ID },
+      cause: 'tail-node-remove-needs-raw-liveness-witnesses',
+    });
     expect(materializeGraph).not.toHaveBeenCalled();
   });
 
   it('requires unsupported tail property values to fail closed without materialization', async () => {
-    const graph = await openGraphWithIndexedCheckpoint('v17-optic-prop-object-tail-red');
+    const graphName = 'v17-optic-prop-object-tail-red';
+    const graph = await openGraphWithIndexedCheckpoint(graphName);
     await graph.patch((patch) => {
       patch.setProperty(CHECKPOINT_NODE_ID, PROPERTY_KEY, UNSUPPORTED_TAIL_PROPERTY_VALUE);
     });
@@ -180,9 +218,13 @@ describe('v17 checkpoint-tail optic read basis', () => {
       new Error('unsupported tail property value must not fall back to materialization'),
     );
 
-    await expect(readNodeProperty(graph.worldline(), CHECKPOINT_NODE_ID, PROPERTY_KEY))
-      .rejects
-      .toMatchObject({ code: 'E_OPTIC_NO_BOUNDED_BASIS' });
+    await expectNoBoundedBasisFailure({
+      read: readNodeProperty(graph.worldline(), CHECKPOINT_NODE_ID, PROPERTY_KEY),
+      graphName,
+      opticKind: 'node-property',
+      target: { nodeId: CHECKPOINT_NODE_ID, propertyKey: PROPERTY_KEY },
+      cause: 'tail-property-value-needs-parser',
+    });
     expect(materializeGraph).not.toHaveBeenCalled();
   });
 
