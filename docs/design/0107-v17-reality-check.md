@@ -29,12 +29,15 @@ What blocks shipping a trustworthy v17?
 The scoreboard is not issue count, bad-code card count, or Graft
 candidate signal count.
 
-## Follow-On Architecture Spec
+## Follow-On Architecture And Delivery Specs
 
-`docs/design/0111-v17-optics-causal-slice-spec.md` is the controlling
-architecture spec for the v17 optics and causal-slice mental model after human
-approval. It supersedes the narrow bounded-query-provider framing for future
-implementation planning; this 0107 document remains the historical release
+`docs/design/0111-v17-optics-causal-slice-architecture.md` is the
+architecture doctrine for the optics and causal-slice mental model after human
+approval. `docs/design/0112-v17-foundation-delivery-plan.md` is the controlling
+delivery plan for what v17 actually ships.
+
+Together they supersede the narrow bounded-query-provider framing for future
+implementation planning. This 0107 document remains the historical release
 reality check that led to that pivot.
 
 ## v17 Ships If
