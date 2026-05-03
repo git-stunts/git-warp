@@ -82,7 +82,10 @@ export default class CheckpointTailWitnessScan {
   private _accountTailBudget(scan: TailWitnessScanDraft, patchCount: number): void {
     scan.scanned += patchCount;
     if (scan.scanned > this._maxTailPatches) {
-      throwTailBudgetExceeded(this._source.graphName, this._maxTailPatches);
+      throwTailBudgetExceeded(this._source.graphName, {
+        budgetLimit: this._maxTailPatches,
+        budgetObserved: scan.scanned,
+      });
     }
   }
 
@@ -131,9 +134,22 @@ function collectIncludedTailEntries(options: {
   }
 }
 
-function throwTailBudgetExceeded(graphName: string, maxTailPatches: number): never {
+function throwTailBudgetExceeded(
+  graphName: string,
+  budget: {
+    readonly budgetLimit: number;
+    readonly budgetObserved: number;
+  },
+): never {
   throw new QueryError('Checkpoint-tail optic read exceeded its tail scan budget.', {
     code: 'E_OPTIC_TAIL_BUDGET_EXCEEDED',
-    context: { graphName, maxTailPatches },
+    context: {
+      graphName,
+      maxTailPatches: budget.budgetLimit,
+      budgetKind: 'maxTailPatches',
+      budgetLimit: budget.budgetLimit,
+      budgetObserved: budget.budgetObserved,
+      budgetUnit: 'patch',
+    },
   });
 }

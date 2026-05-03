@@ -4,9 +4,12 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.ts';
 import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
+import Patch from '../../src/domain/types/Patch.ts';
 
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const DELIVERY_PLAN_PATH = 'docs/design/0112-v17-foundation-delivery-plan.md';
+const TAIL_BUDGET_LIMIT = 10_000;
+const TAIL_BUDGET_OBSERVED = TAIL_BUDGET_LIMIT + 1;
 const MISSING_NODE_ID = 'node:missing';
 const CHECKPOINT_NODE_ID = 'node:checkpoint-basis';
 const PROPERTY_KEY = 'title';
@@ -15,6 +18,11 @@ const TAIL_PROPERTY_VALUE = 'tail title';
 const UNSUPPORTED_TAIL_PROPERTY_VALUE = Object.freeze({ nested: TAIL_PROPERTY_VALUE });
 const CREATE_INDEXED_BASIS_HINT = Object.freeze({
   operation: 'plumber.checkpoint.createIndexedBasis',
+  retryMaySucceedAfterRecovery: true,
+  requiresCallerConsent: true,
+});
+const RETRY_WITH_EXTENDED_BUDGET_HINT = Object.freeze({
+  operation: 'plumber.optic.retryWithExtendedBudget',
   retryMaySucceedAfterRecovery: true,
   requiresCallerConsent: true,
 });
@@ -103,6 +111,42 @@ function expectNoBoundedBasisFailure(options: {
         recoveryHints: [CREATE_INDEXED_BASIS_HINT],
       },
     });
+}
+
+function expectTailBudgetExceededFailure(options: {
+  readonly read: Promise<object>;
+  readonly graphName: string;
+  readonly opticKind: 'node' | 'node-property';
+  readonly target: object;
+}): Promise<void> {
+  return expect(options.read)
+    .rejects
+    .toMatchObject({
+      code: 'E_OPTIC_TAIL_BUDGET_EXCEEDED',
+      context: {
+        graphName: options.graphName,
+        opticKind: options.opticKind,
+        target: options.target,
+        cause: 'tail-budget-exceeded',
+        recoveryHints: [CREATE_INDEXED_BASIS_HINT, RETRY_WITH_EXTENDED_BUDGET_HINT],
+        budgetKind: 'maxTailPatches',
+        budgetLimit: TAIL_BUDGET_LIMIT,
+        budgetObserved: TAIL_BUDGET_OBSERVED,
+        budgetUnit: 'patch',
+      },
+    });
+}
+
+function createTailPatchEntries(count: number): Array<{ readonly patch: Patch; readonly sha: string }> {
+  return Array.from({ length: count }, (_unused, index) => Object.freeze({
+    patch: new Patch({
+      writer: 'reader',
+      lamport: index + 1,
+      context: {},
+      ops: [],
+    }),
+    sha: `tail-budget-${index}`,
+  }));
 }
 
 async function openGraphWithIndexedCheckpoint(graphName: string) {
@@ -224,6 +268,25 @@ describe('v17 checkpoint-tail optic read basis', () => {
       opticKind: 'node-property',
       target: { nodeId: CHECKPOINT_NODE_ID, propertyKey: PROPERTY_KEY },
       cause: 'tail-property-value-needs-parser',
+    });
+    expect(materializeGraph).not.toHaveBeenCalled();
+  });
+
+  it('requires tail budget failures to expose structured context without materialization', async () => {
+    const graphName = 'v17-optic-tail-budget-red';
+    const graph = await openGraphWithIndexedCheckpoint(graphName);
+    vi.spyOn(graph, '_loadWriterPatches')
+      .mockResolvedValue(createTailPatchEntries(TAIL_BUDGET_OBSERVED));
+    const materializeGraph = vi.spyOn(graph, '_materializeGraph');
+    materializeGraph.mockRejectedValue(
+      new Error('tail budget exceeded must not fall back to materialization'),
+    );
+
+    await expectTailBudgetExceededFailure({
+      read: readNode(graph.worldline(), CHECKPOINT_NODE_ID),
+      graphName,
+      opticKind: 'node',
+      target: { nodeId: CHECKPOINT_NODE_ID },
     });
     expect(materializeGraph).not.toHaveBeenCalled();
   });
