@@ -1,14 +1,10 @@
 import type { Aperture } from '../types/Aperture.ts';
 import type { WorldlineOptions, WorldlineSource } from '../capabilities/QueryCapability.ts';
-import type DetachedGraphFactory from '../capabilities/DetachedGraphFactory.ts';
-import type { TickReceipt } from '../types/TickReceipt.ts';
 import CoordinateSelector from '../types/CoordinateSelector.ts';
 import LiveSelector from '../types/LiveSelector.ts';
 import StrandSelector from '../types/StrandSelector.ts';
 import WorldlineSelector from '../types/WorldlineSelector.ts';
-import { toInternalStrandShape } from '../utils/strandPublicShape.ts';
 import type { WarpState } from './JoinReducer.ts';
-import type SnapshotWarpState from './snapshot/SnapshotWarpState.ts';
 import type Observer from './query/Observer.ts';
 import LogicalTraversal from './query/LogicalTraversal.ts';
 import QueryBuilder from './query/QueryBuilder.ts';
@@ -23,8 +19,6 @@ import type {
 type AdjacencyEntry = { neighborId: string; label: string };
 type VisibleNodeProps = NonNullable<Awaited<ReturnType<Observer['getNodeProps']>>>;
 type VisibleEdge = Awaited<ReturnType<Observer['getEdges']>>[number];
-type MaterializedStateWithReceipts = { state: SnapshotWarpState; receipts: readonly TickReceipt[] };
-type MaterializedSourceResult = SnapshotWarpState | MaterializedStateWithReceipts;
 type WorldlineMaterializedGraph = {
   state: WarpState;
   stateHash: string;
@@ -39,18 +33,6 @@ type WorldlineMaterializedDelegate = Pick<Observer, 'hasNode' | 'getNodes' | 'ge
 type WorldlineObserverFactory = {
   observer(config: Aperture, options?: { source: WorldlineSource }): Promise<Observer>;
   observer(name: string, config: Aperture, options?: { source: WorldlineSource }): Promise<Observer>;
-};
-type WorldlineDetachedGraph = {
-  materialize(options: { ceiling: number | null; receipts?: boolean }): Promise<MaterializedSourceResult>;
-  materializeCoordinate(options: {
-    frontier: Map<string, string> | Record<string, string>;
-    ceiling: number | null;
-    receipts?: boolean;
-  }): Promise<MaterializedSourceResult>;
-  materializeStrand(strandId: string, options: {
-    receipts?: boolean;
-    ceiling: number | null;
-  }): Promise<MaterializedSourceResult>;
 };
 
 function toSelector(source?: WorldlineSelector | WorldlineSource | null): WorldlineSelector {
@@ -101,136 +83,8 @@ function toWorldlineSource(source: WorldlineSelector): WorldlineSource {
   });
 }
 
-async function openDetachedReadGraph(
-  graphCloner: DetachedGraphFactory,
-): Promise<WorldlineDetachedGraph> {
-  const detached = await graphCloner.openReadOnly();
-  return {
-    materialize: async (options) => {
-      if (options.receipts === true) {
-        return await detached.materialize({
-          receipts: true,
-          ceiling: options.ceiling,
-        });
-      }
-      return await detached.materialize({
-        ceiling: options.ceiling,
-      });
-    },
-    materializeCoordinate: async (options) => {
-      if (options.receipts === true) {
-        return await detached.materializeCoordinate({
-          frontier: options.frontier,
-          ceiling: options.ceiling,
-          receipts: true,
-        });
-      }
-      return await detached.materializeCoordinate({
-        frontier: options.frontier,
-        ceiling: options.ceiling,
-      });
-    },
-    materializeStrand: async (strandId, options) => {
-      if (options.receipts === true) {
-        return await detached.materializeStrand(strandId, {
-          receipts: true,
-          ceiling: options.ceiling,
-        });
-      }
-      return await detached.materializeStrand(strandId, {
-        ceiling: options.ceiling,
-      });
-    },
-  };
-}
-
-async function materializeLiveSource(
-  graph: WorldlineDetachedGraph,
-  source: LiveSelector,
-  collectReceipts: boolean,
-): Promise<MaterializedSourceResult> {
-  if (collectReceipts) {
-    return await graph.materialize({
-      receipts: true,
-      ceiling: source.ceiling,
-    });
-  }
-
-  return await graph.materialize({
-    ceiling: source.ceiling,
-  });
-}
-
-async function materializeCoordinateSource(
-  graph: WorldlineDetachedGraph,
-  source: CoordinateSelector,
-  collectReceipts: boolean,
-): Promise<MaterializedSourceResult> {
-  const options = {
-    frontier: source.frontier,
-    ceiling: source.ceiling,
-  };
-
-  if (collectReceipts) {
-    return await graph.materializeCoordinate({
-      ...options,
-      receipts: true,
-    });
-  }
-
-  return await graph.materializeCoordinate(options);
-}
-
-async function materializeStrandSource(
-  graph: WorldlineDetachedGraph,
-  source: StrandSelector,
-  collectReceipts: boolean,
-): Promise<MaterializedSourceResult> {
-  const internalSource = toInternalStrandShape(source.toDTO());
-  if (collectReceipts) {
-    return await graph.materializeStrand(
-      internalSource.strandId,
-      {
-        receipts: true,
-        ceiling: internalSource.ceiling,
-      },
-    );
-  }
-
-  return await graph.materializeStrand(
-    internalSource.strandId,
-    {
-      ceiling: internalSource.ceiling,
-    },
-  );
-}
-
-async function materializeSource(
-  graph: WorldlineDetachedGraph,
-  source: WorldlineSelector,
-  collectReceipts: boolean,
-): Promise<MaterializedSourceResult> {
-  if (source instanceof LiveSelector) {
-    return await materializeLiveSource(graph, source, collectReceipts);
-  }
-
-  if (source instanceof CoordinateSelector) {
-    return await materializeCoordinateSource(graph, source, collectReceipts);
-  }
-
-  if (source instanceof StrandSelector) {
-    return await materializeStrandSource(graph, source, collectReceipts);
-  }
-
-  throw new QueryError('unsupported worldline selector kind', {
-    code: 'E_WORLDLINE_SELECTOR',
-    context: { kind: source.constructor.name },
-  });
-}
-
 export default class Worldline {
   private readonly _graph: WorldlineObserverFactory;
-  private readonly _graphCloner: DetachedGraphFactory;
   private readonly _source: WorldlineSelector;
   private readonly _opticSource: CheckpointTailOpticSource | null;
   private _delegateObserverPromise: Promise<WorldlineMaterializedDelegate> | null;
@@ -238,17 +92,14 @@ export default class Worldline {
 
   constructor({
     graph,
-    graphCloner,
     source,
     opticSource,
   }: {
     graph: WorldlineObserverFactory;
-    graphCloner: DetachedGraphFactory;
     source?: WorldlineSelector | WorldlineSource | null;
     opticSource?: CheckpointTailOpticSource | null;
   }) {
     this._graph = graph;
-    this._graphCloner = graphCloner;
     this._source = toSelector(source);
     this._opticSource = opticSource ?? null;
     this._delegateObserverPromise = null;
@@ -263,7 +114,6 @@ export default class Worldline {
     return await Promise.resolve(
       new Worldline({
         graph: this._graph,
-        graphCloner: this._graphCloner,
         source: options?.source ?? this._source,
         opticSource: this._opticSource,
       }),
@@ -284,13 +134,6 @@ export default class Worldline {
       });
     }
     return new WorldlineOptic({ source: this._opticSource });
-  }
-
-  async materialize(options: { receipts: true }): Promise<MaterializedStateWithReceipts>;
-  async materialize(options?: { receipts?: false }): Promise<SnapshotWarpState>;
-  async materialize(options?: { receipts?: boolean }): Promise<MaterializedSourceResult> {
-    const detached = await openDetachedReadGraph(this._graphCloner);
-    return await materializeSource(detached, this._source, options?.receipts === true);
   }
 
   async _delegateObserver(): Promise<WorldlineMaterializedDelegate> {

@@ -317,7 +317,6 @@ wire('query', function (this: QueryController) {
 wire('worldline', function (this: QueryController, options?: ObserverOptions) {
   return new Worldline({
     graph: host(this),
-    graphCloner: this._graphCloner,
     source: toSelector(options?.source) ?? new LiveSelector(),
     opticSource: worldlineOpticSource(host(this)),
   });

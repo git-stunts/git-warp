@@ -229,15 +229,11 @@ describe('WarpCore public snapshot hash stability', () => {
     expect(await hashState(snapshot)).toBe(await hashState(liveState));
   });
 
-  it('preserves the same coordinate hash across direct runtime and worldline materialization', async () => {
-    const directState = await graph.materializeCoordinate({
-      frontier: coordinateSource.frontier,
-      ceiling: coordinateSource.ceiling,
-    });
+  it('reads pinned coordinates through worldline observers without worldline materialization', async () => {
     const worldline = graph.worldline({ source: createCoordinateSource(new Map(Object.entries(coordinateSource.frontier))) });
-    const worldlineState = await worldline.materialize();
+    const observer = await worldline.observer('coordinate', { match: 'n1' });
 
-    expect(await hashState(directState)).toBe(await hashState(worldlineState));
+    await expect(observer.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
   });
 
   it('preserves the same strand hash across repeated reads and receipt mode', async () => {

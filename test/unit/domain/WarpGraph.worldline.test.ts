@@ -5,9 +5,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import WarpCore from '../../../src/domain/WarpCore.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
-import { encodePropKey } from '../../../src/domain/services/KeyCodec.ts';
-import { createStateReader } from '../../../src/domain/services/state/StateReader.ts';
-import WarpError from '../../../src/domain/errors/WarpError.ts';
 
 type WarpCoreRuntime = any;
 
@@ -163,7 +160,7 @@ describe('WarpCore worldline surface', () => {
     expect(worldline.source.kind).toBe('live');
   });
 
-  it('worldline.materialize() returns detached live truth without retargeting the caller graph', async () => {
+  it('worldline.observer() reads detached live truth without retargeting the caller graph', async () => {
     await simulatePatchCommit(persistence, {
       graphName,
       writerId: 'alice',
@@ -186,15 +183,9 @@ describe('WarpCore worldline surface', () => {
       ],
     });
 
-    const state = await graph.worldline().materialize();
-    const reader = createStateReader(state);
-    const propKey = encodePropKey('n1', 'color');
-    const liveDots = state.nodeAlive.getDots('n1');
+    const observer = await graph.worldline().observer('live', { match: 'n1' });
 
-    expect(() => state.prop.set(propKey, null)).toThrow(WarpError);
-    expect(() => state.nodeAlive.tombstones().push('alice:999')).toThrow(TypeError);
-    expect(() => liveDots.push('alice:1000')).toThrow(TypeError);
-    expect(reader.getNodeProps('n1')).toMatchObject({ color: 'blue' });
+    await expect(observer.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
   });
 
@@ -402,14 +393,8 @@ describe('WarpCore worldline surface', () => {
       },
     });
 
-    const state = (await worldline.materialize() as any);
-    const reader = createStateReader(state);
     const observer = await worldline.observer('ws', { match: 'n1' });
 
-    expect(reader.getNodeProps('n1')).toMatchObject({
-      color: 'red',
-      status: 'reviewing',
-    });
     await expect(observer.getNodeProps('n1')).resolves.toMatchObject({
       color: 'red',
       status: 'reviewing',
