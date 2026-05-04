@@ -10,26 +10,10 @@
  *   node scripts/migrations/v17.0.0/verify.ts [--dir <path>]
  */
 
-import { readdir, readFile } from 'node:fs/promises';
-import { join, extname } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import process from 'node:process';
-
-const EXTENSIONS = new Set(['.ts', '.js', '.tsx', '.jsx', '.mjs', '.mts']);
-
-async function* walkFiles(dir: string): AsyncGenerator<string> {
-  const entries = await readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === 'node_modules' || entry.name === '.git') {
-        continue;
-      }
-      yield* walkFiles(fullPath);
-    } else if (EXTENSIONS.has(extname(entry.name))) {
-      yield fullPath;
-    }
-  }
-}
+import { resolveMigrationScanDir } from './MigrationArguments.ts';
+import { walkMigrationFiles } from './MigrationFileWalker.ts';
 
 // Patterns that indicate incomplete migration
 const CHECKS: readonly Readonly<{ pattern: RegExp; message: string }>[] = [
@@ -49,15 +33,11 @@ const CHECKS: readonly Readonly<{ pattern: RegExp; message: string }>[] = [
 ];
 
 const args = process.argv.slice(2);
-const dirIdx = args.indexOf('--dir');
-const scanDir = dirIdx !== -1 ? args[dirIdx + 1] : process.cwd();
-if (scanDir === undefined) {
-  throw new Error('--dir requires a path argument');
-}
+const scanDir = resolveMigrationScanDir(args, process.cwd());
 
 let issueCount = 0;
 
-for await (const filePath of walkFiles(scanDir)) {
+for await (const filePath of walkMigrationFiles(scanDir)) {
   const content = await readFile(filePath, 'utf-8');
   const lines = content.split('\n');
 

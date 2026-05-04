@@ -29,10 +29,17 @@ npm init -y >/dev/null
 npm install --no-audit --no-fund "$TARBALL_PATH" >/dev/null
 
 node --input-type=module <<'NODE'
+class PackedArtifactSmokeError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'PackedArtifactSmokeError';
+  }
+}
+
 const mod = await import('@git-stunts/git-warp');
 
 if (!('openWarpGraph' in mod)) {
-  throw new Error('package root did not export openWarpGraph');
+  throw new PackedArtifactSmokeError('package root did not export openWarpGraph');
 }
 NODE
 

@@ -14,9 +14,10 @@
  *   --dir       Directory to scan (default: current directory)
  */
 
-import { readdir, readFile, writeFile } from 'node:fs/promises';
-import { join, extname } from 'node:path';
+import { readFile, writeFile } from 'node:fs/promises';
 import process from 'node:process';
+import { resolveMigrationScanDir } from './MigrationArguments.ts';
+import { walkMigrationFiles } from './MigrationFileWalker.ts';
 
 // ---------------------------------------------------------------------------
 // Symbol renames: [pattern, replacement, description]
@@ -47,31 +48,6 @@ const RENAMES: readonly RenameRule[] = [
   [/\bcreateDot\b/g, 'new Dot', 'createDot → new Dot'],
 ];
 
-// ---------------------------------------------------------------------------
-// File scanner
-// ---------------------------------------------------------------------------
-
-const EXTENSIONS = new Set(['.ts', '.js', '.tsx', '.jsx', '.mjs', '.mts']);
-
-async function* walkFiles(dir: string): AsyncGenerator<string> {
-  const entries = await readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === 'node_modules' || entry.name === '.git') {
-        continue;
-      }
-      yield* walkFiles(fullPath);
-    } else if (EXTENSIONS.has(extname(entry.name))) {
-      yield fullPath;
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Rewriter
-// ---------------------------------------------------------------------------
-
 function rewriteSymbols(content: string): { readonly modified: string; readonly changes: readonly string[] } {
   let modified = content;
   const changes: string[] = [];
@@ -93,16 +69,12 @@ function rewriteSymbols(content: string): { readonly modified: string; readonly 
 
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
-const dirIdx = args.indexOf('--dir');
-const scanDir = dirIdx !== -1 ? args[dirIdx + 1] : process.cwd();
-if (scanDir === undefined) {
-  throw new Error('--dir requires a path argument');
-}
+const scanDir = resolveMigrationScanDir(args, process.cwd());
 
 let totalFiles = 0;
 let totalChanges = 0;
 
-for await (const filePath of walkFiles(scanDir)) {
+for await (const filePath of walkMigrationFiles(scanDir)) {
   const content = await readFile(filePath, 'utf-8');
   const { modified, changes } = rewriteSymbols(content);
 

@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Release hygiene gates now track the generated npm package surface, smoke the packed npm tarball before release tagging, remove stale `./visualization` and `./node` subpath exports, point CI at `bin/warp-graph.ts`, and keep Markdown/code-sample/whitespace lint clean.
+- Release hygiene gates now track the generated npm package surface, smoke the packed npm tarball before release tagging, remove stale `./visualization` and `./node` subpath exports, point CI at `bin/warp-graph.ts`, share v17 migration traversal, use custom script errors, and keep Markdown/code-sample/whitespace lint clean.
 
 ### Breaking
 
