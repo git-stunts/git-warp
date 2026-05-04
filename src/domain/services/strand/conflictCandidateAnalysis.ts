@@ -8,7 +8,6 @@
  * @module domain/services/strand/conflictCandidateAnalysis
  */
 
-import { normalizeRawOp } from '../JoinReducer.ts';
 import { EventId } from '../../utils/EventId.ts';
 import ConflictDiagnostic, { type ConflictDiagnosticData } from '../../types/conflict/ConflictDiagnostic.ts';
 import ConflictResolution from '../../types/conflict/ConflictResolution.ts';
@@ -20,11 +19,11 @@ import ConflictCandidate from './ConflictCandidate.ts';
 import OpRecord from './OpRecord.ts';
 import {
   receiptNameForOp,
-  cloneObject,
   effectKey,
   normalizeNoteCodes,
   buildConflictTarget,
   buildEffectDigest,
+  normalizeConflictOp,
   type CanonicalOpBlob,
 } from './conflictTargetIdentity.ts';
 
@@ -273,12 +272,9 @@ export async function analyzeOneOp(
 ): Promise<AnalyzeOneOpResult | null> {
   const rawOp = frame.patch.ops[opIndex];
   if (rawOp === undefined) { return null; }
-  // TODO(0025C): normalizeRawOp returns the pre-class operation record;
-  // CanonicalOpBlob aliases that transitional shape. Once the Op
-  // class hierarchy lands, this reads instanceof directly.
-  const canonOp: CanonicalOpBlob = cloneObject(normalizeRawOp(rawOp));
-  const receiptOpType = receiptNameForOp(canonOp.type);
-  if (typeof receiptOpType !== 'string' || receiptOpType.length === 0) { return null; }
+  const canonOp: CanonicalOpBlob | null = normalizeConflictOp(rawOp);
+  if (canonOp === null) { return null; }
+  const receiptOpType = receiptNameForOp(canonOp);
   const receiptOutcome = receipt.ops[receiptOpIndex];
   if (receiptOutcome === undefined || receiptOutcome === null) {
     return handleMissingReceipt(diagnostics, { frame, opIndex, receiptOpIndex });

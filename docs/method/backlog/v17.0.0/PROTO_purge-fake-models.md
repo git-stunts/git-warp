@@ -93,16 +93,21 @@ With `Op` as a real class hierarchy:
 This step explicitly owns the residue that used to sit in the separate
 `SLUDGE_dead-code-cleanup` card:
 
-- `src/domain/services/strand/conflictTargetIdentity.ts` still imports
-  `OP_STRATEGIES` from `JoinReducer.ts`
+- `src/domain/services/strand/conflictTargetIdentity.ts` has
+  graduated from the `OpLike` bridge and now consumes runtime-backed
+  canonical ops plus a narrow `ConflictOpAnchor` diagnostic adapter.
+- `src/domain/services/strand/ConflictOpAnchor.ts` still consults
+  `OP_STRATEGIES` from `JoinReducer.ts` so malformed legacy op records
+  keep their previous diagnostics while the remaining op pipeline is
+  purged.
 - conflict analysis still depends on the old strategy registry rather
   than op-class dispatch
 - `ConflictCandidateCollector` therefore keeps `OpStrategies.ts`,
   `OpStrategy.ts`, and `OpLike.ts` live
 
-Until `ConflictCandidateCollector` / conflict-target analysis move onto
-real op-class dispatch, those files are not dead code. They are active
-fake-model residue owned here.
+Until `ConflictCandidateCollector` and the legacy diagnostic anchor
+move fully onto op-class dispatch, those files are not dead code. They
+are active fake-model residue owned here.
 
 ### Step 4 — Graduate the adjacent cluster
 

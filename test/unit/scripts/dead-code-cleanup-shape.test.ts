@@ -21,7 +21,7 @@ describe('dead-code cleanup closeout', () => {
     const owningNote = readRepoFile('docs/method/backlog/v17.0.0/PROTO_purge-fake-models.md');
 
     expect(owningNote).toContain('ConflictCandidateCollector');
-    expect(owningNote).toContain('conflictTargetIdentity');
+    expect(owningNote).toContain('ConflictOpAnchor');
     expect(owningNote).toContain('OpStrategies');
   });
 
