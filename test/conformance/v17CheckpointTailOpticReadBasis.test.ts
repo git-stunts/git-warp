@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import V17CheckpointBasisArtifactFixture from './fixtures/V17CheckpointBasisArtifactFixture.ts';
+import V17CheckpointIndexTreeFixture from './fixtures/V17CheckpointIndexTreeFixture.ts';
 import V17CheckpointNodeLivenessShardFixture from './fixtures/V17CheckpointNodeLivenessShardFixture.ts';
 import V17CheckpointPayloadBlobFixture from './fixtures/V17CheckpointPayloadBlobFixture.ts';
 import V17CheckpointPropertyShardFixture from './fixtures/V17CheckpointPropertyShardFixture.ts';
@@ -122,6 +123,28 @@ describe('v17 checkpoint-tail optic read basis', () => {
       target: { nodeId: CHECKPOINT_NODE_ID },
       cause: 'checkpoint-payload-pointer-empty',
       recoveryHints: [],
+    });
+    materialization.expectUnused();
+  });
+
+  it('requires schema 4 checkpoints without index shards to fail closed without materialization', async () => {
+    const graphName = 'v17-optic-missing-index-shards-red';
+    const fixture = await V17CheckpointTailOpticGraphFixture.openIndexedCheckpoint(graphName);
+    const graph = fixture.graph;
+    const indexTree = await V17CheckpointIndexTreeFixture.load(graph);
+    await indexTree.replaceWithEmptyIndexTree();
+    const materialization = new V17MaterializationFallbackTrap(
+      graph,
+      'schema 4 checkpoint without index shards must not fall back to materialization',
+    );
+    const readPath = new V17PublicOpticReadPath(graph.worldline());
+
+    await failures.expectNoBoundedBasisFailure({
+      read: readPath.readNode(CHECKPOINT_NODE_ID),
+      graphName,
+      opticKind: 'node',
+      target: { nodeId: CHECKPOINT_NODE_ID },
+      cause: 'checkpoint-missing-index-shards',
     });
     materialization.expectUnused();
   });
