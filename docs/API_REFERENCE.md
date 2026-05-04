@@ -419,8 +419,8 @@ What you should avoid is exporting that data into a second app-local graph
 layer or custom traversal engine when `Worldline`, `Observer`, `query()`, and
 `traverse` already cover the read path you need.
 
-`graph.materialize.materialize()` replays all visible patches from all writers and computes the
-current cached `WarpState` for the runtime.
+`graph.materialize.materialize()` replays all visible patches from all writers and returns
+an immutable public `SnapshotWarpState`.
 
 ### Materialization
 
@@ -430,7 +430,7 @@ flowchart TB
     walk --> decode["Decode CBOR"]
     decode --> sort["Sort by Lamport"]
     sort --> reducer["JoinReducer<br/>OR-Set merge (nodes, edges) · LWW merge (properties)"]
-    reducer --> state["WarpState<br/>nodeAlive · edgeAlive · prop · frontier"]
+    reducer --> state["SnapshotWarpState<br/>nodeAlive · edgeAlive · prop · frontier"]
 
     refs -.->|"shortcut (if checkpoint exists)"| reducer
 
@@ -440,14 +440,10 @@ flowchart TB
 ```typescript
 const state = await graph.materialize.materialize({});
 
-// state = WarpState
-// {
-//   nodeAlive: Map(...),
-//   edgeAlive: Map(...),
-//   prop: Map(...),
-//   frontier: Map(...),
-//   ...
-// }
+// state = SnapshotWarpState
+const nodes = state.nodeAlive.elements();
+const nodeEntries = state.nodeAlive.entries();
+const frontier = Object.fromEntries(state.observedFrontier.entries());
 ```
 
 After materializing, `graph.query` methods work against the cached

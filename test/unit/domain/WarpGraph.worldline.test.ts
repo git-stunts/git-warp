@@ -186,14 +186,14 @@ describe('WarpCore worldline surface', () => {
       ],
     });
 
-    const state = (await graph.worldline().materialize() as any);
+    const state = await graph.worldline().materialize();
     const reader = createStateReader(state);
     const propKey = encodePropKey('n1', 'color');
-    const liveDots = state.nodeAlive.entries.get('n1');
+    const liveDots = state.nodeAlive.getDots('n1');
 
     expect(() => state.prop.set(propKey, null)).toThrow(WarpError);
-    expect(() => state.nodeAlive.tombstones.add('alice:999')).toThrow(WarpError);
-    expect(() => liveDots.add('alice:1000')).toThrow(WarpError);
+    expect(() => state.nodeAlive.tombstones().push('alice:999')).toThrow(TypeError);
+    expect(() => liveDots.push('alice:1000')).toThrow(TypeError);
     expect(reader.getNodeProps('n1')).toMatchObject({ color: 'blue' });
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
   });

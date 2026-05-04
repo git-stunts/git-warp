@@ -183,9 +183,9 @@ describe('WarpCore.seek (time-travel)', () => {
 
       setupMultiWriterPersistence(persistence, { alice: 3 });
 
-      const state = (await graph.materialize({ ceiling: 2 }) as any);
+      const state = await graph.materialize({ ceiling: 2 });
 
-      const nodeIds = [...state.nodeAlive.entries.keys()];
+      const nodeIds = state.nodeAlive.elements();
       expect(nodeIds).toHaveLength(2);
       expect(nodeIds).toContain('n:alice:1');
       expect(nodeIds).toContain('n:alice:2');
@@ -201,9 +201,9 @@ describe('WarpCore.seek (time-travel)', () => {
 
       setupMultiWriterPersistence(persistence, { alice: 3 });
 
-      const state = (await graph.materialize({ ceiling: 0 }) as any);
+      const state = await graph.materialize({ ceiling: 0 });
 
-      expect(state.nodeAlive.entries.size).toBe(0);
+      expect(state.nodeAlive.elements()).toHaveLength(0);
     });
 
     it('ceiling above maxTick yields same as full materialization', async () => {
@@ -215,14 +215,14 @@ describe('WarpCore.seek (time-travel)', () => {
 
       setupMultiWriterPersistence(persistence, { alice: 3 });
 
-      const fullState = (await graph.materialize() as any);
-      const fullNodes = [...fullState.nodeAlive.entries.keys()].sort();
+      const fullState = await graph.materialize();
+      const fullNodes = [...fullState.nodeAlive.elements()].sort();
 
       // Force cache invalidation for second call
       (graph)._stateDirty = true;
       (graph)._cachedCeiling = null;
-      const ceilingState = (await graph.materialize({ ceiling: 999 }) as any);
-      const ceilingNodes = [...ceilingState.nodeAlive.entries.keys()].sort();
+      const ceilingState = await graph.materialize({ ceiling: 999 });
+      const ceilingNodes = [...ceilingState.nodeAlive.elements()].sort();
 
       expect(ceilingNodes).toEqual(fullNodes);
     });
@@ -236,9 +236,9 @@ describe('WarpCore.seek (time-travel)', () => {
 
       setupMultiWriterPersistence(persistence, { alice: 2, bob: 3 });
 
-      const state = (await graph.materialize({ ceiling: 2 }) as any);
+      const state = await graph.materialize({ ceiling: 2 });
 
-      const nodeIds = [...state.nodeAlive.entries.keys()].sort();
+      const nodeIds = [...state.nodeAlive.elements()].sort();
       // alice:1, alice:2, bob:1, bob:2 = 4 nodes
       expect(nodeIds).toHaveLength(4);
       expect(nodeIds).toContain('n:alice:1');
@@ -257,11 +257,11 @@ describe('WarpCore.seek (time-travel)', () => {
 
       setupMultiWriterPersistence(persistence, { alice: 3 });
 
-      const stateA = (await graph.materialize({ ceiling: 1 }) as any);
-      const nodesA = stateA.nodeAlive.entries.size;
+      const stateA = await graph.materialize({ ceiling: 1 });
+      const nodesA = stateA.nodeAlive.elements().length;
 
-      const stateB = (await graph.materialize({ ceiling: 3 }) as any);
-      const nodesB = stateB.nodeAlive.entries.size;
+      const stateB = await graph.materialize({ ceiling: 3 });
+      const nodesB = stateB.nodeAlive.elements().length;
 
       expect(nodesA).toBe(1);
       expect(nodesB).toBe(3);
@@ -303,10 +303,10 @@ describe('WarpCore.seek (time-travel)', () => {
 
       // Setting _seekCeiling has no effect on materialize() without an explicit ceiling option.
       (graph)._seekCeiling = 1;
-      const state = (await graph.materialize() as any);
+      const state = await graph.materialize();
 
       // All 3 patches are materialized because _seekCeiling is not auto-applied.
-      expect(state.nodeAlive.entries.size).toBe(3);
+      expect(state.nodeAlive.elements()).toHaveLength(3);
     });
 
     it('explicit ceiling overrides _seekCeiling', async () => {
@@ -319,9 +319,9 @@ describe('WarpCore.seek (time-travel)', () => {
       setupMultiWriterPersistence(persistence, { alice: 3 });
 
       (graph)._seekCeiling = 1;
-      const state = (await graph.materialize({ ceiling: 3 }) as any);
+      const state = await graph.materialize({ ceiling: 3 });
 
-      expect(state.nodeAlive.entries.size).toBe(3);
+      expect(state.nodeAlive.elements()).toHaveLength(3);
     });
 
     it('skips auto-checkpoint when ceiling is active', async () => {
@@ -374,15 +374,15 @@ describe('WarpCore.seek (time-travel)', () => {
       // Start with one writer
       setupMultiWriterPersistence(persistence, { alice: 3 });
 
-      const stateA = (await graph.materialize({ ceiling: 2 }) as any);
-      expect(stateA.nodeAlive.entries.size).toBe(2); // alice:1, alice:2
+      const stateA = await graph.materialize({ ceiling: 2 });
+      expect(stateA.nodeAlive.elements()).toHaveLength(2); // alice:1, alice:2
 
       // A new writer appears — frontier changes
       setupMultiWriterPersistence(persistence, { alice: 3, bob: 3 });
 
-      const stateB = (await graph.materialize({ ceiling: 2 }) as any);
+      const stateB = await graph.materialize({ ceiling: 2 });
       // Must see 4 nodes (alice:1, alice:2, bob:1, bob:2), not stale 2
-      expect(stateB.nodeAlive.entries.size).toBe(4);
+      expect(stateB.nodeAlive.elements()).toHaveLength(4);
     });
 
     it('explicit ceiling: null overrides _seekCeiling and materializes latest', async () => {
@@ -396,9 +396,9 @@ describe('WarpCore.seek (time-travel)', () => {
 
       (graph)._seekCeiling = 1;
       // Passing ceiling: null should clear the ceiling, giving us all 3 nodes
-      const state = (await graph.materialize({ ceiling: null }) as any);
+      const state = await graph.materialize({ ceiling: null });
 
-      expect(state.nodeAlive.entries.size).toBe(3);
+      expect(state.nodeAlive.elements()).toHaveLength(3);
     });
   });
 });

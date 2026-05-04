@@ -169,18 +169,18 @@ describe('WarpCore plumbing vs porcelain observer boundary', () => {
       ],
     });
 
-    const state = (await graph.materialize() as any);
+    const state = await graph.materialize();
     const propKey = encodePropKey('n1', 'color');
     const colorRegister = state.prop.get(propKey);
-    const liveDots = state.nodeAlive.entries.get('n1');
+    const liveDots = state.nodeAlive.getDots('n1');
 
     expect(colorRegister).toBeDefined();
     expect(liveDots).toBeDefined();
     expect(Object.isFrozen(colorRegister)).toBe(true);
     expect(Object.isFrozen(colorRegister.value)).toBe(true);
     expect(() => state.prop.set(propKey, colorRegister)).toThrow(WarpError);
-    expect(() => state.nodeAlive.entries.set('evil', new Set())).toThrow(WarpError);
-    expect(() => liveDots.add('alice:999')).toThrow(WarpError);
+    expect(() => state.nodeAlive.entries().push({ element: 'evil', dots: [] })).toThrow(TypeError);
+    expect(() => liveDots.push('alice:999')).toThrow(TypeError);
     expect(() => {
       colorRegister.value.tone = 'green';
     }).toThrow(TypeError);

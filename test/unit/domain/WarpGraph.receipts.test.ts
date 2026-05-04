@@ -146,7 +146,7 @@ describe('WarpCore.materialize() with receipts', () => {
 
   describe('receipts disabled (default)', () => {
     it('materialize() returns state directly', async () => {
-      const state = (await graph.materialize() as any);
+      const state = await graph.materialize();
       expect(state).toBeDefined();
       expect(state.nodeAlive).toBeDefined();
       expect(state.edgeAlive).toBeDefined();
@@ -156,13 +156,13 @@ describe('WarpCore.materialize() with receipts', () => {
     });
 
     it('materialize({}) returns state directly', async () => {
-      const state = (await graph.materialize({}) as any);
+      const state = await graph.materialize({});
       expect(state.nodeAlive).toBeDefined();
       expect(state.receipts).toBeUndefined();
     });
 
     it('materialize({ receipts: false }) returns state directly', async () => {
-      const state = (await graph.materialize({ receipts: false }) as any);
+      const state = await graph.materialize({ receipts: false });
       expect(state.nodeAlive).toBeDefined();
       expect(state.receipts).toBeUndefined();
     });
@@ -184,7 +184,7 @@ describe('WarpCore.materialize() with receipts', () => {
     it('empty graph yields empty receipts array', async () => {
       const { state, receipts } = await graph.materialize({ receipts: true });
       expect(receipts).toHaveLength(0);
-      expect(state.nodeAlive.entries.size).toBe(0);
+      expect(state.nodeAlive.elements()).toHaveLength(0);
     });
   });
 

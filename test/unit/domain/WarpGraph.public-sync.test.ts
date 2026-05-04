@@ -43,7 +43,7 @@ describe('WarpGraph public sync seam', { timeout: 20000 }, () => {
       expect(result.applied).toBeGreaterThanOrEqual(1);
       expect(result.attempts).toBe(1);
       expect(result.state).toBeDefined();
-      expect(result.state?.nodeAlive.entries.has('node:bob-1')).toBe(true);
+      expect(result.state?.nodeAlive.contains('node:bob-1')).toBe(true);
     } finally {
       await repoA.cleanup();
       await repoB.cleanup();

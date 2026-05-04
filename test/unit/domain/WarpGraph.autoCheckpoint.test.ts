@@ -186,7 +186,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
       new Error('disk full')
     );
 
-    const state = (await graph.materialize() as any);
+    const state = await graph.materialize();
 
     // materialize returns a valid state despite checkpoint failure
     expect(state).toBeDefined();
@@ -208,10 +208,10 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
       new Error('transient failure')
     );
 
-    const state = (await graph.materialize() as any);
+    const state = await graph.materialize();
 
     // All 3 nodes should be alive in the materialized state
-    const nodeIds = [...state.nodeAlive.entries.keys()];
+    const nodeIds = state.nodeAlive.elements();
     expect(nodeIds).toHaveLength(3);
     expect(nodeIds).toContain('n:w1:1');
     expect(nodeIds).toContain('n:w1:2');
@@ -449,9 +449,9 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
 
     vi.spyOn(graph, 'createCheckpoint').mockResolvedValue(fakeSha('ckpt'));
 
-    const state = (await graph.materialize() as any);
+    const state = await graph.materialize();
 
-    // Should return a WarpState, not a SHA string
+    // Should return a public snapshot, not a SHA string.
     expect(typeof state).toBe('object');
     expect(state.nodeAlive).toBeDefined();
     expect(state.edgeAlive).toBeDefined();
@@ -519,11 +519,11 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
     });
     vi.spyOn(graph, ('_loadPatchesSince' as any)).mockResolvedValue(patches);
 
-    const state = (await graph.materialize() as any);
+    const state = await graph.materialize();
 
     // Should have applied the 2 patches on top of the schema:4 checkpoint
     expect(state.nodeAlive).toBeDefined();
-    const nodeIds = [...state.nodeAlive.entries.keys()];
+    const nodeIds = state.nodeAlive.elements();
     expect(nodeIds).toContain('n:w1:1');
     expect(nodeIds).toContain('n:w1:2');
   });
