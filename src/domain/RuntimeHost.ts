@@ -20,6 +20,7 @@ import defaultCodec from './utils/defaultCodec.ts';
 import defaultCrypto from './utils/defaultCrypto.ts';
 import nullLogger from './utils/nullLogger.ts';
 import LogicalTraversal from './services/query/LogicalTraversal.ts';
+import LiveQueryReadModelProvider from './services/query/LiveQueryReadModelProvider.ts';
 import LRUCache from './utils/LRUCache.ts';
 import SyncController from './services/controllers/SyncController.ts';
 import StrandController from './services/controllers/StrandController.ts';
@@ -286,7 +287,6 @@ export default class RuntimeHost {
     this._checkpointPolicy = checkpointPolicy || null;
     this._checkpointing = false;
     this._autoMaterialize = autoMaterialize;
-    this.traverse = new LogicalTraversal(this);
     this._materializedGraph = null;
     this._adjacencyCache = adjacencyCacheSize > 0 ? new LRUCache(adjacencyCacheSize) : null;
     this._lastFrontier = null;
@@ -350,6 +350,20 @@ export default class RuntimeHost {
         }).compute(state);
       },
     });
+    this.traverse = new LogicalTraversal(new LiveQueryReadModelProvider({
+      ensureFreshState: async () => { await this._ensureFreshState(); },
+      currentState: () => this._cachedState,
+      stateHash: async (state) => {
+        if (this._stateHashService !== null) {
+          return await this._stateHashService.compute(state);
+        }
+        return await new StateHashService({
+          crypto: this._crypto,
+          codec: this._codec,
+        }).compute(state);
+      },
+      neighborProvider: () => this._materializedGraph?.provider ?? null,
+    }));
     this._patchController = new PatchController(this);
     this._checkpointController = new CheckpointController(this);
     this._materializeController = new MaterializeController({

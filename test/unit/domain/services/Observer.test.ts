@@ -3,6 +3,89 @@ import { openRuntimeHostProduct } from '../../../../src/domain/warp/RuntimeHostP
 import Observer from '../../../../src/domain/services/query/Observer.ts';
 import { createEmptyState, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import type {
+  QueryNeighborEntry,
+  QueryNeighborOptions,
+  QueryNodeStreamRequest,
+  QueryPropertyBag,
+  QueryReadModel,
+  QueryReadModelProvider,
+} from '../../../../src/domain/services/query/QueryReadModelProvider.ts';
+import type { QueryNodeSnapshot } from '../../../../src/domain/services/query/QueryPlan.ts';
+
+const EMPTY_QUERY_PROPS: QueryPropertyBag = Object.freeze({});
+
+type TraversalFixtureEdge = {
+  readonly from: string;
+  readonly to: string;
+  readonly label: string;
+};
+
+function nodeSnapshot(id: string): QueryNodeSnapshot {
+  return Object.freeze({
+    id,
+    props: EMPTY_QUERY_PROPS,
+    edgesOut: Object.freeze([]),
+    edgesIn: Object.freeze([]),
+  });
+}
+
+class ObserverTraversalReadModel implements QueryReadModel {
+  readonly stateHash = 'observer-traversal-read-model';
+  readonly #nodes = new Set(['user:alice', 'user:bob', 'user:carol', 'team:eng']);
+  readonly #edges: readonly TraversalFixtureEdge[] = Object.freeze([
+    Object.freeze({ from: 'user:alice', to: 'user:bob', label: 'follows' }),
+    Object.freeze({ from: 'user:bob', to: 'user:carol', label: 'follows' }),
+    Object.freeze({ from: 'user:alice', to: 'team:eng', label: 'belongs-to' }),
+  ]);
+
+  async *nodes(request: QueryNodeStreamRequest): AsyncIterable<QueryNodeSnapshot> {
+    void request;
+    for (const nodeId of this.#nodes) {
+      yield nodeSnapshot(nodeId);
+    }
+  }
+
+  async *neighbors(
+    nodeId: string,
+    options: QueryNeighborOptions,
+  ): AsyncIterable<QueryNeighborEntry> {
+    for (const edge of this.#edges) {
+      const neighbor = this.#neighborFor(edge, nodeId, options.direction);
+      if (neighbor !== null && this.#labelMatches(edge.label, options.label)) {
+        yield Object.freeze({ nodeId: neighbor, label: edge.label });
+      }
+    }
+  }
+
+  nodeProps(nodeId: string): Promise<QueryPropertyBag | null> {
+    return Promise.resolve(this.#nodes.has(nodeId) ? EMPTY_QUERY_PROPS : null);
+  }
+
+  #neighborFor(
+    edge: TraversalFixtureEdge,
+    nodeId: string,
+    direction: 'outgoing' | 'incoming',
+  ): string | null {
+    if (direction === 'outgoing') {
+      return edge.from === nodeId ? edge.to : null;
+    }
+    return edge.to === nodeId ? edge.from : null;
+  }
+
+  #labelMatches(label: string, filter: string | undefined): boolean {
+    return filter === undefined || label === filter;
+  }
+}
+
+class ObserverTraversalReadModelProvider implements QueryReadModelProvider {
+  opened = 0;
+
+  openQueryReadModel(): Promise<QueryReadModel> {
+    this.opened += 1;
+    return Promise.resolve(new ObserverTraversalReadModel());
+  }
+}
 
 /** @param {any} graph @param {(state: any) => void} seedFn */
 function setupGraphState(graph, seedFn) {
@@ -51,53 +134,6 @@ describe('Observer', () => {
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',
-    });
-  });
-
-  describe('provider batching', () => {
-    it('caps concurrent provider reads to batch size (64)', async () => {
-      const state = createEmptyState();
-      const visibleNodes = Array.from({ length: 130 }, (_, i) => `user:${String(i).padStart(3, '0')}`);
-      for (let i = 0; i < visibleNodes.length; i++) {
-        addNode(state, visibleNodes[i], i + 1);
-      }
-
-      let inFlight = 0;
-      let maxInFlight = 0;
-      const provider = {
-        getNeighbors: vi.fn(async () => {
-          inFlight++;
-          if (inFlight > maxInFlight) {
-            maxInFlight = inFlight;
-          }
-          await Promise.resolve();
-          inFlight--;
-          return [];
-        }),
-      };
-
-            const fakeGraph: any = {
-        hasNode: async () => true,
-        getNodes: async () => visibleNodes,
-        getNodeProps: async () => null,
-        _materializeGraph: async () => ({
-          state,
-          stateHash: 'h',
-          provider,
-          adjacency: { outgoing: new Map(), incoming: new Map() },
-        }),
-      };
-
-      const view = new Observer({
-        name: 'batching',
-        config: { match: 'user:*' },
-        graph: fakeGraph,
-      });
-
-      await (view as any)._materializeGraph();
-
-      expect(provider.getNeighbors).toHaveBeenCalledTimes(visibleNodes.length);
-      expect(maxInFlight).toBeLessThanOrEqual(64);
     });
   });
 
@@ -403,6 +439,20 @@ describe('Observer', () => {
   });
 
   describe('traverse through observer', () => {
+    it('reads traversal neighbors from a query read model without a graph materializer', async () => {
+      const readModelProvider = new ObserverTraversalReadModelProvider();
+      const view = new Observer({
+        name: 'read-model-traversal',
+        config: { match: 'user:*' },
+        readModelProvider,
+      });
+
+      const visited = await view.traverse.bfs('user:alice', { dir: 'out' });
+
+      expect(visited).toEqual(['user:alice', 'user:bob', 'user:carol']);
+      expect(readModelProvider.opened).toBe(1);
+    });
+
     it('BFS only visits matching nodes', async () => {
       setupGraphState(graph, (state) => {
         addNode(state, 'user:alice', 1);
@@ -505,106 +555,6 @@ describe('Observer', () => {
 
       expect(() => (view as any)._requireGraph())
         .toThrow('Observer has no live backing graph');
-    });
-
-    it('materializes adjacency by scanning edges when no provider is available', async () => {
-      const state = createEmptyState();
-      addNode(state, 'user:alice', 1);
-      addNode(state, 'user:bob', 2);
-      addNode(state, 'user:carol', 3);
-      addNode(state, 'team:eng', 4);
-      addEdge(state, 'user:alice', 'user:carol', 'z-last', 5);
-      addEdge(state, 'user:alice', 'user:bob', 'z-after', 6);
-      addEdge(state, 'user:alice', 'user:bob', 'a-first', 7);
-      addEdge(state, 'team:eng', 'user:bob', 'hidden', 8);
-
-      const graphStub = {
-        _materializeGraph: vi.fn().mockResolvedValue({
-          state,
-          stateHash: 'live-hash',
-          adjacency: { outgoing: new Map(), incoming: new Map() },
-        }),
-      };
-
-      const view = new Observer({
-        name: 'fallback',
-        config: { match: 'user:*' },
-        graph: (graphStub as any),
-      });
-
-      const materialized = await (view as any)._materializeGraph();
-
-      expect(graphStub._materializeGraph).toHaveBeenCalledTimes(1);
-      expect(materialized.stateHash).toBe('live-hash');
-      expect(materialized.adjacency.outgoing.get('user:alice')).toEqual([
-        { neighborId: 'user:bob', label: 'a-first' },
-        { neighborId: 'user:bob', label: 'z-after' },
-        { neighborId: 'user:carol', label: 'z-last' },
-      ]);
-      expect(materialized.adjacency.incoming.get('user:bob')).toEqual([
-        { neighborId: 'user:alice', label: 'a-first' },
-        { neighborId: 'user:alice', label: 'z-after' },
-      ]);
-      expect(materialized.adjacency.outgoing.has('team:eng')).toBe(false);
-    });
-
-    it('builds filtered adjacency through the provider and sorts incoming neighbors', async () => {
-      const state = createEmptyState();
-      addNode(state, 'user:alice', 1);
-      addNode(state, 'user:bob', 2);
-      addNode(state, 'user:carol', 3);
-      addNode(state, 'team:eng', 4);
-
-      const provider = {
-        getNeighbors: vi.fn(async (nodeId) => {
-          if (nodeId === 'user:alice') {
-            return [
-              { neighborId: 'user:carol', label: 'z-last' },
-              { neighborId: 'user:carol', label: 'a-first' },
-              { neighborId: 'user:carol', label: 'a-first' },
-              { neighborId: 'team:eng', label: 'filtered-out' },
-            ];
-          }
-          if (nodeId === 'user:bob') {
-            return [{ neighborId: 'user:carol', label: 'middle' }];
-          }
-          return [{ neighborId: 'team:eng', label: 'hidden' }];
-        }),
-      };
-
-      const graphStub = {
-        _materializeGraph: vi.fn().mockResolvedValue({
-          state,
-          stateHash: 'provider-hash',
-          provider,
-          adjacency: { outgoing: new Map(), incoming: new Map() },
-        }),
-      };
-
-      const view = new Observer({
-        name: 'provider',
-        config: { match: 'user:*' },
-        graph: (graphStub as any),
-      });
-
-      const materialized = await (view as any)._materializeGraph();
-
-      expect(provider.getNeighbors).toHaveBeenCalledTimes(3);
-      expect(provider.getNeighbors).toHaveBeenCalledWith('user:alice', 'out');
-      expect(provider.getNeighbors).toHaveBeenCalledWith('user:bob', 'out');
-      expect(provider.getNeighbors).toHaveBeenCalledWith('user:carol', 'out');
-      expect(materialized.adjacency.outgoing.get('user:alice')).toEqual([
-        { neighborId: 'user:carol', label: 'z-last' },
-        { neighborId: 'user:carol', label: 'a-first' },
-        { neighborId: 'user:carol', label: 'a-first' },
-      ]);
-      expect(materialized.adjacency.outgoing.has('user:carol')).toBe(false);
-      expect(materialized.adjacency.incoming.get('user:carol')).toEqual([
-        { neighborId: 'user:alice', label: 'a-first' },
-        { neighborId: 'user:alice', label: 'a-first' },
-        { neighborId: 'user:alice', label: 'z-last' },
-        { neighborId: 'user:bob', label: 'middle' },
-      ]);
     });
 
     it('delegates live-backed node and edge reads through the graph', async () => {

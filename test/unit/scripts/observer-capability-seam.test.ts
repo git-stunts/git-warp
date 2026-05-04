@@ -22,7 +22,7 @@ describe('Observer capability seam', () => {
     expect(observerSource).toContain("../state/StateReader.ts");
   });
 
-  it('constructs traversal directly from the observer seam', () => {
-    expect(observerSource).toContain('this.traverse = new LogicalTraversal(this);');
+  it('constructs traversal from the observer read-model seam', () => {
+    expect(observerSource).toContain('this.traverse = new LogicalTraversal(this.queryReadModelProvider());');
   });
 });

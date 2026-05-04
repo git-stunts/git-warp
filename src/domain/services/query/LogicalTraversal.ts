@@ -1,5 +1,5 @@
 /**
- * LogicalTraversal - Deprecated facade over GraphTraversal + AdjacencyNeighborProvider.
+ * LogicalTraversal - Deprecated facade over GraphTraversal + QueryReadModelNeighborProvider.
  *
  * New code should use GraphTraversal directly.
  *
@@ -7,22 +7,16 @@
  */
 import TraversalError from '../../errors/TraversalError.ts';
 import GraphTraversal from './GraphTraversal.ts';
-import AdjacencyNeighborProvider from './AdjacencyNeighborProvider.ts';
+import QueryReadModelNeighborProvider from './QueryReadModelNeighborProvider.ts';
 import {
-  requireAdjacencyMaps,
-  requireTraversalState,
   stripUndefined,
   assertDirection,
   normalizeLabelFilter,
 } from './traversalHelpers.ts';
 import type { Direction, NeighborOptions } from '../../../ports/NeighborProviderPort.ts';
+import type { QueryReadModelProvider } from './QueryReadModelProvider.ts';
 
 const DEFAULT_MAX_DEPTH = 1000;
-
-interface TraversalGraph {
-  hasNode: (nodeId: string) => Promise<boolean>;
-  _materializeGraph: () => Promise<{ state: unknown; adjacency: unknown }>;
-}
 
 interface TraversalOptions {
   dir?: string;
@@ -33,51 +27,48 @@ interface TraversalOptions {
 
 interface PreparedEngine {
   engine: GraphTraversal;
+  provider: QueryReadModelNeighborProvider;
   direction: Direction;
   options: NeighborOptions | undefined;
   depthLimit: number;
 }
 
-/** @deprecated Use GraphTraversal + AdjacencyNeighborProvider directly. */
+/** @deprecated Use GraphTraversal + QueryReadModelNeighborProvider directly. */
 export default class LogicalTraversal {
-  private readonly _graph: TraversalGraph;
+  private readonly _provider: QueryReadModelProvider;
 
-  constructor(graph: TraversalGraph) {
-    this._graph = graph;
+  constructor(provider: QueryReadModelProvider) {
+    this._provider = provider;
   }
 
-  /** Prepares engine from current adjacency. Does NOT validate start nodes. */
+  /** Prepares engine from the current query read model. Does NOT validate start nodes. */
   private async _prepareEngine(opts: TraversalOptions): Promise<PreparedEngine> {
-    const materialized = await this._graph._materializeGraph();
-    const adjacency = requireAdjacencyMaps(materialized.adjacency);
-    const state = requireTraversalState(materialized.state);
     const direction = assertDirection(opts.dir);
     const labelSet = normalizeLabelFilter(opts.labelFilter);
     const depthLimit = opts.maxDepth ?? DEFAULT_MAX_DEPTH;
-    const provider = new AdjacencyNeighborProvider({
-      outgoing: adjacency.outgoing,
-      incoming: adjacency.incoming,
-      aliveNodes: new Set(state.nodeAlive.elements()),
-    });
+    const provider = new QueryReadModelNeighborProvider(await this._provider.openQueryReadModel());
     const engine = new GraphTraversal({ provider });
     const options: NeighborOptions | undefined = labelSet ? { labels: labelSet } : undefined;
-    return { engine, direction, options, depthLimit };
+    return { engine, provider, direction, options, depthLimit };
   }
 
   /** Prepares engine and validates a single start node. */
   private async _prepare(start: string, opts: TraversalOptions): Promise<PreparedEngine> {
     const prepared = await this._prepareEngine(opts);
-    if (!(await this._graph.hasNode(start))) {
+    if (!(await prepared.provider.hasNode(start))) {
       throw new TraversalError(`Start node not found: ${start}`, { code: 'NODE_NOT_FOUND', context: { start } });
     }
     return prepared;
   }
 
   /** Validates one or more start nodes exist. */
-  private async _validateStarts(starts: string | string[]): Promise<void> {
+  private async _validateStarts(
+    provider: QueryReadModelNeighborProvider,
+    starts: string | string[],
+  ): Promise<void> {
     const arr = Array.isArray(starts) ? starts : [starts];
     for (const s of arr) {
-      if (!(await this._graph.hasNode(s))) {
+      if (!(await provider.hasNode(s))) {
         throw new TraversalError(`Start node not found: ${s}`, { code: 'NODE_NOT_FOUND', context: { start: s } });
       }
     }
@@ -175,8 +166,8 @@ export default class LogicalTraversal {
       backwardHeuristic?: (nodeId: string, goalId: string) => number;
     } = {},
   ): Promise<{ path: string[]; totalCost: number; nodesExplored: number }> {
-    const { engine, options: opts } = await this._prepareEngine(options);
-    await this._validateStarts(from);
+    const { engine, provider, options: opts } = await this._prepareEngine(options);
+    await this._validateStarts(provider, from);
     const { path, totalCost, nodesExplored } = await engine.bidirectionalAStar(stripUndefined({
       start: from, goal: to, options: opts,
       weightFn: options.weightFn, nodeWeightFn: options.nodeWeightFn,
@@ -190,8 +181,8 @@ export default class LogicalTraversal {
   async topologicalSort(
     start: string | string[], options: TraversalOptions & { throwOnCycle?: boolean } = {},
   ): Promise<{ sorted: string[]; hasCycle: boolean }> {
-    const { engine, direction, options: opts } = await this._prepareEngine(options);
-    await this._validateStarts(start);
+    const { engine, provider, direction, options: opts } = await this._prepareEngine(options);
+    await this._validateStarts(provider, start);
     const { sorted, hasCycle } = await engine.topologicalSort(stripUndefined({
       start, direction, options: opts, maxNodes: Infinity, throwOnCycle: options.throwOnCycle, signal: options.signal,
     }));
@@ -202,9 +193,9 @@ export default class LogicalTraversal {
   async commonAncestors(
     nodes: string[], options: TraversalOptions & { maxResults?: number } = {},
   ): Promise<{ ancestors: string[] }> {
-    const { engine, options: opts, depthLimit } = await this._prepareEngine(options);
+    const { engine, provider, options: opts, depthLimit } = await this._prepareEngine(options);
     for (const n of nodes) {
-      if (!(await this._graph.hasNode(n))) {
+      if (!(await provider.hasNode(n))) {
         throw new TraversalError(`Node not found: ${n}`, { code: 'NODE_NOT_FOUND', context: { node: n } });
       }
     }
@@ -235,8 +226,8 @@ export default class LogicalTraversal {
   async levels(
     start: string | string[], options: TraversalOptions = {},
   ): Promise<{ levels: Map<string, number>; maxLevel: number }> {
-    const { engine, direction, options: opts } = await this._prepareEngine(options);
-    await this._validateStarts(start);
+    const { engine, provider, direction, options: opts } = await this._prepareEngine(options);
+    await this._validateStarts(provider, start);
     const { levels, maxLevel } = await engine.levels(stripUndefined({
       start, direction, options: opts, maxNodes: Infinity, signal: options.signal,
     }));
@@ -247,8 +238,8 @@ export default class LogicalTraversal {
   async transitiveReduction(
     start: string | string[], options: TraversalOptions = {},
   ): Promise<{ edges: Array<{ from: string; to: string; label: string }>; removed: number }> {
-    const { engine, direction, options: opts } = await this._prepareEngine(options);
-    await this._validateStarts(start);
+    const { engine, provider, direction, options: opts } = await this._prepareEngine(options);
+    await this._validateStarts(provider, start);
     const { edges, removed } = await engine.transitiveReduction(stripUndefined({
       start, direction, options: opts, maxNodes: Infinity, signal: options.signal,
     }));
@@ -259,8 +250,8 @@ export default class LogicalTraversal {
   async transitiveClosure(
     start: string | string[], options: TraversalOptions & { maxEdges?: number } = {},
   ): Promise<{ edges: Array<{ from: string; to: string }> }> {
-    const { engine, direction, options: opts } = await this._prepareEngine(options);
-    await this._validateStarts(start);
+    const { engine, provider, direction, options: opts } = await this._prepareEngine(options);
+    await this._validateStarts(provider, start);
     const { edges } = await engine.transitiveClosure(stripUndefined({
       start, direction, options: opts, maxNodes: Infinity, maxEdges: options.maxEdges, signal: options.signal,
     }));
@@ -271,8 +262,8 @@ export default class LogicalTraversal {
   async *transitiveClosureStream(
     start: string | string[], options: TraversalOptions & { maxEdges?: number } = {},
   ): AsyncGenerator<{ from: string; to: string }> {
-    const { engine, direction, options: opts } = await this._prepareEngine(options);
-    await this._validateStarts(start);
+    const { engine, provider, direction, options: opts } = await this._prepareEngine(options);
+    await this._validateStarts(provider, start);
     yield* engine.transitiveClosureStream(stripUndefined({
       start, direction, options: opts, maxNodes: Infinity, maxEdges: options.maxEdges, signal: options.signal,
     }));

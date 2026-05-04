@@ -4,7 +4,6 @@ import CoordinateSelector from '../types/CoordinateSelector.ts';
 import LiveSelector from '../types/LiveSelector.ts';
 import StrandSelector from '../types/StrandSelector.ts';
 import WorldlineSelector from '../types/WorldlineSelector.ts';
-import type { WarpState } from './JoinReducer.ts';
 import type Observer from './query/Observer.ts';
 import LogicalTraversal from './query/LogicalTraversal.ts';
 import QueryBuilder from './query/QueryBuilder.ts';
@@ -16,20 +15,8 @@ import type {
   QueryReadModelProvider,
 } from './query/QueryReadModelProvider.ts';
 
-type AdjacencyEntry = { neighborId: string; label: string };
 type VisibleNodeProps = NonNullable<Awaited<ReturnType<Observer['getNodeProps']>>>;
 type VisibleEdge = Awaited<ReturnType<Observer['getEdges']>>[number];
-type WorldlineMaterializedGraph = {
-  state: WarpState;
-  stateHash: string;
-  adjacency: {
-    outgoing: Map<string, AdjacencyEntry[]>;
-    incoming: Map<string, AdjacencyEntry[]>;
-  };
-};
-type WorldlineMaterializedDelegate = Pick<Observer, 'hasNode' | 'getNodes' | 'getNodeProps' | 'getEdges' | 'openQueryReadModel'> & {
-  _materializeGraph(): Promise<WorldlineMaterializedGraph>;
-};
 type WorldlineObserverFactory = {
   observer(config: Aperture, options?: { source: WorldlineSource }): Promise<Observer>;
   observer(name: string, config: Aperture, options?: { source: WorldlineSource }): Promise<Observer>;
@@ -87,7 +74,7 @@ export default class Worldline {
   private readonly _graph: WorldlineObserverFactory;
   private readonly _source: WorldlineSelector;
   private readonly _opticSource: CheckpointTailOpticSource | null;
-  private _delegateObserverPromise: Promise<WorldlineMaterializedDelegate> | null;
+  private _delegateObserverPromise: Promise<Observer> | null;
   readonly traverse: LogicalTraversal;
 
   constructor({
@@ -136,20 +123,15 @@ export default class Worldline {
     return new WorldlineOptic({ source: this._opticSource });
   }
 
-  async _delegateObserver(): Promise<WorldlineMaterializedDelegate> {
+  async _delegateObserver(): Promise<Observer> {
     if (this._delegateObserverPromise === null) {
       this._delegateObserverPromise = this._graph
         .observer(
           { match: '*' },
           { source: this.source },
-        )
-        .then(requireWorldlineMaterializedDelegate);
+        );
     }
     return await this._delegateObserverPromise;
-  }
-
-  async _materializeGraph(): Promise<WorldlineMaterializedGraph> {
-    return await (await this._delegateObserver())._materializeGraph();
   }
 
   async hasNode(nodeId: string): Promise<boolean> {
@@ -189,25 +171,4 @@ export default class Worldline {
 
     return await this._graph.observer(nameOrConfig, { source: this.source });
   }
-}
-
-function requireWorldlineMaterializedDelegate(
-  observer: Observer | WorldlineMaterializedDelegate,
-): WorldlineMaterializedDelegate {
-  if (!hasWorldlineMaterializedDelegate(observer)) {
-    throw new QueryError('observer is missing worldline materialization support', {
-      code: 'E_WORLDLINE_DELEGATE',
-    });
-  }
-  return observer;
-}
-
-function hasWorldlineMaterializedDelegate(
-  observer: Observer | WorldlineMaterializedDelegate,
-): observer is WorldlineMaterializedDelegate {
-  if (!('_materializeGraph' in observer)) {
-    return false;
-  }
-
-  return typeof observer._materializeGraph === 'function';
 }

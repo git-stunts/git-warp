@@ -1,5 +1,5 @@
 /**
- * Observer - Read-only filtered view of a materialized graph snapshot.
+ * Observer - Read-only filtered view of a causal read model.
  *
  * Provides an observer that sees only nodes matching a glob pattern,
  * with property visibility controlled by expose/redact lists.
@@ -11,50 +11,27 @@
 
 import QueryBuilder from './QueryBuilder.ts';
 import StateQueryReadModel from './StateQueryReadModel.ts';
+import VisibleQueryReadModel from './VisibleQueryReadModel.ts';
 import LogicalTraversal from './LogicalTraversal.ts';
 import { createStateReader } from '../state/StateReader.ts';
-import { decodeEdgeKey } from '../KeyCodec.ts';
 import { matchGlob } from '../../utils/matchGlob.ts';
 import QueryError from '../../errors/QueryError.ts';
 import WorldlineSelector from '../../types/WorldlineSelector.ts';
 import LiveSelector from '../../types/LiveSelector.ts';
 import CoordinateSelector from '../../types/CoordinateSelector.ts';
 import StrandSelector from '../../types/StrandSelector.ts';
-import type { WarpState } from '../JoinReducer.ts';
 import type { WorldlineSource } from '../../capabilities/QueryCapability.ts';
 import type { VisibleStateReader } from '../../types/VisibleStateReader.ts';
 import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
-import type NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
+import type { WarpState } from '../JoinReducer.ts';
 import type {
   QueryReadModel,
   QueryReadModelProvider,
 } from './QueryReadModelProvider.ts';
 
-interface NeighborEntry {
-  neighborId: string;
-  label: string;
-}
-
-type ObserverAdjacency = {
-  outgoing: Map<string, NeighborEntry[]>;
-  incoming: Map<string, NeighborEntry[]>;
-};
-
 type VisibleNodeProps = Readonly<{ [key: string]: SnapshotPropValue }>;
 type VisibleEdge = { from: string; to: string; label: string; props: VisibleNodeProps };
 type ObserverSnapshot = { state: WarpState; stateHash: string };
-type ObserverBackingAdjacency = {
-  outgoing: ReadonlyMap<string, readonly NeighborEntry[]>;
-  incoming: ReadonlyMap<string, readonly NeighborEntry[]>;
-};
-type ObserverBackingMaterializedGraph = ObserverSnapshot & {
-  adjacency: ObserverBackingAdjacency;
-  provider?: NeighborProviderPort;
-};
-type ObserverMaterializedGraph = ObserverSnapshot & {
-  adjacency: ObserverAdjacency;
-  provider?: NeighborProviderPort;
-};
 
 export interface ObserverBacking {
   hasNode: (nodeId: string) => Promise<boolean>;
@@ -66,7 +43,6 @@ export interface ObserverBacking {
     config: ObserverConfig,
     options: { source: WorldlineSource },
   ) => Promise<Observer>;
-  _materializeGraph: () => Promise<ObserverBackingMaterializedGraph>;
 }
 
 function toSelector(source: WorldlineSelector | WorldlineSource | null | undefined): WorldlineSelector | null {
@@ -112,78 +88,6 @@ function filterProps(propsRecord: VisibleNodeProps, expose: string[] | undefined
   return Object.freeze(filtered);
 }
 
-function sortNeighbors(list: NeighborEntry[]): void {
-  list.sort((a, b) => {
-    if (a.neighborId !== b.neighborId) { return a.neighborId < b.neighborId ? -1 : 1; }
-    return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
-  });
-}
-
-function isVisibleEdge(ctx: { state: WarpState; pattern: string | string[] }, from: string, to: string): boolean {
-  return ctx.state.nodeAlive.contains(from) &&
-    ctx.state.nodeAlive.contains(to) &&
-    matchGlob(ctx.pattern, from) &&
-    matchGlob(ctx.pattern, to);
-}
-
-function pushAdjacencyEntry(map: Map<string, NeighborEntry[]>, key: string, entry: NeighborEntry): void {
-  if (!map.has(key)) { map.set(key, []); }
-  map.get(key)!.push(entry);
-}
-
-function buildAdjacencyFromEdges(state: WarpState, pattern: string | string[]): ObserverAdjacency {
-  const outgoing = new Map<string, NeighborEntry[]>();
-  const incoming = new Map<string, NeighborEntry[]>();
-  const ctx = { state, pattern };
-
-  for (const edgeKey of state.edgeAlive.elements()) {
-    const { from, to, label } = decodeEdgeKey(edgeKey);
-    if (!isVisibleEdge(ctx, from, to)) { continue; }
-    pushAdjacencyEntry(outgoing, from, { neighborId: to, label });
-    pushAdjacencyEntry(incoming, to, { neighborId: from, label });
-  }
-
-  for (const list of outgoing.values()) { sortNeighbors(list); }
-  for (const list of incoming.values()) { sortNeighbors(list); }
-  return { outgoing, incoming };
-}
-
-function collectNodeEdges(
-  id: string,
-  edges: NeighborEntry[],
-  ctx: { visibleSet: Set<string>; outgoing: Map<string, NeighborEntry[]>; incoming: Map<string, NeighborEntry[]> },
-): void {
-  const filtered = edges.filter((e) => ctx.visibleSet.has(e.neighborId));
-  if (filtered.length > 0) {
-    ctx.outgoing.set(id, filtered);
-  }
-  for (const { neighborId, label } of filtered) {
-    if (!ctx.incoming.has(neighborId)) { ctx.incoming.set(neighborId, []); }
-    ctx.incoming.get(neighborId)!.push({ neighborId: id, label });
-  }
-}
-
-async function buildAdjacencyViaProvider(provider: NeighborProviderPort, visibleNodes: string[]): Promise<ObserverAdjacency> {
-  const visibleSet = new Set(visibleNodes);
-  const outgoing = new Map<string, NeighborEntry[]>();
-  const incoming = new Map<string, NeighborEntry[]>();
-  const ctx = { visibleSet, outgoing, incoming };
-
-  const BATCH = 64;
-  for (let i = 0; i < visibleNodes.length; i += BATCH) {
-    const chunk = visibleNodes.slice(i, i + BATCH);
-    const results = await Promise.all(
-      chunk.map((id: string) => provider.getNeighbors(id, 'out').then((edges: NeighborEntry[]) => ({ id, edges })))
-    );
-    for (const { id, edges } of results) {
-      collectNodeEdges(id, edges, ctx);
-    }
-  }
-
-  for (const list of incoming.values()) { sortNeighbors(list); }
-  return { outgoing, incoming };
-}
-
 export interface ObserverConfig {
   match: string | string[];
   expose?: string[];
@@ -200,7 +104,7 @@ interface ObserverOptions {
 }
 
 /**
- * Read-only observer view of a materialized graph state.
+ * Read-only observer view over a live read model or pinned state snapshot.
  */
 export default class Observer {
   private _name!: string;
@@ -211,15 +115,13 @@ export default class Observer {
   private _snapshot!: ObserverSnapshot | null;
   private _source!: WorldlineSelector | null;
   private _stateReader!: VisibleStateReader | null;
-  private _snapshotAdjacency!: ObserverAdjacency | null;
   private _readModelProvider!: QueryReadModelProvider | null;
   traverse: LogicalTraversal;
 
   constructor({ name, config, graph, snapshot, source, readModelProvider }: ObserverOptions) {
     this._initIdentity(name, config);
     this._initBacking(graph, snapshot, source, readModelProvider);
-    void this._materializeGraph;
-    this.traverse = new LogicalTraversal(this);
+    this.traverse = new LogicalTraversal(this.queryReadModelProvider());
   }
 
   private _initIdentity(name: string, config: ObserverConfig): void {
@@ -239,7 +141,6 @@ export default class Observer {
     this._snapshot = snapshot ?? null;
     this._source = toSelector(source ?? new LiveSelector());
     this._stateReader = snapshot ? createStateReader(snapshot.state) : null;
-    this._snapshotAdjacency = null;
     this._readModelProvider = readModelProvider ?? null;
   }
 
@@ -284,37 +185,8 @@ export default class Observer {
   }
 
   // ===========================================================================
-  // Internal: State access (used by QueryBuilder and LogicalTraversal)
+  // Query read model provider
   // ===========================================================================
-
-  async _materializeGraph(): Promise<ObserverMaterializedGraph> {
-    if (this._snapshot) {
-      if (!this._snapshotAdjacency) {
-        this._snapshotAdjacency = buildAdjacencyFromEdges(this._snapshot.state, this._matchPattern);
-      }
-      return {
-        state: this._snapshot.state,
-        stateHash: this._snapshot.stateHash,
-        adjacency: this._snapshotAdjacency,
-      };
-    }
-
-    const graph = this._requireGraph();
-    const materialized = await graph._materializeGraph();
-    const { state, stateHash } = materialized;
-
-    let adjacency: ObserverAdjacency;
-
-    if (materialized.provider) {
-      const visibleNodes = state.nodeAlive.elements()
-        .filter((id) => matchGlob(this._matchPattern, id));
-      adjacency = await buildAdjacencyViaProvider(materialized.provider, visibleNodes);
-    } else {
-      adjacency = buildAdjacencyFromEdges(state, this._matchPattern);
-    }
-
-    return { state, stateHash, adjacency };
-  }
 
   queryReadModelProvider(): QueryReadModelProvider {
     return this;
@@ -322,7 +194,10 @@ export default class Observer {
 
   async openQueryReadModel(): Promise<QueryReadModel> {
     if (this._readModelProvider !== null) {
-      return await this._readModelProvider.openQueryReadModel();
+      return new VisibleQueryReadModel({
+        source: await this._readModelProvider.openQueryReadModel(),
+        visibility: this._queryVisibility(),
+      });
     }
 
     if (this._snapshot !== null) {
