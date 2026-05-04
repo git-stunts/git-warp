@@ -15,7 +15,7 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 | [PORT](../../legends/PORT.md) | Capability and port surfaces must tell the runtime truth. | 11 |
 | [OWN](../../legends/OWNERSHIP.md) | One owner per behavior: no gods, no duplication corridors, no mixed-concern facades. | 31 |
 | [SUB](../../legends/SUBSTRATE.md) | Substrate integrity: streaming, CAS, checkpoint, index, and versioned storage stay explicit. | 13 |
-| [SPEC](../../legends/SPEC.md) | Tests, docs, mocks, and coverage residue must reflect the real contract. | 31 |
+| [SPEC](../../legends/SPEC.md) | Tests, docs, mocks, and coverage residue must reflect the real contract. | 32 |
 
 ## Release Homes
 
@@ -30,7 +30,7 @@ card metadata or promoting bad-code into a release lane.
 
 | Release Home | Count |
 |--------------|------:|
-| `v17.0.0` | 100 |
+| `v17.0.0` | 101 |
 | `v18.0.0` | 10 |
 | `v19.0.0` | 11 |
 | `v20.0.0` | 15 |
@@ -170,7 +170,7 @@ card metadata or promoting bad-code into a release lane.
 - [SUB_streaming-bitmap-index-builder-serialization-tail.md](SUB_streaming-bitmap-index-builder-serialization-tail.md)
 - [SUB_trie-geometry-profile-contract-and-scale-gaps.md](SUB_trie-geometry-profile-contract-and-scale-gaps.md)
 
-### Spec Honesty (`SPEC`) — 31
+### Spec Honesty (`SPEC`) — 32
 
 - [SPEC_audit-tests-vacuous-early-return.md](SPEC_audit-tests-vacuous-early-return.md)
 - [SPEC_codec-module-untested.md](SPEC_codec-module-untested.md)
@@ -190,6 +190,7 @@ card metadata or promoting bad-code into a release lane.
 - [SPEC_untested-controllers.md](SPEC_untested-controllers.md)
 - [SPEC_untested-strand-services.md](SPEC_untested-strand-services.md)
 - [SPEC_vacuous-assertions-pattern.md](SPEC_vacuous-assertions-pattern.md)
+- [SPEC_v17-release-self-review-blockers.md](SPEC_v17-release-self-review-blockers.md)
 - [SPEC_visible-state-untested.md](SPEC_visible-state-untested.md)
 - [SPEC_capability-interfaces-no-jsdoc.md](SPEC_capability-interfaces-no-jsdoc.md)
 - [SPEC_claude-md-24-inaccuracies.md](SPEC_claude-md-24-inaccuracies.md)
