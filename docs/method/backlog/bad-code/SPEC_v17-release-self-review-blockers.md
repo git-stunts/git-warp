@@ -25,8 +25,9 @@ The branch diff was large enough to make normal review mechanics weaker:
 | Severity | Count |
 |----------|------:|
 | P0 Critical | 5 |
-| P1 Major | 1 |
-| P2 Process Risk | 1 |
+| P1 Major | 2 |
+| P2 Process Risk | 2 |
+| P3 Minor | 1 |
 
 ## Gate Evidence
 
@@ -182,6 +183,36 @@ Recommended mitigation prompt:
 > snapshot read APIs, and explicitly document the v16-to-v17 migration from
 > mutable ORSet maps to immutable snapshot methods.
 
+### P1: Source-Only Package Runtime Contract Needs a Published-Artifact Gate
+
+The package intentionally ships TypeScript source directly, but the current
+release gates do not prove that the published npm artifact and CLI work on the
+minimum supported Node line:
+
+- `package.json:16` declares `"node": ">=22.0.0"`.
+- `package.json:20` points `main` at `./index.ts`.
+- `package.json:21` points `types` at `./index.ts`.
+- `package.json:23` points the `warp-graph` bin at `./bin/warp-graph.ts`.
+- `package.json:70` and nearby scripts execute `.ts` files via plain `node`.
+- `CHANGELOG.md:12` says the repo ships TypeScript source directly via JSR and
+  `--experimental-strip-types`.
+- `scripts/release-preflight.sh:102` only runs `npm pack --dry-run`; it does
+  not install the packed tarball and execute package import or bin smoke tests.
+
+Local `node bin/warp-graph.ts --help` passed on Node `v25.9.0`, so this is not
+recorded as proof that binaries are dead. The release risk is narrower: the
+source-only distribution contract is not validated against the declared Node
+`>=22.0.0` floor or the actual packed npm artifact.
+
+Recommended mitigation prompt:
+
+> Add a published-artifact smoke gate: `npm pack`, install the tarball in a
+> clean fixture, import `@git-stunts/git-warp`, and run both `warp-graph --help`
+> and `git-warp --help` under the minimum supported Node 22 image. If the
+> package is intentionally TypeScript-source-only, document the exact runtime
+> and module-resolution requirements in README, getting started, and the v17
+> migration guide.
+
 ### P2: Diff Size Defeats Normal Review Mechanics
 
 `git diff --stat --compact-summary origin/main...HEAD` warned that exhaustive
@@ -195,6 +226,48 @@ Recommended mitigation prompt:
 > validation for each subsystem. If this is not already a release aggregation
 > branch, split future PRs by migration slice.
 
+### P2: Seek Tick Parser Accepts Junk-Suffixed Numbers
+
+`bin/cli/commands/seek.ts:49` resolves absolute and relative ticks with
+`parseInt(...)`. That accepts inputs such as `10junk` as `10` and `+2x` as
+`2`, then passes the existing `Number.isInteger(...)` checks:
+
+- `bin/cli/commands/seek.ts:51`
+- `bin/cli/commands/seek.ts:63`
+
+Recommended mitigation prompt:
+
+> Replace `parseInt` in `resolveTickValue` with strict integer parsing. Accept
+> only `^[0-9]+$` for absolute ticks and `^[+-][0-9]+$` for relative deltas;
+> add CLI tests for `10abc`, `+2x`, `-1x`, empty strings, and valid absolute
+> and relative values.
+
+### P3: Changelog Claims the Wrong Remaining Config Extensions
+
+`CHANGELOG.md:12` says no `.js` files remain except `eslint.config.js` and
+`vitest.config.js`, but the repo contains `eslint.config.ts` and
+`vitest.config.ts`.
+
+Recommended mitigation prompt:
+
+> Update the changelog to say the remaining config files are TypeScript, or
+> remove the exception clause entirely if no `.js` config files remain.
+
+## De-Dupe Notes
+
+Gemini findings not copied as new findings:
+
+- Missing v17 migration guide: false positive. `docs/migrations/v17.0.0.md`
+  exists, though it has contract drift already covered above.
+- Seek cache race: false positive. `bin/cli/shared.ts:224` defines
+  `wireSeekCache(...)` as synchronous and it only calls `graph.setSeekCache`.
+- Monorepo hybrid slop: already tracked by the package-extraction backlog,
+  including `INFRA_multipackage-publish-pipeline` and the post-publish
+  workspace extraction items.
+- Direct TypeScript distribution and CLI shebangs: folded into the narrower
+  source-only package runtime-contract finding above rather than repeated as
+  unverified breakage.
+
 ## Acceptance Criteria
 
 - `npm run test:local` is green.
@@ -204,4 +277,8 @@ Recommended mitigation prompt:
 - Internal controller auto-materialization tests assert the private host seam
   through an explicit port, not through public snapshot API spies.
 - Checkpoint schema create/load tests share one compatibility matrix.
+- Published-artifact smoke tests prove package imports and bins on the minimum
+  supported Node line, or docs explicitly narrow the runtime contract.
+- `seek --tick` rejects junk-suffixed numbers.
+- The changelog no longer names stale `.js` config files.
 - The release branch has a reviewer map or equivalent subsystem audit note.
