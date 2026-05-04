@@ -149,6 +149,28 @@ describe('v17 checkpoint-tail optic read basis', () => {
     materialization.expectUnused();
   });
 
+  it('requires non-index-tree checkpoints to fail closed without materialization', async () => {
+    const graphName = 'v17-optic-without-index-tree-red';
+    const fixture = await V17CheckpointTailOpticGraphFixture.openIndexedCheckpoint(graphName);
+    const graph = fixture.graph;
+    const indexTree = await V17CheckpointIndexTreeFixture.load(graph);
+    await indexTree.replaceWithStandardCheckpointSchema();
+    const materialization = new V17MaterializationFallbackTrap(
+      graph,
+      'non-index-tree checkpoint must not fall back to materialization',
+    );
+    const readPath = new V17PublicOpticReadPath(graph.worldline());
+
+    await failures.expectNoBoundedBasisFailure({
+      read: readPath.readNode(CHECKPOINT_NODE_ID),
+      graphName,
+      opticKind: 'node',
+      target: { nodeId: CHECKPOINT_NODE_ID },
+      cause: 'checkpoint-without-index-tree',
+    });
+    materialization.expectUnused();
+  });
+
   it('requires tail node removes to fail closed without materialization', async () => {
     const graphName = 'v17-optic-node-remove-tail-red';
     const fixture = await V17CheckpointTailOpticGraphFixture.openIndexedCheckpoint(graphName);

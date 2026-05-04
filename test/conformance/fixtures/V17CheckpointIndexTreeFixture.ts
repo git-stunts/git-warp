@@ -1,5 +1,8 @@
 import type { CheckpointCommitMessage } from '../../../src/ports/CommitMessageCodecPort.ts';
-import { CHECKPOINT_SCHEMA_INDEX_TREE } from '../../../src/domain/services/state/checkpointHelpers.ts';
+import {
+  CHECKPOINT_SCHEMA_INDEX_TREE,
+  CHECKPOINT_SCHEMA_STANDARD,
+} from '../../../src/domain/services/state/checkpointHelpers.ts';
 import { buildCheckpointRef } from '../../../src/domain/utils/RefLayout.ts';
 import type { OpticFixtureGraph } from './V17CheckpointTailOpticGraphFixture.ts';
 import V17CheckpointTailOpticFixtureError from './V17CheckpointTailOpticFixtureError.ts';
@@ -54,6 +57,23 @@ export default class V17CheckpointIndexTreeFixture {
       message: this.graph._commitMessageCodec.encodeCheckpoint({
         ...this.checkpointMessage,
         schema: CHECKPOINT_SCHEMA_INDEX_TREE,
+        indexOid: replacementRootTreeOid,
+      }),
+    });
+    await this.graph._persistence.updateRef(buildCheckpointRef(this.graph.graphName), replacementSha);
+  }
+
+  async replaceWithStandardCheckpointSchema(): Promise<void> {
+    const rootTreeOids = await this.graph._persistence.readTreeOids(this.checkpointMessage.indexOid);
+    const replacementRootTreeOid = await this.graph._persistence.writeTree([
+      ...nonIndexRootBlobEntries(rootTreeOids),
+    ].sort());
+    const replacementSha = await this.graph._persistence.commitNodeWithTree({
+      treeOid: replacementRootTreeOid,
+      parents: [...this.checkpointParents],
+      message: this.graph._commitMessageCodec.encodeCheckpoint({
+        ...this.checkpointMessage,
+        schema: CHECKPOINT_SCHEMA_STANDARD,
         indexOid: replacementRootTreeOid,
       }),
     });
