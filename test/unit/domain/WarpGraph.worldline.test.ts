@@ -158,6 +158,8 @@ describe('WarpCore worldline surface', () => {
 
     expect(worldline).toBeDefined();
     expect(worldline.source.kind).toBe('live');
+    expect('materialize' in worldline).toBe(false);
+    expect('_materializeGraph' in worldline).toBe(false);
   });
 
   it('worldline.observer() reads detached live truth without retargeting the caller graph', async () => {

@@ -20,16 +20,4 @@ describe('v17 worldline reading surface', () => {
     expect(migrationGuide).not.toContain('worldline.materialize');
   });
 
-  it('keeps traversal on read-model seams instead of private materialization', () => {
-    const logicalTraversalSource = readRepoFile('src/domain/services/query/LogicalTraversal.ts');
-    const observerSource = readRepoFile('src/domain/services/query/Observer.ts');
-    const worldlineSource = readRepoFile('src/domain/services/Worldline.ts');
-
-    expect(logicalTraversalSource).toContain('QueryReadModelProvider');
-    expect(logicalTraversalSource).not.toContain('_materializeGraph');
-    expect(observerSource).not.toMatch(/\b_materializeGraph\s*\(/u);
-    expect(observerSource).not.toContain('ObserverBackingMaterializedGraph');
-    expect(worldlineSource).not.toMatch(/\b_materializeGraph\s*\(/u);
-    expect(worldlineSource).not.toContain('WorldlineMaterializedDelegate');
-  });
 });

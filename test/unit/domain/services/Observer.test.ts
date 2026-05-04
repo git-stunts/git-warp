@@ -451,6 +451,7 @@ describe('Observer', () => {
 
       expect(visited).toEqual(['user:alice', 'user:bob', 'user:carol']);
       expect(readModelProvider.opened).toBe(1);
+      expect('_materializeGraph' in view).toBe(false);
     });
 
     it('BFS only visits matching nodes', async () => {
