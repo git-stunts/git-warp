@@ -35,6 +35,9 @@ const SEEK_OPTIONS = {
   'diff-limit': { type: 'string', default: '2000' },
 };
 
+const ABSOLUTE_TICK_PATTERN = /^[0-9]+$/u;
+const RELATIVE_TICK_PATTERN = /^[+-][0-9]+$/u;
+
 /** Parses raw CLI args into a validated seek specification. */
 function parseSeekArgs(args: string[]): SeekSpec {
   const { values } = parseCommandArgs(args, SEEK_OPTIONS, seekSchema);
@@ -45,13 +48,32 @@ function parseSeekArgs(args: string[]): SeekSpec {
 // Tick Resolution
 // ============================================================================
 
+function parseRelativeTickDelta(tickValue: string): number {
+  if (!RELATIVE_TICK_PATTERN.test(tickValue)) {
+    throw usageError(`Invalid tick delta: ${tickValue}`);
+  }
+  const delta = Number(tickValue);
+  if (!Number.isInteger(delta)) {
+    throw usageError(`Invalid tick delta: ${tickValue}`);
+  }
+  return delta;
+}
+
+function parseAbsoluteTick(tickValue: string): number {
+  if (!ABSOLUTE_TICK_PATTERN.test(tickValue)) {
+    throw usageError(`Invalid tick value: ${tickValue}. Must be a non-negative integer, or +N/-N for relative.`);
+  }
+  const n = Number(tickValue);
+  if (!Number.isInteger(n)) {
+    throw usageError(`Invalid tick value: ${tickValue}. Must be a non-negative integer, or +N/-N for relative.`);
+  }
+  return n;
+}
+
 /** Resolves a tick string (absolute or relative delta) to a concrete tick number. */
 function resolveTickValue(tickValue: string, currentTick: number | null, ticks: number[], maxTick: number): number {
   if (tickValue.startsWith('+') || tickValue.startsWith('-')) {
-    const delta = parseInt(tickValue, 10);
-    if (!Number.isInteger(delta)) {
-      throw usageError(`Invalid tick delta: ${tickValue}`);
-    }
+    const delta = parseRelativeTickDelta(tickValue);
     const base = currentTick ?? 0;
     const allPoints = (ticks.length > 0 && ticks[0] === 0) ? [...ticks] : [0, ...ticks];
     const currentIdx = allPoints.indexOf(base);
@@ -60,10 +82,7 @@ function resolveTickValue(tickValue: string, currentTick: number | null, ticks: 
     return allPoints[targetIdx] ?? 0;
   }
 
-  const n = parseInt(tickValue, 10);
-  if (!Number.isInteger(n) || n < 0) {
-    throw usageError(`Invalid tick value: ${tickValue}. Must be a non-negative integer, or +N/-N for relative.`);
-  }
+  const n = parseAbsoluteTick(tickValue);
   return Math.min(n, maxTick);
 }
 

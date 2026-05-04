@@ -190,6 +190,17 @@ describe('seekSchema', () => {
     expect(result.tickValue).toBe('5');
   });
 
+  it('parses relative --tick deltas', () => {
+    expect(seekSchema.parse({ tick: '+2' }).tickValue).toBe('+2');
+    expect(seekSchema.parse({ tick: '-1' }).tickValue).toBe('-1');
+  });
+
+  it('rejects junk-suffixed --tick values', () => {
+    expect(() => seekSchema.parse({ tick: '10abc' })).toThrow(/tick/i);
+    expect(() => seekSchema.parse({ tick: '+2x' })).toThrow(/tick/i);
+    expect(() => seekSchema.parse({ tick: '-1x' })).toThrow(/tick/i);
+  });
+
   it('parses --latest', () => {
     const result = seekSchema.parse({ latest: true });
     expect(result.action).toBe('latest');

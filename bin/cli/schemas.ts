@@ -124,6 +124,8 @@ type SeekInput = {
   'diff-limit': number;
 };
 
+const SEEK_TICK_PATTERN = /^(?:[0-9]+|[+-][0-9]+)$/u;
+
 /**
  * Count how many mutually exclusive seek action flags are active.
  */
@@ -225,7 +227,9 @@ function transformSeek(val: SeekInput) {
 }
 
 export const seekSchema = z.object({
-  tick: z.string().optional(),
+  tick: z.string()
+    .regex(SEEK_TICK_PATTERN, 'Invalid --tick value. Use a non-negative integer, or +N/-N for relative.')
+    .optional(),
   latest: z.boolean().default(false),
   save: z.string().min(1, 'Missing value for --save').optional(),
   load: z.string().min(1, 'Missing value for --load').optional(),
