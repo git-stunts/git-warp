@@ -330,11 +330,19 @@ wire('observer', async function (this: QueryController, nameOrConfig: string | O
     });
   }
   const h = host(this);
-  const snapshot = await resolveSnapshot(snapshotDeps(this), options);
   const sourceSelector = options?.source !== undefined ? toSelector(options.source) : undefined;
+  if (sourceSelector === undefined) {
+    return new Observer({
+      name,
+      config,
+      graph: h,
+      readModelProvider: defaultQueryReadModelProvider(this),
+    });
+  }
+  const snapshot = await resolveSnapshot(snapshotDeps(this), options);
   return new Observer({
     name, config, graph: h, snapshot,
-    ...(sourceSelector !== undefined ? { source: sourceSelector } : {}),
+    source: sourceSelector,
   });
 });
 

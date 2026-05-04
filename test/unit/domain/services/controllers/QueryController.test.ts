@@ -531,10 +531,18 @@ describe('QueryController', () => {
 
     it('accepts an empty string match without throwing validation error', async () => {
       // Empty string is still typeof 'string', so it passes the match check.
-      // The call may fail downstream (e.g. _materializeGraph) but NOT on match validation.
-      await expect(ctrl.observer({ match: '' })).rejects.not.toThrow(
-        'observer config.match must be a non-empty string or non-empty array of strings',
-      );
+      await expect(ctrl.observer({ match: '' })).resolves.toBeDefined();
+    });
+
+    it('creates default live observers without full graph materialization', async () => {
+      host._materializeGraph = vi.fn().mockRejectedValue(new Error('observer must not materialize'));
+      host.getNodeProps = vi.fn().mockResolvedValue({ age: 30, name: 'Alice' });
+
+      const observer = await ctrl.observer('people', { match: 'alice' });
+      const props = await observer.getNodeProps('alice');
+
+      expect(host._materializeGraph).not.toHaveBeenCalled();
+      expect(props).toEqual({ age: 30, name: 'Alice' });
     });
   });
 
