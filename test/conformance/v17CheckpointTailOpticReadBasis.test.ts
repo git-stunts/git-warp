@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import V17CheckpointPropertyShardFixture from './fixtures/V17CheckpointPropertyShardFixture.ts';
 import {
   CHECKPOINT_NODE_ID,
   CHECKPOINT_PROPERTY_VALUE,
@@ -9,23 +10,16 @@ import {
   PROPERTY_KEY,
   TAIL_PROPERTY_VALUE,
   UNSUPPORTED_TAIL_PROPERTY_VALUE,
-  expectNoBoundedBasisFailure,
-  expectReadIdentity,
-  expectShardUnavailableFailure,
-  expectTailBudgetExceededFailure,
-  expectTailWitnessCount,
-  makeCheckpointPropertyShardInvalid,
-  makeCheckpointPropertyShardUnavailable,
-  mockTailBudgetExceeded,
-  openEmptyGraph,
-  openGraphWithIndexedCheckpoint,
-  readNode,
-  readNodeProperty,
-  spyMaterializeGraphFailure,
-} from './fixtures/v17CheckpointTailOpticFixtures.ts';
+} from './fixtures/V17CheckpointTailOpticFixtureData.ts';
+import V17CheckpointTailOpticGraphFixture from './fixtures/V17CheckpointTailOpticGraphFixture.ts';
+import V17MaterializationFallbackTrap from './fixtures/V17MaterializationFallbackTrap.ts';
+import V17OpticFailureExpectations from './fixtures/V17OpticFailureExpectations.ts';
+import V17PublicOpticReadPath from './fixtures/V17PublicOpticReadPath.ts';
+import V17TailBudgetExceededFixture from './fixtures/V17TailBudgetExceededFixture.ts';
 
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const DELIVERY_PLAN_PATH = 'docs/design/0112-v17-foundation-delivery-plan.md';
+const failures = new V17OpticFailureExpectations();
 
 function readRepoFile(path: string): string {
   return readFileSync(join(REPO_ROOT, path), 'utf8');
@@ -37,161 +31,179 @@ function collapseWhitespace(value: string): string {
 
 describe('v17 checkpoint-tail optic read basis', () => {
   it('requires exact node optic reads to avoid _materializeGraph()', async () => {
-    const graph = await openGraphWithIndexedCheckpoint('v17-optic-node-red');
+    const fixture = await V17CheckpointTailOpticGraphFixture.openIndexedCheckpoint('v17-optic-node-red');
+    const graph = fixture.graph;
     await graph.patch((patch) => {
       patch.setProperty(CHECKPOINT_NODE_ID, 'ignoredByNodeRead', 'not a liveness fact');
     });
-    const materializeGraph = spyMaterializeGraphFailure(
+    const materialization = new V17MaterializationFallbackTrap(
       graph,
       'worldline optic node read must not full-materialize',
     );
+    const readPath = new V17PublicOpticReadPath(graph.worldline());
 
-    const result = await readNode(graph.worldline(), CHECKPOINT_NODE_ID);
+    const result = await readPath.readNode(CHECKPOINT_NODE_ID);
 
-    expect(materializeGraph).not.toHaveBeenCalled();
-    expectReadIdentity(result);
+    materialization.expectUnused();
+    failures.expectReadIdentity(result);
     expect(result).toMatchObject({
       nodeId: CHECKPOINT_NODE_ID,
       alive: true,
     });
-    expectTailWitnessCount(result, 0);
+    failures.expectTailWitnessCount(result, 0);
   });
 
   it('requires property optic reads to fold live tail without _materializeGraph()', async () => {
-    const graph = await openGraphWithIndexedCheckpoint('v17-optic-prop-red');
+    const fixture = await V17CheckpointTailOpticGraphFixture.openIndexedCheckpoint('v17-optic-prop-red');
+    const graph = fixture.graph;
     await graph.patch((patch) => {
       patch.setProperty(CHECKPOINT_NODE_ID, PROPERTY_KEY, TAIL_PROPERTY_VALUE);
     });
-    const materializeGraph = spyMaterializeGraphFailure(
+    const materialization = new V17MaterializationFallbackTrap(
       graph,
       'worldline optic property read must not full-materialize',
     );
+    const readPath = new V17PublicOpticReadPath(graph.worldline());
 
-    const result = await readNodeProperty(graph.worldline(), CHECKPOINT_NODE_ID, PROPERTY_KEY);
+    const result = await readPath.readNodeProperty(CHECKPOINT_NODE_ID, PROPERTY_KEY);
 
-    expect(materializeGraph).not.toHaveBeenCalled();
-    expectReadIdentity(result);
+    materialization.expectUnused();
+    failures.expectReadIdentity(result);
     expect(result).toMatchObject({
       nodeId: CHECKPOINT_NODE_ID,
       key: PROPERTY_KEY,
       value: TAIL_PROPERTY_VALUE,
     });
-    expectTailWitnessCount(result, 1);
+    failures.expectTailWitnessCount(result, 1);
   });
 
   it('requires missing bounded basis to fail closed without materialization', async () => {
     const graphName = 'v17-optic-no-basis-red';
-    const graph = await openEmptyGraph(graphName);
-    const materializeGraph = spyMaterializeGraphFailure(
+    const fixture = await V17CheckpointTailOpticGraphFixture.openEmpty(graphName);
+    const graph = fixture.graph;
+    const materialization = new V17MaterializationFallbackTrap(
       graph,
       'missing bounded basis must not fall back to materialization',
     );
+    const readPath = new V17PublicOpticReadPath(graph.worldline());
 
-    await expectNoBoundedBasisFailure({
-      read: readNode(graph.worldline(), MISSING_NODE_ID),
+    await failures.expectNoBoundedBasisFailure({
+      read: readPath.readNode(MISSING_NODE_ID),
       graphName,
       opticKind: 'node',
       target: { nodeId: MISSING_NODE_ID },
       cause: 'missing-checkpoint',
     });
-    expect(materializeGraph).not.toHaveBeenCalled();
+    materialization.expectUnused();
   });
 
   it('requires tail node removes to fail closed without materialization', async () => {
     const graphName = 'v17-optic-node-remove-tail-red';
-    const graph = await openGraphWithIndexedCheckpoint(graphName);
+    const fixture = await V17CheckpointTailOpticGraphFixture.openIndexedCheckpoint(graphName);
+    const graph = fixture.graph;
     await graph.patch((patch) => {
       patch.removeNode(CHECKPOINT_NODE_ID);
     });
-    const materializeGraph = spyMaterializeGraphFailure(
+    const materialization = new V17MaterializationFallbackTrap(
       graph,
       'tail node remove must not fall back to materialization',
     );
+    const readPath = new V17PublicOpticReadPath(graph.worldline());
 
-    await expectNoBoundedBasisFailure({
-      read: readNode(graph.worldline(), CHECKPOINT_NODE_ID),
+    await failures.expectNoBoundedBasisFailure({
+      read: readPath.readNode(CHECKPOINT_NODE_ID),
       graphName,
       opticKind: 'node',
       target: { nodeId: CHECKPOINT_NODE_ID },
       cause: 'tail-node-remove-needs-raw-liveness-witnesses',
     });
-    expect(materializeGraph).not.toHaveBeenCalled();
+    materialization.expectUnused();
   });
 
   it('requires unsupported tail property values to fail closed without materialization', async () => {
     const graphName = 'v17-optic-prop-object-tail-red';
-    const graph = await openGraphWithIndexedCheckpoint(graphName);
+    const fixture = await V17CheckpointTailOpticGraphFixture.openIndexedCheckpoint(graphName);
+    const graph = fixture.graph;
     await graph.patch((patch) => {
       patch.setProperty(CHECKPOINT_NODE_ID, PROPERTY_KEY, UNSUPPORTED_TAIL_PROPERTY_VALUE);
     });
-    const materializeGraph = spyMaterializeGraphFailure(
+    const materialization = new V17MaterializationFallbackTrap(
       graph,
       'unsupported tail property value must not fall back to materialization',
     );
+    const readPath = new V17PublicOpticReadPath(graph.worldline());
 
-    await expectNoBoundedBasisFailure({
-      read: readNodeProperty(graph.worldline(), CHECKPOINT_NODE_ID, PROPERTY_KEY),
+    await failures.expectNoBoundedBasisFailure({
+      read: readPath.readNodeProperty(CHECKPOINT_NODE_ID, PROPERTY_KEY),
       graphName,
       opticKind: 'node-property',
       target: { nodeId: CHECKPOINT_NODE_ID, propertyKey: PROPERTY_KEY },
       cause: 'tail-property-value-needs-parser',
     });
-    expect(materializeGraph).not.toHaveBeenCalled();
+    materialization.expectUnused();
   });
 
   it('requires tail budget failures to expose structured context without materialization', async () => {
     const graphName = 'v17-optic-tail-budget-red';
-    const graph = await openGraphWithIndexedCheckpoint(graphName);
-    mockTailBudgetExceeded(graph);
-    const materializeGraph = spyMaterializeGraphFailure(
+    const fixture = await V17CheckpointTailOpticGraphFixture.openIndexedCheckpoint(graphName);
+    const graph = fixture.graph;
+    new V17TailBudgetExceededFixture(graph);
+    const materialization = new V17MaterializationFallbackTrap(
       graph,
       'tail budget exceeded must not fall back to materialization',
     );
+    const readPath = new V17PublicOpticReadPath(graph.worldline());
 
-    await expectTailBudgetExceededFailure({
-      read: readNode(graph.worldline(), CHECKPOINT_NODE_ID),
+    await failures.expectTailBudgetExceededFailure({
+      read: readPath.readNode(CHECKPOINT_NODE_ID),
       graphName,
       opticKind: 'node',
       target: { nodeId: CHECKPOINT_NODE_ID },
     });
-    expect(materializeGraph).not.toHaveBeenCalled();
+    materialization.expectUnused();
   });
 
   it('requires unavailable checkpoint property shards to fail closed without materialization', async () => {
     const graphName = 'v17-optic-prop-shard-missing-red';
-    const graph = await openGraphWithIndexedCheckpoint(graphName);
-    await makeCheckpointPropertyShardUnavailable(graph, CHECKPOINT_NODE_ID);
-    const materializeGraph = spyMaterializeGraphFailure(
+    const fixture = await V17CheckpointTailOpticGraphFixture.openIndexedCheckpoint(graphName);
+    const graph = fixture.graph;
+    const propertyShard = await V17CheckpointPropertyShardFixture.forNode(graph, CHECKPOINT_NODE_ID);
+    propertyShard.makeUnavailable();
+    const materialization = new V17MaterializationFallbackTrap(
       graph,
       'unavailable checkpoint property shard must not fall back to materialization',
     );
+    const readPath = new V17PublicOpticReadPath(graph.worldline());
 
-    await expectShardUnavailableFailure({
-      read: readNodeProperty(graph.worldline(), CHECKPOINT_NODE_ID, PROPERTY_KEY),
+    await failures.expectShardUnavailableFailure({
+      read: readPath.readNodeProperty(CHECKPOINT_NODE_ID, PROPERTY_KEY),
       graphName,
       opticKind: 'node-property',
       target: { nodeId: CHECKPOINT_NODE_ID, propertyKey: PROPERTY_KEY },
     });
-    expect(materializeGraph).not.toHaveBeenCalled();
+    materialization.expectUnused();
   });
 
   it('requires invalid checkpoint property shards to fail closed without materialization', async () => {
     const graphName = 'v17-optic-prop-shard-invalid-red';
-    const graph = await openGraphWithIndexedCheckpoint(graphName);
-    await makeCheckpointPropertyShardInvalid(graph, CHECKPOINT_NODE_ID);
-    const materializeGraph = spyMaterializeGraphFailure(
+    const fixture = await V17CheckpointTailOpticGraphFixture.openIndexedCheckpoint(graphName);
+    const graph = fixture.graph;
+    const propertyShard = await V17CheckpointPropertyShardFixture.forNode(graph, CHECKPOINT_NODE_ID);
+    propertyShard.makeInvalid();
+    const materialization = new V17MaterializationFallbackTrap(
       graph,
       'invalid checkpoint property shard must not fall back to materialization',
     );
+    const readPath = new V17PublicOpticReadPath(graph.worldline());
 
-    await expectNoBoundedBasisFailure({
-      read: readNodeProperty(graph.worldline(), CHECKPOINT_NODE_ID, PROPERTY_KEY),
+    await failures.expectNoBoundedBasisFailure({
+      read: readPath.readNodeProperty(CHECKPOINT_NODE_ID, PROPERTY_KEY),
       graphName,
       opticKind: 'node-property',
       target: { nodeId: CHECKPOINT_NODE_ID, propertyKey: PROPERTY_KEY },
       cause: 'checkpoint-shard-invalid',
     });
-    expect(materializeGraph).not.toHaveBeenCalled();
+    materialization.expectUnused();
   });
 
   it('keeps checkpoint tail semantics causal rather than scalar', () => {
