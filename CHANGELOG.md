@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **100% TypeScript** — All 100 remaining `.js` files converted to `.ts`. The repo ships TypeScript source directly via jsr and `--experimental-strip-types`. No `.js` files remain except `eslint.config.js` and `vitest.config.js` (config files).
+- **100% TypeScript** — All 100 remaining `.js` files converted to `.ts`. The repo ships TypeScript source directly via jsr and `--experimental-strip-types`. The root config pair now lives at `eslint.config.ts` and `vitest.config.ts`.
 
 ### Fixed
 
