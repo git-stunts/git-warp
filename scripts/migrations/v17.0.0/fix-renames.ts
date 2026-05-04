@@ -22,7 +22,9 @@ import process from 'node:process';
 // Symbol renames: [pattern, replacement, description]
 // ---------------------------------------------------------------------------
 
-const RENAMES = [
+type RenameRule = readonly [pattern: RegExp, replacement: string, description: string];
+
+const RENAMES: readonly RenameRule[] = [
   // V2 suffix drops
   [/\bPatchV2\b/g, 'Patch', 'PatchV2 → Patch'],
   [/\bPatchBuilderV2\b/g, 'PatchBuilder', 'PatchBuilderV2 → PatchBuilder'],
@@ -51,7 +53,7 @@ const RENAMES = [
 
 const EXTENSIONS = new Set(['.ts', '.js', '.tsx', '.jsx', '.mjs', '.mts']);
 
-async function* walkFiles(dir) {
+async function* walkFiles(dir: string): AsyncGenerator<string> {
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
@@ -70,9 +72,9 @@ async function* walkFiles(dir) {
 // Rewriter
 // ---------------------------------------------------------------------------
 
-function rewriteSymbols(content) {
+function rewriteSymbols(content: string): { readonly modified: string; readonly changes: readonly string[] } {
   let modified = content;
-  const changes = [];
+  const changes: string[] = [];
 
   for (const [pattern, replacement, description] of RENAMES) {
     const matches = modified.match(pattern);
@@ -93,6 +95,9 @@ const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const dirIdx = args.indexOf('--dir');
 const scanDir = dirIdx !== -1 ? args[dirIdx + 1] : process.cwd();
+if (scanDir === undefined) {
+  throw new Error('--dir requires a path argument');
+}
 
 let totalFiles = 0;
 let totalChanges = 0;

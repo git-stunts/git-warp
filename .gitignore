@@ -6,6 +6,7 @@ node_modules/
 .codex/
 .mcp.json
 coverage/
+dist/
 CLAUDE.md
 TASKS-DO-NOT-CHECK-IN.md
 EDITORS-REPORT.md

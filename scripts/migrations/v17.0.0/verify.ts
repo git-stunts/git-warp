@@ -16,7 +16,7 @@ import process from 'node:process';
 
 const EXTENSIONS = new Set(['.ts', '.js', '.tsx', '.jsx', '.mjs', '.mts']);
 
-async function* walkFiles(dir) {
+async function* walkFiles(dir: string): AsyncGenerator<string> {
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
@@ -32,7 +32,7 @@ async function* walkFiles(dir) {
 }
 
 // Patterns that indicate incomplete migration
-const CHECKS = [
+const CHECKS: readonly Readonly<{ pattern: RegExp; message: string }>[] = [
   { pattern: /from\s+['"].*\/StrandService\.js['"]/, message: 'StrandService.js was deleted — use graph.strands capability' },
   { pattern: /from\s+['"].*\/WarpTypes\.js['"]/, message: 'WarpTypes.js was deleted — use op class constructors' },
   { pattern: /from\s+['"].*\/WarpTypesV2\.js['"]/, message: 'WarpTypesV2.js was deleted — use Patch, PatchBuilder directly' },
@@ -51,6 +51,9 @@ const CHECKS = [
 const args = process.argv.slice(2);
 const dirIdx = args.indexOf('--dir');
 const scanDir = dirIdx !== -1 ? args[dirIdx + 1] : process.cwd();
+if (scanDir === undefined) {
+  throw new Error('--dir requires a path argument');
+}
 
 let issueCount = 0;
 
@@ -59,8 +62,12 @@ for await (const filePath of walkFiles(scanDir)) {
   const lines = content.split('\n');
 
   for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line === undefined) {
+      continue;
+    }
     for (const check of CHECKS) {
-      if (check.pattern.test(lines[i])) {
+      if (check.pattern.test(line)) {
         console.log(`${filePath}:${i + 1}: ${check.message}`);
         issueCount++;
       }

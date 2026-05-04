@@ -17,44 +17,38 @@
     "node": ">=22.0.0"
   },
   "sideEffects": false,
-  "main": "./index.ts",
-  "types": "./index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
-    "warp-graph": "./bin/warp-graph.ts",
+    "warp-graph": "./dist/bin/warp-graph.js",
     "git-warp": "./bin/git-warp"
   },
   "exports": {
     ".": {
-      "types": "./index.ts",
-      "import": "./index.ts",
-      "default": "./index.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./browser": {
-      "types": "./browser.ts",
-      "import": "./browser.ts",
-      "default": "./browser.ts"
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js",
+      "default": "./dist/browser.js"
     },
     "./sha1sync": {
-      "types": "./src/infrastructure/adapters/sha1sync.ts",
-      "import": "./src/infrastructure/adapters/sha1sync.ts",
-      "default": "./src/infrastructure/adapters/sha1sync.ts"
+      "types": "./dist/src/infrastructure/adapters/sha1sync.d.ts",
+      "import": "./dist/src/infrastructure/adapters/sha1sync.js",
+      "default": "./dist/src/infrastructure/adapters/sha1sync.js"
     },
     "./package.json": "./package.json"
   },
   "files": [
-    "bin/warp-graph.ts",
-    "bin/presenters",
-    "bin/cli",
+    "dist",
     "bin/git-warp",
-    "src",
-    "browser.ts",
-    "index.ts",
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
     "NOTICE",
     "scripts/install-git-warp.sh",
-    "scripts/migrations",
     "scripts/uninstall-git-warp.sh"
   ],
   "publishConfig": {
@@ -64,6 +58,7 @@
     "tar": "7.5.11"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.publish.json",
     "lint": "eslint .",
     "lint:ratchet": "sh scripts/lint-ratchet.sh",
     "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
@@ -85,9 +80,9 @@
     "benchmark:trie-geometry": "GIT_WARP_PROFILE=1 vitest run test/unit/benchmark/TrieGeometryProfile.profile.test.ts",
     "setup:hooks": "node scripts/setup-hooks.ts",
     "prepare": "patch-package && node scripts/setup-hooks.ts",
-    "prepack": "npm run lint && npm run test:local && npm run typecheck:consumer",
+    "prepack": "npm run build && npm run lint && npm run test:local && npm run typecheck:consumer",
     "release:preflight": "bash scripts/release-preflight.sh",
-    "upgrade": "node scripts/migrations/v17.0.0/migrate.ts",
+    "upgrade": "npm run build --silent && node dist/scripts/migrations/v17.0.0/migrate.js",
     "install:git-warp": "bash scripts/install-git-warp.sh",
     "uninstall:git-warp": "bash scripts/uninstall-git-warp.sh",
     "test:node20": "docker compose -f docker/docker-compose.test.yml --profile node20 run --build --rm test-node20",
@@ -101,7 +96,7 @@
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
     "typecheck:consumer": "tsc --noEmit -p test/type-check/tsconfig.json",
     "typecheck:policy": "node scripts/ts-policy-check.ts",
-    "typecheck:surface": "node scripts/check-dts-surface.ts",
+    "typecheck:surface": "npm run build --silent && node scripts/check-dts-surface.ts",
     "ratchet:snapshot": "node scripts/ratchet-snapshot.ts",
     "ratchet:delta": "node scripts/ratchet-delta.ts"
   },

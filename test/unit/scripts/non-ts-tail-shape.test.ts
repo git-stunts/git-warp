@@ -24,9 +24,11 @@ function trackedNonTypeScriptTail(): string[] {
 }
 
 describe('non-TS tail shape', () => {
-  it('reduces the tracked non-TS tail to the one explicit blocker', () => {
+  it('keeps the tracked non-TS tail explicit and bounded', () => {
     expect(trackedNonTypeScriptTail()).toEqual([
       'src/globals.d.ts',
+      'test/type-check/runtime-declarations.d.ts',
+      'test/type-check/trailer-codec.d.ts',
     ]);
   });
 
@@ -42,8 +44,10 @@ describe('non-TS tail shape', () => {
     const jsrJson = readRepoFile('jsr.json');
 
     expect(packageJson).toContain('"./sha1sync"');
-    expect(packageJson).toContain('"types": "./src/infrastructure/adapters/sha1sync.ts"');
+    expect(packageJson).toContain('"types": "./dist/src/infrastructure/adapters/sha1sync.d.ts"');
+    expect(packageJson).toContain('"import": "./dist/src/infrastructure/adapters/sha1sync.js"');
     expect(packageJson).not.toContain('"sha1sync.d.ts"');
+    expect(jsrJson).toContain('"./sha1sync": "./src/infrastructure/adapters/sha1sync.ts"');
     expect(jsrJson).not.toContain('"sha1sync.d.ts"');
   });
 

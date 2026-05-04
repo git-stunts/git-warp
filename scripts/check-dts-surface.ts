@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * B41 — TypeScript Source Surface Validator
+ * B41 — Publication Surface Validator
  *
- * v17 publishes TypeScript source directly. The old declaration
- * manifest/index.js/index.d.ts check is still kept below as parser
- * helpers for historical tests, but the executable gate now verifies
- * that package and JSR publication surfaces point at existing TS source
- * files rather than stale generated artifacts.
+ * v17 publishes compiled JavaScript + generated declarations to npm and
+ * TypeScript source to JSR. The old declaration manifest/index.js/index.d.ts
+ * check is still kept below as parser helpers for historical tests, but the
+ * executable gate now verifies that package and JSR publication surfaces point
+ * at existing files rather than stale generated artifacts.
  *
  * Exits non-zero on any broken publication target.
  */
@@ -397,7 +397,7 @@ if (isMain) {
   const quiet = process.argv.includes('--quiet');
   const report = runSourceSurfaceCheck();
   if (!quiet) {
-    process.stdout.write('\nTypeScript source surface check:\n');
+    process.stdout.write('\nPublication surface check:\n');
     process.stdout.write(`  Errors:   ${report.errors.length}\n`);
     process.stdout.write(`  Warnings: ${report.warnings.length}\n\n`);
   }

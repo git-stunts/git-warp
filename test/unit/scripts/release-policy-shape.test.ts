@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -10,6 +10,12 @@ const preflight = readFileSync(
   fileURLToPath(new URL('../../../scripts/release-preflight.sh', import.meta.url)),
   'utf8',
 );
+const packedArtifactSmokePath = fileURLToPath(
+  new URL('../../../scripts/smoke-packed-artifact.sh', import.meta.url),
+);
+const packedArtifactSmoke = existsSync(packedArtifactSmokePath)
+  ? readFileSync(packedArtifactSmokePath, 'utf8')
+  : '';
 const releaseWorkflow = readFileSync(
   fileURLToPath(new URL('../../../.github/workflows/release.yml', import.meta.url)),
   'utf8',
@@ -52,6 +58,10 @@ describe('release policy shape', () => {
   });
 
   it('keeps publish artifacts slim instead of shipping the full repo corpus', () => {
+    expect(packageJson.files).toContain('dist');
+    expect(packageJson.files).toContain('bin/git-warp');
+    expect(packageJson.files).not.toContain('src');
+    expect(packageJson.files).not.toContain('bin/cli');
     expect(packageJson.files).not.toContain('docs');
     expect(packageJson.files).not.toContain('adr');
     expect(packageJson.files).not.toContain('.github/maintainers');
@@ -63,6 +73,40 @@ describe('release policy shape', () => {
     expect(jsrJson.publish.include).not.toContain('.github/maintainers/**/*');
     expect(jsrJson.publish.include).not.toContain('ARCHITECTURE.md');
     expect(jsrJson.publish.include).toContain('CHANGELOG.md');
+  });
+
+  it('publishes compiled npm artifacts while keeping JSR on TypeScript source', () => {
+    expect(packageJson.main).toBe('./dist/index.js');
+    expect(packageJson.types).toBe('./dist/index.d.ts');
+    expect(packageJson.bin['warp-graph']).toBe('./dist/bin/warp-graph.js');
+
+    expect(packageJson.exports['.'].import).toBe('./dist/index.js');
+    expect(packageJson.exports['.'].types).toBe('./dist/index.d.ts');
+    expect(packageJson.exports['./browser'].import).toBe('./dist/browser.js');
+    expect(packageJson.exports['./browser'].types).toBe('./dist/browser.d.ts');
+    expect(packageJson.exports['./sha1sync'].import).toBe(
+      './dist/src/infrastructure/adapters/sha1sync.js',
+    );
+    expect(packageJson.exports['./sha1sync'].types).toBe(
+      './dist/src/infrastructure/adapters/sha1sync.d.ts',
+    );
+
+    expect(jsrJson.exports['.']).toBe('./index.ts');
+    expect(jsrJson.exports['./browser']).toBe('./browser.ts');
+    expect(jsrJson.exports['./sha1sync']).toBe('./src/infrastructure/adapters/sha1sync.ts');
+  });
+
+  it('smokes the packed npm artifact before release tagging', () => {
+    expect(existsSync(packedArtifactSmokePath)).toBe(true);
+    expect(preflight).toContain('scripts/smoke-packed-artifact.sh');
+    expect(preflight).toContain('packed artifact smoke');
+
+    expect(packedArtifactSmoke).toContain('npm run build --silent');
+    expect(packedArtifactSmoke).toContain('npm pack --pack-destination');
+    expect(packedArtifactSmoke).toContain('npm install --no-audit --no-fund');
+    expect(packedArtifactSmoke).toContain("import('@git-stunts/git-warp')");
+    expect(packedArtifactSmoke).toContain('warp-graph --help');
+    expect(packedArtifactSmoke).toContain('git-warp --help');
   });
 
   it('uses GitHub URLs for docs referenced from the packaged README', () => {

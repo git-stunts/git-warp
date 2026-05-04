@@ -9,18 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **100% TypeScript** — All 100 remaining `.js` files converted to `.ts`. The repo ships TypeScript source directly via jsr and `--experimental-strip-types`. The root config pair now lives at `eslint.config.ts` and `vitest.config.ts`.
+- **100% TypeScript** — All 100 remaining `.js` files converted to `.ts`. JSR ships TypeScript source directly; npm ships compiled JavaScript and generated declarations from `dist/`. The root config pair now lives at `eslint.config.ts` and `vitest.config.ts`.
 
 ### Fixed
 
-- Release hygiene gates now track the TypeScript source package surface, remove stale `./visualization` and `./node` subpath exports, point CI at `bin/warp-graph.ts`, and keep Markdown/code-sample/whitespace lint clean.
+- Release hygiene gates now track the generated npm package surface, smoke the packed npm tarball before release tagging, remove stale `./visualization` and `./node` subpath exports, point CI at `bin/warp-graph.ts`, and keep Markdown/code-sample/whitespace lint clean.
 
 ### Breaking
 
-- **`index.d.ts` deleted** — The 4,199-line hand-maintained type declaration file is gone. `index.ts` is now both the runtime entry point and the type surface. Consumers must use TypeScript-aware module resolution (`bundler`, `NodeNext`, or Deno).
-- **`browser.d.ts` deleted** — Same: `browser.ts` is the source of truth.
+- **`index.d.ts` deleted** — The 4,199-line hand-maintained type declaration file is gone. `index.ts` remains the source of truth; npm consumers receive generated `dist/index.d.ts`.
+- **`browser.d.ts` deleted** — Same: `browser.ts` is the source of truth and npm consumers receive generated `dist/browser.d.ts`.
 - **`contracts/type-surface.m8.json` deleted** — The Ironclad manifest is redundant when the barrel IS the contract.
-- **Entry points renamed** — `index.js` → `index.ts`, `browser.js` → `browser.ts`, `bin/warp-graph.js` → `bin/warp-graph.ts`. All `package.json` exports and `jsr.json` exports updated.
+- **Entry points renamed** — Source entry points moved from `index.js` → `index.ts`, `browser.js` → `browser.ts`, and `bin/warp-graph.js` → `bin/warp-graph.ts`. npm exports point at generated `dist/*.js`; JSR exports point at TypeScript source.
 
 ## [17.0.0] — 2026-04-14
 

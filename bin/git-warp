@@ -6,11 +6,15 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const dir = dirname(fileURLToPath(import.meta.url));
-const cliPath = resolve(dir, 'warp-graph.ts');
+const cliCandidates = [
+  resolve(dir, '../dist/bin/warp-graph.js'),
+  resolve(dir, 'warp-graph.ts'),
+];
+const cliPath = cliCandidates.find((candidate) => existsSync(candidate));
 const args = process.argv.slice(2);
-let result;
 
-if (existsSync(cliPath)) {
+let result;
+if (cliPath !== undefined) {
   result = spawnSync(process.execPath, [cliPath, ...args], { stdio: 'inherit' });
 } else {
   result = spawnSync('warp-graph', args, { stdio: 'inherit' });

@@ -48,6 +48,7 @@ export default tseslint.config(
       "node_modules/**",
       "packages/**/node_modules/**",
       "coverage/**",
+      "dist/**",
       "examples/html/assets/**",
       "scripts/**",
       ".claude/**",

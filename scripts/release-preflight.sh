@@ -107,6 +107,11 @@ if printf '%s\n' "$PACK_OUTPUT" | grep -q "total files"; then
 else
   fail "npm pack dry-run failed"
 fi
+if bash scripts/smoke-packed-artifact.sh; then
+  pass "packed artifact smoke"
+else
+  fail "packed artifact smoke failed"
+fi
 if npx -y jsr publish --dry-run --allow-dirty 2>/dev/null; then
   pass "JSR publish dry-run"
 else

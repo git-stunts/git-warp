@@ -22,7 +22,7 @@ import process from 'node:process';
 // Path rewrites: old path → new path
 // ---------------------------------------------------------------------------
 
-const PATH_REWRITES = new Map([
+const PATH_REWRITES = new Map<string, string | null>([
   // .js → .ts extension changes (infrastructure adapters)
   ['adapters/GitGraphAdapter.js', 'adapters/GitGraphAdapter.ts'],
   ['adapters/InMemoryGraphAdapter.js', 'adapters/InMemoryGraphAdapter.ts'],
@@ -68,7 +68,7 @@ const PATH_REWRITES = new Map([
 
 const EXTENSIONS = new Set(['.ts', '.js', '.tsx', '.jsx', '.mjs', '.mts']);
 
-async function* walkFiles(dir) {
+async function* walkFiles(dir: string): AsyncGenerator<string> {
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
@@ -87,7 +87,7 @@ async function* walkFiles(dir) {
 // Rewriter
 // ---------------------------------------------------------------------------
 
-function rewriteImports(content) {
+function rewriteImports(content: string): { readonly modified: string; readonly changeCount: number } {
   let modified = content;
   let changeCount = 0;
 
@@ -96,7 +96,7 @@ function rewriteImports(content) {
     const escaped = oldSuffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const pattern = new RegExp(`(from\\s+['"])([^'"]*${escaped})(['"])`, 'g');
 
-    modified = modified.replace(pattern, (match, prefix, fullPath, suffix) => {
+    modified = modified.replace(pattern, (_match: string, prefix: string, fullPath: string, suffix: string) => {
       if (newSuffix === null) {
         // Deleted module — leave a comment
         changeCount++;
@@ -119,6 +119,9 @@ const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const dirIdx = args.indexOf('--dir');
 const scanDir = dirIdx !== -1 ? args[dirIdx + 1] : process.cwd();
+if (scanDir === undefined) {
+  throw new Error('--dir requires a path argument');
+}
 
 let totalFiles = 0;
 let totalChanges = 0;
