@@ -85,7 +85,7 @@ const graph = await openWarpGraph({
 | `gcPolicy` | `GCPolicyConfig` | No | Garbage collection thresholds |
 | `checkpointPolicy` | `{ every: number }` | No | Auto-checkpoint interval |
 | `onDeleteWithData` | `'reject' \| 'cascade' \| 'warn'` | No | Node delete behavior (default: `'warn'`) |
-| `autoMaterialize` | `boolean` | No | Auto-materialize on read (default: `true`) |
+| `autoMaterialize` | `boolean` | No | Legacy cached-read compatibility flag |
 | `crypto` | `CryptoPort` | No | Crypto adapter |
 | `codec` | `CodecPort` | No | Serialization adapter |
 | `clock` | `ClockPort` | No | Clock adapter |
@@ -110,7 +110,6 @@ The returned `WarpGraph` is a frozen object with these capability namespaces:
 |---|---|---|
 | `graph.patches` | `PatchCapability` | Create patches, commit CRDT ops |
 | `graph.query` | `QueryCapability` | Read nodes, edges, properties; worldlines; observers |
-| `graph.materialize` | `MaterializeCapability` | Fold patches into state |
 | `graph.sync` | `SyncCapability` | Distributed sync, serve |
 | `graph.strands` | `StrandCapability` | Speculative lanes |
 | `graph.checkpoint` | `CheckpointCapability` | Create/restore checkpoints, GC |
@@ -127,7 +126,7 @@ The capabilities are also grouped by architectural moment for callers who prefer
 | Moment | Surface | Capabilities |
 |---|---|---|
 | **Commitment** | `graph.commitment` | `patches`, `strands`, `comparison` |
-| **Folding** | `graph.folding` | `materialize`, `checkpoint` |
+| **Folding** | `graph.folding` | `checkpoint` |
 | **Revelation** | `graph.revelation` | `query`, `subscriptions`, `provenance` |
 | **Governance** | `graph.governance` | `sync` |
 
@@ -142,7 +141,7 @@ To migrate:
 - Replace `app.patch(...)` with `graph.patches.patch(...)`.
 - Replace `app.worldline()` with `graph.query.worldline()`.
 - Replace `app.createStrand(...)` with `graph.strands.createStrand(...)`.
-- Replace `app.core().materialize(...)` with `graph.materialize.materialize(...)`.
+- Replace state-inspection reads with `graph.query` readings or `graph.query.worldline()`.
 - Replace `graph.createPatch()` with `graph.patches.createPatch()`.
 - Replace `graph.hasNode(...)` with `graph.query.hasNode(...)`.
 - Replace `graph.subscribe(...)` with `graph.subscriptions.subscribe(...)`.
@@ -296,7 +295,6 @@ await (await graph.patches.createPatch())
   .removeNode('temp')
   .commit();
 
-await graph.materialize.materialize({});
 await graph.query.hasNode('temp');    // false
 await graph.query.getEdges();         // [] — edge is hidden too
 ```
@@ -409,45 +407,14 @@ const publicUserLens = {
 const publicUsers = await worldline.observer('public-users', publicUserLens);
 ```
 
-### Inspection And Materialization
+### Readings And Optics
 
-Use `graph.materialize` and `graph.query` when you intentionally
-want whole-visible-state reads, admin views, bounded inspection, debugging,
-migration, or lower-level substrate work.
+Use `graph.query`, `graph.query.worldline()`, and observers for public
+read paths. These surfaces express the read as a bounded revelation over
+causal history instead of asking callers to fold the graph into a public
+state object first.
 
-What you should avoid is exporting that data into a second app-local graph
-layer or custom traversal engine when `Worldline`, `Observer`, `query()`, and
-`traverse` already cover the read path you need.
-
-`graph.materialize.materialize()` replays all visible patches from all writers and returns
-an immutable public `SnapshotWarpState`.
-
-### Materialization
-
-```mermaid
-flowchart TB
-    refs["Writer Refs"] --> walk["Walk Commit DAGs"]
-    walk --> decode["Decode CBOR"]
-    decode --> sort["Sort by Lamport"]
-    sort --> reducer["JoinReducer<br/>OR-Set merge (nodes, edges) · LWW merge (properties)"]
-    reducer --> state["SnapshotWarpState<br/>nodeAlive · edgeAlive · prop · frontier"]
-
-    refs -.->|"shortcut (if checkpoint exists)"| reducer
-
-    complexity["O(P) — P = total patches across all writers"] ~~~ state
-```
-
-```typescript
-const state = await graph.materialize.materialize({});
-
-// state = SnapshotWarpState
-const nodes = state.nodeAlive.elements();
-const nodeEntries = state.nodeAlive.entries();
-const frontier = Object.fromEntries(state.observedFrontier.entries());
-```
-
-After materializing, `graph.query` methods work against the cached
-state:
+For most live reads, call the query capability directly:
 
 ```typescript
 // Check existence
@@ -472,30 +439,19 @@ await graph.query.neighbors('user:alice', 'outgoing');
 // [{ nodeId: 'user:bob', label: 'follows', direction: 'outgoing' }]
 ```
 
-### Auto-Materialize
-
-By default, `autoMaterialize` is `true` — query methods transparently call `materialize()` when no cached state exists or when the state is stale. To opt out:
+For reads that need an explicit causal view, use a worldline or observer:
 
 ```typescript
-const graph = await openWarpGraph({
-  persistence,
-  graphName: 'my-graph',
-  writerId: 'local',
-  autoMaterialize: false,  // throws E_NO_STATE / E_STALE_STATE instead
-});
-
-// Must call materialize() explicitly before queries
-await graph.materialize.materialize({});
-const nodes = await graph.query.getNodes();
+const worldline = graph.query.worldline();
+const props = await worldline.getNodeProps('user:alice');
 ```
 
-### Eager Re-Materialize
+### Eager Read Cache Updates
 
-After a local `commit()`, the patch is applied eagerly to the cached state. Queries immediately reflect local writes without calling `materialize()` again:
+After a local `commit()`, the patch is applied eagerly to the read cache.
+Queries immediately reflect local writes without an explicit folding call:
 
 ```typescript
-await graph.materialize.materialize({});
-
 await (await graph.patches.createPatch())
   .addNode('user:carol')
   .commit();
@@ -942,7 +898,7 @@ await graph.checkpoint.syncCoverage();
 ```typescript
 const changed = await graph.sync.hasFrontierChanged();
 if (changed) {
-  await graph.materialize.materialize({});
+  const nodes = await graph.query.getNodes();
 }
 ```
 
@@ -972,8 +928,9 @@ During checkpoint-based replay, ancestry validation is done once per writer tip.
 // Create a checkpoint manually
 const sha = await graph.checkpoint.createCheckpoint();
 
-// Later: fast recovery from checkpoint
-const state = await graph.materialize.materializeAt(sha);
+// Later: continue reading through query/worldline surfaces
+const worldline = graph.query.worldline();
+const nodes = await graph.query.getNodes();
 ```
 
 ### Auto-Checkpoint
@@ -988,25 +945,25 @@ const graph = await openWarpGraph({
   checkpointPolicy: { every: 500 },
 });
 
-// After 500+ patches, materialize() creates a checkpoint automatically
-await graph.materialize.materialize({});
+// Checkpoints are operational artifacts. Reads still use query/worldline surfaces.
+const nodes = await graph.query.getNodes();
 ```
 
-Checkpoint failures are swallowed — they never break materialization.
+Checkpoint failures are logged — they never break public readings.
 
 ### Performance Tips
 
 1. **Batch operations** — group related changes into single patches
 2. **Checkpoint regularly** — use `checkpointPolicy: { every: 500 }` or call `graph.checkpoint.createCheckpoint()` manually
-3. **Use auto-materialize** for read-heavy workloads — avoids manual `materialize()` calls
-4. **Limit concurrent writers** — more writers = more merge overhead at materialization time
+3. **Use query/worldline readings** for read-heavy workloads — avoids public state-folding calls
+4. **Limit concurrent writers** — more writers = more suffix work at read time
 5. **Build bitmap indexes** for large graphs — enables O(1) neighbor lookups (see [Appendix H](#appendix-h-bitmap-indexes))
 
 | Operation | Complexity | Notes |
 |---|---|---|
 | Write (createPatch + commit) | O(1) | Append-only commit |
-| Materialization | O(P) | P = total patches across all writers |
-| Query (after materialization) | O(N) | N = nodes matching pattern |
+| Live reading | O(P) worst case | P = visible suffix patches before indexed basis |
+| Query | O(N) | N = nodes matching pattern |
 | Indexed neighbor lookup | O(1) | Requires bitmap index |
 | Checkpoint creation | O(state) | Snapshot for fast recovery |
 
@@ -1016,7 +973,8 @@ Checkpoint failures are swallowed — they never break materialization.
 
 ### `graph.subscriptions.subscribe()`
 
-Subscribe to all graph changes. Handlers fire after `materialize()` when state differs from the previous materialization.
+Subscribe to all graph changes. Handlers fire after committed writes or
+polling observes a new frontier and the read model emits a diff.
 
 ```typescript
 const { unsubscribe } = graph.subscriptions.subscribe({
@@ -1035,7 +993,7 @@ const { unsubscribe } = graph.subscriptions.subscribe({
 });
 
 await (await graph.patches.createPatch()).addNode('item:new').commit();
-await graph.materialize.materialize({});  // onChange fires
+await graph.query.getNodes();  // read path observes the new node
 
 unsubscribe();
 ```
@@ -1168,10 +1126,9 @@ explicit coordinate or a pinned strand instead of following live truth.
 point, but `worldline()` is the clearer public noun when the caller wants to pin
 history explicitly.
 
-`graph.materialize.materializeCoordinate()` and `graph.strands.materializeStrand()` each return a detached
-immutable snapshot and does not retarget the caller runtime. Use them when you
-want raw replay output for `projectStateV5()`, `createStateReaderV5()`, or
-lower-level inspection rather than an application-facing read handle.
+Use worldline and observer handles when the caller wants to pin history
+explicitly. Lower-level replay output is an implementation concern, not the
+application-facing read model.
 
 #### Aperture Shape
 
@@ -1215,8 +1172,6 @@ const adminView = await graph.query.observer('admin', {
 Estimate the information loss when translating between two observer views.
 
 ```typescript
-await graph.materialize.materialize({});
-
 const result = await graph.query.translationCost(
   { match: 'user:*' },                        // observer A
   { match: 'user:*', redact: ['ssn'] },       // observer B
@@ -1309,20 +1264,19 @@ Wormholes preserve provenance — the payload can be replayed to recover the exa
 
 ### Provenance
 
-After materialization, query which patches affected a given entity:
+Query which patches affected a given entity:
 
 ```typescript
-await graph.materialize.materialize({});
 const shas = await graph.provenance.patchesFor('user:alice');
 // ['abc123...', 'def456...'] — sorted alphabetically
 ```
 
-### Slice Materialization
+### Provenance Slice Inspection
 
-Materialize only the backward causal cone for a specific node — useful when you only care about one entity's state and want to skip irrelevant patches:
+Inspect only the backward causal cone for a specific node — useful when
+you only care about one entity's state and want to skip irrelevant patches:
 
 ```typescript
-await graph.materialize.materialize({}); // builds provenance index
 const { state, patchCount } = await graph.provenance.materializeSlice('user:alice');
 // patchCount shows how many patches were in the cone vs full history
 ```
@@ -1574,8 +1528,9 @@ See the [CLI Guide](CLI_GUIDE.md) for complete command flags and debugger workfl
 // Discover all ticks without expensive deserialization
 const { ticks, maxTick, perWriter } = await graph.patches.discoverTicks();
 
-// Materialize at a specific point in time
-const state = await graph.materialize.materialize({ ceiling: 3 });
+// Read the live worldline through the public query surface
+const worldline = graph.query.worldline();
+const nodes = await graph.query.getNodes();
 
 // Inspect a pinned strand through substrate APIs
 const conflicts = await graph.strands.analyzeConflicts({ strandId: 'review-auth' });
@@ -1870,11 +1825,12 @@ const graph = await openWarpGraph({
   logger: new ConsoleLogger(),
 });
 
-await graph.materialize.materialize({});
-// [warp] materialize completed in 142ms (23 patches)
+await graph.query.getNodes();
+// [warp] query completed in 18ms
 ```
 
-Timed operations: `materialize()`, `syncWith()`, `createCheckpoint()`, `runGC()`.
+Timed operations include `syncWith()`, `createCheckpoint()`, `runGC()`, and
+read operations.
 
 ---
 
@@ -1884,20 +1840,20 @@ Timed operations: `materialize()`, `syncWith()`, `createCheckpoint()`, `runGC()`
 
 1. Verify `commit()` was called on the patch
 2. Check the writer ref exists: `git show-ref | grep warp`
-3. Ensure you're materializing the same `graphName`
-4. If using `autoMaterialize: false`, call `graph.materialize.materialize({})` after writing
+3. Ensure both readers opened the same `graphName`
+4. Read through `graph.query` or a worldline handle after writing
 
 ### "State differs between machines"
 
-1. Both machines must sync (`git push` / `git pull`) before materializing
+1. Both machines must sync (`git push` / `git pull`) before reading shared truth
 2. Verify both use the same `graphName`
 3. Check that writer IDs are unique per machine — reusing an ID causes Lamport clock confusion
 
-### "Materialization is slow"
+### "Readings are slow"
 
 1. Enable auto-checkpointing: `checkpointPolicy: { every: 500 }`
 2. Or create checkpoints manually: `await graph.checkpoint.createCheckpoint()`
-3. Use `graph.materialize.materializeAt(sha)` for incremental recovery
+3. Prefer indexed observer/worldline reads for narrow questions
 4. Batch operations into fewer, larger patches
 
 ### "Deleted node still appears"
@@ -1910,17 +1866,20 @@ This can happen when a concurrent add has higher priority than the remove:
 // Result: node is VISIBLE (add at 5 beats remove at 3)
 ```
 
-This is correct OR-Set behavior — a remove only affects add events it has *observed*. To ensure a remove takes effect, the removing writer must first materialize (to observe the add) and then issue the remove. See [Appendix A](#appendix-a-conflict-resolution-internals) for details.
+This is correct OR-Set behavior — a remove only affects add events it has
+observed. To ensure a remove takes effect, the removing writer must read the
+current causal view and then issue the remove. See [Appendix A](#appendix-a-conflict-resolution-internals) for details.
 
 ### "QueryError: E_NO_STATE"
 
-You're trying to read without materializing first and `autoMaterialize` is disabled. Either:
-- Call `await graph.materialize.materialize({})` before queries
-- Use the default `autoMaterialize: true` (remove any explicit `autoMaterialize: false`)
+You're trying to read through a legacy cached path with cached reads disabled.
+Use `graph.query`/worldline readings, or remove any explicit
+`autoMaterialize: false` while migrating old code.
 
 ### "QueryError: E_STALE_STATE"
 
-The frontier has changed since the last materialization (e.g., after a `git pull`). Call `graph.materialize.materialize({})` again.
+The frontier changed since the cached read basis was built, for example after
+`git pull`. Re-read through `graph.query` or a worldline handle.
 
 ---
 
@@ -2130,12 +2089,13 @@ Six operation types (schema v3):
 
 ### Appendix E: Tick Receipts
 
-When debugging multi-writer conflicts, `graph.materialize.materialize({ receipts: true })` returns per-patch decision records:
+When debugging multi-writer conflicts, use tick receipts and provenance
+inspection rather than a public materialization call:
 
 ```typescript
-const { state, receipts } = await graph.materialize.materialize({ receipts: true });
+const shas = await graph.provenance.patchesFor('user:alice');
 
-for (const receipt of receipts) {
+for (const receipt of receiptsFromDiagnosticRun) {
   console.log(`Patch ${receipt.patchSha} (writer: ${receipt.writer}, lamport: ${receipt.lamport})`);
   for (const op of receipt.ops) {
     console.log(`  ${op.op} ${op.target}: ${op.result}`);
@@ -2161,13 +2121,8 @@ PropSet user:alice.name: superseded
 
 **Zero-cost when disabled:** When receipts are not requested (the default), there is strictly zero overhead — no arrays allocated, no strings constructed.
 
-```typescript
-// Default — returns state directly, no overhead
-const state = await graph.materialize.materialize({});
-
-// With receipts — returns { state, receipts }
-const { state, receipts } = await graph.materialize.materialize({ receipts: true });
-```
+Use normal query/worldline readings when you do not need diagnostic receipt
+detail.
 
 ### Appendix F: Sync Protocol
 
@@ -2488,9 +2443,8 @@ As of v11.0.0, `autoMaterialize` defaults to `true`. If you relied on the previo
 
 **Option A:** Accept the new default (recommended for most users):
 ```typescript
-// Before: required explicit materialize()
+// Before: required explicit materialization
 const graph = await openWarpGraph({ persistence, graphName, writerId });
-await graph.materialize.materialize({});
 const nodes = await graph.query.getNodes();
 
 // After: just works
@@ -2506,7 +2460,8 @@ const graph = await openWarpGraph({
 });
 ```
 
-For very large graphs, consider warming `graph.materialize.materialize({})` on startup rather than taking the hit on first query.
+For very large graphs, create indexed checkpoint bases and warm the query or
+observer paths your application actually uses.
 
 ---
 

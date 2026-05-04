@@ -7,7 +7,6 @@ import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type { NeighborEdge } from '../../ports/NeighborProviderPort.ts';
 import type QueryCapability from '../capabilities/QueryCapability.ts';
 import type PatchCapability from '../capabilities/PatchCapability.ts';
-import type MaterializeCapability from '../capabilities/MaterializeCapability.ts';
 import type SyncCapability from '../capabilities/SyncCapability.ts';
 import type StrandCapability from '../capabilities/StrandCapability.ts';
 import type CheckpointCapability from '../capabilities/CheckpointCapability.ts';
@@ -18,6 +17,7 @@ import type { EffectPipeline } from '../services/EffectPipeline.ts';
 import type GCPolicy from '../services/GCPolicy.ts';
 import type BitmapNeighborProvider from '../services/index/BitmapNeighborProvider.ts';
 import type MaterializedViewService from '../services/MaterializedViewService.ts';
+import type { VerifyResult } from '../services/MaterializedViewService.ts';
 import type LogicalTraversal from '../services/query/LogicalTraversal.ts';
 import type { LoadedCheckpoint } from '../services/state/checkpointLoad.ts';
 import type { PatchDiff } from '../types/PatchDiff.ts';
@@ -29,13 +29,15 @@ import type { CorePersistence } from '../types/WarpPersistence.ts';
 import type VersionVector from '../crdt/VersionVector.ts';
 import type Patch from '../types/Patch.ts';
 import type WarpState from '../services/state/WarpState.ts';
+import type SnapshotWarpState from '../services/snapshot/SnapshotWarpState.ts';
+import type { TickReceipt } from '../types/TickReceipt.ts';
 import type { RuntimeHostOpenOptions as RuntimeHostBootOpenOptions } from './RuntimeHostBoot.ts';
 import { openRuntimeHost } from '../RuntimeHost.ts';
 
 export type RuntimeCapabilitySurface =
   QueryCapability &
   PatchCapability &
-  MaterializeCapability &
+  RuntimeIndexMaintenanceSurface &
   SyncCapability &
   StrandCapability &
   CheckpointCapability &
@@ -63,6 +65,16 @@ export type RuntimeWormholeRecord = {
   writerId: string;
   payload: ProvenancePayload;
   patchCount: number;
+};
+
+type RuntimeHostMaterializeReceiptsResult = {
+  state: SnapshotWarpState;
+  receipts: readonly TickReceipt[];
+};
+
+type RuntimeIndexMaintenanceSurface = {
+  verifyIndex(options?: { seed?: number; sampleRate?: number }): VerifyResult;
+  invalidateIndex(): void;
 };
 
 type RuntimeHostAdjacency = {
@@ -133,6 +145,19 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   setSeekCache(cache: SeekCachePort): void;
   readonly fork: (_request: RuntimeForkRequest) => Promise<RuntimeHostProduct>;
   readonly createWormhole: (_fromSha: string, _toSha: string) => Promise<RuntimeWormholeRecord>;
+  materialize(options: { receipts: true; ceiling?: number | null }): Promise<RuntimeHostMaterializeReceiptsResult>;
+  materialize(options?: { receipts?: false; ceiling?: number | null }): Promise<SnapshotWarpState>;
+  materialize(options?: { receipts?: boolean; ceiling?: number | null }): Promise<SnapshotWarpState | RuntimeHostMaterializeReceiptsResult>;
+  materializeCoordinate(
+    options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts: true },
+  ): Promise<RuntimeHostMaterializeReceiptsResult>;
+  materializeCoordinate(
+    options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts?: false },
+  ): Promise<SnapshotWarpState>;
+  materializeCoordinate(
+    options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts?: boolean },
+  ): Promise<SnapshotWarpState | RuntimeHostMaterializeReceiptsResult>;
+  materializeAt(checkpointSha: string): Promise<SnapshotWarpState>;
   _effectPipeline: EffectPipeline | null;
   readonly _crypto: CryptoPort;
   readonly _codec: CodecPort;

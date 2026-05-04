@@ -1,4 +1,5 @@
 import type SeekCachePort from '../../ports/SeekCachePort.ts';
+import type MaterializeCapability from '../capabilities/MaterializeCapability.ts';
 import type { EffectPipeline } from '../services/EffectPipeline.ts';
 import type { WarpGraphRuntimeSurface } from './WarpGraphRuntimeProduct.ts';
 import {
@@ -26,7 +27,7 @@ export type PlanCoordinateTransferOptions = Parameters<RuntimeHostProduct['planC
 export type ConflictAnalyzeOptions = Parameters<RuntimeHostProduct['analyzeConflicts']>[0];
 export type ConflictAnalysis = Awaited<ReturnType<RuntimeHostProduct['analyzeConflicts']>>;
 
-export type WarpCoreRuntimeSurface = WarpGraphRuntimeSurface & {
+export type WarpCoreRuntimeSurface = WarpGraphRuntimeSurface & MaterializeCapability & {
   readonly traverse: RuntimeHostProduct['traverse'];
   readonly persistence: RuntimeHostProduct['persistence'];
   readonly onDeleteWithData: RuntimeHostProduct['onDeleteWithData'];

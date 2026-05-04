@@ -19,7 +19,6 @@ import WarpError from './errors/WarpError.ts';
 import { openWarpGraphRuntime, type WarpGraphRuntimeSurface } from './warp/WarpGraphRuntimeBridge.ts';
 import type QueryCapability from './capabilities/QueryCapability.ts';
 import type PatchCapability from './capabilities/PatchCapability.ts';
-import type MaterializeCapability from './capabilities/MaterializeCapability.ts';
 import type SyncCapability from './capabilities/SyncCapability.ts';
 import type { SyncRemote, SyncWithOptions } from './capabilities/SyncCapability.ts';
 import type StrandCapability from './capabilities/StrandCapability.ts';
@@ -54,20 +53,17 @@ import type { GCPolicyConfig } from './services/GCPolicy.ts';
 export interface CommitmentSurface {
   /** Local tick admission: create patches, commit CRDT state. */
   readonly patches: PatchCapability;
-  /** Speculative lanes: fork, materialize, collapse, braid. */
+  /** Speculative lanes: fork, collapse, braid. */
   readonly strands: StrandCapability;
   /** Braid presentation: compare coordinates, plan transfers. */
   readonly comparison: ComparisonCapability;
 }
 
 /**
- * Folding capabilities — re-expressing admitted history.
- *
- * Frontier-relative materialization and checkpoint-based history folding.
+ * Folding capabilities — re-expressing admitted history as explicit
+ * operational artifacts.
  */
 export interface FoldingSurface {
-  /** Frontier-relative materialization of causal history into state. */
-  readonly materialize: MaterializeCapability;
   /** History folding: create/restore checkpoints. */
   readonly checkpoint: CheckpointCapability;
 }
@@ -108,7 +104,6 @@ export interface WarpGraph {
   // Flat aliases for ergonomic access (commitment.patches vs graph.patches)
   readonly query: QueryCapability;
   readonly patches: PatchCapability;
-  readonly materialize: MaterializeCapability;
   readonly sync: SyncCapability;
   readonly strands: StrandCapability;
   readonly checkpoint: CheckpointCapability;
@@ -198,10 +193,7 @@ export interface WarpGraphDeps {
  * patch.addNode('user:alice');
  * await patch.commit();
  *
- * // Folding: materialize state
- * await graph.materialize.materialize({});
- *
- * // Revelation: query the graph
+ * // Revelation: read through the bounded query surface
  * const props = await graph.query.getNodeProps('user:alice');
  * ```
  */
@@ -281,20 +273,6 @@ function bindPatchCapability(runtime: WarpGraphRuntimeSurface): PatchCapability 
     discoverWriters: runtime.discoverWriters.bind(runtime),
     discoverTicks: runtime.discoverTicks.bind(runtime),
     join: runtime.join.bind(runtime),
-  });
-}
-
-function bindMaterializeCapability(runtime: WarpGraphRuntimeSurface): MaterializeCapability {
-  requireCapability(runtime, 'materialize', [
-    'materialize', 'materializeCoordinate', 'materializeAt',
-    'verifyIndex', 'invalidateIndex',
-  ]);
-  return Object.freeze({
-    materialize: runtime.materialize.bind(runtime),
-    materializeCoordinate: runtime.materializeCoordinate.bind(runtime),
-    materializeAt: runtime.materializeAt.bind(runtime),
-    verifyIndex: runtime.verifyIndex.bind(runtime),
-    invalidateIndex: runtime.invalidateIndex.bind(runtime),
   });
 }
 
@@ -396,7 +374,6 @@ export async function openWarpGraph(deps: WarpGraphDeps): Promise<WarpGraph> {
 
   const query = bindQueryCapability(runtime);
   const patches = bindPatchCapability(runtime);
-  const materialize = bindMaterializeCapability(runtime);
   const sync = bindSyncCapability(runtime);
   const strands = bindStrandCapability(runtime);
   const checkpoint = bindCheckpointCapability(runtime);
@@ -410,12 +387,12 @@ export async function openWarpGraph(deps: WarpGraphDeps): Promise<WarpGraph> {
 
     // Architectural moments
     commitment: Object.freeze({ patches, strands, comparison }),
-    folding: Object.freeze({ materialize, checkpoint }),
+    folding: Object.freeze({ checkpoint }),
     revelation: Object.freeze({ query, subscriptions, provenance }),
     governance: Object.freeze({ sync }),
 
     // Flat aliases
-    query, patches, materialize, sync, strands,
+    query, patches, sync, strands,
     checkpoint, provenance, comparison, subscriptions,
   };
 

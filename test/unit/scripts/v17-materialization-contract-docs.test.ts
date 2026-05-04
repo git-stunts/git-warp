@@ -9,13 +9,16 @@ function readRepoFile(relativePath: string): string {
 }
 
 describe('v17 materialization contract docs', () => {
-  it('names SnapshotWarpState as the public materialize return shape', () => {
+  it('does not describe materialization as the public v17 read contract', () => {
     const migrationGuide = readRepoFile('docs/migrations/v17.0.0.md');
     const apiReference = readRepoFile('docs/API_REFERENCE.md');
 
-    expect(migrationGuide).toContain('SnapshotWarpState');
+    expect(migrationGuide).toContain('graph.query');
+    expect(migrationGuide).toContain('worldline');
+    expect(migrationGuide).not.toContain('SnapshotWarpState');
+    expect(migrationGuide).not.toContain('graph.materialize.materialize');
     expect(migrationGuide).not.toContain('| `materialize()` return | `WarpStateV5` | `WarpState` | Same shape, new name |');
-    expect(apiReference).toContain('SnapshotWarpState');
+    expect(apiReference).not.toContain('graph.materialize.materialize');
     expect(apiReference).not.toContain('// state = WarpState');
   });
 });
