@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import V17CheckpointBasisArtifactFixture from './fixtures/V17CheckpointBasisArtifactFixture.ts';
 import V17CheckpointNodeLivenessShardFixture from './fixtures/V17CheckpointNodeLivenessShardFixture.ts';
+import V17CheckpointPayloadBlobFixture from './fixtures/V17CheckpointPayloadBlobFixture.ts';
 import V17CheckpointPropertyShardFixture from './fixtures/V17CheckpointPropertyShardFixture.ts';
 import {
   CHECKPOINT_NODE_ID,
@@ -94,6 +96,32 @@ describe('v17 checkpoint-tail optic read basis', () => {
       opticKind: 'node',
       target: { nodeId: MISSING_NODE_ID },
       cause: 'missing-checkpoint',
+    });
+    materialization.expectUnused();
+  });
+
+  it('requires empty checkpoint payload pointers to fail closed without materialization', async () => {
+    const graphName = 'v17-optic-empty-payload-pointer-red';
+    const fixture = await V17CheckpointTailOpticGraphFixture.openIndexedCheckpoint(graphName);
+    const graph = fixture.graph;
+    const basisArtifact = await V17CheckpointBasisArtifactFixture.load(graph);
+    new V17CheckpointPayloadBlobFixture({
+      graph,
+      payloadOid: basisArtifact.frontierOid(),
+    }).makeEmptyCasPointer();
+    const materialization = new V17MaterializationFallbackTrap(
+      graph,
+      'empty checkpoint payload pointer must not fall back to materialization',
+    );
+    const readPath = new V17PublicOpticReadPath(graph.worldline());
+
+    await failures.expectNoBoundedBasisFailure({
+      read: readPath.readNode(CHECKPOINT_NODE_ID),
+      graphName,
+      opticKind: 'node',
+      target: { nodeId: CHECKPOINT_NODE_ID },
+      cause: 'checkpoint-payload-pointer-empty',
+      recoveryHints: [],
     });
     materialization.expectUnused();
   });
