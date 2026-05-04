@@ -126,7 +126,7 @@ strand overlay materialization.
 Live, coordinate, and strand-base selectors call through
 `ComparisonHost`, whose current surface is too broad:
 
-```ts
+```text
 getFrontier(): Promise<Map<string, string>>;
 _materializeCoordinateGraph(opts: MaterializeCoordinateOptions): Promise<ComparisonMaterializedState>;
 _loadPatchChainFromSha(sha: string): Promise<PatchEntry[]>;
@@ -293,7 +293,7 @@ ComparisonCoordinateReadPort
 
 Likely responsibilities:
 
-```ts
+```text
 liveFrontier(): Promise<ComparisonFrontier>;
 readCoordinateSide(request: ComparisonCoordinateSideRequest): Promise<ComparisonCoordinateSideRead>;
 ```

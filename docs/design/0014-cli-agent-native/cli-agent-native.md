@@ -22,7 +22,7 @@ how to present it. The handler never writes to stdout directly.
 
 ## Architecture
 
-```
+```text
 argv → parseArgs → commandHandler → ResultObject → Renderer → stdout
                                                       ↑
                                           --json?  → JSON.stringify

@@ -13,7 +13,10 @@ interface GitExecuteOptions {
 
 class EmptyCollectableStream implements CollectableStream {
   async *[Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
-    return;
+    const chunks: Uint8Array[] = [];
+    for (const chunk of chunks) {
+      yield chunk;
+    }
   }
 
   async collect(): Promise<Buffer | string> {

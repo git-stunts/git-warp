@@ -80,7 +80,7 @@ to feed old index/adjacency code.
 
 Preferred seam:
 
-```ts
+```text
 async function buildAdjacencyFromSession(
   session: StateSession,
 ): Promise<{ outgoing: Map<...>; incoming: Map<...> }>

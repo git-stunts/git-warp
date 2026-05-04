@@ -16,7 +16,7 @@
  * architectural moment.
  */
 import WarpError from './errors/WarpError.ts';
-import { openWarpGraphRuntime } from './warp/WarpGraphRuntimeBridge.ts';
+import { openWarpGraphRuntime, type WarpGraphRuntimeSurface } from './warp/WarpGraphRuntimeBridge.ts';
 import type QueryCapability from './capabilities/QueryCapability.ts';
 import type PatchCapability from './capabilities/PatchCapability.ts';
 import type MaterializeCapability from './capabilities/MaterializeCapability.ts';
@@ -28,7 +28,6 @@ import type ProvenanceCapability from './capabilities/ProvenanceCapability.ts';
 import type ComparisonCapability from './capabilities/ComparisonCapability.ts';
 import type SubscriptionCapability from './capabilities/SubscriptionCapability.ts';
 import type { CorePersistence } from './types/WarpPersistence.ts';
-import type { WarpGraphRuntimeSurface } from './warp/WarpGraphRuntimeBridge.ts';
 import type LoggerPort from '../ports/LoggerPort.ts';
 import type CryptoPort from '../ports/CryptoPort.ts';
 import type CodecPort from '../ports/CodecPort.ts';

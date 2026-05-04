@@ -41,4 +41,3 @@ This catches signature drift at compile time.
 deleted `src/domain/runtimeWiring.ts` and
 `src/domain/warp/_wiredMethods.d.ts` entirely and moved the live runtime
 surface onto `WarpRuntime.ts`.
-

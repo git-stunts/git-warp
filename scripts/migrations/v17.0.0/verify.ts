@@ -7,7 +7,7 @@
  * migrated. Reports any remaining issues.
  *
  * Usage:
- *   node scripts/migrations/v17.0.0/verify.js [--dir <path>]
+ *   node scripts/migrations/v17.0.0/verify.ts [--dir <path>]
  */
 
 import { readdir, readFile } from 'node:fs/promises';

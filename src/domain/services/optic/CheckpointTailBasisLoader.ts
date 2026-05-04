@@ -110,7 +110,7 @@ function decodeCasPayloadPointer(bytes: Uint8Array): string | null {
   }
   const storageOid = decoded.slice(CAS_POINTER_PREFIX.length);
   if (storageOid.length === 0) {
-    throwNoBoundedBasis('unknown', 'empty-checkpoint-payload-pointer');
+    throwNoBoundedBasis('checkpoint', 'empty-checkpoint-payload-pointer');
   }
   return storageOid;
 }

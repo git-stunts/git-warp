@@ -14,6 +14,13 @@ interface BlobWriter {
   writeBlob(content: Uint8Array | string): Promise<string>;
 }
 
+type PayloadBlobWriteRequest = {
+  readonly blobPort: BlobWriter;
+  readonly blobStorage: BlobStoragePort | null | undefined;
+  readonly bytes: Uint8Array;
+  readonly options?: BlobStorageOptions;
+};
+
 function hasPointerPrefix(bytes: Uint8Array): boolean {
   if (bytes.length < POINTER_PREFIX_BYTES.length) {
     return false;
@@ -48,12 +55,8 @@ export function decodeCasPayloadPointer(bytes: Uint8Array): string | null {
   return storageOid;
 }
 
-export async function writePayloadBlob(
-  blobPort: BlobWriter,
-  blobStorage: BlobStoragePort | null | undefined,
-  bytes: Uint8Array,
-  options?: BlobStorageOptions,
-): Promise<string> {
+export async function writePayloadBlob(request: PayloadBlobWriteRequest): Promise<string> {
+  const { blobPort, blobStorage, bytes, options } = request;
   if (blobStorage === null || blobStorage === undefined) {
     return await blobPort.writeBlob(bytes);
   }

@@ -711,7 +711,7 @@ describe('CommitDagTraversalService', () => {
       };
       const complexService = new CommitDagTraversalService(({ indexReader: complexReader } as any));
 
-      
+
       const weights = {
         'A-B': 1,
         'A-C': 5,

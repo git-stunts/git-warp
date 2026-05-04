@@ -57,4 +57,3 @@ methods just to make the class look thinner.
 - ref deletion remains available.
 - the substrate upgrade tool depends on the parity surface, not on stale
   raw-reader compatibility in `src/`.
-

@@ -1,25 +1,35 @@
 #!/usr/bin/env node
 
 /**
- * B41 — Declaration Surface Validator
+ * B41 — TypeScript Source Surface Validator
  *
- * Cross-checks the type-surface.m8.json manifest against:
- * 1. index.js   — named runtime exports
- * 2. index.d.ts — declaration exports
+ * v17 publishes TypeScript source directly. The old declaration
+ * manifest/index.js/index.d.ts check is still kept below as parser
+ * helpers for historical tests, but the executable gate now verifies
+ * that package and JSR publication surfaces point at existing TS source
+ * files rather than stale generated artifacts.
  *
- * Manifest structure:
- * - `exports`     — runtime-backed exports that must exist in both index.js and index.d.ts
- * - `typeExports` — type-only declarations that must exist in index.d.ts only
- *
- * Exits non-zero on any missing declaration.
+ * Exits non-zero on any broken publication target.
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
+
+type JsonObject = Record<string, unknown>;
+
+interface SurfaceErrorReport {
+  readonly errors: string[];
+  readonly warnings: string[];
+}
+
+interface LabeledTarget {
+  readonly label: string;
+  readonly target: string;
+}
 
 /**
  * @param {string} filePath
@@ -37,6 +47,181 @@ function readRequired(filePath: string): string {
     }
     throw err;
   }
+}
+
+function readJsonObject(filePath: string): JsonObject {
+  const parsed = JSON.parse(readRequired(filePath));
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`${filePath} must contain a JSON object`);
+  }
+  return parsed as JsonObject;
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function relativeTargetToPath(target: string): string {
+  return target.startsWith('./') ? target.slice(2) : target;
+}
+
+function targetExists(target: string): boolean {
+  return existsSync(resolve(root, relativeTargetToPath(target)));
+}
+
+function collectExportTargets(value: unknown, label: string): LabeledTarget[] {
+  if (typeof value === 'string') {
+    return [{ label, target: value }];
+  }
+  if (!isJsonObject(value)) {
+    return [];
+  }
+
+  const targets: LabeledTarget[] = [];
+  for (const [condition, nested] of Object.entries(value)) {
+    targets.push(...collectExportTargets(nested, `${label}.${condition}`));
+  }
+  return targets;
+}
+
+function readStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((entry): entry is string => typeof entry === 'string');
+}
+
+function listFilesUnder(directory: string): string[] {
+  const absoluteDirectory = resolve(root, directory);
+  if (!existsSync(absoluteDirectory)) {
+    return [];
+  }
+
+  const files: string[] = [];
+  for (const entry of readdirSync(absoluteDirectory)) {
+    const absoluteEntry = resolve(absoluteDirectory, entry);
+    const relativeEntry = `${directory}/${entry}`;
+    if (statSync(absoluteEntry).isDirectory()) {
+      files.push(...listFilesUnder(relativeEntry));
+      continue;
+    }
+    files.push(relativeEntry);
+  }
+  return files;
+}
+
+function globHasMatch(pattern: string): boolean {
+  const recursiveMarker = '/**/*';
+  if (!pattern.includes(recursiveMarker)) {
+    return targetExists(pattern);
+  }
+
+  const [directory = '', suffix = ''] = pattern.split(recursiveMarker);
+  return listFilesUnder(relativeTargetToPath(directory)).some((file) => file.endsWith(suffix));
+}
+
+function checkTarget(target: LabeledTarget, report: SurfaceErrorReport): void {
+  if (!target.target.startsWith('./')) {
+    report.errors.push(`${target.label} target "${target.target}" must be package-relative`);
+    return;
+  }
+  if (!targetExists(target.target)) {
+    report.errors.push(`${target.label} target "${target.target}" does not exist`);
+  }
+}
+
+function checkStringField(source: JsonObject, field: string, report: SurfaceErrorReport): void {
+  const value = source[field];
+  if (typeof value !== 'string') {
+    report.errors.push(`package.json ${field} must be a string`);
+    return;
+  }
+  checkTarget({ label: `package.json ${field}`, target: value }, report);
+}
+
+function checkPackageExports(packageJson: JsonObject, report: SurfaceErrorReport): void {
+  const exportsField = packageJson['exports'];
+  if (!isJsonObject(exportsField)) {
+    report.errors.push('package.json exports must be an object');
+    return;
+  }
+
+  for (const [subpath, value] of Object.entries(exportsField)) {
+    for (const target of collectExportTargets(value, `package.json exports.${subpath}`)) {
+      checkTarget(target, report);
+    }
+  }
+}
+
+function checkPackageBins(packageJson: JsonObject, report: SurfaceErrorReport): void {
+  const bin = packageJson['bin'];
+  if (!isJsonObject(bin)) {
+    report.errors.push('package.json bin must be an object');
+    return;
+  }
+
+  for (const [command, target] of Object.entries(bin)) {
+    if (typeof target !== 'string') {
+      report.errors.push(`package.json bin.${command} must be a string`);
+      continue;
+    }
+    checkTarget({ label: `package.json bin.${command}`, target }, report);
+  }
+}
+
+function checkIncludedTargets(label: string, entries: string[], report: SurfaceErrorReport): void {
+  for (const entry of entries) {
+    if (entry.includes('*')) {
+      if (!globHasMatch(entry)) {
+        report.errors.push(`${label} include "${entry}" does not match any files`);
+      }
+      continue;
+    }
+    if (!targetExists(entry)) {
+      report.errors.push(`${label} include "${entry}" does not exist`);
+    }
+  }
+}
+
+function checkJsrExports(jsrJson: JsonObject, report: SurfaceErrorReport): void {
+  const exportsField = jsrJson['exports'];
+  if (!isJsonObject(exportsField)) {
+    report.errors.push('jsr.json exports must be an object');
+    return;
+  }
+
+  for (const [subpath, value] of Object.entries(exportsField)) {
+    if (typeof value !== 'string') {
+      report.errors.push(`jsr.json exports.${subpath} must be a string target`);
+      continue;
+    }
+    checkTarget({ label: `jsr.json exports.${subpath}`, target: value }, report);
+  }
+}
+
+function checkJsrPublish(jsrJson: JsonObject, report: SurfaceErrorReport): void {
+  const publish = jsrJson['publish'];
+  if (!isJsonObject(publish)) {
+    report.errors.push('jsr.json publish must be an object');
+    return;
+  }
+  checkIncludedTargets('jsr.json publish', readStringArray(publish['include']), report);
+}
+
+function runSourceSurfaceCheck(): SurfaceErrorReport {
+  const report: SurfaceErrorReport = { errors: [], warnings: [] };
+  const packageJson = readJsonObject(resolve(root, 'package.json'));
+  const jsrJson = readJsonObject(resolve(root, 'jsr.json'));
+
+  checkStringField(packageJson, 'main', report);
+  checkStringField(packageJson, 'types', report);
+  checkPackageExports(packageJson, report);
+  checkPackageBins(packageJson, report);
+  checkIncludedTargets('package.json files', readStringArray(packageJson['files']), report);
+  checkJsrExports(jsrJson, report);
+  checkJsrPublish(jsrJson, report);
+
+  return report;
 }
 
 // ---------------------------------------------------------------------------
@@ -210,113 +395,26 @@ const isMain = process.argv[1] && fileURLToPath(import.meta.url) === resolve(pro
 
 if (isMain) {
   const quiet = process.argv.includes('--quiet');
-
-  // 1. Load the manifest
-  const manifestPath = resolve(root, 'contracts/type-surface.m8.json');
-  const manifest = JSON.parse(readRequired(manifestPath));
-  const {
-    manifestNames,
-    runtimeNames,
-    typeOnlyNames,
-    duplicateNames,
-    invalidRuntimeTypeOnly,
-    invalidTypeSectionRuntime,
-  } = classifyManifestExports(manifest);
-
-  // 2. Parse index.js — extract named exports
-  const indexJs = readRequired(resolve(root, 'index.js'));
-  const jsExports = extractJsExports(indexJs);
-
-  // 3. Parse index.d.ts — extract all exported declarations
-  const indexDts = readRequired(resolve(root, 'index.d.ts'));
-  const dtsExports = extractDtsExports(indexDts);
-
-  // 4. Cross-check
-  let errors = 0;
-  let warnings = 0;
-
-  // Check A: Every manifest entry must exist in index.d.ts
-  for (const name of manifestNames) {
-    if (!dtsExports.has(name)) {
-      process.stderr.write(`ERROR: manifest entry "${name}" missing from index.d.ts\n`);
-      errors++;
-    }
-  }
-
-  // Check B: Every named export in index.js must exist in the runtime manifest section
-  for (const name of jsExports) {
-    if (!runtimeNames.has(name)) {
-      process.stderr.write(
-        `ERROR: index.js export "${name}" missing from runtime exports manifest\n`
-      );
-      errors++;
-    }
-  }
-
-  // Check C: Every runtime-backed manifest export must exist in index.js
-  for (const name of runtimeNames) {
-    if (!jsExports.has(name)) {
-      process.stderr.write(`ERROR: manifest runtime export "${name}" missing from index.js\n`);
-      errors++;
-    }
-  }
-
-  // Check D: No export may appear in both manifest sections
-  for (const name of duplicateNames) {
-    process.stderr.write(
-      `ERROR: manifest export "${name}" appears in both exports and typeExports\n`
-    );
-    errors++;
-  }
-
-  // Check E: `exports` must not contain interface/type entries
-  for (const name of invalidRuntimeTypeOnly) {
-    process.stderr.write(
-      `ERROR: runtime manifest export "${name}" is type-only and must move to typeExports\n`
-    );
-    errors++;
-  }
-
-  // Check F: `typeExports` must contain only interface/type entries
-  for (const name of invalidTypeSectionRuntime) {
-    process.stderr.write(
-      `ERROR: type-only manifest export "${name}" uses a runtime-backed kind and must move to exports\n`
-    );
-    errors++;
-  }
-
-  // Check G: Warn about index.d.ts exports not in manifest
-  for (const name of dtsExports) {
-    if (!manifestNames.has(name)) {
-      process.stderr.write(`WARN: index.d.ts export "${name}" not in manifest\n`);
-      warnings++;
-    }
-  }
-
-  // 5. Report
-  const total = manifestNames.size;
-  const runtimeCount = runtimeNames.size;
-  const typeOnlyCount = typeOnlyNames.size;
-  const jsCount = jsExports.size;
-  const dtsCount = dtsExports.size;
-
+  const report = runSourceSurfaceCheck();
   if (!quiet) {
-    process.stdout.write(`\nDeclaration surface check:\n`);
-    process.stdout.write(`  Manifest entries:   ${total}\n`);
-    process.stdout.write(`    Runtime-backed:   ${runtimeCount}\n`);
-    process.stdout.write(`    Type-only:        ${typeOnlyCount}\n`);
-    process.stdout.write(`  index.js exports:   ${jsCount}\n`);
-    process.stdout.write(`  index.d.ts exports: ${dtsCount}\n`);
-    process.stdout.write(`  Errors:   ${errors}\n`);
-    process.stdout.write(`  Warnings: ${warnings}\n\n`);
+    process.stdout.write('\nTypeScript source surface check:\n');
+    process.stdout.write(`  Errors:   ${report.errors.length}\n`);
+    process.stdout.write(`  Warnings: ${report.warnings.length}\n\n`);
   }
 
-  if (errors > 0) {
-    process.stderr.write(`FAIL: ${errors} declaration surface error(s)\n`);
+  for (const warning of report.warnings) {
+    process.stderr.write(`WARN: ${warning}\n`);
+  }
+  for (const error of report.errors) {
+    process.stderr.write(`ERROR: ${error}\n`);
+  }
+
+  if (report.errors.length > 0) {
+    process.stderr.write(`FAIL: ${report.errors.length} surface error(s)\n`);
     process.exit(1);
   }
 
   if (!quiet) {
-    process.stdout.write(`PASS: all manifest entries covered\n`);
+    process.stdout.write('PASS: package and JSR surface targets exist\n');
   }
 }

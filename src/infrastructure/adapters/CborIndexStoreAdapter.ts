@@ -113,10 +113,15 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     await shardStream
       .pipe(new IndexShardEncodeTransform(this._codec))
       .forEach(async ([path, bytes]) => {
-        const oid = await writePayloadBlob(this._blobPort, this._blobStorage, bytes, {
-          slug: path,
-          mime: 'application/cbor',
-          size: bytes.length,
+        const oid = await writePayloadBlob({
+          blobPort: this._blobPort,
+          blobStorage: this._blobStorage,
+          bytes,
+          options: {
+            slug: path,
+            mime: 'application/cbor',
+            size: bytes.length,
+          },
         });
         entries.push(`100644 blob ${oid}\t${path}`);
       });

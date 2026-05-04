@@ -118,7 +118,7 @@ That is enough to reproduce the current `ORSet` metric laws exactly:
 
 So the preferred seam is:
 
-```ts
+```text
 static async fromSession(session: StateSession): Promise<GCMetrics>
 ```
 

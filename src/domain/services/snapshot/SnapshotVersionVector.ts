@@ -1,5 +1,5 @@
-import { Dot } from '../../crdt/Dot.ts';
-import VersionVector from '../../crdt/VersionVector.ts';
+import { type Dot } from '../../crdt/Dot.ts';
+import type VersionVector from '../../crdt/VersionVector.ts';
 
 /**
  * Read-side version-vector view for public immutable snapshots.

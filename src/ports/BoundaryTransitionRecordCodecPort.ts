@@ -1,6 +1,6 @@
-import BoundaryTransitionRecord from '../domain/services/provenance/BTR.ts';
-import BtrSigningEnvelope from '../domain/services/provenance/BtrSigningEnvelope.ts';
-import BtrSigningBytes from '../domain/services/provenance/BtrSigningBytes.ts';
+import type BoundaryTransitionRecord from '../domain/services/provenance/BTR.ts';
+import type BtrSigningEnvelope from '../domain/services/provenance/BtrSigningEnvelope.ts';
+import type BtrSigningBytes from '../domain/services/provenance/BtrSigningBytes.ts';
 
 type BoundaryTransitionRecordDecoded = {
   readonly kind: 'decoded_boundary_transition_record';

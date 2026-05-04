@@ -2,7 +2,7 @@
 
 Each plan scored against SSTS principles (P1–P7) and practices.
 
-```
+```text
 ✅ = plan addresses this
 ⚠️ = plan is silent — needs amendment
 ❌ = plan contradicts this

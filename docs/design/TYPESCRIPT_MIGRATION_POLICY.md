@@ -118,7 +118,7 @@ Never assume the full dataset fits in memory.
 
 ### Classes, not typedefs
 
-```typescript
+```text
 // WRONG — phantom type, no runtime truth
 type TrustRecord = {
   recordType: string;

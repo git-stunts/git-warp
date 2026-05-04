@@ -17,7 +17,7 @@ parsing, no text scraping.
 
 ## Architecture
 
-```
+```text
 Agent (Claude, etc.)
   ↓ MCP protocol (stdio or SSE)
 git-warp MCP Server
@@ -29,7 +29,7 @@ WarpGraph capability bag
 
 ### Entry point
 
-```
+```text
 git warp mcp                    # stdio transport (default)
 git warp mcp --transport sse    # SSE transport
 git warp mcp --graph events     # specific graph

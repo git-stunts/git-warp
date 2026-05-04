@@ -167,7 +167,7 @@ canonical algorithm without carrying that proof in the type.
 
 The port method should be conceptually shaped like:
 
-```ts
+```text
 signingBytes(envelope: BtrSigningEnvelope): BtrSigningBytes
 ```
 

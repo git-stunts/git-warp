@@ -86,7 +86,7 @@ class EdgeContent {
 Implements `QueryCapability`. Composes reads + content. Owns factory
 methods and observer logic. Real methods, no defineProperty.
 
-```typescript
+```text
 class QueryController implements QueryCapability {
   constructor(
     private readonly state: MaterializedStateProvider,
@@ -121,7 +121,7 @@ class QueryController implements QueryCapability {
 
 ## Data flow
 
-```
+```text
 Consumer calls graph.query.hasNode('x')
   → QueryController.hasNode('x')
     → QueryReads.hasNode('x')
@@ -143,7 +143,7 @@ Old: `observer(nameOrConfig, configOrOptions, maybeOptions)` — 3 args,
 positional overloads, boolean trap.
 
 New: single shape:
-```typescript
+```text
 observer(config: ObserverConfig): Promise<Observer>
 ```
 

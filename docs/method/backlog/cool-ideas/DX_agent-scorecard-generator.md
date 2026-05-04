@@ -23,7 +23,7 @@ The agent composes this table manually. It's error-prone (missed
 files, wrong LOC counts, wrong violation counts) and eats context
 budget. The same scan can be done by a script in milliseconds.
 
-```
+```text
 scripts/agent-scorecard.sh [--format=bijou|markdown|json]
   → reads `git diff --name-only <base>..HEAD`
   → for each touched file, scans for SSTS violations:

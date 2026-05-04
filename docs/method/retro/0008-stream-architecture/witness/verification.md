@@ -455,10 +455,10 @@ behavior and adheres to the repo invariants.
 [2m   Start at [22m 01:34:55
 [2m   Duration [22m 21.46s[2m (transform 27.42s, setup 0ms, import 107.94s, tests 33.55s, environment 31ms)[22m
 
- Image git-warp-test Building 
- Image git-warp-test Built 
- Container git-warp-test-run-db22e2a8aa27 Creating 
- Container git-warp-test-run-db22e2a8aa27 Created 
+ Image git-warp-test Building
+ Image git-warp-test Built
+ Container git-warp-test-run-db22e2a8aa27 Creating
+ Container git-warp-test-run-db22e2a8aa27 Created
 
 [31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
 

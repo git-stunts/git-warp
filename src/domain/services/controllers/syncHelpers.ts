@@ -47,7 +47,7 @@ export function normalizeSyncPath(path: string | undefined | null): string {
 }
 
 function hasProcessSyncRequest(value: object): value is SyncRequestProcessor {
-  return typeof Reflect.get(value, 'processSyncRequest') === 'function';
+  return 'processSyncRequest' in value && typeof value.processSyncRequest === 'function';
 }
 
 function isSyncRequestProcessor(
@@ -63,7 +63,10 @@ function isSyncPeer(remote: string | SyncRequestProcessor | SyncPeer): remote is
   if (typeof remote !== 'object' || remote === null) {
     return false;
   }
-  const sync = Reflect.get(remote, 'sync');
+  if (!('sync' in remote)) {
+    return false;
+  }
+  const { sync } = remote;
   if (typeof sync !== 'object' || sync === null) {
     return false;
   }

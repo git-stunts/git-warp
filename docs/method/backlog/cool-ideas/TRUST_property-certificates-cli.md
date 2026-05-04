@@ -13,7 +13,7 @@ linkage, and policy conformance at a required tier.
 
 `git warp certify <strand-id>` could emit a certificate:
 
-```
+```text
 Certificate for strand speculative/feature-x:
   ✓ Type safety: all ops well-formed
   ✓ Admission integrity: all ticks have receipts

@@ -99,7 +99,7 @@ The **only** legitimate manifest modifications are:
 
 Run:
 
-```
+```text
 npm run lint:contamination
 ```
 

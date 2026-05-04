@@ -24,7 +24,7 @@ memory.
 What if every commit on a cycle branch automatically recorded its
 own ratchet snapshot?
 
-```
+```text
 scripts/ratchet-snapshot.sh <commit-sha>
   → writes docs/method/ratchet/<cycle>/<sha>.json
   → { tsc: 1462, eslint_errors: 0, eslint_warnings: 0,
@@ -33,7 +33,7 @@ scripts/ratchet-snapshot.sh <commit-sha>
 
 And a companion tool:
 
-```
+```text
 scripts/ratchet-delta.sh [<from-sha>] [<to-sha>]
   → prints the delta between two snapshots
   → auto-detects branch base when args omitted

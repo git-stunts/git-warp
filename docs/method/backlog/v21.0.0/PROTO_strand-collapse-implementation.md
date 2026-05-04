@@ -12,7 +12,7 @@ blocked_by:
 The strand runtime spec (strands-braids-runtime-spec.md §12) defines
 collapse as:
 
-```ts
+```text
 collapseBraid(braid: BraidView, policy: CollapsePolicy)
   -> DerivedLane | Plurality | ConflictArtifact | Obstruction
 ```

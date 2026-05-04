@@ -9,6 +9,7 @@
  */
 
 import { getRoaringBitmap32, type RoaringBitmapSubset } from '../../utils/roaring.ts';
+import IndexError from '../../errors/IndexError.ts';
 
 /** Estimated bytes per SHA→ID mapping entry in a Map. */
 const BYTES_PER_ID_MAPPING = 120;
@@ -133,7 +134,10 @@ export default class BitmapAccumulator {
    */
   *iterateMetaShardChunks(maxEntriesPerChunk: number): Iterable<{ prefix: string; entries: Array<[string, number]> }> {
     if (maxEntriesPerChunk <= 0) {
-      throw new Error('maxEntriesPerChunk must be a positive number');
+      throw new IndexError('maxEntriesPerChunk must be a positive number', {
+        code: 'E_BITMAP_META_SHARD_CHUNK_SIZE',
+        context: { maxEntriesPerChunk },
+      });
     }
     const active = new Map<string, Array<[string, number]>>();
     for (const [sha, id] of this.shaToId) {

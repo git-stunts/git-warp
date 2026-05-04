@@ -67,7 +67,7 @@ const encoder = new Encoder({
   mapsAsObjects: true,
 });
 
- 
+
 const CBOR_NATIVE_TYPES: ReadonlyArray<Function> = [Uint8Array, Date, RegExp, Set, Map];
 
 /**

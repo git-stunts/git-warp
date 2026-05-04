@@ -10,7 +10,7 @@ feature: docs-dx
 A command that answers "why does node X have property Y?" by
 tracing the full provenance chain:
 
-```
+```text
 $ git warp explain user:alice.role
 user:alice.role = "admin"
   Admitted at tick 7 by writer agent-1

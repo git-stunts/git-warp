@@ -143,7 +143,7 @@ export type CommitLogChunk = Uint8Array | string;
 
 ### Updated port signatures
 
-```typescript
+```text
 // src/ports/CommitPort.ts
 abstract logNodesStream(options: LogNodesOptions): Promise<WarpStream<CommitLogChunk>>;
 

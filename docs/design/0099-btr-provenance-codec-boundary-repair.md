@@ -421,7 +421,7 @@ repair.
 
 Current `CryptoPort.hmac` accepts:
 
-```ts
+```text
 hmac(_algorithm: string, _key: string | Uint8Array, _data: string | Uint8Array): Promise<Uint8Array>
 ```
 

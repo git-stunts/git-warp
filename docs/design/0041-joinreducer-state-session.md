@@ -68,7 +68,7 @@ currently owns only the trie-backed alive sets.
 
 So the truthful async seam is **not**:
 
-```ts
+```text
 reduceV5(patches): Promise<WarpState>
 ```
 

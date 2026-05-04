@@ -7,7 +7,7 @@
  * Lens → Aperture, V5/V1 suffixes) and updates them.
  *
  * Usage:
- *   node scripts/migrations/v17.0.0/fix-renames.js [--dry-run] [--dir <path>]
+ *   node scripts/migrations/v17.0.0/fix-renames.ts [--dry-run] [--dir <path>]
  *
  * Options:
  *   --dry-run   Show what would change without modifying files

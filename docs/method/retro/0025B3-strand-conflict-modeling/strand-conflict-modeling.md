@@ -140,7 +140,7 @@ altered.
 
 `scripts/contamination-map.ts` gained one new skipPattern:
 
-```
+```text
 /\(\s*\w+\s*:\s*unknown\s*\)\s*:\s*\w+\s+is\s+/
 ```
 
@@ -272,7 +272,7 @@ Deferred to review.
 Filtered to my actual authored commits (exclude two parallel-agent
 design-doc opens that arrived via the shared ancestor):
 
-```
+```text
 ae6977fe  fix(lint): destructure descriptor fields, reduce normalizer complexity, graduate strand/conflict files from quarantine manifests
 950aca3a  refactor(strand): collapse canonical-op bridge, type-guard predicates for boundary decoders, PatchBuilder.contentBlobs accessor
 00b82a9c  refactor(strand): remove as-unknown-as casts via structural graph-runtime intersection

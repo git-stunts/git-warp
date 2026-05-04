@@ -57,7 +57,7 @@ A contributor can now answer:
 
 The old backlog wording said:
 
-```ts
+```text
 open(state: WarpState): Promise<SessionHandle>
 ```
 

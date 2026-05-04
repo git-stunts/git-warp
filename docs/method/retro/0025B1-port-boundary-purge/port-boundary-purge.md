@@ -56,7 +56,7 @@ as Y` patterns into clean `codec.decode<Y>(x)`.
 **`src/ports/IndexStorePort.ts`.** `decodeShard` became a per-call
 generic:
 
-```typescript
+```text
 abstract decodeShard<TDecoded extends CodecValue = CodecValue>(
   blobOid: string,
 ): Promise<TDecoded>;
@@ -74,7 +74,7 @@ parameterizing the port class.
 **`src/ports/LoggerPort.ts`.** Accepts `LogFields` instead of
 `Record<string, unknown>`:
 
-```typescript
+```text
 abstract debug(message: string, context?: LogFields): void;
 // ... info, warn, error
 abstract child(context: LogFields): LoggerPort;

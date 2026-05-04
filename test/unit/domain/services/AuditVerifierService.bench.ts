@@ -67,15 +67,15 @@ const verifyMs = performance.now() - t1;
 console.log(`Verified in ${verifyMs.toFixed(0)}ms — status: ${result.status}, receipts: ${result.receiptsVerified}`);
 
 if (result.status !== 'VALID') {
-  
+
   console.error('BENCHMARK FAILED: expected VALID, got', result.status);
-  
+
   console.error('Errors:', JSON.stringify(result.errors, null, 2));
   process.exitCode = 1;
 }
 
 if (verifyMs > 5000) {
-  
+
   console.error(`BENCHMARK FAILED: verification took ${verifyMs.toFixed(0)}ms (limit: 5000ms)`);
   process.exitCode = 1;
 }

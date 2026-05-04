@@ -45,4 +45,3 @@ The repo needs a ratchet that stops this gap from quietly growing.
 - `docs/README.md`
 - `docs/API_REFERENCE.md`
 - `docs/CONCEPTUAL_OVERVIEW.md`
-

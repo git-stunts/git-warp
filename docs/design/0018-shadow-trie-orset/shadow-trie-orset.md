@@ -64,7 +64,7 @@ StateSession methods are async. No fake sync wrappers.
 
 Checkpoint publication model:
 
-```
+```text
 refs/warp/checkpoint/<graph>
   → checkpoint commit
     → envelope tree
@@ -109,7 +109,7 @@ line proves them.
 
 ### Current state (being replaced)
 
-```
+```text
 ORSet.ts
   entries: Map<string, Set<string>>   // elementId → Set<encodedDot>
   tombstones: Set<string>             // Set<encodedDot>
@@ -127,7 +127,7 @@ Does not scale to graphs exceeding available memory.
 
 ### Target state
 
-```
+```text
 Concrete ORSet (synchronous in-memory form)
   ← owns in-memory ORSet behavior and representation
   ← No ORSetLike parent
@@ -161,7 +161,7 @@ session. Domain code never touches `ShadowTrieORSet` directly.
 
 ### Trie structure
 
-```
+```text
 Root (Git tree)
 ├── 0 → Branch (Git tree)
 │   ├── 0 → Leaf (Git blob) — entries for keys 00xx...
@@ -184,7 +184,7 @@ by benchmarking.
 
 ### Package map
 
-```
+```text
 packages/
 ├── git-warp/          # product: public API, CLI, migrations
 ├── warp-kernel/       # engine: WarpState, controllers, reducer, GC

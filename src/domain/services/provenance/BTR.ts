@@ -18,7 +18,7 @@
  */
 
 import BtrSigningEnvelope from './BtrSigningEnvelope.ts';
-import BoundaryTransitionProvenance, { type PatchEntry } from './BoundaryTransitionProvenance.ts';
+import type { BoundaryTransitionProvenance, PatchEntry } from './BoundaryTransitionProvenance.ts';
 
 // -- Constants ----------------------------------------------------------------
 

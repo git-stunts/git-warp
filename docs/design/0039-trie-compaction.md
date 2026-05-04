@@ -72,7 +72,7 @@ The critical safety rule is unchanged from the in-memory ORSet:
 
 `ShadowTrieORSet` should grow one new method:
 
-```ts
+```text
 compact(includedVV: VersionVector): Promise<void>
 ```
 
@@ -83,7 +83,7 @@ will call it later; this cycle only makes it exist and work.
 
 To keep the engine thin, compaction should live in a dedicated helper:
 
-```ts
+```text
 class TrieCompactor {
   constructor(init: {
     cursor: TrieCursor;

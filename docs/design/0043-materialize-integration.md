@@ -97,13 +97,13 @@ This cycle should make that ownership explicit inside `MaterializeController`.
 
 Replay should move from:
 
-```ts
+```text
 reduceV5(...)
 ```
 
 to the session-backed reducer seam from `0041`:
 
-```ts
+```text
 reduceV5InSession(...)
 ```
 

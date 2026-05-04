@@ -10,7 +10,7 @@ feature: runtime-boundaries
 Expose error codes as importable constants so consumers can do
 programmatic matching without instanceof:
 
-```ts
+```text
 import { ErrorCodes } from '@git-stunts/git-warp';
 
 try { ... } catch (e) {

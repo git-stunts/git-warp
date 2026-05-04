@@ -34,4 +34,3 @@ Keep the conformance test for high-level semantic requirements.
 - Validate the sludge map against the schema.
 - Keep `sludgeAtlas.test.ts` or equivalent conformance coverage.
 - Document allowed layers and required finding/proposed-noun fields.
-

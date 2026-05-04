@@ -18,7 +18,7 @@ deprecated API with no compile-time or runtime warning.
 1. Add `@deprecated` JSDoc annotation to the WarpApp default export in
    `index.js`.
 2. Add a `console.warn` in `WarpApp.open()` for v17 to guide migration:
-   ```
+   ```text
    [git-warp] WarpApp.open() is deprecated. Use openWarpGraph() instead.
    See docs/migrations/v17.0.0.md
    ```

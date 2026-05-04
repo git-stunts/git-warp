@@ -168,7 +168,7 @@ task.
 ## Consumer migration signatures
 
 ### Worldline.ts
-```typescript
+```text
 // BEFORE
 constructor({ graph }: { graph: WarpRuntime })
 
@@ -180,7 +180,7 @@ constructor({ query, materialize }: {
 ```
 
 ### Observer.ts / LogicalTraversal.ts
-```typescript
+```text
 // BEFORE
 constructor({ graph }: { graph: WarpRuntime })
 
@@ -189,7 +189,7 @@ constructor({ graph }: { graph: ObserverBacking })
 ```
 
 ### QueryBuilder.ts
-```typescript
+```text
 // BEFORE
 constructor({ graph }: { graph: WarpRuntime })
 
@@ -198,7 +198,7 @@ constructor({ query }: { query: QueryCapability })
 ```
 
 ### ComparisonSelector.ts
-```typescript
+```text
 // BEFORE
 constructor({ graph }: { graph: WarpRuntime })
 

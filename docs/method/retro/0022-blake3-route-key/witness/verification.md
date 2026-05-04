@@ -59,25 +59,25 @@ behavior and adheres to the repo invariants.
 #12 DONE 0.0s
 
 #13 [ 7/11] RUN npm install
-#13 17.35 
+#13 17.35
 #13 17.35 > @git-stunts/git-warp@17.0.0 prepare
 #13 17.35 > patch-package && node scripts/setup-hooks.ts
-#13 17.35 
+#13 17.35
 #13 17.49 patch-package 8.0.1
 #13 17.49 Applying patches...
 #13 17.49 @mapbox/node-pre-gyp@2.0.3 ✔
 #13 17.55 ℹ️  Skipping git hooks setup (not a git repository).
-#13 17.56 
+#13 17.56
 #13 17.56 added 406 packages, and audited 410 packages in 17s
-#13 17.56 
+#13 17.56
 #13 17.56 141 packages are looking for funding
 #13 17.56   run `npm fund` for details
-#13 17.58 
+#13 17.58
 #13 17.58 1 high severity vulnerability
-#13 17.58 
+#13 17.58
 #13 17.58 To address all issues, run:
 #13 17.58   npm audit fix
-#13 17.58 
+#13 17.58
 #13 17.58 Run `npm audit` for details.
 #13 17.58 npm notice
 #13 17.58 npm notice New major version of npm available! 10.9.7 -> 11.12.1
@@ -496,10 +496,10 @@ behavior and adheres to the repo invariants.
 [2m   Start at [22m 07:50:26
 [2m   Duration [22m 28.24s[2m (transform 34.95s, setup 0ms, import 146.60s, tests 42.98s, environment 35ms)[22m
 
- Image git-warp-test Building 
- Image git-warp-test Built 
- Container git-warp-test-run-f7363416c081 Creating 
- Container git-warp-test-run-f7363416c081 Created 
+ Image git-warp-test Building
+ Image git-warp-test Built
+ Container git-warp-test-run-f7363416c081 Creating
+ Container git-warp-test-run-f7363416c081 Created
 
 [31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
 

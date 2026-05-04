@@ -29,15 +29,6 @@
       "import": "./index.ts",
       "default": "./index.ts"
     },
-    "./node": {
-      "types": "./index.ts",
-      "import": "./src/domain/entities/GraphNode.ts",
-      "default": "./src/domain/entities/GraphNode.ts"
-    },
-    "./visualization": {
-      "import": "./src/visualization/index.ts",
-      "default": "./src/visualization/index.ts"
-    },
     "./browser": {
       "types": "./browser.ts",
       "import": "./browser.ts",

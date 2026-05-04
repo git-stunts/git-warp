@@ -16,6 +16,7 @@ import {
   attachReceipts,
   ScanWindow,
   CONFLICT_ANALYSIS_VERSION,
+  type AnalyzerService,
 } from './ConflictFrameLoader.ts';
 import { ConflictCandidateCollector } from './ConflictCandidateCollector.ts';
 import {
@@ -27,7 +28,6 @@ import {
 } from './ConflictTraceAssembler.ts';
 import type ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.ts';
 import type ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.ts';
-import type { AnalyzerService } from './ConflictFrameLoader.ts';
 
 export { CONFLICT_ANALYSIS_VERSION };
 

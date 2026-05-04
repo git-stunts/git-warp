@@ -87,7 +87,7 @@ Per `docs/method/release.md`, the preflight check requires `package.json` versio
 
 The `@example` in the `@module` JSDoc (lines 13-32 of `/index.js`) shows:
 
-```ts
+```text
 import WarpApp from "@git-stunts/git-warp";
 const app = await WarpApp.open({ ... });
 const patch = await app.createPatch();
@@ -104,7 +104,7 @@ This example uses `WarpApp` (legacy), `app.createPatch()` (deprecated method nam
 
 `docs/VISION.md` (lines 90-98) shows:
 
-```
+```text
 graph.commitment.patches    // local tick admission
 graph.commitment.strands    // speculative lane management
 graph.folding.materialize   // frontier-relative state
@@ -228,7 +228,7 @@ README.md lines 109-116 link to GETTING_STARTED.md, GUIDE.md, and API_REFERENCE.
 
 `.github/SECURITY.md` lines 96-114 show:
 
-```js
+```text
 await graph.serve({ port: 3000, ... });
 await graph.syncWith('http://peer:3000', { ... });
 ```

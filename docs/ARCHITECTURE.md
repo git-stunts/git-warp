@@ -10,7 +10,7 @@ If you are learning the product for the first time, start with:
 
 ## System map
 
-```
+```text
 ┌──────────────────────────────────────────────────┐
 │                  openWarpGraph()                  │
 │  commitment / folding / revelation / governance   │
@@ -81,7 +81,7 @@ Full standard: `docs/SYSTEMS_STYLE_TYPESCRIPT.md`
 
 The recommended entry point. Returns a frozen capability bag:
 
-```typescript
+```text
 const graph = await openWarpGraph({ persistence, graphName, writerId });
 
 graph.query.*          // revelation: read state
@@ -162,7 +162,7 @@ All graph data is stored as Git commits pointing to the empty tree
 working directory. Each writer maintains an independent patch chain
 under `refs/warp/<graph>/writers/<writerId>`.
 
-```
+```text
 refs/warp/events/writers/alice → commit-sha-1
 refs/warp/events/writers/bob   → commit-sha-2
 refs/warp/events/checkpoint    → checkpoint-sha

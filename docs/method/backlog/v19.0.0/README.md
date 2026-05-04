@@ -11,7 +11,7 @@ shape honest. Then align the read, admission, and teaching surfaces.
 
 ## Critical path
 
-```
+```text
   [ ] HYGIENE_warp-doctrine-runtime-alignment
   [ ] API_observer-readable-receipts
   [ ] PROTO_observer-plan-reading-envelopes

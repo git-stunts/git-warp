@@ -171,7 +171,7 @@ export default class IndexRebuildService {
   }
 
   private _requireStreamingStorage(): StreamingIndexStoragePort {
-    const storage: MaybeStreamingStorage = this.storage;
+    const {storage} = this;
     if (!isStreamingStorage(storage)) {
       throw new IndexError(
         'streaming rebuild requires a streaming index storage adapter',

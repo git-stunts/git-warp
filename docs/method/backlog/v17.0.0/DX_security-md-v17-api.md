@@ -10,7 +10,7 @@ feature: docs-dx
 **Audit ref:** DQ01-M-05
 
 `.github/SECURITY.md` lines 96-114 show:
-```js
+```text
 await graph.serve({ port: 3000, ... });
 await graph.syncWith('http://peer:3000', { ... });
 ```

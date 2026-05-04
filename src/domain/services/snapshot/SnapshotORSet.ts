@@ -1,4 +1,4 @@
-import ORSet from '../../crdt/ORSet.ts';
+import type ORSet from '../../crdt/ORSet.ts';
 
 type SnapshotORSetEntry = Readonly<{
   element: string;

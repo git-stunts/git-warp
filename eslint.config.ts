@@ -200,6 +200,9 @@ export default tseslint.config(
       // ── Variables ────────────────────────────────────────────────────────
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+      // TypeScript overload declarations are checked by tsc; the base rule
+      // treats valid overload sets as redeclarations.
+      "no-redeclare": "off",
       "no-var": "error",
       "prefer-const": "error",
       "no-shadow": "off",
@@ -322,7 +325,9 @@ export default tseslint.config(
     files: [
       "src/domain/services/index/IndexRebuildService.ts",
       "src/domain/services/index/BitmapNeighborProvider.ts",
+      "src/domain/services/index/BitmapAccumulator.ts",
       "src/domain/services/index/BitmapIndexBuilder.ts",
+      "src/domain/services/index/BitmapIndexReader.ts",
       "src/domain/services/index/LogicalBitmapIndexBuilder.ts",
       "src/domain/services/index/LogicalIndexBuildService.ts",
       "src/domain/services/MaterializedViewHelpers.ts",
@@ -333,7 +338,19 @@ export default tseslint.config(
       "src/domain/services/ReceiptBuilder.ts",
       "src/domain/services/OpStrategies.ts",
       "src/domain/services/OpValidator.ts",
+      "src/domain/services/JoinReducerSession.ts",
+      "src/domain/services/controllers/MaterializeSessionBridge.ts",
       "src/domain/services/state/WarpState.ts",
+      "src/domain/services/state/SessionVisibleGraph.ts",
+      "src/domain/services/state/WarpStateSnapshotIndex.ts",
+      "src/domain/orset/trie/TrieCompactor.ts",
+      "src/domain/warp/RuntimeHostBoot.ts",
+      "src/domain/warp/WarpCoreRuntimeProduct.ts",
+      "src/domain/warp/WarpGraphRuntimeProduct.ts",
+      "src/application/provenance/BtrOperations.ts",
+      "src/infrastructure/adapters/BtrCodecAdapter.ts",
+      "src/infrastructure/adapters/RoaringLoaderAdapter.ts",
+      "src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts",
     ],
     rules: {
       "complexity": ["error", 35],
@@ -503,6 +520,26 @@ export default tseslint.config(
     files: ["src/ports/**/*.ts"],
     rules: {
       "@typescript-eslint/require-await": "off",
+    },
+  },
+
+  // ── StateSession: async factory preserves the public lifecycle contract ────
+  {
+    files: ["src/domain/orset/session/StateSession.ts"],
+    rules: {
+      "@typescript-eslint/require-await": "off",
+      "complexity": ["error", 35],
+      "max-lines-per-function": ["error", 200],
+      "max-depth": ["error", 6],
+      "max-params": ["error", 6],
+    },
+  },
+
+  // ── RuntimeHostBoot: composition root validation fans in all runtime ports ─
+  {
+    files: ["src/domain/warp/RuntimeHostBoot.ts"],
+    rules: {
+      "complexity": ["error", 60],
     },
   },
 

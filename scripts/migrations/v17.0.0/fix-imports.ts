@@ -7,7 +7,7 @@
  * paths and updates them for the v17 file renames and directory moves.
  *
  * Usage:
- *   node scripts/migrations/v17.0.0/fix-imports.js [--dry-run] [--dir <path>]
+ *   node scripts/migrations/v17.0.0/fix-imports.ts [--dry-run] [--dir <path>]
  *
  * Options:
  *   --dry-run   Show what would change without modifying files
@@ -37,13 +37,13 @@ const PATH_REWRITES = new Map([
   ['adapters/CasSeekCacheAdapter.js', 'adapters/CasSeekCacheAdapter.ts'],
 
   // Directory moves
-  ['services/BitmapIndexBuilder.js', 'services/index/BitmapIndexBuilder.js'],
-  ['services/BitmapIndexReader.js', 'services/index/BitmapIndexReader.js'],
-  ['services/IndexRebuildService.js', 'services/index/IndexRebuildService.js'],
+  ['services/BitmapIndexBuilder.js', 'services/index/BitmapIndexBuilder.ts'],
+  ['services/BitmapIndexReader.js', 'services/index/BitmapIndexReader.ts'],
+  ['services/IndexRebuildService.js', 'services/index/IndexRebuildService.ts'],
   ['services/CommitDagTraversalService.js', 'services/dag/CommitDagTraversalService.ts'],
   ['services/Observer.js', 'services/query/Observer.ts'],
   ['services/QueryBuilder.js', 'services/query/QueryBuilder.ts'],
-  ['services/ProvenanceIndex.js', 'services/provenance/ProvenanceIndex.js'],
+  ['services/ProvenanceIndex.js', 'services/provenance/ProvenanceIndex.ts'],
   ['services/ProvenancePayload.js', 'services/provenance/ProvenancePayload.ts'],
 
   // V5/V1 renames + directory moves

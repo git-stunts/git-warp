@@ -722,4 +722,3 @@ export function fixtureToState(fixture) {
 
   return state;
 }
-

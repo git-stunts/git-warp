@@ -45,4 +45,3 @@ the files graduated from the hygiene manifests.
 `npm run lint:semgrep` now passes with only quarantined hits suppressed.
 The touched hygiene-quarantined files now pass their active ESLint rules
 and were removed from the corresponding hygiene manifests.
-

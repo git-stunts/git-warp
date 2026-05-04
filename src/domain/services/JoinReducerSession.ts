@@ -36,9 +36,7 @@ type ReducerPropValue =
   | ReducerPropValue[]
   | { [key: string]: ReducerPropValue };
 
-type ReducerPropInput =
-  | PropSet["value"]
-  ;
+type ReducerPropInput = PropSet["value"];
 
 type ReplayDiffSnapshot =
   | { readonly kind: "node-add"; readonly target: string; readonly aliveBefore: boolean }

@@ -506,7 +506,7 @@ describe('PatchController', () => {
       const diff = { nodesAdded: ['n2'], nodesRemoved: [], edgesAdded: [], edgesRemoved: [], propsChanged: [] };
       applyWithDiffMock.mockReturnValue({ diff });
 
-      
+
 
       const patch = ({ lamport: 1, ops: [] }) as any;
       await ctrl._onPatchCommitted('alice', { patch, sha: 'sha-1' });
@@ -527,7 +527,7 @@ describe('PatchController', () => {
       const receipt = { accepted: 1, rejected: 0 };
       applyWithReceiptMock.mockReturnValue({ receipt });
 
-      
+
 
       const patch = ({ lamport: 1, ops: [] }) as any;
       await ctrl._onPatchCommitted('alice', { patch, sha: 'sha-1' });
@@ -560,7 +560,7 @@ describe('PatchController', () => {
 
       applyWithDiffMock.mockReturnValue({ diff: null });
 
-      
+
 
       const patch = ({ lamport: 1, reads: ['r1'], writes: ['w1'] }) as any;
       await ctrl._onPatchCommitted('alice', { patch, sha: 'sha-1' });

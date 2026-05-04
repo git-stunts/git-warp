@@ -20,7 +20,7 @@ and `throw new WarpError(...)`. We want the stricter rule: only throw
 subclasses of a project-defined `DomainError` base (or one of the
 specific WarpError / PatchError / QueryError / SyncError classes).
 
-```js
+```text
 // eslint.config.js
 {
   rules: {

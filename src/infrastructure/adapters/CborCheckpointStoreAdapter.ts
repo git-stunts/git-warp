@@ -57,27 +57,47 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     }
 
     const writes: Array<Promise<string>> = [
-      writePayloadBlob(this._blobPort, this._blobStorage, stateBytes, {
-        slug: 'checkpoint-state',
-        mime: 'application/cbor',
-        size: stateBytes.length,
+      writePayloadBlob({
+        blobPort: this._blobPort,
+        blobStorage: this._blobStorage,
+        bytes: stateBytes,
+        options: {
+          slug: 'checkpoint-state',
+          mime: 'application/cbor',
+          size: stateBytes.length,
+        },
       }),
-      writePayloadBlob(this._blobPort, this._blobStorage, frontierBytes, {
-        slug: 'checkpoint-frontier',
-        mime: 'application/cbor',
-        size: frontierBytes.length,
+      writePayloadBlob({
+        blobPort: this._blobPort,
+        blobStorage: this._blobStorage,
+        bytes: frontierBytes,
+        options: {
+          slug: 'checkpoint-frontier',
+          mime: 'application/cbor',
+          size: frontierBytes.length,
+        },
       }),
-      writePayloadBlob(this._blobPort, this._blobStorage, appliedVVBytes, {
-        slug: 'checkpoint-applied-vv',
-        mime: 'application/cbor',
-        size: appliedVVBytes.length,
+      writePayloadBlob({
+        blobPort: this._blobPort,
+        blobStorage: this._blobStorage,
+        bytes: appliedVVBytes,
+        options: {
+          slug: 'checkpoint-applied-vv',
+          mime: 'application/cbor',
+          size: appliedVVBytes.length,
+        },
       }),
     ];
     if (provenanceBytes !== null) {
-      writes.push(writePayloadBlob(this._blobPort, this._blobStorage, provenanceBytes, {
-        slug: 'checkpoint-provenance-index',
-        mime: 'application/cbor',
-        size: provenanceBytes.length,
+      writes.push(writePayloadBlob({
+        blobPort: this._blobPort,
+        blobStorage: this._blobStorage,
+        bytes: provenanceBytes,
+        options: {
+          slug: 'checkpoint-provenance-index',
+          mime: 'application/cbor',
+          size: provenanceBytes.length,
+        },
       }));
     }
 

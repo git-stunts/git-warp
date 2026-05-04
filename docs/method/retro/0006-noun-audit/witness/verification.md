@@ -332,7 +332,7 @@ behavior and adheres to the repo invariants.
 #8 11.37 debconf: delaying package configuration, since apt-utils is not installed
 #8 11.38 Fetched 110 MB in 7s (15.5 MB/s)
 #8 11.40 Selecting previously unselected package libssl3:arm64.
-#8 11.40 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 6090 files and directories currently installed.)
+#8 11.40 (Reading database ...(Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 6090 files and directories currently installed.)
 #8 11.41 Preparing to unpack .../00-libssl3_3.0.19-1~deb12u2_arm64.deb ...
 #8 11.41 Unpacking libssl3:arm64 (3.0.19-1~deb12u2) ...
 #8 11.51 Selecting previously unselected package libargon2-1:arm64.
@@ -367,7 +367,7 @@ behavior and adheres to the repo invariants.
 #8 11.70 Unpacking libsystemd-shared:arm64 (252.39-1~deb12u1) ...
 #8 11.80 Setting up libssl3:arm64 (3.0.19-1~deb12u2) ...
 #8 11.82 Selecting previously unselected package systemd.
-#8 11.82 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 6176 files and directories currently installed.)
+#8 11.82 (Reading database ...(Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 6176 files and directories currently installed.)
 #8 11.82 Preparing to unpack .../00-systemd_252.39-1~deb12u1_arm64.deb ...
 #8 11.83 Unpacking systemd (252.39-1~deb12u1) ...
 #8 12.01 Selecting previously unselected package libdbus-1-3:arm64.
@@ -416,7 +416,7 @@ behavior and adheres to the repo invariants.
 #8 12.92 Setting up libexpat1:arm64 (2.5.0-1+deb12u2) ...
 #8 12.93 Setting up python3.11-minimal (3.11.2-6+deb12u6) ...
 #8 13.33 Selecting previously unselected package python3-minimal.
-#8 13.33 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 9425 files and directories currently installed.)
+#8 13.33 (Reading database ...(Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 9425 files and directories currently installed.)
 #8 13.33 Preparing to unpack .../00-python3-minimal_3.11.2-1+b1_arm64.deb ...
 #8 13.33 Unpacking python3-minimal (3.11.2-1+b1) ...
 #8 13.35 Selecting previously unselected package media-types.
@@ -469,7 +469,7 @@ behavior and adheres to the repo invariants.
 #8 13.83 Unpacking libpython3-stdlib:arm64 (3.11.2-1+b1) ...
 #8 13.84 Setting up python3-minimal (3.11.2-1+b1) ...
 #8 13.94 Selecting previously unselected package python3.
-#8 13.94 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 9933 files and directories currently installed.)
+#8 13.94 (Reading database ...(Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 9933 files and directories currently installed.)
 #8 13.94 Preparing to unpack .../000-python3_3.11.2-1+b1_arm64.deb ...
 #8 13.95 Unpacking python3 (3.11.2-1+b1) ...
 #8 13.97 Selecting previously unselected package less.
@@ -962,13 +962,13 @@ behavior and adheres to the repo invariants.
 #8 21.83 debconf: unable to initialize frontend: Readline
 #8 21.83 debconf: (This frontend requires a controlling tty.)
 #8 21.83 debconf: falling back to frontend: Teletype
-#8 21.85 
+#8 21.85
 #8 21.85 Creating config file /etc/default/sysstat with new version
 #8 21.86 update-alternatives: using /usr/bin/sar.sysstat to provide /usr/bin/sar (sar) in auto mode
 #8 21.86 update-alternatives: warning: skip creation of /usr/share/man/man1/sar.1.gz because associated file /usr/share/man/man1/sar.sysstat.1.gz (of link group sar) doesn't exist
-#8 21.93 Created symlink /etc/systemd/system/sysstat.service.wants/sysstat-collect.timer → /lib/systemd/system/sysstat-collect.timer.
-#8 21.99 Created symlink /etc/systemd/system/sysstat.service.wants/sysstat-summary.timer → /lib/systemd/system/sysstat-summary.timer.
-#8 22.05 Created symlink /etc/systemd/system/multi-user.target.wants/sysstat.service → /lib/systemd/system/sysstat.service.
+#8 21.93 Created symlink /etc/systemd/system/sysstat.service.wants/sysstat-collect.timer → /lib/systemd/system/sysstat-collect.timer.
+#8 21.99 Created symlink /etc/systemd/system/sysstat.service.wants/sysstat-summary.timer → /lib/systemd/system/sysstat-summary.timer.
+#8 22.05 Created symlink /etc/systemd/system/multi-user.target.wants/sysstat.service → /lib/systemd/system/sysstat.service.
 #8 22.06 Setting up libperl5.36:arm64 (5.36.0-7+deb12u3) ...
 #8 22.07 Setting up libxmuu1:arm64 (2:1.1.3-3) ...
 #8 22.07 Setting up libtirpc3:arm64 (1.3.3+ds-1) ...
@@ -1006,18 +1006,18 @@ behavior and adheres to the repo invariants.
 #8 22.67 Setting up dmsetup (2:1.02.185-2) ...
 #8 22.68 Setting up libcryptsetup12:arm64 (2:2.6.1-4~deb12u2) ...
 #8 22.68 Setting up systemd (252.39-1~deb12u1) ...
-#8 22.70 Created symlink /etc/systemd/system/getty.target.wants/getty@tty1.service → /lib/systemd/system/getty@.service.
-#8 22.70 Created symlink /etc/systemd/system/multi-user.target.wants/remote-fs.target → /lib/systemd/system/remote-fs.target.
-#8 22.70 Created symlink /etc/systemd/system/sysinit.target.wants/systemd-pstore.service → /lib/systemd/system/systemd-pstore.service.
-#8 22.70 Initializing machine ID from D-Bus machine ID.
-#8 22.72 Creating group 'systemd-journal' with GID 999.
-#8 22.72 Creating group 'systemd-network' with GID 998.
-#8 22.72 Creating user 'systemd-network' (systemd Network Management) with UID 998 and GID 998.
+#8 22.70 Created symlink /etc/systemd/system/getty.target.wants/getty@tty1.service → /lib/systemd/system/getty@.service.
+#8 22.70 Created symlink /etc/systemd/system/multi-user.target.wants/remote-fs.target → /lib/systemd/system/remote-fs.target.
+#8 22.70 Created symlink /etc/systemd/system/sysinit.target.wants/systemd-pstore.service → /lib/systemd/system/systemd-pstore.service.
+#8 22.70 Initializing machine ID from D-Bus machine ID.
+#8 22.72 Creating group 'systemd-journal' with GID 999.
+#8 22.72 Creating group 'systemd-network' with GID 998.
+#8 22.72 Creating user 'systemd-network' (systemd Network Management) with UID 998 and GID 998.
 #8 22.74 Setting up systemd-timesyncd (252.39-1~deb12u1) ...
-#8 22.75 Creating group 'systemd-timesync' with GID 997.
-#8 22.75 Creating user 'systemd-timesync' (systemd Time Synchronization) with UID 997 and GID 997.
-#8 22.81 Created symlink /etc/systemd/system/dbus-org.freedesktop.timesync1.service → /lib/systemd/system/systemd-timesyncd.service.
-#8 22.81 Created symlink /etc/systemd/system/sysinit.target.wants/systemd-timesyncd.service → /lib/systemd/system/systemd-timesyncd.service.
+#8 22.75 Creating group 'systemd-timesync' with GID 997.
+#8 22.75 Creating user 'systemd-timesync' (systemd Time Synchronization) with UID 997 and GID 997.
+#8 22.81 Created symlink /etc/systemd/system/dbus-org.freedesktop.timesync1.service → /lib/systemd/system/systemd-timesyncd.service.
+#8 22.81 Created symlink /etc/systemd/system/sysinit.target.wants/systemd-timesyncd.service → /lib/systemd/system/systemd-timesyncd.service.
 #8 22.81 Processing triggers for libc-bin (2.36-9+deb12u13) ...
 #8 22.82 Processing triggers for ca-certificates (20230311+deb12u1) ...
 #8 22.83 Updating certificates in /etc/ssl/certs...
@@ -1039,25 +1039,25 @@ behavior and adheres to the repo invariants.
 #12 DONE 0.0s
 
 #13 [ 7/11] RUN npm install
-#13 18.18 
+#13 18.18
 #13 18.18 > @git-stunts/git-warp@17.0.0 prepare
 #13 18.18 > patch-package && node scripts/setup-hooks.ts
-#13 18.18 
+#13 18.18
 #13 18.29 patch-package 8.0.1
 #13 18.29 Applying patches...
 #13 18.29 @mapbox/node-pre-gyp@2.0.3 ✔
 #13 18.36 ℹ️  Skipping git hooks setup (not a git repository).
-#13 18.37 
+#13 18.37
 #13 18.37 added 405 packages, and audited 406 packages in 18s
-#13 18.37 
+#13 18.37
 #13 18.37 140 packages are looking for funding
 #13 18.37   run `npm fund` for details
-#13 18.38 
+#13 18.38
 #13 18.38 1 high severity vulnerability
-#13 18.38 
+#13 18.38
 #13 18.38 To address all issues, run:
 #13 18.38   npm audit fix
-#13 18.38 
+#13 18.38
 #13 18.38 Run `npm audit` for details.
 #13 18.38 npm notice
 #13 18.38 npm notice New major version of npm available! 10.9.7 -> 11.12.1
@@ -1466,10 +1466,10 @@ behavior and adheres to the repo invariants.
 [2m   Start at [22m 01:34:25
 [2m   Duration [22m 20.09s[2m (transform 25.65s, setup 0ms, import 101.92s, tests 31.08s, environment 28ms)[22m
 
- Image git-warp-test Building 
- Image git-warp-test Built 
- Container git-warp-test-run-45e9ec9894ba Creating 
- Container git-warp-test-run-45e9ec9894ba Created 
+ Image git-warp-test Building
+ Image git-warp-test Built
+ Container git-warp-test-run-45e9ec9894ba Creating
+ Container git-warp-test-run-45e9ec9894ba Created
 
 [31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
 

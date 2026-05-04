@@ -9,7 +9,7 @@ Paper VII identifies WARP's architectural center as:
 
 The admission kernel is:
 
-```
+```text
 Admit_Pi(F*, C, chi) = (R, W)
 Pack(R, W) = theta
 ```
@@ -122,7 +122,7 @@ interface BoundedSite {
 
 The runtime spec (§3) defines:
 
-```
+```text
 chi = (S_subj, R_read, W_write, E_aff, B_re)
 ```
 
@@ -318,7 +318,7 @@ and can be developed once the kernel is stable.
 
 The admission kernel maps to the capability surface:
 
-```
+```text
 commitment.patches  → LocalTickAdmission
 commitment.strands  → strand lifecycle (input to braids)
 commitment.comparison → BraidAdmission (collapse)

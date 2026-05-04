@@ -141,7 +141,7 @@ That is no longer honest if property bytes become `ImmutableBytes`.
 
 `src/domain/capabilities/QueryCapability.ts` exposes:
 
-```ts
+```text
 getNodeProps(...): Promise<Record<string, unknown> | null>
 getEdgeProps(...): Promise<Record<string, unknown> | null>
 getStateSnapshot(): Promise<WarpState | null>
@@ -769,7 +769,7 @@ Decision:
 
 Replace the public snapshot builder with a source-specific projection:
 
-```ts
+```text
 createSnapshotWarpState(state: WarpState): SnapshotWarpState
 createSnapshotPropValue(value: PropValue): SnapshotPropValue
 createSnapshotORSet(value: ORSet): SnapshotORSet
@@ -792,7 +792,7 @@ Decision:
 
 Public materialization APIs return snapshot state:
 
-```ts
+```text
 materialize(): Promise<SnapshotWarpState>
 materialize({ receipts: true }): Promise<{
   state: SnapshotWarpState;
@@ -817,7 +817,7 @@ Decision:
 
 Public property-bag APIs return snapshot property bags:
 
-```ts
+```text
 getNodeProps(...): Promise<Readonly<{ [key: string]: SnapshotPropValue }> | null>
 getEdgeProps(...): Promise<Readonly<{ [key: string]: SnapshotPropValue }> | null>
 getStateSnapshot(): Promise<SnapshotWarpState | null>

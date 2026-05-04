@@ -106,7 +106,7 @@ The engine should be constructed with the already-owned trie machinery it needs.
 
 The honest initializer is:
 
-```ts
+```text
 class ShadowTrieORSet {
   constructor(init: {
     cursor: TrieCursor;

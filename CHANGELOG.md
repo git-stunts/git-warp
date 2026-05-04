@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **100% TypeScript** — All 100 remaining `.js` files converted to `.ts`. The repo ships TypeScript source directly via jsr and `--experimental-strip-types`. No `.js` files remain except `eslint.config.js` and `vitest.config.js` (config files).
 
+### Fixed
+
+- Release hygiene gates now track the TypeScript source package surface, remove stale `./visualization` and `./node` subpath exports, point CI at `bin/warp-graph.ts`, and keep Markdown/code-sample/whitespace lint clean.
+
 ### Breaking
 
 - **`index.d.ts` deleted** — The 4,199-line hand-maintained type declaration file is gone. `index.ts` is now both the runtime entry point and the type surface. Consumers must use TypeScript-aware module resolution (`bundler`, `NodeNext`, or Deno).

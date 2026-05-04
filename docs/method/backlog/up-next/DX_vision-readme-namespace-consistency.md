@@ -10,13 +10,13 @@ blocks: []
 **Audit ref:** DQ01-H-02
 
 VISION.md shows nested form only:
-```
+```text
 graph.commitment.patches    // local tick admission
 graph.folding.materialize   // frontier-relative state
 ```
 
 README.md and ARCHITECTURE.md show flat form only:
-```
+```text
 graph.patches
 graph.materialize
 ```

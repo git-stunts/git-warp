@@ -37,4 +37,3 @@ Then update the sludge map, tests, and guide to match.
 - Update sludge-map schema/tests accordingly.
 - Update existing policy noun entries if needed.
 - Document where snapshot/default policies live architecturally.
-

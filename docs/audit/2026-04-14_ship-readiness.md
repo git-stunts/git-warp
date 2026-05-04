@@ -207,7 +207,7 @@ The release runbook (step 1) requires bumping both files to `17.0.0` and adding 
 #### Risk 2 (HIGH): Coverage ratchet regression — 95.43% vs 97.71% threshold
 
 **Evidence**: `npm run test:coverage` exits with:
-```
+```text
 ERROR: Coverage for lines (95.43%) does not meet global threshold (97.71%)
 ```
 
@@ -273,7 +273,7 @@ The hand-maintained `index.d.ts` (4,073 LOC) does not yet include the `WarpGraph
 
 **File**: `src/domain/WarpGraph.ts:118-119`
 
-```ts
+```text
 /** The underlying runtime — TEMPORARY bridge. Removed when API_kill-warpruntime ships. */
 readonly _runtime: WarpRuntime;
 ```
@@ -347,7 +347,7 @@ The test suite runs 6,332 unit tests using `InMemoryGraphAdapter`. There are no 
 
 ## Appendix B: Automated Gate Detail
 
-```
+```text
 ESLint:          0 errors, 0 warnings
 tsc (src):       0 errors
 tsc (test):      0 errors

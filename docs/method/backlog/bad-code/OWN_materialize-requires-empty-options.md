@@ -19,6 +19,6 @@ a type error. This is a minor DX paper cut — the most common case
 ## Suggested Fix
 
 Add a default parameter or overload so the options object is optional:
-```ts
+```text
 async materialize(opts: MaterializeOptions = {}): Promise<MaterializeResult>
 ```

@@ -1,8 +1,8 @@
-import { LWWRegister } from '../../crdt/LWW.ts';
+import { type LWWRegister } from '../../crdt/LWW.ts';
 import type { EventId } from '../../utils/EventId.ts';
-import SnapshotORSet from './SnapshotORSet.ts';
+import type SnapshotORSet from './SnapshotORSet.ts';
 import type { SnapshotPropValue } from './SnapshotPropValue.ts';
-import SnapshotVersionVector from './SnapshotVersionVector.ts';
+import type SnapshotVersionVector from './SnapshotVersionVector.ts';
 
 /**
  * Public immutable read-side view of materialized graph state.

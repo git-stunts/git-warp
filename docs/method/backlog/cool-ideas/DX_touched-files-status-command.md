@@ -21,13 +21,13 @@ as 🔴.
 The agent had to manually run grep patterns to find these. A single
 command would solve it:
 
-```
+```text
 scripts/touched-files-status.sh
 ```
 
 Output:
 
-```
+```text
 Touched on cycle/0013-typescript-migration (vs main):
 
   Converted to .ts ✅

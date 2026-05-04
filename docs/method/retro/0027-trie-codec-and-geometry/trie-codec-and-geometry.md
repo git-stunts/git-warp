@@ -201,7 +201,7 @@ delta matches the 80 tests added here plus one test module.
 contamination-scanner `unknown-keyword` detection both grew a
 third skip pattern pair:
 
-```
+```text
   type Foo = { readonly [key: string]: unknown }
   type Foo = ReadonlyArray<unknown>
 ```

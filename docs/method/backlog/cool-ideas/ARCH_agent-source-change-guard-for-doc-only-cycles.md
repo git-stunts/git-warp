@@ -37,4 +37,3 @@ making "no source edits" more than a promise in chat.
 - Document how agents should use it in doc-only cycles.
 - Consider making it part of design-cycle validation.
 - Keep it opt-in if global enforcement would be too rigid.
-

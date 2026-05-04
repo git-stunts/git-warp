@@ -15,7 +15,7 @@ no CLI entry point despite having full domain implementations.
 
 Sync with a remote peer (HTTP URL or local path).
 
-```
+```text
 git warp sync https://peer.example.com/events
 git warp sync /path/to/peer/repo
 git warp sync https://peer.example.com --auth-secret $SECRET
@@ -30,7 +30,7 @@ Options: `--path`, `--retries`, `--timeout`, `--auth-secret`,
 
 Start a sync server for the current graph.
 
-```
+```text
 git warp serve --port 8080
 git warp serve --port 0  # auto-assign
 ```
@@ -43,7 +43,7 @@ Options: `--port`, `--host`, `--auth-secret`, `--trust-mode`
 
 Fork a graph, creating a new graph with shared history.
 
-```
+```text
 git warp fork events events-staging
 git warp fork events events-staging --at-tick 42
 ```
@@ -58,7 +58,7 @@ Options: `--at-tick`, `--writer-id`
 
 Explicit checkpoint management.
 
-```
+```text
 git warp checkpoint create
 git warp checkpoint list
 git warp checkpoint restore <sha>
@@ -70,7 +70,7 @@ Maps to: `graph.folding.checkpoint.*`
 
 Trigger garbage collection.
 
-```
+```text
 git warp gc
 git warp gc --dry-run  # show what would be collected
 ```
@@ -81,7 +81,7 @@ Maps to: GC policy evaluation + execution
 
 Rich query interface using QueryBuilder syntax.
 
-```
+```text
 git warp query "nodes where type = 'user'"
 git warp query "edges from user:alice"
 git warp query "path from user:alice to user:bob"
@@ -95,7 +95,7 @@ Maps to: `graph.revelation.query.*` via QueryBuilder
 
 Run substrate migrations (schema upgrades, index rebuilds).
 
-```
+```text
 git warp migrate
 git warp migrate --dry-run
 git warp migrate --from v14 --to v17
@@ -107,7 +107,7 @@ Maps to: MigrationService + INFRA_substrate-upgrade-tool
 
 Export graph state to a portable format.
 
-```
+```text
 git warp export ./backup.warp
 git warp export ./state.json --format json
 ```
@@ -116,7 +116,7 @@ git warp export ./state.json --format json
 
 Import from a portable format.
 
-```
+```text
 git warp import ./backup.warp
 ```
 
@@ -126,7 +126,7 @@ git warp import ./backup.warp
 
 Long-running subscriber that emits state changes.
 
-```
+```text
 git warp watch
 git warp watch --ndjson  # one JSON object per change
 ```

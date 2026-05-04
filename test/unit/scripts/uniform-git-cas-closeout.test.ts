@@ -42,9 +42,9 @@ describe('uniform git-cas closeout', () => {
     const indexStore = readRepoFile('src/infrastructure/adapters/CborIndexStoreAdapter.ts');
     const pointer = readRepoFile('src/infrastructure/adapters/CasPayloadPointer.ts');
 
-    expect(checkpointStore).toContain('writePayloadBlob(this._blobPort, this._blobStorage');
+    expect(checkpointStore).toContain('writePayloadBlob({');
     expect(checkpointStore).toContain('readPayloadBlob(this._blobPort, this._blobStorage');
-    expect(indexStore).toContain('writePayloadBlob(this._blobPort, this._blobStorage');
+    expect(indexStore).toContain('writePayloadBlob({');
     expect(indexStore).toContain('readPayloadBlob(adapter._blobPort, adapter._blobStorage, blobOid)');
     expect(pointer).toContain('const storageOid = await blobStorage.store(bytes, options)');
     expect(pointer).toContain('return await blobPort.writeBlob(encodeCasPayloadPointer(storageOid))');

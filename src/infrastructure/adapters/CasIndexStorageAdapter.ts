@@ -34,7 +34,11 @@ export class CasIndexStorageAdapter extends StreamingIndexStoragePort {
 
   override async writeBlob(content: Uint8Array | string): Promise<string> {
     const bytes = typeof content === 'string' ? new TextEncoder().encode(content) : content;
-    return await writePayloadBlob(this._blobPort, this._blobStorage, bytes);
+    return await writePayloadBlob({
+      blobPort: this._blobPort,
+      blobStorage: this._blobStorage,
+      bytes,
+    });
   }
 
   override async readBlob(oid: string): Promise<Uint8Array> {

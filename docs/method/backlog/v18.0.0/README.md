@@ -37,7 +37,7 @@ Those doctrine and protocol surfaces live in
 
 ## Critical path
 
-```
+```text
 LAYER 0 (shape cut):
   [ ] PROTO_echo-shaped-node-records
   [ ] PROTO_echo-shaped-edge-records

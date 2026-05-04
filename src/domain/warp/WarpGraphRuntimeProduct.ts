@@ -1,8 +1,7 @@
-import { openRuntimeHostProduct } from './RuntimeHostProduct.ts';
-
-import type {
-  RuntimeGraphHostProduct,
-  RuntimeHostOpenOptions,
+import {
+  openRuntimeHostProduct,
+  type RuntimeGraphHostProduct,
+  type RuntimeHostOpenOptions,
 } from './RuntimeHostProduct.ts';
 
 export type WarpGraphRuntimeOpenOptions = RuntimeHostOpenOptions;

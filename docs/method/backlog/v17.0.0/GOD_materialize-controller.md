@@ -142,7 +142,7 @@ interface PatchCollector {
 
 ## Data flow
 
-```
+```text
 Consumer calls graph.materialize.snapshot()
   → MaterializeController.materialize()
     → patchCollector.collectForFrontier(frontier, ceiling)

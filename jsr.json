@@ -6,8 +6,6 @@
   },
   "exports": {
     ".": "./index.ts",
-    "./node": "./src/domain/entities/GraphNode.ts",
-    "./visualization": "./src/visualization/index.ts",
     "./browser": "./browser.ts",
     "./sha1sync": "./src/infrastructure/adapters/sha1sync.ts"
   },

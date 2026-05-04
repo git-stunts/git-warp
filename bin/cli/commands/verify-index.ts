@@ -34,10 +34,10 @@ export default async function handleVerifyIndex({ options, args }: { options: Cl
 
   let result;
   try {
-    result = await graph.verifyIndex({
+    result = await Promise.resolve(graph.verifyIndex({
       ...(values.seed !== undefined ? { seed: values.seed } : {}),
       sampleRate: values.sampleRate,
-    });
+    }));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const noIndex = /no bitmap index|cannot verify index|index not built/i.test(message);

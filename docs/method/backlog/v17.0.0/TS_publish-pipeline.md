@@ -132,16 +132,6 @@ add checks to `check-dts-surface.js`.
       "import": "./index.ts",
       "default": "./index.ts"
     },
-    "./node": {
-      "types": "./dist/types/src/domain/entities/GraphNode.d.ts",
-      "import": "./src/domain/entities/GraphNode.ts",
-      "default": "./src/domain/entities/GraphNode.ts"
-    },
-    "./visualization": {
-      "types": "./dist/types/src/visualization/index.d.ts",
-      "import": "./src/visualization/index.ts",
-      "default": "./src/visualization/index.ts"
-    },
     "./browser": {
       "types": "./dist/types/browser.d.ts",
       "import": "./browser.ts",
@@ -187,8 +177,6 @@ Update exports to point to `.ts` files:
   "version": "17.0.0",
   "exports": {
     ".": "./index.ts",
-    "./node": "./src/domain/entities/GraphNode.ts",
-    "./visualization": "./src/visualization/index.ts",
     "./browser": "./browser.ts",
     "./sha1sync": "./src/infrastructure/adapters/sha1sync.ts"
   },

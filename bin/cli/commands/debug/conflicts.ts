@@ -10,8 +10,7 @@ export const DEBUG_TOPIC = Object.freeze({
   summary: 'Analyze conflict provenance at the current frontier',
 });
 
-const CONFLICT_KINDS = ['supersession', 'eventual_override', 'redundancy'] as const;
-type ConflictKind = typeof CONFLICT_KINDS[number];
+type ConflictKind = 'supersession' | 'eventual_override' | 'redundancy';
 
 const DEBUG_CONFLICT_OPTIONS = {
   'strand': { type: 'string' },

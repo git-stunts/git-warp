@@ -1,10 +1,10 @@
 import type SeekCachePort from '../../ports/SeekCachePort.ts';
 import type { EffectPipeline } from '../services/EffectPipeline.ts';
 import type { WarpGraphRuntimeSurface } from './WarpGraphRuntimeProduct.ts';
-import { openRuntimeHostProduct } from './RuntimeHostProduct.ts';
-import type {
-  RuntimeHostOpenOptions,
-  RuntimeHostProduct,
+import {
+  openRuntimeHostProduct,
+  type RuntimeHostOpenOptions,
+  type RuntimeHostProduct,
 } from './RuntimeHostProduct.ts';
 
 export type WarpCoreOpenOptions = RuntimeHostOpenOptions;

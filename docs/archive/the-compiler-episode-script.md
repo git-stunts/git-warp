@@ -764,7 +764,7 @@ _Conference room. Glass walls. A monitor at one end of the table says_ iOS Platf
 
 _George stands just outside the glass, smoothing his shirt, breathing like a prizefighter. He clutches a legal pad on which he has written:_
 
-```
+```text
 - SWIFT = TREND
 - OBJC = TRUTH
 - BRACKETS = DISCIPLINE
@@ -1158,8 +1158,8 @@ _A small lecture room at a university or conference center. On the projector:_
 
 _Kramer sits onstage at a folding table, wearing a blazer over the penguin T-shirt, trying to look like a man who has always belonged in front of a room full of compiler perverts. In front of him: a placard._
 
-```
-Cosmo Kramer 
+```text
+Cosmo Kramer
 Independent
 ```
 
@@ -1332,7 +1332,7 @@ _Newman opens the folder. He has printouts. Of course he has printouts._
 _He walks to the front like a man delivering a subpoena. He hands the moderator a packet labeled:_
 
 ```text
-APPENDIX A 
+APPENDIX A
 KRAMER ENTRY: COMPILATION FAILURE LOG
 ```
 

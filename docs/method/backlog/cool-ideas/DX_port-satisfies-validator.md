@@ -20,7 +20,7 @@ Add a `satisfies` or validation function pattern that lets consumers
 verify a plain object implements a port contract without class
 inheritance:
 
-```ts
+```text
 import { validatePort } from '@git-stunts/git-warp';
 
 const myAdapter = validatePort(GraphPersistencePort, {

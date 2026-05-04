@@ -1,15 +1,15 @@
-import CodecPort from '../../ports/CodecPort.ts';
+import type CodecPort from '../../ports/CodecPort.ts';
 import BoundaryTransitionRecordCodecPort, {
   type BoundaryTransitionRecordDecodeResult,
 } from '../../ports/BoundaryTransitionRecordCodecPort.ts';
 import BoundaryTransitionRecord from '../../domain/services/provenance/BTR.ts';
-import BtrSigningEnvelope from '../../domain/services/provenance/BtrSigningEnvelope.ts';
+import type BtrSigningEnvelope from '../../domain/services/provenance/BtrSigningEnvelope.ts';
 import BtrSigningBytes from '../../domain/services/provenance/BtrSigningBytes.ts';
 import MessageCodecError from '../../domain/errors/MessageCodecError.ts';
 import VersionVector from '../../domain/crdt/VersionVector.ts';
 import type { Dot } from '../../domain/crdt/Dot.ts';
 import defaultCborCodec from '../codecs/CborCodec.ts';
-import Patch from '../../domain/types/Patch.ts';
+import type Patch from '../../domain/types/Patch.ts';
 import type { OpV2 } from '../../domain/types/ops/unions.ts';
 import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
 import type { PatchEntry } from '../../domain/services/provenance/BoundaryTransitionProvenance.ts';
@@ -28,8 +28,15 @@ function decodeErrorReason(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function readObject(value: unknown, label: string): object {
+function isRecord(value: unknown): value is Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value) || value instanceof Uint8Array) {
+    return false;
+  }
+  return true;
+}
+
+function readObject(value: unknown, label: string): Record<string, unknown> {
+  if (!isRecord(value)) {
     throw new MessageCodecError(`${label} must be an object`, {
       code: 'E_BTR_WIRE_INVALID_OBJECT',
     });
@@ -37,8 +44,8 @@ function readObject(value: unknown, label: string): object {
   return value;
 }
 
-function readString(source: object, field: string, label: string): string {
-  const value = Reflect.get(source, field);
+function readString(source: Record<string, unknown>, field: string, label: string): string {
+  const value = source[field];
   if (typeof value !== 'string') {
     throw new MessageCodecError(`${label}.${field} must be a string`, {
       code: 'E_BTR_WIRE_INVALID_STRING',
@@ -47,8 +54,8 @@ function readString(source: object, field: string, label: string): string {
   return value;
 }
 
-function readNumber(source: object, field: string, label: string): number {
-  const value = Reflect.get(source, field);
+function readNumber(source: Record<string, unknown>, field: string, label: string): number {
+  const value = source[field];
   if (typeof value !== 'number') {
     throw new MessageCodecError(`${label}.${field} must be a number`, {
       code: 'E_BTR_WIRE_INVALID_NUMBER',
@@ -57,8 +64,8 @@ function readNumber(source: object, field: string, label: string): number {
   return value;
 }
 
-function readBytes(source: object, field: string, label: string): Uint8Array {
-  const value = Reflect.get(source, field);
+function readBytes(source: Record<string, unknown>, field: string, label: string): Uint8Array {
+  const value = source[field];
   if (!(value instanceof Uint8Array)) {
     throw new MessageCodecError(`${label}.${field} must be bytes`, {
       code: 'E_BTR_WIRE_INVALID_BYTES',
@@ -70,13 +77,13 @@ function readBytes(source: object, field: string, label: string): Uint8Array {
 function readProvenanceEntry(value: unknown, label: string): PatchEntry {
   const source = readObject(value, label);
   return {
-    patch: hydrateDecodedPatch(Reflect.get(source, 'patch')),
+    patch: hydrateDecodedPatch(source['patch']),
     sha: readString(source, 'sha', label),
   };
 }
 
-function readProvenanceEntries(source: object, label: string): PatchEntry[] {
-  const value = Reflect.get(source, 'P');
+function readProvenanceEntries(source: Record<string, unknown>, label: string): PatchEntry[] {
+  const value = source['P'];
   if (!Array.isArray(value)) {
     throw new MessageCodecError(`${label}.P must be an array`, {
       code: 'E_BTR_WIRE_INVALID_PROVENANCE',
@@ -185,7 +192,15 @@ function toBtrCanonicalOperation(op: OpV2): BtrWireOperation {
         node: op.node,
         oid: op.oid,
       };
+    default:
+      return failUnsupportedBtrOperation(op);
   }
+}
+
+function failUnsupportedBtrOperation(_op: never): never {
+  throw new MessageCodecError('Unsupported BTR operation type', {
+    code: 'E_BTR_WIRE_UNSUPPORTED_OPERATION',
+  });
 }
 
 function sortedStrings(values: readonly string[] | undefined): readonly string[] | undefined {

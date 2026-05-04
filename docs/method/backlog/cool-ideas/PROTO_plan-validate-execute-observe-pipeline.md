@@ -13,7 +13,7 @@ executes it) is a command pattern. Patches already follow this
 
 Formalize it system-wide:
 
-```
+```text
 Plan    — immutable value object describing intent
 Validate — check the plan against current state
 Execute — apply the plan, produce effects
