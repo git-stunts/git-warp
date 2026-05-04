@@ -43,9 +43,16 @@ export default class CheckpointShardFactReader {
     if (oid === undefined) {
       return false;
     }
-    const reader = await new LogicalIndexReader({ codec: this._source._codec })
-      .loadFromOids({ [path]: oid }, this._source._persistence);
-    return reader.toLogicalIndex().isAlive(nodeId);
+    try {
+      const reader = await new LogicalIndexReader({ codec: this._source._codec })
+        .loadFromOids({ [path]: oid }, this._source._persistence);
+      return reader.toLogicalIndex().isAlive(nodeId);
+    } catch (error) {
+      const context = { graphName: this._source.graphName, path, oid };
+      const failure = error instanceof Error ? checkpointLogicalShardReadFailure(error, context) : null;
+      if (failure !== null) { throw failure; }
+      throw error;
+    }
   }
 
   async readProperty(
@@ -119,7 +126,28 @@ function checkpointShardReadFailure(
   if (reason === null) {
     return null;
   }
-  return new QueryError('No bounded checkpoint-tail property shard is available.', {
+  return checkpointShardReadFailureForReason(reason, context);
+}
+
+function checkpointLogicalShardReadFailure(
+  error: Error,
+  context: CheckpointShardReadFailureContext,
+): QueryError | null {
+  const failure = checkpointShardReadFailure(error, context);
+  if (failure !== null) {
+    return failure;
+  }
+  if (error instanceof TypeError) {
+    return checkpointShardReadFailureForReason(CHECKPOINT_SHARD_INVALID_CAUSE, context);
+  }
+  return null;
+}
+
+function checkpointShardReadFailureForReason(
+  reason: string,
+  context: CheckpointShardReadFailureContext,
+): QueryError {
+  return new QueryError('No bounded checkpoint-tail shard is available.', {
     code: 'E_OPTIC_NO_BOUNDED_BASIS',
     context: {
       graphName: context.graphName,

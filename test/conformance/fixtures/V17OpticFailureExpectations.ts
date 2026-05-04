@@ -49,7 +49,7 @@ export default class V17OpticFailureExpectations {
   expectShardUnavailableFailure(options: {
     readonly read: Promise<object>;
     readonly graphName: string;
-    readonly opticKind: 'node-property';
+    readonly opticKind: 'node' | 'node-property';
     readonly target: object;
   }): Promise<void> {
     return this.expectNoBoundedBasisFailure({

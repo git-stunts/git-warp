@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import V17CheckpointNodeLivenessShardFixture from './fixtures/V17CheckpointNodeLivenessShardFixture.ts';
 import V17CheckpointPropertyShardFixture from './fixtures/V17CheckpointPropertyShardFixture.ts';
 import {
   CHECKPOINT_NODE_ID,
@@ -201,6 +202,49 @@ describe('v17 checkpoint-tail optic read basis', () => {
       graphName,
       opticKind: 'node-property',
       target: { nodeId: CHECKPOINT_NODE_ID, propertyKey: PROPERTY_KEY },
+      cause: 'checkpoint-shard-invalid',
+    });
+    materialization.expectUnused();
+  });
+
+  it('requires unavailable checkpoint node liveness shards to fail closed without materialization', async () => {
+    const graphName = 'v17-optic-node-shard-missing-red';
+    const fixture = await V17CheckpointTailOpticGraphFixture.openIndexedCheckpoint(graphName);
+    const graph = fixture.graph;
+    const nodeLivenessShard = await V17CheckpointNodeLivenessShardFixture.forNode(graph, CHECKPOINT_NODE_ID);
+    nodeLivenessShard.makeUnavailable();
+    const materialization = new V17MaterializationFallbackTrap(
+      graph,
+      'unavailable checkpoint node liveness shard must not fall back to materialization',
+    );
+    const readPath = new V17PublicOpticReadPath(graph.worldline());
+
+    await failures.expectShardUnavailableFailure({
+      read: readPath.readNode(CHECKPOINT_NODE_ID),
+      graphName,
+      opticKind: 'node',
+      target: { nodeId: CHECKPOINT_NODE_ID },
+    });
+    materialization.expectUnused();
+  });
+
+  it('requires invalid checkpoint node liveness shards to fail closed without materialization', async () => {
+    const graphName = 'v17-optic-node-shard-invalid-red';
+    const fixture = await V17CheckpointTailOpticGraphFixture.openIndexedCheckpoint(graphName);
+    const graph = fixture.graph;
+    const nodeLivenessShard = await V17CheckpointNodeLivenessShardFixture.forNode(graph, CHECKPOINT_NODE_ID);
+    nodeLivenessShard.makeInvalid();
+    const materialization = new V17MaterializationFallbackTrap(
+      graph,
+      'invalid checkpoint node liveness shard must not fall back to materialization',
+    );
+    const readPath = new V17PublicOpticReadPath(graph.worldline());
+
+    await failures.expectNoBoundedBasisFailure({
+      read: readPath.readNode(CHECKPOINT_NODE_ID),
+      graphName,
+      opticKind: 'node',
+      target: { nodeId: CHECKPOINT_NODE_ID },
       cause: 'checkpoint-shard-invalid',
     });
     materialization.expectUnused();
