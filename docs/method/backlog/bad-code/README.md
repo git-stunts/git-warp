@@ -9,13 +9,13 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 | Code | Invariant | Count |
 |------|-----------|------:|
 | [HEX](../../legends/HEX.md) | No host, infrastructure, raw Git, ambient time, or ambient entropy leaks into core. | 18 |
-| [BND](../../legends/BOUNDARY.md) | Decode, validate, and schema-check at the boundary; raw transport shapes do not leak inward. | 7 |
+| [BND](../../legends/BOUNDARY.md) | Decode, validate, and schema-check at the boundary; raw transport shapes do not leak inward. | 8 |
 | [MODEL](../../legends/MODEL.md) | Runtime truth wins: real classes, constructor invariants, and honest domain forms. | 22 |
 | [CAST](../../legends/CAST.md) | No cast-cosplay, escape hatches, or type lies. | 9 |
-| [PORT](../../legends/PORT.md) | Capability and port surfaces must tell the runtime truth. | 11 |
-| [OWN](../../legends/OWNERSHIP.md) | One owner per behavior: no gods, no duplication corridors, no mixed-concern facades. | 31 |
+| [PORT](../../legends/PORT.md) | Capability and port surfaces must tell the runtime truth. | 12 |
+| [OWN](../../legends/OWNERSHIP.md) | One owner per behavior: no gods, no duplication corridors, no mixed-concern facades. | 32 |
 | [SUB](../../legends/SUBSTRATE.md) | Substrate integrity: streaming, CAS, checkpoint, index, and versioned storage stay explicit. | 14 |
-| [SPEC](../../legends/SPEC.md) | Tests, docs, mocks, and coverage residue must reflect the real contract. | 113 |
+| [SPEC](../../legends/SPEC.md) | Tests, docs, mocks, and coverage residue must reflect the real contract. | 117 |
 
 ## Release Homes
 
@@ -30,7 +30,7 @@ card metadata or promoting bad-code into a release lane.
 
 | Release Home | Count |
 |--------------|------:|
-| `v17.0.0` | 187 |
+| `v17.0.0` | 194 |
 | `v18.0.0` | 12 |
 | `v19.0.0` | 11 |
 | `v20.0.0` | 15 |
@@ -59,8 +59,9 @@ card metadata or promoting bad-code into a release lane.
 - [HEX_warpserve-domain-infra-blur.md](HEX_warpserve-domain-infra-blur.md)
 - [HEX_domain-crypto-hex.md](HEX_domain-crypto-hex.md)
 
-### Boundary Decode (`BND`) — 7
+### Boundary Decode (`BND`) — 8
 
+- [BND_checkpoint-schema-contract-drift.md](BND_checkpoint-schema-contract-drift.md)
 - [BND_cbor-no-depth-limits.md](BND_cbor-no-depth-limits.md)
 - [BND_checkpoint-deserialize-null-silent.md](BND_checkpoint-deserialize-null-silent.md)
 - [BND_logger-bridge-no-validation.md](BND_logger-bridge-no-validation.md)
@@ -106,7 +107,7 @@ card metadata or promoting bad-code into a release lane.
 - [CAST_wormhole-service-defensive-tail-branches.md](CAST_wormhole-service-defensive-tail-branches.md)
 - [CAST_callInternalRuntimeMethod-escape-hatch.md](CAST_callInternalRuntimeMethod-escape-hatch.md)
 
-### Capability Surface (`PORT`) — 11
+### Capability Surface (`PORT`) — 12
 
 - [PORT_cbor-codec-triple-export.md](PORT_cbor-codec-triple-export.md)
 - [PORT_git-adapter-encapsulation.md](PORT_git-adapter-encapsulation.md)
@@ -118,9 +119,10 @@ card metadata or promoting bad-code into a release lane.
 - [PORT_effect-sink-union-return.md](PORT_effect-sink-union-return.md)
 - [PORT_graphpersistenceport-missing-configport.md](PORT_graphpersistenceport-missing-configport.md)
 - [PORT_hookinstaller-ad-hoc-git-config-callback.md](PORT_hookinstaller-ad-hoc-git-config-callback.md)
+- [PORT_half-deleted-materialization-seam.md](PORT_half-deleted-materialization-seam.md)
 - [PORT_persistence-port-instanceof.md](PORT_persistence-port-instanceof.md)
 
-### Ownership (`OWN`) — 31
+### Ownership (`OWN`) — 32
 
 - [OWN_always-true-null-checks.md](OWN_always-true-null-checks.md)
 - [OWN_bare-function-subscriber-type.md](OWN_bare-function-subscriber-type.md)
@@ -145,6 +147,7 @@ card metadata or promoting bad-code into a release lane.
 - [OWN_exact-optional-conditional-spread.md](OWN_exact-optional-conditional-spread.md)
 - [OWN_materialize-requires-empty-options.md](OWN_materialize-requires-empty-options.md)
 - [OWN_sorted-replacer-dry.md](OWN_sorted-replacer-dry.md)
+- [OWN_runtimehost-500-loc-regression.md](OWN_runtimehost-500-loc-regression.md)
 - [OWN_warpruntime-delegation-dry.md](OWN_warpruntime-delegation-dry.md)
 - [OWN_underused-ecosystem-packages.md](OWN_underused-ecosystem-packages.md)
 - [OWN_conflict-analyzer-dead-branches.md](OWN_conflict-analyzer-dead-branches.md)
@@ -170,10 +173,11 @@ card metadata or promoting bad-code into a release lane.
 - [SUB_streaming-bitmap-index-builder-serialization-tail.md](SUB_streaming-bitmap-index-builder-serialization-tail.md)
 - [SUB_trie-geometry-profile-contract-and-scale-gaps.md](SUB_trie-geometry-profile-contract-and-scale-gaps.md)
 
-### Spec Honesty (`SPEC`) — 113
+### Spec Honesty (`SPEC`) — 117
 
 - [SPEC_audit-tests-vacuous-early-return.md](SPEC_audit-tests-vacuous-early-return.md)
 - [SPEC_codec-module-untested.md](SPEC_codec-module-untested.md)
+- [SPEC_consumer-typecheck-materialize-residue.md](SPEC_consumer-typecheck-materialize-residue.md)
 - [SPEC_dag-pathfinding-untested.md](SPEC_dag-pathfinding-untested.md)
 - [SPEC_deno-adapter-tautology.md](SPEC_deno-adapter-tautology.md)
 - [SPEC_eslint-relaxed-complexity-stale.md](SPEC_eslint-relaxed-complexity-stale.md)
@@ -196,6 +200,7 @@ card metadata or promoting bad-code into a release lane.
 - [SPEC_claude-md-24-inaccuracies.md](SPEC_claude-md-24-inaccuracies.md)
 - [SPEC_error-code-naming-inconsistency.md](SPEC_error-code-naming-inconsistency.md)
 - [SPEC_index-dts-hand-maintained.md](SPEC_index-dts-hand-maintained.md)
+- [SPEC_docs-materialize-frontdoor-drift.md](SPEC_docs-materialize-frontdoor-drift.md)
 - [SPEC_test-gods-30-over-800.md](SPEC_test-gods-30-over-800.md)
 - [SPEC_test-helper-overlap.md](SPEC_test-helper-overlap.md)
 - [SPEC_test-mock-persistence-incomplete.md](SPEC_test-mock-persistence-incomplete.md)
@@ -268,11 +273,13 @@ card metadata or promoting bad-code into a release lane.
 - [SPEC_static-text-test-sludge-trie-store-port.md](SPEC_static-text-test-sludge-trie-store-port.md)
 - [SPEC_static-text-test-sludge-type-import-hygiene-shape.md](SPEC_static-text-test-sludge-type-import-hygiene-shape.md)
 - [SPEC_static-text-test-sludge-uniform-git-cas-closeout.md](SPEC_static-text-test-sludge-uniform-git-cas-closeout.md)
+- [SPEC_standard-doc-discovery-gap.md](SPEC_standard-doc-discovery-gap.md)
 - [SPEC_static-text-test-sludge-v17-checkpoint-tail-optic-read-basis.md](SPEC_static-text-test-sludge-v17-checkpoint-tail-optic-read-basis.md)
 - [SPEC_static-text-test-sludge-v17-materialization-contract-docs.md](SPEC_static-text-test-sludge-v17-materialization-contract-docs.md)
 - [SPEC_static-text-test-sludge-v17-migration-script-hygiene.md](SPEC_static-text-test-sludge-v17-migration-script-hygiene.md)
 - [SPEC_static-text-test-sludge-v17-public-reading-surface.md](SPEC_static-text-test-sludge-v17-public-reading-surface.md)
 - [SPEC_static-text-test-sludge-v17-worldline-reading-surface.md](SPEC_static-text-test-sludge-v17-worldline-reading-surface.md)
+- [SPEC_uniform-git-cas-upgrade-contract-drift.md](SPEC_uniform-git-cas-upgrade-contract-drift.md)
 - [SPEC_static-text-test-sludge-v7-guards.md](SPEC_static-text-test-sludge-v7-guards.md)
 - [SPEC_static-text-test-sludge-warp-drift-crosslinks-shape.md](SPEC_static-text-test-sludge-warp-drift-crosslinks-shape.md)
 - [SPEC_static-text-test-sludge-warp-drift-release-slotting-shape.md](SPEC_static-text-test-sludge-warp-drift-release-slotting-shape.md)
