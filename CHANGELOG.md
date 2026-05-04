@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **v17 release scope narrowed honestly** — v17 claims TypeScript migration, public API honesty, materialization-frontdoor deletion, optics/readings direction, and query read-model groundwork. It does **not** claim live large-graph bounded `graph.query()` residency over stale checkpoint plus live tail; that remains blocked on a post-v17 live-tail bounded query/checksum substrate. The graph-level exact-id bounded-query witness is preserved under `test/conformance/post-v17/graphQueryBoundedProvider.blocked.test.ts`.
 - **100% TypeScript** — All 100 remaining `.js` files converted to `.ts`. JSR ships TypeScript source directly; npm ships compiled JavaScript and generated declarations from `dist/`. The root config pair now lives at `eslint.config.ts` and `vitest.config.ts`.
 
 ### Fixed

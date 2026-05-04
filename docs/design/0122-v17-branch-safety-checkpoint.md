@@ -160,3 +160,26 @@ Recommended immediate next action:
 The checkpoint answer is: v17 is not dead, but it is also not
 post-0105-clean. The first next slice should be one exposed read-model
 scale, not a dragon hunt.
+
+## 0123 Addendum
+
+Cycle 0123 sharpens the "repair or re-scope" recommendation above:
+do not attempt a production repair of the `graphQueryBoundedProvider`
+witness inside v17.
+
+`docs/design/0110-graph-query-bounded-read-model-provider.md` already
+proved that the graph-level exact-id/id-only query path is GREEN
+blocked without a real live-tail bounded query/checksum substrate. The
+failing witness is therefore not a 0105 regression. 0105 fixed
+`QueryRunner`'s runtime-shaped dependency. 0110 showed the default
+graph provider path still lacks an honest live bounded source.
+
+0123 chooses the honest v17 release scope:
+
+- v17 may claim TypeScript migration, public API honesty,
+  materialization-frontdoor deletion, optics/readings direction, and
+  query read-model groundwork.
+- v17 must not claim live large-graph bounded `graph.query()` residency
+  over stale checkpoint plus live tail.
+- The graph-level exact-id bounded-query witness remains visible as a
+  post-v17 blocked witness, not a red v17 release gate.
