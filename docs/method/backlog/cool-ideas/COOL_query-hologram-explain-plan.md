@@ -1,3 +1,10 @@
+---
+id: COOL_query-hologram-explain-plan
+blocked_by: []
+blocks: []
+feature: materialization-query-index
+---
+
 # Query Hologram Explain Plan
 
 ## Idea

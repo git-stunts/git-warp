@@ -1,3 +1,10 @@
+---
+id: COOL_sludge-score-dashboard
+blocked_by: []
+blocks: []
+feature: testing-quality
+---
+
 # Sludge Score Dashboard
 
 ## Idea

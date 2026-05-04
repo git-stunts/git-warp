@@ -1,3 +1,10 @@
+---
+id: COOL_query-cursor-fuzzer
+blocked_by: []
+blocks: []
+feature: materialization-query-index
+---
+
 # Query Cursor Fuzzer
 
 ## Idea

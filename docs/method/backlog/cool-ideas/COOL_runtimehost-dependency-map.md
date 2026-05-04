@@ -1,3 +1,10 @@
+---
+id: COOL_runtimehost-dependency-map
+blocked_by: []
+blocks: []
+feature: runtime-boundaries
+---
+
 # RuntimeHost Dependency Map
 
 ## Idea

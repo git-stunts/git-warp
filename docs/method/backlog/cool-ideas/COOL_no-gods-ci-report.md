@@ -1,3 +1,10 @@
+---
+id: COOL_no-gods-ci-report
+blocked_by: []
+blocks: []
+feature: testing-quality
+---
+
 # NO GODS CI Report
 
 ## Idea

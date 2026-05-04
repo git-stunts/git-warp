@@ -1,3 +1,10 @@
+---
+id: COOL_precommit-sludge-guillotine
+blocked_by: []
+blocks: []
+feature: testing-quality
+---
+
 # Precommit Sludge Guillotine
 
 ## Idea

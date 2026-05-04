@@ -14,8 +14,8 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 | [CAST](../../legends/CAST.md) | No cast-cosplay, escape hatches, or type lies. | 9 |
 | [PORT](../../legends/PORT.md) | Capability and port surfaces must tell the runtime truth. | 11 |
 | [OWN](../../legends/OWNERSHIP.md) | One owner per behavior: no gods, no duplication corridors, no mixed-concern facades. | 31 |
-| [SUB](../../legends/SUBSTRATE.md) | Substrate integrity: streaming, CAS, checkpoint, index, and versioned storage stay explicit. | 13 |
-| [SPEC](../../legends/SPEC.md) | Tests, docs, mocks, and coverage residue must reflect the real contract. | 32 |
+| [SUB](../../legends/SUBSTRATE.md) | Substrate integrity: streaming, CAS, checkpoint, index, and versioned storage stay explicit. | 14 |
+| [SPEC](../../legends/SPEC.md) | Tests, docs, mocks, and coverage residue must reflect the real contract. | 113 |
 
 ## Release Homes
 
@@ -30,8 +30,8 @@ card metadata or promoting bad-code into a release lane.
 
 | Release Home | Count |
 |--------------|------:|
-| `v17.0.0` | 101 |
-| `v18.0.0` | 10 |
+| `v17.0.0` | 187 |
+| `v18.0.0` | 12 |
 | `v19.0.0` | 11 |
 | `v20.0.0` | 15 |
 | `v21.0.0` | 7 |
@@ -154,7 +154,7 @@ card metadata or promoting bad-code into a release lane.
 - [OWN_trust-evaluator-coupling.md](OWN_trust-evaluator-coupling.md)
 - [OWN_trust-record-service-smells.md](OWN_trust-record-service-smells.md)
 
-### Substrate (`SUB`) — 13
+### Substrate (`SUB`) — 14
 
 - [SUB_bitmap-index-trio-coupling.md](SUB_bitmap-index-trio-coupling.md)
 - [SUB_bitmap-reader-silent-corruption.md](SUB_bitmap-reader-silent-corruption.md)
@@ -170,7 +170,7 @@ card metadata or promoting bad-code into a release lane.
 - [SUB_streaming-bitmap-index-builder-serialization-tail.md](SUB_streaming-bitmap-index-builder-serialization-tail.md)
 - [SUB_trie-geometry-profile-contract-and-scale-gaps.md](SUB_trie-geometry-profile-contract-and-scale-gaps.md)
 
-### Spec Honesty (`SPEC`) — 32
+### Spec Honesty (`SPEC`) — 113
 
 - [SPEC_audit-tests-vacuous-early-return.md](SPEC_audit-tests-vacuous-early-return.md)
 - [SPEC_codec-module-untested.md](SPEC_codec-module-untested.md)
@@ -204,3 +204,84 @@ card metadata or promoting bad-code into a release lane.
 - [SPEC_inmemory-graph-adapter-default-hash-unavailable-branch.md](SPEC_inmemory-graph-adapter-default-hash-unavailable-branch.md)
 - [SPEC_js-test-typecheck-drift.md](SPEC_js-test-typecheck-drift.md)
 - [SPEC_state-diff-private-helper-residue.md](SPEC_state-diff-private-helper-residue.md)
+- [SPEC_static-text-test-sludge-architecture-doc-shape.md](SPEC_static-text-test-sludge-architecture-doc-shape.md)
+- [SPEC_static-text-test-sludge-backlog-debt-release-home.md](SPEC_static-text-test-sludge-backlog-debt-release-home.md)
+- [SPEC_static-text-test-sludge-backlog-feature-scope.md](SPEC_static-text-test-sludge-backlog-feature-scope.md)
+- [SPEC_static-text-test-sludge-btr-provenance-boundary.md](SPEC_static-text-test-sludge-btr-provenance-boundary.md)
+- [SPEC_static-text-test-sludge-btr-signing-bytes-ownership.md](SPEC_static-text-test-sludge-btr-signing-bytes-ownership.md)
+- [SPEC_static-text-test-sludge-capability-consumer-migration-closeout.md](SPEC_static-text-test-sludge-capability-consumer-migration-closeout.md)
+- [SPEC_static-text-test-sludge-capability-interfaces-closeout.md](SPEC_static-text-test-sludge-capability-interfaces-closeout.md)
+- [SPEC_static-text-test-sludge-cast-quarantine-graduation.md](SPEC_static-text-test-sludge-cast-quarantine-graduation.md)
+- [SPEC_static-text-test-sludge-changelog-config-extension-shape.md](SPEC_static-text-test-sludge-changelog-config-extension-shape.md)
+- [SPEC_static-text-test-sludge-cli-guide-shape.md](SPEC_static-text-test-sludge-cli-guide-shape.md)
+- [SPEC_static-text-test-sludge-comparison-live-coordinate-seam.md](SPEC_static-text-test-sludge-comparison-live-coordinate-seam.md)
+- [SPEC_static-text-test-sludge-conflict-target-identity-fake-model-graduation.md](SPEC_static-text-test-sludge-conflict-target-identity-fake-model-graduation.md)
+- [SPEC_static-text-test-sludge-contamination-dynamic-imports-shape.md](SPEC_static-text-test-sludge-contamination-dynamic-imports-shape.md)
+- [SPEC_static-text-test-sludge-content-access-duplication-shape.md](SPEC_static-text-test-sludge-content-access-duplication-shape.md)
+- [SPEC_static-text-test-sludge-dead-code-cleanup-shape.md](SPEC_static-text-test-sludge-dead-code-cleanup-shape.md)
+- [SPEC_static-text-test-sludge-delete-warpruntime-class-split.md](SPEC_static-text-test-sludge-delete-warpruntime-class-split.md)
+- [SPEC_static-text-test-sludge-documentation-corpus-shape.md](SPEC_static-text-test-sludge-documentation-corpus-shape.md)
+- [SPEC_static-text-test-sludge-domain-purity.md](SPEC_static-text-test-sludge-domain-purity.md)
+- [SPEC_static-text-test-sludge-factory-functions-in-tests-shape.md](SPEC_static-text-test-sludge-factory-functions-in-tests-shape.md)
+- [SPEC_static-text-test-sludge-gitgraphadapter-git-cas-persistence.md](SPEC_static-text-test-sludge-gitgraphadapter-git-cas-persistence.md)
+- [SPEC_static-text-test-sludge-glossary-shape.md](SPEC_static-text-test-sludge-glossary-shape.md)
+- [SPEC_static-text-test-sludge-hook-installer.md](SPEC_static-text-test-sludge-hook-installer.md)
+- [SPEC_static-text-test-sludge-hygiene-quarantine-graduation.md](SPEC_static-text-test-sludge-hygiene-quarantine-graduation.md)
+- [SPEC_static-text-test-sludge-immutable-snapshot-builder.md](SPEC_static-text-test-sludge-immutable-snapshot-builder.md)
+- [SPEC_static-text-test-sludge-incremental-index-updater-closeout-shape.md](SPEC_static-text-test-sludge-incremental-index-updater-closeout-shape.md)
+- [SPEC_static-text-test-sludge-index-builder-on-git-cas-shape.md](SPEC_static-text-test-sludge-index-builder-on-git-cas-shape.md)
+- [SPEC_static-text-test-sludge-internal-runtime-shim-closeout.md](SPEC_static-text-test-sludge-internal-runtime-shim-closeout.md)
+- [SPEC_static-text-test-sludge-kill-warpruntime-split.md](SPEC_static-text-test-sludge-kill-warpruntime-split.md)
+- [SPEC_static-text-test-sludge-markdownlint-config.md](SPEC_static-text-test-sludge-markdownlint-config.md)
+- [SPEC_static-text-test-sludge-migrate-warpruntime-test-helper-split.md](SPEC_static-text-test-sludge-migrate-warpruntime-test-helper-split.md)
+- [SPEC_static-text-test-sludge-non-ts-tail-shape.md](SPEC_static-text-test-sludge-non-ts-tail-shape.md)
+- [SPEC_static-text-test-sludge-observer-capability-seam.md](SPEC_static-text-test-sludge-observer-capability-seam.md)
+- [SPEC_static-text-test-sludge-observer-geometry-ladder-shape.md](SPEC_static-text-test-sludge-observer-geometry-ladder-shape.md)
+- [SPEC_static-text-test-sludge-openwarpgraph-composition-root.md](SPEC_static-text-test-sludge-openwarpgraph-composition-root.md)
+- [SPEC_static-text-test-sludge-openwarpruntime-bridge-closeout.md](SPEC_static-text-test-sludge-openwarpruntime-bridge-closeout.md)
+- [SPEC_static-text-test-sludge-orsetlike-contract-closeout.md](SPEC_static-text-test-sludge-orsetlike-contract-closeout.md)
+- [SPEC_static-text-test-sludge-patch-codec-tripwire.md](SPEC_static-text-test-sludge-patch-codec-tripwire.md)
+- [SPEC_static-text-test-sludge-pre-push-hook.md](SPEC_static-text-test-sludge-pre-push-hook.md)
+- [SPEC_static-text-test-sludge-public-api-advanced-guide-shape.md](SPEC_static-text-test-sludge-public-api-advanced-guide-shape.md)
+- [SPEC_static-text-test-sludge-public-api-aperture-noun.md](SPEC_static-text-test-sludge-public-api-aperture-noun.md)
+- [SPEC_static-text-test-sludge-public-api-cost-signaling.md](SPEC_static-text-test-sludge-public-api-cost-signaling.md)
+- [SPEC_static-text-test-sludge-public-api-facade-split.md](SPEC_static-text-test-sludge-public-api-facade-split.md)
+- [SPEC_static-text-test-sludge-public-api-getting-started-shape.md](SPEC_static-text-test-sludge-public-api-getting-started-shape.md)
+- [SPEC_static-text-test-sludge-public-api-guide-shape.md](SPEC_static-text-test-sludge-public-api-guide-shape.md)
+- [SPEC_static-text-test-sludge-public-api-observer-label.md](SPEC_static-text-test-sludge-public-api-observer-label.md)
+- [SPEC_static-text-test-sludge-public-api-observer-noun.md](SPEC_static-text-test-sludge-public-api-observer-noun.md)
+- [SPEC_static-text-test-sludge-public-api-readme-shape.md](SPEC_static-text-test-sludge-public-api-readme-shape.md)
+- [SPEC_static-text-test-sludge-public-api-strand-noun.md](SPEC_static-text-test-sludge-public-api-strand-noun.md)
+- [SPEC_static-text-test-sludge-query-builder-closeout.md](SPEC_static-text-test-sludge-query-builder-closeout.md)
+- [SPEC_static-text-test-sludge-query-controller-capability-seam.md](SPEC_static-text-test-sludge-query-controller-capability-seam.md)
+- [SPEC_static-text-test-sludge-query-read-model-seam.md](SPEC_static-text-test-sludge-query-read-model-seam.md)
+- [SPEC_static-text-test-sludge-read-api-doc-consistency.md](SPEC_static-text-test-sludge-read-api-doc-consistency.md)
+- [SPEC_static-text-test-sludge-release-policy-shape.md](SPEC_static-text-test-sludge-release-policy-shape.md)
+- [SPEC_static-text-test-sludge-remaining-big-files-closeout-shape.md](SPEC_static-text-test-sludge-remaining-big-files-closeout-shape.md)
+- [SPEC_static-text-test-sludge-runtime-controller-host-types.md](SPEC_static-text-test-sludge-runtime-controller-host-types.md)
+- [SPEC_static-text-test-sludge-runtime-helper-wrapper-seams.md](SPEC_static-text-test-sludge-runtime-helper-wrapper-seams.md)
+- [SPEC_static-text-test-sludge-runtime-host-product-seam.md](SPEC_static-text-test-sludge-runtime-host-product-seam.md)
+- [SPEC_static-text-test-sludge-runtime-wiring-surface-closeout.md](SPEC_static-text-test-sludge-runtime-wiring-surface-closeout.md)
+- [SPEC_static-text-test-sludge-sludge-atlas.md](SPEC_static-text-test-sludge-sludge-atlas.md)
+- [SPEC_static-text-test-sludge-snapshot-prop-value-api-model.md](SPEC_static-text-test-sludge-snapshot-prop-value-api-model.md)
+- [SPEC_static-text-test-sludge-streaming-memory-audit-closeout.md](SPEC_static-text-test-sludge-streaming-memory-audit-closeout.md)
+- [SPEC_static-text-test-sludge-trie-store-port.md](SPEC_static-text-test-sludge-trie-store-port.md)
+- [SPEC_static-text-test-sludge-type-import-hygiene-shape.md](SPEC_static-text-test-sludge-type-import-hygiene-shape.md)
+- [SPEC_static-text-test-sludge-uniform-git-cas-closeout.md](SPEC_static-text-test-sludge-uniform-git-cas-closeout.md)
+- [SPEC_static-text-test-sludge-v17-checkpoint-tail-optic-read-basis.md](SPEC_static-text-test-sludge-v17-checkpoint-tail-optic-read-basis.md)
+- [SPEC_static-text-test-sludge-v17-materialization-contract-docs.md](SPEC_static-text-test-sludge-v17-materialization-contract-docs.md)
+- [SPEC_static-text-test-sludge-v17-migration-script-hygiene.md](SPEC_static-text-test-sludge-v17-migration-script-hygiene.md)
+- [SPEC_static-text-test-sludge-v17-public-reading-surface.md](SPEC_static-text-test-sludge-v17-public-reading-surface.md)
+- [SPEC_static-text-test-sludge-v17-worldline-reading-surface.md](SPEC_static-text-test-sludge-v17-worldline-reading-surface.md)
+- [SPEC_static-text-test-sludge-v7-guards.md](SPEC_static-text-test-sludge-v7-guards.md)
+- [SPEC_static-text-test-sludge-warp-drift-crosslinks-shape.md](SPEC_static-text-test-sludge-warp-drift-crosslinks-shape.md)
+- [SPEC_static-text-test-sludge-warp-drift-release-slotting-shape.md](SPEC_static-text-test-sludge-warp-drift-release-slotting-shape.md)
+- [SPEC_static-text-test-sludge-warpapp-capability-bridge.md](SPEC_static-text-test-sludge-warpapp-capability-bridge.md)
+- [SPEC_static-text-test-sludge-warpcore-runtime-bridge.md](SPEC_static-text-test-sludge-warpcore-runtime-bridge.md)
+- [SPEC_static-text-test-sludge-warpgraph-capability-seam.md](SPEC_static-text-test-sludge-warpgraph-capability-seam.md)
+- [SPEC_static-text-test-sludge-warpgraph-factory-closeout.md](SPEC_static-text-test-sludge-warpgraph-factory-closeout.md)
+- [SPEC_static-text-test-sludge-warpgraph-runtime-bridge-closeout.md](SPEC_static-text-test-sludge-warpgraph-runtime-bridge-closeout.md)
+- [SPEC_static-text-test-sludge-warpgraph-test-utils-structure.md](SPEC_static-text-test-sludge-warpgraph-test-utils-structure.md)
+- [SPEC_static-text-test-sludge-warpruntime-helper-migration.md](SPEC_static-text-test-sludge-warpruntime-helper-migration.md)
+- [SPEC_static-text-test-sludge-warpruntime-suite-migration.md](SPEC_static-text-test-sludge-warpruntime-suite-migration.md)
+- [SPEC_static-text-test-sludge-worldline-detached-factory-seam.md](SPEC_static-text-test-sludge-worldline-detached-factory-seam.md)

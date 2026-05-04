@@ -13,8 +13,8 @@ After the first metadata cleanup pass:
 
 | Release Home | Count | Read |
 |--------------|------:|------|
-| `v17.0.0` | 101 | Current-engine cleanup bucket. Includes runtime-deletion fallout and stale-card rechecks. |
-| `v18.0.0` | 10 | Graph-substrate cards promoted out of generic v17 cleanup. |
+| `v17.0.0` | 187 | Current-engine cleanup bucket. Includes runtime-deletion fallout and stale-card rechecks. |
+| `v18.0.0` | 12 | Graph-substrate cards promoted out of generic v17 cleanup. |
 | `v19.0.0` | 11 | Observer/admission/runtime-doctrine cleanup. |
 | `v20.0.0` | 15 | Slice-first read, index, traversal, and materialization-cost work. |
 | `v21.0.0` | 7 | Strand, wormhole, conflict, and plural/distributed cleanup. |

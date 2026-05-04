@@ -1,3 +1,10 @@
+---
+id: COOL_observer-query-coordinate-language
+blocked_by: []
+blocks: []
+feature: materialization-query-index
+---
+
 # Observer Query Coordinate Language
 
 ## Idea

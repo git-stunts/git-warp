@@ -1,3 +1,10 @@
+---
+id: COOL_sludge-striker-end-of-turn-protocol
+blocked_by: []
+blocks: []
+feature: testing-quality
+---
+
 # Sludge Striker End-of-Turn Protocol
 
 ## Idea
