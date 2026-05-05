@@ -4,6 +4,7 @@
 - Date: 2026-05-04
 - Release lane: `v17.0.0`
 - CSV matrix: [0124-v17-release-blocker-matrix.csv](0124-v17-release-blocker-matrix.csv)
+- Status table: [0124-v17-release-blocker-status.csv](0124-v17-release-blocker-status.csv)
 - Graphviz source: [0124-v17-release-blocker-dag.dot](0124-v17-release-blocker-dag.dot)
 - SVG graph: [0124-v17-release-blocker-dag.svg](0124-v17-release-blocker-dag.svg)
 
@@ -164,7 +165,6 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `SPEC_consumer-typecheck-materialize-residue`
 - `SPEC_docs-materialize-frontdoor-drift`
 - `BND_checkpoint-schema-contract-drift`
 - `PORT_patch-controller-reading-basis`
@@ -173,10 +173,10 @@ The tasks with no direct blockers are:
 - `SPEC_uniform-git-cas-upgrade-contract-drift`
 - `HEX_sync-secret-plain-string`
 
-The smallest next pull remains
-`SPEC_consumer-typecheck-materialize-residue`: it has a current RED gate,
-small blast radius, and directly supports the public materialization
-frontdoor deletion.
+`SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125. The
+smallest next pull is now `SPEC_docs-materialize-frontdoor-drift`
+because it has no incomplete parents and directly feeds the runtime error
+guidance task.
 
 ## Regeneration
 

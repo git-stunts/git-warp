@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The consumer typecheck gate now proves the v17 `openWarpGraph()` surface has no public materialize capability bag and positively covers the blessed `graph.query` read path through state snapshots, query builders, worldlines, observers, and node props.
 - Release hygiene gates now track the generated npm package surface, smoke the packed npm tarball before release tagging, remove stale `./visualization` and `./node` subpath exports, point CI at `bin/warp-graph.ts`, share v17 migration traversal, use custom script errors, and keep Markdown/code-sample/whitespace lint clean.
 
 ### Breaking

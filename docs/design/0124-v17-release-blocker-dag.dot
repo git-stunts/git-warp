@@ -30,8 +30,10 @@ digraph V17ReleaseBlockers {
   ];
 
   "SPEC_consumer-typecheck-materialize-residue" [
-    fillcolor="#dbeafe",
-    label="SPEC_consumer-typecheck\nmaterialize residue"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nSPEC_consumer-typecheck\nmaterialize residue",
+    penwidth=2.4
   ];
   "SPEC_docs-materialize-frontdoor-drift" [
     fillcolor="#dbeafe",

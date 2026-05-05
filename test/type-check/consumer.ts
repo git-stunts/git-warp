@@ -315,8 +315,12 @@ void graphBagWriter;
 const materialized: SnapshotWarpState = await graph.materialize();
 const materializedWithReceipts: { state: SnapshotWarpState; receipts: readonly ReturnType<typeof createTickReceipt>[] } =
   await graph.materialize({ receipts: true });
-const graphBagMaterialized: SnapshotWarpState = await graphBag.materialize.materialize();
 const stateSnapshot: SnapshotWarpState | null = await graph.getStateSnapshot();
+const graphBagStateSnapshot: SnapshotWarpState | null = await graphBag.query.getStateSnapshot();
+const graphBagNodeProps: PublicPropBag | null = await graphBag.query.getNodeProps('node-a');
+const graphBagQueryBuilder: QueryBuilder = graphBag.query.query();
+const graphBagWorldline: Worldline = graphBag.query.worldline();
+const graphBagObserver: Observer = await graphBag.query.observer({ match: '*' });
 const nodeAlive: SnapshotORSet = materialized.nodeAlive;
 const observedFrontier: SnapshotVersionVector = materialized.observedFrontier;
 const snapshotValue: SnapshotPropValue | undefined = [...materialized.prop.values()][0]?.value;
@@ -334,8 +338,12 @@ if (snapshotValue instanceof ImmutableBytes) {
 }
 
 void materializedWithReceipts;
-void graphBagMaterialized;
 void stateSnapshot;
+void graphBagStateSnapshot;
+void graphBagNodeProps;
+void graphBagQueryBuilder;
+void graphBagWorldline;
+void graphBagObserver;
 void nodeAlive;
 void observedFrontier;
 void propValue;
@@ -479,6 +487,15 @@ void browserWriterId;
 
 // Negative checks.
 
+// @ts-expect-error materialize capability bag is not public on v17 WarpGraph.
+const badGraphBagMaterialize = graphBag.materialize;
+
+// @ts-expect-error nested materialize frontdoor is not public on v17 WarpGraph.
+const badGraphBagNestedMaterialize = graphBag.materialize.materialize;
+
+// @ts-expect-error query readings do not expose materialization.
+const badGraphBagQueryMaterialize = graphBag.query.materialize;
+
 // @ts-expect-error materialize() does not return a string.
 const badMaterialized: string = await graph.materialize();
 
@@ -491,5 +508,8 @@ await graph.getEdgeProps('node-a', 'node-b');
 // @ts-expect-error createNodeAdd requires a string node id.
 createNodeAdd(42);
 
+void badGraphBagMaterialize;
+void badGraphBagNestedMaterialize;
+void badGraphBagQueryMaterialize;
 void badMaterialized;
 void badHasNode;
