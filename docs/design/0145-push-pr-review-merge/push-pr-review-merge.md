@@ -79,6 +79,10 @@ Current evidence before implementation:
   `materializeAt()` behavior, checkpoint content anchors label CAS trees as
   blobs, and Deno type resolution fails on an untyped npm dependency before
   the runtime smoke tests can run.
+- PR #84 CI at `a799763b` proves the first repair slice cleared links, Bun,
+  and Deno, then exposed a CI-only `rg` dependency: `type-firewall`,
+  `coverage-threshold`, `test-node (22)`, and `preflight` fail because hosted
+  runners cannot spawn `rg`.
 
 ### GREEN
 
@@ -93,6 +97,10 @@ Current evidence before implementation:
   use CAS tree entries, Deno runtime smoke tests run with `--no-check`, and
   the Deno smoke harness records the external dependency timer sanitizer
   limitation as bad-code backlog.
+- Follow-up CI portability repair removes hard `rg` dependencies from the
+  repo-native checks hit by hosted runners: the anti-sludge shell check no
+  longer requires a tool it does not use, and the tracked non-TS tail witness
+  uses `git ls-files` as the source of truth.
 
 ### Goldens
 
@@ -119,3 +127,6 @@ Current evidence before implementation:
 - GitHub Actions may use stricter or newer tool versions than the local
   pre-push gate; the link checker caught absolute local markdown paths that the
   earlier local version did not.
+- GitHub-hosted Ubuntu images may lack local developer tools such as
+  ripgrep, so release gates must either install them explicitly or avoid
+  depending on them for tracked-file enumeration.

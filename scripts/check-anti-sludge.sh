@@ -15,15 +15,6 @@ set -euo pipefail
 
 fail=0
 
-require_rg() {
-  if ! command -v rg >/dev/null 2>&1; then
-    echo "ERROR: ripgrep (rg) is required for scripts/check-anti-sludge.sh" >&2
-    exit 2
-  fi
-}
-
-require_rg
-
 check_filenames() {
   local matches
   matches="$(find src -type f \( \

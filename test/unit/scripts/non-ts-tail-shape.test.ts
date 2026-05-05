@@ -10,15 +10,14 @@ function readRepoFile(relativePath: string): string {
 }
 
 function trackedNonTypeScriptTail(): string[] {
-  const output = execFileSync('rg', ['--files', '-g', '*.js', '-g', '*.d.ts', '.'], {
+  const output = execFileSync('git', ['ls-files', '-z', '--', '*.js', '*.d.ts'], {
     cwd: repoRoot,
     encoding: 'utf8',
   });
 
   return output
-    .split('\n')
+    .split('\0')
     .filter((path) => path.length > 0)
-    .map((path) => path.startsWith('./') ? path.slice(2) : path)
     .filter((path) => !path.startsWith('.obsidian/'))
     .sort();
 }
