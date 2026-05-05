@@ -146,8 +146,25 @@ describe('HttpSyncServer', () => {
         auth: {
           keys: { default: SyncSecret.fromString('secret') },
           mode: 'enforce',
+          rateLimit: {
+            capacity: 10,
+            refillTokensPerSecond: 1,
+            clock: () => 0,
+          },
         },
       }) as any))).not.toThrow();
+    });
+
+    it('rejects non-local enforced auth serving without rate limiting', () => {
+      expect(() => new HttpSyncServer((({
+        httpPort: mockPort.port,
+        graph,
+        host: '0.0.0.0',
+        auth: {
+          keys: { default: SyncSecret.fromString('secret') },
+          mode: 'enforce',
+        },
+      }) as any))).toThrow(/non-local sync hosts require auth.rateLimit/);
     });
   });
 

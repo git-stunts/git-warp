@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The built-in HTTP sync server now supports per-key token-bucket rate
+  limiting. Non-local bind hosts with enforced sync auth must configure
+  `auth.rateLimit`, exhausted keys receive `429 RATE_LIMITED`, and bad
+  signatures do not consume a valid key's request budget.
 - The built-in HTTP sync server now fails closed by default: non-local
   bind hosts require enforced `SyncSecret` auth, and unauthenticated
   localhost serving requires `unsafeAllowUnauthenticatedLocalhost: true`.

@@ -12,6 +12,16 @@ const VALID_SYNC_BODY = { type: 'sync-request', frontier: {} };
 
 let signLamport = 0;
 
+function makeManualClock(/** @type {number} */ startMs = 0) {
+  let currentMs = startMs;
+  return {
+    now: () => currentMs,
+    advance(/** @type {number} */ ms) {
+      currentMs += ms;
+    },
+  };
+}
+
 /**
  * Signs a sync request body and returns the raw Buffer + merged headers.
  *
@@ -443,6 +453,50 @@ describe('HttpSyncServer auth integration', () => {
         body,
       });
       expect(res.status).toBe(403);
+    });
+  });
+
+  describe('rate limiting', () => {
+    it('returns 429 without running graph sync work when a key exhausts its budget', async () => {
+      const mock = createMockPort();
+      const clock = makeManualClock();
+      const server = new HttpSyncServer((({
+        httpPort: mock.port,
+        graph,
+        auth: {
+          keys: KEYS,
+          mode: 'enforce',
+          crypto: defaultCrypto,
+          rateLimit: {
+            capacity: 1,
+            refillTokensPerSecond: 1,
+            clock: clock.now,
+          },
+        },
+      }) as any));
+      await server.listen(9999);
+      const handler = mock.getHandler();
+
+      const first = await signedBody(VALID_SYNC_BODY);
+      const firstRes = await handler({
+        method: 'POST',
+        url: '/sync',
+        headers: first.headers,
+        body: first.body,
+      });
+      expect(firstRes.status).toBe(200);
+
+      const second = await signedBody(VALID_SYNC_BODY);
+      const secondRes = await handler({
+        method: 'POST',
+        url: '/sync',
+        headers: second.headers,
+        body: second.body,
+      });
+
+      expect(secondRes.status).toBe(429);
+      expect(JSON.parse(secondRes.body).error).toBe('RATE_LIMITED');
+      expect(graph.processSyncRequest).toHaveBeenCalledOnce();
     });
   });
 

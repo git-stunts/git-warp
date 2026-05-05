@@ -8,7 +8,7 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 
 | Code | Invariant | Count |
 |------|-----------|------:|
-| [HEX](../../legends/HEX.md) | No host, infrastructure, raw Git, ambient time, or ambient entropy leaks into core. | 18 |
+| [HEX](../../legends/HEX.md) | No host, infrastructure, raw Git, ambient time, or ambient entropy leaks into core. | 19 |
 | [BND](../../legends/BOUNDARY.md) | Decode, validate, and schema-check at the boundary; raw transport shapes do not leak inward. | 8 |
 | [MODEL](../../legends/MODEL.md) | Runtime truth wins: real classes, constructor invariants, and honest domain forms. | 22 |
 | [CAST](../../legends/CAST.md) | No cast-cosplay, escape hatches, or type lies. | 9 |
@@ -31,14 +31,14 @@ card metadata or promoting bad-code into a release lane.
 | Release Home | Count |
 |--------------|------:|
 | `v17.0.0` | 194 |
-| `v18.0.0` | 12 |
+| `v18.0.0` | 13 |
 | `v19.0.0` | 11 |
 | `v20.0.0` | 15 |
 | `v21.0.0` | 7 |
 
 ## Index
 
-### Hex Boundary (`HEX`) — 18
+### Hex Boundary (`HEX`) — 19
 
 - [HEX_btr-audit-ambient-timestamps.md](HEX_btr-audit-ambient-timestamps.md)
 - [HEX_domain-hex-defaults.md](HEX_domain-hex-defaults.md)
@@ -47,6 +47,7 @@ card metadata or promoting bad-code into a release lane.
 - [HEX_index-rebuild-profiling-in-domain.md](HEX_index-rebuild-profiling-in-domain.md)
 - [HEX_message-codec-hex.md](HEX_message-codec-hex.md)
 - [HEX_sync-no-rate-limiting.md](HEX_sync-no-rate-limiting.md)
+- [HEX_sync-response-paging-and-metrics.md](HEX_sync-response-paging-and-metrics.md)
 - [HEX_sync-secret-plain-string.md](HEX_sync-secret-plain-string.md)
 - [HEX_sync-server-no-graceful-shutdown.md](HEX_sync-server-no-graceful-shutdown.md)
 - [HEX_syncauth-ambient-entropy.md](HEX_syncauth-ambient-entropy.md)

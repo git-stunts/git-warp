@@ -888,7 +888,7 @@ const { close, url } = await graph.sync.serve({
 
 The unsafe localhost option is for local development only. Binding a
 sync server to a non-local host requires `auth.mode: 'enforce'` with
-configured `SyncSecret` keys.
+configured `SyncSecret` keys and an explicit `auth.rateLimit` budget.
 
 For details on the sync protocol, see [Appendix F](#appendix-f-sync-protocol).
 
@@ -2195,6 +2195,11 @@ const { close, url } = await graph.sync.serve({
   auth: {                          // HMAC-SHA256 auth
     keys: { default: sharedSecret },
     mode: 'enforce',
+    rateLimit: {
+      capacity: 60,                 // burst requests per key id
+      refillTokensPerSecond: 10,    // sustained requests per second
+      clock: () => Date.now(),
+    },
   },
 });
 
@@ -2204,8 +2209,9 @@ const { close, url } = await graph.sync.serve({
 await close(); // shut down
 ```
 
-Non-local bind hosts require enforced auth. Local unauthenticated serving
-is available only with `unsafeAllowUnauthenticatedLocalhost: true`.
+Non-local bind hosts require enforced auth with a per-key rate-limit
+budget. Local unauthenticated serving is available only with
+`unsafeAllowUnauthenticatedLocalhost: true`.
 
 ### Appendix G: Garbage Collection
 

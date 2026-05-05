@@ -7,6 +7,7 @@ import type HttpServerPort from '../../ports/HttpServerPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type SyncSecret from '../services/sync/SyncSecret.ts';
+import type { SyncRateLimitConfig } from '../services/sync/SyncRateLimiter.ts';
 
 export type ServeOptions = {
   port: number;
@@ -20,6 +21,7 @@ export type ServeOptions = {
     crypto?: CryptoPort;
     logger?: LoggerPort;
     wallClockMs?: () => number;
+    rateLimit?: SyncRateLimitConfig;
   };
   unsafeAllowUnauthenticatedLocalhost?: boolean;
   allowedWriters?: string[];

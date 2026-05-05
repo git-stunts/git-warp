@@ -10,6 +10,8 @@ release_home: v17.0.0
 
 **Effort:** M
 
+**Status:** Closed in cycle `0139-sync-rate-limiting`.
+
 HttpSyncServer has HMAC auth, body size limits, and writer ACLs
 but no rate limiting. An authenticated client can:
 
@@ -27,3 +29,14 @@ Add per-key-id rate limiting to SyncAuthService (token bucket with
 configurable QPS and burst). Add maxPatchesPerResponse cap to
 processSyncRequest for response paging. Log sync latency and
 payload size as metrics.
+
+## Resolution
+
+`SyncAuthService` now owns a per-key token bucket with configurable
+capacity, refill rate, and injected clock. `HttpSyncServer` returns
+`429 RATE_LIMITED` without calling graph sync work when a key exhausts
+its budget, and non-local enforced sync auth now requires
+`auth.rateLimit`.
+
+Response paging and payload metrics remain valid follow-up ideas, but
+they are not part of this release blocker.

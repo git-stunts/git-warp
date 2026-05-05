@@ -123,6 +123,7 @@ import WarpAppDefault, {
   ChunkEffectSink,
   type PropValue,
   type SnapshotPropValue,
+  type SyncRateLimitConfig,
 } from '../../index.ts';
 
 import {
@@ -478,10 +479,15 @@ const server = await graph.serve({
 const serverUrl: string = server.url;
 await server.close();
 const syncSecret: SyncSecret = SyncSecret.fromString('shared-secret');
+const syncRateLimit: SyncRateLimitConfig = {
+  capacity: 20,
+  refillTokensPerSecond: 5,
+  clock: () => 0,
+};
 const authedServer = await graph.serve({
   port: 3001,
   httpPort,
-  auth: { keys: { default: syncSecret }, mode: 'enforce' },
+  auth: { keys: { default: syncSecret }, mode: 'enforce', rateLimit: syncRateLimit },
 });
 await graph.syncWith(authedServer.url, {
   auth: { secret: syncSecret, keyId: 'default' },
@@ -490,6 +496,7 @@ await authedServer.close();
 
 void serverUrl;
 void syncSecret;
+void syncRateLimit;
 
 const browserError: BrowserWarpError = new BrowserWarpError('browser smoke', 'E_BROWSER_SMOKE');
 const browserVector: BrowserVersionVector = BrowserVersionVector.empty();

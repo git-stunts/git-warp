@@ -19,6 +19,7 @@ import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type LogFields from '../../types/log/LogFields.ts';
 import SyncSecret from './SyncSecret.ts';
+import SyncRateLimiter, { type SyncRateLimitConfig } from './SyncRateLimiter.ts';
 const SIG_VERSION = '2';
 const SIG_PREFIX = 'warp-v2';
 const HMAC_ALGO = 'sha256';
@@ -101,6 +102,7 @@ interface AuthMetrics {
   malformedRejects: number;
   logOnlyPassthroughs: number;
   forbiddenWriterRejects: number;
+  rateLimitRejects: number;
 }
 
 function _freshMetrics(): AuthMetrics {
@@ -112,6 +114,7 @@ function _freshMetrics(): AuthMetrics {
     malformedRejects: 0,
     logOnlyPassthroughs: 0,
     forbiddenWriterRejects: 0,
+    rateLimitRejects: 0,
   };
 }
 
@@ -166,6 +169,7 @@ export interface SyncAuthServiceOptions {
   crypto?: CryptoPort;
   logger?: LoggerPort;
   allowedWriters?: string[];
+  rateLimit?: SyncRateLimitConfig;
 }
 
 export default class SyncAuthService {
@@ -176,10 +180,11 @@ export default class SyncAuthService {
   private readonly _nonceCache: LRUCache<string, boolean>;
   private readonly _lastSeenLamport: Map<string, number>;
   private readonly _allowedWriters: Set<string> | null;
+  private readonly _rateLimiter: SyncRateLimiter | null;
   private readonly _metrics: AuthMetrics;
 
   constructor(options: SyncAuthServiceOptions) {
-    const { keys, mode = 'enforce', nonceCapacity, crypto, logger, allowedWriters } = options ?? {};
+    const { keys, mode = 'enforce', nonceCapacity, crypto, logger, allowedWriters, rateLimit } = options ?? {};
     _validateKeys(keys);
     this._keys = keys;
     this._mode = mode;
@@ -189,6 +194,7 @@ export default class SyncAuthService {
     this._lastSeenLamport = new Map();
     this._metrics = _freshMetrics();
     this._allowedWriters = _validateAllowedWriters(allowedWriters);
+    this._rateLimiter = rateLimit === undefined ? null : new SyncRateLimiter(rateLimit);
   }
 
   get mode(): 'enforce' | 'log-only' {
@@ -248,6 +254,17 @@ export default class SyncAuthService {
     const secret = this._keys[keyId];
     if (secret === undefined) { return fail('UNKNOWN_KEY_ID', 401); }
     return { ok: true, secret };
+  }
+
+  private _consumeRateLimit(keyId: string): FailResult | OkResult {
+    if (this._rateLimiter === null) {
+      return { ok: true };
+    }
+    if (this._rateLimiter.tryConsume(keyId)) {
+      return { ok: true };
+    }
+    this._metrics.rateLimitRejects += 1;
+    return fail('RATE_LIMITED', 429);
   }
 
   private async _verifySignature(params: {
@@ -328,6 +345,11 @@ export default class SyncAuthService {
     const nonceResult = this._reserveNonce(nonce);
     if (!nonceResult.ok) {
       return this._fail('replay detected', { keyId, nonce }, nonceResult);
+    }
+
+    const rateLimitResult = this._consumeRateLimit(keyId);
+    if (!rateLimitResult.ok) {
+      return this._fail('rate limit exceeded', { keyId }, rateLimitResult);
     }
 
     return { ok: true };

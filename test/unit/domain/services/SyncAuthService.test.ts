@@ -71,6 +71,16 @@ function makeService(opts: Record<string, unknown> = {}) {
   });
 }
 
+function makeManualClock(startMs = 0) {
+  let currentMs = startMs;
+  return {
+    now: () => currentMs,
+    advance: (ms: number) => {
+      currentMs += ms;
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // buildCanonicalPayload
 // ---------------------------------------------------------------------------
@@ -590,6 +600,73 @@ describe('verify() happy paths', () => {
     };
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: true });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// verify() rate limiting
+// ---------------------------------------------------------------------------
+describe('verify() rate limiting', () => {
+  it('rejects a key that exhausts its configured request budget', async () => {
+    const clock = makeManualClock();
+    const svc = makeService({
+      rateLimit: {
+        capacity: 2,
+        refillTokensPerSecond: 1,
+        clock: clock.now,
+      },
+    });
+
+    expect(await svc.verify(await buildSignedRequest())).toEqual({ ok: true });
+    expect(await svc.verify(await buildSignedRequest())).toEqual({ ok: true });
+
+    const rejected = await svc.verify(await buildSignedRequest());
+
+    expect(rejected).toEqual({ ok: false, reason: 'RATE_LIMITED', status: 429 });
+    expect(svc.getMetrics().rateLimitRejects).toBe(1);
+  });
+
+  it('admits a key again after the injected clock refills a token', async () => {
+    const clock = makeManualClock();
+    const svc = makeService({
+      rateLimit: {
+        capacity: 1,
+        refillTokensPerSecond: 1,
+        clock: clock.now,
+      },
+    });
+
+    expect(await svc.verify(await buildSignedRequest())).toEqual({ ok: true });
+    expect(await svc.verify(await buildSignedRequest())).toEqual({
+      ok: false,
+      reason: 'RATE_LIMITED',
+      status: 429,
+    });
+
+    clock.advance(1000);
+
+    expect(await svc.verify(await buildSignedRequest())).toEqual({ ok: true });
+  });
+
+  it('does not spend a key budget on requests with bad signatures', async () => {
+    const clock = makeManualClock();
+    const svc = makeService({
+      rateLimit: {
+        capacity: 1,
+        refillTokensPerSecond: 1,
+        clock: clock.now,
+      },
+    });
+    const badSignature = await buildSignedRequest({
+      'x-warp-signature': 'a'.repeat(64),
+    });
+
+    expect(await svc.verify(badSignature)).toEqual({
+      ok: false,
+      reason: 'INVALID_SIGNATURE',
+      status: 401,
+    });
+    expect(await svc.verify(await buildSignedRequest())).toEqual({ ok: true });
   });
 });
 

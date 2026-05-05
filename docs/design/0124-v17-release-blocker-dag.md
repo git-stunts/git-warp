@@ -131,8 +131,10 @@ closure. A blank cell means "not directly blocked by that task," not
   `unsafeAllowUnauthenticatedLocalhost: true`.
 
 `HEX_sync-no-rate-limiting`
-: Authenticated clients can flood sync. Rate limiting depends on stable
-  production auth/key identity.
+: Closed in cycle 0139. Sync auth now has per-key token-bucket rate
+  limiting, HTTP sync returns `429 RATE_LIMITED` without running graph
+  work, and non-local enforced auth requires an explicit rate-limit
+  budget.
 
 `HEX_sync-500-sanitization`
 : HTTP 500 responses can expose internal exception messages. This depends
@@ -178,7 +180,6 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `HEX_sync-no-rate-limiting`
 - `HEX_sync-500-sanitization`
 
 `SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125.
@@ -199,7 +200,9 @@ non-security `test:local` blocker. That drift closed in cycle 0136, so
 the open front narrowed to the sync secret hardening path. The secret
 hardening node closed in cycle 0137, opening production sync auth
 defaults. Production auth defaults closed in cycle 0138, opening rate
-limiting and 500 response sanitization.
+limiting and 500 response sanitization. Rate limiting closed in cycle
+0139, leaving 500 response sanitization as the only open security
+hardening node before quarantine graduation.
 
 ## Regeneration
 

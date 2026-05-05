@@ -165,6 +165,7 @@ import SnapshotVersionVector from './src/domain/services/snapshot/SnapshotVersio
 import SnapshotWarpState from './src/domain/services/snapshot/SnapshotWarpState.ts';
 import type { PropValue } from './src/domain/types/PropValue.ts';
 import type { SnapshotPropValue } from './src/domain/services/snapshot/SnapshotPropValue.ts';
+import type { SyncRateLimitConfig } from './src/domain/services/sync/SyncRateLimiter.ts';
 import {
   normalizeVisibleStateScope,
   scopeMaterializedState,
@@ -326,7 +327,7 @@ export {
   SyncSecret,
 };
 
-export type { PropValue, SnapshotPropValue };
+export type { PropValue, SnapshotPropValue, SyncRateLimitConfig };
 
 // WarpApp is the primary product-facing API for v15.
 export default WarpApp;

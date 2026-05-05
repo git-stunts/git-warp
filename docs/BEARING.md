@@ -27,9 +27,9 @@ Current branch state at this boundary:
 - DAG map:
   [0124-v17-release-blocker-dag.md](design/0124-v17-release-blocker-dag.md)
 - Latest closed cycle:
-  `0138-sync-production-auth-defaults`
+  `0139-sync-rate-limiting`
 - Latest full unit gate shape:
-  `npm run test:local` is green with `438` files and `6765` tests.
+  `npm run test:local` is green with `438` files and `6770` tests.
 - Latest validation shape:
   lint, anti-sludge shell checks, source/test typecheck, consumer
   typecheck, markdown lint, markdown code-sample lint, high-level npm
@@ -54,14 +54,16 @@ readings, and aligned remaining checkpoint/materialize unit tests with
 the current checkpoint contract, and replaced plain sync HMAC credential
 flow with an opaque `SyncSecret`. The sync server now fails closed for
 non-local unauthenticated serving and requires an explicit unsafe option
-for unauthenticated localhost serving. The package upgrade command now
-has a real checkpoint upgrade path for retired checkpoint envelopes.
+for unauthenticated localhost serving. It also applies per-key token-bucket
+rate limiting for configured sync auth and requires an explicit rate-limit
+budget for non-local enforced sync auth. The package upgrade command now has
+a real checkpoint upgrade path for retired checkpoint envelopes.
 
 The runtime is still partially state-first in important places. The
 important current truth is narrow: the non-security `test:local` blockers
-from the v17 materialization cleanup are closed, but sync server rate
-limiting, HTTP 500 sanitization, quarantine graduation, and final release
-preflight still block the release gate.
+from the v17 materialization cleanup are closed, but HTTP 500 sanitization,
+quarantine graduation, and final release preflight still block the release
+gate.
 
 ## Invariants
 
@@ -102,7 +104,7 @@ mapping, and concrete checks live in `docs/invariants/`.
 ## What just shipped
 
 Cycles `0132-subscription-controller-reading-basis` through
-`0138-sync-production-auth-defaults`:
+`0139-sync-rate-limiting`:
 
 - Removed `_materializeGraph()` from subscription/watch and sync
   controller read paths.
@@ -119,6 +121,8 @@ Cycles `0132-subscription-controller-reading-basis` through
 - Hardened sync serve defaults: non-local bind hosts require enforced
   auth, and local unauthenticated serving must opt into unsafe localhost
   mode.
+- Added per-key token-bucket sync auth rate limiting and required explicit
+  `auth.rateLimit` for non-local enforced sync hosts.
 - Brought `npm run test:local` back to green.
 - Marked `PORT_subscription-controller-reading-basis`,
   `PORT_sync-controller-reading-basis`,
@@ -126,13 +130,14 @@ Cycles `0132-subscription-controller-reading-basis` through
   `SPEC_observer-coordinate-pinning`, and
   `SPEC_checkpoint-materialize-test-drift` complete in the DAG, then
   marked `HEX_sync-secret-plain-string` and
-  `HEX_sync-production-auth-defaults` complete.
+  `HEX_sync-production-auth-defaults` complete, then marked
+  `HEX_sync-no-rate-limiting` complete.
 
 ## What feels wrong
 
 - v17 is still not releasable until the DAG reaches
   `REL_full-gate-matrix-green`.
-- Sync still needs per-key rate limiting and sanitized 500 responses.
+- Sync still needs sanitized 500 responses.
 - Quarantine graduation remains near-end work after source churn.
 - Broader historical version-suffixed substrate names still exist in
   `src/`; the checkpoint upgrade slice removed the touched checkpoint and
@@ -146,7 +151,7 @@ Continue executing the DAG one open node at a time.
 
 Recommended next pull:
 
-- `HEX_sync-no-rate-limiting`
+- `HEX_sync-500-sanitization`
 
 Why:
 

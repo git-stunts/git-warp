@@ -13,6 +13,7 @@ import SyncAuthService from './SyncAuthService.ts';
 import SyncError from '../../errors/SyncError.ts';
 import { validateSyncRequest } from './SyncPayloadSchema.ts';
 import SyncSecret from './SyncSecret.ts';
+import type { SyncRateLimitConfig } from './SyncRateLimiter.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type HttpServerPort from '../../../ports/HttpServerPort.ts';
@@ -42,6 +43,11 @@ export const authSchema = z.object({
   crypto: z.custom<CryptoPort | undefined>((v) => v === undefined || (typeof v === 'object' && v !== null)).optional(),
   logger: z.custom<LoggerPort | undefined>((v) => v === undefined || (typeof v === 'object' && v !== null)).optional(),
   wallClockMs: z.custom<(() => number) | undefined>((v) => v === undefined || typeof v === 'function').optional(),
+  rateLimit: z.object({
+    capacity: z.number().int().positive(),
+    refillTokensPerSecond: z.number().positive(),
+    clock: z.custom<() => number>((v) => typeof v === 'function', 'auth.rateLimit.clock must be a function'),
+  }).strict().optional(),
 }).strict();
 
 export type AuthSchemaInput = z.infer<typeof authSchema>;
@@ -108,8 +114,22 @@ function validateAuthenticatedDefaults(
   ctx: z.RefinementCtx,
   localHost: boolean,
 ): void {
-  if (data.auth !== undefined && !localHost && data.auth.mode !== 'enforce') {
+  if (data.auth === undefined || localHost) {
+    return;
+  }
+  validateNonLocalAuthMode(data.auth, ctx);
+  validateNonLocalRateLimit(data.auth, ctx);
+}
+
+function validateNonLocalAuthMode(auth: AuthSchemaInput, ctx: z.RefinementCtx): void {
+  if (auth.mode !== 'enforce') {
     addConfigIssue(ctx, ['auth', 'mode'], 'non-local sync hosts require auth.mode "enforce"');
+  }
+}
+
+function validateNonLocalRateLimit(auth: AuthSchemaInput, ctx: z.RefinementCtx): void {
+  if (auth.mode === 'enforce' && auth.rateLimit === undefined) {
+    addConfigIssue(ctx, ['auth', 'rateLimit'], 'non-local sync hosts require auth.rateLimit');
   }
 }
 
@@ -261,15 +281,44 @@ interface AuthConfig {
   logger?: LoggerPort;
   wallClockMs?: () => number;
   allowedWriters?: string[];
+  rateLimit?: SyncRateLimitConfig;
 }
 
 function buildAuthConfig(auth: AuthSchemaInput, allowedWriters: string[] | undefined): AuthConfig {
-  const cfg: AuthConfig = { keys: auth.keys, mode: auth.mode };
-  if (auth.crypto !== undefined) { cfg.crypto = auth.crypto; }
-  if (auth.logger !== undefined) { cfg.logger = auth.logger; }
-  if (auth.wallClockMs !== undefined) { cfg.wallClockMs = auth.wallClockMs; }
-  if (allowedWriters !== undefined) { cfg.allowedWriters = allowedWriters; }
-  return cfg;
+  return {
+    keys: auth.keys,
+    mode: auth.mode,
+    ...cryptoField(auth),
+    ...loggerField(auth),
+    ...wallClockField(auth),
+    ...rateLimitField(auth),
+    ...allowedWritersField(allowedWriters),
+  };
+}
+
+function cryptoField(auth: AuthSchemaInput): { readonly crypto?: CryptoPort } {
+  if (auth.crypto === undefined) { return {}; }
+  return { crypto: auth.crypto };
+}
+
+function loggerField(auth: AuthSchemaInput): { readonly logger?: LoggerPort } {
+  if (auth.logger === undefined) { return {}; }
+  return { logger: auth.logger };
+}
+
+function wallClockField(auth: AuthSchemaInput): { readonly wallClockMs?: () => number } {
+  if (auth.wallClockMs === undefined) { return {}; }
+  return { wallClockMs: auth.wallClockMs };
+}
+
+function rateLimitField(auth: AuthSchemaInput): { readonly rateLimit?: SyncRateLimitConfig } {
+  if (auth.rateLimit === undefined) { return {}; }
+  return { rateLimit: auth.rateLimit };
+}
+
+function allowedWritersField(allowedWriters: string[] | undefined): { readonly allowedWriters?: string[] } {
+  if (allowedWriters === undefined) { return {}; }
+  return { allowedWriters };
 }
 
 export interface AuthInit {
@@ -357,6 +406,7 @@ export interface HttpSyncServerOptions {
     crypto?: CryptoPort;
     logger?: LoggerPort;
     wallClockMs?: () => number;
+    rateLimit?: SyncRateLimitConfig;
   };
   unsafeAllowUnauthenticatedLocalhost?: boolean;
   allowedWriters?: string[];
