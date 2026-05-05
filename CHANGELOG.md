@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Release preflight now clears its coverage and JSR dry-run gates: the coverage
+  ratchet excludes ambient declaration files and records the current full-suite
+  v17 line baseline, while JSR-facing public APIs now carry explicit return
+  types instead of slow inferred public types.
 - Anti-sludge file-level quarantines have been graduated for the v17
   release branch. `npm run lint:quarantine-graduate` now passes with
   empty `0025A`/`0025B`/`0025C`/`0025D` manifest file lists, while

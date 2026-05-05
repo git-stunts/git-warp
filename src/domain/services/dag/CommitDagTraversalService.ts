@@ -11,7 +11,7 @@
 import nullLogger from '../../utils/nullLogger.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import DagTraversal, { type TraversalNode, type TraversalOptions, type DagIndexReader } from './DagTraversal.ts';
-import DagPathFinding from './DagPathFinding.ts';
+import DagPathFinding, { type AStarResult, type PathResult, type WeightedResult } from './DagPathFinding.ts';
 import DagTopology from './DagTopology.ts';
 import TraversalError from '../../errors/TraversalError.ts';
 
@@ -59,33 +59,35 @@ export default class CommitDagTraversalService {
 
   // -- Path finding (delegated to DagPathFinding) -----------------------------
 
-  findPath(opts: Parameters<DagPathFinding['findPath']>[0]) {
+  findPath(opts: Parameters<DagPathFinding['findPath']>[0]): Promise<PathResult> {
     return this._pathFinding.findPath(opts);
   }
 
-  shortestPath(opts: Parameters<DagPathFinding['shortestPath']>[0]) {
+  shortestPath(opts: Parameters<DagPathFinding['shortestPath']>[0]): Promise<PathResult> {
     return this._pathFinding.shortestPath(opts);
   }
 
-  weightedShortestPath(opts: Parameters<DagPathFinding['weightedShortestPath']>[0]) {
+  weightedShortestPath(opts: Parameters<DagPathFinding['weightedShortestPath']>[0]): Promise<WeightedResult> {
     return this._pathFinding.weightedShortestPath(opts);
   }
 
-  aStarSearch(opts: Parameters<DagPathFinding['aStarSearch']>[0]) {
+  aStarSearch(opts: Parameters<DagPathFinding['aStarSearch']>[0]): Promise<AStarResult> {
     return this._pathFinding.aStarSearch(opts);
   }
 
-  bidirectionalAStar(opts: Parameters<DagPathFinding['bidirectionalAStar']>[0]) {
+  bidirectionalAStar(opts: Parameters<DagPathFinding['bidirectionalAStar']>[0]): Promise<AStarResult> {
     return this._pathFinding.bidirectionalAStar(opts);
   }
 
   // -- Topology (delegated to DagTopology) ------------------------------------
 
-  commonAncestors(opts: Parameters<DagTopology['commonAncestors']>[0]) {
+  commonAncestors(opts: Parameters<DagTopology['commonAncestors']>[0]): Promise<string[]> {
     return this._topology.commonAncestors(opts);
   }
 
-  topologicalSort(opts: Parameters<DagTopology['topologicalSort']>[0]) {
+  topologicalSort(
+    opts: Parameters<DagTopology['topologicalSort']>[0],
+  ): AsyncGenerator<{ sha: string; depth: number; parent: null }> {
     return this._topology.topologicalSort(opts);
   }
 }

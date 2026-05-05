@@ -7,6 +7,8 @@ import {
 
 import type CryptoPort from '../ports/CryptoPort.ts';
 import type { EffectPipeline } from './services/EffectPipeline.ts';
+import type { DeliveryObservation } from './types/DeliveryObservation.ts';
+import type { EffectEmission } from './types/EffectEmission.ts';
 import type { ExternalizationPolicy } from './types/ExternalizationPolicy.ts';
 
 /**
@@ -130,11 +132,11 @@ export default class WarpCore {
     this._effectPipeline = pipeline;
   }
 
-  get effectEmissions() {
+  get effectEmissions(): ReadonlyArray<EffectEmission> {
     return this._effectPipeline ? this._effectPipeline.emissions : [];
   }
 
-  get deliveryObservations() {
+  get deliveryObservations(): ReadonlyArray<DeliveryObservation> {
     return this._effectPipeline ? this._effectPipeline.observations : [];
   }
 

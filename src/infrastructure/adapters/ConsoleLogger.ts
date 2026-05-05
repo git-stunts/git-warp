@@ -2,7 +2,13 @@
 import LoggerPort from '../../ports/LoggerPort.ts';
 
 /** Log levels in order of severity. */
-export const LogLevel = Object.freeze({
+export const LogLevel: Readonly<{
+  DEBUG: 0;
+  INFO: 1;
+  WARN: 2;
+  ERROR: 3;
+  SILENT: 4;
+}> = Object.freeze({
   DEBUG: 0,
   INFO: 1,
   WARN: 2,

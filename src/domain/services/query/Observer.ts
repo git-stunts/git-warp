@@ -235,7 +235,7 @@ export default class Observer {
     return await this._requireGraph().hasNode(nodeId);
   }
 
-  async getNodes() {
+  async getNodes(): Promise<string[]> {
     const allNodes: string[] = this._stateReader
       ? this._stateReader.getNodes()
       : await this._requireGraph().getNodes();
@@ -255,7 +255,7 @@ export default class Observer {
   // Edge API
   // ===========================================================================
 
-  async getEdges() {
+  async getEdges(): Promise<VisibleEdge[]> {
     const allEdges: VisibleEdge[] = this._stateReader
       ? this._stateReader.getEdges()
       : await this._requireGraph().getEdges();
