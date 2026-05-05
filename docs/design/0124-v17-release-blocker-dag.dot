@@ -84,8 +84,14 @@ digraph V17ReleaseBlockers {
     penwidth=2.4
   ];
   "SPEC_observer-coordinate-pinning" [
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nSPEC_observer\ncoordinate pinning",
+    penwidth=2.4
+  ];
+  "SPEC_checkpoint-materialize-test-drift" [
     fillcolor="#dbeafe",
-    label="SPEC_observer\ncoordinate pinning"
+    label="SPEC_checkpoint\nmaterialize test drift"
   ];
   "SPEC_uniform-git-cas-upgrade-contract-drift" [
     color="#15803d",
@@ -140,6 +146,7 @@ digraph V17ReleaseBlockers {
   "PORT_checkpoint-controller-reading-basis" -> "SPEC_materialize-spy-test-clusters";
   "PORT_subscription-controller-reading-basis" -> "SPEC_materialize-spy-test-clusters";
   "PORT_sync-controller-reading-basis" -> "SPEC_materialize-spy-test-clusters";
+  "BND_checkpoint-schema-contract-drift" -> "SPEC_checkpoint-materialize-test-drift";
   "HEX_sync-secret-plain-string" -> "HEX_sync-production-auth-defaults";
   "HEX_sync-production-auth-defaults" -> "HEX_sync-no-rate-limiting";
   "HEX_sync-production-auth-defaults" -> "HEX_sync-500-sanitization";
@@ -163,6 +170,7 @@ digraph V17ReleaseBlockers {
   "PORT_sync-controller-reading-basis" -> "REL_full-gate-matrix-green";
   "SPEC_materialize-spy-test-clusters" -> "REL_full-gate-matrix-green";
   "SPEC_observer-coordinate-pinning" -> "REL_full-gate-matrix-green";
+  "SPEC_checkpoint-materialize-test-drift" -> "REL_full-gate-matrix-green";
   "SPEC_uniform-git-cas-upgrade-contract-drift" -> "REL_full-gate-matrix-green";
   "HEX_sync-no-rate-limiting" -> "REL_full-gate-matrix-green";
   "HEX_sync-500-sanitization" -> "REL_full-gate-matrix-green";

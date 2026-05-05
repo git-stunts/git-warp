@@ -104,8 +104,17 @@ closure. A blank cell means "not directly blocked by that task," not
   private materialization call counts, or private cache shape.
 
 `SPEC_observer-coordinate-pinning`
-: `WarpGraph.observerBoundary.test.ts` and `WarpGraph.strands.test.ts`
-  still fail around observer state hash / pinned read coordinate behavior.
+: Closed in cycle 0135. Default `graph.observer()` now snapshots the
+  caller's fresh reading basis, exposes a string state hash, and stays
+  pinned after live truth advances.
+
+`SPEC_checkpoint-materialize-test-drift`
+: Remaining `test:local` failures after 0135 are old checkpoint and
+  materialize incremental expectations: schema `2`/`4` fixture loads,
+  checkpoint patch-count accounting, stale checkpoint index hydration,
+  and incremental materialization receipt expectations. This is separate
+  from the closed schema support contract because the runtime now rejects
+  retired schemas with migration guidance.
 
 `SPEC_uniform-git-cas-upgrade-contract-drift`
 : Closed in cycle 0131. The package upgrade command now builds and runs
@@ -170,7 +179,7 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `SPEC_observer-coordinate-pinning`
+- `SPEC_checkpoint-materialize-test-drift`
 - `HEX_sync-secret-plain-string`
 
 `SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125.
@@ -185,7 +194,9 @@ subscription-controller reading-basis work.
 `PORT_subscription-controller-reading-basis` closed in cycle 0132. The
 `PORT_sync-controller-reading-basis` closed in cycle 0133 and opened
 `SPEC_materialize-spy-test-clusters`. The materialize-spy cluster closed
-in cycle 0134.
+in cycle 0134. `SPEC_observer-coordinate-pinning` closed in cycle 0135,
+which exposed `SPEC_checkpoint-materialize-test-drift` as the remaining
+non-security `test:local` blocker.
 
 ## Regeneration
 

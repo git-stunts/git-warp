@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Default `graph.observer()` now snapshots the caller's current fresh
+  reading basis, so observer handles expose a string `stateHash` and keep
+  reading their pinned coordinate after live truth advances; `seek()`
+  still returns a new observer without mutating the original or caller
+  graph basis.
 - Stale materialize-spy and auto-materialize unit tests now assert the
   v17 reading-basis contract instead of hidden materialization: direct
   cached-state reads fail without a fresh basis, explicit internal

@@ -21,8 +21,9 @@ import QueryError from '../../errors/QueryError.ts';
 import type DetachedGraphFactory from '../../capabilities/DetachedGraphFactory.ts';
 import type QueryCapability from '../../capabilities/QueryCapability.ts';
 import type WarpState from '../state/WarpState.ts';
-import type { MaterializedReadGraph, QueryContentHost, QueryReadHost } from './ReadGraphHost.ts';
+import type { QueryContentHost, QueryReadHost } from './ReadGraphHost.ts';
 import type { QueryReadModelProvider } from '../query/QueryReadModelProvider.ts';
+import { E_NO_STATE_MSG } from './QueryStateMessages.ts';
 
 import {
   hasNodeImpl, getNodePropsImpl, getEdgePropsImpl, neighborsImpl,
@@ -54,9 +55,7 @@ type QueryObserverFactoryHost = {
   observer(name: string, config: ObserverConfig, options?: ObserverOptions): Promise<Observer>;
 };
 
-type MaterializableHost = QueryReadHost & QueryContentHost & QueryObserverFactoryHost & Pick<QueryCapability, 'hasNode' | 'getNodes' | 'getNodeProps' | 'getEdges'> & Partial<CheckpointTailOpticSource> & {
-  _materializeGraph(): Promise<MaterializedReadGraph>;
-};
+type MaterializableHost = QueryReadHost & QueryContentHost & QueryObserverFactoryHost & Pick<QueryCapability, 'hasNode' | 'getNodes' | 'getNodeProps' | 'getEdges'> & Partial<CheckpointTailOpticSource>;
 
 type QueryStateHasher = (state: WarpState) => Promise<string>;
 
@@ -71,9 +70,14 @@ type QuerySnapshot = {
   stateHash: string;
 };
 
-async function snapshotCurrent(graph: MaterializableHost): Promise<QuerySnapshot> {
-  const materialized = await graph._materializeGraph();
-  return { state: cloneState(materialized.state), stateHash: materialized.stateHash };
+async function snapshotCurrent(deps: QueryControllerDeps): Promise<QuerySnapshot> {
+  const graph = deps.hostGraph;
+  await graph._ensureFreshState();
+  const state = graph._cachedState;
+  if (state === null) {
+    throw new QueryError(E_NO_STATE_MSG, { code: 'E_NO_STATE' });
+  }
+  return { state: cloneState(state), stateHash: await deps.hashState(state) };
 }
 
 // ── Observer snapshot resolution ────────────────────────────────────
@@ -86,8 +90,7 @@ async function resolveSnapshot(
 ): Promise<QuerySnapshot> {
   const source = toSelector(options?.source);
   if (!source) {
-    await deps.hostGraph._ensureFreshState();
-    return await snapshotCurrent(deps.hostGraph);
+    return await snapshotCurrent(deps);
   }
   return await resolveSourceSnapshot(deps, source);
 }
@@ -331,18 +334,10 @@ wire('observer', async function (this: QueryController, nameOrConfig: string | O
   }
   const h = host(this);
   const sourceSelector = options?.source !== undefined ? toSelector(options.source) : undefined;
-  if (sourceSelector === undefined) {
-    return new Observer({
-      name,
-      config,
-      graph: h,
-      readModelProvider: defaultQueryReadModelProvider(this),
-    });
-  }
   const snapshot = await resolveSnapshot(snapshotDeps(this), options);
   return new Observer({
     name, config, graph: h, snapshot,
-    source: sourceSelector,
+    source: sourceSelector ?? new LiveSelector(),
   });
 });
 
