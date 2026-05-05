@@ -176,7 +176,7 @@ export function collectContentAnchorEntries(
 
   const anchorEntries: string[] = [];
   for (const oid of sortedOids) {
-    anchorEntries.push(`040000 tree ${oid}\t_content_${oid}`);
+    anchorEntries.push(`100644 blob ${oid}\t_content_${oid}`);
   }
 
   return anchorEntries;
