@@ -95,6 +95,7 @@ function createMockHost(overrides: Record<string, unknown> = {}): any {
     _patchBlobStorage: null,
     _patchesSinceCheckpoint: 0,
     materialize: vi.fn(),
+    _materializeGraph: vi.fn().mockRejectedValue(new Error('hidden sync materialization trap')),
     discoverWriters: vi.fn().mockResolvedValue([]),
     _materializedGraph: null,
     ...overrides,
@@ -473,7 +474,7 @@ describe('SyncController', () => {
       const ctrl = new SyncController((host as any));
 
       await expect(ctrl.applySyncResponse((validSyncResponse() as any)))
-        .rejects.toThrow(/No materialized state/);
+        .rejects.toMatchObject({ code: 'E_NO_STATE' });
     });
 
     it('applies response and updates host state', async () => {
@@ -708,22 +709,45 @@ describe('SyncController', () => {
       expect(peer.processSyncRequest).toHaveBeenCalledOnce();
     });
 
-    it('materializes before apply when _cachedState is null', async () => {
+    it('returns metadata without materializing when _cachedState is null by default', async () => {
+      const materializedState = fakeState();
+      applySyncResponseMock.mockReturnValue({ state: materializedState, frontier: new Map(), applied: 1 });
+
+      const peer = createDirectPeer(validSyncResponse({
+        patches: [{ writerId: 'bob', sha: 'sha-b1', patch: { ops: [] } }],
+      }));
+      const host = createMockHost({
+        _cachedState: null,
+      });
+      const ctrl = new SyncController((host as any));
+
+      const result = await ctrl.syncWith((peer as any));
+
+      expect(result.applied).toBe(1);
+      expect(result).not.toHaveProperty('state');
+      expect(applySyncResponseMock).not.toHaveBeenCalled();
+      expect(host['materialize']).not.toHaveBeenCalled();
+      expect(host['_materializeGraph']).not.toHaveBeenCalled();
+    });
+
+    it('materializes explicitly before apply when materialize option is true', async () => {
       const materializedState = fakeState();
       applySyncResponseMock.mockReturnValue({ state: materializedState, frontier: new Map(), applied: 0 });
 
       const peer = createDirectPeer();
       const host = createMockHost({
         _cachedState: null,
-        materialize: vi.fn().mockImplementation(async function () {
-          host['_cachedState'] = materializedState;
-        }),
+      });
+      host['materialize'] = vi.fn().mockImplementation(async () => {
+        host['_cachedState'] = materializedState;
       });
       const ctrl = new SyncController((host as any));
 
-      await ctrl.syncWith((peer as any));
+      const result = await ctrl.syncWith((peer as any), { materialize: true });
 
+      expect(result.state).toBe(materializedState);
       expect(host['materialize']).toHaveBeenCalledOnce();
+      expect(host['_materializeGraph']).not.toHaveBeenCalled();
     });
 
     it('does NOT retry on direct peer errors', async () => {

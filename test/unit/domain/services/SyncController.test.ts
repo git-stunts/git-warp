@@ -69,6 +69,7 @@ function createMockHost(overrides: Record<string, unknown> = {}): any {
     _patchesSinceCheckpoint: 0,
     _logTiming: vi.fn(),
     materialize: vi.fn(),
+    _materializeGraph: vi.fn().mockRejectedValue(new Error('hidden sync materialization trap')),
     discoverWriters: vi.fn().mockResolvedValue([]),
     _materializedGraph: null,
     _logicalIndex: null,
@@ -279,7 +280,7 @@ describe('SyncController', () => {
       const ctrl = new SyncController((host as any));
 
       await expect(ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] as any[] }))
-        .rejects.toThrow(/No materialized state/);
+        .rejects.toMatchObject({ code: 'E_NO_STATE' });
     });
 
     it('updates host state from applySyncResponseImpl result', async () => {
@@ -569,7 +570,42 @@ describe('SyncController', () => {
       expect(host['_cachedState']).toBe(newState);
     });
 
-    it('calls host.materialize() when _cachedState is null before apply', async () => {
+    it('returns metadata without materializing when _cachedState is null by default', async () => {
+      const materializedState = {
+        observedFrontier: new Map(),
+        nodeAlive: { dots: new Map() },
+        edgeAlive: { dots: new Map() },
+      };
+      const newFrontier = new Map([['alice', 'sha-a2']]);
+      applySyncResponseMock.mockReturnValue({ state: materializedState, frontier: newFrontier, applied: 1 });
+
+      const peerResponse = {
+        type: 'sync-response',
+        frontier: {},
+        patches: [{ writerId: 'bob', sha: 'sha-b1', patch: { ops: [] } }],
+      };
+      const remotePeer = {
+        processSyncRequest: vi.fn().mockResolvedValue(peerResponse),
+        getFrontier: vi.fn().mockResolvedValue(new Map()),
+      };
+
+      const host = createMockHost({
+        _cachedState: null,
+        _lastFrontier: null,
+        discoverWriters: vi.fn().mockResolvedValue([]),
+      });
+      const ctrl = new SyncController((host as any));
+
+      const result = await ctrl.syncWith((remotePeer as any));
+
+      expect(result.applied).toBe(1);
+      expect(result).not.toHaveProperty('state');
+      expect(applySyncResponseMock).not.toHaveBeenCalled();
+      expect(host['materialize']).not.toHaveBeenCalled();
+      expect(host['_materializeGraph']).not.toHaveBeenCalled();
+    });
+
+    it('calls host.materialize() explicitly before apply when materialize option is true', async () => {
       const materializedState = {
         observedFrontier: new Map(),
         nodeAlive: { dots: new Map() },
@@ -592,15 +628,17 @@ describe('SyncController', () => {
         _cachedState: null,
         _lastFrontier: null,
         discoverWriters: vi.fn().mockResolvedValue([]),
-        materialize: vi.fn().mockImplementation(async function () {
-          host['_cachedState'] = materializedState;
-        }),
+      });
+      host['materialize'] = vi.fn().mockImplementation(async () => {
+        host['_cachedState'] = materializedState;
       });
       const ctrl = new SyncController((host as any));
 
-      await ctrl.syncWith((remotePeer as any));
+      const result = await ctrl.syncWith((remotePeer as any), { materialize: true });
 
+      expect(result.state).toBe(materializedState);
       expect(host['materialize']).toHaveBeenCalledOnce();
+      expect(host['_materializeGraph']).not.toHaveBeenCalled();
     });
 
     it('returns state when materialize option is true', async () => {

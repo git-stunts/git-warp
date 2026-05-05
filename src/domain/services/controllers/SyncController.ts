@@ -65,6 +65,11 @@ type SyncStatusPayload = {
   applied?: number;
 };
 
+type SyncMetadataResult = {
+  applied: number;
+  skippedWriters: SkippedWriter[];
+};
+
 /**
  * Translates an optional caller auth shape into the SyncHttpAuth
  * carried on the transport port. Returns undefined when auth is not
@@ -238,14 +243,10 @@ export default class SyncController {
     return await this._applySyncResponseWithGate(response, this._trustGate);
   }
 
-  private async _applySyncResponseWithGate(
-    response: SyncResponse,
+  private async _evaluateWriters(
+    patches: SyncResponse['patches'],
     trustGate: SyncTrustGate | null,
-  ): Promise<ApplySyncResult> {
-    if (!this._host._cachedState) {
-      throw new QueryError(E_NO_STATE_MSG, { code: 'E_NO_STATE' });
-    }
-    const patches = Array.isArray(response.patches) ? response.patches : [];
+  ): Promise<string[]> {
     const writersApplied = SyncTrustGate.extractWritersFromPatches(patches);
     if (trustGate && writersApplied.length > 0) {
       const verdict = await trustGate.evaluate(writersApplied, { graphName: this._host._graphName });
@@ -256,6 +257,30 @@ export default class SyncController {
         });
       }
     }
+    return writersApplied;
+  }
+
+  private async _acceptSyncResponseWithoutReading(
+    response: SyncResponse,
+    trustGate: SyncTrustGate | null,
+  ): Promise<SyncMetadataResult> {
+    const patches = Array.isArray(response.patches) ? response.patches : [];
+    await this._evaluateWriters(patches, trustGate);
+    return {
+      applied: patches.length,
+      skippedWriters: response.skippedWriters ?? [],
+    };
+  }
+
+  private async _applySyncResponseWithGate(
+    response: SyncResponse,
+    trustGate: SyncTrustGate | null,
+  ): Promise<ApplySyncResult> {
+    if (!this._host._cachedState) {
+      throw new QueryError(E_NO_STATE_MSG, { code: 'E_NO_STATE' });
+    }
+    const patches = Array.isArray(response.patches) ? response.patches : [];
+    const writersApplied = await this._evaluateWriters(patches, trustGate);
     const currentFrontier = this._host._lastFrontier ?? createFrontier();
     const result = applySyncResponseImpl(
       response, this._host._cachedState, currentFrontier,
@@ -331,13 +356,18 @@ export default class SyncController {
       if (!validation.ok) {
         throw new SyncError(`Invalid sync response: ${validation.error}`, { code: 'E_SYNC_PAYLOAD_INVALID' });
       }
-      if (!this._host._cachedState) {
-        await this._host._materializeGraph();
-        emit('materialized');
+      let result: SyncMetadataResult | ApplySyncResult;
+      if (!this._host._cachedState && !materializeAfterSync) {
+        result = await this._acceptSyncResponseWithoutReading(response, trustGate);
+      } else {
+        if (!this._host._cachedState) {
+          await this._host.materialize();
+          emit('materialized');
+        }
+        result = trustGate === this._trustGate
+          ? await this.applySyncResponse(response)
+          : await this._applySyncResponseWithGate(response, trustGate);
       }
-      const result = trustGate === this._trustGate
-        ? await this.applySyncResponse(response)
-        : await this._applySyncResponseWithGate(response, trustGate);
       emit('applied', { applied: result.applied });
       emit('complete', { applied: result.applied });
       const skippedWriters = Array.isArray(result.skippedWriters) ? result.skippedWriters : [];
@@ -355,7 +385,6 @@ export default class SyncController {
         },
       } as RetryOptions);
       if (materializeAfterSync) {
-        if (!this._host._cachedState) { await this._host._materializeGraph(); }
         const state = this._host._cachedState;
         if (state === null) {
           throw new SyncError('Materialize completed without cached state', {

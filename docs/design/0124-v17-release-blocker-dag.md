@@ -93,8 +93,10 @@ closure. A blank cell means "not directly blocked by that task," not
   diffs notify subscribers without another materialization call.
 
 `PORT_sync-controller-reading-basis`
-: Sync controller read-adjacent paths still materialize for cache/frontier
-  reads. Security hardening should not be bundled into this seam.
+: Closed in cycle 0133. Default `syncWith()` no longer calls
+  `_materializeGraph()` to create cached state before apply. No-cache
+  default sync returns metadata only; callers must opt into
+  `materialize: true` to create a reading basis and return state.
 
 `SPEC_materialize-spy-test-clusters`
 : `WarpGraph.lazyMaterialize`, `WarpGraph.adjacencyCache`,
@@ -171,7 +173,7 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `PORT_sync-controller-reading-basis`
+- `SPEC_materialize-spy-test-clusters`
 - `SPEC_observer-coordinate-pinning`
 - `HEX_sync-secret-plain-string`
 
@@ -185,9 +187,8 @@ cycle 0128 and unlocked checkpoint-controller reading-basis work.
 subscription-controller reading-basis work.
 `SPEC_uniform-git-cas-upgrade-contract-drift` closed in cycle 0131. The
 `PORT_subscription-controller-reading-basis` closed in cycle 0132. The
-smallest next controller pull is likely
-`PORT_sync-controller-reading-basis`, because it is now the remaining
-controller parent blocking `SPEC_materialize-spy-test-clusters`.
+`PORT_sync-controller-reading-basis` closed in cycle 0133 and opened
+`SPEC_materialize-spy-test-clusters`.
 
 ## Regeneration
 

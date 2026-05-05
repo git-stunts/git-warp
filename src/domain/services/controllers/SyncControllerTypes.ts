@@ -10,10 +10,7 @@ import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 import type SyncTrustGate from '../sync/SyncTrustGate.ts';
 import type SyncCapability from '../../capabilities/SyncCapability.ts';
-
-type SyncMaterializedState = {
-  state: WarpState;
-};
+import type SnapshotWarpState from '../snapshot/SnapshotWarpState.ts';
 
 /**
  * The host interface that SyncController depends on.
@@ -35,7 +32,7 @@ export interface SyncHost {
   _patchBlobStorage?: BlobStoragePort | null;
   _patchesSinceCheckpoint: number;
   _maxObservedLamport: number;
-  _materializeGraph: () => Promise<SyncMaterializedState>;
+  materialize: () => Promise<SnapshotWarpState>;
   _setMaterializedState: (state: WarpState) => Promise<object>;
   discoverWriters: () => Promise<string[]>;
   _createSyncTrustGate?: (
