@@ -21,15 +21,16 @@
 <!-- SPEC_materialize&#45;spy&#45;test&#45;clusters -->
 <g id="node9" class="node">
 <title>SPEC_materialize&#45;spy&#45;test&#45;clusters</title>
-<path fill="#dbeafe" stroke="#4b5563" stroke-width="1.2" d="M632.1,-792C632.1,-792 542.7,-792 542.7,-792 536.7,-792 530.7,-786 530.7,-780 530.7,-780 530.7,-768 530.7,-768 530.7,-762 536.7,-756 542.7,-756 542.7,-756 632.1,-756 632.1,-756 638.1,-756 644.1,-762 644.1,-768 644.1,-768 644.1,-780 644.1,-780 644.1,-786 638.1,-792 632.1,-792"/>
-<text xml:space="preserve" text-anchor="middle" x="587.4" y="-775.75" font-family="Helvetica,sans-Serif" font-size="10.00">SPEC_materialize&#45;spy</text>
-<text xml:space="preserve" text-anchor="middle" x="587.4" y="-764.5" font-family="Helvetica,sans-Serif" font-size="10.00">test clusters</text>
+<path fill="#bbf7d0" stroke="#15803d" stroke-width="2.4" d="M632.1,-797.91C632.1,-797.91 542.7,-797.91 542.7,-797.91 536.7,-797.91 530.7,-791.91 530.7,-785.91 530.7,-785.91 530.7,-766.09 530.7,-766.09 530.7,-760.09 536.7,-754.09 542.7,-754.09 542.7,-754.09 632.1,-754.09 632.1,-754.09 638.1,-754.09 644.1,-760.09 644.1,-766.09 644.1,-766.09 644.1,-785.91 644.1,-785.91 644.1,-791.91 638.1,-797.91 632.1,-797.91"/>
+<text xml:space="preserve" text-anchor="middle" x="587.4" y="-783.38" font-family="Helvetica,sans-Serif" font-size="10.00">DONE</text>
+<text xml:space="preserve" text-anchor="middle" x="587.4" y="-772.12" font-family="Helvetica,sans-Serif" font-size="10.00">SPEC_materialize&#45;spy</text>
+<text xml:space="preserve" text-anchor="middle" x="587.4" y="-760.88" font-family="Helvetica,sans-Serif" font-size="10.00">test clusters</text>
 </g>
 <!-- SPEC_consumer&#45;typecheck&#45;materialize&#45;residue&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters -->
 <g id="edge4" class="edge">
 <title>SPEC_consumer&#45;typecheck&#45;materialize&#45;residue&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M439.45,-892.95C450.35,-885.86 462.17,-877.84 472.7,-870 503.63,-846.96 537.14,-818.15 559.71,-798.13"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="561.23,-800.07 564.82,-793.58 557.97,-796.41 561.23,-800.07"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M439.04,-893.12C450.04,-885.96 462.01,-877.88 472.7,-870 501.04,-849.12 531.72,-823.57 554.06,-804.38"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="555.46,-806.4 559.16,-799.98 552.26,-802.69 555.46,-806.4"/>
 </g>
 <!-- REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="node17" class="node">
@@ -41,8 +42,8 @@
 <!-- SPEC_consumer&#45;typecheck&#45;materialize&#45;residue&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge24" class="edge">
 <title>SPEC_consumer&#45;typecheck&#45;materialize&#45;residue&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M471.42,-899.75C524.56,-884.11 596.69,-855.66 644.1,-808 697.27,-754.55 722.77,-665.88 732.7,-621.71"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="735.04,-622.49 734.12,-615.12 730.25,-621.45 735.04,-622.49"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M471.52,-901.73C524.71,-887.57 596.87,-860.98 644.1,-814 699.09,-759.31 723.86,-667.25 733.18,-621.9"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="735.57,-622.45 734.52,-615.11 730.76,-621.51 735.57,-622.45"/>
 </g>
 <!-- SPEC_docs&#45;materialize&#45;frontdoor&#45;drift -->
 <g id="node2" class="node">
@@ -69,8 +70,8 @@
 <!-- SPEC_docs&#45;materialize&#45;frontdoor&#45;drift&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters -->
 <g id="edge5" class="edge">
 <title>SPEC_docs&#45;materialize&#45;frontdoor&#45;drift&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M221.34,-1035.19C238.06,-997.56 276.17,-922.25 330.05,-878 386.54,-831.61 466.46,-803.62 521.99,-788.55"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="522.6,-790.92 528.73,-786.76 521.34,-786.19 522.6,-790.92"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M221.31,-1035.15C237.98,-997.46 276.02,-922.07 330.05,-878 386.27,-832.14 465.71,-804.84 521.21,-790.19"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="521.78,-792.57 527.95,-788.45 520.56,-787.83 521.78,-792.57"/>
 </g>
 <!-- SPEC_docs&#45;materialize&#45;frontdoor&#45;drift&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge25" class="edge">
@@ -81,8 +82,8 @@
 <!-- SPEC_runtime&#45;error&#45;reading&#45;basis&#45;guidance&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters -->
 <g id="edge6" class="edge">
 <title>SPEC_runtime&#45;error&#45;reading&#45;basis&#45;guidance&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M418.22,-1035.01C432.62,-1014.02 454.33,-982.1 472.7,-954 508.39,-899.41 548.89,-834.56 570.62,-799.53"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="572.49,-801.17 574.09,-793.93 568.32,-798.59 572.49,-801.17"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M418.19,-1034.98C432.56,-1013.99 454.26,-982.05 472.7,-954 506.64,-902.36 545.17,-841.58 567.53,-806.06"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="569.51,-807.52 571.16,-800.29 565.36,-804.91 569.51,-807.52"/>
 </g>
 <!-- SPEC_runtime&#45;error&#45;reading&#45;basis&#45;guidance&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge26" class="edge">
@@ -128,8 +129,8 @@
 <!-- BND_checkpoint&#45;schema&#45;contract&#45;drift&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge27" class="edge">
 <title>BND_checkpoint&#45;schema&#45;contract&#45;drift&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M214.83,-730.92C222.81,-781.78 249.83,-903.55 330.05,-954 383.72,-987.75 411.04,-968.75 472.7,-954 555.78,-934.12 587.99,-931.42 644.1,-867 707.84,-793.83 728.87,-675.08 735.31,-622.06"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="737.73,-622.43 736.09,-615.2 732.86,-621.87 737.73,-622.43"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M214.83,-730.92C222.81,-781.78 249.83,-903.55 330.05,-954 383.72,-987.75 410.87,-968.03 472.7,-954 555.05,-935.31 588.06,-935.18 644.1,-872 710.01,-797.7 729.97,-675.22 735.73,-621.57"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="738.13,-622.13 736.39,-614.92 733.26,-621.64 738.13,-622.13"/>
 </g>
 <!-- PORT_patch&#45;controller&#45;reading&#45;basis -->
 <g id="node5" class="node">
@@ -156,8 +157,8 @@
 <!-- PORT_patch&#45;controller&#45;reading&#45;basis&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters -->
 <g id="edge7" class="edge">
 <title>PORT_patch&#45;controller&#45;reading&#45;basis&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M220.86,-547.83C241.61,-599.24 293.82,-721.52 330.05,-746 386.5,-784.15 466.43,-786.83 521.97,-782.74"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="521.89,-785.2 528.67,-782.19 521.49,-780.32 521.89,-785.2"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M220.87,-547.81C241.66,-599.18 293.91,-721.38 330.05,-746 386.14,-784.22 465.6,-787.71 521.14,-784.19"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="521.03,-786.66 527.84,-783.72 520.68,-781.77 521.03,-786.66"/>
 </g>
 <!-- PORT_patch&#45;controller&#45;reading&#45;basis&#45;&gt;REL_quarantine&#45;graduate&#45;clean -->
 <g id="edge15" class="edge">
@@ -174,8 +175,8 @@
 <!-- PORT_checkpoint&#45;controller&#45;reading&#45;basis&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters -->
 <g id="edge8" class="edge">
 <title>PORT_checkpoint&#45;controller&#45;reading&#45;basis&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M466.74,-731.08C486.24,-738.08 507.56,-745.72 526.74,-752.6"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="525.83,-754.88 533.25,-754.94 527.48,-750.27 525.83,-754.88"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M464.68,-731.02C483.11,-737.83 503.32,-745.3 521.89,-752.16"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="520.75,-754.36 528.17,-754.48 522.45,-749.76 520.75,-754.36"/>
 </g>
 <!-- PORT_checkpoint&#45;controller&#45;reading&#45;basis&#45;&gt;REL_quarantine&#45;graduate&#45;clean -->
 <g id="edge16" class="edge">
@@ -192,8 +193,8 @@
 <!-- PORT_subscription&#45;controller&#45;reading&#45;basis&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters -->
 <g id="edge9" class="edge">
 <title>PORT_subscription&#45;controller&#45;reading&#45;basis&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M418.22,-512.99C432.62,-533.98 454.33,-565.9 472.7,-594 508.39,-648.59 548.89,-713.44 570.62,-748.47"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="568.32,-749.41 574.09,-754.07 572.49,-746.83 568.32,-749.41"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M418.26,-512.97C432.67,-533.94 454.4,-565.86 472.7,-594 507.11,-646.93 545.78,-709.53 568,-745.8"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="565.87,-747.02 571.61,-751.71 570.05,-744.46 565.87,-747.02"/>
 </g>
 <!-- PORT_subscription&#45;controller&#45;reading&#45;basis&#45;&gt;REL_quarantine&#45;graduate&#45;clean -->
 <g id="edge17" class="edge">
@@ -218,8 +219,8 @@
 <!-- PORT_sync&#45;controller&#45;reading&#45;basis&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters -->
 <g id="edge10" class="edge">
 <title>PORT_sync&#45;controller&#45;reading&#45;basis&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M448.75,-654.95C456.95,-659.6 465.24,-664.69 472.7,-670 506.58,-694.09 541.22,-727.25 563.22,-749.6"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="561.27,-751.11 567.91,-754.41 564.77,-747.69 561.27,-751.11"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M449.17,-655.11C457.23,-659.7 465.37,-664.74 472.7,-670 504.76,-693.03 537.29,-724.34 559.3,-746.95"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="557.44,-748.55 564.06,-751.89 560.97,-745.15 557.44,-748.55"/>
 </g>
 <!-- PORT_sync&#45;controller&#45;reading&#45;basis&#45;&gt;REL_quarantine&#45;graduate&#45;clean -->
 <g id="edge18" class="edge">
@@ -236,8 +237,8 @@
 <!-- SPEC_materialize&#45;spy&#45;test&#45;clusters&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge32" class="edge">
 <title>SPEC_materialize&#45;spy&#45;test&#45;clusters&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M612.89,-755.57C623.07,-747.36 634.67,-737.24 644.1,-727 675.25,-693.15 704.91,-648.65 722.26,-620.94"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="724.33,-622.25 725.94,-615.01 720.17,-619.66 724.33,-622.25"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M617.06,-753.02C626.13,-745.18 635.91,-736.09 644.1,-727 674.9,-692.83 704.66,-648.42 722.12,-620.81"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="724.18,-622.14 725.83,-614.91 720.03,-619.53 724.18,-622.14"/>
 </g>
 <!-- SPEC_observer&#45;coordinate&#45;pinning -->
 <g id="node10" class="node">

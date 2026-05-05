@@ -105,7 +105,7 @@ describe('WarpCore.getStateSnapshot()', () => {
     expect(snap).toBeNull();
   });
 
-  it('auto-materializes when autoMaterialize is enabled and no cached state', async () => {
+  it('rejects when autoMaterialize is enabled and no reading basis exists', async () => {
     setupPersistence(persistence, 'alice', [
       { lamport: 1, ops: [{ type: 'NodeAdd', node: 'n1', dot: { writerId: 'alice', counter: 1 } }] },
     ]);
@@ -117,10 +117,7 @@ describe('WarpCore.getStateSnapshot()', () => {
       autoMaterialize: true,
     });
 
-    // No explicit materialize() call — getStateSnapshot should trigger it
-    const snap = await graph.getStateSnapshot();
-    expect(snap).not.toBeNull();
-    expect((snap as any).nodeAlive).toBeDefined();
+    await expect(graph.getStateSnapshot()).rejects.toMatchObject({ code: 'E_NO_STATE' });
   });
 
   it('returns an immutable detached snapshot of materialized state', async () => {

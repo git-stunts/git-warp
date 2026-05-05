@@ -99,12 +99,9 @@ closure. A blank cell means "not directly blocked by that task," not
   `materialize: true` to create a reading basis and return state.
 
 `SPEC_materialize-spy-test-clusters`
-: `WarpGraph.lazyMaterialize`, `WarpGraph.adjacencyCache`,
-  `WarpGraph.autoMaterializeRemove`, `WarpGraph.errorCodes`,
-  `WarpGraph.seekDiff`, `WarpGraph.patchMany`, `WarpGraph.watch`,
-  controller tests, and related files still assert auto-materialize,
-  materialize calls, or private cache behavior. Rewrite after the public
-  contract and controller seams settle.
+: Closed in cycle 0134. Former auto-materialize and materialize-spy
+  tests now assert v17 reading-basis behavior instead of hidden replay,
+  private materialization call counts, or private cache shape.
 
 `SPEC_observer-coordinate-pinning`
 : `WarpGraph.observerBoundary.test.ts` and `WarpGraph.strands.test.ts`
@@ -173,7 +170,6 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `SPEC_materialize-spy-test-clusters`
 - `SPEC_observer-coordinate-pinning`
 - `HEX_sync-secret-plain-string`
 
@@ -188,7 +184,8 @@ subscription-controller reading-basis work.
 `SPEC_uniform-git-cas-upgrade-contract-drift` closed in cycle 0131. The
 `PORT_subscription-controller-reading-basis` closed in cycle 0132. The
 `PORT_sync-controller-reading-basis` closed in cycle 0133 and opened
-`SPEC_materialize-spy-test-clusters`.
+`SPEC_materialize-spy-test-clusters`. The materialize-spy cluster closed
+in cycle 0134.
 
 ## Regeneration
 

@@ -78,8 +78,10 @@ digraph V17ReleaseBlockers {
     penwidth=2.4
   ];
   "SPEC_materialize-spy-test-clusters" [
-    fillcolor="#dbeafe",
-    label="SPEC_materialize-spy\ntest clusters"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nSPEC_materialize-spy\ntest clusters",
+    penwidth=2.4
   ];
   "SPEC_observer-coordinate-pinning" [
     fillcolor="#dbeafe",

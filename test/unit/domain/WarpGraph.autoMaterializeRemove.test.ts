@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
 
-describe('Auto-materialize on remove (DX/AUTOMAT/1)', { timeout: 15000 }, () => {
-  it('removeNode works without explicit materialize when autoMaterialize is true', async () => {
+describe('Remove operations require a reading basis', { timeout: 15000 }, () => {
+  it('removeNode rejects without a basis even when autoMaterialize is true', async () => {
     const repo = await createGitRepo('automat-remove');
     try {
       const graph = await openRuntimeHostProduct({
@@ -16,29 +16,38 @@ describe('Auto-materialize on remove (DX/AUTOMAT/1)', { timeout: 15000 }, () => 
       // Add a node
       await (await graph.createPatch()).addNode('alice').commit();
 
-      // Do NOT call materialize() explicitly.
-      // createPatch should auto-materialize so removeNode has state.
+      const patch = await graph.createPatch();
+      expect(() => patch.removeNode('alice')).toThrow('must be materialized');
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  it('removeNode works after an explicit reading basis exists', async () => {
+    const repo = await createGitRepo('remove-node-explicit-basis');
+    try {
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test',
+        writerId: 'w1',
+        autoMaterialize: true,
+      });
+
+      await (await graph.createPatch()).addNode('alice').commit();
+      await graph.materialize();
+
       const patch = await graph.createPatch();
       patch.removeNode('alice');
-
-      const ops = patch.ops;
-      expect(ops).toHaveLength(1);
-      const op0 = (ops[0] as any);
-      expect(op0.type).toBe('NodeRemove');
-      expect(op0.observedDots.length).toBeGreaterThan(0);
-
       await patch.commit();
 
-      // Verify the node is actually gone
-      await graph.materialize();
-      const nodes = graph.getNodes();
+      const nodes = await graph.getNodes();
       expect(nodes).not.toContain('alice');
     } finally {
       await repo.cleanup();
     }
   });
 
-  it('removeEdge works without explicit materialize when autoMaterialize is true', async () => {
+  it('removeEdge rejects without a basis even when autoMaterialize is true', async () => {
     const repo = await createGitRepo('automat-edge');
     try {
       const graph = await openRuntimeHostProduct({
@@ -54,15 +63,36 @@ describe('Auto-materialize on remove (DX/AUTOMAT/1)', { timeout: 15000 }, () => 
         .addEdge('a', 'b', 'knows')
         .commit();
 
-      // No explicit materialize — createPatch should handle it
+      const patch = await graph.createPatch();
+      expect(() => patch.removeEdge('a', 'b', 'knows')).toThrow('must be materialized');
+    } finally {
+      await repo.cleanup();
+    }
+  });
+
+  it('removeEdge works after an explicit reading basis exists', async () => {
+    const repo = await createGitRepo('remove-edge-explicit-basis');
+    try {
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test',
+        writerId: 'w1',
+        autoMaterialize: true,
+      });
+
+      await (await graph.createPatch())
+        .addNode('a')
+        .addNode('b')
+        .addEdge('a', 'b', 'knows')
+        .commit();
+      await graph.materialize();
+
       const patch = await graph.createPatch();
       patch.removeEdge('a', 'b', 'knows');
+      await patch.commit();
 
-      const ops = patch.ops;
-      expect(ops).toHaveLength(1);
-      const op0 = (ops[0] as any);
-      expect(op0.type).toBe('EdgeRemove');
-      expect(op0.observedDots.length).toBeGreaterThan(0);
+      const edges = await graph.getEdges();
+      expect(edges).toEqual([]);
     } finally {
       await repo.cleanup();
     }

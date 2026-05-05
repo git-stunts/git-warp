@@ -35,6 +35,7 @@ describe('WarpCore.patchMany()', { timeout: 30000 }, () => {
       expect(typeof shas[0]).toBe('string');
       expect(shas[0]).toHaveLength(40);
 
+      await graph.materialize();
       const props = await graph.getNodeProps('n:1');
       expect(props?.['k']).toBe('v');
     } finally {
@@ -58,6 +59,7 @@ describe('WarpCore.patchMany()', { timeout: 30000 }, () => {
       );
       expect(shas).toHaveLength(3);
 
+      await graph.materialize();
       const nodes = await graph.getNodes();
       expect(nodes.sort()).toEqual(['n:1', 'n:2']);
 
@@ -70,7 +72,7 @@ describe('WarpCore.patchMany()', { timeout: 30000 }, () => {
     }
   });
 
-  it('each callback sees state from previous patches', async () => {
+  it('does not create a hidden read basis between callbacks', async () => {
     const repo = await createGitRepo('patchMany-sees-prior');
     try {
       const graph = await openRuntimeHostProduct({
@@ -84,14 +86,13 @@ describe('WarpCore.patchMany()', { timeout: 30000 }, () => {
       const shas = await graph.patchMany(
         (p) => { p.addNode('n:1').setProperty('n:1', 'step', 1); },
         async (p) => {
-          // Verify node from first patch is visible
-          const has = await graph.hasNode('n:1');
-          expect(has).toBe(true);
+          await expect(graph.hasNode('n:1')).rejects.toMatchObject({ code: 'E_NO_STATE' });
           p.setProperty('n:1', 'step', 2);
         },
       );
       expect(shas).toHaveLength(2);
 
+      await graph.materialize();
       const props = await graph.getNodeProps('n:1');
       expect(props?.['step']).toBe(2);
     } finally {
@@ -118,6 +119,7 @@ describe('WarpCore.patchMany()', { timeout: 30000 }, () => {
       ).rejects.toThrow('deliberate');
 
       // First patch was applied; third was not
+      await graph.materialize();
       expect(await graph.hasNode('n:1')).toBe(true);
       expect(await graph.hasNode('n:3')).toBe(false);
     } finally {

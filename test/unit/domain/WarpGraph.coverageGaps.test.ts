@@ -158,7 +158,7 @@ describe('WarpCore coverage gaps', () => {
 
       const otherState = createEmptyState();
 
-      expect(() => graph.join(otherState)).toThrow('No materialized state');
+      expect(() => graph.join(otherState)).toThrow('No live reading basis');
     });
 
     it('throws when otherState is null', async () => {
@@ -813,7 +813,7 @@ describe('WarpCore coverage gaps', () => {
         autoMaterialize: false,
       });
 
-      await expect(graph.getPropertyCount()).rejects.toThrow('No materialized state');
+      await expect(graph.getPropertyCount()).rejects.toMatchObject({ code: 'E_NO_STATE' });
     });
 
     it('returns 0 for empty state', async () => {

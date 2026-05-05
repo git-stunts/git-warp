@@ -1,652 +1,131 @@
-/**
- * AP/LAZY/2 — Guard query methods with auto-materialize.
- *
- * When autoMaterialize === true and _cachedState is null or _stateDirty === true,
- * query methods should call materialize() before returning results.
- * When autoMaterialize === false, preserve current behavior (throw if no cached state).
- *
- * Tests cover:
- *   1. Fresh open + query with autoMaterialize -> results returned
- *   2. Dirty state + query -> auto-rematerializes -> fresh results
- *   3. autoMaterialize off + null state -> throws
- *   4. autoMaterialize off + materialize -> current behavior unchanged
- *   5. All query methods respect autoMaterialize
- *   6. query().run() works with autoMaterialize
- *   7. Concurrent auto-materialize calls (stretch goal)
- *   8. traverse methods work with autoMaterialize
- */
-
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
-import QueryError from '../../../src/domain/errors/QueryError.ts';
-import { encodePatchMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
-import { createEmptyState, encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.ts';
-import { Dot } from '../../../src/domain/crdt/Dot.ts';
-import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
+import { createGitRepo, createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
-const FAKE_BLOB_OID = 'a'.repeat(40);
-const FAKE_TREE_OID = 'b'.repeat(40);
-const FAKE_COMMIT_SHA = 'c'.repeat(40);
+type RuntimeGraph = Awaited<ReturnType<typeof openRuntimeHostProduct>>;
 
-/**
- * Configure mock persistence so a first-time writer commit succeeds.
- */
-function mockFirstCommit(/** @type {any} */ persistence) {
-  persistence.readRef.mockResolvedValue(null);
-  persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
-  persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
-  persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA);
-  persistence.updateRef.mockResolvedValue(undefined);
+const directReadCases = [
+  {
+    name: 'getNodes',
+    read: (graph: RuntimeGraph) => graph.getNodes(),
+  },
+  {
+    name: 'hasNode',
+    read: (graph: RuntimeGraph) => graph.hasNode('test:x'),
+  },
+  {
+    name: 'getEdges',
+    read: (graph: RuntimeGraph) => graph.getEdges(),
+  },
+  {
+    name: 'getNodeProps',
+    read: (graph: RuntimeGraph) => graph.getNodeProps('test:x'),
+  },
+  {
+    name: 'neighbors',
+    read: (graph: RuntimeGraph) => graph.neighbors('test:x'),
+  },
+] as const;
+
+async function openGraph(options: { autoMaterialize?: boolean } = {}): Promise<RuntimeGraph> {
+  return await openRuntimeHostProduct({
+    persistence: createMockPersistence(),
+    graphName: 'test',
+    writerId: 'writer-1',
+    ...(options.autoMaterialize !== undefined ? { autoMaterialize: options.autoMaterialize } : {}),
+  });
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// 1. Fresh open -> query with autoMaterialize -> results returned
-// ────────────────────────────────────────────────────────────────────────────
+describe('v17 direct read basis contract', () => {
+  it.each(directReadCases)(
+    '$name rejects with E_NO_STATE when no reading basis exists',
+    async ({ read }) => {
+      const graph = await openGraph({ autoMaterialize: true });
 
-describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
-  describe('1. Fresh open with autoMaterialize: true -> query returns results', () => {
-        let persistence;
-        let graph;
+      await expect(read(graph)).rejects.toMatchObject({ code: 'E_NO_STATE' });
+    },
+  );
 
-    beforeEach(async () => {
-      persistence = createMockPersistence();
-      graph = await openRuntimeHostProduct({
-        persistence,
-        graphName: 'test',
-        writerId: 'writer-1',
-        autoMaterialize: true,
-      });
-    });
+  it('default autoMaterialize does not create a hidden reading basis', async () => {
+    const graph = await openGraph();
 
-    it('getNodes() returns empty array without explicit materialize()', async () => {
-      const nodes = await graph.getNodes();
-      expect(nodes).toEqual([]);
-    });
-
-    it('hasNode() returns false without explicit materialize()', async () => {
-      const result = await graph.hasNode('test:x');
-      expect(result).toBe(false);
-    });
-
-    it('getEdges() returns empty array without explicit materialize()', async () => {
-      const edges = await graph.getEdges();
-      expect(edges).toEqual([]);
-    });
-
-    it('getNodeProps() returns null for non-existent node without explicit materialize()', async () => {
-      const props = await graph.getNodeProps('test:x');
-      expect(props).toBe(null);
-    });
-
-    it('neighbors() returns empty array without explicit materialize()', async () => {
-      const result = await graph.neighbors('test:x');
-      expect(result).toEqual([]);
-    });
-
-    it('_cachedState is populated after first query triggers auto-materialize', async () => {
-      expect((graph)._cachedState).toBe(null);
-      await graph.getNodes();
-      expect((graph)._cachedState).not.toBe(null);
-    });
+    await expect(graph.hasNode('test:x')).rejects.toMatchObject({ code: 'E_NO_STATE' });
   });
 
-  // ────────────────────────────────────────────────────────────────────────
-  // 2. Dirty state -> query -> auto-rematerializes -> fresh results
-  // ────────────────────────────────────────────────────────────────────────
+  it('query builder reads require a live reading basis on RuntimeHostProduct', async () => {
+    const graph = await openGraph({ autoMaterialize: true });
 
-  describe('2. Dirty state triggers auto-rematerialization on query', () => {
-        let persistence;
-        let graph;
+    await expect(graph.query().match('*').run()).rejects.toMatchObject({ code: 'E_NO_STATE' });
+  });
 
-    beforeEach(async () => {
-      persistence = createMockPersistence();
-      graph = await openRuntimeHostProduct({
-        persistence,
+  it('traversal reads require a live reading basis before node lookup', async () => {
+    const graph = await openGraph({ autoMaterialize: true });
+
+    await expect(graph.traverse.bfs('test:x')).rejects.toMatchObject({ code: 'E_NO_STATE' });
+    await expect(
+      graph.traverse.shortestPath('test:x', 'test:y'),
+    ).rejects.toMatchObject({ code: 'E_NO_STATE' });
+  });
+
+  it('explicit internal materialization creates a basis for empty reads', async () => {
+    const graph = await openGraph({ autoMaterialize: false });
+
+    await graph.materialize();
+
+    await expect(graph.getNodes()).resolves.toEqual([]);
+    await expect(graph.hasNode('test:x')).resolves.toBe(false);
+    await expect(graph.getEdges()).resolves.toEqual([]);
+    await expect(graph.getNodeProps('test:x')).resolves.toBeNull();
+    await expect(graph.neighbors('test:x')).resolves.toEqual([]);
+  });
+
+  it('explicit internal materialization creates a basis for data reads', async () => {
+    const repo = await createGitRepo('v17-reading-basis-data');
+    try {
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
         graphName: 'test',
         writerId: 'writer-1',
-        autoMaterialize: true,
+        autoMaterialize: false,
       });
-    });
 
-    it('eagerly applied commit keeps state clean, hasNode returns true', async () => {
-      // First materialize (empty state)
+      await graph.patch((patch) => {
+        patch
+          .addNode('test:alice')
+          .addNode('test:bob')
+          .addEdge('test:alice', 'test:bob', 'knows')
+          .setProperty('test:alice', 'name', 'Alice');
+      });
+
       await graph.materialize();
 
-      // Commit a node — with _cachedState present, eager apply works
-      mockFirstCommit(persistence);
-      await (await graph.createPatch()).addNode('test:node').commit();
-
-      // State should still be fresh (eager re-materialize)
-      expect((graph)._stateDirty).toBe(false);
-      expect(await graph.hasNode('test:node')).toBe(true);
-    });
-
-    it('dirty state auto-rematerializes on hasNode query', async () => {
-      // First materialize (empty state)
-      await graph.materialize();
-
-      // Commit a node eagerly
-      mockFirstCommit(persistence);
-      await (await graph.createPatch()).addNode('test:node').commit();
-
-      // Manually mark dirty to simulate external change
-      (graph)._stateDirty = true;
-
-      // Mock listRefs to return the writer ref for rematerialization
-      const patchMessage = encodePatchMessage({
-        graph: 'test',
-        writer: 'writer-1',
-        lamport: 1,
-        patchOid: FAKE_BLOB_OID,
-        schema: 2,
-      });
-      persistence.listRefs.mockResolvedValue([
-        'refs/warp/test/writers/writer-1',
+      await expect(graph.hasNode('test:alice')).resolves.toBe(true);
+      await expect(graph.getNodes()).resolves.toEqual(['test:alice', 'test:bob']);
+      await expect(graph.getNodeProps('test:alice')).resolves.toEqual({ name: 'Alice' });
+      await expect(graph.getEdges()).resolves.toEqual([
+        { from: 'test:alice', to: 'test:bob', label: 'knows', props: {} },
       ]);
-      persistence.showNode.mockResolvedValue(patchMessage);
-      persistence.readBlob.mockResolvedValue(
-        // Empty patch ops — we just need the codec to not blow up
-        Buffer.from([0x80]), // CBOR empty array
-      );
-      persistence.getNodeInfo.mockResolvedValue({
-        parents: [],
-        message: patchMessage,
-      });
-
-      // Query should trigger auto-rematerialize (not throw)
-      const result = await graph.hasNode('test:node');
-      expect(typeof result).toBe('boolean');
-    });
-
-    it('auto-materialize is triggered when _stateDirty is true', async () => {
-      await graph.materialize();
-      (graph)._stateDirty = true;
-
-      const materializeSpy = vi.spyOn(graph, 'materialize');
-
-      await graph.getNodes();
-
-      expect(materializeSpy).toHaveBeenCalled();
-    });
-
-    it('auto-materialize is triggered when _cachedState is null', async () => {
-      // Don't call materialize — _cachedState is null
-      const materializeSpy = vi.spyOn(graph, 'materialize');
-
-      await graph.getNodes();
-
-      expect(materializeSpy).toHaveBeenCalled();
-    });
-
-    it('auto-materialize is NOT triggered when state is clean', async () => {
-      await graph.materialize();
-      expect((graph)._stateDirty).toBe(false);
-      expect((graph)._cachedState).not.toBe(null);
-
-      const materializeSpy = vi.spyOn(graph, 'materialize');
-
-      await graph.getNodes();
-
-      expect(materializeSpy).not.toHaveBeenCalled();
-    });
-  });
-
-  // ────────────────────────────────────────────────────────────────────────
-  // 3. autoMaterialize off -> null state -> throws
-  // ────────────────────────────────────────────────────────────────────────
-
-  describe('3. autoMaterialize: false -> null state -> throws', () => {
-        let persistence;
-        let graph;
-
-    beforeEach(async () => {
-      persistence = createMockPersistence();
-      graph = await openRuntimeHostProduct({
-        persistence,
-        graphName: 'test',
-        writerId: 'writer-1',
-        autoMaterialize: false,
-      });
-    });
-
-    it('hasNode throws without prior materialize()', async () => {
-      await expect(graph.hasNode('test:x')).rejects.toThrow(QueryError);
-    });
-
-    it('getNodes throws without prior materialize()', async () => {
-      await expect(graph.getNodes()).rejects.toThrow(QueryError);
-    });
-
-    it('getEdges throws without prior materialize()', async () => {
-      await expect(graph.getEdges()).rejects.toThrow(QueryError);
-    });
-
-    it('getNodeProps throws without prior materialize()', async () => {
-      await expect(graph.getNodeProps('test:x')).rejects.toThrow(QueryError);
-    });
-
-    it('neighbors throws without prior materialize()', async () => {
-      await expect(graph.neighbors('test:x')).rejects.toThrow(QueryError);
-    });
-  });
-
-  // ────────────────────────────────────────────────────────────────────────
-  // 4. autoMaterialize off -> materialize -> current behavior unchanged
-  // ────────────────────────────────────────────────────────────────────────
-
-  describe('4. autoMaterialize: false -> explicit materialize -> normal query behavior', () => {
-        let persistence;
-        let graph;
-
-    beforeEach(async () => {
-      persistence = createMockPersistence();
-      graph = await openRuntimeHostProduct({
-        persistence,
-        graphName: 'test',
-        writerId: 'writer-1',
-        autoMaterialize: false,
-      });
-    });
-
-    it('getNodes works after explicit materialize()', async () => {
-      await graph.materialize();
-      const nodes = await graph.getNodes();
-      expect(nodes).toEqual([]);
-    });
-
-    it('hasNode works after explicit materialize()', async () => {
-      await graph.materialize();
-      const result = await graph.hasNode('test:x');
-      expect(result).toBe(false);
-    });
-
-    it('getEdges works after explicit materialize()', async () => {
-      await graph.materialize();
-      const edges = await graph.getEdges();
-      expect(edges).toEqual([]);
-    });
-
-    it('getNodeProps returns null for absent node after materialize()', async () => {
-      await graph.materialize();
-      const props = await graph.getNodeProps('test:x');
-      expect(props).toBe(null);
-    });
-
-    it('neighbors returns empty after materialize()', async () => {
-      await graph.materialize();
-      const result = await graph.neighbors('test:x');
-      expect(result).toEqual([]);
-    });
-
-    it('querying state with data works after materialize + manual seed', async () => {
-      await graph.materialize();
-      const state = (graph)._cachedState;
-      state.nodeAlive.add('test:alice', Dot.create('w1', 1));
-
-      expect(await graph.hasNode('test:alice')).toBe(true);
-      expect(await graph.getNodes()).toContain('test:alice');
-    });
-  });
-
-  // ────────────────────────────────────────────────────────────────────────
-  // 5. All query methods respect autoMaterialize
-  // ────────────────────────────────────────────────────────────────────────
-
-  describe('5. All query methods respect autoMaterialize: true', () => {
-        let persistence;
-        let graph;
-
-    beforeEach(async () => {
-      persistence = createMockPersistence();
-      graph = await openRuntimeHostProduct({
-        persistence,
-        graphName: 'test',
-        writerId: 'writer-1',
-        autoMaterialize: true,
-      });
-    });
-
-    it('hasNode auto-materializes and returns result', async () => {
-      expect((graph)._cachedState).toBe(null);
-      const result = await graph.hasNode('test:x');
-      expect(result).toBe(false);
-      expect((graph)._cachedState).not.toBe(null);
-    });
-
-    it('getNodeProps auto-materializes and returns result', async () => {
-      expect((graph)._cachedState).toBe(null);
-      const result = await graph.getNodeProps('test:x');
-      expect(result).toBe(null);
-      expect((graph)._cachedState).not.toBe(null);
-    });
-
-    it('neighbors auto-materializes and returns result', async () => {
-      expect((graph)._cachedState).toBe(null);
-      const result = await graph.neighbors('test:x');
-      expect(result).toEqual([]);
-      expect((graph)._cachedState).not.toBe(null);
-    });
-
-    it('getNodes auto-materializes and returns result', async () => {
-      expect((graph)._cachedState).toBe(null);
-      const result = await graph.getNodes();
-      expect(result).toEqual([]);
-      expect((graph)._cachedState).not.toBe(null);
-    });
-
-    it('getEdges auto-materializes and returns result', async () => {
-      expect((graph)._cachedState).toBe(null);
-      const result = await graph.getEdges();
-      expect(result).toEqual([]);
-      expect((graph)._cachedState).not.toBe(null);
-    });
-
-    it('all methods return consistent data from auto-materialized state', async () => {
-      // First call triggers materialize; seed state for subsequent calls
-      await graph.getNodes();
-      const state = (graph)._cachedState;
-
-      // Seed data
-      state.nodeAlive.add('test:alice', Dot.create('w1', 1));
-      state.nodeAlive.add('test:bob', Dot.create('w1', 2));
-      state.edgeAlive.add(encodeEdgeKey('test:alice', 'test:bob', 'knows'), Dot.create('w1', 3));
-      const propKey = encodePropKey('test:alice', 'name');
-      state.prop.set(propKey, { value: 'Alice', lamport: 1, writerId: 'w1' });
-
-      // All methods work without re-materializing (state is clean)
-      expect(await graph.hasNode('test:alice')).toBe(true);
-      expect(await graph.hasNode('test:bob')).toBe(true);
-      expect(await graph.hasNode('test:nonexistent')).toBe(false);
-
-      const nodes = await graph.getNodes();
-      expect(nodes).toContain('test:alice');
-      expect(nodes).toContain('test:bob');
-
-      const edges = await graph.getEdges();
-      expect(edges).toHaveLength(1);
-      expect(edges[0]).toEqual({ from: 'test:alice', to: 'test:bob', label: 'knows', props: {} });
-
-      const props = await graph.getNodeProps('test:alice');
-      expect(props.name).toBe('Alice');
-
-      const outgoing = await graph.neighbors('test:alice', 'outgoing');
-      expect(outgoing).toHaveLength(1);
-      expect(outgoing[0].nodeId).toBe('test:bob');
-
-      const incoming = await graph.neighbors('test:bob', 'incoming');
-      expect(incoming).toHaveLength(1);
-      expect(incoming[0].nodeId).toBe('test:alice');
-    });
-  });
-
-  // ────────────────────────────────────────────────────────────────────────
-  // 6. query().run() works with autoMaterialize
-  // ────────────────────────────────────────────────────────────────────────
-
-  describe('6. query().run() works with autoMaterialize: true', () => {
-        let persistence;
-        let graph;
-
-    beforeEach(async () => {
-      persistence = createMockPersistence();
-      graph = await openRuntimeHostProduct({
-        persistence,
-        graphName: 'test',
-        writerId: 'writer-1',
-        autoMaterialize: true,
-      });
-    });
-
-    it('query().match("*").run() does not throw on null state', async () => {
-      const result = await graph.query().match('*').run();
-      expect(result).toBeDefined();
-      expect(result.nodes).toEqual([]);
-    });
-
-    it('query().match("test:*").run() does not throw on null state', async () => {
-      const result = await graph.query().match('test:*').run();
-      expect(result).toBeDefined();
-      expect(result.nodes).toEqual([]);
-    });
-
-    it('query().run() returns data after auto-materialize + seed', async () => {
-      // query().run() calls _materializeGraph() which calls materialize().
-      // We need to mock materialize to return a pre-seeded state so it
-      // does not get overwritten on each call (same pattern as queryBuilder tests).
-      const state = createEmptyState();
-      state.nodeAlive.add('test:alice', Dot.create('w1', 1));
-      state.nodeAlive.add('test:bob', Dot.create('w1', 2));
-      state.edgeAlive.add(encodeEdgeKey('test:alice', 'test:bob', 'follows'), Dot.create('w1', 3));
-
-      (graph)._cachedState = state;
-      graph.materialize = vi.fn().mockResolvedValue(state);
-
-      const result = await graph.query().match('test:alice').outgoing().run();
-      expect(result.nodes).toEqual([{ id: 'test:bob' }]);
-    });
-
-    it('query().run() auto-materializes when state is null', async () => {
-      expect((graph)._cachedState).toBe(null);
-      const result = await graph.query().match('*').run();
-      expect((graph)._cachedState).not.toBe(null);
-      expect(result.nodes).toEqual([]);
-    });
-  });
-
-  // ────────────────────────────────────────────────────────────────────────
-  // 7. Concurrent auto-materialize calls
-  // ────────────────────────────────────────────────────────────────────────
-
-  describe('7. Concurrent auto-materialize calls', () => {
-        let persistence;
-        let graph;
-
-    beforeEach(async () => {
-      persistence = createMockPersistence();
-      graph = await openRuntimeHostProduct({
-        persistence,
-        graphName: 'test',
-        writerId: 'writer-1',
-        autoMaterialize: true,
-      });
-    });
-
-    it('concurrent queries all resolve without errors', async () => {
-      const [nodes, edges, hasNode, props, neighbors] = await Promise.all([
-        graph.getNodes(),
-        graph.getEdges(),
-        graph.hasNode('test:x'),
-        graph.getNodeProps('test:x'),
-        graph.neighbors('test:x'),
+      await expect(graph.neighbors('test:alice', 'outgoing')).resolves.toEqual([
+        { nodeId: 'test:bob', label: 'knows', direction: 'outgoing' },
       ]);
-
-      expect(nodes).toEqual([]);
-      expect(edges).toEqual([]);
-      expect(hasNode).toBe(false);
-      expect(props).toBe(null);
-      expect(neighbors).toEqual([]);
-    });
-
-    it('materialize is called when state is null, regardless of concurrent callers', async () => {
-      const materializeSpy = vi.spyOn(graph, 'materialize');
-
-      await Promise.all([graph.getNodes(), graph.hasNode('test:x')]);
-
-      // materialize should have been called (at least once, possibly twice
-      // if there is no coalescing). The important thing is no errors.
-      expect(materializeSpy).toHaveBeenCalled();
-    });
+    } finally {
+      await repo.cleanup();
+    }
   });
 
-  // ────────────────────────────────────────────────────────────────────────
-  // 8. traverse methods work with autoMaterialize
-  // ────────────────────────────────────────────────────────────────────────
+  it('stale cached direct reads reject with E_STALE_STATE', async () => {
+    const graph = await openGraph({ autoMaterialize: true });
+    await graph.materialize();
 
-  describe('8. traverse methods work with autoMaterialize: true', () => {
-        let persistence;
-        let graph;
+    graph._stateDirty = true;
 
-    beforeEach(async () => {
-      persistence = createMockPersistence();
-      graph = await openRuntimeHostProduct({
-        persistence,
-        graphName: 'test',
-        writerId: 'writer-1',
-        autoMaterialize: true,
-      });
-    });
-
-    it('traverse.bfs does not throw on null state (node not found is OK)', async () => {
-      // bfs will auto-materialize, then throw NODE_NOT_FOUND for absent start node
-      // which is the expected behavior — not a "no cached state" error
-      await expect(graph.traverse.bfs('test:x')).rejects.toThrow('Start node not found');
-    });
-
-    it('traverse.dfs does not throw on null state (node not found is OK)', async () => {
-      await expect(graph.traverse.dfs('test:x')).rejects.toThrow('Start node not found');
-    });
-
-    it('traverse.shortestPath does not throw on null state (node not found is OK)', async () => {
-      await expect(
-        graph.traverse.shortestPath('test:x', 'test:y'),
-      ).rejects.toThrow('Start node not found');
-    });
-
-    it('traverse.connectedComponent does not throw on null state (node not found is OK)', async () => {
-      await expect(
-        graph.traverse.connectedComponent('test:x'),
-      ).rejects.toThrow('Start node not found');
-    });
-
-    it('traverse.bfs works with seeded data after auto-materialize', async () => {
-      // traverse._prepare() calls _materializeGraph() -> materialize(), so
-      // we mock materialize to return a pre-seeded state (same pattern as traverse tests).
-      const state = createEmptyState();
-      state.nodeAlive.add('test:a', Dot.create('w1', 1));
-      state.nodeAlive.add('test:b', Dot.create('w1', 2));
-      state.nodeAlive.add('test:c', Dot.create('w1', 3));
-      state.edgeAlive.add(encodeEdgeKey('test:a', 'test:b', 'x'), Dot.create('w1', 4));
-      state.edgeAlive.add(encodeEdgeKey('test:b', 'test:c', 'x'), Dot.create('w1', 5));
-
-      (graph)._cachedState = state;
-      graph.materialize = vi.fn().mockResolvedValue(state);
-
-      const result = await graph.traverse.bfs('test:a', { dir: 'out' });
-      expect(result).toEqual(['test:a', 'test:b', 'test:c']);
-    });
-
-    it('traverse.shortestPath works with seeded data after auto-materialize', async () => {
-      const state = createEmptyState();
-      state.nodeAlive.add('test:a', Dot.create('w1', 1));
-      state.nodeAlive.add('test:b', Dot.create('w1', 2));
-      state.edgeAlive.add(encodeEdgeKey('test:a', 'test:b', 'x'), Dot.create('w1', 3));
-
-      (graph)._cachedState = state;
-      graph.materialize = vi.fn().mockResolvedValue(state);
-
-      const result = await graph.traverse.shortestPath('test:a', 'test:b', { dir: 'out' });
-      expect(result).toEqual({ found: true, path: ['test:a', 'test:b'], length: 1 });
-    });
-
-    it('traverse errors are NODE_NOT_FOUND, not "No cached state"', async () => {
-      // The key behavior: with autoMaterialize on, the error should be about
-      // the missing node, NOT about missing cached state
-      try {
-        await graph.traverse.bfs('test:missing');
-        expect.fail('should have thrown');
-      } catch (/** @type {any} */ err) {
-        expect((err as any).message).toContain('Start node not found');
-        expect((err as any).message).not.toContain('No cached state');
-      }
-    });
+    await expect(graph.getNodes()).rejects.toMatchObject({ code: 'E_STALE_STATE' });
   });
 
-  // ────────────────────────────────────────────────────────────────────────
-  // Edge cases
-  // ────────────────────────────────────────────────────────────────────────
+  it('traversal reaches node-not-found behavior after a basis exists', async () => {
+    const graph = await openGraph({ autoMaterialize: true });
+    await graph.materialize();
 
-  describe('Edge cases', () => {
-    it('default autoMaterialize (undefined) behaves like true', async () => {
-      const graph = await openRuntimeHostProduct({
-        persistence: createMockPersistence(),
-        graphName: 'test',
-        writerId: 'writer-1',
-      });
-
-      // With default autoMaterialize=true, hasNode should auto-materialize and resolve
-      const result = await graph.hasNode('test:x');
-      expect(result).toBe(false);
-    });
-
-    it('_ensureFreshState does not materialize when autoMaterialize is true and state is clean', async () => {
-      const persistence = createMockPersistence();
-      const graph = await openRuntimeHostProduct({
-        persistence,
-        graphName: 'test',
-        writerId: 'writer-1',
-        autoMaterialize: true,
-      });
-
-      // First call materializes
-      await graph.getNodes();
-      expect((graph)._cachedState).not.toBe(null);
-      expect((graph)._stateDirty).toBe(false);
-
-      // Spy on materialize for subsequent call
-      const spy = vi.spyOn(graph, 'materialize');
-      await graph.getNodes();
-
-      // Should NOT have called materialize (state is clean)
-      expect(spy).not.toHaveBeenCalled();
-    });
-
-    it('_ensureFreshState materializes when autoMaterialize is true and _stateDirty', async () => {
-      const persistence = createMockPersistence();
-      const graph = await openRuntimeHostProduct({
-        persistence,
-        graphName: 'test',
-        writerId: 'writer-1',
-        autoMaterialize: true,
-      });
-
-      await graph.materialize();
-      (graph)._stateDirty = true;
-
-      const spy = vi.spyOn(graph, 'materialize');
-      await graph.getNodes();
-
-      expect(spy).toHaveBeenCalled();
-    });
-
-    it('_ensureFreshState materializes when autoMaterialize is true and _cachedState is null', async () => {
-      const persistence = createMockPersistence();
-      const graph = await openRuntimeHostProduct({
-        persistence,
-        graphName: 'test',
-        writerId: 'writer-1',
-        autoMaterialize: true,
-      });
-
-      expect((graph)._cachedState).toBe(null);
-      const spy = vi.spyOn(graph, 'materialize');
-      await graph.hasNode('test:x');
-
-      expect(spy).toHaveBeenCalled();
-    });
-
-    it('autoMaterialize false with dirty state throws', async () => {
-      const persistence = createMockPersistence();
-      const graph = await openRuntimeHostProduct({
-        persistence,
-        graphName: 'test',
-        writerId: 'writer-1',
-        autoMaterialize: false,
-      });
-
-      await graph.materialize();
-      (graph)._stateDirty = true;
-
-      await expect(graph.getNodes()).rejects.toThrow(QueryError);
-    });
+    await expect(graph.traverse.bfs('test:x')).rejects.toThrow('Start node not found');
   });
 });

@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Stale materialize-spy and auto-materialize unit tests now assert the
+  v17 reading-basis contract instead of hidden materialization: direct
+  cached-state reads fail without a fresh basis, explicit internal
+  materialization creates one for substrate tests, and `patchMany()` no
+  longer implies a read basis inside callbacks.
 - Subscription/watch polling no longer hides a full graph replay behind
   `_materializeGraph()`: poll-detected external frontier changes now
   report stale reading-basis guidance, while local patch commits over a

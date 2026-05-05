@@ -244,9 +244,9 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
     });
   });
 
-  // ── autoMaterialize prevents both errors ───────────────────────────────
+  // ── autoMaterialize no longer masks reading-basis errors ───────────────
 
-  describe('autoMaterialize: true prevents both E_NO_STATE and E_STALE_STATE', () => {
+  describe('autoMaterialize: true still requires a reading basis', () => {
         let autoGraph;
 
     beforeEach(async () => {
@@ -259,42 +259,33 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       });
     });
 
-    it('does not throw E_NO_STATE when _cachedState is null', async () => {
+    it('throws E_NO_STATE when _cachedState is null', async () => {
       expect(autoGraph._cachedState).toBe(null);
 
-      // Should not throw — auto-materialize kicks in
-      const nodes = await autoGraph.getNodes();
-      expect(nodes).toEqual([]);
+      await expect(autoGraph.getNodes()).rejects.toMatchObject({ code: 'E_NO_STATE' });
     });
 
-    it('does not throw E_STALE_STATE when _stateDirty is true', async () => {
+    it('throws E_STALE_STATE when _stateDirty is true', async () => {
       await autoGraph.materialize();
       autoGraph._stateDirty = true;
 
-      const nodes = await autoGraph.getNodes();
-      expect(Array.isArray(nodes)).toBe(true);
-      expect(autoGraph._stateDirty).toBe(false);
-      expect(autoGraph._cachedState).not.toBeNull();
+      await expect(autoGraph.getNodes()).rejects.toMatchObject({ code: 'E_STALE_STATE' });
     });
 
-    it('hasNode works transparently without explicit materialize()', async () => {
-      const result = await autoGraph.hasNode('test:x');
-      expect(result).toBe(false);
+    it('hasNode rejects without explicit basis', async () => {
+      await expect(autoGraph.hasNode('test:x')).rejects.toMatchObject({ code: 'E_NO_STATE' });
     });
 
-    it('getEdges works transparently without explicit materialize()', async () => {
-      const edges = await autoGraph.getEdges();
-      expect(edges).toEqual([]);
+    it('getEdges rejects without explicit basis', async () => {
+      await expect(autoGraph.getEdges()).rejects.toMatchObject({ code: 'E_NO_STATE' });
     });
 
-    it('getNodeProps works transparently without explicit materialize()', async () => {
-      const props = await autoGraph.getNodeProps('test:x');
-      expect(props).toBe(null);
+    it('getNodeProps rejects without explicit basis', async () => {
+      await expect(autoGraph.getNodeProps('test:x')).rejects.toMatchObject({ code: 'E_NO_STATE' });
     });
 
-    it('neighbors works transparently without explicit materialize()', async () => {
-      const result = await autoGraph.neighbors('test:x');
-      expect(result).toEqual([]);
+    it('neighbors rejects without explicit basis', async () => {
+      await expect(autoGraph.neighbors('test:x')).rejects.toMatchObject({ code: 'E_NO_STATE' });
     });
   });
 
