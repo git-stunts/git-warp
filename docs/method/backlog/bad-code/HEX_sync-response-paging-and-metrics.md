@@ -3,7 +3,7 @@ id: HEX_sync-response-paging-and-metrics
 blocked_by: []
 blocks: []
 feature: sync-trust-security
-release_home: v18.0.0
+release_home: v19.0.0
 ---
 
 # Sync response paging and metrics are still coarse
@@ -27,4 +27,3 @@ Add an explicit response paging contract for sync responses, with a maximum
 patches-per-response budget and continuation token or cursor. Emit sync
 latency and payload-size metrics through a logging or metrics port so
 operators can see large frontier catches before they become incidents.
-

@@ -10,11 +10,15 @@
 
 import type SyncAuthService from './SyncAuthService.ts';
 import SyncError from '../../errors/SyncError.ts';
+import nullLogger from '../../utils/nullLogger.ts';
+import type LogFields from '../../types/log/LogFields.ts';
 import type { HttpRequest } from '../../../ports/HttpServerPort.ts';
+import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type { SyncRequest } from './SyncProtocol.ts';
 import {
   parseOptions,
   errorResponse,
+  internalSyncErrorResponse,
   jsonResponse,
   checkContentType,
   validateRoute,
@@ -34,6 +38,7 @@ import type HttpServerPort from '../../../ports/HttpServerPort.ts';
 export default class HttpSyncServer {
   private readonly _httpPort: HttpServerPort;
   private readonly _graph: GraphHandle;
+  private readonly _logger: LoggerPort;
   readonly _path: string;
   readonly _host: string;
   readonly _maxRequestBytes: number;
@@ -45,6 +50,7 @@ export default class HttpSyncServer {
 
     this._httpPort = parsed.httpPort;
     this._graph = parsed.graph;
+    this._logger = parsed.logger ?? nullLogger;
     this._path = parsed.path;
     this._host = parsed.host;
     this._maxRequestBytes = parsed.maxRequestBytes;
@@ -164,9 +170,12 @@ export default class HttpSyncServer {
     try {
       const response = await this._graph.processSyncRequest(parsed);
       return jsonResponse(response);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Sync failed';
-      return errorResponse(500, msg);
+    } catch (err) {
+      this._logger.error(
+        'sync server: processSyncRequest failed',
+        syncFailureLogFields(err instanceof Error ? err : null),
+      );
+      return internalSyncErrorResponse();
     }
   }
 
@@ -190,4 +199,11 @@ export default class HttpSyncServer {
 
     return buildListenResult({ server, port, host: this._host, path: this._path });
   }
+}
+
+function syncFailureLogFields(err: Error | null): LogFields {
+  if (err !== null) {
+    return { error: err };
+  }
+  return { thrownType: 'non-error' };
 }

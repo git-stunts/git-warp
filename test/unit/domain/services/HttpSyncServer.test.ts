@@ -317,8 +317,8 @@ describe('HttpSyncServer', () => {
       expect(res.body).toBe(canonicalStringify(payload));
     });
 
-    it('returns 500 when processSyncRequest throws', async () => {
-      graph.processSyncRequest.mockRejectedValue(new Error('boom'));
+    it('returns sanitized 500 when processSyncRequest throws', async () => {
+      graph.processSyncRequest.mockRejectedValue(new Error('secret backend path /tmp/git-warp'));
 
       const res = await handler({
         method: 'POST',
@@ -327,7 +327,45 @@ describe('HttpSyncServer', () => {
         body: Buffer.from(JSON.stringify({ type: 'sync-request', frontier: {} })),
       });
       expect(res.status).toBe(500);
-      expect(JSON.parse(res.body)).toEqual({ error: 'boom' });
+      expect(JSON.parse(res.body)).toEqual({
+        code: 'E_SYNC_INTERNAL',
+        error: 'Sync failed',
+      });
+      expect(res.body).not.toContain('secret backend path');
+      expect(res.body).not.toContain('/tmp/git-warp');
+    });
+
+    it('logs the internal sync error through LoggerPort', async () => {
+      const logger = {
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        child: vi.fn(),
+      };
+      const server = new HttpSyncServer((({
+        httpPort: mockPort.port,
+        graph,
+        logger,
+        unsafeAllowUnauthenticatedLocalhost: true,
+      }) as any));
+      await server.listen(9999);
+      const h = mockPort.getHandler();
+      const internalError = new Error('private object-store failure');
+      graph.processSyncRequest.mockRejectedValue(internalError);
+
+      const res = await h({
+        method: 'POST',
+        url: '/sync',
+        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
+        body: Buffer.from(JSON.stringify({ type: 'sync-request', frontier: {} })),
+      });
+
+      expect(res.status).toBe(500);
+      expect(logger.error).toHaveBeenCalledWith(
+        'sync server: processSyncRequest failed',
+        expect.objectContaining({ error: internalError }),
+      );
     });
 
     it('allows requests without content-type header', async () => {

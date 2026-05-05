@@ -2213,6 +2213,11 @@ Non-local bind hosts require enforced auth with a per-key rate-limit
 budget. Local unauthenticated serving is available only with
 `unsafeAllowUnauthenticatedLocalhost: true`.
 
+Unexpected server-side sync failures return a sanitized `500` response
+with `code: "E_SYNC_INTERNAL"` and `error: "Sync failed"`. The internal
+exception is logged through the configured graph logger instead of being
+sent to the client.
+
 ### Appendix G: Garbage Collection
 
 Over time, tombstoned entries accumulate in ORSets. Garbage collection compacts these to reclaim memory.

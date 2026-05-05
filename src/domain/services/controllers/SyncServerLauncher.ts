@@ -85,6 +85,7 @@ export async function launchSyncServer(
   const httpServer = new HttpSyncServer({
     httpPort,
     graph: host,
+    ...(host._logger ? { logger: host._logger } : {}),
     path,
     host: hostname,
     maxRequestBytes,

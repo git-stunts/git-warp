@@ -15,7 +15,7 @@ After the first metadata cleanup pass:
 |--------------|------:|------|
 | `v17.0.0` | 194 | Current-engine cleanup bucket. Includes runtime-deletion fallout and stale-card rechecks. |
 | `v18.0.0` | 12 | Graph-substrate cards promoted out of generic v17 cleanup. |
-| `v19.0.0` | 11 | Observer/admission/runtime-doctrine cleanup. |
+| `v19.0.0` | 12 | Observer/admission/runtime-doctrine cleanup. |
 | `v20.0.0` | 15 | Slice-first read, index, traversal, and materialization-cost work. |
 | `v21.0.0` | 7 | Strand, wormhole, conflict, and plural/distributed cleanup. |
 
@@ -107,6 +107,9 @@ Cards pulled into v19 because they fit observer/admission/trust
 doctrine better than future merge/runtime work:
 
 - `BND_schemas-refine-mutation`: trust/admission boundary validation should be pure and explicit.
+- `HEX_sync-response-paging-and-metrics`: sync response paging and
+  observability belong with the admission/trust surface after v17 closes
+  the immediate auth and 500-response blockers.
 - `HEX_warpserve-domain-infra-blur`: serving/admission orchestration needs an application seam rather than domain owning I/O shape.
 - `OWN_trust-record-service-unreachable-exhausted-tails`: trust-record retry/admission tails should be proven or removed with the admission surface.
 

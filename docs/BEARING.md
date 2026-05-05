@@ -27,9 +27,9 @@ Current branch state at this boundary:
 - DAG map:
   [0124-v17-release-blocker-dag.md](design/0124-v17-release-blocker-dag.md)
 - Latest closed cycle:
-  `0139-sync-rate-limiting`
+  `0140-sync-500-sanitization`
 - Latest full unit gate shape:
-  `npm run test:local` is green with `438` files and `6770` tests.
+  `npm run test:local` is green with `438` files and `6771` tests.
 - Latest validation shape:
   lint, anti-sludge shell checks, source/test typecheck, consumer
   typecheck, markdown lint, markdown code-sample lint, high-level npm
@@ -57,13 +57,15 @@ non-local unauthenticated serving and requires an explicit unsafe option
 for unauthenticated localhost serving. It also applies per-key token-bucket
 rate limiting for configured sync auth and requires an explicit rate-limit
 budget for non-local enforced sync auth. The package upgrade command now has
-a real checkpoint upgrade path for retired checkpoint envelopes.
+a real checkpoint upgrade path for retired checkpoint envelopes. Unexpected
+HTTP sync `500` responses are now sanitized to `E_SYNC_INTERNAL`, with
+internal details kept in structured logs.
 
 The runtime is still partially state-first in important places. The
 important current truth is narrow: the non-security `test:local` blockers
-from the v17 materialization cleanup are closed, but HTTP 500 sanitization,
-quarantine graduation, and final release preflight still block the release
-gate.
+from the v17 materialization cleanup and the direct sync security hardening
+nodes are closed, but quarantine graduation and final release preflight still
+block the release gate.
 
 ## Invariants
 
@@ -104,7 +106,7 @@ mapping, and concrete checks live in `docs/invariants/`.
 ## What just shipped
 
 Cycles `0132-subscription-controller-reading-basis` through
-`0139-sync-rate-limiting`:
+`0140-sync-500-sanitization`:
 
 - Removed `_materializeGraph()` from subscription/watch and sync
   controller read paths.
@@ -123,6 +125,8 @@ Cycles `0132-subscription-controller-reading-basis` through
   mode.
 - Added per-key token-bucket sync auth rate limiting and required explicit
   `auth.rateLimit` for non-local enforced sync hosts.
+- Sanitized unexpected HTTP sync `500` responses and routed internal error
+  detail through `LoggerPort`.
 - Brought `npm run test:local` back to green.
 - Marked `PORT_subscription-controller-reading-basis`,
   `PORT_sync-controller-reading-basis`,
@@ -131,14 +135,14 @@ Cycles `0132-subscription-controller-reading-basis` through
   `SPEC_checkpoint-materialize-test-drift` complete in the DAG, then
   marked `HEX_sync-secret-plain-string` and
   `HEX_sync-production-auth-defaults` complete, then marked
-  `HEX_sync-no-rate-limiting` complete.
+  `HEX_sync-no-rate-limiting` and `HEX_sync-500-sanitization` complete.
 
 ## What feels wrong
 
 - v17 is still not releasable until the DAG reaches
   `REL_full-gate-matrix-green`.
-- Sync still needs sanitized 500 responses.
-- Quarantine graduation remains near-end work after source churn.
+- Quarantine graduation is now the open node and must be handled before
+  the full release gate can run cleanly.
 - Broader historical version-suffixed substrate names still exist in
   `src/`; the checkpoint upgrade slice removed the touched checkpoint and
   migration names only.
@@ -151,15 +155,14 @@ Continue executing the DAG one open node at a time.
 
 Recommended next pull:
 
-- `HEX_sync-500-sanitization`
+- `REL_quarantine-graduate-clean`
 
 Why:
 
 - It is open.
-- Its only parent, `HEX_sync-production-auth-defaults`, is complete.
-- It is the next direct sync security blocker before quarantine
-  graduation and final release gates.
-- It keeps response sanitization as a separate small slice.
+- Its direct security and materialization-cleanup parents are complete.
+- It is the last blocker before the full gate matrix node can become open.
+- It should run after source churn, which is now where the DAG has arrived.
 
 Keep the loop strict: write the cycle doc, capture RED, green the slice,
 update changelog/DAG/SVG/retro, validate, commit, then pull the next open

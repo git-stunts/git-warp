@@ -137,14 +137,14 @@ closure. A blank cell means "not directly blocked by that task," not
   budget.
 
 `HEX_sync-500-sanitization`
-: HTTP 500 responses can expose internal exception messages. This depends
-  on the production auth/defaults shape so the response layer is hardened
-  once.
+: Closed in cycle 0140. Unexpected HTTP sync `500` responses now return
+  a stable `E_SYNC_INTERNAL` body instead of the thrown message, while
+  logging the internal error through `LoggerPort`.
 
 `REL_quarantine-graduate-clean`
-: `npm run lint:quarantine-graduate` currently fails with 138 touched
-  quarantined files. Run this near the end of source churn so graduation
-  work does not chase moving files.
+: Open. `npm run lint:quarantine-graduate` currently fails with 138
+  touched quarantined files. Run this now that the direct sync security
+  hardening parents are complete.
 
 `REL_full-gate-matrix-green`
 : Release cannot proceed until the gate matrix is green:
@@ -180,7 +180,7 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `HEX_sync-500-sanitization`
+- `REL_quarantine-graduate-clean`
 
 `SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125.
 `SPEC_docs-materialize-frontdoor-drift` closed in cycle 0126 and unlocks
@@ -201,8 +201,8 @@ the open front narrowed to the sync secret hardening path. The secret
 hardening node closed in cycle 0137, opening production sync auth
 defaults. Production auth defaults closed in cycle 0138, opening rate
 limiting and 500 response sanitization. Rate limiting closed in cycle
-0139, leaving 500 response sanitization as the only open security
-hardening node before quarantine graduation.
+0139, and 500 response sanitization closed in cycle 0140, opening
+quarantine graduation.
 
 ## Regeneration
 

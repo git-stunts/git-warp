@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The built-in HTTP sync server now sanitizes unexpected `500` response
+  bodies. Clients receive `{ code: "E_SYNC_INTERNAL", error: "Sync failed" }`,
+  while the original thrown error is logged through `LoggerPort`.
 - The built-in HTTP sync server now supports per-key token-bucket rate
   limiting. Non-local bind hosts with enforced sync auth must configure
   `auth.rateLimit`, exhausted keys receive `429 RATE_LIMITED`, and bad

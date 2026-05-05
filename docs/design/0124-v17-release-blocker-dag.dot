@@ -120,11 +120,13 @@ digraph V17ReleaseBlockers {
     penwidth=2.4
   ];
   "HEX_sync-500-sanitization" [
-    fillcolor="#fee2e2",
-    label="HEX_sync\n500 sanitization"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nHEX_sync\n500 sanitization",
+    penwidth=2.4
   ];
   "REL_quarantine-graduate-clean" [
-    fillcolor="#e5e7eb",
+    fillcolor="#fee2e2",
     label="REL_quarantine\ngraduate clean"
   ];
   "REL_full-gate-matrix-green" [

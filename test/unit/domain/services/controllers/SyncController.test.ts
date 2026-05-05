@@ -1220,6 +1220,7 @@ describe('SyncController', () => {
       } as any));
 
       const args = (httpSyncServerMock.mock.calls[0] as any)[0];
+      expect(args.logger).toBe(mockLogger);
       expect(args.auth.crypto).toBe(mockCrypto);
       expect(args.auth.logger).toBe(mockLogger);
       expect(args.auth.keys.k1).toBeInstanceOf(SyncSecret);

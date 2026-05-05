@@ -32,6 +32,8 @@ export interface JsonHttpResponse {
   body: string;
 }
 
+export const INTERNAL_SYNC_ERROR_CODE = 'E_SYNC_INTERNAL';
+
 // ── Zod schemas ──────────────────────────────────────────────────────────────
 
 export const authSchema = z.object({
@@ -61,6 +63,7 @@ export const optionsSchema = z.object({
     (v) => v !== null && v !== undefined && typeof v === 'object',
     'httpPort must be a non-null object',
   ),
+  logger: z.custom<LoggerPort | undefined>((v) => v === undefined || (typeof v === 'object' && v !== null)).optional(),
   graph: z.custom<GraphHandle>(
     (v) => v !== null && v !== undefined && typeof v === 'object',
     'graph must be a non-null object',
@@ -189,6 +192,17 @@ export function errorResponse(status: number, message: string): JsonHttpResponse
     status,
     headers: { 'content-type': 'application/json' },
     body: canonicalStringify({ error: message }),
+  };
+}
+
+export function internalSyncErrorResponse(): JsonHttpResponse {
+  return {
+    status: 500,
+    headers: { 'content-type': 'application/json' },
+    body: canonicalStringify({
+      code: INTERNAL_SYNC_ERROR_CODE,
+      error: 'Sync failed',
+    }),
   };
 }
 
@@ -396,6 +410,7 @@ export function extractFrontierWriters(parsed: Record<string, unknown>): string[
 
 export interface HttpSyncServerOptions {
   httpPort: HttpServerPort;
+  logger?: LoggerPort;
   graph: GraphHandle;
   path?: string;
   host?: string;

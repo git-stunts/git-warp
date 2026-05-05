@@ -31,8 +31,8 @@ card metadata or promoting bad-code into a release lane.
 | Release Home | Count |
 |--------------|------:|
 | `v17.0.0` | 194 |
-| `v18.0.0` | 13 |
-| `v19.0.0` | 11 |
+| `v18.0.0` | 12 |
+| `v19.0.0` | 12 |
 | `v20.0.0` | 15 |
 | `v21.0.0` | 7 |
 
