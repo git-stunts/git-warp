@@ -138,11 +138,13 @@ digraph V17ReleaseBlockers {
     penwidth=2.4
   ];
   "REL_release-cut-version-changelog" [
-    fillcolor="#fee2e2",
-    label="REL_release cut\nversion + changelog"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nREL_release cut\nversion + changelog",
+    penwidth=2.4
   ];
   "REL_release-preflight-and-rc" [
-    fillcolor="#dcfce7",
+    fillcolor="#fee2e2",
     label="REL_release\npreflight + RC"
   ];
   "REL_push-pr-review-merge" [

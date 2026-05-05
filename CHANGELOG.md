@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0] — 2026-05-05
+
 ### Changed
 
+- **v17.0.0 release cut** — Package and JSR versions agree at `17.0.0`, the
+  release chronology is dated to the May 5 release cut, and the v17 release
+  notes now preserve the honest bounded-query scope from the 0123 release
+  decision.
 - **v17 release scope narrowed honestly** — v17 claims TypeScript migration, public API honesty, materialization-frontdoor deletion, optics/readings direction, and query read-model groundwork. It does **not** claim live large-graph bounded `graph.query()` residency over stale checkpoint plus live tail; that remains blocked on a post-v17 live-tail bounded query/checksum substrate. The graph-level exact-id bounded-query witness is preserved under `test/conformance/post-v17/graphQueryBoundedProvider.blocked.test.ts`.
 - **100% TypeScript** — All 100 remaining `.js` files converted to `.ts`. JSR ships TypeScript source directly; npm ships compiled JavaScript and generated declarations from `dist/`. The root config pair now lives at `eslint.config.ts` and `vitest.config.ts`.
 
@@ -71,8 +77,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`browser.d.ts` deleted** — Same: `browser.ts` is the source of truth and npm consumers receive generated `dist/browser.d.ts`.
 - **`contracts/type-surface.m8.json` deleted** — The Ironclad manifest is redundant when the barrel IS the contract.
 - **Entry points renamed** — Source entry points moved from `index.js` → `index.ts`, `browser.js` → `browser.ts`, and `bin/warp-graph.js` → `bin/warp-graph.ts`. npm exports point at generated `dist/*.js`; JSR exports point at TypeScript source.
-
-## [17.0.0] — 2026-04-14
 
 ### Changed
 

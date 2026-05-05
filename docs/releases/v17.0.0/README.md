@@ -1,10 +1,29 @@
-# v17.0.0 — TypeScript Migration & Streaming ORSets
+# v17.0.0 — TypeScript Migration & Public Read Contract
 
-The hill: ship as a TypeScript project with no gods, no sludge, and a
-bounded-residency streaming ORSet line. Every `.js` becomes `.ts`.
-Every god object is decomposed. SSTS is the active standard. `v17`
-keeps the current graph substrate; Echo-shaped graph-model convergence
-is explicitly deferred to the next major.
+The hill: ship as a TypeScript project with public API honesty, a deleted
+public materialization frontdoor, generated npm declarations, and the
+readings/optics direction clearly named. Every `.js` becomes `.ts`, the old
+runtime center is decomposed, and SSTS is the active standard. `v17` keeps the
+current graph substrate; Echo-shaped graph-model convergence is explicitly
+deferred to the next major.
+
+## Final release scope
+
+`v17.0.0` claims:
+
+- TypeScript migration and generated npm type surface.
+- `openWarpGraph()` as the primary public app entry point.
+- Public materialization-frontdoor deletion from the app read path.
+- Readings, observers, worldlines, and query read-model groundwork.
+- Current sync auth hardening, rate limiting, and sanitized unexpected
+  sync `500` responses.
+
+`v17.0.0` does not claim live large-graph bounded `graph.query()` residency
+over stale checkpoint plus live tail. That remains blocked on a post-v17
+live-tail bounded query/checksum substrate, with the visible witness kept in
+`test/conformance/post-v17/graphQueryBoundedProvider.blocked.test.ts` and the
+decision recorded in
+[`0123-v17-release-scope-and-bounded-query-blocker.md`](../../design/0123-v17-release-scope-and-bounded-query-blocker.md).
 
 ## Critical path
 

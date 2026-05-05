@@ -153,14 +153,14 @@ closure. A blank cell means "not directly blocked by that task," not
   anti-sludge semgrep, and whitespace diff checks.
 
 `REL_release-cut-version-changelog`
-: Open. After gates are green, cut the release section: version agreement,
-  dated changelog entry, and release notes that preserve the honest 0123
-  scope.
+: Closed in cycle 0143. Package and JSR versions already agreed at `17.0.0`;
+  the changelog now has the May 5 `17.0.0` release section, and release notes
+  preserve the honest 0123 bounded-query scope.
 
 `REL_release-preflight-and-rc`
-: Run `npm run release:preflight`, packed artifact smoke, generated surface
-  checks, JSR dry-run, and the CI/runtime matrix expected by the release
-  runbook.
+: Open. Run `npm run release:preflight`, packed artifact smoke, generated
+  surface checks, JSR dry-run, and the CI/runtime matrix expected by the
+  release runbook.
 
 `REL_push-pr-review-merge`
 : Push the branch, open or update the release PR, get review and green CI,
@@ -181,7 +181,7 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `REL_release-cut-version-changelog`
+- `REL_release-preflight-and-rc`
 
 `SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125.
 `SPEC_docs-materialize-frontdoor-drift` closed in cycle 0126 and unlocks
@@ -205,7 +205,8 @@ limiting and 500 response sanitization. Rate limiting closed in cycle
 0139, and 500 response sanitization closed in cycle 0140, opening
 quarantine graduation. Quarantine graduation closed in cycle 0141,
 opening the full gate matrix. The full gate matrix closed in cycle 0142,
-opening release cut/version/changelog.
+opening release cut/version/changelog. Release cut/version/changelog closed in
+cycle 0143, opening release preflight and RC.
 
 ## Regeneration
 
