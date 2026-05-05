@@ -87,9 +87,10 @@ closure. A blank cell means "not directly blocked by that task," not
   controller host contract no longer names `_materializeGraph()`.
 
 `PORT_subscription-controller-reading-basis`
-: Subscription/watch behavior still has materialize-spy failures and
-  hidden refresh assumptions. This follows the patch seam because
-  subscription freshness is patch-driven.
+: Closed in cycle 0132. `SubscriptionController` no longer calls
+  `_materializeGraph()` from watch polling; poll-detected frontier
+  changes report stale reading-basis guidance, and clean local patch
+  diffs notify subscribers without another materialization call.
 
 `PORT_sync-controller-reading-basis`
 : Sync controller read-adjacent paths still materialize for cache/frontier
@@ -170,7 +171,6 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `PORT_subscription-controller-reading-basis`
 - `PORT_sync-controller-reading-basis`
 - `SPEC_observer-coordinate-pinning`
 - `HEX_sync-secret-plain-string`
@@ -184,8 +184,10 @@ cycle 0128 and unlocked checkpoint-controller reading-basis work.
 `PORT_patch-controller-reading-basis` closed in cycle 0130 and unlocked
 subscription-controller reading-basis work.
 `SPEC_uniform-git-cas-upgrade-contract-drift` closed in cycle 0131. The
-smallest next pull is likely `PORT_subscription-controller-reading-basis`,
-because it is now open and still blocks `SPEC_materialize-spy-test-clusters`.
+`PORT_subscription-controller-reading-basis` closed in cycle 0132. The
+smallest next controller pull is likely
+`PORT_sync-controller-reading-basis`, because it is now the remaining
+controller parent blocking `SPEC_materialize-spy-test-clusters`.
 
 ## Regeneration
 

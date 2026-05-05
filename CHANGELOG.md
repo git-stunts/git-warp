@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Subscription/watch polling no longer hides a full graph replay behind
+  `_materializeGraph()`: poll-detected external frontier changes now
+  report stale reading-basis guidance, while local patch commits over a
+  clean cached reading basis publish subscriber diffs without an extra
+  materialize call.
 - Patch creation no longer triggers hidden graph materialization: `PatchController` now leaves additive patch creation independent of a cached state, requires a clean reading basis for freshness checks, and no longer depends on `_materializeGraph()`.
 - `npm run upgrade -- --graph <name>` now provides the checkpoint upgrade path for retired checkpoint envelopes: dry-run validates without moving refs, successful upgrades write and verify the current checkpoint envelope before updating the checkpoint ref, and conversion readers live under `scripts/migrations/v17.0.0/` instead of shipped runtime source.
 - Checkpoint content anchors now use blob tree entries, so checkpoints can anchor actual content blobs during upgrade and regular checkpoint creation instead of failing Git tree creation by labeling blob objects as trees.

@@ -493,6 +493,7 @@ export default class RuntimeHost {
     this._versionVector = state.observedFrontier.clone();
     this._materializedGraph = { state, stateHash, adjacency };
     this._buildViewFromResult({ state, stateHash, diff });
+    this._notifyAfterMaterialize(state);
     return this._materializedGraph;
   }
 

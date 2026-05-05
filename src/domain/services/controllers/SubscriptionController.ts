@@ -10,7 +10,9 @@
 import { diffStates, isEmptyDiff, type StateDiffResult, type EdgeChange, type PropSet, type PropRemoved } from '../state/StateDiff.ts';
 import { matchGlob } from '../../utils/matchGlob.ts';
 import WarpError from '../../errors/WarpError.ts';
+import QueryError from '../../errors/QueryError.ts';
 import type { WarpState } from '../JoinReducer.ts';
+import { E_STALE_STATE_MSG } from './QueryStateMessages.ts';
 
 /**
  * Callback shape for subscriber errors. Errors flow through the catch
@@ -39,13 +41,7 @@ interface SubscriptionHost {
     pendingReplay?: boolean;
   }>;
   hasFrontierChanged(): Promise<boolean>;
-  _materializeGraph(): Promise<SubscriptionMaterializedState>;
 }
-
-type SubscriptionMaterializedState = {
-  state: WarpState;
-};
-
 
 type SchedulerFn = (callback: () => void, ms: number) => ReturnType<typeof setInterval>;
 
@@ -176,8 +172,10 @@ export default class SubscriptionController {
         if (pollInFlight) { return; }
         pollInFlight = true;
         host.hasFrontierChanged()
-          .then(async (changed) => {
-            if (changed) { await host._materializeGraph(); }
+          .then((changed) => {
+            if (changed) {
+              throw new QueryError(E_STALE_STATE_MSG, { code: 'E_STALE_STATE' });
+            }
           })
           .catch((err) => {
             if (onError) {

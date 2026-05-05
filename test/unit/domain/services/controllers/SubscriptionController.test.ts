@@ -58,7 +58,7 @@ function createHost({ cachedState = null } = {}) {
     _cachedState: (cachedState),
     _subscribers: ([] as any[]),
     hasFrontierChanged: vi.fn().mockResolvedValue(false),
-    materialize: vi.fn().mockResolvedValue(undefined),
+    _materializeGraph: vi.fn().mockRejectedValue(new Error('hidden materialization trap')),
   };
 }
 
@@ -407,27 +407,30 @@ describe('SubscriptionController', () => {
         vi.useRealTimers();
       });
 
-      it('polls hasFrontierChanged and materializes when changed', async () => {
+      it('reports stale reading basis when frontier changes without materializing', async () => {
         host.hasFrontierChanged.mockResolvedValue(true);
-        host.materialize.mockResolvedValue(undefined);
+        const onError = vi.fn();
 
-        ctrl.watch('*', { onChange: vi.fn(), poll: 2000 });
+        ctrl.watch('*', { onChange: vi.fn(), onError, poll: 2000 });
 
         await vi.advanceTimersByTimeAsync(2000);
 
         expect(host.hasFrontierChanged).toHaveBeenCalledTimes(1);
-        expect(host.materialize).toHaveBeenCalledTimes(1);
+        expect(host._materializeGraph).not.toHaveBeenCalled();
+        expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_STALE_STATE' }));
       });
 
-      it('does not materialize when frontier has not changed', async () => {
+      it('does not report stale reading basis when frontier has not changed', async () => {
         host.hasFrontierChanged.mockResolvedValue(false);
+        const onError = vi.fn();
 
-        ctrl.watch('*', { onChange: vi.fn(), poll: 2000 });
+        ctrl.watch('*', { onChange: vi.fn(), onError, poll: 2000 });
 
         await vi.advanceTimersByTimeAsync(2000);
 
         expect(host.hasFrontierChanged).toHaveBeenCalledTimes(1);
-        expect(host.materialize).not.toHaveBeenCalled();
+        expect(host._materializeGraph).not.toHaveBeenCalled();
+        expect(onError).not.toHaveBeenCalled();
       });
 
       it('guards against overlapping polls (in-flight lock)', async () => {
@@ -465,17 +468,19 @@ describe('SubscriptionController', () => {
         expect(onError).toHaveBeenCalledWith(pollError);
       });
 
-      it('calls onError when materialize rejects', async () => {
+      it('continues polling after stale reading basis error', async () => {
         host.hasFrontierChanged.mockResolvedValue(true);
-        const matError = new Error('materialize failed');
-        host.materialize.mockRejectedValue(matError);
         const onError = vi.fn();
 
-        ctrl.watch('*', { onChange: vi.fn(), onError, poll: 2000 });
+        ctrl.watch('*', { onChange: vi.fn(), onError, poll: 1000 });
 
-        await vi.advanceTimersByTimeAsync(2000);
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(host.hasFrontierChanged).toHaveBeenCalledTimes(1);
+        expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_STALE_STATE' }));
 
-        expect(onError).toHaveBeenCalledWith(matError);
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(host.hasFrontierChanged).toHaveBeenCalledTimes(2);
+        expect(onError).toHaveBeenCalledTimes(2);
       });
 
       it('swallows onError throw during poll without cascading', async () => {

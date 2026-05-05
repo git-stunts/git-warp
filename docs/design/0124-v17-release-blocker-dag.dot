@@ -66,8 +66,10 @@ digraph V17ReleaseBlockers {
     penwidth=2.4
   ];
   "PORT_subscription-controller-reading-basis" [
-    fillcolor="#fef3c7",
-    label="PORT_subscription-controller\nreading basis"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nPORT_subscription-controller\nreading basis",
+    penwidth=2.4
   ];
   "PORT_sync-controller-reading-basis" [
     fillcolor="#fef3c7",

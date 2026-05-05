@@ -547,17 +547,19 @@ describe('WarpCore.watch() polling (PL/WATCH/2)', () => {
       hasFrontierChangedSpy.mockRestore();
     });
 
-    it('calls materialize when frontier has changed', async () => {
+    it('reports stale reading basis when frontier has changed without materializing', async () => {
       const onChange = vi.fn();
+      const onError = vi.fn();
       const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged').mockResolvedValue(true);
       const materializeSpy = vi.spyOn(graph, 'materialize').mockResolvedValue(undefined);
 
-      const { unsubscribe } = graph.watch('user:*', { onChange, poll: 1000 });
+      const { unsubscribe } = graph.watch('user:*', { onChange, onError, poll: 1000 });
 
       await vi.advanceTimersByTimeAsync(1000);
 
       expect(hasFrontierChangedSpy).toHaveBeenCalledTimes(1);
-      expect(materializeSpy).toHaveBeenCalledTimes(1);
+      expect(materializeSpy).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_STALE_STATE' }));
 
       unsubscribe();
       hasFrontierChangedSpy.mockRestore();
@@ -633,18 +635,22 @@ describe('WarpCore.watch() polling (PL/WATCH/2)', () => {
       hasFrontierChangedSpy.mockRestore();
     });
 
-    it('calls onError when materialize throws', async () => {
+    it('continues polling after stale reading basis error', async () => {
       const onChange = vi.fn();
       const onError = vi.fn();
-      const error = new Error('Materialize failed');
       const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged').mockResolvedValue(true);
-      const materializeSpy = vi.spyOn(graph, 'materialize').mockRejectedValue(error);
+      const materializeSpy = vi.spyOn(graph, 'materialize').mockResolvedValue(undefined);
 
       const { unsubscribe } = graph.watch('user:*', { onChange, onError, poll: 1000 });
 
       await vi.advanceTimersByTimeAsync(1000);
+      expect(hasFrontierChangedSpy).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_STALE_STATE' }));
 
-      expect(onError).toHaveBeenCalledWith(error);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(hasFrontierChangedSpy).toHaveBeenCalledTimes(2);
+      expect(materializeSpy).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledTimes(2);
 
       unsubscribe();
       hasFrontierChangedSpy.mockRestore();
@@ -694,37 +700,22 @@ describe('WarpCore.watch() polling (PL/WATCH/2)', () => {
   });
 
   describe('integration with subscription', () => {
-    it('subscription receives diff when poll triggers materialize', async () => {
-      // This test verifies the integration: poll -> hasFrontierChanged -> materialize -> handler
+    it('subscription receives local patch diff from a clean reading basis without materialize', async () => {
+      await graph.materialize();
       const onChange = vi.fn();
+      const materializeSpy = vi.spyOn(graph, 'materialize').mockResolvedValue(undefined);
 
-      // Mock hasFrontierChanged to return true (simulating remote changes)
-      const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged').mockResolvedValue(true);
+      graph.watch('user:*', { onChange });
 
-      // Mock materialize to call _notifySubscribers with a diff containing user:bob
-      const mockDiff = {
-        nodes: { added: ['user:bob'], removed: [] },
-        edges: { added: [], removed: [] },
-        props: { set: [], removed: [] },
-      };
-      const materializeSpy = vi.spyOn(graph, 'materialize').mockImplementation(async () => {
-        // Simulate what materialize does: notify subscribers
-        graph._notifySubscribers(mockDiff, {});
-      });
+      const patch = await graph.createPatch();
+      patch.addNode('user:bob');
+      await patch.commit();
 
-      const { unsubscribe } = graph.watch('user:*', { onChange, poll: 1000 });
-
-      await vi.advanceTimersByTimeAsync(1000);
-
-      // Handler should have been called with user:bob
-      expect(hasFrontierChangedSpy).toHaveBeenCalled();
-      expect(materializeSpy).toHaveBeenCalled();
+      expect(materializeSpy).not.toHaveBeenCalled();
       expect(onChange).toHaveBeenCalled();
       const diff = (onChange.mock.calls[0] as any)[0];
       expect(diff.nodes.added).toContain('user:bob');
 
-      unsubscribe();
-      hasFrontierChangedSpy.mockRestore();
       materializeSpy.mockRestore();
     });
 
