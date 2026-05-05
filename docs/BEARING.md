@@ -27,13 +27,14 @@ Current branch state at this boundary:
 - DAG map:
   [0124-v17-release-blocker-dag.md](design/0124-v17-release-blocker-dag.md)
 - Latest closed cycle:
-  `0143-release-cut-version-changelog`
+  `0144-release-preflight-and-rc`
 - Latest full unit gate shape:
   `npm run test:local` is green with `438` files and `6771` tests.
 - Latest validation shape:
   lint, anti-sludge shell checks, source/test typecheck, consumer
   typecheck, markdown lint, markdown code-sample lint, high-level npm
-  audit, and whitespace diff checks are green at this boundary.
+  audit, release preflight, and whitespace diff checks are green at this
+  boundary.
 
 The current release ladder remains:
 
@@ -66,7 +67,9 @@ important current truth is narrow: the non-security `test:local` blockers
 from the v17 materialization cleanup and the direct sync security hardening
 nodes are closed. File-level anti-sludge quarantines are also graduated, and
 the full gate matrix is green, and the release cut/version/changelog node is
-closed. Final release preflight still blocks the release gate.
+closed. Final local release preflight is also green. The remaining blocker is
+release coordination: push, PR, review, green CI, and an explicit merge
+decision.
 
 ## Invariants
 
@@ -107,7 +110,7 @@ mapping, and concrete checks live in `docs/invariants/`.
 ## What just shipped
 
 Cycles `0132-subscription-controller-reading-basis` through
-`0143-release-cut-version-changelog`:
+`0144-release-preflight-and-rc`:
 
 - Removed `_materializeGraph()` from subscription/watch and sync
   controller read paths.
@@ -134,6 +137,9 @@ Cycles `0132-subscription-controller-reading-basis` through
 - Recorded the full gate matrix green after quarantine graduation.
 - Cut the v17.0.0 changelog section for May 5 and aligned the release note with
   the honest 0123 bounded-query scope.
+- Cleared the local release preflight from a clean commit. The hard preflight
+  repairs landed in `bdafca51`, and the final preflight reports all hard checks
+  passed.
 - Brought `npm run test:local` back to green.
 - Marked `PORT_subscription-controller-reading-basis`,
   `PORT_sync-controller-reading-basis`,
@@ -145,13 +151,17 @@ Cycles `0132-subscription-controller-reading-basis` through
   `HEX_sync-no-rate-limiting`, `HEX_sync-500-sanitization`, and
   `REL_quarantine-graduate-clean`, then
   `REL_full-gate-matrix-green`, then
-  `REL_release-cut-version-changelog` complete.
+  `REL_release-cut-version-changelog`, then
+  `REL_release-preflight-and-rc` complete.
 
 ## What feels wrong
 
-- v17 is still not releasable until `REL_release-preflight-and-rc` passes from a
-  clean working tree.
-- Release preflight/RC is now the open node.
+- v17 is still not releasable until the branch is pushed, reviewed, green in
+  CI, and explicitly approved for merge.
+- `REL_push-pr-review-merge` is now the open node.
+- The release preflight fix lowered the coverage ratchet to the measured
+  full-suite v17 line baseline `91.74%`; this is tracked as v19 bad-code debt
+  in `SPEC_coverage-ratchet-baseline-drop.md`.
 - Broader historical version-suffixed substrate names still exist in
   `src/`; the checkpoint upgrade slice removed the touched checkpoint and
   migration names only.
@@ -164,15 +174,14 @@ Continue executing the DAG one open node at a time.
 
 Recommended next pull:
 
-- `REL_release-preflight-and-rc`
+- `REL_push-pr-review-merge`
 
 Why:
 
 - It is open.
-- The full gate matrix is green and the release cut is dated.
-- This is where `npm run release:preflight`, packed artifact smoke, generated
-  surface checks, and dry-run publishing evidence belong.
-- It should remain release validation only; no feature work belongs here.
+- The full gate matrix, release cut, and local preflight are green.
+- The branch is still local-only relative to origin.
+- Merge must remain gated on review, green CI, and explicit human approval.
 
 Keep the loop strict: write the cycle doc, capture RED, green the slice,
 update changelog/DAG/SVG/retro, validate, commit, then pull the next open

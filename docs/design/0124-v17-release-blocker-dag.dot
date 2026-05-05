@@ -144,12 +144,14 @@ digraph V17ReleaseBlockers {
     penwidth=2.4
   ];
   "REL_release-preflight-and-rc" [
-    fillcolor="#fee2e2",
-    label="REL_release\npreflight + RC"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nREL_release\npreflight + RC",
+    penwidth=2.4
   ];
   "REL_push-pr-review-merge" [
-    fillcolor="#dcfce7",
-    label="REL_push / PR\nreview / merge"
+    fillcolor="#fee2e2",
+    label="OPEN\nREL_push / PR\nreview / merge"
   ];
 
   "SPEC_docs-materialize-frontdoor-drift" -> "SPEC_runtime-error-reading-basis-guidance";

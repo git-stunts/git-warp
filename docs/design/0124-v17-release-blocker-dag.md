@@ -158,13 +158,14 @@ closure. A blank cell means "not directly blocked by that task," not
   preserve the honest 0123 bounded-query scope.
 
 `REL_release-preflight-and-rc`
-: Open. Run `npm run release:preflight`, packed artifact smoke, generated
-  surface checks, JSR dry-run, and the CI/runtime matrix expected by the
-  release runbook.
+: Closed in cycle 0144. `npm run release:preflight` now passes from a clean
+  commit, including lint, type firewall, coverage, npm pack smoke, JSR dry-run,
+  and high/critical dependency audit. The release-branch warning remains a
+  documented runbook warning.
 
 `REL_push-pr-review-merge`
-: Push the branch, open or update the release PR, get review and green CI,
-  and merge only after explicit approval.
+: Open. Push the branch, open or update the release PR, get review and green
+  CI, and merge only after explicit approval.
 
 ## Excluded From v17 Blockers
 
@@ -181,7 +182,7 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `REL_release-preflight-and-rc`
+- `REL_push-pr-review-merge`
 
 `SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125.
 `SPEC_docs-materialize-frontdoor-drift` closed in cycle 0126 and unlocks
@@ -206,7 +207,8 @@ limiting and 500 response sanitization. Rate limiting closed in cycle
 quarantine graduation. Quarantine graduation closed in cycle 0141,
 opening the full gate matrix. The full gate matrix closed in cycle 0142,
 opening release cut/version/changelog. Release cut/version/changelog closed in
-cycle 0143, opening release preflight and RC.
+cycle 0143, opening release preflight and RC. Release preflight and RC closed in
+cycle 0144, opening push, PR, review, and merge.
 
 ## Regeneration
 
