@@ -175,13 +175,14 @@ describe('WarpCore syncAuth (real HTTP)', () => {
     }
   });
 
-  it('serve(no auth) + syncWith(auth) succeeds (extra headers ignored)', async () => {
+  it('serve(unsafe localhost no auth) + syncWith(auth) succeeds (extra headers ignored)', async () => {
     const serverGraph = await createGraph('server-1');
     mockServerGraph(serverGraph);
 
     const handle = await serverGraph.serve({
       port: 0,
       httpPort: new NodeHttpAdapter(),
+      unsafeAllowUnauthenticatedLocalhost: true,
     });
 
     try {

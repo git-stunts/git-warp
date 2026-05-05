@@ -126,9 +126,9 @@ closure. A blank cell means "not directly blocked by that task," not
   rendering redact the secret.
 
 `HEX_sync-production-auth-defaults`
-: The sync server can be configured without auth. Non-local bind hosts must
-  require enforced auth, and local unauthenticated mode must be explicitly
-  unsafe.
+: Closed in cycle 0138. Non-local sync bind hosts now require enforced
+  `SyncSecret` auth, and unauthenticated localhost serving requires
+  `unsafeAllowUnauthenticatedLocalhost: true`.
 
 `HEX_sync-no-rate-limiting`
 : Authenticated clients can flood sync. Rate limiting depends on stable
@@ -178,7 +178,8 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `HEX_sync-production-auth-defaults`
+- `HEX_sync-no-rate-limiting`
+- `HEX_sync-500-sanitization`
 
 `SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125.
 `SPEC_docs-materialize-frontdoor-drift` closed in cycle 0126 and unlocks
@@ -197,7 +198,8 @@ which exposed `SPEC_checkpoint-materialize-test-drift` as the remaining
 non-security `test:local` blocker. That drift closed in cycle 0136, so
 the open front narrowed to the sync secret hardening path. The secret
 hardening node closed in cycle 0137, opening production sync auth
-defaults.
+defaults. Production auth defaults closed in cycle 0138, opening rate
+limiting and 500 response sanitization.
 
 ## Regeneration
 

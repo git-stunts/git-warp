@@ -257,9 +257,9 @@ describe('HttpSyncServer auth integration', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // no auth config (backward compatibility)
+  // explicit unsafe localhost no-auth config
   // ---------------------------------------------------------------------------
-  describe('no auth config', () => {
+  describe('unsafe localhost no-auth config', () => {
         let handler;
 
     beforeEach(async () => {
@@ -268,12 +268,13 @@ describe('HttpSyncServer auth integration', () => {
         graph,
         host: '127.0.0.1',
         path: '/sync',
+        unsafeAllowUnauthenticatedLocalhost: true,
       }) as any));
       await server.listen(9999);
       handler = mockPort.getHandler();
     });
 
-    it('returns 200 for unsigned request (backward compat)', async () => {
+    it('returns 200 for unsigned request when unsafe localhost mode is explicit', async () => {
       const res = await handler({
         method: 'POST',
         url: '/sync',
@@ -283,7 +284,7 @@ describe('HttpSyncServer auth integration', () => {
       expect(res.status).toBe(200);
     });
 
-    it('returns 200 for signed request (backward compat)', async () => {
+    it('returns 200 for signed request when unsafe localhost mode is explicit', async () => {
       const { body, headers } = await signedBody(VALID_SYNC_BODY);
       const res = await handler({
         method: 'POST',

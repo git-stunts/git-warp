@@ -79,6 +79,7 @@ describe('HttpSyncServer', () => {
     const server = new HttpSyncServer((({
       httpPort: mockPort.port,
       graph,
+      unsafeAllowUnauthenticatedLocalhost: true,
     }) as any));
     await expect(server.listen(('abc' as any))).rejects.toThrow('listen() requires a numeric port');
   });
@@ -89,12 +90,65 @@ describe('HttpSyncServer', () => {
       graph,
       host: '127.0.0.1',
       path: '/sync',
+      unsafeAllowUnauthenticatedLocalhost: true,
     }) as any));
 
     const handle = await server.listen(9999);
     expect(handle.url).toBe('http://127.0.0.1:9999/sync');
     expect(typeof handle.close).toBe('function');
     await handle.close();
+  });
+
+  describe('production auth defaults', () => {
+    it('rejects localhost no-auth serving unless unsafe mode is explicit', () => {
+      expect(() => new HttpSyncServer((({
+        httpPort: mockPort.port,
+        graph,
+        host: '127.0.0.1',
+      }) as any))).toThrow(/unsafeAllowUnauthenticatedLocalhost/);
+    });
+
+    it('allows localhost no-auth serving when unsafe mode is explicit', () => {
+      expect(() => new HttpSyncServer((({
+        httpPort: mockPort.port,
+        graph,
+        host: '127.0.0.1',
+        unsafeAllowUnauthenticatedLocalhost: true,
+      }) as any))).not.toThrow();
+    });
+
+    it('rejects non-local no-auth serving even when unsafe localhost mode is set', () => {
+      expect(() => new HttpSyncServer((({
+        httpPort: mockPort.port,
+        graph,
+        host: '0.0.0.0',
+        unsafeAllowUnauthenticatedLocalhost: true,
+      }) as any))).toThrow(/auth is required for non-local sync hosts/);
+    });
+
+    it('rejects non-local log-only auth serving', () => {
+      expect(() => new HttpSyncServer((({
+        httpPort: mockPort.port,
+        graph,
+        host: '0.0.0.0',
+        auth: {
+          keys: { default: SyncSecret.fromString('secret') },
+          mode: 'log-only',
+        },
+      }) as any))).toThrow(/non-local sync hosts require auth.mode "enforce"/);
+    });
+
+    it('allows non-local enforced auth serving', () => {
+      expect(() => new HttpSyncServer((({
+        httpPort: mockPort.port,
+        graph,
+        host: '0.0.0.0',
+        auth: {
+          keys: { default: SyncSecret.fromString('secret') },
+          mode: 'enforce',
+        },
+      }) as any))).not.toThrow();
+    });
   });
 
   it('rejects path without leading slash', () => {
@@ -114,6 +168,7 @@ describe('HttpSyncServer', () => {
         graph,
         host: '127.0.0.1',
         path: '/sync',
+        unsafeAllowUnauthenticatedLocalhost: true,
       }) as any));
       await server.listen(9999);
       handler = mockPort.getHandler();
@@ -168,6 +223,7 @@ describe('HttpSyncServer', () => {
         httpPort: mockPort.port,
         graph,
         maxRequestBytes: 10,
+        unsafeAllowUnauthenticatedLocalhost: true,
       }) as any));
       await server.listen(9999);
       const h = mockPort.getHandler();
@@ -337,10 +393,11 @@ describe('HttpSyncServer', () => {
       }) as any))).toThrow(/HttpSyncServer config/);
     });
 
-    it('succeeds with valid defaults and applies them correctly', () => {
+    it('succeeds with explicit unsafe localhost defaults and applies them correctly', () => {
       const server = new HttpSyncServer((({
         httpPort: mockPort.port,
         graph,
+        unsafeAllowUnauthenticatedLocalhost: true,
       }) as any));
       // Default path and host are applied via Zod schema
       expect(server._path).toBe('/sync');

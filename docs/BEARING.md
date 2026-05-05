@@ -27,9 +27,9 @@ Current branch state at this boundary:
 - DAG map:
   [0124-v17-release-blocker-dag.md](design/0124-v17-release-blocker-dag.md)
 - Latest closed cycle:
-  `0137-sync-secret-opaque-value`
+  `0138-sync-production-auth-defaults`
 - Latest full unit gate shape:
-  `npm run test:local` is green with `438` files and `6760` tests.
+  `npm run test:local` is green with `438` files and `6765` tests.
 - Latest validation shape:
   lint, anti-sludge shell checks, source/test typecheck, consumer
   typecheck, markdown lint, markdown code-sample lint, high-level npm
@@ -52,14 +52,16 @@ subscription, and sync controller private materialization dependencies,
 retired stale materialize-spy expectations, pinned default observer
 readings, and aligned remaining checkpoint/materialize unit tests with
 the current checkpoint contract, and replaced plain sync HMAC credential
-flow with an opaque `SyncSecret`. The package upgrade command now has a
-real checkpoint upgrade path for retired checkpoint envelopes.
+flow with an opaque `SyncSecret`. The sync server now fails closed for
+non-local unauthenticated serving and requires an explicit unsafe option
+for unauthenticated localhost serving. The package upgrade command now
+has a real checkpoint upgrade path for retired checkpoint envelopes.
 
 The runtime is still partially state-first in important places. The
 important current truth is narrow: the non-security `test:local` blockers
-from the v17 materialization cleanup are closed, but sync server security
-hardening beyond the secret value shape, quarantine graduation, and final
-release preflight still block the release gate.
+from the v17 materialization cleanup are closed, but sync server rate
+limiting, HTTP 500 sanitization, quarantine graduation, and final release
+preflight still block the release gate.
 
 ## Invariants
 
@@ -100,7 +102,7 @@ mapping, and concrete checks live in `docs/invariants/`.
 ## What just shipped
 
 Cycles `0132-subscription-controller-reading-basis` through
-`0137-sync-secret-opaque-value`:
+`0138-sync-production-auth-defaults`:
 
 - Removed `_materializeGraph()` from subscription/watch and sync
   controller read paths.
@@ -114,21 +116,23 @@ Cycles `0132-subscription-controller-reading-basis` through
   explicit retired-schema upgrade rejection.
 - Added `SyncSecret` so sync auth secrets redact in string, JSON, and
   inspect output while still signing HMAC requests.
+- Hardened sync serve defaults: non-local bind hosts require enforced
+  auth, and local unauthenticated serving must opt into unsafe localhost
+  mode.
 - Brought `npm run test:local` back to green.
 - Marked `PORT_subscription-controller-reading-basis`,
   `PORT_sync-controller-reading-basis`,
   `SPEC_materialize-spy-test-clusters`,
   `SPEC_observer-coordinate-pinning`, and
   `SPEC_checkpoint-materialize-test-drift` complete in the DAG, then
-  marked `HEX_sync-secret-plain-string` complete.
+  marked `HEX_sync-secret-plain-string` and
+  `HEX_sync-production-auth-defaults` complete.
 
 ## What feels wrong
 
 - v17 is still not releasable until the DAG reaches
   `REL_full-gate-matrix-green`.
-- Production sync defaults still need enforced auth for non-local bind
-  hosts, explicit unsafe localhost mode, rate limiting, and sanitized 500
-  responses.
+- Sync still needs per-key rate limiting and sanitized 500 responses.
 - Quarantine graduation remains near-end work after source churn.
 - Broader historical version-suffixed substrate names still exist in
   `src/`; the checkpoint upgrade slice removed the touched checkpoint and
@@ -142,16 +146,15 @@ Continue executing the DAG one open node at a time.
 
 Recommended next pull:
 
-- `HEX_sync-production-auth-defaults`
+- `HEX_sync-no-rate-limiting`
 
 Why:
 
 - It is open.
-- Its only parent, `HEX_sync-secret-plain-string`, is complete.
-- It establishes the secure server-default shape required before rate
-  limiting and response sanitization.
-- It keeps authentication defaults separate from rate limiting and 500
-  response hardening.
+- Its only parent, `HEX_sync-production-auth-defaults`, is complete.
+- It is the next direct sync security blocker before quarantine
+  graduation and final release gates.
+- It keeps response sanitization as a separate small slice.
 
 Keep the loop strict: write the cycle doc, capture RED, green the slice,
 update changelog/DAG/SVG/retro, validate, commit, then pull the next open

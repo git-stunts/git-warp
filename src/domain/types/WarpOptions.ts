@@ -21,6 +21,7 @@ export type ServeOptions = {
     logger?: LoggerPort;
     wallClockMs?: () => number;
   };
+  unsafeAllowUnauthenticatedLocalhost?: boolean;
   allowedWriters?: string[];
 };
 

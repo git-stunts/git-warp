@@ -63,18 +63,80 @@ export const optionsSchema = z.object({
   path: z.string().startsWith('/').default('/sync'),
   host: z.string().min(1).default('127.0.0.1'),
   auth: authSchema.optional(),
+  unsafeAllowUnauthenticatedLocalhost: z.boolean().default(false),
   allowedWriters: z.array(z.string()).optional(),
-}).strict().superRefine((data, ctx) => {
-  if (data.allowedWriters && data.allowedWriters.length > 0 && !data.auth) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'allowedWriters requires auth.keys to be configured',
-      path: ['allowedWriters'],
-    });
-  }
-});
+}).strict().superRefine(validateAuthDefaults);
 
 export type ParsedOptions = z.infer<typeof optionsSchema>;
+
+type AuthDefaultValidationInput = {
+  readonly auth?: AuthSchemaInput | undefined;
+  readonly allowedWriters?: readonly string[] | undefined;
+  readonly host: string;
+  readonly unsafeAllowUnauthenticatedLocalhost: boolean;
+};
+
+function addConfigIssue(ctx: z.RefinementCtx, path: Array<string | number>, message: string): void {
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message,
+    path,
+  });
+}
+
+function validateAuthDefaults(data: AuthDefaultValidationInput, ctx: z.RefinementCtx): void {
+  validateAllowedWritersAuthDependency(data, ctx);
+  const localHost = isLocalSyncHost(data.host);
+  if (data.auth === undefined) {
+    validateUnauthenticatedDefaults(data, ctx, localHost);
+    return;
+  }
+  validateAuthenticatedDefaults(data, ctx, localHost);
+}
+
+function validateAllowedWritersAuthDependency(
+  data: AuthDefaultValidationInput,
+  ctx: z.RefinementCtx,
+): void {
+  if (data.allowedWriters && data.allowedWriters.length > 0 && data.auth === undefined) {
+    addConfigIssue(ctx, ['allowedWriters'], 'allowedWriters requires auth.keys to be configured');
+  }
+}
+
+function validateAuthenticatedDefaults(
+  data: AuthDefaultValidationInput,
+  ctx: z.RefinementCtx,
+  localHost: boolean,
+): void {
+  if (data.auth !== undefined && !localHost && data.auth.mode !== 'enforce') {
+    addConfigIssue(ctx, ['auth', 'mode'], 'non-local sync hosts require auth.mode "enforce"');
+  }
+}
+
+function validateUnauthenticatedDefaults(
+  data: AuthDefaultValidationInput,
+  ctx: z.RefinementCtx,
+  localHost: boolean,
+): void {
+  if (!localHost) {
+    addConfigIssue(ctx, ['auth'], 'sync auth is required for non-local sync hosts');
+    return;
+  }
+  if (!data.unsafeAllowUnauthenticatedLocalhost) {
+    addConfigIssue(
+      ctx,
+      ['unsafeAllowUnauthenticatedLocalhost'],
+      'unauthenticated localhost sync requires unsafeAllowUnauthenticatedLocalhost: true',
+    );
+  }
+}
+
+export function isLocalSyncHost(host: string): boolean {
+  return host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '::1' ||
+    host === '[::1]';
+}
 
 // ── JSON canonicalization ────────────────────────────────────────────────────
 
@@ -296,6 +358,7 @@ export interface HttpSyncServerOptions {
     logger?: LoggerPort;
     wallClockMs?: () => number;
   };
+  unsafeAllowUnauthenticatedLocalhost?: boolean;
   allowedWriters?: string[];
 }
 

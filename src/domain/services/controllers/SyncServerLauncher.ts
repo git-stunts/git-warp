@@ -27,6 +27,7 @@ export interface ServeOptions {
   maxRequestBytes?: number;
   httpPort: HttpServerPort;
   auth?: { keys: Record<string, SyncSecret>; mode?: 'enforce' | 'log-only' };
+  unsafeAllowUnauthenticatedLocalhost?: boolean;
 }
 
 export interface ServerHandle {
@@ -55,6 +56,7 @@ export async function launchSyncServer(
     maxRequestBytes = DEFAULT_SYNC_SERVER_MAX_BYTES,
     httpPort,
     auth,
+    unsafeAllowUnauthenticatedLocalhost,
   } = options;
 
   if (typeof port !== 'number') {
@@ -86,6 +88,7 @@ export async function launchSyncServer(
     host: hostname,
     maxRequestBytes,
     ...(authConfig !== undefined ? { auth: authConfig } : {}),
+    ...(unsafeAllowUnauthenticatedLocalhost !== undefined ? { unsafeAllowUnauthenticatedLocalhost } : {}),
   });
 
   return await httpServer.listen(port);

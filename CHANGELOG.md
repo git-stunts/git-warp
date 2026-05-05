@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The built-in HTTP sync server now fails closed by default: non-local
+  bind hosts require enforced `SyncSecret` auth, and unauthenticated
+  localhost serving requires `unsafeAllowUnauthenticatedLocalhost: true`.
 - Sync HMAC credentials now use an opaque `SyncSecret` value across the
   public sync auth API, domain auth service, and HTTP sync transport;
   accidental string, JSON, and inspect output redacts the secret while

@@ -108,8 +108,10 @@ digraph V17ReleaseBlockers {
     penwidth=2.4
   ];
   "HEX_sync-production-auth-defaults" [
-    fillcolor="#fee2e2",
-    label="HEX_sync-production\nauth defaults"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nHEX_sync-production\nauth defaults",
+    penwidth=2.4
   ];
   "HEX_sync-no-rate-limiting" [
     fillcolor="#fee2e2",

@@ -95,6 +95,7 @@ export type ServeOptions = {
   maxRequestBytes?: number;
   httpPort: HttpServerPort;
   auth?: { keys: Record<string, SyncSecret>; mode?: 'enforce' | 'log-only' };
+  unsafeAllowUnauthenticatedLocalhost?: boolean;
   allowedWriters?: string[];
 };
 

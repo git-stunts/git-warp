@@ -881,9 +881,14 @@ const result = await graph.sync.syncWith('http://peer:3000', {
 const { close, url } = await graph.sync.serve({
   port: 3000,
   httpPort: nodeHttpAdapter,
+  unsafeAllowUnauthenticatedLocalhost: true,
 });
 // Peers can now POST to http://localhost:3000/sync
 ```
+
+The unsafe localhost option is for local development only. Binding a
+sync server to a non-local host requires `auth.mode: 'enforce'` with
+configured `SyncSecret` keys.
 
 For details on the sync protocol, see [Appendix F](#appendix-f-sync-protocol).
 
@@ -2187,9 +2192,9 @@ const { close, url } = await graph.sync.serve({
   path: '/sync',
   maxRequestBytes: 4 * 1024 * 1024,
   httpPort: nodeHttpAdapter,
-  auth: {                          // optional HMAC-SHA256 auth
+  auth: {                          // HMAC-SHA256 auth
     keys: { default: sharedSecret },
-    mode: 'enforce',               // or 'log-only'
+    mode: 'enforce',
   },
 });
 
@@ -2198,6 +2203,9 @@ const { close, url } = await graph.sync.serve({
 
 await close(); // shut down
 ```
+
+Non-local bind hosts require enforced auth. Local unauthenticated serving
+is available only with `unsafeAllowUnauthenticatedLocalhost: true`.
 
 ### Appendix G: Garbage Collection
 

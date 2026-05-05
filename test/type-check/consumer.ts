@@ -470,7 +470,11 @@ void children;
 
 const timeoutSignal: AbortSignal = createTimeoutSignal(1000);
 checkAborted(timeoutSignal, 'consumer-test');
-const server = await graph.serve({ port: 3000, httpPort });
+const server = await graph.serve({
+  port: 3000,
+  httpPort,
+  unsafeAllowUnauthenticatedLocalhost: true,
+});
 const serverUrl: string = server.url;
 await server.close();
 const syncSecret: SyncSecret = SyncSecret.fromString('shared-secret');

@@ -60,7 +60,11 @@ describe('WarpCore serve', () => {
 
     graph.processSyncRequest = vi.fn().mockResolvedValue(payload);
 
-    const server = await graph.serve({ port: 0, httpPort: new NodeHttpAdapter() });
+    const server = await graph.serve({
+      port: 0,
+      httpPort: new NodeHttpAdapter(),
+      unsafeAllowUnauthenticatedLocalhost: true,
+    });
     try {
       const res = await fetch(server.url, {
         method: 'POST',
@@ -77,7 +81,11 @@ describe('WarpCore serve', () => {
   });
 
   it('returns 400 for invalid JSON', async () => {
-    const server = await graph.serve({ port: 0, httpPort: new NodeHttpAdapter() });
+    const server = await graph.serve({
+      port: 0,
+      httpPort: new NodeHttpAdapter(),
+      unsafeAllowUnauthenticatedLocalhost: true,
+    });
     try {
       const res = await fetch(server.url, {
         method: 'POST',
