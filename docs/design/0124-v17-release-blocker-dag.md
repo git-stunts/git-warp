@@ -66,10 +66,9 @@ closure. A blank cell means "not directly blocked by that task," not
   read path even though v17 removed that public frontdoor.
 
 `SPEC_runtime-error-reading-basis-guidance`
-: `QueryStateMessages.ts`, `RuntimeHost.ts`, `ProvenanceController.ts`,
-  and API examples still tell users to "Call materialize". This is
-  blocked by the docs task because errors should link to the new
-  readings/optics guidance.
+: Closed in cycle 0127. This originally tracked `QueryStateMessages.ts`,
+  `RuntimeHost.ts`, and `ProvenanceController.ts` telling users to
+  "Call materialize" instead of linking to readings/optics guidance.
 
 `BND_checkpoint-schema-contract-drift`
 : `CheckpointService` tests and `checkpointLoad.ts` disagree about the
@@ -165,7 +164,6 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `SPEC_runtime-error-reading-basis-guidance`
 - `BND_checkpoint-schema-contract-drift`
 - `PORT_patch-controller-reading-basis`
 - `PORT_sync-controller-reading-basis`
@@ -175,9 +173,10 @@ The tasks with no direct blockers are:
 
 `SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125.
 `SPEC_docs-materialize-frontdoor-drift` closed in cycle 0126 and unlocks
-runtime error guidance. The smallest next pull is now
-`SPEC_runtime-error-reading-basis-guidance` because the docs target exists
-and the stale "Call materialize" messages directly contradict it.
+runtime error guidance. `SPEC_runtime-error-reading-basis-guidance`
+closed in cycle 0127. The smallest next pull is now
+`BND_checkpoint-schema-contract-drift` because it is contained, already
+open, and unlocks checkpoint-controller reading-basis work.
 
 ## Regeneration
 

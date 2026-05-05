@@ -42,8 +42,10 @@ digraph V17ReleaseBlockers {
     penwidth=2.4
   ];
   "SPEC_runtime-error-reading-basis-guidance" [
-    fillcolor="#dbeafe",
-    label="SPEC_runtime-error\nreading-basis guidance"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nSPEC_runtime-error\nreading-basis guidance",
+    penwidth=2.4
   ];
   "BND_checkpoint-schema-contract-drift" [
     fillcolor="#ede9fe",

@@ -7,8 +7,8 @@ import WarpError, { type WarpErrorOptions } from './WarpError.ts';
  *
  * | Code | Description |
  * |------|-------------|
- * | `E_NO_STATE` | No materialized state available; call `materialize()` or use `autoMaterialize: true` |
- * | `E_STALE_STATE` | State is stale; call `materialize()` to refresh |
+ * | `E_NO_STATE` | No live reading basis is available for the requested read |
+ * | `E_STALE_STATE` | The live reading basis is stale for the requested read |
  * | `E_QUERY_MATCH_TYPE` | Invalid type passed to `match()` (expected string) |
  * | `E_QUERY_WHERE_TYPE` | Invalid type passed to `where()` (expected function or object) |
  * | `E_QUERY_WHERE_VALUE` | Non-primitive value in where() object shorthand |

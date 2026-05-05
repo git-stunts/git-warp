@@ -35,6 +35,7 @@ import PatchController from './services/controllers/PatchController.ts';
 import CheckpointController from './services/controllers/CheckpointController.ts';
 import SyncTrustGate from './services/sync/SyncTrustGate.ts';
 import AuditVerifierService from './services/audit/AuditVerifierService.ts';
+import { E_NO_STATE_MSG } from './services/controllers/QueryStateMessages.ts';
 import type MaterializedViewService from './services/MaterializedViewService.ts';
 import StateHashService from './services/state/StateHashService.ts';
 import { computeStateHash } from './services/state/StateSerializer.ts';
@@ -465,7 +466,7 @@ export default class RuntimeHost {
   async _materializedGraphFromCachedState(): Promise<MaterializedGraph> {
     const state = this._cachedState;
     if (state === null) {
-      throw new QueryError('No materialized state. Call materialize() before querying.', {
+      throw new QueryError(E_NO_STATE_MSG, {
         code: 'E_NO_STATE',
       });
     }

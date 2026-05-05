@@ -37,7 +37,7 @@ describe('WarpCore.patchesFor() (HG/IO/2)', () => {
         autoMaterialize: false,
       });
 
-      await expect(graph.patchesFor('node:a')).rejects.toThrow('No materialized state');
+      await expect(graph.patchesFor('node:a')).rejects.toThrow('No live reading basis');
     });
 
     it('returns empty array for unknown entity after materialize', async () => {

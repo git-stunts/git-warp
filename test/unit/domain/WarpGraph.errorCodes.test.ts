@@ -1,6 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import QueryError from '../../../src/domain/errors/QueryError.ts';
+import {
+  E_NO_STATE_MSG,
+  E_STALE_STATE_MSG,
+  READINGS_AND_OPTICS_DOC_PATH,
+} from '../../../src/domain/services/controllers/QueryStateMessages.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
 
 /**
@@ -45,7 +50,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
   // ── E_NO_STATE ─────────────────────────────────────────────────────────
 
-  describe('E_NO_STATE — query without prior materialize()', () => {
+  describe('E_NO_STATE — query without a live reading basis', () => {
     it('hasNode throws QueryError with code E_NO_STATE', async () => {
       try {
         await graph.hasNode('test:x');
@@ -96,33 +101,17 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       }
     });
 
-    it('error message includes recovery hint mentioning materialize()', async () => {
-      try {
-        await graph.hasNode('test:x');
-        expect.unreachable('should have thrown');
-      } catch (err) {
-        expect((err as any).message).toContain('materialize()');
-      }
+    it('error message includes recovery hint mentioning readings', async () => {
+      await expect(graph.hasNode('test:x')).rejects.toThrow('No live reading basis');
+      await expect(graph.hasNode('test:x')).rejects.toThrow('graph.query.worldline()');
     });
 
-    it('error message includes recovery hint mentioning autoMaterialize', async () => {
-      try {
-        await graph.hasNode('test:x');
-        expect.unreachable('should have thrown');
-      } catch (err) {
-        expect((err as any).message).toContain('autoMaterialize');
-      }
+    it('error message links to readings and optics docs', async () => {
+      await expect(graph.hasNode('test:x')).rejects.toThrow(READINGS_AND_OPTICS_DOC_PATH);
     });
 
     it('error message matches expected recovery hint text', async () => {
-      try {
-        await graph.hasNode('test:x');
-        expect.unreachable('should have thrown');
-      } catch (err) {
-        expect((err as any).message).toBe(
-          'No materialized state. Call materialize() before querying, or use autoMaterialize: true (the default). See https://github.com/git-stunts/git-warp#materialization',
-        );
-      }
+      await expect(graph.hasNode('test:x')).rejects.toMatchObject({ message: E_NO_STATE_MSG });
     });
   });
 
@@ -164,42 +153,26 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       }
     });
 
-    it('error message includes recovery hint mentioning materialize()', async () => {
+    it('error message includes recovery hint mentioning reading refresh', async () => {
       await graph.materialize();
       (graph)._stateDirty = true;
 
-      try {
-        await graph.hasNode('test:x');
-        expect.unreachable('should have thrown');
-      } catch (err) {
-        expect((err as any).message).toContain('materialize()');
-      }
+      await expect(graph.hasNode('test:x')).rejects.toThrow('live reading basis is stale');
+      await expect(graph.hasNode('test:x')).rejects.toThrow('re-read through graph.query');
     });
 
-    it('error message includes link to materialization docs', async () => {
+    it('error message links to readings and optics docs', async () => {
       await graph.materialize();
       (graph)._stateDirty = true;
 
-      try {
-        await graph.hasNode('test:x');
-        expect.unreachable('should have thrown');
-      } catch (err) {
-        expect((err as any).message).toContain('https://github.com/git-stunts/git-warp#materialization');
-      }
+      await expect(graph.hasNode('test:x')).rejects.toThrow(READINGS_AND_OPTICS_DOC_PATH);
     });
 
     it('error message matches expected recovery hint text', async () => {
       await graph.materialize();
       (graph)._stateDirty = true;
 
-      try {
-        await graph.hasNode('test:x');
-        expect.unreachable('should have thrown');
-      } catch (err) {
-        expect((err as any).message).toBe(
-          'State is stale (patches written since last materialize). Call materialize() to refresh. See https://github.com/git-stunts/git-warp#materialization',
-        );
-      }
+      await expect(graph.hasNode('test:x')).rejects.toMatchObject({ message: E_STALE_STATE_MSG });
     });
   });
 
@@ -298,11 +271,10 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       await autoGraph.materialize();
       autoGraph._stateDirty = true;
 
-      // Should not throw — auto-materialize kicks in
-      const spy = vi.spyOn(autoGraph, 'materialize');
       const nodes = await autoGraph.getNodes();
-      expect(spy).toHaveBeenCalled();
       expect(Array.isArray(nodes)).toBe(true);
+      expect(autoGraph._stateDirty).toBe(false);
+      expect(autoGraph._cachedState).not.toBeNull();
     });
 
     it('hasNode works transparently without explicit materialize()', async () => {

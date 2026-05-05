@@ -14,8 +14,12 @@ import { hydrateDecodedPatch } from '../PatchHydrator.ts';
 import type Patch from '../../types/Patch.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { ProvenanceReadHost } from './ReadGraphHost.ts';
+import { READINGS_AND_OPTICS_DOC_PATH } from './QueryStateMessages.ts';
 
 type ProvenanceHost = ProvenanceReadHost;
+const PROVENANCE_READING_DOC = `${READINGS_AND_OPTICS_DOC_PATH}#provenance-and-diagnostics`;
+const PROVENANCE_DEGRADED_MSG = `Provenance reading is unavailable for cached seek. Re-seek with --no-persistent-cache or open a coordinate reading before requesting provenance diagnostics. See ${PROVENANCE_READING_DOC}.`;
+const NO_PROVENANCE_INDEX_MSG = `No provenance reading index is available for this operation. Open a worldline reading or use provenance diagnostics from a checkpoint-backed reading before requesting provenance inspection. See ${PROVENANCE_READING_DOC}.`;
 
 export default class ProvenanceController {
   _host: ProvenanceHost;
@@ -28,13 +32,13 @@ export default class ProvenanceController {
     await this._host._ensureFreshState();
 
     if (this._host._provenanceDegraded) {
-      throw new QueryError('Provenance unavailable for cached seek. Re-seek with --no-persistent-cache or call materialize({ ceiling }) directly.', {
+      throw new QueryError(PROVENANCE_DEGRADED_MSG, {
         code: 'E_PROVENANCE_DEGRADED',
       });
     }
 
     if (!this._host._provenanceIndex) {
-      throw new QueryError('No provenance index. Call materialize() first.', {
+      throw new QueryError(NO_PROVENANCE_INDEX_MSG, {
         code: 'E_NO_STATE',
       });
     }
@@ -48,13 +52,13 @@ export default class ProvenanceController {
     await host._ensureFreshState();
 
     if (host._provenanceDegraded) {
-      throw new QueryError('Provenance unavailable for cached seek. Re-seek with --no-persistent-cache or call materialize({ ceiling }) directly.', {
+      throw new QueryError(PROVENANCE_DEGRADED_MSG, {
         code: 'E_PROVENANCE_DEGRADED',
       });
     }
 
     if (!host._provenanceIndex) {
-      throw new QueryError('No provenance index. Call materialize() first.', {
+      throw new QueryError(NO_PROVENANCE_INDEX_MSG, {
         code: 'E_NO_STATE',
       });
     }
@@ -96,7 +100,7 @@ export default class ProvenanceController {
   async _computeBackwardCone(nodeId: string): Promise<Map<string, Patch>> {
     const host = this._host;
     if (!host._provenanceIndex) {
-      throw new QueryError('No provenance index. Call materialize() first.', {
+      throw new QueryError(NO_PROVENANCE_INDEX_MSG, {
         code: 'E_NO_STATE',
       });
     }

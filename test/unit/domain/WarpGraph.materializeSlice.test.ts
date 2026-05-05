@@ -27,8 +27,8 @@ describe('WarpCore.materializeSlice() (HG/SLICE/1)', () => {
         autoMaterialize: false,
       });
 
-      // _ensureFreshState() is called first, which throws when no cached state exists
-      await expect(graph.materializeSlice('node:a')).rejects.toThrow('No materialized state');
+      // _ensureFreshState() is called first, which throws when no cached read basis exists
+      await expect(graph.materializeSlice('node:a')).rejects.toThrow('No live reading basis');
     });
   });
 
