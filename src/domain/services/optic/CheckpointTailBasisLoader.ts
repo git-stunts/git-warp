@@ -5,7 +5,7 @@ import { textDecode, textEncode } from '../../utils/bytes.ts';
 import { deserializeFrontier } from '../Frontier.ts';
 import { partitionShardOids } from '../MaterializedViewHelpers.ts';
 import {
-  CHECKPOINT_SCHEMA_INDEX_TREE,
+  isCurrentCheckpointSchema,
   partitionTreeOids,
 } from '../state/checkpointHelpers.ts';
 import type CheckpointTailOpticSource from './CheckpointTailOpticSource.ts';
@@ -36,7 +36,7 @@ export default class CheckpointTailBasisLoader {
   async load(): Promise<CheckpointTailIndexBasis> {
     const checkpointSha = await this._readCheckpointSha();
     const checkpointMessage = await this._decodeCheckpointMessage(checkpointSha);
-    if (checkpointMessage.schema !== CHECKPOINT_SCHEMA_INDEX_TREE) {
+    if (!isCurrentCheckpointSchema(checkpointMessage.schema)) {
       throwNoBoundedBasis(this._source.graphName, 'checkpoint-without-index-tree');
     }
 

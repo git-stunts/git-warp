@@ -8,7 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { create } from '../../../../src/domain/services/state/checkpointCreate.ts';
 import { loadCheckpoint, materializeIncremental, reconstructStateFromCheckpoint } from '../../../../src/domain/services/state/checkpointLoad.ts';
-import { CHECKPOINT_SCHEMA_STANDARD, CHECKPOINT_SCHEMA_INDEX_TREE } from '../../../../src/domain/services/state/checkpointHelpers.ts';
+import { CURRENT_CHECKPOINT_SCHEMA } from '../../../../src/domain/services/state/checkpointHelpers.ts';
 import {
   createFrontier,
   updateFrontier,
@@ -342,7 +342,7 @@ describe('CheckpointService edge cases', () => {
         makeOid('checkpoint')
       );
 
-      expect(loaded.schema).toBe(CHECKPOINT_SCHEMA_STANDARD);
+      expect(loaded.schema).toBe(CURRENT_CHECKPOINT_SCHEMA);
       expect(loaded.state.nodeAlive.elements()).toHaveLength(0);
       expect(loaded.state.edgeAlive.elements()).toHaveLength(0);
       expect(loaded.state.prop.size).toBe(0);
@@ -601,12 +601,8 @@ describe('CheckpointService edge cases', () => {
   // --------------------------------------------------------------------------
 
   describe('schema constants', () => {
-    it('CHECKPOINT_SCHEMA_STANDARD is the current schema', () => {
-      expect(CHECKPOINT_SCHEMA_STANDARD).toBe(5);
-    });
-
-    it('CHECKPOINT_SCHEMA_INDEX_TREE is the current schema', () => {
-      expect(CHECKPOINT_SCHEMA_INDEX_TREE).toBe(5);
+    it('CURRENT_CHECKPOINT_SCHEMA is the current schema', () => {
+      expect(CURRENT_CHECKPOINT_SCHEMA).toBe(5);
     });
   });
 
@@ -715,7 +711,7 @@ describe('CheckpointService edge cases', () => {
       const decoded = decodeCheckpointMessage(message);
       expect(decoded.kind).toBe('checkpoint');
       expect(decoded.graph).toBe('my-graph');
-      expect(decoded.schema).toBe(CHECKPOINT_SCHEMA_INDEX_TREE);
+      expect(decoded.schema).toBe(CURRENT_CHECKPOINT_SCHEMA);
       expect(decoded.checkpointVersion).toBe('v5');
     });
 
@@ -790,7 +786,7 @@ describe('CheckpointService edge cases', () => {
     });
   });
 
-  describe('createV5 with checkpointStore and provenance index', () => {
+  describe('createCheckpointEnvelope with checkpointStore and provenance index', () => {
     it('uses schema:5 envelope writes when checkpointStore is provided', async () => {
       const state = createEmptyState();
       state.nodeAlive.add('n', Dot.create('w1', 1));

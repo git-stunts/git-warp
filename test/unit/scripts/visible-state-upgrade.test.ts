@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { migrateV4toV5 } from '../../../../src/domain/services/MigrationService.ts';
+import { upgradeVisibleStateProjection } from '../../../scripts/migrations/v17.0.0/visible-state-upgrade.ts';
 import {
   reduceV5 as _reduceV5,
   encodeEdgeKey as encodeEdgeKeyV5,
   encodePropKey as encodePropKeyV5,
-} from '../../../../src/domain/services/JoinReducer.ts';
+} from '../../../src/domain/services/JoinReducer.ts';
 const reduceV5: (...args: any[]) => any = _reduceV5;
-import { compareEventIds, EventId } from '../../../../src/domain/utils/EventId.ts';
-import { lwwSet as lwwSetImported, lwwMax as lwwMaxImported } from '../../../../src/domain/crdt/LWW.ts';
+import { compareEventIds, EventId } from '../../../src/domain/utils/EventId.ts';
+import { lwwSet as lwwSetImported, lwwMax as lwwMaxImported } from '../../../src/domain/crdt/LWW.ts';
 
 // Re-export lwwSet/lwwMax for use in tests
 const lwwSetLocal = lwwSetImported;
@@ -18,7 +18,7 @@ const lwwMaxLocal = lwwMaxImported;
 // ============================================================================
 
 /**
- * Creates an empty v4 state for migration testing.
+ * Creates an empty legacy state for migration testing.
  * NOTE: Test-only helper. Schema:1 is deprecated.
  * @returns {{nodeAlive: Map<string, any>, edgeAlive: Map<string, any>, prop: Map<string, any>}}
  */
@@ -121,10 +121,10 @@ function reduce(patches: Array<{patch: any; sha: string}>) {
 // ============================================================================
 // End of v4 test helpers
 // ============================================================================
-import { computeStateHash, nodeVisibleV5, edgeVisible } from '../../../../src/domain/services/state/StateSerializer.ts';
-import { lwwSet, lwwValue } from '../../../../src/domain/crdt/LWW.ts';
-import { Dot } from '../../../../src/domain/crdt/Dot.ts';
-import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import { computeStateHash, nodeVisibleV5, edgeVisible } from '../../../src/domain/services/state/StateSerializer.ts';
+import { lwwSet, lwwValue } from '../../../src/domain/crdt/LWW.ts';
+import { Dot } from '../../../src/domain/crdt/Dot.ts';
+import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 // v1 op types (for migration tests) — inlined after WarpTypes.ts deletion
 /** @param {string} node */
 function createNodeAdd(node) { return { type: 'NodeAdd', node }; }
@@ -138,10 +138,10 @@ function createEdgeTombstone(from, to, label) { return { type: 'EdgeTombstone', 
 function createPropSet(node, key, value) { return { type: 'PropSet', node, key, value }; }
 /** @param {unknown} value */
 function createInlineValue(value) { return { type: 'inline', value }; }
-import Patch from '../../../../src/domain/types/Patch.ts';
-import NodeAddClass from '../../../../src/domain/types/ops/NodeAdd.ts';
-import EdgeAddClass from '../../../../src/domain/types/ops/EdgeAdd.ts';
-import PropSetClass from '../../../../src/domain/types/ops/PropSet.ts';
+import Patch from '../../../src/domain/types/Patch.ts';
+import NodeAddClass from '../../../src/domain/types/ops/NodeAdd.ts';
+import EdgeAddClass from '../../../src/domain/types/ops/EdgeAdd.ts';
+import PropSetClass from '../../../src/domain/types/ops/PropSet.ts';
 
 /** @param {Record<string, unknown>} opts */
 function createPatch(opts) { return new Patch((opts)); }
@@ -151,7 +151,7 @@ function createNodeAddV2(node, dot) { return new NodeAddClass(node, dot); }
 function createEdgeAddV2(from, to, label, dot) { return new EdgeAddClass({ from, to, label, dot }); }
 /** @param {string} node @param {string} key @param {unknown} value */
 function createPropSetV2(node, key, value) { return new PropSetClass(node, key, value); }
-import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
 const crypto = new NodeCryptoAdapter();
 
@@ -180,7 +180,7 @@ function createPatchV1({ writer, lamport, ops, baseCheckpoint }: { writer: any; 
 }
 
 /**
- * Helper to create a v4 state with nodes, edges, and props directly
+ * Helper to create a legacy state with nodes, edges, and props directly
  */
 function createV4State({ nodes = [] as any[], edges = [] as any[], props = [] as any[] }: { nodes?: any[]; edges?: any[]; props?: any[] } = {}) {
   const state = createEmptyState();
@@ -206,37 +206,37 @@ function createV4State({ nodes = [] as any[], edges = [] as any[], props = [] as
   return state;
 }
 
-describe('MigrationService', () => {
-  describe('migrateV4toV5', () => {
-    describe('empty v4 state produces empty v5 state', () => {
-      it('returns empty v5 state for empty v4 state', () => {
-        const v4State = createEmptyState();
+describe('visible-state upgrade helper', () => {
+  describe('upgradeVisibleStateProjection', () => {
+    describe('empty legacy state produces empty current state', () => {
+      it('returns empty current state for empty legacy state', () => {
+        const legacyState = createEmptyState();
         const migrationWriterId = 'migration-writer';
 
-        const v5State = migrateV4toV5(v4State, migrationWriterId);
+        const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
-        expect(v5State.nodeAlive.elements()).toHaveLength(0);
-        expect(v5State.edgeAlive.elements()).toHaveLength(0);
-        expect(v5State.prop.size).toBe(0);
-        expect(v5State.observedFrontier.size).toBe(0);
+        expect(currentState.nodeAlive.elements()).toHaveLength(0);
+        expect(currentState.edgeAlive.elements()).toHaveLength(0);
+        expect(currentState.prop.size).toBe(0);
+        expect(currentState.observedFrontier.size).toBe(0);
       });
     });
 
-    describe('visible nodes migrate to v5 OR-Set', () => {
+    describe('visible nodes migrate to current OR-Set', () => {
       it('migrates single visible node', () => {
-        const v4State = createV4State({
+        const legacyState = createV4State({
           nodes: [{ nodeId: 'node-a', alive: true }],
         });
         const migrationWriterId = 'migration-writer';
 
-        const v5State = migrateV4toV5(v4State, migrationWriterId);
+        const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
-        expect(v5State.nodeAlive.contains('node-a')).toBe(true);
-        expect(v5State.nodeAlive.elements()).toEqual(['node-a']);
+        expect(currentState.nodeAlive.contains('node-a')).toBe(true);
+        expect(currentState.nodeAlive.elements()).toEqual(['node-a']);
       });
 
       it('migrates multiple visible nodes', () => {
-        const v4State = createV4State({
+        const legacyState = createV4State({
           nodes: [
             { nodeId: 'node-a', alive: true },
             { nodeId: 'node-b', alive: true },
@@ -245,16 +245,16 @@ describe('MigrationService', () => {
         });
         const migrationWriterId = 'migration-writer';
 
-        const v5State = migrateV4toV5(v4State, migrationWriterId);
+        const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
-        expect(v5State.nodeAlive.contains('node-a')).toBe(true);
-        expect(v5State.nodeAlive.contains('node-b')).toBe(true);
-        expect(v5State.nodeAlive.contains('node-c')).toBe(true);
-        expect(v5State.nodeAlive.elements()).toHaveLength(3);
+        expect(currentState.nodeAlive.contains('node-a')).toBe(true);
+        expect(currentState.nodeAlive.contains('node-b')).toBe(true);
+        expect(currentState.nodeAlive.contains('node-c')).toBe(true);
+        expect(currentState.nodeAlive.elements()).toHaveLength(3);
       });
 
       it('assigns synthetic dots from migration writer', () => {
-        const v4State = createV4State({
+        const legacyState = createV4State({
           nodes: [
             { nodeId: 'node-a', alive: true },
             { nodeId: 'node-b', alive: true },
@@ -262,29 +262,29 @@ describe('MigrationService', () => {
         });
         const migrationWriterId = 'migration-writer';
 
-        const v5State = migrateV4toV5(v4State, migrationWriterId);
+        const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
         // Each node should have a dot from the migration writer
         // The version vector should track the migration writer's counter
-        expect(v5State.observedFrontier.get(migrationWriterId)).toBeGreaterThanOrEqual(2);
+        expect(currentState.observedFrontier.get(migrationWriterId)).toBeGreaterThanOrEqual(2);
       });
     });
 
     describe('deleted nodes (value=false) do NOT migrate', () => {
       it('does not migrate tombstoned node', () => {
-        const v4State = createV4State({
+        const legacyState = createV4State({
           nodes: [{ nodeId: 'deleted-node', alive: false }],
         });
         const migrationWriterId = 'migration-writer';
 
-        const v5State = migrateV4toV5(v4State, migrationWriterId);
+        const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
-        expect(v5State.nodeAlive.contains('deleted-node')).toBe(false);
-        expect(v5State.nodeAlive.elements()).toHaveLength(0);
+        expect(currentState.nodeAlive.contains('deleted-node')).toBe(false);
+        expect(currentState.nodeAlive.elements()).toHaveLength(0);
       });
 
       it('only migrates visible nodes, not tombstoned ones', () => {
-        const v4State = createV4State({
+        const legacyState = createV4State({
           nodes: [
             { nodeId: 'visible-node', alive: true },
             { nodeId: 'deleted-node', alive: false },
@@ -292,15 +292,15 @@ describe('MigrationService', () => {
         });
         const migrationWriterId = 'migration-writer';
 
-        const v5State = migrateV4toV5(v4State, migrationWriterId);
+        const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
-        expect(v5State.nodeAlive.contains('visible-node')).toBe(true);
-        expect(v5State.nodeAlive.contains('deleted-node')).toBe(false);
-        expect(v5State.nodeAlive.elements()).toEqual(['visible-node']);
+        expect(currentState.nodeAlive.contains('visible-node')).toBe(true);
+        expect(currentState.nodeAlive.contains('deleted-node')).toBe(false);
+        expect(currentState.nodeAlive.elements()).toEqual(['visible-node']);
       });
 
       it('handles previously deleted then re-created node (final state visible)', () => {
-        // Use reducer to create a realistic v4 state with delete-resurrect cycle
+        // Use reducer to create a realistic legacy state with delete-resurrect cycle
         const patches = [
           {
             patch: createPatchV1({
@@ -328,19 +328,19 @@ describe('MigrationService', () => {
           },
         ];
 
-        const v4State = reduce(patches);
-        const v5State = migrateV4toV5(v4State, 'migration-writer');
+        const legacyState = reduce(patches);
+        const currentState = upgradeVisibleStateProjection(legacyState, 'migration-writer');
 
         // Node is visible in v4 after resurrection
-        expect(lwwValue(v4State.nodeAlive.get('node-x'))).toBe(true);
-        // Node should be present in v5
-        expect(v5State.nodeAlive.contains('node-x')).toBe(true);
+        expect(lwwValue(legacyState.nodeAlive.get('node-x'))).toBe(true);
+        // Node should be present in current
+        expect(currentState.nodeAlive.contains('node-x')).toBe(true);
       });
     });
 
     describe('edges migrate with synthetic dots', () => {
       it('migrates visible edge', () => {
-        const v4State = createV4State({
+        const legacyState = createV4State({
           nodes: [
             { nodeId: 'a', alive: true },
             { nodeId: 'b', alive: true },
@@ -349,26 +349,26 @@ describe('MigrationService', () => {
         });
         const migrationWriterId = 'migration-writer';
 
-        const v5State = migrateV4toV5(v4State, migrationWriterId);
+        const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
         const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-        expect(v5State.edgeAlive.contains(edgeKey)).toBe(true);
+        expect(currentState.edgeAlive.contains(edgeKey)).toBe(true);
       });
 
       it('does not migrate tombstoned edge', () => {
-        const v4State = createV4State({
+        const legacyState = createV4State({
           edges: [{ from: 'a', to: 'b', label: 'rel', alive: false }],
         });
         const migrationWriterId = 'migration-writer';
 
-        const v5State = migrateV4toV5(v4State, migrationWriterId);
+        const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
         const edgeKey = encodeEdgeKey('a', 'b', 'rel');
-        expect(v5State.edgeAlive.contains(edgeKey)).toBe(false);
+        expect(currentState.edgeAlive.contains(edgeKey)).toBe(false);
       });
 
       it('migrates multiple edges with different labels', () => {
-        const v4State = createV4State({
+        const legacyState = createV4State({
           edges: [
             { from: 'a', to: 'b', label: 'follows', alive: true },
             { from: 'a', to: 'b', label: 'likes', alive: true },
@@ -377,16 +377,16 @@ describe('MigrationService', () => {
         });
         const migrationWriterId = 'migration-writer';
 
-        const v5State = migrateV4toV5(v4State, migrationWriterId);
+        const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
-        expect(v5State.edgeAlive.contains(encodeEdgeKey('a', 'b', 'follows'))).toBe(true);
-        expect(v5State.edgeAlive.contains(encodeEdgeKey('a', 'b', 'likes'))).toBe(true);
-        expect(v5State.edgeAlive.contains(encodeEdgeKey('b', 'a', 'follows'))).toBe(true);
-        expect(v5State.edgeAlive.elements()).toHaveLength(3);
+        expect(currentState.edgeAlive.contains(encodeEdgeKey('a', 'b', 'follows'))).toBe(true);
+        expect(currentState.edgeAlive.contains(encodeEdgeKey('a', 'b', 'likes'))).toBe(true);
+        expect(currentState.edgeAlive.contains(encodeEdgeKey('b', 'a', 'follows'))).toBe(true);
+        expect(currentState.edgeAlive.elements()).toHaveLength(3);
       });
 
       it('filters visible from tombstoned edges', () => {
-        const v4State = createV4State({
+        const legacyState = createV4State({
           edges: [
             { from: 'a', to: 'b', label: 'visible', alive: true },
             { from: 'a', to: 'c', label: 'deleted', alive: false },
@@ -394,17 +394,17 @@ describe('MigrationService', () => {
         });
         const migrationWriterId = 'migration-writer';
 
-        const v5State = migrateV4toV5(v4State, migrationWriterId);
+        const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
-        expect(v5State.edgeAlive.contains(encodeEdgeKey('a', 'b', 'visible'))).toBe(true);
-        expect(v5State.edgeAlive.contains(encodeEdgeKey('a', 'c', 'deleted'))).toBe(false);
-        expect(v5State.edgeAlive.elements()).toHaveLength(1);
+        expect(currentState.edgeAlive.contains(encodeEdgeKey('a', 'b', 'visible'))).toBe(true);
+        expect(currentState.edgeAlive.contains(encodeEdgeKey('a', 'c', 'deleted'))).toBe(false);
+        expect(currentState.edgeAlive.elements()).toHaveLength(1);
       });
     });
 
     describe('props for visible nodes migrate, props for deleted nodes do NOT', () => {
       it('migrates props for visible node', () => {
-        const v4State = createV4State({
+        const legacyState = createV4State({
           nodes: [{ nodeId: 'node-a', alive: true }],
           props: [
             { nodeId: 'node-a', key: 'name', value: createInlineValue('Alice') },
@@ -413,19 +413,19 @@ describe('MigrationService', () => {
         });
         const migrationWriterId = 'migration-writer';
 
-        const v5State = migrateV4toV5(v4State, migrationWriterId);
+        const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
-        expect(v5State.prop.size).toBe(2);
-        expect(lwwValue(v5State.prop.get(encodePropKey('node-a', 'name')))).toEqual(
+        expect(currentState.prop.size).toBe(2);
+        expect(lwwValue(currentState.prop.get(encodePropKey('node-a', 'name')))).toEqual(
           createInlineValue('Alice')
         );
-        expect(lwwValue(v5State.prop.get(encodePropKey('node-a', 'age')))).toEqual(
+        expect(lwwValue(currentState.prop.get(encodePropKey('node-a', 'age')))).toEqual(
           createInlineValue(30)
         );
       });
 
       it('does NOT migrate props for deleted node', () => {
-        const v4State = createV4State({
+        const legacyState = createV4State({
           nodes: [{ nodeId: 'deleted-node', alive: false }],
           props: [
             { nodeId: 'deleted-node', key: 'name', value: createInlineValue('Ghost') },
@@ -433,13 +433,13 @@ describe('MigrationService', () => {
         });
         const migrationWriterId = 'migration-writer';
 
-        const v5State = migrateV4toV5(v4State, migrationWriterId);
+        const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
-        expect(v5State.prop.size).toBe(0);
+        expect(currentState.prop.size).toBe(0);
       });
 
       it('migrates props selectively based on node visibility', () => {
-        const v4State = createV4State({
+        const legacyState = createV4State({
           nodes: [
             { nodeId: 'visible-node', alive: true },
             { nodeId: 'deleted-node', alive: false },
@@ -451,35 +451,35 @@ describe('MigrationService', () => {
         });
         const migrationWriterId = 'migration-writer';
 
-        const v5State = migrateV4toV5(v4State, migrationWriterId);
+        const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
-        expect(v5State.prop.size).toBe(1);
-        expect(lwwValue(v5State.prop.get(encodePropKey('visible-node', 'name')))).toEqual(
+        expect(currentState.prop.size).toBe(1);
+        expect(lwwValue(currentState.prop.get(encodePropKey('visible-node', 'name')))).toEqual(
           createInlineValue('Visible')
         );
-        expect(v5State.prop.has(encodePropKey('deleted-node', 'name'))).toBe(false);
+        expect(currentState.prop.has(encodePropKey('deleted-node', 'name'))).toBe(false);
       });
 
       it('handles props for nodes with no entry in nodeAlive map (dangling)', () => {
-        // Create a v4 state with a prop for a node that has no nodeAlive entry
-        const v4State = createEmptyState();
+        // Create a legacy state with a prop for a node that has no nodeAlive entry
+        const legacyState = createEmptyState();
         const eventId = new EventId(1, 'test-writer', 'abcd1234', 0);
-        v4State.prop.set(
+        legacyState.prop.set(
           encodePropKey('orphan-node', 'name'),
           lwwSet(eventId, createInlineValue('Orphan'))
         );
 
         const migrationWriterId = 'migration-writer';
-        const v5State = migrateV4toV5(v4State, migrationWriterId);
+        const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
         // Orphan props should not be migrated
-        expect(v5State.prop.size).toBe(0);
+        expect(currentState.prop.size).toBe(0);
       });
     });
 
     describe('visible projections match after migration', () => {
-      it('v4 visible projection matches v5 visible projection', () => {
-        // Build a realistic v4 state via the reducer
+      it('legacy visible projection matches current visible projection', () => {
+        // Build a realistic legacy state via the reducer
         const patches = [
           {
             patch: createPatchV1({
@@ -518,12 +518,12 @@ describe('MigrationService', () => {
           },
         ];
 
-        const v4State = reduce(patches);
-        const v5State = migrateV4toV5(v4State, 'migration-writer');
+        const legacyState = reduce(patches);
+        const currentState = upgradeVisibleStateProjection(legacyState, 'migration-writer');
 
         // Compute visible projection from v4
         const v4VisibleNodes: string[] = [];
-        for (const [nodeId, reg] of v4State.nodeAlive) {
+        for (const [nodeId, reg] of legacyState.nodeAlive) {
           if (reg.value === true) {
             v4VisibleNodes.push(nodeId);
           }
@@ -531,18 +531,18 @@ describe('MigrationService', () => {
         v4VisibleNodes.sort();
 
         const v4VisibleEdges: string[] = [];
-        for (const [edgeKey, reg] of v4State.edgeAlive) {
+        for (const [edgeKey, reg] of legacyState.edgeAlive) {
           if (reg.value === true) {
             v4VisibleEdges.push(edgeKey);
           }
         }
         v4VisibleEdges.sort();
 
-        // Compute visible projection from v5
-        const v5VisibleNodes = v5State.nodeAlive.elements();
+        // Compute visible projection from current
+        const v5VisibleNodes = currentState.nodeAlive.elements();
         v5VisibleNodes.sort();
 
-        const v5VisibleEdges = v5State.edgeAlive.elements();
+        const v5VisibleEdges = currentState.edgeAlive.elements();
         v5VisibleEdges.sort();
 
         // They should match
@@ -579,35 +579,35 @@ describe('MigrationService', () => {
           },
         ];
 
-        const v4State = reduce(patches);
-        const v5State = migrateV4toV5(v4State, 'migration-writer');
+        const legacyState = reduce(patches);
+        const currentState = upgradeVisibleStateProjection(legacyState, 'migration-writer');
 
         // v4 should have: nodes a, c visible; node b tombstoned
-        expect(lwwValue(v4State.nodeAlive.get('a'))).toBe(true);
-        expect(lwwValue(v4State.nodeAlive.get('b'))).toBe(false);
-        expect(lwwValue(v4State.nodeAlive.get('c'))).toBe(true);
+        expect(lwwValue(legacyState.nodeAlive.get('a'))).toBe(true);
+        expect(lwwValue(legacyState.nodeAlive.get('b'))).toBe(false);
+        expect(lwwValue(legacyState.nodeAlive.get('c'))).toBe(true);
 
-        // v5 should match the visible projection
-        expect(v5State.nodeAlive.contains('a')).toBe(true);
-        expect(v5State.nodeAlive.contains('b')).toBe(false);
-        expect(v5State.nodeAlive.contains('c')).toBe(true);
+        // current state should match the visible projection
+        expect(currentState.nodeAlive.contains('a')).toBe(true);
+        expect(currentState.nodeAlive.contains('b')).toBe(false);
+        expect(currentState.nodeAlive.contains('c')).toBe(true);
 
         // Edge a->b should be tombstoned, b->c should be visible
-        expect(v5State.edgeAlive.contains(encodeEdgeKey('a', 'b', 'link'))).toBe(false);
-        expect(v5State.edgeAlive.contains(encodeEdgeKey('b', 'c', 'link'))).toBe(true);
+        expect(currentState.edgeAlive.contains(encodeEdgeKey('a', 'b', 'link'))).toBe(false);
+        expect(currentState.edgeAlive.contains(encodeEdgeKey('b', 'c', 'link'))).toBe(true);
       });
 
       it('preserves LWW register metadata for props', () => {
-        const v4State = createV4State({
+        const legacyState = createV4State({
           nodes: [{ nodeId: 'node-a', alive: true }],
           props: [{ nodeId: 'node-a', key: 'name', value: createInlineValue('Test') }],
         });
 
-        const v5State = migrateV4toV5(v4State, 'migration-writer');
+        const currentState = upgradeVisibleStateProjection(legacyState, 'migration-writer');
 
         // The prop register should preserve its eventId and value
-        const v4PropReg = v4State.prop.get(encodePropKey('node-a', 'name'));
-        const v5PropReg = v5State.prop.get(encodePropKey('node-a', 'name'));
+        const v4PropReg = legacyState.prop.get(encodePropKey('node-a', 'name'));
+        const v5PropReg = currentState.prop.get(encodePropKey('node-a', 'name'));
 
         expect(v5PropReg).toEqual(v4PropReg);
       });
@@ -615,7 +615,7 @@ describe('MigrationService', () => {
 
     describe('version vector tracking', () => {
       it('tracks all synthetic dots in observedFrontier', () => {
-        const v4State = createV4State({
+        const legacyState = createV4State({
           nodes: [
             { nodeId: 'a', alive: true },
             { nodeId: 'b', alive: true },
@@ -624,25 +624,25 @@ describe('MigrationService', () => {
         });
         const migrationWriterId = 'migration-writer';
 
-        const v5State = migrateV4toV5(v4State, migrationWriterId);
+        const currentState = upgradeVisibleStateProjection(legacyState, migrationWriterId);
 
         // 2 nodes + 1 edge = 3 synthetic dots
-        expect(v5State.observedFrontier.get(migrationWriterId)).toBe(3);
+        expect(currentState.observedFrontier.get(migrationWriterId)).toBe(3);
       });
 
       it('empty state results in empty version vector', () => {
-        const v4State = createEmptyState();
-        const v5State = migrateV4toV5(v4State, 'migration-writer');
+        const legacyState = createEmptyState();
+        const currentState = upgradeVisibleStateProjection(legacyState, 'migration-writer');
 
-        expect(v5State.observedFrontier.size).toBe(0);
+        expect(currentState.observedFrontier.size).toBe(0);
       });
     });
 
     // =========================================================================
-    // WARP v5 Legacy Check: v4 -> v5 Upgrade with Post-Migration v5 Patches
+    // WARP current Legacy Check: legacy -> current Upgrade with Post-Migration current Patches
     // =========================================================================
-    describe('v4 -> v5 upgrade (applying v5 patches after migration)', () => {
-      it('migrates v4 state and applies v5 patches correctly without data loss', () => {
+    describe('legacy -> current upgrade (applying current patches after migration)', () => {
+      it('migrates legacy state and applies current patches correctly without data loss', () => {
         // Step 1: Build v4 graph state via v1 patches (LWW-based)
         const v4Patches = [
           {
@@ -670,23 +670,23 @@ describe('MigrationService', () => {
           },
         ];
 
-        // Create v4 state (LWW-based)
-        const v4State = reduce(v4Patches);
+        // Create legacy state (LWW-based)
+        const legacyState = reduce(v4Patches);
 
-        // Verify v4 state is correct
-        expect(lwwValue(v4State.nodeAlive.get('user:alice'))).toBe(true);
-        expect(lwwValue(v4State.nodeAlive.get('user:bob'))).toBe(true);
-        expect(lwwValue(v4State.edgeAlive.get(encodeEdgeKey('user:bob', 'user:alice', 'follows')))).toBe(true);
+        // Verify legacy state is correct
+        expect(lwwValue(legacyState.nodeAlive.get('user:alice'))).toBe(true);
+        expect(lwwValue(legacyState.nodeAlive.get('user:bob'))).toBe(true);
+        expect(lwwValue(legacyState.edgeAlive.get(encodeEdgeKey('user:bob', 'user:alice', 'follows')))).toBe(true);
 
-        // Step 2: Migrate to v5 (creates OR-Set based state)
-        const v5State = migrateV4toV5(v4State, '__migration__');
+        // Step 2: Migrate to current (creates OR-Set based state)
+        const currentState = upgradeVisibleStateProjection(legacyState, '__migration__');
 
         // Verify migration preserved all visible entities
-        expect(nodeVisibleV5(v5State, 'user:alice')).toBe(true);
-        expect(nodeVisibleV5(v5State, 'user:bob')).toBe(true);
-        expect(edgeVisible(v5State, encodeEdgeKeyV5('user:bob', 'user:alice', 'follows'))).toBe(true);
+        expect(nodeVisibleV5(currentState, 'user:alice')).toBe(true);
+        expect(nodeVisibleV5(currentState, 'user:bob')).toBe(true);
+        expect(edgeVisible(currentState, encodeEdgeKeyV5('user:bob', 'user:alice', 'follows'))).toBe(true);
 
-        // Step 3: Apply v5 patches (OR-Set based) AFTER migration
+        // Step 3: Apply current patches (OR-Set based) AFTER migration
         const v5Patches = [
           {
             patch: createPatch({
@@ -714,8 +714,8 @@ describe('MigrationService', () => {
           },
         ];
 
-        // Apply v5 patches to migrated state
-        const finalState = reduceV5(v5Patches, v5State);
+        // Apply current patches to migrated state
+        const finalState = reduceV5(v5Patches, currentState);
 
         // Step 4: Verify NO data loss - all original v4 data is preserved
         expect(nodeVisibleV5(finalState, 'user:alice')).toBe(true);
@@ -728,7 +728,7 @@ describe('MigrationService', () => {
         expect(lwwValue(finalState.prop.get(alicePropKey))).toEqual(createInlineValue('Alice'));
         expect(lwwValue(finalState.prop.get(bobPropKey))).toEqual(createInlineValue('Bob'));
 
-        // Step 5: Verify new v5 data is present
+        // Step 5: Verify new current data is present
         expect(nodeVisibleV5(finalState, 'user:charlie')).toBe(true);
         expect(edgeVisible(finalState, encodeEdgeKeyV5('user:charlie', 'user:alice', 'follows'))).toBe(true);
         expect(edgeVisible(finalState, encodeEdgeKeyV5('user:charlie', 'user:bob', 'follows'))).toBe(true);
@@ -738,8 +738,8 @@ describe('MigrationService', () => {
         expect(lwwValue(finalState.prop.get(charliePropKey))).toEqual(createInlineValue('Charlie'));
       });
 
-      it('permutation invariance holds for v5 patches applied after migration', async () => {
-        // Build v4 state
+      it('permutation invariance holds for current patches applied after migration', async () => {
+        // Build legacy state
         const v4Patches = [
           {
             patch: createPatchV1({
@@ -751,10 +751,10 @@ describe('MigrationService', () => {
           },
         ];
 
-        const v4State = reduce(v4Patches);
-        const v5State = migrateV4toV5(v4State, '__migration__');
+        const legacyState = reduce(v4Patches);
+        const currentState = upgradeVisibleStateProjection(legacyState, '__migration__');
 
-        // Multiple v5 patches
+        // Multiple current patches
         const v5PatchA = {
           patch: createPatch({
             writer: 'A',
@@ -786,9 +786,9 @@ describe('MigrationService', () => {
         };
 
         // Apply in different orders
-        const stateABC = reduceV5([v5PatchA, v5PatchB, v5PatchC], v5State);
-        const stateCBA = reduceV5([v5PatchC, v5PatchB, v5PatchA], v5State);
-        const stateBAC = reduceV5([v5PatchB, v5PatchA, v5PatchC], v5State);
+        const stateABC = reduceV5([v5PatchA, v5PatchB, v5PatchC], currentState);
+        const stateCBA = reduceV5([v5PatchC, v5PatchB, v5PatchA], currentState);
+        const stateBAC = reduceV5([v5PatchB, v5PatchA, v5PatchC], currentState);
 
         // All orders produce the same hash (permutation invariance)
         const hashABC = await computeStateHash(stateABC, { crypto });
@@ -806,15 +806,15 @@ describe('MigrationService', () => {
     });
 
     // =========================================================================
-    // WARP v5 Legacy Check: Mixed Mode (v1/v2 patch interleaving)
+    // WARP current Legacy Check: Mixed Mode (v1/v2 patch interleaving)
     // =========================================================================
     describe('mixed mode: v1/v2 patch handling', () => {
       /**
-       * WARP v5 HARD RULE: "No interleaving v1/v2 patches in a single reducer."
+       * WARP current HARD RULE: "No interleaving v1/v2 patches in a single reducer."
        *
        * The migration boundary enforces this at the WarpCore level:
        * - v1 patches are processed by reduce() (LWW-based) before migration
-       * - A v5 checkpoint is created via migrateV4toV5()
+       * - A current checkpoint is created via upgradeVisibleStateProjection()
        * - v2 patches are processed by reduceV5() (OR-Set based) after migration
        *
        * The reducers themselves do NOT validate patch schema because they
@@ -846,8 +846,8 @@ describe('MigrationService', () => {
         };
 
         // CORRECT WORKFLOW: Process v1 patches first, then migrate, then v2
-        const v4State = reduce([v1Patch]);
-        const migratedState = migrateV4toV5(v4State, '__migration__');
+        const legacyState = reduce([v1Patch]);
+        const migratedState = upgradeVisibleStateProjection(legacyState, '__migration__');
         const finalState = reduceV5([v2Patch], migratedState);
 
         // Both nodes visible after proper migration workflow
@@ -880,40 +880,40 @@ describe('MigrationService', () => {
           },
         ];
 
-        // BEFORE migration: v4 state via LWW reducer
-        const v4State = reduce(v1Patches);
-        expect(lwwValue(v4State.nodeAlive.get('n1'))).toBe(true);
-        expect(lwwValue(v4State.nodeAlive.get('n2'))).toBe(false); // tombstoned
+        // BEFORE migration: legacy state via LWW reducer
+        const legacyState = reduce(v1Patches);
+        expect(lwwValue(legacyState.nodeAlive.get('n1'))).toBe(true);
+        expect(lwwValue(legacyState.nodeAlive.get('n2'))).toBe(false); // tombstoned
 
-        // MIGRATION BOUNDARY: Convert to v5
-        const v5State = migrateV4toV5(v4State, '__migration__');
+        // MIGRATION BOUNDARY: Convert to current
+        const currentState = upgradeVisibleStateProjection(legacyState, '__migration__');
 
         // AFTER migration: Only visible entities survive
-        expect(nodeVisibleV5(v5State, 'n1')).toBe(true);
-        expect(nodeVisibleV5(v5State, 'n2')).toBe(false); // stays deleted
+        expect(nodeVisibleV5(currentState, 'n1')).toBe(true);
+        expect(nodeVisibleV5(currentState, 'n2')).toBe(false); // stays deleted
 
         // v2 patches can now add new data
         const v2Patches = [
           {
             patch: createPatch({
-              writer: 'V5-writer',
+              writer: 'current-writer',
               lamport: 10,
               context: (VersionVector.empty() as any),
               ops: [
-                createNodeAddV2('n3', Dot.create('V5-writer', 1)),
-                createEdgeAddV2('n1', 'n3', 'link', Dot.create('V5-writer', 2)),
+                createNodeAddV2('n3', Dot.create('current-writer', 1)),
+                createEdgeAddV2('n1', 'n3', 'link', Dot.create('current-writer', 2)),
               ],
             }),
             sha: 'cccc3333',
           },
         ];
 
-        const finalState = reduceV5(v2Patches, v5State);
+        const finalState = reduceV5(v2Patches, currentState);
 
         // Verify migration boundary was respected
         expect(nodeVisibleV5(finalState, 'n1')).toBe(true);  // from v4
         expect(nodeVisibleV5(finalState, 'n2')).toBe(false); // tombstoned in v4
-        expect(nodeVisibleV5(finalState, 'n3')).toBe(true);  // from v5
+        expect(nodeVisibleV5(finalState, 'n3')).toBe(true);  // from current
         expect(edgeVisible(finalState, encodeEdgeKeyV5('n1', 'n3', 'link'))).toBe(true);
       });
 

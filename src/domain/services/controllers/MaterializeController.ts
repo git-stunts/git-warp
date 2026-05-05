@@ -11,7 +11,7 @@
  */
 
 import { reduceV5, createEmptyState } from '../JoinReducer.ts';
-import { isV5CheckpointSchema } from '../state/checkpointHelpers.ts';
+import { isCurrentCheckpointSchema } from '../state/checkpointHelpers.ts';
 import { materializeIncremental, type LoadPersistence } from '../state/checkpointLoad.ts';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import { computeStateHash } from '../state/StateSerializer.ts';
@@ -169,7 +169,7 @@ export default class MaterializeController {
 
   private async _materializeLive(opts: { receipts: boolean; wantDiff: boolean }): Promise<MaterializeResult> {
     const checkpoint = await this._deps.patches.loadCheckpoint();
-    if (isV5CheckpointSchema(checkpoint?.schema)) {
+    if (isCurrentCheckpointSchema(checkpoint?.schema)) {
       return await this._fromCheckpoint(checkpoint!, opts);
     }
     return await this._fromScratch(opts);

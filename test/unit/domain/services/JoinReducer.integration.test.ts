@@ -119,7 +119,7 @@ import {
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
 // Migration service
-import { migrateV4toV5 } from '../../../../src/domain/services/MigrationService.ts';
+import { upgradeVisibleStateProjection } from '../../../../scripts/migrations/v17.0.0/visible-state-upgrade.ts';
 
 // v2 patch/op types — direct class imports after WarpTypesV2.ts deletion
 import Patch from '../../../../src/domain/types/Patch.ts';
@@ -477,7 +477,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
     const v4State = reduce(v4Patches);
 
     // Create v5 migration checkpoint
-    const v5State = migrateV4toV5(v4State, '__migration__');
+    const v5State = upgradeVisibleStateProjection(v4State, '__migration__');
 
     // Verify visible projections match at boundary
     const v4VisibleNodes = getVisibleNodes(v4State).sort();
@@ -549,7 +549,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
     ];
 
     const v4State = reduce(v4Patches);
-    const v5State = migrateV4toV5(v4State, '__migration__');
+    const v5State = upgradeVisibleStateProjection(v4State, '__migration__');
 
     // Visible node's prop should exist
     const visiblePropKey = encodePropKey('visible', 'key');
@@ -593,7 +593,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
     ];
 
     const v4State = reduce(v4Patches);
-    const v5State = migrateV4toV5(v4State, '__migration__');
+    const v5State = upgradeVisibleStateProjection(v4State, '__migration__');
 
     // Node should be visible (add > tombstone in LWW)
     expect(nodeVisibleV5(v5State, 'cycle-node')).toBe(true);

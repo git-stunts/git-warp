@@ -39,7 +39,7 @@ const strictPolicy = (enabled = true) => policyWithTombstoneThreshold(0, { enabl
 const {
   loadCheckpointMock,
   createCheckpointCommitMock,
-  isV5CheckpointSchemaMock,
+  isCurrentCheckpointSchemaMock,
   decodePatchMessageMock,
   detectMessageKindMock,
   encodeAnchorMessageMock,
@@ -53,7 +53,7 @@ const {
 } = vi.hoisted(() => ({
   loadCheckpointMock: vi.fn(),
   createCheckpointCommitMock: vi.fn(),
-  isV5CheckpointSchemaMock: vi.fn(),
+  isCurrentCheckpointSchemaMock: vi.fn(),
   decodePatchMessageMock: vi.fn(),
   detectMessageKindMock: vi.fn(),
   encodeAnchorMessageMock: vi.fn(),
@@ -75,7 +75,7 @@ vi.mock('../../../../../src/domain/services/state/checkpointCreate.ts', () => ({
 }));
 
 vi.mock('../../../../../src/domain/services/state/checkpointHelpers.ts', () => ({
-  isV5CheckpointSchema: isV5CheckpointSchemaMock,
+  isCurrentCheckpointSchema: isCurrentCheckpointSchemaMock,
 }));
 
 vi.mock('../../../../../src/domain/services/codec/WarpMessageCodec.ts', () => ({
@@ -434,7 +434,7 @@ describe('CheckpointController', () => {
     it('passes when checkpoint has v5 schema', async () => {
       ((host['_persistence'] as any).readRef as any).mockResolvedValue('cp-sha');
       loadCheckpointMock.mockResolvedValue({ state: stubState(), frontier: new Map(), stateHash: 'h', schema: 5, appliedVV: null, indexShardOids: null });
-      isV5CheckpointSchemaMock.mockReturnValue(true);
+      isCurrentCheckpointSchemaMock.mockReturnValue(true);
 
       await expect(ctrl._validateMigrationBoundary()).resolves.toBeUndefined();
     });
@@ -443,7 +443,7 @@ describe('CheckpointController', () => {
       ((host['_persistence'] as any).readRef as any)
         .mockResolvedValueOnce('') // checkpoint ref empty
         .mockResolvedValueOnce('tip-sha'); // writer ref
-      isV5CheckpointSchemaMock.mockReturnValue(false);
+      isCurrentCheckpointSchemaMock.mockReturnValue(false);
       host['discoverWriters'] = vi.fn().mockResolvedValue(['alice']);
       ((host['_persistence'] as any).getNodeInfo as any).mockResolvedValue({ message: 'patch-msg', parents: [] });
       detectMessageKindMock.mockReturnValue('patch');
@@ -458,7 +458,7 @@ describe('CheckpointController', () => {
 
     it('passes when no checkpoint and no schema:1 patches', async () => {
       ((host['_persistence'] as any).readRef as any).mockResolvedValue('');
-      isV5CheckpointSchemaMock.mockReturnValue(false);
+      isCurrentCheckpointSchemaMock.mockReturnValue(false);
       host['discoverWriters'] = vi.fn().mockResolvedValue([]);
 
       await expect(ctrl._validateMigrationBoundary()).resolves.toBeUndefined();

@@ -76,8 +76,9 @@ closure. A blank cell means "not directly blocked by that task," not
   schemas `2`, `3`, and `4` reject with migration guidance.
 
 `PORT_patch-controller-reading-basis`
-: Patch controller paths still require or call `_materializeGraph()`.
-  This is one internal read-basis seam.
+: Closed in cycle 0130. Patch creation no longer uses hidden
+  materialization when a parent exists without cached state, and patch
+  freshness checks now require a clean cached reading basis.
 
 `PORT_checkpoint-controller-reading-basis`
 : Closed in cycle 0129. Checkpoint creation now uses an exact
@@ -96,8 +97,10 @@ closure. A blank cell means "not directly blocked by that task," not
 
 `SPEC_materialize-spy-test-clusters`
 : `WarpGraph.lazyMaterialize`, `WarpGraph.adjacencyCache`,
-  `WarpGraph.watch`, controller tests, and related files still assert
-  materialize calls or private cache behavior. Rewrite after the public
+  `WarpGraph.autoMaterializeRemove`, `WarpGraph.errorCodes`,
+  `WarpGraph.seekDiff`, `WarpGraph.patchMany`, `WarpGraph.watch`,
+  controller tests, and related files still assert auto-materialize,
+  materialize calls, or private cache behavior. Rewrite after the public
   contract and controller seams settle.
 
 `SPEC_observer-coordinate-pinning`
@@ -105,9 +108,10 @@ closure. A blank cell means "not directly blocked by that task," not
   still fail around observer state hash / pinned read coordinate behavior.
 
 `SPEC_uniform-git-cas-upgrade-contract-drift`
-: `uniform-git-cas-closeout.test.ts` expects stale package upgrade script
-  text. It may be a brittle source-text assertion, but the package upgrade
-  contract still needs a behavioral witness.
+: Closed in cycle 0131. The package upgrade command now builds and runs
+  the migration entrypoint from `dist/`, retired checkpoint conversion has
+  behavioral coverage, and the stale source-text witness was updated to the
+  shipped command shape.
 
 `HEX_sync-secret-plain-string`
 : Sync HMAC secrets still pass through domain code as plain strings. This
@@ -166,10 +170,9 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `PORT_patch-controller-reading-basis`
+- `PORT_subscription-controller-reading-basis`
 - `PORT_sync-controller-reading-basis`
 - `SPEC_observer-coordinate-pinning`
-- `SPEC_uniform-git-cas-upgrade-contract-drift`
 - `HEX_sync-secret-plain-string`
 
 `SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125.
@@ -178,9 +181,11 @@ runtime error guidance. `SPEC_runtime-error-reading-basis-guidance`
 closed in cycle 0127. `BND_checkpoint-schema-contract-drift` closed in
 cycle 0128 and unlocked checkpoint-controller reading-basis work.
 `PORT_checkpoint-controller-reading-basis` closed in cycle 0129. The
-smallest next pull is likely `PORT_patch-controller-reading-basis`,
-because it unblocks subscription cleanup and removes another
-materialization seam from the release gate.
+`PORT_patch-controller-reading-basis` closed in cycle 0130 and unlocked
+subscription-controller reading-basis work.
+`SPEC_uniform-git-cas-upgrade-contract-drift` closed in cycle 0131. The
+smallest next pull is likely `PORT_subscription-controller-reading-basis`,
+because it is now open and still blocks `SPEC_materialize-spy-test-clusters`.
 
 ## Regeneration
 

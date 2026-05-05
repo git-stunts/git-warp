@@ -12,9 +12,8 @@ import { SchemaUnsupportedError } from '../../errors/index.ts';
 import { buildWriterRef, buildCheckpointRef, buildCoverageRef } from '../../utils/RefLayout.ts';
 import { createFrontier, updateFrontier, frontierFingerprint } from '../Frontier.ts';
 import {
-  CHECKPOINT_SCHEMA_INDEX_TREE,
-  CHECKPOINT_SCHEMA_STANDARD,
-  isV5CheckpointSchema,
+  CURRENT_CHECKPOINT_SCHEMA,
+  isCurrentCheckpointSchema,
 } from '../state/checkpointHelpers.ts';
 import { loadCheckpoint, type LoadedCheckpoint, type LoadPersistence } from '../state/checkpointLoad.ts';
 import { create as createCheckpointCommit, type CheckpointPersistence } from '../state/checkpointCreate.ts';
@@ -300,9 +299,7 @@ export default class CheckpointController {
           state: snapshotHead.state,
           frontier: snapshotHead.coordinate.frontier,
           stateHash: snapshotHead.stateHash,
-          schema: snapshotHead.indexTreeOid === undefined
-            ? CHECKPOINT_SCHEMA_STANDARD
-            : CHECKPOINT_SCHEMA_INDEX_TREE,
+          schema: CURRENT_CHECKPOINT_SCHEMA,
           appliedVV: null,
           indexShardOids: null,
         };
@@ -364,12 +361,12 @@ export default class CheckpointController {
 
   async _validateMigrationBoundary(): Promise<void> {
     const checkpoint = await this._loadLatestCheckpoint();
-    if (isV5CheckpointSchema(checkpoint?.schema)) { return; }
+    if (isCurrentCheckpointSchema(checkpoint?.schema)) { return; }
 
     const hasSchema1History = await this._hasSchema1Patches();
     if (hasSchema1History) {
       throw new SchemaUnsupportedError(
-        'Cannot open graph with v1 history. Run MigrationService.migrate() first to create migration checkpoint.',
+        'Cannot open graph with retired patch history. Run `npm run upgrade -- --graph <name>` first.',
       );
     }
   }

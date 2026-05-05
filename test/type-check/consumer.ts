@@ -90,7 +90,6 @@ import WarpAppDefault, {
   scopeMaterializedState,
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
-  migrateV4toV5,
   createTickReceipt,
   tickReceiptCanonicalJson,
   TICK_RECEIPT_OP_TYPES,
@@ -145,7 +144,7 @@ declare const logger: LoggerPort;
 declare const crypto: CryptoPort;
 declare const seekCache: SeekCachePort;
 declare const httpPort: HttpServerPort;
-declare const liveState: ReturnType<typeof migrateV4toV5>;
+declare const liveState: Parameters<typeof createStateReader>[0];
 declare const btrCodecOptions: Parameters<typeof createBTR>[2];
 declare const btrVerifyOptions: Parameters<typeof verifyBTR>[2];
 
@@ -246,7 +245,6 @@ const exportedFunctionSurface = [
   scopeMaterializedState,
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
-  migrateV4toV5,
   createTickReceipt,
   tickReceiptCanonicalJson,
   createBTR,

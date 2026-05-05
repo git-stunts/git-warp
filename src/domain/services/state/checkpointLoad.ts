@@ -28,8 +28,7 @@ import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
 import {
   CURRENT_CHECKPOINT_SCHEMA,
-  isRejectedLegacyCheckpointSchema,
-  isV5CheckpointSchema,
+  isCurrentCheckpointSchema,
   partitionTreeOids,
 } from './checkpointHelpers.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';
@@ -62,15 +61,15 @@ export interface LoadCheckpointOptions {
 }
 
 /**
- * Loads a schema:5 checkpoint from a commit SHA.
+ * Loads a current checkpoint from a commit SHA.
  *
  * Reads the checkpoint commit, extracts the tree entries,
- * and deserializes the V5 state and frontier.
+ * and deserializes the current state and frontier.
  *
- * Loads the schema-5 state envelope as AUTHORITATIVE ORSet state.
+ * Loads the current state envelope as AUTHORITATIVE ORSet state.
  *
- * Legacy schemas are not supported by shipped runtime and will throw an
- * explicit migration error.
+ * Retired schemas are not supported by shipped runtime and will throw an
+ * explicit upgrade error.
  *
  * @throws {PersistenceError} If checkpoint schema is unsupported
  */
@@ -83,8 +82,8 @@ export async function loadCheckpoint(
   const message = await persistence.showNode(checkpointSha);
   const decoded = commitMessageCodec.decodeCheckpoint(message);
 
-  // 2. Reject unsupported schemas - migration required for legacy schemas
-  if (!isV5CheckpointSchema(decoded.schema)) {
+  // 2. Reject unsupported schemas; migration tooling owns retired readers.
+  if (!isCurrentCheckpointSchema(decoded.schema)) {
     throw unsupportedCheckpointSchema(checkpointSha, decoded.schema);
   }
 
@@ -96,9 +95,15 @@ export async function loadCheckpoint(
   const rawTreeOids = await persistence.readTreeOids(decoded.indexOid);
 
   // 3b. Partition: entries with 'index/' prefix are bitmap index shards
-  const { treeOids, indexShardOids } = partitionTreeOids(rawTreeOids);
+  const partitionedTree = partitionTreeOids(rawTreeOids);
+  const treeOids = await expandCheckpointStateSubtree(persistence, partitionedTree.treeOids);
+  const indexShardOids = await expandCheckpointIndexSubtree(
+    persistence,
+    treeOids,
+    partitionedTree.indexShardOids,
+  );
 
-  // Schema 5 path: read each envelope blob individually.
+  // Current path: read each envelope blob individually.
   const frontierOid = treeOids['frontier.cbor'];
   if (frontierOid === undefined) {
     throw new PersistenceError(
@@ -146,12 +151,10 @@ export async function loadCheckpoint(
 }
 
 function unsupportedCheckpointSchema(checkpointSha: string, schema: number): PersistenceError {
-  const migrationGuidance = isRejectedLegacyCheckpointSchema(schema)
-    ? 'Legacy checkpoint schemas 2, 3, and 4 require migration before v17 runtime load.'
-    : 'Please migrate using MigrationService.';
   return new PersistenceError(
     `Checkpoint ${checkpointSha} is schema:${schema}. ` +
-      `Only schema:${CURRENT_CHECKPOINT_SCHEMA} checkpoints are supported. ${migrationGuidance}`,
+      `Only schema:${CURRENT_CHECKPOINT_SCHEMA} checkpoints are supported by the shipped runtime. ` +
+      'Run `npm run upgrade -- --graph <name>` before loading this graph.',
     'E_CHECKPOINT_UNSUPPORTED_SCHEMA',
     { context: { checkpointSha, schema } },
   );
@@ -169,6 +172,35 @@ async function readCheckpointStateEnvelope(
     observedFrontier: await persistence.readBlob(requireCheckpointTreeOid(checkpointSha, treeOids, 'state/observedFrontier.cbor')),
     edgeBirthEvent: await persistence.readBlob(requireCheckpointTreeOid(checkpointSha, treeOids, 'state/edgeBirthEvent.cbor')),
   };
+}
+
+async function expandCheckpointStateSubtree(
+  persistence: LoadPersistence,
+  treeOids: Record<string, string>,
+): Promise<Record<string, string>> {
+  if (treeOids['state/nodeAlive'] !== undefined || treeOids['state'] === undefined) {
+    return treeOids;
+  }
+
+  const stateTreeOid = treeOids['state'];
+  const stateTreeOids = await persistence.readTreeOids(stateTreeOid);
+  const expanded = { ...treeOids };
+  for (const [path, oid] of Object.entries(stateTreeOids)) {
+    expanded[`state/${path}`] = oid;
+  }
+  return expanded;
+}
+
+async function expandCheckpointIndexSubtree(
+  persistence: LoadPersistence,
+  treeOids: Record<string, string>,
+  indexShardOids: Record<string, string>,
+): Promise<Record<string, string>> {
+  if (Object.keys(indexShardOids).length > 0 || treeOids['index'] === undefined) {
+    return indexShardOids;
+  }
+
+  return await persistence.readTreeOids(treeOids['index']);
 }
 
 function requireCheckpointTreeOid(
@@ -202,15 +234,15 @@ export interface MaterializeIncrementalOptions {
 }
 
 /**
- * Materializes V5 state incrementally from a schema:5 checkpoint.
+ * Materializes state incrementally from a current checkpoint.
  *
  * Loads the checkpoint state and frontier, then applies all patches
  * since the checkpoint frontier to reach the target frontier.
  *
- * Only supports the current checkpoint schema. Legacy schemas will cause
- * loadCheckpoint to throw an explicit migration error.
+ * Only supports the current checkpoint schema. Retired schemas will cause
+ * loadCheckpoint to throw an explicit upgrade error.
  *
- * @throws {PersistenceError} If checkpoint is a legacy schema (migration required)
+ * @throws {PersistenceError} If checkpoint is a retired schema (upgrade required)
  * @throws {PersistenceError} If checkpoint is missing required envelope blobs
  */
 export async function materializeIncremental({
@@ -221,7 +253,7 @@ export async function materializeIncremental({
   patchLoader,
   codec,
 }: MaterializeIncrementalOptions): Promise<WarpState> {
-  // 1. Load checkpoint state and frontier (schema:5 returns full V5 state)
+  // 1. Load checkpoint state and frontier from the current envelope.
   const loadOpts: LoadCheckpointOptions = codec !== undefined && codec !== null ? { codec } : {};
   const checkpoint = await loadCheckpoint(persistence, checkpointSha, loadOpts);
   const checkpointFrontier = checkpoint.frontier;
@@ -246,7 +278,7 @@ export async function materializeIncremental({
     return initialState;
   }
 
-  // 5. Apply new patches using V5 reducer with checkpoint state as initial
+  // 5. Apply new patches using the reducer with checkpoint state as initial
   const finalState = reduceV5(allPatches, initialState) as WarpState;
 
   return finalState;
@@ -263,7 +295,7 @@ export interface VisibleProjection {
  * Reconstructs WarpState (ORSet-based) from a checkpoint's visible projection.
  *
  * Creates ORSet-based state with synthetic dots for all visible elements.
- * This is used when loading a v5 checkpoint for incremental materialization.
+ * This is used when reconstructing an incremental materialization basis.
  */
 export function reconstructStateFromCheckpoint(
   visibleProjection: VisibleProjection,

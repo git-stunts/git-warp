@@ -54,8 +54,10 @@ digraph V17ReleaseBlockers {
     penwidth=2.4
   ];
   "PORT_patch-controller-reading-basis" [
-    fillcolor="#fef3c7",
-    label="PORT_patch-controller\nreading basis"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nPORT_patch-controller\nreading basis",
+    penwidth=2.4
   ];
   "PORT_checkpoint-controller-reading-basis" [
     color="#15803d",
@@ -80,8 +82,10 @@ digraph V17ReleaseBlockers {
     label="SPEC_observer\ncoordinate pinning"
   ];
   "SPEC_uniform-git-cas-upgrade-contract-drift" [
-    fillcolor="#dbeafe",
-    label="SPEC_uniform-git-cas\nupgrade contract drift"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nSPEC_uniform-git-cas\nupgrade contract drift",
+    penwidth=2.4
   ];
   "HEX_sync-secret-plain-string" [
     fillcolor="#fee2e2",

@@ -27,10 +27,11 @@ Current branch state at this boundary:
 - DAG map:
   [0124-v17-release-blocker-dag.md](design/0124-v17-release-blocker-dag.md)
 - Latest closed cycle:
-  `0129-checkpoint-controller-reading-basis`
+  `0131-checkpoint-schema-upgrade-path`
 - Latest full unit gate shape:
-  `npm run test:local` is still red with `38` failures across remaining
-  DAG nodes.
+  `npm run test:local` is still red with `71` failures across `19`
+  files. Focused patch-controller and checkpoint upgrade witnesses are
+  green.
 
 The current release ladder remains:
 
@@ -45,11 +46,14 @@ The current release ladder remains:
 Recent work narrowed v17 honestly, removed public materialization
 frontdoor docs, fixed runtime read guidance, made checkpoint schema `5`
 the single runtime checkpoint contract, and removed the checkpoint
-controller's private materialization dependency.
+controller and patch controller private materialization dependencies.
+The package upgrade command now has a real checkpoint upgrade path for
+retired checkpoint envelopes.
 
 The runtime is still partially state-first in important places. The
 important current truth is narrow: checkpoint creation now requires an
-available reading basis, but patch, sync, subscription/watch, observer
+available reading basis and patch creation no longer manufactures state
+through hidden materialization, but sync, subscription/watch, observer
 coordinate pinning, and stale materialize-spy clusters still block the
 release gate.
 
@@ -91,36 +95,41 @@ mapping, and concrete checks live in `docs/invariants/`.
 
 ## What just shipped
 
-Cycle `0129-checkpoint-controller-reading-basis`:
+Cycles `0130-patch-controller-reading-basis` and
+`0131-checkpoint-schema-upgrade-path`:
 
-- Removed `_materializeGraph()` from the `CheckpointController` host
-  contract.
-- Made `createCheckpoint()` use an exact snapshot-cache reading or a
-  clean cached state reading basis.
-- Made dirty or missing cached state fail closed with `E_NO_STATE` and
-  v17 readings guidance.
-- Preserved snapshot-cache exact-hit and clean-miss publish/pin
-  behavior.
-- Updated stale checkpoint tests that stubbed `_materializeGraph()` to
-  install a clean checkpoint reading basis.
-- Marked `PORT_checkpoint-controller-reading-basis` complete in the DAG,
-  regenerated the SVG, and recorded the closeout in
-  [0129-checkpoint-controller-reading-basis.md](design/0129-checkpoint-controller-reading-basis.md)
+- Removed `_materializeGraph()` from the `PatchController` host contract.
+- Made additive patch creation independent of cached state while keeping
+  state-dependent freshness checks fail-closed on missing or dirty cached
+  state.
+- Deleted the runtime `MigrationService` export and moved retired
+  visible-state conversion into `scripts/migrations/v17.0.0/`.
+- Implemented `npm run upgrade -- --graph <name>` for checkpoint
+  envelope upgrades: dry-run reads safely, successful upgrades verify the
+  new checkpoint before moving the checkpoint ref, and already-current
+  checkpoints are no-ops.
+- Marked `PORT_patch-controller-reading-basis` and
+  `SPEC_uniform-git-cas-upgrade-contract-drift` complete in the DAG,
+  regenerated the SVG, and recorded closeouts in
+  [0130-patch-controller-reading-basis.md](design/0130-patch-controller-reading-basis.md),
+  [0130-patch-controller-reading-basis.md](method/retros/0130-patch-controller-reading-basis.md),
+  [0131-checkpoint-schema-upgrade-path.md](design/0131-checkpoint-schema-upgrade-path.md),
   and
-  [0129-checkpoint-controller-reading-basis.md](method/retros/0129-checkpoint-controller-reading-basis.md).
+  [0131-checkpoint-schema-upgrade-path.md](method/retros/0131-checkpoint-schema-upgrade-path.md).
 
 ## What feels wrong
 
 - `npm run test:local` is still red. Do not describe v17 as releasable
   until the DAG reaches `REL_full-gate-matrix-green`.
-- `PatchController` still calls `_materializeGraph()` for patch
-  freshness when auto-materialization is enabled.
 - `SyncController` still calls `_materializeGraph()` before applying
   sync responses without a cached state.
 - Subscription/watch tests still assert materialization as the freshness
   mechanism.
-- Legacy schema and materializeAt tests still contain stale assumptions
-  after the schema-5 checkpoint boundary.
+- Retired-schema and materializeAt tests still contain stale assumptions
+  after the current checkpoint boundary.
+- Broader historical version-suffixed substrate names still exist in
+  `src/`; the checkpoint upgrade slice removed the touched checkpoint and
+  migration names only.
 - The branch remains local-only relative to origin; pushing is a separate
   release/coordination decision.
 
@@ -130,14 +139,14 @@ Continue executing the DAG one open node at a time.
 
 Recommended next pull:
 
-- `PORT_patch-controller-reading-basis`
+- `PORT_subscription-controller-reading-basis`
 
 Why:
 
 - It is open.
-- It removes another direct `_materializeGraph()` seam.
-- It unlocks `PORT_subscription-controller-reading-basis`, which is
-  still blocked on patch freshness/read-basis behavior.
+- Patch freshness/read-basis behavior is now available as its parent.
+- It removes the next direct materialization seam in the public
+  watch/subscription workflow.
 - It keeps sync security hardening out of the same diff.
 
 Keep the loop strict: write the cycle doc, capture RED, green the slice,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { create, createV5 } from '../../../../src/domain/services/state/checkpointCreate.ts';
+import { create, createCheckpointEnvelope } from '../../../../src/domain/services/state/checkpointCreate.ts';
 import { loadCheckpoint, reconstructStateFromCheckpoint } from '../../../../src/domain/services/state/checkpointLoad.ts';
 import { createFrontier, updateFrontier, serializeFrontier } from '../../../../src/domain/services/Frontier.ts';
 import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
@@ -424,7 +424,7 @@ describe('CheckpointService', () => {
         .rejects.toThrow('missing state/nodeAlive');
     });
 
-    it('throws for schema:1 checkpoints - migration required', async () => {
+    it('throws for retired checkpoint schemas with upgrade guidance', async () => {
       const message = encodeCheckpointMessage({
         graph: 'test',
         stateHash: 'a'.repeat(64),
@@ -435,8 +435,8 @@ describe('CheckpointService', () => {
 
       mockPersistence.showNode.mockResolvedValue(message);
 
-      await expect(loadCheckpoint(mockPersistence, makeOid('v1checkpoint')))
-        .rejects.toThrow(/schema:1.*migration/i);
+      await expect(loadCheckpoint(mockPersistence, makeOid('retiredcheckpoint')))
+        .rejects.toThrow(/schema:1.*upgrade/i);
     });
 
     it('loads schema:5 checkpoint envelope without requiring state.cbor', async () => {
@@ -854,7 +854,7 @@ describe('CheckpointService', () => {
       };
     });
 
-    describe('createV5', () => {
+    describe('createCheckpointEnvelope', () => {
       it('creates V5 checkpoint with full state', async () => {
         // Create V5 state with nodes, edges, props
         const state = createEmptyState();
@@ -880,7 +880,7 @@ describe('CheckpointService', () => {
         mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
         mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
 
-        await createV5({
+        await createCheckpointEnvelope({
           persistence: mockPersistence,
           graphName: 'test',
           state,
@@ -927,7 +927,7 @@ describe('CheckpointService', () => {
         mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
         mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
 
-        await createV5({
+        await createCheckpointEnvelope({
           persistence: mockPersistence,
           graphName: 'test',
           state,
@@ -962,7 +962,7 @@ describe('CheckpointService', () => {
         mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
         mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
 
-        await createV5({
+        await createCheckpointEnvelope({
           persistence: mockPersistence,
           graphName: 'test',
           state,
@@ -1011,7 +1011,7 @@ describe('CheckpointService', () => {
         mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
         mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
 
-        await createV5({
+        await createCheckpointEnvelope({
           persistence: mockPersistence,
           graphName: 'test',
           state,
@@ -1063,7 +1063,7 @@ describe('CheckpointService', () => {
         mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
         mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
 
-        await createV5({
+        await createCheckpointEnvelope({
           persistence: mockPersistence,
           graphName: 'test',
           state,
@@ -1117,7 +1117,7 @@ describe('CheckpointService', () => {
         mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
         mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
 
-        await createV5({
+        await createCheckpointEnvelope({
           persistence: mockPersistence,
           graphName: 'test',
           state,
@@ -1378,7 +1378,7 @@ describe('CheckpointService', () => {
         mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
         mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
 
-        await createV5({
+        await createCheckpointEnvelope({
           persistence: mockPersistence,
           graphName: 'test',
           state,
@@ -1428,7 +1428,7 @@ describe('CheckpointService', () => {
         'fwd_cd.cbor': Buffer.from('fwd-data'),
       };
 
-      await createV5({
+      await createCheckpointEnvelope({
         persistence: mockPersistence,
         graphName: 'test',
         state,

@@ -14,8 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Patch creation no longer triggers hidden graph materialization: `PatchController` now leaves additive patch creation independent of a cached state, requires a clean reading basis for freshness checks, and no longer depends on `_materializeGraph()`.
+- `npm run upgrade -- --graph <name>` now provides the checkpoint upgrade path for retired checkpoint envelopes: dry-run validates without moving refs, successful upgrades write and verify the current checkpoint envelope before updating the checkpoint ref, and conversion readers live under `scripts/migrations/v17.0.0/` instead of shipped runtime source.
 - Checkpoint creation now requires an explicit checkpoint reading basis: it uses an exact state-cache snapshot or clean cached state, fails closed with v17 readings guidance when no basis exists, and no longer depends on `_materializeGraph()`.
-- Checkpoint schema support now has one v17 runtime contract: schema `5` creates and loads the envelope-tree checkpoint shape, legacy schemas `2`, `3`, and `4` reject with migration guidance, and checkpoint-tail/index witnesses no longer rely on a fake schema split.
+- Checkpoint schema support now has one v17 runtime contract: schema `5` creates and loads the envelope-tree checkpoint shape, retired schemas reject with upgrade guidance, and checkpoint-tail/index witnesses no longer rely on a fake schema split.
 - Runtime read/provenance diagnostics now point users at readings, worldlines, checkpoint-backed readings, and `docs/READINGS_AND_OPTICS.md` instead of telling v17 app developers to call materialize.
 - Public first-use docs now teach the v17 readings/worldline/observer read path, link the new `docs/READINGS_AND_OPTICS.md` guide, and no longer present `graph.materialize` as an application read frontdoor.
 - The consumer typecheck gate now proves the v17 `openWarpGraph()` surface has no public materialize capability bag and positively covers the blessed `graph.query` read path through state snapshots, query builders, worldlines, observers, and node props.

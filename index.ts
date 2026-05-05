@@ -85,7 +85,6 @@ type PropSetValue = { type: 'inline'; value: PropValue } | { type: 'blob'; oid: 
 function createPropSet(node: string, key: string, value: PropSetValue) { return { type: 'PropSet' as const, node, key, value }; }
 function createInlineValue(value: PropValue) { return { type: 'inline' as const, value }; }
 function createBlobValue(oid: string) { return { type: 'blob' as const, oid }; }
-import { migrateV4toV5 } from './src/domain/services/MigrationService.ts';
 import QueryBuilder from './src/domain/services/query/QueryBuilder.ts';
 import Observer from './src/domain/services/query/Observer.ts';
 import Worldline from './src/domain/services/Worldline.ts';
@@ -283,9 +282,6 @@ export {
   scopeMaterializedState,
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
-
-  // WARP migration
-  migrateV4toV5,
 
   // Tick receipts (LIGHTHOUSE)
   createTickReceipt,

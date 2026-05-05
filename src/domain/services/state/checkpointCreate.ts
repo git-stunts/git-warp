@@ -1,7 +1,7 @@
 /**
  * Checkpoint creation logic for WARP multi-writer graph database.
  *
- * Supports schema:5 checkpoint creation with optional index tree.
+ * Supports current checkpoint envelope creation with optional index tree.
  *
  * @module domain/services/state/checkpointCreate
  * @see WARP Spec Section 10
@@ -36,7 +36,7 @@ import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 /** Combined persistence surface needed by checkpoint creation. */
 export type CheckpointPersistence = CommitPort & BlobPort & TreePort;
 
-/** Options shared by create() and createV5(). */
+/** Options for creating the current checkpoint envelope. */
 export interface CreateCheckpointOptions {
   persistence: CheckpointPersistence;
   graphName: string;
@@ -54,14 +54,12 @@ export interface CreateCheckpointOptions {
 }
 
 /**
- * Creates a schema:5 checkpoint commit containing a state envelope and frontier.
- *
- * Compatibility wrapper — delegates to createV5.
+ * Creates a checkpoint commit containing a state envelope and frontier.
  *
  * Tree structure:
  * ```
  * <checkpoint_commit_tree>/
- * ├── state/               # AUTHORITATIVE: V5 state envelope
+ * ├── state/               # AUTHORITATIVE: state envelope
  * ├── frontier.cbor        # Writer frontiers
  * ├── appliedVV.cbor       # Version vector of dots in state
  * └── provenanceIndex.cbor # Optional: node-to-patchSha index (HG/IO/2)
@@ -70,16 +68,16 @@ export interface CreateCheckpointOptions {
  * @returns The checkpoint commit SHA
  */
 export async function create(options: CreateCheckpointOptions): Promise<string> {
-  return await createV5(options);
+  return await createCheckpointEnvelope(options);
 }
 
 /**
- * Creates a schema:5 checkpoint commit with full ORSet state envelope.
+ * Creates a checkpoint commit with full ORSet state envelope.
  *
- * V5 Checkpoint Tree Structure:
+ * Checkpoint Tree Structure:
  * ```
  * <checkpoint_tree>/
- * ├── state/               # AUTHORITATIVE: V5 state envelope
+ * ├── state/               # AUTHORITATIVE: state envelope
  * ├── frontier.cbor        # Writer frontiers
  * ├── appliedVV.cbor       # Version vector of dots in state
  * └── provenanceIndex.cbor # Optional: node-to-patchSha index (HG/IO/2)
@@ -87,7 +85,7 @@ export async function create(options: CreateCheckpointOptions): Promise<string> 
  *
  * @returns The checkpoint commit SHA
  */
-export async function createV5({
+export async function createCheckpointEnvelope({
   persistence,
   graphName,
   state,
@@ -115,16 +113,16 @@ export async function createV5({
     checkpointState.edgeAlive.compact(appliedVV);
   }
 
-  // 3–6. Serialize and write schema-5 state envelope, frontier, appliedVV.
-  // The legacy CheckpointStorePort path wrote a single state.cbor blob;
-  // schema 5 keeps the option for API compatibility but publishes the
+  // 3–6. Serialize and write current state envelope, frontier, appliedVV.
+  // The previous CheckpointStorePort path wrote a single state.cbor blob;
+  // current checkpoints keep the option for API compatibility but publish the
   // runtime checkpoint through named envelope artifacts.
   // codecOpt is still needed for envelope/provenance serialization.
   const codecOpt = codec !== undefined && codec !== null ? { codec } : {};
   let stateHash: string;
   let provenanceIndexBlobOid: string | null = null;
 
-  // Compute stateHash first via StateHashService (preferred) or legacy fallback.
+  // Compute stateHash first via StateHashService (preferred) or direct fallback.
   if (stateHashService !== undefined && stateHashService !== null) {
     stateHash = await stateHashService.compute(checkpointState);
   } else {
@@ -133,7 +131,7 @@ export async function createV5({
 
   void checkpointStore;
 
-  // Schema 5 publishes separate envelope artifacts so the Git tree names
+  // Current checkpoints publish separate envelope artifacts so the Git tree names
   // each read basis member.
   const stateEnvelope = serializeCheckpointStateEnvelope(checkpointState, codecOpt);
   const nodeAliveOid = await persistence.writeBlob(stateEnvelope.nodeAlive);
@@ -200,7 +198,7 @@ export async function createV5({
 
   const treeOid = await persistence.writeTree(treeEntries);
 
-  // 8. Create checkpoint commit message with v5 trailer
+  // 8. Create checkpoint commit message.
   const message = commitMessageCodec.encodeCheckpoint({
     kind: 'checkpoint',
     graph: graphName,

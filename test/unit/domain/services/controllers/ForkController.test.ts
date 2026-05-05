@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ForkController from '../../../../../src/domain/services/controllers/ForkController.ts';
 import ForkError from '../../../../../src/domain/errors/ForkError.ts';
-import { CHECKPOINT_SCHEMA_STANDARD } from '../../../../../src/domain/services/state/checkpointHelpers.ts';
+import { CURRENT_CHECKPOINT_SCHEMA } from '../../../../../src/domain/services/state/checkpointHelpers.ts';
 import { buildWriterRef, buildWritersPrefix } from '../../../../../src/domain/utils/RefLayout.ts';
 
 // ---------------------------------------------------------------------------
@@ -347,7 +347,7 @@ describe('ForkController', () => {
         state: {},
         frontier: new Map([['other-writer', 'sha-x']]),
         stateHash: '',
-        schema: CHECKPOINT_SCHEMA_STANDARD,
+        schema: CURRENT_CHECKPOINT_SCHEMA,
       };
       await expect(ctrl._validatePatchAgainstCheckpoint('w1', 'sha-a', checkpoint)).resolves.toBeUndefined();
     });
@@ -360,7 +360,7 @@ describe('ForkController', () => {
         state: {},
         frontier: new Map([['w1', 'sha-ck']]),
         stateHash: '',
-        schema: CHECKPOINT_SCHEMA_STANDARD,
+        schema: CURRENT_CHECKPOINT_SCHEMA,
       };
 
       await expect(ctrl._validatePatchAgainstCheckpoint('w1', 'sha-incoming', checkpoint)).resolves.toBeUndefined();
@@ -371,7 +371,7 @@ describe('ForkController', () => {
         state: {},
         frontier: new Map([['w1', 'sha-a']]),
         stateHash: '',
-        schema: CHECKPOINT_SCHEMA_STANDARD,
+        schema: CURRENT_CHECKPOINT_SCHEMA,
       };
 
       const err = await ctrl._validatePatchAgainstCheckpoint('w1', 'sha-a', checkpoint).catch((e) => e);
@@ -387,7 +387,7 @@ describe('ForkController', () => {
         state: {},
         frontier: new Map([['w1', 'sha-ck']]),
         stateHash: '',
-        schema: CHECKPOINT_SCHEMA_STANDARD,
+        schema: CURRENT_CHECKPOINT_SCHEMA,
       };
 
       const err = await ctrl._validatePatchAgainstCheckpoint('w1', 'sha-incoming', checkpoint).catch((e) => e);
@@ -402,7 +402,7 @@ describe('ForkController', () => {
         state: {},
         frontier: new Map([['w1', 'sha-ck']]),
         stateHash: '',
-        schema: CHECKPOINT_SCHEMA_STANDARD,
+        schema: CURRENT_CHECKPOINT_SCHEMA,
       };
 
       const err = await ctrl._validatePatchAgainstCheckpoint('w1', 'sha-incoming', checkpoint).catch((e) => e);
@@ -426,7 +426,7 @@ describe('ForkController', () => {
         state: {},
         frontier: new Map([['w1', '']]),
         stateHash: '',
-        schema: CHECKPOINT_SCHEMA_STANDARD,
+        schema: CURRENT_CHECKPOINT_SCHEMA,
       };
 
       await expect(ctrl._validatePatchAgainstCheckpoint('w1', 'sha-a', checkpoint)).resolves.toBeUndefined();

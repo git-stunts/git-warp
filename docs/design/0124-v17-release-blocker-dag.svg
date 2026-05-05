@@ -134,9 +134,10 @@
 <!-- PORT_patch&#45;controller&#45;reading&#45;basis -->
 <g id="node5" class="node">
 <title>PORT_patch&#45;controller&#45;reading&#45;basis</title>
-<path fill="#fef3c7" stroke="#4b5563" stroke-width="1.2" d="M255.93,-537C255.93,-537 165.78,-537 165.78,-537 159.78,-537 153.78,-531 153.78,-525 153.78,-525 153.78,-513 153.78,-513 153.78,-507 159.78,-501 165.78,-501 165.78,-501 255.93,-501 255.93,-501 261.93,-501 267.93,-507 267.93,-513 267.93,-513 267.93,-525 267.93,-525 267.93,-531 261.93,-537 255.93,-537"/>
-<text xml:space="preserve" text-anchor="middle" x="210.85" y="-520.75" font-family="Helvetica,sans-Serif" font-size="10.00">PORT_patch&#45;controller</text>
-<text xml:space="preserve" text-anchor="middle" x="210.85" y="-509.5" font-family="Helvetica,sans-Serif" font-size="10.00">reading basis</text>
+<path fill="#bbf7d0" stroke="#15803d" stroke-width="2.4" d="M255.93,-540.91C255.93,-540.91 165.78,-540.91 165.78,-540.91 159.78,-540.91 153.78,-534.91 153.78,-528.91 153.78,-528.91 153.78,-509.08 153.78,-509.08 153.78,-503.08 159.78,-497.08 165.78,-497.08 165.78,-497.08 255.93,-497.08 255.93,-497.08 261.93,-497.08 267.93,-503.08 267.93,-509.08 267.93,-509.08 267.93,-528.91 267.93,-528.91 267.93,-534.91 261.93,-540.91 255.93,-540.91"/>
+<text xml:space="preserve" text-anchor="middle" x="210.85" y="-526.38" font-family="Helvetica,sans-Serif" font-size="10.00">DONE</text>
+<text xml:space="preserve" text-anchor="middle" x="210.85" y="-515.12" font-family="Helvetica,sans-Serif" font-size="10.00">PORT_patch&#45;controller</text>
+<text xml:space="preserve" text-anchor="middle" x="210.85" y="-503.88" font-family="Helvetica,sans-Serif" font-size="10.00">reading basis</text>
 </g>
 <!-- PORT_subscription&#45;controller&#45;reading&#45;basis -->
 <g id="node7" class="node">
@@ -148,26 +149,26 @@
 <!-- PORT_patch&#45;controller&#45;reading&#45;basis&#45;&gt;PORT_subscription&#45;controller&#45;reading&#45;basis -->
 <g id="edge3" class="edge">
 <title>PORT_patch&#45;controller&#45;reading&#45;basis&#45;&gt;PORT_subscription&#45;controller&#45;reading&#45;basis</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M268.41,-509.1C285.06,-506.18 303.59,-502.94 321.37,-499.83"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="321.36,-502.32 327.84,-498.7 320.52,-497.49 321.36,-502.32"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M268.93,-509.01C285.32,-506.14 303.5,-502.96 320.97,-499.9"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="321.38,-502.32 327.85,-498.7 320.53,-497.49 321.38,-502.32"/>
 </g>
 <!-- PORT_patch&#45;controller&#45;reading&#45;basis&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters -->
 <g id="edge7" class="edge">
 <title>PORT_patch&#45;controller&#45;reading&#45;basis&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M219.64,-537.6C239.72,-584.59 294.16,-706.06 330.05,-730 386.69,-767.79 466.41,-771.29 521.85,-767.89"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M221.49,-541.9C242.89,-591.6 295.21,-706.76 330.05,-730 386.69,-767.79 466.41,-771.29 521.85,-767.89"/>
 <polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="521.71,-770.35 528.53,-767.43 521.38,-765.46 521.71,-770.35"/>
 </g>
 <!-- PORT_patch&#45;controller&#45;reading&#45;basis&#45;&gt;REL_quarantine&#45;graduate&#45;clean -->
 <g id="edge15" class="edge">
 <title>PORT_patch&#45;controller&#45;reading&#45;basis&#45;&gt;REL_quarantine&#45;graduate&#45;clean</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M222.45,-500.71C240.37,-471.84 279.65,-416.65 330.05,-394 396.55,-364.12 482.86,-369.19 536.43,-376.73"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M225.38,-496.07C244.43,-466.26 282.24,-415.48 330.05,-394 396.55,-364.12 482.86,-369.19 536.43,-376.73"/>
 <polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="535.8,-379.11 543.09,-377.71 536.52,-374.26 535.8,-379.11"/>
 </g>
 <!-- PORT_patch&#45;controller&#45;reading&#45;basis&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge28" class="edge">
 <title>PORT_patch&#45;controller&#45;reading&#45;basis&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M268.4,-526.2C373.65,-539.61 597.59,-568.13 693.17,-580.3"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="692.84,-582.73 700.09,-581.18 693.46,-577.87 692.84,-582.73"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M268.9,-526.27C374.4,-539.7 597.9,-568.17 693.28,-580.31"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="692.92,-582.74 700.17,-581.19 693.54,-577.88 692.92,-582.74"/>
 </g>
 <!-- PORT_checkpoint&#45;controller&#45;reading&#45;basis&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters -->
 <g id="edge8" class="edge">
@@ -258,15 +259,16 @@
 <!-- SPEC_uniform&#45;git&#45;cas&#45;upgrade&#45;contract&#45;drift -->
 <g id="node11" class="node">
 <title>SPEC_uniform&#45;git&#45;cas&#45;upgrade&#45;contract&#45;drift</title>
-<path fill="#dbeafe" stroke="#4b5563" stroke-width="1.2" d="M631.35,-138C631.35,-138 543.45,-138 543.45,-138 537.45,-138 531.45,-132 531.45,-126 531.45,-126 531.45,-114 531.45,-114 531.45,-108 537.45,-102 543.45,-102 543.45,-102 631.35,-102 631.35,-102 637.35,-102 643.35,-108 643.35,-114 643.35,-114 643.35,-126 643.35,-126 643.35,-132 637.35,-138 631.35,-138"/>
-<text xml:space="preserve" text-anchor="middle" x="587.4" y="-121.75" font-family="Helvetica,sans-Serif" font-size="10.00">SPEC_uniform&#45;git&#45;cas</text>
-<text xml:space="preserve" text-anchor="middle" x="587.4" y="-110.5" font-family="Helvetica,sans-Serif" font-size="10.00">upgrade contract drift</text>
+<path fill="#bbf7d0" stroke="#15803d" stroke-width="2.4" d="M631.35,-137.91C631.35,-137.91 543.45,-137.91 543.45,-137.91 537.45,-137.91 531.45,-131.91 531.45,-125.91 531.45,-125.91 531.45,-106.09 531.45,-106.09 531.45,-100.09 537.45,-94.09 543.45,-94.09 543.45,-94.09 631.35,-94.09 631.35,-94.09 637.35,-94.09 643.35,-100.09 643.35,-106.09 643.35,-106.09 643.35,-125.91 643.35,-125.91 643.35,-131.91 637.35,-137.91 631.35,-137.91"/>
+<text xml:space="preserve" text-anchor="middle" x="587.4" y="-123.38" font-family="Helvetica,sans-Serif" font-size="10.00">DONE</text>
+<text xml:space="preserve" text-anchor="middle" x="587.4" y="-112.12" font-family="Helvetica,sans-Serif" font-size="10.00">SPEC_uniform&#45;git&#45;cas</text>
+<text xml:space="preserve" text-anchor="middle" x="587.4" y="-100.88" font-family="Helvetica,sans-Serif" font-size="10.00">upgrade contract drift</text>
 </g>
 <!-- SPEC_uniform&#45;git&#45;cas&#45;upgrade&#45;contract&#45;drift&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge34" class="edge">
 <title>SPEC_uniform&#45;git&#45;cas&#45;upgrade&#45;contract&#45;drift&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M620.85,-138.51C629.57,-144.92 638.21,-152.83 644.1,-162 728.34,-293.07 737.72,-488.84 738.2,-559.43"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="735.75,-559.12 738.22,-566.12 740.65,-559.11 735.75,-559.12"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M623.47,-138.95C631.27,-145.55 638.8,-153.33 644.1,-162 725.23,-294.59 736.54,-488.64 737.87,-559.14"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="735.41,-558.87 737.96,-565.83 740.31,-558.8 735.41,-558.87"/>
 </g>
 <!-- HEX_sync&#45;secret&#45;plain&#45;string -->
 <g id="node12" class="node">

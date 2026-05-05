@@ -72,8 +72,8 @@ describe('uniform git-cas closeout', () => {
     const upgradeTool = readRepoFile('docs/method/backlog/v17.0.0/INFRA_substrate-upgrade-tool.md');
     const migrationEntrypoint = readRepoFile('scripts/migrations/v17.0.0/migrate.ts');
 
-    expect(packageJson).toContain('"upgrade": "node scripts/migrations/v17.0.0/migrate.ts"');
-    expect(packageJson).toContain('"scripts/migrations"');
+    expect(packageJson).toContain('"upgrade": "npm run build --silent && node dist/scripts/migrations/v17.0.0/migrate.js"');
+    expect(packageJson).toContain('"dist"');
     expect(design).not.toContain('legacy raw blobs may still be read');
     expect(releaseLedger).not.toContain('legacy raw reads');
     expect(releaseLedger).toContain('Old raw\n                                      substrate readers belong to `npm run\n                                      upgrade`');
@@ -81,7 +81,7 @@ describe('uniform git-cas closeout', () => {
     expect(upgradeTool).toContain('npm run upgrade -- --graph <name>');
     expect(upgradeTool).toContain('Mainline cleanup requirement');
     expect(migrationEntrypoint).toContain('npm run upgrade -- --graph <name>');
-    expect(migrationEntrypoint).toContain('keep legacy graph readers out of shipped runtime code');
+    expect(migrationEntrypoint).toContain('not in shipped runtime code under src/');
   });
 
   it('tracks broader adapter parity as a split successor', () => {
