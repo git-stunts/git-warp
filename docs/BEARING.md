@@ -27,7 +27,7 @@ Current branch state at this boundary:
 - DAG map:
   [0124-v17-release-blocker-dag.md](design/0124-v17-release-blocker-dag.md)
 - Latest closed cycle:
-  `0141-quarantine-graduate-clean`
+  `0142-full-gate-matrix-green`
 - Latest full unit gate shape:
   `npm run test:local` is green with `438` files and `6771` tests.
 - Latest validation shape:
@@ -64,8 +64,9 @@ internal details kept in structured logs.
 The runtime is still partially state-first in important places. The
 important current truth is narrow: the non-security `test:local` blockers
 from the v17 materialization cleanup and the direct sync security hardening
-nodes are closed. File-level anti-sludge quarantines are also graduated; the
-full gate matrix and final release preflight still block the release gate.
+nodes are closed. File-level anti-sludge quarantines are also graduated, and
+the full gate matrix is green. Release cut/version/changelog and final
+preflight still block the release gate.
 
 ## Invariants
 
@@ -106,7 +107,7 @@ mapping, and concrete checks live in `docs/invariants/`.
 ## What just shipped
 
 Cycles `0132-subscription-controller-reading-basis` through
-`0141-quarantine-graduate-clean`:
+`0142-full-gate-matrix-green`:
 
 - Removed `_materializeGraph()` from subscription/watch and sync
   controller read paths.
@@ -130,6 +131,7 @@ Cycles `0132-subscription-controller-reading-basis` through
 - Graduated the anti-sludge file-level quarantine manifests to empty
   `files` lists and narrowed remaining legacy hits to owning-cycle inline
   suppressions.
+- Recorded the full gate matrix green after quarantine graduation.
 - Brought `npm run test:local` back to green.
 - Marked `PORT_subscription-controller-reading-basis`,
   `PORT_sync-controller-reading-basis`,
@@ -139,14 +141,14 @@ Cycles `0132-subscription-controller-reading-basis` through
   marked `HEX_sync-secret-plain-string` and
   `HEX_sync-production-auth-defaults` complete, then marked
   `HEX_sync-no-rate-limiting`, `HEX_sync-500-sanitization`, and
-  `REL_quarantine-graduate-clean` complete.
+  `REL_quarantine-graduate-clean`, then
+  `REL_full-gate-matrix-green` complete.
 
 ## What feels wrong
 
 - v17 is still not releasable until the DAG reaches
   `REL_full-gate-matrix-green`.
-- The full gate matrix is now the open node and must run clean before
-  release-cut work starts.
+- Release cut/version/changelog is now the open node.
 - Broader historical version-suffixed substrate names still exist in
   `src/`; the checkpoint upgrade slice removed the touched checkpoint and
   migration names only.
@@ -159,16 +161,15 @@ Continue executing the DAG one open node at a time.
 
 Recommended next pull:
 
-- `REL_full-gate-matrix-green`
+- `REL_release-cut-version-changelog`
 
 Why:
 
 - It is open.
-- Every direct blocker parent in the DAG is complete.
-- The release is now at the point where one command matrix should prove
-  whether version/changelog/preflight can begin.
-- Any failure here becomes the next concrete blocker rather than another
-  speculative audit item.
+- The full gate matrix is green.
+- This is where package version agreement, dated changelog, and release
+  notes should be made honest before preflight.
+- It should remain release packaging only; no feature work belongs here.
 
 Keep the loop strict: write the cycle doc, capture RED, green the slice,
 update changelog/DAG/SVG/retro, validate, commit, then pull the next open

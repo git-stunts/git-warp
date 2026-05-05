@@ -147,12 +147,13 @@ closure. A blank cell means "not directly blocked by that task," not
   `npm run lint:quarantine-graduate` passes against `origin/main`.
 
 `REL_full-gate-matrix-green`
-: Open. Release cannot proceed until the gate matrix is green: lint,
-  typecheck, consumer typecheck, test:local, markdown lint, markdown code
-  samples, npm audit, quarantine graduation, and focused witnesses.
+: Closed in cycle 0142. The full release gate matrix is green after
+  quarantine graduation: lint, typecheck, consumer typecheck, test:local,
+  markdown lint, markdown code samples, npm audit, quarantine graduation,
+  anti-sludge semgrep, and whitespace diff checks.
 
 `REL_release-cut-version-changelog`
-: After gates are green, cut the release section: version agreement,
+: Open. After gates are green, cut the release section: version agreement,
   dated changelog entry, and release notes that preserve the honest 0123
   scope.
 
@@ -180,7 +181,7 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `REL_full-gate-matrix-green`
+- `REL_release-cut-version-changelog`
 
 `SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125.
 `SPEC_docs-materialize-frontdoor-drift` closed in cycle 0126 and unlocks
@@ -203,7 +204,8 @@ defaults. Production auth defaults closed in cycle 0138, opening rate
 limiting and 500 response sanitization. Rate limiting closed in cycle
 0139, and 500 response sanitization closed in cycle 0140, opening
 quarantine graduation. Quarantine graduation closed in cycle 0141,
-opening the full gate matrix.
+opening the full gate matrix. The full gate matrix closed in cycle 0142,
+opening release cut/version/changelog.
 
 ## Regeneration
 

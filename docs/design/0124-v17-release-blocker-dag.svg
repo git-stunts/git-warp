@@ -35,15 +35,16 @@
 <!-- REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="node18" class="node">
 <title>REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="#fee2e2" stroke="#4b5563" stroke-width="1.2" d="M763.75,-673.91C763.75,-673.91 714.1,-673.91 714.1,-673.91 708.1,-673.91 702.1,-667.91 702.1,-661.91 702.1,-661.91 702.1,-649.91 702.1,-649.91 702.1,-643.91 708.1,-637.91 714.1,-637.91 714.1,-637.91 763.75,-637.91 763.75,-637.91 769.75,-637.91 775.75,-643.91 775.75,-649.91 775.75,-649.91 775.75,-661.91 775.75,-661.91 775.75,-667.91 769.75,-673.91 763.75,-673.91"/>
-<text xml:space="preserve" text-anchor="middle" x="738.93" y="-657.66" font-family="Helvetica,sans-Serif" font-size="10.00">REL_full gate</text>
-<text xml:space="preserve" text-anchor="middle" x="738.93" y="-646.41" font-family="Helvetica,sans-Serif" font-size="10.00">matrix green</text>
+<path fill="#bbf7d0" stroke="#15803d" stroke-width="2.4" d="M763.75,-677.83C763.75,-677.83 714.1,-677.83 714.1,-677.83 708.1,-677.83 702.1,-671.83 702.1,-665.83 702.1,-665.83 702.1,-646 702.1,-646 702.1,-640 708.1,-634 714.1,-634 714.1,-634 763.75,-634 763.75,-634 769.75,-634 775.75,-640 775.75,-646 775.75,-646 775.75,-665.83 775.75,-665.83 775.75,-671.83 769.75,-677.83 763.75,-677.83"/>
+<text xml:space="preserve" text-anchor="middle" x="738.93" y="-663.29" font-family="Helvetica,sans-Serif" font-size="10.00">DONE</text>
+<text xml:space="preserve" text-anchor="middle" x="738.93" y="-652.04" font-family="Helvetica,sans-Serif" font-size="10.00">REL_full gate</text>
+<text xml:space="preserve" text-anchor="middle" x="738.93" y="-640.79" font-family="Helvetica,sans-Serif" font-size="10.00">matrix green</text>
 </g>
 <!-- SPEC_consumer&#45;typecheck&#45;materialize&#45;residue&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge25" class="edge">
 <title>SPEC_consumer&#45;typecheck&#45;materialize&#45;residue&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M471.39,-1148.45C525.78,-1145.02 599.62,-1131.19 644.1,-1084.91 700.43,-1026.31 728.01,-767.7 735.66,-682.93"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="738.09,-683.22 736.27,-676.03 733.21,-682.79 738.09,-683.22"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M471.39,-1148.45C525.78,-1145.02 599.62,-1131.19 644.1,-1084.91 699.45,-1027.32 727.05,-776.56 735.25,-687.47"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="737.68,-687.73 735.87,-680.53 732.8,-687.28 737.68,-687.73"/>
 </g>
 <!-- SPEC_docs&#45;materialize&#45;frontdoor&#45;drift -->
 <g id="node2" class="node">
@@ -76,8 +77,8 @@
 <!-- SPEC_docs&#45;materialize&#45;frontdoor&#45;drift&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge26" class="edge">
 <title>SPEC_docs&#45;materialize&#45;frontdoor&#45;drift&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M226.99,-1094.75C246.85,-1122.41 284.58,-1167.56 330.05,-1185.91 460.98,-1238.77 548.37,-1241.71 644.1,-1137.91 706.47,-1070.29 730.36,-774.13 736.33,-682.82"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="738.76,-683.2 736.76,-676.06 733.87,-682.89 738.76,-683.2"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M226.99,-1094.75C246.85,-1122.41 284.58,-1167.56 330.05,-1185.91 460.98,-1238.77 548.37,-1241.71 644.1,-1137.91 705.47,-1071.37 729.59,-783.53 736.03,-687.35"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="738.46,-687.72 736.47,-680.57 733.57,-687.4 738.46,-687.72"/>
 </g>
 <!-- SPEC_runtime&#45;error&#45;reading&#45;basis&#45;guidance&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters -->
 <g id="edge6" class="edge">
@@ -88,8 +89,8 @@
 <!-- SPEC_runtime&#45;error&#45;reading&#45;basis&#45;guidance&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge27" class="edge">
 <title>SPEC_runtime&#45;error&#45;reading&#45;basis&#45;guidance&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M459.4,-1080.77C513.69,-1085.78 594.29,-1083.77 644.1,-1038.91 697.74,-990.61 726.67,-762.01 735.21,-682.92"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="737.63,-683.34 735.93,-676.12 732.75,-682.82 737.63,-683.34"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M459.4,-1080.77C513.69,-1085.78 594.29,-1083.77 644.1,-1038.91 696.74,-991.51 725.59,-770.44 734.71,-687.48"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="737.13,-687.85 735.45,-680.63 732.26,-687.32 737.13,-687.85"/>
 </g>
 <!-- BND_checkpoint&#45;schema&#45;contract&#45;drift -->
 <g id="node4" class="node">
@@ -144,8 +145,8 @@
 <!-- BND_checkpoint&#45;schema&#45;contract&#45;drift&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge28" class="edge">
 <title>BND_checkpoint&#45;schema&#45;contract&#45;drift&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M265.11,-850.55C351.71,-875.75 525.3,-911.51 644.1,-838.91 700.27,-804.59 724.2,-724.78 733.19,-682.81"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="735.57,-683.44 734.56,-676.09 730.76,-682.46 735.57,-683.44"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M265.11,-850.55C351.71,-875.75 525.3,-911.51 644.1,-838.91 698.4,-805.74 722.57,-730.06 732.24,-687.14"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="734.62,-687.75 733.69,-680.39 729.83,-686.72 734.62,-687.75"/>
 </g>
 <!-- PORT_patch&#45;controller&#45;reading&#45;basis -->
 <g id="node5" class="node">
@@ -184,8 +185,8 @@
 <!-- PORT_patch&#45;controller&#45;reading&#45;basis&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge29" class="edge">
 <title>PORT_patch&#45;controller&#45;reading&#45;basis&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M268.96,-542.75C288.35,-542.41 310.14,-542.08 330.05,-541.91 393.45,-541.38 410.22,-531.13 472.7,-541.91 552.38,-555.67 570.54,-569.35 644.1,-602.91 663.46,-611.75 684.14,-623.2 701.14,-633.19"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="699.49,-635.06 706.76,-636.52 701.99,-630.84 699.49,-635.06"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M268.96,-542.75C288.35,-542.41 310.14,-542.08 330.05,-541.91 393.45,-541.38 410.22,-531.13 472.7,-541.91 552.38,-555.67 570.54,-569.35 644.1,-602.91 660.77,-610.52 678.43,-620.07 693.87,-628.96"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="692.53,-631.02 699.82,-632.42 695,-626.78 692.53,-631.02"/>
 </g>
 <!-- PORT_checkpoint&#45;controller&#45;reading&#45;basis&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters -->
 <g id="edge8" class="edge">
@@ -202,8 +203,8 @@
 <!-- PORT_checkpoint&#45;controller&#45;reading&#45;basis&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge30" class="edge">
 <title>PORT_checkpoint&#45;controller&#45;reading&#45;basis&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M471.1,-718.42C519.59,-708.64 586.01,-694.77 644.1,-680.91 660.3,-677.05 677.96,-672.45 693.56,-668.25"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="693.78,-670.73 699.89,-666.53 692.5,-666 693.78,-670.73"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M471.1,-718.42C519.59,-708.64 586.01,-694.77 644.1,-680.91 660.01,-677.12 677.34,-672.61 692.73,-668.47"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="693.33,-670.85 699.44,-666.65 692.05,-666.12 693.33,-670.85"/>
 </g>
 <!-- PORT_subscription&#45;controller&#45;reading&#45;basis&#45;&gt;SPEC_materialize&#45;spy&#45;test&#45;clusters -->
 <g id="edge9" class="edge">
@@ -220,8 +221,8 @@
 <!-- PORT_subscription&#45;controller&#45;reading&#45;basis&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge31" class="edge">
 <title>PORT_subscription&#45;controller&#45;reading&#45;basis&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M473.54,-596.03C539.96,-611.08 637.03,-633.06 693.21,-645.79"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="692.53,-648.15 699.9,-647.3 693.62,-643.37 692.53,-648.15"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M473.54,-596.03C539.78,-611.04 636.5,-632.94 692.74,-645.68"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="692.08,-648.04 699.45,-647.2 693.17,-643.27 692.08,-648.04"/>
 </g>
 <!-- PORT_sync&#45;controller&#45;reading&#45;basis -->
 <g id="node8" class="node">
@@ -246,14 +247,14 @@
 <!-- PORT_sync&#45;controller&#45;reading&#45;basis&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge32" class="edge">
 <title>PORT_sync&#45;controller&#45;reading&#45;basis&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M457.78,-655.91C523.61,-655.91 632.13,-655.91 692.98,-655.91"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="692.94,-658.37 699.94,-655.92 692.94,-653.47 692.94,-658.37"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M457.78,-655.91C523.43,-655.91 631.55,-655.91 692.49,-655.91"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="692.46,-658.37 699.46,-655.92 692.46,-653.47 692.46,-658.37"/>
 </g>
 <!-- SPEC_materialize&#45;spy&#45;test&#45;clusters&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge33" class="edge">
 <title>SPEC_materialize&#45;spy&#45;test&#45;clusters&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M615.4,-777.89C624.64,-769.82 634.94,-760.6 644.1,-751.91 668.96,-728.32 696.23,-700.15 714.93,-680.45"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="716.51,-682.34 719.54,-675.58 712.95,-678.98 716.51,-682.34"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M615.4,-777.89C624.64,-769.82 634.94,-760.6 644.1,-751.91 667.13,-730.06 692.23,-704.27 710.66,-684.93"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="712.21,-686.86 715.26,-680.1 708.66,-683.48 712.21,-686.86"/>
 </g>
 <!-- SPEC_observer&#45;coordinate&#45;pinning -->
 <g id="node10" class="node">
@@ -272,14 +273,14 @@
 <!-- SPEC_observer&#45;coordinate&#45;pinning&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge34" class="edge">
 <title>SPEC_observer&#45;coordinate&#45;pinning&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M448.98,-118.6C457.42,-123.55 465.74,-129.34 472.7,-135.91 508.39,-169.62 495.09,-196.13 530.7,-229.91 572.37,-269.45 608.82,-246.59 644.1,-291.91 725.45,-396.44 736.78,-564.01 737.99,-628.97"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="735.54,-628.8 738.07,-635.77 740.43,-628.74 735.54,-628.8"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M448.98,-118.6C457.42,-123.55 465.74,-129.34 472.7,-135.91 508.39,-169.62 495.09,-196.13 530.7,-229.91 572.37,-269.45 608.82,-246.59 644.1,-291.91 723.7,-394.19 736.26,-556.82 737.89,-624.63"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="735.44,-624.56 738.02,-631.51 740.34,-624.47 735.44,-624.56"/>
 </g>
 <!-- SPEC_checkpoint&#45;materialize&#45;test&#45;drift&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge35" class="edge">
 <title>SPEC_checkpoint&#45;materialize&#45;test&#45;drift&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M622.66,-977.88C630.58,-971.23 638.36,-963.45 644.1,-954.91 703.65,-866.41 727.02,-738.07 734.7,-682.84"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="737.12,-683.23 735.62,-675.97 732.26,-682.58 737.12,-683.23"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M622.66,-977.88C630.58,-971.23 638.36,-963.45 644.1,-954.91 702.17,-868.62 725.83,-744.45 734.09,-687.11"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="736.48,-687.74 735.02,-680.47 731.63,-687.07 736.48,-687.74"/>
 </g>
 <!-- SPEC_uniform&#45;git&#45;cas&#45;upgrade&#45;contract&#45;drift -->
 <g id="node12" class="node">
@@ -292,8 +293,8 @@
 <!-- SPEC_uniform&#45;git&#45;cas&#45;upgrade&#45;contract&#45;drift&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge36" class="edge">
 <title>SPEC_uniform&#45;git&#45;cas&#45;upgrade&#45;contract&#45;drift&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M623.9,-157.03C631.6,-163.57 638.96,-171.3 644.1,-179.91 734.24,-331.13 739.73,-552.71 738.71,-628.97"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="736.27,-628.83 738.59,-635.87 741.16,-628.91 736.27,-628.83"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M623.9,-157.03C631.6,-163.57 638.96,-171.3 644.1,-179.91 732.63,-328.43 739.51,-544.82 738.76,-624.74"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="736.32,-624.23 738.67,-631.26 741.22,-624.3 736.32,-624.23"/>
 </g>
 <!-- HEX_sync&#45;secret&#45;plain&#45;string -->
 <g id="node13" class="node">
@@ -366,8 +367,8 @@
 <!-- HEX_sync&#45;no&#45;rate&#45;limiting&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge37" class="edge">
 <title>HEX_sync&#45;no&#45;rate&#45;limiting&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M441.39,-195.42C452.11,-202.22 463.34,-210.25 472.7,-218.91 504.13,-248.03 499.4,-266.66 530.7,-295.91 574.66,-337.01 607.45,-322.18 644.1,-369.91 706.35,-450.99 728.25,-575.15 735.12,-629.21"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="732.66,-629.26 735.93,-635.92 737.52,-628.67 732.66,-629.26"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M441.39,-195.42C452.11,-202.22 463.34,-210.25 472.7,-218.91 504.13,-248.03 499.4,-266.66 530.7,-295.91 574.66,-337.01 607.45,-322.18 644.1,-369.91 704.67,-448.8 727.04,-568.46 734.53,-624.67"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="732.08,-624.85 735.39,-631.48 736.94,-624.23 732.08,-624.85"/>
 </g>
 <!-- HEX_sync&#45;500&#45;sanitization&#45;&gt;REL_quarantine&#45;graduate&#45;clean -->
 <g id="edge24" class="edge">
@@ -378,27 +379,27 @@
 <!-- HEX_sync&#45;500&#45;sanitization&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge38" class="edge">
 <title>HEX_sync&#45;500&#45;sanitization&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M443.89,-39.07C454.15,-44.65 464.53,-51.6 472.7,-59.91 511.99,-99.9 490.41,-132.94 530.7,-171.91 570.83,-210.72 609.41,-182.18 644.1,-225.91 694.67,-289.67 726.04,-544.99 735.15,-628.98"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="732.7,-629.1 735.88,-635.8 737.57,-628.58 732.7,-629.1"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M443.89,-39.07C454.15,-44.65 464.53,-51.6 472.7,-59.91 511.99,-99.9 490.41,-132.94 530.7,-171.91 570.83,-210.72 609.41,-182.18 644.1,-225.91 693.8,-288.56 724.95,-536.22 734.66,-624.48"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="732.21,-624.64 735.4,-631.34 737.08,-624.11 732.21,-624.64"/>
 </g>
 <!-- REL_quarantine&#45;graduate&#45;clean&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge39" class="edge">
 <title>REL_quarantine&#45;graduate&#45;clean&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M606.54,-430.97C617.86,-445.75 632.43,-465.55 644.1,-483.91 675.84,-533.89 707.79,-595.41 724.99,-629.68"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="722.78,-630.72 728.1,-635.89 727.16,-628.53 722.78,-630.72"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M606.54,-430.97C617.86,-445.75 632.43,-465.55 644.1,-483.91 674.54,-531.83 705.16,-590.36 722.8,-625.31"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="720.49,-626.18 725.82,-631.34 724.87,-623.98 720.49,-626.18"/>
 </g>
 <!-- REL_release&#45;cut&#45;version&#45;changelog -->
 <g id="node19" class="node">
 <title>REL_release&#45;cut&#45;version&#45;changelog</title>
-<path fill="#dcfce7" stroke="#4b5563" stroke-width="1.2" d="M923.9,-673.91C923.9,-673.91 845.75,-673.91 845.75,-673.91 839.75,-673.91 833.75,-667.91 833.75,-661.91 833.75,-661.91 833.75,-649.91 833.75,-649.91 833.75,-643.91 839.75,-637.91 845.75,-637.91 845.75,-637.91 923.9,-637.91 923.9,-637.91 929.9,-637.91 935.9,-643.91 935.9,-649.91 935.9,-649.91 935.9,-661.91 935.9,-661.91 935.9,-667.91 929.9,-673.91 923.9,-673.91"/>
+<path fill="#fee2e2" stroke="#4b5563" stroke-width="1.2" d="M923.9,-673.91C923.9,-673.91 845.75,-673.91 845.75,-673.91 839.75,-673.91 833.75,-667.91 833.75,-661.91 833.75,-661.91 833.75,-649.91 833.75,-649.91 833.75,-643.91 839.75,-637.91 845.75,-637.91 845.75,-637.91 923.9,-637.91 923.9,-637.91 929.9,-637.91 935.9,-643.91 935.9,-649.91 935.9,-649.91 935.9,-661.91 935.9,-661.91 935.9,-667.91 929.9,-673.91 923.9,-673.91"/>
 <text xml:space="preserve" text-anchor="middle" x="884.83" y="-657.66" font-family="Helvetica,sans-Serif" font-size="10.00">REL_release cut</text>
 <text xml:space="preserve" text-anchor="middle" x="884.83" y="-646.41" font-family="Helvetica,sans-Serif" font-size="10.00">version + changelog</text>
 </g>
 <!-- REL_full&#45;gate&#45;matrix&#45;green&#45;&gt;REL_release&#45;cut&#45;version&#45;changelog -->
 <g id="edge40" class="edge">
 <title>REL_full&#45;gate&#45;matrix&#45;green&#45;&gt;REL_release&#45;cut&#45;version&#45;changelog</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M776.24,-655.91C790.98,-655.91 808.4,-655.91 824.88,-655.91"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="824.73,-658.37 831.73,-655.92 824.73,-653.47 824.73,-658.37"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M776.61,-655.91C791.29,-655.91 808.57,-655.91 824.92,-655.91"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="824.7,-658.37 831.7,-655.92 824.7,-653.47 824.7,-658.37"/>
 </g>
 <!-- REL_release&#45;preflight&#45;and&#45;rc -->
 <g id="node20" class="node">
