@@ -36,8 +36,10 @@ digraph V17ReleaseBlockers {
     penwidth=2.4
   ];
   "SPEC_docs-materialize-frontdoor-drift" [
-    fillcolor="#dbeafe",
-    label="SPEC_docs\nmaterialize frontdoor drift"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nSPEC_docs\nmaterialize frontdoor drift",
+    penwidth=2.4
   ];
   "SPEC_runtime-error-reading-basis-guidance" [
     fillcolor="#dbeafe",

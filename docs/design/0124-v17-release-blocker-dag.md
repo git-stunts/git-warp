@@ -56,14 +56,14 @@ closure. A blank cell means "not directly blocked by that task," not
 ## Included Tasks
 
 `SPEC_consumer-typecheck-materialize-residue`
-: Current `npm run typecheck:consumer` fails because the consumer type
-  contract still expects removed public materialization. This should be
-  the first small release gate repair.
+: Closed in cycle 0125. This originally tracked
+  `npm run typecheck:consumer` failing because the consumer type contract
+  still expected removed public materialization.
 
 `SPEC_docs-materialize-frontdoor-drift`
-: README, Getting Started, Guide, and API docs still teach
-  `graph.materialize` as the public read path. v17 cannot ship with
-  onboarding that contradicts the public type surface.
+: Closed in cycle 0126. This originally tracked README, Getting
+  Started, Guide, and API docs teaching `graph.materialize` as the public
+  read path even though v17 removed that public frontdoor.
 
 `SPEC_runtime-error-reading-basis-guidance`
 : `QueryStateMessages.ts`, `RuntimeHost.ts`, `ProvenanceController.ts`,
@@ -165,7 +165,7 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `SPEC_docs-materialize-frontdoor-drift`
+- `SPEC_runtime-error-reading-basis-guidance`
 - `BND_checkpoint-schema-contract-drift`
 - `PORT_patch-controller-reading-basis`
 - `PORT_sync-controller-reading-basis`
@@ -173,10 +173,11 @@ The tasks with no direct blockers are:
 - `SPEC_uniform-git-cas-upgrade-contract-drift`
 - `HEX_sync-secret-plain-string`
 
-`SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125. The
-smallest next pull is now `SPEC_docs-materialize-frontdoor-drift`
-because it has no incomplete parents and directly feeds the runtime error
-guidance task.
+`SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125.
+`SPEC_docs-materialize-frontdoor-drift` closed in cycle 0126 and unlocks
+runtime error guidance. The smallest next pull is now
+`SPEC_runtime-error-reading-basis-guidance` because the docs target exists
+and the stale "Call materialize" messages directly contradict it.
 
 ## Regeneration
 

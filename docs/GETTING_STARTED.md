@@ -9,7 +9,7 @@ Use this guide when you want your first successful `git-warp` flow:
 5. pin a historical view
 6. sync the graph through Git refs
 
-If you already know you want broader builder patterns, jump to the [Guide](GUIDE.md). If you want substrate internals, trust, replay, or performance details, jump to the [Advanced Guide](ADVANCED_GUIDE.md).
+If you already know you want broader builder patterns, jump to the [Guide](GUIDE.md). If you want the public read model first, jump to [Readings And Optics](READINGS_AND_OPTICS.md). If you want substrate internals, trust, replay, or performance details, jump to the [Advanced Guide](ADVANCED_GUIDE.md).
 
 ## Install
 
@@ -90,10 +90,7 @@ Now the live graph says the finding is triaged, but the earlier state still exis
 ## Read current state
 
 ```typescript
-// Fold patches into materialized state
-await graph.materialize.materialize({});
-
-// Create a pinned read handle over current graph history
+// Create a live read handle over current graph history
 const worldline = graph.query.worldline();
 
 const finding = await worldline.getNodeProps('finding:oauth-state-mismatch');
@@ -174,13 +171,13 @@ In a real repo, you will usually automate that with Git config or team tooling s
 - writes become WARP patch commits under `refs/warp/...`
 - source-tree history and graph history stay separate
 - `graph.patches` creates and commits patches
-- `graph.materialize` folds patches into state
-- `graph.query` provides worldlines, observers, and traversal for reads
+- `graph.query` provides live worldlines, observers, traversal, and direct reads
 - historical reads are pinned by coordinate, not reconstructed in app code
 - Git transports the graph, but you may need explicit WARP refspecs
 
 ## Next steps
 
+- [Readings And Optics](READINGS_AND_OPTICS.md): public read contract, live and pinned readings, observers, and optics
 - [Guide](GUIDE.md): builder patterns for `openWarpGraph()`, worldlines, observers, and strands
 - [API Reference](API_REFERENCE.md): exhaustive API and examples
 - [Advanced Guide](ADVANCED_GUIDE.md): substrate internals, trust, replay, and performance

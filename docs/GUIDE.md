@@ -5,6 +5,7 @@ This is the builder's guide.
 Use it when you are writing an app, an agent workflow, or a local-first tool on top of `git-warp` and you want the main patterns without reading a substrate manual.
 
 - If you are brand new, start with [Getting Started](GETTING_STARTED.md).
+- If you want the public read model, use [Readings And Optics](READINGS_AND_OPTICS.md).
 - If you want exhaustive method-by-method detail, use the [API Reference](API_REFERENCE.md).
 - If you want replay, trust, performance, and substrate internals, use the [Advanced Guide](ADVANCED_GUIDE.md).
 - If you want terminal workflows, use the [CLI Guide](CLI_GUIDE.md).
@@ -16,7 +17,7 @@ Use it when you are writing an app, an agent workflow, or a local-first tool on 
 The most important thing to understand is state before methods.
 
 - `openWarpGraph()` returns a frozen capability bag — the root you build on.
-- Capabilities are organized into namespaces: `graph.patches`, `graph.query`, `graph.materialize`, etc.
+- Capabilities are organized into namespaces: `graph.patches`, `graph.query`, `graph.strands`, etc.
 - A `Worldline` is a pinned read coordinate.
 - An `Aperture` defines what is visible.
 - An `Observer` is a filtered read-only view through that aperture.
@@ -286,40 +287,24 @@ The inspection APIs are valid tools here. What you should avoid is rebuilding yo
 
 ### Pattern: find out why your write lost
 
-If you know a write was superseded and need the reason, inspect receipts through materialization with receipts enabled.
+If you know a write was superseded and need the reason, inspect the provenance for the entity and load the contributing patches.
 
 ```typescript
-const { receipts } = await graph.materialize.materialize({ receipts: true });
+const patchShas = await graph.provenance.patchesFor('task:auth');
 
-const supersededOps = receipts.flatMap((receipt) =>
-  receipt.ops
-    .filter((op) => op.result === 'superseded')
-    .map((op) => ({
-      patchSha: receipt.patchSha,
-      lamport: receipt.lamport,
-      writer: receipt.writer,
-      target: op.target,
-      reason: op.reason ?? 'superseded by deterministic replay order',
-    })),
-);
-// supersededOps = [
-//   {
-//     patchSha: 'abc123...',
-//     lamport: 14,
-//     writer: 'alice',
-//     target: 'task:auth',
-//     reason: 'superseded by deterministic replay order',
-//   },
-// ]
+for (const patchSha of patchShas) {
+  const patch = await graph.provenance.loadPatchBySha(patchSha);
+  console.log(patchSha, patch.ops.length);
+}
 ```
 
-Use this pattern when you need to explain a lost race or build higher-level conflict UX. For the deeper replay and provenance model behind receipts, use [Advanced Guide -> How replay converges](ADVANCED_GUIDE.md#how-replay-converges).
+Use this pattern when you need to explain a lost race or build higher-level conflict UX. For the deeper replay and provenance model behind receipts, use [Advanced Guide -> How replay converges](ADVANCED_GUIDE.md#how-replay-converges). For the app-facing read contract, use [Readings And Optics](READINGS_AND_OPTICS.md).
 
 ## When to use lower-level capabilities
 
 Reach for individual capability namespaces when you intentionally need:
 
-- `graph.materialize` — whole-visible-state inspection, materialization and replay receipts
+- `graph.query` — live and pinned reads through worldlines, observers, traversal, and query builders
 - `graph.provenance` — provenance and patch inspection, backward-cone tracing
 - `graph.comparison` — coordinate comparison and transfer planning
 - `graph.checkpoint` — checkpoint creation, GC metrics
@@ -330,6 +315,7 @@ What to avoid is not the inspection API itself. The thing to avoid is exporting 
 
 ## Where next
 
+- [Readings And Optics](READINGS_AND_OPTICS.md): public read model and app-facing read patterns
 - [API Reference](API_REFERENCE.md): exhaustive methods, flags, and examples
 - [Advanced Guide](ADVANCED_GUIDE.md): patch anatomy, replay, trust, GC, and performance
 - [CLI Guide](CLI_GUIDE.md): operator workflows and live-repo inspection

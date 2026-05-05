@@ -6,6 +6,7 @@ Use it when you already understand the mental model and want the full method, fl
 
 - If you are learning the product, start with [Getting Started](GETTING_STARTED.md).
 - If you are building an app, use the narrative [Guide](GUIDE.md).
+- If you are choosing read surfaces, use [Readings And Optics](READINGS_AND_OPTICS.md).
 - If you want engine-room internals, use the [Advanced Guide](ADVANCED_GUIDE.md).
 - If you want terminal workflows, use the [CLI Guide](CLI_GUIDE.md).
 
@@ -414,6 +415,8 @@ read paths. These surfaces express the read as a bounded revelation over
 causal history instead of asking callers to fold the graph into a public
 state object first.
 
+For the narrative version of this model, see [Readings And Optics](READINGS_AND_OPTICS.md).
+
 For most live reads, call the query capability directly:
 
 ```typescript
@@ -799,9 +802,9 @@ await (await graphB.patches.createPatch())
   .commit();
 
 // === After git sync (push/pull) ===
-const stateA = await graphA.materialize.materialize({});
-const stateB = await graphB.materialize.materialize({});
-// stateA and stateB are identical
+const nodesA = await graphA.query.getNodes();
+const nodesB = await graphB.query.getNodes();
+// nodesA and nodesB expose the same admitted section nodes
 ```
 
 ### Conflict Resolution
@@ -1028,7 +1031,7 @@ const { unsubscribe } = graph.subscriptions.watch('user:*', {
 
 ### Polling for Remote Changes
 
-Automatically detect and materialize remote changes:
+Automatically detect remote changes and re-read through the query surface:
 
 ```typescript
 const { unsubscribe } = graph.subscriptions.watch('order:*', {
@@ -1060,15 +1063,15 @@ graph.subscriptions.watch('order:*', { onChange: updateDashboard, poll: 3000 });
 
 The intended substrate boundary is:
 
-- `graph.query` and `graph.materialize` are the read-side capabilities
+- `graph.query`, worldlines, and observers are the read-side capabilities
 - observers are the preferred read-side abstraction
 - strands are the preferred speculative write abstraction
 
 That boundary is not about hiding capabilities. It is about keeping higher layers
-from rebuilding their own graph engine above git-warp. Reach for
-`graph.materialize` and `graph.patches` when you are working on
-substrate plumbing. Reach for observers and strands when you are building
-application-facing behavior.
+from rebuilding their own graph engine above git-warp. Reach for `graph.query`
+when you are building application-facing reads. Reach for provenance,
+checkpoint, and patch capabilities when you are working on substrate plumbing or
+operator diagnostics.
 
 ### Observers
 
@@ -1542,12 +1545,12 @@ const provenance = await graph.strands.patchesForStrand('review-auth', 'task:aut
 git-warp ships a `post-merge` hook that runs after `git merge` or `git pull`. If warp refs changed, it prints:
 
 ```text
-[warp] Writer refs changed during merge. Call materialize() to see updates.
+[warp] Writer refs changed during merge. Re-read through graph.query or a worldline to see updates.
 ```
 
 The hook **never blocks a merge** — it always exits 0.
 
-Enable auto-materialize after pulls:
+Enable automatic read refresh after pulls:
 
 ```bash
 git config warp.autoMaterialize true
@@ -1905,7 +1908,7 @@ Properties use LWW registers. When two writers set the same property, the operat
 
 Nodes and edges use OR-Set semantics. Each add operation creates a unique **dot** (writerId + counter). A remove operation specifies which dots it has *observed* — it only removes those specific dots. If a concurrent add creates a new dot that the remove hasn't observed, the element survives.
 
-This means: **add wins over concurrent remove**. A remove only takes effect against add events it has seen. To remove something reliably, first materialize (to observe all current dots), then issue the remove.
+This means: **add wins over concurrent remove**. A remove only takes effect against add events it has seen. To remove something reliably, first read the current causal view through a live worldline, then issue the remove from that observed basis.
 
 #### Version Vectors
 

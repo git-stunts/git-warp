@@ -34,11 +34,9 @@ const patch = await graph.patches.createPatch();
 patch.addNode('user:alice').setProperty('user:alice', 'role', 'admin');
 await patch.commit();
 
-// Fold: materialize state at the current frontier
-await graph.materialize.materialize({});
-
-// Reveal: query the admitted truth
-const props = await graph.query.getNodeProps('user:alice');
+// Reveal: read the admitted truth through a live worldline
+const worldline = graph.query.worldline();
+const props = await worldline.getNodeProps('user:alice');
 ```
 
 ## What git-warp is
@@ -62,7 +60,7 @@ three architectural moments:
 | Moment | Capabilities | What it does |
 |--------|-------------|--------------|
 | **Commitment** | `patches`, `strands`, `comparison` | Admits claims into frontier-relative truth |
-| **Folding** | `materialize`, `checkpoint` | Re-expresses admitted history in boundary-equivalent form |
+| **Folding** | `checkpoint` | Re-expresses admitted history as operational artifacts |
 | **Revelation** | `query`, `subscriptions`, `provenance` | Exposes admitted truth under bounded rights |
 | **Governance** | `sync` | Transports and admits remote suffixes |
 
@@ -107,6 +105,7 @@ your source tree. Sync happens through normal `git push` / `git fetch`.
 ## Documentation
 
 - **[Getting Started](docs/GETTING_STARTED.md)** — first open, write, read, sync
+- **[Readings & Optics](docs/READINGS_AND_OPTICS.md)** — public read model and app-facing read patterns
 - **[Guide](docs/GUIDE.md)** — patterns for apps, agents, and tools
 - **[API Reference](docs/API_REFERENCE.md)** — exhaustive public API
 - **[Architecture](docs/ARCHITECTURE.md)** — hexagonal layers and admission kernel
