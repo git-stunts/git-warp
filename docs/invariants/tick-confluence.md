@@ -35,7 +35,7 @@ database non-deterministic and all downstream queries unreliable.
   SHA) for properties. These CRDTs are commutative, associative, and
   idempotent by construction.
 - `WarpGraph.materialize()` replays all patches from all writers
-  through `JoinReducer`, producing the same `WarpStateV5` regardless
+  through `JoinReducer`, producing the same `WarpState` regardless
   of patch arrival order.
 - The `test/unit/domain/WarpGraph.noCoordination.test.js` regression
   suite is the primary witness: it exercises concurrent multi-writer

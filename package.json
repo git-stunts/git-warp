@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "16.0.0",
+  "version": "17.0.0",
   "description": "Deterministic WARP graph over Git: graph-native storage, traversal, and tooling.",
   "type": "module",
   "license": "Apache-2.0",
@@ -17,50 +17,33 @@
     "node": ">=22.0.0"
   },
   "sideEffects": false,
-  "main": "./index.js",
-  "types": "./index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
-    "warp-graph": "./bin/warp-graph.js",
+    "warp-graph": "./dist/bin/warp-graph.js",
     "git-warp": "./bin/git-warp"
   },
   "exports": {
     ".": {
-      "types": "./index.d.ts",
-      "import": "./index.js",
-      "default": "./index.js"
-    },
-    "./node": {
-      "types": "./index.d.ts",
-      "import": "./src/domain/entities/GraphNode.js",
-      "default": "./src/domain/entities/GraphNode.js"
-    },
-    "./visualization": {
-      "import": "./src/visualization/index.js",
-      "default": "./src/visualization/index.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./browser": {
-      "types": "./browser.d.ts",
-      "import": "./browser.js",
-      "default": "./browser.js"
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js",
+      "default": "./dist/browser.js"
     },
     "./sha1sync": {
-      "types": "./sha1sync.d.ts",
-      "import": "./src/infrastructure/adapters/sha1sync.js",
-      "default": "./src/infrastructure/adapters/sha1sync.js"
+      "types": "./dist/src/infrastructure/adapters/sha1sync.d.ts",
+      "import": "./dist/src/infrastructure/adapters/sha1sync.js",
+      "default": "./dist/src/infrastructure/adapters/sha1sync.js"
     },
     "./package.json": "./package.json"
   },
   "files": [
-    "bin/warp-graph.js",
-    "bin/presenters",
-    "bin/cli",
+    "dist",
     "bin/git-warp",
-    "src",
-    "browser.js",
-    "index.js",
-    "browser.d.ts",
-    "sha1sync.d.ts",
-    "index.d.ts",
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
@@ -75,44 +58,54 @@
     "tar": "7.5.11"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.publish.json",
     "lint": "eslint .",
     "lint:ratchet": "sh scripts/lint-ratchet.sh",
     "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
-    "lint:md:code": "node scripts/lint-markdown-code-samples.js",
+    "lint:md:code": "node scripts/lint-markdown-code-samples.ts",
     "lint:links": "lychee --config .lychee.toml '**/*.md'",
+    "lint:semgrep": "node scripts/lint-semgrep-with-quarantines.ts",
+    "lint:sludge": "bash scripts/check-anti-sludge.sh",
+    "lint:contamination": "node scripts/contamination-map.ts",
+    "lint:quarantine-graduate": "node scripts/quarantine-graduate-check.ts",
     "format": "prettier --write .",
-    "test": "sh -c 'if [ \"$GIT_STUNTS_DOCKER\" = \"1\" ]; then vitest run test/unit \"$@\"; else docker compose run --build --rm test npm run test:local -- \"$@\"; fi' --",
+    "test": "sh -c 'if [ \"$GIT_STUNTS_DOCKER\" = \"1\" ]; then vitest run test/unit \"$@\"; else docker compose -f docker/docker-compose.yml run --build --rm test npm run test:local -- \"$@\"; fi' --",
     "test:local": "vitest run test/unit",
     "test:watch": "vitest",
     "test:coverage": "GIT_WARP_UPDATE_COVERAGE_RATCHET=1 vitest run --coverage test/unit",
     "test:coverage:ci": "vitest run --coverage test/unit",
-    "benchmark": "sh -c 'if [ \"$GIT_STUNTS_DOCKER\" = \"1\" ]; then vitest bench --run test/benchmark \"$@\"; else docker compose run --build --rm test npm run benchmark:local -- \"$@\"; fi' --",
+    "benchmark": "sh -c 'if [ \"$GIT_STUNTS_DOCKER\" = \"1\" ]; then vitest bench --run test/benchmark \"$@\"; else docker compose -f docker/docker-compose.yml run --build --rm test npm run benchmark:local -- \"$@\"; fi' --",
     "benchmark:local": "vitest bench --run test/benchmark",
-    "benchmark:detached-reads": "vitest run test/benchmark/DetachedReadBoundary.benchmark.js",
-    "setup:hooks": "node scripts/setup-hooks.js",
-    "prepare": "patch-package && node scripts/setup-hooks.js",
-    "prepack": "npm run lint && npm run test:local && npm run typecheck:consumer",
+    "benchmark:detached-reads": "vitest run test/benchmark/DetachedReadBoundary.benchmark.ts",
+    "benchmark:trie-geometry": "GIT_WARP_PROFILE=1 vitest run test/unit/benchmark/TrieGeometryProfile.profile.test.ts",
+    "setup:hooks": "node scripts/setup-hooks.ts",
+    "prepare": "patch-package && node scripts/setup-hooks.ts",
+    "prepack": "npm run build && npm run lint && npm run test:local && npm run typecheck:consumer",
     "release:preflight": "bash scripts/release-preflight.sh",
+    "upgrade": "npm run build --silent && node dist/scripts/migrations/v17.0.0/migrate.js",
     "install:git-warp": "bash scripts/install-git-warp.sh",
     "uninstall:git-warp": "bash scripts/uninstall-git-warp.sh",
-    "test:node20": "docker compose -f docker-compose.test.yml --profile node20 run --build --rm test-node20",
-    "test:node22": "docker compose -f docker-compose.test.yml --profile node22 run --build --rm test-node22",
+    "test:node20": "docker compose -f docker/docker-compose.test.yml --profile node20 run --build --rm test-node20",
+    "test:node22": "docker compose -f docker/docker-compose.test.yml --profile node22 run --build --rm test-node22",
     "test:node22:ci": "GIT_STUNTS_DOCKER=1 sh -c 'npx vitest run test/unit test/integration && bats test/bats/'",
-    "test:bun": "docker compose -f docker-compose.test.yml --profile bun run --build --rm test-bun",
-    "test:deno": "docker compose -f docker-compose.test.yml --profile deno run --build --rm test-deno",
-    "test:matrix": "docker compose -f docker-compose.test.yml --profile full up --build --abort-on-container-exit",
-    "typecheck": "tsc --noEmit",
+    "test:bun": "docker compose -f docker/docker-compose.test.yml --profile bun run --build --rm test-bun",
+    "test:deno": "docker compose -f docker/docker-compose.test.yml --profile deno run --build --rm test-deno",
+    "test:matrix": "docker compose -f docker/docker-compose.test.yml --profile full up --build --abort-on-container-exit",
+    "typecheck": "tsc --noEmit -p tsconfig.src.json && tsc --noEmit -p tsconfig.test.json",
     "typecheck:src": "tsc --noEmit -p tsconfig.src.json",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
     "typecheck:consumer": "tsc --noEmit -p test/type-check/tsconfig.json",
-    "typecheck:policy": "node scripts/ts-policy-check.js",
-    "typecheck:surface": "node scripts/check-dts-surface.js"
+    "typecheck:policy": "node scripts/ts-policy-check.ts",
+    "typecheck:surface": "npm run build --silent && node scripts/check-dts-surface.ts",
+    "ratchet:snapshot": "node scripts/ratchet-snapshot.ts",
+    "ratchet:delta": "node scripts/ratchet-delta.ts"
   },
   "dependencies": {
     "@git-stunts/alfred": "^0.4.0",
     "@git-stunts/git-cas": "^5.3.2",
     "@git-stunts/plumbing": "^2.8.0",
     "@git-stunts/trailer-codec": "^2.1.1",
+    "@noble/hashes": "^2.2.0",
     "boxen": "^7.1.1",
     "cbor-x": "^1.6.0",
     "chalk": "^5.3.0",
@@ -135,6 +128,7 @@
     "eslint": "^9.17.0",
     "eslint-plugin-jsdoc": "^62.8.1",
     "fast-check": "^4.5.3",
+    "jiti": "^2.6.1",
     "markdownlint-cli": "^0.48.0",
     "patch-package": "^8.0.0",
     "prettier": "^3.4.2",
@@ -157,5 +151,8 @@
     "invisible-storage",
     "empty-tree"
   ],
-  "packageManager": "npm@10"
+  "packageManager": "npm@10",
+  "workspaces": [
+    "packages/*"
+  ]
 }

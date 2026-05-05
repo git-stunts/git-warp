@@ -1,3 +1,10 @@
+---
+id: DX_hex-tripwire-test
+blocked_by: []
+blocks: []
+feature: testing-quality
+---
+
 # Hex Tripwire Test
 
 One test that recursively scans `src/domain/` for forbidden

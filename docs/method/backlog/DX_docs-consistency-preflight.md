@@ -1,3 +1,10 @@
+---
+id: DX_docs-consistency-preflight
+feature: tooling-release
+blocked_by: []
+blocks: []
+---
+
 # Docs Consistency Preflight
 
 **Effort:** S

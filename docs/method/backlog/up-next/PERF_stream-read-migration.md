@@ -1,3 +1,14 @@
+---
+id: PERF_stream-read-migration
+feature: materialization-query-index
+blocked_by:
+  - PERF_out-of-core-materialization
+blocks:
+  - PERF_stream-cleanup
+  - PERF_async-generator-traversal
+  - PERF_stream-memory-tests
+---
+
 # Migrate read paths + unbounded scans to streams
 
 **Effort:** L

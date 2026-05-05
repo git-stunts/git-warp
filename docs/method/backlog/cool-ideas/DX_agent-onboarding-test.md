@@ -1,3 +1,10 @@
+---
+id: DX_agent-onboarding-test
+blocked_by: []
+blocks: []
+feature: browser-viz
+---
+
 # Agent onboarding smoke test
 
 An agent reads CLAUDE.md, builds a mental model, then works. If

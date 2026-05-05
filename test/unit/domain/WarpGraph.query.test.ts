@@ -1,0 +1,329 @@
+/**
+ * Tests for WarpCore Query API (Task 7)
+ *
+ * Tests the query surface required by TECH-SPEC-V7.md:
+ * - hasNode(nodeId)
+ * - getNodeProps(nodeId)
+ * - neighbors(nodeId, dir)
+ * - getNodes()
+ * - getEdges()
+ */
+
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import QueryError from '../../../src/domain/errors/QueryError.ts';
+import { encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.ts';
+import { Dot } from '../../../src/domain/crdt/Dot.ts';
+
+describe('WarpCore Query API', () => {
+    let mockPersistence;
+    let graph;
+
+  beforeEach(async () => {
+    mockPersistence = {
+      readRef: vi.fn().mockResolvedValue(null),
+      listRefs: vi.fn().mockResolvedValue([]),
+      updateRef: vi.fn().mockResolvedValue(undefined),
+      configGet: vi.fn().mockResolvedValue(null),
+      configSet: vi.fn().mockResolvedValue(undefined),
+      readBlob: vi.fn(),
+      writeBlob: vi.fn(),
+      getNodeInfo: vi.fn(),
+      readTreeOids: vi.fn(),
+      writeTree: vi.fn(),
+    };
+
+    graph = await openRuntimeHostProduct({
+      persistence: mockPersistence,
+      graphName: 'test',
+      writerId: 'writer-1',
+      autoMaterialize: false,
+    });
+  });
+
+  describe('hasNode()', () => {
+    it('throws if no cached state', async () => {
+      await expect(graph.hasNode('node-1')).rejects.toThrow(QueryError);
+    });
+
+    it('returns true for existing nodes', async () => {
+      // Materialize to get empty state
+      await graph.materialize();
+
+      // Manually add a node to cached state for testing
+      const state = (graph)._cachedState;
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+
+      expect(await graph.hasNode('user:alice')).toBe(true);
+    });
+
+    it('returns false for non-existing nodes', async () => {
+      await graph.materialize();
+      expect(await graph.hasNode('user:nonexistent')).toBe(false);
+    });
+  });
+
+  describe('getNodeProps()', () => {
+    it('throws if no cached state', async () => {
+      await expect(graph.getNodeProps('node-1')).rejects.toThrow(QueryError);
+    });
+
+    it('returns null for non-existing nodes', async () => {
+      await graph.materialize();
+      expect(await graph.getNodeProps('user:nonexistent')).toBe(null);
+    });
+
+    it('returns empty record for node with no props', async () => {
+      await graph.materialize();
+      const state = (graph)._cachedState;
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+
+      const props = await graph.getNodeProps('user:alice');
+      expect(Object.keys(props).length).toBe(0);
+    });
+
+    it('returns props for node with properties', async () => {
+      await graph.materialize();
+      const state = (graph)._cachedState;
+
+      // Add node
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+
+      // Add properties using LWW registers directly
+      const propKey1 = encodePropKey('user:alice', 'name');
+      const propKey2 = encodePropKey('user:alice', 'age');
+
+      // LWW registers store {value, lamport, writerId}
+      state.prop.set(propKey1, { value: 'Alice', lamport: 1, writerId: 'w1' });
+      state.prop.set(propKey2, { value: 30, lamport: 1, writerId: 'w1' });
+
+      const props = await graph.getNodeProps('user:alice');
+      expect(props.name).toBe('Alice');
+      expect(props.age).toBe(30);
+    });
+
+    it('falls back to linear scan when indexed property read throws', async () => {
+      await graph.materialize();
+      const state = (graph)._cachedState;
+
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+      const propKey = encodePropKey('user:alice', 'name');
+      state.prop.set(propKey, { value: 'Alice', lamport: 1, writerId: 'w1' });
+
+      (graph)._logicalIndex = { isAlive: () => true };
+      (graph)._propertyReader = {
+        getNodeProps: async () => {
+          throw new Error('simulated index failure');
+        },
+      };
+
+      const props = await graph.getNodeProps('user:alice');
+      expect(props.name).toBe('Alice');
+    });
+  });
+
+  describe('neighbors()', () => {
+    it('throws if no cached state', async () => {
+      await expect(graph.neighbors('node-1')).rejects.toThrow(QueryError);
+    });
+
+    it('returns empty array for node with no edges', async () => {
+      await graph.materialize();
+      const state = (graph)._cachedState;
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+
+      expect(await graph.neighbors('user:alice')).toEqual([]);
+    });
+
+    it('returns outgoing neighbors', async () => {
+      await graph.materialize();
+      const state = (graph)._cachedState;
+
+      // Add nodes
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+      state.nodeAlive.add('user:bob', Dot.create('w1', 2));
+
+      // Add edge: alice --follows--> bob
+      const edgeKey = encodeEdgeKey('user:alice', 'user:bob', 'follows');
+      state.edgeAlive.add(edgeKey, Dot.create('w1', 3));
+
+      const outgoing = await graph.neighbors('user:alice', 'outgoing');
+      expect(outgoing).toHaveLength(1);
+      expect(outgoing[0]).toEqual({
+        nodeId: 'user:bob',
+        label: 'follows',
+        direction: 'outgoing',
+      });
+    });
+
+    it('returns incoming neighbors', async () => {
+      await graph.materialize();
+      const state = (graph)._cachedState;
+
+      // Add nodes
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+      state.nodeAlive.add('user:bob', Dot.create('w1', 2));
+
+      // Add edge: alice --follows--> bob
+      const edgeKey = encodeEdgeKey('user:alice', 'user:bob', 'follows');
+      state.edgeAlive.add(edgeKey, Dot.create('w1', 3));
+
+      const incoming = await graph.neighbors('user:bob', 'incoming');
+      expect(incoming).toHaveLength(1);
+      expect(incoming[0]).toEqual({
+        nodeId: 'user:alice',
+        label: 'follows',
+        direction: 'incoming',
+      });
+    });
+
+    it('returns both directions by default', async () => {
+      await graph.materialize();
+      const state = (graph)._cachedState;
+
+      // Add nodes
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+      state.nodeAlive.add('user:bob', Dot.create('w1', 2));
+      state.nodeAlive.add('user:carol', Dot.create('w1', 3));
+
+      // alice --follows--> bob
+      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:bob', 'follows'), Dot.create('w1', 4));
+      // carol --follows--> alice
+      state.edgeAlive.add(encodeEdgeKey('user:carol', 'user:alice', 'follows'), Dot.create('w1', 5));
+
+      const neighbors = await graph.neighbors('user:alice');
+      expect(neighbors).toHaveLength(2);
+      expect(neighbors.find((/** @type {any} */ n) => n.nodeId === 'user:bob' && n.direction === 'outgoing')).toBeDefined();
+      expect(neighbors.find((/** @type {any} */ n) => n.nodeId === 'user:carol' && n.direction === 'incoming')).toBeDefined();
+    });
+
+    it('filters by edge label', async () => {
+      await graph.materialize();
+      const state = (graph)._cachedState;
+
+      // Add nodes
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+      state.nodeAlive.add('user:bob', Dot.create('w1', 2));
+      state.nodeAlive.add('user:carol', Dot.create('w1', 3));
+
+      // alice --follows--> bob
+      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:bob', 'follows'), Dot.create('w1', 4));
+      // alice --blocks--> carol
+      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:carol', 'blocks'), Dot.create('w1', 5));
+
+      const follows = await graph.neighbors('user:alice', 'outgoing', 'follows');
+      expect(follows).toHaveLength(1);
+      expect(follows[0].nodeId).toBe('user:bob');
+    });
+
+    it('excludes edges with non-visible endpoints', async () => {
+      await graph.materialize();
+      const state = (graph)._cachedState;
+
+      // Add only alice (bob is NOT added)
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+
+      // Add edge to non-existent bob
+      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:bob', 'follows'), Dot.create('w1', 2));
+
+      // Should not return bob since it doesn't exist
+      const neighbors = await graph.neighbors('user:alice', 'outgoing');
+      expect(neighbors).toHaveLength(0);
+    });
+
+    it('falls back to linear scan when indexed neighbor lookup throws', async () => {
+      await graph.materialize();
+      const state = (graph)._cachedState;
+
+      state.nodeAlive.add('user:alice', Dot.create('w1', 1));
+      state.nodeAlive.add('user:bob', Dot.create('w1', 2));
+      state.edgeAlive.add(encodeEdgeKey('user:alice', 'user:bob', 'follows'), Dot.create('w1', 3));
+
+      (graph)._logicalIndex = { isAlive: () => true };
+      (graph)._materializedGraph = {
+        provider: {
+          getNeighbors: async () => {
+            throw new Error('simulated provider failure');
+          },
+        },
+      };
+
+      const result = await graph.neighbors('user:alice', 'outgoing');
+      expect(result).toEqual([{
+        nodeId: 'user:bob',
+        label: 'follows',
+        direction: 'outgoing',
+      }]);
+    });
+  });
+
+  describe('getNodes()', () => {
+    it('throws if no cached state', async () => {
+      await expect(graph.getNodes()).rejects.toThrow(QueryError);
+    });
+
+    it('returns empty array for empty graph', async () => {
+      await graph.materialize();
+      expect(await graph.getNodes()).toEqual([]);
+    });
+
+    it('returns all visible nodes', async () => {
+      await graph.materialize();
+      const state = (graph)._cachedState;
+
+      state.nodeAlive.add('node-a', Dot.create('w1', 1));
+      state.nodeAlive.add('node-b', Dot.create('w1', 2));
+      state.nodeAlive.add('node-c', Dot.create('w1', 3));
+
+      const nodes = await graph.getNodes();
+      expect(nodes).toHaveLength(3);
+      expect(nodes).toContain('node-a');
+      expect(nodes).toContain('node-b');
+      expect(nodes).toContain('node-c');
+    });
+  });
+
+  describe('getEdges()', () => {
+    it('throws if no cached state', async () => {
+      await expect(graph.getEdges()).rejects.toThrow(QueryError);
+    });
+
+    it('returns empty array for empty graph', async () => {
+      await graph.materialize();
+      expect(await graph.getEdges()).toEqual([]);
+    });
+
+    it('returns all visible edges', async () => {
+      await graph.materialize();
+      const state = (graph)._cachedState;
+
+      // Add nodes
+      state.nodeAlive.add('a', Dot.create('w1', 1));
+      state.nodeAlive.add('b', Dot.create('w1', 2));
+      state.nodeAlive.add('c', Dot.create('w1', 3));
+
+      // Add edges
+      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'e1'), Dot.create('w1', 4));
+      state.edgeAlive.add(encodeEdgeKey('b', 'c', 'e2'), Dot.create('w1', 5));
+
+      const edges = await graph.getEdges();
+      expect(edges).toHaveLength(2);
+      expect(edges.find((/** @type {any} */ e) => e.from === 'a' && e.to === 'b' && e.label === 'e1')).toBeDefined();
+      expect(edges.find((/** @type {any} */ e) => e.from === 'b' && e.to === 'c' && e.label === 'e2')).toBeDefined();
+    });
+
+    it('excludes edges with non-visible endpoints', async () => {
+      await graph.materialize();
+      const state = (graph)._cachedState;
+
+      // Only add 'a' node
+      state.nodeAlive.add('a', Dot.create('w1', 1));
+
+      // Add edge to non-existent 'b'
+      state.edgeAlive.add(encodeEdgeKey('a', 'b', 'e1'), Dot.create('w1', 2));
+
+      const edges = await graph.getEdges();
+      expect(edges).toHaveLength(0);
+    });
+  });
+});

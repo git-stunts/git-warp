@@ -1,3 +1,10 @@
+---
+id: DX_artifact-store-stack-diagram
+blocked_by: []
+blocks: []
+feature: browser-viz
+---
+
 # Artifact Store Stack Diagram
 
 A single doc showing the full persistence stack:

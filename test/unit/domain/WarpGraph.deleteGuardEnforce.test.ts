@@ -1,0 +1,383 @@
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import { createGitRepo } from '../../helpers/warpGraphTestUtils.ts';
+
+describe('WarpCore deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000 }, () => {
+    let repo;
+
+  afterEach(async () => {
+    if (repo) {
+      await repo.cleanup();
+      repo = null;
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Reject mode
+  // ---------------------------------------------------------------------------
+
+  describe('reject mode', () => {
+    it('throws when deleting a node that has properties', async () => {
+      repo = await createGitRepo('delguard');
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test',
+        writerId: 'w1',
+        onDeleteWithData: 'reject',
+      });
+
+      // Create a node with a property
+      await (await graph.createPatch())
+        .addNode('n1')
+        .setProperty('n1', 'color', 'red')
+        .commit();
+
+      await graph.materialize();
+
+      // Attempt to delete should throw
+      const patch = await graph.createPatch();
+      expect(() => patch.removeNode('n1')).toThrow(
+        /Cannot delete node 'n1': node has attached data.*propert/
+      );
+    });
+
+    it('throws when deleting a node that has edges', async () => {
+      repo = await createGitRepo('delguard');
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test',
+        writerId: 'w1',
+        onDeleteWithData: 'reject',
+      });
+
+      // Create nodes and an edge
+      await (await graph.createPatch())
+        .addNode('n1')
+        .addNode('n2')
+        .addEdge('n1', 'n2', 'likes')
+        .commit();
+
+      await graph.materialize();
+
+      // Attempt to delete source node should throw
+      const patch = await graph.createPatch();
+      expect(() => patch.removeNode('n1')).toThrow(
+        /Cannot delete node 'n1': node has attached data.*edge/
+      );
+    });
+
+    it('throws when deleting a node that is an edge target', async () => {
+      repo = await createGitRepo('delguard');
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test',
+        writerId: 'w1',
+        onDeleteWithData: 'reject',
+      });
+
+      // Create nodes and an edge
+      await (await graph.createPatch())
+        .addNode('n1')
+        .addNode('n2')
+        .addEdge('n1', 'n2', 'likes')
+        .commit();
+
+      await graph.materialize();
+
+      // Attempt to delete target node should also throw
+      const patch = await graph.createPatch();
+      expect(() => patch.removeNode('n2')).toThrow(
+        /Cannot delete node 'n2': node has attached data.*edge/
+      );
+    });
+
+    it('succeeds when deleting a node with no attached data', async () => {
+      repo = await createGitRepo('delguard');
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test',
+        writerId: 'w1',
+        onDeleteWithData: 'reject',
+      });
+
+      // Create a bare node (no props, no edges)
+      await (await graph.createPatch())
+        .addNode('n1')
+        .commit();
+
+      await graph.materialize();
+
+      // Delete should succeed
+      const sha = await (await graph.createPatch())
+        .removeNode('n1')
+        .commit();
+
+      expect(typeof sha).toBe('string');
+      expect(sha.length).toBe(40);
+    });
+
+    it('mentions both edges and properties in error when both exist', async () => {
+      repo = await createGitRepo('delguard');
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test',
+        writerId: 'w1',
+        onDeleteWithData: 'reject',
+      });
+
+      // Create node with both property and edge
+      await (await graph.createPatch())
+        .addNode('n1')
+        .addNode('n2')
+        .setProperty('n1', 'name', 'Alice')
+        .addEdge('n1', 'n2', 'knows')
+        .commit();
+
+      await graph.materialize();
+
+      const patch = await graph.createPatch();
+      expect(() => patch.removeNode('n1')).toThrow(
+        /1 edge\(s\) and 1 propert/
+      );
+    });
+
+    it('error message suggests cascade mode', async () => {
+      repo = await createGitRepo('delguard');
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test',
+        writerId: 'w1',
+        onDeleteWithData: 'reject',
+      });
+
+      await (await graph.createPatch())
+        .addNode('n1')
+        .setProperty('n1', 'x', 1)
+        .commit();
+
+      await graph.materialize();
+
+      const patch = await graph.createPatch();
+      expect(() => patch.removeNode('n1')).toThrow(
+        /set onDeleteWithData to 'cascade'/
+      );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Warn mode
+  // ---------------------------------------------------------------------------
+
+  /** @param {import('vitest').Mock} warnSpy */
+  function mockLogger(warnSpy) {
+    const logger = { info: vi.fn(), warn: warnSpy, error: vi.fn(), debug: vi.fn(), child: () => logger };
+    return logger;
+  }
+
+  describe('warn mode', () => {
+    it('logs warning via logger when deleting node with properties', async () => {
+      repo = await createGitRepo('delguard');
+      const warnSpy = vi.fn();
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test',
+        writerId: 'w1',
+        onDeleteWithData: 'warn',
+        logger: mockLogger(warnSpy),
+      });
+
+      // Create a node with a property
+      await (await graph.createPatch())
+        .addNode('n1')
+        .setProperty('n1', 'color', 'red')
+        .commit();
+
+      await graph.materialize();
+
+      const sha = await (await graph.createPatch())
+        .removeNode('n1')
+        .commit();
+
+      expect(typeof sha).toBe('string');
+      expect(sha.length).toBe(40);
+
+      // Verify warning was logged via logger (not console.warn)
+      expect(warnSpy).toHaveBeenCalledOnce();
+      const firstCall = warnSpy.mock.calls[0]; if (!firstCall) { throw new Error('expected call'); }
+      expect(firstCall[0]).toMatch(/Deleting node 'n1'/);
+      expect(firstCall[0]).toMatch(/propert/);
+    });
+
+    it('logs warning via logger when deleting node with edges', async () => {
+      repo = await createGitRepo('delguard');
+      const warnSpy = vi.fn();
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test',
+        writerId: 'w1',
+        onDeleteWithData: 'warn',
+        logger: mockLogger(warnSpy),
+      });
+
+      await (await graph.createPatch())
+        .addNode('n1')
+        .addNode('n2')
+        .addEdge('n1', 'n2', 'follows')
+        .commit();
+
+      await graph.materialize();
+
+      const sha = await (await graph.createPatch())
+        .removeNode('n1')
+        .commit();
+
+      expect(typeof sha).toBe('string');
+      expect(warnSpy).toHaveBeenCalled();
+      const edgeCall = warnSpy.mock.calls[0]; if (!edgeCall) { throw new Error('expected call'); }
+      expect(edgeCall[0]).toMatch(/edge/);
+    });
+
+    it('does not warn when deleting node with no attached data', async () => {
+      repo = await createGitRepo('delguard');
+      const warnSpy = vi.fn();
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test',
+        writerId: 'w1',
+        onDeleteWithData: 'warn',
+        logger: mockLogger(warnSpy),
+      });
+
+      // Create a bare node
+      await (await graph.createPatch())
+        .addNode('n1')
+        .commit();
+
+      await graph.materialize();
+
+      const sha = await (await graph.createPatch())
+        .removeNode('n1')
+        .commit();
+
+      expect(typeof sha).toBe('string');
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Writer API (passes option through)
+  // ---------------------------------------------------------------------------
+
+  describe('Writer API', () => {
+    it('reject mode works through writer().beginPatch()', async () => {
+      repo = await createGitRepo('delguard');
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test',
+        writerId: 'w1',
+        onDeleteWithData: 'reject',
+      });
+
+      // Setup: create node with property
+      await (await graph.createPatch())
+        .addNode('n1')
+        .setProperty('n1', 'key', 'val')
+        .commit();
+
+      await graph.materialize();
+
+      const writer = await graph.writer('w1');
+      const patch = await writer.beginPatch();
+
+      expect(() => patch.removeNode('n1')).toThrow(
+        /Cannot delete node 'n1'/
+      );
+    });
+
+    it('warn mode works through writer().commitPatch()', async () => {
+      repo = await createGitRepo('delguard');
+      const warnSpy = vi.fn();
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test',
+        writerId: 'w1',
+        onDeleteWithData: 'warn',
+        logger: mockLogger(warnSpy),
+      });
+
+      await (await graph.createPatch())
+        .addNode('n1')
+        .setProperty('n1', 'key', 'val')
+        .commit();
+
+      await graph.materialize();
+
+      const writer = await graph.writer('w1');
+      const sha = await writer.commitPatch(p => {
+        p.removeNode('n1');
+      });
+
+      expect(typeof sha).toBe('string');
+      expect(warnSpy).toHaveBeenCalledOnce();
+      const writerCall = warnSpy.mock.calls[0]; if (!writerCall) { throw new Error('expected call'); }
+      expect(writerCall[0]).toMatch(/propert/);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Cascade mode (no validation)
+  // ---------------------------------------------------------------------------
+
+  describe('cascade mode (validation skipped)', () => {
+    it('does not throw or warn when deleting node with attached data', async () => {
+      repo = await createGitRepo('delguard');
+      const warnSpy = vi.fn();
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test',
+        writerId: 'w1',
+        onDeleteWithData: 'cascade',
+        logger: mockLogger(warnSpy),
+      });
+
+      await (await graph.createPatch())
+        .addNode('n1')
+        .setProperty('n1', 'color', 'blue')
+        .addNode('n2')
+        .addEdge('n1', 'n2', 'links')
+        .commit();
+
+      await graph.materialize();
+
+      // Should not throw and should not warn (cascade skips validation)
+      const sha = await (await graph.createPatch())
+        .removeNode('n1')
+        .commit();
+
+      expect(typeof sha).toBe('string');
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // No state scenario (best-effort skips validation)
+  // ---------------------------------------------------------------------------
+
+  describe('no cached state', () => {
+    it('reject mode throws E_PATCH_NO_STATE when autoMaterialize is off', async () => {
+      repo = await createGitRepo('delguard');
+      const graph = await openRuntimeHostProduct({
+        persistence: repo.persistence,
+        graphName: 'test',
+        writerId: 'w1',
+        onDeleteWithData: 'reject',
+        autoMaterialize: false,
+      });
+
+      // autoMaterialize off + no explicit materialize = no cached state
+      // removeNode must throw because it can't observe dots without state
+      const patch = await graph.createPatch();
+      expect(() => patch.removeNode('n1')).toThrow('must be materialized');
+    });
+  });
+});

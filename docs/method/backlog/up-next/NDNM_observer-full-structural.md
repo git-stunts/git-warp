@@ -1,3 +1,10 @@
+---
+id: NDNM_observer-full-structural
+feature: observer-admission-runtime
+blocked_by: []
+blocks: []
+---
+
 # Grow Observer toward full structural observer
 
 **Effort:** L

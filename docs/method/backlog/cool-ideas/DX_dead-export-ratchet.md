@@ -1,3 +1,10 @@
+---
+id: DX_dead-export-ratchet
+blocked_by: []
+blocks: []
+feature: tooling-release
+---
+
 # DX_dead-export-ratchet
 
 **Title:** Dead export ratchet — CI gate that prevents new dead exports

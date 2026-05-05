@@ -1,3 +1,10 @@
+---
+id: PROTO_cbor-op-hydration
+feature: runtime-boundaries
+blocked_by: []
+blocks: []
+---
+
 # CBOR decode boundary: hydrate ops into class instances
 
 **Effort:** M

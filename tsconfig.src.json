@@ -1,13 +1,16 @@
 {
   "extends": "./tsconfig.base.json",
   "include": [
-    "src/**/*.js",
+    "index.ts",
+    "browser.ts",
+    "src/**/*.ts",
     "src/globals.d.ts",
-    "src/domain/warp/_wiredMethods.d.ts",
-    "bin/warp-graph.js",
-    "scripts/**/*.js"
+    "bin/warp-graph.ts",
+    "bin/**/*.ts",
+    "scripts/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "scripts/migrations"
   ]
 }

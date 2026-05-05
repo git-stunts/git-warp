@@ -17,6 +17,7 @@ COPY git-warp/scripts ./scripts
 COPY git-warp/patches ./patches
 RUN npm ci
 COPY git-warp .
+RUN npm run build --silent
 # Init a git repo so plumbing operations work inside the container.
 RUN git init -q \
   && git config user.email "container@git-warp.local" \
@@ -24,7 +25,7 @@ RUN git init -q \
   && git add -A \
   && git commit --allow-empty -m "seed git-warp" >/dev/null
 # Install CLI shims so `git warp` and `warp-graph` work in BATS tests.
-RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /app/bin/warp-graph.js "$@"' > /usr/local/bin/warp-graph
+RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /app/dist/bin/warp-graph.js "$@"' > /usr/local/bin/warp-graph
 RUN chmod +x /usr/local/bin/warp-graph \
   && install -m 0755 /app/bin/git-warp /usr/local/bin/git-warp
 # Run tests as non-root to mirror CI and catch permission issues.

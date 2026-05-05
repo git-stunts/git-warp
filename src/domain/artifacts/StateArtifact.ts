@@ -1,0 +1,17 @@
+import WarpError from '../errors/WarpError.ts';
+import { CheckpointArtifact } from './CheckpointArtifact.ts';
+import type { WarpState } from '../services/JoinReducer.ts';
+
+/** Carries the full CRDT state for checkpoint recovery. */
+export class StateArtifact extends CheckpointArtifact {
+  readonly state: WarpState;
+
+  constructor({ schemaVersion, state }: { schemaVersion: number; state: WarpState }) {
+    super({ schemaVersion });
+    if (state === null || state === undefined) {
+      throw new WarpError('StateArtifact requires a state', 'E_INVALID_ARTIFACT');
+    }
+    this.state = state;
+    Object.freeze(this);
+  }
+}

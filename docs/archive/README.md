@@ -7,6 +7,7 @@ Examples:
 
 - superseded plans and drafts
 - one-off milestone plans
+- [archived architectural decision records](adr/README.md)
 - audit transcripts
 - completed cleanup checklists
 

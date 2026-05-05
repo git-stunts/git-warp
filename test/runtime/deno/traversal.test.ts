@@ -1,7 +1,7 @@
-import { assertEquals, assert } from "jsr:@std/assert";
-import { createTestRepo } from "./helpers.ts";
+import { assertEquals, assert } from "./assertions.ts";
+import { createTestRepo, denoRuntimeTest } from "./helpers.ts";
 
-Deno.test("traversal: BFS visits in breadth-first order", async () => {
+denoRuntimeTest("traversal: BFS visits in breadth-first order", async () => {
   const repo = await createTestRepo("trav-bfs");
   try {
     const graph = await repo.openGraph("test", "alice");
@@ -20,7 +20,7 @@ Deno.test("traversal: BFS visits in breadth-first order", async () => {
   }
 });
 
-Deno.test("traversal: shortestPath finds path", async () => {
+denoRuntimeTest("traversal: shortestPath finds path", async () => {
   const repo = await createTestRepo("trav-sp");
   try {
     const graph = await repo.openGraph("test", "alice");
@@ -41,7 +41,7 @@ Deno.test("traversal: shortestPath finds path", async () => {
   }
 });
 
-Deno.test("traversal: shortestPath not found", async () => {
+denoRuntimeTest("traversal: shortestPath not found", async () => {
   const repo = await createTestRepo("trav-nf");
   try {
     const graph = await repo.openGraph("test", "alice");

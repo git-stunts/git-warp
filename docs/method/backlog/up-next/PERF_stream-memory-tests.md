@@ -1,3 +1,12 @@
+---
+id: PERF_stream-memory-tests
+feature: testing-quality
+blocked_by:
+  - PERF_stream-read-migration
+  - PERF_stream-cleanup
+blocks: []
+---
+
 # Memory-bounded stream witnesses
 
 **Effort:** M

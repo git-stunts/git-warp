@@ -1,3 +1,10 @@
+---
+id: DX_systems-style-precommit-scorecard
+blocked_by: []
+blocks: []
+feature: tooling-release
+---
+
 # Systems-Style Scorecard as pre-commit hook
 
 **Effort:** M

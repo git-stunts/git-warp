@@ -93,10 +93,10 @@ fi
 
 # ── 7. Unit tests ────────────────────────────────────────────────────────────
 echo "Tests:"
-if npm run test:local --silent 2>/dev/null; then
-  pass "unit tests"
+if npm run test:coverage --silent 2>/dev/null; then
+  pass "unit tests + coverage ratchet"
 else
-  fail "unit test failures"
+  fail "unit test or coverage failures"
 fi
 
 # ── 8. Pack dry-runs ─────────────────────────────────────────────────────────
@@ -106,6 +106,11 @@ if printf '%s\n' "$PACK_OUTPUT" | grep -q "total files"; then
   pass "npm pack dry-run"
 else
   fail "npm pack dry-run failed"
+fi
+if bash scripts/smoke-packed-artifact.sh; then
+  pass "packed artifact smoke"
+else
+  fail "packed artifact smoke failed"
 fi
 if npx -y jsr publish --dry-run --allow-dirty 2>/dev/null; then
   pass "JSR publish dry-run"

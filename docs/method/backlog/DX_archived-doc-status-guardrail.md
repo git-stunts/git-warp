@@ -1,3 +1,10 @@
+---
+id: DX_archived-doc-status-guardrail
+feature: docs-dx
+blocked_by: []
+blocks: []
+---
+
 # Archived Doc Status Guardrail
 
 **Effort:** XS

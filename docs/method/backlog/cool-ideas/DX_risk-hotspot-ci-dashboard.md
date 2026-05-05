@@ -1,3 +1,10 @@
+---
+id: DX_risk-hotspot-ci-dashboard
+blocked_by: []
+blocks: []
+feature: browser-viz
+---
+
 # DX_risk-hotspot-ci-dashboard
 
 **Title:** Risk hotspot dashboard in CI

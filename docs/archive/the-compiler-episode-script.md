@@ -10,6 +10,63 @@ George, exhausted by TypeScript, announces he's switching back to plain JavaScri
 
 ---
 
+```c
+/*
+ * INTERNATIONAL OBFUSCATED C CODE CONTEST
+ * EXPERIMENTAL SUBMISSION PREVIEW
+ *
+ * Title:      Terminal Bird in Negative Space
+ * Author:     Cosmo Kramer
+ * Category:   Visual Hostility / Avian Geometry / Unclear
+ * Status:     Pending (emotionally accepted, technically disputed)
+ *
+ * Build:
+ *   cc -O2 -Wall -Wextra -o bird bird.c
+ */
+
+#include <stdio.h>
+
+#define _ ,
+#define O (
+#define o )
+#define __ ;
+#define Q "\""
+#define W while
+#define I int
+#define R return
+#define P puts
+#define C char
+#define M main
+#define B /*
+#define K */
+#define N 0
+
+I M O void o
+{
+    C* t[] = {
+        "            .--.                    ",
+        "           |o_o |                   ",
+        "           |:_/ |                   ",
+        "          //   \\\\ \\\\                ",
+        "         (|     | )                 ",
+        "        /'\\\\_   _/`\\\\              ",
+        "        \\\\___)=(___/                 ",
+        "                                    ",
+        "   TERMINAL BIRD IN NEGATIVE SPACE  ",
+        "                                    ",
+        "   silhouette as structure          ",
+        0
+    } __
+
+    I i = N __
+
+    W O t[i] o P O t[i++] o __
+
+    R N __
+}
+
+```
+
 ## Cold Open
 
 _Jerry's apartment. Morning. Jerry is at the counter with coffee. George is on the couch, staring into the middle distance with the expression of a man who has recently lost a fight with a dropdown menu. Elaine is flipping through a magazine._
@@ -707,7 +764,7 @@ _Conference room. Glass walls. A monitor at one end of the table says_ iOS Platf
 
 _George stands just outside the glass, smoothing his shirt, breathing like a prizefighter. He clutches a legal pad on which he has written:_
 
-```
+```text
 - SWIFT = TREND
 - OBJC = TRUTH
 - BRACKETS = DISCIPLINE
@@ -1101,8 +1158,8 @@ _A small lecture room at a university or conference center. On the projector:_
 
 _Kramer sits onstage at a folding table, wearing a blazer over the penguin T-shirt, trying to look like a man who has always belonged in front of a room full of compiler perverts. In front of him: a placard._
 
-```
-Cosmo Kramer 
+```text
+Cosmo Kramer
 Independent
 ```
 
@@ -1275,7 +1332,7 @@ _Newman opens the folder. He has printouts. Of course he has printouts._
 _He walks to the front like a man delivering a subpoena. He hands the moderator a packet labeled:_
 
 ```text
-APPENDIX A 
+APPENDIX A
 KRAMER ENTRY: COMPILATION FAILURE LOG
 ```
 

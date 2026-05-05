@@ -49,9 +49,9 @@ This script (`scripts/release-preflight.sh`) checks:
 | 3 | On `main` branch | Warning |
 | 4 | CHANGELOG has a dated `[X.Y.Z] — YYYY-MM-DD` entry | Yes |
 | 5 | ESLint clean | Yes |
-| 6 | Type firewall (tsc + IRONCLAD policy + consumer + surface) | Yes |
+| 6 | Type firewall (tsc + IRONCLAD policy + consumer + generated npm surface) | Yes |
 | 7 | Unit tests pass | Yes |
-| 8 | `npm pack --dry-run` + `jsr publish --dry-run` | Yes |
+| 8 | `npm pack --dry-run` + packed artifact smoke + `jsr publish --dry-run` | Yes |
 | 9 | `npm audit` (runtime deps, high/critical) | Warning |
 
 If all checks pass, the script prints the exact tag + push commands.

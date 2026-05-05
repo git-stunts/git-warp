@@ -7,9 +7,116 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0] — 2026-05-05
+
+### Changed
+
+- **v17.0.0 release cut** — Package and JSR versions agree at `17.0.0`, the
+  release chronology is dated to the May 5 release cut, and the v17 release
+  notes now preserve the honest bounded-query scope from the 0123 release
+  decision.
+- **v17 release scope narrowed honestly** — v17 claims TypeScript migration, public API honesty, materialization-frontdoor deletion, optics/readings direction, and query read-model groundwork. It does **not** claim live large-graph bounded `graph.query()` residency over stale checkpoint plus live tail; that remains blocked on a post-v17 live-tail bounded query/checksum substrate. The graph-level exact-id bounded-query witness is preserved under `test/conformance/post-v17/graphQueryBoundedProvider.blocked.test.ts`.
+- **100% TypeScript** — All 100 remaining `.js` files converted to `.ts`. JSR ships TypeScript source directly; npm ships compiled JavaScript and generated declarations from `dist/`. The root config pair now lives at `eslint.config.ts` and `vitest.config.ts`.
+
+### Fixed
+
+- Release PR Node 22 CI now runs the built CLI and passes the full Node 22
+  lane. The CLI smoke surface restores `query`, `path`, and `history`,
+  BATS helper fixtures run through TypeScript-aware seed helpers, trust CLI
+  evaluation reads the real git-backed trust chain, hook installation locates
+  the package root from both source and `dist/`, and stale default-output BATS
+  assertions now validate the JSON contract.
+- Release preflight now clears its coverage and JSR dry-run gates: the coverage
+  ratchet excludes ambient declaration files and records the current full-suite
+  v17 line baseline, while JSR-facing public APIs now carry explicit return
+  types instead of slow inferred public types.
+- Anti-sludge file-level quarantines have been graduated for the v17
+  release branch. `npm run lint:quarantine-graduate` now passes with
+  empty `0025A`/`0025B`/`0025C`/`0025D` manifest file lists, while
+  remaining legacy hits are narrowed to owning-cycle inline suppressions.
+- The built-in HTTP sync server now sanitizes unexpected `500` response
+  bodies. Clients receive `{ code: "E_SYNC_INTERNAL", error: "Sync failed" }`,
+  while the original thrown error is logged through `LoggerPort`.
+- The built-in HTTP sync server now supports per-key token-bucket rate
+  limiting. Non-local bind hosts with enforced sync auth must configure
+  `auth.rateLimit`, exhausted keys receive `429 RATE_LIMITED`, and bad
+  signatures do not consume a valid key's request budget.
+- The built-in HTTP sync server now fails closed by default: non-local
+  bind hosts require enforced `SyncSecret` auth, and unauthenticated
+  localhost serving requires `unsafeAllowUnauthenticatedLocalhost: true`.
+- Sync HMAC credentials now use an opaque `SyncSecret` value across the
+  public sync auth API, domain auth service, and HTTP sync transport;
+  accidental string, JSON, and inspect output redacts the secret while
+  preserving HMAC verification behavior.
+- Checkpoint/materialize test drift is aligned with the v17 checkpoint
+  contract: current-schema fixtures use schema `5`, retired checkpoint
+  fixtures assert `E_CHECKPOINT_UNSUPPORTED_SCHEMA`, and full
+  `npm run test:local` is green again.
+- Default `graph.observer()` now snapshots the caller's current fresh
+  reading basis, so observer handles expose a string `stateHash` and keep
+  reading their pinned coordinate after live truth advances; `seek()`
+  still returns a new observer without mutating the original or caller
+  graph basis.
+- Stale materialize-spy and auto-materialize unit tests now assert the
+  v17 reading-basis contract instead of hidden materialization: direct
+  cached-state reads fail without a fresh basis, explicit internal
+  materialization creates one for substrate tests, and `patchMany()` no
+  longer implies a read basis inside callbacks.
+- Subscription/watch polling no longer hides a full graph replay behind
+  `_materializeGraph()`: poll-detected external frontier changes now
+  report stale reading-basis guidance, while local patch commits over a
+  clean cached reading basis publish subscriber diffs without an extra
+  materialize call.
+- Default `syncWith()` no longer materializes a missing cached state:
+  no-cache sync accepts response metadata without publishing a `state`
+  field, while `syncWith(..., { materialize: true })` explicitly creates
+  a reading basis before applying and returning state.
+- Patch creation no longer triggers hidden graph materialization: `PatchController` now leaves additive patch creation independent of a cached state, requires a clean reading basis for freshness checks, and no longer depends on `_materializeGraph()`.
+- `npm run upgrade -- --graph <name>` now provides the checkpoint upgrade path for retired checkpoint envelopes: dry-run validates without moving refs, successful upgrades write and verify the current checkpoint envelope before updating the checkpoint ref, and conversion readers live under `scripts/migrations/v17.0.0/` instead of shipped runtime source.
+- Checkpoint content anchors now use CAS tree entries, so checkpoints can anchor current content storage during upgrade and regular checkpoint creation instead of failing Git tree creation by labeling content trees as blobs.
+- Checkpoint creation now requires an explicit checkpoint reading basis: it uses an exact state-cache snapshot or clean cached state, fails closed with v17 readings guidance when no basis exists, and no longer depends on `_materializeGraph()`.
+- Checkpoint schema support now has one v17 runtime contract: schema `5` creates and loads the envelope-tree checkpoint shape, retired schemas reject with upgrade guidance, and checkpoint-tail/index witnesses no longer rely on a fake schema split.
+- Runtime read/provenance diagnostics now point users at readings, worldlines, checkpoint-backed readings, and `docs/READINGS_AND_OPTICS.md` instead of telling v17 app developers to call materialize.
+- Public first-use docs now teach the v17 readings/worldline/observer read path, link the new `docs/READINGS_AND_OPTICS.md` guide, and no longer present `graph.materialize` as an application read frontdoor.
+- The consumer typecheck gate now proves the v17 `openWarpGraph()` surface has no public materialize capability bag and positively covers the blessed `graph.query` read path through state snapshots, query builders, worldlines, observers, and node props.
+- Release hygiene gates now track the generated npm package surface, smoke the packed npm tarball before release tagging, remove stale `./visualization` and `./node` subpath exports, point CI at `bin/warp-graph.ts`, share v17 migration traversal, use custom script errors, and keep Markdown/code-sample/whitespace lint clean.
+
+### Breaking
+
+- **`index.d.ts` deleted** — The 4,199-line hand-maintained type declaration file is gone. `index.ts` remains the source of truth; npm consumers receive generated `dist/index.d.ts`.
+- **`browser.d.ts` deleted** — Same: `browser.ts` is the source of truth and npm consumers receive generated `dist/browser.d.ts`.
+- **`contracts/type-surface.m8.json` deleted** — The Ironclad manifest is redundant when the barrel IS the contract.
+- **Entry points renamed** — Source entry points moved from `index.js` → `index.ts`, `browser.js` → `browser.ts`, and `bin/warp-graph.js` → `bin/warp-graph.ts`. npm exports point at generated `dist/*.js`; JSR exports point at TypeScript source.
+
+### Changed
+
+- **WarpRuntime.js → TypeScript** — The LAST `.js` file in `src/domain/` is dead. 1234 LOC monolith split into `runtimeHelpers.ts` (150 LOC, factory helpers + trust config), `WarpRuntime.ts` (771 LOC, class + constructor + open), and `runtimeWiring.ts` (262 LOC, delegation wiring). Zero `.js` files remain in the domain. 100% TypeScript.
+- **IncrementalIndexUpdater split** — 955 LOC god slain. Split into `IndexNodeUpdater.ts` (198 LOC, node add/remove/purge), `IndexEdgeUpdater.ts` (168 LOC, edge bitmap ops), and slim `IncrementalIndexUpdater.ts` orchestrator (495 LOC). Shared working types in `types.ts`. All converted to TypeScript with option objects replacing boolean-trap parameter lists.
+- **StrandDescriptorStore split** — 643 LOC god slain. Split into `descriptorNormalization.ts` (294 LOC) and `StrandDescriptorStore.ts` (330 LOC). All converted to TypeScript.
+- **LogicalTraversal split** — 643 LOC god slain. Split into `traversalHelpers.ts` (142 LOC) and `LogicalTraversal.ts` (581 LOC). All converted to TypeScript.
+- **LogicalIndexReader split** — 603 LOC god slain. Split into `logicalIndexHelpers.ts` (253 LOC) and `LogicalIndexReader.ts` (307 LOC). All converted to TypeScript.
+- **ConflictCandidateCollector split** — 649 LOC god slain. Split into `conflictTargetIdentity.ts` (295 LOC), `conflictCandidateAnalysis.ts` (493 LOC), and slim `ConflictCandidateCollector.ts` (64 LOC). All converted to TypeScript.
+- **SyncController split** — 684 LOC god slain. Split into `syncHelpers.ts` (150 LOC), `SyncServerLauncher.ts` (92 LOC), and `SyncController.ts` (601 LOC). Converted to TypeScript.
+- **SyncProtocol split** — 683 LOC god slain. Split into `syncPatchLoader.ts` (178 LOC), `syncDelta.ts` (168 LOC), `syncRequestResponse.ts` (379 LOC), and barrel re-export. All converted to TypeScript.
+- **CheckpointService split** — 651 LOC god slain. Split into `checkpointHelpers.ts` (182 LOC), `checkpointCreate.ts` (220 LOC), and `checkpointLoad.ts` (312 LOC). All converted to TypeScript with proper type annotations.
+- **VisibleStateTransferPlanner split** — 692 LOC god slain. Split into `transfer/transferKeys.ts` (76 LOC), `transfer/transferOps.ts` (404 LOC), `transfer/transferShape.ts` (215 LOC), and `transfer/VisibleStateTransferPlanner.ts` orchestrator (111 LOC). All converted to TypeScript.
+- **StrandService dissolved** — 992 LOC god dissolved. Consumers rewired to StrandCoordinator (already existed at 169 LOC) via new `createStrandCoordinator.ts` factory (105 LOC). StrandService.js deleted.
+- **VisibleStateComparison split** — 808 LOC god slain. Split into `comparison/diffKeys.ts` (185 LOC), `comparison/diffProperties.ts` (226 LOC), `comparison/diffStructure.ts` (303 LOC), and `comparison/VisibleStateComparison.ts` orchestrator (172 LOC). All converted to TypeScript with proper type annotations.
+- **V5/V1 suffix purge** — Dropped vestigial version suffixes from 6 files and ~20 symbols: `StateReaderV5` → `StateReader`, `StateSerializerV5` → `StateSerializer`, `CheckpointSerializerV5` → `CheckpointSerializer`, `VisibleStateComparisonV5` → `VisibleStateComparison`, `VisibleStateTransferPlannerV5` → `VisibleStateTransferPlanner`, `VisibleStateScopeV1` → `VisibleStateScope`, plus all associated function and type names. No logic changes.
+- **AuditVerifierService split** — 825 LOC god slain. Split into `AuditChainVerifier.ts` (500 LOC, chain walking + validation), `TrustEvaluationService.ts` (230 LOC, signed evidence evaluation), and slim `AuditVerifierService.ts` facade (127 LOC). All converted to TypeScript.
+- **StreamingBitmapIndexBuilder rewrite** — 835 LOC god slain. Split into `BitmapAccumulator.ts` (154 LOC, pure domain) + slim `StreamingBitmapIndexBuilder.ts` (290 LOC) orchestrator. Dropped ~200 LOC hand-rolled JSON envelope/checksum layer — git-cas handles integrity at the storage layer. Shard format changed from JSON envelopes to plain CBOR (`.cbor` extension). `BitmapIndexBuilder` and `BitmapIndexReader` updated to match.
+
+### Breaking
+
+- **Index shard format** — Bitmap index shards now use CBOR encoding (`.cbor`) instead of JSON envelopes with checksums (`.json`). Existing cached indexes are invalidated on upgrade and will be rebuilt automatically. No data loss — indexes are cache-only artifacts.
+- **V2 naming purge** — `PatchV2` renamed to `Patch`, `PatchBuilderV2` renamed to `PatchBuilder`. Old names preserved as deprecated type aliases in `index.d.ts` for backward compatibility. No wire format changes.
+- **WarpTypes.ts deleted** — v1 factory functions (`createNodeAdd`, `createInlineValue`, etc.) inlined into `index.js` and test helpers. Zero source consumers remain.
+- **WarpTypesV2.ts deleted** — factory functions replaced with direct class constructors throughout. Union types (`OpV2`, `RawOpV2`, `CanonicalOpV2`) moved to `src/domain/types/ops/unions.ts`.
+- **Artifact file splits** — `CheckpointArtifact.js` subclasses (`StateArtifact`, `FrontierArtifact`, `AppliedVVArtifact`) and `IndexShard.js` subclasses (`MetaShard`, `EdgeShard`, `LabelShard`, `PropertyShard`, `ReceiptShard`) now have individual files for one-class-per-file discoverability. Barrel re-exports preserved for backward compatibility.
+
 ### Added
 
-- **Op type class hierarchy** — 8 operation types (`NodeAdd`, `NodeRemove`, `EdgeAdd`, `EdgeRemove`, `NodePropSet`, `EdgePropSet`, `PropSet`, `BlobValue`) promoted from `@typedef` plain objects to frozen classes with constructor validation and `instanceof` dispatch. Base `Op` class provides shared runtime identity. Factory functions in `WarpTypesV2.js` now delegate to class constructors. 97 new tests across 4 test files.
+- **Op type class hierarchy** — 8 operation types (`NodeAdd`, `NodeRemove`, `EdgeAdd`, `EdgeRemove`, `NodePropSet`, `EdgePropSet`, `PropSet`, `BlobValue`) promoted from `@typedef` plain objects to frozen classes with constructor validation and `instanceof` dispatch. Base `Op` class provides shared runtime identity. 97 new tests across 4 test files.
 - **Auto-materialize on remove** — `createPatch()` now auto-materializes when `autoMaterialize` is true, `_cachedState` is null, and existing patches exist. Users no longer need to call `materialize()` explicitly before patches that include `removeNode`/`removeEdge`.
 
 ### Fixed

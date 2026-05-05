@@ -1,3 +1,10 @@
+---
+id: PROTO_frontier-as-class
+blocked_by: []
+blocks: []
+feature: merge-strands-worldlines
+---
+
 # Frontier as a proper class — the last great typedef
 
 **Effort:** M

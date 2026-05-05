@@ -1,3 +1,10 @@
+---
+id: DX_claude-md-self-healing
+blocked_by: []
+blocks: []
+feature: observer-admission-runtime
+---
+
 # Self-healing CLAUDE.md — generated from codebase truth
 
 CLAUDE.md decayed from 0 to 24 inaccuracies across 2 major versions.

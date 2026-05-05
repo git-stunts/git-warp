@@ -1,3 +1,10 @@
+---
+id: PROTO_capability-port-protocol
+blocked_by: []
+blocks: []
+feature: api-capabilities
+---
+
 # Capability ports as a first-class protocol
 
 **Effort:** L

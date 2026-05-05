@@ -1,3 +1,10 @@
+---
+id: TRUST_record-round-trip-snapshot
+feature: sync-trust-security
+blocked_by: []
+blocks: []
+---
+
 # Trust Record Round-Trip Snapshot Test
 
 **Effort:** S

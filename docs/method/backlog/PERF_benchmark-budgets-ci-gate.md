@@ -1,3 +1,10 @@
+---
+id: PERF_benchmark-budgets-ci-gate
+feature: tooling-release
+blocked_by: []
+blocks: []
+---
+
 # Benchmark Budgets + CI Regression Gate
 
 **Effort:** L

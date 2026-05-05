@@ -1,3 +1,10 @@
+---
+id: PROTO_orset-compaction-receipt
+blocked_by: []
+blocks: []
+feature: observer-admission-runtime
+---
+
 # ORSet.compact() returns CompactionReceipt
 
 **Effort:** S

@@ -1,0 +1,13 @@
+{
+  "manifest_id": "0025D-import-law",
+  "owning_cycle": "0025D",
+  "rule_family": "import-law",
+  "rules": [
+    "no-restricted-imports:core-infrastructure",
+    "no-restricted-imports:core-node-platform"
+  ],
+  "rationale": "Pre-existing domain/ports imports of forbidden paths: src/infrastructure/** (adapters — should be behind a port), Node platform APIs (node:*, fs, http, etc. — should be mediated by a port), or framework libraries. Graduate by routing the capability through a port instead of a direct import.",
+  "generated_at": "2026-05-05T08:58:40.291Z",
+  "generator": "scripts/contamination-map.ts v1",
+  "files": []
+}

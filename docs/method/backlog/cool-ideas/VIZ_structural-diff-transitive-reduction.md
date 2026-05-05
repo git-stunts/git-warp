@@ -1,3 +1,10 @@
+---
+id: VIZ_structural-diff-transitive-reduction
+blocked_by: []
+blocks: []
+feature: browser-viz
+---
+
 # Structural Diff via Transitive Reduction
 
 **Effort:** L

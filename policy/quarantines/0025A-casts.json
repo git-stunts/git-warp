@@ -1,0 +1,12 @@
+{
+  "manifest_id": "0025A-casts",
+  "owning_cycle": "0025A",
+  "rule_family": "casts",
+  "rules": [
+    "ts-no-double-cast"
+  ],
+  "rationale": "Pre-existing `as unknown as` uses discovered at anti-sludge policy adoption time. Each entry grants file-level exemption from ts-no-double-cast ONLY. Graduate by removing the cast (prefer decoder / type guard / narrower port), not by adding an inline suppression unless the specific line has a documented reason that cannot be refactored away.",
+  "generated_at": "2026-05-05T08:58:40.291Z",
+  "generator": "scripts/contamination-map.ts v1",
+  "files": []
+}

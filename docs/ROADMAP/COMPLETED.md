@@ -299,9 +299,9 @@ Investigation revealed the correct approach is a two-phase split:
 
 **Deliverables:**
 
-- ADR 1 (`adr/ADR-0001-canonicalize-edge-property-ops-internally.md`) — internal canonical model design, invariants, test cases
-- ADR 2 (`adr/ADR-0002-defer-edgepropset-wire-format-cutover.md`) — explicit deferral of persisted wire-format migration
-- ADR 3 (`adr/ADR-0003-readiness-gates-for-edgepropset-wire-format-cutover.md`) — two-gate governance for future cutover
+- ADR 1 (`docs/archive/adr/ADR-0001-canonicalize-edge-property-ops-internally.md`) — internal canonical model design, invariants, test cases
+- ADR 2 (`docs/archive/adr/ADR-0002-defer-edgepropset-wire-format-cutover.md`) — explicit deferral of persisted wire-format migration
+- ADR 3 (`docs/archive/adr/ADR-0003-readiness-gates-for-edgepropset-wire-format-cutover.md`) — two-gate governance for future cutover
 - Decision: normalize at reducer entry points (not decode boundary); lower at `PatchBuilderV2.build()`/`commit()`
 - Tripwire test suite for wire gate (`SyncProtocol.wireGate.test.js`, `JoinReducer.opSets.test.js`)
 

@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "rule_id": "@typescript-eslint/consistent-type-imports",
+  "rationale": "Cycle 0054 activated consistent-type-imports as a hygiene rule and took the autofixable wins. The remaining violations are explicit inline import() type annotations or coupled runtime-boundary seams that need manual rewrite. Quarantine is rule-scoped and temporary.",
+  "generated_at": "2026-04-23T08:30:00.000Z",
+  "generator": "cycle 0054 manual quarantine",
+  "files": []
+}

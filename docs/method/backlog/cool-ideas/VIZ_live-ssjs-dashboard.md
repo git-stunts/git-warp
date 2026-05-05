@@ -1,3 +1,10 @@
+---
+id: VIZ_live-ssjs-dashboard
+blocked_by: []
+blocks: []
+feature: browser-viz
+---
+
 # Live SSJS health dashboard
 
 **Effort:** L

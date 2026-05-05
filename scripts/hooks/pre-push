@@ -65,7 +65,9 @@ echo "[Gates 1-7] Running lint + typecheck + policy + consumer type test + surfa
 run_tool "$NPM_LAUNCHER" "$NPM_BIN" run lint &
 LINT_PID=$!
 run_tool "$NPM_LAUNCHER" "$NPM_BIN" run typecheck:src &
-TC_PID=$!
+TC_SRC_PID=$!
+run_tool "$NPM_LAUNCHER" "$NPM_BIN" run typecheck:test &
+TC_TEST_PID=$!
 run_tool "$NPM_LAUNCHER" "$NPM_BIN" run typecheck:policy &
 POLICY_PID=$!
 run_tool "$NPM_LAUNCHER" "$NPM_BIN" run typecheck:consumer &
@@ -78,7 +80,8 @@ run_tool "$NPM_LAUNCHER" "$NPM_BIN" run lint:md:code &
 MD_CODE_PID=$!
 
 wait $LINT_PID    || { echo ""; echo "BLOCKED — Gate 4 FAILED: ESLint (includes no-explicit-any)"; exit 1; }
-wait $TC_PID      || echo "  [Gate 1] Advisory: tsc produced errors (expected for JSDoc JS cross-module boundaries)"
+wait $TC_SRC_PID  || { echo ""; echo "BLOCKED — Gate 1a FAILED: Source typecheck (tsconfig.src.json)"; exit 1; }
+wait $TC_TEST_PID || { echo ""; echo "BLOCKED — Gate 1b FAILED: Test typecheck (tsconfig.test.json)"; exit 1; }
 wait $POLICY_PID  || { echo ""; echo "BLOCKED — Gate 2 FAILED: IRONCLAD policy (any/wildcard/ts-ignore ban)"; exit 1; }
 wait $CONSUMER_PID || { echo ""; echo "BLOCKED — Gate 3 FAILED: Consumer type surface test"; exit 1; }
 wait $SURFACE_PID || { echo ""; echo "BLOCKED — Gate 5 FAILED: Declaration surface validator"; exit 1; }

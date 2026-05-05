@@ -1,3 +1,10 @@
+---
+id: NDNM_delete-vv-orset-shims
+feature: runtime-boundaries
+blocked_by: []
+blocks: []
+---
+
 # Delete VersionVector and ORSet backward-compat shims
 
 **Effort:** M

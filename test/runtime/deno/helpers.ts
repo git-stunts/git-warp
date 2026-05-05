@@ -12,16 +12,25 @@ let Plumbing: any;
 // deno-lint-ignore no-explicit-any
 let GitGraphAdapter: any;
 // deno-lint-ignore no-explicit-any
-let WarpRuntime: any;
+let WarpCore: any;
 // deno-lint-ignore no-explicit-any
 let WebCryptoAdapter: any;
+
+export function denoRuntimeTest(name: string, fn: () => Promise<void>): void {
+  Deno.test({
+    name,
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn,
+  });
+}
 
 export async function loadModules() {
   const root = Deno.cwd();
   Plumbing = (await import(join(root, "node_modules/@git-stunts/plumbing/index.js"))).default;
-  GitGraphAdapter = (await import(join(root, "src/infrastructure/adapters/GitGraphAdapter.js"))).default;
-  WarpRuntime = (await import(join(root, "src/domain/WarpRuntime.js"))).default;
-  WebCryptoAdapter = (await import(join(root, "src/infrastructure/adapters/WebCryptoAdapter.js"))).default;
+  GitGraphAdapter = (await import(join(root, "src/infrastructure/adapters/GitGraphAdapter.ts"))).default;
+  WarpCore = (await import(join(root, "src/domain/WarpCore.ts"))).default;
+  WebCryptoAdapter = (await import(join(root, "src/infrastructure/adapters/WebCryptoAdapter.ts"))).default;
 }
 
 export async function createTestRepo(label = "deno-test") {
@@ -40,7 +49,7 @@ export async function createTestRepo(label = "deno-test") {
 
   // deno-lint-ignore no-explicit-any
   async function openGraph(graphName: string, writerId: string, opts: Record<string, any> = {}) {
-    return WarpRuntime.open({
+    return WarpCore.open({
       ...opts,
       persistence,
       graphName,

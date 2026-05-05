@@ -1,3 +1,10 @@
+---
+id: DX_typed-custom-zod-helper
+feature: runtime-boundaries
+blocked_by: []
+blocks: []
+---
+
 # `typedCustom()` Zod Helper
 
 **Effort:** S

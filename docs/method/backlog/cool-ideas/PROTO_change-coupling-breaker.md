@@ -1,3 +1,10 @@
+---
+id: PROTO_change-coupling-breaker
+blocked_by: []
+blocks: []
+feature: merge-strands-worldlines
+---
+
 # PROTO_change-coupling-breaker
 
 **Title:** Break change-coupling chains via extracted shared types

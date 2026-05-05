@@ -1,3 +1,10 @@
+---
+id: VIZ_graph-diff-transitive-reduction
+blocked_by: []
+blocks: []
+feature: browser-viz
+---
+
 # Graph diff via transitive reduction comparison
 
 Compute `transitiveReduction(graphA)` and

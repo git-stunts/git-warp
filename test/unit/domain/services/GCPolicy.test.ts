@@ -1,0 +1,369 @@
+import { describe, it, expect } from 'vitest';
+import GCPolicy from '../../../../src/domain/services/GCPolicy.ts';
+import executeGC from '../../../../src/domain/services/executeGC.ts';
+import WarpError from '../../../../src/domain/errors/WarpError.ts';
+import GCMetrics from '../../../../src/domain/services/GCMetrics.ts';
+import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
+import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+
+describe('GCPolicy', () => {
+  describe('GCPolicy.DEFAULT', () => {
+    it('has expected default values', () => {
+      expect(GCPolicy.DEFAULT.tombstoneRatioThreshold).toBe(0.3);
+      expect(GCPolicy.DEFAULT.entryCountThreshold).toBe(50000);
+      expect(GCPolicy.DEFAULT.minPatchesSinceCompaction).toBe(1000);
+      expect(GCPolicy.DEFAULT.maxTicksSinceCompaction).toBe(10000);
+      expect(GCPolicy.DEFAULT.compactOnCheckpoint).toBe(true);
+      expect(GCPolicy.DEFAULT.enabled).toBe(false);
+    });
+  });
+
+  describe('policy.evaluate()', () => {
+    const policy = new GCPolicy({
+      enabled: true,
+      tombstoneRatioThreshold: 0.3,
+      entryCountThreshold: 1000,
+      minPatchesSinceCompaction: 100,
+      maxTicksSinceCompaction: 3600000, // 1 hour
+      compactOnCheckpoint: true,
+    });
+
+    it('triggers on tombstone ratio exceeding threshold', () => {
+      const result = policy.evaluate({
+        tombstoneRatio: 0.4, // 40% > 30%
+        totalEntries: 500,
+        patchesSinceCompaction: 50,
+        ticksSinceCompaction: 1000,
+      });
+
+      expect(result.shouldRun).toBe(true);
+      expect(result.reasons).toHaveLength(1);
+      expect(result.reasons[0]).toContain('Tombstone ratio');
+      expect(result.reasons[0]).toContain('40.0%');
+    });
+
+    it('triggers on entry count exceeding threshold', () => {
+      const result = policy.evaluate({
+        tombstoneRatio: 0.1,
+        totalEntries: 1500, // > 1000
+        patchesSinceCompaction: 50,
+        ticksSinceCompaction: 1000,
+      });
+
+      expect(result.shouldRun).toBe(true);
+      expect(result.reasons).toHaveLength(1);
+      expect(result.reasons[0]).toContain('Entry count');
+      expect(result.reasons[0]).toContain('1500');
+    });
+
+    it('triggers on patches since compaction exceeding minimum', () => {
+      const result = policy.evaluate({
+        tombstoneRatio: 0.1,
+        totalEntries: 500,
+        patchesSinceCompaction: 150, // > 100
+        ticksSinceCompaction: 1000,
+      });
+
+      expect(result.shouldRun).toBe(true);
+      expect(result.reasons).toHaveLength(1);
+      expect(result.reasons[0]).toContain('Patches since compaction');
+      expect(result.reasons[0]).toContain('150');
+    });
+
+    it('triggers on time since compaction exceeding maximum', () => {
+      const result = policy.evaluate({
+        tombstoneRatio: 0.1,
+        totalEntries: 500,
+        patchesSinceCompaction: 50,
+        ticksSinceCompaction: 4000000, // > 3600000
+      });
+
+      expect(result.shouldRun).toBe(true);
+      expect(result.reasons).toHaveLength(1);
+      expect(result.reasons[0]).toContain('Ticks since compaction');
+    });
+
+    it('returns false when under all thresholds', () => {
+      const result = policy.evaluate({
+        tombstoneRatio: 0.1,
+        totalEntries: 500,
+        patchesSinceCompaction: 50,
+        ticksSinceCompaction: 1000,
+      });
+
+      expect(result.shouldRun).toBe(false);
+      expect(result.reasons).toHaveLength(0);
+    });
+
+    it('returns multiple reasons when multiple thresholds exceeded', () => {
+      const result = policy.evaluate({
+        tombstoneRatio: 0.5,
+        totalEntries: 2000,
+        patchesSinceCompaction: 200,
+        ticksSinceCompaction: 5000000,
+      });
+
+      expect(result.shouldRun).toBe(true);
+      expect(result.reasons).toHaveLength(4);
+    });
+  });
+
+  describe('executeGC', () => {
+    it('removes tombstoned dots that are <= appliedVV', () => {
+      const state = createEmptyState();
+
+      // Add nodes with dots
+      const dot1 = Dot.create('A', 1);
+      const dot2 = Dot.create('A', 2);
+      const dot3 = Dot.create('B', 1);
+
+      state.nodeAlive.add('node1', dot1);
+      state.nodeAlive.add('node2', dot2);
+      state.nodeAlive.add('node3', dot3);
+
+      // Tombstone node1 and node2
+      state.nodeAlive.remove(new Set([encodeDot(dot1)]));
+      state.nodeAlive.remove(new Set([encodeDot(dot2)]));
+
+      // Verify setup
+      expect(state.nodeAlive.contains('node1')).toBe(false);
+      expect(state.nodeAlive.contains('node2')).toBe(false);
+      expect(state.nodeAlive.contains('node3')).toBe(true);
+
+      // Create VV that includes A:1 but not A:2
+      const appliedVV = VersionVector.empty();
+      appliedVV.set('A', 1);
+
+      const result = executeGC(state, appliedVV);
+
+      // dot1 (A:1) should be removed (tombstoned AND <= VV)
+      // dot2 (A:2) should remain (tombstoned but > VV)
+      // dot3 (B:1) should remain (not tombstoned)
+      expect(result.nodesCompacted).toBe(1);
+      expect(result.tombstonesRemoved).toBe(1);
+
+      // node1 entry should be gone entirely
+      expect(state.nodeAlive.entries.has('node1')).toBe(false);
+      // node2 entry should still exist with tombstoned dot
+      expect(state.nodeAlive.entries.has('node2')).toBe(true);
+      // node3 should still be alive
+      expect(state.nodeAlive.contains('node3')).toBe(true);
+    });
+
+    it('preserves live dots even if <= appliedVV', () => {
+      const state = createEmptyState();
+
+      const dot1 = Dot.create('A', 1);
+      const dot2 = Dot.create('A', 2);
+
+      state.nodeAlive.add('node1', dot1);
+      state.nodeAlive.add('node2', dot2);
+
+      const appliedVV = VersionVector.empty();
+      appliedVV.set('A', 5);
+
+      const result = executeGC(state, appliedVV);
+
+      expect(result.nodesCompacted).toBe(0);
+      expect(result.tombstonesRemoved).toBe(0);
+      expect(state.nodeAlive.contains('node1')).toBe(true);
+      expect(state.nodeAlive.contains('node2')).toBe(true);
+    });
+
+    it('returns accurate stats for edges', () => {
+      const state = createEmptyState();
+
+      const dot1 = Dot.create('A', 1);
+      const dot2 = Dot.create('A', 2);
+
+      state.edgeAlive.add('edge1', dot1);
+      state.edgeAlive.add('edge2', dot2);
+
+      state.edgeAlive.remove(new Set([encodeDot(dot1)]));
+
+      const appliedVV = VersionVector.empty();
+      appliedVV.set('A', 1);
+
+      const result = executeGC(state, appliedVV);
+
+      expect(result.edgesCompacted).toBe(1);
+      expect(result.nodesCompacted).toBe(0);
+      expect(result.tombstonesRemoved).toBe(1);
+      expect(result.tombstonesRemoved).toBe(1);
+    });
+
+    it('throws E_GC_INVALID_VV when appliedVV is not a VersionVector', () => {
+      const state = createEmptyState();
+
+      // This test exists precisely to verify the runtime guard that
+      // catches non-VersionVector input. We intentionally invoke
+      // executeGC with values the compiler would reject, and rely on
+      // `@ts-expect-error` to assert the violation is intentional and
+      // well-understood.
+      const bads: readonly unknown[] = [{}, null, undefined];
+      for (const bad of bads) {
+        expect(() => {
+          // @ts-expect-error — runtime guard test: deliberately passes non-VersionVector
+          executeGC(state, bad);
+        }).toThrow(WarpError);
+        try {
+          // @ts-expect-error — runtime guard test: deliberately passes non-VersionVector
+          executeGC(state, bad);
+        } catch (err) {
+          if (err instanceof WarpError) {
+            expect(err.code).toBe('E_GC_INVALID_VV');
+          }
+        }
+      }
+    });
+
+    it('compacts both nodes and edges in one call', () => {
+      const state = createEmptyState();
+
+      const dot1 = Dot.create('A', 1);
+      const dot2 = Dot.create('A', 2);
+
+      state.nodeAlive.add('node1', dot1);
+      state.edgeAlive.add('edge1', dot2);
+
+      state.nodeAlive.remove(new Set([encodeDot(dot1)]));
+      state.edgeAlive.remove(new Set([encodeDot(dot2)]));
+
+      const appliedVV = VersionVector.empty();
+      appliedVV.set('A', 5);
+
+      const result = executeGC(state, appliedVV);
+
+      expect(result.nodesCompacted).toBe(1);
+      expect(result.edgesCompacted).toBe(1);
+      expect(result.tombstonesRemoved).toBe(2);
+    });
+  });
+});
+
+describe('GCMetrics', () => {
+  describe('countEntries', () => {
+    it('counts total dots across all elements', () => {
+      const state = createEmptyState();
+
+      state.nodeAlive.add('node1', Dot.create('A', 1));
+      state.nodeAlive.add('node1', Dot.create('B', 1));
+      state.nodeAlive.add('node2', Dot.create('A', 2));
+
+      expect(state.nodeAlive.countEntries()).toBe(3);
+    });
+
+    it('returns 0 for empty ORSet', () => {
+      const state = createEmptyState();
+      expect(state.nodeAlive.countEntries()).toBe(0);
+    });
+  });
+
+  describe('countLiveDots', () => {
+    it('excludes tombstoned dots from count', () => {
+      const state = createEmptyState();
+
+      const dot1 = Dot.create('A', 1);
+      const dot2 = Dot.create('A', 2);
+      const dot3 = Dot.create('A', 3);
+
+      state.nodeAlive.add('node1', dot1);
+      state.nodeAlive.add('node2', dot2);
+      state.nodeAlive.add('node3', dot3);
+
+      state.nodeAlive.remove(new Set([encodeDot(dot2)]));
+
+      expect(state.nodeAlive.countLiveDots()).toBe(2);
+    });
+  });
+
+  describe('countTombstones', () => {
+    it('counts only tombstones that match entry dots', () => {
+      const state = createEmptyState();
+
+      const dot1 = Dot.create('A', 1);
+      const dot2 = Dot.create('A', 2);
+
+      state.nodeAlive.add('node1', dot1);
+      state.nodeAlive.add('node2', dot2);
+
+      state.nodeAlive.remove(new Set([encodeDot(dot1)]));
+
+      expect(state.nodeAlive.countTombstones()).toBe(1);
+    });
+  });
+
+  describe('GCMetrics.fromState', () => {
+    it('calculates correct tombstone ratio', () => {
+      const state = createEmptyState();
+
+      const dot0 = Dot.create('A', 1);
+      const dots = [
+        dot0,
+        Dot.create('A', 2),
+        Dot.create('A', 3),
+        Dot.create('A', 4),
+      ];
+
+      dots.forEach((dot, i) => {
+        state.nodeAlive.add(`node${i}`, dot);
+      });
+
+      state.nodeAlive.remove(new Set([encodeDot(dot0)]));
+
+      const metrics = GCMetrics.fromState(state);
+
+      expect(metrics.nodeEntries).toBe(4);
+      expect(metrics.nodeLiveDots).toBe(3);
+      expect(metrics.nodeTombstones).toBe(1);
+      expect(metrics.totalEntries).toBe(4);
+      expect(metrics.totalLiveDots).toBe(3);
+      expect(metrics.totalTombstones).toBe(1);
+      expect(metrics.tombstoneRatio).toBe(0.25);
+    });
+
+    it('returns 0 ratio for empty state', () => {
+      const state = createEmptyState();
+      const metrics = GCMetrics.fromState(state);
+
+      expect(metrics.tombstoneRatio).toBe(0);
+      expect(metrics.totalEntries).toBe(0);
+      expect(metrics.totalLiveDots).toBe(0);
+      expect(metrics.totalTombstones).toBe(0);
+    });
+
+    it('handles mixed nodes and edges', () => {
+      const state = createEmptyState();
+
+      const nodeDot1 = Dot.create('A', 1);
+      const nodeDot2 = Dot.create('A', 2);
+      const edgeDot1 = Dot.create('B', 1);
+      const edgeDot2 = Dot.create('B', 2);
+
+      state.nodeAlive.add('node1', nodeDot1);
+      state.nodeAlive.add('node2', nodeDot2);
+      state.edgeAlive.add('edge1', edgeDot1);
+      state.edgeAlive.add('edge2', edgeDot2);
+
+      state.nodeAlive.remove(new Set([encodeDot(nodeDot1)]));
+      state.edgeAlive.remove(new Set([encodeDot(edgeDot1)]));
+
+      const metrics = GCMetrics.fromState(state);
+
+      expect(metrics.nodeEntries).toBe(2);
+      expect(metrics.edgeEntries).toBe(2);
+      expect(metrics.totalEntries).toBe(4);
+
+      expect(metrics.nodeLiveDots).toBe(1);
+      expect(metrics.edgeLiveDots).toBe(1);
+      expect(metrics.totalLiveDots).toBe(2);
+
+      expect(metrics.nodeTombstones).toBe(1);
+      expect(metrics.edgeTombstones).toBe(1);
+      expect(metrics.totalTombstones).toBe(2);
+
+      expect(metrics.tombstoneRatio).toBe(0.5);
+    });
+  });
+});

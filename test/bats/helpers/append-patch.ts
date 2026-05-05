@@ -1,0 +1,19 @@
+/**
+ * Appends a small patch to the demo graph to advance the frontier.
+ *
+ * Used by BATS time-travel tests to verify seek diffs are suppressed when
+ * the frontier changes between cursor snapshots.
+ *
+ * Expects:
+ *  - REPO_PATH env var
+ *  - PROJECT_ROOT env var (set by setup.bash)
+ */
+
+import { openGraph } from './seed-setup.ts';
+
+const graph = await openGraph('demo', 'alice');
+
+const patch = await graph.createPatch();
+await patch
+  .setProperty('user:alice', 'role', 'ops')
+  .commit();

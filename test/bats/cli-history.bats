@@ -36,8 +36,7 @@ assert lamports == [1, 2]
 PY
 }
 
-@test "history --view ascii produces output" {
+@test "history --view ascii is rejected with migration guidance" {
   run git warp --repo "${TEST_REPO}" --graph demo --writer alice --view history
-  assert_success
-  [ -n "$output" ]
+  assert_view_removed
 }

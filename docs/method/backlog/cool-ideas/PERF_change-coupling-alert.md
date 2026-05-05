@@ -1,3 +1,10 @@
+---
+id: PERF_change-coupling-alert
+blocked_by: []
+blocks: []
+feature: materialization-query-index
+---
+
 # CI alert when change-coupling score increases
 
 ## Idea

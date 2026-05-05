@@ -1,9 +1,18 @@
 {
   "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noImplicitAny": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
   "include": [
-    "test/**/*.js",
-    "src/globals.d.ts",
-    "src/domain/warp/_wiredMethods.d.ts"
+    "test/**/*.ts",
+    "src/**/*.ts",
+    "src/globals.d.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "test/type-check",
+    "test/runtime/deno"
+  ]
 }

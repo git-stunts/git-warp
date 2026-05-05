@@ -1,3 +1,12 @@
+---
+id: DX_observer-first-guide
+feature: observer-admission-runtime
+blocked_by:
+  - HYGIENE_warp-doctrine-runtime-alignment
+  - PROTO_observer-plan-reading-envelopes
+blocks: []
+---
+
 # Guide: Observer-First Client Pattern
 
 **Effort:** M

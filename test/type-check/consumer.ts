@@ -1,30 +1,11 @@
 /**
  * Consumer smoke test -- compile-only.
  *
- * Exercises the public type surface of @git-stunts/git-warp.
- * This file is NEVER executed; it just needs to compile.
- *
- * @see contracts/type-surface.m8.json
+ * Exercises the current package-root API surface of @git-stunts/git-warp.
+ * This file is not executed; the TypeScript compiler is the test.
  */
 
-import WarpApp, {
-  WarpApp as WarpAppNamed,
-  WarpCore,
-  GraphPersistencePort,
-  IndexStoragePort,
-  LoggerPort,
-  ClockPort,
-  CryptoPort,
-  SeekCachePort,
-  HttpServerPort,
-  QueryBuilder,
-  Observer,
-  PatchBuilderV2,
-  PatchSession,
-  PatchV2,
-  Writer,
-  ProvenancePayload,
-  ProvenanceIndex,
+import WarpAppDefault, {
   GitGraphAdapter,
   InMemoryGraphAdapter,
   GraphNode,
@@ -32,27 +13,58 @@ import WarpApp, {
   BitmapIndexReader,
   IndexRebuildService,
   HealthCheckService,
+  HealthStatus,
   CommitDagTraversalService,
-  ContentAttachmentOptions,
-  ContentMeta,
+  BisectService,
+  GraphPersistencePort,
+  IndexStoragePort,
+  LoggerPort,
   NoOpLogger,
   ConsoleLogger,
-  ClockAdapter,
-  HealthStatus,
   LogLevel,
-  TraversalError,
-  OperationAbortedError,
+  SeekCachePort,
+  BlobStoragePort,
+  InMemoryBlobStorageAdapter,
+  CryptoPort,
+  HttpServerPort,
+  NodeCryptoAdapter,
+  WebCryptoAdapter,
+  BunHttpAdapter,
+  DenoHttpAdapter,
+  AuditError,
+  EncryptionError,
+  PatchError,
   ForkError,
+  IndexError,
   QueryError,
-  SyncError,
-  WormholeError,
   SchemaUnsupportedError,
   ShardLoadError,
   ShardCorruptionError,
   ShardValidationError,
   StorageError,
+  TraversalError,
+  OperationAbortedError,
+  SyncError,
+  StrandError,
+  WormholeError,
+  WriterError,
   checkAborted,
   createTimeoutSignal,
+  openWarpGraph,
+  WarpApp,
+  WarpCore,
+  Worldline,
+  WorldlineSelector,
+  LiveSelector,
+  CoordinateSelector,
+  StrandSelector,
+  QueryBuilder,
+  Observer,
+  PatchBuilder,
+  PatchSession,
+  Writer,
+  ProvenanceIndex,
+  computeTranslationCost,
   createNodeAdd,
   createNodeTombstone,
   createEdgeAdd,
@@ -60,616 +72,471 @@ import WarpApp, {
   createPropSet,
   createInlineValue,
   createBlobValue,
-  createEventId,
+  encodeEdgePropKey,
+  decodeEdgePropKey,
+  isEdgePropKey,
+  CONTENT_PROPERTY_KEY,
+  WarpStateIndexBuilder,
+  buildWarpStateIndex,
+  computeStateHash,
+  projectState,
+  createStateReader,
+  compareVisibleState,
+  ImmutableBytes,
+  SnapshotORSet,
+  SnapshotVersionVector,
+  SnapshotWarpState,
+  SyncSecret,
+  normalizeVisibleStateScope,
+  scopeMaterializedState,
+  exportCoordinateComparisonFact,
+  exportCoordinateTransferPlanFact,
   createTickReceipt,
   tickReceiptCanonicalJson,
   TICK_RECEIPT_OP_TYPES,
   TICK_RECEIPT_RESULT_TYPES,
+  ProvenancePayload,
+  BTR,
   createBTR,
   verifyBTR,
   replayBTR,
-  serializeBTR,
-  deserializeBTR,
   createWormhole,
   composeWormholes,
   replayWormhole,
   serializeWormhole,
   deserializeWormhole,
+  EffectSinkPort,
+  MultiplexSink,
+  EffectPipeline,
+  createEffectEmission,
+  canonicalEmissionJson,
+  createDeliveryObservation,
+  canonicalObservationJson,
+  createExternalizationPolicy,
+  DELIVERY_MODES,
+  DELIVERY_OUTCOMES,
+  LIVE_LENS,
+  REPLAY_LENS,
+  INSPECT_LENS,
+  NoOpEffectSink,
+  ConsoleEffectSink,
+  ChunkEffectSink,
+  type PropValue,
+  type SnapshotPropValue,
+  type SyncRateLimitConfig,
+} from '../../index.ts';
+
+import {
+  WarpError as BrowserWarpError,
+  VersionVector as BrowserVersionVector,
+  generateWriterId as browserGenerateWriterId,
+} from '../../browser.ts';
+
+type PublicPropBag = Readonly<{ [key: string]: SnapshotPropValue }>;
+type PublicVisibleEdge = Readonly<{
+  from: string;
+  to: string;
+  label: string;
+  props: PublicPropBag;
+}>;
+
+declare const persistence: GraphPersistencePort;
+declare const indexStorage: IndexStoragePort;
+declare const logger: LoggerPort;
+declare const crypto: CryptoPort;
+declare const seekCache: SeekCachePort;
+declare const httpPort: HttpServerPort;
+declare const liveState: Parameters<typeof createStateReader>[0];
+declare const btrCodecOptions: Parameters<typeof createBTR>[2];
+declare const btrVerifyOptions: Parameters<typeof verifyBTR>[2];
+
+const sameAppCtor: typeof WarpAppDefault = WarpApp;
+
+const exportedRuntimeSurface = [
+  GitGraphAdapter,
+  InMemoryGraphAdapter,
+  GraphNode,
+  BitmapIndexBuilder,
+  BitmapIndexReader,
+  IndexRebuildService,
+  HealthCheckService,
+  HealthStatus,
+  CommitDagTraversalService,
+  BisectService,
+  GraphPersistencePort,
+  IndexStoragePort,
+  LoggerPort,
+  NoOpLogger,
+  ConsoleLogger,
+  LogLevel,
+  SeekCachePort,
+  BlobStoragePort,
+  InMemoryBlobStorageAdapter,
+  CryptoPort,
+  HttpServerPort,
+  NodeCryptoAdapter,
+  WebCryptoAdapter,
+  BunHttpAdapter,
+  DenoHttpAdapter,
+  AuditError,
+  EncryptionError,
+  PatchError,
+  ForkError,
+  IndexError,
+  QueryError,
+  SchemaUnsupportedError,
+  ShardLoadError,
+  ShardCorruptionError,
+  ShardValidationError,
+  StorageError,
+  TraversalError,
+  OperationAbortedError,
+  SyncError,
+  StrandError,
+  WormholeError,
+  WriterError,
+  openWarpGraph,
+  WarpApp,
+  WarpCore,
+  Worldline,
+  WorldlineSelector,
+  LiveSelector,
+  CoordinateSelector,
+  StrandSelector,
+  QueryBuilder,
+  Observer,
+  PatchBuilder,
+  PatchSession,
+  Writer,
+  ProvenanceIndex,
+  WarpStateIndexBuilder,
+  ImmutableBytes,
+  SnapshotORSet,
+  SnapshotVersionVector,
+  SnapshotWarpState,
+  ProvenancePayload,
+  BTR,
+  EffectSinkPort,
+  MultiplexSink,
+  EffectPipeline,
+  NoOpEffectSink,
+  ConsoleEffectSink,
+  ChunkEffectSink,
+] as const;
+
+const exportedFunctionSurface = [
+  checkAborted,
+  createTimeoutSignal,
   computeTranslationCost,
-  createStateReaderV5,
-  compareVisibleStateV5,
-  exportCoordinateComparisonFact,
-  exportCoordinateTransferPlanFact,
-  migrateV4toV5,
+  createNodeAdd,
+  createNodeTombstone,
+  createEdgeAdd,
+  createEdgeTombstone,
+  createPropSet,
+  createInlineValue,
+  createBlobValue,
   encodeEdgePropKey,
   decodeEdgePropKey,
   isEdgePropKey,
+  buildWarpStateIndex,
+  computeStateHash,
+  projectState,
+  createStateReader,
+  compareVisibleState,
+  normalizeVisibleStateScope,
+  scopeMaterializedState,
+  exportCoordinateComparisonFact,
+  exportCoordinateTransferPlanFact,
+  createTickReceipt,
+  tickReceiptCanonicalJson,
+  createBTR,
+  verifyBTR,
+  replayBTR,
+  createWormhole,
+  composeWormholes,
+  replayWormhole,
+  serializeWormhole,
+  deserializeWormhole,
+  createEffectEmission,
+  canonicalEmissionJson,
+  createDeliveryObservation,
+  canonicalObservationJson,
+  createExternalizationPolicy,
+] as const;
+
+const exportedConstantSurface = [
   CONTENT_PROPERTY_KEY,
-} from '../../index.js';
+  TICK_RECEIPT_OP_TYPES,
+  TICK_RECEIPT_RESULT_TYPES,
+  DELIVERY_MODES,
+  DELIVERY_OUTCOMES,
+  LIVE_LENS,
+  REPLAY_LENS,
+  INSPECT_LENS,
+] as const;
 
-import type {
-  WarpStateV5,
-  TickReceipt,
-  Aperture,
-  ObserverConfig,
-  PingResult,
-  RepositoryHealth,
-  IndexHealth,
-  TranslationCostResult,
-  TranslationCostBreakdown,
-  StateDiffResult,
-  WarpStatus,
-  SyncRequest,
-  SyncResponse,
-  ApplySyncResult,
-  GCPolicyConfig,
-  GCExecuteResult,
-  GCMetrics,
-  MaybeGCResult,
-  JoinReceipt,
-  BTR,
-  BTRVerificationResult,
-  WormholeEdge,
-  PatchEntry,
-  VisibleNodeViewV5,
-  VisibleStateComparisonV5,
-  VisibleStateNeighborV5,
-  VisibleStateReaderV5,
-  CoordinateComparisonSelectorV1,
-  CoordinateComparisonV1,
-  CoordinateComparisonFactExportV1,
-  CoordinateTransferPlanV1,
-  CoordinateTransferPlanFactExportV1,
-  StrandBraidOptions,
-  StrandDescriptor,
-  LogicalTraversal,
-  TraversalDirection,
-  TraversalNode,
-  TraversalOptions,
-  PathOptions,
-  PathResult,
-  QueryNodeSnapshot,
-  QueryResultV1,
-  TemporalQuery,
-  SyncAuthServerOptions,
-  SyncAuthClientOptions,
-  RebuildOptions,
-  OpNodeAdd,
-  OpNodeTombstone,
-  OpEdgeAdd,
-  OpEdgeTombstone,
-  OpPropSet,
-  PropSet,
-  PropRemoved,
-  ValueRefInline,
-  ValueRefBlob,
-  ValueRef,
-  EventId,
-  CreateWormholeOptions,
-  ComposeWormholesOptions,
-  VerifyBTROptions,
-  WeightedCostSelector,
-  TickReceiptOpType,
-  TickReceiptResult,
-  ConflictAnalysis,
-  ConflictKind,
-  ConflictTargetSelector,
-} from '../../index.js';
+void sameAppCtor;
+void exportedRuntimeSurface;
+void exportedFunctionSurface;
+void exportedConstantSurface;
 
-// ---------------------------------------------------------------------------
-// Positive tests -- must compile
-// Top-level groups: ═══ banner ═══  |  Subsections: ---- label ----
-// ---------------------------------------------------------------------------
-
-declare const persistence: GraphPersistencePort;
-declare const logger: LoggerPort;
-declare const clock: ClockPort;
-declare const crypto: CryptoPort;
-declare const seekCache: SeekCachePort;
-
-const _sameAppCtor: typeof WarpApp = WarpAppNamed;
-
-// Verify imported classes/ports are usable as types
-declare const _idxStorage: IndexStoragePort;
-declare const _schemaErr: SchemaUnsupportedError;
-declare const _shardLoadErr: ShardLoadError;
-declare const _shardCorruptErr: ShardCorruptionError;
-declare const _shardValErr: ShardValidationError;
-declare const _storageErr: StorageError;
-
-// WarpApp.open() — curated product-facing options
 const app: WarpApp = await WarpApp.open({
-  graphName: 'test',
+  graphName: 'consumer-test',
   persistence,
-  writerId: 'w1',
+  writerId: 'writer-1',
   logger,
-  clock,
   crypto,
   seekCache,
   autoMaterialize: true,
   onDeleteWithData: 'reject',
   trust: { mode: 'off' },
 });
+
 const graph: WarpCore = app.core();
-
-// ---- additional type-only surface coverage ----
-const ping: PingResult = { ok: true, latencyMs: 1 };
-const repoHealth: RepositoryHealth = { status: 'healthy', latencyMs: ping.latencyMs };
-const indexHealth: IndexHealth = { status: 'healthy', loaded: true, shardCount: 1 };
-const rebuildOptions: RebuildOptions = {
-  limit: 10,
-  maxMemoryBytes: 1024,
-  onFlush: ({ flushedBytes, totalFlushedBytes, flushCount }) => {
-    const _: [number, number, number] = [flushedBytes, totalFlushedBytes, flushCount];
-    return _;
-  },
-  onProgress: ({ processedNodes, currentMemoryBytes }) => {
-    const _: [number, number | null] = [processedNodes, currentMemoryBytes];
-    return _;
-  },
-};
-const traversalDirection: TraversalDirection = 'forward';
-const traversalNode: TraversalNode = { sha: 'abc123', depth: 0, parent: null };
-const traversalOptions: TraversalOptions = { start: traversalNode.sha, direction: traversalDirection, maxDepth: 2 };
-const pathOptions: PathOptions = { from: 'a', to: 'b', maxDepth: 4, maxNodes: 100 };
-const pathResult: PathResult = { found: true, path: ['a', 'b'], length: 1 };
-const queryNodeSnapshot: QueryNodeSnapshot = {
-  id: 'user:alice',
-  props: { name: 'Alice' },
-  edgesOut: [{ label: 'follows', to: 'user:bob' }],
-  edgesIn: [],
-};
-const queryResultV1: QueryResultV1 = {
-  stateHash: 'deadbeef',
-  nodes: [{ id: queryNodeSnapshot.id, props: queryNodeSnapshot.props }],
-};
-const weightedCostSelector: WeightedCostSelector = { weightFn: (_from, _to, _label) => 1 };
-const translationCostBreakdown: TranslationCostBreakdown = { nodeLoss: 0, edgeLoss: 0, propLoss: 0 };
-const publicAperture: Aperture = { match: 'user:*', redact: ['ssn'] };
-const legacyObserverConfig: ObserverConfig = publicAperture;
-const propSet: PropSet = { key: 'node\0name', nodeId: 'user:alice', propKey: 'name', oldValue: 'A', newValue: 'B' };
-const propRemoved: PropRemoved = { key: 'node\0age', nodeId: 'user:alice', propKey: 'age', oldValue: 42 };
-const valueRef: ValueRef = Math.random() > -1 ? { type: 'inline', value: 'x' } : { type: 'blob', oid: 'abc123' };
-const verifyBTROptions: VerifyBTROptions = { verifyReplay: true, crypto };
-const _typeCoverageTuple: [
-  RebuildOptions,
-  TraversalOptions,
-  PathOptions,
-  PathResult,
-  QueryResultV1,
-  WeightedCostSelector,
-  TranslationCostBreakdown,
-  Aperture,
-  PropSet,
-  PropRemoved,
-  ValueRef,
-  VerifyBTROptions,
-] = [
-  rebuildOptions,
-  traversalOptions,
-  pathOptions,
-  pathResult,
-  queryResultV1,
-  weightedCostSelector,
-  translationCostBreakdown,
-  publicAperture,
-  propSet,
-  propRemoved,
-  valueRef,
-  verifyBTROptions,
-];
-
-// ---- createPatch -> PatchBuilderV2 ----
-const pb: PatchBuilderV2 = await graph.createPatch();
-const _chain: PatchBuilderV2 = pb.addNode('n1').addEdge('n1', 'n2', 'knows').setProperty('n1', 'name', 'Alice');
-const _edgeProp: PatchBuilderV2 = pb.setEdgeProperty('n1', 'n2', 'knows', 'weight', 0.5);
-const patch: PatchV2 = pb.build();
-const _sha: string = await pb.commit();
-const _opCount: number = pb.opCount;
-
-// ---- patch() convenience ----
-const sha2: string = await graph.patch((p: PatchBuilderV2) => {
-  p.addNode('n3');
+const graphBag = await openWarpGraph({
+  persistence,
+  graphName: 'consumer-test',
+  writerId: 'writer-2',
+  logger,
+  crypto,
+  seekCache,
+  trust: { mode: 'off' },
 });
 
-// ---- materialize overloads ----
-const state: WarpStateV5 = await graph.materialize();
-const stateReader: VisibleStateReaderV5 = createStateReaderV5(state);
-const visibleComparison: VisibleStateComparisonV5 = compareVisibleStateV5(state, state, { targetId: 'n1' });
-const readerProjection = stateReader.project();
-const readerHasNode: boolean = stateReader.hasNode('n1');
-const readerNodes: string[] = stateReader.getNodes();
-const readerEdges: Array<{ from: string; to: string; label: string; props: Record<string, unknown> }> = stateReader.getEdges();
-const readerProps: Record<string, unknown> | null = stateReader.getNodeProps('n1');
-const readerEdgeProps: Record<string, unknown> | null = stateReader.getEdgeProps('n1', 'n2', 'knows');
-const readerNeighbors: VisibleStateNeighborV5[] = stateReader.neighbors('n1', 'outgoing');
-const readerContent: ContentMeta | null = stateReader.getNodeContentMeta('n1');
-const readerEdgeContent: ContentMeta | null = stateReader.getEdgeContentMeta('n1', 'n2', 'knows');
-const readerNodeView: VisibleNodeViewV5 | null = stateReader.inspectNode('n1');
-const withReceipts: { state: WarpStateV5; receipts: TickReceipt[] } = await graph.materialize({ receipts: true });
-const conflictKinds: ConflictKind[] = ['supersession', 'redundancy'];
-const conflictTarget: ConflictTargetSelector = { targetKind: 'node_property', entityId: 'user:alice', propertyKey: 'name' };
-const conflictAnalysis: ConflictAnalysis = await graph.analyzeConflicts({
-  at: { lamportCeiling: 10 },
-  kind: conflictKinds,
-  target: conflictTarget,
-  evidence: 'standard',
-  scanBudget: { maxPatches: 32 },
-});
-const _conflictId: string | undefined = conflictAnalysis.conflicts[0]?.conflictId;
-const _conflictStrandMetadata: [boolean | undefined, string[] | undefined] = [
-  conflictAnalysis.resolvedCoordinate.strand?.overlayWritable,
-  conflictAnalysis.resolvedCoordinate.strand?.braid.braidedStrandIds,
-];
-const compareLeft: CoordinateComparisonSelectorV1 = { kind: 'live' };
-const compareRight: CoordinateComparisonSelectorV1 = { kind: 'coordinate', frontier: { alice: 'abc123def456' }, ceiling: null };
-const coordinateComparison: CoordinateComparisonV1 = await graph.compareCoordinates({
-  left: compareLeft,
-  right: compareRight,
-  targetId: 'n1',
-});
-const braidOptions: StrandBraidOptions = {
-  braidedStrandIds: ['ws_support'],
-  writable: false,
-};
-const strandDescriptor: StrandDescriptor = await graph.createStrand({
-  strandId: 'ws_demo',
-});
-const braidedStrandDescriptor: StrandDescriptor = await graph.braidStrand(
-  'ws_demo',
-  braidOptions,
-);
-const strandComparison: CoordinateComparisonV1 = await graph.compareStrand('ws_demo', {
-  against: 'base',
-  targetId: 'n1',
-});
-const strandTransferPlan: CoordinateTransferPlanV1 = await graph.planStrandTransfer('ws_demo', {
-  into: 'live',
-});
-const coordinateTransferPlan: CoordinateTransferPlanV1 = await graph.planCoordinateTransfer({
-  source: { kind: 'strand', strandId: 'ws_demo' },
-  target: { kind: 'live' },
-});
-const coordinateComparisonFactExport: CoordinateComparisonFactExportV1 = exportCoordinateComparisonFact(coordinateComparison);
-const coordinateTransferPlanFactExport: CoordinateTransferPlanFactExportV1 = exportCoordinateTransferPlanFact(coordinateTransferPlan);
-const _comparisonDigestPair: [string, string] = [
-  coordinateComparison.comparisonDigest,
-  strandComparison.comparisonDigest,
-];
-const _transferDigestPair: [string, string] = [
-  strandTransferPlan.transferDigest,
-  coordinateTransferPlan.transferDigest,
-];
-const _factExportPair: [string, string] = [
-  coordinateComparisonFactExport.factDigest,
-  coordinateTransferPlanFactExport.factDigest,
-];
-const _strandDescriptorTuple: [boolean, string[]] = [
-  braidedStrandDescriptor.overlay.writable,
-  braidedStrandDescriptor.braid.readOverlays.map(({ strandId }) => strandId),
-];
-const _strandGraphName: string = strandDescriptor.graphName;
-const _comparisonStrandMetadata: [boolean | undefined, string[] | undefined] = [
-  strandComparison.left.resolved.strand?.overlayWritable,
-  strandComparison.left.resolved.strand?.braid.braidedStrandIds,
-];
-const _transferPlanShape: [boolean, number, Uint8Array | undefined] = [
-  strandTransferPlan.changed,
-  coordinateTransferPlan.summary.opCount,
-  coordinateTransferPlan.ops.find((op) => op.op === 'attach_node_content')?.content,
-];
+const graphName: string = graph.graphName;
+const writerId: string = graph.writerId;
+const graphBagName: string = graphBag.graphName;
+const graphBagWriter: string = graphBag.writerId;
+void graphName;
+void writerId;
+void graphBagName;
+void graphBagWriter;
 
-// ---- materializeAt ----
-const atState: WarpStateV5 = await graph.materializeAt('abc123');
+const materialized: SnapshotWarpState = await graph.materialize();
+const materializedWithReceipts: { state: SnapshotWarpState; receipts: readonly ReturnType<typeof createTickReceipt>[] } =
+  await graph.materialize({ receipts: true });
+const stateSnapshot: SnapshotWarpState | null = await graph.getStateSnapshot();
+const graphBagStateSnapshot: SnapshotWarpState | null = await graphBag.query.getStateSnapshot();
+const graphBagNodeProps: PublicPropBag | null = await graphBag.query.getNodeProps('node-a');
+const graphBagQueryBuilder: QueryBuilder = graphBag.query.query();
+const graphBagWorldline: Worldline = graphBag.query.worldline();
+const graphBagObserver: Observer = await graphBag.query.observer({ match: '*' });
+const nodeAlive: SnapshotORSet = materialized.nodeAlive;
+const observedFrontier: SnapshotVersionVector = materialized.observedFrontier;
+const snapshotValue: SnapshotPropValue | undefined = [...materialized.prop.values()][0]?.value;
+const propValue: PropValue = new Uint8Array([1, 2, 3]);
 
-// ---- query methods ----
-const nodes: string[] = await graph.getNodes();
-const hasIt: boolean = await graph.hasNode('n1');
-const props: Record<string, unknown> | null = await graph.getNodeProps('n1');
-const edgeProps: Record<string, unknown> | null = await graph.getEdgeProps('n1', 'n2', 'knows');
-const neighbors: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }> = await graph.neighbors('n1');
-const propCount: number = await graph.getPropertyCount();
-const snapshot: WarpStateV5 | null = await graph.getStateSnapshot();
-const edges: Array<{ from: string; to: string; label: string; props: Record<string, unknown> }> = await graph.getEdges();
-
-// ---- content attachment ----
-const contentOid: string | null = await graph.getContentOid('n1');
-const contentMeta: ContentMeta | null = await graph.getContentMeta('n1');
-const contentBuf: Uint8Array | null = await graph.getContent('n1');
-const edgeContentOid: string | null = await graph.getEdgeContentOid('n1', 'n2', 'knows');
-const edgeContentMeta: ContentMeta | null =
-  await graph.getEdgeContentMeta('n1', 'n2', 'knows');
-const edgeContentBuf: Uint8Array | null = await graph.getEdgeContent('n1', 'n2', 'knows');
-const contentOptions: ContentAttachmentOptions = { mime: 'text/plain', size: 5 };
-const _attachResult: PatchBuilderV2 = await pb.attachContent('n1', 'hello', contentOptions);
-const _attachEdgeResult: PatchBuilderV2 = await pb.attachEdgeContent('n1', 'n2', 'knows', new TextEncoder().encode('data'));
-const _contentKey: '_content' = CONTENT_PROPERTY_KEY;
-
-// ---- query builder ----
-const qb: QueryBuilder = graph.query();
-
-// ---- observer ----
-const obs: Observer = await graph.observer('obs1', { match: '*' });
-const obsDefault: Observer = await graph.observer({ match: '*' });
-const obsNodes: string[] = await obs.getNodes();
-const obsHas: boolean = await obs.hasNode('n1');
-const obsProps: Record<string, unknown> | null = await obs.getNodeProps('n1');
-const obsEdges: Array<{ from: string; to: string; label: string; props: Record<string, unknown> }> = await obs.getEdges();
-const obsQb: QueryBuilder = obs.query();
-const obsTraverse: LogicalTraversal = obs.traverse;
-const obsName: string = obs.name;
-const obsDefaultName: string = obsDefault.name;
-
-const worldline = graph.worldline();
-const worldlineObs: Observer = await worldline.observer({ match: '*' });
-const worldlineObsNamed: Observer = await worldline.observer('users', { match: '*' });
-
-// ---- translationCost (instance method) ----
-const costResult: TranslationCostResult = await graph.translationCost(publicAperture, legacyObserverConfig);
-
-// ---- writer ----
-const w: Writer = await graph.writer();
-const wWithId: Writer = await graph.writer('custom-writer');
-const wSha: string = await w.commitPatch((p) => { p.addNode('n10'); });
-const wHead: string | null = await w.head();
-const wPs: PatchSession = await w.beginPatch();
-const wWriterId: string = w.writerId;
-const wGraphName: string = w.graphName;
-
-// ---- PatchSession methods ----
-const ps: PatchSession = await w.beginPatch();
-const ps2: PatchSession = ps.addNode('x').removeNode('y').addEdge('a', 'b', 'c').removeEdge('a', 'b', 'c');
-const ps3: PatchSession = ps.setProperty('x', 'k', 'v').setEdgeProperty('a', 'b', 'c', 'k', 'v');
-const psPatch: PatchV2 = ps.build();
-const psSha: string = await ps.commit();
-const psOpCount: number = ps.opCount;
-const psAttach: PatchSession = await ps.attachContent('x', 'content', { mime: 'text/plain', size: 7 });
-const psAttachEdge: PatchSession = await ps.attachEdgeContent('a', 'b', 'c', 'content', { size: 7 });
-
-// ---- sync protocol ----
-const syncReq: SyncRequest = await graph.createSyncRequest();
-const syncResp: SyncResponse = await graph.processSyncRequest(syncReq);
-const applyResult: ApplySyncResult = graph.applySyncResponse(syncResp);
-const frontier: Map<string, string> = await graph.getFrontier();
-const changed: boolean = await graph.hasFrontierChanged();
-const needed: boolean = await graph.syncNeeded(frontier);
-await graph.syncCoverage();
-
-// ---- syncWith ----
-const syncResult: { applied: number; attempts: number; state?: WarpStateV5 } =
-  await graph.syncWith('http://localhost:3000', { trust: { mode: 'enforce', pin: 'abc123' } });
-const syncWithGraph: { applied: number; attempts: number; state?: WarpStateV5 } =
-  await graph.syncWith(graph, { materialize: true });
-
-// ---- serve ----
-declare const httpPort: HttpServerPort;
-const server = await graph.serve({ port: 3000, httpPort });
-const serverUrl: string = server.url;
-await server.close();
-
-// ---- discoverWriters / getWriterPatches ----
-const writers: string[] = await graph.discoverWriters();
-const writerPatches: Array<{ patch: PatchV2; sha: string }> = await graph.getWriterPatches('w1');
-const writerPatchesStopped: Array<{ patch: PatchV2; sha: string }> = await graph.getWriterPatches('w1', 'abc123');
-
-// ---- createCheckpoint ----
-const cpSha: string = await graph.createCheckpoint();
-
-// ---- provenance ----
-const patchesFor: string[] = await graph.patchesFor('n1');
-const slice = await graph.materializeSlice('n1');
-const sliceState: WarpStateV5 = slice.state;
-const slicePatchCount: number = slice.patchCount;
-const sliceWithReceipts = await graph.materializeSlice('n1', { receipts: true });
-
-// ---- fork ----
-const forked: WarpCore = await graph.fork({ from: 'w1', at: 'abc123' });
-const forkedCustom: WarpCore = await graph.fork({ from: 'w1', at: 'abc123', forkName: 'my-fork', forkWriterId: 'w2' });
-
-// ---- createWormhole (instance method) ----
-const wormhole: WormholeEdge = await graph.createWormhole('sha1', 'sha2');
-
-// ---- watch ----
-const watcher = graph.watch('user:*', { onChange: (diff: StateDiffResult) => {}, poll: 1000 });
-watcher.unsubscribe();
-
-// ---- status ----
-const status: WarpStatus = await graph.status();
-
-// ---- GC ----
-const gcMaybe: MaybeGCResult = graph.maybeRunGC();
-const gcRun: GCExecuteResult = graph.runGC();
-const gcMetrics: GCMetrics | null = graph.getGCMetrics();
-
-// ---- join ----
-const joinResult: { state: WarpStateV5; receipt: JoinReceipt } = graph.join(state);
-
-// ---- subscribe ----
-const sub = graph.subscribe({ onChange: (diff: StateDiffResult) => {} });
-sub.unsubscribe();
-
-// ---- setSeekCache ----
-graph.setSeekCache(seekCache);
-graph.setSeekCache(null);
-const sc: SeekCachePort | null = graph.seekCache;
-
-// ---- properties / getters ----
-const gName: string = graph.graphName;
-const gWriterId: string = graph.writerId;
-const gPersistence: GraphPersistencePort = graph.persistence;
-const gOnDelete: 'reject' | 'cascade' | 'warn' = graph.onDeleteWithData;
-const gGcPolicy: GCPolicyConfig = graph.gcPolicy;
-const gTemporal: TemporalQuery = graph.temporal;
-const gTraverse: LogicalTraversal = graph.traverse;
-const gClosureStream = gTraverse.transitiveClosureStream(['user:alice'], { dir: 'out', maxEdges: 10 });
-for await (const edge of gClosureStream) {
-  const _: [string, string] = [edge.from, edge.to];
-  break;
+if (snapshotValue instanceof ImmutableBytes) {
+  const bytes: Uint8Array = snapshotValue.toUint8Array();
+  const byteArray: readonly number[] = snapshotValue.toArray();
+  const byteLength: number = snapshotValue.length;
+  const firstByte: number | undefined = snapshotValue.at(0);
+  void bytes;
+  void byteArray;
+  void byteLength;
+  void firstByte;
 }
-const gProvIdx: ProvenanceIndex | null = graph.provenanceIndex;
 
-// ---------------------------------------------------------------------------
-// Standalone functions — WARP type creators
-// ---------------------------------------------------------------------------
-const na: OpNodeAdd = createNodeAdd('n1');
-const nt: OpNodeTombstone = createNodeTombstone('n1');
-const ea: OpEdgeAdd = createEdgeAdd('a', 'b', 'knows');
-const et: OpEdgeTombstone = createEdgeTombstone('a', 'b', 'knows');
-const pps: OpPropSet = createPropSet('n1', 'key', createInlineValue('val'));
-const iv: ValueRefInline = createInlineValue('hello');
-const bv: ValueRefBlob = createBlobValue('abc123');
-const eid: EventId = createEventId({ lamport: 1, writerId: 'w1', patchSha: 'abc', opIndex: 0 });
+void materializedWithReceipts;
+void stateSnapshot;
+void graphBagStateSnapshot;
+void graphBagNodeProps;
+void graphBagQueryBuilder;
+void graphBagWorldline;
+void graphBagObserver;
+void nodeAlive;
+void observedFrontier;
+void propValue;
 
-// ---------------------------------------------------------------------------
-// Standalone functions — Tick Receipts
-// ---------------------------------------------------------------------------
+const nodeProps: PublicPropBag | null = await graph.getNodeProps('node-a');
+const edgeProps: PublicPropBag | null = await graph.getEdgeProps('node-a', 'node-b', 'knows');
+const edges: PublicVisibleEdge[] = await graph.getEdges();
+const neighbors: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }> =
+  await graph.neighbors('node-a');
+const propertyCount: number = await graph.getPropertyCount();
+const queryBuilder: QueryBuilder = graph.query();
+const observer: Observer = await graph.observer({ match: '*' });
+const worldline: Worldline = graph.worldline();
+
+void nodeProps;
+void edgeProps;
+void edges;
+void neighbors;
+void propertyCount;
+void queryBuilder;
+void observer;
+void worldline;
+
+const patchBuilder: PatchBuilder = await graph.createPatch();
+const chainedPatchBuilder: PatchBuilder = patchBuilder
+  .addNode('node-a')
+  .addEdge('node-a', 'node-b', 'knows')
+  .setProperty('node-a', 'name', 'Alice');
+const builtPatch = patchBuilder.build();
+const committedSha: string = await patchBuilder.commit();
+const patchSha: string = await graph.patch((patch) => {
+  patch.addNode('node-c');
+});
+const writer: Writer = await graph.writer();
+const patchSession: PatchSession = await writer.beginPatch();
+const patchSessionSha: string = await patchSession.addNode('node-d').commit();
+
+void chainedPatchBuilder;
+void builtPatch;
+void committedSha;
+void patchSha;
+void patchSessionSha;
+
+const inlineValue = createInlineValue('value');
+const blobValue = createBlobValue('oid');
+const nodeAdd = createNodeAdd('node-a');
+const nodeTombstone = createNodeTombstone('node-a');
+const edgeAdd = createEdgeAdd('node-a', 'node-b', 'knows');
+const edgeTombstone = createEdgeTombstone('node-a', 'node-b', 'knows');
+const propSet = createPropSet('node-a', 'name', inlineValue);
+
+void blobValue;
+void nodeAdd;
+void nodeTombstone;
+void edgeAdd;
+void edgeTombstone;
+void propSet;
+
 const receipt = createTickReceipt({
-  patchSha: 'abc',
-  writer: 'w1',
+  patchSha: 'abc123',
+  writer: 'writer-1',
   lamport: 1,
-  ops: [{ op: 'NodeAdd', target: 'n1', result: 'applied' }],
+  ops: [{ op: 'NodeAdd', target: 'node-a', result: 'applied' }],
 });
 const receiptJson: string = tickReceiptCanonicalJson(receipt);
-const _opTypes: readonly TickReceiptOpType[] = TICK_RECEIPT_OP_TYPES;
-const _resultTypes: readonly TickReceiptResult[] = TICK_RECEIPT_RESULT_TYPES;
+void receiptJson;
 
-// ---------------------------------------------------------------------------
-// Standalone functions — BTR
-// ---------------------------------------------------------------------------
-declare const btrState: WarpStateV5;
-const payload = new ProvenancePayload([]);
-const btr: BTR = await createBTR(btrState, payload, { key: 'secret', crypto });
-const verified: BTRVerificationResult = await verifyBTR(btr, 'secret', { crypto });
-const replayed = await replayBTR(btr, { crypto });
-const replayedState: WarpStateV5 = replayed.state;
-const replayedHash: string = replayed.h_out;
-const btrBytes: Uint8Array = serializeBTR(btr);
-const btrBack: BTR = deserializeBTR(btrBytes);
+const payload = ProvenancePayload.identity();
+const payloadEntries = payload.entries();
+const payloadBack: ProvenancePayload = ProvenancePayload.fromEntries(payloadEntries);
+const btrRecord = await createBTR(liveState, payloadBack, btrCodecOptions);
+const btrVerified: Awaited<ReturnType<typeof verifyBTR>> = await verifyBTR(btrRecord, 'secret', btrVerifyOptions);
+const btrReplayed: Awaited<ReturnType<typeof replayBTR>> = await replayBTR(btrRecord, {
+  crypto,
+});
 
-// ---------------------------------------------------------------------------
-// Standalone functions — Wormhole
-// ---------------------------------------------------------------------------
-declare const wmOpts: CreateWormholeOptions;
-const wm: WormholeEdge = await createWormhole(wmOpts);
-declare const wm2: WormholeEdge;
-const composed: WormholeEdge = await composeWormholes(wm, wm2);
-const wmState: WarpStateV5 = replayWormhole(wm);
-const wmSerialized = serializeWormhole(wm);
-const wmBack: WormholeEdge = deserializeWormhole(wmSerialized);
+void btrVerified;
+void btrReplayed;
 
-// ---------------------------------------------------------------------------
-// Standalone functions — Migration + TranslationCost
-// ---------------------------------------------------------------------------
-const costStandalone: TranslationCostResult = computeTranslationCost(
-  { match: 'user:*' },
-  { match: 'admin:*' },
-  state,
-);
-declare const v4State: {
-  nodeAlive: Map<string, { value: boolean }>;
-  edgeAlive: Map<string, { value: boolean }>;
-  prop: Map<string, unknown>;
+const wormhole = await createWormhole({
+  persistence,
+  graphName: 'consumer-test',
+  fromSha: 'source-sha',
+  toSha: 'target-sha',
+});
+const composedWormhole = await composeWormholes(wormhole, wormhole);
+const wormholeState = replayWormhole(composedWormhole);
+const serializedWormhole = serializeWormhole(composedWormhole);
+const deserializedWormhole = deserializeWormhole(serializedWormhole);
+
+void wormholeState;
+void deserializedWormhole;
+
+const encodedEdgePropKey: string = encodeEdgePropKey('node-a', 'node-b', 'knows', 'weight');
+const decodedEdgePropKey = decodeEdgePropKey(encodedEdgePropKey);
+const edgePropKeyCheck: boolean = isEdgePropKey(encodedEdgePropKey);
+
+void decodedEdgePropKey;
+void edgePropKeyCheck;
+
+const reader = createStateReader(liveState);
+const readerProps: PublicPropBag | null = reader.getNodeProps('node-a');
+const readerEdges: PublicVisibleEdge[] = reader.getEdges();
+const comparison = compareVisibleState(liveState, liveState, { targetId: 'node-a' });
+
+void readerProps;
+void readerEdges;
+void comparison;
+
+const indexBuilder = new BitmapIndexBuilder();
+const nodeId: number = indexBuilder.registerNode('sha-a');
+indexBuilder.addEdge('sha-a', 'sha-b');
+const serializedIndex: Record<string, Uint8Array> = indexBuilder.serialize();
+const indexReader = new BitmapIndexReader({ storage: indexStorage, strict: true, logger });
+indexReader.setup({ 'meta_ab.cbor': '0123456789012345678901234567890123456789' });
+const indexedId: Promise<number | undefined> = indexReader.lookupId('sha-a');
+const parents: Promise<string[]> = indexReader.getParents('sha-a');
+const children: Promise<string[]> = indexReader.getChildren('sha-a');
+
+void nodeId;
+void serializedIndex;
+void indexedId;
+void parents;
+void children;
+
+const timeoutSignal: AbortSignal = createTimeoutSignal(1000);
+checkAborted(timeoutSignal, 'consumer-test');
+const server = await graph.serve({
+  port: 3000,
+  httpPort,
+  unsafeAllowUnauthenticatedLocalhost: true,
+});
+const serverUrl: string = server.url;
+await server.close();
+const syncSecret: SyncSecret = SyncSecret.fromString('shared-secret');
+const syncRateLimit: SyncRateLimitConfig = {
+  capacity: 20,
+  refillTokensPerSecond: 5,
+  clock: () => 0,
 };
-const migrated: WarpStateV5 = migrateV4toV5(v4State, 'migration-writer');
+const authedServer = await graph.serve({
+  port: 3001,
+  httpPort,
+  auth: { keys: { default: syncSecret }, mode: 'enforce', rateLimit: syncRateLimit },
+});
+await graph.syncWith(authedServer.url, {
+  auth: { secret: syncSecret, keyId: 'default' },
+});
+await authedServer.close();
 
-// ---------------------------------------------------------------------------
-// Classes — InMemoryGraphAdapter
-// ---------------------------------------------------------------------------
-const memAdapter = new InMemoryGraphAdapter();
-const memEmptyTree: string = memAdapter.emptyTree;
+void serverUrl;
+void syncSecret;
+void syncRateLimit;
 
-// ---------------------------------------------------------------------------
-// Classes — GitGraphAdapter
-// ---------------------------------------------------------------------------
-declare const plumbing: import('../../index.js').GitPlumbing;
-const gitAdapter = new GitGraphAdapter({ plumbing });
-const gitEmptyTree: string = gitAdapter.emptyTree;
+const browserError: BrowserWarpError = new BrowserWarpError('browser smoke', 'E_BROWSER_SMOKE');
+const browserVector: BrowserVersionVector = BrowserVersionVector.empty();
+const browserWriterId: string = browserGenerateWriterId();
 
-// ---------------------------------------------------------------------------
-// Classes — BitmapIndexBuilder + BitmapIndexReader
-// ---------------------------------------------------------------------------
-const builder = new BitmapIndexBuilder();
-const nodeId: number = builder.registerNode('sha1');
-builder.addEdge('sha1', 'sha2');
-const serialized: Promise<Record<string, Uint8Array>> = builder.serialize();
+void browserError;
+void browserVector;
+void browserWriterId;
 
-const reader = new BitmapIndexReader({ storage: gitAdapter, strict: true, logger, crypto });
-reader.setup({ 'meta_ab.json': 'oid1', 'shards_fwd_ab.json': 'oid2' });
-const lookupResult: Promise<number | undefined> = reader.lookupId('sha1');
-const parents: Promise<string[]> = reader.getParents('sha1');
-const children: Promise<string[]> = reader.getChildren('sha1');
+// Negative checks.
 
-// ---------------------------------------------------------------------------
-// Classes — ProvenancePayload
-// ---------------------------------------------------------------------------
-const emptyPayload: ProvenancePayload = ProvenancePayload.identity();
-const pp = new ProvenancePayload([]);
-const ppLen: number = pp.length;
-const ppConcat: ProvenancePayload = pp.concat(emptyPayload);
-const ppReplay: WarpStateV5 = pp.replay();
-const ppAt: PatchEntry | undefined = pp.at(0);
-const ppSlice: ProvenancePayload = pp.slice(0, 1);
-const ppJson: PatchEntry[] = pp.toJSON();
-const ppBack: ProvenancePayload = ProvenancePayload.fromJSON(ppJson);
+// @ts-expect-error materialize capability bag is not public on v17 WarpGraph.
+const badGraphBagMaterialize = graphBag.materialize;
 
-// ---------------------------------------------------------------------------
-// Classes — HealthCheckService
-// ---------------------------------------------------------------------------
-const health = new HealthCheckService({ persistence, clock, logger });
-health.setIndexReader(reader);
-const alive: Promise<boolean> = health.isAlive();
-const ready: Promise<boolean> = health.isReady();
+// @ts-expect-error nested materialize frontdoor is not public on v17 WarpGraph.
+const badGraphBagNestedMaterialize = graphBag.materialize.materialize;
 
-// ---------------------------------------------------------------------------
-// Classes — Writer (explicit method types)
-// ---------------------------------------------------------------------------
-const writerHead: Promise<string | null> = w.head();
-const writerBegin: Promise<PatchSession> = w.beginPatch();
-const writerCommit: Promise<string> = w.commitPatch((p) => { p.addNode('test'); });
+// @ts-expect-error query readings do not expose materialization.
+const badGraphBagQueryMaterialize = graphBag.query.materialize;
 
-// ---------------------------------------------------------------------------
-// Utilities
-// ---------------------------------------------------------------------------
-checkAborted(undefined, 'test');
-const sig: AbortSignal = createTimeoutSignal(1000);
-const encoded: string = encodeEdgePropKey('a', 'b', 'c', 'd');
-const decoded = decodeEdgePropKey(encoded);
-const isEdge: boolean = isEdgePropKey(encoded);
+// @ts-expect-error sync auth secrets must be explicit SyncSecret values.
+await graph.syncWith(serverUrl, { auth: { secret: 'shared-secret', keyId: 'default' } });
 
-// ---------------------------------------------------------------------------
-// Browser entry point — verify missing exports (#1)
-// ---------------------------------------------------------------------------
-import {
-  WarpError as BrowserWarpError,
-  createVersionVector as browserCreateVV,
-  generateWriterId as browserGenWriterId,
-} from '../../browser.js';
+// @ts-expect-error sync auth key maps must carry SyncSecret values.
+await graph.serve({ port: 3002, httpPort, auth: { keys: { default: 'shared-secret' } } });
 
-const _browserErr: BrowserWarpError = new BrowserWarpError('test', { code: 'TEST' });
-const _browserVV: Map<string, number> = browserCreateVV();
-const _browserWriterId: string = browserGenWriterId();
+// @ts-expect-error materialize() does not return a string.
+const badMaterialized: string = await graph.materialize();
 
-// ---------------------------------------------------------------------------
-// Negative tests -- must FAIL compilation (verified via @ts-expect-error)
-// ---------------------------------------------------------------------------
+// @ts-expect-error hasNode requires a string node id.
+const badHasNode: boolean = await graph.hasNode(42);
 
-// @ts-expect-error -- materialize() does not return string
-const bad1: string = await graph.materialize();
+// @ts-expect-error getEdgeProps requires from, to, and label.
+await graph.getEdgeProps('node-a', 'node-b');
 
-// @ts-expect-error -- hasNode requires string, not number
-const bad2: boolean = await graph.hasNode(42);
-
-// @ts-expect-error -- patch callback receives PatchBuilderV2, not string
-await graph.patch((p: string) => {});
-
-// @ts-expect-error -- getEdgeProps requires 3 string args
-await graph.getEdgeProps('a', 'b');
-
-// @ts-expect-error -- WarpCore.open requires persistence (missing required option)
-await WarpCore.open({ graphName: 'test', writerId: 'w1' });
-
-// @ts-expect-error -- createNodeAdd requires string, not number
+// @ts-expect-error createNodeAdd requires a string node id.
 createNodeAdd(42);
 
-// @ts-expect-error -- getContent requires string, not number
-await graph.getContent(42);
+void badGraphBagMaterialize;
+void badGraphBagNestedMaterialize;
+void badGraphBagQueryMaterialize;
+void badMaterialized;
+void badHasNode;

@@ -1,3 +1,10 @@
+---
+id: PERF_native-vs-wasm-roaring-benchmark
+blocked_by: []
+blocks: []
+feature: trie-state-storage
+---
+
 # Native vs WASM Roaring Benchmark Pack
 
 **Effort:** M

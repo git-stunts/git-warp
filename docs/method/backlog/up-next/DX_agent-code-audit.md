@@ -1,0 +1,19 @@
+---
+id: DX_agent-code-audit
+feature: testing-quality
+blocked_by: []
+blocks: []
+---
+
+# TSC Campaign Agent-Authored Code Audit
+
+**Effort:** L
+
+## Problem
+
+27 files were merged via `checkout --theirs` during worktree conflict resolution without line-by-line review. Tests pass, but test coverage does not guarantee absence of subtle semantic drift (e.g. changed fallback values, widened types, reordered logic). Audit every agent-authored file diff against the pre-campaign baseline. Revert anything suspicious.
+
+## Notes
+
+- Source: P1b priority tier (TSC Zero Campaign Drift Audit)
+- High priority — should be audited before next release

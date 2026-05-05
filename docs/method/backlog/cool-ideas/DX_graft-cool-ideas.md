@@ -1,3 +1,10 @@
+---
+id: DX_graft-cool-ideas
+blocked_by: []
+blocks: []
+feature: docs-dx
+---
+
 # Graft cool ideas (post-Phase 1)
 
 Ideas surfaced during the design review. Not Phase 1 scope.

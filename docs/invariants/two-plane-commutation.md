@@ -63,7 +63,7 @@ structural operations.
    from the OR-Set.
 
 3. **CRDT independence audit**: The three state components
-   (`nodeAlive`, `edgeAlive`, `prop`) in `WarpStateV5` must have no
+   (`nodeAlive`, `edgeAlive`, `prop`) in `WarpState` must have no
    cross-references that would create ordering dependencies:
    ```bash
    grep -n "nodeAlive\|edgeAlive" src/domain/services/JoinReducer.js

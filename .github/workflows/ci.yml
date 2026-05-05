@@ -36,6 +36,25 @@ jobs:
         run: npm run lint
       - name: 'Gate 4b: Lint ratchet (zero-error invariant)'
         run: npm run lint:ratchet
+      - name: 'Gate 4c: Anti-sludge shell checks (junk-drawer filenames)'
+        run: npm run lint:sludge
+      - name: 'Gate 4d: Install semgrep'
+        run: python -m pip install --upgrade pip semgrep
+      - name: 'Gate 4e: Semgrep anti-sludge with rule-scoped quarantines'
+        run: npm run lint:semgrep
+      - name: 'Gate 4f: Contamination map matches checked-in manifests (no stale quarantines)'
+        run: |
+          npm run lint:contamination
+          git diff --exit-code -- policy/quarantines/
+      - name: 'Gate 4g: Fetch base branch for quarantine-graduate-check'
+        # Required for `git merge-base origin/main HEAD` on shallow
+        # CI clones. If the fetch fails (e.g. PR from a fork with
+        # limited perms), the graduate-check will skip gracefully.
+        run: git fetch --no-tags --depth=1 origin main || true
+      - name: 'Gate 4h: Quarantine graduate-check (touched quarantined files must graduate or narrow)'
+        env:
+          GIT_WARP_QUARANTINE_BASE: origin/main
+        run: npm run lint:quarantine-graduate
       - name: 'Gate 5: Declaration surface validator (manifest vs index.d.ts vs index.js)'
         run: npm run typecheck:surface
       - name: 'Gate 6: Markdown lint (fenced code blocks require language)'
@@ -76,10 +95,12 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y bats
       - name: Install dependencies
         run: npm ci
+      - name: Build CLI
+        run: npm run build --silent
       - name: Install CLI shims
         run: |
           sudo install -m 0755 bin/git-warp /usr/local/bin/git-warp
-          sudo sh -c "printf '%s\n' '#!/usr/bin/env bash' 'exec node \"$GITHUB_WORKSPACE/bin/warp-graph.js\" \"\$@\"' > /usr/local/bin/warp-graph"
+          sudo sh -c "printf '%s\n' '#!/usr/bin/env bash' 'exec node \"$GITHUB_WORKSPACE/dist/bin/warp-graph.js\" \"\$@\"' > /usr/local/bin/warp-graph"
           sudo chmod +x /usr/local/bin/warp-graph
       - name: Run unit + integration tests
         run: npm run test:node22:ci
@@ -89,14 +110,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Run Bun integration tests
-        run: docker compose -f docker-compose.test.yml run --rm test-bun
+        run: docker compose -f docker/docker-compose.test.yml run --rm test-bun
 
   test-deno:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - name: Run Deno integration tests
-        run: docker compose -f docker-compose.test.yml run --rm test-deno
+        run: docker compose -f docker/docker-compose.test.yml run --rm test-deno
 
   coverage-threshold:
     runs-on: ubuntu-latest

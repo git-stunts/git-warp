@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "rule_id": "@typescript-eslint/restrict-template-expressions",
+  "rationale": "Cycle 0054 activated restrict-template-expressions as a hygiene rule. The remaining violations are finite and pre-existing, mostly nullish/unknown interpolation sites that need narrower value normalization. Quarantine is rule-scoped and temporary.",
+  "generated_at": "2026-04-23T08:30:00.000Z",
+  "generator": "cycle 0054 manual quarantine",
+  "files": []
+}

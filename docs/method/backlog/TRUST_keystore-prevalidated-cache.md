@@ -1,3 +1,10 @@
+---
+id: TRUST_keystore-prevalidated-cache
+feature: sync-trust-security
+blocked_by: []
+blocks: []
+---
+
 # `TrustKeyStore` Pre-Validated Key Cache
 
 **Effort:** S

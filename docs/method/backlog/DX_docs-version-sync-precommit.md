@@ -1,3 +1,10 @@
+---
+id: DX_docs-version-sync-precommit
+feature: tooling-release
+blocked_by: []
+blocks: []
+---
+
 # Docs-Version-Sync Pre-Commit Check
 
 **Effort:** S

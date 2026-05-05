@@ -1,3 +1,10 @@
+---
+id: DX_tsc-autofix-tool
+blocked_by: []
+blocks: []
+feature: tooling-release
+---
+
 # Mechanical tsc autofix tool
 
 The TS4111 fixer script from the TSC zero campaign generalized well.

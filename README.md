@@ -1,115 +1,130 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/git-stunts/git-warp/main/docs/images/git-warp-alt.svg" alt="git-warp logo" />
-  <h1><code>git-warp</code>: a causal, multi-writer graph database for the Git substrate</h1>
-  <p>Distributed, conflict-free graph storage that lives orthogonally to your source tree.</p>
+  <h1><code>git-warp</code></h1>
+  <p>A recursive witnessed admission architecture over Git.</p>
 </div>
 
-[![CI](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml/badge.svg)](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![npm version](https://badge.fury.io/js/%40git-stunts%2Fgit-warp.svg)](https://www.npmjs.com/package/@git-stunts/git-warp)
+[![CI](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml/badge.svg)](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![npm version](https://badge.fury.io/js/%40git-stunts%2Fgit-warp.svg)](https://www.npmjs.com/package/@git-stunts%2Fgit-warp)
 
-## Choose the right tool
+`git-warp` commits truth, folds truth, and reveals truth under law.
 
-| Use case | git-warp | Echo | Other | Remarks |
-| --- | --- | --- | --- | --- |
-| Offline-first collaborative app | ✅ | ❌ | **CouchDB / PouchDB** | `git-warp` is a strong fit when your data is graph-shaped, writers work independently, and eventual consistency is acceptable. |
-| Multi-writer edge or IoT fleet with intermittent network access | ✅ | ❌ | **Event log + custom sync** | `git-warp` works well when devices need local writes, later sync, and deterministic convergence without central coordination. |
-| Decentralized tool that already trusts Git remotes | ✅ | ❌ | **Plain Git + custom files** | `git-warp` is a better fit when the replicated data is a graph and you do not want to invent your own merge semantics. |
-| High-performance realtime simulation or game loop | ❌ | ✅ | **Traditional ECS / game engine** | Echo is designed for deterministic, replayable, high-throughput rewrite execution where runtime throughput matters more than Git-native storage. |
-| Replayable deterministic simulation tooling | ❌ | ✅ | **Custom lockstep engine** | Echo is the better fit when ticks, stepping, and runtime throughput are the core problem. |
-| Centralized OLTP web app | ❌ | ❌ | **Postgres** | If you need low-latency transactions around one primary database, use a conventional database. |
-| Analytics warehouse or OLAP workload | ❌ | ❌ | **DuckDB / ClickHouse** | Neither `git-warp` nor Echo is a warehouse or columnar analytics engine. |
+It stores causal graph history in Git objects and refs. Writes are
+admitted through patches. Reads happen through worldlines, strands,
+and observers. Provenance, replay, and explicit historical coordinates
+are part of the model, not bolted-on afterthoughts.
+
+## Quick start
+
+```typescript
+import { openWarpGraph } from '@git-stunts/git-warp';
+import GitPlumbing from '@git-stunts/plumbing';
+import { GitGraphAdapter } from '@git-stunts/git-warp';
+
+const plumbing = new GitPlumbing({ cwd: '.' });
+const persistence = new GitGraphAdapter({ plumbing });
+
+const graph = await openWarpGraph({
+  persistence,
+  graphName: 'events',
+  writerId: 'agent-1',
+});
+
+// Commit: admit a claim into shared causal reality
+const patch = await graph.patches.createPatch();
+patch.addNode('user:alice').setProperty('user:alice', 'role', 'admin');
+await patch.commit();
+
+// Reveal: read the admitted truth through a live worldline
+const worldline = graph.query.worldline();
+const props = await worldline.getNodeProps('user:alice');
+```
 
 ## What git-warp is
 
-`git-warp` is a JavaScript library that stores a WARP graph inside Git objects and refs.
+`git-warp` is a Git-native implementation of WARP: Worldline Algebra
+for Recursive Provenance.
 
-A WARP graph is causal: history and provenance are part of the model instead of discarded implementation detail. Each write becomes a patch commit, readers can pin history through worldlines, and multiple writers can converge deterministically after sync.
+- **Offline-first** — writers work independently, converge later
+- **Multi-writer** — each writer owns its own ref, no coordination
+- **Append-only** — history is never rewritten
+- **Deterministic** — same patches, any order, same materialized state
+- **Provenance-complete** — every value traces to exactly one producing patch
+- **Speculative** — strands are causal lanes for counterfactual work
+- **Observable** — worldlines, observers, and apertures shape what you see
 
-WARP stands for **Worldline Algebra for Recursive Provenance**. WARP itself is not tied to Git; `git-warp` is the Git-native implementation. If you want the underlying theory, see [AIΩN](https://github.com/flyingrobots/aion). If you want a sibling runtime optimized for high-throughput realtime rewrite execution rather than Git-native durability, see [Echo](https://github.com/flyingrobots/echo).
+## The admission architecture
 
-Choose `git-warp` for durable asynchronous collaboration. Choose Echo for deterministic realtime execution.
+`openWarpGraph()` returns a frozen capability bag organized around
+three architectural moments:
 
-## Why Git
-
-Git and WARP fit together unusually well:
-
-- both are append-only in spirit
-- both rely on content-addressed artifacts
-- both work well in distributed, multi-writer environments
-
-`git-warp` uses Git because Git already provides battle-tested object storage, cryptographic integrity, and distributed replication. `git-warp` adds graph structure, CRDT merge semantics, and pinned historical reads on top.
-
-Each writer appends patch commits under `refs/warp/<graph>/writers/<writerId>`. Those commits point at Git's well-known empty tree, so graph history stays orthogonal to normal source-tree history on your checked-out branches.
-
-## Architecture at a glance
-
-```mermaid
-flowchart TB
-    subgraph app["Application surface"]
-        wa["WarpApp<br />writes, sync, worldlines, observers, strands"]
-    end
-
-    subgraph domain["Domain engine"]
-        wc["WarpCore<br />replay, provenance, materialization, inspection"]
-        crdt["CRDT reducer<br />OR-Set + LWW + Lamport ordering"]
-    end
-
-    subgraph infra["Infrastructure adapters"]
-        git["Git object store + refs"]
-        ports["Ports / adapters"]
-    end
-
-    wa --> wc
-    wc --> crdt
-    wc --> ports
-    ports --> git
-```
-
-The normal builder path is `WarpApp`. `WarpCore` is the plumbing surface for replay, provenance, inspection, debugger tooling, and other substrate-level work.
-
-## When to use it
-
-- You need local graph writes now and sync later.
-- You expect multiple writers to work independently and converge deterministically.
-- You want history, time-travel reads, and provenance to be part of the data model.
-- You already trust Git as a storage and replication substrate.
-
-## When not to use it
-
-- You need a centralized OLTP database with immediate consistency and low-latency transactions.
-- You need a warehouse, search engine, or analytics store.
-- You need ultra-high-throughput realtime simulation rather than Git-native durability.
-- You do not actually need graph relationships, traversal, or history-aware reads.
-
-## Documentation pipeline
-
-Use these docs in order, based on the job you are trying to do:
-
-- **[Getting Started](https://github.com/git-stunts/git-warp/blob/main/docs/GETTING_STARTED.md)**: see `git-warp` work in a few minutes.
-- **[Guide](https://github.com/git-stunts/git-warp/blob/main/docs/GUIDE.md)**: build an app with `WarpApp`, worldlines, observers, and strands.
-- **[API Reference](https://github.com/git-stunts/git-warp/blob/main/docs/API_REFERENCE.md)**: exhaustive API, flags, and examples without the narrative.
-- **[Advanced Guide](https://github.com/git-stunts/git-warp/blob/main/docs/ADVANCED_GUIDE.md)**: substrate internals, replay, trust, performance, and engine-room details.
-- **[CLI Guide](https://github.com/git-stunts/git-warp/blob/main/docs/CLI_GUIDE.md)**: operate, inspect, and debug a live repo from the terminal.
-- **[Documentation index](https://github.com/git-stunts/git-warp/blob/main/docs/README.md)**: canonical map of the full docs corpus.
-
-Focused docs:
-
-- **[Conceptual overview](https://github.com/git-stunts/git-warp/blob/main/docs/CONCEPTUAL_OVERVIEW.md)**: a deeper conceptual explanation of the WARP model and the Git substrate.
-- **[Architecture](https://github.com/git-stunts/git-warp/blob/main/docs/ARCHITECTURE.md)**: system structure and internal layering.
-- **[Protocol specs](https://github.com/git-stunts/git-warp/tree/main/docs/specs)**: normative formats such as content attachments, receipts, and BTRs.
+| Moment | Capabilities | What it does |
+|--------|-------------|--------------|
+| **Commitment** | `patches`, `strands`, `comparison` | Admits claims into frontier-relative truth |
+| **Folding** | `checkpoint` | Re-expresses admitted history as operational artifacts |
+| **Revelation** | `query`, `subscriptions`, `provenance` | Exposes admitted truth under bounded rights |
+| **Governance** | `sync` | Transports and admits remote suffixes |
 
 ## Core nouns
 
 | Term | Meaning |
-| --- | --- |
-| **WarpApp** | The product-facing root for writing, syncing, worldlines, observers, and strands. |
-| **WarpCore** | The plumbing-facing root for replay, provenance, inspection, and tooling. |
-| **Patch** | A WARP patch is a Git commit under `refs/warp/...` containing a CBOR-encoded operation log plus metadata. |
-| **Tick** | One logical replay step: the application of one patch into visible state. |
-| **Worldline** | A pinned read-history handle over live truth, an explicit coordinate, or a strand. |
-| **Aperture** | The aperture definition that shapes what an observer can see. |
-| **Observer** | A filtered, read-only projection over a worldline through an aperture. |
-| **Strand** | A speculative write lane branched from a base observation. |
-| **Braid** | A read-only composition that lets one strand see one or more support strands without collapsing them together. |
+|------|---------|
+| **Worldline** | Canonical admitted causal lane. The shared truth others may rely on. |
+| **Strand** | Speculative causal lane with fork provenance. Private until admitted. |
+| **Braid** | Plural composition over a family of lanes. Not itself a lane. |
+| **Observer** | Filtered read-only projection through an aperture. |
+| **Aperture** | The boundary that shapes what an observer can see. |
+| **Patch** | A claim: a set of operations over a bounded causal site. |
+| **Receipt** | Provenance-bearing witness of an admission outcome. |
+
+## Why Git
+
+Git and WARP fit together because both are:
+
+- append-only in spirit
+- content-addressed
+- distributed and multi-writer
+- history-preserving
+
+Each writer appends patch commits under `refs/warp/<graph>/writers/<writerId>`.
+Commits point at Git's empty tree — graph history stays orthogonal to
+your source tree. Sync happens through normal `git push` / `git fetch`.
+
+## When to use it
+
+| Use case | Fit |
+|----------|-----|
+| Offline-first multi-writer convergence | Strong |
+| Agent/tool substrate with causal history | Strong |
+| Graph semantics without inventing merge law | Strong |
+| Speculative lanes for what-if exploration | Strong |
+| High-throughput real-time execution | Use Echo instead |
+| General-purpose OLTP | Use Postgres |
+| Full-text search / analytics | Use purpose-built engines |
+| Time-travel debugging UI | Use warp-ttd on top of git-warp |
+
+## Documentation
+
+- **[Getting Started](docs/GETTING_STARTED.md)** — first open, write, read, sync
+- **[Readings & Optics](docs/READINGS_AND_OPTICS.md)** — public read model and app-facing read patterns
+- **[Guide](docs/GUIDE.md)** — patterns for apps, agents, and tools
+- **[API Reference](docs/API_REFERENCE.md)** — exhaustive public API
+- **[Architecture](docs/ARCHITECTURE.md)** — hexagonal layers and admission kernel
+- **[Migration Guide](docs/migrations/v17.0.0.md)** — upgrading from v16
+- **[CLI Guide](docs/CLI_GUIDE.md)** — terminal workflows
+- **[Vision](docs/VISION.md)** — repo doctrine
+- **[Specs](docs/specs/)** — normative protocol and format specifications
+
+## Substrate stack
+
+`git-warp` is part of the `@git-stunts` substrate:
+
+| Package | Role |
+|---------|------|
+| `@git-stunts/plumbing` | Git operations |
+| `@git-stunts/git-cas` | Content-addressable storage with dedup |
+| `@git-stunts/alfred` | Resilience (retry, timeout, circuit breaker) |
+| `@git-stunts/trailer-codec` | Commit message trailers |
+| `@git-stunts/vault` | Secrets management via OS keychain |
 
 ## License
 

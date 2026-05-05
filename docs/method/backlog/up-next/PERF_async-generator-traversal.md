@@ -1,3 +1,11 @@
+---
+id: PERF_async-generator-traversal
+feature: materialization-query-index
+blocked_by:
+  - PERF_stream-read-migration
+blocks: []
+---
+
 # Async Generator Traversal API
 
 **Effort:** L

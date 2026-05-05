@@ -1,3 +1,10 @@
+---
+id: DX_alfred-resilience-policy
+blocked_by: []
+blocks: []
+feature: trie-state-storage
+---
+
 # User-Supplied Resilience Policies via Alfred
 
 ## Idea

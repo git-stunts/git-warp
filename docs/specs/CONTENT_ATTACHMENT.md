@@ -166,24 +166,24 @@ const content = await graph.getContent('adr:0007');
 // Returns content as of the given tick
 ```
 
-The `_content` property at tick `N` points to whatever blob SHA was current at that tick. The blob itself is immutable in the Git object store (content-addressed), so historical content is always retrievable as long as the Git objects haven't been garbage-collected.
+The `_content` property at tick `N` points to whatever content storage OID was current at that tick. Current storage uses CAS trees for attachment payloads, so historical content is retrievable as long as the Git objects have not been garbage-collected.
 
 ---
 
 ## 6. Durability / Git GC
 
-Content blobs created by `git hash-object -w` are loose objects. Without anchoring, `git gc --prune=now` would delete them.
+Content storage trees can be unreachable unless an application commit or checkpoint commit anchors them. Without anchoring, `git gc --prune=now` would delete them.
 
-**Solution:** `PatchBuilderV2.commit()` embeds content blob OIDs in the patch commit tree alongside the CBOR patch blob:
+**Solution:** patch commits embed content storage OIDs in the patch commit tree alongside the encoded patch:
 
 ```text
-patch.cbor          → CBOR-encoded patch blob
-_content_<oid>      → content blob, keyed by its hex OID (self-documenting, unique by construction)
+patch               → encoded patch storage tree
+_content_<oid>      → content storage tree, keyed by its hex OID
 ```
 
-This makes content blobs reachable via the writer ref chain (`refs/warp/<graph>/writers/<id>` → commit → tree → blob). GC protection is automatic. Sync replicates content along with patches. Zero new refs, zero new Git commands.
+This makes content storage reachable via the writer ref chain (`refs/warp/<graph>/writers/<id>` → commit → tree → content tree). GC protection is automatic. Sync replicates content along with patches. Zero new refs, zero new Git commands.
 
-**Checkpoint anchoring:** `CheckpointService.createV5()` also scans `state.prop` for `_content` values and embeds the referenced blob OIDs in the checkpoint tree. This ensures content survives GC even if patch commits are ever pruned (e.g., by future compaction or writer-chain truncation). The invariant is: **content blobs referenced by live state are always reachable from at least one ref** — either the writer ref (patch commit tree) or the checkpoint ref (checkpoint commit tree).
+**Checkpoint anchoring:** checkpoint creation also scans `state.prop` for `_content` values and embeds the referenced storage OIDs in the checkpoint tree. This ensures content survives GC even if patch commits are ever pruned (e.g., by future compaction or writer-chain truncation). The invariant is: **content storage referenced by live state is always reachable from at least one ref** — either the writer ref (patch commit tree) or the checkpoint ref (checkpoint commit tree).
 
 Integration tests verify both anchoring paths with `git gc --prune=now`.
 
@@ -191,7 +191,7 @@ Integration tests verify both anchoring paths with `git gc --prune=now`.
 
 ## 7. Implementation Notes
 
-No external `git-cas` dependency was needed. The existing `BlobPort` on `GitGraphAdapter` (`writeBlob` via `git hash-object -w`, `readBlob` via `git cat-file blob`) provides all required CAS operations.
+Content attachment now stores payloads through the configured `BlobStoragePort`; the default integration path uses Git CAS trees and falls back to raw Git blobs only for older stored payloads.
 
 Edge attachments are included in v1 (not deferred).
 

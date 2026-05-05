@@ -39,4 +39,4 @@ RUN chown -R deno:deno /app /deno-dir
 USER deno
 ENV GIT_STUNTS_DOCKER=1
 ENV DENO_ALLOW_SCRIPTS=${DENO_ALLOW_SCRIPTS}
-CMD ["sh", "-lc", "deno test --allow-all --allow-scripts=${DENO_ALLOW_SCRIPTS} --node-modules-dir=manual test/runtime/deno/"]
+CMD ["sh", "-lc", "deno test --no-check --unstable-node-globals --allow-all --allow-scripts=${DENO_ALLOW_SCRIPTS} --node-modules-dir=manual test/runtime/deno/"]

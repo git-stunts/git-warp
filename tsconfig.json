@@ -1,14 +1,15 @@
 {
   "extends": "./tsconfig.base.json",
   "include": [
-    "src/**/*.js",
+    "src/**/*.ts",
     "src/globals.d.ts",
-    "src/domain/warp/_wiredMethods.d.ts",
-    "bin/warp-graph.js",
-    "scripts/**/*.js",
-    "test/**/*.js"
+    "bin/**/*.ts",
+    "scripts/**/*.ts",
+    "test/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "test/type-check",
+    "test/runtime/deno"
   ]
 }

@@ -1,3 +1,10 @@
+---
+id: PROTO_warpruntime-open-as-builder
+blocked_by: []
+blocks: []
+feature: api-capabilities
+---
+
 # WarpRuntime.open() as a Builder pattern
 
 **Effort:** M

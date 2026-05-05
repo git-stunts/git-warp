@@ -1,3 +1,10 @@
+---
+id: DX_vitest-runtime-excludes
+feature: testing-quality
+blocked_by: []
+blocks: []
+---
+
 # Vitest Explicit Runtime Excludes
 
 **Effort:** S

@@ -42,11 +42,9 @@ PY
   echo "$output" | grep -q "demo"
 }
 
-@test "info --view ascii produces box-drawn output" {
+@test "info --view ascii is rejected with migration guidance" {
   run git warp --repo "${TEST_REPO}" --view info
-  assert_success
-  # ASCII view should contain box-drawing characters or table structure
-  [ -n "$output" ]
+  assert_view_removed
 }
 
 @test "info on empty repo shows no graphs" {

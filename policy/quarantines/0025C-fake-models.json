@@ -1,0 +1,12 @@
+{
+  "manifest_id": "0025C-fake-models",
+  "owning_cycle": "0025C",
+  "rule_family": "fake-models",
+  "rules": [
+    "ts-no-like-types"
+  ],
+  "rationale": "Pre-existing *Like placeholder types in src/**. Each *Like name is shape-talk hiding either (a) a missing boundary decoder, (b) a duck-typed narrow slice of a real type, or (c) a real domain concept that was never named. Cycle 0023 retro documents the cautionary tale. Graduate by giving the concept a real name (class with validated constructor) or removing the alias in favor of the real type.",
+  "generated_at": "2026-05-05T08:58:40.291Z",
+  "generator": "scripts/contamination-map.ts v1",
+  "files": []
+}

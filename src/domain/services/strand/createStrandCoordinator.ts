@@ -1,0 +1,147 @@
+/**
+ * Factory that assembles a StrandCoordinator from a graph runtime.
+ *
+ * @module domain/services/strand/createStrandCoordinator
+ */
+
+import StrandDescriptorStore from './StrandDescriptorStore.ts';
+import StrandMaterializer from './StrandMaterializer.ts';
+import StrandPatchService from './StrandPatchService.ts';
+import StrandIntentService from './StrandIntentService.ts';
+import StrandCoordinator from './StrandCoordinator.ts';
+import { frontierRecordsEqual } from './StrandDescriptorValidation.ts';
+import { buildIntentId, buildTickId } from './strandShared.ts';
+import type { StrandDescriptor } from './strandTypes.ts';
+import type { PatchBuilder } from '../PatchBuilder.ts';
+import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
+import type { WarpState } from '../JoinReducer.ts';
+import type Patch from '../../types/Patch.ts';
+import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
+import type LoggerPort from '../../../ports/LoggerPort.ts';
+import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
+import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
+import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
+import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
+
+type BaseObservation = {
+  coordinateVersion: string;
+  frontier: Record<string, string>;
+  lamportCeiling: number | null;
+};
+
+function baseObservationsEqual(left: BaseObservation, right: BaseObservation): boolean {
+  return (
+    left.coordinateVersion === right.coordinateVersion
+    && left.lamportCeiling === right.lamportCeiling
+    && frontierRecordsEqual(left.frontier, right.frontier)
+  );
+}
+
+/**
+ * Opaque diagnostic bag the wired warp runtime returns from
+ * `_setMaterializedState`. The strand sub-services ignore the
+ * return value; the type exists solely to let `WarpRuntime` satisfy
+ * the structural narrow below.
+ */
+type StrandMaterializationDiagnosticBag = object;
+
+/**
+ * Structural description of the graph runtime the strand
+ * sub-services reach into. The wider warp runtime provides many
+ * more fields; this type narrows to the exact surface the strand
+ * coordinator needs and is re-exported so cross-module wiring can
+ * avoid double-cast escape hatches.
+ */
+export type StrandCoordinatorGraphRuntime = {
+  _graphName: string;
+  _persistence: GraphPersistencePort;
+  _crypto: CryptoPort;
+  _loadPatchChainFromSha(sha: string): Promise<Array<{ patch: Patch; sha: string }>>;
+  _maxObservedLamport: number;
+  _provenanceIndex: ProvenanceIndex | null;
+  _provenanceDegraded: boolean;
+  _cachedCeiling: number | null;
+  _cachedFrontier: Map<string, string> | null;
+  _lastFrontier: Map<string, string> | null;
+  // Return type widened to match the wired warp-runtime signature
+  // (which emits a materialization diagnostic bag) so that callers
+  // upstream of the strand coordinator can pass their full
+  // `_graph` directly without a cast.
+  _setMaterializedState(state: WarpState): Promise<void | StrandMaterializationDiagnosticBag>;
+  getFrontier(): Promise<Map<string, string>>;
+  _patchInProgress: boolean;
+  _stateDirty: boolean;
+  _cachedViewHash: string | null;
+  _cachedState: WarpState | null;
+  _patchJournal: PatchJournalPort | null | undefined;
+  _patchBlobStorage: BlobStoragePort | null | undefined;
+  _blobStorage: BlobStoragePort | null | undefined;
+  _commitMessageCodec: CommitMessageCodecPort;
+  _logger: LoggerPort | null | undefined;
+  _codec: { encode(v: HashablePayload): Uint8Array };
+  _onDeleteWithData: 'reject' | 'cascade' | 'warn';
+};
+
+function wireDescriptors(graph: StrandCoordinatorGraphRuntime, ref: { coordinator: StrandCoordinator | null }): StrandDescriptorStore {
+  return new StrandDescriptorStore({
+    graph,
+    loadStrandOrThrow: async (strandId: string) => await ref.coordinator!.getOrThrow(strandId),
+    baseObservationsEqual,
+  });
+}
+
+type SubServices = {
+  descriptors: StrandDescriptorStore;
+  materializer: StrandMaterializer;
+};
+
+function wirePatches(graph: StrandCoordinatorGraphRuntime, ref: { coordinator: StrandCoordinator | null }, subs: SubServices): StrandPatchService {
+  return new StrandPatchService({
+    graph,
+    loadStrandOrThrow: async (strandId: string) => await ref.coordinator!.getOrThrow(strandId),
+    materializeDescriptor: async (descriptor: StrandDescriptor, options: { collectReceipts: boolean; ceiling: number | null }) =>
+      await subs.materializer.materializeDescriptor(descriptor, options),
+    writeDescriptor: async (descriptor: StrandDescriptor) => await subs.descriptors.writeDescriptor(descriptor),
+    buildOverlayRef: (strandId: string) => subs.descriptors.buildOverlayRef(strandId),
+    buildIntentId,
+  });
+}
+
+function wireIntents(graph: StrandCoordinatorGraphRuntime, ref: { coordinator: StrandCoordinator | null }, subs: SubServices & { patches: StrandPatchService }): StrandIntentService {
+  return new StrandIntentService({
+    graph,
+    loadStrandOrThrow: async (strandId: string) => await ref.coordinator!.getOrThrow(strandId),
+    buildQueuedIntent: async (descriptor: StrandDescriptor, build: (p: PatchBuilder) => void | Promise<void>) =>
+      await subs.patches.buildQueuedIntent(descriptor, build),
+    writeDescriptor: async (descriptor: StrandDescriptor) => await subs.descriptors.writeDescriptor(descriptor),
+    commitQueuedPatch: async (params: Parameters<typeof subs.patches.commitQueuedPatch>[0]) =>
+      await subs.patches.commitQueuedPatch(params),
+    collectPatchEntries: async (descriptor: StrandDescriptor, options: { ceiling: number | null }) =>
+      await subs.materializer.collectPatchEntries(descriptor, options),
+    buildTickId,
+  });
+}
+
+/** Creates a StrandCoordinator wired to the given graph runtime. */
+export default function createStrandCoordinator(graph: StrandCoordinatorGraphRuntime): StrandCoordinator {
+  const ref: { coordinator: StrandCoordinator | null } = { coordinator: null };
+  const descriptors = wireDescriptors(graph, ref);
+  const materializer = new StrandMaterializer({ graph });
+  const patches = wirePatches(graph, ref, { descriptors, materializer });
+  const intents = wireIntents(graph, ref, { descriptors, materializer, patches });
+
+  ref.coordinator = new StrandCoordinator({
+    graphName: graph._graphName,
+    maxObservedLamport: () => graph._maxObservedLamport,
+    crypto: graph._crypto,
+    persistence: graph._persistence,
+    descriptors,
+    materializer,
+    patches,
+    intents,
+    graph,
+  });
+
+  return ref.coordinator;
+}

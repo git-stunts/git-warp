@@ -1,24 +1,19 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "16.0.0",
+  "version": "17.0.0",
   "imports": {
     "roaring": "npm:roaring@^2.7.0"
   },
   "exports": {
-    ".": "./index.js",
-    "./node": "./src/domain/entities/GraphNode.js",
-    "./visualization": "./src/visualization/index.js",
-    "./browser": "./browser.js",
-    "./sha1sync": "./src/infrastructure/adapters/sha1sync.js"
+    ".": "./index.ts",
+    "./browser": "./browser.ts",
+    "./sha1sync": "./src/infrastructure/adapters/sha1sync.ts"
   },
   "publish": {
     "include": [
-      "index.js",
-      "index.d.ts",
-      "browser.js",
-      "browser.d.ts",
-      "sha1sync.d.ts",
-      "src/**/*.js",
+      "index.ts",
+      "browser.ts",
+      "src/**/*.ts",
       "src/**/*.d.ts",
       "README.md",
       "CHANGELOG.md",

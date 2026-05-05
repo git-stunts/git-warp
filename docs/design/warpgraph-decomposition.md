@@ -133,7 +133,7 @@ this._subscriptionManager = new SubscriptionManager(this);
 for (const method of ['subscribe', 'watch']) {
   Object.defineProperty(WarpGraph.prototype, method, {
     value: function (...args) {
-      return this._subscriptionManager[method](...args);
+      return this._subscriptionManagermethod;
     },
     writable: true, configurable: true, enumerable: false,
   });

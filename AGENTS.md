@@ -1,5 +1,86 @@
 # AGENTS.md
 
+## STOP — READ BEFORE GENERATING TYPESCRIPT
+
+This repository does **not** accept vague, cast-heavy, or boundary-
+leaking TypeScript. If a patch compiles but violates the policy,
+**the patch is still wrong**.
+
+The policy is binding:
+
+- **Full policy:** [`docs/ANTI_SLUDGE_POLICY.md`](docs/ANTI_SLUDGE_POLICY.md)
+- **Decisions:** [`docs/ANTI_SLUDGE_DECISIONS.md`](docs/ANTI_SLUDGE_DECISIONS.md)
+- **Foundations:** [`docs/SYSTEMS_STYLE_TYPESCRIPT.md`](docs/SYSTEMS_STYLE_TYPESCRIPT.md)
+
+### Automatic rejection list
+
+A patch must be rejected on sight if it introduces any of the
+following in non-adapter code (i.e. anywhere except
+`src/infrastructure/adapters/**`):
+
+- `any` (anywhere, including adapters)
+- `as any` (anywhere, including adapters)
+- `as unknown as` (anywhere)
+- `unknown` (outside adapters)
+- `Record<string, unknown>` (outside adapters)
+- `*Like` placeholder types (`FooLike`, `BarLike`, `ThingLike`, etc.) (anywhere)
+- `JSON.parse` / `JSON.stringify` (outside adapters)
+- `fetch` (outside adapters)
+- `process.env` (outside adapters)
+- `Date.now()` / `new Date()` / `Date()` / `performance.now()` (in `src/domain/**`)
+- `Math.random()` / `crypto.randomUUID()` / `crypto.getRandomValues()` (in `src/domain/**`)
+- `setTimeout` / `setInterval` (in `src/domain/**`)
+- raw `new Error(...)` / `new TypeError(...)` (in `src/domain/**` — extend `WarpError` instead)
+- `@ts-ignore` (anywhere — use `@ts-expect-error`)
+- `z.any()` (anywhere)
+- Direct `import 'fs'`, `'path'`, `'http'`, `'https'`, `'net'`,
+  `'tls'`, `'stream'`, `'child_process'`, `'crypto'`, `'os'`,
+  `'buffer'`, `'node:*'` in `src/domain/**` or `src/ports/**` — use a port
+- Direct import from `src/infrastructure/**` in `src/domain/**` or `src/ports/**` — use a port
+
+### Quarantine rules
+
+Pre-existing violations live in
+`policy/quarantines/0025{A,B,C,D}-*.json` manifests. These are
+**temporary, paydown-destined**. They are not a ratchet baseline.
+
+- **Quarantines are rule-scoped.** A file may be quarantined for
+  `as unknown as` without receiving a free pass on `*Like`.
+- **If you touch a quarantined file**, the
+  `quarantine-graduate-check` CI gate fails unless you either:
+  1. Remove the file from its quarantine manifest by fixing the
+     sludge, OR
+  2. Replace the file-level quarantine with narrow **inline**
+     suppressions, each referencing a ticket number.
+- The check uses `git merge-base <base> HEAD` to compute the
+  touched-file set. Never `HEAD~1`.
+
+### Required model
+
+Generate only:
+
+- explicit domain concepts (named classes with validated
+  constructors, `Object.freeze`, `instanceof` dispatch)
+- runtime-honest TypeScript (types document reality; parsers gate
+  untrusted input)
+- boring adapters and sharp core logic
+- discriminated unions and explicit result types instead of
+  boolean-flag bags
+- expected failures as return values, not exceptions
+
+Do **not** generate:
+
+- clever sludge
+- "good enough" sludge
+- compile-time theater
+- puddle-assembly object construction (`thing.a = ...; if (...) thing.b = ...`)
+- `utils.ts`, `helpers.ts`, `misc.ts`, `common.ts` — name the concept
+
+When the boundary shape is unclear, **define a port or a transport
+DTO and stop there**. Do not hallucinate fake domain models.
+
+---
+
 ## Session Start
 
 - Think usage is agent-specific:
@@ -20,7 +101,7 @@
 
 ## Process
 
-- Read [METHOD.md](METHOD.md) and follow it.
+- Read [METHOD](docs/METHOD.md) and follow it.
 - Backlog lives in `docs/method/backlog/` with lanes `inbox/`, `asap/`, `up-next/`, `cool-ideas/`, and `bad-code/`.
 - As you work, feel free to file concrete jank, stank, or correctness smells under `docs/method/backlog/bad-code/`.
 - As you work, feel free to file speculative improvements or design sparks under `docs/method/backlog/cool-ideas/`.
@@ -32,18 +113,19 @@
 
 ## Engineering Doctrine
 
-- Read `docs/SYSTEMS_STYLE_JAVASCRIPT.md` before making design-level changes.
+- Read [`docs/ANTI_SLUDGE_POLICY.md`](docs/ANTI_SLUDGE_POLICY.md) and `docs/SYSTEMS_STYLE_TYPESCRIPT.md` (SSTS) before making design-level changes.
 - Prefer one file per class, type, or object. If a file accumulates peer concepts, split it.
 - Runtime truth wins. If something has invariants, identity, or behavior, it should exist as a runtime-backed type.
 - Validate at boundaries and constructors. Constructors establish invariants and do no I/O.
 - Prefer `instanceof` dispatch over tag switching.
-- No `any`. Use `unknown` only at raw boundaries and eliminate it immediately.
+- No `any`. No `unknown` outside parser functions. No `as` assertions. No `enum`.
+- `interface` is for ports only. Domain concepts are classes.
 - No boolean trap parameters. Use named option objects or separate methods.
 - No magic strings or numbers when a named constant should exist.
 - Hexagonal architecture is mandatory. `src/domain/` does not import host APIs or Node-specific globals.
 - Wall clock is banned from `src/domain/`. Time must enter through a port or parameter.
 - Domain bytes are `Uint8Array`; `Buffer` stays in infrastructure adapters.
-- Public APIs should be heavily JSDoc'd. If a public surface changes, update its JSDoc in the same slice.
+- Max file size: 500 LOC (source), 800 LOC (test), 300 LOC (bin/scripts).
 - No sludge. Do not leave helper corridors, fake shape trust, or transitional duplication behind at the end of a slice.
 
 ## Refactor Gates

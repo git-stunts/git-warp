@@ -1,3 +1,10 @@
+---
+id: DX_doc-freshness-ratchet
+blocked_by: []
+blocks: []
+feature: docs-dx
+---
+
 # Documentation freshness ratchet
 
 CLAUDE.md had 24 inaccuracies. BEARING.md was 4 cycles stale. Nobody

@@ -1,0 +1,239 @@
+# Semgrep pattern policy — anti-sludge rules for git-warp.
+#
+# Reference: docs/ANTI_SLUDGE_POLICY.md
+# Owning cycle: 0025 (paydown split into 0025A..0025D sub-cycles)
+#
+# Adapted from the anti-sludge policy bundle for git-warp's layout:
+#   - src/domain/       — pure domain, no host APIs
+#   - src/ports/        — capability interfaces
+#   - src/infrastructure/ — adapters (equivalent to bundle's src/adapters/)
+#
+# The "core" paths for rule scoping are src/domain + src/ports.
+# src/infrastructure/adapters/** is the boundary and has narrower carve-outs.
+
+rules:
+  # ────────────────────────────────────────────────────────────
+  # 0025C — Fake-model purge
+  # ────────────────────────────────────────────────────────────
+
+  - id: ts-no-like-types
+    message: |
+      Placeholder `*Like` types are banned. Name the real concept.
+      See docs/ANTI_SLUDGE_POLICY.md §2 and cycle 0023 retro for
+      the cautionary tale that motivated this rule.
+      (TypeScript platform types `ArrayLike`, `ArrayBufferLike`,
+      and `PromiseLike` are allowed — they are real standard-library
+      contracts, not shape-trust placeholders.)
+    severity: ERROR
+    languages: [typescript]
+    patterns:
+      - pattern-regex: '\b[A-Z][A-Za-z0-9]*Like\b'
+      - pattern-not-regex: '\bArrayLike\b'
+      - pattern-not-regex: '\bArrayBufferLike\b'
+      - pattern-not-regex: '\bPromiseLike\b'
+    paths:
+      include:
+        - src/**/*.ts
+      exclude:
+        # Declaration files are ambient, not runtime. They carry
+        # their own discipline via IRONCLAD M9.
+        - '**/*.d.ts'
+
+  # ────────────────────────────────────────────────────────────
+  # 0025B — Boundary purge
+  # ────────────────────────────────────────────────────────────
+
+  - id: ts-no-unknown-outside-adapters
+    message: |
+      `unknown` is boundary-local. Keep it inside
+      src/infrastructure/adapters/** and decode immediately.
+
+      Exception — `catch (err: unknown)` is legitimate: TypeScript's
+      `useUnknownInCatchVariables` flag forces this annotation, and
+      narrowing happens inside the block. This rule excludes that
+      one context.
+
+      Exception — type-guard predicates with the signature
+      `(name: unknown): name is Foo` are the narrow boundary
+      decoders the 0025B exit criteria explicitly allows. They are
+      the only way to cross from `unknown` into typed code without
+      a cast, so this rule excludes that line pattern too. This
+      mirrors the contamination scanner's skip pattern.
+
+      Exception — named transport DTO aliases of the form
+      `type Foo = { readonly [key: string]: unknown }` and
+      `type Foo = ReadonlyArray<unknown>` are the declarative
+      backbone of the boundary-decoder family. A type-guard
+      predicate with return type `value is Foo` is only useful if
+      the alias itself can be spelled.
+    severity: ERROR
+    languages: [typescript]
+    patterns:
+      - pattern-regex: '\bunknown\b'
+      # Skip the catch-variable case — it is NOT a modeling surface.
+      - pattern-not-regex: '\bcatch\s*\(\s*\w+\s*:\s*unknown\s*\)'
+      # Skip type-guard predicate signatures. Matches the exact
+      # contamination-scanner skip pattern so the two policies agree.
+      - pattern-not-regex: '\(\s*\w+\s*:\s*unknown\s*\)\s*:\s*\w+\s+is\s+'
+      # Skip the transport DTO aliases that pair with the guards.
+      - pattern-not-regex: '\btype\s+\w+\s*=\s*\{[^}]*:\s*unknown\s*\}'
+      - pattern-not-regex: '\btype\s+\w+\s*=\s*ReadonlyArray\s*<\s*unknown\s*>'
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
+
+  - id: ts-no-record-string-unknown-outside-adapters
+    message: |
+      `Record<string, unknown>` is boundary-local. Do not let raw
+      transport shapes into core code. Define a runtime-backed
+      domain type or a transport DTO.
+    severity: ERROR
+    languages: [typescript]
+    pattern-regex: 'Record\s*<\s*string\s*,\s*unknown\s*>'
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
+
+  - id: ts-no-json-parse-in-core
+    message: 'Decode raw input only in adapters. See docs/ANTI_SLUDGE_POLICY.md §4.'
+    severity: ERROR
+    languages: [typescript]
+    pattern: JSON.parse(...)
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
+
+  - id: ts-no-json-stringify-in-core
+    message: 'Encode output only in adapters. See docs/ANTI_SLUDGE_POLICY.md §4.'
+    severity: ERROR
+    languages: [typescript]
+    pattern: JSON.stringify(...)
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
+
+  - id: ts-no-fetch-in-core
+    message: 'HTTP calls belong in adapters.'
+    severity: ERROR
+    languages: [typescript]
+    pattern: fetch(...)
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
+
+  - id: ts-no-process-env-in-core
+    message: 'Environment reads belong in adapters. See docs/ANTI_SLUDGE_POLICY.md §9.'
+    severity: ERROR
+    languages: [typescript]
+    pattern: process.env
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
+
+  - id: ts-no-date-now-in-core
+    message: 'Use a ClockPort in core code. Date.now() is banned in src/domain/**.'
+    severity: ERROR
+    languages: [typescript]
+    pattern: Date.now()
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
+
+  - id: ts-no-new-date-in-core
+    message: 'Use a ClockPort in core code. new Date(...) is banned in src/domain/**.'
+    severity: ERROR
+    languages: [typescript]
+    pattern: new Date(...)
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
+
+  - id: ts-no-math-random-in-core
+    message: 'Use a seeded PRNG or RandomPort. Math.random() is banned in src/domain/**.'
+    severity: ERROR
+    languages: [typescript]
+    pattern: Math.random()
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
+
+  # ────────────────────────────────────────────────────────────
+  # 0025D — Dynamic import-law mirror
+  # ────────────────────────────────────────────────────────────
+
+  - id: ts-no-dynamic-node-imports-in-core
+    message: |
+      Dynamic `node:*` imports are still Node platform imports. Keep them in
+      adapters.
+    severity: ERROR
+    languages: [typescript]
+    pattern-regex: '(?:typeof\s+)?import\s*\(\s*[''"](node:[\w-]+(?:/[\w-]+)?|fs(?:/[\w-]+)?|path(?:/[\w-]+)?|http(?:/[\w-]+)?|https(?:/[\w-]+)?|net(?:/[\w-]+)?|tls(?:/[\w-]+)?|stream(?:/[\w-]+)?|child_process(?:/[\w-]+)?|crypto(?:/[\w-]+)?|os(?:/[\w-]+)?|buffer(?:/[\w-]+)?)[''"]\s*\)'
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
+
+  - id: ts-no-dynamic-infrastructure-imports-in-core
+    message: |
+      Dynamic imports of infrastructure adapters are banned in core code except
+      for the narrow sanctioned adapter-loader files documented in
+      docs/ANTI_SLUDGE_POLICY.md.
+    severity: ERROR
+    languages: [typescript]
+    pattern-regex: '(?:typeof\s+)?import\s*\(\s*[''"][^''"]*/infrastructure/[^''"]*[''"]\s*\)'
+    paths:
+      include:
+        - src/domain/**/*.ts
+        - src/ports/**/*.ts
+      exclude:
+        - '**/*.d.ts'
+        - src/domain/utils/defaultCrypto.ts
+        - src/domain/utils/defaultTrustCrypto.ts
+        - src/domain/utils/roaring.ts
+        - src/domain/services/controllers/SyncController.ts
+
+  # ────────────────────────────────────────────────────────────
+  # 0025A — Cast purge
+  # ────────────────────────────────────────────────────────────
+
+  - id: ts-no-double-cast
+    message: |
+      `as unknown as` is banned. Replace with a decoder, a type guard,
+      or a narrower port return type. See docs/ANTI_SLUDGE_POLICY.md §2.
+    severity: ERROR
+    languages: [typescript]
+    pattern-regex: 'as\s+unknown\s+as'
+    paths:
+      include:
+        - src/**/*.ts
+      exclude:
+        - '**/*.d.ts'

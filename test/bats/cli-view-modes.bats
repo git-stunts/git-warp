@@ -11,49 +11,41 @@ teardown() {
   teardown_test_repo
 }
 
-@test "--view ascii info produces output" {
+@test "--view ascii info is rejected with migration guidance" {
   run git warp --repo "${TEST_REPO}" --view ascii info
-  assert_success
-  [ -n "$output" ]
+  assert_view_removed
 }
 
-@test "--view ascii query produces output" {
+@test "--view ascii query is rejected with migration guidance" {
   run git warp --repo "${TEST_REPO}" --graph demo --view ascii query --match "user:*"
-  assert_success
-  [ -n "$output" ]
+  assert_view_removed
 }
 
-@test "--view ascii check produces output" {
+@test "--view ascii check is rejected with migration guidance" {
   run git warp --repo "${TEST_REPO}" --graph demo --view ascii check
-  assert_success
-  [ -n "$output" ]
+  assert_view_removed
 }
 
-@test "--view ascii history produces output" {
+@test "--view ascii history is rejected with migration guidance" {
   run git warp --repo "${TEST_REPO}" --graph demo --writer alice --view ascii history
-  assert_success
-  [ -n "$output" ]
+  assert_view_removed
 }
 
-@test "--view ascii materialize produces output" {
+@test "--view ascii materialize is rejected with migration guidance" {
   run git warp --repo "${TEST_REPO}" --view ascii materialize
-  assert_success
-  [ -n "$output" ]
+  assert_view_removed
 }
 
-@test "--view svg:FILE creates SVG file" {
+@test "--view svg:FILE is rejected with migration guidance" {
   local svgfile="${TEST_REPO}/test-output.svg"
   run git warp --repo "${TEST_REPO}" --graph demo --view "svg:${svgfile}" query --match "user:*"
-  assert_success
-  [ -f "${svgfile}" ]
-  grep -q '<svg' "${svgfile}"
+  assert_view_removed
+  [ ! -f "${svgfile}" ]
 }
 
-@test "--view html:FILE creates HTML file" {
+@test "--view html:FILE is rejected with migration guidance" {
   local htmlfile="${TEST_REPO}/test-output.html"
   run git warp --repo "${TEST_REPO}" --graph demo --view "html:${htmlfile}" query --match "user:*"
-  assert_success
-  [ -f "${htmlfile}" ]
-  grep -q '<!DOCTYPE' "${htmlfile}"
-  grep -q '<html' "${htmlfile}"
+  assert_view_removed
+  [ ! -f "${htmlfile}" ]
 }

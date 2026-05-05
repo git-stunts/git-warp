@@ -225,20 +225,21 @@ assert len(data['nodes']) == 3, f'expected 3 nodes after latest, got {len(data[\
   echo "$output" | grep -qiE "tick|cursor"
 }
 
-@test "seek plain text output includes receipt summary with sha" {
-  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick 1
-  assert_success
-
-  short_sha="$(JSON="$output" python3 -c 'import json, os; j = json.loads(os.environ["JSON"]); print(j["tickReceipt"]["alice"]["sha"][:7])')"
-
+@test "seek default output includes receipt summary with sha" {
   run git warp --repo "${TEST_REPO}" --graph demo seek --tick 1
   assert_success
 
-  echo "$output" | grep -q "Tick 1:"
-  echo "$output" | grep -q "alice"
-  echo "$output" | grep -q "${short_sha}"
-  echo "$output" | grep -q "\\+3node"
-  echo "$output" | grep -q "~3prop"
+  JSON="$output" python3 - <<'PY'
+import json, os
+data = json.loads(os.environ["JSON"])
+assert data["tick"] == 1
+receipt = data["tickReceipt"]["alice"]
+sha = receipt["sha"]
+assert isinstance(sha, str) and len(sha) == 40
+summary = receipt["opSummary"]
+assert summary["NodeAdd"] == 3
+assert summary["PropSet"] == 3
+PY
 }
 
 @test "seek --json suppresses diff when frontier changes" {
@@ -313,11 +314,17 @@ assert len(sd["edges"]["removed"]) == 2, f"expected 2 removed edges, got {len(sd
 PY
 }
 
-@test "seek --diff ASCII output contains Changes section" {
+@test "seek --diff default output contains structural diff" {
   run git warp --repo "${TEST_REPO}" --graph demo seek --tick 1 --diff
   assert_success
-  echo "$output" | grep -q "Changes (baseline: empty):"
-  echo "$output" | grep -q "+ node"
+
+  JSON="$output" python3 - <<'PY'
+import json, os
+data = json.loads(os.environ["JSON"])
+assert data["diffBaseline"] == "empty"
+assert data["baselineTick"] is None
+assert len(data["structuralDiff"]["nodes"]["added"]) == 3
+PY
 }
 
 @test "seek --diff --latest --json shows structural diff" {

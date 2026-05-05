@@ -29,13 +29,13 @@ This slice made the product/core split structural:
 
 Code/artifacts added or updated:
 
-- [WarpApp.js](../../../src/domain/WarpApp.js)
-- [WarpCore.js](../../../src/domain/WarpCore.js)
-- [index.js](../../../index.js)
-- [index.d.ts](../../../index.d.ts)
+- [WarpApp.ts](../../../src/domain/WarpApp.ts)
+- [WarpCore.ts](../../../src/domain/WarpCore.ts)
+- [index.ts](../../../index.ts)
+- `index.d.ts` (generated declaration artifact)
 - [README.md](../../../README.md)
 - [GUIDE.md](../../GUIDE.md)
-- [type-surface.m8.json](../../../contracts/type-surface.m8.json)
+- `type-surface.m8.json` (retired generated surface artifact)
 - WarpApp.facade.test.js (deleted)
 - index.exports.test.js (deleted)
 - public-api-facade-split.test.js (deleted)

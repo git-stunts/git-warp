@@ -1,3 +1,10 @@
+---
+id: PROTO_op-consumer-instanceof-migration
+feature: runtime-boundaries
+blocked_by: []
+blocks: []
+---
+
 # Migrate op consumers to instanceof dispatch
 
 **Effort:** S

@@ -1,3 +1,10 @@
+---
+id: DX_jsr-publish-deno-panic
+feature: tooling-release
+blocked_by: []
+blocks: []
+---
+
 # Fix JSR Publish Dry-Run Deno Panic
 
 **Effort:** M

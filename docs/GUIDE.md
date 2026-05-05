@@ -5,15 +5,19 @@ This is the builder's guide.
 Use it when you are writing an app, an agent workflow, or a local-first tool on top of `git-warp` and you want the main patterns without reading a substrate manual.
 
 - If you are brand new, start with [Getting Started](GETTING_STARTED.md).
+- If you want the public read model, use [Readings And Optics](READINGS_AND_OPTICS.md).
 - If you want exhaustive method-by-method detail, use the [API Reference](API_REFERENCE.md).
 - If you want replay, trust, performance, and substrate internals, use the [Advanced Guide](ADVANCED_GUIDE.md).
 - If you want terminal workflows, use the [CLI Guide](CLI_GUIDE.md).
+- If you want the canonical meaning of core nouns like `Worldline`,
+  `Observer`, `Aperture`, or `Coordinate`, use [GLOSSARY.md](GLOSSARY.md).
 
 ## Mental model
 
 The most important thing to understand is state before methods.
 
-- `WarpApp` is the root you build on.
+- `openWarpGraph()` returns a frozen capability bag — the root you build on.
+- Capabilities are organized into namespaces: `graph.patches`, `graph.query`, `graph.strands`, etc.
 - A `Worldline` is a pinned read coordinate.
 - An `Aperture` defines what is visible.
 - An `Observer` is a filtered read-only view through that aperture.
@@ -21,31 +25,35 @@ The most important thing to understand is state before methods.
 
 If you understand those nouns, the rest of the API becomes much easier to reason about.
 
-## Open an app
+> **Backward compatibility:** the legacy `open()` entry points still work
+> but are deprecated and will be removed in v18. New code should use
+> `openWarpGraph()`.
 
-```javascript
+## Open a graph
+
+```typescript
+import { openWarpGraph, GitGraphAdapter } from '@git-stunts/git-warp';
 import GitPlumbing from '@git-stunts/plumbing';
-import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
 
 const plumbing = new GitPlumbing({ cwd: './team-repo' });
 const persistence = new GitGraphAdapter({ plumbing });
 
-const app = await WarpApp.open({
+const graph = await openWarpGraph({
   persistence,
   graphName: 'team',
   writerId: 'alice',
 });
-// app is the root handle for this graph
+// graph is the frozen capability bag for this graph
 ```
 
 ## Common write patterns
 
 ### Pattern 1: direct patch
 
-Use `app.patch(...)` for normal live writes.
+Use `graph.patches.patch(...)` for normal live writes.
 
-```javascript
-const patchSha = await app.patch((p) => {
+```typescript
+const patchSha = await graph.patches.patch((p) => {
   p.addNode('task:auth')
     .setProperty('task:auth', 'title', 'Implement OAuth2')
     .setProperty('task:auth', 'status', 'in-progress');
@@ -59,8 +67,8 @@ This commits one atomic WARP patch after the callback finishes. It updates `refs
 
 Use the writer API when you want a multi-step session before committing.
 
-```javascript
-const writer = await app.writer();
+```typescript
+const writer = await graph.patches.writer();
 const session = await writer.beginPatch();
 
 session.addNode('task:review');
@@ -77,19 +85,19 @@ Nothing is written until `session.commit()` runs.
 
 Use a `Strand` when you want reviewable or transferable work that should not land in live truth yet.
 
-```javascript
-const strand = await app.createStrand({
+```typescript
+const strand = await graph.strands.createStrand({
   strandId: 'review-auth',
   owner: 'alice',
   scope: 'OAuth review',
 });
 // strand = { strandId: 'review-auth', ... }
 
-await app.patchStrand('review-auth', (p) => {
+await graph.strands.patchStrand('review-auth', (p) => {
   p.setProperty('task:auth', 'status', 'ready-for-review');
 });
 
-const reviewLane = app.worldline({
+const reviewLane = graph.query.worldline({
   source: { kind: 'strand', strandId: 'review-auth' },
 });
 // reviewLane is a Worldline pinned to the strand overlay
@@ -97,7 +105,7 @@ const reviewLane = app.worldline({
 
 Use strands for speculative work. Use ordinary patches for live truth.
 
-For the deeper substrate story behind strands, braids, and transfer planning, use [Advanced Guide → Strands and braids](ADVANCED_GUIDE.md#strands-and-braids).
+For the deeper substrate story behind strands, braids, and transfer planning, use [Advanced Guide -> Strands and braids](ADVANCED_GUIDE.md#strands-and-braids).
 
 ## Common read patterns
 
@@ -105,8 +113,8 @@ For the deeper substrate story behind strands, braids, and transfer planning, us
 
 Start from a worldline when you want stable application reads.
 
-```javascript
-const worldline = app.worldline();
+```typescript
+const worldline = graph.query.worldline();
 
 const task = await worldline.getNodeProps('task:auth');
 // { title: 'Implement OAuth2', status: 'in-progress' }
@@ -116,7 +124,7 @@ const task = await worldline.getNodeProps('task:auth');
 
 Add an observer when the caller should not see everything.
 
-```javascript
+```typescript
 const userAperture = {
   match: ['user:*', 'task:*'],
   redact: ['email', 'ssn'],
@@ -136,8 +144,8 @@ const users = await view.query().match('user:*').run();
 
 Pin an explicit coordinate when you need to ask what the graph looked like earlier.
 
-```javascript
-const historical = app.worldline({
+```typescript
+const historical = graph.query.worldline({
   source: {
     kind: 'coordinate',
     frontier: { alice: 'patch-tip-sha' },
@@ -153,8 +161,8 @@ const taskAtTick12 = await historical.getNodeProps('task:auth');
 
 Read a strand through the same worldline abstraction you use for live truth.
 
-```javascript
-const reviewLane = app.worldline({
+```typescript
+const reviewLane = graph.query.worldline({
   source: { kind: 'strand', strandId: 'review-auth' },
 });
 
@@ -186,7 +194,7 @@ flowchart TD
 
 ### Pattern 1: match nodes
 
-```javascript
+```typescript
 const tasks = await worldline.query()
   .match('task:*')
   .run();
@@ -202,7 +210,7 @@ const tasks = await worldline.query()
 
 ### Pattern 2: hop outward from a node
 
-```javascript
+```typescript
 const downstream = await worldline.query()
   .match('epic:auth')
   .outgoing('contains', { depth: [1, 2] })
@@ -221,7 +229,7 @@ const downstream = await worldline.query()
 
 ### Pattern 3: aggregate
 
-```javascript
+```typescript
 const summary = await worldline.query()
   .match('task:*')
   .where({ status: 'todo' })
@@ -237,7 +245,7 @@ const summary = await worldline.query()
 
 ### Pattern 4: find a path
 
-```javascript
+```typescript
 const dependencyPath = await worldline.traverse.shortestPath('task:docs', 'task:oauth', {
   dir: 'out',
   labelFilter: 'depends-on',
@@ -279,49 +287,35 @@ The inspection APIs are valid tools here. What you should avoid is rebuilding yo
 
 ### Pattern: find out why your write lost
 
-If you know a write was superseded and need the reason, inspect receipts through `WarpCore` instead of guessing from app state.
+If you know a write was superseded and need the reason, inspect the provenance for the entity and load the contributing patches.
 
-```javascript
-const { receipts } = await app.core().materialize({ receipts: true });
+```typescript
+const patchShas = await graph.provenance.patchesFor('task:auth');
 
-const supersededOps = receipts.flatMap((receipt) =>
-  receipt.ops
-    .filter((op) => op.result === 'superseded')
-    .map((op) => ({
-      patchSha: receipt.patchSha,
-      lamport: receipt.lamport,
-      writer: receipt.writer,
-      target: op.target,
-      reason: op.reason ?? 'superseded by deterministic replay order',
-    })),
-);
-// supersededOps = [
-//   {
-//     patchSha: 'abc123...',
-//     lamport: 14,
-//     writer: 'alice',
-//     target: 'task:auth',
-//     reason: 'superseded by deterministic replay order',
-//   },
-// ]
+for (const patchSha of patchShas) {
+  const patch = await graph.provenance.loadPatchBySha(patchSha);
+  console.log(patchSha, patch.ops.length);
+}
 ```
 
-Use this pattern when you need to explain a lost race or build higher-level conflict UX. For the deeper replay and provenance model behind receipts, use [Advanced Guide → How replay converges](ADVANCED_GUIDE.md#how-replay-converges).
+Use this pattern when you need to explain a lost race or build higher-level conflict UX. For the deeper replay and provenance model behind receipts, use [Advanced Guide -> How replay converges](ADVANCED_GUIDE.md#how-replay-converges). For the app-facing read contract, use [Readings And Optics](READINGS_AND_OPTICS.md).
 
-## When to drop to WarpCore
+## When to use lower-level capabilities
 
-Reach for `app.core()` when you intentionally need:
+Reach for individual capability namespaces when you intentionally need:
 
-- whole-visible-state inspection
-- materialization and replay receipts
-- provenance and patch inspection
-- coordinate comparison and transfer planning
-- debugger or operator tooling
+- `graph.query` — live and pinned reads through worldlines, observers, traversal, and query builders
+- `graph.provenance` — provenance and patch inspection, backward-cone tracing
+- `graph.comparison` — coordinate comparison and transfer planning
+- `graph.checkpoint` — checkpoint creation, GC metrics
+- `graph.sync` — programmatic sync, serve endpoints
+- `graph.subscriptions` — reactive push-based change notification
 
 What to avoid is not the inspection API itself. The thing to avoid is exporting that data into a second app-local graph or writing your own traversal/query semantics above the substrate.
 
 ## Where next
 
+- [Readings And Optics](READINGS_AND_OPTICS.md): public read model and app-facing read patterns
 - [API Reference](API_REFERENCE.md): exhaustive methods, flags, and examples
 - [Advanced Guide](ADVANCED_GUIDE.md): patch anatomy, replay, trust, GC, and performance
 - [CLI Guide](CLI_GUIDE.md): operator workflows and live-repo inspection

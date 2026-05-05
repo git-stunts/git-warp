@@ -1,0 +1,46 @@
+import { describe, it, expect } from 'vitest';
+import CodecPort from '../../../src/ports/CodecPort.ts';
+import { CborCodec } from '../../../src/infrastructure/codecs/CborCodec.ts';
+import { encode, decode } from '../../../src/infrastructure/codecs/CborCodec.ts';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
+
+describe('CodecPort', () => {
+  it('abstract methods are not callable on base prototype', () => {
+    expect(CodecPort.prototype.encode).toBeUndefined();
+    expect(CodecPort.prototype.decode).toBeUndefined();
+  });
+});
+
+describe('CborCodec extends CodecPort', () => {
+  it('CborCodec instanceof CodecPort is true', () => {
+    const codec = new CborCodec();
+    expect(codec).toBeInstanceOf(CodecPort);
+  });
+
+  it('default export is instanceof CodecPort', () => {
+    expect(defaultCodec).toBeInstanceOf(CodecPort);
+  });
+
+  it('class encode/decode round-trip', () => {
+    const codec = new CborCodec();
+    const data = { foo: 'bar', count: 42, nested: { a: [1, 2, 3] } };
+    const encoded = codec.encode(data);
+    const decoded = codec.decode(encoded);
+    expect(decoded).toEqual(data);
+  });
+
+  it('named function exports still work', () => {
+    const data = { z: 1, a: 2, m: 3 };
+    const encoded = encode(data);
+    const decoded = decode(encoded);
+    expect(decoded).toEqual(data);
+  });
+
+  it('deterministic encoding via class matches function', () => {
+    const codec = new CborCodec();
+    const data = { z: 1, a: 2 };
+    const fromClass = codec.encode(data);
+    const fromFn = encode(data);
+    expect(Buffer.compare(fromClass, fromFn)).toBe(0);
+  });
+});

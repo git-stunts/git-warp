@@ -1,3 +1,10 @@
+---
+id: DX_claudespeed-session-handoff
+blocked_by: []
+blocks: []
+feature: testing-quality
+---
+
 # CLAUDESPEED session handoff protocol
 
 This session produced 30+ commits, 4 audit reports, 93 backlog items,

@@ -30,12 +30,18 @@ assert len(chain["errors"]) == 0
 PY
 }
 
-@test "verify-audit human output includes status" {
+@test "verify-audit default output includes status" {
   run git warp --repo "${TEST_REPO}" --graph demo verify-audit
   assert_success
-  echo "$output" | grep -q "Writer: alice"
-  echo "$output" | grep -q "VALID"
-  echo "$output" | grep -q "Receipts:"
+
+  JSON="$output" python3 - <<'PY'
+import json, os
+data = json.loads(os.environ["JSON"])
+chain = data["chains"][0]
+assert chain["writerId"] == "alice"
+assert chain["status"] == "VALID"
+assert chain["receiptsVerified"] == 3
+PY
 }
 
 @test "verify-audit --writer alice selects single chain" {

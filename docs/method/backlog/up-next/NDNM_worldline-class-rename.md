@@ -1,3 +1,11 @@
+---
+id: NDNM_worldline-class-rename
+feature: merge-strands-worldlines
+blocked_by:
+  - PROTO_WESLEY_lane-coordinate-capability-boundary
+blocks: []
+---
+
 # Rename Worldline class to match theory
 
 **Effort:** M

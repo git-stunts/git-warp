@@ -1,3 +1,10 @@
+---
+id: PERF_encrypted-stores-fixed-chunking
+blocked_by: []
+blocks: []
+feature: runtime-boundaries
+---
+
 # Switch encrypted stores to fixed chunking
 
 Both `CasSeekCacheAdapter` and `CasBlobAdapter` use

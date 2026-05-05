@@ -1,3 +1,10 @@
+---
+id: DX_no-conditional-returns-in-tests
+blocked_by: []
+blocks: []
+feature: testing-quality
+---
+
 # Ban conditional early returns in test bodies
 
 ## Idea

@@ -1,7 +1,7 @@
-import { assertEquals, assert } from "jsr:@std/assert";
-import { createTestRepo } from "./helpers.ts";
+import { assertEquals, assert } from "./assertions.ts";
+import { createTestRepo, denoRuntimeTest } from "./helpers.ts";
 
-Deno.test("tombstone: removeNode hides node", async () => {
+denoRuntimeTest("tombstone: removeNode hides node", async () => {
   const repo = await createTestRepo("tomb");
   try {
     const graph = await repo.openGraph("test", "alice");
@@ -18,7 +18,7 @@ Deno.test("tombstone: removeNode hides node", async () => {
   }
 });
 
-Deno.test("tombstone: re-add after removal", async () => {
+denoRuntimeTest("tombstone: re-add after removal", async () => {
   const repo = await createTestRepo("tomb-re");
   try {
     const graph = await repo.openGraph("test", "alice");

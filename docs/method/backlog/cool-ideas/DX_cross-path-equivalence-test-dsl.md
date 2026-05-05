@@ -1,3 +1,10 @@
+---
+id: DX_cross-path-equivalence-test-dsl
+blocked_by: []
+blocks: []
+feature: testing-quality
+---
+
 # Cross-path equivalence as a general testing pattern
 
 The JoinReducer `pathEquivalence.test.js` applies the same input

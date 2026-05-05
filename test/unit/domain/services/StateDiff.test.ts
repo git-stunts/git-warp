@@ -1,0 +1,593 @@
+import { describe, it, expect } from 'vitest';
+import {
+  diffStates,
+  isEmptyDiff,
+  createEmptyDiff,
+} from '../../../../src/domain/services/state/StateDiff.ts';
+import {
+  createEmptyState,
+  applyOpV2,
+  encodePropKey,
+} from '../../../../src/domain/services/JoinReducer.ts';
+import { encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
+import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
+
+// Helper to create a node add operation
+/** @param {string} nodeId @param {string} writerId @param {number} counter */
+function createNodeAddOp(nodeId, writerId, counter) {
+  return {
+    type: 'NodeAdd',
+    node: nodeId,
+    dot: Dot.create(writerId, counter),
+  };
+}
+
+// Helper to create an edge add operation
+/** @param {string} from @param {string} to @param {string} label @param {string} writerId @param {number} counter */
+function createEdgeAddOp(from, to, label, writerId, counter) {
+  return {
+    type: 'EdgeAdd',
+    from,
+    to,
+    label,
+    dot: Dot.create(writerId, counter),
+  };
+}
+
+// Helper to apply operations to state with auto-incrementing lamport
+/** @param {any} state @param {any[]} ops @param {string} writerId */
+function applyOps(state, ops, writerId) {
+  let lamport = 1;
+  for (const op of ops) {
+    const eventId = new EventId(lamport++, writerId, 'abcd1234', 0);
+    applyOpV2(state, op, eventId);
+  }
+}
+
+// Helper to create an EventId for property tests
+/** @param {number} lamport @param {string} [writerId] */
+function makeEventId(lamport, writerId = 'w1') {
+  return new EventId(lamport, writerId, 'abcd1234', 0);
+}
+
+describe('StateDiff', () => {
+  describe('diffStates', () => {
+    describe('node changes', () => {
+      it('detects added nodes', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        applyOps(after, [createNodeAddOp('user:alice', 'w1', 1)], 'w1');
+
+        const diff = diffStates(before, after);
+
+        expect(diff.nodes.added).toEqual(['user:alice']);
+        expect(diff.nodes.removed).toEqual([]);
+      });
+
+      it('detects removed nodes', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        applyOps(before, [createNodeAddOp('user:alice', 'w1', 1)], 'w1');
+
+        const diff = diffStates(before, after);
+
+        expect(diff.nodes.added).toEqual([]);
+        expect(diff.nodes.removed).toEqual(['user:alice']);
+      });
+
+      it('detects multiple node changes', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        applyOps(before, [
+          createNodeAddOp('user:alice', 'w1', 1),
+          createNodeAddOp('user:charlie', 'w1', 3),
+        ], 'w1');
+
+        applyOps(after, [
+          createNodeAddOp('user:alice', 'w1', 1),
+          createNodeAddOp('user:bob', 'w1', 2),
+        ], 'w1');
+
+        const diff = diffStates(before, after);
+
+        expect(diff.nodes.added).toEqual(['user:bob']);
+        expect(diff.nodes.removed).toEqual(['user:charlie']);
+      });
+
+      it('returns sorted node IDs', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        applyOps(after, [
+          createNodeAddOp('zebra', 'w1', 1),
+          createNodeAddOp('alpha', 'w1', 2),
+          createNodeAddOp('middle', 'w1', 3),
+        ], 'w1');
+
+        const diff = diffStates(before, after);
+
+        expect(diff.nodes.added).toEqual(['alpha', 'middle', 'zebra']);
+      });
+    });
+
+    describe('edge changes', () => {
+      it('detects added edges', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        applyOps(after, [
+          createNodeAddOp('user:alice', 'w1', 1),
+          createNodeAddOp('user:bob', 'w1', 2),
+          createEdgeAddOp('user:alice', 'user:bob', 'follows', 'w1', 3),
+        ], 'w1');
+
+        const diff = diffStates(before, after);
+
+        expect(diff.edges.added).toEqual([
+          { from: 'user:alice', to: 'user:bob', label: 'follows' },
+        ]);
+        expect(diff.edges.removed).toEqual([]);
+      });
+
+      it('detects removed edges', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        applyOps(before, [
+          createNodeAddOp('user:alice', 'w1', 1),
+          createNodeAddOp('user:bob', 'w1', 2),
+          createEdgeAddOp('user:alice', 'user:bob', 'follows', 'w1', 3),
+        ], 'w1');
+
+        applyOps(after, [
+          createNodeAddOp('user:alice', 'w1', 1),
+          createNodeAddOp('user:bob', 'w1', 2),
+        ], 'w1');
+
+        const diff = diffStates(before, after);
+
+        expect(diff.edges.added).toEqual([]);
+        expect(diff.edges.removed).toEqual([
+          { from: 'user:alice', to: 'user:bob', label: 'follows' },
+        ]);
+      });
+
+      it('returns sorted edges', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        applyOps(after, [
+          // Add nodes first - edges are only visible if both endpoints exist
+          createNodeAddOp('a', 'w1', 1),
+          createNodeAddOp('z', 'w1', 2),
+          createEdgeAddOp('z', 'a', 'label', 'w1', 3),
+          createEdgeAddOp('a', 'z', 'label', 'w1', 4),
+          createEdgeAddOp('a', 'a', 'zebra', 'w1', 5),
+          createEdgeAddOp('a', 'a', 'alpha', 'w1', 6),
+        ], 'w1');
+
+        const diff = diffStates(before, after);
+
+        expect(diff.edges.added).toEqual([
+          { from: 'a', to: 'a', label: 'alpha' },
+          { from: 'a', to: 'a', label: 'zebra' },
+          { from: 'a', to: 'z', label: 'label' },
+          { from: 'z', to: 'a', label: 'label' },
+        ]);
+      });
+
+      it('excludes edges with missing endpoints from diff', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        // Add edge without nodes - edge should be invisible
+        applyOps(after, [
+          createEdgeAddOp('orphan:a', 'orphan:b', 'dangling', 'w1', 1),
+        ], 'w1');
+
+        const diff = diffStates(before, after);
+
+        // Edge should not appear as added since endpoints don't exist
+        expect(diff.edges.added).toEqual([]);
+      });
+
+      it('excludes edges when source node is missing', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        applyOps(after, [
+          // Only add target node, not source
+          createNodeAddOp('target', 'w1', 1),
+          createEdgeAddOp('missing', 'target', 'half', 'w1', 2),
+        ], 'w1');
+
+        const diff = diffStates(before, after);
+
+        expect(diff.edges.added).toEqual([]);
+      });
+
+      it('excludes edges when target node is missing', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        applyOps(after, [
+          // Only add source node, not target
+          createNodeAddOp('source', 'w1', 1),
+          createEdgeAddOp('source', 'missing', 'half', 'w1', 2),
+        ], 'w1');
+
+        const diff = diffStates(before, after);
+
+        expect(diff.edges.added).toEqual([]);
+      });
+
+      it('removes edge from diff when endpoint node disappears', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        // Before: both nodes and edge exist
+        applyOps(before, [
+          createNodeAddOp('a', 'w1', 1),
+          createNodeAddOp('b', 'w1', 2),
+          createEdgeAddOp('a', 'b', 'link', 'w1', 3),
+        ], 'w1');
+
+        // After: edge still in edgeAlive but node 'b' is gone
+        applyOps(after, [
+          createNodeAddOp('a', 'w1', 1),
+          createEdgeAddOp('a', 'b', 'link', 'w1', 3),
+        ], 'w1');
+
+        const diff = diffStates(before, after);
+
+        // The edge should be in 'removed' because it was visible before (both endpoints alive)
+        // but invisible after (endpoint 'b' is missing)
+        expect(diff.edges.removed).toEqual([
+          { from: 'a', to: 'b', label: 'link' },
+        ]);
+        expect(diff.edges.added).toEqual([]);
+      });
+    });
+
+    describe('property changes', () => {
+      it('detects new properties', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        const propKey = encodePropKey('user:alice', 'name');
+        after.prop.set(propKey, lwwSet(makeEventId(1), 'Alice'));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toEqual([
+          {
+            key: propKey,
+            nodeId: 'user:alice',
+            propKey: 'name',
+            oldValue: undefined,
+            newValue: 'Alice',
+          },
+        ]);
+        expect(diff.props.removed).toEqual([]);
+      });
+
+      it('detects removed properties', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        const propKey = encodePropKey('user:alice', 'name');
+        before.prop.set(propKey, lwwSet(makeEventId(1), 'Alice'));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toEqual([]);
+        expect(diff.props.removed).toEqual([
+          {
+            key: propKey,
+            nodeId: 'user:alice',
+            propKey: 'name',
+            oldValue: 'Alice',
+          },
+        ]);
+      });
+
+      it('detects changed properties', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        const propKey = encodePropKey('user:alice', 'name');
+        before.prop.set(propKey, lwwSet(makeEventId(1), 'Alice'));
+        after.prop.set(propKey, lwwSet(makeEventId(2), 'Alicia'));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toEqual([
+          {
+            key: propKey,
+            nodeId: 'user:alice',
+            propKey: 'name',
+            oldValue: 'Alice',
+            newValue: 'Alicia',
+          },
+        ]);
+        expect(diff.props.removed).toEqual([]);
+      });
+
+      it('ignores unchanged properties', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        const propKey = encodePropKey('user:alice', 'name');
+        before.prop.set(propKey, lwwSet(makeEventId(1), 'Alice'));
+        after.prop.set(propKey, lwwSet(makeEventId(2), 'Alice'));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toEqual([]);
+        expect(diff.props.removed).toEqual([]);
+      });
+
+      it('detects changes to object properties', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        const propKey = encodePropKey('user:alice', 'meta');
+        before.prop.set(propKey, lwwSet(makeEventId(1), { age: 25 }));
+        after.prop.set(propKey, lwwSet(makeEventId(2), { age: 26 }));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toHaveLength(1);
+        expect(diff.props.set[0]?.oldValue).toEqual({ age: 25 });
+        expect(diff.props.set[0]?.newValue).toEqual({ age: 26 });
+      });
+
+      it('ignores unchanged object properties', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        const propKey = encodePropKey('user:alice', 'meta');
+        before.prop.set(propKey, lwwSet(makeEventId(1), { age: 25, tags: ['a', 'b'] }));
+        after.prop.set(propKey, lwwSet(makeEventId(2), { age: 25, tags: ['a', 'b'] }));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toEqual([]);
+      });
+
+      it('detects changed array element values', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        const propKey = encodePropKey('user:alice', 'tags');
+        before.prop.set(propKey, lwwSet(makeEventId(1), ['a', 'b']));
+        after.prop.set(propKey, lwwSet(makeEventId(2), ['a', 'c']));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toHaveLength(1);
+        expect(diff.props.set[0]?.oldValue).toEqual(['a', 'b']);
+        expect(diff.props.set[0]?.newValue).toEqual(['a', 'c']);
+      });
+
+      it('detects changed object key sets', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        const propKey = encodePropKey('user:alice', 'meta');
+        before.prop.set(propKey, lwwSet(makeEventId(1), { age: 25 }));
+        after.prop.set(propKey, lwwSet(makeEventId(2), { age: 25, city: 'SF' }));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toHaveLength(1);
+        expect(diff.props.set[0]?.newValue).toEqual({ age: 25, city: 'SF' });
+      });
+
+      it('detects changed object keys when shapes differ at equal length', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        const propKey = encodePropKey('user:alice', 'meta');
+        before.prop.set(propKey, lwwSet(makeEventId(1), { age: 25, city: 'SF' }));
+        after.prop.set(propKey, lwwSet(makeEventId(2), { age: 25, role: 'admin' }));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toHaveLength(1);
+        expect(diff.props.set[0]?.oldValue).toEqual({ age: 25, city: 'SF' });
+        expect(diff.props.set[0]?.newValue).toEqual({ age: 25, role: 'admin' });
+      });
+
+      it('treats array and object values as different even when contents look similar', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        const propKey = encodePropKey('user:alice', 'meta');
+        before.prop.set(propKey, lwwSet(makeEventId(1), ['a', 'b']));
+        after.prop.set(propKey, lwwSet(makeEventId(2), { 0: 'a', 1: 'b' }));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toHaveLength(1);
+      });
+
+      it('returns sorted properties', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        after.prop.set(encodePropKey('z', 'name'), lwwSet(makeEventId(1), 'Z'));
+        after.prop.set(encodePropKey('a', 'name'), lwwSet(makeEventId(2), 'A'));
+        after.prop.set(encodePropKey('a', 'age'), lwwSet(makeEventId(3), 25));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set.map(p => p.key)).toEqual([
+          encodePropKey('a', 'age'),
+          encodePropKey('a', 'name'),
+          encodePropKey('z', 'name'),
+        ]);
+      });
+
+      it('ignores edge properties in property diffs', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        const edgePropKey = encodeEdgePropKey('a', 'b', 'link', 'weight');
+        before.prop.set(edgePropKey, lwwSet(makeEventId(1), 1));
+        after.prop.set(edgePropKey, lwwSet(makeEventId(2), 2));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toEqual([]);
+        expect(diff.props.removed).toEqual([]);
+      });
+    });
+
+    describe('null before state (initial)', () => {
+      it('treats null before as empty state', () => {
+        const after = createEmptyState();
+
+        applyOps(after, [
+          createNodeAddOp('user:alice', 'w1', 1),
+          createEdgeAddOp('user:alice', 'user:alice', 'self', 'w1', 2),
+        ], 'w1');
+
+        after.prop.set(encodePropKey('user:alice', 'name'), lwwSet(makeEventId(1), 'Alice'));
+
+        const diff = diffStates(null, after);
+
+        expect(diff.nodes.added).toEqual(['user:alice']);
+        expect(diff.nodes.removed).toEqual([]);
+        expect(diff.edges.added).toEqual([
+          { from: 'user:alice', to: 'user:alice', label: 'self' },
+        ]);
+        expect(diff.props.set).toHaveLength(1);
+      });
+    });
+
+    describe('identical states', () => {
+      it('returns empty diff for identical states', () => {
+        const state = createEmptyState();
+
+        applyOps(state, [
+          createNodeAddOp('user:alice', 'w1', 1),
+        ], 'w1');
+
+        state.prop.set(encodePropKey('user:alice', 'name'), lwwSet(makeEventId(1), 'Alice'));
+
+        const diff = diffStates(state, state);
+
+        expect(diff.nodes.added).toEqual([]);
+        expect(diff.nodes.removed).toEqual([]);
+        expect(diff.edges.added).toEqual([]);
+        expect(diff.edges.removed).toEqual([]);
+        expect(diff.props.set).toEqual([]);
+        expect(diff.props.removed).toEqual([]);
+        expect(isEmptyDiff(diff)).toBe(true);
+      });
+
+      it('returns empty diff for two empty states', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        const diff = diffStates(before, after);
+
+        expect(isEmptyDiff(diff)).toBe(true);
+      });
+    });
+
+    describe('determinism', () => {
+      it('produces identical output across multiple runs', () => {
+        const before = createEmptyState();
+        const after = createEmptyState();
+
+        applyOps(before, [
+          createNodeAddOp('a', 'w1', 1),
+          createNodeAddOp('b', 'w1', 2),
+        ], 'w1');
+
+        applyOps(after, [
+          createNodeAddOp('b', 'w1', 2),
+          createNodeAddOp('c', 'w1', 3),
+        ], 'w1');
+
+        const diff1 = diffStates(before, after);
+        const diff2 = diffStates(before, after);
+        const diff3 = diffStates(before, after);
+
+        expect(JSON.stringify(diff1)).toBe(JSON.stringify(diff2));
+        expect(JSON.stringify(diff2)).toBe(JSON.stringify(diff3));
+      });
+    });
+  });
+
+  describe('isEmptyDiff', () => {
+    it('returns true for empty diff', () => {
+      const diff = createEmptyDiff();
+      expect(isEmptyDiff(diff)).toBe(true);
+    });
+
+    it('returns false when nodes added', () => {
+      const diff = createEmptyDiff();
+      diff.nodes.added.push('a');
+      expect(isEmptyDiff(diff)).toBe(false);
+    });
+
+    it('returns false when nodes removed', () => {
+      const diff = createEmptyDiff();
+      diff.nodes.removed.push('a');
+      expect(isEmptyDiff(diff)).toBe(false);
+    });
+
+    it('returns false when edges added', () => {
+      const diff = createEmptyDiff();
+      diff.edges.added.push({ from: 'a', to: 'b', label: 'c' });
+      expect(isEmptyDiff(diff)).toBe(false);
+    });
+
+    it('returns false when edges removed', () => {
+      const diff = createEmptyDiff();
+      diff.edges.removed.push({ from: 'a', to: 'b', label: 'c' });
+      expect(isEmptyDiff(diff)).toBe(false);
+    });
+
+    it('returns false when props set', () => {
+      const diff = createEmptyDiff();
+      diff.props.set.push({ key: 'k', nodeId: 'n', propKey: 'p', oldValue: undefined, newValue: 1 });
+      expect(isEmptyDiff(diff)).toBe(false);
+    });
+
+    it('returns false when props removed', () => {
+      const diff = createEmptyDiff();
+      diff.props.removed.push({ key: 'k', nodeId: 'n', propKey: 'p', oldValue: 1 });
+      expect(isEmptyDiff(diff)).toBe(false);
+    });
+  });
+
+  describe('createEmptyDiff', () => {
+    it('returns properly structured empty diff', () => {
+      const diff = createEmptyDiff();
+
+      expect(diff).toEqual({
+        nodes: { added: [], removed: [] },
+        edges: { added: [], removed: [] },
+        props: { set: [], removed: [] },
+      });
+    });
+
+    it('returns independent objects', () => {
+      const diff1 = createEmptyDiff();
+      const diff2 = createEmptyDiff();
+
+      diff1.nodes.added.push('a');
+
+      expect(diff2.nodes.added).toEqual([]);
+    });
+  });
+});
