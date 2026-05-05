@@ -684,9 +684,9 @@ GREEN must not implement BTR repair and must not resume cast purge.
 
 - [docs/method/retros/0098-btr-signing-bytes-layer-ownership.md](../method/retros/0098-btr-signing-bytes-layer-ownership.md)
 
-The folded next-cycle acceptance criteria now live on:
+The folded next-cycle acceptance criteria were promoted into:
 
-- [docs/method/backlog/bad-code/PROV_btr-provenance-codec-boundary-sludge.md](../method/backlog/bad-code/PROV_btr-provenance-codec-boundary-sludge.md)
+- [0099-btr-provenance-codec-boundary-repair.md](0099-btr-provenance-codec-boundary-repair.md)
 
 Closeout confirmations:
 

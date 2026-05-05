@@ -24,7 +24,7 @@ Give the repo a canonical wall-chart for the current read/runtime doctrine:
 
 ### The repo now has a canonical noun source of truth
 
-[docs/GLOSSARY.md](/Users/james/git/git-stunts/git-warp/docs/GLOSSARY.md) now
+[docs/GLOSSARY.md](../../../GLOSSARY.md) now
 exists as the canonical noun source of truth.
 
 That matters because the repo had already accumulated:
@@ -45,7 +45,7 @@ The glossary now does that job.
 
 ### The observer/read-side runtime now has a declared target architecture
 
-[0035-observer-geometry-architecture-ladder.md](/Users/james/git/git-stunts/git-warp/docs/design/0035-observer-geometry-architecture-ladder.md)
+[0035-observer-geometry-architecture-ladder.md](../../../design/0035-observer-geometry-architecture-ladder.md)
 turns the repo’s implicit direction into an explicit ladder.
 
 The important move was not philosophical novelty. The important move was
@@ -67,7 +67,7 @@ Specifically, the cycle named these missing runtime nouns as real work:
 
 ### The future majors are now sketched honestly
 
-[release-horizon-v20-v21.md](/Users/james/git/git-stunts/git-warp/docs/design/release-horizon-v20-v21.md)
+[release-horizon-v20-v21.md](../../../design/release-horizon-v20-v21.md)
 locks the horizon without pretending it is already a dependency graph.
 
 That note gives the repo a cleaner major-version ladder:
@@ -85,7 +85,7 @@ It also records an important design law:
 ### The ladder became backlog, not folklore
 
 This cycle promoted four previously speculative notes into
-[`docs/method/backlog/v19.0.0/`](../../../backlog/v19.0.0/README.md):
+[`docs/method/backlog/v19.0.0/`](../../backlog/v19.0.0/README.md):
 
 - `PROTO_bounded-support-rules-for-query-surfaces`
 - `PROTO_causal-indexes-for-sliced-queries`
@@ -154,13 +154,14 @@ No negative drift undercut the main hill.
 
 ## Cycle-end upkeep
 
-Two explicit next-cycle notes were queued in `up-next/`:
+Two explicit next-cycle notes were queued in `up-next/` and later promoted into
+design docs:
 
-- [DX_warp-drift-ledger-crosslinks.md](/Users/james/git/git-stunts/git-warp/docs/method/backlog/up-next/DX_warp-drift-ledger-crosslinks.md)
-- [PROTO_remaining-warp-drift-release-slotting.md](/Users/james/git/git-stunts/git-warp/docs/method/backlog/up-next/PROTO_remaining-warp-drift-release-slotting.md)
+- [0036-warp-drift-ledger-crosslinks.md](../../../design/0036-warp-drift-ledger-crosslinks.md)
+- [0037-remaining-warp-drift-release-slotting.md](../../../design/0037-remaining-warp-drift-release-slotting.md)
 
 The backlog snapshot in
-[docs/method/backlog/README.md](/Users/james/git/git-stunts/git-warp/docs/method/backlog/README.md)
+[docs/method/backlog/README.md](../../backlog/README.md)
 was updated so repo-truth counts stayed honest after those notes landed.
 
 ## What remains

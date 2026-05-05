@@ -14,7 +14,7 @@ honest over time: compaction of stable tombstones and structural cleanup of
 undersized leaves.
 
 The in-memory `ORSet` already has the semantic law in
-[ORSet.ts](../src/domain/crdt/ORSet.ts):
+[ORSet.ts](../../src/domain/crdt/ORSet.ts):
 
 - remove tombstoned dots that are at or below the stable frontier
 - drop dead entries whose live-dot set becomes empty

@@ -70,9 +70,13 @@ Current evidence before implementation:
 - `git status --short --branch` reports
   `release/v17.0.0...origin/release/v17.0.0 [ahead 7]`.
 - `gh pr list --head release/v17.0.0 --state all ...` returns `[]`.
+- The first `git push -u origin release/v17.0.0` attempt is blocked by the
+  pre-push link gate. `lychee --config .lychee.toml '**/*.md'` reports stale
+  local links in six historical docs.
 
 ### GREEN
 
+- Repair the stale links and prove `npm run lint:links` exits `0`.
 - `git push -u origin release/v17.0.0` succeeds.
 - `gh pr create --draft --base main --head release/v17.0.0 ...` creates the
   release PR, or an existing PR is updated instead.

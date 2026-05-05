@@ -18,7 +18,7 @@ cycle: "0038-shadow-trie-orset"
 What is still missing is the honest async engine that turns those pieces into a
 storage-backed ORSet implementation.
 
-The current concrete `ORSet` in [src/domain/crdt/ORSet.ts](../src/domain/crdt/ORSet.ts)
+The current concrete `ORSet` in [src/domain/crdt/ORSet.ts](../../src/domain/crdt/ORSet.ts)
 is still the in-memory form:
 
 - synchronous
@@ -315,11 +315,11 @@ build on top of that.
 
 The witness for this cycle is:
 
-- [ShadowTrieORSet.ts](../src/domain/orset/shadow/ShadowTrieORSet.ts)
-- [ShadowTrieORSetError.ts](../src/domain/errors/ShadowTrieORSetError.ts)
-- [ShadowTrieORSet.test.ts](../test/unit/domain/orset/shadow/ShadowTrieORSet.test.ts)
+- [ShadowTrieORSet.ts](../../src/domain/orset/shadow/ShadowTrieORSet.ts)
+- [ShadowTrieORSetError.ts](../../src/domain/errors/ShadowTrieORSetError.ts)
+- [ShadowTrieORSet.test.ts](../../test/unit/domain/orset/shadow/ShadowTrieORSet.test.ts)
 - the cursor scan follow-through in
-  [TrieCursor.ts](../src/domain/orset/trie/TrieCursor.ts)
+  [TrieCursor.ts](../../src/domain/orset/trie/TrieCursor.ts)
 
 Verification:
 
@@ -403,7 +403,7 @@ One additive drift did occur:
 - the design said “avoid a dedicated `ShadowTrieORSetError` unless the engine
   truly owns new invariants”
 - the implementation did introduce
-  [ShadowTrieORSetError.ts](../src/domain/errors/ShadowTrieORSetError.ts)
+  [ShadowTrieORSetError.ts](../../src/domain/errors/ShadowTrieORSetError.ts)
   because constructor validation is in fact an engine-owned invariant
 
 That drift is acceptable and clarifies ownership instead of smearing it.
