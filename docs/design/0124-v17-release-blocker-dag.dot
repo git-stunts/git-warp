@@ -102,8 +102,10 @@ digraph V17ReleaseBlockers {
     penwidth=2.4
   ];
   "HEX_sync-secret-plain-string" [
-    fillcolor="#fee2e2",
-    label="HEX_sync-secret\nplain string"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nHEX_sync-secret\nplain string",
+    penwidth=2.4
   ];
   "HEX_sync-production-auth-defaults" [
     fillcolor="#fee2e2",

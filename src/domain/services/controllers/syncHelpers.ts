@@ -13,6 +13,7 @@ import type SyncTrustGate from '../sync/SyncTrustGate.ts';
 import type { SyncPeer, SyncRequestProcessor } from '../../capabilities/SyncCapability.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type { SyncHost } from './SyncController.ts';
+import type SyncSecret from '../sync/SyncSecret.ts';
 
 // ── Exports ─────────────────────────────────────────────────────────────────
 
@@ -152,14 +153,14 @@ export function resolveSyncTrustGate(
  * @returns HTTP headers map (empty if no auth configured)
  */
 export async function buildSyncAuthHeaders(params: {
-  auth: { secret: string; keyId?: string } | undefined;
+  auth: { secret: SyncSecret; keyId?: string } | undefined;
   bodyStr: string;
   targetUrl: URL;
   crypto: CryptoPort;
   lamport: number;
 }): Promise<Record<string, string>> {
   const { auth, bodyStr, targetUrl, crypto, lamport } = params;
-  if (auth === undefined || auth.secret === undefined || auth.secret === '') {
+  if (auth === undefined || auth.secret === undefined) {
     return {};
   }
   const bodyBuf = new TextEncoder().encode(bodyStr);

@@ -297,9 +297,10 @@
 <!-- HEX_sync&#45;secret&#45;plain&#45;string -->
 <g id="node13" class="node">
 <title>HEX_sync&#45;secret&#45;plain&#45;string</title>
-<path fill="#fee2e2" stroke="#4b5563" stroke-width="1.2" d="M79.65,-246C79.65,-246 12,-246 12,-246 6,-246 0,-240 0,-234 0,-234 0,-222 0,-222 0,-216 6,-210 12,-210 12,-210 79.65,-210 79.65,-210 85.65,-210 91.65,-216 91.65,-222 91.65,-222 91.65,-234 91.65,-234 91.65,-240 85.65,-246 79.65,-246"/>
-<text xml:space="preserve" text-anchor="middle" x="45.83" y="-229.75" font-family="Helvetica,sans-Serif" font-size="10.00">HEX_sync&#45;secret</text>
-<text xml:space="preserve" text-anchor="middle" x="45.83" y="-218.5" font-family="Helvetica,sans-Serif" font-size="10.00">plain string</text>
+<path fill="#bbf7d0" stroke="#15803d" stroke-width="2.4" d="M79.65,-249.91C79.65,-249.91 12,-249.91 12,-249.91 6,-249.91 0,-243.91 0,-237.91 0,-237.91 0,-218.09 0,-218.09 0,-212.09 6,-206.09 12,-206.09 12,-206.09 79.65,-206.09 79.65,-206.09 85.65,-206.09 91.65,-212.09 91.65,-218.09 91.65,-218.09 91.65,-237.91 91.65,-237.91 91.65,-243.91 85.65,-249.91 79.65,-249.91"/>
+<text xml:space="preserve" text-anchor="middle" x="45.83" y="-235.38" font-family="Helvetica,sans-Serif" font-size="10.00">DONE</text>
+<text xml:space="preserve" text-anchor="middle" x="45.83" y="-224.12" font-family="Helvetica,sans-Serif" font-size="10.00">HEX_sync&#45;secret</text>
+<text xml:space="preserve" text-anchor="middle" x="45.83" y="-212.88" font-family="Helvetica,sans-Serif" font-size="10.00">plain string</text>
 </g>
 <!-- HEX_sync&#45;production&#45;auth&#45;defaults -->
 <g id="node14" class="node">
@@ -311,14 +312,14 @@
 <!-- HEX_sync&#45;secret&#45;plain&#45;string&#45;&gt;HEX_sync&#45;production&#45;auth&#45;defaults -->
 <g id="edge12" class="edge">
 <title>HEX_sync&#45;secret&#45;plain&#45;string&#45;&gt;HEX_sync&#45;production&#45;auth&#45;defaults</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M92.24,-218.81C109.31,-215.35 129.04,-211.36 147.39,-207.64"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="147.71,-210.08 154.09,-206.29 146.74,-205.28 147.71,-210.08"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M92.67,-218.72C109.66,-215.28 129.22,-211.32 147.43,-207.63"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="147.69,-210.08 154.06,-206.29 146.71,-205.28 147.69,-210.08"/>
 </g>
 <!-- HEX_sync&#45;secret&#45;plain&#45;string&#45;&gt;REL_quarantine&#45;graduate&#45;clean -->
 <g id="edge21" class="edge">
 <title>HEX_sync&#45;secret&#45;plain&#45;string&#45;&gt;REL_quarantine&#45;graduate&#45;clean</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M91.9,-241.87C192.02,-272.67 432.3,-346.59 536.64,-378.69"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="535.81,-381 543.22,-380.72 537.25,-376.32 535.81,-381"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M92.83,-242.15C193.57,-273.15 432.96,-346.79 536.86,-378.76"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="536,-381.06 543.41,-380.77 537.44,-376.37 536,-381.06"/>
 </g>
 <!-- HEX_sync&#45;no&#45;rate&#45;limiting -->
 <g id="node15" class="node">

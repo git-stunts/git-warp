@@ -86,6 +86,7 @@ import WarpAppDefault, {
   SnapshotORSet,
   SnapshotVersionVector,
   SnapshotWarpState,
+  SyncSecret,
   normalizeVisibleStateScope,
   scopeMaterializedState,
   exportCoordinateComparisonFact,
@@ -472,8 +473,19 @@ checkAborted(timeoutSignal, 'consumer-test');
 const server = await graph.serve({ port: 3000, httpPort });
 const serverUrl: string = server.url;
 await server.close();
+const syncSecret: SyncSecret = SyncSecret.fromString('shared-secret');
+const authedServer = await graph.serve({
+  port: 3001,
+  httpPort,
+  auth: { keys: { default: syncSecret }, mode: 'enforce' },
+});
+await graph.syncWith(authedServer.url, {
+  auth: { secret: syncSecret, keyId: 'default' },
+});
+await authedServer.close();
 
 void serverUrl;
+void syncSecret;
 
 const browserError: BrowserWarpError = new BrowserWarpError('browser smoke', 'E_BROWSER_SMOKE');
 const browserVector: BrowserVersionVector = BrowserVersionVector.empty();
@@ -493,6 +505,12 @@ const badGraphBagNestedMaterialize = graphBag.materialize.materialize;
 
 // @ts-expect-error query readings do not expose materialization.
 const badGraphBagQueryMaterialize = graphBag.query.materialize;
+
+// @ts-expect-error sync auth secrets must be explicit SyncSecret values.
+await graph.syncWith(serverUrl, { auth: { secret: 'shared-secret', keyId: 'default' } });
+
+// @ts-expect-error sync auth key maps must carry SyncSecret values.
+await graph.serve({ port: 3002, httpPort, auth: { keys: { default: 'shared-secret' } } });
 
 // @ts-expect-error materialize() does not return a string.
 const badMaterialized: string = await graph.materialize();

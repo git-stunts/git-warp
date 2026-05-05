@@ -18,6 +18,7 @@ import SyncError from '../../errors/SyncError.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type LogFields from '../../types/log/LogFields.ts';
+import SyncSecret from './SyncSecret.ts';
 const SIG_VERSION = '2';
 const SIG_PREFIX = 'warp-v2';
 const HMAC_ALGO = 'sha256';
@@ -58,7 +59,7 @@ export function buildCanonicalPayload(params: {
  * Signs an outgoing sync request.
  */
 export async function signSyncRequest(
-  params: { method: string; path: string; contentType: string; body: Uint8Array; secret: string; keyId: string; lamport: number },
+  params: { method: string; path: string; contentType: string; body: Uint8Array; secret: SyncSecret; keyId: string; lamport: number },
   deps: { crypto?: CryptoPort } = {},
 ): Promise<Record<string, string>> {
   const c = deps.crypto ?? defaultCrypto;
@@ -76,7 +77,7 @@ export async function signSyncRequest(
     bodySha256,
   });
 
-  const hmacBuf = await c.hmac(HMAC_ALGO, params.secret, canonical);
+  const hmacBuf = await params.secret.hmac(c, HMAC_ALGO, canonical);
   const signature = hexEncode(hmacBuf);
 
   return {
@@ -127,12 +128,20 @@ function _checkHeaderFormats(timestamp: string, nonce: string, signature: string
   return { ok: true };
 }
 
-function _validateKeys(keys: Record<string, string> | undefined): asserts keys is Record<string, string> {
+function _validateKeys(keys: Record<string, SyncSecret> | undefined): asserts keys is Record<string, SyncSecret> {
   if (!keys || typeof keys !== 'object' || Object.keys(keys).length === 0) {
     throw new SyncError(
       'SyncAuthService requires a non-empty keys map',
       { code: 'E_SYNC_AUTH_NO_KEYS' },
     );
+  }
+  for (const secret of Object.values(keys)) {
+    if (!(secret instanceof SyncSecret)) {
+      throw new SyncError(
+        'SyncAuthService requires SyncSecret values',
+        { code: 'E_SYNC_AUTH_SECRET_TYPE' },
+      );
+    }
   }
 }
 
@@ -151,7 +160,7 @@ function _validateAllowedWriters(allowedWriters: string[] | undefined): Set<stri
 }
 
 export interface SyncAuthServiceOptions {
-  keys: Record<string, string>;
+  keys: Record<string, SyncSecret>;
   mode?: 'enforce' | 'log-only';
   nonceCapacity?: number;
   crypto?: CryptoPort;
@@ -160,7 +169,7 @@ export interface SyncAuthServiceOptions {
 }
 
 export default class SyncAuthService {
-  private readonly _keys: Record<string, string>;
+  private readonly _keys: Record<string, SyncSecret>;
   private readonly _mode: 'enforce' | 'log-only';
   private readonly _crypto: CryptoPort;
   private readonly _logger: LoggerPort;
@@ -235,15 +244,15 @@ export default class SyncAuthService {
     return { ok: true };
   }
 
-  private _resolveKey(keyId: string): FailResult | (OkResult & { secret: string }) {
+  private _resolveKey(keyId: string): FailResult | (OkResult & { secret: SyncSecret }) {
     const secret = this._keys[keyId];
-    if (secret === undefined || secret === '') { return fail('UNKNOWN_KEY_ID', 401); }
+    if (secret === undefined) { return fail('UNKNOWN_KEY_ID', 401); }
     return { ok: true, secret };
   }
 
   private async _verifySignature(params: {
     request: { method: string; url: string; headers: Record<string, string>; body?: Uint8Array };
-    secret: string;
+    secret: SyncSecret;
     keyId: string;
     timestamp: string;
     nonce: string;
@@ -264,7 +273,7 @@ export default class SyncAuthService {
       bodySha256,
     });
 
-    const expectedBuf = await this._crypto.hmac(HMAC_ALGO, secret, canonical);
+    const expectedBuf = await secret.hmac(this._crypto, HMAC_ALGO, canonical);
     const receivedHex = request.headers['x-warp-signature'] ?? '';
 
     let receivedBuf: Uint8Array;

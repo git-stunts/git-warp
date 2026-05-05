@@ -7,6 +7,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.ts';
+import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 
 function createMockHttpPort() {
   return {
@@ -29,6 +30,7 @@ function createMockGraph() {
 }
 
 const SHA_A = 'a'.repeat(40);
+const TEST_KEYS = { default: SyncSecret.fromString('test-secret') };
 
 describe('B1 — HttpSyncServer._authorize writer extraction', () => {
   it('extracts writer IDs from frontier keys for sync-requests', async () => {
@@ -43,7 +45,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
       httpPort: (createMockHttpPort() as any),
       graph: (createMockGraph() as any),
       auth: {
-        keys: { default: 'test-secret' },
+        keys: TEST_KEYS,
         mode: 'enforce',
       },
     });
@@ -82,7 +84,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
       httpPort: (createMockHttpPort() as any),
       graph: (createMockGraph() as any),
       auth: {
-        keys: { default: 'test-secret' },
+        keys: TEST_KEYS,
         mode: 'enforce',
       },
     });
@@ -117,7 +119,7 @@ describe('B1 — HttpSyncServer._authorize writer extraction', () => {
       httpPort: (createMockHttpPort() as any),
       graph: (createMockGraph() as any),
       auth: {
-        keys: { default: 'test-secret' },
+        keys: TEST_KEYS,
         mode: 'enforce',
       },
     });

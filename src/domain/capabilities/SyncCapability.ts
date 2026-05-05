@@ -6,6 +6,7 @@
 
 import type { WarpState } from '../services/JoinReducer.ts';
 import type { DecodedPatch } from '../services/sync/syncPatchLoader.ts';
+import type SyncSecret from '../services/sync/SyncSecret.ts';
 import type HttpServerPort from '../../ports/HttpServerPort.ts';
 
 /** Lightweight status snapshot. */
@@ -64,7 +65,7 @@ export type SyncWithOptions = {
     status?: number;
     error?: Error;
   }) => void;
-  auth?: { secret: string; keyId?: string };
+  auth?: { secret: SyncSecret; keyId?: string };
   trust?: SyncTrustOptions;
   materialize?: boolean;
 };
@@ -93,7 +94,7 @@ export type ServeOptions = {
   path?: string;
   maxRequestBytes?: number;
   httpPort: HttpServerPort;
-  auth?: { keys: Record<string, string>; mode?: 'enforce' | 'log-only' };
+  auth?: { keys: Record<string, SyncSecret>; mode?: 'enforce' | 'log-only' };
   allowedWriters?: string[];
 };
 

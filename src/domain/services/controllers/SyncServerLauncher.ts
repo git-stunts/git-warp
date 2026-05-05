@@ -12,6 +12,7 @@ import HttpSyncServer from '../sync/HttpSyncServer.ts';
 import type { SyncRequest, SyncResponse } from '../sync/SyncProtocol.ts';
 import type HttpServerPort from '../../../ports/HttpServerPort.ts';
 import type { SyncHost } from './SyncController.ts';
+import type SyncSecret from '../sync/SyncSecret.ts';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -25,7 +26,7 @@ export interface ServeOptions {
   path?: string;
   maxRequestBytes?: number;
   httpPort: HttpServerPort;
-  auth?: { keys: Record<string, string>; mode?: 'enforce' | 'log-only' };
+  auth?: { keys: Record<string, SyncSecret>; mode?: 'enforce' | 'log-only' };
 }
 
 export interface ServerHandle {

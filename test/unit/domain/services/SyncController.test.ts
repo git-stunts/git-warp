@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import SyncController from '../../../../src/domain/services/controllers/SyncController.ts';
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
 import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.ts';
+import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 
 const { timeoutMock, retryMock, httpSyncServerMock } = vi.hoisted(() => {
@@ -779,7 +780,7 @@ describe('SyncController', () => {
       await ctrl.serve(({
         port: 3000,
         httpPort: { listen: vi.fn() },
-        auth: { keys: { k: 's' } },
+        auth: { keys: { k: SyncSecret.fromString('s') } },
       } as any));
 
       const httpCall = httpSyncServerMock.mock.calls[0];
@@ -787,7 +788,8 @@ describe('SyncController', () => {
       const args = httpCall[0];
       expect(args.auth.crypto).toBe(mockCrypto);
       expect(args.auth.logger).toBe(mockLogger);
-      expect(args.auth.keys).toEqual({ k: 's' });
+      expect(args.auth.keys.k).toBeInstanceOf(SyncSecret);
+      expect(String(args.auth.keys.k)).toBe('[REDACTED]');
     });
 
     it('passes graph host as graph argument to HttpSyncServer', async () => {
@@ -974,7 +976,7 @@ describe('SyncController', () => {
       });
 
       await ctrl.syncWith('http://peer:3000/sync', {
-        auth: { secret: 'test-secret', keyId: 'k1' },
+        auth: { secret: SyncSecret.fromString('test-secret'), keyId: 'k1' },
       });
 
       expect(fetchMock).toHaveBeenCalledOnce();

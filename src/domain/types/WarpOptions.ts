@@ -6,6 +6,7 @@
 import type HttpServerPort from '../../ports/HttpServerPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
+import type SyncSecret from '../services/sync/SyncSecret.ts';
 
 export type ServeOptions = {
   port: number;
@@ -14,7 +15,7 @@ export type ServeOptions = {
   maxRequestBytes?: number;
   httpPort: HttpServerPort;
   auth?: {
-    keys: Record<string, string>;
+    keys: Record<string, SyncSecret>;
     mode?: 'enforce' | 'log-only';
     crypto?: CryptoPort;
     logger?: LoggerPort;

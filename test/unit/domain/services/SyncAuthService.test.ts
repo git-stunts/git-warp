@@ -6,10 +6,17 @@ import SyncAuthService, {
   canonicalizePath,
   buildCanonicalPayload,
 } from '../../../../src/domain/services/sync/SyncAuthService.ts';
+import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 
-const SECRET = 'test-secret-key-1234567890';
+const SECRET_VALUE = 'test-secret-key-1234567890';
+const SECRET = SyncSecret.fromString(SECRET_VALUE);
 const KEY_ID = 'default';
 const KEYS = { [KEY_ID]: SECRET };
+
+function syncKeys(values: Record<string, string>): Record<string, SyncSecret> {
+  const entries = Object.entries(values).map(([key, value]) => [key, SyncSecret.fromString(value)] as const);
+  return Object.fromEntries(entries);
+}
 
 /**
  * Monotonically increasing lamport counter for each buildSignedRequest call.
@@ -37,7 +44,7 @@ async function buildSignedRequest(overrides: Record<string, string> = {}) {
     contentType,
     bodySha256,
   });
-  const hmacBuf = await defaultCrypto.hmac('sha256', SECRET, canonical);
+  const hmacBuf = await defaultCrypto.hmac('sha256', SECRET_VALUE, canonical);
   const signature = Buffer.from(hmacBuf).toString('hex');
 
   return {
@@ -284,7 +291,7 @@ describe('verify() reject paths', () => {
       timestamp: '1000', nonce: nonce1,
       contentType: 'application/json', bodySha256: bodySha1,
     });
-    const hmac1 = await defaultCrypto.hmac('sha256', SECRET, canonical1);
+    const hmac1 = await defaultCrypto.hmac('sha256', SECRET_VALUE, canonical1);
     const sig1 = Buffer.from(hmac1).toString('hex');
     const first = await svc.verify({
       method: 'POST', url: '/sync',
@@ -305,7 +312,7 @@ describe('verify() reject paths', () => {
       timestamp: '1000', nonce: nonce2,
       contentType: 'application/json', bodySha256: bodySha1,
     });
-    const hmac2 = await defaultCrypto.hmac('sha256', SECRET, canonical2);
+    const hmac2 = await defaultCrypto.hmac('sha256', SECRET_VALUE, canonical2);
     const sig2 = Buffer.from(hmac2).toString('hex');
     const result = await svc.verify({
       method: 'POST', url: '/sync',
@@ -332,7 +339,7 @@ describe('verify() reject paths', () => {
       timestamp: '9999999999', nonce,
       contentType: 'application/json', bodySha256: bodySha,
     });
-    const hmac = await defaultCrypto.hmac('sha256', SECRET, canonical);
+    const hmac = await defaultCrypto.hmac('sha256', SECRET_VALUE, canonical);
     const sig = Buffer.from(hmac).toString('hex');
     const result = await svc.verify({
       method: 'POST', url: '/sync',
@@ -360,7 +367,7 @@ describe('verify() reject paths', () => {
       timestamp, nonce,
       contentType: 'application/json', bodySha256,
     });
-    const hmacBuf = await defaultCrypto.hmac('sha256', SECRET, canonical);
+    const hmacBuf = await defaultCrypto.hmac('sha256', SECRET_VALUE, canonical);
     const signature = Buffer.from(hmacBuf).toString('hex');
 
     const req = {
@@ -401,7 +408,7 @@ describe('verify() reject paths', () => {
       contentType: 'application/json',
       bodySha256,
     });
-    const hmacBuf = await defaultCrypto.hmac('sha256', SECRET, canonical);
+    const hmacBuf = await defaultCrypto.hmac('sha256', SECRET_VALUE, canonical);
     const signature = Buffer.from(hmacBuf).toString('hex');
 
     const req2 = {
@@ -529,7 +536,7 @@ describe('verify() happy paths', () => {
       contentType: '',
       bodySha256,
     });
-    const hmacBuf = await defaultCrypto.hmac('sha256', SECRET, canonical);
+    const hmacBuf = await defaultCrypto.hmac('sha256', SECRET_VALUE, canonical);
     const signature = Buffer.from(hmacBuf).toString('hex');
 
     const req = {
@@ -550,7 +557,7 @@ describe('verify() happy paths', () => {
   it('selects the correct secret when multiple keys are configured', async () => {
     const secret2 = 'second-secret-abcdef';
     const keyId2 = 'writer-2';
-    const svc = makeService({ keys: { [KEY_ID]: SECRET, [keyId2]: secret2 } });
+    const svc = makeService({ keys: { [KEY_ID]: SECRET, [keyId2]: SyncSecret.fromString(secret2) } });
 
     const body = Buffer.from('multi-key test');
     const timestamp = '80';
@@ -612,7 +619,7 @@ describe('Metrics', () => {
     const nonce1 = globalThis.crypto.randomUUID();
     const bodySha = await defaultCrypto.hash('sha256', body);
     const can1 = buildCanonicalPayload({ keyId: KEY_ID, method: 'POST', path: '/sync', timestamp: '500', nonce: nonce1, contentType: 'application/json', bodySha256: bodySha });
-    const hmac1 = await defaultCrypto.hmac('sha256', SECRET, can1);
+    const hmac1 = await defaultCrypto.hmac('sha256', SECRET_VALUE, can1);
     const sig1 = Buffer.from(hmac1).toString('hex');
     await svc.verify({
       method: 'POST', url: '/sync',
@@ -623,7 +630,7 @@ describe('Metrics', () => {
     // Second request at lamport 400 (< 500) -> STALE_LAMPORT
     const nonce2 = globalThis.crypto.randomUUID();
     const can2 = buildCanonicalPayload({ keyId: KEY_ID, method: 'POST', path: '/sync', timestamp: '400', nonce: nonce2, contentType: 'application/json', bodySha256: bodySha });
-    const hmac2 = await defaultCrypto.hmac('sha256', SECRET, can2);
+    const hmac2 = await defaultCrypto.hmac('sha256', SECRET_VALUE, can2);
     const sig2 = Buffer.from(hmac2).toString('hex');
     await svc.verify({
       method: 'POST', url: '/sync',
@@ -652,7 +659,7 @@ describe('Metrics', () => {
       contentType: 'application/json',
       bodySha256: replayBodySha,
     });
-    const replayHmac = await defaultCrypto.hmac('sha256', SECRET, replayCanonical);
+    const replayHmac = await defaultCrypto.hmac('sha256', SECRET_VALUE, replayCanonical);
     const replaySignature = Buffer.from(replayHmac).toString('hex');
 
     const req2 = {
@@ -754,7 +761,7 @@ describe('verify() nonce ordering', () => {
       contentType: 'application/json',
       bodySha256,
     });
-    const hmacBuf = await defaultCrypto.hmac('sha256', SECRET, canonical);
+    const hmacBuf = await defaultCrypto.hmac('sha256', SECRET_VALUE, canonical);
     const signature = Buffer.from(hmacBuf).toString('hex');
 
     const r2 = await svc.verify({
@@ -780,7 +787,7 @@ describe('verify() nonce ordering', () => {
       timestamp: evenHigher, nonce,
       contentType: 'application/json', bodySha256,
     });
-    const hmac3 = await defaultCrypto.hmac('sha256', SECRET, canonical3);
+    const hmac3 = await defaultCrypto.hmac('sha256', SECRET_VALUE, canonical3);
     const sig3 = Buffer.from(hmac3).toString('hex');
 
     const r3 = await svc.verify({
@@ -817,7 +824,7 @@ describe('Constructor', () => {
   });
 
   it('defaults optional params without throwing', () => {
-    const svc = new SyncAuthService({ keys: { k: 's' } });
+    const svc = new SyncAuthService({ keys: syncKeys({ k: 's' }) });
     expect(svc.mode).toBe('enforce');
     expect(svc.getMetrics().authFailCount).toBe(0);
   });
@@ -829,7 +836,7 @@ describe('Constructor', () => {
 describe('verifyWriters()', () => {
   it('allows all writers when allowedWriters is not set', async () => {
     const auth = new SyncAuthService({
-      keys: { default: 'secret123' },
+      keys: syncKeys({ default: 'secret123' }),
     });
     const result = auth.verifyWriters(['alice', 'bob', 'charlie']);
     expect(result.ok).toBe(true);
@@ -837,7 +844,7 @@ describe('verifyWriters()', () => {
 
   it('allows listed writers', async () => {
     const auth = new SyncAuthService({
-      keys: { default: 'secret123' },
+      keys: syncKeys({ default: 'secret123' }),
       allowedWriters: ['alice', 'bob'],
     });
     const result = auth.verifyWriters(['alice', 'bob']);
@@ -846,7 +853,7 @@ describe('verifyWriters()', () => {
 
   it('rejects unlisted writers with FORBIDDEN_WRITER 403', async () => {
     const auth = new SyncAuthService({
-      keys: { default: 'secret123' },
+      keys: syncKeys({ default: 'secret123' }),
       allowedWriters: ['alice'],
     });
     const result = auth.verifyWriters(['alice', 'eve']);
@@ -859,7 +866,7 @@ describe('verifyWriters()', () => {
 
   it('increments forbiddenWriterRejects metric', async () => {
     const auth = new SyncAuthService({
-      keys: { default: 'secret123' },
+      keys: syncKeys({ default: 'secret123' }),
       allowedWriters: ['alice'],
     });
     auth.verifyWriters(['eve']);
@@ -868,14 +875,14 @@ describe('verifyWriters()', () => {
 
   it('validates writer IDs at construction time', () => {
     expect(() => new SyncAuthService({
-      keys: { default: 'secret123' },
+      keys: syncKeys({ default: 'secret123' }),
       allowedWriters: ['valid', 'a/b'],
     })).toThrow('Invalid writer ID');
   });
 
   it('rejects empty allowedWriters array', () => {
     expect(() => new SyncAuthService({
-      keys: { default: 'secret123' },
+      keys: syncKeys({ default: 'secret123' }),
       allowedWriters: [],
     })).toThrow('allowedWriters must be a non-empty array');
   });
@@ -897,7 +904,7 @@ describe('mode-agnostic validation', () => {
 
   it('verifyWriters() returns { ok: false } in log-only mode (caller decides enforcement)', () => {
     const svc = new SyncAuthService({
-      keys: { default: 'secret123' },
+      keys: syncKeys({ default: 'secret123' }),
       mode: 'log-only',
       allowedWriters: ['alice'],
     });
@@ -915,7 +922,7 @@ describe('mode-agnostic validation', () => {
 describe('enforceWriters()', () => {
   it('rejects forbidden writers in enforce mode', () => {
     const svc = new SyncAuthService({
-      keys: { default: 'secret123' },
+      keys: syncKeys({ default: 'secret123' }),
       mode: 'enforce',
       allowedWriters: ['alice'],
     });
@@ -929,7 +936,7 @@ describe('enforceWriters()', () => {
 
   it('allows forbidden writers through in log-only mode', () => {
     const svc = new SyncAuthService({
-      keys: { default: 'secret123' },
+      keys: syncKeys({ default: 'secret123' }),
       mode: 'log-only',
       allowedWriters: ['alice'],
     });
@@ -939,7 +946,7 @@ describe('enforceWriters()', () => {
 
   it('increments logOnlyPassthroughs in log-only mode', () => {
     const svc = new SyncAuthService({
-      keys: { default: 'secret123' },
+      keys: syncKeys({ default: 'secret123' }),
       mode: 'log-only',
       allowedWriters: ['alice'],
     });
@@ -949,7 +956,7 @@ describe('enforceWriters()', () => {
 
   it('still increments forbiddenWriterRejects metric in log-only mode', () => {
     const svc = new SyncAuthService({
-      keys: { default: 'secret123' },
+      keys: syncKeys({ default: 'secret123' }),
       mode: 'log-only',
       allowedWriters: ['alice'],
     });
@@ -959,7 +966,7 @@ describe('enforceWriters()', () => {
 
   it('allows listed writers in any mode', () => {
     const svc = new SyncAuthService({
-      keys: { default: 'secret123' },
+      keys: syncKeys({ default: 'secret123' }),
       mode: 'enforce',
       allowedWriters: ['alice', 'bob'],
     });
@@ -968,7 +975,7 @@ describe('enforceWriters()', () => {
 
   it('passes through when no allowedWriters configured', () => {
     const svc = new SyncAuthService({
-      keys: { default: 'secret123' },
+      keys: syncKeys({ default: 'secret123' }),
       mode: 'enforce',
     });
     expect(svc.enforceWriters(['anyone']).ok).toBe(true);

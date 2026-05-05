@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.ts';
 import defaultCrypto from '../../../../src/domain/utils/defaultCrypto.ts';
 import { signSyncRequest } from '../../../../src/domain/services/sync/SyncAuthService.ts';
+import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 
-const SECRET = 'test-secret';
+const SECRET = SyncSecret.fromString('test-secret');
 const KEY_ID = 'default';
 const KEYS = { [KEY_ID]: SECRET };
 
@@ -140,7 +141,7 @@ describe('HttpSyncServer auth integration', () => {
     it('returns 401 for wrong secret', async () => {
       const body = Buffer.from(JSON.stringify(VALID_SYNC_BODY));
       const headers = await signSyncRequest(
-        { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: 'wrong-secret', keyId: KEY_ID, lamport: ++signLamport },
+        { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SyncSecret.fromString('wrong-secret'), keyId: KEY_ID, lamport: ++signLamport },
         { crypto: defaultCrypto },
       );
       const res = await handler({
@@ -229,7 +230,7 @@ describe('HttpSyncServer auth integration', () => {
     it('returns 200 for invalid signature', async () => {
       const body = Buffer.from(JSON.stringify(VALID_SYNC_BODY));
       const headers = await signSyncRequest(
-        { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: 'wrong-secret', keyId: KEY_ID, lamport: ++signLamport },
+        { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SyncSecret.fromString('wrong-secret'), keyId: KEY_ID, lamport: ++signLamport },
         { crypto: defaultCrypto },
       );
       const res = await handler({
@@ -465,7 +466,7 @@ describe('HttpSyncServer auth integration', () => {
       const bodyObj = { type: 'sync-request', frontier: { eve: 'a'.repeat(40) } };
       const body = Buffer.from(JSON.stringify(bodyObj));
       const headers = await signSyncRequest(
-        { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: 'wrong-secret', keyId: KEY_ID, lamport: ++signLamport },
+        { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SyncSecret.fromString('wrong-secret'), keyId: KEY_ID, lamport: ++signLamport },
         { crypto: defaultCrypto },
       );
       const res = await handler({

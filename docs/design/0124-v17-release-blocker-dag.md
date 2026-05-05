@@ -120,8 +120,10 @@ closure. A blank cell means "not directly blocked by that task," not
   shipped command shape.
 
 `HEX_sync-secret-plain-string`
-: Sync HMAC secrets still pass through domain code as plain strings. This
-  increases leakage risk and should precede production auth-default work.
+: Closed in cycle 0137. Sync HMAC secrets now flow through an opaque
+  `SyncSecret` value across public sync auth options, domain auth
+  service keys, and HTTP sync transport. String, JSON, and inspect
+  rendering redact the secret.
 
 `HEX_sync-production-auth-defaults`
 : The sync server can be configured without auth. Non-local bind hosts must
@@ -176,7 +178,7 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `HEX_sync-secret-plain-string`
+- `HEX_sync-production-auth-defaults`
 
 `SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125.
 `SPEC_docs-materialize-frontdoor-drift` closed in cycle 0126 and unlocks
@@ -193,7 +195,9 @@ subscription-controller reading-basis work.
 in cycle 0134. `SPEC_observer-coordinate-pinning` closed in cycle 0135,
 which exposed `SPEC_checkpoint-materialize-test-drift` as the remaining
 non-security `test:local` blocker. That drift closed in cycle 0136, so
-the open front has narrowed to the sync secret hardening path.
+the open front narrowed to the sync secret hardening path. The secret
+hardening node closed in cycle 0137, opening production sync auth
+defaults.
 
 ## Regeneration
 

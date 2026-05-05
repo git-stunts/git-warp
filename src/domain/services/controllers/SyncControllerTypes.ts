@@ -11,6 +11,7 @@ import type BlobStoragePort from '../../../ports/BlobStoragePort.ts';
 import type SyncTrustGate from '../sync/SyncTrustGate.ts';
 import type SyncCapability from '../../capabilities/SyncCapability.ts';
 import type SnapshotWarpState from '../snapshot/SnapshotWarpState.ts';
+import type SyncSecret from '../sync/SyncSecret.ts';
 
 /**
  * The host interface that SyncController depends on.
@@ -83,6 +84,6 @@ export interface SyncWithOptions {
   signal?: AbortSignal;
   onStatus?: (event: SyncStatusEvent) => void;
   materialize?: boolean;
-  auth?: { secret: string; keyId?: string };
+  auth?: { secret: SyncSecret; keyId?: string };
   trust?: { mode?: 'off' | 'log-only' | 'enforce'; pin?: string | null };
 }

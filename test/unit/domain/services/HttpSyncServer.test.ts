@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.ts';
+import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 
 /** @param {any} value @returns {any} */
 function canonicalizeJson(value) {
@@ -301,7 +302,7 @@ describe('HttpSyncServer', () => {
       expect(() => new HttpSyncServer({
         httpPort: (createMockPort() as any),
         graph: { processSyncRequest: vi.fn() },
-        auth: { keys: { default: 'secret' } },
+        auth: { keys: { default: SyncSecret.fromString('secret') } },
         allowedWriters: ['alice'],
       })).not.toThrow();
     });

@@ -3,6 +3,7 @@ import SyncController from '../../../../../src/domain/services/controllers/SyncC
 import SyncError from '../../../../../src/domain/errors/SyncError.ts';
 import OperationAbortedError from '../../../../../src/domain/errors/OperationAbortedError.ts';
 import SyncTrustGate from '../../../../../src/domain/services/sync/SyncTrustGate.ts';
+import SyncSecret from '../../../../../src/domain/services/sync/SyncSecret.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────
@@ -1075,7 +1076,7 @@ describe('SyncController', () => {
       applySyncResponseMock.mockReturnValue({ state: fakeState(), frontier: new Map(), applied: 0 });
 
       await ctrl.syncWith('http://peer:3000/sync', {
-        auth: { secret: 'my-secret', keyId: 'k1' },
+        auth: { secret: SyncSecret.fromString('my-secret'), keyId: 'k1' },
       });
 
       const call = fetchMock.mock.calls[0];
@@ -1215,13 +1216,14 @@ describe('SyncController', () => {
       await ctrl.serve(({
         port: 3000,
         httpPort: { listen: vi.fn() },
-        auth: { keys: { k1: 'secret1' } },
+        auth: { keys: { k1: SyncSecret.fromString('secret1') } },
       } as any));
 
       const args = (httpSyncServerMock.mock.calls[0] as any)[0];
       expect(args.auth.crypto).toBe(mockCrypto);
       expect(args.auth.logger).toBe(mockLogger);
-      expect(args.auth.keys).toEqual({ k1: 'secret1' });
+      expect(args.auth.keys.k1).toBeInstanceOf(SyncSecret);
+      expect(String(args.auth.keys.k1)).toBe('[REDACTED]');
     });
 
     it('omits auth from HttpSyncServer when not configured', async () => {
@@ -1246,7 +1248,7 @@ describe('SyncController', () => {
       await ctrl.serve(({
         port: 3000,
         httpPort: { listen: vi.fn() },
-        auth: { keys: { k: 's' } },
+        auth: { keys: { k: SyncSecret.fromString('s') } },
       } as any));
 
       const args = (httpSyncServerMock.mock.calls[0] as any)[0];

@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Sync HMAC credentials now use an opaque `SyncSecret` value across the
+  public sync auth API, domain auth service, and HTTP sync transport;
+  accidental string, JSON, and inspect output redacts the secret while
+  preserving HMAC verification behavior.
 - Checkpoint/materialize test drift is aligned with the v17 checkpoint
   contract: current-schema fixtures use schema `5`, retired checkpoint
   fixtures assert `E_CHECKPOINT_UNSUPPORTED_SCHEMA`, and full

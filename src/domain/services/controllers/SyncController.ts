@@ -29,6 +29,7 @@ import type {
   SyncHttpClientResult,
 } from '../../../ports/SyncHttpClientPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type SyncSecret from '../sync/SyncSecret.ts';
 import {
   mapsEqual,
   resolveSyncTarget,
@@ -76,11 +77,11 @@ type SyncMetadataResult = {
  * configured (adapter skips signing).
  */
 function resolveAuth(
-  auth: { secret: string; keyId?: string } | undefined,
+  auth: { secret: SyncSecret; keyId?: string } | undefined,
   crypto: CryptoPort,
   lamport: number,
 ): SyncHttpAuth | undefined {
-  if (auth === undefined || auth.secret === undefined || auth.secret === '') { return undefined; }
+  if (auth === undefined || auth.secret === undefined) { return undefined; }
   return {
     secret: auth.secret,
     ...(auth.keyId !== undefined && auth.keyId !== '' ? { keyId: auth.keyId } : {}),
@@ -421,17 +422,18 @@ export default class SyncController {
   private async _fetchSyncResponse(
     request: SyncRequest, targetUrl: URL, timeoutMs: number,
     signal: AbortSignal | undefined,
-    auth: { secret: string; keyId?: string } | undefined,
+    auth: { secret: SyncSecret; keyId?: string } | undefined,
     emit: (type: string, payload?: SyncStatusPayload) => void,
   ): Promise<SyncResponse> {
     const httpClient = await this._resolveHttpClient();
+    const resolvedAuth = resolveAuth(auth, this._host._crypto, this._host._maxObservedLamport);
     const result = await httpClient.exchange(
       {
         targetUrl, body: request, timeoutMs,
         headers: { 'content-type': 'application/json', 'accept': 'application/json' },
         ...(signal !== undefined ? { signal } : {}),
-        ...(resolveAuth(auth, this._host._crypto, this._host._maxObservedLamport) !== undefined
-          ? { auth: resolveAuth(auth, this._host._crypto, this._host._maxObservedLamport)! }
+        ...(resolvedAuth !== undefined
+          ? { auth: resolvedAuth }
           : {}),
       },
       {

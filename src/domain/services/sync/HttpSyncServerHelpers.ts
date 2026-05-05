@@ -12,6 +12,7 @@ import { z } from 'zod';
 import SyncAuthService from './SyncAuthService.ts';
 import SyncError from '../../errors/SyncError.ts';
 import { validateSyncRequest } from './SyncPayloadSchema.ts';
+import SyncSecret from './SyncSecret.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type HttpServerPort from '../../../ports/HttpServerPort.ts';
@@ -34,7 +35,7 @@ export interface JsonHttpResponse {
 
 export const authSchema = z.object({
   mode: z.enum(['enforce', 'log-only']).default('enforce'),
-  keys: z.record(z.string()).refine(
+  keys: z.record(z.custom<SyncSecret>((v) => v instanceof SyncSecret, 'auth.keys values must be SyncSecret')).refine(
     (obj) => Object.keys(obj).length > 0,
     'auth.keys must not be empty',
   ),
@@ -192,7 +193,7 @@ export function parseBody(body: Uint8Array | undefined): ParseBodyResult {
 // ── Auth helpers ─────────────────────────────────────────────────────────────
 
 interface AuthConfig {
-  keys: Record<string, string>;
+  keys: Record<string, SyncSecret>;
   mode?: 'enforce' | 'log-only';
   crypto?: CryptoPort;
   logger?: LoggerPort;
@@ -289,7 +290,7 @@ export interface HttpSyncServerOptions {
   host?: string;
   maxRequestBytes?: number;
   auth?: {
-    keys: Record<string, string>;
+    keys: Record<string, SyncSecret>;
     mode?: 'enforce' | 'log-only';
     crypto?: CryptoPort;
     logger?: LoggerPort;

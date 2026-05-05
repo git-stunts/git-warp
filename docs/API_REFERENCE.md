@@ -2177,6 +2177,10 @@ const result = await graph.sync.syncWith('http://peer:3000/sync', {
 #### Sync Server
 
 ```typescript
+import { SyncSecret } from '@git-stunts/git-warp';
+
+const sharedSecret = SyncSecret.fromString('shared-secret');
+
 const { close, url } = await graph.sync.serve({
   port: 3000,
   host: '127.0.0.1',
@@ -2184,13 +2188,13 @@ const { close, url } = await graph.sync.serve({
   maxRequestBytes: 4 * 1024 * 1024,
   httpPort: nodeHttpAdapter,
   auth: {                          // optional HMAC-SHA256 auth
-    keys: { default: 'shared-secret' },
+    keys: { default: sharedSecret },
     mode: 'enforce',               // or 'log-only'
   },
 });
 
 // Peers sync with:
-// await peerGraph.sync.syncWith(url, { auth: { secret: 'shared-secret', keyId: 'default' } });
+// await peerGraph.sync.syncWith(url, { auth: { secret: sharedSecret, keyId: 'default' } });
 
 await close(); // shut down
 ```

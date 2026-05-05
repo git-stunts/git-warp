@@ -27,9 +27,9 @@ Current branch state at this boundary:
 - DAG map:
   [0124-v17-release-blocker-dag.md](design/0124-v17-release-blocker-dag.md)
 - Latest closed cycle:
-  `0136-checkpoint-materialize-test-drift`
+  `0137-sync-secret-opaque-value`
 - Latest full unit gate shape:
-  `npm run test:local` is green with `437` files and `6757` tests.
+  `npm run test:local` is green with `438` files and `6760` tests.
 - Latest validation shape:
   lint, anti-sludge shell checks, source/test typecheck, consumer
   typecheck, markdown lint, markdown code-sample lint, high-level npm
@@ -51,14 +51,15 @@ the single runtime checkpoint contract, removed the checkpoint, patch,
 subscription, and sync controller private materialization dependencies,
 retired stale materialize-spy expectations, pinned default observer
 readings, and aligned remaining checkpoint/materialize unit tests with
-the current checkpoint contract. The package upgrade command now has a
+the current checkpoint contract, and replaced plain sync HMAC credential
+flow with an opaque `SyncSecret`. The package upgrade command now has a
 real checkpoint upgrade path for retired checkpoint envelopes.
 
 The runtime is still partially state-first in important places. The
 important current truth is narrow: the non-security `test:local` blockers
 from the v17 materialization cleanup are closed, but sync server security
-hardening, quarantine graduation, and final release preflight still block
-the release gate.
+hardening beyond the secret value shape, quarantine graduation, and final
+release preflight still block the release gate.
 
 ## Invariants
 
@@ -99,7 +100,7 @@ mapping, and concrete checks live in `docs/invariants/`.
 ## What just shipped
 
 Cycles `0132-subscription-controller-reading-basis` through
-`0136-checkpoint-materialize-test-drift`:
+`0137-sync-secret-opaque-value`:
 
 - Removed `_materializeGraph()` from subscription/watch and sync
   controller read paths.
@@ -111,18 +112,20 @@ Cycles `0132-subscription-controller-reading-basis` through
   basis.
 - Aligned remaining checkpoint/materialize tests with schema `5` or
   explicit retired-schema upgrade rejection.
+- Added `SyncSecret` so sync auth secrets redact in string, JSON, and
+  inspect output while still signing HMAC requests.
 - Brought `npm run test:local` back to green.
 - Marked `PORT_subscription-controller-reading-basis`,
   `PORT_sync-controller-reading-basis`,
   `SPEC_materialize-spy-test-clusters`,
   `SPEC_observer-coordinate-pinning`, and
-  `SPEC_checkpoint-materialize-test-drift` complete in the DAG.
+  `SPEC_checkpoint-materialize-test-drift` complete in the DAG, then
+  marked `HEX_sync-secret-plain-string` complete.
 
 ## What feels wrong
 
 - v17 is still not releasable until the DAG reaches
   `REL_full-gate-matrix-green`.
-- Sync HMAC secrets still pass through the domain as plain strings.
 - Production sync defaults still need enforced auth for non-local bind
   hosts, explicit unsafe localhost mode, rate limiting, and sanitized 500
   responses.
@@ -139,17 +142,16 @@ Continue executing the DAG one open node at a time.
 
 Recommended next pull:
 
-- `HEX_sync-secret-plain-string`
+- `HEX_sync-production-auth-defaults`
 
 Why:
 
 - It is open.
-- It has no incomplete parent tasks.
-- It is the prerequisite for production sync auth defaults, rate
-  limiting, response sanitization, quarantine graduation, and the final
-  release gate.
-- It keeps credential hardening separate from the broader server default
-  and response-shaping work.
+- Its only parent, `HEX_sync-secret-plain-string`, is complete.
+- It establishes the secure server-default shape required before rate
+  limiting and response sanitization.
+- It keeps authentication defaults separate from rate limiting and 500
+  response hardening.
 
 Keep the loop strict: write the cycle doc, capture RED, green the slice,
 update changelog/DAG/SVG/retro, validate, commit, then pull the next open

@@ -39,6 +39,7 @@ export { default as WebCryptoAdapter } from './src/infrastructure/adapters/WebCr
 
 // CRDT primitives
 export { default as VersionVector } from './src/domain/crdt/VersionVector.ts';
+export { default as SyncSecret } from './src/domain/services/sync/SyncSecret.ts';
 
 // Errors
 export { default as WarpError } from './src/domain/errors/WarpError.ts';

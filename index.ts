@@ -149,6 +149,7 @@ import {
 import { NoOpEffectSink } from './src/infrastructure/adapters/NoOpEffectSink.ts';
 import { ConsoleEffectSink } from './src/infrastructure/adapters/ConsoleEffectSink.ts';
 import { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.ts';
+import SyncSecret from './src/domain/services/sync/SyncSecret.ts';
 import { openWarpGraph } from './src/domain/WarpGraph.ts';
 import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
 import { PatchSession } from './src/domain/warp/PatchSession.ts';
@@ -322,6 +323,7 @@ export {
   NoOpEffectSink,
   ConsoleEffectSink,
   ChunkEffectSink,
+  SyncSecret,
 };
 
 export type { PropValue, SnapshotPropValue };
