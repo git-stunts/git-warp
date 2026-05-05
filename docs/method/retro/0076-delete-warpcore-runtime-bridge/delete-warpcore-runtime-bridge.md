@@ -1,19 +1,19 @@
 # 0076 Delete WarpCore Runtime Bridge
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0076-delete-warpcore-runtime-bridge.md](/Users/james/git/git-stunts/git-warp/docs/design/0076-delete-warpcore-runtime-bridge.md)
+- Cycle doc: [docs/design/0076-delete-warpcore-runtime-bridge.md](../../../design/0076-delete-warpcore-runtime-bridge.md)
 
 ## What changed
 
-- deleted [WarpCoreRuntimeBridge.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/WarpCoreRuntimeBridge.ts)
-- added [WarpCoreRuntimeProduct.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/WarpCoreRuntimeProduct.ts)
+- deleted WarpCoreRuntimeBridge.ts
+- added [WarpCoreRuntimeProduct.ts](../../../../src/domain/warp/WarpCoreRuntimeProduct.ts)
   as the structural core product seam
-- updated [WarpCore.ts](/Users/james/git/git-stunts/git-warp/src/domain/WarpCore.ts)
+- updated [WarpCore.ts](../../../../src/domain/WarpCore.ts)
   so `WarpCore.open()` now adopts the explicit runtime product surface instead
   of linking onto the runtime bridge
 - updated the closeout and composition-root ratchets:
-  - [warpcore-runtime-bridge.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/scripts/warpcore-runtime-bridge.test.ts)
-  - [openwarpgraph-composition-root.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/scripts/openwarpgraph-composition-root.test.ts)
+  - [warpcore-runtime-bridge.test.ts](../../../../test/unit/scripts/warpcore-runtime-bridge.test.ts)
+  - [openwarpgraph-composition-root.test.ts](../../../../test/unit/scripts/openwarpgraph-composition-root.test.ts)
 - advanced the runtime-kill chain so the remaining order is now:
   `API_delete-warpruntime-class` → `API_kill-warpruntime`
 

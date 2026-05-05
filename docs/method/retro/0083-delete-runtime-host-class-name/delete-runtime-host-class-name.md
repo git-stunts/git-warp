@@ -1,7 +1,7 @@
 # 0083 Delete Runtime Host Class Name
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0083-delete-runtime-host-class-name.md](/Users/james/git/git-stunts/git-warp/docs/design/0083-delete-runtime-host-class-name.md)
+- Cycle doc: [docs/design/0083-delete-runtime-host-class-name.md](../../../design/0083-delete-runtime-host-class-name.md)
 
 ## What changed
 

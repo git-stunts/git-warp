@@ -1,7 +1,7 @@
 # 0085 Close Shared Provider Interfaces
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0085-close-shared-provider-interfaces.md](/Users/james/git/git-stunts/git-warp/docs/design/0085-close-shared-provider-interfaces.md)
+- Cycle doc: [docs/design/0085-close-shared-provider-interfaces.md](../../../design/0085-close-shared-provider-interfaces.md)
 
 ## What changed
 

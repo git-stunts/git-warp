@@ -1,14 +1,14 @@
 # 0073 Delete Internal Runtime Shim
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0073-delete-internal-runtime-shim.md](/Users/james/git/git-stunts/git-warp/docs/design/0073-delete-internal-runtime-shim.md)
+- Cycle doc: [docs/design/0073-delete-internal-runtime-shim.md](../../../design/0073-delete-internal-runtime-shim.md)
 
 ## What changed
 
-- deleted [src/domain/warp/_internal.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/_internal.ts)
-- moved shared query-state strings into [QueryStateMessages.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/QueryStateMessages.ts)
+- deleted src/domain/warp/_internal.ts
+- moved shared query-state strings into [QueryStateMessages.ts](../../../../src/domain/services/controllers/QueryStateMessages.ts)
 - replaced `WarpGraphWithMixins` host assumptions with explicit structural
-  read-host contracts in [ReadGraphHost.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/ReadGraphHost.ts)
+  read-host contracts in [ReadGraphHost.ts](../../../../src/domain/services/controllers/ReadGraphHost.ts)
 - updated the runtime-kill ledger so `API_kill-warpruntime` is no longer
   blocked by the shim
 

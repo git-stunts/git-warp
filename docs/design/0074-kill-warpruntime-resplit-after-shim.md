@@ -20,12 +20,12 @@ Cycle `0073` deleted the `_internal.ts` compatibility shim, which means
 
 Repo truth still says it is not one executable slice:
 
-- [WarpGraphRuntimeBridge.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/WarpGraphRuntimeBridge.ts)
+- [WarpGraphRuntimeBridge.ts](../../src/domain/warp/WarpGraphRuntimeBridge.ts)
   still calls `openWarpRuntime()`
-- [WarpCoreRuntimeBridge.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/WarpCoreRuntimeBridge.ts)
+- WarpCoreRuntimeBridge.ts
   still calls `openWarpRuntime()` and links `WarpCore.prototype` onto the
   runtime prototype
-- [WarpCore.ts](/Users/james/git/git-stunts/git-warp/src/domain/WarpCore.ts)
+- [WarpCore.ts](../../src/domain/WarpCore.ts)
   still routes substrate calls through `callInternalRuntimeMethod(...)`
 - tests and helpers still treat `WarpRuntime` as the primary graph object
 

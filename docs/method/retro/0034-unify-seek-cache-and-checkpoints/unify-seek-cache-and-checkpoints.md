@@ -25,7 +25,7 @@ snapshot system:
 ### One live snapshot contract landed
 
 The repo now has an explicit live snapshot contract in
-[WarpStateCachePort.ts](/Users/james/git/git-stunts/git-warp/src/ports/WarpStateCachePort.ts).
+[WarpStateCachePort.ts](../../../../src/ports/WarpStateCachePort.ts).
 
 That contract now owns:
 
@@ -40,7 +40,7 @@ This is the real noun seam for the unification cut.
 
 ### Materialization now has one live resolver path
 
-[MaterializeController.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/MaterializeController.ts)
+[MaterializeController.ts](../../../../src/domain/services/controllers/MaterializeController.ts)
 no longer keeps the old seek-cache fast path alive beside the new
 resolver.
 
@@ -60,7 +60,7 @@ snapshot systems in parallel for ceiling vs coordinate materialization.
 
 ### Checkpoint creation now means pin + publish
 
-[CheckpointController.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/CheckpointController.ts)
+[CheckpointController.ts](../../../../src/domain/services/controllers/CheckpointController.ts)
 now does the honest thing on the unified path:
 
 - exact snapshot hit -> pin if needed -> publish checkpoint head
@@ -91,7 +91,7 @@ That was the right call.
 While closing the drift, `WarpRuntime` stopped using an inline fake
 logger object with `as unknown as LoggerPort` for the materialization
 path. It now uses
-[nullLogger.ts](/Users/james/git/git-stunts/git-warp/src/domain/utils/nullLogger.ts).
+[nullLogger.ts](../../../../src/domain/utils/nullLogger.ts).
 
 That cleanup was not the hill, but it was worth landing while the path
 was already open.
@@ -156,11 +156,11 @@ the control plane.
 
 Backlog and release planning were updated to reflect the landed work:
 
-- [PROTO_materialize-integration.md](/Users/james/git/git-stunts/git-warp/docs/method/backlog/v17.0.0/PROTO_materialize-integration.md)
+- PROTO_materialize-integration.md
   no longer lists `DESIGN_0034_unify-seek-cache-and-checkpoints` as a blocker
-- [WORKLOADS.md](/Users/james/git/git-stunts/git-warp/docs/method/backlog/WORKLOADS.md)
+- [WORKLOADS.md](../../backlog/WORKLOADS.md)
   now removes `0034` from `WL-38` and reduces the count accordingly
-- [docs/releases/v17.0.0/README.md](/Users/james/git/git-stunts/git-warp/docs/releases/v17.0.0/README.md)
+- [docs/releases/v17.0.0/README.md](../../../releases/v17.0.0/README.md)
   now marks `DESIGN_0034_unify-seek-cache-and-checkpoints` done
 
 Two transient bad-code notes discovered during playback/drift were also

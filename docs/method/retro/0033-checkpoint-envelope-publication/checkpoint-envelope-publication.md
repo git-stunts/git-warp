@@ -101,7 +101,7 @@ The right next design question is:
 
 Next pull:
 
-- [0034-unify-seek-cache-and-checkpoints.md](/Users/james/git/git-stunts/git-warp/docs/design/0034-unify-seek-cache-and-checkpoints.md)
+- [0034-unify-seek-cache-and-checkpoints.md](../../../design/0034-unify-seek-cache-and-checkpoints.md)
 
 That design card is the direct successor to this cycle. It will decide:
 
@@ -145,4 +145,4 @@ Deferred to review.
 The concrete remaining work is not in this retro. It is now captured in
 the next design card:
 
-- [0034-unify-seek-cache-and-checkpoints.md](/Users/james/git/git-stunts/git-warp/docs/design/0034-unify-seek-cache-and-checkpoints.md)
+- [0034-unify-seek-cache-and-checkpoints.md](../../../design/0034-unify-seek-cache-and-checkpoints.md)

@@ -1,7 +1,7 @@
 # 0093 Git-CAS Persistence Bridge
 
 - Outcome: `resplit with write-side bridge`
-- Cycle doc: [docs/design/0093-git-cas-persistence-bridge.md](/Users/james/git/git-stunts/git-warp/docs/design/0093-git-cas-persistence-bridge.md)
+- Cycle doc: [docs/design/0093-git-cas-persistence-bridge.md](../../../design/0093-git-cas-persistence-bridge.md)
 
 ## What changed
 

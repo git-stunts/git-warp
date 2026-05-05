@@ -191,10 +191,10 @@ The bridge must be deliberate, not accidental.
 
 The session-backed materialization seam is backed by:
 
-- [MaterializeController.stateSession.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/controllers/MaterializeController.stateSession.test.ts)
-- [MaterializeController.snapshotCache.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/controllers/MaterializeController.snapshotCache.test.ts)
-- [WarpRuntime.stateSessionAutoConstruct.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/WarpRuntime.stateSessionAutoConstruct.test.ts)
-- [WarpRuntime.blobAutoConstruct.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/WarpRuntime.blobAutoConstruct.test.ts)
+- [MaterializeController.stateSession.test.ts](../../test/unit/domain/services/controllers/MaterializeController.stateSession.test.ts)
+- [MaterializeController.snapshotCache.test.ts](../../test/unit/domain/services/controllers/MaterializeController.snapshotCache.test.ts)
+- WarpRuntime.stateSessionAutoConstruct.test.ts
+- WarpRuntime.blobAutoConstruct.test.ts
 - `npm exec vitest run test/unit/domain/services/controllers/MaterializeController.stateSession.test.ts test/unit/domain/services/controllers/MaterializeController.snapshotCache.test.ts test/unit/domain/WarpRuntime.stateSessionAutoConstruct.test.ts test/unit/domain/WarpRuntime.blobAutoConstruct.test.ts`
 - `npm run typecheck`
 - `git diff --check`
@@ -203,21 +203,21 @@ The session-backed materialization seam is backed by:
 
 1. *Can I explain where session lifecycle now lives during materialization?*
    Yes. `MaterializeController` now owns the replay seam through
-   [MaterializeSessionBridge.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/MaterializeSessionBridge.ts),
+   [MaterializeSessionBridge.ts](../../src/domain/services/controllers/MaterializeSessionBridge.ts),
    and `WarpRuntime.open()` now provisions the session opener when runtime trie
    storage is available.
 
 2. *Can I point to the exact compatibility bridge, if one still exists?*
    Yes. The compatibility bridge is explicit and narrow: session-backed replay
    projects the mixed reducer frame back into a
-   [WarpState](/Users/james/git/git-stunts/git-warp/src/domain/services/state/WarpState.ts)
+   [WarpState](../../src/domain/services/state/WarpState.ts)
    for the current `MaterializeResult` contract instead of pretending
    `WarpState` is still the owning substrate.
 
 3. *Can I explain why legacy checkpoint blob fallback is no longer allowed in
    the shipped runtime path?*
    Yes. `materializeAt()` now rejects on the session-backed runtime line with
-   [SchemaUnsupportedError](/Users/james/git/git-stunts/git-warp/src/domain/errors/SchemaUnsupportedError.ts)
+   [SchemaUnsupportedError](../../src/domain/errors/SchemaUnsupportedError.ts)
    instead of silently routing into the old checkpoint-blob loader.
 
 ### Human

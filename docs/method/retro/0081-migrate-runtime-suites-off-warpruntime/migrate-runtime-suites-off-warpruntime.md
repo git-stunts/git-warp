@@ -1,18 +1,18 @@
 # 0081 Migrate Runtime Suites Off WarpRuntime
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0081-migrate-runtime-suites-off-warpruntime.md](/Users/james/git/git-stunts/git-warp/docs/design/0081-migrate-runtime-suites-off-warpruntime.md)
+- Cycle doc: [docs/design/0081-migrate-runtime-suites-off-warpruntime.md](../../../design/0081-migrate-runtime-suites-off-warpruntime.md)
 
 ## What changed
 
 - added the suite ratchet at
-  [warpruntime-suite-migration.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/scripts/warpruntime-suite-migration.test.ts)
+  [warpruntime-suite-migration.test.ts](../../../../test/unit/scripts/warpruntime-suite-migration.test.ts)
 - moved runtime-facing unit, integration, service, and infrastructure-adapter
   suites away from direct `WarpRuntime` imports and `WarpRuntime.open(...)`
 - renamed the remaining runtime-named core tests to `WarpCore.*`
 - replaced the old runtime prototype snapshot with a structural
-  [WarpCore API surface test](/Users/james/git/git-stunts/git-warp/test/unit/domain/WarpCore.apiSurface.test.ts)
-- widened [RuntimeHostProduct.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/RuntimeHostProduct.ts)
+  [WarpCore API surface test](../../../../test/unit/domain/WarpCore.apiSurface.test.ts)
+- widened [RuntimeHostProduct.ts](../../../../src/domain/warp/RuntimeHostProduct.ts)
   to honestly type the host internals still exercised by white-box legacy
   suites
 - advanced the runtime-kill chain so the next remaining blocker is

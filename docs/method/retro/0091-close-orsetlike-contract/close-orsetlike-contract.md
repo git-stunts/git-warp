@@ -1,7 +1,7 @@
 # 0091 Close ORSetLike Contract
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0091-close-orsetlike-contract.md](/Users/james/git/git-stunts/git-warp/docs/design/0091-close-orsetlike-contract.md)
+- Cycle doc: [docs/design/0091-close-orsetlike-contract.md](../../../design/0091-close-orsetlike-contract.md)
 
 ## What changed
 

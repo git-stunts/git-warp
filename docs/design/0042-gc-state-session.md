@@ -227,9 +227,9 @@ for validation and compaction failure reporting.
 
 The session-native GC seam is backed by:
 
-- [GCSession.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/GCSession.test.ts)
-- [GCPolicy.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/GCPolicy.test.ts)
-- [StateSession.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/orset/session/StateSession.test.ts)
+- [GCSession.test.ts](../../test/unit/domain/services/GCSession.test.ts)
+- [GCPolicy.test.ts](../../test/unit/domain/services/GCPolicy.test.ts)
+- [StateSession.test.ts](../../test/unit/domain/orset/session/StateSession.test.ts)
 - `npm exec vitest run test/unit/domain/services/GCSession.test.ts test/unit/domain/services/GCPolicy.test.ts test/unit/domain/orset/session/StateSession.test.ts`
 - `npm run typecheck`
 - `git diff --check`
@@ -246,9 +246,9 @@ The session-native GC seam is backed by:
 2. *Can I point to the truthful session-native GC surface later materialization
    work should call?*
    Yes. The new surface is
-   [executeGCInSession.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/executeGCInSession.ts),
+   [executeGCInSession.ts](../../src/domain/services/executeGCInSession.ts),
    backed by
-   [GCMetrics.fromSession()](/Users/james/git/git-stunts/git-warp/src/domain/services/GCMetrics.ts).
+   [GCMetrics.fromSession()](../../src/domain/services/GCMetrics.ts).
 
 3. *Can I explain why `GCMetrics.fromSession()` can match the current count
    laws without adding report-specific counting methods to `StateSession`?*

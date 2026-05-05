@@ -18,7 +18,7 @@ Codex
 After `0074`, the first explicit remaining cut under `API_kill-warpruntime`
 is the public factory bridge:
 
-- [WarpGraphRuntimeBridge.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/WarpGraphRuntimeBridge.ts)
+- [WarpGraphRuntimeBridge.ts](../../src/domain/warp/WarpGraphRuntimeBridge.ts)
   still imports `../WarpRuntime.ts`
 - it still reaches the runtime boot path through `openWarpRuntime()`
 - the bridge product is still the runtime instance itself rather than an honest

@@ -1,7 +1,7 @@
 # 0062 Worldline Detached Factory Seam
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0062-worldline-detached-factory-seam.md](/Users/james/git/git-stunts/git-warp/docs/design/0062-worldline-detached-factory-seam.md)
+- Cycle doc: [docs/design/0062-worldline-detached-factory-seam.md](../../../design/0062-worldline-detached-factory-seam.md)
 
 ## What changed
 

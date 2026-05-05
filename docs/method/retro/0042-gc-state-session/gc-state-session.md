@@ -9,14 +9,14 @@ that the old synchronous `WarpState` path had already disappeared.
 
 What landed:
 
-- [executeGCInSession.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/executeGCInSession.ts)
+- [executeGCInSession.ts](../../../../src/domain/services/executeGCInSession.ts)
   as the async GC primitive for trie-backed alive sets
 - `GCMetrics.fromSession()` on
-  [GCMetrics.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/GCMetrics.ts),
+  [GCMetrics.ts](../../../../src/domain/services/GCMetrics.ts),
   derived from session element-state scans instead of special-purpose session
   counters
 - a regression matrix in
-  [GCSession.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/GCSession.test.ts)
+  [GCSession.test.ts](../../../../test/unit/domain/services/GCSession.test.ts)
   covering metric parity, mixed node/edge compaction, empty-session behavior,
   invalid version vectors, and closed-session failure
 

@@ -1,7 +1,7 @@
 # 0084 Close WarpRuntime Umbrella
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0084-close-warpruntime-umbrella.md](/Users/james/git/git-stunts/git-warp/docs/design/0084-close-warpruntime-umbrella.md)
+- Cycle doc: [docs/design/0084-close-warpruntime-umbrella.md](../../../design/0084-close-warpruntime-umbrella.md)
 
 ## What changed
 

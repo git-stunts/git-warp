@@ -1,7 +1,7 @@
 # 0092 Close Uniform Git-CAS
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0092-close-uniform-git-cas.md](/Users/james/git/git-stunts/git-warp/docs/design/0092-close-uniform-git-cas.md)
+- Cycle doc: [docs/design/0092-close-uniform-git-cas.md](../../../design/0092-close-uniform-git-cas.md)
 
 ## What changed
 

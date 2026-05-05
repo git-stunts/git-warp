@@ -1,7 +1,7 @@
-import { assertEquals, assert } from "jsr:@std/assert";
-import { createTestRepo } from "./helpers.ts";
+import { assertEquals, assert } from "./assertions.ts";
+import { createTestRepo, denoRuntimeTest } from "./helpers.ts";
 
-Deno.test("edge-cases: empty graph materializes with zero nodes", async () => {
+denoRuntimeTest("edge-cases: empty graph materializes with zero nodes", async () => {
   const repo = await createTestRepo("empty");
   try {
     const graph = await repo.openGraph("empty", "w1");
@@ -13,7 +13,7 @@ Deno.test("edge-cases: empty graph materializes with zero nodes", async () => {
   }
 });
 
-Deno.test("edge-cases: self-edges are supported", async () => {
+denoRuntimeTest("edge-cases: self-edges are supported", async () => {
   const repo = await createTestRepo("self");
   try {
     const graph = await repo.openGraph("self", "w1");
@@ -32,7 +32,7 @@ Deno.test("edge-cases: self-edges are supported", async () => {
   }
 });
 
-Deno.test("edge-cases: unicode node IDs", async () => {
+denoRuntimeTest("edge-cases: unicode node IDs", async () => {
   const repo = await createTestRepo("unicode");
   try {
     const graph = await repo.openGraph("u", "w1");

@@ -20,7 +20,7 @@ bucket.
 
 ### The remaining drift now has release homes
 
-[0037-remaining-warp-drift-release-slotting.md](/Users/james/git/git-stunts/git-warp/docs/design/0037-remaining-warp-drift-release-slotting.md)
+[0037-remaining-warp-drift-release-slotting.md](../../../design/0037-remaining-warp-drift-release-slotting.md)
 now says, plainly:
 
 - `v19` owns doctrine/runtime correction and the first honest
@@ -33,7 +33,7 @@ That is the practical center of the cycle.
 
 ### The drift ledger now knows about the slotting note
 
-[WARP_DRIFT.md](/Users/james/git/git-stunts/git-warp/docs/audits/WARP_DRIFT.md)
+[WARP_DRIFT.md](../../../audits/WARP_DRIFT.md)
 now points to `0037` as part of the relevant design context instead of stopping
 at the glossary, ladder, and horizon.
 
@@ -42,7 +42,7 @@ solved discoverability for the release split.
 
 ### The release horizon now says the split out loud
 
-[release-horizon-v20-v21.md](/Users/james/git/git-stunts/git-warp/docs/design/release-horizon-v20-v21.md)
+[release-horizon-v20-v21.md](../../../design/release-horizon-v20-v21.md)
 now references `0037` directly and includes an explicit slotting rule section.
 
 That turns the horizon from a reasonable sketch into a more disciplined
@@ -50,7 +50,7 @@ planning surface.
 
 ### The `v19` lane now says where its responsibility ends
 
-[docs/method/backlog/v19.0.0/README.md](/Users/james/git/git-stunts/git-warp/docs/method/backlog/v19.0.0/README.md)
+[docs/method/backlog/v19.0.0/README.md](../../backlog/v19.0.0/README.md)
 now includes a `Release handoff` section so the lane itself records:
 
 - what `v19` owns

@@ -1,7 +1,7 @@
 # 0061 Query Controller Capability Seam
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0061-query-controller-capability-seam.md](/Users/james/git/git-stunts/git-warp/docs/design/0061-query-controller-capability-seam.md)
+- Cycle doc: [docs/design/0061-query-controller-capability-seam.md](../../../design/0061-query-controller-capability-seam.md)
 
 ## What changed
 

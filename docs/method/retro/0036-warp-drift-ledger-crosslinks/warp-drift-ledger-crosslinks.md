@@ -12,7 +12,7 @@ drift_check: yes
 
 ## Hill
 
-Make [`docs/audits/WARP_DRIFT.md`](/Users/james/git/git-stunts/git-warp/docs/audits/WARP_DRIFT.md)
+Make [`docs/audits/WARP_DRIFT.md`](../../../audits/WARP_DRIFT.md)
 point readers at the canonical post-`0035` runtime/doctrine surfaces without
 turning the audit into a duplicate of those docs.
 
@@ -25,9 +25,9 @@ canonical noun wall-chart or the full runtime architecture guide.
 
 It now links directly to:
 
-- [docs/GLOSSARY.md](/Users/james/git/git-stunts/git-warp/docs/GLOSSARY.md)
-- [0035-observer-geometry-architecture-ladder.md](/Users/james/git/git-stunts/git-warp/docs/design/0035-observer-geometry-architecture-ladder.md)
-- [release-horizon-v20-v21.md](/Users/james/git/git-stunts/git-warp/docs/design/release-horizon-v20-v21.md)
+- [docs/GLOSSARY.md](../../../GLOSSARY.md)
+- [0035-observer-geometry-architecture-ladder.md](../../../design/0035-observer-geometry-architecture-ladder.md)
+- [release-horizon-v20-v21.md](../../../design/release-horizon-v20-v21.md)
 
 That means a reader can now start at the drift audit and reach the noun
 wall-chart, the runtime ladder, and the later-major framing in one hop.
@@ -48,7 +48,7 @@ The cycle succeeded because it kept those responsibilities distinct.
 ### The crosslink contract is now ratcheted
 
 The cycle added
-[warp-drift-crosslinks-shape.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/scripts/warp-drift-crosslinks-shape.test.ts)
+[warp-drift-crosslinks-shape.test.ts](../../../../test/unit/scripts/warp-drift-crosslinks-shape.test.ts)
 so the repo will fail loudly if those crosslinks disappear later.
 
 For a small docs hygiene slice, that is the right outcome: the fix is now
@@ -95,7 +95,7 @@ test. That improves the slice instead of changing its meaning.
 The source `up-next` card was removed when the cycle was pulled. The remaining
 queued follow-through is still:
 
-- [PROTO_remaining-warp-drift-release-slotting.md](/Users/james/git/git-stunts/git-warp/docs/method/backlog/up-next/PROTO_remaining-warp-drift-release-slotting.md)
+- PROTO_remaining-warp-drift-release-slotting.md
 
 That is the right next cycle because this one connected the audit to the wall
 chart, but it did not yet sort the remaining unresolved drift across `v19`,

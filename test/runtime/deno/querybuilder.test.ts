@@ -1,7 +1,7 @@
-import { assertEquals, assert } from "jsr:@std/assert";
-import { createTestRepo } from "./helpers.ts";
+import { assertEquals, assert } from "./assertions.ts";
+import { createTestRepo, denoRuntimeTest } from "./helpers.ts";
 
-Deno.test("query: match glob returns matching nodes", async () => {
+denoRuntimeTest("query: match glob returns matching nodes", async () => {
   const repo = await createTestRepo("query");
   try {
     const graph = await repo.openGraph("test", "alice");
@@ -21,7 +21,7 @@ Deno.test("query: match glob returns matching nodes", async () => {
   }
 });
 
-Deno.test("query: where filters by property", async () => {
+denoRuntimeTest("query: where filters by property", async () => {
   const repo = await createTestRepo("query-where");
   try {
     const graph = await repo.openGraph("test", "alice");
@@ -45,7 +45,7 @@ Deno.test("query: where filters by property", async () => {
   }
 });
 
-Deno.test("query: outgoing traversal", async () => {
+denoRuntimeTest("query: outgoing traversal", async () => {
   const repo = await createTestRepo("query-out");
   try {
     const graph = await repo.openGraph("test", "alice");

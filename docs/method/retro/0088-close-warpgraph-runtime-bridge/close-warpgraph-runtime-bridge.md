@@ -1,7 +1,7 @@
 # 0088 Close WarpGraph Runtime Bridge
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0088-close-warpgraph-runtime-bridge.md](/Users/james/git/git-stunts/git-warp/docs/design/0088-close-warpgraph-runtime-bridge.md)
+- Cycle doc: [docs/design/0088-close-warpgraph-runtime-bridge.md](../../../design/0088-close-warpgraph-runtime-bridge.md)
 
 ## What changed
 

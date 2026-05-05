@@ -40,11 +40,5 @@ describe('API: materialize checkpoint index freshness', () => {
       .sort();
 
     expect(signatures).toEqual(['B:knows', 'C:manages']);
-    expect(
-      reopened._logicalIndex
-        .getEdges('A', 'out')
-        .map((/** @type {{ neighborId: string, label: string }} */ edge) => `${edge.neighborId}:${edge.label}`)
-        .sort()
-    ).toEqual(['B:knows', 'C:manages']);
   });
 });

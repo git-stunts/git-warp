@@ -1,18 +1,18 @@
 # 0075 Delete openWarpRuntime Bridge
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0075-delete-openwarpruntime-bridge.md](/Users/james/git/git-stunts/git-warp/docs/design/0075-delete-openwarpruntime-bridge.md)
+- Cycle doc: [docs/design/0075-delete-openwarpruntime-bridge.md](../../../design/0075-delete-openwarpruntime-bridge.md)
 
 ## What changed
 
-- added [WarpGraphRuntimeProduct.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/WarpGraphRuntimeProduct.ts)
+- added [WarpGraphRuntimeProduct.ts](../../../../src/domain/warp/WarpGraphRuntimeProduct.ts)
   as the honest product seam under `openWarpGraph()`
-- updated [WarpGraphRuntimeBridge.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/WarpGraphRuntimeBridge.ts)
+- updated [WarpGraphRuntimeBridge.ts](../../../../src/domain/warp/WarpGraphRuntimeBridge.ts)
   so it no longer imports `WarpRuntime` directly and no longer calls
   `openWarpRuntime()`
 - added the closeout ratchets:
-  - [openwarpruntime-bridge-closeout.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/scripts/openwarpruntime-bridge-closeout.test.ts)
-  - [WarpGraphRuntimeBridge.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/warp/WarpGraphRuntimeBridge.test.ts)
+  - [openwarpruntime-bridge-closeout.test.ts](../../../../test/unit/scripts/openwarpruntime-bridge-closeout.test.ts)
+  - [WarpGraphRuntimeBridge.test.ts](../../../../test/unit/domain/warp/WarpGraphRuntimeBridge.test.ts)
 - updated the runtime-kill ledger so the remaining order is now:
   `0076-delete-warpcore-runtime-bridge` →
   `API_delete-warpruntime-class` →

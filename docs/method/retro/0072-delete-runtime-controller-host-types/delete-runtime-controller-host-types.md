@@ -1,7 +1,7 @@
 # 0072 Delete Runtime Controller Host Types
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0072-delete-runtime-controller-host-types.md](/Users/james/git/git-stunts/git-warp/docs/design/0072-delete-runtime-controller-host-types.md)
+- Cycle doc: [docs/design/0072-delete-runtime-controller-host-types.md](../../../design/0072-delete-runtime-controller-host-types.md)
 
 ## What changed
 

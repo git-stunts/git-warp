@@ -73,6 +73,12 @@ Current evidence before implementation:
 - The first `git push -u origin release/v17.0.0` attempt is blocked by the
   pre-push link gate. `lychee --config .lychee.toml '**/*.md'` reports stale
   local links in six historical docs.
+- PR #84 CI at `cf1c9e3c` reports additional release-push drift:
+  GitHub lychee rejects absolute local filesystem links, Bun API integration
+  tests still assert private materialization internals and stale
+  `materializeAt()` behavior, checkpoint content anchors label CAS trees as
+  blobs, and Deno type resolution fails on an untyped npm dependency before
+  the runtime smoke tests can run.
 
 ### GREEN
 
@@ -82,6 +88,11 @@ Current evidence before implementation:
   release PR, or an existing PR is updated instead.
 - `gh pr checks` reports the current CI state.
 - `gh pr view` reports the current review state.
+- Follow-up CI repair keeps v17 public behavior honest: Bun integration tests
+  assert public query/checkpoint/content behavior, checkpoint content anchors
+  use CAS tree entries, Deno runtime smoke tests run with `--no-check`, and
+  the Deno smoke harness records the external dependency timer sanitizer
+  limitation as bad-code backlog.
 
 ### Goldens
 
@@ -105,3 +116,6 @@ Current evidence before implementation:
   infer the branch.
 - A second push may retrigger checks if this cycle records PR metadata after
   opening the PR.
+- GitHub Actions may use stricter or newer tool versions than the local
+  pre-push gate; the link checker caught absolute local markdown paths that the
+  earlier local version did not.

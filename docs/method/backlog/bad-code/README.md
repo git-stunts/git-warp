@@ -14,7 +14,7 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 | [CAST](../../legends/CAST.md) | No cast-cosplay, escape hatches, or type lies. | 9 |
 | [PORT](../../legends/PORT.md) | Capability and port surfaces must tell the runtime truth. | 12 |
 | [OWN](../../legends/OWNERSHIP.md) | One owner per behavior: no gods, no duplication corridors, no mixed-concern facades. | 32 |
-| [SUB](../../legends/SUBSTRATE.md) | Substrate integrity: streaming, CAS, checkpoint, index, and versioned storage stay explicit. | 14 |
+| [SUB](../../legends/SUBSTRATE.md) | Substrate integrity: streaming, CAS, checkpoint, index, and versioned storage stay explicit. | 15 |
 | [SPEC](../../legends/SPEC.md) | Tests, docs, mocks, and coverage residue must reflect the real contract. | 118 |
 
 ## Release Homes
@@ -31,7 +31,7 @@ card metadata or promoting bad-code into a release lane.
 | Release Home | Count |
 |--------------|------:|
 | `v17.0.0` | 194 |
-| `v18.0.0` | 12 |
+| `v18.0.0` | 13 |
 | `v19.0.0` | 13 |
 | `v20.0.0` | 15 |
 | `v21.0.0` | 7 |
@@ -158,12 +158,13 @@ card metadata or promoting bad-code into a release lane.
 - [OWN_trust-evaluator-coupling.md](OWN_trust-evaluator-coupling.md)
 - [OWN_trust-record-service-smells.md](OWN_trust-record-service-smells.md)
 
-### Substrate (`SUB`) — 14
+### Substrate (`SUB`) — 15
 
 - [SUB_bitmap-index-trio-coupling.md](SUB_bitmap-index-trio-coupling.md)
 - [SUB_bitmap-reader-silent-corruption.md](SUB_bitmap-reader-silent-corruption.md)
 - [SUB_cas-init-duplication.md](SUB_cas-init-duplication.md)
 - [SUB_cbor-checkpoint-crdt-serialization.md](SUB_cbor-checkpoint-crdt-serialization.md)
+- [SUB_deno-runtime-smoke-timer-sanitizer.md](SUB_deno-runtime-smoke-timer-sanitizer.md)
 - [SUB_p5-serialization-on-types.md](SUB_p5-serialization-on-types.md)
 - [SUB_toposort-full-adjacency.md](SUB_toposort-full-adjacency.md)
 - [SUB_bitmap-neighbor-provider-dead-false-branch.md](SUB_bitmap-neighbor-provider-dead-false-branch.md)

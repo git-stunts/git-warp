@@ -88,10 +88,10 @@ That makes this cycle a premise-validation slice first, not a blind move.
 
 The premise check is backed by:
 
-- [package.json](/Users/james/git/git-stunts/git-warp/package.json)
-- [packages/warp-kernel/package.json](/Users/james/git/git-stunts/git-warp/packages/warp-kernel/package.json)
-- [src/domain/orset/README.md](/Users/james/git/git-stunts/git-warp/src/domain/orset/README.md)
-- [0020 retro](/Users/james/git/git-stunts/git-warp/docs/method/retro/0020-extract-warp-orset-package/extract-warp-orset-package.md)
+- [package.json](../../package.json)
+- [packages/warp-kernel/package.json](../../packages/warp-kernel/package.json)
+- [src/domain/orset/README.md](../../src/domain/orset/README.md)
+- [0020 retro](../method/retro/0020-extract-warp-orset-package/extract-warp-orset-package.md)
 
 ### Agent
 

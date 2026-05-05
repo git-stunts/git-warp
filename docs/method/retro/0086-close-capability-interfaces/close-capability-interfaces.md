@@ -1,7 +1,7 @@
 # 0086 Close Capability Interfaces
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0086-close-capability-interfaces.md](/Users/james/git/git-stunts/git-warp/docs/design/0086-close-capability-interfaces.md)
+- Cycle doc: [docs/design/0086-close-capability-interfaces.md](../../../design/0086-close-capability-interfaces.md)
 
 ## What changed
 

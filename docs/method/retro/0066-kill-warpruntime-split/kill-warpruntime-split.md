@@ -1,7 +1,7 @@
 # 0066 Kill WarpRuntime Split
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0066-kill-warpruntime-split.md](/Users/james/git/git-stunts/git-warp/docs/design/0066-kill-warpruntime-split.md)
+- Cycle doc: [docs/design/0066-kill-warpruntime-split.md](../../../design/0066-kill-warpruntime-split.md)
 
 ## What changed
 

@@ -9,12 +9,12 @@ profile harness and a measured default-matrix recommendation.
 
 What landed:
 
-- [trieGeometryProfile.fixture.ts](/Users/james/git/git-stunts/git-warp/test/benchmark/trieGeometryProfile.fixture.ts)
+- [trieGeometryProfile.fixture.ts](../../../../test/benchmark/trieGeometryProfile.fixture.ts)
   as the benchmark fixture for build, reopen, scan, cache, and trie-shape
   metrics
-- [TrieGeometryProfile.profile.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/benchmark/TrieGeometryProfile.profile.test.ts)
+- [TrieGeometryProfile.profile.test.ts](../../../../test/unit/benchmark/TrieGeometryProfile.profile.test.ts)
   as the runnable profile harness
-- [trieGeometryProfile.fixture.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/benchmark/trieGeometryProfile.fixture.test.ts)
+- [trieGeometryProfile.fixture.test.ts](../../../../test/unit/benchmark/trieGeometryProfile.fixture.test.ts)
   as the matrix/report ratchet
 - a measured recommendation based on the checked-in matrix instead of ad hoc
   defaults

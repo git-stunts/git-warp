@@ -16,9 +16,9 @@ Codex
 ## Why this exists
 
 After `0078`, the last blocker under
-[API_delete-warpruntime-class.md](/Users/james/git/git-stunts/git-warp/docs/method/backlog/v17.0.0/API_delete-warpruntime-class.md)
+API_delete-warpruntime-class.md
 is
-[DX_migrate-tests-and-seed-helpers-off-warpruntime.md](/Users/james/git/git-stunts/git-warp/docs/method/backlog/v17.0.0/DX_migrate-tests-and-seed-helpers-off-warpruntime.md).
+DX_migrate-tests-and-seed-helpers-off-warpruntime.md.
 
 Repo truth says that note is still too broad to execute honestly as one patch:
 

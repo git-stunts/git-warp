@@ -54,7 +54,7 @@ A contributor can now answer:
 ## Core diagnosis
 
 The current defaults are documented as “initial guesses” in
-[TrieGeometry.ts](/Users/james/git/git-stunts/git-warp/src/domain/orset/trie/TrieGeometry.ts)
+[TrieGeometry.ts](../../src/domain/orset/trie/TrieGeometry.ts)
 and the page-cache cycle explicitly deferred real tuning.
 
 That is fine as long as the repo does not pretend the values are settled.
@@ -195,9 +195,9 @@ Important caveats:
 
 The geometry/profile cycle is backed by:
 
-- [trieGeometryProfile.fixture.ts](/Users/james/git/git-stunts/git-warp/test/benchmark/trieGeometryProfile.fixture.ts)
-- [trieGeometryProfile.fixture.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/benchmark/trieGeometryProfile.fixture.test.ts)
-- [TrieGeometryProfile.profile.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/benchmark/TrieGeometryProfile.profile.test.ts)
+- [trieGeometryProfile.fixture.ts](../../test/benchmark/trieGeometryProfile.fixture.ts)
+- [trieGeometryProfile.fixture.test.ts](../../test/unit/benchmark/trieGeometryProfile.fixture.test.ts)
+- [TrieGeometryProfile.profile.test.ts](../../test/unit/benchmark/TrieGeometryProfile.profile.test.ts)
 - `npm exec vitest run test/unit/benchmark/trieGeometryProfile.fixture.test.ts test/unit/benchmark/TrieGeometryProfile.profile.test.ts`
 - `GIT_WARP_PROFILE=1 npx vitest run test/unit/benchmark/TrieGeometryProfile.profile.test.ts --reporter=verbose`
 - `npm run typecheck`

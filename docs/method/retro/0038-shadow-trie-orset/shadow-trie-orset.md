@@ -22,7 +22,7 @@ Define and ship the first truthful async trie-backed ORSet engine:
 
 ### The async engine now exists
 
-[ShadowTrieORSet.ts](/Users/james/git/git-stunts/git-warp/src/domain/orset/shadow/ShadowTrieORSet.ts)
+[ShadowTrieORSet.ts](../../../../src/domain/orset/shadow/ShadowTrieORSet.ts)
 now exists as a concrete storage-backed ORSet engine over the trie substrate.
 
 It owns the honest async behavior surface for this slice:
@@ -55,7 +55,7 @@ array.
 
 That was corrected in the same cycle:
 
-- [TrieCursor.ts](/Users/james/git/git-stunts/git-warp/src/domain/orset/trie/TrieCursor.ts)
+- [TrieCursor.ts](../../../../src/domain/orset/trie/TrieCursor.ts)
   now has a real async scan walk
 - `elements()` now collects from that walk instead of owning the traversal
 - `ShadowTrieORSet.scan()` delegates to the cursor’s async iterator directly
@@ -65,7 +65,7 @@ bounded-residency ORSet line, not just rename it.
 
 ### The engine is protected by a focused red/green matrix
 
-[ShadowTrieORSet.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/orset/shadow/ShadowTrieORSet.test.ts)
+[ShadowTrieORSet.test.ts](../../../../test/unit/domain/orset/shadow/ShadowTrieORSet.test.ts)
 now covers:
 
 - constructor invariants
@@ -113,7 +113,7 @@ real.
 ## Drift
 
 The only additive drift was introducing
-[ShadowTrieORSetError.ts](/Users/james/git/git-stunts/git-warp/src/domain/errors/ShadowTrieORSetError.ts).
+[ShadowTrieORSetError.ts](../../../../src/domain/errors/ShadowTrieORSetError.ts).
 
 That turned out to be the right move because constructor validation is a real
 engine-owned invariant and did not belong on `TrieCursorError`.

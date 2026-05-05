@@ -40,10 +40,10 @@ The downstream planning docs were updated to use the truthful nouns:
 
 Updated files:
 
-- [0040-state-session-async.md](/Users/james/git/git-stunts/git-warp/docs/design/0040-state-session-async.md)
-- [0038-shadow-trie-orset.md](/Users/james/git/git-stunts/git-warp/docs/design/0038-shadow-trie-orset.md)
-- [0042-gc-state-session.md](/Users/james/git/git-stunts/git-warp/docs/design/0042-gc-state-session.md)
-- [docs/releases/v17.0.0/README.md](/Users/james/git/git-stunts/git-warp/docs/releases/v17.0.0/README.md)
+- [0040-state-session-async.md](../../../design/0040-state-session-async.md)
+- [0038-shadow-trie-orset.md](../../../design/0038-shadow-trie-orset.md)
+- [0042-gc-state-session.md](../../../design/0042-gc-state-session.md)
+- [docs/releases/v17.0.0/README.md](../../../releases/v17.0.0/README.md)
 
 The false `blocked_by: PROTO_orsetlike-contract` edges were also
 removed from:
@@ -56,7 +56,7 @@ removed from:
 Per operator instruction, the source backlog note itself was **not**
 retired in this cycle:
 
-- [PROTO_orsetlike-contract.md](/Users/james/git/git-stunts/git-warp/docs/method/backlog/v17.0.0/PROTO_orsetlike-contract.md)
+- PROTO_orsetlike-contract.md
 
 That means one intentionally preserved artifact still speaks in the old
 invalid noun family.

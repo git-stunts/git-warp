@@ -5,21 +5,21 @@
 Hill met.
 
 Cycle `0044` finished the first honest async builder line over
-[StateSession](/Users/james/git/git-stunts/git-warp/src/domain/orset/session/StateSession.ts)
+[StateSession](../../../../src/domain/orset/session/StateSession.ts)
 without pretending the remaining state-based callers had already disappeared.
 
 What landed:
 
-- [SessionVisibleGraph.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/state/SessionVisibleGraph.ts)
+- [SessionVisibleGraph.ts](../../../../src/domain/services/state/SessionVisibleGraph.ts)
   as the shared deterministic scan helper for alive nodes and visible edges
 - session-backed adjacency in
-  [MaterializeHelpers.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/MaterializeHelpers.ts)
+  [MaterializeHelpers.ts](../../../../src/domain/services/controllers/MaterializeHelpers.ts)
   and direct use of that seam from
-  [MaterializeSessionBridge.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/MaterializeSessionBridge.ts)
+  [MaterializeSessionBridge.ts](../../../../src/domain/services/controllers/MaterializeSessionBridge.ts)
 - session-backed bitmap index entry points in
-  [WarpStateIndexBuilder.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/index/WarpStateIndexBuilder.ts)
+  [WarpStateIndexBuilder.ts](../../../../src/domain/services/index/WarpStateIndexBuilder.ts)
 - session-backed logical shard building in
-  [LogicalIndexBuildService.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/index/LogicalIndexBuildService.ts)
+  [LogicalIndexBuildService.ts](../../../../src/domain/services/index/LogicalIndexBuildService.ts)
 - regression coverage across the new seams in the state-session builder tests
 
 ## What changed in repo truth

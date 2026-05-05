@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestRepo } from './helpers/setup.ts';
-import BitmapNeighborProvider from '../../../src/domain/services/index/BitmapNeighborProvider.ts';
 
 describe('API: MaterializedView', () => {
     let repo;
@@ -13,7 +12,7 @@ describe('API: MaterializedView', () => {
     await repo?.cleanup();
   });
 
-  it('attaches a BitmapNeighborProvider to _materializedGraph after materialize', async () => {
+  it('reads neighbors through the public query API after materialize', async () => {
     const graph = await repo.openGraph('test', 'alice');
 
     const patch = await graph.createPatch();
@@ -26,12 +25,15 @@ describe('API: MaterializedView', () => {
 
     await graph.materialize();
 
-    expect(graph._materializedGraph).not.toBeNull();
-    expect(graph._materializedGraph.provider).toBeInstanceOf(BitmapNeighborProvider);
-    expect(typeof graph._materializedGraph.provider.getNeighbors).toBe('function');
+    await expect(graph.neighbors('A', 'outgoing')).resolves.toEqual([
+      { nodeId: 'B', label: 'knows', direction: 'outgoing' },
+    ]);
+    await expect(graph.neighbors('B', 'incoming')).resolves.toEqual([
+      { nodeId: 'A', label: 'knows', direction: 'incoming' },
+    ]);
   });
 
-  it('populates _logicalIndex and _propertyReader after materialize', async () => {
+  it('reads node liveness and properties through the public query API after materialize', async () => {
     const graph = await repo.openGraph('test', 'alice');
 
     const patch = await graph.createPatch();
@@ -44,15 +46,13 @@ describe('API: MaterializedView', () => {
 
     await graph.materialize();
 
-    expect(graph._logicalIndex).not.toBeNull();
-    expect(graph._logicalIndex.isAlive('A')).toBe(true);
-    expect(graph._logicalIndex.isAlive('B')).toBe(true);
-    expect(graph._logicalIndex.isAlive('nonexistent')).toBe(false);
-
-    expect(graph._propertyReader).not.toBeNull();
+    await expect(graph.hasNode('A')).resolves.toBe(true);
+    await expect(graph.hasNode('B')).resolves.toBe(true);
+    await expect(graph.hasNode('nonexistent')).resolves.toBe(false);
+    await expect(graph.getNodeProps('A')).resolves.toMatchObject({ name: 'Alice' });
   });
 
-  it('logicalIndex.isAlive matches getNodes', async () => {
+  it('getNodes omits removed nodes after rematerializing', async () => {
     const graph = await repo.openGraph('test', 'alice');
 
     const p1 = await graph.createPatch();
@@ -68,17 +68,9 @@ describe('API: MaterializedView', () => {
 
     const nodes = await graph.getNodes();
 
-    // Every node returned by getNodes must be alive in the index
-    for (const nodeId of nodes) {
-      expect(graph._logicalIndex.isAlive(nodeId)).toBe(true);
-    }
-
-    // Removed node must not appear in getNodes and must not be alive
     expect(nodes).not.toContain('Y');
-    expect(graph._logicalIndex.isAlive('Y')).toBe(false);
-
-    // Surviving nodes must appear in both
     expect(nodes).toContain('X');
     expect(nodes).toContain('Z');
+    await expect(graph.hasNode('Y')).resolves.toBe(false);
   });
 });

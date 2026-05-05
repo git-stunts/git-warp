@@ -1,7 +1,7 @@
 # ROADMAP — @git-stunts/git-warp
 
 > **MIGRATED:** All incomplete items have been migrated to `docs/method/backlog/`.
-> See [METHOD](/docs/METHOD.md) for the current process.
+> See METHOD for the current process.
 > Completed items remain in `docs/ROADMAP/COMPLETED.md`. This file is kept for reference only.
 
 > **Current release on `main`:** v16.0.0

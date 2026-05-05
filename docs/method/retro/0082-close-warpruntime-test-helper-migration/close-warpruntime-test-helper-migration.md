@@ -1,7 +1,7 @@
 # 0082 Close WarpRuntime Test/Helper Migration
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0082-close-warpruntime-test-helper-migration.md](/Users/james/git/git-stunts/git-warp/docs/design/0082-close-warpruntime-test-helper-migration.md)
+- Cycle doc: [docs/design/0082-close-warpruntime-test-helper-migration.md](../../../design/0082-close-warpruntime-test-helper-migration.md)
 
 ## What changed
 

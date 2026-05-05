@@ -1,7 +1,8 @@
-import { assert, assertMatch, assertEquals } from "jsr:@std/assert";
-import { createTestRepo } from "./helpers.ts";
+import { assertMatch, assertRejects } from "./assertions.ts";
+import { createTestRepo, denoRuntimeTest } from "./helpers.ts";
+import SchemaUnsupportedError from "../../../src/domain/errors/SchemaUnsupportedError.ts";
 
-Deno.test("checkpoint: creates checkpoint with valid SHA", async () => {
+denoRuntimeTest("checkpoint: creates checkpoint with valid SHA", async () => {
   const repo = await createTestRepo("ckpt");
   try {
     const graph = await repo.openGraph("test", "w1");
@@ -17,7 +18,7 @@ Deno.test("checkpoint: creates checkpoint with valid SHA", async () => {
   }
 });
 
-Deno.test("checkpoint: materializeAt restores state", async () => {
+denoRuntimeTest("checkpoint: materializeAt rejects session-backed runtime checkpoints", async () => {
   const repo = await createTestRepo("ckpt-at");
   try {
     const graph = await repo.openGraph("test", "w1");
@@ -26,10 +27,11 @@ Deno.test("checkpoint: materializeAt restores state", async () => {
     await graph.materialize();
     const sha = await graph.createCheckpoint();
 
-    const state = await graph.materializeAt(sha);
-    assert(state !== null);
-    const nodes = await graph.getNodes();
-    assertEquals(nodes.includes("n1"), true);
+    await assertRejects(
+      () => graph.materializeAt(sha),
+      SchemaUnsupportedError,
+      "offline checkpoint migration",
+    );
   } finally {
     await repo.cleanup();
   }

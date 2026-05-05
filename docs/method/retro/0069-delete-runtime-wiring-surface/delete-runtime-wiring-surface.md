@@ -1,14 +1,14 @@
 # 0069 Delete Runtime Wiring Surface
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0069-delete-runtime-wiring-surface.md](/Users/james/git/git-stunts/git-warp/docs/design/0069-delete-runtime-wiring-surface.md)
+- Cycle doc: [docs/design/0069-delete-runtime-wiring-surface.md](../../../design/0069-delete-runtime-wiring-surface.md)
 
 ## What changed
 
 - deleted `src/domain/runtimeWiring.ts`
 - deleted `src/domain/warp/_wiredMethods.d.ts`
 - moved the formerly wired runtime surface onto
-  [WarpRuntime.ts](/Users/james/git/git-stunts/git-warp/src/domain/WarpRuntime.ts)
+  WarpRuntime.ts
 - retired the `_wiredMethods` signature-drift bad-code note
 - updated the `v17` ledger so the deleted blocker and deleted declaration file
   stop appearing as live residue

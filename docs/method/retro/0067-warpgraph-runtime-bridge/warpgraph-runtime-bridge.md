@@ -1,7 +1,7 @@
 # 0067 WarpGraph Runtime Bridge
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0067-warpgraph-runtime-bridge.md](/Users/james/git/git-stunts/git-warp/docs/design/0067-warpgraph-runtime-bridge.md)
+- Cycle doc: [docs/design/0067-warpgraph-runtime-bridge.md](../../../design/0067-warpgraph-runtime-bridge.md)
 
 ## What changed
 

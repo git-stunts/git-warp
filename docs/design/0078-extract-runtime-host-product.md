@@ -18,9 +18,9 @@ Codex
 After `0077`, the remaining source-side `WarpRuntime` residue is concentrated in
 three files:
 
-- [WarpGraphRuntimeProduct.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/WarpGraphRuntimeProduct.ts)
-- [WarpCoreRuntimeProduct.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/WarpCoreRuntimeProduct.ts)
-- [ForkController.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/ForkController.ts)
+- [WarpGraphRuntimeProduct.ts](../../src/domain/warp/WarpGraphRuntimeProduct.ts)
+- [WarpCoreRuntimeProduct.ts](../../src/domain/warp/WarpCoreRuntimeProduct.ts)
+- [ForkController.ts](../../src/domain/services/controllers/ForkController.ts)
 
 All three still reach `openWarpRuntime(...)` or derive types from that surface.
 That means the `WarpRuntime.ts` file delete is still blocked by one source-side
@@ -105,7 +105,7 @@ Add ratchets that fail until:
 - Yes. `ForkController.ts` now stops typing against or dynamically importing
   `../../WarpRuntime.ts`.
 - Yes. There is now one explicit host-product seam,
-  [RuntimeHostProduct.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/RuntimeHostProduct.ts),
+  [RuntimeHostProduct.ts](../../src/domain/warp/RuntimeHostProduct.ts),
   that owns the internal `openWarpRuntime(...)` call.
 
 ### Human

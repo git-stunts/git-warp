@@ -13,15 +13,15 @@ consumer migration:
 
 ## What changed
 
-- replaced cast-cosplay in [WarpGraph.ts](/Users/james/git/git-stunts/git-warp/src/domain/WarpGraph.ts)
+- replaced cast-cosplay in [WarpGraph.ts](../../../../src/domain/WarpGraph.ts)
   with runtime-checked, frozen capability binding
 - removed `_runtime` from the public `WarpGraph` type and value
 - introduced a public sync-remote shape in
-  [SyncCapability.ts](/Users/james/git/git-stunts/git-warp/src/domain/capabilities/SyncCapability.ts)
+  [SyncCapability.ts](../../../../src/domain/capabilities/SyncCapability.ts)
   so direct peer sync can accept a capability bag instead of `WarpRuntime`
 - taught sync target resolution in
-  [syncHelpers.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/syncHelpers.ts)
-  and [SyncController.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/SyncController.ts)
+  [syncHelpers.ts](../../../../src/domain/services/controllers/syncHelpers.ts)
+  and [SyncController.ts](../../../../src/domain/services/controllers/SyncController.ts)
   to accept either a direct processor or a `WarpGraph`-style peer
 - updated the public consumer type surface and API reference so they stop
   teaching `graphB._runtime`

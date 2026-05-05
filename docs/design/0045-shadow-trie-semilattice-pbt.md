@@ -9,9 +9,9 @@ cycle: "0045-shadow-trie-semilattice-pbt"
 
 The shadow-trie trunk is now materially usable:
 
-- [ShadowTrieORSet](/Users/james/git/git-stunts/git-warp/src/domain/orset/shadow/ShadowTrieORSet.ts)
+- [ShadowTrieORSet](../../src/domain/orset/shadow/ShadowTrieORSet.ts)
   persists alive-set truth through the trie substrate
-- [StateSession](/Users/james/git/git-stunts/git-warp/src/domain/orset/session/StateSession.ts)
+- [StateSession](../../src/domain/orset/session/StateSession.ts)
   exposes the async session seam
 - reducer replay, GC, materialization, and builder iteration now all consume
   that seam
@@ -33,7 +33,7 @@ A contributor can now answer:
 1. Prove commutativity, associativity, and idempotency at the truthful
    session-backed join seam.
 2. Compare the session-backed result against in-memory
-   [ORSet](/Users/james/git/git-stunts/git-warp/src/domain/crdt/ORSet.ts)
+   [ORSet](../../src/domain/crdt/ORSet.ts)
    truth under randomized operation generation.
 3. Prove compact safety against the same in-memory reference model.
 4. Keep structural sharing verification in the trie/session layer instead of
@@ -55,7 +55,7 @@ repo truth is a little sharper now:
 - `ShadowTrieORSet` is an internal engine
 - the public async alive-set seam is `StateSession`
 - the actual join operation on trie-backed state lives at
-  [joinFrames](/Users/james/git/git-stunts/git-warp/src/domain/services/JoinReducerSession.ts)
+  [joinFrames](../../src/domain/services/JoinReducerSession.ts)
 
 So the honest proof split is:
 
@@ -158,9 +158,9 @@ rewriting the whole trie.
 
 The shadow-trie trust proof is backed by:
 
-- [StateSession.semilattice.property.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/orset/session/StateSession.semilattice.property.test.ts)
-- [JoinReducer.stateSession.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/JoinReducer.stateSession.test.ts)
-- [ShadowTrieORSet.compaction.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/orset/shadow/ShadowTrieORSet.compaction.test.ts)
+- [StateSession.semilattice.property.test.ts](../../test/unit/domain/orset/session/StateSession.semilattice.property.test.ts)
+- [JoinReducer.stateSession.test.ts](../../test/unit/domain/services/JoinReducer.stateSession.test.ts)
+- [ShadowTrieORSet.compaction.test.ts](../../test/unit/domain/orset/shadow/ShadowTrieORSet.compaction.test.ts)
 - `npm exec vitest run test/unit/domain/orset/session/StateSession.semilattice.property.test.ts test/unit/domain/services/JoinReducer.stateSession.test.ts test/unit/domain/orset/shadow/ShadowTrieORSet.compaction.test.ts`
 - `npm run typecheck`
 - `git diff --check`
@@ -169,7 +169,7 @@ The shadow-trie trust proof is backed by:
 
 1. *Can I point to the exact session-backed join seam being proven?*
    Yes. The law proof now runs through
-   [joinFrames](/Users/james/git/git-stunts/git-warp/src/domain/services/JoinReducerSession.ts)
+   [joinFrames](../../src/domain/services/JoinReducerSession.ts)
    over session-backed alive sets, and the results are projected only for
    comparison against in-memory ORSet truth.
 
@@ -180,7 +180,7 @@ The shadow-trie trust proof is backed by:
 
 3. *Can I point to the direct structural-sharing proof and explain why it is not a pure semilattice property?*
    Yes. The session reopen/follow-up write regression in
-   [StateSession.semilattice.property.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/orset/session/StateSession.semilattice.property.test.ts)
+   [StateSession.semilattice.property.test.ts](../../test/unit/domain/orset/session/StateSession.semilattice.property.test.ts)
    proves structural sharing as a persistence/runtime property, not as a
    lattice axiom.
 

@@ -1,11 +1,11 @@
 # 0071 OpenWarpGraph Composition Root
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0071-openwarpgraph-composition-root.md](/Users/james/git/git-stunts/git-warp/docs/design/0071-openwarpgraph-composition-root.md)
+- Cycle doc: [docs/design/0071-openwarpgraph-composition-root.md](../../../design/0071-openwarpgraph-composition-root.md)
 
 ## What changed
 
-- added [WarpRuntimeBoot.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/WarpRuntimeBoot.ts)
+- added WarpRuntimeBoot.ts
   for runtime open-time orchestration
 - `WarpRuntime.open()` now delegates through a thin wrapper instead of carrying
   the whole boot hotspot inline

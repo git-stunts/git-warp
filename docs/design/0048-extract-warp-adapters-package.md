@@ -73,10 +73,10 @@ It is another premise-validation cycle.
 
 The premise check is backed by:
 
-- [package.json](/Users/james/git/git-stunts/git-warp/package.json)
-- [packages/warp-adapters/package.json](/Users/james/git/git-stunts/git-warp/packages/warp-adapters/package.json)
-- [packages/warp-kernel/package.json](/Users/james/git/git-stunts/git-warp/packages/warp-kernel/package.json)
-- [0047 retro](/Users/james/git/git-stunts/git-warp/docs/method/retro/0047-extract-warp-kernel-package/extract-warp-kernel-package.md)
+- [package.json](../../package.json)
+- [packages/warp-adapters/package.json](../../packages/warp-adapters/package.json)
+- [packages/warp-kernel/package.json](../../packages/warp-kernel/package.json)
+- [0047 retro](../method/retro/0047-extract-warp-kernel-package/extract-warp-kernel-package.md)
 
 ### Agent
 

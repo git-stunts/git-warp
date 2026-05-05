@@ -1,7 +1,7 @@
 # 0065 Capability Consumer Migration Closeout
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0065-capability-consumer-migration-closeout.md](/Users/james/git/git-stunts/git-warp/docs/design/0065-capability-consumer-migration-closeout.md)
+- Cycle doc: [docs/design/0065-capability-consumer-migration-closeout.md](../../../design/0065-capability-consumer-migration-closeout.md)
 
 ## What changed
 

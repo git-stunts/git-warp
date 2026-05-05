@@ -1,7 +1,7 @@
-import { assertEquals, assert } from "jsr:@std/assert";
-import { createTestRepo } from "./helpers.ts";
+import { assertEquals, assert } from "./assertions.ts";
+import { createTestRepo, denoRuntimeTest } from "./helpers.ts";
 
-Deno.test("lifecycle: open → addNode → materialize → getNodes", async () => {
+denoRuntimeTest("lifecycle: open → addNode → materialize → getNodes", async () => {
   const repo = await createTestRepo("lifecycle");
   try {
     const graph = await repo.openGraph("test", "alice");
@@ -17,7 +17,7 @@ Deno.test("lifecycle: open → addNode → materialize → getNodes", async () =
   }
 });
 
-Deno.test("lifecycle: creates edges and retrieves them", async () => {
+denoRuntimeTest("lifecycle: creates edges and retrieves them", async () => {
   const repo = await createTestRepo("lifecycle-edge");
   try {
     const graph = await repo.openGraph("test", "alice");
@@ -36,7 +36,7 @@ Deno.test("lifecycle: creates edges and retrieves them", async () => {
   }
 });
 
-Deno.test("lifecycle: node properties", async () => {
+denoRuntimeTest("lifecycle: node properties", async () => {
   const repo = await createTestRepo("lifecycle-props");
   try {
     const graph = await repo.openGraph("test", "alice");

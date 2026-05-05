@@ -130,8 +130,8 @@ The premise check is backed by:
 
 - `find src bin scripts -type f -name '*.js'`
 - `find . -path './.git' -prune -o -path './node_modules' -prune -o -path './.claude' -prune -o -type f -name '*.js' -print`
-- [README.md](/Users/james/git/git-stunts/git-warp/docs/releases/v17.0.0/README.md)
-- [WORKLOADS.md](/Users/james/git/git-stunts/git-warp/docs/method/backlog/WORKLOADS.md)
+- [README.md](../releases/v17.0.0/README.md)
+- [WORKLOADS.md](../method/backlog/WORKLOADS.md)
 
 ### Agent
 

@@ -1,7 +1,7 @@
 # 0090 Close Streaming Memory Audit
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0090-close-streaming-memory-audit.md](/Users/james/git/git-stunts/git-warp/docs/design/0090-close-streaming-memory-audit.md)
+- Cycle doc: [docs/design/0090-close-streaming-memory-audit.md](../../../design/0090-close-streaming-memory-audit.md)
 
 ## What changed
 

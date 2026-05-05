@@ -150,9 +150,9 @@ export async function createCheckpointEnvelope({
     provenanceIndexBlobOid = await persistence.writeBlob(provenanceIndexBuffer);
   }
 
-  // 6c. Collect content blob OIDs from state properties for GC anchoring.
-  // If patch commits are ever pruned, content blobs remain reachable via
-  // the checkpoint tree. Without this, git gc would nuke content blobs
+  // 6c. Collect content storage OIDs from state properties for GC anchoring.
+  // If patch commits are ever pruned, content trees remain reachable via
+  // the checkpoint tree. Without this, git gc would nuke content trees
   // whose only anchor was the (now-pruned) patch commit tree.
   //
   // O(P) scan over all properties — acceptable because checkpoint creation

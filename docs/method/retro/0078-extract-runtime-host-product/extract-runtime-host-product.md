@@ -1,17 +1,17 @@
 # 0078 Extract Runtime Host Product
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0078-extract-runtime-host-product.md](/Users/james/git/git-stunts/git-warp/docs/design/0078-extract-runtime-host-product.md)
+- Cycle doc: [docs/design/0078-extract-runtime-host-product.md](../../../design/0078-extract-runtime-host-product.md)
 
 ## What changed
 
-- added [RuntimeHostProduct.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/RuntimeHostProduct.ts)
+- added [RuntimeHostProduct.ts](../../../../src/domain/warp/RuntimeHostProduct.ts)
   as the single internal owner of the `openWarpRuntime(...)` call
-- updated [WarpGraphRuntimeProduct.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/WarpGraphRuntimeProduct.ts)
-  and [WarpCoreRuntimeProduct.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/WarpCoreRuntimeProduct.ts)
+- updated [WarpGraphRuntimeProduct.ts](../../../../src/domain/warp/WarpGraphRuntimeProduct.ts)
+  and [WarpCoreRuntimeProduct.ts](../../../../src/domain/warp/WarpCoreRuntimeProduct.ts)
   so both runtime product builders now consume the shared host seam instead of
   importing `WarpRuntime.ts` directly
-- updated [ForkController.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/ForkController.ts)
+- updated [ForkController.ts](../../../../src/domain/services/controllers/ForkController.ts)
   so fork reopen flows through the host seam instead of its own runtime-module
   import
 - updated the runtime-kill ledger so the remaining order is now:
@@ -19,11 +19,11 @@
   `API_delete-warpruntime-class` →
   `API_kill-warpruntime`
 - refreshed the ratchets:
-  - [runtime-host-product-seam.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/scripts/runtime-host-product-seam.test.ts)
-  - [openwarpgraph-composition-root.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/scripts/openwarpgraph-composition-root.test.ts)
-  - [runtime-controller-host-types.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/scripts/runtime-controller-host-types.test.ts)
-  - [delete-warpruntime-class-split.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/scripts/delete-warpruntime-class-split.test.ts)
-  - [kill-warpruntime-split.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/scripts/kill-warpruntime-split.test.ts)
+  - [runtime-host-product-seam.test.ts](../../../../test/unit/scripts/runtime-host-product-seam.test.ts)
+  - [openwarpgraph-composition-root.test.ts](../../../../test/unit/scripts/openwarpgraph-composition-root.test.ts)
+  - [runtime-controller-host-types.test.ts](../../../../test/unit/scripts/runtime-controller-host-types.test.ts)
+  - [delete-warpruntime-class-split.test.ts](../../../../test/unit/scripts/delete-warpruntime-class-split.test.ts)
+  - [kill-warpruntime-split.test.ts](../../../../test/unit/scripts/kill-warpruntime-split.test.ts)
 
 ## Why it mattered
 

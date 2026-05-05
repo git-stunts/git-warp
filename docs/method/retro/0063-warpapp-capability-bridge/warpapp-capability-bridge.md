@@ -1,7 +1,7 @@
 # 0063 WarpApp Capability Bridge
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0063-warpapp-capability-bridge.md](/Users/james/git/git-stunts/git-warp/docs/design/0063-warpapp-capability-bridge.md)
+- Cycle doc: [docs/design/0063-warpapp-capability-bridge.md](../../../design/0063-warpapp-capability-bridge.md)
 
 ## What changed
 

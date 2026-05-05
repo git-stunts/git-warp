@@ -15,15 +15,15 @@ Codex
 
 ## Why this exists
 
-After `0076`, [API_delete-warpruntime-class](/Users/james/git/git-stunts/git-warp/docs/method/backlog/v17.0.0/API_delete-warpruntime-class.md)
+After `0076`, API_delete-warpruntime-class
 looked executable on paper, but repo truth says otherwise.
 
 The remaining class residue falls into two distinct cuts:
 
 1. **Source/runtime host residue**
-   - [WarpGraphRuntimeProduct.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/WarpGraphRuntimeProduct.ts)
-   - [WarpCoreRuntimeProduct.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/WarpCoreRuntimeProduct.ts)
-   - [ForkController.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/ForkController.ts)
+   - [WarpGraphRuntimeProduct.ts](../../src/domain/warp/WarpGraphRuntimeProduct.ts)
+   - [WarpCoreRuntimeProduct.ts](../../src/domain/warp/WarpCoreRuntimeProduct.ts)
+   - [ForkController.ts](../../src/domain/services/controllers/ForkController.ts)
    - all still reach `openWarpRuntime(...)` or type against it
 2. **Legacy test/helper/seed surface**
    - dozens of unit, integration, bats, and helper files still import

@@ -16,6 +16,15 @@ let WarpCore: any;
 // deno-lint-ignore no-explicit-any
 let WebCryptoAdapter: any;
 
+export function denoRuntimeTest(name: string, fn: () => Promise<void>): void {
+  Deno.test({
+    name,
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn,
+  });
+}
+
 export async function loadModules() {
   const root = Deno.cwd();
   Plumbing = (await import(join(root, "node_modules/@git-stunts/plumbing/index.js"))).default;

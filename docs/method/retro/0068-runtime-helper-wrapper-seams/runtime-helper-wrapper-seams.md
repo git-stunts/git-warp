@@ -1,7 +1,7 @@
 # 0068 Runtime Helper Wrapper Seams
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0068-runtime-helper-wrapper-seams.md](/Users/james/git/git-stunts/git-warp/docs/design/0068-runtime-helper-wrapper-seams.md)
+- Cycle doc: [docs/design/0068-runtime-helper-wrapper-seams.md](../../../design/0068-runtime-helper-wrapper-seams.md)
 
 ## What changed
 

@@ -1,15 +1,15 @@
 # 0070 Kill WarpRuntime Follow-On Split
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0070-kill-warpruntime-follow-on-split.md](/Users/james/git/git-stunts/git-warp/docs/design/0070-kill-warpruntime-follow-on-split.md)
+- Cycle doc: [docs/design/0070-kill-warpruntime-follow-on-split.md](../../../design/0070-kill-warpruntime-follow-on-split.md)
 
 ## What changed
 
 - rewrote `API_kill-warpruntime` around the actual remaining residue
 - added:
-  - [API_openwarpgraph-composition-root.md](/Users/james/git/git-stunts/git-warp/docs/method/backlog/v17.0.0/API_openwarpgraph-composition-root.md)
-  - [PORT_delete-runtime-controller-host-types.md](/Users/james/git/git-stunts/git-warp/docs/method/backlog/v17.0.0/PORT_delete-runtime-controller-host-types.md)
-  - [PORT_delete-internal-runtime-shim.md](/Users/james/git/git-stunts/git-warp/docs/method/backlog/v17.0.0/PORT_delete-internal-runtime-shim.md)
+  - API_openwarpgraph-composition-root.md
+  - PORT_delete-runtime-controller-host-types.md
+  - PORT_delete-internal-runtime-shim.md
 - updated the `v17` release ledger and workload map to the same three-cut order
 - removed stale `_wiredMethods.d.ts` launch-prep references from
   `TS_publish-pipeline.md`

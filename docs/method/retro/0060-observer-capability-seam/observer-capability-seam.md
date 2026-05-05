@@ -18,9 +18,9 @@ What changed:
 
 ## Evidence
 
-- [0060-observer-capability-seam.md](/Users/james/git/git-stunts/git-warp/docs/design/0060-observer-capability-seam.md)
-- [Observer.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/query/Observer.ts)
-- [observer-capability-seam.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/scripts/observer-capability-seam.test.ts)
+- [0060-observer-capability-seam.md](../../../design/0060-observer-capability-seam.md)
+- [Observer.ts](../../../../src/domain/services/query/Observer.ts)
+- [observer-capability-seam.test.ts](../../../../test/unit/scripts/observer-capability-seam.test.ts)
 
 ## Witness
 

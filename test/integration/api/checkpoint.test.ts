@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestRepo } from './helpers/setup.ts';
 import { decodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
+import SchemaUnsupportedError from '../../../src/domain/errors/SchemaUnsupportedError.ts';
 
 async function readCheckpointArtifacts(repo, checkpointSha) {
   const message = await repo.persistence.showNode(checkpointSha);
@@ -38,7 +39,7 @@ describe('API: Checkpoint', () => {
     expect(treeOids['state.cbor']).toBeUndefined();
   });
 
-  it('materializeAt restores state from checkpoint', async () => {
+  it('materializeAt rejects session-backed runtime checkpoints', async () => {
     const graph = await repo.openGraph('test', 'writer1');
 
     await (await graph.createPatch()).addNode('n1').commit();
@@ -52,15 +53,10 @@ describe('API: Checkpoint', () => {
     expect(treeOids['state/edgeAlive']).toBeDefined();
     expect(treeOids['state.cbor']).toBeUndefined();
 
-    // Add more data after checkpoint
-    await (await graph.createPatch()).addNode('n3').commit();
-
-    // materializeAt restores checkpoint base and applies patches up to tips
-    const state = await graph.materializeAt(sha);
-    expect(state).toBeDefined();
-    const nodes = await graph.getNodes();
-    expect(nodes).toContain('n1');
-    expect(nodes).toContain('n2');
+    await expect(graph.materializeAt(sha)).rejects.toBeInstanceOf(SchemaUnsupportedError);
+    await expect(graph.materializeAt(sha)).rejects.toMatchObject({
+      code: 'E_SCHEMA_UNSUPPORTED',
+    });
   });
 
   it('incremental checkpoint after additional patches', async () => {

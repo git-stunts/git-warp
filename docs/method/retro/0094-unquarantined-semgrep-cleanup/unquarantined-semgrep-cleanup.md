@@ -1,7 +1,7 @@
 # 0094 Unquarantined Semgrep Cleanup
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0094-unquarantined-semgrep-cleanup.md](/Users/james/git/git-stunts/git-warp/docs/design/0094-unquarantined-semgrep-cleanup.md)
+- Cycle doc: [docs/design/0094-unquarantined-semgrep-cleanup.md](../../../design/0094-unquarantined-semgrep-cleanup.md)
 
 ## What changed
 

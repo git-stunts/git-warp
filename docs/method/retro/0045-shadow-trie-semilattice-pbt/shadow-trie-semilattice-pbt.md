@@ -9,13 +9,13 @@ one remaining semilattice bug in the process.
 
 What landed:
 
-- [StateSession.semilattice.property.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/orset/session/StateSession.semilattice.property.test.ts)
+- [StateSession.semilattice.property.test.ts](../../../../test/unit/domain/orset/session/StateSession.semilattice.property.test.ts)
   proving commutativity, associativity, idempotency, add-wins semantics, and
   compact safety against in-memory ORSet truth
 - a direct structural-sharing regression at the session layer so reopened
   follow-up writes keep reusing untouched subtrees
 - a real join fix in
-  [JoinReducerSession.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/JoinReducerSession.ts):
+  [JoinReducerSession.ts](../../../../src/domain/services/JoinReducerSession.ts):
   pure tombstoned state is now preserved during session-backed join instead of
   evaporating when the target replica had never seen the raw dot entry
 

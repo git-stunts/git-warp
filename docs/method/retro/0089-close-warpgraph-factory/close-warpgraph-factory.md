@@ -1,7 +1,7 @@
 # 0089 Close WarpGraph Factory
 
 - Outcome: `hill met`
-- Cycle doc: [docs/design/0089-close-warpgraph-factory.md](/Users/james/git/git-stunts/git-warp/docs/design/0089-close-warpgraph-factory.md)
+- Cycle doc: [docs/design/0089-close-warpgraph-factory.md](../../../design/0089-close-warpgraph-factory.md)
 
 ## What changed
 

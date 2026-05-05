@@ -1,7 +1,7 @@
-import { assertEquals, assert } from "jsr:@std/assert";
-import { createTestRepo } from "./helpers.ts";
+import { assertEquals, assert } from "./assertions.ts";
+import { createTestRepo, denoRuntimeTest } from "./helpers.ts";
 
-Deno.test("multiwriter: two writers merge via CRDT", async () => {
+denoRuntimeTest("multiwriter: two writers merge via CRDT", async () => {
   const repo = await createTestRepo("mw");
   try {
     const alice = await repo.openGraph("shared", "alice");
@@ -19,7 +19,7 @@ Deno.test("multiwriter: two writers merge via CRDT", async () => {
   }
 });
 
-Deno.test("multiwriter: discovers all writers", async () => {
+denoRuntimeTest("multiwriter: discovers all writers", async () => {
   const repo = await createTestRepo("mw-disc");
   try {
     const alice = await repo.openGraph("g", "alice");

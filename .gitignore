@@ -11,6 +11,7 @@ CLAUDE.md
 TASKS-DO-NOT-CHECK-IN.md
 EDITORS-REPORT.md
 git-stunts-git-warp-*.tgz
+deno.lock
 # LaTeX build artifacts
 *.aux
 *.fdb_latexmk

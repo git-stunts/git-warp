@@ -18,9 +18,9 @@ Codex
 After `0075`, the remaining non-delete bridge residue under
 `API_kill-warpruntime` sat under `WarpCore`:
 
-- [WarpCore.ts](/Users/james/git/git-stunts/git-warp/src/domain/WarpCore.ts)
+- [WarpCore.ts](../../src/domain/WarpCore.ts)
   still imported
-  [WarpCoreRuntimeBridge.ts](/Users/james/git/git-stunts/git-warp/src/domain/warp/WarpCoreRuntimeBridge.ts)
+  WarpCoreRuntimeBridge.ts
 - the bridge still reopened `WarpRuntime` and linked `WarpCore.prototype`
   onto the runtime prototype
 - `callInternalRuntimeMethod(...)` was still the escape hatch through that

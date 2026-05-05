@@ -10,22 +10,22 @@ disappeared.
 
 What landed:
 
-- [MaterializeSessionBridge.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/MaterializeSessionBridge.ts)
+- [MaterializeSessionBridge.ts](../../../../src/domain/services/controllers/MaterializeSessionBridge.ts)
   as the explicit compatibility bridge between session-backed replay and the
   current `MaterializeResult.state`
 - session-backed replay routing in
-  [MaterializeController.ts](/Users/james/git/git-stunts/git-warp/src/domain/services/controllers/MaterializeController.ts)
+  [MaterializeController.ts](../../../../src/domain/services/controllers/MaterializeController.ts)
   for live replay, coordinate replay, and predecessor-snapshot suffix replay
 - explicit unified snapshot publication from coordinate materialization through
   the state cache compatibility record
 - fast failure of `materializeAt()` on the shipped session-backed runtime line
 - runtime auto-provisioning of the session opener in
-  [WarpRuntime.ts](/Users/james/git/git-stunts/git-warp/src/domain/WarpRuntime.ts)
+  WarpRuntime.ts
   through the new runtime trie-store capability
 - regression coverage in
-  [MaterializeController.stateSession.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/services/controllers/MaterializeController.stateSession.test.ts)
+  [MaterializeController.stateSession.test.ts](../../../../test/unit/domain/services/controllers/MaterializeController.stateSession.test.ts)
   and
-  [WarpRuntime.stateSessionAutoConstruct.test.ts](/Users/james/git/git-stunts/git-warp/test/unit/domain/WarpRuntime.stateSessionAutoConstruct.test.ts)
+  WarpRuntime.stateSessionAutoConstruct.test.ts
 
 ## What changed in repo truth
 

@@ -925,7 +925,7 @@ flowchart TB
     tree --> av["appliedVV.cbor"]
     tree -.-> pi["provenanceIndex.cbor — optional"]
     tree -.-> ix["index/* — optional bitmap shards"]
-    tree --> gc["_content_* — GC anchors"]
+    tree --> gc["_content_* — content storage tree anchors"]
 ```
 
 A **checkpoint** is a snapshot of materialized state at a known point in history. Without checkpoints, materialization replays every patch from every writer. With a checkpoint, it loads the snapshot and only replays patches since then.
@@ -1989,7 +1989,7 @@ flowchart TB
     commit["Patch Commit f1a2b3c"] -->|parent| parent["Previous Patch d4e5f6a..."]
     commit -->|tree| tree["tree a9b8c7d..."]
     tree -->|entry| pcbor["patch.cbor · CBOR-encoded ops"]
-    tree -->|entry| blob["_content_abc... · blob value"]
+    tree -->|entry| blob["_content_abc... · content storage tree"]
     pcbor -.->|"decodes to"| ops
 
     subgraph ops["Patch Operations — schema:2"]

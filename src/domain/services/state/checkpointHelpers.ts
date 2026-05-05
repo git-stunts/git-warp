@@ -24,9 +24,9 @@ export function isCurrentCheckpointSchema(schema: number | undefined | null): bo
 }
 
 /**
- * Number of unique content blob OIDs to hold before folding a batch into the
+ * Number of unique content storage OIDs to hold before folding a batch into the
  * accumulated sorted anchor list. This keeps checkpoint creation from building
- * one monolithic Set of every content blob reference before tree serialization.
+ * one monolithic Set of every content reference before tree serialization.
  */
 const CONTENT_ANCHOR_BATCH_SIZE = 256;
 
@@ -141,8 +141,10 @@ export function mergeSortedUniqueStrings(existing: string[], incoming: string[])
 }
 
 /**
- * Collects sorted, de-duplicated content blob anchor entries for a checkpoint
- * tree without holding all content OIDs in one monolithic Set at once.
+ * Collects sorted, de-duplicated content storage anchor entries for a
+ * checkpoint tree without holding all content OIDs in one monolithic Set at
+ * once. Current content storage OIDs identify CAS trees, so checkpoint trees
+ * must anchor them as tree entries.
  */
 export function collectContentAnchorEntries(
   propMap: Map<string, { eventId: unknown; value: unknown }>, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
@@ -176,7 +178,7 @@ export function collectContentAnchorEntries(
 
   const anchorEntries: string[] = [];
   for (const oid of sortedOids) {
-    anchorEntries.push(`100644 blob ${oid}\t_content_${oid}`);
+    anchorEntries.push(`040000 tree ${oid}\t_content_${oid}`);
   }
 
   return anchorEntries;
