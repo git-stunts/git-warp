@@ -17,7 +17,7 @@ export function mutateProp(
   state: WarpState,
   propKey: string,
   eventId: EventId,
-  value: unknown,
+  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 ): void {
   const current = state.prop.get(propKey);
   const winner = lwwMax(current, lwwSet(eventId, value as PropValue));

@@ -9,7 +9,7 @@ import PersistenceError from '../errors/PersistenceError.ts';
 interface CursorBlob {
   readonly tick: number;
   readonly mode?: string;
-  readonly [key: string]: unknown;
+  readonly [key: string]: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 /**
@@ -35,9 +35,9 @@ interface CursorBlob {
  * parseCursorBlob(new TextEncoder().encode('not json'), 'active cursor');
  */
 export function parseCursorBlob(buf: Uint8Array, label: string): CursorBlob {
-  let raw: unknown;
+  let raw: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   try {
-    raw = JSON.parse(new TextDecoder().decode(buf));
+    raw = JSON.parse(new TextDecoder().decode(buf)); // nosemgrep: ts-no-json-parse-in-core -- 0025B
   } catch {
     throw new PersistenceError(`Corrupted ${label}: blob is not valid JSON`, 'E_MISSING_OBJECT');
   }
@@ -51,7 +51,7 @@ export function parseCursorBlob(buf: Uint8Array, label: string): CursorBlob {
 /**
  * Asserts that the parsed value is a non-null, non-array object.
  */
-function assertPlainObject(val: unknown, label: string): asserts val is Record<string, unknown> {
+function assertPlainObject(val: unknown, label: string): asserts val is Record<string, unknown> { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (val === null || typeof val !== 'object' || Array.isArray(val)) {
     throw new PersistenceError(`Corrupted ${label}: expected a JSON object`, 'E_MISSING_OBJECT');
   }
@@ -60,7 +60,7 @@ function assertPlainObject(val: unknown, label: string): asserts val is Record<s
 /**
  * Asserts that the object has a finite numeric `tick` field.
  */
-function assertFiniteTick(obj: Record<string, unknown>, label: string): asserts obj is { tick: number; [key: string]: unknown } {
+function assertFiniteTick(obj: Record<string, unknown>, label: string): asserts obj is { tick: number; [key: string]: unknown } { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const { tick } = obj;
   if (typeof tick !== 'number' || !Number.isFinite(tick)) {
     throw new PersistenceError(`Corrupted ${label}: missing or invalid numeric tick`, 'E_MISSING_OBJECT');

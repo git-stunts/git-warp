@@ -22,15 +22,15 @@ export interface PropSet {
   key: string;
   nodeId: string;
   propKey: string;
-  oldValue: unknown;
-  newValue: unknown;
+  oldValue: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  newValue: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 export interface PropRemoved {
   key: string;
   nodeId: string;
   propKey: string;
-  oldValue: unknown;
+  oldValue: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 export interface StateDiffResult {
@@ -55,7 +55,7 @@ function compareProps(a: { key: string }, b: { key: string }): number {
   return 0;
 }
 
-function arraysEqual(a: unknown[], b: unknown[]): boolean {
+function arraysEqual(a: unknown[], b: unknown[]): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (a.length !== b.length) { return false; }
   for (let i = 0; i < a.length; i++) {
     if (!deepEqual(a[i], b[i])) { return false; }
@@ -63,7 +63,7 @@ function arraysEqual(a: unknown[], b: unknown[]): boolean {
   return true;
 }
 
-function objectsEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+function objectsEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const keysA = Object.keys(a);
   const keysB = Object.keys(b);
   if (keysA.length !== keysB.length) { return false; }
@@ -74,7 +74,7 @@ function objectsEqual(a: Record<string, unknown>, b: Record<string, unknown>): b
   return true;
 }
 
-function deepEqual(a: unknown, b: unknown): boolean {
+function deepEqual(a: unknown, b: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (a === b) { return true; }
   if (!isNonNullObject(a) || !isNonNullObject(b)) { return false; }
   return deepEqualObjects(a as object, b as object);
@@ -86,12 +86,12 @@ function deepEqualObjects(a: object, b: object): boolean {
   }
   if (Array.isArray(b)) { return false; }
   return objectsEqual(
-    a as Record<string, unknown>,
-    b as Record<string, unknown>,
+    a as Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+    b as Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   );
 }
 
-function isNonNullObject(value: unknown): boolean {
+function isNonNullObject(value: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return value !== null && typeof value === 'object';
 }
 
@@ -140,8 +140,8 @@ function diffProps(
 ): { propsSet: PropSet[]; propsRemoved: PropRemoved[] } {
   const propsSet: PropSet[] = [];
   const propsRemoved: PropRemoved[] = [];
-  const beforeProps: Map<string, unknown> = before ? (before.prop as Map<string, unknown>) : new Map<string, unknown>();
-  const afterProps: Map<string, unknown> = after.prop;
+  const beforeProps: Map<string, unknown> = before ? (before.prop as Map<string, unknown>) : new Map<string, unknown>(); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const afterProps: Map<string, unknown> = after.prop; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const allPropKeys = new Set([...beforeProps.keys(), ...afterProps.keys()]);
 
   for (const key of allPropKeys) {
@@ -153,8 +153,8 @@ function diffProps(
 }
 
 interface PropAccumCtx {
-  beforeProps: Map<string, unknown>;
-  afterProps: Map<string, unknown>;
+  beforeProps: Map<string, unknown>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  afterProps: Map<string, unknown>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   propsSet: PropSet[];
   propsRemoved: PropRemoved[];
 }
@@ -171,18 +171,18 @@ function accumulatePropChange(key: string, ctx: PropAccumCtx): void {
 
 function classifyPropChange(
   key: string,
-  beforeProps: Map<string, unknown>,
-  afterProps: Map<string, unknown>,
+  beforeProps: Map<string, unknown>, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  afterProps: Map<string, unknown>, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 ): PropSet | PropRemoved | undefined {
   const beforeReg = beforeProps.get(key);
   const afterReg = afterProps.get(key);
   const { nodeId, propKey } = decodePropKey(key);
 
   if (afterReg !== undefined && beforeReg === undefined) {
-    return { key, nodeId, propKey, oldValue: undefined, newValue: lwwValue(afterReg as LWWRegister<unknown>) };
+    return { key, nodeId, propKey, oldValue: undefined, newValue: lwwValue(afterReg as LWWRegister<unknown>) }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   }
   if (afterReg === undefined && beforeReg !== undefined) {
-    return { key, nodeId, propKey, oldValue: lwwValue(beforeReg as LWWRegister<unknown>) };
+    return { key, nodeId, propKey, oldValue: lwwValue(beforeReg as LWWRegister<unknown>) }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   }
   return classifyPropUpdate({ key, nodeId, propKey, beforeReg, afterReg });
 }
@@ -191,13 +191,13 @@ function classifyPropUpdate(opts: {
   key: string;
   nodeId: string;
   propKey: string;
-  beforeReg: unknown;
-  afterReg: unknown;
+  beforeReg: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  afterReg: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }): PropSet | undefined {
   const { key, nodeId, propKey, beforeReg, afterReg } = opts;
   if (afterReg === undefined) { return undefined; }
-  const beforeValue = lwwValue(beforeReg as LWWRegister<unknown>);
-  const afterValue = lwwValue(afterReg as LWWRegister<unknown>);
+  const beforeValue = lwwValue(beforeReg as LWWRegister<unknown>); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const afterValue = lwwValue(afterReg as LWWRegister<unknown>); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (!deepEqual(beforeValue, afterValue)) {
     return { key, nodeId, propKey, oldValue: beforeValue, newValue: afterValue };
   }
@@ -232,11 +232,11 @@ export function isEmptyDiff(diff: StateDiffResult): boolean {
   return isEmptyPair(diff.nodes) && isEmptyPair(diff.edges) && isEmptySetRemoved(diff.props);
 }
 
-function isEmptyPair(pair: { added: unknown[]; removed: unknown[] }): boolean {
+function isEmptyPair(pair: { added: unknown[]; removed: unknown[] }): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return pair.added.length === 0 && pair.removed.length === 0;
 }
 
-function isEmptySetRemoved(pair: { set: unknown[]; removed: unknown[] }): boolean {
+function isEmptySetRemoved(pair: { set: unknown[]; removed: unknown[] }): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return pair.set.length === 0 && pair.removed.length === 0;
 }
 

@@ -55,7 +55,7 @@ export const authSchema = z.object({
 export type AuthSchemaInput = z.infer<typeof authSchema>;
 
 export interface GraphHandle {
-  processSyncRequest: (req: SyncRequest) => Promise<unknown>;
+  processSyncRequest: (req: SyncRequest) => Promise<unknown>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 export const optionsSchema = z.object({
@@ -163,26 +163,26 @@ export function isLocalSyncHost(host: string): boolean {
 
 // ── JSON canonicalization ────────────────────────────────────────────────────
 
-function sortObjectKeys(obj: Record<string, unknown>): Record<string, unknown> {
-  const sorted: Record<string, unknown> = {};
+function sortObjectKeys(obj: Record<string, unknown>): Record<string, unknown> { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const sorted: Record<string, unknown> = {}; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   for (const key of Object.keys(obj).sort()) {
     sorted[key] = canonicalizeJson(obj[key]);
   }
   return sorted;
 }
 
-function canonicalizeJson(value: unknown): unknown {
+function canonicalizeJson(value: unknown): unknown { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (Array.isArray(value)) {
     return value.map(canonicalizeJson);
   }
   if (value !== null && value !== undefined && typeof value === 'object') {
-    return sortObjectKeys(value as Record<string, unknown>);
+    return sortObjectKeys(value as Record<string, unknown>); // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   }
   return value;
 }
 
-export function canonicalStringify(value: unknown): string {
-  return JSON.stringify(canonicalizeJson(value));
+export function canonicalStringify(value: unknown): string { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  return JSON.stringify(canonicalizeJson(value)); // nosemgrep: ts-no-json-stringify-in-core -- 0025B
 }
 
 // ── Response builders ────────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ export function internalSyncErrorResponse(): JsonHttpResponse {
   };
 }
 
-export function jsonResponse(data: unknown): JsonHttpResponse {
+export function jsonResponse(data: unknown): JsonHttpResponse { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return {
     status: 200,
     headers: { 'content-type': 'application/json' },
@@ -271,9 +271,9 @@ export type ParseBodyResult =
 export function parseBody(body: Uint8Array | undefined): ParseBodyResult {
   const bodyStr = body ? new TextDecoder().decode(body) : '';
 
-  let parsed: unknown;
+  let parsed: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   try {
-    parsed = bodyStr.length > 0 ? JSON.parse(bodyStr) : null;
+    parsed = bodyStr.length > 0 ? JSON.parse(bodyStr) : null; // nosemgrep: ts-no-json-parse-in-core -- 0025B
   } catch {
     return { error: errorResponse(400, 'Invalid JSON'), parsed: null };
   }
@@ -398,7 +398,7 @@ export function buildListenResult(opts: {
 
 // ── Frontier extraction ──────────────────────────────────────────────────────
 
-export function extractFrontierWriters(parsed: Record<string, unknown>): string[] {
+export function extractFrontierWriters(parsed: Record<string, unknown>): string[] { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const { frontier } = parsed;
   if (frontier === null || frontier === undefined || typeof frontier !== 'object') {
     return [];

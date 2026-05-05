@@ -53,9 +53,9 @@ export function getCodec(): TrailerCodecShape {
   if (_codec !== null) {
     return _codec;
   }
-  const TrailerCodecServiceCtor = TrailerCodecService as new () => unknown;
-  const TrailerCodecCtor = TrailerCodec as new (opts: { service: unknown }) => TrailerCodecShape;
-  const service: unknown = new TrailerCodecServiceCtor();
+  const TrailerCodecServiceCtor = TrailerCodecService as new () => unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const TrailerCodecCtor = TrailerCodec as new (opts: { service: unknown }) => TrailerCodecShape; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const service: unknown = new TrailerCodecServiceCtor(); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   _codec = new TrailerCodecCtor({ service });
   return _codec;
 }

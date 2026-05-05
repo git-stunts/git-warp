@@ -5,7 +5,7 @@
  *
  * 1. **Type recognition** — `RAW_KNOWN_OPS` / `CANONICAL_KNOWN_OPS`
  *    and their `isKnownRaw` / `isKnownCanonical` guards. Used at the
- *    sync/wire boundary to fail-close on unknown op types.
+ *    sync/wire boundary to fail-close on unknown op types. // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
  *
  * 2. **Field assertion** — `assertString` / `assertIterable` /
  *    `assertDot` raise `PatchError` with structured context when a
@@ -13,7 +13,7 @@
  *    `OpStrategy.validate()` method.
  *
  * The class exposes only static methods — there is no instance state to
- * freeze, and the `unknown` inputs on `isKnownRaw` / `isKnownCanonical`
+ * freeze, and the `unknown` inputs on `isKnownRaw` / `isKnownCanonical` // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
  * are intentional parser-boundary types rather than leaked ambiguity.
  *
  * @module domain/services/OpValidator
@@ -29,7 +29,7 @@ type TaggedOp = { readonly type: string };
  * Reads an arbitrary field from a tagged op without requiring callers
  * to provide an index-signature type.
  */
-function readField(op: TaggedOp, field: string): unknown {
+function readField(op: TaggedOp, field: string): unknown { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return Reflect.get(op, field);
 }
 
@@ -54,10 +54,10 @@ export default class OpValidator {
 
   /**
    * Returns true iff the op has a known RAW (wire-format) type.
-   * Use this at sync/decode boundaries to reject unknown or
+   * Use this at sync/decode boundaries to reject unknown or // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
    * canonical-only types arriving from the wire.
    */
-  static isKnownRaw(op: unknown): boolean {
+  static isKnownRaw(op: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     if (op === null || op === undefined || typeof op !== 'object') {
       return false;
     }
@@ -72,7 +72,7 @@ export default class OpValidator {
    * Returns true iff the op has a known CANONICAL (internal) type.
    * Use this for internal guards after normalization.
    */
-  static isKnownCanonical(op: unknown): boolean {
+  static isKnownCanonical(op: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     if (op === null || op === undefined || typeof op !== 'object') {
       return false;
     }

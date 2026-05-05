@@ -71,11 +71,11 @@ function validateOidFormat(value: string): { valid: boolean; normalized: string;
   return { valid: true, normalized };
 }
 
-function validateReceiptSchema(receipt: unknown): string | null {
+function validateReceiptSchema(receipt: unknown): string | null { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (receipt === null || receipt === undefined || typeof receipt !== 'object') {
     return 'receipt is not an object';
   }
-  const rec = receipt as Record<string, unknown>;
+  const rec = receipt as Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const keys = Object.keys(rec);
   if (keys.length !== 9) {
     return `expected 9 fields, got ${keys.length}`;
@@ -427,7 +427,7 @@ export default class AuditChainVerifier {
     const dcCheck = validateOidFormat(receipt.dataCommit);
     if (!dcCheck.valid) {
       this._addError(result, 'OID_FORMAT_INVALID',
-        `dataCommit OID invalid: ${dcCheck.error ?? 'unknown'}`, commitSha);
+        `dataCommit OID invalid: ${dcCheck.error ?? 'unknown'}`, commitSha); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
       result.status = STATUS_BROKEN_CHAIN;
       return false;
     }
@@ -435,7 +435,7 @@ export default class AuditChainVerifier {
     const isZero = /^0+$/.test(receipt.prevAuditCommit);
     if (!pacCheck.valid && !isZero) {
       this._addError(result, 'OID_FORMAT_INVALID',
-        `prevAuditCommit OID invalid: ${pacCheck.error ?? 'unknown'}`, commitSha);
+        `prevAuditCommit OID invalid: ${pacCheck.error ?? 'unknown'}`, commitSha); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
       result.status = STATUS_BROKEN_CHAIN;
       return false;
     }

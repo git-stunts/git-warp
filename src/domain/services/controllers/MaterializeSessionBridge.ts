@@ -8,7 +8,7 @@ import type { EventId } from "../../utils/EventId.ts";
 import type { PatchDiff } from "../../types/PatchDiff.ts";
 import type { TickReceipt } from "../../types/TickReceipt.ts";
 import WarpStateClass from "../state/WarpState.ts";
-import type { PatchLike } from "../JoinReducer.ts";
+import type { PatchLike } from "../JoinReducer.ts"; // nosemgrep: ts-no-like-types -- 0025C
 import {
   ReducerSessionFrame,
   reduceV5InSession,
@@ -30,7 +30,7 @@ export type MaterializeSessionOpener = (
 export async function reduceSessionBackedState(args: {
   readonly openStateSession: MaterializeSessionOpener;
   readonly patches: ReadonlyArray<{
-    readonly patch: PatchLike;
+    readonly patch: PatchLike; // nosemgrep: ts-no-like-types -- 0025C
     readonly sha: string;
   }>;
   readonly baseState?: WarpStateClass;

@@ -68,7 +68,7 @@ export default class HttpSyncServer {
    */
   private async _authorize(
     request: { method: string; url: string; headers: Record<string, string>; body?: Uint8Array },
-    parsed: Record<string, unknown>,
+    parsed: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   ): Promise<JsonHttpResponse | null> {
     if (this._auth === null) {
       return null;
@@ -102,7 +102,7 @@ export default class HttpSyncServer {
   /**
    * Checks writer IDs from the request frontier against the whitelist.
    */
-  private _checkWriterWhitelist(parsed: Record<string, unknown>): JsonHttpResponse | null {
+  private _checkWriterWhitelist(parsed: Record<string, unknown>): JsonHttpResponse | null { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     const auth = this._auth as SyncAuthService;
     const writerIds = extractFrontierWriters(parsed);
     if (writerIds.length === 0) {
@@ -135,7 +135,7 @@ export default class HttpSyncServer {
       return error;
     }
 
-    const authError = await this._authorize(req, parsed as unknown as Record<string, unknown>);
+    const authError = await this._authorize(req, parsed as unknown as Record<string, unknown>); // nosemgrep: ts-no-double-cast -- 0025A; nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     if (authError !== null) {
       return authError;
     }

@@ -321,14 +321,14 @@ export function applySyncResponse(
     for (const { sha, patch } of writerPatches) {
       // Normalize patch context (in case it came from network serialization)
       const normalizedPatch = normalizePatch(patch);
-      // Guard: reject patches with genuinely unknown op types (B106 / C2 fix).
+      // Guard: reject patches with genuinely unknown op types (B106 / C2 fix). // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
       // Uses isKnownRawOp to accept only the 6 wire-format types. Canonical-only
       // types (NodePropSet, EdgePropSet) must never appear on the wire before
       // ADR 2 capability cutover — reject them here to fail closed.
       for (const op of normalizedPatch.ops) {
         if (!isKnownRawOp(op)) {
           throw new SchemaUnsupportedError(
-            `Patch ${sha} contains unknown op type: ${op.type}`,
+            `Patch ${sha} contains unknown op type: ${op.type}`, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
           );
         }
       }

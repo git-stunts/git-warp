@@ -18,20 +18,20 @@ import type Patch from '../types/Patch.ts';
 const NONE_DISPLAY = '(none)';
 
 /**
- * Extracts the error message and cause from an unknown error value.
+ * Extracts the error message and cause from an unknown error value. // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
  */
-function _extractErrorInfo(err: unknown): { errMsg: string; cause: Error | undefined } {
+function _extractErrorInfo(err: unknown): { errMsg: string; cause: Error | undefined } { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const errMsg = err instanceof Error ? err.message : String(err);
   const cause = err instanceof Error ? err : undefined;
   return { errMsg, cause };
 }
 
 /**
- * Extracts the CAS error object from an unknown error if applicable.
+ * Extracts the CAS error object from an unknown error if applicable. // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
  */
-function _extractCasError(err: unknown): { code?: unknown; expectedSha?: unknown; actualSha?: unknown } | null {
+function _extractCasError(err: unknown): { code?: unknown; expectedSha?: unknown; actualSha?: unknown } | null { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (err !== null && err !== undefined && typeof err === 'object') {
-    return err as { code?: unknown; expectedSha?: unknown; actualSha?: unknown };
+    return err as { code?: unknown; expectedSha?: unknown; actualSha?: unknown }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   }
   return null;
 }
@@ -51,7 +51,7 @@ interface CommitContext {
  * Builds a CAS conflict WriterError with ref details.
  */
 function _buildCasConflictError(
-  casError: { code?: unknown; expectedSha?: unknown; actualSha?: unknown },
+  casError: { code?: unknown; expectedSha?: unknown; actualSha?: unknown }, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   cause: Error | undefined,
   ctx: CommitContext,
 ): WriterError {
@@ -71,7 +71,7 @@ function _buildCasConflictError(
 /**
  * Classifies a commit error into the appropriate WriterError code.
  */
-function _classifyCommitError(err: unknown, ctx: CommitContext): WriterError {
+function _classifyCommitError(err: unknown, ctx: CommitContext): WriterError { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const { errMsg, cause } = _extractErrorInfo(err);
   const casError = _extractCasError(err);
   if (casError !== null && casError.code === 'WRITER_CAS_CONFLICT') {
@@ -152,14 +152,14 @@ export class PatchSession {
   }
 
   /** Sets a property on a node. */
-  setProperty(nodeId: string, key: string, value: unknown): this {
+  setProperty(nodeId: string, key: string, value: unknown): this { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     this._ensureNotCommitted();
     this._builder.setProperty(nodeId, key, value);
     return this;
   }
 
   /** Sets a property on an edge. */
-  setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): this {
+  setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): this { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     this._ensureNotCommitted();
     this._builder.setEdgeProperty(from, to, label, key, value);
     return this;

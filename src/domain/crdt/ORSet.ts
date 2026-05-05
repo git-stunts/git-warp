@@ -55,7 +55,7 @@ interface DeserializeInput {
  */
 function _assertValidDot(dot: Dot): void {
   if (dot === null || dot === undefined || typeof dot.writerId !== 'string' || !Number.isInteger(dot.counter)) {
-    throw new CrdtError(`orsetAdd: invalid dot -- expected {writerId: string, counter: integer}, got ${JSON.stringify(dot)}`, {
+    throw new CrdtError(`orsetAdd: invalid dot -- expected {writerId: string, counter: integer}, got ${JSON.stringify(dot)}`, { // nosemgrep: ts-no-json-stringify-in-core -- 0025B
       code: 'E_CRDT_MALFORMED',
       context: { dot },
     });

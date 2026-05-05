@@ -163,8 +163,8 @@ type ViewPropertyDelta = {
  */
 export function keyOwnership(
   key: string,
-  left: Record<string, unknown>,
-  right: Record<string, unknown>,
+  left: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  right: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 ): { leftHas: boolean; rightHas: boolean } {
   return {
     leftHas: Object.prototype.hasOwnProperty.call(left, key),
@@ -177,7 +177,7 @@ export function keyOwnership(
  */
 export function classifySharedPropertyKey(
   key: string,
-  props: { left: Record<string, unknown>; right: Record<string, unknown> },
+  props: { left: Record<string, unknown>; right: Record<string, unknown> }, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   changed: ViewPropChanged[],
 ): void {
   if (valueKey(props.left[key]) !== valueKey(props.right[key])) {
@@ -190,7 +190,7 @@ export function classifySharedPropertyKey(
  */
 export function classifyPropertyKey(
   key: string,
-  props: { left: Record<string, unknown>; right: Record<string, unknown> },
+  props: { left: Record<string, unknown>; right: Record<string, unknown> }, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   delta: ViewPropertyDelta,
 ): void {
   const { leftHas, rightHas } = keyOwnership(key, props.left, props.right);
@@ -209,8 +209,8 @@ export function classifyPropertyKey(
  * Compares property records from two node views and returns the delta.
  */
 export function compareNodeViewProperties(
-  leftProps: Record<string, unknown>,
-  rightProps: Record<string, unknown>,
+  leftProps: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  rightProps: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 ): ViewPropertyDelta {
   const propertyKeys = [
     ...new Set([...Object.keys(leftProps), ...Object.keys(rightProps)]),

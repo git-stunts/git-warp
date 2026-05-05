@@ -106,7 +106,7 @@ export class EffectPipeline {
    */
   async emit(
     kind: string,
-    payload: unknown,
+    payload: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     options?: {
       id: string;
       timestamp: number;

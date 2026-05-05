@@ -50,7 +50,7 @@ const resultTypeSet = new Set(RESULT_TYPES);
 /**
  * Asserts that a value is a non-null object.
  */
-function isObject(value: unknown): value is Record<string, unknown> {
+function isObject(value: unknown): value is Record<string, unknown> { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return value !== null && typeof value === 'object';
 }
 
@@ -59,7 +59,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
  *
  * @throws If validation fails
  */
-function validateOp(op: unknown, index: number): void {
+function validateOp(op: unknown, index: number): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (!isObject(op)) {
     throw new WarpError(`ops[${index}] must be an object`, 'E_VALIDATION');
   }
@@ -86,7 +86,7 @@ function validateOp(op: unknown, index: number): void {
  * validateOpType('InvalidOp', 0); // throws Error
  * validateOpType(123, 0); // throws Error
  */
-function validateOpType(value: unknown, i: number): void {
+function validateOpType(value: unknown, i: number): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof value !== 'string' || !opTypeSet.has(value)) {
     throw new WarpError(`ops[${i}].op must be one of: ${OP_TYPES.join(', ')}`, 'E_VALIDATION');
   }
@@ -105,7 +105,7 @@ function validateOpType(value: unknown, i: number): void {
  * validateOpTarget('', 0); // throws Error
  * validateOpTarget(null, 0); // throws Error
  */
-function validateOpTarget(value: unknown, i: number): void {
+function validateOpTarget(value: unknown, i: number): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof value !== 'string' || value.length === 0) {
     throw new WarpError(`ops[${i}].target must be a non-empty string`, 'E_VALIDATION');
   }
@@ -126,7 +126,7 @@ function validateOpTarget(value: unknown, i: number): void {
  * validateOpResult('superseded', 1); // OK
  * validateOpResult('failed', 0); // throws Error
  */
-function validateOpResult(value: unknown, i: number): void {
+function validateOpResult(value: unknown, i: number): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof value !== 'string' || !resultTypeSet.has(value)) {
     throw new WarpError(`ops[${i}].result must be one of: ${RESULT_TYPES.join(', ')}`, 'E_VALIDATION');
   }
@@ -190,7 +190,7 @@ export function createTickReceipt({ patchSha, writer, lamport, ops }: { patchSha
 /**
  * Asserts that a value is a non-empty string.
  */
-function assertNonEmptyString(value: unknown, name: string): void {
+function assertNonEmptyString(value: unknown, name: string): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof value !== 'string' || value.length === 0) {
     throw new WarpError(`${name} must be a non-empty string`, 'E_VALIDATION');
   }
@@ -199,7 +199,7 @@ function assertNonEmptyString(value: unknown, name: string): void {
 /**
  * Asserts that lamport is a non-negative integer.
  */
-function assertNonNegativeInt(value: unknown): void {
+function assertNonNegativeInt(value: unknown): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (!Number.isInteger(value) || (value as number) < 0) {
     throw new WarpError('lamport must be a non-negative integer', 'E_VALIDATION');
   }
@@ -208,7 +208,7 @@ function assertNonNegativeInt(value: unknown): void {
 /**
  * Asserts that ops is a valid array and validates each entry.
  */
-function assertOpsArray(ops: unknown): void {
+function assertOpsArray(ops: unknown): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (!Array.isArray(ops)) {
     throw new WarpError('ops must be an array', 'E_VALIDATION');
   }
@@ -244,7 +244,7 @@ function freezeOps(ops: OpOutcome[]): ReadonlyArray<Readonly<OpOutcome>> {
  * of property insertion order.
  */
 export function canonicalJson(receipt: TickReceipt): string {
-  return JSON.stringify(receipt, sortedReplacer);
+  return JSON.stringify(receipt, sortedReplacer); // nosemgrep: ts-no-json-stringify-in-core -- 0025B
 }
 
 /**
@@ -271,10 +271,10 @@ export function canonicalJson(receipt: TickReceipt): string {
  * JSON.stringify({ z: { b: 1, a: 2 }, y: 3 }, sortedReplacer);
  * // Returns: '{"y":3,"z":{"a":2,"b":1}}'
  */
-function sortedReplacer(_key: string, value: unknown): unknown {
+function sortedReplacer(_key: string, value: unknown): unknown { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-    const sorted: { [x: string]: unknown } = {};
-    const obj = value as { [x: string]: unknown };
+    const sorted: { [x: string]: unknown } = {}; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+    const obj = value as { [x: string]: unknown }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     for (const k of Object.keys(obj).sort()) {
       sorted[k] = obj[k];
     }

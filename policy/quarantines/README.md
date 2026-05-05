@@ -10,6 +10,12 @@
 One manifest per sludge family. Each manifest lists the files that
 are quarantined for that family's rule(s).
 
+As of cycle `0141-quarantine-graduate-clean`, the 0025 file-level
+manifest `files` lists are empty. Remaining legacy anti-sludge hits are
+narrowed inline with owning-cycle `nosemgrep` comments and reported by
+`npm run lint:semgrep` as inline suppressions, not broad file-level
+quarantine.
+
 | Manifest | Rule family | Owning cycle |
 |---|---|---|
 | `0025A-casts.json` | `as unknown as`, `as any` | 0025A |

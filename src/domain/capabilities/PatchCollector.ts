@@ -10,7 +10,7 @@ export type CheckpointData = {
   frontier: Map<string, string>;
   stateHash: string;
   schema: number;
-  provenanceIndex?: { clone(): unknown; addPatch(sha: string, reads?: string[], writes?: string[]): void } | undefined;
+  provenanceIndex?: { clone(): unknown; addPatch(sha: string, reads?: string[], writes?: string[]): void } | undefined; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   indexShardOids?: Record<string, string> | null | undefined;
 };
 

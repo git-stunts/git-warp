@@ -24,7 +24,7 @@ import {
   encodeEdgePropKey,
   encodePropKey,
   normalizeRawOp,
-  type PatchLike,
+  type PatchLike, // nosemgrep: ts-no-like-types -- 0025C
 } from "./JoinReducer.ts";
 
 type ReducerPropValue =
@@ -82,7 +82,7 @@ export class ReducerSessionFrame {
 
 export async function applyFastInSession(
   frame: ReducerSessionFrame,
-  patch: PatchLike,
+  patch: PatchLike, // nosemgrep: ts-no-like-types -- 0025C
   patchSha: string,
 ): Promise<void> {
   await applyPatchInSession(frame, patch, patchSha, "fast");
@@ -90,7 +90,7 @@ export async function applyFastInSession(
 
 export async function applyWithDiffInSession(
   frame: ReducerSessionFrame,
-  patch: PatchLike,
+  patch: PatchLike, // nosemgrep: ts-no-like-types -- 0025C
   patchSha: string,
 ): Promise<PatchDiff> {
   const result = await applyPatchInSession(frame, patch, patchSha, "diff");
@@ -99,7 +99,7 @@ export async function applyWithDiffInSession(
 
 export async function applyWithReceiptInSession(
   frame: ReducerSessionFrame,
-  patch: PatchLike,
+  patch: PatchLike, // nosemgrep: ts-no-like-types -- 0025C
   patchSha: string,
 ): Promise<TickReceipt> {
   const result = await applyPatchInSession(frame, patch, patchSha, "receipt");
@@ -107,21 +107,21 @@ export async function applyWithReceiptInSession(
 }
 
 export function reduceV5InSession(
-  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>,
+  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
   frame: ReducerSessionFrame,
 ): Promise<ReducerSessionFrame>;
 export function reduceV5InSession(
-  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>,
+  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
   frame: ReducerSessionFrame,
   options: { readonly receipts: true },
 ): Promise<{ frame: ReducerSessionFrame; receipts: TickReceipt[] }>;
 export function reduceV5InSession(
-  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>,
+  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
   frame: ReducerSessionFrame,
   options: { readonly trackDiff: true },
 ): Promise<{ frame: ReducerSessionFrame; diff: PatchDiff }>;
 export async function reduceV5InSession(
-  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>,
+  patches: ReadonlyArray<{ readonly patch: PatchLike; readonly sha: string }>, // nosemgrep: ts-no-like-types -- 0025C
   frame: ReducerSessionFrame,
   options?: { readonly receipts?: boolean; readonly trackDiff?: boolean },
 ): Promise<
@@ -165,7 +165,7 @@ export async function joinFrames(
 
 async function applyPatchInSession(
   frame: ReducerSessionFrame,
-  patch: PatchLike,
+  patch: PatchLike, // nosemgrep: ts-no-like-types -- 0025C
   patchSha: string,
   mode: ReplayMode,
 ): Promise<{ readonly diff: PatchDiff; readonly receipt: TickReceipt }> {
@@ -403,7 +403,7 @@ async function accumulateDiff(
   }
 }
 
-function foldPatchIntoFrame(frame: ReducerSessionFrame, patch: PatchLike): void {
+function foldPatchIntoFrame(frame: ReducerSessionFrame, patch: PatchLike): void { // nosemgrep: ts-no-like-types -- 0025C
   const {context} = patch;
   const contextVV = context instanceof VersionVector
     ? context.clone()

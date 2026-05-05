@@ -6,18 +6,7 @@
     "ts-no-double-cast"
   ],
   "rationale": "Pre-existing `as unknown as` uses discovered at anti-sludge policy adoption time. Each entry grants file-level exemption from ts-no-double-cast ONLY. Graduate by removing the cast (prefer decoder / type guard / narrower port), not by adding an inline suppression unless the specific line has a documented reason that cannot be refactored away.",
-  "generated_at": "2026-04-23T08:05:17.718Z",
+  "generated_at": "2026-05-05T08:58:40.291Z",
   "generator": "scripts/contamination-map.ts v1",
-  "files": [
-    "src/domain/WarpGraph.ts",
-    "src/domain/services/MaterializedViewHelpers.ts",
-    "src/domain/services/MaterializedViewService.ts",
-    "src/domain/services/TemporalQuery.ts",
-    "src/domain/services/VisibleStateScope.ts",
-    "src/domain/services/controllers/StrandController.ts",
-    "src/domain/services/query/Observer.ts",
-    "src/domain/services/state/checkpointLoad.ts",
-    "src/domain/services/sync/HttpSyncServer.ts",
-    "src/domain/stream/WarpStream.ts"
-  ]
+  "files": []
 }

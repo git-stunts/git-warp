@@ -2,10 +2,10 @@ import IndexError from './IndexError.ts';
 
 interface ShardValidationErrorOptions {
   readonly shardPath?: string;
-  readonly expected?: unknown;
-  readonly actual?: unknown;
+  readonly expected?: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  readonly actual?: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   readonly field?: string;
-  readonly context?: Record<string, unknown>;
+  readonly context?: Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 /**
@@ -16,8 +16,8 @@ interface ShardValidationErrorOptions {
  */
 export default class ShardValidationError extends IndexError {
   readonly shardPath: string | undefined;
-  readonly expected: unknown;
-  readonly actual: unknown;
+  readonly expected: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  readonly actual: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   readonly field: string | undefined;
 
   constructor(message: string, options: ShardValidationErrorOptions = {}) {

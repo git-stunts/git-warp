@@ -153,7 +153,7 @@ function handleKeyRevoke(subject: KeyRevokeSubject, issuedAt: string, recordId: 
   }
   const keyInfo = ctx.activeKeys.get(subject.keyId);
   if (!keyInfo) {
-    ctx.errors.push({ recordId, error: `Cannot revoke unknown key: ${subject.keyId}` });
+    ctx.errors.push({ recordId, error: `Cannot revoke unknown key: ${subject.keyId}` }); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     return;
   }
   ctx.activeKeys.delete(subject.keyId);
@@ -167,7 +167,7 @@ function handleBindAdd(subject: WriterBindAddSubject, issuedAt: string, recordId
     return;
   }
   if (!ctx.activeKeys.has(subject.keyId)) {
-    ctx.errors.push({ recordId, error: `Cannot bind writer to unknown key: ${subject.keyId}` });
+    ctx.errors.push({ recordId, error: `Cannot bind writer to unknown key: ${subject.keyId}` }); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     return;
   }
   ctx.writerBindings.set(bindingKey, { keyId: subject.keyId, boundAt: issuedAt });

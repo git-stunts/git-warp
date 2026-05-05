@@ -253,7 +253,7 @@ export default class BitmapIndexReader {
     }
   }
 
-  private _handleDecodeError(err: unknown, path: string, oid: string): LoadedShard {
+  private _handleDecodeError(err: unknown, path: string, oid: string): LoadedShard { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     const corruptionError = new ShardCorruptionError('Failed to decode shard', {
       shardPath: path,
       oid,

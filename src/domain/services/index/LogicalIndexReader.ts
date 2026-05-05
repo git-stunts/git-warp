@@ -194,12 +194,12 @@ export default class LogicalIndexReader {
   }
 
   /** Populates node-to-global and alive bitmap maps from decoded meta data. */
-  private _loadDecodedMeta(path: string, raw: unknown, Ctor: RoaringCtor): void {
+  private _loadDecodedMeta(path: string, raw: unknown, Ctor: RoaringCtor): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     const meta = raw as {
       nodeToGlobal: Array<[string, number]> | Record<string, number>;
       alive: Uint8Array | ArrayLike<number>;
     };
-    const entries: Array<[string, unknown]> = Array.isArray(meta.nodeToGlobal)
+    const entries: Array<[string, unknown]> = Array.isArray(meta.nodeToGlobal) // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
       ? meta.nodeToGlobal
       : Object.entries(meta.nodeToGlobal);
     for (const [nodeId, globalId] of entries) {
@@ -217,7 +217,7 @@ export default class LogicalIndexReader {
   }
 
   /** Populates label maps from decoded label data. */
-  private _loadDecodedLabels(raw: unknown): void {
+  private _loadDecodedLabels(raw: unknown): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     const decoded = raw as Record<string, number> | Array<[string, number]>;
     const entries: Array<[string, number]> = Array.isArray(decoded) ? decoded : Object.entries(decoded);
     for (const [label, id] of entries) {
@@ -240,7 +240,7 @@ export default class LogicalIndexReader {
   }
 
   /** Populates edge stores from decoded edge shard data. */
-  private _loadDecodedEdges(dir: 'fwd' | 'rev', raw: unknown, Ctor: RoaringCtor): void {
+  private _loadDecodedEdges(dir: 'fwd' | 'rev', raw: unknown, Ctor: RoaringCtor): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     const store = dir === 'fwd' ? this._edgeFwd : this._edgeRev;
     const byOwner = dir === 'fwd' ? this._edgeByOwnerFwd : this._edgeByOwnerRev;
     const decoded = raw as Record<string, Record<string, Uint8Array | ArrayLike<number>>>;

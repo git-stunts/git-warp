@@ -172,5 +172,5 @@ function sortedReplacer(_key: string, value: Record<string, number | string | bo
  * Produces a deterministic JSON string for a DeliveryObservation.
  */
 export function canonicalObservationJson(observation: DeliveryObservation): string {
-  return JSON.stringify(observation, sortedReplacer);
+  return JSON.stringify(observation, sortedReplacer); // nosemgrep: ts-no-json-stringify-in-core -- 0025B
 }

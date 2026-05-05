@@ -24,7 +24,7 @@ const TO_INTERNAL_KIND: Map<string, string> = new Map([
  * Returns true if a value is a primitive, null, or a non-plain-object type that
  * should not be recursively transformed.
  */
-function isNonTransformable(value: unknown): boolean {
+function isNonTransformable(value: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (value === null || value === undefined || typeof value !== 'object') {
     return true;
   }
@@ -47,7 +47,7 @@ function isKnownNonPlainObject(value: object): boolean {
 /**
  * Replaces a kind/coordinateKind string value using the provided mapping.
  */
-function maybeTransformKindEntry(key: string, entry: unknown, kindMap: Map<string, string>): unknown {
+function maybeTransformKindEntry(key: string, entry: unknown, kindMap: Map<string, string>): unknown { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if ((key === 'kind' || key === 'coordinateKind') && typeof entry === 'string') {
     return kindMap.get(entry) ?? entry;
   }
@@ -57,18 +57,18 @@ function maybeTransformKindEntry(key: string, entry: unknown, kindMap: Map<strin
 /**
  * Recursively transforms object keys and kind values using the provided mappings.
  */
-function transform(value: unknown, keyMap: Map<string, string>, kindMap: Map<string, string>): unknown {
+function transform(value: unknown, keyMap: Map<string, string>, kindMap: Map<string, string>): unknown { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (Array.isArray(value)) {
-    return value.map((entry: unknown) => transform(entry, keyMap, kindMap));
+    return value.map((entry: unknown) => transform(entry, keyMap, kindMap)); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   }
 
   if (isNonTransformable(value)) {
     return value;
   }
 
-  const output: Record<string, unknown> = {};
+  const output: Record<string, unknown> = {}; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 
-  for (const [rawKey, rawEntry] of Object.entries(value as Record<string, unknown>)) {
+  for (const [rawKey, rawEntry] of Object.entries(value as Record<string, unknown>)) { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     const key = keyMap.get(rawKey) ?? rawKey;
     const entry = maybeTransformKindEntry(key, transform(rawEntry, keyMap, kindMap), kindMap);
     output[key] = entry;

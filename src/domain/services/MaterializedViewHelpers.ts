@@ -47,7 +47,7 @@ export function buildInMemoryPropertyReader(
   const storage = {
     /** Reads a shard blob from the in-memory tree map. */
     readBlob: (oid: string): Promise<Uint8Array> => Promise.resolve(tree[oid] as Uint8Array),
-  } as unknown as IndexStoragePort;
+  } as unknown as IndexStoragePort; // nosemgrep: ts-no-double-cast -- 0025A; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 
   const reader = new PropertyIndexReader({ storage, codec });
   reader.setup(propShardOids);
@@ -86,7 +86,7 @@ export function partitionShardOids(shardOids: Record<string, string>): {
  * the applyDiff() legacy path. Dies when IncrementalIndexUpdater
  * is migrated to IndexStorePort.
  */
-export function shardToEntry(shard: IndexShard): { path: string; payload: unknown } {
+export function shardToEntry(shard: IndexShard): { path: string; payload: unknown } { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (shard instanceof MetaShard) {
     return {
       path: `meta_${shard.shardKey}.cbor`,
@@ -114,7 +114,7 @@ export function shardToEntry(shard: IndexShard): { path: string; payload: unknow
     };
   }
   throw new IndexError(
-    `MaterializedViewService: unknown IndexShard type (shardKey=${shard.shardKey})`,
+    `MaterializedViewService: unknown IndexShard type (shardKey=${shard.shardKey})`, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     { code: 'E_MATERIALIZED_VIEW_UNKNOWN_SHARD', context: { shardKey: shard.shardKey } },
   );
 }

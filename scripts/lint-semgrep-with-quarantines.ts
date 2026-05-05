@@ -23,6 +23,7 @@
  */
 
 import { readdir, readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -168,17 +169,52 @@ interface FilteredReport {
     readonly message: string;
   }[];
   readonly quarantineHits: number;
+  readonly inlineSuppressionHits: number;
+}
+
+const lineCache = new Map<string, readonly string[]>();
+
+function repoRelativePath(filePath: string): string {
+  return filePath.startsWith(REPO_ROOT)
+    ? relative(REPO_ROOT, filePath).replace(/\\/g, '/')
+    : filePath.replace(/\\/g, '/');
+}
+
+function sourceLine(filePath: string, line: number): string {
+  const rel = repoRelativePath(filePath);
+  let lines = lineCache.get(rel);
+  if (lines === undefined) {
+    lines = readFileSync(join(REPO_ROOT, rel), 'utf8').split('\n');
+    lineCache.set(rel, lines);
+  }
+  return lines[line - 1] ?? '';
+}
+
+function hasInlineSuppression(ruleId: string, filePath: string, line: number): boolean {
+  const text = sourceLine(filePath, line);
+  if (!text.includes('nosemgrep')) {
+    return false;
+  }
+  if (!text.includes('nosemgrep:')) {
+    return true;
+  }
+  return text.includes(`nosemgrep: ${ruleId}`) || text.includes(`nosemgrep:${ruleId}`);
 }
 
 function filterResults(output: SemgrepOutput, index: QuarantineIndex): FilteredReport {
   const results = Array.isArray(output.results) ? output.results : [];
   const reported: { ruleId: string; path: string; line: number; message: string }[] = [];
   let quarantineHits = 0;
+  let inlineSuppressionHits = 0;
   for (const r of results) {
     const ruleId = normalizeRuleId(r.check_id);
     const path = typeof r.path === 'string' ? r.path : '';
     const line = typeof r.start?.line === 'number' ? r.start.line : 0;
     const message = typeof r.extra?.message === 'string' ? r.extra.message : '';
+    if (line > 0 && hasInlineSuppression(ruleId, path, line)) {
+      inlineSuppressionHits++;
+      continue;
+    }
     if (isQuarantined(index, ruleId, path)) {
       quarantineHits++;
       continue;
@@ -190,12 +226,12 @@ function filterResults(output: SemgrepOutput, index: QuarantineIndex): FilteredR
     if (a.line !== b.line) { return a.line - b.line; }
     return a.ruleId < b.ruleId ? -1 : 1;
   });
-  return { reported, quarantineHits };
+  return { reported, quarantineHits, inlineSuppressionHits };
 }
 
 function printReport(report: FilteredReport): void {
   if (report.reported.length === 0) {
-    console.log(`semgrep anti-sludge: PASS (${report.quarantineHits} quarantined hit(s) suppressed).`);
+    console.log(`semgrep anti-sludge: PASS (${report.quarantineHits} quarantined hit(s), ${report.inlineSuppressionHits} inline hit(s) suppressed).`);
     return;
   }
   console.error('');
@@ -213,6 +249,9 @@ function printReport(report: FilteredReport): void {
   console.error(`${report.reported.length} unquarantined violation(s).`);
   if (report.quarantineHits > 0) {
     console.error(`(${report.quarantineHits} additional hit(s) suppressed by policy/quarantines/ — those are paydown-tracked by cycle 0025.)`);
+  }
+  if (report.inlineSuppressionHits > 0) {
+    console.error(`(${report.inlineSuppressionHits} additional hit(s) suppressed inline with owning-cycle references.)`);
   }
   console.error('');
   console.error('Policy: docs/ANTI_SLUDGE_POLICY.md');

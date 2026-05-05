@@ -26,7 +26,7 @@ import type { PropValue } from '../../types/PropValue.ts';
 
 interface SerializedLWWRegister {
   eventId: { lamport: number; opIndex: number; patchSha: string; writerId: string };
-  value: unknown;
+  value: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 // ============================================================================
@@ -58,8 +58,8 @@ export function serializeFullState(
   });
 }
 
-function serializePropsArray(propMap: Map<string, LWWRegister<PropValue>>): Array<[string, unknown]> {
-  const propArray: Array<[string, unknown]> = [];
+function serializePropsArray(propMap: Map<string, LWWRegister<PropValue>>): Array<[string, unknown]> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const propArray: Array<[string, unknown]> = []; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   for (const [key, register] of propMap) {
     propArray.push([key, serializeLWWRegister(register)]);
   }
@@ -97,7 +97,7 @@ export function deserializeFullState(
   }
   if (obj.version !== undefined && obj.version !== 'full-v5') {
     throw new SchemaUnsupportedError(
-      `Unsupported full state version: expected 'full-v5', got '${JSON.stringify(obj.version)}'`,
+      `Unsupported full state version: expected 'full-v5', got '${JSON.stringify(obj.version)}'`, // nosemgrep: ts-no-json-stringify-in-core -- 0025B
       { context: { version: obj.version } },
     );
   }
@@ -114,9 +114,9 @@ interface DeserializedFullState {
   version?: string;
   nodeAlive?: { [x: string]: string[] };
   edgeAlive?: { [x: string]: string[] };
-  prop?: Array<[string, unknown]>;
+  prop?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   observedFrontier?: { [x: string]: number };
-  edgeBirthEvent?: Array<[string, unknown]>;
+  edgeBirthEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   edgeBirthLamport?: Array<[string, number]>;
 }
 
@@ -229,7 +229,7 @@ export function deserializeAppliedVV(
 // Helper Functions
 // ============================================================================
 
-function deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWRegister<PropValue>> {
+function deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWRegister<PropValue>> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const prop = new Map<string, LWWRegister<PropValue>>();
   if (!Array.isArray(propArray)) { return prop; }
   for (const [key, registerObj] of propArray) {
@@ -251,7 +251,7 @@ function deserializeEdgeBirthEvent(obj: DeserializedFullState): Map<string, Even
   return edgeBirthEvent;
 }
 
-function deserializeSingleBirthEvent(val: unknown): { lamport: number; writerId: string; patchSha: string; opIndex: number } {
+function deserializeSingleBirthEvent(val: unknown): { lamport: number; writerId: string; patchSha: string; opIndex: number } { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof val === 'number') {
     return { lamport: val, writerId: '', patchSha: '0000', opIndex: 0 };
   }

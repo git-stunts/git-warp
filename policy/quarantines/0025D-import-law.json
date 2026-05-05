@@ -7,12 +7,7 @@
     "no-restricted-imports:core-node-platform"
   ],
   "rationale": "Pre-existing domain/ports imports of forbidden paths: src/infrastructure/** (adapters — should be behind a port), Node platform APIs (node:*, fs, http, etc. — should be mediated by a port), or framework libraries. Graduate by routing the capability through a port instead of a direct import.",
-  "generated_at": "2026-04-23T08:05:17.718Z",
+  "generated_at": "2026-05-05T08:58:40.291Z",
   "generator": "scripts/contamination-map.ts v1",
-  "files": [
-    "src/domain/services/codec/AnchorMessageCodec.ts",
-    "src/domain/services/codec/CheckpointMessageCodec.ts",
-    "src/domain/services/codec/PatchMessageCodec.ts",
-    "src/domain/services/codec/WarpMessageCodec.ts"
-  ]
+  "files": []
 }

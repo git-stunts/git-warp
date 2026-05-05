@@ -58,7 +58,7 @@ export function compareNeighborLists(
 /**
  * Returns true if any of the provided arrays has at least one entry.
  */
-export function hasAnyEntries(groups: unknown[][]): boolean {
+export function hasAnyEntries(groups: unknown[][]): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return groups.some((group) => group.length > 0);
 }
 
@@ -67,10 +67,10 @@ export function hasAnyEntries(groups: unknown[][]): boolean {
 type NormalizedNodeView = {
   exists: boolean;
   nodeId: string | null;
-  props: Record<string, unknown>;
+  props: Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   outgoing: VisibleStateNeighbor[];
   incoming: VisibleStateNeighbor[];
-  content: unknown;
+  content: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 };
 
 export const EMPTY_NODE_VIEW: NormalizedNodeView = {
@@ -109,9 +109,9 @@ export function normalizeNodeView(view: VisibleNodeView | null | undefined): Nor
 // ── Node view comparison ─────────────────────────────────────────────────────
 
 type NodeViewChangesParams = {
-  propertyDelta: { added: unknown[]; removed: unknown[]; changed: unknown[] };
-  outgoingDelta: { added: unknown[]; removed: unknown[] };
-  incomingDelta: { added: unknown[]; removed: unknown[] };
+  propertyDelta: { added: unknown[]; removed: unknown[]; changed: unknown[] }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  outgoingDelta: { added: unknown[]; removed: unknown[] }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  incomingDelta: { added: unknown[]; removed: unknown[] }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   contentChanged: boolean;
   leftExists: boolean;
   rightExists: boolean;
@@ -151,9 +151,9 @@ export type NodeViewComparison = {
   left: VisibleNodeView | null;
   right: VisibleNodeView | null;
   propertyDelta: {
-    added: Array<{ key: string; value: unknown }>;
-    removed: Array<{ key: string; value: unknown }>;
-    changed: Array<{ key: string; leftValue: unknown; rightValue: unknown }>;
+    added: Array<{ key: string; value: unknown }>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+    removed: Array<{ key: string; value: unknown }>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+    changed: Array<{ key: string; leftValue: unknown; rightValue: unknown }>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   };
   outgoingDelta: { added: VisibleStateNeighbor[]; removed: VisibleStateNeighbor[] };
   incomingDelta: { added: VisibleStateNeighbor[]; removed: VisibleStateNeighbor[] };
@@ -253,9 +253,9 @@ export function buildEdgeDelta(
 
 type VisibleStateDeltas = {
   nodeDelta: { added: string[]; removed: string[] };
-  edgeDelta: { added: Array<unknown>; removed: Array<unknown> };
-  nodePropertyDelta: { added: Array<unknown>; removed: Array<unknown>; changed: Array<unknown> };
-  edgePropertyDelta: { added: Array<unknown>; removed: Array<unknown>; changed: Array<unknown> };
+  edgeDelta: { added: Array<unknown>; removed: Array<unknown> }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  nodePropertyDelta: { added: Array<unknown>; removed: Array<unknown>; changed: Array<unknown> }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  edgePropertyDelta: { added: Array<unknown>; removed: Array<unknown>; changed: Array<unknown> }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 };
 
 /**

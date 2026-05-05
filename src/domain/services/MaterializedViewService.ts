@@ -37,7 +37,7 @@ export interface BuildResult {
   tree: Record<string, Uint8Array>;
   logicalIndex: LogicalIndex;
   propertyReader: PropertyIndexReader;
-  receipt: Record<string, unknown>;
+  receipt: Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 export interface LoadResult {
@@ -157,7 +157,7 @@ export default class MaterializedViewService {
     // PropertyIndexReader is a .js file that only calls `readBlob` at runtime.
     // The caller's narrower type satisfies the runtime contract.
     const propertyReader = new PropertyIndexReader({
-      storage: storage as unknown as IndexStoragePort,
+      storage: storage as unknown as IndexStoragePort, // nosemgrep: ts-no-double-cast -- 0025A; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
       codec: this._codec,
       ...(this._indexStore ? { indexStore: this._indexStore } : {}),
     });
@@ -190,7 +190,7 @@ export default class MaterializedViewService {
     // reflects the state at the time of the original full build, not the current
     // incremental update. Consumers should not rely on it for incremental accuracy.
     const receiptBytes = tree['receipt.cbor'];
-    const receipt = receiptBytes ? this._codec.decode<Record<string, unknown>>(receiptBytes) : {};
+    const receipt = receiptBytes ? this._codec.decode<Record<string, unknown>>(receiptBytes) : {}; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 
     return { tree, logicalIndex, propertyReader, receipt };
   }

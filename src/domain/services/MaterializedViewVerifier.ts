@@ -130,7 +130,7 @@ function canonicalizeNeighborSignatures(edges: AdjacencyEntry[]): string[] {
   }
   const signatures: string[] = [];
   for (const [neighborId, labels] of byNeighbor) {
-    signatures.push(JSON.stringify([neighborId, labels.slice().sort()]));
+    signatures.push(JSON.stringify([neighborId, labels.slice().sort()])); // nosemgrep: ts-no-json-stringify-in-core -- 0025B
   }
   signatures.sort();
   return signatures;

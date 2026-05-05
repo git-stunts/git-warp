@@ -11,7 +11,7 @@ import WarpError from '../errors/WarpError.ts';
  *
  * Throws TypeError on circular references rather than stack-overflowing.
  */
-export function canonicalStringify(value: unknown): string {
+export function canonicalStringify(value: unknown): string { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return _canonicalStringify(value, new WeakSet());
 }
 
@@ -20,7 +20,7 @@ const NULL_LITERAL: string = 'null';
 /**
  * Checks if a value should be serialized as null (undefined, function, or symbol).
  */
-function _isNullish(val: unknown): boolean {
+function _isNullish(val: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return val === undefined || typeof val === 'function' || typeof val === 'symbol';
 }
 
@@ -38,7 +38,7 @@ function _assertNoCycle(ref: object, seen: WeakSet<object>): void {
 /**
  * Stringifies an array value with cycle detection.
  */
-function _stringifyArray(arr: unknown[], seen: WeakSet<object>): string {
+function _stringifyArray(arr: unknown[], seen: WeakSet<object>): string { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   _assertNoCycle(arr, seen);
   seen.add(arr);
   try {
@@ -56,9 +56,9 @@ function _stringifyObject(ref: object, seen: WeakSet<object>): string {
   _assertNoCycle(ref, seen);
   seen.add(ref);
   try {
-    const obj = ref as Record<string, unknown>;
+    const obj = ref as Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     const keys = Object.keys(obj).filter((k) => !_isNullish(obj[k])).sort();
-    const pairs = keys.map((k) => `${JSON.stringify(k)}:${_canonicalStringify(obj[k], seen)}`);
+    const pairs = keys.map((k) => `${JSON.stringify(k)}:${_canonicalStringify(obj[k], seen)}`); // nosemgrep: ts-no-json-stringify-in-core -- 0025B
     return `{${pairs.join(',')}}`;
   } finally {
     seen.delete(ref);
@@ -68,7 +68,7 @@ function _stringifyObject(ref: object, seen: WeakSet<object>): string {
 /**
  * Internal recursive helper with cycle detection.
  */
-function _canonicalStringify(value: unknown, seen: WeakSet<object>): string {
+function _canonicalStringify(value: unknown, seen: WeakSet<object>): string { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (value === undefined || value === null) {
     return NULL_LITERAL;
   }
@@ -78,5 +78,5 @@ function _canonicalStringify(value: unknown, seen: WeakSet<object>): string {
   if (typeof value === 'object') {
     return _stringifyObject(value, seen);
   }
-  return JSON.stringify(value);
+  return JSON.stringify(value); // nosemgrep: ts-no-json-stringify-in-core -- 0025B
 }

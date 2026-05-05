@@ -31,8 +31,8 @@ export function isAdjacencyMaps(adjacency: unknown): adjacency is AdjacencyMaps 
   return (
     adjacency !== null &&
     typeof adjacency === 'object' &&
-    (adjacency as Record<string, unknown>)['outgoing'] instanceof Map &&
-    (adjacency as Record<string, unknown>)['incoming'] instanceof Map
+    (adjacency as Record<string, unknown>)['outgoing'] instanceof Map && // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+    (adjacency as Record<string, unknown>)['incoming'] instanceof Map // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   );
 }
 
@@ -41,7 +41,7 @@ export function isAdjacencyMaps(adjacency: unknown): adjacency is AdjacencyMaps 
  *
  * @throws {TraversalError} code 'E_TRAVERSAL_ADJACENCY' if invalid
  */
-export function requireAdjacencyMaps(adjacency: unknown): AdjacencyMaps {
+export function requireAdjacencyMaps(adjacency: unknown): AdjacencyMaps { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (!isAdjacencyMaps(adjacency)) {
     throw new TraversalError('materialized traversal adjacency is invalid', {
       code: 'E_TRAVERSAL_ADJACENCY',
@@ -55,11 +55,11 @@ export function requireAdjacencyMaps(adjacency: unknown): AdjacencyMaps {
  *
  * @throws {TraversalError} code 'E_TRAVERSAL_STATE' if invalid
  */
-export function requireTraversalState(state: unknown): TraversalState {
+export function requireTraversalState(state: unknown): TraversalState { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (
     state === null ||
     typeof state !== 'object' ||
-    !((state as Record<string, unknown>)['nodeAlive'] instanceof ORSet)
+    !((state as Record<string, unknown>)['nodeAlive'] instanceof ORSet) // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   ) {
     throw new TraversalError('materialized traversal state is missing nodeAlive', {
       code: 'E_TRAVERSAL_STATE',
@@ -82,10 +82,10 @@ export type WithoutUndefined<T> = {
  * were `T | undefined` become `T`, making the object assignable to params
  * typed with strict optional properties.
  */
-export function stripUndefined<T extends Record<string, unknown>>(
+export function stripUndefined<T extends Record<string, unknown>>( // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   obj: T,
 ): WithoutUndefined<T> {
-  const out: Record<string, unknown> = {};
+  const out: Record<string, unknown> = {}; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   for (const key of Object.keys(obj)) {
     if (obj[key] !== undefined) {
       out[key] = obj[key];

@@ -36,7 +36,7 @@ export interface ShardItem {
 /** A shard file's path + decoded data (port path). */
 export interface DecodedItem {
   path: string;
-  data: unknown;
+  data: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 /**
@@ -57,7 +57,7 @@ export interface IndexMaps {
 /** Classified decoded shards ready for loading. */
 export interface ClassifiedDecoded {
   meta: DecodedItem[];
-  labels: unknown;
+  labels: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   edges: DecodedItem[];
 }
 
@@ -104,7 +104,7 @@ export function classifyShards(items: ShardItem[]): { meta: ShardItem[]; labels:
  */
 export function classifyDecoded(items: DecodedItem[]): ClassifiedDecoded {
   const meta: DecodedItem[] = [];
-  let labels: unknown = null;
+  let labels: unknown = null; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const edges: DecodedItem[] = [];
 
   for (const item of items) {

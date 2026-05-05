@@ -12,21 +12,21 @@ const E_INVALID_MESSAGE = 'E_INVALID_MESSAGE';
 const E_INVALID_PARENTS = 'E_INVALID_PARENTS';
 
 /** Validates that sha is a non-empty string. */
-function _validateSha(sha: unknown): asserts sha is string {
+function _validateSha(sha: unknown): asserts sha is string { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof sha !== 'string' || sha.length === 0) {
     throw new WarpError('GraphNode requires a valid sha string', E_INVALID_SHA);
   }
 }
 
 /** Validates that message is a non-empty string. */
-function _validateMessage(message: unknown): asserts message is string {
+function _validateMessage(message: unknown): asserts message is string { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof message !== 'string' || message.length === 0) {
     throw new WarpError('GraphNode requires a valid message string', E_INVALID_MESSAGE);
   }
 }
 
 /** Validates that parents is an array. */
-function _validateParents(parents: unknown): asserts parents is string[] {
+function _validateParents(parents: unknown): asserts parents is string[] { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (!Array.isArray(parents)) {
     throw new WarpError('GraphNode parents must be an array', E_INVALID_PARENTS);
   }

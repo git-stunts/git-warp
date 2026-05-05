@@ -29,7 +29,7 @@ const VISIBLE_STATE_COMPARISON_VERSION = 'visible-state-compare/v1';
  */
 function buildTopologySummary(
   nodeDelta: { added: string[]; removed: string[] },
-  edgeDelta: { added: Array<unknown>; removed: Array<unknown> },
+  edgeDelta: { added: Array<unknown>; removed: Array<unknown> }, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 ): {
   nodes: { added: number; removed: number };
   edges: { added: number; removed: number };
@@ -50,8 +50,8 @@ function buildTopologySummary(
  * Builds the property counts portion of the comparison summary.
  */
 function buildPropertySummary(
-  nodePropertyDelta: { added: Array<unknown>; removed: Array<unknown>; changed: Array<unknown> },
-  edgePropertyDelta: { added: Array<unknown>; removed: Array<unknown>; changed: Array<unknown> },
+  nodePropertyDelta: { added: Array<unknown>; removed: Array<unknown>; changed: Array<unknown> }, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  edgePropertyDelta: { added: Array<unknown>; removed: Array<unknown>; changed: Array<unknown> }, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 ): {
   nodeProperties: { added: number; removed: number; changed: number };
   edgeProperties: { added: number; removed: number; changed: number };
@@ -79,9 +79,9 @@ function buildComparisonSummary(params: {
   leftSummary: ReaderSummary;
   rightSummary: ReaderSummary;
   nodeDelta: { added: string[]; removed: string[] };
-  edgeDelta: { added: Array<unknown>; removed: Array<unknown> };
-  nodePropertyDelta: { added: Array<unknown>; removed: Array<unknown>; changed: Array<unknown> };
-  edgePropertyDelta: { added: Array<unknown>; removed: Array<unknown>; changed: Array<unknown> };
+  edgeDelta: { added: Array<unknown>; removed: Array<unknown> }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  nodePropertyDelta: { added: Array<unknown>; removed: Array<unknown>; changed: Array<unknown> }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  edgePropertyDelta: { added: Array<unknown>; removed: Array<unknown>; changed: Array<unknown> }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }): VisibleStateComparison['summary'] {
   const { leftSummary, rightSummary, nodeDelta, edgeDelta, nodePropertyDelta, edgePropertyDelta } = params;
   return {

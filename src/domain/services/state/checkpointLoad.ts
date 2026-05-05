@@ -288,7 +288,7 @@ export async function materializeIncremental({
 export interface VisibleProjection {
   nodes: string[];
   edges: Array<{ from: string; to: string; label: string }>;
-  props: Array<{ node: string; key: string; value: unknown }>;
+  props: Array<{ node: string; key: string; value: unknown }>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 /**
@@ -325,7 +325,7 @@ export function reconstructStateFromCheckpoint(
   // lamport=0 is below all real EventId lamports (>= 1), so all checkpoint-loaded
   // props pass the visibility filter. EventId constructor disallows lamport=0,
   // so we use a structural bypass here — this is intentional, not a type error.
-  const sentinelBirthEvent = { lamport: 0, writerId: '', patchSha: '0000', opIndex: 0 } as unknown as EventId;
+  const sentinelBirthEvent = { lamport: 0, writerId: '', patchSha: '0000', opIndex: 0 } as unknown as EventId; // nosemgrep: ts-no-double-cast -- 0025A; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 
   const nodeAlive = ORSet.empty();
   const edgeAlive = ORSet.empty();

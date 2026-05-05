@@ -67,7 +67,7 @@ class Frontier {
     const sorted = [...this._entries.entries()].sort(
       ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0),
     );
-    return JSON.stringify(sorted);
+    return JSON.stringify(sorted); // nosemgrep: ts-no-json-stringify-in-core -- 0025B
   }
 
   /**

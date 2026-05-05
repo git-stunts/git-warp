@@ -22,7 +22,7 @@ export function compareStrings(a: string, b: string): number {
 /**
  * Produces a canonical string representation of a value for equality comparison.
  */
-export function valueKey(value: unknown): string {
+export function valueKey(value: unknown): string { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return canonicalStringify(value);
 }
 
@@ -106,7 +106,7 @@ function countNodeProps(reader: VisibleStateReader, nodeId: string): number {
 /**
  * Counts edge properties for a single edge record.
  */
-function countEdgeProps(edge: { props?: Record<string, unknown> }): number {
+function countEdgeProps(edge: { props?: Record<string, unknown> }): number { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return Object.keys(edge.props ?? {}).length;
 }
 
@@ -144,8 +144,8 @@ export function summarizeReader(reader: VisibleStateReader): {
  */
 export function collectNodeProperties(
   reader: VisibleStateReader,
-): Map<string, { node: string; key: string; value: unknown }> {
-  const entries = new Map<string, { node: string; key: string; value: unknown }>();
+): Map<string, { node: string; key: string; value: unknown }> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const entries = new Map<string, { node: string; key: string; value: unknown }>(); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   for (const nodeId of reader.getNodes()) {
     const props = reader.getNodeProps(nodeId) ?? {};
     for (const [key, value] of Object.entries(props)) {
@@ -160,8 +160,8 @@ export function collectNodeProperties(
  */
 export function collectEdgeProperties(
   reader: VisibleStateReader,
-): Map<string, { from: string; to: string; label: string; key: string; value: unknown }> {
-  const entries = new Map<string, { from: string; to: string; label: string; key: string; value: unknown }>();
+): Map<string, { from: string; to: string; label: string; key: string; value: unknown }> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const entries = new Map<string, { from: string; to: string; label: string; key: string; value: unknown }>(); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   for (const edge of reader.getEdges()) {
     for (const [key, value] of Object.entries(edge.props ?? {})) {
       const ref = { from: edge.from, to: edge.to, label: edge.label, key, value };

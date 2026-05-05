@@ -32,8 +32,8 @@ block the v17 package from being honest, secure, or releasable.
 - Current checks run during this inventory:
   - `npm run typecheck:consumer`: FAIL at
     `test/type-check/consumer.ts(318,64)`.
-  - `npm run lint:quarantine-graduate`: FAIL with `138`
-    quarantined touched files.
+  - `npm run lint:quarantine-graduate`: PASS in cycle 0141 after
+    file-level quarantines were narrowed to inline suppressions.
 
 ## Matrix Semantics
 
@@ -142,14 +142,14 @@ closure. A blank cell means "not directly blocked by that task," not
   logging the internal error through `LoggerPort`.
 
 `REL_quarantine-graduate-clean`
-: Open. `npm run lint:quarantine-graduate` currently fails with 138
-  touched quarantined files. Run this now that the direct sync security
-  hardening parents are complete.
+: Closed in cycle 0141. The `0025A`/`0025B`/`0025C`/`0025D` file-level
+  quarantine manifests now have empty `files` lists, and
+  `npm run lint:quarantine-graduate` passes against `origin/main`.
 
 `REL_full-gate-matrix-green`
-: Release cannot proceed until the gate matrix is green:
-  lint, typecheck, consumer typecheck, test:local, markdown lint, markdown
-  code samples, npm audit, quarantine graduation, and focused witnesses.
+: Open. Release cannot proceed until the gate matrix is green: lint,
+  typecheck, consumer typecheck, test:local, markdown lint, markdown code
+  samples, npm audit, quarantine graduation, and focused witnesses.
 
 `REL_release-cut-version-changelog`
 : After gates are green, cut the release section: version agreement,
@@ -180,7 +180,7 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `REL_quarantine-graduate-clean`
+- `REL_full-gate-matrix-green`
 
 `SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125.
 `SPEC_docs-materialize-frontdoor-drift` closed in cycle 0126 and unlocks
@@ -202,7 +202,8 @@ hardening node closed in cycle 0137, opening production sync auth
 defaults. Production auth defaults closed in cycle 0138, opening rate
 limiting and 500 response sanitization. Rate limiting closed in cycle
 0139, and 500 response sanitization closed in cycle 0140, opening
-quarantine graduation.
+quarantine graduation. Quarantine graduation closed in cycle 0141,
+opening the full gate matrix.
 
 ## Regeneration
 

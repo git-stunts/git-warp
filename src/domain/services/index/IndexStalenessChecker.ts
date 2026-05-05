@@ -10,7 +10,7 @@ import type CodecPort from '../../../ports/CodecPort.ts';
 import type IndexStoragePort from '../../../ports/IndexStoragePort.ts';
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
 
-function isNonNullObject(value: unknown): value is Record<string, unknown> {
+function isNonNullObject(value: unknown): value is Record<string, unknown> { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return value !== null && value !== undefined && typeof value === 'object';
 }
 
@@ -21,7 +21,7 @@ function isFrontierEnvelope(envelope: unknown): envelope is { frontier: Record<s
   return 'frontier' in envelope && isNonNullObject(envelope['frontier']);
 }
 
-function validateEnvelope(envelope: unknown, label: string): asserts envelope is { frontier: Record<string, string> } {
+function validateEnvelope(envelope: unknown, label: string): asserts envelope is { frontier: Record<string, string> } { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (!isFrontierEnvelope(envelope)) {
     throw new IndexError(`invalid frontier envelope for ${label}`, { code: 'E_INDEX_INVALID_FRONTIER' });
   }
@@ -70,7 +70,7 @@ async function loadCborFrontier(
   if (typeof oid !== 'string' || oid.length === 0) {
     return null;
   }
-  let envelope: unknown;
+  let envelope: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (indexStore) {
     envelope = await indexStore.decodeShard(oid);
   } else {
@@ -91,7 +91,7 @@ async function loadJsonFrontier(
   }
   const buffer = await storage.readBlob(oid);
   const text = new TextDecoder().decode(buffer);
-  const parsed: unknown = JSON.parse(text);
+  const parsed: unknown = JSON.parse(text); // nosemgrep: ts-no-json-parse-in-core -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   validateEnvelope(parsed, 'frontier.json');
   return new Map(Object.entries(parsed.frontier));
 }

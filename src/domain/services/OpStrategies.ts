@@ -36,7 +36,7 @@ import OpApplied from '../types/ops/OpApplied.ts';
 import type OpOutcomeResult from '../types/ops/OpOutcomeResult.ts';
 import OpValidator from './OpValidator.ts';
 import DiffCalculator from './DiffCalculator.ts';
-import type { OpLike } from './OpLike.ts';
+import type { OpLike } from './OpLike.ts'; // nosemgrep: ts-no-like-types -- 0025C
 import OpStrategy from './OpStrategy.ts';
 import ReceiptBuilder from './ReceiptBuilder.ts';
 import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
@@ -44,7 +44,7 @@ import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
 /**
  * Concrete strategies — one per canonical op type.
  *
- * `OpLike`, `SnapshotBeforeOp`, and the abstract `OpStrategy` base
+ * `OpLike`, `SnapshotBeforeOp`, and the abstract `OpStrategy` base // nosemgrep: ts-no-like-types -- 0025C
  * live in their own files; this module keeps only the concrete
  * strategy set and the registry used for reducer dispatch.
  */
@@ -55,17 +55,17 @@ import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
 
 class NodeAddStrategy extends OpStrategy {
   readonly receiptName = 'NodeAdd';
-  validate(op: OpLike): void { OpValidator.assertString(op, 'node'); OpValidator.assertDot(op); }
-  mutate(state: WarpState, op: OpLike): void {
+  validate(op: OpLike): void { OpValidator.assertString(op, 'node'); OpValidator.assertDot(op); } // nosemgrep: ts-no-like-types -- 0025C
+  mutate(state: WarpState, op: OpLike): void { // nosemgrep: ts-no-like-types -- 0025C
     state.nodeAlive.add(op.node as string, op.dot as Dot);
   }
-  outcome(state: WarpState, op: OpLike): OpOutcomeResult {
+  outcome(state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     return ReceiptBuilder.nodeAddOutcome(state.nodeAlive, { node: op.node as string, dot: op.dot as Dot });
   }
-  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp {
+  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp { // nosemgrep: ts-no-like-types -- 0025C
     return { nodeWasAlive: state.nodeAlive.contains(op.node as string) };
   }
-  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void {
+  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     if (before.nodeWasAlive !== true && state.nodeAlive.contains(op.node as string)) {
       diff.nodesAdded.push(op.node as string);
     }
@@ -74,12 +74,12 @@ class NodeAddStrategy extends OpStrategy {
 
 class NodeRemoveStrategy extends OpStrategy {
   readonly receiptName = 'NodeTombstone';
-  validate(op: OpLike): void { OpValidator.assertIterable(op, 'observedDots'); }
-  mutate(state: WarpState, op: OpLike): void {
+  validate(op: OpLike): void { OpValidator.assertIterable(op, 'observedDots'); } // nosemgrep: ts-no-like-types -- 0025C
+  mutate(state: WarpState, op: OpLike): void { // nosemgrep: ts-no-like-types -- 0025C
     const dots = op.observedDots as Iterable<string>;
     state.nodeAlive.remove(dots instanceof Set ? dots : new Set(dots));
   }
-  outcome(state: WarpState, op: OpLike): OpOutcomeResult {
+  outcome(state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     const outcomeOp: { node?: string; observedDots: Iterable<string> } = {
       observedDots: op.observedDots as Iterable<string>,
     };
@@ -88,25 +88,25 @@ class NodeRemoveStrategy extends OpStrategy {
     }
     return ReceiptBuilder.nodeRemoveOutcome(state.nodeAlive, outcomeOp);
   }
-  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp {
+  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp { // nosemgrep: ts-no-like-types -- 0025C
     const rawDots = op.observedDots as Iterable<string>;
     const nodeDots = rawDots instanceof Set ? rawDots : new Set(rawDots);
     return { aliveBeforeNodes: DiffCalculator.aliveElementsForDots(state.nodeAlive, nodeDots) };
   }
-  accumulate(diff: PatchDiff, state: WarpState, _op: OpLike, before: SnapshotBeforeOp): void {
+  accumulate(diff: PatchDiff, state: WarpState, _op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     DiffCalculator.collectNodeRemovals(diff, state, before.aliveBeforeNodes);
   }
 }
 
 class EdgeAddStrategy extends OpStrategy {
   readonly receiptName = 'EdgeAdd';
-  validate(op: OpLike): void {
+  validate(op: OpLike): void { // nosemgrep: ts-no-like-types -- 0025C
     OpValidator.assertString(op, 'from');
     OpValidator.assertString(op, 'to');
     OpValidator.assertString(op, 'label');
     OpValidator.assertDot(op);
   }
-  mutate(state: WarpState, op: OpLike, eventId: EventId): void {
+  mutate(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
     const edgeKey = encodeEdgeKey(op.from as string, op.to as string, op.label as string);
     state.edgeAlive.add(edgeKey, op.dot as Dot);
     const prev = state.edgeBirthEvent.get(edgeKey);
@@ -114,15 +114,15 @@ class EdgeAddStrategy extends OpStrategy {
       state.edgeBirthEvent.set(edgeKey, eventId);
     }
   }
-  outcome(state: WarpState, op: OpLike): OpOutcomeResult {
+  outcome(state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     const edgeKey = encodeEdgeKey(op.from as string, op.to as string, op.label as string);
     return ReceiptBuilder.edgeAddOutcome(state.edgeAlive, { dot: op.dot as Dot }, edgeKey);
   }
-  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp {
+  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp { // nosemgrep: ts-no-like-types -- 0025C
     const ek = encodeEdgeKey(op.from as string, op.to as string, op.label as string);
     return { edgeWasAlive: state.edgeAlive.contains(ek), edgeKey: ek };
   }
-  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void {
+  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     if (before.edgeWasAlive !== true && before.edgeKey !== undefined && state.edgeAlive.contains(before.edgeKey)) {
       diff.edgesAdded.push({ from: op.from as string, to: op.to as string, label: op.label as string });
     }
@@ -131,12 +131,12 @@ class EdgeAddStrategy extends OpStrategy {
 
 class EdgeRemoveStrategy extends OpStrategy {
   readonly receiptName = 'EdgeTombstone';
-  validate(op: OpLike): void { OpValidator.assertIterable(op, 'observedDots'); }
-  mutate(state: WarpState, op: OpLike): void {
+  validate(op: OpLike): void { OpValidator.assertIterable(op, 'observedDots'); } // nosemgrep: ts-no-like-types -- 0025C
+  mutate(state: WarpState, op: OpLike): void { // nosemgrep: ts-no-like-types -- 0025C
     const dots = op.observedDots as Iterable<string>;
     state.edgeAlive.remove(dots instanceof Set ? dots : new Set(dots));
   }
-  outcome(state: WarpState, op: OpLike): OpOutcomeResult {
+  outcome(state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     const outcomeOp: {
       from?: string;
       to?: string;
@@ -156,36 +156,36 @@ class EdgeRemoveStrategy extends OpStrategy {
     }
     return ReceiptBuilder.edgeRemoveOutcome(state.edgeAlive, outcomeOp);
   }
-  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp {
+  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp { // nosemgrep: ts-no-like-types -- 0025C
     const rawEdgeDots = op.observedDots as Iterable<string>;
     const edgeDots = rawEdgeDots instanceof Set ? rawEdgeDots : new Set(rawEdgeDots);
     return { aliveBeforeEdges: DiffCalculator.aliveElementsForDots(state.edgeAlive, edgeDots) };
   }
-  accumulate(diff: PatchDiff, state: WarpState, _op: OpLike, before: SnapshotBeforeOp): void {
+  accumulate(diff: PatchDiff, state: WarpState, _op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     DiffCalculator.collectEdgeRemovals(diff, state, before.aliveBeforeEdges);
   }
 }
 
 class NodePropSetStrategy extends OpStrategy {
   readonly receiptName = 'NodePropSet';
-  validate(op: OpLike): void {
+  validate(op: OpLike): void { // nosemgrep: ts-no-like-types -- 0025C
     OpValidator.assertString(op, 'node');
     OpValidator.assertString(op, 'key');
   }
-  mutate(state: WarpState, op: OpLike, eventId: EventId): void {
+  mutate(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
     OpStrategy._mutateProp(state, {
       propKey: encodePropKey(op.node as string, op.key as string),
       eventId,
       value: op.value,
     });
   }
-  outcome(state: WarpState, op: OpLike, eventId: EventId): OpOutcomeResult {
+  outcome(state: WarpState, op: OpLike, eventId: EventId): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     return ReceiptBuilder.propSetOutcome(state.prop, { node: op.node as string, key: op.key as string }, eventId);
   }
-  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp {
+  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp { // nosemgrep: ts-no-like-types -- 0025C
     return OpStrategy._snapshotProp(state, encodePropKey(op.node as string, op.key as string));
   }
-  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void {
+  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     OpStrategy._accumulatePropDiff(diff, state, {
       nodeId: op.node as string,
       key: op.key as string,
@@ -196,13 +196,13 @@ class NodePropSetStrategy extends OpStrategy {
 
 class EdgePropSetStrategy extends OpStrategy {
   readonly receiptName = 'EdgePropSet';
-  validate(op: OpLike): void {
+  validate(op: OpLike): void { // nosemgrep: ts-no-like-types -- 0025C
     OpValidator.assertString(op, 'from');
     OpValidator.assertString(op, 'to');
     OpValidator.assertString(op, 'label');
     OpValidator.assertString(op, 'key');
   }
-  mutate(state: WarpState, op: OpLike, eventId: EventId): void {
+  mutate(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
     OpStrategy._mutateProp(
       state,
       {
@@ -212,20 +212,20 @@ class EdgePropSetStrategy extends OpStrategy {
       },
     );
   }
-  outcome(state: WarpState, op: OpLike, eventId: EventId): OpOutcomeResult {
+  outcome(state: WarpState, op: OpLike, eventId: EventId): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     return ReceiptBuilder.edgePropSetOutcome(
       state.prop,
       { from: op.from as string, to: op.to as string, label: op.label as string, key: op.key as string },
       eventId,
     );
   }
-  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp {
+  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp { // nosemgrep: ts-no-like-types -- 0025C
     return OpStrategy._snapshotProp(
       state,
       encodeEdgePropKey(op.from as string, op.to as string, op.label as string, op.key as string),
     );
   }
-  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void {
+  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     OpStrategy._accumulatePropDiff(
       diff,
       state,
@@ -240,11 +240,11 @@ class EdgePropSetStrategy extends OpStrategy {
 
 class PropSetStrategy extends OpStrategy {
   readonly receiptName = 'PropSet';
-  validate(op: OpLike): void {
+  validate(op: OpLike): void { // nosemgrep: ts-no-like-types -- 0025C
     OpValidator.assertString(op, 'node');
     OpValidator.assertString(op, 'key');
   }
-  mutate(state: WarpState, op: OpLike, eventId: EventId): void {
+  mutate(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
     // Legacy raw PropSet — must NOT carry edge-property encoding at this point.
     if (typeof op.node === 'string' && op.node[0] === EDGE_PROP_PREFIX) {
       throw new PatchError(
@@ -259,13 +259,13 @@ class PropSetStrategy extends OpStrategy {
       value: op.value,
     });
   }
-  outcome(state: WarpState, op: OpLike, eventId: EventId): OpOutcomeResult {
+  outcome(state: WarpState, op: OpLike, eventId: EventId): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     return ReceiptBuilder.propSetOutcome(state.prop, { node: op.node as string, key: op.key as string }, eventId);
   }
-  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp {
+  snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp { // nosemgrep: ts-no-like-types -- 0025C
     return OpStrategy._snapshotProp(state, encodePropKey(op.node as string, op.key as string));
   }
-  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void {
+  accumulate(diff: PatchDiff, state: WarpState, op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     OpStrategy._accumulatePropDiff(diff, state, {
       nodeId: op.node as string,
       key: op.key as string,
@@ -276,15 +276,15 @@ class PropSetStrategy extends OpStrategy {
 
 class BlobValueStrategy extends OpStrategy {
   readonly receiptName = 'BlobValue';
-  validate(_op: OpLike): void { /* forward-compat: no structural check */ }
-  mutate(_state: WarpState, _op: OpLike): void { /* BlobValue has no state effect */ }
-  outcome(_state: WarpState, op: OpLike): OpOutcomeResult {
+  validate(_op: OpLike): void { /* forward-compat: no structural check */ } // nosemgrep: ts-no-like-types -- 0025C
+  mutate(_state: WarpState, _op: OpLike): void { /* BlobValue has no state effect */ } // nosemgrep: ts-no-like-types -- 0025C
+  outcome(_state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     const blobOid = op.oid;
     const blobTarget = (typeof blobOid === 'string' && blobOid.length > 0) ? blobOid : '*';
     return new OpApplied(blobTarget);
   }
-  snapshot(_state: WarpState, _op: OpLike): SnapshotBeforeOp { return {}; }
-  accumulate(_diff: PatchDiff, _state: WarpState, _op: OpLike, _before: SnapshotBeforeOp): void { /* no-op */ }
+  snapshot(_state: WarpState, _op: OpLike): SnapshotBeforeOp { return {}; } // nosemgrep: ts-no-like-types -- 0025C
+  accumulate(_diff: PatchDiff, _state: WarpState, _op: OpLike, _before: SnapshotBeforeOp): void { /* no-op */ } // nosemgrep: ts-no-like-types -- 0025C
 }
 
 /**

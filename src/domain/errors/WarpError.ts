@@ -8,12 +8,12 @@
 
 export interface WarpErrorOptions {
   readonly code?: string;
-  readonly context?: Record<string, unknown>;
+  readonly context?: Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 export default class WarpError extends Error {
   readonly code: string;
-  readonly context: Record<string, unknown>;
+  readonly context: Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 
   constructor(message: string, defaultCode: string, options: WarpErrorOptions | null = {}) {
     super(message);

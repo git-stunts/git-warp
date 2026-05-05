@@ -56,7 +56,7 @@ export default abstract class ComparisonCapability {
     _leftEntries: ComparisonPatchEntry[],
     _rightEntries: ComparisonPatchEntry[],
     _targetId?: string | null,
-  ): Record<string, unknown>;
+  ): Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   abstract compareStrand(
     _strandId: string,
     _options?: CompareStrandOptions,

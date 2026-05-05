@@ -145,7 +145,7 @@ export function mergeSortedUniqueStrings(existing: string[], incoming: string[])
  * tree without holding all content OIDs in one monolithic Set at once.
  */
 export function collectContentAnchorEntries(
-  propMap: Map<string, { eventId: unknown; value: unknown }>,
+  propMap: Map<string, { eventId: unknown; value: unknown }>, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 ): string[] {
   let sortedOids: string[] = [];
   let batch: Set<string> = new Set();

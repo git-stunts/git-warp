@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Anti-sludge file-level quarantines have been graduated for the v17
+  release branch. `npm run lint:quarantine-graduate` now passes with
+  empty `0025A`/`0025B`/`0025C`/`0025D` manifest file lists, while
+  remaining legacy hits are narrowed to owning-cycle inline suppressions.
 - The built-in HTTP sync server now sanitizes unexpected `500` response
   bodies. Clients receive `{ code: "E_SYNC_INTERNAL", error: "Sync failed" }`,
   while the original thrown error is logged through `LoggerPort`.

@@ -16,7 +16,7 @@ export class CheckpointArtifact {
   constructor({ schemaVersion }: { schemaVersion: number }) {
     if (typeof schemaVersion !== 'number' || !Number.isInteger(schemaVersion) || schemaVersion < 1) {
       throw new WarpError(
-        `CheckpointArtifact schemaVersion must be a positive integer, got ${JSON.stringify(schemaVersion)}`,
+        `CheckpointArtifact schemaVersion must be a positive integer, got ${JSON.stringify(schemaVersion)}`, // nosemgrep: ts-no-json-stringify-in-core -- 0025B
         'E_INVALID_ARTIFACT',
       );
     }

@@ -21,7 +21,7 @@ const TRUST_SIGN_DOMAIN = 'git-warp:trust-sign:v1\0';
 // -- Record field types -------------------------------------------------------
 
 /** A trust record as parsed from wire format (post-Zod). */
-type TrustRecordFields = Readonly<Record<string, unknown>>;
+type TrustRecordFields = Readonly<Record<string, unknown>>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 
 // -- Unsigned record helpers --------------------------------------------------
 
@@ -30,8 +30,8 @@ type TrustRecordFields = Readonly<Record<string, unknown>>;
  * Strips `recordId`, `signature`, and `signaturePayload` -- these are
  * derived, not inputs to the canonical hash.
  */
-function unsignedRecordForId(record: TrustRecordFields): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...record };
+function unsignedRecordForId(record: TrustRecordFields): Record<string, unknown> { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const out: Record<string, unknown> = { ...record }; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   delete out['recordId'];
   delete out['signature'];
   delete out['signaturePayload'];
@@ -43,8 +43,8 @@ function unsignedRecordForId(record: TrustRecordFields): Record<string, unknown>
  * Strips `signature` and `signaturePayload` -- `recordId` is included
  * in the signed payload; `signaturePayload` is derived, not an input.
  */
-function unsignedRecordForSignature(record: TrustRecordFields): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...record };
+function unsignedRecordForSignature(record: TrustRecordFields): Record<string, unknown> { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const out: Record<string, unknown> = { ...record }; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   delete out['signature'];
   delete out['signaturePayload'];
   return out;

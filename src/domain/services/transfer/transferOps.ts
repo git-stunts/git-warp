@@ -22,7 +22,7 @@ import {
 export function nodePropertyOp(
   nodeId: string,
   key: string,
-  value: unknown,
+  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 ): VisibleStateTransferOperationV1 {
   return { op: 'set_node_property', nodeId, key, value } as VisibleStateTransferOperationV1;
 }
@@ -33,7 +33,7 @@ export function nodePropertyOp(
 export function edgePropertyOp(
   edge: EdgeRef,
   key: string,
-  value: unknown,
+  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 ): VisibleStateTransferOperationV1 {
   return {
     op: 'set_edge_property',
@@ -48,16 +48,16 @@ export function edgePropertyOp(
 export type PropertyKeyInfo = {
   sourceHas: boolean;
   targetHas: boolean;
-  sourceValue: unknown;
-  targetValue: unknown;
+  sourceValue: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  targetValue: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 };
 
 /**
  * Determine whether a property key exists and has changed between source and target.
  */
 export function inspectPropertyKey(
-  sourceProps: Record<string, unknown>,
-  targetProps: Record<string, unknown>,
+  sourceProps: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  targetProps: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   key: string,
 ): PropertyKeyInfo {
   const sourceHas = Object.prototype.hasOwnProperty.call(sourceProps, key);
@@ -82,7 +82,7 @@ export function sourcePropertyChanged(info: PropertyKeyInfo): boolean {
  */
 export function buildPropertyDiffOp(
   info: PropertyKeyInfo,
-  buildOp: (key: string, value: unknown) => VisibleStateTransferOperationV1,
+  buildOp: (key: string, value: unknown) => VisibleStateTransferOperationV1, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   key: string,
 ): VisibleStateTransferOperationV1 | null {
   if (!info.sourceHas && info.targetHas) {
@@ -98,9 +98,9 @@ export function buildPropertyDiffOp(
  * Diff two property bags and produce transfer ops for each changed key.
  */
 export function collectPropertyOps(
-  sourceProps: Record<string, unknown>,
-  targetProps: Record<string, unknown>,
-  buildOp: (key: string, value: unknown) => VisibleStateTransferOperationV1,
+  sourceProps: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  targetProps: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  buildOp: (key: string, value: unknown) => VisibleStateTransferOperationV1, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 ): VisibleStateTransferOperationV1[] {
   const ops: VisibleStateTransferOperationV1[] = [];
 

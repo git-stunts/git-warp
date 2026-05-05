@@ -23,9 +23,9 @@ export default class PropSet extends Op<'PropSet'> {
   readonly receiptName = 'PropSet' as const;
   readonly node: string;
   readonly key: string;
-  readonly value: unknown;
+  readonly value: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 
-  constructor(node: string, key: string, value: unknown) {
+  constructor(node: string, key: string, value: unknown) { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     super('PropSet', OP_SCOPE_RAW);
     assertNonEmptyString(node, 'PropSet', 'node');
     assertNonEmptyString(key, 'PropSet', 'key');

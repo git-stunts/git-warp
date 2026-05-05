@@ -17,8 +17,8 @@ export type EdgeDiffEntry = {
 export type PropDiffEntry = {
   nodeId: string;
   key: string;
-  value: unknown;
-  prevValue: unknown;
+  value: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  prevValue: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 };
 
 /**

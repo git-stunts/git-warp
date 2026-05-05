@@ -51,7 +51,7 @@ export default class SyncTrustGate {
     this._logger = logger;
   }
 
-  async evaluate(writerIds: string[], context: Record<string, unknown> = {}): Promise<TrustGateResult> {
+  async evaluate(writerIds: string[], context: Record<string, unknown> = {}): Promise<TrustGateResult> { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     const earlyResult = this._checkEarlyExit(writerIds);
     if (earlyResult) { return earlyResult; }
 
@@ -74,7 +74,7 @@ export default class SyncTrustGate {
     return null;
   }
 
-  private _decide(untrusted: string[], writerIds: string[], context: Record<string, unknown>): TrustGateResult {
+  private _decide(untrusted: string[], writerIds: string[], context: Record<string, unknown>): TrustGateResult { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     this._logger.info('Trust gate decision', {
       code: 'SYNC_TRUST_GATE',
       mode: this._mode,
@@ -103,7 +103,7 @@ export default class SyncTrustGate {
     return { allowed: true, untrustedWriters: untrusted, verdict: 'warn_allowed' };
   }
 
-  private _handleError(err: unknown, writerIds: string[], context: Record<string, unknown>): TrustGateResult {
+  private _handleError(err: unknown, writerIds: string[], context: Record<string, unknown>): TrustGateResult { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     this._logger.error('Trust gate evaluation failed', {
       code: 'SYNC_TRUST_ERROR',
       error: err instanceof Error ? err.message : String(err),

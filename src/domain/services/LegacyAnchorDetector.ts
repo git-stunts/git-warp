@@ -5,7 +5,7 @@
  * ({"_type":"anchor"}) alongside v4 trailer-based anchors for backward
  * compatibility in E-plane traversals.
  *
- * Both functions accept `unknown` because they are parser boundaries: they
+ * Both functions accept `unknown` because they are parser boundaries: they // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
  * consume raw, untrusted input (commit messages from git) and narrow it
  * through runtime type checks to a concrete `boolean` result.
  *
@@ -22,19 +22,19 @@
  * isLegacyAnchor('{"_type":"node"}');   // false
  * isLegacyAnchor('plain text');         // false
  */
-function hasAnchorType(parsed: unknown): boolean {
+function hasAnchorType(parsed: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (parsed === null || typeof parsed !== 'object') {
     return false;
   }
   return '_type' in parsed && parsed._type === 'anchor';
 }
 
-export function isLegacyAnchor(message: unknown): boolean {
+export function isLegacyAnchor(message: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof message !== 'string') {
     return false;
   }
   try {
-    return hasAnchorType(JSON.parse(message.trim()));
+    return hasAnchorType(JSON.parse(message.trim())); // nosemgrep: ts-no-json-parse-in-core -- 0025B
   } catch {
     return false;
   }
@@ -52,7 +52,7 @@ export function isLegacyAnchor(message: unknown): boolean {
  * isAnyAnchor('{"_type":"anchor"}');                             // true
  * isAnyAnchor('Some node content');                              // false
  */
-export function isAnyAnchor(message: unknown): boolean {
+export function isAnyAnchor(message: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof message !== 'string') {
     return false;
   }

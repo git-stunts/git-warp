@@ -34,7 +34,7 @@ function uniqueSorted(values: string[]): string[] {
 /**
  * Validates that a single item is a non-empty string, throwing if not.
  */
-function validatePrefixItem(item: unknown, field: string): string {
+function validatePrefixItem(item: unknown, field: string): string { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof item !== 'string' || item.trim().length === 0) {
     throw new QueryError(`${field} must contain only non-empty strings`, {
       code: 'invalid_coordinate',
@@ -47,7 +47,7 @@ function validatePrefixItem(item: unknown, field: string): string {
 /**
  * Normalizes a value expected to be a list of non-empty string prefixes.
  */
-function normalizePrefixList(value: unknown, field: string): string[] {
+function normalizePrefixList(value: unknown, field: string): string[] { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (value === undefined || value === null) {
     return [];
   }
@@ -68,20 +68,20 @@ function normalizePrefixList(value: unknown, field: string): string[] {
 /**
  * Throws if the value is not a plain object (excludes arrays and primitives).
  */
-function assertPlainObject(value: unknown, field: string): Record<string, unknown> {
+function assertPlainObject(value: unknown, field: string): Record<string, unknown> { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new QueryError(`${field} must be an object with include/exclude prefix arrays`, {
       code: 'invalid_coordinate',
       context: { field, valueType: typeof value },
     });
   }
-  return value as Record<string, unknown>;
+  return value as Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 /**
  * Throws if the raw object contains keys other than the allowed set.
  */
-function rejectUnknownKeys(raw: Record<string, unknown>, allowed: string[], field: string): void {
+function rejectUnknownKeys(raw: Record<string, unknown>, allowed: string[], field: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const allowedSet = new Set(allowed);
   const unknownKeys = Object.keys(raw).filter((key) => !allowedSet.has(key));
   if (unknownKeys.length > 0) {
@@ -95,7 +95,7 @@ function rejectUnknownKeys(raw: Record<string, unknown>, allowed: string[], fiel
 /**
  * Normalizes a prefix filter object with optional include/exclude arrays.
  */
-function normalizePrefixFilter(value: unknown, field: string): VisibleStateScopePrefixFilterV1 | null {
+function normalizePrefixFilter(value: unknown, field: string): VisibleStateScopePrefixFilterV1 | null { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (value === undefined || value === null) {
     return null;
   }
@@ -118,7 +118,7 @@ function normalizePrefixFilter(value: unknown, field: string): VisibleStateScope
  *
  * Edges, edge properties, and attachment metadata follow node visibility.
  */
-export function normalizeVisibleStateScope(scope: unknown, field = 'scope'): VisibleStateScope | null {
+export function normalizeVisibleStateScope(scope: unknown, field = 'scope'): VisibleStateScope | null { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (scope === undefined || scope === null) {
     return null;
   }
@@ -290,14 +290,14 @@ export function scopeMaterializedState(state: WarpState, scope: VisibleStateScop
 /**
  * Tests whether a node-targeted op affects the given scope.
  */
-function nodeOpAffectsScope(op: Record<string, unknown>, scope: VisibleStateScope): boolean {
+function nodeOpAffectsScope(op: Record<string, unknown>, scope: VisibleStateScope): boolean { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return typeof op['node'] === 'string' && nodeIdInVisibleStateScope(op['node'], scope);
 }
 
 /**
  * Tests whether an edge-targeted op affects the given scope.
  */
-function edgeOpAffectsScope(op: Record<string, unknown>, scope: VisibleStateScope): boolean {
+function edgeOpAffectsScope(op: Record<string, unknown>, scope: VisibleStateScope): boolean { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return typeof op['from'] === 'string'
     && typeof op['to'] === 'string'
     && edgeInVisibleStateScope(
@@ -316,7 +316,7 @@ const EDGE_SCOPED_OP_TYPES = new Set(['EdgeAdd', 'EdgeRemove', 'EdgePropSet']);
 /**
  * Tests whether a normalized op with a known type affects the visible scope.
  */
-function normalizedOpAffectsScope(normalized: Record<string, unknown>, scope: VisibleStateScope): boolean {
+function normalizedOpAffectsScope(normalized: Record<string, unknown>, scope: VisibleStateScope): boolean { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const { type } = normalized;
   if (NODE_SCOPED_OP_TYPES.has(type as string)) {
     return nodeOpAffectsScope(normalized, scope);
@@ -330,14 +330,14 @@ function normalizedOpAffectsScope(normalized: Record<string, unknown>, scope: Vi
 /**
  * Returns true if the op value is not a usable object for scope analysis.
  */
-function isUnscopableOp(op: unknown): boolean {
+function isUnscopableOp(op: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return op === null || op === undefined || typeof op !== 'object';
 }
 
 /**
  * Tests whether a single op affects any element within the visible scope.
  */
-function opAffectsScope(op: unknown, scope: VisibleStateScope | null | undefined): boolean {
+function opAffectsScope(op: unknown, scope: VisibleStateScope | null | undefined): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (scope === null || scope === undefined) {
     return true;
   }
@@ -345,7 +345,7 @@ function opAffectsScope(op: unknown, scope: VisibleStateScope | null | undefined
     return true;
   }
 
-  const normalized = normalizeRawOp(op as RawOpV2 | { type: string }) as Record<string, unknown>;
+  const normalized = normalizeRawOp(op as RawOpV2 | { type: string }) as Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return normalizedOpAffectsScope(normalized, scope);
 }
 
@@ -356,7 +356,7 @@ function patchAffectsScope(patch: Patch, scope: VisibleStateScope | null | undef
   if (scope === null || scope === undefined) {
     return true;
   }
-  const ops = Array.isArray((patch as unknown as { ops?: unknown[] })?.ops) ? (patch as unknown as { ops: unknown[] }).ops : [];
+  const ops = Array.isArray((patch as unknown as { ops?: unknown[] })?.ops) ? (patch as unknown as { ops: unknown[] }).ops : []; // nosemgrep: ts-no-double-cast -- 0025A; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return ops.some((op) => opAffectsScope(op, scope));
 }
 

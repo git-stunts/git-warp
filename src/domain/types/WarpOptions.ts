@@ -33,6 +33,6 @@ export type MaterializeOptions = {
 };
 
 export type PatchCommitEvent = {
-  patch?: unknown;
+  patch?: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   sha: string;
 };

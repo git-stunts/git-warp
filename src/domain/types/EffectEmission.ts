@@ -48,7 +48,7 @@ export class EffectCoordinate {
 export class EffectEmission {
   readonly id: string;
   readonly kind: string;
-  readonly payload: unknown;
+  readonly payload: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   readonly timestamp: number;
   readonly writer: string | null;
   readonly coordinate: Readonly<EffectCoordinate>;
@@ -59,7 +59,7 @@ export class EffectEmission {
   constructor({ id, kind, payload, timestamp, writer, coordinate }: {
     id: string;
     kind: string;
-    payload: unknown;
+    payload: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     timestamp: number;
     writer: string | null;
     coordinate: { frontier: Record<string, string> | null; ceiling: number | null };
@@ -86,7 +86,7 @@ export class EffectEmission {
 /**
  * Asserts that a value is a non-empty string, throwing if it is not.
  */
-function requireNonEmptyString(value: unknown, name: string): void {
+function requireNonEmptyString(value: unknown, name: string): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof value !== 'string' || value.length === 0) {
     throw new WarpError(`${name} must be a non-empty string`, 'E_VALIDATION');
   }
@@ -95,7 +95,7 @@ function requireNonEmptyString(value: unknown, name: string): void {
 /**
  * Asserts that a value is a non-negative finite number suitable for a wall-clock timestamp.
  */
-function validateTimestamp(value: unknown): void {
+function validateTimestamp(value: unknown): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
     throw new WarpError('timestamp must be a non-negative finite number', 'E_VALIDATION');
   }
@@ -104,7 +104,7 @@ function validateTimestamp(value: unknown): void {
 /**
  * Asserts that a value is a non-null object suitable for use as an effect coordinate.
  */
-function validateCoordinate(value: unknown): void {
+function validateCoordinate(value: unknown): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (value === null || value === undefined || typeof value !== 'object') {
     throw new WarpError('coordinate must be an object', 'E_VALIDATION');
   }
@@ -120,7 +120,7 @@ function validateCoordinate(value: unknown): void {
 export function createEffectEmission({ id, kind, payload, timestamp, writer, coordinate }: {
   id: string;
   kind: string;
-  payload: unknown;
+  payload: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   timestamp: number;
   writer: string | null;
   coordinate: { frontier: Record<string, string> | null; ceiling: number | null };
@@ -135,10 +135,10 @@ export function createEffectEmission({ id, kind, payload, timestamp, writer, coo
 /**
  * JSON.stringify replacer that sorts object keys alphabetically for deterministic output.
  */
-function sortedReplacer(_key: string, value: unknown): unknown {
+function sortedReplacer(_key: string, value: unknown): unknown { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-    const sorted: { [x: string]: unknown } = {};
-    const obj = value as { [x: string]: unknown };
+    const sorted: { [x: string]: unknown } = {}; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+    const obj = value as { [x: string]: unknown }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     for (const k of Object.keys(obj).sort()) {
       sorted[k] = obj[k];
     }
@@ -151,5 +151,5 @@ function sortedReplacer(_key: string, value: unknown): unknown {
  * Produces a deterministic JSON string for an EffectEmission.
  */
 export function canonicalEmissionJson(emission: EffectEmission): string {
-  return JSON.stringify(emission, sortedReplacer);
+  return JSON.stringify(emission, sortedReplacer); // nosemgrep: ts-no-json-stringify-in-core -- 0025B
 }

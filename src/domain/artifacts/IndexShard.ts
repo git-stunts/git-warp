@@ -27,7 +27,7 @@ export class IndexShard {
 function _validateShardKey(shardKey: string): void {
   if (typeof shardKey !== 'string' || shardKey.length === 0) {
     throw new WarpError(
-      `IndexShard shardKey must be a non-empty string, got ${JSON.stringify(shardKey)}`,
+      `IndexShard shardKey must be a non-empty string, got ${JSON.stringify(shardKey)}`, // nosemgrep: ts-no-json-stringify-in-core -- 0025B
       'E_INVALID_SHARD',
     );
   }
@@ -36,7 +36,7 @@ function _validateShardKey(shardKey: string): void {
 function _validateSchemaVersion(schemaVersion: number): void {
   if (typeof schemaVersion !== 'number' || !Number.isInteger(schemaVersion) || schemaVersion < 1) {
     throw new WarpError(
-      `IndexShard schemaVersion must be a positive integer, got ${JSON.stringify(schemaVersion)}`,
+      `IndexShard schemaVersion must be a positive integer, got ${JSON.stringify(schemaVersion)}`, // nosemgrep: ts-no-json-stringify-in-core -- 0025B
       'E_INVALID_SHARD',
     );
   }

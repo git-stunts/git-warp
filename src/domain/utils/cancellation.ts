@@ -10,7 +10,7 @@ import OperationAbortedError from '../errors/OperationAbortedError.ts';
  * Resolves an optional operation name to a non-empty string.
  */
 function resolveOperationName(operation?: string): string {
-  return typeof operation === 'string' && operation.length > 0 ? operation : 'unknown';
+  return typeof operation === 'string' && operation.length > 0 ? operation : 'unknown'; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 /**

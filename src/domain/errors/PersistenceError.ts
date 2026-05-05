@@ -2,7 +2,7 @@ import WarpError from './WarpError.ts';
 
 interface PersistenceErrorOptions {
   readonly cause?: Error;
-  readonly context?: Record<string, unknown>;
+  readonly context?: Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 /**

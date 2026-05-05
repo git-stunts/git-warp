@@ -33,7 +33,7 @@ export function compareStrings(a: string, b: string): number {
 /**
  * Produce a canonical string key for an arbitrary property value.
  */
-export function valueKey(value: unknown): string {
+export function valueKey(value: unknown): string { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return canonicalStringify(value);
 }
 
@@ -68,8 +68,8 @@ export function collectEdgeRefs(reader: VisibleStateReader): Map<string, EdgeRef
  * Merge and deduplicate property keys from two property bags, excluding attachment keys.
  */
 export function propertyKeys(
-  sourceProps: Record<string, unknown>,
-  targetProps: Record<string, unknown>,
+  sourceProps: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  targetProps: Record<string, unknown>, // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 ): string[] {
   return [...new Set([...Object.keys(sourceProps), ...Object.keys(targetProps)])]
     .filter((key) => !ATTACHMENT_PROPERTY_KEYS.has(key))

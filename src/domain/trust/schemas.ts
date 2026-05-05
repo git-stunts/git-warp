@@ -80,8 +80,8 @@ const TrustRecordSchema = z.object({
   issuerKeyId: KeyIdSchema,
   issuedAt: z.string().datetime({ offset: false }),
   prev: RecordIdSchema.nullable(),
-  subject: z.record(z.unknown()),
-  meta: z.record(z.unknown()).optional().default({}),
+  subject: z.record(z.unknown()), // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  meta: z.record(z.unknown()).optional().default({}), // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   signature: TrustSignatureSchema,
 }).superRefine((record, ctx) => {
   const schema = SUBJECT_SCHEMAS[record.recordType];
@@ -92,7 +92,7 @@ const TrustRecordSchema = z.object({
       message: `Invalid ${record.recordType} subject: ${result.error.message}`,
     });
   } else {
-    record.subject = result.data as Record<string, unknown>;
+    record.subject = result.data as Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   }
 });
 

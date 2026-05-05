@@ -74,7 +74,7 @@ export default class InMemoryBlobStorageAdapter extends BlobStoragePort {
   retrieve(oid: string): Promise<Uint8Array> {
     const bytes = this._store.get(oid);
     if (!bytes) {
-      return Promise.reject(new StorageError(`InMemoryBlobStorageAdapter: unknown OID '${oid}'`, { operation: 'retrieve', oid }));
+      return Promise.reject(new StorageError(`InMemoryBlobStorageAdapter: unknown OID '${oid}'`, { operation: 'retrieve', oid })); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     }
     return Promise.resolve(bytes);
   }
@@ -89,7 +89,7 @@ export default class InMemoryBlobStorageAdapter extends BlobStoragePort {
   retrieveStream(oid: string): AsyncIterable<Uint8Array> {
     const bytes = this._store.get(oid);
     if (!bytes) {
-      throw new StorageError(`InMemoryBlobStorageAdapter: unknown OID '${oid}'`, { operation: 'retrieveStream', oid });
+      throw new StorageError(`InMemoryBlobStorageAdapter: unknown OID '${oid}'`, { operation: 'retrieveStream', oid }); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     }
     const chunk = bytes;
     return {

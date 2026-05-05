@@ -83,7 +83,7 @@ export default class IndexRebuildService {
     storage: IndexStoragePort & BlobPort & TreePort;
     logger?: LoggerPort;
     codec?: CodecPort;
-    crypto?: unknown;
+    crypto?: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   }) {
     const { graphService, storage, logger = nullLogger, codec, crypto } = options ?? {};
     if (graphService === undefined || graphService === null) {

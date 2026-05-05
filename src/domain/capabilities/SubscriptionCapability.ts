@@ -9,14 +9,14 @@ import type { StateDiffResult } from '../services/state/StateDiff.ts';
 /** Options for subscribe(). */
 export type SubscribeOptions = {
   onChange: (_diff: StateDiffResult) => void;
-  onError?: (_error: unknown) => void;
+  onError?: (_error: unknown) => void; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   replay?: boolean;
 };
 
 /** Options for watch(). */
 export type WatchOptions = {
   onChange: (_diff: StateDiffResult) => void;
-  onError?: (_error: unknown) => void;
+  onError?: (_error: unknown) => void; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   poll?: number;
 };
 

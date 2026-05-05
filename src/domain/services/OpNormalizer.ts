@@ -28,7 +28,7 @@ import NodePropSet from '../types/ops/NodePropSet.ts';
 import NodeRemove from '../types/ops/NodeRemove.ts';
 import PropSet from '../types/ops/PropSet.ts';
 import type { CanonicalOpV2, OpV2 } from '../types/ops/unions.ts';
-import type { OpLike } from './OpLike.ts';
+import type { OpLike } from './OpLike.ts'; // nosemgrep: ts-no-like-types -- 0025C
 import { isLegacyEdgePropNode, decodeLegacyEdgePropNode, encodeLegacyEdgePropNode } from './KeyCodec.ts';
 
 const RUNTIME_OP_CLASSES = [
@@ -67,7 +67,7 @@ function expectObservedDots(value: Iterable<string> | undefined, opType: string)
   return Array.from(value);
 }
 
-function expectDotObject(dot: OpLike['dot'], opType: string): object {
+function expectDotObject(dot: OpLike['dot'], opType: string): object { // nosemgrep: ts-no-like-types -- 0025C
   if (dot === null || dot === undefined || typeof dot !== 'object') {
     throw new PatchError(
       `${opType} op requires 'dot' to be a Dot-compatible object, got ${typeof dot}`,
@@ -111,7 +111,7 @@ function expectDotCounter(dot: object, opType: string): number {
   return counter;
 }
 
-function hydrateDot(dot: OpLike['dot'], opType: string): Dot {
+function hydrateDot(dot: OpLike['dot'], opType: string): Dot { // nosemgrep: ts-no-like-types -- 0025C
   if (dot instanceof Dot) {
     return dot;
   }
@@ -119,46 +119,46 @@ function hydrateDot(dot: OpLike['dot'], opType: string): Dot {
   return new Dot(expectDotWriterId(dotObject, opType), expectDotCounter(dotObject, opType));
 }
 
-function hasNodeIdentity(rawOp: OpLike): rawOp is OpLike & { readonly node: string } {
+function hasNodeIdentity(rawOp: OpLike): rawOp is OpLike & { readonly node: string } { // nosemgrep: ts-no-like-types -- 0025C
   return typeof rawOp.node === 'string';
 }
 
 function hasEdgeIdentity(
-  rawOp: OpLike,
-): rawOp is OpLike & { readonly from: string; readonly to: string; readonly label: string } {
+  rawOp: OpLike, // nosemgrep: ts-no-like-types -- 0025C
+): rawOp is OpLike & { readonly from: string; readonly to: string; readonly label: string } { // nosemgrep: ts-no-like-types -- 0025C
   return typeof rawOp.from === 'string' && typeof rawOp.to === 'string' && typeof rawOp.label === 'string';
 }
 
 function hasNodePropIdentity(
-  rawOp: OpLike,
-): rawOp is OpLike & { readonly node: string; readonly key: string } {
+  rawOp: OpLike, // nosemgrep: ts-no-like-types -- 0025C
+): rawOp is OpLike & { readonly node: string; readonly key: string } { // nosemgrep: ts-no-like-types -- 0025C
   return typeof rawOp.node === 'string' && typeof rawOp.key === 'string';
 }
 
 function hasEdgePropIdentity(
-  rawOp: OpLike,
-): rawOp is OpLike & { readonly from: string; readonly to: string; readonly label: string; readonly key: string } {
+  rawOp: OpLike, // nosemgrep: ts-no-like-types -- 0025C
+): rawOp is OpLike & { readonly from: string; readonly to: string; readonly label: string; readonly key: string } { // nosemgrep: ts-no-like-types -- 0025C
   return hasEdgeIdentity(rawOp) && typeof rawOp.key === 'string';
 }
 
 function hasBlobIdentity(
-  rawOp: OpLike,
-): rawOp is OpLike & { readonly node: string; readonly oid: string } {
+  rawOp: OpLike, // nosemgrep: ts-no-like-types -- 0025C
+): rawOp is OpLike & { readonly node: string; readonly oid: string } { // nosemgrep: ts-no-like-types -- 0025C
   return typeof rawOp.node === 'string' && typeof rawOp.oid === 'string';
 }
 
-function hydrateNodeAdd(rawOp: OpLike): OpLike {
+function hydrateNodeAdd(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types -- 0025C
   return new NodeAdd(expectString(rawOp.node, rawOp.type, 'node'), hydrateDot(rawOp.dot, rawOp.type));
 }
 
-function hydrateNodeRemove(rawOp: OpLike): OpLike {
+function hydrateNodeRemove(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types -- 0025C
   if (!hasNodeIdentity(rawOp)) {
     return rawOp;
   }
   return new NodeRemove(rawOp.node, expectObservedDots(rawOp.observedDots, rawOp.type));
 }
 
-function hydrateEdgeAdd(rawOp: OpLike): OpLike {
+function hydrateEdgeAdd(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types -- 0025C
   return new EdgeAdd({
     from: expectString(rawOp.from, rawOp.type, 'from'),
     to: expectString(rawOp.to, rawOp.type, 'to'),
@@ -167,7 +167,7 @@ function hydrateEdgeAdd(rawOp: OpLike): OpLike {
   });
 }
 
-function hydrateEdgeRemove(rawOp: OpLike): OpLike {
+function hydrateEdgeRemove(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types -- 0025C
   if (!hasEdgeIdentity(rawOp)) {
     return rawOp;
   }
@@ -179,7 +179,7 @@ function hydrateEdgeRemove(rawOp: OpLike): OpLike {
   });
 }
 
-function hydratePropSet(rawOp: OpLike): OpLike {
+function hydratePropSet(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types -- 0025C
   return new PropSet(
     expectString(rawOp.node, rawOp.type, 'node'),
     expectString(rawOp.key, rawOp.type, 'key'),
@@ -187,14 +187,14 @@ function hydratePropSet(rawOp: OpLike): OpLike {
   );
 }
 
-function hydrateNodePropSet(rawOp: OpLike): OpLike {
+function hydrateNodePropSet(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types -- 0025C
   if (!hasNodePropIdentity(rawOp)) {
     return rawOp;
   }
   return new NodePropSet(rawOp.node, rawOp.key, rawOp.value);
 }
 
-function hydrateEdgePropSet(rawOp: OpLike): OpLike {
+function hydrateEdgePropSet(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types -- 0025C
   if (!hasEdgePropIdentity(rawOp)) {
     return rawOp;
   }
@@ -207,14 +207,14 @@ function hydrateEdgePropSet(rawOp: OpLike): OpLike {
   });
 }
 
-function hydrateBlobValue(rawOp: OpLike): OpLike {
+function hydrateBlobValue(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types -- 0025C
   if (!hasBlobIdentity(rawOp)) {
     return rawOp;
   }
   return new BlobValue(rawOp.node, rawOp.oid);
 }
 
-const HYDRATORS: ReadonlyMap<string, (rawOp: OpLike) => OpLike> = Object.freeze(new Map([
+const HYDRATORS: ReadonlyMap<string, (rawOp: OpLike) => OpLike> = Object.freeze(new Map([ // nosemgrep: ts-no-like-types -- 0025C
   ['NodeAdd', hydrateNodeAdd],
   ['NodeRemove', hydrateNodeRemove],
   ['EdgeAdd', hydrateEdgeAdd],
@@ -225,11 +225,11 @@ const HYDRATORS: ReadonlyMap<string, (rawOp: OpLike) => OpLike> = Object.freeze(
   ['BlobValue', hydrateBlobValue],
 ]));
 
-function isRuntimeOp(rawOp: OpLike): rawOp is OpV2 {
+function isRuntimeOp(rawOp: OpLike): rawOp is OpV2 { // nosemgrep: ts-no-like-types -- 0025C
   return RUNTIME_OP_CLASSES.some((OpClass) => rawOp instanceof OpClass);
 }
 
-function hydrateRawOp(rawOp: OpLike): OpLike {
+function hydrateRawOp(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types -- 0025C
   if (isRuntimeOp(rawOp)) {
     return rawOp;
   }
@@ -242,7 +242,7 @@ function hydrateRawOp(rawOp: OpLike): OpLike {
  * when the op type is known. Unknown types pass through unchanged so
  * forward-compatible callers can decide how to handle them.
  */
-export function hydrateDecodedOp(rawOp: OpLike): OpLike {
+export function hydrateDecodedOp(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types -- 0025C
   return hydrateRawOp(rawOp);
 }
 
@@ -250,12 +250,12 @@ export function hydrateDecodedOp(rawOp: OpLike): OpLike {
  * Hydrates a known decoded op into a runtime-backed current op class.
  * Unknown types are rejected at this stricter boundary.
  */
-export function hydrateKnownDecodedOp(rawOp: OpLike): OpV2 {
+export function hydrateKnownDecodedOp(rawOp: OpLike): OpV2 { // nosemgrep: ts-no-like-types -- 0025C
   const hydratedOp = hydrateDecodedOp(rawOp);
   if (isRuntimeOp(hydratedOp)) {
     return hydratedOp;
   }
-  throw new PatchError(`Cannot hydrate unknown decoded op type '${rawOp.type}'`, {
+  throw new PatchError(`Cannot hydrate unknown decoded op type '${rawOp.type}'`, { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     context: { opType: rawOp.type },
   });
 }
@@ -281,7 +281,7 @@ function normalizePropSet(rawPropSet: PropSet): CanonicalOpV2 {
  * decoded from CBOR. This function is the boundary that turns decoded
  * shapes back into real op/domain objects before reducer dispatch.
  */
-export function normalizeRawOp(rawOp: OpLike): OpLike {
+export function normalizeRawOp(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types -- 0025C
   const hydratedOp = hydrateDecodedOp(rawOp);
   return hydratedOp instanceof PropSet ? normalizePropSet(hydratedOp) : hydratedOp;
 }

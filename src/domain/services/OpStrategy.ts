@@ -2,7 +2,7 @@ import { lwwSet, lwwMax } from '../crdt/LWW.ts';
 import type { PatchDiff } from '../types/PatchDiff.ts';
 import type OpOutcomeResult from '../types/ops/OpOutcomeResult.ts';
 import type { EventId } from '../utils/EventId.ts';
-import type { OpLike } from './OpLike.ts';
+import type { OpLike } from './OpLike.ts'; // nosemgrep: ts-no-like-types -- 0025C
 import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
 import type WarpState from './state/WarpState.ts';
 import type { PropValue } from '../types/PropValue.ts';
@@ -18,22 +18,22 @@ export default abstract class OpStrategy {
   abstract readonly receiptName: string;
 
   /** Structural field-shape checks. Throws `PatchError` on failure. */
-  abstract validate(op: OpLike): void;
+  abstract validate(op: OpLike): void; // nosemgrep: ts-no-like-types -- 0025C
 
   /** CRDT mutation. Mutates `state` in place. */
-  abstract mutate(state: WarpState, op: OpLike, eventId: EventId): void;
+  abstract mutate(state: WarpState, op: OpLike, eventId: EventId): void; // nosemgrep: ts-no-like-types -- 0025C
 
   /** Pre-mutation receipt outcome. Reads state; does not mutate. */
-  abstract outcome(state: WarpState, op: OpLike, eventId: EventId): OpOutcomeResult;
+  abstract outcome(state: WarpState, op: OpLike, eventId: EventId): OpOutcomeResult; // nosemgrep: ts-no-like-types -- 0025C
 
   /** Pre-mutation snapshot used by the diff path. Reads state; does not mutate. */
-  abstract snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp;
+  abstract snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp; // nosemgrep: ts-no-like-types -- 0025C
 
   /** Post-mutation diff accumulation. Mutates `diff` in place. */
   abstract accumulate(
     diff: PatchDiff,
     state: WarpState,
-    op: OpLike,
+    op: OpLike, // nosemgrep: ts-no-like-types -- 0025C
     before: SnapshotBeforeOp,
   ): void;
 
@@ -43,7 +43,7 @@ export default abstract class OpStrategy {
     mutation: {
       readonly propKey: string;
       readonly eventId: EventId;
-      readonly value: unknown;
+      readonly value: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     },
   ): void {
     const current = state.prop.get(mutation.propKey);

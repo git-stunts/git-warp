@@ -252,6 +252,10 @@ function lineIsCommentOnly(line: string): boolean {
   );
 }
 
+function lineHasInlineSuppression(line: string): boolean {
+  return line.includes('nosemgrep:') || line.includes('eslint-disable-next-line');
+}
+
 /** Returns true iff `line` contains at least one match for `detection.pattern`
  *  that is NOT filtered by `ignoreTokens` or `skipPatterns`.
  *
@@ -306,7 +310,7 @@ async function scanFile(absPath: string, relPath: string): Promise<ReadonlySet<s
         continue;
       }
       for (const line of lines) {
-        if (lineIsCommentOnly(line)) {
+        if (lineIsCommentOnly(line) || lineHasInlineSuppression(line)) {
           continue;
         }
         if (lineHasRealHit(line, detection)) {

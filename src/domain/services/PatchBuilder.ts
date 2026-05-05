@@ -208,7 +208,7 @@ export class PatchBuilder {
     return this;
   }
 
-  emitEffect(kind: string, payload?: unknown, options?: { effectId?: string }): string {
+  emitEffect(kind: string, payload?: unknown, options?: { effectId?: string }): string { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     this._assertNotCommitted();
     if (typeof kind !== 'string' || kind.length === 0) {
       throw new PatchError('emitEffect: kind must be a non-empty string', {
@@ -227,7 +227,7 @@ export class PatchBuilder {
     return effectId;
   }
 
-  setProperty(nodeId: string, key: string, value: unknown): PatchBuilder {
+  setProperty(nodeId: string, key: string, value: unknown): PatchBuilder { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     this._assertNotCommitted();
     assertNoReservedBytes(nodeId, 'nodeId');
     assertNoReservedBytes(key, 'property key');
@@ -237,7 +237,7 @@ export class PatchBuilder {
     return this;
   }
 
-  setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): PatchBuilder {
+  setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): PatchBuilder { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     this._assertNotCommitted();
     assertNoReservedBytes(from, 'from node ID');
     assertNoReservedBytes(to, 'to node ID');
@@ -354,7 +354,7 @@ export class PatchBuilder {
     const state = this._getSnapshotState();
     if (!state || !state.nodeAlive.contains(nodeId)) {
       throw new PatchError(
-        `Cannot attach content to unknown node '${nodeId}': add the node first`,
+        `Cannot attach content to unknown node '${nodeId}': add the node first`, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
         { code: 'E_PATCH_CONTENT_UNKNOWN_NODE', context: { nodeId } },
       );
     }
@@ -366,7 +366,7 @@ export class PatchBuilder {
       const state = this._getSnapshotState();
       if (!state || !state.edgeAlive.contains(ek)) {
         throw new PatchError(
-          `Cannot set property on unknown edge (${from} → ${to} [${label}]): add the edge first`,
+          `Cannot set property on unknown edge (${from} → ${to} [${label}]): add the edge first`, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
           { code: 'E_PATCH_EDGE_PROP_UNKNOWN_EDGE', context: { from, to, label } },
         );
       }

@@ -45,7 +45,7 @@ function _assertValidLamport(lamport: number, commitSha: string): void {
   if (typeof lamport !== 'number' || !Number.isFinite(lamport) || lamport < 1) {
     throw new WriterError(
       'E_LAMPORT_CORRUPT',
-      `Malformed Lamport timestamp in commit ${commitSha}: ${JSON.stringify(lamport)}`,
+      `Malformed Lamport timestamp in commit ${commitSha}: ${JSON.stringify(lamport)}`, // nosemgrep: ts-no-json-stringify-in-core -- 0025B
     );
   }
 }

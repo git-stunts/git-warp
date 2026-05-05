@@ -37,7 +37,7 @@ function boundedString(maxBytes: number): z.ZodString {
 
 // ── Frontier Schema ─────────────────────────────────────────────────────────
 
-function mapToStringRecord(map: Map<unknown, unknown>): Record<string, string> | null {
+function mapToStringRecord(map: Map<unknown, unknown>): Record<string, string> | null { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const obj: Record<string, string> = {};
   for (const [k, v] of map) {
     if (typeof k !== 'string' || typeof v !== 'string') { return null; }
@@ -46,7 +46,7 @@ function mapToStringRecord(map: Map<unknown, unknown>): Record<string, string> |
   return obj;
 }
 
-function isPlainObject(value: unknown): boolean {
+function isPlainObject(value: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value);
 }
 
@@ -54,7 +54,7 @@ function isPlainObject(value: unknown): boolean {
  * Normalizes a frontier value that may be a Map (cbor-x decodes maps)
  * or a plain object into a validated plain object.
  */
-export function normalizeFrontier(value: unknown): Record<string, string> | null {
+export function normalizeFrontier(value: unknown): Record<string, string> | null { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (value instanceof Map) {
     return mapToStringRecord(value);
   }
@@ -88,7 +88,7 @@ function patchSchema(limits: SyncPayloadLimits): z.ZodObject<z.ZodRawShape> {
     writer: boundedString(limits.maxStringBytes).optional(),
     lamport: z.number().int().min(0).optional(),
     ops: z.array(opSchema).max(limits.maxOpsPerPatch),
-    context: z.unknown().optional(),
+    context: z.unknown().optional(), // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   }).passthrough();
 }
 
@@ -125,9 +125,9 @@ const SyncResponseSchema = createSyncResponseSchema();
 
 // ── Validation Helpers ──────────────────────────────────────────────────────
 
-function normalizePayloadFrontier(payload: unknown): string | null {
+function normalizePayloadFrontier(payload: unknown): string | null { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (!isPlainObject(payload)) { return null; }
-  const p = payload as Record<string, unknown>;
+  const p = payload as Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (!(p['frontier'] instanceof Map)) { return null; }
   const normalized = normalizeFrontier(p['frontier']);
   if (normalized === null) {
@@ -141,7 +141,7 @@ function normalizePayloadFrontier(payload: unknown): string | null {
  * Validates a sync request payload. Returns the parsed value or throws.
  */
 export function validateSyncRequest(
-  payload: unknown,
+  payload: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   limits: SyncPayloadLimits = DEFAULT_LIMITS,
 ): { ok: true; value: { type: 'sync-request'; frontier: Record<string, string> } } | { ok: false; error: string } {
   const frontierErr = normalizePayloadFrontier(payload);
@@ -161,9 +161,9 @@ export function validateSyncRequest(
  * Validates a sync response payload. Returns the parsed value or an error.
  */
 export function validateSyncResponse(
-  payload: unknown,
+  payload: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   limits: SyncPayloadLimits = DEFAULT_LIMITS,
-): { ok: true; value: unknown } | { ok: false; error: string } {
+): { ok: true; value: unknown } | { ok: false; error: string } { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const frontierErr = normalizePayloadFrontier(payload);
   if (frontierErr !== null) {
     return { ok: false, error: frontierErr };

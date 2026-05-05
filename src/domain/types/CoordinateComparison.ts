@@ -32,7 +32,7 @@ export type CoordinateComparisonSelectorV1 =
 export type CoordinateTransferPlanSelectorV1 = CoordinateComparisonSelectorV1;
 
 export type CoordinateComparisonSideV1 = {
-  requested: Record<string, unknown>;
+  requested: Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   resolved: {
     coordinateKind: 'frontier' | 'strand' | 'strand_base';
     patchFrontier: Record<string, string>;
@@ -77,14 +77,14 @@ export type VisibleStateComparison = {
     removed: Array<{ from: string; to: string; label: string }>;
   };
   nodeProperties: {
-    added: Array<{ node: string; key: string; value: unknown }>;
-    removed: Array<{ node: string; key: string; value: unknown }>;
-    changed: Array<{ node: string; key: string; leftValue: unknown; rightValue: unknown }>;
+    added: Array<{ node: string; key: string; value: unknown }>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+    removed: Array<{ node: string; key: string; value: unknown }>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+    changed: Array<{ node: string; key: string; leftValue: unknown; rightValue: unknown }>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   };
   edgeProperties: {
-    added: Array<{ from: string; to: string; label: string; key: string; value: unknown }>;
-    removed: Array<{ from: string; to: string; label: string; key: string; value: unknown }>;
-    changed: Array<{ from: string; to: string; label: string; key: string; leftValue: unknown; rightValue: unknown }>;
+    added: Array<{ from: string; to: string; label: string; key: string; value: unknown }>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+    removed: Array<{ from: string; to: string; label: string; key: string; value: unknown }>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+    changed: Array<{ from: string; to: string; label: string; key: string; leftValue: unknown; rightValue: unknown }>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   };
   target?: {
     targetId: string | null;
@@ -93,22 +93,22 @@ export type VisibleStateComparison = {
     changed: boolean;
     left: {
       nodeId: string;
-      props: Record<string, unknown>;
+      props: Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
       outgoing: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>;
       incoming: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>;
       content: ContentMeta | null;
     } | null;
     right: {
       nodeId: string;
-      props: Record<string, unknown>;
+      props: Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
       outgoing: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>;
       incoming: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>;
       content: ContentMeta | null;
     } | null;
     propertyDelta: {
-      added: Array<{ key: string; value: unknown }>;
-      removed: Array<{ key: string; value: unknown }>;
-      changed: Array<{ key: string; leftValue: unknown; rightValue: unknown }>;
+      added: Array<{ key: string; value: unknown }>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+      removed: Array<{ key: string; value: unknown }>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+      changed: Array<{ key: string; leftValue: unknown; rightValue: unknown }>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     };
     outgoingDelta: {
       added: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>;
@@ -167,10 +167,10 @@ export type VisibleStateTransferPlanSummaryV1 = {
 export type VisibleStateTransferOperationV1 =
   | { op: 'add_node'; nodeId: string }
   | { op: 'remove_node'; nodeId: string }
-  | { op: 'set_node_property'; nodeId: string; key: string; value: unknown }
+  | { op: 'set_node_property'; nodeId: string; key: string; value: unknown } // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   | { op: 'add_edge'; from: string; to: string; label: string }
   | { op: 'remove_edge'; from: string; to: string; label: string }
-  | { op: 'set_edge_property'; from: string; to: string; label: string; key: string; value: unknown }
+  | { op: 'set_edge_property'; from: string; to: string; label: string; key: string; value: unknown } // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   | { op: 'attach_node_content'; nodeId: string; content: Uint8Array; contentOid: string; mime?: string | null; size?: number | null }
   | { op: 'clear_node_content'; nodeId: string }
   | { op: 'attach_edge_content'; from: string; to: string; label: string; content: Uint8Array; contentOid: string; mime?: string | null; size?: number | null }

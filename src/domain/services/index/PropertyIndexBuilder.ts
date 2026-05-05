@@ -11,14 +11,14 @@ import computeShardKey from '../../utils/shardKey.ts';
 import { PropertyShard } from '../../artifacts/PropertyShard.ts';
 
 /**
- * Creates a null-prototype object typed as Record<string, unknown>.
+ * Creates a null-prototype object typed as Record<string, unknown>. // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
  */
-function createNullProtoRecord(): Record<string, unknown> {
-  return Object.create(null) as Record<string, unknown>;
+function createNullProtoRecord(): Record<string, unknown> { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  return Object.create(null) as Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 export default class PropertyIndexBuilder {
-  private readonly _shards: Map<string, Map<string, Record<string, unknown>>>;
+  private readonly _shards: Map<string, Map<string, Record<string, unknown>>>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 
   constructor() {
     /** shardKey → (nodeId → props) */
@@ -28,7 +28,7 @@ export default class PropertyIndexBuilder {
   /**
    * Adds a property for a node.
    */
-  addProperty(nodeId: string, key: string, value: unknown): void {
+  addProperty(nodeId: string, key: string, value: unknown): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     const shardKey = computeShardKey(nodeId);
     let shard = this._shards.get(shardKey);
     if (!shard) {
@@ -50,7 +50,7 @@ export default class PropertyIndexBuilder {
     for (const [shardKey, shard] of this._shards) {
       const entries = [...shard.entries()]
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([nodeId, props]): [string, Record<string, unknown>] => [nodeId, props]);
+        .map(([nodeId, props]): [string, Record<string, unknown>] => [nodeId, props]); // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
       yield new PropertyShard({ shardKey, entries });
     }
   }

@@ -84,8 +84,8 @@ export const lexTieBreaker = (a: string, b: string): number =>
  * Strips keys whose value is `undefined` from an object so that
  * `exactOptionalPropertyTypes` doesn't complain about explicit `undefined`.
  */
-export function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
-  const out: Record<string, unknown> = {};
+export function stripUndefined<T extends Record<string, unknown>>(obj: T): T { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const out: Record<string, unknown> = {}; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   for (const key of Object.keys(obj)) {
     if (obj[key] !== undefined) {
       out[key] = obj[key];

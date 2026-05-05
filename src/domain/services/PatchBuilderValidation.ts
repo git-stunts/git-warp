@@ -51,13 +51,13 @@ export function assertNoReservedBytes(value: string, label: string): void {
   }
   if (value.includes(FIELD_SEPARATOR)) {
     throw new PatchError(
-      `${label} must not contain null bytes (\\0): ${JSON.stringify(value)}`,
+      `${label} must not contain null bytes (\\0): ${JSON.stringify(value)}`, // nosemgrep: ts-no-json-stringify-in-core -- 0025B
       { code: 'E_PATCH_IDENTIFIER_NULL_BYTE', context: { label } },
     );
   }
   if (value.length > 0 && value[0] === EDGE_PROP_PREFIX) {
     throw new PatchError(
-      `${label} must not start with reserved prefix \\x01: ${JSON.stringify(value)}`,
+      `${label} must not start with reserved prefix \\x01: ${JSON.stringify(value)}`, // nosemgrep: ts-no-json-stringify-in-core -- 0025B
       { code: 'E_PATCH_IDENTIFIER_RESERVED_PREFIX', context: { label } },
     );
   }

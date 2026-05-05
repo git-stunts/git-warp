@@ -21,9 +21,9 @@ export default class EdgePropSet extends Op<'EdgePropSet'> {
   readonly to: string;
   readonly label: string;
   readonly key: string;
-  readonly value: unknown;
+  readonly value: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 
-  constructor({ from, to, label, key, value }: { from: string; to: string; label: string; key: string; value: unknown }) {
+  constructor({ from, to, label, key, value }: { from: string; to: string; label: string; key: string; value: unknown }) { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     super('EdgePropSet', OP_SCOPE_CANONICAL);
     assertNonEmptyString(from, 'EdgePropSet', 'from');
     assertNonEmptyString(to, 'EdgePropSet', 'to');

@@ -22,7 +22,7 @@ import type WarpState from './state/WarpState.ts';
  * Computes the set of property keys visible under an observer config.
  */
 function visiblePropKeys(
-  allNodeProps: Map<string, unknown>,
+  allNodeProps: Map<string, unknown>, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   expose: string[] | undefined,
   redact: string[] | undefined,
 ): Set<string> {
@@ -42,7 +42,7 @@ function toFilterSet(list: string[] | undefined): Set<string> | null {
  * Filters property keys through expose/redact sets.
  */
 function filterPropKeys(
-  allNodeProps: Map<string, unknown>,
+  allNodeProps: Map<string, unknown>, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   exposeSet: Set<string> | null,
   redactSet: Set<string> | null,
 ): Set<string> {
@@ -256,7 +256,7 @@ export function computeTranslationCost(
  *
  * @throws {QueryError} If either config is missing or has an invalid match
  */
-function validateObserverConfigs(configA: unknown, configB: unknown): void {
+function validateObserverConfigs(configA: unknown, configB: unknown): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (!isValidMatchConfig(configA) || !isValidMatchConfig(configB)) {
     throw new QueryError(
       'configA.match and configB.match must be non-empty strings or non-empty arrays of strings',
@@ -268,18 +268,18 @@ function validateObserverConfigs(configA: unknown, configB: unknown): void {
 /**
  * Checks whether a config has a valid match property (non-empty string or string[]).
  */
-function isValidMatchConfig(config: unknown): boolean {
+function isValidMatchConfig(config: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (config === null || config === undefined || typeof config !== 'object') {
     return false;
   }
-  const m = (config as { match?: unknown }).match;
+  const m = (config as { match?: unknown }).match; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return isValidMatch(m);
 }
 
 /**
  * Checks whether a match value is a non-empty string or non-empty string array.
  */
-function isValidMatch(m: unknown): boolean {
+function isValidMatch(m: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof m === 'string') {
     return true;
   }
@@ -292,6 +292,6 @@ function isValidMatch(m: unknown): boolean {
 /**
  * Checks whether a value is a string.
  */
-function isString(value: unknown): boolean {
+function isString(value: unknown): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return typeof value === 'string';
 }

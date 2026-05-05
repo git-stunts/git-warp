@@ -24,10 +24,10 @@ export const OPS_DIGEST_PREFIX = 'git-warp:opsDigest:v1\0';
 // Normative Canonicalization Helpers (DO NOT ALTER — tied to spec Sections 5.2-5.3)
 
 /** JSON.stringify replacer sorting object keys lexicographically (spec Section 5.2). */
-export function sortedReplacer(_key: string, value: unknown): unknown {
+export function sortedReplacer(_key: string, value: unknown): unknown { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-    const sorted: Record<string, unknown> = {};
-    const obj = value as Record<string, unknown>;
+    const sorted: Record<string, unknown> = {}; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+    const obj = value as Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     for (const k of Object.keys(obj).sort()) {
       sorted[k] = obj[k];
     }
@@ -38,7 +38,7 @@ export function sortedReplacer(_key: string, value: unknown): unknown {
 
 /** Canonical JSON string of an ops array (spec Section 5.2). */
 export function canonicalOpsJson(ops: ReadonlyArray<Readonly<OpOutcome>>): string {
-  return JSON.stringify(ops, sortedReplacer);
+  return JSON.stringify(ops, sortedReplacer); // nosemgrep: ts-no-json-stringify-in-core -- 0025B
 }
 
 const textEncoder = new TextEncoder();

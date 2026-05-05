@@ -4,11 +4,11 @@ import type Transform from './Transform.ts';
 import type Sink from './Sink.ts';
 
 /** Validates that a source is a valid iterable. */
-function _validateSource(source: unknown): void {
+function _validateSource(source: unknown): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (source === null || source === undefined) {
     throw new WarpError('WarpStream requires an async iterable source', 'E_INVALID_SOURCE');
   }
-  const s = source as Record<string | symbol, unknown>;
+  const s = source as Record<string | symbol, unknown>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const hasAsync = typeof s[Symbol.asyncIterator] === 'function';
   const hasSync = typeof s[Symbol.iterator] === 'function';
   if (!hasAsync && !hasSync) {
@@ -57,7 +57,7 @@ export default class WarpStream<T> {
       return iterable as WarpStream<V>;
     }
     // Wrap sync iterables as async
-    const src = iterable as unknown as Record<string | symbol, unknown>;
+    const src = iterable as unknown as Record<string | symbol, unknown>; // nosemgrep: ts-no-double-cast -- 0025A; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     if (typeof src[Symbol.asyncIterator] === 'function') {
       return new WarpStream(iterable as AsyncIterable<V>, options);
     }
@@ -363,7 +363,7 @@ function _demuxImpl<T>(source: AsyncIterable<T>, classify: (item: T) => string, 
         const key = classify(item);
         const keyWaiters = waiters.get(key);
         if (keyWaiters === undefined) {
-          continue; // unknown key — drop
+          continue; // unknown key — drop // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
         }
         if (keyWaiters.length > 0) {
           const waiter = keyWaiters.shift()!;

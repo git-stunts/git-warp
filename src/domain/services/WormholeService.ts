@@ -69,7 +69,7 @@ interface PatchEntry {
  * Validates that a SHA parameter is a non-empty string.
  * @throws {WormholeError} If SHA is invalid
  */
-function validateSha(sha: unknown, paramName: string): void {
+function validateSha(sha: unknown, paramName: string): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (sha === null || sha === undefined || typeof sha !== 'string') {
     throw new WormholeError(`${paramName} is required and must be a string`, {
       code: 'E_WORMHOLE_SHA_NOT_FOUND',
@@ -395,7 +395,7 @@ export function replayWormhole(wormhole: WormholeEdge, initialState?: WarpState)
 /**
  * Serializes a wormhole to a JSON-serializable object.
  */
-export function serializeWormhole(wormhole: WormholeEdge): Record<string, unknown> {
+export function serializeWormhole(wormhole: WormholeEdge): Record<string, unknown> { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return {
     fromSha: wormhole.fromSha,
     toSha: wormhole.toSha,
@@ -410,7 +410,7 @@ export function serializeWormhole(wormhole: WormholeEdge): Record<string, unknow
  *
  * @throws {WormholeError} If the JSON structure is invalid
  */
-export function deserializeWormhole(json: Record<string, unknown>): WormholeEdge {
+export function deserializeWormhole(json: Record<string, unknown>): WormholeEdge { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (json === null || json === undefined || typeof json !== 'object') {
     throw new WormholeError('Invalid wormhole JSON: expected object', {
       code: 'E_INVALID_WORMHOLE_JSON',

@@ -19,15 +19,15 @@ export const PATCH_SCHEMA_V3 = SCHEMA_V3;
 
 // ── Schema version detection ────────────────────────────────────────
 
-type OpLike = { type: string; node?: string };
+type OpLike = { type: string; node?: string }; // nosemgrep: ts-no-like-types -- 0025C
 
-function isEdgePropOp(op: OpLike): boolean {
+function isEdgePropOp(op: OpLike): boolean { // nosemgrep: ts-no-like-types -- 0025C
   if (op.type === 'EdgePropSet') { return true; }
   return op.type === 'PropSet' && typeof op.node === 'string' && op.node.startsWith(EDGE_PROP_PREFIX);
 }
 
 /** Detects the schema version required for a set of ops. */
-export function detectSchemaVersion(ops: OpLike[]): number {
+export function detectSchemaVersion(ops: OpLike[]): number { // nosemgrep: ts-no-like-types -- 0025C
   if (!Array.isArray(ops)) { return SCHEMA_V2; }
   for (const op of ops) {
     if (op === null || op === undefined || typeof op !== 'object') { continue; }
@@ -39,7 +39,7 @@ export function detectSchemaVersion(ops: OpLike[]): number {
 // ── Schema compatibility ────────────────────────────────────────────
 
 /** Asserts ops are compatible with a max supported schema version. */
-export function assertOpsCompatible(ops: OpLike[], maxSchema: number): void {
+export function assertOpsCompatible(ops: OpLike[], maxSchema: number): void { // nosemgrep: ts-no-like-types -- 0025C
   if (maxSchema >= SCHEMA_V3) { return; }
   if (!Array.isArray(ops)) { return; }
   for (const op of ops) {

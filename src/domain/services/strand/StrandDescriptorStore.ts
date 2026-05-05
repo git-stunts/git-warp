@@ -70,8 +70,8 @@ type StrandDescriptorStoreGraph = {
  * Opaque placeholder for a patch-chain entry. The store treats the
  * chain as length-only; any deeper access lives upstream in the
  * materializer. Kept as an object so the structural check holds
- * without tripping the anti-sludge `unknown`/`Record<string,
- * unknown>` rules.
+ * without tripping the anti-sludge `unknown`/`Record<string, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+ * unknown>` rules. // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
  */
 type PatchChainEntry = object;
 
@@ -183,7 +183,7 @@ export default class StrandDescriptorStore {
   async writeDescriptor(descriptor: StrandDescriptor): Promise<void> {
     const ref = this.buildRef(descriptor.strandId);
     const oid = await this._graph._persistence.writeBlob(
-      textEncode(JSON.stringify(descriptor)),
+      textEncode(JSON.stringify(descriptor)), // nosemgrep: ts-no-json-stringify-in-core -- 0025B
     );
     await this._graph._persistence.updateRef(ref, oid);
   }
@@ -258,7 +258,7 @@ export default class StrandDescriptorStore {
     braidedReadOverlays: StrandReadOverlayDescriptor[],
   ): StrandDescriptor {
     // Narrow the trailing unvalidated blob fields via the type-guard
-    // predicate so `unknown` stays inside legitimate x-is-Foo form.
+    // predicate so `unknown` stays inside legitimate x-is-Foo form. // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     const intentQueueRaw: RawValue = isRawBag(descriptor['intentQueue'])
       ? descriptor['intentQueue']
       : null;

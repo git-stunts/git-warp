@@ -37,7 +37,7 @@ import type Patch from '../types/Patch.ts';
 export interface NodeSnapshot {
   id: string;
   exists: boolean;
-  props: Record<string, unknown>;
+  props: Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 /**
@@ -81,9 +81,9 @@ function isNonNullObject(value: unknown): value is object {
  * InlineValue objects `{ type: 'inline', value: ... }` are unwrapped
  * to their inner value. All other values pass through unchanged.
  */
-function unwrapValue(value: unknown): unknown {
+function unwrapValue(value: unknown): unknown { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (isNonNullObject(value) && 'type' in value) {
-    const rec = value as { type: string; value?: unknown };
+    const rec = value as { type: string; value?: unknown }; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     return rec.type === 'inline' ? rec.value : value;
   }
   return value;
@@ -102,7 +102,7 @@ function unwrapValue(value: unknown): unknown {
  */
 function extractNodeSnapshot(state: WarpState, nodeId: string): NodeSnapshot {
   const exists = state.nodeAlive.contains(nodeId);
-  const props: Record<string, unknown> = {};
+  const props: Record<string, unknown> = {}; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 
   if (exists) {
     const prefix = `${nodeId}\0`;
@@ -181,7 +181,7 @@ async function _tryCheckpointStart(
  * Extracts the lamport timestamp from a patch safely.
  */
 function patchLamport(patch: Patch): number {
-  return (patch as unknown as { lamport: number }).lamport;
+  return (patch as unknown as { lamport: number }).lamport; // nosemgrep: ts-no-double-cast -- 0025A; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 /**

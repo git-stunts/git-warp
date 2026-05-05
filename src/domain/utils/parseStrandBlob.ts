@@ -10,7 +10,7 @@ import StrandError from '../errors/StrandError.ts';
 /**
  * Checks whether a value is a non-null, non-array plain object.
  */
-function isPlainObject(value: unknown): value is Record<string, unknown> {
+function isPlainObject(value: unknown): value is Record<string, unknown> { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
@@ -36,14 +36,14 @@ function invariant(condition: boolean, message: string): asserts condition {
 /**
  * Validates that a string field is present and non-empty.
  */
-function assertNonEmptyString(value: unknown, message: string): void {
+function assertNonEmptyString(value: unknown, message: string): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   invariant(typeof value === 'string' && value.length > 0, message);
 }
 
 /**
  * Validates that a field is null, undefined, or a string.
  */
-function validateNullableString(value: unknown, message: string): void {
+function validateNullableString(value: unknown, message: string): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   invariant(
     value === null || value === undefined || typeof value === 'string',
     message,
@@ -53,7 +53,7 @@ function validateNullableString(value: unknown, message: string): void {
 /**
  * Validates that a value is a non-negative integer.
  */
-function validateNonNegativeInteger(value: unknown, message: string): void {
+function validateNonNegativeInteger(value: unknown, message: string): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   invariant(
     typeof value === 'number' && Number.isInteger(value) && value >= 0,
     message,
@@ -63,9 +63,9 @@ function validateNonNegativeInteger(value: unknown, message: string): void {
 /**
  * Validates that a value is an array of strings.
  */
-function validateStringArray(value: unknown, message: string): void {
+function validateStringArray(value: unknown, message: string): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   invariant(
-    Array.isArray(value) && value.every((entry: unknown) => typeof entry === 'string'),
+    Array.isArray(value) && value.every((entry: unknown) => typeof entry === 'string'), // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     message,
   );
 }
@@ -73,7 +73,7 @@ function validateStringArray(value: unknown, message: string): void {
 /**
  * Validates the top-level identity and timestamp fields of a strand descriptor.
  */
-function validateTopLevelFields(obj: Record<string, unknown>, label: string): void {
+function validateTopLevelFields(obj: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   invariant(obj['schemaVersion'] === 1, `Corrupted ${label}: unsupported schemaVersion`);
   assertNonEmptyString(obj['strandId'], `Corrupted ${label}: missing strandId`);
   assertNonEmptyString(obj['graphName'], `Corrupted ${label}: missing graphName`);
@@ -86,7 +86,7 @@ function validateTopLevelFields(obj: Record<string, unknown>, label: string): vo
 /**
  * Validates the lease sub-object of a strand descriptor.
  */
-function validateLease(obj: Record<string, unknown>, label: string): void {
+function validateLease(obj: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const { lease: rawLease } = obj;
   invariant(isPlainObject(rawLease), `Corrupted ${label}: missing lease object`);
   validateNullableString(rawLease['expiresAt'], `Corrupted ${label}: lease.expiresAt must be string|null`);
@@ -95,7 +95,7 @@ function validateLease(obj: Record<string, unknown>, label: string): void {
 /**
  * Validates the coordinate version and frontier fields of a base observation.
  */
-function validateBaseObservationFields(baseObservation: Record<string, unknown>, label: string): void {
+function validateBaseObservationFields(baseObservation: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   assertNonEmptyString(
     baseObservation['coordinateVersion'],
     `Corrupted ${label}: missing baseObservation.coordinateVersion`,
@@ -113,7 +113,7 @@ function validateBaseObservationFields(baseObservation: Record<string, unknown>,
 /**
  * Validates the baseObservation sub-object of a strand descriptor.
  */
-function validateBaseObservation(obj: Record<string, unknown>, label: string): void {
+function validateBaseObservation(obj: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const { baseObservation } = obj;
   invariant(isPlainObject(baseObservation), `Corrupted ${label}: missing baseObservation object`);
   validateBaseObservationFields(baseObservation, label);
@@ -130,7 +130,7 @@ function validateBaseObservation(obj: Record<string, unknown>, label: string): v
 /**
  * Validates the overlay sub-object of a strand descriptor.
  */
-function validateOverlay(obj: Record<string, unknown>, label: string): void {
+function validateOverlay(obj: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const { overlay } = obj;
   invariant(isPlainObject(overlay), `Corrupted ${label}: missing overlay object`);
   assertNonEmptyString(overlay['overlayId'], `Corrupted ${label}: missing overlay.overlayId`);
@@ -146,7 +146,7 @@ function validateOverlay(obj: Record<string, unknown>, label: string): void {
 /**
  * Validates the materialization sub-object of a strand descriptor.
  */
-function validateMaterialization(obj: Record<string, unknown>, label: string): void {
+function validateMaterialization(obj: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const { materialization } = obj;
   invariant(
     isPlainObject(materialization) && materialization['cacheAuthority'] === 'derived',
@@ -157,7 +157,7 @@ function validateMaterialization(obj: Record<string, unknown>, label: string): v
 /**
  * Validates a single read overlay entry within the braid sub-object.
  */
-function validateBraidOverlayEntry(overlay: Record<string, unknown>, label: string): void {
+function validateBraidOverlayEntry(overlay: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   assertNonEmptyString(overlay['strandId'], `Corrupted ${label}: braid.readOverlays[].strandId must be a string`);
   assertNonEmptyString(overlay['overlayId'], `Corrupted ${label}: braid.readOverlays[].overlayId must be a string`);
   assertNonEmptyString(overlay['kind'], `Corrupted ${label}: braid.readOverlays[].kind must be a string`);
@@ -168,7 +168,7 @@ function validateBraidOverlayEntry(overlay: Record<string, unknown>, label: stri
 /**
  * Validates the optional braid sub-object of a strand descriptor.
  */
-function validateBraid(obj: Record<string, unknown>, label: string): void {
+function validateBraid(obj: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (obj['braid'] === undefined) {
     return;
   }
@@ -188,7 +188,7 @@ function validateBraid(obj: Record<string, unknown>, label: string): void {
 /**
  * Validates a single intent entry within the intent queue.
  */
-function validateIntentEntry(intent: Record<string, unknown>, label: string): void {
+function validateIntentEntry(intent: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   assertNonEmptyString(intent['intentId'], `Corrupted ${label}: intentQueue.intents[].intentId must be a string`);
   assertNonEmptyString(intent['enqueuedAt'], `Corrupted ${label}: intentQueue.intents[].enqueuedAt must be a string`);
   invariant(isPlainObject(intent['patch']), `Corrupted ${label}: intentQueue.intents[].patch must be an object`);
@@ -206,7 +206,7 @@ function validateIntentEntry(intent: Record<string, unknown>, label: string): vo
 /**
  * Validates the optional intentQueue sub-object of a strand descriptor.
  */
-function validateIntentQueue(obj: Record<string, unknown>, label: string): void {
+function validateIntentQueue(obj: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (obj['intentQueue'] === undefined) {
     return;
   }
@@ -229,7 +229,7 @@ function validateIntentQueue(obj: Record<string, unknown>, label: string): void 
 /**
  * Validates a single rejected counterfactual entry within a tick.
  */
-function validateRejectedCounterfactual(rejected: Record<string, unknown>, label: string): void {
+function validateRejectedCounterfactual(rejected: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   assertNonEmptyString(rejected['intentId'], `Corrupted ${label}: evolution.lastTick.rejected[].intentId must be a string`);
   assertNonEmptyString(rejected['reason'], `Corrupted ${label}: evolution.lastTick.rejected[].reason must be a string`);
   validateStringArray(rejected['conflictsWith'], `Corrupted ${label}: evolution.lastTick.rejected[].conflictsWith must be a string array`);
@@ -240,7 +240,7 @@ function validateRejectedCounterfactual(rejected: Record<string, unknown>, label
 /**
  * Validates the lastTick sub-object fields for scalar and array properties.
  */
-function validateLastTickFields(lastTick: Record<string, unknown>, label: string): void {
+function validateLastTickFields(lastTick: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   assertNonEmptyString(lastTick['tickId'], `Corrupted ${label}: evolution.lastTick.tickId must be a string`);
   validateNonNegativeInteger(lastTick['tickIndex'], `Corrupted ${label}: evolution.lastTick.tickIndex must be a non-negative integer`);
   assertNonEmptyString(lastTick['createdAt'], `Corrupted ${label}: evolution.lastTick.createdAt must be a string`);
@@ -254,7 +254,7 @@ function validateLastTickFields(lastTick: Record<string, unknown>, label: string
 /**
  * Validates the lastTick sub-object of an evolution block.
  */
-function validateLastTick(lastTick: Record<string, unknown>, label: string): void {
+function validateLastTick(lastTick: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   validateLastTickFields(lastTick, label);
   const { rejected } = lastTick;
   invariant(Array.isArray(rejected), `Corrupted ${label}: evolution.lastTick.rejected must be an array`);
@@ -267,7 +267,7 @@ function validateLastTick(lastTick: Record<string, unknown>, label: string): voi
 /**
  * Validates the optional evolution sub-object of a strand descriptor.
  */
-function validateEvolution(obj: Record<string, unknown>, label: string): void {
+function validateEvolution(obj: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (obj['evolution'] === undefined) {
     return;
   }
@@ -317,7 +317,7 @@ export interface StrandDescriptor {
   readonly materialization: {
     readonly cacheAuthority: 'derived';
   };
-  readonly [key: string]: unknown;
+  readonly [key: string]: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 /**
@@ -327,9 +327,9 @@ export interface StrandDescriptor {
  * are preserved, but the core identity and coordinate fields must be valid.
  */
 export function parseStrandBlob(buf: Uint8Array, label: string): StrandDescriptor {
-  let obj: unknown;
+  let obj: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   try {
-    obj = JSON.parse(textDecode(buf));
+    obj = JSON.parse(textDecode(buf)); // nosemgrep: ts-no-json-parse-in-core -- 0025B
   } catch {
     throw new StrandError(`Corrupted ${label}: blob is not valid JSON`, { code: 'E_STRAND_CORRUPT' });
   }

@@ -15,7 +15,7 @@ export class EdgeShard extends IndexShard {
     super({ shardKey, schemaVersion });
     if (direction !== 'fwd' && direction !== 'rev') {
       throw new WarpError(
-        `EdgeShard direction must be 'fwd' or 'rev', got ${JSON.stringify(direction)}`,
+        `EdgeShard direction must be 'fwd' or 'rev', got ${JSON.stringify(direction)}`, // nosemgrep: ts-no-json-stringify-in-core -- 0025B
         'E_INVALID_SHARD',
       );
     }

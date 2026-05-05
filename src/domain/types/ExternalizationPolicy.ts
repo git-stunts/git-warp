@@ -56,7 +56,7 @@ const outcomeSet = new Set(DELIVERY_OUTCOMES);
 /**
  * Asserts that a mode value is one of the recognized delivery modes (live, replay, inspect).
  */
-function validateMode(mode: unknown): void {
+function validateMode(mode: unknown): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof mode !== 'string' || !modeSet.has(mode)) {
     throw new WarpError(
       `mode must be one of: ${DELIVERY_MODES.join(', ')}`,
@@ -68,7 +68,7 @@ function validateMode(mode: unknown): void {
 /**
  * Asserts that suppressExternal is a boolean value.
  */
-function validateSuppressExternal(value: unknown): void {
+function validateSuppressExternal(value: unknown): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof value !== 'boolean') {
     throw new WarpError('suppressExternal must be a boolean', 'E_VALIDATION');
   }

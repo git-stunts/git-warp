@@ -49,7 +49,7 @@ class WorldlineSelector {
   /**
    * Convert this selector to a plain DTO matching the WorldlineSource shape.
    */
-  toDTO(): { kind: string; [key: string]: unknown } {
+  toDTO(): { kind: string; [key: string]: unknown } { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     throw new QueryError('WorldlineSelector.toDTO() is abstract', { code: 'E_SELECTOR_ABSTRACT' });
   }
 
@@ -70,7 +70,7 @@ class WorldlineSelector {
    * (converted to the appropriate subclass), and null/undefined
    * (defaults to LiveSelector).
    */
-  static from(raw: WorldlineSelector | { kind: string; [key: string]: unknown } | null | undefined): WorldlineSelector {
+  static from(raw: WorldlineSelector | { kind: string; [key: string]: unknown } | null | undefined): WorldlineSelector { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     if (raw instanceof WorldlineSelector) {
       return raw;
     }
@@ -90,20 +90,20 @@ class WorldlineSelector {
  *
  * Kept separate from the class to reduce static from() complexity.
  */
-function fromPlainObject(raw: { kind: string; [key: string]: unknown } | null | undefined): WorldlineSelector {
+function fromPlainObject(raw: { kind: string; [key: string]: unknown } | null | undefined): WorldlineSelector { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const value = raw ?? { kind: 'live' };
   const { kind } = value;
   if (!(kind in registry)) {
-    throw new QueryError(`unknown worldline selector kind: ${String(kind)}`, { code: 'E_SELECTOR_INVALID' });
+    throw new QueryError(`unknown worldline selector kind: ${String(kind)}`, { code: 'E_SELECTOR_INVALID' }); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   }
   const Ctor = registry[kind]!;
   if (kind === 'live') {
-    return new (Ctor as new (ceiling: unknown) => WorldlineSelector)(value['ceiling']);
+    return new (Ctor as new (ceiling: unknown) => WorldlineSelector)(value['ceiling']); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   }
   if (kind === 'coordinate') {
-    return new (Ctor as new (frontier: unknown, ceiling: unknown) => WorldlineSelector)(value['frontier'], value['ceiling']);
+    return new (Ctor as new (frontier: unknown, ceiling: unknown) => WorldlineSelector)(value['frontier'], value['ceiling']); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   }
-  return new (Ctor as new (strandId: unknown, ceiling: unknown) => WorldlineSelector)(value['strandId'], value['ceiling']);
+  return new (Ctor as new (strandId: unknown, ceiling: unknown) => WorldlineSelector)(value['strandId'], value['ceiling']); // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 export { validateCeiling };

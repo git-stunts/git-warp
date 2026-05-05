@@ -82,7 +82,7 @@ export type ConflictDiagnostic = {
   code: string;
   severity: 'warning' | 'error';
   message: string;
-  data?: Record<string, unknown>;
+  data?: Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 };
 
 export type ConflictAnalysis = {

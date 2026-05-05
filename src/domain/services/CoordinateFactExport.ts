@@ -11,7 +11,7 @@ function isNullish(value: unknown): value is null | undefined {
 /**
  * Asserts the value is a non-null, non-array object, throwing if not.
  */
-function requireObject(value: unknown, label: string): asserts value is Record<string, unknown> {
+function requireObject(value: unknown, label: string): asserts value is Record<string, unknown> { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (isNullish(value) || typeof value !== 'object' || Array.isArray(value)) {
     throw new WarpError(`${label} must be an object`, 'E_COORDINATE_FACT_NOT_OBJECT', { context: { label } });
   }
@@ -31,31 +31,31 @@ export interface VisibleStateScope {
 
 export interface VisibleStateTransferOperationV1 {
   op: string;
-  [key: string]: unknown;
+  [key: string]: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 export interface VisibleStateTransferOperationFactV1 {
   op: string;
-  [key: string]: unknown;
+  [key: string]: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 export interface CoordinateComparisonV1 {
   comparisonVersion: string;
   comparisonDigest?: string;
   scope?: VisibleStateScope | null;
-  left: unknown;
-  right: unknown;
-  visiblePatchDivergence: unknown;
-  visibleState: unknown;
+  left: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  right: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  visiblePatchDivergence: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  visibleState: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 export interface CoordinateComparisonFactV1 {
   comparisonVersion: string;
   scope?: VisibleStateScope;
-  left: unknown;
-  right: unknown;
-  visiblePatchDivergence: unknown;
-  visibleState: unknown;
+  left: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  right: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  visiblePatchDivergence: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  visibleState: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 export interface CoordinateComparisonFactExportV1 {
@@ -72,9 +72,9 @@ export interface CoordinateTransferPlanV1 {
   comparisonDigest: string;
   scope?: VisibleStateScope | null;
   changed: boolean;
-  source: unknown;
-  target: unknown;
-  summary: unknown;
+  source: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  target: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  summary: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   ops: VisibleStateTransferOperationV1[];
 }
 
@@ -83,9 +83,9 @@ export interface CoordinateTransferPlanFactV1 {
   comparisonDigest: string;
   scope?: VisibleStateScope;
   changed: boolean;
-  source: unknown;
-  target: unknown;
-  summary: unknown;
+  source: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  target: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  summary: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   ops: VisibleStateTransferOperationFactV1[];
 }
 
@@ -100,7 +100,7 @@ export interface CoordinateTransferPlanFactExportV1 {
 /**
  * Validates that a value is a non-empty string, throwing if not.
  */
-function requireNonEmptyString(value: unknown, label: string): string {
+function requireNonEmptyString(value: unknown, label: string): string { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (typeof value !== 'string' || value.trim().length === 0) {
     throw new WarpError(`${label} must be a non-empty string`, 'E_COORDINATE_FACT_NOT_STRING', { context: { label } });
   }

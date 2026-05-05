@@ -40,7 +40,7 @@ export interface HealthResult {
   cachedAtTick?: number;
 }
 
-interface IndexReaderLike {
+interface IndexReaderLike { // nosemgrep: ts-no-like-types -- 0025C
   shardOids?: { size: number };
 }
 
@@ -70,7 +70,7 @@ interface IndexReaderLike {
 export default class HealthCheckService {
   private readonly _persistence: CommitPort;
   private readonly _logger: LoggerPort;
-  private _indexReader: IndexReaderLike | null;
+  private _indexReader: IndexReaderLike | null; // nosemgrep: ts-no-like-types -- 0025C
   private readonly _healthCache: CachedValue<{
     status: 'healthy' | 'degraded' | 'unhealthy';
     components: { repository: RepositoryHealth; index: IndexHealth };
@@ -104,7 +104,7 @@ export default class HealthCheckService {
    *
    * @param reader - The index reader, or null to clear
    */
-  setIndexReader(reader: IndexReaderLike | null): void {
+  setIndexReader(reader: IndexReaderLike | null): void { // nosemgrep: ts-no-like-types -- 0025C
     this._indexReader = reader;
     this._healthCache.invalidate();
   }
