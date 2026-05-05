@@ -8,8 +8,6 @@ import { encode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
-import { serializeFullState, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializer.ts';
-import { serializeFrontier } from '../../../src/domain/services/Frontier.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
 const crypto = new NodeCryptoAdapter();
@@ -670,7 +668,7 @@ describe('WarpCore', () => {
   });
 
   describe('materializeAt', () => {
-    it('calls materializeIncremental with correct parameters', async () => {
+    it('rejects retired checkpoint schemas in materializeAt()', async () => {
       const persistence = createMockPersistence();
       const graph = await openRuntimeHostProduct({
         persistence,
@@ -679,11 +677,7 @@ describe('WarpCore', () => {
       });
 
       const checkpointSha = 'a'.repeat(40);
-      const writerTipSha = 'b'.repeat(40);
       const indexOid = 'e'.repeat(40);
-      const stateBlobOid = 'f'.repeat(40);
-      const frontierBlobOid = 'g'.repeat(40);
-      const appliedVVBlobOid = 'h'.repeat(40);
 
       // Mock checkpoint data (schema:2 required)
       const checkpointMessage = `warp:checkpoint
@@ -695,8 +689,6 @@ eg-frontier-oid: ${'d'.repeat(40)}
 eg-index-oid: ${indexOid}
 eg-schema: 2`;
 
-      persistence.listRefs.mockResolvedValue(['refs/warp/events/writers/writer-1']);
-      persistence.readRef.mockResolvedValue(writerTipSha);
       persistence.showNode.mockResolvedValue(checkpointMessage);
       persistence.getNodeInfo.mockResolvedValue({
         sha: checkpointSha,
@@ -704,33 +696,10 @@ eg-schema: 2`;
         parents: [],
       });
 
-      // Mock tree read for checkpoint (schema:2 tree structure)
-      persistence.readTreeOids.mockResolvedValue({
-        'state.cbor': stateBlobOid,
-        'frontier.cbor': frontierBlobOid,
-        'appliedVV.cbor': appliedVVBlobOid,
+      await expect(graph.materializeAt(checkpointSha)).rejects.toMatchObject({
+        code: 'E_CHECKPOINT_UNSUPPORTED_SCHEMA',
       });
-
-      // Create V5 state for mock
-      const v5State = createEmptyState();
-      const stateBuffer = serializeFullState(v5State);
-      const frontierBuffer = serializeFrontier(new Map([['writer-1', writerTipSha]]));
-      const appliedVV = computeAppliedVV(v5State);
-      const appliedVVBuffer = serializeAppliedVV(appliedVV);
-
-      persistence.readBlob.mockImplementation((/** @type {any} */ oid) => {
-        if (oid === frontierBlobOid) return Promise.resolve(frontierBuffer);
-        if (oid === stateBlobOid) return Promise.resolve(stateBuffer);
-        if (oid === appliedVVBlobOid) return Promise.resolve(appliedVVBuffer);
-        throw new Error(`Unknown oid: ${oid}`);
-      });
-
-      const state = await graph.materializeAt(checkpointSha);
-
-      // Verify V5 state is returned
-      expect(state).toBeDefined();
-      expect(state.nodeAlive).toBeDefined();
-      expect(typeof state.nodeAlive.entries).toBe('function');
+      expect(persistence.readTreeOids).not.toHaveBeenCalled();
     });
   });
 
@@ -1134,7 +1103,7 @@ eg-schema: 2`;
     });
 
     describe('migration boundary validation', () => {
-      it('allows schema:2 when checkpoint has schema:2', async () => {
+      it('rejects schema:2 checkpoint with upgrade guidance', async () => {
         const persistence = createMockPersistence();
 
         const checkpointSha = 'c'.repeat(40);
@@ -1162,22 +1131,16 @@ eg-schema: 2`;
           message: checkpointMessage,
           parents: [],
         });
-        persistence.readTreeOids.mockResolvedValue({
-          'state.cbor': 'g'.repeat(40),
-          'frontier.cbor': 'h'.repeat(40),
-        });
-        persistence.readBlob
-          .mockResolvedValueOnce(encode({})) // frontier
-          .mockResolvedValueOnce(encode({ nodes: [], edges: [], props: [] })); // state
 
-        const graph = await openRuntimeHostProduct({
-          persistence,
-          graphName: 'events',
-          writerId: 'node-1',
-          schema: 2,
-        } as any);
-
-        expect(graph.graphName).toBe('events');
+        await expect(
+          openRuntimeHostProduct({
+            persistence,
+            graphName: 'events',
+            writerId: 'node-1',
+            schema: 2,
+          } as any)
+        ).rejects.toMatchObject({ code: 'E_CHECKPOINT_UNSUPPORTED_SCHEMA' });
+        expect(persistence.readTreeOids).not.toHaveBeenCalled();
       });
 
       it('allows schema:2 on fresh graph with no history', async () => {
@@ -1464,7 +1427,7 @@ eg-schema: 2`;
         } as any);
 
         const checkpoint = {
-          schema: 2,
+          schema: 5,
           frontier: new Map([['other-writer', 'b'.repeat(40)]]),
         };
 
@@ -1490,7 +1453,7 @@ eg-schema: 2`;
         const incomingSha = 'b'.repeat(40);
 
         const checkpoint = {
-          schema: 2,
+          schema: 5,
           frontier: new Map([['writer-1', ckHead]]),
         };
 
@@ -1520,7 +1483,7 @@ eg-schema: 2`;
         const sha = 'a'.repeat(40);
 
         const checkpoint = {
-          schema: 2,
+          schema: 5,
           frontier: new Map([['writer-1', sha]]),
         };
 
@@ -1545,7 +1508,7 @@ eg-schema: 2`;
         const ckHead = 'b'.repeat(40);
 
         const checkpoint = {
-          schema: 2,
+          schema: 5,
           frontier: new Map([['writer-1', ckHead]]),
         };
 
@@ -1582,7 +1545,7 @@ eg-schema: 2`;
         const commonAncestor = 'c'.repeat(40);
 
         const checkpoint = {
-          schema: 2,
+          schema: 5,
           frontier: new Map([['writer-1', ckHead]]),
         };
 

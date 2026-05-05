@@ -54,7 +54,7 @@ describe('materialize stale-checkpoint regression', () => {
       graphCloner: {},
       patches: {
         loadCheckpoint: async () => ({
-          schema: 4,
+          schema: 5,
           state: latestState,
           frontier: new Map(),
           provenanceIndex: null,

@@ -327,7 +327,7 @@ describe('MaterializeController', () => {
       const { ctrl, patches } = setup();
       const baseState = emptyState();
       const checkpoint = {
-        schema: 2,
+        schema: 5,
         state: baseState,
         frontier: new Map([['w1', 'tip1']]),
         stateHash: 'ck-hash',
@@ -346,7 +346,7 @@ describe('MaterializeController', () => {
     it('returns correct patchCount from incremental patches after checkpoint', async () => {
       const { ctrl, patches } = setup();
       const checkpoint = {
-        schema: 2,
+        schema: 5,
         state: emptyState(),
         frontier: new Map(),
         stateHash: 'ck-hash',
@@ -366,7 +366,7 @@ describe('MaterializeController', () => {
     it('returns receipts from incremental checkpoint materialization', async () => {
       const { ctrl, patches } = setup();
       const checkpoint = {
-        schema: 2,
+        schema: 5,
         state: emptyState(),
         frontier: new Map(),
         stateHash: 'ck-hash',
@@ -385,7 +385,7 @@ describe('MaterializeController', () => {
       const ckPI = new ProvenanceIndex();
       ckPI.addPatch('old-sha', ['r1'], ['w1']);
       const checkpoint = {
-        schema: 2,
+        schema: 5,
         state: emptyState(),
         frontier: new Map(),
         stateHash: 'ck-hash',
@@ -403,7 +403,7 @@ describe('MaterializeController', () => {
     it('creates fresh provenance index when checkpoint lacks one', async () => {
       const { ctrl, patches } = setup();
       const checkpoint = {
-        schema: 2,
+        schema: 5,
         state: emptyState(),
         frontier: new Map(),
         stateHash: 'ck-hash',

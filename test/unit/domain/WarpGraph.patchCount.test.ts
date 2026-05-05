@@ -154,7 +154,7 @@ describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
 
     // Mock _loadLatestCheckpoint to return a checkpoint
     vi.spyOn(graph, '_loadLatestCheckpoint').mockResolvedValue({
-      schema: 2,
+      schema: 5,
       state: checkpointState,
       frontier: {},
     });

@@ -382,7 +382,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
     }
 
     vi.spyOn(graph, ('_loadLatestCheckpoint' as any)).mockResolvedValue({
-      schema: 2,
+      schema: 5,
       state: checkpointState,
       frontier: {},
     });
@@ -417,7 +417,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
     }
 
     vi.spyOn(graph, ('_loadLatestCheckpoint' as any)).mockResolvedValue({
-      schema: 2,
+      schema: 5,
       state: checkpointState,
       frontier: {},
     });
@@ -492,9 +492,9 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   });
 
   // --------------------------------------------------------------------------
-  // H5: Schema 4 checkpoints are accepted by the materialize path
+  // H5: Current checkpoints are accepted by the materialize path
   // --------------------------------------------------------------------------
-  it('materializes from a schema:4 checkpoint (H5)', async () => {
+  it('materializes from a current checkpoint (H5)', async () => {
     const graph = await openRuntimeHostProduct({
       persistence,
       graphName: 'test',
@@ -512,7 +512,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
     }
 
     vi.spyOn(graph, ('_loadLatestCheckpoint' as any)).mockResolvedValue({
-      schema: 4,
+      schema: 5,
       state: checkpointState,
       frontier: new Map(),
       indexShardOids: null,

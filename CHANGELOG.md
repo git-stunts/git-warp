@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Checkpoint/materialize test drift is aligned with the v17 checkpoint
+  contract: current-schema fixtures use schema `5`, retired checkpoint
+  fixtures assert `E_CHECKPOINT_UNSUPPORTED_SCHEMA`, and full
+  `npm run test:local` is green again.
 - Default `graph.observer()` now snapshots the caller's current fresh
   reading basis, so observer handles expose a string `stateHash` and keep
   reading their pinned coordinate after live truth advances; `seek()`

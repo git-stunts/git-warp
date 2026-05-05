@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import { encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
-import { encodeEdgeKey, createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
-import { serializeFullState, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializer.ts';
-import { serializeFrontier } from '../../../src/domain/services/Frontier.ts';
-import { ProvenanceIndex } from '../../../src/domain/services/provenance/ProvenanceIndex.ts';
+import { encodeEdgeKey } from '../../../src/domain/services/JoinReducer.ts';
 
 // Shared test utilities - generators are designed for parallel-safety
 // (each test gets its own generator instance to avoid cross-test interference)
@@ -467,24 +464,8 @@ describe('WarpCore.patchesFor() (HG/IO/2)', () => {
   });
 
   describe('checkpoint persistence', () => {
-    it('loads provenance index from checkpoint', async () => {
-      const sha1 = oidGen.next();
-      const sha2 = oidGen.next();
+    it('rejects retired checkpoint provenance fixtures with upgrade guidance', async () => {
       const checkpointSha = oidGen.next();
-
-      // Create a checkpoint with provenance index
-      const index = new ProvenanceIndex();
-      index.addPatch(sha1, [], ['user:alice']);
-      index.addPatch(sha2, ['user:alice'], ['user:alice']);
-
-      const state = createEmptyState();
-      const frontier = new Map([['alice', sha2]]);
-      const appliedVV = computeAppliedVV(state);
-
-      const stateBuffer = serializeFullState(state);
-      const frontierBuffer = serializeFrontier(frontier);
-      const appliedVVBuffer = serializeAppliedVV(appliedVV);
-      const provenanceIndexBuffer = index.serialize();
 
       const stateHash = hashGen.next();
       const checkpointMessage = encodeCheckpointMessage({
@@ -495,40 +476,26 @@ describe('WarpCore.patchesFor() (HG/IO/2)', () => {
         schema: 2,
       });
 
-      persistence.listRefs.mockResolvedValue(['refs/warp/test/writers/alice']);
+      persistence.listRefs.mockResolvedValue([]);
       persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test/checkpoints/head') return checkpointSha;
-        if (ref === 'refs/warp/test/writers/alice') return sha2;
         return null;
       });
       persistence.showNode.mockResolvedValue(checkpointMessage);
-      persistence.readTreeOids.mockResolvedValue({
-        'state.cbor': 'state-oid',
-        'frontier.cbor': 'frontier-oid',
-        'appliedVV.cbor': 'applied-oid',
-        'provenanceIndex.cbor': 'provenance-oid',
-      });
-      persistence.readBlob.mockImplementation((/** @type {any} */ oid) => {
-        if (oid === 'state-oid') return stateBuffer;
-        if (oid === 'frontier-oid') return frontierBuffer;
-        if (oid === 'applied-oid') return appliedVVBuffer;
-        if (oid === 'provenance-oid') return provenanceIndexBuffer;
-        return null;
-      });
-      persistence.getNodeInfo.mockResolvedValue({ sha: sha2, message: '', parents: [] });
-
-      const graph = await openRuntimeHostProduct({
-        persistence,
-        graphName: 'test',
-        writerId: 'bob',
+      persistence.getNodeInfo.mockResolvedValue({
+        sha: checkpointSha,
+        message: checkpointMessage,
+        parents: [],
       });
 
-      await graph.materialize();
-
-      // Should have the provenance index from checkpoint
-      const shas = await graph.patchesFor('user:alice');
-      expect(shas).toContain(sha1);
-      expect(shas).toContain(sha2);
+      await expect(
+        openRuntimeHostProduct({
+          persistence,
+          graphName: 'test',
+          writerId: 'bob',
+        })
+      ).rejects.toMatchObject({ code: 'E_CHECKPOINT_UNSUPPORTED_SCHEMA' });
+      expect(persistence.readTreeOids).not.toHaveBeenCalled();
     });
   });
 

@@ -90,8 +90,10 @@ digraph V17ReleaseBlockers {
     penwidth=2.4
   ];
   "SPEC_checkpoint-materialize-test-drift" [
-    fillcolor="#dbeafe",
-    label="SPEC_checkpoint\nmaterialize test drift"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nSPEC_checkpoint\nmaterialize test drift",
+    penwidth=2.4
   ];
   "SPEC_uniform-git-cas-upgrade-contract-drift" [
     color="#15803d",

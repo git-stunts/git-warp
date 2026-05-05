@@ -27,11 +27,13 @@ Current branch state at this boundary:
 - DAG map:
   [0124-v17-release-blocker-dag.md](design/0124-v17-release-blocker-dag.md)
 - Latest closed cycle:
-  `0131-checkpoint-schema-upgrade-path`
+  `0136-checkpoint-materialize-test-drift`
 - Latest full unit gate shape:
-  `npm run test:local` is still red with `71` failures across `19`
-  files. Focused patch-controller and checkpoint upgrade witnesses are
-  green.
+  `npm run test:local` is green with `437` files and `6757` tests.
+- Latest validation shape:
+  lint, anti-sludge shell checks, source/test typecheck, consumer
+  typecheck, markdown lint, markdown code-sample lint, high-level npm
+  audit, and whitespace diff checks are green at this boundary.
 
 The current release ladder remains:
 
@@ -45,17 +47,18 @@ The current release ladder remains:
 
 Recent work narrowed v17 honestly, removed public materialization
 frontdoor docs, fixed runtime read guidance, made checkpoint schema `5`
-the single runtime checkpoint contract, and removed the checkpoint
-controller and patch controller private materialization dependencies.
-The package upgrade command now has a real checkpoint upgrade path for
-retired checkpoint envelopes.
+the single runtime checkpoint contract, removed the checkpoint, patch,
+subscription, and sync controller private materialization dependencies,
+retired stale materialize-spy expectations, pinned default observer
+readings, and aligned remaining checkpoint/materialize unit tests with
+the current checkpoint contract. The package upgrade command now has a
+real checkpoint upgrade path for retired checkpoint envelopes.
 
 The runtime is still partially state-first in important places. The
-important current truth is narrow: checkpoint creation now requires an
-available reading basis and patch creation no longer manufactures state
-through hidden materialization, but sync, subscription/watch, observer
-coordinate pinning, and stale materialize-spy clusters still block the
-release gate.
+important current truth is narrow: the non-security `test:local` blockers
+from the v17 materialization cleanup are closed, but sync server security
+hardening, quarantine graduation, and final release preflight still block
+the release gate.
 
 ## Invariants
 
@@ -95,38 +98,35 @@ mapping, and concrete checks live in `docs/invariants/`.
 
 ## What just shipped
 
-Cycles `0130-patch-controller-reading-basis` and
-`0131-checkpoint-schema-upgrade-path`:
+Cycles `0132-subscription-controller-reading-basis` through
+`0136-checkpoint-materialize-test-drift`:
 
-- Removed `_materializeGraph()` from the `PatchController` host contract.
-- Made additive patch creation independent of cached state while keeping
-  state-dependent freshness checks fail-closed on missing or dirty cached
-  state.
-- Deleted the runtime `MigrationService` export and moved retired
-  visible-state conversion into `scripts/migrations/v17.0.0/`.
-- Implemented `npm run upgrade -- --graph <name>` for checkpoint
-  envelope upgrades: dry-run reads safely, successful upgrades verify the
-  new checkpoint before moving the checkpoint ref, and already-current
-  checkpoints are no-ops.
-- Marked `PORT_patch-controller-reading-basis` and
-  `SPEC_uniform-git-cas-upgrade-contract-drift` complete in the DAG,
-  regenerated the SVG, and recorded closeouts in
-  [0130-patch-controller-reading-basis.md](design/0130-patch-controller-reading-basis.md),
-  [0130-patch-controller-reading-basis.md](method/retros/0130-patch-controller-reading-basis.md),
-  [0131-checkpoint-schema-upgrade-path.md](design/0131-checkpoint-schema-upgrade-path.md),
-  and
-  [0131-checkpoint-schema-upgrade-path.md](method/retros/0131-checkpoint-schema-upgrade-path.md).
+- Removed `_materializeGraph()` from subscription/watch and sync
+  controller read paths.
+- Made default sync metadata-only unless callers explicitly request
+  `materialize: true`.
+- Rewrote stale auto-materialize and materialize-spy tests around the v17
+  reading-basis contract.
+- Pinned default `graph.observer()` reads to the caller's fresh reading
+  basis.
+- Aligned remaining checkpoint/materialize tests with schema `5` or
+  explicit retired-schema upgrade rejection.
+- Brought `npm run test:local` back to green.
+- Marked `PORT_subscription-controller-reading-basis`,
+  `PORT_sync-controller-reading-basis`,
+  `SPEC_materialize-spy-test-clusters`,
+  `SPEC_observer-coordinate-pinning`, and
+  `SPEC_checkpoint-materialize-test-drift` complete in the DAG.
 
 ## What feels wrong
 
-- `npm run test:local` is still red. Do not describe v17 as releasable
-  until the DAG reaches `REL_full-gate-matrix-green`.
-- `SyncController` still calls `_materializeGraph()` before applying
-  sync responses without a cached state.
-- Subscription/watch tests still assert materialization as the freshness
-  mechanism.
-- Retired-schema and materializeAt tests still contain stale assumptions
-  after the current checkpoint boundary.
+- v17 is still not releasable until the DAG reaches
+  `REL_full-gate-matrix-green`.
+- Sync HMAC secrets still pass through the domain as plain strings.
+- Production sync defaults still need enforced auth for non-local bind
+  hosts, explicit unsafe localhost mode, rate limiting, and sanitized 500
+  responses.
+- Quarantine graduation remains near-end work after source churn.
 - Broader historical version-suffixed substrate names still exist in
   `src/`; the checkpoint upgrade slice removed the touched checkpoint and
   migration names only.
@@ -139,15 +139,17 @@ Continue executing the DAG one open node at a time.
 
 Recommended next pull:
 
-- `PORT_subscription-controller-reading-basis`
+- `HEX_sync-secret-plain-string`
 
 Why:
 
 - It is open.
-- Patch freshness/read-basis behavior is now available as its parent.
-- It removes the next direct materialization seam in the public
-  watch/subscription workflow.
-- It keeps sync security hardening out of the same diff.
+- It has no incomplete parent tasks.
+- It is the prerequisite for production sync auth defaults, rate
+  limiting, response sanitization, quarantine graduation, and the final
+  release gate.
+- It keeps credential hardening separate from the broader server default
+  and response-shaping work.
 
 Keep the loop strict: write the cycle doc, capture RED, green the slice,
 update changelog/DAG/SVG/retro, validate, commit, then pull the next open

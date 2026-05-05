@@ -109,12 +109,9 @@ closure. A blank cell means "not directly blocked by that task," not
   pinned after live truth advances.
 
 `SPEC_checkpoint-materialize-test-drift`
-: Remaining `test:local` failures after 0135 are old checkpoint and
-  materialize incremental expectations: schema `2`/`4` fixture loads,
-  checkpoint patch-count accounting, stale checkpoint index hydration,
-  and incremental materialization receipt expectations. This is separate
-  from the closed schema support contract because the runtime now rejects
-  retired schemas with migration guidance.
+: Closed in cycle 0136. The remaining checkpoint/materialize unit drift
+  now either uses current schema `5` fixtures or asserts explicit
+  retired-schema upgrade rejection. `npm run test:local` is green.
 
 `SPEC_uniform-git-cas-upgrade-contract-drift`
 : Closed in cycle 0131. The package upgrade command now builds and runs
@@ -179,7 +176,6 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `SPEC_checkpoint-materialize-test-drift`
 - `HEX_sync-secret-plain-string`
 
 `SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125.
@@ -196,7 +192,8 @@ subscription-controller reading-basis work.
 `SPEC_materialize-spy-test-clusters`. The materialize-spy cluster closed
 in cycle 0134. `SPEC_observer-coordinate-pinning` closed in cycle 0135,
 which exposed `SPEC_checkpoint-materialize-test-drift` as the remaining
-non-security `test:local` blocker.
+non-security `test:local` blocker. That drift closed in cycle 0136, so
+the open front has narrowed to the sync secret hardening path.
 
 ## Regeneration
 
