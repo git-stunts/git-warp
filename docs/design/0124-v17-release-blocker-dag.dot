@@ -1,0 +1,153 @@
+digraph V17ReleaseBlockers {
+  graph [
+    rankdir=LR,
+    bgcolor="white",
+    fontname="Helvetica",
+    fontsize=18,
+    label="v17.0.0 Release Blocker DAG",
+    labelloc=t,
+    margin=0.2,
+    nodesep=0.45,
+    ranksep=0.8
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Helvetica",
+    fontsize=10,
+    margin="0.10,0.07",
+    color="#4b5563",
+    penwidth=1.2
+  ];
+
+  edge [
+    color="#4b5563",
+    arrowsize=0.7,
+    fontname="Helvetica",
+    fontsize=9,
+    penwidth=1.1
+  ];
+
+  "SPEC_consumer-typecheck-materialize-residue" [
+    fillcolor="#dbeafe",
+    label="SPEC_consumer-typecheck\nmaterialize residue"
+  ];
+  "SPEC_docs-materialize-frontdoor-drift" [
+    fillcolor="#dbeafe",
+    label="SPEC_docs\nmaterialize frontdoor drift"
+  ];
+  "SPEC_runtime-error-reading-basis-guidance" [
+    fillcolor="#dbeafe",
+    label="SPEC_runtime-error\nreading-basis guidance"
+  ];
+  "BND_checkpoint-schema-contract-drift" [
+    fillcolor="#ede9fe",
+    label="BND_checkpoint\nschema contract drift"
+  ];
+  "PORT_patch-controller-reading-basis" [
+    fillcolor="#fef3c7",
+    label="PORT_patch-controller\nreading basis"
+  ];
+  "PORT_checkpoint-controller-reading-basis" [
+    fillcolor="#fef3c7",
+    label="PORT_checkpoint-controller\nreading basis"
+  ];
+  "PORT_subscription-controller-reading-basis" [
+    fillcolor="#fef3c7",
+    label="PORT_subscription-controller\nreading basis"
+  ];
+  "PORT_sync-controller-reading-basis" [
+    fillcolor="#fef3c7",
+    label="PORT_sync-controller\nreading basis"
+  ];
+  "SPEC_materialize-spy-test-clusters" [
+    fillcolor="#dbeafe",
+    label="SPEC_materialize-spy\ntest clusters"
+  ];
+  "SPEC_observer-coordinate-pinning" [
+    fillcolor="#dbeafe",
+    label="SPEC_observer\ncoordinate pinning"
+  ];
+  "SPEC_uniform-git-cas-upgrade-contract-drift" [
+    fillcolor="#dbeafe",
+    label="SPEC_uniform-git-cas\nupgrade contract drift"
+  ];
+  "HEX_sync-secret-plain-string" [
+    fillcolor="#fee2e2",
+    label="HEX_sync-secret\nplain string"
+  ];
+  "HEX_sync-production-auth-defaults" [
+    fillcolor="#fee2e2",
+    label="HEX_sync-production\nauth defaults"
+  ];
+  "HEX_sync-no-rate-limiting" [
+    fillcolor="#fee2e2",
+    label="HEX_sync\nno rate limiting"
+  ];
+  "HEX_sync-500-sanitization" [
+    fillcolor="#fee2e2",
+    label="HEX_sync\n500 sanitization"
+  ];
+  "REL_quarantine-graduate-clean" [
+    fillcolor="#e5e7eb",
+    label="REL_quarantine\ngraduate clean"
+  ];
+  "REL_full-gate-matrix-green" [
+    fillcolor="#dcfce7",
+    label="REL_full gate\nmatrix green"
+  ];
+  "REL_release-cut-version-changelog" [
+    fillcolor="#dcfce7",
+    label="REL_release cut\nversion + changelog"
+  ];
+  "REL_release-preflight-and-rc" [
+    fillcolor="#dcfce7",
+    label="REL_release\npreflight + RC"
+  ];
+  "REL_push-pr-review-merge" [
+    fillcolor="#dcfce7",
+    label="REL_push / PR\nreview / merge"
+  ];
+
+  "SPEC_docs-materialize-frontdoor-drift" -> "SPEC_runtime-error-reading-basis-guidance";
+  "BND_checkpoint-schema-contract-drift" -> "PORT_checkpoint-controller-reading-basis";
+  "PORT_patch-controller-reading-basis" -> "PORT_subscription-controller-reading-basis";
+  "SPEC_consumer-typecheck-materialize-residue" -> "SPEC_materialize-spy-test-clusters";
+  "SPEC_docs-materialize-frontdoor-drift" -> "SPEC_materialize-spy-test-clusters";
+  "SPEC_runtime-error-reading-basis-guidance" -> "SPEC_materialize-spy-test-clusters";
+  "PORT_patch-controller-reading-basis" -> "SPEC_materialize-spy-test-clusters";
+  "PORT_checkpoint-controller-reading-basis" -> "SPEC_materialize-spy-test-clusters";
+  "PORT_subscription-controller-reading-basis" -> "SPEC_materialize-spy-test-clusters";
+  "PORT_sync-controller-reading-basis" -> "SPEC_materialize-spy-test-clusters";
+  "HEX_sync-secret-plain-string" -> "HEX_sync-production-auth-defaults";
+  "HEX_sync-production-auth-defaults" -> "HEX_sync-no-rate-limiting";
+  "HEX_sync-production-auth-defaults" -> "HEX_sync-500-sanitization";
+  "BND_checkpoint-schema-contract-drift" -> "REL_quarantine-graduate-clean";
+  "PORT_patch-controller-reading-basis" -> "REL_quarantine-graduate-clean";
+  "PORT_checkpoint-controller-reading-basis" -> "REL_quarantine-graduate-clean";
+  "PORT_subscription-controller-reading-basis" -> "REL_quarantine-graduate-clean";
+  "PORT_sync-controller-reading-basis" -> "REL_quarantine-graduate-clean";
+  "SPEC_observer-coordinate-pinning" -> "REL_quarantine-graduate-clean";
+  "HEX_sync-secret-plain-string" -> "REL_quarantine-graduate-clean";
+  "HEX_sync-production-auth-defaults" -> "REL_quarantine-graduate-clean";
+  "HEX_sync-no-rate-limiting" -> "REL_quarantine-graduate-clean";
+  "HEX_sync-500-sanitization" -> "REL_quarantine-graduate-clean";
+  "SPEC_consumer-typecheck-materialize-residue" -> "REL_full-gate-matrix-green";
+  "SPEC_docs-materialize-frontdoor-drift" -> "REL_full-gate-matrix-green";
+  "SPEC_runtime-error-reading-basis-guidance" -> "REL_full-gate-matrix-green";
+  "BND_checkpoint-schema-contract-drift" -> "REL_full-gate-matrix-green";
+  "PORT_patch-controller-reading-basis" -> "REL_full-gate-matrix-green";
+  "PORT_checkpoint-controller-reading-basis" -> "REL_full-gate-matrix-green";
+  "PORT_subscription-controller-reading-basis" -> "REL_full-gate-matrix-green";
+  "PORT_sync-controller-reading-basis" -> "REL_full-gate-matrix-green";
+  "SPEC_materialize-spy-test-clusters" -> "REL_full-gate-matrix-green";
+  "SPEC_observer-coordinate-pinning" -> "REL_full-gate-matrix-green";
+  "SPEC_uniform-git-cas-upgrade-contract-drift" -> "REL_full-gate-matrix-green";
+  "HEX_sync-no-rate-limiting" -> "REL_full-gate-matrix-green";
+  "HEX_sync-500-sanitization" -> "REL_full-gate-matrix-green";
+  "REL_quarantine-graduate-clean" -> "REL_full-gate-matrix-green";
+  "REL_full-gate-matrix-green" -> "REL_release-cut-version-changelog";
+  "REL_release-cut-version-changelog" -> "REL_release-preflight-and-rc";
+  "REL_release-preflight-and-rc" -> "REL_push-pr-review-merge";
+}
