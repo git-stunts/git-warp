@@ -212,6 +212,9 @@ describe('CheckpointController', () => {
 
   describe('createCheckpoint', () => {
     it('creates a checkpoint from writer tips', async () => {
+      const state = stubState();
+      host['_cachedState'] = state;
+      host['_stateDirty'] = false;
       host['discoverWriters'] = vi.fn().mockResolvedValue(['alice', 'bob']);
       ((host['_persistence'] as any).readRef as any)
         .mockResolvedValueOnce('sha-alice')
@@ -226,28 +229,49 @@ describe('CheckpointController', () => {
         'cp-sha',
       );
       expect(updateFrontierMock).toHaveBeenCalledTimes(2);
+      expect(createCheckpointCommitMock).toHaveBeenCalledWith(
+        expect.objectContaining({ state }),
+      );
     });
 
-    it('materializes when stateDirty is true', async () => {
+    it('fails closed when cached state is dirty', async () => {
       host['_stateDirty'] = true;
       host['_cachedState'] = stubState();
       host['discoverWriters'] = vi.fn().mockResolvedValue([]);
       createCheckpointCommitMock.mockResolvedValue('cp-sha');
 
-      await ctrl.createCheckpoint();
+      await expect(ctrl.createCheckpoint()).rejects.toThrow(QueryError);
 
-      expect(host['materialize']).toHaveBeenCalled();
+      expect(createCheckpointCommitMock).not.toHaveBeenCalled();
+      expect(host['materialize']).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when cached state is missing', async () => {
+      host['_stateDirty'] = false;
+      host['_cachedState'] = null;
+      host['discoverWriters'] = vi.fn().mockResolvedValue([]);
+      createCheckpointCommitMock.mockResolvedValue('cp-sha');
+
+      await expect(ctrl.createCheckpoint()).rejects.toThrow(QueryError);
+
+      expect(createCheckpointCommitMock).not.toHaveBeenCalled();
+      expect(host['materialize']).not.toHaveBeenCalled();
     });
 
     it('uses cached state when clean', async () => {
+      const materializeGraphTrap = vi.fn(async () => {
+        throw new Error('checkpoint controller must not materialize graph');
+      });
       host['_stateDirty'] = false;
       host['_cachedState'] = stubState();
+      host['_materializeGraph'] = materializeGraphTrap;
       host['discoverWriters'] = vi.fn().mockResolvedValue([]);
       createCheckpointCommitMock.mockResolvedValue('cp-sha');
 
       await ctrl.createCheckpoint();
 
       expect(host['materialize']).not.toHaveBeenCalled();
+      expect(materializeGraphTrap).not.toHaveBeenCalled();
     });
 
     it('logs warning when index build fails and still creates checkpoint', async () => {
@@ -317,7 +341,7 @@ describe('CheckpointController', () => {
   describe('_loadLatestCheckpoint', () => {
     it('returns checkpoint when ref exists', async () => {
       ((host['_persistence'] as any).readRef as any).mockResolvedValue('cp-sha');
-      const cpData = { state: stubState(), frontier: new Map(), stateHash: 'abc', schema: 2, appliedVV: null, indexShardOids: null };
+      const cpData = { state: stubState(), frontier: new Map(), stateHash: 'abc', schema: 5, appliedVV: null, indexShardOids: null };
       loadCheckpointMock.mockResolvedValue(cpData);
 
       const result = await ctrl._loadLatestCheckpoint();
@@ -372,7 +396,7 @@ describe('CheckpointController', () => {
         .mockResolvedValueOnce([patchA])
         .mockResolvedValueOnce([patchB]);
 
-      const checkpoint = ({ state: stubState(), frontier: new Map([['alice', 'old-sha']]), stateHash: 'h', schema: 2, appliedVV: null, indexShardOids: null } as any);
+      const checkpoint = ({ state: stubState(), frontier: new Map([['alice', 'old-sha']]), stateHash: 'h', schema: 5, appliedVV: null, indexShardOids: null } as any);
       const result = await ctrl._loadPatchesSince(checkpoint);
 
       expect(result).toEqual([patchA, patchB]);
@@ -385,7 +409,7 @@ describe('CheckpointController', () => {
       const patch = { patch: { ops: [] }, sha: 'tip-sha' };
       (host['_loadWriterPatches'] as any).mockResolvedValue([patch]);
 
-      const checkpoint = ({ state: stubState(), frontier: new Map(), stateHash: 'h', schema: 2, appliedVV: null, indexShardOids: null } as any);
+      const checkpoint = ({ state: stubState(), frontier: new Map(), stateHash: 'h', schema: 5, appliedVV: null, indexShardOids: null } as any);
       await ctrl._loadPatchesSince(checkpoint);
 
       expect(host['_validatePatchAgainstCheckpoint']).toHaveBeenCalledWith('alice', 'tip-sha', checkpoint);
@@ -395,7 +419,7 @@ describe('CheckpointController', () => {
       host['discoverWriters'] = vi.fn().mockResolvedValue(['alice']);
       (host['_loadWriterPatches'] as any).mockResolvedValue([]);
 
-      const checkpoint = ({ state: stubState(), frontier: new Map(), stateHash: 'h', schema: 2, appliedVV: null, indexShardOids: null } as any);
+      const checkpoint = ({ state: stubState(), frontier: new Map(), stateHash: 'h', schema: 5, appliedVV: null, indexShardOids: null } as any);
       await ctrl._loadPatchesSince(checkpoint);
 
       expect(host['_validatePatchAgainstCheckpoint']).not.toHaveBeenCalled();
@@ -464,7 +488,7 @@ describe('CheckpointController', () => {
       host['_cachedState'] = null;
 
       expect(() => ctrl.runGC()).toThrow(QueryError);
-      expect(() => ctrl.runGC()).toThrow(/materialize/i);
+      expect(() => ctrl.runGC()).toThrow(/reading basis/i);
     });
 
     it('throws E_GC_STALE when frontier changes during compaction', () => {

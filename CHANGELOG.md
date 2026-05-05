@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Checkpoint creation now requires an explicit checkpoint reading basis: it uses an exact state-cache snapshot or clean cached state, fails closed with v17 readings guidance when no basis exists, and no longer depends on `_materializeGraph()`.
 - Checkpoint schema support now has one v17 runtime contract: schema `5` creates and loads the envelope-tree checkpoint shape, legacy schemas `2`, `3`, and `4` reject with migration guidance, and checkpoint-tail/index witnesses no longer rely on a fake schema split.
 - Runtime read/provenance diagnostics now point users at readings, worldlines, checkpoint-backed readings, and `docs/READINGS_AND_OPTICS.md` instead of telling v17 app developers to call materialize.
 - Public first-use docs now teach the v17 readings/worldline/observer read path, link the new `docs/READINGS_AND_OPTICS.md` guide, and no longer present `graph.materialize` as an application read frontdoor.

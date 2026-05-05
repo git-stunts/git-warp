@@ -40,9 +40,6 @@ type SnapshotCacheFixture = {
   pruneEvictable: () => Promise<void>;
 };
 
-type HostMaterializedState = {
-  state: WarpState;
-};
 type HostNodeInfo = {
   message: string;
 };
@@ -82,7 +79,6 @@ type HostFixture = {
   _stateCache: SnapshotCacheFixture;
   _readPatchBlob: (_patchMeta: ReturnType<typeof DEFAULT_COMMIT_MESSAGE_CODEC.decodePatch>) => Promise<Uint8Array>;
   discoverWriters: () => Promise<string[]>;
-  _materializeGraph: () => Promise<HostMaterializedState>;
 };
 
 function snapshotRecord(snapshotId: string, retention: 'evictable' | 'pinned'): SnapshotRecord {
@@ -140,7 +136,6 @@ function createHost(snapshotCache: SnapshotCacheFixture): HostFixture {
     _stateCache: snapshotCache,
     _readPatchBlob: vi.fn().mockResolvedValue(new Uint8Array()),
     discoverWriters: vi.fn().mockResolvedValue(['alice']),
-    _materializeGraph: vi.fn().mockResolvedValue({ state: WarpState.empty() }),
   };
 }
 
@@ -168,7 +163,7 @@ describe('CheckpointController — unified snapshot cache', () => {
     expect(createCheckpointCommitMock).not.toHaveBeenCalled();
   });
 
-  it('materializes once, stores an evictable snapshot, and then pins it when no exact snapshot exists', async () => {
+  it('stores a clean cached reading basis, then pins it when no exact snapshot exists', async () => {
     createCheckpointCommitMock.mockResolvedValue('checkpoint-commit-sha');
 
     const snapshotCache = {
@@ -181,16 +176,48 @@ describe('CheckpointController — unified snapshot cache', () => {
       pruneEvictable: vi.fn(),
     };
     const host = createHost(snapshotCache);
-    host._cachedState = null;
-    host._stateDirty = true;
     const controller = new CheckpointController(host);
 
     await controller.createCheckpoint();
 
-    expect(host._materializeGraph).toHaveBeenCalledTimes(1);
     expect(snapshotCache.put).toHaveBeenCalledTimes(1);
+    expect(snapshotCache.put).toHaveBeenCalledWith(
+      expect.objectContaining({ state: host._cachedState }),
+    );
     expect(snapshotCache.pin).toHaveBeenCalledWith('snapshot-new');
     expect(snapshotCache.publishCheckpointHead).toHaveBeenCalledWith('test-graph', 'snapshot-new');
+    expect(createCheckpointCommitMock).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when no exact snapshot and no clean cached reading basis exists', async () => {
+    createCheckpointCommitMock.mockResolvedValue('checkpoint-commit-sha');
+
+    const snapshotCache = {
+      getExact: vi.fn().mockResolvedValue(null),
+      getBestCompatiblePredecessor: vi.fn(),
+      put: vi.fn(),
+      pin: vi.fn(),
+      publishCheckpointHead: vi.fn().mockResolvedValue(undefined),
+      resolveCheckpointHead: vi.fn().mockResolvedValue(null),
+      pruneEvictable: vi.fn(),
+    };
+    const host = createHost(snapshotCache);
+    host._cachedState = null;
+    host._stateDirty = true;
+    const materializeGraphTrap = vi.fn(async () => {
+      throw new Error('checkpoint controller must not materialize graph');
+    });
+    const hostWithTrap = {
+      ...host,
+      _materializeGraph: materializeGraphTrap,
+    };
+    const controller = new CheckpointController(hostWithTrap);
+
+    await expect(controller.createCheckpoint()).rejects.toThrow(/reading basis/i);
+
+    expect(materializeGraphTrap).not.toHaveBeenCalled();
+    expect(snapshotCache.put).not.toHaveBeenCalled();
+    expect(snapshotCache.pin).not.toHaveBeenCalled();
     expect(createCheckpointCommitMock).not.toHaveBeenCalled();
   });
 

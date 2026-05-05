@@ -169,7 +169,7 @@ describe('B63 — GC snapshot isolation', () => {
     it('throws E_NO_STATE when no cached state exists', () => {
       const host = createMockHost({ _cachedState: null });
 
-      expect(() => new CheckpointController((host as any)).runGC()).toThrow(/materialize/i);
+      expect(() => new CheckpointController((host as any)).runGC()).toThrow(/reading basis/i);
     });
   });
 });

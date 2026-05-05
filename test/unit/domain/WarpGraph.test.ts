@@ -30,6 +30,13 @@ function materializedGraphFor(state = createEmptyState()) {
   };
 }
 
+function installCleanCheckpointReadingBasis(
+  graph: { _cachedState: ReturnType<typeof createEmptyState> | null; _stateDirty: boolean },
+): void {
+  graph._cachedState = createEmptyState();
+  graph._stateDirty = false;
+}
+
 /**
  * Creates a mock persistence adapter for testing.
  * @returns {any} Mock persistence adapter
@@ -900,8 +907,7 @@ eg-schema: 2`;
       const treeOid = 'e'.repeat(40);
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1']);
-      // Mock materialize to return V5 state (with ORSet structure)
-      vi.spyOn(graph, '_materializeGraph').mockResolvedValue(materializedGraphFor());
+      installCleanCheckpointReadingBasis(graph);
 
       persistence.readRef.mockResolvedValue(writerSha);
       persistence.writeBlob.mockResolvedValue(blobOid);
@@ -936,8 +942,7 @@ eg-schema: 2`;
       const treeOid = 'e'.repeat(40);
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1']);
-      // Mock materialize to return V5 state (with ORSet structure)
-      vi.spyOn(graph, '_materializeGraph').mockResolvedValue(materializedGraphFor());
+      installCleanCheckpointReadingBasis(graph);
 
       persistence.readRef.mockResolvedValue(writerSha);
       persistence.writeBlob.mockResolvedValue(blobOid);
@@ -969,8 +974,7 @@ eg-schema: 2`;
       const treeOid = 'e'.repeat(40);
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1']);
-      // Mock materialize to return V5 state (with ORSet structure)
-      vi.spyOn(graph, '_materializeGraph').mockResolvedValue(materializedGraphFor());
+      installCleanCheckpointReadingBasis(graph);
 
       persistence.readRef.mockResolvedValue(writerSha);
       persistence.writeBlob.mockResolvedValue(blobOid);
@@ -999,8 +1003,7 @@ eg-schema: 2`;
       const treeOid = 'e'.repeat(40);
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1', 'writer-2']);
-      // Mock materialize to return V5 state (with ORSet structure)
-      vi.spyOn(graph, '_materializeGraph').mockResolvedValue(materializedGraphFor());
+      installCleanCheckpointReadingBasis(graph);
 
       persistence.readRef
         .mockResolvedValueOnce(writer1Sha)
@@ -1034,8 +1037,7 @@ eg-schema: 2`;
       const treeOid = 'e'.repeat(40);
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1']);
-      // Mock materialize to return V5 state (with ORSet structure)
-      vi.spyOn(graph, '_materializeGraph').mockResolvedValue(materializedGraphFor());
+      installCleanCheckpointReadingBasis(graph);
 
       persistence.readRef.mockResolvedValue(null); // No refs exist
       persistence.writeBlob.mockResolvedValue(blobOid);
@@ -1070,7 +1072,7 @@ eg-schema: 2`;
       const warn = vi.fn();
 
       vi.spyOn(graph, 'discoverWriters').mockResolvedValue(['writer-1']);
-      vi.spyOn(graph, '_materializeGraph').mockResolvedValue(materializedGraphFor());
+      installCleanCheckpointReadingBasis(graph);
 
       persistence.readRef.mockResolvedValue(writerSha);
       persistence.writeBlob.mockResolvedValue(blobOid);

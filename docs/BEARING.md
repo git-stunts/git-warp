@@ -14,39 +14,44 @@ Scope note:
 
 ## Where are we
 
-`git-warp` is in a v17 deslugging checkpoint after closing cycle
-`0105-runtimehost-query-materialization-port-seam`.
+`git-warp` is executing the v17 release-blocker DAG. The current work is
+not a broad RuntimeHost rewrite; it is one bounded release blocker at a
+time, with the DAG status and SVG kept current after each completed
+cycle.
 
-Current branch state at handoff:
+Current branch state at this boundary:
 
 - Branch: `release/v17.0.0`
-- Local state: clean working tree at closeout
-- Local commits: ahead of `origin/release/v17.0.0` by 35 commits
-- Push state: not pushed
-- Last closed cycle:
-  `0105-runtimehost-query-materialization-port-seam`
-- Latest closeout commit:
-  `5068468c docs: close query read model seam cycle`
-- Latest implementation commit:
-  `70ddb2bd refactor: introduce query read model seam`
+- Push state: local branch remains ahead of `origin/release/v17.0.0`;
+  push only after explicit approval.
+- DAG map:
+  [0124-v17-release-blocker-dag.md](design/0124-v17-release-blocker-dag.md)
+- Latest closed cycle:
+  `0129-checkpoint-controller-reading-basis`
+- Latest full unit gate shape:
+  `npm run test:local` is still red with `38` failures across remaining
+  DAG nodes.
 
 The current release ladder remains:
 
-- `v17.0.0`: TypeScript migration and bounded-residency ORSet groundwork
+- `v17.0.0`: TypeScript migration, public API honesty,
+  materialization-frontdoor deletion, readings/optics direction, and
+  query read-model groundwork
 - `v18.0.0`: graph substrate convergence
 - `v19.0.0`: observation, doctrine, and slice-first runtime convergence
 - `v20.0.0`: slice-first read execution
 - `v21.0.0`: distributed observer geometry and admission reality
 
-Recent work shifted from release-speed card churn to explicit
-deslugging. Cycles `0102` through `0105` repaired the public snapshot
-value model, restored the consumer typecheck gate, surveyed structural
-sludge, and cut the first RuntimeHost/query seam.
+Recent work narrowed v17 honestly, removed public materialization
+frontdoor docs, fixed runtime read guidance, made checkpoint schema `5`
+the single runtime checkpoint contract, and removed the checkpoint
+controller's private materialization dependency.
 
 The runtime is still partially state-first in important places. The
-important current truth is narrower: `QueryRunner` no longer owns a
-full-materialization contract, but other traversal, observer/worldline,
-storage, and RuntimeHost seams still do.
+important current truth is narrow: checkpoint creation now requires an
+available reading basis, but patch, sync, subscription/watch, observer
+coordinate pinning, and stale materialize-spy clusters still block the
+release gate.
 
 ## Invariants
 
@@ -86,65 +91,55 @@ mapping, and concrete checks live in `docs/invariants/`.
 
 ## What just shipped
 
-Cycle `0105-runtimehost-query-materialization-port-seam`:
+Cycle `0129-checkpoint-controller-reading-basis`:
 
-- Added a query-owned `QueryReadModelProvider` / `QueryReadModel` seam.
-- Replaced `QueryRunner`'s RuntimeHost-shaped dependency with the narrow
-  read-model provider.
-- Removed `_materializeGraph`, full adjacency, full node-list, and
-  `getEdges()` as `QueryRunner` contract requirements.
-- Preserved `graph.query()`, `observer.query()`, and `worldline.query()`
-  as public ergonomic paths.
-- Kept Observer/read perspective as the semantic query owner.
-- Added behavioral RED coverage proving bounded exact-match id-only
-  queries do not drain a fake lazy node stream.
-- Closed the cycle with Playback, Drift Check, Retrospective, and Cycle
-  End in
-  [0105-runtimehost-query-materialization-port-seam.md](design/0105-runtimehost-query-materialization-port-seam.md)
+- Removed `_materializeGraph()` from the `CheckpointController` host
+  contract.
+- Made `createCheckpoint()` use an exact snapshot-cache reading or a
+  clean cached state reading basis.
+- Made dirty or missing cached state fail closed with `E_NO_STATE` and
+  v17 readings guidance.
+- Preserved snapshot-cache exact-hit and clean-miss publish/pin
+  behavior.
+- Updated stale checkpoint tests that stubbed `_materializeGraph()` to
+  install a clean checkpoint reading basis.
+- Marked `PORT_checkpoint-controller-reading-basis` complete in the DAG,
+  regenerated the SVG, and recorded the closeout in
+  [0129-checkpoint-controller-reading-basis.md](design/0129-checkpoint-controller-reading-basis.md)
   and
-  [0105-runtimehost-query-materialization-port-seam.md](method/retros/0105-runtimehost-query-materialization-port-seam.md).
+  [0129-checkpoint-controller-reading-basis.md](method/retros/0129-checkpoint-controller-reading-basis.md).
 
 ## What feels wrong
 
-- The branch has 35 local commits and is not pushed. That is a safety
-  risk until a push-readiness checkpoint and validation run happen.
-- 0105 fixed one seam only. It did not fix all query, traversal,
-  observer/worldline, storage, or RuntimeHost materialization seams.
-- `LogicalTraversal` remains a likely next seam because it still has
-  broad materialization and `unknown` / `Record<string, unknown>`
-  residue.
-- `TraversalContext.ts` and `traversalHelpers.ts` still contain existing
-  traversal boundary/modeling sludge.
-- Legacy query-builder tests still contain pre-existing `any` / `as any`
-  scaffolding.
-- v17 release readiness is not established. Recent focused validation is
-  green, but full branch validation has not been run after the closeout.
+- `npm run test:local` is still red. Do not describe v17 as releasable
+  until the DAG reaches `REL_full-gate-matrix-green`.
+- `PatchController` still calls `_materializeGraph()` for patch
+  freshness when auto-materialization is enabled.
+- `SyncController` still calls `_materializeGraph()` before applying
+  sync responses without a cached state.
+- Subscription/watch tests still assert materialization as the freshness
+  mechanism.
+- Legacy schema and materializeAt tests still contain stale assumptions
+  after the schema-5 checkpoint boundary.
+- The branch remains local-only relative to origin; pushing is a separate
+  release/coordination decision.
 
 ## What comes next
 
-Do not start code next. Start with a branch safety checkpoint only.
+Continue executing the DAG one open node at a time.
 
-Required next-session checkpoint:
+Recommended next pull:
 
-1. Current branch and clean/dirty status.
-2. Commits ahead of origin.
-3. Latest 20 commits grouped by cycle.
-4. Current design cycle statuses from `0102` through `0105`.
-5. Whether all recent cycles are closed / hill met.
-6. Last known green validation for:
-   - `npm run typecheck`
-   - `npm run lint:sludge`
-   - `npm run typecheck:consumer`
-   - 0105 query seam conformance
-   - targeted query/controller tests
-7. Whether a full validation run is needed before push.
-8. Whether the branch is safe to push after validation.
-9. Recommended next action.
+- `PORT_patch-controller-reading-basis`
 
-Likely next action after checkpoint:
+Why:
 
-- Run full validation before any push.
-- Push only after explicit approval.
-- If continuing deslugging after the branch is anchored, pull exactly one
-  narrow seam. Do not resume broad RuntimeHost cleanup or broad 0096 by
-  reflex.
+- It is open.
+- It removes another direct `_materializeGraph()` seam.
+- It unlocks `PORT_subscription-controller-reading-basis`, which is
+  still blocked on patch freshness/read-basis behavior.
+- It keeps sync security hardening out of the same diff.
+
+Keep the loop strict: write the cycle doc, capture RED, green the slice,
+update changelog/DAG/SVG/retro, validate, commit, then pull the next open
+node.

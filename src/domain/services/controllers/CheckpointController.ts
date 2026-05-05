@@ -42,9 +42,6 @@ import type GCPolicy from '../GCPolicy.ts';
 import { E_NO_STATE_MSG } from './QueryStateMessages.ts';
 
 type CheckpointFrontier = Pick<LoadedCheckpoint, 'schema' | 'frontier'>;
-type CheckpointMaterializedState = {
-  state: WarpState;
-};
 
 type CheckpointHost = {
   _graphName: string;
@@ -75,7 +72,6 @@ type CheckpointHost = {
   _stateCache: WarpStateCachePort | null;
   _readPatchBlob(patchMeta: ReturnType<CommitMessageCodecPort['decodePatch']>): Promise<Uint8Array>;
   discoverWriters(): Promise<string[]>;
-  _materializeGraph(): Promise<CheckpointMaterializedState>;
 };
 
 /**
@@ -158,9 +154,7 @@ export default class CheckpointController {
     h._checkpointing = true;
     let state: WarpState;
     try {
-      state = (h._cachedState && !h._stateDirty)
-        ? h._cachedState
-        : (await h._materializeGraph()).state;
+      state = this._requireCheckpointReadingState();
     } finally {
       h._checkpointing = prevCheckpointing;
     }
@@ -213,6 +207,14 @@ export default class CheckpointController {
     await h._persistence.updateRef(checkpointRef, checkpointSha);
 
     return checkpointSha;
+  }
+
+  private _requireCheckpointReadingState(): WarpState {
+    const h = this._host;
+    if (h._cachedState !== null && !h._stateDirty) {
+      return h._cachedState;
+    }
+    throw new QueryError(E_NO_STATE_MSG, { code: 'E_NO_STATE' });
   }
 
   private _coordinateForCheckpoint(frontier: Map<string, string>): WarpStateCoordinate {

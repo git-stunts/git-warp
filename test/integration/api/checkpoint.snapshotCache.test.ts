@@ -50,6 +50,7 @@ describe('API: snapshot cache unification', () => {
 
     const graph = await repo!.openGraph('test', 'writer-1', { stateCache });
     await (await graph.createPatch()).addNode('n1').commit();
+    await graph.materialize();
 
     await graph.createCheckpoint();
 

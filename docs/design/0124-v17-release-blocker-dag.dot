@@ -58,8 +58,10 @@ digraph V17ReleaseBlockers {
     label="PORT_patch-controller\nreading basis"
   ];
   "PORT_checkpoint-controller-reading-basis" [
-    fillcolor="#fef3c7",
-    label="PORT_checkpoint-controller\nreading basis"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nPORT_checkpoint-controller\nreading basis",
+    penwidth=2.4
   ];
   "PORT_subscription-controller-reading-basis" [
     fillcolor="#fef3c7",

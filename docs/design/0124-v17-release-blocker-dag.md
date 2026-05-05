@@ -80,9 +80,10 @@ closure. A blank cell means "not directly blocked by that task," not
   This is one internal read-basis seam.
 
 `PORT_checkpoint-controller-reading-basis`
-: Checkpoint controller read paths still name `_materializeGraph()`.
-  This should follow the checkpoint schema matrix so tests do not chase
-  two moving contracts at once.
+: Closed in cycle 0129. Checkpoint creation now uses an exact
+  snapshot-cache reading or a clean cached state reading basis, fails
+  closed with v17 readings guidance when no basis exists, and the
+  controller host contract no longer names `_materializeGraph()`.
 
 `PORT_subscription-controller-reading-basis`
 : Subscription/watch behavior still has materialize-spy failures and
@@ -166,7 +167,6 @@ substrate convergence are also excluded from this release-blocker graph.
 The tasks with no direct blockers are:
 
 - `PORT_patch-controller-reading-basis`
-- `PORT_checkpoint-controller-reading-basis`
 - `PORT_sync-controller-reading-basis`
 - `SPEC_observer-coordinate-pinning`
 - `SPEC_uniform-git-cas-upgrade-contract-drift`
@@ -176,10 +176,11 @@ The tasks with no direct blockers are:
 `SPEC_docs-materialize-frontdoor-drift` closed in cycle 0126 and unlocks
 runtime error guidance. `SPEC_runtime-error-reading-basis-guidance`
 closed in cycle 0127. `BND_checkpoint-schema-contract-drift` closed in
-cycle 0128 and unlocks checkpoint-controller reading-basis work. The
-smallest next pull is likely either `PORT_checkpoint-controller-reading-basis`
-while checkpoint context is fresh or `PORT_patch-controller-reading-basis`
-to unblock subscription cleanup.
+cycle 0128 and unlocked checkpoint-controller reading-basis work.
+`PORT_checkpoint-controller-reading-basis` closed in cycle 0129. The
+smallest next pull is likely `PORT_patch-controller-reading-basis`,
+because it unblocks subscription cleanup and removes another
+materialization seam from the release gate.
 
 ## Regeneration
 
