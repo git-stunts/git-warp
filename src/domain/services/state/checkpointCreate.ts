@@ -1,7 +1,7 @@
 /**
  * Checkpoint creation logic for WARP multi-writer graph database.
  *
- * Supports V5 checkpoint creation with optional index tree (schema:4).
+ * Supports schema:5 checkpoint creation with optional index tree.
  *
  * @module domain/services/state/checkpointCreate
  * @see WARP Spec Section 10
@@ -9,9 +9,9 @@
 
 import { computeStateHash } from './StateSerializer.ts';
 import {
-  serializeFullState,
   computeAppliedVV,
   serializeAppliedVV,
+  serializeCheckpointStateEnvelope,
 } from './CheckpointSerializer.ts';
 import { serializeFrontier } from '../Frontier.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../codec/WarpMessageCodec.ts';
@@ -20,8 +20,7 @@ import {
   writeIndexSubtree,
   collectContentAnchorEntries,
   compareTreeEntriesByPath,
-  CHECKPOINT_SCHEMA_STANDARD,
-  CHECKPOINT_SCHEMA_INDEX_TREE,
+  CURRENT_CHECKPOINT_SCHEMA,
 } from './checkpointHelpers.ts';
 import type WarpState from './WarpState.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';
@@ -55,14 +54,14 @@ export interface CreateCheckpointOptions {
 }
 
 /**
- * Creates a schema:2 checkpoint commit containing serialized V5 state and frontier.
+ * Creates a schema:5 checkpoint commit containing a state envelope and frontier.
  *
  * Compatibility wrapper — delegates to createV5.
  *
  * Tree structure:
  * ```
  * <checkpoint_commit_tree>/
- * ├── state.cbor           # AUTHORITATIVE: Full V5 state (ORSets + props)
+ * ├── state/               # AUTHORITATIVE: V5 state envelope
  * ├── frontier.cbor        # Writer frontiers
  * ├── appliedVV.cbor       # Version vector of dots in state
  * └── provenanceIndex.cbor # Optional: node-to-patchSha index (HG/IO/2)
@@ -75,12 +74,12 @@ export async function create(options: CreateCheckpointOptions): Promise<string> 
 }
 
 /**
- * Creates a V5 checkpoint commit with full ORSet state.
+ * Creates a schema:5 checkpoint commit with full ORSet state envelope.
  *
  * V5 Checkpoint Tree Structure:
  * ```
  * <checkpoint_tree>/
- * ├── state.cbor           # AUTHORITATIVE: Full V5 state (ORSets + props)
+ * ├── state/               # AUTHORITATIVE: V5 state envelope
  * ├── frontier.cbor        # Writer frontiers
  * ├── appliedVV.cbor       # Version vector of dots in state
  * └── provenanceIndex.cbor # Optional: node-to-patchSha index (HG/IO/2)
@@ -116,60 +115,44 @@ export async function createV5({
     checkpointState.edgeAlive.compact(appliedVV);
   }
 
-  // 3–6. Serialize and write state, frontier, appliedVV.
-  // When checkpointStore is available, it owns serialization + blob writes.
-  // Otherwise fall back to the legacy serialize + writeBlob path.
-  // codecOpt is still needed for provenance index serialization (Slice 4 scope).
+  // 3–6. Serialize and write schema-5 state envelope, frontier, appliedVV.
+  // The legacy CheckpointStorePort path wrote a single state.cbor blob;
+  // schema 5 keeps the option for API compatibility but publishes the
+  // runtime checkpoint through named envelope artifacts.
+  // codecOpt is still needed for envelope/provenance serialization.
   const codecOpt = codec !== undefined && codec !== null ? { codec } : {};
-  let stateBlobOid: string;
   let stateHash: string;
-  let frontierBlobOid: string;
-  let appliedVVBlobOid: string;
   let provenanceIndexBlobOid: string | null = null;
 
-  if (checkpointStore !== undefined && checkpointStore !== null) {
-    // Compute stateHash first via StateHashService (preferred) or legacy fallback
-    if (stateHashService !== undefined && stateHashService !== null) {
-      stateHash = await stateHashService.compute(checkpointState);
-    } else {
-      stateHash = await computeStateHash(checkpointState, { ...codecOpt, crypto: crypto as CryptoPort });
-    }
-    const writeResult = await checkpointStore.writeCheckpoint({
-      state: checkpointState,
-      frontier,
-      appliedVV,
-      stateHash,
-      ...(provenanceIndex ? { provenanceIndex } : {}),
-    });
-    stateBlobOid = writeResult.stateBlobOid;
-    frontierBlobOid = writeResult.frontierBlobOid;
-    appliedVVBlobOid = writeResult.appliedVVBlobOid;
-    provenanceIndexBlobOid = writeResult.provenanceIndexBlobOid;
+  // Compute stateHash first via StateHashService (preferred) or legacy fallback.
+  if (stateHashService !== undefined && stateHashService !== null) {
+    stateHash = await stateHashService.compute(checkpointState);
   } else {
-    // Legacy path: serialize in-process, write raw blobs
-    const stateBuffer = serializeFullState(checkpointState, codecOpt);
     stateHash = await computeStateHash(checkpointState, { ...codecOpt, crypto: crypto as CryptoPort });
-    const frontierBuffer = serializeFrontier(frontier, codecOpt);
-    const appliedVVBuffer = serializeAppliedVV(appliedVV, codecOpt);
-    stateBlobOid = await persistence.writeBlob(stateBuffer);
-    frontierBlobOid = await persistence.writeBlob(frontierBuffer);
-    appliedVVBlobOid = await persistence.writeBlob(appliedVVBuffer);
-
-    // 6b. Optionally serialize and write provenance index (legacy path only;
-    // when checkpointStore is used, writeCheckpoint already wrote it)
-    if (provenanceIndex) {
-      const provenanceIndexBuffer = provenanceIndex.serialize(codecOpt);
-      provenanceIndexBlobOid = await persistence.writeBlob(provenanceIndexBuffer);
-    }
   }
 
-  // 6c. Optionally write index subtree (schema 4)
-  let indexSubtreeOid: string | null = null;
-  if (indexTree) {
-    indexSubtreeOid = await writeIndexSubtree(indexTree, persistence);
+  void checkpointStore;
+
+  // Schema 5 publishes separate envelope artifacts so the Git tree names
+  // each read basis member.
+  const stateEnvelope = serializeCheckpointStateEnvelope(checkpointState, codecOpt);
+  const nodeAliveOid = await persistence.writeBlob(stateEnvelope.nodeAlive);
+  const edgeAliveOid = await persistence.writeBlob(stateEnvelope.edgeAlive);
+  const propOid = await persistence.writeBlob(stateEnvelope.prop);
+  const observedFrontierOid = await persistence.writeBlob(stateEnvelope.observedFrontier);
+  const edgeBirthEventOid = await persistence.writeBlob(stateEnvelope.edgeBirthEvent);
+
+  const frontierBuffer = serializeFrontier(frontier, codecOpt);
+  const appliedVVBuffer = serializeAppliedVV(appliedVV, codecOpt);
+  const frontierBlobOid = await persistence.writeBlob(frontierBuffer);
+  const appliedVVBlobOid = await persistence.writeBlob(appliedVVBuffer);
+
+  if (provenanceIndex) {
+    const provenanceIndexBuffer = provenanceIndex.serialize(codecOpt);
+    provenanceIndexBlobOid = await persistence.writeBlob(provenanceIndexBuffer);
   }
 
-  // 6d. Collect content blob OIDs from state properties for GC anchoring.
+  // 6c. Collect content blob OIDs from state properties for GC anchoring.
   // If patch commits are ever pruned, content blobs remain reachable via
   // the checkpoint tree. Without this, git gc would nuke content blobs
   // whose only anchor was the (now-pruned) patch commit tree.
@@ -178,12 +161,28 @@ export async function createV5({
   // is infrequent. The property key format is deterministic (encodePropKey /
   // encodeEdgePropKey), but content keys are interleaved with regular keys
   // so no prefix filter can skip non-content entries without decoding.
-  // 7. Create tree with sorted entries
+  // 7. Create the state subtree and outer envelope tree with sorted entries.
+  const stateTreeEntries = [
+    `100644 blob ${edgeAliveOid}\tedgeAlive`,
+    `100644 blob ${edgeBirthEventOid}\tedgeBirthEvent.cbor`,
+    `100644 blob ${nodeAliveOid}\tnodeAlive`,
+    `100644 blob ${observedFrontierOid}\tobservedFrontier.cbor`,
+    `100644 blob ${propOid}\tprop.cbor`,
+  ];
+  stateTreeEntries.sort(compareTreeEntriesByPath);
+  const stateTreeOid = await persistence.writeTree(stateTreeEntries);
+
+  // 7b. Optionally write index subtree.
+  let indexSubtreeOid: string | null = null;
+  if (indexTree) {
+    indexSubtreeOid = await writeIndexSubtree(indexTree, persistence);
+  }
+
   const treeEntries = collectContentAnchorEntries(checkpointState.prop);
   treeEntries.push(
     `100644 blob ${appliedVVBlobOid}\tappliedVV.cbor`,
     `100644 blob ${frontierBlobOid}\tfrontier.cbor`,
-    `100644 blob ${stateBlobOid}\tstate.cbor`,
+    `040000 tree ${stateTreeOid}\tstate`,
   );
 
   // Add provenance index if present
@@ -191,7 +190,7 @@ export async function createV5({
     treeEntries.push(`100644 blob ${provenanceIndexBlobOid}\tprovenanceIndex.cbor`);
   }
 
-  // Add index subtree if present (schema 4)
+  // Add index subtree if present.
   if (indexSubtreeOid !== null) {
     treeEntries.push(`040000 tree ${indexSubtreeOid}\tindex`);
   }
@@ -208,7 +207,7 @@ export async function createV5({
     stateHash,
     frontierOid: frontierBlobOid,
     indexOid: treeOid,
-    schema: indexTree ? CHECKPOINT_SCHEMA_INDEX_TREE : CHECKPOINT_SCHEMA_STANDARD,
+    schema: CURRENT_CHECKPOINT_SCHEMA,
     checkpointVersion: null,
   });
 

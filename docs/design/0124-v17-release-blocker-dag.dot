@@ -48,8 +48,10 @@ digraph V17ReleaseBlockers {
     penwidth=2.4
   ];
   "BND_checkpoint-schema-contract-drift" [
-    fillcolor="#ede9fe",
-    label="BND_checkpoint\nschema contract drift"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nBND_checkpoint\nschema contract drift",
+    penwidth=2.4
   ];
   "PORT_patch-controller-reading-basis" [
     fillcolor="#fef3c7",

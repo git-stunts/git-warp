@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ForkController from '../../../../../src/domain/services/controllers/ForkController.ts';
 import ForkError from '../../../../../src/domain/errors/ForkError.ts';
-import { CHECKPOINT_SCHEMA_STANDARD, CHECKPOINT_SCHEMA_V5_INTERMEDIATE } from '../../../../../src/domain/services/state/checkpointHelpers.ts';
+import { CHECKPOINT_SCHEMA_STANDARD } from '../../../../../src/domain/services/state/checkpointHelpers.ts';
 import { buildWriterRef, buildWritersPrefix } from '../../../../../src/domain/utils/RefLayout.ts';
 
 // ---------------------------------------------------------------------------
@@ -410,17 +410,15 @@ describe('ForkController', () => {
       expect(err.code).toBe('E_FORK_WRITER_DIVERGED');
     });
 
-    it('works with CHECKPOINT_SCHEMA_V5_INTERMEDIATE', async () => {
+    it('no-ops for legacy schema:3 checkpoints', async () => {
       const checkpoint = {
         state: {},
         frontier: new Map([['w1', 'sha-a']]),
         stateHash: '',
-        schema: CHECKPOINT_SCHEMA_V5_INTERMEDIATE,
+        schema: 3,
       };
 
-      const err = await ctrl._validatePatchAgainstCheckpoint('w1', 'sha-a', checkpoint).catch((e) => e);
-      expect(err).toBeInstanceOf(ForkError);
-      expect(err.code).toBe('E_FORK_BACKFILL_REJECTED');
+      await expect(ctrl._validatePatchAgainstCheckpoint('w1', 'sha-a', checkpoint)).resolves.toBeUndefined();
     });
 
     it('no-op when frontier entry for writer is empty string', async () => {

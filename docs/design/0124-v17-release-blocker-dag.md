@@ -71,8 +71,9 @@ closure. A blank cell means "not directly blocked by that task," not
   "Call materialize" instead of linking to readings/optics guidance.
 
 `BND_checkpoint-schema-contract-drift`
-: `CheckpointService` tests and `checkpointLoad.ts` disagree about the
-  supported schema matrix. The release needs one version truth.
+: Closed in cycle 0128. v17 runtime checkpoint support now has one
+  version truth: schema `5` loads the envelope-tree shape, while legacy
+  schemas `2`, `3`, and `4` reject with migration guidance.
 
 `PORT_patch-controller-reading-basis`
 : Patch controller paths still require or call `_materializeGraph()`.
@@ -164,8 +165,8 @@ substrate convergence are also excluded from this release-blocker graph.
 
 The tasks with no direct blockers are:
 
-- `BND_checkpoint-schema-contract-drift`
 - `PORT_patch-controller-reading-basis`
+- `PORT_checkpoint-controller-reading-basis`
 - `PORT_sync-controller-reading-basis`
 - `SPEC_observer-coordinate-pinning`
 - `SPEC_uniform-git-cas-upgrade-contract-drift`
@@ -174,9 +175,11 @@ The tasks with no direct blockers are:
 `SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125.
 `SPEC_docs-materialize-frontdoor-drift` closed in cycle 0126 and unlocks
 runtime error guidance. `SPEC_runtime-error-reading-basis-guidance`
-closed in cycle 0127. The smallest next pull is now
-`BND_checkpoint-schema-contract-drift` because it is contained, already
-open, and unlocks checkpoint-controller reading-basis work.
+closed in cycle 0127. `BND_checkpoint-schema-contract-drift` closed in
+cycle 0128 and unlocks checkpoint-controller reading-basis work. The
+smallest next pull is likely either `PORT_checkpoint-controller-reading-basis`
+while checkpoint context is fresh or `PORT_patch-controller-reading-basis`
+to unblock subscription cleanup.
 
 ## Regeneration
 

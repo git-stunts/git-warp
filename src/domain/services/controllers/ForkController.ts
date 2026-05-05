@@ -8,7 +8,7 @@
  */
 
 import ForkError from '../../errors/ForkError.ts';
-import { CHECKPOINT_SCHEMA_STANDARD, CHECKPOINT_SCHEMA_V5_INTERMEDIATE } from '../state/checkpointHelpers.ts';
+import { isV5CheckpointSchema } from '../state/checkpointHelpers.ts';
 import { validateGraphName, validateWriterId, buildWriterRef, buildWritersPrefix } from '../../utils/RefLayout.ts';
 import { generateWriterId } from '../../utils/WriterId.ts';
 import { createWormhole as createWormholeImpl } from '../WormholeService.ts';
@@ -222,7 +222,7 @@ export default class ForkController {
   }
 
   async _validatePatchAgainstCheckpoint(writerId: string, incomingSha: string, checkpoint: CheckpointFrontier | null | undefined): Promise<void> {
-    if (checkpoint === null || checkpoint === undefined || (checkpoint.schema !== CHECKPOINT_SCHEMA_STANDARD && checkpoint.schema !== CHECKPOINT_SCHEMA_V5_INTERMEDIATE)) {
+    if (checkpoint === null || checkpoint === undefined || !isV5CheckpointSchema(checkpoint.schema)) {
       return;
     }
 

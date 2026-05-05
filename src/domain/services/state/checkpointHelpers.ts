@@ -13,32 +13,49 @@ import type TreePort from '../../../ports/TreePort.ts';
 // Checkpoint Schema Constants
 // ============================================================================
 
-/**
- * Standard checkpoint schema — full V5 state without index tree.
- * Distinct from the patch schema namespace (PATCH_SCHEMA_V2/V3).
- */
-export const CHECKPOINT_SCHEMA_STANDARD = 2;
+/** Legacy full-state checkpoint schema without index tree. */
+export const CHECKPOINT_SCHEMA_LEGACY_STANDARD = 2;
+
+/** Legacy intermediate V5 checkpoint schema without index tree. */
+export const CHECKPOINT_SCHEMA_LEGACY_V5_INTERMEDIATE = 3;
+
+/** Legacy index-tree checkpoint schema. */
+export const CHECKPOINT_SCHEMA_LEGACY_INDEX_TREE = 4;
+
+/** Current shipped v17 checkpoint schema: envelope tree with state subtree. */
+export const CURRENT_CHECKPOINT_SCHEMA = 5;
+
+/** Supported shipped runtime checkpoint schemas. */
+export const SUPPORTED_CHECKPOINT_SCHEMAS = [CURRENT_CHECKPOINT_SCHEMA] as const;
+
+/** Legacy checkpoint schemas accepted by migration tooling, not shipped runtime. */
+export const REJECTED_LEGACY_CHECKPOINT_SCHEMAS = [
+  CHECKPOINT_SCHEMA_LEGACY_STANDARD,
+  CHECKPOINT_SCHEMA_LEGACY_V5_INTERMEDIATE,
+  CHECKPOINT_SCHEMA_LEGACY_INDEX_TREE,
+] as const;
 
 /**
- * Intermediate V5 checkpoint schema — full state, no index tree.
- * Produced by older builds that incremented past STANDARD but
- * predated the index-tree layout.
+ * Compatibility export for older call sites. In shipped v17, the standard
+ * checkpoint schema is the current envelope-tree schema.
  */
-export const CHECKPOINT_SCHEMA_V5_INTERMEDIATE = 3;
+export const CHECKPOINT_SCHEMA_STANDARD = CURRENT_CHECKPOINT_SCHEMA;
 
 /**
- * Index-tree checkpoint schema — full V5 state with bitmap index tree.
- * Distinct from the patch schema namespace (PATCH_SCHEMA_V2/V3).
+ * Compatibility export for older call sites. Index-bearing checkpoints still
+ * use the same schema-5 envelope; the index subtree is a layout entry.
  */
-export const CHECKPOINT_SCHEMA_INDEX_TREE = 4;
+export const CHECKPOINT_SCHEMA_INDEX_TREE = CURRENT_CHECKPOINT_SCHEMA;
 
 /**
  * Returns true if the schema number identifies a valid V5 checkpoint.
  */
 export function isV5CheckpointSchema(schema: number | undefined | null): boolean {
-  return schema === CHECKPOINT_SCHEMA_STANDARD
-    || schema === CHECKPOINT_SCHEMA_V5_INTERMEDIATE
-    || schema === CHECKPOINT_SCHEMA_INDEX_TREE;
+  return schema === CURRENT_CHECKPOINT_SCHEMA;
+}
+
+export function isRejectedLegacyCheckpointSchema(schema: number | undefined | null): boolean {
+  return REJECTED_LEGACY_CHECKPOINT_SCHEMAS.some((legacySchema) => legacySchema === schema);
 }
 
 /**

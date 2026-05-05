@@ -120,6 +120,56 @@ interface DeserializedFullState {
   edgeBirthLamport?: Array<[string, number]>;
 }
 
+export interface CheckpointStateEnvelopeBuffers {
+  nodeAlive: Uint8Array;
+  edgeAlive: Uint8Array;
+  prop: Uint8Array;
+  observedFrontier: Uint8Array;
+  edgeBirthEvent: Uint8Array;
+}
+
+export function serializeCheckpointStateEnvelope(
+  state: WarpStateType,
+  { codec }: { codec?: CodecPort } = {},
+): CheckpointStateEnvelopeBuffers {
+  const c = codec ?? defaultCodec;
+  return {
+    nodeAlive: c.encode(state.nodeAlive.serialize()),
+    edgeAlive: c.encode(state.edgeAlive.serialize()),
+    prop: c.encode(serializePropsArray(state.prop)),
+    observedFrontier: c.encode(VersionVector.serialize(state.observedFrontier)),
+    edgeBirthEvent: c.encode(serializeEdgeBirthArray(state.edgeBirthEvent)),
+  };
+}
+
+export function deserializeCheckpointStateEnvelope(
+  buffers: CheckpointStateEnvelopeBuffers,
+  { codec }: { codec?: CodecPort } = {},
+): WarpStateType {
+  const c = codec ?? defaultCodec;
+  const emptyORSet = { entries: [], tombstones: [] };
+  return new WarpState({
+    nodeAlive: ORSet.deserialize(decodeEnvelopeBlob(c, buffers.nodeAlive, emptyORSet)),
+    edgeAlive: ORSet.deserialize(decodeEnvelopeBlob(c, buffers.edgeAlive, emptyORSet)),
+    prop: deserializeProps(decodeEnvelopeBlob(c, buffers.prop, [])),
+    observedFrontier: VersionVector.from(decodeEnvelopeBlob(c, buffers.observedFrontier, {})),
+    edgeBirthEvent: deserializeEdgeBirthEvent({
+      edgeBirthEvent: decodeEnvelopeBlob(c, buffers.edgeBirthEvent, []),
+    }),
+  });
+}
+
+function decodeEnvelopeBlob<TDecoded>(
+  codec: CodecPort,
+  buffer: Uint8Array,
+  fallback: TDecoded,
+): TDecoded {
+  if (buffer.byteLength === 0) {
+    return fallback;
+  }
+  return codec.decode<TDecoded>(buffer);
+}
+
 // ============================================================================
 // AppliedVV Computation and Serialization
 // ============================================================================

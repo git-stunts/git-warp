@@ -93,9 +93,10 @@
 <!-- BND_checkpoint&#45;schema&#45;contract&#45;drift -->
 <g id="node4" class="node">
 <title>BND_checkpoint&#45;schema&#45;contract&#45;drift</title>
-<path fill="#ede9fe" stroke="#4b5563" stroke-width="1.2" d="M252.18,-706C252.18,-706 169.53,-706 169.53,-706 163.53,-706 157.53,-700 157.53,-694 157.53,-694 157.53,-682 157.53,-682 157.53,-676 163.53,-670 169.53,-670 169.53,-670 252.18,-670 252.18,-670 258.18,-670 264.18,-676 264.18,-682 264.18,-682 264.18,-694 264.18,-694 264.18,-700 258.18,-706 252.18,-706"/>
-<text xml:space="preserve" text-anchor="middle" x="210.85" y="-689.75" font-family="Helvetica,sans-Serif" font-size="10.00">BND_checkpoint</text>
-<text xml:space="preserve" text-anchor="middle" x="210.85" y="-678.5" font-family="Helvetica,sans-Serif" font-size="10.00">schema contract drift</text>
+<path fill="#bbf7d0" stroke="#15803d" stroke-width="2.4" d="M252.18,-709.91C252.18,-709.91 169.53,-709.91 169.53,-709.91 163.53,-709.91 157.53,-703.91 157.53,-697.91 157.53,-697.91 157.53,-678.09 157.53,-678.09 157.53,-672.09 163.53,-666.09 169.53,-666.09 169.53,-666.09 252.18,-666.09 252.18,-666.09 258.18,-666.09 264.18,-672.09 264.18,-678.09 264.18,-678.09 264.18,-697.91 264.18,-697.91 264.18,-703.91 258.18,-709.91 252.18,-709.91"/>
+<text xml:space="preserve" text-anchor="middle" x="210.85" y="-695.38" font-family="Helvetica,sans-Serif" font-size="10.00">DONE</text>
+<text xml:space="preserve" text-anchor="middle" x="210.85" y="-684.12" font-family="Helvetica,sans-Serif" font-size="10.00">BND_checkpoint</text>
+<text xml:space="preserve" text-anchor="middle" x="210.85" y="-672.88" font-family="Helvetica,sans-Serif" font-size="10.00">schema contract drift</text>
 </g>
 <!-- PORT_checkpoint&#45;controller&#45;reading&#45;basis -->
 <g id="node6" class="node">
@@ -107,8 +108,8 @@
 <!-- BND_checkpoint&#45;schema&#45;contract&#45;drift&#45;&gt;PORT_checkpoint&#45;controller&#45;reading&#45;basis -->
 <g id="edge2" class="edge">
 <title>BND_checkpoint&#45;schema&#45;contract&#45;drift&#45;&gt;PORT_checkpoint&#45;controller&#45;reading&#45;basis</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M264.62,-688C282.92,-688 303.82,-688 323.66,-688"/>
-<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="323.42,-690.45 330.42,-688 323.41,-685.55 323.42,-690.45"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M265.37,-688C283.48,-688 304.08,-688 323.63,-688"/>
+<polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="323.57,-690.45 330.57,-688 323.57,-685.55 323.57,-690.45"/>
 </g>
 <!-- REL_quarantine&#45;graduate&#45;clean -->
 <g id="node16" class="node">
@@ -120,13 +121,13 @@
 <!-- BND_checkpoint&#45;schema&#45;contract&#45;drift&#45;&gt;REL_quarantine&#45;graduate&#45;clean -->
 <g id="edge14" class="edge">
 <title>BND_checkpoint&#45;schema&#45;contract&#45;drift&#45;&gt;REL_quarantine&#45;graduate&#45;clean</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M219.95,-669.72C243.46,-616.95 311.29,-467.15 330.05,-452 361.53,-426.58 471,-404.9 536.27,-393.85"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M222.06,-664.98C247.29,-608.52 311.82,-466.72 330.05,-452 361.53,-426.58 471,-404.9 536.27,-393.85"/>
 <polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="536.64,-396.27 543.14,-392.7 535.83,-391.44 536.64,-396.27"/>
 </g>
 <!-- BND_checkpoint&#45;schema&#45;contract&#45;drift&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green -->
 <g id="edge27" class="edge">
 <title>BND_checkpoint&#45;schema&#45;contract&#45;drift&#45;&gt;REL_full&#45;gate&#45;matrix&#45;green</title>
-<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M214.32,-706.59C221.73,-753.98 248.55,-879.1 330.05,-930 383.83,-963.58 410.9,-944.17 472.7,-930 555.2,-911.08 587.5,-909.93 644.1,-847 706.35,-777.79 728.09,-664.27 735,-612.83"/>
+<path fill="none" stroke="#4b5563" stroke-width="1.1" d="M215.02,-710.94C223.34,-761.22 250.93,-880.59 330.05,-930 383.83,-963.58 410.9,-944.17 472.7,-930 555.2,-911.08 587.5,-909.93 644.1,-847 706.35,-777.79 728.09,-664.27 735,-612.83"/>
 <polygon fill="#4b5563" stroke="#4b5563" stroke-width="1.1" points="737.39,-613.45 735.85,-606.2 732.53,-612.83 737.39,-613.45"/>
 </g>
 <!-- PORT_patch&#45;controller&#45;reading&#45;basis -->

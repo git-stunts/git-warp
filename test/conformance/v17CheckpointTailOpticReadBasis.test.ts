@@ -127,7 +127,7 @@ describe('v17 checkpoint-tail optic read basis', () => {
     materialization.expectUnused();
   });
 
-  it('requires schema 4 checkpoints without index shards to fail closed without materialization', async () => {
+  it('requires schema:5 checkpoints without index shards to fail closed without materialization', async () => {
     const graphName = 'v17-optic-missing-index-shards-red';
     const fixture = await V17CheckpointTailOpticGraphFixture.openIndexedCheckpoint(graphName);
     const graph = fixture.graph;
@@ -135,7 +135,7 @@ describe('v17 checkpoint-tail optic read basis', () => {
     await indexTree.replaceWithEmptyIndexTree();
     const materialization = new V17MaterializationFallbackTrap(
       graph,
-      'schema 4 checkpoint without index shards must not fall back to materialization',
+      'schema:5 checkpoint without index shards must not fall back to materialization',
     );
     const readPath = new V17PublicOpticReadPath(graph.worldline());
 
@@ -149,12 +149,12 @@ describe('v17 checkpoint-tail optic read basis', () => {
     materialization.expectUnused();
   });
 
-  it('requires non-index-tree checkpoints to fail closed without materialization', async () => {
+  it('requires schema:5 checkpoints without index tree entries to fail closed without materialization', async () => {
     const graphName = 'v17-optic-without-index-tree-red';
     const fixture = await V17CheckpointTailOpticGraphFixture.openIndexedCheckpoint(graphName);
     const graph = fixture.graph;
     const indexTree = await V17CheckpointIndexTreeFixture.load(graph);
-    await indexTree.replaceWithStandardCheckpointSchema();
+    await indexTree.replaceWithCheckpointWithoutIndexTree();
     const materialization = new V17MaterializationFallbackTrap(
       graph,
       'non-index-tree checkpoint must not fall back to materialization',
@@ -166,7 +166,7 @@ describe('v17 checkpoint-tail optic read basis', () => {
       graphName,
       opticKind: 'node',
       target: { nodeId: CHECKPOINT_NODE_ID },
-      cause: 'checkpoint-without-index-tree',
+      cause: 'checkpoint-missing-index-shards',
     });
     materialization.expectUnused();
   });

@@ -9,8 +9,9 @@
  */
 
 import {
-  deserializeFullState,
   deserializeAppliedVV,
+  deserializeCheckpointStateEnvelope,
+  type CheckpointStateEnvelopeBuffers,
 } from './CheckpointSerializer.ts';
 import { deserializeFrontier } from '../Frontier.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../codec/WarpMessageCodec.ts';
@@ -25,7 +26,12 @@ import { encodeEdgeKey, encodePropKey } from '../KeyCodec.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
-import { isV5CheckpointSchema, partitionTreeOids } from './checkpointHelpers.ts';
+import {
+  CURRENT_CHECKPOINT_SCHEMA,
+  isRejectedLegacyCheckpointSchema,
+  isV5CheckpointSchema,
+  partitionTreeOids,
+} from './checkpointHelpers.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';
 import type BlobPort from '../../../ports/BlobPort.ts';
 import type TreePort from '../../../ports/TreePort.ts';
@@ -56,18 +62,17 @@ export interface LoadCheckpointOptions {
 }
 
 /**
- * Loads a schema:2 checkpoint from a commit SHA.
+ * Loads a schema:5 checkpoint from a commit SHA.
  *
  * Reads the checkpoint commit, extracts the tree entries,
  * and deserializes the V5 state and frontier.
  *
- * Loads state.cbor as AUTHORITATIVE full ORSet state
- * (NEVER uses visible.cbor for resume - it's cache only)
+ * Loads the schema-5 state envelope as AUTHORITATIVE ORSet state.
  *
- * Schema:1 checkpoints are not supported and will throw an error.
- * Use MigrationService to upgrade schema:1 checkpoints first.
+ * Legacy schemas are not supported by shipped runtime and will throw an
+ * explicit migration error.
  *
- * @throws {PersistenceError} If checkpoint is schema:1 (migration required)
+ * @throws {PersistenceError} If checkpoint schema is unsupported
  */
 export async function loadCheckpoint(
   persistence: LoadPersistence,
@@ -78,18 +83,14 @@ export async function loadCheckpoint(
   const message = await persistence.showNode(checkpointSha);
   const decoded = commitMessageCodec.decodeCheckpoint(message);
 
-  // 2. Reject unsupported schemas - migration required for schema:1
+  // 2. Reject unsupported schemas - migration required for legacy schemas
   if (!isV5CheckpointSchema(decoded.schema)) {
-    throw new PersistenceError(
-      `Checkpoint ${checkpointSha} is schema:${decoded.schema}. ` +
-        `Only schema:2, schema:3, and schema:4 checkpoints are supported. Please migrate using MigrationService.`,
-      'E_CHECKPOINT_UNSUPPORTED_SCHEMA',
-      { context: { checkpointSha, schema: decoded.schema } },
-    );
+    throw unsupportedCheckpointSchema(checkpointSha, decoded.schema);
   }
 
   // Build codec option object once for exactOptionalPropertyTypes compliance
   const loadCodecOpt = codec !== undefined && codec !== null ? { codec } : {};
+  void checkpointStore;
 
   // 3. Read tree entries via the indexOid from the message (points to the tree)
   const rawTreeOids = await persistence.readTreeOids(decoded.indexOid);
@@ -97,26 +98,7 @@ export async function loadCheckpoint(
   // 3b. Partition: entries with 'index/' prefix are bitmap index shards
   const { treeOids, indexShardOids } = partitionTreeOids(rawTreeOids);
 
-  if (checkpointStore !== undefined && checkpointStore !== null) {
-    // New collapsed API: one call reads all artifacts
-    const cpData = await checkpointStore.readCheckpoint(treeOids);
-    const result: LoadedCheckpoint = {
-      state: cpData.state,
-      frontier: cpData.frontier,
-      stateHash: decoded.stateHash, // Authoritative: from commit message, not adapter
-      schema: decoded.schema,       // Authoritative: from commit message
-      appliedVV: cpData.appliedVV,
-      indexShardOids: Object.keys(indexShardOids).length > 0 ? indexShardOids : cpData.indexShardOids,
-    };
-    if (cpData.provenanceIndex !== null && cpData.provenanceIndex !== undefined) {
-      result.provenanceIndex = cpData.provenanceIndex;
-    }
-    return result;
-  }
-
-  // Legacy path: read each blob individually
-
-  // 4. Read frontier.cbor blob
+  // Schema 5 path: read each envelope blob individually.
   const frontierOid = treeOids['frontier.cbor'];
   if (frontierOid === undefined) {
     throw new PersistenceError(
@@ -128,18 +110,10 @@ export async function loadCheckpoint(
   const frontierBuffer = await persistence.readBlob(frontierOid);
   const frontier = deserializeFrontier(frontierBuffer, loadCodecOpt);
 
-  // 5. Read state.cbor blob and deserialize as V5 full state
-  const stateOid = treeOids['state.cbor'];
-  if (stateOid === undefined) {
-    throw new PersistenceError(
-      `Checkpoint ${checkpointSha} missing state.cbor in tree`,
-      'E_CHECKPOINT_MISSING_STATE',
-      { context: { checkpointSha } },
-    );
-  }
-  const stateBuffer = await persistence.readBlob(stateOid);
-  // V5: Load AUTHORITATIVE full state from state.cbor (NEVER use visible.cbor for resume)
-  const state = deserializeFullState(stateBuffer, loadCodecOpt);
+  const state = deserializeCheckpointStateEnvelope(
+    await readCheckpointStateEnvelope(persistence, checkpointSha, treeOids),
+    loadCodecOpt,
+  );
 
   // Load appliedVV if present
   let appliedVV: VersionVector | null = null;
@@ -171,6 +145,48 @@ export async function loadCheckpoint(
   return result;
 }
 
+function unsupportedCheckpointSchema(checkpointSha: string, schema: number): PersistenceError {
+  const migrationGuidance = isRejectedLegacyCheckpointSchema(schema)
+    ? 'Legacy checkpoint schemas 2, 3, and 4 require migration before v17 runtime load.'
+    : 'Please migrate using MigrationService.';
+  return new PersistenceError(
+    `Checkpoint ${checkpointSha} is schema:${schema}. ` +
+      `Only schema:${CURRENT_CHECKPOINT_SCHEMA} checkpoints are supported. ${migrationGuidance}`,
+    'E_CHECKPOINT_UNSUPPORTED_SCHEMA',
+    { context: { checkpointSha, schema } },
+  );
+}
+
+async function readCheckpointStateEnvelope(
+  persistence: LoadPersistence,
+  checkpointSha: string,
+  treeOids: Record<string, string>,
+): Promise<CheckpointStateEnvelopeBuffers> {
+  return {
+    nodeAlive: await persistence.readBlob(requireCheckpointTreeOid(checkpointSha, treeOids, 'state/nodeAlive')),
+    edgeAlive: await persistence.readBlob(requireCheckpointTreeOid(checkpointSha, treeOids, 'state/edgeAlive')),
+    prop: await persistence.readBlob(requireCheckpointTreeOid(checkpointSha, treeOids, 'state/prop.cbor')),
+    observedFrontier: await persistence.readBlob(requireCheckpointTreeOid(checkpointSha, treeOids, 'state/observedFrontier.cbor')),
+    edgeBirthEvent: await persistence.readBlob(requireCheckpointTreeOid(checkpointSha, treeOids, 'state/edgeBirthEvent.cbor')),
+  };
+}
+
+function requireCheckpointTreeOid(
+  checkpointSha: string,
+  treeOids: Record<string, string>,
+  path: string,
+): string {
+  const oid = treeOids[path];
+  if (oid !== undefined) {
+    return oid;
+  }
+  throw new PersistenceError(
+    `Checkpoint ${checkpointSha} missing ${path} in tree`,
+    'E_CHECKPOINT_MISSING_STATE',
+    { context: { checkpointSha, path } },
+  );
+}
+
 /** Options for materializeIncremental. */
 export interface MaterializeIncrementalOptions {
   persistence: LoadPersistence;
@@ -186,16 +202,16 @@ export interface MaterializeIncrementalOptions {
 }
 
 /**
- * Materializes V5 state incrementally from a schema:2 checkpoint.
+ * Materializes V5 state incrementally from a schema:5 checkpoint.
  *
  * Loads the checkpoint state and frontier, then applies all patches
  * since the checkpoint frontier to reach the target frontier.
  *
- * Only supports schema:2 checkpoints. Schema:1 checkpoints will cause
- * loadCheckpoint to throw an error.
+ * Only supports the current checkpoint schema. Legacy schemas will cause
+ * loadCheckpoint to throw an explicit migration error.
  *
- * @throws {PersistenceError} If checkpoint is schema:1 (migration required)
- * @throws {PersistenceError} If checkpoint is missing required blobs (state.cbor, frontier.cbor)
+ * @throws {PersistenceError} If checkpoint is a legacy schema (migration required)
+ * @throws {PersistenceError} If checkpoint is missing required envelope blobs
  */
 export async function materializeIncremental({
   persistence,
@@ -205,12 +221,12 @@ export async function materializeIncremental({
   patchLoader,
   codec,
 }: MaterializeIncrementalOptions): Promise<WarpState> {
-  // 1. Load checkpoint state and frontier (schema:2 returns full V5 state)
+  // 1. Load checkpoint state and frontier (schema:5 returns full V5 state)
   const loadOpts: LoadCheckpointOptions = codec !== undefined && codec !== null ? { codec } : {};
   const checkpoint = await loadCheckpoint(persistence, checkpointSha, loadOpts);
   const checkpointFrontier = checkpoint.frontier;
 
-  // 2. Use checkpoint state directly (schema:2 stores full V5 state)
+  // 2. Use checkpoint state directly.
   const initialState = checkpoint.state;
 
   // 3. Collect patches since checkpoint frontier for each writer
