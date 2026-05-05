@@ -54,9 +54,6 @@ type SetMaterializedState = (
   stateHash: string;
   adjacency: MaterializedAdjacency;
 }>;
-type PatchMaterializedState = {
-  state: WarpState;
-};
 
 /**
  * The host interface that PatchController depends on.
@@ -70,7 +67,6 @@ export interface PatchHost extends PatchDiscoveryHost {
   _versionVector: VersionVector;
   _cachedState: WarpState | null;
   _stateDirty: boolean;
-  _autoMaterialize: boolean;
   _maxObservedLamport: number;
   _patchInProgress: boolean;
   _patchesSinceCheckpoint: number;
@@ -91,7 +87,6 @@ export interface PatchHost extends PatchDiscoveryHost {
   _logicalIndex: LogicalIndex | null;
   _propertyReader: PropertyIndexReader | null;
   _cachedIndexTree: Record<string, Uint8Array> | null;
-  _materializeGraph: () => Promise<PatchMaterializedState>;
   _setMaterializedState: SetMaterializedState;
   _buildAdjacency: (state: WarpState) => MaterializedAdjacency;
 }
@@ -142,16 +137,7 @@ export default class PatchController {
   async createPatch(): Promise<PatchBuilder> {
     const h = this._host;
 
-    // Auto-materialize: if autoMaterialize is on and there is no
-    // cached state but there ARE existing patches (parentSha !== null),
-    // materialize now. Without this, removeNode/removeEdge throws
-    // E_PATCH_NO_STATE because the PatchBuilder can't observe OR-Set
-    // dots. We skip materialization for the very first patch (no parent)
-    // since there's nothing to materialize.
     const { lamport, parentSha } = await this._nextLamport();
-    if (h._autoMaterialize && h._cachedState === null && parentSha !== null) {
-      await h._materializeGraph();
-    }
 
     const opts: ConstructorParameters<typeof PatchBuilder>[0] = {
       persistence: h._persistence,
@@ -364,20 +350,17 @@ export default class PatchController {
   // ── State helpers ───────────────────────────────────────────────────────────
 
   /**
-   * Ensures cached state is fresh. Triggers auto-materialize if enabled.
+   * Ensures cached state is fresh.
    */
-  async _ensureFreshState(): Promise<void> {
+  _ensureFreshState(): Promise<void> {
     const h = this._host;
-    if (h._autoMaterialize && (!h._cachedState || h._stateDirty)) {
-      await h._materializeGraph();
-      return;
-    }
     if (!h._cachedState) {
-      throw new QueryError(E_NO_STATE_MSG, { code: 'E_NO_STATE' });
+      return Promise.reject(new QueryError(E_NO_STATE_MSG, { code: 'E_NO_STATE' }));
     }
     if (h._stateDirty) {
-      throw new QueryError(E_STALE_STATE_MSG, { code: 'E_STALE_STATE' });
+      return Promise.reject(new QueryError(E_STALE_STATE_MSG, { code: 'E_STALE_STATE' }));
     }
+    return Promise.resolve();
   }
 
   /**

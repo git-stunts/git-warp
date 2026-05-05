@@ -237,9 +237,13 @@ describe('PatchController', () => {
       expect(constructorArgs.lamport).toBe(11);
     });
 
-    it('auto-materializes when enabled, state is null, and parent exists', async () => {
+    it('does not materialize when creating a patch with no cached reading basis and an existing parent', async () => {
       host['_autoMaterialize'] = true;
       host['_cachedState'] = null;
+      const materializeGraphTrap = vi.fn(async () => {
+        throw new Error('patch controller must not materialize graph');
+      });
+      host['_materializeGraph'] = materializeGraphTrap;
 
       const persistence = (host['_persistence'] as ReturnType<typeof createMockPersistence>);
       persistence.readRef.mockResolvedValue('parentsha');
@@ -254,8 +258,9 @@ describe('PatchController', () => {
 
       await ctrl.createPatch();
 
-      const materialize = (host['materialize'] as any);
-      expect(materialize).toHaveBeenCalledOnce();
+      const constructorArgs = patchBuilderMock.mock.calls[0]?.[0];
+      expect(materializeGraphTrap).not.toHaveBeenCalled();
+      expect(constructorArgs.getCurrentState()).toBeNull();
     });
 
     it('skips auto-materialize when state is already cached', async () => {
@@ -853,25 +858,35 @@ describe('PatchController', () => {
   // ────────────────────────────────────────────────────────────────────────
 
   describe('_ensureFreshState()', () => {
-    it('auto-materializes when enabled and state is null', async () => {
+    it('fails closed when autoMaterialize is enabled and state is null', async () => {
       host['_autoMaterialize'] = true;
       host['_cachedState'] = null;
+      const materializeGraphTrap = vi.fn(async () => {
+        throw new Error('patch controller must not materialize graph');
+      });
+      host['_materializeGraph'] = materializeGraphTrap;
 
-      await ctrl._ensureFreshState();
+      const result = ctrl._ensureFreshState();
 
-      const materialize = (host['materialize'] as any);
-      expect(materialize).toHaveBeenCalledOnce();
+      await expect(result).rejects.toThrow(QueryError);
+      await expect(result).rejects.toMatchObject({ code: 'E_NO_STATE' });
+      expect(materializeGraphTrap).not.toHaveBeenCalled();
     });
 
-    it('auto-materializes when enabled and state is dirty', async () => {
+    it('fails closed when autoMaterialize is enabled and state is dirty', async () => {
       host['_autoMaterialize'] = true;
       host['_cachedState'] = WarpState.empty();
       host['_stateDirty'] = true;
+      const materializeGraphTrap = vi.fn(async () => {
+        throw new Error('patch controller must not materialize graph');
+      });
+      host['_materializeGraph'] = materializeGraphTrap;
 
-      await ctrl._ensureFreshState();
+      const result = ctrl._ensureFreshState();
 
-      const materialize = (host['materialize'] as any);
-      expect(materialize).toHaveBeenCalledOnce();
+      await expect(result).rejects.toThrow(QueryError);
+      await expect(result).rejects.toMatchObject({ code: 'E_STALE_STATE' });
+      expect(materializeGraphTrap).not.toHaveBeenCalled();
     });
 
     it('throws E_NO_STATE when no state and auto-materialize is off', async () => {
