@@ -149,6 +149,7 @@ describe('WarpCore Integration', () => {
       // Create some patches
       await (await graph.createPatch()).addNode('n1').commit();
       await (await graph.createPatch()).addNode('n2').commit();
+      await graph.materialize();
 
       // Create checkpoint
       const checkpointSha = await graph.createCheckpoint();

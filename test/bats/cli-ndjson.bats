@@ -48,10 +48,10 @@ teardown() {
   echo "$output" | grep -q "mutually exclusive"
 }
 
-@test "--ndjson + --view is rejected" {
+@test "--ndjson + --view is rejected with view migration guidance" {
   run git warp --repo "${TEST_REPO}" --graph demo --ndjson --view query --match "*"
   assert_failure
-  echo "$output" | grep -q "mutually exclusive"
+  assert_view_removed
 }
 
 @test "error with --ndjson produces single-line JSON" {

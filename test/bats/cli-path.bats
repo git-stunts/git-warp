@@ -62,9 +62,8 @@ assert data["length"] == 1
 PY
 }
 
-@test "path --view ascii produces output" {
+@test "path --view ascii is rejected with migration guidance" {
   run git warp --repo "${TEST_REPO}" --graph demo --view path \
     user:alice user:carol --dir out --label follows
-  assert_success
-  [ -n "$output" ]
+  assert_view_removed
 }

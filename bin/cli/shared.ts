@@ -170,7 +170,7 @@ export async function readCheckpointDate(persistence: Persistence, checkpointSha
  * Create a HookInstaller wired with real filesystem dependencies.
  */
 export function createHookInstaller(): HookInstaller {
-  const packageRoot = fileURLToPath(new URL('../..', import.meta.url));
+  const packageRoot = findPackageRoot(fileURLToPath(new URL('.', import.meta.url)));
   const templateDir = path.join(packageRoot, 'scripts', 'hooks');
   const rawJson = fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8');
   const version = readPackageVersion(rawJson);
@@ -184,6 +184,23 @@ export function createHookInstaller(): HookInstaller {
     templateDir,
     path,
   });
+}
+
+/**
+ * Finds the repository/package root from either source or built CLI paths.
+ */
+function findPackageRoot(startDir: string): string {
+  let current = startDir;
+  while (true) {
+    if (fs.existsSync(path.join(current, 'package.json'))) {
+      return current;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) {
+      throw usageError('Unable to locate package.json for hook installation');
+    }
+    current = parent;
+  }
 }
 
 /**

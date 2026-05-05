@@ -60,11 +60,14 @@ PY
 
   # Add an untrusted writer "bob"
   cd "${PROJECT_ROOT}"
-  REPO_PATH="${TEST_REPO}" node -e "
-    import('./test/bats/helpers/seed-setup.js').then(async ({ openGraph }) => {
+  NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" node --experimental-transform-types -e "
+    import('./test/bats/helpers/seed-setup.ts').then(async ({ openGraph }) => {
       const g = await openGraph('demo', 'bob');
       const p = await g.createPatch();
       await p.addNode('user:eve').commit();
+    }).then(() => process.exit(0), error => {
+      console.error(error);
+      process.exit(1);
     });
   "
   cd "${TEST_REPO}"
@@ -87,11 +90,14 @@ PY
 
   # Add an untrusted writer "bob"
   cd "${PROJECT_ROOT}"
-  REPO_PATH="${TEST_REPO}" node -e "
-    import('./test/bats/helpers/seed-setup.js').then(async ({ openGraph }) => {
+  NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" node --experimental-transform-types -e "
+    import('./test/bats/helpers/seed-setup.ts').then(async ({ openGraph }) => {
       const g = await openGraph('demo', 'bob');
       const p = await g.createPatch();
       await p.addNode('user:eve').commit();
+    }).then(() => process.exit(0), error => {
+      console.error(error);
+      process.exit(1);
     });
   "
   cd "${TEST_REPO}"

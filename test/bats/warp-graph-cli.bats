@@ -18,43 +18,17 @@ setup() {
   export GIT_COMMITTER_EMAIL="test@test.com"
 
   cd "${PROJECT_ROOT}"
-  REPO_PATH="${TEST_REPO}" node --input-type=module - <<'EOF'
-import { pathToFileURL } from 'node:url';
-import { resolve } from 'node:path';
-import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
-
-const projectRoot = process.env.PROJECT_ROOT;
-const repoPath = process.env.REPO_PATH;
-const warpGraphUrl = pathToFileURL(resolve(projectRoot, 'src/domain/RuntimeHost.js')).href;
-const adapterUrl = pathToFileURL(resolve(projectRoot, 'src/infrastructure/adapters/GitGraphAdapter.js')).href;
-const { default: RuntimeHost } = await import(warpGraphUrl);
-const { default: GitGraphAdapter } = await import(adapterUrl);
-
-const runner = ShellRunnerFactory.create();
-const plumbing = new GitPlumbing({ cwd: repoPath, runner });
-const persistence = new GitGraphAdapter({ plumbing });
-
-const graph = await RuntimeHost.open({
-  persistence,
-  graphName: 'demo',
-  writerId: 'alice',
-});
-
-const patchOne = await graph.createPatch();
-await patchOne
-  .addNode('user:alice')
-  .setProperty('user:alice', 'role', 'engineering')
-  .addNode('user:bob')
-  .setProperty('user:bob', 'role', 'engineering')
-  .addNode('user:carol')
-  .commit();
-
-const patchTwo = await graph.createPatch();
-await patchTwo
-  .addEdge('user:alice', 'user:bob', 'follows')
-  .addEdge('user:bob', 'user:carol', 'follows')
-  .commit();
-EOF
+  NODE_NO_WARNINGS=1 REPO_PATH="${TEST_REPO}" node --experimental-transform-types -e '
+    import("node:url")
+      .then(({ pathToFileURL }) => import(pathToFileURL(process.argv[1]).href))
+      .then(
+        () => process.exit(0),
+        (error) => {
+          console.error(error);
+          process.exit(1);
+        },
+      );
+  ' "${PROJECT_ROOT}/test/bats/helpers/seed-graph.ts"
   cd "${TEST_REPO}"
 }
 
@@ -157,17 +131,23 @@ assert "alice" in status["frontier"]
 PY
 }
 
-@test "check human output includes status lines" {
+@test "check default output includes status fields" {
   run git warp --repo "${TEST_REPO}" --graph demo check
   assert_success
 
-  echo "$output" | grep -q "Cached State:"
-  echo "$output" | grep -q "Patches Since Checkpoint:"
-  echo "$output" | grep -q "Tombstone Ratio:"
+  JSON="$output" python3 - <<'PY'
+import json, os
+data = json.loads(os.environ["JSON"])
+status = data["status"]
+assert "cachedState" in status
+assert "patchesSinceCheckpoint" in status
+assert "tombstoneRatio" in status
+PY
 }
 
 @test "--view with unsupported command produces error" {
   run git warp --repo "${TEST_REPO}" --graph demo --view install-hooks
   [ "$status" -eq 1 ]
-  echo "$output" | grep -qi "view.*not supported\|unsupported.*view"
+  echo "$output" | grep -q -- "--view has been removed"
+  echo "$output" | grep -q "warp-ttd"
 }

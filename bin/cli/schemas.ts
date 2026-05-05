@@ -77,13 +77,24 @@ export const pathSchema = z.object({
 // Query
 // ============================================================================
 
+function normalizeStringList(value: string | string[] | undefined): string[] {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  return value !== undefined && value.length > 0 ? [value] : [];
+}
+
 export const querySchema = z.object({
   match: z.string().optional(),
+  outgoing: z.union([z.string(), z.array(z.string())]).optional(),
+  incoming: z.union([z.string(), z.array(z.string())]).optional(),
   'where-prop': z.union([z.string(), z.array(z.string())]).optional(),
   select: z.string().optional(),
 }).strict().transform((val) => ({
   match: val.match ?? null,
-  whereProp: Array.isArray(val['where-prop']) ? val['where-prop'] : (val['where-prop'] !== undefined && val['where-prop'].length > 0) ? [val['where-prop']] : [],
+  outgoing: normalizeStringList(val.outgoing),
+  incoming: normalizeStringList(val.incoming),
+  whereProp: normalizeStringList(val['where-prop']),
   select: val.select,
 }));
 

@@ -238,13 +238,6 @@ export default class GitTrustChainAdapter extends TrustChainPort {
   private async _readRecordIdFromCommit(commitSha: string): Promise<string | null> {
     const cas = await this._getCas();
     const info = await readCommitInfo(this._plumbing, commitSha);
-    const entries = await readTreeEntries(this._plumbing, info.treeSha);
-
-    const manifestOid = entries.get(RECORD_BLOB_NAME);
-    if (manifestOid === undefined) {
-      return null;
-    }
-
     try {
       const manifest = await cas.readManifest({ treeOid: info.treeSha });
       const restored = await cas.restore({ manifest });
@@ -253,6 +246,11 @@ export default class GitTrustChainAdapter extends TrustChainPort {
       return decoded['recordId'] ?? null;
     } catch {
       // Fallback: try reading as raw blob (pre-CAS migration)
+      const entries = await readTreeEntries(this._plumbing, info.treeSha);
+      const manifestOid = entries.get(RECORD_BLOB_NAME);
+      if (manifestOid === undefined) {
+        return null;
+      }
       return await this._readRecordIdRawFallback(manifestOid);
     }
   }

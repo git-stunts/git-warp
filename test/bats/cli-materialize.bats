@@ -41,10 +41,9 @@ assert re.match(r'^[0-9a-f]{40}$', r["checkpoint"])
 PY
 }
 
-@test "materialize --view ascii produces output" {
+@test "materialize --view ascii is rejected with migration guidance" {
   run git warp --repo "${TEST_REPO}" --view materialize
-  assert_success
-  [ -n "$output" ]
+  assert_view_removed
 }
 
 @test "materialize --graph filters to specific graph" {

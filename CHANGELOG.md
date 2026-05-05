@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Release PR Node 22 CI now runs the built CLI and passes the full Node 22
+  lane. The CLI smoke surface restores `query`, `path`, and `history`,
+  BATS helper fixtures run through TypeScript-aware seed helpers, trust CLI
+  evaluation reads the real git-backed trust chain, hook installation locates
+  the package root from both source and `dist/`, and stale default-output BATS
+  assertions now validate the JSON contract.
 - Release preflight now clears its coverage and JSR dry-run gates: the coverage
   ratchet excludes ambient declaration files and records the current full-suite
   v17 line baseline, while JSR-facing public APIs now carry explicit return

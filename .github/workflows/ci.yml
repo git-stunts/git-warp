@@ -95,10 +95,12 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y bats
       - name: Install dependencies
         run: npm ci
+      - name: Build CLI
+        run: npm run build --silent
       - name: Install CLI shims
         run: |
           sudo install -m 0755 bin/git-warp /usr/local/bin/git-warp
-          sudo sh -c "printf '%s\n' '#!/usr/bin/env bash' 'exec node \"$GITHUB_WORKSPACE/bin/warp-graph.ts\" \"\$@\"' > /usr/local/bin/warp-graph"
+          sudo sh -c "printf '%s\n' '#!/usr/bin/env bash' 'exec node \"$GITHUB_WORKSPACE/dist/bin/warp-graph.js\" \"\$@\"' > /usr/local/bin/warp-graph"
           sudo chmod +x /usr/local/bin/warp-graph
       - name: Run unit + integration tests
         run: npm run test:node22:ci

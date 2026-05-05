@@ -83,6 +83,20 @@ Current evidence before implementation:
   and Deno, then exposed a CI-only `rg` dependency: `type-firewall`,
   `coverage-threshold`, `test-node (22)`, and `preflight` fail because hosted
   runners cannot spawn `rg`.
+- PR #84 CI at `3e4e8170` proves the `rg` dependency fix: `type-firewall` and
+  `coverage-threshold` pass, while `test-node (22)` exposes one remaining stale
+  integration expectation where checkpoint creation runs without an explicit
+  reading basis and correctly raises `E_NO_STATE`.
+- Full local Node 22 Docker validation after that integration repair gets the
+  Vitest half green, then exposes stale BATS TypeScript-migration residue:
+  BATS still calls deleted `seed-*.js` helpers, one CLI smoke fixture imports
+  deleted source `.js` modules directly, and `--view` smoke tests still expect
+  the removed in-process renderer instead of the v17 `warp-ttd` migration
+  guidance.
+- Full BATS after the TypeScript helper repair exposes four remaining stale
+  CLI-contract assertions: `history` no longer errors without `--writer`
+  because the global writer default is `cli`, and default `seek` /
+  `verify-audit` output is JSON rather than the old hand-rendered ASCII text.
 
 ### GREEN
 
@@ -101,6 +115,27 @@ Current evidence before implementation:
   repo-native checks hit by hosted runners: the anti-sludge shell check no
   longer requires a tool it does not use, and the tracked non-TS tail witness
   uses `git ls-files` as the source of truth.
+- Follow-up Node integration repair aligns the checkpoint workflow with the
+  v17 read contract by opening an explicit runtime reading basis before
+  checkpoint creation.
+- Follow-up BATS repair maps legacy seed helper names to checked-in
+  TypeScript helpers, runs helper scripts with Node's TypeScript transform,
+  and updates the Node 22 CLI shim to execute `bin/warp-graph.ts` instead of a
+  deleted source `.js` file. Stale `--view` BATS cases now assert the v17
+  removal error and `warp-ttd` guidance instead of expecting rendered output.
+- Follow-up Node 22 CLI repair restores the documented `query`, `path`, and
+  `history` commands, opens an explicit internal reading basis for CLI
+  query/path reads, wires trust evaluation to the git-backed trust chain,
+  fixes CAS trust tip record-id lookup for current git-cas manifest trees,
+  and makes hook installation locate the package root from either source or
+  built `dist/` paths.
+- Follow-up BATS contract repair aligns default-output tests with the current
+  structured JSON emitter and the global `--writer cli` default.
+- `PATH="$PWD/bin:$PATH" bats test/bats/` passes `110` tests.
+- `npm run test:node22:ci` passes: Vitest `455` files / `6867` tests and
+  BATS `110` tests.
+- `npm run test:node22` passes in Docker Node 22: Vitest `455` files /
+  `6867` tests and BATS `110` tests.
 
 ### Goldens
 

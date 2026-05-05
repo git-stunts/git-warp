@@ -53,16 +53,21 @@ assert data["checkpoint"]["ref"].endswith("refs/warp/demo/checkpoints/head")
 PY
 }
 
-@test "check human output includes status lines" {
+@test "check default output includes status fields" {
   run git warp --repo "${TEST_REPO}" --graph demo check
   assert_success
-  echo "$output" | grep -q "Cached State:"
-  echo "$output" | grep -q "Patches Since Checkpoint:"
-  echo "$output" | grep -q "Tombstone Ratio:"
+
+  JSON="$output" python3 - <<'PY'
+import json, os
+data = json.loads(os.environ["JSON"])
+status = data["status"]
+assert "cachedState" in status
+assert "patchesSinceCheckpoint" in status
+assert "tombstoneRatio" in status
+PY
 }
 
-@test "check --view ascii produces output" {
+@test "check --view ascii is rejected with migration guidance" {
   run git warp --repo "${TEST_REPO}" --graph demo --view ascii check
-  assert_success
-  [ -n "$output" ]
+  assert_view_removed
 }

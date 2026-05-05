@@ -12,6 +12,8 @@ import { trustSchema } from '../schemas.ts';
 import { createPersistence, resolveGraphName } from '../shared.ts';
 import defaultCodec from '../../../src/domain/utils/defaultCodec.ts';
 import AuditVerifierService from '../../../src/domain/services/audit/AuditVerifierService.ts';
+import GitTrustChainAdapter from '../../../src/infrastructure/adapters/GitTrustChainAdapter.ts';
+import WebCryptoAdapter from '../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 import type { CorePersistence } from '../../../src/domain/types/WarpPersistence.ts';
 import type { CliOptions, Persistence } from '../types.ts';
 
@@ -51,11 +53,16 @@ async function discoverWriterIds(persistence: Persistence, graphName: string): P
 /** Handles the `git warp trust` command: evaluates writer trust against signed evidence. */
 export default async function handleTrust({ options, args }: { options: CliOptions; args: string[] }): Promise<{ payload: unknown; exitCode: number }> {
   const { mode, trustPin } = parseTrustArgs(args);
-  const { persistence } = await createPersistence(options.repo);
+  const { persistence, plumbing } = await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.graph);
+  const trustChain = new GitTrustChainAdapter({
+    plumbing,
+    crypto: new WebCryptoAdapter(),
+  });
   const verifier = new AuditVerifierService({
     persistence: persistence as unknown as CorePersistence,
     codec: defaultCodec,
+    trustChain,
   });
 
   // Resolve pin (determines source + status)

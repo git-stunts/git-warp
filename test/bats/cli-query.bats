@@ -105,8 +105,7 @@ assert data["nodes"] == []
 PY
 }
 
-@test "query --view ascii produces output" {
+@test "query --view ascii is rejected with migration guidance" {
   run git warp --repo "${TEST_REPO}" --graph demo --view ascii query --match "user:*"
-  assert_success
-  [ -n "$output" ]
+  assert_view_removed
 }

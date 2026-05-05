@@ -26,10 +26,9 @@ teardown() {
   assert_failure
 }
 
-@test "--view with unsupported command produces error" {
+@test "--view with unsupported command is rejected with migration guidance" {
   run git warp --repo "${TEST_REPO}" --graph demo --view install-hooks
-  [ "$status" -eq 1 ]
-  echo "$output" | grep -qi "view.*not supported\|unsupported.*view"
+  assert_view_removed
 }
 
 @test "path without required args produces error" {
@@ -37,7 +36,14 @@ teardown() {
   assert_failure
 }
 
-@test "history without --writer produces error" {
+@test "history without --writer uses default writer" {
   run git warp --repo "${TEST_REPO}" --graph demo --json history
-  assert_failure
+  assert_success
+
+  JSON="$output" python3 - <<'PY'
+import json, os
+data = json.loads(os.environ["JSON"])
+assert data["writer"] == "cli"
+assert data["entries"] == []
+PY
 }

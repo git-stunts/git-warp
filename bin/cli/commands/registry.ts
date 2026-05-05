@@ -5,6 +5,9 @@ import handleCheck from './check.ts';
 import handleDoctor from './doctor/index.ts';
 import handleMaterialize from './materialize.ts';
 import handleSeek from './seek.ts';
+import handleQuery from './query.ts';
+import handlePath from './path.ts';
+import handleHistory from './history.ts';
 import handleDebug from './debug.ts';
 import handleStrand from './strand.ts';
 import handleVerifyAudit from './verify-audit.ts';
@@ -33,6 +36,9 @@ export const COMMANDS: ReadonlyMap<string, CommandHandler> = new Map<string, Com
   ['doctor', handleDoctor],
   ['materialize', handleMaterialize],
   ['seek', handleSeek],
+  ['query', handleQuery],
+  ['path', handlePath],
+  ['history', handleHistory],
   ['debug', handleDebug],
   ['strand', handleStrand],
   ['verify-audit', handleVerifyAudit],
