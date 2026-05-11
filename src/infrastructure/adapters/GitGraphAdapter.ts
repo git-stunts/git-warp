@@ -18,6 +18,7 @@ import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import CasBlobAdapter from './CasBlobAdapter.ts';
 import GitTrieStoreAdapter from './GitTrieStoreAdapter.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
+import type { ContentAnchorObjectType } from '../../domain/services/state/checkpointHelpers.ts';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.ts';
 import {
   type GitPlumbing,
@@ -63,6 +64,20 @@ function createGitCasRetryPolicy(retryOptions: RetryOptions): GitCasPolicy {
       return await retry(operation, retryOptions);
     },
   });
+}
+
+function parseContentAnchorObjectType(
+  value: string,
+  oid: string,
+): ContentAnchorObjectType {
+  if (value === 'blob' || value === 'tree') {
+    return value;
+  }
+  throw new PersistenceError(
+    `Unsupported Git object type for content anchor ${oid}: ${value}`,
+    'E_UNSUPPORTED_CONTENT_ANCHOR_OBJECT_TYPE',
+    { context: { oid, objectType: value } },
+  );
 }
 
 export default class GitGraphAdapter extends GraphPersistencePort implements RuntimeStorageCapabilityPort {
@@ -303,6 +318,17 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     } catch (raw) {
       throw wrapGitError(toGitError(raw), { oid });
     }
+  }
+
+  async readObjectType(oid: string): Promise<ContentAnchorObjectType> {
+    validateOid(oid);
+    let output: string;
+    try {
+      output = await this._executeWithRetry({ args: ['cat-file', '-t', oid] });
+    } catch (raw) {
+      throw wrapGitError(toGitError(raw), { oid });
+    }
+    return parseContentAnchorObjectType(output.trim(), oid);
   }
 
   async updateRef(ref: string, oid: string): Promise<void> {
