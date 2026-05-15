@@ -190,8 +190,8 @@ export async function collectContentAnchorEntries(
   return anchorEntries;
 }
 
-async function defaultContentAnchorObjectType(): Promise<ContentAnchorObjectType> {
-  return 'tree';
+function defaultContentAnchorObjectType(): Promise<ContentAnchorObjectType> {
+  return Promise.resolve('tree');
 }
 
 function contentAnchorEntry(oid: string, objectType: ContentAnchorObjectType): string {
@@ -201,8 +201,15 @@ function contentAnchorEntry(oid: string, objectType: ContentAnchorObjectType): s
   if (objectType === 'tree') {
     return `040000 tree ${oid}\t_content_${oid}`;
   }
+  return unsupportedContentAnchorObjectType(oid, objectType);
+}
+
+function unsupportedContentAnchorObjectType(
+  oid: string,
+  objectType: never,
+): never {
   throw new WarpError(
-    `Unsupported content anchor object type: ${objectType}`,
+    'Unsupported content anchor object type',
     'E_CHECKPOINT_CONTENT_ANCHOR_OBJECT_TYPE',
     { context: { oid, objectType } },
   );

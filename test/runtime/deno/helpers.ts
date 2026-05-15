@@ -41,7 +41,7 @@ export async function createTestRepo(label = "deno-test") {
   const tempDir = await mkdtemp(join(tmpdir(), `warp-${label}-`));
   const crypto = new WebCryptoAdapter();
 
-  const plumbing = Plumbing.createDefault({ cwd: tempDir });
+  const plumbing = await Plumbing.createDefault({ cwd: tempDir });
   await plumbing.execute({ args: ["init"] });
   await plumbing.execute({ args: ["config", "user.email", "test@test.com"] });
   await plumbing.execute({ args: ["config", "user.name", "Test"] });

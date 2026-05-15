@@ -8,7 +8,7 @@ const repoRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 
 interface GitExecuteOptions {
   readonly args: string[];
-  readonly input?: string | Buffer;
+  readonly input?: string | Uint8Array;
 }
 
 class EmptyCollectableStream implements CollectableStream {
@@ -72,9 +72,9 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
 
     expect(plumbing.calls).toEqual([{
       args: ['hash-object', '-w', '--stdin'],
-      input: Buffer.from([1, 2, 3]),
+      input: new Uint8Array([1, 2, 3]),
     }]);
-    expect(Buffer.isBuffer(plumbing.calls[0]?.input)).toBe(true);
+    expect(plumbing.calls[0]?.input).toBeInstanceOf(Uint8Array);
   });
 
   it('preserves string blob writes through the delegated git-cas path', async () => {
@@ -86,7 +86,7 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
 
     expect(plumbing.calls).toEqual([{
       args: ['hash-object', '-w', '--stdin'],
-      input: 'payload',
+      input: new TextEncoder().encode('payload'),
     }]);
   });
 

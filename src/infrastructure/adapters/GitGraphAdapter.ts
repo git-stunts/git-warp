@@ -18,6 +18,7 @@ import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import CasBlobAdapter from './CasBlobAdapter.ts';
 import GitTrieStoreAdapter from './GitTrieStoreAdapter.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
+import { textEncode } from '../../domain/utils/bytes.ts';
 import type { ContentAnchorObjectType } from '../../domain/services/state/checkpointHelpers.ts';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.ts';
 import {
@@ -48,11 +49,11 @@ interface GitCasPolicy {
 /**
  * Normalizes graph blob writes to the content shape expected by git-cas.
  */
-function toGitCasBlobContent(content: Uint8Array | string): Buffer | string {
+function toGitCasBlobContent(content: Uint8Array | string): Uint8Array {
   if (typeof content === 'string') {
-    return content;
+    return textEncode(content);
   }
-  return Buffer.from(content);
+  return content;
 }
 
 /**
