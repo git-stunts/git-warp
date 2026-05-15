@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `@git-stunts/git-cas` `^6.0.0`, `@git-stunts/plumbing` `^3.0.3`, and
   `@git-stunts/alfred` `^0.10.3`. The Deno runtime test import map now tracks
   plumbing v3, and integration helpers await plumbing's async default factory.
+- `npm run upgrade` now runs a top-level `scripts/upgrade-v16-to-v17.ts`
+  operator utility. It upgrades v16 checkpoint schemas for all discovered
+  graphs by default and clears rebuildable legacy cache refs that must be
+  rewritten through the current git-cas substrate.
 
 ## [17.0.0] — 2026-05-05
 
