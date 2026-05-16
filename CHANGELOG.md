@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   operator utility. It upgrades v16 checkpoint schemas for all discovered
   graphs by default and clears rebuildable legacy cache refs that must be
   rewritten through the current git-cas substrate.
+- `GitGraphAdapter` now reads graph blobs through git-cas v6
+  `readBlobStream()` with an explicit adapter-boundary collector, and
+  recursive tree OID scans use git-cas `iterateTree()` while preserving
+  git-warp's path-preserving recursive map contract.
 
 ## [17.0.0] — 2026-05-05
 

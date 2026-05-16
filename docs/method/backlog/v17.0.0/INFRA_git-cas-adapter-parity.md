@@ -53,6 +53,23 @@ Acceptable completion shapes:
 Do not replace current read/ref/commit behavior with weaker git-cas
 methods just to make the class look thinner.
 
+## Closed shape
+
+The repo-local completion path uses `GitCasGraphReaderAdapter` as the
+narrow infrastructure adapter around git-cas v6:
+
+- `GitGraphAdapter.readBlob()` delegates to
+  `GitPersistenceAdapter.readBlobStream()` and collects at the
+  graph-adapter boundary only.
+- `GitGraphAdapter.readTreeOids()` recursively walks
+  `GitPersistenceAdapter.iterateTree()` so git-warp keeps its
+  path-preserving recursive `Record<path, oid>` contract.
+- `GitGraphAdapter.readTree()` resolves blob payloads through the same
+  stream-backed read path.
+- commit creation, compare-and-swap ref updates, and ref deletion remain
+  in `GitGraphAdapter` because git-cas does not expose equivalent
+  multi-parent signing, non-retried CAS, or delete-ref semantics.
+
 ## Acceptance Criteria
 
 - `GitGraphAdapter.readBlob()` moves to `GitPersistenceAdapter.readBlobStream()`

@@ -95,8 +95,9 @@ describe('uniform git-cas closeout', () => {
     expect(backlogReadme).not.toContain('INFRA_unify-persistence-on-git-cas');
     expect(backlogReadme).toContain('INFRA_git-cas-adapter-parity');
     expect(releaseLedger).toContain('INFRA_unify-persistence-on-git-cas');
-    expect(releaseLedger).toContain('[ ] INFRA_git-cas-adapter-parity');
-    expect(successor).toContain('GitPersistenceAdapter.readBlob');
-    expect(successor).toContain('GitRefAdapter.createCommit');
+    expect(releaseLedger).toContain('[x] INFRA_git-cas-adapter-parity');
+    expect(successor).toContain('GitPersistenceAdapter.readBlobStream()');
+    expect(successor).toContain('GitPersistenceAdapter.iterateTree()');
+    expect(successor).toContain('compare-and-swap ref updates');
   });
 });

@@ -15,12 +15,14 @@ describe('streaming memory audit closeout', () => {
 
   it('ratchets the shipped unbounded blob-read fix', () => {
     const adapter = readRepoFile('src/infrastructure/adapters/GitGraphAdapter.ts');
-    const gitErrorClassification = readRepoFile('src/infrastructure/adapters/gitErrorClassification.ts');
+    const reader = readRepoFile('src/infrastructure/adapters/GitCasGraphReaderAdapter.ts');
     const adapterTest = readRepoFile('test/unit/domain/services/GitGraphAdapter.test.ts');
 
-    expect(adapter).toContain("stream.collect({ asString: false, maxBytes: Number.POSITIVE_INFINITY })");
-    expect(gitErrorClassification).toContain('collect(opts?: { asString?: boolean; maxBytes?: number })');
-    expect(adapterTest).toContain('maxBytes: Number.POSITIVE_INFINITY');
+    expect(adapter).toContain('this._gitCasGraphReader.readBlob');
+    expect(reader).toContain('this._persistence.readBlobStream');
+    expect(reader).toContain('collectUnboundedGraphBlobStream');
+    expect(reader).toContain('byteLength += bytes.byteLength');
+    expect(adapterTest).toContain("args: ['cat-file', 'blob', 'abcd']");
   });
 
   it('keeps broader out-of-core work live outside the v17 crash-fix card', () => {

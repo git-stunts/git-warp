@@ -16,6 +16,7 @@ import AdapterValidationError from '../../domain/errors/AdapterValidationError.t
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import CasBlobAdapter from './CasBlobAdapter.ts';
+import GitCasGraphReaderAdapter from './GitCasGraphReaderAdapter.ts';
 import GitTrieStoreAdapter from './GitTrieStoreAdapter.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import { textEncode } from '../../domain/utils/bytes.ts';
@@ -85,6 +86,7 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
   private readonly plumbing: GitPlumbing;
   private readonly _retryOptions: RetryOptions;
   private readonly _gitCasPersistence: GitPersistenceAdapter;
+  private readonly _gitCasGraphReader: GitCasGraphReaderAdapter;
 
   constructor({ plumbing, retryOptions = {} }: GitGraphAdapterOptions) {
     super();
@@ -96,6 +98,10 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     this._gitCasPersistence = new GitPersistenceAdapter({
       plumbing,
       policy: createGitCasRetryPolicy(this._retryOptions),
+    });
+    this._gitCasGraphReader = new GitCasGraphReaderAdapter({
+      persistence: this._gitCasPersistence,
+      assertEmptyBlobExists: (oid) => this._assertBlobExistsForEmptyRead(oid),
     });
   }
 
@@ -267,14 +273,14 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
     const oids = await this.readTreeOids(treeOid);
     const files: Record<string, Uint8Array> = {};
     const entries = Object.entries(oids);
-    const BATCH_SIZE = 16;
-    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-      const batch = entries.slice(i, i + BATCH_SIZE);
+    const batchSize = 16;
+    for (let i = 0; i < entries.length; i += batchSize) {
+      const batch = entries.slice(i, i + batchSize);
       const results = await Promise.all(batch.map(([, oid]) => this.readBlob(oid)));
       for (let j = 0; j < batch.length; j++) {
         const entry = batch[j];
         const result = results[j];
-        if (entry !== null && entry !== undefined && result !== null && result !== undefined) {
+        if (entry !== undefined && result !== undefined) {
           files[entry[0]] = result;
         }
       }
@@ -284,38 +290,17 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
 
   async readTreeOids(treeOid: string): Promise<Record<string, string>> {
     validateOid(treeOid);
-    let output: string;
     try {
-      output = await this._executeWithRetry({ args: ['ls-tree', '-r', '-z', treeOid] });
+      return await this._gitCasGraphReader.readTreeOids(treeOid);
     } catch (raw) {
       throw wrapGitError(toGitError(raw), { oid: treeOid });
     }
-    const oids: Record<string, string> = {};
-    for (const record of output.split('\0')) {
-      if (record === '') {
-        continue;
-      }
-      const tabIndex = record.indexOf('\t');
-      if (tabIndex === -1) {
-        continue;
-      }
-      const meta = record.slice(0, tabIndex);
-      const path = record.slice(tabIndex + 1);
-      const [, , oid] = meta.split(' ');
-      oids[path] = oid ?? '';
-    }
-    return oids;
   }
 
   async readBlob(oid: string): Promise<Uint8Array> {
     validateOid(oid);
     try {
-      const stream = await this.plumbing.executeStream({ args: ['cat-file', 'blob', oid] });
-      const raw = await stream.collect({ asString: false, maxBytes: Number.POSITIVE_INFINITY });
-      if (raw.length === 0) {
-        await this._assertBlobExistsForEmptyRead(oid);
-      }
-      return typeof raw === 'string' ? Buffer.from(raw) : raw;
+      return await this._gitCasGraphReader.readBlob(oid);
     } catch (raw) {
       throw wrapGitError(toGitError(raw), { oid });
     }
