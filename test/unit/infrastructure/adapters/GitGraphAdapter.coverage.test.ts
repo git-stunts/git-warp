@@ -270,6 +270,50 @@ describe('GitGraphAdapter coverage', () => {
     });
   });
 
+  describe('readObjectType()', () => {
+    it('returns blob and tree object types from cat-file output', async () => {
+      const blobOid = 'a'.repeat(40);
+      const treeOid = 'b'.repeat(40);
+      mockPlumbing.execute
+        .mockResolvedValueOnce('blob\n')
+        .mockResolvedValueOnce('tree\n');
+
+      await expect(adapter.readObjectType(blobOid)).resolves.toBe('blob');
+      await expect(adapter.readObjectType(treeOid)).resolves.toBe('tree');
+
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['cat-file', '-t', blobOid],
+      });
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['cat-file', '-t', treeOid],
+      });
+    });
+
+    it('rejects unsupported git object types for content anchors', async () => {
+      const oid = 'a'.repeat(40);
+      mockPlumbing.execute.mockResolvedValue('commit\n');
+
+      await expect(adapter.readObjectType(oid))
+        .rejects.toMatchObject({
+          code: 'E_UNSUPPORTED_CONTENT_ANCHOR_OBJECT_TYPE',
+          message: `Unsupported Git object type for content anchor ${oid}: commit`,
+        });
+    });
+
+    it('wraps object-type read failures with object context', async () => {
+      const oid = 'a'.repeat(40);
+      const err = new Error(`fatal: bad object ${oid}`);
+      Object.assign(err, { details: { code: 128, stderr: `fatal: bad object ${oid}` } });
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      await expect(adapter.readObjectType(oid))
+        .rejects.toMatchObject({
+          code: PersistenceError.E_MISSING_OBJECT,
+          message: `Missing Git object: ${oid}`,
+        });
+    });
+  });
+
   describe('getCommitTree()', () => {
     it('returns the trimmed tree OID for a commit', async () => {
       const commitOid = 'a'.repeat(40);
