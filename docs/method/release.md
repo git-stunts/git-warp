@@ -42,17 +42,17 @@ npm run release:preflight
 
 This script (`scripts/release-preflight.sh`) checks:
 
-| # | Check | Blocking? |
-|---|-------|-----------|
-| 1 | `package.json` version == `jsr.json` version | Yes |
-| 2 | Clean working tree (no uncommitted changes) | Yes |
-| 3 | On `main` branch | Warning |
-| 4 | CHANGELOG has a dated `[X.Y.Z] — YYYY-MM-DD` entry | Yes |
-| 5 | ESLint clean | Yes |
-| 6 | Type firewall (tsc + IRONCLAD policy + consumer + generated npm surface) | Yes |
-| 7 | Unit tests pass | Yes |
-| 8 | `npm pack --dry-run` + packed artifact smoke + `jsr publish --dry-run` | Yes |
-| 9 | `npm audit` (runtime deps, high/critical) | Warning |
+| #   | Check                                                                    | Blocking? |
+| --- | ------------------------------------------------------------------------ | --------- |
+| 1   | `package.json` version == `jsr.json` version                             | Yes       |
+| 2   | Clean working tree (no uncommitted changes)                              | Yes       |
+| 3   | On `main` branch                                                         | Warning   |
+| 4   | CHANGELOG has a dated `[X.Y.Z] — YYYY-MM-DD` entry                       | Yes       |
+| 5   | ESLint clean                                                             | Yes       |
+| 6   | Type firewall (tsc + IRONCLAD policy + consumer + generated npm surface) | Yes       |
+| 7   | Unit tests pass                                                          | Yes       |
+| 8   | `npm pack --dry-run` + packed artifact smoke + `jsr publish --dry-run`   | Yes       |
+| 9   | `npm audit` (runtime deps, high/critical)                                | Warning   |
 
 If all checks pass, the script prints the exact tag + push commands.
 
@@ -83,6 +83,7 @@ If all checks pass, the script prints the exact tag + push commands.
    - **publish_jsr** -- publishes to JSR via OIDC
    - **github_release** -- creates GitHub Release with auto-generated notes
 8. If one registry fails, re-run only that job from the Actions UI.
+   - If a rerun cannot use the fixed workflow from `main`, run the **Release** workflow manually with the existing tag. The workflow is idempotent: already-published registry versions are skipped, missing registry versions are published, and existing GitHub Release notes are updated with the current registry summary.
 9. Confirm:
    - npm dist-tag is correct (`latest` for stable, `next`/`beta`/`alpha` for prereleases)
    - JSR version is visible
@@ -96,9 +97,9 @@ The README no longer carries a per-release `What's New` section. Update the READ
 
 ## Dist-tag mapping
 
-| Tag pattern       | npm dist-tag |
-| ----------------- | ------------ |
-| `vX.Y.Z`          | `latest`     |
-| `vX.Y.Z-rc.N`     | `next`       |
-| `vX.Y.Z-beta.N`   | `beta`       |
-| `vX.Y.Z-alpha.N`  | `alpha`      |
+| Tag pattern      | npm dist-tag |
+| ---------------- | ------------ |
+| `vX.Y.Z`         | `latest`     |
+| `vX.Y.Z-rc.N`    | `next`       |
+| `vX.Y.Z-beta.N`  | `beta`       |
+| `vX.Y.Z-alpha.N` | `alpha`      |

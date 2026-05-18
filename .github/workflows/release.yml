@@ -2,13 +2,19 @@ name: Release
 
 on:
   push:
-    tags: [ "v*.*.*", "v*.*.*-*" ]
+    tags: ['v*.*.*', 'v*.*.*-*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish, for example v17.0.0'
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref_name }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -23,12 +29,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
       - name: Setup Node 22
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: '22'
           cache: npm
 
       - name: Install
@@ -39,7 +45,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${{ github.ref_name }}"
+          TAG="${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
           # Validate tag format (same regex as tag-guard.yml)
@@ -122,22 +128,21 @@ jobs:
     outputs:
       package_name: ${{ steps.pkg.outputs.name }}
       version: ${{ steps.pkg.outputs.version }}
+      status: ${{ steps.npm_result.outputs.status }}
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ needs.verify.outputs.tag }}
 
-      - name: Setup Node 22
+      - name: Setup Node 24
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
-          cache: npm
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
 
       - name: Install
         run: npm ci
-
-      - name: Upgrade npm CLI (>=11.5.1 required for trusted publishing)
-        run: npm i -g npm@latest
 
       - name: Read package metadata
         id: pkg
@@ -162,12 +167,30 @@ jobs:
           fi
 
       - name: Publish npm (retry x3)
+        id: npm_publish
         if: ${{ steps.npm_exists.outputs.skip != 'true' }}
         uses: ./.github/actions/retry
         with:
-          attempts: "3"
-          delay_seconds: "15"
+          attempts: '3'
+          delay_seconds: '15'
           command: npm publish --access public --tag "${{ needs.verify.outputs.npm_dist_tag }}" --provenance
+
+      - name: Report npm publish status
+        id: npm_result
+        if: ${{ always() }}
+        env:
+          NPM_EXISTS: ${{ steps.npm_exists.outputs.skip }}
+          NPM_PUBLISH_OUTCOME: ${{ steps.npm_publish.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$NPM_EXISTS" == "true" ]]; then
+            echo "status=already-exists" >> "$GITHUB_OUTPUT"
+          elif [[ "$NPM_PUBLISH_OUTCOME" == "success" ]]; then
+            echo "status=published" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failed" >> "$GITHUB_OUTPUT"
+          fi
 
   publish_jsr:
     name: Publish JSR
@@ -178,6 +201,8 @@ jobs:
       id-token: write
     environment: jsr
     continue-on-error: true
+    outputs:
+      status: ${{ steps.jsr_result.outputs.status }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -186,7 +211,7 @@ jobs:
       - name: Setup Node 22
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: '22'
           cache: npm
 
       - name: Install
@@ -231,12 +256,30 @@ jobs:
           fi
 
       - name: Publish JSR (retry x3)
+        id: jsr_publish
         if: ${{ steps.jsr_exists.outputs.skip != 'true' }}
         uses: ./.github/actions/retry
         with:
-          attempts: "3"
-          delay_seconds: "15"
+          attempts: '3'
+          delay_seconds: '15'
           command: npx -y jsr publish
+
+      - name: Report JSR publish status
+        id: jsr_result
+        if: ${{ always() }}
+        env:
+          JSR_EXISTS: ${{ steps.jsr_exists.outputs.skip }}
+          JSR_PUBLISH_OUTCOME: ${{ steps.jsr_publish.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$JSR_EXISTS" == "true" ]]; then
+            echo "status=already-exists" >> "$GITHUB_OUTPUT"
+          elif [[ "$JSR_PUBLISH_OUTCOME" == "success" ]]; then
+            echo "status=published" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failed" >> "$GITHUB_OUTPUT"
+          fi
 
   github_release:
     name: Create GitHub Release
@@ -253,8 +296,8 @@ jobs:
           cat > RELEASE_SUMMARY.md << 'EOF'
           ## Registry publish summary
 
-          - npm: `${{ needs.publish_npm.result }}`
-          - JSR: `${{ needs.publish_jsr.result }}`
+          - npm: `${{ needs.publish_npm.outputs.status }}`
+          - JSR: `${{ needs.publish_jsr.outputs.status }}`
 
           Dist-tag: `${{ needs.verify.outputs.npm_dist_tag }}`
           Version: `${{ needs.verify.outputs.tag_version }}`
@@ -273,7 +316,17 @@ jobs:
           set -euo pipefail
 
           if gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
-            echo "::warning::GitHub Release $TAG already exists; skipping immutable release update."
+            gh release view "$TAG" --repo "$GH_REPO" --json body --jq .body > EXISTING_RELEASE.md
+
+            if grep -q "^## What's Changed" EXISTING_RELEASE.md; then
+              awk 'BEGIN { keep = 0 } /^## What'\''s Changed/ { keep = 1 } keep { print }' EXISTING_RELEASE.md > GENERATED_NOTES.md
+              cat RELEASE_SUMMARY.md > RELEASE_NOTES.md
+              printf '\n' >> RELEASE_NOTES.md
+              cat GENERATED_NOTES.md >> RELEASE_NOTES.md
+              gh release edit "$TAG" --repo "$GH_REPO" --notes-file RELEASE_NOTES.md
+            else
+              echo "::warning::GitHub Release $TAG already exists but generated notes were not recognized; leaving notes unchanged."
+            fi
           else
             SUMMARY=$(cat RELEASE_SUMMARY.md)
             args=(release create "$TAG" --repo "$GH_REPO" --generate-notes --notes "$SUMMARY")
@@ -284,7 +337,7 @@ jobs:
           fi
 
       - name: Fail if both registries failed
-        if: ${{ needs.publish_npm.result != 'success' && needs.publish_jsr.result != 'success' }}
+        if: ${{ needs.publish_npm.outputs.status == 'failed' && needs.publish_jsr.outputs.status == 'failed' }}
         run: |
           echo "Both npm and JSR publish failed."
           exit 1
