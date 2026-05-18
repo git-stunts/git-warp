@@ -1,3 +1,11 @@
+---
+id: SPEC_required-link-check-path-filter
+blocked_by: []
+blocks: []
+feature: tooling-release
+release_home: v17.0.0
+---
+
 # SPEC required link check path filter
 
 ## Smell

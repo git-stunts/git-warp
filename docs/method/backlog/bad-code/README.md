@@ -15,7 +15,7 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 | [PORT](../../legends/PORT.md) | Capability and port surfaces must tell the runtime truth. | 12 |
 | [OWN](../../legends/OWNERSHIP.md) | One owner per behavior: no gods, no duplication corridors, no mixed-concern facades. | 32 |
 | [SUB](../../legends/SUBSTRATE.md) | Substrate integrity: streaming, CAS, checkpoint, index, and versioned storage stay explicit. | 15 |
-| [SPEC](../../legends/SPEC.md) | Tests, docs, mocks, and coverage residue must reflect the real contract. | 118 |
+| [SPEC](../../legends/SPEC.md) | Tests, docs, mocks, and coverage residue must reflect the real contract. | 119 |
 
 ## Release Homes
 
@@ -30,7 +30,7 @@ card metadata or promoting bad-code into a release lane.
 
 | Release Home | Count |
 |--------------|------:|
-| `v17.0.0` | 194 |
+| `v17.0.0` | 195 |
 | `v18.0.0` | 13 |
 | `v19.0.0` | 13 |
 | `v20.0.0` | 15 |
@@ -192,6 +192,7 @@ card metadata or promoting bad-code into a release lane.
 - [SPEC_patch-session-untested.md](SPEC_patch-session-untested.md)
 - [SPEC_querybuilder-untested.md](SPEC_querybuilder-untested.md)
 - [SPEC_readtreeoids-mock-returns-array.md](SPEC_readtreeoids-mock-returns-array.md)
+- [SPEC_required-link-check-path-filter.md](SPEC_required-link-check-path-filter.md)
 - [SPEC_state-reader-untested.md](SPEC_state-reader-untested.md)
 - [SPEC_sync-controller-over-mocked.md](SPEC_sync-controller-over-mocked.md)
 - [SPEC_untested-controllers.md](SPEC_untested-controllers.md)
