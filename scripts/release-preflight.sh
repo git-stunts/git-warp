@@ -93,8 +93,8 @@ fi
 
 # ── 7. Unit tests ────────────────────────────────────────────────────────────
 echo "Tests:"
-if npm run test:coverage --silent 2>/dev/null; then
-  pass "unit tests + coverage ratchet"
+if npm run test:coverage:ci --silent 2>/dev/null; then
+  pass "unit tests + coverage threshold"
 else
   fail "unit test or coverage failures"
 fi
