@@ -34,14 +34,27 @@ export class V16ToV17UpgradeArgumentError extends Error {
   }
 }
 
+type V16ToV17UpgradeArgsOptions = {
+  readonly repo: string;
+  readonly graphNames: readonly string[];
+  readonly dryRun: boolean;
+  readonly json: boolean;
+  readonly help: boolean;
+};
+
 export class V16ToV17UpgradeArgs {
-  constructor(
-    readonly repo: string,
-    readonly graphNames: readonly string[],
-    readonly dryRun: boolean,
-    readonly json: boolean,
-    readonly help: boolean,
-  ) {
+  readonly repo: string;
+  readonly graphNames: readonly string[];
+  readonly dryRun: boolean;
+  readonly json: boolean;
+  readonly help: boolean;
+
+  constructor(options: V16ToV17UpgradeArgsOptions) {
+    this.repo = options.repo;
+    this.graphNames = options.graphNames;
+    this.dryRun = options.dryRun;
+    this.json = options.json;
+    this.help = options.help;
     Object.freeze(this);
   }
 }
@@ -96,7 +109,7 @@ export function parseArgs(argv: readonly string[], cwd: string): V16ToV17Upgrade
     const arg = argv[i];
     if (arg === '--repo') {
       const value = argv[i + 1];
-      if (value === undefined) {
+      if (value === undefined || value.startsWith('-')) {
         throw new V16ToV17UpgradeArgumentError('--repo requires a path');
       }
       repo = value;
@@ -105,7 +118,7 @@ export function parseArgs(argv: readonly string[], cwd: string): V16ToV17Upgrade
     }
     if (arg === '--graph') {
       const value = argv[i + 1];
-      if (value === undefined) {
+      if (value === undefined || value.startsWith('-')) {
         throw new V16ToV17UpgradeArgumentError('--graph requires a graph name');
       }
       graphNames.push(value);
@@ -127,7 +140,7 @@ export function parseArgs(argv: readonly string[], cwd: string): V16ToV17Upgrade
     throw new V16ToV17UpgradeArgumentError(`Unknown argument: ${arg ?? ''}`);
   }
 
-  return new V16ToV17UpgradeArgs(repo, graphNames, dryRun, json, help);
+  return new V16ToV17UpgradeArgs({ repo, graphNames, dryRun, json, help });
 }
 
 export async function upgradeV16ToV17(

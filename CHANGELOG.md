@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0] — 2026-05-05
+
 ### Changed
 
 - Upgraded the Git Stunts substrate packages to current registry releases:
@@ -21,11 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `readBlobStream()` with an explicit adapter-boundary collector, and
   recursive tree OID scans use git-cas `iterateTree()` while preserving
   git-warp's path-preserving recursive map contract.
-
-## [17.0.0] — 2026-05-05
-
-### Changed
-
 - **v17.0.0 release cut** — Package and JSR versions agree at `17.0.0`, the
   release chronology is dated to the May 5 release cut, and the v17 release
   notes now preserve the honest bounded-query scope from the 0123 release

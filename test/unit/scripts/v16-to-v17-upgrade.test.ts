@@ -37,6 +37,16 @@ describe('v16 to v17 top-level upgrade utility', () => {
     expect(args.json).toBe(true);
   });
 
+  it('rejects a missing repo path when the next token is another flag', () => {
+    expect(() => parseArgs(['--repo', '--dry-run'], '/repo'))
+      .toThrow('--repo requires a path');
+  });
+
+  it('rejects a missing graph name when the next token is another flag', () => {
+    expect(() => parseArgs(['--graph', '--json'], '/repo'))
+      .toThrow('--graph requires a graph name');
+  });
+
   it('dry-runs rebuildable cache ref deletion without moving refs', async () => {
     const persistence = new InMemoryGraphAdapter();
     await persistence.updateRef('refs/warp/alpha/coverage/head', oid('a'));

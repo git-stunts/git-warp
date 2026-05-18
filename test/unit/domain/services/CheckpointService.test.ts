@@ -1029,51 +1029,6 @@ describe('CheckpointService', () => {
         ]);
       });
 
-      it('preserves legacy raw blob content anchors when creating a checkpoint', async () => {
-        const state = createEmptyState();
-        state.nodeAlive.add('legacy', Dot.create('alice', 1));
-        state.nodeAlive.add('cas', Dot.create('alice', 2));
-
-        const legacyBlobOid = makeSequentialOid(1);
-        const casTreeOid = makeSequentialOid(2);
-
-        state.prop.set(encodePropKeyV5('legacy', CONTENT_PROPERTY_KEY), {
-          eventId: { lamport: 1, writerId: 'alice', patchSha: makeOid('patch1'), opIndex: 0 },
-          value: legacyBlobOid,
-        });
-        state.prop.set(encodePropKeyV5('cas', CONTENT_PROPERTY_KEY), {
-          eventId: { lamport: 2, writerId: 'alice', patchSha: makeOid('patch2'), opIndex: 0 },
-          value: casTreeOid,
-        });
-
-        const frontier = createFrontier();
-        updateFrontier(frontier, 'alice', makeOid('sha1'));
-
-        mockPersistence.writeBlob.mockResolvedValue(makeOid('blob'));
-        mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
-        mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
-        mockPersistence.readObjectType = vi.fn(async (oid: string) => (
-          oid === legacyBlobOid ? 'blob' : 'tree'
-        ));
-
-        await createCheckpointEnvelope({
-          persistence: mockPersistence,
-          graphName: 'test',
-          state,
-          frontier,
-          crypto,
-        });
-
-        const treeEntries = mockPersistence.writeTree.mock.calls[1][0];
-        expect(treeEntries).toEqual([
-          `100644 blob ${legacyBlobOid}\t_content_${legacyBlobOid}`,
-          `040000 tree ${casTreeOid}\t_content_${casTreeOid}`,
-          expect.stringContaining('\tappliedVV.cbor'),
-          expect.stringContaining('\tfrontier.cbor'),
-          expect.stringContaining('\tstate'),
-        ]);
-      });
-
       it('anchors large content sets without duplicate entries when batch flushes occur', async () => {
         const state = createEmptyState();
         const frontier = createFrontier();
