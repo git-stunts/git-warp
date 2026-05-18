@@ -3,10 +3,8 @@ name: Link Check
 on:
   push:
     branches: [main]
-    paths: ["**/*.md", ".lychee.toml"]
   pull_request:
     branches: [main]
-    paths: ["**/*.md", ".lychee.toml"]
 
 permissions:
   contents: read
