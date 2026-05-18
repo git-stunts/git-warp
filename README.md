@@ -11,7 +11,7 @@
 It stores causal graph history in Git objects and refs. Writes are
 admitted through patches. Reads happen through worldlines, strands,
 and observers. Provenance, replay, and explicit historical coordinates
-are part of the model, not bolted-on afterthoughts.
+are part of the model.
 
 ## Quick start
 
