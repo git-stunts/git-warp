@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Upgraded the Git Stunts substrate packages to current registry releases:
+  `@git-stunts/git-cas` `^6.0.0`, `@git-stunts/plumbing` `^3.0.3`, and
+  `@git-stunts/alfred` `^0.10.3`. The Deno runtime test import map now tracks
+  plumbing v3, and integration helpers await plumbing's async default factory.
+- `npm run upgrade` now runs a top-level `scripts/upgrade-v16-to-v17.ts`
+  operator utility. It upgrades v16 checkpoint schemas for all discovered
+  graphs by default and clears rebuildable legacy cache refs that must be
+  rewritten through the current git-cas substrate.
+- `GitGraphAdapter` now reads graph blobs through git-cas v6
+  `readBlobStream()` with an explicit adapter-boundary collector, and
+  recursive tree OID scans use git-cas `iterateTree()` while preserving
+  git-warp's path-preserving recursive map contract.
 - **v17.0.0 release cut** — Package and JSR versions agree at `17.0.0`, the
   release chronology is dated to the May 5 release cut, and the v17 release
   notes now preserve the honest bounded-query scope from the 0123 release

@@ -8,7 +8,7 @@ const repoRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 
 interface GitExecuteOptions {
   readonly args: string[];
-  readonly input?: string | Buffer;
+  readonly input?: string | Uint8Array;
 }
 
 class EmptyCollectableStream implements CollectableStream {
@@ -72,9 +72,9 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
 
     expect(plumbing.calls).toEqual([{
       args: ['hash-object', '-w', '--stdin'],
-      input: Buffer.from([1, 2, 3]),
+      input: new Uint8Array([1, 2, 3]),
     }]);
-    expect(Buffer.isBuffer(plumbing.calls[0]?.input)).toBe(true);
+    expect(plumbing.calls[0]?.input).toBeInstanceOf(Uint8Array);
   });
 
   it('preserves string blob writes through the delegated git-cas path', async () => {
@@ -86,7 +86,7 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
 
     expect(plumbing.calls).toEqual([{
       args: ['hash-object', '-w', '--stdin'],
-      input: 'payload',
+      input: new TextEncoder().encode('payload'),
     }]);
   });
 
@@ -126,6 +126,7 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
 
   it('ratchets write delegation while keeping non-equivalent read/ref semantics local', () => {
     const adapter = readRepoFile('src/infrastructure/adapters/GitGraphAdapter.ts');
+    const reader = readRepoFile('src/infrastructure/adapters/GitCasGraphReaderAdapter.ts');
     const successorCard = join(
       repoRoot,
       'docs/method/backlog/v17.0.0/INFRA_git-cas-adapter-parity.md',
@@ -136,10 +137,13 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
     expect(adapter).toContain('policy: createGitCasRetryPolicy(this._retryOptions)');
     expect(adapter).toContain('this._gitCasPersistence.writeBlob');
     expect(adapter).toContain('this._gitCasPersistence.writeTree');
-    expect(adapter).not.toContain('this._gitCasPersistence.readBlob');
-    expect(adapter).not.toContain('this._gitCasPersistence.readTree');
+    expect(adapter).toContain('new GitCasGraphReaderAdapter');
+    expect(adapter).toContain('this._gitCasGraphReader.readBlob');
+    expect(adapter).toContain('this._gitCasGraphReader.readTreeOids');
     expect(adapter).not.toContain('this._gitCasPersistence.createCommit');
-    expect(adapter).toContain('maxBytes: Number.POSITIVE_INFINITY');
+    expect(reader).toContain('this._persistence.readBlobStream');
+    expect(reader).toContain('collectUnboundedGraphBlobStream');
+    expect(reader).toContain('this._persistence.iterateTree');
     expect(existsSync(successorCard)).toBe(true);
   });
 });

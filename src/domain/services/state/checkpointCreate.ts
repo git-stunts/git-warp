@@ -21,6 +21,7 @@ import {
   collectContentAnchorEntries,
   compareTreeEntriesByPath,
   CURRENT_CHECKPOINT_SCHEMA,
+  type ContentAnchorObjectType,
 } from './checkpointHelpers.ts';
 import type WarpState from './WarpState.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';
@@ -34,7 +35,9 @@ import type StateHashService from './StateHashService.ts';
 import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 
 /** Combined persistence surface needed by checkpoint creation. */
-export type CheckpointPersistence = CommitPort & BlobPort & TreePort;
+export type CheckpointPersistence = CommitPort & BlobPort & TreePort & {
+  readObjectType?(_oid: string): Promise<ContentAnchorObjectType>;
+};
 
 /** Options for creating the current checkpoint envelope. */
 export interface CreateCheckpointOptions {
@@ -176,7 +179,10 @@ export async function createCheckpointEnvelope({
     indexSubtreeOid = await writeIndexSubtree(indexTree, persistence);
   }
 
-  const treeEntries = collectContentAnchorEntries(checkpointState.prop);
+  const treeEntries = await collectContentAnchorEntries(
+    checkpointState.prop,
+    persistence.readObjectType?.bind(persistence),
+  );
   treeEntries.push(
     `100644 blob ${appliedVVBlobOid}\tappliedVV.cbor`,
     `100644 blob ${frontierBlobOid}\tfrontier.cbor`,

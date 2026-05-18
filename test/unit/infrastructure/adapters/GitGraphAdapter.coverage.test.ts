@@ -4,6 +4,16 @@ import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAda
 import { createGitRepo } from '../../../helpers/warpGraphTestUtils.ts';
 import { describeAdapterConformance } from './AdapterConformance.ts';
 
+function streamFromText(text: string): AsyncIterable<Uint8Array> {
+  return {
+    async *[Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
+      if (text.length > 0) {
+        yield Buffer.from(text);
+      }
+    },
+  };
+}
+
 let mockPlumbing;
 let adapter;
 
@@ -121,38 +131,33 @@ describe('GitGraphAdapter coverage', () => {
   describe('readTree()', () => {
     it('reads each blob content for entries in the tree', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
-      // ls-tree output: NUL-separated records
-      mockPlumbing.execute.mockResolvedValue(
+      const treeOutput =
         `100644 blob deadbeef01234567890123456789012345678901\tfile_a.json\0` +
-        `100644 blob cafebabe01234567890123456789012345678901\tfile_b.json\0`
-      );
-
-      // First call returns content for file_a, second for file_b
-      let callCount = 0;
-      mockPlumbing.executeStream.mockImplementation(async () => {
-        callCount += 1;
-        return {
-          collect: vi.fn().mockResolvedValue(
-            Buffer.from(callCount === 1 ? 'content_a' : 'content_b')
-          ),
-        };
+        `100644 blob cafebabe01234567890123456789012345678901\tfile_b.json\0`;
+      mockPlumbing.executeStream.mockImplementation(async ({ args }) => {
+        if (args[0] === 'ls-tree') {
+          return streamFromText(treeOutput);
+        }
+        return streamFromText(args[2] === 'deadbeef01234567890123456789012345678901' ? 'content_a' : 'content_b');
       });
 
       const result = await adapter.readTree(treeOid);
 
-      expect(result['file_a.json']).toEqual(Buffer.from('content_a'));
-      expect(result['file_b.json']).toEqual(Buffer.from('content_b'));
-      expect(mockPlumbing.executeStream).toHaveBeenCalledTimes(2);
+      expect(result['file_a.json']).toEqual(new TextEncoder().encode('content_a'));
+      expect(result['file_b.json']).toEqual(new TextEncoder().encode('content_b'));
+      expect(mockPlumbing.executeStream).toHaveBeenCalledTimes(3);
     });
 
     it('returns empty map for empty tree', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
-      mockPlumbing.execute.mockResolvedValue('');
+      mockPlumbing.executeStream.mockResolvedValue(streamFromText(''));
 
       const result = await adapter.readTree(treeOid);
 
       expect(result).toEqual({});
-      expect(mockPlumbing.executeStream).not.toHaveBeenCalled();
+      expect(mockPlumbing.executeStream).toHaveBeenCalledWith({
+        args: ['ls-tree', '-z', treeOid],
+      });
     });
 
     it('validates tree OID', async () => {
@@ -166,10 +171,10 @@ describe('GitGraphAdapter coverage', () => {
   describe('readTreeOids()', () => {
     it('parses NUL-separated ls-tree output into path-oid map', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
-      mockPlumbing.execute.mockResolvedValue(
+      mockPlumbing.executeStream.mockResolvedValue(streamFromText(
         '100644 blob deadbeefdeadbeefdeadbeefdeadbeefdeadbeef\tindex.json\0' +
         '100644 blob cafebabecafebabecafebabecafebabecafebabe\tdata.json\0'
-      );
+      ));
 
       const result = await adapter.readTreeOids(treeOid);
 
@@ -177,37 +182,36 @@ describe('GitGraphAdapter coverage', () => {
         'index.json': 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
         'data.json': 'cafebabecafebabecafebabecafebabecafebabe',
       });
-      expect(mockPlumbing.execute).toHaveBeenCalledWith({
-        args: ['ls-tree', '-r', '-z', treeOid],
+      expect(mockPlumbing.executeStream).toHaveBeenCalledWith({
+        args: ['ls-tree', '-z', treeOid],
       });
     });
 
     it('returns empty map when tree has no entries', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
-      mockPlumbing.execute.mockResolvedValue('');
+      mockPlumbing.executeStream.mockResolvedValue(streamFromText(''));
 
       const result = await adapter.readTreeOids(treeOid);
 
       expect(result).toEqual({});
     });
 
-    it('skips records without a tab separator', async () => {
+    it('throws on records without a tab separator', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
-      mockPlumbing.execute.mockResolvedValue(
+      mockPlumbing.executeStream.mockResolvedValue(streamFromText(
         '100644 blob deadbeefdeadbeefdeadbeefdeadbeefdeadbeef\tvalid.json\0' +
         'malformed-no-tab\0'
-      );
+      ));
 
-      const result = await adapter.readTreeOids(treeOid);
-
-      expect(Object.keys(result)).toEqual(['valid.json']);
+      await expect(adapter.readTreeOids(treeOid))
+        .rejects.toThrow(/Malformed ls-tree entry/);
     });
 
     it('handles single entry with trailing NUL', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
-      mockPlumbing.execute.mockResolvedValue(
+      mockPlumbing.executeStream.mockResolvedValue(streamFromText(
         '100644 blob abcdef1234567890abcdef1234567890abcdef12\tonly.json\0'
-      );
+      ));
 
       const result = await adapter.readTreeOids(treeOid);
 
@@ -216,11 +220,35 @@ describe('GitGraphAdapter coverage', () => {
       });
     });
 
+    it('recursively preserves paths through nested trees', async () => {
+      const rootTreeOid = 'aabb' + '0'.repeat(36);
+      const nestedTreeOid = 'bbcc' + '0'.repeat(36);
+      const blobOid = 'ccdd' + '0'.repeat(36);
+      mockPlumbing.executeStream.mockImplementation(async ({ args }) => {
+        if (args[2] === rootTreeOid) {
+          return streamFromText(`040000 tree ${nestedTreeOid}\tnested\0`);
+        }
+        return streamFromText(`100644 blob ${blobOid}\titem.cbor\0`);
+      });
+
+      const result = await adapter.readTreeOids(rootTreeOid);
+
+      expect(result).toEqual({
+        'nested/item.cbor': blobOid,
+      });
+      expect(mockPlumbing.executeStream).toHaveBeenCalledWith({
+        args: ['ls-tree', '-z', rootTreeOid],
+      });
+      expect(mockPlumbing.executeStream).toHaveBeenCalledWith({
+        args: ['ls-tree', '-z', nestedTreeOid],
+      });
+    });
+
     it('validates tree OID', async () => {
       await expect(adapter.readTreeOids('bad!'))
         .rejects.toThrow(/Invalid OID format/);
 
-      expect(mockPlumbing.execute).not.toHaveBeenCalled();
+      expect(mockPlumbing.executeStream).not.toHaveBeenCalled();
     });
 
     it('rejects empty OID', async () => {
@@ -232,12 +260,56 @@ describe('GitGraphAdapter coverage', () => {
       const treeOid = 'aabb' + '0'.repeat(36);
       const err = (new Error(`fatal: bad object ${treeOid}`) as any);
       err.details = { code: 128, stderr: `fatal: bad object ${treeOid}` };
-      mockPlumbing.execute.mockRejectedValue(err);
+      mockPlumbing.executeStream.mockRejectedValue(err);
 
       await expect(adapter.readTreeOids(treeOid))
         .rejects.toMatchObject({
           code: PersistenceError.E_MISSING_OBJECT,
           message: `Missing Git object: ${treeOid}`,
+        });
+    });
+  });
+
+  describe('readObjectType()', () => {
+    it('returns blob and tree object types from cat-file output', async () => {
+      const blobOid = 'a'.repeat(40);
+      const treeOid = 'b'.repeat(40);
+      mockPlumbing.execute
+        .mockResolvedValueOnce('blob\n')
+        .mockResolvedValueOnce('tree\n');
+
+      await expect(adapter.readObjectType(blobOid)).resolves.toBe('blob');
+      await expect(adapter.readObjectType(treeOid)).resolves.toBe('tree');
+
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['cat-file', '-t', blobOid],
+      });
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['cat-file', '-t', treeOid],
+      });
+    });
+
+    it('rejects unsupported git object types for content anchors', async () => {
+      const oid = 'a'.repeat(40);
+      mockPlumbing.execute.mockResolvedValue('commit\n');
+
+      await expect(adapter.readObjectType(oid))
+        .rejects.toMatchObject({
+          code: 'E_UNSUPPORTED_CONTENT_ANCHOR_OBJECT_TYPE',
+          message: `Unsupported Git object type for content anchor ${oid}: commit`,
+        });
+    });
+
+    it('wraps object-type read failures with object context', async () => {
+      const oid = 'a'.repeat(40);
+      const err = new Error(`fatal: bad object ${oid}`);
+      Object.assign(err, { details: { code: 128, stderr: `fatal: bad object ${oid}` } });
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      await expect(adapter.readObjectType(oid))
+        .rejects.toMatchObject({
+          code: PersistenceError.E_MISSING_OBJECT,
+          message: `Missing Git object: ${oid}`,
         });
     });
   });

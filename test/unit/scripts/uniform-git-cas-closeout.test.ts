@@ -70,9 +70,10 @@ describe('uniform git-cas closeout', () => {
     const design = readRepoFile('docs/design/0092-close-uniform-git-cas.md');
     const releaseLedger = readRepoFile('docs/releases/v17.0.0/README.md');
     const upgradeTool = readRepoFile('docs/method/backlog/v17.0.0/INFRA_substrate-upgrade-tool.md');
-    const migrationEntrypoint = readRepoFile('scripts/migrations/v17.0.0/migrate.ts');
+    const upgradeEntrypoint = readRepoFile('scripts/upgrade-v16-to-v17.ts');
+    const migrationHelper = readRepoFile('scripts/migrations/v17.0.0/migrate.ts');
 
-    expect(packageJson).toContain('"upgrade": "npm run build --silent && node dist/scripts/migrations/v17.0.0/migrate.js"');
+    expect(packageJson).toContain('"upgrade": "npm run build --silent && node dist/scripts/upgrade-v16-to-v17.js"');
     expect(packageJson).toContain('"dist"');
     expect(design).not.toContain('legacy raw blobs may still be read');
     expect(releaseLedger).not.toContain('legacy raw reads');
@@ -80,8 +81,9 @@ describe('uniform git-cas closeout', () => {
     expect(upgradeTool).toContain('The package-level command is:');
     expect(upgradeTool).toContain('npm run upgrade -- --graph <name>');
     expect(upgradeTool).toContain('Mainline cleanup requirement');
-    expect(migrationEntrypoint).toContain('npm run upgrade -- --graph <name>');
-    expect(migrationEntrypoint).toContain('not in shipped runtime code under src/');
+    expect(upgradeEntrypoint).toContain('Top-level v16 -> v17 graph substrate upgrade utility');
+    expect(upgradeEntrypoint).toContain('upgradeCheckpointSchema');
+    expect(migrationHelper).toContain('not in shipped runtime code under src/');
   });
 
   it('tracks broader adapter parity as a split successor', () => {
@@ -93,8 +95,9 @@ describe('uniform git-cas closeout', () => {
     expect(backlogReadme).not.toContain('INFRA_unify-persistence-on-git-cas');
     expect(backlogReadme).toContain('INFRA_git-cas-adapter-parity');
     expect(releaseLedger).toContain('INFRA_unify-persistence-on-git-cas');
-    expect(releaseLedger).toContain('[ ] INFRA_git-cas-adapter-parity');
-    expect(successor).toContain('GitPersistenceAdapter.readBlob');
-    expect(successor).toContain('GitRefAdapter.createCommit');
+    expect(releaseLedger).toContain('[x] INFRA_git-cas-adapter-parity');
+    expect(successor).toContain('GitPersistenceAdapter.readBlobStream()');
+    expect(successor).toContain('GitPersistenceAdapter.iterateTree()');
+    expect(successor).toContain('compare-and-swap ref updates');
   });
 });

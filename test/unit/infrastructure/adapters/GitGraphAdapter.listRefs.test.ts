@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
 import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.ts';
 
 describe('GitGraphAdapter', () => {
@@ -203,6 +204,19 @@ describe('GitGraphAdapter', () => {
       expect(mockPlumbing.execute).toHaveBeenCalledWith({
         args: ['for-each-ref', '--format=%(refname)', '--count=1', 'refs/warp/g/writers/'],
       });
+    });
+
+    it('wraps git failures with ref context', async () => {
+      const prefix = 'refs/warp/g/writers/';
+      const err = new Error('fatal: permission denied');
+      Object.assign(err, { details: { code: 128, stderr: 'fatal: permission denied' } });
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      await expect(adapter.listRefs(prefix))
+        .rejects.toMatchObject({
+          code: PersistenceError.E_REF_IO,
+          message: `Ref I/O error: ${prefix}`,
+        });
     });
   });
 });

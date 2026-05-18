@@ -185,6 +185,8 @@ This makes content storage reachable via the writer ref chain (`refs/warp/<graph
 
 **Checkpoint anchoring:** checkpoint creation also scans `state.prop` for `_content` values and embeds the referenced storage OIDs in the checkpoint tree. This ensures content survives GC even if patch commits are ever pruned (e.g., by future compaction or writer-chain truncation). The invariant is: **content storage referenced by live state is always reachable from at least one ref** — either the writer ref (patch commit tree) or the checkpoint ref (checkpoint commit tree).
 
+Current content OIDs are CAS trees. Checkpoint anchoring also preserves legacy raw Git blob content by writing those anchors as blob tree entries instead of tree entries.
+
 Integration tests verify both anchoring paths with `git gc --prune=now`.
 
 ---

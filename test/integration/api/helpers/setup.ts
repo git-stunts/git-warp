@@ -24,7 +24,7 @@ export async function createTestRepo(label = 'api-test') {
   const crypto = new WebCryptoAdapter();
 
   try {
-    const plumbing = Plumbing.createDefault({ cwd: tempDir });
+    const plumbing = await Plumbing.createDefault({ cwd: tempDir });
     await plumbing.execute({ args: ['init'] });
     await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
     await plumbing.execute({ args: ['config', 'user.name', 'Test'] });

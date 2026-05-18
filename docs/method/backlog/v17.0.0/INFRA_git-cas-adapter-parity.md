@@ -17,8 +17,14 @@ the originally proposed unification was not behaviorally safe.
 The current git-cas adapters do not yet expose every graph-persistence
 semantic git-warp needs:
 
-- `GitPersistenceAdapter.readBlob()` collects without git-warp's
-  explicit `maxBytes: Number.POSITIVE_INFINITY` read posture.
+- `GitPersistenceAdapter.readBlobStream()` now exists in git-cas v6; git-warp
+  should prefer that for graph blob reads instead of collecting first.
+- `GitPersistenceAdapter.readBlob()` still has metadata safety limits; git-warp
+  must keep an explicit unbounded read posture only where a caller knowingly
+  asks to collect a complete graph blob.
+- `GitPersistenceAdapter.iterateTree()` and `readTreeEntry()` now exist in
+  git-cas v6; git-warp can use them as the substrate for recursive,
+  path-preserving tree traversal instead of raw `ls-tree` calls.
 - `GitPersistenceAdapter.readTree()` returns one-level parsed tree
   entries, while git-warp's `readTreeOids()` returns a recursive
   path-to-OID map.
@@ -47,11 +53,30 @@ Acceptable completion shapes:
 Do not replace current read/ref/commit behavior with weaker git-cas
 methods just to make the class look thinner.
 
+## Closed shape
+
+The repo-local completion path uses `GitCasGraphReaderAdapter` as the
+narrow infrastructure adapter around git-cas v6:
+
+- `GitGraphAdapter.readBlob()` delegates to
+  `GitPersistenceAdapter.readBlobStream()` and collects at the
+  graph-adapter boundary only.
+- `GitGraphAdapter.readTreeOids()` recursively walks
+  `GitPersistenceAdapter.iterateTree()` so git-warp keeps its
+  path-preserving recursive `Record<path, oid>` contract.
+- `GitGraphAdapter.readTree()` resolves blob payloads through the same
+  stream-backed read path.
+- commit creation, compare-and-swap ref updates, and ref deletion remain
+  in `GitGraphAdapter` because git-cas does not expose equivalent
+  multi-parent signing, non-retried CAS, or delete-ref semantics.
+
 ## Acceptance Criteria
 
-- `GitGraphAdapter.readBlob()` keeps an explicit unbounded read or moves
-  to an equivalent streaming git-cas API.
+- `GitGraphAdapter.readBlob()` moves to `GitPersistenceAdapter.readBlobStream()`
+  plus an explicit collector at the adapter boundary.
 - recursive tree OID reads remain recursive and path-preserving.
+- one-entry tree reads and tree iteration use git-cas v6 APIs where semantics
+  match exactly.
 - commit creation continues to support multiple parents and signing.
 - ref CAS failures are not retried.
 - ref deletion remains available.

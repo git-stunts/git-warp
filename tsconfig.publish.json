@@ -14,7 +14,7 @@
     "src/**/*.ts",
     "src/globals.d.ts",
     "bin/**/*.ts",
-    "scripts/migrations/**/*.ts"
+    "scripts/**/*.ts"
   ],
   "exclude": [
     "node_modules",

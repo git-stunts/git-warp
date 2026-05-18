@@ -174,7 +174,17 @@ LAYER 5 (launch-prep proof and release hardening tail):
                                           while read/ref/commit parity was
                                           split to
                                           `INFRA_git-cas-adapter-parity`
-  [ ] INFRA_git-cas-adapter-parity
+  [x] INFRA_git-cas-adapter-parity ← graph blob reads now delegate to
+                                      git-cas v6 `readBlobStream()`
+                                      through an explicit unbounded
+                                      adapter-boundary collector, and
+                                      recursive tree OID scans use
+                                      `iterateTree()` while preserving
+                                      git-warp's path map. Multi-parent
+                                      signed commits, non-retried ref
+                                      CAS, and ref deletion remain local
+                                      because git-cas does not expose
+                                      equivalent semantics.
   [x] INFRA_uniform-git-cas        ← cycle 0092 retired stale live card;
                                       default Git-backed runtime payloads route
                                       patches, checkpoints, indexes, and trust

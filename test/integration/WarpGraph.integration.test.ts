@@ -19,7 +19,7 @@ describe('WarpCore Integration', () => {
   beforeEach(async () => {
     // Create temp directory and init git repo
     tempDir = await mkdtemp(join(tmpdir(), 'emptygraph-test-'));
-    plumbing = Plumbing.createDefault({ cwd: tempDir });
+    plumbing = await Plumbing.createDefault({ cwd: tempDir });
     await plumbing.execute({ args: ['init'] });
     await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
     await plumbing.execute({ args: ['config', 'user.name', 'Test'] });

@@ -20,10 +20,10 @@ fallbacks or abandon old data.
 `npm run upgrade` / `git warp upgrade` runs offline, walks all existing
 objects in a WARP graph, and migrates them to the current substrate version.
 
-For the v17.0.0 ORSet/checkpoint break, the concrete repo-local entry
-point is `scripts/migrations/v17.0.0/migrate.ts`. Old checkpoint
-readers, old ORSet-backed materializers, and one-shot translation logic
-live there (and under its private helper modules), not in `src/`.
+For the v16 -> v17 git-cas shape transition, the concrete repo-local
+operator entry point is `scripts/upgrade-v16-to-v17.ts`. Versioned
+legacy readers and one-shot translation logic live under
+`scripts/migrations/v17.0.0/`, not in `src/`.
 
 The package-level command is:
 

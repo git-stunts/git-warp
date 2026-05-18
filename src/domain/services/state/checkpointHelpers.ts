@@ -30,6 +30,10 @@ export function isCurrentCheckpointSchema(schema: number | undefined | null): bo
  */
 const CONTENT_ANCHOR_BATCH_SIZE = 256;
 
+export type ContentAnchorObjectType = 'blob' | 'tree';
+
+export type ContentAnchorObjectTypeReader = (oid: string) => Promise<ContentAnchorObjectType>;
+
 // ============================================================================
 // Internal Helpers
 // ============================================================================
@@ -146,9 +150,10 @@ export function mergeSortedUniqueStrings(existing: string[], incoming: string[])
  * once. Current content storage OIDs identify CAS trees, so checkpoint trees
  * must anchor them as tree entries.
  */
-export function collectContentAnchorEntries(
+export async function collectContentAnchorEntries(
   propMap: Map<string, { eventId: unknown; value: unknown }>, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-): string[] {
+  readObjectType: ContentAnchorObjectTypeReader = defaultContentAnchorObjectType,
+): Promise<string[]> {
   let sortedOids: string[] = [];
   let batch: Set<string> = new Set();
 
@@ -178,8 +183,34 @@ export function collectContentAnchorEntries(
 
   const anchorEntries: string[] = [];
   for (const oid of sortedOids) {
-    anchorEntries.push(`040000 tree ${oid}\t_content_${oid}`);
+    const objectType = await readObjectType(oid);
+    anchorEntries.push(contentAnchorEntry(oid, objectType));
   }
 
   return anchorEntries;
+}
+
+function defaultContentAnchorObjectType(): Promise<ContentAnchorObjectType> {
+  return Promise.resolve('tree');
+}
+
+function contentAnchorEntry(oid: string, objectType: ContentAnchorObjectType): string {
+  if (objectType === 'blob') {
+    return `100644 blob ${oid}\t_content_${oid}`;
+  }
+  if (objectType === 'tree') {
+    return `040000 tree ${oid}\t_content_${oid}`;
+  }
+  return unsupportedContentAnchorObjectType(oid, objectType);
+}
+
+function unsupportedContentAnchorObjectType(
+  oid: string,
+  objectType: never,
+): never {
+  throw new WarpError(
+    'Unsupported content anchor object type',
+    'E_CHECKPOINT_CONTENT_ANCHOR_OBJECT_TYPE',
+    { context: { oid, objectType } },
+  );
 }
