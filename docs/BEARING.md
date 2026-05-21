@@ -174,9 +174,10 @@ before the final commit for that slice, and mark completed items with `- [x]`.
   realization manifest JSON through explicit load context; it binds each
   accepted JSON shape to the matching context authority, the domain policy
   independently rejects descriptor kind/authority mismatches, the adapter entry
-  point is split below the source-size cap, self-attested authority fields from
-  artifact JSON are rejected, and empty or internally inconsistent Wesley
-  generated inventory is rejected.
+  point and adapter-local JSON type carriers are split below the source-size
+  and one-file-per-concept caps, self-attested authority fields from artifact
+  JSON are rejected, policy-test authority fixtures are named constants, and
+  empty or internally inconsistent Wesley generated inventory is rejected.
 - [ ] 6. Make evidence posture explicit: translated git-warp evidence first,
   native Continuum evidence only after native witnesshood is proven.
 - [ ] 7. Prove the patch commit visibility contract: success means canonical
