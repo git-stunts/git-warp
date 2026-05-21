@@ -126,9 +126,9 @@ The v18 opening campaign is on track when:
 - [x] A cross-repo contract matrix names each family, generated artifact, local
   source fact, consumer, and missing witness.
 - [x] A WARP Optic realization map exists for `git-warp`.
-- [ ] The repo can ingest at least one generated Continuum family artifact or
+- [x] The repo can ingest at least one generated Continuum family artifact or
   generated fixture.
-- [ ] A guard prevents generated-family local mirrors from becoming hidden
+- [x] A guard prevents generated-family local mirrors from becoming hidden
   authority.
 - [ ] The first receipt-family projection reaches `warp-ttd` without adapter
   folklore.

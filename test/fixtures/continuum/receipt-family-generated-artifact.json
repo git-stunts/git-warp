@@ -1,0 +1,11 @@
+{
+  "familyId": "receipt-family",
+  "version": "0.1.0",
+  "sourceSchemaPath": "~/git/continuum/schemas/continuum-receipt-family.graphql",
+  "generatedBy": "wesley witness-continuum --scope receipt-family",
+  "artifactKind": "continuum.family.fixture",
+  "authority": "generated-fixture",
+  "targets": ["typescript", "echo"],
+  "witnessScope": "receipt-family",
+  "artifactDigest": "sha256:receipt-fixture"
+}

@@ -168,7 +168,7 @@ before the final commit for that slice, and mark completed items with `- [x]`.
   track.
 - [x] 4. Define git-warp's WARP Optic realization map: observer plan, bounded
   slice, lowering surface, admissibility law, and retention contract.
-- [ ] 5. Add a generated-artifact ingestion path for Continuum families, with a
+- [x] 5. Add a generated-artifact ingestion path for Continuum families, with a
   guard against handwritten local mirrors becoming contract authority.
 - [ ] 6. Make evidence posture explicit: translated git-warp evidence first,
   native Continuum evidence only after native witnesshood is proven.
