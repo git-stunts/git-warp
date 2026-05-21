@@ -166,7 +166,7 @@ before the final commit for that slice, and mark completed items with `- [x]`.
   generated artifact to git-warp source fact to `warp-ttd` consumer need,
   with `WL-4A-v18-graph-substrate-convergence` folded in as the graph-model
   track.
-- [ ] 4. Define git-warp's WARP Optic realization map: observer plan, bounded
+- [x] 4. Define git-warp's WARP Optic realization map: observer plan, bounded
   slice, lowering surface, admissibility law, and retention contract.
 - [ ] 5. Add a generated-artifact ingestion path for Continuum families, with a
   guard against handwritten local mirrors becoming contract authority.

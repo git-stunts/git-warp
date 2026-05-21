@@ -125,7 +125,7 @@ The v18 opening campaign is on track when:
 - [ ] `BEARING.md` tracks the running v18 task list.
 - [x] A cross-repo contract matrix names each family, generated artifact, local
   source fact, consumer, and missing witness.
-- [ ] A WARP Optic realization map exists for `git-warp`.
+- [x] A WARP Optic realization map exists for `git-warp`.
 - [ ] The repo can ingest at least one generated Continuum family artifact or
   generated fixture.
 - [ ] A guard prevents generated-family local mirrors from becoming hidden
