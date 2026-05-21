@@ -14,25 +14,25 @@ Scope note:
 
 ## Continuum Optic Admission Posture
 
-For cross-repo optic admission, git-warp should remain a substrate and fact
-provider, not an authority issuer or Echo runtime surrogate. Wesley compiles
-artifacts and descriptors, Echo registers and admits runtime-local optic
-invocations, authority layers issue grants, and applications hide handles and
-basis references behind product adapters. git-warp participates by exposing
-truthful graph facts and readings when a Continuum-owned family or adapter asks
-for them.
+For cross-repo optic admission, git-warp is a complete Continuum participant,
+not an Echo runtime surrogate. Continuum is the protocol for exchanging
+witnessed causal history. Wesley compiles artifacts and descriptors, Echo
+admits Echo-local runtime invocations, git-warp admits git-warp-local causal
+history and readings, authority layers issue grants, and applications hide
+handles and basis references behind product adapters.
 
 ## Where are we
 
 `git-warp` has shipped `v17.0.0`. The release work is now behind us in
 repo history, npm, and JSR; the active direction is `v18.0.0`.
 
-The v18 hill is not generic graph-substrate cleanup. It is Continuum
+The v18 hill is not generic graph-model cleanup. It is Continuum
 compatibility:
 
 > Make `git-warp` a Continuum-compatible sibling WARP runtime: consume
 > Wesley-generated artifacts for Continuum-owned contract families, map
-> git-warp's append-only Git substrate into honest WARP Optic evidence, and
+> git-warp's append-only Git-backed causal history into honest WARP Optic
+> evidence, and
 > give `warp-ttd` generated-family facts instead of handwritten adapter
 > folklore.
 
@@ -40,9 +40,19 @@ The long-term compatibility target is the WARP Optic shape described in
 `~/git/blog/aion-paper-07/dist/aion-paper-07.txt`, plus the Continuum
 contract families authored in `~/git/continuum/schemas/` and compiled by
 Wesley. Echo and `git-warp` are sibling runtime implementations. `git-warp`
-must not pretend to be Echo's durable half, and it must not emit
-Continuum-shaped values as native Continuum witnesses until that witnesshood is
-actually proven.
+has its own Continuum role, and it must not emit Continuum-shaped values as
+native Continuum witnesses until that witnesshood is actually proven.
+
+Backlog fold-in: the repo-visible v18 lane is
+`WL-4A-v18-graph-substrate-convergence` in
+[WORKLOADS.md](method/backlog/WORKLOADS.md), backed by the eight notes in
+[method/backlog/v18.0.0](method/backlog/v18.0.0/). Treat that lane as the
+graph-model track inside this compatibility campaign: node and edge record
+identity, attachment slots, graph-op algebra, content cutover, legacy property
+projection, migration tooling, and genesis replay equivalence. Existing
+`echo-shaped` backlog identities are historical shorthand for graph-model
+pressure already exercised by Echo, not a claim that Echo owns `git-warp`'s
+Continuum role.
 
 Current branch state at this boundary:
 
@@ -58,9 +68,9 @@ The release ladder is now:
 - `v17.0.0`: shipped TypeScript migration, public API honesty,
   materialization-frontdoor deletion, readings/optics direction, and query
   read-model groundwork.
-- `v18.0.0`: Continuum/WARP Optic compatibility for the cold Git substrate,
-  through Wesley-generated contract-family artifacts and honest evidence
-  posture.
+- `v18.0.0`: Continuum/WARP Optic compatibility for git-warp as an independent
+  Continuum participant, through Wesley-generated contract-family artifacts and
+  honest evidence posture.
 - `v19.0.0`: observation, doctrine, and slice-first runtime convergence
 - `v20.0.0`: slice-first read execution
 - `v21.0.0`: distributed observer geometry and admission reality
@@ -133,7 +143,10 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 - v18 can also lie in the other direction: Continuum-shaped values are not
   Continuum-native witnesses unless the runtime has actually proven native
   witnesshood. Initial git-warp compatibility evidence should be treated as
-  translated substrate evidence until stronger proof exists.
+  translated git-warp evidence until stronger proof exists.
+- The v18 backlog already names a graph-model convergence lane. The plan must
+  fold that lane into Continuum compatibility instead of replacing it with a
+  parallel cross-repo adapter plan.
 - `warp-ttd` needs git-warp facts as generated-family nouns, but the existing
   ecosystem still contains handwritten adapter and protocol residue.
 
@@ -146,16 +159,18 @@ before the final commit for that slice, and mark completed items with `- [x]`.
 
 - [x] 1. Sync and clean the repo runway: fast-forward `main`, clear fsmonitor
   noise, close stale v17/0145 bookkeeping, and record the v18 starting point.
-- [ ] 2. Create the v18 Continuum compatibility charter: WARP Optic
+- [x] 2. Create the v18 Continuum compatibility charter: WARP Optic
   compatibility, Continuum contract-family compatibility, Wesley-generated
   artifact consumption, and `warp-ttd` acceptance.
 - [ ] 3. Build the cross-repo contract matrix: Continuum family to Wesley
-  generated artifact to git-warp source fact to `warp-ttd` consumer need.
+  generated artifact to git-warp source fact to `warp-ttd` consumer need,
+  with `WL-4A-v18-graph-substrate-convergence` folded in as the graph-model
+  track.
 - [ ] 4. Define git-warp's WARP Optic realization map: observer plan, bounded
   slice, lowering surface, admissibility law, and retention contract.
 - [ ] 5. Add a generated-artifact ingestion path for Continuum families, with a
   guard against handwritten local mirrors becoming contract authority.
-- [ ] 6. Make evidence posture explicit: translated substrate evidence first,
+- [ ] 6. Make evidence posture explicit: translated git-warp evidence first,
   native Continuum evidence only after native witnesshood is proven.
 - [ ] 7. Prove the patch commit visibility contract: success means canonical
   writer-tip advancement and visible graph truth, not just object creation.

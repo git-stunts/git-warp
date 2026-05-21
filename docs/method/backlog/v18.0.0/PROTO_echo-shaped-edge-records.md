@@ -8,13 +8,17 @@ blocks:
 feature: graph-model-substrate
 ---
 
-# Echo-shaped edge records
+# Shared graph-model edge records
+
+Identity note: the backlog id keeps the older `echo-shaped` shorthand for
+continuity. The target is graph-model alignment pressure-tested by Echo, not
+Echo ownership of `git-warp`.
 
 ## Why
 
 `git-warp` still identifies edges by the `(from, to, label)` triple
-and derived key encodings. Echo's substrate gives edges first-class
-identity and treats edge type as part of the record, not the identity
+and derived key encodings. Echo has already pressure-tested edges as
+first-class records where edge type is part of the record, not the identity
 carrier.
 
 Shared graph shape requires stable edge records.

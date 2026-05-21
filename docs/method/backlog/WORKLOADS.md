@@ -42,7 +42,7 @@ dependency graph and likely write-surface overlap.
 | `3.0` | `B3` | 5 | 25 | Ready-now v17 foundations and independent release hygiene |
 | `3.1` | `B3` | 2 | 7 | Downstream v17 runtime split work |
 | `3.x` parked | `B3` | 1 | 6 | Launch-prep proof and package tail |
-| `4` | `B4` | 9 | 43 | v18 substrate cut plus current `up-next/` queue |
+| `4` | `B4` | 9 | 43 | v18 graph-model cut plus current `up-next/` queue |
 | `5` | `B5` | 3 | 11 | v19 observer/admission/runtime convergence |
 | `6` | `B6` | 10 | 100 | v20/v21 horizon plus speculative orbit |
 | Grand total | all | 44 | 371 | Full live backlog |
@@ -114,12 +114,12 @@ engineering trunks.
 
 ## Wave 4 — `B4`
 
-This wave contains the next-major graph-substrate lane and the current
-`up-next/` queue.
+This wave contains the next-major graph-model lane and the current `up-next/`
+queue.
 
 | Workload | Count | Items | Agent surface | Preconditions |
 |----------|------:|-------|---------------|---------------|
-| `WL-4A-v18-graph-substrate-convergence` | 8 | `PROTO_echo-shaped-node-records`, `PROTO_echo-shaped-edge-records`, `PROTO_attachment-plane-substrate`, `PROTO_graph-op-algebra-convergence`, `PROTO_content-attachment-plane-cutover`, `PROTO_legacy-props-as-projection`, `INFRA_graph-model-migration-tool`, `TRUST_genesis-replay-equivalence` | Echo-shaped graph model cut, migration tooling, and replay proof | v17 core release work complete |
+| `WL-4A-v18-graph-substrate-convergence` | 8 | `PROTO_echo-shaped-node-records`, `PROTO_echo-shaped-edge-records`, `PROTO_attachment-plane-substrate`, `PROTO_graph-op-algebra-convergence`, `PROTO_content-attachment-plane-cutover`, `PROTO_legacy-props-as-projection`, `INFRA_graph-model-migration-tool`, `TRUST_genesis-replay-equivalence` | Continuum-compatible graph model cut pressure-tested against Echo, migration tooling, and replay proof | v17 core release work complete |
 | `WL-40-upnext-api-capability-contracts` | 4 | `DX_modular-type-declarations`, `DX_plumbing-to-gitplumbing-rename`, `PROTO_controller-capability-interfaces`, `PROTO_patch-commit-visibility-contract` | API capability and declaration-contract cleanup | none |
 | `WL-41-upnext-runtime-boundaries` | 9 | `DX_max-file-size-policy`, `DX_trailer-codec-dts`, `NDNM_delete-vv-orset-shims`, `PROTO_cbor-op-hydration`, `PROTO_drop-v5-runtime-nouns`, `PROTO_op-consumer-instanceof-migration`, `PROTO_warpkernel-port-cleanup`, `PROTO_warpruntime-open-options-class`, `PROTO_wire-format-migration-edgepropset` | Runtime boundary cleanup and noun drift removal | none |
 | `WL-42-upnext-streaming-read-chain` | 5 | `NDNM_defaultcodec-to-infrastructure`, `PERF_stream-read-migration`, `PERF_stream-cleanup`, `PERF_async-generator-traversal`, `PERF_stream-memory-tests` | Streaming read migration and memory witnesses | root `PERF_out-of-core-materialization` |
@@ -132,7 +132,7 @@ This wave contains the next-major graph-substrate lane and the current
 ## Wave 5 — `B5`
 
 This wave is `v19.0.0`: observer, admission, and doctrine convergence
-after the graph-substrate cut.
+after the graph-model cut.
 
 | Workload | Count | Items | Agent surface | Preconditions |
 |----------|------:|-------|---------------|---------------|
@@ -189,7 +189,7 @@ If you want to staff agents immediately, start here:
 3. Pull Wave `3.1` only after the named `v17` prerequisites are true.
 4. Run Wave `2` in parallel when a release slice hits the same
    invariant family.
-5. Use Wave `4` for `v18.0.0` planning or selective substrate prep
+5. Use Wave `4` for `v18.0.0` planning or selective graph-model prep
    without starving active `B3` work.
 6. Keep Waves `5` and `6` parked unless deliberately working doctrine,
    horizon, or speculative follow-through.

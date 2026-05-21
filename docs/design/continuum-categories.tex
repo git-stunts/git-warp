@@ -53,12 +53,16 @@ defensible account that explains:
 
 The intended runtime family is the present Continuum surface:
 \begin{itemize}[leftmargin=2em]
-\item \Echo{} as the hot runtime,
-\item \GitWarp{} as the cold causal runtime,
+\item \Echo{} as a Continuum participant,
+\item \GitWarp{} as a Continuum participant,
 \item \TTD{} as the host-neutral debugger protocol surface,
 \item \Fuse{}-style materializations as host adapters over worldlines, strands,
   or braids.
 \end{itemize}
+
+Continuum is the protocol for exchanging witnessed causal history. It is not a
+runtime hierarchy, and it does not make \Echo{} the owner of \GitWarp{}'s
+participant role.
 
 \section{Design Claim}
 
@@ -272,7 +276,7 @@ different realization contexts:
 \toprule
 Host or realization context & Interpreted role \\
 \midrule
-\Echo{} & execute hot-side rewrites \\
+\Echo{} & execute Echo-local rewrites \\
 \GitWarp{} & admit and materialize causal patches \\
 \TTD{} & expose debugger playback and explanation surfaces \\
 \Fuse{} & materialize editable filesystem projections \\

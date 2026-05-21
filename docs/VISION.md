@@ -60,13 +60,14 @@ The read-side correction now matters just as much as the admission-side one:
 - Observer-first read surfaces through worldlines and apertures
 - Decentralized sync through Git transport
 
-In other words: `git-warp` owns the cold causal substrate and the lawful
-read/folding surfaces over it. It should not have to pretend that a giant
-in-memory graph is the ontology.
+In other words: `git-warp` is a complete Continuum participant for witnessed
+causal history, append-only Git-backed persistence, and lawful read/folding
+surfaces. It should not have to pretend that a giant in-memory graph is the
+ontology.
 
 ## What git-warp does not own
 
-- Hot deterministic execution → Echo
+- Echo's runtime-local deterministic execution → Echo
 - Time-travel debugging UI → warp-ttd
 - Shared schemas and contract surfaces → Wesley
 - Application domain semantics → yours
@@ -87,10 +88,11 @@ Sync is just `git push` / `git fetch` of WARP refs.
 
 ## The Continuum horizon
 
-When used in the wider stack, `git-warp` is the cold causal substrate.
-The Continuum vision (Paper VII §5) reframes processes as strands
-whose live realization is a shadow working set over shared machine
-history:
+When used in the wider stack, `git-warp` and Echo are sibling Continuum
+participants. Continuum is the protocol for exchanging witnessed causal
+history, not a runtime hierarchy. The Continuum vision (Paper VII §5) reframes
+processes as strands whose live realization is a shadow working set over
+shared machine history:
 
 - **Ephemeral scratch** — local, weakly retained, disposable
 - **Author-only speculative lane** — durable, replayable, sealed

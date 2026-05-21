@@ -8,12 +8,16 @@ blocks:
 feature: graph-model-substrate
 ---
 
-# Echo-shaped node records
+# Shared graph-model node records
+
+Identity note: the backlog id keeps the older `echo-shaped` shorthand for
+continuity. The target is graph-model alignment pressure-tested by Echo, not
+Echo ownership of `git-warp`.
 
 ## Why
 
 `git-warp` still treats node identity as a bare string plus property
-bag fallout. Echo's substrate treats nodes as skeleton records with
+bag fallout. Echo has already pressure-tested nodes as skeleton records with
 stable identity and explicit type.
 
 If the repos are going to share the same graph model, node records
