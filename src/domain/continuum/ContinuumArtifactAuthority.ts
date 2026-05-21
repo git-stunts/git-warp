@@ -43,19 +43,18 @@ export default class ContinuumArtifactAuthority {
 
 /** Validates a raw authority posture string. */
 export function requireContinuumArtifactAuthority(value: string): ContinuumArtifactAuthorityValue {
-  switch (value) {
-    case GENERATED_ARTIFACT_AUTHORITY:
-      return GENERATED_ARTIFACT_AUTHORITY;
-    case GENERATED_FIXTURE_AUTHORITY:
-      return GENERATED_FIXTURE_AUTHORITY;
-    case LOCAL_MIRROR_AUTHORITY:
-      return LOCAL_MIRROR_AUTHORITY;
-    case HANDWRITTEN_MIRROR_AUTHORITY:
-      return HANDWRITTEN_MIRROR_AUTHORITY;
-    default:
-      throw new WarpError(
-        `Continuum artifact authority must be one of: ${CONTINUUM_ARTIFACT_AUTHORITIES.join(', ')}`,
-        'E_VALIDATION',
-      );
+  if (typeof value !== 'string') {
+    throw new WarpError(
+      `Continuum artifact authority must be one of: ${CONTINUUM_ARTIFACT_AUTHORITIES.join(', ')}`,
+      'E_VALIDATION',
+    );
   }
+  const valid = CONTINUUM_ARTIFACT_AUTHORITIES.find((candidate) => candidate === value);
+  if (valid === undefined) {
+    throw new WarpError(
+      `Continuum artifact authority must be one of: ${CONTINUUM_ARTIFACT_AUTHORITIES.join(', ')}`,
+      'E_VALIDATION',
+    );
+  }
+  return valid;
 }

@@ -216,6 +216,7 @@ import ContinuumArtifactJsonFileAdapter from './src/infrastructure/adapters/Cont
 import type { ContinuumArtifactAuthorityValue } from './src/domain/continuum/ContinuumArtifactAuthority.ts';
 import type { ContinuumArtifactDescriptorFields } from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
 import type { ContinuumFamilyIdValue } from './src/domain/continuum/ContinuumFamilyId.ts';
+import type { ContinuumArtifactJsonLoadContext } from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 
 export {
   GitGraphAdapter,
@@ -383,6 +384,7 @@ export type {
   SyncRateLimitConfig,
   ContinuumArtifactAuthorityValue,
   ContinuumArtifactDescriptorFields,
+  ContinuumArtifactJsonLoadContext,
   ContinuumFamilyIdValue,
 };
 

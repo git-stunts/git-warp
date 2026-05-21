@@ -32,9 +32,12 @@ This slice adds:
   local mirrors, and handwritten mirrors;
 - `ContinuumArtifactDescriptor` as the runtime-backed descriptor object;
 - `ContinuumArtifactIngestionPolicy` as the authority guard;
-- `ContinuumArtifactJsonFileAdapter` as the infrastructure-edge JSON loader;
+- `ContinuumArtifactJsonFileAdapter` as the infrastructure-edge JSON loader
+  for Continuum fixture JSON and Wesley realization manifest JSON;
 - `test/fixtures/continuum/receipt-family-generated-artifact.json` as the first
-  generated-family fixture descriptor.
+  receipt-family Continuum fixture;
+- `test/fixtures/continuum/receipt-family-wesley-realization-manifest.json` as
+  the first Wesley realization manifest fixture.
 
 The guard accepts only:
 
@@ -45,11 +48,17 @@ It rejects:
 
 - `local-mirror`
 - `handwritten-mirror`
+- JSON that attempts to self-attest an `authority` field
 
 ## Boundary Law
 
 JSON parsing stays in `src/infrastructure/adapters/`. Domain code receives
 validated constructor fields and runtime-backed objects.
+
+Authority is not read from untrusted artifact JSON. The adapter receives
+authority through explicit load context, validates the artifact shape, and then
+lets the domain policy decide whether that context can become descriptor
+authority.
 
 The descriptor does not parse GraphQL, generate TypeScript, or claim family
 semantics. It only records which generated-family artifact or fixture is being
@@ -64,22 +73,47 @@ npx eslint src/domain/continuum/ContinuumFamilyId.ts \
   src/domain/continuum/ContinuumArtifactAuthority.ts \
   src/domain/continuum/ContinuumArtifactDescriptor.ts \
   src/domain/continuum/ContinuumArtifactIngestionPolicy.ts \
-  src/domain/errors/ContinuumArtifactAuthorityError.ts \
-  src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts
+  src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts \
+  test/unit/domain/continuum/ContinuumArtifactIngestionPolicy.test.ts \
+  test/unit/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.test.ts \
+  test/unit/domain/index.exports.test.ts
 npm run typecheck:src
 npm run typecheck:test
 npm run typecheck:surface
 npx vitest run \
   test/unit/domain/continuum/ContinuumArtifactIngestionPolicy.test.ts \
-  test/unit/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.test.ts
+  test/unit/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.test.ts \
+  test/unit/domain/index.exports.test.ts \
+  test/unit/domain/errors/index.test.ts
 ```
 
-Observed focused test result:
+Observed focused Continuum-suite test result:
 
 ```text
 Test Files  2 passed (2)
-Tests       9 passed (9)
+Tests       22 passed (22)
 ```
+
+Observed focused export/error sweep:
+
+```text
+Test Files  4 passed (4)
+Tests       72 passed (72)
+```
+
+Observed focused coverage result for the two new focused suites:
+
+```text
+npx vitest run --coverage \
+  test/unit/domain/continuum/ContinuumArtifactIngestionPolicy.test.ts \
+  test/unit/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.test.ts
+domain/continuum                           100% lines
+ContinuumArtifactJsonFileAdapter.ts        100% lines
+```
+
+That targeted coverage command exits nonzero because the repository global
+threshold is applied to a two-suite subset; the useful signal is the per-file
+coverage for the touched Continuum files.
 
 ## SSJS Scorecard
 
@@ -91,10 +125,12 @@ Tests       9 passed (9)
   ingestion policy owns authority decisions.
 - Message parsing: green; no behavior branches parse free-form messages.
 - Ambient time or entropy: green; no ambient time or entropy introduced.
-- Fake shape trust or cast-cosplay: green; mirror descriptors are rejected
-  before ingestion.
+- Fake shape trust or cast-cosplay: green; generated-family authority is carried
+  by load context, self-attested JSON authority is rejected, and the accepted
+  shapes are Continuum fixture JSON and Wesley realization manifest JSON.
 
 ## Closeout
 
 This closes BEARING task 5 and gives later receipt-family projection work a
-safe generated-artifact entry point.
+safe generated-artifact entry point without making local mirrors or
+self-attested descriptors contract authority.

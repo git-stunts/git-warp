@@ -122,7 +122,7 @@ contract and not merely mapped from local git-warp facts.
 
 The v18 opening campaign is on track when:
 
-- [ ] `BEARING.md` tracks the running v18 task list.
+- [x] `BEARING.md` tracks the running v18 task list.
 - [x] A cross-repo contract matrix names each family, generated artifact, local
   source fact, consumer, and missing witness.
 - [x] A WARP Optic realization map exists for `git-warp`.

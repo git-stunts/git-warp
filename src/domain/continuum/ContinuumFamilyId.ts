@@ -40,19 +40,18 @@ export default class ContinuumFamilyId {
 
 /** Validates a raw family id string. */
 export function requireContinuumFamilyId(value: string): ContinuumFamilyIdValue {
-  switch (value) {
-    case RECEIPT_FAMILY_ID:
-      return RECEIPT_FAMILY_ID;
-    case SETTLEMENT_FAMILY_ID:
-      return SETTLEMENT_FAMILY_ID;
-    case NEIGHBORHOOD_CORE_FAMILY_ID:
-      return NEIGHBORHOOD_CORE_FAMILY_ID;
-    case RUNTIME_BOUNDARY_FAMILY_ID:
-      return RUNTIME_BOUNDARY_FAMILY_ID;
-    default:
-      throw new WarpError(
-        `Continuum family id must be one of: ${CONTINUUM_FAMILY_IDS.join(', ')}`,
-        'E_VALIDATION',
-      );
+  if (typeof value !== 'string') {
+    throw new WarpError(
+      `Continuum family id must be one of: ${CONTINUUM_FAMILY_IDS.join(', ')}`,
+      'E_VALIDATION',
+    );
   }
+  const valid = CONTINUUM_FAMILY_IDS.find((candidate) => candidate === value);
+  if (valid === undefined) {
+    throw new WarpError(
+      `Continuum family id must be one of: ${CONTINUUM_FAMILY_IDS.join(', ')}`,
+      'E_VALIDATION',
+    );
+  }
+  return valid;
 }

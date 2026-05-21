@@ -1,0 +1,67 @@
+{
+  "kind": "wesley.realization.manifest.v1",
+  "schemaPath": "schemas/continuum-receipt-family.graphql",
+  "canonicalSchemaPath": "/Users/james/git/continuum/schemas/continuum-receipt-family.graphql",
+  "schemaHash": "16bf631145b60e0ec240f97484ff2cb5f534cd38c963cf12044985915766a602",
+  "sourceHash": "16bf631145b60e0ec240f97484ff2cb5f534cd38c963cf12044985915766a602",
+  "outDir": "out/proof",
+  "targets": [
+    "warp-ttd",
+    "echo"
+  ],
+  "integrity": {
+    "status": "sealed",
+    "scope": "generated-leg-files",
+    "hashAlgorithm": "sha256",
+    "signatureAlgorithm": "hmac-sha256",
+    "signatureKeyId": "builtin:wesley-v0.1.0-local-dev-hmac-key"
+  },
+  "generatedLegs": {
+    "warpTtd": {
+      "outDir": "out/proof/warp-ttd",
+      "schemaHash": "16bf631145b60e0ec240f97484ff2cb5f534cd38c963cf12044985915766a602",
+      "sourceHash": "16bf631145b60e0ec240f97484ff2cb5f534cd38c963cf12044985915766a602",
+      "targets": [
+        "manifest",
+        "typescript"
+      ],
+      "files": [
+        {
+          "path": "manifest/schema.json",
+          "size": 12101,
+          "contentHash": "f3322bcc5f07b8a635e24302d77926c983d9dc43c63c1ba7ab50f6ca6e229e0a",
+          "signature": "dc916e2920dc599d1ca1ca5b197b7bc7deb6af7a0c319abf2d26d931d0015e2c"
+        },
+        {
+          "path": "typescript/types.ts",
+          "size": 2463,
+          "contentHash": "54b5d24902357b7504e8bccadaa329133808eed6e3a77433ceaf80cf285a5afe",
+          "signature": "831994c0a68c78a7ed1100568966ab90f6a7a76c8abce5f4419bb1bec2c622f1"
+        }
+      ]
+    },
+    "echo": {
+      "outDir": "out/proof/echo",
+      "schemaHash": "16bf631145b60e0ec240f97484ff2cb5f534cd38c963cf12044985915766a602",
+      "sourceHash": "16bf631145b60e0ec240f97484ff2cb5f534cd38c963cf12044985915766a602",
+      "artifactCount": 1,
+      "files": [
+        {
+          "path": "ir.json",
+          "size": 11881,
+          "contentHash": "ba2e2fa15ed865571fde7a588f346ff4bc4ceded28907d4ab383d393fdab6dfd",
+          "signature": "e164174476ccbbc336bf0262b2926937794eedf0a06bdb812fff5032111506be"
+        }
+      ]
+    }
+  },
+  "proves": [
+    "one authored schema path was compiled into one or more generated consumer legs",
+    "generated legs share one authored schema hash",
+    "the emitted files for each selected target are inspectable from this realization manifest"
+  ],
+  "doesNotProve": [
+    "cross-leg conformance beyond shared schema identity",
+    "runtime semantics"
+  ]
+}
