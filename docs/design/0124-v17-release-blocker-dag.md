@@ -164,8 +164,9 @@ closure. A blank cell means "not directly blocked by that task," not
   documented runbook warning.
 
 `REL_push-pr-review-merge`
-: Open. Push the branch, open or update the release PR, get review and green
-  CI, and merge only after explicit approval.
+: Closed in cycle 0145. The release branch was pushed, reviewed, repaired,
+  merged, tagged, and published. Follow-up hardening and npm publish recovery
+  also landed on `main`.
 
 ## Excluded From v17 Blockers
 
@@ -180,9 +181,9 @@ substrate convergence are also excluded from this release-blocker graph.
 
 ## Current Open Front
 
-The tasks with no direct blockers are:
+There are no open v17 release-blocker nodes.
 
-- `REL_push-pr-review-merge`
+The v17 DAG is closed.
 
 `SPEC_consumer-typecheck-materialize-residue` closed in cycle 0125.
 `SPEC_docs-materialize-frontdoor-drift` closed in cycle 0126 and unlocks
@@ -208,7 +209,8 @@ quarantine graduation. Quarantine graduation closed in cycle 0141,
 opening the full gate matrix. The full gate matrix closed in cycle 0142,
 opening release cut/version/changelog. Release cut/version/changelog closed in
 cycle 0143, opening release preflight and RC. Release preflight and RC closed in
-cycle 0144, opening push, PR, review, and merge.
+cycle 0144, opening push, PR, review, and merge. Push, PR, review, merge, tag,
+and publish closed in cycle 0145.
 
 ## Regeneration
 

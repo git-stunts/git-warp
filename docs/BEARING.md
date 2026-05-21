@@ -12,6 +12,16 @@ Scope note:
 - For later-major horizon planning, use
   [release-horizon-v20-v21.md](design/release-horizon-v20-v21.md).
 
+## Continuum Optic Admission Posture
+
+For cross-repo optic admission, git-warp should remain a substrate and fact
+provider, not an authority issuer or Echo runtime surrogate. Wesley compiles
+artifacts and descriptors, Echo registers and admits runtime-local optic
+invocations, authority layers issue grants, and applications hide handles and
+basis references behind product adapters. git-warp participates by exposing
+truthful graph facts and readings when a Continuum-owned family or adapter asks
+for them.
+
 ## Where are we
 
 `git-warp` has shipped `v17.0.0`. The release work is now behind us in
@@ -36,16 +46,12 @@ actually proven.
 
 Current branch state at this boundary:
 
-- Branch: `main`
+- Branch: `codex/v18-continuum-opening`
 - Release tag: `v17.0.0`
 - Latest remote head inspected: `origin/main` at `5afdd3eb`
 - Latest package version: `17.0.0`
 - Latest closed cycle:
-  `0144-release-preflight-and-rc`; `0145-push-pr-review-merge` still needs
-  closeout bookkeeping.
-- Local git status note:
-  `core.fsmonitor=true` currently emits `fsmonitor_ipc__send_query` warnings
-  during status/diff commands.
+  `0145-push-pr-review-merge`
 
 The release ladder is now:
 
@@ -118,9 +124,6 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What feels wrong
 
-- `0145-push-pr-review-merge` still needs closeout bookkeeping even though the
-  release branch has already landed and the package is published.
-- The local git fsmonitor warning adds noise to status and diff commands.
 - The release preflight fix lowered the coverage ratchet to the measured
   full-suite v17 line baseline `91.74%`; this is tracked as v19 bad-code debt
   in `SPEC_coverage-ratchet-baseline-drop.md`.
@@ -141,7 +144,7 @@ before the final commit for that slice, and mark completed items with `- [x]`.
 
 ## Running Task List
 
-- [ ] 1. Sync and clean the repo runway: fast-forward `main`, clear fsmonitor
+- [x] 1. Sync and clean the repo runway: fast-forward `main`, clear fsmonitor
   noise, close stale v17/0145 bookkeeping, and record the v18 starting point.
 - [ ] 2. Create the v18 Continuum compatibility charter: WARP Optic
   compatibility, Continuum contract-family compatibility, Wesley-generated

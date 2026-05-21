@@ -150,8 +150,10 @@ digraph V17ReleaseBlockers {
     penwidth=2.4
   ];
   "REL_push-pr-review-merge" [
-    fillcolor="#fee2e2",
-    label="OPEN\nREL_push / PR\nreview / merge"
+    color="#15803d",
+    fillcolor="#bbf7d0",
+    label="DONE\nREL_push / PR\nreview / merge",
+    penwidth=2.4
   ];
 
   "SPEC_docs-materialize-frontdoor-drift" -> "SPEC_runtime-error-reading-basis-guidance";
