@@ -2,11 +2,11 @@ import { readFile } from 'node:fs/promises';
 
 import ContinuumArtifactDescriptor from '../../domain/continuum/ContinuumArtifactDescriptor.ts';
 import ContinuumArtifactIngestionPolicy from '../../domain/continuum/ContinuumArtifactIngestionPolicy.ts';
+import type { ContinuumArtifactJsonLoadContext } from './ContinuumArtifactJsonLoadContext.ts';
 import { parseContinuumArtifactDescriptorFields } from './continuumArtifactJsonParser.ts';
-import type { ContinuumArtifactJsonLoadContext } from './continuumArtifactJsonTypes.ts';
 import { validateLoadContext } from './continuumArtifactJsonValidation.ts';
 
-export type { ContinuumArtifactJsonLoadContext } from './continuumArtifactJsonTypes.ts';
+export type { ContinuumArtifactJsonLoadContext } from './ContinuumArtifactJsonLoadContext.ts';
 
 /** Loads Continuum artifact descriptors from JSON files at the adapter edge. */
 export default class ContinuumArtifactJsonFileAdapter {

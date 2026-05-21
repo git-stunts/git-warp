@@ -1,5 +1,5 @@
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
-import type { JsonObject } from './continuumArtifactJsonTypes.ts';
+import type { JsonObject } from './JsonObject.ts';
 import {
   readRequiredString,
   readStringArray,

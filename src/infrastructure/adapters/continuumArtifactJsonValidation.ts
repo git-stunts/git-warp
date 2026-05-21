@@ -1,6 +1,7 @@
 import ContinuumArtifactAuthority from '../../domain/continuum/ContinuumArtifactAuthority.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
-import type { ContinuumArtifactJsonLoadContext, JsonObject } from './continuumArtifactJsonTypes.ts';
+import type { ContinuumArtifactJsonLoadContext } from './ContinuumArtifactJsonLoadContext.ts';
+import type { JsonObject } from './JsonObject.ts';
 
 const LOAD_CONTEXT_KEYS = Object.freeze([
   'familyId',

@@ -1,5 +1,7 @@
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
-import type { GeneratedLegInventory, JsonObject, WesleyIntegrityFields } from './continuumArtifactJsonTypes.ts';
+import type { GeneratedLegInventory } from './GeneratedLegInventory.ts';
+import type { JsonObject } from './JsonObject.ts';
+import type { WesleyIntegrityFields } from './WesleyIntegrityFields.ts';
 import {
   readOptionalArtifactCount,
   readOptionalStringArray,

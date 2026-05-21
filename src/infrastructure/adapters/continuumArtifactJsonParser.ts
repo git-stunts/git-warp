@@ -1,10 +1,8 @@
-import type {
-  ContinuumArtifactJsonLoadContext,
-  DescriptorFieldSource,
-  JsonObject,
-} from './continuumArtifactJsonTypes.ts';
 import type { ContinuumArtifactDescriptorFields } from '../../domain/continuum/ContinuumArtifactDescriptor.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
+import type { ContinuumArtifactJsonLoadContext } from './ContinuumArtifactJsonLoadContext.ts';
+import type { DescriptorFieldSource } from './DescriptorFieldSource.ts';
+import type { JsonObject } from './JsonObject.ts';
 import { readGeneratedLegs, readSealedIntegrity } from './continuumWesleyManifestInventory.ts';
 import {
   isJsonObject,
