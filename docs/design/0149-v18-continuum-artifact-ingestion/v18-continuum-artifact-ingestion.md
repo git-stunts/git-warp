@@ -56,9 +56,13 @@ JSON parsing stays in `src/infrastructure/adapters/`. Domain code receives
 validated constructor fields and runtime-backed objects.
 
 Authority is not read from untrusted artifact JSON. The adapter receives
-authority through explicit load context, validates the artifact shape, and then
-lets the domain policy decide whether that context can become descriptor
-authority.
+authority through explicit load context, validates the artifact shape, requires
+the context authority that belongs to that shape, and then lets the domain
+policy decide whether that context can become descriptor authority.
+
+Wesley realization manifests must contain at least one generated leg. When
+Wesley records an `artifactCount`, it must match the generated file inventory
+for that leg.
 
 The descriptor does not parse GraphQL, generate TypeScript, or claim family
 semantics. It only records which generated-family artifact or fixture is being
@@ -91,29 +95,28 @@ Observed focused Continuum-suite test result:
 
 ```text
 Test Files  2 passed (2)
-Tests       22 passed (22)
+Tests       25 passed (25)
 ```
 
 Observed focused export/error sweep:
 
 ```text
 Test Files  4 passed (4)
-Tests       72 passed (72)
+Tests       75 passed (75)
 ```
 
-Observed focused coverage result for the two new focused suites:
+Coverage gate:
 
 ```text
-npx vitest run --coverage \
-  test/unit/domain/continuum/ContinuumArtifactIngestionPolicy.test.ts \
-  test/unit/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.test.ts
-domain/continuum                           100% lines
-ContinuumArtifactJsonFileAdapter.ts        100% lines
+npm run test:coverage:ci
+Test Files  447 passed (447)
+Tests       6824 passed (6824)
+All files   92.12% lines
 ```
 
-That targeted coverage command exits nonzero because the repository global
-threshold is applied to a two-suite subset; the useful signal is the per-file
-coverage for the touched Continuum files.
+Targeted coverage diagnostics are not recorded as green slice gates because the
+repository global threshold applies to subset runs. The authoritative coverage
+gate for this slice is the full-suite CI coverage command above.
 
 ## SSJS Scorecard
 
@@ -126,8 +129,9 @@ coverage for the touched Continuum files.
 - Message parsing: green; no behavior branches parse free-form messages.
 - Ambient time or entropy: green; no ambient time or entropy introduced.
 - Fake shape trust or cast-cosplay: green; generated-family authority is carried
-  by load context, self-attested JSON authority is rejected, and the accepted
-  shapes are Continuum fixture JSON and Wesley realization manifest JSON.
+  by load context, self-attested JSON authority is rejected, each accepted JSON
+  shape is bound to its context authority, and Wesley generated inventory is
+  checked before descriptor construction.
 
 ## Closeout
 

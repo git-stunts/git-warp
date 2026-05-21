@@ -171,8 +171,10 @@ before the final commit for that slice, and mark completed items with `- [x]`.
 - [x] 5. Add a generated-artifact ingestion path for Continuum families, with a
   guard against handwritten local mirrors becoming contract authority. The
   current seam admits Continuum receipt-family fixture JSON and Wesley
-  realization manifest JSON through explicit load context; it rejects
-  self-attested authority fields from artifact JSON.
+  realization manifest JSON through explicit load context; it binds each
+  accepted JSON shape to the matching context authority, rejects self-attested
+  authority fields from artifact JSON, and rejects empty or internally
+  inconsistent Wesley generated inventory.
 - [ ] 6. Make evidence posture explicit: translated git-warp evidence first,
   native Continuum evidence only after native witnesshood is proven.
 - [ ] 7. Prove the patch commit visibility contract: success means canonical

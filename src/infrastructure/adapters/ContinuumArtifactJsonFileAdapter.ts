@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-import type ContinuumArtifactAuthority from '../../domain/continuum/ContinuumArtifactAuthority.ts';
+import ContinuumArtifactAuthority from '../../domain/continuum/ContinuumArtifactAuthority.ts';
 import ContinuumArtifactDescriptor, {
   type ContinuumArtifactDescriptorFields,
 } from '../../domain/continuum/ContinuumArtifactDescriptor.ts';
@@ -9,9 +9,21 @@ import type ContinuumFamilyId from '../../domain/continuum/ContinuumFamilyId.ts'
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 
 const WESLEY_REALIZATION_MANIFEST_KIND = 'wesley.realization.manifest.v1';
+const WESLEY_REALIZATION_MANIFEST_AUTHORITY = 'generated-artifact';
 const CONTINUUM_FIXTURE_KIND = 'continuum.family.fixture';
+const CONTINUUM_FIXTURE_AUTHORITY = 'generated-fixture';
 const CONTINUUM_FIXTURE_GENERATOR = 'continuum/wesley fixture';
 const CONTINUUM_FIXTURE_TARGET = 'continuum-fixture';
+const LOAD_CONTEXT_KEYS = Object.freeze([
+  'familyId',
+  'authority',
+  'sourceSchemaPath',
+  'generatedBy',
+  'version',
+  'targets',
+  'witnessScope',
+  'artifactDigest',
+]);
 
 type JsonObject = Readonly<Record<string, unknown>>;
 
@@ -20,7 +32,6 @@ export type ContinuumArtifactJsonLoadContext = {
   readonly authority: string | ContinuumArtifactAuthority;
   readonly sourceSchemaPath?: string;
   readonly generatedBy?: string;
-  readonly artifactKind?: string;
   readonly version?: string;
   readonly targets?: readonly string[];
   readonly witnessScope?: string;
@@ -62,6 +73,7 @@ export default class ContinuumArtifactJsonFileAdapter {
 
   /** Ingests a generated artifact descriptor from JSON text. */
   loadString(raw: string, context: ContinuumArtifactJsonLoadContext): ContinuumArtifactDescriptor {
+    validateLoadContext(context);
     const parsed = parseJson(raw);
     const fields = parseDescriptorFields(parsed, context);
     return this.policy.ingest(new ContinuumArtifactDescriptor(fields));
@@ -99,6 +111,7 @@ function parseWesleyRealizationManifest(
   source: JsonObject,
   context: ContinuumArtifactJsonLoadContext,
 ): ContinuumArtifactDescriptorFields {
+  requireContextAuthority(context, WESLEY_REALIZATION_MANIFEST_AUTHORITY, 'Wesley realization manifest');
   validateWesleyManifestEnvelope(source);
   const integrity = readSealedIntegrity(source);
   const legs = readGeneratedLegs(source);
@@ -131,7 +144,7 @@ function wesleyManifestFields(
   return {
     sourceSchemaPath: readRequiredString(source, 'schemaPath'),
     generatedBy: context.generatedBy ?? 'wesley compile',
-    artifactKind: context.artifactKind ?? WESLEY_REALIZATION_MANIFEST_KIND,
+    artifactKind: WESLEY_REALIZATION_MANIFEST_KIND,
     targets: readStringArray(source, 'targets'),
     schemaHash: readRequiredString(source, 'schemaHash'),
     sourceHash: readRequiredString(source, 'sourceHash'),
@@ -143,6 +156,7 @@ function parseContinuumFamilyFixture(
   source: JsonObject,
   context: ContinuumArtifactJsonLoadContext,
 ): ContinuumArtifactDescriptorFields {
+  requireContextAuthority(context, CONTINUUM_FIXTURE_AUTHORITY, 'Continuum family fixture');
   rejectUnknownKeys(
     source,
     ['objectTypes', 'enumTypes', 'ops', 'invariants', 'footprints', 'types'],
@@ -158,7 +172,7 @@ function parseContinuumFamilyFixture(
   return descriptorFields(context, {
     sourceSchemaPath: readContextString(context.sourceSchemaPath, 'sourceSchemaPath'),
     generatedBy: context.generatedBy ?? CONTINUUM_FIXTURE_GENERATOR,
-    artifactKind: context.artifactKind ?? CONTINUUM_FIXTURE_KIND,
+    artifactKind: CONTINUUM_FIXTURE_KIND,
     targets: context.targets ?? [CONTINUUM_FIXTURE_TARGET],
   });
 }
@@ -260,25 +274,55 @@ function readGeneratedLegs(source: JsonObject): {
   readonly files: readonly string[];
 } {
   const generatedLegs = requireJsonObject(source['generatedLegs'], 'Wesley realization manifest generatedLegs');
-  const names = Object.freeze(Object.keys(generatedLegs).sort());
+  const names = readGeneratedLegNames(generatedLegs);
   const files: string[] = [];
   for (const name of names) {
-    const leg = requireJsonObject(generatedLegs[name], `Wesley generated leg "${name}"`);
-    rejectUnknownKeys(
-      leg,
-      ['outDir', 'schemaHash', 'sourceHash', 'targets', 'artifactCount', 'files'],
-      `Wesley generated leg "${name}"`,
-    );
-    readRequiredString(leg, 'outDir');
-    readRequiredString(leg, 'schemaHash');
-    readRequiredString(leg, 'sourceHash');
-    readOptionalStringArray(leg, 'targets');
-    readOptionalNumber(leg, 'artifactCount');
-    for (const path of readGeneratedFiles(leg, name)) {
+    for (const path of readGeneratedLegFiles(generatedLegs, name)) {
       files.push(path);
     }
   }
   return { names, files: Object.freeze(files.sort()) };
+}
+
+/** Reads the sorted generated leg names from a Wesley manifest. */
+function readGeneratedLegNames(generatedLegs: JsonObject): readonly string[] {
+  const names = Object.freeze(Object.keys(generatedLegs).sort());
+  if (names.length === 0) {
+    throw new AdapterValidationError('Wesley realization manifest generatedLegs must contain at least one leg');
+  }
+  return names;
+}
+
+/** Reads and validates one Wesley generated leg inventory. */
+function readGeneratedLegFiles(generatedLegs: JsonObject, name: string): readonly string[] {
+  const leg = requireJsonObject(generatedLegs[name], `Wesley generated leg "${name}"`);
+  validateGeneratedLegEnvelope(leg, name);
+  const artifactCount = readOptionalArtifactCount(leg, 'artifactCount');
+  const legFiles = readGeneratedFiles(leg, name);
+  requireArtifactCountMatchesFiles(artifactCount, legFiles.length, name);
+  return legFiles;
+}
+
+/** Validates one Wesley generated leg envelope. */
+function validateGeneratedLegEnvelope(leg: JsonObject, name: string): void {
+  rejectUnknownKeys(
+    leg,
+    ['outDir', 'schemaHash', 'sourceHash', 'targets', 'artifactCount', 'files'],
+    `Wesley generated leg "${name}"`,
+  );
+  readRequiredString(leg, 'outDir');
+  readRequiredString(leg, 'schemaHash');
+  readRequiredString(leg, 'sourceHash');
+  readOptionalStringArray(leg, 'targets');
+}
+
+/** Requires Wesley's artifact count to match the generated file inventory. */
+function requireArtifactCountMatchesFiles(count: number | undefined, fileCount: number, legName: string): void {
+  if (count !== undefined && count !== fileCount) {
+    throw new AdapterValidationError(
+      `Wesley generated leg "${legName}" field "artifactCount" must match generated file count`,
+    );
+  }
 }
 
 /** Reads generated file entries from one Wesley generated leg. */
@@ -411,6 +455,50 @@ function readOptionalNumber(source: JsonObject, key: string): number | undefined
     return undefined;
   }
   return readRequiredNumber(source, key);
+}
+
+/** Reads an optional generated artifact count. */
+function readOptionalArtifactCount(source: JsonObject, key: string): number | undefined {
+  const count = readOptionalNumber(source, key);
+  if (count === undefined) {
+    return undefined;
+  }
+  if (!Number.isInteger(count) || count < 0) {
+    throw new AdapterValidationError(`Continuum artifact descriptor field "${key}" must be a non-negative integer`);
+  }
+  return count;
+}
+
+/** Validates the caller-supplied load context boundary. */
+function validateLoadContext(context: ContinuumArtifactJsonLoadContext): void {
+  rejectUnknownKeys(
+    requireJsonObject(context, 'Continuum artifact load context'),
+    LOAD_CONTEXT_KEYS,
+    'Continuum artifact load context',
+  );
+}
+
+/** Requires the context authority that matches the parsed artifact shape. */
+function requireContextAuthority(
+  context: ContinuumArtifactJsonLoadContext,
+  expected: string,
+  label: string,
+): void {
+  const actual = readContextAuthority(context.authority);
+  if (actual !== expected) {
+    throw new AdapterValidationError(`${label} load context authority must be ${expected}`);
+  }
+}
+
+/** Reads a context authority carrier as a string. */
+function readContextAuthority(value: string | ContinuumArtifactAuthority): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (value instanceof ContinuumArtifactAuthority) {
+    return value.toString();
+  }
+  throw new AdapterValidationError('Continuum artifact load context field "authority" must be an authority carrier');
 }
 
 /** Reads an optional string array field. */

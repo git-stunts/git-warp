@@ -4,7 +4,6 @@ import { fileURLToPath } from 'node:url';
 import ContinuumArtifactJsonFileAdapter, {
   type ContinuumArtifactJsonLoadContext,
 } from '../../../../src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
-import ContinuumArtifactAuthorityError from '../../../../src/domain/errors/ContinuumArtifactAuthorityError.ts';
 import AdapterValidationError from '../../../../src/domain/errors/AdapterValidationError.ts';
 
 const generatedFixturePath = fileURLToPath(
@@ -33,6 +32,18 @@ const localMirrorContext: ContinuumArtifactJsonLoadContext = {
   familyId: 'receipt-family',
   authority: 'local-mirror',
   sourceSchemaPath: '~/git/continuum/schemas/continuum-receipt-family.graphql',
+};
+
+const fixtureAsArtifactContext: ContinuumArtifactJsonLoadContext = {
+  familyId: 'receipt-family',
+  authority: 'generated-artifact',
+  sourceSchemaPath: '~/git/continuum/schemas/continuum-receipt-family.graphql',
+};
+
+const artifactAsFixtureContext: ContinuumArtifactJsonLoadContext = {
+  familyId: 'receipt-family',
+  authority: 'generated-fixture',
+  witnessScope: 'receipt-family',
 };
 
 const selfAttestedFixtureJson = `{
@@ -242,6 +253,76 @@ const invalidWesleyTargetEntryJson = `{
   "generatedLegs": {}
 }`;
 
+const emptyWesleyGeneratedLegsJson = `{
+  "kind": "wesley.realization.manifest.v1",
+  "schemaPath": "schemas/continuum-receipt-family.graphql",
+  "schemaHash": "hash",
+  "sourceHash": "hash",
+  "targets": ["warp-ttd"],
+  "integrity": {
+    "status": "sealed",
+    "scope": "generated-leg-files",
+    "hashAlgorithm": "sha256",
+    "signatureAlgorithm": "hmac-sha256",
+    "signatureKeyId": "fixture-key"
+  },
+  "generatedLegs": {}
+}`;
+
+const mismatchedWesleyArtifactCountJson = `{
+  "kind": "wesley.realization.manifest.v1",
+  "schemaPath": "schemas/continuum-receipt-family.graphql",
+  "schemaHash": "hash",
+  "sourceHash": "hash",
+  "targets": ["warp-ttd"],
+  "integrity": {
+    "status": "sealed",
+    "scope": "generated-leg-files",
+    "hashAlgorithm": "sha256",
+    "signatureAlgorithm": "hmac-sha256",
+    "signatureKeyId": "fixture-key"
+  },
+  "generatedLegs": {
+    "warpTtd": {
+      "outDir": "dist/warp-ttd",
+      "schemaHash": "hash",
+      "sourceHash": "hash",
+      "artifactCount": 2,
+      "files": [
+        {
+          "path": "manifest/schema.json",
+          "size": 1,
+          "contentHash": "hash",
+          "signature": "signature"
+        }
+      ]
+    }
+  }
+}`;
+
+const positiveWesleyArtifactCountWithoutFilesJson = `{
+  "kind": "wesley.realization.manifest.v1",
+  "schemaPath": "schemas/continuum-receipt-family.graphql",
+  "schemaHash": "hash",
+  "sourceHash": "hash",
+  "targets": ["warp-ttd"],
+  "integrity": {
+    "status": "sealed",
+    "scope": "generated-leg-files",
+    "hashAlgorithm": "sha256",
+    "signatureAlgorithm": "hmac-sha256",
+    "signatureKeyId": "fixture-key"
+  },
+  "generatedLegs": {
+    "warpTtd": {
+      "outDir": "dist/warp-ttd",
+      "schemaHash": "hash",
+      "sourceHash": "hash",
+      "artifactCount": 1
+    }
+  }
+}`;
+
 describe('ContinuumArtifactJsonFileAdapter', () => {
   it('loads real Continuum receipt-family fixture descriptors', async () => {
     const adapter = new ContinuumArtifactJsonFileAdapter();
@@ -276,7 +357,24 @@ describe('ContinuumArtifactJsonFileAdapter', () => {
   it('rejects local mirrors before they become authority', async () => {
     const adapter = new ContinuumArtifactJsonFileAdapter();
 
-    await expect(adapter.loadFile(generatedFixturePath, localMirrorContext)).rejects.toThrow(ContinuumArtifactAuthorityError);
+    await expect(adapter.loadFile(generatedFixturePath, localMirrorContext)).rejects.toThrow(AdapterValidationError);
+  });
+
+  it('requires authority to match the parsed artifact shape', async () => {
+    const adapter = new ContinuumArtifactJsonFileAdapter();
+
+    await expect(adapter.loadFile(wesleyManifestPath, artifactAsFixtureContext)).rejects.toThrow(AdapterValidationError);
+    expect(() => adapter.loadString(typeMapFixtureJson, fixtureAsArtifactContext)).toThrow(AdapterValidationError);
+  });
+
+  it('rejects stale load context artifact kind overrides', () => {
+    const adapter = new ContinuumArtifactJsonFileAdapter();
+    const contextWithArtifactKind = {
+      ...artifactContext,
+      artifactKind: 'continuum.family.fixture',
+    };
+
+    expect(() => adapter.loadString(wesleyManifestWithoutGeneratedFilesJson, contextWithArtifactKind)).toThrow(AdapterValidationError);
   });
 
   it('rejects self-attested authority fields inside artifact JSON', () => {
@@ -337,6 +435,14 @@ describe('ContinuumArtifactJsonFileAdapter', () => {
     expect(() => adapter.loadString(invalidWesleyGeneratedFilesJson, artifactContext)).toThrow(AdapterValidationError);
     expect(() => adapter.loadString(invalidWesleyTargetsJson, artifactContext)).toThrow(AdapterValidationError);
     expect(() => adapter.loadString(invalidWesleyTargetEntryJson, artifactContext)).toThrow(AdapterValidationError);
+  });
+
+  it('rejects empty or inconsistent Wesley generated inventory', () => {
+    const adapter = new ContinuumArtifactJsonFileAdapter();
+
+    expect(() => adapter.loadString(emptyWesleyGeneratedLegsJson, artifactContext)).toThrow(AdapterValidationError);
+    expect(() => adapter.loadString(mismatchedWesleyArtifactCountJson, artifactContext)).toThrow(AdapterValidationError);
+    expect(() => adapter.loadString(positiveWesleyArtifactCountWithoutFilesJson, artifactContext)).toThrow(AdapterValidationError);
   });
 
   it('accepts Wesley generated legs before the compiler writes file inventory', () => {

@@ -1,7 +1,7 @@
 {
   "kind": "wesley.realization.manifest.v1",
   "schemaPath": "schemas/continuum-receipt-family.graphql",
-  "canonicalSchemaPath": "/Users/james/git/continuum/schemas/continuum-receipt-family.graphql",
+  "canonicalSchemaPath": "continuum/schemas/continuum-receipt-family.graphql",
   "schemaHash": "16bf631145b60e0ec240f97484ff2cb5f534cd38c963cf12044985915766a602",
   "sourceHash": "16bf631145b60e0ec240f97484ff2cb5f534cd38c963cf12044985915766a602",
   "outDir": "out/proof",
