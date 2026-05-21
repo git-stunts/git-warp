@@ -162,7 +162,7 @@ before the final commit for that slice, and mark completed items with `- [x]`.
 - [x] 2. Create the v18 Continuum compatibility charter: WARP Optic
   compatibility, Continuum contract-family compatibility, Wesley-generated
   artifact consumption, and `warp-ttd` acceptance.
-- [ ] 3. Build the cross-repo contract matrix: Continuum family to Wesley
+- [x] 3. Build the cross-repo contract matrix: Continuum family to Wesley
   generated artifact to git-warp source fact to `warp-ttd` consumer need,
   with `WL-4A-v18-graph-substrate-convergence` folded in as the graph-model
   track.
