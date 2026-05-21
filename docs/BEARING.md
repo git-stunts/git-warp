@@ -172,9 +172,11 @@ before the final commit for that slice, and mark completed items with `- [x]`.
   guard against handwritten local mirrors becoming contract authority. The
   current seam admits Continuum receipt-family fixture JSON and Wesley
   realization manifest JSON through explicit load context; it binds each
-  accepted JSON shape to the matching context authority, rejects self-attested
-  authority fields from artifact JSON, and rejects empty or internally
-  inconsistent Wesley generated inventory.
+  accepted JSON shape to the matching context authority, the domain policy
+  independently rejects descriptor kind/authority mismatches, the adapter entry
+  point is split below the source-size cap, self-attested authority fields from
+  artifact JSON are rejected, and empty or internally inconsistent Wesley
+  generated inventory is rejected.
 - [ ] 6. Make evidence posture explicit: translated git-warp evidence first,
   native Continuum evidence only after native witnesshood is proven.
 - [ ] 7. Prove the patch commit visibility contract: success means canonical

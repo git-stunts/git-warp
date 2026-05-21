@@ -32,8 +32,11 @@ This slice adds:
   local mirrors, and handwritten mirrors;
 - `ContinuumArtifactDescriptor` as the runtime-backed descriptor object;
 - `ContinuumArtifactIngestionPolicy` as the authority guard;
-- `ContinuumArtifactJsonFileAdapter` as the infrastructure-edge JSON loader
-  for Continuum fixture JSON and Wesley realization manifest JSON;
+- `ContinuumArtifactJsonFileAdapter` as the infrastructure-edge file/string
+  entry point;
+- adapter-local JSON parser, validation, Continuum fixture, and Wesley manifest
+  inventory modules for Continuum fixture JSON and Wesley realization manifest
+  JSON;
 - `test/fixtures/continuum/receipt-family-generated-artifact.json` as the first
   receipt-family Continuum fixture;
 - `test/fixtures/continuum/receipt-family-wesley-realization-manifest.json` as
@@ -58,7 +61,10 @@ validated constructor fields and runtime-backed objects.
 Authority is not read from untrusted artifact JSON. The adapter receives
 authority through explicit load context, validates the artifact shape, requires
 the context authority that belongs to that shape, and then lets the domain
-policy decide whether that context can become descriptor authority.
+policy decide whether that context can become descriptor authority. The domain
+policy also independently verifies that a descriptor's artifact kind and
+generated authority remain paired, so hand-built descriptors cannot bypass the
+adapter seam.
 
 Wesley realization manifests must contain at least one generated leg. When
 Wesley records an `artifactCount`, it must match the generated file inventory
@@ -95,14 +101,14 @@ Observed focused Continuum-suite test result:
 
 ```text
 Test Files  2 passed (2)
-Tests       25 passed (25)
+Tests       27 passed (27)
 ```
 
 Observed focused export/error sweep:
 
 ```text
 Test Files  4 passed (4)
-Tests       75 passed (75)
+Tests       77 passed (77)
 ```
 
 Coverage gate:
@@ -125,13 +131,14 @@ gate for this slice is the full-suite CI coverage command above.
 - Boundary validation: green; untrusted JSON is parsed only in the
   infrastructure adapter.
 - Behavior ownership: green; the descriptor owns descriptor invariants and the
-  ingestion policy owns authority decisions.
+  ingestion policy owns authority decisions, including kind/authority pairing.
 - Message parsing: green; no behavior branches parse free-form messages.
 - Ambient time or entropy: green; no ambient time or entropy introduced.
 - Fake shape trust or cast-cosplay: green; generated-family authority is carried
   by load context, self-attested JSON authority is rejected, each accepted JSON
-  shape is bound to its context authority, and Wesley generated inventory is
-  checked before descriptor construction.
+  shape is bound to its context authority, the policy independently checks
+  descriptor kind/authority pairing, and Wesley generated inventory is checked
+  before descriptor construction.
 
 ## Closeout
 
