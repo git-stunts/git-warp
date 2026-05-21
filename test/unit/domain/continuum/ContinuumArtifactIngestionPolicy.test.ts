@@ -10,6 +10,10 @@ import WarpError from '../../../../src/domain/errors/WarpError.ts';
 const RECEIPT_SCHEMA_PATH = 'schemas/continuum-receipt-family.graphql';
 const CONTINUUM_FIXTURE_KIND = 'continuum.family.fixture';
 const WESLEY_REALIZATION_MANIFEST_KIND = 'wesley.realization.manifest.v1';
+const AUTHORITY_GENERATED_FIXTURE = 'generated-fixture';
+const AUTHORITY_GENERATED_ARTIFACT = 'generated-artifact';
+const AUTHORITY_LOCAL_MIRROR = 'local-mirror';
+const AUTHORITY_HANDWRITTEN_MIRROR = 'handwritten-mirror';
 
 type DescriptorFixtureFields = {
   readonly artifactKind?: string;
@@ -23,7 +27,7 @@ function makeDescriptor(fields: DescriptorFixtureFields = {}): ContinuumArtifact
     sourceSchemaPath: RECEIPT_SCHEMA_PATH,
     generatedBy: 'wesley witness-continuum --scope receipt-family',
     artifactKind: fields.artifactKind ?? CONTINUUM_FIXTURE_KIND,
-    authority: fields.authority ?? 'generated-fixture',
+    authority: fields.authority ?? AUTHORITY_GENERATED_FIXTURE,
     targets: ['typescript', 'echo'],
     version: '0.1.0',
     witnessScope: 'receipt-family',
@@ -32,7 +36,7 @@ function makeDescriptor(fields: DescriptorFixtureFields = {}): ContinuumArtifact
 
 describe('ContinuumArtifactIngestionPolicy', () => {
   it('accepts documented generated fixtures', () => {
-    const descriptor = makeDescriptor({ authority: 'generated-fixture' });
+    const descriptor = makeDescriptor({ authority: AUTHORITY_GENERATED_FIXTURE });
     const policy = new ContinuumArtifactIngestionPolicy();
 
     expect(policy.ingest(descriptor)).toBe(descriptor);
@@ -41,7 +45,7 @@ describe('ContinuumArtifactIngestionPolicy', () => {
   it('accepts generated artifacts', () => {
     const descriptor = makeDescriptor({
       artifactKind: WESLEY_REALIZATION_MANIFEST_KIND,
-      authority: 'generated-artifact',
+      authority: AUTHORITY_GENERATED_ARTIFACT,
     });
     const policy = new ContinuumArtifactIngestionPolicy();
 
@@ -53,19 +57,19 @@ describe('ContinuumArtifactIngestionPolicy', () => {
 
     expect(() => policy.ingest(makeDescriptor({
       artifactKind: CONTINUUM_FIXTURE_KIND,
-      authority: 'generated-artifact',
+      authority: AUTHORITY_GENERATED_ARTIFACT,
     }))).toThrow(ContinuumArtifactAuthorityError);
 
     expect(() => policy.ingest(makeDescriptor({
       artifactKind: WESLEY_REALIZATION_MANIFEST_KIND,
-      authority: 'generated-fixture',
+      authority: AUTHORITY_GENERATED_FIXTURE,
     }))).toThrow(ContinuumArtifactAuthorityError);
   });
 
   it('rejects generated authority for unknown artifact kinds', () => {
     const descriptor = makeDescriptor({
       artifactKind: 'continuum.unknown.fixture',
-      authority: 'generated-fixture',
+      authority: AUTHORITY_GENERATED_FIXTURE,
     });
     const policy = new ContinuumArtifactIngestionPolicy();
 
@@ -73,21 +77,21 @@ describe('ContinuumArtifactIngestionPolicy', () => {
   });
 
   it('rejects local mirrors as family authority', () => {
-    const descriptor = makeDescriptor({ authority: 'local-mirror' });
+    const descriptor = makeDescriptor({ authority: AUTHORITY_LOCAL_MIRROR });
     const policy = new ContinuumArtifactIngestionPolicy();
 
     expect(() => policy.ingest(descriptor)).toThrow(ContinuumArtifactAuthorityError);
   });
 
   it('rejects handwritten mirrors as family authority', () => {
-    const descriptor = makeDescriptor({ authority: 'handwritten-mirror' });
+    const descriptor = makeDescriptor({ authority: AUTHORITY_HANDWRITTEN_MIRROR });
     const policy = new ContinuumArtifactIngestionPolicy();
 
     expect(() => policy.ingest(descriptor)).toThrow(ContinuumArtifactAuthorityError);
   });
 
   it('keeps family ids runtime-backed', () => {
-    const descriptor = makeDescriptor({ authority: 'generated-fixture' });
+    const descriptor = makeDescriptor({ authority: AUTHORITY_GENERATED_FIXTURE });
 
     expect(descriptor.familyId).toBeInstanceOf(ContinuumFamilyId);
     expect(descriptor.familyId.toString()).toBe('receipt-family');
@@ -113,14 +117,14 @@ describe('ContinuumArtifactIngestionPolicy', () => {
       sourceSchemaPath: RECEIPT_SCHEMA_PATH,
       generatedBy: 'wesley compile',
       artifactKind: WESLEY_REALIZATION_MANIFEST_KIND,
-      authority: new ContinuumArtifactAuthority('generated-artifact'),
+      authority: new ContinuumArtifactAuthority(AUTHORITY_GENERATED_ARTIFACT),
       targets: ['warp-ttd'],
       generatedLegs: ['warpTtd'],
       generatedFiles: ['manifest/schema.json'],
     });
 
     expect(descriptor.familyId.toString()).toBe('receipt-family');
-    expect(descriptor.authority.toString()).toBe('generated-artifact');
+    expect(descriptor.authority.toString()).toBe(AUTHORITY_GENERATED_ARTIFACT);
     expect(descriptor.generatedLegs).toEqual(['warpTtd']);
     expect(descriptor.generatedFiles).toEqual(['manifest/schema.json']);
   });
@@ -131,7 +135,7 @@ describe('ContinuumArtifactIngestionPolicy', () => {
       sourceSchemaPath: '',
       generatedBy: 'wesley compile',
       artifactKind: WESLEY_REALIZATION_MANIFEST_KIND,
-      authority: 'generated-artifact',
+      authority: AUTHORITY_GENERATED_ARTIFACT,
       targets: ['warp-ttd'],
     })).toThrow(WarpError);
 
@@ -140,7 +144,7 @@ describe('ContinuumArtifactIngestionPolicy', () => {
       sourceSchemaPath: RECEIPT_SCHEMA_PATH,
       generatedBy: 'wesley compile',
       artifactKind: WESLEY_REALIZATION_MANIFEST_KIND,
-      authority: 'generated-artifact',
+      authority: AUTHORITY_GENERATED_ARTIFACT,
       targets: [],
     })).toThrow(WarpError);
 
@@ -149,7 +153,7 @@ describe('ContinuumArtifactIngestionPolicy', () => {
       sourceSchemaPath: RECEIPT_SCHEMA_PATH,
       generatedBy: 'wesley compile',
       artifactKind: WESLEY_REALIZATION_MANIFEST_KIND,
-      authority: 'generated-artifact',
+      authority: AUTHORITY_GENERATED_ARTIFACT,
       targets: ['warp-ttd'],
       generatedLegs: [''],
     })).toThrow(WarpError);
@@ -162,7 +166,7 @@ describe('ContinuumArtifactIngestionPolicy', () => {
       sourceSchemaPath: 7,
       generatedBy: 'wesley compile',
       artifactKind: WESLEY_REALIZATION_MANIFEST_KIND,
-      authority: 'generated-artifact',
+      authority: AUTHORITY_GENERATED_ARTIFACT,
       targets: ['warp-ttd'],
     })).toThrow(WarpError);
 
@@ -171,7 +175,7 @@ describe('ContinuumArtifactIngestionPolicy', () => {
       sourceSchemaPath: RECEIPT_SCHEMA_PATH,
       generatedBy: 'wesley compile',
       artifactKind: WESLEY_REALIZATION_MANIFEST_KIND,
-      authority: 'generated-artifact',
+      authority: AUTHORITY_GENERATED_ARTIFACT,
       // @ts-expect-error runtime guard for JS callers
       targets: 'warp-ttd',
     })).toThrow(WarpError);
@@ -181,7 +185,7 @@ describe('ContinuumArtifactIngestionPolicy', () => {
       sourceSchemaPath: RECEIPT_SCHEMA_PATH,
       generatedBy: 'wesley compile',
       artifactKind: WESLEY_REALIZATION_MANIFEST_KIND,
-      authority: 'generated-artifact',
+      authority: AUTHORITY_GENERATED_ARTIFACT,
       targets: ['warp-ttd'],
       // @ts-expect-error runtime guard for JS callers
       generatedFiles: 'manifest/schema.json',
