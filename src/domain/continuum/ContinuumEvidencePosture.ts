@@ -62,4 +62,3 @@ export function requireContinuumEvidencePosture(value: string): ContinuumEvidenc
   }
   return valid;
 }
-
