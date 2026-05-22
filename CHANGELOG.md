@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   readiness inventory for receipt, settlement, neighborhood-core, and
   runtime-boundary families, separating projection-ready families from
   authored-only families before later source-fact projections.
+- V18 Continuum compatibility now exposes a runtime-backed tick witness ladder
+  that separates patch replay core, receipt witness core, and receipt shell
+  explanation while rejecting mismatched patch/receipt facts.
 
 ### Fixed
 

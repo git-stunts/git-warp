@@ -42,10 +42,10 @@ dependency graph and likely write-surface overlap.
 | `3.0` | `B3` | 5 | 25 | Ready-now v17 foundations and independent release hygiene |
 | `3.1` | `B3` | 2 | 7 | Downstream v17 runtime split work |
 | `3.x` parked | `B3` | 1 | 6 | Launch-prep proof and package tail |
-| `4` | `B4` | 9 | 43 | v18 graph-model cut plus current `up-next/` queue |
+| `4` | `B4` | 9 | 42 | v18 graph-model cut plus current `up-next/` queue |
 | `5` | `B5` | 3 | 11 | v19 observer/admission/runtime convergence |
 | `6` | `B6` | 10 | 100 | v20/v21 horizon plus speculative orbit |
-| Grand total | all | 44 | 371 | Full live backlog |
+| Grand total | all | 44 | 370 | Full live backlog |
 
 ## Wave 0 — Intake
 
@@ -124,7 +124,7 @@ queue.
 | `WL-41-upnext-runtime-boundaries` | 9 | `DX_max-file-size-policy`, `DX_trailer-codec-dts`, `NDNM_delete-vv-orset-shims`, `PROTO_cbor-op-hydration`, `PROTO_drop-v5-runtime-nouns`, `PROTO_op-consumer-instanceof-migration`, `PROTO_warpkernel-port-cleanup`, `PROTO_warpruntime-open-options-class`, `PROTO_wire-format-migration-edgepropset` | Runtime boundary cleanup and noun drift removal | none |
 | `WL-42-upnext-streaming-read-chain` | 5 | `NDNM_defaultcodec-to-infrastructure`, `PERF_stream-read-migration`, `PERF_stream-cleanup`, `PERF_async-generator-traversal`, `PERF_stream-memory-tests` | Streaming read migration and memory witnesses | root `PERF_out-of-core-materialization` |
 | `WL-43-upnext-merge-contracts` | 8 | `CC_conflict-pipeline-god-context`, `DX_merge-conflict-corpus`, `NDNM_worldline-class-rename`, `PROTO_merge-classifier`, `PROTO_same-writer-concurrent-patch-race`, `PROTO_ttd-merge-inspector`, `PROTO_WESLEY_lane-coordinate-capability-boundary`, `VIZ_cut-git-warp-visualization-surface-in-favor-of-warp-ttd` | Merge, conflict, worldline, and visualization contract cleanup | `PROTO_patch-commit-visibility-contract`; some items also wait on v21 noun work |
-| `WL-44-upnext-observer-contracts` | 3 | `DX_observer-first-guide`, `NDNM_observer-full-structural`, `PROTO_tickpatch-tickreceipt-witness-ladder-audit` | Observer teaching, structural observer, and receipt ladder cleanup | relevant v19 observer docs/runtime seams |
+| `WL-44-upnext-observer-contracts` | 2 | `DX_observer-first-guide`, `NDNM_observer-full-structural` | Observer teaching and structural observer cleanup | relevant v19 observer docs/runtime seams |
 | `WL-45-upnext-materialize-strategy` | 1 | `PROTO_materialize-strategy-decomposition` | Materialization strategy decomposition | none |
 | `WL-46-upnext-trust-security` | 1 | `TRUST_sync-auth-ed25519` | Sync-auth cryptographic model upgrade | none |
 | `WL-47-upnext-tooling-quality-tail` | 4 | `DX_agent-code-audit`, `DX_dependency-hygiene-audit`, `DX_npm-audit-fix-vite`, `DX_vision-readme-namespace-consistency` | Audit, dependency, and docs/tooling cleanup | none |
@@ -169,13 +169,13 @@ The partition is exhaustive and non-overlapping:
 - Wave `3.0`: `25`
 - Wave `3.1`: `7`
 - Wave `3.x`: `6`
-- Wave `4`: `43`
+- Wave `4`: `42`
 - Wave `5`: `11`
 - Wave `6`: `100`
 
 Total:
 
-- `5 + 31 + 143 + 25 + 7 + 6 + 43 + 11 + 100 = 371`
+- `5 + 31 + 143 + 25 + 7 + 6 + 42 + 11 + 100 = 370`
 
 Every live backlog note is covered exactly once.
 

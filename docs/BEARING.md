@@ -64,7 +64,7 @@ Current branch state at this boundary:
 - Latest merged PR: #94, v18 Continuum slices 6 through 10 plus review
   repairs
 - Latest completed v18 implementation cycle:
-  `0160-v18-generated-family-inventory-refresh`
+  `0161-v18-tickpatch-tickreceipt-witness-ladder`
 
 The release ladder is now:
 
@@ -240,8 +240,13 @@ commit for that slice.
   adds runtime-backed readiness rows for the four current Continuum families.
   Receipt and settlement are projection-ready; neighborhood core and runtime
   boundary stay authored-only until Wesley profiles and fixtures exist.
-- [ ] 13. Audit the `TickPatch`/`TickReceipt` witness ladder into replay core,
-  witness core, and receipt shell.
+- [x] 13. Audit the `TickPatch`/`TickReceipt` witness ladder into replay core,
+  witness core, and receipt shell:
+  [0161-v18-tickpatch-tickreceipt-witness-ladder](design/0161-v18-tickpatch-tickreceipt-witness-ladder/v18-tickpatch-tickreceipt-witness-ladder.md)
+  names `GitWarpTickPatchReplayCore`, `GitWarpTickReceiptWitnessCore`,
+  `GitWarpTickReceiptShell`, and `GitWarpTickWitnessLadder`, validates
+  patch/receipt alignment, and promotes the old up-next backlog note into the
+  cycle packet.
 - [ ] 14. Project one git-warp read result into generated runtime-boundary
   reading-envelope source facts.
 - [ ] 15. Project one git-warp sync/export suffix into translated

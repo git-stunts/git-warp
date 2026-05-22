@@ -219,6 +219,10 @@ import ContinuumGeneratedFamilyInventoryEntry
   from './src/domain/continuum/ContinuumGeneratedFamilyInventoryEntry.ts';
 import ContinuumGeneratedFamilyStatus from './src/domain/continuum/ContinuumGeneratedFamilyStatus.ts';
 import ContinuumReceiptFamilyProjection from './src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
+import GitWarpTickPatchReplayCore from './src/domain/continuum/GitWarpTickPatchReplayCore.ts';
+import GitWarpTickReceiptShell from './src/domain/continuum/GitWarpTickReceiptShell.ts';
+import GitWarpTickReceiptWitnessCore from './src/domain/continuum/GitWarpTickReceiptWitnessCore.ts';
+import GitWarpTickWitnessLadder from './src/domain/continuum/GitWarpTickWitnessLadder.ts';
 import GitWarpReceiptSourceFacts from './src/domain/continuum/GitWarpReceiptSourceFacts.ts';
 import createCurrentContinuumGeneratedFamilyInventory
   from './src/domain/continuum/createCurrentContinuumGeneratedFamilyInventory.ts';
@@ -242,6 +246,18 @@ import type {
   ContinuumReceiptWitnessFact,
 } from './src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
 import type { GitWarpReceiptSourceFactsFields } from './src/domain/continuum/GitWarpReceiptSourceFacts.ts';
+import type {
+  GitWarpTickPatchReplayCoreFields,
+} from './src/domain/continuum/GitWarpTickPatchReplayCore.ts';
+import type {
+  GitWarpTickReceiptShellFields,
+} from './src/domain/continuum/GitWarpTickReceiptShell.ts';
+import type {
+  GitWarpTickReceiptWitnessCoreFields,
+} from './src/domain/continuum/GitWarpTickReceiptWitnessCore.ts';
+import type {
+  GitWarpTickWitnessLadderFields,
+} from './src/domain/continuum/GitWarpTickWitnessLadder.ts';
 import type { ContinuumArtifactJsonLoadContext } from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 
 export {
@@ -366,6 +382,10 @@ export {
   ContinuumGeneratedFamilyInventoryEntry,
   ContinuumGeneratedFamilyStatus,
   ContinuumReceiptFamilyProjection,
+  GitWarpTickPatchReplayCore,
+  GitWarpTickReceiptShell,
+  GitWarpTickReceiptWitnessCore,
+  GitWarpTickWitnessLadder,
   GitWarpReceiptSourceFacts,
   createCurrentContinuumGeneratedFamilyInventory,
   ContinuumArtifactJsonFileAdapter,
@@ -428,6 +448,10 @@ export type {
   ContinuumReceiptOpFact,
   ContinuumReceiptWitnessFact,
   GitWarpReceiptSourceFactsFields,
+  GitWarpTickPatchReplayCoreFields,
+  GitWarpTickReceiptShellFields,
+  GitWarpTickReceiptWitnessCoreFields,
+  GitWarpTickWitnessLadderFields,
   ContinuumArtifactJsonLoadContext,
   ContinuumFamilyIdValue,
 };

@@ -68,6 +68,10 @@ import WarpAppDefault, {
   ContinuumGeneratedFamilyInventoryEntry,
   ContinuumGeneratedFamilyStatus,
   ContinuumReceiptFamilyProjection,
+  GitWarpTickPatchReplayCore,
+  GitWarpTickReceiptShell,
+  GitWarpTickReceiptWitnessCore,
+  GitWarpTickWitnessLadder,
   GitWarpReceiptSourceFacts,
   createCurrentContinuumGeneratedFamilyInventory,
   ContinuumArtifactJsonFileAdapter,
@@ -277,6 +281,10 @@ describe('index.ts exports', () => {
       expect(ContinuumGeneratedFamilyInventoryEntry).toBeDefined();
       expect(ContinuumGeneratedFamilyStatus).toBeDefined();
       expect(ContinuumReceiptFamilyProjection).toBeDefined();
+      expect(GitWarpTickPatchReplayCore).toBeDefined();
+      expect(GitWarpTickReceiptShell).toBeDefined();
+      expect(GitWarpTickReceiptWitnessCore).toBeDefined();
+      expect(GitWarpTickWitnessLadder).toBeDefined();
       expect(GitWarpReceiptSourceFacts).toBeDefined();
       expect(createCurrentContinuumGeneratedFamilyInventory).toBeDefined();
       expect(ContinuumArtifactJsonFileAdapter).toBeDefined();
