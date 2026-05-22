@@ -32,7 +32,11 @@ function createMockPersistence() {
     commitNodeWithTree: vi.fn(),
     readBlob: vi.fn(),
   };
-  persistence.compareAndSwapRef.mockImplementation(async (_ref, newOid) => {
+  persistence.compareAndSwapRef.mockImplementation(async (ref, newOid, expectedOid) => {
+    const actualOid = await persistence.readRef(ref);
+    if (actualOid !== expectedOid) {
+      throw new Error(`CAS mismatch for ${ref}`);
+    }
     persistence.readRef.mockResolvedValue(newOid);
   });
   return persistence;
@@ -72,6 +76,16 @@ describe('Writer (WARP schema:2)', () => {
     persistence = createMockPersistence();
     versionVector = VersionVector.empty();
     getCurrentState = vi.fn(() => null);
+  });
+
+  it('test fixture compareAndSwapRef rejects expected-head mismatches', async () => {
+    const currentSha = 'a'.repeat(40);
+    const nextSha = 'b'.repeat(40);
+    persistence.readRef.mockResolvedValue(currentSha);
+
+    await expect(
+      persistence.compareAndSwapRef('refs/warp/events/writers/alice', nextSha, null)
+    ).rejects.toThrow('CAS mismatch');
   });
 
   describe('constructor', () => {
@@ -454,14 +468,17 @@ describe('Writer (WARP schema:2)', () => {
       // Sequence of readRef calls:
       // 1. p1 beginPatch -> oldHead
       // 2. p2 beginPatch -> oldHead
-      // 3. p1 commit PatchBuilder CAS check -> oldHead
-      // 4. (updateRef happens, ref is now newSha1)
-      // 5. p2 commit PatchBuilder CAS check -> newSha1 (fails here)
+      // 3. p1 commit PatchBuilder preflight CAS check -> oldHead
+      // 4. p1 final compareAndSwapRef compare -> oldHead
+      // 5. p1 visibility check after CAS -> newSha1
+      // 6. p2 commit PatchBuilder preflight CAS check -> newSha1 (fails here)
       persistence.readRef
         .mockResolvedValueOnce(oldHead)  // p1 beginPatch
         .mockResolvedValueOnce(oldHead)  // p2 beginPatch
-        .mockResolvedValueOnce(oldHead)  // p1 commit PatchBuilder
-        .mockResolvedValueOnce(newSha1); // p2 commit PatchBuilder (fails)
+        .mockResolvedValueOnce(oldHead)  // p1 commit PatchBuilder preflight
+        .mockResolvedValueOnce(oldHead)  // p1 final compareAndSwapRef compare
+        .mockResolvedValueOnce(newSha1)  // p1 visibility check after CAS
+        .mockResolvedValueOnce(newSha1); // p2 commit PatchBuilder preflight (fails)
 
       persistence.writeBlob.mockResolvedValue('d'.repeat(40));
       persistence.writeTree.mockResolvedValue('e'.repeat(40));
