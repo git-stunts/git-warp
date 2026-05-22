@@ -67,13 +67,7 @@ export async function commitPatch(state: CommitState): Promise<string> {
   const currentRefSha = await state.persistence.readRef(writerRef);
 
   if (currentRefSha !== state.expectedParentSha) {
-    const err = new WriterError(
-      'WRITER_CAS_CONFLICT',
-      'Commit failed: writer ref was updated by another process. Re-materialize and retry.',
-    ) as WriterError & { expectedSha: string | null; actualSha: string | null };
-    err.expectedSha = state.expectedParentSha;
-    err.actualSha = currentRefSha;
-    throw err;
+    throw buildWriterCasConflict(state.expectedParentSha, currentRefSha);
   }
 
   // Lamport resolution from parent chain
@@ -149,8 +143,8 @@ export async function commitPatch(state: CommitState): Promise<string> {
     treeOid, parents, message,
   });
 
-  // Update writer ref
-  await state.persistence.updateRef(writerRef, newCommitSha);
+  // Atomically update writer ref
+  await compareAndSwapWriterRef(state.persistence, writerRef, newCommitSha, state.expectedParentSha);
   await assertWriterRefVisible(state.persistence, writerRef, newCommitSha);
 
   // Invoke success callback
@@ -164,6 +158,33 @@ export async function commitPatch(state: CommitState): Promise<string> {
   }
 
   return newCommitSha;
+}
+
+function buildWriterCasConflict(expectedSha: string | null, actualSha: string | null): WriterError {
+  const err = new WriterError(
+    'WRITER_CAS_CONFLICT',
+    'Commit failed: writer ref was updated by another process. Re-materialize and retry.',
+  );
+  err.expectedSha = expectedSha;
+  err.actualSha = actualSha;
+  return err;
+}
+
+async function compareAndSwapWriterRef(
+  persistence: PersistencePorts,
+  writerRef: string,
+  newCommitSha: string,
+  expectedSha: string | null,
+): Promise<void> {
+  try {
+    await persistence.compareAndSwapRef(writerRef, newCommitSha, expectedSha);
+  } catch (err) {
+    const actualSha = await persistence.readRef(writerRef);
+    if (actualSha !== expectedSha) {
+      throw buildWriterCasConflict(expectedSha, actualSha);
+    }
+    throw err;
+  }
 }
 
 async function assertWriterRefVisible(

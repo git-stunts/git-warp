@@ -21,9 +21,10 @@ import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
  * Creates a minimal mock persistence adapter.
  */
 function createMockPersistence() {
-  return {
+  const persistence = {
     readRef: vi.fn(),
     updateRef: vi.fn(),
+    compareAndSwapRef: vi.fn(),
     showNode: vi.fn(),
     getNodeInfo: vi.fn(),
     writeBlob: vi.fn(),
@@ -31,6 +32,10 @@ function createMockPersistence() {
     commitNodeWithTree: vi.fn(),
     readBlob: vi.fn(),
   };
+  persistence.compareAndSwapRef.mockImplementation(async (_ref, newOid) => {
+    persistence.readRef.mockResolvedValue(newOid);
+  });
+  return persistence;
 }
 
 /**
@@ -335,15 +340,13 @@ describe('Writer (WARP schema:2)', () => {
       );
     });
 
-    it('updates writer ref after commit', async () => {
+    it('atomically advances writer ref after commit', async () => {
       const newSha = 'b'.repeat(40);
 
       persistence.readRef.mockResolvedValue(null);
       persistence.writeBlob.mockResolvedValue('c'.repeat(40));
       persistence.writeTree.mockResolvedValue('d'.repeat(40));
       persistence.commitNodeWithTree.mockResolvedValue(newSha);
-      persistence.updateRef.mockResolvedValue(undefined);
-
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
@@ -357,9 +360,10 @@ describe('Writer (WARP schema:2)', () => {
       patch.addNode('x');
       await patch.commit();
 
-      expect(persistence.updateRef).toHaveBeenCalledWith(
+      expect(persistence.compareAndSwapRef).toHaveBeenCalledWith(
         'refs/warp/events/writers/alice',
-        newSha
+        newSha,
+        null
       );
     });
 

@@ -64,7 +64,7 @@ Current branch state at this boundary:
 - Latest merged PR: #93, recursive tree OID read fanout and v17.0.1 release
   repair
 - Latest completed v18 implementation cycle:
-  `0155-v18-patch-commit-visibility-contract`
+  `0156-v18-same-writer-concurrent-race-witness`
 
 The release ladder is now:
 
@@ -207,9 +207,12 @@ for that slice.
   visibly points at the new commit before reporting success or running
   `onCommitSuccess`; hidden post-object/pre-ref failures raise typed
   persistence errors.
-- [ ] 8. Add the same-writer concurrent patch race witness:
+- [x] 8. Add the same-writer concurrent patch race witness:
   [0156-v18-same-writer-concurrent-race-witness](design/0156-v18-same-writer-concurrent-race-witness/v18-same-writer-concurrent-race-witness.md)
-  requires final-frontier and visible-state assertions.
+  requires final-frontier and visible-state assertions. `commitPatch()` now
+  advances writer refs through `compareAndSwapRef`, translates atomic frontier
+  movement into retryable writer conflict posture, and keeps the losing
+  same-writer patch out of canonical materialized state.
 - [ ] 9. Project git-warp receipt facts into the generated Continuum
   receipt-family shape:
   [0157-v18-receipt-family-projection](design/0157-v18-receipt-family-projection/v18-receipt-family-projection.md)

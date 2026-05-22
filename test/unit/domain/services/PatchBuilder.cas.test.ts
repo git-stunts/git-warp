@@ -12,15 +12,20 @@ import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
  * @returns {Object} Mock persistence adapter
  */
 function createMockPersistence(overrides = {}): any {
-  return {
+  const persistence = {
     readRef: vi.fn().mockResolvedValue(null),
     showNode: vi.fn(),
     writeBlob: vi.fn().mockResolvedValue('a'.repeat(40)),
     writeTree: vi.fn().mockResolvedValue('b'.repeat(40)),
     commitNodeWithTree: vi.fn().mockResolvedValue('c'.repeat(40)),
     updateRef: vi.fn().mockResolvedValue(undefined),
+    compareAndSwapRef: vi.fn(),
     ...overrides,
   };
+  persistence.compareAndSwapRef.mockImplementation(async (_ref, newOid) => {
+    persistence.readRef.mockResolvedValue(newOid);
+  });
+  return persistence;
 }
 
 /**
@@ -220,7 +225,7 @@ describe('PatchBuilder CAS conflict detection', () => {
 
       expect(sha).toBe('c'.repeat(40));
       expect(persistence.commitNodeWithTree).toHaveBeenCalledOnce();
-      expect(persistence.updateRef).toHaveBeenCalledOnce();
+      expect(persistence.compareAndSwapRef).toHaveBeenCalledOnce();
     });
 
     it('succeeds when expectedParentSha matches current ref (both same SHA)', async () => {

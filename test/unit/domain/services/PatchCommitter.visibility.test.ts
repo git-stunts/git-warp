@@ -29,7 +29,7 @@ const COMMIT_OID = 'cccccccccccccccccccccccccccccccccccccccc';
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
 class InvisibleWriterRefPersistence extends CommitPort implements BlobPort, TreePort, RefPort {
-  readonly updateRefs: string[] = [];
+  readonly compareAndSwapRefs: string[] = [];
   readonly committedTrees: CommitNodeWithTreeOptions[] = [];
 
   async commitNode(_options: CommitNodeOptions): Promise<string> {
@@ -97,8 +97,8 @@ class InvisibleWriterRefPersistence extends CommitPort implements BlobPort, Tree
     return EMPTY_TREE;
   }
 
-  async updateRef(ref: string, oid: string): Promise<void> {
-    this.updateRefs.push(`${ref}:${oid}`);
+  async updateRef(_ref: string, _oid: string): Promise<void> {
+    throw unusedPortMethod('updateRef');
   }
 
   async readRef(_ref: string): Promise<string | null> {
@@ -113,8 +113,8 @@ class InvisibleWriterRefPersistence extends CommitPort implements BlobPort, Tree
     return [];
   }
 
-  async compareAndSwapRef(_ref: string, _newOid: string, _expectedOid: string | null): Promise<void> {
-    throw unusedPortMethod('compareAndSwapRef');
+  async compareAndSwapRef(ref: string, newOid: string, expectedOid: string | null): Promise<void> {
+    this.compareAndSwapRefs.push(`${ref}:${newOid}:${expectedOid ?? '(missing)'}`);
   }
 }
 
@@ -165,7 +165,7 @@ function makeCommitState(
 }
 
 describe('commitPatch writer-ref visibility contract', () => {
-  it('rejects when updateRef resolves but the new commit is not visible at the writer ref', async () => {
+  it('rejects when compareAndSwapRef resolves but the new commit is not visible at the writer ref', async () => {
     const persistence = new InvisibleWriterRefPersistence();
     const patchJournal = new CapturingPatchJournal();
     let successCallbackCount = 0;
@@ -180,8 +180,8 @@ describe('commitPatch writer-ref visibility contract', () => {
 
     expect(patchJournal.patches).toHaveLength(1);
     expect(persistence.committedTrees).toHaveLength(1);
-    expect(persistence.updateRefs).toEqual([
-      `refs/warp/visibility-graph/writers/writer-a:${COMMIT_OID}`,
+    expect(persistence.compareAndSwapRefs).toEqual([
+      `refs/warp/visibility-graph/writers/writer-a:${COMMIT_OID}:(missing)`,
     ]);
     expect(successCallbackCount).toBe(0);
   });
