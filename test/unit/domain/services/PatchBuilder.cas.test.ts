@@ -22,7 +22,11 @@ function createMockPersistence(overrides = {}): any {
     compareAndSwapRef: vi.fn(),
     ...overrides,
   };
-  persistence.compareAndSwapRef.mockImplementation(async (_ref, newOid) => {
+  persistence.compareAndSwapRef.mockImplementation(async (ref, newOid, expectedOid) => {
+    const actualOid = await persistence.readRef(ref);
+    if (actualOid !== expectedOid) {
+      throw new Error(`CAS mismatch for ${ref}`);
+    }
     persistence.readRef.mockResolvedValue(newOid);
   });
   return persistence;
@@ -41,6 +45,18 @@ function createPatchJournal(persistence) {
 }
 
 describe('PatchBuilder CAS conflict detection', () => {
+  it('test fixture compareAndSwapRef rejects expected-head mismatches', async () => {
+    const currentSha = 'a'.repeat(40);
+    const nextSha = 'b'.repeat(40);
+    const persistence = createMockPersistence({
+      readRef: vi.fn().mockResolvedValue(currentSha),
+    });
+
+    await expect(
+      persistence.compareAndSwapRef('refs/warp/test-graph/writers/writer1', nextSha, null)
+    ).rejects.toThrow('CAS mismatch');
+  });
+
   // ---------------------------------------------------------------
   // CAS conflict: ref advanced between createPatch and commit
   // ---------------------------------------------------------------
