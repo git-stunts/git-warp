@@ -56,7 +56,13 @@ class WarpGraphMockPersistence {
   readonly deleteRef = vi.fn(async (ref: string) => {
     this.#refs.delete(ref);
   });
-  readonly compareAndSwapRef = vi.fn(async (ref: string, newOid: string, _expectedOid: string | null) => {
+  readonly compareAndSwapRef = vi.fn(async (ref: string, newOid: string, expectedOid: string | null) => {
+    const actualOid = this.#refs.get(ref) ?? null;
+    if (actualOid !== expectedOid) {
+      throw new MockPersistenceFixtureError(
+        `CAS mismatch for ${ref}: expected ${expectedOid ?? '(missing)'}, got ${actualOid ?? '(missing)'}`,
+      );
+    }
     this.#refs.set(ref, newOid);
     this.readRef.mockImplementation(async (queryRef: string) => this.#refs.get(queryRef) ?? null);
   });
