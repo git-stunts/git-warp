@@ -225,6 +225,8 @@ import GitWarpReadingEnvelopeSourceFacts from './src/domain/continuum/GitWarpRea
 import GitWarpTickReceiptShell from './src/domain/continuum/GitWarpTickReceiptShell.ts';
 import GitWarpTickReceiptWitnessCore from './src/domain/continuum/GitWarpTickReceiptWitnessCore.ts';
 import GitWarpTickWitnessLadder from './src/domain/continuum/GitWarpTickWitnessLadder.ts';
+import GitWarpWitnessedSuffixPatchFact from './src/domain/continuum/GitWarpWitnessedSuffixPatchFact.ts';
+import GitWarpWitnessedSuffixSourceFacts from './src/domain/continuum/GitWarpWitnessedSuffixSourceFacts.ts';
 import GitWarpReceiptSourceFacts from './src/domain/continuum/GitWarpReceiptSourceFacts.ts';
 import createCurrentContinuumGeneratedFamilyInventory
   from './src/domain/continuum/createCurrentContinuumGeneratedFamilyInventory.ts';
@@ -266,6 +268,12 @@ import type {
 import type {
   GitWarpTickWitnessLadderFields,
 } from './src/domain/continuum/GitWarpTickWitnessLadder.ts';
+import type {
+  GitWarpWitnessedSuffixPatchFactFields,
+} from './src/domain/continuum/GitWarpWitnessedSuffixPatchFact.ts';
+import type {
+  GitWarpWitnessedSuffixSourceFactsFields,
+} from './src/domain/continuum/GitWarpWitnessedSuffixSourceFacts.ts';
 import type { ContinuumArtifactJsonLoadContext } from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 
 export {
@@ -396,6 +404,8 @@ export {
   GitWarpTickReceiptShell,
   GitWarpTickReceiptWitnessCore,
   GitWarpTickWitnessLadder,
+  GitWarpWitnessedSuffixPatchFact,
+  GitWarpWitnessedSuffixSourceFacts,
   GitWarpReceiptSourceFacts,
   createCurrentContinuumGeneratedFamilyInventory,
   ContinuumArtifactJsonFileAdapter,
@@ -464,6 +474,8 @@ export type {
   GitWarpTickReceiptShellFields,
   GitWarpTickReceiptWitnessCoreFields,
   GitWarpTickWitnessLadderFields,
+  GitWarpWitnessedSuffixPatchFactFields,
+  GitWarpWitnessedSuffixSourceFactsFields,
   ContinuumArtifactJsonLoadContext,
   ContinuumFamilyIdValue,
 };

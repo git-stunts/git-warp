@@ -64,7 +64,7 @@ Current branch state at this boundary:
 - Latest merged PR: #94, v18 Continuum slices 6 through 10 plus review
   repairs
 - Latest completed v18 implementation cycle:
-  `0162-v18-reading-envelope-source-facts`
+  `0163-v18-witnessed-suffix-source-facts`
 
 The release ladder is now:
 
@@ -254,8 +254,13 @@ commit for that slice.
   `GitWarpReadingEnvelopeSourceFacts`, requires translated git-warp evidence,
   and keeps runtime-boundary marked as authored-only until Wesley profiles and
   fixtures exist.
-- [ ] 15. Project one git-warp sync/export suffix into translated
-  witnessed-suffix source facts.
+- [x] 15. Project one git-warp sync/export suffix into translated
+  witnessed-suffix source facts:
+  [0163-v18-witnessed-suffix-source-facts](design/0163-v18-witnessed-suffix-source-facts/v18-witnessed-suffix-source-facts.md)
+  adds `GitWarpWitnessedSuffixPatchFact` and
+  `GitWarpWitnessedSuffixSourceFacts`, rejects empty suffix patch lists, and
+  keeps the current sync protocol intact while runtime-boundary remains
+  authored-only.
 
 The loop stays strict: write or update the cycle doc, capture RED, green the
 slice, update this BEARING task list before the final commit, validate, then

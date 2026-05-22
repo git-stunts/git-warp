@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 Continuum compatibility now exposes runtime-boundary reading-envelope
   source facts for translated git-warp read results while preserving the
   authored-only readiness status until Wesley profiles and fixtures exist.
+- V18 Continuum compatibility now exposes runtime-boundary witnessed-suffix
+  source facts for translated git-warp sync/export suffixes while keeping the
+  existing sync protocol intact.
 
 ### Fixed
 
