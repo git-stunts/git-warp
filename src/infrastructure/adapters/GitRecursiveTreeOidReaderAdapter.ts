@@ -53,17 +53,17 @@ export default class GitRecursiveTreeOidReaderAdapter {
 }
 
 function parseRecursiveTreeOidOutput(output: string): Record<string, string> {
-  const oids: Record<string, string> = {};
+  const oids = new Map<string, string>();
   for (const record of output.split(LS_TREE_RECORD_SEPARATOR)) {
     if (record.length === 0) {
       continue;
     }
     const entry = parseRecursiveTreeEntry(record);
     if (entry.objectType !== TREE_OBJECT_TYPE) {
-      oids[entry.path] = entry.oid;
+      oids.set(entry.path, entry.oid);
     }
   }
-  return oids;
+  return Object.fromEntries(oids);
 }
 
 function parseRecursiveTreeEntry(record: string): RecursiveTreeEntry {

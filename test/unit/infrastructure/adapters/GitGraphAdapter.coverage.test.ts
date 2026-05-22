@@ -269,6 +269,23 @@ describe('GitGraphAdapter coverage', () => {
       });
     });
 
+    it('preserves prototype-like path names from recursive ls-tree output', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      const protoOid = 'beef' + '0'.repeat(36);
+      const constructorOid = 'feed' + '0'.repeat(36);
+      mockPlumbing.execute.mockResolvedValue(
+        `100644 blob ${protoOid}\t__proto__\0` +
+        `100644 blob ${constructorOid}\tconstructor\0`
+      );
+
+      const result = await adapter.readTreeOids(treeOid);
+
+      expect(Object.hasOwn(result, '__proto__')).toBe(true);
+      expect(Object.hasOwn(result, 'constructor')).toBe(true);
+      expect(result['__proto__']).toBe(protoOid);
+      expect(result['constructor']).toBe(constructorOid);
+    });
+
     it('recursively preserves paths through nested trees with one git command', async () => {
       const rootTreeOid = 'aabb' + '0'.repeat(36);
       const blobOid = 'ccdd' + '0'.repeat(36);
