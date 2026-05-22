@@ -5,62 +5,30 @@
  * @see src/domain/warp/PatchSession.js
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { Writer } from '../../../../src/domain/warp/Writer.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
-import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
-
-/**
- * Creates a minimal mock persistence adapter.
- */
-function createMockPersistence() {
-  const persistence = {
-    readRef: vi.fn(),
-    updateRef: vi.fn(),
-    compareAndSwapRef: vi.fn(),
-    showNode: vi.fn(),
-    getNodeInfo: vi.fn(),
-    writeBlob: vi.fn(),
-    writeTree: vi.fn(),
-    commitNodeWithTree: vi.fn(),
-    readBlob: vi.fn(),
-  };
-  persistence.compareAndSwapRef.mockImplementation(async (ref, newOid, expectedOid) => {
-    const actualOid = await persistence.readRef(ref);
-    if (actualOid !== expectedOid) {
-      throw new Error(`CAS mismatch for ${ref}`);
-    }
-    persistence.readRef.mockResolvedValue(newOid);
-  });
-  return persistence;
-}
-
-/**
- * Creates a CborPatchJournalAdapter wired to the given persistence's blob ops.
- * @param {ReturnType<typeof createMockPersistence>} persistence
- * @returns {CborPatchJournalAdapter}
- */
-function createPatchJournal(persistence) {
-  return new CborPatchJournalAdapter({
-    codec: new CborCodec(),
-    blobPort: persistence,
-  });
-}
+import type WarpState from '../../../../src/domain/services/state/WarpState.ts';
+import { requirePatchOp } from '../PatchOperationAssertions.ts';
+import {
+  createPatchBuilderMockPersistence as createMockPersistence,
+  createPatchBuilderMockState,
+  createPatchJournal,
+  type PatchBuilderMockPersistence,
+} from '../services/PatchBuilderTestHarness.ts';
 
 describe('PatchSession operations', () => {
-  let persistence;
-  let versionVector;
-  let getCurrentState;
-  let patchJournal;
+  let persistence: PatchBuilderMockPersistence;
+  let versionVector: VersionVector;
+  let getCurrentState: () => WarpState | null;
+  let patchJournal: ReturnType<typeof createPatchJournal>;
 
   beforeEach(() => {
     persistence = createMockPersistence();
     versionVector = VersionVector.empty();
-    getCurrentState = vi.fn(() => null);
+    getCurrentState = () => null;
     persistence.readRef.mockResolvedValue(null);
     patchJournal = createPatchJournal(persistence);
   });
@@ -78,14 +46,14 @@ describe('PatchSession operations', () => {
     const patch = await writer.beginPatch();
     patch.addNode('user:alice');
 
-    const built = (patch.build() as any);
+    const built = patch.build();
+    const op = requirePatchOp(built, 0);
     expect(built.ops).toHaveLength(1);
-    expect(built.ops[0].type).toBe('NodeAdd');
-    expect(built.ops[0].node).toBe('user:alice');
+    expect(op).toMatchObject({ type: 'NodeAdd', node: 'user:alice' });
   });
 
   it('removeNode creates node-remove op', async () => {
-    const state = ({ nodeAlive: ORSet.empty(), edgeAlive: ORSet.empty(), prop: new Map(), observedFrontier: VersionVector.empty() } as any);
+    const state = createPatchBuilderMockState();
     state.nodeAlive.add('user:alice', Dot.create('alice', 1));
 
     const writer = new Writer({
@@ -100,10 +68,10 @@ describe('PatchSession operations', () => {
     const patch = await writer.beginPatch();
     patch.removeNode('user:alice');
 
-    const built = (patch.build() as any);
+    const built = patch.build();
+    const op = requirePatchOp(built, 0);
     expect(built.ops).toHaveLength(1);
-    expect(built.ops[0].type).toBe('NodeRemove');
-    expect(built.ops[0].node).toBe('user:alice');
+    expect(op).toMatchObject({ type: 'NodeRemove', node: 'user:alice' });
   });
 
   it('addEdge creates edge-add op', async () => {
@@ -119,16 +87,19 @@ describe('PatchSession operations', () => {
     const patch = await writer.beginPatch();
     patch.addEdge('n1', 'n2', 'links');
 
-    const built = (patch.build() as any);
+    const built = patch.build();
+    const op = requirePatchOp(built, 0);
     expect(built.ops).toHaveLength(1);
-    expect(built.ops[0].type).toBe('EdgeAdd');
-    expect(built.ops[0].from).toBe('n1');
-    expect(built.ops[0].to).toBe('n2');
-    expect(built.ops[0].label).toBe('links');
+    expect(op).toMatchObject({
+      type: 'EdgeAdd',
+      from: 'n1',
+      to: 'n2',
+      label: 'links',
+    });
   });
 
   it('removeEdge creates edge-remove op', async () => {
-    const state = ({ nodeAlive: ORSet.empty(), edgeAlive: ORSet.empty(), prop: new Map(), observedFrontier: VersionVector.empty() } as any);
+    const state = createPatchBuilderMockState();
     const ek = encodeEdgeKey('n1', 'n2', 'links');
     state.edgeAlive.add(ek, Dot.create('alice', 1));
 
@@ -144,9 +115,10 @@ describe('PatchSession operations', () => {
     const patch = await writer.beginPatch();
     patch.removeEdge('n1', 'n2', 'links');
 
-    const built = (patch.build() as any);
+    const built = patch.build();
+    const op = requirePatchOp(built, 0);
     expect(built.ops).toHaveLength(1);
-    expect(built.ops[0].type).toBe('EdgeRemove');
+    expect(op).toMatchObject({ type: 'EdgeRemove' });
   });
 
   it('setProperty creates prop-set op', async () => {
@@ -162,12 +134,15 @@ describe('PatchSession operations', () => {
     const patch = await writer.beginPatch();
     patch.setProperty('user:alice', 'name', 'Alice');
 
-    const built = (patch.build() as any);
+    const built = patch.build();
+    const op = requirePatchOp(built, 0);
     expect(built.ops).toHaveLength(1);
-    expect(built.ops[0].type).toBe('PropSet');
-    expect(built.ops[0].node).toBe('user:alice');
-    expect(built.ops[0].key).toBe('name');
-    expect(built.ops[0].value).toBe('Alice');
+    expect(op).toMatchObject({
+      type: 'PropSet',
+      node: 'user:alice',
+      key: 'name',
+      value: 'Alice',
+    });
   });
 
   it('supports various property value types', async () => {
@@ -187,12 +162,12 @@ describe('PatchSession operations', () => {
     patch.setProperty('n', 'arr', [1, 2, 3]);
     patch.setProperty('n', 'obj', { x: 1 });
 
-    const built = (patch.build() as any);
+    const built = patch.build();
     expect(built.ops).toHaveLength(5);
-    expect(built.ops[0].value).toBe('hello');
-    expect(built.ops[1].value).toBe(42);
-    expect(built.ops[2].value).toBe(true);
-    expect(built.ops[3].value).toEqual([1, 2, 3]);
-    expect(built.ops[4].value).toEqual({ x: 1 });
+    expect(requirePatchOp(built, 0)).toMatchObject({ value: 'hello' });
+    expect(requirePatchOp(built, 1)).toMatchObject({ value: 42 });
+    expect(requirePatchOp(built, 2)).toMatchObject({ value: true });
+    expect(requirePatchOp(built, 3)).toMatchObject({ value: [1, 2, 3] });
+    expect(requirePatchOp(built, 4)).toMatchObject({ value: { x: 1 } });
   });
 });

@@ -1,74 +1,27 @@
-import { describe, it, expect, vi } from 'vitest';
-import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
+import { describe, it, expect } from 'vitest';
 import PatchError from '../../../../src/domain/errors/PatchError.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
-import { decodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.ts';
-import { decode } from '../../../../src/infrastructure/codecs/CborCodec.ts';
-import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
-
-/**
- * Creates a mock V5 state for testing.
- * @returns {any} Mock state with nodeAlive and edgeAlive ORSets
- */
-function createMockState() {
-  return {
-    nodeAlive: ORSet.empty(),
-    edgeAlive: ORSet.empty(),
-    prop: new Map(),
-    observedFrontier: VersionVector.empty(),
-  };
-}
-
-/**
- * Creates a mock persistence adapter for testing commit().
- * @returns {any} Mock persistence with standard methods stubbed
- */
-function createMockPersistence() {
-  const persistence = {
-    readRef: vi.fn().mockResolvedValue(null),
-    showNode: vi.fn(),
-    writeBlob: vi.fn().mockResolvedValue('a'.repeat(40)), // Valid 40-char hex OID
-    writeTree: vi.fn().mockResolvedValue('b'.repeat(40)),
-    commitNodeWithTree: vi.fn().mockResolvedValue('c'.repeat(40)),
-    updateRef: vi.fn().mockResolvedValue(undefined),
-    compareAndSwapRef: vi.fn(),
-  };
-  persistence.compareAndSwapRef.mockImplementation(async (ref, newOid, expectedOid) => {
-    const actualOid = await persistence.readRef(ref);
-    if (actualOid !== expectedOid) {
-      throw new Error(`CAS mismatch for ${ref}`);
-    }
-    persistence.readRef.mockResolvedValue(newOid);
-  });
-  return persistence;
-}
-
-/**
- * Creates a CborPatchJournalAdapter wired to the given mock persistence's blob ops.
- * @param {ReturnType<typeof createMockPersistence>} persistence
- * @returns {CborPatchJournalAdapter}
- */
-function createPatchJournal(persistence) {
-  return new CborPatchJournalAdapter({
-    codec: new CborCodec(),
-    blobPort: persistence,
-  });
-}
+import { requirePatchOp } from '../PatchOperationAssertions.ts';
+import {
+  createPatchBuilder,
+  createPatchBuilderMockPersistence as createMockPersistence,
+  createPatchBuilderMockState as createMockState,
+  createPatchJournal,
+  decodeWrittenPatch,
+} from './PatchBuilderTestHarness.ts';
 
 describe('PatchBuilder provenance', () => {
   describe('reads/writes provenance tracking (HG/IO/1)', () => {
     describe('NodeAdd', () => {
       it('tracks nodeId as write', () => {
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 1,
           versionVector: VersionVector.empty(),
           getCurrentState: () => null,
-        } as any));
+        });
 
         builder.addNode('user:alice');
 
@@ -77,12 +30,12 @@ describe('PatchBuilder provenance', () => {
       });
 
       it('includes writes in built patch', () => {
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 1,
           versionVector: VersionVector.empty(),
           getCurrentState: () => null,
-        } as any));
+        });
 
         builder.addNode('user:alice').addNode('user:bob');
 
@@ -98,12 +51,12 @@ describe('PatchBuilder provenance', () => {
         const existingDot = Dot.create('otherWriter', 5);
         state.nodeAlive.add('user:alice', existingDot);
 
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 2,
           versionVector: VersionVector.empty(),
           getCurrentState: () => state,
-        } as any));
+        });
 
         builder.removeNode('user:alice');
 
@@ -116,12 +69,12 @@ describe('PatchBuilder provenance', () => {
         const existingDot = Dot.create('otherWriter', 5);
         state.nodeAlive.add('user:alice', existingDot);
 
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 2,
           versionVector: VersionVector.empty(),
           getCurrentState: () => state,
-        } as any));
+        });
 
         builder.removeNode('user:alice');
 
@@ -133,12 +86,12 @@ describe('PatchBuilder provenance', () => {
 
     describe('EdgeAdd', () => {
       it('tracks endpoint nodes as reads and edge key as write', () => {
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 1,
           versionVector: VersionVector.empty(),
           getCurrentState: () => null,
-        } as any));
+        });
 
         builder.addEdge('user:alice', 'user:bob', 'follows');
 
@@ -152,12 +105,12 @@ describe('PatchBuilder provenance', () => {
       });
 
       it('includes reads and writes in built patch', () => {
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 1,
           versionVector: VersionVector.empty(),
           getCurrentState: () => null,
-        } as any));
+        });
 
         builder.addEdge('user:alice', 'user:bob', 'follows');
 
@@ -176,12 +129,12 @@ describe('PatchBuilder provenance', () => {
         const edgeKey = encodeEdgeKey('user:alice', 'user:bob', 'follows');
         state.edgeAlive.add(edgeKey, existingDot);
 
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 2,
           versionVector: VersionVector.empty(),
           getCurrentState: () => state,
-        } as any));
+        });
 
         builder.removeEdge('user:alice', 'user:bob', 'follows');
 
@@ -195,12 +148,12 @@ describe('PatchBuilder provenance', () => {
         const edgeKey = encodeEdgeKey('user:alice', 'user:bob', 'follows');
         state.edgeAlive.add(edgeKey, existingDot);
 
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 2,
           versionVector: VersionVector.empty(),
           getCurrentState: () => state,
-        } as any));
+        });
 
         builder.removeEdge('user:alice', 'user:bob', 'follows');
 
@@ -212,12 +165,12 @@ describe('PatchBuilder provenance', () => {
 
     describe('PropSet on node', () => {
       it('tracks nodeId as both read and write', () => {
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 1,
           versionVector: VersionVector.empty(),
           getCurrentState: () => null,
-        } as any));
+        });
 
         builder.setProperty('user:alice', 'name', 'Alice');
 
@@ -226,12 +179,12 @@ describe('PatchBuilder provenance', () => {
       });
 
       it('includes in both reads and writes arrays', () => {
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 1,
           versionVector: VersionVector.empty(),
           getCurrentState: () => null,
-        } as any));
+        });
 
         builder.setProperty('user:alice', 'name', 'Alice');
 
@@ -243,12 +196,12 @@ describe('PatchBuilder provenance', () => {
 
     describe('setEdgeProperty', () => {
       it('tracks edge key as both read and write', () => {
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 1,
           versionVector: VersionVector.empty(),
           getCurrentState: () => null,
-        } as any));
+        });
 
         // First add the edge, then set property
         builder.addEdge('user:alice', 'user:bob', 'follows');
@@ -260,12 +213,12 @@ describe('PatchBuilder provenance', () => {
       });
 
       it('includes edge key in built patch reads and writes', () => {
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 1,
           versionVector: VersionVector.empty(),
           getCurrentState: () => null,
-        } as any));
+        });
 
         builder.addEdge('user:alice', 'user:bob', 'follows');
         builder.setEdgeProperty('user:alice', 'user:bob', 'follows', 'since', '2025-01-01');
@@ -285,12 +238,12 @@ describe('PatchBuilder provenance', () => {
 
     describe('complex patches', () => {
       it('deduplicates reads and writes', () => {
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 1,
           versionVector: VersionVector.empty(),
           getCurrentState: () => null,
-        } as any));
+        });
 
         // Add node twice via different operations should only appear once
         builder.addNode('user:alice');
@@ -305,12 +258,12 @@ describe('PatchBuilder provenance', () => {
       });
 
       it('sorts reads and writes deterministically', () => {
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 1,
           versionVector: VersionVector.empty(),
           getCurrentState: () => null,
-        } as any));
+        });
 
         // Add nodes in non-alphabetical order
         builder.addNode('user:zebra');
@@ -332,12 +285,12 @@ describe('PatchBuilder provenance', () => {
         const existingEdgeKey = encodeEdgeKey('user:existing', 'user:target', 'knows');
         state.edgeAlive.add(existingEdgeKey, edgeDot);
 
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 2,
           versionVector: VersionVector.empty(),
           getCurrentState: () => state,
-        } as any));
+        });
 
         builder
           .addNode('user:new')                           // writes: new
@@ -367,12 +320,12 @@ describe('PatchBuilder provenance', () => {
 
     describe('backward compatibility', () => {
       it('omits empty reads array from patch', () => {
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 1,
           versionVector: VersionVector.empty(),
           getCurrentState: () => null,
-        } as any));
+        });
 
         builder.addNode('x'); // Only writes, no reads
 
@@ -386,12 +339,12 @@ describe('PatchBuilder provenance', () => {
         const existingDot = Dot.create('otherWriter', 5);
         state.nodeAlive.add('x', existingDot);
 
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 2,
           versionVector: VersionVector.empty(),
           getCurrentState: () => state,
-        } as any));
+        });
 
         builder.removeNode('x'); // Only reads, no writes
 
@@ -401,12 +354,12 @@ describe('PatchBuilder provenance', () => {
       });
 
       it('handles patch with no ops gracefully (builds but cannot commit)', () => {
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           writerId: 'writer1',
           lamport: 1,
           versionVector: VersionVector.empty(),
           getCurrentState: () => null,
-        } as any));
+        });
 
         // Build empty patch (no ops)
         const patch = builder.build();
@@ -420,7 +373,7 @@ describe('PatchBuilder provenance', () => {
       it('committed patch includes reads/writes arrays', async () => {
         const persistence = createMockPersistence();
         const patchJournal = createPatchJournal(persistence);
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           persistence,
           patchJournal,
           graphName: 'test-graph',
@@ -428,14 +381,13 @@ describe('PatchBuilder provenance', () => {
           lamport: 1,
           versionVector: VersionVector.empty(),
           getCurrentState: () => null,
-        } as any));
+        });
 
         builder.addNode('user:alice').setProperty('user:alice', 'name', 'Alice');
         await builder.commit();
 
         // Decode the CBOR blob that was written
-        const blobData = persistence.writeBlob.mock.calls[0]![0];
-        const patch = decode(blobData) as any;
+        const patch = decodeWrittenPatch(persistence);
 
         expect(patch.reads).toEqual(['user:alice']);
         expect(patch.writes).toEqual(['user:alice']);
@@ -444,7 +396,7 @@ describe('PatchBuilder provenance', () => {
       it('committed patch omits empty reads array', async () => {
         const persistence = createMockPersistence();
         const patchJournal = createPatchJournal(persistence);
-        const builder = new PatchBuilder(({
+        const builder = createPatchBuilder({
           persistence,
           patchJournal,
           graphName: 'test-graph',
@@ -452,14 +404,13 @@ describe('PatchBuilder provenance', () => {
           lamport: 1,
           versionVector: VersionVector.empty(),
           getCurrentState: () => null,
-        } as any));
+        });
 
         builder.addNode('x'); // Only writes, no reads
 
         await builder.commit();
 
-        const blobData = persistence.writeBlob.mock.calls[0]![0];
-        const patch = decode(blobData) as any;
+        const patch = decodeWrittenPatch(persistence);
 
         expect(patch.writes).toEqual(['x']);
         expect(patch.reads).toBeUndefined();
@@ -470,24 +421,24 @@ describe('PatchBuilder provenance', () => {
   describe('removeNode / removeEdge without materialized state', () => {
     it('removeNode throws PatchError when state is null', () => {
       const vv = VersionVector.empty();
-      const builder = new PatchBuilder(({
+      const builder = createPatchBuilder({
         writerId: 'writer1',
         lamport: 1,
         versionVector: vv,
         getCurrentState: () => null,
-      } as any));
+      });
 
       expect(() => builder.removeNode('alice')).toThrow(PatchError);
     });
 
     it('removeNode error has code E_PATCH_NO_STATE', () => {
       const vv = VersionVector.empty();
-      const builder = new PatchBuilder(({
+      const builder = createPatchBuilder({
         writerId: 'writer1',
         lamport: 1,
         versionVector: vv,
         getCurrentState: () => null,
-      } as any));
+      });
 
       expect(() => builder.removeNode('alice')).toThrow(
         expect.objectContaining({ code: 'E_PATCH_NO_STATE' }),
@@ -496,12 +447,12 @@ describe('PatchBuilder provenance', () => {
 
     it('removeEdge throws PatchError when state is null', () => {
       const vv = VersionVector.empty();
-      const builder = new PatchBuilder(({
+      const builder = createPatchBuilder({
         writerId: 'writer1',
         lamport: 1,
         versionVector: vv,
         getCurrentState: () => null,
-      } as any));
+      });
 
       expect(() => builder.removeEdge('a', 'b', 'knows')).toThrow(PatchError);
     });
@@ -511,18 +462,21 @@ describe('PatchBuilder provenance', () => {
       state.nodeAlive.add('alice', Dot.create('writer1', 1));
 
       const vv = VersionVector.empty();
-      const builder = new PatchBuilder(({
+      const builder = createPatchBuilder({
         writerId: 'writer1',
         lamport: 2,
         versionVector: vv,
         getCurrentState: () => state,
-      } as any));
+      });
 
       builder.removeNode('alice');
       const patch = builder.build();
       expect(patch.ops).toHaveLength(1);
-      const op = patch.ops[0] as any;
-      expect(op.type).toBe('NodeRemove');
+      const op = requirePatchOp(patch, 0);
+      expect(op).toMatchObject({ type: 'NodeRemove' });
+      if (op.type !== 'NodeRemove') {
+        throw new Error('Expected NodeRemove op');
+      }
       expect(op.observedDots.length).toBeGreaterThan(0);
     });
   });

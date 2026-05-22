@@ -1,89 +1,23 @@
 import { describe, it, expect, vi } from 'vitest';
-import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
-import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/KeyCodec.ts';
-import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
-import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
-
-/**
- * Creates a mock blob storage with configurable OID return.
- * @param {{ storeOid?: string }} [opts]
- * @returns {any}
- */
-function createMockBlobStorage(opts: { storeOid?: string } = {}) {
-  const oid = opts.storeOid || 'd'.repeat(40);
-  return {
-    store: vi.fn().mockResolvedValue(oid),
-    retrieve: vi.fn(),
-    storeStream: vi.fn().mockResolvedValue(oid),
-    retrieveStream: vi.fn(),
-  };
-}
-
-/**
- * Creates a mock persistence adapter for testing.
- * @param {Object} [overrides]
- * @returns {any}
- */
-function createMockPersistence(overrides = {}) {
-  const persistence = {
-    readRef: vi.fn().mockResolvedValue(null),
-    showNode: vi.fn(),
-    writeBlob: vi.fn().mockResolvedValue('d'.repeat(40)),
-    writeTree: vi.fn().mockResolvedValue('e'.repeat(40)),
-    commitNodeWithTree: vi.fn().mockResolvedValue('f'.repeat(40)),
-    updateRef: vi.fn().mockResolvedValue(undefined),
-    compareAndSwapRef: vi.fn(),
-    ...overrides,
-  };
-  persistence.compareAndSwapRef.mockImplementation(async (ref, newOid, expectedOid) => {
-    const actualOid = await persistence.readRef(ref);
-    if (actualOid !== expectedOid) {
-      throw new Error(`CAS mismatch for ${ref}`);
-    }
-    persistence.readRef.mockResolvedValue(newOid);
-  });
-  return persistence;
-}
-
-/**
- * Creates a mock V5 state for testing.
- * @returns {any}
- */
-function createMockState() {
-  return {
-    nodeAlive: ORSet.empty(),
-    edgeAlive: ORSet.empty(),
-    prop: new Map(),
-    observedFrontier: VersionVector.empty(),
-  };
-}
-
-/**
- * Creates a CborPatchJournalAdapter wired to the given persistence's blob ops.
- * @param {ReturnType<typeof createMockPersistence>} persistence
- * @returns {CborPatchJournalAdapter}
- */
-function createPatchJournal(persistence) {
-  return new CborPatchJournalAdapter({
-    codec: new CborCodec(),
-    blobPort: persistence,
-  });
-}
+import {
+  createPatchBuilder,
+  createPatchBuilderMockBlobStorage as createMockBlobStorage,
+  createPatchBuilderMockPersistence as createMockPersistence,
+  createPatchBuilderMockState as createMockState,
+  createPatchJournal,
+} from './PatchBuilderTestHarness.ts';
 
 describe('PatchBuilder content persistence', () => {
   describe('attachContent() with blobStorage', () => {
     it('uses blobStorage.store() when blobStorage is provided', async () => {
       const state = createMockState();
       state.nodeAlive.add('node:1', Dot.create('w1', 1));
-      const blobStorage = {
-        store: vi.fn().mockResolvedValue('cas-tree-oid'),
-        retrieve: vi.fn(),
-      };
+      const blobStorage = createMockBlobStorage({ storeOid: 'cas-tree-oid' });
       const persistence = createMockPersistence();
-      const builder = new PatchBuilder((({
+      const builder = createPatchBuilder({
         persistence,
         graphName: 'g',
         writerId: 'w1',
@@ -91,7 +25,7 @@ describe('PatchBuilder content persistence', () => {
         versionVector: VersionVector.empty(),
         getCurrentState: () => state,
         blobStorage,
-      }) as any));
+      });
 
       await builder.attachContent('node:1', 'hello world');
 
@@ -114,13 +48,13 @@ describe('PatchBuilder content persistence', () => {
       const state = createMockState();
       state.nodeAlive.add('node:1', Dot.create('w1', 1));
       const persistence = createMockPersistence();
-      const builder = new PatchBuilder((({
+      const builder = createPatchBuilder({
         persistence,
         writerId: 'w1',
         lamport: 1,
         versionVector: VersionVector.empty(),
         getCurrentState: () => state,
-      }) as any));
+      });
 
       await expect(builder.attachContent('node:1', 'hello'))
         .rejects.toThrow('Cannot attach content without blob storage');
@@ -136,14 +70,14 @@ describe('PatchBuilder content persistence', () => {
       const state = createMockState();
       state.nodeAlive.add('node:1', Dot.create('w1', 1));
       const persistence = createMockPersistence();
-      const builder = new PatchBuilder((({
+      const builder = createPatchBuilder({
         persistence,
         writerId: 'w1',
         lamport: 1,
         versionVector: VersionVector.empty(),
         getCurrentState: () => state,
         // blobStorage intentionally omitted
-      }) as any));
+      });
 
       // Should throw because there is no blob storage to handle content
       await expect(builder.attachContent('node:1', 'hello'))
@@ -157,12 +91,9 @@ describe('PatchBuilder content persistence', () => {
       const state = createMockState();
       state.edgeAlive.add(encodeEdgeKey('a', 'b', 'rel'), Dot.create('w1', 1));
 
-      const blobStorage = {
-        store: vi.fn().mockResolvedValue('cas-edge-tree-oid'),
-        retrieve: vi.fn(),
-      };
+      const blobStorage = createMockBlobStorage({ storeOid: 'cas-edge-tree-oid' });
       const persistence = createMockPersistence();
-      const builder = new PatchBuilder((({
+      const builder = createPatchBuilder({
         persistence,
         graphName: 'g',
         writerId: 'w1',
@@ -170,7 +101,7 @@ describe('PatchBuilder content persistence', () => {
         versionVector: VersionVector.empty(),
         getCurrentState: () => state,
         blobStorage,
-      }) as any));
+      });
 
       await builder.attachEdgeContent('a', 'b', 'rel', 'edge-data');
 
@@ -189,10 +120,10 @@ describe('PatchBuilder content persistence', () => {
       const patchBlobOid = 'b'.repeat(40);
       const blobStorage = createMockBlobStorage({ storeOid: contentOid });
       const persistence = createMockPersistence({
-        writeBlob: vi.fn().mockResolvedValue(patchBlobOid), // commit() CBOR blob only
-        writeTree: vi.fn().mockResolvedValue('c'.repeat(40)),
+        writeBlob: vi.fn(async (_content: Uint8Array | string): Promise<string> => patchBlobOid), // commit() CBOR blob only
+        writeTree: vi.fn(async (_entries: string[]): Promise<string> => 'c'.repeat(40)),
       });
-      const builder = new PatchBuilder((({
+      const builder = createPatchBuilder({
         persistence,
         patchJournal: createPatchJournal(persistence),
         graphName: 'g',
@@ -202,7 +133,7 @@ describe('PatchBuilder content persistence', () => {
         getCurrentState: () => null,
         expectedParentSha: null,
         blobStorage,
-      }) as any));
+      });
 
       builder.addNode('n1');
       await builder.attachContent('n1', 'hello');
@@ -217,7 +148,7 @@ describe('PatchBuilder content persistence', () => {
 
     it('creates single-entry tree when no content blobs', async () => {
       const persistence = createMockPersistence();
-      const builder = new PatchBuilder((({
+      const builder = createPatchBuilder({
         persistence,
         patchJournal: createPatchJournal(persistence),
         graphName: 'g',
@@ -226,7 +157,7 @@ describe('PatchBuilder content persistence', () => {
         versionVector: VersionVector.empty(),
         getCurrentState: () => null,
         expectedParentSha: null,
-      }) as any));
+      });
 
       builder.addNode('n1');
       await builder.commit();
@@ -246,10 +177,10 @@ describe('PatchBuilder content persistence', () => {
       blobStorage.store = vi.fn().mockImplementation(() =>
         Promise.resolve(storeOids[storeIdx++]));
       const persistence = createMockPersistence({
-        writeBlob: vi.fn().mockResolvedValue(patchBlob), // CBOR blob only
-        writeTree: vi.fn().mockResolvedValue('4'.repeat(40)),
+        writeBlob: vi.fn(async (_content: Uint8Array | string): Promise<string> => patchBlob), // CBOR blob only
+        writeTree: vi.fn(async (_entries: string[]): Promise<string> => '4'.repeat(40)),
       });
-      const builder = new PatchBuilder((({
+      const builder = createPatchBuilder({
         persistence,
         patchJournal: createPatchJournal(persistence),
         graphName: 'g',
@@ -259,7 +190,7 @@ describe('PatchBuilder content persistence', () => {
         getCurrentState: () => null,
         expectedParentSha: null,
         blobStorage,
-      }) as any));
+      });
 
       builder.addNode('n1').addNode('n2');
       await builder.attachContent('n1', 'first');
@@ -278,10 +209,10 @@ describe('PatchBuilder content persistence', () => {
       const patchBlob = 'b'.repeat(40);
       const blobStorage = createMockBlobStorage({ storeOid: sharedOid });
       const persistence = createMockPersistence({
-        writeBlob: vi.fn().mockResolvedValue(patchBlob), // CBOR blob only
-        writeTree: vi.fn().mockResolvedValue('c'.repeat(40)),
+        writeBlob: vi.fn(async (_content: Uint8Array | string): Promise<string> => patchBlob), // commit() CBOR blob only
+        writeTree: vi.fn(async (_entries: string[]): Promise<string> => 'c'.repeat(40)),
       });
-      const builder = new PatchBuilder((({
+      const builder = createPatchBuilder({
         persistence,
         patchJournal: createPatchJournal(persistence),
         graphName: 'g',
@@ -291,7 +222,7 @@ describe('PatchBuilder content persistence', () => {
         getCurrentState: () => null,
         expectedParentSha: null,
         blobStorage,
-      }) as any));
+      });
 
       builder.addNode('n1').addNode('n2');
       await builder.attachContent('n1', 'same-data');
