@@ -165,6 +165,11 @@ describe('ContinuumReceiptFamilyProjection', () => {
       sourceFacts: undefined,
     })).toThrow(WarpError);
 
+    expect(() => new GitWarpReceiptSourceFacts(
+      // @ts-expect-error runtime guard for JavaScript callers
+      undefined,
+    )).toThrow(WarpError);
+
     expect(() => new GitWarpReceiptSourceFacts({
       // @ts-expect-error runtime guard for JavaScript callers
       tickReceipt: undefined,

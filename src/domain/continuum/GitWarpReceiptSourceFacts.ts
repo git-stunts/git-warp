@@ -16,12 +16,23 @@ export default class GitWarpReceiptSourceFacts {
   readonly receiptShard: ReceiptShard | undefined;
 
   constructor(fields: GitWarpReceiptSourceFactsFields) {
-    this.tickReceipt = requireTickReceipt(fields.tickReceipt);
+    const checkedFields = requireFields(fields);
+    this.tickReceipt = requireTickReceipt(checkedFields.tickReceipt);
     requireReceiptOutcomes(this.tickReceipt);
-    this.deliveryObservations = freezeDeliveryObservations(fields.deliveryObservations ?? []);
-    this.receiptShard = optionalReceiptShard(fields.receiptShard);
+    this.deliveryObservations = freezeDeliveryObservations(checkedFields.deliveryObservations ?? []);
+    this.receiptShard = optionalReceiptShard(checkedFields.receiptShard);
     Object.freeze(this);
   }
+}
+
+/** Validates the source-facts constructor envelope. */
+function requireFields(
+  value: GitWarpReceiptSourceFactsFields | null | undefined,
+): GitWarpReceiptSourceFactsFields {
+  if (value === null || value === undefined) {
+    throw new WarpError('GitWarpReceiptSourceFacts fields must be provided', 'E_VALIDATION');
+  }
+  return value;
 }
 
 /** Validates that the source fact is a concrete TickReceipt. */
