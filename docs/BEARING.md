@@ -57,12 +57,12 @@ Continuum role.
 
 Current branch state at this boundary:
 
-- Branch: `v18-continuum-slices-6-10`
+- Branch: `v18-continuum-slices-11-15`
 - Base branch: `main`
-- Latest remote head inspected: `origin/main` at `42f15812`
+- Latest remote head inspected: `origin/main` at `a4c5467e`
 - Latest released package line: `17.0.1`
-- Latest merged PR: #93, recursive tree OID read fanout and v17.0.1 release
-  repair
+- Latest merged PR: #94, v18 Continuum slices 6 through 10 plus review
+  repairs
 - Latest completed v18 implementation cycle:
   `0158-v18-warp-ttd-receipt-smoke`
 
@@ -166,9 +166,9 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What comes next
 
-Run the next v18 slices in order. Each slice gets a design document before
-implementation, RED before GREEN, and a BEARING update before the final commit
-for that slice.
+Run v18 slices 11 through 15 in order. Each slice gets a design document
+before implementation, RED before GREEN, and a BEARING update before the final
+commit for that slice.
 
 ## Running Task List
 
@@ -230,8 +230,18 @@ for that slice.
   sibling `~/git/warp-ttd` adapter at execution time, rejects plain local
   receipt DTOs, and proves `warp-ttd` can summarize generated-family git-warp
   receipt projection facts while preserving translated evidence posture.
-- [ ] 11. Re-plan with evidence in hand before expanding into reading-envelope,
-  suffix/runtime-boundary, neighborhood-core, and settlement-family slices.
+- [x] 11. Re-plan with evidence in hand after slices 1 through 10 and PR #94:
+  [0159-v18-replan-with-evidence](design/0159-v18-replan-with-evidence/v18-replan-with-evidence.md)
+  keeps slices 12 through 15 as translated source-fact compatibility work, not
+  a full v19 observer/runtime rewrite.
+- [ ] 12. Refresh the generated Continuum/Wesley family inventory before
+  projecting more families.
+- [ ] 13. Audit the `TickPatch`/`TickReceipt` witness ladder into replay core,
+  witness core, and receipt shell.
+- [ ] 14. Project one git-warp read result into generated runtime-boundary
+  reading-envelope source facts.
+- [ ] 15. Project one git-warp sync/export suffix into translated
+  witnessed-suffix source facts.
 
 The loop stays strict: write or update the cycle doc, capture RED, green the
 slice, update this BEARING task list before the final commit, validate, then
