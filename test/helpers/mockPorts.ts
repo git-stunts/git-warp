@@ -52,7 +52,11 @@ export function createMockPersistence(overrides: Partial<MockPersistence> = {}):
       refs.delete(ref);
     }),
     listRefs: vi.fn().mockResolvedValue([]),
-    compareAndSwapRef: vi.fn(async (ref: string, newOid: string, _expectedOid: string | null) => {
+    compareAndSwapRef: vi.fn(async (ref: string, newOid: string, expectedOid: string | null) => {
+      const actualOid = refs.get(ref) ?? null;
+      if (actualOid !== expectedOid) {
+        throw new Error(`CAS mismatch for ${ref}`);
+      }
       refs.set(ref, newOid);
     }),
     readBlob: vi.fn().mockResolvedValue(new Uint8Array(0)),
