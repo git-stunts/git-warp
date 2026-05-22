@@ -85,7 +85,7 @@ function optionalNonEmptyString(value: string | undefined, name: string): string
   if (value === undefined) {
     return undefined;
   }
-  if (typeof value !== 'string' || value.length === 0) {
+  if (typeof value !== 'string' || value.trim().length === 0) {
     throw new WarpError(`${name} must be a non-empty string`, 'E_VALIDATION');
   }
   return value;

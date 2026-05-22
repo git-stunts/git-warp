@@ -69,6 +69,26 @@ describe('ContinuumEvidencePosture', () => {
     expect(claim.nativeWitnessProof).toBe('continuum-native-receipt-proof:fixture');
   });
 
+  it('rejects native witness proof when posture is not native evidence', () => {
+    const descriptor = makeGeneratedReceiptDescriptor();
+
+    expect(() => new ContinuumEvidenceClaim({
+      descriptor,
+      posture: 'translated-git-warp-evidence',
+      nativeWitnessProof: 'continuum-native-receipt-proof:fixture',
+    })).toThrow(WarpError);
+  });
+
+  it('rejects blank native witness proof for native evidence posture', () => {
+    const descriptor = makeGeneratedReceiptDescriptor();
+
+    expect(() => new ContinuumEvidenceClaim({
+      descriptor,
+      posture: 'native-continuum-evidence',
+      nativeWitnessProof: '   ',
+    })).toThrow(WarpError);
+  });
+
   it('rejects unproven Continuum shape when translated evidence is required', () => {
     const descriptor = makeGeneratedReceiptDescriptor();
     const claim = new ContinuumEvidenceClaim({
