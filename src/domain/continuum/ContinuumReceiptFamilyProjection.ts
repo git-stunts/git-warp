@@ -9,11 +9,13 @@ import type { OpOutcome, TickReceipt } from '../types/TickReceipt.ts';
 const RECEIPT_FAMILY_ID = 'receipt-family';
 const WITNESS_KIND_GIT_WARP_TICK_RECEIPT = 'git-warp-tick-receipt';
 
+/** Constructor payload for generated receipt-family projection. */
 export type ContinuumReceiptFamilyProjectionFields = {
   readonly evidence: ContinuumEvidenceClaim;
   readonly sourceFacts: GitWarpReceiptSourceFacts;
 };
 
+/** Projected operation outcome fact emitted by the generated receipt family. */
 export type ContinuumReceiptOpFact = {
   readonly op: string;
   readonly target: string;
@@ -21,6 +23,7 @@ export type ContinuumReceiptOpFact = {
   readonly reason?: string;
 };
 
+/** Projected receipt fact emitted by the generated receipt family. */
 export type ContinuumReceiptFact = {
   readonly patchSha: string;
   readonly writer: string;
@@ -28,6 +31,7 @@ export type ContinuumReceiptFact = {
   readonly ops: readonly Readonly<ContinuumReceiptOpFact>[];
 };
 
+/** Witness fact tying a projected receipt back to translated git-warp evidence. */
 export type ContinuumReceiptWitnessFact = {
   readonly kind: typeof WITNESS_KIND_GIT_WARP_TICK_RECEIPT;
   readonly receiptPatchSha: string;
@@ -35,6 +39,7 @@ export type ContinuumReceiptWitnessFact = {
   readonly descriptorArtifactKind: string;
 };
 
+/** Projected delivery-observation fact emitted by the generated receipt family. */
 export type ContinuumDeliveryObservationFact = {
   readonly emissionId: string;
   readonly sinkId: string;

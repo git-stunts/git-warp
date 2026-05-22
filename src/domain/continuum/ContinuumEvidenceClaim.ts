@@ -2,6 +2,7 @@ import ContinuumArtifactDescriptor from './ContinuumArtifactDescriptor.ts';
 import ContinuumEvidencePosture from './ContinuumEvidencePosture.ts';
 import WarpError from '../errors/WarpError.ts';
 
+/** Constructor payload for a Continuum evidence claim. */
 export type ContinuumEvidenceClaimFields = {
   readonly descriptor: ContinuumArtifactDescriptor;
   readonly posture: string | ContinuumEvidencePosture;

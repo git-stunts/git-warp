@@ -3,6 +3,7 @@ import WarpError from '../errors/WarpError.ts';
 import { DeliveryObservation } from '../types/DeliveryObservation.ts';
 import { TickReceipt } from '../types/TickReceipt.ts';
 
+/** Constructor payload for local git-warp facts projected into Continuum receipt family data. */
 export type GitWarpReceiptSourceFactsFields = {
   readonly tickReceipt: TickReceipt;
   readonly deliveryObservations?: readonly DeliveryObservation[];

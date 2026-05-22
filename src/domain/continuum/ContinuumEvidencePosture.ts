@@ -4,11 +4,13 @@ const TRANSLATED_GIT_WARP_EVIDENCE = 'translated-git-warp-evidence';
 const NATIVE_CONTINUUM_EVIDENCE = 'native-continuum-evidence';
 const UNPROVEN_CONTINUUM_SHAPE = 'unproven-continuum-shape';
 
+/** Stable string labels for the evidence posture carried by Continuum-family values. */
 export type ContinuumEvidencePostureValue =
   | typeof TRANSLATED_GIT_WARP_EVIDENCE
   | typeof NATIVE_CONTINUUM_EVIDENCE
   | typeof UNPROVEN_CONTINUUM_SHAPE;
 
+/** Complete ordered set of evidence postures accepted by git-warp. */
 export const CONTINUUM_EVIDENCE_POSTURES: readonly ContinuumEvidencePostureValue[] = Object.freeze([
   TRANSLATED_GIT_WARP_EVIDENCE,
   NATIVE_CONTINUUM_EVIDENCE,
