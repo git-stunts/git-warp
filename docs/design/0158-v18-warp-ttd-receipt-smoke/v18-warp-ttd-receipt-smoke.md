@@ -69,11 +69,16 @@ Added a standalone smoke script:
 test/smoke/warpTtdReceiptFamilyProjectionSmoke.ts
 ```
 
-The script imports the sibling `warp-ttd` adapter from:
+The script loads the sibling `warp-ttd` adapter at runtime from:
 
 ```text
 ../../../../warp-ttd/src/adapters/gitWarpAdapter.ts
 ```
+
+The import is intentionally dynamic so git-warp's normal test typecheck does
+not require the sibling repo in CI. The smoke still fails at execution time if
+the sibling repo is absent, which is the right posture for an explicit
+cross-repo compatibility check.
 
 It builds a `ContinuumReceiptFamilyProjection` from generated receipt-family
 descriptor authority, explicit `translated-git-warp-evidence`, a local

@@ -226,10 +226,10 @@ for that slice.
   facts:
   [0158-v18-warp-ttd-receipt-smoke](design/0158-v18-warp-ttd-receipt-smoke/v18-warp-ttd-receipt-smoke.md)
   rejects handwritten adapter-local receipt folklore. The standalone smoke
-  `test/smoke/warpTtdReceiptFamilyProjectionSmoke.ts` imports the sibling
-  `~/git/warp-ttd` adapter, rejects plain local receipt DTOs, and proves
-  `warp-ttd` can summarize generated-family git-warp receipt projection facts
-  while preserving translated evidence posture.
+  `test/smoke/warpTtdReceiptFamilyProjectionSmoke.ts` dynamically loads the
+  sibling `~/git/warp-ttd` adapter at execution time, rejects plain local
+  receipt DTOs, and proves `warp-ttd` can summarize generated-family git-warp
+  receipt projection facts while preserving translated evidence posture.
 - [ ] 11. Re-plan with evidence in hand before expanding into reading-envelope,
   suffix/runtime-boundary, neighborhood-core, and settlement-family slices.
 

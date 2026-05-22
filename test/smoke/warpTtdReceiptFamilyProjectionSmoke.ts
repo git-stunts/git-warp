@@ -6,7 +6,6 @@ import ContinuumReceiptFamilyProjection from '../../src/domain/continuum/Continu
 import GitWarpReceiptSourceFacts from '../../src/domain/continuum/GitWarpReceiptSourceFacts.ts';
 import { DeliveryObservation } from '../../src/domain/types/DeliveryObservation.ts';
 import { TickReceipt } from '../../src/domain/types/TickReceipt.ts';
-import { GitWarpAdapter } from '../../../../warp-ttd/src/adapters/gitWarpAdapter.ts';
 import type { ContinuumReceiptFact, ContinuumReceiptOpFact } from '../../src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
 
 const RECEIPT_SCHEMA_PATH = 'schemas/continuum-receipt-family.graphql';
@@ -39,6 +38,31 @@ type SmokeTickReceiptOp = {
   readonly result: ContinuumReceiptOpFact['result'];
   readonly reason?: string;
 };
+
+type SmokeReceiptSummary = {
+  readonly digest: string;
+  readonly writer?: {
+    readonly writerId: string;
+  };
+  readonly outputTick: number;
+  readonly admittedRewriteCount: number;
+  readonly rejectedRewriteCount: number;
+  readonly counterfactualCount: number;
+};
+
+type GitWarpAdapterInstance = {
+  receipts(headId: string, frameIndex?: number): Promise<SmokeReceiptSummary[]>;
+};
+
+type GitWarpAdapterConstructor = {
+  create(graph: SmokeGraph): Promise<GitWarpAdapterInstance>;
+};
+
+async function loadGitWarpAdapter(): Promise<GitWarpAdapterConstructor> {
+  const adapterUrl = new URL('../../../../warp-ttd/src/adapters/gitWarpAdapter.ts', import.meta.url);
+  const adapterModule = await import(adapterUrl.href) as { readonly GitWarpAdapter: GitWarpAdapterConstructor };
+  return adapterModule.GitWarpAdapter;
+}
 
 function makeProjection(): ContinuumReceiptFamilyProjection {
   const descriptor = new ContinuumArtifactDescriptor({
@@ -166,6 +190,7 @@ assert.throws(
 assert.equal(projection.witnesses[0]?.evidencePosture, TRANSLATED_POSTURE);
 
 const acceptedProjection = requireGeneratedProjection(projection);
+const GitWarpAdapter = await loadGitWarpAdapter();
 const adapter = await GitWarpAdapter.create(makeGraph(acceptedProjection));
 const receiptSummaries = await adapter.receipts('head:default', 1);
 const receipt = receiptSummaries[0];
