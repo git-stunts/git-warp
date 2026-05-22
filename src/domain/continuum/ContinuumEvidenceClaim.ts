@@ -14,6 +14,7 @@ export default class ContinuumEvidenceClaim {
   readonly posture: ContinuumEvidencePosture;
   readonly nativeWitnessProof: string | undefined;
 
+  /** Builds an immutable evidence claim after validating its descriptor and posture. */
   constructor(fields: ContinuumEvidenceClaimFields) {
     const checkedFields = requireFields(fields);
     this.descriptor = requireDescriptor(checkedFields.descriptor);
@@ -44,6 +45,7 @@ export default class ContinuumEvidenceClaim {
     return this;
   }
 
+  /** Enforces that native proof exists only for native Continuum evidence. */
   private assertNativeProofMatchesPosture(): void {
     if (this.posture.isNativeContinuumEvidence() && this.nativeWitnessProof === undefined) {
       throw new WarpError('native Continuum evidence requires nativeWitnessProof', 'E_VALIDATION');

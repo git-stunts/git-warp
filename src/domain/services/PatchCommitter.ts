@@ -160,6 +160,7 @@ export async function commitPatch(state: CommitState): Promise<string> {
   return newCommitSha;
 }
 
+/** Builds a WriterError that preserves expected and actual writer-ref heads. */
 function buildWriterCasConflict(expectedSha: string | null, actualSha: string | null): WriterError {
   const err = new WriterError(
     'WRITER_CAS_CONFLICT',
@@ -170,6 +171,7 @@ function buildWriterCasConflict(expectedSha: string | null, actualSha: string | 
   return err;
 }
 
+/** Advances a writer ref atomically and translates stale-head failures. */
 async function compareAndSwapWriterRef(
   persistence: PersistencePorts,
   writerRef: string,
@@ -187,6 +189,7 @@ async function compareAndSwapWriterRef(
   }
 }
 
+/** Verifies that a successful commit is immediately visible at the writer ref. */
 async function assertWriterRefVisible(
   persistence: PersistencePorts,
   writerRef: string,

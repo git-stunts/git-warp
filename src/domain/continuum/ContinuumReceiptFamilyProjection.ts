@@ -62,6 +62,7 @@ export default class ContinuumReceiptFamilyProjection {
   readonly witnesses: readonly Readonly<ContinuumReceiptWitnessFact>[];
   readonly deliveryObservations: readonly Readonly<ContinuumDeliveryObservationFact>[];
 
+  /** Builds an immutable receipt-family projection from validated source facts. */
   constructor(fields: ContinuumReceiptFamilyProjectionFields) {
     const checkedFields = requireFields(fields);
     this.evidence = requireEvidence(checkedFields.evidence).requireTranslatedGitWarpEvidence();

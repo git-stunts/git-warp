@@ -19,6 +19,7 @@ export const CONTINUUM_EVIDENCE_POSTURES: readonly ContinuumEvidencePostureValue
 export default class ContinuumEvidencePosture {
   readonly value: ContinuumEvidencePostureValue;
 
+  /** Builds an immutable posture from a validated Continuum evidence label. */
   constructor(value: string) {
     this.value = requireContinuumEvidencePosture(value);
     Object.freeze(this);

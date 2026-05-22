@@ -15,6 +15,7 @@ export default class GitWarpReceiptSourceFacts {
   readonly deliveryObservations: readonly DeliveryObservation[];
   readonly receiptShard: ReceiptShard | undefined;
 
+  /** Builds immutable projection inputs from local git-warp receipt carriers. */
   constructor(fields: GitWarpReceiptSourceFactsFields) {
     const checkedFields = requireFields(fields);
     this.tickReceipt = requireTickReceipt(checkedFields.tickReceipt);
