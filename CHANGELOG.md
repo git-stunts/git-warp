@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- V18 Continuum review follow-up now validates constructor envelopes before
+  dereferencing fields, rejects null receipt delivery-observation carriers,
+  documents the new source declarations, and keeps split PatchBuilder/Writer
+  test files under the line-count policy while preserving CAS fixture coverage.
+
 ## [17.0.1] — 2026-05-22
 
 ### Fixed
