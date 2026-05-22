@@ -214,12 +214,18 @@ import ContinuumArtifactIngestionPolicy from './src/domain/continuum/ContinuumAr
 import ContinuumEvidencePosture from './src/domain/continuum/ContinuumEvidencePosture.ts';
 import ContinuumEvidenceStatus from './src/domain/continuum/ContinuumEvidenceStatus.ts';
 import ContinuumFamilyId from './src/domain/continuum/ContinuumFamilyId.ts';
+import ContinuumReceipt from './src/domain/continuum/ContinuumReceipt.ts';
+import ContinuumReceiptFamilyProjection from './src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
+import ContinuumReceiptProjector from './src/domain/continuum/ContinuumReceiptProjector.ts';
 import ContinuumArtifactJsonFileAdapter from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 import type { ContinuumArtifactAuthorityValue } from './src/domain/continuum/ContinuumArtifactAuthority.ts';
 import type { ContinuumArtifactDescriptorFields } from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
 import type { ContinuumEvidencePostureValue } from './src/domain/continuum/ContinuumEvidencePosture.ts';
 import type { ContinuumEvidenceStatusFields } from './src/domain/continuum/ContinuumEvidenceStatus.ts';
 import type { ContinuumFamilyIdValue } from './src/domain/continuum/ContinuumFamilyId.ts';
+import type { ContinuumReceiptFields } from './src/domain/continuum/ContinuumReceipt.ts';
+import type { ContinuumReceiptFamilyProjectionFields } from './src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
+import type { ContinuumReceiptProjectionRequest } from './src/domain/continuum/ContinuumReceiptProjector.ts';
 import type { ContinuumArtifactJsonLoadContext } from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 
 export {
@@ -340,6 +346,9 @@ export {
   ContinuumEvidencePosture,
   ContinuumEvidenceStatus,
   ContinuumFamilyId,
+  ContinuumReceipt,
+  ContinuumReceiptFamilyProjection,
+  ContinuumReceiptProjector,
   ContinuumArtifactJsonFileAdapter,
 
   // Tick receipts (LIGHTHOUSE)
@@ -394,6 +403,9 @@ export type {
   ContinuumEvidenceStatusFields,
   ContinuumArtifactJsonLoadContext,
   ContinuumFamilyIdValue,
+  ContinuumReceiptFields,
+  ContinuumReceiptFamilyProjectionFields,
+  ContinuumReceiptProjectionRequest,
 };
 
 // WarpApp is the primary product-facing API for v15.

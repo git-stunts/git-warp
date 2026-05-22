@@ -197,8 +197,12 @@ before the final commit for that slice, and mark completed items with `- [x]`.
   builders for the same writer, commits them concurrently, proves exactly one
   wins, asserts the writer ref names the winning SHA, and verifies only the
   winning node is visible after materialization.
-- [ ] 9. Project git-warp receipt facts into the generated Continuum
-  receipt-family shape with conformance tests.
+- [x] 9. Project git-warp receipt facts into the generated Continuum
+  receipt-family shape with conformance tests. `ContinuumReceiptProjector` now
+  maps `TickReceipt` into runtime-backed Continuum receipt-family `Receipt`
+  facts, `ContinuumReceiptFamilyProjection` carries the receipt-family artifact
+  descriptor and explicit evidence status, and non-receipt-family artifacts are
+  rejected.
 - [ ] 10. Add the first `warp-ttd` smoke over generated-family git-warp receipt
   facts instead of handwritten adapter-local receipt folklore.
 - [ ] 11. Re-plan with evidence in hand before expanding into reading-envelope,
