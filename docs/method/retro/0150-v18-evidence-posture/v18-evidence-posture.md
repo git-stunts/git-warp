@@ -12,9 +12,9 @@ completed_at: 2026-05-21
 
 ## Hill
 
-`git-warp` has a runtime-backed evidence status that separates translated
-substrate evidence from native Continuum evidence and requires a native witness
-reference before native evidence can be claimed.
+`git-warp` has a runtime-backed evidence status that separates participant
+runtime evidence from Continuum-witnessed evidence and requires an explicit
+Continuum witness reference before witnessed evidence can be claimed.
 
 ## Result
 
@@ -33,18 +33,18 @@ npm run typecheck:src -- --pretty false
 ## Drift Check
 
 No drift. The implementation stayed within the evidence-posture slice and did
-not start receipt-family projection or native witness production.
+not start receipt-family projection or Continuum witness production.
 
 ## What Mess We Got Into
 
 The repo had a generated-artifact gate but no runtime object for the more
-dangerous claim: whether a Continuum-shaped value is native evidence or merely
-translated substrate evidence.
+dangerous claim: whether a Continuum-shaped value carries an explicit witness
+reference or is participant-runtime evidence from `git-warp`.
 
 ## What Mess We Got Out Of
 
-Native Continuum evidence now has to carry `nativeWitnessRef`. Translated
-git-warp evidence is the explicit default and cannot include that native
+Continuum-witnessed evidence now has to carry `continuumWitnessRef`.
+Git-warp participant evidence is the explicit default and cannot include that
 witness field.
 
 ## What Comes Next

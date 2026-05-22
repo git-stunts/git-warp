@@ -25,7 +25,8 @@ participant without collapsing it into Echo, Wesley, or `warp-ttd`.
 - it consumes Wesley-generated artifacts for Continuum-owned contract families;
 - it maps append-only Git history into honest WARP Optic evidence;
 - it exposes generated-family facts to `warp-ttd`;
-- it separates translated git-warp evidence from native Continuum witnesshood.
+- it separates git-warp participant evidence from separate Continuum
+  witnesshood.
 
 ## Source Artifacts
 
@@ -100,13 +101,13 @@ defines `git-warp`'s participant obligations.
 
 ## Evidence Posture
 
-The default posture for existing git-warp facts mapped into Continuum-family
-shapes is translated evidence. A value may be Continuum-shaped without being
-Continuum-native.
+The default posture for existing git-warp facts projected into Continuum-family
+shapes is participant-runtime evidence. A value may be Continuum-shaped without
+carrying a separate Continuum witness reference.
 
-`git-warp` may claim native Continuum witnesshood only after a runtime witness
+`git-warp` may attach a Continuum witness reference only after a runtime witness
 proves the value was produced through the corresponding Continuum family
-contract and not merely mapped from local git-warp facts.
+contract and not merely projected from local git-warp facts.
 
 ## Non-Goals
 
@@ -116,7 +117,7 @@ contract and not merely mapped from local git-warp facts.
   contracts.
 - Do not build a generic WARP Optic runtime before repeated concrete
   compatibility cuts justify it.
-- Do not claim native Continuum witnesshood for translated git-warp evidence.
+- Do not claim separate Continuum witnesshood for git-warp participant evidence.
 
 ## Acceptance
 
@@ -144,7 +145,7 @@ The v18 opening campaign is on track when:
 - Message parsing: green; no behavior branches are introduced.
 - Ambient time or entropy: green; no runtime code introduced.
 - Fake shape trust or cast-cosplay: green; the charter explicitly rejects fake
-  native witnesshood.
+  witnesshood.
 
 ## Closeout
 

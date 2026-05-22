@@ -6,10 +6,10 @@ export type ContinuumEvidenceStatusFields = {
   readonly sourceRuntime: string;
   readonly basisRef: string;
   readonly summary: string;
-  readonly nativeWitnessRef?: string;
+  readonly continuumWitnessRef?: string;
 };
 
-export type TranslatedGitWarpEvidenceFields = {
+export type GitWarpParticipantEvidenceFields = {
   readonly basisRef: string;
   readonly summary: string;
 };
@@ -20,36 +20,36 @@ export default class ContinuumEvidenceStatus {
   readonly sourceRuntime: string;
   readonly basisRef: string;
   readonly summary: string;
-  readonly nativeWitnessRef: string | undefined;
+  readonly continuumWitnessRef: string | undefined;
 
   constructor(fields: ContinuumEvidenceStatusFields) {
     this.posture = normalizePosture(fields.posture);
     this.sourceRuntime = requireNonEmptyString(fields.sourceRuntime, 'sourceRuntime');
     this.basisRef = requireNonEmptyString(fields.basisRef, 'basisRef');
     this.summary = requireNonEmptyString(fields.summary, 'summary');
-    this.nativeWitnessRef = optionalNonEmptyString(fields.nativeWitnessRef, 'nativeWitnessRef');
-    validateNativeWitnessPosture(this.posture, this.nativeWitnessRef);
+    this.continuumWitnessRef = optionalNonEmptyString(fields.continuumWitnessRef, 'continuumWitnessRef');
+    validateContinuumWitnessPosture(this.posture, this.continuumWitnessRef);
     Object.freeze(this);
   }
 
-  /** Creates the default v18 evidence posture for git-warp compatibility output. */
-  static translatedGitWarp(fields: TranslatedGitWarpEvidenceFields): ContinuumEvidenceStatus {
+  /** Creates the default v18 evidence posture for git-warp participant output. */
+  static gitWarpParticipant(fields: GitWarpParticipantEvidenceFields): ContinuumEvidenceStatus {
     return new ContinuumEvidenceStatus({
-      posture: 'translated-substrate',
+      posture: 'participant-runtime',
       sourceRuntime: 'git-warp',
       basisRef: fields.basisRef,
       summary: fields.summary,
     });
   }
 
-  /** Returns true for compatibility evidence translated from substrate facts. */
-  isTranslatedSubstrate(): boolean {
-    return this.posture.isTranslatedSubstrate();
+  /** Returns true for evidence produced by a Continuum participant runtime. */
+  isParticipantRuntime(): boolean {
+    return this.posture.isParticipantRuntime();
   }
 
-  /** Returns true only when native Continuum witnesshood is explicitly carried. */
-  isContinuumNative(): boolean {
-    return this.posture.isContinuumNative();
+  /** Returns true only when an explicit Continuum witness reference is carried. */
+  isContinuumWitnessed(): boolean {
+    return this.posture.isContinuumWitnessed();
   }
 }
 
@@ -77,15 +77,15 @@ function optionalNonEmptyString(value: string | undefined, name: string): string
   return requireNonEmptyString(value, name);
 }
 
-/** Enforces that native evidence cannot be claimed by posture alone. */
-function validateNativeWitnessPosture(
+/** Enforces that witnessed evidence cannot be claimed by posture alone. */
+function validateContinuumWitnessPosture(
   posture: ContinuumEvidencePosture,
-  nativeWitnessRef: string | undefined,
+  continuumWitnessRef: string | undefined,
 ): void {
-  if (posture.isContinuumNative() && nativeWitnessRef === undefined) {
-    throw new WarpError('nativeWitnessRef is required for native Continuum evidence', 'E_VALIDATION');
+  if (posture.isContinuumWitnessed() && continuumWitnessRef === undefined) {
+    throw new WarpError('continuumWitnessRef is required for Continuum-witnessed evidence', 'E_VALIDATION');
   }
-  if (posture.isTranslatedSubstrate() && nativeWitnessRef !== undefined) {
-    throw new WarpError('translated substrate evidence must not carry nativeWitnessRef', 'E_VALIDATION');
+  if (posture.isParticipantRuntime() && continuumWitnessRef !== undefined) {
+    throw new WarpError('participant runtime evidence must not carry continuumWitnessRef', 'E_VALIDATION');
   }
 }

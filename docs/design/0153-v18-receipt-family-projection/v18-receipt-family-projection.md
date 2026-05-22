@@ -15,14 +15,14 @@ release_home: v18.0.0
 ## Pull
 
 The repo can admit generated receipt-family artifacts and can now distinguish
-translated substrate evidence from native Continuum evidence. The next step is
-to project real `git-warp` receipt facts into the generated Continuum
+git-warp participant evidence from Continuum-witnessed evidence. The next step
+is to project real `git-warp` receipt facts into the generated Continuum
 receipt-family shape.
 
 ## Hill
 
 `TickReceipt` values can be projected into Continuum receipt-family `Receipt`
-facts with generated artifact authority and explicit translated git-warp
+facts with generated artifact authority and explicit git-warp participant
 evidence posture.
 
 ## Playback Questions
@@ -57,7 +57,7 @@ separate inspectable fields.
 
 ## Non-Goals
 
-- Do not claim native Continuum witnesshood.
+- Do not claim separate Continuum witnesshood.
 - Do not add delivery observation projection yet.
 - Do not call Wesley or parse GraphQL at runtime.
 
@@ -134,7 +134,7 @@ Human answer:
 - Message parsing: green; no behavior branches parse messages.
 - Ambient time or entropy: green; no ambient time or entropy introduced.
 - Fake shape trust or cast-cosplay: green; evidence status remains separate and
-  translated by default.
+  participant-runtime by default.
 
 ## Closeout
 

@@ -90,6 +90,23 @@ describe('PatchCommitter visibility contract', () => {
     });
   });
 
+  it('preserves post-CAS visibility errors through Writer patch sessions', async () => {
+    const persistence = new DriftAfterCasGraphAdapter();
+    const graph = await openRuntimeHostProduct({
+      persistence,
+      graphName: GRAPH_NAME,
+      writerId: WRITER_ID,
+      autoMaterialize: true,
+    });
+    const writer = await graph.writer(WRITER_ID);
+
+    await expect(writer.commitPatch((patch) => {
+      patch.addNode('node:writer-drift');
+    })).rejects.toMatchObject({
+      code: 'WRITER_COMMIT_NOT_VISIBLE',
+    });
+  });
+
   it('makes the returned patch commit visible through graph materialization', async () => {
     const persistence = new RecordingGraphAdapter();
     const graph = await openRuntimeHostProduct({

@@ -3,56 +3,56 @@ import ContinuumEvidencePosture from '../../../../src/domain/continuum/Continuum
 import ContinuumEvidenceStatus from '../../../../src/domain/continuum/ContinuumEvidenceStatus.ts';
 
 const PATCH_BASIS_REF = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
-const NATIVE_WITNESS_REF = 'continuum:witness:receipt-family:1';
+const CONTINUUM_WITNESS_REF = 'continuum:witness:receipt-family:1';
 
 describe('ContinuumEvidenceStatus', () => {
-  it('marks git-warp evidence as translated substrate evidence', () => {
-    const status = ContinuumEvidenceStatus.translatedGitWarp({
+  it('marks git-warp evidence as participant runtime evidence', () => {
+    const status = ContinuumEvidenceStatus.gitWarpParticipant({
       basisRef: PATCH_BASIS_REF,
       summary: 'git-warp patch receipt projected into receipt-family shape',
     });
 
-    expect(status.posture.toString()).toBe('translated-substrate');
+    expect(status.posture.toString()).toBe('participant-runtime');
     expect(status.sourceRuntime).toBe('git-warp');
     expect(status.basisRef).toBe(PATCH_BASIS_REF);
-    expect(status.nativeWitnessRef).toBeUndefined();
-    expect(status.isTranslatedSubstrate()).toBe(true);
-    expect(status.isContinuumNative()).toBe(false);
+    expect(status.continuumWitnessRef).toBeUndefined();
+    expect(status.isParticipantRuntime()).toBe(true);
+    expect(status.isContinuumWitnessed()).toBe(false);
     expect(Object.isFrozen(status)).toBe(true);
   });
 
-  it('accepts native Continuum evidence only with an explicit native witness reference', () => {
+  it('accepts Continuum-witnessed evidence only with an explicit witness reference', () => {
     const status = new ContinuumEvidenceStatus({
-      posture: 'continuum-native',
+      posture: 'continuum-witnessed',
       sourceRuntime: 'git-warp',
       basisRef: PATCH_BASIS_REF,
-      nativeWitnessRef: NATIVE_WITNESS_REF,
-      summary: 'receipt-family value was produced through native Continuum witnesshood',
+      continuumWitnessRef: CONTINUUM_WITNESS_REF,
+      summary: 'receipt-family value carries an explicit Continuum witness reference',
     });
 
-    expect(status.posture.toString()).toBe('continuum-native');
-    expect(status.nativeWitnessRef).toBe(NATIVE_WITNESS_REF);
-    expect(status.isContinuumNative()).toBe(true);
-    expect(status.isTranslatedSubstrate()).toBe(false);
+    expect(status.posture.toString()).toBe('continuum-witnessed');
+    expect(status.continuumWitnessRef).toBe(CONTINUUM_WITNESS_REF);
+    expect(status.isContinuumWitnessed()).toBe(true);
+    expect(status.isParticipantRuntime()).toBe(false);
   });
 
-  it('rejects native Continuum evidence without a native witness reference', () => {
+  it('rejects Continuum-witnessed evidence without a witness reference', () => {
     expect(() => new ContinuumEvidenceStatus({
-      posture: 'continuum-native',
+      posture: 'continuum-witnessed',
       sourceRuntime: 'git-warp',
       basisRef: PATCH_BASIS_REF,
       summary: 'missing witness',
-    })).toThrow('nativeWitnessRef');
+    })).toThrow('continuumWitnessRef');
   });
 
-  it('rejects translated substrate evidence that carries a native witness reference', () => {
+  it('rejects participant runtime evidence that carries a Continuum witness reference', () => {
     expect(() => new ContinuumEvidenceStatus({
-      posture: 'translated-substrate',
+      posture: 'participant-runtime',
       sourceRuntime: 'git-warp',
       basisRef: PATCH_BASIS_REF,
-      nativeWitnessRef: NATIVE_WITNESS_REF,
-      summary: 'translated evidence cannot claim native witnesshood',
-    })).toThrow('translated substrate evidence must not carry nativeWitnessRef');
+      continuumWitnessRef: CONTINUUM_WITNESS_REF,
+      summary: 'participant runtime evidence cannot claim a separate witness reference',
+    })).toThrow('participant runtime evidence must not carry continuumWitnessRef');
   });
 });
 

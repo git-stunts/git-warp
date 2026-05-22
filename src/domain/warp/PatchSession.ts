@@ -74,6 +74,9 @@ function _buildCasConflictError(
 function _classifyCommitError(err: unknown, ctx: CommitContext): WriterError { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const { errMsg, cause } = _extractErrorInfo(err);
   const casError = _extractCasError(err);
+  if (casError !== null && casError.code === 'WRITER_COMMIT_NOT_VISIBLE') {
+    return new WriterError('WRITER_COMMIT_NOT_VISIBLE', errMsg, cause);
+  }
   if (casError !== null && casError.code === 'WRITER_CAS_CONFLICT') {
     return _buildCasConflictError(casError, cause, ctx);
   }

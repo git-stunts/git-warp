@@ -40,8 +40,8 @@ The long-term compatibility target is the WARP Optic shape described in
 `~/git/blog/aion-paper-07/dist/aion-paper-07.txt`, plus the Continuum
 contract families authored in `~/git/continuum/schemas/` and compiled by
 Wesley. Echo and `git-warp` are sibling runtime implementations. `git-warp`
-has its own Continuum role, and it must not emit Continuum-shaped values as
-native Continuum witnesses until that witnesshood is actually proven.
+has its own Continuum role, and it must not attach a separate Continuum witness
+reference to projected values until that witnesshood is actually proven.
 
 Backlog fold-in: the repo-visible v18 lane is
 `WL-4A-v18-graph-substrate-convergence` in
@@ -56,12 +56,12 @@ Continuum role.
 
 Current branch state at this boundary:
 
-- Branch: `v18-continuum-opening`
+- Branch: `v18-evidence-receipt-projection`
 - Release tag: `v17.0.0`
-- Latest remote head inspected: `origin/main` at `5afdd3eb`
+- Latest remote head inspected: `origin/main` at `6d4a0d6`
 - Latest package version: `17.0.0`
 - Latest closed cycle:
-  `0145-push-pr-review-merge`
+  `0154-v18-warp-ttd-receipt-smoke`
 
 The release ladder is now:
 
@@ -140,10 +140,10 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 - v18 can easily turn into adapter folklore if `git-warp` hand-authors local
   mirrors of Continuum-owned families instead of consuming Wesley-generated
   artifacts.
-- v18 can also lie in the other direction: Continuum-shaped values are not
-  Continuum-native witnesses unless the runtime has actually proven native
-  witnesshood. Initial git-warp compatibility evidence should be treated as
-  translated git-warp evidence until stronger proof exists.
+- v18 can also lie in the other direction: Continuum-shaped values do not carry
+  separate Continuum witness references unless that witnesshood is actually
+  proven. Initial git-warp compatibility evidence should be treated as
+  participant-runtime evidence until stronger proof exists.
 - The v18 backlog already names a graph-model convergence lane. The plan must
   fold that lane into Continuum compatibility instead of replacing it with a
   parallel cross-repo adapter plan.
@@ -178,13 +178,13 @@ before the final commit for that slice, and mark completed items with `- [x]`.
   and one-file-per-concept caps, self-attested authority fields from artifact
   JSON are rejected, policy-test authority fixtures are named constants, and
   empty or internally inconsistent Wesley generated inventory is rejected.
-- [x] 6. Make evidence posture explicit: translated git-warp evidence first,
-  native Continuum evidence only after native witnesshood is proven. The
+- [x] 6. Make evidence posture explicit: git-warp participant evidence first,
+  Continuum-witnessed evidence only after a witness reference is present. The
   current seam adds runtime-backed `ContinuumEvidencePosture` and
-  `ContinuumEvidenceStatus`; translated git-warp evidence is explicit
-  `translated-substrate` evidence, native Continuum evidence cannot be
-  constructed without `nativeWitnessRef`, and translated evidence rejects native
-  witness references.
+  `ContinuumEvidenceStatus`; git-warp evidence is explicit
+  `participant-runtime` evidence, Continuum-witnessed evidence cannot be
+  constructed without `continuumWitnessRef`, and participant-runtime evidence
+  rejects Continuum witness references.
 - [x] 7. Prove the patch commit visibility contract: success means canonical
   writer-tip advancement and visible graph truth, not just object creation. The
   patch commit path now advances writer refs with `compareAndSwapRef()`,
@@ -209,7 +209,7 @@ before the final commit for that slice, and mark completed items with `- [x]`.
   loads the generated receipt-family fixture descriptor through the adapter
   seam, projects the receipt into `ContinuumReceiptFamilyProjection`, queries
   by head and frame for the `warp-ttd` target, and keeps evidence posture
-  explicitly translated rather than native.
+  explicitly participant-runtime rather than Continuum-witnessed.
 - [ ] 11. Re-plan with evidence in hand before expanding into reading-envelope,
   suffix/runtime-boundary, neighborhood-core, and settlement-family slices.
 

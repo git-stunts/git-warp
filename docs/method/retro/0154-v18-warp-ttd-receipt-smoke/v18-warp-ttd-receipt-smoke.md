@@ -14,7 +14,7 @@ completed_at: 2026-05-21
 
 A live git-warp patch receipt can be projected through the generated
 receipt-family descriptor into `warp-ttd`-targeted receipt facts with explicit
-translated evidence posture.
+participant-runtime evidence posture.
 
 ## Result
 
@@ -44,7 +44,7 @@ consume it by knowing the raw git-warp receipt shape.
 ## What Mess We Got Out Of
 
 There is now an executable smoke proving a live git-warp receipt can be exposed
-as generated receipt-family facts with translated evidence posture.
+as generated receipt-family facts with participant-runtime evidence posture.
 
 ## What Comes Next
 

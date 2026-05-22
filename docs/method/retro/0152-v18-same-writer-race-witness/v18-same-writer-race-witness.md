@@ -49,4 +49,4 @@ builder wins; the losing builder is not graph truth.
 ## What Comes Next
 
 Project `TickReceipt` facts into Continuum receipt-family `Receipt` facts with
-translated git-warp evidence posture.
+git-warp participant evidence posture.

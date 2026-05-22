@@ -45,8 +45,8 @@ function createReceipt(patchSha = PATCH_SHA, lamport = 7): TickReceipt {
   });
 }
 
-function translatedEvidence(): ContinuumEvidenceStatus {
-  return ContinuumEvidenceStatus.translatedGitWarp({
+function participantEvidence(): ContinuumEvidenceStatus {
+  return ContinuumEvidenceStatus.gitWarpParticipant({
     basisRef: PATCH_SHA,
     summary: 'git-warp tick receipt projected into receipt-family shape',
   });
@@ -74,7 +74,7 @@ describe('ContinuumReceiptProjector', () => {
 
   it('wraps projected receipts with generated artifact authority and evidence status', () => {
     const artifact = createReceiptDescriptor();
-    const evidence = translatedEvidence();
+    const evidence = participantEvidence();
     const projection = new ContinuumReceiptProjector().projectTickReceipts({
       artifact,
       evidence,
@@ -87,7 +87,7 @@ describe('ContinuumReceiptProjector', () => {
     expect(projection.artifact).toBe(artifact);
     expect(projection.evidence).toBe(evidence);
     expect(projection.artifact.familyId.equals(new ContinuumFamilyId('receipt-family'))).toBe(true);
-    expect(projection.evidence.isTranslatedSubstrate()).toBe(true);
+    expect(projection.evidence.isParticipantRuntime()).toBe(true);
     expect(projection.receipts).toHaveLength(2);
     expect(projection.receiptsForHead(PATCH_SHA)).toHaveLength(1);
     expect(projection.receiptsForHead(SECOND_PATCH_SHA, 8)).toHaveLength(1);
@@ -97,7 +97,7 @@ describe('ContinuumReceiptProjector', () => {
   it('rejects non-receipt-family artifacts', () => {
     expect(() => new ContinuumReceiptProjector().projectTickReceipts({
       artifact: createSettlementDescriptor(),
-      evidence: translatedEvidence(),
+      evidence: participantEvidence(),
       tickReceipts: [createReceipt()],
     })).toThrow('receipt-family');
   });

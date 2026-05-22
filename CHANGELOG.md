@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- v18 Continuum evidence posture now uses participant-runtime and
+  Continuum-witnessed vocabulary instead of substrate/native framing, and
+  git-warp participant evidence cannot carry a Continuum witness reference.
+- Writer patch sessions now preserve `WRITER_COMMIT_NOT_VISIBLE` when a
+  post-CAS visibility failure reaches the public writer API instead of
+  collapsing it to `PERSIST_WRITE_FAILED`.
+- BEARING and v18 cycle notes now reflect the current PR branch, latest closed
+  cycle, and participant evidence terminology.
 - Continuum artifact ingestion now enforces artifact-kind/authority pairing at
   the domain policy layer, keeps review fixtures repo-neutral, and splits the
   JSON adapter into focused parser, validation, fixture, and Wesley inventory

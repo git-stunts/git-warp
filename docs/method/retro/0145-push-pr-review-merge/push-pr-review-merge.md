@@ -35,4 +35,4 @@ acceptance over generated-family facts.
 The release train made it into the station, then the station sign kept saying
 "boarding soon." This retro fixes the sign. The next mess is bigger: teach
 `git-warp` to speak Continuum contract families without dressing adapter
-folklore up as native witnesshood.
+folklore up as separate Continuum witnesshood.

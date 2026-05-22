@@ -22,7 +22,7 @@ those facts without reverse-engineering raw `TickReceipt` shape.
 
 A live git-warp patch receipt can be projected through the generated
 receipt-family descriptor into `warp-ttd`-targeted receipt facts with explicit
-translated evidence posture.
+participant-runtime evidence posture.
 
 ## Playback Questions
 
@@ -33,7 +33,7 @@ Agent:
   handwritten descriptor-only shortcut?
 - Does it query projected receipt-family facts by head and frame for a
   `warp-ttd` target?
-- Does the projection keep translated evidence posture explicit?
+- Does the projection keep participant-runtime evidence posture explicit?
 
 Human:
 
@@ -57,7 +57,7 @@ separate inspectable facts.
 
 - Do not edit the `warp-ttd` repo in this slice.
 - Do not add delivery observation projection.
-- Do not claim native Continuum witnesshood.
+- Do not claim separate Continuum witnesshood.
 
 ## RED
 
@@ -88,8 +88,8 @@ The smoke:
    `ContinuumArtifactJsonFileAdapter`;
 5. projects the materialized receipts into `ContinuumReceiptFamilyProjection`;
 6. queries `receiptsForHead()` for the winning patch SHA and frame;
-7. asserts the evidence posture remains translated substrate evidence, not
-   native Continuum evidence.
+7. asserts the evidence posture remains participant-runtime evidence, not
+   Continuum-witnessed evidence.
 
 ## Playback
 
@@ -111,7 +111,7 @@ Agent answers:
   artifact adapter.
 - Yes, it queries projected receipt-family facts by head and frame for a
   `warp-ttd` target.
-- Yes, translated evidence posture remains explicit.
+- Yes, participant-runtime evidence posture remains explicit.
 
 Human answer:
 
@@ -128,8 +128,8 @@ Human answer:
   `warp-ttd` remains a consumer target.
 - Message parsing: green; no behavior branches parse messages.
 - Ambient time or entropy: green; no ambient time or entropy introduced.
-- Fake shape trust or cast-cosplay: green; the projection remains translated
-  evidence and does not claim native witnesshood.
+- Fake shape trust or cast-cosplay: green; the projection remains
+  participant-runtime evidence and does not claim separate witnesshood.
 
 ## Closeout
 

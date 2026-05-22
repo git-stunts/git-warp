@@ -1,15 +1,15 @@
 import WarpError from '../errors/WarpError.ts';
 
-const TRANSLATED_SUBSTRATE_POSTURE = 'translated-substrate';
-const CONTINUUM_NATIVE_POSTURE = 'continuum-native';
+const PARTICIPANT_RUNTIME_POSTURE = 'participant-runtime';
+const CONTINUUM_WITNESSED_POSTURE = 'continuum-witnessed';
 
 export type ContinuumEvidencePostureValue =
-  | typeof TRANSLATED_SUBSTRATE_POSTURE
-  | typeof CONTINUUM_NATIVE_POSTURE;
+  | typeof PARTICIPANT_RUNTIME_POSTURE
+  | typeof CONTINUUM_WITNESSED_POSTURE;
 
 export const CONTINUUM_EVIDENCE_POSTURES: readonly ContinuumEvidencePostureValue[] = Object.freeze([
-  TRANSLATED_SUBSTRATE_POSTURE,
-  CONTINUUM_NATIVE_POSTURE,
+  PARTICIPANT_RUNTIME_POSTURE,
+  CONTINUUM_WITNESSED_POSTURE,
 ]);
 
 /** Runtime-backed evidence posture for Continuum-compatible values. */
@@ -21,14 +21,14 @@ export default class ContinuumEvidencePosture {
     Object.freeze(this);
   }
 
-  /** Returns true for compatibility evidence translated from git-warp substrate facts. */
-  isTranslatedSubstrate(): boolean {
-    return this.value === TRANSLATED_SUBSTRATE_POSTURE;
+  /** Returns true for evidence produced by a Continuum participant runtime. */
+  isParticipantRuntime(): boolean {
+    return this.value === PARTICIPANT_RUNTIME_POSTURE;
   }
 
-  /** Returns true only for values backed by native Continuum witnesshood. */
-  isContinuumNative(): boolean {
-    return this.value === CONTINUUM_NATIVE_POSTURE;
+  /** Returns true only for values backed by an explicit Continuum witness. */
+  isContinuumWitnessed(): boolean {
+    return this.value === CONTINUUM_WITNESSED_POSTURE;
   }
 
   /** Returns the stable posture string. */

@@ -13,7 +13,7 @@ completed_at: 2026-05-21
 ## Hill
 
 `TickReceipt` values can be projected into Continuum receipt-family `Receipt`
-facts with generated artifact authority and explicit translated git-warp
+facts with generated artifact authority and explicit git-warp participant
 evidence posture.
 
 ## Result
@@ -37,7 +37,7 @@ git diff --check
 ## Drift Check
 
 No drift. The slice projected `TickReceipt` to receipt-family `Receipt` facts
-only. Delivery observations and native Continuum witness production remain
+only. Delivery observations and separate Continuum witness production remain
 out of scope.
 
 ## What Mess We Got Into
@@ -47,7 +47,7 @@ shape. That is adapter folklore, not a generated-family contract.
 
 ## What Mess We Got Out Of
 
-`git-warp` now owns the translation from its local receipt fact into a
+`git-warp` now owns the projection from its local receipt fact into a
 Continuum receipt-family `Receipt`, with evidence posture carried separately.
 
 ## What Comes Next

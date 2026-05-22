@@ -43,7 +43,7 @@ as a compatibility map over existing repo facts.
 
 | Scale | Weave `P` | Frontier `F*` | Result `R` | Witness `W` | Retained shell `theta` | Current posture |
 | --- | --- | --- | --- | --- | --- | --- |
-| Tick / patch | One patch or ordered patch sequence | Writer and graph frontier | State transition, `PatchDiff`, or op outcomes | `TickReceipt`, op outcome details | Patch commit, receipt, optional audit receipt | Real local runtime fact; not native Continuum receipt-family output yet |
+| Tick / patch | One patch or ordered patch sequence | Writer and graph frontier | State transition, `PatchDiff`, or op outcomes | `TickReceipt`, op outcome details | Patch commit, receipt, optional audit receipt | Real local runtime fact; not linked to separate Continuum receipt-family witnesses yet |
 | Read / optic | Observer/read target plus basis | Live, coordinate, or strand source | Node/property/traversal/materialized reading | `ReadIdentity`, checkpoint-tail witnesses, failure cause | Read identity plus checkpoint/tail anchors | Real local read fact; missing generated `ReadingEnvelope` |
 | Provenance slice | Backward cone for a target | Patch graph reachable from target | Bounded reconstructed state and patch count | Causal patch list, optional receipts | Provenance payload and source SHAs | Real local source fact; missing Continuum evidence wrapper |
 | Strand / braid | Strand overlay or braided strand set | Parent frontier plus overlay heads | Materialized strand state or conflict trace | conflict receipts, conflict anchors, participant traces | strand descriptor, overlay patches, conflict analysis | Candidate settlement-family source facts |
@@ -68,8 +68,8 @@ Current `git-warp` facts map into it conservatively:
 
 ## Evidence Posture
 
-The first v18 compatibility layer must mark `git-warp` outputs as translated
-evidence unless a native Continuum runtime witness exists.
+The first v18 compatibility layer must mark `git-warp` outputs as
+participant-runtime evidence unless a separate Continuum witness exists.
 
 That means:
 
@@ -77,7 +77,7 @@ That means:
 - a conflict trace can be mapped toward `settlement-family`;
 - a read result can be mapped toward `runtime-boundary-family`;
 - a sync suffix can be mapped toward `WitnessedSuffixShell`;
-- none of those mappings may claim native Continuum witnesshood by shape alone.
+- none of those mappings may claim separate Continuum witnesshood by shape alone.
 
 ## Next Engineering Cut
 
@@ -92,7 +92,7 @@ The seam should not:
 - parse arbitrary GraphQL in the domain;
 - generate types at runtime;
 - make `git-warp` the owner of Continuum family semantics;
-- equate translated `git-warp` evidence with native Continuum witnesshood.
+- equate git-warp participant evidence with separate Continuum witnesshood.
 
 ## SSJS Scorecard
 
@@ -104,7 +104,8 @@ The seam should not:
   modules and their gaps are named.
 - Message parsing: green; no behavior branches introduced.
 - Ambient time or entropy: green; no runtime code introduced.
-- Fake shape trust or cast-cosplay: green; translated evidence is explicit.
+- Fake shape trust or cast-cosplay: green; participant-runtime evidence is
+  explicit.
 
 ## Closeout
 

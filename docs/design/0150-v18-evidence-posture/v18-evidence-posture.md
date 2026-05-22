@@ -15,28 +15,29 @@ release_home: v18.0.0
 ## Pull
 
 The generated-artifact seam can now admit Continuum-family descriptors, but
-the next compatibility cut must prevent a shaped value from pretending to be a
-native Continuum witness.
+the next compatibility cut must prevent a projected value from pretending to
+carry a separate Continuum witness reference.
 
 ## Hill
 
-`git-warp` has a runtime-backed evidence status that separates translated
-substrate evidence from native Continuum evidence and requires a native witness
-reference before native evidence can be claimed.
+`git-warp` has a runtime-backed evidence status that separates participant
+runtime evidence from Continuum-witnessed evidence and requires an explicit
+Continuum witness reference before witnessed evidence can be claimed.
 
 ## Playback Questions
 
 Agent:
 
-- Does translated git-warp evidence carry an explicit translated posture?
-- Does native Continuum evidence require a native witness reference?
-- Does the model reject translated evidence that tries to smuggle in a native
-  witness reference?
+- Does git-warp participant evidence carry an explicit participant-runtime
+  posture?
+- Does Continuum-witnessed evidence require a witness reference?
+- Does the model reject participant-runtime evidence that tries to smuggle in a
+  Continuum witness reference?
 
 Human:
 
-- Can later v18 receipt projections say "this is git-warp evidence translated
-  into a Continuum-family shape" without overclaiming?
+- Can later v18 receipt projections say "this is git-warp participant evidence
+  projected into a Continuum-family shape" without overclaiming?
 
 ## Accessibility / Assistive Reading Posture
 
@@ -51,11 +52,11 @@ summaries remain ordinary strings supplied by callers.
 ## Agent Inspectability / Explainability Posture
 
 The status object exposes posture, source runtime, basis reference, optional
-native witness reference, and summary as inspectable fields.
+Continuum witness reference, and summary as inspectable fields.
 
 ## Non-Goals
 
-- Do not implement native Continuum witness production.
+- Do not implement Continuum witness production.
 - Do not generate receipt-family values in this slice.
 - Do not build a generic WARP Optic engine.
 
@@ -80,11 +81,11 @@ This slice adds:
 - `ContinuumEvidencePosture`
 - `ContinuumEvidenceStatus`
 
-Translated git-warp evidence is represented as `translated-substrate` with
-`sourceRuntime: "git-warp"`. Native Continuum evidence is represented as
-`continuum-native` and cannot be constructed unless `nativeWitnessRef` is
-present. Translated evidence rejects `nativeWitnessRef` so compatibility output
-cannot smuggle native witnesshood through an optional field.
+Git-warp participant evidence is represented as `participant-runtime` with
+`sourceRuntime: "git-warp"`. Continuum-witnessed evidence is represented as
+`continuum-witnessed` and cannot be constructed unless `continuumWitnessRef` is
+present. Participant-runtime evidence rejects `continuumWitnessRef` so
+compatibility output cannot smuggle witnesshood through an optional field.
 
 ## Playback
 
@@ -100,14 +101,15 @@ npm run typecheck:src -- --pretty false
 
 Agent answers:
 
-- Yes, translated git-warp evidence carries explicit translated posture.
-- Yes, native Continuum evidence requires `nativeWitnessRef`.
-- Yes, translated evidence with `nativeWitnessRef` is rejected.
+- Yes, git-warp participant evidence carries explicit participant-runtime
+  posture.
+- Yes, Continuum-witnessed evidence requires `continuumWitnessRef`.
+- Yes, participant-runtime evidence with `continuumWitnessRef` is rejected.
 
 Human answer:
 
-- Later receipt-family projections can carry translated git-warp evidence
-  without claiming native Continuum witnesshood.
+- Later receipt-family projections can carry git-warp participant evidence
+  without claiming separate Continuum witnesshood.
 
 ## SSJS Scorecard
 
@@ -118,8 +120,8 @@ Human answer:
   live on the evidence concepts.
 - Message parsing: green; no message parsing introduced.
 - Ambient time or entropy: green; no ambient time or entropy introduced.
-- Fake shape trust or cast-cosplay: green; native evidence cannot be claimed
-  without an explicit native witness reference.
+- Fake shape trust or cast-cosplay: green; Continuum-witnessed evidence cannot
+  be claimed without an explicit witness reference.
 
 ## Closeout
 

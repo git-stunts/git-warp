@@ -291,14 +291,14 @@ describe('index.ts exports', () => {
       expect(descriptor.hasGeneratedAuthority()).toBe(true);
     });
 
-    it('constructs translated git-warp evidence status from public exports', () => {
-      const status = ContinuumEvidenceStatus.translatedGitWarp({
+    it('constructs git-warp participant evidence status from public exports', () => {
+      const status = ContinuumEvidenceStatus.gitWarpParticipant({
         basisRef: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-        summary: 'git-warp evidence translated into Continuum shape',
+        summary: 'git-warp participant evidence projected into Continuum shape',
       });
 
       expect(status.posture).toBeInstanceOf(ContinuumEvidencePosture);
-      expect(status.isTranslatedSubstrate()).toBe(true);
+      expect(status.isParticipantRuntime()).toBe(true);
     });
   });
 

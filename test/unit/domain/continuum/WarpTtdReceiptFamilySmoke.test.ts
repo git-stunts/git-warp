@@ -27,7 +27,7 @@ const generatedFixtureContext: ContinuumArtifactJsonLoadContext = {
 };
 
 describe('warp-ttd receipt-family smoke', () => {
-  it('reads live git-warp receipts as generated-family facts with translated evidence', async () => {
+  it('reads live git-warp receipts as generated-family facts with participant evidence', async () => {
     const persistence = new InMemoryGraphAdapter();
     const graph = await openRuntimeHostProduct({
       persistence,
@@ -45,7 +45,7 @@ describe('warp-ttd receipt-family smoke', () => {
       patch.addNode(NODE_ID).setProperty(NODE_ID, 'role', 'debug-target');
     });
     const materialized = await graph.materialize({ receipts: true });
-    const evidence = ContinuumEvidenceStatus.translatedGitWarp({
+    const evidence = ContinuumEvidenceStatus.gitWarpParticipant({
       basisRef: patchSha,
       summary: 'live git-warp receipt exposed as generated receipt-family facts for warp-ttd',
     });
@@ -57,8 +57,8 @@ describe('warp-ttd receipt-family smoke', () => {
 
     const receiptFacts = projection.receiptsForHead(patchSha, 1);
 
-    expect(projection.evidence.isTranslatedSubstrate()).toBe(true);
-    expect(projection.evidence.isContinuumNative()).toBe(false);
+    expect(projection.evidence.isParticipantRuntime()).toBe(true);
+    expect(projection.evidence.isContinuumWitnessed()).toBe(false);
     expect(receiptFacts).toHaveLength(1);
     expect(receiptFacts[0]?.headId).toBe(patchSha);
     expect(receiptFacts[0]?.laneId).toBe(WRITER_ID);
