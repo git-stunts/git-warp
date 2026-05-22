@@ -28,7 +28,8 @@ class MockPersistenceFixtureError extends Error {
 }
 
 class WarpGraphMockPersistence {
-  readonly readRef = vi.fn();
+  readonly #refs = new Map<string, string>();
+  readonly readRef = vi.fn(async (ref: string) => this.#refs.get(ref) ?? null);
   readonly showNode = vi.fn();
   readonly writeBlob = vi.fn();
   readonly writeTree = vi.fn();
@@ -36,7 +37,9 @@ class WarpGraphMockPersistence {
   readonly readTreeOids = vi.fn().mockResolvedValue({});
   readonly commitNode = vi.fn();
   readonly commitNodeWithTree = vi.fn();
-  readonly updateRef = vi.fn();
+  readonly updateRef = vi.fn(async (ref: string, sha: string) => {
+    this.#refs.set(ref, sha);
+  });
   readonly listRefs = vi.fn().mockResolvedValue([]);
   readonly getNodeInfo = vi.fn();
   readonly ping = vi.fn().mockResolvedValue({ ok: true, latencyMs: 1 });
@@ -49,8 +52,17 @@ class WarpGraphMockPersistence {
   readonly countNodes = vi.fn().mockResolvedValue(0);
   readonly getCommitTree = vi.fn();
   readonly readTree = vi.fn().mockResolvedValue({});
-  readonly deleteRef = vi.fn();
-  readonly compareAndSwapRef = vi.fn();
+  readonly deleteRef = vi.fn(async (ref: string) => {
+    this.#refs.delete(ref);
+  });
+  readonly compareAndSwapRef = vi.fn(async (ref: string, newOid: string, expectedOid: string | null) => {
+    const current = this.#refs.get(ref) ?? null;
+    if (current !== expectedOid) {
+      throw new MockPersistenceFixtureError(`CAS mismatch on ${ref}`);
+    }
+    this.#refs.set(ref, newOid);
+    this.readRef.mockImplementation(async (nextRef: string) => this.#refs.get(nextRef) ?? null);
+  });
 
   get emptyTree(): string {
     return '4b825dc642cb6eb9a060e54bf8d69288fbee4904';

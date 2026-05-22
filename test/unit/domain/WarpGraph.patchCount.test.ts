@@ -112,15 +112,7 @@ describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
     const tipSha = buildPatchChain(persistence, 'w1', patchCount);
 
     // checkpoint ref returns null (no checkpoint)
-    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
-      if (ref === 'refs/warp/test/checkpoints/head') {
-        return Promise.resolve(null);
-      }
-      if (ref === 'refs/warp/test/writers/w1') {
-        return Promise.resolve(tipSha);
-      }
-      return Promise.resolve(null);
-    });
+    await persistence.updateRef('refs/warp/test/writers/w1', tipSha);
 
     // discoverWriters needs listRefs to return the writer ref
     persistence.listRefs.mockResolvedValue([
@@ -188,15 +180,7 @@ describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
     const tipSha = buildPatchChain(persistence, 'w1', patchCount);
 
     // Phase 1: materialize with 3 patches (no checkpoint)
-    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
-      if (ref === 'refs/warp/test/checkpoints/head') {
-        return Promise.resolve(null);
-      }
-      if (ref === 'refs/warp/test/writers/w1') {
-        return Promise.resolve(tipSha);
-      }
-      return Promise.resolve(null);
-    });
+    await persistence.updateRef('refs/warp/test/writers/w1', tipSha);
     persistence.listRefs.mockResolvedValue([
       'refs/warp/test/writers/w1',
     ]);

@@ -200,10 +200,12 @@ describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
     persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
     persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
     persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA);
-    persistence.updateRef.mockRejectedValue(new Error('ref lock failed'));
+    persistence.compareAndSwapRef.mockRejectedValue(new Error('ref lock failed'));
 
     const writer = await graph.writer('writer-1');
-    await expect(writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'))).rejects.toThrow('ref lock failed');
+    await expect(writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'))).rejects.toThrow(
+      'Writer ref refs/warp/test/writers/writer-1 has advanced since beginPatch()',
+    );
 
     expect((graph)._stateDirty).toBe(false);
     expect((graph)._cachedState).toBe(stateBeforeAttempt);

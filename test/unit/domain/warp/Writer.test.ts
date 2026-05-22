@@ -21,9 +21,21 @@ import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
  * Creates a minimal mock persistence adapter.
  */
 function createMockPersistence() {
+  const refs = new Map();
+  const readRef = vi.fn(async (ref) => refs.get(ref) || null);
   return {
-    readRef: vi.fn(),
-    updateRef: vi.fn(),
+    readRef,
+    updateRef: vi.fn(async (ref, sha) => {
+      refs.set(ref, sha);
+    }),
+    compareAndSwapRef: vi.fn(async (ref, newOid, expectedOid) => {
+      const current = refs.get(ref) || null;
+      if (current !== expectedOid) {
+        throw new Error(`CAS mismatch on ${ref}`);
+      }
+      refs.set(ref, newOid);
+      readRef.mockImplementation(async (nextRef) => refs.get(nextRef) || null);
+    }),
     showNode: vi.fn(),
     getNodeInfo: vi.fn(),
     writeBlob: vi.fn(),
@@ -276,7 +288,7 @@ describe('Writer (WARP schema:2)', () => {
       const oldHead = 'a'.repeat(40);
       const newSha = 'b'.repeat(40);
 
-      persistence.readRef.mockResolvedValue(oldHead);
+      await persistence.updateRef(buildWriterRef('events', 'alice'), oldHead);
       persistence.showNode.mockResolvedValue(createPatchMessage(5));
       persistence.writeBlob.mockResolvedValue('c'.repeat(40));
       persistence.writeTree.mockResolvedValue('d'.repeat(40));
@@ -357,9 +369,10 @@ describe('Writer (WARP schema:2)', () => {
       patch.addNode('x');
       await patch.commit();
 
-      expect(persistence.updateRef).toHaveBeenCalledWith(
+      expect(persistence.compareAndSwapRef).toHaveBeenCalledWith(
         'refs/warp/events/writers/alice',
-        newSha
+        newSha,
+        null,
       );
     });
 
@@ -445,19 +458,8 @@ describe('Writer (WARP schema:2)', () => {
       const newSha2 = 'c'.repeat(40);
 
       // Setup: both patches see same head at begin time
+      await persistence.updateRef(buildWriterRef('events', 'alice'), oldHead);
       persistence.showNode.mockResolvedValue(createPatchMessage(5));
-
-      // Sequence of readRef calls:
-      // 1. p1 beginPatch -> oldHead
-      // 2. p2 beginPatch -> oldHead
-      // 3. p1 commit PatchBuilder CAS check -> oldHead
-      // 4. (updateRef happens, ref is now newSha1)
-      // 5. p2 commit PatchBuilder CAS check -> newSha1 (fails here)
-      persistence.readRef
-        .mockResolvedValueOnce(oldHead)  // p1 beginPatch
-        .mockResolvedValueOnce(oldHead)  // p2 beginPatch
-        .mockResolvedValueOnce(oldHead)  // p1 commit PatchBuilder
-        .mockResolvedValueOnce(newSha1); // p2 commit PatchBuilder (fails)
 
       persistence.writeBlob.mockResolvedValue('d'.repeat(40));
       persistence.writeTree.mockResolvedValue('e'.repeat(40));

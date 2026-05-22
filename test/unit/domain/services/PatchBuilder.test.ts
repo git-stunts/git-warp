@@ -28,13 +28,25 @@ function createMockState() {
  * @returns {any} Mock persistence with standard methods stubbed
  */
 function createMockPersistence() {
+  const refs = new Map();
+  const readRef = vi.fn(async (ref) => refs.get(ref) || null);
   return {
-    readRef: vi.fn().mockResolvedValue(null),
+    readRef,
     showNode: vi.fn(),
     writeBlob: vi.fn().mockResolvedValue('a'.repeat(40)), // Valid 40-char hex OID
     writeTree: vi.fn().mockResolvedValue('b'.repeat(40)),
     commitNodeWithTree: vi.fn().mockResolvedValue('c'.repeat(40)),
-    updateRef: vi.fn().mockResolvedValue(undefined),
+    updateRef: vi.fn(async (ref, sha) => {
+      refs.set(ref, sha);
+    }),
+    compareAndSwapRef: vi.fn(async (ref, newOid, expectedOid) => {
+      const current = refs.get(ref) || null;
+      if (current !== expectedOid) {
+        throw new Error(`CAS mismatch on ${ref}`);
+      }
+      refs.set(ref, newOid);
+      readRef.mockImplementation(async (nextRef) => refs.get(nextRef) || null);
+    }),
   };
 }
 
@@ -589,9 +601,10 @@ describe('PatchBuilder', () => {
       expect(persistence.writeBlob).toHaveBeenCalledOnce();
       expect(persistence.writeTree).toHaveBeenCalledOnce();
       expect(persistence.commitNodeWithTree).toHaveBeenCalledOnce();
-      expect(persistence.updateRef).toHaveBeenCalledWith(
+      expect(persistence.compareAndSwapRef).toHaveBeenCalledWith(
         'refs/warp/test-graph/writers/writer1',
-        'c'.repeat(40)
+        'c'.repeat(40),
+        null,
       );
     });
 
@@ -639,7 +652,7 @@ describe('PatchBuilder', () => {
       const existingSha = 'd'.repeat(40);
       const existingPatchOid = 'e'.repeat(40);
       // Simulate existing ref with lamport 5
-      persistence.readRef.mockResolvedValue(existingSha);
+      await persistence.updateRef('refs/warp/test-graph/writers/writer1', existingSha);
       persistence.showNode.mockResolvedValue(
         `warp:patch\n\neg-kind: patch\neg-graph: test-graph\neg-writer: writer1\neg-lamport: 5\neg-patch-oid: ${existingPatchOid}\neg-schema: 2`
       );
@@ -866,7 +879,7 @@ describe('PatchBuilder', () => {
 
     it('does NOT set _committed on failed commit (mock persistence to throw)', async () => {
       const persistence = createMockPersistence();
-      persistence.updateRef.mockRejectedValueOnce(new Error('simulated updateRef failure'));
+      persistence.compareAndSwapRef.mockRejectedValueOnce(new Error('simulated compareAndSwapRef failure'));
       const builder = new PatchBuilder(({
         persistence,
         patchJournal: createPatchJournal(persistence),
@@ -878,7 +891,7 @@ describe('PatchBuilder', () => {
       } as any));
 
       builder.addNode('x');
-      await expect(builder.commit()).rejects.toThrow('simulated updateRef failure');
+      await expect(builder.commit()).rejects.toThrow('Commit failed: writer ref was updated by another process');
       expect((builder as any)._committed).toBe(false);
       expect((builder as any)._committing).toBe(false);
     });

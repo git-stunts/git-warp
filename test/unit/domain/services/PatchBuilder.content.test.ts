@@ -28,13 +28,25 @@ function createMockBlobStorage(opts: { storeOid?: string } = {}) {
  * @returns {any}
  */
 function createMockPersistence(overrides = {}) {
+  const refs = new Map();
+  const readRef = vi.fn(async (ref) => refs.get(ref) || null);
   return {
-    readRef: vi.fn().mockResolvedValue(null),
+    readRef,
     showNode: vi.fn(),
     writeBlob: vi.fn().mockResolvedValue('d'.repeat(40)),
     writeTree: vi.fn().mockResolvedValue('e'.repeat(40)),
     commitNodeWithTree: vi.fn().mockResolvedValue('f'.repeat(40)),
-    updateRef: vi.fn().mockResolvedValue(undefined),
+    updateRef: vi.fn(async (ref, sha) => {
+      refs.set(ref, sha);
+    }),
+    compareAndSwapRef: vi.fn(async (ref, newOid, expectedOid) => {
+      const current = refs.get(ref) || null;
+      if (current !== expectedOid) {
+        throw new Error(`CAS mismatch on ${ref}`);
+      }
+      refs.set(ref, newOid);
+      readRef.mockImplementation(async (nextRef) => refs.get(nextRef) || null);
+    }),
     ...overrides,
   };
 }

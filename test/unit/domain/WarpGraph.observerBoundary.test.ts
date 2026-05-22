@@ -51,6 +51,13 @@ function createMockPersistence() {
     updateRef: vi.fn(async (ref, sha) => {
       refs.set(ref, sha);
     }),
+    compareAndSwapRef: vi.fn(async (ref, newOid, expectedOid) => {
+      const current = refs.get(ref) || null;
+      if (current !== expectedOid) {
+        throw new Error(`CAS mismatch on ${ref}`);
+      }
+      refs.set(ref, newOid);
+    }),
     deleteRef: vi.fn(async (ref) => {
       refs.delete(ref);
     }),

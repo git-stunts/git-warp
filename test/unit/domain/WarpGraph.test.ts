@@ -40,8 +40,10 @@ function installCleanCheckpointReadingBasis(
  * @returns {any} Mock persistence adapter
  */
 function createMockPersistence(): any {
+  const refs = new Map<string, string>();
+  const readRef = vi.fn(async (ref: string) => refs.get(ref) || null);
   return {
-    readRef: vi.fn(),
+    readRef,
     showNode: vi.fn(),
     writeBlob: vi.fn(),
     writeTree: vi.fn(),
@@ -49,7 +51,17 @@ function createMockPersistence(): any {
     readTreeOids: vi.fn(),
     commitNode: vi.fn(),
     commitNodeWithTree: vi.fn(),
-    updateRef: vi.fn(),
+    updateRef: vi.fn(async (ref: string, sha: string) => {
+      refs.set(ref, sha);
+    }),
+    compareAndSwapRef: vi.fn(async (ref: string, newOid: string, expectedOid: string | null) => {
+      const current = refs.get(ref) || null;
+      if (current !== expectedOid) {
+        throw new Error(`CAS mismatch on ${ref}`);
+      }
+      refs.set(ref, newOid);
+      readRef.mockImplementation(async (nextRef: string) => refs.get(nextRef) || null);
+    }),
     listRefs: vi.fn().mockResolvedValue([]),
     getNodeInfo: vi.fn(),
     ping: vi.fn().mockResolvedValue({ ok: true, latencyMs: 1 }),
@@ -328,20 +340,19 @@ describe('WarpCore', () => {
       } as any);
 
       // Set up mock responses for commit
-      persistence.readRef.mockResolvedValue(null);
       persistence.writeBlob.mockResolvedValue('a'.repeat(40));
       persistence.writeTree.mockResolvedValue('a'.repeat(40));
       persistence.commitNodeWithTree.mockResolvedValue('a'.repeat(40));
-      persistence.updateRef.mockResolvedValue(undefined);
 
       const patchBuilder = await graph.createPatch();
       patchBuilder.addNode('test');
       await patchBuilder.commit();
 
-      // Verify the ref was updated with correct graph/writer path
-      expect(persistence.updateRef).toHaveBeenCalledWith(
+      // Verify the writer ref was advanced through CAS with correct graph/writer path
+      expect(persistence.compareAndSwapRef).toHaveBeenCalledWith(
         'refs/warp/my-events/writers/writer-42',
-        expect.any(String)
+        expect.any(String),
+        null,
       );
     });
 
@@ -1917,11 +1928,7 @@ eg-schema: 2`;
         const existingSha = 'd'.repeat(40);
         const existingPatchOid = 'e'.repeat(40);
 
-        persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
-          if (ref.includes('checkpoints')) return Promise.resolve(null);
-          if (ref.includes('writers')) return Promise.resolve(existingSha);
-          return Promise.resolve(null);
-        });
+        await persistence.updateRef('refs/warp/events/writers/writer-1', existingSha);
         persistence.listRefs.mockResolvedValue([]);
         persistence.showNode.mockResolvedValue(
           `warp:patch\n\neg-kind: patch\neg-graph: events\neg-writer: writer-1\neg-lamport: 5\neg-patch-oid: ${existingPatchOid}\neg-schema: 2`

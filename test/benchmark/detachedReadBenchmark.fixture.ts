@@ -61,6 +61,17 @@ function createMockPersistence() {
     updateRef: async (/** @type {string} */ ref, /** @type {string} */ sha) => {
       refs.set(ref, sha);
     },
+    compareAndSwapRef: async (
+      /** @type {string} */ ref,
+      /** @type {string} */ newOid,
+      /** @type {string | null} */ expectedOid,
+    ) => {
+      const current = refs.get(ref) || null;
+      if (current !== expectedOid) {
+        throw new Error(`CAS mismatch on ${ref}`);
+      }
+      refs.set(ref, newOid);
+    },
     deleteRef: async (/** @type {string} */ ref) => {
       refs.delete(ref);
     },
