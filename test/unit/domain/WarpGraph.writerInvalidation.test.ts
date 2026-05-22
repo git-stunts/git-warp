@@ -23,12 +23,14 @@ const FAKE_COMMIT_SHA_2 = 'd'.repeat(40);
  *
  * Writer flow hits readRef 3 times for a first commit:
  *   1. Writer.beginPatch() reads ref to get expectedOldHead
- *   2. PatchSession.commit() reads ref for CAS pre-check
- *   3. PatchBuilder.commit() reads ref for its own CAS check
- * All return null for a first commit.
+ *   2. PatchCommitter reads ref for its CAS check
+ *   3. PatchCommitter verifies the writer ref advanced after updateRef
  */
 function mockWriterFirstCommit(/** @type {any} */ persistence) {
-  persistence.readRef.mockResolvedValue(null);
+  persistence.readRef
+    .mockResolvedValueOnce(null)
+    .mockResolvedValueOnce(null)
+    .mockResolvedValue(FAKE_COMMIT_SHA);
   persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
   persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
   persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA);
@@ -39,8 +41,9 @@ function mockWriterFirstCommit(/** @type {any} */ persistence) {
  * Configure the mock persistence so that a Writer-based second commit succeeds.
  *
  * After the first commit, the writer ref points to FAKE_COMMIT_SHA.
- * readRef returns FAKE_COMMIT_SHA (3 times), and showNode returns a valid
- * patch message so lamport can be extracted.
+ * readRef returns FAKE_COMMIT_SHA until updateRef succeeds, then
+ * FAKE_COMMIT_SHA_2 for the post-update visibility check. showNode returns a
+ * valid patch message so lamport can be extracted.
  */
 function mockWriterSecondCommit(/** @type {any} */ persistence) {
   const patchMessage = encodePatchMessage({
@@ -51,7 +54,10 @@ function mockWriterSecondCommit(/** @type {any} */ persistence) {
     schema: 2,
   });
 
-  persistence.readRef.mockResolvedValue(FAKE_COMMIT_SHA);
+  persistence.readRef
+    .mockResolvedValueOnce(FAKE_COMMIT_SHA)
+    .mockResolvedValueOnce(FAKE_COMMIT_SHA)
+    .mockResolvedValue(FAKE_COMMIT_SHA_2);
   persistence.showNode.mockResolvedValue(patchMessage);
   persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
   persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);

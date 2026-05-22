@@ -151,6 +151,7 @@ export async function commitPatch(state: CommitState): Promise<string> {
 
   // Update writer ref
   await state.persistence.updateRef(writerRef, newCommitSha);
+  await assertWriterRefVisible(state.persistence, writerRef, newCommitSha);
 
   // Invoke success callback
   if (state.onCommitSuccess) {
@@ -163,4 +164,27 @@ export async function commitPatch(state: CommitState): Promise<string> {
   }
 
   return newCommitSha;
+}
+
+async function assertWriterRefVisible(
+  persistence: PersistencePorts,
+  writerRef: string,
+  expectedSha: string,
+): Promise<void> {
+  const actualSha = await persistence.readRef(writerRef);
+  if (actualSha === expectedSha) {
+    return;
+  }
+
+  throw new PersistenceError(
+    `Commit ${expectedSha} is not visible at writer ref ${writerRef}`,
+    PersistenceError.E_REF_IO,
+    {
+      context: {
+        writerRef,
+        expectedSha,
+        actualSha: actualSha ?? '(missing)',
+      },
+    },
+  );
 }

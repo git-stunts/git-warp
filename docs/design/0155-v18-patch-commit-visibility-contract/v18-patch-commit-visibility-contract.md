@@ -1,11 +1,12 @@
 ---
 cycle: 0155
 task_id: V18_patch_commit_visibility_contract
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-22
+completed_at: 2026-05-22
 release_home: v18.0.0
 bearing_task: 7
 ---
@@ -57,17 +58,44 @@ Expected behavior:
 
 ## RED
 
-- Simulate object creation followed by writer-ref advancement failure.
-- Assert the write is not reported as successful.
-- Assert reopen/materialize does not bless hidden objects.
+Observed first:
+
+```text
+npx vitest run test/unit/domain/services/PatchCommitter.visibility.test.ts --reporter=verbose
+```
+
+The new contract test failed because `commitPatch()` resolved the new commit
+SHA after `updateRef()` resolved, even though a subsequent `readRef()` still
+returned `null`.
+
+The first test attempt also exposed a malformed type-only import in the new
+test file; that was corrected before counting the behavioral RED.
+
+## Implementation
+
+`commitPatch()` now verifies writer-ref visibility immediately after
+`updateRef()`. Success is reported only when a fresh `readRef(writerRef)` equals
+the newly created commit SHA. If the ref remains missing or points elsewhere,
+the operation raises `PersistenceError.E_REF_IO` and does not run
+`onCommitSuccess`.
+
+The writer-invalidation mock persistence was updated to model the same
+contract: reads before `updateRef()` return the old head, and reads after a
+successful update return the new head.
 
 ## Verification
 
-- Targeted GitGraphAdapter or persistence-port tests.
-- Existing no-coordination regression suite if touched behavior reaches domain
-  materialization.
-- `npm run lint`
+- `npx vitest run test/unit/domain/services/PatchCommitter.visibility.test.ts --reporter=verbose`
+- `npx vitest run test/unit/domain/services/PatchCommitter.visibility.test.ts test/unit/domain/WarpGraph.noCoordination.test.js test/unit/domain/WarpGraph.writerInvalidation.test.ts --reporter=verbose`
 - `npm run typecheck`
+- `npm run lint`
+- `npx markdownlint docs/BEARING.md docs/design/0155-v18-patch-commit-visibility-contract/v18-patch-commit-visibility-contract.md`
+
+## Closeout
+
+Patch commit success is no longer object creation folklore. The commit path now
+requires the canonical writer tip to be observable before handing success to
+callers or eager materialization hooks.
 
 ## SSJS Scorecard
 
@@ -75,8 +103,8 @@ Expected behavior:
   concept appears.
 - Boundary validation: green; Git object/ref errors remain adapter boundary
   facts.
-- Behavior ownership: planned; success belongs to the write path, not tests.
+- Behavior ownership: green; success belongs to the write path, not tests.
 - Message parsing: green.
 - Ambient time or entropy: green.
-- Fake shape trust or cast-cosplay: green; success must be observable.
-
+- Fake shape trust or cast-cosplay: green; success is observable at the writer
+  ref.

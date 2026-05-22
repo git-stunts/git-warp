@@ -64,7 +64,7 @@ Current branch state at this boundary:
 - Latest merged PR: #93, recursive tree OID read fanout and v17.0.1 release
   repair
 - Latest completed v18 implementation cycle:
-  `0154-v18-evidence-posture`
+  `0155-v18-patch-commit-visibility-contract`
 
 The release ladder is now:
 
@@ -200,10 +200,13 @@ for that slice.
   `ContinuumEvidenceClaim` now separate generated artifact shape authority from
   witnesshood, require explicit proof for native Continuum evidence, and expose
   `requireTranslatedGitWarpEvidence()` for receipt-family projection.
-- [ ] 7. Prove the patch commit visibility contract:
+- [x] 7. Prove the patch commit visibility contract:
   [0155-v18-patch-commit-visibility-contract](design/0155-v18-patch-commit-visibility-contract/v18-patch-commit-visibility-contract.md)
   defines success as canonical writer-tip advancement and visible graph truth,
-  not just object creation.
+  not just object creation. `commitPatch()` now verifies that the writer ref
+  visibly points at the new commit before reporting success or running
+  `onCommitSuccess`; hidden post-object/pre-ref failures raise typed
+  persistence errors.
 - [ ] 8. Add the same-writer concurrent patch race witness:
   [0156-v18-same-writer-concurrent-race-witness](design/0156-v18-same-writer-concurrent-race-witness/v18-same-writer-concurrent-race-witness.md)
   requires final-frontier and visible-state assertions.
