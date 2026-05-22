@@ -63,15 +63,26 @@ export default class ContinuumReceiptFamilyProjection {
   readonly deliveryObservations: readonly Readonly<ContinuumDeliveryObservationFact>[];
 
   constructor(fields: ContinuumReceiptFamilyProjectionFields) {
-    this.evidence = requireEvidence(fields.evidence).requireTranslatedGitWarpEvidence();
+    const checkedFields = requireFields(fields);
+    this.evidence = requireEvidence(checkedFields.evidence).requireTranslatedGitWarpEvidence();
     this.descriptor = requireReceiptFamilyDescriptor(this.evidence.descriptor);
-    this.sourceFacts = requireSourceFacts(fields.sourceFacts);
+    this.sourceFacts = requireSourceFacts(checkedFields.sourceFacts);
     this.familyId = this.descriptor.familyId;
     this.receipts = Object.freeze([projectReceipt(this.sourceFacts.tickReceipt)]);
     this.witnesses = Object.freeze([projectWitness(this.evidence, this.sourceFacts.tickReceipt)]);
     this.deliveryObservations = projectDeliveryObservations(this.sourceFacts.deliveryObservations);
     Object.freeze(this);
   }
+}
+
+/** Validates the projection constructor envelope. */
+function requireFields(
+  value: ContinuumReceiptFamilyProjectionFields | null | undefined,
+): ContinuumReceiptFamilyProjectionFields {
+  if (value === null || value === undefined) {
+    throw new WarpError('ContinuumReceiptFamilyProjection fields must be provided', 'E_VALIDATION');
+  }
+  return value;
 }
 
 /** Validates a Continuum evidence claim carrier. */

@@ -154,6 +154,11 @@ describe('ContinuumReceiptFamilyProjection', () => {
   });
 
   it('rejects missing source fact carriers at runtime', () => {
+    expect(() => new ContinuumReceiptFamilyProjection(
+      // @ts-expect-error runtime guard for JavaScript callers
+      undefined,
+    )).toThrow(WarpError);
+
     expect(() => new ContinuumReceiptFamilyProjection({
       evidence: makeEvidence(),
       // @ts-expect-error runtime guard for JavaScript callers
