@@ -42,12 +42,19 @@ export interface MockPersistence {
 const MOCK_OID = 'a'.repeat(40);
 
 export function createMockPersistence(overrides: Partial<MockPersistence> = {}): MockPersistence {
+  const refs = new Map<string, string>();
   return {
-    readRef: vi.fn().mockResolvedValue(null),
-    updateRef: vi.fn().mockResolvedValue(undefined),
-    deleteRef: vi.fn().mockResolvedValue(undefined),
+    readRef: vi.fn(async (ref: string) => refs.get(ref) ?? null),
+    updateRef: vi.fn(async (ref: string, oid: string) => {
+      refs.set(ref, oid);
+    }),
+    deleteRef: vi.fn(async (ref: string) => {
+      refs.delete(ref);
+    }),
     listRefs: vi.fn().mockResolvedValue([]),
-    compareAndSwapRef: vi.fn().mockResolvedValue(undefined),
+    compareAndSwapRef: vi.fn(async (ref: string, newOid: string, _expectedOid: string | null) => {
+      refs.set(ref, newOid);
+    }),
     readBlob: vi.fn().mockResolvedValue(new Uint8Array(0)),
     writeBlob: vi.fn().mockResolvedValue(MOCK_OID),
     readTree: vi.fn().mockResolvedValue({}),

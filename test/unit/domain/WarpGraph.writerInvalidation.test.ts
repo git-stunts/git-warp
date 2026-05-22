@@ -34,7 +34,6 @@ function mockWriterFirstCommit(/** @type {any} */ persistence) {
   persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
   persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
   persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA);
-  persistence.updateRef.mockResolvedValue(undefined);
 }
 
 /**
@@ -62,7 +61,6 @@ function mockWriterSecondCommit(/** @type {any} */ persistence) {
   persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
   persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
   persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA_2);
-  persistence.updateRef.mockResolvedValue(undefined);
 }
 
 describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {

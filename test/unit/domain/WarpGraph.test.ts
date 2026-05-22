@@ -40,7 +40,7 @@ function installCleanCheckpointReadingBasis(
  * @returns {any} Mock persistence adapter
  */
 function createMockPersistence(): any {
-  return {
+  const persistence = {
     readRef: vi.fn(),
     showNode: vi.fn(),
     writeBlob: vi.fn(),
@@ -55,7 +55,12 @@ function createMockPersistence(): any {
     ping: vi.fn().mockResolvedValue({ ok: true, latencyMs: 1 }),
     configGet: vi.fn().mockResolvedValue(null),
     configSet: vi.fn().mockResolvedValue(undefined),
+    compareAndSwapRef: vi.fn(),
   };
+  persistence.compareAndSwapRef.mockImplementation(async (_ref, newOid) => {
+    persistence.readRef.mockResolvedValue(newOid);
+  });
+  return persistence;
 }
 
 /**
@@ -332,16 +337,16 @@ describe('WarpCore', () => {
       persistence.writeBlob.mockResolvedValue('a'.repeat(40));
       persistence.writeTree.mockResolvedValue('a'.repeat(40));
       persistence.commitNodeWithTree.mockResolvedValue('a'.repeat(40));
-      persistence.updateRef.mockResolvedValue(undefined);
 
       const patchBuilder = await graph.createPatch();
       patchBuilder.addNode('test');
       await patchBuilder.commit();
 
-      // Verify the ref was updated with correct graph/writer path
-      expect(persistence.updateRef).toHaveBeenCalledWith(
+      // Verify the ref was atomically advanced with the correct graph/writer path
+      expect(persistence.compareAndSwapRef).toHaveBeenCalledWith(
         'refs/warp/my-events/writers/writer-42',
-        expect.any(String)
+        expect.any(String),
+        null,
       );
     });
 

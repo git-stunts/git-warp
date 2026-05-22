@@ -28,15 +28,20 @@ function createMockBlobStorage(opts: { storeOid?: string } = {}) {
  * @returns {any}
  */
 function createMockPersistence(overrides = {}) {
-  return {
+  const persistence = {
     readRef: vi.fn().mockResolvedValue(null),
     showNode: vi.fn(),
     writeBlob: vi.fn().mockResolvedValue('d'.repeat(40)),
     writeTree: vi.fn().mockResolvedValue('e'.repeat(40)),
     commitNodeWithTree: vi.fn().mockResolvedValue('f'.repeat(40)),
     updateRef: vi.fn().mockResolvedValue(undefined),
+    compareAndSwapRef: vi.fn(),
     ...overrides,
   };
+  persistence.compareAndSwapRef.mockImplementation(async (_ref, newOid) => {
+    persistence.readRef.mockResolvedValue(newOid);
+  });
+  return persistence;
 }
 
 /**

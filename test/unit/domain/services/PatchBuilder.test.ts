@@ -28,14 +28,19 @@ function createMockState() {
  * @returns {any} Mock persistence with standard methods stubbed
  */
 function createMockPersistence() {
-  return {
+  const persistence = {
     readRef: vi.fn().mockResolvedValue(null),
     showNode: vi.fn(),
     writeBlob: vi.fn().mockResolvedValue('a'.repeat(40)), // Valid 40-char hex OID
     writeTree: vi.fn().mockResolvedValue('b'.repeat(40)),
     commitNodeWithTree: vi.fn().mockResolvedValue('c'.repeat(40)),
     updateRef: vi.fn().mockResolvedValue(undefined),
+    compareAndSwapRef: vi.fn(),
   };
+  persistence.compareAndSwapRef.mockImplementation(async (_ref, newOid) => {
+    persistence.readRef.mockResolvedValue(newOid);
+  });
+  return persistence;
 }
 
 /**
@@ -589,9 +594,10 @@ describe('PatchBuilder', () => {
       expect(persistence.writeBlob).toHaveBeenCalledOnce();
       expect(persistence.writeTree).toHaveBeenCalledOnce();
       expect(persistence.commitNodeWithTree).toHaveBeenCalledOnce();
-      expect(persistence.updateRef).toHaveBeenCalledWith(
+      expect(persistence.compareAndSwapRef).toHaveBeenCalledWith(
         'refs/warp/test-graph/writers/writer1',
-        'c'.repeat(40)
+        'c'.repeat(40),
+        null,
       );
     });
 
@@ -864,9 +870,9 @@ describe('PatchBuilder', () => {
       expect(builder.versionVector.get('writer1')).toBe(1);
     });
 
-    it('does NOT set _committed on failed commit (mock persistence to throw)', async () => {
+    it('does NOT set _committed on failed commit (CAS ref advance throws)', async () => {
       const persistence = createMockPersistence();
-      persistence.updateRef.mockRejectedValueOnce(new Error('simulated updateRef failure'));
+      persistence.compareAndSwapRef.mockRejectedValueOnce(new Error('simulated compareAndSwapRef failure'));
       const builder = new PatchBuilder(({
         persistence,
         patchJournal: createPatchJournal(persistence),
@@ -878,7 +884,7 @@ describe('PatchBuilder', () => {
       } as any));
 
       builder.addNode('x');
-      await expect(builder.commit()).rejects.toThrow('simulated updateRef failure');
+      await expect(builder.commit()).rejects.toThrow('simulated compareAndSwapRef failure');
       expect((builder as any)._committed).toBe(false);
       expect((builder as any)._committing).toBe(false);
     });

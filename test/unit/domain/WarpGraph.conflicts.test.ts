@@ -44,6 +44,13 @@ function createMockPersistence() {
     updateRef: vi.fn(async (ref, sha) => {
       refs.set(ref, sha);
     }),
+    compareAndSwapRef: vi.fn(async (ref, newOid, expectedOid) => {
+      const actualOid = refs.get(ref) || null;
+      if (actualOid !== expectedOid) {
+        throw new Error(`CAS mismatch for ${ref}`);
+      }
+      refs.set(ref, newOid);
+    }),
     configGet: vi.fn(async () => null),
     configSet: vi.fn(async () => {}),
     showNode: vi.fn(async (sha) => {
