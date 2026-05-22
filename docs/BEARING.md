@@ -203,8 +203,13 @@ before the final commit for that slice, and mark completed items with `- [x]`.
   facts, `ContinuumReceiptFamilyProjection` carries the receipt-family artifact
   descriptor and explicit evidence status, and non-receipt-family artifacts are
   rejected.
-- [ ] 10. Add the first `warp-ttd` smoke over generated-family git-warp receipt
-  facts instead of handwritten adapter-local receipt folklore.
+- [x] 10. Add the first `warp-ttd` smoke over generated-family git-warp receipt
+  facts instead of handwritten adapter-local receipt folklore. The smoke starts
+  from a real committed git-warp patch, materializes real `TickReceipt` output,
+  loads the generated receipt-family fixture descriptor through the adapter
+  seam, projects the receipt into `ContinuumReceiptFamilyProjection`, queries
+  by head and frame for the `warp-ttd` target, and keeps evidence posture
+  explicitly translated rather than native.
 - [ ] 11. Re-plan with evidence in hand before expanding into reading-envelope,
   suffix/runtime-boundary, neighborhood-core, and settlement-family slices.
 
