@@ -36,7 +36,7 @@ const roadmap = readFileSync(
 describe('release policy shape', () => {
   it('keeps package and jsr versions aligned on the release branch', () => {
     expect(packageJson.version).toBe(jsrJson.version);
-    expect(packageJson.version).toBe('17.0.0');
+    expect(packageJson.version).toBe('17.0.1');
   });
 
   it('does not require a README release feed anymore', () => {
@@ -52,9 +52,9 @@ describe('release policy shape', () => {
   });
 
   it('keeps the roadmap header honest about the current release and correction patch', () => {
-    expect(roadmap).toContain('**Current release on `main`:** v16.0.0');
-    expect(roadmap).toContain('**Next intended release:** v16.0.1');
-    expect(roadmap).toContain('v16.0.0 release');
+    expect(roadmap).toContain('**Current release on `main`:** v17.0.1');
+    expect(roadmap).toContain('**Next intended release:** v18.0.0');
+    expect(roadmap).toContain('v17.0.1 patch');
   });
 
   it('keeps publish artifacts slim instead of shipping the full repo corpus', () => {
