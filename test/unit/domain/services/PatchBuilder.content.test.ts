@@ -38,7 +38,11 @@ function createMockPersistence(overrides = {}) {
     compareAndSwapRef: vi.fn(),
     ...overrides,
   };
-  persistence.compareAndSwapRef.mockImplementation(async (_ref, newOid) => {
+  persistence.compareAndSwapRef.mockImplementation(async (ref, newOid, expectedOid) => {
+    const actualOid = await persistence.readRef(ref);
+    if (actualOid !== expectedOid) {
+      throw new Error(`CAS mismatch for ${ref}`);
+    }
     persistence.readRef.mockResolvedValue(newOid);
   });
   return persistence;
@@ -70,6 +74,17 @@ function createPatchJournal(persistence) {
 }
 
 describe('PatchBuilder content attachment', () => {
+  it('test fixture compareAndSwapRef rejects expected-head mismatches', async () => {
+    const persistence = createMockPersistence();
+    const currentSha = 'a'.repeat(40);
+    const nextSha = 'b'.repeat(40);
+    persistence.readRef.mockResolvedValue(currentSha);
+
+    await expect(
+      persistence.compareAndSwapRef('refs/warp/events/writers/writer-1', nextSha, null)
+    ).rejects.toThrow('CAS mismatch');
+  });
+
   describe('attachContent()', () => {
     it('writes blob and sets content reference metadata properties', async () => {
       const state = createMockState();
