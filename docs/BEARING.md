@@ -64,7 +64,7 @@ Current branch state at this boundary:
 - Latest merged PR: #93, recursive tree OID read fanout and v17.0.1 release
   repair
 - Latest completed v18 implementation cycle:
-  `0149-v18-continuum-artifact-ingestion`
+  `0154-v18-evidence-posture`
 
 The release ladder is now:
 
@@ -166,7 +166,7 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What comes next
 
-Run the next five v18 slices in order. Each slice gets a design document before
+Run the next v18 slices in order. Each slice gets a design document before
 implementation, RED before GREEN, and a BEARING update before the final commit
 for that slice.
 
@@ -193,11 +193,13 @@ for that slice.
   and one-file-per-concept caps, self-attested authority fields from artifact
   JSON are rejected, policy-test authority fixtures are named constants, and
   empty or internally inconsistent Wesley generated inventory is rejected.
-- [ ] 6. Make evidence posture explicit:
+- [x] 6. Make evidence posture explicit:
   [0154-v18-evidence-posture](design/0154-v18-evidence-posture/v18-evidence-posture.md)
   defines translated git-warp evidence first, with native Continuum evidence
-  only after native witnesshood is proven. Shape authority from generated
-  artifacts must not imply witnesshood.
+  only after native witnesshood is proven. `ContinuumEvidencePosture` and
+  `ContinuumEvidenceClaim` now separate generated artifact shape authority from
+  witnesshood, require explicit proof for native Continuum evidence, and expose
+  `requireTranslatedGitWarpEvidence()` for receipt-family projection.
 - [ ] 7. Prove the patch commit visibility contract:
   [0155-v18-patch-commit-visibility-contract](design/0155-v18-patch-commit-visibility-contract/v18-patch-commit-visibility-contract.md)
   defines success as canonical writer-tip advancement and visible graph truth,

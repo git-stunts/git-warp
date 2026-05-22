@@ -211,10 +211,14 @@ import {
 import ContinuumArtifactAuthority from './src/domain/continuum/ContinuumArtifactAuthority.ts';
 import ContinuumArtifactDescriptor from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
 import ContinuumArtifactIngestionPolicy from './src/domain/continuum/ContinuumArtifactIngestionPolicy.ts';
+import ContinuumEvidenceClaim from './src/domain/continuum/ContinuumEvidenceClaim.ts';
+import ContinuumEvidencePosture from './src/domain/continuum/ContinuumEvidencePosture.ts';
 import ContinuumFamilyId from './src/domain/continuum/ContinuumFamilyId.ts';
 import ContinuumArtifactJsonFileAdapter from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 import type { ContinuumArtifactAuthorityValue } from './src/domain/continuum/ContinuumArtifactAuthority.ts';
 import type { ContinuumArtifactDescriptorFields } from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
+import type { ContinuumEvidenceClaimFields } from './src/domain/continuum/ContinuumEvidenceClaim.ts';
+import type { ContinuumEvidencePostureValue } from './src/domain/continuum/ContinuumEvidencePosture.ts';
 import type { ContinuumFamilyIdValue } from './src/domain/continuum/ContinuumFamilyId.ts';
 import type { ContinuumArtifactJsonLoadContext } from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 
@@ -333,6 +337,8 @@ export {
   ContinuumArtifactAuthority,
   ContinuumArtifactDescriptor,
   ContinuumArtifactIngestionPolicy,
+  ContinuumEvidenceClaim,
+  ContinuumEvidencePosture,
   ContinuumFamilyId,
   ContinuumArtifactJsonFileAdapter,
 
@@ -384,6 +390,8 @@ export type {
   SyncRateLimitConfig,
   ContinuumArtifactAuthorityValue,
   ContinuumArtifactDescriptorFields,
+  ContinuumEvidenceClaimFields,
+  ContinuumEvidencePostureValue,
   ContinuumArtifactJsonLoadContext,
   ContinuumFamilyIdValue,
 };
