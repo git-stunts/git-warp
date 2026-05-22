@@ -214,12 +214,22 @@ import ContinuumArtifactIngestionPolicy from './src/domain/continuum/ContinuumAr
 import ContinuumEvidenceClaim from './src/domain/continuum/ContinuumEvidenceClaim.ts';
 import ContinuumEvidencePosture from './src/domain/continuum/ContinuumEvidencePosture.ts';
 import ContinuumFamilyId from './src/domain/continuum/ContinuumFamilyId.ts';
+import ContinuumReceiptFamilyProjection from './src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
+import GitWarpReceiptSourceFacts from './src/domain/continuum/GitWarpReceiptSourceFacts.ts';
 import ContinuumArtifactJsonFileAdapter from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 import type { ContinuumArtifactAuthorityValue } from './src/domain/continuum/ContinuumArtifactAuthority.ts';
 import type { ContinuumArtifactDescriptorFields } from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
 import type { ContinuumEvidenceClaimFields } from './src/domain/continuum/ContinuumEvidenceClaim.ts';
 import type { ContinuumEvidencePostureValue } from './src/domain/continuum/ContinuumEvidencePosture.ts';
 import type { ContinuumFamilyIdValue } from './src/domain/continuum/ContinuumFamilyId.ts';
+import type {
+  ContinuumDeliveryObservationFact,
+  ContinuumReceiptFact,
+  ContinuumReceiptFamilyProjectionFields,
+  ContinuumReceiptOpFact,
+  ContinuumReceiptWitnessFact,
+} from './src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
+import type { GitWarpReceiptSourceFactsFields } from './src/domain/continuum/GitWarpReceiptSourceFacts.ts';
 import type { ContinuumArtifactJsonLoadContext } from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 
 export {
@@ -340,6 +350,8 @@ export {
   ContinuumEvidenceClaim,
   ContinuumEvidencePosture,
   ContinuumFamilyId,
+  ContinuumReceiptFamilyProjection,
+  GitWarpReceiptSourceFacts,
   ContinuumArtifactJsonFileAdapter,
 
   // Tick receipts (LIGHTHOUSE)
@@ -392,6 +404,12 @@ export type {
   ContinuumArtifactDescriptorFields,
   ContinuumEvidenceClaimFields,
   ContinuumEvidencePostureValue,
+  ContinuumDeliveryObservationFact,
+  ContinuumReceiptFact,
+  ContinuumReceiptFamilyProjectionFields,
+  ContinuumReceiptOpFact,
+  ContinuumReceiptWitnessFact,
+  GitWarpReceiptSourceFactsFields,
   ContinuumArtifactJsonLoadContext,
   ContinuumFamilyIdValue,
 };

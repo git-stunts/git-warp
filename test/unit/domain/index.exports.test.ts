@@ -64,6 +64,8 @@ import WarpAppDefault, {
   ContinuumEvidenceClaim,
   ContinuumEvidencePosture,
   ContinuumFamilyId,
+  ContinuumReceiptFamilyProjection,
+  GitWarpReceiptSourceFacts,
   ContinuumArtifactJsonFileAdapter,
 } from '../../../index.ts';
 
@@ -267,6 +269,8 @@ describe('index.ts exports', () => {
       expect(ContinuumEvidenceClaim).toBeDefined();
       expect(ContinuumEvidencePosture).toBeDefined();
       expect(ContinuumFamilyId).toBeDefined();
+      expect(ContinuumReceiptFamilyProjection).toBeDefined();
+      expect(GitWarpReceiptSourceFacts).toBeDefined();
       expect(ContinuumArtifactJsonFileAdapter).toBeDefined();
     });
 

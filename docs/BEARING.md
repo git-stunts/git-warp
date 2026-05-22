@@ -64,7 +64,7 @@ Current branch state at this boundary:
 - Latest merged PR: #93, recursive tree OID read fanout and v17.0.1 release
   repair
 - Latest completed v18 implementation cycle:
-  `0156-v18-same-writer-concurrent-race-witness`
+  `0157-v18-receipt-family-projection`
 
 The release ladder is now:
 
@@ -213,10 +213,15 @@ for that slice.
   advances writer refs through `compareAndSwapRef`, translates atomic frontier
   movement into retryable writer conflict posture, and keeps the losing
   same-writer patch out of canonical materialized state.
-- [ ] 9. Project git-warp receipt facts into the generated Continuum
+- [x] 9. Project git-warp receipt facts into the generated Continuum
   receipt-family shape:
   [0157-v18-receipt-family-projection](design/0157-v18-receipt-family-projection/v18-receipt-family-projection.md)
   uses generated-family descriptors and explicit translated evidence posture.
+  `GitWarpReceiptSourceFacts` validates local `TickReceipt`,
+  `DeliveryObservation`, and optional `ReceiptShard` inputs;
+  `ContinuumReceiptFamilyProjection` emits generated-family `receipts`,
+  `witnesses`, and `deliveryObservations` arrays while preserving translated
+  git-warp evidence posture.
 - [ ] 10. Add the first `warp-ttd` smoke over generated-family git-warp receipt
   facts:
   [0158-v18-warp-ttd-receipt-smoke](design/0158-v18-warp-ttd-receipt-smoke/v18-warp-ttd-receipt-smoke.md)

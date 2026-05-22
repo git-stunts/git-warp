@@ -1,11 +1,12 @@
 ---
 cycle: 0157
 task_id: V18_receipt_family_projection
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-22
+completed_at: 2026-05-22
 release_home: v18.0.0
 bearing_task: 9
 ---
@@ -54,28 +55,63 @@ The projection must reference evidence posture from slice 6.
 
 ## RED
 
-- Projection without a generated receipt-family descriptor fails.
-- Projection without evidence posture fails.
-- Projection against the wrong family descriptor fails.
-- A receipt missing required local source facts fails.
+Observed first:
+
+```text
+npx vitest run test/unit/domain/continuum/ContinuumReceiptFamilyProjection.test.ts --reporter=verbose
+```
+
+The projection suite failed because `ContinuumReceiptFamilyProjection` and
+`GitWarpReceiptSourceFacts` did not exist yet.
+
+## Implementation
+
+Added two runtime-backed domain concepts:
+
+- `GitWarpReceiptSourceFacts` validates the local git-warp facts available for
+  projection: a concrete `TickReceipt`, optional `DeliveryObservation` records,
+  and an optional `ReceiptShard`.
+- `ContinuumReceiptFamilyProjection` consumes a `ContinuumEvidenceClaim` plus
+  source facts and emits generated-family arrays named after the Wesley fixture
+  operations: `receipts`, `witnesses`, and `deliveryObservations`.
+
+The projection requires:
+
+- generated descriptor authority;
+- `receipt-family` descriptor identity;
+- `witnessScope: receipt-family` when a witness scope is present;
+- explicit `translated-git-warp-evidence` posture;
+- at least one local receipt operation outcome.
+
+The witness output deliberately names its kind `git-warp-tick-receipt` and
+copies the explicit evidence posture. It does not claim native Continuum
+witnesshood.
 
 ## Verification
 
-- Focused receipt-family projection tests.
-- Generated fixture conformance checks.
-- `npm run lint`
+- `npx vitest run test/unit/domain/continuum/ContinuumReceiptFamilyProjection.test.ts --reporter=verbose`
+- `npx vitest run test/unit/domain/continuum/ContinuumReceiptFamilyProjection.test.ts test/unit/domain/continuum/ContinuumEvidencePosture.test.ts test/unit/domain/continuum/ContinuumArtifactIngestionPolicy.test.ts test/unit/domain/index.exports.test.ts --reporter=verbose`
+- `npx vitest run test/unit/domain/continuum/ContinuumReceiptFamilyProjection.test.ts test/unit/domain/continuum/ContinuumEvidencePosture.test.ts test/unit/domain/continuum/ContinuumArtifactIngestionPolicy.test.ts test/unit/domain/index.exports.test.ts test/unit/domain/types/TickReceipt.test.ts test/unit/domain/types/DeliveryObservation.test.ts --reporter=verbose`
 - `npm run typecheck`
-- Targeted receipt tests.
+- `npm run lint`
+- `npx markdownlint docs/BEARING.md docs/design/0157-v18-receipt-family-projection/v18-receipt-family-projection.md`
+
+## Closeout
+
+git-warp now has a generated-family receipt projection noun that can feed the
+next `warp-ttd` smoke without adapter-local receipt folklore. It remains honest:
+the evidence posture is translated git-warp evidence, not native Continuum
+evidence.
 
 ## SSJS Scorecard
 
-- Runtime-backed forms: planned; projection output is a named class.
+- Runtime-backed forms: green; projection output and source facts are named
+  classes.
 - Boundary validation: green; generated descriptor ingestion remains adapter
   owned.
-- Behavior ownership: planned; projection owns only mapping, not receipt
+- Behavior ownership: green; projection owns only mapping, not receipt
   semantics.
 - Message parsing: green.
 - Ambient time or entropy: green.
-- Fake shape trust or cast-cosplay: planned; descriptor and posture are
+- Fake shape trust or cast-cosplay: green; descriptor and posture are
   explicit inputs.
-
