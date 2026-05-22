@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.1] — 2026-05-22
+
 ### Fixed
 
+- Recursive Git tree OID reads now use one `git ls-tree -rz` call instead
+  of recursing through one-level tree iteration, restoring checkpoint-open
+  latency for Think-scale tree indexes while preserving git-warp's recursive
+  path-to-OID map contract.
 - Continuum artifact ingestion now enforces artifact-kind/authority pairing at
   the domain policy layer, keeps review fixtures repo-neutral, and splits the
   JSON adapter into focused parser, validation, fixture, and Wesley inventory
