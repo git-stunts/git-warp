@@ -1,11 +1,12 @@
 ---
 cycle: 0158
 task_id: V18_warp_ttd_receipt_smoke
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-22
+completed_at: 2026-05-22
 release_home: v18.0.0
 bearing_task: 10
 ---
@@ -52,25 +53,63 @@ The smoke can be one of:
 
 ## RED
 
-- Smoke fails with handwritten/local receipt DTOs only.
-- Smoke fails when evidence posture is missing.
-- Smoke passes when generated-family projection output is used.
+Observed first:
+
+```text
+node --experimental-strip-types test/smoke/warpTtdReceiptFamilyProjectionSmoke.ts
+```
+
+The smoke command failed because the script did not exist yet.
+
+## Implementation
+
+Added a standalone smoke script:
+
+```text
+test/smoke/warpTtdReceiptFamilyProjectionSmoke.ts
+```
+
+The script imports the sibling `warp-ttd` adapter from:
+
+```text
+../../../../warp-ttd/src/adapters/gitWarpAdapter.ts
+```
+
+It builds a `ContinuumReceiptFamilyProjection` from generated receipt-family
+descriptor authority, explicit `translated-git-warp-evidence`, a local
+`TickReceipt`, and a `DeliveryObservation`. It rejects a handwritten object
+that contains only a local `receipts` array, then feeds the generated-family
+projection's receipt facts to `GitWarpAdapter.create()` through a stub graph.
+
+The smoke asserts that `warp-ttd` surfaces the expected receipt summary:
+
+- patch digest preserved;
+- writer preserved;
+- output tick preserved;
+- applied, superseded, and redundant operation counts preserved.
 
 ## Verification
 
-- The narrow smoke command or fixture check.
-- `npm run lint`
+- `node --experimental-strip-types test/smoke/warpTtdReceiptFamilyProjectionSmoke.ts`
+- `npx vitest run test/unit/domain/continuum/ContinuumReceiptFamilyProjection.test.ts --reporter=verbose`
 - `npm run typecheck`
-- Any warp-ttd command used by the smoke, with exact path and command recorded.
+- `npm run lint`
+- `npx markdownlint docs/BEARING.md docs/design/0158-v18-warp-ttd-receipt-smoke/v18-warp-ttd-receipt-smoke.md`
+
+## Closeout
+
+The first `warp-ttd` smoke exists without making `warp-ttd` a runtime
+dependency of git-warp core. The smoke is intentionally local and explicit: it
+requires the sibling repo at `~/git/warp-ttd`, uses generated-family projection
+output, and refuses adapter-local receipt DTO folklore.
 
 ## SSJS Scorecard
 
 - Runtime-backed forms: green if slice 9 projection is reused.
-- Boundary validation: planned; cross-repo fixture loading stays at test or
+- Boundary validation: green; cross-repo fixture loading stays at test or
   adapter boundaries.
 - Behavior ownership: green; warp-ttd consumes, git-warp provides.
 - Message parsing: green.
 - Ambient time or entropy: green.
-- Fake shape trust or cast-cosplay: planned; smoke must use generated-family
+- Fake shape trust or cast-cosplay: green; smoke uses generated-family
   output.
-

@@ -64,7 +64,7 @@ Current branch state at this boundary:
 - Latest merged PR: #93, recursive tree OID read fanout and v17.0.1 release
   repair
 - Latest completed v18 implementation cycle:
-  `0157-v18-receipt-family-projection`
+  `0158-v18-warp-ttd-receipt-smoke`
 
 The release ladder is now:
 
@@ -222,10 +222,14 @@ for that slice.
   `ContinuumReceiptFamilyProjection` emits generated-family `receipts`,
   `witnesses`, and `deliveryObservations` arrays while preserving translated
   git-warp evidence posture.
-- [ ] 10. Add the first `warp-ttd` smoke over generated-family git-warp receipt
+- [x] 10. Add the first `warp-ttd` smoke over generated-family git-warp receipt
   facts:
   [0158-v18-warp-ttd-receipt-smoke](design/0158-v18-warp-ttd-receipt-smoke/v18-warp-ttd-receipt-smoke.md)
-  rejects handwritten adapter-local receipt folklore.
+  rejects handwritten adapter-local receipt folklore. The standalone smoke
+  `test/smoke/warpTtdReceiptFamilyProjectionSmoke.ts` imports the sibling
+  `~/git/warp-ttd` adapter, rejects plain local receipt DTOs, and proves
+  `warp-ttd` can summarize generated-family git-warp receipt projection facts
+  while preserving translated evidence posture.
 - [ ] 11. Re-plan with evidence in hand before expanding into reading-envelope,
   suffix/runtime-boundary, neighborhood-core, and settlement-family slices.
 
