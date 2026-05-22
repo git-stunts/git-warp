@@ -40,6 +40,7 @@ import WarpAppDefault, {
   TraversalError,
   OperationAbortedError,
   Observer,
+  ContinuumArtifactAuthorityError,
 
   // Cancellation utilities
   checkAborted,
@@ -57,6 +58,11 @@ import WarpAppDefault, {
   compareVisibleState,
   normalizeVisibleStateScope,
   scopeMaterializedState,
+  ContinuumArtifactAuthority,
+  ContinuumArtifactDescriptor,
+  ContinuumArtifactIngestionPolicy,
+  ContinuumFamilyId,
+  ContinuumArtifactJsonFileAdapter,
 } from '../../../index.ts';
 
 const { WarpGraph, WarpRuntime, Worldline, ObserverView } = (await import('../../../index.ts') as any);
@@ -243,6 +249,36 @@ describe('index.ts exports', () => {
     it('exports OperationAbortedError', () => {
       expect(OperationAbortedError).toBeDefined();
       expect(typeof OperationAbortedError).toBe('function');
+    });
+
+    it('exports ContinuumArtifactAuthorityError', () => {
+      expect(ContinuumArtifactAuthorityError).toBeDefined();
+      expect(typeof ContinuumArtifactAuthorityError).toBe('function');
+    });
+  });
+
+  describe('Continuum compatibility artifacts', () => {
+    it('exports the artifact descriptor classes', () => {
+      expect(ContinuumArtifactAuthority).toBeDefined();
+      expect(ContinuumArtifactDescriptor).toBeDefined();
+      expect(ContinuumArtifactIngestionPolicy).toBeDefined();
+      expect(ContinuumFamilyId).toBeDefined();
+      expect(ContinuumArtifactJsonFileAdapter).toBeDefined();
+    });
+
+    it('constructs a generated receipt-family descriptor from public exports', () => {
+      const descriptor = new ContinuumArtifactDescriptor({
+        familyId: 'receipt-family',
+        version: '0.1.0',
+        sourceSchemaPath: '~/git/continuum/schemas/continuum-receipt-family.graphql',
+        generatedBy: 'wesley witness-continuum --scope receipt-family',
+        artifactKind: 'continuum.family.fixture',
+        authority: 'generated-fixture',
+        targets: ['typescript'],
+      });
+
+      expect(descriptor.familyId).toBeInstanceOf(ContinuumFamilyId);
+      expect(descriptor.hasGeneratedAuthority()).toBe(true);
     });
   });
 

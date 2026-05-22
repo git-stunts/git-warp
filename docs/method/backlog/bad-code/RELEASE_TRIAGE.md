@@ -28,8 +28,8 @@ Use the release theme, not the filename prefix, as the slotting rule:
 | Release | Bad-Code That Belongs Here |
 |---------|----------------------------|
 | `v17.0.0` | Current engine cleanup: TypeScript migration fallout, capability/API honesty, `WarpRuntime` deletion fallout, current sync/security hardening, current trie/checkpoint/index correctness, and test/doc debt that blocks the v17 package from being honest. |
-| `v18.0.0` | Echo-shaped graph substrate convergence: node/edge record identity, attachment plane, typed payload model, graph-op algebra, graph-model migration, and replay equivalence from genesis. |
-| `v19.0.0` | Observer/admission/doctrine convergence: audit/admission seams, observer-readable receipts, patch/session admission semantics, trust/admission boundary models, and doctrine cleanup that should not be mixed into graph-substrate migration. |
+| `v18.0.0` | Continuum-compatible graph-model convergence pressure-tested against Echo: node/edge record identity, attachment plane, typed payload model, graph-op algebra, graph-model migration, and replay equivalence from genesis. |
+| `v19.0.0` | Observer/admission/doctrine convergence: audit/admission seams, observer-readable receipts, patch/session admission semantics, trust/admission boundary models, and doctrine cleanup that should not be mixed into graph-model migration. |
 | `v20.0.0` | Slice-first runtime realization: bounded-support reads, streaming/page-shaped APIs, causal indexes, query/index cost surfaces, external-memory global operators, and materialization paths that must stop assuming whole-graph residency. |
 | `v21.0.0` | Distributed observer geometry and admission reality: strand/braid/common-basis/local-site semantics, merge runtime nouns, witnessed admission, conflict witnesses, wormhole/plurality surfaces, and public noun cleanup for those later semantics. |
 
@@ -70,10 +70,10 @@ Other v17 recheck candidates:
 
 ## `v18.0.0` Fit
 
-The first metadata pass promoted only graph-substrate bad-code into
+The first metadata pass promoted only graph-model bad-code into
 `v18.0.0`. This should stay narrow.
 
-Cards now pinned to v18 for the Echo-shaped graph substrate cycle:
+Cards now pinned to v18 for the graph-model convergence cycle:
 
 - `CAST_warpstate-prop-unknown-value`: property value truth belongs with typed attachment/payload substrate decisions.
 - `MODEL_neighbor-edge-typedef`: neighbor edge shape should line up with stable edge identity and edge-record nouns.
@@ -199,7 +199,7 @@ The first metadata pass did this:
 3. Pulled the direct `WarpRuntime`/Worldline escape-hatch cards forward
    into v17 or graveyard them if the current runtime-deletion line
    already removed the smell.
-4. Promoted only graph-substrate cards into v18. Do not move generic
+4. Promoted only graph-model cards into v18. Do not move generic
    typedef cleanup there just because v18 has room.
 5. Recomputed bad-code release counts from frontmatter and updated
    `bad-code/README.md`.
@@ -212,7 +212,7 @@ Use feature/release overlap:
 
 1. During the v17 burndown, pay down or graveyard bad-code cards that
    sit in the files already touched by the active v17 task.
-2. At the v18 pull, move only the graph-substrate candidates listed
+2. At the v18 pull, move only the graph-model candidates listed
    above into the v18 lane and leave unrelated cleanup behind.
 3. At the v19 pull, resolve admission/trust/audit cards as part of the
    observer/admission surface work.

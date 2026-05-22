@@ -6,6 +6,7 @@ describe('domain/errors index barrel', () => {
 
     expect(Object.keys(errors).sort()).toEqual([
       'AuditError',
+      'ContinuumArtifactAuthorityError',
       'EncryptionError',
       'ForkError',
       'IndexError',

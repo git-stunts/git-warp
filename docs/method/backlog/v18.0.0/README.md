@@ -1,10 +1,16 @@
-# v18.0.0 — Echo-Shaped Graph Substrate Convergence
+# v18.0.0 — Continuum-Compatible Graph Model Convergence
 
-The hill: make `git-warp` and Echo share the same graph substrate
-shape without pretending they must immediately share the same public
-API, admission model, or runtime shell.
+The hill: make `git-warp`'s graph model compatible with the concrete
+shape Echo has already exercised while keeping both engines as equal
+Continuum participants. They do not need to share the same public API,
+admission model, or runtime shell.
 
-This release cuts the graph layer to the Echo-shaped two-plane model:
+Doctrine note: `PROTO_echo-shaped-*` task identities are historical
+backlog shorthand for graph-model alignment pressure from Echo. They do
+not mean Echo owns `git-warp`, and they do not make Continuum a runtime
+hierarchy.
+
+This release cuts the graph layer toward the shared two-plane model:
 
 - skeleton-only node records
 - skeleton-only edge records with stable edge identity
@@ -55,10 +61,9 @@ LAYER 2 (migration and proof):
 
 ## Practical rule
 
-`v18.0.0` is graph-substrate convergence, not "make git-warp become
-Echo." Keep the `git-warp` causal envelope if it can faithfully carry
-the shared graph model. Change the envelope only if replay honesty
-requires it.
+`v18.0.0` is graph-model convergence, not "make git-warp become Echo."
+Keep the `git-warp` causal envelope if it can faithfully carry the shared
+graph model. Change the envelope only if replay honesty requires it.
 
 ## Status key
 

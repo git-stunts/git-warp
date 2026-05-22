@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Continuum artifact ingestion now enforces artifact-kind/authority pairing at
+  the domain policy layer, keeps review fixtures repo-neutral, and splits the
+  JSON adapter into focused parser, validation, fixture, and Wesley inventory
+  modules so the adapter entry point stays below the source-size policy cap.
+- Continuum adapter review follow-up now keeps adapter-local JSON type carriers
+  in one file per exported type and names the policy-test authority fixtures so
+  review fixes preserve the source-structure and magic-string rules.
+
 ## [17.0.0] — 2026-05-05
 
 ### Changed

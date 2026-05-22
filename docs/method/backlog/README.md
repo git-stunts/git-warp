@@ -127,7 +127,7 @@ lanes.
 | `B1` | backlog root | Unlaned maintenance and reference work. Needs classification or direct pull before it should block committed work. | `B0` or direct human pull. |
 | `B2` | `bad-code/` | Foundational debt and invariant repair. This lane can legitimately block release or execution work. | `B0`, `B1`, or lower-level debt in `B2`. |
 | `B3` | `v17.0.0/` | Current committed release work. Explicit per-note edges win here. | `B2`, same-band work, or explicit edges. |
-| `B4` | `v18.0.0/`, `up-next/` | Next-major substrate work plus unslotted near-term feature overflow after the active release. | `B2`, `B3`, or explicit same-band edges. |
+| `B4` | `v18.0.0/`, `up-next/` | Next-major graph-model work plus unslotted near-term feature overflow after the active release. | `B2`, `B3`, or explicit same-band edges. |
 | `B5` | `v19.0.0/` | Doctrine/runtime follow-through after the substrate cut. | `B2`, `B3`, `B4`, or explicit same-band edges. |
 | `B6` | `v20.0.0/`, `v21.0.0/`, `cool-ideas/` | Far-horizon slice-first/runtime and distributed/plural follow-through plus speculative orbit. | Promotion into another lane or completion of lower numbered bands. |
 
@@ -139,8 +139,8 @@ lanes.
 | backlog root | `B1` | These notes are real work, but still need lane assignment or an explicit pull decision. When `feature:` is present, treat that as the subsystem home while release-home remains undecided. |
 | `bad-code/` | `B2` | Invariant debt can block `v17.0.0`, `v18.0.0`, and `up-next`. |
 | `v17.0.0/` | `B3` | This is the active release graph for TypeScript migration and streaming ORSets. |
-| `v18.0.0/` | `B4` | This is the next-major graph-substrate convergence lane. |
-| `up-next/` | `B4` | Feature-overflow queue behind the active release and next-major substrate work unless explicitly promoted into a numbered lane. |
+| `v18.0.0/` | `B4` | This is the next-major graph-model convergence lane. |
+| `up-next/` | `B4` | Feature-overflow queue behind the active release and next-major graph-model work unless explicitly promoted into a numbered lane. |
 | `v19.0.0/` | `B5` | Doctrine, observer, and admission convergence after the substrate cut. |
 | `v20.0.0/` | `B6` | Slice-first runtime realization after `v19.0.0/` hardens the noun and support law. |
 | `v21.0.0/` | `B6` | Common-basis, braid, and fuller distributed observer geometry after `v20.0.0/`. |
@@ -296,13 +296,14 @@ Prefix counts:
 | `SLUDGE` | 1 |
 | `TS` | 11 |
 
-### `v18.0.0/` — `B4` Graph-Substrate Convergence
+### `v18.0.0/` — `B4` Graph-Model Convergence
 
 Dependency posture:
 
 - downstream of `v17.0.0/`
 - explicit frontmatter edges carry the actual substrate cut order
-- this lane is the Echo-shaped graph-model cut, not full repo parity
+- this lane is the Continuum-compatible graph-model cut pressure-tested against
+  Echo, not full repo parity or runtime hierarchy
 
 Canonical lane readme:
 

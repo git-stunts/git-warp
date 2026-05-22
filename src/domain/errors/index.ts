@@ -1,6 +1,7 @@
 /** Custom error classes for domain operations. */
 
 export { default as AuditError } from './AuditError.ts';
+export { default as ContinuumArtifactAuthorityError } from './ContinuumArtifactAuthorityError.ts';
 export { default as EncryptionError } from './EncryptionError.ts';
 export { default as ForkError } from './ForkError.ts';
 export { default as IndexError } from './IndexError.ts';

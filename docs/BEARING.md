@@ -1,6 +1,6 @@
 # BEARING
 
-Updated at cycle boundaries. Not mid-cycle.
+Updated at cycle boundaries and before the final commit of each v18 slice.
 
 Scope note:
 
@@ -12,64 +12,73 @@ Scope note:
 - For later-major horizon planning, use
   [release-horizon-v20-v21.md](design/release-horizon-v20-v21.md).
 
+## Continuum Optic Admission Posture
+
+For cross-repo optic admission, git-warp is a complete Continuum participant,
+not an Echo runtime surrogate. Continuum is the protocol for exchanging
+witnessed causal history. Wesley compiles artifacts and descriptors, Echo
+admits Echo-local runtime invocations, git-warp admits git-warp-local causal
+history and readings, authority layers issue grants, and applications hide
+handles and basis references behind product adapters.
+
 ## Where are we
 
-`git-warp` is executing the v17 release-blocker DAG. The current work is
-not a broad RuntimeHost rewrite; it is one bounded release blocker at a
-time, with the DAG status and SVG kept current after each completed
-cycle.
+`git-warp` has shipped `v17.0.0`. The release work is now behind us in
+repo history, npm, and JSR; the active direction is `v18.0.0`.
+
+The v18 hill is not generic graph-model cleanup. It is Continuum
+compatibility:
+
+> Make `git-warp` a Continuum-compatible sibling WARP runtime: consume
+> Wesley-generated artifacts for Continuum-owned contract families, map
+> git-warp's append-only Git-backed causal history into honest WARP Optic
+> evidence, and
+> give `warp-ttd` generated-family facts instead of handwritten adapter
+> folklore.
+
+The long-term compatibility target is the WARP Optic shape described in
+`~/git/blog/aion-paper-07/dist/aion-paper-07.txt`, plus the Continuum
+contract families authored in `~/git/continuum/schemas/` and compiled by
+Wesley. Echo and `git-warp` are sibling runtime implementations. `git-warp`
+has its own Continuum role, and it must not emit Continuum-shaped values as
+native Continuum witnesses until that witnesshood is actually proven.
+
+Backlog fold-in: the repo-visible v18 lane is
+`WL-4A-v18-graph-substrate-convergence` in
+[WORKLOADS.md](method/backlog/WORKLOADS.md), backed by the eight notes in
+[method/backlog/v18.0.0](method/backlog/v18.0.0/). Treat that lane as the
+graph-model track inside this compatibility campaign: node and edge record
+identity, attachment slots, graph-op algebra, content cutover, legacy property
+projection, migration tooling, and genesis replay equivalence. Existing
+`echo-shaped` backlog identities are historical shorthand for graph-model
+pressure already exercised by Echo, not a claim that Echo owns `git-warp`'s
+Continuum role.
 
 Current branch state at this boundary:
 
-- Branch: `release/v17.0.0`
-- Push state: local branch remains ahead of `origin/release/v17.0.0`;
-  push only after explicit approval.
-- DAG map:
-  [0124-v17-release-blocker-dag.md](design/0124-v17-release-blocker-dag.md)
+- Branch: `v18-continuum-opening`
+- Release tag: `v17.0.0`
+- Latest remote head inspected: `origin/main` at `5afdd3eb`
+- Latest package version: `17.0.0`
 - Latest closed cycle:
-  `0144-release-preflight-and-rc`
-- Latest full unit gate shape:
-  `npm run test:local` is green with `438` files and `6771` tests.
-- Latest validation shape:
-  lint, anti-sludge shell checks, source/test typecheck, consumer
-  typecheck, markdown lint, markdown code-sample lint, high-level npm
-  audit, release preflight, and whitespace diff checks are green at this
-  boundary.
+  `0145-push-pr-review-merge`
 
-The current release ladder remains:
+The release ladder is now:
 
-- `v17.0.0`: TypeScript migration, public API honesty,
-  materialization-frontdoor deletion, readings/optics direction, and
-  query read-model groundwork
-- `v18.0.0`: graph substrate convergence
+- `v17.0.0`: shipped TypeScript migration, public API honesty,
+  materialization-frontdoor deletion, readings/optics direction, and query
+  read-model groundwork.
+- `v18.0.0`: Continuum/WARP Optic compatibility for git-warp as an independent
+  Continuum participant, through Wesley-generated contract-family artifacts and
+  honest evidence posture.
 - `v19.0.0`: observation, doctrine, and slice-first runtime convergence
 - `v20.0.0`: slice-first read execution
 - `v21.0.0`: distributed observer geometry and admission reality
 
-Recent work narrowed v17 honestly, removed public materialization
-frontdoor docs, fixed runtime read guidance, made checkpoint schema `5`
-the single runtime checkpoint contract, removed the checkpoint, patch,
-subscription, and sync controller private materialization dependencies,
-retired stale materialize-spy expectations, pinned default observer
-readings, and aligned remaining checkpoint/materialize unit tests with
-the current checkpoint contract, and replaced plain sync HMAC credential
-flow with an opaque `SyncSecret`. The sync server now fails closed for
-non-local unauthenticated serving and requires an explicit unsafe option
-for unauthenticated localhost serving. It also applies per-key token-bucket
-rate limiting for configured sync auth and requires an explicit rate-limit
-budget for non-local enforced sync auth. The package upgrade command now has
-a real checkpoint upgrade path for retired checkpoint envelopes. Unexpected
-HTTP sync `500` responses are now sanitized to `E_SYNC_INTERNAL`, with
-internal details kept in structured logs.
-
-The runtime is still partially state-first in important places. The
-important current truth is narrow: the non-security `test:local` blockers
-from the v17 materialization cleanup and the direct sync security hardening
-nodes are closed. File-level anti-sludge quarantines are also graduated, and
-the full gate matrix is green, and the release cut/version/changelog node is
-closed. Final local release preflight is also green. The remaining blocker is
-release coordination: push, PR, review, green CI, and an explicit merge
-decision.
+The v18 compatibility work is bigger than ten slices. The first ten slices are
+the opening campaign. Slice 11 is an explicit re-plan point after the repo has
+real evidence from generated artifact ingestion, evidence posture, and the
+first receipt-family projection.
 
 ## Invariants
 
@@ -109,80 +118,79 @@ mapping, and concrete checks live in `docs/invariants/`.
 
 ## What just shipped
 
-Cycles `0132-subscription-controller-reading-basis` through
-`0144-release-preflight-and-rc`:
+`v17.0.0` shipped and was followed by release hardening:
 
-- Removed `_materializeGraph()` from subscription/watch and sync
-  controller read paths.
-- Made default sync metadata-only unless callers explicitly request
-  `materialize: true`.
-- Rewrote stale auto-materialize and materialize-spy tests around the v17
-  reading-basis contract.
-- Pinned default `graph.observer()` reads to the caller's fresh reading
-  basis.
-- Aligned remaining checkpoint/materialize tests with schema `5` or
-  explicit retired-schema upgrade rejection.
-- Added `SyncSecret` so sync auth secrets redact in string, JSON, and
-  inspect output while still signing HMAC requests.
-- Hardened sync serve defaults: non-local bind hosts require enforced
-  auth, and local unauthenticated serving must opt into unsafe localhost
-  mode.
-- Added per-key token-bucket sync auth rate limiting and required explicit
-  `auth.rateLimit` for non-local enforced sync hosts.
-- Sanitized unexpected HTTP sync `500` responses and routed internal error
-  detail through `LoggerPort`.
-- Graduated the anti-sludge file-level quarantine manifests to empty
-  `files` lists and narrowed remaining legacy hits to owning-cycle inline
-  suppressions.
-- Recorded the full gate matrix green after quarantine graduation.
-- Cut the v17.0.0 changelog section for May 5 and aligned the release note with
-  the honest 0123 bounded-query scope.
-- Cleared the local release preflight from a clean commit. The hard preflight
-  repairs landed in `bdafca51`, and the final preflight reports all hard checks
-  passed.
-- Brought `npm run test:local` back to green.
-- Marked `PORT_subscription-controller-reading-basis`,
-  `PORT_sync-controller-reading-basis`,
-  `SPEC_materialize-spy-test-clusters`,
-  `SPEC_observer-coordinate-pinning`, and
-  `SPEC_checkpoint-materialize-test-drift` complete in the DAG, then
-  marked `HEX_sync-secret-plain-string` and
-  `HEX_sync-production-auth-defaults` complete, then marked
-  `HEX_sync-no-rate-limiting`, `HEX_sync-500-sanitization`, and
-  `REL_quarantine-graduate-clean`, then
-  `REL_full-gate-matrix-green`, then
-  `REL_release-cut-version-changelog`, then
-  `REL_release-preflight-and-rc` complete.
+- The v17 release branch landed through PR #84.
+- Follow-up repair and package migration work landed through PR #85.
+- Release hardening landed through PR #86.
+- The final v17 coverage ratchet landed through PR #87; the signed
+  `v17.0.0` tag points at that merge.
+- npm publish recovery landed through PR #88.
+- PR #89 simplified the README model sentence after the release line.
+
+The shipped v17 scope remains: TypeScript migration, public API honesty,
+materialization-frontdoor deletion, readings/optics direction, query
+read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What feels wrong
 
-- v17 is still not releasable until the branch is pushed, reviewed, green in
-  CI, and explicitly approved for merge.
-- `REL_push-pr-review-merge` is now the open node.
 - The release preflight fix lowered the coverage ratchet to the measured
   full-suite v17 line baseline `91.74%`; this is tracked as v19 bad-code debt
   in `SPEC_coverage-ratchet-baseline-drop.md`.
-- Broader historical version-suffixed substrate names still exist in
-  `src/`; the checkpoint upgrade slice removed the touched checkpoint and
-  migration names only.
-- The branch remains local-only relative to origin; pushing is a separate
-  release/coordination decision.
+- v18 can easily turn into adapter folklore if `git-warp` hand-authors local
+  mirrors of Continuum-owned families instead of consuming Wesley-generated
+  artifacts.
+- v18 can also lie in the other direction: Continuum-shaped values are not
+  Continuum-native witnesses unless the runtime has actually proven native
+  witnesshood. Initial git-warp compatibility evidence should be treated as
+  translated git-warp evidence until stronger proof exists.
+- The v18 backlog already names a graph-model convergence lane. The plan must
+  fold that lane into Continuum compatibility instead of replacing it with a
+  parallel cross-repo adapter plan.
+- `warp-ttd` needs git-warp facts as generated-family nouns, but the existing
+  ecosystem still contains handwritten adapter and protocol residue.
 
 ## What comes next
 
-Continue executing the DAG one open node at a time.
+Run the v18 opening campaign. Update this task list at the end of each slice,
+before the final commit for that slice, and mark completed items with `- [x]`.
 
-Recommended next pull:
+## Running Task List
 
-- `REL_push-pr-review-merge`
+- [x] 1. Sync and clean the repo runway: fast-forward `main`, clear fsmonitor
+  noise, close stale v17/0145 bookkeeping, and record the v18 starting point.
+- [x] 2. Create the v18 Continuum compatibility charter: WARP Optic
+  compatibility, Continuum contract-family compatibility, Wesley-generated
+  artifact consumption, and `warp-ttd` acceptance.
+- [x] 3. Build the cross-repo contract matrix: Continuum family to Wesley
+  generated artifact to git-warp source fact to `warp-ttd` consumer need,
+  with `WL-4A-v18-graph-substrate-convergence` folded in as the graph-model
+  track.
+- [x] 4. Define git-warp's WARP Optic realization map: observer plan, bounded
+  slice, lowering surface, admissibility law, and retention contract.
+- [x] 5. Add a generated-artifact ingestion path for Continuum families, with a
+  guard against handwritten local mirrors becoming contract authority. The
+  current seam admits Continuum receipt-family fixture JSON and Wesley
+  realization manifest JSON through explicit load context; it binds each
+  accepted JSON shape to the matching context authority, the domain policy
+  independently rejects descriptor kind/authority mismatches, the adapter entry
+  point and adapter-local JSON type carriers are split below the source-size
+  and one-file-per-concept caps, self-attested authority fields from artifact
+  JSON are rejected, policy-test authority fixtures are named constants, and
+  empty or internally inconsistent Wesley generated inventory is rejected.
+- [ ] 6. Make evidence posture explicit: translated git-warp evidence first,
+  native Continuum evidence only after native witnesshood is proven.
+- [ ] 7. Prove the patch commit visibility contract: success means canonical
+  writer-tip advancement and visible graph truth, not just object creation.
+- [ ] 8. Add the same-writer concurrent patch race witness with final-frontier
+  and visible-state assertions.
+- [ ] 9. Project git-warp receipt facts into the generated Continuum
+  receipt-family shape with conformance tests.
+- [ ] 10. Add the first `warp-ttd` smoke over generated-family git-warp receipt
+  facts instead of handwritten adapter-local receipt folklore.
+- [ ] 11. Re-plan with evidence in hand before expanding into reading-envelope,
+  suffix/runtime-boundary, neighborhood-core, and settlement-family slices.
 
-Why:
-
-- It is open.
-- The full gate matrix, release cut, and local preflight are green.
-- The branch is still local-only relative to origin.
-- Merge must remain gated on review, green CI, and explicit human approval.
-
-Keep the loop strict: write the cycle doc, capture RED, green the slice,
-update changelog/DAG/SVG/retro, validate, commit, then pull the next open
-node.
+The loop stays strict: write or update the cycle doc, capture RED, green the
+slice, update this BEARING task list before the final commit, validate, then
+commit only the files touched in that slice.

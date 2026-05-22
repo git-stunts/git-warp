@@ -46,6 +46,7 @@ import NoOpLogger from './src/infrastructure/adapters/NoOpLogger.ts';
 import ConsoleLogger, { LogLevel } from './src/infrastructure/adapters/ConsoleLogger.ts';
 import {
   AuditError,
+  ContinuumArtifactAuthorityError,
   EncryptionError,
   ForkError,
   IndexError,
@@ -207,6 +208,15 @@ import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
 } from './src/domain/services/CoordinateFactExport.ts';
+import ContinuumArtifactAuthority from './src/domain/continuum/ContinuumArtifactAuthority.ts';
+import ContinuumArtifactDescriptor from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
+import ContinuumArtifactIngestionPolicy from './src/domain/continuum/ContinuumArtifactIngestionPolicy.ts';
+import ContinuumFamilyId from './src/domain/continuum/ContinuumFamilyId.ts';
+import ContinuumArtifactJsonFileAdapter from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
+import type { ContinuumArtifactAuthorityValue } from './src/domain/continuum/ContinuumArtifactAuthority.ts';
+import type { ContinuumArtifactDescriptorFields } from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
+import type { ContinuumFamilyIdValue } from './src/domain/continuum/ContinuumFamilyId.ts';
+import type { ContinuumArtifactJsonLoadContext } from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 
 export {
   GitGraphAdapter,
@@ -247,6 +257,7 @@ export {
 
   // Error types for integrity failure handling
   AuditError,
+  ContinuumArtifactAuthorityError,
   EncryptionError,
   PatchError,
   ForkError,
@@ -318,6 +329,13 @@ export {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
 
+  // Continuum compatibility artifacts
+  ContinuumArtifactAuthority,
+  ContinuumArtifactDescriptor,
+  ContinuumArtifactIngestionPolicy,
+  ContinuumFamilyId,
+  ContinuumArtifactJsonFileAdapter,
+
   // Tick receipts (LIGHTHOUSE)
   createTickReceipt,
   tickReceiptCanonicalJson,
@@ -360,7 +378,15 @@ export {
   SyncSecret,
 };
 
-export type { PropValue, SnapshotPropValue, SyncRateLimitConfig };
+export type {
+  PropValue,
+  SnapshotPropValue,
+  SyncRateLimitConfig,
+  ContinuumArtifactAuthorityValue,
+  ContinuumArtifactDescriptorFields,
+  ContinuumArtifactJsonLoadContext,
+  ContinuumFamilyIdValue,
+};
 
 // WarpApp is the primary product-facing API for v15.
 export default WarpApp;

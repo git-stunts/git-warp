@@ -1,11 +1,12 @@
 ---
 cycle: 0145
 task_id: REL_push-pr-review-merge
-status: Draft
+status: Complete
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-05
+completed_at: 2026-05-21
 release_home: v17.0.0
 ---
 
@@ -23,6 +24,21 @@ unless James explicitly says `YES`.
 
 The release branch is visible on GitHub, represented by a PR against `main`,
 and blocked only by external review, CI, or the explicit merge approval gate.
+
+## Closeout
+
+The coordination hill is closed in repo-visible history:
+
+- PR #84 merged the `release/v17.0.0` branch to `main`.
+- PR #85 landed v17 follow-up repair and package migration work.
+- PR #86 landed release publish hardening.
+- PR #87 finalized the v17 coverage ratchet and produced the signed
+  `v17.0.0` tag.
+- PR #88 recovered npm release publishing.
+- PR #89 landed the post-release README wording cleanup.
+
+The release branches have been pruned from `origin`, `origin/main` is at
+`5afdd3eb`, and `v17.0.0` is visible on npm and JSR.
 
 ## Playback Questions
 
@@ -139,11 +155,10 @@ Current evidence before implementation:
 
 ### Goldens
 
-- Local and remote branch tips match.
-- The PR body records the v17 scope, validation evidence, and the explicit
-  non-merge gate.
-- The final release decision remains outside automation until James says
-  `YES`.
+- `main` contains the release merge and follow-up release hardening.
+- The signed `v17.0.0` tag points at the final coverage-ratchet release merge.
+- npm and JSR both expose `17.0.0` as the latest package version.
+- The final release branches are no longer open remote work.
 
 ### Known Fails
 
