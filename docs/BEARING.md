@@ -185,8 +185,13 @@ before the final commit for that slice, and mark completed items with `- [x]`.
   `translated-substrate` evidence, native Continuum evidence cannot be
   constructed without `nativeWitnessRef`, and translated evidence rejects native
   witness references.
-- [ ] 7. Prove the patch commit visibility contract: success means canonical
-  writer-tip advancement and visible graph truth, not just object creation.
+- [x] 7. Prove the patch commit visibility contract: success means canonical
+  writer-tip advancement and visible graph truth, not just object creation. The
+  patch commit path now advances writer refs with `compareAndSwapRef()`,
+  rereads the writer ref before returning success, throws
+  `WRITER_COMMIT_NOT_VISIBLE` if the returned commit is not the visible writer
+  tip, and has focused tests proving both ref visibility and materialized graph
+  visibility.
 - [ ] 8. Add the same-writer concurrent patch race witness with final-frontier
   and visible-state assertions.
 - [ ] 9. Project git-warp receipt facts into the generated Continuum

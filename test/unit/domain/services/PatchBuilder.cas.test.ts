@@ -19,6 +19,7 @@ function createMockPersistence(overrides = {}): any {
     writeTree: vi.fn().mockResolvedValue('b'.repeat(40)),
     commitNodeWithTree: vi.fn().mockResolvedValue('c'.repeat(40)),
     updateRef: vi.fn().mockResolvedValue(undefined),
+    compareAndSwapRef: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -200,8 +201,11 @@ describe('PatchBuilder CAS conflict detection', () => {
   // ---------------------------------------------------------------
   describe('when no CAS conflict occurs', () => {
     it('succeeds when expectedParentSha matches current ref (both null)', async () => {
+      const commitSha = 'c'.repeat(40);
       const persistence = createMockPersistence({
-        readRef: vi.fn().mockResolvedValue(null),
+        readRef: vi.fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(commitSha),
       });
 
       const builder = new PatchBuilder({
@@ -218,17 +222,21 @@ describe('PatchBuilder CAS conflict detection', () => {
       builder.addNode('x');
       const sha = await builder.commit();
 
-      expect(sha).toBe('c'.repeat(40));
+      expect(sha).toBe(commitSha);
       expect(persistence.commitNodeWithTree).toHaveBeenCalledOnce();
-      expect(persistence.updateRef).toHaveBeenCalledOnce();
+      expect(persistence.compareAndSwapRef).toHaveBeenCalledOnce();
+      expect(persistence.updateRef).not.toHaveBeenCalled();
     });
 
     it('succeeds when expectedParentSha matches current ref (both same SHA)', async () => {
       const parentSha = 'd'.repeat(40);
       const patchOid = 'e'.repeat(40);
+      const commitSha = 'c'.repeat(40);
 
       const persistence = createMockPersistence({
-        readRef: vi.fn().mockResolvedValue(parentSha),
+        readRef: vi.fn()
+          .mockResolvedValueOnce(parentSha)
+          .mockResolvedValueOnce(commitSha),
         showNode: vi.fn().mockResolvedValue(
           `warp:patch\n\neg-kind: patch\neg-graph: test-graph\neg-writer: writer1\neg-lamport: 3\neg-patch-oid: ${patchOid}\neg-schema: 2`
         ),
@@ -248,8 +256,9 @@ describe('PatchBuilder CAS conflict detection', () => {
       builder.addNode('x');
       const sha = await builder.commit();
 
-      expect(sha).toBe('c'.repeat(40));
+      expect(sha).toBe(commitSha);
       expect(persistence.commitNodeWithTree).toHaveBeenCalledOnce();
+      expect(persistence.compareAndSwapRef).toHaveBeenCalledOnce();
     });
   });
 });

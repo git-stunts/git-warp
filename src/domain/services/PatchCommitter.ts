@@ -70,7 +70,7 @@ export async function commitPatch(state: CommitState): Promise<string> {
     const err = new WriterError(
       'WRITER_CAS_CONFLICT',
       'Commit failed: writer ref was updated by another process. Re-materialize and retry.',
-    ) as WriterError & { expectedSha: string | null; actualSha: string | null };
+    );
     err.expectedSha = state.expectedParentSha;
     err.actualSha = currentRefSha;
     throw err;
@@ -149,8 +149,13 @@ export async function commitPatch(state: CommitState): Promise<string> {
     treeOid, parents, message,
   });
 
-  // Update writer ref
-  await state.persistence.updateRef(writerRef, newCommitSha);
+  // Atomically advance writer ref and verify the returned commit is canonical.
+  await advanceWriterRef({
+    persistence: state.persistence,
+    writerRef,
+    newCommitSha,
+    expectedParentSha: currentRefSha,
+  });
 
   // Invoke success callback
   if (state.onCommitSuccess) {
@@ -163,4 +168,37 @@ export async function commitPatch(state: CommitState): Promise<string> {
   }
 
   return newCommitSha;
+}
+
+async function advanceWriterRef(options: {
+  persistence: PersistencePorts;
+  writerRef: string;
+  newCommitSha: string;
+  expectedParentSha: string | null;
+}): Promise<void> {
+  try {
+    await options.persistence.compareAndSwapRef(
+      options.writerRef,
+      options.newCommitSha,
+      options.expectedParentSha,
+    );
+  } catch (err) {
+    const actualSha = await options.persistence.readRef(options.writerRef);
+    const error = new WriterError(
+      'WRITER_CAS_CONFLICT',
+      'Commit failed: writer ref was updated by another process. Re-materialize and retry.',
+      err instanceof Error ? err : undefined,
+    );
+    error.expectedSha = options.expectedParentSha;
+    error.actualSha = actualSha;
+    throw error;
+  }
+
+  const visibleSha = await options.persistence.readRef(options.writerRef);
+  if (visibleSha !== options.newCommitSha) {
+    throw new WriterError(
+      'WRITER_COMMIT_NOT_VISIBLE',
+      `Commit ${options.newCommitSha} was written but ${options.writerRef} points at ${visibleSha ?? '(none)'}`,
+    );
+  }
 }

@@ -14,12 +14,15 @@ import WarpError from './WarpError.ts';
  * | `EMPTY_PATCH` | Patch commit attempted with zero operations |
  * | `WRITER_REF_ADVANCED` | Writer ref moved since beginPatch() |
  * | `WRITER_CAS_CONFLICT` | Compare-and-swap failure during commit |
+ * | `WRITER_COMMIT_NOT_VISIBLE` | Returned commit is not the writer ref tip after CAS |
  * | `PERSIST_WRITE_FAILED` | Git persistence operation failed |
  * | `NO_BLOB_STORAGE` | Content attachment attempted without blob storage |
  * | `WRITER_ERROR` | Generic/default writer error |
  */
 export default class WriterError extends WarpError {
   declare cause: Error | undefined;
+  expectedSha: string | null | undefined;
+  actualSha: string | null | undefined;
 
   /**
    * Note: constructor parameter order differs from other WarpError subclasses
@@ -29,6 +32,8 @@ export default class WriterError extends WarpError {
    */
   constructor(code: string, message: string, cause?: Error) {
     super(message, 'WRITER_ERROR', { code });
+    this.expectedSha = undefined;
+    this.actualSha = undefined;
     if (cause !== undefined) {
       this.cause = cause;
     }
