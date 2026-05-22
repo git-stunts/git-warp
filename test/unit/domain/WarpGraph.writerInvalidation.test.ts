@@ -23,24 +23,26 @@ const FAKE_COMMIT_SHA_2 = 'd'.repeat(40);
  *
  * Writer flow hits readRef 3 times for a first commit:
  *   1. Writer.beginPatch() reads ref to get expectedOldHead
- *   2. PatchSession.commit() reads ref for CAS pre-check
- *   3. PatchBuilder.commit() reads ref for its own CAS check
- * All return null for a first commit.
+ *   2. PatchCommitter reads ref for its CAS check
+ *   3. PatchCommitter verifies the writer ref advanced after compare-and-swap
  */
 function mockWriterFirstCommit(/** @type {any} */ persistence) {
-  persistence.readRef.mockResolvedValue(null);
+  persistence.readRef
+    .mockResolvedValueOnce(null)
+    .mockResolvedValueOnce(null)
+    .mockResolvedValue(FAKE_COMMIT_SHA);
   persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
   persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
   persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA);
-  persistence.updateRef.mockResolvedValue(undefined);
 }
 
 /**
  * Configure the mock persistence so that a Writer-based second commit succeeds.
  *
  * After the first commit, the writer ref points to FAKE_COMMIT_SHA.
- * readRef returns FAKE_COMMIT_SHA (3 times), and showNode returns a valid
- * patch message so lamport can be extracted.
+ * readRef returns FAKE_COMMIT_SHA until compare-and-swap succeeds, then
+ * FAKE_COMMIT_SHA_2 for the post-update visibility check. showNode returns a
+ * valid patch message so lamport can be extracted.
  */
 function mockWriterSecondCommit(/** @type {any} */ persistence) {
   const patchMessage = encodePatchMessage({
@@ -51,12 +53,14 @@ function mockWriterSecondCommit(/** @type {any} */ persistence) {
     schema: 2,
   });
 
-  persistence.readRef.mockResolvedValue(FAKE_COMMIT_SHA);
+  persistence.readRef
+    .mockResolvedValueOnce(FAKE_COMMIT_SHA)
+    .mockResolvedValueOnce(FAKE_COMMIT_SHA)
+    .mockResolvedValue(FAKE_COMMIT_SHA_2);
   persistence.showNode.mockResolvedValue(patchMessage);
   persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
   persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
   persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA_2);
-  persistence.updateRef.mockResolvedValue(undefined);
 }
 
 describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
@@ -192,7 +196,7 @@ describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
     expect((graph)._cachedState).toBe(stateBeforeAttempt);
   });
 
-  it('writer commit failure (updateRef rejects) does not corrupt state', async () => {
+  it('writer commit failure (compareAndSwapRef rejects) does not corrupt state', async () => {
     await graph.materialize();
     const stateBeforeAttempt = (graph)._cachedState;
 
@@ -200,7 +204,7 @@ describe('WarpCore Writer invalidation (AP/INVAL/3)', () => {
     persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
     persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
     persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA);
-    persistence.updateRef.mockRejectedValue(new Error('ref lock failed'));
+    persistence.compareAndSwapRef.mockRejectedValue(new Error('ref lock failed'));
 
     const writer = await graph.writer('writer-1');
     await expect(writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'))).rejects.toThrow('ref lock failed');

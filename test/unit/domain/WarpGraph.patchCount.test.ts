@@ -203,6 +203,7 @@ describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
 
     await graph.materialize();
     expect(graph._patchesSinceCheckpoint).toBe(3);
+    await persistence.updateRef('refs/warp/test/writers/w1', tipSha);
 
     // Phase 2: commit a new patch
     // After materialize, readRef for writer ref returns tipSha

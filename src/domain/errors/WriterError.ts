@@ -20,6 +20,8 @@ import WarpError from './WarpError.ts';
  */
 export default class WriterError extends WarpError {
   declare cause: Error | undefined;
+  expectedSha: string | null | undefined = undefined;
+  actualSha: string | null | undefined = undefined;
 
   /**
    * Note: constructor parameter order differs from other WarpError subclasses

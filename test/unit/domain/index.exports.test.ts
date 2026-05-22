@@ -61,7 +61,11 @@ import WarpAppDefault, {
   ContinuumArtifactAuthority,
   ContinuumArtifactDescriptor,
   ContinuumArtifactIngestionPolicy,
+  ContinuumEvidenceClaim,
+  ContinuumEvidencePosture,
   ContinuumFamilyId,
+  ContinuumReceiptFamilyProjection,
+  GitWarpReceiptSourceFacts,
   ContinuumArtifactJsonFileAdapter,
 } from '../../../index.ts';
 
@@ -262,7 +266,11 @@ describe('index.ts exports', () => {
       expect(ContinuumArtifactAuthority).toBeDefined();
       expect(ContinuumArtifactDescriptor).toBeDefined();
       expect(ContinuumArtifactIngestionPolicy).toBeDefined();
+      expect(ContinuumEvidenceClaim).toBeDefined();
+      expect(ContinuumEvidencePosture).toBeDefined();
       expect(ContinuumFamilyId).toBeDefined();
+      expect(ContinuumReceiptFamilyProjection).toBeDefined();
+      expect(GitWarpReceiptSourceFacts).toBeDefined();
       expect(ContinuumArtifactJsonFileAdapter).toBeDefined();
     });
 
@@ -279,6 +287,26 @@ describe('index.ts exports', () => {
 
       expect(descriptor.familyId).toBeInstanceOf(ContinuumFamilyId);
       expect(descriptor.hasGeneratedAuthority()).toBe(true);
+    });
+
+    it('exports explicit Continuum evidence posture claims', () => {
+      const descriptor = new ContinuumArtifactDescriptor({
+        familyId: 'receipt-family',
+        version: '0.1.0',
+        sourceSchemaPath: '~/git/continuum/schemas/continuum-receipt-family.graphql',
+        generatedBy: 'wesley witness-continuum --scope receipt-family',
+        artifactKind: 'continuum.family.fixture',
+        authority: 'generated-fixture',
+        targets: ['typescript'],
+      });
+      const claim = new ContinuumEvidenceClaim({
+        descriptor,
+        posture: 'translated-git-warp-evidence',
+      });
+
+      expect(claim.posture).toBeInstanceOf(ContinuumEvidencePosture);
+      expect(claim.isTranslatedGitWarpEvidence()).toBe(true);
+      expect(claim.isNativeContinuumEvidence()).toBe(false);
     });
   });
 

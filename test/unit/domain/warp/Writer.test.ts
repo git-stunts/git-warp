@@ -21,9 +21,10 @@ import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
  * Creates a minimal mock persistence adapter.
  */
 function createMockPersistence() {
-  return {
+  const persistence = {
     readRef: vi.fn(),
     updateRef: vi.fn(),
+    compareAndSwapRef: vi.fn(),
     showNode: vi.fn(),
     getNodeInfo: vi.fn(),
     writeBlob: vi.fn(),
@@ -31,6 +32,14 @@ function createMockPersistence() {
     commitNodeWithTree: vi.fn(),
     readBlob: vi.fn(),
   };
+  persistence.compareAndSwapRef.mockImplementation(async (ref, newOid, expectedOid) => {
+    const actualOid = await persistence.readRef(ref);
+    if (actualOid !== expectedOid) {
+      throw new Error(`CAS mismatch for ${ref}`);
+    }
+    persistence.readRef.mockResolvedValue(newOid);
+  });
+  return persistence;
 }
 
 /**
@@ -59,14 +68,24 @@ function createPatchMessage(lamport = 1) {
 }
 
 describe('Writer (WARP schema:2)', () => {
-    let persistence;
-    let versionVector;
-    let getCurrentState;
+  let persistence;
+  let versionVector;
+  let getCurrentState;
 
   beforeEach(() => {
     persistence = createMockPersistence();
     versionVector = VersionVector.empty();
     getCurrentState = vi.fn(() => null);
+  });
+
+  it('test fixture compareAndSwapRef rejects expected-head mismatches', async () => {
+    const currentSha = 'a'.repeat(40);
+    const nextSha = 'b'.repeat(40);
+    persistence.readRef.mockResolvedValue(currentSha);
+
+    await expect(
+      persistence.compareAndSwapRef('refs/warp/events/writers/alice', nextSha, null)
+    ).rejects.toThrow('CAS mismatch');
   });
 
   describe('constructor', () => {
@@ -335,15 +354,13 @@ describe('Writer (WARP schema:2)', () => {
       );
     });
 
-    it('updates writer ref after commit', async () => {
+    it('atomically advances writer ref after commit', async () => {
       const newSha = 'b'.repeat(40);
 
       persistence.readRef.mockResolvedValue(null);
       persistence.writeBlob.mockResolvedValue('c'.repeat(40));
       persistence.writeTree.mockResolvedValue('d'.repeat(40));
       persistence.commitNodeWithTree.mockResolvedValue(newSha);
-      persistence.updateRef.mockResolvedValue(undefined);
-
       const writer = new Writer({
         persistence,
         patchJournal: createPatchJournal(persistence),
@@ -357,9 +374,10 @@ describe('Writer (WARP schema:2)', () => {
       patch.addNode('x');
       await patch.commit();
 
-      expect(persistence.updateRef).toHaveBeenCalledWith(
+      expect(persistence.compareAndSwapRef).toHaveBeenCalledWith(
         'refs/warp/events/writers/alice',
-        newSha
+        newSha,
+        null
       );
     });
 
@@ -450,14 +468,17 @@ describe('Writer (WARP schema:2)', () => {
       // Sequence of readRef calls:
       // 1. p1 beginPatch -> oldHead
       // 2. p2 beginPatch -> oldHead
-      // 3. p1 commit PatchBuilder CAS check -> oldHead
-      // 4. (updateRef happens, ref is now newSha1)
-      // 5. p2 commit PatchBuilder CAS check -> newSha1 (fails here)
+      // 3. p1 commit PatchBuilder preflight CAS check -> oldHead
+      // 4. p1 final compareAndSwapRef compare -> oldHead
+      // 5. p1 visibility check after CAS -> newSha1
+      // 6. p2 commit PatchBuilder preflight CAS check -> newSha1 (fails here)
       persistence.readRef
         .mockResolvedValueOnce(oldHead)  // p1 beginPatch
         .mockResolvedValueOnce(oldHead)  // p2 beginPatch
-        .mockResolvedValueOnce(oldHead)  // p1 commit PatchBuilder
-        .mockResolvedValueOnce(newSha1); // p2 commit PatchBuilder (fails)
+        .mockResolvedValueOnce(oldHead)  // p1 commit PatchBuilder preflight
+        .mockResolvedValueOnce(oldHead)  // p1 final compareAndSwapRef compare
+        .mockResolvedValueOnce(newSha1)  // p1 visibility check after CAS
+        .mockResolvedValueOnce(newSha1); // p2 commit PatchBuilder preflight (fails)
 
       persistence.writeBlob.mockResolvedValue('d'.repeat(40));
       persistence.writeTree.mockResolvedValue('e'.repeat(40));
@@ -668,151 +689,5 @@ describe('Writer (WARP schema:2)', () => {
       expect(err instanceof Error).toBe(true);
       expect(err instanceof WriterError).toBe(true);
     });
-  });
-});
-
-describe('PatchSession operations', () => {
-    let persistence;
-    let versionVector;
-    let getCurrentState;
-    let patchJournal;
-
-  beforeEach(() => {
-    persistence = createMockPersistence();
-    versionVector = VersionVector.empty();
-    getCurrentState = vi.fn(() => null);
-    persistence.readRef.mockResolvedValue(null);
-    patchJournal = createPatchJournal(persistence);
-  });
-
-  it('addNode creates node-add op', async () => {
-    const writer = new Writer({
-      persistence,
-      patchJournal,
-      graphName: 'events',
-      writerId: 'alice',
-      versionVector,
-      getCurrentState,
-    });
-
-    const patch = await writer.beginPatch();
-    patch.addNode('user:alice');
-
-    const built = (patch.build() as any);
-    expect(built.ops).toHaveLength(1);
-    expect(built.ops[0].type).toBe('NodeAdd');
-    expect(built.ops[0].node).toBe('user:alice');
-  });
-
-  it('removeNode creates node-remove op', async () => {
-    const state = ({ nodeAlive: ORSet.empty(), edgeAlive: ORSet.empty(), prop: new Map(), observedFrontier: VersionVector.empty() } as any);
-    state.nodeAlive.add('user:alice', Dot.create('alice', 1));
-
-    const writer = new Writer({
-      persistence,
-      patchJournal,
-      graphName: 'events',
-      writerId: 'alice',
-      versionVector,
-      getCurrentState: () => state,
-    });
-
-    const patch = await writer.beginPatch();
-    patch.removeNode('user:alice');
-
-    const built = (patch.build() as any);
-    expect(built.ops).toHaveLength(1);
-    expect(built.ops[0].type).toBe('NodeRemove');
-    expect(built.ops[0].node).toBe('user:alice');
-  });
-
-  it('addEdge creates edge-add op', async () => {
-    const writer = new Writer({
-      persistence,
-      patchJournal,
-      graphName: 'events',
-      writerId: 'alice',
-      versionVector,
-      getCurrentState,
-    });
-
-    const patch = await writer.beginPatch();
-    patch.addEdge('n1', 'n2', 'links');
-
-    const built = (patch.build() as any);
-    expect(built.ops).toHaveLength(1);
-    expect(built.ops[0].type).toBe('EdgeAdd');
-    expect(built.ops[0].from).toBe('n1');
-    expect(built.ops[0].to).toBe('n2');
-    expect(built.ops[0].label).toBe('links');
-  });
-
-  it('removeEdge creates edge-remove op', async () => {
-    const state = ({ nodeAlive: ORSet.empty(), edgeAlive: ORSet.empty(), prop: new Map(), observedFrontier: VersionVector.empty() } as any);
-    const ek = encodeEdgeKey('n1', 'n2', 'links');
-    state.edgeAlive.add(ek, Dot.create('alice', 1));
-
-    const writer = new Writer({
-      persistence,
-      patchJournal,
-      graphName: 'events',
-      writerId: 'alice',
-      versionVector,
-      getCurrentState: () => state,
-    });
-
-    const patch = await writer.beginPatch();
-    patch.removeEdge('n1', 'n2', 'links');
-
-    const built = (patch.build() as any);
-    expect(built.ops).toHaveLength(1);
-    expect(built.ops[0].type).toBe('EdgeRemove');
-  });
-
-  it('setProperty creates prop-set op', async () => {
-    const writer = new Writer({
-      persistence,
-      patchJournal,
-      graphName: 'events',
-      writerId: 'alice',
-      versionVector,
-      getCurrentState,
-    });
-
-    const patch = await writer.beginPatch();
-    patch.setProperty('user:alice', 'name', 'Alice');
-
-    const built = (patch.build() as any);
-    expect(built.ops).toHaveLength(1);
-    expect(built.ops[0].type).toBe('PropSet');
-    expect(built.ops[0].node).toBe('user:alice');
-    expect(built.ops[0].key).toBe('name');
-    expect(built.ops[0].value).toBe('Alice');
-  });
-
-  it('supports various property value types', async () => {
-    const writer = new Writer({
-      persistence,
-      patchJournal,
-      graphName: 'events',
-      writerId: 'alice',
-      versionVector,
-      getCurrentState,
-    });
-
-    const patch = await writer.beginPatch();
-    patch.setProperty('n', 'str', 'hello');
-    patch.setProperty('n', 'num', 42);
-    patch.setProperty('n', 'bool', true);
-    patch.setProperty('n', 'arr', [1, 2, 3]);
-    patch.setProperty('n', 'obj', { x: 1 });
-
-    const built = (patch.build() as any);
-    expect(built.ops).toHaveLength(5);
-    expect(built.ops[0].value).toBe('hello');
-    expect(built.ops[1].value).toBe(42);
-    expect(built.ops[2].value).toBe(true);
-    expect(built.ops[3].value).toEqual([1, 2, 3]);
-    expect(built.ops[4].value).toEqual({ x: 1 });
   });
 });

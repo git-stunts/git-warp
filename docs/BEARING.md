@@ -23,8 +23,9 @@ handles and basis references behind product adapters.
 
 ## Where are we
 
-`git-warp` has shipped `v17.0.0`. The release work is now behind us in
-repo history, npm, and JSR; the active direction is `v18.0.0`.
+`git-warp` has shipped `v17.0.0` and the `v17.0.1` follow-up release repair.
+The release work is now behind us in repo history, npm, and JSR; the active
+direction is `v18.0.0`.
 
 The v18 hill is not generic graph-model cleanup. It is Continuum
 compatibility:
@@ -56,18 +57,22 @@ Continuum role.
 
 Current branch state at this boundary:
 
-- Branch: `v18-continuum-opening`
-- Release tag: `v17.0.0`
-- Latest remote head inspected: `origin/main` at `5afdd3eb`
-- Latest package version: `17.0.0`
-- Latest closed cycle:
-  `0145-push-pr-review-merge`
+- Branch: `v18-continuum-slices-6-10`
+- Base branch: `main`
+- Latest remote head inspected: `origin/main` at `42f15812`
+- Latest released package line: `17.0.1`
+- Latest merged PR: #93, recursive tree OID read fanout and v17.0.1 release
+  repair
+- Latest completed v18 implementation cycle:
+  `0158-v18-warp-ttd-receipt-smoke`
 
 The release ladder is now:
 
 - `v17.0.0`: shipped TypeScript migration, public API honesty,
   materialization-frontdoor deletion, readings/optics direction, and query
   read-model groundwork.
+- `v17.0.1`: repaired recursive tree OID read fanout, preserved
+  prototype-like Git path names, and captured review follow-up backlog designs.
 - `v18.0.0`: Continuum/WARP Optic compatibility for git-warp as an independent
   Continuum participant, through Wesley-generated contract-family artifacts and
   honest evidence posture.
@@ -118,7 +123,8 @@ mapping, and concrete checks live in `docs/invariants/`.
 
 ## What just shipped
 
-`v17.0.0` shipped and was followed by release hardening:
+`v17.0.0` shipped and was followed by release hardening and the `v17.0.1`
+performance/correctness repair:
 
 - The v17 release branch landed through PR #84.
 - Follow-up repair and package migration work landed through PR #85.
@@ -127,6 +133,11 @@ mapping, and concrete checks live in `docs/invariants/`.
   `v17.0.0` tag points at that merge.
 - npm publish recovery landed through PR #88.
 - PR #89 simplified the README model sentence after the release line.
+- PR #93 flattened recursive tree OID reads into one `git ls-tree -rz` call,
+  fixed prototype-like path handling with a `Map` accumulator, released
+  `v17.0.1`, and added design-backed backlog fuel for path-keyed boundary
+  audits, safe path-map materialization, review-bot warning policy, and a
+  recursive tree path benchmark.
 
 The shipped v17 scope remains: TypeScript migration, public API honesty,
 materialization-frontdoor deletion, readings/optics direction, query
@@ -137,6 +148,9 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 - The release preflight fix lowered the coverage ratchet to the measured
   full-suite v17 line baseline `91.74%`; this is tracked as v19 bad-code debt
   in `SPEC_coverage-ratchet-baseline-drop.md`.
+- The v17.0.1 performance repair proved that adapter-level path keys must not
+  be treated as safe object member names. That is now tracked by planned
+  design/backlog work in cycles 0150 through 0153.
 - v18 can easily turn into adapter folklore if `git-warp` hand-authors local
   mirrors of Continuum-owned families instead of consuming Wesley-generated
   artifacts.
@@ -152,8 +166,9 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What comes next
 
-Run the v18 opening campaign. Update this task list at the end of each slice,
-before the final commit for that slice, and mark completed items with `- [x]`.
+Run the next v18 slices in order. Each slice gets a design document before
+implementation, RED before GREEN, and a BEARING update before the final commit
+for that slice.
 
 ## Running Task List
 
@@ -178,16 +193,43 @@ before the final commit for that slice, and mark completed items with `- [x]`.
   and one-file-per-concept caps, self-attested authority fields from artifact
   JSON are rejected, policy-test authority fixtures are named constants, and
   empty or internally inconsistent Wesley generated inventory is rejected.
-- [ ] 6. Make evidence posture explicit: translated git-warp evidence first,
-  native Continuum evidence only after native witnesshood is proven.
-- [ ] 7. Prove the patch commit visibility contract: success means canonical
-  writer-tip advancement and visible graph truth, not just object creation.
-- [ ] 8. Add the same-writer concurrent patch race witness with final-frontier
-  and visible-state assertions.
-- [ ] 9. Project git-warp receipt facts into the generated Continuum
-  receipt-family shape with conformance tests.
-- [ ] 10. Add the first `warp-ttd` smoke over generated-family git-warp receipt
-  facts instead of handwritten adapter-local receipt folklore.
+- [x] 6. Make evidence posture explicit:
+  [0154-v18-evidence-posture](design/0154-v18-evidence-posture/v18-evidence-posture.md)
+  defines translated git-warp evidence first, with native Continuum evidence
+  only after native witnesshood is proven. `ContinuumEvidencePosture` and
+  `ContinuumEvidenceClaim` now separate generated artifact shape authority from
+  witnesshood, require explicit proof for native Continuum evidence, and expose
+  `requireTranslatedGitWarpEvidence()` for receipt-family projection.
+- [x] 7. Prove the patch commit visibility contract:
+  [0155-v18-patch-commit-visibility-contract](design/0155-v18-patch-commit-visibility-contract/v18-patch-commit-visibility-contract.md)
+  defines success as canonical writer-tip advancement and visible graph truth,
+  not just object creation. `commitPatch()` now verifies that the writer ref
+  visibly points at the new commit before reporting success or running
+  `onCommitSuccess`; hidden post-object/pre-ref failures raise typed
+  persistence errors.
+- [x] 8. Add the same-writer concurrent patch race witness:
+  [0156-v18-same-writer-concurrent-race-witness](design/0156-v18-same-writer-concurrent-race-witness/v18-same-writer-concurrent-race-witness.md)
+  requires final-frontier and visible-state assertions. `commitPatch()` now
+  advances writer refs through `compareAndSwapRef`, translates atomic frontier
+  movement into retryable writer conflict posture, and keeps the losing
+  same-writer patch out of canonical materialized state.
+- [x] 9. Project git-warp receipt facts into the generated Continuum
+  receipt-family shape:
+  [0157-v18-receipt-family-projection](design/0157-v18-receipt-family-projection/v18-receipt-family-projection.md)
+  uses generated-family descriptors and explicit translated evidence posture.
+  `GitWarpReceiptSourceFacts` validates local `TickReceipt`,
+  `DeliveryObservation`, and optional `ReceiptShard` inputs;
+  `ContinuumReceiptFamilyProjection` emits generated-family `receipts`,
+  `witnesses`, and `deliveryObservations` arrays while preserving translated
+  git-warp evidence posture.
+- [x] 10. Add the first `warp-ttd` smoke over generated-family git-warp receipt
+  facts:
+  [0158-v18-warp-ttd-receipt-smoke](design/0158-v18-warp-ttd-receipt-smoke/v18-warp-ttd-receipt-smoke.md)
+  rejects handwritten adapter-local receipt folklore. The standalone smoke
+  `test/smoke/warpTtdReceiptFamilyProjectionSmoke.ts` dynamically loads the
+  sibling `~/git/warp-ttd` adapter at execution time, rejects plain local
+  receipt DTOs, and proves `warp-ttd` can summarize generated-family git-warp
+  receipt projection facts while preserving translated evidence posture.
 - [ ] 11. Re-plan with evidence in hand before expanding into reading-envelope,
   suffix/runtime-boundary, neighborhood-core, and settlement-family slices.
 

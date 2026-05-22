@@ -27,7 +27,6 @@ function mockFirstCommit(/** @type {any} */ persistence) {
   persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
   persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
   persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA);
-  persistence.updateRef.mockResolvedValue(undefined);
 }
 
 /**
@@ -48,7 +47,6 @@ function mockSecondCommit(/** @type {any} */ persistence) {
   persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
   persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
   persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA_2);
-  persistence.updateRef.mockResolvedValue(undefined);
 }
 
 describe('WarpCore dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2)', () => {
@@ -159,12 +157,12 @@ describe('WarpCore dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2)',
     expect((graph)._stateDirty).toBe(false);
   });
 
-  it('_stateDirty remains false if updateRef fails', async () => {
+  it('_stateDirty remains false if CAS ref advance fails', async () => {
     persistence.readRef.mockResolvedValue(null);
     persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
     persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
     persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA);
-    persistence.updateRef.mockRejectedValue(new Error('ref lock failed'));
+    persistence.compareAndSwapRef.mockRejectedValue(new Error('ref lock failed'));
 
     const patch = (await graph.createPatch()).addNode('test:node');
     await expect(patch.commit()).rejects.toThrow('ref lock failed');
