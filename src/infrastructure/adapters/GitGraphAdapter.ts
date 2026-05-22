@@ -17,6 +17,7 @@ import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import CasBlobAdapter from './CasBlobAdapter.ts';
 import GitCasGraphReaderAdapter from './GitCasGraphReaderAdapter.ts';
+import GitRecursiveTreeOidReaderAdapter from './GitRecursiveTreeOidReaderAdapter.ts';
 import GitTrieStoreAdapter from './GitTrieStoreAdapter.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
 import { textEncode } from '../../domain/utils/bytes.ts';
@@ -87,6 +88,7 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
   private readonly _retryOptions: RetryOptions;
   private readonly _gitCasPersistence: GitPersistenceAdapter;
   private readonly _gitCasGraphReader: GitCasGraphReaderAdapter;
+  private readonly _recursiveTreeOidReader: GitRecursiveTreeOidReaderAdapter;
 
   constructor({ plumbing, retryOptions = {} }: GitGraphAdapterOptions) {
     super();
@@ -99,9 +101,14 @@ export default class GitGraphAdapter extends GraphPersistencePort implements Run
       plumbing,
       policy: createGitCasRetryPolicy(this._retryOptions),
     });
+    this._recursiveTreeOidReader = new GitRecursiveTreeOidReaderAdapter({
+      plumbing,
+      retryOptions: this._retryOptions,
+    });
     this._gitCasGraphReader = new GitCasGraphReaderAdapter({
       persistence: this._gitCasPersistence,
       assertEmptyBlobExists: (oid) => this._assertBlobExistsForEmptyRead(oid),
+      treeOidReader: this._recursiveTreeOidReader,
     });
   }
 

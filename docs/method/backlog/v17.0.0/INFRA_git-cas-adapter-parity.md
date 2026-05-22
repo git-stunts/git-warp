@@ -23,8 +23,9 @@ semantic git-warp needs:
   must keep an explicit unbounded read posture only where a caller knowingly
   asks to collect a complete graph blob.
 - `GitPersistenceAdapter.iterateTree()` and `readTreeEntry()` now exist in
-  git-cas v6; git-warp can use them as the substrate for recursive,
-  path-preserving tree traversal instead of raw `ls-tree` calls.
+  git-cas v6 for one-level tree reads. They are not equivalent to
+  git-warp's recursive checkpoint-tree read contract because a recursive
+  walk fans out into one process per subtree.
 - `GitPersistenceAdapter.readTree()` returns one-level parsed tree
   entries, while git-warp's `readTreeOids()` returns a recursive
   path-to-OID map.
@@ -61,9 +62,11 @@ narrow infrastructure adapter around git-cas v6:
 - `GitGraphAdapter.readBlob()` delegates to
   `GitPersistenceAdapter.readBlobStream()` and collects at the
   graph-adapter boundary only.
-- `GitGraphAdapter.readTreeOids()` recursively walks
-  `GitPersistenceAdapter.iterateTree()` so git-warp keeps its
-  path-preserving recursive `Record<path, oid>` contract.
+- `GitGraphAdapter.readTreeOids()` delegates through
+  `GitCasGraphReaderAdapter` to `GitRecursiveTreeOidReaderAdapter`, which
+  issues one recursive `git ls-tree -rz` call so git-warp keeps its
+  path-preserving recursive `Record<path, oid>` contract without
+  process-per-subtree fanout.
 - `GitGraphAdapter.readTree()` resolves blob payloads through the same
   stream-backed read path.
 - commit creation, compare-and-swap ref updates, and ref deletion remain
@@ -76,7 +79,7 @@ narrow infrastructure adapter around git-cas v6:
   plus an explicit collector at the adapter boundary.
 - recursive tree OID reads remain recursive and path-preserving.
 - one-entry tree reads and tree iteration use git-cas v6 APIs where semantics
-  match exactly.
+  match exactly; recursive graph-tree reads keep the one-shot Git primitive.
 - commit creation continues to support multiple parents and signing.
 - ref CAS failures are not retried.
 - ref deletion remains available.
