@@ -118,6 +118,20 @@ class InvisibleWriterRefPersistence extends CommitPort implements BlobPort, Tree
   }
 }
 
+class WrittenThenThrowingCasPersistence extends InvisibleWriterRefPersistence {
+  #refHead: string | null = null;
+
+  override async readRef(_ref: string): Promise<string | null> {
+    return this.#refHead;
+  }
+
+  override async compareAndSwapRef(ref: string, newOid: string, expectedOid: string | null): Promise<void> {
+    this.compareAndSwapRefs.push(`${ref}:${newOid}:${expectedOid ?? '(missing)'}`);
+    this.#refHead = newOid;
+    throw new PersistenceError('CAS transport threw after writing the ref', PersistenceError.E_REF_IO);
+  }
+}
+
 class CapturingPatchJournal extends PatchJournalPort {
   readonly patches: Patch[] = [];
 
@@ -184,5 +198,22 @@ describe('commitPatch writer-ref visibility contract', () => {
       `refs/warp/visibility-graph/writers/writer-a:${COMMIT_OID}:(missing)`,
     ]);
     expect(successCallbackCount).toBe(0);
+  });
+
+  it('accepts a CAS transport error when the new commit is already visible', async () => {
+    const persistence = new WrittenThenThrowingCasPersistence();
+    const patchJournal = new CapturingPatchJournal();
+    let successCallbackCount = 0;
+
+    await expect(commitPatch(makeCommitState(
+      persistence,
+      patchJournal,
+      () => { successCallbackCount += 1; },
+    ))).resolves.toBe(COMMIT_OID);
+
+    expect(persistence.compareAndSwapRefs).toEqual([
+      `refs/warp/visibility-graph/writers/writer-a:${COMMIT_OID}:(missing)`,
+    ]);
+    expect(successCallbackCount).toBe(1);
   });
 });

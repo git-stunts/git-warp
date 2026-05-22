@@ -182,6 +182,9 @@ async function compareAndSwapWriterRef(
     await persistence.compareAndSwapRef(writerRef, newCommitSha, expectedSha);
   } catch (err) {
     const actualSha = await persistence.readRef(writerRef);
+    if (actualSha === newCommitSha) {
+      return;
+    }
     if (actualSha !== expectedSha) {
       throw buildWriterCasConflict(expectedSha, actualSha);
     }
