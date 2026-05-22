@@ -64,7 +64,7 @@ Current branch state at this boundary:
 - Latest merged PR: #94, v18 Continuum slices 6 through 10 plus review
   repairs
 - Latest completed v18 implementation cycle:
-  `0158-v18-warp-ttd-receipt-smoke`
+  `0160-v18-generated-family-inventory-refresh`
 
 The release ladder is now:
 
@@ -234,8 +234,12 @@ commit for that slice.
   [0159-v18-replan-with-evidence](design/0159-v18-replan-with-evidence/v18-replan-with-evidence.md)
   keeps slices 12 through 15 as translated source-fact compatibility work, not
   a full v19 observer/runtime rewrite.
-- [ ] 12. Refresh the generated Continuum/Wesley family inventory before
-  projecting more families.
+- [x] 12. Refresh the generated Continuum/Wesley family inventory before
+  projecting more families:
+  [0160-v18-generated-family-inventory-refresh](design/0160-v18-generated-family-inventory-refresh/v18-generated-family-inventory-refresh.md)
+  adds runtime-backed readiness rows for the four current Continuum families.
+  Receipt and settlement are projection-ready; neighborhood core and runtime
+  boundary stay authored-only until Wesley profiles and fixtures exist.
 - [ ] 13. Audit the `TickPatch`/`TickReceipt` witness ladder into replay core,
   witness core, and receipt shell.
 - [ ] 14. Project one git-warp read result into generated runtime-boundary

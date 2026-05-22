@@ -214,14 +214,26 @@ import ContinuumArtifactIngestionPolicy from './src/domain/continuum/ContinuumAr
 import ContinuumEvidenceClaim from './src/domain/continuum/ContinuumEvidenceClaim.ts';
 import ContinuumEvidencePosture from './src/domain/continuum/ContinuumEvidencePosture.ts';
 import ContinuumFamilyId from './src/domain/continuum/ContinuumFamilyId.ts';
+import ContinuumGeneratedFamilyInventory from './src/domain/continuum/ContinuumGeneratedFamilyInventory.ts';
+import ContinuumGeneratedFamilyInventoryEntry
+  from './src/domain/continuum/ContinuumGeneratedFamilyInventoryEntry.ts';
+import ContinuumGeneratedFamilyStatus from './src/domain/continuum/ContinuumGeneratedFamilyStatus.ts';
 import ContinuumReceiptFamilyProjection from './src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
 import GitWarpReceiptSourceFacts from './src/domain/continuum/GitWarpReceiptSourceFacts.ts';
+import createCurrentContinuumGeneratedFamilyInventory
+  from './src/domain/continuum/createCurrentContinuumGeneratedFamilyInventory.ts';
 import ContinuumArtifactJsonFileAdapter from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 import type { ContinuumArtifactAuthorityValue } from './src/domain/continuum/ContinuumArtifactAuthority.ts';
 import type { ContinuumArtifactDescriptorFields } from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
 import type { ContinuumEvidenceClaimFields } from './src/domain/continuum/ContinuumEvidenceClaim.ts';
 import type { ContinuumEvidencePostureValue } from './src/domain/continuum/ContinuumEvidencePosture.ts';
 import type { ContinuumFamilyIdValue } from './src/domain/continuum/ContinuumFamilyId.ts';
+import type {
+  ContinuumGeneratedFamilyInventoryEntryFields,
+} from './src/domain/continuum/ContinuumGeneratedFamilyInventoryEntry.ts';
+import type {
+  ContinuumGeneratedFamilyStatusValue,
+} from './src/domain/continuum/ContinuumGeneratedFamilyStatus.ts';
 import type {
   ContinuumDeliveryObservationFact,
   ContinuumReceiptFact,
@@ -350,8 +362,12 @@ export {
   ContinuumEvidenceClaim,
   ContinuumEvidencePosture,
   ContinuumFamilyId,
+  ContinuumGeneratedFamilyInventory,
+  ContinuumGeneratedFamilyInventoryEntry,
+  ContinuumGeneratedFamilyStatus,
   ContinuumReceiptFamilyProjection,
   GitWarpReceiptSourceFacts,
+  createCurrentContinuumGeneratedFamilyInventory,
   ContinuumArtifactJsonFileAdapter,
 
   // Tick receipts (LIGHTHOUSE)
@@ -404,6 +420,8 @@ export type {
   ContinuumArtifactDescriptorFields,
   ContinuumEvidenceClaimFields,
   ContinuumEvidencePostureValue,
+  ContinuumGeneratedFamilyInventoryEntryFields,
+  ContinuumGeneratedFamilyStatusValue,
   ContinuumDeliveryObservationFact,
   ContinuumReceiptFact,
   ContinuumReceiptFamilyProjectionFields,
