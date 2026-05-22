@@ -11,8 +11,9 @@ import { createStateReader } from '../../../src/domain/services/state/StateReade
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import { buildStrandBraidRef, buildStrandOverlayRef } from '../../../src/domain/utils/RefLayout.ts';
+import { canonicalStringify } from '../../../src/domain/utils/canonicalStringify.ts';
 
-type WarpCoreRuntime = any;
+type WarpCoreRuntime = Awaited<ReturnType<typeof WarpCore.open>>;
 
 /**
  * @param {number} counter
@@ -23,7 +24,7 @@ function hexSha(counter) {
 }
 
 /**
- * @returns {any}
+ * @returns {object}
  */
 function createMockPersistence() {
   const refs = new Map();
@@ -98,12 +99,12 @@ function createMockPersistence() {
 }
 
 /**
- * @param {any} persistence
+ * @param {object} persistence
  * @param {{
  *   graphName: string,
  *   writerId: string,
  *   lamport: number,
- *   ops: Array<Record<string, unknown>>,
+ *   ops: Array<object>,
  *   reads?: string[],
  *   writes?: string[],
  *   context?: Map<string, number>|Record<string, number>|null
@@ -377,7 +378,7 @@ describe('WarpCore strand foundation', () => {
         visibleState: coordinateComparison.visibleState,
       },
     });
-    expect(JSON.parse(factExport.canonicalFactJson)).toEqual(factExport.fact);
+    expect(factExport.canonicalFactJson).toBe(canonicalStringify(factExport.fact));
     await expect(graph._crypto.hash('sha256', factExport.canonicalFactJson)).resolves.toBe(factExport.factDigest);
   });
 
@@ -439,7 +440,7 @@ describe('WarpCore strand foundation', () => {
 
     const scopedFactExport = exportCoordinateComparisonFact(scopedComparison);
     expect(scopedFactExport.fact.scope).toEqual(scope);
-    expect(JSON.parse(scopedFactExport.canonicalFactJson)).toEqual(scopedFactExport.fact);
+    expect(scopedFactExport.canonicalFactJson).toBe(canonicalStringify(scopedFactExport.fact));
     await expect(graph._crypto.hash('sha256', scopedFactExport.canonicalFactJson)).resolves.toBe(scopedFactExport.factDigest);
 
     const scopedTransfer = await graph.planCoordinateTransfer({
@@ -580,7 +581,7 @@ describe('WarpCore strand foundation', () => {
         ]),
       }),
     });
-    expect(JSON.parse(factExport.canonicalFactJson)).toEqual(factExport.fact);
+    expect(factExport.canonicalFactJson).toBe(canonicalStringify(factExport.fact));
     await expect(graph._crypto.hash('sha256', factExport.canonicalFactJson)).resolves.toBe(factExport.factDigest);
   });
 

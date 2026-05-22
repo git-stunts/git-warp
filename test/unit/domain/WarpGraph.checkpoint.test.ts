@@ -9,6 +9,8 @@ import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import WarpStream from '../../../src/domain/stream/WarpStream.ts';
+import type { CommitLogChunk } from '../../../src/ports/CommitPort.ts';
 
 const crypto = new NodeCryptoAdapter();
 
@@ -35,18 +37,21 @@ function installCleanCheckpointReadingBasis(
   graph._stateDirty = false;
 }
 
-/**
- * Creates a mock persistence adapter for testing.
- * @returns {any} Mock persistence adapter
- */
-function createMockPersistence(): any {
+function createMockPersistence() {
   const persistence = {
     readRef: vi.fn(),
     showNode: vi.fn(),
     writeBlob: vi.fn(),
     writeTree: vi.fn(),
     readBlob: vi.fn(),
+    readTree: vi.fn().mockResolvedValue({}),
     readTreeOids: vi.fn(),
+    deleteRef: vi.fn().mockResolvedValue(undefined),
+    logNodes: vi.fn().mockResolvedValue(''),
+    logNodesStream: vi.fn().mockResolvedValue(WarpStream.from<CommitLogChunk>({ [Symbol.asyncIterator]: async function* () { /* empty */ } })),
+    countNodes: vi.fn().mockResolvedValue(0),
+    nodeExists: vi.fn().mockResolvedValue(true),
+    getCommitTree: vi.fn().mockResolvedValue('4b825dc642cb6eb9a060e54bf8d69288fbee4904'),
     commitNode: vi.fn(),
     commitNodeWithTree: vi.fn(),
     updateRef: vi.fn(),
@@ -56,8 +61,9 @@ function createMockPersistence(): any {
     configGet: vi.fn().mockResolvedValue(null),
     configSet: vi.fn().mockResolvedValue(undefined),
     compareAndSwapRef: vi.fn(),
+    emptyTree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
   };
-  persistence.compareAndSwapRef.mockImplementation(async (ref, newOid, expectedOid) => {
+  persistence.compareAndSwapRef.mockImplementation(async (ref: string, newOid: string, expectedOid: string | null) => {
     const actualOid = await persistence.readRef(ref);
     if (actualOid !== expectedOid) {
       throw new Error(`CAS mismatch for ${ref}`);
@@ -65,52 +71,6 @@ function createMockPersistence(): any {
     persistence.readRef.mockResolvedValue(newOid);
   });
   return persistence;
-}
-
-/**
- * Creates a mock patch commit structure for testing.
- * @param {object} options
- * @param {string} options.sha - The commit SHA
- * @param {string} options.graphName - The graph name
- * @param {string} options.writerId - The writer ID
- * @param {number} options.lamport - The lamport timestamp
- * @param {string} options.patchOid - The patch blob OID
- * @param {any[]} options.ops - The operations in the patch (schema:2 format with dots)
- * @param {string|null} [options.parentSha] - The parent commit SHA
- * @param {any} [options.context] - The context VV for schema:2 patches
- * @returns {any} Mock patch data for testing
- */
-function createMockPatch({ sha, graphName, writerId, lamport, patchOid, ops, parentSha = null, context = null }: { sha: string; graphName: string; writerId: string; lamport: number; patchOid: string; ops: any[]; parentSha?: string | null; context?: any }) {
-  const patch = {
-    schema: 2,
-    writer: writerId,
-    lamport,
-    context: context || { [writerId]: lamport },
-    ops,
-  };
-  const patchBuffer = encode(patch);
-  const message = encodePatchMessage({
-    graph: graphName,
-    writer: writerId,
-    lamport,
-    patchOid,
-    schema: 2,
-  });
-
-  return {
-    sha,
-    patchOid,
-    patchBuffer,
-    message,
-    parentSha,
-    nodeInfo: {
-      sha,
-      message,
-      author: 'Test <test@example.com>',
-      date: new Date().toISOString(),
-      parents: parentSha ? [parentSha] : [],
-    },
-  };
 }
 
 describe('WarpCore', () => {
@@ -425,13 +385,13 @@ describe('WarpCore', () => {
       persistence.commitNodeWithTree.mockResolvedValue(checkpointSha);
       persistence.updateRef.mockResolvedValue(undefined);
 
-      (graph as any)._cachedIndexTree = null;
-      (graph as any)._logger = { warn, info: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn() };
-      (graph as any)._viewService = {
+      Reflect.set(graph, '_cachedIndexTree', null);
+      Reflect.set(graph, '_logger', { warn, info: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn() });
+      Reflect.set(graph, '_viewService', {
         build: vi.fn(() => {
           throw new Error('roaring unavailable');
         }),
-      };
+      });
 
       const sha = await graph.createCheckpoint();
 
@@ -470,7 +430,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const patchBuilder = await graph.createPatch();
 
@@ -495,7 +455,7 @@ describe('WarpCore', () => {
         });
 
         persistence.listRefs.mockResolvedValue([]);
-        persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
+        persistence.readRef.mockImplementation((ref: string) => {
           if (ref === 'refs/warp/events/checkpoints/head') {
             return Promise.resolve(checkpointSha);
           }
@@ -514,7 +474,7 @@ describe('WarpCore', () => {
             graphName: 'events',
             writerId: 'node-1',
             schema: 2,
-          } as any)
+          } as Parameters<typeof openRuntimeHostProduct>[0])
         ).rejects.toMatchObject({ code: 'E_CHECKPOINT_UNSUPPORTED_SCHEMA' });
         expect(persistence.readTreeOids).not.toHaveBeenCalled();
       });
@@ -531,7 +491,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         expect(graph.graphName).toBe('events');
       });

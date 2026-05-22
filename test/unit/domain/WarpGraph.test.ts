@@ -9,8 +9,31 @@ import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import WarpStream from '../../../src/domain/stream/WarpStream.ts';
+import type { CommitLogChunk } from '../../../src/ports/CommitPort.ts';
 
 const crypto = new NodeCryptoAdapter();
+
+type RuntimeHostOptions = Parameters<typeof openRuntimeHostProduct>[0];
+type RuntimeHostTestProduct = Awaited<ReturnType<typeof openRuntimeHostProduct>>;
+type PatchBuilderLamportView = PatchBuilder & { _lamport: number };
+type EffectPipelineGraph = RuntimeHostTestProduct & {
+  _effectPipeline: {
+    lens: {
+      mode: string;
+      suppressExternal: boolean;
+    };
+  };
+};
+type TrustGateGraph = RuntimeHostTestProduct & {
+  _createSyncTrustGate(): {
+    evaluate(writerIds: readonly string[]): Promise<{
+      allowed: boolean;
+      untrustedWriters: readonly string[];
+      verdict: string;
+    }>;
+  };
+};
 
 type TestNeighborEdge = {
   readonly neighborId: string;
@@ -35,18 +58,21 @@ function installCleanCheckpointReadingBasis(
   graph._stateDirty = false;
 }
 
-/**
- * Creates a mock persistence adapter for testing.
- * @returns {any} Mock persistence adapter
- */
-function createMockPersistence(): any {
+function createMockPersistence() {
   const persistence = {
     readRef: vi.fn(),
     showNode: vi.fn(),
     writeBlob: vi.fn(),
     writeTree: vi.fn(),
     readBlob: vi.fn(),
+    readTree: vi.fn().mockResolvedValue({}),
     readTreeOids: vi.fn(),
+    deleteRef: vi.fn().mockResolvedValue(undefined),
+    logNodes: vi.fn().mockResolvedValue(''),
+    logNodesStream: vi.fn().mockResolvedValue(WarpStream.from<CommitLogChunk>({ [Symbol.asyncIterator]: async function* () { /* empty */ } })),
+    countNodes: vi.fn().mockResolvedValue(0),
+    nodeExists: vi.fn().mockResolvedValue(true),
+    getCommitTree: vi.fn().mockResolvedValue('4b825dc642cb6eb9a060e54bf8d69288fbee4904'),
     commitNode: vi.fn(),
     commitNodeWithTree: vi.fn(),
     updateRef: vi.fn(),
@@ -56,8 +82,9 @@ function createMockPersistence(): any {
     configGet: vi.fn().mockResolvedValue(null),
     configSet: vi.fn().mockResolvedValue(undefined),
     compareAndSwapRef: vi.fn(),
+    emptyTree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
   };
-  persistence.compareAndSwapRef.mockImplementation(async (ref, newOid, expectedOid) => {
+  persistence.compareAndSwapRef.mockImplementation(async (ref: string, newOid: string, expectedOid: string | null) => {
     const actualOid = await persistence.readRef(ref);
     if (actualOid !== expectedOid) {
       throw new Error(`CAS mismatch for ${ref}`);
@@ -75,12 +102,20 @@ function createMockPersistence(): any {
  * @param {string} options.writerId - The writer ID
  * @param {number} options.lamport - The lamport timestamp
  * @param {string} options.patchOid - The patch blob OID
- * @param {any[]} options.ops - The operations in the patch (schema:2 format with dots)
+ * @param {object[]} options.ops - The operations in the patch (schema:2 format with dots)
  * @param {string|null} [options.parentSha] - The parent commit SHA
- * @param {any} [options.context] - The context VV for schema:2 patches
- * @returns {any} Mock patch data for testing
+ * @param {Map<string, number>|Record<string, number>|null} [options.context] - The context VV for schema:2 patches
  */
-function createMockPatch({ sha, graphName, writerId, lamport, patchOid, ops, parentSha = null, context = null }: { sha: string; graphName: string; writerId: string; lamport: number; patchOid: string; ops: any[]; parentSha?: string | null; context?: any }) {
+function createMockPatch({ sha, graphName, writerId, lamport, patchOid, ops, parentSha = null, context = null }: {
+  sha: string;
+  graphName: string;
+  writerId: string;
+  lamport: number;
+  patchOid: string;
+  ops: object[];
+  parentSha?: string | null;
+  context?: Map<string, number> | Record<string, number> | null;
+}) {
   const patch = {
     schema: 2,
     writer: writerId,
@@ -191,7 +226,7 @@ describe('WarpCore', () => {
     it('rejects missing persistence', async () => {
       await expect(
         openRuntimeHostProduct({
-          persistence: null as any,
+          persistence: null as never,
           graphName: 'events',
           writerId: 'node-1',
         })
@@ -234,7 +269,7 @@ describe('WarpCore', () => {
           persistence,
           graphName: 'events',
           writerId: 'node-1',
-          trust: 'log-only' as any,
+          trust: 'log-only' as never,
         })
       ).rejects.toThrow('trust must be an object');
     });
@@ -247,7 +282,7 @@ describe('WarpCore', () => {
           persistence,
           graphName: 'events',
           writerId: 'node-1',
-          trust: { mode: 'bogus' } as any,
+          trust: { mode: 'bogus' } as never,
         })
       ).rejects.toThrow('trust.mode must be one of: off, log-only, enforce');
     });
@@ -260,7 +295,7 @@ describe('WarpCore', () => {
           persistence,
           graphName: 'events',
           writerId: 'node-1',
-          trust: { pin: 123 } as any,
+          trust: { pin: 123 } as never,
         })
       ).rejects.toThrow('trust.pin must be a string');
     });
@@ -275,9 +310,10 @@ describe('WarpCore', () => {
         effectSinks: [new NoOpEffectSink()],
       });
 
-      expect((graph as any)._effectPipeline).toBeDefined();
-      expect((graph as any)._effectPipeline.lens.mode).toBe('live');
-      expect((graph as any)._effectPipeline.lens.suppressExternal).toBe(false);
+      const effectGraph = graph as EffectPipelineGraph;
+      expect(effectGraph._effectPipeline).toBeDefined();
+      expect(effectGraph._effectPipeline.lens.mode).toBe('live');
+      expect(effectGraph._effectPipeline.lens.suppressExternal).toBe(false);
     });
 
     it('creates trust gates that forward pin and mode to audit verification', async () => {
@@ -287,7 +323,9 @@ describe('WarpCore', () => {
         warn: vi.fn(),
         error: vi.fn(),
         debug: vi.fn(),
+        child: vi.fn(),
       };
+      logger.child.mockReturnValue(logger);
       const evaluateTrustSpy = vi.spyOn(AuditVerifierService.prototype, 'evaluateTrust')
         .mockResolvedValue({
           trust: {
@@ -296,18 +334,19 @@ describe('WarpCore', () => {
               { writerId: 'bob', trusted: false, reason: '', reasonCode: '' },
             ],
           },
-        } as any);
+        } as never);
 
       const graph = await openRuntimeHostProduct({
         persistence,
         graphName: 'events',
         writerId: 'node-1',
-        logger: logger as any,
+        logger,
         trust: { mode: 'enforce', pin: 'pin-123' },
       });
 
-      const gate = (graph as any)._createSyncTrustGate();
-      const result = await gate!.evaluate(['alice', 'bob']);
+      const trustGateGraph = graph as TrustGateGraph;
+      const gate = trustGateGraph._createSyncTrustGate();
+      const result = await gate.evaluate(['alice', 'bob']);
 
       expect(evaluateTrustSpy).toHaveBeenCalledWith('events', {
         pin: 'pin-123',
@@ -345,7 +384,7 @@ describe('WarpCore', () => {
         graphName: 'my-events',
         writerId: 'writer-42',
         schema: 2,
-      } as any);
+      } as RuntimeHostOptions);
 
       // Set up mock responses for commit
       persistence.readRef.mockResolvedValue(null);
@@ -375,12 +414,12 @@ describe('WarpCore', () => {
         graphName: 'test-graph',
         writerId: 'writer1',
         schema: 2,
-      } as any);
+      } as RuntimeHostOptions);
 
       const patchBuilder = await graph.createPatch();
 
       // First commit should have lamport 1
-      expect((patchBuilder as any)._lamport).toBe(1);
+      expect(Object.getOwnPropertyDescriptor(patchBuilder, '_lamport')?.value).toBe(1);
     });
 
     it('uses correct lamport from existing writer ref (continuing)', async () => {
@@ -390,7 +429,7 @@ describe('WarpCore', () => {
 
       // During open(): checkpoint check returns null
       // During createPatch(): _nextLamport calls readRef(writerRef) which returns existingSha
-      persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
+      persistence.readRef.mockImplementation((ref: string) => {
         if (ref.includes('checkpoints')) return Promise.resolve(null);
         if (ref.includes('writers')) return Promise.resolve(existingSha);
         return Promise.resolve(null);
@@ -407,12 +446,12 @@ describe('WarpCore', () => {
         graphName: 'test-graph',
         writerId: 'writer1',
         schema: 2,
-      } as any);
+      } as RuntimeHostOptions);
 
       const patchBuilder = await graph.createPatch();
 
       // Should be 7 + 1 = 8
-      expect((patchBuilder as any)._lamport).toBe(8);
+      expect(Object.getOwnPropertyDescriptor(patchBuilder, '_lamport')?.value).toBe(8);
     });
 
     it('throws error on malformed lamport trailer', async () => {
@@ -421,7 +460,7 @@ describe('WarpCore', () => {
 
       // During open(): checkpoint check returns null, listRefs returns []
       // During createPatch(): _nextLamport calls readRef(writerRef)
-      persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
+      persistence.readRef.mockImplementation((ref: string) => {
         if (ref.includes('checkpoints')) return Promise.resolve(null);
         if (ref.includes('writers')) return Promise.resolve(existingSha);
         return Promise.resolve(null);
@@ -439,7 +478,7 @@ describe('WarpCore', () => {
         graphName: 'test-graph',
         writerId: 'writer1',
         schema: 2,
-      } as any);
+      } as RuntimeHostOptions);
 
       await expect(graph.createPatch()).rejects.toThrow(/Failed to parse lamport/);
     });
@@ -507,7 +546,7 @@ describe('WarpCore', () => {
         graphName: 'events',
         writerId: 'node-1',
         schema: 2,
-      } as any);
+      } as RuntimeHostOptions);
 
       persistence.listRefs.mockResolvedValue([]);
 
@@ -525,7 +564,7 @@ describe('WarpCore', () => {
         graphName: 'events',
         writerId: 'node-1',
         schema: 2,
-      } as any);
+      } as RuntimeHostOptions);
 
       const patchOid = 'a'.repeat(40);
       const commitSha = 'b'.repeat(40);
@@ -559,7 +598,7 @@ describe('WarpCore', () => {
         graphName: 'events',
         writerId: 'node-1',
         schema: 2,
-      } as any);
+      } as RuntimeHostOptions);
 
       const patchOid1 = 'a'.repeat(40);
       const commitSha1 = 'b'.repeat(40);
@@ -620,7 +659,7 @@ describe('WarpCore', () => {
         graphName: 'events',
         writerId: 'node-1',
         schema: 2,
-      } as any);
+      } as RuntimeHostOptions);
 
       const patchOid1 = 'a'.repeat(40);
       const commitSha1 = 'b'.repeat(40);
@@ -675,7 +714,7 @@ describe('WarpCore', () => {
         graphName: 'events',
         writerId: 'node-1',
         schema: 2,
-      } as any);
+      } as RuntimeHostOptions);
 
       persistence.listRefs.mockResolvedValue(['refs/warp/events/writers/writer-1']);
       persistence.readRef.mockResolvedValue(null);

@@ -12,7 +12,7 @@ import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import { buildStrandBraidRef, buildStrandOverlayRef } from '../../../src/domain/utils/RefLayout.ts';
 
-type WarpCoreRuntime = any;
+type WarpCoreRuntime = Awaited<ReturnType<typeof WarpCore.open>>;
 
 /**
  * @param {number} counter
@@ -23,7 +23,7 @@ function hexSha(counter) {
 }
 
 /**
- * @returns {any}
+ * @returns {object}
  */
 function createMockPersistence() {
   const refs = new Map();
@@ -98,12 +98,12 @@ function createMockPersistence() {
 }
 
 /**
- * @param {any} persistence
+ * @param {object} persistence
  * @param {{
  *   graphName: string,
  *   writerId: string,
  *   lamport: number,
- *   ops: Array<Record<string, unknown>>,
+ *   ops: Array<object>,
  *   reads?: string[],
  *   writes?: string[],
  *   context?: Map<string, number>|Record<string, number>|null

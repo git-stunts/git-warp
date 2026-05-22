@@ -8,7 +8,10 @@ import { encode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
+import Patch from '../../../src/domain/types/Patch.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import WarpStream from '../../../src/domain/stream/WarpStream.ts';
+import type { CommitLogChunk } from '../../../src/ports/CommitPort.ts';
 
 const crypto = new NodeCryptoAdapter();
 
@@ -35,18 +38,21 @@ function installCleanCheckpointReadingBasis(
   graph._stateDirty = false;
 }
 
-/**
- * Creates a mock persistence adapter for testing.
- * @returns {any} Mock persistence adapter
- */
-function createMockPersistence(): any {
+function createMockPersistence() {
   const persistence = {
     readRef: vi.fn(),
     showNode: vi.fn(),
     writeBlob: vi.fn(),
     writeTree: vi.fn(),
     readBlob: vi.fn(),
+    readTree: vi.fn().mockResolvedValue({}),
     readTreeOids: vi.fn(),
+    deleteRef: vi.fn().mockResolvedValue(undefined),
+    logNodes: vi.fn().mockResolvedValue(''),
+    logNodesStream: vi.fn().mockResolvedValue(WarpStream.from<CommitLogChunk>({ [Symbol.asyncIterator]: async function* () { /* empty */ } })),
+    countNodes: vi.fn().mockResolvedValue(0),
+    nodeExists: vi.fn().mockResolvedValue(true),
+    getCommitTree: vi.fn().mockResolvedValue('4b825dc642cb6eb9a060e54bf8d69288fbee4904'),
     commitNode: vi.fn(),
     commitNodeWithTree: vi.fn(),
     updateRef: vi.fn(),
@@ -56,8 +62,9 @@ function createMockPersistence(): any {
     configGet: vi.fn().mockResolvedValue(null),
     configSet: vi.fn().mockResolvedValue(undefined),
     compareAndSwapRef: vi.fn(),
+    emptyTree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
   };
-  persistence.compareAndSwapRef.mockImplementation(async (ref, newOid, expectedOid) => {
+  persistence.compareAndSwapRef.mockImplementation(async (ref: string, newOid: string, expectedOid: string | null) => {
     const actualOid = await persistence.readRef(ref);
     if (actualOid !== expectedOid) {
       throw new Error(`CAS mismatch for ${ref}`);
@@ -67,51 +74,14 @@ function createMockPersistence(): any {
   return persistence;
 }
 
-/**
- * Creates a mock patch commit structure for testing.
- * @param {object} options
- * @param {string} options.sha - The commit SHA
- * @param {string} options.graphName - The graph name
- * @param {string} options.writerId - The writer ID
- * @param {number} options.lamport - The lamport timestamp
- * @param {string} options.patchOid - The patch blob OID
- * @param {any[]} options.ops - The operations in the patch (schema:2 format with dots)
- * @param {string|null} [options.parentSha] - The parent commit SHA
- * @param {any} [options.context] - The context VV for schema:2 patches
- * @returns {any} Mock patch data for testing
- */
-function createMockPatch({ sha, graphName, writerId, lamport, patchOid, ops, parentSha = null, context = null }: { sha: string; graphName: string; writerId: string; lamport: number; patchOid: string; ops: any[]; parentSha?: string | null; context?: any }) {
-  const patch = {
-    schema: 2,
-    writer: writerId,
-    lamport,
-    context: context || { [writerId]: lamport },
-    ops,
-  };
-  const patchBuffer = encode(patch);
-  const message = encodePatchMessage({
-    graph: graphName,
-    writer: writerId,
-    lamport,
-    patchOid,
-    schema: 2,
-  });
+type NullableAncestorGraph = {
+  _isAncestor(ancestorSha: string | null, descendantSha: string | null): Promise<boolean>;
+};
 
-  return {
-    sha,
-    patchOid,
-    patchBuffer,
-    message,
-    parentSha,
-    nodeInfo: {
-      sha,
-      message,
-      author: 'Test <test@example.com>',
-      date: new Date().toISOString(),
-      parents: parentSha ? [parentSha] : [],
-    },
-  };
-}
+type LoadedPatchFixture = {
+  readonly sha: string;
+  readonly patch: Patch;
+};
 
 describe('WarpCore', () => {
   describe('backfill rejection and divergence detection', () => {
@@ -126,7 +96,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const sha = 'a'.repeat(40);
         const result = await (graph)._isAncestor(sha, sha);
@@ -144,7 +114,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const ancestorSha = 'a'.repeat(40);
         const descendantSha = 'b'.repeat(40);
@@ -169,7 +139,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const ancestorSha = 'a'.repeat(40);
         const middleSha = 'b'.repeat(40);
@@ -194,7 +164,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const sha1 = 'a'.repeat(40);
         const sha2 = 'b'.repeat(40);
@@ -220,11 +190,12 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
-        expect(await (graph as any)._isAncestor(null, 'a'.repeat(40))).toBe(false);
-        expect(await (graph as any)._isAncestor('a'.repeat(40), null)).toBe(false);
-        expect(await (graph as any)._isAncestor(null, null)).toBe(false);
+        const ancestorGraph = graph as NullableAncestorGraph;
+        expect(await ancestorGraph._isAncestor(null, 'a'.repeat(40))).toBe(false);
+        expect(await ancestorGraph._isAncestor('a'.repeat(40), null)).toBe(false);
+        expect(await ancestorGraph._isAncestor(null, null)).toBe(false);
       });
     });
 
@@ -239,7 +210,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const sha = 'a'.repeat(40);
         const result = await (graph)._relationToCheckpointHead(sha, sha);
@@ -257,7 +228,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const ckHead = 'a'.repeat(40);
         const incomingSha = 'b'.repeat(40);
@@ -283,7 +254,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const incomingSha = 'a'.repeat(40);
         const ckHead = 'b'.repeat(40);
@@ -314,7 +285,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const ckHead = 'a'.repeat(40);
         const incomingSha = 'b'.repeat(40);
@@ -356,7 +327,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const checkpoint = { schema: 1, frontier: new Map() };
 
@@ -376,7 +347,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const checkpoint = {
           schema: 5,
@@ -399,7 +370,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const ckHead = 'a'.repeat(40);
         const incomingSha = 'b'.repeat(40);
@@ -430,7 +401,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const sha = 'a'.repeat(40);
 
@@ -454,7 +425,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const incomingSha = 'a'.repeat(40);
         const ckHead = 'b'.repeat(40);
@@ -490,7 +461,7 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const ckHead = 'a'.repeat(40);
         const incomingSha = 'b'.repeat(40);
@@ -537,19 +508,19 @@ describe('WarpCore', () => {
           graphName: 'events',
           writerId: 'node-1',
           schema: 2,
-        } as any);
+        } as Parameters<typeof openRuntimeHostProduct>[0]);
 
         const writerIds = ['writer-1', 'writer-2', 'writer-3'];
         vi.spyOn(graph, 'discoverWriters').mockResolvedValue(writerIds);
 
-        const writer1Patches: any[] = [
-          { sha: '1'.repeat(40), patch: { schema: 2, writer: 'writer-1', lamport: 1, context: { 'writer-1': 1 }, ops: [] } },
-          { sha: '2'.repeat(40), patch: { schema: 2, writer: 'writer-1', lamport: 2, context: { 'writer-1': 2 }, ops: [] } },
+        const writer1Patches: LoadedPatchFixture[] = [
+          { sha: '1'.repeat(40), patch: new Patch({ schema: 2, writer: 'writer-1', lamport: 1, context: { 'writer-1': 1 }, ops: [] }) },
+          { sha: '2'.repeat(40), patch: new Patch({ schema: 2, writer: 'writer-1', lamport: 2, context: { 'writer-1': 2 }, ops: [] }) },
         ];
-        const writer2Patches: any[] = [
-          { sha: '3'.repeat(40), patch: { schema: 2, writer: 'writer-2', lamport: 1, context: { 'writer-2': 1 }, ops: [] } },
+        const writer2Patches: LoadedPatchFixture[] = [
+          { sha: '3'.repeat(40), patch: new Patch({ schema: 2, writer: 'writer-2', lamport: 1, context: { 'writer-2': 1 }, ops: [] }) },
         ];
-        const writer3Patches: any[] = [];
+        const writer3Patches: LoadedPatchFixture[] = [];
 
         const loadWriterPatchesSpy = vi
           .spyOn(graph, ('_loadWriterPatches'))
