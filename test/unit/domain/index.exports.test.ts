@@ -61,6 +61,8 @@ import WarpAppDefault, {
   ContinuumArtifactAuthority,
   ContinuumArtifactDescriptor,
   ContinuumArtifactIngestionPolicy,
+  ContinuumEvidencePosture,
+  ContinuumEvidenceStatus,
   ContinuumFamilyId,
   ContinuumArtifactJsonFileAdapter,
 } from '../../../index.ts';
@@ -262,6 +264,8 @@ describe('index.ts exports', () => {
       expect(ContinuumArtifactAuthority).toBeDefined();
       expect(ContinuumArtifactDescriptor).toBeDefined();
       expect(ContinuumArtifactIngestionPolicy).toBeDefined();
+      expect(ContinuumEvidencePosture).toBeDefined();
+      expect(ContinuumEvidenceStatus).toBeDefined();
       expect(ContinuumFamilyId).toBeDefined();
       expect(ContinuumArtifactJsonFileAdapter).toBeDefined();
     });
@@ -279,6 +283,16 @@ describe('index.ts exports', () => {
 
       expect(descriptor.familyId).toBeInstanceOf(ContinuumFamilyId);
       expect(descriptor.hasGeneratedAuthority()).toBe(true);
+    });
+
+    it('constructs translated git-warp evidence status from public exports', () => {
+      const status = ContinuumEvidenceStatus.translatedGitWarp({
+        basisRef: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        summary: 'git-warp evidence translated into Continuum shape',
+      });
+
+      expect(status.posture).toBeInstanceOf(ContinuumEvidencePosture);
+      expect(status.isTranslatedSubstrate()).toBe(true);
     });
   });
 

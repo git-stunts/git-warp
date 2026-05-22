@@ -178,8 +178,13 @@ before the final commit for that slice, and mark completed items with `- [x]`.
   and one-file-per-concept caps, self-attested authority fields from artifact
   JSON are rejected, policy-test authority fixtures are named constants, and
   empty or internally inconsistent Wesley generated inventory is rejected.
-- [ ] 6. Make evidence posture explicit: translated git-warp evidence first,
-  native Continuum evidence only after native witnesshood is proven.
+- [x] 6. Make evidence posture explicit: translated git-warp evidence first,
+  native Continuum evidence only after native witnesshood is proven. The
+  current seam adds runtime-backed `ContinuumEvidencePosture` and
+  `ContinuumEvidenceStatus`; translated git-warp evidence is explicit
+  `translated-substrate` evidence, native Continuum evidence cannot be
+  constructed without `nativeWitnessRef`, and translated evidence rejects native
+  witness references.
 - [ ] 7. Prove the patch commit visibility contract: success means canonical
   writer-tip advancement and visible graph truth, not just object creation.
 - [ ] 8. Add the same-writer concurrent patch race witness with final-frontier
