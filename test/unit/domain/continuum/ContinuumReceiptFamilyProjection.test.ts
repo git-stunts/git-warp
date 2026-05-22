@@ -174,5 +174,11 @@ describe('ContinuumReceiptFamilyProjection', () => {
       // @ts-expect-error runtime guard for JavaScript callers
       tickReceipt: undefined,
     })).toThrow(WarpError);
+
+    expect(() => new GitWarpReceiptSourceFacts({
+      tickReceipt: makeReceipt(),
+      // @ts-expect-error runtime guard for JavaScript callers
+      deliveryObservations: null,
+    })).toThrow(WarpError);
   });
 });

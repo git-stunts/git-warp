@@ -19,7 +19,7 @@ export default class GitWarpReceiptSourceFacts {
     const checkedFields = requireFields(fields);
     this.tickReceipt = requireTickReceipt(checkedFields.tickReceipt);
     requireReceiptOutcomes(this.tickReceipt);
-    this.deliveryObservations = freezeDeliveryObservations(checkedFields.deliveryObservations ?? []);
+    this.deliveryObservations = optionalDeliveryObservations(checkedFields.deliveryObservations);
     this.receiptShard = optionalReceiptShard(checkedFields.receiptShard);
     Object.freeze(this);
   }
@@ -48,6 +48,19 @@ function requireReceiptOutcomes(receipt: TickReceipt): void {
   if (receipt.ops.length === 0) {
     throw new WarpError('tickReceipt must contain at least one operation outcome', 'E_VALIDATION');
   }
+}
+
+/** Validates optional delivery observations without accepting null as omission. */
+function optionalDeliveryObservations(
+  values: readonly DeliveryObservation[] | undefined,
+): readonly DeliveryObservation[] {
+  if (values === undefined) {
+    return Object.freeze([]);
+  }
+  if (!Array.isArray(values)) {
+    throw new WarpError('deliveryObservations must be an array', 'E_VALIDATION');
+  }
+  return freezeDeliveryObservations(values);
 }
 
 /** Freezes and validates delivery observations. */
