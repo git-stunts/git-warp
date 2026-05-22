@@ -64,7 +64,7 @@ Current branch state at this boundary:
 - Latest merged PR: #94, v18 Continuum slices 6 through 10 plus review
   repairs
 - Latest completed v18 implementation cycle:
-  `0161-v18-tickpatch-tickreceipt-witness-ladder`
+  `0162-v18-reading-envelope-source-facts`
 
 The release ladder is now:
 
@@ -247,8 +247,13 @@ commit for that slice.
   `GitWarpTickReceiptShell`, and `GitWarpTickWitnessLadder`, validates
   patch/receipt alignment, and promotes the old up-next backlog note into the
   cycle packet.
-- [ ] 14. Project one git-warp read result into generated runtime-boundary
-  reading-envelope source facts.
+- [x] 14. Project one git-warp read result into runtime-boundary
+  reading-envelope source facts:
+  [0162-v18-reading-envelope-source-facts](design/0162-v18-reading-envelope-source-facts/v18-reading-envelope-source-facts.md)
+  adds `GitWarpReadingEnvelopePayloadFact` and
+  `GitWarpReadingEnvelopeSourceFacts`, requires translated git-warp evidence,
+  and keeps runtime-boundary marked as authored-only until Wesley profiles and
+  fixtures exist.
 - [ ] 15. Project one git-warp sync/export suffix into translated
   witnessed-suffix source facts.
 

@@ -220,6 +220,8 @@ import ContinuumGeneratedFamilyInventoryEntry
 import ContinuumGeneratedFamilyStatus from './src/domain/continuum/ContinuumGeneratedFamilyStatus.ts';
 import ContinuumReceiptFamilyProjection from './src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
 import GitWarpTickPatchReplayCore from './src/domain/continuum/GitWarpTickPatchReplayCore.ts';
+import GitWarpReadingEnvelopePayloadFact from './src/domain/continuum/GitWarpReadingEnvelopePayloadFact.ts';
+import GitWarpReadingEnvelopeSourceFacts from './src/domain/continuum/GitWarpReadingEnvelopeSourceFacts.ts';
 import GitWarpTickReceiptShell from './src/domain/continuum/GitWarpTickReceiptShell.ts';
 import GitWarpTickReceiptWitnessCore from './src/domain/continuum/GitWarpTickReceiptWitnessCore.ts';
 import GitWarpTickWitnessLadder from './src/domain/continuum/GitWarpTickWitnessLadder.ts';
@@ -246,6 +248,12 @@ import type {
   ContinuumReceiptWitnessFact,
 } from './src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
 import type { GitWarpReceiptSourceFactsFields } from './src/domain/continuum/GitWarpReceiptSourceFacts.ts';
+import type {
+  GitWarpReadingEnvelopePayloadFactFields,
+} from './src/domain/continuum/GitWarpReadingEnvelopePayloadFact.ts';
+import type {
+  GitWarpReadingEnvelopeSourceFactsFields,
+} from './src/domain/continuum/GitWarpReadingEnvelopeSourceFacts.ts';
 import type {
   GitWarpTickPatchReplayCoreFields,
 } from './src/domain/continuum/GitWarpTickPatchReplayCore.ts';
@@ -382,6 +390,8 @@ export {
   ContinuumGeneratedFamilyInventoryEntry,
   ContinuumGeneratedFamilyStatus,
   ContinuumReceiptFamilyProjection,
+  GitWarpReadingEnvelopePayloadFact,
+  GitWarpReadingEnvelopeSourceFacts,
   GitWarpTickPatchReplayCore,
   GitWarpTickReceiptShell,
   GitWarpTickReceiptWitnessCore,
@@ -448,6 +458,8 @@ export type {
   ContinuumReceiptOpFact,
   ContinuumReceiptWitnessFact,
   GitWarpReceiptSourceFactsFields,
+  GitWarpReadingEnvelopePayloadFactFields,
+  GitWarpReadingEnvelopeSourceFactsFields,
   GitWarpTickPatchReplayCoreFields,
   GitWarpTickReceiptShellFields,
   GitWarpTickReceiptWitnessCoreFields,
