@@ -127,6 +127,7 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
   it('ratchets write delegation while keeping non-equivalent read/ref semantics local', () => {
     const adapter = readRepoFile('src/infrastructure/adapters/GitGraphAdapter.ts');
     const reader = readRepoFile('src/infrastructure/adapters/GitCasGraphReaderAdapter.ts');
+    const recursiveTreeReader = readRepoFile('src/infrastructure/adapters/GitRecursiveTreeOidReaderAdapter.ts');
     const successorCard = join(
       repoRoot,
       'docs/method/backlog/v17.0.0/INFRA_git-cas-adapter-parity.md',
@@ -138,12 +139,16 @@ describe('GitGraphAdapter git-cas persistence bridge', () => {
     expect(adapter).toContain('this._gitCasPersistence.writeBlob');
     expect(adapter).toContain('this._gitCasPersistence.writeTree');
     expect(adapter).toContain('new GitCasGraphReaderAdapter');
+    expect(adapter).toContain('new GitRecursiveTreeOidReaderAdapter');
     expect(adapter).toContain('this._gitCasGraphReader.readBlob');
     expect(adapter).toContain('this._gitCasGraphReader.readTreeOids');
+    expect(adapter).toContain('treeOidReader: this._recursiveTreeOidReader');
     expect(adapter).not.toContain('this._gitCasPersistence.createCommit');
     expect(reader).toContain('this._persistence.readBlobStream');
     expect(reader).toContain('collectUnboundedGraphBlobStream');
-    expect(reader).toContain('this._persistence.iterateTree');
+    expect(reader).not.toContain('this._persistence.iterateTree');
+    expect(recursiveTreeReader).toContain("args: ['ls-tree', '-rz', treeOid]");
+    expect(recursiveTreeReader).toContain('parseRecursiveTreeEntry');
     expect(existsSync(successorCard)).toBe(true);
   });
 });

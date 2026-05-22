@@ -97,7 +97,8 @@ describe('uniform git-cas closeout', () => {
     expect(releaseLedger).toContain('INFRA_unify-persistence-on-git-cas');
     expect(releaseLedger).toContain('[x] INFRA_git-cas-adapter-parity');
     expect(successor).toContain('GitPersistenceAdapter.readBlobStream()');
-    expect(successor).toContain('GitPersistenceAdapter.iterateTree()');
+    expect(successor).toContain('GitRecursiveTreeOidReaderAdapter');
+    expect(successor).toContain('one recursive `git ls-tree -rz` call');
     expect(successor).toContain('compare-and-swap ref updates');
   });
 });

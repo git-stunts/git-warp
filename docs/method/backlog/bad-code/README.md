@@ -9,7 +9,7 @@ Existing filenames stay stable unless there is a strong reason to rename them. T
 | Code | Invariant | Count |
 |------|-----------|------:|
 | [HEX](../../legends/HEX.md) | No host, infrastructure, raw Git, ambient time, or ambient entropy leaks into core. | 19 |
-| [BND](../../legends/BOUNDARY.md) | Decode, validate, and schema-check at the boundary; raw transport shapes do not leak inward. | 8 |
+| [BND](../../legends/BOUNDARY.md) | Decode, validate, and schema-check at the boundary; raw transport shapes do not leak inward. | 9 |
 | [MODEL](../../legends/MODEL.md) | Runtime truth wins: real classes, constructor invariants, and honest domain forms. | 22 |
 | [CAST](../../legends/CAST.md) | No cast-cosplay, escape hatches, or type lies. | 9 |
 | [PORT](../../legends/PORT.md) | Capability and port surfaces must tell the runtime truth. | 12 |
@@ -31,7 +31,7 @@ card metadata or promoting bad-code into a release lane.
 | Release Home | Count |
 |--------------|------:|
 | `v17.0.0` | 195 |
-| `v18.0.0` | 13 |
+| `v18.0.0` | 14 |
 | `v19.0.0` | 13 |
 | `v20.0.0` | 15 |
 | `v21.0.0` | 7 |
@@ -60,7 +60,7 @@ card metadata or promoting bad-code into a release lane.
 - [HEX_warpserve-domain-infra-blur.md](HEX_warpserve-domain-infra-blur.md)
 - [HEX_domain-crypto-hex.md](HEX_domain-crypto-hex.md)
 
-### Boundary Decode (`BND`) — 8
+### Boundary Decode (`BND`) — 9
 
 - [BND_checkpoint-schema-contract-drift.md](BND_checkpoint-schema-contract-drift.md)
 - [BND_cbor-no-depth-limits.md](BND_cbor-no-depth-limits.md)
@@ -70,6 +70,7 @@ card metadata or promoting bad-code into a release lane.
 - [BND_trailer-codec-type-poison.md](BND_trailer-codec-type-poison.md)
 - [BND_http-request-typedef.md](BND_http-request-typedef.md)
 - [BND_schemas-refine-mutation.md](BND_schemas-refine-mutation.md)
+- [BND_path-keyed-object-accumulators.md](BND_path-keyed-object-accumulators.md)
 
 ### Runtime Model (`MODEL`) — 22
 

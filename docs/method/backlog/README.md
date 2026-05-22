@@ -19,25 +19,25 @@ such as `README.md`, `SCORECARD.md`, and `WORKLOADS.md`:
 
 | Metric | Count |
 |--------|------:|
-| Live backlog items | 371 |
-| Root backlog items | 31 |
+| Live backlog items | 490 |
+| Root backlog items | 33 |
 | `asap/` | 0 |
-| `bad-code/` | 143 |
-| `cool-ideas/` | 94 |
+| `bad-code/` | 244 |
+| `cool-ideas/` | 108 |
 | `inbox/` | 5 |
-| `up-next/` | 35 |
+| `up-next/` | 37 |
 | `v17.0.0/` | 38 |
 | `v18.0.0/` | 8 |
 | `v19.0.0/` | 11 |
 | `v20.0.0/` | 2 |
 | `v21.0.0/` | 4 |
-| Items with YAML frontmatter | 371 |
+| Items with YAML frontmatter | 490 |
 | Items without YAML frontmatter | 0 |
-| Items with explicit `id` | 371 |
-| Items declaring dependency fields | 371 |
-| Items with explicit `feature` | 366 |
-| Distinct explicit feature values | 12 |
-| `bad-code/` items with explicit `release_home` | 143 |
+| Items with explicit `id` | 490 |
+| Items declaring dependency fields | 490 |
+| Items with explicit `feature` | 485 |
+| Distinct explicit feature values | 17 |
+| `bad-code/` items with explicit `release_home` | 244 |
 | Items with non-empty explicit dependency edges | 59 |
 
 ## Dependency Law
@@ -165,10 +165,10 @@ justifies a stronger sequencing rule.
 
 Current explicit-graph totals:
 
-- `371` notes define an `id`
-- `371` notes declare `blocks` and `blocked_by` fields
-- `366` notes currently declare an explicit `feature`
-- `143` `bad-code/` notes currently declare an explicit `release_home`
+- `490` notes define an `id`
+- `490` notes declare `blocks` and `blocked_by` fields
+- `485` notes currently declare an explicit `feature`
+- `244` `bad-code/` notes currently declare an explicit `release_home`
 - `59` notes currently name at least one non-empty upstream or
   downstream edge
 
@@ -221,6 +221,7 @@ Items:
 - [DX_public-api-catalog-playground.md](DX_public-api-catalog-playground.md)
 - [DX_pure-typescript-example-app.md](DX_pure-typescript-example-app.md)
 - [DX_readme-install-section.md](DX_readme-install-section.md)
+- [DX_review-bot-warning-policy.md](DX_review-bot-warning-policy.md)
 - [DX_rfc-field-count-drift-detector.md](DX_rfc-field-count-drift-detector.md)
 - [DX_security-sync-docs.md](DX_security-sync-docs.md)
 - [DX_test-file-wildcard-ratchet.md](DX_test-file-wildcard-ratchet.md)
@@ -230,6 +231,7 @@ Items:
 - [DX_warpgraph-invisible-api-docs.md](DX_warpgraph-invisible-api-docs.md)
 - [PERF_benchmark-budgets-ci-gate.md](PERF_benchmark-budgets-ci-gate.md)
 - [PERF_out-of-core-materialization.md](PERF_out-of-core-materialization.md)
+- [PERF_recursive-tree-path-benchmark.md](PERF_recursive-tree-path-benchmark.md)
 - [TRUST_keystore-prevalidated-cache.md](TRUST_keystore-prevalidated-cache.md)
 - [TRUST_property-based-fuzz-test.md](TRUST_property-based-fuzz-test.md)
 - [TRUST_record-round-trip-snapshot.md](TRUST_record-round-trip-snapshot.md)
@@ -255,15 +257,15 @@ Invariant counts:
 
 | Legend | Count |
 |--------|------:|
-| `BND` | 7 |
+| `BND` | 9 |
 | `CAST` | 9 |
 | `DX` | 1 |
-| `HEX` | 18 |
+| `HEX` | 19 |
 | `MODEL` | 22 |
-| `OWN` | 31 |
-| `PORT` | 11 |
-| `SPEC` | 31 |
-| `SUB` | 13 |
+| `OWN` | 32 |
+| `PORT` | 12 |
+| `SPEC` | 119 |
+| `SUB` | 15 |
 
 ### `v17.0.0/` — `B3` Active Release Graph
 
@@ -285,14 +287,14 @@ Prefix counts:
 
 | Prefix | Count |
 |--------|------:|
-| `API` | 1 |
+| `API` | 2 |
 | `CLI` | 2 |
 | `DX` | 7 |
 | `GOD` | 3 |
 | `INFRA` | 7 |
 | `MCP` | 1 |
 | `PORT` | 1 |
-| `PROTO` | 4 |
+| `PROTO` | 3 |
 | `SLUDGE` | 1 |
 | `TS` | 11 |
 
@@ -395,12 +397,12 @@ Prefix counts:
 | Prefix | Count |
 |--------|------:|
 | `CC` | 1 |
-| `DX` | 17 |
+| `DX` | 10 |
+| `INFRA` | 2 |
 | `NDNM` | 4 |
 | `PERF` | 4 |
 | `PROTO` | 14 |
 | `TRUST` | 1 |
-| `TS` | 1 |
 | `VIZ` | 1 |
 
 ### `cool-ideas/` — `B6` Speculative Orbit
@@ -415,11 +417,14 @@ Prefix counts:
 
 | Prefix | Count |
 |--------|------:|
-| `DX` | 43 |
+| `ARCH` | 1 |
+| `COOL` | 8 |
+| `CORE` | 1 |
+| `DX` | 44 |
 | `IDEA` | 6 |
 | `INFRA` | 1 |
 | `PERF` | 8 |
-| `PROTO` | 24 |
+| `PROTO` | 27 |
 | `THEORY` | 1 |
 | `TRUST` | 3 |
 | `VIZ` | 8 |

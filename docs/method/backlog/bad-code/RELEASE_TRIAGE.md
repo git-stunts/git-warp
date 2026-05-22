@@ -14,7 +14,7 @@ After the first metadata cleanup pass:
 | Release Home | Count | Read |
 |--------------|------:|------|
 | `v17.0.0` | 195 | Current-engine cleanup bucket. Includes runtime-deletion fallout and stale-card rechecks. |
-| `v18.0.0` | 13 | Graph-substrate cards promoted out of generic v17 cleanup. |
+| `v18.0.0` | 14 | Graph-substrate cards promoted out of generic v17 cleanup. |
 | `v19.0.0` | 13 | Observer/admission/runtime-doctrine cleanup. |
 | `v20.0.0` | 15 | Slice-first read, index, traversal, and materialization-cost work. |
 | `v21.0.0` | 7 | Strand, wormhole, conflict, and plural/distributed cleanup. |
@@ -76,6 +76,8 @@ The first metadata pass promoted only graph-model bad-code into
 Cards now pinned to v18 for the graph-model convergence cycle:
 
 - `CAST_warpstate-prop-unknown-value`: property value truth belongs with typed attachment/payload substrate decisions.
+- `BND_path-keyed-object-accumulators`: path-keyed boundary accumulation
+  belongs with generated artifacts and graph-substrate input validation.
 - `MODEL_neighbor-edge-typedef`: neighbor edge shape should line up with stable edge identity and edge-record nouns.
 - `MODEL_patchdiff-no-validation`: diff entries are graph-change substrate forms, not just generic test debt.
 - `MODEL_patchv2-no-validation`: patch/op validation must line up with the graph-op algebra.

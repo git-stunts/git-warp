@@ -4,9 +4,9 @@
 > See METHOD for the current process.
 > Completed items remain in `docs/ROADMAP/COMPLETED.md`. This file is kept for reference only.
 
-> **Current release on `main`:** v16.0.0
-> **Next intended release:** v16.0.1
-> **Last reconciled:** 2026-03-29 (v16.0.0 release. OG-014 streaming CAS blob storage, OG-015 JSR docs, deprecated TraversalService and createWriter removed.)
+> **Current release on `main`:** v17.0.1
+> **Next intended release:** v18.0.0
+> **Last reconciled:** 2026-05-22 (v17.0.1 patch. Recursive tree OID reads use one path-preserving Git command; v17.0.0 release delivered readings/worldlines, TypeScript source, and the generated npm type surface.)
 > **Completed milestones:** [docs/ROADMAP/COMPLETED.md](ROADMAP/COMPLETED.md)
 
 ---

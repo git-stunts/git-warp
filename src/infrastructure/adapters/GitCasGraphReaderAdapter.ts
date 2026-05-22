@@ -1,17 +1,24 @@
 import type { GitPersistenceAdapter } from '@git-stunts/git-cas';
 
+type TreeOidReader = {
+  readTreeOids(treeOid: string): Promise<Record<string, string>>;
+};
+
 interface GitCasGraphReaderAdapterOptions {
   readonly persistence: GitPersistenceAdapter;
   readonly assertEmptyBlobExists: (oid: string) => Promise<void>;
+  readonly treeOidReader: TreeOidReader;
 }
 
 export default class GitCasGraphReaderAdapter {
   private readonly _persistence: GitPersistenceAdapter;
   private readonly _assertEmptyBlobExists: (oid: string) => Promise<void>;
+  private readonly _treeOidReader: TreeOidReader;
 
   constructor(options: GitCasGraphReaderAdapterOptions) {
     this._persistence = options.persistence;
     this._assertEmptyBlobExists = options.assertEmptyBlobExists;
+    this._treeOidReader = options.treeOidReader;
   }
 
   async readBlob(oid: string): Promise<Uint8Array> {
@@ -24,24 +31,7 @@ export default class GitCasGraphReaderAdapter {
   }
 
   async readTreeOids(treeOid: string): Promise<Record<string, string>> {
-    const oids: Record<string, string> = {};
-    await this._collectTreeOids(treeOid, '', oids);
-    return oids;
-  }
-
-  private async _collectTreeOids(
-    treeOid: string,
-    pathPrefix: string,
-    oids: Record<string, string>,
-  ): Promise<void> {
-    for await (const entry of this._persistence.iterateTree(treeOid)) {
-      const path = `${pathPrefix}${entry.name}`;
-      if (entry.type === 'tree') {
-        await this._collectTreeOids(entry.oid, `${path}/`, oids);
-        continue;
-      }
-      oids[path] = entry.oid;
-    }
+    return await this._treeOidReader.readTreeOids(treeOid);
   }
 }
 

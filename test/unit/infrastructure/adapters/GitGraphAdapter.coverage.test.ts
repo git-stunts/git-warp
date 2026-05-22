@@ -134,10 +134,8 @@ describe('GitGraphAdapter coverage', () => {
       const treeOutput =
         `100644 blob deadbeef01234567890123456789012345678901\tfile_a.json\0` +
         `100644 blob cafebabe01234567890123456789012345678901\tfile_b.json\0`;
+      mockPlumbing.execute.mockResolvedValue(treeOutput);
       mockPlumbing.executeStream.mockImplementation(async ({ args }) => {
-        if (args[0] === 'ls-tree') {
-          return streamFromText(treeOutput);
-        }
         return streamFromText(args[2] === 'deadbeef01234567890123456789012345678901' ? 'content_a' : 'content_b');
       });
 
@@ -145,19 +143,23 @@ describe('GitGraphAdapter coverage', () => {
 
       expect(result['file_a.json']).toEqual(new TextEncoder().encode('content_a'));
       expect(result['file_b.json']).toEqual(new TextEncoder().encode('content_b'));
-      expect(mockPlumbing.executeStream).toHaveBeenCalledTimes(3);
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['ls-tree', '-rz', treeOid],
+      });
+      expect(mockPlumbing.executeStream).toHaveBeenCalledTimes(2);
     });
 
     it('returns empty map for empty tree', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
-      mockPlumbing.executeStream.mockResolvedValue(streamFromText(''));
+      mockPlumbing.execute.mockResolvedValue('');
 
       const result = await adapter.readTree(treeOid);
 
       expect(result).toEqual({});
-      expect(mockPlumbing.executeStream).toHaveBeenCalledWith({
-        args: ['ls-tree', '-z', treeOid],
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['ls-tree', '-rz', treeOid],
       });
+      expect(mockPlumbing.executeStream).not.toHaveBeenCalled();
     });
 
     it('validates tree OID', async () => {
@@ -171,10 +173,10 @@ describe('GitGraphAdapter coverage', () => {
   describe('readTreeOids()', () => {
     it('parses NUL-separated ls-tree output into path-oid map', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
-      mockPlumbing.executeStream.mockResolvedValue(streamFromText(
+      mockPlumbing.execute.mockResolvedValue(
         '100644 blob deadbeefdeadbeefdeadbeefdeadbeefdeadbeef\tindex.json\0' +
         '100644 blob cafebabecafebabecafebabecafebabecafebabe\tdata.json\0'
-      ));
+      );
 
       const result = await adapter.readTreeOids(treeOid);
 
@@ -182,14 +184,15 @@ describe('GitGraphAdapter coverage', () => {
         'index.json': 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
         'data.json': 'cafebabecafebabecafebabecafebabecafebabe',
       });
-      expect(mockPlumbing.executeStream).toHaveBeenCalledWith({
-        args: ['ls-tree', '-z', treeOid],
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['ls-tree', '-rz', treeOid],
       });
+      expect(mockPlumbing.executeStream).not.toHaveBeenCalled();
     });
 
     it('returns empty map when tree has no entries', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
-      mockPlumbing.executeStream.mockResolvedValue(streamFromText(''));
+      mockPlumbing.execute.mockResolvedValue('');
 
       const result = await adapter.readTreeOids(treeOid);
 
@@ -198,10 +201,40 @@ describe('GitGraphAdapter coverage', () => {
 
     it('throws on records without a tab separator', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
-      mockPlumbing.executeStream.mockResolvedValue(streamFromText(
+      mockPlumbing.execute.mockResolvedValue(
         '100644 blob deadbeefdeadbeefdeadbeefdeadbeefdeadbeef\tvalid.json\0' +
         'malformed-no-tab\0'
-      ));
+      );
+
+      await expect(adapter.readTreeOids(treeOid))
+        .rejects.toThrow(/Malformed ls-tree entry/);
+    });
+
+    it('throws on records with malformed metadata field counts', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      mockPlumbing.execute.mockResolvedValue(
+        '100644 blob deadbeefdeadbeefdeadbeefdeadbeefdeadbeef extra\tbad.json\0'
+      );
+
+      await expect(adapter.readTreeOids(treeOid))
+        .rejects.toThrow(/Malformed ls-tree entry/);
+    });
+
+    it('throws on records with empty metadata fields', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      mockPlumbing.execute.mockResolvedValue(
+        '100644  deadbeefdeadbeefdeadbeefdeadbeefdeadbeef\tbad.json\0'
+      );
+
+      await expect(adapter.readTreeOids(treeOid))
+        .rejects.toThrow(/Malformed ls-tree entry/);
+    });
+
+    it('throws on records with empty paths', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      mockPlumbing.execute.mockResolvedValue(
+        '100644 blob deadbeefdeadbeefdeadbeefdeadbeefdeadbeef\t\0'
+      );
 
       await expect(adapter.readTreeOids(treeOid))
         .rejects.toThrow(/Malformed ls-tree entry/);
@@ -209,9 +242,9 @@ describe('GitGraphAdapter coverage', () => {
 
     it('handles single entry with trailing NUL', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
-      mockPlumbing.executeStream.mockResolvedValue(streamFromText(
+      mockPlumbing.execute.mockResolvedValue(
         '100644 blob abcdef1234567890abcdef1234567890abcdef12\tonly.json\0'
-      ));
+      );
 
       const result = await adapter.readTreeOids(treeOid);
 
@@ -220,28 +253,59 @@ describe('GitGraphAdapter coverage', () => {
       });
     });
 
-    it('recursively preserves paths through nested trees', async () => {
-      const rootTreeOid = 'aabb' + '0'.repeat(36);
+    it('ignores tree entries if recursive ls-tree includes them', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
       const nestedTreeOid = 'bbcc' + '0'.repeat(36);
       const blobOid = 'ccdd' + '0'.repeat(36);
-      mockPlumbing.executeStream.mockImplementation(async ({ args }) => {
-        if (args[2] === rootTreeOid) {
-          return streamFromText(`040000 tree ${nestedTreeOid}\tnested\0`);
-        }
-        return streamFromText(`100644 blob ${blobOid}\titem.cbor\0`);
+      mockPlumbing.execute.mockResolvedValue(
+        `040000 tree ${nestedTreeOid}\tnested\0` +
+        `100644 blob ${blobOid}\tnested/item.cbor\0`
+      );
+
+      const result = await adapter.readTreeOids(treeOid);
+
+      expect(result).toEqual({
+        'nested/item.cbor': blobOid,
       });
+    });
+
+    it('preserves prototype-like path names from recursive ls-tree output', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      const protoOid = 'beef' + '0'.repeat(36);
+      const constructorOid = 'feed' + '0'.repeat(36);
+      mockPlumbing.execute.mockResolvedValue(
+        `100644 blob ${protoOid}\t__proto__\0` +
+        `100644 blob ${constructorOid}\tconstructor\0`
+      );
+
+      const result = await adapter.readTreeOids(treeOid);
+
+      expect(Object.hasOwn(result, '__proto__')).toBe(true);
+      expect(Object.hasOwn(result, 'constructor')).toBe(true);
+      expect(result['__proto__']).toBe(protoOid);
+      expect(result['constructor']).toBe(constructorOid);
+    });
+
+    it('recursively preserves paths through nested trees with one git command', async () => {
+      const rootTreeOid = 'aabb' + '0'.repeat(36);
+      const blobOid = 'ccdd' + '0'.repeat(36);
+      const rootBlobOid = 'ddcc' + '0'.repeat(36);
+      mockPlumbing.execute.mockResolvedValue(
+        `100644 blob ${blobOid}\tnested/item.cbor\0` +
+        `100644 blob ${rootBlobOid}\troot.json\0`
+      );
 
       const result = await adapter.readTreeOids(rootTreeOid);
 
       expect(result).toEqual({
         'nested/item.cbor': blobOid,
+        'root.json': rootBlobOid,
       });
-      expect(mockPlumbing.executeStream).toHaveBeenCalledWith({
-        args: ['ls-tree', '-z', rootTreeOid],
+      expect(mockPlumbing.execute).toHaveBeenCalledTimes(1);
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['ls-tree', '-rz', rootTreeOid],
       });
-      expect(mockPlumbing.executeStream).toHaveBeenCalledWith({
-        args: ['ls-tree', '-z', nestedTreeOid],
-      });
+      expect(mockPlumbing.executeStream).not.toHaveBeenCalled();
     });
 
     it('validates tree OID', async () => {
@@ -249,6 +313,7 @@ describe('GitGraphAdapter coverage', () => {
         .rejects.toThrow(/Invalid OID format/);
 
       expect(mockPlumbing.executeStream).not.toHaveBeenCalled();
+      expect(mockPlumbing.execute).not.toHaveBeenCalled();
     });
 
     it('rejects empty OID', async () => {
@@ -260,7 +325,7 @@ describe('GitGraphAdapter coverage', () => {
       const treeOid = 'aabb' + '0'.repeat(36);
       const err = (new Error(`fatal: bad object ${treeOid}`) as any);
       err.details = { code: 128, stderr: `fatal: bad object ${treeOid}` };
-      mockPlumbing.executeStream.mockRejectedValue(err);
+      mockPlumbing.execute.mockRejectedValue(err);
 
       await expect(adapter.readTreeOids(treeOid))
         .rejects.toMatchObject({
