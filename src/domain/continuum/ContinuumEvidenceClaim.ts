@@ -15,9 +15,10 @@ export default class ContinuumEvidenceClaim {
   readonly nativeWitnessProof: string | undefined;
 
   constructor(fields: ContinuumEvidenceClaimFields) {
-    this.descriptor = requireDescriptor(fields.descriptor);
-    this.posture = normalizePosture(fields.posture);
-    this.nativeWitnessProof = optionalNonEmptyString(fields.nativeWitnessProof, 'nativeWitnessProof');
+    const checkedFields = requireFields(fields);
+    this.descriptor = requireDescriptor(checkedFields.descriptor);
+    this.posture = normalizePosture(checkedFields.posture);
+    this.nativeWitnessProof = optionalNonEmptyString(checkedFields.nativeWitnessProof, 'nativeWitnessProof');
     this.assertNativeProofMatchesPosture();
     Object.freeze(this);
   }
@@ -53,6 +54,16 @@ export default class ContinuumEvidenceClaim {
   }
 }
 
+/** Validates the claim constructor envelope. */
+function requireFields(
+  value: ContinuumEvidenceClaimFields | null | undefined,
+): ContinuumEvidenceClaimFields {
+  if (value === null || value === undefined) {
+    throw new WarpError('ContinuumEvidenceClaim fields must be provided', 'E_VALIDATION');
+  }
+  return value;
+}
+
 /** Validates a descriptor carrier. */
 function requireDescriptor(value: ContinuumArtifactDescriptor): ContinuumArtifactDescriptor {
   if (!(value instanceof ContinuumArtifactDescriptor)) {
@@ -79,4 +90,3 @@ function optionalNonEmptyString(value: string | undefined, name: string): string
   }
   return value;
 }
-

@@ -92,5 +92,11 @@ describe('ContinuumEvidencePosture', () => {
       posture: undefined,
     })).toThrow(WarpError);
   });
-});
 
+  it('rejects missing evidence claim fields with a domain error', () => {
+    expect(() => new ContinuumEvidenceClaim(
+      // @ts-expect-error runtime guard for JavaScript callers
+      undefined,
+    )).toThrow(WarpError);
+  });
+});
