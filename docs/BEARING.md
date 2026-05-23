@@ -39,14 +39,14 @@ of handwritten adapter folklore.
 
 Current branch state at this boundary:
 
-- Branch: `v18-continuum-slices-26-45-design`
+- Branch: `v18-continuum-slices-26-30`
 - Base branch: `main`
-- Current `origin/main`: `e288c113`
-- Latest merged PR: #97, v18 Continuum slices 21 through 25
+- Current `origin/main`: `c66f1a49`
+- Latest merged PR: #98, v18 design documents for slices 26 through 45
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
-  `0173-v18-content-write-intent-cutover`
-- Current work: documentation-only planning for slices 26 through 45
+  `0174-v18-post-25-property-projection-runway`
+- Current work: implementation branch `v18-continuum-slices-26-30`
 
 The current v18 graph-model posture is:
 
@@ -78,6 +78,10 @@ PR #97 landed v18 slices 21 through 25:
 PRs #94 through #96 had already landed the earlier v18 evidence posture,
 generated-family readiness, runtime-boundary source facts, node and edge
 records, generic attachment substrate, and graph-op algebra groundwork.
+
+PR #98 landed the detailed design documents for slices 26 through 45 and
+reset this bearing around the property-projection, migration dry-run, and
+genesis-equivalence runway.
 
 ## What Feels Wrong
 
@@ -160,7 +164,7 @@ and concrete checks live in `docs/invariants/`.
 - [x] 23. Add content attachment projection.
 - [x] 24. Route public content reads through content projection.
 - [x] 25. Route content writes through typed write intent.
-- [ ] 26. Reset the post-25 property projection runway:
+- [x] 26. Reset the post-25 property projection runway:
   [0174](design/0174-v18-post-25-property-projection-runway/v18-post-25-property-projection-runway.md).
 - [ ] 27. Add legacy property projection nouns:
   [0175](design/0175-v18-legacy-property-projection-nouns/v18-legacy-property-projection-nouns.md).

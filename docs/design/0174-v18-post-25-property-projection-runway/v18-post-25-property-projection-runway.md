@@ -1,11 +1,12 @@
 ---
 cycle: 0174
 task_id: V18_post_25_property_projection_runway
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-23
+completed_at: 2026-05-23
 release_home: v18.0.0
 bearing_task: 26
 promotes_backlog:
@@ -84,8 +85,8 @@ work needed to make that claim later.
 
 ## RED Plan
 
-No regression test is required for the documentation-only slice. The failure
-condition is stale or missing planning evidence:
+No regression test was required for the documentation-only slice. The failure
+condition was stale or missing planning evidence:
 
 - `BEARING.md` still describes the pre-PR-97 branch;
 - slices 26 through 45 are not all represented by design documents;
@@ -94,9 +95,9 @@ condition is stale or missing planning evidence:
 
 ## GREEN Plan
 
-Add one design file for each slice from 26 through 45. Rewrite `BEARING.md`
-around the current main-line state, the merged slice-21-through-25 work, and
-the next twenty planned moves.
+One design file now exists for each slice from 26 through 45. `BEARING.md`
+was rewritten around the current main-line state, the merged
+slice-21-through-25 work, and the next twenty planned moves.
 
 The text must describe property bags as compatibility views and graph
 attachments as the emerging substrate. It must also preserve the honest
@@ -110,9 +111,18 @@ npx markdownlint-cli2 CHANGELOG.md docs/BEARING.md docs/design/0174-v18-post-25-
 git diff --check HEAD
 ```
 
+Observed on closeout:
+
+```text
+npx markdownlint-cli2 CHANGELOG.md docs/BEARING.md docs/design/0174-v18-post-25-property-projection-runway/v18-post-25-property-projection-runway.md
+Summary: 0 error(s)
+
+git diff --check HEAD
+```
+
 ## Closeout Criteria
 
-- `BEARING.md` names the current merged PR #97 state.
+- `BEARING.md` names the current merged PR #98 state.
 - Slices 26 through 45 are listed and linked.
 - Each planned slice has a design document.
 - The changelog records the planning update under `Unreleased`.
