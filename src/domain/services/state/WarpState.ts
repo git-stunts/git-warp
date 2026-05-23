@@ -11,8 +11,11 @@ import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { lwwMax, type LWWRegister } from '../../crdt/LWW.ts';
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
+import EdgeId from '../../graph/EdgeId.ts';
+import EdgeRecord from '../../graph/EdgeRecord.ts';
 import NodeId from '../../graph/NodeId.ts';
 import NodeRecord from '../../graph/NodeRecord.ts';
+import { decodeEdgeKey } from '../KeyCodec.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 
 /**
@@ -74,6 +77,36 @@ export default class WarpState {
   /** Returns true when the given node id has a live graph node record. */
   hasNodeRecord(nodeId: string | NodeId): boolean {
     return this.getNodeRecord(nodeId) !== null;
+  }
+
+  /** Returns visible graph edges as deterministic runtime-backed records. */
+  edgeRecords(): readonly EdgeRecord[] {
+    const records: EdgeRecord[] = [];
+    for (const edgeKey of this.edgeAlive.elements()) {
+      const edge = decodeEdgeKey(edgeKey);
+      if (!this.hasNodeRecord(edge.from) || !this.hasNodeRecord(edge.to)) {
+        continue;
+      }
+      records.push(EdgeRecord.fromLegacyEdge(edge));
+    }
+    records.sort(compareEdgeRecords);
+    return Object.freeze(records);
+  }
+
+  /** Returns the visible graph edge record for the given id, if present. */
+  getEdgeRecord(edgeId: string | EdgeId): EdgeRecord | null {
+    const id = normalizeEdgeId(edgeId);
+    for (const record of this.edgeRecords()) {
+      if (record.id.equals(id)) {
+        return record;
+      }
+    }
+    return null;
+  }
+
+  /** Returns true when the given edge id has a visible graph edge record. */
+  hasEdgeRecord(edgeId: string | EdgeId): boolean {
+    return this.getEdgeRecord(edgeId) !== null;
   }
 
   /** Creates a deep clone with independent data structures. */
@@ -184,12 +217,25 @@ export default class WarpState {
   }
 }
 
+/** Normalizes an edge id carrier for state record reads. */
+function normalizeEdgeId(value: string | EdgeId): EdgeId {
+  if (value instanceof EdgeId) {
+    return value;
+  }
+  return new EdgeId(value);
+}
+
 /** Normalizes a node id carrier for state record reads. */
 function normalizeNodeId(value: string | NodeId): NodeId {
   if (value instanceof NodeId) {
     return value;
   }
   return new NodeId(value);
+}
+
+/** Compares edge records by deterministic id order. */
+function compareEdgeRecords(left: EdgeRecord, right: EdgeRecord): number {
+  return compareStrings(left.id.toString(), right.id.toString());
 }
 
 /** Compares protocol strings without locale-sensitive collation. */

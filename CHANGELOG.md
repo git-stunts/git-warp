@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 graph-model convergence now exposes runtime-backed `NodeId`,
   `NodeTypeId`, and `NodeRecord` nouns plus deterministic `WarpState`
   node-record reads over legacy OR-Set liveness.
+- V18 graph-model convergence now exposes runtime-backed `EdgeId`,
+  `EdgeTypeId`, and `EdgeRecord` nouns plus deterministic visible
+  `WarpState` edge-record reads over legacy edge OR-Set liveness.
 - V18 Continuum compatibility now exposes a runtime-backed generated-family
   readiness inventory for receipt, settlement, neighborhood-core, and
   runtime-boundary families, separating projection-ready families from

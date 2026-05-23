@@ -32,6 +32,9 @@
 
 import GitGraphAdapter from './src/infrastructure/adapters/GitGraphAdapter.ts';
 import GraphNode from './src/domain/entities/GraphNode.ts';
+import EdgeId from './src/domain/graph/EdgeId.ts';
+import EdgeRecord from './src/domain/graph/EdgeRecord.ts';
+import EdgeTypeId from './src/domain/graph/EdgeTypeId.ts';
 import NodeId from './src/domain/graph/NodeId.ts';
 import NodeRecord from './src/domain/graph/NodeRecord.ts';
 import NodeTypeId from './src/domain/graph/NodeTypeId.ts';
@@ -201,6 +204,7 @@ import SnapshotORSet from './src/domain/services/snapshot/SnapshotORSet.ts';
 import SnapshotVersionVector from './src/domain/services/snapshot/SnapshotVersionVector.ts';
 import SnapshotWarpState from './src/domain/services/snapshot/SnapshotWarpState.ts';
 import type { PropValue } from './src/domain/types/PropValue.ts';
+import type { EdgeRecordFields, LegacyEdgeFields } from './src/domain/graph/EdgeRecord.ts';
 import type { NodeRecordFields } from './src/domain/graph/NodeRecord.ts';
 import type { SnapshotPropValue } from './src/domain/services/snapshot/SnapshotPropValue.ts';
 import type { SyncRateLimitConfig } from './src/domain/services/sync/SyncRateLimiter.ts';
@@ -284,6 +288,9 @@ export {
   GitGraphAdapter,
   InMemoryGraphAdapter,
   GraphNode,
+  EdgeId,
+  EdgeRecord,
+  EdgeTypeId,
   NodeId,
   NodeRecord,
   NodeTypeId,
@@ -461,6 +468,8 @@ export {
 
 export type {
   PropValue,
+  EdgeRecordFields,
+  LegacyEdgeFields,
   NodeRecordFields,
   SnapshotPropValue,
   SyncRateLimitConfig,

@@ -13,6 +13,9 @@ import WarpAppDefault, {
   WarpCore,
   // Core classes
   GitGraphAdapter,
+  EdgeId,
+  EdgeRecord,
+  EdgeTypeId,
   GraphNode,
   NodeId,
   NodeRecord,
@@ -151,6 +154,15 @@ describe('index.ts exports', () => {
     it('exports GraphNode', () => {
       expect(GraphNode).toBeDefined();
       expect(typeof GraphNode).toBe('function');
+    });
+
+    it('exports graph edge substrate nouns', () => {
+      expect(EdgeId).toBeDefined();
+      expect(typeof EdgeId).toBe('function');
+      expect(EdgeRecord).toBeDefined();
+      expect(typeof EdgeRecord).toBe('function');
+      expect(EdgeTypeId).toBeDefined();
+      expect(typeof EdgeTypeId).toBe('function');
     });
 
     it('exports graph node substrate nouns', () => {

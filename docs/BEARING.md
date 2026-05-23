@@ -64,7 +64,7 @@ Current branch state at this boundary:
 - Latest merged PR: #95, v18 Continuum slices 11 through 15 plus review
   repairs
 - Latest completed v18 implementation cycle:
-  `0165-v18-node-record-identity`
+  `0166-v18-edge-record-identity`
 
 The release ladder is now:
 
@@ -175,11 +175,11 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What comes next
 
-Run v18 slices 18 through 20 in order on this branch, then open the next PR.
+Run v18 slices 19 through 20 in order on this branch, then open the next PR.
 Each slice gets a design document before implementation, RED before GREEN, and
 a BEARING update before the final commit for that slice. The active lane is
-`WL-4A-v18-graph-substrate-convergence`: stable edge records,
-attachment-plane substrate, and graph-op algebra convergence.
+`WL-4A-v18-graph-substrate-convergence`: attachment-plane substrate and
+graph-op algebra convergence.
 
 ## Running Task List
 
@@ -283,10 +283,12 @@ attachment-plane substrate, and graph-op algebra convergence.
   `NodeRecord`, exposes deterministic `WarpState` node-record reads over the
   legacy OR-Set, and preserves the doctrine that Echo pressure-tested the
   shared graph model but does not own git-warp's Continuum role.
-- [ ] 18. Introduce runtime-backed edge record identity:
+- [x] 18. Introduce runtime-backed edge record identity:
   [0166-v18-edge-record-identity](design/0166-v18-edge-record-identity/v18-edge-record-identity.md)
-  should split stable edge identity from the legacy `(from, to, label)` key
-  encoding and document deterministic legacy mapping.
+  promotes `PROTO_echo-shaped-edge-records`, adds `EdgeId`, `EdgeTypeId`, and
+  `EdgeRecord`, exposes deterministic visible `WarpState` edge-record reads
+  over legacy edge OR-Set liveness, and documents deterministic legacy
+  `(from, to, label)` mapping.
 - [ ] 19. Add the attachment-plane substrate spine:
   [0167-v18-attachment-plane-substrate](design/0167-v18-attachment-plane-substrate/v18-attachment-plane-substrate.md)
   should separate skeleton records from node and edge attachment slots before
