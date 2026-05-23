@@ -5,37 +5,16 @@
  * CRDT state and resolving blob bytes from storage.
  */
 
-import {
-  encodePropKey,
-  encodeEdgePropKey,
-  encodeEdgeKey,
-  CONTENT_PROPERTY_KEY,
-  CONTENT_MIME_PROPERTY_KEY,
-  CONTENT_SIZE_PROPERTY_KEY,
-} from '../KeyCodec.ts';
-import { compareEventIds, type EventId } from '../../utils/EventId.ts';
+import ContentAttachmentProjection from '../ContentAttachmentProjection.ts';
 import QueryError from '../../errors/QueryError.ts';
+import type ContentAttachmentRecord from '../../graph/ContentAttachmentRecord.ts';
+import type { ContentMeta } from '../../types/ContentMeta.ts';
 import type WarpState from '../state/WarpState.ts';
-import type { PropValue } from '../../types/PropValue.ts';
 import type { QueryContentHost } from './ReadGraphHost.ts';
 
 // ── Types ───────────────────────────────────────────────────────────
 
-type Register = {
-  eventId: EventId | null;
-  value: PropValue;
-};
-
-type ContentRegister = {
-  eventId: EventId | null;
-  value: string;
-};
-
-type ContentRegisters = {
-  contentRegister: ContentRegister;
-  mimeRegister: Register | null;
-  sizeRegister: Register | null;
-};
+export type { ContentMeta };
 
 /** Identifies an edge by its three-part key. */
 export type EdgeId = {
@@ -44,109 +23,26 @@ export type EdgeId = {
   label: string;
 };
 
-/** Content metadata for a node or edge attachment. */
-export type ContentMeta = {
-  oid: string;
-  mime: string | null;
-  size: number | null;
-};
+// ── Content attachment projection ───────────────────────────────────
 
-// ── Lineage check ───────────────────────────────────────────────────
-
-function isSameLineage(a: EventId | null | undefined, b: EventId | null | undefined): boolean {
-  if (!a || !b) { return false; }
-  return a.lamport === b.lamport && a.writerId === b.writerId && a.patchSha === b.patchSha;
-}
-
-// ── Edge register visibility ────────────────────────────────────────
-
-function visibleRegister(register: Register | undefined, birthEvent: EventId | undefined): Register | null {
-  if (!register) { return null; }
-  if (birthEvent && register.eventId && compareEventIds(register.eventId, birthEvent) < 0) {
-    return null;
-  }
-  return register;
-}
-
-// ── Node content registers ──────────────────────────────────────────
-
-function nodeContentRegister(state: WarpState, nodeId: string): ContentRegister | null {
-  if (!state.nodeAlive.contains(nodeId)) { return null; }
-  const reg = state.prop.get(encodePropKey(nodeId, CONTENT_PROPERTY_KEY));
-  if (!reg || typeof reg.value !== 'string') { return null; }
-  return reg as ContentRegister;
-}
-
-export function getNodeContentRegisters(state: WarpState, nodeId: string): ContentRegisters | null {
-  const content = nodeContentRegister(state, nodeId);
-  if (!content) { return null; }
+function contentMetaFromRecord(record: ContentAttachmentRecord): ContentMeta {
   return {
-    contentRegister: content,
-    mimeRegister: state.prop.get(encodePropKey(nodeId, CONTENT_MIME_PROPERTY_KEY)) ?? null,
-    sizeRegister: state.prop.get(encodePropKey(nodeId, CONTENT_SIZE_PROPERTY_KEY)) ?? null,
+    oid: record.payload.oid.toString(),
+    mime: record.payload.mime?.toString() ?? null,
+    size: record.payload.size?.toNumber() ?? null,
   };
 }
 
-// ── Edge content registers ──────────────────────────────────────────
-
-function edgeAliveWithEndpoints(state: WarpState, edge: EdgeId): string | null {
-  const edgeKey = encodeEdgeKey(edge.from, edge.to, edge.label);
-  if (!state.edgeAlive.contains(edgeKey)) { return null; }
-  if (!state.nodeAlive.contains(edge.from)) { return null; }
-  if (!state.nodeAlive.contains(edge.to)) { return null; }
-  return edgeKey;
+function contentOidFromRecord(record: ContentAttachmentRecord): string {
+  return record.payload.oid.toString();
 }
 
-function edgeContentRegister(state: WarpState, edge: EdgeId, edgeKey: string): ContentRegister | null {
-  const birthEvent = state.edgeBirthEvent?.get(edgeKey);
-  const reg = visibleRegister(
-    state.prop.get(encodeEdgePropKey(edge.from, edge.to, edge.label, CONTENT_PROPERTY_KEY)),
-    birthEvent,
-  );
-  if (!reg || typeof reg.value !== 'string') { return null; }
-  return reg as ContentRegister;
+function nodeContentAttachment(state: WarpState, nodeId: string): ContentAttachmentRecord | null {
+  return ContentAttachmentProjection.forNode(state, nodeId);
 }
 
-function edgeSiblingRegisters(state: WarpState, edge: EdgeId, edgeKey: string): { mime: Register | null; size: Register | null } {
-  const birthEvent = state.edgeBirthEvent?.get(edgeKey);
-  return {
-    mime: visibleRegister(state.prop.get(encodeEdgePropKey(edge.from, edge.to, edge.label, CONTENT_MIME_PROPERTY_KEY)), birthEvent),
-    size: visibleRegister(state.prop.get(encodeEdgePropKey(edge.from, edge.to, edge.label, CONTENT_SIZE_PROPERTY_KEY)), birthEvent),
-  };
-}
-
-export function getEdgeContentRegisters(state: WarpState, edge: EdgeId): ContentRegisters | null {
-  const edgeKey = edgeAliveWithEndpoints(state, edge);
-  if (edgeKey === null) { return null; }
-  const content = edgeContentRegister(state, edge, edgeKey);
-  if (!content) { return null; }
-  const siblings = edgeSiblingRegisters(state, edge, edgeKey);
-  return { contentRegister: content, mimeRegister: siblings.mime, sizeRegister: siblings.size };
-}
-
-// ── Metadata extraction ─────────────────────────────────────────────
-
-function isValidSize(v: PropValue | undefined): v is number {
-  return typeof v === 'number' && Number.isInteger(v) && v >= 0;
-}
-
-function extractSize(contentReg: ContentRegister, sizeReg: Register | null): number | null {
-  if (!isSameLineage(contentReg.eventId, sizeReg?.eventId)) { return null; }
-  return isValidSize(sizeReg?.value) ? sizeReg.value : null;
-}
-
-function extractMime(contentReg: ContentRegister, mimeReg: Register | null): string | null {
-  if (!isSameLineage(contentReg.eventId, mimeReg?.eventId)) { return null; }
-  const v = mimeReg?.value;
-  return typeof v === 'string' ? v : null;
-}
-
-export function extractContentMeta(regs: ContentRegisters): ContentMeta {
-  return {
-    oid: regs.contentRegister.value,
-    mime: extractMime(regs.contentRegister, regs.mimeRegister),
-    size: extractSize(regs.contentRegister, regs.sizeRegister),
-  };
+function edgeContentAttachment(state: WarpState, edge: EdgeId): ContentAttachmentRecord | null {
+  return ContentAttachmentProjection.forEdge(state, edge);
 }
 
 // ── Blob resolution ─────────────────────────────────────────────────
@@ -192,58 +88,60 @@ async function ensureAndGetState(host: QueryContentHost): Promise<WarpState> {
 
 export async function getContentOidImpl(host: QueryContentHost, nodeId: string): Promise<string | null> {
   const state = await ensureAndGetState(host);
-  const regs = getNodeContentRegisters(state, nodeId);
-  return regs?.contentRegister.value ?? null;
+  const record = nodeContentAttachment(state, nodeId);
+  return record === null ? null : contentOidFromRecord(record);
 }
 
 export async function getContentMetaImpl(host: QueryContentHost, nodeId: string): Promise<ContentMeta | null> {
   const state = await ensureAndGetState(host);
-  const regs = getNodeContentRegisters(state, nodeId);
-  return regs ? extractContentMeta(regs) : null;
+  const record = nodeContentAttachment(state, nodeId);
+  return record === null ? null : contentMetaFromRecord(record);
 }
 
 export async function getContentImpl(host: QueryContentHost, nodeId: string): Promise<Uint8Array | null> {
   const state = await ensureAndGetState(host);
-  const regs = getNodeContentRegisters(state, nodeId);
-  if (!regs) { return null; }
-  return await resolveBlob(host, regs.contentRegister.value);
+  const record = nodeContentAttachment(state, nodeId);
+  if (record === null) { return null; }
+  return await resolveBlob(host, contentOidFromRecord(record));
 }
 
 export async function getContentStreamImpl(host: QueryContentHost, nodeId: string): Promise<AsyncIterable<Uint8Array> | null> {
   const state = await ensureAndGetState(host);
-  const regs = getNodeContentRegisters(state, nodeId);
-  if (!regs) { return null; }
-  const stream = resolveBlobStream(host, regs.contentRegister.value);
+  const record = nodeContentAttachment(state, nodeId);
+  if (record === null) { return null; }
+  const oid = contentOidFromRecord(record);
+  const stream = resolveBlobStream(host, oid);
   if (stream) { return stream; }
-  return singleChunkIterable(await resolveBlob(host, regs.contentRegister.value));
+  return singleChunkIterable(await resolveBlob(host, oid));
 }
 
 // ── Host-dependent edge content ─────────────────────────────────────
 
 export async function getEdgeContentOidImpl(host: QueryContentHost, edge: EdgeId): Promise<string | null> {
   const state = await ensureAndGetState(host);
-  const regs = getEdgeContentRegisters(state, edge);
-  return regs?.contentRegister.value ?? null;
+  const record = edgeContentAttachment(state, edge);
+  return record === null ? null : contentOidFromRecord(record);
 }
 
 export async function getEdgeContentMetaImpl(host: QueryContentHost, edge: EdgeId): Promise<ContentMeta | null> {
   const state = await ensureAndGetState(host);
-  const regs = getEdgeContentRegisters(state, edge);
-  return regs ? extractContentMeta(regs) : null;
+  const record = edgeContentAttachment(state, edge);
+  return record === null ? null : contentMetaFromRecord(record);
 }
 
 export async function getEdgeContentImpl(host: QueryContentHost, edge: EdgeId): Promise<Uint8Array | null> {
   const state = await ensureAndGetState(host);
-  const regs = getEdgeContentRegisters(state, edge);
-  if (!regs) { return null; }
-  return await resolveBlob(host, regs.contentRegister.value);
+  const record = edgeContentAttachment(state, edge);
+  if (record === null) { return null; }
+  return await resolveBlob(host, contentOidFromRecord(record));
 }
 
 export async function getEdgeContentStreamImpl(host: QueryContentHost, edge: EdgeId): Promise<AsyncIterable<Uint8Array> | null> {
   const state = await ensureAndGetState(host);
-  const regs = getEdgeContentRegisters(state, edge);
-  if (!regs) { return null; }
-  const stream = resolveBlobStream(host, regs.contentRegister.value);
+  const record = edgeContentAttachment(state, edge);
+  if (record === null) { return null; }
+  const oid = contentOidFromRecord(record);
+  const stream = resolveBlobStream(host, oid);
   if (stream) { return stream; }
-  return singleChunkIterable(await resolveBlob(host, regs.contentRegister.value));
+  return singleChunkIterable(await resolveBlob(host, oid));
 }

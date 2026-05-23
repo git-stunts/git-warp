@@ -1,6 +1,12 @@
 export { default as AttachmentKey } from './AttachmentKey.ts';
 export { default as AttachmentRecord } from './AttachmentRecord.ts';
 export { default as AttachmentSchemaVersion } from './AttachmentSchemaVersion.ts';
+export { default as ContentAttachmentMime } from './ContentAttachmentMime.ts';
+export { default as ContentAttachmentOid } from './ContentAttachmentOid.ts';
+export { default as ContentAttachmentPayload } from './ContentAttachmentPayload.ts';
+export { default as ContentAttachmentRecord } from './ContentAttachmentRecord.ts';
+export { default as ContentAttachmentSize } from './ContentAttachmentSize.ts';
+export { default as ContentAttachmentWriteIntent } from './ContentAttachmentWriteIntent.ts';
 export { default as EdgeId } from './EdgeId.ts';
 export { default as EdgeRecord } from './EdgeRecord.ts';
 export { default as EdgeTypeId } from './EdgeTypeId.ts';
@@ -32,6 +38,9 @@ export type {
   AttachmentOwnerRecord,
   AttachmentRecordFields,
 } from './AttachmentRecord.ts';
+export type { ContentAttachmentPayloadFields } from './ContentAttachmentPayload.ts';
+export type { ContentAttachmentRecordFields } from './ContentAttachmentRecord.ts';
+export type { ContentAttachmentEdgeWriteTarget } from './ContentAttachmentWriteIntent.ts';
 export type { EdgeRecordFields, LegacyEdgeFields } from './EdgeRecord.ts';
 export type { GraphAttachmentSetOpFields } from './GraphAttachmentSetOp.ts';
 export type { GraphEdgeRecordSetOpFields } from './GraphEdgeRecordSetOp.ts';

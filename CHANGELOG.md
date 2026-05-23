@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- V18 planning now records the post-PR-96 content-cutover runway, clarifying
+  that generic attachments already exist and that the next batch cuts typed
+  content payload semantics over that attachment plane.
+- V18 content cutover now exposes runtime-backed `ContentAttachmentOid`,
+  `ContentAttachmentMime`, `ContentAttachmentSize`, and
+  `ContentAttachmentPayload` nouns over the existing generic attachment plane.
+- V18 content cutover now projects legacy `_content*` state entries into typed
+  `ContentAttachmentRecord` values while preserving content metadata lineage.
+- V18 content reads now route public node and edge content OID, metadata, byte,
+  and stream lookups through the typed content attachment projection.
+- V18 content writes now construct typed `ContentAttachmentWriteIntent` values
+  before lowering to legacy `_content*` compatibility properties.
 - V18 planning now records the post-slice-15 runway into graph-model substrate
   convergence, naming runtime-backed node records, stable edge records,
   attachment-plane substrate, and graph-op algebra as slices 17 through 20.
@@ -42,6 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- V18 content attachment projection now preserves existing same-patch metadata
+  lineage semantics when `_content`, `_content.mime`, and `_content.size` are
+  separate operations in one patch.
 - V18 graph-substrate review follow-up now keeps the public entry point under
   the source-size policy, makes node-id equality total for invalid runtime
   inputs, avoids repeated full edge projection during attachment materializing,

@@ -17,6 +17,11 @@ import EdgeAdd from '../types/ops/EdgeAdd.ts';
 import EdgeRemove from '../types/ops/EdgeRemove.ts';
 import NodePropSet from '../types/ops/NodePropSet.ts';
 import EdgePropSet from '../types/ops/EdgePropSet.ts';
+import ContentAttachmentMime from '../graph/ContentAttachmentMime.ts';
+import ContentAttachmentOid from '../graph/ContentAttachmentOid.ts';
+import ContentAttachmentPayload from '../graph/ContentAttachmentPayload.ts';
+import ContentAttachmentSize from '../graph/ContentAttachmentSize.ts';
+import ContentAttachmentWriteIntent from '../graph/ContentAttachmentWriteIntent.ts';
 import type { OpV2, CanonicalOpV2 } from '../types/ops/unions.ts';
 import { encodeEdgeKey, CONTENT_PROPERTY_KEY, CONTENT_MIME_PROPERTY_KEY, CONTENT_SIZE_PROPERTY_KEY, EFFECT_NODE_PREFIX } from './KeyCodec.ts';
 import { lowerCanonicalOp } from './OpNormalizer.ts';
@@ -35,7 +40,11 @@ import type RefPort from '../../ports/RefPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
+import type { BlobStorageOptions } from '../../ports/BlobStoragePort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
+
+type ContentInput = AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string;
+type ContentMetadataInput = { mime?: string | null; size?: number | null };
 
 type PersistencePorts = CommitPort & BlobPort & TreePort & RefPort;
 type DeletePolicy = 'reject' | 'cascade' | 'warn';
@@ -255,8 +264,8 @@ export class PatchBuilder {
 
   async attachContent(
     nodeId: string,
-    content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string,
-    metadata?: { mime?: string | null; size?: number | null },
+    content: ContentInput,
+    metadata?: ContentMetadataInput,
   ): Promise<PatchBuilder> {
     this._assertNotCommitted();
     assertNoReservedBytes(nodeId, 'nodeId');
@@ -266,24 +275,10 @@ export class PatchBuilder {
       throw new WriterError('NO_BLOB_STORAGE', 'Cannot attach content without blob storage — inject blobStorage via open() or use InMemoryBlobStorageAdapter');
     }
     const slug = `${this._graphName}/${nodeId}`;
-    let oid: string;
-    let mime: string | null;
-    let size: number | null;
-    if (isStreamingInput(content)) {
-      mime = metadata?.mime ?? null;
-      size = metadata?.size ?? null;
-      oid = await this._blobStorage.storeStream(normalizeToAsyncIterable(content), { slug, mime, size });
-    } else {
-      const buffered = content as Uint8Array | string;
-      const normalizedMeta = normalizeContentMetadata(buffered, metadata);
-      mime = normalizedMeta.mime;
-      size = normalizedMeta.size;
-      oid = await this._blobStorage.store(buffered, { slug, mime, size });
-    }
-    this.setProperty(nodeId, CONTENT_PROPERTY_KEY, oid);
-    this.setProperty(nodeId, CONTENT_SIZE_PROPERTY_KEY, size);
-    this.setProperty(nodeId, CONTENT_MIME_PROPERTY_KEY, mime);
-    this._contentBlobs.push(oid);
+    const payload = await storeContentAttachmentPayload(this._blobStorage, content, metadata, slug);
+    const intent = ContentAttachmentWriteIntent.forNode(nodeId, payload);
+    this._lowerNodeContentIntent(intent);
+    this._contentBlobs.push(intent.oid());
     return this;
   }
 
@@ -300,8 +295,8 @@ export class PatchBuilder {
 
   async attachEdgeContent(
     from: string, to: string, label: string,
-    content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string,
-    metadata?: { mime?: string | null; size?: number | null },
+    content: ContentInput,
+    metadata?: ContentMetadataInput,
   ): Promise<PatchBuilder> {
     this._assertNotCommitted();
     assertNoReservedBytes(from, 'from');
@@ -313,24 +308,10 @@ export class PatchBuilder {
       throw new WriterError('NO_BLOB_STORAGE', 'Cannot attach content without blob storage — inject blobStorage via open() or use InMemoryBlobStorageAdapter');
     }
     const slug = `${this._graphName}/${from}/${to}/${label}`;
-    let oid: string;
-    let mime: string | null;
-    let size: number | null;
-    if (isStreamingInput(content)) {
-      mime = metadata?.mime ?? null;
-      size = metadata?.size ?? null;
-      oid = await this._blobStorage.storeStream(normalizeToAsyncIterable(content), { slug, mime, size });
-    } else {
-      const buffered = content as Uint8Array | string;
-      const normalizedMeta = normalizeContentMetadata(buffered, metadata);
-      mime = normalizedMeta.mime;
-      size = normalizedMeta.size;
-      oid = await this._blobStorage.store(buffered, { slug, mime, size });
-    }
-    this.setEdgeProperty(from, to, label, CONTENT_PROPERTY_KEY, oid);
-    this.setEdgeProperty(from, to, label, CONTENT_SIZE_PROPERTY_KEY, size);
-    this.setEdgeProperty(from, to, label, CONTENT_MIME_PROPERTY_KEY, mime);
-    this._contentBlobs.push(oid);
+    const payload = await storeContentAttachmentPayload(this._blobStorage, content, metadata, slug);
+    const intent = ContentAttachmentWriteIntent.forEdge({ from, to, label }, payload);
+    this._lowerEdgeContentIntent(intent);
+    this._contentBlobs.push(intent.oid());
     return this;
   }
 
@@ -345,6 +326,20 @@ export class PatchBuilder {
     this.setEdgeProperty(from, to, label, CONTENT_SIZE_PROPERTY_KEY, null);
     this.setEdgeProperty(from, to, label, CONTENT_MIME_PROPERTY_KEY, null);
     return this;
+  }
+
+  private _lowerNodeContentIntent(intent: ContentAttachmentWriteIntent): void {
+    const nodeId = intent.nodeId();
+    this.setProperty(nodeId, CONTENT_PROPERTY_KEY, intent.oid());
+    this.setProperty(nodeId, CONTENT_SIZE_PROPERTY_KEY, intent.size());
+    this.setProperty(nodeId, CONTENT_MIME_PROPERTY_KEY, intent.mime());
+  }
+
+  private _lowerEdgeContentIntent(intent: ContentAttachmentWriteIntent): void {
+    const target = intent.edgeTarget();
+    this.setEdgeProperty(target.from, target.to, target.label, CONTENT_PROPERTY_KEY, intent.oid());
+    this.setEdgeProperty(target.from, target.to, target.label, CONTENT_SIZE_PROPERTY_KEY, intent.size());
+    this.setEdgeProperty(target.from, target.to, target.label, CONTENT_MIME_PROPERTY_KEY, intent.mime());
   }
 
   // ── Existence guards ───────────────────────────────────────────────
@@ -432,4 +427,61 @@ export class PatchBuilder {
    * snapshot of blob OIDs to persist alongside the patch entry.
    */
   get contentBlobs(): readonly string[] { return [...this._contentBlobs]; }
+}
+
+async function storeContentAttachmentPayload(
+  blobStorage: BlobStoragePort,
+  content: ContentInput,
+  metadata: ContentMetadataInput | undefined,
+  slug: string,
+): Promise<ContentAttachmentPayload> {
+  if (isBufferedContent(content)) {
+    const normalizedMeta = normalizeContentMetadata(content, metadata);
+    const options = contentStorageOptions(slug, normalizedMeta.mime, normalizedMeta.size);
+    const oid = await blobStorage.store(content, options);
+    return contentAttachmentPayload(oid, normalizedMeta.mime, normalizedMeta.size);
+  }
+  const mime = metadata?.mime ?? null;
+  const size = metadata?.size ?? null;
+  const typedMime = contentAttachmentMime(mime);
+  const typedSize = contentAttachmentSize(size);
+  const options = contentStorageOptions(slug, typedMime?.toString() ?? null, typedSize?.toNumber() ?? null);
+  const oid = await blobStorage.storeStream(normalizeToAsyncIterable(content), options);
+  return new ContentAttachmentPayload({
+    oid: new ContentAttachmentOid(oid),
+    mime: typedMime,
+    size: typedSize,
+  });
+}
+
+function isBufferedContent(content: ContentInput): content is Uint8Array | string {
+  return !isStreamingInput(content);
+}
+
+function contentAttachmentPayload(
+  oid: string,
+  mime: string | null,
+  size: number | null,
+): ContentAttachmentPayload {
+  return new ContentAttachmentPayload({
+    oid: new ContentAttachmentOid(oid),
+    mime: contentAttachmentMime(mime),
+    size: contentAttachmentSize(size),
+  });
+}
+
+function contentAttachmentMime(mime: string | null): ContentAttachmentMime | null {
+  return mime === null ? null : new ContentAttachmentMime(mime);
+}
+
+function contentAttachmentSize(size: number | null): ContentAttachmentSize | null {
+  return size === null ? null : new ContentAttachmentSize(size);
+}
+
+function contentStorageOptions(
+  slug: string,
+  mime: string | null,
+  size: number | null,
+): BlobStorageOptions {
+  return { slug, mime, size };
 }

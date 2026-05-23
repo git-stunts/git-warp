@@ -16,6 +16,13 @@ import WarpAppDefault, {
   AttachmentKey,
   AttachmentRecord,
   AttachmentSchemaVersion,
+  ContentAttachmentMime,
+  ContentAttachmentOid,
+  ContentAttachmentPayload,
+  ContentAttachmentProjection,
+  ContentAttachmentRecord,
+  ContentAttachmentSize,
+  ContentAttachmentWriteIntent,
   EdgeId,
   EdgeRecord,
   EdgeTypeId,
@@ -171,6 +178,23 @@ describe('index.ts exports', () => {
       expect(typeof AttachmentRecord).toBe('function');
       expect(AttachmentSchemaVersion).toBeDefined();
       expect(typeof AttachmentSchemaVersion).toBe('function');
+    });
+
+    it('exports content attachment payload nouns', () => {
+      expect(ContentAttachmentMime).toBeDefined();
+      expect(typeof ContentAttachmentMime).toBe('function');
+      expect(ContentAttachmentOid).toBeDefined();
+      expect(typeof ContentAttachmentOid).toBe('function');
+      expect(ContentAttachmentPayload).toBeDefined();
+      expect(typeof ContentAttachmentPayload).toBe('function');
+      expect(ContentAttachmentProjection).toBeDefined();
+      expect(typeof ContentAttachmentProjection).toBe('function');
+      expect(ContentAttachmentRecord).toBeDefined();
+      expect(typeof ContentAttachmentRecord).toBe('function');
+      expect(ContentAttachmentSize).toBeDefined();
+      expect(typeof ContentAttachmentSize).toBe('function');
+      expect(ContentAttachmentWriteIntent).toBeDefined();
+      expect(typeof ContentAttachmentWriteIntent).toBe('function');
     });
 
     it('exports graph-op algebra substrate nouns', () => {
