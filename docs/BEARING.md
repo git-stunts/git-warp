@@ -39,14 +39,17 @@ of handwritten adapter folklore.
 
 Current branch state at this boundary:
 
-- Branch: `v18-continuum-slices-26-30`
+- Branch: `main`
 - Base branch: `main`
-- Current `origin/main`: `c66f1a49`
-- Latest merged PR: #98, v18 design documents for slices 26 through 45
+- Current `origin/main`: `7d6cf669`
+- Latest merged PR: #99, v18 property projection read surface
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
   `0178-v18-query-property-projection-reads`
-- Current work: implementation branch `v18-continuum-slices-26-30`
+- Current work: cleaned-up post-PR-99 boundary on `main`; next
+  implementation branch should start at slice 31.
+- Cleanup checkpoint: before this signpost update branch, there were no open
+  PRs and remote refs had been pruned to `origin/main`.
 
 The current v18 graph-model posture is:
 
@@ -59,10 +62,13 @@ The current v18 graph-model posture is:
 - Public content reads use the content projection.
 - Content writes construct typed intent before lowering to legacy `_content*`
   compatibility properties.
+- Runtime-backed legacy property projection nouns exist.
+- Node and edge property projections exist.
+- Public query property reads use projection-backed compatibility records.
 
 That is useful progress, not a finish line. The repo still needs property
-projection, graph-model migration tooling, and genesis replay equivalence
-before v18 can make stronger compatibility claims.
+projection beyond query reads, graph-model migration tooling, and genesis
+replay equivalence before v18 can make stronger compatibility claims.
 
 ## What Just Shipped
 
@@ -83,6 +89,18 @@ PR #98 landed the detailed design documents for slices 26 through 45 and
 reset this bearing around the property-projection, migration dry-run, and
 genesis-equivalence runway.
 
+PR #99 landed v18 slices 26 through 30:
+
+- post-slice-25 property-projection runway;
+- runtime-backed legacy node and edge property key/value nouns;
+- node property projection over visible `WarpState` facts;
+- edge property projection over visible `WarpState` facts;
+- query node properties, edge properties, and edge-list property payloads
+  routed through projection-backed compatibility records;
+- review follow-up preserving tolerant misses, targeted projection reads,
+  malformed-record skipping, shared legacy content keys, and plain-object
+  property carrier guards.
+
 ## What Feels Wrong
 
 - Some non-query read surfaces still have direct raw legacy property
@@ -101,12 +119,11 @@ genesis-equivalence runway.
 
 ## Where We Are Heading
 
-The next twenty slices are the runway from "typed graph-model surfaces exist"
-to "we have enough evidence to decide the migration path."
+The remaining planned slices are the runway from "typed graph-model surfaces
+exist" to "we have enough evidence to decide the migration path."
 
 Suggested implementation batches:
 
-- PR A, slices 26 through 30: property projection read surface.
 - PR B, slices 31 through 35: state-reader routing, property write intents,
   graph-op property cutover, and property-projection closeout.
 - PR C, slices 36 through 40: migration manifest, source inventory, dry-run
