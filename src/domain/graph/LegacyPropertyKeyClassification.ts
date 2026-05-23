@@ -1,9 +1,11 @@
 import WarpError from '../errors/WarpError.ts';
+import {
+  CONTENT_MIME_PROPERTY_KEY,
+  CONTENT_PROPERTY_KEY,
+  CONTENT_SIZE_PROPERTY_KEY,
+} from './LegacyContentPropertyKeys.ts';
 
 const FIELD_SEPARATOR = '\x00';
-const CONTENT_OID_KEY = '_content';
-const CONTENT_MIME_KEY = '_content.mime';
-const CONTENT_SIZE_KEY = '_content.size';
 
 export const LEGACY_PROPERTY_KEY_USER = 'user';
 export const LEGACY_PROPERTY_KEY_CONTENT_OID = 'content-oid';
@@ -18,13 +20,13 @@ export type LegacyPropertyKeyClassification =
 
 /** Classifies a legacy compatibility property key. */
 export function classifyLegacyPropertyKey(value: string): LegacyPropertyKeyClassification {
-  if (value === CONTENT_OID_KEY) {
+  if (value === CONTENT_PROPERTY_KEY) {
     return LEGACY_PROPERTY_KEY_CONTENT_OID;
   }
-  if (value === CONTENT_MIME_KEY) {
+  if (value === CONTENT_MIME_PROPERTY_KEY) {
     return LEGACY_PROPERTY_KEY_CONTENT_MIME;
   }
-  if (value === CONTENT_SIZE_KEY) {
+  if (value === CONTENT_SIZE_PROPERTY_KEY) {
     return LEGACY_PROPERTY_KEY_CONTENT_SIZE;
   }
   return LEGACY_PROPERTY_KEY_USER;
