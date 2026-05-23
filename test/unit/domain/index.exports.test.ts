@@ -22,6 +22,7 @@ import WarpAppDefault, {
   ContentAttachmentProjection,
   ContentAttachmentRecord,
   ContentAttachmentSize,
+  ContentAttachmentWriteIntent,
   EdgeId,
   EdgeRecord,
   EdgeTypeId,
@@ -192,6 +193,8 @@ describe('index.ts exports', () => {
       expect(typeof ContentAttachmentRecord).toBe('function');
       expect(ContentAttachmentSize).toBeDefined();
       expect(typeof ContentAttachmentSize).toBe('function');
+      expect(ContentAttachmentWriteIntent).toBeDefined();
+      expect(typeof ContentAttachmentWriteIntent).toBe('function');
     });
 
     it('exports graph-op algebra substrate nouns', () => {

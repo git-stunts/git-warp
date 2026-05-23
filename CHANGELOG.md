@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ContentAttachmentRecord` values while preserving content metadata lineage.
 - V18 content reads now route public node and edge content OID, metadata, byte,
   and stream lookups through the typed content attachment projection.
+- V18 content writes now construct typed `ContentAttachmentWriteIntent` values
+  before lowering to legacy `_content*` compatibility properties.
 - V18 planning now records the post-slice-15 runway into graph-model substrate
   convergence, naming runtime-backed node records, stable edge records,
   attachment-plane substrate, and graph-op algebra as slices 17 through 20.

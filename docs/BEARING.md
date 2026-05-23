@@ -63,7 +63,7 @@ Current branch state at this boundary:
 - Latest merged PR: #96, v18 Continuum slices 16 through 20 plus review
   repairs
 - Latest completed v18 implementation cycle:
-  `0172-v18-query-content-projection-reads`
+  `0173-v18-content-write-intent-cutover`
 
 The release ladder is now:
 
@@ -180,12 +180,11 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What comes next
 
-Run v18 slice 25 on this branch, then open the next PR. Generic attachments,
-content attachment projection, and projection-backed public content reads now
-exist; the active work is routing writes through typed content attachment
-intent before lowering to legacy compatibility properties. After that, continue
-with legacy property projection, graph-model migration tooling, and genesis
-replay equivalence.
+Open the PR for v18 slices 21 through 25. Generic attachments, content payload
+nouns, content projection, projection-backed public content reads, and typed
+content write intent now exist over the legacy compatibility property plane.
+After this PR, continue with legacy property projection, graph-model migration
+tooling, and genesis replay equivalence.
 
 ## Running Task List
 
@@ -330,8 +329,12 @@ replay equivalence.
   removes raw `_content*` register parsing from `QueryContent`, uses
   targeted `ContentAttachmentProjection` selectors for node and edge reads,
   and keeps malformed legacy content references out of public metadata.
-- [ ] 25. Make content writes construct typed content attachment intent before
-  lowering to the current legacy `_content*` compatibility properties.
+- [x] 25. Make content writes construct typed content attachment intent before
+  lowering to the current legacy `_content*` compatibility properties:
+  [0173-v18-content-write-intent-cutover](design/0173-v18-content-write-intent-cutover/v18-content-write-intent-cutover.md)
+  adds `ContentAttachmentWriteIntent`, routes `PatchBuilder` node and edge
+  content writes through typed payload construction, and preserves the current
+  legacy property patch shape.
 - [ ] 26. Add the legacy property-bag projection service over attachment
   records, making property bags an explicit compatibility view.
 - [ ] 27. Route query property reads through the legacy property projection
