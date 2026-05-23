@@ -57,14 +57,14 @@ Continuum role.
 
 Current branch state at this boundary:
 
-- Branch: `v18-continuum-slices-11-15`
+- Branch: `v18-continuum-slices-16-20`
 - Base branch: `main`
-- Latest remote head inspected: `origin/main` at `a4c5467e`
+- Latest remote head inspected: `origin/main` at `c848f5d4`
 - Latest released package line: `17.0.1`
-- Latest merged PR: #94, v18 Continuum slices 6 through 10 plus review
+- Latest merged PR: #95, v18 Continuum slices 11 through 15 plus review
   repairs
 - Latest completed v18 implementation cycle:
-  `0163-v18-witnessed-suffix-source-facts`
+  `0164-v18-post-15-graph-model-runway`
 
 The release ladder is now:
 
@@ -80,10 +80,12 @@ The release ladder is now:
 - `v20.0.0`: slice-first read execution
 - `v21.0.0`: distributed observer geometry and admission reality
 
-The v18 compatibility work is bigger than ten slices. The first ten slices are
-the opening campaign. Slice 11 is an explicit re-plan point after the repo has
-real evidence from generated artifact ingestion, evidence posture, and the
-first receipt-family projection.
+The v18 compatibility work is bigger than fifteen slices. Slices 1 through 15
+established the Continuum compatibility posture, generated-family authority,
+translated evidence posture, receipt-family projection, `warp-ttd` receipt
+smoke, and runtime-boundary source facts. Slices 17 through 20 now move into
+the graph-model substrate lane that v18 must cut before migration and genesis
+replay proof are honest.
 
 ## Invariants
 
@@ -138,6 +140,13 @@ performance/correctness repair:
   `v17.0.1`, and added design-backed backlog fuel for path-keyed boundary
   audits, safe path-map materialization, review-bot warning policy, and a
   recursive tree path benchmark.
+- PR #94 landed v18 Continuum slices 6 through 10: evidence posture, visible
+  patch commit success, same-writer CAS conflict posture, receipt-family
+  projection, and the first `warp-ttd` receipt-family smoke.
+- PR #95 landed v18 Continuum slices 11 through 15: evidence-backed re-plan,
+  generated-family readiness inventory, `TickPatch`/`TickReceipt` witness
+  ladder, runtime-boundary reading-envelope source facts, and witnessed-suffix
+  source facts.
 
 The shipped v17 scope remains: TypeScript migration, public API honesty,
 materialization-frontdoor deletion, readings/optics direction, query
@@ -166,9 +175,11 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What comes next
 
-Run v18 slices 11 through 15 in order. Each slice gets a design document
-before implementation, RED before GREEN, and a BEARING update before the final
-commit for that slice.
+Run v18 slices 17 through 20 in order on this branch, then open the next PR.
+Each slice gets a design document before implementation, RED before GREEN, and
+a BEARING update before the final commit for that slice. The active lane is
+`WL-4A-v18-graph-substrate-convergence`: runtime-backed node records, stable
+edge records, attachment-plane substrate, and graph-op algebra convergence.
 
 ## Running Task List
 
@@ -261,6 +272,28 @@ commit for that slice.
   `GitWarpWitnessedSuffixSourceFacts`, rejects empty suffix patch lists, and
   keeps the current sync protocol intact while runtime-boundary remains
   authored-only.
+- [x] 16. Re-open the v18 runway after PR #95 and pivot from translated
+  source-fact compatibility into the graph-model substrate lane:
+  [0164-v18-post-15-graph-model-runway](design/0164-v18-post-15-graph-model-runway/v18-post-15-graph-model-runway.md)
+  records `origin/main` at `c848f5d4`, retires the stale 11 through 15
+  instruction, and names slices 17 through 20 as the next PR scope.
+- [ ] 17. Introduce runtime-backed node record identity:
+  [0165-v18-node-record-identity](design/0165-v18-node-record-identity/v18-node-record-identity.md)
+  should pull `PROTO_echo-shaped-node-records` into a cycle while preserving
+  the doctrine that Echo pressure-tested the shared graph model but does not
+  own git-warp's Continuum role.
+- [ ] 18. Introduce runtime-backed edge record identity:
+  [0166-v18-edge-record-identity](design/0166-v18-edge-record-identity/v18-edge-record-identity.md)
+  should split stable edge identity from the legacy `(from, to, label)` key
+  encoding and document deterministic legacy mapping.
+- [ ] 19. Add the attachment-plane substrate spine:
+  [0167-v18-attachment-plane-substrate](design/0167-v18-attachment-plane-substrate/v18-attachment-plane-substrate.md)
+  should separate skeleton records from node and edge attachment slots before
+  content cutover.
+- [ ] 20. Start graph-op algebra convergence:
+  [0168-v18-graph-op-algebra-convergence](design/0168-v18-graph-op-algebra-convergence/v18-graph-op-algebra-convergence.md)
+  should name the explicit node, edge, and attachment op family that can still
+  travel through git-warp's causal envelope.
 
 The loop stays strict: write or update the cycle doc, capture RED, green the
 slice, update this BEARING task list before the final commit, validate, then
