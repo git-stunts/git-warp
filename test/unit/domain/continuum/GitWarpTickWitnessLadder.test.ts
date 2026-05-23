@@ -117,5 +117,12 @@ describe('GitWarpTickWitnessLadder', () => {
       patchSha: PATCH_SHA,
       receipt: makeReceipt(),
     })).toThrow(WarpError);
+
+    expect(() => new GitWarpTickWitnessLadder({
+      patch: makePatch(),
+      patchSha: PATCH_SHA,
+      // @ts-expect-error runtime guard for JavaScript callers
+      receipt: undefined,
+    })).toThrow(WarpError);
   });
 });
