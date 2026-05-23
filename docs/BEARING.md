@@ -64,7 +64,7 @@ Current branch state at this boundary:
 - Latest merged PR: #95, v18 Continuum slices 11 through 15 plus review
   repairs
 - Latest completed v18 implementation cycle:
-  `0167-v18-attachment-plane-substrate`
+  `0168-v18-graph-op-algebra-convergence`
 
 The release ladder is now:
 
@@ -84,8 +84,9 @@ The v18 compatibility work is bigger than fifteen slices. Slices 1 through 15
 established the Continuum compatibility posture, generated-family authority,
 translated evidence posture, receipt-family projection, `warp-ttd` receipt
 smoke, and runtime-boundary source facts. Slices 17 through 20 now move into
-the graph-model substrate lane that v18 must cut before migration and genesis
-replay proof are honest.
+the graph-model substrate lane by naming node, edge, attachment, and graph-op
+algebra surfaces that v18 must cut before migration and genesis replay proof
+are honest.
 
 ## Invariants
 
@@ -175,10 +176,10 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What comes next
 
-Run v18 slice 20 on this branch, then open the next PR.
-Each slice gets a design document before implementation, RED before GREEN, and
-a BEARING update before the final commit for that slice. The active lane is
-`WL-4A-v18-graph-substrate-convergence`: graph-op algebra convergence.
+Open the PR for v18 slices 16 through 20, then continue with the remaining
+`WL-4A-v18-graph-substrate-convergence` items. The next active lane item is
+content attachment-plane cutover, followed by legacy property projection,
+graph-model migration tooling, and genesis replay equivalence.
 
 ## Running Task List
 
@@ -294,10 +295,13 @@ a BEARING update before the final commit for that slice. The active lane is
   `AttachmentSchemaVersion`, and `AttachmentRecord`, and exposes deterministic
   `WarpState` attachment-record reads over visible legacy node and edge
   properties before content cutover.
-- [ ] 20. Start graph-op algebra convergence:
+- [x] 20. Start graph-op algebra convergence:
   [0168-v18-graph-op-algebra-convergence](design/0168-v18-graph-op-algebra-convergence/v18-graph-op-algebra-convergence.md)
-  should name the explicit node, edge, and attachment op family that can still
-  travel through git-warp's causal envelope.
+  promotes `PROTO_graph-op-algebra-convergence`, adds
+  `GraphNodeRecordSetOp`, `GraphEdgeRecordSetOp`, `GraphAttachmentSetOp`,
+  `GraphOpAlgebra`, and `GraphOpAlgebraProjection`, and exposes a
+  deterministic graph-operation substrate projection over the current
+  node, edge, and attachment record views.
 
 The loop stays strict: write or update the cycle doc, capture RED, green the
 slice, update this BEARING task list before the final commit, validate, then

@@ -38,6 +38,9 @@ import AttachmentSchemaVersion from './src/domain/graph/AttachmentSchemaVersion.
 import EdgeId from './src/domain/graph/EdgeId.ts';
 import EdgeRecord from './src/domain/graph/EdgeRecord.ts';
 import EdgeTypeId from './src/domain/graph/EdgeTypeId.ts';
+import GraphAttachmentSetOp from './src/domain/graph/GraphAttachmentSetOp.ts';
+import GraphEdgeRecordSetOp from './src/domain/graph/GraphEdgeRecordSetOp.ts';
+import GraphNodeRecordSetOp from './src/domain/graph/GraphNodeRecordSetOp.ts';
 import NodeId from './src/domain/graph/NodeId.ts';
 import NodeRecord from './src/domain/graph/NodeRecord.ts';
 import NodeTypeId from './src/domain/graph/NodeTypeId.ts';
@@ -193,6 +196,8 @@ import { NoOpEffectSink } from './src/infrastructure/adapters/NoOpEffectSink.ts'
 import { ConsoleEffectSink } from './src/infrastructure/adapters/ConsoleEffectSink.ts';
 import { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.ts';
 import SyncSecret from './src/domain/services/sync/SyncSecret.ts';
+import GraphOpAlgebra from './src/domain/graph/GraphOpAlgebra.ts';
+import GraphOpAlgebraProjection from './src/domain/services/GraphOpAlgebraProjection.ts';
 import { openWarpGraph } from './src/domain/WarpGraph.ts';
 import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
 import { PatchSession } from './src/domain/warp/PatchSession.ts';
@@ -212,6 +217,11 @@ import type {
   AttachmentRecordFields,
 } from './src/domain/graph/AttachmentRecord.ts';
 import type { EdgeRecordFields, LegacyEdgeFields } from './src/domain/graph/EdgeRecord.ts';
+import type { GraphAttachmentSetOpFields } from './src/domain/graph/GraphAttachmentSetOp.ts';
+import type { GraphEdgeRecordSetOpFields } from './src/domain/graph/GraphEdgeRecordSetOp.ts';
+import type { GraphNodeRecordSetOpFields } from './src/domain/graph/GraphNodeRecordSetOp.ts';
+import type { GraphOpAlgebraFields } from './src/domain/graph/GraphOpAlgebra.ts';
+import type { GraphOperation } from './src/domain/graph/GraphOperation.ts';
 import type { NodeRecordFields } from './src/domain/graph/NodeRecord.ts';
 import type { SnapshotPropValue } from './src/domain/services/snapshot/SnapshotPropValue.ts';
 import type { SyncRateLimitConfig } from './src/domain/services/sync/SyncRateLimiter.ts';
@@ -301,6 +311,11 @@ export {
   EdgeId,
   EdgeRecord,
   EdgeTypeId,
+  GraphAttachmentSetOp,
+  GraphEdgeRecordSetOp,
+  GraphNodeRecordSetOp,
+  GraphOpAlgebra,
+  GraphOpAlgebraProjection,
   NodeId,
   NodeRecord,
   NodeTypeId,
@@ -482,6 +497,11 @@ export type {
   AttachmentRecordFields,
   EdgeRecordFields,
   LegacyEdgeFields,
+  GraphAttachmentSetOpFields,
+  GraphEdgeRecordSetOpFields,
+  GraphNodeRecordSetOpFields,
+  GraphOpAlgebraFields,
+  GraphOperation,
   NodeRecordFields,
   SnapshotPropValue,
   SyncRateLimitConfig,

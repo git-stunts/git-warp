@@ -19,6 +19,11 @@ import WarpAppDefault, {
   EdgeId,
   EdgeRecord,
   EdgeTypeId,
+  GraphAttachmentSetOp,
+  GraphEdgeRecordSetOp,
+  GraphNodeRecordSetOp,
+  GraphOpAlgebra,
+  GraphOpAlgebraProjection,
   GraphNode,
   NodeId,
   NodeRecord,
@@ -166,6 +171,19 @@ describe('index.ts exports', () => {
       expect(typeof AttachmentRecord).toBe('function');
       expect(AttachmentSchemaVersion).toBeDefined();
       expect(typeof AttachmentSchemaVersion).toBe('function');
+    });
+
+    it('exports graph-op algebra substrate nouns', () => {
+      expect(GraphAttachmentSetOp).toBeDefined();
+      expect(typeof GraphAttachmentSetOp).toBe('function');
+      expect(GraphEdgeRecordSetOp).toBeDefined();
+      expect(typeof GraphEdgeRecordSetOp).toBe('function');
+      expect(GraphNodeRecordSetOp).toBeDefined();
+      expect(typeof GraphNodeRecordSetOp).toBe('function');
+      expect(GraphOpAlgebra).toBeDefined();
+      expect(typeof GraphOpAlgebra).toBe('function');
+      expect(GraphOpAlgebraProjection).toBeDefined();
+      expect(typeof GraphOpAlgebraProjection).toBe('function');
     });
 
     it('exports graph edge substrate nouns', () => {

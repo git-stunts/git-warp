@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AttachmentSchemaVersion`, and `AttachmentRecord` nouns plus deterministic
   `WarpState` attachment-record reads over visible legacy node and edge
   properties.
+- V18 graph-model convergence now exposes runtime-backed
+  `GraphNodeRecordSetOp`, `GraphEdgeRecordSetOp`, `GraphAttachmentSetOp`, and
+  `GraphOpAlgebra` nouns plus deterministic `GraphOpAlgebraProjection`
+  reads over current `WarpState` node, edge, and attachment records.
 - V18 Continuum compatibility now exposes a runtime-backed generated-family
   readiness inventory for receipt, settlement, neighborhood-core, and
   runtime-boundary families, separating projection-ready families from
