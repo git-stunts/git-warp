@@ -56,8 +56,30 @@ describe('NodePropertyProjection', () => {
     expect(NodePropertyProjection.forNode(state, 'missing')).toEqual([]);
     expect(Object.isFrozen(records)).toBe(true);
   });
+
+  it('does not materialize unrelated owner records for targeted reads', () => {
+    const state = WarpState.empty();
+    state.nodeAlive.add('node:1', Dot.create('writer', 1));
+    state.nodeAlive.add('node:2', Dot.create('writer', 2));
+    state.prop.set(encodePropKey('node:1', 'status'), register(1, 'ready'));
+    const invalidRegister = LWWRegister.set(new EventId(1, 'writer', 'abcd', 2), new InvalidPropertyCarrier());
+    // @ts-expect-error exercising corrupt non-target state isolation
+    state.prop.set(encodePropKey('node:2', 'bad'), invalidRegister);
+
+    const records = NodePropertyProjection.forNode(state, 'node:1');
+
+    expect(records.map((record) => [
+      record.owner.id.toString(),
+      record.key.toString(),
+      record.value.toPropValue(),
+    ])).toEqual([
+      ['node:1', 'status', 'ready'],
+    ]);
+  });
 });
 
 function register(opIndex: number, value: string | number): LWWRegister<string | number> {
   return LWWRegister.set(new EventId(1, 'writer', 'abcd', opIndex), value);
 }
+
+class InvalidPropertyCarrier {}

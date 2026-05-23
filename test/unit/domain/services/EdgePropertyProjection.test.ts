@@ -73,6 +73,35 @@ describe('EdgePropertyProjection', () => {
     })).toEqual([]);
     expect(Object.isFrozen(records)).toBe(true);
   });
+
+  it('does not materialize unrelated edge owner records for targeted reads', () => {
+    const state = WarpState.empty();
+    addLiveNode(state, 'node:1', 1);
+    addLiveNode(state, 'node:2', 2);
+    addLiveNode(state, 'node:3', 3);
+    addLiveEdge(state, 'node:1', 'node:2', 'rel', 4);
+    addLiveEdge(state, 'node:2', 'node:3', 'rel', 5);
+    state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(6, 3));
+    const invalidRegister = LWWRegister.set(event(7), new InvalidPropertyCarrier());
+    // @ts-expect-error exercising corrupt non-target state isolation
+    state.prop.set(encodeEdgePropKey('node:2', 'node:3', 'rel', 'bad'), invalidRegister);
+
+    const records = EdgePropertyProjection.forEdge(state, {
+      from: 'node:1',
+      to: 'node:2',
+      label: 'rel',
+    });
+
+    expect(records.map((record) => [
+      record.owner.from.toString(),
+      record.owner.to.toString(),
+      record.owner.typeId.toString(),
+      record.key.toString(),
+      record.value.toPropValue(),
+    ])).toEqual([
+      ['node:1', 'node:2', 'rel', 'weight', 3],
+    ]);
+  });
 });
 
 function addLiveNode(state: WarpState, nodeId: string, counter: number): void {
@@ -111,3 +140,5 @@ function register(opIndex: number, value: string | number): LWWRegister<string |
 function event(opIndex: number): EventId {
   return new EventId(1, 'writer', 'abcd', opIndex);
 }
+
+class InvalidPropertyCarrier {}

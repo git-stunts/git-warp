@@ -50,6 +50,33 @@ describe('QueryReads property projection routing', () => {
       },
     ]);
   });
+
+  it('keeps malformed public property queries as misses', async () => {
+    const state = WarpState.empty();
+    addLiveNode(state, 'node:1', 1);
+    addLiveNode(state, 'node:2', 2);
+    addLiveEdge(state, 'node:1', 'node:2', 'rel', 3);
+    const host = hostForState(state);
+
+    await expect(getNodePropsImpl(host, '')).resolves.toBeNull();
+    await expect(getNodePropsImpl(host, 'bad\0node')).resolves.toBeNull();
+    await expect(getNodePropsImpl(host, `${EDGE_PROP_PREFIX}reserved`)).resolves.toBeNull();
+    await expect(getEdgePropsImpl(host, {
+      from: '',
+      to: 'node:2',
+      label: 'rel',
+    })).resolves.toBeNull();
+    await expect(getEdgePropsImpl(host, {
+      from: 'node:1',
+      to: 'bad\0node',
+      label: 'rel',
+    })).resolves.toBeNull();
+    await expect(getEdgePropsImpl(host, {
+      from: 'node:1',
+      to: 'node:2',
+      label: '',
+    })).resolves.toBeNull();
+  });
 });
 
 function hostForState(state: WarpState): QueryReadHost {

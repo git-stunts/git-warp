@@ -11,15 +11,20 @@ import {
   VisibleEdgePropertyRecord,
   VisibleNodePropertyRecord,
 } from '../../../../src/domain/graph/publicGraphSubstrate.ts';
+import {
+  CONTENT_MIME_PROPERTY_KEY,
+  CONTENT_PROPERTY_KEY,
+  CONTENT_SIZE_PROPERTY_KEY,
+} from '../../../../src/domain/services/KeyCodec.ts';
 
 describe('legacy property projection graph substrate nouns', () => {
   it('classifies reserved content compatibility keys deterministically', () => {
-    const nodeContent = new LegacyNodePropertyKey('_content');
-    const edgeMime = new LegacyEdgePropertyKey('_content.mime');
-    const edgeSize = new LegacyEdgePropertyKey('_content.size');
+    const nodeContent = new LegacyNodePropertyKey(CONTENT_PROPERTY_KEY);
+    const edgeMime = new LegacyEdgePropertyKey(CONTENT_MIME_PROPERTY_KEY);
+    const edgeSize = new LegacyEdgePropertyKey(CONTENT_SIZE_PROPERTY_KEY);
     const nodeUserKey = new LegacyNodePropertyKey('status');
 
-    expect(nodeContent.toString()).toBe('_content');
+    expect(nodeContent.toString()).toBe(CONTENT_PROPERTY_KEY);
     expect(nodeContent.classification()).toBe('content-oid');
     expect(nodeContent.isContentCompatibilityKey()).toBe(true);
     expect(edgeMime.classification()).toBe('content-mime');
@@ -57,7 +62,7 @@ describe('legacy property projection graph substrate nouns', () => {
     expect(Array.from(stored instanceof Uint8Array ? stored : new Uint8Array())).toEqual([1, 2, 3]);
     expect(Object.isFrozen(value)).toBe(true);
     // @ts-expect-error exercising runtime validation
-    expect(() => new LegacyPropertyValue(new Date())).toThrow(WarpError);
+    expect(() => new LegacyPropertyValue(new InvalidPropertyCarrier())).toThrow(WarpError);
   });
 
   it('keeps node and edge visible property records separate', () => {
@@ -116,3 +121,5 @@ describe('legacy property projection graph substrate nouns', () => {
     expect(Object.isFrozen(projection.edgeProperties)).toBe(true);
   });
 });
+
+class InvalidPropertyCarrier {}

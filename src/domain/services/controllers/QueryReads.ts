@@ -16,6 +16,10 @@ import {
   createSnapshotWarpState,
 } from '../ImmutableSnapshot.ts';
 import NodePropertyProjection from '../NodePropertyProjection.ts';
+import {
+  isLegacyEdgePropertyProjectionTarget,
+  isLegacyNodePropertyProjectionTarget,
+} from '../LegacyPropertyProjectionTarget.ts';
 import EdgeRecord from '../../graph/EdgeRecord.ts';
 import QueryError from '../../errors/QueryError.ts';
 import type SnapshotWarpState from '../snapshot/SnapshotWarpState.ts';
@@ -146,8 +150,10 @@ async function tryIndexedNodeProps(host: QueryReadHost, nodeId: string): Promise
 }
 
 function linearNodeProps(state: WarpState, nodeId: string): PropertyBag | null {
-  if (!state.hasNodeRecord(nodeId)) { return null; }
-  return nodePropertyBagFromRecords(NodePropertyProjection.forNode(state, nodeId));
+  if (!isLegacyNodePropertyProjectionTarget(nodeId)) { return null; }
+  const owner = state.getNodeRecord(nodeId);
+  if (owner === null) { return null; }
+  return nodePropertyBagFromRecords(NodePropertyProjection.forNodeRecord(state, owner));
 }
 
 function nodePropertyBagFromRecords(records: readonly VisibleNodePropertyRecord[]): PropertyBag {
@@ -164,8 +170,10 @@ export async function getEdgePropsImpl(host: QueryReadHost, edge: { from: string
 }
 
 function edgePropsFromState(state: WarpState, edge: { from: string; to: string; label: string }): PropertyBag | null {
-  if (state.getEdgeRecord(EdgeRecord.fromLegacyEdge(edge).id) === null) { return null; }
-  return edgePropertyBagFromRecords(EdgePropertyProjection.forEdge(state, edge));
+  if (!isLegacyEdgePropertyProjectionTarget(edge)) { return null; }
+  const owner = state.getEdgeRecord(EdgeRecord.fromLegacyEdge(edge).id);
+  if (owner === null) { return null; }
+  return edgePropertyBagFromRecords(EdgePropertyProjection.forEdgeRecord(state, owner));
 }
 
 function edgePropertyBagFromRecords(records: readonly VisibleEdgePropertyRecord[]): PropertyBag {

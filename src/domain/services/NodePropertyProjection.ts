@@ -1,11 +1,13 @@
 import LegacyNodePropertyKey from '../graph/LegacyNodePropertyKey.ts';
 import LegacyPropertyValue from '../graph/LegacyPropertyValue.ts';
+import NodeRecord from '../graph/NodeRecord.ts';
 import VisibleNodePropertyRecord from '../graph/VisibleNodePropertyRecord.ts';
 import WarpError from '../errors/WarpError.ts';
 import {
   EDGE_PROP_PREFIX,
   FIELD_SEPARATOR,
 } from './KeyCodec.ts';
+import { isLegacyNodePropertyProjectionTarget } from './LegacyPropertyProjectionTarget.ts';
 import WarpState from './state/WarpState.ts';
 import type { LWWRegister } from '../crdt/LWW.ts';
 import type NodeId from '../graph/NodeId.ts';
@@ -35,13 +37,29 @@ export default class NodePropertyProjection {
   /** Returns visible property records for one node in deterministic order. */
   static forNode(state: WarpState, nodeId: string | NodeId): readonly VisibleNodePropertyRecord[] {
     const checkedState = requireWarpState(state);
-    const owner = checkedState.getNodeRecord(nodeId);
+    const owner = nodeRecordForProjectionTarget(checkedState, nodeId);
     if (owner === null) {
       return Object.freeze([]);
     }
-    return Object.freeze(
-      NodePropertyProjection.fromState(checkedState).filter((record) => record.owner.equals(owner)),
-    );
+    return NodePropertyProjection.forNodeRecord(checkedState, owner);
+  }
+
+  /** Returns visible property records for one runtime-backed node owner. */
+  static forNodeRecord(
+    state: WarpState,
+    owner: NodeRecord,
+  ): readonly VisibleNodePropertyRecord[] {
+    const checkedState = requireWarpState(state);
+    const checkedOwner = requireNodeRecord(owner);
+    const records: VisibleNodePropertyRecord[] = [];
+    for (const [encodedKey, register] of checkedState.prop) {
+      const record = nodePropertyRecordForOwnerRegister(checkedOwner, encodedKey, register);
+      if (record !== null) {
+        records.push(record);
+      }
+    }
+    records.sort(compareNodePropertyRecords);
+    return Object.freeze(records);
   }
 }
 
@@ -51,6 +69,22 @@ function requireWarpState(state: WarpState): WarpState {
     throw new WarpError('NodePropertyProjection source must be a WarpState', 'E_VALIDATION');
   }
   return state;
+}
+
+/** Requires a runtime-backed node record owner. */
+function requireNodeRecord(owner: NodeRecord): NodeRecord {
+  if (!(owner instanceof NodeRecord)) {
+    throw new WarpError('NodePropertyProjection owner must be a NodeRecord', 'E_VALIDATION');
+  }
+  return owner;
+}
+
+/** Resolves a projection target without throwing on public miss carriers. */
+function nodeRecordForProjectionTarget(state: WarpState, nodeId: string | NodeId): NodeRecord | null {
+  if (typeof nodeId === 'string' && !isLegacyNodePropertyProjectionTarget(nodeId)) {
+    return null;
+  }
+  return state.getNodeRecord(nodeId);
 }
 
 /** Builds a node property record from one legacy state register. */
@@ -65,6 +99,23 @@ function nodePropertyRecordForRegister(
   }
   const owner = state.getNodeRecord(keyParts.nodeId);
   if (owner === null) {
+    return null;
+  }
+  return new VisibleNodePropertyRecord({
+    owner,
+    key: new LegacyNodePropertyKey(keyParts.propKey),
+    value: new LegacyPropertyValue(register.value),
+  });
+}
+
+/** Builds a node property record when it belongs to the requested owner. */
+function nodePropertyRecordForOwnerRegister(
+  owner: NodeRecord,
+  encodedKey: string,
+  register: LWWRegister<PropValue>,
+): VisibleNodePropertyRecord | null {
+  const keyParts = decodeVisibleNodePropertyKey(encodedKey);
+  if (keyParts === null || keyParts.nodeId !== owner.id.toString()) {
     return null;
   }
   return new VisibleNodePropertyRecord({

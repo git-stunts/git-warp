@@ -8,16 +8,16 @@ import {
   FIELD_SEPARATOR,
   encodeEdgeKey,
 } from './KeyCodec.ts';
+import {
+  isLegacyEdgePropertyProjectionTarget,
+  type LegacyEdgePropertyProjectionTarget,
+} from './LegacyPropertyProjectionTarget.ts';
 import WarpState from './state/WarpState.ts';
 import { compareEventIds, type EventId } from '../utils/EventId.ts';
 import type { LWWRegister } from '../crdt/LWW.ts';
 import type { PropValue } from '../types/PropValue.ts';
 
-export type EdgePropertyProjectionEdge = {
-  readonly from: string;
-  readonly to: string;
-  readonly label: string;
-};
+export type EdgePropertyProjectionEdge = LegacyEdgePropertyProjectionTarget;
 
 type EdgePropertyKeyParts = EdgePropertyProjectionEdge & {
   readonly propKey: string;
@@ -28,6 +28,13 @@ type EdgePropertyKeySegmentValues = {
   readonly to: string | undefined;
   readonly label: string | undefined;
   readonly propKey: string | undefined;
+};
+
+type EdgeOwnerRegisterProjection = {
+  readonly state: WarpState;
+  readonly owner: EdgeRecord;
+  readonly encodedKey: string;
+  readonly register: LWWRegister<PropValue>;
 };
 
 /** Projects visible legacy edge properties into compatibility records. */
@@ -52,13 +59,34 @@ export default class EdgePropertyProjection {
     edge: EdgePropertyProjectionEdge,
   ): readonly VisibleEdgePropertyRecord[] {
     const checkedState = requireWarpState(state);
-    const owner = checkedState.getEdgeRecord(EdgeRecord.fromLegacyEdge(edge).id);
+    const owner = edgeRecordForProjectionTarget(checkedState, edge);
     if (owner === null) {
       return Object.freeze([]);
     }
-    return Object.freeze(
-      EdgePropertyProjection.fromState(checkedState).filter((record) => record.owner.equals(owner)),
-    );
+    return EdgePropertyProjection.forEdgeRecord(checkedState, owner);
+  }
+
+  /** Returns visible property records for one runtime-backed edge owner. */
+  static forEdgeRecord(
+    state: WarpState,
+    owner: EdgeRecord,
+  ): readonly VisibleEdgePropertyRecord[] {
+    const checkedState = requireWarpState(state);
+    const checkedOwner = requireEdgeRecord(owner);
+    const records: VisibleEdgePropertyRecord[] = [];
+    for (const [encodedKey, register] of checkedState.prop) {
+      const record = edgePropertyRecordForOwnerRegister({
+        state: checkedState,
+        owner: checkedOwner,
+        encodedKey,
+        register,
+      });
+      if (record !== null) {
+        records.push(record);
+      }
+    }
+    records.sort(compareEdgePropertyRecords);
+    return Object.freeze(records);
   }
 }
 
@@ -68,6 +96,25 @@ function requireWarpState(state: WarpState): WarpState {
     throw new WarpError('EdgePropertyProjection source must be a WarpState', 'E_VALIDATION');
   }
   return state;
+}
+
+/** Requires a runtime-backed edge record owner. */
+function requireEdgeRecord(owner: EdgeRecord): EdgeRecord {
+  if (!(owner instanceof EdgeRecord)) {
+    throw new WarpError('EdgePropertyProjection owner must be an EdgeRecord', 'E_VALIDATION');
+  }
+  return owner;
+}
+
+/** Resolves a projection target without throwing on public miss carriers. */
+function edgeRecordForProjectionTarget(
+  state: WarpState,
+  edge: EdgePropertyProjectionEdge,
+): EdgeRecord | null {
+  if (!isLegacyEdgePropertyProjectionTarget(edge)) {
+    return null;
+  }
+  return state.getEdgeRecord(EdgeRecord.fromLegacyEdge(edge).id);
 }
 
 /** Builds an edge property record from one legacy state register. */
@@ -94,6 +141,39 @@ function edgePropertyRecordForRegister(
     key: new LegacyEdgePropertyKey(keyParts.propKey),
     value: new LegacyPropertyValue(visibleRegister.value),
   });
+}
+
+/** Builds an edge property record when it belongs to the requested owner. */
+function edgePropertyRecordForOwnerRegister(
+  projection: EdgeOwnerRegisterProjection,
+): VisibleEdgePropertyRecord | null {
+  const keyParts = decodeVisibleEdgePropertyKey(projection.encodedKey);
+  if (keyParts === null || !edgePropertyKeyPartsMatchOwner(keyParts, projection.owner)) {
+    return null;
+  }
+  const edgeKey = encodeEdgeKey(keyParts.from, keyParts.to, keyParts.label);
+  const visibleRegister = visibleEdgeRegister(
+    projection.register,
+    projection.state.edgeBirthEvent.get(edgeKey),
+  );
+  if (visibleRegister === null) {
+    return null;
+  }
+  return new VisibleEdgePropertyRecord({
+    owner: projection.owner,
+    key: new LegacyEdgePropertyKey(keyParts.propKey),
+    value: new LegacyPropertyValue(visibleRegister.value),
+  });
+}
+
+/** Returns true when decoded edge-property key parts belong to an owner record. */
+function edgePropertyKeyPartsMatchOwner(
+  keyParts: EdgePropertyKeyParts,
+  owner: EdgeRecord,
+): boolean {
+  return keyParts.from === owner.from.toString()
+    && keyParts.to === owner.to.toString()
+    && keyParts.label === owner.typeId.toString();
 }
 
 /** Decodes only well-formed legacy edge property keys. */
