@@ -6,9 +6,11 @@ import WarpError from '../errors/WarpError.ts';
 import {
   EDGE_PROP_PREFIX,
   FIELD_SEPARATOR,
+  encodePropKey,
 } from './KeyCodec.ts';
 import { isLegacyNodePropertyProjectionTarget } from './LegacyPropertyProjectionTarget.ts';
 import WarpState from './state/WarpState.ts';
+import { compareStrings } from '../utils/StringComparison.ts';
 import type { LWWRegister } from '../crdt/LWW.ts';
 import type NodeId from '../graph/NodeId.ts';
 import type { PropValue } from '../types/PropValue.ts';
@@ -52,7 +54,11 @@ export default class NodePropertyProjection {
     const checkedState = requireWarpState(state);
     const checkedOwner = requireNodeRecord(owner);
     const records: VisibleNodePropertyRecord[] = [];
+    const ownerKeyPrefix = encodePropKey(checkedOwner.id.toString(), '');
     for (const [encodedKey, register] of checkedState.prop) {
+      if (!encodedKey.startsWith(ownerKeyPrefix)) {
+        continue;
+      }
       const record = nodePropertyRecordForOwnerRegister(checkedOwner, encodedKey, register);
       if (record !== null) {
         records.push(record);
@@ -81,7 +87,10 @@ function requireNodeRecord(owner: NodeRecord): NodeRecord {
 
 /** Resolves a projection target without throwing on public miss carriers. */
 function nodeRecordForProjectionTarget(state: WarpState, nodeId: string | NodeId): NodeRecord | null {
-  if (typeof nodeId === 'string' && !isLegacyNodePropertyProjectionTarget(nodeId)) {
+  if (typeof nodeId !== 'string') {
+    return state.getNodeRecord(nodeId);
+  }
+  if (!isLegacyNodePropertyProjectionTarget(nodeId)) {
     return null;
   }
   return state.getNodeRecord(nodeId);
@@ -172,15 +181,4 @@ function compareNodePropertyRecords(
 /** Returns the deterministic sort key for a node property record. */
 function nodePropertyRecordSortKey(record: VisibleNodePropertyRecord): string {
   return `${record.owner.id.toString()}:${record.key.toString()}`;
-}
-
-/** Compares protocol strings without locale-sensitive collation. */
-function compareStrings(left: string, right: string): number {
-  if (left < right) {
-    return -1;
-  }
-  if (left > right) {
-    return 1;
-  }
-  return 0;
 }

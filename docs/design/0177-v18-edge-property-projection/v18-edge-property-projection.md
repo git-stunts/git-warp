@@ -102,8 +102,8 @@ Tests should compare record values, not JSON string output.
 ## Verification
 
 ```text
-npx vitest run test/unit/domain/graph/EdgePropertyProjection.test.ts --reporter=verbose
-npx eslint src/domain/graph test/unit/domain/graph/EdgePropertyProjection.test.ts
+npx vitest run test/unit/domain/services/EdgePropertyProjection.test.ts --reporter=verbose
+npx eslint src/domain/services/EdgePropertyProjection.ts test/unit/domain/services/EdgePropertyProjection.test.ts
 npm run typecheck
 npm run lint:sludge
 git diff --check HEAD

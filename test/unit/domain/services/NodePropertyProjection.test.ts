@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { LWWRegister } from '../../../../src/domain/crdt/LWW.ts';
 import NodePropertyProjection from '../../../../src/domain/services/NodePropertyProjection.ts';
-import { encodeEdgePropKey, encodePropKey } from '../../../../src/domain/services/KeyCodec.ts';
+import {
+  EDGE_PROP_PREFIX,
+  encodeEdgePropKey,
+  encodePropKey,
+} from '../../../../src/domain/services/KeyCodec.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 
@@ -55,6 +59,16 @@ describe('NodePropertyProjection', () => {
     ]);
     expect(NodePropertyProjection.forNode(state, 'missing')).toEqual([]);
     expect(Object.isFrozen(records)).toBe(true);
+  });
+
+  it('keeps malformed public node targets as empty projection reads', () => {
+    const state = WarpState.empty();
+    state.nodeAlive.add('node:1', Dot.create('writer', 1));
+    state.prop.set(encodePropKey('node:1', 'status'), register(1, 'ready'));
+
+    expect(NodePropertyProjection.forNode(state, '')).toEqual([]);
+    expect(NodePropertyProjection.forNode(state, 'bad\0node')).toEqual([]);
+    expect(NodePropertyProjection.forNode(state, `${EDGE_PROP_PREFIX}reserved`)).toEqual([]);
   });
 
   it('does not materialize unrelated owner records for targeted reads', () => {

@@ -104,8 +104,8 @@ instead of recomputing liveness in a second ad hoc way.
 ## Verification
 
 ```text
-npx vitest run test/unit/domain/graph/NodePropertyProjection.test.ts --reporter=verbose
-npx eslint src/domain/graph test/unit/domain/graph/NodePropertyProjection.test.ts
+npx vitest run test/unit/domain/services/NodePropertyProjection.test.ts --reporter=verbose
+npx eslint src/domain/services/NodePropertyProjection.ts test/unit/domain/services/NodePropertyProjection.test.ts
 npm run typecheck
 npm run lint:sludge
 git diff --check HEAD

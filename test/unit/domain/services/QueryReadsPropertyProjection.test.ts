@@ -67,6 +67,11 @@ describe('QueryReads property projection routing', () => {
       label: 'rel',
     })).resolves.toBeNull();
     await expect(getEdgePropsImpl(host, {
+      from: `${EDGE_PROP_PREFIX}reserved`,
+      to: 'node:2',
+      label: 'rel',
+    })).resolves.toBeNull();
+    await expect(getEdgePropsImpl(host, {
       from: 'node:1',
       to: 'bad\0node',
       label: 'rel',

@@ -28,6 +28,7 @@ describe('EdgePropertyProjection', () => {
     state.prop.set(encodeEdgePropKey('missing', 'node:2', 'rel', 'weight'), register(11, 13));
     state.prop.set(encodePropKey('node:1', 'status'), register(12, 'ignored'));
     state.prop.set(`${EDGE_PROP_PREFIX}node:1\0node:2\0rel\0bad\0extra`, register(13, 'ignored'));
+    state.prop.set(`${EDGE_PROP_PREFIX}${EDGE_PROP_PREFIX}reserved\0node:2\0rel\0bad`, register(14, 'ignored'));
 
     const records = EdgePropertyProjection.fromState(state);
 
@@ -72,6 +73,35 @@ describe('EdgePropertyProjection', () => {
       label: 'rel',
     })).toEqual([]);
     expect(Object.isFrozen(records)).toBe(true);
+  });
+
+  it('keeps malformed public edge targets as empty projection reads', () => {
+    const state = WarpState.empty();
+    addLiveNode(state, 'node:1', 1);
+    addLiveNode(state, 'node:2', 2);
+    addLiveEdge(state, 'node:1', 'node:2', 'rel', 3);
+    state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(4, 3));
+
+    expect(EdgePropertyProjection.forEdge(state, {
+      from: '',
+      to: 'node:2',
+      label: 'rel',
+    })).toEqual([]);
+    expect(EdgePropertyProjection.forEdge(state, {
+      from: `${EDGE_PROP_PREFIX}reserved`,
+      to: 'node:2',
+      label: 'rel',
+    })).toEqual([]);
+    expect(EdgePropertyProjection.forEdge(state, {
+      from: 'node:1',
+      to: 'bad\0node',
+      label: 'rel',
+    })).toEqual([]);
+    expect(EdgePropertyProjection.forEdge(state, {
+      from: 'node:1',
+      to: 'node:2',
+      label: '',
+    })).toEqual([]);
   });
 
   it('does not materialize unrelated edge owner records for targeted reads', () => {

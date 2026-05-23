@@ -7,6 +7,7 @@ import {
   EDGE_PROP_PREFIX,
   FIELD_SEPARATOR,
   encodeEdgeKey,
+  encodeEdgePropKey,
 } from './KeyCodec.ts';
 import {
   isLegacyEdgePropertyProjectionTarget,
@@ -14,6 +15,7 @@ import {
 } from './LegacyPropertyProjectionTarget.ts';
 import WarpState from './state/WarpState.ts';
 import { compareEventIds, type EventId } from '../utils/EventId.ts';
+import { compareStrings } from '../utils/StringComparison.ts';
 import type { LWWRegister } from '../crdt/LWW.ts';
 import type { PropValue } from '../types/PropValue.ts';
 
@@ -28,6 +30,13 @@ type EdgePropertyKeySegmentValues = {
   readonly to: string | undefined;
   readonly label: string | undefined;
   readonly propKey: string | undefined;
+};
+
+type CompleteEdgePropertyKeySegmentValues = {
+  readonly from: string;
+  readonly to: string;
+  readonly label: string;
+  readonly propKey: string;
 };
 
 type EdgeOwnerRegisterProjection = {
@@ -74,7 +83,11 @@ export default class EdgePropertyProjection {
     const checkedState = requireWarpState(state);
     const checkedOwner = requireEdgeRecord(owner);
     const records: VisibleEdgePropertyRecord[] = [];
+    const ownerKeyPrefix = edgePropertyKeyPrefix(checkedOwner);
     for (const [encodedKey, register] of checkedState.prop) {
+      if (!encodedKey.startsWith(ownerKeyPrefix)) {
+        continue;
+      }
       const record = edgePropertyRecordForOwnerRegister({
         state: checkedState,
         owner: checkedOwner,
@@ -111,10 +124,11 @@ function edgeRecordForProjectionTarget(
   state: WarpState,
   edge: EdgePropertyProjectionEdge,
 ): EdgeRecord | null {
-  if (!isLegacyEdgePropertyProjectionTarget(edge)) {
+  const owner = edgeRecordFromProjectionTarget(edge);
+  if (owner === null) {
     return null;
   }
-  return state.getEdgeRecord(EdgeRecord.fromLegacyEdge(edge).id);
+  return state.getEdgeRecord(owner.id);
 }
 
 /** Builds an edge property record from one legacy state register. */
@@ -132,7 +146,11 @@ function edgePropertyRecordForRegister(
   if (visibleRegister === null) {
     return null;
   }
-  const owner = state.getEdgeRecord(EdgeRecord.fromLegacyEdge(keyParts).id);
+  const decodedOwner = edgeRecordFromProjectionTarget(keyParts);
+  if (decodedOwner === null) {
+    return null;
+  }
+  const owner = state.getEdgeRecord(decodedOwner.id);
   if (owner === null) {
     return null;
   }
@@ -176,6 +194,24 @@ function edgePropertyKeyPartsMatchOwner(
     && keyParts.label === owner.typeId.toString();
 }
 
+/** Builds a runtime edge record only for validated legacy projection targets. */
+function edgeRecordFromProjectionTarget(edge: EdgePropertyProjectionEdge): EdgeRecord | null {
+  if (!isLegacyEdgePropertyProjectionTarget(edge)) {
+    return null;
+  }
+  return EdgeRecord.fromLegacyEdge(edge);
+}
+
+/** Returns the exact encoded edge-property prefix for one edge owner. */
+function edgePropertyKeyPrefix(owner: EdgeRecord): string {
+  return encodeEdgePropKey(
+    owner.from.toString(),
+    owner.to.toString(),
+    owner.typeId.toString(),
+    '',
+  );
+}
+
 /** Decodes only well-formed legacy edge property keys. */
 function decodeVisibleEdgePropertyKey(encodedKey: string): EdgePropertyKeyParts | null {
   if (!encodedKey.startsWith(EDGE_PROP_PREFIX)) {
@@ -202,24 +238,38 @@ function edgePropertyKeyPartsFromSegments(parts: readonly string[]): EdgePropert
 function edgePropertyKeyPartsFromValues(
   values: EdgePropertyKeySegmentValues,
 ): EdgePropertyKeyParts | null {
-  if (!isNonEmptyString(values.from)) {
+  if (!hasCompleteEdgePropertyKeySegments(values)) {
     return null;
   }
-  if (!isNonEmptyString(values.to)) {
-    return null;
-  }
-  if (!isNonEmptyString(values.label)) {
-    return null;
-  }
-  if (!isNonEmptyString(values.propKey)) {
-    return null;
-  }
-  return {
+  const keyParts = {
     from: values.from,
     to: values.to,
     label: values.label,
     propKey: values.propKey,
   };
+  if (!isLegacyEdgePropertyProjectionTarget(keyParts)) {
+    return null;
+  }
+  return keyParts;
+}
+
+/** Returns true when all edge-property key segments are non-empty. */
+function hasCompleteEdgePropertyKeySegments(
+  values: EdgePropertyKeySegmentValues,
+): values is CompleteEdgePropertyKeySegmentValues {
+  if (!isNonEmptyString(values.from)) {
+    return false;
+  }
+  if (!isNonEmptyString(values.to)) {
+    return false;
+  }
+  if (!isNonEmptyString(values.label)) {
+    return false;
+  }
+  if (!isNonEmptyString(values.propKey)) {
+    return false;
+  }
+  return true;
 }
 
 /** Returns true for decoded non-empty string segments. */
@@ -252,15 +302,4 @@ function compareEdgePropertyRecords(
 /** Returns the deterministic sort key for an edge property record. */
 function edgePropertyRecordSortKey(record: VisibleEdgePropertyRecord): string {
   return `${record.owner.id.toString()}:${record.key.toString()}`;
-}
-
-/** Compares protocol strings without locale-sensitive collation. */
-function compareStrings(left: string, right: string): number {
-  if (left < right) {
-    return -1;
-  }
-  if (left > right) {
-    return 1;
-  }
-  return 0;
 }

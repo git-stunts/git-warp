@@ -72,8 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - V18 property projection review follow-up now preserves tolerant public
   property-query misses, scopes targeted projection materialization to requested
-  owners, shares legacy content key constants, and rejects class-instance
-  property carriers.
+  owners, skips malformed edge-property projection entries, shares legacy
+  content key constants, and rejects class-instance property carriers.
 - V18 content attachment projection now preserves existing same-patch metadata
   lineage semantics when `_content`, `_content.mime`, and `_content.size` are
   separate operations in one patch.
