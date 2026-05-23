@@ -31,16 +31,23 @@ function isPropValueArray(value: CodecValue): value is PropValue[] {
 }
 
 function isPropValueObjectCandidate(value: CodecValue): value is { readonly [key: string]: CodecValue } {
-  return value !== null
-    && typeof value === 'object'
-    && !Array.isArray(value)
-    && !(value instanceof Uint8Array)
-    && !(value instanceof Date);
+  if (value === null || typeof value !== 'object') {
+    return false;
+  }
+  return isNonArrayPlainObject(value);
 }
 
 function isPropValueObject(value: CodecValue): value is { [key: string]: PropValue } {
   return isPropValueObjectCandidate(value)
     && Object.values(value).every((entry) => isPropValue(entry));
+}
+
+function isNonArrayPlainObject(value: object): boolean {
+  if (Array.isArray(value) || value instanceof Uint8Array) {
+    return false;
+  }
+  return Object.getPrototypeOf(value) === Object.prototype
+    || Object.getPrototypeOf(value) === null;
 }
 
 export function isPropValue(value: CodecValue): value is PropValue {

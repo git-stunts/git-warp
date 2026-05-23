@@ -1,11 +1,12 @@
 ---
 cycle: 0178
 task_id: V18_query_property_projection_reads
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-23
+completed_at: 2026-05-23
 release_home: v18.0.0
 bearing_task: 30
 promotes_backlog:
@@ -73,24 +74,30 @@ match the public contract rather than changing assertions casually.
 
 ## RED Plan
 
-Add characterization tests around the current public query behavior before
-rewiring:
+Added characterization tests around the public query behavior before rewiring:
 
 - node property reads return the same object shape after projection routing;
 - edge property reads return the same object shape after projection routing;
 - `getEdges()` includes the same property payloads for representative edges;
 - reserved content compatibility keys behave exactly as before.
 
-At least one test should assert an implementation seam: a malformed raw edge
+At least one test asserted an implementation seam: a malformed raw edge
 property key must not be able to bypass the projection path.
+
+Observed RED:
+
+```text
+npx vitest run test/unit/domain/services/QueryReadsPropertyProjection.test.ts --reporter=verbose
+AssertionError: expected { status: 'ready', ... } to deeply equal { _content: 'abc123', status: 'ready' }
+```
 
 ## GREEN Plan
 
-Inject or construct property projections at the query-read boundary. Then
-replace direct calls to `decodePropKey` and `decodeEdgePropKey` inside query
-formatting with projection records.
+Constructed property projections at the query-read boundary. Direct calls to
+`decodePropKey` and `decodeEdgePropKey` were removed from query property
+formatting and replaced with projection records.
 
-Keep conversion from projection records to public objects in small,
+Conversion from projection records to public objects stays in small,
 concept-named functions near the query controller.
 
 ## Verification
@@ -104,6 +111,22 @@ npm run lint:sludge
 git diff --check HEAD
 ```
 
+Observed GREEN:
+
+```text
+npx vitest run test/unit/domain/services/QueryReadsPropertyProjection.test.ts test/unit/domain/services/NodePropertyProjection.test.ts test/unit/domain/services/EdgePropertyProjection.test.ts --reporter=verbose
+Test Files  3 passed (3)
+Tests  10 passed (10)
+
+npx vitest run test/unit/domain/WarpGraph.query.test.ts test/unit/domain/WarpGraph.edgeProps.test.ts test/unit/domain/WarpGraph.edgePropVisibility.test.ts test/unit/domain/services/QueryReadsPropertyProjection.test.ts --reporter=verbose
+Test Files  4 passed (4)
+Tests  48 passed (48)
+
+npm run typecheck
+npm run lint
+npm run lint:sludge
+```
+
 ## Closeout Criteria
 
 - Public query property reads are projection-backed.
@@ -114,9 +137,9 @@ git diff --check HEAD
 
 ## SSJS Scorecard
 
-- Runtime-backed forms: green when query formatting consumes property records.
-- Boundary validation: green when raw keys are decoded only inside projection.
-- Behavior ownership: green when the query controller formats, not decodes.
+- Runtime-backed forms: green; query formatting consumes property records.
+- Boundary validation: green; raw keys are decoded only inside projection.
+- Behavior ownership: green; the query controller formats, not decodes.
 - Message parsing: green; no prose-driven logic.
 - Ambient time or entropy: green; no domain clocks or randomness.
 - Fake shape trust or cast-cosplay: green when no assertions are added.

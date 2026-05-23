@@ -1,11 +1,12 @@
 ---
 cycle: 0176
 task_id: V18_node_property_projection
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-23
+completed_at: 2026-05-23
 release_home: v18.0.0
 bearing_task: 28
 promotes_backlog:
@@ -77,7 +78,7 @@ lower records back to the existing public object shape.
 
 ## RED Plan
 
-Add tests that currently fail without the projection:
+Added tests that failed without the projection:
 
 - a live node with two properties projects two immutable records;
 - a removed node's property register does not appear;
@@ -85,23 +86,42 @@ Add tests that currently fail without the projection:
   the existing visible-state policy;
 - content compatibility keys are classified consistently.
 
+Observed RED:
+
+```text
+npx vitest run test/unit/domain/services/NodePropertyProjection.test.ts --reporter=verbose
+Error: Cannot find module '../../../../src/domain/services/NodePropertyProjection.ts'
+```
+
 ## GREEN Plan
 
-Implement a small projection object or service with explicit methods such as
-`projectVisibleNodeProperties(state)`. Keep supporting helpers private and
-concept-named. Avoid a `utils` file.
+Implemented `NodePropertyProjection` with explicit `fromState()` and
+`forNode()` methods. Supporting functions stay private and concept-named.
 
-The implementation should reuse existing node-record projection rather than
-recomputing node liveness in a second ad hoc way.
+The implementation reuses `WarpState.getNodeRecord()` for node liveness
+instead of recomputing liveness in a second ad hoc way.
 
 ## Verification
 
 ```text
-npx vitest run test/unit/domain/graph/NodePropertyProjection.test.ts --reporter=verbose
-npx eslint src/domain/graph test/unit/domain/graph/NodePropertyProjection.test.ts
+npx vitest run test/unit/domain/services/NodePropertyProjection.test.ts --reporter=verbose
+npx eslint src/domain/services/NodePropertyProjection.ts test/unit/domain/services/NodePropertyProjection.test.ts
 npm run typecheck
 npm run lint:sludge
 git diff --check HEAD
+```
+
+Observed GREEN:
+
+```text
+npx vitest run test/unit/domain/services/NodePropertyProjection.test.ts --reporter=verbose
+Test Files  1 passed (1)
+Tests  4 passed (4)
+
+npx eslint src/domain/services/NodePropertyProjection.ts test/unit/domain/services/NodePropertyProjection.test.ts
+
+npm run typecheck
+npm run lint:sludge
 ```
 
 ## Closeout Criteria
@@ -113,12 +133,11 @@ git diff --check HEAD
 
 ## SSJS Scorecard
 
-- Runtime-backed forms: green when visible node properties are records, not
-  raw object fragments.
-- Boundary validation: green when legacy key decoding happens at projection
-  entry.
-- Behavior ownership: green when node visibility and property classification
-  belong to the projection.
+- Runtime-backed forms: green; visible node properties are records, not raw
+  object fragments.
+- Boundary validation: green; legacy key decoding happens at projection entry.
+- Behavior ownership: green; node visibility belongs to `WarpState` and
+  property classification belongs to the property key noun.
 - Message parsing: green; no message-string branching.
 - Ambient time or entropy: green; no clock or random source.
 - Fake shape trust or cast-cosplay: green when no assertions are needed.

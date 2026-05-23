@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- V18 query reads now route linear node property reads, edge property reads,
+  and edge-list property payloads through projection-backed compatibility
+  records instead of decoding raw property keys in the query controller.
+- V18 legacy property projection now exposes `EdgePropertyProjection`, a
+  deterministic read projection from visible `WarpState` edge properties to
+  runtime-backed compatibility records with edge-birth filtering.
+- V18 legacy property projection now exposes `NodePropertyProjection`, a
+  deterministic read projection from visible `WarpState` node properties to
+  runtime-backed compatibility records.
+- V18 legacy property projection now exposes runtime-backed node property key,
+  edge property key, property value, visible node property record, visible
+  edge property record, and projection collection nouns.
 - V18 planning now records detailed design documents for slices 26 through 45,
   covering legacy property projection, property write intents, graph-model
   migration dry-run tooling, genesis replay equivalence, and the next
@@ -58,6 +70,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- V18 property projection review follow-up now preserves tolerant public
+  property-query misses, scopes targeted projection materialization to requested
+  owners, skips malformed edge-property projection entries, shares legacy
+  content key constants, and rejects class-instance property carriers.
 - V18 content attachment projection now preserves existing same-patch metadata
   lineage semantics when `_content`, `_content.mime`, and `_content.size` are
   separate operations in one patch.

@@ -6,25 +6,28 @@
  */
 
 import {
-  decodePropKey,
-  isEdgePropKey,
-  decodeEdgePropKey,
   encodeEdgeKey,
   decodeEdgeKey,
 } from '../KeyCodec.ts';
-import { compareEventIds, type EventId } from '../../utils/EventId.ts';
+import EdgePropertyProjection from '../EdgePropertyProjection.ts';
 import {
   createSnapshotPropertyValues,
   createSnapshotPropValue,
   createSnapshotWarpState,
 } from '../ImmutableSnapshot.ts';
+import NodePropertyProjection from '../NodePropertyProjection.ts';
+import {
+  isLegacyEdgePropertyProjectionTarget,
+  isLegacyNodePropertyProjectionTarget,
+} from '../LegacyPropertyProjectionTarget.ts';
+import EdgeRecord from '../../graph/EdgeRecord.ts';
 import QueryError from '../../errors/QueryError.ts';
 import type SnapshotWarpState from '../snapshot/SnapshotWarpState.ts';
 import type WarpState from '../state/WarpState.ts';
 import type NeighborProviderPort from '../../../ports/NeighborProviderPort.ts';
 import type { NeighborEdge, NeighborOptions } from '../../../ports/NeighborProviderPort.ts';
-import type { LWWRegister } from '../../crdt/LWW.ts';
-import type { PropValue } from '../../types/PropValue.ts';
+import type VisibleEdgePropertyRecord from '../../graph/VisibleEdgePropertyRecord.ts';
+import type VisibleNodePropertyRecord from '../../graph/VisibleNodePropertyRecord.ts';
 import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
 import type { QueryReadHost } from './ReadGraphHost.ts';
 
@@ -50,9 +53,6 @@ type VisibleEdgeRead = {
   label: string;
   props: PropertyBag;
 };
-
-/** A property register stored on the CRDT state map. */
-type PropRegister = LWWRegister<PropValue>;
 
 // ── Neighbor helpers ────────────────────────────────────────────────
 
@@ -150,13 +150,16 @@ async function tryIndexedNodeProps(host: QueryReadHost, nodeId: string): Promise
 }
 
 function linearNodeProps(state: WarpState, nodeId: string): PropertyBag | null {
-  if (!state.nodeAlive.contains(nodeId)) { return null; }
+  if (!isLegacyNodePropertyProjectionTarget(nodeId)) { return null; }
+  const owner = state.getNodeRecord(nodeId);
+  if (owner === null) { return null; }
+  return nodePropertyBagFromRecords(NodePropertyProjection.forNodeRecord(state, owner));
+}
+
+function nodePropertyBagFromRecords(records: readonly VisibleNodePropertyRecord[]): PropertyBag {
   const props: MutablePropertyBag = {};
-  for (const [propKey, register] of state.prop) {
-    const decoded = decodePropKey(propKey);
-    if (decoded.nodeId === nodeId) {
-      props[decoded.propKey] = createSnapshotPropValue(register.value);
-    }
+  for (const record of records) {
+    props[record.key.toString()] = createSnapshotPropValue(record.value.toPropValue());
   }
   return Object.freeze(props);
 }
@@ -167,43 +170,18 @@ export async function getEdgePropsImpl(host: QueryReadHost, edge: { from: string
 }
 
 function edgePropsFromState(state: WarpState, edge: { from: string; to: string; label: string }): PropertyBag | null {
-  const edgeKey = encodeEdgeKey(edge.from, edge.to, edge.label);
-  if (!state.edgeAlive.contains(edgeKey)) { return null; }
-  if (!state.nodeAlive.contains(edge.from) || !state.nodeAlive.contains(edge.to)) { return null; }
-  return collectEdgeProps(state, edge, edgeKey);
+  if (!isLegacyEdgePropertyProjectionTarget(edge)) { return null; }
+  const owner = state.getEdgeRecord(EdgeRecord.fromLegacyEdge(edge).id);
+  if (owner === null) { return null; }
+  return edgePropertyBagFromRecords(EdgePropertyProjection.forEdgeRecord(state, owner));
 }
 
-function isMatchingEdgeProp(d: { from: string; to: string; label: string }, edge: { from: string; to: string; label: string }): boolean {
-  return d.from === edge.from && d.to === edge.to && d.label === edge.label;
-}
-
-function visibleEdgePropValue(params: {
-  propKey: string;
-  register: PropRegister;
-  edge: { from: string; to: string; label: string };
-  birthEvent: EventId | undefined;
-}): { key: string; value: SnapshotPropValue } | null {
-  const { propKey, register, edge, birthEvent } = params;
-  if (!isEdgePropKey(propKey)) { return null; }
-  const d = decodeEdgePropKey(propKey);
-  if (!isMatchingEdgeProp(d, edge)) { return null; }
-  if (isStaleEdgeProp(register, birthEvent)) { return null; }
-  return { key: d.propKey, value: createSnapshotPropValue(register.value) };
-}
-
-function collectEdgeProps(state: WarpState, edge: { from: string; to: string; label: string }, edgeKey: string): PropertyBag {
-  const birthEvent = state.edgeBirthEvent?.get(edgeKey);
+function edgePropertyBagFromRecords(records: readonly VisibleEdgePropertyRecord[]): PropertyBag {
   const props: MutablePropertyBag = {};
-  for (const [propKey, register] of state.prop) {
-    const entry = visibleEdgePropValue({ propKey, register, edge, birthEvent });
-    if (entry) { props[entry.key] = entry.value; }
+  for (const record of records) {
+    props[record.key.toString()] = createSnapshotPropValue(record.value.toPropValue());
   }
   return Object.freeze(props);
-}
-
-function isStaleEdgeProp(register: PropRegister, birthEvent: EventId | undefined): boolean {
-  if (birthEvent === undefined || register.eventId === null) { return false; }
-  return compareEventIds(register.eventId, birthEvent) < 0;
 }
 
 export async function neighborsImpl(host: QueryReadHost, params: { nodeId: string; direction: 'outgoing' | 'incoming' | 'both'; edgeLabel?: string }): Promise<NeighborEntry[]> {
@@ -262,29 +240,29 @@ export async function getEdgesImpl(host: QueryReadHost): Promise<VisibleEdgeRead
 
 function buildEdgePropsByKey(state: WarpState): Map<string, MutablePropertyBag> {
   const result = new Map<string, MutablePropertyBag>();
-  for (const [propKey, register] of state.prop) {
-    if (!isEdgePropKey(propKey)) { continue; }
-    addEdgePropEntry({ state, propKey, register, result });
+  for (const record of EdgePropertyProjection.fromState(state)) {
+    const edgeKey = encodeEdgeKey(
+      record.owner.from.toString(),
+      record.owner.to.toString(),
+      record.owner.typeId.toString(),
+    );
+    addProjectedEdgePropEntry({ record, edgeKey, result });
   }
   return result;
 }
 
-function addEdgePropEntry(params: {
-  state: WarpState;
-  propKey: string;
-  register: PropRegister;
+function addProjectedEdgePropEntry(params: {
+  record: VisibleEdgePropertyRecord;
+  edgeKey: string;
   result: Map<string, MutablePropertyBag>;
 }): void {
-  const { state, propKey, register, result } = params;
-  const d = decodeEdgePropKey(propKey);
-  const ek = encodeEdgeKey(d.from, d.to, d.label);
-  if (isStaleEdgeProp(register, state.edgeBirthEvent?.get(ek))) { return; }
-  let bag = result.get(ek);
+  const { record, edgeKey, result } = params;
+  let bag = result.get(edgeKey);
   if (!bag) {
     bag = {};
-    result.set(ek, bag);
+    result.set(edgeKey, bag);
   }
-  bag[d.propKey] = createSnapshotPropValue(register.value);
+  bag[record.key.toString()] = createSnapshotPropValue(record.value.toPropValue());
 }
 
 function buildEdgeList(state: WarpState, edgeProps: Map<string, MutablePropertyBag>): VisibleEdgeRead[] {

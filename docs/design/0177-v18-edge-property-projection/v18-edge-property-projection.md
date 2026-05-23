@@ -1,11 +1,12 @@
 ---
 cycle: 0177
 task_id: V18_edge_property_projection
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-23
+completed_at: 2026-05-23
 release_home: v18.0.0
 bearing_task: 29
 promotes_backlog:
@@ -75,29 +76,50 @@ small edge-record API improvement before this slice proceeds.
 
 ## RED Plan
 
-Add tests that fail until edge projection exists:
+Added tests that failed until edge projection existed:
 
 - a visible edge with properties projects immutable edge property records;
 - an edge removed after property assignment does not project properties;
 - a property keyed to malformed edge coordinates fails closed;
 - content compatibility keys are classified without corrupting public values.
 
+Observed RED:
+
+```text
+npx vitest run test/unit/domain/services/EdgePropertyProjection.test.ts --reporter=verbose
+Error: Cannot find module '../../../../src/domain/services/EdgePropertyProjection.ts'
+```
+
 ## GREEN Plan
 
-Implement the projection in a concept-named graph-substrate file. Reuse
-`EdgeRecord` as the visibility gate. Keep iteration deterministic by sorting
-on edge identity and property key where no stronger order already exists.
+Implemented the projection in a concept-named domain service. It reuses
+`WarpState.getEdgeRecord()` as the visibility gate and filters registers that
+predate the current edge birth. Iteration is deterministic by edge identity
+and property key.
 
 Tests should compare record values, not JSON string output.
 
 ## Verification
 
 ```text
-npx vitest run test/unit/domain/graph/EdgePropertyProjection.test.ts --reporter=verbose
-npx eslint src/domain/graph test/unit/domain/graph/EdgePropertyProjection.test.ts
+npx vitest run test/unit/domain/services/EdgePropertyProjection.test.ts --reporter=verbose
+npx eslint src/domain/services/EdgePropertyProjection.ts test/unit/domain/services/EdgePropertyProjection.test.ts
 npm run typecheck
 npm run lint:sludge
 git diff --check HEAD
+```
+
+Observed GREEN:
+
+```text
+npx vitest run test/unit/domain/services/EdgePropertyProjection.test.ts --reporter=verbose
+Test Files  1 passed (1)
+Tests  4 passed (4)
+
+npx eslint src/domain/services/EdgePropertyProjection.ts test/unit/domain/services/EdgePropertyProjection.test.ts
+
+npm run typecheck
+npm run lint:sludge
 ```
 
 ## Closeout Criteria
@@ -109,10 +131,11 @@ git diff --check HEAD
 
 ## SSJS Scorecard
 
-- Runtime-backed forms: green when edge properties are frozen records.
-- Boundary validation: green when malformed edge keys fail at projection
-  construction.
-- Behavior ownership: green when edge visibility is delegated to edge records.
+- Runtime-backed forms: green; edge properties are frozen records.
+- Boundary validation: green; malformed edge keys fail closed at projection
+  entry.
+- Behavior ownership: green; edge visibility is delegated to `WarpState`
+  edge records.
 - Message parsing: green; no parsed prose controls logic.
 - Ambient time or entropy: green; no ambient sources.
 - Fake shape trust or cast-cosplay: green when casts are not introduced.

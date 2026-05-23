@@ -1,11 +1,12 @@
 ---
 cycle: 0175
 task_id: V18_legacy_property_projection_nouns
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-23
+completed_at: 2026-05-23
 release_home: v18.0.0
 bearing_task: 27
 promotes_backlog:
@@ -80,7 +81,7 @@ hide or preserve them for the public property API.
 
 ## RED Plan
 
-Add tests that fail because no runtime-backed projection nouns exist:
+Added tests that failed because no runtime-backed projection nouns existed:
 
 - constructing a node property record from a malformed node id fails;
 - constructing an edge property record from malformed edge coordinates fails;
@@ -88,14 +89,21 @@ Add tests that fail because no runtime-backed projection nouns exist:
 - property records expose owner, key, and value without exposing mutable
   carrier objects.
 
+Observed RED:
+
+```text
+npx vitest run test/unit/domain/graph/LegacyPropertyProjection.test.ts --reporter=verbose
+Error: Cannot find module '../../../../src/domain/graph/LegacyEdgePropertyKey.ts'
+```
+
 ## GREEN Plan
 
-Create one file per concept. Constructors validate the smallest possible
+Created one file per concept. Constructors validate the smallest possible
 runtime boundary and freeze instances. Dispatch uses `instanceof` where the
 code needs to distinguish node and edge property records.
 
-Export the nouns through the graph substrate public surface only after tests
-prove the intended construction and read behavior.
+The nouns are exported through the graph substrate public surface after tests
+proved the intended construction and read behavior.
 
 ## Verification
 
@@ -107,6 +115,19 @@ npm run lint:sludge
 git diff --check HEAD
 ```
 
+Observed GREEN:
+
+```text
+npx vitest run test/unit/domain/graph/LegacyPropertyProjection.test.ts --reporter=verbose
+Test Files  1 passed (1)
+Tests  5 passed (5)
+
+npx eslint src/domain/graph/LegacyPropertyKeyClassification.ts src/domain/graph/LegacyNodePropertyKey.ts src/domain/graph/LegacyEdgePropertyKey.ts src/domain/graph/LegacyPropertyValue.ts src/domain/graph/VisibleNodePropertyRecord.ts src/domain/graph/VisibleEdgePropertyRecord.ts src/domain/graph/LegacyPropertyProjection.ts src/domain/graph/publicGraphSubstrate.ts test/unit/domain/graph/LegacyPropertyProjection.test.ts
+
+npm run typecheck
+npm run lint:sludge
+```
+
 ## Closeout Criteria
 
 - Property compatibility has named runtime forms.
@@ -116,10 +137,11 @@ git diff --check HEAD
 
 ## SSJS Scorecard
 
-- Runtime-backed forms: green when each property concept is a frozen class.
-- Boundary validation: green when raw keys are decoded once and invalid keys
-  fail closed.
-- Behavior ownership: green when key classification lives with the projection.
+- Runtime-backed forms: green; each property concept is a frozen class.
+- Boundary validation: green; raw key values are validated by property key
+  nouns.
+- Behavior ownership: green; key classification lives with the key noun
+  concept.
 - Message parsing: green; no behavior branches on diagnostics.
 - Ambient time or entropy: green; no clocks or randomness.
 - Fake shape trust or cast-cosplay: green when no assertions or placeholder

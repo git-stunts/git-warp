@@ -39,14 +39,14 @@ of handwritten adapter folklore.
 
 Current branch state at this boundary:
 
-- Branch: `v18-continuum-slices-26-45-design`
+- Branch: `v18-continuum-slices-26-30`
 - Base branch: `main`
-- Current `origin/main`: `e288c113`
-- Latest merged PR: #97, v18 Continuum slices 21 through 25
+- Current `origin/main`: `c66f1a49`
+- Latest merged PR: #98, v18 design documents for slices 26 through 45
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
-  `0173-v18-content-write-intent-cutover`
-- Current work: documentation-only planning for slices 26 through 45
+  `0178-v18-query-property-projection-reads`
+- Current work: implementation branch `v18-continuum-slices-26-30`
 
 The current v18 graph-model posture is:
 
@@ -79,10 +79,14 @@ PRs #94 through #96 had already landed the earlier v18 evidence posture,
 generated-family readiness, runtime-boundary source facts, node and edge
 records, generic attachment substrate, and graph-op algebra groundwork.
 
+PR #98 landed the detailed design documents for slices 26 through 45 and
+reset this bearing around the property-projection, migration dry-run, and
+genesis-equivalence runway.
+
 ## What Feels Wrong
 
-- Property reads still have direct raw legacy property interpretation in
-  places such as query reads and state-reader context code.
+- Some non-query read surfaces still have direct raw legacy property
+  interpretation, especially state-reader context code.
 - Generic property writes still lower directly to legacy property operations;
   content writes are intent-backed, but property writes are not.
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -160,15 +164,15 @@ and concrete checks live in `docs/invariants/`.
 - [x] 23. Add content attachment projection.
 - [x] 24. Route public content reads through content projection.
 - [x] 25. Route content writes through typed write intent.
-- [ ] 26. Reset the post-25 property projection runway:
+- [x] 26. Reset the post-25 property projection runway:
   [0174](design/0174-v18-post-25-property-projection-runway/v18-post-25-property-projection-runway.md).
-- [ ] 27. Add legacy property projection nouns:
+- [x] 27. Add legacy property projection nouns:
   [0175](design/0175-v18-legacy-property-projection-nouns/v18-legacy-property-projection-nouns.md).
-- [ ] 28. Add node property projection:
+- [x] 28. Add node property projection:
   [0176](design/0176-v18-node-property-projection/v18-node-property-projection.md).
-- [ ] 29. Add edge property projection:
+- [x] 29. Add edge property projection:
   [0177](design/0177-v18-edge-property-projection/v18-edge-property-projection.md).
-- [ ] 30. Route query property reads through projection:
+- [x] 30. Route query property reads through projection:
   [0178](design/0178-v18-query-property-projection-reads/v18-query-property-projection-reads.md).
 - [ ] 31. Route state-reader property views through projection:
   [0179](design/0179-v18-state-reader-property-projection/v18-state-reader-property-projection.md).
