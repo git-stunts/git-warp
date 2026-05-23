@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- V18 planning now records detailed design documents for slices 26 through 45,
+  covering legacy property projection, property write intents, graph-model
+  migration dry-run tooling, genesis replay equivalence, and the next
+  evidence-backed replan.
 - V18 planning now records the post-PR-96 content-cutover runway, clarifying
   that generic attachments already exist and that the next batch cuts typed
   content payload semantics over that attachment plane.
