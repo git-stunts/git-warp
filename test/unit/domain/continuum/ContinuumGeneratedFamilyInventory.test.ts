@@ -71,6 +71,22 @@ describe('ContinuumGeneratedFamilyInventory', () => {
     expect(() => inventory.requireProjectionReady('runtime-boundary-family')).toThrow(WarpError);
   });
 
+  it('classifies authored-only generated-family status explicitly', () => {
+    const authoredOnly = new ContinuumGeneratedFamilyStatus('authored-only');
+    const profiled = new ContinuumGeneratedFamilyStatus('profiled-fixture-witnessed');
+
+    expect(authoredOnly.isAuthoredOnly()).toBe(true);
+    expect(authoredOnly.isProjectionReady()).toBe(false);
+    expect(profiled.isAuthoredOnly()).toBe(false);
+    expect(profiled.isProjectionReady()).toBe(true);
+  });
+
+  it('rejects unknown family lookups before returning an inventory row', () => {
+    const inventory = createCurrentContinuumGeneratedFamilyInventory();
+
+    expect(() => inventory.requireEntry('not-a-continuum-family')).toThrow(WarpError);
+  });
+
   it('rejects inventories that are missing current Continuum families', () => {
     const entries = makeCompleteEntries().filter((entry) => entry.familyId.toString() !== 'runtime-boundary-family');
 
