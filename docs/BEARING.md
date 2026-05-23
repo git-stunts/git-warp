@@ -63,7 +63,7 @@ Current branch state at this boundary:
 - Latest merged PR: #96, v18 Continuum slices 16 through 20 plus review
   repairs
 - Latest completed v18 implementation cycle:
-  `0168-v18-graph-op-algebra-convergence`
+  `0170-v18-content-attachment-payload-nouns`
 
 The release ladder is now:
 
@@ -180,10 +180,12 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What comes next
 
-Run v18 slices 21 through 25 on this branch, then open the next PR. Generic
-attachments already exist; the active work is content-specific attachment
-payload cutover over that plane. After that, continue with legacy property
-projection, graph-model migration tooling, and genesis replay equivalence.
+Run v18 slices 23 through 25 on this branch, then open the next PR. Generic
+attachments and content payload nouns now exist; the active work is projecting
+legacy `_content*` attachments into typed content attachments, then routing
+reads and writes through that cutover path. After that, continue with legacy
+property projection, graph-model migration tooling, and genesis replay
+equivalence.
 
 ## Running Task List
 
@@ -311,9 +313,12 @@ projection, graph-model migration tooling, and genesis replay equivalence.
   records merge commit `080a60eb`, clarifies that generic attachments already
   exist, and slices content-specific attachment cutover, legacy property
   projection, migration planning, and replay proof into tasks 22 through 30.
-- [ ] 22. Define content attachment payload nouns over the existing generic
-  attachment plane. This should introduce runtime-backed content OID,
-  metadata, and payload concepts without changing public reads or writes.
+- [x] 22. Define content attachment payload nouns over the existing generic
+  attachment plane:
+  [0170-v18-content-attachment-payload-nouns](design/0170-v18-content-attachment-payload-nouns/v18-content-attachment-payload-nouns.md)
+  adds `ContentAttachmentOid`, `ContentAttachmentMime`,
+  `ContentAttachmentSize`, and `ContentAttachmentPayload` without changing
+  public reads, writes, or persistence.
 - [ ] 23. Project legacy `_content`, `_content.mime`, and `_content.size`
   attachment records into typed content attachments for node and edge owners.
 - [ ] 24. Route content OID and metadata reads through the content attachment

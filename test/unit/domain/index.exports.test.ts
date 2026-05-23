@@ -16,6 +16,10 @@ import WarpAppDefault, {
   AttachmentKey,
   AttachmentRecord,
   AttachmentSchemaVersion,
+  ContentAttachmentMime,
+  ContentAttachmentOid,
+  ContentAttachmentPayload,
+  ContentAttachmentSize,
   EdgeId,
   EdgeRecord,
   EdgeTypeId,
@@ -171,6 +175,17 @@ describe('index.ts exports', () => {
       expect(typeof AttachmentRecord).toBe('function');
       expect(AttachmentSchemaVersion).toBeDefined();
       expect(typeof AttachmentSchemaVersion).toBe('function');
+    });
+
+    it('exports content attachment payload nouns', () => {
+      expect(ContentAttachmentMime).toBeDefined();
+      expect(typeof ContentAttachmentMime).toBe('function');
+      expect(ContentAttachmentOid).toBeDefined();
+      expect(typeof ContentAttachmentOid).toBe('function');
+      expect(ContentAttachmentPayload).toBeDefined();
+      expect(typeof ContentAttachmentPayload).toBe('function');
+      expect(ContentAttachmentSize).toBeDefined();
+      expect(typeof ContentAttachmentSize).toBe('function');
     });
 
     it('exports graph-op algebra substrate nouns', () => {
