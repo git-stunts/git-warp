@@ -195,7 +195,7 @@ and concrete checks live in `docs/invariants/`.
   [0179](design/0179-v18-state-reader-property-projection/v18-state-reader-property-projection.md).
 - [x] 32. Add property write intent nouns:
   [0180](design/0180-v18-property-write-intent-nouns/v18-property-write-intent-nouns.md).
-- [ ] 33. Route PatchBuilder property writes through intent lowering:
+- [x] 33. Route PatchBuilder property writes through intent lowering:
   [0181](design/0181-v18-patchbuilder-property-intent-lowering/v18-patchbuilder-property-intent-lowering.md).
 - [ ] 34. Cut graph-op algebra over to property projections:
   [0182](design/0182-v18-graph-op-projection-property-cutover/v18-graph-op-projection-property-cutover.md).

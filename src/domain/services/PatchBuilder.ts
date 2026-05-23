@@ -22,6 +22,8 @@ import ContentAttachmentOid from '../graph/ContentAttachmentOid.ts';
 import ContentAttachmentPayload from '../graph/ContentAttachmentPayload.ts';
 import ContentAttachmentSize from '../graph/ContentAttachmentSize.ts';
 import ContentAttachmentWriteIntent from '../graph/ContentAttachmentWriteIntent.ts';
+import EdgePropertyWriteIntent from '../graph/EdgePropertyWriteIntent.ts';
+import NodePropertyWriteIntent from '../graph/NodePropertyWriteIntent.ts';
 import type { OpV2, CanonicalOpV2 } from '../types/ops/unions.ts';
 import { encodeEdgeKey, CONTENT_PROPERTY_KEY, CONTENT_MIME_PROPERTY_KEY, CONTENT_SIZE_PROPERTY_KEY, EFFECT_NODE_PREFIX } from './KeyCodec.ts';
 import { lowerCanonicalOp } from './OpNormalizer.ts';
@@ -42,6 +44,7 @@ import type LoggerPort from '../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import type { BlobStorageOptions } from '../../ports/BlobStoragePort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
+import type { PropValue } from '../types/PropValue.ts';
 
 type ContentInput = AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string;
 type ContentMetadataInput = { mime?: string | null; size?: number | null };
@@ -238,23 +241,26 @@ export class PatchBuilder {
 
   setProperty(nodeId: string, key: string, value: unknown): PatchBuilder { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     this._assertNotCommitted();
-    assertNoReservedBytes(nodeId, 'nodeId');
-    assertNoReservedBytes(key, 'property key');
-    this._ops.push(new NodePropSet(nodeId, key, value));
-    this._observedOperands.add(nodeId);
-    this._writes.add(nodeId);
+    const intent = NodePropertyWriteIntent.fromLegacyProperty(
+      nodeId,
+      key,
+      requirePatchPropertyValue(value),
+    );
+    this._lowerNodePropertyIntent(intent);
     return this;
   }
 
   setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): PatchBuilder { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     this._assertNotCommitted();
-    assertNoReservedBytes(from, 'from node ID');
-    assertNoReservedBytes(to, 'to node ID');
-    assertNoReservedBytes(label, 'edge label');
-    assertNoReservedBytes(key, 'property key');
+    const intent = EdgePropertyWriteIntent.fromLegacyProperty({
+      from,
+      to,
+      label,
+      key,
+      value: requirePatchPropertyValue(value),
+    });
     const ek = this._assertEdgeExists(from, to, label);
-    this._ops.push(new EdgePropSet({ from, to, label, key, value }));
-    this._hasEdgeProps = true;
+    this._lowerEdgePropertyIntent(intent);
     this._observedOperands.add(ek);
     this._writes.add(ek);
     return this;
@@ -342,6 +348,25 @@ export class PatchBuilder {
     this.setEdgeProperty(target.from, target.to, target.label, CONTENT_MIME_PROPERTY_KEY, intent.mime());
   }
 
+  private _lowerNodePropertyIntent(intent: NodePropertyWriteIntent): void {
+    const nodeId = intent.nodeId();
+    this._ops.push(new NodePropSet(nodeId, intent.propertyKey(), intent.propertyValue()));
+    this._observedOperands.add(nodeId);
+    this._writes.add(nodeId);
+  }
+
+  private _lowerEdgePropertyIntent(intent: EdgePropertyWriteIntent): void {
+    const target = intent.edgeTarget();
+    this._ops.push(new EdgePropSet({
+      from: target.from,
+      to: target.to,
+      label: target.label,
+      key: intent.propertyKey(),
+      value: intent.propertyValue(),
+    }));
+    this._hasEdgeProps = true;
+  }
+
   // ── Existence guards ───────────────────────────────────────────────
 
   private _assertNodeExistsForContent(nodeId: string): void {
@@ -427,6 +452,53 @@ export class PatchBuilder {
    * snapshot of blob OIDs to persist alongside the patch entry.
    */
   get contentBlobs(): readonly string[] { return [...this._contentBlobs]; }
+}
+
+/** Validates public patch property values before intent construction. */
+function requirePatchPropertyValue(value: unknown): PropValue { // nosemgrep: ts-no-unknown-outside-adapters -- public PatchBuilder boundary
+  if (isScalarPatchPropertyValue(value)) {
+    return value;
+  }
+  if (value instanceof Uint8Array) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => requirePatchPropertyValue(entry));
+  }
+  if (isPlainPatchPropertyObject(value)) {
+    const record: { [key: string]: PropValue } = {};
+    for (const [key, entry] of Object.entries(value)) {
+      record[key] = requirePatchPropertyValue(entry);
+    }
+    return record;
+  }
+  throw new PatchError('Property value must be property-compatible data', {
+    code: 'E_PATCH_INVALID_PROPERTY_VALUE',
+  });
+}
+
+/** Returns true for scalar property values. */
+function isScalarPatchPropertyValue(
+  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- public PatchBuilder boundary
+): value is string | number | boolean | null {
+  return value === null
+    || typeof value === 'string'
+    || typeof value === 'number'
+    || typeof value === 'boolean';
+}
+
+/** Returns true for plain recursive property objects. */
+function isPlainPatchPropertyObject(
+  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- public PatchBuilder boundary
+): value is { readonly [key: string]: unknown } { // nosemgrep: ts-no-unknown-outside-adapters -- public PatchBuilder boundary
+  if (value === null || typeof value !== 'object') {
+    return false;
+  }
+  if (Array.isArray(value) || value instanceof Uint8Array) {
+    return false;
+  }
+  return Object.getPrototypeOf(value) === Object.prototype
+    || Object.getPrototypeOf(value) === null;
 }
 
 async function storeContentAttachmentPayload(
