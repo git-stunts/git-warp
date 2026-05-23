@@ -146,7 +146,7 @@ declare const logger: LoggerPort;
 declare const crypto: CryptoPort;
 declare const seekCache: SeekCachePort;
 declare const httpPort: HttpServerPort;
-declare const liveState: Parameters<typeof createStateReader>[0];
+declare const liveState: Parameters<typeof createBTR>[0];
 declare const btrCodecOptions: Parameters<typeof createBTR>[2];
 declare const btrVerifyOptions: Parameters<typeof verifyBTR>[2];
 
@@ -445,10 +445,12 @@ void decodedEdgePropKey;
 void edgePropKeyCheck;
 
 const reader = createStateReader(liveState);
+const snapshotReader = createStateReader(materialized);
 const readerProps: PublicPropBag | null = reader.getNodeProps('node-a');
 const readerEdges: PublicVisibleEdge[] = reader.getEdges();
 const comparison = compareVisibleState(liveState, liveState, { targetId: 'node-a' });
 
+void snapshotReader;
 void readerProps;
 void readerEdges;
 void comparison;
