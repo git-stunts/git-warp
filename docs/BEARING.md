@@ -57,14 +57,14 @@ Continuum role.
 
 Current branch state at this boundary:
 
-- Branch: `v18-continuum-slices-6-10`
+- Branch: `v18-continuum-slices-11-15`
 - Base branch: `main`
-- Latest remote head inspected: `origin/main` at `42f15812`
+- Latest remote head inspected: `origin/main` at `a4c5467e`
 - Latest released package line: `17.0.1`
-- Latest merged PR: #93, recursive tree OID read fanout and v17.0.1 release
-  repair
+- Latest merged PR: #94, v18 Continuum slices 6 through 10 plus review
+  repairs
 - Latest completed v18 implementation cycle:
-  `0158-v18-warp-ttd-receipt-smoke`
+  `0163-v18-witnessed-suffix-source-facts`
 
 The release ladder is now:
 
@@ -166,9 +166,9 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What comes next
 
-Run the next v18 slices in order. Each slice gets a design document before
-implementation, RED before GREEN, and a BEARING update before the final commit
-for that slice.
+Run v18 slices 11 through 15 in order. Each slice gets a design document
+before implementation, RED before GREEN, and a BEARING update before the final
+commit for that slice.
 
 ## Running Task List
 
@@ -230,8 +230,37 @@ for that slice.
   sibling `~/git/warp-ttd` adapter at execution time, rejects plain local
   receipt DTOs, and proves `warp-ttd` can summarize generated-family git-warp
   receipt projection facts while preserving translated evidence posture.
-- [ ] 11. Re-plan with evidence in hand before expanding into reading-envelope,
-  suffix/runtime-boundary, neighborhood-core, and settlement-family slices.
+- [x] 11. Re-plan with evidence in hand after slices 1 through 10 and PR #94:
+  [0159-v18-replan-with-evidence](design/0159-v18-replan-with-evidence/v18-replan-with-evidence.md)
+  keeps slices 12 through 15 as translated source-fact compatibility work, not
+  a full v19 observer/runtime rewrite.
+- [x] 12. Refresh the generated Continuum/Wesley family inventory before
+  projecting more families:
+  [0160-v18-generated-family-inventory-refresh](design/0160-v18-generated-family-inventory-refresh/v18-generated-family-inventory-refresh.md)
+  adds runtime-backed readiness rows for the four current Continuum families.
+  Receipt and settlement are projection-ready; neighborhood core and runtime
+  boundary stay authored-only until Wesley profiles and fixtures exist.
+- [x] 13. Audit the `TickPatch`/`TickReceipt` witness ladder into replay core,
+  witness core, and receipt shell:
+  [0161-v18-tickpatch-tickreceipt-witness-ladder](design/0161-v18-tickpatch-tickreceipt-witness-ladder/v18-tickpatch-tickreceipt-witness-ladder.md)
+  names `GitWarpTickPatchReplayCore`, `GitWarpTickReceiptWitnessCore`,
+  `GitWarpTickReceiptShell`, and `GitWarpTickWitnessLadder`, validates
+  patch/receipt alignment, and promotes the old up-next backlog note into the
+  cycle packet.
+- [x] 14. Project one git-warp read result into runtime-boundary
+  reading-envelope source facts:
+  [0162-v18-reading-envelope-source-facts](design/0162-v18-reading-envelope-source-facts/v18-reading-envelope-source-facts.md)
+  adds `GitWarpReadingEnvelopePayloadFact` and
+  `GitWarpReadingEnvelopeSourceFacts`, requires git-warp evidence to be
+  translated, and keeps runtime-boundary marked as authored-only until Wesley
+  profiles and fixtures exist.
+- [x] 15. Project one git-warp sync/export suffix into translated
+  witnessed-suffix source facts:
+  [0163-v18-witnessed-suffix-source-facts](design/0163-v18-witnessed-suffix-source-facts/v18-witnessed-suffix-source-facts.md)
+  adds `GitWarpWitnessedSuffixPatchFact` and
+  `GitWarpWitnessedSuffixSourceFacts`, rejects empty suffix patch lists, and
+  keeps the current sync protocol intact while runtime-boundary remains
+  authored-only.
 
 The loop stays strict: write or update the cycle doc, capture RED, green the
 slice, update this BEARING task list before the final commit, validate, then

@@ -64,8 +64,20 @@ import WarpAppDefault, {
   ContinuumEvidenceClaim,
   ContinuumEvidencePosture,
   ContinuumFamilyId,
+  ContinuumGeneratedFamilyInventory,
+  ContinuumGeneratedFamilyInventoryEntry,
+  ContinuumGeneratedFamilyStatus,
   ContinuumReceiptFamilyProjection,
+  GitWarpReadingEnvelopePayloadFact,
+  GitWarpReadingEnvelopeSourceFacts,
+  GitWarpTickPatchReplayCore,
+  GitWarpTickReceiptShell,
+  GitWarpTickReceiptWitnessCore,
+  GitWarpTickWitnessLadder,
+  GitWarpWitnessedSuffixPatchFact,
+  GitWarpWitnessedSuffixSourceFacts,
   GitWarpReceiptSourceFacts,
+  createCurrentContinuumGeneratedFamilyInventory,
   ContinuumArtifactJsonFileAdapter,
 } from '../../../index.ts';
 
@@ -269,8 +281,20 @@ describe('index.ts exports', () => {
       expect(ContinuumEvidenceClaim).toBeDefined();
       expect(ContinuumEvidencePosture).toBeDefined();
       expect(ContinuumFamilyId).toBeDefined();
+      expect(ContinuumGeneratedFamilyInventory).toBeDefined();
+      expect(ContinuumGeneratedFamilyInventoryEntry).toBeDefined();
+      expect(ContinuumGeneratedFamilyStatus).toBeDefined();
       expect(ContinuumReceiptFamilyProjection).toBeDefined();
+      expect(GitWarpReadingEnvelopePayloadFact).toBeDefined();
+      expect(GitWarpReadingEnvelopeSourceFacts).toBeDefined();
+      expect(GitWarpTickPatchReplayCore).toBeDefined();
+      expect(GitWarpTickReceiptShell).toBeDefined();
+      expect(GitWarpTickReceiptWitnessCore).toBeDefined();
+      expect(GitWarpTickWitnessLadder).toBeDefined();
+      expect(GitWarpWitnessedSuffixPatchFact).toBeDefined();
+      expect(GitWarpWitnessedSuffixSourceFacts).toBeDefined();
       expect(GitWarpReceiptSourceFacts).toBeDefined();
+      expect(createCurrentContinuumGeneratedFamilyInventory).toBeDefined();
       expect(ContinuumArtifactJsonFileAdapter).toBeDefined();
     });
 
@@ -307,6 +331,16 @@ describe('index.ts exports', () => {
       expect(claim.posture).toBeInstanceOf(ContinuumEvidencePosture);
       expect(claim.isTranslatedGitWarpEvidence()).toBe(true);
       expect(claim.isNativeContinuumEvidence()).toBe(false);
+    });
+
+    it('exports the current generated-family readiness inventory', () => {
+      const inventory = createCurrentContinuumGeneratedFamilyInventory();
+
+      expect(inventory).toBeInstanceOf(ContinuumGeneratedFamilyInventory);
+      expect(inventory.requireEntry('receipt-family')).toBeInstanceOf(ContinuumGeneratedFamilyInventoryEntry);
+      expect(inventory.requireEntry('receipt-family').status).toBeInstanceOf(ContinuumGeneratedFamilyStatus);
+      expect(inventory.requireEntry('receipt-family').status.isProjectionReady()).toBe(true);
+      expect(inventory.requireEntry('runtime-boundary-family').status.isProjectionReady()).toBe(false);
     });
   });
 

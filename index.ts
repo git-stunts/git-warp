@@ -214,14 +214,34 @@ import ContinuumArtifactIngestionPolicy from './src/domain/continuum/ContinuumAr
 import ContinuumEvidenceClaim from './src/domain/continuum/ContinuumEvidenceClaim.ts';
 import ContinuumEvidencePosture from './src/domain/continuum/ContinuumEvidencePosture.ts';
 import ContinuumFamilyId from './src/domain/continuum/ContinuumFamilyId.ts';
+import ContinuumGeneratedFamilyInventory from './src/domain/continuum/ContinuumGeneratedFamilyInventory.ts';
+import ContinuumGeneratedFamilyInventoryEntry
+  from './src/domain/continuum/ContinuumGeneratedFamilyInventoryEntry.ts';
+import ContinuumGeneratedFamilyStatus from './src/domain/continuum/ContinuumGeneratedFamilyStatus.ts';
 import ContinuumReceiptFamilyProjection from './src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
+import GitWarpTickPatchReplayCore from './src/domain/continuum/GitWarpTickPatchReplayCore.ts';
+import GitWarpReadingEnvelopePayloadFact from './src/domain/continuum/GitWarpReadingEnvelopePayloadFact.ts';
+import GitWarpReadingEnvelopeSourceFacts from './src/domain/continuum/GitWarpReadingEnvelopeSourceFacts.ts';
+import GitWarpTickReceiptShell from './src/domain/continuum/GitWarpTickReceiptShell.ts';
+import GitWarpTickReceiptWitnessCore from './src/domain/continuum/GitWarpTickReceiptWitnessCore.ts';
+import GitWarpTickWitnessLadder from './src/domain/continuum/GitWarpTickWitnessLadder.ts';
+import GitWarpWitnessedSuffixPatchFact from './src/domain/continuum/GitWarpWitnessedSuffixPatchFact.ts';
+import GitWarpWitnessedSuffixSourceFacts from './src/domain/continuum/GitWarpWitnessedSuffixSourceFacts.ts';
 import GitWarpReceiptSourceFacts from './src/domain/continuum/GitWarpReceiptSourceFacts.ts';
+import createCurrentContinuumGeneratedFamilyInventory
+  from './src/domain/continuum/createCurrentContinuumGeneratedFamilyInventory.ts';
 import ContinuumArtifactJsonFileAdapter from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 import type { ContinuumArtifactAuthorityValue } from './src/domain/continuum/ContinuumArtifactAuthority.ts';
 import type { ContinuumArtifactDescriptorFields } from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
 import type { ContinuumEvidenceClaimFields } from './src/domain/continuum/ContinuumEvidenceClaim.ts';
 import type { ContinuumEvidencePostureValue } from './src/domain/continuum/ContinuumEvidencePosture.ts';
 import type { ContinuumFamilyIdValue } from './src/domain/continuum/ContinuumFamilyId.ts';
+import type {
+  ContinuumGeneratedFamilyInventoryEntryFields,
+} from './src/domain/continuum/ContinuumGeneratedFamilyInventoryEntry.ts';
+import type {
+  ContinuumGeneratedFamilyStatusValue,
+} from './src/domain/continuum/ContinuumGeneratedFamilyStatus.ts';
 import type {
   ContinuumDeliveryObservationFact,
   ContinuumReceiptFact,
@@ -230,6 +250,30 @@ import type {
   ContinuumReceiptWitnessFact,
 } from './src/domain/continuum/ContinuumReceiptFamilyProjection.ts';
 import type { GitWarpReceiptSourceFactsFields } from './src/domain/continuum/GitWarpReceiptSourceFacts.ts';
+import type {
+  GitWarpReadingEnvelopePayloadFactFields,
+} from './src/domain/continuum/GitWarpReadingEnvelopePayloadFact.ts';
+import type {
+  GitWarpReadingEnvelopeSourceFactsFields,
+} from './src/domain/continuum/GitWarpReadingEnvelopeSourceFacts.ts';
+import type {
+  GitWarpTickPatchReplayCoreFields,
+} from './src/domain/continuum/GitWarpTickPatchReplayCore.ts';
+import type {
+  GitWarpTickReceiptShellFields,
+} from './src/domain/continuum/GitWarpTickReceiptShell.ts';
+import type {
+  GitWarpTickReceiptWitnessCoreFields,
+} from './src/domain/continuum/GitWarpTickReceiptWitnessCore.ts';
+import type {
+  GitWarpTickWitnessLadderFields,
+} from './src/domain/continuum/GitWarpTickWitnessLadder.ts';
+import type {
+  GitWarpWitnessedSuffixPatchFactFields,
+} from './src/domain/continuum/GitWarpWitnessedSuffixPatchFact.ts';
+import type {
+  GitWarpWitnessedSuffixSourceFactsFields,
+} from './src/domain/continuum/GitWarpWitnessedSuffixSourceFacts.ts';
 import type { ContinuumArtifactJsonLoadContext } from './src/infrastructure/adapters/ContinuumArtifactJsonFileAdapter.ts';
 
 export {
@@ -350,8 +394,20 @@ export {
   ContinuumEvidenceClaim,
   ContinuumEvidencePosture,
   ContinuumFamilyId,
+  ContinuumGeneratedFamilyInventory,
+  ContinuumGeneratedFamilyInventoryEntry,
+  ContinuumGeneratedFamilyStatus,
   ContinuumReceiptFamilyProjection,
+  GitWarpReadingEnvelopePayloadFact,
+  GitWarpReadingEnvelopeSourceFacts,
+  GitWarpTickPatchReplayCore,
+  GitWarpTickReceiptShell,
+  GitWarpTickReceiptWitnessCore,
+  GitWarpTickWitnessLadder,
+  GitWarpWitnessedSuffixPatchFact,
+  GitWarpWitnessedSuffixSourceFacts,
   GitWarpReceiptSourceFacts,
+  createCurrentContinuumGeneratedFamilyInventory,
   ContinuumArtifactJsonFileAdapter,
 
   // Tick receipts (LIGHTHOUSE)
@@ -404,12 +460,22 @@ export type {
   ContinuumArtifactDescriptorFields,
   ContinuumEvidenceClaimFields,
   ContinuumEvidencePostureValue,
+  ContinuumGeneratedFamilyInventoryEntryFields,
+  ContinuumGeneratedFamilyStatusValue,
   ContinuumDeliveryObservationFact,
   ContinuumReceiptFact,
   ContinuumReceiptFamilyProjectionFields,
   ContinuumReceiptOpFact,
   ContinuumReceiptWitnessFact,
   GitWarpReceiptSourceFactsFields,
+  GitWarpReadingEnvelopePayloadFactFields,
+  GitWarpReadingEnvelopeSourceFactsFields,
+  GitWarpTickPatchReplayCoreFields,
+  GitWarpTickReceiptShellFields,
+  GitWarpTickReceiptWitnessCoreFields,
+  GitWarpTickWitnessLadderFields,
+  GitWarpWitnessedSuffixPatchFactFields,
+  GitWarpWitnessedSuffixSourceFactsFields,
   ContinuumArtifactJsonLoadContext,
   ContinuumFamilyIdValue,
 };
