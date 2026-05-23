@@ -48,8 +48,8 @@ Current branch state at this boundary:
   `0178-v18-query-property-projection-reads`
 - Current work: cleaned-up post-PR-99 boundary on `main`; next
   implementation branch should start at slice 31.
-- Open PRs: none
-- Remote non-main branches: none
+- Cleanup checkpoint: before this signpost update branch, there were no open
+  PRs and remote refs had been pruned to `origin/main`.
 
 The current v18 graph-model posture is:
 
