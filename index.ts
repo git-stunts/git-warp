@@ -184,6 +184,7 @@ import { NoOpEffectSink } from './src/infrastructure/adapters/NoOpEffectSink.ts'
 import { ConsoleEffectSink } from './src/infrastructure/adapters/ConsoleEffectSink.ts';
 import { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.ts';
 import SyncSecret from './src/domain/services/sync/SyncSecret.ts';
+import GraphOpAlgebraProjection from './src/domain/services/GraphOpAlgebraProjection.ts';
 import { openWarpGraph } from './src/domain/WarpGraph.ts';
 import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
 import { PatchSession } from './src/domain/warp/PatchSession.ts';
@@ -208,6 +209,9 @@ import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
 } from './src/domain/services/CoordinateFactExport.ts';
+
+export * from './src/domain/graph/publicGraphSubstrate.ts';
+
 import ContinuumArtifactAuthority from './src/domain/continuum/ContinuumArtifactAuthority.ts';
 import ContinuumArtifactDescriptor from './src/domain/continuum/ContinuumArtifactDescriptor.ts';
 import ContinuumArtifactIngestionPolicy from './src/domain/continuum/ContinuumArtifactIngestionPolicy.ts';
@@ -280,6 +284,7 @@ export {
   GitGraphAdapter,
   InMemoryGraphAdapter,
   GraphNode,
+  GraphOpAlgebraProjection,
   BitmapIndexBuilder,
   BitmapIndexReader,
   IndexRebuildService,

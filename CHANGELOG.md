@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- V18 planning now records the post-slice-15 runway into graph-model substrate
+  convergence, naming runtime-backed node records, stable edge records,
+  attachment-plane substrate, and graph-op algebra as slices 17 through 20.
+- V18 graph-model convergence now exposes runtime-backed `NodeId`,
+  `NodeTypeId`, and `NodeRecord` nouns plus deterministic `WarpState`
+  node-record reads over legacy OR-Set liveness.
+- V18 graph-model convergence now exposes runtime-backed `EdgeId`,
+  `EdgeTypeId`, and `EdgeRecord` nouns plus deterministic visible
+  `WarpState` edge-record reads over legacy edge OR-Set liveness.
+- V18 graph-model convergence now exposes runtime-backed `AttachmentKey`,
+  `AttachmentSchemaVersion`, and `AttachmentRecord` nouns plus deterministic
+  `WarpState` attachment-record reads over visible legacy node and edge
+  properties.
+- V18 graph-model convergence now exposes runtime-backed
+  `GraphNodeRecordSetOp`, `GraphEdgeRecordSetOp`, `GraphAttachmentSetOp`, and
+  `GraphOpAlgebra` nouns plus deterministic `GraphOpAlgebraProjection`
+  reads over current `WarpState` node, edge, and attachment records.
 - V18 Continuum compatibility now exposes a runtime-backed generated-family
   readiness inventory for receipt, settlement, neighborhood-core, and
   runtime-boundary families, separating projection-ready families from
@@ -25,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- V18 graph-substrate review follow-up now keeps the public entry point under
+  the source-size policy, makes node-id equality total for invalid runtime
+  inputs, avoids repeated full edge projection during attachment materializing,
+  and covers graph-record constructor guard paths.
 - V18 Continuum review follow-up now validates constructor envelopes before
   dereferencing fields, rejects null receipt delivery-observation carriers,
   documents the new source declarations, and keeps split PatchBuilder/Writer

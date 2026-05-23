@@ -13,7 +13,21 @@ import WarpAppDefault, {
   WarpCore,
   // Core classes
   GitGraphAdapter,
+  AttachmentKey,
+  AttachmentRecord,
+  AttachmentSchemaVersion,
+  EdgeId,
+  EdgeRecord,
+  EdgeTypeId,
+  GraphAttachmentSetOp,
+  GraphEdgeRecordSetOp,
+  GraphNodeRecordSetOp,
+  GraphOpAlgebra,
+  GraphOpAlgebraProjection,
   GraphNode,
+  NodeId,
+  NodeRecord,
+  NodeTypeId,
   BitmapIndexBuilder,
   BitmapIndexReader,
   IndexRebuildService,
@@ -148,6 +162,46 @@ describe('index.ts exports', () => {
     it('exports GraphNode', () => {
       expect(GraphNode).toBeDefined();
       expect(typeof GraphNode).toBe('function');
+    });
+
+    it('exports graph attachment substrate nouns', () => {
+      expect(AttachmentKey).toBeDefined();
+      expect(typeof AttachmentKey).toBe('function');
+      expect(AttachmentRecord).toBeDefined();
+      expect(typeof AttachmentRecord).toBe('function');
+      expect(AttachmentSchemaVersion).toBeDefined();
+      expect(typeof AttachmentSchemaVersion).toBe('function');
+    });
+
+    it('exports graph-op algebra substrate nouns', () => {
+      expect(GraphAttachmentSetOp).toBeDefined();
+      expect(typeof GraphAttachmentSetOp).toBe('function');
+      expect(GraphEdgeRecordSetOp).toBeDefined();
+      expect(typeof GraphEdgeRecordSetOp).toBe('function');
+      expect(GraphNodeRecordSetOp).toBeDefined();
+      expect(typeof GraphNodeRecordSetOp).toBe('function');
+      expect(GraphOpAlgebra).toBeDefined();
+      expect(typeof GraphOpAlgebra).toBe('function');
+      expect(GraphOpAlgebraProjection).toBeDefined();
+      expect(typeof GraphOpAlgebraProjection).toBe('function');
+    });
+
+    it('exports graph edge substrate nouns', () => {
+      expect(EdgeId).toBeDefined();
+      expect(typeof EdgeId).toBe('function');
+      expect(EdgeRecord).toBeDefined();
+      expect(typeof EdgeRecord).toBe('function');
+      expect(EdgeTypeId).toBeDefined();
+      expect(typeof EdgeTypeId).toBe('function');
+    });
+
+    it('exports graph node substrate nouns', () => {
+      expect(NodeId).toBeDefined();
+      expect(typeof NodeId).toBe('function');
+      expect(NodeRecord).toBeDefined();
+      expect(typeof NodeRecord).toBe('function');
+      expect(NodeTypeId).toBeDefined();
+      expect(typeof NodeTypeId).toBe('function');
     });
 
     it('exports BitmapIndexBuilder', () => {

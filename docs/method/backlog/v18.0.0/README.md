@@ -45,12 +45,12 @@ Those doctrine and protocol surfaces live in
 
 ```text
 LAYER 0 (shape cut):
-  [ ] PROTO_echo-shaped-node-records
-  [ ] PROTO_echo-shaped-edge-records
-  [ ] PROTO_attachment-plane-substrate
+  [x] PROTO_echo-shaped-node-records
+  [x] PROTO_echo-shaped-edge-records
+  [x] PROTO_attachment-plane-substrate
 
 LAYER 1 (behavioral convergence):
-  [ ] PROTO_graph-op-algebra-convergence
+  [x] PROTO_graph-op-algebra-convergence
   [ ] PROTO_content-attachment-plane-cutover
   [ ] PROTO_legacy-props-as-projection
 
