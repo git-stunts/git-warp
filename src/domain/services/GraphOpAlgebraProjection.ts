@@ -13,7 +13,7 @@ import type { GraphOperation } from '../graph/GraphOperation.ts';
 
 /** Projects materialized graph state into the explicit graph-operation algebra. */
 export default class GraphOpAlgebraProjection {
-  /** Returns graph operations ordered as nodes, edges, then attachments. */
+  /** Returns graph operations ordered as nodes, edges, content, node props, then edge props. */
   static fromState(state: WarpState): GraphOpAlgebra {
     const checkedState = requireWarpState(state);
     const operations: GraphOperation[] = [];

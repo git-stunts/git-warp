@@ -1,5 +1,3 @@
-import type CodecValue from './codec/CodecValue.ts';
-
 /**
  * PropValue — the set of values that can be stored in a CRDT property register.
  *
@@ -16,7 +14,9 @@ export type PropValue =
   | PropValue[]
   | { [key: string]: PropValue };
 
-function isScalarPropValue(value: CodecValue): value is string | number | boolean | null | Uint8Array {
+function isScalarPropValue<T>(
+  value: T,
+): value is T & (string | number | boolean | null | Uint8Array) {
   return (
     value === null
     || typeof value === 'string'
@@ -26,18 +26,18 @@ function isScalarPropValue(value: CodecValue): value is string | number | boolea
   );
 }
 
-function isPropValueArray(value: CodecValue): value is PropValue[] {
+function isPropValueArray<T>(value: T): value is T & PropValue[] {
   return Array.isArray(value) && value.every((entry) => isPropValue(entry));
 }
 
-function isPropValueObjectCandidate(value: CodecValue): value is { readonly [key: string]: CodecValue } {
+function isPropValueObjectCandidate<T>(value: T): value is T & object {
   if (value === null || typeof value !== 'object') {
     return false;
   }
   return isNonArrayPlainObject(value);
 }
 
-function isPropValueObject(value: CodecValue): value is { [key: string]: PropValue } {
+function isPropValueObject<T>(value: T): value is T & { [key: string]: PropValue } {
   return isPropValueObjectCandidate(value)
     && Object.values(value).every((entry) => isPropValue(entry));
 }
@@ -50,7 +50,7 @@ function isNonArrayPlainObject(value: object): boolean {
     || Object.getPrototypeOf(value) === null;
 }
 
-export function isPropValue(value: CodecValue): value is PropValue {
+export function isPropValue<T>(value: T): value is T & PropValue {
   return isScalarPropValue(value)
     || isPropValueArray(value)
     || isPropValueObject(value);

@@ -82,6 +82,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- V18 property projection review follow-up now removes newly introduced
+  helper-level `unknown` suppressions from `PatchBuilder` property-value
+  validation and refreshes graph-op projection docs and public substrate export
+  ordering.
 - CI now runs the heavy `type-firewall` static gates as parallel child jobs
   behind a small required aggregate status, so TypeScript, ESLint, Semgrep,
   quarantine, declaration-surface, and Markdown checks no longer serialize

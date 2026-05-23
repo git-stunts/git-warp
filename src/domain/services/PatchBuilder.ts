@@ -44,7 +44,7 @@ import type LoggerPort from '../../ports/LoggerPort.ts';
 import type BlobStoragePort from '../../ports/BlobStoragePort.ts';
 import type { BlobStorageOptions } from '../../ports/BlobStoragePort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
-import type { PropValue } from '../types/PropValue.ts';
+import { isPropValue, type PropValue } from '../types/PropValue.ts';
 
 type ContentInput = AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string;
 type ContentMetadataInput = { mime?: string | null; size?: number | null };
@@ -461,50 +461,13 @@ export class PatchBuilder {
 }
 
 /** Validates public patch property values before intent construction. */
-function requirePatchPropertyValue(value: unknown): PropValue { // nosemgrep: ts-no-unknown-outside-adapters -- public PatchBuilder boundary
-  if (isScalarPatchPropertyValue(value)) {
+function requirePatchPropertyValue<T>(value: T): PropValue {
+  if (isPropValue(value)) {
     return value;
-  }
-  if (value instanceof Uint8Array) {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.map((entry) => requirePatchPropertyValue(entry));
-  }
-  if (isPlainPatchPropertyObject(value)) {
-    const record: { [key: string]: PropValue } = {};
-    for (const [key, entry] of Object.entries(value)) {
-      record[key] = requirePatchPropertyValue(entry);
-    }
-    return record;
   }
   throw new PatchError('Property value must be property-compatible data', {
     code: 'E_PATCH_INVALID_PROPERTY_VALUE',
   });
-}
-
-/** Returns true for scalar property values. */
-function isScalarPatchPropertyValue(
-  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- public PatchBuilder boundary
-): value is string | number | boolean | null {
-  return value === null
-    || typeof value === 'string'
-    || typeof value === 'number'
-    || typeof value === 'boolean';
-}
-
-/** Returns true for plain recursive property objects. */
-function isPlainPatchPropertyObject(
-  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- public PatchBuilder boundary
-): value is { readonly [key: string]: unknown } { // nosemgrep: ts-no-unknown-outside-adapters -- public PatchBuilder boundary
-  if (value === null || typeof value !== 'object') {
-    return false;
-  }
-  if (Array.isArray(value) || value instanceof Uint8Array) {
-    return false;
-  }
-  return Object.getPrototypeOf(value) === Object.prototype
-    || Object.getPrototypeOf(value) === null;
 }
 
 async function storeContentAttachmentPayload(
