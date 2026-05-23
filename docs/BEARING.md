@@ -193,7 +193,7 @@ and concrete checks live in `docs/invariants/`.
   [0178](design/0178-v18-query-property-projection-reads/v18-query-property-projection-reads.md).
 - [x] 31. Route state-reader property views through projection:
   [0179](design/0179-v18-state-reader-property-projection/v18-state-reader-property-projection.md).
-- [ ] 32. Add property write intent nouns:
+- [x] 32. Add property write intent nouns:
   [0180](design/0180-v18-property-write-intent-nouns/v18-property-write-intent-nouns.md).
 - [ ] 33. Route PatchBuilder property writes through intent lowering:
   [0181](design/0181-v18-patchbuilder-property-intent-lowering/v18-patchbuilder-property-intent-lowering.md).

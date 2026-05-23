@@ -1,7 +1,7 @@
 ---
 cycle: 0180
 task_id: V18_property_write_intent_nouns
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
