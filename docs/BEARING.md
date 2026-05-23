@@ -46,22 +46,21 @@ native Continuum witnesses until that witnesshood is actually proven.
 
 Backlog fold-in: the repo-visible v18 lane is
 `WL-4A-v18-graph-substrate-convergence` in
-[WORKLOADS.md](method/backlog/WORKLOADS.md), backed by the eight notes in
-[method/backlog/v18.0.0](method/backlog/v18.0.0/). Treat that lane as the
-graph-model track inside this compatibility campaign: node and edge record
-identity, attachment slots, graph-op algebra, content cutover, legacy property
-projection, migration tooling, and genesis replay equivalence. Existing
-`echo-shaped` backlog identities are historical shorthand for graph-model
+[WORKLOADS.md](method/backlog/WORKLOADS.md). The four remaining live notes in
+[method/backlog/v18.0.0](method/backlog/v18.0.0/) are content cutover, legacy
+property projection, migration tooling, and genesis replay equivalence. Treat
+that lane as the graph-model track inside this compatibility campaign.
+Historical `echo-shaped` backlog identities were shorthand for graph-model
 pressure already exercised by Echo, not a claim that Echo owns `git-warp`'s
 Continuum role.
 
 Current branch state at this boundary:
 
-- Branch: `v18-continuum-slices-16-20`
+- Branch: `v18-continuum-slices-21-25`
 - Base branch: `main`
-- Latest remote head inspected: `origin/main` at `c848f5d4`
+- Latest remote head inspected: `origin/main` at `080a60eb`
 - Latest released package line: `17.0.1`
-- Latest merged PR: #95, v18 Continuum slices 11 through 15 plus review
+- Latest merged PR: #96, v18 Continuum slices 16 through 20 plus review
   repairs
 - Latest completed v18 implementation cycle:
   `0168-v18-graph-op-algebra-convergence`
@@ -80,10 +79,10 @@ The release ladder is now:
 - `v20.0.0`: slice-first read execution
 - `v21.0.0`: distributed observer geometry and admission reality
 
-The v18 compatibility work is bigger than fifteen slices. Slices 1 through 15
+The v18 compatibility work is bigger than twenty slices. Slices 1 through 15
 established the Continuum compatibility posture, generated-family authority,
 translated evidence posture, receipt-family projection, `warp-ttd` receipt
-smoke, and runtime-boundary source facts. Slices 17 through 20 now move into
+smoke, and runtime-boundary source facts. Slices 17 through 20 moved into
 the graph-model substrate lane by naming node, edge, attachment, and graph-op
 algebra surfaces that v18 must cut before migration and genesis replay proof
 are honest.
@@ -148,6 +147,11 @@ performance/correctness repair:
   generated-family readiness inventory, `TickPatch`/`TickReceipt` witness
   ladder, runtime-boundary reading-envelope source facts, and witnessed-suffix
   source facts.
+- PR #96 landed v18 Continuum slices 16 through 20: the post-slice-15
+  graph-model runway, runtime-backed node records, runtime-backed edge records,
+  generic attachment records, graph-op algebra projection, and review repairs
+  for entrypoint size, equality guards, attachment projection performance, and
+  constructor guard coverage.
 
 The shipped v17 scope remains: TypeScript migration, public API honesty,
 materialization-frontdoor deletion, readings/optics direction, query
@@ -176,10 +180,10 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What comes next
 
-Open the PR for v18 slices 16 through 20, then continue with the remaining
-`WL-4A-v18-graph-substrate-convergence` items. The next active lane item is
-content attachment-plane cutover, followed by legacy property projection,
-graph-model migration tooling, and genesis replay equivalence.
+Run v18 slices 21 through 25 on this branch, then open the next PR. Generic
+attachments already exist; the active work is content-specific attachment
+payload cutover over that plane. After that, continue with legacy property
+projection, graph-model migration tooling, and genesis replay equivalence.
 
 ## Running Task List
 
@@ -302,6 +306,31 @@ graph-model migration tooling, and genesis replay equivalence.
   `GraphOpAlgebra`, and `GraphOpAlgebraProjection`, and exposes a
   deterministic graph-operation substrate projection over the current
   node, edge, and attachment record views.
+- [x] 21. Reset BEARING after PR #96 and plan the content-cutover runway:
+  [0169-v18-post-20-content-cutover-runway](design/0169-v18-post-20-content-cutover-runway/v18-post-20-content-cutover-runway.md)
+  records merge commit `080a60eb`, clarifies that generic attachments already
+  exist, and slices content-specific attachment cutover, legacy property
+  projection, migration planning, and replay proof into tasks 22 through 30.
+- [ ] 22. Define content attachment payload nouns over the existing generic
+  attachment plane. This should introduce runtime-backed content OID,
+  metadata, and payload concepts without changing public reads or writes.
+- [ ] 23. Project legacy `_content`, `_content.mime`, and `_content.size`
+  attachment records into typed content attachments for node and edge owners.
+- [ ] 24. Route content OID and metadata reads through the content attachment
+  projection while keeping public `getContent*` and `getEdgeContent*`
+  behavior stable.
+- [ ] 25. Make content writes construct typed content attachment intent before
+  lowering to the current legacy `_content*` compatibility properties.
+- [ ] 26. Add the legacy property-bag projection service over attachment
+  records, making property bags an explicit compatibility view.
+- [ ] 27. Route query property reads through the legacy property projection
+  without changing public property-bag output shapes.
+- [ ] 28. Define the graph-model migration manifest runtime nouns for node,
+  edge, attachment, and content identity mappings.
+- [ ] 29. Add a dry-run graph-model migration planner that produces graph-op
+  algebra and a migration manifest without writing Git history.
+- [ ] 30. Add the first genesis replay equivalence harness for comparing
+  legacy replay with projected v18 graph readings.
 
 The loop stays strict: write or update the cycle doc, capture RED, green the
 slice, update this BEARING task list before the final commit, validate, then

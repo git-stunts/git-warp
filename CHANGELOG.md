@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- V18 planning now records the post-PR-96 content-cutover runway, clarifying
+  that generic attachments already exist and that the next batch cuts typed
+  content payload semantics over that attachment plane.
 - V18 planning now records the post-slice-15 runway into graph-model substrate
   convergence, naming runtime-backed node records, stable edge records,
   attachment-plane substrate, and graph-op algebra as slices 17 through 20.
