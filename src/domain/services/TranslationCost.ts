@@ -13,7 +13,8 @@
  * @see Paper IV, Section 4 -- Directed rulial cost
  */
 
-import { decodeEdgeKey, decodePropKey, isEdgePropKey } from './KeyCodec.ts';
+import { decodeEdgeKey } from './KeyCodec.ts';
+import NodePropertyProjection from './NodePropertyProjection.ts';
 import { matchGlob } from '../utils/matchGlob.ts';
 import QueryError from '../errors/QueryError.ts';
 import type WarpState from './state/WarpState.ts';
@@ -73,14 +74,8 @@ function isKeyVisible(key: string, exposeSet: Set<string> | null, redactSet: Set
  */
 function collectNodePropKeys(state: WarpState, nodeId: string): Map<string, boolean> {
   const props = new Map<string, boolean>();
-  for (const [propKey] of state.prop) {
-    if (isEdgePropKey(propKey)) {
-      continue;
-    }
-    const decoded = decodePropKey(propKey);
-    if (decoded.nodeId === nodeId) {
-      props.set(decoded.propKey, true);
-    }
+  for (const record of NodePropertyProjection.forNode(state, nodeId)) {
+    props.set(record.key.toString(), true);
   }
   return props;
 }

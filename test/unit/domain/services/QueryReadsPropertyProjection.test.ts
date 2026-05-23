@@ -6,6 +6,7 @@ import {
   getEdgePropsImpl,
   getEdgesImpl,
   getNodePropsImpl,
+  getPropertyCountImpl,
 } from '../../../../src/domain/services/controllers/QueryReads.ts';
 import type { QueryReadHost } from '../../../../src/domain/services/controllers/ReadGraphHost.ts';
 import {
@@ -49,6 +50,7 @@ describe('QueryReads property projection routing', () => {
         props: { weight: 3 },
       },
     ]);
+    await expect(getPropertyCountImpl(host)).resolves.toBe(3);
   });
 
   it('keeps malformed public property queries as misses', async () => {

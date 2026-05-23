@@ -1,16 +1,22 @@
+import ORSet from '../../crdt/ORSet.ts';
+import { LWWRegister } from '../../crdt/LWW.ts';
+import VersionVector from '../../crdt/VersionVector.ts';
 import EdgeRecord from '../../graph/EdgeRecord.ts';
 import NodeRecord from '../../graph/NodeRecord.ts';
+import WarpError from '../../errors/WarpError.ts';
 import { encodeEdgeKey } from '../KeyCodec.ts';
 import { createSnapshotPropValue } from '../ImmutableSnapshot.ts';
 import ContentAttachmentProjection from '../ContentAttachmentProjection.ts';
 import EdgePropertyProjection from '../EdgePropertyProjection.ts';
 import NodePropertyProjection from '../NodePropertyProjection.ts';
+import ImmutableBytes from '../snapshot/ImmutableBytes.ts';
+import SnapshotWarpState from '../snapshot/SnapshotWarpState.ts';
 import type ContentAttachmentRecord from '../../graph/ContentAttachmentRecord.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
 import type VisibleEdgePropertyRecord from '../../graph/VisibleEdgePropertyRecord.ts';
 import type VisibleNodePropertyRecord from '../../graph/VisibleNodePropertyRecord.ts';
-import type WarpState from './WarpState.ts';
+import WarpState from './WarpState.ts';
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -22,6 +28,7 @@ export type VisibleEdgeRef = { from: string; to: string; label: string };
 export type VisiblePropertyBag = Readonly<{ [key: string]: SnapshotPropValue }>;
 type MutableVisiblePropertyBag = { [key: string]: SnapshotPropValue };
 export type VisibleEdgeView = { from: string; to: string; label: string; props: VisiblePropertyBag };
+export type StateReaderSource = WarpState | SnapshotWarpState;
 type VisibleProjectionProp = {
   node: string;
   key: string;
@@ -51,6 +58,17 @@ export function edgeKeyFromRef(edge: VisibleEdgeRef): string {
   return encodeEdgeKey(edge.from, edge.to, edge.label);
 }
 
+/** Returns a projection-capable state from a live or immutable reader source. */
+export function createStateReaderProjectionState(state: StateReaderSource): WarpState {
+  if (state instanceof WarpState) {
+    return state;
+  }
+  if (state instanceof SnapshotWarpState) {
+    return warpStateFromSnapshot(state);
+  }
+  throw new WarpError('StateReader source must be a WarpState or SnapshotWarpState', 'E_VALIDATION');
+}
+
 // ── Cloning helpers ──────────────────────────────────────────────────────────
 
 /** Shallow-clones a property bag. */
@@ -70,6 +88,55 @@ export function cloneMeta(meta: ContentMeta | null | undefined): ContentMeta | n
 /** Shallow-clones an array of neighbor entries. */
 export function cloneNeighbors(entries: NeighborEntry[]): NeighborEntry[] {
   return entries.map((entry) => ({ ...entry }));
+}
+
+/** Hydrates an immutable public snapshot into a projection-local WarpState. */
+function warpStateFromSnapshot(snapshot: SnapshotWarpState): WarpState {
+  return new WarpState({
+    nodeAlive: orsetFromSnapshot(snapshot.nodeAlive),
+    edgeAlive: orsetFromSnapshot(snapshot.edgeAlive),
+    prop: propMapFromSnapshot(snapshot.prop),
+    observedFrontier: VersionVector.from(new Map(snapshot.observedFrontier.entries())),
+    edgeBirthEvent: new Map(snapshot.edgeBirthEvent),
+  });
+}
+
+/** Rebuilds an OR-Set from the immutable snapshot view. */
+function orsetFromSnapshot(snapshot: SnapshotWarpState['nodeAlive']): ORSet {
+  const entries = new Map<string, Set<string>>();
+  for (const entry of snapshot.entries()) {
+    entries.set(entry.element, new Set(entry.dots));
+  }
+  return new ORSet(entries, new Set(snapshot.tombstones()));
+}
+
+/** Rebuilds the property map from immutable snapshot registers. */
+function propMapFromSnapshot(
+  snapshot: SnapshotWarpState['prop'],
+): Map<string, LWWRegister<PropValue>> {
+  const props = new Map<string, LWWRegister<PropValue>>();
+  for (const [key, register] of snapshot) {
+    props.set(key, new LWWRegister(register.eventId, propValueFromSnapshot(register.value)));
+  }
+  return props;
+}
+
+/** Converts immutable snapshot values back into projection-local values. */
+function propValueFromSnapshot(value: SnapshotPropValue): PropValue {
+  if (value instanceof ImmutableBytes) {
+    return value.toUint8Array();
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => propValueFromSnapshot(entry));
+  }
+  if (value !== null && typeof value === 'object') {
+    const props: { [key: string]: PropValue } = {};
+    for (const [key, entry] of Object.entries(value)) {
+      props[key] = propValueFromSnapshot(entry);
+    }
+    return props;
+  }
+  return value;
 }
 
 // ── Index builders ───────────────────────────────────────────────────────────

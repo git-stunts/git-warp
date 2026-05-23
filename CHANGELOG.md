@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- V18 property projection closeout now records the remaining raw
+  legacy-property boundaries as compatibility, serialization, replay,
+  reducer, index, or migration-source boundaries before graph-model migration
+  work begins.
+- V18 graph-op algebra projection now emits typed content, node-property, and
+  edge-property operation nouns instead of exposing legacy property-map entries
+  as graph substrate operations.
+- V18 generic property writes now construct runtime-backed node and edge
+  property write intent nouns before lowering to the existing legacy
+  compatibility operation shape.
+- V18 state-reader property and content views now route through typed
+  projection records instead of decoding raw legacy property keys directly.
 - V18 query reads now route linear node property reads, edge property reads,
   and edge-list property payloads through projection-backed compatibility
   records instead of decoding raw property keys in the query controller.
@@ -70,6 +82,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- V18 property projection closeout now routes `StateQueryReadModel.nodeProps`,
+  translation-cost property-key accounting, and public property counts through
+  property projection records so malformed compatibility keys cannot leak into
+  live read-model property bags.
+- V18 property projection closeout now preserves state-reader support for
+  immutable `SnapshotWarpState` sources and preserves PatchBuilder
+  reserved-byte validation errors before property write intent construction.
 - V18 property projection review follow-up now preserves tolerant public
   property-query misses, scopes targeted projection materialization to requested
   owners, skips malformed edge-property projection entries, shares legacy

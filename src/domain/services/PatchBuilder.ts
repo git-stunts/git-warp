@@ -241,6 +241,8 @@ export class PatchBuilder {
 
   setProperty(nodeId: string, key: string, value: unknown): PatchBuilder { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     this._assertNotCommitted();
+    assertNoReservedBytes(nodeId, 'nodeId');
+    assertNoReservedBytes(key, 'key');
     const intent = NodePropertyWriteIntent.fromLegacyProperty(
       nodeId,
       key,
@@ -252,6 +254,10 @@ export class PatchBuilder {
 
   setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): PatchBuilder { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     this._assertNotCommitted();
+    assertNoReservedBytes(from, 'from node ID');
+    assertNoReservedBytes(to, 'to node ID');
+    assertNoReservedBytes(label, 'edge label');
+    assertNoReservedBytes(key, 'key');
     const intent = EdgePropertyWriteIntent.fromLegacyProperty({
       from,
       to,

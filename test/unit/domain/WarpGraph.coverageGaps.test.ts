@@ -840,6 +840,8 @@ describe('WarpCore coverage gaps', () => {
       });
 
       const state = createEmptyState();
+      state.nodeAlive.add('user:alice', Dot.create('writer-1', 1));
+      state.nodeAlive.add('user:bob', Dot.create('writer-1', 2));
       state.prop.set('user:alice\0name', { value: 'Alice', eventId: ('writer-1:1' as any) });
       state.prop.set('user:alice\0age', { value: 30, eventId: ('writer-1:2' as any) });
       state.prop.set('user:bob\0name', { value: 'Bob', eventId: ('writer-1:3' as any) });

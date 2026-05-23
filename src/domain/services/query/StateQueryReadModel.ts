@@ -3,8 +3,9 @@ import type { NeighborEdge } from '../../../ports/NeighborProviderPort.ts';
 import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
 import type WarpState from '../state/WarpState.ts';
 import { createSnapshotPropValue } from '../ImmutableSnapshot.ts';
-import { decodeEdgeKey, decodePropKey } from '../KeyCodec.ts';
+import { decodeEdgeKey } from '../KeyCodec.ts';
 import { matchGlob } from '../../utils/matchGlob.ts';
+import NodePropertyProjection from '../NodePropertyProjection.ts';
 import type {
   QueryNeighborEntry,
   QueryNeighborOptions,
@@ -141,13 +142,10 @@ export default class StateQueryReadModel implements QueryReadModel {
     const exposeSet = toFilterSet(this.#visibility.expose);
     const props: MutablePropertyBag = {};
 
-    for (const [propKey, register] of this.#state.prop) {
-      const decoded = decodePropKey(propKey);
-      if (
-        decoded.nodeId === nodeId &&
-        isKeyVisible(decoded.propKey, redactSet, exposeSet)
-      ) {
-        props[decoded.propKey] = createSnapshotPropValue(register.value);
+    for (const record of NodePropertyProjection.forNode(this.#state, nodeId)) {
+      const propKey = record.key.toString();
+      if (isKeyVisible(propKey, redactSet, exposeSet)) {
+        props[propKey] = createSnapshotPropValue(record.value.toPropValue());
       }
     }
 
