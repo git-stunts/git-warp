@@ -68,7 +68,7 @@ function normalizeStatus(value: string | ContinuumGeneratedFamilyStatus): Contin
 
 /** Validates a required non-empty string. */
 function requireNonEmptyString(value: string, name: string): string {
-  if (typeof value !== 'string' || value.length === 0) {
+  if (typeof value !== 'string' || value.trim().length === 0) {
     throw new WarpError(`${name} must be a non-empty string`, 'E_VALIDATION');
   }
   return value;

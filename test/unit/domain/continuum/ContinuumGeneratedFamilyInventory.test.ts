@@ -113,5 +113,15 @@ describe('ContinuumGeneratedFamilyInventory', () => {
       warpTtdConsumerNeed: 'test consumer need',
       openCut: 'test open cut',
     })).toThrow(WarpError);
+
+    expect(() => new ContinuumGeneratedFamilyInventoryEntry({
+      familyId: 'receipt-family',
+      version: '0.1.0',
+      authoredSchemaPath: '   ',
+      status: 'profiled-fixture-witnessed',
+      gitWarpSourceFacts: 'test source facts',
+      warpTtdConsumerNeed: 'test consumer need',
+      openCut: 'test open cut',
+    })).toThrow(WarpError);
   });
 });
