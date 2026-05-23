@@ -56,4 +56,27 @@ describe('GraphOpAlgebra', () => {
       new GraphOpAlgebra({ operations: [{ type: 'NodePropSet' }] });
     }).toThrow(/graph operation/);
   });
+
+  it('rejects missing envelopes and invalid operation collections', () => {
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GraphNodeRecordSetOp(undefined);
+    }).toThrow(/fields must be provided/);
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GraphEdgeRecordSetOp(null);
+    }).toThrow(/fields must be provided/);
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GraphAttachmentSetOp(undefined);
+    }).toThrow(/fields must be provided/);
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GraphOpAlgebra(null);
+    }).toThrow(/fields must be provided/);
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GraphOpAlgebra({ operations: 'NodePropSet' });
+    }).toThrow(/operations must be an array/);
+  });
 });

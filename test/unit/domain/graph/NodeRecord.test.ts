@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import NodeId from '../../../../src/domain/graph/NodeId.ts';
 import NodeRecord from '../../../../src/domain/graph/NodeRecord.ts';
-import NodeTypeId from '../../../../src/domain/graph/NodeTypeId.ts';
+import NodeTypeId, { DEFAULT_NODE_TYPE_ID } from '../../../../src/domain/graph/NodeTypeId.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 
 describe('NodeRecord graph substrate nouns', () => {
@@ -12,6 +12,10 @@ describe('NodeRecord graph substrate nouns', () => {
     expect(id.toString()).toBe('node:a');
     expect(id.equals(new NodeId('node:a'))).toBe(true);
     expect(id.equals(new NodeId('node:b'))).toBe(false);
+    expect(id.equals(null)).toBe(false);
+    expect(id.equals(undefined)).toBe(false);
+    // @ts-expect-error exercising runtime validation
+    expect(id.equals({})).toBe(false);
     expect(Object.isFrozen(id)).toBe(true);
     expect(() => new NodeId('')).toThrow(WarpError);
     expect(() => new NodeId('node:\0bad')).toThrow(WarpError);
@@ -35,7 +39,7 @@ describe('NodeRecord graph substrate nouns', () => {
     expect(record.id).toBeInstanceOf(NodeId);
     expect(record.typeId).toBeInstanceOf(NodeTypeId);
     expect(record.id.toString()).toBe('node:a');
-    expect(record.typeId.toString()).toBe('untyped-node');
+    expect(record.typeId.toString()).toBe(DEFAULT_NODE_TYPE_ID);
     expect(record.equals(NodeRecord.fromLegacyNodeId('node:a'))).toBe(true);
     expect(record.equals(NodeRecord.fromLegacyNodeId('node:b'))).toBe(false);
     expect(Object.isFrozen(record)).toBe(true);

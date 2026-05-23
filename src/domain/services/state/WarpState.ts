@@ -296,11 +296,13 @@ function edgeAttachmentRecordForProperty(
   if (isStaleEdgeAttachment(register, state.edgeBirthEvent.get(edgeKey))) {
     return null;
   }
-  const candidate = EdgeRecord.fromLegacyEdge(decoded);
-  const owner = state.getEdgeRecord(candidate.id);
-  if (owner === null) {
+  if (!state.edgeAlive.contains(edgeKey)) {
     return null;
   }
+  if (!state.hasNodeRecord(decoded.from) || !state.hasNodeRecord(decoded.to)) {
+    return null;
+  }
+  const owner = EdgeRecord.fromLegacyEdge(decoded);
   return new AttachmentRecord({
     owner,
     key: new AttachmentKey(decoded.propKey),

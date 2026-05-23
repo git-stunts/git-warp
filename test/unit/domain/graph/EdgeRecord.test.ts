@@ -47,4 +47,53 @@ describe('EdgeRecord graph substrate nouns', () => {
       .toBe(false);
     expect(Object.isFrozen(record)).toBe(true);
   });
+
+  it('rejects invalid constructor envelopes', () => {
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new EdgeRecord(null);
+    }).toThrow(WarpError);
+
+    const invalidId = {
+      id: new NodeId('node:a'),
+      from: new NodeId('node:a'),
+      to: new NodeId('node:b'),
+      typeId: new EdgeTypeId('knows'),
+    };
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new EdgeRecord(invalidId);
+    }).toThrow(WarpError);
+
+    const invalidFrom = {
+      id: new EdgeId('edge:a'),
+      from: new EdgeId('edge:from'),
+      to: new NodeId('node:b'),
+      typeId: new EdgeTypeId('knows'),
+    };
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new EdgeRecord(invalidFrom);
+    }).toThrow(WarpError);
+
+    const invalidType = {
+      id: new EdgeId('edge:a'),
+      from: new NodeId('node:a'),
+      to: new NodeId('node:b'),
+      typeId: new NodeId('node:type'),
+    };
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new EdgeRecord(invalidType);
+    }).toThrow(WarpError);
+  });
+
+  it('rejects invalid legacy fields at the runtime boundary', () => {
+    expect(() => EdgeRecord.fromLegacyEdge({ from: '', to: 'node:b', label: 'knows' }))
+      .toThrow(WarpError);
+    expect(() => EdgeRecord.fromLegacyEdge({ from: 'node:a', to: '', label: 'knows' }))
+      .toThrow(WarpError);
+    expect(() => EdgeRecord.fromLegacyEdge({ from: 'node:a', to: 'node:b', label: '' }))
+      .toThrow(WarpError);
+  });
 });

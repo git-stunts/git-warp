@@ -63,4 +63,49 @@ describe('AttachmentRecord graph substrate nouns', () => {
     expect(record.isNodeAttachment()).toBe(false);
     expect(record.isEdgeAttachment()).toBe(true);
   });
+
+  it('rejects invalid attachment record envelopes', () => {
+    const owner = NodeRecord.fromLegacyNodeId('node:a');
+
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new AttachmentRecord(null);
+    }).toThrow(WarpError);
+    expect(() => {
+      new AttachmentRecord({
+        // @ts-expect-error exercising runtime validation
+        owner: {},
+        key: new AttachmentKey('title'),
+        value: 'hello',
+        schemaVersion: new AttachmentSchemaVersion(1),
+      });
+    }).toThrow(WarpError);
+    expect(() => {
+      new AttachmentRecord({
+        owner,
+        // @ts-expect-error exercising runtime validation
+        key: {},
+        value: 'hello',
+        schemaVersion: new AttachmentSchemaVersion(1),
+      });
+    }).toThrow(WarpError);
+    expect(() => {
+      new AttachmentRecord({
+        owner,
+        key: new AttachmentKey('title'),
+        // @ts-expect-error exercising runtime validation
+        value: Symbol('invalid'),
+        schemaVersion: new AttachmentSchemaVersion(1),
+      });
+    }).toThrow(WarpError);
+    expect(() => {
+      new AttachmentRecord({
+        owner,
+        key: new AttachmentKey('title'),
+        value: 'hello',
+        // @ts-expect-error exercising runtime validation
+        schemaVersion: {},
+      });
+    }).toThrow(WarpError);
+  });
 });

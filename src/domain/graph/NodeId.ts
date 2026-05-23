@@ -18,7 +18,10 @@ export default class NodeId {
   }
 
   /** Compares two node ids by runtime value. */
-  equals(other: NodeId): boolean {
+  equals(other: NodeId | null | undefined): boolean {
+    if (!(other instanceof NodeId)) {
+      return false;
+    }
     return this.value === other.value;
   }
 }

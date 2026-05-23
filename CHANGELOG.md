@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- V18 graph-substrate review follow-up now keeps the public entry point under
+  the source-size policy, makes node-id equality total for invalid runtime
+  inputs, avoids repeated full edge projection during attachment materializing,
+  and covers graph-record constructor guard paths.
 - V18 Continuum review follow-up now validates constructor envelopes before
   dereferencing fields, rejects null receipt delivery-observation carriers,
   documents the new source declarations, and keeps split PatchBuilder/Writer
