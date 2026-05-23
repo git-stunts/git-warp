@@ -251,9 +251,9 @@ commit for that slice.
   reading-envelope source facts:
   [0162-v18-reading-envelope-source-facts](design/0162-v18-reading-envelope-source-facts/v18-reading-envelope-source-facts.md)
   adds `GitWarpReadingEnvelopePayloadFact` and
-  `GitWarpReadingEnvelopeSourceFacts`, requires translated git-warp evidence,
-  and keeps runtime-boundary marked as authored-only until Wesley profiles and
-  fixtures exist.
+  `GitWarpReadingEnvelopeSourceFacts`, requires git-warp evidence to be
+  translated, and keeps runtime-boundary marked as authored-only until Wesley
+  profiles and fixtures exist.
 - [x] 15. Project one git-warp sync/export suffix into translated
   witnessed-suffix source facts:
   [0163-v18-witnessed-suffix-source-facts](design/0163-v18-witnessed-suffix-source-facts/v18-witnessed-suffix-source-facts.md)
