@@ -3,6 +3,7 @@ import ContentAttachmentOid from '../graph/ContentAttachmentOid.ts';
 import ContentAttachmentPayload from '../graph/ContentAttachmentPayload.ts';
 import ContentAttachmentRecord from '../graph/ContentAttachmentRecord.ts';
 import ContentAttachmentSize from '../graph/ContentAttachmentSize.ts';
+import EdgeRecord from '../graph/EdgeRecord.ts';
 import NodeRecord from '../graph/NodeRecord.ts';
 import WarpError from '../errors/WarpError.ts';
 import {
@@ -16,11 +17,16 @@ import {
 import { compareEventIds, type EventId } from '../utils/EventId.ts';
 import WarpState from './state/WarpState.ts';
 import type { LWWRegister } from '../crdt/LWW.ts';
-import type EdgeRecord from '../graph/EdgeRecord.ts';
 import type { PropValue } from '../types/PropValue.ts';
 
 type Register = LWWRegister<PropValue>;
 type ContentRegister = Register & { readonly value: string };
+
+export type ContentAttachmentProjectionEdge = {
+  readonly from: string;
+  readonly to: string;
+  readonly label: string;
+};
 
 type ContentRegisters = {
   readonly content: ContentRegister;
@@ -49,6 +55,29 @@ export default class ContentAttachmentProjection {
     records.sort(compareContentAttachmentRecords);
     return Object.freeze(records);
   }
+
+  /** Returns the visible content attachment for one node, if present. */
+  static forNode(state: WarpState, nodeId: string): ContentAttachmentRecord | null {
+    const checkedState = requireWarpState(state);
+    const owner = checkedState.getNodeRecord(nodeId);
+    if (owner === null) {
+      return null;
+    }
+    return contentRecordForNode(checkedState, owner);
+  }
+
+  /** Returns the visible content attachment for one edge, if present. */
+  static forEdge(
+    state: WarpState,
+    edge: ContentAttachmentProjectionEdge,
+  ): ContentAttachmentRecord | null {
+    const checkedState = requireWarpState(state);
+    const owner = checkedState.getEdgeRecord(EdgeRecord.fromLegacyEdge(edge).id);
+    if (owner === null) {
+      return null;
+    }
+    return contentRecordForEdge(checkedState, owner);
+  }
 }
 
 /** Requires a runtime-backed WarpState projection source. */
@@ -63,7 +92,7 @@ function requireWarpState(state: WarpState): WarpState {
 function contentRecordForNode(state: WarpState, owner: NodeRecord): ContentAttachmentRecord | null {
   const nodeId = owner.id.toString();
   const content = state.prop.get(encodePropKey(nodeId, CONTENT_PROPERTY_KEY));
-  if (!isStringContentRegister(content)) {
+  if (!isProjectableContentRegister(content)) {
     return null;
   }
   return contentRecordFromRegisters(owner, {
@@ -84,7 +113,7 @@ function contentRecordForEdge(state: WarpState, owner: EdgeRecord): ContentAttac
     state.prop.get(encodeEdgePropKey(from, to, label, CONTENT_PROPERTY_KEY)),
     birthEvent,
   );
-  if (!isStringContentRegister(content)) {
+  if (!isProjectableContentRegister(content)) {
     return null;
   }
   return contentRecordFromRegisters(owner, {
@@ -116,8 +145,10 @@ function contentRecordFromRegisters(
 }
 
 /** Returns true when a register can supply a content storage reference. */
-function isStringContentRegister(register: Register | null | undefined): register is ContentRegister {
-  return register !== null && register !== undefined && typeof register.value === 'string';
+function isProjectableContentRegister(register: Register | null | undefined): register is ContentRegister {
+  return register !== null
+    && register !== undefined
+    && isProjectableContentOidValue(register.value);
 }
 
 /** Filters edge registers hidden by edge rebirth. */
@@ -176,6 +207,11 @@ function contentSizeFromValue(value: PropValue): ContentAttachmentSize | null {
 
 /** Returns true when a value can become attachment MIME metadata. */
 function isProjectableMimeValue(value: PropValue): value is string {
+  return typeof value === 'string' && value.length > 0 && !value.includes('\0');
+}
+
+/** Returns true when a value can become an attachment storage reference. */
+function isProjectableContentOidValue(value: PropValue): value is string {
   return typeof value === 'string' && value.length > 0 && !value.includes('\0');
 }
 

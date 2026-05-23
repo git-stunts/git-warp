@@ -63,7 +63,7 @@ Current branch state at this boundary:
 - Latest merged PR: #96, v18 Continuum slices 16 through 20 plus review
   repairs
 - Latest completed v18 implementation cycle:
-  `0171-v18-content-attachment-projection`
+  `0172-v18-query-content-projection-reads`
 
 The release ladder is now:
 
@@ -180,11 +180,12 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What comes next
 
-Run v18 slices 24 and 25 on this branch, then open the next PR. Generic
-attachments and content attachment projection now exist; the active work is
-routing reads and writes through the typed content cutover path. After that,
-continue with legacy property projection, graph-model migration tooling, and
-genesis replay equivalence.
+Run v18 slice 25 on this branch, then open the next PR. Generic attachments,
+content attachment projection, and projection-backed public content reads now
+exist; the active work is routing writes through typed content attachment
+intent before lowering to legacy compatibility properties. After that, continue
+with legacy property projection, graph-model migration tooling, and genesis
+replay equivalence.
 
 ## Running Task List
 
@@ -323,9 +324,12 @@ genesis replay equivalence.
   [0171-v18-content-attachment-projection](design/0171-v18-content-attachment-projection/v18-content-attachment-projection.md)
   adds `ContentAttachmentRecord` and `ContentAttachmentProjection.fromState()`
   with deterministic node/edge projection and lineage-sensitive metadata.
-- [ ] 24. Route content OID and metadata reads through the content attachment
-  projection while keeping public `getContent*` and `getEdgeContent*`
-  behavior stable.
+- [x] 24. Route content OID and metadata reads through the content attachment
+  projection:
+  [0172-v18-query-content-projection-reads](design/0172-v18-query-content-projection-reads/v18-query-content-projection-reads.md)
+  removes raw `_content*` register parsing from `QueryContent`, uses
+  targeted `ContentAttachmentProjection` selectors for node and edge reads,
+  and keeps malformed legacy content references out of public metadata.
 - [ ] 25. Make content writes construct typed content attachment intent before
   lowering to the current legacy `_content*` compatibility properties.
 - [ ] 26. Add the legacy property-bag projection service over attachment

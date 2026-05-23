@@ -48,6 +48,31 @@ describe('ContentAttachmentProjection', () => {
     expect(Object.isFrozen(records)).toBe(true);
   });
 
+  it('finds targeted node and edge content records without full projection callers', () => {
+    const state = WarpState.empty();
+    state.nodeAlive.add('doc:1', Dot.create('writer-a', 1));
+    state.nodeAlive.add('doc:2', Dot.create('writer-a', 2));
+    state.edgeAlive.add(encodeEdgeKey('doc:1', 'doc:2', 'links'), Dot.create('writer-a', 3));
+    const nodeEvent = event(4);
+    const edgeEvent = event(5);
+    state.prop.set(encodePropKey('doc:1', CONTENT_PROPERTY_KEY), { eventId: nodeEvent, value: 'node-oid' });
+    state.prop.set(encodeEdgePropKey('doc:1', 'doc:2', 'links', CONTENT_PROPERTY_KEY), {
+      eventId: edgeEvent,
+      value: 'edge-oid',
+    });
+
+    expect(describeContent(ContentAttachmentProjection.forNode(state, 'doc:1')))
+      .toBe('node:doc:1:node-oid:null:null');
+    expect(describeContent(ContentAttachmentProjection.forEdge(state, {
+      from: 'doc:1',
+      to: 'doc:2',
+      label: 'links',
+    }))).toBe(
+      'edge:legacy-edge:5:doc:1:5:doc:2:5:links:edge-oid:null:null',
+    );
+    expect(ContentAttachmentProjection.forNode(state, 'missing')).toBeNull();
+  });
+
   it('ignores stale metadata from earlier content lineages', () => {
     const state = WarpState.empty();
     state.nodeAlive.add('doc:1', Dot.create('writer-a', 1));
@@ -69,11 +94,14 @@ describe('ContentAttachmentProjection', () => {
     ]);
   });
 
-  it('does not project absent or non-string legacy content OIDs', () => {
+  it('does not project absent, malformed, or non-string legacy content OIDs', () => {
     const state = WarpState.empty();
     state.nodeAlive.add('doc:1', Dot.create('writer-a', 1));
     state.nodeAlive.add('doc:2', Dot.create('writer-a', 2));
+    state.nodeAlive.add('doc:3', Dot.create('writer-a', 3));
     state.prop.set(encodePropKey('doc:1', CONTENT_PROPERTY_KEY), { eventId: event(2), value: 123 });
+    state.prop.set(encodePropKey('doc:2', CONTENT_PROPERTY_KEY), { eventId: event(3), value: '' });
+    state.prop.set(encodePropKey('doc:3', CONTENT_PROPERTY_KEY), { eventId: event(4), value: 'bad\0oid' });
 
     expect(ContentAttachmentProjection.fromState(state)).toEqual([]);
   });
@@ -86,7 +114,10 @@ describe('ContentAttachmentProjection', () => {
   });
 });
 
-function describeContent(record: ContentAttachmentRecord): string {
+function describeContent(record: ContentAttachmentRecord | null): string {
+  if (record === null) {
+    return 'null';
+  }
   const mime = record.payload.mime?.toString() ?? 'null';
   const size = record.payload.size?.toNumber() ?? 'null';
   if (record.owner instanceof NodeRecord) {
