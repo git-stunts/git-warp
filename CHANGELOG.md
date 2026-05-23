@@ -82,6 +82,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- CI now runs the heavy `type-firewall` static gates as parallel child jobs
+  behind a small required aggregate status, so TypeScript, ESLint, Semgrep,
+  quarantine, declaration-surface, and Markdown checks no longer serialize
+  behind one long-running job.
 - V18 property projection closeout now routes `StateQueryReadModel.nodeProps`,
   translation-cost property-key accounting, and public property counts through
   property projection records so malformed compatibility keys cannot leak into
