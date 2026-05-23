@@ -116,7 +116,7 @@ Observed GREEN:
 ```text
 npx vitest run test/unit/domain/services/NodePropertyProjection.test.ts --reporter=verbose
 Test Files  1 passed (1)
-Tests  2 passed (2)
+Tests  4 passed (4)
 
 npx eslint src/domain/services/NodePropertyProjection.ts test/unit/domain/services/NodePropertyProjection.test.ts
 

@@ -116,11 +116,11 @@ Observed GREEN:
 ```text
 npx vitest run test/unit/domain/services/QueryReadsPropertyProjection.test.ts test/unit/domain/services/NodePropertyProjection.test.ts test/unit/domain/services/EdgePropertyProjection.test.ts --reporter=verbose
 Test Files  3 passed (3)
-Tests  5 passed (5)
+Tests  10 passed (10)
 
 npx vitest run test/unit/domain/WarpGraph.query.test.ts test/unit/domain/WarpGraph.edgeProps.test.ts test/unit/domain/WarpGraph.edgePropVisibility.test.ts test/unit/domain/services/QueryReadsPropertyProjection.test.ts --reporter=verbose
 Test Files  4 passed (4)
-Tests  47 passed (47)
+Tests  48 passed (48)
 
 npm run typecheck
 npm run lint
