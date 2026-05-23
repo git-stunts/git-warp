@@ -167,10 +167,25 @@ function visibleEdgeRegister(
 
 /** Returns true when metadata belongs to the same content write lineage. */
 function isSameLineage(left: EventId | null | undefined, right: EventId | null | undefined): boolean {
-  if (left === null || left === undefined || right === null || right === undefined) {
+  if (!hasEventId(left)) {
     return false;
   }
-  return compareEventIds(left, right) === 0;
+  if (!hasEventId(right)) {
+    return false;
+  }
+  return isSamePatchIdentity(left, right);
+}
+
+/** Returns true when a nullable event slot carries an event id. */
+function hasEventId(eventId: EventId | null | undefined): eventId is EventId {
+  return eventId !== null && eventId !== undefined;
+}
+
+/** Returns true when two operations belong to the same patch identity. */
+function isSamePatchIdentity(left: EventId, right: EventId): boolean {
+  return left.lamport === right.lamport
+    && left.writerId === right.writerId
+    && left.patchSha === right.patchSha;
 }
 
 /** Projects a MIME register into optional typed metadata. */

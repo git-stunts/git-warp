@@ -54,6 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- V18 content attachment projection now preserves existing same-patch metadata
+  lineage semantics when `_content`, `_content.mime`, and `_content.size` are
+  separate operations in one patch.
 - V18 graph-substrate review follow-up now keeps the public entry point under
   the source-size policy, makes node-id equality total for invalid runtime
   inputs, avoids repeated full edge projection during attachment materializing,

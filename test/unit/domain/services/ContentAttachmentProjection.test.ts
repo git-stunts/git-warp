@@ -94,6 +94,27 @@ describe('ContentAttachmentProjection', () => {
     ]);
   });
 
+  it('keeps metadata from the same patch lineage with different operation indexes', () => {
+    const state = WarpState.empty();
+    state.nodeAlive.add('doc:1', Dot.create('writer-a', 1));
+    state.prop.set(encodePropKey('doc:1', CONTENT_PROPERTY_KEY), {
+      eventId: event(2, 0),
+      value: 'same-patch-oid',
+    });
+    state.prop.set(encodePropKey('doc:1', CONTENT_MIME_PROPERTY_KEY), {
+      eventId: event(2, 1),
+      value: 'text/plain',
+    });
+    state.prop.set(encodePropKey('doc:1', CONTENT_SIZE_PROPERTY_KEY), {
+      eventId: event(2, 2),
+      value: 14,
+    });
+
+    expect(ContentAttachmentProjection.fromState(state).map(describeContent)).toEqual([
+      'node:doc:1:same-patch-oid:text/plain:14',
+    ]);
+  });
+
   it('does not project absent, malformed, or non-string legacy content OIDs', () => {
     const state = WarpState.empty();
     state.nodeAlive.add('doc:1', Dot.create('writer-a', 1));
@@ -129,6 +150,6 @@ function describeContent(record: ContentAttachmentRecord | null): string {
   return 'unknown';
 }
 
-function event(lamport: number): EventId {
-  return new EventId(lamport, 'writer-a', PATCH_SHA, 0);
+function event(lamport: number, opIndex = 0): EventId {
+  return new EventId(lamport, 'writer-a', PATCH_SHA, opIndex);
 }
