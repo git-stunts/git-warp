@@ -19,6 +19,8 @@ import WarpAppDefault, {
   ContentAttachmentMime,
   ContentAttachmentOid,
   ContentAttachmentPayload,
+  ContentAttachmentProjection,
+  ContentAttachmentRecord,
   ContentAttachmentSize,
   EdgeId,
   EdgeRecord,
@@ -184,6 +186,10 @@ describe('index.ts exports', () => {
       expect(typeof ContentAttachmentOid).toBe('function');
       expect(ContentAttachmentPayload).toBeDefined();
       expect(typeof ContentAttachmentPayload).toBe('function');
+      expect(ContentAttachmentProjection).toBeDefined();
+      expect(typeof ContentAttachmentProjection).toBe('function');
+      expect(ContentAttachmentRecord).toBeDefined();
+      expect(typeof ContentAttachmentRecord).toBe('function');
       expect(ContentAttachmentSize).toBeDefined();
       expect(typeof ContentAttachmentSize).toBe('function');
     });

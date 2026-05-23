@@ -63,7 +63,7 @@ Current branch state at this boundary:
 - Latest merged PR: #96, v18 Continuum slices 16 through 20 plus review
   repairs
 - Latest completed v18 implementation cycle:
-  `0170-v18-content-attachment-payload-nouns`
+  `0171-v18-content-attachment-projection`
 
 The release ladder is now:
 
@@ -180,12 +180,11 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What comes next
 
-Run v18 slices 23 through 25 on this branch, then open the next PR. Generic
-attachments and content payload nouns now exist; the active work is projecting
-legacy `_content*` attachments into typed content attachments, then routing
-reads and writes through that cutover path. After that, continue with legacy
-property projection, graph-model migration tooling, and genesis replay
-equivalence.
+Run v18 slices 24 and 25 on this branch, then open the next PR. Generic
+attachments and content attachment projection now exist; the active work is
+routing reads and writes through the typed content cutover path. After that,
+continue with legacy property projection, graph-model migration tooling, and
+genesis replay equivalence.
 
 ## Running Task List
 
@@ -319,8 +318,11 @@ equivalence.
   adds `ContentAttachmentOid`, `ContentAttachmentMime`,
   `ContentAttachmentSize`, and `ContentAttachmentPayload` without changing
   public reads, writes, or persistence.
-- [ ] 23. Project legacy `_content`, `_content.mime`, and `_content.size`
-  attachment records into typed content attachments for node and edge owners.
+- [x] 23. Project legacy `_content`, `_content.mime`, and `_content.size`
+  attachment records into typed content attachments for node and edge owners:
+  [0171-v18-content-attachment-projection](design/0171-v18-content-attachment-projection/v18-content-attachment-projection.md)
+  adds `ContentAttachmentRecord` and `ContentAttachmentProjection.fromState()`
+  with deterministic node/edge projection and lineage-sensitive metadata.
 - [ ] 24. Route content OID and metadata reads through the content attachment
   projection while keeping public `getContent*` and `getEdgeContent*`
   behavior stable.

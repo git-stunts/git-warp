@@ -184,6 +184,7 @@ import { NoOpEffectSink } from './src/infrastructure/adapters/NoOpEffectSink.ts'
 import { ConsoleEffectSink } from './src/infrastructure/adapters/ConsoleEffectSink.ts';
 import { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.ts';
 import SyncSecret from './src/domain/services/sync/SyncSecret.ts';
+import ContentAttachmentProjection from './src/domain/services/ContentAttachmentProjection.ts';
 import GraphOpAlgebraProjection from './src/domain/services/GraphOpAlgebraProjection.ts';
 import { openWarpGraph } from './src/domain/WarpGraph.ts';
 import { PatchBuilder } from './src/domain/services/PatchBuilder.ts';
@@ -455,6 +456,7 @@ export {
   ConsoleEffectSink,
   ChunkEffectSink,
   SyncSecret,
+  ContentAttachmentProjection,
 };
 
 export type {

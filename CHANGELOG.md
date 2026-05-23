@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 content cutover now exposes runtime-backed `ContentAttachmentOid`,
   `ContentAttachmentMime`, `ContentAttachmentSize`, and
   `ContentAttachmentPayload` nouns over the existing generic attachment plane.
+- V18 content cutover now projects legacy `_content*` state entries into typed
+  `ContentAttachmentRecord` values while preserving content metadata lineage.
 - V18 planning now records the post-slice-15 runway into graph-model substrate
   convergence, naming runtime-backed node records, stable edge records,
   attachment-plane substrate, and graph-op algebra as slices 17 through 20.
