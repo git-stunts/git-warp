@@ -197,7 +197,7 @@ and concrete checks live in `docs/invariants/`.
   [0180](design/0180-v18-property-write-intent-nouns/v18-property-write-intent-nouns.md).
 - [x] 33. Route PatchBuilder property writes through intent lowering:
   [0181](design/0181-v18-patchbuilder-property-intent-lowering/v18-patchbuilder-property-intent-lowering.md).
-- [ ] 34. Cut graph-op algebra over to property projections:
+- [x] 34. Cut graph-op algebra over to property projections:
   [0182](design/0182-v18-graph-op-projection-property-cutover/v18-graph-op-projection-property-cutover.md).
 - [ ] 35. Close out legacy-property projection with evidence:
   [0183](design/0183-v18-property-projection-closeout/v18-property-projection-closeout.md).

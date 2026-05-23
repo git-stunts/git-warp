@@ -12,8 +12,11 @@ export { default as EdgeId } from './EdgeId.ts';
 export { default as EdgeRecord } from './EdgeRecord.ts';
 export { default as EdgeTypeId } from './EdgeTypeId.ts';
 export { default as GraphAttachmentSetOp } from './GraphAttachmentSetOp.ts';
+export { default as GraphContentAttachmentSetOp } from './GraphContentAttachmentSetOp.ts';
 export { default as GraphEdgeRecordSetOp } from './GraphEdgeRecordSetOp.ts';
+export { default as GraphEdgePropertySetOp } from './GraphEdgePropertySetOp.ts';
 export { default as GraphNodeRecordSetOp } from './GraphNodeRecordSetOp.ts';
+export { default as GraphNodePropertySetOp } from './GraphNodePropertySetOp.ts';
 export { default as GraphOpAlgebra } from './GraphOpAlgebra.ts';
 export { default as LegacyEdgePropertyKey } from './LegacyEdgePropertyKey.ts';
 export { default as LegacyNodePropertyKey } from './LegacyNodePropertyKey.ts';
@@ -33,11 +36,20 @@ export {
   GRAPH_ATTACHMENT_SET_OP,
 } from './GraphAttachmentSetOp.ts';
 export {
+  GRAPH_CONTENT_ATTACHMENT_SET_OP,
+} from './GraphContentAttachmentSetOp.ts';
+export {
   GRAPH_EDGE_RECORD_SET_OP,
 } from './GraphEdgeRecordSetOp.ts';
 export {
+  GRAPH_EDGE_PROPERTY_SET_OP,
+} from './GraphEdgePropertySetOp.ts';
+export {
   GRAPH_NODE_RECORD_SET_OP,
 } from './GraphNodeRecordSetOp.ts';
+export {
+  GRAPH_NODE_PROPERTY_SET_OP,
+} from './GraphNodePropertySetOp.ts';
 export {
   LEGACY_PROPERTY_KEY_CONTENT_MIME,
   LEGACY_PROPERTY_KEY_CONTENT_OID,
@@ -62,8 +74,11 @@ export type {
 } from './EdgePropertyWriteIntent.ts';
 export type { EdgeRecordFields, LegacyEdgeFields } from './EdgeRecord.ts';
 export type { GraphAttachmentSetOpFields } from './GraphAttachmentSetOp.ts';
+export type { GraphContentAttachmentSetOpFields } from './GraphContentAttachmentSetOp.ts';
 export type { GraphEdgeRecordSetOpFields } from './GraphEdgeRecordSetOp.ts';
+export type { GraphEdgePropertySetOpFields } from './GraphEdgePropertySetOp.ts';
 export type { GraphNodeRecordSetOpFields } from './GraphNodeRecordSetOp.ts';
+export type { GraphNodePropertySetOpFields } from './GraphNodePropertySetOp.ts';
 export type { GraphOpAlgebraFields } from './GraphOpAlgebra.ts';
 export type { GraphOperation } from './GraphOperation.ts';
 export type { LegacyPropertyKeyClassification } from './LegacyPropertyKeyClassification.ts';

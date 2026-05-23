@@ -1,11 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
-import GraphAttachmentSetOp from '../../../../src/domain/graph/GraphAttachmentSetOp.ts';
+import GraphContentAttachmentSetOp from '../../../../src/domain/graph/GraphContentAttachmentSetOp.ts';
 import GraphEdgeRecordSetOp from '../../../../src/domain/graph/GraphEdgeRecordSetOp.ts';
+import GraphEdgePropertySetOp from '../../../../src/domain/graph/GraphEdgePropertySetOp.ts';
 import GraphNodeRecordSetOp from '../../../../src/domain/graph/GraphNodeRecordSetOp.ts';
+import GraphNodePropertySetOp from '../../../../src/domain/graph/GraphNodePropertySetOp.ts';
 import GraphOpAlgebraProjection from '../../../../src/domain/services/GraphOpAlgebraProjection.ts';
-import { encodeEdgeKey, encodeEdgePropKey, encodePropKey } from '../../../../src/domain/services/KeyCodec.ts';
+import {
+  CONTENT_MIME_PROPERTY_KEY,
+  CONTENT_PROPERTY_KEY,
+  CONTENT_SIZE_PROPERTY_KEY,
+  EDGE_PROP_PREFIX,
+  encodeEdgeKey,
+  encodeEdgePropKey,
+  encodePropKey,
+} from '../../../../src/domain/services/KeyCodec.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 
@@ -18,9 +28,19 @@ describe('GraphOpAlgebraProjection', () => {
     state.nodeAlive.add('node:b', Dot.create('writer-a', 2));
     state.edgeAlive.add(encodeEdgeKey('node:a', 'node:b', 'knows'), Dot.create('writer-a', 3));
     state.prop.set(encodePropKey('node:a', 'title'), { eventId: event(4), value: 'A' });
-    state.prop.set(encodeEdgePropKey('node:a', 'node:b', 'knows', 'weight'), {
+    state.prop.set(encodePropKey('node:a', CONTENT_PROPERTY_KEY), { eventId: event(5), value: 'oid-a' });
+    state.prop.set(encodePropKey('node:a', CONTENT_MIME_PROPERTY_KEY), {
       eventId: event(5),
+      value: 'text/plain',
+    });
+    state.prop.set(encodePropKey('node:a', CONTENT_SIZE_PROPERTY_KEY), { eventId: event(5), value: 12 });
+    state.prop.set(encodeEdgePropKey('node:a', 'node:b', 'knows', 'weight'), {
+      eventId: event(6),
       value: 7,
+    });
+    state.prop.set(`${EDGE_PROP_PREFIX}node:a\0node:b\0knows\0bad\0extra`, {
+      eventId: event(7),
+      value: 'ignored',
     });
 
     const algebra = GraphOpAlgebraProjection.fromState(state);
@@ -29,17 +49,19 @@ describe('GraphOpAlgebraProjection', () => {
       'GraphNodeRecordSet',
       'GraphNodeRecordSet',
       'GraphEdgeRecordSet',
-      'GraphAttachmentSet',
-      'GraphAttachmentSet',
+      'GraphContentAttachmentSet',
+      'GraphNodePropertySet',
+      'GraphEdgePropertySet',
     ]);
     expect(algebra.operations[0]).toBeInstanceOf(GraphNodeRecordSetOp);
     expect(algebra.operations[1]).toBeInstanceOf(GraphNodeRecordSetOp);
     expect(algebra.operations[2]).toBeInstanceOf(GraphEdgeRecordSetOp);
-    expect(algebra.operations[3]).toBeInstanceOf(GraphAttachmentSetOp);
-    expect(algebra.operations[4]).toBeInstanceOf(GraphAttachmentSetOp);
+    expect(algebra.operations[3]).toBeInstanceOf(GraphContentAttachmentSetOp);
+    expect(algebra.operations[4]).toBeInstanceOf(GraphNodePropertySetOp);
+    expect(algebra.operations[5]).toBeInstanceOf(GraphEdgePropertySetOp);
   });
 
-  it('does not expose legacy property ops as the graph substrate contract', () => {
+  it('does not expose legacy property ops or raw attachments as the graph substrate contract', () => {
     const state = WarpState.empty();
     state.nodeAlive.add('node:a', Dot.create('writer-a', 1));
     state.prop.set(encodePropKey('node:a', 'title'), { eventId: event(2), value: 'A' });
@@ -48,7 +70,8 @@ describe('GraphOpAlgebraProjection', () => {
       .operations
       .map((operation) => operation.type);
 
-    expect(typeNames).toEqual(['GraphNodeRecordSet', 'GraphAttachmentSet']);
+    expect(typeNames).toEqual(['GraphNodeRecordSet', 'GraphNodePropertySet']);
+    expect(typeNames).not.toContain('GraphAttachmentSet');
     expect(typeNames).not.toContain('NodePropSet');
     expect(typeNames).not.toContain('EdgePropSet');
     expect(typeNames).not.toContain('PropSet');

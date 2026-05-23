@@ -1,6 +1,9 @@
 import GraphAttachmentSetOp from './GraphAttachmentSetOp.ts';
+import GraphContentAttachmentSetOp from './GraphContentAttachmentSetOp.ts';
 import GraphEdgeRecordSetOp from './GraphEdgeRecordSetOp.ts';
+import GraphEdgePropertySetOp from './GraphEdgePropertySetOp.ts';
 import GraphNodeRecordSetOp from './GraphNodeRecordSetOp.ts';
+import GraphNodePropertySetOp from './GraphNodePropertySetOp.ts';
 import WarpError from '../errors/WarpError.ts';
 import type { GraphOperation } from './GraphOperation.ts';
 
@@ -43,12 +46,26 @@ function requireOperations(
 
 /** Requires a supported graph operation instance. */
 function requireOperation(operation: GraphOperation): GraphOperation {
-  if (
-    operation instanceof GraphNodeRecordSetOp
-    || operation instanceof GraphEdgeRecordSetOp
-    || operation instanceof GraphAttachmentSetOp
-  ) {
+  if (isRecordOperation(operation) || isProjectionOperation(operation)) {
     return operation;
   }
   throw new WarpError('GraphOpAlgebra operation must be a graph operation instance', 'E_VALIDATION');
+}
+
+/** Returns true when the operation is a core graph record operation. */
+function isRecordOperation(operation: GraphOperation): boolean {
+  return (
+    operation instanceof GraphNodeRecordSetOp
+    || operation instanceof GraphEdgeRecordSetOp
+    || operation instanceof GraphAttachmentSetOp
+  );
+}
+
+/** Returns true when the operation is a typed projection operation. */
+function isProjectionOperation(operation: GraphOperation): boolean {
+  return (
+    operation instanceof GraphContentAttachmentSetOp
+    || operation instanceof GraphNodePropertySetOp
+    || operation instanceof GraphEdgePropertySetOp
+  );
 }
