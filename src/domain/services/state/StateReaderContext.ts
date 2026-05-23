@@ -1,19 +1,15 @@
-import { compareEventIds, type EventId } from '../../utils/EventId.ts';
-import { type LWWRegister } from '../../crdt/LWW.ts';
-import {
-  CONTENT_MIME_PROPERTY_KEY,
-  CONTENT_PROPERTY_KEY,
-  CONTENT_SIZE_PROPERTY_KEY,
-  decodeEdgePropKey,
-  decodePropKey,
-  encodeEdgeKey,
-  encodeEdgePropKey,
-  encodePropKey,
-  isEdgePropKey,
-} from '../KeyCodec.ts';
+import EdgeRecord from '../../graph/EdgeRecord.ts';
+import NodeRecord from '../../graph/NodeRecord.ts';
+import { encodeEdgeKey } from '../KeyCodec.ts';
 import { createSnapshotPropValue } from '../ImmutableSnapshot.ts';
+import ContentAttachmentProjection from '../ContentAttachmentProjection.ts';
+import EdgePropertyProjection from '../EdgePropertyProjection.ts';
+import NodePropertyProjection from '../NodePropertyProjection.ts';
+import type ContentAttachmentRecord from '../../graph/ContentAttachmentRecord.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
+import type VisibleEdgePropertyRecord from '../../graph/VisibleEdgePropertyRecord.ts';
+import type VisibleNodePropertyRecord from '../../graph/VisibleNodePropertyRecord.ts';
 import type WarpState from './WarpState.ts';
 
 // ── Public types ────────────────────────────────────────────────────────────
@@ -48,140 +44,11 @@ export type StateReaderContext = {
   edgeContentMetaByKey: Map<string, ContentMeta | null>;
 };
 
-// ── Attachment lineage helpers ───────────────────────────────────────────────
-
-/**
- * Returns true when two registers were written in the same patch lineage.
- *
- * Content metadata is stored in sibling properties, so read-side helpers only
- * treat `_content.mime` / `_content.size` as current when they were written in
- * the same patch as the live `_content` reference.
- */
-function isSameAttachmentLineage(
-  contentEventId: EventId | undefined,
-  candidateEventId: EventId | undefined,
-): boolean {
-  return Boolean(
-    contentEventId
-      && candidateEventId
-      && contentEventId.lamport === candidateEventId.lamport
-      && contentEventId.writerId === candidateEventId.writerId
-      && contentEventId.patchSha === candidateEventId.patchSha,
-  );
-}
-
-/**
- * Filters an edge-property register against the edge birth event.
- */
-function visibleEdgeRegister(
-  register: LWWRegister<PropValue> | undefined,
-  birthEvent: EventId | undefined,
-): LWWRegister<PropValue> | null {
-  if (!register) {
-    return null;
-  }
-  if (birthEvent && compareEventIds(register.eventId, birthEvent) < 0) {
-    return null;
-  }
-  return register;
-}
-
 // ── Edge key helper ──────────────────────────────────────────────────────────
 
 /** Encodes a visible edge reference into a composite key string. */
 export function edgeKeyFromRef(edge: VisibleEdgeRef): string {
   return encodeEdgeKey(edge.from, edge.to, edge.label);
-}
-
-// ── Content register helpers ─────────────────────────────────────────────────
-
-type ContentRegisters = {
-  contentRegister: LWWRegister<string>;
-  mimeRegister: LWWRegister<PropValue> | null;
-  sizeRegister: LWWRegister<PropValue> | null;
-};
-
-/** Looks up the current node attachment registers directly from materialized state. */
-export function getNodeContentRegisters(state: WarpState, nodeId: string): ContentRegisters | null {
-  if (!state.nodeAlive.contains(nodeId)) {
-    return null;
-  }
-  const contentRegister = state.prop.get(encodePropKey(nodeId, CONTENT_PROPERTY_KEY));
-  if (!contentRegister || typeof contentRegister.value !== 'string') {
-    return null;
-  }
-  return {
-    contentRegister: contentRegister as LWWRegister<string>,
-    mimeRegister: state.prop.get(encodePropKey(nodeId, CONTENT_MIME_PROPERTY_KEY)) ?? null,
-    sizeRegister: state.prop.get(encodePropKey(nodeId, CONTENT_SIZE_PROPERTY_KEY)) ?? null,
-  };
-}
-
-/** Looks up the current edge attachment registers directly from materialized state. */
-export function getEdgeContentRegisters(state: WarpState, edge: VisibleEdgeRef): ContentRegisters | null {
-  const edgeKey = edgeKeyFromRef(edge);
-  if (!state.edgeAlive.contains(edgeKey)) {
-    return null;
-  }
-  if (!state.nodeAlive.contains(edge.from) || !state.nodeAlive.contains(edge.to)) {
-    return null;
-  }
-
-  const birthEvent = state.edgeBirthEvent?.get(edgeKey);
-
-  function getRegister(propKey: string): LWWRegister<PropValue> | null {
-    return visibleEdgeRegister(
-      state.prop.get(encodeEdgePropKey(edge.from, edge.to, edge.label, propKey)),
-      birthEvent,
-    );
-  }
-
-  const contentRegister = getRegister(CONTENT_PROPERTY_KEY);
-  if (!contentRegister || typeof contentRegister.value !== 'string') {
-    return null;
-  }
-
-  return {
-    contentRegister: contentRegister as LWWRegister<string>,
-    mimeRegister: getRegister(CONTENT_MIME_PROPERTY_KEY),
-    sizeRegister: getRegister(CONTENT_SIZE_PROPERTY_KEY),
-  };
-}
-
-// ── Metadata extraction helpers ──────────────────────────────────────────────
-
-/** Reads the value of an attachment sibling if it shares the same lineage. */
-function readAttachmentSiblingValue(
-  contentEventId: EventId | undefined,
-  register: LWWRegister<PropValue> | null | undefined,
-): PropValue | null {
-  if (!isSameAttachmentLineage(contentEventId, register?.eventId)) {
-    return null;
-  }
-  return register?.value ?? null;
-}
-
-/** Coerces a value to a MIME string or returns null. */
-function coerceMime(value: PropValue | null): string | null {
-  return typeof value === 'string' ? value : null;
-}
-
-/** Coerces a value to a non-negative integer size or returns null. */
-function coerceSize(value: PropValue | null): number | null {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null;
-}
-
-/** Extracts structured content metadata from attachment sibling properties. */
-export function extractContentMeta(
-  contentRegister: LWWRegister<string>,
-  mimeRegister: LWWRegister<PropValue> | null,
-  sizeRegister: LWWRegister<PropValue> | null,
-): ContentMeta {
-  return {
-    oid: contentRegister.value,
-    mime: coerceMime(readAttachmentSiblingValue(contentRegister.eventId, mimeRegister)),
-    size: coerceSize(readAttachmentSiblingValue(contentRegister.eventId, sizeRegister)),
-  };
 }
 
 // ── Cloning helpers ──────────────────────────────────────────────────────────
@@ -244,40 +111,38 @@ export function createNeighborIndex(
   return { outgoingByNode, incomingByNode };
 }
 
-/** Populates node and edge property indexes from materialized state registers. */
-export function populateVisibleProps(
-  state: WarpState,
-  indexes: {
-    visibleNodeIds: Set<string>;
-    nodePropsById: Map<string, MutableVisiblePropertyBag>;
-    edgePropsByKey: Map<string, MutableVisiblePropertyBag>;
-  },
-): void {
-  const { visibleNodeIds, nodePropsById, edgePropsByKey } = indexes;
-  for (const [propKey, register] of state.prop) {
-    if (!isEdgePropKey(propKey)) {
-      const { nodeId, propKey: key } = decodePropKey(propKey);
-      if (visibleNodeIds.has(nodeId)) {
-        nodePropsById.get(nodeId)![key] = createSnapshotPropValue(register.value);
-      }
-      continue;
-    }
+/** Builds projection-backed public node property rows. */
+export function createProjectionProps(state: WarpState): VisibleProjectionProp[] {
+  return NodePropertyProjection.fromState(state).map((record) => ({
+    node: record.owner.id.toString(),
+    key: record.key.toString(),
+    value: record.value.toPropValue(),
+  }));
+}
 
-    const decoded = decodeEdgePropKey(propKey);
-    const edge = { from: decoded.from, to: decoded.to, label: decoded.label };
-    const edgeKey = edgeKeyFromRef(edge);
-    const props = edgePropsByKey.get(edgeKey);
-    const birthEvent = state.edgeBirthEvent?.get(edgeKey);
-    if (
-      props === undefined
-      || (birthEvent !== undefined
-        && register.eventId !== null
-        && register.eventId !== undefined
-        && compareEventIds(register.eventId, birthEvent) < 0)
-    ) {
-      continue;
+/** Populates node property indexes from projection records. */
+export function populateVisibleNodeProps(
+  records: readonly VisibleNodePropertyRecord[],
+  nodePropsById: Map<string, MutableVisiblePropertyBag>,
+): void {
+  for (const record of records) {
+    const props = nodePropsById.get(record.owner.id.toString());
+    if (props !== undefined) {
+      props[record.key.toString()] = createSnapshotPropValue(record.value.toPropValue());
     }
-    props[decoded.propKey] = createSnapshotPropValue(register.value);
+  }
+}
+
+/** Populates edge property indexes from projection records. */
+export function populateVisibleEdgeProps(
+  records: readonly VisibleEdgePropertyRecord[],
+  edgePropsByKey: Map<string, MutableVisiblePropertyBag>,
+): void {
+  for (const record of records) {
+    const props = edgePropsByKey.get(edgeKeyFromRecord(record.owner));
+    if (props !== undefined) {
+      props[record.key.toString()] = createSnapshotPropValue(record.value.toPropValue());
+    }
   }
 }
 
@@ -297,17 +162,15 @@ export function createNodeContentMetaIndex(
   state: WarpState,
   nodeIds: string[],
 ): Map<string, ContentMeta | null> {
-  return new Map(
-    nodeIds.map((nodeId) => {
-      const registers = getNodeContentRegisters(state, nodeId);
-      return [
-        nodeId,
-        registers
-          ? extractContentMeta(registers.contentRegister, registers.mimeRegister, registers.sizeRegister)
-          : null,
-      ];
-    }),
+  const byNodeId: Map<string, ContentMeta | null> = new Map(
+    nodeIds.map((nodeId) => [nodeId, null]),
   );
+  for (const record of ContentAttachmentProjection.fromState(state)) {
+    if (record.owner instanceof NodeRecord) {
+      byNodeId.set(record.owner.id.toString(), contentMetaFromRecord(record));
+    }
+  }
+  return byNodeId;
 }
 
 /** Builds a content metadata index for all visible edges. */
@@ -315,15 +178,41 @@ export function createEdgeContentMetaIndex(
   state: WarpState,
   edges: VisibleEdgeRef[],
 ): Map<string, ContentMeta | null> {
-  return new Map(
-    edges.map((edge) => {
-      const registers = getEdgeContentRegisters(state, edge);
-      return [
-        edgeKeyFromRef(edge),
-        registers
-          ? extractContentMeta(registers.contentRegister, registers.mimeRegister, registers.sizeRegister)
-          : null,
-      ];
-    }),
+  const byEdgeKey: Map<string, ContentMeta | null> = new Map(
+    edges.map((edge) => [edgeKeyFromRef(edge), null]),
   );
+  for (const record of ContentAttachmentProjection.fromState(state)) {
+    if (record.owner instanceof EdgeRecord) {
+      byEdgeKey.set(edgeKeyFromRecord(record.owner), contentMetaFromRecord(record));
+    }
+  }
+  return byEdgeKey;
+}
+
+/** Returns projection records for visible node properties. */
+export function createNodePropertyRecords(state: WarpState): readonly VisibleNodePropertyRecord[] {
+  return NodePropertyProjection.fromState(state);
+}
+
+/** Returns projection records for visible edge properties. */
+export function createEdgePropertyRecords(state: WarpState): readonly VisibleEdgePropertyRecord[] {
+  return EdgePropertyProjection.fromState(state);
+}
+
+/** Encodes an edge record into the state-reader edge key. */
+function edgeKeyFromRecord(record: EdgeRecord): string {
+  return edgeKeyFromRef({
+    from: record.from.toString(),
+    to: record.to.toString(),
+    label: record.typeId.toString(),
+  });
+}
+
+/** Converts a typed content attachment record into public reader metadata. */
+function contentMetaFromRecord(record: ContentAttachmentRecord): ContentMeta {
+  return {
+    oid: record.payload.oid.toString(),
+    mime: record.payload.mime?.toString() ?? null,
+    size: record.payload.size?.toNumber() ?? null,
+  };
 }

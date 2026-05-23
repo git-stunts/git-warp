@@ -12,12 +12,16 @@ import {
   cloneNeighbors,
   createEdgeContentMetaIndex,
   createEdgePropIndex,
+  createEdgePropertyRecords,
   createNeighborIndex,
   createNodeContentMetaIndex,
   createNodePropIndex,
+  createNodePropertyRecords,
+  createProjectionProps,
   createVisibleEdges,
   edgeKeyFromRef,
-  populateVisibleProps,
+  populateVisibleEdgeProps,
+  populateVisibleNodeProps,
 } from './StateReaderContext.ts';
 import type { VisibleStateReader } from '../../types/VisibleStateReader.ts';
 import type { PropValue } from '../../types/PropValue.ts';
@@ -186,13 +190,19 @@ function buildReaderApi(context: StateReaderContext): VisibleStateReader {
 
 /** Builds the full reader context from materialized state, including all indexes. */
 function buildReaderContext(state: WarpState): StateReaderContext {
-  const projection = projectState(state);
+  const baseProjection = projectState(state);
+  const projection = {
+    nodes: baseProjection.nodes,
+    edges: baseProjection.edges,
+    props: createProjectionProps(state),
+  };
   const visibleNodeIds = new Set(projection.nodes);
   const nodePropsById = createNodePropIndex(projection.nodes);
   const edgePropsByKey = createEdgePropIndex(projection.edges);
   const { outgoingByNode, incomingByNode } = createNeighborIndex(projection.nodes, projection.edges);
 
-  populateVisibleProps(state, { visibleNodeIds, nodePropsById, edgePropsByKey });
+  populateVisibleNodeProps(createNodePropertyRecords(state), nodePropsById);
+  populateVisibleEdgeProps(createEdgePropertyRecords(state), edgePropsByKey);
 
   return {
     projection,

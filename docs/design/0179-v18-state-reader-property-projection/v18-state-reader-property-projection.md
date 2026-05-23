@@ -1,7 +1,7 @@
 ---
 cycle: 0179
 task_id: V18_state_reader_property_projection
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex

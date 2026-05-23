@@ -191,7 +191,7 @@ and concrete checks live in `docs/invariants/`.
   [0177](design/0177-v18-edge-property-projection/v18-edge-property-projection.md).
 - [x] 30. Route query property reads through projection:
   [0178](design/0178-v18-query-property-projection-reads/v18-query-property-projection-reads.md).
-- [ ] 31. Route state-reader property views through projection:
+- [x] 31. Route state-reader property views through projection:
   [0179](design/0179-v18-state-reader-property-projection/v18-state-reader-property-projection.md).
 - [ ] 32. Add property write intent nouns:
   [0180](design/0180-v18-property-write-intent-nouns/v18-property-write-intent-nouns.md).
