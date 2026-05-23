@@ -9,12 +9,17 @@ import createCurrentContinuumGeneratedFamilyInventory
   from '../../../../src/domain/continuum/createCurrentContinuumGeneratedFamilyInventory.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 
-function makePatchFact(): GitWarpWitnessedSuffixPatchFact {
+function makePatchFact(fields: {
+  readonly writerId?: string;
+  readonly patchSha?: string;
+  readonly lamport?: number;
+  readonly operationCount?: number;
+} = {}): GitWarpWitnessedSuffixPatchFact {
   return new GitWarpWitnessedSuffixPatchFact({
-    writerId: 'writer-a',
-    patchSha: 'a'.repeat(40),
-    lamport: 7,
-    operationCount: 2,
+    writerId: fields.writerId ?? 'writer-a',
+    patchSha: fields.patchSha ?? 'a'.repeat(40),
+    lamport: fields.lamport ?? 7,
+    operationCount: fields.operationCount ?? 2,
   });
 }
 
@@ -69,6 +74,15 @@ describe('GitWarpWitnessedSuffixSourceFacts', () => {
       patchSha: '',
       lamport: 7,
       operationCount: 2,
+    })).toThrow(WarpError);
+  });
+
+  it('rejects suffix patch facts outside canonical order', () => {
+    expect(() => makeSourceFacts({
+      patches: [
+        makePatchFact({ patchSha: 'b'.repeat(40), lamport: 8 }),
+        makePatchFact({ patchSha: 'a'.repeat(40), lamport: 7 }),
+      ],
     })).toThrow(WarpError);
   });
 });

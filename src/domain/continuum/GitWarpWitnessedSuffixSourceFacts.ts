@@ -100,13 +100,58 @@ function freezePatchFacts(
     throw new WarpError('witnessed suffix source facts require at least one patch', 'E_VALIDATION');
   }
   const checkedValues: GitWarpWitnessedSuffixPatchFact[] = [];
+  let previous: GitWarpWitnessedSuffixPatchFact | undefined;
   for (const value of values) {
-    if (!(value instanceof GitWarpWitnessedSuffixPatchFact)) {
-      throw new WarpError('patches must be GitWarpWitnessedSuffixPatchFact values', 'E_VALIDATION');
-    }
-    checkedValues.push(value);
+    const patchFact = requirePatchFact(value);
+    requireCanonicalPatchOrder(previous, patchFact);
+    checkedValues.push(patchFact);
+    previous = patchFact;
   }
   return Object.freeze(checkedValues);
+}
+
+/** Requires a runtime-backed suffix patch fact. */
+function requirePatchFact(value: GitWarpWitnessedSuffixPatchFact): GitWarpWitnessedSuffixPatchFact {
+  if (!(value instanceof GitWarpWitnessedSuffixPatchFact)) {
+    throw new WarpError('patches must be GitWarpWitnessedSuffixPatchFact values', 'E_VALIDATION');
+  }
+  return value;
+}
+
+/** Requires adjacent suffix patch facts to preserve canonical order. */
+function requireCanonicalPatchOrder(
+  previous: GitWarpWitnessedSuffixPatchFact | undefined,
+  current: GitWarpWitnessedSuffixPatchFact,
+): void {
+  if (previous !== undefined && comparePatchOrder(previous, current) > 0) {
+    throw new WarpError('patches must be ordered by lamport, writerId, and patchSha', 'E_VALIDATION');
+  }
+}
+
+/** Compares suffix patch facts by deterministic causal-public order. */
+function comparePatchOrder(
+  left: GitWarpWitnessedSuffixPatchFact,
+  right: GitWarpWitnessedSuffixPatchFact,
+): number {
+  if (left.lamport !== right.lamport) {
+    return left.lamport - right.lamport;
+  }
+  const writerComparison = compareStrings(left.writerId, right.writerId);
+  if (writerComparison !== 0) {
+    return writerComparison;
+  }
+  return compareStrings(left.patchSha, right.patchSha);
+}
+
+/** Compares ASCII protocol identifiers without locale-sensitive collation. */
+function compareStrings(left: string, right: string): number {
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
+  return 0;
 }
 
 /** Validates a required non-empty string. */
