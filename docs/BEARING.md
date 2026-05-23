@@ -45,7 +45,7 @@ Current branch state at this boundary:
 - Latest merged PR: #98, v18 design documents for slices 26 through 45
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
-  `0177-v18-edge-property-projection`
+  `0178-v18-query-property-projection-reads`
 - Current work: implementation branch `v18-continuum-slices-26-30`
 
 The current v18 graph-model posture is:
@@ -85,8 +85,8 @@ genesis-equivalence runway.
 
 ## What Feels Wrong
 
-- Property reads still have direct raw legacy property interpretation in
-  places such as query reads and state-reader context code.
+- Some non-query read surfaces still have direct raw legacy property
+  interpretation, especially state-reader context code.
 - Generic property writes still lower directly to legacy property operations;
   content writes are intent-backed, but property writes are not.
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -172,7 +172,7 @@ and concrete checks live in `docs/invariants/`.
   [0176](design/0176-v18-node-property-projection/v18-node-property-projection.md).
 - [x] 29. Add edge property projection:
   [0177](design/0177-v18-edge-property-projection/v18-edge-property-projection.md).
-- [ ] 30. Route query property reads through projection:
+- [x] 30. Route query property reads through projection:
   [0178](design/0178-v18-query-property-projection-reads/v18-query-property-projection-reads.md).
 - [ ] 31. Route state-reader property views through projection:
   [0179](design/0179-v18-state-reader-property-projection/v18-state-reader-property-projection.md).

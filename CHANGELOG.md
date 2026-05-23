@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- V18 query reads now route linear node property reads, edge property reads,
+  and edge-list property payloads through projection-backed compatibility
+  records instead of decoding raw property keys in the query controller.
 - V18 legacy property projection now exposes `EdgePropertyProjection`, a
   deterministic read projection from visible `WarpState` edge properties to
   runtime-backed compatibility records with edge-birth filtering.
