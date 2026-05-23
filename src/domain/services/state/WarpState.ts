@@ -11,6 +11,8 @@ import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { lwwMax, type LWWRegister } from '../../crdt/LWW.ts';
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
+import NodeId from '../../graph/NodeId.ts';
+import NodeRecord from '../../graph/NodeRecord.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 
 /**
@@ -51,6 +53,27 @@ export default class WarpState {
       observedFrontier: VersionVector.empty(),
       edgeBirthEvent: new Map(),
     });
+  }
+
+  /** Returns live graph nodes as deterministic runtime-backed records. */
+  nodeRecords(): readonly NodeRecord[] {
+    const nodeIds = this.nodeAlive.elements().sort(compareStrings);
+    const records = nodeIds.map((nodeId) => NodeRecord.fromLegacyNodeId(nodeId));
+    return Object.freeze(records);
+  }
+
+  /** Returns the live graph node record for the given id, if present. */
+  getNodeRecord(nodeId: string | NodeId): NodeRecord | null {
+    const id = normalizeNodeId(nodeId);
+    if (!this.nodeAlive.contains(id.toString())) {
+      return null;
+    }
+    return NodeRecord.fromLegacyNodeId(id.toString());
+  }
+
+  /** Returns true when the given node id has a live graph node record. */
+  hasNodeRecord(nodeId: string | NodeId): boolean {
+    return this.getNodeRecord(nodeId) !== null;
   }
 
   /** Creates a deep clone with independent data structures. */
@@ -159,4 +182,23 @@ export default class WarpState {
     }
     return result;
   }
+}
+
+/** Normalizes a node id carrier for state record reads. */
+function normalizeNodeId(value: string | NodeId): NodeId {
+  if (value instanceof NodeId) {
+    return value;
+  }
+  return new NodeId(value);
+}
+
+/** Compares protocol strings without locale-sensitive collation. */
+function compareStrings(left: string, right: string): number {
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
+  return 0;
 }

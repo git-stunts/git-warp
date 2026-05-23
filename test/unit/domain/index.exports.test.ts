@@ -14,6 +14,9 @@ import WarpAppDefault, {
   // Core classes
   GitGraphAdapter,
   GraphNode,
+  NodeId,
+  NodeRecord,
+  NodeTypeId,
   BitmapIndexBuilder,
   BitmapIndexReader,
   IndexRebuildService,
@@ -148,6 +151,15 @@ describe('index.ts exports', () => {
     it('exports GraphNode', () => {
       expect(GraphNode).toBeDefined();
       expect(typeof GraphNode).toBe('function');
+    });
+
+    it('exports graph node substrate nouns', () => {
+      expect(NodeId).toBeDefined();
+      expect(typeof NodeId).toBe('function');
+      expect(NodeRecord).toBeDefined();
+      expect(typeof NodeRecord).toBe('function');
+      expect(NodeTypeId).toBeDefined();
+      expect(typeof NodeTypeId).toBe('function');
     });
 
     it('exports BitmapIndexBuilder', () => {

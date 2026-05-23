@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 planning now records the post-slice-15 runway into graph-model substrate
   convergence, naming runtime-backed node records, stable edge records,
   attachment-plane substrate, and graph-op algebra as slices 17 through 20.
+- V18 graph-model convergence now exposes runtime-backed `NodeId`,
+  `NodeTypeId`, and `NodeRecord` nouns plus deterministic `WarpState`
+  node-record reads over legacy OR-Set liveness.
 - V18 Continuum compatibility now exposes a runtime-backed generated-family
   readiness inventory for receipt, settlement, neighborhood-core, and
   runtime-boundary families, separating projection-ready families from

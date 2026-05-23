@@ -45,7 +45,7 @@ Those doctrine and protocol surfaces live in
 
 ```text
 LAYER 0 (shape cut):
-  [ ] PROTO_echo-shaped-node-records
+  [x] PROTO_echo-shaped-node-records
   [ ] PROTO_echo-shaped-edge-records
   [ ] PROTO_attachment-plane-substrate
 

@@ -32,6 +32,9 @@
 
 import GitGraphAdapter from './src/infrastructure/adapters/GitGraphAdapter.ts';
 import GraphNode from './src/domain/entities/GraphNode.ts';
+import NodeId from './src/domain/graph/NodeId.ts';
+import NodeRecord from './src/domain/graph/NodeRecord.ts';
+import NodeTypeId from './src/domain/graph/NodeTypeId.ts';
 import BitmapIndexBuilder from './src/domain/services/index/BitmapIndexBuilder.ts';
 import BitmapIndexReader from './src/domain/services/index/BitmapIndexReader.ts';
 import IndexRebuildService from './src/domain/services/index/IndexRebuildService.ts';
@@ -198,6 +201,7 @@ import SnapshotORSet from './src/domain/services/snapshot/SnapshotORSet.ts';
 import SnapshotVersionVector from './src/domain/services/snapshot/SnapshotVersionVector.ts';
 import SnapshotWarpState from './src/domain/services/snapshot/SnapshotWarpState.ts';
 import type { PropValue } from './src/domain/types/PropValue.ts';
+import type { NodeRecordFields } from './src/domain/graph/NodeRecord.ts';
 import type { SnapshotPropValue } from './src/domain/services/snapshot/SnapshotPropValue.ts';
 import type { SyncRateLimitConfig } from './src/domain/services/sync/SyncRateLimiter.ts';
 import {
@@ -280,6 +284,9 @@ export {
   GitGraphAdapter,
   InMemoryGraphAdapter,
   GraphNode,
+  NodeId,
+  NodeRecord,
+  NodeTypeId,
   BitmapIndexBuilder,
   BitmapIndexReader,
   IndexRebuildService,
@@ -454,6 +461,7 @@ export {
 
 export type {
   PropValue,
+  NodeRecordFields,
   SnapshotPropValue,
   SyncRateLimitConfig,
   ContinuumArtifactAuthorityValue,

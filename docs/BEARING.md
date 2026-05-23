@@ -64,7 +64,7 @@ Current branch state at this boundary:
 - Latest merged PR: #95, v18 Continuum slices 11 through 15 plus review
   repairs
 - Latest completed v18 implementation cycle:
-  `0164-v18-post-15-graph-model-runway`
+  `0165-v18-node-record-identity`
 
 The release ladder is now:
 
@@ -175,11 +175,11 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What comes next
 
-Run v18 slices 17 through 20 in order on this branch, then open the next PR.
+Run v18 slices 18 through 20 in order on this branch, then open the next PR.
 Each slice gets a design document before implementation, RED before GREEN, and
 a BEARING update before the final commit for that slice. The active lane is
-`WL-4A-v18-graph-substrate-convergence`: runtime-backed node records, stable
-edge records, attachment-plane substrate, and graph-op algebra convergence.
+`WL-4A-v18-graph-substrate-convergence`: stable edge records,
+attachment-plane substrate, and graph-op algebra convergence.
 
 ## Running Task List
 
@@ -277,11 +277,12 @@ edge records, attachment-plane substrate, and graph-op algebra convergence.
   [0164-v18-post-15-graph-model-runway](design/0164-v18-post-15-graph-model-runway/v18-post-15-graph-model-runway.md)
   records `origin/main` at `c848f5d4`, retires the stale 11 through 15
   instruction, and names slices 17 through 20 as the next PR scope.
-- [ ] 17. Introduce runtime-backed node record identity:
+- [x] 17. Introduce runtime-backed node record identity:
   [0165-v18-node-record-identity](design/0165-v18-node-record-identity/v18-node-record-identity.md)
-  should pull `PROTO_echo-shaped-node-records` into a cycle while preserving
-  the doctrine that Echo pressure-tested the shared graph model but does not
-  own git-warp's Continuum role.
+  promotes `PROTO_echo-shaped-node-records`, adds `NodeId`, `NodeTypeId`, and
+  `NodeRecord`, exposes deterministic `WarpState` node-record reads over the
+  legacy OR-Set, and preserves the doctrine that Echo pressure-tested the
+  shared graph model but does not own git-warp's Continuum role.
 - [ ] 18. Introduce runtime-backed edge record identity:
   [0166-v18-edge-record-identity](design/0166-v18-edge-record-identity/v18-edge-record-identity.md)
   should split stable edge identity from the legacy `(from, to, label)` key
