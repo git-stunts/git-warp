@@ -64,7 +64,7 @@ Current branch state at this boundary:
 - Latest merged PR: #95, v18 Continuum slices 11 through 15 plus review
   repairs
 - Latest completed v18 implementation cycle:
-  `0166-v18-edge-record-identity`
+  `0167-v18-attachment-plane-substrate`
 
 The release ladder is now:
 
@@ -175,11 +175,10 @@ read-model groundwork, sync hardening, release gates, and package publishing.
 
 ## What comes next
 
-Run v18 slices 19 through 20 in order on this branch, then open the next PR.
+Run v18 slice 20 on this branch, then open the next PR.
 Each slice gets a design document before implementation, RED before GREEN, and
 a BEARING update before the final commit for that slice. The active lane is
-`WL-4A-v18-graph-substrate-convergence`: attachment-plane substrate and
-graph-op algebra convergence.
+`WL-4A-v18-graph-substrate-convergence`: graph-op algebra convergence.
 
 ## Running Task List
 
@@ -289,10 +288,12 @@ graph-op algebra convergence.
   `EdgeRecord`, exposes deterministic visible `WarpState` edge-record reads
   over legacy edge OR-Set liveness, and documents deterministic legacy
   `(from, to, label)` mapping.
-- [ ] 19. Add the attachment-plane substrate spine:
+- [x] 19. Add the attachment-plane substrate spine:
   [0167-v18-attachment-plane-substrate](design/0167-v18-attachment-plane-substrate/v18-attachment-plane-substrate.md)
-  should separate skeleton records from node and edge attachment slots before
-  content cutover.
+  promotes `PROTO_attachment-plane-substrate`, adds `AttachmentKey`,
+  `AttachmentSchemaVersion`, and `AttachmentRecord`, and exposes deterministic
+  `WarpState` attachment-record reads over visible legacy node and edge
+  properties before content cutover.
 - [ ] 20. Start graph-op algebra convergence:
   [0168-v18-graph-op-algebra-convergence](design/0168-v18-graph-op-algebra-convergence/v18-graph-op-algebra-convergence.md)
   should name the explicit node, edge, and attachment op family that can still

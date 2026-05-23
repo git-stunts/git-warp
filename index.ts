@@ -32,6 +32,9 @@
 
 import GitGraphAdapter from './src/infrastructure/adapters/GitGraphAdapter.ts';
 import GraphNode from './src/domain/entities/GraphNode.ts';
+import AttachmentKey from './src/domain/graph/AttachmentKey.ts';
+import AttachmentRecord from './src/domain/graph/AttachmentRecord.ts';
+import AttachmentSchemaVersion from './src/domain/graph/AttachmentSchemaVersion.ts';
 import EdgeId from './src/domain/graph/EdgeId.ts';
 import EdgeRecord from './src/domain/graph/EdgeRecord.ts';
 import EdgeTypeId from './src/domain/graph/EdgeTypeId.ts';
@@ -204,6 +207,10 @@ import SnapshotORSet from './src/domain/services/snapshot/SnapshotORSet.ts';
 import SnapshotVersionVector from './src/domain/services/snapshot/SnapshotVersionVector.ts';
 import SnapshotWarpState from './src/domain/services/snapshot/SnapshotWarpState.ts';
 import type { PropValue } from './src/domain/types/PropValue.ts';
+import type {
+  AttachmentOwnerRecord,
+  AttachmentRecordFields,
+} from './src/domain/graph/AttachmentRecord.ts';
 import type { EdgeRecordFields, LegacyEdgeFields } from './src/domain/graph/EdgeRecord.ts';
 import type { NodeRecordFields } from './src/domain/graph/NodeRecord.ts';
 import type { SnapshotPropValue } from './src/domain/services/snapshot/SnapshotPropValue.ts';
@@ -288,6 +295,9 @@ export {
   GitGraphAdapter,
   InMemoryGraphAdapter,
   GraphNode,
+  AttachmentKey,
+  AttachmentRecord,
+  AttachmentSchemaVersion,
   EdgeId,
   EdgeRecord,
   EdgeTypeId,
@@ -468,6 +478,8 @@ export {
 
 export type {
   PropValue,
+  AttachmentOwnerRecord,
+  AttachmentRecordFields,
   EdgeRecordFields,
   LegacyEdgeFields,
   NodeRecordFields,

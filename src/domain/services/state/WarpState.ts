@@ -11,11 +11,14 @@ import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { lwwMax, type LWWRegister } from '../../crdt/LWW.ts';
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
+import AttachmentKey from '../../graph/AttachmentKey.ts';
+import AttachmentRecord from '../../graph/AttachmentRecord.ts';
+import AttachmentSchemaVersion from '../../graph/AttachmentSchemaVersion.ts';
 import EdgeId from '../../graph/EdgeId.ts';
 import EdgeRecord from '../../graph/EdgeRecord.ts';
 import NodeId from '../../graph/NodeId.ts';
 import NodeRecord from '../../graph/NodeRecord.ts';
-import { decodeEdgeKey } from '../KeyCodec.ts';
+import { decodeEdgeKey, decodeEdgePropKey, decodePropKey, encodeEdgeKey, isEdgePropKey } from '../KeyCodec.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 
 /**
@@ -107,6 +110,19 @@ export default class WarpState {
   /** Returns true when the given edge id has a visible graph edge record. */
   hasEdgeRecord(edgeId: string | EdgeId): boolean {
     return this.getEdgeRecord(edgeId) !== null;
+  }
+
+  /** Returns visible node and edge payloads as deterministic attachment records. */
+  attachmentRecords(): readonly AttachmentRecord[] {
+    const records: AttachmentRecord[] = [];
+    for (const [propKey, register] of this.prop) {
+      const record = attachmentRecordForProperty(this, propKey, register);
+      if (record !== null) {
+        records.push(record);
+      }
+    }
+    records.sort(compareAttachmentRecords);
+    return Object.freeze(records);
   }
 
   /** Creates a deep clone with independent data structures. */
@@ -236,6 +252,85 @@ function normalizeNodeId(value: string | NodeId): NodeId {
 /** Compares edge records by deterministic id order. */
 function compareEdgeRecords(left: EdgeRecord, right: EdgeRecord): number {
   return compareStrings(left.id.toString(), right.id.toString());
+}
+
+/** Builds a visible attachment record from a legacy property map entry. */
+function attachmentRecordForProperty(
+  state: WarpState,
+  propKey: string,
+  register: LWWRegister<PropValue>,
+): AttachmentRecord | null {
+  if (isEdgePropKey(propKey)) {
+    return edgeAttachmentRecordForProperty(state, propKey, register);
+  }
+  return nodeAttachmentRecordForProperty(state, propKey, register);
+}
+
+/** Builds a node-owned attachment record from a legacy node property. */
+function nodeAttachmentRecordForProperty(
+  state: WarpState,
+  propKey: string,
+  register: LWWRegister<PropValue>,
+): AttachmentRecord | null {
+  const decoded = decodePropKey(propKey);
+  const owner = state.getNodeRecord(decoded.nodeId);
+  if (owner === null) {
+    return null;
+  }
+  return new AttachmentRecord({
+    owner,
+    key: new AttachmentKey(decoded.propKey),
+    value: register.value,
+    schemaVersion: AttachmentSchemaVersion.current(),
+  });
+}
+
+/** Builds an edge-owned attachment record from a legacy edge property. */
+function edgeAttachmentRecordForProperty(
+  state: WarpState,
+  propKey: string,
+  register: LWWRegister<PropValue>,
+): AttachmentRecord | null {
+  const decoded = decodeEdgePropKey(propKey);
+  const edgeKey = encodeEdgeKey(decoded.from, decoded.to, decoded.label);
+  if (isStaleEdgeAttachment(register, state.edgeBirthEvent.get(edgeKey))) {
+    return null;
+  }
+  const candidate = EdgeRecord.fromLegacyEdge(decoded);
+  const owner = state.getEdgeRecord(candidate.id);
+  if (owner === null) {
+    return null;
+  }
+  return new AttachmentRecord({
+    owner,
+    key: new AttachmentKey(decoded.propKey),
+    value: register.value,
+    schemaVersion: AttachmentSchemaVersion.current(),
+  });
+}
+
+/** Returns true when an edge attachment predates the current edge birth. */
+function isStaleEdgeAttachment(
+  register: LWWRegister<PropValue>,
+  birthEvent: EventId | undefined,
+): boolean {
+  if (birthEvent === undefined || register.eventId === null) {
+    return false;
+  }
+  return compareEventIds(register.eventId, birthEvent) < 0;
+}
+
+/** Compares attachment records by deterministic owner/key order. */
+function compareAttachmentRecords(left: AttachmentRecord, right: AttachmentRecord): number {
+  return compareStrings(attachmentRecordSortKey(left), attachmentRecordSortKey(right));
+}
+
+/** Returns the deterministic sort key for an attachment record. */
+function attachmentRecordSortKey(record: AttachmentRecord): string {
+  if (record.owner instanceof NodeRecord) {
+    return `node:${record.owner.id.toString()}:${record.key.toString()}`;
+  }
+  return `edge:${record.owner.id.toString()}:${record.key.toString()}`;
 }
 
 /** Compares protocol strings without locale-sensitive collation. */

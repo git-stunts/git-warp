@@ -47,7 +47,7 @@ Those doctrine and protocol surfaces live in
 LAYER 0 (shape cut):
   [x] PROTO_echo-shaped-node-records
   [x] PROTO_echo-shaped-edge-records
-  [ ] PROTO_attachment-plane-substrate
+  [x] PROTO_attachment-plane-substrate
 
 LAYER 1 (behavioral convergence):
   [ ] PROTO_graph-op-algebra-convergence
