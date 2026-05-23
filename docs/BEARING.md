@@ -45,7 +45,7 @@ Current branch state at this boundary:
 - Latest merged PR: #98, v18 design documents for slices 26 through 45
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
-  `0176-v18-node-property-projection`
+  `0177-v18-edge-property-projection`
 - Current work: implementation branch `v18-continuum-slices-26-30`
 
 The current v18 graph-model posture is:
@@ -170,7 +170,7 @@ and concrete checks live in `docs/invariants/`.
   [0175](design/0175-v18-legacy-property-projection-nouns/v18-legacy-property-projection-nouns.md).
 - [x] 28. Add node property projection:
   [0176](design/0176-v18-node-property-projection/v18-node-property-projection.md).
-- [ ] 29. Add edge property projection:
+- [x] 29. Add edge property projection:
   [0177](design/0177-v18-edge-property-projection/v18-edge-property-projection.md).
 - [ ] 30. Route query property reads through projection:
   [0178](design/0178-v18-query-property-projection-reads/v18-query-property-projection-reads.md).
