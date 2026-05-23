@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- V18 legacy property projection now exposes runtime-backed node property key,
+  edge property key, property value, visible node property record, visible
+  edge property record, and projection collection nouns.
 - V18 planning now records detailed design documents for slices 26 through 45,
   covering legacy property projection, property write intents, graph-model
   migration dry-run tooling, genesis replay equivalence, and the next

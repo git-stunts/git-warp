@@ -14,9 +14,15 @@ export { default as GraphAttachmentSetOp } from './GraphAttachmentSetOp.ts';
 export { default as GraphEdgeRecordSetOp } from './GraphEdgeRecordSetOp.ts';
 export { default as GraphNodeRecordSetOp } from './GraphNodeRecordSetOp.ts';
 export { default as GraphOpAlgebra } from './GraphOpAlgebra.ts';
+export { default as LegacyEdgePropertyKey } from './LegacyEdgePropertyKey.ts';
+export { default as LegacyNodePropertyKey } from './LegacyNodePropertyKey.ts';
+export { default as LegacyPropertyProjection } from './LegacyPropertyProjection.ts';
+export { default as LegacyPropertyValue } from './LegacyPropertyValue.ts';
 export { default as NodeId } from './NodeId.ts';
 export { default as NodeRecord } from './NodeRecord.ts';
 export { default as NodeTypeId } from './NodeTypeId.ts';
+export { default as VisibleEdgePropertyRecord } from './VisibleEdgePropertyRecord.ts';
+export { default as VisibleNodePropertyRecord } from './VisibleNodePropertyRecord.ts';
 
 export {
   CURRENT_ATTACHMENT_SCHEMA_VERSION,
@@ -30,6 +36,12 @@ export {
 export {
   GRAPH_NODE_RECORD_SET_OP,
 } from './GraphNodeRecordSetOp.ts';
+export {
+  LEGACY_PROPERTY_KEY_CONTENT_MIME,
+  LEGACY_PROPERTY_KEY_CONTENT_OID,
+  LEGACY_PROPERTY_KEY_CONTENT_SIZE,
+  LEGACY_PROPERTY_KEY_USER,
+} from './LegacyPropertyKeyClassification.ts';
 export {
   DEFAULT_NODE_TYPE_ID,
 } from './NodeTypeId.ts';
@@ -47,4 +59,8 @@ export type { GraphEdgeRecordSetOpFields } from './GraphEdgeRecordSetOp.ts';
 export type { GraphNodeRecordSetOpFields } from './GraphNodeRecordSetOp.ts';
 export type { GraphOpAlgebraFields } from './GraphOpAlgebra.ts';
 export type { GraphOperation } from './GraphOperation.ts';
+export type { LegacyPropertyKeyClassification } from './LegacyPropertyKeyClassification.ts';
+export type { LegacyPropertyProjectionFields } from './LegacyPropertyProjection.ts';
 export type { NodeRecordFields } from './NodeRecord.ts';
+export type { VisibleEdgePropertyRecordFields } from './VisibleEdgePropertyRecord.ts';
+export type { VisibleNodePropertyRecordFields } from './VisibleNodePropertyRecord.ts';

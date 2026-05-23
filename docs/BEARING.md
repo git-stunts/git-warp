@@ -45,7 +45,7 @@ Current branch state at this boundary:
 - Latest merged PR: #98, v18 design documents for slices 26 through 45
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
-  `0174-v18-post-25-property-projection-runway`
+  `0175-v18-legacy-property-projection-nouns`
 - Current work: implementation branch `v18-continuum-slices-26-30`
 
 The current v18 graph-model posture is:
@@ -166,7 +166,7 @@ and concrete checks live in `docs/invariants/`.
 - [x] 25. Route content writes through typed write intent.
 - [x] 26. Reset the post-25 property projection runway:
   [0174](design/0174-v18-post-25-property-projection-runway/v18-post-25-property-projection-runway.md).
-- [ ] 27. Add legacy property projection nouns:
+- [x] 27. Add legacy property projection nouns:
   [0175](design/0175-v18-legacy-property-projection-nouns/v18-legacy-property-projection-nouns.md).
 - [ ] 28. Add node property projection:
   [0176](design/0176-v18-node-property-projection/v18-node-property-projection.md).
