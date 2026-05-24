@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- V18 graph-model migration dry-run work now exposes runtime-backed migration
+  manifest nouns for source and target basis, node, edge, property, and
+  content mappings, warnings, and fatal planning failures without adding any
+  graph-history write path.
 - V18 property projection closeout now records the remaining raw
   legacy-property boundaries as compatibility, serialization, replay,
   reducer, index, or migration-source boundaries before graph-model migration

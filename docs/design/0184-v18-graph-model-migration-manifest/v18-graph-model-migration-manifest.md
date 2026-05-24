@@ -1,7 +1,7 @@
 ---
 cycle: 0184
 task_id: V18_graph_model_migration_manifest
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
@@ -95,11 +95,37 @@ npm run lint:sludge
 git diff --check HEAD
 ```
 
+## Evidence
+
+The slice adds runtime-backed migration manifest nouns under
+`src/domain/migrations/`:
+
+- `GraphModelMigrationManifestVersion`;
+- `GraphModelMigrationBasis`;
+- node, edge, property, and content mapping entries;
+- `GraphModelMigrationNotice`;
+- `GraphModelMigrationManifest`.
+
+The manifest constructor validates the source and target basis, freezes each
+mapping section, rejects duplicate legacy node, edge, property, and content
+mapping keys, and keeps warnings separate from fatal planning failures.
+Expected migration planning failures are represented as notice values rather
+than script side effects.
+
+No serializer, Git adapter, filesystem access, wall-clock access, or graph
+history write path was added in this slice.
+
 ## Closeout Criteria
 
 - Migration manifest nouns exist and are covered by constructor tests.
 - No serialization or filesystem code enters the domain.
 - Dry-run planning can target a manifest root in the next slices.
+
+## Closeout Outcome
+
+The manifest root is ready for migration source inventory and dry-run planner
+work. It is intentionally not yet a public API and intentionally not yet a
+transport schema; slice 40 owns the adapter-boundary serialization surface.
 
 ## SSJS Scorecard
 
