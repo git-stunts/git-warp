@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 graph-model migration dry-run work now includes a non-destructive CLI
   runner and request JSON adapter that validate source facts, invoke the pure
   planner, emit deterministic manifest output, and refuse write/apply modes.
+- V18 genesis replay equivalence now exposes runtime-backed proof nouns for
+  comparison basis, observer-visible reading facts, patch boundary evidence,
+  structured mismatches, proof summaries, and success/failure result values.
 - V18 graph-model migration dry-run work now exposes runtime-backed migration
   manifest nouns for source and target basis, node, edge, property, and
   content mappings, warnings, and fatal planning failures without adding any

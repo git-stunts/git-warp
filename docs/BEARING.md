@@ -184,6 +184,11 @@ request JSON artifact, decodes source facts at the infrastructure boundary,
 calls the pure dry-run planner, writes only an optional deterministic manifest
 artifact, reports summary counts, and refuses destructive apply/write verbs.
 
+Slice 42 is complete on this branch. Genesis equivalence now has
+runtime-backed comparison basis, reading fact, boundary evidence, mismatch,
+summary, and success/failure result nouns. The proof comparer returns
+structured expected failures instead of throwing for non-equivalent readings.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -298,7 +303,7 @@ and concrete checks live in `docs/invariants/`.
   [0188](design/0188-v18-migration-manifest-serialization/v18-migration-manifest-serialization.md).
 - [x] 41. Add the migration dry-run CLI:
   [0189](design/0189-v18-migration-dry-run-cli/v18-migration-dry-run-cli.md).
-- [ ] 42. Add genesis equivalence proof nouns:
+- [x] 42. Add genesis equivalence proof nouns:
   [0190](design/0190-v18-genesis-equivalence-nouns/v18-genesis-equivalence-nouns.md).
 - [ ] 43. Add genesis equivalence fixtures:
   [0191](design/0191-v18-genesis-equivalence-fixtures/v18-genesis-equivalence-fixtures.md).
