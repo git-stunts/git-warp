@@ -128,6 +128,29 @@ describe('StateReader property projection routing', () => {
       /Snapshot property value/,
     );
   });
+
+  it('rejects custom-prototype snapshot property objects during reader hydration', () => {
+    const payload = { safe: 'ok' };
+    Object.setPrototypeOf(payload, { inherited: 'not-a-property-bag' });
+
+    expect(() => createStateReader(snapshotWithPropertyValue(payload))).toThrow(
+      /Snapshot property value/,
+    );
+  });
+
+  it('rejects accessor-backed snapshot property objects without invoking getters', () => {
+    const payload = {};
+    Object.defineProperty(payload, 'trap', {
+      get() {
+        throw new RangeError('snapshot getter should not run');
+      },
+      enumerable: true,
+    });
+
+    expect(() => createStateReader(snapshotWithPropertyValue(payload))).toThrow(
+      /Snapshot property value/,
+    );
+  });
 });
 
 function stateWithProjectionFacts(): WarpState {

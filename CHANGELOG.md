@@ -83,8 +83,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - V18 snapshot-backed state-reader hydration now rejects cyclic property
-  values and prototype-polluting object keys at the snapshot boundary before
-  converting immutable property values back into projection-local registers.
+  values, prototype-polluting object keys, custom-prototype property bags, and
+  accessor-backed property objects at the snapshot boundary before converting
+  immutable property values back into projection-local registers.
 - V18 property projection review follow-up now removes newly introduced
   helper-level `unknown` suppressions from `PatchBuilder` property-value
   validation and refreshes graph-op projection docs and public substrate export

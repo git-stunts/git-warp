@@ -144,7 +144,7 @@ function propValueFromSnapshotWithSeen(
   if (isSnapshotPropValueArray(value)) {
     return propValueArrayFromSnapshot(value, seen);
   }
-  if (isSnapshotPropValueObject(value)) {
+  if (isSnapshotPropValueObjectCandidate(value)) {
     return propValueObjectFromSnapshot(value, seen);
   }
   return value;
@@ -169,6 +169,7 @@ function propValueObjectFromSnapshot(
   value: SnapshotPropValueObject,
   seen: WeakSet<object>,
 ): { [key: string]: PropValue } {
+  requireSnapshotPropValueObject(value);
   requireUnseenSnapshotPropertyValue(value, seen);
   seen.add(value);
   try {
@@ -190,12 +191,47 @@ function isSnapshotPropValueArray(
   return Array.isArray(value);
 }
 
-/** Returns true for snapshot property dictionary branches. */
-function isSnapshotPropValueObject(value: SnapshotPropValue): value is SnapshotPropValueObject {
+/** Returns true for possible snapshot property dictionary branches. */
+function isSnapshotPropValueObjectCandidate(
+  value: SnapshotPropValue,
+): value is SnapshotPropValueObject {
   return value !== null
     && typeof value === 'object'
     && !(value instanceof ImmutableBytes)
     && !Array.isArray(value);
+}
+
+/** Rejects non-plain or accessor-backed snapshot property dictionaries. */
+function requireSnapshotPropValueObject(value: SnapshotPropValueObject): void {
+  if (!isPlainSnapshotPropValueObject(value)) {
+    throw invalidSnapshotPropertyValueError();
+  }
+  if (!snapshotPropertyObjectHasOnlyDataDescriptors(value)) {
+    throw invalidSnapshotPropertyValueError();
+  }
+}
+
+/** Returns true for plain snapshot property dictionaries. */
+function isPlainSnapshotPropValueObject(value: SnapshotPropValueObject): boolean {
+  const prototype = Reflect.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+/** Returns true when snapshot properties cannot execute accessors. */
+function snapshotPropertyObjectHasOnlyDataDescriptors(value: SnapshotPropValueObject): boolean {
+  for (const descriptor of Object.values(Object.getOwnPropertyDescriptors(value))) {
+    if (!isDataPropertyDescriptor(descriptor)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Returns true for descriptors that expose data instead of accessors. */
+function isDataPropertyDescriptor(descriptor: PropertyDescriptor): boolean {
+  return Object.hasOwn(descriptor, 'value')
+    && descriptor.get === undefined
+    && descriptor.set === undefined;
 }
 
 /** Rejects cyclic snapshot value aliases before recursive hydration. */
