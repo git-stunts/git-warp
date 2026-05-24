@@ -1,4 +1,4 @@
-import { mkdtemp } from 'node:fs/promises';
+import { copyFile, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vitest';
@@ -85,4 +85,47 @@ describe('v18 v17 fixture wet-run harness', () => {
       targetDirectory: '',
     })).rejects.toThrow(/targetDirectory/);
   });
+
+  it('fails closed when a fixture property fact cannot be mapped', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-bad-property-'));
+    const manifestPath = await fixtureVariant(directory, (raw) => raw.replace(
+      '"key": "node:alpha:title"',
+      '"key": "title"',
+    ));
+
+    await expect(runV17GoldenGraphFixtureWetRun({
+      manifestPath,
+      targetDirectory: join(directory, 'target'),
+    })).rejects.toThrow(/owner:property public key format/);
+  });
+
+  it('fails closed when a fixture edge fact lowers to an invalid scratch target', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-bad-edge-'));
+    const manifestPath = await fixtureVariant(directory, (raw) => raw.replace(
+      '"key": "node:alpha->node:beta:relates"',
+      '"key": "edge-without-target-shape"',
+    ));
+
+    await expect(runV17GoldenGraphFixtureWetRun({
+      manifestPath,
+      targetDirectory: join(directory, 'target'),
+    })).rejects.toThrow(/from->to:label/);
+  });
 });
+
+async function fixtureVariant(
+  directory: string,
+  rewrite: (raw: string) => string,
+): Promise<string> {
+  const manifestPath = join(directory, 'manifest.json');
+  await copyFile(
+    resolve('fixtures/v17/graph-model-golden/v17-golden-graph.bundle'),
+    join(directory, 'v17-golden-graph.bundle'),
+  );
+  await writeFile(
+    manifestPath,
+    rewrite(await readFile(FIXTURE_MANIFEST_PATH, 'utf8')),
+    'utf8',
+  );
+  return manifestPath;
+}
