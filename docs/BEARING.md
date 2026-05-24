@@ -419,7 +419,8 @@ report records zero public-read mismatches.
   [0222](design/0222-v18-wet-run-drift-checks/v18-wet-run-drift-checks.md).
 - [x] 75. Replan with production-runtime replay evidence in hand:
   [0223](design/0223-v18-production-replay-drift-checkup/v18-production-replay-drift-checkup.md).
-- [ ] 76. Classify the five canonical wet-run public-read mismatches.
+- [x] 76. Classify the five canonical wet-run public-read mismatches:
+  [0224](design/0224-v18-wet-run-mismatch-classification/v18-wet-run-mismatch-classification.md).
 - [ ] 77. Align fixture property values with public-read migration semantics.
 - [ ] 78. Align fixture content attachment evidence with runtime content OIDs.
 - [ ] 79. Add edge-endpoint node coverage or document the fixture edge model.

@@ -1,5 +1,9 @@
 import GraphModelMigrationNotice
   from '../../../../src/domain/migrations/GraphModelMigrationNotice.ts';
+import GenesisEquivalenceProofFailure
+  from '../../../../src/domain/migrations/GenesisEquivalenceProofFailure.ts';
+import type GenesisEquivalenceMismatch
+  from '../../../../src/domain/migrations/GenesisEquivalenceMismatch.ts';
 import {
   GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_FAILED,
 } from '../../../../src/domain/migrations/GraphModelMigrationRuntimeReplayResult.ts';
@@ -21,6 +25,7 @@ export function formatV17GoldenGraphFixtureWetRunReport(
     `restoredRefs: ${checkedResult.restoreResult.restoredRefs.length}`,
     ...restoredRefLines(checkedResult),
     ...commandLines(checkedResult),
+    ...mismatchLines(checkedResult),
     ...runtimeReplayLines(checkedResult),
     ...driftCheckLines(checkedResult),
   ].join('\n');
@@ -36,6 +41,29 @@ function commandLines(result: V17GoldenGraphFixtureWetRunHarnessResult): readonl
   return Object.freeze(formatGraphModelMigrationCommandReport(result.commandResult)
     .split('\n')
     .map((line) => `command.${line}`));
+}
+
+function mismatchLines(result: V17GoldenGraphFixtureWetRunHarnessResult): readonly string[] {
+  const gateResult = result.commandResult.gateResult;
+  if (gateResult === null || !(gateResult.proofResult instanceof GenesisEquivalenceProofFailure)) {
+    return Object.freeze([]);
+  }
+  return Object.freeze([
+    'mismatches:',
+    ...gateResult.proofResult.mismatches.map(formatMismatchLine),
+  ]);
+}
+
+function formatMismatchLine(mismatch: GenesisEquivalenceMismatch): string {
+  return [
+    '-',
+    mismatch.kind,
+    mismatch.factKind,
+    displayValue(mismatch.factKey),
+    displayValue(mismatch.fieldPath),
+    `legacy=${displayNullable(mismatch.legacyValue)}`,
+    `migrated=${displayNullable(mismatch.migratedValue)}`,
+  ].join(' ');
 }
 
 function runtimeReplayLines(result: V17GoldenGraphFixtureWetRunHarnessResult): readonly string[] {
@@ -69,6 +97,19 @@ function driftCheckLines(result: V17GoldenGraphFixtureWetRunHarnessResult): read
 
 function fatalNoticeLines(fatalErrors: readonly GraphModelMigrationNotice[]): readonly string[] {
   return Object.freeze(fatalErrors.map((notice) => `- ${notice.code}: ${notice.message}`));
+}
+
+function displayNullable(value: string | null): string {
+  if (value === null) {
+    return '(none)';
+  }
+  return displayValue(value);
+}
+
+function displayValue(value: string): string {
+  return value
+    .replaceAll('\0', '\\0')
+    .replaceAll('\n', '\\n');
 }
 
 function requireHarnessResult(
