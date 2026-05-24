@@ -415,7 +415,8 @@ language. The final five are release-candidate hardening and go/no-go work.
   [0220](design/0220-v18-wet-run-operator-report/v18-wet-run-operator-report.md).
 - [x] 73. Add wet-run failure fixtures for divergence and malformed history:
   [0221](design/0221-v18-wet-run-failure-fixtures/v18-wet-run-failure-fixtures.md).
-- [ ] 74. Add pre-finalization drift checks to the wet-run harness.
+- [x] 74. Add pre-finalization drift checks to the wet-run harness:
+  [0222](design/0222-v18-wet-run-drift-checks/v18-wet-run-drift-checks.md).
 - [ ] 75. Replan with production-runtime replay evidence in hand.
 - [ ] 76. Design live finalization CLI confirmation and reporting.
 - [ ] 77. Add finalization request JSON and confirmation adapters.

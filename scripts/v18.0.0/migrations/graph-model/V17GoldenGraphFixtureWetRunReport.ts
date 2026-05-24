@@ -22,6 +22,7 @@ export function formatV17GoldenGraphFixtureWetRunReport(
     ...restoredRefLines(checkedResult),
     ...commandLines(checkedResult),
     ...runtimeReplayLines(checkedResult),
+    ...driftCheckLines(checkedResult),
   ].join('\n');
 }
 
@@ -50,6 +51,18 @@ function runtimeReplayLines(result: V17GoldenGraphFixtureWetRunHarnessResult): r
   if (runtimeReplay.status === GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_FAILED) {
     lines.push('runtimeReplayFatalErrors:');
     lines.push(...fatalNoticeLines(runtimeReplay.fatalErrors));
+  }
+  return Object.freeze(lines);
+}
+
+function driftCheckLines(result: V17GoldenGraphFixtureWetRunHarnessResult): readonly string[] {
+  const lines = [
+    `driftCheck: ${result.driftCheckResult.status}`,
+    `driftCheckedRefs: ${result.driftCheckResult.checkedRefCount}`,
+  ];
+  if (result.driftCheckResult.fatalErrors.length > 0) {
+    lines.push('driftCheckFatalErrors:');
+    lines.push(...fatalNoticeLines(result.driftCheckResult.fatalErrors));
   }
   return Object.freeze(lines);
 }

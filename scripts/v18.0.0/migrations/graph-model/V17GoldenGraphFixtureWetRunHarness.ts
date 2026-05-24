@@ -9,6 +9,8 @@ import GraphModelMigrationNodeMapping
   from '../../../../src/domain/migrations/GraphModelMigrationNodeMapping.ts';
 import GraphModelMigrationPropertyMapping
   from '../../../../src/domain/migrations/GraphModelMigrationPropertyMapping.ts';
+import GraphModelMigrationNotice
+  from '../../../../src/domain/migrations/GraphModelMigrationNotice.ts';
 import GraphModelMigrationRuntimeReplayRequest
   from '../../../../src/domain/migrations/GraphModelMigrationRuntimeReplayRequest.ts';
 import GraphModelMigrationRuntimeReplayResult
@@ -35,8 +37,15 @@ import {
   restoreV17GoldenGraphFixture,
   type V17GoldenGraphFixtureRestoreResult,
 } from './V17GoldenGraphFixtureRestore.ts';
+import { runMigrationGit } from './GitMigrationCommandRunner.ts';
 
 const DEFAULT_SCRATCH_REF_PREFIX = 'refs/warp-migration-scratch';
+export const V17_WET_RUN_DRIFT_CHECK_PASSED = 'passed';
+export const V17_WET_RUN_DRIFT_CHECK_FAILED = 'failed';
+
+export type V17GoldenGraphFixtureWetRunDriftCheckStatus =
+  | typeof V17_WET_RUN_DRIFT_CHECK_PASSED
+  | typeof V17_WET_RUN_DRIFT_CHECK_FAILED;
 
 export type V17GoldenGraphFixtureWetRunHarnessOptions = {
   readonly manifestPath: string;
@@ -51,6 +60,18 @@ export class V17GoldenGraphFixtureWetRunHarnessResult {
     readonly restoreResult: V17GoldenGraphFixtureRestoreResult,
     readonly commandResult: GraphModelMigrationCommandResult,
     readonly runtimeReplayResult: GraphModelMigrationRuntimeReplayResult | null,
+    readonly driftCheckResult: V17GoldenGraphFixtureWetRunDriftCheckResult,
+  ) {
+    Object.freeze(this);
+  }
+}
+
+/** Source-ref drift evidence captured before any future finalization step. */
+export class V17GoldenGraphFixtureWetRunDriftCheckResult {
+  constructor(
+    readonly status: V17GoldenGraphFixtureWetRunDriftCheckStatus,
+    readonly checkedRefCount: number,
+    readonly fatalErrors: readonly GraphModelMigrationNotice[],
   ) {
     Object.freeze(this);
   }
@@ -116,10 +137,56 @@ export async function runV17GoldenGraphFixtureWetRun(
       }),
     })
     : null;
+  const driftCheckResult = await checkV17GoldenGraphFixtureWetRunDrift({
+    repositoryPath: restoreResult.repositoryPath,
+    manifest: restoreResult.manifest,
+  });
   return new V17GoldenGraphFixtureWetRunHarnessResult(
     restoreResult,
     commandResult,
     runtimeReplayResult,
+    driftCheckResult,
+  );
+}
+
+/** Verifies restored source writer refs still match manifest evidence. */
+export async function checkV17GoldenGraphFixtureWetRunDrift(options: {
+  readonly repositoryPath: string;
+  readonly manifest: V17GoldenGraphFixtureManifest;
+}): Promise<V17GoldenGraphFixtureWetRunDriftCheckResult> {
+  const repositoryPath = requireNonEmptyString(options.repositoryPath, 'repositoryPath');
+  const manifest = requireManifest(options.manifest);
+  const fatalErrors: GraphModelMigrationNotice[] = [];
+  for (const chain of manifest.writerChains) {
+    const observedHead = await gitTextOrNull(repositoryPath, [
+      'show-ref',
+      '--verify',
+      '--hash',
+      chain.refName,
+    ]);
+    if (observedHead !== chain.expectedHead) {
+      fatalErrors.push(GraphModelMigrationNotice.fatal(
+        'E_WET_RUN_SOURCE_REF_DRIFT',
+        `source ref ${chain.refName} expected ${chain.expectedHead}, got ${observedHead ?? '(missing)'}`,
+      ));
+      continue;
+    }
+    const observedPatchCount = Number(await gitTextOrNull(repositoryPath, [
+      'rev-list',
+      '--count',
+      chain.refName,
+    ]));
+    if (observedPatchCount !== chain.patchCount) {
+      fatalErrors.push(GraphModelMigrationNotice.fatal(
+        'E_WET_RUN_SOURCE_REF_PATCH_COUNT_DRIFT',
+        `source ref ${chain.refName} expected ${chain.patchCount} patches, got ${observedPatchCount}`,
+      ));
+    }
+  }
+  return new V17GoldenGraphFixtureWetRunDriftCheckResult(
+    fatalErrors.length === 0 ? V17_WET_RUN_DRIFT_CHECK_PASSED : V17_WET_RUN_DRIFT_CHECK_FAILED,
+    manifest.writerChains.length,
+    fatalErrors,
   );
 }
 
@@ -189,9 +256,26 @@ function defaultScratchRefName(manifest: V17GoldenGraphFixtureManifest): string 
   return `${DEFAULT_SCRATCH_REF_PREFIX}/${manifest.graphId}/wet-run`;
 }
 
+function requireManifest(manifest: V17GoldenGraphFixtureManifest): V17GoldenGraphFixtureManifest {
+  if (!(manifest instanceof V17GoldenGraphFixtureManifest)) {
+    throw new V17GoldenGraphFixtureWetRunHarnessError(
+      'manifest must be a V17GoldenGraphFixtureManifest',
+    );
+  }
+  return manifest;
+}
+
 function requireNonEmptyString(value: string, name: string): string {
   if (typeof value !== 'string' || value.length === 0) {
     throw new V17GoldenGraphFixtureWetRunHarnessError(`${name} must be a non-empty string`);
   }
   return value;
+}
+
+async function gitTextOrNull(repositoryPath: string, args: readonly string[]): Promise<string | null> {
+  const result = await runMigrationGit(repositoryPath, args, null);
+  if (!result.ok()) {
+    return null;
+  }
+  return result.stdout.trim();
 }

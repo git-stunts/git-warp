@@ -3,10 +3,20 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vitest';
 
-import { runV17GoldenGraphFixtureWetRun }
+import {
+  checkV17GoldenGraphFixtureWetRunDrift,
+  runV17GoldenGraphFixtureWetRun,
+  V17_WET_RUN_DRIFT_CHECK_FAILED,
+  V17_WET_RUN_DRIFT_CHECK_PASSED,
+}
   from '../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureWetRunHarness.ts';
 import { formatV17GoldenGraphFixtureWetRunReport }
   from '../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureWetRunReport.ts';
+import {
+  restoreV17GoldenGraphFixture,
+} from '../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureRestore.ts';
+import { runMigrationGit }
+  from '../../../scripts/v18.0.0/migrations/graph-model/GitMigrationCommandRunner.ts';
 import {
   GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_PASSED,
 } from '../../../src/domain/migrations/GraphModelMigrationRuntimeReplayResult.ts';
@@ -34,6 +44,8 @@ describe('v18 v17 fixture wet-run harness', () => {
     expect(result.commandResult.finalizationResult).toBeNull();
     expect(result.runtimeReplayResult?.status).toBe(GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_PASSED);
     expect(result.runtimeReplayResult?.replayedOperationCount).toBe(4);
+    expect(result.driftCheckResult.status).toBe(V17_WET_RUN_DRIFT_CHECK_PASSED);
+    expect(result.driftCheckResult.checkedRefCount).toBe(2);
   });
 
   it('records the current public-read equivalence gap as explicit wet-run evidence', async () => {
@@ -71,6 +83,35 @@ describe('v18 v17 fixture wet-run harness', () => {
     expect(first).toContain('command.mismatches: 5');
     expect(first).toContain('runtimeReplay: passed');
     expect(first).toContain('runtimeReplayOperations: 4');
+    expect(first).toContain('driftCheck: passed');
+    expect(first).toContain('driftCheckedRefs: 2');
+  });
+
+  it('detects restored source ref drift before future finalization', async () => {
+    const targetDirectory = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-drift-'));
+    const restoreResult = await restoreV17GoldenGraphFixture({
+      manifestPath: FIXTURE_MANIFEST_PATH,
+      targetDirectory,
+    });
+    const bobHead = restoreResult.restoredRefs[1]?.head;
+    if (bobHead === undefined) {
+      throw new Error('fixture must restore bob ref');
+    }
+    await gitOk(restoreResult.repositoryPath, [
+      'update-ref',
+      'refs/warp/v17-golden-graph/writers/alice',
+      bobHead,
+    ]);
+
+    const driftCheck = await checkV17GoldenGraphFixtureWetRunDrift({
+      repositoryPath: restoreResult.repositoryPath,
+      manifest: restoreResult.manifest,
+    });
+
+    expect(driftCheck.status).toBe(V17_WET_RUN_DRIFT_CHECK_FAILED);
+    expect(driftCheck.fatalErrors.map((notice) => notice.code)).toEqual([
+      'E_WET_RUN_SOURCE_REF_DRIFT',
+    ]);
   });
 
   it('rejects empty harness paths before restore work', async () => {
@@ -128,4 +169,10 @@ async function fixtureVariant(
     'utf8',
   );
   return manifestPath;
+}
+
+async function gitOk(repositoryPath: string, args: readonly string[]): Promise<string> {
+  const result = await runMigrationGit(repositoryPath, args, null, { deterministicIdentity: true });
+  expect(result.ok()).toBe(true);
+  return result.stdout.trim();
 }
