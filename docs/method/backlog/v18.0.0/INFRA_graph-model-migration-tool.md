@@ -62,6 +62,8 @@ Remaining migration-tool work is intentionally ordered as:
 - slice 56: construct legacy fixture genesis readings (complete);
 - slice 57: construct scratch operation genesis readings (complete);
 - slice 58: add command reading providers (complete).
+- slice 59: add a scratch runtime conformance provider (operation-history
+  readback complete; production runtime replay still release-critical).
 
 ## Starting points
 

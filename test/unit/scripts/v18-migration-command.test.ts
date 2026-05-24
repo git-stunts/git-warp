@@ -264,9 +264,9 @@ function confirmation(): GraphModelMigrationFinalizationConfirmation {
   });
 }
 
-function runtimeConformance(
+async function runtimeConformance(
   scratchWriteResult: GraphModelMigrationScratchWriteResult,
-): GraphModelMigrationRuntimeConformanceResult | null {
+): Promise<GraphModelMigrationRuntimeConformanceResult | null> {
   if (scratchWriteResult.scratchRef === null || scratchWriteResult.scratchHead === null) {
     return null;
   }

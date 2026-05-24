@@ -138,6 +138,9 @@ The current v18 graph-model posture is:
   genesis-equivalence readings with scratch commit boundary evidence.
 - The migration command can now construct equivalence readings through command
   reading providers after scratch writing.
+- Scratch migration runtime conformance now has an adapter-level provider that
+  verifies the scratch ref still points at the expected head and reads
+  operation commits back into genesis evidence.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -315,19 +318,18 @@ review.
 - Temporal replay still extracts node snapshots from the raw legacy property
   map because historical replay tests carry pre-codec inline fixture classes
   that are not `PropValue`-honest enough for `LegacyPropertyValue`.
-- The v18 migration tool can now write scratch history and gate supplied
-  readings, but it does not yet replay scratch Git output into
-  observer-visible readings for equivalence.
+- The v18 migration tool can now write scratch history and derive scratch
+  operation readings, but it does not yet open scratch output through the full
+  production graph runtime.
 - Genesis equivalence is a gate vocabulary now, but not yet a full real-history
   ship gate wired through finalization.
 - Compact equivalence fixtures are not enough by themselves. The golden v17
   fixture now restores Git refs and source inventory consumes those refs, but
   the command still needs real-history reading construction from migrated Git
   output.
-- The next migration work must build real-history reading construction plus a
-  real runtime conformance provider. The command can orchestrate supplied
-  readings, but it does not yet derive those readings from migrated Git
-  history.
+- The next migration work must wire real-history reading and runtime
+  conformance providers through finalization, then broaden the evidence beyond
+  scratch operation readback where the production runtime needs it.
 
 ## Where We Are Heading
 
@@ -460,3 +462,5 @@ and concrete checks live in `docs/invariants/`.
   [0205](design/0205-v18-scratch-operation-reading-construction/v18-scratch-operation-reading-construction.md).
 - [x] 58. Add command reading providers:
   [0206](design/0206-v18-command-reading-providers/v18-command-reading-providers.md).
+- [x] 59. Add a scratch runtime conformance provider:
+  [0207](design/0207-v18-scratch-runtime-conformance-provider/v18-scratch-runtime-conformance-provider.md).

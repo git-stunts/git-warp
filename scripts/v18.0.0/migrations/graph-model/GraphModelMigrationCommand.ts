@@ -33,7 +33,7 @@ import { runMigrationGit } from './GitMigrationCommandRunner.ts';
 
 export type GraphModelMigrationRuntimeConformanceProvider = (
   scratchWriteResult: GraphModelMigrationScratchWriteResult,
-) => GraphModelMigrationRuntimeConformanceResult | null;
+) => Promise<GraphModelMigrationRuntimeConformanceResult | null>;
 
 export type GraphModelMigrationCommandReadingProviders = {
   readonly legacyReading: () => Promise<GenesisEquivalenceReading>;
@@ -174,7 +174,7 @@ async function runFinalization(options: {
       archiveRefName: options.finalization.archiveRefName,
       confirmation: options.finalization.confirmation,
       gateResult: options.gateResult,
-      runtimeConformance: runtimeConformanceFromProvider(
+      runtimeConformance: await runtimeConformanceFromProvider(
         options.finalization.runtimeConformance,
         options.scratchWriteResult,
       ),
@@ -189,9 +189,9 @@ async function runFinalization(options: {
 function runtimeConformanceFromProvider(
   provider: GraphModelMigrationRuntimeConformanceProvider | null,
   scratchWriteResult: GraphModelMigrationScratchWriteResult,
-): GraphModelMigrationRuntimeConformanceResult | null {
+): Promise<GraphModelMigrationRuntimeConformanceResult | null> {
   if (provider === null) {
-    return null;
+    return Promise.resolve(null);
   }
   return provider(scratchWriteResult);
 }
