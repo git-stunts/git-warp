@@ -84,5 +84,7 @@ non-destructive:
   report nouns;
 - compact fixtures cover node, edge, content, removal, multi-writer, and
   divergent-property cases;
+- v17 golden graph-history fixtures now precede write-capable migration work,
+  because compact fixtures do not prove the persisted Git object/ref layout;
 - real source inventory, operation lowering, scratch writing, scratch
-  equivalence, and finalization safety are planned as slices 46 through 50.
+  equivalence, and finalization safety are planned as slices 47 through 51.

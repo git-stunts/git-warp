@@ -37,6 +37,8 @@ rather than guesswork.
   planning?
 - Does it say whether genesis equivalence is credible or still fixture-only?
 - Does it produce the next ten to twenty slices with backlog updates?
+- Does it revise the runway when review discovers that compact fixtures are
+  not enough evidence for persisted v17 Git history?
 
 ## Existing Shape
 
@@ -100,7 +102,7 @@ rg "decodePropKey|decodeEdgePropKey|state\\.prop" src/domain
 npx vitest run test/unit/domain/graph/LegacyPropertyProjection.test.ts test/unit/domain/services/NodePropertyProjection.test.ts test/unit/domain/services/EdgePropertyProjection.test.ts test/unit/domain/services/QueryReadsPropertyProjection.test.ts test/unit/domain/services/StateReaderPropertyProjection.test.ts test/unit/domain/services/query/StateQueryReadModelPropertyProjection.test.ts test/unit/domain/migrations/DryRunGraphModelMigrationPlanner.test.ts test/unit/domain/migrations/GenesisEquivalenceProof.test.ts test/unit/domain/migrations/GenesisEquivalenceFixtures.test.ts test/unit/domain/migrations/GenesisDivergenceReporter.test.ts --reporter=verbose
 npm run typecheck
 npm run lint
-npx markdownlint CHANGELOG.md docs/BEARING.md docs/method/backlog/v18.0.0/*.md docs/design/0193-v18-replan-with-migration-evidence/v18-replan-with-migration-evidence.md docs/design/0194-v18-real-source-inventory-collector/v18-real-source-inventory-collector.md docs/design/0195-v18-migration-operation-lowering/v18-migration-operation-lowering.md docs/design/0196-v18-scratch-migration-writer/v18-scratch-migration-writer.md docs/design/0197-v18-scratch-equivalence-gate/v18-scratch-equivalence-gate.md docs/design/0198-v18-migration-finalization-safety/v18-migration-finalization-safety.md
+npx markdownlint CHANGELOG.md docs/BEARING.md docs/method/backlog/v18.0.0/*.md docs/design/0193-v18-replan-with-migration-evidence/v18-replan-with-migration-evidence.md docs/design/0194-v18-real-source-inventory-collector/v18-real-source-inventory-collector.md docs/design/0195-v18-migration-operation-lowering/v18-migration-operation-lowering.md docs/design/0196-v18-scratch-migration-writer/v18-scratch-migration-writer.md docs/design/0197-v18-scratch-equivalence-gate/v18-scratch-equivalence-gate.md docs/design/0198-v18-migration-finalization-safety/v18-migration-finalization-safety.md docs/design/0199-v18-v17-golden-graph-fixtures/v18-v17-golden-graph-fixtures.md
 git diff --check HEAD
 ```
 
@@ -111,11 +113,14 @@ git diff --check HEAD
   replay, reducer/op-strategy, visible-scope, logical-index, and migration-
   source boundaries.
 - The dry-run planner and CLI are enough to inspect explicit request artifacts,
-  but not enough to write migration history. Real source collection is the
-  next required slice.
+  but not enough to write migration history. A restored v17 Git fixture is the
+  next required slice before real source collection can claim persisted-source
+  evidence.
 - Genesis equivalence is credible as a runtime-backed vocabulary and compact
   fixture proof. It is not yet a real scratch-history replay gate.
-- The next five slice docs now exist as cycles 0194 through 0198.
+- The next five implementation slice docs now exist as cycles 0199, then 0194
+  through 0197. Finalization safety remains planned as cycle 0198 after the
+  restored-fixture equivalence gate.
 - The Continuum posture remains unchanged: git-warp is a sibling Continuum
   participant exchanging witnessed causal history, not a subordinate runtime.
 
@@ -130,6 +135,7 @@ git diff --check HEAD
 - PR D commits before this replan: `45d59e08`, `71e1e165`, `3b201c50`,
   `a4387d8e`.
 - Next design docs:
+  [0199](../0199-v18-v17-golden-graph-fixtures/v18-v17-golden-graph-fixtures.md),
   [0194](../0194-v18-real-source-inventory-collector/v18-real-source-inventory-collector.md),
   [0195](../0195-v18-migration-operation-lowering/v18-migration-operation-lowering.md),
   [0196](../0196-v18-scratch-migration-writer/v18-scratch-migration-writer.md),

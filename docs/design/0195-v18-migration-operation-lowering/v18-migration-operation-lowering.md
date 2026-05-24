@@ -7,7 +7,7 @@ sponsors:
   agent: Codex
 started_at: 2026-05-24
 release_home: v18.0.0
-bearing_task: 47
+bearing_task: 48
 promotes_backlog:
   - docs/method/backlog/v18.0.0/INFRA_graph-model-migration-tool.md
 ---

@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 migration planning now records the evidence-backed post-PR-D runway for
   real source inventory collection, operation lowering, scratch migration
   writing, scratch equivalence gating, and finalization safety.
+- V18 migration planning now inserts a v17 golden graph-history fixture corpus
+  before real source inventory collection, so wet-run migration work can prove
+  against restored Git objects and refs instead of compact proof fixtures
+  alone.
 - V18 graph-model migration dry-run work now exposes runtime-backed migration
   manifest nouns for source and target basis, node, edge, property, and
   content mappings, warnings, and fatal planning failures without adding any

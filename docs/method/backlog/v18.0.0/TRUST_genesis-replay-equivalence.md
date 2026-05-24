@@ -37,8 +37,9 @@ V18 slices 42 through 44 added fixture-level proof infrastructure:
 - `GenesisDivergenceReporter` selects the first deterministic mismatch and
   reports field and patch-boundary evidence.
 
-This is not yet the ship gate. The remaining trust work is to connect real
-legacy replay and scratch migrated replay through slices 46 through 49.
+This is not yet the ship gate. The remaining trust work is to restore a real
+v17 golden graph-history fixture, then connect legacy replay and scratch
+migrated replay through slices 46 through 50.
 
 ## Starting points
 

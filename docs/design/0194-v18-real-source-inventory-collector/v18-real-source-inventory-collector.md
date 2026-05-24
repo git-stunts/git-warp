@@ -7,7 +7,7 @@ sponsors:
   agent: Codex
 started_at: 2026-05-24
 release_home: v18.0.0
-bearing_task: 46
+bearing_task: 47
 promotes_backlog:
   - docs/method/backlog/v18.0.0/INFRA_graph-model-migration-tool.md
 ---
@@ -42,9 +42,10 @@ without writing graph history.
 ## Existing Shape
 
 Slices 36 through 41 created source inventory nouns, a dry-run planner, a
-request JSON adapter, and a non-destructive CLI. The missing bridge is a real
-collector that can read graph history into those nouns. The collector belongs
-in adapters or scripts because it touches host state.
+request JSON adapter, and a non-destructive CLI. Slice 46 now adds a restored
+v17 golden graph-history fixture corpus. The missing bridge after that is a
+real collector that can read restored graph history into those nouns. The
+collector belongs in adapters or scripts because it touches host state.
 
 ## Chosen Boundary
 
@@ -101,7 +102,7 @@ git diff --check HEAD
 - Real source collection exists for dry-run planning.
 - Fatal collection errors are structured inventory facts.
 - The dry-run CLI can invoke collection without adding write mode.
-- Slice 47 can lower planned operations against collected source evidence.
+- Slice 48 can lower planned operations against collected source evidence.
 
 ## SSJS Scorecard
 

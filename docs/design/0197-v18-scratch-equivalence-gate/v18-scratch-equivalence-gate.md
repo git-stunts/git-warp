@@ -7,7 +7,7 @@ sponsors:
   agent: Codex
 started_at: 2026-05-24
 release_home: v18.0.0
-bearing_task: 49
+bearing_task: 50
 promotes_backlog:
   - docs/method/backlog/v18.0.0/TRUST_genesis-replay-equivalence.md
 ---
@@ -40,7 +40,7 @@ promotion when divergence is reported.
 ## Existing Shape
 
 Slice 42 created equivalence proof nouns, slice 43 created fixtures, and slice
-44 created divergence reporting. Slice 48 will create scratch migrated history.
+44 created divergence reporting. Slice 49 will create scratch migrated history.
 The next trust step is a gate over real scratch output.
 
 ## Chosen Boundary

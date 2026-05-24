@@ -41,17 +41,22 @@ V18 slices 36 through 45 completed the non-destructive foundation:
 - the CLI writes only optional manifest artifacts and refuses apply/write
   verbs;
 - genesis proof and divergence nouns exist for later migration gates.
+- the next slice now inserts a v17 golden graph-history fixture corpus before
+  real source inventory collection, so migration work proves against restored
+  Git objects and refs instead of compact in-memory proof cases alone.
 
 Remaining migration-tool work is intentionally ordered as:
 
-- slice 46: collect real source inventory;
-- slice 47: lower dry-run planned operations;
-- slice 48: write scratch migrated history;
-- slice 49: gate scratch output with genesis equivalence;
-- slice 50: design finalization safety.
+- slice 46: create v17 golden graph-history fixtures and restore checks;
+- slice 47: collect real source inventory from restored history;
+- slice 48: lower dry-run planned operations;
+- slice 49: write scratch migrated history;
+- slice 50: gate scratch output with genesis equivalence;
+- slice 51: design finalization safety.
 
 ## Starting points
 
 - `scripts/migrations/`
+- `fixtures/v17/`
 - `src/domain/services/JoinReducer.ts`
 - `src/infrastructure/adapters/CborPatchJournalAdapter.ts`

@@ -7,7 +7,7 @@ sponsors:
   agent: Codex
 started_at: 2026-05-24
 release_home: v18.0.0
-bearing_task: 48
+bearing_task: 49
 promotes_backlog:
   - docs/method/backlog/v18.0.0/INFRA_graph-model-migration-tool.md
 ---
@@ -38,7 +38,7 @@ equivalence can inspect migrated history before any live ref changes.
 
 ## Existing Shape
 
-The dry-run path can now plan and prove fixture-level equivalence. Slice 47
+The dry-run path can now plan and prove fixture-level equivalence. Slice 48
 will define lowered operation facts. The first write-capable step must be a
 scratch writer, not a live migration command.
 

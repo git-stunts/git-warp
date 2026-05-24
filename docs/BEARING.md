@@ -47,7 +47,8 @@ Current branch state at this boundary:
 - Latest completed implementation cycle:
   `0193-v18-replan-with-migration-evidence`
 - Current work: PR D, v18 slices 41 through 45, is complete on this branch
-  and ready for review.
+  and now includes a drift-check pivot that inserts v17 golden graph-history
+  fixtures before write-capable migration work.
 - Cleanup checkpoint: `main` has been fast-forwarded to `origin/main` after
   PR #102 merged; this branch starts from that merge commit.
 
@@ -100,6 +101,9 @@ The current v18 graph-model posture is:
   intentional divergent property case.
 - A genesis divergence reporter exists and turns proof failures into
   structured first-divergence reports.
+- A v17 golden graph-history fixture design now precedes real source
+  inventory collection so migration work can prove against restored persisted
+  Git data, not only compact in-memory proof cases.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -213,7 +217,8 @@ bounded value summaries as structured report fields.
 Slice 45 is complete on this branch. Evidence-backed replanning inspected
 remaining raw legacy-property boundaries, migration-domain coverage, dry-run
 CLI coverage, and equivalence proof fixtures, then created design docs for
-slices 46 through 50.
+slices 47 through 51 and inserted the v17 golden graph-history fixture as the
+new slice 46.
 
 ## What Feels Wrong
 
@@ -231,6 +236,9 @@ slices 46 through 50.
   but it does not yet collect real graph history into source inventory.
 - Genesis equivalence is credible as a domain vocabulary and compact fixture
   proof, not yet as a real scratch-history replay gate.
+- Compact equivalence fixtures are not enough to validate source inventory
+  over real v17 persisted Git history. A golden fixture corpus must restore a
+  v17 graph object/ref layout before wet-run migration paths are trusted.
 - The next write-capable migration work must go through real source inventory,
   lowering, scratch writes, equivalence gates, and finalization safety. Live
   ref promotion is still out of bounds.
@@ -244,10 +252,12 @@ proven equivalent before finalization."
 Suggested implementation batches:
 
 - PR D, slices 41 through 45: dry-run CLI, equivalence nouns, fixtures,
-  divergence reporter, and evidence-backed replan.
-- PR E, slices 46 through 50: real source inventory collection, migration
-  operation lowering, scratch migration writing, scratch equivalence gate, and
-  finalization safety design.
+  divergence reporter, evidence-backed replan, and the v17 fixture pivot.
+- PR E, slices 46 through 50: v17 golden graph-history fixtures, real source
+  inventory collection, migration operation lowering, scratch migration
+  writing, and scratch equivalence gating.
+- PR F starts with slice 51: finalization safety after restored-fixture
+  scratch equivalence is proven.
 
 ## Invariants
 
@@ -339,13 +349,15 @@ and concrete checks live in `docs/invariants/`.
   [0192](design/0192-v18-genesis-divergence-reporter/v18-genesis-divergence-reporter.md).
 - [x] 45. Re-plan with migration evidence in hand:
   [0193](design/0193-v18-replan-with-migration-evidence/v18-replan-with-migration-evidence.md).
-- [ ] 46. Add real source inventory collection:
+- [ ] 46. Add v17 golden graph-history fixtures:
+  [0199](design/0199-v18-v17-golden-graph-fixtures/v18-v17-golden-graph-fixtures.md).
+- [ ] 47. Add real source inventory collection:
   [0194](design/0194-v18-real-source-inventory-collector/v18-real-source-inventory-collector.md).
-- [ ] 47. Add migration operation lowering:
+- [ ] 48. Add migration operation lowering:
   [0195](design/0195-v18-migration-operation-lowering/v18-migration-operation-lowering.md).
-- [ ] 48. Add the scratch migration writer:
+- [ ] 49. Add the scratch migration writer:
   [0196](design/0196-v18-scratch-migration-writer/v18-scratch-migration-writer.md).
-- [ ] 49. Add the scratch equivalence gate:
+- [ ] 50. Add the scratch equivalence gate:
   [0197](design/0197-v18-scratch-equivalence-gate/v18-scratch-equivalence-gate.md).
-- [ ] 50. Design migration finalization safety:
+- [ ] 51. Design migration finalization safety:
   [0198](design/0198-v18-migration-finalization-safety/v18-migration-finalization-safety.md).
