@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 genesis replay equivalence now includes compact deterministic fixture
   histories for node lifecycle, edge lifecycle, content metadata, removal
   visibility, multi-writer ordering, and intentional divergence coverage.
+- V18 genesis replay equivalence now reports the first deterministic
+  divergence as a structured value with mismatch kind, fact identity, field
+  path, optional patch boundary evidence, and bounded value summaries.
 - V18 graph-model migration dry-run work now exposes runtime-backed migration
   manifest nouns for source and target basis, node, edge, property, and
   content mappings, warnings, and fatal planning failures without adding any

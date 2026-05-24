@@ -194,6 +194,11 @@ fixtures now cover node lifecycle, edge lifecycle, content attachment metadata,
 removed-node visibility, multi-writer non-coordinated ordering, and one
 intentional divergent property case.
 
+Slice 44 is complete on this branch. Genesis divergence reporting now selects
+the first deterministic proof mismatch and exposes mismatch kind, graph fact
+identity, field path, optional writer/patch/operation boundary evidence, and
+bounded value summaries as structured report fields.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -312,7 +317,7 @@ and concrete checks live in `docs/invariants/`.
   [0190](design/0190-v18-genesis-equivalence-nouns/v18-genesis-equivalence-nouns.md).
 - [x] 43. Add genesis equivalence fixtures:
   [0191](design/0191-v18-genesis-equivalence-fixtures/v18-genesis-equivalence-fixtures.md).
-- [ ] 44. Add the genesis divergence reporter:
+- [x] 44. Add the genesis divergence reporter:
   [0192](design/0192-v18-genesis-divergence-reporter/v18-genesis-divergence-reporter.md).
 - [ ] 45. Re-plan with migration evidence in hand:
   [0193](design/0193-v18-replan-with-migration-evidence/v18-replan-with-migration-evidence.md).
