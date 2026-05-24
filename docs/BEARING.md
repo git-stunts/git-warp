@@ -122,6 +122,9 @@ The current v18 graph-model posture is:
 - Finalization safety is now modeled as pure domain evidence: explicit
   confirmation, passed equivalence gate, archive ref target, scratch output,
   and live-ref expected-head match are required before live refs can move.
+- Archive-preserving finalization now exists as an adapter-layer Git updater:
+  it refuses failed safety results, rejects live-ref drift, creates an archive
+  ref for old lineage, and advances the live ref with expected-head CAS.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -269,6 +272,11 @@ precondition gate: no confirmation, failed equivalence, missing archive target,
 missing scratch output, or stale live-ref expectation can pass into a future
 live-ref update step.
 
+Slice 52 is complete on this branch. Finalization implementation now archives
+the old live head under `refs/warp-migration-archive/*` and advances the live
+ref to the scratch head with `git update-ref <live> <scratch> <old>`, while
+blocking failed safety, existing archive refs, and live-ref drift.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -289,9 +297,9 @@ live-ref update step.
 - Compact equivalence fixtures are not enough by themselves. The golden v17
   fixture now restores Git refs and source inventory consumes those refs, but
   the scratch writer output still needs an equivalence gate.
-- The next write-capable migration work must implement archive-preserving CAS
-  finalization, command wiring, runtime conformance, and closeout audit. Live
-  ref promotion is still out of bounds until the Git updater is covered.
+- The next migration work must wire command orchestration, runtime
+  conformance, and closeout audit. Live ref promotion now has a covered updater
+  but is still not exposed through an operator command.
 
 ## Where We Are Heading
 
@@ -410,7 +418,8 @@ and concrete checks live in `docs/invariants/`.
   [0197](design/0197-v18-scratch-equivalence-gate/v18-scratch-equivalence-gate.md).
 - [x] 51. Design migration finalization safety:
   [0198](design/0198-v18-migration-finalization-safety/v18-migration-finalization-safety.md).
-- [ ] 52. Implement archive-preserving migration finalization.
+- [x] 52. Implement archive-preserving migration finalization:
+  [0200](design/0200-v18-migration-finalization-implementation/v18-migration-finalization-implementation.md).
 - [ ] 53. Wire the end-to-end migration command.
 - [ ] 54. Prove post-migration runtime conformance.
 - [ ] 55. Close the content/property migration audit.

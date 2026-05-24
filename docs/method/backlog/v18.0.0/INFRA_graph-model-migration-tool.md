@@ -54,7 +54,7 @@ Remaining migration-tool work is intentionally ordered as:
 - slice 49: write scratch migrated history (complete);
 - slice 50: gate scratch output with genesis equivalence (complete);
 - slice 51: design finalization safety (complete);
-- slice 52: implement archive-preserving finalization;
+- slice 52: implement archive-preserving finalization (complete);
 - slice 53: wire the end-to-end migration command;
 - slice 54: prove post-migration runtime conformance;
 - slice 55: close the content/property migration audit.

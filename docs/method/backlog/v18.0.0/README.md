@@ -99,4 +99,6 @@ non-destructive but now has persisted-history evidence:
   reporting, and required patch-boundary evidence;
 - finalization safety now requires explicit confirmation, archive ref
   selection, scratch output evidence, a passed equivalence gate, and a matching
-  live-ref expected head before any live lineage promotion can be implemented.
+  live-ref expected head before any live lineage promotion can be implemented;
+- archive-preserving finalization now creates archive refs and advances live
+  refs only through expected-head `git update-ref` calls.

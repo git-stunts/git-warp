@@ -1,5 +1,3 @@
-import { spawn } from 'node:child_process';
-
 import GraphModelMigrationLoweredOperation
   from '../../../../src/domain/migrations/GraphModelMigrationLoweredOperation.ts';
 import GraphModelMigrationLoweredPatchPlan
@@ -12,37 +10,16 @@ import GraphModelMigrationScratchWrittenPatch
   from '../../../../src/domain/migrations/GraphModelMigrationScratchWrittenPatch.ts';
 import GraphModelMigrationScratchWriteResult
   from '../../../../src/domain/migrations/GraphModelMigrationScratchWriteResult.ts';
+import { runMigrationGit } from './GitMigrationCommandRunner.ts';
 
 const ZERO_OID = '0000000000000000000000000000000000000000';
 const OPERATION_TREE_PATH = 'migration-operation.txt';
-const SCRATCH_WRITE_GIT_IDENTITY = Object.freeze({
-  GIT_AUTHOR_NAME: 'git-warp migration',
-  GIT_AUTHOR_EMAIL: 'git-warp@example.invalid',
-  GIT_AUTHOR_DATE: '2000-01-01T00:00:00Z',
-  GIT_COMMITTER_NAME: 'git-warp migration',
-  GIT_COMMITTER_EMAIL: 'git-warp@example.invalid',
-  GIT_COMMITTER_DATE: '2000-01-01T00:00:00Z',
-});
 
 export type GraphModelMigrationScratchWriterOptions = {
   readonly repositoryPath: string;
   readonly scratchRefName: string | null;
   readonly patchPlan: GraphModelMigrationLoweredPatchPlan;
 };
-
-class GitCommandResult {
-  constructor(
-    readonly exitCode: number,
-    readonly stdout: string,
-    readonly stderr: string,
-  ) {
-    Object.freeze(this);
-  }
-
-  ok(): boolean {
-    return this.exitCode === 0;
-  }
-}
 
 export class GraphModelMigrationScratchWriterError extends Error {
   constructor(message: string) {
@@ -116,6 +93,7 @@ async function writeOperationCommit(options: {
     options.repositoryPath,
     ['commit-tree', treeOid, ...parentArgs],
     formatCommitMessage(options.patchPlan, options.operation, options.sequence),
+    true,
   );
 }
 
@@ -133,7 +111,7 @@ async function validateGitRefName(
   repositoryPath: string,
   scratchRef: GraphModelMigrationScratchRef,
 ): Promise<GraphModelMigrationNotice | null> {
-  const result = await runGit(repositoryPath, ['check-ref-format', scratchRef.refName], null);
+  const result = await runMigrationGit(repositoryPath, ['check-ref-format', scratchRef.refName], null);
   if (result.ok()) {
     return null;
   }
@@ -225,7 +203,7 @@ function requireNonEmptyString(value: string, name: string): string {
 }
 
 async function gitText(cwd: string, args: readonly string[]): Promise<string> {
-  const result = await runGit(cwd, args, null);
+  const result = await runMigrationGit(cwd, args, null);
   if (!result.ok()) {
     throw new GraphModelMigrationScratchWriterError(
       `git ${args.join(' ')} failed: ${result.stderr}`,
@@ -234,8 +212,13 @@ async function gitText(cwd: string, args: readonly string[]): Promise<string> {
   return result.stdout.trim();
 }
 
-async function gitTextWithInput(cwd: string, args: readonly string[], input: string): Promise<string> {
-  const result = await runGit(cwd, args, input);
+async function gitTextWithInput(
+  cwd: string,
+  args: readonly string[],
+  input: string,
+  deterministicIdentity = false,
+): Promise<string> {
+  const result = await runMigrationGit(cwd, args, input, { deterministicIdentity });
   if (!result.ok()) {
     throw new GraphModelMigrationScratchWriterError(
       `git ${args.join(' ')} failed: ${result.stderr}`,
@@ -245,40 +228,9 @@ async function gitTextWithInput(cwd: string, args: readonly string[], input: str
 }
 
 async function gitTextOrNull(cwd: string, args: readonly string[]): Promise<string | null> {
-  const result = await runGit(cwd, args, null);
+  const result = await runMigrationGit(cwd, args, null);
   if (!result.ok()) {
     return null;
   }
   return result.stdout.trim();
-}
-
-async function runGit(
-  cwd: string,
-  args: readonly string[],
-  input: string | null,
-): Promise<GitCommandResult> {
-  return await new Promise((resolve, reject) => {
-    const child = spawn('git', args, {
-      cwd,
-      env: SCRATCH_WRITE_GIT_IDENTITY,
-    });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk: string) => {
-      stdout += chunk;
-    });
-    child.stderr.on('data', (chunk: string) => {
-      stderr += chunk;
-    });
-    child.on('error', reject);
-    child.on('close', (exitCode) => {
-      resolve(new GitCommandResult(exitCode ?? 1, stdout, stderr));
-    });
-    if (input !== null) {
-      child.stdin.write(input);
-    }
-    child.stdin.end();
-  });
 }
