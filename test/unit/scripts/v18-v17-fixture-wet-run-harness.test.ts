@@ -48,7 +48,7 @@ describe('v18 v17 fixture wet-run harness', () => {
     expect(result.driftCheckResult.checkedRefCount).toBe(2);
   });
 
-  it('records the current public-read equivalence gap as explicit wet-run evidence', async () => {
+  it('represents removed-node and multi-writer fixture coverage in migrated readings', async () => {
     const targetDirectory = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-gap-'));
 
     const result = await runV17GoldenGraphFixtureWetRun({
@@ -56,10 +56,11 @@ describe('v18 v17 fixture wet-run harness', () => {
       targetDirectory,
     });
 
-    expect(result.commandResult.gateResult?.allowsPromotion()).toBe(false);
+    expect(result.commandResult.gateResult?.allowsPromotion()).toBe(true);
     expect(result.commandResult.gateResult?.proofResult.summary.legacyFactCount).toBe(7);
-    expect(result.commandResult.gateResult?.proofResult.summary.migratedFactCount).toBe(5);
-    expect(result.commandResult.gateResult?.proofResult.summary.mismatchCount).toBe(2);
+    expect(result.commandResult.gateResult?.proofResult.summary.migratedFactCount).toBe(7);
+    expect(result.commandResult.gateResult?.proofResult.summary.mismatchCount).toBe(0);
+    expect(result.commandResult.gateResult?.fatalErrors).toEqual([]);
   });
 
   it('formats deterministic wet-run operator evidence without temp paths', async () => {
@@ -79,11 +80,11 @@ describe('v18 v17 fixture wet-run harness', () => {
     expect(first).not.toContain(firstTarget);
     expect(first).toContain('git-warp v18 v17 fixture wet-run report');
     expect(first).toContain('fixtureId: v17-golden-graph-model-001');
-    expect(first).toContain('command.equivalence: blocked');
-    expect(first).toContain('command.mismatches: 2');
-    expect(first).toContain('mismatches:');
-    expect(first).toContain('- missing node node:removed visibility');
-    expect(first).toContain('- missing property writers:alice+bob coverage');
+    expect(first).toContain('command.equivalence: passed');
+    expect(first).toContain('command.mismatches: 0');
+    expect(first).not.toContain('\nmismatches:\n');
+    expect(first).not.toContain('- missing node node:removed visibility');
+    expect(first).not.toContain('- missing property writers:alice+bob coverage');
     expect(first).toContain('runtimeReplay: passed');
     expect(first).toContain('runtimeReplayOperations: 5');
     expect(first).toContain('driftCheck: passed');

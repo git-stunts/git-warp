@@ -427,7 +427,8 @@ report records zero public-read mismatches.
   [0226](design/0226-v18-fixture-content-runtime-oids/v18-fixture-content-runtime-oids.md).
 - [x] 79. Add edge-endpoint node coverage or document the fixture edge model:
   [0227](design/0227-v18-fixture-edge-endpoint-coverage/v18-fixture-edge-endpoint-coverage.md).
-- [ ] 80. Represent removed-node and multi-writer facts in migrated readings.
+- [x] 80. Represent removed-node and multi-writer facts in migrated readings:
+  [0228](design/0228-v18-fixture-lifecycle-and-writer-coverage/v18-fixture-lifecycle-and-writer-coverage.md).
 - [ ] 81. Drive the canonical wet-run mismatch count to zero.
 - [ ] 82. Replan finalization with zero-mismatch wet-run evidence.
 - [ ] 83. Design live finalization CLI confirmation and reporting.
@@ -448,13 +449,13 @@ report records zero public-read mismatches.
 
 - Production-runtime scratch replay is green through the shared replay core.
 - Restored-v17 and scratch public-read builders both exist and are tested.
-- The wet-run harness restores the canonical v17 fixture, writes four scratch
-  operations, replays all four through the production runtime, formats a
+- The wet-run harness restores the canonical v17 fixture, writes five scratch
+  operations, replays all five through the production runtime, formats a
   deterministic report, and records a passed source-ref drift check.
-- The canonical public-read equivalence gate remains blocked with seven legacy
-  facts, five migrated facts, and two mismatches. This is the next blocker.
-- Live finalization remains intentionally paused until the wet-run mismatch
-  count is zero.
+- The canonical public-read equivalence gate now observes seven legacy facts,
+  seven migrated facts, zero mismatches, and explicit boundary evidence.
+- Live finalization remains intentionally paused until explicit confirmation
+  and operator reporting are designed and wired.
 
 ### User Stories
 
@@ -666,11 +667,11 @@ and concrete checks live in `docs/invariants/`.
 - [x] 73. Add wet-run failure fixtures for divergence and malformed history.
 - [x] 74. Add pre-finalization drift checks to the wet-run harness.
 - [x] 75. Replan with production-runtime replay evidence in hand.
-- [ ] 76. Classify the five canonical wet-run public-read mismatches.
-- [ ] 77. Align fixture property values with public-read migration semantics.
-- [ ] 78. Align fixture content attachment evidence with runtime content OIDs.
-- [ ] 79. Add edge-endpoint node coverage or document the fixture edge model.
-- [ ] 80. Represent removed-node and multi-writer facts in migrated readings.
+- [x] 76. Classify the five canonical wet-run public-read mismatches.
+- [x] 77. Align fixture property values with public-read migration semantics.
+- [x] 78. Align fixture content attachment evidence with runtime content OIDs.
+- [x] 79. Add edge-endpoint node coverage or document the fixture edge model.
+- [x] 80. Represent removed-node and multi-writer facts in migrated readings.
 - [ ] 81. Drive the canonical wet-run mismatch count to zero.
 - [ ] 82. Replan finalization with zero-mismatch wet-run evidence.
 - [ ] 83. Design live finalization CLI confirmation and reporting.
