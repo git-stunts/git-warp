@@ -40,8 +40,8 @@ export default class GraphModelMigrationManifest {
     this.edgeMappings = freezeEdgeMappings(checkedFields.edgeMappings);
     this.propertyMappings = freezePropertyMappings(checkedFields.propertyMappings);
     this.contentMappings = freezeContentMappings(checkedFields.contentMappings);
-    this.warnings = freezeNotices(checkedFields.warnings, false, 'warnings');
-    this.fatalErrors = freezeNotices(checkedFields.fatalErrors, true, 'fatalErrors');
+    this.warnings = freezeWarningNotices(checkedFields.warnings);
+    this.fatalErrors = freezeFatalNotices(checkedFields.fatalErrors);
     Object.freeze(this);
   }
 
@@ -116,16 +116,27 @@ function freezeContentMappings(
   return Object.freeze(checked);
 }
 
-/** Validates and freezes warning or fatal notices. */
-function freezeNotices(
+/** Validates and freezes warning notices. */
+function freezeWarningNotices(
   notices: readonly GraphModelMigrationNotice[],
-  fatal: boolean,
-  label: string,
 ): readonly GraphModelMigrationNotice[] {
-  const checked = requireArray(notices, label).map(requireNotice);
+  const checked = requireArray(notices, 'warnings').map(requireNotice);
   for (const notice of checked) {
-    if (notice.isFatal() !== fatal) {
-      throw new WarpError(`${label} contains the wrong notice kind`, 'E_VALIDATION');
+    if (notice.isFatal()) {
+      throw new WarpError('warnings contains the wrong notice kind', 'E_VALIDATION');
+    }
+  }
+  return Object.freeze(checked);
+}
+
+/** Validates and freezes fatal notices. */
+function freezeFatalNotices(
+  notices: readonly GraphModelMigrationNotice[],
+): readonly GraphModelMigrationNotice[] {
+  const checked = requireArray(notices, 'fatalErrors').map(requireNotice);
+  for (const notice of checked) {
+    if (!notice.isFatal()) {
+      throw new WarpError('fatalErrors contains the wrong notice kind', 'E_VALIDATION');
     }
   }
   return Object.freeze(checked);

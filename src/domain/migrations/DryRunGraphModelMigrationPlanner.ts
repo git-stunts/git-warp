@@ -14,6 +14,8 @@ import type GraphModelMigrationPropertyMapping from './GraphModelMigrationProper
 const MISSING_CONTENT_SOURCE_CODE = 'E_MISSING_CONTENT_SOURCE';
 const DRY_RUN_TARGET_BASIS_SUFFIX = ':v18-dry-run';
 const CONTENT_ATTACHMENT_PREFIX = 'content-attachment:';
+const PROPERTY_TARGET_KEY_FORMAT = 'property-target-key:length-prefixed-v1';
+const PROPERTY_TARGET_KEY_SEPARATOR = ':';
 
 /** Pure domain planner for graph-model migration dry runs. */
 export default class DryRunGraphModelMigrationPlanner {
@@ -160,8 +162,19 @@ function plannedPropertyOperation(
 ): GraphModelMigrationPlannedGraphOperation {
   return GraphModelMigrationPlannedGraphOperation.property(
     propertyMapping.legacyKey(),
-    `${propertyMapping.targetOwnerId}\0${propertyMapping.targetPropertyKey}`,
+    encodePropertyTargetKey(propertyMapping.targetOwnerId, propertyMapping.targetPropertyKey),
   );
+}
+
+/** Encodes target property identity without delimiter collisions. */
+function encodePropertyTargetKey(ownerId: string, propertyKey: string): string {
+  return [
+    PROPERTY_TARGET_KEY_FORMAT,
+    ownerId.length,
+    ownerId,
+    propertyKey.length,
+    propertyKey,
+  ].join(PROPERTY_TARGET_KEY_SEPARATOR);
 }
 
 /** Returns the deterministic dry-run target attachment key. */

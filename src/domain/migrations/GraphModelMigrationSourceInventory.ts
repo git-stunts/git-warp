@@ -39,10 +39,10 @@ export default class GraphModelMigrationSourceInventory {
     this.patchDescriptors = freezePatchDescriptors(checkedFields.patchDescriptors);
     this.stateSnapshot = requireOptionalStateSnapshot(checkedFields.stateSnapshot ?? null);
     this.contentSources = freezeContentSources(checkedFields.contentSources);
-    this.warnings = freezeNotices(checkedFields.warnings, false, 'warnings');
-    this.fatalErrors = freezeFatalErrors(
+    this.warnings = freezeWarningNotices(checkedFields.warnings);
+    this.fatalErrors = freezeFatalErrorsForSourceBasis(
       checkedFields.fatalErrors,
-      this.sourceBasis === null,
+      this.sourceBasis,
     );
     requirePatchChainConsistency(this.writerChains, this.patchDescriptors);
     Object.freeze(this);
@@ -131,27 +131,38 @@ function freezeContentSources(
 }
 
 /** Validates and freezes warning notices. */
-function freezeNotices(
+function freezeWarningNotices(
   notices: readonly GraphModelMigrationNotice[],
-  fatal: boolean,
-  label: string,
 ): readonly GraphModelMigrationNotice[] {
-  const checked = requireArray(notices, label).map(requireNotice);
+  const checked = requireArray(notices, 'warnings').map(requireNotice);
   for (const notice of checked) {
-    if (notice.isFatal() !== fatal) {
-      throw new WarpError(`${label} contains the wrong notice kind`, 'E_VALIDATION');
+    if (notice.isFatal()) {
+      throw new WarpError('warnings contains the wrong notice kind', 'E_VALIDATION');
+    }
+  }
+  return Object.freeze(checked);
+}
+
+/** Validates and freezes fatal notices. */
+function freezeFatalNotices(
+  notices: readonly GraphModelMigrationNotice[],
+): readonly GraphModelMigrationNotice[] {
+  const checked = requireArray(notices, 'fatalErrors').map(requireNotice);
+  for (const notice of checked) {
+    if (!notice.isFatal()) {
+      throw new WarpError('fatalErrors contains the wrong notice kind', 'E_VALIDATION');
     }
   }
   return Object.freeze(checked);
 }
 
 /** Validates fatal notices and adds collection-derived fatal conditions. */
-function freezeFatalErrors(
+function freezeFatalErrorsForSourceBasis(
   fatalErrors: readonly GraphModelMigrationNotice[],
-  missingSourceBasis: boolean,
+  sourceBasis: GraphModelMigrationBasis | null,
 ): readonly GraphModelMigrationNotice[] {
-  const checked = freezeNotices(fatalErrors, true, 'fatalErrors');
-  if (!missingSourceBasis) {
+  const checked = freezeFatalNotices(fatalErrors);
+  if (sourceBasis !== null) {
     return checked;
   }
   return Object.freeze([

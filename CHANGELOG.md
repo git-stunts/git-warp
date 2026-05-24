@@ -101,6 +101,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- V18 graph-model migration dry-run review follow-up now removes boolean-trap
+  notice validation helpers, encodes planned target property keys with a named
+  length-prefixed format, and raises focused constructor-guard coverage for the
+  migration domain.
 - V18 snapshot-backed state-reader hydration now rejects cyclic property
   values, prototype-polluting object keys, custom-prototype property bags, and
   accessor-backed property objects at the snapshot boundary before converting

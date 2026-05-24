@@ -57,6 +57,8 @@ describe('DryRunGraphModelMigrationPlanner', () => {
       'node-record',
       'property',
     ]);
+    const propertyOperation = result.plannedOperations.find((operation) => operation.kind === 'property');
+    expect(propertyOperation?.targetKey).toBe('property-target-key:length-prefixed-v1:6:node:a:5:title');
   });
 
   it('fails closed when source inventory is incomplete', () => {
