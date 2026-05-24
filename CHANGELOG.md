@@ -64,6 +64,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   readings still block finalization when legacy and migrated facts diverge.
 - V18 graph-model migration command output now includes a deterministic report
   formatter for planning, scratch, equivalence, and finalization evidence.
+- V18 graph-model migration now includes a non-finalizing command CLI wrapper
+  that writes scratch history, builds command-owned readings, emits the command
+  report, and refuses live-ref finalization flags.
 - V18 graph-model migration dry-run work now includes a non-destructive CLI
   runner and request JSON adapter that validate source facts, invoke the pure
   planner, emit deterministic manifest output, and refuse write/apply modes.

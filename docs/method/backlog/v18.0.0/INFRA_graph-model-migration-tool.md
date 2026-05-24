@@ -70,6 +70,8 @@ Remaining migration-tool work is intentionally ordered as:
   divergence (complete).
 - slice 62: add deterministic operator report output for migration command
   evidence (complete).
+- slice 63: add a non-finalizing migration command CLI wrapper that writes
+  scratch history and refuses live-ref finalization flags (complete).
 
 ## Starting points
 
