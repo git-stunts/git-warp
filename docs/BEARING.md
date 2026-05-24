@@ -80,6 +80,10 @@ The current v18 graph-model posture is:
   graph identity, optional source basis, writer chains, patch descriptors,
   state snapshot references, content/blob sources, warnings, and fatal
   collection errors.
+- A pure dry-run graph-model migration planner exists. It consumes source
+  inventory, returns result values for incomplete inputs, emits a migration
+  manifest and planned graph-operation facts, and still writes no graph
+  history.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -147,6 +151,11 @@ Slice 37 is complete on this branch. The migration source inventory now
 separates adapter-collected facts from planner input, rejects duplicate or
 inconsistent patch facts, records missing source basis as a fatal collection
 condition, and still performs no Git I/O.
+
+Slice 38 is complete on this branch. The dry-run planner consumes migration
+source inventory and planned mapping inputs, emits a manifest plus planned
+operation facts for complete input, and fails closed as a value when source
+inventory or required content sources are incomplete.
 
 ## What Feels Wrong
 
@@ -254,7 +263,7 @@ and concrete checks live in `docs/invariants/`.
   [0184](design/0184-v18-graph-model-migration-manifest/v18-graph-model-migration-manifest.md).
 - [x] 37. Add migration source inventory:
   [0185](design/0185-v18-migration-source-inventory/v18-migration-source-inventory.md).
-- [ ] 38. Add the dry-run state migration planner:
+- [x] 38. Add the dry-run state migration planner:
   [0186](design/0186-v18-dry-run-state-migration-planner/v18-dry-run-state-migration-planner.md).
 - [ ] 39. Add ordered migration history input:
   [0187](design/0187-v18-migration-history-input/v18-migration-history-input.md).

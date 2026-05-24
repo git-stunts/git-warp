@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   inventory for adapter-collected graph identity, source basis, writer chains,
   patch descriptors, state snapshot references, content/blob sources,
   warnings, and fatal collection errors.
+- V18 graph-model migration dry-run work now includes a pure planner that
+  consumes source inventory, produces manifest and planned graph-operation
+  facts for complete input, and returns fatal result values for incomplete
+  source facts without writing graph history.
 - V18 property projection closeout now records the remaining raw
   legacy-property boundaries as compatibility, serialization, replay,
   reducer, index, or migration-source boundaries before graph-model migration
