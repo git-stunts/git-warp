@@ -29,11 +29,18 @@ export type VisiblePropertyBag = Readonly<{ [key: string]: SnapshotPropValue }>;
 type MutableVisiblePropertyBag = { [key: string]: SnapshotPropValue };
 export type VisibleEdgeView = { from: string; to: string; label: string; props: VisiblePropertyBag };
 export type StateReaderSource = WarpState | SnapshotWarpState;
+type SnapshotPropValueObject = { readonly [key: string]: SnapshotPropValue };
 type VisibleProjectionProp = {
   node: string;
   key: string;
   value: PropValue;
 };
+
+const FORBIDDEN_SNAPSHOT_PROPERTY_VALUE_KEYS = new Set([
+  '__proto__',
+  'constructor',
+  'prototype',
+]);
 
 export type StateReaderContext = {
   projection: {
@@ -123,20 +130,94 @@ function propMapFromSnapshot(
 
 /** Converts immutable snapshot values back into projection-local values. */
 function propValueFromSnapshot(value: SnapshotPropValue): PropValue {
+  return propValueFromSnapshotWithSeen(value, new WeakSet<object>());
+}
+
+/** Converts immutable snapshot values while detecting invalid recursion. */
+function propValueFromSnapshotWithSeen(
+  value: SnapshotPropValue,
+  seen: WeakSet<object>,
+): PropValue {
   if (value instanceof ImmutableBytes) {
     return value.toUint8Array();
   }
-  if (Array.isArray(value)) {
-    return value.map((entry) => propValueFromSnapshot(entry));
+  if (isSnapshotPropValueArray(value)) {
+    return propValueArrayFromSnapshot(value, seen);
   }
-  if (value !== null && typeof value === 'object') {
-    const props: { [key: string]: PropValue } = {};
-    for (const [key, entry] of Object.entries(value)) {
-      props[key] = propValueFromSnapshot(entry);
-    }
-    return props;
+  if (isSnapshotPropValueObject(value)) {
+    return propValueObjectFromSnapshot(value, seen);
   }
   return value;
+}
+
+/** Converts a snapshot array branch while rejecting cyclic aliases. */
+function propValueArrayFromSnapshot(
+  value: readonly SnapshotPropValue[],
+  seen: WeakSet<object>,
+): PropValue[] {
+  requireUnseenSnapshotPropertyValue(value, seen);
+  seen.add(value);
+  try {
+    return value.map((entry) => propValueFromSnapshotWithSeen(entry, seen));
+  } finally {
+    seen.delete(value);
+  }
+}
+
+/** Converts a snapshot object branch while rejecting prototype keys. */
+function propValueObjectFromSnapshot(
+  value: SnapshotPropValueObject,
+  seen: WeakSet<object>,
+): { [key: string]: PropValue } {
+  requireUnseenSnapshotPropertyValue(value, seen);
+  seen.add(value);
+  try {
+    const props: { [key: string]: PropValue } = {};
+    for (const [key, entry] of Object.entries(value)) {
+      requireSnapshotPropertyValueKey(key);
+      props[key] = propValueFromSnapshotWithSeen(entry, seen);
+    }
+    return props;
+  } finally {
+    seen.delete(value);
+  }
+}
+
+/** Returns true for snapshot array branches. */
+function isSnapshotPropValueArray(
+  value: SnapshotPropValue,
+): value is readonly SnapshotPropValue[] {
+  return Array.isArray(value);
+}
+
+/** Returns true for snapshot property dictionary branches. */
+function isSnapshotPropValueObject(value: SnapshotPropValue): value is SnapshotPropValueObject {
+  return value !== null
+    && typeof value === 'object'
+    && !(value instanceof ImmutableBytes)
+    && !Array.isArray(value);
+}
+
+/** Rejects cyclic snapshot value aliases before recursive hydration. */
+function requireUnseenSnapshotPropertyValue(value: object, seen: WeakSet<object>): void {
+  if (seen.has(value)) {
+    throw invalidSnapshotPropertyValueError();
+  }
+}
+
+/** Rejects keys that can mutate object prototypes during hydration. */
+function requireSnapshotPropertyValueKey(key: string): void {
+  if (FORBIDDEN_SNAPSHOT_PROPERTY_VALUE_KEYS.has(key)) {
+    throw invalidSnapshotPropertyValueError();
+  }
+}
+
+/** Builds the snapshot property hydration validation error. */
+function invalidSnapshotPropertyValueError(): WarpError {
+  return new WarpError(
+    'Snapshot property value must be property-compatible data',
+    'E_STATE_READER_INVALID_SNAPSHOT_PROPERTY_VALUE',
+  );
 }
 
 // ── Index builders ───────────────────────────────────────────────────────────

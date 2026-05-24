@@ -7,7 +7,11 @@ import {
   getNodePropsImpl,
 } from '../../../../src/domain/services/controllers/QueryReads.ts';
 import type { QueryReadHost } from '../../../../src/domain/services/controllers/ReadGraphHost.ts';
-import { createSnapshotWarpState } from '../../../../src/domain/services/ImmutableSnapshot.ts';
+import {
+  createSnapshotORSet,
+  createSnapshotVersionVector,
+  createSnapshotWarpState,
+} from '../../../../src/domain/services/ImmutableSnapshot.ts';
 import {
   CONTENT_MIME_PROPERTY_KEY,
   CONTENT_PROPERTY_KEY,
@@ -17,6 +21,8 @@ import {
   encodeEdgePropKey,
   encodePropKey,
 } from '../../../../src/domain/services/KeyCodec.ts';
+import SnapshotWarpState from '../../../../src/domain/services/snapshot/SnapshotWarpState.ts';
+import type { SnapshotPropValue } from '../../../../src/domain/services/snapshot/SnapshotPropValue.ts';
 import { createStateReader } from '../../../../src/domain/services/state/StateReader.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import type { PropValue } from '../../../../src/domain/types/PropValue.ts';
@@ -98,6 +104,30 @@ describe('StateReader property projection routing', () => {
       liveReader.getEdgeContentMeta('node:1', 'node:2', 'rel'),
     );
   });
+
+  it('rejects cyclic snapshot property values during reader hydration', () => {
+    const cyclic = {};
+    Object.defineProperty(cyclic, 'self', {
+      value: cyclic,
+      enumerable: true,
+    });
+
+    expect(() => createStateReader(snapshotWithPropertyValue(cyclic))).toThrow(
+      /Snapshot property value/,
+    );
+  });
+
+  it('rejects prototype-polluting snapshot property keys during reader hydration', () => {
+    const payload = { safe: 'ok' };
+    Object.defineProperty(payload, '__proto__', {
+      value: { polluted: true },
+      enumerable: true,
+    });
+
+    expect(() => createStateReader(snapshotWithPropertyValue(payload))).toThrow(
+      /Snapshot property value/,
+    );
+  });
 });
 
 function stateWithProjectionFacts(): WarpState {
@@ -123,6 +153,20 @@ function hostForState(state: WarpState): QueryReadHost {
     _materializedGraph: null,
     _ensureFreshState: async () => {},
   };
+}
+
+function snapshotWithPropertyValue(value: SnapshotPropValue): SnapshotWarpState {
+  const state = WarpState.empty();
+  addLiveNode(state, 'node:1', 1);
+  return new SnapshotWarpState({
+    nodeAlive: createSnapshotORSet(state.nodeAlive),
+    edgeAlive: createSnapshotORSet(state.edgeAlive),
+    prop: new Map([
+      [encodePropKey('node:1', 'payload'), LWWRegister.set(event(2), value)],
+    ]),
+    observedFrontier: createSnapshotVersionVector(state.observedFrontier),
+    edgeBirthEvent: new Map(state.edgeBirthEvent),
+  });
 }
 
 function addLiveNode(state: WarpState, nodeId: string, counter: number): void {
