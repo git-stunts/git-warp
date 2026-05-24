@@ -54,6 +54,10 @@ Slice 56 added a pure reading builder for the v17 golden fixture manifest. It
 is a bridge from persisted fixture metadata to equivalence facts, but it is
 not yet a full replay-derived read model.
 
+Slice 57 added a scratch reading builder over migration-operation commits. It
+constructs equivalence facts from scratch Git history, but remains
+operation-derived rather than normal runtime replay.
+
 ## Starting points
 
 - `test/`

@@ -134,6 +134,8 @@ The current v18 graph-model posture is:
   executable closeout audit.
 - Legacy fixture manifests can now be projected into genesis-equivalence
   readings with deterministic patch-boundary evidence.
+- Scratch migration operation commits can now be projected into
+  genesis-equivalence readings with scratch commit boundary evidence.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -452,3 +454,5 @@ and concrete checks live in `docs/invariants/`.
   [0203](design/0203-v18-content-property-closeout-audit/v18-content-property-closeout-audit.md).
 - [x] 56. Construct legacy fixture genesis readings:
   [0204](design/0204-v18-legacy-fixture-reading-construction/v18-legacy-fixture-reading-construction.md).
+- [x] 57. Construct scratch operation genesis readings:
+  [0205](design/0205-v18-scratch-operation-reading-construction/v18-scratch-operation-reading-construction.md).
