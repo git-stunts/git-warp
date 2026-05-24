@@ -425,7 +425,8 @@ report records zero public-read mismatches.
   [0225](design/0225-v18-fixture-property-equivalence-values/v18-fixture-property-equivalence-values.md).
 - [x] 78. Align fixture content attachment evidence with runtime content OIDs:
   [0226](design/0226-v18-fixture-content-runtime-oids/v18-fixture-content-runtime-oids.md).
-- [ ] 79. Add edge-endpoint node coverage or document the fixture edge model.
+- [x] 79. Add edge-endpoint node coverage or document the fixture edge model:
+  [0227](design/0227-v18-fixture-edge-endpoint-coverage/v18-fixture-edge-endpoint-coverage.md).
 - [ ] 80. Represent removed-node and multi-writer facts in migrated readings.
 - [ ] 81. Drive the canonical wet-run mismatch count to zero.
 - [ ] 82. Replan finalization with zero-mismatch wet-run evidence.
@@ -450,8 +451,8 @@ report records zero public-read mismatches.
 - The wet-run harness restores the canonical v17 fixture, writes four scratch
   operations, replays all four through the production runtime, formats a
   deterministic report, and records a passed source-ref drift check.
-- The canonical public-read equivalence gate remains blocked with six legacy
-  facts, three migrated facts, and three mismatches. This is the next blocker.
+- The canonical public-read equivalence gate remains blocked with seven legacy
+  facts, five migrated facts, and two mismatches. This is the next blocker.
 - Live finalization remains intentionally paused until the wet-run mismatch
   count is zero.
 

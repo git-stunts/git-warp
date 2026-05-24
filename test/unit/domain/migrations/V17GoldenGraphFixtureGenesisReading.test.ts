@@ -32,6 +32,7 @@ describe('V17GoldenGraphFixtureGenesisReading', () => {
       'content-attachment\0node:alpha:_content\0payload.oid',
       'edge\0node:alpha->node:beta:relates\0visibility',
       'node\0node:alpha\0visibility',
+      'node\0node:beta\0visibility',
       'node\0node:removed\0visibility',
       'property\0node:alpha:title\0value',
       'property\0writers:alice+bob\0coverage',
@@ -40,8 +41,9 @@ describe('V17GoldenGraphFixtureGenesisReading', () => {
       'alice',
       'bob',
       'bob',
-      'bob',
       'alice',
+      'alice',
+      'bob',
       'alice',
     ]);
     expect(reading.facts.find((fact) => fact.factKey === 'node:alpha:title')?.value)
