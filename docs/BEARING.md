@@ -125,6 +125,9 @@ The current v18 graph-model posture is:
 - Archive-preserving finalization now exists as an adapter-layer Git updater:
   it refuses failed safety results, rejects live-ref drift, creates an archive
   ref for old lineage, and advances the live ref with expected-head CAS.
+- Command-level migration wiring now runs dry-run planning, lowering, scratch
+  writing, equivalence gating, and optional finalization in order, with
+  finalization absent by default.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -277,6 +280,10 @@ the old live head under `refs/warp-migration-archive/*` and advances the live
 ref to the scratch head with `git update-ref <live> <scratch> <old>`, while
 blocking failed safety, existing archive refs, and live-ref drift.
 
+Slice 53 is complete on this branch. The command runner now wires the v18
+migration stages in order and only calls finalization when explicit
+finalization options are supplied and the equivalence gate passes.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -297,9 +304,10 @@ blocking failed safety, existing archive refs, and live-ref drift.
 - Compact equivalence fixtures are not enough by themselves. The golden v17
   fixture now restores Git refs and source inventory consumes those refs, but
   the scratch writer output still needs an equivalence gate.
-- The next migration work must wire command orchestration, runtime
-  conformance, and closeout audit. Live ref promotion now has a covered updater
-  but is still not exposed through an operator command.
+- The next migration work must build real-history reading construction,
+  runtime conformance, and closeout audit. The command can orchestrate supplied
+  readings, but it does not yet derive those readings from migrated Git
+  history.
 
 ## Where We Are Heading
 
@@ -420,6 +428,7 @@ and concrete checks live in `docs/invariants/`.
   [0198](design/0198-v18-migration-finalization-safety/v18-migration-finalization-safety.md).
 - [x] 52. Implement archive-preserving migration finalization:
   [0200](design/0200-v18-migration-finalization-implementation/v18-migration-finalization-implementation.md).
-- [ ] 53. Wire the end-to-end migration command.
+- [x] 53. Wire the end-to-end migration command:
+  [0201](design/0201-v18-migration-command-wiring/v18-migration-command-wiring.md).
 - [ ] 54. Prove post-migration runtime conformance.
 - [ ] 55. Close the content/property migration audit.

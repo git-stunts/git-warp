@@ -36,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Git updater that blocks failed safety results, rejects live-ref drift,
   refuses existing archive refs, archives old lineage, and advances live refs
   through expected-head `git update-ref` calls.
+- V18 graph-model migration now includes a command-level runner that wires
+  dry-run planning, operation lowering, scratch writing, equivalence gating,
+  and optional finalization while keeping finalization absent by default.
 - V18 graph-model migration dry-run work now includes a non-destructive CLI
   runner and request JSON adapter that validate source facts, invoke the pure
   planner, emit deterministic manifest output, and refuse write/apply modes.

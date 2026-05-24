@@ -101,4 +101,6 @@ non-destructive but now has persisted-history evidence:
   selection, scratch output evidence, a passed equivalence gate, and a matching
   live-ref expected head before any live lineage promotion can be implemented;
 - archive-preserving finalization now creates archive refs and advances live
-  refs only through expected-head `git update-ref` calls.
+  refs only through expected-head `git update-ref` calls;
+- command wiring now runs planning, lowering, scratch writing, equivalence,
+  and optional finalization in order while keeping finalization off by default.
