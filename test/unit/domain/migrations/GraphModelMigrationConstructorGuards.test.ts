@@ -4,6 +4,8 @@ import DryRunGraphModelMigrationPlan
   from '../../../../src/domain/migrations/DryRunGraphModelMigrationPlan.ts';
 import DryRunGraphModelMigrationPlanRequest
   from '../../../../src/domain/migrations/DryRunGraphModelMigrationPlanRequest.ts';
+import GraphModelMigrationArchiveRef
+  from '../../../../src/domain/migrations/GraphModelMigrationArchiveRef.ts';
 import GraphModelMigrationBasis from '../../../../src/domain/migrations/GraphModelMigrationBasis.ts';
 import GraphModelMigrationContentMapping
   from '../../../../src/domain/migrations/GraphModelMigrationContentMapping.ts';
@@ -15,6 +17,14 @@ import GraphModelMigrationHistoryPatchInput
   from '../../../../src/domain/migrations/GraphModelMigrationHistoryPatchInput.ts';
 import GraphModelMigrationHistorySegment
   from '../../../../src/domain/migrations/GraphModelMigrationHistorySegment.ts';
+import GraphModelMigrationFinalizationResult, {
+  GRAPH_MODEL_MIGRATION_FINALIZATION_BLOCKED,
+  GRAPH_MODEL_MIGRATION_FINALIZATION_COMPLETED,
+} from '../../../../src/domain/migrations/GraphModelMigrationFinalizationResult.ts';
+import GraphModelMigrationLoweredOperation
+  from '../../../../src/domain/migrations/GraphModelMigrationLoweredOperation.ts';
+import GraphModelMigrationLoweredPatchPlan
+  from '../../../../src/domain/migrations/GraphModelMigrationLoweredPatchPlan.ts';
 import GraphModelMigrationManifest
   from '../../../../src/domain/migrations/GraphModelMigrationManifest.ts';
 import GraphModelMigrationManifestVersion
@@ -30,14 +40,31 @@ import GraphModelMigrationPatchOperationFact
   from '../../../../src/domain/migrations/GraphModelMigrationPatchOperationFact.ts';
 import GraphModelMigrationPlannedGraphOperation
   from '../../../../src/domain/migrations/GraphModelMigrationPlannedGraphOperation.ts';
+import GraphModelMigrationOperationLoweringResult
+  from '../../../../src/domain/migrations/GraphModelMigrationOperationLoweringResult.ts';
 import GraphModelMigrationPropertyMapping
   from '../../../../src/domain/migrations/GraphModelMigrationPropertyMapping.ts';
+import GraphModelMigrationRuntimeConformanceResult, {
+  GRAPH_MODEL_MIGRATION_RUNTIME_CONFORMANCE_FAILED,
+  GRAPH_MODEL_MIGRATION_RUNTIME_CONFORMANCE_PASSED,
+} from '../../../../src/domain/migrations/GraphModelMigrationRuntimeConformanceResult.ts';
+import GraphModelMigrationScratchRef
+  from '../../../../src/domain/migrations/GraphModelMigrationScratchRef.ts';
+import GraphModelMigrationScratchWriteResult
+  from '../../../../src/domain/migrations/GraphModelMigrationScratchWriteResult.ts';
+import GraphModelMigrationScratchWrittenPatch
+  from '../../../../src/domain/migrations/GraphModelMigrationScratchWrittenPatch.ts';
 import GraphModelMigrationSourceInventory
   from '../../../../src/domain/migrations/GraphModelMigrationSourceInventory.ts';
 import GraphModelMigrationStateSnapshotReference
   from '../../../../src/domain/migrations/GraphModelMigrationStateSnapshotReference.ts';
 import GraphModelMigrationWriterChainDescriptor
   from '../../../../src/domain/migrations/GraphModelMigrationWriterChainDescriptor.ts';
+import V17GoldenGraphFixtureManifest, {
+  V17GoldenGraphFixtureVisibleFact,
+  V17GoldenGraphFixtureWriterChain,
+  v17GoldenGraphFixtureFactKindFromString,
+} from '../../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
 
 describe('graph model migration constructor guards', () => {
   it('rejects invalid scalar fields on leaf nouns', () => {
@@ -298,6 +325,210 @@ describe('graph model migration constructor guards', () => {
       fatalErrors: [],
     })).toThrow(/uncollected patch/);
   });
+
+  it('rejects invalid archive refs and scratch write results', () => {
+    expect(new GraphModelMigrationArchiveRef({
+      refName: 'refs/warp-migration-archive/graph/writers/alice',
+    }).refName).toBe('refs/warp-migration-archive/graph/writers/alice');
+    expect(GraphModelMigrationArchiveRef.validateRefName(null)?.code)
+      .toBe('E_MISSING_ARCHIVE_REF');
+    expect(GraphModelMigrationArchiveRef.validateRefName('refs/warp/graph/writers/alice')?.code)
+      .toBe('E_LIVE_ARCHIVE_REF_TARGET');
+    expect(GraphModelMigrationArchiveRef.validateRefName('refs/not-archive/graph')?.code)
+      .toBe('E_INVALID_ARCHIVE_REF');
+    expect(GraphModelMigrationArchiveRef.validateRefName('refs/warp-migration-archive/bad~name')?.code)
+      .toBe('E_INVALID_ARCHIVE_REF');
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GraphModelMigrationArchiveRef(null);
+    }).toThrow(/fields/);
+    expect(() => new GraphModelMigrationScratchWriteResult({
+      scratchRef: scratchRef(),
+      scratchHead: 'scratch-head',
+      writtenPatches: [writtenPatch(0), writtenPatch(1)],
+      warnings: [],
+      fatalErrors: [],
+    })).toThrow(/duplicate scratch written operation/);
+    expect(() => new GraphModelMigrationScratchWriteResult({
+      scratchRef: scratchRef(),
+      scratchHead: 'scratch-head',
+      writtenPatches: [],
+      warnings: [],
+      fatalErrors: [GraphModelMigrationNotice.fatal('E_FATAL', 'fatal')],
+    })).toThrow(/fatal scratch write results/);
+    expect(() => new GraphModelMigrationScratchWriteResult({
+      // @ts-expect-error exercising runtime validation
+      scratchRef: 'refs/warp-migration-scratch/graph',
+      scratchHead: null,
+      writtenPatches: [],
+      warnings: [],
+      fatalErrors: [],
+    })).toThrow(/scratchRef/);
+    expect(() => new GraphModelMigrationScratchWriteResult({
+      scratchRef: null,
+      scratchHead: '',
+      writtenPatches: [],
+      warnings: [],
+      fatalErrors: [],
+    })).toThrow(/scratchHead/);
+    expect(() => new GraphModelMigrationScratchWriteResult({
+      scratchRef: null,
+      scratchHead: null,
+      // @ts-expect-error exercising runtime validation
+      writtenPatches: 'nope',
+      warnings: [],
+      fatalErrors: [],
+    })).toThrow(/writtenPatches/);
+    expect(() => new GraphModelMigrationScratchWriteResult({
+      scratchRef: null,
+      scratchHead: null,
+      // @ts-expect-error exercising runtime validation
+      writtenPatches: [{ commitId: 'commit', operation: loweredOperation(), sequence: 0 }],
+      warnings: [],
+      fatalErrors: [],
+    })).toThrow(/written patches/);
+    expect(() => new GraphModelMigrationScratchWriteResult({
+      scratchRef: null,
+      scratchHead: null,
+      writtenPatches: [],
+      warnings: [GraphModelMigrationNotice.fatal('E_FATAL', 'fatal')],
+      fatalErrors: [],
+    })).toThrow(/warnings/);
+    expect(() => new GraphModelMigrationScratchWriteResult({
+      scratchRef: null,
+      scratchHead: null,
+      writtenPatches: [],
+      warnings: [],
+      fatalErrors: [GraphModelMigrationNotice.warning('W_WARNING', 'warning')],
+    })).toThrow(/fatalErrors/);
+  });
+
+  it('rejects invalid finalization and runtime conformance evidence', () => {
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GraphModelMigrationFinalizationResult(null);
+    }).toThrow(/fields/);
+    expect(() => new GraphModelMigrationFinalizationResult({
+      // @ts-expect-error exercising runtime validation
+      status: 'done',
+      liveRefName: 'refs/warp/graph',
+      archiveRefName: null,
+      previousLiveHead: null,
+      finalizedLiveHead: null,
+      fatalErrors: [GraphModelMigrationNotice.fatal('E_FATAL', 'fatal')],
+    })).toThrow(/status/);
+    expect(() => new GraphModelMigrationFinalizationResult({
+      status: GRAPH_MODEL_MIGRATION_FINALIZATION_BLOCKED,
+      liveRefName: '',
+      archiveRefName: null,
+      previousLiveHead: null,
+      finalizedLiveHead: null,
+      fatalErrors: [GraphModelMigrationNotice.fatal('E_FATAL', 'fatal')],
+    })).toThrow(/liveRefName/);
+    expect(() => new GraphModelMigrationFinalizationResult({
+      status: GRAPH_MODEL_MIGRATION_FINALIZATION_BLOCKED,
+      liveRefName: 'refs/warp/graph',
+      archiveRefName: '',
+      previousLiveHead: null,
+      finalizedLiveHead: null,
+      fatalErrors: [GraphModelMigrationNotice.fatal('E_FATAL', 'fatal')],
+    })).toThrow(/archiveRefName/);
+    expect(() => new GraphModelMigrationFinalizationResult({
+      status: GRAPH_MODEL_MIGRATION_FINALIZATION_BLOCKED,
+      liveRefName: 'refs/warp/graph',
+      archiveRefName: null,
+      previousLiveHead: null,
+      finalizedLiveHead: null,
+      fatalErrors: [],
+    })).toThrow(/non-completed/);
+    expect(() => new GraphModelMigrationFinalizationResult({
+      status: GRAPH_MODEL_MIGRATION_FINALIZATION_COMPLETED,
+      liveRefName: 'refs/warp/graph',
+      archiveRefName: null,
+      previousLiveHead: 'old',
+      finalizedLiveHead: 'new',
+      fatalErrors: [],
+    })).toThrow(/archive and head/);
+    expect(() => new GraphModelMigrationRuntimeConformanceResult({
+      scratchRef: scratchRef(),
+      scratchHead: 'scratch-head',
+      status: GRAPH_MODEL_MIGRATION_RUNTIME_CONFORMANCE_PASSED,
+      witness: 'witness',
+      fatalErrors: [GraphModelMigrationNotice.fatal('E_FATAL', 'fatal')],
+    })).toThrow(/passed runtime conformance/);
+    expect(() => new GraphModelMigrationRuntimeConformanceResult({
+      scratchRef: scratchRef(),
+      scratchHead: 'scratch-head',
+      status: GRAPH_MODEL_MIGRATION_RUNTIME_CONFORMANCE_FAILED,
+      witness: 'witness',
+      fatalErrors: [],
+    })).toThrow(/failed runtime conformance/);
+    expect(() => new GraphModelMigrationRuntimeConformanceResult({
+      // @ts-expect-error exercising runtime validation
+      scratchRef: 'refs/warp-migration-scratch/graph',
+      scratchHead: 'scratch-head',
+      status: GRAPH_MODEL_MIGRATION_RUNTIME_CONFORMANCE_FAILED,
+      witness: 'witness',
+      fatalErrors: [GraphModelMigrationNotice.fatal('E_FATAL', 'fatal')],
+    })).toThrow(/scratchRef/);
+  });
+
+  it('rejects invalid lowering result and fixture manifest evidence', () => {
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GraphModelMigrationOperationLoweringResult(null);
+    }).toThrow(/fields/);
+    expect(() => new GraphModelMigrationOperationLoweringResult({
+      // @ts-expect-error exercising runtime validation
+      patchPlan: { operations: [] },
+      warnings: [],
+      fatalErrors: [],
+    })).toThrow(/patchPlan/);
+    expect(() => new GraphModelMigrationOperationLoweringResult({
+      patchPlan: null,
+      warnings: [GraphModelMigrationNotice.fatal('E_FATAL', 'fatal')],
+      fatalErrors: [],
+    })).toThrow(/warnings/);
+    expect(() => new GraphModelMigrationOperationLoweringResult({
+      patchPlan: null,
+      warnings: [],
+      fatalErrors: [GraphModelMigrationNotice.warning('W_WARNING', 'warning')],
+    })).toThrow(/fatalErrors/);
+    expect(() => new GraphModelMigrationOperationLoweringResult({
+      patchPlan: loweredPatchPlan(),
+      warnings: [],
+      fatalErrors: [GraphModelMigrationNotice.fatal('E_FATAL', 'fatal')],
+    })).toThrow(/fatal lowering/);
+    expect(() => new GraphModelMigrationOperationLoweringResult({
+      patchPlan: null,
+      warnings: [],
+      fatalErrors: [],
+    })).toThrow(/successful lowering/);
+    expect(() => v17GoldenGraphFixtureFactKindFromString('not-a-fact'))
+      .toThrow(/fact kind/);
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new V17GoldenGraphFixtureManifest(null);
+    }).toThrow(/fields/);
+    expect(() => new V17GoldenGraphFixtureManifest({
+      fixtureId: 'fixture',
+      graphId: 'graph',
+      sourceVersion: '17.0.1',
+      generator: 'test',
+      bundlePath: 'bundle',
+      writerChains: [fixtureWriter('alice'), fixtureWriter('alice')],
+      visibleFacts: completeFixtureFacts(),
+    })).toThrow(/duplicates writer/);
+    expect(() => new V17GoldenGraphFixtureManifest({
+      fixtureId: 'fixture',
+      graphId: 'graph',
+      sourceVersion: '17.0.1',
+      generator: 'test',
+      bundlePath: 'bundle',
+      writerChains: [fixtureWriter('alice')],
+      visibleFacts: [fixtureFact('node', 'node:a')],
+    })).toThrow(/visibleFacts must include edge/);
+  });
 });
 
 type InventoryOverrides = {
@@ -380,4 +611,65 @@ function historyPatch(
       }),
     ],
   });
+}
+
+function scratchRef(): GraphModelMigrationScratchRef {
+  return new GraphModelMigrationScratchRef({
+    refName: 'refs/warp-migration-scratch/graph/migration',
+  });
+}
+
+function loweredOperation(): GraphModelMigrationLoweredOperation {
+  return new GraphModelMigrationLoweredOperation({
+    kind: 'node-record',
+    sourceKey: 'node:a',
+    targetKey: 'node:a',
+  });
+}
+
+function loweredPatchPlan(): GraphModelMigrationLoweredPatchPlan {
+  return new GraphModelMigrationLoweredPatchPlan({
+    sourceBasis: sourceBasis(),
+    targetBasis: targetBasis(),
+    operations: [loweredOperation()],
+  });
+}
+
+function writtenPatch(sequence: number): GraphModelMigrationScratchWrittenPatch {
+  return new GraphModelMigrationScratchWrittenPatch({
+    commitId: `commit:${sequence}`,
+    operation: loweredOperation(),
+    sequence,
+  });
+}
+
+function fixtureWriter(writerId: string): V17GoldenGraphFixtureWriterChain {
+  return new V17GoldenGraphFixtureWriterChain({
+    writerId,
+    refName: `refs/warp/graph/writers/${writerId}`,
+    expectedHead: '1111111111111111111111111111111111111111',
+    patchCount: 1,
+  });
+}
+
+function fixtureFact(
+  kind: 'node' | 'edge' | 'property' | 'content' | 'removal' | 'multi-writer',
+  key: string,
+): V17GoldenGraphFixtureVisibleFact {
+  return new V17GoldenGraphFixtureVisibleFact({
+    kind,
+    key,
+    description: `${kind}:${key}`,
+  });
+}
+
+function completeFixtureFacts(): readonly V17GoldenGraphFixtureVisibleFact[] {
+  return Object.freeze([
+    fixtureFact('node', 'node:a'),
+    fixtureFact('edge', 'edge:a'),
+    fixtureFact('property', 'property:a'),
+    fixtureFact('content', 'content:a'),
+    fixtureFact('removal', 'node:removed'),
+    fixtureFact('multi-writer', 'writers:a+b'),
+  ]);
 }
