@@ -189,6 +189,11 @@ runtime-backed comparison basis, reading fact, boundary evidence, mismatch,
 summary, and success/failure result nouns. The proof comparer returns
 structured expected failures instead of throwing for non-equivalent readings.
 
+Slice 43 is complete on this branch. The first deterministic equivalence
+fixtures now cover node lifecycle, edge lifecycle, content attachment metadata,
+removed-node visibility, multi-writer non-coordinated ordering, and one
+intentional divergent property case.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -305,7 +310,7 @@ and concrete checks live in `docs/invariants/`.
   [0189](design/0189-v18-migration-dry-run-cli/v18-migration-dry-run-cli.md).
 - [x] 42. Add genesis equivalence proof nouns:
   [0190](design/0190-v18-genesis-equivalence-nouns/v18-genesis-equivalence-nouns.md).
-- [ ] 43. Add genesis equivalence fixtures:
+- [x] 43. Add genesis equivalence fixtures:
   [0191](design/0191-v18-genesis-equivalence-fixtures/v18-genesis-equivalence-fixtures.md).
 - [ ] 44. Add the genesis divergence reporter:
   [0192](design/0192-v18-genesis-divergence-reporter/v18-genesis-divergence-reporter.md).

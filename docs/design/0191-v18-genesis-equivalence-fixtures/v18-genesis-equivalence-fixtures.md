@@ -1,7 +1,7 @@
 ---
 cycle: 0191
 task_id: V18_genesis_equivalence_fixtures
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
@@ -96,6 +96,24 @@ npm run typecheck
 npm run lint
 git diff --check HEAD
 ```
+
+## Playback
+
+- Fixture cases cover node lifecycle with property, edge lifecycle with
+  property, content attachment metadata, removed-node visibility, and
+  multi-writer non-coordinated order.
+- `GenesisEquivalenceFixtureCase` carries legacy and migrated readings plus
+  the expected result kind.
+- The divergent fixture intentionally changes one property value and proves
+  the proof layer returns a structured mismatch.
+- Fixture readings are constructed from explicit runtime-backed equivalence
+  nouns, not opaque JSON blobs.
+
+## Evidence
+
+- `test/unit/domain/migrations/GenesisEquivalenceFixtureCase.ts`
+- `test/unit/domain/migrations/GenesisEquivalenceFixtures.ts`
+- `test/unit/domain/migrations/GenesisEquivalenceFixtures.test.ts`
 
 ## Closeout Criteria
 
