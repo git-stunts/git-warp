@@ -39,17 +39,17 @@ of handwritten adapter folklore.
 
 Current branch state at this boundary:
 
-- Branch: `v18-continuum-slices-36-40`
+- Branch: `v18-continuum-slices-41-45`
 - Base branch: `main`
-- Current `origin/main`: `f9230f09`
-- Latest merged PR: #101, v18 property projection cutover
+- Current `origin/main`: `07e16795`
+- Latest merged PR: #102, v18 migration dry-run planning substrate
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
-  `0183-v18-property-projection-closeout`
-- Current work: v18 slices 36 through 40 are the active dry-run migration
-  batch on this branch.
+  `0188-v18-migration-manifest-serialization`
+- Current work: v18 slices 41 through 45 are the active migration CLI and
+  genesis-equivalence evidence batch on this branch.
 - Cleanup checkpoint: `main` has been fast-forwarded to `origin/main` after
-  PR #101 merged; this branch starts from that merge commit.
+  PR #102 merged; this branch starts from that merge commit.
 
 The current v18 graph-model posture is:
 
@@ -140,7 +140,7 @@ PR #101 landed v18 slices 31 through 35:
 - review follow-up hardened CI action pinning, property-value recursion and
   prototype guards, and hostile `SnapshotWarpState` hydration boundaries.
 
-This branch starts PR C, v18 slices 36 through 40:
+PR #102 landed v18 slices 36 through 40:
 
 - graph-model migration manifest nouns;
 - migration source inventory;
@@ -170,6 +170,19 @@ Slice 40 is complete on this branch. Manifest JSON serialization now
 round-trips through an infrastructure adapter with deterministic output,
 field-specific parse errors, and domain construction enforcing duplicate
 mapping invariants.
+
+This branch starts PR D, v18 slices 41 through 45:
+
+- migration dry-run CLI;
+- genesis equivalence proof nouns;
+- genesis equivalence fixtures;
+- genesis divergence reporter;
+- evidence-backed replan.
+
+Slice 41 is complete on this branch. The dry-run CLI now accepts an explicit
+request JSON artifact, decodes source facts at the infrastructure boundary,
+calls the pure dry-run planner, writes only an optional deterministic manifest
+artifact, reports summary counts, and refuses destructive apply/write verbs.
 
 ## What Feels Wrong
 
@@ -283,7 +296,7 @@ and concrete checks live in `docs/invariants/`.
   [0187](design/0187-v18-migration-history-input/v18-migration-history-input.md).
 - [x] 40. Add migration manifest serialization:
   [0188](design/0188-v18-migration-manifest-serialization/v18-migration-manifest-serialization.md).
-- [ ] 41. Add the migration dry-run CLI:
+- [x] 41. Add the migration dry-run CLI:
   [0189](design/0189-v18-migration-dry-run-cli/v18-migration-dry-run-cli.md).
 - [ ] 42. Add genesis equivalence proof nouns:
   [0190](design/0190-v18-genesis-equivalence-nouns/v18-genesis-equivalence-nouns.md).
