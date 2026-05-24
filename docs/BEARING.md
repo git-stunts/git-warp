@@ -130,6 +130,8 @@ The current v18 graph-model posture is:
   finalization absent by default.
 - Finalization now also requires post-migration runtime conformance evidence
   tied to the exact scratch ref and scratch head.
+- The remaining raw content/property compatibility files are now listed in an
+  executable closeout audit.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -290,6 +292,11 @@ Slice 54 is complete on this branch. Finalization safety now rejects promotion
 without runtime conformance evidence for the exact scratch ref/head, which
 keeps supplied equivalence readings from masquerading as runtime readability.
 
+Slice 55 is complete on this branch. The content/property closeout audit now
+enumerates every current `src/domain` file that still touches raw legacy
+content/property compatibility patterns and fails if that set drifts without
+review.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -297,8 +304,8 @@ keeps supplied equivalence readings from masquerading as runtime readability.
   complete.
 - The source audit still finds raw property-map dependencies in named
   compatibility, serialization, replay, reducer/op-strategy, visible-scope,
-  logical-index, and migration-source boundaries. The audit command was
-  `rg -n "decodePropKey|decodeEdgePropKey|state\\.prop" src/domain`.
+  logical-index, and migration-source boundaries. The closeout audit pattern is
+  `decodePropKey|decodeEdgePropKey|state\\.prop|_content` over `src/domain`.
 - Temporal replay still extracts node snapshots from the raw legacy property
   map because historical replay tests carry pre-codec inline fixture classes
   that are not `PropValue`-honest enough for `LegacyPropertyValue`.
@@ -309,11 +316,12 @@ keeps supplied equivalence readings from masquerading as runtime readability.
   ship gate wired through finalization.
 - Compact equivalence fixtures are not enough by themselves. The golden v17
   fixture now restores Git refs and source inventory consumes those refs, but
-  the scratch writer output still needs an equivalence gate.
-- The next migration work must close the content/property audit and then build
-  real-history reading construction plus a real runtime conformance provider.
-  The command can orchestrate supplied readings, but it does not yet derive
-  those readings from migrated Git history.
+  the command still needs real-history reading construction from migrated Git
+  output.
+- The next migration work must build real-history reading construction plus a
+  real runtime conformance provider. The command can orchestrate supplied
+  readings, but it does not yet derive those readings from migrated Git
+  history.
 
 ## Where We Are Heading
 
@@ -438,4 +446,5 @@ and concrete checks live in `docs/invariants/`.
   [0201](design/0201-v18-migration-command-wiring/v18-migration-command-wiring.md).
 - [x] 54. Prove post-migration runtime conformance:
   [0202](design/0202-v18-post-migration-runtime-conformance/v18-post-migration-runtime-conformance.md).
-- [ ] 55. Close the content/property migration audit.
+- [x] 55. Close the content/property migration audit:
+  [0203](design/0203-v18-content-property-closeout-audit/v18-content-property-closeout-audit.md).

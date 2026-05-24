@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 graph-model migration finalization now requires runtime conformance
   evidence matching the scratch ref and scratch head, so supplied equivalence
   readings alone cannot promote scratch output to live graph refs.
+- V18 graph-model migration closeout now records the remaining raw
+  content/property compatibility files and adds an executable audit shape test
+  so new raw compatibility boundaries require deliberate review.
 - V18 graph-model migration dry-run work now includes a non-destructive CLI
   runner and request JSON adapter that validate source facts, invoke the pure
   planner, emit deterministic manifest output, and refuse write/apply modes.

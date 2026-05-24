@@ -106,4 +106,6 @@ non-destructive but now has persisted-history evidence:
   and optional finalization in order while keeping finalization off by default;
 - finalization now also requires runtime conformance evidence tied to the
   exact scratch ref and head, making the remaining real-runtime replay provider
-  an explicit release blocker instead of an implicit assumption.
+  an explicit release blocker instead of an implicit assumption;
+- raw content/property compatibility boundaries are now enumerated by an
+  executable closeout audit so new raw boundaries require deliberate review.
