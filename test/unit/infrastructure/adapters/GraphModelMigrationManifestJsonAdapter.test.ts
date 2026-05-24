@@ -44,6 +44,65 @@ describe('GraphModelMigrationManifestJsonAdapter', () => {
     }`)).toThrow(/version/);
   });
 
+  it('fails closed for invalid JSON and unexpected fields', () => {
+    expect(() => parseGraphModelMigrationManifest('{')).toThrow(/valid JSON/);
+    expect(() => parseGraphModelMigrationManifest(`{
+      "version": 1,
+      "sourceBasis": { "graphId": "graph:source", "basisId": "basis:source" },
+      "targetBasis": { "graphId": "graph:target", "basisId": "basis:target" },
+      "nodeMappings": [],
+      "edgeMappings": [],
+      "propertyMappings": [],
+      "contentMappings": [],
+      "warnings": [],
+      "fatalErrors": [],
+      "surprise": true
+    }`)).toThrow(/surprise/);
+  });
+
+  it('fails closed for malformed object arrays and notice kind fields', () => {
+    expect(() => parseGraphModelMigrationManifest(`{
+      "version": 1,
+      "sourceBasis": { "graphId": "graph:source", "basisId": "basis:source" },
+      "targetBasis": { "graphId": "graph:target", "basisId": "basis:target" },
+      "nodeMappings": "nope",
+      "edgeMappings": [],
+      "propertyMappings": [],
+      "contentMappings": [],
+      "warnings": [],
+      "fatalErrors": []
+    }`)).toThrow(/nodeMappings/);
+    expect(() => parseGraphModelMigrationManifest(`{
+      "version": 1,
+      "sourceBasis": { "graphId": "graph:source", "basisId": "basis:source" },
+      "targetBasis": { "graphId": "graph:target", "basisId": "basis:target" },
+      "nodeMappings": [null],
+      "edgeMappings": [],
+      "propertyMappings": [],
+      "contentMappings": [],
+      "warnings": [],
+      "fatalErrors": []
+    }`)).toThrow(/nodeMappings\[0\]/);
+    expect(() => parseGraphModelMigrationManifest(`{
+      "version": 1,
+      "sourceBasis": { "graphId": "graph:source", "basisId": "basis:source" },
+      "targetBasis": { "graphId": "graph:target", "basisId": "basis:target" },
+      "nodeMappings": [],
+      "edgeMappings": [],
+      "propertyMappings": [],
+      "contentMappings": [],
+      "warnings": [{ "kind": "info", "code": "I_BAD", "message": "bad" }],
+      "fatalErrors": []
+    }`)).toThrow(/warnings\[0\]\.kind/);
+  });
+
+  it('requires manifest instances for serialization', () => {
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      serializeGraphModelMigrationManifest({ version: 1 });
+    }).toThrow(/manifest instance/);
+  });
+
   it('lets domain construction reject duplicate mapping entries', () => {
     const duplicatedNodeMapping = `{
       "version": 1,

@@ -41,6 +41,10 @@ import GraphModelMigrationWriterChainDescriptor
 
 describe('graph model migration constructor guards', () => {
   it('rejects invalid scalar fields on leaf nouns', () => {
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GraphModelMigrationBasis(null);
+    }).toThrow(/fields/);
     expect(() => new GraphModelMigrationBasis({
       graphId: '',
       basisId: 'basis:one',
@@ -62,6 +66,10 @@ describe('graph model migration constructor guards', () => {
       operationKind: 'node:set',
       operationKey: 'node:a',
     })).toThrow(/operationIndex/);
+    expect(() => new GraphModelMigrationWriterChainDescriptor({
+      writerId: 'writer:a',
+      patchIds: ['patch:a', 'patch:a'],
+    })).toThrow(/duplicates writer chain patch id/);
   });
 
   it('covers stable keys and factory constructors', () => {
@@ -80,6 +88,33 @@ describe('graph model migration constructor guards', () => {
   });
 
   it('rejects invalid mapping and source fact envelopes', () => {
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GraphModelMigrationManifest(null);
+    }).toThrow(/fields/);
+    expect(() => new GraphModelMigrationManifest({
+      version: GraphModelMigrationManifestVersion.current(),
+      // @ts-expect-error exercising runtime validation
+      sourceBasis: { graphId: 'graph:source', basisId: 'basis:source' },
+      targetBasis: targetBasis(),
+      nodeMappings: [],
+      edgeMappings: [],
+      propertyMappings: [],
+      contentMappings: [],
+      warnings: [],
+      fatalErrors: [],
+    })).toThrow(/sourceBasis/);
+    expect(() => new GraphModelMigrationManifest({
+      version: GraphModelMigrationManifestVersion.current(),
+      sourceBasis: sourceBasis(),
+      targetBasis: targetBasis(),
+      nodeMappings: [],
+      edgeMappings: [],
+      propertyMappings: [],
+      contentMappings: [{ legacyContentKey: 'node:a', targetAttachmentKey: 'attachment:a' }],
+      warnings: [],
+      fatalErrors: [],
+    })).toThrow(/contentMappings/);
     expect(() => new GraphModelMigrationNodeMapping({
       legacyNodeId: '',
       targetNodeId: 'node:a',
@@ -108,6 +143,10 @@ describe('graph model migration constructor guards', () => {
   });
 
   it('rejects ambiguous frontier and history ordering facts', () => {
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GraphModelMigrationPatchFrontierEvidence(null);
+    }).toThrow(/fields/);
     expect(() => new GraphModelMigrationPatchFrontierEvidence({
       frontierKey: 'frontier:a',
       parentPatchIds: ['patch:a', 'patch:a'],
@@ -124,6 +163,20 @@ describe('graph model migration constructor guards', () => {
       writerId: 'writer:a',
       patches: [historyPatch('writer:a', 'patch:a:1', 1)],
     })).toThrow(/contiguous per writer/);
+    expect(() => new GraphModelMigrationHistoryPatchInput({
+      writerId: 'writer:a',
+      patchId: 'patch:a',
+      writerSequence: 0,
+      frontierEvidence: { frontierKey: 'frontier:a', parentPatchIds: [] },
+      operations: [],
+    })).toThrow(/frontierEvidence/);
+    expect(() => new GraphModelMigrationHistoryPatchInput({
+      writerId: 'writer:a',
+      patchId: 'patch:a',
+      writerSequence: 0,
+      frontierEvidence: null,
+      operations: [{ operationIndex: 0, operationKind: 'node:set', operationKey: 'node:a' }],
+    })).toThrow(/operation facts/);
   });
 
   it('rejects boolean-trap notice inversions through explicit helpers', () => {
@@ -148,6 +201,24 @@ describe('graph model migration constructor guards', () => {
   });
 
   it('rejects cross-field plan invariants and request duplicates', () => {
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new DryRunGraphModelMigrationPlan(null);
+    }).toThrow(/fields/);
+    expect(() => new DryRunGraphModelMigrationPlan({
+      // @ts-expect-error exercising runtime validation
+      manifest: GraphModelMigrationNotice.warning('W_NOT_MANIFEST', 'not a manifest'),
+      plannedOperations: [],
+      warnings: [],
+      fatalErrors: [],
+    })).toThrow(/manifest/);
+    expect(() => new DryRunGraphModelMigrationPlan({
+      manifest: emptyManifest(),
+      // @ts-expect-error exercising runtime validation
+      plannedOperations: [{ kind: 'node-record', sourceKey: 'node:a', targetKey: 'node:a' }],
+      warnings: [],
+      fatalErrors: [],
+    })).toThrow(/planned graph operations/);
     expect(() => new DryRunGraphModelMigrationPlan({
       manifest: null,
       plannedOperations: [],
@@ -167,6 +238,65 @@ describe('graph model migration constructor guards', () => {
       edgeMappings: [],
       propertyMappings: [],
     })).toThrow(/duplicates required content key/);
+    expect(() => new DryRunGraphModelMigrationPlanRequest({
+      // @ts-expect-error exercising runtime validation
+      inventory: emptyManifest(),
+      requiredContentKeys: [],
+      nodeMappings: [],
+      edgeMappings: [],
+      propertyMappings: [],
+    })).toThrow(/inventory/);
+    expect(() => new DryRunGraphModelMigrationPlanRequest({
+      inventory: createInventory({}),
+      // @ts-expect-error exercising runtime validation
+      requiredContentKeys: [1],
+      nodeMappings: [],
+      edgeMappings: [],
+      propertyMappings: [],
+    })).toThrow(/contentKey/);
+  });
+
+  it('rejects invalid source inventory carrier shapes', () => {
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GraphModelMigrationSourceInventory(null);
+    }).toThrow(/fields/);
+    expect(() => new GraphModelMigrationSourceInventory({
+      graphId: 'graph:source',
+      // @ts-expect-error exercising runtime validation
+      sourceBasis: { graphId: 'graph:source', basisId: 'basis:source' },
+      writerChains: [],
+      patchDescriptors: [],
+      stateSnapshot: null,
+      contentSources: [],
+      warnings: [],
+      fatalErrors: [],
+    })).toThrow(/sourceBasis/);
+    expect(() => new GraphModelMigrationSourceInventory({
+      graphId: 'graph:source',
+      sourceBasis: sourceBasis(),
+      writerChains: [{ writerId: 'writer:a', patchIds: [] }],
+      patchDescriptors: [],
+      stateSnapshot: null,
+      contentSources: [],
+      warnings: [],
+      fatalErrors: [],
+    })).toThrow(/writerChains/);
+    expect(() => new GraphModelMigrationSourceInventory({
+      graphId: 'graph:source',
+      sourceBasis: sourceBasis(),
+      writerChains: [
+        new GraphModelMigrationWriterChainDescriptor({
+          writerId: 'writer:a',
+          patchIds: ['patch:a'],
+        }),
+      ],
+      patchDescriptors: [],
+      stateSnapshot: null,
+      contentSources: [],
+      warnings: [],
+      fatalErrors: [],
+    })).toThrow(/uncollected patch/);
   });
 });
 
