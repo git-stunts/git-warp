@@ -39,17 +39,17 @@ of handwritten adapter folklore.
 
 Current branch state at this boundary:
 
-- Branch: `v18-continuum-slices-31-35`
+- Branch: `v18-continuum-slices-36-40`
 - Base branch: `main`
-- Current `origin/main`: `35e5a6a9`
-- Latest merged PR: #100, post-PR-99 BEARING cleanup checkpoint
+- Current `origin/main`: `f9230f09`
+- Latest merged PR: #101, v18 property projection cutover
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
   `0183-v18-property-projection-closeout`
-- Current work: v18 slices 31 through 35 are implemented on this branch and
-  ready for PR verification.
-- Cleanup checkpoint: before this slice branch, there were no open PRs and
-  remote refs had been pruned to `origin/main`.
+- Current work: v18 slices 36 through 40 are the active dry-run migration
+  batch on this branch.
+- Cleanup checkpoint: `main` has been fast-forwarded to `origin/main` after
+  PR #101 merged; this branch starts from that merge commit.
 
 The current v18 graph-model posture is:
 
@@ -110,7 +110,7 @@ PR #99 landed v18 slices 26 through 30:
   malformed-record skipping, shared legacy content keys, and plain-object
   property carrier guards.
 
-This branch implements v18 slices 31 through 35:
+PR #101 landed v18 slices 31 through 35:
 
 - state-reader node, edge, and content property views route through typed
   projections;
@@ -121,6 +121,16 @@ This branch implements v18 slices 31 through 35:
   nouns;
 - closeout routed the remaining live read-model property views through
   projections and documented the remaining raw legacy-property boundaries.
+- review follow-up hardened CI action pinning, property-value recursion and
+  prototype guards, and hostile `SnapshotWarpState` hydration boundaries.
+
+This branch starts PR C, v18 slices 36 through 40:
+
+- graph-model migration manifest nouns;
+- migration source inventory;
+- dry-run state migration planner;
+- ordered migration history input;
+- migration manifest serialization.
 
 ## What Feels Wrong
 
