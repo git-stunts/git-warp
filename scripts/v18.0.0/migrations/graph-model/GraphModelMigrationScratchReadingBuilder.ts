@@ -19,8 +19,10 @@ export type GraphModelMigrationScratchReadingBuilderOptions = {
   readonly readingId: string;
 };
 
-class ScratchOperationPayload {
+export class GraphModelMigrationScratchOperationRecord {
   constructor(
+    readonly commitId: string,
+    readonly sequence: number,
     readonly kind: GraphModelMigrationPlannedGraphOperationKind,
     readonly sourceKey: string,
     readonly targetKey: string,
@@ -41,27 +43,41 @@ export async function buildGraphModelMigrationScratchReading(
   options: GraphModelMigrationScratchReadingBuilderOptions,
 ): Promise<GenesisEquivalenceReading> {
   const repositoryPath = requireNonEmptyString(options.repositoryPath, 'repositoryPath');
-  const scratchRef = new GraphModelMigrationScratchRef({ refName: options.scratchRefName });
-  const commitIds = await gitLines(repositoryPath, ['rev-list', '--reverse', scratchRef.refName]);
-  const facts: GenesisEquivalenceReadingFact[] = [];
-  let operationIndex = 0;
-  for (const commitId of commitIds) {
-    const payload = parseScratchOperationPayload(
-      await gitText(repositoryPath, ['show', `${commitId}:${OPERATION_TREE_PATH}`]),
-    );
-    facts.push(factFromPayload(payload, commitId, operationIndex));
-    operationIndex += 1;
-  }
+  const records = await readGraphModelMigrationScratchOperationRecords({
+    repositoryPath,
+    scratchRefName: options.scratchRefName,
+  });
+  const facts = records.map(factFromPayload);
   return new GenesisEquivalenceReading({
     readingId: requireNonEmptyString(options.readingId, 'readingId'),
     facts,
   });
 }
 
+/** Reads scratch migration operation commit payloads from Git in replay order. */
+export async function readGraphModelMigrationScratchOperationRecords(options: {
+  readonly repositoryPath: string;
+  readonly scratchRefName: string;
+}): Promise<readonly GraphModelMigrationScratchOperationRecord[]> {
+  const repositoryPath = requireNonEmptyString(options.repositoryPath, 'repositoryPath');
+  const scratchRef = new GraphModelMigrationScratchRef({ refName: options.scratchRefName });
+  const commitIds = await gitLines(repositoryPath, ['rev-list', '--reverse', scratchRef.refName]);
+  const records: GraphModelMigrationScratchOperationRecord[] = [];
+  let operationIndex = 0;
+  for (const commitId of commitIds) {
+    const payload = parseScratchOperationPayload(
+      await gitText(repositoryPath, ['show', `${commitId}:${OPERATION_TREE_PATH}`]),
+      commitId,
+      operationIndex,
+    );
+    records.push(payload);
+    operationIndex += 1;
+  }
+  return Object.freeze(records);
+}
+
 function factFromPayload(
-  payload: ScratchOperationPayload,
-  commitId: string,
-  operationIndex: number,
+  payload: GraphModelMigrationScratchOperationRecord,
 ): GenesisEquivalenceReadingFact {
   const projected = projectedFactFromPayload(payload);
   return new GenesisEquivalenceReadingFact({
@@ -71,13 +87,13 @@ function factFromPayload(
     value: projected.value,
     boundary: new GenesisEquivalenceBoundary({
       writerId: 'scratch-migration',
-      patchId: commitId,
-      operationIndex,
+      patchId: payload.commitId,
+      operationIndex: payload.sequence,
     }),
   });
 }
 
-function projectedFactFromPayload(payload: ScratchOperationPayload): {
+function projectedFactFromPayload(payload: GraphModelMigrationScratchOperationRecord): {
   readonly kind: GenesisEquivalenceReadingFactKind;
   readonly factKey: string;
   readonly fieldPath: string;
@@ -92,7 +108,7 @@ function projectedFactFromPayload(payload: ScratchOperationPayload): {
   return compatibilityFactFromPayload(payload);
 }
 
-function compatibilityFactFromPayload(payload: ScratchOperationPayload): {
+function compatibilityFactFromPayload(payload: GraphModelMigrationScratchOperationRecord): {
   readonly kind: GenesisEquivalenceReadingFactKind;
   readonly factKey: string;
   readonly fieldPath: string;
@@ -121,13 +137,19 @@ function projected(
   return Object.freeze({ kind, factKey, fieldPath, value });
 }
 
-function parseScratchOperationPayload(text: string): ScratchOperationPayload {
+function parseScratchOperationPayload(
+  text: string,
+  commitId: string,
+  sequence: number,
+): GraphModelMigrationScratchOperationRecord {
   const lines = text.split('\n').filter((line) => line.length > 0);
   if (lines[0] !== 'git-warp-v18-migration-operation-v1') {
     throw new GraphModelMigrationScratchReadingBuilderError('scratch operation payload header is unsupported');
   }
   const fields = payloadFields(lines.slice(1));
-  return new ScratchOperationPayload(
+  return new GraphModelMigrationScratchOperationRecord(
+    commitId,
+    sequence,
     requireKind(fields.get('kind')),
     requireField(fields, 'source-key-utf8-hex'),
     requireField(fields, 'target-key-utf8-hex'),

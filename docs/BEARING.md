@@ -403,7 +403,8 @@ language. The final five are release-candidate hardening and go/no-go work.
   [0214](design/0214-v18-production-runtime-scratch-replay-conformance/v18-production-runtime-scratch-replay-conformance.md).
 - [x] 67. Add runtime scratch replay request and result nouns:
   [0215](design/0215-v18-runtime-scratch-replay-nouns/v18-runtime-scratch-replay-nouns.md).
-- [ ] 68. Implement the production-runtime scratch replay provider.
+- [x] 68. Implement the production-runtime scratch replay provider:
+  [0216](design/0216-v18-production-runtime-scratch-replay-provider/v18-production-runtime-scratch-replay-provider.md).
 - [ ] 69. Add restored-v17 public-read legacy reading construction.
 - [ ] 70. Add scratch public-read reading construction.
 - [ ] 71. Add the v17 fixture wet-run migration harness.
