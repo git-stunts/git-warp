@@ -390,12 +390,12 @@ The remaining runway is no longer a five-slice tail. The next realistic plan
 is thirty slices. Some slices may collapse when evidence is in hand, but the
 release plan should assume the proof work is hard until it is proven easy.
 
-The first ten slices convert operation-derived confidence into
-production-runtime confidence. The next five make finalization safe enough to
-expose through the CLI. The next five tie the release claim to generated
-Continuum/WARP Optic artifacts. The next five reduce the remaining
-content/property compatibility debt that still blocks clean graph-model
-language. The final five are release-candidate hardening and go/no-go work.
+The first ten slices converted operation-derived confidence into
+production-runtime confidence and exposed the next hard blocker: the canonical
+wet run is mechanically replayable but not yet public-read equivalent. The next
+goalpost is therefore equivalence closure, not live finalization. Finalization
+and generated Continuum/WARP Optic contract work resume only after the wet-run
+report records zero public-read mismatches.
 
 ### Next Thirty-Slice Checklist
 
@@ -417,27 +417,40 @@ language. The final five are release-candidate hardening and go/no-go work.
   [0221](design/0221-v18-wet-run-failure-fixtures/v18-wet-run-failure-fixtures.md).
 - [x] 74. Add pre-finalization drift checks to the wet-run harness:
   [0222](design/0222-v18-wet-run-drift-checks/v18-wet-run-drift-checks.md).
-- [ ] 75. Replan with production-runtime replay evidence in hand.
-- [ ] 76. Design live finalization CLI confirmation and reporting.
-- [ ] 77. Add finalization request JSON and confirmation adapters.
-- [ ] 78. Add finalization report sections and archive evidence output.
-- [ ] 79. Enable guarded CLI finalization behind explicit confirmation.
-- [ ] 80. Add live-ref drift and existing-archive finalization tests.
-- [ ] 81. Inventory current Wesley/Continuum generated graph contracts.
-- [ ] 82. Add generated Continuum contract fixture ingestion.
-- [ ] 83. Add graph-model conformance checks against generated contracts.
-- [ ] 84. Add a `warp-ttd` contract smoke over generated-family facts.
-- [ ] 85. Replan with generated contract evidence in hand.
-- [ ] 86. Design content attachment storage cutover from `_content*`.
-- [ ] 87. Implement typed content attachment write storage behind a gate.
-- [ ] 88. Add typed content attachment readback from the new storage path.
-- [ ] 89. Add legacy `_content*` to attachment migration mapping.
-- [ ] 90. Prove content equivalence across legacy and attachment storage.
-- [ ] 91. Design the raw property-boundary retirement plan.
-- [ ] 92. Replace replay and serialization raw property reads where safe.
-- [ ] 93. Route reducer/op-strategy property writes through intent paths.
-- [ ] 94. Tighten the closeout audit to forbid one more raw-boundary class.
+- [x] 75. Replan with production-runtime replay evidence in hand:
+  [0223](design/0223-v18-production-replay-drift-checkup/v18-production-replay-drift-checkup.md).
+- [ ] 76. Classify the five canonical wet-run public-read mismatches.
+- [ ] 77. Align fixture property values with public-read migration semantics.
+- [ ] 78. Align fixture content attachment evidence with runtime content OIDs.
+- [ ] 79. Add edge-endpoint node coverage or document the fixture edge model.
+- [ ] 80. Represent removed-node and multi-writer facts in migrated readings.
+- [ ] 81. Drive the canonical wet-run mismatch count to zero.
+- [ ] 82. Replan finalization with zero-mismatch wet-run evidence.
+- [ ] 83. Design live finalization CLI confirmation and reporting.
+- [ ] 84. Add finalization request JSON and confirmation adapters.
+- [ ] 85. Add finalization report sections and archive evidence output.
+- [ ] 86. Enable guarded CLI finalization behind explicit confirmation.
+- [ ] 87. Add live-ref drift and existing-archive finalization tests.
+- [ ] 88. Inventory current Wesley/Continuum generated graph contracts.
+- [ ] 89. Add generated Continuum contract fixture ingestion.
+- [ ] 90. Add graph-model conformance checks against generated contracts.
+- [ ] 91. Add a `warp-ttd` contract smoke over generated-family facts.
+- [ ] 92. Replan with generated contract evidence in hand.
+- [ ] 93. Reduce legacy content/property raw-boundary debt by one class.
+- [ ] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
 - [ ] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.
+
+### Slice 75 Evidence
+
+- Production-runtime scratch replay is green through the shared replay core.
+- Restored-v17 and scratch public-read builders both exist and are tested.
+- The wet-run harness restores the canonical v17 fixture, writes four scratch
+  operations, replays all four through the production runtime, formats a
+  deterministic report, and records a passed source-ref drift check.
+- The canonical public-read equivalence gate remains blocked with six legacy
+  facts, three migrated facts, and five mismatches. This is the next blocker.
+- Live finalization remains intentionally paused until the wet-run mismatch
+  count is zero.
 
 ### User Stories
 
@@ -639,33 +652,33 @@ and concrete checks live in `docs/invariants/`.
   [0212](design/0212-v18-public-release-blockers/v18-public-release-blockers.md).
 - [x] 65. Replan after the command CLI:
   [0213](design/0213-v18-replan-after-command-cli/v18-replan-after-command-cli.md).
-- [ ] 66. Design production-runtime scratch replay conformance.
-- [ ] 67. Add runtime scratch replay request and result nouns.
-- [ ] 68. Implement the production-runtime scratch replay provider.
-- [ ] 69. Add restored-v17 public-read legacy reading construction.
-- [ ] 70. Add scratch public-read reading construction.
-- [ ] 71. Add the v17 fixture wet-run migration harness.
-- [ ] 72. Capture deterministic wet-run operator reports.
-- [ ] 73. Add wet-run failure fixtures for divergence and malformed history.
-- [ ] 74. Add pre-finalization drift checks to the wet-run harness.
-- [ ] 75. Replan with production-runtime replay evidence in hand.
-- [ ] 76. Design live finalization CLI confirmation and reporting.
-- [ ] 77. Add finalization request JSON and confirmation adapters.
-- [ ] 78. Add finalization report sections and archive evidence output.
-- [ ] 79. Enable guarded CLI finalization behind explicit confirmation.
-- [ ] 80. Add live-ref drift and existing-archive finalization tests.
-- [ ] 81. Inventory current Wesley/Continuum generated graph contracts.
-- [ ] 82. Add generated Continuum contract fixture ingestion.
-- [ ] 83. Add graph-model conformance checks against generated contracts.
-- [ ] 84. Add a `warp-ttd` contract smoke over generated-family facts.
-- [ ] 85. Replan with generated contract evidence in hand.
-- [ ] 86. Design content attachment storage cutover from `_content*`.
-- [ ] 87. Implement typed content attachment write storage behind a gate.
-- [ ] 88. Add typed content attachment readback from the new storage path.
-- [ ] 89. Add legacy `_content*` to attachment migration mapping.
-- [ ] 90. Prove content equivalence across legacy and attachment storage.
-- [ ] 91. Design the raw property-boundary retirement plan.
-- [ ] 92. Replace replay and serialization raw property reads where safe.
-- [ ] 93. Route reducer/op-strategy property writes through intent paths.
-- [ ] 94. Tighten the closeout audit to forbid one more raw-boundary class.
+- [x] 66. Design production-runtime scratch replay conformance.
+- [x] 67. Add runtime scratch replay request and result nouns.
+- [x] 68. Implement the production-runtime scratch replay provider.
+- [x] 69. Add restored-v17 public-read legacy reading construction.
+- [x] 70. Add scratch public-read reading construction.
+- [x] 71. Add the v17 fixture wet-run migration harness.
+- [x] 72. Capture deterministic wet-run operator reports.
+- [x] 73. Add wet-run failure fixtures for divergence and malformed history.
+- [x] 74. Add pre-finalization drift checks to the wet-run harness.
+- [x] 75. Replan with production-runtime replay evidence in hand.
+- [ ] 76. Classify the five canonical wet-run public-read mismatches.
+- [ ] 77. Align fixture property values with public-read migration semantics.
+- [ ] 78. Align fixture content attachment evidence with runtime content OIDs.
+- [ ] 79. Add edge-endpoint node coverage or document the fixture edge model.
+- [ ] 80. Represent removed-node and multi-writer facts in migrated readings.
+- [ ] 81. Drive the canonical wet-run mismatch count to zero.
+- [ ] 82. Replan finalization with zero-mismatch wet-run evidence.
+- [ ] 83. Design live finalization CLI confirmation and reporting.
+- [ ] 84. Add finalization request JSON and confirmation adapters.
+- [ ] 85. Add finalization report sections and archive evidence output.
+- [ ] 86. Enable guarded CLI finalization behind explicit confirmation.
+- [ ] 87. Add live-ref drift and existing-archive finalization tests.
+- [ ] 88. Inventory current Wesley/Continuum generated graph contracts.
+- [ ] 89. Add generated Continuum contract fixture ingestion.
+- [ ] 90. Add graph-model conformance checks against generated contracts.
+- [ ] 91. Add a `warp-ttd` contract smoke over generated-family facts.
+- [ ] 92. Replan with generated contract evidence in hand.
+- [ ] 93. Reduce legacy content/property raw-boundary debt by one class.
+- [ ] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
 - [ ] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.
