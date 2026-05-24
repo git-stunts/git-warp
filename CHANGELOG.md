@@ -57,6 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 graph-model migration now includes an adapter-level scratch runtime
   conformance provider that verifies scratch refs still point at their
   expected heads and can be read back into genesis evidence.
+- V18 graph-model migration command finalization is now covered with
+  command-owned reading providers and scratch runtime conformance instead of
+  test-supplied finalization proof.
 - V18 graph-model migration dry-run work now includes a non-destructive CLI
   runner and request JSON adapter that validate source facts, invoke the pure
   planner, emit deterministic manifest output, and refuse write/apply modes.

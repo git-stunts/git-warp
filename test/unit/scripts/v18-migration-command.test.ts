@@ -10,6 +10,8 @@ import {
 } from '../../../scripts/v18.0.0/migrations/graph-model/GraphModelMigrationCommand.ts';
 import { buildGraphModelMigrationScratchReading }
   from '../../../scripts/v18.0.0/migrations/graph-model/GraphModelMigrationScratchReadingBuilder.ts';
+import { createGraphModelMigrationScratchRuntimeConformanceProvider }
+  from '../../../scripts/v18.0.0/migrations/graph-model/GraphModelMigrationScratchRuntimeConformanceProvider.ts';
 import DryRunGraphModelMigrationPlanRequest
   from '../../../src/domain/migrations/DryRunGraphModelMigrationPlanRequest.ts';
 import GenesisEquivalenceBoundary
@@ -72,24 +74,32 @@ describe('v18 graph-model migration command', () => {
     expect(await refExists(repository, ARCHIVE_REF)).toBe(false);
   });
 
-  it('finalizes when explicit finalization options and the equivalence gate pass', async () => {
+  it('finalizes with command-owned readings and scratch runtime conformance', async () => {
     const repository = await repositoryWithLiveRef();
-    const fixture = nodeLifecycleFixture();
 
     const result = await runGraphModelMigrationCommand({
       repositoryPath: repository.path,
       dryRunRequest: dryRunRequest(),
       scratchRefName: SCRATCH_REF,
       equivalenceBasis: basis(),
-      legacyReading: fixture.legacyReading,
-      scratchReading: fixture.migratedReading,
-      readingProviders: null,
+      legacyReading: null,
+      scratchReading: null,
+      readingProviders: {
+        legacyReading: async () => legacyNodeReading(),
+        scratchReading: async () => await buildGraphModelMigrationScratchReading({
+          repositoryPath: repository.path,
+          scratchRefName: SCRATCH_REF,
+          readingId: 'scratch:finalization-provider',
+        }),
+      },
       finalization: {
         liveRefName: LIVE_REF,
         expectedLiveHead: repository.liveHead,
         archiveRefName: ARCHIVE_REF,
         confirmation: confirmation(),
-        runtimeConformance: runtimeConformance,
+        runtimeConformance: createGraphModelMigrationScratchRuntimeConformanceProvider({
+          repositoryPath: repository.path,
+        }),
       },
     });
 

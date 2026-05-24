@@ -64,6 +64,8 @@ Remaining migration-tool work is intentionally ordered as:
 - slice 58: add command reading providers (complete).
 - slice 59: add a scratch runtime conformance provider (operation-history
   readback complete; production runtime replay still release-critical).
+- slice 60: prove command finalization with command-owned readings and scratch
+  runtime conformance (complete).
 
 ## Starting points
 
