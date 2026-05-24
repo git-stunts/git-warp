@@ -50,6 +50,10 @@ remaining trust work is to construct legacy and scratch readings from real
 Git history and replace test-supplied runtime conformance evidence with a real
 runtime replay provider.
 
+Slice 56 added a pure reading builder for the v17 golden fixture manifest. It
+is a bridge from persisted fixture metadata to equivalence facts, but it is
+not yet a full replay-derived read model.
+
 ## Starting points
 
 - `test/`

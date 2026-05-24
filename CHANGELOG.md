@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 graph-model migration closeout now records the remaining raw
   content/property compatibility files and adds an executable audit shape test
   so new raw compatibility boundaries require deliberate review.
+- V18 genesis replay migration now includes a pure builder that projects the
+  v17 golden fixture manifest into `GenesisEquivalenceReading` facts with
+  deterministic boundary evidence.
 - V18 graph-model migration dry-run work now includes a non-destructive CLI
   runner and request JSON adapter that validate source facts, invoke the pure
   planner, emit deterministic manifest output, and refuse write/apply modes.

@@ -132,6 +132,8 @@ The current v18 graph-model posture is:
   tied to the exact scratch ref and scratch head.
 - The remaining raw content/property compatibility files are now listed in an
   executable closeout audit.
+- Legacy fixture manifests can now be projected into genesis-equivalence
+  readings with deterministic patch-boundary evidence.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -448,3 +450,5 @@ and concrete checks live in `docs/invariants/`.
   [0202](design/0202-v18-post-migration-runtime-conformance/v18-post-migration-runtime-conformance.md).
 - [x] 55. Close the content/property migration audit:
   [0203](design/0203-v18-content-property-closeout-audit/v18-content-property-closeout-audit.md).
+- [x] 56. Construct legacy fixture genesis readings:
+  [0204](design/0204-v18-legacy-fixture-reading-construction/v18-legacy-fixture-reading-construction.md).
