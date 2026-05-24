@@ -399,7 +399,8 @@ language. The final five are release-candidate hardening and go/no-go work.
 
 ### Next Thirty-Slice Checklist
 
-- [ ] 66. Design production-runtime scratch replay conformance.
+- [x] 66. Design production-runtime scratch replay conformance:
+  [0214](design/0214-v18-production-runtime-scratch-replay-conformance/v18-production-runtime-scratch-replay-conformance.md).
 - [ ] 67. Add runtime scratch replay request and result nouns.
 - [ ] 68. Implement the production-runtime scratch replay provider.
 - [ ] 69. Add restored-v17 public-read legacy reading construction.
