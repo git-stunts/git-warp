@@ -62,7 +62,12 @@ function projectionFor(fact: V17GoldenGraphFixtureVisibleFact): ProjectedFactFie
 
 function compatibilityProjectionFor(fact: V17GoldenGraphFixtureVisibleFact): ProjectedFactFields {
   if (fact instanceof V17GoldenPropertyFact) {
-    return projection({ kind: 'property', factKey: fact.key, fieldPath: 'value', value: fact.description });
+    return projection({
+      kind: 'property',
+      factKey: fact.key,
+      fieldPath: 'value',
+      value: `migration-source:${legacyPropertyKeyFor(fact.key)}`,
+    });
   }
   if (fact instanceof V17GoldenContentFact) {
     return projection({
@@ -73,6 +78,14 @@ function compatibilityProjectionFor(fact: V17GoldenGraphFixtureVisibleFact): Pro
     });
   }
   return nonVisibleLifecycleProjectionFor(fact);
+}
+
+function legacyPropertyKeyFor(factKey: string): string {
+  const separator = factKey.lastIndexOf(':');
+  if (separator <= 0 || separator === factKey.length - 1) {
+    throw new WarpError('property fixture fact key must use owner:property format', 'E_VALIDATION');
+  }
+  return `${factKey.slice(0, separator)}\0${factKey.slice(separator + 1)}`;
 }
 
 function nonVisibleLifecycleProjectionFor(fact: V17GoldenGraphFixtureVisibleFact): ProjectedFactFields {

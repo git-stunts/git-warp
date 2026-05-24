@@ -59,7 +59,7 @@ describe('v18 v17 fixture wet-run harness', () => {
     expect(result.commandResult.gateResult?.allowsPromotion()).toBe(false);
     expect(result.commandResult.gateResult?.proofResult.summary.legacyFactCount).toBe(6);
     expect(result.commandResult.gateResult?.proofResult.summary.migratedFactCount).toBe(3);
-    expect(result.commandResult.gateResult?.proofResult.summary.mismatchCount).toBe(5);
+    expect(result.commandResult.gateResult?.proofResult.summary.mismatchCount).toBe(4);
   });
 
   it('formats deterministic wet-run operator evidence without temp paths', async () => {
@@ -80,13 +80,11 @@ describe('v18 v17 fixture wet-run harness', () => {
     expect(first).toContain('git-warp v18 v17 fixture wet-run report');
     expect(first).toContain('fixtureId: v17-golden-graph-model-001');
     expect(first).toContain('command.equivalence: blocked');
-    expect(first).toContain('command.mismatches: 5');
+    expect(first).toContain('command.mismatches: 4');
     expect(first).toContain('mismatches:');
     expect(first).toContain('- missing edge node:alpha->node:beta:relates visibility');
     expect(first).toContain('- missing node node:removed visibility');
     expect(first).toContain('- missing property writers:alice+bob coverage');
-    expect(first).toContain('legacy=Alice and Bob cover legacy node property compatibility.');
-    expect(first).toContain('migrated=migration-source:node:alpha\\0title');
     expect(first).toContain('legacy=fixture-content:node:alpha:_content');
     expect(first).toContain('runtimeReplay: passed');
     expect(first).toContain('runtimeReplayOperations: 4');
