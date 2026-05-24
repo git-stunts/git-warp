@@ -429,7 +429,8 @@ report records zero public-read mismatches.
   [0227](design/0227-v18-fixture-edge-endpoint-coverage/v18-fixture-edge-endpoint-coverage.md).
 - [x] 80. Represent removed-node and multi-writer facts in migrated readings:
   [0228](design/0228-v18-fixture-lifecycle-and-writer-coverage/v18-fixture-lifecycle-and-writer-coverage.md).
-- [ ] 81. Drive the canonical wet-run mismatch count to zero.
+- [x] 81. Drive the canonical wet-run mismatch count to zero:
+  [0229](design/0229-v18-zero-mismatch-wet-run-proof/v18-zero-mismatch-wet-run-proof.md).
 - [ ] 82. Replan finalization with zero-mismatch wet-run evidence.
 - [ ] 83. Design live finalization CLI confirmation and reporting.
 - [ ] 84. Add finalization request JSON and confirmation adapters.
@@ -445,7 +446,7 @@ report records zero public-read mismatches.
 - [ ] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
 - [ ] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.
 
-### Slice 75 Evidence
+### Slice 81 Evidence
 
 - Production-runtime scratch replay is green through the shared replay core.
 - Restored-v17 and scratch public-read builders both exist and are tested.
@@ -454,6 +455,8 @@ report records zero public-read mismatches.
   deterministic report, and records a passed source-ref drift check.
 - The canonical public-read equivalence gate now observes seven legacy facts,
   seven migrated facts, zero mismatches, and explicit boundary evidence.
+- A dedicated zero-mismatch regression proves the command summary and wet-run
+  report stay free of public-read divergence.
 - Live finalization remains intentionally paused until explicit confirmation
   and operator reporting are designed and wired.
 
@@ -672,7 +675,7 @@ and concrete checks live in `docs/invariants/`.
 - [x] 78. Align fixture content attachment evidence with runtime content OIDs.
 - [x] 79. Add edge-endpoint node coverage or document the fixture edge model.
 - [x] 80. Represent removed-node and multi-writer facts in migrated readings.
-- [ ] 81. Drive the canonical wet-run mismatch count to zero.
+- [x] 81. Drive the canonical wet-run mismatch count to zero.
 - [ ] 82. Replan finalization with zero-mismatch wet-run evidence.
 - [ ] 83. Design live finalization CLI confirmation and reporting.
 - [ ] 84. Add finalization request JSON and confirmation adapters.

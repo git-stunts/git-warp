@@ -63,6 +63,21 @@ describe('v18 v17 fixture wet-run harness', () => {
     expect(result.commandResult.gateResult?.fatalErrors).toEqual([]);
   });
 
+  it('proves the canonical wet-run has zero public-read mismatches', async () => {
+    const targetDirectory = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-zero-'));
+
+    const result = await runV17GoldenGraphFixtureWetRun({
+      manifestPath: FIXTURE_MANIFEST_PATH,
+      targetDirectory,
+    });
+    const report = formatV17GoldenGraphFixtureWetRunReport(result);
+
+    expect(result.commandResult.gateResult?.proofResult.summary.mismatchCount).toBe(0);
+    expect(result.commandResult.gateResult?.divergenceReport).toBeNull();
+    expect(report).toContain('command.mismatches: 0');
+    expect(report.split('\n').filter((line) => line === 'mismatches:')).toEqual([]);
+  });
+
   it('formats deterministic wet-run operator evidence without temp paths', async () => {
     const firstTarget = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-report-a-'));
     const secondTarget = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-report-b-'));
