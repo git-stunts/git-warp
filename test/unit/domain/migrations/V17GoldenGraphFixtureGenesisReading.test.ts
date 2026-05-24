@@ -4,6 +4,16 @@ import { describe, expect, it } from 'vitest';
 
 import V17GoldenGraphFixtureGenesisReading
   from '../../../../src/domain/migrations/V17GoldenGraphFixtureGenesisReading.ts';
+import V17GoldenGraphFixtureManifest, {
+  V17GoldenContentFact,
+  V17GoldenEdgeFact,
+  V17GoldenGraphFixtureVisibleFact,
+  V17GoldenGraphFixtureWriterChain,
+  V17GoldenMultiWriterFact,
+  V17GoldenNodeFact,
+  V17GoldenPropertyFact,
+  V17GoldenRemovalFact,
+} from '../../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
 import { parseV17GoldenGraphFixtureManifestJson }
   from '../../../../src/infrastructure/adapters/V17GoldenGraphFixtureManifestJsonAdapter.ts';
 
@@ -35,4 +45,83 @@ describe('V17GoldenGraphFixtureGenesisReading', () => {
       'alice',
     ]);
   });
+
+  it('rejects malformed genesis reading inputs through domain errors', () => {
+    const builder = new V17GoldenGraphFixtureGenesisReading();
+
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      builder.build(null);
+    }).toThrow(/manifest/);
+    expect(() => builder.build(manifestWithBaseVisibleFacts()))
+      .toThrow(/unsupported v17 fixture visible fact kind/);
+    expect(() => builder.build(manifestWithoutWriterChains()))
+      .toThrow(/writer chain evidence/);
+  });
 });
+
+function manifestWithBaseVisibleFacts(): V17GoldenGraphFixtureManifest {
+  return new V17GoldenGraphFixtureManifest({
+    fixtureId: 'fixture:base-facts',
+    graphId: 'v17-golden-graph',
+    sourceVersion: '17.0.1',
+    generator: 'unit-test',
+    bundlePath: 'v17-golden-graph.bundle',
+    writerChains: [writerChain()],
+    visibleFacts: visibleFacts(),
+  });
+}
+
+function manifestWithoutWriterChains(): V17GoldenGraphFixtureManifest {
+  return new V17GoldenGraphFixtureManifest({
+    fixtureId: 'fixture:no-writers',
+    graphId: 'v17-golden-graph',
+    sourceVersion: '17.0.1',
+    generator: 'unit-test',
+    bundlePath: 'v17-golden-graph.bundle',
+    writerChains: [],
+    visibleFacts: typedVisibleFacts(),
+  });
+}
+
+function writerChain(): V17GoldenGraphFixtureWriterChain {
+  return new V17GoldenGraphFixtureWriterChain({
+    writerId: 'alice',
+    refName: 'refs/warp/v17-golden-graph/writers/alice',
+    expectedHead: '1111111111111111111111111111111111111111',
+    patchCount: 1,
+  });
+}
+
+function visibleFacts(): readonly V17GoldenGraphFixtureVisibleFact[] {
+  return Object.freeze([
+    visibleFact('node', 'node:alpha'),
+    visibleFact('edge', 'edge:alpha-beta'),
+    visibleFact('property', 'node:alpha:title'),
+    visibleFact('content', 'node:alpha:_content'),
+    visibleFact('removal', 'node:removed'),
+    visibleFact('multi-writer', 'writers:alice+bob'),
+  ]);
+}
+
+function typedVisibleFacts(): readonly V17GoldenGraphFixtureVisibleFact[] {
+  return Object.freeze([
+    new V17GoldenNodeFact({ key: 'node:alpha', description: 'node' }),
+    new V17GoldenEdgeFact({ key: 'edge:alpha-beta', description: 'edge' }),
+    new V17GoldenPropertyFact({ key: 'node:alpha:title', description: 'title' }),
+    new V17GoldenContentFact({ key: 'node:alpha:_content', description: 'content' }),
+    new V17GoldenRemovalFact({ key: 'node:removed', description: 'removed' }),
+    new V17GoldenMultiWriterFact({ key: 'writers:alice+bob', description: 'multi' }),
+  ]);
+}
+
+function visibleFact(
+  kind: 'node' | 'edge' | 'property' | 'content' | 'removal' | 'multi-writer',
+  key: string,
+): V17GoldenGraphFixtureVisibleFact {
+  return new V17GoldenGraphFixtureVisibleFact({
+    kind,
+    key,
+    description: `${kind}:${key}`,
+  });
+}
