@@ -147,6 +147,8 @@ The current v18 graph-model posture is:
 - Provider-built scratch readings now have a divergence regression proving
   finalization remains blocked when scratch history is readable but not
   equivalent.
+- The migration command now has deterministic operator report formatting for
+  planning, scratch, equivalence, and finalization evidence.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -474,3 +476,5 @@ and concrete checks live in `docs/invariants/`.
   [0208](design/0208-v18-command-provider-finalization/v18-command-provider-finalization.md).
 - [x] 61. Add provider-built divergence coverage:
   [0209](design/0209-v18-provider-divergence-coverage/v18-provider-divergence-coverage.md).
+- [x] 62. Add migration command report output:
+  [0210](design/0210-v18-migration-command-report/v18-migration-command-report.md).

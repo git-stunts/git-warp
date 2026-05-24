@@ -68,6 +68,8 @@ Remaining migration-tool work is intentionally ordered as:
   runtime conformance (complete).
 - slice 61: prove provider-built scratch readings still block finalization on
   divergence (complete).
+- slice 62: add deterministic operator report output for migration command
+  evidence (complete).
 
 ## Starting points
 

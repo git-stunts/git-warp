@@ -8,6 +8,8 @@ import { describe, expect, it } from 'vitest';
 import {
   runGraphModelMigrationCommand,
 } from '../../../scripts/v18.0.0/migrations/graph-model/GraphModelMigrationCommand.ts';
+import { formatGraphModelMigrationCommandReport }
+  from '../../../scripts/v18.0.0/migrations/graph-model/GraphModelMigrationCommandReport.ts';
 import { buildGraphModelMigrationScratchReading }
   from '../../../scripts/v18.0.0/migrations/graph-model/GraphModelMigrationScratchReadingBuilder.ts';
 import { createGraphModelMigrationScratchRuntimeConformanceProvider }
@@ -108,6 +110,13 @@ describe('v18 graph-model migration command', () => {
     expect(await gitText(repository.path, ['rev-parse', ARCHIVE_REF])).toBe(repository.liveHead);
     expect(await gitText(repository.path, ['rev-parse', LIVE_REF]))
       .toBe(result.scratchWriteResult?.scratchHead);
+    expect(formatGraphModelMigrationCommandReport(result)).toContain([
+      'finalization: completed',
+      `liveRef: ${LIVE_REF}`,
+      `archiveRef: ${ARCHIVE_REF}`,
+      `previousLiveHead: ${repository.liveHead}`,
+      `finalizedLiveHead: ${result.scratchWriteResult?.scratchHead}`,
+    ].join('\n'));
   });
 
   it('blocks finalization when supplied scratch readings diverge', async () => {
@@ -138,6 +147,18 @@ describe('v18 graph-model migration command', () => {
     ]);
     expect(await refExists(repository.path, ARCHIVE_REF)).toBe(false);
     expect(await gitText(repository.path, ['rev-parse', LIVE_REF])).toBe(repository.liveHead);
+    const report = formatGraphModelMigrationCommandReport(result);
+    expect(report).toContain([
+      'equivalence: blocked',
+      'mismatches: 1',
+      'legacyFacts: 1',
+      'migratedFacts: 1',
+    ].join('\n'));
+    expect(report).toContain([
+      'finalization: blocked',
+      'fatalErrors:',
+      '- E_EQUIVALENCE_GATE_NOT_PASSED: migration finalization requires a passed scratch equivalence gate',
+    ].join('\n'));
   });
 
   it('blocks finalization when provider-built scratch readings diverge from legacy', async () => {
