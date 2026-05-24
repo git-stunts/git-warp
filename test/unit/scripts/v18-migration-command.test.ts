@@ -8,10 +8,18 @@ import { describe, expect, it } from 'vitest';
 import {
   runGraphModelMigrationCommand,
 } from '../../../scripts/v18.0.0/migrations/graph-model/GraphModelMigrationCommand.ts';
+import { buildGraphModelMigrationScratchReading }
+  from '../../../scripts/v18.0.0/migrations/graph-model/GraphModelMigrationScratchReadingBuilder.ts';
 import DryRunGraphModelMigrationPlanRequest
   from '../../../src/domain/migrations/DryRunGraphModelMigrationPlanRequest.ts';
+import GenesisEquivalenceBoundary
+  from '../../../src/domain/migrations/GenesisEquivalenceBoundary.ts';
 import GenesisEquivalenceComparisonBasis
   from '../../../src/domain/migrations/GenesisEquivalenceComparisonBasis.ts';
+import GenesisEquivalenceReading
+  from '../../../src/domain/migrations/GenesisEquivalenceReading.ts';
+import GenesisEquivalenceReadingFact
+  from '../../../src/domain/migrations/GenesisEquivalenceReadingFact.ts';
 import GraphModelMigrationBasis from '../../../src/domain/migrations/GraphModelMigrationBasis.ts';
 import GraphModelMigrationFinalizationConfirmation, {
   V18_GRAPH_MODEL_FINALIZATION_CONFIRMATION,
@@ -51,6 +59,7 @@ describe('v18 graph-model migration command', () => {
       equivalenceBasis: basis(),
       legacyReading: fixture.legacyReading,
       scratchReading: fixture.migratedReading,
+      readingProviders: null,
       finalization: null,
     });
 
@@ -74,6 +83,7 @@ describe('v18 graph-model migration command', () => {
       equivalenceBasis: basis(),
       legacyReading: fixture.legacyReading,
       scratchReading: fixture.migratedReading,
+      readingProviders: null,
       finalization: {
         liveRefName: LIVE_REF,
         expectedLiveHead: repository.liveHead,
@@ -101,6 +111,7 @@ describe('v18 graph-model migration command', () => {
       equivalenceBasis: basis(),
       legacyReading: fixture.legacyReading,
       scratchReading: fixture.migratedReading,
+      readingProviders: null,
       finalization: {
         liveRefName: LIVE_REF,
         expectedLiveHead: repository.liveHead,
@@ -117,6 +128,32 @@ describe('v18 graph-model migration command', () => {
     ]);
     expect(await refExists(repository.path, ARCHIVE_REF)).toBe(false);
     expect(await gitText(repository.path, ['rev-parse', LIVE_REF])).toBe(repository.liveHead);
+  });
+
+  it('can construct readings through command-owned providers after scratch writing', async () => {
+    const repository = await initializedRepository('git-warp-v18-command-providers-');
+
+    const result = await runGraphModelMigrationCommand({
+      repositoryPath: repository,
+      dryRunRequest: dryRunRequest(),
+      scratchRefName: SCRATCH_REF,
+      equivalenceBasis: basis(),
+      legacyReading: null,
+      scratchReading: null,
+      readingProviders: {
+        legacyReading: async () => legacyNodeReading(),
+        scratchReading: async () => await buildGraphModelMigrationScratchReading({
+          repositoryPath: repository,
+          scratchRefName: SCRATCH_REF,
+          readingId: 'scratch:provider',
+        }),
+      },
+      finalization: null,
+    });
+
+    expect(result.gateResult?.allowsPromotion()).toBe(true);
+    expect(result.gateResult?.proofResult.summary.legacyFactCount).toBe(1);
+    expect(result.gateResult?.proofResult.summary.migratedFactCount).toBe(1);
   });
 });
 
@@ -159,6 +196,25 @@ function dryRunRequest(): DryRunGraphModelMigrationPlanRequest {
     ],
     edgeMappings: [],
     propertyMappings: [],
+  });
+}
+
+function legacyNodeReading(): GenesisEquivalenceReading {
+  return new GenesisEquivalenceReading({
+    readingId: 'legacy:provider',
+    facts: [
+      new GenesisEquivalenceReadingFact({
+        kind: 'node',
+        factKey: 'node:article',
+        fieldPath: 'visibility',
+        value: 'visible',
+        boundary: new GenesisEquivalenceBoundary({
+          writerId: 'alice',
+          patchId: 'patch:alice:0',
+          operationIndex: 0,
+        }),
+      }),
+    ],
   });
 }
 

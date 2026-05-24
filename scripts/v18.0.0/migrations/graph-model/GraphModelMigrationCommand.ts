@@ -35,6 +35,13 @@ export type GraphModelMigrationRuntimeConformanceProvider = (
   scratchWriteResult: GraphModelMigrationScratchWriteResult,
 ) => GraphModelMigrationRuntimeConformanceResult | null;
 
+export type GraphModelMigrationCommandReadingProviders = {
+  readonly legacyReading: () => Promise<GenesisEquivalenceReading>;
+  readonly scratchReading: (
+    scratchWriteResult: GraphModelMigrationScratchWriteResult,
+  ) => Promise<GenesisEquivalenceReading>;
+};
+
 export type GraphModelMigrationCommandFinalizationOptions = {
   readonly liveRefName: string;
   readonly expectedLiveHead: string;
@@ -48,8 +55,9 @@ export type GraphModelMigrationCommandOptions = {
   readonly dryRunRequest: DryRunGraphModelMigrationPlanRequest;
   readonly scratchRefName: string;
   readonly equivalenceBasis: GenesisEquivalenceComparisonBasis;
-  readonly legacyReading: GenesisEquivalenceReading;
-  readonly scratchReading: GenesisEquivalenceReading;
+  readonly legacyReading: GenesisEquivalenceReading | null;
+  readonly scratchReading: GenesisEquivalenceReading | null;
+  readonly readingProviders: GraphModelMigrationCommandReadingProviders | null;
   readonly finalization: GraphModelMigrationCommandFinalizationOptions | null;
 };
 
@@ -94,10 +102,11 @@ export async function runGraphModelMigrationCommand(
     return new GraphModelMigrationCommandResult(dryRunPlan, loweringResult, scratchWriteResult, null, null);
   }
 
+  const readings = await resolveReadings(options, scratchWriteResult);
   const gateResult = new GenesisEquivalenceGate().evaluate(
     requireBasis(options.equivalenceBasis),
-    requireReading(options.legacyReading, 'legacyReading'),
-    requireReading(options.scratchReading, 'scratchReading'),
+    readings.legacyReading,
+    readings.scratchReading,
   );
   if (options.finalization === null) {
     return new GraphModelMigrationCommandResult(
@@ -122,6 +131,25 @@ export async function runGraphModelMigrationCommand(
     gateResult,
     finalizationResult,
   );
+}
+
+async function resolveReadings(
+  options: GraphModelMigrationCommandOptions,
+  scratchWriteResult: GraphModelMigrationScratchWriteResult,
+): Promise<{
+  readonly legacyReading: GenesisEquivalenceReading;
+  readonly scratchReading: GenesisEquivalenceReading;
+}> {
+  if (options.readingProviders !== null) {
+    return Object.freeze({
+      legacyReading: await options.readingProviders.legacyReading(),
+      scratchReading: await options.readingProviders.scratchReading(scratchWriteResult),
+    });
+  }
+  return Object.freeze({
+    legacyReading: requireReading(options.legacyReading, 'legacyReading'),
+    scratchReading: requireReading(options.scratchReading, 'scratchReading'),
+  });
 }
 
 async function runFinalization(options: {
@@ -186,7 +214,7 @@ function requireBasis(
   return basis;
 }
 
-function requireReading(reading: GenesisEquivalenceReading, label: string): GenesisEquivalenceReading {
+function requireReading(reading: GenesisEquivalenceReading | null, label: string): GenesisEquivalenceReading {
   if (!(reading instanceof GenesisEquivalenceReading)) {
     throw new GraphModelMigrationCommandError(`${label} must be a GenesisEquivalenceReading`);
   }

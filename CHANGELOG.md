@@ -51,6 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 graph-model migration now includes a scratch reading builder that reads
   scratch operation commits and projects them into genesis-equivalence facts
   with scratch commit boundary evidence.
+- V18 graph-model migration command wiring now accepts reading providers so
+  legacy and scratch equivalence readings can be constructed after scratch
+  history has been written.
 - V18 graph-model migration dry-run work now includes a non-destructive CLI
   runner and request JSON adapter that validate source facts, invoke the pure
   planner, emit deterministic manifest output, and refuse write/apply modes.

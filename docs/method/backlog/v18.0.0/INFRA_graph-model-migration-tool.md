@@ -59,6 +59,9 @@ Remaining migration-tool work is intentionally ordered as:
 - slice 54: prove post-migration runtime conformance (conformance evidence
   gate complete; real runtime replay provider still release-critical);
 - slice 55: close the content/property migration audit (complete).
+- slice 56: construct legacy fixture genesis readings (complete);
+- slice 57: construct scratch operation genesis readings (complete);
+- slice 58: add command reading providers (complete).
 
 ## Starting points
 
