@@ -372,9 +372,9 @@ and wet-run fixture harnessing.
 - Temporal replay still extracts node snapshots from the raw legacy property
   map because historical replay tests carry pre-codec inline fixture classes
   that are not `PropValue`-honest enough for `LegacyPropertyValue`.
-- The v18 migration tool can now write scratch history and derive scratch
-  operation readings, but it does not yet open scratch output through the full
-  production graph runtime.
+- The v18 migration tool now opens migrated scratch history through the
+  production graph runtime during wet runs, but CLI live finalization still
+  needs explicit confirmation and report semantics.
 - Legacy readings from the v17 golden fixture are manifest-derived, not yet
   produced by replaying the restored v17 graph through the public read path.
 - The command wrapper writes scratch history and reports evidence, but live-ref
@@ -390,12 +390,12 @@ The remaining runway is no longer a five-slice tail. The next realistic plan
 is thirty slices. Some slices may collapse when evidence is in hand, but the
 release plan should assume the proof work is hard until it is proven easy.
 
-The first ten slices converted operation-derived confidence into
-production-runtime confidence and exposed the next hard blocker: the canonical
-wet run is mechanically replayable but not yet public-read equivalent. The next
-goalpost is therefore equivalence closure, not live finalization. Finalization
-and generated Continuum/WARP Optic contract work resume only after the wet-run
-report records zero public-read mismatches.
+The first sixteen slices converted operation-derived confidence into
+production-runtime confidence, restored the v17 golden fixture, and drove the
+canonical wet-run report to zero public-read mismatches. The next goalpost is
+therefore live finalization readiness: confirmation artifacts, operator
+reports, and archive evidence. Generated Continuum/WARP Optic contract work
+resumes after the finalization path is guarded and reviewable.
 
 ### Next Thirty-Slice Checklist
 
@@ -431,7 +431,8 @@ report records zero public-read mismatches.
   [0228](design/0228-v18-fixture-lifecycle-and-writer-coverage/v18-fixture-lifecycle-and-writer-coverage.md).
 - [x] 81. Drive the canonical wet-run mismatch count to zero:
   [0229](design/0229-v18-zero-mismatch-wet-run-proof/v18-zero-mismatch-wet-run-proof.md).
-- [ ] 82. Replan finalization with zero-mismatch wet-run evidence.
+- [x] 82. Replan finalization with zero-mismatch wet-run evidence:
+  [0230](design/0230-v18-finalization-replan-after-zero-mismatch/v18-finalization-replan-after-zero-mismatch.md).
 - [ ] 83. Design live finalization CLI confirmation and reporting.
 - [ ] 84. Add finalization request JSON and confirmation adapters.
 - [ ] 85. Add finalization report sections and archive evidence output.
@@ -446,7 +447,7 @@ report records zero public-read mismatches.
 - [ ] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
 - [ ] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.
 
-### Slice 81 Evidence
+### Slice 82 Evidence
 
 - Production-runtime scratch replay is green through the shared replay core.
 - Restored-v17 and scratch public-read builders both exist and are tested.
@@ -459,6 +460,8 @@ report records zero public-read mismatches.
   report stay free of public-read divergence.
 - Live finalization remains intentionally paused until explicit confirmation
   and operator reporting are designed and wired.
+- The roadmap has pivoted from wet-run equivalence closure to guarded live
+  finalization, then generated Continuum/WARP Optic contract evidence.
 
 ### User Stories
 
@@ -676,7 +679,7 @@ and concrete checks live in `docs/invariants/`.
 - [x] 79. Add edge-endpoint node coverage or document the fixture edge model.
 - [x] 80. Represent removed-node and multi-writer facts in migrated readings.
 - [x] 81. Drive the canonical wet-run mismatch count to zero.
-- [ ] 82. Replan finalization with zero-mismatch wet-run evidence.
+- [x] 82. Replan finalization with zero-mismatch wet-run evidence.
 - [ ] 83. Design live finalization CLI confirmation and reporting.
 - [ ] 84. Add finalization request JSON and confirmation adapters.
 - [ ] 85. Add finalization report sections and archive evidence output.
