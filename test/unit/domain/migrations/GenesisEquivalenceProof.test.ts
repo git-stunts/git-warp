@@ -12,6 +12,8 @@ import GenesisEquivalenceProofFailure
   from '../../../../src/domain/migrations/GenesisEquivalenceProofFailure.ts';
 import GenesisEquivalenceProofSuccess
   from '../../../../src/domain/migrations/GenesisEquivalenceProofSuccess.ts';
+import GenesisEquivalenceProofSummary
+  from '../../../../src/domain/migrations/GenesisEquivalenceProofSummary.ts';
 import GenesisEquivalenceReading
   from '../../../../src/domain/migrations/GenesisEquivalenceReading.ts';
 import GenesisEquivalenceReadingFact, {
@@ -130,6 +132,162 @@ describe('GenesisEquivalenceProof', () => {
       boundary: null,
     })).toThrow(/missing mismatches/);
   });
+
+  it('rejects invalid proof noun fields before comparison', () => {
+    expect(boundary().toKey()).toBe(['writer:a', 'patch:a:0', '0'].join('\0'));
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GenesisEquivalenceBoundary(null);
+    }).toThrow(/fields/);
+    expect(() => new GenesisEquivalenceBoundary({
+      writerId: '',
+      patchId: 'patch:a:0',
+      operationIndex: 0,
+    })).toThrow(/writerId/);
+    expect(() => new GenesisEquivalenceBoundary({
+      writerId: 'writer:a',
+      patchId: 'patch:a:0',
+      operationIndex: -1,
+    })).toThrow(/operationIndex/);
+
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GenesisEquivalenceComparisonBasis(null);
+    }).toThrow(/fields/);
+    expect(() => new GenesisEquivalenceComparisonBasis({
+      // @ts-expect-error exercising runtime validation
+      legacyBasis: 'legacy',
+      migratedBasis: new GraphModelMigrationBasis({
+        graphId: 'graph:source',
+        basisId: 'basis:migrated',
+      }),
+    })).toThrow(/legacyBasis/);
+
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GenesisEquivalenceReadingFact(null);
+    }).toThrow(/fields/);
+    expect(() => new GenesisEquivalenceReadingFact({
+      // @ts-expect-error exercising runtime validation
+      kind: 'unsupported',
+      factKey: 'node:a',
+      fieldPath: 'visibility',
+      value: 'visible',
+      boundary: null,
+    })).toThrow(/kind/);
+    expect(() => new GenesisEquivalenceReadingFact({
+      kind: 'node',
+      factKey: '',
+      fieldPath: 'visibility',
+      value: 'visible',
+      boundary: null,
+    })).toThrow(/factKey/);
+    expect(() => new GenesisEquivalenceReadingFact({
+      kind: 'node',
+      factKey: 'node:a',
+      fieldPath: 'visibility',
+      // @ts-expect-error exercising runtime validation
+      value: 1,
+      boundary: null,
+    })).toThrow(/value/);
+    expect(() => new GenesisEquivalenceReadingFact({
+      kind: 'node',
+      factKey: 'node:a',
+      fieldPath: 'visibility',
+      value: 'visible',
+      // @ts-expect-error exercising runtime validation
+      boundary: 'boundary',
+    })).toThrow(/boundary/);
+
+    expect(() => new GenesisEquivalenceReading({
+      readingId: '',
+      facts: [],
+    })).toThrow(/readingId/);
+    expect(() => new GenesisEquivalenceReading({
+      readingId: 'legacy',
+      // @ts-expect-error exercising runtime validation
+      facts: null,
+    })).toThrow(/facts/);
+    expect(() => new GenesisEquivalenceReading({
+      readingId: 'legacy',
+      // @ts-expect-error exercising runtime validation
+      facts: ['fact'],
+    })).toThrow(/facts/);
+
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GenesisEquivalenceProofSummary(null);
+    }).toThrow(/fields/);
+    expect(() => new GenesisEquivalenceProofSummary({
+      // @ts-expect-error exercising runtime validation
+      basis: 'basis',
+      legacyFactCount: 1,
+      migratedFactCount: 1,
+      mismatchCount: 0,
+    })).toThrow(/basis/);
+    expect(() => new GenesisEquivalenceProofSummary({
+      basis: basis(),
+      legacyFactCount: -1,
+      migratedFactCount: 1,
+      mismatchCount: 0,
+    })).toThrow(/legacyFactCount/);
+  });
+
+  it('rejects inconsistent proof result envelopes', () => {
+    const matchingBasis = basis();
+    const matchingSummary = summary(matchingBasis, 1);
+
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GenesisEquivalenceProofSuccess(null);
+    }).toThrow(/fields/);
+    expect(() => new GenesisEquivalenceProofSuccess({
+      // @ts-expect-error exercising runtime validation
+      basis: 'basis',
+      summary: summary(matchingBasis, 0),
+    })).toThrow(/basis/);
+    expect(() => new GenesisEquivalenceProofSuccess({
+      basis: matchingBasis,
+      // @ts-expect-error exercising runtime validation
+      summary: 'summary',
+    })).toThrow(/summary/);
+    expect(() => new GenesisEquivalenceProofSuccess({
+      basis: matchingBasis,
+      summary: matchingSummary,
+    })).toThrow(/zero mismatches/);
+
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GenesisEquivalenceProofFailure(null);
+    }).toThrow(/fields/);
+    expect(() => new GenesisEquivalenceProofFailure({
+      basis: matchingBasis,
+      summary: matchingSummary,
+      mismatches: [],
+    })).toThrow(/contain mismatches/);
+    expect(() => new GenesisEquivalenceProofFailure({
+      basis: matchingBasis,
+      summary: matchingSummary,
+      // @ts-expect-error exercising runtime validation
+      mismatches: null,
+    })).toThrow(/mismatches/);
+    expect(() => new GenesisEquivalenceProofFailure({
+      basis: matchingBasis,
+      summary: matchingSummary,
+      // @ts-expect-error exercising runtime validation
+      mismatches: ['mismatch'],
+    })).toThrow(/mismatches/);
+    expect(() => new GenesisEquivalenceProofFailure({
+      basis: matchingBasis,
+      summary: summary(matchingBasis, 2),
+      mismatches: [missingMismatch()],
+    })).toThrow(/count/);
+    expect(() => new GenesisEquivalenceProofFailure({
+      basis: matchingBasis,
+      summary: summary(otherBasis(), 1),
+      mismatches: [missingMismatch()],
+    })).toThrow(/basis/);
+  });
 });
 
 function proof(): GenesisEquivalenceProof {
@@ -149,6 +307,43 @@ function basis(): GenesisEquivalenceComparisonBasis {
   });
 }
 
+function otherBasis(): GenesisEquivalenceComparisonBasis {
+  return new GenesisEquivalenceComparisonBasis({
+    legacyBasis: new GraphModelMigrationBasis({
+      graphId: 'graph:other',
+      basisId: 'basis:legacy',
+    }),
+    migratedBasis: new GraphModelMigrationBasis({
+      graphId: 'graph:other',
+      basisId: 'basis:migrated',
+    }),
+  });
+}
+
+function summary(
+  summaryBasis: GenesisEquivalenceComparisonBasis,
+  mismatchCount: number,
+): GenesisEquivalenceProofSummary {
+  return new GenesisEquivalenceProofSummary({
+    basis: summaryBasis,
+    legacyFactCount: 1,
+    migratedFactCount: 1,
+    mismatchCount,
+  });
+}
+
+function missingMismatch(): GenesisEquivalenceMismatch {
+  return new GenesisEquivalenceMismatch({
+    kind: 'missing',
+    factKind: 'node',
+    factKey: 'node:a',
+    fieldPath: 'visibility',
+    legacyValue: 'visible',
+    migratedValue: null,
+    boundary: null,
+  });
+}
+
 function reading(
   readingId: string,
   facts: readonly GenesisEquivalenceReadingFact[],
@@ -158,6 +353,14 @@ function reading(
 
 function nodeFact(factKey: string, value: string): GenesisEquivalenceReadingFact {
   return fact('node', factKey, 'visibility', value);
+}
+
+function boundary(): GenesisEquivalenceBoundary {
+  return new GenesisEquivalenceBoundary({
+    writerId: 'writer:a',
+    patchId: 'patch:a:0',
+    operationIndex: 0,
+  });
 }
 
 function fact(
@@ -171,10 +374,6 @@ function fact(
     factKey,
     fieldPath,
     value,
-    boundary: new GenesisEquivalenceBoundary({
-      writerId: 'writer:a',
-      patchId: 'patch:a:0',
-      operationIndex: 0,
-    }),
+    boundary: boundary(),
   });
 }

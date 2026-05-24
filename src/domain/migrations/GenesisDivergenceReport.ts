@@ -1,7 +1,16 @@
 import GenesisEquivalenceMismatch, {
+  GENESIS_EQUIVALENCE_CHANGED_FIELD,
+  GENESIS_EQUIVALENCE_EXTRA_FACT,
+  GENESIS_EQUIVALENCE_MISSING_FACT,
   type GenesisEquivalenceMismatchKind,
 } from './GenesisEquivalenceMismatch.ts';
-import type { GenesisEquivalenceReadingFactKind } from './GenesisEquivalenceReadingFact.ts';
+import {
+  GENESIS_EQUIVALENCE_CONTENT_ATTACHMENT_FACT,
+  GENESIS_EQUIVALENCE_EDGE_FACT,
+  GENESIS_EQUIVALENCE_NODE_FACT,
+  GENESIS_EQUIVALENCE_PROPERTY_FACT,
+  type GenesisEquivalenceReadingFactKind,
+} from './GenesisEquivalenceReadingFact.ts';
 import WarpError from '../errors/WarpError.ts';
 
 const VALUE_SUMMARY_LIMIT = 80;
@@ -102,7 +111,11 @@ function requireMismatch(mismatch: GenesisEquivalenceMismatch): GenesisEquivalen
 
 /** Validates mismatch kind strings. */
 function requireMismatchKind(kind: GenesisEquivalenceMismatchKind): GenesisEquivalenceMismatchKind {
-  if (kind !== 'missing' && kind !== 'extra' && kind !== 'changed') {
+  if (
+    kind !== GENESIS_EQUIVALENCE_MISSING_FACT
+    && kind !== GENESIS_EQUIVALENCE_EXTRA_FACT
+    && kind !== GENESIS_EQUIVALENCE_CHANGED_FIELD
+  ) {
     throw new WarpError('GenesisDivergenceReport mismatchKind is unsupported', 'E_VALIDATION');
   }
   return kind;
@@ -111,10 +124,10 @@ function requireMismatchKind(kind: GenesisEquivalenceMismatchKind): GenesisEquiv
 /** Validates visible fact kind strings. */
 function requireFactKind(kind: GenesisEquivalenceReadingFactKind): GenesisEquivalenceReadingFactKind {
   if (
-    kind !== 'node'
-    && kind !== 'edge'
-    && kind !== 'property'
-    && kind !== 'content-attachment'
+    kind !== GENESIS_EQUIVALENCE_NODE_FACT
+    && kind !== GENESIS_EQUIVALENCE_EDGE_FACT
+    && kind !== GENESIS_EQUIVALENCE_PROPERTY_FACT
+    && kind !== GENESIS_EQUIVALENCE_CONTENT_ATTACHMENT_FACT
   ) {
     throw new WarpError('GenesisDivergenceReport factKind is unsupported', 'E_VALIDATION');
   }

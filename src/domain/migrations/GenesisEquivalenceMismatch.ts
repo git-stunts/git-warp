@@ -1,15 +1,21 @@
 import GenesisEquivalenceBoundary from './GenesisEquivalenceBoundary.ts';
-import type { GenesisEquivalenceReadingFactKind } from './GenesisEquivalenceReadingFact.ts';
+import {
+  GENESIS_EQUIVALENCE_CONTENT_ATTACHMENT_FACT,
+  GENESIS_EQUIVALENCE_EDGE_FACT,
+  GENESIS_EQUIVALENCE_NODE_FACT,
+  GENESIS_EQUIVALENCE_PROPERTY_FACT,
+  type GenesisEquivalenceReadingFactKind,
+} from './GenesisEquivalenceReadingFact.ts';
 import WarpError from '../errors/WarpError.ts';
 
-const MISSING_FACT = 'missing';
-const EXTRA_FACT = 'extra';
-const CHANGED_FIELD = 'changed';
+export const GENESIS_EQUIVALENCE_MISSING_FACT = 'missing';
+export const GENESIS_EQUIVALENCE_EXTRA_FACT = 'extra';
+export const GENESIS_EQUIVALENCE_CHANGED_FIELD = 'changed';
 
 export type GenesisEquivalenceMismatchKind =
-  | typeof MISSING_FACT
-  | typeof EXTRA_FACT
-  | typeof CHANGED_FIELD;
+  | typeof GENESIS_EQUIVALENCE_MISSING_FACT
+  | typeof GENESIS_EQUIVALENCE_EXTRA_FACT
+  | typeof GENESIS_EQUIVALENCE_CHANGED_FIELD;
 
 export type GenesisEquivalenceMismatchFields = {
   readonly kind: GenesisEquivalenceMismatchKind;
@@ -62,7 +68,11 @@ function requireFields(
 
 /** Validates the mismatch kind. */
 function requireKind(kind: GenesisEquivalenceMismatchKind): GenesisEquivalenceMismatchKind {
-  if (kind !== MISSING_FACT && kind !== EXTRA_FACT && kind !== CHANGED_FIELD) {
+  if (
+    kind !== GENESIS_EQUIVALENCE_MISSING_FACT
+    && kind !== GENESIS_EQUIVALENCE_EXTRA_FACT
+    && kind !== GENESIS_EQUIVALENCE_CHANGED_FIELD
+  ) {
     throw new WarpError('GenesisEquivalenceMismatch kind is unsupported', 'E_VALIDATION');
   }
   return kind;
@@ -71,10 +81,10 @@ function requireKind(kind: GenesisEquivalenceMismatchKind): GenesisEquivalenceMi
 /** Validates the visible fact kind. */
 function requireFactKind(kind: GenesisEquivalenceReadingFactKind): GenesisEquivalenceReadingFactKind {
   if (
-    kind !== 'node'
-    && kind !== 'edge'
-    && kind !== 'property'
-    && kind !== 'content-attachment'
+    kind !== GENESIS_EQUIVALENCE_NODE_FACT
+    && kind !== GENESIS_EQUIVALENCE_EDGE_FACT
+    && kind !== GENESIS_EQUIVALENCE_PROPERTY_FACT
+    && kind !== GENESIS_EQUIVALENCE_CONTENT_ATTACHMENT_FACT
   ) {
     throw new WarpError('GenesisEquivalenceMismatch factKind is unsupported', 'E_VALIDATION');
   }
@@ -124,7 +134,7 @@ function requireMissingValues(
   legacyValue: string | null,
   migratedValue: string | null,
 ): void {
-  if (kind !== MISSING_FACT) {
+  if (kind !== GENESIS_EQUIVALENCE_MISSING_FACT) {
     return;
   }
   if (legacyValue !== null && migratedValue === null) {
@@ -139,7 +149,7 @@ function requireExtraValues(
   legacyValue: string | null,
   migratedValue: string | null,
 ): void {
-  if (kind !== EXTRA_FACT) {
+  if (kind !== GENESIS_EQUIVALENCE_EXTRA_FACT) {
     return;
   }
   if (legacyValue === null && migratedValue !== null) {
@@ -154,7 +164,7 @@ function requireChangedValues(
   legacyValue: string | null,
   migratedValue: string | null,
 ): void {
-  if (kind !== CHANGED_FIELD) {
+  if (kind !== GENESIS_EQUIVALENCE_CHANGED_FIELD) {
     return;
   }
   if (legacyValue !== null && migratedValue !== null) {

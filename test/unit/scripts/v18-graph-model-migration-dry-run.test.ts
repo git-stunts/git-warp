@@ -9,6 +9,19 @@ import {
 } from '../../../scripts/v18.0.0/migrations/graph-model/GraphModelMigrationDryRunCli.ts';
 
 describe('v18 graph-model migration dry-run CLI', () => {
+  it('prints usage when help is requested', async () => {
+    const result = await runGraphModelMigrationDryRunCli(['--help']);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('Usage:');
+    expect(result.stdout).toContain('--request <path>');
+    expect(result.stderr).toBe('');
+  });
+
+  it('requires request input when help is not requested', async () => {
+    await expect(runGraphModelMigrationDryRunCli([])).rejects.toThrow('--request is required');
+  });
+
   it('emits a deterministic manifest for a complete dry-run request', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'git-warp-v18-dry-run-'));
     const requestPath = join(directory, 'request.json');
@@ -39,6 +52,19 @@ describe('v18 graph-model migration dry-run CLI', () => {
     expect(first.stderr).toBe('');
     expect(firstManifest).toContain('"basisId": "basis:source:v18-dry-run"');
     expect(firstManifest).toContain('"targetAttachmentKey": "content-attachment:node:a\\u0000_content"');
+  });
+
+  it('emits the manifest to stdout when no manifest path is provided', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'git-warp-v18-dry-run-'));
+    const requestPath = join(directory, 'request.json');
+    await writeFile(requestPath, completeRequestJson(), 'utf8');
+
+    const result = await runGraphModelMigrationDryRunCli(['--request', requestPath]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('manifest: stdout');
+    expect(result.stdout).toContain('"basisId": "basis:source:v18-dry-run"');
+    expect(result.stderr).toBe('');
   });
 
   it('fails closed and writes no manifest when source inventory is incomplete', async () => {

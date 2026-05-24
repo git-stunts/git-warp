@@ -1,16 +1,16 @@
 import GenesisEquivalenceBoundary from './GenesisEquivalenceBoundary.ts';
 import WarpError from '../errors/WarpError.ts';
 
-const NODE_FACT = 'node';
-const EDGE_FACT = 'edge';
-const PROPERTY_FACT = 'property';
-const CONTENT_ATTACHMENT_FACT = 'content-attachment';
+export const GENESIS_EQUIVALENCE_NODE_FACT = 'node';
+export const GENESIS_EQUIVALENCE_EDGE_FACT = 'edge';
+export const GENESIS_EQUIVALENCE_PROPERTY_FACT = 'property';
+export const GENESIS_EQUIVALENCE_CONTENT_ATTACHMENT_FACT = 'content-attachment';
 
 export type GenesisEquivalenceReadingFactKind =
-  | typeof NODE_FACT
-  | typeof EDGE_FACT
-  | typeof PROPERTY_FACT
-  | typeof CONTENT_ATTACHMENT_FACT;
+  | typeof GENESIS_EQUIVALENCE_NODE_FACT
+  | typeof GENESIS_EQUIVALENCE_EDGE_FACT
+  | typeof GENESIS_EQUIVALENCE_PROPERTY_FACT
+  | typeof GENESIS_EQUIVALENCE_CONTENT_ATTACHMENT_FACT;
 
 export type GenesisEquivalenceReadingFactFields = {
   readonly kind: GenesisEquivalenceReadingFactKind;
@@ -57,10 +57,10 @@ function requireFields(
 /** Validates the visible fact kind. */
 function requireKind(kind: GenesisEquivalenceReadingFactKind): GenesisEquivalenceReadingFactKind {
   if (
-    kind !== NODE_FACT
-    && kind !== EDGE_FACT
-    && kind !== PROPERTY_FACT
-    && kind !== CONTENT_ATTACHMENT_FACT
+    kind !== GENESIS_EQUIVALENCE_NODE_FACT
+    && kind !== GENESIS_EQUIVALENCE_EDGE_FACT
+    && kind !== GENESIS_EQUIVALENCE_PROPERTY_FACT
+    && kind !== GENESIS_EQUIVALENCE_CONTENT_ATTACHMENT_FACT
   ) {
     throw new WarpError('GenesisEquivalenceReadingFact kind is unsupported', 'E_VALIDATION');
   }

@@ -19,11 +19,18 @@ export class GraphModelMigrationDryRunCliArgumentError extends Error {
 }
 
 export class GraphModelMigrationDryRunCliArgs {
-  constructor(
-    readonly requestPath: string | null,
-    readonly manifestOutPath: string | null,
-    readonly helpRequested: boolean,
-  ) {
+  readonly requestPath: string | null;
+  readonly manifestOutPath: string | null;
+  readonly helpRequested: boolean;
+
+  constructor(options: {
+    readonly requestPath: string | null;
+    readonly manifestOutPath: string | null;
+    readonly helpRequested: boolean;
+  }) {
+    this.requestPath = options.requestPath;
+    this.manifestOutPath = options.manifestOutPath;
+    this.helpRequested = options.helpRequested;
     Object.freeze(this);
   }
 }
@@ -87,7 +94,11 @@ export function parseGraphModelMigrationDryRunCliArgs(
     throw new GraphModelMigrationDryRunCliArgumentError(`Unknown argument: ${arg ?? ''}`);
   }
 
-  return new GraphModelMigrationDryRunCliArgs(requestPath, manifestOutPath, helpRequested);
+  return new GraphModelMigrationDryRunCliArgs({
+    requestPath,
+    manifestOutPath,
+    helpRequested,
+  });
 }
 
 /** Runs the v18 graph-model migration dry-run command. */
