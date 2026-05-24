@@ -40,6 +40,8 @@ describe('v18 v17 public-read legacy reading builder', () => {
       'alice',
       'alice',
     ]);
+    expect(reading.facts.find((fact) => fact.factKey === 'node:alpha:_content')?.value)
+      .toBe('24c25f5d050d4abd1186ab83700fae29144f1f7b');
   });
 
   it('fails closed when a restored v17 writer ref drifts after restore', async () => {

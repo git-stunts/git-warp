@@ -423,7 +423,8 @@ report records zero public-read mismatches.
   [0224](design/0224-v18-wet-run-mismatch-classification/v18-wet-run-mismatch-classification.md).
 - [x] 77. Align fixture property values with public-read migration semantics:
   [0225](design/0225-v18-fixture-property-equivalence-values/v18-fixture-property-equivalence-values.md).
-- [ ] 78. Align fixture content attachment evidence with runtime content OIDs.
+- [x] 78. Align fixture content attachment evidence with runtime content OIDs:
+  [0226](design/0226-v18-fixture-content-runtime-oids/v18-fixture-content-runtime-oids.md).
 - [ ] 79. Add edge-endpoint node coverage or document the fixture edge model.
 - [ ] 80. Represent removed-node and multi-writer facts in migrated readings.
 - [ ] 81. Drive the canonical wet-run mismatch count to zero.
@@ -450,7 +451,7 @@ report records zero public-read mismatches.
   operations, replays all four through the production runtime, formats a
   deterministic report, and records a passed source-ref drift check.
 - The canonical public-read equivalence gate remains blocked with six legacy
-  facts, three migrated facts, and four mismatches. This is the next blocker.
+  facts, three migrated facts, and three mismatches. This is the next blocker.
 - Live finalization remains intentionally paused until the wet-run mismatch
   count is zero.
 
