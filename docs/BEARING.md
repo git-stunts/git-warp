@@ -411,7 +411,8 @@ language. The final five are release-candidate hardening and go/no-go work.
   [0218](design/0218-v18-scratch-public-read-reading/v18-scratch-public-read-reading.md).
 - [x] 71. Add the v17 fixture wet-run migration harness:
   [0219](design/0219-v18-v17-fixture-wet-run-harness/v18-v17-fixture-wet-run-harness.md).
-- [ ] 72. Capture deterministic wet-run operator reports.
+- [x] 72. Capture deterministic wet-run operator reports:
+  [0220](design/0220-v18-wet-run-operator-report/v18-wet-run-operator-report.md).
 - [ ] 73. Add wet-run failure fixtures for divergence and malformed history.
 - [ ] 74. Add pre-finalization drift checks to the wet-run harness.
 - [ ] 75. Replan with production-runtime replay evidence in hand.

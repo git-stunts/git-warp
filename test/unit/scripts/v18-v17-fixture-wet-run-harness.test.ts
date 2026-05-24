@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 
 import { runV17GoldenGraphFixtureWetRun }
   from '../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureWetRunHarness.ts';
+import { formatV17GoldenGraphFixtureWetRunReport }
+  from '../../../scripts/v18.0.0/migrations/graph-model/V17GoldenGraphFixtureWetRunReport.ts';
 import {
   GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_PASSED,
 } from '../../../src/domain/migrations/GraphModelMigrationRuntimeReplayResult.ts';
@@ -46,6 +48,29 @@ describe('v18 v17 fixture wet-run harness', () => {
     expect(result.commandResult.gateResult?.proofResult.summary.legacyFactCount).toBe(6);
     expect(result.commandResult.gateResult?.proofResult.summary.migratedFactCount).toBe(3);
     expect(result.commandResult.gateResult?.proofResult.summary.mismatchCount).toBe(5);
+  });
+
+  it('formats deterministic wet-run operator evidence without temp paths', async () => {
+    const firstTarget = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-report-a-'));
+    const secondTarget = await mkdtemp(join(tmpdir(), 'git-warp-v17-wet-run-report-b-'));
+
+    const first = formatV17GoldenGraphFixtureWetRunReport(await runV17GoldenGraphFixtureWetRun({
+      manifestPath: FIXTURE_MANIFEST_PATH,
+      targetDirectory: firstTarget,
+    }));
+    const second = formatV17GoldenGraphFixtureWetRunReport(await runV17GoldenGraphFixtureWetRun({
+      manifestPath: FIXTURE_MANIFEST_PATH,
+      targetDirectory: secondTarget,
+    }));
+
+    expect(first).toBe(second);
+    expect(first).not.toContain(firstTarget);
+    expect(first).toContain('git-warp v18 v17 fixture wet-run report');
+    expect(first).toContain('fixtureId: v17-golden-graph-model-001');
+    expect(first).toContain('command.equivalence: blocked');
+    expect(first).toContain('command.mismatches: 5');
+    expect(first).toContain('runtimeReplay: passed');
+    expect(first).toContain('runtimeReplayOperations: 4');
   });
 
   it('rejects empty harness paths before restore work', async () => {
