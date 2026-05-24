@@ -1,7 +1,7 @@
 ---
 cycle: 0188
 task_id: V18_migration_manifest_serialization
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
@@ -83,13 +83,28 @@ a large generic manifest helper.
 ## Verification
 
 ```text
-npx vitest run test/unit/infrastructure/migrations/GraphModelMigrationManifestSerialization.test.ts --reporter=verbose
-npx eslint src/infrastructure scripts test/unit/infrastructure/migrations/GraphModelMigrationManifestSerialization.test.ts
+npx vitest run test/unit/infrastructure/adapters/GraphModelMigrationManifestJsonAdapter.test.ts --reporter=verbose
+npx eslint src/infrastructure/adapters/GraphModelMigrationManifestJsonAdapter.ts test/unit/infrastructure/adapters/GraphModelMigrationManifestJsonAdapter.test.ts
 npm run typecheck
 npm run lint
 npm run lint:sludge
 git diff --check HEAD
 ```
+
+## Evidence
+
+The slice adds `GraphModelMigrationManifestJsonAdapter` under
+`src/infrastructure/adapters/` plus focused adapter tests. The adapter:
+
+- serializes a `GraphModelMigrationManifest` into deterministic JSON text;
+- parses valid JSON into runtime-backed domain manifest nouns;
+- keeps `JSON.parse` and `JSON.stringify` outside `src/domain/`;
+- reports malformed transport fields with field-specific errors;
+- lets domain construction enforce manifest invariants such as duplicate
+  mapping rejection.
+
+No public package API, CLI, graph-history write path, version bump, or domain
+JSON parser was added.
 
 ## Closeout Criteria
 
@@ -97,6 +112,12 @@ git diff --check HEAD
 - Round-trip and malformed input tests pass.
 - Deterministic fixture output is covered.
 - The dry-run CLI can emit a manifest in the next slice.
+
+## Closeout Outcome
+
+The dry-run manifest has a transport boundary ready for the future CLI. The
+next batch can focus on operator command wiring and equivalence evidence
+without moving JSON concerns into the migration domain model.
 
 ## SSJS Scorecard
 

@@ -87,6 +87,8 @@ The current v18 graph-model posture is:
 - Ordered migration history input nouns exist for writer segments, patch
   identity, per-writer patch sequence, per-patch operation indexes, and
   frontier evidence needed by later genesis equivalence work.
+- Manifest JSON serialization exists as an infrastructure adapter boundary.
+  Domain migration nouns still do not parse or stringify JSON.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -163,6 +165,11 @@ inventory or required content sources are incomplete.
 Slice 39 is complete on this branch. Ordered history input now preserves
 writer, patch, operation, and frontier boundaries as frozen migration-domain
 values so future equivalence checks can report exact divergence locations.
+
+Slice 40 is complete on this branch. Manifest JSON serialization now
+round-trips through an infrastructure adapter with deterministic output,
+field-specific parse errors, and domain construction enforcing duplicate
+mapping invariants.
 
 ## What Feels Wrong
 
@@ -274,7 +281,7 @@ and concrete checks live in `docs/invariants/`.
   [0186](design/0186-v18-dry-run-state-migration-planner/v18-dry-run-state-migration-planner.md).
 - [x] 39. Add ordered migration history input:
   [0187](design/0187-v18-migration-history-input/v18-migration-history-input.md).
-- [ ] 40. Add migration manifest serialization:
+- [x] 40. Add migration manifest serialization:
   [0188](design/0188-v18-migration-manifest-serialization/v18-migration-manifest-serialization.md).
 - [ ] 41. Add the migration dry-run CLI:
   [0189](design/0189-v18-migration-dry-run-cli/v18-migration-dry-run-cli.md).

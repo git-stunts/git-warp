@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nouns for writer segments, patch identity, per-writer patch sequence,
   per-patch operation indexes, and frontier evidence needed by later replay
   equivalence checks.
+- V18 graph-model migration dry-run work now includes an infrastructure
+  manifest JSON adapter with deterministic output, field-specific parse
+  failures, round-trip coverage, and no domain-level JSON parsing.
 - V18 property projection closeout now records the remaining raw
   legacy-property boundaries as compatibility, serialization, replay,
   reducer, index, or migration-source boundaries before graph-model migration
