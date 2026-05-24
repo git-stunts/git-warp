@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   consumes source inventory, produces manifest and planned graph-operation
   facts for complete input, and returns fatal result values for incomplete
   source facts without writing graph history.
+- V18 graph-model migration dry-run work now exposes ordered history input
+  nouns for writer segments, patch identity, per-writer patch sequence,
+  per-patch operation indexes, and frontier evidence needed by later replay
+  equivalence checks.
 - V18 property projection closeout now records the remaining raw
   legacy-property boundaries as compatibility, serialization, replay,
   reducer, index, or migration-source boundaries before graph-model migration

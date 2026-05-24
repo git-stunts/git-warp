@@ -1,7 +1,7 @@
 ---
 cycle: 0187
 task_id: V18_migration_history_input
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
@@ -88,12 +88,32 @@ at exact patch and operation boundaries.
 ## Verification
 
 ```text
-npx vitest run test/unit/domain/migrations/MigrationHistoryInput.test.ts --reporter=verbose
-npx eslint src/domain/migrations test/unit/domain/migrations/MigrationHistoryInput.test.ts
+npx vitest run test/unit/domain/migrations/GraphModelMigrationHistoryInput.test.ts --reporter=verbose
+npx eslint src/domain/migrations test/unit/domain/migrations/GraphModelMigrationHistoryInput.test.ts
 npm run typecheck
 npm run lint:sludge
 git diff --check HEAD
 ```
+
+## Evidence
+
+The slice adds ordered history input nouns under `src/domain/migrations/`:
+
+- `GraphModelMigrationPatchOperationFact`;
+- `GraphModelMigrationPatchFrontierEvidence`;
+- `GraphModelMigrationHistoryPatchInput`;
+- `GraphModelMigrationHistorySegment`;
+- `GraphModelMigrationHistoryInput`.
+
+Patch inputs preserve writer id, patch id, per-writer sequence, contiguous
+operation indexes, and frontier evidence. Writer segments sort patches by
+sequence and reject wrong-writer entries. The history root sorts writer
+segments deterministically, rejects duplicate patch ids across writers, and
+requires frontier evidence so later equivalence checks have exact replay
+boundaries.
+
+No Git walking, timestamp inference, migrated-history writing, or equivalence
+comparison was added in this slice.
 
 ## Closeout Criteria
 
@@ -101,6 +121,12 @@ git diff --check HEAD
 - Patch and operation boundaries are preserved.
 - No adapter behavior leaks into domain code.
 - The manifest serializer slice can focus on persistence boundaries.
+
+## Closeout Outcome
+
+History input is now a domain value, not an adapter side channel. Slice 40 can
+focus on manifest transport serialization while later equivalence slices can
+reuse these patch and operation boundaries.
 
 ## SSJS Scorecard
 

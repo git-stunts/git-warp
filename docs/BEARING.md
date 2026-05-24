@@ -84,6 +84,9 @@ The current v18 graph-model posture is:
   inventory, returns result values for incomplete inputs, emits a migration
   manifest and planned graph-operation facts, and still writes no graph
   history.
+- Ordered migration history input nouns exist for writer segments, patch
+  identity, per-writer patch sequence, per-patch operation indexes, and
+  frontier evidence needed by later genesis equivalence work.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -156,6 +159,10 @@ Slice 38 is complete on this branch. The dry-run planner consumes migration
 source inventory and planned mapping inputs, emits a manifest plus planned
 operation facts for complete input, and fails closed as a value when source
 inventory or required content sources are incomplete.
+
+Slice 39 is complete on this branch. Ordered history input now preserves
+writer, patch, operation, and frontier boundaries as frozen migration-domain
+values so future equivalence checks can report exact divergence locations.
 
 ## What Feels Wrong
 
@@ -265,7 +272,7 @@ and concrete checks live in `docs/invariants/`.
   [0185](design/0185-v18-migration-source-inventory/v18-migration-source-inventory.md).
 - [x] 38. Add the dry-run state migration planner:
   [0186](design/0186-v18-dry-run-state-migration-planner/v18-dry-run-state-migration-planner.md).
-- [ ] 39. Add ordered migration history input:
+- [x] 39. Add ordered migration history input:
   [0187](design/0187-v18-migration-history-input/v18-migration-history-input.md).
 - [ ] 40. Add migration manifest serialization:
   [0188](design/0188-v18-migration-manifest-serialization/v18-migration-manifest-serialization.md).
