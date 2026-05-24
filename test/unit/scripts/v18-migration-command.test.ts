@@ -20,6 +20,11 @@ import GraphModelMigrationNodeMapping
   from '../../../src/domain/migrations/GraphModelMigrationNodeMapping.ts';
 import GraphModelMigrationPatchDescriptor
   from '../../../src/domain/migrations/GraphModelMigrationPatchDescriptor.ts';
+import GraphModelMigrationRuntimeConformanceResult, {
+  GRAPH_MODEL_MIGRATION_RUNTIME_CONFORMANCE_PASSED,
+} from '../../../src/domain/migrations/GraphModelMigrationRuntimeConformanceResult.ts';
+import type GraphModelMigrationScratchWriteResult
+  from '../../../src/domain/migrations/GraphModelMigrationScratchWriteResult.ts';
 import GraphModelMigrationSourceInventory
   from '../../../src/domain/migrations/GraphModelMigrationSourceInventory.ts';
 import GraphModelMigrationWriterChainDescriptor
@@ -74,6 +79,7 @@ describe('v18 graph-model migration command', () => {
         expectedLiveHead: repository.liveHead,
         archiveRefName: ARCHIVE_REF,
         confirmation: confirmation(),
+        runtimeConformance: runtimeConformance,
       },
     });
 
@@ -100,6 +106,7 @@ describe('v18 graph-model migration command', () => {
         expectedLiveHead: repository.liveHead,
         archiveRefName: ARCHIVE_REF,
         confirmation: confirmation(),
+        runtimeConformance: runtimeConformance,
       },
     });
 
@@ -198,6 +205,21 @@ function basis(): GenesisEquivalenceComparisonBasis {
 function confirmation(): GraphModelMigrationFinalizationConfirmation {
   return new GraphModelMigrationFinalizationConfirmation({
     token: V18_GRAPH_MODEL_FINALIZATION_CONFIRMATION,
+  });
+}
+
+function runtimeConformance(
+  scratchWriteResult: GraphModelMigrationScratchWriteResult,
+): GraphModelMigrationRuntimeConformanceResult | null {
+  if (scratchWriteResult.scratchRef === null || scratchWriteResult.scratchHead === null) {
+    return null;
+  }
+  return new GraphModelMigrationRuntimeConformanceResult({
+    scratchRef: scratchWriteResult.scratchRef,
+    scratchHead: scratchWriteResult.scratchHead,
+    status: GRAPH_MODEL_MIGRATION_RUNTIME_CONFORMANCE_PASSED,
+    witness: 'unit-test-runtime-conformance',
+    fatalErrors: [],
   });
 }
 

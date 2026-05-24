@@ -128,6 +128,8 @@ The current v18 graph-model posture is:
 - Command-level migration wiring now runs dry-run planning, lowering, scratch
   writing, equivalence gating, and optional finalization in order, with
   finalization absent by default.
+- Finalization now also requires post-migration runtime conformance evidence
+  tied to the exact scratch ref and scratch head.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -284,6 +286,10 @@ Slice 53 is complete on this branch. The command runner now wires the v18
 migration stages in order and only calls finalization when explicit
 finalization options are supplied and the equivalence gate passes.
 
+Slice 54 is complete on this branch. Finalization safety now rejects promotion
+without runtime conformance evidence for the exact scratch ref/head, which
+keeps supplied equivalence readings from masquerading as runtime readability.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -304,10 +310,10 @@ finalization options are supplied and the equivalence gate passes.
 - Compact equivalence fixtures are not enough by themselves. The golden v17
   fixture now restores Git refs and source inventory consumes those refs, but
   the scratch writer output still needs an equivalence gate.
-- The next migration work must build real-history reading construction,
-  runtime conformance, and closeout audit. The command can orchestrate supplied
-  readings, but it does not yet derive those readings from migrated Git
-  history.
+- The next migration work must close the content/property audit and then build
+  real-history reading construction plus a real runtime conformance provider.
+  The command can orchestrate supplied readings, but it does not yet derive
+  those readings from migrated Git history.
 
 ## Where We Are Heading
 
@@ -430,5 +436,6 @@ and concrete checks live in `docs/invariants/`.
   [0200](design/0200-v18-migration-finalization-implementation/v18-migration-finalization-implementation.md).
 - [x] 53. Wire the end-to-end migration command:
   [0201](design/0201-v18-migration-command-wiring/v18-migration-command-wiring.md).
-- [ ] 54. Prove post-migration runtime conformance.
+- [x] 54. Prove post-migration runtime conformance:
+  [0202](design/0202-v18-post-migration-runtime-conformance/v18-post-migration-runtime-conformance.md).
 - [ ] 55. Close the content/property migration audit.

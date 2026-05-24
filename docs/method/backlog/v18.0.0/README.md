@@ -103,4 +103,7 @@ non-destructive but now has persisted-history evidence:
 - archive-preserving finalization now creates archive refs and advances live
   refs only through expected-head `git update-ref` calls;
 - command wiring now runs planning, lowering, scratch writing, equivalence,
-  and optional finalization in order while keeping finalization off by default.
+  and optional finalization in order while keeping finalization off by default;
+- finalization now also requires runtime conformance evidence tied to the
+  exact scratch ref and head, making the remaining real-runtime replay provider
+  an explicit release blocker instead of an implicit assumption.

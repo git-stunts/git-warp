@@ -23,17 +23,24 @@ import GraphModelMigrationOperationLowerer
   from '../../../../src/domain/migrations/GraphModelMigrationOperationLowerer.ts';
 import GraphModelMigrationOperationLoweringResult
   from '../../../../src/domain/migrations/GraphModelMigrationOperationLoweringResult.ts';
+import GraphModelMigrationRuntimeConformanceResult
+  from '../../../../src/domain/migrations/GraphModelMigrationRuntimeConformanceResult.ts';
 import GraphModelMigrationScratchWriteResult
   from '../../../../src/domain/migrations/GraphModelMigrationScratchWriteResult.ts';
 import { finalizeGraphModelMigration } from './GraphModelMigrationFinalizer.ts';
 import { writeGraphModelMigrationScratchHistory } from './GraphModelMigrationScratchWriter.ts';
 import { runMigrationGit } from './GitMigrationCommandRunner.ts';
 
+export type GraphModelMigrationRuntimeConformanceProvider = (
+  scratchWriteResult: GraphModelMigrationScratchWriteResult,
+) => GraphModelMigrationRuntimeConformanceResult | null;
+
 export type GraphModelMigrationCommandFinalizationOptions = {
   readonly liveRefName: string;
   readonly expectedLiveHead: string;
   readonly archiveRefName: string;
   readonly confirmation: GraphModelMigrationFinalizationConfirmation | null;
+  readonly runtimeConformance: GraphModelMigrationRuntimeConformanceProvider | null;
 };
 
 export type GraphModelMigrationCommandOptions = {
@@ -139,12 +146,26 @@ async function runFinalization(options: {
       archiveRefName: options.finalization.archiveRefName,
       confirmation: options.finalization.confirmation,
       gateResult: options.gateResult,
+      runtimeConformance: runtimeConformanceFromProvider(
+        options.finalization.runtimeConformance,
+        options.scratchWriteResult,
+      ),
     }),
   );
   return await finalizeGraphModelMigration({
     repositoryPath: options.repositoryPath,
     safetyResult,
   });
+}
+
+function runtimeConformanceFromProvider(
+  provider: GraphModelMigrationRuntimeConformanceProvider | null,
+  scratchWriteResult: GraphModelMigrationScratchWriteResult,
+): GraphModelMigrationRuntimeConformanceResult | null {
+  if (provider === null) {
+    return null;
+  }
+  return provider(scratchWriteResult);
 }
 
 function requireDryRunRequest(

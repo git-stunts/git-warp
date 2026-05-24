@@ -13,6 +13,9 @@ import GraphModelMigrationFinalizationRequest
   from '../../../../src/domain/migrations/GraphModelMigrationFinalizationRequest.ts';
 import GraphModelMigrationFinalizationSafety
   from '../../../../src/domain/migrations/GraphModelMigrationFinalizationSafety.ts';
+import GraphModelMigrationRuntimeConformanceResult, {
+  GRAPH_MODEL_MIGRATION_RUNTIME_CONFORMANCE_PASSED,
+} from '../../../../src/domain/migrations/GraphModelMigrationRuntimeConformanceResult.ts';
 import GraphModelMigrationScratchRef
   from '../../../../src/domain/migrations/GraphModelMigrationScratchRef.ts';
 import {
@@ -80,6 +83,22 @@ describe('GraphModelMigrationFinalizationSafety', () => {
     ]);
   });
 
+  it('requires runtime conformance evidence matching the scratch output', () => {
+    const missing = safety().evaluate(completeRequest({
+      runtimeConformance: null,
+    }));
+    const mismatch = safety().evaluate(completeRequest({
+      runtimeConformance: runtimeConformance('4444444444444444444444444444444444444444'),
+    }));
+
+    expect(missing.fatalErrors.map((notice) => notice.code)).toEqual([
+      'E_RUNTIME_CONFORMANCE_NOT_PASSED',
+    ]);
+    expect(mismatch.fatalErrors.map((notice) => notice.code)).toEqual([
+      'E_RUNTIME_CONFORMANCE_MISMATCH',
+    ]);
+  });
+
   it('has no force mode on the finalization request shape', () => {
     const request = completeRequest();
 
@@ -98,16 +117,22 @@ function completeRequest(overrides: {
   readonly archiveRefName?: string | null;
   readonly confirmation?: GraphModelMigrationFinalizationConfirmation | null;
   readonly gateResult?: GenesisEquivalenceGateResult | null;
+  readonly runtimeConformance?: GraphModelMigrationRuntimeConformanceResult | null;
 } = {}): GraphModelMigrationFinalizationRequest {
+  const scratchRef = new GraphModelMigrationScratchRef({ refName: SCRATCH_REF });
+  const scratchHead = SCRATCH_HEAD;
   return new GraphModelMigrationFinalizationRequest({
     liveRefName: LIVE_REF,
     expectedLiveHead: overrides.expectedLiveHead === undefined ? LIVE_HEAD : overrides.expectedLiveHead,
     observedLiveHead: overrides.observedLiveHead === undefined ? LIVE_HEAD : overrides.observedLiveHead,
-    scratchRef: new GraphModelMigrationScratchRef({ refName: SCRATCH_REF }),
-    scratchHead: SCRATCH_HEAD,
+    scratchRef,
+    scratchHead,
     archiveRefName: overrides.archiveRefName === undefined ? ARCHIVE_REF : overrides.archiveRefName,
     confirmation: overrides.confirmation === undefined ? confirmation() : overrides.confirmation,
     gateResult: overrides.gateResult === undefined ? passedGateResult() : overrides.gateResult,
+    runtimeConformance: overrides.runtimeConformance === undefined
+      ? runtimeConformance(scratchHead)
+      : overrides.runtimeConformance,
   });
 }
 
@@ -133,6 +158,16 @@ function failedGateResult(): GenesisEquivalenceGateResult {
     fixture.legacyReading,
     fixture.migratedReading,
   );
+}
+
+function runtimeConformance(scratchHead: string): GraphModelMigrationRuntimeConformanceResult {
+  return new GraphModelMigrationRuntimeConformanceResult({
+    scratchRef: new GraphModelMigrationScratchRef({ refName: SCRATCH_REF }),
+    scratchHead,
+    status: GRAPH_MODEL_MIGRATION_RUNTIME_CONFORMANCE_PASSED,
+    witness: 'unit-test-runtime-conformance',
+    fatalErrors: [],
+  });
 }
 
 function basis(): GenesisEquivalenceComparisonBasis {

@@ -27,6 +27,7 @@ function collectFatalErrors(
     validateGateResult(request),
     validateArchiveRef(request.archiveRefName),
     validateScratchOutput(request),
+    validateRuntimeConformance(request),
     validateLiveHeadExpectation(request),
   ].filter((notice) => notice !== null));
 }
@@ -79,6 +80,34 @@ function validateScratchOutput(
     'E_MISSING_SCRATCH_OUTPUT',
     'migration finalization requires scratch ref and scratch head evidence',
   );
+}
+
+function validateRuntimeConformance(
+  request: GraphModelMigrationFinalizationRequest,
+): GraphModelMigrationNotice | null {
+  if (request.runtimeConformance === null || !request.runtimeConformance.allowsFinalization()) {
+    return GraphModelMigrationNotice.fatal(
+      'E_RUNTIME_CONFORMANCE_NOT_PASSED',
+      'migration finalization requires post-migration runtime conformance evidence',
+    );
+  }
+  if (!runtimeConformanceMatchesScratchOutput(request)) {
+    return GraphModelMigrationNotice.fatal(
+      'E_RUNTIME_CONFORMANCE_MISMATCH',
+      'runtime conformance evidence must match the scratch ref and head',
+    );
+  }
+  return null;
+}
+
+function runtimeConformanceMatchesScratchOutput(
+  request: GraphModelMigrationFinalizationRequest,
+): boolean {
+  return request.scratchRef !== null
+    && request.scratchHead !== null
+    && request.runtimeConformance !== null
+    && request.runtimeConformance.scratchRef.refName === request.scratchRef.refName
+    && request.runtimeConformance.scratchHead === request.scratchHead;
 }
 
 function validateLiveHeadExpectation(

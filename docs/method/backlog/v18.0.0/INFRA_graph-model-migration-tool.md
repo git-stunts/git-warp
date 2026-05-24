@@ -56,7 +56,8 @@ Remaining migration-tool work is intentionally ordered as:
 - slice 51: design finalization safety (complete);
 - slice 52: implement archive-preserving finalization (complete);
 - slice 53: wire the end-to-end migration command (complete);
-- slice 54: prove post-migration runtime conformance;
+- slice 54: prove post-migration runtime conformance (conformance evidence
+  gate complete; real runtime replay provider still release-critical);
 - slice 55: close the content/property migration audit.
 
 ## Starting points

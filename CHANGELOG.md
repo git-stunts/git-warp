@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 graph-model migration now includes a command-level runner that wires
   dry-run planning, operation lowering, scratch writing, equivalence gating,
   and optional finalization while keeping finalization absent by default.
+- V18 graph-model migration finalization now requires runtime conformance
+  evidence matching the scratch ref and scratch head, so supplied equivalence
+  readings alone cannot promote scratch output to live graph refs.
 - V18 graph-model migration dry-run work now includes a non-destructive CLI
   runner and request JSON adapter that validate source facts, invoke the pure
   planner, emit deterministic manifest output, and refuse write/apply modes.

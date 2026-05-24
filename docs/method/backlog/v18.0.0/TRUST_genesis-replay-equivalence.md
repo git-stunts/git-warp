@@ -47,7 +47,8 @@ Slice 50 added the first promotion gate over that proof vocabulary:
 
 This is now a gate vocabulary, but not yet the complete ship gate. The
 remaining trust work is to construct legacy and scratch readings from real
-Git history and wire the gate into finalization.
+Git history and replace test-supplied runtime conformance evidence with a real
+runtime replay provider.
 
 ## Starting points
 

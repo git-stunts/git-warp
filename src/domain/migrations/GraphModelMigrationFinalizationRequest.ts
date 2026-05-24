@@ -1,6 +1,8 @@
 import GenesisEquivalenceGateResult from './GenesisEquivalenceGateResult.ts';
 import GraphModelMigrationFinalizationConfirmation
   from './GraphModelMigrationFinalizationConfirmation.ts';
+import GraphModelMigrationRuntimeConformanceResult
+  from './GraphModelMigrationRuntimeConformanceResult.ts';
 import GraphModelMigrationScratchRef from './GraphModelMigrationScratchRef.ts';
 import WarpError from '../errors/WarpError.ts';
 
@@ -13,6 +15,7 @@ export type GraphModelMigrationFinalizationRequestFields = {
   readonly archiveRefName: string | null;
   readonly confirmation: GraphModelMigrationFinalizationConfirmation | null;
   readonly gateResult: GenesisEquivalenceGateResult | null;
+  readonly runtimeConformance: GraphModelMigrationRuntimeConformanceResult | null;
 };
 
 /** Pure finalization request envelope; it does not move Git refs. */
@@ -25,6 +28,7 @@ export default class GraphModelMigrationFinalizationRequest {
   readonly archiveRefName: string | null;
   readonly confirmation: GraphModelMigrationFinalizationConfirmation | null;
   readonly gateResult: GenesisEquivalenceGateResult | null;
+  readonly runtimeConformance: GraphModelMigrationRuntimeConformanceResult | null;
 
   constructor(fields: GraphModelMigrationFinalizationRequestFields) {
     const checkedFields = requireFields(fields);
@@ -36,6 +40,7 @@ export default class GraphModelMigrationFinalizationRequest {
     this.archiveRefName = requireOptionalString(checkedFields.archiveRefName, 'archiveRefName');
     this.confirmation = requireOptionalConfirmation(checkedFields.confirmation);
     this.gateResult = requireOptionalGateResult(checkedFields.gateResult);
+    this.runtimeConformance = requireOptionalRuntimeConformance(checkedFields.runtimeConformance);
     Object.freeze(this);
   }
 }
@@ -91,4 +96,19 @@ function requireOptionalGateResult(
     throw new WarpError('gateResult must be a GenesisEquivalenceGateResult or null', 'E_VALIDATION');
   }
   return gateResult;
+}
+
+function requireOptionalRuntimeConformance(
+  runtimeConformance: GraphModelMigrationRuntimeConformanceResult | null,
+): GraphModelMigrationRuntimeConformanceResult | null {
+  if (
+    runtimeConformance !== null
+    && !(runtimeConformance instanceof GraphModelMigrationRuntimeConformanceResult)
+  ) {
+    throw new WarpError(
+      'runtimeConformance must be a GraphModelMigrationRuntimeConformanceResult or null',
+      'E_VALIDATION',
+    );
+  }
+  return runtimeConformance;
 }

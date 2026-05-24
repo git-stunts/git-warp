@@ -19,6 +19,9 @@ import GraphModelMigrationFinalizationRequest
   from '../../../src/domain/migrations/GraphModelMigrationFinalizationRequest.ts';
 import GraphModelMigrationFinalizationSafety
   from '../../../src/domain/migrations/GraphModelMigrationFinalizationSafety.ts';
+import GraphModelMigrationRuntimeConformanceResult, {
+  GRAPH_MODEL_MIGRATION_RUNTIME_CONFORMANCE_PASSED,
+} from '../../../src/domain/migrations/GraphModelMigrationRuntimeConformanceResult.ts';
 import GraphModelMigrationScratchRef
   from '../../../src/domain/migrations/GraphModelMigrationScratchRef.ts';
 import {
@@ -147,17 +150,19 @@ function finalizationRequest(
   scratchHead: string,
   gateResult: ReturnType<GenesisEquivalenceGate['evaluate']>,
 ): GraphModelMigrationFinalizationRequest {
+  const scratchRef = new GraphModelMigrationScratchRef({ refName: SCRATCH_REF });
   return new GraphModelMigrationFinalizationRequest({
     liveRefName: LIVE_REF,
     expectedLiveHead: liveHead,
     observedLiveHead: liveHead,
-    scratchRef: new GraphModelMigrationScratchRef({ refName: SCRATCH_REF }),
+    scratchRef,
     scratchHead,
     archiveRefName: ARCHIVE_REF,
     confirmation: new GraphModelMigrationFinalizationConfirmation({
       token: V18_GRAPH_MODEL_FINALIZATION_CONFIRMATION,
     }),
     gateResult,
+    runtimeConformance: runtimeConformance(scratchRef, scratchHead),
   });
 }
 
@@ -189,6 +194,19 @@ function basis(): GenesisEquivalenceComparisonBasis {
       graphId: 'graph:fixture',
       basisId: 'basis:scratch',
     }),
+  });
+}
+
+function runtimeConformance(
+  scratchRef: GraphModelMigrationScratchRef,
+  scratchHead: string,
+): GraphModelMigrationRuntimeConformanceResult {
+  return new GraphModelMigrationRuntimeConformanceResult({
+    scratchRef,
+    scratchHead,
+    status: GRAPH_MODEL_MIGRATION_RUNTIME_CONFORMANCE_PASSED,
+    witness: 'unit-test-runtime-conformance',
+    fatalErrors: [],
   });
 }
 
