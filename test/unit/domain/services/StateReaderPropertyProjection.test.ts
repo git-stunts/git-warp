@@ -7,6 +7,7 @@ import {
   getNodePropsImpl,
 } from '../../../../src/domain/services/controllers/QueryReads.ts';
 import type { QueryReadHost } from '../../../../src/domain/services/controllers/ReadGraphHost.ts';
+import { createSnapshotWarpState } from '../../../../src/domain/services/ImmutableSnapshot.ts';
 import {
   CONTENT_MIME_PROPERTY_KEY,
   CONTENT_PROPERTY_KEY,
@@ -78,7 +79,40 @@ describe('StateReader property projection routing', () => {
       size: null,
     });
   });
+
+  it('reads projection views from immutable snapshot sources with live-state parity', () => {
+    const state = stateWithProjectionFacts();
+    const liveReader = createStateReader(state);
+    const snapshotReader = createStateReader(createSnapshotWarpState(state));
+
+    expect(snapshotReader.getNodeProps('node:1')).toEqual(liveReader.getNodeProps('node:1'));
+    expect(snapshotReader.getEdgeProps('node:1', 'node:2', 'rel')).toEqual(
+      liveReader.getEdgeProps('node:1', 'node:2', 'rel'),
+    );
+    expect(snapshotReader.getEdges()).toEqual(liveReader.getEdges());
+    expect(snapshotReader.project().props).toEqual(liveReader.project().props);
+    expect(snapshotReader.getNodeContentMeta('node:1')).toEqual(
+      liveReader.getNodeContentMeta('node:1'),
+    );
+    expect(snapshotReader.getEdgeContentMeta('node:1', 'node:2', 'rel')).toEqual(
+      liveReader.getEdgeContentMeta('node:1', 'node:2', 'rel'),
+    );
+  });
 });
+
+function stateWithProjectionFacts(): WarpState {
+  const state = WarpState.empty();
+  addLiveNode(state, 'node:1', 1);
+  addLiveNode(state, 'node:2', 2);
+  addLiveEdge(state, 'node:1', 'node:2', 'rel', 3);
+  state.prop.set(encodePropKey('node:1', 'status'), register(4, 'ready'));
+  state.prop.set(encodePropKey('node:1', CONTENT_PROPERTY_KEY), register(5, 'node-oid'));
+  state.prop.set(encodePropKey('node:1', CONTENT_SIZE_PROPERTY_KEY), register(5, 512));
+  state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', 'weight'), register(6, 3));
+  state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', CONTENT_PROPERTY_KEY), register(7, 'edge-oid'));
+  state.prop.set(encodeEdgePropKey('node:1', 'node:2', 'rel', CONTENT_MIME_PROPERTY_KEY), register(7, 'text/plain'));
+  return state;
+}
 
 function hostForState(state: WarpState): QueryReadHost {
   return {

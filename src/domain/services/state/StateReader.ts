@@ -193,18 +193,20 @@ function buildReaderApi(context: StateReaderContext): VisibleStateReader {
 function buildReaderContext(state: StateReaderSource): StateReaderContext {
   const projectionState = createStateReaderProjectionState(state);
   const baseProjection = projectState(projectionState);
+  const nodePropertyRecords = createNodePropertyRecords(projectionState);
+  const edgePropertyRecords = createEdgePropertyRecords(projectionState);
   const projection = {
     nodes: baseProjection.nodes,
     edges: baseProjection.edges,
-    props: createProjectionProps(projectionState),
+    props: createProjectionProps(nodePropertyRecords),
   };
   const visibleNodeIds = new Set(projection.nodes);
   const nodePropsById = createNodePropIndex(projection.nodes);
   const edgePropsByKey = createEdgePropIndex(projection.edges);
   const { outgoingByNode, incomingByNode } = createNeighborIndex(projection.nodes, projection.edges);
 
-  populateVisibleNodeProps(createNodePropertyRecords(projectionState), nodePropsById);
-  populateVisibleEdgeProps(createEdgePropertyRecords(projectionState), edgePropsByKey);
+  populateVisibleNodeProps(nodePropertyRecords, nodePropsById);
+  populateVisibleEdgeProps(edgePropertyRecords, edgePropsByKey);
 
   return {
     projection,

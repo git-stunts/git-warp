@@ -178,9 +178,11 @@ export function createNeighborIndex(
   return { outgoingByNode, incomingByNode };
 }
 
-/** Builds projection-backed public node property rows. */
-export function createProjectionProps(state: WarpState): VisibleProjectionProp[] {
-  return NodePropertyProjection.fromState(state).map((record) => ({
+/** Builds projection-backed public node property rows from precomputed records. */
+export function createProjectionProps(
+  records: readonly VisibleNodePropertyRecord[],
+): VisibleProjectionProp[] {
+  return records.map((record) => ({
     node: record.owner.id.toString(),
     key: record.key.toString(),
     value: record.value.toPropValue(),

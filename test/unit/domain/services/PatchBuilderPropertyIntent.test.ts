@@ -60,7 +60,56 @@ describe('PatchBuilder property intent lowering', () => {
     }).toThrow(/NodeId/);
     expect(builder.build().ops).toEqual([]);
   });
+
+  it('accepts bytes, arrays, and recursive property-compatible objects', () => {
+    const builder = createBuilder(null);
+    const bytes = new Uint8Array([1, 2, 3]);
+
+    builder.setProperty('node:1', 'payload', {
+      bytes,
+      nested: [1, 'ok', { done: true }],
+    });
+
+    const patch = builder.build();
+    expect(patch.schema).toBe(2);
+    const op = requirePropSet(patch.ops[0]);
+    expect(op.node).toBe('node:1');
+    expect(op.key).toBe('payload');
+    expect(op.value).toEqual({
+      bytes,
+      nested: [1, 'ok', { done: true }],
+    });
+  });
+
+  it('rejects cyclic property values before appending operations', () => {
+    const builder = createBuilder(null);
+    const cyclic: CyclicPropertyValue = {};
+    cyclic.self = cyclic;
+
+    expect(() => {
+      builder.setProperty('node:1', 'payload', cyclic);
+    }).toThrow(PatchError);
+    expect(builder.build().ops).toEqual([]);
+  });
+
+  it('rejects prototype-polluting object keys before appending operations', () => {
+    const builder = createBuilder(null);
+    const payload = { safe: 'ok' };
+    Object.defineProperty(payload, '__proto__', {
+      value: 'polluted',
+      enumerable: true,
+    });
+
+    expect(() => {
+      builder.setProperty('node:1', 'payload', payload);
+    }).toThrow(PatchError);
+    expect(builder.build().ops).toEqual([]);
+  });
 });
+
+type CyclicPropertyValue = {
+  self?: CyclicPropertyValue;
+};
 
 function createBuilder(state: WarpState | null): PatchBuilder {
   return new PatchBuilder({
