@@ -9,6 +9,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- V18 migration evidence now includes a deterministic v17 golden graph-history
+  fixture bundle, runtime-backed fixture manifest nouns, a manifest JSON
+  adapter, and a restore validator that checks real `refs/warp/*` writer heads
+  and patch counts in an isolated repository.
+- V18 graph-model migration now includes a read-only source inventory
+  collector that discovers restored `refs/warp/<graph>/writers/*` refs,
+  decodes patch commit trailers, records writer chains and patch descriptors,
+  and fails closed with structured inventory notices.
+- V18 graph-model migration now includes pure operation lowering from
+  successful dry-run plans to runtime-backed, write-ready migration operation
+  facts for later scratch writers.
+- V18 graph-model migration now includes an explicit scratch writer that
+  rejects live graph refs, writes lowered operation commits only under
+  `refs/warp-migration-scratch/*`, and advances scratch refs with
+  expected-head `git update-ref` calls.
+- V18 genesis replay equivalence now includes a scratch promotion gate that
+  runs proof comparison, reports first divergence, blocks failed proofs, and
+  rejects otherwise-equivalent readings when patch-boundary evidence is
+  missing.
+- V18 graph-model migration finalization now has a pure safety protocol that
+  requires explicit confirmation, passed scratch equivalence, archive ref
+  selection, scratch output evidence, and matching live-ref expected head
+  evidence before any live ref update can be attempted.
+- V18 graph-model migration finalization now includes an archive-preserving
+  Git updater that blocks failed safety results, rejects live-ref drift,
+  refuses existing archive refs, archives old lineage, and advances live refs
+  through expected-head `git update-ref` calls.
+- V18 graph-model migration now includes a command-level runner that wires
+  dry-run planning, operation lowering, scratch writing, equivalence gating,
+  and optional finalization while keeping finalization absent by default.
+- V18 graph-model migration finalization now requires runtime conformance
+  evidence matching the scratch ref and scratch head, so supplied equivalence
+  readings alone cannot promote scratch output to live graph refs.
+- V18 graph-model migration closeout now records the remaining raw
+  content/property compatibility files and adds an executable audit shape test
+  so new raw compatibility boundaries require deliberate review.
+- V18 genesis replay migration now includes a pure builder that projects the
+  v17 golden fixture manifest into `GenesisEquivalenceReading` facts with
+  deterministic boundary evidence.
+- V18 graph-model migration now includes a scratch reading builder that reads
+  scratch operation commits and projects them into genesis-equivalence facts
+  with scratch commit boundary evidence.
+- V18 graph-model migration command wiring now accepts reading providers so
+  legacy and scratch equivalence readings can be constructed after scratch
+  history has been written.
+- V18 graph-model migration now includes an adapter-level scratch runtime
+  conformance provider that verifies scratch refs still point at their
+  expected heads and can be read back into genesis evidence.
+- V18 graph-model migration command finalization is now covered with
+  command-owned reading providers and scratch runtime conformance instead of
+  test-supplied finalization proof.
+- V18 graph-model migration command coverage now proves provider-built scratch
+  readings still block finalization when legacy and migrated facts diverge.
+- V18 graph-model migration command output now includes a deterministic report
+  formatter for planning, scratch, equivalence, and finalization evidence.
+- V18 graph-model migration now includes a non-finalizing command CLI wrapper
+  that writes scratch history, builds command-owned readings, emits the command
+  report, and refuses live-ref finalization flags.
+- V18 release planning now records explicit public-release blockers for
+  production-runtime replay, live finalization CLI design, wet-run fixture
+  harnessing, Continuum contract tie-back, and operator release notes.
+- V18 planning now records the evidence-backed post-command-CLI replan toward
+  production-runtime scratch replay, wet-run fixture harnessing, live
+  finalization CLI design, and generated Continuum contract tie-back.
 - V18 graph-model migration dry-run work now includes a non-destructive CLI
   runner and request JSON adapter that validate source facts, invoke the pure
   planner, emit deterministic manifest output, and refuse write/apply modes.
@@ -120,6 +184,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- V18 graph-model migration review follow-up now preserves parent Git command
+  environment variables under deterministic identities, validates scratch and
+  finalization boundaries before Git work, rejects malformed scratch payload
+  hex bytes, restores runtime-backed fixture fact dispatch, and raises adapter
+  guard coverage for the CI ratchet.
 - V18 graph-model migration dry-run review follow-up now removes boolean-trap
   notice validation helpers, encodes planned target property keys with a named
   length-prefixed format, and raises focused constructor-guard coverage for the

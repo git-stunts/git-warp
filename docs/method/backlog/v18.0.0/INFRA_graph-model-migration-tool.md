@@ -47,12 +47,35 @@ V18 slices 36 through 45 completed the non-destructive foundation:
 
 Remaining migration-tool work is intentionally ordered as:
 
-- slice 46: create v17 golden graph-history fixtures and restore checks;
-- slice 47: collect real source inventory from restored history;
-- slice 48: lower dry-run planned operations;
-- slice 49: write scratch migrated history;
-- slice 50: gate scratch output with genesis equivalence;
-- slice 51: design finalization safety.
+- slice 46: create v17 golden graph-history fixtures and restore checks
+  (complete);
+- slice 47: collect real source inventory from restored history (complete);
+- slice 48: lower dry-run planned operations (complete);
+- slice 49: write scratch migrated history (complete);
+- slice 50: gate scratch output with genesis equivalence (complete);
+- slice 51: design finalization safety (complete);
+- slice 52: implement archive-preserving finalization (complete);
+- slice 53: wire the end-to-end migration command (complete);
+- slice 54: prove post-migration runtime conformance (conformance evidence
+  gate complete; real runtime replay provider still release-critical);
+- slice 55: close the content/property migration audit (complete).
+- slice 56: construct legacy fixture genesis readings (complete);
+- slice 57: construct scratch operation genesis readings (complete);
+- slice 58: add command reading providers (complete).
+- slice 59: add a scratch runtime conformance provider (operation-history
+  readback complete; production runtime replay still release-critical).
+- slice 60: prove command finalization with command-owned readings and scratch
+  runtime conformance (complete).
+- slice 61: prove provider-built scratch readings still block finalization on
+  divergence (complete).
+- slice 62: add deterministic operator report output for migration command
+  evidence (complete).
+- slice 63: add a non-finalizing migration command CLI wrapper that writes
+  scratch history and refuses live-ref finalization flags (complete).
+- slice 64: record v18 public release blockers before widening release claims
+  (complete).
+- slice 65: replan with command-CLI evidence in hand and set the next
+  production-runtime replay goalpost (complete).
 
 ## Starting points
 

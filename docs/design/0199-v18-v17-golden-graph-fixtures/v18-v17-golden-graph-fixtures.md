@@ -1,11 +1,12 @@
 ---
 cycle: 0199
 task_id: V18_v17_golden_graph_fixtures
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-24
+completed_at: 2026-05-24
 release_home: v18.0.0
 bearing_task: 46
 promotes_backlog:
@@ -122,6 +123,15 @@ git diff --check HEAD
 - The next slice can collect real source inventory from the restored fixture.
 - Docker wet-run work is either present as an optional harness or queued with
   clear acceptance criteria.
+
+## Closeout
+
+Slice 46 adds `fixtures/v17/graph-model-golden/v17-golden-graph.bundle` plus
+a deterministic manifest. The fixture restores real
+`refs/warp/v17-golden-graph/writers/*` refs, validates writer heads and patch
+counts in an isolated repository, and records node, edge, property, content,
+removal, and multi-writer visible fact coverage. Docker remains optional; the
+canonical artifact is the Git bundle and manifest pair.
 
 ## SSJS Scorecard
 

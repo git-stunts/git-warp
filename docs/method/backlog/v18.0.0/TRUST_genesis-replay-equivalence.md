@@ -37,9 +37,30 @@ V18 slices 42 through 44 added fixture-level proof infrastructure:
 - `GenesisDivergenceReporter` selects the first deterministic mismatch and
   reports field and patch-boundary evidence.
 
-This is not yet the ship gate. The remaining trust work is to restore a real
-v17 golden graph-history fixture, then connect legacy replay and scratch
-migrated replay through slices 46 through 50.
+Slice 50 added the first promotion gate over that proof vocabulary:
+
+- `GenesisEquivalenceGate` runs proof comparison over legacy and scratch
+  reading nouns;
+- failed proofs carry a first divergence report;
+- otherwise-equivalent readings still block promotion when visible facts lack
+  patch-boundary evidence.
+
+This is now a gate vocabulary, but not yet the complete ship gate. The
+remaining trust work is to construct legacy and scratch readings from real
+Git history and replace test-supplied runtime conformance evidence with a real
+runtime replay provider.
+
+Slice 56 added a pure reading builder for the v17 golden fixture manifest. It
+is a bridge from persisted fixture metadata to equivalence facts, but it is
+not yet a full replay-derived read model.
+
+Slice 57 added a scratch reading builder over migration-operation commits. It
+constructs equivalence facts from scratch Git history, but remains
+operation-derived rather than normal runtime replay.
+
+Slices 59 through 61 added operation-history readback conformance and command
+coverage proving that readable scratch output still cannot finalize when the
+legacy and scratch readings diverge.
 
 ## Starting points
 

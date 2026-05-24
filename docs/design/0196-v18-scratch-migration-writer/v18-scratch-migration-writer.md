@@ -1,11 +1,12 @@
 ---
 cycle: 0196
 task_id: V18_scratch_migration_writer
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-24
+completed_at: 2026-05-24
 release_home: v18.0.0
 bearing_task: 49
 promotes_backlog:
@@ -97,12 +98,39 @@ git diff --check HEAD
 - Scratch output can be replayed by the equivalence gate.
 - Finalization remains separate.
 
+## Closeout
+
+Slice 49 added the first write-capable v18 graph-model migration step, fenced
+behind `GraphModelMigrationScratchRef`. The writer accepts lowered migration
+operations and writes one deterministic Git commit per operation to an
+explicit `refs/warp-migration-scratch/*` ref.
+
+The implementation rejects missing targets, live `refs/warp/*` targets, and
+invalid scratch ref shapes before writing. Scratch ref advancement uses
+`git update-ref` with the expected old head, so appending remains CAS-shaped
+instead of force-shaped. Commit payloads encode operation and basis identity
+as UTF-8 hex lines rather than JSON, keeping serialization out of the domain
+and avoiding behaviorally significant message parsing.
+
+Finalization is still not present. The scratch history is now inspectable
+input for the slice 50 equivalence gate.
+
+## Verification Result
+
+```text
+npx vitest run test/unit/scripts/v18-scratch-migration-writer.test.ts --reporter=verbose
+npx eslint --no-warn-ignored scripts/v18.0.0/migrations/graph-model/GraphModelMigrationScratchWriter.ts test/unit/scripts/v18-scratch-migration-writer.test.ts src/domain/migrations/GraphModelMigrationScratchRef.ts src/domain/migrations/GraphModelMigrationScratchWrittenPatch.ts src/domain/migrations/GraphModelMigrationScratchWriteResult.ts
+npm run typecheck
+```
+
 ## SSJS Scorecard
 
-- Runtime-backed forms: green when writer results are named values.
-- Boundary validation: green when scratch targets are validated before I/O.
-- Behavior ownership: green when writer writes and domain lowering lowers.
+- Runtime-backed forms: green; scratch refs, written patches, and write
+  results are named values.
+- Boundary validation: green; scratch targets are validated before write I/O.
+- Behavior ownership: green; writer writes and domain lowering lowers.
 - Message parsing: green; no behavior parses text output.
-- Ambient time or entropy: green when generated identities come from inputs or
-  injected ports.
-- Fake shape trust or cast-cosplay: green when fake persistence is typed.
+- Ambient time or entropy: green; scratch commits use fixed migration Git
+  identity and dates.
+- Fake shape trust or cast-cosplay: green; tests use real Git repositories and
+  typed result values.

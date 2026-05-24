@@ -1,11 +1,12 @@
 ---
 cycle: 0198
 task_id: V18_migration_finalization_safety
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-24
+completed_at: 2026-05-24
 release_home: v18.0.0
 bearing_task: 51
 promotes_backlog:
@@ -85,7 +86,7 @@ remain ambiguous.
 ## Verification
 
 ```text
-npx vitest run test/unit/scripts/v18-migration-finalization-safety.test.ts --reporter=verbose
+npx vitest run test/unit/domain/migrations/GraphModelMigrationFinalizationSafety.test.ts --reporter=verbose
 npm run typecheck
 npm run lint:semgrep
 npm run lint:sludge
@@ -99,12 +100,45 @@ git diff --check HEAD
 - No destructive defaults exist.
 - v18 release readiness can be assessed from migration evidence.
 
+## Closeout
+
+Slice 51 implemented the finalization safety protocol as pure domain values,
+not as live Git ref mutation. `GraphModelMigrationFinalizationRequest` names
+the required finalization evidence: live ref, expected and observed live head,
+scratch ref/head, archive ref target, operator confirmation, and equivalence
+gate result.
+
+`GraphModelMigrationFinalizationSafety` blocks finalization unless all of the
+following are true:
+
+- the live ref is under `refs/warp/*`;
+- the explicit confirmation token is present;
+- the scratch equivalence gate allows promotion;
+- the archive ref is under `refs/warp-migration-archive/*`;
+- scratch ref and scratch head evidence are present;
+- the observed live head matches the expected live head.
+
+No force switch exists on the request shape. Slice 52 can now implement the
+Git update step against these preconditions instead of inventing its own
+ad-hoc finalization rules.
+
+## Verification Result
+
+```text
+npx vitest run test/unit/domain/migrations/GraphModelMigrationFinalizationSafety.test.ts --reporter=verbose
+npx eslint --no-warn-ignored src/domain/migrations/GraphModelMigrationArchiveRef.ts src/domain/migrations/GraphModelMigrationFinalizationConfirmation.ts src/domain/migrations/GraphModelMigrationFinalizationRequest.ts src/domain/migrations/GraphModelMigrationFinalizationSafety.ts src/domain/migrations/GraphModelMigrationFinalizationSafetyResult.ts test/unit/domain/migrations/GraphModelMigrationFinalizationSafety.test.ts
+npm run typecheck
+npm run lint:sludge
+npm run lint:semgrep
+```
+
 ## SSJS Scorecard
 
-- Runtime-backed forms: green when finalization requests/results are named.
-- Boundary validation: green when confirmation and gate proof are validated.
-- Behavior ownership: green when finalization only finalizes.
+- Runtime-backed forms: green; finalization request, confirmation, archive ref,
+  and safety result are named values.
+- Boundary validation: green; confirmation and gate proof are validated before
+  Git mutation exists.
+- Behavior ownership: green; safety only decides, later finalization finalizes.
 - Message parsing: green; no confirmation through parsed prose.
-- Ambient time or entropy: green when audit identifiers are deterministic or
-  injected.
-- Fake shape trust or cast-cosplay: green when ref outcomes are typed.
+- Ambient time or entropy: green; no clocks or randomness.
+- Fake shape trust or cast-cosplay: green; ref outcomes and blockers are typed.

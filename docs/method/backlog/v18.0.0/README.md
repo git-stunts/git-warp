@@ -74,8 +74,8 @@ graph model. Change the envelope only if replay honesty requires it.
 
 ## Current Evidence
 
-After v18 slices 41 through 45, the migration path is intentionally still
-non-destructive:
+After v18 slice 49, the migration path is intentionally still
+non-destructive but now has persisted-history evidence:
 
 - dry-run request JSON can be decoded at the infrastructure boundary;
 - the dry-run CLI can emit deterministic manifest output and refuses
@@ -86,5 +86,30 @@ non-destructive:
   divergent-property cases;
 - v17 golden graph-history fixtures now precede write-capable migration work,
   because compact fixtures do not prove the persisted Git object/ref layout;
-- real source inventory, operation lowering, scratch writing, scratch
-  equivalence, and finalization safety are planned as slices 47 through 51.
+- the first v17 golden fixture restores real `refs/warp/*` writer refs from a
+  Git bundle and validates manifest heads, patch counts, and visible fact
+  families;
+- restored source inventory collection now reads real writer refs and patch
+  commit trailers into migration-domain source inventory;
+- operation lowering now creates write-ready migration operation facts from
+  successful dry-run plans without writing history;
+- scratch writing now creates deterministic operation commits under explicit
+  `refs/warp-migration-scratch/*` refs and refuses live graph refs;
+- scratch equivalence now gates promotion on proof success, first-divergence
+  reporting, and required patch-boundary evidence;
+- finalization safety now requires explicit confirmation, archive ref
+  selection, scratch output evidence, a passed equivalence gate, and a matching
+  live-ref expected head before any live lineage promotion can be implemented;
+- archive-preserving finalization now creates archive refs and advances live
+  refs only through expected-head `git update-ref` calls;
+- command wiring now runs planning, lowering, scratch writing, equivalence,
+  and optional finalization in order while keeping finalization off by default;
+- finalization now also requires runtime conformance evidence tied to the
+  exact scratch ref and head, making the remaining real-runtime replay provider
+  an explicit release blocker instead of an implicit assumption;
+- raw content/property compatibility boundaries are now enumerated by an
+  executable closeout audit so new raw boundaries require deliberate review.
+- public-release blockers are now explicit in
+  [`RELEASE_v18-public-release-blockers.md`](RELEASE_v18-public-release-blockers.md),
+  including production-runtime replay, live finalization CLI design, wet-run
+  fixture harnessing, Continuum contract tie-back, and operator release notes.

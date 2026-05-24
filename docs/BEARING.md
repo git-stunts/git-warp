@@ -39,18 +39,18 @@ of handwritten adapter folklore.
 
 Current branch state at this boundary:
 
-- Branch: `v18-continuum-slices-41-45`
+- Branch: `v18-continuum-slices-46-55`
 - Base branch: `main`
-- Current `origin/main`: `07e16795`
-- Latest merged PR: #102, v18 migration dry-run planning substrate
+- Current `origin/main`: `b274bbc9`
+- Latest merged PR: #103, v18 migration dry-run CLI and genesis equivalence
+  evidence
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
-  `0193-v18-replan-with-migration-evidence`
-- Current work: PR D, v18 slices 41 through 45, is complete on this branch
-  and now includes a drift-check pivot that inserts v17 golden graph-history
-  fixtures before write-capable migration work.
+  `0213-v18-replan-after-command-cli`
+- Current work: PR E now contains slices 46 through 65. The branch is ready
+  for PR review after final local verification and push.
 - Cleanup checkpoint: `main` has been fast-forwarded to `origin/main` after
-  PR #102 merged; this branch starts from that merge commit.
+  PR #103 merged; this branch starts from that merge commit.
 
 The current v18 graph-model posture is:
 
@@ -104,6 +104,57 @@ The current v18 graph-model posture is:
 - A v17 golden graph-history fixture design now precedes real source
   inventory collection so migration work can prove against restored persisted
   Git data, not only compact in-memory proof cases.
+- A first v17 golden graph-history fixture bundle and manifest now restore
+  real `refs/warp/*` writer refs into an isolated repository and validate
+  writer heads, patch counts, and visible fact-family coverage.
+- A read-only restored source inventory collector now discovers real writer
+  refs, decodes patch commit trailers, records writer chains and patch
+  descriptors, derives a deterministic source basis, and fails closed with
+  structured migration notices.
+- Pure migration operation lowering now turns successful dry-run plans into
+  runtime-backed write-ready operation facts while refusing fatal dry-run plans.
+- An explicit scratch migration writer now writes lowered operation facts only
+  under `refs/warp-migration-scratch/*`, rejects live graph refs, and advances
+  scratch refs with expected-head `git update-ref` calls.
+- A scratch equivalence gate now compares legacy and scratch genesis readings,
+  reports first divergence, and blocks promotion when proof fails or visible
+  facts lack patch-boundary evidence.
+- Finalization safety is now modeled as pure domain evidence: explicit
+  confirmation, passed equivalence gate, archive ref target, scratch output,
+  and live-ref expected-head match are required before live refs can move.
+- Archive-preserving finalization now exists as an adapter-layer Git updater:
+  it refuses failed safety results, rejects live-ref drift, creates an archive
+  ref for old lineage, and advances the live ref with expected-head CAS.
+- Command-level migration wiring now runs dry-run planning, lowering, scratch
+  writing, equivalence gating, and optional finalization in order, with
+  finalization absent by default.
+- Finalization now also requires post-migration runtime conformance evidence
+  tied to the exact scratch ref and scratch head.
+- The remaining raw content/property compatibility files are now listed in an
+  executable closeout audit.
+- Legacy fixture manifests can now be projected into genesis-equivalence
+  readings with deterministic patch-boundary evidence.
+- Scratch migration operation commits can now be projected into
+  genesis-equivalence readings with scratch commit boundary evidence.
+- The migration command can now construct equivalence readings through command
+  reading providers after scratch writing.
+- Scratch migration runtime conformance now has an adapter-level provider that
+  verifies the scratch ref still points at the expected head and reads
+  operation commits back into genesis evidence.
+- Command finalization is now covered with command-owned legacy/scratch reading
+  providers plus scratch operation readback conformance, not only supplied test
+  proof values.
+- Provider-built scratch readings now have a divergence regression proving
+  finalization remains blocked when scratch history is readable but not
+  equivalent.
+- The migration command now has deterministic operator report formatting for
+  planning, scratch, equivalence, and finalization evidence.
+- A non-finalizing migration command CLI wrapper now writes scratch history,
+  builds command-owned readings, emits the command report, and refuses live-ref
+  finalization flags.
+- V18 public-release blockers are now explicit: production-runtime scratch
+  replay, live finalization CLI design, wet-run fixture harnessing, generated
+  Continuum contract tie-back, and operator release notes.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -220,6 +271,93 @@ CLI coverage, and equivalence proof fixtures, then created design docs for
 slices 47 through 51 and inserted the v17 golden graph-history fixture as the
 new slice 46.
 
+Slice 46 is complete on this branch. A deterministic v17 golden graph-history
+fixture now exists as a Git bundle plus manifest. The restore helper initializes
+an explicit target repository, fetches the fixture refs, verifies writer heads
+and patch counts, and keeps Docker optional instead of making it the fixture
+artifact of record.
+
+Slice 47 is complete on this branch. The source inventory collector reads
+restored writer refs from Git, decodes patch trailers through the adapter
+codec boundary, records writer chains and patch descriptors, derives a source
+basis from restored heads, and produces fatal inventory notices when source
+refs are absent or malformed.
+
+Slice 48 is complete on this branch. Operation lowering now consumes
+successful dry-run plans, emits source/target-basis patch plans with sorted
+lowered operation facts, and keeps graph-history writes out of the domain
+lowering step.
+
+Slice 49 is complete on this branch. Scratch migration writing now requires an
+explicit scratch ref, rejects live `refs/warp/*` targets before writing,
+creates deterministic per-operation commits, and appends with CAS-shaped
+`git update-ref` calls.
+
+Slice 50 is complete on this branch. Scratch equivalence gating now wraps the
+genesis proof and divergence reporter into a promotion decision, with explicit
+blocking for missing patch-boundary evidence even when visible readings match.
+
+Slice 51 is complete on this branch. Finalization safety now exists as a pure
+precondition gate: no confirmation, failed equivalence, missing archive target,
+missing scratch output, or stale live-ref expectation can pass into a future
+live-ref update step.
+
+Slice 52 is complete on this branch. Finalization implementation now archives
+the old live head under `refs/warp-migration-archive/*` and advances the live
+ref to the scratch head with `git update-ref <live> <scratch> <old>`, while
+blocking failed safety, existing archive refs, and live-ref drift.
+
+Slice 53 is complete on this branch. The command runner now wires the v18
+migration stages in order and only calls finalization when explicit
+finalization options are supplied and the equivalence gate passes.
+
+Slice 54 is complete on this branch. Finalization safety now rejects promotion
+without runtime conformance evidence for the exact scratch ref/head, which
+keeps supplied equivalence readings from masquerading as runtime readability.
+
+Slice 55 is complete on this branch. The content/property closeout audit now
+enumerates every current `src/domain` file that still touches raw legacy
+content/property compatibility patterns and fails if that set drifts without
+review.
+
+Slice 56 is complete on this branch. The v17 golden fixture manifest can now
+be projected into genesis-equivalence readings with deterministic
+patch-boundary evidence.
+
+Slice 57 is complete on this branch. Scratch migration operation commits can
+now be read back from Git and projected into genesis-equivalence facts with
+scratch commit boundary evidence.
+
+Slice 58 is complete on this branch. The migration command can now construct
+legacy and scratch readings through providers after scratch writing.
+
+Slice 59 is complete on this branch. Scratch runtime conformance now has an
+adapter-level operation-history readback provider tied to the expected scratch
+ref and head.
+
+Slice 60 is complete on this branch. Command finalization is covered with
+command-owned reading providers plus scratch operation readback conformance.
+
+Slice 61 is complete on this branch. Provider-built scratch readings now have
+a divergence regression proving finalization remains blocked when scratch
+history is readable but not equivalent.
+
+Slice 62 is complete on this branch. The command now has deterministic
+operator report formatting for planning, scratch, equivalence, and
+finalization evidence.
+
+Slice 63 is complete on this branch. A non-finalizing migration command CLI
+wrapper writes scratch history, builds command-owned readings, emits the
+command report, and refuses live-ref finalization flags.
+
+Slice 64 is complete on this branch. V18 public-release blockers are explicit:
+production-runtime scratch replay, live finalization CLI design, wet-run
+fixture harnessing, generated Continuum contract tie-back, and release notes.
+
+Slice 65 is complete on this branch. Evidence-backed replanning moves the next
+goalpost from scratch operation readback to production-runtime scratch replay
+and wet-run fixture harnessing.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -227,21 +365,22 @@ new slice 46.
   complete.
 - The source audit still finds raw property-map dependencies in named
   compatibility, serialization, replay, reducer/op-strategy, visible-scope,
-  logical-index, and migration-source boundaries. The audit command was
-  `rg -n "decodePropKey|decodeEdgePropKey|state\\.prop" src/domain`.
+  logical-index, and migration-source boundaries. The closeout audit pattern is
+  `decodePropKey|decodeEdgePropKey|state\\.prop|_content` over `src/domain`.
 - Temporal replay still extracts node snapshots from the raw legacy property
   map because historical replay tests carry pre-codec inline fixture classes
   that are not `PropValue`-honest enough for `LegacyPropertyValue`.
-- The v18 migration tool is dry-run only. It can consume explicit request JSON,
-  but it does not yet collect real graph history into source inventory.
-- Genesis equivalence is credible as a domain vocabulary and compact fixture
-  proof, not yet as a real scratch-history replay gate.
-- Compact equivalence fixtures are not enough to validate source inventory
-  over real v17 persisted Git history. A golden fixture corpus must restore a
-  v17 graph object/ref layout before wet-run migration paths are trusted.
-- The next write-capable migration work must go through real source inventory,
-  lowering, scratch writes, equivalence gates, and finalization safety. Live
-  ref promotion is still out of bounds.
+- The v18 migration tool can now write scratch history and derive scratch
+  operation readings, but it does not yet open scratch output through the full
+  production graph runtime.
+- Legacy readings from the v17 golden fixture are manifest-derived, not yet
+  produced by replaying the restored v17 graph through the public read path.
+- The command wrapper writes scratch history and reports evidence, but live-ref
+  finalization from the CLI is intentionally refused until confirmation and
+  operator-report semantics are designed.
+- Continuum/WARP Optic release claims still need generated contract evidence
+  tied to Wesley/Continuum artifacts, not just handwritten compatibility
+  doctrine.
 
 ## Where We Are Heading
 
@@ -251,13 +390,20 @@ proven equivalent before finalization."
 
 Suggested implementation batches:
 
-- PR D, slices 41 through 45: dry-run CLI, equivalence nouns, fixtures,
-  divergence reporter, evidence-backed replan, and the v17 fixture pivot.
-- PR E, slices 46 through 50: v17 golden graph-history fixtures, real source
+- PR D, slices 41 through 45: merged in PR #103.
+- PR E, slices 46 through 55: v17 golden graph-history fixtures, real source
   inventory collection, migration operation lowering, scratch migration
-  writing, and scratch equivalence gating.
-- PR F starts with slice 51: finalization safety after restored-fixture
-  scratch equivalence is proven.
+  writing, scratch equivalence gating, finalization safety, finalization
+  implementation, end-to-end command wiring, post-migration runtime
+  conformance, and content/property closeout audit.
+- PR E extension, slices 56 through 65: legacy and scratch reading
+  construction, command reading providers, scratch operation readback
+  conformance, provider-backed finalization and divergence coverage, command
+  reporting, a non-finalizing command CLI wrapper, release blockers, and this
+  replan.
+- Next goalpost, slices 66 through 70: production-runtime scratch replay,
+  wet-run fixture harnessing, live finalization CLI design, and generated
+  Continuum contract tie-back.
 
 ## Invariants
 
@@ -349,15 +495,48 @@ and concrete checks live in `docs/invariants/`.
   [0192](design/0192-v18-genesis-divergence-reporter/v18-genesis-divergence-reporter.md).
 - [x] 45. Re-plan with migration evidence in hand:
   [0193](design/0193-v18-replan-with-migration-evidence/v18-replan-with-migration-evidence.md).
-- [ ] 46. Add v17 golden graph-history fixtures:
+- [x] 46. Add v17 golden graph-history fixtures:
   [0199](design/0199-v18-v17-golden-graph-fixtures/v18-v17-golden-graph-fixtures.md).
-- [ ] 47. Add real source inventory collection:
+- [x] 47. Add real source inventory collection:
   [0194](design/0194-v18-real-source-inventory-collector/v18-real-source-inventory-collector.md).
-- [ ] 48. Add migration operation lowering:
+- [x] 48. Add migration operation lowering:
   [0195](design/0195-v18-migration-operation-lowering/v18-migration-operation-lowering.md).
-- [ ] 49. Add the scratch migration writer:
+- [x] 49. Add the scratch migration writer:
   [0196](design/0196-v18-scratch-migration-writer/v18-scratch-migration-writer.md).
-- [ ] 50. Add the scratch equivalence gate:
+- [x] 50. Add the scratch equivalence gate:
   [0197](design/0197-v18-scratch-equivalence-gate/v18-scratch-equivalence-gate.md).
-- [ ] 51. Design migration finalization safety:
+- [x] 51. Design migration finalization safety:
   [0198](design/0198-v18-migration-finalization-safety/v18-migration-finalization-safety.md).
+- [x] 52. Implement archive-preserving migration finalization:
+  [0200](design/0200-v18-migration-finalization-implementation/v18-migration-finalization-implementation.md).
+- [x] 53. Wire the end-to-end migration command:
+  [0201](design/0201-v18-migration-command-wiring/v18-migration-command-wiring.md).
+- [x] 54. Prove post-migration runtime conformance:
+  [0202](design/0202-v18-post-migration-runtime-conformance/v18-post-migration-runtime-conformance.md).
+- [x] 55. Close the content/property migration audit:
+  [0203](design/0203-v18-content-property-closeout-audit/v18-content-property-closeout-audit.md).
+- [x] 56. Construct legacy fixture genesis readings:
+  [0204](design/0204-v18-legacy-fixture-reading-construction/v18-legacy-fixture-reading-construction.md).
+- [x] 57. Construct scratch operation genesis readings:
+  [0205](design/0205-v18-scratch-operation-reading-construction/v18-scratch-operation-reading-construction.md).
+- [x] 58. Add command reading providers:
+  [0206](design/0206-v18-command-reading-providers/v18-command-reading-providers.md).
+- [x] 59. Add a scratch runtime conformance provider:
+  [0207](design/0207-v18-scratch-runtime-conformance-provider/v18-scratch-runtime-conformance-provider.md).
+- [x] 60. Prove command finalization with providers:
+  [0208](design/0208-v18-command-provider-finalization/v18-command-provider-finalization.md).
+- [x] 61. Add provider-built divergence coverage:
+  [0209](design/0209-v18-provider-divergence-coverage/v18-provider-divergence-coverage.md).
+- [x] 62. Add migration command report output:
+  [0210](design/0210-v18-migration-command-report/v18-migration-command-report.md).
+- [x] 63. Add a migration command CLI wrapper:
+  [0211](design/0211-v18-migration-command-cli-wrapper/v18-migration-command-cli-wrapper.md).
+- [x] 64. Record v18 public release blockers:
+  [0212](design/0212-v18-public-release-blockers/v18-public-release-blockers.md).
+- [x] 65. Replan after the command CLI:
+  [0213](design/0213-v18-replan-after-command-cli/v18-replan-after-command-cli.md).
+- [ ] 66. Design production-runtime scratch replay conformance.
+- [ ] 67. Implement production-runtime scratch replay provider.
+- [ ] 68. Add a v17 fixture wet-run migration harness.
+- [ ] 69. Design live finalization CLI confirmation and reporting.
+- [ ] 70. Tie v18 release claims to generated Continuum contract evidence.
