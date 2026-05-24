@@ -39,18 +39,18 @@ of handwritten adapter folklore.
 
 Current branch state at this boundary:
 
-- Branch: `v18-continuum-slices-41-45`
+- Branch: `v18-continuum-slices-46-55`
 - Base branch: `main`
-- Current `origin/main`: `07e16795`
-- Latest merged PR: #102, v18 migration dry-run planning substrate
+- Current `origin/main`: `b274bbc9`
+- Latest merged PR: #103, v18 migration dry-run CLI and genesis equivalence
+  evidence
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
-  `0193-v18-replan-with-migration-evidence`
-- Current work: PR D, v18 slices 41 through 45, is complete on this branch
-  and now includes a drift-check pivot that inserts v17 golden graph-history
-  fixtures before write-capable migration work.
+  `0199-v18-v17-golden-graph-fixtures`
+- Current work: PR E has started. Slice 46 is complete on this branch, and
+  slices 47 through 55 are the current drift-check batch.
 - Cleanup checkpoint: `main` has been fast-forwarded to `origin/main` after
-  PR #102 merged; this branch starts from that merge commit.
+  PR #103 merged; this branch starts from that merge commit.
 
 The current v18 graph-model posture is:
 
@@ -104,6 +104,9 @@ The current v18 graph-model posture is:
 - A v17 golden graph-history fixture design now precedes real source
   inventory collection so migration work can prove against restored persisted
   Git data, not only compact in-memory proof cases.
+- A first v17 golden graph-history fixture bundle and manifest now restore
+  real `refs/warp/*` writer refs into an isolated repository and validate
+  writer heads, patch counts, and visible fact-family coverage.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -220,6 +223,12 @@ CLI coverage, and equivalence proof fixtures, then created design docs for
 slices 47 through 51 and inserted the v17 golden graph-history fixture as the
 new slice 46.
 
+Slice 46 is complete on this branch. A deterministic v17 golden graph-history
+fixture now exists as a Git bundle plus manifest. The restore helper initializes
+an explicit target repository, fetches the fixture refs, verifies writer heads
+and patch counts, and keeps Docker optional instead of making it the fixture
+artifact of record.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -237,8 +246,8 @@ new slice 46.
 - Genesis equivalence is credible as a domain vocabulary and compact fixture
   proof, not yet as a real scratch-history replay gate.
 - Compact equivalence fixtures are not enough to validate source inventory
-  over real v17 persisted Git history. A golden fixture corpus must restore a
-  v17 graph object/ref layout before wet-run migration paths are trusted.
+  over real v17 persisted Git history. The first golden fixture now restores a
+  v17 graph object/ref layout, but source inventory does not consume it yet.
 - The next write-capable migration work must go through real source inventory,
   lowering, scratch writes, equivalence gates, and finalization safety. Live
   ref promotion is still out of bounds.
@@ -251,13 +260,12 @@ proven equivalent before finalization."
 
 Suggested implementation batches:
 
-- PR D, slices 41 through 45: dry-run CLI, equivalence nouns, fixtures,
-  divergence reporter, evidence-backed replan, and the v17 fixture pivot.
-- PR E, slices 46 through 50: v17 golden graph-history fixtures, real source
+- PR D, slices 41 through 45: merged in PR #103.
+- PR E, slices 46 through 55: v17 golden graph-history fixtures, real source
   inventory collection, migration operation lowering, scratch migration
-  writing, and scratch equivalence gating.
-- PR F starts with slice 51: finalization safety after restored-fixture
-  scratch equivalence is proven.
+  writing, scratch equivalence gating, finalization safety, finalization
+  implementation, end-to-end command wiring, post-migration runtime
+  conformance, and content/property closeout audit.
 
 ## Invariants
 
@@ -349,7 +357,7 @@ and concrete checks live in `docs/invariants/`.
   [0192](design/0192-v18-genesis-divergence-reporter/v18-genesis-divergence-reporter.md).
 - [x] 45. Re-plan with migration evidence in hand:
   [0193](design/0193-v18-replan-with-migration-evidence/v18-replan-with-migration-evidence.md).
-- [ ] 46. Add v17 golden graph-history fixtures:
+- [x] 46. Add v17 golden graph-history fixtures:
   [0199](design/0199-v18-v17-golden-graph-fixtures/v18-v17-golden-graph-fixtures.md).
 - [ ] 47. Add real source inventory collection:
   [0194](design/0194-v18-real-source-inventory-collector/v18-real-source-inventory-collector.md).

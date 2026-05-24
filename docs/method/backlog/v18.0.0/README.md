@@ -74,8 +74,8 @@ graph model. Change the envelope only if replay honesty requires it.
 
 ## Current Evidence
 
-After v18 slices 41 through 45, the migration path is intentionally still
-non-destructive:
+After v18 slice 46, the migration path is intentionally still
+non-destructive but now has persisted-history evidence:
 
 - dry-run request JSON can be decoded at the infrastructure boundary;
 - the dry-run CLI can emit deterministic manifest output and refuses
@@ -86,5 +86,8 @@ non-destructive:
   divergent-property cases;
 - v17 golden graph-history fixtures now precede write-capable migration work,
   because compact fixtures do not prove the persisted Git object/ref layout;
+- the first v17 golden fixture restores real `refs/warp/*` writer refs from a
+  Git bundle and validates manifest heads, patch counts, and visible fact
+  families;
 - real source inventory, operation lowering, scratch writing, scratch
   equivalence, and finalization safety are planned as slices 47 through 51.

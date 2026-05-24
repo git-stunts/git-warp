@@ -47,7 +47,8 @@ V18 slices 36 through 45 completed the non-destructive foundation:
 
 Remaining migration-tool work is intentionally ordered as:
 
-- slice 46: create v17 golden graph-history fixtures and restore checks;
+- slice 46: create v17 golden graph-history fixtures and restore checks
+  (complete);
 - slice 47: collect real source inventory from restored history;
 - slice 48: lower dry-run planned operations;
 - slice 49: write scratch migrated history;
