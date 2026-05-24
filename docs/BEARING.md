@@ -407,7 +407,8 @@ language. The final five are release-candidate hardening and go/no-go work.
   [0216](design/0216-v18-production-runtime-scratch-replay-provider/v18-production-runtime-scratch-replay-provider.md).
 - [x] 69. Add restored-v17 public-read legacy reading construction:
   [0217](design/0217-v18-v17-public-read-legacy-reading/v18-v17-public-read-legacy-reading.md).
-- [ ] 70. Add scratch public-read reading construction.
+- [x] 70. Add scratch public-read reading construction:
+  [0218](design/0218-v18-scratch-public-read-reading/v18-scratch-public-read-reading.md).
 - [ ] 71. Add the v17 fixture wet-run migration harness.
 - [ ] 72. Capture deterministic wet-run operator reports.
 - [ ] 73. Add wet-run failure fixtures for divergence and malformed history.
