@@ -107,6 +107,10 @@ The current v18 graph-model posture is:
 - A first v17 golden graph-history fixture bundle and manifest now restore
   real `refs/warp/*` writer refs into an isolated repository and validate
   writer heads, patch counts, and visible fact-family coverage.
+- A read-only restored source inventory collector now discovers real writer
+  refs, decodes patch commit trailers, records writer chains and patch
+  descriptors, derives a deterministic source basis, and fails closed with
+  structured migration notices.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -229,6 +233,12 @@ an explicit target repository, fetches the fixture refs, verifies writer heads
 and patch counts, and keeps Docker optional instead of making it the fixture
 artifact of record.
 
+Slice 47 is complete on this branch. The source inventory collector reads
+restored writer refs from Git, decodes patch trailers through the adapter
+codec boundary, records writer chains and patch descriptors, derives a source
+basis from restored heads, and produces fatal inventory notices when source
+refs are absent or malformed.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -242,7 +252,8 @@ artifact of record.
   map because historical replay tests carry pre-codec inline fixture classes
   that are not `PropValue`-honest enough for `LegacyPropertyValue`.
 - The v18 migration tool is dry-run only. It can consume explicit request JSON,
-  but it does not yet collect real graph history into source inventory.
+  and restored source inventory, but it does not yet lower operations into a
+  write-ready form.
 - Genesis equivalence is credible as a domain vocabulary and compact fixture
   proof, not yet as a real scratch-history replay gate.
 - Compact equivalence fixtures are not enough to validate source inventory
@@ -359,7 +370,7 @@ and concrete checks live in `docs/invariants/`.
   [0193](design/0193-v18-replan-with-migration-evidence/v18-replan-with-migration-evidence.md).
 - [x] 46. Add v17 golden graph-history fixtures:
   [0199](design/0199-v18-v17-golden-graph-fixtures/v18-v17-golden-graph-fixtures.md).
-- [ ] 47. Add real source inventory collection:
+- [x] 47. Add real source inventory collection:
   [0194](design/0194-v18-real-source-inventory-collector/v18-real-source-inventory-collector.md).
 - [ ] 48. Add migration operation lowering:
   [0195](design/0195-v18-migration-operation-lowering/v18-migration-operation-lowering.md).

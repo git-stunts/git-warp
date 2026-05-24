@@ -89,5 +89,7 @@ non-destructive but now has persisted-history evidence:
 - the first v17 golden fixture restores real `refs/warp/*` writer refs from a
   Git bundle and validates manifest heads, patch counts, and visible fact
   families;
-- real source inventory, operation lowering, scratch writing, scratch
-  equivalence, and finalization safety are planned as slices 47 through 51.
+- restored source inventory collection now reads real writer refs and patch
+  commit trailers into migration-domain source inventory;
+- operation lowering, scratch writing, scratch equivalence, and finalization
+  safety are planned as slices 48 through 51.

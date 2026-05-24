@@ -1,11 +1,12 @@
 ---
 cycle: 0194
 task_id: V18_real_source_inventory_collector
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-24
+completed_at: 2026-05-24
 release_home: v18.0.0
 bearing_task: 47
 promotes_backlog:
@@ -103,6 +104,15 @@ git diff --check HEAD
 - Fatal collection errors are structured inventory facts.
 - The dry-run CLI can invoke collection without adding write mode.
 - Slice 48 can lower planned operations against collected source evidence.
+
+## Closeout
+
+Slice 47 adds a read-only collector over restored Git history. It discovers
+`refs/warp/<graph>/writers/*`, decodes patch commit trailers, records writer
+chains and per-writer patch descriptors as migration-domain nouns, derives a
+deterministic source basis from restored heads, and fails closed with
+structured notices when writer refs are absent or patch metadata does not
+match the requested graph.
 
 ## SSJS Scorecard
 

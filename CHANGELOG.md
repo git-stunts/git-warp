@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fixture bundle, runtime-backed fixture manifest nouns, a manifest JSON
   adapter, and a restore validator that checks real `refs/warp/*` writer heads
   and patch counts in an isolated repository.
+- V18 graph-model migration now includes a read-only source inventory
+  collector that discovers restored `refs/warp/<graph>/writers/*` refs,
+  decodes patch commit trailers, records writer chains and patch descriptors,
+  and fails closed with structured inventory notices.
 - V18 graph-model migration dry-run work now includes a non-destructive CLI
   runner and request JSON adapter that validate source facts, invoke the pure
   planner, emit deterministic manifest output, and refuse write/apply modes.
