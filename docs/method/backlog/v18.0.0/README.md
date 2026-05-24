@@ -109,3 +109,7 @@ non-destructive but now has persisted-history evidence:
   an explicit release blocker instead of an implicit assumption;
 - raw content/property compatibility boundaries are now enumerated by an
   executable closeout audit so new raw boundaries require deliberate review.
+- public-release blockers are now explicit in
+  [`RELEASE_v18-public-release-blockers.md`](RELEASE_v18-public-release-blockers.md),
+  including production-runtime replay, live finalization CLI design, wet-run
+  fixture harnessing, Continuum contract tie-back, and operator release notes.

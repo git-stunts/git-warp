@@ -67,6 +67,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 graph-model migration now includes a non-finalizing command CLI wrapper
   that writes scratch history, builds command-owned readings, emits the command
   report, and refuses live-ref finalization flags.
+- V18 release planning now records explicit public-release blockers for
+  production-runtime replay, live finalization CLI design, wet-run fixture
+  harnessing, Continuum contract tie-back, and operator release notes.
 - V18 graph-model migration dry-run work now includes a non-destructive CLI
   runner and request JSON adapter that validate source facts, invoke the pure
   planner, emit deterministic manifest output, and refuse write/apply modes.

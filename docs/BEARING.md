@@ -152,6 +152,9 @@ The current v18 graph-model posture is:
 - A non-finalizing migration command CLI wrapper now writes scratch history,
   builds command-owned readings, emits the command report, and refuses live-ref
   finalization flags.
+- V18 public-release blockers are now explicit: production-runtime scratch
+  replay, live finalization CLI design, wet-run fixture harnessing, generated
+  Continuum contract tie-back, and operator release notes.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -483,3 +486,5 @@ and concrete checks live in `docs/invariants/`.
   [0210](design/0210-v18-migration-command-report/v18-migration-command-report.md).
 - [x] 63. Add a migration command CLI wrapper:
   [0211](design/0211-v18-migration-command-cli-wrapper/v18-migration-command-cli-wrapper.md).
+- [x] 64. Record v18 public release blockers:
+  [0212](design/0212-v18-public-release-blockers/v18-public-release-blockers.md).

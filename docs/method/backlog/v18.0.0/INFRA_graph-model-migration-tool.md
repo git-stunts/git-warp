@@ -72,6 +72,8 @@ Remaining migration-tool work is intentionally ordered as:
   evidence (complete).
 - slice 63: add a non-finalizing migration command CLI wrapper that writes
   scratch history and refuses live-ref finalization flags (complete).
+- slice 64: record v18 public release blockers before widening release claims
+  (complete).
 
 ## Starting points
 
