@@ -39,17 +39,18 @@ of handwritten adapter folklore.
 
 Current branch state at this boundary:
 
-- Branch: `v18-continuum-slices-36-40`
+- Branch: `v18-continuum-slices-41-45`
 - Base branch: `main`
-- Current `origin/main`: `f9230f09`
-- Latest merged PR: #101, v18 property projection cutover
+- Current `origin/main`: `07e16795`
+- Latest merged PR: #102, v18 migration dry-run planning substrate
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
-  `0183-v18-property-projection-closeout`
-- Current work: v18 slices 36 through 40 are the active dry-run migration
-  batch on this branch.
+  `0193-v18-replan-with-migration-evidence`
+- Current work: PR D, v18 slices 41 through 45, is complete on this branch
+  and now includes a drift-check pivot that inserts v17 golden graph-history
+  fixtures before write-capable migration work.
 - Cleanup checkpoint: `main` has been fast-forwarded to `origin/main` after
-  PR #101 merged; this branch starts from that merge commit.
+  PR #102 merged; this branch starts from that merge commit.
 
 The current v18 graph-model posture is:
 
@@ -89,11 +90,25 @@ The current v18 graph-model posture is:
   frontier evidence needed by later genesis equivalence work.
 - Manifest JSON serialization exists as an infrastructure adapter boundary.
   Domain migration nouns still do not parse or stringify JSON.
+- A non-destructive migration dry-run CLI exists under
+  `scripts/v18.0.0/migrations/graph-model/`. It accepts explicit request JSON,
+  emits deterministic manifest output, and refuses apply/write verbs.
+- Genesis equivalence proof nouns exist for basis pairs, visible reading
+  facts, patch boundary evidence, structured mismatches, proof summaries, and
+  success/failure result values.
+- First equivalence fixtures exist for node lifecycle, edge lifecycle, content
+  attachment metadata, removed-node visibility, multi-writer ordering, and one
+  intentional divergent property case.
+- A genesis divergence reporter exists and turns proof failures into
+  structured first-divergence reports.
+- A v17 golden graph-history fixture design now precedes real source
+  inventory collection so migration work can prove against restored persisted
+  Git data, not only compact in-memory proof cases.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
-tooling, and genesis replay equivalence before v18 can make stronger
-compatibility claims.
+tooling over real graph history, and genesis replay equivalence over scratch
+migrated history before v18 can make stronger compatibility claims.
 
 ## What Just Shipped
 
@@ -140,7 +155,7 @@ PR #101 landed v18 slices 31 through 35:
 - review follow-up hardened CI action pinning, property-value recursion and
   prototype guards, and hostile `SnapshotWarpState` hydration boundaries.
 
-This branch starts PR C, v18 slices 36 through 40:
+PR #102 landed v18 slices 36 through 40:
 
 - graph-model migration manifest nouns;
 - migration source inventory;
@@ -171,37 +186,78 @@ round-trips through an infrastructure adapter with deterministic output,
 field-specific parse errors, and domain construction enforcing duplicate
 mapping invariants.
 
+This branch starts PR D, v18 slices 41 through 45:
+
+- migration dry-run CLI;
+- genesis equivalence proof nouns;
+- genesis equivalence fixtures;
+- genesis divergence reporter;
+- evidence-backed replan.
+
+Slice 41 is complete on this branch. The dry-run CLI now accepts an explicit
+request JSON artifact, decodes source facts at the infrastructure boundary,
+calls the pure dry-run planner, writes only an optional deterministic manifest
+artifact, reports summary counts, and refuses destructive apply/write verbs.
+
+Slice 42 is complete on this branch. Genesis equivalence now has
+runtime-backed comparison basis, reading fact, boundary evidence, mismatch,
+summary, and success/failure result nouns. The proof comparer returns
+structured expected failures instead of throwing for non-equivalent readings.
+
+Slice 43 is complete on this branch. The first deterministic equivalence
+fixtures now cover node lifecycle, edge lifecycle, content attachment metadata,
+removed-node visibility, multi-writer non-coordinated ordering, and one
+intentional divergent property case.
+
+Slice 44 is complete on this branch. Genesis divergence reporting now selects
+the first deterministic proof mismatch and exposes mismatch kind, graph fact
+identity, field path, optional writer/patch/operation boundary evidence, and
+bounded value summaries as structured report fields.
+
+Slice 45 is complete on this branch. Evidence-backed replanning inspected
+remaining raw legacy-property boundaries, migration-domain coverage, dry-run
+CLI coverage, and equivalence proof fixtures, then created design docs for
+slices 47 through 51 and inserted the v17 golden graph-history fixture as the
+new slice 46.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
   Typed reads and writes exist over that plane, but the storage cutover is not
   complete.
+- The source audit still finds raw property-map dependencies in named
+  compatibility, serialization, replay, reducer/op-strategy, visible-scope,
+  logical-index, and migration-source boundaries. The audit command was
+  `rg -n "decodePropKey|decodeEdgePropKey|state\\.prop" src/domain`.
 - Temporal replay still extracts node snapshots from the raw legacy property
   map because historical replay tests carry pre-codec inline fixture classes
   that are not `PropValue`-honest enough for `LegacyPropertyValue`.
-- Checkpoint, serializer, state-diff, visible-scope, logical-index,
-  reducer/op-strategy, and content-projection code still touch the raw
-  property map as named compatibility or migration boundaries.
-- The v18 migration tool does not exist yet. Starting with a write-capable
-  script would be reckless; the next migration work must be dry-run first.
-- Genesis replay equivalence has not been proven. Migration cannot be trusted
-  without structured divergence evidence.
-- The repo has enough graph-model pieces that vague planning is now more
-  dangerous than helpful. The next slices need design documents before code.
+- The v18 migration tool is dry-run only. It can consume explicit request JSON,
+  but it does not yet collect real graph history into source inventory.
+- Genesis equivalence is credible as a domain vocabulary and compact fixture
+  proof, not yet as a real scratch-history replay gate.
+- Compact equivalence fixtures are not enough to validate source inventory
+  over real v17 persisted Git history. A golden fixture corpus must restore a
+  v17 graph object/ref layout before wet-run migration paths are trusted.
+- The next write-capable migration work must go through real source inventory,
+  lowering, scratch writes, equivalence gates, and finalization safety. Live
+  ref promotion is still out of bounds.
 
 ## Where We Are Heading
 
 The remaining planned slices are the runway from "typed graph-model surfaces
-exist" to "we have enough evidence to decide the migration path."
+and fixture-level migration proof exist" to "scratch migrated history can be
+proven equivalent before finalization."
 
 Suggested implementation batches:
 
-- PR B, slices 31 through 35: state-reader routing, property write intents,
-  graph-op property cutover, and property-projection closeout.
-- PR C, slices 36 through 40: migration manifest, source inventory, dry-run
-  planner, history input, and manifest serialization.
 - PR D, slices 41 through 45: dry-run CLI, equivalence nouns, fixtures,
-  divergence reporter, and evidence-backed replan.
+  divergence reporter, evidence-backed replan, and the v17 fixture pivot.
+- PR E, slices 46 through 50: v17 golden graph-history fixtures, real source
+  inventory collection, migration operation lowering, scratch migration
+  writing, and scratch equivalence gating.
+- PR F starts with slice 51: finalization safety after restored-fixture
+  scratch equivalence is proven.
 
 ## Invariants
 
@@ -283,13 +339,25 @@ and concrete checks live in `docs/invariants/`.
   [0187](design/0187-v18-migration-history-input/v18-migration-history-input.md).
 - [x] 40. Add migration manifest serialization:
   [0188](design/0188-v18-migration-manifest-serialization/v18-migration-manifest-serialization.md).
-- [ ] 41. Add the migration dry-run CLI:
+- [x] 41. Add the migration dry-run CLI:
   [0189](design/0189-v18-migration-dry-run-cli/v18-migration-dry-run-cli.md).
-- [ ] 42. Add genesis equivalence proof nouns:
+- [x] 42. Add genesis equivalence proof nouns:
   [0190](design/0190-v18-genesis-equivalence-nouns/v18-genesis-equivalence-nouns.md).
-- [ ] 43. Add genesis equivalence fixtures:
+- [x] 43. Add genesis equivalence fixtures:
   [0191](design/0191-v18-genesis-equivalence-fixtures/v18-genesis-equivalence-fixtures.md).
-- [ ] 44. Add the genesis divergence reporter:
+- [x] 44. Add the genesis divergence reporter:
   [0192](design/0192-v18-genesis-divergence-reporter/v18-genesis-divergence-reporter.md).
-- [ ] 45. Re-plan with migration evidence in hand:
+- [x] 45. Re-plan with migration evidence in hand:
   [0193](design/0193-v18-replan-with-migration-evidence/v18-replan-with-migration-evidence.md).
+- [ ] 46. Add v17 golden graph-history fixtures:
+  [0199](design/0199-v18-v17-golden-graph-fixtures/v18-v17-golden-graph-fixtures.md).
+- [ ] 47. Add real source inventory collection:
+  [0194](design/0194-v18-real-source-inventory-collector/v18-real-source-inventory-collector.md).
+- [ ] 48. Add migration operation lowering:
+  [0195](design/0195-v18-migration-operation-lowering/v18-migration-operation-lowering.md).
+- [ ] 49. Add the scratch migration writer:
+  [0196](design/0196-v18-scratch-migration-writer/v18-scratch-migration-writer.md).
+- [ ] 50. Add the scratch equivalence gate:
+  [0197](design/0197-v18-scratch-equivalence-gate/v18-scratch-equivalence-gate.md).
+- [ ] 51. Design migration finalization safety:
+  [0198](design/0198-v18-migration-finalization-safety/v18-migration-finalization-safety.md).

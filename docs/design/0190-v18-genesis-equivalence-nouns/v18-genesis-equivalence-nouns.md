@@ -1,7 +1,7 @@
 ---
 cycle: 0190
 task_id: V18_genesis_equivalence_nouns
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
@@ -95,6 +95,28 @@ npm run typecheck
 npm run lint:sludge
 git diff --check HEAD
 ```
+
+## Playback
+
+- `GenesisEquivalenceComparisonBasis` names the legacy/migrated basis pair.
+- `GenesisEquivalenceReading` and `GenesisEquivalenceReadingFact` represent
+  observer-visible graph facts for legacy and migrated replay outputs.
+- `GenesisEquivalenceBoundary` records writer, patch, and operation boundary
+  evidence when a fact can be traced to a patch operation.
+- `GenesisEquivalenceMismatch` distinguishes missing, extra, and changed
+  facts with structured legacy/migrated values.
+- `GenesisEquivalenceProofSuccess` and `GenesisEquivalenceProofFailure`
+  return expected proof outcomes as values.
+
+## Evidence
+
+- `src/domain/migrations/GenesisEquivalenceProof.ts`
+- `src/domain/migrations/GenesisEquivalenceReading.ts`
+- `src/domain/migrations/GenesisEquivalenceReadingFact.ts`
+- `src/domain/migrations/GenesisEquivalenceMismatch.ts`
+- `src/domain/migrations/GenesisEquivalenceProofSuccess.ts`
+- `src/domain/migrations/GenesisEquivalenceProofFailure.ts`
+- `test/unit/domain/migrations/GenesisEquivalenceProof.test.ts`
 
 ## Closeout Criteria
 

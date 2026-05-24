@@ -1,7 +1,7 @@
 ---
 cycle: 0192
 task_id: V18_genesis_divergence_reporter
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
@@ -99,6 +99,24 @@ npm run lint
 npm run lint:sludge
 git diff --check HEAD
 ```
+
+## Playback
+
+- `GenesisDivergenceReporter` consumes `GenesisEquivalenceProofFailure` and
+  selects the first deterministic mismatch.
+- `GenesisDivergenceReport` keeps mismatch kind, fact kind, fact key, field
+  path, optional writer/patch/operation evidence, and bounded value summaries
+  as structured fields.
+- Missing boundary evidence remains explicit as `null` and renders as
+  `(unknown)` for operator-facing text.
+- Long value summaries are bounded for output without modifying the source
+  mismatch evidence.
+
+## Evidence
+
+- `src/domain/migrations/GenesisDivergenceReport.ts`
+- `src/domain/migrations/GenesisDivergenceReporter.ts`
+- `test/unit/domain/migrations/GenesisDivergenceReporter.test.ts`
 
 ## Closeout Criteria
 

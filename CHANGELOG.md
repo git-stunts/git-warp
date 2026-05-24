@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- V18 graph-model migration dry-run work now includes a non-destructive CLI
+  runner and request JSON adapter that validate source facts, invoke the pure
+  planner, emit deterministic manifest output, and refuse write/apply modes.
+- V18 genesis replay equivalence now exposes runtime-backed proof nouns for
+  comparison basis, observer-visible reading facts, patch boundary evidence,
+  structured mismatches, proof summaries, and success/failure result values.
+- V18 genesis replay equivalence now includes compact deterministic fixture
+  histories for node lifecycle, edge lifecycle, content metadata, removal
+  visibility, multi-writer ordering, and intentional divergence coverage.
+- V18 genesis replay equivalence now reports the first deterministic
+  divergence as a structured value with mismatch kind, fact identity, field
+  path, optional patch boundary evidence, and bounded value summaries.
+- V18 migration planning now records the evidence-backed post-PR-D runway for
+  real source inventory collection, operation lowering, scratch migration
+  writing, scratch equivalence gating, and finalization safety.
+- V18 migration planning now inserts a v17 golden graph-history fixture corpus
+  before real source inventory collection, so wet-run migration work can prove
+  against restored Git objects and refs instead of compact proof fixtures
+  alone.
 - V18 graph-model migration dry-run work now exposes runtime-backed migration
   manifest nouns for source and target basis, node, edge, property, and
   content mappings, warnings, and fatal planning failures without adding any

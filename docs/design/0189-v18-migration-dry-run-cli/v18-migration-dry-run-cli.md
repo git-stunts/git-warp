@@ -1,7 +1,7 @@
 ---
 cycle: 0189
 task_id: V18_migration_dry_run_cli
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
@@ -91,12 +91,31 @@ real graph without operator intent.
 ## Verification
 
 ```text
-npx vitest run test/unit/scripts/v18GraphModelMigrationDryRun.test.ts --reporter=verbose
-npx eslint scripts/v18.0.0/migrations/graph-model test/unit/scripts/v18GraphModelMigrationDryRun.test.ts
+npx vitest run test/unit/scripts/v18-graph-model-migration-dry-run.test.ts --reporter=verbose
+npx eslint scripts/v18.0.0/migrations/graph-model src/infrastructure/adapters/GraphModelMigrationDryRunRequestJsonAdapter.ts test/unit/scripts/v18-graph-model-migration-dry-run.test.ts
 npm run typecheck
 npm run lint
 git diff --check HEAD
 ```
+
+## Playback
+
+- The CLI lives under `scripts/v18.0.0/migrations/graph-model/`.
+- `--dry-run` is accepted for explicitness, but the command is always
+  non-destructive and refuses `--apply`, `--write`, and `--commit`.
+- `GraphModelMigrationDryRunRequestJsonAdapter` decodes request JSON at the
+  infrastructure boundary before domain planning.
+- The runner emits deterministic summary lines, writes only an optional
+  manifest artifact, and reports `graphHistoryWrites: 0`.
+- Incomplete inventory returns exit code `1`, emits fatal notices, and writes
+  no manifest.
+
+## Evidence
+
+- `src/infrastructure/adapters/GraphModelMigrationDryRunRequestJsonAdapter.ts`
+- `scripts/v18.0.0/migrations/graph-model/GraphModelMigrationDryRunCli.ts`
+- `scripts/v18.0.0/migrations/graph-model/dry-run.ts`
+- `test/unit/scripts/v18-graph-model-migration-dry-run.test.ts`
 
 ## Closeout Criteria
 
