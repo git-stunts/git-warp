@@ -1,7 +1,7 @@
 ---
 cycle: 0185
 task_id: V18_migration_source_inventory
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
@@ -100,12 +100,38 @@ npm run lint:sludge
 git diff --check HEAD
 ```
 
+## Evidence
+
+The slice adds source inventory nouns under `src/domain/migrations/`:
+
+- `GraphModelMigrationWriterChainDescriptor`;
+- `GraphModelMigrationPatchDescriptor`;
+- `GraphModelMigrationStateSnapshotReference`;
+- `GraphModelMigrationContentSource`;
+- `GraphModelMigrationSourceInventory`.
+
+The inventory root validates graph identity, optional source basis, writer
+chains, per-writer patch sequence, patch descriptor consistency, state snapshot
+references, content source facts, warnings, and fatal collection errors.
+Patch descriptors are exposed in deterministic writer/sequence order. Missing
+source basis is retained as an explicit fatal source condition, not hidden as
+an adapter exception.
+
+The inventory does not read Git, serialize JSON, use wall-clock time, or write
+graph history.
+
 ## Closeout Criteria
 
 - Migration planner input facts are named.
 - Fatal versus warning source conditions are explicit.
 - No Git adapter calls enter domain code.
 - The dry-run planner can be designed against inventory plus manifest.
+
+## Closeout Outcome
+
+Dry-run planning can now consume a domain inventory value rather than probing
+adapter surfaces directly. Slice 38 can focus on translating source inventory
+facts into a dry-run manifest and planned graph operations.
 
 ## SSJS Scorecard
 

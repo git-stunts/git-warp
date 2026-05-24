@@ -76,6 +76,10 @@ The current v18 graph-model posture is:
 - Runtime-backed graph-model migration manifest nouns exist for dry-run
   planning, including source/target basis, node, edge, property, content
   mapping entries, warnings, and fatal planning failures.
+- Runtime-backed migration source inventory nouns exist for adapter-collected
+  graph identity, optional source basis, writer chains, patch descriptors,
+  state snapshot references, content/blob sources, warnings, and fatal
+  collection errors.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -138,6 +142,11 @@ This branch starts PR C, v18 slices 36 through 40:
 Slice 36 is complete on this branch. The migration manifest root now exists
 as a frozen domain noun, with runtime-backed basis, mapping, warning, and
 fatal-error entries. It does not serialize, read Git, or write graph history.
+
+Slice 37 is complete on this branch. The migration source inventory now
+separates adapter-collected facts from planner input, rejects duplicate or
+inconsistent patch facts, records missing source basis as a fatal collection
+condition, and still performs no Git I/O.
 
 ## What Feels Wrong
 
@@ -243,7 +252,7 @@ and concrete checks live in `docs/invariants/`.
   [0183](design/0183-v18-property-projection-closeout/v18-property-projection-closeout.md).
 - [x] 36. Add graph-model migration manifest nouns:
   [0184](design/0184-v18-graph-model-migration-manifest/v18-graph-model-migration-manifest.md).
-- [ ] 37. Add migration source inventory:
+- [x] 37. Add migration source inventory:
   [0185](design/0185-v18-migration-source-inventory/v18-migration-source-inventory.md).
 - [ ] 38. Add the dry-run state migration planner:
   [0186](design/0186-v18-dry-run-state-migration-planner/v18-dry-run-state-migration-planner.md).
