@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- V18 graph-model migration dry-run work now exposes runtime-backed migration
+  manifest nouns for source and target basis, node, edge, property, and
+  content mappings, warnings, and fatal planning failures without adding any
+  graph-history write path.
+- V18 graph-model migration dry-run work now exposes a runtime-backed source
+  inventory for adapter-collected graph identity, source basis, writer chains,
+  patch descriptors, state snapshot references, content/blob sources,
+  warnings, and fatal collection errors.
+- V18 graph-model migration dry-run work now includes a pure planner that
+  consumes source inventory, produces manifest and planned graph-operation
+  facts for complete input, and returns fatal result values for incomplete
+  source facts without writing graph history.
+- V18 graph-model migration dry-run work now exposes ordered history input
+  nouns for writer segments, patch identity, per-writer patch sequence,
+  per-patch operation indexes, and frontier evidence needed by later replay
+  equivalence checks.
+- V18 graph-model migration dry-run work now includes an infrastructure
+  manifest JSON adapter with deterministic output, field-specific parse
+  failures, round-trip coverage, and no domain-level JSON parsing.
 - V18 property projection closeout now records the remaining raw
   legacy-property boundaries as compatibility, serialization, replay,
   reducer, index, or migration-source boundaries before graph-model migration
@@ -82,6 +101,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- V18 graph-model migration dry-run review follow-up now removes boolean-trap
+  notice validation helpers, encodes planned target property keys with a named
+  length-prefixed format, and raises focused constructor-guard coverage for the
+  migration domain.
 - V18 snapshot-backed state-reader hydration now rejects cyclic property
   values, prototype-polluting object keys, custom-prototype property bags, and
   accessor-backed property objects at the snapshot boundary before converting

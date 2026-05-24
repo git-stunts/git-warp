@@ -39,17 +39,17 @@ of handwritten adapter folklore.
 
 Current branch state at this boundary:
 
-- Branch: `v18-continuum-slices-31-35`
+- Branch: `v18-continuum-slices-36-40`
 - Base branch: `main`
-- Current `origin/main`: `35e5a6a9`
-- Latest merged PR: #100, post-PR-99 BEARING cleanup checkpoint
+- Current `origin/main`: `f9230f09`
+- Latest merged PR: #101, v18 property projection cutover
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
   `0183-v18-property-projection-closeout`
-- Current work: v18 slices 31 through 35 are implemented on this branch and
-  ready for PR verification.
-- Cleanup checkpoint: before this slice branch, there were no open PRs and
-  remote refs had been pruned to `origin/main`.
+- Current work: v18 slices 36 through 40 are the active dry-run migration
+  batch on this branch.
+- Cleanup checkpoint: `main` has been fast-forwarded to `origin/main` after
+  PR #101 merged; this branch starts from that merge commit.
 
 The current v18 graph-model posture is:
 
@@ -73,6 +73,22 @@ The current v18 graph-model posture is:
   nouns, not raw property-map entries.
 - Query read-model node props, translation-cost property-key accounting, and
   public property counts use property projection nouns.
+- Runtime-backed graph-model migration manifest nouns exist for dry-run
+  planning, including source/target basis, node, edge, property, content
+  mapping entries, warnings, and fatal planning failures.
+- Runtime-backed migration source inventory nouns exist for adapter-collected
+  graph identity, optional source basis, writer chains, patch descriptors,
+  state snapshot references, content/blob sources, warnings, and fatal
+  collection errors.
+- A pure dry-run graph-model migration planner exists. It consumes source
+  inventory, returns result values for incomplete inputs, emits a migration
+  manifest and planned graph-operation facts, and still writes no graph
+  history.
+- Ordered migration history input nouns exist for writer segments, patch
+  identity, per-writer patch sequence, per-patch operation indexes, and
+  frontier evidence needed by later genesis equivalence work.
+- Manifest JSON serialization exists as an infrastructure adapter boundary.
+  Domain migration nouns still do not parse or stringify JSON.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -110,7 +126,7 @@ PR #99 landed v18 slices 26 through 30:
   malformed-record skipping, shared legacy content keys, and plain-object
   property carrier guards.
 
-This branch implements v18 slices 31 through 35:
+PR #101 landed v18 slices 31 through 35:
 
 - state-reader node, edge, and content property views route through typed
   projections;
@@ -121,6 +137,39 @@ This branch implements v18 slices 31 through 35:
   nouns;
 - closeout routed the remaining live read-model property views through
   projections and documented the remaining raw legacy-property boundaries.
+- review follow-up hardened CI action pinning, property-value recursion and
+  prototype guards, and hostile `SnapshotWarpState` hydration boundaries.
+
+This branch starts PR C, v18 slices 36 through 40:
+
+- graph-model migration manifest nouns;
+- migration source inventory;
+- dry-run state migration planner;
+- ordered migration history input;
+- migration manifest serialization.
+
+Slice 36 is complete on this branch. The migration manifest root now exists
+as a frozen domain noun, with runtime-backed basis, mapping, warning, and
+fatal-error entries. It does not serialize, read Git, or write graph history.
+
+Slice 37 is complete on this branch. The migration source inventory now
+separates adapter-collected facts from planner input, rejects duplicate or
+inconsistent patch facts, records missing source basis as a fatal collection
+condition, and still performs no Git I/O.
+
+Slice 38 is complete on this branch. The dry-run planner consumes migration
+source inventory and planned mapping inputs, emits a manifest plus planned
+operation facts for complete input, and fails closed as a value when source
+inventory or required content sources are incomplete.
+
+Slice 39 is complete on this branch. Ordered history input now preserves
+writer, patch, operation, and frontier boundaries as frozen migration-domain
+values so future equivalence checks can report exact divergence locations.
+
+Slice 40 is complete on this branch. Manifest JSON serialization now
+round-trips through an infrastructure adapter with deterministic output,
+field-specific parse errors, and domain construction enforcing duplicate
+mapping invariants.
 
 ## What Feels Wrong
 
@@ -224,15 +273,15 @@ and concrete checks live in `docs/invariants/`.
   [0182](design/0182-v18-graph-op-projection-property-cutover/v18-graph-op-projection-property-cutover.md).
 - [x] 35. Close out legacy-property projection with evidence:
   [0183](design/0183-v18-property-projection-closeout/v18-property-projection-closeout.md).
-- [ ] 36. Add graph-model migration manifest nouns:
+- [x] 36. Add graph-model migration manifest nouns:
   [0184](design/0184-v18-graph-model-migration-manifest/v18-graph-model-migration-manifest.md).
-- [ ] 37. Add migration source inventory:
+- [x] 37. Add migration source inventory:
   [0185](design/0185-v18-migration-source-inventory/v18-migration-source-inventory.md).
-- [ ] 38. Add the dry-run state migration planner:
+- [x] 38. Add the dry-run state migration planner:
   [0186](design/0186-v18-dry-run-state-migration-planner/v18-dry-run-state-migration-planner.md).
-- [ ] 39. Add ordered migration history input:
+- [x] 39. Add ordered migration history input:
   [0187](design/0187-v18-migration-history-input/v18-migration-history-input.md).
-- [ ] 40. Add migration manifest serialization:
+- [x] 40. Add migration manifest serialization:
   [0188](design/0188-v18-migration-manifest-serialization/v18-migration-manifest-serialization.md).
 - [ ] 41. Add the migration dry-run CLI:
   [0189](design/0189-v18-migration-dry-run-cli/v18-migration-dry-run-cli.md).

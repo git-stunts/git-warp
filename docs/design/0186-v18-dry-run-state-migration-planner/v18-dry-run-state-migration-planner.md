@@ -1,7 +1,7 @@
 ---
 cycle: 0186
 task_id: V18_dry_run_state_migration_planner
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
@@ -94,12 +94,37 @@ npm run lint:sludge
 git diff --check HEAD
 ```
 
+## Evidence
+
+The slice adds pure domain planner nouns under `src/domain/migrations/`:
+
+- `DryRunGraphModelMigrationPlanRequest`;
+- `GraphModelMigrationPlannedGraphOperation`;
+- `DryRunGraphModelMigrationPlan`;
+- `DryRunGraphModelMigrationPlanner`.
+
+The planner consumes a `GraphModelMigrationSourceInventory`, explicit planned
+mapping inputs, and required content keys. Complete input produces a
+`GraphModelMigrationManifest` plus deterministic planned graph-operation
+facts. Incomplete source inventory or missing required content sources produce
+a failed plan value with fatal notices and no manifest.
+
+The planned operation facts deliberately do not pretend to be live graph writes.
+They are dry-run facts that describe what the planner would later lower into a
+write-capable migration, after equivalence work proves that path safe.
+
 ## Closeout Criteria
 
 - Dry-run planner exists and writes nothing.
 - Planner output includes manifest, facts, warnings, and failures.
 - Expected planning failures are returned as values.
 - The next slice can feed ordered patch history into the inventory.
+
+## Closeout Outcome
+
+The planner is now a pure domain service. It does not read Git, inspect the
+filesystem, parse JSON, create timestamps, or update refs. Slice 39 can add
+ordered patch-history input without changing the planner into an adapter.
 
 ## SSJS Scorecard
 
