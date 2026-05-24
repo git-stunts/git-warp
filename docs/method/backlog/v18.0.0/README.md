@@ -51,12 +51,12 @@ LAYER 0 (shape cut):
 
 LAYER 1 (behavioral convergence):
   [x] PROTO_graph-op-algebra-convergence
-  [ ] PROTO_content-attachment-plane-cutover
-  [ ] PROTO_legacy-props-as-projection
+  [~] PROTO_content-attachment-plane-cutover
+  [x] PROTO_legacy-props-as-projection
 
 LAYER 2 (migration and proof):
-  [ ] INFRA_graph-model-migration-tool
-  [ ] TRUST_genesis-replay-equivalence
+  [~] INFRA_graph-model-migration-tool
+  [~] TRUST_genesis-replay-equivalence
 ```
 
 ## Practical rule
@@ -71,3 +71,18 @@ graph model. Change the envelope only if replay honesty requires it.
 - `[~]` in progress
 - `[x]` done
 - `[!]` blocked
+
+## Current Evidence
+
+After v18 slices 41 through 45, the migration path is intentionally still
+non-destructive:
+
+- dry-run request JSON can be decoded at the infrastructure boundary;
+- the dry-run CLI can emit deterministic manifest output and refuses
+  apply/write verbs;
+- genesis equivalence has runtime-backed proof, mismatch, and divergence
+  report nouns;
+- compact fixtures cover node, edge, content, removal, multi-writer, and
+  divergent-property cases;
+- real source inventory, operation lowering, scratch writing, scratch
+  equivalence, and finalization safety are planned as slices 46 through 50.

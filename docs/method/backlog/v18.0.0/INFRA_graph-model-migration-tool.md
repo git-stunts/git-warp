@@ -29,6 +29,27 @@ snapshot.
   the new substrate ids
 - migration fails closed if replay equivalence does not hold
 
+## Progress
+
+V18 slices 36 through 45 completed the non-destructive foundation:
+
+- migration manifest, source inventory, dry-run planner, ordered history
+  input, and manifest JSON adapter exist;
+- a dry-run CLI exists under `scripts/v18.0.0/migrations/graph-model/`;
+- request JSON is decoded through
+  `GraphModelMigrationDryRunRequestJsonAdapter`;
+- the CLI writes only optional manifest artifacts and refuses apply/write
+  verbs;
+- genesis proof and divergence nouns exist for later migration gates.
+
+Remaining migration-tool work is intentionally ordered as:
+
+- slice 46: collect real source inventory;
+- slice 47: lower dry-run planned operations;
+- slice 48: write scratch migrated history;
+- slice 49: gate scratch output with genesis equivalence;
+- slice 50: design finalization safety.
+
 ## Starting points
 
 - `scripts/migrations/`

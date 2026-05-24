@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 genesis replay equivalence now reports the first deterministic
   divergence as a structured value with mismatch kind, fact identity, field
   path, optional patch boundary evidence, and bounded value summaries.
+- V18 migration planning now records the evidence-backed post-PR-D runway for
+  real source inventory collection, operation lowering, scratch migration
+  writing, scratch equivalence gating, and finalization safety.
 - V18 graph-model migration dry-run work now exposes runtime-backed migration
   manifest nouns for source and target basis, node, edge, property, and
   content mappings, warnings, and fatal planning failures without adding any
