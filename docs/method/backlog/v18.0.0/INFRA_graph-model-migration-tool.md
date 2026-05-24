@@ -66,6 +66,8 @@ Remaining migration-tool work is intentionally ordered as:
   readback complete; production runtime replay still release-critical).
 - slice 60: prove command finalization with command-owned readings and scratch
   runtime conformance (complete).
+- slice 61: prove provider-built scratch readings still block finalization on
+  divergence (complete).
 
 ## Starting points
 

@@ -144,6 +144,9 @@ The current v18 graph-model posture is:
 - Command finalization is now covered with command-owned legacy/scratch reading
   providers plus scratch operation readback conformance, not only supplied test
   proof values.
+- Provider-built scratch readings now have a divergence regression proving
+  finalization remains blocked when scratch history is readable but not
+  equivalent.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -469,3 +472,5 @@ and concrete checks live in `docs/invariants/`.
   [0207](design/0207-v18-scratch-runtime-conformance-provider/v18-scratch-runtime-conformance-provider.md).
 - [x] 60. Prove command finalization with providers:
   [0208](design/0208-v18-command-provider-finalization/v18-command-provider-finalization.md).
+- [x] 61. Add provider-built divergence coverage:
+  [0209](design/0209-v18-provider-divergence-coverage/v18-provider-divergence-coverage.md).

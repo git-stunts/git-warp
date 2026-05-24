@@ -58,6 +58,10 @@ Slice 57 added a scratch reading builder over migration-operation commits. It
 constructs equivalence facts from scratch Git history, but remains
 operation-derived rather than normal runtime replay.
 
+Slices 59 through 61 added operation-history readback conformance and command
+coverage proving that readable scratch output still cannot finalize when the
+legacy and scratch readings diverge.
+
 ## Starting points
 
 - `test/`

@@ -140,6 +140,44 @@ describe('v18 graph-model migration command', () => {
     expect(await gitText(repository.path, ['rev-parse', LIVE_REF])).toBe(repository.liveHead);
   });
 
+  it('blocks finalization when provider-built scratch readings diverge from legacy', async () => {
+    const repository = await repositoryWithLiveRef();
+
+    const result = await runGraphModelMigrationCommand({
+      repositoryPath: repository.path,
+      dryRunRequest: dryRunRequest(),
+      scratchRefName: SCRATCH_REF,
+      equivalenceBasis: basis(),
+      legacyReading: null,
+      scratchReading: null,
+      readingProviders: {
+        legacyReading: async () => divergentLegacyNodeReading(),
+        scratchReading: async () => await buildGraphModelMigrationScratchReading({
+          repositoryPath: repository.path,
+          scratchRefName: SCRATCH_REF,
+          readingId: 'scratch:divergent-provider',
+        }),
+      },
+      finalization: {
+        liveRefName: LIVE_REF,
+        expectedLiveHead: repository.liveHead,
+        archiveRefName: ARCHIVE_REF,
+        confirmation: confirmation(),
+        runtimeConformance: createGraphModelMigrationScratchRuntimeConformanceProvider({
+          repositoryPath: repository.path,
+        }),
+      },
+    });
+
+    expect(result.gateResult?.allowsPromotion()).toBe(false);
+    expect(result.finalizationResult?.finalized()).toBe(false);
+    expect(result.finalizationResult?.fatalErrors.map((notice) => notice.code)).toEqual([
+      'E_EQUIVALENCE_GATE_NOT_PASSED',
+    ]);
+    expect(await refExists(repository.path, ARCHIVE_REF)).toBe(false);
+    expect(await gitText(repository.path, ['rev-parse', LIVE_REF])).toBe(repository.liveHead);
+  });
+
   it('can construct readings through command-owned providers after scratch writing', async () => {
     const repository = await initializedRepository('git-warp-v18-command-providers-');
 
@@ -218,6 +256,25 @@ function legacyNodeReading(): GenesisEquivalenceReading {
         factKey: 'node:article',
         fieldPath: 'visibility',
         value: 'visible',
+        boundary: new GenesisEquivalenceBoundary({
+          writerId: 'alice',
+          patchId: 'patch:alice:0',
+          operationIndex: 0,
+        }),
+      }),
+    ],
+  });
+}
+
+function divergentLegacyNodeReading(): GenesisEquivalenceReading {
+  return new GenesisEquivalenceReading({
+    readingId: 'legacy:provider-divergent',
+    facts: [
+      new GenesisEquivalenceReadingFact({
+        kind: 'node',
+        factKey: 'node:article',
+        fieldPath: 'visibility',
+        value: 'removed',
         boundary: new GenesisEquivalenceBoundary({
           writerId: 'alice',
           patchId: 'patch:alice:0',
