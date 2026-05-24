@@ -39,17 +39,17 @@ of handwritten adapter folklore.
 
 Current branch state at this boundary:
 
-- Branch: `main`
+- Branch: `v18-continuum-slices-31-35`
 - Base branch: `main`
-- Current `origin/main`: `7d6cf669`
-- Latest merged PR: #99, v18 property projection read surface
+- Current `origin/main`: `35e5a6a9`
+- Latest merged PR: #100, post-PR-99 BEARING cleanup checkpoint
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
-  `0178-v18-query-property-projection-reads`
-- Current work: cleaned-up post-PR-99 boundary on `main`; next
-  implementation branch should start at slice 31.
-- Cleanup checkpoint: before this signpost update branch, there were no open
-  PRs and remote refs had been pruned to `origin/main`.
+  `0183-v18-property-projection-closeout`
+- Current work: v18 slices 31 through 35 are implemented on this branch and
+  ready for PR verification.
+- Cleanup checkpoint: before this slice branch, there were no open PRs and
+  remote refs had been pruned to `origin/main`.
 
 The current v18 graph-model posture is:
 
@@ -65,10 +65,19 @@ The current v18 graph-model posture is:
 - Runtime-backed legacy property projection nouns exist.
 - Node and edge property projections exist.
 - Public query property reads use projection-backed compatibility records.
+- State-reader property and content views use projection-backed compatibility
+  records.
+- Generic node and edge property writes construct runtime-backed write intents
+  before lowering to legacy compatibility operations.
+- Graph-op algebra projection emits typed content and property operation
+  nouns, not raw property-map entries.
+- Query read-model node props, translation-cost property-key accounting, and
+  public property counts use property projection nouns.
 
 That is useful progress, not a finish line. The repo still needs property
-projection beyond query reads, graph-model migration tooling, and genesis
-replay equivalence before v18 can make stronger compatibility claims.
+projection beyond replay/serialization boundaries, graph-model migration
+tooling, and genesis replay equivalence before v18 can make stronger
+compatibility claims.
 
 ## What Just Shipped
 
@@ -101,15 +110,29 @@ PR #99 landed v18 slices 26 through 30:
   malformed-record skipping, shared legacy content keys, and plain-object
   property carrier guards.
 
+This branch implements v18 slices 31 through 35:
+
+- state-reader node, edge, and content property views route through typed
+  projections;
+- runtime-backed node and edge property write intent nouns exist;
+- `PatchBuilder` generic property writes lower through those intents while
+  preserving the existing patch wire shape;
+- graph-op algebra projection emits typed content and property operation
+  nouns;
+- closeout routed the remaining live read-model property views through
+  projections and documented the remaining raw legacy-property boundaries.
+
 ## What Feels Wrong
 
-- Some non-query read surfaces still have direct raw legacy property
-  interpretation, especially state-reader context code.
-- Generic property writes still lower directly to legacy property operations;
-  content writes are intent-backed, but property writes are not.
 - Content persistence still uses legacy `_content*` compatibility properties.
   Typed reads and writes exist over that plane, but the storage cutover is not
   complete.
+- Temporal replay still extracts node snapshots from the raw legacy property
+  map because historical replay tests carry pre-codec inline fixture classes
+  that are not `PropValue`-honest enough for `LegacyPropertyValue`.
+- Checkpoint, serializer, state-diff, visible-scope, logical-index,
+  reducer/op-strategy, and content-projection code still touch the raw
+  property map as named compatibility or migration boundaries.
 - The v18 migration tool does not exist yet. Starting with a write-capable
   script would be reckless; the next migration work must be dry-run first.
 - Genesis replay equivalence has not been proven. Migration cannot be trusted
@@ -191,15 +214,15 @@ and concrete checks live in `docs/invariants/`.
   [0177](design/0177-v18-edge-property-projection/v18-edge-property-projection.md).
 - [x] 30. Route query property reads through projection:
   [0178](design/0178-v18-query-property-projection-reads/v18-query-property-projection-reads.md).
-- [ ] 31. Route state-reader property views through projection:
+- [x] 31. Route state-reader property views through projection:
   [0179](design/0179-v18-state-reader-property-projection/v18-state-reader-property-projection.md).
-- [ ] 32. Add property write intent nouns:
+- [x] 32. Add property write intent nouns:
   [0180](design/0180-v18-property-write-intent-nouns/v18-property-write-intent-nouns.md).
-- [ ] 33. Route PatchBuilder property writes through intent lowering:
+- [x] 33. Route PatchBuilder property writes through intent lowering:
   [0181](design/0181-v18-patchbuilder-property-intent-lowering/v18-patchbuilder-property-intent-lowering.md).
-- [ ] 34. Cut graph-op algebra over to property projections:
+- [x] 34. Cut graph-op algebra over to property projections:
   [0182](design/0182-v18-graph-op-projection-property-cutover/v18-graph-op-projection-property-cutover.md).
-- [ ] 35. Close out legacy-property projection with evidence:
+- [x] 35. Close out legacy-property projection with evidence:
   [0183](design/0183-v18-property-projection-closeout/v18-property-projection-closeout.md).
 - [ ] 36. Add graph-model migration manifest nouns:
   [0184](design/0184-v18-graph-model-migration-manifest/v18-graph-model-migration-manifest.md).

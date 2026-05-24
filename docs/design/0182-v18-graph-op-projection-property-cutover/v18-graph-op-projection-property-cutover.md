@@ -1,7 +1,7 @@
 ---
 cycle: 0182
 task_id: V18_graph_op_projection_property_cutover
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex

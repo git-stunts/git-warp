@@ -278,5 +278,5 @@ function buildEdgeList(state: WarpState, edgeProps: Map<string, MutablePropertyB
 
 export async function getPropertyCountImpl(host: QueryReadHost): Promise<number> {
   const state = await ensureAndGetState(host);
-  return state.prop.size;
+  return NodePropertyProjection.fromState(state).length + EdgePropertyProjection.fromState(state).length;
 }

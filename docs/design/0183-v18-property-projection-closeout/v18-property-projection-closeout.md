@@ -1,7 +1,7 @@
 ---
 cycle: 0183
 task_id: V18_property_projection_closeout
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
@@ -82,6 +82,11 @@ rg "decodePropKey|decodeEdgePropKey|state\\.prop" src/domain
 The expected failing evidence is any call site outside named projection or
 migration inventory boundaries.
 
+The closeout audit found one live read-model leak: `StateQueryReadModel`
+still read `state.prop` directly and accepted malformed compatibility keys
+as visible node properties. The regression now proves that malformed node
+and edge compatibility keys are skipped through `NodePropertyProjection`.
+
 ## GREEN Plan
 
 Fix or document each remaining direct read. Update docs with precise language:
@@ -90,6 +95,43 @@ node records, edge records, attachments, content records, and graph-op
 algebra.
 
 Mark the backlog item complete only if its acceptance criteria are met.
+
+## Evidence
+
+Public and observer-facing property views now route through projection nouns:
+
+- `QueryReads` node props, edge props, edge-list props, and property counts;
+- `StateReaderContext` node props, edge props, and content views;
+- `StateQueryReadModel.nodeProps`;
+- `TranslationCost` node property-key accounting;
+- `GraphOpAlgebraProjection` typed content, node-property, and edge-property
+  operations.
+
+The full unit suite also caught two integration details that targeted checks
+missed. `createStateReader()` still needs to accept immutable
+`SnapshotWarpState` values returned by coordinate and strand materialization,
+so the closeout hydrates those snapshots into projection-local `WarpState`
+values before invoking projection nouns. `PatchBuilder` also keeps the
+reserved-byte validation errors from the public API before property write
+intent construction, so the intent cutover does not change caller-visible
+validation behavior.
+
+The remaining direct raw-property sites are deliberately bounded:
+
+- `ContentAttachmentProjection` reads legacy `_content*` compatibility keys
+  until content persistence migrates;
+- reducers, op strategies, and prop helper modules own legacy compatibility
+  mutation;
+- checkpoint serializers, state serializers, state diffs, visible-state
+  scoping, and logical-index build code preserve or transform raw state;
+- `TemporalQuery` replay snapshots still accept pre-codec inline fixture
+  classes that strict `LegacyPropertyValue` projection nouns reject;
+- `PatchBuilderValidation` scans raw compatibility keys for delete guards;
+- `KeyCodec` owns the legacy encoding and decoding functions.
+
+Those are not graph-substrate truth claims. They are compatibility,
+serialization, replay, reducer, or migration-source boundaries for the next
+batch to inventory before any write-capable migration exists.
 
 ## Verification
 
@@ -110,12 +152,21 @@ git diff --check HEAD
 - Documentation no longer describes property bags as substrate truth.
 - The next slice can start graph-model migration manifest work.
 
+## Closeout Outcome
+
+The slice closes the legacy-property projection backlog for public property
+views and graph-op algebra. It does not close raw legacy property storage.
+That storage is the explicit input to slices 36 through 40: migration
+manifest, source inventory, dry-run planner, ordered history input, and
+manifest serialization.
+
 ## SSJS Scorecard
 
-- Runtime-backed forms: green when all public property views use projection
+- Runtime-backed forms: green; public property views use projection
   records.
-- Boundary validation: green when legacy decoding is bounded.
-- Behavior ownership: green when closeout records source ownership clearly.
+- Boundary validation: green; remaining legacy decoding is bounded and
+  recorded.
+- Behavior ownership: green; closeout records source ownership clearly.
 - Message parsing: green; no message parsing.
 - Ambient time or entropy: green; no code that uses ambient sources.
-- Fake shape trust or cast-cosplay: green when no casts are introduced.
+- Fake shape trust or cast-cosplay: green; no casts are introduced.

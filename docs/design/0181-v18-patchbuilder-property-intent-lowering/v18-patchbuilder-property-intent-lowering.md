@@ -1,7 +1,7 @@
 ---
 cycle: 0181
 task_id: V18_patchbuilder_property_intent_lowering
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex

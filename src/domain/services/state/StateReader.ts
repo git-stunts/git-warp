@@ -1,9 +1,9 @@
 import { projectState } from './StateSerializer.ts';
-import type WarpState from './WarpState.ts';
 import {
   type ContentMeta,
   type NeighborEntry,
   type StateReaderContext,
+  type StateReaderSource,
   type VisiblePropertyBag,
   type VisibleEdgeRef,
   type VisibleEdgeView,
@@ -12,12 +12,17 @@ import {
   cloneNeighbors,
   createEdgeContentMetaIndex,
   createEdgePropIndex,
+  createEdgePropertyRecords,
   createNeighborIndex,
   createNodeContentMetaIndex,
   createNodePropIndex,
+  createNodePropertyRecords,
+  createProjectionProps,
+  createStateReaderProjectionState,
   createVisibleEdges,
   edgeKeyFromRef,
-  populateVisibleProps,
+  populateVisibleEdgeProps,
+  populateVisibleNodeProps,
 } from './StateReaderContext.ts';
 import type { VisibleStateReader } from '../../types/VisibleStateReader.ts';
 import type { PropValue } from '../../types/PropValue.ts';
@@ -185,14 +190,23 @@ function buildReaderApi(context: StateReaderContext): VisibleStateReader {
 // ── Context construction ─────────────────────────────────────────────────────
 
 /** Builds the full reader context from materialized state, including all indexes. */
-function buildReaderContext(state: WarpState): StateReaderContext {
-  const projection = projectState(state);
+function buildReaderContext(state: StateReaderSource): StateReaderContext {
+  const projectionState = createStateReaderProjectionState(state);
+  const baseProjection = projectState(projectionState);
+  const nodePropertyRecords = createNodePropertyRecords(projectionState);
+  const edgePropertyRecords = createEdgePropertyRecords(projectionState);
+  const projection = {
+    nodes: baseProjection.nodes,
+    edges: baseProjection.edges,
+    props: createProjectionProps(nodePropertyRecords),
+  };
   const visibleNodeIds = new Set(projection.nodes);
   const nodePropsById = createNodePropIndex(projection.nodes);
   const edgePropsByKey = createEdgePropIndex(projection.edges);
   const { outgoingByNode, incomingByNode } = createNeighborIndex(projection.nodes, projection.edges);
 
-  populateVisibleProps(state, { visibleNodeIds, nodePropsById, edgePropsByKey });
+  populateVisibleNodeProps(nodePropertyRecords, nodePropsById);
+  populateVisibleEdgeProps(edgePropertyRecords, edgePropsByKey);
 
   return {
     projection,
@@ -202,8 +216,8 @@ function buildReaderContext(state: WarpState): StateReaderContext {
     edges: createVisibleEdges(projection.edges, edgePropsByKey),
     outgoingByNode,
     incomingByNode,
-    nodeContentMetaById: createNodeContentMetaIndex(state, projection.nodes),
-    edgeContentMetaByKey: createEdgeContentMetaIndex(state, projection.edges),
+    nodeContentMetaById: createNodeContentMetaIndex(projectionState, projection.nodes),
+    edgeContentMetaByKey: createEdgeContentMetaIndex(projectionState, projection.edges),
   };
 }
 
@@ -215,6 +229,6 @@ function buildReaderContext(state: WarpState): StateReaderContext {
  * The reader exposes stable node/edge/property helpers and an entity-local
  * node inspection view without leaking OR-Set internals to higher layers.
  */
-export function createStateReader(state: WarpState): VisibleStateReader {
+export function createStateReader(state: StateReaderSource): VisibleStateReader {
   return buildReaderApi(buildReaderContext(state));
 }

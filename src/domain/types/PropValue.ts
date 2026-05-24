@@ -1,5 +1,3 @@
-import type CodecValue from './codec/CodecValue.ts';
-
 /**
  * PropValue — the set of values that can be stored in a CRDT property register.
  *
@@ -16,7 +14,11 @@ export type PropValue =
   | PropValue[]
   | { [key: string]: PropValue };
 
-function isScalarPropValue(value: CodecValue): value is string | number | boolean | null | Uint8Array {
+const FORBIDDEN_PROPERTY_VALUE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function isScalarPropValue<T>(
+  value: T,
+): value is T & (string | number | boolean | null | Uint8Array) {
   return (
     value === null
     || typeof value === 'string'
@@ -26,20 +28,58 @@ function isScalarPropValue(value: CodecValue): value is string | number | boolea
   );
 }
 
-function isPropValueArray(value: CodecValue): value is PropValue[] {
-  return Array.isArray(value) && value.every((entry) => isPropValue(entry));
+function isPropValueArray<T>(value: T, seen: WeakSet<object>): value is T & PropValue[] {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+  if (seen.has(value)) {
+    return false;
+  }
+  seen.add(value);
+  try {
+    return value.every((entry) => isPropValueWithSeen(entry, seen));
+  } finally {
+    seen.delete(value);
+  }
 }
 
-function isPropValueObjectCandidate(value: CodecValue): value is { readonly [key: string]: CodecValue } {
+function isPropValueObjectCandidate<T>(value: T): value is T & object {
   if (value === null || typeof value !== 'object') {
     return false;
   }
   return isNonArrayPlainObject(value);
 }
 
-function isPropValueObject(value: CodecValue): value is { [key: string]: PropValue } {
-  return isPropValueObjectCandidate(value)
-    && Object.values(value).every((entry) => isPropValue(entry));
+function isForbiddenPropertyValueKey(key: string): boolean {
+  return FORBIDDEN_PROPERTY_VALUE_KEYS.has(key);
+}
+
+function canTraversePropValueObject<T>(value: T, seen: WeakSet<object>): value is T & object {
+  return isPropValueObjectCandidate(value) && !seen.has(value);
+}
+
+function isPropValueObject<T>(
+  value: T,
+  seen: WeakSet<object>,
+): value is T & { [key: string]: PropValue } {
+  if (!canTraversePropValueObject(value, seen)) {
+    return false;
+  }
+  seen.add(value);
+  try {
+    return propValueObjectEntriesAreValid(value, seen);
+  } finally {
+    seen.delete(value);
+  }
+}
+
+function propValueObjectEntriesAreValid(value: object, seen: WeakSet<object>): boolean {
+  for (const [key, entry] of Object.entries(value)) {
+    if (isForbiddenPropertyValueKey(key) || !isPropValueWithSeen(entry, seen)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function isNonArrayPlainObject(value: object): boolean {
@@ -50,8 +90,12 @@ function isNonArrayPlainObject(value: object): boolean {
     || Object.getPrototypeOf(value) === null;
 }
 
-export function isPropValue(value: CodecValue): value is PropValue {
+export function isPropValue<T>(value: T): value is T & PropValue {
+  return isPropValueWithSeen(value, new WeakSet<object>());
+}
+
+function isPropValueWithSeen<T>(value: T, seen: WeakSet<object>): value is T & PropValue {
   return isScalarPropValue(value)
-    || isPropValueArray(value)
-    || isPropValueObject(value);
+    || isPropValueArray(value, seen)
+    || isPropValueObject(value, seen);
 }
