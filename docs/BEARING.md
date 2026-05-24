@@ -435,7 +435,8 @@ resumes after the finalization path is guarded and reviewable.
   [0230](design/0230-v18-finalization-replan-after-zero-mismatch/v18-finalization-replan-after-zero-mismatch.md).
 - [x] 83. Design live finalization CLI confirmation and reporting:
   [0231](design/0231-v18-live-finalization-cli-confirmation/v18-live-finalization-cli-confirmation.md).
-- [ ] 84. Add finalization request JSON and confirmation adapters.
+- [x] 84. Add finalization request JSON and confirmation adapters:
+  [0232](design/0232-v18-finalization-request-json-adapters/v18-finalization-request-json-adapters.md).
 - [ ] 85. Add finalization report sections and archive evidence output.
 - [ ] 86. Enable guarded CLI finalization behind explicit confirmation.
 - [ ] 87. Add live-ref drift and existing-archive finalization tests.
@@ -466,6 +467,8 @@ resumes after the finalization path is guarded and reviewable.
 - The live finalization CLI design now requires a JSON confirmation artifact
   that binds live head, scratch head, archive ref, equivalence, and runtime
   replay evidence before any live ref may move.
+- Finalization request and confirmation JSON now parse into runtime-backed
+  finalization safety nouns with unknown-field rejection.
 
 ### User Stories
 
@@ -685,7 +688,7 @@ and concrete checks live in `docs/invariants/`.
 - [x] 81. Drive the canonical wet-run mismatch count to zero.
 - [x] 82. Replan finalization with zero-mismatch wet-run evidence.
 - [x] 83. Design live finalization CLI confirmation and reporting.
-- [ ] 84. Add finalization request JSON and confirmation adapters.
+- [x] 84. Add finalization request JSON and confirmation adapters.
 - [ ] 85. Add finalization report sections and archive evidence output.
 - [ ] 86. Enable guarded CLI finalization behind explicit confirmation.
 - [ ] 87. Add live-ref drift and existing-archive finalization tests.
