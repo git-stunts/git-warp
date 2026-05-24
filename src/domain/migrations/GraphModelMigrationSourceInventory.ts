@@ -255,7 +255,7 @@ function requireChainPatchDescriptors(
   chain.patchIds.forEach((patchId, position) => {
     const descriptor = patchesById.get(patchId);
     if (descriptor === undefined) {
-      throw new WarpError(`writer chain references unknown patch ${patchId}`, 'E_VALIDATION');
+      throw new WarpError(`writer chain references uncollected patch ${patchId}`, 'E_VALIDATION');
     }
     if (descriptor.writerId !== chain.writerId) {
       throw new WarpError(`patch descriptor ${patchId} belongs to the wrong writer`, 'E_VALIDATION');
