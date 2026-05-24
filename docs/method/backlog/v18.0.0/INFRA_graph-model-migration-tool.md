@@ -51,7 +51,7 @@ Remaining migration-tool work is intentionally ordered as:
   (complete);
 - slice 47: collect real source inventory from restored history (complete);
 - slice 48: lower dry-run planned operations (complete);
-- slice 49: write scratch migrated history;
+- slice 49: write scratch migrated history (complete);
 - slice 50: gate scratch output with genesis equivalence;
 - slice 51: design finalization safety.
 

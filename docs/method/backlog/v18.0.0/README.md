@@ -74,7 +74,7 @@ graph model. Change the envelope only if replay honesty requires it.
 
 ## Current Evidence
 
-After v18 slice 46, the migration path is intentionally still
+After v18 slice 49, the migration path is intentionally still
 non-destructive but now has persisted-history evidence:
 
 - dry-run request JSON can be decoded at the infrastructure boundary;
@@ -93,5 +93,7 @@ non-destructive but now has persisted-history evidence:
   commit trailers into migration-domain source inventory;
 - operation lowering now creates write-ready migration operation facts from
   successful dry-run plans without writing history;
-- scratch writing, scratch equivalence, and finalization safety are planned
-  as slices 49 through 51.
+- scratch writing now creates deterministic operation commits under explicit
+  `refs/warp-migration-scratch/*` refs and refuses live graph refs;
+- scratch equivalence and finalization safety are planned as the next gates
+  before any live lineage promotion.

@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 graph-model migration now includes pure operation lowering from
   successful dry-run plans to runtime-backed, write-ready migration operation
   facts for later scratch writers.
+- V18 graph-model migration now includes an explicit scratch writer that
+  rejects live graph refs, writes lowered operation commits only under
+  `refs/warp-migration-scratch/*`, and advances scratch refs with
+  expected-head `git update-ref` calls.
 - V18 graph-model migration dry-run work now includes a non-destructive CLI
   runner and request JSON adapter that validate source facts, invoke the pure
   planner, emit deterministic manifest output, and refuse write/apply modes.

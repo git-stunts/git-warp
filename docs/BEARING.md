@@ -113,6 +113,9 @@ The current v18 graph-model posture is:
   structured migration notices.
 - Pure migration operation lowering now turns successful dry-run plans into
   runtime-backed write-ready operation facts while refusing fatal dry-run plans.
+- An explicit scratch migration writer now writes lowered operation facts only
+  under `refs/warp-migration-scratch/*`, rejects live graph refs, and advances
+  scratch refs with expected-head `git update-ref` calls.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -246,6 +249,11 @@ successful dry-run plans, emits source/target-basis patch plans with sorted
 lowered operation facts, and keeps graph-history writes out of the domain
 lowering step.
 
+Slice 49 is complete on this branch. Scratch migration writing now requires an
+explicit scratch ref, rejects live `refs/warp/*` targets before writing,
+creates deterministic per-operation commits, and appends with CAS-shaped
+`git update-ref` calls.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -258,14 +266,13 @@ lowering step.
 - Temporal replay still extracts node snapshots from the raw legacy property
   map because historical replay tests carry pre-codec inline fixture classes
   that are not `PropValue`-honest enough for `LegacyPropertyValue`.
-- The v18 migration tool is dry-run only. It can consume explicit request JSON,
-  restored source inventory, and lower operations into write-ready facts, but
-  it does not yet write scratch history.
+- The v18 migration tool can now write scratch history, but it does not yet
+  replay scratch output into observer-visible readings for equivalence.
 - Genesis equivalence is credible as a domain vocabulary and compact fixture
   proof, not yet as a real scratch-history replay gate.
-- Compact equivalence fixtures are not enough to validate source inventory
-  over real v17 persisted Git history. The first golden fixture now restores a
-  v17 graph object/ref layout, but source inventory does not consume it yet.
+- Compact equivalence fixtures are not enough by themselves. The golden v17
+  fixture now restores Git refs and source inventory consumes those refs, but
+  the scratch writer output still needs an equivalence gate.
 - The next write-capable migration work must go through real source inventory,
   lowering, scratch writes, equivalence gates, and finalization safety. Live
   ref promotion is still out of bounds.
@@ -381,7 +388,7 @@ and concrete checks live in `docs/invariants/`.
   [0194](design/0194-v18-real-source-inventory-collector/v18-real-source-inventory-collector.md).
 - [x] 48. Add migration operation lowering:
   [0195](design/0195-v18-migration-operation-lowering/v18-migration-operation-lowering.md).
-- [ ] 49. Add the scratch migration writer:
+- [x] 49. Add the scratch migration writer:
   [0196](design/0196-v18-scratch-migration-writer/v18-scratch-migration-writer.md).
 - [ ] 50. Add the scratch equivalence gate:
   [0197](design/0197-v18-scratch-equivalence-gate/v18-scratch-equivalence-gate.md).
