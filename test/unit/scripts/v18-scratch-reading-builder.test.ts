@@ -9,6 +9,8 @@ import { buildGraphModelMigrationScratchReading }
   from '../../../scripts/v18.0.0/migrations/graph-model/GraphModelMigrationScratchReadingBuilder.ts';
 import { writeGraphModelMigrationScratchHistory }
   from '../../../scripts/v18.0.0/migrations/graph-model/GraphModelMigrationScratchWriter.ts';
+import { runMigrationGit }
+  from '../../../scripts/v18.0.0/migrations/graph-model/GitMigrationCommandRunner.ts';
 import GraphModelMigrationBasis from '../../../src/domain/migrations/GraphModelMigrationBasis.ts';
 import GraphModelMigrationLoweredOperation
   from '../../../src/domain/migrations/GraphModelMigrationLoweredOperation.ts';
@@ -46,6 +48,25 @@ describe('v18 scratch reading builder', () => {
     ]);
     expect(reading.facts.every((fact) => fact.boundary?.writerId === 'scratch-migration')).toBe(true);
   });
+
+  it('rejects malformed hex bytes instead of partially parsing them', async () => {
+    const repositoryPath = await initializedRepository();
+    const commitId = await writeScratchPayload(repositoryPath, [
+      'git-warp-v18-migration-operation-v1',
+      'sequence 0',
+      'kind node-record',
+      'source-key-utf8-hex 0g',
+      'target-key-utf8-hex 6e6f64653a61',
+      '',
+    ].join('\n'));
+    await execFileAsync('git', ['update-ref', SCRATCH_REF, commitId], { cwd: repositoryPath });
+
+    await expect(buildGraphModelMigrationScratchReading({
+      repositoryPath,
+      scratchRefName: SCRATCH_REF,
+      readingId: 'scratch:bad-hex',
+    })).rejects.toThrow(/invalid hex byte 0g/);
+  });
 });
 
 async function initializedRepository(): Promise<string> {
@@ -76,4 +97,24 @@ function operation(
   targetKey: string,
 ): GraphModelMigrationLoweredOperation {
   return new GraphModelMigrationLoweredOperation({ kind, sourceKey, targetKey });
+}
+
+async function writeScratchPayload(repositoryPath: string, payload: string): Promise<string> {
+  const blobOid = await gitOk(repositoryPath, ['hash-object', '-w', '--stdin'], payload);
+  const treeOid = await gitOk(
+    repositoryPath,
+    ['mktree'],
+    `100644 blob ${blobOid}\tmigration-operation.txt\n`,
+  );
+  return await gitOk(repositoryPath, ['commit-tree', treeOid], 'bad scratch payload\n');
+}
+
+async function gitOk(
+  repositoryPath: string,
+  args: readonly string[],
+  input: string,
+): Promise<string> {
+  const result = await runMigrationGit(repositoryPath, args, input, { deterministicIdentity: true });
+  expect(result.ok()).toBe(true);
+  return result.stdout.trim();
 }

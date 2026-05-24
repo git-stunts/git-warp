@@ -32,6 +32,11 @@ export type V17GoldenGraphFixtureVisibleFactFields = {
   readonly description: string;
 };
 
+export type V17GoldenGraphFixtureTypedFactFields = {
+  readonly key: string;
+  readonly description: string;
+};
+
 export type V17GoldenGraphFixtureManifestFields = {
   readonly fixtureId: string;
   readonly graphId: string;
@@ -83,6 +88,72 @@ export class V17GoldenGraphFixtureVisibleFact {
     this.key = requireNonEmptyString(checkedFields.key, 'key');
     this.description = requireNonEmptyString(checkedFields.description, 'description');
     Object.freeze(this);
+  }
+}
+
+/** Operator-visible node expectation for a restored v17 fixture. */
+export class V17GoldenNodeFact extends V17GoldenGraphFixtureVisibleFact {
+  constructor(fields: V17GoldenGraphFixtureTypedFactFields) {
+    super({
+      kind: V17_GOLDEN_NODE_FACT,
+      key: fields.key,
+      description: fields.description,
+    });
+  }
+}
+
+/** Operator-visible edge expectation for a restored v17 fixture. */
+export class V17GoldenEdgeFact extends V17GoldenGraphFixtureVisibleFact {
+  constructor(fields: V17GoldenGraphFixtureTypedFactFields) {
+    super({
+      kind: V17_GOLDEN_EDGE_FACT,
+      key: fields.key,
+      description: fields.description,
+    });
+  }
+}
+
+/** Operator-visible property expectation for a restored v17 fixture. */
+export class V17GoldenPropertyFact extends V17GoldenGraphFixtureVisibleFact {
+  constructor(fields: V17GoldenGraphFixtureTypedFactFields) {
+    super({
+      kind: V17_GOLDEN_PROPERTY_FACT,
+      key: fields.key,
+      description: fields.description,
+    });
+  }
+}
+
+/** Operator-visible content expectation for a restored v17 fixture. */
+export class V17GoldenContentFact extends V17GoldenGraphFixtureVisibleFact {
+  constructor(fields: V17GoldenGraphFixtureTypedFactFields) {
+    super({
+      kind: V17_GOLDEN_CONTENT_FACT,
+      key: fields.key,
+      description: fields.description,
+    });
+  }
+}
+
+/** Operator-visible removal expectation for a restored v17 fixture. */
+export class V17GoldenRemovalFact extends V17GoldenGraphFixtureVisibleFact {
+  constructor(fields: V17GoldenGraphFixtureTypedFactFields) {
+    super({
+      kind: V17_GOLDEN_REMOVAL_FACT,
+      key: fields.key,
+      description: fields.description,
+    });
+  }
+}
+
+/** Operator-visible multi-writer expectation for a restored v17 fixture. */
+export class V17GoldenMultiWriterFact extends V17GoldenGraphFixtureVisibleFact {
+  constructor(fields: V17GoldenGraphFixtureTypedFactFields) {
+    super({
+      kind: V17_GOLDEN_MULTI_WRITER_FACT,
+      key: fields.key,
+      description: fields.description,
+    });
   }
 }
 

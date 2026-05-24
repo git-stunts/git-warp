@@ -71,8 +71,12 @@ async function collectTypeScriptFiles(directory: string): Promise<readonly strin
       continue;
     }
     if (entry.isFile() && path.endsWith('.ts')) {
-      files.push(relative('', path));
+      files.push(toPosixPath(relative('', path)));
     }
   }
   return Object.freeze(files);
+}
+
+function toPosixPath(path: string): string {
+  return path.split('\\').join('/');
 }

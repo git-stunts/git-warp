@@ -9,6 +9,14 @@ import {
 import {
   parseV17GoldenGraphFixtureManifestJson,
 } from '../../../src/infrastructure/adapters/V17GoldenGraphFixtureManifestJsonAdapter.ts';
+import {
+  V17GoldenContentFact,
+  V17GoldenEdgeFact,
+  V17GoldenMultiWriterFact,
+  V17GoldenNodeFact,
+  V17GoldenPropertyFact,
+  V17GoldenRemovalFact,
+} from '../../../src/domain/migrations/V17GoldenGraphFixtureManifest.ts';
 
 const FIXTURE_MANIFEST_PATH = resolve('fixtures/v17/graph-model-golden/manifest.json');
 
@@ -26,6 +34,12 @@ describe('v18 v17 golden graph-history fixtures', () => {
     expect(manifest.hasVisibleFactKind('content')).toBe(true);
     expect(manifest.hasVisibleFactKind('removal')).toBe(true);
     expect(manifest.hasVisibleFactKind('multi-writer')).toBe(true);
+    expect(manifest.visibleFacts.some((fact) => fact instanceof V17GoldenContentFact)).toBe(true);
+    expect(manifest.visibleFacts.some((fact) => fact instanceof V17GoldenEdgeFact)).toBe(true);
+    expect(manifest.visibleFacts.some((fact) => fact instanceof V17GoldenNodeFact)).toBe(true);
+    expect(manifest.visibleFacts.some((fact) => fact instanceof V17GoldenRemovalFact)).toBe(true);
+    expect(manifest.visibleFacts.some((fact) => fact instanceof V17GoldenPropertyFact)).toBe(true);
+    expect(manifest.visibleFacts.some((fact) => fact instanceof V17GoldenMultiWriterFact)).toBe(true);
   });
 
   it('restores the bundle into an isolated repository and verifies writer heads', async () => {
@@ -74,4 +88,136 @@ describe('v18 v17 golden graph-history fixtures', () => {
       targetDirectory,
     })).rejects.toThrow('expected aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
   });
+
+  it('rejects malformed manifest JSON at the adapter boundary', () => {
+    const cases = Object.freeze([
+      {
+        raw: '{',
+        message: /valid JSON/,
+      },
+      {
+        raw: '[]',
+        message: /manifest.*object/,
+      },
+      {
+        raw: manifestJson({ extraRoot: true }),
+        message: /manifest\.extra/,
+      },
+      {
+        raw: manifestJson({ writerChains: 'alice' }),
+        message: /writerChains.*array/,
+      },
+      {
+        raw: manifestJson({ writerChains: [null] }),
+        message: /writerChains\[0\].*object/,
+      },
+      {
+        raw: manifestJson({
+          writerChains: [
+            {
+              writerId: '',
+              refName: 'refs/warp/v17-golden-graph/writers/alice',
+              expectedHead: '1111111111111111111111111111111111111111',
+              patchCount: 1,
+            },
+          ],
+        }),
+        message: /writerId.*non-empty string/,
+      },
+      {
+        raw: manifestJson({
+          writerChains: [
+            {
+              writerId: 'alice',
+              refName: 'refs/warp/v17-golden-graph/writers/alice',
+              expectedHead: '1111111111111111111111111111111111111111',
+              patchCount: '1',
+            },
+          ],
+        }),
+        message: /patchCount.*finite number/,
+      },
+      {
+        raw: manifestJson({
+          visibleFacts: [
+            {
+              kind: 7,
+              key: 'node:alpha',
+              description: 'bad kind',
+            },
+          ],
+        }),
+        message: /kind.*supported fact kind/,
+      },
+      {
+        raw: manifestJson({
+          visibleFacts: [
+            {
+              kind: 'node',
+              key: 'node:alpha',
+            },
+          ],
+        }),
+        message: /description.*required/,
+      },
+    ]);
+
+    for (const candidate of cases) {
+      expect(() => parseV17GoldenGraphFixtureManifestJson(candidate.raw))
+        .toThrow(candidate.message);
+    }
+  });
+
+  it('rejects empty restore paths before file-system or Git work', async () => {
+    await expect(restoreV17GoldenGraphFixture({
+      manifestPath: '',
+      targetDirectory: 'target',
+    })).rejects.toThrow(/manifestPath/);
+    await expect(restoreV17GoldenGraphFixture({
+      manifestPath: FIXTURE_MANIFEST_PATH,
+      targetDirectory: '',
+    })).rejects.toThrow(/targetDirectory/);
+  });
 });
+
+type ManifestJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly ManifestJsonValue[]
+  | { readonly [key: string]: ManifestJsonValue };
+
+type ManifestOverrides = {
+  readonly writerChains?: ManifestJsonValue;
+  readonly visibleFacts?: ManifestJsonValue;
+  readonly extraRoot?: boolean;
+};
+
+function manifestJson(overrides: ManifestOverrides = {}): string {
+  const manifest = {
+    fixtureId: 'fixture:unit',
+    graphId: 'v17-golden-graph',
+    sourceVersion: '17.0.1',
+    generator: 'unit-test',
+    bundlePath: 'v17-golden-graph.bundle',
+    writerChains: overrides.writerChains ?? [
+      {
+        writerId: 'alice',
+        refName: 'refs/warp/v17-golden-graph/writers/alice',
+        expectedHead: '1111111111111111111111111111111111111111',
+        patchCount: 1,
+      },
+    ],
+    visibleFacts: overrides.visibleFacts ?? [
+      { kind: 'node', key: 'node:alpha', description: 'node' },
+      { kind: 'edge', key: 'edge:alpha-beta', description: 'edge' },
+      { kind: 'property', key: 'node:alpha:title', description: 'title' },
+      { kind: 'content', key: 'node:alpha:_content', description: 'content' },
+      { kind: 'removal', key: 'node:removed', description: 'removed' },
+      { kind: 'multi-writer', key: 'writers:alice+bob', description: 'multi' },
+    ],
+    ...(overrides.extraRoot === true ? { extra: true } : {}),
+  };
+  return JSON.stringify(manifest);
+}

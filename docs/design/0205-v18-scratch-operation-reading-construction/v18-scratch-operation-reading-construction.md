@@ -1,7 +1,7 @@
 ---
 cycle: 0205
 task_id: V18_scratch_operation_reading_construction
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex

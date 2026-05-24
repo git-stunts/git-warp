@@ -1,7 +1,7 @@
 ---
 cycle: 0197
 task_id: V18_scratch_equivalence_gate
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex

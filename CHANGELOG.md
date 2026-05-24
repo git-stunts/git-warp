@@ -184,6 +184,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- V18 graph-model migration review follow-up now preserves parent Git command
+  environment variables under deterministic identities, validates scratch and
+  finalization boundaries before Git work, rejects malformed scratch payload
+  hex bytes, restores runtime-backed fixture fact dispatch, and raises adapter
+  guard coverage for the CI ratchet.
 - V18 graph-model migration dry-run review follow-up now removes boolean-trap
   notice validation helpers, encodes planned target property keys with a named
   length-prefixed format, and raises focused constructor-guard coverage for the

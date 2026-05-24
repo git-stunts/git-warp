@@ -224,6 +224,40 @@ describe('v18 graph-model migration command', () => {
     expect(result.gateResult?.proofResult.summary.legacyFactCount).toBe(1);
     expect(result.gateResult?.proofResult.summary.migratedFactCount).toBe(1);
   });
+
+  it('rejects an empty scratch ref name at the command boundary', async () => {
+    const repository = await initializedRepository('git-warp-v18-command-invalid-ref-');
+
+    await expect(runGraphModelMigrationCommand({
+      repositoryPath: repository,
+      dryRunRequest: dryRunRequest(),
+      scratchRefName: '',
+      equivalenceBasis: basis(),
+      legacyReading: legacyNodeReading(),
+      scratchReading: legacyNodeReading(),
+      readingProviders: null,
+      finalization: null,
+    })).rejects.toThrow(/scratchRefName/);
+  });
+
+  it('rejects malformed provider readings before gate evaluation', async () => {
+    const repository = await initializedRepository('git-warp-v18-command-invalid-provider-');
+
+    await expect(runGraphModelMigrationCommand({
+      repositoryPath: repository,
+      dryRunRequest: dryRunRequest(),
+      scratchRefName: SCRATCH_REF,
+      equivalenceBasis: basis(),
+      legacyReading: null,
+      scratchReading: null,
+      readingProviders: {
+        // @ts-expect-error exercising runtime validation
+        legacyReading: async () => null,
+        scratchReading: async () => legacyNodeReading(),
+      },
+      finalization: null,
+    })).rejects.toThrow(/legacyReading/);
+  });
 });
 
 type CommandFixtureRepository = {

@@ -1,8 +1,21 @@
 import V17GoldenGraphFixtureManifest, {
-  V17GoldenGraphFixtureVisibleFact,
+  V17GoldenContentFact,
+  V17GoldenEdgeFact,
   V17GoldenGraphFixtureWriterChain,
+  V17GoldenMultiWriterFact,
+  V17GoldenNodeFact,
+  V17GoldenPropertyFact,
+  V17GoldenRemovalFact,
+  V17_GOLDEN_CONTENT_FACT,
+  V17_GOLDEN_EDGE_FACT,
+  V17_GOLDEN_MULTI_WRITER_FACT,
+  V17_GOLDEN_NODE_FACT,
+  V17_GOLDEN_PROPERTY_FACT,
+  V17_GOLDEN_REMOVAL_FACT,
   v17GoldenGraphFixtureFactKindFromString,
   type V17GoldenGraphFixtureFactKind,
+  type V17GoldenGraphFixtureTypedFactFields,
+  type V17GoldenGraphFixtureVisibleFact,
 } from '../../domain/migrations/V17GoldenGraphFixtureManifest.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 import type { JsonObject } from './JsonObject.ts';
@@ -15,6 +28,38 @@ const MANIFEST_KEYS = Object.freeze([
   'bundlePath',
   'writerChains',
   'visibleFacts',
+]);
+
+type VisibleFactFactory = {
+  readonly kind: V17GoldenGraphFixtureFactKind;
+  readonly create: (fields: V17GoldenGraphFixtureTypedFactFields) => V17GoldenGraphFixtureVisibleFact;
+};
+
+const VISIBLE_FACT_FACTORIES: readonly VisibleFactFactory[] = Object.freeze([
+  Object.freeze({
+    kind: V17_GOLDEN_NODE_FACT,
+    create: (fields: V17GoldenGraphFixtureTypedFactFields) => new V17GoldenNodeFact(fields),
+  }),
+  Object.freeze({
+    kind: V17_GOLDEN_EDGE_FACT,
+    create: (fields: V17GoldenGraphFixtureTypedFactFields) => new V17GoldenEdgeFact(fields),
+  }),
+  Object.freeze({
+    kind: V17_GOLDEN_PROPERTY_FACT,
+    create: (fields: V17GoldenGraphFixtureTypedFactFields) => new V17GoldenPropertyFact(fields),
+  }),
+  Object.freeze({
+    kind: V17_GOLDEN_CONTENT_FACT,
+    create: (fields: V17GoldenGraphFixtureTypedFactFields) => new V17GoldenContentFact(fields),
+  }),
+  Object.freeze({
+    kind: V17_GOLDEN_REMOVAL_FACT,
+    create: (fields: V17GoldenGraphFixtureTypedFactFields) => new V17GoldenRemovalFact(fields),
+  }),
+  Object.freeze({
+    kind: V17_GOLDEN_MULTI_WRITER_FACT,
+    create: (fields: V17GoldenGraphFixtureTypedFactFields) => new V17GoldenMultiWriterFact(fields),
+  }),
 ]);
 
 /** Parses a v17 golden graph-history fixture manifest from JSON. */
@@ -63,12 +108,27 @@ function readVisibleFacts(source: JsonObject): readonly V17GoldenGraphFixtureVis
   return readObjectArray(source, 'visibleFacts').map((fact, index) => {
     const label = `visibleFacts[${index}]`;
     rejectUnknownKeys(fact, ['kind', 'key', 'description'], label);
-    return new V17GoldenGraphFixtureVisibleFact({
-      kind: readFactKind(fact, `${label}.kind`, 'kind'),
-      key: readRequiredString(fact, `${label}.key`, 'key'),
-      description: readRequiredString(fact, `${label}.description`, 'description'),
-    });
+    return readVisibleFact(
+      readFactKind(fact, `${label}.kind`, 'kind'),
+      readRequiredString(fact, `${label}.key`, 'key'),
+      readRequiredString(fact, `${label}.description`, 'description'),
+    );
   });
+}
+
+function readVisibleFact(
+  kind: V17GoldenGraphFixtureFactKind,
+  key: string,
+  description: string,
+): V17GoldenGraphFixtureVisibleFact {
+  for (const factory of VISIBLE_FACT_FACTORIES) {
+    if (factory.kind === kind) {
+      return factory.create({ key, description });
+    }
+  }
+  throw new AdapterValidationError(
+    'V17 golden graph fixture manifest field "visibleFacts.kind" must be a supported fact kind',
+  );
 }
 
 function readObjectArray(source: JsonObject, key: string): readonly JsonObject[] {

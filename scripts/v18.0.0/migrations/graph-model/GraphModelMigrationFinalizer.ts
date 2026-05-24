@@ -132,7 +132,7 @@ function requireSafetyResult(
 }
 
 function requireFinalizationString(value: string | null, name: string): string {
-  if (value === null) {
+  if (value === null || value.trim().length === 0) {
     throw new GraphModelMigrationFinalizerError(`${name} must be present after safety approval`);
   }
   return value;

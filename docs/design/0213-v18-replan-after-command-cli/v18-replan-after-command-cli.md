@@ -1,7 +1,7 @@
 ---
 cycle: 0213
 task_id: V18_replan_after_command_cli
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex

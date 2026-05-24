@@ -1,7 +1,7 @@
 ---
 cycle: 0203
 task_id: V18_content_property_closeout_audit
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex

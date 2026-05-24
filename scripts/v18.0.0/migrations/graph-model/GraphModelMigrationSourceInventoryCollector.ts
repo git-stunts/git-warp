@@ -34,8 +34,9 @@ export type GraphModelMigrationSourceInventoryCollectorOptions = {
 export async function collectGraphModelMigrationSourceInventory(
   options: GraphModelMigrationSourceInventoryCollectorOptions,
 ): Promise<GraphModelMigrationSourceInventory> {
+  const repositoryPath = requireNonEmptyString(options.repositoryPath, 'repositoryPath');
   const graphId = requireNonEmptyString(options.graphId, 'graphId');
-  const refNames = await listWriterRefs(options.repositoryPath, graphId);
+  const refNames = await listWriterRefs(repositoryPath, graphId);
   if (refNames.length === 0) {
     return emptyInventory(graphId, NO_WRITER_REFS_CODE, `no writer refs found for graph ${graphId}`);
   }
@@ -47,10 +48,10 @@ export async function collectGraphModelMigrationSourceInventory(
 
   for (const refName of refNames) {
     const writerId = writerIdFromRef(refName, graphId);
-    const patchIds = await gitLines(options.repositoryPath, ['rev-list', '--reverse', refName]);
+    const patchIds = await gitLines(repositoryPath, ['rev-list', '--reverse', refName]);
     const expectedWriter = writerId;
     await collectPatchDescriptors({
-      repositoryPath: options.repositoryPath,
+      repositoryPath,
       graphId,
       writerId: expectedWriter,
       patchIds,
@@ -61,7 +62,7 @@ export async function collectGraphModelMigrationSourceInventory(
       writerId,
       patchIds,
     }));
-    const head = await gitText(options.repositoryPath, ['rev-parse', '--verify', refName]);
+    const head = await gitText(repositoryPath, ['rev-parse', '--verify', refName]);
     basisParts.push(`${refName}@${head}`);
   }
 

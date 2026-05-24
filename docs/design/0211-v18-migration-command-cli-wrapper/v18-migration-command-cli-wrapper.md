@@ -1,7 +1,7 @@
 ---
 cycle: 0211
 task_id: V18_migration_command_cli_wrapper
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex

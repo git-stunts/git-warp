@@ -4,13 +4,13 @@ import GenesisEquivalenceReadingFact, {
   type GenesisEquivalenceReadingFactKind,
 } from './GenesisEquivalenceReadingFact.ts';
 import V17GoldenGraphFixtureManifest, {
-  V17_GOLDEN_CONTENT_FACT,
-  V17_GOLDEN_EDGE_FACT,
-  V17_GOLDEN_MULTI_WRITER_FACT,
-  V17_GOLDEN_NODE_FACT,
-  V17_GOLDEN_PROPERTY_FACT,
-  V17_GOLDEN_REMOVAL_FACT,
+  V17GoldenContentFact,
+  V17GoldenEdgeFact,
   type V17GoldenGraphFixtureVisibleFact,
+  V17GoldenMultiWriterFact,
+  V17GoldenNodeFact,
+  V17GoldenPropertyFact,
+  V17GoldenRemovalFact,
 } from './V17GoldenGraphFixtureManifest.ts';
 import WarpError from '../errors/WarpError.ts';
 
@@ -51,20 +51,20 @@ function projectFact(
 }
 
 function projectionFor(fact: V17GoldenGraphFixtureVisibleFact): ProjectedFactFields {
-  if (fact.kind === V17_GOLDEN_NODE_FACT) {
+  if (fact instanceof V17GoldenNodeFact) {
     return projection({ kind: 'node', factKey: fact.key, fieldPath: 'visibility', value: 'visible' });
   }
-  if (fact.kind === V17_GOLDEN_EDGE_FACT) {
+  if (fact instanceof V17GoldenEdgeFact) {
     return projection({ kind: 'edge', factKey: fact.key, fieldPath: 'visibility', value: 'visible' });
   }
   return compatibilityProjectionFor(fact);
 }
 
 function compatibilityProjectionFor(fact: V17GoldenGraphFixtureVisibleFact): ProjectedFactFields {
-  if (fact.kind === V17_GOLDEN_PROPERTY_FACT) {
+  if (fact instanceof V17GoldenPropertyFact) {
     return projection({ kind: 'property', factKey: fact.key, fieldPath: 'value', value: fact.description });
   }
-  if (fact.kind === V17_GOLDEN_CONTENT_FACT) {
+  if (fact instanceof V17GoldenContentFact) {
     return projection({
       kind: 'content-attachment',
       factKey: fact.key,
@@ -76,10 +76,10 @@ function compatibilityProjectionFor(fact: V17GoldenGraphFixtureVisibleFact): Pro
 }
 
 function nonVisibleLifecycleProjectionFor(fact: V17GoldenGraphFixtureVisibleFact): ProjectedFactFields {
-  if (fact.kind === V17_GOLDEN_REMOVAL_FACT) {
+  if (fact instanceof V17GoldenRemovalFact) {
     return projection({ kind: 'node', factKey: fact.key, fieldPath: 'visibility', value: 'removed' });
   }
-  if (fact.kind === V17_GOLDEN_MULTI_WRITER_FACT) {
+  if (fact instanceof V17GoldenMultiWriterFact) {
     return projection({
       kind: 'property',
       factKey: fact.key,

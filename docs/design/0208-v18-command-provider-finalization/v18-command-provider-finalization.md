@@ -1,7 +1,7 @@
 ---
 cycle: 0208
 task_id: V18_command_provider_finalization
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex

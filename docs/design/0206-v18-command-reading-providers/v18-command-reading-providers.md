@@ -1,7 +1,7 @@
 ---
 cycle: 0206
 task_id: V18_command_reading_providers
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex

@@ -1,7 +1,7 @@
 ---
 cycle: 0201
 task_id: V18_migration_command_wiring
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex

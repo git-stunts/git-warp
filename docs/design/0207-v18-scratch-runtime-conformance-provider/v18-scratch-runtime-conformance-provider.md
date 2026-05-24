@@ -1,7 +1,7 @@
 ---
 cycle: 0207
 task_id: V18_scratch_runtime_conformance_provider
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex

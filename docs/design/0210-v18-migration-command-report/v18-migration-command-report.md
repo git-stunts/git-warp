@@ -1,7 +1,7 @@
 ---
 cycle: 0210
 task_id: V18_migration_command_report
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex

@@ -1,7 +1,7 @@
 ---
 cycle: 0204
 task_id: V18_legacy_fixture_reading_construction
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex

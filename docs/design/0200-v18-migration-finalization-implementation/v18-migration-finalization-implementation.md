@@ -1,7 +1,7 @@
 ---
 cycle: 0200
 task_id: V18_migration_finalization_implementation
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex

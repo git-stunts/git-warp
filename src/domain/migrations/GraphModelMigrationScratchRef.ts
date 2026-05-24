@@ -27,8 +27,8 @@ export default class GraphModelMigrationScratchRef {
   }
 
   /** Validates a scratch ref target without constructing one. */
-  static validateRefName(refName: string | null): GraphModelMigrationNotice | null {
-    if (refName === null || refName.length === 0) {
+  static validateRefName(refName: string | null | undefined): GraphModelMigrationNotice | null {
+    if (typeof refName !== 'string' || refName.length === 0) {
       return GraphModelMigrationNotice.fatal(
         MISSING_SCRATCH_REF_CODE,
         'graph-model migration requires an explicit scratch ref target',

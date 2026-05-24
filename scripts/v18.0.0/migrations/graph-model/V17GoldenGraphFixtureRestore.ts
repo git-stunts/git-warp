@@ -30,9 +30,11 @@ export type V17GoldenGraphFixtureRestoreResult = {
 export async function restoreV17GoldenGraphFixture(
   options: V17GoldenGraphFixtureRestoreOptions,
 ): Promise<V17GoldenGraphFixtureRestoreResult> {
-  const manifest = await readManifest(options.manifestPath);
-  const repositoryPath = resolve(options.targetDirectory);
-  const bundlePath = resolve(dirname(options.manifestPath), manifest.bundlePath);
+  const manifestPath = requireNonEmptyString(options.manifestPath, 'manifestPath');
+  const targetDirectory = requireNonEmptyString(options.targetDirectory, 'targetDirectory');
+  const manifest = await readManifest(manifestPath);
+  const repositoryPath = resolve(targetDirectory);
+  const bundlePath = resolve(dirname(manifestPath), manifest.bundlePath);
 
   await mkdir(repositoryPath, { recursive: true });
   await runGit(repositoryPath, ['init', '-q']);
@@ -51,6 +53,13 @@ export async function restoreV17GoldenGraphFixture(
 async function readManifest(path: string): Promise<V17GoldenGraphFixtureManifest> {
   const raw = await readFile(path, 'utf8');
   return parseV17GoldenGraphFixtureManifestJson(raw);
+}
+
+function requireNonEmptyString(value: string, name: string): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`${name} must be a non-empty string`);
+  }
+  return value;
 }
 
 async function verifyRestoredRefs(

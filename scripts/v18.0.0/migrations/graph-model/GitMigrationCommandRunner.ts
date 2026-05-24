@@ -66,7 +66,10 @@ function spawnGit(
   if (options.deterministicIdentity) {
     return spawn('git', args, {
       cwd,
-      env: MIGRATION_GIT_IDENTITY,
+      env: {
+        ...process.env,
+        ...MIGRATION_GIT_IDENTITY,
+      },
     });
   }
   return spawn('git', args, { cwd });

@@ -332,6 +332,8 @@ describe('graph model migration constructor guards', () => {
     }).refName).toBe('refs/warp-migration-archive/graph/writers/alice');
     expect(GraphModelMigrationArchiveRef.validateRefName(null)?.code)
       .toBe('E_MISSING_ARCHIVE_REF');
+    expect(GraphModelMigrationArchiveRef.validateRefName(undefined)?.code)
+      .toBe('E_MISSING_ARCHIVE_REF');
     expect(GraphModelMigrationArchiveRef.validateRefName('refs/warp/graph/writers/alice')?.code)
       .toBe('E_LIVE_ARCHIVE_REF_TARGET');
     expect(GraphModelMigrationArchiveRef.validateRefName('refs/not-archive/graph')?.code)
@@ -342,6 +344,19 @@ describe('graph model migration constructor guards', () => {
       // @ts-expect-error exercising runtime validation
       new GraphModelMigrationArchiveRef(null);
     }).toThrow(/fields/);
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GraphModelMigrationArchiveRef({});
+    }).toThrow(/archive ref target/);
+    expect(new GraphModelMigrationScratchRef({
+      refName: 'refs/warp-migration-scratch/graph/migration',
+    }).refName).toBe('refs/warp-migration-scratch/graph/migration');
+    expect(GraphModelMigrationScratchRef.validateRefName(undefined)?.code)
+      .toBe('E_MISSING_SCRATCH_REF');
+    expect(() => {
+      // @ts-expect-error exercising runtime validation
+      new GraphModelMigrationScratchRef({});
+    }).toThrow(/scratch ref target/);
     expect(() => new GraphModelMigrationScratchWriteResult({
       scratchRef: scratchRef(),
       scratchHead: 'scratch-head',

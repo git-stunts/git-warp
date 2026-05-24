@@ -62,4 +62,11 @@ describe('v18 graph-model source inventory collector', () => {
     expect(inventory.fatalErrors.map((notice) => notice.code)).toContain('E_NO_WRITER_REFS');
     expect(inventory.fatalErrors.map((notice) => notice.code)).toContain('E_MISSING_SOURCE_BASIS');
   });
+
+  it('rejects an empty repository path before invoking Git', async () => {
+    await expect(collectGraphModelMigrationSourceInventory({
+      repositoryPath: '',
+      graphId: 'v17-golden-graph',
+    })).rejects.toThrow(/repositoryPath/);
+  });
 });

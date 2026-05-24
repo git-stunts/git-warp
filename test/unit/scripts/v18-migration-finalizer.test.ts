@@ -97,6 +97,18 @@ describe('v18 migration finalizer', () => {
     expect(await refExists(repository.path, ARCHIVE_REF)).toBe(false);
     expect(await gitText(repository.path, ['rev-parse', LIVE_REF])).toBe(driftHead);
   });
+
+  it('rejects blank approved finalization strings before Git ref updates', async () => {
+    const repository = await repositoryWithLiveAndScratchRefs();
+
+    await expect(finalizeGraphModelMigration({
+      repositoryPath: repository.path,
+      safetyResult: passedSafetyResult(' ', repository.scratchHead),
+    })).rejects.toThrow(/expectedLiveHead/);
+
+    expect(await refExists(repository.path, ARCHIVE_REF)).toBe(false);
+    expect(await gitText(repository.path, ['rev-parse', LIVE_REF])).toBe(repository.liveHead);
+  });
 });
 
 type FinalizerFixtureRepository = {

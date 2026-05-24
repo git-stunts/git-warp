@@ -1,7 +1,7 @@
 ---
 cycle: 0198
 task_id: V18_migration_finalization_safety
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex

@@ -1,7 +1,7 @@
 ---
 cycle: 0212
 task_id: V18_public_release_blockers
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex

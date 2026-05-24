@@ -86,6 +86,7 @@ export async function runGraphModelMigrationCommand(
   options: GraphModelMigrationCommandOptions,
 ): Promise<GraphModelMigrationCommandResult> {
   const repositoryPath = requireNonEmptyString(options.repositoryPath, 'repositoryPath');
+  const scratchRefName = requireNonEmptyString(options.scratchRefName, 'scratchRefName');
   const dryRunRequest = requireDryRunRequest(options.dryRunRequest);
   const dryRunPlan = new DryRunGraphModelMigrationPlanner().plan(dryRunRequest);
   const loweringResult = new GraphModelMigrationOperationLowerer().lower(dryRunPlan);
@@ -95,7 +96,7 @@ export async function runGraphModelMigrationCommand(
 
   const scratchWriteResult = await writeGraphModelMigrationScratchHistory({
     repositoryPath,
-    scratchRefName: options.scratchRefName,
+    scratchRefName,
     patchPlan: loweringResult.patchPlan,
   });
   if (scratchWriteResult.hasFatalErrors()) {
@@ -142,8 +143,14 @@ async function resolveReadings(
 }> {
   if (options.readingProviders !== null) {
     return Object.freeze({
-      legacyReading: await options.readingProviders.legacyReading(),
-      scratchReading: await options.readingProviders.scratchReading(scratchWriteResult),
+      legacyReading: requireReading(
+        await options.readingProviders.legacyReading(),
+        'legacyReading',
+      ),
+      scratchReading: requireReading(
+        await options.readingProviders.scratchReading(scratchWriteResult),
+        'scratchReading',
+      ),
     });
   }
   return Object.freeze({

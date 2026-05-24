@@ -1,7 +1,7 @@
 ---
 cycle: 0209
 task_id: V18_provider_divergence_coverage
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex

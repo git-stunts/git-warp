@@ -178,11 +178,10 @@ function utf8FromHex(hex: string): string {
 }
 
 function parseHexByte(hex: string): number {
-  const value = Number.parseInt(hex, 16);
-  if (!Number.isInteger(value)) {
+  if (!/^[0-9a-f]{2}$/iu.test(hex)) {
     throw new GraphModelMigrationScratchReadingBuilderError(`invalid hex byte ${hex}`);
   }
-  return value;
+  return Number.parseInt(hex, 16);
 }
 
 async function gitLines(cwd: string, args: readonly string[]): Promise<readonly string[]> {

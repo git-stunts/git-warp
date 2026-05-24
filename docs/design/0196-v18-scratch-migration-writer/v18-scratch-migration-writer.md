@@ -1,7 +1,7 @@
 ---
 cycle: 0196
 task_id: V18_scratch_migration_writer
-status: Completed
+status: Complete
 sponsors:
   human: James
   agent: Codex
