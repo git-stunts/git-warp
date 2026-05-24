@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   runs proof comparison, reports first divergence, blocks failed proofs, and
   rejects otherwise-equivalent readings when patch-boundary evidence is
   missing.
+- V18 graph-model migration finalization now has a pure safety protocol that
+  requires explicit confirmation, passed scratch equivalence, archive ref
+  selection, scratch output evidence, and matching live-ref expected head
+  evidence before any live ref update can be attempted.
 - V18 graph-model migration dry-run work now includes a non-destructive CLI
   runner and request JSON adapter that validate source facts, invoke the pure
   planner, emit deterministic manifest output, and refuse write/apply modes.

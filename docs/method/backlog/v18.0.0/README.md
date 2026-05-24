@@ -97,4 +97,6 @@ non-destructive but now has persisted-history evidence:
   `refs/warp-migration-scratch/*` refs and refuses live graph refs;
 - scratch equivalence now gates promotion on proof success, first-divergence
   reporting, and required patch-boundary evidence;
-- finalization safety is the next gate before any live lineage promotion.
+- finalization safety now requires explicit confirmation, archive ref
+  selection, scratch output evidence, a passed equivalence gate, and a matching
+  live-ref expected head before any live lineage promotion can be implemented.

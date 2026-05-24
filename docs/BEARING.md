@@ -119,6 +119,9 @@ The current v18 graph-model posture is:
 - A scratch equivalence gate now compares legacy and scratch genesis readings,
   reports first divergence, and blocks promotion when proof fails or visible
   facts lack patch-boundary evidence.
+- Finalization safety is now modeled as pure domain evidence: explicit
+  confirmation, passed equivalence gate, archive ref target, scratch output,
+  and live-ref expected-head match are required before live refs can move.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -261,6 +264,11 @@ Slice 50 is complete on this branch. Scratch equivalence gating now wraps the
 genesis proof and divergence reporter into a promotion decision, with explicit
 blocking for missing patch-boundary evidence even when visible readings match.
 
+Slice 51 is complete on this branch. Finalization safety now exists as a pure
+precondition gate: no confirmation, failed equivalence, missing archive target,
+missing scratch output, or stale live-ref expectation can pass into a future
+live-ref update step.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -281,9 +289,9 @@ blocking for missing patch-boundary evidence even when visible readings match.
 - Compact equivalence fixtures are not enough by themselves. The golden v17
   fixture now restores Git refs and source inventory consumes those refs, but
   the scratch writer output still needs an equivalence gate.
-- The next write-capable migration work must go through finalization safety,
-  archive semantics, command wiring, runtime conformance, and closeout audit.
-  Live ref promotion is still out of bounds until those gates exist.
+- The next write-capable migration work must implement archive-preserving CAS
+  finalization, command wiring, runtime conformance, and closeout audit. Live
+  ref promotion is still out of bounds until the Git updater is covered.
 
 ## Where We Are Heading
 
@@ -400,5 +408,9 @@ and concrete checks live in `docs/invariants/`.
   [0196](design/0196-v18-scratch-migration-writer/v18-scratch-migration-writer.md).
 - [x] 50. Add the scratch equivalence gate:
   [0197](design/0197-v18-scratch-equivalence-gate/v18-scratch-equivalence-gate.md).
-- [ ] 51. Design migration finalization safety:
+- [x] 51. Design migration finalization safety:
   [0198](design/0198-v18-migration-finalization-safety/v18-migration-finalization-safety.md).
+- [ ] 52. Implement archive-preserving migration finalization.
+- [ ] 53. Wire the end-to-end migration command.
+- [ ] 54. Prove post-migration runtime conformance.
+- [ ] 55. Close the content/property migration audit.
