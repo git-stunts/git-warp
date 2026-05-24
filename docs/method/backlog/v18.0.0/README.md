@@ -95,5 +95,6 @@ non-destructive but now has persisted-history evidence:
   successful dry-run plans without writing history;
 - scratch writing now creates deterministic operation commits under explicit
   `refs/warp-migration-scratch/*` refs and refuses live graph refs;
-- scratch equivalence and finalization safety are planned as the next gates
-  before any live lineage promotion.
+- scratch equivalence now gates promotion on proof success, first-divergence
+  reporting, and required patch-boundary evidence;
+- finalization safety is the next gate before any live lineage promotion.

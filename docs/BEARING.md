@@ -116,6 +116,9 @@ The current v18 graph-model posture is:
 - An explicit scratch migration writer now writes lowered operation facts only
   under `refs/warp-migration-scratch/*`, rejects live graph refs, and advances
   scratch refs with expected-head `git update-ref` calls.
+- A scratch equivalence gate now compares legacy and scratch genesis readings,
+  reports first divergence, and blocks promotion when proof fails or visible
+  facts lack patch-boundary evidence.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -254,6 +257,10 @@ explicit scratch ref, rejects live `refs/warp/*` targets before writing,
 creates deterministic per-operation commits, and appends with CAS-shaped
 `git update-ref` calls.
 
+Slice 50 is complete on this branch. Scratch equivalence gating now wraps the
+genesis proof and divergence reporter into a promotion decision, with explicit
+blocking for missing patch-boundary evidence even when visible readings match.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -266,16 +273,17 @@ creates deterministic per-operation commits, and appends with CAS-shaped
 - Temporal replay still extracts node snapshots from the raw legacy property
   map because historical replay tests carry pre-codec inline fixture classes
   that are not `PropValue`-honest enough for `LegacyPropertyValue`.
-- The v18 migration tool can now write scratch history, but it does not yet
-  replay scratch output into observer-visible readings for equivalence.
-- Genesis equivalence is credible as a domain vocabulary and compact fixture
-  proof, not yet as a real scratch-history replay gate.
+- The v18 migration tool can now write scratch history and gate supplied
+  readings, but it does not yet replay scratch Git output into
+  observer-visible readings for equivalence.
+- Genesis equivalence is a gate vocabulary now, but not yet a full real-history
+  ship gate wired through finalization.
 - Compact equivalence fixtures are not enough by themselves. The golden v17
   fixture now restores Git refs and source inventory consumes those refs, but
   the scratch writer output still needs an equivalence gate.
-- The next write-capable migration work must go through real source inventory,
-  lowering, scratch writes, equivalence gates, and finalization safety. Live
-  ref promotion is still out of bounds.
+- The next write-capable migration work must go through finalization safety,
+  archive semantics, command wiring, runtime conformance, and closeout audit.
+  Live ref promotion is still out of bounds until those gates exist.
 
 ## Where We Are Heading
 
@@ -390,7 +398,7 @@ and concrete checks live in `docs/invariants/`.
   [0195](design/0195-v18-migration-operation-lowering/v18-migration-operation-lowering.md).
 - [x] 49. Add the scratch migration writer:
   [0196](design/0196-v18-scratch-migration-writer/v18-scratch-migration-writer.md).
-- [ ] 50. Add the scratch equivalence gate:
+- [x] 50. Add the scratch equivalence gate:
   [0197](design/0197-v18-scratch-equivalence-gate/v18-scratch-equivalence-gate.md).
 - [ ] 51. Design migration finalization safety:
   [0198](design/0198-v18-migration-finalization-safety/v18-migration-finalization-safety.md).

@@ -1,11 +1,12 @@
 ---
 cycle: 0197
 task_id: V18_scratch_equivalence_gate
-status: Planned
+status: Completed
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-24
+completed_at: 2026-05-24
 release_home: v18.0.0
 bearing_task: 50
 promotes_backlog:
@@ -97,11 +98,34 @@ git diff --check HEAD
 - Passing proof summary is deterministic.
 - Finalization design has enough evidence to specify promotion semantics.
 
+## Closeout
+
+Slice 50 added `GenesisEquivalenceGate` and
+`GenesisEquivalenceGateResult`. The gate consumes already-formed legacy and
+scratch `GenesisEquivalenceReading` values, runs `GenesisEquivalenceProof`,
+and attaches the first `GenesisDivergenceReport` when proof fails.
+
+Promotion is allowed only when the proof succeeds and no fatal promotion
+blocker exists. Missing patch-boundary evidence is now explicit:
+otherwise-equivalent readings with `null` boundary facts still produce a fatal
+`E_MISSING_EQUIVALENCE_BOUNDARY` blocker.
+
+Replay construction remains intentionally outside the gate. Later slices can
+build legacy and scratch readings from real Git history without changing the
+proof semantics.
+
+## Verification Result
+
+```text
+npx vitest run test/unit/domain/migrations/GenesisEquivalenceGate.test.ts --reporter=verbose
+npx eslint --no-warn-ignored src/domain/migrations/GenesisEquivalenceGate.ts src/domain/migrations/GenesisEquivalenceGateResult.ts test/unit/domain/migrations/GenesisEquivalenceGate.test.ts
+```
+
 ## SSJS Scorecard
 
-- Runtime-backed forms: green when gate outcomes are named values.
-- Boundary validation: green when readings are proof nouns before comparison.
-- Behavior ownership: green when proof code compares and gate code gates.
+- Runtime-backed forms: green; gate outcomes are named values.
+- Boundary validation: green; readings are proof nouns before comparison.
+- Behavior ownership: green; proof code compares and gate code gates.
 - Message parsing: green; report text is never parsed as behavior.
 - Ambient time or entropy: green; no clocks or randomness.
-- Fake shape trust or cast-cosplay: green when no assertions are introduced.
+- Fake shape trust or cast-cosplay: green; no assertions were introduced.
