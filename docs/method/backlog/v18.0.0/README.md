@@ -91,5 +91,7 @@ non-destructive but now has persisted-history evidence:
   families;
 - restored source inventory collection now reads real writer refs and patch
   commit trailers into migration-domain source inventory;
-- operation lowering, scratch writing, scratch equivalence, and finalization
-  safety are planned as slices 48 through 51.
+- operation lowering now creates write-ready migration operation facts from
+  successful dry-run plans without writing history;
+- scratch writing, scratch equivalence, and finalization safety are planned
+  as slices 49 through 51.

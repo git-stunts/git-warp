@@ -1,11 +1,12 @@
 ---
 cycle: 0195
 task_id: V18_migration_operation_lowering
-status: Planned
+status: Complete
 sponsors:
   human: James
   agent: Codex
 started_at: 2026-05-24
+completed_at: 2026-05-24
 release_home: v18.0.0
 bearing_task: 48
 promotes_backlog:
@@ -95,6 +96,14 @@ git diff --check HEAD
 - Lowering consumes dry-run plan values.
 - No graph-history writes are added.
 - Scratch writer work has explicit input values.
+
+## Closeout
+
+Slice 48 adds pure domain lowering from successful dry-run plans to
+write-ready migration operation facts. Fatal dry-run plans return fatal
+lowering results instead of producing write input. Lowered patch plans carry
+source basis, target basis, sorted lowered operations, and no Git, filesystem,
+or ref-update behavior.
 
 ## SSJS Scorecard
 

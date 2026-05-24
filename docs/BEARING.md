@@ -111,6 +111,8 @@ The current v18 graph-model posture is:
   refs, decodes patch commit trailers, records writer chains and patch
   descriptors, derives a deterministic source basis, and fails closed with
   structured migration notices.
+- Pure migration operation lowering now turns successful dry-run plans into
+  runtime-backed write-ready operation facts while refusing fatal dry-run plans.
 
 That is useful progress, not a finish line. The repo still needs property
 projection beyond replay/serialization boundaries, graph-model migration
@@ -239,6 +241,11 @@ codec boundary, records writer chains and patch descriptors, derives a source
 basis from restored heads, and produces fatal inventory notices when source
 refs are absent or malformed.
 
+Slice 48 is complete on this branch. Operation lowering now consumes
+successful dry-run plans, emits source/target-basis patch plans with sorted
+lowered operation facts, and keeps graph-history writes out of the domain
+lowering step.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -252,8 +259,8 @@ refs are absent or malformed.
   map because historical replay tests carry pre-codec inline fixture classes
   that are not `PropValue`-honest enough for `LegacyPropertyValue`.
 - The v18 migration tool is dry-run only. It can consume explicit request JSON,
-  and restored source inventory, but it does not yet lower operations into a
-  write-ready form.
+  restored source inventory, and lower operations into write-ready facts, but
+  it does not yet write scratch history.
 - Genesis equivalence is credible as a domain vocabulary and compact fixture
   proof, not yet as a real scratch-history replay gate.
 - Compact equivalence fixtures are not enough to validate source inventory
@@ -372,7 +379,7 @@ and concrete checks live in `docs/invariants/`.
   [0199](design/0199-v18-v17-golden-graph-fixtures/v18-v17-golden-graph-fixtures.md).
 - [x] 47. Add real source inventory collection:
   [0194](design/0194-v18-real-source-inventory-collector/v18-real-source-inventory-collector.md).
-- [ ] 48. Add migration operation lowering:
+- [x] 48. Add migration operation lowering:
   [0195](design/0195-v18-migration-operation-lowering/v18-migration-operation-lowering.md).
 - [ ] 49. Add the scratch migration writer:
   [0196](design/0196-v18-scratch-migration-writer/v18-scratch-migration-writer.md).

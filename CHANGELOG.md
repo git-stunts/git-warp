@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collector that discovers restored `refs/warp/<graph>/writers/*` refs,
   decodes patch commit trailers, records writer chains and patch descriptors,
   and fails closed with structured inventory notices.
+- V18 graph-model migration now includes pure operation lowering from
+  successful dry-run plans to runtime-backed, write-ready migration operation
+  facts for later scratch writers.
 - V18 graph-model migration dry-run work now includes a non-destructive CLI
   runner and request JSON adapter that validate source facts, invoke the pure
   planner, emit deterministic manifest output, and refuse write/apply modes.
