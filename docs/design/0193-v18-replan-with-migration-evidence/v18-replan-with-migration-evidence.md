@@ -119,8 +119,10 @@ git diff --check HEAD
 - Genesis equivalence is credible as a runtime-backed vocabulary and compact
   fixture proof. It is not yet a real scratch-history replay gate.
 - The next five implementation slice docs now exist as cycles 0199, then 0194
-  through 0197. Finalization safety remains planned as cycle 0198 after the
-  restored-fixture equivalence gate.
+  through 0197. That order is intentional: cycle ids reflect when design
+  records were created, while `bearing_task` numbers reflect execution order
+  (`0199` is task 46, `0194` is task 47). Finalization safety remains planned
+  as cycle 0198 after the restored-fixture equivalence gate.
 - The Continuum posture remains unchanged: git-warp is a sibling Continuum
   participant exchanging witnessed causal history, not a subordinate runtime.
 
