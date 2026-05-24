@@ -74,6 +74,8 @@ Remaining migration-tool work is intentionally ordered as:
   scratch history and refuses live-ref finalization flags (complete).
 - slice 64: record v18 public release blockers before widening release claims
   (complete).
+- slice 65: replan with command-CLI evidence in hand and set the next
+  production-runtime replay goalpost (complete).
 
 ## Starting points
 

@@ -70,6 +70,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V18 release planning now records explicit public-release blockers for
   production-runtime replay, live finalization CLI design, wet-run fixture
   harnessing, Continuum contract tie-back, and operator release notes.
+- V18 planning now records the evidence-backed post-command-CLI replan toward
+  production-runtime scratch replay, wet-run fixture harnessing, live
+  finalization CLI design, and generated Continuum contract tie-back.
 - V18 graph-model migration dry-run work now includes a non-destructive CLI
   runner and request JSON adapter that validate source facts, invoke the pure
   planner, emit deterministic manifest output, and refuse write/apply modes.

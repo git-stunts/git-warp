@@ -46,9 +46,9 @@ Current branch state at this boundary:
   evidence
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
-  `0199-v18-v17-golden-graph-fixtures`
-- Current work: PR E has started. Slice 46 is complete on this branch, and
-  slices 47 through 55 are the current drift-check batch.
+  `0213-v18-replan-after-command-cli`
+- Current work: PR E now contains slices 46 through 65. The branch is ready
+  for PR review after final local verification and push.
 - Cleanup checkpoint: `main` has been fast-forwarded to `origin/main` after
   PR #103 merged; this branch starts from that merge commit.
 
@@ -320,6 +320,44 @@ enumerates every current `src/domain` file that still touches raw legacy
 content/property compatibility patterns and fails if that set drifts without
 review.
 
+Slice 56 is complete on this branch. The v17 golden fixture manifest can now
+be projected into genesis-equivalence readings with deterministic
+patch-boundary evidence.
+
+Slice 57 is complete on this branch. Scratch migration operation commits can
+now be read back from Git and projected into genesis-equivalence facts with
+scratch commit boundary evidence.
+
+Slice 58 is complete on this branch. The migration command can now construct
+legacy and scratch readings through providers after scratch writing.
+
+Slice 59 is complete on this branch. Scratch runtime conformance now has an
+adapter-level operation-history readback provider tied to the expected scratch
+ref and head.
+
+Slice 60 is complete on this branch. Command finalization is covered with
+command-owned reading providers plus scratch operation readback conformance.
+
+Slice 61 is complete on this branch. Provider-built scratch readings now have
+a divergence regression proving finalization remains blocked when scratch
+history is readable but not equivalent.
+
+Slice 62 is complete on this branch. The command now has deterministic
+operator report formatting for planning, scratch, equivalence, and
+finalization evidence.
+
+Slice 63 is complete on this branch. A non-finalizing migration command CLI
+wrapper writes scratch history, builds command-owned readings, emits the
+command report, and refuses live-ref finalization flags.
+
+Slice 64 is complete on this branch. V18 public-release blockers are explicit:
+production-runtime scratch replay, live finalization CLI design, wet-run
+fixture harnessing, generated Continuum contract tie-back, and release notes.
+
+Slice 65 is complete on this branch. Evidence-backed replanning moves the next
+goalpost from scratch operation readback to production-runtime scratch replay
+and wet-run fixture harnessing.
+
 ## What Feels Wrong
 
 - Content persistence still uses legacy `_content*` compatibility properties.
@@ -335,15 +373,14 @@ review.
 - The v18 migration tool can now write scratch history and derive scratch
   operation readings, but it does not yet open scratch output through the full
   production graph runtime.
-- Genesis equivalence is a gate vocabulary now, but not yet a full real-history
-  ship gate wired through finalization.
-- Compact equivalence fixtures are not enough by themselves. The golden v17
-  fixture now restores Git refs and source inventory consumes those refs, but
-  the command still needs real-history reading construction from migrated Git
-  output.
-- The next migration work must wire real-history reading and runtime
-  conformance providers through finalization, then broaden the evidence beyond
-  scratch operation readback where the production runtime needs it.
+- Legacy readings from the v17 golden fixture are manifest-derived, not yet
+  produced by replaying the restored v17 graph through the public read path.
+- The command wrapper writes scratch history and reports evidence, but live-ref
+  finalization from the CLI is intentionally refused until confirmation and
+  operator-report semantics are designed.
+- Continuum/WARP Optic release claims still need generated contract evidence
+  tied to Wesley/Continuum artifacts, not just handwritten compatibility
+  doctrine.
 
 ## Where We Are Heading
 
@@ -359,6 +396,14 @@ Suggested implementation batches:
   writing, scratch equivalence gating, finalization safety, finalization
   implementation, end-to-end command wiring, post-migration runtime
   conformance, and content/property closeout audit.
+- PR E extension, slices 56 through 65: legacy and scratch reading
+  construction, command reading providers, scratch operation readback
+  conformance, provider-backed finalization and divergence coverage, command
+  reporting, a non-finalizing command CLI wrapper, release blockers, and this
+  replan.
+- Next goalpost, slices 66 through 70: production-runtime scratch replay,
+  wet-run fixture harnessing, live finalization CLI design, and generated
+  Continuum contract tie-back.
 
 ## Invariants
 
@@ -488,3 +533,10 @@ and concrete checks live in `docs/invariants/`.
   [0211](design/0211-v18-migration-command-cli-wrapper/v18-migration-command-cli-wrapper.md).
 - [x] 64. Record v18 public release blockers:
   [0212](design/0212-v18-public-release-blockers/v18-public-release-blockers.md).
+- [x] 65. Replan after the command CLI:
+  [0213](design/0213-v18-replan-after-command-cli/v18-replan-after-command-cli.md).
+- [ ] 66. Design production-runtime scratch replay conformance.
+- [ ] 67. Implement production-runtime scratch replay provider.
+- [ ] 68. Add a v17 fixture wet-run migration harness.
+- [ ] 69. Design live finalization CLI confirmation and reporting.
+- [ ] 70. Tie v18 release claims to generated Continuum contract evidence.
