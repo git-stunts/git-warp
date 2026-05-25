@@ -59,7 +59,7 @@ mindmap
 
 | Term | Definition |
 | --- | --- |
-| **WARP** | Acronym for **Recursive Witnessed Admission over Git**. It describes a system where history is stored as an append-only log in Git, writes are "admitted" as patches, and the state is "materialized" from this history. The "witnessed" aspect refers to the goal of having cryptographic proof of every state transition. |
+| **WARP** | Acronym for **Worldline Algebra for Recursive Provenance**. The runtime uses recursive witnessed admission semantics over Git: history is stored as an append-only log, writes are admitted as patches, and state is materialized from that history. The "witnessed" aspect refers to the goal of having cryptographic proof of every state transition. |
 | **Git Substrate** | The underlying storage layer. `git-warp` uses Git as its database, but not in a conventional way. It leverages Git's content-addressable object store and ref system to build a distributed graph database. |
 | **Graph** | The primary data structure managed by `git-warp`. It's a directed graph of nodes and edges, where both nodes and edges can have properties and binary content attachments. |
 | **Writer** | An independent actor that can write to the graph. Each writer has a unique ID and its own chain of commits. |
@@ -67,11 +67,11 @@ mindmap
 | **Patch Commit** | A Git commit that stores a single patch. These commits are the fundamental unit of the graph's history. They point to Git's empty tree (`4b825dc642cb6eb9a060e54bf8d69288fbee4904`) to avoid interfering with the user's working directory. |
 | **Writer Ref** | A Git ref that points to the most recent patch commit for a specific writer. These refs are stored under `refs/warp/<graphName>/writers/<writerId>`. |
 | **Frontier** | A version vector that maps each known writer ID to the SHA of its most recent patch commit. The frontier represents the "latest" state of the graph, as known by a particular replica. |
-| **Version Vector**| A data structure used to track the state of a distributed system. In `git-warp`, it's used to represent the frontier of the graph. |
+| **Version Vector** | A data structure used to track the state of a distributed system. In `git-warp`, it's used to represent the frontier of the graph. |
 | **Lamport Tick** | A logical clock used to order events within a single writer's history. Each patch is assigned a Lamport tick that is one greater than the previous patch from the same writer. This ensures a total ordering of operations from a single writer. |
 | **CRDT** | **Conflict-free Replicated Data Type**. A data structure that can be replicated across multiple computers and updated independently and concurrently, without coordination between the replicas. `git-warp` uses CRDTs to merge the histories of different writers into a consistent, convergent state. |
 | **JoinReducer** | The engine that implements the CRDT logic. It takes a set of patches and "reduces" them into a single, materialized `WarpState`. It handles conflict resolution according to deterministic rules (e.g., add-wins for nodes, last-writer-wins for properties). |
-| **Materialization**| The process of reading a set of patch chains from Git and applying them, in a deterministic order, to produce a single, consistent view of the graph state (`WarpState`). |
+| **Materialization** | The process of reading a set of patch chains from Git and applying them, in a deterministic order, to produce a single, consistent view of the graph state (`WarpState`). |
 | **WarpState** | The in-memory representation of the materialized graph state. It's a collection of CRDTs (OR-Sets and LWW-Registers) that hold the nodes, edges, and properties of the graph. |
 | **Worldline** | The primary, high-level read surface. A `Worldline` represents the canonical history of the graph. It provides methods for querying the graph at a specific point in time. |
 | **Strand** | A temporary, speculative branch of the graph's history. Strands are used for "what-if" scenarios and for preparing complex changes before merging them into the main worldline. |
@@ -270,7 +270,7 @@ This path covers how different replicas of a graph converge to the same state. T
 | **Independent Writer Refs** | Enables coordination-free, offline-first writes. | Shifts complexity to the materialization process (`JoinReducer`). |
 | **CRDT Materialization** | Guarantees eventual consistency and multi-writer convergence. | More complex to reason about than simple last-writer-wins databases. Read operations can be more expensive as they may require materialization. |
 | **Hexagonal Architecture** | Excellent testability, allows swapping out adapters (e.g., `GitGraphAdapter` vs. `InMemoryGraphAdapter`). | More files and boilerplate (ports and adapters). |
-| **Frozen Capability Bag**| Enforces a clean separation between the public API and the internal implementation. Prevents consumers from depending on internal details. | Less flexibility for power users who might want to access internal state. |
+| **Frozen Capability Bag** | Enforces a clean separation between the public API and the internal implementation. Prevents consumers from depending on internal details. | Less flexibility for power users who might want to access internal state. |
 
 ## How To Read The Codebase Next
 
