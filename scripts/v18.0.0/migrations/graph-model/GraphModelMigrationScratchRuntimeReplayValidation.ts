@@ -43,3 +43,13 @@ export function requireGraphModelMigrationRuntimeReplayString(value: string, nam
   }
   return value;
 }
+
+export function optionalGraphModelMigrationRuntimeReplayString(
+  value: string | null | undefined,
+  name: string,
+): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  return requireGraphModelMigrationRuntimeReplayString(value, name);
+}

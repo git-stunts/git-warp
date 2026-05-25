@@ -146,6 +146,32 @@ describe('v18 production runtime scratch replay provider', () => {
       'E_RUNTIME_REPLAY_INVALID_OPERATION_TARGET',
     ]);
   });
+
+  it('rejects an empty runtime repository path before runtime initialization', async () => {
+    const repositoryPath = await initializedRepository('git-warp-v18-runtime-replay-empty-runtime-');
+    const workingDirectory = await mkdtemp(join(tmpdir(), 'git-warp-v18-runtime-replay-cwd-'));
+    const writeResult = await writeGraphModelMigrationScratchHistory({
+      repositoryPath,
+      scratchRefName: SCRATCH_REF,
+      patchPlan: patchPlan([operation('node-record', 'node:alpha', 'node:alpha')]),
+    });
+    const originalWorkingDirectory = process.cwd();
+    process.chdir(workingDirectory);
+    try {
+      const result = await verifyGraphModelMigrationProductionRuntimeReplay({
+        sourceRepositoryPath: repositoryPath,
+        runtimeRepositoryPath: '',
+        request: replayRequest(writeResult),
+      });
+
+      expect(result.status).toBe(GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_FAILED);
+      expect(result.fatalErrors.map((notice) => notice.code)).toEqual([
+        'E_RUNTIME_REPLAY_INVALID_OPERATION_TARGET',
+      ]);
+    } finally {
+      process.chdir(originalWorkingDirectory);
+    }
+  });
 });
 
 async function initializedRepository(prefix: string): Promise<string> {

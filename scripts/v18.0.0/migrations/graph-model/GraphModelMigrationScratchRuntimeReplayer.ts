@@ -30,6 +30,7 @@ import {
 } from './GraphModelMigrationScratchRuntimeReplayErrors.ts';
 import {
   observedGraphModelMigrationScratchHead,
+  optionalGraphModelMigrationRuntimeReplayString,
   requireGraphModelMigrationRuntimeReplayRequest,
   requireGraphModelMigrationRuntimeReplayString,
 } from './GraphModelMigrationScratchRuntimeReplayValidation.ts';
@@ -96,7 +97,10 @@ export async function replayGraphModelMigrationScratchIntoRuntime(
     'sourceRepositoryPath',
   );
   const request = requireGraphModelMigrationRuntimeReplayRequest(options.request);
-  let runtimeRepositoryPath = options.runtimeRepositoryPath ?? null;
+  let runtimeRepositoryPath = optionalGraphModelMigrationRuntimeReplayString(
+    options.runtimeRepositoryPath,
+    'runtimeRepositoryPath',
+  );
   let shouldCleanup = false;
   if (runtimeRepositoryPath === null) {
     runtimeRepositoryPath = await mkdtemp(join(tmpdir(), 'git-warp-v18-runtime-replay-'));
