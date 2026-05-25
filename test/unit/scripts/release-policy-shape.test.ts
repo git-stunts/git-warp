@@ -51,10 +51,12 @@ describe('release policy shape', () => {
     expect(releaseDoc).toContain('Merge to `main` after review and green CI.');
   });
 
-  it('keeps the roadmap header honest about the current release and correction patch', () => {
-    expect(roadmap).toContain('**Current release on `main`:** v17.0.1');
+  it('keeps the roadmap header honest about the public release and repair entry', () => {
+    expect(roadmap).toContain('**Current public package/tag release:** v17.0.0');
     expect(roadmap).toContain('**Next intended release:** v18.0.0');
-    expect(roadmap).toContain('v17.0.1 patch');
+    expect(roadmap).toContain(
+      'v17.0.1 repair work is recorded in source docs/changelog without public npm/tag evidence',
+    );
   });
 
   it('keeps publish artifacts slim instead of shipping the full repo corpus', () => {
