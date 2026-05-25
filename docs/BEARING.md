@@ -39,18 +39,18 @@ of handwritten adapter folklore.
 
 Current branch state at this boundary:
 
-- Current branch: `v18-continuum-slices-66-75`
+- Current branch: `v18-release-prep-slices-97-102`
 - Base branch: `main`
-- Current `origin/main`: `d379eb81`
-- Latest merged PR: #105, v18 release runway planning
+- Current `origin/main`: `023c7d75`
+- Latest merged PR: #106, v18 release-candidate evidence and review cleanup
 - Latest released package line: `17.0.1`
 - Latest completed implementation cycle:
   `0244-v18-backlog-reconciliation`
-- Current work: backlog reconciliation after the v18 release-candidate
-  evidence packet, with the next goalpost narrowed to public release-prep
-  gates and residual-risk decisions.
-- Cleanup checkpoint: this branch is ahead of `origin/main` with the v18
-  release-candidate evidence and backlog-reconciliation work.
+- Current work: release-prep hardening for `v18.0.0`, with the next goalpost
+  narrowed to gate evidence, package metadata, public operator notes, and a
+  residual raw content/property storage decision.
+- Cleanup checkpoint: PR #106 is merged to `main`; this branch starts from that
+  merge and must not widen the v18 promise while preparing the public tag.
 
 The current v18 graph-model posture is:
 
@@ -214,6 +214,18 @@ PR #102 landed v18 slices 36 through 40:
 - dry-run state migration planner;
 - ordered migration history input;
 - migration manifest serialization.
+
+PR #106 landed v18 slices 66 through 96:
+
+- production-runtime scratch replay and public-read wet-run proof;
+- guarded CLI finalization behind reviewed JSON confirmation;
+- generated Continuum runtime-boundary contract conformance and `warp-ttd`
+  smoke evidence;
+- raw content/property retired-boundary ratchet;
+- release-candidate evidence packet;
+- backlog reconciliation after the release-candidate evidence;
+- review follow-up that tightened runtime replay validation, finalization JSON
+  evidence binding, fixture coverage, and migration script structure.
 
 Slice 36 is complete on this branch. The migration manifest root now exists
 as a frozen domain noun, with runtime-backed basis, mapping, warning, and
@@ -405,6 +417,16 @@ Slice 96 reconciled the backlog ledger with that evidence. The next practical
 goalpost is a release-prep branch that runs the full gate set, freezes package
 and release notes, and decides whether remaining raw content/property storage
 retirement blocks the public tag or ships as explicit residual risk.
+
+### Release-Prep Checklist
+
+- [x] 97. Establish the v18 release-prep baseline:
+  [0245](design/0245-v18-release-prep-baseline/v18-release-prep-baseline.md).
+- [ ] 98. Run the release-prep gate baseline and record the evidence.
+- [ ] 99. Decide residual raw content/property storage risk.
+- [ ] 100. Freeze public operator release notes and non-goals.
+- [ ] 101. Align package, JSR, lockfile, and changelog metadata for `v18.0.0`.
+- [ ] 102. Replan from final release-prep evidence before PR review.
 
 ### Next Thirty-Slice Checklist
 
@@ -757,3 +779,10 @@ and concrete checks live in `docs/invariants/`.
 - [x] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.
 - [x] 96. Reconcile the v18 backlog after release-candidate evidence:
   [0244](design/0244-v18-backlog-reconciliation/v18-backlog-reconciliation.md).
+- [x] 97. Establish the v18 release-prep baseline:
+  [0245](design/0245-v18-release-prep-baseline/v18-release-prep-baseline.md).
+- [ ] 98. Run the release-prep gate baseline and record the evidence.
+- [ ] 99. Decide residual raw content/property storage risk.
+- [ ] 100. Freeze public operator release notes and non-goals.
+- [ ] 101. Align package, JSR, lockfile, and changelog metadata for `v18.0.0`.
+- [ ] 102. Replan from final release-prep evidence before PR review.
