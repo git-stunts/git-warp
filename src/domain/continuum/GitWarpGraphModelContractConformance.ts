@@ -104,34 +104,45 @@ export default class GitWarpGraphModelContractConformance {
     return new GitWarpGraphModelContractConformanceResult({
       descriptor: checkedDescriptor,
       manifest: checkedManifest,
-      checks: [
-        checkEquals(
-          'runtime-boundary-family',
-          checkedDescriptor.familyId.toString(),
-          RUNTIME_BOUNDARY_FAMILY_ID,
-        ),
-        checkEquals(
-          'runtime-boundary-artifact-kind',
-          checkedDescriptor.artifactKind,
-          CONTINUUM_FIXTURE_ARTIFACT_KIND,
-        ),
-        checkIncludes(
-          'runtime-boundary-schema',
-          checkedDescriptor.sourceSchemaPath,
-          RUNTIME_BOUNDARY_SCHEMA_BASENAME,
-        ),
-        checkTarget(checkedDescriptor, CONTINUUM_FIXTURE_TARGET),
-        checkTarget(checkedDescriptor, WARP_TTD_TARGET),
-        checkGeneratedAuthority(checkedDescriptor),
-        checkFactKind(checkedManifest, V17_GOLDEN_NODE_FACT),
-        checkFactKind(checkedManifest, V17_GOLDEN_EDGE_FACT),
-        checkFactKind(checkedManifest, V17_GOLDEN_PROPERTY_FACT),
-        checkFactKind(checkedManifest, V17_GOLDEN_CONTENT_FACT),
-        checkFactKind(checkedManifest, V17_GOLDEN_REMOVAL_FACT),
-        checkFactKind(checkedManifest, V17_GOLDEN_MULTI_WRITER_FACT),
-      ],
+      checks: buildConformanceChecks(checkedDescriptor, checkedManifest),
     });
   }
+}
+
+function buildConformanceChecks(
+  descriptor: ContinuumArtifactDescriptor,
+  manifest: V17GoldenGraphFixtureManifest,
+): readonly GitWarpGraphModelContractConformanceCheck[] {
+  return Object.freeze([
+    ...descriptorConformanceChecks(descriptor),
+    ...manifestConformanceChecks(manifest),
+  ]);
+}
+
+function descriptorConformanceChecks(
+  descriptor: ContinuumArtifactDescriptor,
+): readonly GitWarpGraphModelContractConformanceCheck[] {
+  return Object.freeze([
+    checkEquals('runtime-boundary-family', descriptor.familyId.toString(), RUNTIME_BOUNDARY_FAMILY_ID),
+    checkEquals('runtime-boundary-artifact-kind', descriptor.artifactKind, CONTINUUM_FIXTURE_ARTIFACT_KIND),
+    checkIncludes('runtime-boundary-schema', descriptor.sourceSchemaPath, RUNTIME_BOUNDARY_SCHEMA_BASENAME),
+    checkTarget(descriptor, CONTINUUM_FIXTURE_TARGET),
+    checkTarget(descriptor, WARP_TTD_TARGET),
+    checkGeneratedAuthority(descriptor),
+  ]);
+}
+
+function manifestConformanceChecks(
+  manifest: V17GoldenGraphFixtureManifest,
+): readonly GitWarpGraphModelContractConformanceCheck[] {
+  return Object.freeze([
+    checkFactKind(manifest, V17_GOLDEN_NODE_FACT),
+    checkFactKind(manifest, V17_GOLDEN_EDGE_FACT),
+    checkFactKind(manifest, V17_GOLDEN_PROPERTY_FACT),
+    checkFactKind(manifest, V17_GOLDEN_CONTENT_FACT),
+    checkFactKind(manifest, V17_GOLDEN_REMOVAL_FACT),
+    checkFactKind(manifest, V17_GOLDEN_MULTI_WRITER_FACT),
+  ]);
 }
 
 function checkEquals(
