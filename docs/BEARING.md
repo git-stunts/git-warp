@@ -27,9 +27,10 @@ Continuum remains translated git-warp evidence.
 
 ## Where Are We
 
-`git-warp` has shipped `v17.0.0` and the `v17.0.1` release repair. The
-active major direction is `v18.0.0`: Continuum/WARP Optic compatibility for
-git-warp as an independent Continuum participant.
+`git-warp` has a public `v17.0.0` package/tag line, with `v17.0.1` repair
+work recorded in source docs but not present as public package/tag evidence.
+The active major direction is `v18.0.0`: Continuum/WARP Optic compatibility
+for git-warp as an independent Continuum participant.
 
 The long-term compatibility target is the WARP Optic shape described in
 `~/git/blog/aion-paper-07/dist/aion-paper-07.txt`, plus the Continuum
@@ -43,8 +44,10 @@ Current branch state at this boundary:
 - Base branch: `main`
 - Current `origin/main`: `fdcb5da9`
 - Latest merged PR: #107, v18 release-prep metadata and final gates
-- Latest released package line: `17.0.1` until the `v18.0.0` tag and publish
+- Latest released package line: `17.0.0` until the `v18.0.0` tag and publish
   complete
+- Latest recorded repair entry: `17.0.1` exists in source docs/changelog
+  without public npm/tag evidence
 - Release-prep package metadata: `18.0.0`, merged to `main`, not tagged or
   published yet
 - Latest completed implementation cycle:
