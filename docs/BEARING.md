@@ -426,7 +426,8 @@ retirement blocks the public tag or ships as explicit residual risk.
   [0246](design/0246-v18-release-gate-baseline/v18-release-gate-baseline.md).
 - [x] 99. Decide residual raw content/property storage risk:
   [0247](design/0247-v18-residual-raw-storage-risk-decision/v18-residual-raw-storage-risk-decision.md).
-- [ ] 100. Freeze public operator release notes and non-goals.
+- [x] 100. Freeze public operator release notes and non-goals:
+  [0248](design/0248-v18-public-operator-release-notes/v18-public-operator-release-notes.md).
 - [ ] 101. Align package, JSR, lockfile, and changelog metadata for `v18.0.0`.
 - [ ] 102. Replan from final release-prep evidence before PR review.
 
@@ -787,6 +788,7 @@ and concrete checks live in `docs/invariants/`.
   [0246](design/0246-v18-release-gate-baseline/v18-release-gate-baseline.md).
 - [x] 99. Decide residual raw content/property storage risk:
   [0247](design/0247-v18-residual-raw-storage-risk-decision/v18-residual-raw-storage-risk-decision.md).
-- [ ] 100. Freeze public operator release notes and non-goals.
+- [x] 100. Freeze public operator release notes and non-goals:
+  [0248](design/0248-v18-public-operator-release-notes/v18-public-operator-release-notes.md).
 - [ ] 101. Align package, JSR, lockfile, and changelog metadata for `v18.0.0`.
 - [ ] 102. Replan from final release-prep evidence before PR review.
