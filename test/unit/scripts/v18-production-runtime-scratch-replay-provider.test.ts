@@ -172,6 +172,34 @@ describe('v18 production runtime scratch replay provider', () => {
       process.chdir(originalWorkingDirectory);
     }
   });
+
+  it('fails closed with invalid-target evidence for empty scratch target fields', async () => {
+    const cases = Object.freeze([
+      operation('property', 'property:empty-owner', propertyTarget('', 'title')),
+      operation('property', 'property:empty-key', propertyTarget('node:alpha', '')),
+      operation('content-attachment', 'content:empty-node', 'content-attachment::_content'),
+    ]);
+
+    for (const candidate of cases) {
+      const repositoryPath = await initializedRepository('git-warp-v18-runtime-replay-empty-target-');
+      const writeResult = await writeGraphModelMigrationScratchHistory({
+        repositoryPath,
+        scratchRefName: SCRATCH_REF,
+        patchPlan: patchPlan([candidate]),
+      });
+      const provider = createGraphModelMigrationProductionRuntimeConformanceProvider({
+        sourceRepositoryPath: repositoryPath,
+        graphId: GRAPH_ID,
+      });
+
+      const result = await provider(writeResult);
+
+      expect(result?.status).toBe(GRAPH_MODEL_MIGRATION_RUNTIME_CONFORMANCE_FAILED);
+      expect(result?.fatalErrors.map((notice) => notice.code)).toEqual([
+        'E_RUNTIME_REPLAY_INVALID_OPERATION_TARGET',
+      ]);
+    }
+  });
 });
 
 async function initializedRepository(prefix: string): Promise<string> {
@@ -211,7 +239,7 @@ function patchPlan(
 }
 
 function operation(
-  kind: 'node-record' | 'edge-record' | 'property',
+  kind: 'node-record' | 'edge-record' | 'property' | 'content-attachment',
   sourceKey: string,
   targetKey: string,
 ): GraphModelMigrationLoweredOperation {

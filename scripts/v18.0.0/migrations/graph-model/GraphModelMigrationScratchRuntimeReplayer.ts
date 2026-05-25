@@ -244,7 +244,10 @@ function parsePropertyTarget(targetKey: string): {
   if (propertyKey.nextCursor !== targetKey.length) {
     throw invalidTarget('property target has trailing data');
   }
-  return Object.freeze({ ownerId: ownerId.value, propertyKey: propertyKey.value });
+  return Object.freeze({
+    ownerId: requireNonEmptyTargetField(ownerId.value, 'ownerId'),
+    propertyKey: requireNonEmptyTargetField(propertyKey.value, 'propertyKey'),
+  });
 }
 
 function readLength(text: string, cursor: number): { readonly value: number; readonly nextCursor: number } {
@@ -285,7 +288,17 @@ function parseNodeContentTarget(targetKey: string): string {
     throw invalidTarget(`content target ${targetKey} must identify a node ${CONTENT_PROPERTY_KEY} attachment`);
   }
   const legacyKey = targetKey.slice(CONTENT_ATTACHMENT_PREFIX.length);
-  return legacyKey.slice(0, legacyKey.length - NODE_CONTENT_SUFFIX.length);
+  return requireNonEmptyTargetField(
+    legacyKey.slice(0, legacyKey.length - NODE_CONTENT_SUFFIX.length),
+    'content ownerId',
+  );
+}
+
+function requireNonEmptyTargetField(value: string, label: string): string {
+  if (value.length === 0) {
+    throw invalidTarget(`${label} field must not be empty`);
+  }
+  return value;
 }
 
 function invalidTarget(message: string): GraphModelMigrationScratchRuntimeReplayerError {
