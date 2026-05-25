@@ -443,7 +443,8 @@ resumes after the finalization path is guarded and reviewable.
   [0234](design/0234-v18-guarded-cli-finalization/v18-guarded-cli-finalization.md).
 - [x] 87. Add live-ref drift and existing-archive finalization tests:
   [0235](design/0235-v18-finalization-drift-and-archive-tests/v18-finalization-drift-and-archive-tests.md).
-- [ ] 88. Inventory current Wesley/Continuum generated graph contracts.
+- [x] 88. Inventory current Wesley/Continuum generated graph contracts:
+  [0236](design/0236-v18-generated-contract-inventory/v18-generated-contract-inventory.md).
 - [ ] 89. Add generated Continuum contract fixture ingestion.
 - [ ] 90. Add graph-model conformance checks against generated contracts.
 - [ ] 91. Add a `warp-ttd` contract smoke over generated-family facts.
@@ -478,6 +479,8 @@ resumes after the finalization path is guarded and reviewable.
   blocks finalization if the artifact differs from observed evidence.
 - CLI finalization tests now prove stale live refs and pre-existing archive refs
   return blocked reports and non-zero exit codes.
+- Generated contract inventory evidence now names local Continuum schemas,
+  Wesley contract-design sources, and `warp-ttd` generated-family intake files.
 
 ### User Stories
 
@@ -701,7 +704,7 @@ and concrete checks live in `docs/invariants/`.
 - [x] 85. Add finalization report sections and archive evidence output.
 - [x] 86. Enable guarded CLI finalization behind explicit confirmation.
 - [x] 87. Add live-ref drift and existing-archive finalization tests.
-- [ ] 88. Inventory current Wesley/Continuum generated graph contracts.
+- [x] 88. Inventory current Wesley/Continuum generated graph contracts.
 - [ ] 89. Add generated Continuum contract fixture ingestion.
 - [ ] 90. Add graph-model conformance checks against generated contracts.
 - [ ] 91. Add a `warp-ttd` contract smoke over generated-family facts.
