@@ -3,6 +3,10 @@ import GenesisEquivalenceBoundary
 import GenesisEquivalenceReading
   from '../../../../src/domain/migrations/GenesisEquivalenceReading.ts';
 import GenesisEquivalenceReadingFact, {
+  GENESIS_EQUIVALENCE_CONTENT_ATTACHMENT_FACT,
+  GENESIS_EQUIVALENCE_EDGE_FACT,
+  GENESIS_EQUIVALENCE_NODE_FACT,
+  GENESIS_EQUIVALENCE_PROPERTY_FACT,
   type GenesisEquivalenceReadingFactKind,
 } from '../../../../src/domain/migrations/GenesisEquivalenceReadingFact.ts';
 import type { GraphModelMigrationPlannedGraphOperationKind }
@@ -20,6 +24,16 @@ import {
 } from './V17GoldenFixtureScratchFactKeyCodec.ts';
 import { createGraphModelMigrationScratchPublicReadProvider }
   from './GraphModelMigrationScratchPublicReadBuilder.ts';
+
+const SCRATCH_NODE_RECORD_KIND = 'node-record';
+const SCRATCH_EDGE_RECORD_KIND = 'edge-record';
+const SCRATCH_PROPERTY_KIND = 'property';
+const SCRATCH_CONTENT_ATTACHMENT_KIND = 'content-attachment';
+const FIELD_VISIBILITY = 'visibility';
+const FIELD_VALUE = 'value';
+const FIELD_PAYLOAD_OID = 'payload.oid';
+const FIELD_COVERAGE = 'coverage';
+const VALUE_REMOVED = 'removed';
 
 export class V17GoldenFixtureScratchReadingProviderError extends Error {
   constructor(message: string) {
@@ -84,17 +98,21 @@ function factKeyForWrittenPatch(
   kind: GraphModelMigrationPlannedGraphOperationKind,
   targetKey: string,
 ): string {
-  if (kind === 'node-record') {
-    return factKey('node', targetKey, 'visibility');
+  if (kind === SCRATCH_NODE_RECORD_KIND) {
+    return factKey(GENESIS_EQUIVALENCE_NODE_FACT, targetKey, FIELD_VISIBILITY);
   }
-  if (kind === 'edge-record') {
-    return factKey('edge', targetKey, 'visibility');
+  if (kind === SCRATCH_EDGE_RECORD_KIND) {
+    return factKey(GENESIS_EQUIVALENCE_EDGE_FACT, targetKey, FIELD_VISIBILITY);
   }
-  if (kind === 'property') {
-    return factKey('property', publicPropertyFactKey(targetKey), 'value');
+  if (kind === SCRATCH_PROPERTY_KIND) {
+    return factKey(GENESIS_EQUIVALENCE_PROPERTY_FACT, publicPropertyFactKey(targetKey), FIELD_VALUE);
   }
-  if (kind === 'content-attachment') {
-    return factKey('content-attachment', publicContentFactKey(targetKey), 'payload.oid');
+  if (kind === SCRATCH_CONTENT_ATTACHMENT_KIND) {
+    return factKey(
+      GENESIS_EQUIVALENCE_CONTENT_ATTACHMENT_FACT,
+      publicContentFactKey(targetKey),
+      FIELD_PAYLOAD_OID,
+    );
   }
   throw new V17GoldenFixtureScratchReadingProviderError(`unsupported scratch operation kind ${kind}`);
 }
@@ -141,18 +159,18 @@ function lifecycleCoverageFactFor(
 ): GenesisEquivalenceReadingFact | null {
   if (fact instanceof V17GoldenRemovalFact) {
     return publicFactWithBoundary(
-      'node',
+      GENESIS_EQUIVALENCE_NODE_FACT,
       fact.key,
-      'visibility',
-      'removed',
+      FIELD_VISIBILITY,
+      VALUE_REMOVED,
       fixtureBoundaryFor(manifest, operationIndex),
     );
   }
   if (fact instanceof V17GoldenMultiWriterFact) {
     return publicFactWithBoundary(
-      'property',
+      GENESIS_EQUIVALENCE_PROPERTY_FACT,
       fact.key,
-      'coverage',
+      FIELD_COVERAGE,
       fact.description,
       fixtureBoundaryFor(manifest, operationIndex),
     );
