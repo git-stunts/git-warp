@@ -134,6 +134,8 @@ describe('GraphModelMigrationFinalizationRequestJsonAdapter', () => {
   });
 
   it('rejects malformed confirmation JSON', () => {
+    expect(() => parseGraphModelMigrationFinalizationConfirmation('{'))
+      .toThrow(/finalization confirmation JSON/);
     expect(() => parseGraphModelMigrationFinalizationConfirmation(JSON.stringify({
       confirmationToken: 'YES',
     }))).toThrow(/confirmation token/);

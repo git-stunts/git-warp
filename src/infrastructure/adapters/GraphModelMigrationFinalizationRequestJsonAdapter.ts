@@ -57,7 +57,7 @@ export function parseGraphModelMigrationFinalizationConfirmation(
   raw: string,
 ): GraphModelMigrationFinalizationConfirmation {
   return parseDomainValue('finalization confirmation', () => {
-    const envelope = requireJsonObject(parseJson(raw), 'finalizationConfirmation');
+    const envelope = requireJsonObject(parseJson(raw, 'finalization confirmation'), 'finalizationConfirmation');
     rejectUnknownKeys(envelope, CONFIRMATION_KEYS, 'finalizationConfirmation');
     return new GraphModelMigrationFinalizationConfirmation({
       token: readRequiredString(envelope, 'finalizationConfirmation.confirmationToken', 'confirmationToken'),
@@ -172,11 +172,11 @@ function readFatalNotices(source: JsonObject): readonly GraphModelMigrationNotic
   });
 }
 
-function parseJson(raw: string): unknown {
+function parseJson(raw: string, label = 'finalization request'): unknown {
   try {
     return JSON.parse(raw);
   } catch {
-    throw new AdapterValidationError('Graph model migration finalization request JSON must be valid JSON');
+    throw new AdapterValidationError(`Graph model migration ${label} JSON must be valid JSON`);
   }
 }
 
