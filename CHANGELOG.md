@@ -188,6 +188,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- V18 release-candidate review follow-up now rejects empty production-runtime
+  replay repository paths, rejects empty scratch replay target fields with
+  structured invalid-target evidence, and reports confirmation JSON parse
+  failures with confirmation-specific context.
 - V18 release-candidate review follow-up now preserves structured
   invalid-target replay evidence for malformed edge-property scratch owners,
   classifies v17 fixture property owners from declared edge facts, and splits
