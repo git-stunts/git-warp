@@ -188,6 +188,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- V18 release-candidate review follow-up now preserves structured
+  invalid-target replay evidence for malformed edge-property scratch owners,
+  classifies v17 fixture property owners from declared edge facts, and splits
+  migration script collaborators under the repository file-size cap.
 - V18 release-candidate review follow-up now binds reviewed finalization JSON
   to runtime witness evidence, normalizes semantic finalization request
   validation as adapter errors, adds edge-property coverage to the canonical

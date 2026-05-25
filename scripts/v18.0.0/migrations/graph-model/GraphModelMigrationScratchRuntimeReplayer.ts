@@ -22,23 +22,29 @@ import {
   type GraphModelMigrationScratchOperationRecord,
   readGraphModelMigrationScratchOperationRecords,
 } from './GraphModelMigrationScratchReadingBuilder.ts';
-import { runMigrationGit } from './GitMigrationCommandRunner.ts';
+import {
+  GraphModelMigrationScratchRuntimeReplayerError,
+  GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_INVALID_OPERATION_TARGET,
+  GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_SCRATCH_HEAD_CHANGED,
+  GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_SCRATCH_REF_UNREADABLE,
+} from './GraphModelMigrationScratchRuntimeReplayErrors.ts';
+import {
+  observedGraphModelMigrationScratchHead,
+  requireGraphModelMigrationRuntimeReplayRequest,
+  requireGraphModelMigrationRuntimeReplayString,
+} from './GraphModelMigrationScratchRuntimeReplayValidation.ts';
 
 const PROPERTY_TARGET_PREFIX = 'property-target-key:length-prefixed-v1:';
 const CONTENT_ATTACHMENT_PREFIX = 'content-attachment:';
 const NODE_CONTENT_SUFFIX = `:${CONTENT_PROPERTY_KEY}`;
 
-export const GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_SCRATCH_REF_UNREADABLE =
-  'E_RUNTIME_REPLAY_SCRATCH_REF_UNREADABLE';
-export const GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_SCRATCH_HEAD_CHANGED =
-  'E_RUNTIME_REPLAY_SCRATCH_HEAD_CHANGED';
-export const GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_INVALID_OPERATION_TARGET =
-  'E_RUNTIME_REPLAY_INVALID_OPERATION_TARGET';
-
-export type GraphModelMigrationScratchRuntimeReplayErrorCode =
-  | typeof GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_SCRATCH_REF_UNREADABLE
-  | typeof GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_SCRATCH_HEAD_CHANGED
-  | typeof GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_INVALID_OPERATION_TARGET;
+export {
+  GraphModelMigrationScratchRuntimeReplayerError,
+  GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_INVALID_OPERATION_TARGET,
+  GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_SCRATCH_HEAD_CHANGED,
+  GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_SCRATCH_REF_UNREADABLE,
+  type GraphModelMigrationScratchRuntimeReplayErrorCode,
+} from './GraphModelMigrationScratchRuntimeReplayErrors.ts';
 
 export type GraphModelMigrationScratchRuntimeReplayOptions = {
   readonly sourceRepositoryPath: string;
@@ -56,9 +62,12 @@ export type GraphModelMigrationScratchRuntimeReplayOutput = {
 export async function replayVerifiedGraphModelMigrationScratchIntoRuntime(
   options: GraphModelMigrationScratchRuntimeReplayOptions,
 ): Promise<GraphModelMigrationScratchRuntimeReplayOutput> {
-  const sourceRepositoryPath = requireNonEmptyString(options.sourceRepositoryPath, 'sourceRepositoryPath');
-  const request = requireReplayRequest(options.request);
-  const observedHead = await observedScratchHead(sourceRepositoryPath, request);
+  const sourceRepositoryPath = requireGraphModelMigrationRuntimeReplayString(
+    options.sourceRepositoryPath,
+    'sourceRepositoryPath',
+  );
+  const request = requireGraphModelMigrationRuntimeReplayRequest(options.request);
+  const observedHead = await observedGraphModelMigrationScratchHead(sourceRepositoryPath, request);
   if (observedHead === null) {
     throw new GraphModelMigrationScratchRuntimeReplayerError(
       GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_SCRATCH_REF_UNREADABLE,
@@ -82,8 +91,11 @@ export async function replayVerifiedGraphModelMigrationScratchIntoRuntime(
 export async function replayGraphModelMigrationScratchIntoRuntime(
   options: GraphModelMigrationScratchRuntimeReplayOptions,
 ): Promise<GraphModelMigrationScratchRuntimeReplayOutput> {
-  const sourceRepositoryPath = requireNonEmptyString(options.sourceRepositoryPath, 'sourceRepositoryPath');
-  const request = requireReplayRequest(options.request);
+  const sourceRepositoryPath = requireGraphModelMigrationRuntimeReplayString(
+    options.sourceRepositoryPath,
+    'sourceRepositoryPath',
+  );
+  const request = requireGraphModelMigrationRuntimeReplayRequest(options.request);
   let runtimeRepositoryPath = options.runtimeRepositoryPath ?? null;
   let shouldCleanup = false;
   if (runtimeRepositoryPath === null) {
@@ -272,60 +284,11 @@ function parseNodeContentTarget(targetKey: string): string {
   return legacyKey.slice(0, legacyKey.length - NODE_CONTENT_SUFFIX.length);
 }
 
-async function observedScratchHead(
-  repositoryPath: string,
-  request: GraphModelMigrationRuntimeReplayRequest,
-): Promise<string | null> {
-  const result = await runMigrationGit(
-    repositoryPath,
-    ['show-ref', '--verify', '--hash', request.scratchRef.refName],
-    null,
-  );
-  if (!result.ok()) {
-    return null;
-  }
-  const observedHead = result.stdout.trim();
-  return observedHead.length === 0 ? null : observedHead;
-}
-
 function invalidTarget(message: string): GraphModelMigrationScratchRuntimeReplayerError {
   return new GraphModelMigrationScratchRuntimeReplayerError(
     GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_INVALID_OPERATION_TARGET,
     message,
   );
-}
-
-function requireReplayRequest(
-  request: GraphModelMigrationRuntimeReplayRequest,
-): GraphModelMigrationRuntimeReplayRequest {
-  if (!(request instanceof GraphModelMigrationRuntimeReplayRequest)) {
-    throw new GraphModelMigrationScratchRuntimeReplayerError(
-      GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_INVALID_OPERATION_TARGET,
-      'request must be a GraphModelMigrationRuntimeReplayRequest',
-    );
-  }
-  return request;
-}
-
-function requireNonEmptyString(value: string, name: string): string {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new GraphModelMigrationScratchRuntimeReplayerError(
-      GRAPH_MODEL_MIGRATION_RUNTIME_REPLAY_INVALID_OPERATION_TARGET,
-      `${name} must be a non-empty string`,
-    );
-  }
-  return value;
-}
-
-export class GraphModelMigrationScratchRuntimeReplayerError extends Error {
-  readonly code: GraphModelMigrationScratchRuntimeReplayErrorCode;
-
-  constructor(code: GraphModelMigrationScratchRuntimeReplayErrorCode, message: string) {
-    super(message);
-    this.name = 'GraphModelMigrationScratchRuntimeReplayerError';
-    this.code = code;
-    Object.freeze(this);
-  }
 }
 
 export function isGraphModelMigrationContentMetadataProperty(propertyKey: string): boolean {
