@@ -2,19 +2,26 @@ import { readFile, writeFile } from 'node:fs/promises';
 
 import GenesisEquivalenceComparisonBasis
   from '../../../../src/domain/migrations/GenesisEquivalenceComparisonBasis.ts';
-import V17GoldenGraphFixtureGenesisReading
-  from '../../../../src/domain/migrations/V17GoldenGraphFixtureGenesisReading.ts';
 import DryRunGraphModelMigrationPlanner
   from '../../../../src/domain/migrations/DryRunGraphModelMigrationPlanner.ts';
 import { parseGraphModelMigrationDryRunRequest }
   from '../../../../src/infrastructure/adapters/GraphModelMigrationDryRunRequestJsonAdapter.ts';
+import { parseGraphModelMigrationFinalizationRequest }
+  from '../../../../src/infrastructure/adapters/GraphModelMigrationFinalizationRequestJsonAdapter.ts';
 import { parseV17GoldenGraphFixtureManifestJson }
   from '../../../../src/infrastructure/adapters/V17GoldenGraphFixtureManifestJsonAdapter.ts';
 import { runGraphModelMigrationCommand } from './GraphModelMigrationCommand.ts';
 import { formatGraphModelMigrationCommandReport } from './GraphModelMigrationCommandReport.ts';
-import { buildGraphModelMigrationScratchReading } from './GraphModelMigrationScratchReadingBuilder.ts';
+import { createGraphModelMigrationProductionRuntimeConformanceProvider }
+  from './GraphModelMigrationProductionRuntimeReplayProvider.ts';
+import { buildV17RestoredPublicReadLegacyReading }
+  from './V17RestoredPublicReadLegacyReadingBuilder.ts';
+import { createV17GoldenFixtureScratchReadingProvider }
+  from './V17GoldenGraphFixtureWetRunHarness.ts';
 import type DryRunGraphModelMigrationPlan
   from '../../../../src/domain/migrations/DryRunGraphModelMigrationPlan.ts';
+import type GraphModelMigrationFinalizationRequest
+  from '../../../../src/domain/migrations/GraphModelMigrationFinalizationRequest.ts';
 import type GraphModelMigrationNotice
   from '../../../../src/domain/migrations/GraphModelMigrationNotice.ts';
 
@@ -39,6 +46,7 @@ export class GraphModelMigrationCommandCliArgs {
   readonly legacyFixtureManifestPath: string | null;
   readonly scratchRefName: string | null;
   readonly reportOutPath: string | null;
+  readonly finalizationRequestPath: string | null;
   readonly helpRequested: boolean;
 
   constructor(options: {
@@ -47,6 +55,7 @@ export class GraphModelMigrationCommandCliArgs {
     readonly legacyFixtureManifestPath: string | null;
     readonly scratchRefName: string | null;
     readonly reportOutPath: string | null;
+    readonly finalizationRequestPath: string | null;
     readonly helpRequested: boolean;
   }) {
     this.repositoryPath = options.repositoryPath;
@@ -54,6 +63,7 @@ export class GraphModelMigrationCommandCliArgs {
     this.legacyFixtureManifestPath = options.legacyFixtureManifestPath;
     this.scratchRefName = options.scratchRefName;
     this.reportOutPath = options.reportOutPath;
+    this.finalizationRequestPath = options.finalizationRequestPath;
     this.helpRequested = options.helpRequested;
     Object.freeze(this);
   }
@@ -80,6 +90,7 @@ export function graphModelMigrationCommandUsage(): string {
       '--legacy-fixture-manifest <path>',
       '--scratch-ref <ref>',
       '[--report-out <path>]',
+      '[--finalization-request <path>]',
     ].join(' '),
     '',
     'Options:',
@@ -88,9 +99,10 @@ export function graphModelMigrationCommandUsage(): string {
     '  --legacy-fixture-manifest <path>  V17 fixture manifest used for legacy equivalence reading.',
     '  --scratch-ref <ref>               refs/warp-migration-scratch/* target for scratch output.',
     '  --report-out <path>               Also write the deterministic command report to this path.',
+    '  --finalization-request <path>      JSON confirmation artifact required before live refs move.',
     '  --help                           Show this help.',
     '',
-    'Finalization flags are intentionally refused by this wrapper until live-ref CLI finalization is designed.',
+    'Legacy finalization flags are refused; use --finalization-request instead.',
   ].join('\n');
 }
 
@@ -103,6 +115,7 @@ export function parseGraphModelMigrationCommandCliArgs(
   let legacyFixtureManifestPath: string | null = null;
   let scratchRefName: string | null = null;
   let reportOutPath: string | null = null;
+  let finalizationRequestPath: string | null = null;
   let helpRequested = false;
 
   for (let index = 0; index < argv.length; index++) {
@@ -132,6 +145,11 @@ export function parseGraphModelMigrationCommandCliArgs(
       index++;
       continue;
     }
+    if (arg === '--finalization-request') {
+      finalizationRequestPath = readArgValue(argv, index, '--finalization-request');
+      index++;
+      continue;
+    }
     if (arg === '--help' || arg === '-h') {
       helpRequested = true;
       continue;
@@ -150,6 +168,7 @@ export function parseGraphModelMigrationCommandCliArgs(
     legacyFixtureManifestPath,
     scratchRefName,
     reportOutPath,
+    finalizationRequestPath,
     helpRequested,
   });
 }
@@ -171,6 +190,11 @@ export async function runGraphModelMigrationCommandCli(
   );
   const dryRunRequest = parseGraphModelMigrationDryRunRequest(requestText);
   const legacyManifest = parseV17GoldenGraphFixtureManifestJson(legacyManifestText);
+  const finalizationRequest = args.finalizationRequestPath === null
+    ? null
+    : parseGraphModelMigrationFinalizationRequest(
+      await readFile(args.finalizationRequestPath, 'utf8'),
+    );
   const preflightPlan = new DryRunGraphModelMigrationPlanner().plan(dryRunRequest);
   if (preflightPlan.hasFatalErrors() || preflightPlan.manifest === null) {
     return new GraphModelMigrationCommandCliResult(1, preflightFailureReport(preflightPlan), '');
@@ -189,20 +213,44 @@ export async function runGraphModelMigrationCommandCli(
     legacyReading: null,
     scratchReading: null,
     readingProviders: {
-      legacyReading: async () => new V17GoldenGraphFixtureGenesisReading().build(legacyManifest),
-      scratchReading: async () => await buildGraphModelMigrationScratchReading({
+      legacyReading: async () => await buildV17RestoredPublicReadLegacyReading({
         repositoryPath,
-        scratchRefName,
-        readingId: 'scratch:command-cli',
+        manifest: legacyManifest,
+      }),
+      scratchReading: createV17GoldenFixtureScratchReadingProvider({
+        sourceRepositoryPath: repositoryPath,
+        manifest: legacyManifest,
+        runtimeRepositoryPath: null,
       }),
     },
-    finalization: null,
+    finalization: finalizationOptions(finalizationRequest, repositoryPath, legacyManifest.graphId),
   });
   const report = formatGraphModelMigrationCommandReport(result);
   if (args.reportOutPath !== null) {
     await writeFile(args.reportOutPath, report, 'utf8');
   }
   return new GraphModelMigrationCommandCliResult(commandExitCode(result), report, '');
+}
+
+function finalizationOptions(
+  request: GraphModelMigrationFinalizationRequest | null,
+  repositoryPath: string,
+  graphId: string,
+): Parameters<typeof runGraphModelMigrationCommand>[0]['finalization'] {
+  if (request === null) {
+    return null;
+  }
+  return {
+    liveRefName: request.liveRefName,
+    expectedLiveHead: requireFinalizationString(request.expectedLiveHead, 'expectedLiveHead'),
+    archiveRefName: requireFinalizationString(request.archiveRefName, 'archiveRefName'),
+    confirmation: request.confirmation,
+    runtimeConformance: createGraphModelMigrationProductionRuntimeConformanceProvider({
+      sourceRepositoryPath: repositoryPath,
+      graphId,
+    }),
+    reviewedRequest: request,
+  };
 }
 
 function commandExitCode(result: Awaited<ReturnType<typeof runGraphModelMigrationCommand>>): number {
@@ -246,6 +294,13 @@ function requireCommandArgs(args: GraphModelMigrationCommandCliArgs): void {
 function requireString(value: string | null, flag: string): string {
   if (value === null) {
     throw new GraphModelMigrationCommandCliArgumentError(`${flag} is required`);
+  }
+  return value;
+}
+
+function requireFinalizationString(value: string | null, label: string): string {
+  if (value === null) {
+    throw new GraphModelMigrationCommandCliArgumentError(`${label} is required in finalization request`);
   }
   return value;
 }

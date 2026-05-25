@@ -439,7 +439,8 @@ resumes after the finalization path is guarded and reviewable.
   [0232](design/0232-v18-finalization-request-json-adapters/v18-finalization-request-json-adapters.md).
 - [x] 85. Add finalization report sections and archive evidence output:
   [0233](design/0233-v18-finalization-report-archive-evidence/v18-finalization-report-archive-evidence.md).
-- [ ] 86. Enable guarded CLI finalization behind explicit confirmation.
+- [x] 86. Enable guarded CLI finalization behind explicit confirmation:
+  [0234](design/0234-v18-guarded-cli-finalization/v18-guarded-cli-finalization.md).
 - [ ] 87. Add live-ref drift and existing-archive finalization tests.
 - [ ] 88. Inventory current Wesley/Continuum generated graph contracts.
 - [ ] 89. Add generated Continuum contract fixture ingestion.
@@ -472,6 +473,8 @@ resumes after the finalization path is guarded and reviewable.
   finalization safety nouns with unknown-field rejection.
 - Command finalization reports now include archive evidence for completed and
   blocked finalization attempts.
+- CLI finalization is now enabled behind a reviewed JSON request; the command
+  blocks finalization if the artifact differs from observed evidence.
 
 ### User Stories
 
@@ -693,7 +696,7 @@ and concrete checks live in `docs/invariants/`.
 - [x] 83. Design live finalization CLI confirmation and reporting.
 - [x] 84. Add finalization request JSON and confirmation adapters.
 - [x] 85. Add finalization report sections and archive evidence output.
-- [ ] 86. Enable guarded CLI finalization behind explicit confirmation.
+- [x] 86. Enable guarded CLI finalization behind explicit confirmation.
 - [ ] 87. Add live-ref drift and existing-archive finalization tests.
 - [ ] 88. Inventory current Wesley/Continuum generated graph contracts.
 - [ ] 89. Add generated Continuum contract fixture ingestion.

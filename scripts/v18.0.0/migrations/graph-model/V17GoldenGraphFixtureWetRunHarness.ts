@@ -250,7 +250,7 @@ function propertyMappingFromFact(fact: V17GoldenPropertyFact): GraphModelMigrati
   });
 }
 
-function createV17GoldenFixtureScratchReadingProvider(options: {
+export function createV17GoldenFixtureScratchReadingProvider(options: {
   readonly sourceRepositoryPath: string;
   readonly manifest: V17GoldenGraphFixtureManifest;
   readonly runtimeRepositoryPath: string | null;

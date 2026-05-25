@@ -19,6 +19,10 @@ import GraphModelMigrationFinalizationResult
   from '../../../../src/domain/migrations/GraphModelMigrationFinalizationResult.ts';
 import GraphModelMigrationFinalizationSafety
   from '../../../../src/domain/migrations/GraphModelMigrationFinalizationSafety.ts';
+import GraphModelMigrationFinalizationSafetyResult
+  from '../../../../src/domain/migrations/GraphModelMigrationFinalizationSafetyResult.ts';
+import GraphModelMigrationNotice
+  from '../../../../src/domain/migrations/GraphModelMigrationNotice.ts';
 import GraphModelMigrationOperationLowerer
   from '../../../../src/domain/migrations/GraphModelMigrationOperationLowerer.ts';
 import GraphModelMigrationOperationLoweringResult
@@ -48,6 +52,7 @@ export type GraphModelMigrationCommandFinalizationOptions = {
   readonly archiveRefName: string;
   readonly confirmation: GraphModelMigrationFinalizationConfirmation | null;
   readonly runtimeConformance: GraphModelMigrationRuntimeConformanceProvider | null;
+  readonly reviewedRequest?: GraphModelMigrationFinalizationRequest | null;
 };
 
 export type GraphModelMigrationCommandOptions = {
@@ -171,26 +176,111 @@ async function runFinalization(options: {
     '--hash',
     options.finalization.liveRefName,
   ]);
-  const safetyResult = new GraphModelMigrationFinalizationSafety().evaluate(
-    new GraphModelMigrationFinalizationRequest({
-      liveRefName: options.finalization.liveRefName,
-      expectedLiveHead: options.finalization.expectedLiveHead,
-      observedLiveHead,
-      scratchRef: options.scratchWriteResult.scratchRef,
-      scratchHead: options.scratchWriteResult.scratchHead,
-      archiveRefName: options.finalization.archiveRefName,
-      confirmation: options.finalization.confirmation,
-      gateResult: options.gateResult,
-      runtimeConformance: await runtimeConformanceFromProvider(
-        options.finalization.runtimeConformance,
-        options.scratchWriteResult,
-      ),
-    }),
+  const request = new GraphModelMigrationFinalizationRequest({
+    liveRefName: options.finalization.liveRefName,
+    expectedLiveHead: options.finalization.expectedLiveHead,
+    observedLiveHead,
+    scratchRef: options.scratchWriteResult.scratchRef,
+    scratchHead: options.scratchWriteResult.scratchHead,
+    archiveRefName: options.finalization.archiveRefName,
+    confirmation: options.finalization.confirmation,
+    gateResult: options.gateResult,
+    runtimeConformance: await runtimeConformanceFromProvider(
+      options.finalization.runtimeConformance,
+      options.scratchWriteResult,
+    ),
+  });
+  const safetyResult = reviewedSafetyResult(
+    new GraphModelMigrationFinalizationSafety().evaluate(request),
+    options.finalization.reviewedRequest ?? null,
   );
   return await finalizeGraphModelMigration({
     repositoryPath: options.repositoryPath,
     safetyResult,
   });
+}
+
+function reviewedSafetyResult(
+  safetyResult: GraphModelMigrationFinalizationSafetyResult,
+  reviewedRequest: GraphModelMigrationFinalizationRequest | null,
+): GraphModelMigrationFinalizationSafetyResult {
+  if (reviewedRequest === null) {
+    return safetyResult;
+  }
+  const reviewFatalErrors = finalizationReviewFatalErrors(safetyResult.request, reviewedRequest);
+  if (reviewFatalErrors.length === 0) {
+    return safetyResult;
+  }
+  return new GraphModelMigrationFinalizationSafetyResult({
+    request: safetyResult.request,
+    fatalErrors: reviewFatalErrors.concat(safetyResult.fatalErrors),
+  });
+}
+
+function finalizationReviewFatalErrors(
+  actual: GraphModelMigrationFinalizationRequest,
+  reviewed: GraphModelMigrationFinalizationRequest,
+): readonly GraphModelMigrationNotice[] {
+  const mismatches = finalizationReviewMismatches(actual, reviewed);
+  if (mismatches.length === 0) {
+    return Object.freeze([]);
+  }
+  return Object.freeze([
+    GraphModelMigrationNotice.fatal(
+      'E_FINALIZATION_REVIEW_MISMATCH',
+      `finalization review artifact does not match observed command evidence: ${mismatches.join(', ')}`,
+    ),
+  ]);
+}
+
+function finalizationReviewMismatches(
+  actual: GraphModelMigrationFinalizationRequest,
+  reviewed: GraphModelMigrationFinalizationRequest,
+): readonly string[] {
+  return Object.freeze([
+    stringMismatch('liveRefName', actual.liveRefName, reviewed.liveRefName),
+    stringMismatch('expectedLiveHead', actual.expectedLiveHead, reviewed.expectedLiveHead),
+    stringMismatch('observedLiveHead', actual.observedLiveHead, reviewed.observedLiveHead),
+    stringMismatch('scratchRef', actual.scratchRef?.refName ?? null, reviewed.scratchRef?.refName ?? null),
+    stringMismatch('scratchHead', actual.scratchHead, reviewed.scratchHead),
+    stringMismatch('archiveRefName', actual.archiveRefName, reviewed.archiveRefName),
+    stringMismatch('confirmation', actual.confirmation?.token ?? null, reviewed.confirmation?.token ?? null),
+    stringMismatch('equivalence', equivalenceSummaryKey(actual), equivalenceSummaryKey(reviewed)),
+    stringMismatch('runtimeConformance', runtimeConformanceKey(actual), runtimeConformanceKey(reviewed)),
+  ].filter((mismatch) => mismatch !== null));
+}
+
+function stringMismatch(label: string, actual: string | null, reviewed: string | null): string | null {
+  if (actual === reviewed) {
+    return null;
+  }
+  return label;
+}
+
+function equivalenceSummaryKey(request: GraphModelMigrationFinalizationRequest): string | null {
+  const gateResult = request.gateResult;
+  if (gateResult === null) {
+    return null;
+  }
+  const summary = gateResult.proofResult.summary;
+  return [
+    summary.basis.toKey(),
+    summary.legacyFactCount,
+    summary.migratedFactCount,
+    summary.mismatchCount,
+  ].join('\0');
+}
+
+function runtimeConformanceKey(request: GraphModelMigrationFinalizationRequest): string | null {
+  const runtimeConformance = request.runtimeConformance;
+  if (runtimeConformance === null) {
+    return null;
+  }
+  return [
+    runtimeConformance.scratchRef.refName,
+    runtimeConformance.scratchHead,
+    runtimeConformance.status,
+  ].join('\0');
 }
 
 function runtimeConformanceFromProvider(
