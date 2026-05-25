@@ -172,8 +172,20 @@ function applyPropertyOperation(
     patch.setProperty(property.ownerId, property.propertyKey, value);
     return;
   }
-  const edge = decodeLegacyEdgePropNode(property.ownerId);
+  const edge = decodeEdgePropertyOwner(property.ownerId);
   patch.setEdgeProperty(edge.from, edge.to, edge.label, property.propertyKey, value);
+}
+
+function decodeEdgePropertyOwner(ownerId: string): {
+  readonly from: string;
+  readonly to: string;
+  readonly label: string;
+} {
+  try {
+    return decodeLegacyEdgePropNode(ownerId);
+  } catch {
+    throw invalidTarget('edge property owner target is malformed');
+  }
 }
 
 function sortedOperations(

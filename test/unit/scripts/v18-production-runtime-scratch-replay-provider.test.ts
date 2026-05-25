@@ -124,6 +124,28 @@ describe('v18 production runtime scratch replay provider', () => {
       'E_RUNTIME_REPLAY_INVALID_OPERATION_TARGET',
     ]);
   });
+
+  it('fails closed with invalid-target evidence for malformed edge-property owners', async () => {
+    const repositoryPath = await initializedRepository('git-warp-v18-runtime-replay-bad-edge-prop-');
+    const writeResult = await writeGraphModelMigrationScratchHistory({
+      repositoryPath,
+      scratchRefName: SCRATCH_REF,
+      patchPlan: patchPlan([
+        operation('property', 'edge-prop:bad', propertyTarget('\x01node:alpha', 'weight')),
+      ]),
+    });
+    const provider = createGraphModelMigrationProductionRuntimeConformanceProvider({
+      sourceRepositoryPath: repositoryPath,
+      graphId: GRAPH_ID,
+    });
+
+    const result = await provider(writeResult);
+
+    expect(result?.status).toBe(GRAPH_MODEL_MIGRATION_RUNTIME_CONFORMANCE_FAILED);
+    expect(result?.fatalErrors.map((notice) => notice.code)).toEqual([
+      'E_RUNTIME_REPLAY_INVALID_OPERATION_TARGET',
+    ]);
+  });
 });
 
 async function initializedRepository(prefix: string): Promise<string> {
