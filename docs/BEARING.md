@@ -151,18 +151,17 @@ The current v18 graph-model posture is:
   equivalent.
 - The migration command now has deterministic operator report formatting for
   planning, scratch, equivalence, and finalization evidence.
-- A non-finalizing migration command CLI wrapper now writes scratch history,
-  builds command-owned readings, emits the command report, and refuses live-ref
-  finalization flags.
-- V18 public-release blockers are now explicit: production-runtime scratch
-  replay, live finalization CLI design, wet-run fixture harnessing, generated
-  Continuum contract tie-back, and operator release notes.
+- A migration command CLI wrapper now writes scratch history, builds
+  command-owned readings, emits the command report, and permits live-ref
+  finalization only through a reviewed JSON request that matches observed
+  runtime evidence.
+- V18 release-candidate blockers are now explicit: full release-prep gates,
+  GitHub CI, package/versioning work, and residual raw content/property risk.
 
-That is useful progress, not a finish line. The repo still needs property
-projection beyond replay/serialization boundaries, production-runtime replay
-over migrated scratch history, wet-run migration proof from restored v17
-fixtures, generated Continuum contract evidence, and release documentation
-before v18 can make public compatibility claims.
+That is useful progress, not a finish line. The repo now has migration safety,
+wet-run proof, guarded finalization, generated Continuum contract tie-back,
+and a release-candidate packet. Public v18 still needs full release-prep
+gates, CI, package/tag work, and explicit residual-risk review.
 
 ## What Just Shipped
 
@@ -374,16 +373,15 @@ and wet-run fixture harnessing.
   map because historical replay tests carry pre-codec inline fixture classes
   that are not `PropValue`-honest enough for `LegacyPropertyValue`.
 - The v18 migration tool now opens migrated scratch history through the
-  production graph runtime during wet runs, but CLI live finalization still
-  needs explicit confirmation and report semantics.
-- Legacy readings from the v17 golden fixture are manifest-derived, not yet
-  produced by replaying the restored v17 graph through the public read path.
-- The command wrapper writes scratch history and reports evidence, but live-ref
-  finalization from the CLI is intentionally refused until confirmation and
-  operator-report semantics are designed.
-- Continuum/WARP Optic release claims still need generated contract evidence
-  tied to Wesley/Continuum artifacts, not just handwritten compatibility
-  doctrine.
+  production graph runtime during wet runs, but public release still needs the
+  full release-prep gate set on the eventual release branch.
+- Legacy readings from the v17 golden fixture now have restored public-read
+  construction, but broader non-fixture replay coverage remains future work.
+- The command wrapper can finalize through a reviewed JSON request, but the
+  public tag still needs CI and release-preflight validation.
+- Continuum/WARP Optic release claims now have generated contract evidence for
+  runtime-boundary graph-model migration, but native Continuum witnesshood is
+  still not claimed.
 
 ## Where We Are Heading
 
@@ -391,12 +389,12 @@ The remaining runway is no longer a five-slice tail. The next realistic plan
 is thirty slices. Some slices may collapse when evidence is in hand, but the
 release plan should assume the proof work is hard until it is proven easy.
 
-The first sixteen slices converted operation-derived confidence into
-production-runtime confidence, restored the v17 golden fixture, and drove the
-canonical wet-run report to zero public-read mismatches. The next goalpost is
-therefore live finalization readiness: confirmation artifacts, operator
-reports, and archive evidence. Generated Continuum/WARP Optic contract work
-resumes after the finalization path is guarded and reviewable.
+The first thirty slices converted operation-derived confidence into
+production-runtime confidence, restored the v17 golden fixture, drove the
+canonical wet-run report to zero public-read mismatches, guarded live
+finalization, tied graph-model migration to generated runtime-boundary
+contracts, and added the first `warp-ttd` generated-family smoke. The next
+goalpost is release-prep hardening rather than new feature expansion.
 
 ### Next Thirty-Slice Checklist
 
@@ -458,7 +456,8 @@ resumes after the finalization path is guarded and reviewable.
   [0241](design/0241-v18-coordinate-fact-export-raw-boundary-retirement/v18-coordinate-fact-export-raw-boundary-retirement.md).
 - [x] 94. Tighten the closeout audit to forbid the retired raw-boundary class:
   [0242](design/0242-v18-content-property-retirement-ratchet/v18-content-property-retirement-ratchet.md).
-- [ ] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.
+- [x] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence:
+  [0243](design/0243-v18-release-candidate-evidence/v18-release-candidate-evidence.md).
 
 ### Slice 82 Evidence
 
@@ -507,6 +506,8 @@ resumes after the finalization path is guarded and reviewable.
   transfer boundary.
 - The closeout audit now has a retired-boundary ratchet that fails if
   `CoordinateFactExport.ts` regains raw content/property spelling.
+- The v18 release-candidate evidence packet now names candidate scope,
+  inspectable evidence, go/no-go gates, public-tag gates, and residual risks.
 
 ### User Stories
 
@@ -737,4 +738,4 @@ and concrete checks live in `docs/invariants/`.
 - [x] 92. Replan with generated contract evidence in hand.
 - [x] 93. Reduce legacy content/property raw-boundary debt by one class.
 - [x] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
-- [ ] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.
+- [x] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.

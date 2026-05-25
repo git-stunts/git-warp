@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- V18 release-candidate evidence now records guarded CLI finalization,
+  zero-mismatch wet-run proof, runtime-boundary Continuum contract conformance,
+  `warp-ttd` generated-family smoke evidence, the retired raw-boundary
+  ratchet, remaining public-tag gates, and residual risks.
 - V18 migration evidence now includes a deterministic v17 golden graph-history
   fixture bundle, runtime-backed fixture manifest nouns, a manifest JSON
   adapter, and a restore validator that checks real `refs/warp/*` writer heads
