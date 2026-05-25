@@ -447,7 +447,8 @@ resumes after the finalization path is guarded and reviewable.
   [0236](design/0236-v18-generated-contract-inventory/v18-generated-contract-inventory.md).
 - [x] 89. Add generated Continuum contract fixture ingestion:
   [0237](design/0237-v18-runtime-boundary-fixture-ingestion/v18-runtime-boundary-fixture-ingestion.md).
-- [ ] 90. Add graph-model conformance checks against generated contracts.
+- [x] 90. Add graph-model conformance checks against generated contracts:
+  [0238](design/0238-v18-graph-model-contract-conformance/v18-graph-model-contract-conformance.md).
 - [ ] 91. Add a `warp-ttd` contract smoke over generated-family facts.
 - [ ] 92. Replan with generated contract evidence in hand.
 - [ ] 93. Reduce legacy content/property raw-boundary debt by one class.
@@ -484,6 +485,9 @@ resumes after the finalization path is guarded and reviewable.
   Wesley contract-design sources, and `warp-ttd` generated-family intake files.
 - A runtime-boundary generated fixture is now admitted through the Continuum
   artifact JSON adapter with `continuum-fixture` and `warp-ttd` targets.
+- Graph-model contract conformance now requires the runtime-boundary family,
+  schema, generated authority, `continuum-fixture` target, `warp-ttd` target,
+  and full v17 visible fact-family coverage.
 
 ### User Stories
 
@@ -709,7 +713,7 @@ and concrete checks live in `docs/invariants/`.
 - [x] 87. Add live-ref drift and existing-archive finalization tests.
 - [x] 88. Inventory current Wesley/Continuum generated graph contracts.
 - [x] 89. Add generated Continuum contract fixture ingestion.
-- [ ] 90. Add graph-model conformance checks against generated contracts.
+- [x] 90. Add graph-model conformance checks against generated contracts.
 - [ ] 91. Add a `warp-ttd` contract smoke over generated-family facts.
 - [ ] 92. Replan with generated contract evidence in hand.
 - [ ] 93. Reduce legacy content/property raw-boundary debt by one class.
