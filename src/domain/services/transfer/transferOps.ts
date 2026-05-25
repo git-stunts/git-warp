@@ -14,6 +14,11 @@ import {
   type VisibleStateReader,
 } from './transferKeys.ts';
 
+export const TRANSFER_OP_ATTACH_NODE_CONTENT = 'attach_node_content';
+export const TRANSFER_OP_CLEAR_NODE_CONTENT = 'clear_node_content';
+export const TRANSFER_OP_ATTACH_EDGE_CONTENT = 'attach_edge_content';
+export const TRANSFER_OP_CLEAR_EDGE_CONTENT = 'clear_edge_content';
+
 // ── Property ops ─────────────────────────────────────────────────────────────
 
 /**
@@ -150,7 +155,7 @@ export function buildNodeAttach(
   meta: ContentMeta,
 ): VisibleStateTransferOperationV1 {
   return {
-    op: 'attach_node_content',
+    op: TRANSFER_OP_ATTACH_NODE_CONTENT,
     nodeId,
     content,
     contentOid: meta.oid,
@@ -163,7 +168,7 @@ export function buildNodeAttach(
  * Build the clear operation for a single node's content.
  */
 export function buildNodeClear(nodeId: string): VisibleStateTransferOperationV1 {
-  return { op: 'clear_node_content', nodeId } as VisibleStateTransferOperationV1;
+  return { op: TRANSFER_OP_CLEAR_NODE_CONTENT, nodeId } as VisibleStateTransferOperationV1;
 }
 
 export type NodeContentOpsParams = {
@@ -229,7 +234,7 @@ export function buildEdgeAttach(
   meta: ContentMeta,
 ): VisibleStateTransferOperationV1 {
   return {
-    op: 'attach_edge_content',
+    op: TRANSFER_OP_ATTACH_EDGE_CONTENT,
     from: edge.from,
     to: edge.to,
     label: edge.label,
@@ -245,7 +250,7 @@ export function buildEdgeAttach(
  */
 export function buildEdgeClear(edge: EdgeRef): VisibleStateTransferOperationV1 {
   return {
-    op: 'clear_edge_content',
+    op: TRANSFER_OP_CLEAR_EDGE_CONTENT,
     from: edge.from,
     to: edge.to,
     label: edge.label,

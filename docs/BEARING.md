@@ -454,7 +454,8 @@ resumes after the finalization path is guarded and reviewable.
   [0239](design/0239-v18-warp-ttd-generated-family-smoke/v18-warp-ttd-generated-family-smoke.md).
 - [x] 92. Replan with generated contract evidence in hand:
   [0240](design/0240-v18-generated-contract-evidence-replan/v18-generated-contract-evidence-replan.md).
-- [ ] 93. Reduce legacy content/property raw-boundary debt by one class.
+- [x] 93. Reduce legacy content/property raw-boundary debt by one class:
+  [0241](design/0241-v18-coordinate-fact-export-raw-boundary-retirement/v18-coordinate-fact-export-raw-boundary-retirement.md).
 - [ ] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
 - [ ] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.
 
@@ -500,6 +501,9 @@ resumes after the finalization path is guarded and reviewable.
 - Evidence-backed replanning now narrows the release runway to one raw
   content/property boundary retirement, closeout audit tightening, and a v18
   release-candidate packet.
+- `CoordinateFactExport` no longer owns raw content operation spelling; the
+  spelling now lives behind transfer operation constants in the already-audited
+  transfer boundary.
 
 ### User Stories
 
@@ -728,6 +732,6 @@ and concrete checks live in `docs/invariants/`.
 - [x] 90. Add graph-model conformance checks against generated contracts.
 - [x] 91. Add a `warp-ttd` contract smoke over generated-family facts.
 - [x] 92. Replan with generated contract evidence in hand.
-- [ ] 93. Reduce legacy content/property raw-boundary debt by one class.
+- [x] 93. Reduce legacy content/property raw-boundary debt by one class.
 - [ ] 94. Tighten the closeout audit to forbid the retired raw-boundary class.
 - [ ] 95. Cut v18 release-candidate docs, changelog, and go/no-go evidence.

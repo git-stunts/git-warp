@@ -7,7 +7,6 @@ const DESIGN_DOC = 'docs/design/0203-v18-content-property-closeout-audit/v18-con
 const EXPECTED_RAW_COMPATIBILITY_FILES = Object.freeze([
   'src/domain/graph/LegacyContentPropertyKeys.ts',
   'src/domain/services/ContentAttachmentProjection.ts',
-  'src/domain/services/CoordinateFactExport.ts',
   'src/domain/services/ImmutableSnapshot.ts',
   'src/domain/services/JoinReducer.ts',
   'src/domain/services/KeyCodec.ts',
